@@ -332,7 +332,6 @@ CONTAINS
     DO ispin = 1,dft_control%nspins
        CALL get_mo_set(mo_set=mos(ispin)%mo_set,occupation_numbers=occupations )
        CALL cp_fm_column_scale(h1_psi0(ispin)%matrix,occupations)
-       write(*,*) 'occupations=',occupations
     ENDDO
     !
     !
@@ -346,7 +345,7 @@ CONTAINS
        CALL apply_op(b,Ab(:),p_env,qs_env,linres_control%do_kernel,error=error)
        !
        ! Apply the perturbative operator
-       DO ispin=1, dft_control%nspins
+       DO ispin=1,dft_control%nspins
           ! Multiply the left part of the equation by the occupation numbers
           CALL get_mo_set(mo_set=mos(ispin)%mo_set,occupation_numbers=occupations )
           CALL cp_fm_column_scale(Ab(ispin)%matrix,occupations)

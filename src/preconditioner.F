@@ -291,27 +291,32 @@ SUBROUTINE make_preconditioner_lr(preconditioner_env, precon_type, ev_h0,&
 
   SELECT CASE (precon_type)
   CASE (lr_precond_s_inverse)
-
-    preconditioner_env(1)%in_use=lr_precond_s_inverse
-    CALL get_matrix_info(matrix_s,nrow=n)
-
-    CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n,ncol_global=n,&
-                             context=preconditioner_env(1)%ctxt, &
-                             para_env=preconditioner_env(1)%para_env,error=error)
-    CALL cp_fm_create(preconditioner_env(1)%fm,fm_struct_tmp, name="preconditioner",error=error)
-    CALL cp_fm_create(fm_work,fm_struct_tmp, name="preconditioner_work",error=error)
-    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
-
-    CALL copy_sm_to_fm(matrix_s,preconditioner_env(1)%fm,error=error)
-    CALL cp_fm_cholesky_decompose(preconditioner_env(1)%fm,error=error)
-    CALL cp_fm_cholesky_invert(preconditioner_env(1)%fm,error=error)
-    CALL cp_fm_upper_to_full(preconditioner_env(1)%fm,fm_work,error=error) ! symmetrizing makes the apply_ up to 50 percent faster
-    CALL cp_fm_release(fm_work,error=error)
-    IF(nspins==2)THEN
-      preconditioner_env(2)%fm => preconditioner_env(1)%fm
-      preconditioner_env(2)%in_use=lr_precond_s_inverse
-    END IF
-
+       preconditioner_env(1)%in_use=lr_precond_s_inverse
+       CALL get_matrix_info(matrix_s,nrow=n)
+       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n,ncol_global=n,&
+                                context=preconditioner_env(1)%ctxt, &
+                                para_env=preconditioner_env(1)%para_env,error=error)
+       CALL cp_fm_create(preconditioner_env(1)%fm,fm_struct_tmp, name="preconditioner",error=error)
+       CALL cp_fm_create(fm_work,fm_struct_tmp, name="preconditioner_work",error=error)
+       CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+       CALL copy_sm_to_fm(matrix_s,preconditioner_env(1)%fm,error=error)
+       CALL cp_fm_cholesky_decompose(preconditioner_env(1)%fm,error=error)
+       CALL cp_fm_cholesky_invert(preconditioner_env(1)%fm,error=error)
+       CALL cp_fm_upper_to_full(preconditioner_env(1)%fm,fm_work,error=error) ! symmetrizing makes the apply_ up to 50 percent faster
+       CALL cp_fm_release(fm_work,error=error)
+       DO ispin = 2,nspins
+          preconditioner_env(ispin)%in_use=lr_precond_s_inverse
+          CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n,ncol_global=n,&
+                                   context=preconditioner_env(ispin)%ctxt, &
+                                   para_env=preconditioner_env(ispin)%para_env,error=error)
+          CALL cp_fm_create(preconditioner_env(ispin)%fm,fm_struct_tmp, name="preconditioner",error=error)
+          CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+          CALL cp_fm_to_fm(preconditioner_env(1)%fm,preconditioner_env(ispin)%fm,error=error)
+       ENDDO
+!    IF(nspins==2)THEN
+!      preconditioner_env(2)%fm => preconditioner_env(1)%fm
+!      preconditioner_env(2)%in_use=lr_precond_s_inverse
+!    END IF
   CASE (lr_precond_h0_inverse)
 
     DO ispin = 1,nspins

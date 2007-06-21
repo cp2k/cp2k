@@ -147,7 +147,7 @@ CONTAINS
                                                 istate2, nao, ncubes, nmo, &
                                                 nstates(2), output_unit
     INTEGER, DIMENSION(:), POINTER           :: list_cubes
-    INTEGER, DIMENSION(:, :), POINTER        :: statetrueindex
+    INTEGER, DIMENSION(:,:,:), POINTER       :: statetrueindex
     LOGICAL                                  :: failure, ionode
     REAL(dp)                                 :: dk(3), dkl(3), dl(3)
     REAL(dp), DIMENSION(:), POINTER          :: dkl_vec_ii, dkl_vec_iii
@@ -156,15 +156,14 @@ CONTAINS
     TYPE(cp_2d_r_p_type), DIMENSION(:), &
          POINTER                             :: centers_set
     TYPE(cp_fm_p_type), DIMENSION(:), &
-         POINTER                             :: h1_psi0, psi1
+         POINTER                             :: h1_psi0, psi1, fm_work_ii, fm_work_iii
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
          POINTER                             :: p_psi0, psi1_D, psi1_p, &
                                                 psi1_rxp, rxp_psi0
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
          POINTER                             :: ao_mo_fm_pools
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
-    TYPE(cp_fm_type), POINTER                :: fm_work_ii, fm_work_iii, &
-                                                mo_coeff
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -306,10 +305,11 @@ CONTAINS
           DO ispin = 1,dft_control%nspins
              CALL cp_fm_to_fm(rxp_psi0(ispin,idir)%matrix,h1_psi0(ispin)%matrix,error=error)
           ENDDO
-
+          !
+          ! 
           linres_control%converged = .FALSE.
           CALL linres_scf(p_env,qs_env,psi1,h1_psi0,error=error)
-
+          !
           IF(output_unit>0) THEN
              WRITE(output_unit,'(T10,A,E24.16)') 'Second order energy L_'//ACHAR(idir+119)//'=',&
                   & p_env%etotal
@@ -320,7 +320,7 @@ CONTAINS
              WRITE(output_unit,"(T10,A)")&
                   & "Store the psi1 for the calculation of the response current density "
           ENDIF
-          DO ispin=1, dft_control%nspins
+          DO ispin=1,dft_control%nspins
              CALL cp_fm_to_fm(psi1(ispin)%matrix,psi1_rxp(ispin,idir)%matrix,error=error)
           ENDDO
           !
@@ -346,7 +346,7 @@ CONTAINS
           !CALL nmr_restart_nmr(nmr_env,qs_env,action="write",ivec=idir+3,error=error)
        ENDIF
     ENDDO ! idir
-
+    !
     ! operator D
     IF(nmr_env%full_nmr) THEN
        DO ispin = 1,dft_control%nspins
@@ -355,46 +355,69 @@ CONTAINS
              CALL cp_fm_set_all(psi1_D(ispin,idir)%matrix,0.0_dp,error=error)
           ENDDO
        ENDDO
-
+       !
        ! The correction is state depedent a loop over the states is necessary
        ALLOCATE(vecbuf_dklxp0(1,nao),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        vecbuf_dklxp0(1,nao) = 0.0_dp
-
-       DO ispin=1,dft_control%nspins
-
+       !
+       ALLOCATE(fm_work_ii(dft_control%nspins),fm_work_iii(dft_control%nspins),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       DO ispin = 1,dft_control%nspins
           CALL get_mo_set(mo_set=mos(ispin)%mo_set,nmo=nmo,homo=homo,mo_coeff=mo_coeff)
-          NULLIFY(tmp_fm_struct,fm_work_ii,fm_work_iii)
+          NULLIFY(tmp_fm_struct,fm_work_ii(ispin)%matrix,fm_work_iii(ispin)%matrix)
           CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
-                                   ncol_global=nmo,para_env=para_env,&
-                                   context=mo_coeff%matrix_struct%context,error=error)
-          CALL cp_fm_create(fm_work_ii,tmp_fm_struct,error=error)
-          CALL cp_fm_set_all(fm_work_ii,0.0_dp,error=error)
-          CALL cp_fm_create(fm_work_iii,tmp_fm_struct,error=error)
-          CALL cp_fm_set_all(fm_work_iii,0.0_dp,error=error)
-          CALL cp_fm_struct_release(tmp_fm_struct,error=error)
+               &                   ncol_global=nmo,para_env=para_env,&
+               &                   context=mo_coeff%matrix_struct%context,&
+               &                   error=error)
 
-          ALLOCATE(dkl_vec_ii(nstates(ispin)),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(dkl_vec_iii(nstates(ispin)),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-          DO idir = 1,3
-             DO istate = 1,nstates(ispin)
-                !vw statetrueindex should depend on istate wv!
-                ist_true = statetrueindex(idir,istate)
-                !the initial guess is the previous set of psi1, just optimized
+          CALL cp_fm_create(fm_work_ii(ispin)%matrix,tmp_fm_struct,error=error)
+          CALL cp_fm_set_all(fm_work_ii(ispin)%matrix,0.0_dp,error=error)
+          CALL cp_fm_create(fm_work_iii(ispin)%matrix,tmp_fm_struct,error=error)
+          CALL cp_fm_set_all(fm_work_iii(ispin)%matrix,0.0_dp,error=error)
+
+          CALL cp_fm_struct_release(tmp_fm_struct,error=error)
+       ENDDO ! ispin
+       !
+       ALLOCATE(dkl_vec_ii(MAXVAL(nstates)),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(dkl_vec_iii(MAXVAL(nstates)),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+       DO idir = 1,3
+          !
+          ! here we run over the max number of states, then we need 
+          ! to be careful with overflow while doing uks calculations.
+          DO istate = 1,MAXVAL(nstates) !nstates(ispin)
+             !
+             IF(output_unit>0) THEN
+                WRITE(output_unit,"(T10,A,I4,A)")&
+                     & "Response to the perturbation operator (dk-dl)xp for -state- ",&
+                     & istate," in dir. "//ACHAR(idir+119)
+             ENDIF
+             !
+             DO ispin = 1,dft_control%nspins
+                !
+                ! take care that no overflow can occur for uks
+                IF(istate.GT.nstates(ispin)) THEN
+                   !
+                   ! set h1_psi0 and psi1 to zero to avoid problems in linres_scf
+                   CALL cp_fm_set_all(h1_psi0(ispin)%matrix,0.0_dp,error=error)
+                   CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
+                   CYCLE
+                ENDIF
+                !
+                dkl_vec_ii (:)=0.0_dp
+                dkl_vec_iii(:)=0.0_dp
+                !
+                ist_true = statetrueindex(idir,istate,ispin)
+                !
+                ! the initial guess is the previous set of psi1, just optimized
                 CALL set_vecp(idir,ii,iii)
                 dk(1:3) = centers_set(ispin)%array(1:3,ist_true)
                 !
-                IF(output_unit>0) THEN
-                   WRITE(output_unit,"(T10,A,I4,A)")&
-                        & "Response to the perturbation operator (dk-dl)xp for the k state ",&
-                        & istate, " in dir. "//ACHAR(idir+119)
-                ENDIF
-                !
                 DO istate2 = 1,nstates(ispin)
-                   !ist_true = statetrueindex(idir,istate2)
-                   dl(1:3)  = centers_set(ispin)%array(1:3,istate2)
+                   dl(1:3) = centers_set(ispin)%array(1:3,istate2)
                    dkl = pbc(dl,dk,cell)
                    dkl_vec_ii(istate2)  = dkl(ii)
                    dkl_vec_iii(istate2) = dkl(iii)
@@ -402,73 +425,108 @@ CONTAINS
                 !
                 ! First term
                 ! Rescale the ground state orbitals by (dk-dl)_ii
-                CALL cp_fm_to_fm(mo_coeff,fm_work_ii,error=error)
-                CALL cp_fm_column_scale(fm_work_ii,dkl_vec_ii(1:homo))
+                CALL get_mo_set(mo_set=mos(ispin)%mo_set,nmo=nmo,homo=homo,mo_coeff=mo_coeff)
+                CALL cp_fm_to_fm(mo_coeff,fm_work_ii(ispin)%matrix,error=error)
+                CALL cp_fm_column_scale(fm_work_ii(ispin)%matrix,dkl_vec_ii(1:homo))
+                !
                 ! Apply the p_iii operator
-                CALL cp_sm_fm_multiply(nmr_env%op_p_ao(iii)%matrix,fm_work_ii,&
-                                       fm_work_iii,ncol=nmo,alpha=-1.0_dp,error=error)
+                ! fm_work_iii = -p_iii * (dk-dl)_ii * C0
+                CALL cp_sm_fm_multiply(nmr_env%op_p_ao(iii)%matrix,fm_work_ii(ispin)%matrix,&
+                     &                 fm_work_iii(ispin)%matrix,ncol=nmo,alpha=-1.0_dp,&
+                     &                 error=error)
+                !
                 ! Copy in h1_psi0
-                CALL cp_fm_to_fm(fm_work_iii,h1_psi0(ispin)%matrix,error=error)
+                ! h1_psi0_i = fm_work_iii
+                CALL cp_fm_to_fm(fm_work_iii(ispin)%matrix,h1_psi0(ispin)%matrix,error=error)
+                !
                 ! Second term
                 ! Rescale the ground state orbitals by (dk-dl)_iii
-                CALL cp_fm_to_fm(mo_coeff,fm_work_iii,error=error)
-                CALL cp_fm_column_scale(fm_work_iii,dkl_vec_iii(1:homo))
+                CALL cp_fm_to_fm(mo_coeff,fm_work_iii(ispin)%matrix,error=error)
+                CALL cp_fm_column_scale(fm_work_iii(ispin)%matrix,dkl_vec_iii(1:homo))
+                !
                 ! Apply the p_ii operator
-                CALL cp_sm_fm_multiply(nmr_env%op_p_ao(ii)%matrix,fm_work_iii,&
-                                       fm_work_ii,ncol=nmo,alpha=-1.0_dp,error=error)
+                ! fm_work_ii = -p_ii * (dk-dl)_iii * C0
+                CALL cp_sm_fm_multiply(nmr_env%op_p_ao(ii)%matrix,fm_work_iii(ispin)%matrix,&
+                     &                 fm_work_ii(ispin)%matrix,ncol=nmo,alpha=-1.0_dp,&
+                     &                 error=error)
+                !
                 ! Copy in h1_psi0
+                ! h1_psi0_i = fm_work_iii - fm_work_ii
                 CALL cp_fm_scale_and_add(1.0_dp,h1_psi0(ispin)%matrix,&
-                                        -1.0_dp,fm_work_ii,error=error)
-                ! Optimize the response wavefunctions
-                CALL linres_scf(p_env, qs_env, psi1, h1_psi0,error=error)
-
-                IF(output_unit>0) THEN
-                   WRITE(output_unit,'(T10,A,I4,A,E24.16)') 'Second order energy D_'//ACHAR(idir+119)//&
-                        & ' for state ',ist_true,'=',p_env%etotal
-                   WRITE(output_unit,"(T10,A,/)")&
-                        & "Store the psi1 vector for the calculation of the response current density "
-                ENDIF
-                ! the optimized wfns are copied in the  fm
+                     &                  -1.0_dp,fm_work_ii(ispin)%matrix,&
+                     &                   error=error)
+             ENDDO
+             !
+             ! Optimize the response wavefunctions
+             CALL linres_scf(p_env,qs_env,psi1,h1_psi0,error=error)
+             !
+             IF(output_unit>0) THEN
+                WRITE(output_unit,'(T10,A,I4,A,E24.16)') 'Second order energy D_'//ACHAR(idir+119)//&
+                     & ' for -state- ',istate,'=',p_env%etotal
+                WRITE(output_unit,"(T10,A,/)")&
+                     & "Store the psi1 vector for the calculation of the response current density "
+             ENDIF
+             !
+             DO ispin = 1,dft_control%nspins
+                !
+                ! take care that no overflow can occur for uks
+                IF(istate.GT.nstates(ispin)) CYCLE
+                !
+                ! need to reset those guys
+                CALL get_mo_set(mo_set=mos(ispin)%mo_set,nmo=nmo,homo=homo)
+                ist_true = statetrueindex(idir,istate,ispin)
+                !
+                ! the optimized wfns are copied in the fm
                 CALL cp_fm_get_submatrix(psi1(ispin)%matrix,vecbuf_dklxp0 ,&
                      &                   1,ist_true,nao,1,transpose=.TRUE.,&
                      &                   error=error)
-                CALL cp_fm_set_submatrix(psi1_D(ispin,idir)%matrix, vecbuf_dklxp0,&
+                CALL cp_fm_set_submatrix(psi1_D(ispin,idir)%matrix,vecbuf_dklxp0,&
                      &                   1,ist_true,nao,1,transpose=.TRUE.,&
                      &                   error=error)
                 nmr_env%fullnmr_done(idir*ispin,istate) = .TRUE.
-                !
-             ENDDO ! istate
+             ENDDO ! ispin
              !
-             ! print response functions
-             IF(BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
-                  &   "PRINT%RESPONSE_FUNCTION_CUBES",error=error),cp_p_file)) THEN
-                ncubes = SIZE(list_cubes,1)
+          ENDDO ! istate
+          !
+          ! print response functions
+          IF(BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
+               &   "PRINT%RESPONSE_FUNCTION_CUBES",error=error),cp_p_file)) THEN
+             ncubes = SIZE(list_cubes,1)
+             DO ispin = 1,dft_control%nspins
                 CALL qs_print_cubes(qs_env,psi1_D(ispin,idir)%matrix,&
                      &              ncubes,list_cubes,&
                      &              centers_set(ispin)%array,ionode,'psi1_D',&
                      &              idir=idir,ispin=ispin,stride=section_get_ival(nmr_section,&
                      &              "PRINT%RESPONSE_FUNCTION_CUBES%STRIDE",error=error),&
                      &              error=error)
-             ENDIF ! print response functions
-             ! CALL nmr_restart_nmr(nmr_env,qs_env,action="write",ivec=idir+6,error=error)
-          ENDDO ! idir
-          !
-          ! clean up
-          CALL cp_fm_release(fm_work_ii,error=error)
-          CALL cp_fm_release(fm_work_iii,error=error)
-          DEALLOCATE(dkl_vec_ii,dkl_vec_iii,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       ENDDO ! ispin
+             ENDDO
+          ENDIF ! print response functions
+          ! CALL nmr_restart_nmr(nmr_env,qs_env,action="write",ivec=idir+6,error=error)
+       ENDDO ! idir
        !
        ! clean up
+       DO ispin = 1,dft_control%nspins
+          CALL cp_fm_release(fm_work_ii(ispin)%matrix,error=error)
+          CALL cp_fm_release(fm_work_iii(ispin)%matrix,error=error)
+       ENDDO
+       DEALLOCATE(fm_work_ii,fm_work_iii,dkl_vec_ii,dkl_vec_iii,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(vecbuf_dklxp0,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       !DO ispin = 1,dft_control%nspins
+       !   DO idir = 1,3
+       !      CALL cp_fm_set_all(psi1_D(ispin,idir)%matrix,0.0_dp,error=error)
+       !   ENDDO
+       !ENDDO
     ENDIF
     !
     !If current density and shift are calculated here
     ! probably a lot of memory is required
     ! Better to free what is not anymore necessary in p_env
+
+write(*,*) 'enter p_env_release'
     CALL p_env_release(p_env,error=error)
+write(*,*) 'exit p_env_release'
     !
     !Calculate current density and induced field
     CALL nmr_response_current(nmr_env,qs_env,psi1,h1_psi0,error=error)
@@ -518,7 +576,7 @@ CONTAINS
     CHARACTER(LEN=2)                         :: label
     CHARACTER(LEN=default_string_length)     :: nics_file_name
     INTEGER :: handle, homo, i_B, icount, idir, ini, ir, ispin, istat, &
-         istate, istate2, istate_next, j, k, n_mo(2), n_rep, nao, nat_print, &
+         istate, istate2, istate_next, j, k, n_mo(2), n_rep, nao, nmo, nat_print, &
          natom, ncubes, nmoloc, nspins, nstates, output_unit
     INTEGER, DIMENSION(:), POINTER           :: bounds, list
     LOGICAL                                  :: failure, gapw, my_end
@@ -649,52 +707,55 @@ CONTAINS
        nstates = MAX(nstates,homo)
     ENDDO
     nmr_env%nao =nao
-    ALLOCATE(nmr_env%statetrueindex(3,nstates),STAT=istat)
+    ALLOCATE(nmr_env%statetrueindex(3,nstates,nspins),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     nmr_env%statetrueindex = 0
     ALLOCATE(state_done(3,nstates),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    state_done = .FALSE.
 
-    nmr_env%statetrueindex(1,1) = 1
-    center(1)  = nmr_env%centers_set(1)%array(1,1)
-    center(2)  = nmr_env%centers_set(1)%array(2,1)
-    center(3)  = nmr_env%centers_set(1)%array(3,1)
-    state_done(1,1) = .TRUE.
-    icount = 1
-
-    DO idir = 1,3
-       ini = 1
-       IF(idir == 1) ini = 2
-       DO istate = ini, nstates
-          mdist = 100.0_dp
-          
-          DO istate2 = 1,nstates
-             IF(.NOT.state_done(idir,istate2)) THEN
-                center2(1)  = nmr_env%centers_set(1)%array(1,istate2)
-                center2(2)  = nmr_env%centers_set(1)%array(2,istate2)
-                center2(3)  = nmr_env%centers_set(1)%array(3,istate2)
-                
-                rab = pbc(center,center2,cell)
-                CALL set_vecp(idir,j,k)
-                dist = SQRT(rab(j)*rab(j)+rab(k)*rab(k))
-
-                IF(dist .LT. mdist) THEN
-                   mdist =dist
-                   istate_next = istate2
+    DO ispin = 1,nspins
+       state_done(:,:) = .FALSE.
+       nmr_env%statetrueindex(1,1,ispin) = 1
+       center(1) = nmr_env%centers_set(ispin)%array(1,1)
+       center(2) = nmr_env%centers_set(ispin)%array(2,1)
+       center(3) = nmr_env%centers_set(ispin)%array(3,1)
+       state_done(1,1) = .TRUE.
+       icount = 1
+       CALL get_mo_set(mo_set=mos(ispin)%mo_set,nmo=nmo,homo=homo)
+       !
+       DO idir = 1,3
+          ini = 1
+          IF(idir == 1) ini = 2
+          DO istate = ini,nmo
+             mdist = 100.0_dp
+             !
+             DO istate2 = 1,nmo
+                IF(.NOT.state_done(idir,istate2)) THEN
+                   center2(1) = nmr_env%centers_set(ispin)%array(1,istate2)
+                   center2(2) = nmr_env%centers_set(ispin)%array(2,istate2)
+                   center2(3) = nmr_env%centers_set(ispin)%array(3,istate2)
+                   !
+                   rab = pbc(center,center2,cell)
+                   CALL set_vecp(idir,j,k)
+                   dist = SQRT(rab(j)*rab(j)+rab(k)*rab(k))
+                   !
+                   IF(dist .LT. mdist) THEN
+                      mdist =dist
+                      istate_next = istate2
+                   ENDIF
                 ENDIF
-             ENDIF
-          ENDDO  ! istate2
-
-          icount = icount + 1
-          state_done(idir,istate_next) = .TRUE.
-          nmr_env%statetrueindex(idir,icount) = istate_next
-          center(1)  = nmr_env%centers_set(1)%array(1,istate_next)
-          center(2)  = nmr_env%centers_set(1)%array(2,istate_next)
-          center(3)  = nmr_env%centers_set(1)%array(3,istate_next)
-       ENDDO  ! istate
-       icount = 0
-    ENDDO  ! idir
+             ENDDO ! istate2
+             !
+             icount = icount + 1
+             state_done(idir,istate_next) = .TRUE.
+             nmr_env%statetrueindex(idir,icount,ispin) = istate_next
+             center(1) = nmr_env%centers_set(ispin)%array(1,istate_next)
+             center(2) = nmr_env%centers_set(ispin)%array(2,istate_next)
+             center(3) = nmr_env%centers_set(ispin)%array(3,istate_next)
+          ENDDO ! istate
+          icount = 0
+       ENDDO ! idir
+    ENDDO
     DEALLOCATE(state_done,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     !

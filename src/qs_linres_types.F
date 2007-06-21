@@ -136,7 +136,7 @@ MODULE qs_linres_types
      INTEGER, DIMENSION(:), POINTER              :: list_cubes
      INTEGER, DIMENSION(:), POINTER              :: cs_atom_list
      INTEGER, DIMENSION(:), POINTER              :: do_calc_cs_atom
-     INTEGER, DIMENSION(:,:), POINTER            :: statetrueindex
+     INTEGER, DIMENSION(:,:,:), POINTER          :: statetrueindex
      LOGICAL                                     :: do_nics,&
                                                     full_nmr,simplenmr_done(6),&
                                                     simplenmr_converged(6),&
@@ -471,7 +471,7 @@ CONTAINS
     REAL(dp), INTENT(out), OPTIONAL          :: chi_tensor(3,3)
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: list_cubes, cs_atom_list, &
                                                 do_calc_cs_atom
-    INTEGER, DIMENSION(:, :), OPTIONAL, &
+    INTEGER, DIMENSION(:,:,:), OPTIONAL, &
       POINTER                                :: statetrueindex
     REAL(dp), INTENT(out), OPTIONAL          :: chi_tensor_loc(3,3)
     REAL(dp), DIMENSION(:, :), OPTIONAL, &
