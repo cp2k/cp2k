@@ -1,5 +1,6 @@
 #JAC 
 JAC.inp                   2
+JAC_us.inp                2
 #vibrational analysis
 wat_freq.inp              8
 wat_freq_norot.inp        8

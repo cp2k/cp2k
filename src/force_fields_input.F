@@ -56,10 +56,11 @@ MODULE force_fields_input
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_bcast
   USE pair_potential_types,            ONLY: &
-       b4_type, bm_type, ea_type, eam_pot_type, ft_type, gp_type, gw_type, &
-       ip_type, lj_charmm_type, pair_potential_p_type, &
-       pair_potential_reallocate, pair_potential_single_type, tersoff_type, &
-       wl_type
+       b4_type, bm_type, do_potential_single_allocation, ea_type, &
+       eam_pot_type, ft_type, gp_type, gw_type, ip_type, lj_charmm_type, &
+       no_potential_single_allocation, pair_potential_p_type, &
+       pair_potential_reallocate, pair_potential_single_type, &
+       potential_single_allocation, tersoff_type, wl_type
   USE physcon,                         ONLY: bohr
   USE shell_potential_types,           ONLY: shell_p_create,&
                                              shell_p_type
@@ -118,7 +119,8 @@ CONTAINS
 
     INTEGER :: nb4, nbends, nbm, nbmhft, nbonds, nchg, neam, ngd, ngp, nipbv, &
       nlj, nshell, ntersoff, ntors, ntot, nubs, nwl
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit, failure, &
+                                                unique_spline
     TYPE(input_info_type), POINTER           :: inp_info
     TYPE(section_vals_type), POINTER         :: tmp_section, tmp_section2
 
@@ -136,6 +138,10 @@ CONTAINS
        CALL section_vals_val_get(ff_section,"SPLINE%EMAX_SPLINE",r_val=ff_type%emax_spline,error=error)
        CALL section_vals_val_get(ff_section,"SPLINE%EMAX_ACCURACY",r_val=ff_type%max_energy,error=error)
        CALL section_vals_val_get(ff_section,"SCALE_CUTOFF",l_val=ff_type%scale_cutoff,error=error)
+       CALL section_vals_val_get(ff_section,"SPLINE%UNIQUE_SPLINE",l_val=unique_spline,error=error)
+       ! Single spline
+       potential_single_allocation = no_potential_single_allocation
+       IF (unique_spline) potential_single_allocation = do_potential_single_allocation
 
        CALL section_vals_val_get(ff_section,"NONBONDED",l_val=ff_type%nonbonded,error=error)
        tmp_section  => section_vals_get_subs_vals(ff_section,"NONBONDED",error=error)
@@ -2177,7 +2183,6 @@ CONTAINS
     CHARACTER(LEN=1), PARAMETER              :: continuation_char = "-"
 
     INTEGER                                  :: i, len_line
-
 
     DO i = 1, nline
        len_line = LEN_TRIM(parser%input_line)

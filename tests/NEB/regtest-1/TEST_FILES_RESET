@@ -10,3 +10,7 @@
 2gly_IT-NEB.inp
 # faster bonded correct gaussian and bug fix for stress tensor in shell model
 2gly_CI-NEB.inp
+# new unique spline generation for LJ. bugfix for cutoff shell model
+2gly_B-NEB.inp
+2gly_IT-NEB.inp
+2gly_CI-NEB.inp

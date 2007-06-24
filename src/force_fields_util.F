@@ -64,7 +64,7 @@ MODULE force_fields_util
   USE pair_potential_types,            ONLY: pair_potential_pp_type
   USE particle_types,                  ONLY: particle_type
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
-  USE splines,                         ONLY: spline_data_type,&
+  USE splines_types,                   ONLY: spline_data_type,&
                                              spline_env_release,&
                                              spline_environment_type
   USE termination,                     ONLY: stop_program

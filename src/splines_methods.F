@@ -1,0 +1,291 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2007  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
+!!****h* cp2k/splines_methods [1.0] *
+!!
+!!   NAME
+!!     splines_methods
+!!
+!!   FUNCTION
+!!     routines for handling splines
+!!
+!!   AUTHOR
+!!     various
+!!
+!!   MODIFICATION HISTORY
+!!     2001-09-21-HAF added this doc entry and changed formatting
+!!
+!!   SOURCE
+!******************************************************************************
+
+MODULE splines_methods
+
+  USE kinds,                           ONLY: dp
+  USE splines_types,                   ONLY: spline_data_p_type,&
+                                             spline_data_type,&
+                                             spline_factor_type
+  USE termination,                     ONLY: stop_memory
+#include "cp_common_uses.h"
+
+  IMPLICIT NONE
+
+  PRIVATE
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'splines_methods'
+  INTEGER, PRIVATE, SAVE :: last_spline_env_id_nr=0
+  INTEGER, PRIVATE, SAVE :: last_spline_data_id_nr=0
+
+  PUBLIC :: init_splinexy    ! allocates x and y vectors for splines
+  PUBLIC :: init_spline      ! generate table for spline (allocates y2)
+  PUBLIC :: potential_s      ! return value of spline and 1. derivative
+                             ! without checks (fast routine for pair_potential)
+CONTAINS
+
+  !******************************************************************************
+  !!****m* splines_methods/init_splinexy [1.0] *
+  !!
+  !!   NAME
+  !!     init_splinexy
+  !!
+  !!   FUNCTION
+  !!     allocates storage for function table to be interpolated
+  !!     both x and y are allocated
+  !!
+  !!   AUTHOR
+  !!     unknown
+  !!
+  !!   INPUTS
+  !!     spl : spline_data structure to be initialized
+  !!     nn  : integer number of datapoints, that the function table will hold
+  !!
+  !!   MODIFICATION HISTORY
+  !!     2001-09-21-HAF added this doc entry and changed formatting
+  !!
+  !!   SOURCE
+  !******************************************************************************
+  SUBROUTINE init_splinexy ( spl, nn )
+
+
+    TYPE(spline_data_type), POINTER          :: spl
+    INTEGER, INTENT(IN)                      :: nn
+
+    INTEGER                                  :: err
+
+    spl % n = nn
+    IF ( ASSOCIATED ( spl % x ) ) THEN
+       DEALLOCATE ( spl % x, STAT = err )
+       IF ( err /= 0 ) CALL stop_memory ( 'init_splinexy', 'spl%x')
+       NULLIFY ( spl % x )
+    END IF
+
+    IF ( ASSOCIATED ( spl % y ) ) THEN
+       DEALLOCATE ( spl % y, STAT = err )
+       IF ( err /= 0 ) CALL stop_memory ( 'init_splinexy', 'spl%y')
+       NULLIFY ( spl % y )
+    END IF
+
+    ALLOCATE ( spl % x ( 1:nn ), STAT = err )
+    IF ( err /= 0 ) CALL stop_memory ( 'init_splinexy', 'spl%x', nn )
+
+    ALLOCATE ( spl % y ( 1:nn ), STAT = err )
+    IF ( err /= 0 ) CALL stop_memory ( 'init_splinexy', 'spl%y', nn)
+
+  END SUBROUTINE init_splinexy
+
+  !******************************************************************************
+  !!****
+  !!****m* splines_methods/init_spline [1.0] *
+  !!
+  !!   NAME
+  !!     init_spline
+  !!
+  !!   FUNCTION
+  !!     allocates storage for y2 table
+  !!     calculates y2 table and other spline parameters
+  !!
+  !!   AUTHOR
+  !!     unknown
+  !!
+  !!   INPUTS
+  !!     spl : spline_data structure to be initialized
+  !!                      spl%y() must hold the function values
+  !!                      spl%x() must hold the absissa values in increasing
+  !!                      order OR if dx (below) is given, spl%x(1) must hold
+  !!                      the starting (left-most) point.
+  !!     dx  :            x(i) are assumed to be x(1)+dx*(i-1)
+  !!                      (spline evaluations will also be faster)
+  !!     y1a : (OPTIONAL) if present, the 1-deriv of the left endpoint
+  !!                      if not present, natural spline condition at this end
+  !!                      (2-deriv == 0)
+  !!     y1b : (OPTIONAL) if present, the 1-deriv of the right endpoint
+  !!                      if not present, natural spline condition at this end
+  !!                      (2-deriv == 0)
+  !!
+  !!   EXAMPLES
+  !!     CALL init_spline(spline,dx=0.1_dp)
+  !!     CALL init_spline(spline,y1b=0.0_dp)
+  !!     CALL init_spline(spline,0.1_dp,0.0_dp,0.0_dp)
+  !!
+  !!   NOTES
+  !!     if dx is given, the x array will be used as y2 array instead of
+  !!     allocating a new array. (y2 will become x, and x will be nullified)
+  !!
+  !!   MODIFICATION HISTORY
+  !!     2001-09-21-HAF added this doc entry and changed formatting
+  !!     2001-09-24-HAF changed interface and re-written
+  !!
+  !!   SOURCE
+  !******************************************************************************
+
+  SUBROUTINE init_spline ( spl, dx, y1a, y1b, ei_scale14, ei_cutoff14, dual)
+
+    TYPE(spline_data_type), POINTER          :: spl
+    REAL(KIND=dp), INTENT(IN)                :: dx
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: y1a, y1b, ei_scale14, &
+                                                ei_cutoff14
+    LOGICAL, INTENT(IN), OPTIONAL            :: dual
+
+    INTEGER                                  :: err, i, n
+    REAL(KIND=dp)                            :: p, s
+    REAL(KIND=dp), POINTER                   :: ww( : )
+
+    IF ( ASSOCIATED ( spl%y2)) THEN
+       DEALLOCATE (spl%y2,STAT=err)
+       IF (err /= 0 ) CALL stop_memory ( 'init_spline','spl%y2')
+       NULLIFY (spl%y2)
+    END IF
+
+    n        = spl%n
+    spl%x1   = spl%x(1)
+    spl%xn   = spl%x(1)+ (n-1)*dx
+    spl%pos  = 1
+    spl%h    = dx
+    spl%invh = 1.0_dp/dx
+    spl%h26  = dx**2 / 6.0_dp
+    spl%y2   => spl%x
+    spl%ei_scale14  = HUGE(0.0_dp)
+    spl%ei_cutoff14 = HUGE(0.0_dp)
+    IF (PRESENT(ei_scale14 )) spl%ei_scale14  = ei_scale14
+    IF (PRESENT(ei_cutoff14)) spl%ei_cutoff14 = ei_cutoff14
+    IF (PRESENT(dual)) spl%dual = dual
+    NULLIFY (spl%x)
+    ALLOCATE (ww(1:n),STAT=err)
+    IF ( err /= 0 ) CALL stop_memory ( 'init_spline', 'ww', spl%n )
+    IF (PRESENT(y1a)) THEN
+       spl%y2(1) = -0.5_dp
+       ww(1) = 3.0_dp * ((spl%y(2)-spl%y(1))/dx - y1a)/dx
+    ELSE
+       spl%y2(1) = 0.0_dp
+       ww(1)       = 0.0_dp
+    END IF
+    DO i = 2, n - 1
+       s = 0.5_dp
+       p = 0.5_dp * spl%y2(i-1) + 2.0_dp
+       spl%y2(i) = - 0.5_dp / p
+       ww(i) = ( 3.0_dp*( spl%y(i+1)-2.0_dp*spl%y(i)+spl%y(i-1) )/(dx*dx) &
+            - 0.5_dp*ww(i-1) )/p
+    END DO
+    IF (PRESENT( y1b )) THEN
+       spl%y2(n) = ( 3.0_dp * (y1b - (spl%y(n)-spl%y(n-1)) / dx ) / dx - &
+            0.5_dp * ww(n-1) ) / ( 0.5_dp * spl%y2(n-1) + 1.0_dp )
+    ELSE
+       spl%y2(n) = 0.0_dp
+    END IF
+    DO i = n-1, 1, -1
+       spl%y2(i) = spl%y2(i) * spl%y2(i+1) + ww(i)
+    END DO
+    DEALLOCATE (ww,STAT=err)
+    IF (err /= 0 ) CALL stop_memory ( 'init_spline','ww')
+
+  END SUBROUTINE init_spline
+
+  !******************************************************************************
+  !!****
+  !!****f* splines_methods/potential_s [1.0] *
+  !!
+  !!   NAME
+  !!     potential_s
+  !!
+  !!   FUNCTION
+  !!     calculates the potential interpolated with splines value at a given point
+  !!     and the first derivative WITHOUT checks
+  !!
+  !!   AUTHOR
+  !!     unknown
+  !!
+  !!   INPUTS
+  !!     spl : spline_data structure
+  !!     xx  : absissa value
+  !!
+  !!   OUTPUT
+  !!     spline interpolated value at xx
+  !!     y1 : 1. derivative at xx
+  !!
+  !!   NOTES
+  !!     the spline MUST have uniform x values and xx MUST be
+  !!     in the interpolation interval. No checks are done to ensure
+  !!     either condition.
+  !!
+  !!   MODIFICATION HISTORY
+  !!     2001-09-25-HAF added this doc entry and changed formatting
+  !!
+  !!   SOURCE
+  !******************************************************************************
+
+  FUNCTION potential_s (spl_p, xxi, y1, spl_f )
+    TYPE(spline_data_p_type), DIMENSION(:), &
+      POINTER                                :: spl_p
+    REAL(KIND=dp), INTENT(IN)                :: xxi
+    REAL(KIND=dp), INTENT(OUT)               :: y1
+    TYPE(spline_factor_type), POINTER        :: spl_f
+    REAL(KIND=dp)                            :: potential_s
+
+    REAL(KIND=dp), PARAMETER                 :: f13 = 1.0_dp/3.0_dp
+
+    INTEGER                                  :: i
+    REAL(KIND=dp)                            :: a, b, h26, invh, &
+                                                potential_s2, x4, xx, xx0, &
+                                                y2, y2hi, y2lo, yhi, ylo
+
+    xx0  = 1.0_dp/xxi
+    xx   = spl_f%rscale(1)*xx0
+    x4   = xx * xx
+    h26  = spl_p(1)%spline_data%h26
+    invh = spl_p(1)%spline_data%invh
+    i = (xx-spl_p(1)%spline_data%x1)*invh + 1
+    a = (spl_p(1)%spline_data%x1-xx)*invh + REAL(i,kind=dp)
+    b = 1.0_dp - a
+
+    ylo  = spl_p(1)%spline_data%y(i)
+    yhi  = spl_p(1)%spline_data%y(i+1)
+    y2lo = spl_p(1)%spline_data%y2(i)
+    y2hi = spl_p(1)%spline_data%y2(i+1)
+    potential_s = (a*ylo + b*yhi - ((a+1.0_dp)*y2lo+(b+1.0_dp)*y2hi)*a*b*h26)*spl_f%fscale(1)
+    y1 = invh*((yhi-ylo) + ((f13-a*a)*y2lo-(f13-b*b)*y2hi)*3.0_dp*h26)
+    y1 = 2.0_dp * y1 * x4 * spl_f%dscale(1)
+    IF (spl_p(1)%spline_data%dual) THEN
+       ! In case here we compute the non-bonded spline
+       xx   = spl_f%rscale(2)*xx0
+       x4   = xx * xx
+       h26  = spl_p(2)%spline_data%h26
+       invh = spl_p(2)%spline_data%invh
+       i = (xx-spl_p(2)%spline_data%x1)*invh + 1
+       a = (spl_p(2)%spline_data%x1-xx)*invh + REAL(i,kind=dp)
+       b = 1.0_dp - a
+
+       ylo  = spl_p(2)%spline_data%y(i)
+       yhi  = spl_p(2)%spline_data%y(i+1)
+       y2lo = spl_p(2)%spline_data%y2(i)
+       y2hi = spl_p(2)%spline_data%y2(i+1)
+       potential_s2 = (a*ylo + b*yhi - ((a+1.0_dp)*y2lo+(b+1.0_dp)*y2hi)*a*b*h26)*spl_f%fscale(2)
+       y2 = invh*((yhi-ylo) + ((f13-a*a)*y2lo-(f13-b*b)*y2hi)*3.0_dp*h26)
+       y2 = 2.0_dp * y2 * x4 * spl_f%dscale(2)
+       ! Combine the two splines..
+       potential_s = potential_s + potential_s2
+       y1 = y1 + y2
+    END IF
+    potential_s = potential_s + spl_f%cutoff
+  END FUNCTION potential_s
+
+END MODULE splines_methods

@@ -446,7 +446,8 @@ OBJECTS_GENERIC =\
  sparse_matrix_output.o\
  sparse_matrix_types.o\
  spherical_harmonics.o\
- splines.o\
+ splines_methods.o\
+ splines_types.o\
  spme.o\
  sto_ng.o\
  string_table.o\

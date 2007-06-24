@@ -39,13 +39,17 @@ MODULE manybody_potential
                                              pair_potential_single_type,&
                                              tersoff_type
   USE particle_types,                  ONLY: particle_type
-  USE splines,                         ONLY: init_spline,&
+  USE splines_methods,                 ONLY: init_spline,&
                                              init_splinexy,&
-                                             potential_s,&
-                                             spline_data_create,&
+                                             potential_s
+  USE splines_types,                   ONLY: spline_data_create,&
+                                             spline_data_p_type,&
                                              spline_data_release,&
                                              spline_data_type,&
-                                             spline_environment_type
+                                             spline_environment_type,&
+                                             spline_factor_create,&
+                                             spline_factor_release,&
+                                             spline_factor_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -59,7 +63,6 @@ MODULE manybody_potential
   PUBLIC :: get_force_eam
   PUBLIC :: density_nonbond, energy_manybody
   PUBLIC :: force_nonbond_manybody
-  PUBLIC :: rho_f, rho_s
   PUBLIC :: spline_manybody_control
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'manybody_potential'
 
@@ -147,10 +150,14 @@ CONTAINS
     REAL(KIND=dp)                            :: diffmax, dx2, e, ediff, &
                                                 hicut, locut, x, x2, xdum, &
                                                 xdum1, xsav
-    TYPE(spline_data_type), POINTER          :: spline_data
+    TYPE(spline_data_type), POINTER          :: spline_data, spline_data2
+    TYPE(spline_factor_type), POINTER        :: spl_f
 
     failure = .FALSE.
-    n = 0
+    NULLIFY(spl_f)
+    CALL spline_factor_create(spl_f, error)
+    spl_f%rscale = 1.0_dp
+    spl_f%fscale = 1.0_dp    
     ntype = SIZE ( potparm%pot, 1 )
     n = 0
     DO i = 1, ntype ! i:  first atom type
@@ -159,7 +166,7 @@ CONTAINS
           nspline = n
           SELECT CASE ( potparm%pot ( i, j ) % pot%type )
           CASE ( ea_type )
-             spline_data => spline_env % spline_data_p ( n ) % spline_data
+             spline_data => spline_env%spl_pp( n )%spl_p(1)%spline_data
              locut = rlow_nb
              hicut = SQRT ( potparm%pot ( i, j )%pot % rcutsq )
              IF (ABS(hicut) <= 1.0E-15_dp) hicut = 1.0E3_dp
@@ -201,7 +208,7 @@ CONTAINS
                    x = x2
                    e = manybody_pot ( potparm%pot ( i, j )%pot, x )
                    IF (e<max_energy) THEN
-                      xdum1   = ABS(e-potential_s(spline_env%spline_data_p(n)%spline_data,x*x,xdum))
+                      xdum1   = ABS(e-potential_s(spline_env%spl_pp(n)%spl_p,x*x,xdum,spl_f))
                       diffmax = MAX(diffmax,xdum1)
                       xsav = MIN(x,xsav)
                    END IF
@@ -223,20 +230,16 @@ CONTAINS
              END DO
 
              !check spline existence
-             nsize = SIZE(spline_env%spline_data_p(n)%spline_data%y)
+             nsize = SIZE(spline_data%y)
              DO kx = 1, n-1
-                nkx = SIZE(spline_env%spline_data_p(kx)%spline_data%y)
-                check_bounds = (spline_env%spline_data_p(kx)%spline_data%x1 == &
-                     spline_env%spline_data_p(n )%spline_data%x1).AND.&
-                     (spline_env%spline_data_p(kx)%spline_data%xn == &
-                     spline_env%spline_data_p(n )%spline_data%xn)
+                spline_data2 => spline_env%spl_pp(kx)%spl_p(1)%spline_data
+                nkx = SIZE(spline_data2%y)
+                check_bounds = (spline_data2%x1==spline_data%x1).AND.(spline_data2%xn==spline_data%xn)
                 IF (nsize==nkx) THEN
-                   ediff = MAXVAL(ABS(spline_env%spline_data_p(n)%spline_data%y-&
-                        spline_env%spline_data_p(kx)%spline_data%y))
+                   ediff = MAXVAL(ABS(spline_data%y-spline_data2%y))
                    IF (ediff <= eps_spline) THEN
-                      CALL spline_data_release(spline_env%spline_data_p(n)%spline_data,&
-                           error)
-                      CALL spline_data_create ( spline_env%spline_data_p(n)%spline_data,error=error)
+                      CALL spline_data_release(spline_env%spl_pp(n)%spl_p(1)%spline_data,error=error)
+                      CALL spline_data_create (spline_env%spl_pp(n)%spl_p(1)%spline_data,error=error)
                       n = n - 1
                       nspline = kx
                       EXIT
@@ -264,7 +267,7 @@ CONTAINS
                    DO jx = 1, 5000
                       x = x2
                       e = manybody_pot ( potparm%pot ( i, j )%pot, x )
-                      WRITE(2000+n,*) x, e, potential_s(spline_env%spline_data_p(n)%spline_data,x*x,xdum)
+                      WRITE(2000+n,*) x, e, potential_s(spline_env%spl_pp(n)%spl_p,x*x,xdum,spl_f)
                       x2 = x2 + dx2
                    END DO
                    WRITE(2000+n,*)
@@ -273,7 +276,7 @@ CONTAINS
 
           CASE default
              ! Nullify spline_data not involved in interaction
-             CALL spline_data_release ( spline_env % spline_data_p ( n ) % spline_data ,error=error)
+             CALL spline_data_release ( spline_env%spl_pp( n )%spl_p(1)%spline_data ,error=error)
              n = n - 1
              nspline = n
           END SELECT
@@ -287,79 +290,8 @@ CONTAINS
        WRITE(iw,'("SPLINE_INFO|",5X,A,I7)')"Number of manybody potential Splines allocated:",&
             n
     END IF
-
+    CALL spline_factor_release(spl_f, error)
   END SUBROUTINE spline_manybody_control
-
-!!****f* manybody_potential/rho_s [1.0] *
-!!
-!!   NAME
-!!     rho_s
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!*** **********************************************************************
-  SUBROUTINE rho_s ( spline_table, rijsq, energy, fscalar )
-
-
-    TYPE(spline_data_type), POINTER          :: spline_table
-    REAL(KIND=dp), INTENT(IN)                :: rijsq
-    REAL(KIND=dp), INTENT(OUT)               :: energy, fscalar
-
-    energy = potential_s ( spline_table, rijsq, fscalar )
-
-  END SUBROUTINE rho_s
-
-!!****f* manybody_potential/rho_f [1.0] *
-!!
-!!   NAME
-!!     rho_f
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!*** **********************************************************************
-  SUBROUTINE rho_f ( rijsq, potparm, iatom, jatom, energy )
-
-    REAL(KIND=dp), INTENT(IN)                :: rijsq
-    TYPE(pair_potential_pp_type), POINTER    :: potparm
-    INTEGER, INTENT(IN)                      :: iatom, jatom
-    REAL(KIND=dp), INTENT(OUT)               :: energy
-
-    REAL(KIND=dp)                            :: rij
-
-    rij = SQRT ( rijsq )
-
-    ! non-bond energy
-    energy = manybody_pot ( potparm %pot( iatom, jatom )%pot, rij )
-
-  END SUBROUTINE rho_f
 
 !!****f* manybody_potential/density_nonbond [1.0] *
 !!
@@ -1641,10 +1573,16 @@ CONTAINS
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update_pbc
-    TYPE(spline_data_type), POINTER          :: spline_data
+    TYPE(spline_data_p_type), DIMENSION(:), &
+      POINTER                                :: spl_p
+    TYPE(spline_factor_type), POINTER        :: spl_f
 
     failure = .FALSE.
     CALL timeset ( routineN, handle )
+    NULLIFY(spl_f)
+    CALL spline_factor_create(spl_f, error)
+    spl_f%rscale = 1.0_dp
+    spl_f%fscale = 1.0_dp
 
     CALL fist_nonbond_env_get(fist_nonbond_env,nonbonded=nonbonded,potparm=potparm,&
          natom_types=nkinds,r_last_update_pbc=r_last_update_pbc,error=error)
@@ -1688,7 +1626,7 @@ CONTAINS
 
        IF((.NOT.is_eam).AND.(.NOT.is_tersoff)) CYCLE
 
-       spline_data => potparm % pot( ikind, jkind ) %pot % pair_spline_data
+       spl_p => potparm % pot( ikind, jkind ) %pot % pair_spline_data
        rab2_max = potparm%pot(ikind,jkind)%pot%rcutsq
        CALL matvec_3x3(cell_v, cell%hmat,cvi)
 
@@ -1703,7 +1641,7 @@ CONTAINS
              rab = rab+cell_v
              rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
              IF (rab2 <= rab2_max) THEN
-                energy =  potential_s (spline_data,rab2,fscalar)
+                energy =  potential_s (spl_p,rab2,fscalar,spl_f)
                 pot_nonbond = pot_nonbond + energy
                 fr(1) = fscalar*rab(1)
                 fr(2) = fscalar*rab(2)
@@ -1825,6 +1763,7 @@ CONTAINS
     ptens_nonbond(3,3) = ptens_nonbond(3,3) + ptens33
     
     CALL timestop ( handle )
+    CALL spline_factor_release(spl_f, error)
   END SUBROUTINE force_nonbond_manybody
 
 END MODULE manybody_potential

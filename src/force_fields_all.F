@@ -42,8 +42,8 @@ MODULE force_fields_all
        impr_kind_type, input_info_type, onfo_kind_type, torsion_kind_type, &
        ub_kind_type
   USE input_constants,                 ONLY: do_qmmm_none
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
@@ -72,11 +72,12 @@ MODULE force_fields_all
   USE shell_potential_types,           ONLY: shell_create,&
                                              shell_kind_type,&
                                              shell_release
-  USE splines,                         ONLY: spline_data_release,&
-                                             spline_data_retain,&
-                                             spline_data_type,&
+  USE splines_types,                   ONLY: spline_data_p_release,&
+                                             spline_data_p_retain,&
+                                             spline_data_p_type,&
                                              spline_env_create,&
-                                             spline_environment_type
+                                             spline_environment_type,&
+                                             spline_factor_copy
   USE string_utilities,                ONLY: compress,&
                                              integer_to_string,&
                                              uppercase
@@ -1250,6 +1251,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: Ainfo
     TYPE(charmm_info_type), POINTER          :: chm_info
     TYPE(input_info_type), POINTER           :: inp_info
+    INTEGER                                  :: iw
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_ub', &
@@ -1258,7 +1260,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: name_atm_a, name_atm_b, &
                                                 name_atm_c
     INTEGER                                  :: atm_a, atm_b, atm_c, first, &
-                                                handle2, i, iw, j, k, last, &
+                                                handle2, i, j, k, last, &
                                                 natom, nub
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
     LOGICAL                                  :: failure, found, only_qm
@@ -2179,7 +2181,8 @@ CONTAINS
                                                 epsilon_b, rmin, rmin2_a, &
                                                 rmin2_b
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(spline_data_type), POINTER          :: spline_data
+    TYPE(spline_data_p_type), DIMENSION(:), &
+      POINTER                                :: spl_p
 
     failure = .FALSE.
     use_qmmm_ff = qmmm_env%use_qmmm_ff
@@ -2368,7 +2371,9 @@ CONTAINS
 
     ! Allocate Spline Bond Env
     CALL get_nonbond_storage(spline_bond_env, potparm_bond, atomic_kind_set, &
-          ei_scale14=ff_type%ei_scale14, vdw_scale14=ff_type%vdw_scale14, error=error)
+          ei_scale14=ff_type%ei_scale14, vdw_scale14=ff_type%vdw_scale14,&
+          do_14=.TRUE., ewald_env=ewald_env, scale_cutoff=ff_type%scale_cutoff,&
+          error=error)
     CALL spline_nonbond_control ( spline_bond_env, potparm_bond, &
          atomic_kind_set , ewald_env, ei_scale14=ff_type%ei_scale14, &
          vdw_scale14=ff_type%vdw_scale14, eps_spline=ff_type%eps_spline, &
@@ -2379,11 +2384,10 @@ CONTAINS
     DO ikind = 1, SIZE ( potparm_bond%pot, 1 )
        DO jkind = ikind, SIZE ( potparm_bond%pot, 2 )
           n = spline_bond_env % spltab ( ikind, jkind )
-          spline_data => spline_bond_env % spline_data_p ( n ) % spline_data
-          CALL spline_data_retain(spline_data, error)
-          CALL spline_data_release(potparm_bond%pot(ikind,jkind )%pot%pair_spline_data,&
-               error)
-          potparm_bond %pot( ikind, jkind )%pot % pair_spline_data => spline_data
+          spl_p => spline_bond_env%spl_pp(n)%spl_p
+          CALL spline_data_p_retain(spl_p, error)
+          CALL spline_data_p_release(potparm_bond%pot(ikind,jkind)%pot%pair_spline_data,error)
+          potparm_bond%pot(ikind,jkind)%pot%pair_spline_data => spl_p
        END DO
     END DO
     CALL timestop(0.0_dp,handle2)
@@ -2445,7 +2449,8 @@ CONTAINS
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
             molecule_list=molecule_list,&
             natom=natom,&
-            nonfo=nonfo,onfo_list=onfo_list)
+            nonfo=nonfo,&
+            onfo_list=onfo_list)
        molecule=>molecule_set(molecule_list(1))
        CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
 
@@ -2462,10 +2467,10 @@ CONTAINS
           CALL uppercase(name_atm_a)
           CALL uppercase(name_atm_b)
 
-          CALL spline_data_retain (potparm_bond%pot(ikind, jkind )%pot % pair_spline_data,error=error)
-          CALL spline_data_release(onfo_list(j)%onfo_kind%spline_data, error=error)
-          onfo_list(j)%onfo_kind%spline_data => &
-               potparm_bond %pot( ikind, jkind )%pot % pair_spline_data
+          CALL spline_data_p_retain (potparm_bond%pot(ikind,jkind)%pot%pair_spline_data,error=error)
+          CALL spline_data_p_release(onfo_list(j)%onfo_kind%spl_p, error=error)
+          onfo_list(j)%onfo_kind%spl_p => potparm_bond%pot(ikind,jkind)%pot%pair_spline_data
+          CALL spline_factor_copy(potparm_bond%pot(ikind,jkind)%pot%spl_f,onfo_list(j)%onfo_kind%spl_f,error)
 
           IF(iw>0) WRITE(iw,*) "    ONE-FOUR ",j," : ",&
                TRIM(name_atm_a)," ",&
@@ -2743,7 +2748,8 @@ CONTAINS
     IF(shell_present) THEN
       CALL get_nonbond_storage(spline_nonbond_env, potparm_nonbond, atomic_kind_set, &
            spline_c_coul_env=spline_c_coul_env, spline_cs_coul_env=spline_cs_coul_env,&
-           spline_sc_coul_env=spline_sc_coul_env, error=error)
+           spline_sc_coul_env=spline_sc_coul_env, do_14=.FALSE., ewald_env=ewald_env, &
+           scale_cutoff=ff_type%scale_cutoff, error=error)
       CALL spline_nonbond_control(spline_nonbond_env, potparm_nonbond, &
            atomic_kind_set,ewald_env,eps_spline=ff_type%eps_spline,&
            max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb,&
@@ -2752,7 +2758,7 @@ CONTAINS
            spline_cs_coul=spline_cs_coul_env, spline_sc_coul=spline_sc_coul_env, error=error)
     ELSE
       CALL get_nonbond_storage(spline_nonbond_env, potparm_nonbond, atomic_kind_set, &
-           error=error)
+           do_14=.FALSE., ewald_env=ewald_env, scale_cutoff=ff_type%scale_cutoff,error=error)
       NULLIFY (spline_c_coul_env,spline_cs_coul_env,spline_sc_coul_env) 
       CALL spline_nonbond_control(spline_nonbond_env, potparm_nonbond, &
            atomic_kind_set,ewald_env,eps_spline=ff_type%eps_spline,&
@@ -2801,7 +2807,8 @@ CONTAINS
     INTEGER                                  :: handle2, ikind, jkind, n, &
                                                 nkinds
     LOGICAL                                  :: failure, shell_present
-    TYPE(spline_data_type), POINTER          :: spline_data
+    TYPE(spline_data_p_type), DIMENSION(:), &
+      POINTER                                :: spl_p
 
     CALL timeset(routineN,'I','',handle2)
     failure = .FALSE.
@@ -2821,11 +2828,11 @@ CONTAINS
           !---------------------------------------
           n = spline_manybody_env % spltab ( ikind, jkind )
           IF (n>0) THEN
-             spline_data => spline_manybody_env % spline_data_p ( n ) % spline_data
-             IF ( ASSOCIATED ( spline_data ) ) THEN
-                CALL spline_data_retain ( spline_data, error )
-                CALL spline_data_release ( potparm_nonbond%pot ( ikind, jkind )%pot%rho_spline_data, error )
-                potparm_nonbond%pot ( ikind, jkind )%pot % rho_spline_data => spline_data
+             spl_p => spline_manybody_env%spl_pp(n)%spl_p
+             IF ( ASSOCIATED ( spl_p ) ) THEN
+                CALL spline_data_p_retain ( spl_p, error )
+                CALL spline_data_p_release ( potparm_nonbond%pot ( ikind, jkind )%pot%rho_spline_data, error )
+                potparm_nonbond%pot ( ikind, jkind )%pot % rho_spline_data => spl_p
              ENDIF
           END IF
        END DO
@@ -2874,7 +2881,8 @@ CONTAINS
     INTEGER                                  :: handle2, ikind, jkind, n, &
                                                 nkinds
     LOGICAL                                  :: failure
-    TYPE(spline_data_type), POINTER          :: spline_data
+    TYPE(spline_data_p_type), DIMENSION(:), &
+      POINTER                                :: spl_p
 
     CALL timeset(routineN,'I','',handle2)
     failure = .FALSE.
@@ -2889,10 +2897,10 @@ CONTAINS
           !      if shell-model, it is ion-shell or shell-shell 
           !---------------------------------------
           n = spline_nonbond_env % spltab ( ikind, jkind )
-          spline_data => spline_nonbond_env % spline_data_p ( n ) % spline_data
-          CALL spline_data_retain ( spline_data, error )
-          CALL spline_data_release ( potparm_nonbond%pot(ikind,jkind)%pot%pair_spline_data, error )
-          potparm_nonbond%pot ( ikind, jkind )%pot % pair_spline_data => spline_data
+          spl_p => spline_nonbond_env%spl_pp(n)%spl_p
+          CALL spline_data_p_retain ( spl_p, error )
+          CALL spline_data_p_release ( potparm_nonbond%pot(ikind,jkind)%pot%pair_spline_data, error )
+          potparm_nonbond%pot(ikind,jkind)%pot%pair_spline_data => spl_p
 
           IF(shell_present) THEN
              !---------------------------------------
@@ -2900,13 +2908,12 @@ CONTAINS
              !---------------------------------------
              n = spline_c_coul_env % spltab ( ikind, jkind )
              IF (n>0) THEN
-                spline_data => spline_c_coul_env % spline_data_p ( n ) % spline_data
+                spl_p => spline_c_coul_env%spl_pp(n)%spl_p
                 ! do i,j
-                IF ( ASSOCIATED ( spline_data ) ) THEN
-                   CALL spline_data_retain ( spline_data, error )
-                   CALL spline_data_release (  &
-                        potparm_nonbond%pot ( ikind, jkind )%pot % c_coul_spline_data, error )
-                   potparm_nonbond%pot ( ikind, jkind )%pot % c_coul_spline_data => spline_data
+                IF ( ASSOCIATED(spl_p) ) THEN
+                   CALL spline_data_p_retain( spl_p, error )
+                   CALL spline_data_p_release(potparm_nonbond%pot( ikind,jkind)%pot%c_coul_spline_data, error )
+                   potparm_nonbond%pot ( ikind, jkind )%pot % c_coul_spline_data => spl_p
                 ENDIF
              END IF
              !---------------------------------------
@@ -2914,13 +2921,12 @@ CONTAINS
              !---------------------------------------
              n = spline_cs_coul_env % spltab ( ikind, jkind )
              IF (n>0) THEN
-                spline_data => spline_cs_coul_env % spline_data_p ( n ) % spline_data
+                spl_p => spline_cs_coul_env%spl_pp(n)%spl_p
                 ! do i,j
-                IF ( ASSOCIATED ( spline_data ) ) THEN
-                   CALL spline_data_retain ( spline_data, error )
-                   CALL spline_data_release (  &
-                        potparm_nonbond%pot ( ikind, jkind )%pot % cs_coul_spline_data, error )
-                   potparm_nonbond%pot ( ikind, jkind )%pot % cs_coul_spline_data => spline_data
+                IF ( ASSOCIATED(spl_p) ) THEN
+                   CALL spline_data_p_retain(spl_p, error )
+                   CALL spline_data_p_release(potparm_nonbond%pot(ikind,jkind)%pot%cs_coul_spline_data, error )
+                   potparm_nonbond%pot ( ikind, jkind )%pot % cs_coul_spline_data => spl_p
                 ENDIF
              END IF
              !---------------------------------------
@@ -2928,13 +2934,12 @@ CONTAINS
              !---------------------------------------
              n = spline_sc_coul_env % spltab ( ikind, jkind )
              IF (n>0) THEN
-                spline_data => spline_sc_coul_env % spline_data_p ( n ) % spline_data
+                spl_p => spline_sc_coul_env%spl_pp(n)%spl_p
                 ! do i,j
-                IF ( ASSOCIATED ( spline_data ) ) THEN
-                   CALL spline_data_retain ( spline_data, error )
-                   CALL spline_data_release (  &
-                        potparm_nonbond%pot ( ikind, jkind )%pot % sc_coul_spline_data, error )
-                   potparm_nonbond%pot ( ikind, jkind )%pot % sc_coul_spline_data => spline_data
+                IF ( ASSOCIATED(spl_p) ) THEN
+                   CALL spline_data_p_retain (spl_p, error )
+                   CALL spline_data_p_release(potparm_nonbond%pot(ikind,jkind)%pot%sc_coul_spline_data, error )
+                   potparm_nonbond%pot(ikind,jkind)%pot%sc_coul_spline_data => spl_p
                 ENDIF
              END IF
           END IF  ! shell_present

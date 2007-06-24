@@ -22,3 +22,7 @@
 2gly_DIIS-SD-NEB.inp
 # faster bonded correct gaussian and bug fix for stress tensor in shell model
 2gly_DIIS-NEB.inp
+# new unique spline generation for LJ. bugfix for cutoff shell model
+2gly_DIIS-SD-2.inp
+2gly_DIIS-SD-NEB.inp
+2gly_DIIS-NEB.inp

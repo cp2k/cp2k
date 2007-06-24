@@ -50,8 +50,9 @@ MODULE fist_nonbond_force
                                              tersoff_type
   USE particle_types,                  ONLY: particle_type
   USE shell_potential_types,           ONLY: shell_kind_type
-  USE splines,                         ONLY: potential_s,&
-                                             spline_data_type
+  USE splines_methods,                 ONLY: potential_s
+  USE splines_types,                   ONLY: spline_data_p_type,&
+                                             spline_factor_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -61,6 +62,7 @@ MODULE fist_nonbond_force
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_nonbond_force'
+  LOGICAL, PARAMETER, PRIVATE :: debug_this_module = .FALSE.
 
   PUBLIC :: force_nonbond,&
             bonded_correct_gaussian
@@ -86,7 +88,7 @@ CONTAINS
 !******************************************************************************
   SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
        pot_nonbond, f_nonbond, ptens_nonbond, &
-       fshell_nonbond, fcore_nonbond,  error )
+       fshell_nonbond, fcore_nonbond, ewald_env, atomic_kind_set, error )
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(particle_type), DIMENSION(:), &
@@ -97,6 +99,8 @@ CONTAINS
       INTENT(INOUT)                          :: f_nonbond, ptens_nonbond
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT), OPTIONAL                  :: fshell_nonbond, fcore_nonbond
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'force_nonbond', &
@@ -109,7 +113,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: list
     LOGICAL                                  :: all_terms, do_shell, failure, &
                                                 shell_present
-    REAL(KIND=dp) :: energy, fscalar, ptens11, ptens12, ptens13, ptens21, &
+    REAL(KIND=dp) :: energy, fscalar, pp, ptens11, ptens12, ptens13, ptens21, &
       ptens22, ptens23, ptens31, ptens32, ptens33, rab2, rab2_com, rab2_max
     REAL(KIND=dp), DIMENSION(3)              :: cell_v, cvi, fr, rab, rab_cc, &
                                                 rab_com, rab_cs, rab_sc, &
@@ -125,13 +129,16 @@ CONTAINS
                                                 r_last_update_pbc, &
                                                 rcore_last_update_pbc, &
                                                 rshell_last_update_pbc
-    TYPE(spline_data_type), POINTER          :: c_spline_data, &
+    TYPE(spline_data_p_type), DIMENSION(:), &
+      POINTER                                :: c_spline_data, &
                                                 cs_spline_data, &
                                                 sc_spline_data, spline_data
+    TYPE(spline_factor_type), POINTER        :: spl_c, spl_cs, spl_f, spl_sc
 
     CALL timeset ( routineN, handle )
-
-    NULLIFY(c_spline_data,cs_spline_data,sc_spline_data,rshell_last_update_pbc)
+    pp = 0.0_dp
+    NULLIFY(pot,c_spline_data,cs_spline_data,sc_spline_data,rshell_last_update_pbc)
+    NULLIFY(spl_f, spl_c, spl_cs, spl_sc)
     CALL fist_nonbond_env_get ( fist_nonbond_env, nonbonded = nonbonded, &
          potparm = potparm, r_last_update=r_last_update, &
          r_last_update_pbc=r_last_update_pbc,&
@@ -181,25 +188,31 @@ CONTAINS
        jkind = neighbor_kind_pair%jkind
        list  =>neighbor_kind_pair%list
        cvi   = neighbor_kind_pair%cell_vector
+       pot   =>potparm%pot(ikind,jkind )%pot
        ! Manybody potentials are handled in the manybody routine...
-       IF(potparm %pot( ikind, jkind ) %pot % TYPE == ea_type)      CYCLE
-       IF(potparm %pot( ikind, jkind ) %pot % TYPE == tersoff_type) CYCLE
+       IF(pot%type == ea_type)      CYCLE
+       IF(pot%type == tersoff_type) CYCLE
        ! Setup spline_data set
-       spline_data => potparm % pot( ikind, jkind ) %pot % pair_spline_data
-       shell_type = potparm %pot( ikind, jkind ) %pot % shell_type 
+       spl_f       => pot%spl_f
+       spline_data => pot%pair_spline_data
+       shell_type  = pot%shell_type 
        IF(shell_type/=nosh_nosh) THEN
-          c_spline_data => potparm % pot( ikind, jkind ) %pot % c_coul_spline_data
+          c_spline_data => pot%c_coul_spline_data
+          spl_c         => pot%spl_c
           CPPostcondition(PRESENT(fshell_nonbond),cp_failure_level,routineP,error,failure)
           do_shell = .TRUE.
        ELSE
-          c_spline_data => potparm % pot( ikind, jkind ) %pot % pair_spline_data
+          c_spline_data => pot%pair_spline_data
+          spl_c         => pot%spl_f
           do_shell = .FALSE.
        END IF
        IF(shell_type==sh_sh) THEN
-          cs_spline_data => potparm % pot( ikind, jkind ) %pot % cs_coul_spline_data
-          sc_spline_data => potparm % pot( ikind, jkind ) %pot % sc_coul_spline_data
+          cs_spline_data => pot%cs_coul_spline_data
+          sc_spline_data => pot%sc_coul_spline_data
+          spl_cs         => pot%spl_cs
+          spl_sc         => pot%spl_sc
        END IF
-       rab2_max = potparm%pot(ikind,jkind)%pot%rcutsq
+       rab2_max = pot%rcutsq
        CALL matvec_3x3(cell_v, cell%hmat, cvi)
        Pairs: DO ipair = 1, npairs
           atom_a = list(1,ipair)
@@ -264,7 +277,7 @@ CONTAINS
                 rab = rab_cc
                 rab = rab+cell_v
                 rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-                energy =  potential_s (c_spline_data,rab2,fscalar)
+                energy =  potential_s (c_spline_data,rab2,fscalar, spl_c)
                 pot_nonbond = pot_nonbond + energy
                 fr(1) = fscalar*rab(1)
                 fr(2) = fscalar*rab(2)
@@ -305,7 +318,7 @@ CONTAINS
                    rab = rab_ss
                    rab = rab+cell_v
                    rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-                   energy =  potential_s (spline_data,rab2,fscalar)
+                   energy =  potential_s (spline_data,rab2,fscalar,spl_f)
                    pot_nonbond = pot_nonbond + energy
                    fr(1) = fscalar*rab(1)
                    fr(2) = fscalar*rab(2)
@@ -330,7 +343,7 @@ CONTAINS
                    rab = rab_cs
                    rab = rab+cell_v
                    rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-                   energy =  potential_s (cs_spline_data,rab2,fscalar)
+                   energy =  potential_s (cs_spline_data,rab2,fscalar,spl_cs)
                    pot_nonbond = pot_nonbond + energy
                    fr(1) = fscalar*rab(1)
                    fr(2) = fscalar*rab(2)
@@ -355,7 +368,7 @@ CONTAINS
                    rab = rab_sc
                    rab = rab+cell_v
                    rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-                   energy =  potential_s (sc_spline_data,rab2,fscalar)
+                   energy =  potential_s (sc_spline_data,rab2,fscalar,spl_sc)
                    pot_nonbond = pot_nonbond + energy
                    fr(1) = fscalar*rab(1)
                    fr(2) = fscalar*rab(2)
@@ -380,7 +393,7 @@ CONTAINS
                    rab = rab_ss
                    rab = rab+cell_v
                    rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-                   energy =  potential_s (spline_data,rab2,fscalar)
+                   energy =  potential_s (spline_data,rab2,fscalar,spl_f)
                    pot_nonbond = pot_nonbond + energy
                    fr(1) = fscalar*rab(1)
                    fr(2) = fscalar*rab(2)
@@ -425,7 +438,7 @@ CONTAINS
                 rab = rab_cc
                 rab = rab+cell_v
                 rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-                energy =  potential_s(c_spline_data,rab2,fscalar)
+                energy =  potential_s(c_spline_data,rab2,fscalar,spl_c)
                 pot_nonbond = pot_nonbond + energy
                 fr(1) = fscalar*rab(1)
                 fr(2) = fscalar*rab(2)

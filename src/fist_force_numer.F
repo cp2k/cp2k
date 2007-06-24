@@ -73,8 +73,9 @@ MODULE fist_force_numer
   USE pw_grids,                        ONLY: pw_grid_change
   USE pw_pool_types,                   ONLY: pw_pool_type
   USE qs_neighbor_lists,               ONLY: local_atoms_type
-  USE splines,                         ONLY: potential_s,&
-                                             spline_data_type
+  USE splines_methods,                 ONLY: potential_s
+  USE splines_types,                   ONLY: spline_data_p_type,&
+                                             spline_factor_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -235,7 +236,9 @@ SUBROUTINE force_onefour_numer ( molecule_set, molecule_kind_set, local_molecule
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(onfo_type), POINTER                 :: onfo_list( : )
-    TYPE(spline_data_type), POINTER          :: spline_data
+    TYPE(spline_data_p_type), DIMENSION(:), &
+      POINTER                                :: spl_p
+    TYPE(spline_factor_type), POINTER        :: spl_f
 
 !------------------------------------------------------------------------------
 ! initializing the forces
@@ -262,12 +265,13 @@ SUBROUTINE force_onefour_numer ( molecule_set, molecule_kind_set, local_molecule
 ! get the energy
         rab2 = DOT_PRODUCT ( rij, rij )
         ! LJ contribution
-        spline_data => onfo_list ( ibond ) % onfo_kind % spline_data
-        e0 = potential_s ( spline_data, rab2, fscalar )
+        spl_p => onfo_list ( ibond ) % onfo_kind % spl_p
+        spl_f => onfo_list ( ibond ) % onfo_kind % spl_f
+        e0 = potential_s ( spl_p, rab2, fscalar, spl_f )
         ! EI contribution
         rinv2 = 1.0_dp/rab2
         rinv  = SQRT(rinv2)
-        e1 = spline_data%ei_scale14 * rinv - spline_data%ei_cutoff14
+        e1 = spl_p(1)%spline_data%ei_scale14 * rinv - spl_p(1)%spline_data%ei_cutoff14
 
         pot = pot + e0 + e1
 
@@ -275,16 +279,16 @@ SUBROUTINE force_onefour_numer ( molecule_set, molecule_kind_set, local_molecule
         DO idim = 1, 3
            delta(idim) = numerical_shift
            rab2_minus_delta = DOT_PRODUCT ( rij - delta, rij - delta )
-           em1 = potential_s ( spline_data, rab2_minus_delta, fscalar )
+           em1 = potential_s ( spl_p, rab2_minus_delta, fscalar, spl_f )
            rinv2 = 1.0_dp/rab2_minus_delta
            rinv  = SQRT(rinv2)
-           em2 = spline_data%ei_scale14 * rinv - spline_data%ei_cutoff14
+           em2 = spl_p(1)%spline_data%ei_scale14 * rinv - spl_p(1)%spline_data%ei_cutoff14
            em=em1+em2
            rab2_plus_delta = DOT_PRODUCT ( rij + delta, rij + delta )
-           ep1 =  potential_s ( spline_data, rab2_plus_delta, fscalar )
+           ep1 =  potential_s ( spl_p, rab2_plus_delta, fscalar, spl_f )
            rinv2 = 1.0_dp/rab2_plus_delta
            rinv  = SQRT(rinv2)
-           ep2 = spline_data%ei_scale14 * rinv - spline_data%ei_cutoff14
+           ep2 = spl_p(1)%spline_data%ei_scale14 * rinv - spl_p(1)%spline_data%ei_cutoff14
            ep=ep1+ep2
            f_numer(idim,index_a) = f_numer(idim,index_a) + (ep-em)
            f_numer(idim,index_b) = f_numer(idim,index_b) - (ep-em)
@@ -2406,7 +2410,9 @@ SUBROUTINE potential_onefour ( molecule_set, molecule_kind_set, local_molecules,
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(onfo_type), POINTER                 :: onfo_list( : )
-    TYPE(spline_data_type), POINTER          :: spline_data
+    TYPE(spline_data_p_type), DIMENSION(:), &
+      POINTER                                :: spl_p
+    TYPE(spline_factor_type), POINTER        :: spl_f
 
 !------------------------------------------------------------------------------
 
@@ -2432,11 +2438,12 @@ SUBROUTINE potential_onefour ( molecule_set, molecule_kind_set, local_molecules,
         CALL get_atomic_kind ( atomic_kind, kind_number =  bkind )
         rij = pbc(particle_set ( index_b ) % r - particle_set ( index_a ) % r,cell)
         rab2 = DOT_PRODUCT ( rij, rij )
-        spline_data => onfo_list ( ibond ) % onfo_kind % spline_data
-        e0 = potential_s ( spline_data, rab2, fscalar )
+        spl_p => onfo_list ( ibond ) % onfo_kind % spl_p
+        spl_f => onfo_list ( ibond ) % onfo_kind % spl_f
+        e0 = potential_s ( spl_p, rab2, fscalar, spl_f )
         rinv2 = 1.0_dp/rab2
         rinv  = SQRT(rinv2)
-        e1 = spline_data%ei_scale14 * rinv - spline_data%ei_cutoff14
+        e1 = spl_p(1)%spline_data%ei_scale14 * rinv - spl_p(1)%spline_data%ei_cutoff14
         energy = energy + e0 + e1
      END DO BOND
     END DO

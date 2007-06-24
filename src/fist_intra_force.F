@@ -39,8 +39,9 @@ MODULE fist_intra_force
   USE molecule_types_new,              ONLY: get_molecule,&
                                              molecule_type
   USE particle_types,                  ONLY: particle_type
-  USE splines,                         ONLY: potential_s,&
-                                             spline_data_type
+  USE splines_methods,                 ONLY: potential_s
+  USE splines_types,                   ONLY: spline_data_p_type,&
+                                             spline_factor_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -125,7 +126,9 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(onfo_type), POINTER                 :: onef_list( : )
     TYPE(shell_type), POINTER                :: shell_list( : )
-    TYPE(spline_data_type), POINTER          :: spline_data
+    TYPE(spline_data_p_type), DIMENSION(:), &
+      POINTER                                :: spl_p
+    TYPE(spline_factor_type), POINTER        :: spl_f
     TYPE(torsion_type), POINTER              :: torsion_list( : )
     TYPE(ub_type), POINTER                   :: ub_list( : )
 
@@ -162,7 +165,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
 ! !$OMP shared(cell) &
 
 ! !$OMP private(imol)&
-! !$OMP private(spline_data,molecule_kind,molecule,i) &
+! !$OMP private(spl_p,molecule_kind,molecule,i) &
 ! !$OMP private(ibond,ibend,itorsion,imul,ionef,first_atom) &
 ! !$OMP private(index_a,index_b,index_c,index_d) &
 ! !$OMP private(nbonds,bond_list)&
@@ -468,16 +471,17 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         rij = particle_set ( index_b ) % r - particle_set ( index_a ) % r
         rij = pbc(rij,cell)
         rab2 = DOT_PRODUCT ( rij, rij )
-        spline_data => onef_list ( ionef ) % onfo_kind % spline_data
-        IF (.NOT.ASSOCIATED(spline_data)) CYCLE
+        spl_p => onef_list ( ionef ) % onfo_kind % spl_p
+        spl_f => onef_list ( ionef ) % onfo_kind % spl_f
+        IF (.NOT.ASSOCIATED(spl_p)) CYCLE
         ! LJ contribution
-        energy = potential_s ( spline_data, rab2, fscalar )
+        energy = potential_s ( spl_p, rab2, fscalar, spl_f )
         pot_onef = pot_onef + energy
         ! EI contribution
         rinv2 = 1.0_dp/rab2
         rinv  = SQRT(rinv2)
-        pot_onef = pot_onef + spline_data%ei_scale14 * rinv - spline_data%ei_cutoff14
-        fscalar  = fscalar + spline_data%ei_scale14 * rinv2 * rinv
+        pot_onef = pot_onef + (spl_p(1)%spline_data%ei_scale14 * rinv - spl_p(1)%spline_data%ei_cutoff14)*spl_f%fscale(1)
+        fscalar  = fscalar + (spl_p(1)%spline_data%ei_scale14 * rinv2 * rinv)*spl_f%fscale(1)
         particle_set ( index_a )% f(1) = particle_set ( index_a ) % f(1) -rij(1) * fscalar
         particle_set ( index_a )% f(2) = particle_set ( index_a ) % f(2) -rij(2) * fscalar
         particle_set ( index_a )% f(3) = particle_set ( index_a ) % f(3) -rij(3) * fscalar
@@ -498,7 +502,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         END IF
 
      END DO ONEF
-    END DO
+  END DO
   END DO MOL
 
   CALL timestop ( 0.0_dp, handle )

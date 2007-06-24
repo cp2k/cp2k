@@ -438,6 +438,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="UNIQUE_SPLINE",&
+            description="For few potentials (Lennard-Jones) one global optimal spline is generated instead"//&
+            " of different optimal splines for each kind of potential",&
+            usage="UNIQUE_SPLINE <LOGICAL>",lone_keyword_l_val=.TRUE., default_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
     END IF
   END SUBROUTINE create_SPLINE_section
 

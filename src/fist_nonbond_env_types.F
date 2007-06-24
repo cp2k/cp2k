@@ -295,7 +295,7 @@ END SUBROUTINE fist_nonbond_env_create
 
     INTEGER                                  :: idim, jdim, natom_types, stat
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: rcut
+    REAL(KIND=dp)                            :: fac, rcut
 
     NULLIFY (fist_nonbond_env%nonbonded)
     NULLIFY (fist_nonbond_env%r_last_update)
@@ -329,10 +329,11 @@ END SUBROUTINE fist_nonbond_env_create
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO idim = 1, natom_types
           DO jdim = 1, natom_types
+             fac  = potparm%pot ( idim, jdim )%pot%spl_f%rscale(2)
              rcut = SQRT ( potparm%pot ( idim, jdim )%pot % rcutsq ) + &
                   fist_nonbond_env % verlet_skin
-             fist_nonbond_env % rlist_cutsq ( idim, jdim ) = rcut 
-             rcut = 1.0_dp / potparm%pot ( idim, jdim )%pot%pair_spline_data%xn
+             fist_nonbond_env % rlist_cutsq ( idim, jdim ) = rcut
+             rcut = fac / (potparm%pot ( idim, jdim )%pot%pair_spline_data(1)%spline_data%xn)
              fist_nonbond_env % rlist_lowsq ( idim, jdim ) = rcut*(1.06_dp)**2 ! 1.06_dp in order to have 1/2 Emax_spline
           END DO
        END DO

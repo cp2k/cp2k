@@ -30,8 +30,10 @@ MODULE force_field_types
                                              pair_potential_p_type
   USE shell_potential_types,           ONLY: shell_p_release,&
                                              shell_p_type
-  USE splines,                         ONLY: spline_data_release,&
-                                             spline_data_type
+  USE splines_types,                   ONLY: spline_data_p_release,&
+                                             spline_data_p_type,&
+                                             spline_factor_release,&
+                                             spline_factor_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -77,7 +79,8 @@ MODULE force_field_types
   END TYPE impr_kind_type
 
   TYPE onfo_kind_type
-    TYPE ( spline_data_type ), POINTER              :: spline_data
+     TYPE ( spline_factor_type ), POINTER               :: spl_f
+     TYPE ( spline_data_p_type ), POINTER, DIMENSION(:) :: spl_p
     INTEGER                                         :: kind_number
   END TYPE onfo_kind_type
 
@@ -485,7 +488,8 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
       onfo_kind_set(ikind)%kind_number = ikind
-      NULLIFY(onfo_kind_set(ikind)%spline_data)
+      NULLIFY(onfo_kind_set(ikind)%spl_p)
+      NULLIFY(onfo_kind_set(ikind)%spl_f)
     END DO
   END SUBROUTINE allocate_onfo_kind_set
 
@@ -1427,7 +1431,8 @@ END SUBROUTINE deallocate_inp_info
 
     failure = .FALSE.
     DO ionfo=1,SIZE(onfo_kind_set)
-      CALL spline_data_release(onfo_kind_set(ionfo)%spline_data, error)
+      CALL spline_data_p_release(onfo_kind_set(ionfo)%spl_p, error)
+      CALL spline_factor_release(onfo_kind_set(ionfo)%spl_f, error)
     END DO
     DEALLOCATE(onfo_kind_set,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

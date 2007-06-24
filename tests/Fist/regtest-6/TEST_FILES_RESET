@@ -12,3 +12,5 @@ uo2_shell_npt300.inp
 ##########
 uo2_shell_nvt.inp         
 uo2_shell_nvt_res.inp         
+# new unique spline generation for LJ. bugfix for cutoff shell model
+uo2_shell_npti_b.inp
