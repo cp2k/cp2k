@@ -8,6 +8,8 @@ QS/regtest-hybrid
 Fist/regtest-5
 QS/regtest-gpw-4
 QS/regtest-gapw
+QS/regtest-gapw-1
+QS/regtest-gapw-2
 QMMM/QS/regtest-1
 QS/regtest-gpw-2
 QMMM/QS/regtest-3
@@ -42,6 +44,7 @@ FE/regtest-3
 FE/regtest-2
 QS/regtest-ot-refine
 QS/regtest-nmr-1
+QS/regtest-nmr-uks-1
 QS/regtest-nmr-2
 QS/regtest-nmr-3
 QS/regtest-chi-1

@@ -18,18 +18,3 @@ H-gapw-all.inp     1
 # test the full_all with LSD and GAPW
 He2-all.inp        1
 He2-all-md.inp     1
-#XAS
-CO.inp             1
-CO_xastphh.inp     1
-CO_xastpfh.inp     1
-CO_xastpxhh.inp    1
-CO_xastpxfh.inp    1
-CO_xastpval.inp    1
-# High-spin restricted open Kohn-Sham
-Li-ROKS.inp        1
-NO2-ROKS.inp       1
-# Level-shifting for ROKS
-C-levelshift.inp   1
-# Check restart for nmo = 0
-H2-pbe-restart-run.inp  1
-H2-pbe-restart-rerun.inp 1
