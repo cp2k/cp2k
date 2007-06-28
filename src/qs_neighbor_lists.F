@@ -1368,6 +1368,7 @@ CONTAINS
 
         IF ( my_mic ) THEN
           ncell(:) = 0
+          periodic = 0
         ELSE
           ncell(:) = (INT(sab_max(:)) + 1)*periodic(:)
         END IF
