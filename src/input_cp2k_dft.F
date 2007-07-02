@@ -4404,35 +4404,60 @@ CONTAINS
             description="Algorithm to be used for OT",&
             usage="ALGORITHM STRICT",&
             default_i_val=ot_algo_taylor_or_diag,&
-            enum_c_vals=s2a( "STRICT", "REFINE" ),&
+            enum_c_vals=s2a( "STRICT", "IRAC" ),&
             enum_desc=s2a("Strict orthogonality: Taylor or diagonalization based algorithm.",&
-                          "Refined orthogonality: constraints are imposed at convergence via a refinement algorithm."),&
-            enum_i_vals=(/ot_algo_taylor_or_diag,ot_algo_refine/),&
+                          "Orbital Transformation based Iterative Refinement "//&
+                          "of the Approximative Congruence transformation (OT/IRAC)."),&
+            enum_i_vals=(/ot_algo_taylor_or_diag,ot_algo_irac/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="REFINE_DEGREE",&
-            variants=(/"REF_DEGREE"/),&
+       CALL keyword_create(keyword, name="IRAC_DEGREE",&
             description="The refinement polynomial degree (2, 3 or 4).",&
-            usage="REFINE_DEGREE 4",&
+            usage="IRAC_DEGREE 4",&
             default_i_val=4,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="MAX_REFINE",&
-            variants=(/"MAX_REF"/),&
+       CALL keyword_create(keyword, name="MAX_IRAC",&
             description="Maximum allowed refinement iteration.",&
-            usage="MAX_REFINE 5",&
-            default_i_val=15,error=error)
+            usage="MAX_IRAC 5",&
+            default_i_val=50,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="EPS_REFINE_NORM",&
-            variants=(/"EPS_REF_NORM"/),&
+       CALL keyword_create(keyword, name="ORTHO_IRAC",&
+            description="The orthogonality method.",&
+            usage="ORTHO_IRAC POLY",&
+            default_i_val=ot_chol_irac,&
+            enum_c_vals=s2a( "CHOL", "POLY", "LWDN"),&
+            enum_desc=s2a("Cholesky.","Polynomial.","Loewdin."),&
+            enum_i_vals=(/ot_chol_irac,ot_poly_irac,ot_lwdn_irac/),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EPS_IRAC",&
             description="Targeted accuracy during the refinement iteration.",&
-            usage="EPS_REFINE_NORM 1.0E-5",&
+            usage="EPS_IRAC 1.0E-5",&
             default_r_val=1.0E-10_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EPS_IRAC_QUICK_EXIT",&
+            description="Only one extra refinement iteration is "//&
+            "done when the norm is below this value.",&
+            usage="EPS_IRAC_QUICK_EXIT 1.0E-2",&
+            default_r_val=1.0E-5_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EPS_IRAC_SWITCH",&
+            description="The algorithm switches to the polynomial "//&
+            "refinement when the norm is below this value.",&
+            usage="EPS_IRAC_SWITCH 1.0E-3",&
+            default_r_val=1.0E-2_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

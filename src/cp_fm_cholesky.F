@@ -364,7 +364,7 @@ CPSourceFileRef,&
     alpha=1.0_dp
     CALL dcopy(neig*n,a(1,1),1,out(1,1),1)
     IF (op.EQ."SOLVE") THEN
-      CALL dtrsm(chol_pos,'U',chol_transa,'N',n,neig,alpha,b(1,1),n,out(1,1),n)
+      CALL dtrsm(chol_pos,'U',chol_transa,'N',n,neig,alpha,b(1,1),size(b,1),out(1,1),n)
     ELSE
       CALL dtrmm(chol_pos,'U',chol_transa,'N',n,neig,alpha,b(1,1),n,out(1,1),n)
     ENDIF

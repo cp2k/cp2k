@@ -39,7 +39,8 @@ MODULE qs_ot
                                              cp_fm_transpose,&
                                              cp_fm_frobenius_norm
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
-                                             cp_fm_cholesky_invert
+                                             cp_fm_cholesky_invert,&
+                                             cp_fm_cholesky_restore
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_get,&
@@ -98,10 +99,12 @@ MODULE qs_ot
        REAL(KIND = dp)   :: gold_target
        REAL(KIND = dp)   :: eps_taylor ! minimum accuracy of the taylor expansion
        INTEGER           :: max_taylor ! maximum order of the taylor expansion before switching to diagonalization
-       INTEGER           :: refinement_degree  ! this is used to control the refinement polynomial degree
-       INTEGER           :: max_refinement     ! maximum number of iteration for the refinement
-       REAL(KIND = dp)   :: eps_refinement_norm! target accuracy for the refinement
-       REAL(KIND = dp)   :: min_eps_refinement_norm
+       INTEGER           :: irac_degree  ! this is used to control the refinement polynomial degree
+       INTEGER           :: max_irac     ! maximum number of iteration for the refinement
+       REAL(KIND = dp)   :: eps_irac! target accuracy for the refinement
+       REAL(KIND = dp)   :: eps_irac_quick_exit
+       REAL(KIND = dp)   :: eps_irac_switch
+       CHARACTER(LEN=4)  :: ortho_irac
   END TYPE qs_ot_settings_type
 
   TYPE qs_ot_type
@@ -227,10 +230,12 @@ CONTAINS
     settings%max_taylor=4
     settings%gold_target=0.01_dp
     settings%do_rotation=.FALSE.
-    settings%refinement_degree=4
-    settings%max_refinement=15
-    settings%eps_refinement_norm=1.0E-10_dp
-    settings%min_eps_refinement_norm=1.0E-2_dp
+    settings%irac_degree=4
+    settings%max_irac=50
+    settings%eps_irac=1.0E-10_dp
+    settings%eps_irac_quick_exit=1.0E-5_dp
+    settings%eps_irac_switch=1.0E-2
+    settings%ortho_irac="CHOL"
   END SUBROUTINE qs_ot_settings_init
 
 !*******************************************************************************
@@ -522,200 +527,355 @@ SUBROUTINE qs_ot_destroy(qs_ot_env,error)
 
 END SUBROUTINE qs_ot_destroy
 
-SUBROUTINE qs_ot_get_orbitals_ref(matrix_c, matrix_s, matrix_x, matrix_sx, &
-     &                            qs_ot_env, qs_ot_env1, error)
-  !----------------------------------------------------------------------
-  ! matrix_sx needs to be updated in output, matrix_x is updated here 
-  ! after the last LS step.
-  !----------------------------------------------------------------------
-  TYPE(cp_fm_type), POINTER          :: matrix_c,matrix_x,matrix_sx
-  TYPE(real_matrix_type), POINTER    :: matrix_s
-  TYPE(qs_ot_type)                   :: qs_ot_env,qs_ot_env1
+
+SUBROUTINE qs_ot_ref_chol(qs_ot_env, C_OLD, C_TMP, C_NEW, P, SC, update, error)
+  TYPE(qs_ot_type)                   :: qs_ot_env
+  TYPE(cp_fm_type), POINTER          :: C_OLD,C_TMP,C_NEW,P,SC
+  LOGICAL, INTENT(IN)                :: update
   TYPE(cp_error_type), INTENT(INOUT) :: error
-  REAL(KIND=dp), PARAMETER           :: rone = 1.0_dp, rzero = 0.0_dp
-  TYPE(cp_fm_type), POINTER          :: SC,P,Y,C_NEW,C_OLD,C_TMP
-  TYPE(real_matrix_type), POINTER    :: S
-  TYPE(cp_logger_type), POINTER      :: logger
-  INTEGER                            :: handle,k,n,irefine,output_unit,&
-       &                                max_refinement
-  REAL(dp)                           :: norm,norm_gct,norm_fro
-  LOGICAL                            :: update
   !
-  CALL timeset("qs_ot_get_orbitals_ref","I","",handle)
-  NULLIFY(S,SC,P,Y,C_NEW,C_OLD,C_TMP)  
-  logger => cp_error_get_logger(error)
-  output_unit = cp_logger_get_default_unit_nr(logger)
-  CALL cp_fm_get_info(matrix_c,nrow_global=n,ncol_global=k,error=error)
+  INTEGER                            :: handle,n,k
   !
-  C_NEW => matrix_c
-  C_OLD => matrix_x
-  SC    => matrix_sx
-  S     => matrix_s
-  C_TMP => qs_ot_env%matrix_c0   ! a buffer
-  P     => qs_ot_env%matrix_p    ! a buffer
-  Y     => qs_ot_env%matrix_cosp ! a buffer
+  CALL timeset("qs_ot_ref_chol","I","",handle)
   !
-  CALL cp_fm_to_fm(C_OLD,C_TMP,error=error)
+  CALL cp_fm_get_info(C_NEW,nrow_global=n,ncol_global=k,error=error)
   !
-  ! compute SC = S*C
-  IF(ASSOCIATED(S)) THEN
-     CALL cp_sm_fm_multiply(S,C_TMP,SC,k,error=error)
-  ELSE
+  ! P = U'*U
+  CALL cp_fm_cholesky_decompose(P,k,error=error)
+  !
+  ! C_NEW = C_OLD*inv(U)
+  CALL cp_fm_cholesky_restore(C_OLD,k,P,C_NEW,op="SOLVE",pos="RIGHT",&
+       &                      transa="N",error=error)
+  !
+  ! Update SC if needed
+  IF(update) THEN
+     CALL cp_fm_cholesky_restore(SC,k,P,C_TMP,op="SOLVE",pos="RIGHT",&
+          &                      transa="N",error=error)
      CALL cp_fm_to_fm(C_TMP,SC,error=error)
   ENDIF
   !
-  ! compute P = C'*S*C
-  CALL cp_fm_gemm('T','N',k,k,n,rone,C_TMP,SC,rzero,P,error=error)
+  CALL timestop(0.0_dp,handle)
+END SUBROUTINE qs_ot_ref_chol
+
+SUBROUTINE qs_ot_ref_loewdin(qs_ot_env, C_OLD, C_TMP, C_NEW, P, SC, update, error)
   !
-  ! check ||P-1||_f and ||P-1||_gct
-  CALL cp_fm_set_all(Y,rzero,rone,error=error)
-  CALL cp_fm_scale_and_add(rone,Y,-rone,P,error=error)
-  CALL cp_fm_frobenius_norm(Y,norm_fro,error=error)
-  CALL cp_fm_maxabsrownorm(Y,norm_gct,error=error)
-  IF(output_unit>0) write(output_unit,'(A,I3,A,E12.5,A,E12.5)') 'qs_ot_get_orbitals_ref: ',0,&
-       &                              ': ||P-I||_f=',norm_fro,' ||P-I||_GCT=',norm_gct
+  TYPE(qs_ot_type)                   :: qs_ot_env
+  TYPE(cp_fm_type), POINTER          :: C_OLD,C_TMP,C_NEW,P,SC
+  LOGICAL, INTENT(IN)                :: update
+  TYPE(cp_error_type), INTENT(INOUT) :: error
   !
-  ! rescaling
-  norm = MIN(norm_fro,norm_gct)
-  IF(norm.GT.1.0_dp) THEN
-     IF(output_unit>0) write(output_unit,'(A,I3,A)') 'qs_ot_get_orbitals_ref: ',0,' we rescale (C+a*D)'
-     CALL cp_fm_scale(1.0_dp/norm,P,error=error)
-     CALL cp_fm_scale(1.0_dp/SQRT(norm),C_TMP,error=error)
+  INTEGER                            :: handle,i,n,k
+  TYPE(cp_fm_type), POINTER          :: V,W
+  REAL(dp), DIMENSION(:), POINTER    :: eig,fun
+  !
+  CALL timeset("qs_ot_ref_loewdin","I","",handle)
+  !
+  NULLIFY(V,W,eig)
+  !
+  CALL cp_fm_get_info(C_NEW,nrow_global=n,ncol_global=k,error=error)
+  !
+  V   => qs_ot_env%matrix_cosp ! a buffer
+  W   => qs_ot_env%matrix_sinp ! a buffer
+  eig => qs_ot_env%evals       ! a buffer
+  fun => qs_ot_env%dum         ! a buffer
+  !
+  CALL cp_fm_syevd(P,V,eig,error=error)
+  !
+  ! compute the P^(-1/2)
+  DO i = 1,k
+     IF(eig(i).LE.0.0_dp) &
+          & CALL stop_program("qs_ot_ref_loewdin","P not positive definite")
+     IF(eig(i).LT.1.0E-8_dp) THEN
+        fun(i)=0.0_dp
+     ELSE
+        fun(i)=1.0_dp/SQRT(eig(i))
+     ENDIF
+  ENDDO
+  CALL cp_fm_to_fm(V,W,error=error)
+  CALL cp_fm_column_scale(V,fun)
+  CALL cp_fm_gemm('N','T',k,k,k,1.0_dp,W,V,0.0_dp,P,error=error)
+  !
+  ! Update C
+  CALL cp_fm_gemm('N','N',n,k,k,1.0_dp,C_OLD,P,0.0_dp,C_NEW,error=error)
+  !
+  ! Update SC if needed
+  IF(update) THEN
+     CALL cp_fm_gemm('N','N',n,k,k,1.0_dp,SC,P,0.0_dp,C_TMP,error=error)
+     CALL cp_fm_to_fm(C_TMP,SC,error=error)
   ENDIF
   !
-  ! lets go
-  DO irefine = 1,qs_ot_env1%settings%max_refinement
+  CALL timestop(0.0_dp,handle)
+END SUBROUTINE qs_ot_ref_loewdin
+
+SUBROUTINE qs_ot_ref_poly(qs_ot_env,S,C_OLD,C_TMP,C_NEW,P,SC,norm_in,update,error)
+  !
+  TYPE(qs_ot_type)                   :: qs_ot_env
+  TYPE(real_matrix_type), POINTER    :: S
+  TYPE(cp_fm_type), POINTER          :: C_OLD,C_TMP,C_NEW,P,SC
+  REAL(dp), INTENT(IN)               :: norm_in
+  LOGICAL, INTENT(IN)                :: update
+  TYPE(cp_error_type), INTENT(INOUT) :: error
+  !
+  TYPE(cp_fm_type), POINTER          :: FY,FT,Y
+  TYPE(cp_logger_type), POINTER      :: logger
+  REAL(dp)                           :: norm,norm_gct,norm_fro,rescale
+  REAL(dp), PARAMETER                :: rzero=0.0_dp,rone=1.0_dp
+  INTEGER                            :: handle,n,k,output_unit,irefine
+  LOGICAL                            :: quick_exit
+  !
+  CALL timeset("qs_ot_ref_poly","I","",handle)
+  !
+  NULLIFY(logger,FY,Y)
+  logger => cp_error_get_logger(error)
+  output_unit = cp_logger_get_default_unit_nr(logger)
+  !
+  CALL cp_fm_get_info(C_NEW,nrow_global=n,ncol_global=k,error=error)
+  !
+  Y  => qs_ot_env%matrix_cosp ! a buffer
+  FY => qs_ot_env%matrix_sinp ! a buffer
+  FT => qs_ot_env%matrix_r    ! a buffer
+  !
+  ! initialize the norm (already computed in qs_ot_get_orbitals_ref)
+  norm = norm_in
+  !
+  ! can we do a quick exit?
+  quick_exit = .FALSE.
+  IF(norm.LT.qs_ot_env%settings%eps_irac_quick_exit) quick_exit = .TRUE.
+  !
+  ! lets refine
+  rescale = 1.0_dp
+  DO irefine = 1,qs_ot_env%settings%max_irac
      !
-     ! C_NEW = Refine(C_TMP) such that C_NEW'*S*C_NEW \approx 1
-     CALL qs_ot_refine(qs_ot_env,C_TMP,C_NEW,P,error)
-     !
-     ! decide if quick exit
-     !IF(norm.LT.qs_ot_env1%settings%min_eps_refinement_norm) THEN
-     !ELSE
-     !ENDIF
-     !
-     ! compute SC = S*C
-     IF(ASSOCIATED(S)) THEN
-        CALL cp_sm_fm_multiply(S,C_NEW,SC,k,error=error)
-     ELSE
-        CALL cp_fm_to_fm(C_NEW,SC,error=error)
+     ! rescaling
+     IF(norm.GT.1.0_dp) THEN
+        IF(output_unit>0) write(output_unit,'(A,I3,A)') &
+             &'qs_ot_get_orbitals_ref: ',irefine,': we rescale (C+a*D)'
+        CALL cp_fm_scale(1.0_dp/norm,P,error=error)
+        rescale = rescale/SQRT(norm)
      ENDIF
      !
-     ! quick exist if needed
-     !IF(irefine.EQ.qs_ot_env1%settings%max_refinement) EXIT
+     ! get the refinement polynomial
+     CALL qs_ot_refine(qs_ot_env,P,FY,error)
      !
-     ! compute P = C'*S*C
-     CALL cp_fm_gemm('T','N',k,k,n,rone,C_NEW,SC,rzero,P,error=error)
+     ! collect the transformation
+     IF(irefine.EQ.1) THEN
+        CALL cp_fm_to_fm(FY,FT,error=error)
+     ELSE
+        CALL cp_fm_gemm('N','N',k,k,k,rone,FT,FY,rzero,Y,error=error)
+        CALL cp_fm_to_fm(Y,FT,error=error)
+     ENDIF
      !
-     ! check ||P-1||_f and ||P-1||_gct
+     ! quick exit if possible
+     IF(quick_exit) THEN
+        IF(output_unit>0) write(output_unit,'(A,I3,A)') &
+             & 'qs_ot_get_orbitals_ref: ',irefine,': quick exit!'
+        EXIT
+     ENDIF
+     !
+     ! P = FY^T * P * FY
+     CALL cp_fm_gemm('N','N',k,k,k,rone,P,FY,rzero,Y,error=error)     
+     CALL cp_fm_gemm('T','N',k,k,k,rone,FY,Y,rzero,P,error=error)     
+     !
+     ! check ||P-1||_gct
      CALL cp_fm_set_all(Y,rzero,rone,error=error)
      CALL cp_fm_scale_and_add(rone,Y,-rone,P,error=error)
      CALL cp_fm_frobenius_norm(Y,norm_fro,error=error)
      CALL cp_fm_maxabsrownorm(Y,norm_gct,error=error)
-     IF(output_unit>0) write(output_unit,'(A,I3,A,E12.5,A,E12.5)') 'qs_ot_get_orbitals_ref: ',irefine,&
-          &                  ': ||P-I||_f=',norm_fro,' ||P-I||_GCT=',norm_gct
+     norm = MIN(norm_gct,norm_fro)
      !
-     ! on the fly rescaling
-     norm = MIN(norm_fro,norm_gct)
-     IF(norm.GT.1.0_dp) THEN
-        IF(output_unit>0) write(output_unit,'(A,I3,A)') 'qs_ot_get_orbitals_ref: ',irefine,&
-             &                                          ' we rescale (C+a*D)'
-        CALL cp_fm_scale(1.0_dp/norm,P,error=error)
-        CALL cp_fm_scale(1.0_dp/SQRT(norm),C_TMP,error=error)
-     ENDIF
+     ! printing
+     IF(output_unit>0) write(output_unit,'(A,I3,A,E12.5)') &
+          & 'qs_ot_get_orbitals_ref: ',irefine,': ||P-I||=',norm
      !
-     IF(norm_fro.GT.1.0E10_dp) THEN
+     ! blows up
+     IF(norm.GT.1.0E10_dp) THEN
         CALL stop_program("qs_ot_get_orbitals_ref","... refinement blows up! "//&
-          & "... we need you to improve the code, please post your input on "//&
-          & "the forum http://cp2k.berlios.de/")
+             & "... we need you to improve the code, please post your input on "//&
+             & "the forum http://cp2k.berlios.de/")
      ENDIF
-     IF(norm_fro.LT.qs_ot_env1%settings%eps_refinement_norm) EXIT
      !
-     ! copy new coeff in old buff
-     CALL cp_fm_to_fm(C_NEW,C_TMP,error=error)
+     ! can we do a quick exit next step?
+     IF(norm.LT.qs_ot_env%settings%eps_irac_quick_exit) quick_exit = .TRUE.
+     !
+     ! are we done?
+     IF(norm.LT.qs_ot_env%settings%eps_irac) EXIT
+     !
   ENDDO
   !
-  ! We update the C_i+1
+  ! C_NEW = C_NEW * FT * rescale
+  CALL cp_fm_gemm('N','N',n,k,k,rescale,C_OLD,FT,rzero,C_NEW,error=error)     
+  !
+  ! update SC = SC * FY * rescale
+  IF(update) THEN
+     CALL cp_fm_gemm('N','N',n,k,k,rescale,SC,FT,rzero,C_TMP,error=error)
+     CALL cp_fm_to_fm(C_TMP,SC,error=error)
+  ENDIF
+  !
+  CALL timestop(0.0_dp,handle)
+END SUBROUTINE qs_ot_ref_poly
+
+FUNCTION qs_ot_ref_update(qs_ot_env1) RESULT(update)
+  !
+  TYPE(qs_ot_type)                   :: qs_ot_env1
+  LOGICAL                            :: update
+  !
   update = .FALSE.
   SELECT CASE(qs_ot_env1%settings%ot_method)
   CASE("CG")
      SELECT CASE(qs_ot_env1%settings%line_search_method)
      CASE("2PNT")
         IF(qs_ot_env1%line_search_count.EQ.2) update = .TRUE.
-        !CASE("3PNT")
-        !IF(qs_ot_env1%line_search_count.EQ.3) update = .TRUE.
-        !CASE("NONE")
-        !   IF(qs_ot_env1%line_search_count.EQ.1) update = .TRUE.
      CASE DEFAULT
-        CALL stop_program("qs_ot_get_orbitals_ref","NYI")
+        CALL stop_program("qs_ot_ref_update","NYI")
      END SELECT
   CASE("DIIS")
      update = .TRUE.
   CASE DEFAULT
-     CALL stop_program("qs_ot_get_orbitals_ref","NYI")
+     CALL stop_program("qs_ot_ref_update","NYI")
+  END SELECT
+END FUNCTION qs_ot_ref_update
+
+SUBROUTINE qs_ot_ref_decide(qs_ot_env1, norm_in, ortho_irac)
+  !
+  TYPE(qs_ot_type)                   :: qs_ot_env1
+  REAL(dp), INTENT(IN)               :: norm_in
+  CHARACTER(LEN=*), INTENT(INOUT)    :: ortho_irac
+  !
+  ortho_irac = qs_ot_env1%settings%ortho_irac
+  IF(norm_in.LT.qs_ot_env1%settings%eps_irac_switch) ortho_irac = "POLY"
+END SUBROUTINE qs_ot_ref_decide
+
+SUBROUTINE qs_ot_get_orbitals_ref(matrix_c, matrix_s, matrix_x, matrix_sx, &
+     &                            qs_ot_env, qs_ot_env1, error)
+  !
+  TYPE(cp_fm_type), POINTER          :: matrix_c,matrix_x,matrix_sx
+  TYPE(real_matrix_type), POINTER    :: matrix_s
+  TYPE(qs_ot_type)                   :: qs_ot_env,qs_ot_env1
+  TYPE(cp_error_type), INTENT(INOUT) :: error
+  !
+  REAL(KIND=dp), PARAMETER           :: rone = 1.0_dp, rzero = 0.0_dp
+  TYPE(cp_fm_type), POINTER          :: SC,P,Y,C_NEW,C_OLD,C_TMP
+  TYPE(real_matrix_type), POINTER    :: S
+  TYPE(cp_logger_type), POINTER      :: logger
+  INTEGER                            :: handle,k,n,irefine,output_unit,&
+       &                                max_irac
+  REAL(dp)                           :: norm,norm_decide,norm_gct,norm_fro
+  LOGICAL                            :: update
+  CHARACTER(LEN=4)                   :: ortho_irac
+  !
+  CALL timeset("qs_ot_get_orbitals_ref","I","",handle)
+  NULLIFY(S,SC,P,Y,C_NEW,C_OLD,C_TMP,logger)  
+  logger => cp_error_get_logger(error)
+  output_unit = cp_logger_get_default_unit_nr(logger)
+  CALL cp_fm_get_info(matrix_c,nrow_global=n,ncol_global=k,error=error)
+  !
+  C_NEW => matrix_c  ! a buffer
+  C_OLD => matrix_x  ! need to be carefully updated for the gradient !
+  SC    => matrix_sx ! need to be carefully updated for the gradient !
+  S     => matrix_s
+  C_TMP => qs_ot_env%matrix_c0   ! a buffer
+  P     => qs_ot_env%matrix_p    ! a buffer
+  Y     => qs_ot_env%matrix_cosp ! a buffer
+  !
+  ! do we need to update C_OLD and SC?
+  update = qs_ot_ref_update(qs_ot_env1)
+  !
+  ! compute SC = S*C
+  IF(ASSOCIATED(S)) THEN
+     CALL cp_sm_fm_multiply(S,C_OLD,SC,k,error=error)
+  ELSE
+     CALL cp_fm_to_fm(C_OLD,SC,error=error)
+  ENDIF
+  !
+  ! compute P = C'*SC
+  CALL cp_fm_gemm('T','N',k,k,n,rone,C_OLD,SC,rzero,P,error=error)
+  !
+  ! check ||P-1||_f and ||P-1||_gct
+  CALL cp_fm_set_all(Y,rzero,rone,error=error)
+  CALL cp_fm_scale_and_add(rone,Y,-rone,P,error=error)
+  CALL cp_fm_frobenius_norm(Y,norm_fro,error=error)
+  CALL cp_fm_maxabsrownorm(Y,norm_gct,error=error)
+  norm = MIN(norm_gct,norm_fro)
+  CALL qs_ot_ref_decide(qs_ot_env1,norm,ortho_irac)
+  IF(output_unit>0) write(output_unit,'(A,I3,A,E12.5,A)') &
+       & 'qs_ot_get_orbitals_ref: ',0,': ||P-I||=',norm,&
+       & ', ortho_irac = '//ortho_irac
+  !
+  ! select the orthogonality method
+  SELECT CASE(ortho_irac)
+  CASE("CHOL")
+     CALL qs_ot_ref_chol(qs_ot_env,C_OLD,C_TMP,C_NEW,P,SC,update,error)
+  CASE("LWDN")
+     CALL qs_ot_ref_loewdin(qs_ot_env,C_OLD,C_TMP,C_NEW,P,SC,update,error)
+  CASE("POLY")
+     CALL qs_ot_ref_poly(qs_ot_env,S,C_OLD,C_TMP,C_NEW,P,SC,norm,update,error)
+  CASE DEFAULT
+     CALL stop_program("qs_ot_get_orbitals_ref","Wrong argument")
   END SELECT
   !
+  ! We update the C_i+1
   IF(update) CALL cp_fm_to_fm(C_NEW,C_OLD,error=error)
   !
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE qs_ot_get_orbitals_ref
 
-SUBROUTINE qs_ot_refine(qs_ot_env,C_OLD,C_NEW,P,error)
+SUBROUTINE qs_ot_refine(qs_ot_env,P,FY,error)
   !----------------------------------------------------------------------
   ! refinement polynomial of degree 2,3 and 4 (PRB 70, 193102 (2004))
   !----------------------------------------------------------------------
   TYPE(qs_ot_type)                         :: qs_ot_env
-  TYPE(cp_fm_type), POINTER                :: P,C_NEW,C_OLD
+  TYPE(cp_fm_type), POINTER                :: P,FY
   TYPE(cp_error_type), INTENT(inout)       :: error
+  !
   TYPE(cp_fm_type), POINTER                :: P2,T,Y
   REAL(KIND=dp), PARAMETER                 :: rone=1.0_dp,rzero=0.0_dp
   REAL(dp)                                 :: r
   INTEGER                                  :: k,n
-  NULLIFY(P2,Y,T)
-  CALL cp_fm_get_info(C_NEW,nrow_global=n,ncol_global=k,error=error)
-  P2 => qs_ot_env%matrix_sinp ! a buffer
-  Y  => qs_ot_env%matrix_cosp ! a buffer
+  !
+  NULLIFY(P2,T)
+  CALL cp_fm_get_info(P,ncol_global=k,error=error)
+  P2 => qs_ot_env%matrix_buf2 ! a buffer
   T  => qs_ot_env%matrix_buf1 ! a buffer
-  SELECT CASE(qs_ot_env%settings%refinement_degree)
+  SELECT CASE(qs_ot_env%settings%irac_degree)
   CASE(2)
      ! C_out = C_in * ( 15/8 * I - 10/8 * P + 3/8 * P^2)
      r = 15.0_dp/8.0_dp
-     CALL cp_fm_set_all(Y,rzero,r,error=error)
+     CALL cp_fm_set_all(FY,rzero,r,error=error)
      r = 3.0_dp/8.0_dp
-     CALL cp_fm_gemm('N','N',k,k,k,r,P,P,rone,Y,error=error)
+     CALL cp_fm_gemm('N','N',k,k,k,r,P,P,rone,FY,error=error)
      r = -10.0_dp/8.0_dp
-     CALL cp_fm_scale_and_add(rone,Y,r,P,error=error)
-     CALL cp_fm_gemm('N','N',n,k,k,rone,C_OLD,Y,rzero,C_NEW,error=error)
+     CALL cp_fm_scale_and_add(rone,FY,r,P,error=error)
+     !CALL cp_fm_gemm('N','N',n,k,k,rone,C_IN,Y,rzero,C_OUT,error=error)
   CASE(3)
      ! C_out = C_in * ( 35/16 * I - 35/16 * P + 21/16 * P^2 - 5/16 P^3)
      CALL cp_fm_gemm('N','N',k,k,k,rone,P,P,rzero,P2,error=error)
      r =  35.0_dp/16.0_dp
-     CALL cp_fm_set_all(Y,rzero,r,error=error)
+     CALL cp_fm_set_all(FY,rzero,r,error=error)
      r = -35.0_dp/16.0_dp
-     CALL cp_fm_scale_and_add(rone,Y,r,P,error=error)
+     CALL cp_fm_scale_and_add(rone,FY,r,P,error=error)
      r =  21.0_dp/16.0_dp
-     CALL cp_fm_scale_and_add(rone,Y,r,P2,error=error)
+     CALL cp_fm_scale_and_add(rone,FY,r,P2,error=error)
      r = -5.0_dp/16.0_dp
-     CALL cp_fm_gemm('N','N',k,k,k,r,P2,P,rone,Y,error=error)
-     CALL cp_fm_gemm('N','N',n,k,k,rone,C_OLD,Y,rzero,C_NEW,error=error)
+     CALL cp_fm_gemm('N','N',k,k,k,r,P2,P,rone,FY,error=error)
+     !CALL cp_fm_gemm('N','N',n,k,k,rone,C_IN,Y,rzero,C_OUT,error=error)
   CASE(4)
      ! C_out = C_in * ( 315/128 * I - 420/128 * P + 378/128 * P^2 - 180/128 P^3 + 35/128 P^4 )
      !       = C_in * ( 315/128 * I - 420/128 * P + 378/128 * P^2 + ( - 180/128 * P + 35/128 * P^2 ) * P^2 )
      CALL cp_fm_gemm('N','N',k,k,k,rone,P,P,rzero,P2,error=error) ! P^2
      r =  315.0_dp/128.0_dp
-     CALL cp_fm_set_all(Y,rzero,r,error=error)                    ! Y=315/128*I
+     CALL cp_fm_set_all(FY,rzero,r,error=error)                   ! Y=315/128*I
      r = -420.0_dp/128.0_dp
-     CALL cp_fm_scale_and_add(rone,Y,r,P,error=error)             ! Y=Y-420/128*P
+     CALL cp_fm_scale_and_add(rone,FY,r,P,error=error)            ! Y=Y-420/128*P
      r =  378.0_dp/128.0_dp
-     CALL cp_fm_scale_and_add(rone,Y,r,P2,error=error)            ! Y=Y+378/128*P^2
+     CALL cp_fm_scale_and_add(rone,FY,r,P2,error=error)           ! Y=Y+378/128*P^2
      r = -180.0_dp/128.0_dp
-     CALL cp_fm_scale_and_add(rzero,T,r,P,error=error)            ! T=-180/128*P
+     CALL cp_fm_scale_and_add(rzero,T,r,P,error=error)           ! T=-180/128*P
      r =  35.0_dp/128.0_dp
-     CALL cp_fm_scale_and_add(rone,T,r,P2,error=error)            ! T=T+35/128*P^2
-     CALL cp_fm_gemm('N','N',k,k,k,rone,T,P2,rone,Y,error=error)  ! Y=Y+T*P^2
-     CALL cp_fm_gemm('N','N',n,k,k,rone,C_OLD,Y,rzero,C_NEW,error=error)
+     CALL cp_fm_scale_and_add(rone,T,r,P2,error=error)           ! T=T+35/128*P^2
+     CALL cp_fm_gemm('N','N',k,k,k,rone,T,P2,rone,FY,error=error) ! Y=Y+T*P^2
+     !CALL cp_fm_gemm('N','N',n,k,k,rone,C_IN,Y,rzero,C_OUT,error=error)
   CASE DEFAULT
-     CALL stop_program("qs_ot_refine","this refinement_order NYI")
+     CALL stop_program("qs_ot_refine","this irac_order NYI")
   END SELECT
 END SUBROUTINE qs_ot_refine
 
@@ -734,7 +894,7 @@ SUBROUTINE qs_ot_get_derivative_ref(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
   CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k,error=error)
   !
   C   => matrix_x           ! NBsf*NOcc
-  SC  => matrix_sx          ! NBsf*NOcc
+  SC  => matrix_sx          ! NBsf*NOcc need to be up2date
   HC  => matrix_hc          ! NBsf*NOcc
   G   => matrix_gx          ! NBsf*NOcc
   CHC => qs_ot_env%matrix_p ! buffer

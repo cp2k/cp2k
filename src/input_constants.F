@@ -357,7 +357,8 @@ MODULE input_constants
                                 state_loc_none=4
 
   INTEGER, PARAMETER, PUBLIC :: ot_mini_sd=1,ot_mini_cg=2,ot_mini_diis=3
-  INTEGER, PARAMETER, PUBLIC :: ot_algo_taylor_or_diag=1,ot_algo_refine=2
+  INTEGER, PARAMETER, PUBLIC :: ot_algo_taylor_or_diag=1,ot_algo_irac=2
+  INTEGER, PARAMETER, PUBLIC :: ot_chol_irac=1,ot_poly_irac=2,ot_lwdn_irac=3
   INTEGER, PARAMETER, PUBLIC :: ot_ls_none=1,ot_ls_2pnt=2,ot_ls_3pnt=3,ot_ls_gold=4
   INTEGER, PARAMETER, PUBLIC :: ot_precond_none=0, &
                         ot_precond_full_single=1, &

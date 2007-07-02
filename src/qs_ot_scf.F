@@ -36,7 +36,8 @@ MODULE qs_ot_scf
   USE input_constants,                 ONLY: &
        ot_ls_2pnt, ot_ls_3pnt, ot_ls_gold, ot_ls_none, ot_mini_cg, &
        ot_mini_diis, ot_mini_sd, ot_precond_full_all, &
-       ot_algo_taylor_or_diag,ot_algo_refine, &
+       ot_algo_taylor_or_diag,ot_algo_irac, &
+       ot_chol_irac,ot_poly_irac,ot_lwdn_irac,&
        ot_precond_full_kinetic, ot_precond_full_single, &
        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
        ot_precond_sparse_diag
@@ -86,7 +87,8 @@ CONTAINS
 
     CHARACTER(LEN=40)                        :: value
     INTEGER                                  :: handle, ispin, ls_method, &
-                                                nspin, ot_method, ot_algorithm, output_unit
+                                                nspin, ot_method, ot_algorithm, &
+                                                ot_ortho_irac, output_unit
     LOGICAL                                  :: explicit
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: ot_section
@@ -111,29 +113,53 @@ CONTAINS
     SELECT CASE(ot_algorithm)
     CASE (ot_algo_taylor_or_diag)
        qs_ot_env(1)%settings%ot_algorithm="TOD"
-    CASE (ot_algo_refine)
+    CASE (ot_algo_irac)
        qs_ot_env(1)%settings%ot_algorithm="REF"
     CASE DEFAULT
        CALL stop_program("READ OT ALGORITHM","VALUE UNKNOWN")
     END SELECT
 
-    ! refinement input
-    CALL section_vals_val_get(ot_section,"REFINE_DEGREE",i_val=qs_ot_env(1)%settings%refinement_degree,&
+    ! irac input
+    CALL section_vals_val_get(ot_section,"IRAC_DEGREE",i_val=qs_ot_env(1)%settings%irac_degree,&
          &                    error=error)
-    IF(   qs_ot_env(1)%settings%refinement_degree.LT.2.OR.&
-         &qs_ot_env(1)%settings%refinement_degree.GT.4) THEN
-       CALL stop_program("READ OT REFINE_DEGREE","VALUE UNKNOWN")
+    IF(   qs_ot_env(1)%settings%irac_degree.LT.2.OR.&
+         &qs_ot_env(1)%settings%irac_degree.GT.4) THEN
+       CALL stop_program("READ OT IRAC_DEGREE","VALUE UNKNOWN")
     ENDIF
-    CALL section_vals_val_get(ot_section,"MAX_REFINE",i_val=qs_ot_env(1)%settings%max_refinement,&
+    CALL section_vals_val_get(ot_section,"MAX_IRAC",i_val=qs_ot_env(1)%settings%max_irac,&
          &                    error=error)
-    IF(qs_ot_env(1)%settings%max_refinement.LT.1) THEN
-       CALL stop_program("READ OT MAX_REFINE","VALUE MUST BE GREATER THAN ZERO")
+    IF(qs_ot_env(1)%settings%max_irac.LT.1) THEN
+       CALL stop_program("READ OT MAX_IRAC","VALUE MUST BE GREATER THAN ZERO")
     ENDIF
-    CALL section_vals_val_get(ot_section,"EPS_REFINE_NORM",r_val=qs_ot_env(1)%settings%eps_refinement_norm,&
+    CALL section_vals_val_get(ot_section,"EPS_IRAC",r_val=qs_ot_env(1)%settings%eps_irac,&
          &                    error=error)
-    IF(qs_ot_env(1)%settings%eps_refinement_norm.LT.0.0_dp) THEN
-       CALL stop_program("READ OT EPS_REFINE_NORM","VALUE MUST BE GREATER THAN ZERO")
+    IF(qs_ot_env(1)%settings%eps_irac.LT.0.0_dp) THEN
+       CALL stop_program("READ OT EPS_IRAC","VALUE MUST BE GREATER THAN ZERO")
     ENDIF
+    CALL section_vals_val_get(ot_section,"EPS_IRAC_QUICK_EXIT",r_val=qs_ot_env(1)%settings%eps_irac_quick_exit,&
+         &                    error=error)
+    IF(qs_ot_env(1)%settings%eps_irac_quick_exit.LT.0.0_dp) THEN
+       CALL stop_program("READ OT EPS_IRAC_QUICK_EXIT","VALUE MUST BE GREATER THAN ZERO")
+    ENDIF
+
+    CALL section_vals_val_get(ot_section,"EPS_IRAC_SWITCH",r_val=qs_ot_env(1)%settings%eps_irac_switch,&
+         &                    error=error)
+    IF(qs_ot_env(1)%settings%eps_irac_switch.LT.0.0_dp) THEN
+       CALL stop_program("READ OT EPS_IRAC_SWITCH","VALUE MUST BE GREATER THAN ZERO")
+    ENDIF
+
+    CALL section_vals_val_get(ot_section,"ORTHO_IRAC",i_val=ot_ortho_irac,error=error)
+    SELECT CASE(ot_ortho_irac)
+    CASE(ot_chol_irac)
+       qs_ot_env(1)%settings%ortho_irac="CHOL"
+    CASE(ot_poly_irac)
+       qs_ot_env(1)%settings%ortho_irac="POLY"
+    CASE(ot_lwdn_irac)
+       qs_ot_env(1)%settings%ortho_irac="LWDN"
+    CASE DEFAULT
+       CALL stop_program("READ OT ORTHO_IRAC","VALUE UNKNOWN")
+    END SELECT
+
 
        CALL section_vals_val_get(ot_section,"MINIMIZER",i_val=ot_method,error=error)
        ! compatibility
@@ -260,9 +286,18 @@ CONTAINS
     WRITE(output_unit,'(A,I14)')   "  max_taylor     :",qs_ot_env(1)%settings%max_taylor
     WRITE(output_unit,'(A)') "  "
     IF(qs_ot_env(1)%settings%ot_algorithm.EQ.'REF') THEN
-       WRITE(output_unit,'(A,I14)')"  refine_degree  :",qs_ot_env(1)%settings%refinement_degree
-       WRITE(output_unit,'(A,I14)')"  max_refine     :",qs_ot_env(1)%settings%max_refinement
-       WRITE(output_unit,'(A,E14.5)')"  eps_refine_norm:",qs_ot_env(1)%settings%eps_refinement_norm
+       WRITE(output_unit,'(A,1X,A)') "  ortho_irac         :",&
+            & qs_ot_env(1)%settings%ortho_irac
+       WRITE(output_unit,'(A,I14)')  "  irac_degree        :",&
+            & qs_ot_env(1)%settings%irac_degree
+       WRITE(output_unit,'(A,I14)')  "  max_irac           :",&
+            & qs_ot_env(1)%settings%max_irac
+       WRITE(output_unit,'(A,E14.5)')"  eps_irac           :",&
+            & qs_ot_env(1)%settings%eps_irac
+       WRITE(output_unit,'(A,E14.5)')"  eps_irac_switch    :",&
+            & qs_ot_env(1)%settings%eps_irac_switch
+       WRITE(output_unit,'(A,E14.5)')"  eps_irac_quick_exit:",&
+            & qs_ot_env(1)%settings%eps_irac_quick_exit
        WRITE(output_unit,'(A)') "  "
     ENDIF
     WRITE(output_unit,'(A)') "  ----------------------------------- OT --------------------------------------"
