@@ -236,6 +236,8 @@
       TIMECON 300
       MTS 2
     &END NOSE
+    &BAROSTAT
+    &END
     &PRINT
      &ENERGY
       EACH 1

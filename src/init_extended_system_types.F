@@ -150,7 +150,7 @@ CONTAINS
        restart=explicit
        work_section2 => section_vals_get_subs_vals(work_section,"MASS",error=error)
        CALL section_vals_get(work_section2, explicit=explicit, error=error)
-       CALL cp_assert(restart.or..not.explicit,cp_failure_level,cp_assertion_failed,routineP,&
+       CALL cp_assert(restart.EQV.explicit,cp_failure_level,cp_assertion_failed,routineP,&
             "You need to define both VELOCITY and MASS section (or none) in the BAROSTAT section",&
             error=error, failure=failure)
        restart=explicit.and.restart

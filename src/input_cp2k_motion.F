@@ -2850,7 +2850,7 @@ SUBROUTINE create_barostat_section(section, error)
 
        CALL section_create(section,name="barostat",&
             description="Parameters of barostat.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
        NULLIFY(keyword,subsection,sub2section)
@@ -3086,7 +3086,8 @@ SUBROUTINE create_nose_section(section, error)
   IF (.NOT. failure) THEN  
        CALL section_create(section,name="nose",&
             description="paramameters of the Nose Hoover thermostat chain",&
-            required=.FALSE.,error=error)
+            required=.TRUE.,error=error)
+
        NULLIFY(keyword,subsection)
        CALL keyword_create(keyword, name="length",&
             description="length of the NoseHoover chain", usage="length integer", &

@@ -74,5 +74,9 @@
     STEPS 5
     TIMESTEP 5.
     TEMPERATURE 85.0
+    &BAROSTAT
+    &END
+    &NOSE
+    &END
   &END MD
 &END MOTION

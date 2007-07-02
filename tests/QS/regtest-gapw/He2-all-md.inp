@@ -71,5 +71,7 @@
     STEPS 3
     TIMESTEP 0.2
     TEMPERATURE 300.0
+    &NOSE
+    &END
   &END MD
 &END MOTION

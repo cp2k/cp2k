@@ -74,5 +74,7 @@
       TIMECON 500
       MTS 2
     &END NOSE
+    &BAROSTAT
+    &END
   &END MD
 &END MOTION

@@ -93,6 +93,7 @@ MODULE input_cp2k_restarts
                                              string_to_ascii
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -158,7 +159,8 @@ CONTAINS
                                                 nforce_eval, strend, strstart
     LOGICAL                                  :: failure, save_mem
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: global_section, motion_section, sections
+    TYPE(section_vals_type), POINTER         :: global_section, &
+                                                motion_section, sections
 
     CALL timeset(routineN,handle)
 
@@ -267,21 +269,21 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_subsys_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iforce_eval, isubsys, myid, nforce_eval
+    INTEGER                                  :: handle, iforce_eval, isubsys, &
+                                                myid, nforce_eval
     INTEGER, DIMENSION(:), POINTER           :: i_force_eval
-    LOGICAL                                  :: explicit, failure, skip_vel_section
+    LOGICAL                                  :: explicit, failure, &
+                                                skip_vel_section
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
-    TYPE(force_env_type), POINTER            :: my_force_env, &
-                                                my_force_b
-    TYPE(mol_new_list_type), POINTER         :: molecules
-    TYPE(particle_list_type), POINTER        :: core_particles, &
-                                                particles, &
+    TYPE(force_env_type), POINTER            :: my_force_b, my_force_env
+    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
-    TYPE(section_vals_type), POINTER         :: force_env_sections, subsys_section, work_section
+    TYPE(section_vals_type), POINTER         :: force_env_sections, &
+                                                subsys_section, work_section
 
     CALL timeset(routineN,handle)
 
@@ -461,6 +463,7 @@ CONTAINS
        IF (ASSOCIATED(my_force_env)) &
             CALL update_force_eval(force_env=my_force_env,logger=logger,&
             root_section=root_section,error=error)
+       
     END IF
     CALL timestop(handle)
        
@@ -1213,12 +1216,13 @@ CONTAINS
 
     INTEGER                                  :: iforce_eval, myid, nforce_eval
     INTEGER, DIMENSION(:), POINTER           :: i_force_eval
-    LOGICAL                                  :: failure, skip_vel_section
+    LOGICAL                                  :: failure, skip_vel_section, multiple_subsys
     TYPE(section_vals_type), POINTER         :: force_env_sections, &
                                                 rng_section, subsys_section
+    TYPE(virial_type), POINTER               :: virial
 
     failure = .FALSE.
-    NULLIFY(rng_section, subsys_section)
+    NULLIFY(rng_section, subsys_section, virial)
     ! If it's not a dynamical run don't update the velocity section
     CALL section_vals_val_get(root_section,"GLOBAL%RUN_TYPE",i_val=myid,error=error)
     skip_vel_section =((myid /= mol_dyn_run).AND.&
@@ -1237,6 +1241,22 @@ CONTAINS
 
     rng_section    => section_vals_get_subs_vals(subsys_section,"RNG_INIT",error=error)
     CALL update_rng(rng_section,force_env,error)
+
+    ! And now update only the cells of all other force_eval
+    ! This is to make consistent for cell variable runs..
+    IF (nforce_eval>1) THEN
+       CALL force_env_get(force_env=force_env,&
+                          virial=virial,&
+                          error=error)
+       CALL section_vals_val_get(root_section,"MULTIPLE_FORCE_EVALS%MULTIPLE_SUBSYS",l_val=multiple_subsys,error=error)
+       IF (virial%pv_availability.AND.multiple_subsys) THEN
+          DO iforce_eval = 2, nforce_eval
+             subsys_section => section_vals_get_subs_vals3(force_env_sections,"SUBSYS",&
+                  i_rep_section=i_force_eval(iforce_eval),error=error)    
+             CALL update_cell_section(force_env, subsys_section, error)
+          END DO
+       END IF
+    END IF
     DEALLOCATE(i_force_eval)
     
   END SUBROUTINE update_force_eval
@@ -1373,10 +1393,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_subsys', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, isubsys, my_unit, stat
+    INTEGER                                  :: handle, isubsys, my_unit
     LOGICAL                                  :: failure, scale, use_ref_cell
     REAL(KIND=dp)                            :: conv_factor
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: work
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
@@ -1386,8 +1405,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: work_section
 
     failure = .FALSE.
-    NULLIFY(work, work_section, core_particles, particles, shell_particles, &
-            subsys, cell, cell_ref)
+    NULLIFY(work_section, core_particles, particles, shell_particles, &
+         subsys, cell, cell_ref)
     CALL timeset(routineN,"I",'',handle)
     CALL force_env_get(force_env,&
                        subsys=subsys,&
@@ -1395,9 +1414,7 @@ CONTAINS
                        cell_ref=cell_ref,&
                        use_ref_cell=use_ref_cell,&
                        error=error)
-    !
     ! The structure for multiple subsys has to be still decided..
-    !
     CPPostcondition(SIZE(subsys)==1,cp_failure_level,routineP,error,failure)
     DO isubsys=1,SIZE(subsys)
        CALL cp_subsys_get(subsys(isubsys)%subsys,&
@@ -1447,51 +1464,115 @@ CONTAINS
            CALL section_velocity_val_set(work_section, core_particles, conv_factor=1.0_dp, error=error)
          END IF
        ENDIF
-       !
-       ! CELL
-       ! 
-       work_section => section_vals_get_subs_vals(subsys_section,"CELL",error=error)
-       ALLOCATE(work(3),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       !     CELL VECTORS - A
-       work(1:3) = cell%hmat(1,1:3)/conv_factor
-       CALL section_vals_val_set(work_section,"A",r_vals_ptr=work,error=error)
-       ALLOCATE(work(3),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       !     CELL VECTORS - B
-       work(1:3) = cell%hmat(2,1:3)/conv_factor
-       CALL section_vals_val_set(work_section,"B",r_vals_ptr=work,error=error)
-       ALLOCATE(work(3),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       !     CELL VECTORS - C
-       work(1:3) = cell%hmat(3,1:3)/conv_factor
-       CALL section_vals_val_set(work_section,"C",r_vals_ptr=work,error=error)
-       CALL section_vals_val_unset(work_section,"ABC",error=error)
-       !
-       ! CELL_REF
-       !
-       IF (use_ref_cell.AND.ASSOCIATED(cell_ref)) THEN
-          work_section => section_vals_get_subs_vals(subsys_section,"CELL%CELL_REF",error=error)
-          CALL section_vals_val_set(work_section,"UNITS",i_val=my_unit,error=error)
-          ALLOCATE(work(3),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          !     CELL VECTORS - A
-          work(1:3) = cell_ref%hmat(1,1:3)/conv_factor
-          CALL section_vals_val_set(work_section,"A",r_vals_ptr=work,error=error)
-          ALLOCATE(work(3),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          !     CELL VECTORS - B
-          work(1:3) = cell_ref%hmat(2,1:3)/conv_factor
-          CALL section_vals_val_set(work_section,"B",r_vals_ptr=work,error=error)
-          ALLOCATE(work(3),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          !     CELL VECTORS - C
-          work(1:3) = cell_ref%hmat(3,1:3)/conv_factor
-          CALL section_vals_val_set(work_section,"C",r_vals_ptr=work,error=error)
-       END IF
+       ! Updating cell info
+       CALL update_cell_section(force_env, subsys_section, error)
     END DO
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE update_subsys
+
+!!****f* input_cp2k_restarts/update_cell_section [1.0] *
+!!
+!!   NAME
+!!     update_cell_section
+!!
+!!   FUNCTION
+!!     routine to update cell section.. splitted from the main update subsys_section
+!!
+!!   NOTES
+!!     
+!!
+!!   ARGUMENTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     07.2007 created [teo] Zurich University
+!!
+!!*** **********************************************************************
+  SUBROUTINE update_cell_section(force_env, subsys_section, error)
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(section_vals_type), POINTER         :: subsys_section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'update_cell_section', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, my_unit, stat
+    LOGICAL                                  :: failure, scale, use_ref_cell
+    REAL(KIND=dp)                            :: conv_factor
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: work
+    TYPE(cell_type), POINTER                 :: cell, cell_ref
+    TYPE(section_vals_type), POINTER         :: work_section
+
+    failure = .FALSE.
+    NULLIFY(work, work_section, cell, cell_ref)
+    CALL timeset(routineN,"I",'',handle)
+    ! Handle case for parallel runs
+    IF (ASSOCIATED(force_env)) THEN
+       CALL force_env_get(force_env,&
+                          cell=cell,&
+                          cell_ref=cell_ref,&
+                          use_ref_cell=use_ref_cell,&
+                          error=error)
+    ELSE
+
+    END IF
+
+    CALL section_vals_val_get(subsys_section,"CELL%UNITS",i_val=my_unit,error=error)
+    scale = .FALSE.
+    SELECT CASE(my_unit)
+    CASE (use_unit_angstrom,use_unit_scaled_angstrom)
+       conv_factor = bohr
+       IF (my_unit==use_unit_scaled_angstrom) scale = .TRUE.
+    CASE (use_unit_bohr,use_unit_scaled_bohr)
+       conv_factor = 1.0_dp
+       IF (my_unit==use_unit_scaled_bohr) scale = .TRUE.
+    CASE DEFAULT
+       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    END SELECT
+    ! CELL
+    work_section => section_vals_get_subs_vals(subsys_section,"CELL",error=error)
+    ALLOCATE(work(3),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ! CELL VECTORS - A
+    work(1:3) = cell%hmat(1,1:3)/conv_factor
+    CALL section_vals_val_set(work_section,"A",r_vals_ptr=work,error=error)
+    ALLOCATE(work(3),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ! CELL VECTORS - B
+    work(1:3) = cell%hmat(2,1:3)/conv_factor
+    CALL section_vals_val_set(work_section,"B",r_vals_ptr=work,error=error)
+    ALLOCATE(work(3),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ! CELL VECTORS - C
+    work(1:3) = cell%hmat(3,1:3)/conv_factor
+    CALL section_vals_val_set(work_section,"C",r_vals_ptr=work,error=error)
+    CALL section_vals_val_unset(work_section,"ABC",error=error)
+    ! CELL_REF
+    IF (use_ref_cell.AND.ASSOCIATED(cell_ref)) THEN
+       work_section => section_vals_get_subs_vals(subsys_section,"CELL%CELL_REF",error=error)
+       CALL section_vals_val_set(work_section,"UNITS",i_val=my_unit,error=error)
+       ALLOCATE(work(3),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ! CELL VECTORS - A
+       work(1:3) = cell_ref%hmat(1,1:3)/conv_factor
+       CALL section_vals_val_set(work_section,"A",r_vals_ptr=work,error=error)
+       ALLOCATE(work(3),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ! CELL VECTORS - B
+       work(1:3) = cell_ref%hmat(2,1:3)/conv_factor
+       CALL section_vals_val_set(work_section,"B",r_vals_ptr=work,error=error)
+       ALLOCATE(work(3),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ! CELL VECTORS - C
+       work(1:3) = cell_ref%hmat(3,1:3)/conv_factor
+       CALL section_vals_val_set(work_section,"C",r_vals_ptr=work,error=error)
+    END IF
+    CALL timestop(0.0_dp,handle)
+  END SUBROUTINE update_cell_section
 
 !!****f* input_cp2k_restarts/section_coord_val_set [1.0] *
 !!
@@ -1531,8 +1612,8 @@ CONTAINS
 
     CHARACTER(LEN=2*default_string_length)   :: line
     CHARACTER(LEN=default_string_length)     :: icval, my_tag, name, rcval
-    INTEGER                                  :: handle, ik, imol, irk, k, last_atom, &
-                                                Nlist
+    INTEGER                                  :: handle, ik, imol, irk, k, &
+                                                last_atom, Nlist
     LOGICAL                                  :: failure, ldum, &
                                                 molname_generated, my_shell
     REAL(KIND=dp), DIMENSION(3)              :: r, s

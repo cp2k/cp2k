@@ -1,7 +1,5 @@
-# This input file produces exactly the same numerical results as 
-# a single run of ../regtest-1/ala.with same MOTION setup.. 
 &MULTIPLE_FORCE_EVALS
-   FORCE_EVAL_ORDER 2 3 
+   FORCE_EVAL_ORDER 2 3 4 5
    MULTIPLE_SUBSYS T
 &END
 &FORCE_EVAL
@@ -9,10 +7,8 @@
   &MIXED
     MIXING_TYPE GENMIX
     &GENERIC
-      # X: Energy force_eval 2
-      # Y: Energy force_eval 3
-      MIXING_FUNCTION k*X+(1.0-k)*Y
-      VARIABLES X Y
+      MIXING_FUNCTION k*X+(1.0-k)*Y+(1.0-k)*Z+k*J
+      VARIABLES X Y Z J
       PARAMETERS k
       VALUES 0.5
     &END
@@ -28,7 +24,10 @@
           17 22
         &END
         &FRAGMENT 4
-          23 1840
+          23 33
+        &END
+        &FRAGMENT 5
+          34 1851
         &END
       &END
       &FORCE_EVAL 1
@@ -46,7 +45,7 @@
         &END
         &FRAGMENT 4
           23 1840
-          MAP 4
+          MAP 5
         &END
       &END
       &FORCE_EVAL 2
@@ -55,26 +54,37 @@
           MAP 1
         &END
         &FRAGMENT 2
-          7 16
-          MAP 2
+          7 17
+          MAP 4
         &END
         &FRAGMENT 3
-          17 22
+          18 23
           MAP 3
         &END
         &FRAGMENT 4
-          23 1840
+          24 1841
+          MAP 5
+        &END
+      &END
+      &FORCE_EVAL 3
+        &FRAGMENT 1
+          1 11
           MAP 4
+        &END
+      &END
+      &FORCE_EVAL 4
+        &FRAGMENT 1
+          1 10
+          MAP 2
         &END
       &END
     &END
   &END
   &SUBSYS
     &TOPOLOGY
-      CONNECTIVITY PSF
-      CONN_FILE_NAME ../regtest-1/ala.psf
+      CONNECTIVITY OFF
       COORDINATE PDB
-      COORD_FILE_NAME ../regtest-1/ala.pdb
+      COORD_FILE_NAME ../regtest-1/full.pdb
     &END TOPOLOGY
     &CELL
       ABC  30.9751780  30.8599250  30.7278700
@@ -118,7 +128,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-      PARM_FILE_NAME ../regtest-1/ala.pot
+      PARM_FILE_NAME ../regtest-1/ser.pot
       parmtype CHM
       &SPLINE
         EMAX_SPLINE 100000000.0
@@ -136,9 +146,71 @@
   &SUBSYS
     &TOPOLOGY
       CONNECTIVITY PSF
-      CONN_FILE_NAME ../regtest-1/ala.psf
+      CONN_FILE_NAME ../regtest-1/ser.psf
       COORDINATE PDB
-      COORD_FILE_NAME ../regtest-1/ala.pdb
+      COORD_FILE_NAME ../regtest-1/ser.pdb
+    &END TOPOLOGY
+    &CELL
+      ABC  30.9751780  30.8599250  30.7278700
+      UNIT ANGSTROM
+    &END CELL
+  &END SUBSYS
+&END FORCE_EVAL
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      NONBONDED F
+      NONBONDED14 F
+      PARM_FILE_NAME ser_s.pot
+      parmtype CHM
+      &SPLINE
+        EMAX_SPLINE 100000000.0
+      &END
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE none
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &TOPOLOGY
+      CONNECTIVITY PSF
+      CONN_FILE_NAME ser_s.psf
+      COORDINATE PDB
+      COORD_FILE_NAME ser_s.pdb
+    &END TOPOLOGY
+    &CELL
+      ABC  30.9751780  30.8599250  30.7278700
+      UNIT ANGSTROM
+    &END CELL
+  &END SUBSYS
+&END FORCE_EVAL
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      NONBONDED F
+      NONBONDED14 F
+      PARM_FILE_NAME ala_s.pot
+      parmtype CHM
+      &SPLINE
+        EMAX_SPLINE 100000000.0
+      &END
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE none
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &TOPOLOGY
+      CONNECTIVITY PSF
+      CONN_FILE_NAME ala_s.psf
+      COORDINATE PDB
+      COORD_FILE_NAME ala_s.pdb
     &END TOPOLOGY
     &CELL
       ABC  30.9751780  30.8599250  30.7278700
@@ -155,17 +227,17 @@
 &MOTION
   &MD
     ENSEMBLE NPT_I
-    STEPS 10
+    STEPS 5
     TIMESTEP 0.5
     TEMPERATURE 200.0
-    &BAROSTAT
-    &END
     &NOSE
       LENGTH 3
       YOSHIDA 3
       TIMECON 300
       MTS 2
     &END NOSE
+    &BAROSTAT
+    &END
     &PRINT
      &ENERGY
       EACH 1
@@ -191,7 +263,10 @@
     METHOD AC
     &ALCHEMICAL_CHANGE
       PARAMETER k
+      WEIGHTING_FUNCTION (1.0-k)*Z+k*J
     &END
   &END
 &END MOTION
-
+&EXT_RESTART
+  RESTART_FILE_NAME DDG_SOLVATION-1.restart
+&END

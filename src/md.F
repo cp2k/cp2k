@@ -427,15 +427,21 @@ CONTAINS
           CALL section_vals_val_get(tmp_section,"VSHOCK",r_val=simpar%v_shock,error=error)
        END IF
 
-       tmp_section => section_vals_get_subs_vals(md_section,"BAROSTAT",error=error)
-       CALL section_vals_val_get(tmp_section,"PRESSURE",r_val=simpar%p_ext,error=error)
-       CALL section_vals_val_get(tmp_section,"TIMECON",r_val=simpar%tau_cell,error=error)
+       SELECT CASE (simpar%ensemble)
+       CASE(nph_ensemble, nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble)
+         tmp_section => section_vals_get_subs_vals(md_section,"BAROSTAT",error=error)
+         CALL section_vals_val_get(tmp_section,"PRESSURE",r_val=simpar%p_ext,error=error)
+         CALL section_vals_val_get(tmp_section,"TIMECON",r_val=simpar%tau_cell,error=error)
+       END SELECT
 
-       tmp_section => section_vals_get_subs_vals(md_section,"NOSE",error=error)
-       CALL section_vals_val_get(tmp_section,"LENGTH",i_val=simpar%nhclen,error=error)
-       CALL section_vals_val_get(tmp_section,"YOSHIDA",i_val=simpar%nyosh,error=error)
-       CALL section_vals_val_get(tmp_section,"TIMECON",r_val=simpar%tau_nhc,error=error)
-       CALL section_vals_val_get(tmp_section,"MTS",i_val=simpar%nc,error=error)
+       SELECT CASE (simpar%ensemble)
+       CASE(npt_f_ensemble, npt_i_ensemble, nvt_ensemble)
+         tmp_section => section_vals_get_subs_vals(md_section,"NOSE",error=error)
+         CALL section_vals_val_get(tmp_section,"LENGTH",i_val=simpar%nhclen,error=error)
+         CALL section_vals_val_get(tmp_section,"YOSHIDA",i_val=simpar%nyosh,error=error)
+         CALL section_vals_val_get(tmp_section,"TIMECON",r_val=simpar%tau_nhc,error=error)
+         CALL section_vals_val_get(tmp_section,"MTS",i_val=simpar%nc,error=error)
+       END SELECT
 
        tmp_section => section_vals_get_subs_vals(md_section,"RESPA",error=error)
        CALL section_vals_get(tmp_section, explicit=simpar%do_respa, error=error)

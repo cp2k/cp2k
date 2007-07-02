@@ -16,6 +16,8 @@
       CMASS 70000000
       PRESSURE 1000.0
     &END MSST
+    &BAROSTAT
+    &END
     &PRINT
       &ENERGY
         EACH 1

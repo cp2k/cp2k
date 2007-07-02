@@ -57,6 +57,8 @@
     STEPS 5
     TIMESTEP 2.5
     TEMPERATURE 298
+    &BAROSTAT
+    &END
     &NOSE
       LENGTH 1
       YOSHIDA 3
