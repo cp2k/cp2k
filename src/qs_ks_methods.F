@@ -148,6 +148,7 @@ MODULE qs_ks_methods
   USE virial_types,                    ONLY: virial_type
   USE xc,                              ONLY: xc_exc_calc,&
                                              xc_vxc_pw_create1
+  USE x_hf,                            ONLY: x_hf_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -326,7 +327,7 @@ CONTAINS
                                                 output_unit, stat
     LOGICAL :: ddapc_restraint_is_spin, do_ep, do_hf, et_coupling_calc, &
       explicit_potential, failure, gapw, gapw_xc, ionode, my_diis_step, &
-      my_kg_gpw, use_virial, use_eri_symmetry
+      my_kg_gpw, use_virial, use_eri_symmetry, do_hf_periodic
     REAL(KIND=dp)                            :: a_mix, b_mix, ddapc_order_p, &
                                                 f_mix, mulliken_order_p, &
                                                 s2_order_p,inv_vol
@@ -358,7 +359,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_dv, matrix_h, &
                                                 matrix_s, my_rho, rest_mat
-    TYPE(section_vals_type), POINTER         :: hf_section, input, scf_section
+    TYPE(section_vals_type), POINTER         :: hf_section, input, scf_section, hf_pbc_section
     TYPE(virial_type), POINTER               :: virial
 
     failure=.FALSE.
@@ -706,25 +707,26 @@ CONTAINS
        ! *** Add Hartree-Fock contribution if required ***
        IF ( do_hf ) THEN
          CALL section_vals_val_get(hf_section,"USE_ERI_SYMMETRIES",l_val=use_eri_symmetry,error=error)
- 
+          hf_pbc_section => section_vals_get_subs_vals(hf_section,"PERIODIC",error=error)
+          CALL section_vals_get(hf_pbc_section,explicit=do_hf_periodic,error=error)
          DO ispin = 1,nspins
            CALL set_matrix(ks_matrix(ispin)%matrix,0.0_dp)
          END DO
          IF( use_eri_symmetry ) THEN
            CALL integrate_four_center_symm(qs_env, ks_matrix,energy,rho,hf_section,&
-                                      para_env,ks_env%s_mstruct_changed,error)
+                                      para_env,ks_env%s_mstruct_changed,do_hf_periodic,error)
            IF ( calculate_forces ) THEN
              CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
              CALL derivatives_four_center_symm(qs_env, ks_matrix,energy,rho,hf_section,&
-                                        para_env,error)
+                                        para_env, do_hf_periodic, error)
            END IF
          ELSE
            CALL integrate_four_center(qs_env, ks_matrix,energy,rho,hf_section,&
-                                      para_env,ks_env%s_mstruct_changed,error)
+                                      para_env,ks_env%s_mstruct_changed,do_hf_periodic,error)
            IF ( calculate_forces ) THEN
              CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
              CALL derivatives_four_center(qs_env, ks_matrix,energy,rho,hf_section,&
-                                          para_env,error)
+                                          para_env, do_hf_periodic ,error)
            END IF
          END IF
 

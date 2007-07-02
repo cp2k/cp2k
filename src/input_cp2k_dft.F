@@ -3026,7 +3026,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key
+    TYPE(section_type), POINTER              :: print_key, subsection
 
     failure=.FALSE.
 
@@ -3037,7 +3037,7 @@ CONTAINS
             n_keywords=5, n_subsections=2, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       NULLIFY(keyword, print_key)
+       NULLIFY(keyword, print_key, subsection)
 
        CALL keyword_create(keyword, name="FRACTION",&
             description="The fraction of Hartree-Fock to add to the total energy. "//&
@@ -3109,9 +3109,77 @@ CONTAINS
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
+       
+       CALL create_hf_pbc_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
     END IF
  
   END SUBROUTINE create_hf_section
+  !***************************************************************************
+
+!!****f* input_cp2k_dft/create_hf_pbc_section [1.0] *
+!!
+!!   NAME
+!!     create_hf_pbc_section
+!!
+!!   FUNCTION
+!!     creates the input section for the hf-pbc part
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_hf_pbc_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_hf_pbc_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key, sub_section
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"PERIODIC",&
+            description="Sets up periodic boundary condition parameters if requested ",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+       NULLIFY(keyword, print_key)
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="NUMBER_OF_SHELLS",&
+            description="Number of shells taken into account for periodicity",&
+            usage="CUTOFF_RADIUS 2",&
+            default_i_val=0,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="NUMBER_OF_K_LOOPS",&
+            description="Number of iterations in the 3rd loop. Only for experimental purpose",&
+            usage="NUMBER_OF_K_LOOPS 2",&
+            default_i_val=1,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    END IF
+ 
+  END SUBROUTINE create_hf_pbc_section
+
 !***************************************************************************
 
   !!****f* input_cp2k_dft/create_scf_section *

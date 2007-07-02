@@ -26,6 +26,7 @@ MODULE libint_interface
 #if defined(__LIBINT)
   USE, INTRINSIC :: ISO_C_BINDING
 #endif
+  USE erf_fn,                          ONLY: erfc
   USE gamma,                           ONLY: fgamma
   USE input_constants,                 ONLY: do_hf_screening_none, &
                                              do_hf_screening_short, &
@@ -33,7 +34,8 @@ MODULE libint_interface
   USE mathconstants
   USE orbital_pointers
   USE kinds,                           ONLY: dp
-  USE x_hf,                            ONLY: x_hf_screening_type
+  USE x_hf,                            ONLY: x_hf_screening_type,&
+                                             x_hf_cell_type
 
 #include "cp_common_uses.h"      
  
@@ -41,7 +43,8 @@ MODULE libint_interface
   PRIVATE
   PUBLIC initialize_libint, evaluate_eri,lib_int, terminate_libint,&
          initialize_libderiv, lib_deriv, terminate_libderiv, evaluate_deriv_eri,&
-         evaluate_eri_screen 
+         evaluate_eri_screen, evaluate_eri_periodic, evaluate_eri_screen_periodic ,&
+         evaluate_deriv_eri_periodic
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'libint_interface'
 
@@ -439,7 +442,7 @@ MODULE libint_interface
 
 
     CALL build_quartet_data(A1,B1,C1,D1,Zeta_A1, Zeta_B1, Zeta_C1, Zeta_D1, m_max,&
-                            screening_parameter, prim)
+                            screening_parameter, prim, do_periodic=.FALSE.)
 
     lib%PrimQuartet = C_LOC(prim)
 
@@ -520,34 +523,50 @@ MODULE libint_interface
 
 #if defined(__LIBINT)
   SUBROUTINE build_quartet_data(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max, &
-                              screening_parameter, prim)
+                              screening_parameter, prim, do_periodic, box_size, shift1)
      
-    REAL(KIND=C_DOUBLE), POINTER       :: A(:), B(:), C(:), D(:)
+    REAL(KIND=C_DOUBLE)                :: A(3), B(3), C(3), D(3)
     REAL(KIND=C_DOUBLE), INTENT(IN)    :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
     INTEGER(KIND=C_INT), INTENT(IN)    :: m_max
     TYPE(x_hf_screening_type)          :: screening_parameter 
     TYPE(prim_data)                    :: prim
+    LOGICAL, INTENT(IN)                :: do_periodic
+    REAL(dp), INTENT(IN), OPTIONAL     :: box_size(3), shift1(3)
 
-    REAL(KIND=C_DOUBLE)                :: P(3), Q(3), W(3), AB(3), CD(3), PQ(3)
+    REAL(KIND=C_DOUBLE)                :: P(3), Q(3), W(3), AB(3), CD(3), PQ(3), C1(3), D1(3)
     REAL(KIND=C_DOUBLE)                :: Zeta, Eta, Rho
-    REAL(KIND=C_DOUBLE)                :: AB2, CD2, PQ2,factor
+    REAL(KIND=C_DOUBLE)                :: AB2, CD2, PQ2,factor,shift(3)
     REAL(KIND=C_DOUBLE)                :: S1234, T, omega_corr2, omega_corr, omega2, tmp
     REAL(KIND=C_DOUBLE), DIMENSION(17) :: Fm
     INTEGER                            :: i
-    
+
+
     Zeta = Zeta_A + Zeta_B
     Eta  = Zeta_C + Zeta_D
     Rho  = Zeta*Eta/(Zeta+Eta)
     
+    C1 = C
+    D1 = D
     P = (Zeta_A*A + Zeta_B*B)/Zeta
     Q = (Zeta_C*C + Zeta_D*D)/Eta
-    W = (Zeta*P + Eta*Q)/(Zeta+Eta)
     AB = A-B
     CD = C-D
-    PQ = P-Q
+    IF( do_periodic ) THEN
+      CALL pbc(P-Q,box_size,PQ)
+      shift = -PQ + P-Q 
+      C = C + shift + shift1
+      D = D + shift + shift1
+      Q = (Zeta_C*C + Zeta_D*D)/Eta
+      PQ = P-Q 
+    ELSE
+      PQ = P-Q
+    END IF
+   
+    W = (Zeta*P + Eta*Q)/(Zeta+Eta)
     AB2 = DOT_PRODUCT(AB,AB)
     CD2 = DOT_PRODUCT(CD,CD)
     PQ2 = DOT_PRODUCT(PQ,PQ)
+    
 
     S1234= EXP((-Zeta_A*Zeta_B/Zeta*AB2)+(-Zeta_C*Zeta_D/Eta*CD2))
     T = Rho*PQ2
@@ -604,6 +623,9 @@ MODULE libint_interface
     prim%pon       = Rho/Eta
     prim%oo2p      = 1.0_dp/(2.0_dp*Rho)
     prim%ss_r12_ss = 0.0_dp                      !Not used in libint,libderiv
+   
+    C = C1
+    D = D1
 
   END SUBROUTINE build_quartet_data
 #endif 
@@ -630,31 +652,46 @@ MODULE libint_interface
 
 #if defined(__LIBINT)
   SUBROUTINE build_deriv_data(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max,&
-                            screening_parameter, prim)
+                            screening_parameter, prim, do_periodic, box_size, shift1)
      
-    REAL(KIND=C_DOUBLE), POINTER       :: A(:), B(:), C(:), D(:)
+    REAL(KIND=C_DOUBLE)                :: A(3), B(3), C(3), D(3)
     REAL(KIND=C_DOUBLE), INTENT(IN)    :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
     INTEGER(KIND=C_INT), INTENT(IN)    :: m_max
     TYPE(x_hf_screening_type)          :: screening_parameter
     TYPE(prim_data)                    :: prim
+    LOGICAL, INTENT(IN)                :: do_periodic
+    REAL(dp), INTENT(IN), OPTIONAL     :: box_size(3), shift1(3)
 
-    REAL(KIND=C_DOUBLE)                :: P(3), Q(3), W(3), AB(3), CD(3), PQ(3)
+
+    REAL(KIND=C_DOUBLE)                :: P(3), Q(3), W(3), AB(3), CD(3), PQ(3), C1(3), D1(3), shift(3)
     REAL(KIND=C_DOUBLE)                :: Zeta, Eta, Rho, tmp
     REAL(KIND=C_DOUBLE)                :: AB2, CD2, PQ2,factor
     REAL(KIND=C_DOUBLE)                :: T, omega_corr2, omega_corr, omega2, S1234
     REAL(KIND=C_DOUBLE), DIMENSION(17) :: Fm
     INTEGER                            :: i
-    
+
     Zeta = Zeta_A + Zeta_B
     Eta  = Zeta_C + Zeta_D
     Rho  = Zeta*Eta/(Zeta+Eta)
-    
+
+    C1 = C
+    D1 = D
     P = (Zeta_A*A + Zeta_B*B)/Zeta
     Q = (Zeta_C*C + Zeta_D*D)/Eta
-    W = (Zeta*P + Eta*Q)/(Zeta+Eta)
     AB = A-B
     CD = C-D
-    PQ = P-Q
+    IF( do_periodic ) THEN
+      CALL pbc(P-Q,box_size,PQ)
+      shift = -PQ + P-Q
+      C = C + shift + shift1
+      D = D + shift + shift1
+      Q = (Zeta_C*C + Zeta_D*D)/Eta
+      PQ = P-Q
+    ELSE
+      PQ = P-Q
+    END IF
+
+    W = (Zeta*P + Eta*Q)/(Zeta+Eta)
     AB2 = DOT_PRODUCT(AB,AB)
     CD2 = DOT_PRODUCT(CD,CD)
     PQ2 = DOT_PRODUCT(PQ,PQ)
@@ -711,6 +748,8 @@ MODULE libint_interface
     prim%oo2p      = 1.0_dp/(2.0_dp*Rho)
     prim%ss_r12_ss = 0.0_dp                      !Not used in libint,libderiv
 
+    C = C1
+    D = D1
   END SUBROUTINE build_deriv_data
 #endif 
 !***************************************************************************
@@ -736,6 +775,7 @@ MODULE libint_interface
 
   SUBROUTINE evaluate_deriv_eri(deriv,A,B,C,D,Zeta_A,Zeta_B,Zeta_C,Zeta_D,&
                                 n_a,n_b,n_c,n_d,work_forces,&
+                                ncoa, ncob, ncoc, ncod,&
                                 primitive_forces,&
                                 offset_a, offset_b, offset_c, offset_d,&
                                 screening_parameter)
@@ -745,7 +785,9 @@ MODULE libint_interface
     REAL(dp), INTENT(IN),TARGET             :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
     INTEGER, INTENT(IN)                     :: n_a, n_b, n_c, n_d
     REAL(dp), DIMENSION(:,:), POINTER       :: work_forces
-    REAL(dp), DIMENSION(:,:,:,:,:), POINTER :: primitive_forces
+    INTEGER, INTENT(IN)                     :: ncoa, ncob, ncoc, ncod
+    REAL(dp), DIMENSION(ncoa,ncob,ncoc,ncod,12) &
+                                            :: primitive_forces
     INTEGER, INTENT(IN)                     :: offset_a, offset_b, offset_c, offset_d
     TYPE(x_hf_screening_type)               :: screening_parameter
 #if defined(__LIBINT)
@@ -849,7 +891,7 @@ MODULE libint_interface
 
     m_max = m_max + 1
     CALL build_deriv_data(A1, B1, C1, D1, Zeta_A1, Zeta_B1, Zeta_C1, Zeta_D1, m_max, &
-                          screening_parameter, prim)
+                          screening_parameter, prim, do_periodic = .FALSE.)
 
     mysize = nco(n1)*nco(n2)*nco(n3)*nco(n4)
     a_mysize=mysize
@@ -1011,7 +1053,7 @@ MODULE libint_interface
     m_max = n1+n2+n3+n4
 
     CALL build_quartet_data(A1,B1,C1,D1,Zeta_A1, Zeta_B1, Zeta_C1, Zeta_D1, m_max, &
-                            screening_parameter, prim)
+                            screening_parameter, prim, do_periodic= .FALSE.)
 
     lib%PrimQuartet = C_LOC(prim)
 
@@ -1033,6 +1075,628 @@ MODULE libint_interface
     END IF
 #endif
   END SUBROUTINE evaluate_eri_screen
+!***************************************************************************
+
+!!***** libint_interface/evaluate_eri [1.0] *
+!!
+!!   NAME
+!!     evaluate_eri
+!!
+!!   FUNCTION
+!!     Evaluate electron repulsion integrals for a primitive quartet wrt pbc
+!!
+!!   NOTES
+!!     -
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     06.2007 created [Manuel Guidon]
+!!
+!!****************************************************************************
+
+  SUBROUTINE evaluate_eri_periodic(lib,A,B,C,D,Zeta_A,Zeta_B,Zeta_C,Zeta_D,&
+                                   n_a,n_b,n_c,n_d,&
+                                   ncoa,ncob,ncoc,ncod,&
+                                   offset_a,offset_b,offset_c,offset_d,&
+                                   primitives,screening_parameter, box_size, neighbor_cells,&
+                                   screen1, screen2, eps_schwarz, max_k)
+    
+    TYPE(lib_int)                            :: lib
+    REAL(dp), INTENT(IN),TARGET              :: A(3), B(3), C(3), D(3)
+    REAL(dp), INTENT(IN),TARGET              :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
+    INTEGER, INTENT(IN)                      :: n_a, n_b, n_c, n_d
+    INTEGER, INTENT(IN)                      :: ncoa,ncob,ncoc,ncod,offset_a,offset_b,offset_c,offset_d
+    REAL(dp), DIMENSION(ncoa,ncob,ncoc,ncod) :: primitives
+    TYPE(x_hf_screening_type)                :: screening_parameter
+    REAL(dp), INTENT(IN)                     :: box_size(3)
+    TYPE(x_hf_cell_type), DIMENSION(:), &
+                          POINTER            :: neighbor_cells
+    REAL(dp), DIMENSION(:,:)                 :: screen1, screen2
+    REAL(dp), INTENT(IN)                     :: eps_schwarz
+    INTEGER, INTENT(IN)                      :: max_k
+ 
+#if defined(__LIBINT)
+    INTEGER                                  :: i,j,k,l,p_i,p_j,p_k,p_l,p_index,temp
+    TYPE(prim_data),TARGET                   :: prim
+    INTEGER(KIND=C_INT)                      :: m_max
+    INTEGER(KIND=C_INT)                      :: mysize,a_mysize(1)
+    INTEGER(KIND=C_INT)                      :: n1, n2, n3, n4, n
+   
+    REAL(dp),DIMENSION(:),POINTER            :: A1,B1,C1,D1,X
+    REAL(dp), POINTER                        :: Zeta_A1, Zeta_B1, Zeta_C1, Zeta_D1, Y
+   
+    PROCEDURE(build), POINTER                :: pbuild
+    TYPE(C_PTR)                              :: pc_result 
+    REAL(dp), DIMENSION(:), POINTER          :: p_work, p_work_sum
+    REAL(dp), DIMENSION(3)                   :: pbc_B, pbc_D, im_B, im_D
+    REAL(dp)                                 :: shift(3)
+    !permutation of configuration
+    
+    n1 = n_a; n2 = n_b; n3 = n_c; n4 = n_d
+    A1 => A; B1 => B; C1 => C; D1 => D;
+    Zeta_A1 => Zeta_A; Zeta_B1 => Zeta_B; Zeta_C1 => Zeta_C; Zeta_D1 => Zeta_D
+    
+    If(n_a<n_b) THEN
+      n1 = n_b
+      n2 = n_a
+      A1 => B
+      B1 => A
+      Zeta_A1 => Zeta_B
+      Zeta_B1 => Zeta_A
+    END IF
+
+    IF(n_c<n_d) THEN
+      n3 = n_d
+      n4 = n_c
+      C1 => D
+      D1 => C
+      Zeta_C1 => Zeta_D
+      Zeta_D1 => Zeta_C
+    END IF
+ 
+    IF( n_a+n_b > n_c+n_d) THEN
+      n   = n1
+      n1  = n3
+      n3  = n
+      n   = n2
+      n2  = n4
+      n4  = n
+      
+      X => A1
+      A1 => C1
+      C1 => X
+      X => B1
+      B1 => D1
+      D1 => X
+     
+      Y => Zeta_A1
+      Zeta_A1 => Zeta_C1
+      Zeta_C1 => Y
+      y => Zeta_B1
+      Zeta_B1 => Zeta_D1
+      Zeta_D1 => Y  
+    END IF
+   
+    m_max = n1+n2+n3+n4
+    mysize = nco(n1)*nco(n2)*nco(n3)*nco(n4)
+    a_mysize = mysize
+
+    ALLOCATE(p_work_sum(mysize))
+    p_work_sum = 0.0_dp
+    !Calculate all integrals wrt to pbc
+    !pbc(B)wrt A, pbc(D) wrt C
+    CALL pbc(B1-A1, box_size, pbc_B)
+    B1 = A1 + pbc_B
+    CALL pbc(D1-C1, box_size, pbc_D)
+    D1 = C1 + pbc_D
+
+    DO i = 1,size(neighbor_cells)
+      im_B(1) = B1(1) + neighbor_cells(i)%cell(1) * box_size(1)
+      im_B(2) = B1(2) + neighbor_cells(i)%cell(2) * box_size(2)
+      im_B(3) = B1(3) + neighbor_cells(i)%cell(3) * box_size(3)
+      DO j = 1,size(neighbor_cells)
+        IF(screen1(i,j)*screen2(i,j)<eps_schwarz) CYCLE
+        im_D(1) = D1(1) + neighbor_cells(j)%cell(1) * box_size(1)
+        im_D(2) = D1(2) + neighbor_cells(j)%cell(2) * box_size(2)
+        im_D(3) = D1(3) + neighbor_cells(j)%cell(3) * box_size(3)
+        !This loop is still in experimental status
+        DO k=1,max_k!size(neighbor_cells)
+          shift(1) =  neighbor_cells(k)%cell(1) * box_size(1)
+          shift(2) =  neighbor_cells(k)%cell(2) * box_size(2)
+          shift(3) =  neighbor_cells(k)%cell(3) * box_size(3)
+          CALL build_quartet_data(A1,im_B,C1,im_D,Zeta_A1, Zeta_B1, Zeta_C1, Zeta_D1, m_max,&
+                                  screening_parameter, prim, do_periodic=.TRUE.,box_size=box_size,shift1=shift)
+
+
+          lib%PrimQuartet = C_LOC(prim)
+          lib%AB=A1-im_B
+          lib%CD=C1-im_D
+
+          IF(n_a+ n_b + n_c + n_d  /=0) THEN
+            CALL C_F_PROCPOINTER(build_eri(n4,n3,n2,n1),pbuild)
+            pc_result = pbuild(lib,1)
+            CALL C_F_POINTER(pc_result, p_work, a_mysize)
+            p_work_sum = p_work_sum + p_work
+          ELSE
+            p_work_sum = p_work_sum + prim%F(1)
+          END IF
+        END DO
+      END DO
+    END DO 
+  
+    IF(n_a+ n_b + n_c + n_d  /=0) THEN
+      CALL C_F_PROCPOINTER(build_eri(n4,n3,n2,n1),pbuild)
+      pc_result = pbuild(lib,1)
+      CALL C_F_POINTER(pc_result, p_work, a_mysize)
+      DO l = 1,nco(n_d)
+        DO k = 1,nco(n_c)     
+          DO j = 1,nco(n_b)
+            DO i = 1,nco(n_a)
+              p_l = l
+              p_i = i
+              p_j = j
+              p_k = k 
+
+              IF(n_a<n_b) THEN
+                temp = p_i
+                p_i = p_j
+                p_j = temp
+              END IF
+ 
+              IF(n_c<n_d) THEN
+                temp = p_k
+                p_k = p_l
+                p_l = temp 
+              END IF
+              IF( n_a+n_b > n_c+n_d) THEN
+                temp = p_i
+                p_i = p_k
+                p_k = temp
+                temp = p_j
+                p_j = p_l
+                p_l = temp
+              END IF
+   
+              p_index = (((p_i-1)*nco(n2)+(p_j-1))*nco(n3)+(p_k-1))*nco(n4)+(p_l-1) + 1
+              primitives(offset_a+i,&
+                         offset_b+j,&
+                         offset_c+k,&
+                         offset_d+l)=p_work_sum(p_index)
+            END DO
+          END DO
+        END DO
+      END DO
+    ELSE
+      primitives(offset_a+1,offset_b+1,offset_c+1,offset_d+1) = p_work_sum(1)
+    END IF
+    DEALLOCATE(p_work_sum)
+#endif
+  END SUBROUTINE evaluate_eri_periodic
+!***************************************************************************
+
+!!***** libint_interface/evaluate_eri_screen_periodic [1.0] *
+!!
+!!   NAME
+!!     evaluate_eri_screen_periodic
+!!
+!!   FUNCTION
+!!     Evaluate electron repulsion integrals for a primitive quartet wrt pbc
+!!
+!!   NOTES
+!!     -
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     06.2007 created [Manuel Guidon]
+!!
+!!****************************************************************************
+
+  SUBROUTINE evaluate_eri_screen_periodic(lib,A,B,C,D,Zeta_A,Zeta_B,Zeta_C,Zeta_D,&
+                                          n_a,n_b,n_c,n_d,&
+                                          screening_parameter, box_size, neighbor_cells,&
+                                          max_val, max_k)
+    
+    TYPE(lib_int)                            :: lib
+    REAL(dp), INTENT(IN),TARGET              :: A(3), B(3), C(3), D(3)
+    REAL(dp), INTENT(IN),TARGET              :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
+    INTEGER, INTENT(IN)                      :: n_a, n_b, n_c, n_d
+    TYPE(x_hf_screening_type)                :: screening_parameter
+    REAL(dp), INTENT(IN)                     :: box_size(3)
+    TYPE(x_hf_cell_type), DIMENSION(:), &
+                          POINTER            :: neighbor_cells
+    REAL(dp), INTENT(INOUT), &
+              DIMENSION(:,:)                 :: max_val
+    INTEGER, INTENT(IN)                      :: max_k
+
+ 
+#if defined(__LIBINT)
+    INTEGER                                  :: i,j,k
+    TYPE(prim_data),TARGET                   :: prim
+    INTEGER(KIND=C_INT)                      :: m_max
+    INTEGER(KIND=C_INT)                      :: mysize,a_mysize(1)
+    INTEGER(KIND=C_INT)                      :: n1, n2, n3, n4, n
+   
+    REAL(dp),DIMENSION(:),POINTER            :: A1,B1,C1,D1,X
+    REAL(dp), POINTER                        :: Zeta_A1, Zeta_B1, Zeta_C1, Zeta_D1, Y
+   
+    PROCEDURE(build), POINTER                :: pbuild
+    TYPE(C_PTR)                              :: pc_result 
+    REAL(dp), DIMENSION(:), POINTER          :: p_work, p_work_sum
+    REAL(dp), DIMENSION(3)                   :: pbc_B, pbc_D, im_B, im_D, shift
+
+    !permutation of configuration
+
+    n1 = n_a; n2 = n_b; n3 = n_c; n4 = n_d
+    A1 => A; B1 => B; C1 => C; D1 => D;
+    Zeta_A1 => Zeta_A; Zeta_B1 => Zeta_B; Zeta_C1 => Zeta_C; Zeta_D1 => Zeta_D
+    
+    If(n_a<n_b) THEN
+      n1 = n_b
+      n2 = n_a
+      A1 => B
+      B1 => A
+      Zeta_A1 => Zeta_B
+      Zeta_B1 => Zeta_A
+    END IF
+
+    IF(n_c<n_d) THEN
+      n3 = n_d
+      n4 = n_c
+      C1 => D
+      D1 => C
+      Zeta_C1 => Zeta_D
+      Zeta_D1 => Zeta_C
+    END IF
+ 
+    IF( n_a+n_b > n_c+n_d) THEN
+      n   = n1
+      n1  = n3
+      n3  = n
+      n   = n2
+      n2  = n4
+      n4  = n
+      
+      X => A1
+      A1 => C1
+      C1 => X
+      X => B1
+      B1 => D1
+      D1 => X
+     
+      Y => Zeta_A1
+      Zeta_A1 => Zeta_C1
+      Zeta_C1 => Y
+      y => Zeta_B1
+      Zeta_B1 => Zeta_D1
+      Zeta_D1 => Y  
+    END IF
+   
+    m_max = n1+n2+n3+n4
+    mysize = nco(n1)*nco(n2)*nco(n3)*nco(n4)
+    a_mysize = mysize
+
+    ALLOCATE(p_work_sum(mysize))
+    p_work_sum = 0.0_dp
+    !Calculate all integrals wrt to pbc
+    !pbc(B)wrt A, pbc(D) wrt C
+    CALL pbc(B1-A1, box_size, pbc_B)
+    B1 = A1 + pbc_B
+    CALL pbc(D1-C1, box_size, pbc_D)
+    D1 = C1 + pbc_D
+    DO i = 1,size(neighbor_cells)
+      im_B(1) = B1(1) + neighbor_cells(i)%cell(1) * box_size(1)
+      im_B(2) = B1(2) + neighbor_cells(i)%cell(2) * box_size(2)
+      im_B(3) = B1(3) + neighbor_cells(i)%cell(3) * box_size(3)
+      DO j = 1,size(neighbor_cells)
+        im_D(1) = D1(1) + neighbor_cells(j)%cell(1) * box_size(1)
+        im_D(2) = D1(2) + neighbor_cells(j)%cell(2) * box_size(2)
+        im_D(3) = D1(3) + neighbor_cells(j)%cell(3) * box_size(3)
+        !This loop is still in experimental status
+        DO k=1,max_k!size(neighbor_cells)
+          shift(1) =  neighbor_cells(k)%cell(1) * box_size(1)
+          shift(2) =  neighbor_cells(k)%cell(2) * box_size(2)
+          shift(3) =  neighbor_cells(k)%cell(3) * box_size(3)
+
+          CALL build_quartet_data(A1,im_B,C1,im_D,Zeta_A1, Zeta_B1, Zeta_C1, Zeta_D1, m_max,&
+                                  screening_parameter, prim, do_periodic=.TRUE.,box_size=box_size,shift1=shift)
+
+          lib%PrimQuartet = C_LOC(prim)
+          lib%AB=A1-im_B
+          lib%CD=C1-im_D
+
+          IF(n_a+ n_b + n_c + n_d  /=0) THEN
+            CALL C_F_PROCPOINTER(build_eri(n4,n3,n2,n1),pbuild)
+            pc_result = pbuild(lib,1)
+            CALL C_F_POINTER(pc_result, p_work, a_mysize)
+            p_work_sum = p_work_sum + p_work
+            max_val(i,j) = MAX(MAXVAL(ABS(p_work)),max_val(i,j))
+          ELSE
+            p_work_sum = p_work_sum + prim%F(1)
+            max_val(i,j) = MAX(ABS(prim%F(1)),max_val(i,j))
+          END IF
+        END DO
+      END DO
+    END DO
+
+    DEALLOCATE(p_work_sum)
+#endif
+  END SUBROUTINE evaluate_eri_screen_periodic
+!***************************************************************************
+
+!!***** libint_interface/evaluate_deriv_eri_periodic [1.0] *
+!!
+!!   NAME
+!!     evaluate_deriv_eri_periodic
+!!
+!!   FUNCTION
+!!     Evaluates derivatives of electron repulsion integrals for a primitive quartet
+!!     wrt pbc
+!!
+!!   NOTES
+!!     -
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     07.2007 created [Manuel Guidon]
+!!
+!!****************************************************************************
+
+  SUBROUTINE evaluate_deriv_eri_periodic(deriv,A,B,C,D,Zeta_A,Zeta_B,Zeta_C,Zeta_D,&
+                                         n_a,n_b,n_c,n_d,work_forces,&
+                                         ncoa, ncob, ncoc, ncod,&
+                                         primitive_forces,&
+                                         offset_a, offset_b, offset_c, offset_d,&
+                                         screening_parameter, box_size, neighbor_cells, screen1, &
+                                         screen2, eps_schwarz, max_k)
+    
+    TYPE(lib_deriv)                          :: deriv
+    REAL(dp), INTENT(IN),TARGET              :: A(3), B(3), C(3), D(3)
+    REAL(dp), INTENT(IN),TARGET              :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
+    INTEGER, INTENT(IN)                      :: n_a, n_b, n_c, n_d
+    REAL(dp), DIMENSION(:,:), POINTER        :: work_forces
+    INTEGER, INTENT(IN)                      :: ncoa, ncob, ncoc, ncod
+    REAL(dp), DIMENSION(ncoa,ncob,ncoc,ncod,12) &
+                                             :: primitive_forces
+    INTEGER, INTENT(IN)                      :: offset_a, offset_b, offset_c, offset_d
+    TYPE(x_hf_screening_type)                :: screening_parameter
+    REAL(dp), INTENT(IN)                     :: box_size(3)
+    TYPE(x_hf_cell_type), DIMENSION(:), &
+                          POINTER            :: neighbor_cells
+    REAL(dp), DIMENSION(:,:)                 :: screen1, screen2
+    REAL(dp), INTENT(IN)                     :: eps_schwarz
+    INTEGER, INTENT(IN)                      :: max_k
+
+     
+#if defined(__LIBINT)
+    INTEGER                                  :: i,j,k,l,p_i,p_j,p_k,p_l,p_index,temp
+    TYPE(prim_data),TARGET                   :: prim
+    INTEGER(KIND=C_INT)                      :: m_max
+    INTEGER(KIND=C_INT)                      :: mysize,a_mysize(1)
+    INTEGER(KIND=C_INT)                      :: n1, n2, n3, n4, n
+   
+    REAL(dp),DIMENSION(:),POINTER            :: A1,B1,C1,D1,X
+    REAL(dp), POINTER                        :: Zeta_A1, Zeta_B1, Zeta_C1, Zeta_D1, Y
+    
+    TYPE(C_PTR)                              :: pc_result 
+   
+    PROCEDURE(build_deriv1), POINTER         :: pbuild_deriv1
+    REAL(C_DOUBLE), DIMENSION(:), POINTER    :: tmp_data
+    REAL(C_DOUBLE), DIMENSION(:,:),&
+                                  POINTER    :: work_forces_sum
+    INTEGER                                  :: full_perm(12)
+    REAL(dp), DIMENSION(3)                   :: pbc_B, pbc_D, im_B, im_D, shift
+    
+    !permutation of configuration
+
+    full_perm=(/1,2,3,4,5,6,7,8,9,10,11,12/)
+    n1 = n_a; n2 = n_b; n3 = n_c; n4 = n_d
+    A1 => A; B1 => B; C1 => C; D1 => D;
+    Zeta_A1 => Zeta_A; Zeta_B1 => Zeta_B; Zeta_C1 => Zeta_C; Zeta_D1 => Zeta_D
+    
+    If(n_a<n_b) THEN
+      n1 = n_b
+      n2 = n_a
+      A1 => B
+      B1 => A
+      Zeta_A1 => Zeta_B
+      Zeta_B1 => Zeta_A
+      full_perm(1) = 4
+      full_perm(2) = 5
+      full_perm(3) = 6
+      full_perm(4) = 1
+      full_perm(5) = 2
+      full_perm(6) = 3
+    END IF
+
+    IF(n_c<n_d) THEN
+      n3 = n_d
+      n4 = n_c
+      C1 => D
+      D1 => C
+      Zeta_C1 => Zeta_D
+      Zeta_D1 => Zeta_C
+      full_perm(7) = 10
+      full_perm(8) = 11
+      full_perm(9) = 12
+      full_perm(10) = 7
+      full_perm(11) = 8
+      full_perm(12) = 9
+
+    END IF
+ 
+    IF( n_a+n_b > n_c+n_d) THEN
+      n   = n1
+      n1  = n3
+      n3  = n
+      n   = n2
+      n2  = n4
+      n4  = n
+     
+      X => A1
+      A1 => C1
+      C1 => X
+      X => B1
+      B1 => D1
+      D1 => X
+     
+      Y => Zeta_A1
+      Zeta_A1 => Zeta_C1
+      Zeta_C1 => Y
+      y => Zeta_B1
+      Zeta_B1 => Zeta_D1
+      Zeta_D1 => Y  
+
+      n = full_perm(1)
+      full_perm(1) = full_perm(7)
+      full_perm(7) = n
+      n = full_perm(2)
+      full_perm(2) = full_perm(8)
+      full_perm(8) = n
+      n = full_perm(3)
+      full_perm(3) = full_perm(9)
+      full_perm(9) = n
+      n = full_perm(4)
+      full_perm(4) = full_perm(10)
+      full_perm(10) = n
+      n = full_perm(5)
+      full_perm(5) = full_perm(11)
+      full_perm(11) = n
+      n = full_perm(6)
+      full_perm(6) = full_perm(12)
+      full_perm(12) = n
+    END IF
+
+   
+    m_max = n1+n2+n3+n4
+    m_max = m_max + 1
+    mysize = nco(n1)*nco(n2)*nco(n3)*nco(n4)
+    a_mysize=mysize
+    ALLOCATE(work_forces_sum(mysize,12))
+    work_forces_sum = 0.0_dp
+    !Calculate all integrals wrt to pbc
+    !pbc(B)wrt A, pbc(D) wrt C
+    CALL pbc(B1-A1, box_size, pbc_B)
+    B1 = A1 + pbc_B
+    CALL pbc(D1-C1, box_size, pbc_D)
+    D1 = C1 + pbc_D
+
+    DO i = 1,size(neighbor_cells)
+      im_B(1) = B1(1) + neighbor_cells(i)%cell(1) * box_size(1)
+      im_B(2) = B1(2) + neighbor_cells(i)%cell(2) * box_size(2)
+      im_B(3) = B1(3) + neighbor_cells(i)%cell(3) * box_size(3)
+      DO j = 1,size(neighbor_cells)
+        IF(screen1(i,j)*screen2(i,j)<eps_schwarz) CYCLE
+        im_D(1) = D1(1) + neighbor_cells(j)%cell(1) * box_size(1)
+        im_D(2) = D1(2) + neighbor_cells(j)%cell(2) * box_size(2)
+        im_D(3) = D1(3) + neighbor_cells(j)%cell(3) * box_size(3)
+        !This loop is still in experimental status
+        DO k=1,max_k!size(neighbor_cells)
+          shift(1) =  neighbor_cells(k)%cell(1) * box_size(1)
+          shift(2) =  neighbor_cells(k)%cell(2) * box_size(2)
+          shift(3) =  neighbor_cells(k)%cell(3) * box_size(3)
+          CALL build_deriv_data(A1,im_B,C1,im_D,Zeta_A1, Zeta_B1, Zeta_C1, Zeta_D1, m_max,&
+                                  screening_parameter, prim, do_periodic=.TRUE.,box_size=box_size,shift1=shift)
+
+
+          deriv%PrimQuartet = C_LOC(prim)
+          deriv%AB=A1-im_B
+          deriv%CD=C1-im_D
+ 
+
+          CALL C_F_PROCPOINTER(build_deriv1_eri(n4,n3,n2,n1),pbuild_deriv1)
+          CALL pbuild_deriv1(deriv,1)
+          DO l=1,12
+            IF(l==4 .OR. l==5 .OR. l==6) CYCLE
+            pc_result = deriv%ABCD(l)
+            CALL C_F_POINTER(pc_result, tmp_data , a_mysize)
+            work_forces(1:mysize,l) = tmp_data
+          END DO
+
+          DO l=4,6
+            work_forces(1:mysize,l) = - 1.0_dp* (work_forces(1:mysize,l-3) + &
+                                                 work_forces(1:mysize,l+3) + &
+                                                 work_forces(1:mysize,l+6) )
+          END DO
+          work_forces_sum = work_forces_sum + work_forces
+        END DO
+      END DO
+    END DO
+
+    DO n=1,12
+      DO l = 1,nco(n_d)
+        DO k = 1,nco(n_c)     
+          DO j = 1,nco(n_b)
+            DO i = 1,nco(n_a)
+              p_l = l
+              p_i = i
+              p_j = j
+              p_k = k 
+  
+              IF(n_a<n_b) THEN
+                temp = p_i
+                p_i = p_j
+                p_j = temp
+              END IF
+   
+              IF(n_c<n_d) THEN
+                temp = p_k
+                p_k = p_l
+                p_l = temp 
+              END IF
+              IF( n_a+n_b > n_c+n_d) THEN
+                temp = p_i
+                p_i = p_k
+                p_k = temp
+                temp = p_j
+                p_j = p_l
+                p_l = temp
+              END IF
+   
+              p_index = (((p_i-1)*nco(n2)+(p_j-1))*nco(n3)+(p_k-1))*nco(n4)+(p_l-1) + 1
+              primitive_forces(offset_a+i,offset_b+j,offset_c+k,offset_d+ l,full_perm(n))=&
+                                       work_forces_sum(p_index,n)
+            END DO
+          END DO
+        END DO
+      END DO
+    END DO
+    DEALLOCATE(work_forces_sum)
+#endif
+  END SUBROUTINE evaluate_deriv_eri_periodic
+
+!!***** libint_interface/pbc [1.0] *
+!!
+!!   NAME
+!!     pbc
+!!
+!!   FUNCTION
+!!     auxiliary function to apply minimum image convention
+!!
+!!   NOTES
+!!     -
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     06.2007 created [Manuel Guidon]
+!!
+!!****************************************************************************
+
+  SUBROUTINE pbc(x,box_size,retval)
+    REAL(KIND=dp), INTENT(IN)        :: x(3),box_size(3)
+    REAL(KIND=dp), INTENT(OUT)       :: retval(3)
+    
+    retval(1)=x(1) - box_size(1)*ANINT(x(1)/box_size(1))
+    retval(2)=x(2) - box_size(2)*ANINT(x(2)/box_size(2))
+    retval(3)=x(3) - box_size(3)*ANINT(x(3)/box_size(3))
+  END SUBROUTINE pbc
 !***************************************************************************
 
 END MODULE libint_interface
