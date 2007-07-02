@@ -183,3 +183,6 @@ rsgrid-dist-1.inp
 #  
 H2O-ata.inp
 H2O-solv.inp
+# Changing output format
+2H2O_bsse.inp
+3H2O_bsse.inp

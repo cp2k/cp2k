@@ -494,7 +494,7 @@ CONTAINS
              END IF
              WRITE (UNIT=iw,FMT="(T2,A,T24,I3,A,F16.6,T80,A)") "-",SUM(conf(i,:)),"-body contribution:",Em(i),"-"
           END DO
-          WRITE (UNIT=iw,FMT="(T2,A,T20,A,F16.6,T80,A)") "-","BSSE  interaction  energy:",SUM(Em(Num_of_frag+1:)),"-"
+          WRITE (UNIT=iw,FMT="(T2,A,T20,A,F16.6,T80,A)") "-","BSSE-free interaction energy:",SUM(Em(Num_of_frag+1:)),"-"
           WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
         END IF
 

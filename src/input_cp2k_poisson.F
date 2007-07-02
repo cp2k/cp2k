@@ -48,7 +48,8 @@ MODULE input_cp2k_poisson
 
   PUBLIC :: create_poisson_section,&
             create_gspace_interp_section,&
-            create_multipole_section
+            create_multipole_section,&
+            create_ewald_section
 !***
 !****************************************************************************
 CONTAINS
@@ -414,13 +415,21 @@ SUBROUTINE create_ewald_section(section,error)
     NULLIFY(keyword,print_key,subsection)
     CALL keyword_create(keyword, name="EWALD_TYPE",&
          description="The type of ewald you want to perform."//&
+         " NONE standard real-space coulomb potential is computed together"//&
+         " with the non-bonded contributions."//&
          " EWALD is the standard non-fft based ewald."//&
          " SPME is the smooth particle mesh using beta-Euler splines."//&
          " PME is the particle mesh using fft interpolation.",&
-         usage="EWALD_TYPE {EWALD|SPME|PME}",&
+         usage="EWALD_TYPE {EWALD|SPME|PME|NONE}",&
          default_i_val=do_ewald_ewald,&
-         enum_c_vals=ewald_name_types,&
-         enum_i_vals=ewald_name_index,error=error)
+         enum_c_vals=(/"none     ",&
+                       "ewald    ",&
+                       "pme      ",&
+                       "spme     " /),&
+         enum_i_vals=(/do_ewald_none,&
+                       do_ewald_ewald,&
+                       do_ewald_pme,&
+                       do_ewald_spme/),error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 

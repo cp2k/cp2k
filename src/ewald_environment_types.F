@@ -33,9 +33,16 @@ MODULE ewald_environment_types
                                              SILENT
   USE input_constants,                 ONLY: do_ewald_none,&
                                              do_ewald_pme,&
-                                             do_ewald_spme,&
-                                             ewald_name_types
-  USE input_section_types,             ONLY: section_vals_release,&
+                                             do_ewald_spme
+  USE input_cp2k_poisson,              ONLY: create_ewald_section
+  USE input_enumeration_types,         ONLY: enum_i2c,&
+                                             enumeration_type
+  USE input_keyword_types,             ONLY: keyword_get,&
+                                             keyword_type
+  USE input_section_types,             ONLY: section_get_keyword,&
+                                             section_release,&
+                                             section_type,&
+                                             section_vals_release,&
                                              section_vals_retain,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -404,9 +411,12 @@ SUBROUTINE read_ewald_section ( ewald_env, ewald_section, error )
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dummy
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(enumeration_type), POINTER          :: enum
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: section
     TYPE(unit_convert_type), POINTER         :: units
 
-  NULLIFY( units)
+  NULLIFY( units, enum, keyword, section)
   CALL get_cp2k_units ( units )
 
   failure = .FALSE.
@@ -433,10 +443,13 @@ SUBROUTINE read_ewald_section ( ewald_env, ewald_section, error )
                                          extension=".log",error=error)
 
   IF ( iw > 0 ) THEN
+     CALL create_ewald_section(section,error=error)
+     keyword => section_get_keyword(section,"EWALD_TYPE",error=error)
+     CALL keyword_get(keyword,enum=enum,error=error)
      IF ( ewald_env % ewald_type /= do_ewald_none ) THEN
         dummy = cp_unit_from_cp2k(ewald_env % alpha,"angstrom^-1",error=error)
         WRITE ( iw, '( A,T67,A14 )' ) ' Ewald| Summation is done by:', &
-             ADJUSTR(ewald_name_types(ewald_env % ewald_type)(1:14))
+             ADJUSTR(TRIM(enum_i2c(enum,ewald_env % ewald_type,error=error)))
         WRITE ( iw, '( A,A18,A,T71,F10.4 )' ) &
              ' Ewald| Alpha parameter [','ANGSTROM^-1',']', dummy
 
@@ -455,12 +468,10 @@ SUBROUTINE read_ewald_section ( ewald_env, ewald_section, error )
            WRITE ( iw, '( A,T71,I10 )' ) &
                 ' Ewald| Spline interpolation order ', ewald_env % o_spline
         END SELECT
-
      ELSE
-
         WRITE ( iw, '( A, T73, A )' ) ' Ewald| ','not used'
-
      END IF
+     CALL section_release(section,error=error)
   END IF
 
   CALL cp_print_key_finished_output(iw,logger,ewald_section,&

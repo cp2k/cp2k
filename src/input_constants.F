@@ -103,20 +103,11 @@ MODULE input_constants
   ! Blacs type of distribution 
   INTEGER, PARAMETER, PUBLIC :: blacs_square=1, blacs_row=2, blacs_col=3
 
-  ! EWALD methods
-  !
-  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(4), PUBLIC :: ewald_name_types=&
-       (/"none     ",&
-         "ewald    ",&
-         "pme      ",&
-         "spme     " /)
+  ! EWALD methods       
   INTEGER, PARAMETER, PUBLIC :: do_ewald_none=1,&
                                 do_ewald_ewald=2,&
                                 do_ewald_pme=3,&
                                 do_ewald_spme=4
-
-  INTEGER, PARAMETER, PUBLIC, DIMENSION(4) :: ewald_name_index=&
-       (/do_ewald_none, do_ewald_ewald, do_ewald_pme, do_ewald_spme/)
 
   INTEGER, PARAMETER, PUBLIC :: do_constr_none=1,&
                                 do_constr_atomic=2,&
