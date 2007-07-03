@@ -120,6 +120,7 @@ CONTAINS
                                                 rab_ss
     REAL(KIND=dp), DIMENSION(3, 3)           :: pv_com
     REAL(KIND=dp), DIMENSION(3, 4)           :: rab_list
+    REAL(KIND=dp), DIMENSION(4)              :: rab2_list
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
     TYPE(pair_potential_pp_type), POINTER    :: potparm
@@ -255,28 +256,26 @@ CONTAINS
              END IF
              ! Compute the term only if all the pairs (cc,cs,sc,ss) are within the cut-off
              Check_terms: DO i = 1,4
-                rab2 = rab_list(1,i)**2+rab_list(2,i)**2+rab_list(3,i)**2
-                IF (rab2 >= rab2_max) THEN
+                rab2_list(i) = rab_list(1,i)**2+rab_list(2,i)**2+rab_list(3,i)**2
+                IF (rab2_list(i) >= rab2_max) THEN
                    all_terms = .FALSE.
                    EXIT Check_terms
                 END IF
              END DO Check_terms
              rab_com  = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
           ELSE
-             rab_cc = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
-             rab_com= rab_cc
+             rab_cc   = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
+             rab_com  = rab_cc
           END IF
-
           pv_com   = 0.0_dp
           rab_com  = rab_com + cell_v
-          rab2_com =  rab_com(1)**2 + rab_com(2)**2 + rab_com(3)**2
+          rab2_com = rab_com(1)**2 + rab_com(2)**2 + rab_com(3)**2
           IF (rab2_com <= rab2_max .AND. all_terms) THEN
              IF (do_shell) THEN
                 ! SHELL MODEL
                 ! core-core or core-ion/ion-core: Coulomb only
-                rab = rab_cc
-                rab = rab+cell_v
-                rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+                rab = rab_list(:,1)
+                rab2 = rab2_list(1)
                 energy =  potential_s (c_spline_data,rab2,fscalar, spl_c)
                 pot_nonbond = pot_nonbond + energy
                 fr(1) = fscalar*rab(1)
@@ -315,9 +314,8 @@ CONTAINS
 
                 IF(shell_type==sh_sh) THEN
                    ! shell-shell : VDW + Coulomb
-                   rab = rab_ss
-                   rab = rab+cell_v
-                   rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+                   rab = rab_list(:,4)
+                   rab2 = rab2_list(4)
                    energy =  potential_s (spline_data,rab2,fscalar,spl_f)
                    pot_nonbond = pot_nonbond + energy
                    fr(1) = fscalar*rab(1)
@@ -340,9 +338,8 @@ CONTAINS
                    pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3)
 
                    ! core-shell : Coulomb only
-                   rab = rab_cs
-                   rab = rab+cell_v
-                   rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+                   rab = rab_list(:,2)
+                   rab2 = rab2_list(2)
                    energy =  potential_s (cs_spline_data,rab2,fscalar,spl_cs)
                    pot_nonbond = pot_nonbond + energy
                    fr(1) = fscalar*rab(1)
@@ -365,9 +362,8 @@ CONTAINS
                    pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3)
                    
                    ! shell-core : Coulomb only
-                   rab = rab_sc
-                   rab = rab+cell_v
-                   rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+                   rab = rab_list(:,3)
+                   rab2 = rab2_list(3)
                    energy =  potential_s (sc_spline_data,rab2,fscalar,spl_sc)
                    pot_nonbond = pot_nonbond + energy
                    fr(1) = fscalar*rab(1)
@@ -390,9 +386,8 @@ CONTAINS
                    pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3)
                 ELSEIF(shell_type==nosh_sh) THEN
                    ! shell-ion or ion-shell : VDW + Coulomb
-                   rab = rab_ss
-                   rab = rab+cell_v
-                   rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+                   rab = rab_list(:,4)
+                   rab2 = rab2_list(4)
                    energy =  potential_s (spline_data,rab2,fscalar,spl_f)
                    pot_nonbond = pot_nonbond + energy
                    fr(1) = fscalar*rab(1)
@@ -435,9 +430,8 @@ CONTAINS
              ELSE
                 ! NO SHELL MODEL...
                 ! Ion-Ion : no shell model
-                rab = rab_cc
-                rab = rab+cell_v
-                rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+                rab  = rab_com
+                rab2 = rab2_com
                 energy =  potential_s(c_spline_data,rab2,fscalar,spl_c)
                 pot_nonbond = pot_nonbond + energy
                 fr(1) = fscalar*rab(1)

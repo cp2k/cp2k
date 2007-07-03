@@ -323,6 +323,10 @@ CONTAINS
        CALL create_SPLINE_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
+       
+       CALL create_neighbor_lists_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
 
        CALL create_NONBONDED_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
@@ -978,7 +982,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
-    
+
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="nonbonded",&
@@ -1026,10 +1030,74 @@ CONTAINS
        CALL create_Tersoff_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
-
+      
     END IF
 
   END SUBROUTINE create_NONBONDED_section
+
+!***************************************************************************
+!!****f* input_cp2k_mm/create_neighbor_lists_section [1.0] *
+!!
+!!   NAME
+!!     create_neighbor_lists_section
+!!
+!!   FUNCTION
+!!     This section specifies the input parameters for generation of
+!!     neighbor lists
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo [07.2007] - Zurich University
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_neighbor_lists_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_neighbor_lists_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    NULLIFY(keyword)
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="neighbor_lists",&
+            description="This section specifies the input parameters for the construction of"//&
+            " neighbor lists.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="VERLET_SKIN",&
+            description="Defines the Verlet Skin for the generation of the neighbor lists",&
+            usage="VERLET_SKIN {real}", default_r_val=cp_unit_to_cp2k(value=1.0_dp,&
+                                        unit_str="angstrom",&
+                                        error=error),&
+            unit_str="angstrom", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="neighbor_lists_from_scratch",&
+            description="This keyword enables the building of the neighbouring list from scratch.",&
+            usage="neighbor_lists_from_scratch logical",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+      
+    END IF
+
+  END SUBROUTINE create_neighbor_lists_section
 
 !***************************************************************************
 !!****f* input_cp2k_mm/create_GENPOT_section [1.0] *

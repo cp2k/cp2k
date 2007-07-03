@@ -2556,10 +2556,6 @@ CONTAINS
        CALL section_add_subsection(section, nose_section, error=error)
        CALL section_release(nose_section,error=error)
 
-       CALL create_qs_md_section(subsection, error=error)
-       CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)
-
        CALL create_respa_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -2662,62 +2658,6 @@ SUBROUTINE create_respa_section(section, error)
 
   END IF
 END SUBROUTINE create_respa_section
-
-!***************************************************************************
-!!****f* input_cp2k/create_qs_md_section *
-!!
-!!   NAME
-!!     create_qs_md_section
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: will contain the coeff section 
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
-
-SUBROUTINE create_qs_md_section(section, error)
-    TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_qs_md_section', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
-
-  failure=.FALSE.
-  
-  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN  
-
-     CALL section_create(section,name="QS_MD",&
-          description="QS specific MD parameters.",&
-          n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-          error=error)
-       
-     NULLIFY(keyword)
-
-     CALL keyword_create(keyword, name="neighbor_lists_from_scratch",&
-          variants=(/"NEIGH"/),&
-          description="This keyword enables the building of the neighbouring list from scratch."//&
-          " Default .TRUE.",&
-          usage="NEIGH logical",&
-          default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
-     CALL section_add_keyword(section,keyword,error=error)
-     CALL keyword_release(keyword,error=error)
-     
-  END IF
-END SUBROUTINE create_qs_md_section
 
 !***************************************************************************
 !!****f* input_cp2k/create_msst_section *

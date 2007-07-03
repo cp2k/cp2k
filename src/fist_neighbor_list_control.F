@@ -38,7 +38,8 @@ MODULE fist_neighbor_list_control
                                              fist_nonbond_env_set,&
                                              fist_nonbond_env_type,&
                                              pos_type
-  USE input_section_types,             ONLY: section_vals_type
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE message_passing,                 ONLY: mp_max
@@ -127,7 +128,6 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
                             rcore_last_update_pbc=rcore_last_update_pbc,&
                             cell_last_update=cell_last_update,&
                             num_update=num_update,&
-                            verlet_skin=verlet_skin,&
                             potparm=potparm,&
                             last_update=last_update,error=error)
 
@@ -143,44 +143,46 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
 ! *** Check, if the neighbor lists have to be built or updated ***
 
   update_neighbor_lists = .FALSE.
-  build_from_scratch = .FALSE.
-
+  CALL section_vals_val_get(force_env_section,"MM%FORCEFIELD%NEIGHBOR_LISTS%NEIGHBOR_LISTS_FROM_SCRATCH",&
+       l_val=build_from_scratch,error=error)
   IF (ASSOCIATED(r_last_update)) THEN
-    dr2_max = 0.0_dp
-    DO iparticle_kind=1,nparticle_kind
-      nparticle_local = local_particles%n_el(iparticle_kind)
-      DO iparticle_local=1,nparticle_local
-        iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-        s2r = r_last_update(iparticle)%r
-        s=particle_set(iparticle)%r(:)
-        dr(:) = s2r - s
-        dr2 = dr(1)*dr(1) + dr(2)*dr(2) + dr(3)*dr(3)
-        dr2_max = MAX(dr2_max,dr2)
-      END DO
-    END DO
-
+     CALL section_vals_val_get(force_env_section,"MM%FORCEFIELD%NEIGHBOR_LISTS%VERLET_SKIN",&
+          r_val=verlet_skin,error=error)
+     dr2_max = 0.0_dp
+     DO iparticle_kind=1,nparticle_kind
+        nparticle_local = local_particles%n_el(iparticle_kind)
+        DO iparticle_local=1,nparticle_local
+           iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+           s2r = r_last_update(iparticle)%r
+           s=particle_set(iparticle)%r(:)
+           dr(:) = s2r - s
+           dr2 = dr(1)*dr(1) + dr(2)*dr(2) + dr(3)*dr(3)
+           dr2_max = MAX(dr2_max,dr2)
+        END DO
+     END DO
+     
 #if defined(__parallel)
-    CALL mp_max(dr2_max,para_env%group)
+     CALL mp_max(dr2_max,para_env%group)
 #endif
 
-    IF (dr2_max > 0.25_dp*verlet_skin**2) THEN
-      DO iparticle=1,nparticle
-        r_last_update(iparticle )%r=particle_set(iparticle)%r(:)
-      END DO
-      update_neighbor_lists = .TRUE.
-    END IF
+     IF (dr2_max > 0.25_dp*verlet_skin**2.OR.build_from_scratch) THEN
+        DO iparticle=1,nparticle
+           r_last_update(iparticle )%r=particle_set(iparticle)%r(:)
+        END DO
+        update_neighbor_lists = .TRUE.
+     END IF
   ELSE
-    ALLOCATE (r_last_update(nparticle),STAT=istat)
-    IF (istat /= 0) THEN
-      CALL stop_memory(routineN,moduleN,__LINE__,"r_last_update",&
-                       3*nparticle*dp_size)
-    END IF
-    DO iparticle=1,nparticle
-       r_last_update(iparticle )%r=particle_set(iparticle)%r(:)
-    END DO
-
-    update_neighbor_lists = .TRUE.
-    build_from_scratch = .TRUE.
+     ALLOCATE (r_last_update(nparticle),STAT=istat)
+     IF (istat /= 0) THEN
+        CALL stop_memory(routineN,moduleN,__LINE__,"r_last_update",&
+             3*nparticle*dp_size)
+     END IF
+     DO iparticle=1,nparticle
+        r_last_update(iparticle )%r=particle_set(iparticle)%r(:)
+     END DO
+     
+     update_neighbor_lists = .TRUE.
+     build_from_scratch = .TRUE.
   END IF
   ! Force Update
   IF (PRESENT(force_update)) THEN
@@ -297,11 +299,9 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
      r_last_update_pbc(iparticle )%r=particle_set(iparticle)%r+rab
      ishell = particle_set(iparticle)%shell_index
      IF(ishell/=0) THEN
-       dr=shell_particle_set(ishell)%r(:) - particle_set(iparticle)%r(:)
-       rshell_last_update_pbc(ishell )%r = r_last_update_pbc(iparticle )%r(:) + dr(:)   
+       rshell_last_update_pbc(ishell )%r =  rab + shell_particle_set(ishell)%r(:)
        IF(shell_adiabatic) THEN
-         dr=core_particle_set(ishell)%r(:) - particle_set(iparticle)%r(:)
-         rcore_last_update_pbc(ishell )%r = r_last_update_pbc(iparticle )%r(:) + dr(:)
+         rcore_last_update_pbc(ishell )%r = rab + core_particle_set(ishell)%r(:)
        ELSE
          rcore_last_update_pbc(ishell )%r = r_last_update_pbc(iparticle )%r(:)
        END IF

@@ -315,7 +315,7 @@ CONTAINS
     END IF
     ! Create non bond environment
     CALL fist_nonbond_env_create (fist_nonbond_env, potparm_nonbond, ff_type%nonbonded14, &
-         ff_type%nonbonded, error )
+         ff_type%nonbonded, mm_section, error )
 
     ! Release all spline_environments
     IF (ff_type%nonbonded) THEN

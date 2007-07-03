@@ -67,8 +67,7 @@ MODULE md
 
   ! Public data types
 
-  PUBLIC :: qs_md_parameters_type,&
-            simpar_units_type,&
+  PUBLIC :: simpar_units_type,&
             simulation_parameters_type
 
   ! Public subroutines
@@ -76,39 +75,8 @@ MODULE md
   PUBLIC :: initialize_velocities,&
             read_md_section
 
-  !!****s* md/qs_md_parameters_type [1.0] *
-  !!
-  !!   NAME
-  !!     qs_md_parameters_type
-  !!
-  !!   FUNCTION
-  !!     parameters for the quickstep md
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ATTRIBUTES
-  !!     - neighbor_lists_from_scratch: if the neighbor_lists should be build
-  !!       from scratch
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!   MODIFICATION HISTORY
-  !!     03.2003 created [fawzi]
-  !!
-  !!   SOURCE
-  !***************************************************************************
-  TYPE qs_md_parameters_type
-     LOGICAL :: neighbor_lists_from_scratch
-  END TYPE qs_md_parameters_type
-  !!***
-  !****************************************************************************
-
   TYPE simpar_units_type
-     CHARACTER ( LEN = 8 ) :: time, tau,            &
-          verlet_skin, tau_cell,&
-          press
+     CHARACTER ( LEN = 8 ) :: time, tau, tau_cell, press
   END TYPE simpar_units_type
 
   TYPE simulation_parameters_type
@@ -141,7 +109,6 @@ MODULE md
      REAL (KIND=dp) :: tau_cell
      REAL (KIND=dp), POINTER, DIMENSION ( : ) :: dt_yosh
      REAL (KIND=dp) :: shake_tol
-     TYPE ( qs_md_parameters_type ) :: qs_md_param
      TYPE ( simpar_units_type )     :: units
      !MK Langevin
      REAL (KIND=dp) :: gamma
@@ -449,13 +416,6 @@ CONTAINS
             ignore_required=.TRUE.,error=error)
        simpar%multi_time_switch = .FALSE.
        IF (simpar%do_respa) simpar%multi_time_switch = .TRUE.
-
-       tmp_section => section_vals_get_subs_vals(md_section,"QS_MD",error=error)
-       CALL section_vals_get(tmp_section,explicit=explicit,error=error)
-       IF (explicit) THEN
-          CALL section_vals_val_get(tmp_section,"NEIGHBOR_LISTS_FROM_SCRATCH",&
-               l_val=simpar%qs_md_param%neighbor_lists_from_scratch, error=error)
-       END IF
     END IF
 
   END SUBROUTINE read_md_new_section
@@ -485,7 +445,6 @@ CONTAINS
     simpar % units % press = 'BAR'
     simpar % units % tau = 'FS'
     simpar % units % tau_cell = 'FS'
-    simpar % units % verlet_skin = 'ANGSTROMS'
     simpar % ensemble = nve_ensemble
     simpar % nsteps = 0
     simpar % dt = 0.0_dp
@@ -506,7 +465,6 @@ CONTAINS
     simpar % nyosh = 3
     simpar % tau_nhc = 1000.0_dp
     simpar % tau_cell = 1000.0_dp
-    simpar % qs_md_param % neighbor_lists_from_scratch = .TRUE.
     simpar % p0 = 0._dp
     simpar % v0 = 0._dp
     simpar % e0 = 0._dp
