@@ -35,6 +35,7 @@ MODULE kg_gpw_collocate_den
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cell_types,                      ONLY: cell_type
   USE coefficient_types,               ONLY: coeff_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
@@ -181,6 +182,7 @@ CONTAINS
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
     TYPE(section_vals_type), POINTER         :: input, interp_section
+    TYPE(cell_type), POINTER                 :: cell
 
 !   ---------------------------------------------------------------------------
 
@@ -207,6 +209,7 @@ CONTAINS
                     atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control,&
                     input=input,&
+                    cell=cell,&
                     error=error)
 
     ! *** assign from pw_env
@@ -519,7 +522,7 @@ CONTAINS
                        la_max(iset),zeta(ipgf,iset),la_min(iset),&
                        lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                        ra,rab,rab2,scale,pab,na1-1,nb1-1,&
-                       rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                       rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                        eps_rho_rspace,&
                        ga_gb_function=ga_gb_function,&
                        lgrid=lgrid,ithread=ithread, &
@@ -529,7 +532,7 @@ CONTAINS
                        lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                        la_max(iset),zeta(ipgf,iset),la_min(iset),&
                        rb,-rab,rab2,scale,pab,nb1-1,na1-1,&
-                       rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                       rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                        eps_rho_rspace,&
                        ga_gb_function=ga_gb_function,&
                        lgrid=lgrid,ithread=ithread, &
@@ -541,7 +544,7 @@ CONTAINS
                        la_max(iset),zeta(ipgf,iset),la_min(iset),&
                        lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                        ra,rab,rab2,scale,pab,na1-1,nb1-1,&
-                       rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                       rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                        eps_rho_rspace,&
                        ga_gb_function=ga_gb_function,&
                        map_consistent=map_consistent,error=error)
@@ -550,7 +553,7 @@ CONTAINS
                        lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                        la_max(iset),zeta(ipgf,iset),la_min(iset),&
                        rb,-rab,rab2,scale,pab,nb1-1,na1-1,&
-                       rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                       rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                        eps_rho_rspace,&
                        ga_gb_function=ga_gb_function,&
                        map_consistent=map_consistent,error=error)
@@ -682,6 +685,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
     TYPE(cube_info_type), DIMENSION(:), &
@@ -719,6 +723,7 @@ CONTAINS
                     atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control,&
                     input=input,&
+                    cell=cell,&
                     error=error)
 
     NULLIFY(rs_pools)
@@ -1018,7 +1023,7 @@ CONTAINS
                      CALL integrate_pgf_product_rspace(&
                           la_max(iset),zeta(ipgf,iset),la_min(iset),&
                           lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                          ra,rab,rab2,rs_v(igrid_level)%rs_grid,&
+                          ra,rab,rab2,rs_v(igrid_level)%rs_grid,cell,&
                           cube_info(igrid_level),&
                           hab,pab=pab,o1=na1-1,o2=nb1-1, &
                           eps_gvg_rspace=eps_gvg_rspace,&
@@ -1029,7 +1034,7 @@ CONTAINS
                      CALL integrate_pgf_product_rspace(&
                           lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                           la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                          rb,-rab,rab2,rs_v(igrid_level)%rs_grid,&
+                          rb,-rab,rab2,rs_v(igrid_level)%rs_grid,cell,&
                           cube_info(igrid_level),&
                           hab,pab=pab,o1=nb1-1,o2=na1-1, &
                           eps_gvg_rspace=eps_gvg_rspace,&
@@ -1042,7 +1047,7 @@ CONTAINS
                      CALL integrate_pgf_product_rspace(&
                           la_max(iset),zeta(ipgf,iset),la_min(iset),&
                           lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                          ra,rab,rab2,rs_v(igrid_level)%rs_grid,&
+                          ra,rab,rab2,rs_v(igrid_level)%rs_grid,cell,&
                           cube_info(igrid_level),&
                           hab,o1=na1-1,o2=nb1-1,&
                           eps_gvg_rspace=eps_gvg_rspace,&
@@ -1053,7 +1058,7 @@ CONTAINS
                      CALL integrate_pgf_product_rspace(&
                           lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                           la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                          rb,-rab,rab2,rs_v(igrid_level)%rs_grid,&
+                          rb,-rab,rab2,rs_v(igrid_level)%rs_grid,cell,&
                           cube_info(igrid_level),&
                           hab,o1=nb1-1,o2=na1-1,&
                           eps_gvg_rspace=eps_gvg_rspace,&

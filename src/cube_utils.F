@@ -95,18 +95,22 @@ CONTAINS
 
     INTEGER                                  :: i, istat
 
-    DEALLOCATE (info%lb_cube,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"info%lb_cube")
-    DEALLOCATE (info%ub_cube,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"info%ub_cube")
-    DEALLOCATE (info%sphere_bounds_count,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"info%sphere_bounds_count")
-    DO i=1,info%max_radius
-      DEALLOCATE (info%sphere_bounds(i)%p,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"info%sphere_bounds(i)%p")
-    END DO
-    DEALLOCATE (info%sphere_bounds,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"info%sphere_bounds")
+    IF (info%orthorhombic) THEN
+        DEALLOCATE (info%lb_cube,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"info%lb_cube")
+        DEALLOCATE (info%ub_cube,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"info%ub_cube")
+        DEALLOCATE (info%sphere_bounds_count,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"info%sphere_bounds_count")
+        DO i=1,info%max_radius
+          DEALLOCATE (info%sphere_bounds(i)%p,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routine,"info%sphere_bounds(i)%p")
+        END DO
+        DEALLOCATE (info%sphere_bounds,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"info%sphere_bounds")
+    ELSE
+        ! no info to be deallocated
+    ENDIF
   END SUBROUTINE
 
 !------------------------------------------------------------------------------
@@ -143,74 +147,80 @@ CONTAINS
     dz2=(dr(3))**2
     dy2=(dr(2))**2
 
-    IF ( .NOT. info%orthorhombic ) THEN
-      CALL stop_program(routine,"Non orthorhombic grids not supported")
-    END IF
 
     NULLIFY(info%lb_cube,info%ub_cube,&
             info%sphere_bounds_count,info%sphere_bounds)
-    ALLOCATE(info%lb_cube(3,imr),info%ub_cube(3,imr), &
-             info%sphere_bounds_count(imr),info%sphere_bounds(imr))
-    check_1=0
-    check_2=0
-!   count and allocate
 
-    DO i=1,imr
-      k=1
-      radius=i*drmin 
-      radius2=radius**2
-      kgmin=do_and_hide_it_1(dzi,i,drmin,0.0_dp,0.0_dp,0,0)
-      k=k+1
-      DO kg=kgmin,0
-         kg2=kg*kg
-         jgmin=do_and_hide_it_1(dyi,i,drmin,dz2,0.0_dp,kg2,0)
-         k=k+1
-         DO jg=jgmin,0
-          jg2=jg*jg
-          igmin=do_and_hide_it_1(dxi,i,drmin,dz2,dy2,kg2,jg2)
-          check_1=MODULO((kgmin*97+jgmin*37+igmin*113)*check_1+1277,9343)
-          k=k+1
-         ENDDO
-      ENDDO
-      info%sphere_bounds_count(i)=k-1
-      ALLOCATE (info%sphere_bounds(i)%p(info%sphere_bounds_count(i)),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"info%sphere_bounds(i)%p",0)
-    ENDDO
+    IF ( .NOT. info%orthorhombic ) THEN
 
-!   init sphere_bounds array
-    ! notice : as many points in lb_cube..0 as 1..ub_cube
-    DO i=1,imr 
-      k=1
-      radius=i*drmin
-      info%lb_cube(:,i)=-1
-      radius2=radius**2
-      kgmin=do_and_hide_it_1(dzi,i,drmin,0.0_dp,0.0_dp,0,0)
-      info%lb_cube(3,i)=MIN(kgmin,info%lb_cube(3,i))
-      info%sphere_bounds(i)%p(k)=kgmin
-      k=k+1
-      DO kg=kgmin,0
-         kg2=kg*kg
-         jgmin=do_and_hide_it_1(dyi,i,drmin,dz2,0.0_dp,kg2,0)
-         info%lb_cube(2,i)=MIN(jgmin,info%lb_cube(2,i))
-         info%sphere_bounds(i)%p(k)=jgmin
-         k=k+1
-         DO jg=jgmin,0
-          jg2=jg*jg
-          igmin=do_and_hide_it_1(dxi,i,drmin,dz2,dy2,kg2,jg2)
-          check_2=MODULO((kgmin*97+jgmin*37+igmin*113)*check_2+1277,9343)
-          info%lb_cube(1,i)=MIN(igmin,info%lb_cube(1,i))
-          info%sphere_bounds(i)%p(k)=igmin
+        ! this info is specialized to orthogonal grids, so won't be computed in the general case 
+
+    ELSE
+
+        ALLOCATE(info%lb_cube(3,imr),info%ub_cube(3,imr), &
+                 info%sphere_bounds_count(imr),info%sphere_bounds(imr))
+        check_1=0
+        check_2=0
+!       count and allocate
+
+        DO i=1,imr
+          k=1
+          radius=i*drmin 
+          radius2=radius**2
+          kgmin=do_and_hide_it_1(dzi,i,drmin,0.0_dp,0.0_dp,0,0)
           k=k+1
-         ENDDO
-      ENDDO
-      info%ub_cube(:,i)=1-info%lb_cube(:,i)
-    ENDDO
-    info%cmax=MAXVAL(info%ub_cube)
-    cmax = info%cmax
-    IF (check_1.NE.check_2) THEN 
-        CALL stop_program("init_cube_info",&
-                          " :-/ irreproducible fp math caused memory corruption")
-    ENDIF
+          DO kg=kgmin,0
+             kg2=kg*kg
+             jgmin=do_and_hide_it_1(dyi,i,drmin,dz2,0.0_dp,kg2,0)
+             k=k+1
+             DO jg=jgmin,0
+              jg2=jg*jg
+              igmin=do_and_hide_it_1(dxi,i,drmin,dz2,dy2,kg2,jg2)
+              check_1=MODULO((kgmin*97+jgmin*37+igmin*113)*check_1+1277,9343)
+              k=k+1
+             ENDDO
+          ENDDO
+          info%sphere_bounds_count(i)=k-1
+          ALLOCATE (info%sphere_bounds(i)%p(info%sphere_bounds_count(i)),STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routine,"info%sphere_bounds(i)%p",0)
+        ENDDO
+
+!       init sphere_bounds array
+        ! notice : as many points in lb_cube..0 as 1..ub_cube
+        DO i=1,imr 
+          k=1
+          radius=i*drmin
+          info%lb_cube(:,i)=-1
+          radius2=radius**2
+          kgmin=do_and_hide_it_1(dzi,i,drmin,0.0_dp,0.0_dp,0,0)
+          info%lb_cube(3,i)=MIN(kgmin,info%lb_cube(3,i))
+          info%sphere_bounds(i)%p(k)=kgmin
+          k=k+1
+          DO kg=kgmin,0
+             kg2=kg*kg
+             jgmin=do_and_hide_it_1(dyi,i,drmin,dz2,0.0_dp,kg2,0)
+             info%lb_cube(2,i)=MIN(jgmin,info%lb_cube(2,i))
+             info%sphere_bounds(i)%p(k)=jgmin
+             k=k+1
+             DO jg=jgmin,0
+              jg2=jg*jg
+              igmin=do_and_hide_it_1(dxi,i,drmin,dz2,dy2,kg2,jg2)
+              check_2=MODULO((kgmin*97+jgmin*37+igmin*113)*check_2+1277,9343)
+              info%lb_cube(1,i)=MIN(igmin,info%lb_cube(1,i))
+              info%sphere_bounds(i)%p(k)=igmin
+              k=k+1
+             ENDDO
+          ENDDO
+          info%ub_cube(:,i)=1-info%lb_cube(:,i)
+        ENDDO
+        info%cmax=MAXVAL(info%ub_cube)
+        cmax = info%cmax
+        IF (check_1.NE.check_2) THEN 
+            CALL stop_program("init_cube_info",&
+                              " :-/ irreproducible fp math caused memory corruption")
+        ENDIF
+
+    END IF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE
   ! try to hide things from the optimizer, so that we get the same numbers,

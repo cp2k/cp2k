@@ -264,7 +264,7 @@ MODULE qs_rho0_ggrid
         CALL collocate_pgf_product_rspace(&
            l0_ikind,zet0_s,0,0,0.0_dp,0,&
            ra, (/0.0_dp,0.0_dp,0.0_dp/), 0.0_dp, 1.0_dp, pab,0,0,&
-           rs_grid, cube_info(igrid),eps_rho_rspace,ga_gb_function=401,&
+           rs_grid,cell, cube_info(igrid),eps_rho_rspace,ga_gb_function=401,&
            ithread=ithread,collocate_rho0=.TRUE.,rpgf0_s=rpgf0_s,error=error)
 
       END DO  !  j
@@ -670,7 +670,7 @@ MODULE qs_rho0_ggrid
 
         CALL integrate_pgf_product_rspace(&
              l0_ikind,zet0_s,0,0,0.0_dp,0,&
-             ra, (/0.0_dp,0.0_dp,0.0_dp/), 0.0_dp,rs_v,&
+             ra, (/0.0_dp,0.0_dp,0.0_dp/), 0.0_dp,rs_v,cell,&
              cube_info(igrid),hab,pab,o1=0,o2=0,&
              eps_gvg_rspace=eps_rho_rspace,&
              calculate_forces=calculate_forces,&

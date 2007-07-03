@@ -346,7 +346,7 @@ CONTAINS
                                               lb_max=0, zetb=0.0_dp, lb_min=0,&
                                               ra=ra,rab=(/0.0_dp,0.0_dp,0.0_dp/),rab2=0.0_dp,&
                                               scale=1.0_dp, pab=pab, o1=na1, o2=0,&
-                                              rsgrid=rs_rho(igrid_level)%rs_grid,&
+                                              rsgrid=rs_rho(igrid_level)%rs_grid,cell=cell,&
                                               cube_info=cube_info(igrid_level),&
                                               eps_rho_rspace=eps_rho_rspace,&
                                               ga_gb_function=FUNC_AB, ithread=ithread, &
@@ -553,7 +553,7 @@ CONTAINS
 !$      ithread=omp_get_thread_num()
         CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_dp,0,ra,&
              (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,-1.0_dp,pab,0,0,rs_rho,&
-             cube_info,eps_rho_rspace,ga_gb_function=FUNC_AB,&
+             cell,cube_info,eps_rho_rspace,ga_gb_function=FUNC_AB,&
              ithread=ithread,error=error)
 
       END DO
@@ -1130,7 +1130,7 @@ CONTAINS
                       la_max(iset),zeta(ipgf,iset),la_min(iset),&
                       lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                       ra,rab,rab2,scale,pab,na1-1,nb1-1,&
-                      rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                      rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                       eps_rho_rspace,&
                       ga_gb_function=ga_gb_function,&
                       lgrid=lgrid,ithread=ithread, &
@@ -1140,7 +1140,7 @@ CONTAINS
                       lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                       la_max(iset),zeta(ipgf,iset),la_min(iset),&
                       rb,-rab,rab2,scale,pab,nb1-1,na1-1,&
-                      rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                      rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                       eps_rho_rspace,&
                       ga_gb_function=ga_gb_function,&
                       lgrid=lgrid,ithread=ithread, &
@@ -1152,7 +1152,7 @@ CONTAINS
                       la_max(iset),zeta(ipgf,iset),la_min(iset),&
                       lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                       ra,rab,rab2,scale,pab,na1-1,nb1-1,&
-                      rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                      rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                       eps_rho_rspace,&
                       ga_gb_function=ga_gb_function, &
                       map_consistent=map_consistent,error=error)
@@ -1161,7 +1161,7 @@ CONTAINS
                       lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                       la_max(iset),zeta(ipgf,iset),la_min(iset),&
                       rb,-rab,rab2,scale,pab,nb1-1,na1-1,&
-                      rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                      rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                       eps_rho_rspace,&
                       ga_gb_function=ga_gb_function, &
                       map_consistent=map_consistent,error=error)
@@ -1771,7 +1771,7 @@ CONTAINS
                       la_max(iset),zeta(ipgf,iset),la_min(iset),&
                       lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                       ra,rab,rab2,scale,pab,na1-1,nb1-1,&
-                      rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                      rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                       eps_rho_rspace,&
                       ga_gb_function=ga_gb_function,&
                       idir=idir,& !R
@@ -1782,7 +1782,7 @@ CONTAINS
                       lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                       la_max(iset),zeta(ipgf,iset),la_min(iset),&
                       rb,-rab,rab2,scale,pab,nb1-1,na1-1,&
-                      rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                      rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                       eps_rho_rspace,&
                       ga_gb_function=ga_gb_function,&
                       idir=idir,& !R
@@ -1795,7 +1795,7 @@ CONTAINS
                       la_max(iset),zeta(ipgf,iset),la_min(iset),&
                       lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                       ra,rab,rab2,scale,pab,na1-1,nb1-1,&
-                      rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                      rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                       eps_rho_rspace,&
                       ga_gb_function=ga_gb_function, &
                       idir=idir,& !R
@@ -1805,7 +1805,7 @@ CONTAINS
                       lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                       la_max(iset),zeta(ipgf,iset),la_min(iset),&
                       rb,-rab,rab2,scale,pab,nb1-1,na1-1,&
-                      rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                      rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                       eps_rho_rspace,&
                       ga_gb_function=ga_gb_function, &
                       idir=idir,& !R
@@ -2053,7 +2053,7 @@ CONTAINS
                         la_max(iset),zeta(ipgf,iset),la_min(iset),&
                         0,0.0_dp,0,&
                         ra,rab,rab2,scale,pab,na1-1,0,&
-                        rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                        rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                         eps_rho_rspace,ga_gb_function=FUNC_AB,error=error)
          END DO
 
@@ -2202,7 +2202,7 @@ CONTAINS
   SUBROUTINE collocate_pgf_product_rspace(la_max,zeta,la_min,&
                                           lb_max,zetb,lb_min,&
                                           ra,rab,rab2,scale,pab,o1,o2,&
-                                          rsgrid,cube_info,&
+                                          rsgrid,cell,cube_info,&
                                           eps_rho_rspace,ga_gb_function,&
                                           lgrid,ithread,&
                                           map_consistent,&
@@ -2219,6 +2219,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab
     INTEGER, INTENT(IN)                      :: o1, o2
     TYPE(realspace_grid_type), POINTER       :: rsgrid
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cube_info_type), INTENT(IN)         :: cube_info
     REAL(KIND=dp), INTENT(IN)                :: eps_rho_rspace
     INTEGER, INTENT(IN)                      :: ga_gb_function
@@ -2459,15 +2460,7 @@ CONTAINS
         CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT
 
-    IF ( .NOT. rsgrid%orthorhombic ) THEN
-       CALL stop_program(routineN,"only orthorhombic grids allowed")
-    END IF
-
-!   *** properties of the grid ***
-    dr(:) = rsgrid%dr(:)
     ng(:) = rsgrid%npts(:)
-
-! WARNING: this resets the lower bounds of grid to 1 (unlike grid => rsgrid%r)
     grid => rsgrid%r(:,:,:)
     gridbounds(1,1)=LBOUND(GRID,1)
     gridbounds(2,1)=UBOUND(GRID,1)
@@ -2475,6 +2468,26 @@ CONTAINS
     gridbounds(2,2)=UBOUND(GRID,2)
     gridbounds(1,3)=LBOUND(GRID,3)
     gridbounds(2,3)=UBOUND(GRID,3)
+
+    IF (rsgrid%orthorhombic ) THEN
+       CALL collocate_ortho()
+    ELSE
+       CALL collocate_general()
+    END IF
+
+    IF (ga_gb_function /= FUNC_AB) THEN
+       DEALLOCATE(pab_local)
+    ENDIF
+
+  CONTAINS
+
+    !
+    ! this treats efficiently the orthogonal case
+    !
+    SUBROUTINE collocate_ortho()
+
+!   *** properties of the grid ***
+    dr(:) = rsgrid%dr(:)
 
 !   *** get the sub grid properties for the given radius ***
     CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds,cmax)
@@ -2600,9 +2613,93 @@ CONTAINS
 
     END IF
 
-    IF (ga_gb_function /= FUNC_AB) THEN
-       DEALLOCATE(pab_local)
-    ENDIF
+    END SUBROUTINE collocate_ortho
+
+!
+!   this is a general 'reference' routine to do the collocation
+!
+    SUBROUTINE collocate_general()
+ 
+      INTEGER :: index_min(3),index_max(3),i,j,k,ipoint(3)
+      REAL(KIND=dp) :: point(3),radius2,fval
+
+      ! get the min max indices that contain at least the cube that contains a sphere around rp of radius radius
+      ! if the cell is very non-orthogonal this implies that many useless points are included
+      index_min= HUGE(index_min)
+      index_max=-HUGE(index_max)
+      DO i=-1,1
+      DO j=-1,1
+      DO k=-1,1
+         point(1)=rp(1)+i*radius
+         point(2)=rp(2)+j*radius
+         point(3)=rp(3)+k*radius
+         point=MATMUL(cell%h_inv,point)*ng
+         index_min=MIN(index_min,FLOOR(point))
+         index_max=MAX(index_max,CEILING(point))
+      ENDDO
+      ENDDO
+      ENDDO
+
+      ! go over the grid, but cycle if the point is not within the radius
+      DO k=index_min(3),index_max(3)
+      DO j=index_min(2),index_max(2)
+      DO i=index_min(1),index_max(1)
+         ! point in real space
+         point=MATMUL(cell%hmat,REAL((/i,j,k/),KIND=dp))/ng
+         ! skip if outside of the sphere
+         if (SUM((point-rp)**2)>radius**2) CYCLE
+         ! point on the grid (including pbc)
+         ipoint=MODULO((/i,j,k/),ng)+1
+         ! add to grid
+         grid(ipoint(1),ipoint(2),ipoint(3))=grid(ipoint(1),ipoint(2),ipoint(3))+primitive_value(point)
+      ENDDO
+      ENDDO
+      ENDDO
+       
+    END SUBROUTINE
+
+    FUNCTION primitive_value(point) RESULT(res)
+       REAL(KIND=dp) :: point(3),dra(3),drb(3), res,myexp,drap(3),drbp(3)
+       res=0.0_dp
+
+        myexp=exp(-zetp*SUM((point-rp)**2))*prefactor
+        dra=point-ra
+        drb=point-rb
+        drap(1)=1.0_dp
+        DO lxa=0,la_max_local
+        drbp(1)=1.0_dp
+        DO lxb=0,lb_max_local
+           drap(2)=1.0_dp
+           DO lya=0,la_max_local-lxa
+           drbp(2)=1.0_dp
+           DO lyb=0,lb_max_local-lxb
+              drap(3)=1.0_dp
+              DO lza=1,MAX(la_min_local-lxa-lya,0) 
+                 drap(3)=drap(3)*dra(3) 
+              ENDDO
+              DO lza=MAX(la_min_local-lxa-lya,0),la_max_local-lxa-lya
+              drbp(3)=1.0_dp
+              DO lzb=1,MAX(lb_min_local-lxb-lyb,0) 
+                 drbp(3)=drbp(3)*drb(3) 
+              ENDDO
+              DO lzb=MAX(lb_min_local-lxb-lyb,0),lb_max_local-lxb-lyb
+                ico=coset(lxa,lya,lza)
+                jco=coset(lxb,lyb,lzb)
+                res=res+pab_local(ico+o1_local,jco+o2_local)*myexp*PRODUCT(drap)*PRODUCT(drbp)
+                drbp(3)=drbp(3)*drb(3)
+              ENDDO
+              drap(3)=drap(3)*dra(3)
+              ENDDO
+           drbp(2)=drbp(2)*drb(2)
+           ENDDO
+           drap(2)=drap(2)*dra(2)
+           ENDDO
+        drbp(1)=drbp(1)*drb(1)
+        ENDDO
+        drap(1)=drap(1)*dra(1)
+        ENDDO
+
+    END FUNCTION primitive_value
 
   END SUBROUTINE collocate_pgf_product_rspace
 

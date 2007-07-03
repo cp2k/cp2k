@@ -261,7 +261,7 @@ CONTAINS
                            la_max(iset),zeta(ipgf,iset),la_min(iset),&
                            0,0.0_dp,0,&
                            ra,rab,rab2,scale,pab,na1-1,0,&
-                           rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                           rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                            eps_rho_rspace,ga_gb_function=401,error=error)
             END DO
 
@@ -436,7 +436,7 @@ CONTAINS
         ra(:) = pbc(particle_set(iatom)%r,cell)
         CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_dp,0,ra,&
                                           (/0.0_dp,0.0_dp,0.0_dp/),&
-                                          0.0_dp,scale,pab,0,0,rs_rho,&
+                                          0.0_dp,scale,pab,0,0,rs_rho,cell,&
                                           cube_info,eps_rho_rspace,&
                                           ga_gb_function=401,error=error)
 
@@ -635,7 +635,7 @@ CONTAINS
                         la_max(iset),zeta(ipgf,iset),la_min(iset),&
                         0,0.0_dp,0,&
                         ra,rab,rab2,scale,pab,na1-1,0,&
-                        rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                        rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                         eps_rho_rspace,ga_gb_function=401,error=error)
             END DO
 
@@ -784,7 +784,7 @@ CONTAINS
         CALL integrate_pgf_product_rspace(0,alpha_core_charge,0,&
                                           0,0.0_dp,0,&
                                           ra,(/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,&
-                                          rs_v,rspw%cube_info(1),&
+                                          rs_v,cell,rspw%cube_info(1),&
                                           hab,pab,0,0,&
                                           eps_gvg_rspace=eps_rho_rspace,&
                                           calculate_forces=.TRUE.,&
@@ -1030,7 +1030,7 @@ CONTAINS
              CALL integrate_pgf_product_rspace(&
                         la_max(iset),zeta(ipgf,iset),la_min(iset),&
                         0, 0.0_dp,0,&
-                        ra,rab,rab2,rs_v(igrid_level)%rs_grid,&
+                        ra,rab,rab2,rs_v(igrid_level)%rs_grid,cell,&
                         cube_info(igrid_level),&
                         hab,pab=pab,o1=na1-1,o2=0,&
                         eps_gvg_rspace=eps_gvg_rspace,&
@@ -1317,7 +1317,7 @@ CONTAINS
              CALL integrate_pgf_product_rspace(&
                         la_max(iset),zeta(ipgf,iset),la_min(iset),&
                         0, 0.0_dp,0,&
-                        ra,rab,rab2,rs_v(igrid_level)%rs_grid,&
+                        ra,rab,rab2,rs_v(igrid_level)%rs_grid,cell,&
                         cube_info(igrid_level),&
                         hab,pab,na1-1,0,&
                         eps_gvg_rspace=eps_gvg_rspace,&

@@ -1290,7 +1290,7 @@ CONTAINS
                   CALL collocate_pgf_product_rspace(la_max(iset),zeta(ipgf,iset),&
                        la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                        ra,rab,rab2,scale,jpab,na1-1,nb1-1,&
-                       rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                       rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                        eps_rho_rspace,&
                        ga_gb_function=FUNC_ADBmDAB,&
                        lgrid=lgrid,ithread=ithread, &
@@ -1300,7 +1300,7 @@ CONTAINS
                   CALL collocate_pgf_product_rspace(la_max(iset),zeta(ipgf,iset),&
                        la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                        ra,rab,rab2,scale,jpab,na1-1,nb1-1,&
-                       rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                       rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                        eps_rho_rspace,&
                        ga_gb_function=FUNC_ADBmDAB,&
                        idir=idir,&
@@ -1313,7 +1313,7 @@ CONTAINS
                   CALL collocate_pgf_product_rspace(la_max(iset),zeta(ipgf,iset),&
                        la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                        ra,rab,rab2,scale,jpab_ii,na1-1,nb1-1,&
-                       rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                       rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                        eps_rho_rspace,&
                        ga_gb_function=FUNC_ARDBmDARB,&
                        lgrid=lgrid,ithread=ithread, &
@@ -1323,7 +1323,7 @@ CONTAINS
                   CALL collocate_pgf_product_rspace(la_max(iset),zeta(ipgf,iset),&
                        la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                        ra,rab,rab2,scale,jpab_ii,na1-1,nb1-1,&
-                       rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                       rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                        eps_rho_rspace,&
                        ga_gb_function=FUNC_ARDBmDARB,&
                        idir=idir,ir=iiiB,&
@@ -1337,7 +1337,7 @@ CONTAINS
                   CALL collocate_pgf_product_rspace(la_max(iset),zeta(ipgf,iset),&
                        la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                        ra,rab,rab2,scale,jpab_iii,na1-1,nb1-1,&
-                       rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                       rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                        eps_rho_rspace,&
                        ga_gb_function=FUNC_ARDBmDARB,&
                        lgrid=lgrid,ithread=ithread, &
@@ -1347,7 +1347,7 @@ CONTAINS
                   CALL collocate_pgf_product_rspace(la_max(iset),zeta(ipgf,iset),&
                        la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                        ra,rab,rab2,scale,jpab_iii,na1-1,nb1-1,&
-                       rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                       rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                        eps_rho_rspace,&
                        ga_gb_function=FUNC_ARDBmDARB,&
                        idir=idir,ir=iiB,&
@@ -1365,7 +1365,7 @@ CONTAINS
                      CALL collocate_pgf_product_rspace(la_max(iset),zeta(ipgf,iset),&
                           la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                           ra,rab,rab2,scale,jpab_ii,na1-1,nb1-1,&
-                          rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                          rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                           eps_rho_rspace,&
                           ga_gb_function=FUNC_AB,&
                           lgrid=lgrid,ithread=ithread, &
@@ -1374,7 +1374,7 @@ CONTAINS
                      CALL collocate_pgf_product_rspace(la_max(iset),zeta(ipgf,iset),&
                           la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                           ra,rab,rab2,scale,jpab_ii,na1-1,nb1-1,&
-                          rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                          rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                           eps_rho_rspace,&
                           ga_gb_function=FUNC_AB,&
                           map_consistent=map_consistent,error=error)
@@ -1388,7 +1388,7 @@ CONTAINS
                      CALL collocate_pgf_product_rspace(la_max(iset),zeta(ipgf,iset),&
                           la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                           ra,rab,rab2,scale,jpab_iii,na1-1,nb1-1,&
-                          rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                          rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                           eps_rho_rspace,&
                           ga_gb_function=FUNC_AB,&
                           lgrid=lgrid,ithread=ithread, &
@@ -1397,7 +1397,7 @@ CONTAINS
                      CALL collocate_pgf_product_rspace(la_max(iset),zeta(ipgf,iset),&
                           la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                           ra,rab,rab2,scale,jpab_iii,na1-1,nb1-1,&
-                          rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                          rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                           eps_rho_rspace,&
                           ga_gb_function=FUNC_AB,&
                           map_consistent=map_consistent,error=error)

@@ -260,7 +260,7 @@ CONTAINS
 
         CALL integrate_pgf_product_rspace(0,alpha_core_charge,0,&
              0,0.0_dp,0,ra,(/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,&
-             rs_v,pw_env%cube_info(1),hab,pab=pab,o1=0,o2=0,&
+             rs_v,cell,pw_env%cube_info(1),hab,pab=pab,o1=0,o2=0,&
              eps_gvg_rspace=eps_rho_rspace,&
              calculate_forces=.TRUE.,force_a=force_a,&
              force_b=force_b,use_virial=use_virial,my_virial_a=my_virial_a,&
@@ -933,7 +933,7 @@ CONTAINS
                         CALL integrate_pgf_product_rspace(&
                              la_max(iset),zeta(ipgf,iset),la_min(iset),&
                              lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                             ra,rab,rab2,rs_v(igrid_level)%rs_grid,&
+                             ra,rab,rab2,rs_v(igrid_level)%rs_grid,cell,&
                              cube_info(igrid_level),&
                              hab,pab=pab,o1=na1-1,o2=nb1-1, &
                              eps_gvg_rspace=eps_gvg_rspace,&
@@ -946,7 +946,7 @@ CONTAINS
                         CALL integrate_pgf_product_rspace(&
                              lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                              la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                             rb,-rab,rab2,rs_v(igrid_level)%rs_grid,&
+                             rb,-rab,rab2,rs_v(igrid_level)%rs_grid,cell,&
                              cube_info(igrid_level),&
                              hab,pab=pab,o1=nb1-1,o2=na1-1, &
                              eps_gvg_rspace=eps_gvg_rspace,&
@@ -962,7 +962,7 @@ CONTAINS
                         CALL integrate_pgf_product_rspace(&
                              la_max(iset),zeta(ipgf,iset),la_min(iset),&
                              lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                             ra,rab,rab2,rs_v(igrid_level)%rs_grid,&
+                             ra,rab,rab2,rs_v(igrid_level)%rs_grid,cell,&
                              cube_info(igrid_level),&
                              hab,pab=pab,o1=na1-1,o2=nb1-1, &
                              eps_gvg_rspace=eps_gvg_rspace,&
@@ -975,7 +975,7 @@ CONTAINS
                         CALL integrate_pgf_product_rspace(&
                              lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                              la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                             rb,-rab,rab2,rs_v(igrid_level)%rs_grid,&
+                             rb,-rab,rab2,rs_v(igrid_level)%rs_grid,cell,&
                              cube_info(igrid_level),&
                              hab,pab=pab,o1=nb1-1,o2=na1-1, &
                              eps_gvg_rspace=eps_gvg_rspace,&
@@ -991,7 +991,7 @@ CONTAINS
                      CALL integrate_pgf_product_rspace(&
                           la_max(iset),zeta(ipgf,iset),la_min(iset),&
                           lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                          ra,rab,rab2,rs_v(igrid_level)%rs_grid,&
+                          ra,rab,rab2,rs_v(igrid_level)%rs_grid,cell,&
                           cube_info(igrid_level),&
                           hab,o1=na1-1,o2=nb1-1,&
                           eps_gvg_rspace=eps_gvg_rspace,&
@@ -1003,7 +1003,7 @@ CONTAINS
                      CALL integrate_pgf_product_rspace(&
                           lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                           la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                          rb,-rab,rab2,rs_v(igrid_level)%rs_grid,&
+                          rb,-rab,rab2,rs_v(igrid_level)%rs_grid,cell,&
                           cube_info(igrid_level),&
                           hab,o1=nb1-1,o2=na1-1,&
                           eps_gvg_rspace=eps_gvg_rspace,&
@@ -1288,7 +1288,7 @@ CONTAINS
 !!*** **********************************************************************
     SUBROUTINE integrate_pgf_product_rspace(la_max,zeta,la_min,&
                                             lb_max,zetb,lb_min,&
-                                            ra,rab,rab2,rsgrid,&
+                                            ra,rab,rab2,rsgrid,cell,&
                                             cube_info,hab,pab,o1,o2,&
                                             eps_gvg_rspace,&
                                             calculate_forces,hdab,hadb,force_a,force_b,&
@@ -1304,6 +1304,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: ra, rab
     REAL(KIND=dp), INTENT(IN)                :: rab2
     TYPE(realspace_grid_type), POINTER       :: rsgrid
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cube_info_type), INTENT(IN)         :: cube_info
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hab
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -1457,121 +1458,16 @@ CONTAINS
        RETURN
     ENDIF
 
-    CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds,cmax)
-
-!   *** properties of the grid ***
-    !IF (ithread_l.eq.0) t_c_1=m_walltime()
-
-    IF ( .NOT. rsgrid%orthorhombic ) THEN
-      CALL stop_program(routineN,"only orthorhombic grids allowed")
-    END IF
-
-    dr(:) = rsgrid%dr(:)
     ng(:) = rsgrid%npts(:)
-
     grid => rsgrid%r(:,:,:)
-    gridbounds(1,1)=LBOUND(GRID,1)
-    gridbounds(2,1)=UBOUND(GRID,1)
-    gridbounds(1,2)=LBOUND(GRID,2)
-    gridbounds(2,2)=UBOUND(GRID,2)
-    gridbounds(1,3)=LBOUND(GRID,3)
-    gridbounds(2,3)=UBOUND(GRID,3)
-    !gridbounds(1,1)=LBOUND(rsgrid%r,1)
-    !gridbounds(2,1)=UBOUND(rsgrid%r,1)
-    !gridbounds(1,2)=LBOUND(rsgrid%r,2)
-    !gridbounds(2,2)=UBOUND(rsgrid%r,2)
-    !gridbounds(1,3)=LBOUND(rsgrid%r,3)
-    !gridbounds(2,3)=UBOUND(rsgrid%r,3)
-
-    cubecenter(:) = FLOOR(rp(:)/dr(:))
-    roffset(:) = rp(:) - REAL(cubecenter(:),dp)*dr(:)
-    lb_cube_min = MINVAL(lb_cube(:))
-    ub_cube_max = MAXVAL(ub_cube(:))
-
-!   *** a mapping so that the ig corresponds to the right grid point, also with pbc
-    ALLOCATE(map(-cmax:cmax,3))
-    DO i=1,3
-      IF ( rsgrid % perd ( i ) == 1 ) THEN
-        start=lb_cube(i)
-        DO
-         offset=MODULO(cubecenter(i)+start,ng(i))+1-start
-         length=MIN(ub_cube(i),ng(i)-offset)-start
-         DO ig=start,start+length
-            map(ig,i) = ig+offset
-         END DO
-         IF (start+length.GE.ub_cube(i)) EXIT
-         start=start+length+1
-        END DO
-      ELSE
-        ! this takes partial grid + border regions into account
-        offset=MODULO(cubecenter(i),ng(i))+rsgrid%lb(i)
-        offset=offset-rsgrid%lb_local(i)+1
-        DO ig=lb_cube(i),ub_cube(i)
-           map(ig,i) = ig+offset
-        END DO
-      END IF
-    ENDDO
-
-#include "prep.f90"
-
-#include "call_integrate.f90"
-
-    coef_xyz=coef_xyz*prefactor
-
-    !
-    !   compute v_{lxa,lya,lza,lxb,lyb,lzb} given v_{lxp,lyp,lzp} and alpha(ls,lxa,lxb,1)
-    !   use a three step procedure
-    !
-
     ALLOCATE(vab(ncoset(la_max_local),ncoset(lb_max_local)))
-    ALLOCATE(coef_ttz(0:la_max_local,0:lb_max_local))
-    ALLOCATE(coef_tyz(0:la_max_local,0:lb_max_local,0:la_max_local,0:lb_max_local))
-       vab=0.0_dp
-       lxyz=0
-       DO lzp=0,lp
-          coef_tyz=0.0_dp
-          DO lyp=0,lp-lzp
-             coef_ttz=0.0_dp
-             DO lxp=0,lp-lzp-lyp
-                lxyz=lxyz+1
-                DO lxb=0,lb_max_local
-                DO lxa=0,la_max_local
-                   coef_ttz(lxa,lxb)=coef_ttz(lxa,lxb)+coef_xyz(lxyz)*alpha(lxp,lxa,lxb,1)
-                ENDDO
-                ENDDO
+    vab=0.0_dp
 
-             ENDDO
-
-             DO lyb=0,lb_max_local
-             DO lya=0,la_max_local
-                DO lxb=0,lb_max_local-lyb
-                DO lxa=0,la_max_local-lya
-                   coef_tyz(lxa,lxb,lya,lyb)=coef_tyz(lxa,lxb,lya,lyb)+coef_ttz(lxa,lxb)*alpha(lyp,lya,lyb,2)
-                ENDDO
-                ENDDO
-             ENDDO
-             ENDDO
-
-          ENDDO
-
-          DO lzb=0,lb_max_local
-          DO lza=0,la_max_local
-             DO lyb=0,lb_max_local-lzb
-             DO lya=0,la_max_local-lza
-                DO lxb=MAX(lb_min_local-lzb-lyb,0),lb_max_local-lzb-lyb
-                jco=coset(lxb,lyb,lzb)
-                DO lxa=MAX(la_min_local-lza-lya,0),la_max_local-lza-lya
-                   ico=coset(lxa,lya,lza)
-                   vab(ico,jco)=vab(ico,jco)+coef_tyz(lxa,lxb,lya,lyb)*alpha(lzp,lza,lzb,3)
-                ENDDO
-                ENDDO
-             ENDDO
-             ENDDO
-          ENDDO
-          ENDDO
-
-       ENDDO
-
+    IF (rsgrid%orthorhombic ) THEN
+      CALL integrate_ortho()
+    ELSE
+      CALL integrate_general()
+    END IF
 
 !   *** vab contains all the information needed to find the elements of hab
 !   *** and optionally of derivatives of these elements
@@ -1653,6 +1549,190 @@ CONTAINS
         END DO
       END DO
     END DO
+
+  CONTAINS
+
+   SUBROUTINE integrate_ortho()
+
+    CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds,cmax)
+    dr(:) = rsgrid%dr(:)
+
+    gridbounds(1,1)=LBOUND(GRID,1)
+    gridbounds(2,1)=UBOUND(GRID,1)
+    gridbounds(1,2)=LBOUND(GRID,2)
+    gridbounds(2,2)=UBOUND(GRID,2)
+    gridbounds(1,3)=LBOUND(GRID,3)
+    gridbounds(2,3)=UBOUND(GRID,3)
+
+    cubecenter(:) = FLOOR(rp(:)/dr(:))
+    roffset(:) = rp(:) - REAL(cubecenter(:),dp)*dr(:)
+    lb_cube_min = MINVAL(lb_cube(:))
+    ub_cube_max = MAXVAL(ub_cube(:))
+
+!   *** a mapping so that the ig corresponds to the right grid point, also with pbc
+    ALLOCATE(map(-cmax:cmax,3))
+    DO i=1,3
+      IF ( rsgrid % perd ( i ) == 1 ) THEN
+        start=lb_cube(i)
+        DO
+         offset=MODULO(cubecenter(i)+start,ng(i))+1-start
+         length=MIN(ub_cube(i),ng(i)-offset)-start
+         DO ig=start,start+length
+            map(ig,i) = ig+offset
+         END DO
+         IF (start+length.GE.ub_cube(i)) EXIT
+         start=start+length+1
+        END DO
+      ELSE
+        ! this takes partial grid + border regions into account
+        offset=MODULO(cubecenter(i),ng(i))+rsgrid%lb(i)
+        offset=offset-rsgrid%lb_local(i)+1
+        DO ig=lb_cube(i),ub_cube(i)
+           map(ig,i) = ig+offset
+        END DO
+      END IF
+    ENDDO
+
+#include "prep.f90"
+
+#include "call_integrate.f90"
+
+    coef_xyz=coef_xyz*prefactor
+
+    !
+    !   compute v_{lxa,lya,lza,lxb,lyb,lzb} given v_{lxp,lyp,lzp} and alpha(ls,lxa,lxb,1)
+    !   use a three step procedure
+    !
+
+    ALLOCATE(coef_ttz(0:la_max_local,0:lb_max_local))
+    ALLOCATE(coef_tyz(0:la_max_local,0:lb_max_local,0:la_max_local,0:lb_max_local))
+       lxyz=0
+       DO lzp=0,lp
+          coef_tyz=0.0_dp
+          DO lyp=0,lp-lzp
+             coef_ttz=0.0_dp
+             DO lxp=0,lp-lzp-lyp
+                lxyz=lxyz+1
+                DO lxb=0,lb_max_local
+                DO lxa=0,la_max_local
+                   coef_ttz(lxa,lxb)=coef_ttz(lxa,lxb)+coef_xyz(lxyz)*alpha(lxp,lxa,lxb,1)
+                ENDDO
+                ENDDO
+
+             ENDDO
+
+             DO lyb=0,lb_max_local
+             DO lya=0,la_max_local
+                DO lxb=0,lb_max_local-lyb
+                DO lxa=0,la_max_local-lya
+                   coef_tyz(lxa,lxb,lya,lyb)=coef_tyz(lxa,lxb,lya,lyb)+coef_ttz(lxa,lxb)*alpha(lyp,lya,lyb,2)
+                ENDDO
+                ENDDO
+             ENDDO
+             ENDDO
+
+          ENDDO
+
+          DO lzb=0,lb_max_local
+          DO lza=0,la_max_local
+             DO lyb=0,lb_max_local-lzb
+             DO lya=0,la_max_local-lza
+                DO lxb=MAX(lb_min_local-lzb-lyb,0),lb_max_local-lzb-lyb
+                jco=coset(lxb,lyb,lzb)
+                DO lxa=MAX(la_min_local-lza-lya,0),la_max_local-lza-lya
+                   ico=coset(lxa,lya,lza)
+                   vab(ico,jco)=vab(ico,jco)+coef_tyz(lxa,lxb,lya,lyb)*alpha(lzp,lza,lzb,3)
+                ENDDO
+                ENDDO
+             ENDDO
+             ENDDO
+          ENDDO
+          ENDDO
+
+       ENDDO
+    END SUBROUTINE integrate_ortho 
+
+    SUBROUTINE integrate_general()
+      INTEGER :: index_min(3),index_max(3),i,j,k,ipoint(3)
+      REAL(KIND=dp) :: point(3),radius2,gridval
+
+      ! get the min max indices that contain at least the cube that contains a sphere around rp of radius radius
+      ! if the cell is very non-orthogonal this implies that many useless points are included
+      index_min= HUGE(index_min)
+      index_max=-HUGE(index_max)
+      DO i=-1,1
+      DO j=-1,1
+      DO k=-1,1
+         point(1)=rp(1)+i*radius
+         point(2)=rp(2)+j*radius
+         point(3)=rp(3)+k*radius
+         point=MATMUL(cell%h_inv,point)*ng
+         index_min=MIN(index_min,FLOOR(point))
+         index_max=MAX(index_max,CEILING(point))
+      ENDDO
+      ENDDO
+      ENDDO
+
+      ! go over the grid, but cycle if the point is not within the radius
+      DO k=index_min(3),index_max(3)
+      DO j=index_min(2),index_max(2)
+      DO i=index_min(1),index_max(1)
+         ! point in real space
+         point=MATMUL(cell%hmat,REAL((/i,j,k/),KIND=dp))/ng
+         ! skip if outside of the sphere
+         if (SUM((point-rp)**2)>radius**2) CYCLE
+         ! point on the grid (including pbc)
+         ipoint=MODULO((/i,j,k/),ng)+1
+         ! integrate on the grid
+         gridval=grid(ipoint(1),ipoint(2),ipoint(3))
+         CALL primitive_integrate(point,gridval) 
+      ENDDO
+      ENDDO
+      ENDDO
+    END SUBROUTINE integrate_general
+
+    SUBROUTINE primitive_integrate(point,gridval)
+      REAL(KIND=dp) :: point(3),gridval
+       REAL(KIND=dp) :: dra(3),drb(3),myexp,drap(3),drbp(3)
+
+       myexp=exp(-zetp*SUM((point-rp)**2))*prefactor*gridval
+        dra=point-ra
+        drb=point-rb
+        drap(1)=1.0_dp
+        DO lxa=0,la_max_local
+        drbp(1)=1.0_dp
+        DO lxb=0,lb_max_local
+           drap(2)=1.0_dp
+           DO lya=0,la_max_local-lxa
+           drbp(2)=1.0_dp
+           DO lyb=0,lb_max_local-lxb
+              drap(3)=1.0_dp
+              DO lza=1,MAX(la_min_local-lxa-lya,0)
+                 drap(3)=drap(3)*dra(3)
+              ENDDO
+              DO lza=MAX(la_min_local-lxa-lya,0),la_max_local-lxa-lya
+              drbp(3)=1.0_dp
+              DO lzb=1,MAX(lb_min_local-lxb-lyb,0)
+                 drbp(3)=drbp(3)*drb(3)
+              ENDDO
+              DO lzb=MAX(lb_min_local-lxb-lyb,0),lb_max_local-lxb-lyb
+                ico=coset(lxa,lya,lza)
+                jco=coset(lxb,lyb,lzb)
+                vab(ico,jco)=vab(ico,jco)+myexp*PRODUCT(drap)*PRODUCT(drbp)
+                drbp(3)=drbp(3)*drb(3)
+              ENDDO
+              drap(3)=drap(3)*dra(3)
+              ENDDO
+           drbp(2)=drbp(2)*drb(2)
+           ENDDO
+           drap(2)=drap(2)*dra(2)
+           ENDDO
+        drbp(1)=drbp(1)*drb(1)
+        ENDDO
+        drap(1)=drap(1)*dra(1)
+        ENDDO
+
+    END SUBROUTINE
 
   END SUBROUTINE integrate_pgf_product_rspace
 
