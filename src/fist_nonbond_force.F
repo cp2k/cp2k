@@ -267,7 +267,6 @@ CONTAINS
              rab_cc   = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
              rab_com  = rab_cc
           END IF
-          pv_com   = 0.0_dp
           rab_com  = rab_com + cell_v
           rab2_com = rab_com(1)**2 + rab_com(2)**2 + rab_com(3)**2
           IF (rab2_com <= rab2_max .AND. all_terms) THEN
@@ -302,15 +301,15 @@ CONTAINS
                    f_nonbond(3,atom_b) = f_nonbond(3,atom_b) + fr(3)
                    CPPostcondition(shell_a/=0,cp_failure_level,routineP,error,failure)
                 END IF
-                pv_com(1,1) = pv_com(1,1) + rab(1) * fr(1)
-                pv_com(1,2) = pv_com(1,2) + rab(1) * fr(2)
-                pv_com(1,3) = pv_com(1,3) + rab(1) * fr(3)
-                pv_com(2,1) = pv_com(2,1) + rab(2) * fr(1)
-                pv_com(2,2) = pv_com(2,2) + rab(2) * fr(2)
-                pv_com(2,3) = pv_com(2,3) + rab(2) * fr(3)
-                pv_com(3,1) = pv_com(3,1) + rab(3) * fr(1)
-                pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2)
-                pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3)
+                pv_com(1,1) = rab(1) * fr(1)
+                pv_com(1,2) = rab(1) * fr(2)
+                pv_com(1,3) = rab(1) * fr(3)
+                pv_com(2,1) = rab(2) * fr(1)
+                pv_com(2,2) = rab(2) * fr(2)
+                pv_com(2,3) = rab(2) * fr(3)
+                pv_com(3,1) = rab(3) * fr(1)
+                pv_com(3,2) = rab(3) * fr(2)
+                pv_com(3,3) = rab(3) * fr(3)
 
                 IF(shell_type==sh_sh) THEN
                    ! shell-shell : VDW + Coulomb
