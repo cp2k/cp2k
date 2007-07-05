@@ -980,8 +980,9 @@ write(*,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
                    shift_sym(i,j) = chi_sym(i,j)+(chemical_shift(i,j,iatom)+&
                         &                         chemical_shift(j,i,iatom))/2.0_dp
                    IF(gapw) THEN
-                      shift_nosym(i,j) = shift_nosym(i,j)+chemical_shift_loc(i,j,iatom)
-                      shift_sym(i,j) = shift_sym(i,j)+(chemical_shift_loc(i,j,iatom)+&
+                      !vw there is a sign problem here wv!
+                      shift_nosym(i,j) = shift_nosym(i,j)-chemical_shift_loc(i,j,iatom)
+                      shift_sym(i,j) = shift_sym(i,j)-(chemical_shift_loc(i,j,iatom)+&
                                        chemical_shift_loc(j,i,iatom))/2.0_dp
                    ENDIF
                 ENDDO

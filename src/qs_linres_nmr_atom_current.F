@@ -1456,7 +1456,7 @@ CONTAINS
                     oce=oce,&
                     &error=error)
 
-    nkind = SIZE(atomic_kind_set)
+    nkind = SIZE(atomic_kind_set,1)
     natom = SIZE(particle_set,1)
 
     CPPrecondition(ASSOCIATED(sab_orb),cp_failure_level,routineP,error,failure)
@@ -1478,9 +1478,9 @@ CONTAINS
        DO iat = 1,nat
           iatom = atom_list(iat)
           CALL retrieve_sac_list(oce%voce,sac_oce,iatom,ikind,nkind,error=error)
-       END DO
+       ENDDO
 
-    END DO
+    ENDDO
 
     DO ikind=1,nkind
 
@@ -1488,15 +1488,15 @@ CONTAINS
 
           iab = ikind + nkind*(jkind - 1)
 
-          IF (.NOT.ASSOCIATED(sab_orb(iab)%neighbor_list_set)) CYCLE
+          IF(.NOT.ASSOCIATED(sab_orb(iab)%neighbor_list_set)) CYCLE
 
           CALL get_neighbor_list_set(neighbor_list_set=&
                                      sab_orb(iab)%neighbor_list_set,&
                                      nlist=nlist)
-          NULLIFY ( sab_orb_neighbor_list )
+          NULLIFY( sab_orb_neighbor_list )
 
           DO ilist=1,nlist
-             IF ( .NOT. ASSOCIATED(sab_orb_neighbor_list) ) THEN
+             IF( .NOT. ASSOCIATED(sab_orb_neighbor_list) ) THEN
                 sab_orb_neighbor_list => first_list(sab_orb(iab)%neighbor_list_set)
              ELSE
                 sab_orb_neighbor_list => next(sab_orb_neighbor_list)
@@ -1516,7 +1516,7 @@ CONTAINS
                                        neighbor=jatom,&
                                        r=rab)
 
-                IF (jatom /= last_jatom) THEN
+                IF(jatom /= last_jatom) THEN
                    new_atom_b = .TRUE.
                    last_jatom = jatom
                 ELSE
@@ -1538,19 +1538,20 @@ CONTAINS
 !                              oceh,oces,nder,dist_list,error=error)
 !
 
-          END DO  ! inode
+                sab_orb_neighbor_node => next(sab_orb_neighbor_node)
+             ENDDO  ! inode
 
-        END DO  ! ilist
+          ENDDO  ! ilist
 
-      END DO  ! jkind
+       ENDDO  ! jkind
 
-    END DO  ! ikind
+    ENDDO  ! ikind
 
 !   the vlist can be deallocated already here
-write(*,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING '
-write(*,*) 'list_3c_jrho_atom: doesnt call deallocate_vtriple'
+!write(*,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING '
+!write(*,*) 'list_3c_jrho_atom: doesnt call deallocate_vtriple'
 !    CALL deallocate_vtriple(oce%voce,error=error)
-write(*,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING '
+!write(*,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING '
 
   END SUBROUTINE list_3c_jrho_atom
 
