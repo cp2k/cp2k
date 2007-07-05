@@ -812,7 +812,7 @@ MODULE four_center_integrals
       box_size(3) = qs_env%cell%hmat(3,3)
       max_k = MIN(max_k, SIZE(qs_env%x_data%neighbor_cells))
       ALLOCATE(screen_periodic(natom,natom,max_set,max_set,SIZE(qs_env%x_data%neighbor_cells),SIZE(qs_env%x_data%neighbor_cells)))
-      CALL compute_screening_matrices_periodic(screen_set,screen_atom,screen_max,screen_periodic,particle_set,atomic_kind_set,&
+      CALL comp_screen_mat_per(screen_set,screen_atom,screen_max,screen_periodic,particle_set,atomic_kind_set,&
                                                screening_parameter,.NOT.geometry_did_change,&
                                                qs_env%x_data%x_screening_buffer_periodic,&
                                                qs_env%x_data%neighbor_cells,box_size,max_k,error)
@@ -1396,7 +1396,7 @@ MODULE four_center_integrals
       box_size(3) = qs_env%cell%hmat(3,3)
       max_k = MIN(max_k, SIZE(qs_env%x_data%neighbor_cells))
       ALLOCATE(screen_periodic(natom,natom,max_set,max_set,SIZE(qs_env%x_data%neighbor_cells),SIZE(qs_env%x_data%neighbor_cells)))
-      CALL compute_screening_matrices_periodic(screen_set,screen_atom,screen_max,screen_periodic,particle_set,atomic_kind_set,&
+      CALL comp_screen_mat_per(screen_set,screen_atom,screen_max,screen_periodic,particle_set,atomic_kind_set,&
                                                screening_parameter,.FALSE.,&
                                                neighbor_cells=qs_env%x_data%neighbor_cells,&
                                                box_size=box_size,&
@@ -1869,7 +1869,7 @@ MODULE four_center_integrals
       box_size(3) = qs_env%cell%hmat(3,3)
       max_k = MIN(max_k, SIZE(qs_env%x_data%neighbor_cells))
       ALLOCATE(screen_periodic(natom,natom,max_set,max_set,SIZE(qs_env%x_data%neighbor_cells),SIZE(qs_env%x_data%neighbor_cells)))
-      CALL compute_screening_matrices_periodic(screen_set,screen_atom,screen_max,screen_periodic,particle_set,atomic_kind_set,&
+      CALL comp_screen_mat_per(screen_set,screen_atom,screen_max,screen_periodic,particle_set,atomic_kind_set,&
                                                screening_parameter,.NOT.geometry_did_change,&
                                                qs_env%x_data%x_screening_buffer_periodic,&
                                                qs_env%x_data%neighbor_cells,box_size,max_k,error)
@@ -2472,7 +2472,7 @@ MODULE four_center_integrals
       box_size(3) = qs_env%cell%hmat(3,3)
       max_k = MIN(max_k, SIZE(qs_env%x_data%neighbor_cells))
       ALLOCATE(screen_periodic(natom,natom,max_set,max_set,SIZE(qs_env%x_data%neighbor_cells),SIZE(qs_env%x_data%neighbor_cells)))
-      CALL compute_screening_matrices_periodic(screen_set,screen_atom,screen_max,screen_periodic,particle_set,atomic_kind_set,&
+      CALL comp_screen_mat_per(screen_set,screen_atom,screen_max,screen_periodic,particle_set,atomic_kind_set,&
                                                screening_parameter,.FALSE.,&
                                                neighbor_cells=qs_env%x_data%neighbor_cells,&
                                                box_size=box_size,&
@@ -3625,10 +3625,10 @@ MODULE four_center_integrals
   END SUBROUTINE coulomb4_periodic
 !***************************************************************************
 
-!!***** four_center_integrals/compute_screening_matrices_periodic [1.0] *
+!!***** four_center_integrals/comp_screen_mat_per [1.0] *
 !!
 !!   NAME
-!!     compute_screening_matrices_periodic
+!!     comp_screen_mat_per
 !!
 !!   FUNCTION
 !!     calculates the screening matrices in the case of periodic boundary
@@ -3652,7 +3652,7 @@ MODULE four_center_integrals
 !!
 !!****************************************************************************
 
-  SUBROUTINE compute_screening_matrices_periodic(screen_set, screen_atom, screen_max,screen_periodic,particle_set,&
+  SUBROUTINE comp_screen_mat_per(screen_set, screen_atom, screen_max,screen_periodic,particle_set,&
                                                  atomic_kind_set,screening_parameter, read_from_memory, buffer,&
                                                  neighbor_cells, box_size, max_k, error)
     REAL(kind=dp), DIMENSION(:, :, :, :), &
@@ -3677,7 +3677,7 @@ MODULE four_center_integrals
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
-      routineN = 'compute_screening_matrices_periodic', &
+      routineN = 'comp_screen_mat_per', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, jatom, jset, k, &
@@ -3788,7 +3788,7 @@ MODULE four_center_integrals
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(handle)
 
-  END SUBROUTINE compute_screening_matrices_periodic
+  END SUBROUTINE comp_screen_mat_per
 !***************************************************************************
 
 !!***** four_center_integrals/screen4_periodic [1.0] *
