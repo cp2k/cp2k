@@ -160,6 +160,9 @@ CONTAINS
        CALL stop_program("READ OT ORTHO_IRAC","VALUE UNKNOWN")
     END SELECT
 
+    CALL section_vals_val_get(ot_section,"ON_THE_FLY_LOC",l_val=qs_ot_env(1)%settings%on_the_fly_loc, &
+         &                    error=error)
+
 
        CALL section_vals_val_get(ot_section,"MINIMIZER",i_val=ot_method,error=error)
        ! compatibility
@@ -298,6 +301,8 @@ CONTAINS
             & qs_ot_env(1)%settings%eps_irac_switch
        WRITE(output_unit,'(A,E14.5)')"  eps_irac_quick_exit:",&
             & qs_ot_env(1)%settings%eps_irac_quick_exit
+       WRITE(output_unit,'(A,L2)')   "  on_the_fly_loc     :",&
+            & qs_ot_env(1)%settings%on_the_fly_loc
        WRITE(output_unit,'(A)') "  "
     ENDIF
     WRITE(output_unit,'(A)') "  ----------------------------------- OT --------------------------------------"
@@ -382,7 +387,8 @@ SUBROUTINE ot_scf_mini(mo_array,matrix_dedc,matrix_s,energy, &
           CALL qs_ot_get_orbitals(mo_coeff,qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin),error=error)
        CASE("REF")
           CALL qs_ot_get_orbitals_ref(mo_coeff,matrix_s,qs_ot_env(ispin)%matrix_x,&
-               &           qs_ot_env(ispin)%matrix_sx,qs_ot_env(ispin),qs_ot_env(1),&
+               &           qs_ot_env(ispin)%matrix_sx,qs_ot_env(ispin)%matrix_gx_old,&
+               &           qs_ot_env(ispin)%matrix_dx,qs_ot_env(ispin),qs_ot_env(1),&
                &           error=error)
        CASE DEFAULT
           CALL stop_program("ot_scf_mini","ALGORITHM NYI")

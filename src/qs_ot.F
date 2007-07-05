@@ -82,6 +82,13 @@ MODULE qs_ot
   PUBLIC  :: qs_ot_new_preconditioner
   PRIVATE :: qs_ot_p2m_diag
   PRIVATE :: qs_ot_sinc
+  PRIVATE :: qs_ot_ref_poly
+  PRIVATE :: qs_ot_ref_chol
+  PRIVATE :: qs_ot_ref_lwdn
+  PRIVATE :: qs_ot_ref_decide
+  PRIVATE :: qs_ot_ref_update
+  PRIVATE :: qs_ot_refine
+  PRIVATE :: qs_ot_on_the_fly_localize
 
   ! notice, this variable needs to be copyable !
   ! needed for spins as e.g. in qs_ot_scf      !
@@ -104,6 +111,7 @@ MODULE qs_ot
        REAL(KIND = dp)   :: eps_irac! target accuracy for the refinement
        REAL(KIND = dp)   :: eps_irac_quick_exit
        REAL(KIND = dp)   :: eps_irac_switch
+       LOGICAL           :: on_the_fly_loc
        CHARACTER(LEN=4)  :: ortho_irac
   END TYPE qs_ot_settings_type
 
@@ -235,6 +243,7 @@ CONTAINS
     settings%eps_irac=1.0E-10_dp
     settings%eps_irac_quick_exit=1.0E-5_dp
     settings%eps_irac_switch=1.0E-2
+    settings%on_the_fly_loc=.FALSE.
     settings%ortho_irac="CHOL"
   END SUBROUTINE qs_ot_settings_init
 
@@ -527,8 +536,100 @@ SUBROUTINE qs_ot_destroy(qs_ot_env,error)
 
 END SUBROUTINE qs_ot_destroy
 
+SUBROUTINE qs_ot_on_the_fly_localize(qs_ot_env, C_NEW, SC, G_OLD, D, error)
+  !
+  TYPE(qs_ot_type)                   :: qs_ot_env
+  TYPE(cp_fm_type), POINTER          :: C_NEW,SC,G_OLD,D
+  TYPE(cp_error_type), INTENT(INOUT) :: error
+  !
+  TYPE(cp_fm_type), POINTER          :: U,GU,Gp1,Gp2,C
+  INTEGER                            :: o,p,i,k,n,kscale,handle
+  REAL(KIND=dp)                      :: expfactor,norm_fro,norm_gct,scale,tmp
+  REAL(KIND=dp), PARAMETER           :: rone=1.0_dp,rzero=0.0_dp
+  REAL(KIND=dp), PARAMETER           :: f2_eps=0.01_dp,alpha=0.1_dp
+  INTEGER, PARAMETER                 :: taylor_order=50
+  !
+  CALL timeset("qs_ot_on_the_fly_localize","I","",handle)
+  !
+  NULLIFY(U,GU,Gp1,Gp2,C)
+  !
+  ! C = C*expm(-G)
+  GU => qs_ot_env%matrix_cosp ! a buffer
+  U  => qs_ot_env%matrix_sinp ! a buffer
+  Gp1=> qs_ot_env%matrix_r    ! a buffer
+  Gp2=> qs_ot_env%matrix_buf1 ! a buffer
+  C  => qs_ot_env%matrix_c0   ! a buffer
+  !
+  CALL cp_fm_get_info(C_NEW,nrow_global=n,ncol_global=k,error=error)
+  !
+  ! compute the derivative of the norm
+  !-------------------------------------------------------------------
+  ! (x^2+eps)^1/2
+  DO p=1,SIZE(C_NEW%local_data,2)   ! p
+     DO i=1,SIZE(C_NEW%local_data,1)! i
+        C%local_data(i,p) = C_NEW%local_data(i,p) / &
+             &              SQRT( C_NEW%local_data(i,p)**2 + f2_eps )
+     ENDDO
+  ENDDO
+  CALL cp_fm_gemm('T','N',k,k,n,rone,C,C_NEW,rzero,GU,error=error)
+  !
+  ! antisymetrize
+  CALL cp_fm_transpose(GU,U,error=error)
+  CALL cp_fm_scale_and_add(-0.5_dp,GU,0.5_dp,U,error=error)
+  !-------------------------------------------------------------------
+  !
+  CALL cp_fm_frobenius_norm(GU,norm_fro,error=error)
+  CALL cp_fm_maxabsrownorm(GU,norm_gct,error=error)
+  !write(*,*) 'qs_ot_localize: ||P-I||_f=',norm_fro,' ||P-I||_GCT=',norm_gct
+  !
+  !kscale = CEILING(LOG(MIN(norm_fro,norm_gct))/LOG(2.0_dp))
+  !scale  = LOG(MIN(norm_fro,norm_gct))/LOG(2.0_dp)
+  !write(*,*) 'qs_ot_localize: scale=',scale,' kscale=',kscale
+  !
+  ! rescale for steepest descent
+  CALL cp_fm_scale(-alpha, GU, error=error)
+  !
+  ! compute unitary transform
+  ! zeroth order
+  CALL cp_fm_set_all(U,rzero,rone,error=error)
+  ! first order
+  expfactor = 1.0_dp
+  CALL cp_fm_scale_and_add(1.0_dp,U,expfactor,GU,error=error)
+  ! other orders
+  CALL cp_fm_to_fm(GU,Gp1,error=error)
+  DO i = 2,taylor_order
+     ! new power of G
+     CALL cp_fm_gemm('N','N',k,k,k,rone,GU,Gp1,rzero,Gp2,error=error)
+     CALL cp_fm_to_fm(Gp2,Gp1,error=error)
+     ! add to the taylor expansion so far
+     expfactor = expfactor / REAL(i,KIND=dp)
+     CALL cp_fm_scale_and_add(1.0_dp,U,expfactor,Gp1,error=error)
+     CALL cp_fm_frobenius_norm(Gp1,norm_fro,error=error)
+     !write(*,*) 'Taylor expansion i=',i,' norm(X^i)/i!=',norm_fro*expfactor
+     IF(norm_fro*expfactor.LT.1.0E-10_dp) EXIT
+  ENDDO
+  !
+  ! rotate MOs
+  CALL cp_fm_gemm('N','N',n,k,k,rone,C_NEW,U,rzero,C,error=error)
+  CALL cp_fm_to_fm(C,C_NEW,error=error)
+  !
+  ! rotate SC
+  CALL cp_fm_gemm('N','N',n,k,k,rone,SC,U,rzero,C,error=error)
+  CALL cp_fm_to_fm(C,SC,error=error)
+  !
+  ! rotate D_i
+  CALL cp_fm_gemm('N','N',n,k,k,rone,D,U,rzero,C,error=error)
+  CALL cp_fm_to_fm(C,D,error=error)
+  !
+  ! rotate G_i-1
+  CALL cp_fm_gemm('N','N',n,k,k,rone,G_OLD,U,rzero,C,error=error)
+  CALL cp_fm_to_fm(C,G_OLD,error=error)
+  !
+  CALL timestop(0.0_dp,handle)
+END SUBROUTINE qs_ot_on_the_fly_localize
 
 SUBROUTINE qs_ot_ref_chol(qs_ot_env, C_OLD, C_TMP, C_NEW, P, SC, update, error)
+  !
   TYPE(qs_ot_type)                   :: qs_ot_env
   TYPE(cp_fm_type), POINTER          :: C_OLD,C_TMP,C_NEW,P,SC
   LOGICAL, INTENT(IN)                :: update
@@ -557,7 +658,7 @@ SUBROUTINE qs_ot_ref_chol(qs_ot_env, C_OLD, C_TMP, C_NEW, P, SC, update, error)
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE qs_ot_ref_chol
 
-SUBROUTINE qs_ot_ref_loewdin(qs_ot_env, C_OLD, C_TMP, C_NEW, P, SC, update, error)
+SUBROUTINE qs_ot_ref_lwdn(qs_ot_env, C_OLD, C_TMP, C_NEW, P, SC, update, error)
   !
   TYPE(qs_ot_type)                   :: qs_ot_env
   TYPE(cp_fm_type), POINTER          :: C_OLD,C_TMP,C_NEW,P,SC
@@ -568,7 +669,7 @@ SUBROUTINE qs_ot_ref_loewdin(qs_ot_env, C_OLD, C_TMP, C_NEW, P, SC, update, erro
   TYPE(cp_fm_type), POINTER          :: V,W
   REAL(dp), DIMENSION(:), POINTER    :: eig,fun
   !
-  CALL timeset("qs_ot_ref_loewdin","I","",handle)
+  CALL timeset("qs_ot_ref_lwdn","I","",handle)
   !
   NULLIFY(V,W,eig)
   !
@@ -584,7 +685,7 @@ SUBROUTINE qs_ot_ref_loewdin(qs_ot_env, C_OLD, C_TMP, C_NEW, P, SC, update, erro
   ! compute the P^(-1/2)
   DO i = 1,k
      IF(eig(i).LE.0.0_dp) &
-          & CALL stop_program("qs_ot_ref_loewdin","P not positive definite")
+          & CALL stop_program("qs_ot_ref_lwdn","P not positive definite")
      IF(eig(i).LT.1.0E-8_dp) THEN
         fun(i)=0.0_dp
      ELSE
@@ -605,7 +706,7 @@ SUBROUTINE qs_ot_ref_loewdin(qs_ot_env, C_OLD, C_TMP, C_NEW, P, SC, update, erro
   ENDIF
   !
   CALL timestop(0.0_dp,handle)
-END SUBROUTINE qs_ot_ref_loewdin
+END SUBROUTINE qs_ot_ref_lwdn
 
 SUBROUTINE qs_ot_ref_poly(qs_ot_env,S,C_OLD,C_TMP,C_NEW,P,SC,norm_in,update,error)
   !
@@ -649,7 +750,7 @@ SUBROUTINE qs_ot_ref_poly(qs_ot_env,S,C_OLD,C_TMP,C_NEW,P,SC,norm_in,update,erro
      ! rescaling
      IF(norm.GT.1.0_dp) THEN
         IF(output_unit>0) write(output_unit,'(A,I3,A)') &
-             &'qs_ot_get_orbitals_ref: ',irefine,': we rescale (C+a*D)'
+             &'qs_ot_ref_poly: ',irefine,': we rescale (C+a*D)'
         CALL cp_fm_scale(1.0_dp/norm,P,error=error)
         rescale = rescale/SQRT(norm)
      ENDIF
@@ -668,7 +769,7 @@ SUBROUTINE qs_ot_ref_poly(qs_ot_env,S,C_OLD,C_TMP,C_NEW,P,SC,norm_in,update,erro
      ! quick exit if possible
      IF(quick_exit) THEN
         IF(output_unit>0) write(output_unit,'(A,I3,A)') &
-             & 'qs_ot_get_orbitals_ref: ',irefine,': quick exit!'
+             & 'qs_ot_ref_poly: ',irefine,': quick exit!'
         EXIT
      ENDIF
      !
@@ -685,11 +786,11 @@ SUBROUTINE qs_ot_ref_poly(qs_ot_env,S,C_OLD,C_TMP,C_NEW,P,SC,norm_in,update,erro
      !
      ! printing
      IF(output_unit>0) write(output_unit,'(A,I3,A,E12.5)') &
-          & 'qs_ot_get_orbitals_ref: ',irefine,': ||P-I||=',norm
+          & 'qs_ot_ref_poly: ',irefine,': ||P-I||=',norm
      !
      ! blows up
      IF(norm.GT.1.0E10_dp) THEN
-        CALL stop_program("qs_ot_get_orbitals_ref","... refinement blows up! "//&
+        CALL stop_program("qs_ot_ref_poly","... refinement blows up! "//&
              & "... we need you to improve the code, please post your input on "//&
              & "the forum http://cp2k.berlios.de/")
      ENDIF
@@ -746,39 +847,49 @@ SUBROUTINE qs_ot_ref_decide(qs_ot_env1, norm_in, ortho_irac)
 END SUBROUTINE qs_ot_ref_decide
 
 SUBROUTINE qs_ot_get_orbitals_ref(matrix_c, matrix_s, matrix_x, matrix_sx, &
-     &                            qs_ot_env, qs_ot_env1, error)
+     &                            matrix_gx_old, matrix_dx, qs_ot_env, &
+     &                            qs_ot_env1, error)
   !
-  TYPE(cp_fm_type), POINTER          :: matrix_c,matrix_x,matrix_sx
+  TYPE(cp_fm_type), POINTER          :: matrix_c,matrix_x,matrix_sx,matrix_gx_old,&
+       &                                matrix_dx
   TYPE(real_matrix_type), POINTER    :: matrix_s
   TYPE(qs_ot_type)                   :: qs_ot_env,qs_ot_env1
   TYPE(cp_error_type), INTENT(INOUT) :: error
   !
   REAL(KIND=dp), PARAMETER           :: rone = 1.0_dp, rzero = 0.0_dp
-  TYPE(cp_fm_type), POINTER          :: SC,P,Y,C_NEW,C_OLD,C_TMP
+  TYPE(cp_fm_type), POINTER          :: SC,P,Y,C_NEW,C_OLD,C_TMP,G_OLD,D
   TYPE(real_matrix_type), POINTER    :: S
   TYPE(cp_logger_type), POINTER      :: logger
   INTEGER                            :: handle,k,n,irefine,output_unit,&
        &                                max_irac
   REAL(dp)                           :: norm,norm_decide,norm_gct,norm_fro
-  LOGICAL                            :: update
+  LOGICAL                            :: update,on_the_fly_loc
   CHARACTER(LEN=4)                   :: ortho_irac
   !
   CALL timeset("qs_ot_get_orbitals_ref","I","",handle)
-  NULLIFY(S,SC,P,Y,C_NEW,C_OLD,C_TMP,logger)  
+  NULLIFY(S,SC,P,Y,C_NEW,C_OLD,C_TMP,G_OLD,D,logger)
   logger => cp_error_get_logger(error)
   output_unit = cp_logger_get_default_unit_nr(logger)
   CALL cp_fm_get_info(matrix_c,nrow_global=n,ncol_global=k,error=error)
   !
-  C_NEW => matrix_c  ! a buffer
+  C_NEW => matrix_c
   C_OLD => matrix_x  ! need to be carefully updated for the gradient !
   SC    => matrix_sx ! need to be carefully updated for the gradient !
   S     => matrix_s
   C_TMP => qs_ot_env%matrix_c0   ! a buffer
   P     => qs_ot_env%matrix_p    ! a buffer
   Y     => qs_ot_env%matrix_cosp ! a buffer
+  G_OLD => matrix_gx_old ! need to be carefully updated for localization !
+  D     => matrix_dx     ! need to be carefully updated for localization !
   !
   ! do we need to update C_OLD and SC?
   update = qs_ot_ref_update(qs_ot_env1)
+  !
+  ! do we want to on the fly localize?
+  ! for the moment this is set from the input, 
+  ! later we might want to localize every n-step or
+  ! when the sparsity increases...
+  on_the_fly_loc = qs_ot_env1%settings%on_the_fly_loc
   !
   ! compute SC = S*C
   IF(ASSOCIATED(S)) THEN
@@ -806,15 +917,22 @@ SUBROUTINE qs_ot_get_orbitals_ref(matrix_c, matrix_s, matrix_x, matrix_sx, &
   CASE("CHOL")
      CALL qs_ot_ref_chol(qs_ot_env,C_OLD,C_TMP,C_NEW,P,SC,update,error)
   CASE("LWDN")
-     CALL qs_ot_ref_loewdin(qs_ot_env,C_OLD,C_TMP,C_NEW,P,SC,update,error)
+     CALL qs_ot_ref_lwdn(qs_ot_env,C_OLD,C_TMP,C_NEW,P,SC,update,error)
   CASE("POLY")
      CALL qs_ot_ref_poly(qs_ot_env,S,C_OLD,C_TMP,C_NEW,P,SC,norm,update,error)
   CASE DEFAULT
      CALL stop_program("qs_ot_get_orbitals_ref","Wrong argument")
   END SELECT
   !
-  ! We update the C_i+1
-  IF(update) CALL cp_fm_to_fm(C_NEW,C_OLD,error=error)
+  ! We update the C_i+1 and localization
+  IF(update) THEN
+     IF(on_the_fly_loc) THEN
+        IF(output_unit>0) write(output_unit,'(A)') &
+             & 'qs_ot_get_orbitals_ref: we localize C'
+        CALL qs_ot_on_the_fly_localize(qs_ot_env,C_NEW,SC,G_OLD,D,error)
+     ENDIF
+     CALL cp_fm_to_fm(C_NEW,C_OLD,error=error)
+  ENDIF
   !
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE qs_ot_get_orbitals_ref

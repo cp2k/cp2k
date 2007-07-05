@@ -4461,6 +4461,14 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="ON_THE_FLY_LOC",&
+            description="On the fly localization of the molecular orbitals. "//&
+            "Can only be used with OT/IRAC.",&
+            usage="ON_THE_FLY_LOC T",&
+            default_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="MINIMIZER",&
             description="Minimizer to be used with the OT method",&
             usage="MINIMIZER DIIS",&
