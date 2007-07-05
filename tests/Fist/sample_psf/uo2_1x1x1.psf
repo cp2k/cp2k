@@ -1,0 +1,39 @@
+PSF
+ 
+      1 !NTITLE
+  UO2 bulk
+ 
+  12 !NATOM
+      1 MOL1       1  URA  U    U      4.00000 238.03000      0
+      1 MOL1       1  URA  U    U      4.00000 238.03000      0
+      1 MOL1       1  URA  U    U      4.00000 238.03000      0
+      1 MOL1       1  URA  U    U      4.00000 238.03000      0
+      2 MOL2       2  OXX  O    O     -2.00000  16.00000      0
+      2 MOL2       2  OXX  O    O     -2.00000  16.00000      0
+      2 MOL2       2  OXX  O    O     -2.00000  16.00000      0
+      2 MOL2       2  OXX  O    O     -2.00000  16.00000      0
+      2 MOL2       2  OXX  O    O     -2.00000  16.00000      0
+      2 MOL2       2  OXX  O    O     -2.00000  16.00000      0
+      2 MOL2       2  OXX  O    O     -2.00000  16.00000      0
+      2 MOL2       2  OXX  O    O     -2.00000  16.00000      0
+  
+   0  !NBOND
+
+ 
+   0  !NTHETA
+
+ 
+   0  !NPHI
+
+ 
+   0  !NIMPHI
+
+ 
+  0 !NDON
+ 
+  0 !NACC
+ 
+  0 !NNB
+ 
+  0 !NGRP
+ 

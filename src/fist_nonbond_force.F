@@ -106,13 +106,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'force_nonbond', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom_a, atom_b, handle, i, &
-                                                ikind, ilist, ipair, jkind, &
-                                                nkinds, npairs, shell_a, &
-                                                shell_b, shell_type
+    INTEGER :: a_kind, atom_a, atom_b, b_kind, handle, i, ikind, ilist, &
+      ipair, jkind, nkinds, npairs, shell_a, shell_b, shell_type
     INTEGER, DIMENSION(:, :), POINTER        :: list
     LOGICAL                                  :: all_terms, do_shell, failure, &
-                                                shell_present
+                                                shell_present, swap_ab
     REAL(KIND=dp) :: energy, fscalar, pp, ptens11, ptens12, ptens13, ptens21, &
       ptens22, ptens23, ptens31, ptens32, ptens33, rab2, rab2_com, rab2_max
     REAL(KIND=dp), DIMENSION(3)              :: cell_v, cvi, fr, rab, rab_cc, &
@@ -189,7 +187,7 @@ CONTAINS
        jkind = neighbor_kind_pair%jkind
        list  =>neighbor_kind_pair%list
        cvi   = neighbor_kind_pair%cell_vector
-       pot   =>potparm%pot(ikind,jkind )%pot
+       pot   =>potparm%pot(ikind,jkind)%pot
        ! Manybody potentials are handled in the manybody routine...
        IF(pot%type == ea_type)      CYCLE
        IF(pot%type == tersoff_type) CYCLE
@@ -223,6 +221,15 @@ CONTAINS
              IF(shell_type==sh_sh) THEN
                 shell_a = particle_set(atom_a)%shell_index
                 shell_b = particle_set(atom_b)%shell_index
+                a_kind  = particle_set(atom_a)%atomic_kind%kind_number
+                b_kind  = particle_set(atom_b)%atomic_kind%kind_number
+                swap_ab = (b_kind<a_kind)
+                IF (swap_ab) THEN
+                   cs_spline_data => pot%sc_coul_spline_data
+                   sc_spline_data => pot%cs_coul_spline_data
+                   spl_cs         => pot%spl_sc
+                   spl_sc         => pot%spl_cs
+                END IF
                 rab_cc =  rcore_last_update_pbc(shell_b)%r -  rcore_last_update_pbc(shell_a)%r
                 rab_cs = rshell_last_update_pbc(shell_b)%r -  rcore_last_update_pbc(shell_a)%r
                 rab_sc =  rcore_last_update_pbc(shell_b)%r - rshell_last_update_pbc(shell_a)%r
@@ -426,6 +433,13 @@ CONTAINS
                 ptens13 = ptens13 + pv_com(1,3)
                 ptens23 = ptens23 + pv_com(2,3)
                 ptens33 = ptens33 + pv_com(3,3)
+                ! Let's restore the proper order to save time...
+                IF (swap_ab) THEN
+                   cs_spline_data => pot%cs_coul_spline_data
+                   sc_spline_data => pot%sc_coul_spline_data
+                   spl_cs         => pot%spl_cs
+                   spl_sc         => pot%spl_sc
+                END IF
              ELSE
                 ! NO SHELL MODEL...
                 ! Ion-Ion : no shell model

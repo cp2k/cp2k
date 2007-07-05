@@ -98,10 +98,10 @@ CONTAINS
 !!
 !!*** *************************************************************************
 
-SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
-                           fg_coulomb, vg_coulomb, pv_g, force_env_section,&
-                           shell_particle_set, core_particle_set, &
-                           fgshell_coulomb, fgcore_coulomb, error )
+  SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
+       fg_coulomb, vg_coulomb, pv_g, force_env_section,&
+       shell_particle_set, core_particle_set, &
+       fgshell_coulomb, fgcore_coulomb, error )
 
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
@@ -126,13 +126,11 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
     CHARACTER(len=*), PARAMETER :: routineN = 'spme_evaluate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: group, handle, i, ierr, &
-                                                ipart, j, jpart, n, npart, &
-                                                nshell, o_spline, p1, &
-                                                p1_shell, rs_distributed_id
+    INTEGER :: group, handle, i, ierr, ipart, j, jpart, n, ncore, npart, &
+      nshell, o_spline, p1, p1_shell, rs_distributed_id
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center, core_center, &
                                                 shell_center
-    LOGICAL                                  :: failure, is_core, is_shell
+    LOGICAL                                  :: do_shell, failure
     REAL(KIND=dp)                            :: alpha, dvols, eps0, ffa, &
                                                 inv_fourpi_eps0
     REAL(KIND=dp), ALLOCATABLE, &
@@ -150,266 +148,245 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
       DIMENSION(:), POINTER                  :: drpot
     TYPE(realspace_grid_type), POINTER       :: rden
 
-!------------------------------------------------------------------------------
-!-------------- INITIALISATION ---------------------
+    failure = .FALSE.
+    NULLIFY(drpot, grid_spme, green, poisson_env, phi_g, rhob_g, rhob_r, pw_pool, rden)
+    CALL timeset ( 'SPME', 'I', ' ', handle )
+    !-------------- INITIALISATION ---------------------
+    CALL ewald_env_get ( ewald_env, alpha=alpha, eps0 = eps0, &
+                         o_spline = o_spline, group = group, &
+                         rs_distributed_id = rs_distributed_id,&
+                         error=error)
+    CALL ewald_pw_get ( ewald_pw, pw_big_pool=pw_pool, rs_pool=rs_pool,&
+                        poisson_env=poisson_env)
+    CALL pw_poisson_rebuild(poisson_env,error=error)
+    green => poisson_env%green_fft
+    grid_spme => pw_pool % pw_grid
 
-  failure = .FALSE.
+    inv_fourpi_eps0 = 1.0_dp / ( fourpi * eps0 )
+    npart = SIZE ( particle_set )
 
-  NULLIFY(drpot, grid_spme, green, poisson_env,  &
-          phi_g, rhob_g, rhob_r, pw_pool, rden)
-  CALL timeset ( 'SPME', 'I', ' ', handle )
-  CALL ewald_env_get ( ewald_env, alpha=alpha, eps0 = eps0, &
-                       o_spline = o_spline, group = group, &
-                       rs_distributed_id = rs_distributed_id, error=error)
-  CALL ewald_pw_get ( ewald_pw, pw_big_pool=pw_pool, rs_pool=rs_pool,&
-       poisson_env=poisson_env)
-  CALL pw_poisson_rebuild(poisson_env,error=error)
-  green => poisson_env%green_fft
-  grid_spme => pw_pool % pw_grid
+    n = o_spline
+    ALLOCATE ( rhos ( n, n, n ), STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "rhos", n**3 )
+    CALL rs_pool_create_rs ( rs_pool, rden, error=error )
+    CALL rs_grid_set_box ( grid_spme, rs=rden, error=error )
+    CALL rs_grid_zero ( rden )
 
-  inv_fourpi_eps0 = 1.0_dp / ( fourpi * eps0 )
-  npart = SIZE ( particle_set )
+    ALLOCATE ( center ( 3, npart ), STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "center", 3*npart )
+    CALL get_center ( particle_set, box, center, grid_spme % npts, n )
+    IF(PRESENT(shell_particle_set).AND.(PRESENT(core_particle_set))) THEN
+       CPPostcondition(ASSOCIATED(shell_particle_set),cp_failure_level,routineP,error,failure)
+       CPPostcondition(ASSOCIATED(core_particle_set),cp_failure_level,routineP,error,failure)
+       nshell=SIZE(shell_particle_set)
+       ncore =SIZE(core_particle_set)
+       CPPostcondition(nshell==ncore,cp_failure_level,routineP,error,failure)
+       ALLOCATE ( shell_center ( 3, nshell ), STAT = ierr )
+       IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "shell_center", 3*nshell )
+       CALL get_center ( shell_particle_set, box, shell_center, grid_spme % npts, n )
+       ALLOCATE ( core_center ( 3, nshell ), STAT = ierr )
+       IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "core_center", 3*nshell )
+       CALL get_center ( core_particle_set, box, core_center, grid_spme % npts, n )
+    END IF
 
-  n = o_spline
-  ALLOCATE ( rhos ( n, n, n ), STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "rhos", n**3 )
-  CALL rs_pool_create_rs ( rs_pool, rden, error=error )
-  CALL rs_grid_set_box ( grid_spme, rs=rden, error=error )
-  CALL rs_grid_zero ( rden )
+    !-------------- DENSITY CALCULATION ----------------
+    ipart = 0
+    jpart = 0
+    ! Particles
+    DO
+       CALL set_list ( particle_set, npart, center, p1, rden, ipart, jpart )
+       IF (p1 == 0) EXIT
 
-  ALLOCATE ( center ( 3, npart ), STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "center", 3*npart )
-  CALL get_center ( particle_set, box, center, grid_spme % npts, n )
-  IF(PRESENT(shell_particle_set)) THEN
-    CPPostcondition(ASSOCIATED(shell_particle_set),cp_failure_level,routineP,error,failure)
-    CPPostcondition(ASSOCIATED(core_particle_set),cp_failure_level,routineP,error,failure)
-    nshell=SIZE(shell_particle_set)
-    ALLOCATE ( shell_center ( 3, nshell ), STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "shell_center", 3*nshell )
-    CALL get_center ( shell_particle_set, box, shell_center, grid_spme % npts, n )
-    ALLOCATE ( core_center ( 3, nshell ), STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "core_center", 3*nshell )
-    CALL get_center ( core_particle_set, box, core_center, grid_spme % npts, n )
-  END IF
-
-!-------------- DENSITY CALCULATION ----------------
-
-  ipart = 0
-  jpart = 0
-
-  DO
-
-     CALL set_list ( particle_set, npart, center, p1, rden, ipart, jpart )
-     IF ( p1 == 0 ) EXIT
-
-     is_core  = (particle_set(p1)%shell_index/=0)
-     IF(is_core) CYCLE
-     ! calculate function on small boxes
-     CALL get_patch ( particle_set, box, green, grid_spme % npts, p1, rhos)
-
-     ! add boxes to real space grid (big box)
-     CALL dg_sum_patch ( rden, rhos, center(:,p1) )
-     
-  END DO     
-  IF(PRESENT(shell_particle_set)) THEN
-     ipart = 0
-     jpart = 0
-     DO
+       do_shell  = (particle_set(p1)%shell_index/=0)
+       IF(do_shell) CYCLE
        ! calculate function on small boxes
-       CALL set_list ( shell_particle_set, nshell, shell_center, p1_shell,&
-                       rden, ipart, jpart )
-       IF ( p1_shell == 0 ) EXIT
-
-       CALL get_patch ( shell_particle_set, box, green, grid_spme % npts, &
-                        p1_shell, rhos, is_shell=.TRUE. )
+       CALL get_patch ( particle_set, box, green, grid_spme % npts, p1, rhos)
 
        ! add boxes to real space grid (big box)
-       CALL dg_sum_patch ( rden, rhos, shell_center(:,p1_shell) )
-
-     END DO
-     ipart = 0
-     jpart = 0
-     DO
-       ! calculate function on small boxes
-       CALL set_list ( core_particle_set, nshell, core_center, p1_shell,&
-                       rden, ipart, jpart )
-       IF ( p1_shell == 0 ) EXIT
-
-       CALL get_patch ( core_particle_set, box, green, grid_spme % npts, &
-                        p1_shell, rhos, is_core=.TRUE. )
-
-       ! add boxes to real space grid (big box)
-       CALL dg_sum_patch ( rden, rhos, core_center(:,p1_shell) )
-
-     END DO
-  END IF
-
-  CALL pw_pool_create_pw ( pw_pool, rhob_r,  &
-                           use_data = REALDATA3D, &
-                           in_space = REALSPACE ,error=error)
-
-  CALL rs_pw_transfer ( rden, rhob_r, rs2pw )
-
-  ! transform density to G space and add charge function
-  CALL pw_pool_create_pw ( pw_pool, rhob_g,  &
-                           use_data = COMPLEXDATA1D, &
-                           in_space = RECIPROCALSPACE ,error=error)
-  CALL pw_transfer ( rhob_r, rhob_g )
-  ! update charge function
-  rhob_g % cc = rhob_g % cc * green % p3m_charge % cr
-
-!-------------- ELECTROSTATIC CALCULATION -----------
-
-  ! allocate intermediate arrays
-  DO i = 1, 3
-     NULLIFY(dphi_g(i)%pw)
-     CALL pw_pool_create_pw ( pw_pool, dphi_g ( i )%pw,  &
-                              use_data = COMPLEXDATA1D,   &
-                              in_space = RECIPROCALSPACE ,error=error)
-  END DO
-  CALL pw_pool_create_pw ( pw_pool, phi_g,  &
-                           use_data = COMPLEXDATA1D,   &
-                           in_space = RECIPROCALSPACE ,error=error)
-  CALL pw_poisson_solve ( poisson_env, rhob_g, vg_coulomb, phi_g, dphi_g, &
-                          h_stress ,error=error)
-
-  CALL pw_pool_give_back_pw ( pw_pool, phi_g ,error=error)
-  CALL pw_pool_give_back_pw ( pw_pool, rhob_g ,error=error)
-  vg_coulomb = vg_coulomb * inv_fourpi_eps0
-
-!---------- END OF ELECTROSTATIC CALCULATION --------
-
-!------------- STRESS TENSOR CALCULATION ------------
-
-  DO i = 1, 3
-    DO j = i, 3
-       f_stress ( i, j ) = pw_integral_a2b ( dphi_g ( i ) % pw, &
-                                             dphi_g ( j ) % pw )
-       f_stress ( j, i ) = f_stress ( i, j )
+       CALL dg_sum_patch ( rden, rhos, center(:,p1) )
     END DO
-  END DO
-  ffa = ( 1.0_dp / fourpi ) * &
-        ( 0.5_dp / alpha ) ** 2
-  f_stress = -ffa * f_stress
-  pv_g = inv_fourpi_eps0 * ( h_stress + f_stress )
+    ! Shell-Model
+    IF(PRESENT(shell_particle_set).AND.PRESENT(core_particle_set)) THEN
+       ipart = 0
+       jpart = 0
+       DO
+          ! calculate function on small boxes
+          CALL set_list ( shell_particle_set, nshell, shell_center, p1_shell,&
+                          rden, ipart, jpart )
+          IF (p1_shell == 0) EXIT
+          CALL get_patch(shell_particle_set, box, green, grid_spme % npts, &
+                          p1_shell, rhos, is_shell=.TRUE.)
+ 
+          ! add boxes to real space grid (big box)
+          CALL dg_sum_patch ( rden, rhos, shell_center(:,p1_shell) )
+       END DO
+       ipart = 0
+       jpart = 0
+       DO
+          ! calculate function on small boxes
+          CALL set_list ( core_particle_set, nshell, core_center, p1_shell,&
+                          rden, ipart, jpart )
+          IF ( p1_shell == 0 ) EXIT
+          CALL get_patch ( core_particle_set, box, green, grid_spme % npts, &
+                           p1_shell, rhos, is_core=.TRUE. )
 
-!--------END OF STRESS TENSOR CALCULATION -----------
-
-  ! move derivative of potential to real space grid and
-  ! multiply by charge function in g-space
-  ALLOCATE ( drpot(1:3), STAT=ierr )
-  CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
-  DO i = 1, 3
-     CALL rs_pool_create_rs( rs_pool, drpot(i)%rs_grid, error=error )
-     CALL rs_grid_set_box ( grid_spme, rs=drpot(i)%rs_grid, error=error )
-     dphi_g ( i ) % pw % cc = dphi_g ( i ) % pw % cc * &
-                              green % p3m_charge % cr
-     CALL pw_transfer ( dphi_g ( i )%pw, rhob_r )
-     CALL pw_pool_give_back_pw ( pw_pool, dphi_g ( i )%pw ,error=error)
-     CALL rs_pw_transfer ( drpot ( i ) % rs_grid, rhob_r, pw2rs )
-  END DO
-
-  CALL pw_pool_give_back_pw ( pw_pool, rhob_r ,error=error)
-
-!----------------- FORCE CALCULATION ----------------
-
-! initialize the forces
-  fg_coulomb = 0.0_dp
-  dvols = grid_spme % dvol * inv_fourpi_eps0
-
-  ipart = 0
-  jpart = 0
-  DO
-
-     CALL set_list ( particle_set, npart, center, p1, rden, ipart, jpart )
-     IF ( p1 == 0 ) EXIT
-
-     is_core = (particle_set(p1)%shell_index/=0)
-     IF(is_core) CYCLE
-     ! calculate function on small boxes
-     CALL get_patch ( particle_set, box, green, grid_spme % npts, p1, rhos )
-
-     ! add boxes to real space grid (big box)
-     CALL dg_sum_patch_force_3d ( drpot, rhos, center(:,p1), fat )
-     fg_coulomb ( 1, p1 ) = fg_coulomb ( 1, p1 ) - fat ( 1 ) * dvols
-     fg_coulomb ( 2, p1 ) = fg_coulomb ( 2, p1 ) - fat ( 2 ) * dvols
-     fg_coulomb ( 3, p1 ) = fg_coulomb ( 3, p1 ) - fat ( 3 ) * dvols
-
-  END DO
-
-  IF(PRESENT(shell_particle_set)) THEN
-    IF(PRESENT(fgshell_coulomb)) THEN
-      ipart = 0
-      jpart = 0
-      fgshell_coulomb = 0.0_dp
-      DO
-        ! calculate function on small boxes
-        CALL set_list ( shell_particle_set, nshell, shell_center, p1_shell,&
-                        rden, ipart, jpart )
-        IF ( p1_shell == 0 ) EXIT
-
-        CALL get_patch ( shell_particle_set, box, green, grid_spme % npts, &
-                        p1_shell, rhos, is_shell=.TRUE. )
-
-        ! add boxes to real space grid (big box)
-        CALL dg_sum_patch_force_3d ( drpot, rhos, shell_center(:,p1_shell), fat )
-        fgshell_coulomb ( 1, p1_shell ) = fgshell_coulomb ( 1, p1_shell ) - fat ( 1 ) * dvols
-        fgshell_coulomb ( 2, p1_shell ) = fgshell_coulomb ( 2, p1_shell ) - fat ( 2 ) * dvols
-        fgshell_coulomb ( 3, p1_shell ) = fgshell_coulomb ( 3, p1_shell ) - fat ( 3 ) * dvols
-
-      END DO
+          ! add boxes to real space grid (big box)
+          CALL dg_sum_patch ( rden, rhos, core_center(:,p1_shell) )
+       END DO
     END IF
-    IF(PRESENT(fgcore_coulomb)) THEN
-      ipart = 0
-      jpart = 0
-      fgcore_coulomb = 0.0_dp
-      DO
-        ! calculate function on small boxes
-        CALL set_list ( core_particle_set, nshell, core_center, p1_shell,&
-                        rden, ipart, jpart )
-        IF ( p1_shell == 0 ) EXIT
+    !----------- END OF DENSITY CALCULATION -------------
 
-        CALL get_patch ( core_particle_set, box, green, grid_spme % npts, &
-                        p1_shell, rhos, is_core=.TRUE. )
+    CALL pw_pool_create_pw ( pw_pool, rhob_r, use_data = REALDATA3D, &
+                             in_space = REALSPACE ,error=error)
+    CALL rs_pw_transfer ( rden, rhob_r, rs2pw )
+    ! transform density to G space and add charge function
+    CALL pw_pool_create_pw ( pw_pool, rhob_g,  &
+                             use_data = COMPLEXDATA1D, &
+                             in_space = RECIPROCALSPACE ,error=error)
+    CALL pw_transfer ( rhob_r, rhob_g )
+    ! update charge function
+    rhob_g % cc = rhob_g % cc * green % p3m_charge % cr
 
-        ! add boxes to real space grid (big box)
-        CALL dg_sum_patch_force_3d ( drpot, rhos, core_center(:,p1_shell), fat )
-        fgcore_coulomb ( 1, p1_shell ) = fgcore_coulomb ( 1, p1_shell ) - fat ( 1 ) * dvols
-        fgcore_coulomb ( 2, p1_shell ) = fgcore_coulomb ( 2, p1_shell ) - fat ( 2 ) * dvols
-        fgcore_coulomb ( 3, p1_shell ) = fgcore_coulomb ( 3, p1_shell ) - fat ( 3 ) * dvols
+    !-------------- ELECTROSTATIC CALCULATION -----------
+    ! allocate intermediate arrays
+    DO i = 1, 3
+       NULLIFY(dphi_g(i)%pw)
+       CALL pw_pool_create_pw ( pw_pool, dphi_g ( i )%pw,&
+                                use_data = COMPLEXDATA1D,&
+                                in_space = RECIPROCALSPACE,&
+                                error=error)
+    END DO
+    CALL pw_pool_create_pw ( pw_pool, phi_g,  &
+                             use_data = COMPLEXDATA1D,&
+                             in_space = RECIPROCALSPACE,&
+                             error=error)
+    CALL pw_poisson_solve ( poisson_env, rhob_g, vg_coulomb, phi_g, dphi_g, &
+                            h_stress ,error=error)
 
-      END DO
+    CALL pw_pool_give_back_pw ( pw_pool, phi_g ,error=error)
+    CALL pw_pool_give_back_pw ( pw_pool, rhob_g ,error=error)
+    vg_coulomb = vg_coulomb * inv_fourpi_eps0
+    !---------- END OF ELECTROSTATIC CALCULATION --------
+
+    !------------- STRESS TENSOR CALCULATION ------------
+    DO i = 1, 3
+       DO j = i, 3
+          f_stress ( i, j ) = pw_integral_a2b ( dphi_g ( i ) % pw, &
+               dphi_g ( j ) % pw )
+          f_stress ( j, i ) = f_stress ( i, j )
+       END DO
+    END DO
+    ffa = ( 1.0_dp / fourpi ) * ( 0.5_dp / alpha ) ** 2
+    f_stress = -ffa * f_stress
+    pv_g = inv_fourpi_eps0 * ( h_stress + f_stress )
+
+    !--------END OF STRESS TENSOR CALCULATION -----------
+    ! move derivative of potential to real space grid and
+    ! multiply by charge function in g-space
+    ALLOCATE ( drpot(1:3), STAT=ierr )
+    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    DO i = 1, 3
+       CALL rs_pool_create_rs( rs_pool, drpot(i)%rs_grid, error=error )
+       CALL rs_grid_set_box ( grid_spme, rs=drpot(i)%rs_grid, error=error )
+       dphi_g ( i ) % pw % cc = dphi_g ( i ) % pw % cc * green % p3m_charge % cr
+       CALL pw_transfer ( dphi_g ( i )%pw, rhob_r )
+       CALL pw_pool_give_back_pw ( pw_pool, dphi_g ( i )%pw ,error=error)
+       CALL rs_pw_transfer ( drpot ( i ) % rs_grid, rhob_r, pw2rs )
+    END DO
+
+    CALL pw_pool_give_back_pw ( pw_pool, rhob_r ,error=error)
+    !----------------- FORCE CALCULATION ----------------
+    ! initialize the forces
+    fg_coulomb = 0.0_dp
+    dvols = grid_spme % dvol * inv_fourpi_eps0
+    ! Particles
+    ipart = 0
+    jpart = 0
+    DO
+       CALL set_list ( particle_set, npart, center, p1, rden, ipart, jpart )
+       IF ( p1 == 0 ) EXIT
+
+       do_shell = (particle_set(p1)%shell_index/=0)
+       IF(do_shell) CYCLE
+       ! calculate function on small boxes
+       CALL get_patch ( particle_set, box, green, grid_spme % npts, p1, rhos )
+
+       ! add boxes to real space grid (big box)
+       CALL dg_sum_patch_force_3d ( drpot, rhos, center(:,p1), fat )
+       fg_coulomb ( 1, p1 ) = fg_coulomb ( 1, p1 ) - fat ( 1 ) * dvols
+       fg_coulomb ( 2, p1 ) = fg_coulomb ( 2, p1 ) - fat ( 2 ) * dvols
+       fg_coulomb ( 3, p1 ) = fg_coulomb ( 3, p1 ) - fat ( 3 ) * dvols
+    END DO
+    ! Shell-Model
+    IF(PRESENT(shell_particle_set).AND.(PRESENT(core_particle_set))) THEN
+       IF(PRESENT(fgshell_coulomb)) THEN
+          ipart = 0
+          jpart = 0
+          fgshell_coulomb = 0.0_dp
+          DO
+             ! calculate function on small boxes
+             CALL set_list ( shell_particle_set, nshell, shell_center, p1_shell,&
+                             rden, ipart, jpart )
+             IF ( p1_shell == 0 ) EXIT
+
+             CALL get_patch ( shell_particle_set, box, green, grid_spme % npts, &
+                              p1_shell, rhos, is_shell=.TRUE. )
+
+             ! add boxes to real space grid (big box)
+             CALL dg_sum_patch_force_3d ( drpot, rhos, shell_center(:,p1_shell), fat )
+             fgshell_coulomb ( 1, p1_shell ) = fgshell_coulomb ( 1, p1_shell ) - fat ( 1 ) * dvols
+             fgshell_coulomb ( 2, p1_shell ) = fgshell_coulomb ( 2, p1_shell ) - fat ( 2 ) * dvols
+             fgshell_coulomb ( 3, p1_shell ) = fgshell_coulomb ( 3, p1_shell ) - fat ( 3 ) * dvols
+
+          END DO
+       END IF
+       IF(PRESENT(fgcore_coulomb)) THEN
+          ipart = 0
+          jpart = 0
+          fgcore_coulomb = 0.0_dp
+          DO
+             ! calculate function on small boxes
+             CALL set_list ( core_particle_set, nshell, core_center, p1_shell,&
+                             rden, ipart, jpart )
+             IF ( p1_shell == 0 ) EXIT
+
+             CALL get_patch ( core_particle_set, box, green, grid_spme % npts, &
+                              p1_shell, rhos, is_core=.TRUE. )
+
+             ! add boxes to real space grid (big box)
+             CALL dg_sum_patch_force_3d ( drpot, rhos, core_center(:,p1_shell), fat )
+             fgcore_coulomb ( 1, p1_shell ) = fgcore_coulomb ( 1, p1_shell ) - fat ( 1 ) * dvols
+             fgcore_coulomb ( 2, p1_shell ) = fgcore_coulomb ( 2, p1_shell ) - fat ( 2 ) * dvols
+             fgcore_coulomb ( 3, p1_shell ) = fgcore_coulomb ( 3, p1_shell ) - fat ( 3 ) * dvols
+          END DO
+       END IF
+
     END IF
+    !--------------END OF FORCE CALCULATION -------------
 
-   END IF
-
-!--------------END OF FORCE CALCULATION -------------
-
-!------------------CLEANING UP ----------------------
-
-  CALL rs_pool_give_back_rs ( rs_pool, rden, error=error)
-  DO i = 1, 3
-    CALL rs_pool_give_back_rs ( rs_pool, drpot(i)%rs_grid, error=error)
-  END DO
-  DEALLOCATE ( drpot, STAT = ierr )
-  CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
-
-  DEALLOCATE ( rhos, STAT = ierr )
-  CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
-  DEALLOCATE ( center, STAT = ierr )
-  CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
-  IF(ALLOCATED(shell_center)) THEN
-    DEALLOCATE ( shell_center, STAT = ierr )
+    !------------------CLEANING UP ----------------------
+    CALL rs_pool_give_back_rs ( rs_pool, rden, error=error)
+    DO i = 1, 3
+       CALL rs_pool_give_back_rs ( rs_pool, drpot(i)%rs_grid, error=error)
+    END DO
+    DEALLOCATE ( drpot, STAT = ierr )
     CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
-  END IF
-  IF(ALLOCATED(core_center)) THEN
-    DEALLOCATE ( core_center, STAT = ierr )
+
+    DEALLOCATE ( rhos, STAT = ierr )
     CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
-  END IF
+    DEALLOCATE ( center, STAT = ierr )
+    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    IF(ALLOCATED(shell_center)) THEN
+       DEALLOCATE ( shell_center, STAT = ierr )
+       CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ALLOCATED(core_center)) THEN
+       DEALLOCATE ( core_center, STAT = ierr )
+       CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    CALL timestop ( 0.0_dp, handle )
 
-  CALL timestop ( 0.0_dp, handle )
-
-END SUBROUTINE spme_evaluate
+  END SUBROUTINE spme_evaluate
 !******************************************************************************
 
 !!****** spme/get_patch [1.0] *
@@ -428,7 +405,7 @@ END SUBROUTINE spme_evaluate
 !!
 !!*** *************************************************************************
 
-SUBROUTINE get_patch ( part, box, green, npts, p, rhos, is_core, is_shell )
+  SUBROUTINE get_patch ( part, box, green, npts, p, rhos, is_core, is_shell )
 
 
     TYPE(particle_type), DIMENSION(:), &
@@ -441,40 +418,39 @@ SUBROUTINE get_patch ( part, box, green, npts, p, rhos, is_core, is_shell )
       INTENT(OUT)                            :: rhos
     LOGICAL, OPTIONAL                        :: is_core, is_shell
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_patch', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: nbox
     LOGICAL                                  :: my_is_core, my_is_shell
     REAL(KIND=dp)                            :: q
     REAL(KIND=dp), DIMENSION(3)              :: delta, r
     TYPE(shell_kind_type), POINTER           :: shell
 
-!------------------------------------------------------------------------------
+    NULLIFY(shell)
+    my_is_core = .FALSE.
+    IF(PRESENT(is_core)) my_is_core = is_core
+    my_is_shell = .FALSE.
+    IF(PRESENT(is_shell)) my_is_shell = is_shell
+    IF(my_is_core .AND. my_is_shell) THEN
+       CALL stop_program(TRIM(routineP),"shell-model: cannot be core and shell simultaneously" )
+    END IF
 
-  NULLIFY(shell)
-  my_is_core = .FALSE.
-  IF(PRESENT(is_core)) my_is_core = is_core
-  my_is_shell = .FALSE.
-  IF(PRESENT(is_shell)) my_is_shell = is_shell
-  IF(my_is_core .AND. my_is_shell) THEN
-    CALL stop_program ( "spme%get_patch","shell-model: cannot be core and shell simultaneously" )
-  END IF
+    nbox = SIZE ( rhos, 1 )
+    r = part(p)% r
+    IF(my_is_core) THEN
+       CALL get_atomic_kind ( atomic_kind=part(p)%atomic_kind, shell=shell)
+       q = shell%charge_core
+    ELSE IF (my_is_shell) THEN
+       CALL get_atomic_kind ( atomic_kind=part(p)%atomic_kind, shell=shell)
+       q = shell%charge_shell
+    ELSE
+       CALL get_atomic_kind ( atomic_kind=part(p)%atomic_kind, qeff=q)
+    END IF
+    CALL get_delta ( box, r, npts, delta, nbox )
+    CALL spme_get_patch ( rhos, nbox, delta, q, green % p3m_coeff )
 
-  nbox = SIZE ( rhos, 1 )
-  r = part(p)% r
-  IF(my_is_core) THEN
-    CALL get_atomic_kind ( atomic_kind=part(p)%atomic_kind, shell=shell)
-    q = shell%charge_core
-  ELSE IF (my_is_shell) THEN
-    CALL get_atomic_kind ( atomic_kind=part(p)%atomic_kind, shell=shell)
-    q = shell%charge_shell
-  ELSE
-    CALL get_atomic_kind ( atomic_kind=part(p)%atomic_kind, qeff=q)
-  END IF
- 
-  CALL get_delta ( box, r, npts, delta, nbox )
-
-  CALL spme_get_patch ( rhos, nbox, delta, q, green % p3m_coeff )
-
-END SUBROUTINE get_patch
+  END SUBROUTINE get_patch
 
 !******************************************************************************
 !!****** spme/spme_get_patch [1.0] *

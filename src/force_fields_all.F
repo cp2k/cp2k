@@ -2050,6 +2050,7 @@ CONTAINS
           shell_particle_set(counter)%atomic_kind => particle_set(i)%atomic_kind
           shell_particle_set(counter)%r(1:3) =  particle_set(i)%r(1:3)
           shell_particle_set(counter)%atom_index =   i
+          core_particle_set(counter)%shell_index=counter
           core_particle_set(counter)%atomic_kind => particle_set(i)%atomic_kind
           core_particle_set(counter)%r(1:3) =  particle_set(i)%r(1:3)
           core_particle_set(counter)%atom_index =   i

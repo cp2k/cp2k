@@ -153,7 +153,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn2', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, handle2, i, ibead, in_use, &
+    INTEGER                                  :: handle, i, ibead, in_use, &
                                                 istat, istep, isubsys, &
                                                 iter_level, nbeads
     INTEGER, POINTER                         :: itimes
@@ -181,9 +181,9 @@ CONTAINS
     TYPE(mol_new_list_type), POINTER         :: molecules_new
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
-    TYPE(section_vals_type), POINTER :: force_env_section, global_section, motion_section, &
-      print_section, root_section, subsys_section, work2_section, &
-      work3_section, work_section
+    TYPE(section_vals_type), POINTER :: force_env_section, global_section, &
+      motion_section, print_section, root_section, subsys_section, &
+      work2_section, work3_section, work_section
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
 
@@ -682,8 +682,9 @@ END SUBROUTINE md_output
         END DO
 
       END DO  ! isubsys
-
-      temperature = 2.0_dp*e_kinetic/REAL(simpar%nfree,KIND=dp)
+      
+      temperature = 0.0_dp
+      IF (simpar%nfree /=0) temperature = 2.0_dp*e_kinetic/REAL(simpar%nfree,KIND=dp)
 
       IF (iw>0) THEN
         WRITE (UNIT=iw,FMT="(/,T2,A,(T58,A3,F20.10))")&
@@ -787,7 +788,6 @@ END SUBROUTINE md_output
       ekin_s = 0.0_dp
       nfree_shell = 0
 
-
       CALL force_env_get(force_env,subsys=subsys,para_env=para_env,error=error)
       iw = cp_print_key_unit_nr(logger,force_env%root_section,&
            "MOTION%MD%PRINT%PROGRAM_RUN_INFO",&
@@ -829,15 +829,12 @@ END SUBROUTINE md_output
                   atom = atom_list(iatom)
                   shell_index = particles%els(atom)%shell_index
                   vs(1:3) = shell_particles%els(shell_index)%v(1:3)
-                  vc(1:3) = core_particles%els(shell_index)%v(1:3)
-                  ekin_c = 0.5_dp * shell%mass_core *&
-                          (vc(1)*vc(1) + vc(2)*vc(2) + vc(3)*vc(3))
-                  ekin_s = 0.5_dp * shell%mass_shell * &
-                          (vs(1)*vs(1) + vs(2)*vs(2) + vs(3)*vs(3))
+                  vc(1:3) =  core_particles%els(shell_index)%v(1:3)
+                  ekin_c = 0.5_dp * shell%mass_core  * (vc(1)*vc(1) + vc(2)*vc(2) + vc(3)*vc(3))
+                  ekin_s = 0.5_dp * shell%mass_shell * (vs(1)*vs(1) + vs(2)*vs(2) + vs(3)*vs(3))
 
                   v(:) =  particles%els(atom)%v(:)
-                  ekin_com = 0.5_dp*mass * &
-                          (v(1)*v(1) + v(2)*v(2) + v(3)*v(3) )
+                  ekin_com = 0.5_dp*mass * (v(1)*v(1) + v(2)*v(2) + v(3)*v(3))
                   ekin_shell = ekin_shell + ekin_c + ekin_s - ekin_com
                END DO  ! iatom
             END IF  ! is_shell
@@ -846,17 +843,19 @@ END SUBROUTINE md_output
       END DO ! isub
       CALL mp_sum(ekin_shell,para_env%group)
 
+      temperature = 0.0_dp
       IF(nfree_shell > 0) THEN
         temperature = 2.0_dp*ekin_shell/REAL(nfree_shell,KIND=dp)
 
         IF (ABS(simpar%temp_sh_ext - temperature) > simpar%temp_sh_tol) THEN
 
-           scale = SQRT(simpar%temp_sh_ext/temperature)
+           scale = 0.0_dp
+           IF (temperature>EPSILON(0.0_dp)) scale = SQRT(simpar%temp_sh_ext/temperature)
 
            total_mass = 0.0_dp
-           vcom(:) = 0.0_dp
-           e_kinetic = 0.0_dp
-           DO isubsys=1,SIZE(subsys)
+           vcom(:)    = 0.0_dp
+           e_kinetic  = 0.0_dp
+           DO isubsys = 1,SIZE(subsys)
 
              CALL cp_subsys_get(subsys(isubsys)%subsys,&
                            atomic_kinds=atomic_kinds,&
@@ -1020,7 +1019,8 @@ END SUBROUTINE md_output
       CALL mp_sum(vcom,para_env%group)
       CALL mp_sum(total_mass,para_env%group)
 
-      temperature = 2.0_dp*e_kinetic/REAL(simpar%nfree,KIND=dp)
+      temperature = 0.0_dp
+      IF (simpar%nfree /= 0) temperature = 2.0_dp*e_kinetic/REAL(simpar%nfree,KIND=dp)
       vcom = vcom / total_mass
       vel_com = SQRT(vcom(1)*vcom(1)+vcom(2)*vcom(2)+vcom(3)*vcom(3))
 
@@ -1095,8 +1095,9 @@ END SUBROUTINE md_output
           END IF  ! shell_adiabatic
 
         END DO  ! isub
- 
-        temp_new = 2.0_dp*e_kinetic/REAL(simpar%nfree,KIND=dp)
+        
+        temp_new = 0.0_dp
+        IF (simpar%nfree /=0) temp_new = 2.0_dp*e_kinetic/REAL(simpar%nfree,KIND=dp)
         scale = SQRT( temperature / temp_new)
         vcom_new = 0.0_dp
         DO isubsys=1,SIZE(subsys)

@@ -42,13 +42,12 @@ MODULE pme_tools
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pme_tools'
 
 
-!!***
-!******************************************************************************
+  !!***
+  !******************************************************************************
 
 CONTAINS
 
-SUBROUTINE set_list ( part, npart, center, p1, rs, ipart, jpart, core_center )
-
+  SUBROUTINE set_list ( part, npart, center, p1, rs, ipart, jpart, core_center )
 
     TYPE(particle_type), DIMENSION(:), &
       INTENT(IN)                             :: part
@@ -57,86 +56,83 @@ SUBROUTINE set_list ( part, npart, center, p1, rs, ipart, jpart, core_center )
     INTEGER, INTENT(OUT)                     :: p1
     TYPE(realspace_grid_type), POINTER       :: rs
     INTEGER, INTENT(INOUT)                   :: ipart, jpart
-    INTEGER, DIMENSION(:, :), POINTER, &
-      OPTIONAL                               :: core_center
+    INTEGER, DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: core_center
 
     INTEGER                                  :: dir, lb, ndim, npos, ub
     REAL(KIND=dp)                            :: charge
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
-!------------------------------------------------------------------------------
-
-  p1 = 0
-  IF ( rs % parallel .AND. rs % group_dim ( 1 ) /= 1 ) THEN
-    dir = rs % direction
-    lb = rs % lb_local ( dir ) + rs % border
-    ub = rs % ub_local ( dir ) - rs % border
-  END IF
-  IF ( rs % parallel ) THEN
-    ndim = rs % group_dim ( 2 )
-    npos = rs % group_coor ( 2 )
-  END IF
-
-  DO
-    ipart = ipart + 1
-    IF ( ipart > npart ) EXIT
-    atomic_kind => part(ipart)%atomic_kind
-    CALL get_atomic_kind (atomic_kind=atomic_kind,qeff=charge)
-    IF ( charge == 0.0_dp .AND. part(ipart)%shell_index==0 ) CYCLE
+    p1 = 0
+    IF ( rs % parallel .AND. rs % group_dim ( 1 ) /= 1 ) THEN
+       dir = rs % direction
+       lb = rs % lb_local ( dir ) + rs % border
+       ub = rs % ub_local ( dir ) - rs % border
+    END IF
     IF ( rs % parallel ) THEN
-      IF ( rs % group_dim ( 1 ) == 1 ) THEN
-        ! All processor work on the same grid
-        IF ( MOD ( ipart, ndim ) == npos ) THEN
+       ndim = rs % group_dim ( 2 )
+       npos = rs % group_coor ( 2 )
+    END IF
+
+    DO
+       ipart = ipart + 1
+       IF ( ipart > npart ) EXIT
+       atomic_kind => part(ipart)%atomic_kind
+       CALL get_atomic_kind (atomic_kind=atomic_kind,qeff=charge)
+       IF (charge == 0.0_dp.AND.part(ipart)%shell_index==0) CYCLE
+       IF (rs % parallel) THEN
+          IF ( rs % group_dim ( 1 ) == 1 ) THEN
+             ! All processor work on the same grid
+             IF ( MOD ( ipart, ndim ) == npos ) THEN
+                p1 = ipart
+                EXIT
+             END IF
+          ELSE
+             ! First check if this atom is on my grid
+             IF(part(ipart)%shell_index/=0 .AND. PRESENT(core_center))THEN
+                IF ( in_slice(core_center(dir, part(ipart)%shell_index ), lb, ub)) THEN
+                   jpart = jpart + 1
+                   IF ( MOD ( jpart, ndim ) == npos ) THEN
+                      p1 = ipart
+                      EXIT
+                   END IF
+                END IF
+             ELSE
+                IF ( in_slice ( center ( dir, ipart ), lb, ub ) ) THEN
+                   jpart = jpart + 1
+                   IF ( MOD ( jpart, ndim ) == npos ) THEN
+                      p1 = ipart
+                      EXIT
+                   END IF
+                END IF
+             END IF
+          END IF
+       ELSE
           p1 = ipart
           EXIT
-        END IF
-      ELSE
-        ! First check if this atom is on my grid
-        IF(part(ipart)%shell_index/=0 .AND. PRESENT(core_center))THEN
-          IF ( in_slice ( core_center ( dir, part(ipart)%shell_index ), lb, ub ) ) THEN
-            jpart = jpart + 1
-            IF ( MOD ( jpart, ndim ) == npos ) THEN
-              p1 = ipart
-              EXIT
-            END IF
-          END IF
-        ELSE
-          IF ( in_slice ( center ( dir, ipart ), lb, ub ) ) THEN
-            jpart = jpart + 1
-            IF ( MOD ( jpart, ndim ) == npos ) THEN
-              p1 = ipart
-              EXIT
-            END IF
-          END IF
-        END IF
-      END IF
-    ELSE
-      p1 = ipart
-      EXIT
-    END IF
-  END DO
+       END IF
+    END DO
 
-END SUBROUTINE set_list
+  END SUBROUTINE set_list
 
-!******************************************************************************
+  !******************************************************************************
 
-FUNCTION in_slice ( pos, lb, ub ) RESULT ( internal )
-
+  FUNCTION in_slice ( pos, lb, ub ) RESULT ( internal )
 
     INTEGER, INTENT(IN)                      :: pos, lb, ub
     LOGICAL                                  :: internal
 
-  IF ( pos >= lb .AND. pos <= ub ) THEN
-    internal = .TRUE.
-  ELSE
-    internal = .FALSE.
-  END IF
+    IF ( pos >= lb .AND. pos <= ub ) THEN
+       internal = .TRUE.
+    ELSE
+       internal = .FALSE.
+    END IF
 
-END FUNCTION in_slice
+  END FUNCTION in_slice
 
-!******************************************************************************
+  !******************************************************************************
 
-SUBROUTINE get_center ( part, box, center, npts, n )
+  SUBROUTINE get_center ( part, box, center, npts, n )
 
 
     TYPE(particle_type), DIMENSION(:), &
@@ -150,27 +146,25 @@ SUBROUTINE get_center ( part, box, center, npts, n )
     REAL(KIND=dp)                            :: rmp
     REAL(KIND=dp), DIMENSION(3)              :: gp, s
 
-!------------------------------------------------------------------------------
+    mp = MAXVAL ( npts(:) )
+    rmp = REAL ( mp,KIND=dp)
+    DO ipart = 1, SIZE ( part )
+       ! compute the scaled coordinate of atom ipart
+       CALL real_to_scaled(s,part(ipart)%r,box)
+       s = s - NINT ( s )
+       gp = REAL ( npts,KIND=dp) * s
+       ! find the closest grid point (on big grid)
+       IF ( MOD ( n, 2 ) == 0 ) THEN
+          center ( :, ipart ) = INT ( gp + rmp ) - mp
+       ELSE
+          center ( :, ipart ) = NINT ( gp )
+       END IF
+       center ( :, ipart ) = center ( :, ipart ) + npts(:)/2
+       center ( :, ipart ) = MODULO ( center ( :, ipart ), npts(:) )
+       center ( :, ipart ) = center ( :, ipart ) - npts(:)/2
+    END DO
 
-  mp = MAXVAL ( npts(:) )
-  rmp = REAL ( mp,KIND=dp)
-  DO ipart = 1, SIZE ( part )
-    ! compute the scaled coordinate of atom ipart
-    CALL real_to_scaled(s,part(ipart)%r,box)
-    s = s - NINT ( s )
-    gp = REAL ( npts,KIND=dp) * s
-    ! find the closest grid point (on big grid)
-    IF ( MOD ( n, 2 ) == 0 ) THEN
-      center ( :, ipart ) = INT ( gp + rmp ) - mp
-    ELSE
-      center ( :, ipart ) = NINT ( gp )
-    END IF
-    center ( :, ipart ) = center ( :, ipart ) + npts(:)/2
-    center ( :, ipart ) = MODULO ( center ( :, ipart ), npts(:) )
-    center ( :, ipart ) = center ( :, ipart ) - npts(:)/2
-  END DO
-
-END SUBROUTINE get_center
+  END SUBROUTINE get_center
 
 END MODULE pme_tools
 

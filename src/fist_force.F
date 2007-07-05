@@ -297,6 +297,10 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
   ELSE
      f_nonbond  = 0.0_dp
      pv_nonbond = 0.0_dp
+     IF (shell_present) THEN
+        fshell_nonbond = 0.0_dp
+        fcore_nonbond  = 0.0_dp
+     END IF
   END IF
 
   IF (iw>0) THEN

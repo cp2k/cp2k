@@ -1,0 +1,148 @@
+
+&FORCE_EVAL
+  METHOD Fist
+  &MM
+    &FORCEFIELD
+      NONBONDED F
+      NONBONDED14 F
+      &CHARGE
+        ATOM U
+        CHARGE  0.0
+      &END
+      &CHARGE
+        ATOM O
+        CHARGE  0.0
+      &END
+      &SHELL U
+        CORE_CHARGE  6.840000
+        SHELL_CHARGE  -2.840000
+        MASS_FRACTION  0.1
+        SPRING  [eV*angstrom^-2] 171.556
+        MAX_DISTANCE [angstrom] 1.0
+      &END SHELL
+      &SHELL O
+        CORE_CHARGE -3.186267
+        SHELL_CHARGE  1.186267
+        MASS_FRACTION 0.2
+        SPRING [eV*angstrom^-2] 70.824
+        MAX_DISTANCE [angstrom] 1.0
+      &END SHELL
+      &NONBONDED
+        &WILLIAMS
+          atoms U  O
+          A [eV] 844.41
+          B [angstrom^-1] 2.35159661652
+          C [eV*angstrom^6] 0.0
+          RCUT [angstrom] 20.0
+        &END WILLIAMS
+        &BUCK4RANGES
+          atoms O O
+          A [eV] 20908.03
+          B [angstrom^-1] 7.71604938272
+          C [eV*angstrom^6] 229.04
+          R1 1.17
+          R2 1.62
+          R3 2.84
+          POLY1 [eV] 4204.472427467161  -7959.112702279119   6021.074988330987  -2270.766871550818 426.319753380798 -31.850801875744
+          POLY2 [eV] 6.734634669569  -6.692698089020 1.656245757939  -0.122636741736
+          RCUT [angstrom] 20.0
+        &END BUCK4RANGES
+        &WILLIAMS
+          atoms U U
+          A [eV] 0.0
+          B [angstrom^-1] 0.0
+          C [eV*angstrom^6] 0.0
+          RCUT [angstrom] 20.0
+        &END WILLIAMS
+      &END NONBONDED
+      &SPLINE
+        EMAX_SPLINE 100.00
+        R0_NB 0.1
+      &END
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX  64
+      &END EWALD
+    &END POISSON
+    &PRINT
+      &FF_INFO MEDIUM
+        SPLINE_INFO
+      &END
+    &END
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC  30.0 30.0 30.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+     O   0.0 0.0 0.0 
+     U   5.0 0.0 0.0 
+    &END
+    &TOPOLOGY
+    &END TOPOLOGY
+    &KIND U
+      MASS 238.03000
+    &END
+    &KIND O
+      MASS 16.000
+    &END
+    &PRINT
+      &ATOMIC_COORDINATES MEDIUM
+      &END
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PRINT_LEVEL LOW
+  PROJECT uo2_nvt_1
+  RUN_TYPE MD
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE nve
+    STEPS  10
+    TIMESTEP 1.0
+    TEMPERATURE 300.0
+    TEMP_SHELL 25.0
+    TEMP_SHELL_TOL 25.0
+    COMVEL_TOL  1.0E-7
+    &PRINT
+      &ENERGY
+        EACH 1
+      &END
+      &SHELL_ENERGY LOW
+        EACH 1
+      &END
+    &END PRINT
+  &END MD
+  &PRINT
+    &TRAJECTORY
+      EACH 1
+    &END
+    &VELOCITIES OFF
+    &END
+    &SHELL_TRAJECTORY
+      EACH 1
+    &END
+    &SHELL_VELOCITIES OFF
+    &END
+    &SHELL_FORCES OFF
+    &END
+    &CORE_TRAJECTORY
+     EACH 1
+    &END
+    &CORE_VELOCITIES OFF
+    &END
+    &CORE_FORCES OFF
+    &END
+    &RESTART OFF
+    &END
+    &RESTART_HISTORY OFF
+    &END
+  &END
+&END MOTION
