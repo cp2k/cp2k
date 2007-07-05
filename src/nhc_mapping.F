@@ -215,7 +215,7 @@ SUBROUTINE nhc_to_particle_mapping ( simpar, local_molecules, molecule_set, &
     TYPE(colvar_counters)                    :: ncolv
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
-
+    REAL(KIND=dp) :: fac
 !------------------------------------------------------------------------------
 
   NULLIFY ( massive_atom_list )
@@ -599,17 +599,19 @@ SUBROUTINE nhc_to_particle_mapping ( simpar, local_molecules, molecule_set, &
 ! We know the total number of system thermostats.
 
     IF ( ( sum_of_thermostats == 1 ) .AND. ( .NOT. noneflag ) .AND. &
-       ( .NOT. nhc % dis_type == 'DIS_REP' ) ) THEN
-     nhc % nvt ( 1, 1 ) % nkt = simpar % temp_ext * ( nhc % s_kin ( 1 ) - &
-       deg_of_freedom ( 1 ) - simpar % nfree )
+         ( .NOT. nhc % dis_type == 'DIS_REP' ) ) THEN
+       fac = nhc%s_kin(1)-deg_of_freedom(1)-simpar%nfree
+       IF ( fac == 0.0_dp ) CALL stop_memory ( 'nhc_particle_setup',&
+            'Zero degrees of freedom. Nothing to thermalize!' )
+       nhc % nvt ( 1, 1 ) % nkt = simpar%temp_ext*fac
     ELSE
 
 ! re-initializing simpar%nfree to zero because of multiple thermostats
      simpar % nfree = 0.0_dp
 
      DO i = 1, number
-        nhc % nvt ( 1, i ) % nkt = simpar % temp_ext * ( nhc % s_kin ( i ) - &
-        deg_of_freedom ( i ) )
+        fac = ( nhc % s_kin ( i ) - deg_of_freedom ( i ) )
+        nhc % nvt ( 1, i ) % nkt = simpar % temp_ext * fac 
      END DO
     END IF
 
