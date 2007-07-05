@@ -258,7 +258,6 @@ CONTAINS
        pw_grid_out%grid_span=pw_grid_in%grid_span
        pw_grid_out%have_g0=.FALSE.
        pw_grid_out%first_gne0=HUGE(0)
-       pw_grid_out%nglengths=HUGE(0)
        NULLIFY(pw_grid_out%gidx)
        pw_grid_out%spherical                 = .FALSE.
        pw_grid_out % para % ray_distribution = .FALSE.

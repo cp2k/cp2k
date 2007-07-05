@@ -80,7 +80,6 @@ MODULE pw_grid_types
      INTEGER :: grid_span                         ! type HALFSPACE/FULLSPACE  
      LOGICAL :: have_g0                           ! whether I have G = [0,0,0]
      INTEGER :: first_gne0                        ! first g index /= 0 [1/2]
-     INTEGER :: nglengths                         ! # different lengths/shells
      INTEGER :: id_nr                             ! tag of this grid
      INTEGER :: reference                         ! reference grid identifier
      INTEGER, DIMENSION ( : ), POINTER :: gidx    ! ref grid index
