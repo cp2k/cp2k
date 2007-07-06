@@ -2645,7 +2645,7 @@ CONTAINS
       DO j=index_min(2),index_max(2)
       DO i=index_min(1),index_max(1)
          ! point in real space
-         point=MATMUL(cell%hmat,REAL((/i,j,k/),KIND=dp))/ng
+         point=MATMUL(cell%hmat,REAL((/i,j,k/),KIND=dp)/ng)
          ! skip if outside of the sphere
          if (SUM((point-rp)**2)>radius**2) CYCLE
          ! point on the grid (including pbc)
