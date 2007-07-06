@@ -41,7 +41,7 @@ MODULE xc
                                              section_vals_type,&
                                              section_vals_val_get
   USE kahan_sum,                       ONLY: accurate_sum
-  USE kinds,                           ONLY: default_string_length,&
+  USE kinds,                           ONLY: default_path_length,&
                                              dp
   USE message_passing,                 ONLY: mp_sum
   USE pw_grid_types,                   ONLY: PW_MODE_DISTRIBUTED,&
@@ -229,7 +229,7 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_vxc_pw_create_test_lsd', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_string_length)     :: filename
+    CHARACTER(len=default_path_length)       :: filename
     CHARACTER(len=MAX_LABEL_LENGTH), &
       DIMENSION(:), POINTER                  :: split_desc
     INTEGER                                  :: i, ii, ispin, j, k, stat
@@ -603,7 +603,7 @@ SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_vxc_pw_create_debug', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_string_length)     :: filename
+    CHARACTER(len=default_path_length)       :: filename
     CHARACTER(len=MAX_LABEL_LENGTH), &
       DIMENSION(:), POINTER                  :: split_desc
     INTEGER                                  :: i, ispin, j, k
@@ -1227,8 +1227,8 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
 
     CHARACTER&
       (len=MAX_DERIVATIVE_DESC_LENGTH)       :: desc
-    INTEGER :: handle, i, idir, jdir, ispin, j, k, n_deriv, npoints, nspins, order, &
-      stat, xc_deriv_method_id, xc_rho_smooth_id
+    INTEGER :: handle, i, idir, ispin, j, jdir, k, n_deriv, npoints, nspins, &
+      order, stat, xc_deriv_method_id, xc_rho_smooth_id
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER, DIMENSION(3, 3)                 :: nd
     LOGICAL                                  :: dealloc_pw_to_deriv, failure, &

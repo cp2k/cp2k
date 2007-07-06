@@ -48,13 +48,14 @@ PROGRAM cp2k
                                 write_xml_file, run_input
   USE machine,           ONLY : m_iargc,m_getarg
   USE message_passing,   ONLY : mp_sync
-  USE kinds,             ONLY : default_string_length
+  USE kinds,             ONLY : default_string_length,&
+                                default_path_length
   USE f77_interface,     ONLY : init_cp2k, finalize_cp2k, &
                                 check_input, default_para_env
 #include "cp_common_uses.h"
   IMPLICIT NONE
 
-  CHARACTER(LEN=default_string_length) :: input_file_name,output_file_name,arg_att
+  CHARACTER(LEN=default_path_length) :: input_file_name,output_file_name,arg_att
   INTEGER                              :: output_unit
   INTEGER                              :: ierr, i, n_arg, i_arg
   LOGICAL                              :: check, manual, usage, echo_input, command_line_error,&

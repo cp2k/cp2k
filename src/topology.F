@@ -35,7 +35,8 @@ MODULE topology
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: default_string_length,&
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp
   USE mm_mapping_library,              ONLY: create_ff_map,&
                                              destroy_ff_map
@@ -66,11 +67,11 @@ MODULE topology
                                              read_topology_section
   USE topology_pdb,                    ONLY: read_coordinate_pdb,&
                                              write_coordinate_pdb
-  USE topology_psf,                    ONLY: pre_read_topology_psf,&
+  USE topology_psf,                    ONLY: idm_psf,&
+                                             pre_read_topology_psf,&
                                              psf_post_process,&
                                              read_topology_psf,&
-                                             write_topology_psf,&
-                                             idm_psf
+                                             write_topology_psf
   USE topology_types,                  ONLY: deallocate_topology,&
                                              init_topology,&
                                              topology_parameters_type
@@ -316,7 +317,8 @@ CONTAINS
     INTEGER, PARAMETER                       :: map0 = ICHAR("0"), &
                                                 map9 = ICHAR("9")
 
-    CHARACTER(len=default_string_length)     :: element0, filename, my_element
+    CHARACTER(len=default_path_length)       :: filename
+    CHARACTER(len=default_string_length)     :: element0, my_element
     CHARACTER(len=default_string_length), &
       ALLOCATABLE, DIMENSION(:)              :: elements
     INTEGER                                  :: conn_type, handle, handle2, &
@@ -407,12 +409,12 @@ CONTAINS
     elements = topology%atom_info%element
     DO i = 1, topology%natoms
        IF (elements(i)=="__DEF__") CYCLE
-       ! If present an underscore let's skipp all that over the underscore
+       ! If present an underscore let's skip all that over the underscore
        id = INDEX(elements(i),"_")-1
        IF (id==-1) id = LEN_TRIM(elements(i))
        ! Many atomic kind have been defined as ELEMENT+LETTER+NUMBER
        ! the number at the end can vary arbitrarily..
-       ! Leet's check all ELEMENT+LETTER skipping the number.. we should 
+       ! Let's check all ELEMENT+LETTER skipping the number.. we should 
        ! identify in any case the element
        DO j = id, 1, -1
           itmp = ICHAR(elements(i)(j:j)) 

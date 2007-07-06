@@ -68,11 +68,11 @@ MODULE qs_scf_post
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: default_string_length,&
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp
   USE level_shift,                     ONLY: level_shift_testing
   USE lowdin,                          ONLY: lowdin_charges
-  USE message_passing,                 ONLY: mp_sum
   USE molecular_states,                ONLY: construct_molecular_states
   USE molecule_types_new,              ONLY: molecule_type
   USE mulliken,                        ONLY: mulliken_charges
@@ -82,9 +82,7 @@ MODULE qs_scf_post
   USE preconditioner,                  ONLY: preconditioner_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                             pw_pool_give_back_coeff,&
-                                             pw_pool_give_back_pw,&
+  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
                                              pw_pool_init_coeff,&
                                              pw_pool_p_type,&
                                              pw_pool_type
@@ -92,9 +90,7 @@ MODULE qs_scf_post
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_sumup,&
-                                             pw_transfer,&
-                                             pw_type
+                                             pw_transfer
   USE qs_collocate_density,            ONLY: calculate_total_abs_rho,&
                                              calculate_wavefunction
   USE qs_conductivity,                 ONLY: optical_conductivity
@@ -233,7 +229,7 @@ CONTAINS
     INTEGER            ::  handle, ispin, istat, n, nmo, output_unit,i
     INTEGER            :: file_unit,ivector,nao,nlumos,nhomo, homo, unit_nr, idir
     LOGICAL            :: homoEQnmo, ghost
-    CHARACTER(LEN=default_string_length)  :: filename
+    CHARACTER(LEN=default_path_length)  :: filename
     CHARACTER(LEN=default_string_length)  :: title
     CHARACTER(LEN=default_string_length)  :: mulliken_title
     REAL(KIND = dp)           :: volume, dipole(3),r_pbc(3),zeff
@@ -885,13 +881,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'write_available_results', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, first_time, ionode
+    LOGICAL                                  :: failure, ionode
     REAL(KIND=dp)                            :: total_abs_spin_dens
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type)                         :: wf_r
-    TYPE(coeff_type), pointer                :: rho_core
+    TYPE(coeff_type), POINTER                :: rho_core
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsystem_type), POINTER         :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -922,7 +918,7 @@ CONTAINS
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
     TYPE(realspace_grid_type), POINTER       :: rs
     INTEGER            :: handle, iw
-    CHARACTER(LEN=default_string_length)     :: filename
+    CHARACTER(LEN=default_path_length)     :: filename
     TYPE(cp_para_env_type), POINTER          :: para_env
 
     CALL timeset(routineN,handle)
