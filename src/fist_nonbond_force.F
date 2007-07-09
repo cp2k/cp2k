@@ -218,18 +218,18 @@ CONTAINS
           atom_b = list(2,ipair)
           all_terms = .TRUE.
           IF (do_shell) THEN
+             a_kind  = particle_set(atom_a)%atomic_kind%kind_number
+             b_kind  = particle_set(atom_b)%atomic_kind%kind_number
+             swap_ab = (b_kind<a_kind)
+             IF (swap_ab) THEN
+                cs_spline_data => pot%sc_coul_spline_data
+                sc_spline_data => pot%cs_coul_spline_data
+                spl_cs         => pot%spl_sc
+                spl_sc         => pot%spl_cs
+             END IF
              IF(shell_type==sh_sh) THEN
                 shell_a = particle_set(atom_a)%shell_index
                 shell_b = particle_set(atom_b)%shell_index
-                a_kind  = particle_set(atom_a)%atomic_kind%kind_number
-                b_kind  = particle_set(atom_b)%atomic_kind%kind_number
-                swap_ab = (b_kind<a_kind)
-                IF (swap_ab) THEN
-                   cs_spline_data => pot%sc_coul_spline_data
-                   sc_spline_data => pot%cs_coul_spline_data
-                   spl_cs         => pot%spl_sc
-                   spl_sc         => pot%spl_cs
-                END IF
                 rab_cc =  rcore_last_update_pbc(shell_b)%r -  rcore_last_update_pbc(shell_a)%r
                 rab_cs = rshell_last_update_pbc(shell_b)%r -  rcore_last_update_pbc(shell_a)%r
                 rab_sc =  rcore_last_update_pbc(shell_b)%r - rshell_last_update_pbc(shell_a)%r
