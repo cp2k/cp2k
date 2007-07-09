@@ -299,7 +299,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_solve', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: alpha, beta, i, ng
+    INTEGER                                  :: alpha, beta, i, ng, ig
     INTEGER, DIMENSION(3)                    :: n
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ffa
@@ -343,8 +343,10 @@ CONTAINS
              CALL pw_copy(rhog,tmpg)
           END IF
 
-          rhog % cc ( 1 : ng )  = rhog % cc ( 1 : ng ) *  &
-               poisson_env%green_fft % influence_fn % cc  ( 1 : ng )
+          DO ig=1,ng
+              rhog % cc ( ig )  = rhog % cc ( ig ) *  &
+                   poisson_env%green_fft % influence_fn % cc  ( ig )
+          ENDDO
 
           IF ( PRESENT ( vhartree ) ) THEN
              CALL pw_transfer ( rhog, vhartree )
