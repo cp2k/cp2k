@@ -37,6 +37,7 @@ MODULE qs_linres_types
   USE qs_rho_atom_types,               ONLY: rho_atom_coeff,&
                                              rho_atom_type,& !R
                                              deallocate_rho_atom_set !R
+  USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_rho_types,                    ONLY: qs_rho_p_type,&
                                              qs_rho_release
   USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
@@ -1211,6 +1212,7 @@ CONTAINS
     LOGICAL                                  :: failure, paw_atom
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(harmonics_atom_type), POINTER       :: harmonics
 
     CALL timeset("init_jrho_atom_set","I"," ",handle)
@@ -1238,8 +1240,10 @@ CONTAINS
                             atom_list=atom_list,natom=nat, &
                             paw_atom=paw_atom,&
                             harmonics=harmonics,&
-                            ngrid_rad=nr,&
-                            ngrid_ang=na)
+                            grid_atom=grid_atom)
+
+       na = grid_atom%ng_sphere
+       nr = grid_atom%nr
 
        CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
                               maxso=maxso, nset=nset)

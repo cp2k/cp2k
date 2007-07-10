@@ -1101,8 +1101,10 @@ CONTAINS
             &               natom=natom,&
             &               paw_atom=paw_atom,&
             &               harmonics=harmonics,&
-            &               ngrid_rad=nr,ngrid_ang=na,&
             &               grid_atom=grid_atom)
+       !
+       na = grid_atom%ng_sphere
+       nr = grid_atom%nr
        !
        ! Quick cycle if needed
        IF(.NOT.paw_atom) CYCLE
@@ -1148,7 +1150,6 @@ CONTAINS
                    rvec(3) = grid_atom%rad(ir)*harmonics%a(3,ia)
                    !
                    !vw Can we compute that in calculate_jrho_atom_ang? wv!
-                   ! the wa factor is included in slm
                    jrho1_tot = (jrho_h_grid(ir,ia)-jrho_s_grid(ir,ia)) * grid_atom%weight(ia,ir)
 
                    itegrated_jrho = itegrated_jrho+jrho1_tot
