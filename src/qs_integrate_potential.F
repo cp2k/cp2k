@@ -66,6 +66,7 @@ MODULE qs_integrate_potential
                                              section_vals_val_get
   USE kinds,                           ONLY: dp,&
                                              int_size
+  USE mathconstants,                   ONLY: fac
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_max,&
                                              mp_shift,&
@@ -1466,7 +1467,7 @@ CONTAINS
     IF (rsgrid%orthorhombic ) THEN
       CALL integrate_ortho()
     ELSE
-      CALL integrate_general()
+      CALL integrate_general_opt()
     END IF
 
 !   *** vab contains all the information needed to find the elements of hab
@@ -1593,11 +1594,74 @@ CONTAINS
       END IF
     ENDDO
 
+    lp=la_max_local+lb_max_local
+    ALLOCATE(coef_xyz(((lp+1)*(lp+2)*(lp+3))/6))
 #include "prep.f90"
+
+!   *** initialise the coefficient matrix, we transform the sum
+!
+!   sum_{lxa,lya,lza,lxb,lyb,lzb} P_{lxa,lya,lza,lxb,lyb,lzb} (x-a_x)**lxa (y-a_y)**lya (z-a_z)**lza (x-b_x)**lxb (y-a_y)**lya (z-a_z)**lza
+!
+!   into
+!
+!   sum_{lxp,lyp,lzp} P_{lxp,lyp,lzp} (x-p_x)**lxp (y-p_y)**lyp (z-p_z)**lzp
+!
+!   where p is center of the product gaussian, and lp = la_max + lb_max
+!   (current implementation is l**7)
+!
 
 #include "call_integrate.f90"
 
+    CALL xyz_to_vab()
+
+    END SUBROUTINE integrate_ortho 
+
+
+
+
+    SUBROUTINE xyz_to_vab
+
+
     coef_xyz=coef_xyz*prefactor
+
+!   *** initialise the coefficient matrix, we transform the sum
+!
+!   sum_{lxa,lya,lza,lxb,lyb,lzb} P_{lxa,lya,lza,lxb,lyb,lzb} (x-a_x)**lxa (y-a_y)**lya (z-a_z)**lza (x-b_x)**lxb (y-a_y)**lya (z-a_z)**lza
+!
+!   into
+!
+!   sum_{lxp,lyp,lzp} P_{lxp,lyp,lzp} (x-p_x)**lxp (y-p_y)**lyp (z-p_z)**lzp
+!
+!   where p is center of the product gaussian, and lp = la_max + lb_max
+!   (current implementation is l**7)
+!
+!
+!   compute polynomial expansion coefs -> (x-a)**lxa (x-b)**lxb -> sum_{ls} alpha(ls,lxa,lxb,1)*(x-p)**ls
+!
+!   *** make the alpha matrix ***
+    ALLOCATE(alpha(0:lp,0:la_max_local,0:lb_max_local,3))
+    alpha(:,:,:,:)=0.0_dp
+    DO iaxis=1,3
+    DO lxa=0,la_max_local
+    DO lxb=0,lb_max_local
+       binomial_k_lxa=1.0_dp
+       a=1.0_dp
+       DO k=0,lxa
+        binomial_l_lxb=1.0_dp
+        b=1.0_dp
+        DO l=0,lxb
+           alpha(lxa-l+lxb-k,lxa,lxb,iaxis)=alpha(lxa-l+lxb-k,lxa,lxb,iaxis)+ &
+                             binomial_k_lxa*binomial_l_lxb*a*b
+           binomial_l_lxb=binomial_l_lxb*REAL(lxb-l,dp)/REAL(l+1,dp)
+           b=b*(rp(iaxis)-(ra(iaxis)+rab(iaxis)))
+        ENDDO
+        binomial_k_lxa=binomial_k_lxa*REAL(lxa-k,dp)/REAL(k+1,dp)
+        a=a*(-ra(iaxis)+rp(iaxis))
+       ENDDO
+    ENDDO
+    ENDDO
+    ENDDO
+
 
     !
     !   compute v_{lxa,lya,lza,lxb,lyb,lzb} given v_{lxp,lyp,lzp} and alpha(ls,lxa,lxb,1)
@@ -1606,51 +1670,258 @@ CONTAINS
 
     ALLOCATE(coef_ttz(0:la_max_local,0:lb_max_local))
     ALLOCATE(coef_tyz(0:la_max_local,0:lb_max_local,0:la_max_local,0:lb_max_local))
-       lxyz=0
-       DO lzp=0,lp
-          coef_tyz=0.0_dp
-          DO lyp=0,lp-lzp
-             coef_ttz=0.0_dp
-             DO lxp=0,lp-lzp-lyp
-                lxyz=lxyz+1
-                DO lxb=0,lb_max_local
-                DO lxa=0,la_max_local
-                   coef_ttz(lxa,lxb)=coef_ttz(lxa,lxb)+coef_xyz(lxyz)*alpha(lxp,lxa,lxb,1)
-                ENDDO
-                ENDDO
-
-             ENDDO
-
-             DO lyb=0,lb_max_local
-             DO lya=0,la_max_local
-                DO lxb=0,lb_max_local-lyb
-                DO lxa=0,la_max_local-lya
-                   coef_tyz(lxa,lxb,lya,lyb)=coef_tyz(lxa,lxb,lya,lyb)+coef_ttz(lxa,lxb)*alpha(lyp,lya,lyb,2)
-                ENDDO
-                ENDDO
+    lxyz=0
+    DO lzp=0,lp
+       coef_tyz=0.0_dp
+       DO lyp=0,lp-lzp
+          coef_ttz=0.0_dp
+          DO lxp=0,lp-lzp-lyp
+             lxyz=lxyz+1
+             DO lxb=0,lb_max_local
+             DO lxa=0,la_max_local
+                coef_ttz(lxa,lxb)=coef_ttz(lxa,lxb)+coef_xyz(lxyz)*alpha(lxp,lxa,lxb,1)
              ENDDO
              ENDDO
 
           ENDDO
 
-          DO lzb=0,lb_max_local
-          DO lza=0,la_max_local
-             DO lyb=0,lb_max_local-lzb
-             DO lya=0,la_max_local-lza
-                DO lxb=MAX(lb_min_local-lzb-lyb,0),lb_max_local-lzb-lyb
-                jco=coset(lxb,lyb,lzb)
-                DO lxa=MAX(la_min_local-lza-lya,0),la_max_local-lza-lya
-                   ico=coset(lxa,lya,lza)
-                   vab(ico,jco)=vab(ico,jco)+coef_tyz(lxa,lxb,lya,lyb)*alpha(lzp,lza,lzb,3)
-                ENDDO
-                ENDDO
+          DO lyb=0,lb_max_local
+          DO lya=0,la_max_local
+             DO lxb=0,lb_max_local-lyb
+             DO lxa=0,la_max_local-lya
+                coef_tyz(lxa,lxb,lya,lyb)=coef_tyz(lxa,lxb,lya,lyb)+coef_ttz(lxa,lxb)*alpha(lyp,lya,lyb,2)
              ENDDO
              ENDDO
           ENDDO
           ENDDO
 
        ENDDO
-    END SUBROUTINE integrate_ortho 
+
+       DO lzb=0,lb_max_local
+       DO lza=0,la_max_local
+          DO lyb=0,lb_max_local-lzb
+          DO lya=0,la_max_local-lza
+             DO lxb=MAX(lb_min_local-lzb-lyb,0),lb_max_local-lzb-lyb
+             jco=coset(lxb,lyb,lzb)
+             DO lxa=MAX(la_min_local-lza-lya,0),la_max_local-lza-lya
+                ico=coset(lxa,lya,lza)
+                vab(ico,jco)=vab(ico,jco)+coef_tyz(lxa,lxb,lya,lyb)*alpha(lzp,lza,lzb,3)
+             ENDDO
+             ENDDO
+          ENDDO
+          ENDDO
+       ENDDO
+       ENDDO
+
+    ENDDO
+
+    END SUBROUTINE xyz_to_vab
+
+    SUBROUTINE integrate_general_opt()
+      INTEGER :: index_min(3),index_max(3),i,j,k,i_index,j_index,k_index
+      REAL(KIND=dp) :: point(3),radius2,fval,hmatgrid(3,3)
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: coef_ijk
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:,:) :: hmatgridp
+      INTEGER, ALLOCATABLE, DIMENSION(:,:,:) :: coef_map
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: grid_map
+      INTEGER :: ilx,jlx,klx,ily,jly,kly,ilz,jlz,klz,lpx,lpy,lpz,lx,ly,lz,il,jl,kl,ismin,ismax
+      REAL(KIND=dp) :: res,pointk(3),pointj(3),pointi(3), &
+                       rsq,a,b,c,v(3),d,exp2i,exp1i,exp0i,&
+                       dk,dj,di,dkp,djp,dip,gp(3), gridval
+
+      ! 
+      ! transform P_{lxp,lyp,lzp} into a P_{lip,ljp,lkp} such that
+      ! sum_{lxp,lyp,lzp} P_{lxp,lyp,lzp} (x-x_p)**lxp (y-y_p)**lyp (z-z_p)**lzp =
+      ! sum_{lip,ljp,lkp} P_{lip,ljp,lkp} (i-i_p)**lip (j-j_p)**ljp (k-k_p)**lkp
+      ! 
+      lp=la_max_local+lb_max_local
+      ALLOCATE(coef_xyz(((lp+1)*(lp+2)*(lp+3))/6))
+      ALLOCATE(coef_ijk(((lp+1)*(lp+2)*(lp+3))/6))
+      ALLOCATE(coef_xyt(((lp+1)*(lp+2))/2))
+      ALLOCATE(coef_xtt(0:lp))
+
+
+      ! aux mapping array to simplify life
+      ALLOCATE(coef_map(0:lp,0:lp,0:lp))
+      coef_map=HUGE(coef_map) 
+      lxyz=0
+      DO lzp=0,lp
+      DO lyp=0,lp-lzp
+      DO lxp=0,lp-lzp-lyp
+          lxyz=lxyz+1
+          coef_map(lxp,lyp,lzp)=lxyz
+      ENDDO
+      ENDDO
+      ENDDO
+
+      ! cell hmat in grid points
+      hmatgrid(:,1)=cell%hmat(:,1)/ng(1)
+      hmatgrid(:,2)=cell%hmat(:,2)/ng(2)
+      hmatgrid(:,3)=cell%hmat(:,3)/ng(3)
+
+      ! center in grid coords
+      gp=MATMUL(cell%h_inv,rp)*ng
+
+      !t2=nanotime_ia32()
+      !write(6,*) t2-t1
+      !t1=nanotime_ia32()
+
+      ! get the min max indices that contain at least the cube that contains a sphere around rp of radius radius
+      ! if the cell is very non-orthogonal this implies that many useless points are included
+      index_min= HUGE(index_min)
+      index_max=-HUGE(index_max)
+      DO i=-1,1
+      DO j=-1,1
+      DO k=-1,1
+         point(1)=rp(1)+i*radius
+         point(2)=rp(2)+j*radius
+         point(3)=rp(3)+k*radius
+         point=MATMUL(cell%h_inv,point)*ng
+         index_min=MIN(index_min,FLOOR(point))
+         index_max=MAX(index_max,CEILING(point))
+      ENDDO
+      ENDDO
+      ENDDO
+
+      ALLOCATE(grid_map(index_min(1):index_max(1)))
+      DO i=index_min(1),index_max(1)
+             grid_map(i)=MODULO(i,ng(1))+1
+      ENDDO
+
+      coef_ijk=0.0_dp
+
+      ! go over the grid, but cycle if the point is not within the radius
+      DO k=index_min(3),index_max(3)
+        dk=k-gp(3)
+        pointk=hmatgrid(:,3)*dk
+        k_index=MODULO(k,ng(3))+1
+
+        coef_xyt=0.0_dp
+
+        DO j=index_min(2),index_max(2)
+          dj=j-gp(2)
+          pointj=pointk+hmatgrid(:,2)*dj
+          j_index=MODULO(j,ng(2))+1
+
+          coef_xtt=0.0_dp
+
+          ! find bounds for the inner loop
+          ! based on a quadratic equation in i
+          ! a*i**2+b*i+c=radius**2
+          v=pointj-gp(1)*hmatgrid(:,1)
+          a=DOT_PRODUCT(hmatgrid(:,1),hmatgrid(:,1))
+          b=2*DOT_PRODUCT(v,hmatgrid(:,1))
+          c=DOT_PRODUCT(v,v)
+          d=b*b-4*a*(c-radius**2)
+
+          IF (d<0) THEN
+              CYCLE
+          ELSE
+              d=sqrt(d)
+              ismin=CEILING((-b-d)/(2*a))
+              ismax=FLOOR((-b+d)/(2*a))
+          ENDIF
+          ! prepare for computing -zetp*rsq
+          a=-zetp*a
+          b=-zetp*b
+          c=-zetp*c
+          i=ismin-1
+          exp2i=exp((a*i+b)*i+c)
+          exp1i=exp(2*a*i+a+b)
+          exp0i=exp(2*a)
+
+          coef_xtt=0.0_dp
+
+          DO i=ismin,ismax
+             di=i-gp(1)
+
+             exp2i=exp2i*exp1i
+             exp1i=exp1i*exp0i
+
+             i_index=grid_map(i)
+             gridval=grid(i_index,j_index,k_index)*exp2i
+
+             dip=1.0_dp
+             DO il=0,lp
+                coef_xtt(il)=coef_xtt(il)+gridval*dip
+                dip=dip*di
+             ENDDO
+          ENDDO
+
+          lxy=0
+          djp=1.0_dp
+          DO jl=0,lp
+            DO il=0,lp-jl
+               lxy=lxy+1
+               coef_xyt(lxy)=coef_xyt(lxy)+coef_xtt(il)*djp
+            ENDDO
+            djp=djp*dj
+          ENDDO
+
+        ENDDO
+
+        lxyz = 0
+        dkp=1.0_dp
+        DO kl=0,lp
+           lxy=0
+           DO jl=0,lp-kl
+              DO il=0,lp-kl-jl
+                 lxyz=lxyz+1 ; lxy=lxy+1
+                 coef_ijk(lxyz)=coef_ijk(lxyz)+dkp*coef_xyt(lxy)
+              ENDDO
+              lxy=lxy+kl
+           ENDDO
+           dkp=dkp*dk
+        ENDDO
+
+      ENDDO
+
+      ! transform using multinomials
+      ALLOCATE(hmatgridp(3,3,0:lp))
+      hmatgridp(:,:,0)=1.0_dp
+      DO k=1,lp
+         hmatgridp(:,:,k)=hmatgridp(:,:,k-1)*hmatgrid(:,:)
+      ENDDO
+
+      coef_xyz=0.0_dp
+      lpx=lp
+      DO klx=0,lpx
+      DO jlx=0,lpx-klx
+      DO ilx=0,lpx-klx-jlx
+         lx=ilx+jlx+klx
+         lpy=lp-lx
+         DO kly=0,lpy
+         DO jly=0,lpy-kly
+         DO ily=0,lpy-kly-jly
+            ly=ily+jly+kly
+            lpz=lp-lx-ly
+            DO klz=0,lpz
+            DO jlz=0,lpz-klz
+            DO ilz=0,lpz-klz-jlz
+               lz=ilz+jlz+klz
+
+               il=ilx+ily+ilz
+               jl=jlx+jly+jlz
+               kl=klx+kly+klz
+               coef_xyz(coef_map(lx,ly,lz))=coef_xyz(coef_map(lx,ly,lz))+ coef_ijk(coef_map(il,jl,kl))* &
+                                            hmatgridp(1,1,ilx) * hmatgridp(1,2,jlx) * hmatgridp(1,3,klx) * &
+                                            hmatgridp(2,1,ily) * hmatgridp(2,2,jly) * hmatgridp(2,3,kly) * &
+                                            hmatgridp(3,1,ilz) * hmatgridp(3,2,jlz) * hmatgridp(3,3,klz) * &
+                                            fac(lx)*fac(ly)*fac(lz)/ &
+                        (fac(ilx)*fac(ily)*fac(ilz)*fac(jlx)*fac(jly)*fac(jlz)*fac(klx)*fac(kly)*fac(klz))
+            ENDDO
+            ENDDO
+            ENDDO
+         ENDDO
+         ENDDO
+         ENDDO
+      ENDDO
+      ENDDO
+      ENDDO
+
+      CALL xyz_to_vab()
+
+    END SUBROUTINE integrate_general_opt
 
     SUBROUTINE integrate_general()
       INTEGER :: index_min(3),index_max(3),i,j,k,ipoint(3)

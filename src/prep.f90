@@ -1,49 +1,6 @@
-
-!   *** initialise the coefficient matrix, we transform the sum
-!
-!   sum_{lxa,lya,lza,lxb,lyb,lzb} P_{lxa,lya,lza,lxb,lyb,lzb} (x-a_x)**lxa (y-a_y)**lya (z-a_z)**lza (x-b_x)**lxb (y-a_y)**lya (z-a_z)**lza
-! 
-!   into 
-!
-!   sum_{lxp,lyp,lzp} P_{lxp,lyp,lzp} (x-p_x)**lxp (y-p_y)**lyp (z-p_z)**lzp
-!
-!   where p is center of the product gaussian, and lp = la_max + lb_max
-!   (current implementation is l**7)
-!
-    lp=la_max_local+lb_max_local
-    ALLOCATE(coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)) 
-    ALLOCATE(alpha(0:lp,0:la_max_local,0:lb_max_local,3))
-
     ALLOCATE(pol_z(1:2,0:lp,-cmax:0))
     ALLOCATE(pol_y(1:2,0:lp,-cmax:0))
     ALLOCATE(pol_x(0:lp,-cmax:cmax))
-
-!
-!   compute polynomial expansion coefs -> (x-a)**lxa (x-b)**lxb -> sum_{ls} alpha(ls,lxa,lxb,1)*(x-p)**ls
-!
-!   *** make the alpha matrix ***
-    alpha(:,:,:,:)=0.0_dp
-    DO iaxis=1,3
-    DO lxa=0,la_max_local
-    DO lxb=0,lb_max_local
-       binomial_k_lxa=1.0_dp
-       a=1.0_dp
-       DO k=0,lxa
-        binomial_l_lxb=1.0_dp
-        b=1.0_dp
-        DO l=0,lxb
-           alpha(lxa-l+lxb-k,lxa,lxb,iaxis)=alpha(lxa-l+lxb-k,lxa,lxb,iaxis)+ &
-                             binomial_k_lxa*binomial_l_lxb*a*b
-           binomial_l_lxb=binomial_l_lxb*REAL(lxb-l,dp)/REAL(l+1,dp)
-           b=b*(rp(iaxis)-(ra(iaxis)+rab(iaxis)))
-        ENDDO
-        binomial_k_lxa=binomial_k_lxa*REAL(lxa-k,dp)/REAL(k+1,dp)
-        a=a*(-ra(iaxis)+rp(iaxis))
-       ENDDO
-    ENDDO
-    ENDDO
-    ENDDO
-
 !
 !   compute the values of all (x-xp)**lp*exp(..)
 !
