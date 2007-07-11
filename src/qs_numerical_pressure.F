@@ -66,7 +66,7 @@ MODULE qs_numerical_pressure
       routineP = moduleN//':'//routineN
     REAL(kind=dp), PARAMETER                 :: Dx = 0.001_dp
 
-    INTEGER                                  :: ip, iseq, isubsys, iw, j, k, &
+    INTEGER                                  :: ip, iseq, isubsys, iw, i, j, k, &
                                                 l, stat, iq
     LOGICAL                                  :: failure
     REAL(kind=dp), DIMENSION(2)              :: numer_energy
@@ -161,13 +161,6 @@ MODULE qs_numerical_pressure
              END DO
              CALL get_hinv( cell )
              numer_stress(ip,iq) = (numer_energy(1) - numer_energy(2) ) / (2.0_dp*Dx)
-             virial%pv_virial(ip,iq) = (-1.0_dp)*numer_stress(ip,iq) * cell_local%hmat(ip,iq)
-             IF (globenv%run_type_id.EQ.qs_debug_run) THEN
-               IF (para_env%ionode) THEN
-                  WRITE(iw,'(/A/A,I1,A,I1,A,F15.9)')"----- NUMERICAL STRESS -----",&
-                    "pv_virial(",ip,",",iq,"): ",virial%pv_virial(ip,iq)
-               END IF
-             END IF
           END DO
        END DO
        !
@@ -182,6 +175,25 @@ MODULE qs_numerical_pressure
           END DO
        END DO
        CALL get_hinv ( cell )
+
+       ! computing pv_test
+       virial%pv_virial = 0.0_dp
+       DO i = 1, 3
+          DO j = 1, 3
+             DO k = 1, 3
+                                                              ! is the -1 a QS convention issue ?
+                virial%pv_virial(i,j) = virial%pv_virial(i,j) + (-1.0_dp)*numer_stress(i,k)*cell_local % hmat(j,k)
+             END DO
+          END DO
+       END DO
+       IF (globenv%run_type_id.EQ.qs_debug_run) THEN
+           IF (para_env%ionode) THEN
+               WRITE (UNIT=iw,FMT="((T34,A))") "Numerical pv_virial"
+               WRITE (UNIT=iw,FMT="((T34,3F16.10))") (virial%pv_virial(i,1:3), i=1,3)
+           END IF
+       END IF
+
+
        !
        ! Rebuild the appropriate environments to obtain original environment
        !

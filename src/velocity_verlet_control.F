@@ -140,6 +140,8 @@ SUBROUTINE velocity_verlet ( md_env, error )
        CALL nph_uniaxial_damped ( md_env,error )
     CASE ( npt_i_ensemble )
        CALL npt_i ( md_env, error  )
+    CASE ( npt_f_ensemble )
+       CALL npt_f ( md_env, error  )
     CASE DEFAULT
       CALL stop_program("velocity_verlet",&
                         "integrator not implemented for a generic force_env")
