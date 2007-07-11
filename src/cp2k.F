@@ -48,8 +48,7 @@ PROGRAM cp2k
                                 write_xml_file, run_input
   USE machine,           ONLY : m_iargc,m_getarg
   USE message_passing,   ONLY : mp_sync
-  USE kinds,             ONLY : default_string_length,&
-                                default_path_length
+  USE kinds,             ONLY : default_path_length
   USE f77_interface,     ONLY : init_cp2k, finalize_cp2k, &
                                 check_input, default_para_env
 #include "cp_common_uses.h"
