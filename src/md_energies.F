@@ -109,7 +109,8 @@ CONTAINS
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'md_energy'
+    CHARACTER(len=*), PARAMETER :: routineN = 'md_energy', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: my_act, my_ext, my_form, &
                                                 my_pos, remark1, remark2, &
@@ -147,28 +148,21 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     CALL timeset(routineN,handle)
-
     CALL get_cp2k_units ( unit )
 
     ! Zeroing
     hugoniot = 0._dp
     shell_adiabatic = .FALSE.
-    shell_present = .FALSE.
+    shell_present   = .FALSE.
     NULLIFY(dyn_coeff_set,motion_section)
     CALL get_md_env(md_env=md_env,&
          itimes=itimes,&
          constant=constant,&
          t=t,&
-         used_time = used_time, &
-         simpar=simpar,         &
-         force_env_p=force_env_p, &
-         init=init, init_vel=init_vel, init_traj=init_traj, init_force=init_force )
-    init_shtraj = init_traj
-    init_cotraj = init_traj
-    init_shvel = init_vel
-    init_covel = init_vel
-    init_shforce = init_force
-    init_coforce = init_force
+         used_time = used_time,&
+         simpar=simpar,&
+         force_env_p=force_env_p,&
+         init=init)
 
     root_section=>force_env_p(1)%force_env%root_section
     motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
@@ -192,7 +186,7 @@ CONTAINS
        nat=nat+particles%n_els
     END DO
 
-    ! computing the scalar pressure
+    ! Computing the scalar pressure
     IF ( virial % pv_availability ) THEN
        pv_scalar = 0._dp
        DO i = 1, 3
@@ -203,9 +197,9 @@ CONTAINS
        pv_xx = virial%pv_total(1,1)/cell%deth*unit%bar
     ENDIF
 
-!---------------------------------------------
-! Initialize V0 properly for nph calculations
-!---------------------------------------------
+    !---------------------------------------------
+    ! Initialize V0 properly for nph calculations
+    !---------------------------------------------
     IF (init) THEN
        IF ( simpar % ensemble == nph_ensemble .OR.&
             simpar % ensemble == nph_uniaxial_ensemble .OR.&
@@ -263,25 +257,16 @@ CONTAINS
     IF (init.AND.(itimes==0)) THEN
        my_pos = "REWIND"
        my_act = "WRITE"
-       init_traj  = .TRUE.
-       init_vel   = .TRUE.
-       init_force = .TRUE. 
-       init_shtraj  = .TRUE.
-       init_shvel   = .TRUE.
-       init_shforce = .TRUE. 
-       init_cotraj  = .TRUE.
-       init_covel   = .TRUE.
-       init_coforce = .TRUE. 
     END IF
-!-------------------------------------------------------------
-! Performing protocol relevant to the first step of an MD run
-!-------------------------------------------------------------
     IF (init) THEN
-! Print to the screen no matter what (e.g. ignore_should_output = .TRUE.)
+       !-------------------------------------------------------------
+       ! Performing protocol relevant to the first step of an MD run
+       !-------------------------------------------------------------
+       ! Print to the screen no matter what (e.g. ignore_should_output = .TRUE.)
        iw = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%PROGRAM_RUN_INFO",&
            extension=".mdLog",ignore_should_output=.TRUE.,file_position=my_pos,    &
            file_action=my_act,error=error)
-! Computing the Hugoniot for NPH calculations
+       ! Computing the Hugoniot for NPH calculations
        IF ( simpar % ensemble == nph_ensemble .OR.&
             simpar % ensemble == nph_uniaxial_ensemble .OR.&
             simpar % ensemble == nph_uniaxial_damped_ensemble ) THEN
@@ -290,13 +275,13 @@ CONTAINS
                .5_dp * ( pv_xx/unit%bar + simpar % p0 ) * &
                ( simpar % v0 - cell % deth )
        ENDIF
-! Assigning the conserved quantity
+       ! Assigning the conserved quantity
        constant = cons
        CALL set_md_env(md_env=md_env,constant=constant,error=error)
-! Assigning the initial time-step and time
+       ! Assigning the initial time-step and time
        itimes_old = itimes
        t_old      = t
-! Write initial values of quantities of interest
+       ! Write initial values of quantities of interest
        IF (iw>0) THEN
           WRITE (iw,*)
           WRITE (iw, '( A )' ) ' MD_ENERGIES| Initialization proceeding'
@@ -353,10 +338,10 @@ CONTAINS
        ENDIF
        CALL cp_print_key_finished_output(iw,logger,motion_section,&
             "MD%PRINT%PROGRAM_RUN_INFO",ignore_should_output=.TRUE., error=error)
-!-------------------------------------------------------------
-! Performing protocol for anything beyond the first step of MD
-!-------------------------------------------------------------
     ELSE
+       !-------------------------------------------------------------
+       ! Performing protocol for anything beyond the first step of MD
+       !-------------------------------------------------------------
        IF ( simpar % ensemble == nph_ensemble .OR.&
             simpar % ensemble == nph_uniaxial_ensemble .OR.&
             simpar % ensemble == nph_uniaxial_damped_ensemble)&
@@ -505,16 +490,14 @@ CONTAINS
     END IF
 
     IF ((.NOT.init).OR.(itimes==0)) THEN
-       !--------------------------------------------------------------
-       ! Now we deal with any initial headers for the output dcd files
-       !--------------------------------------------------------------
        ene = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%ENERGY",&
             extension=".ener",file_position=my_pos, file_action=my_act,error=error)
 
        CALL get_output_format(motion_section,"PRINT%TRAJECTORY",my_form,my_ext,error)
        crd = cp_print_key_unit_nr(logger,motion_section,"PRINT%TRAJECTORY",&
             extension=my_ext, file_position=my_pos, file_action=my_act,&
-            file_form=my_form, middle_name="pos", error=error)
+            file_form=my_form, middle_name="pos", is_new_file=init_traj,&
+            error=error)
        IF (is_mixed) THEN
            ener_mix=cp_print_key_unit_nr(logger,motion_section,"PRINT%MIXED_ENERGIES",&
                 extension=".ener", file_position=my_pos, file_action=my_act,&
@@ -536,11 +519,13 @@ CONTAINS
        CALL get_output_format(motion_section,"PRINT%VELOCITIES",my_form,my_ext,error)
        vel = cp_print_key_unit_nr(logger,motion_section,"PRINT%VELOCITIES",&
             extension=my_ext, file_position=my_pos, file_action=my_act,&
-            file_form=my_form, middle_name="vel", error=error)
+            file_form=my_form, middle_name="vel", is_new_file=init_vel,&
+            error=error)
        CALL get_output_format(motion_section,"PRINT%FORCES",my_form,my_ext,error)
        frc = cp_print_key_unit_nr(logger,motion_section,"PRINT%FORCES",&
             extension=my_ext, file_position=my_pos, file_action=my_act,&
-            file_form=my_form, middle_name="force", error=error)
+            file_form=my_form, middle_name="force", is_new_file=init_force,&
+            error=error)
        IF( virial % pv_availability ) THEN
          str = cp_print_key_unit_nr(logger,motion_section,"PRINT%STRESS",&
               extension=".stress", file_position=my_pos, file_action=my_act,&
@@ -556,7 +541,8 @@ CONTAINS
          CALL get_output_format(motion_section,"PRINT%SHELL_TRAJECTORY",my_form,my_ext,error)
          shcrd =  cp_print_key_unit_nr(logger,motion_section,"PRINT%SHELL_TRAJECTORY",&
             extension=my_ext, file_position=my_pos, file_action=my_act,&
-            file_form=my_form, middle_name="shpos", error=error)
+            file_form=my_form, middle_name="shpos", is_new_file=init_shtraj,&
+            error=error)
 
          nshell=0
          DO isubsys=1,SIZE(subsys)
@@ -573,27 +559,32 @@ CONTAINS
          CALL get_output_format(motion_section,"PRINT%CORE_TRAJECTORY",my_form,my_ext,error)
          cocrd = cp_print_key_unit_nr(logger,motion_section,"PRINT%CORE_TRAJECTORY",&
             extension=my_ext, file_position=my_pos, file_action=my_act,&
-            file_form=my_form, middle_name="copos", error=error)
+            file_form=my_form, middle_name="copos", is_new_file=init_cotraj,&
+            error=error)
 
          CALL get_output_format(motion_section,"PRINT%SHELL_VELOCITIES",my_form,my_ext,error)
          shvel = cp_print_key_unit_nr(logger,motion_section,"PRINT%SHELL_VELOCITIES",&
             extension=my_ext, file_position=my_pos, file_action=my_act,&
-            file_form=my_form, middle_name="shvel", error=error)
+            file_form=my_form, middle_name="shvel", is_new_file=init_shvel,&
+            error=error)
          
          CALL get_output_format(motion_section,"PRINT%CORE_VELOCITIES",my_form,my_ext,error)
          covel = cp_print_key_unit_nr(logger,motion_section,"PRINT%CORE_VELOCITIES",&
             extension=my_ext, file_position=my_pos, file_action=my_act,&
-            file_form=my_form, middle_name="covel", error=error)
+            file_form=my_form, middle_name="covel", is_new_file=init_covel,&
+            error=error)
 
          CALL get_output_format(motion_section,"PRINT%SHELL_FORCES",my_form,my_ext,error)
          shfrc = cp_print_key_unit_nr(logger,motion_section,"PRINT%SHELL_FORCES",&
             extension=my_ext, file_position=my_pos, file_action=my_act,&
-            file_form=my_form, middle_name="shfrc", error=error)
+            file_form=my_form, middle_name="shfrc", is_new_file=init_shforce,&
+            error=error)
 
          CALL get_output_format(motion_section,"PRINT%CORE_FORCES",my_form,my_ext,error)
          cofrc = cp_print_key_unit_nr(logger,motion_section,"PRINT%CORE_FORCES",&
             extension=my_ext, file_position=my_pos, file_action=my_act,&
-            file_form=my_form, middle_name="cofrc", error=error)
+            file_form=my_form, middle_name="cofrc", is_new_file=init_coforce,&
+            error=error)
 
        ELSE
          cocrd = 0 
@@ -620,7 +611,6 @@ CONTAINS
                 WRITE(crd) 2,remark1,remark2
                 WRITE(crd) nat
                 CALL m_flush(crd)
-                init_traj = .FALSE.
              ENDIF
           ELSEIF(outformat==dump_xmol) THEN
              !         *** This information can be digested by Molden ***
@@ -657,18 +647,18 @@ CONTAINS
        ! Print the Stress tensor
        !------------------
        IF ( str > 0 ) THEN
-          WRITE(UNIT=str,FMT="(I10,F12.3,9F20.10)") itimes,t*femtoseconds, virial%pv_total(1,1)/cell%deth*unit%bar, &
-                        virial%pv_total(1,2)/cell%deth*unit%bar, &
+          WRITE(UNIT=str,FMT="(I10,F12.3,9F20.10)") itimes,t*femtoseconds,&
+                        virial%pv_total(1,1)/cell%deth*unit%bar,&
+                        virial%pv_total(1,2)/cell%deth*unit%bar,&
                         virial%pv_total(1,3)/cell%deth*unit%bar,&
-                        virial%pv_total(2,1)/cell%deth*unit%bar, &
-                        virial%pv_total(2,2)/cell%deth*unit%bar, &
+                        virial%pv_total(2,1)/cell%deth*unit%bar,&
+                        virial%pv_total(2,2)/cell%deth*unit%bar,&
                         virial%pv_total(2,3)/cell%deth*unit%bar,& 
-                        virial%pv_total(3,1)/cell%deth*unit%bar, &
-                        virial%pv_total(3,2)/cell%deth*unit%bar, &
+                        virial%pv_total(3,1)/cell%deth*unit%bar,&
+                        virial%pv_total(3,2)/cell%deth*unit%bar,&
                         virial%pv_total(3,3)/cell%deth*unit%bar
           CALL m_flush(str)
        END IF
-       !------------------
        !------------------
        ! Print Velocities
        !------------------
@@ -685,7 +675,6 @@ CONTAINS
                 WRITE(vel) 2,remark1,remark2
                 WRITE(vel) nat
                 CALL m_flush(vel)
-                init_vel = .FALSE.
              END IF
           ELSEIF(outformat==dump_xmol) THEN
              !         *** This information can be digested by Molden ***
@@ -719,7 +708,6 @@ CONTAINS
                 WRITE(frc) 2,remark1,remark2
                 WRITE(frc) nat
                 CALL m_flush(frc)
-                init_force = .FALSE.
              END IF
           ELSEIF(outformat==dump_xmol) THEN
              !         *** This information can be digested by Molden ***
@@ -737,7 +725,6 @@ CONTAINS
           END DO
           CALL m_flush(frc)
        END IF
-
        !------------------
        ! Print MIXED Energy
        !------------------
@@ -747,8 +734,6 @@ CONTAINS
                itimes,t*femtoseconds,epot,force_env_p(1)%force_env%mixed_env%energies,cons
           CALL m_flush(ener_mix)
        END IF
-
-
        !------------------
        ! Print Energy
        !------------------
@@ -761,7 +746,6 @@ CONTAINS
                itimes,t*femtoseconds,ekin,temp,epot,cons,used_time
           CALL m_flush(ene)
        END IF
-
        !------------------
        ! Print Shell Energy
        !------------------
@@ -772,9 +756,8 @@ CONTAINS
                itimes,t*femtoseconds,ekin_shell,temp_shell,harm_shell
           CALL m_flush(shene)
        END IF
-
-       !  Some additional printing for the shell-model
-       !   (can be displaced in another routine)
+       !------------------
+       !  Some additional printing for the shell-model (can be displaced in another routine)
        !------------------
        ! Print Shell Coordinates
        !------------------
@@ -792,7 +775,6 @@ CONTAINS
                 WRITE(shcrd) 2,remark1,remark2
                 WRITE(shcrd) nshell
                 CALL m_flush(shcrd)
-                init_shtraj = .FALSE.
              ENDIF
           ELSEIF(outformat==dump_xmol) THEN
              !         *** This information can be digested by Molden ***
@@ -826,7 +808,6 @@ CONTAINS
                 WRITE(shvel) 2,remark1,remark2
                 WRITE(shvel) nshell
                 CALL m_flush(shvel)
-                init_shvel = .FALSE.
              END IF
           ELSEIF(outformat==dump_xmol) THEN
              !         *** This information can be digested by Molden ***
@@ -860,7 +841,6 @@ CONTAINS
                 WRITE(shfrc) 2,remark1,remark2
                 WRITE(shfrc) nshell
                 CALL m_flush(shfrc)
-                init_shforce = .FALSE.
              END IF
           ELSEIF(outformat==dump_xmol) THEN
              !         *** This information can be digested by Molden ***
@@ -878,8 +858,6 @@ CONTAINS
           END DO
           CALL m_flush(shfrc)
        END IF
-
-
        !------------------
        ! Print Core Coordinates
        !------------------
@@ -897,7 +875,6 @@ CONTAINS
                 WRITE(cocrd) 2,remark1,remark2
                 WRITE(cocrd) nshell
                 CALL m_flush(cocrd)
-                init_cotraj = .FALSE.
              ENDIF
           ELSEIF(outformat==dump_xmol) THEN
              !         *** This information can be digested by Molden ***
@@ -931,7 +908,6 @@ CONTAINS
                 WRITE(covel) 2,remark1,remark2
                 WRITE(covel) nshell
                 CALL m_flush(covel)
-                init_covel = .FALSE.
              END IF
           ELSEIF(outformat==dump_xmol) THEN
              !         *** This information can be digested by Molden ***
@@ -965,7 +941,6 @@ CONTAINS
                 WRITE(cofrc) 2,remark1,remark2
                 WRITE(cofrc) nshell
                 CALL m_flush(cofrc)
-                init_coforce = .FALSE.
              END IF
           ELSEIF(outformat==dump_xmol) THEN
              !         *** This information can be digested by Molden ***
@@ -1025,20 +1000,38 @@ CONTAINS
             "PRINT%SHELL_FORCES", error=error)
          CALL cp_print_key_finished_output(cofrc,logger,motion_section,&
             "PRINT%CORE_FORCES", error=error)
-
        END IF
     END IF
     init = .FALSE.
-    CALL set_md_env(md_env,init=init,init_vel=init_vel,init_traj=init_traj, init_force=init_force,error=error)
+    CALL set_md_env(md_env,init=init,error=error)
     CALL timestop(handle)
 
   END SUBROUTINE md_energy
 
+!******************************************************************************
+!!****** md_energies/get_output_format [1.0] *
+!!
+!!   NAME
+!!     get_output_format
+!!
+!!   FUNCTION
+!!     Info on the unit to be opened to dump MD informations
+!!
+!!   AUTHOR
+!!     Teodoro Laino - University of Zurich - 07.2007
+!!
+!!   MODIFICATION HISTORY
+!!     
+!!
+!!*****************************************************************************
   SUBROUTINE get_output_format(section,path,my_form,my_ext,error)
     TYPE(section_vals_type), POINTER         :: section
     CHARACTER(LEN=*), INTENT(IN)             :: path
     CHARACTER(LEN=*), INTENT(OUT)            :: my_form, my_ext
     TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_output_format', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: output_format
 
@@ -1049,7 +1042,6 @@ CONTAINS
        my_form = "UNFORMATTED"
        my_ext  = ".dcd"
     END IF
-
   END SUBROUTINE get_output_format
  
 END MODULE md_energies

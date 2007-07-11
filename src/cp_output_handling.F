@@ -958,7 +958,7 @@ END FUNCTION cp_print_key_generate_filename
 
 FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension,&
      middle_name, local, log_filename,ignore_should_output, file_form, file_position,&
-     file_action, file_status, do_backup, on_file, error) RESULT(res)
+     file_action, file_status, do_backup, on_file, is_new_file,error) RESULT(res)
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: basis_section
     CHARACTER(len=*), INTENT(in)             :: print_key_path, extension
@@ -968,6 +968,7 @@ FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension,&
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: file_form, file_position, &
                                                 file_action, file_status
     LOGICAL, INTENT(in), OPTIONAL            :: do_backup, on_file
+    LOGICAL, INTENT(out), OPTIONAL           :: is_new_file
     TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER                                  :: res
 
@@ -1028,6 +1029,12 @@ FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension,&
            ! if it is actually a full path, use it as the root
            filename = cp_print_key_generate_filename(logger,print_key,middle_name,extension,&
                 my_local,error)
+           ! Give back info about a possible existence of the file if required
+           IF (PRESENT(is_new_file)) THEN
+              INQUIRE(FILE=filename,EXIST=found)
+              is_new_file = .NOT.found
+           END IF
+           ! If required do a backup
            IF (my_do_backup) THEN
               INQUIRE(FILE=filename,EXIST=found)
               IF (found) THEN

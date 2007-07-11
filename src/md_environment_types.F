@@ -45,10 +45,11 @@ MODULE md_environment_types
   TYPE md_environment_type
      PRIVATE
      INTEGER :: id_nr, ref_count
-     TYPE (cp_para_env_type), POINTER :: para_env
+     LOGICAL :: init
      INTEGER, POINTER :: itimes, md_approach_nr, accepted_md
      REAL (KIND=dp), POINTER  :: used_time, t
      REAL (KIND=dp), POINTER :: constant
+     TYPE (cp_para_env_type), POINTER :: para_env
      TYPE ( cell_type ), POINTER :: cell
      TYPE ( force_env_p_type ), POINTER :: force_env_p ( : )
      TYPE ( lnhc_parameters_type ), POINTER :: nhc_part ( : )
@@ -57,7 +58,6 @@ MODULE md_environment_types
      TYPE ( npt_info_type ), POINTER :: npt ( :, : )
      TYPE ( simulation_parameters_type ), POINTER :: simpar
      TYPE ( reftraj_type ), POINTER :: reftraj_info
-     LOGICAL :: init, init_force, init_traj, init_vel
      TYPE ( free_energy_type) , POINTER :: fe_env
   END TYPE md_environment_type
 
@@ -85,8 +85,7 @@ CONTAINS
   SUBROUTINE get_md_env ( md_env, itimes, constant, used_time, cell,  &
                           simpar, nhc_part, nhc_coef, nhc_baro, &
                           npt, force_env_p, para_env, reftraj_info, t,&
-                          md_approach_nr, accepted_md, init, init_force,&
-                          init_traj, init_vel, fe_env)
+                          md_approach_nr, accepted_md, init, fe_env)
 
 !   Purpose: Get the integrator environment
 
@@ -109,8 +108,7 @@ CONTAINS
     TYPE(reftraj_type), OPTIONAL, POINTER    :: reftraj_info
     REAL(KIND=dp), OPTIONAL, POINTER         :: t
     INTEGER, OPTIONAL, POINTER               :: md_approach_nr, accepted_md
-    LOGICAL, OPTIONAL                        :: init, init_force, init_traj, &
-                                                init_vel
+    LOGICAL, OPTIONAL                        :: init
     TYPE(free_energy_type), OPTIONAL, &
       POINTER                                :: fe_env
 
@@ -136,9 +134,6 @@ CONTAINS
     IF ( PRESENT ( para_env ) ) para_env => md_env % para_env
     IF ( PRESENT ( reftraj_info ) ) reftraj_info => md_env % reftraj_info
     IF ( PRESENT (init)) init=md_env%init 
-    IF ( PRESENT (init_force)) init_force=md_env%init_force 
-    IF ( PRESENT (init_traj)) init_traj=md_env%init_traj 
-    IF ( PRESENT (init_vel)) init_vel=md_env%init_vel 
 
   END SUBROUTINE get_md_env
 
@@ -205,9 +200,6 @@ CONTAINS
     ALLOCATE ( md_env % reftraj_info )
     md_env % reftraj_info % unit =-1
     md_env%init = .TRUE.
-    md_env%init_force = .FALSE.
-    md_env%init_traj = .FALSE.
-    md_env%init_vel = .FALSE.
 
   END SUBROUTINE md_env_create
 !***************************************************************************
@@ -334,8 +326,7 @@ END SUBROUTINE md_env_release
   SUBROUTINE set_md_env ( md_env, itimes, constant, cell, simpar, &
                           nhc_part, nhc_coef, nhc_baro, fe_env, &
                           npt, force_env_p, para_env, accepted_md, md_approach_nr ,&
-                          init, init_force, init_vel, init_traj, &
-                          error)
+                          init, error)
 
 !   Purpose: Set the integrator environment to the correct program.
 
@@ -358,8 +349,7 @@ END SUBROUTINE md_env_release
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
     INTEGER, OPTIONAL, POINTER               :: accepted_md, md_approach_nr
-    LOGICAL, OPTIONAL                        :: init, init_force, init_vel, &
-                                                init_traj
+    LOGICAL, OPTIONAL                        :: init
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_md_env', &
@@ -368,9 +358,6 @@ END SUBROUTINE md_env_release
     INTEGER                                  :: i
 
     IF ( PRESENT (init)) md_env%init = init
-    IF ( PRESENT (init_force)) md_env%init_force = init_force
-    IF ( PRESENT (init_traj)) md_env%init_traj = init_traj
-    IF ( PRESENT (init_vel)) md_env%init_vel = init_vel
     IF ( PRESENT ( cell ) ) md_env % cell => cell
     IF ( PRESENT ( simpar ) ) md_env % simpar => simpar
     IF ( PRESENT ( nhc_part ) ) md_env % nhc_part => nhc_part
