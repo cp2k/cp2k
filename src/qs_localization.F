@@ -17,6 +17,7 @@
 !!     Joost VandeVondele with some help of Leonardo Bernasconi (01.2003)
 !!     CJM (04.2003)
 !!     CJM & IKUO (08.2003)
+!!     Teo (07.2007) - New IO output for wannier centers
 !!
 !!   MODIFICATION HISTORY
 !!
@@ -25,8 +26,11 @@
 
 MODULE qs_localization
   ! *****************************************************************************
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
+  USE atomic_kind_types,               ONLY: allocate_atomic_kind_set,&
+                                             atomic_kind_type,&
+                                             deallocate_atomic_kind_set,&
+                                             get_atomic_kind,&
+                                             set_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE coefficient_types,               ONLY: coeff_type
@@ -45,7 +49,9 @@ MODULE qs_localization
                                              cp_fm_release,&
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_iter_string,&
+                                             cp_p_file,&
                                              cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
@@ -57,11 +63,19 @@ MODULE qs_localization
   USE input_constants,                 ONLY: do_loc_crazy,&
                                              do_loc_direct,&
                                              do_loc_jacobi,&
-                                             do_loc_l1_norm_sd
-  USE input_section_types,             ONLY: section_vals_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
+                                             do_loc_l1_norm_sd,&
+                                             dump_dcd,&
+                                             dump_xmol
+  USE input_section_types,             ONLY: section_get_ival,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
+                                             dp,&
+                                             sp
+  USE machine,                         ONLY: m_flush
   USE mathconstants,                   ONLY: twopi
+  USE md_energies,                     ONLY: get_output_format
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_max,&
                                              mp_minloc,&
@@ -70,7 +84,10 @@ MODULE qs_localization
                                              get_molecule_kind,&
                                              molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
-  USE particle_types,                  ONLY: particle_type
+  USE particle_types,                  ONLY: allocate_particle_set,&
+                                             deallocate_particle_set,&
+                                             particle_type,&
+                                             write_particle_coordinates
   USE physcon,                         ONLY: angstrom,&
                                              debye
   USE pw_env_types,                    ONLY: pw_env_get,&
@@ -108,39 +125,59 @@ MODULE qs_localization
 
   ! *** Localization Data Type ***
   TYPE qs_loc_env_type
-     INTEGER :: operator_type
-     INTEGER :: localization_method
      LOGICAL :: wannier
      LOGICAL :: molecular_states
      LOGICAL :: jacobi_fallback
      INTEGER :: max_iter
-     REAL(KIND=dp) :: eps_localization
      INTEGER :: is_initialized
+     INTEGER :: operator_type
+     INTEGER :: localization_method
+     REAL(KIND=dp) :: eps_localization
+     REAL (KIND = dp) :: weights ( 3 )
+     CHARACTER(LEN=default_path_length) :: filename
      TYPE ( real_matrix_p_type ),POINTER :: OPERATOR(:,:)
      TYPE ( cp_para_env_type ), POINTER :: para_env
      TYPE ( cell_type ), POINTER :: cell
      TYPE ( particle_type ), POINTER :: particle_set ( : )
      TYPE(distribution_1d_type), POINTER         :: local_molecules
-
-     REAL (KIND = dp) :: weights ( 3 )
   END TYPE qs_loc_env_type
 
   INTEGER, PARAMETER :: PIPEK_MEZEY=301, POSITION_OPERATOR=302
-
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_localization'
   ! *****************************************************************************
 
 CONTAINS
 
-  !******************************************************************************
-  !
-  ! allocates the data, and initializes the operators
-  !
-  !******************************************************************************
+!!****f* qs_localization/qs_loc_init [1.0] *
+!!
+!!   NAME
+!!     qs_loc_init
+!!
+!!   FUNCTION
+!!     allocates the data, and initializes the operators
+!!
+!!   NOTES
+!!
+!!   ARGUMENTS
+!!     - qs_env: the qs_env in which the qs_env lives
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!*** **********************************************************************
   SUBROUTINE qs_loc_init(qs_loc_env,qs_env,error)
 
     TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_init', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, isos, j, natoms
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -196,17 +233,35 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qs_loc_init
 
-  !******************************************************************************
-  !
-  ! Computes the Boys-Foster operator for periodic systems
-  !
-  !******************************************************************************
+!!****f* qs_localization/get_boys_foster_operator [1.0] *
+!!
+!!   NAME
+!!     get_boys_foster_operator
+!!
+!!   FUNCTION
+!!     Computes the Boys-Foster operator for periodic systems
+!!
+!!   NOTES
+!!
+!!   ARGUMENTS
+!!     - qs_env: the qs_env in which the qs_env lives
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!*** **********************************************************************
   SUBROUTINE get_boys_foster_operator ( qs_loc_env, qs_env, error )
-
-    ! globals
     TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_boys_foster_operator', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ix, iy, iz, j
     REAL(KIND=dp)                            :: thearg, theval, x, y, z
@@ -266,35 +321,74 @@ CONTAINS
 
   END SUBROUTINE get_boys_foster_operator
 
-  !******************************************************************************
-  !
-  ! Computes the Pipek-Mezey operator for periodic systems
-  !
-  !******************************************************************************
+!!****f* qs_localization/get_pipek_mezey_operator [1.0] *
+!!
+!!   NAME
+!!     get_pipek_mezey_operator
+!!
+!!   FUNCTION
+!!     Computes the Pipek-Mezey operator for periodic systems
+!!
+!!   NOTES
+!!
+!!   ARGUMENTS
+!!     - qs_env: the qs_env in which the qs_env lives
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!*** **********************************************************************
   SUBROUTINE get_pipek_mezey_operator ( qs_loc_env, qs_env )
     ! globals
     TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
     TYPE(qs_environment_type), POINTER       :: qs_env
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_pipek_mezey_operator', &
+      routineP = moduleN//':'//routineN
+
     CALL stop_program("qs_localization","PIPEK-MEZEY not implemented")
   END SUBROUTINE get_pipek_mezey_operator
 
-  !******************************************************************************
-  !
-  ! applies the operators to obtain the necessary data
-  !
-  !******************************************************************************
+!!****f* qs_localization/qs_loc_compute_properties [1.0] *
+!!
+!!   NAME
+!!     qs_loc_compute_properties
+!!
+!!   FUNCTION
+!!     applies the operators to obtain the necessary data
+!!
+!!   NOTES
+!!
+!!   ARGUMENTS
+!!     - qs_env: the qs_env in which the qs_env lives
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!*** **********************************************************************
   SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule_set, vectors, center, ionode,&
-       iunit, loc_print_key, error)
+       loc_print_key, error)
 
     TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(cp_fm_type), POINTER                :: vectors
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: center
     LOGICAL                                  :: ionode
-    INTEGER                                  :: iunit
     TYPE(section_vals_type), POINTER         :: loc_print_key
     TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_compute_properties', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, isos, j, k, n, &
                                                 natoms, scr, sweeps
@@ -304,7 +398,7 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: opvec
     TYPE(cp_logger_type), POINTER            :: logger
 
-    CALL timeset("qs_loc_compute_properties","I",'',handle)
+    CALL timeset(routineN,"I",'',handle)
     NULLIFY(tmp_fm_struct,opvec)
     logger => cp_error_get_logger(error)
 
@@ -317,7 +411,7 @@ CONTAINS
          ncol_global=k,para_env=vectors%matrix_struct%para_env, &
          context=vectors%matrix_struct%context,error=error)
 
-    IF (ANY(SHAPE(center).NE.(/k,6/))) CALL stop_program('centers_and_spreads','center')
+    IF (ANY(SHAPE(center).NE.(/k,6/))) CALL stop_program(routineP,'center')
 
     ! Allocating ZIJ
     IF ( qs_loc_env % operator_type == POSITION_OPERATOR ) THEN
@@ -400,11 +494,10 @@ CONTAINS
     ENDIF
 
     IF ( qs_loc_env % operator_type == POSITION_OPERATOR )  THEN
-       CALL centers_and_spreads ( ionode, iunit, qs_loc_env, zij, center, error )
+       CALL centers_and_spreads ( ionode, qs_loc_env, loc_print_key, zij, center, error )
        IF (qs_loc_env % molecular_states ) &
             CALL wfc_to_molecule ( qs_loc_env, loc_print_key,center, molecule_set,error )
     ENDIF
-
 
     ! release results
     DO i=1,SIZE ( ZIJ, 2 )
@@ -421,22 +514,39 @@ CONTAINS
 
   END SUBROUTINE qs_loc_compute_properties
 
-  !******************************************************************************
-  !
-  ! computes spread and centers
-  !
-  !******************************************************************************
-
-  SUBROUTINE centers_and_spreads ( ionode, iunit, qs_loc_env, zij, center, error )
-    ! globals
+!!****f* qs_localization/centers_and_spreads [1.0] *
+!!
+!!   NAME
+!!     centers_and_spreads
+!!
+!!   FUNCTION
+!!     computes spread and centers
+!!
+!!   NOTES
+!!
+!!   ARGUMENTS
+!!     - qs_env: the qs_env in which the qs_env lives
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!*** **********************************************************************
+  SUBROUTINE centers_and_spreads ( ionode, qs_loc_env, loc_print_key, zij, center, error )
     LOGICAL, INTENT(IN)                      :: ionode
-    INTEGER, INTENT(IN)                      :: iunit
     TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
+    TYPE(section_vals_type), POINTER         :: loc_print_key
     TYPE(cp_fm_p_type), INTENT(INOUT)        :: zij( :, : )
     REAL(KIND=dp), INTENT(OUT)               :: center( :, : )
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(default_string_length)         :: iter
+    CHARACTER(len=*), PARAMETER :: routineN = 'centers_and_spreads', &
+      routineP = moduleN//':'//routineN
+
     COMPLEX(KIND=dp)                         :: almost_determinant, z
     INTEGER                                  :: i, l, nstates, scr
     REAL(KIND=dp)                            :: imagpart, realpart
@@ -444,22 +554,17 @@ CONTAINS
     TYPE(cp_cfm_type), POINTER               :: complexresult
     TYPE(cp_logger_type), POINTER            :: logger
 
-! get nstates
-
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    ! get nstates
     CALL cp_fm_get_info ( zij ( 1, 1 ) % matrix, nrow_global = nstates ,error=error)
 
     ! initialize complexresult for boys-foster
     NULLIFY ( complexresult )
-    logger => cp_error_get_logger(error)
     CALL cp_cfm_create ( complexresult, zij ( 1, 1 ) % matrix % matrix_struct ,error=error)
-    !
 
     ! OK print out the centers ( center ( 1:3) )  and spreads ( center ( 4:6 ) ) of these friends
     cell => qs_loc_env % cell
-    IF (ionode) THEN
-       iter=cp_iter_string(logger%iter_info,error=error)
-       WRITE(iunit,'(i6,/,a)') nstates,TRIM(iter)
-    END IF
     DO l=1,nstates
        DO i=1,3
           CALL cp_fm_get_element(zij(1,i)%matrix,l,l,realpart)
@@ -468,8 +573,10 @@ CONTAINS
           center (l ,i )=( cell % hmat ( i, i ) / twopi ) * AIMAG ( LOG ( z ) )
           center (l, i+3 )=SQRT( -qs_loc_env % weights ( i ) * 2.0_dp * LOG ( ABS ( Z ) ) ) / twopi
        ENDDO
-       IF (ionode) WRITE(iunit,'(A,6F16.8)') "He", angstrom*center(l, 1 : 6 )
     ENDDO
+    
+    ! Print wannier centers
+    CALL print_wannier_centers(qs_loc_env, loc_print_key, center, logger, error)
 
     ! now, find the spread of the orbitals
     DO i=1,3
@@ -481,24 +588,194 @@ CONTAINS
           WRITE(scr,'(A,I6,F16.10)') " D Eq. 11 ",i,SQRT(-2.0*nstates*LOG(ABS(almost_determinant)))
        ENDIF
     ENDDO
-
     CALL cp_cfm_release(complexresult,error=error)
 
   END SUBROUTINE centers_and_spreads
 
-  !******************************************************************************
-  !
-  ! deallocates all data
-  !
-  !******************************************************************************
+!!****f* qs_localization/print_wannier_centers [1.0] *
+!!
+!!   NAME
+!!     print_wannier_centers
+!!
+!!   FUNCTION
+!!     Prints wannier centers
+!!
+!!   NOTES
+!!
+!!   ARGUMENTS
+!!     - qs_env: the qs_env in which the qs_env lives
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!*** **********************************************************************
+  SUBROUTINE print_wannier_centers(qs_loc_env, loc_print_key, center, logger, error)
+    TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
+    TYPE(section_vals_type), POINTER         :: loc_print_key
+    REAL(KIND=dp), INTENT(IN)                :: center( :, : )
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'print_wannier_centers', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(default_string_length)         :: iter
+    CHARACTER(LEN=default_string_length)     :: my_ext, my_form
+    INTEGER                                  :: iunit, l, nstates
+    LOGICAL                                  :: init_traj
+
+    nstates = SIZE(center,1)
+    my_form = "formatted"
+    my_ext  = ".data"
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,loc_print_key,"/IONS+CENTERS",error=error),cp_p_file)) THEN
+       CALL get_output_format(loc_print_key,my_form=my_form,my_ext=my_ext,error=error)
+    END IF
+    iunit=cp_print_key_unit_nr(logger,loc_print_key,"",extension=my_ext,file_form=my_form,&
+         middle_name=TRIM(qs_loc_env%filename),log_filename=.FALSE.,on_file=.TRUE.,&
+         is_new_file=init_traj,error=error)
+    IF (iunit>0) THEN
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,loc_print_key,"/IONS+CENTERS",error=error),cp_p_file)) THEN
+          ! Different possible formats
+          CALL print_wannier_traj(qs_loc_env, loc_print_key, center, iunit, init_traj, error)
+       ELSE
+          ! Default print format
+          iter=cp_iter_string(logger%iter_info,error=error)
+          WRITE(iunit,'(i6,/,a)') nstates,TRIM(iter)
+          DO l=1,nstates
+             WRITE(iunit,'(A,6F16.8)') "X", angstrom*center(l, 1 : 6 )
+          END DO
+       END IF
+    END IF
+    CALL cp_print_key_finished_output(iunit,logger,loc_print_key,on_file=.TRUE.,error=error)
+
+  END SUBROUTINE print_wannier_centers
+
+!!****f* qs_localization/print_wannier_traj [1.0] *
+!!
+!!   NAME
+!!     print_wannier_traj
+!!
+!!   FUNCTION
+!!     computes spread and centers
+!!
+!!   NOTES
+!!
+!!   ARGUMENTS
+!!     - qs_env: the qs_env in which the qs_env lives
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!*** **********************************************************************
+  SUBROUTINE print_wannier_traj(qs_loc_env, loc_print_key, center, iunit, init_traj, error)
+    TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
+    TYPE(section_vals_type), POINTER         :: loc_print_key
+    REAL(KIND=dp), INTENT(IN)                :: center( :, : )
+    INTEGER, INTENT(IN)                      :: iunit
+    LOGICAL, INTENT(IN)                      :: init_traj
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'print_wannier_traj', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=default_string_length)     :: iter, remark1, remark2, title
+    INTEGER                                  :: i, iskip, natom, ntot, &
+                                                outformat
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+
+    NULLIFY(particle_set, atomic_kind_set, atomic_kind, logger)
+    logger => cp_error_get_logger(error)
+    natom = SIZE(qs_loc_env%particle_set)
+    ntot =  natom + SIZE(center,1)
+    CALL allocate_particle_set(particle_set, ntot)
+    CALL allocate_atomic_kind_set(atomic_kind_set,1,error)
+    atomic_kind => atomic_kind_set(1)
+    CALL set_atomic_kind(atomic_kind=atomic_kind,kind_number=0,&
+         name="X",element_symbol="X",mass=0.0_dp)
+    ! Particles
+    DO i = 1, natom
+       particle_set(i)%atomic_kind => qs_loc_env%particle_set(i)%atomic_kind 
+       particle_set(i)%r = pbc(qs_loc_env%particle_set(i)%r,qs_loc_env%cell)
+    END DO
+    ! Wannier Centers
+    DO i = natom+1, ntot
+       particle_set(i)%atomic_kind => atomic_kind
+       particle_set(i)%r = pbc(center(i-natom,1:3),qs_loc_env%cell)
+    END DO
+    ! Dump the structure
+    CALL section_vals_val_get(loc_print_key,"FORMAT",i_val=outformat,error=error)
+    IF(outformat==dump_dcd) THEN
+       IF ( init_traj ) THEN
+          !Lets write the header for the coordinate dcd
+          iskip = section_get_ival(loc_print_key,"EACH",error=error)
+          WRITE(iunit) "CORD",0,-1,iskip,&
+               0,0,0,0,0,0,REAL(0,KIND=sp),1,0,0,0,0,0,0,0,0,24
+          remark1= "REMARK FILETYPE CORD DCD GENERATED BY CP2K"
+          remark2= "REMARK Support new DCD format with cell information"
+          WRITE(iunit) 2,remark1,remark2
+          WRITE(iunit) ntot
+          CALL m_flush(iunit)
+       ENDIF
+    ELSEIF(outformat==dump_xmol) THEN
+       iter = cp_iter_string(logger%iter_info,error=error) 
+       WRITE (UNIT=title,FMT="(A)")" Particles+Wannier centers. Iteration:"//TRIM(iter)
+    ELSE
+       title = ""
+    END IF
+    CALL write_particle_coordinates(particle_set,iunit,outformat,"POS",title,qs_loc_env%cell)
+    CALL m_flush(iunit)
+    CALL deallocate_particle_set(particle_set)
+    CALL deallocate_atomic_kind_set(atomic_kind_set,error)
+  END SUBROUTINE print_wannier_traj
+
+!!****f* qs_localization/qs_loc_destroy [1.0] *
+!!
+!!   NAME
+!!     qs_loc_destroy
+!!
+!!   FUNCTION
+!!     Deallocates all data
+!!
+!!   NOTES
+!!
+!!   ARGUMENTS
+!!     - qs_env: the qs_env in which the qs_env lives
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!*** **********************************************************************
   SUBROUTINE qs_loc_destroy ( qs_loc_env, error )
 
     TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_destroy', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: i, j
 
-    IF (qs_loc_env%is_initialized.ne.777) CALL stop_program("qs_localization","problems")
+    IF (qs_loc_env%is_initialized.ne.777) CALL stop_program(routineP,"problems")
 
     DO i=1,SIZE ( qs_loc_env % operator, 2 )
        DO j=1,SIZE ( qs_loc_env % operator, 1 )
@@ -511,17 +788,37 @@ CONTAINS
 
   END SUBROUTINE qs_loc_destroy
 
-  !******************************************************************************
-  !
-  ! maps wfc's to molecules
-  !
-  !******************************************************************************
+!!****f* qs_localization/wfc_to_molecule [1.0] *
+!!
+!!   NAME
+!!     wfc_to_molecule
+!!
+!!   FUNCTION
+!!     maps wfc's to molecules
+!!
+!!   NOTES
+!!
+!!   ARGUMENTS
+!!     - qs_env: the qs_env in which the qs_env lives
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!*** **********************************************************************
   SUBROUTINE wfc_to_molecule ( qs_loc_env, loc_print_key, center, molecule_set, error )
     TYPE(qs_loc_env_type), INTENT(IN)        :: qs_loc_env
     TYPE(section_vals_type), POINTER         :: loc_print_key
     REAL(KIND=dp), INTENT(IN)                :: center( :, : )
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'wfc_to_molecule', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: mol_name
     INTEGER :: counter, first_atom, i, iatom, ikind, imol, imol_now, isos, &

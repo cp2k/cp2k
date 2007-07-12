@@ -1169,6 +1169,23 @@ CONTAINS
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="IONS+CENTERS",&
+            description="prints out the wannier centers together with the particles",&
+            usage="IONS+CENTERS", default_l_val=.FALSE., &
+            lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="format",&
+            description="Specifies the format of the output file when IONS+CENTERS is enabled.",&
+            usage="FORMAT (ATOMIC|XMOL|DCD)",&
+            default_i_val=dump_xmol,&
+            enum_c_vals=output_name_types,&
+            enum_i_vals=output_name_index,&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL cp_print_key_section_create(print_key2,"cubes",&
             description="Controls the printing of cube files in localization", &
             print_level=high_print_level,each=(/1/),filename="",&
@@ -3147,7 +3164,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key, sub_section
 
     failure=.FALSE.
 
@@ -3157,7 +3173,7 @@ CONTAINS
             description="Sets up periodic boundary condition parameters if requested ",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
-       NULLIFY(keyword, print_key)
+       NULLIFY(keyword)
        CALL keyword_create(&
             keyword=keyword,&
             name="NUMBER_OF_SHELLS",&

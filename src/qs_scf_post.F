@@ -71,7 +71,6 @@ MODULE qs_scf_post
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
-  USE level_shift,                     ONLY: level_shift_testing
   USE lowdin,                          ONLY: lowdin_charges
   USE molecular_states,                ONLY: construct_molecular_states
   USE molecule_types_new,              ONLY: molecule_type
@@ -133,20 +132,22 @@ MODULE qs_scf_post
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
-
   PRIVATE
 
-! *** Global parameters ***
+  ! Local type
+  TYPE evals_p_type
+     REAL(KIND = dp), DIMENSION(:), POINTER :: evals
+  END TYPE evals_p_type
 
+  ! Global parameters
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_post'
-
   PUBLIC :: scf_post_calculation
 
 ! *****************************************************************************
 
 CONTAINS
 
-!!****f* qs_scf/scf_post_calculation [1.0] *
+!!****f* qs_scf_post/scf_post_calculation [1.0] *
 !!
 !!   NAME
 !!     scf_post_calculation
@@ -186,13 +187,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: do_et, failure, first_time, &
-                                                ionode, my_localized_wfn, &
-                                                p_loc, p_molstates
+    CHARACTER(LEN=default_path_length)       :: filename
+    INTEGER                                  :: handle, homo, ispin, istat, &
+                                                n, nao, nlumos, nmo, &
+                                                output_unit
+    LOGICAL                                  :: failure, ionode, &
+                                                my_localized_wfn, p_loc, &
+                                                p_molstates
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: center
     TYPE(coeff_type)                         :: wf_g, wf_r
     TYPE(coeff_type), POINTER                :: rho_core
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -201,15 +204,19 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_deriv, &
                                                 mo_localized
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
+    TYPE(cp_subsystem_type), POINTER         :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(evals_p_type), DIMENSION(:), &
+      POINTER                                :: unoccupied_evals
     TYPE(localized_wfn_control_type), &
       POINTER                                :: my_localized_wfn_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(particle_list_type), POINTER        :: particles
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
+    TYPE(preconditioner_type), POINTER       :: preconditioner
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
@@ -219,45 +226,21 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: ks_rmpv, matrix_s
-    TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
-
-    TYPE evals_p_type
-         REAL(KIND = dp), DIMENSION(:), POINTER :: evals
-    END TYPE
-    TYPE (evals_p_type), DIMENSION(:), POINTER  :: unoccupied_evals
-    INTEGER            ::  handle, ispin, istat, n, nmo, output_unit,i
-    INTEGER            :: file_unit,ivector,nao,nlumos,nhomo, homo, unit_nr, idir
-    LOGICAL            :: homoEQnmo, ghost
-    CHARACTER(LEN=default_path_length)  :: filename
-    CHARACTER(LEN=default_string_length)  :: title
-    CHARACTER(LEN=default_string_length)  :: mulliken_title
-    REAL(KIND = dp)           :: volume, dipole(3),r_pbc(3),zeff
-    REAL(kind=dp),SAVE,DIMENSION(3) :: old_dipole=0
-    CHARACTER(LEN=default_string_length) :: lowdin_title
-    REAL(KIND = dp)           :: q_max
-    REAL(KIND = dp), POINTER, DIMENSION(:,:) :: center
-    TYPE(section_vals_type), POINTER :: print_key, input, loc_section,&
-         density_fit_section,et_section, loc_print_key
-    TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
     TYPE(realspace_grid_type), POINTER       :: rs
-    CHARACTER(len=default_string_length)     :: iter
-    TYPE(gth_potential_type), POINTER        :: gth_potential
-    TYPE(preconditioner_type), POINTER       :: preconditioner
-    TYPE(cp_subsystem_type), POINTER :: subsys
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_fm_p_type),DIMENSION(:),POINTER  :: my_mos
+    TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(section_vals_type), POINTER         :: input, loc_print_key, &
+                                                loc_section, print_key
+    TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
 
     CALL timeset(routineN,"I",'',handle)
 
-! writes the data that is already available in qs_env
+    ! Writes the data that is already available in qs_env
     para_env=>qs_env%para_env
     CALL write_available_results(qs_env,error)
 
     failure=.FALSE.
     my_localized_wfn = .FALSE.
-    NULLIFY(cell,dft_control,pw_env,auxbas_pw_pool,pw_pools,&
-            mos,atomic_kind_set,particle_set, rho,mo_coeff,&
+    NULLIFY(dft_control,pw_env,auxbas_pw_pool,pw_pools,mos,rho,mo_coeff,&
             ks_rmpv,matrix_s,qs_loc_env,scf_control,unoccupied_orbs,&
             mo_eigenvalues,unoccupied_evals,fm_struct_tmp,molecule_set,&
             center,rho_core,tddfpt_control,subsys,particles,input,print_key)
@@ -266,76 +249,34 @@ CONTAINS
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) THEN
-       output_unit= cp_logger_get_default_unit_nr(logger)
-    ELSE
-       output_unit = -1
-    END IF
+    output_unit = -1
+    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
 
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+    ! Here we start with data that needs a postprocessing...
     IF (.NOT. failure) THEN
        CALL get_qs_env(qs_env,dft_control=dft_control,molecule_set=molecule_set, &
-            mos=mos,atomic_kind_set=atomic_kind_set,particle_set=particle_set,&
-            rho=rho,matrix_ks=ks_rmpv,scf_control=scf_control,matrix_s=matrix_s, &
-            input=input, subsys=subsys,&
-            cell=cell,rho_core=rho_core,tddfpt_control=tddfpt_control,error=error)
+            mos=mos,rho=rho,matrix_ks=ks_rmpv,scf_control=scf_control,matrix_s=matrix_s, &
+            input=input, subsys=subsys,rho_core=rho_core,tddfpt_control=tddfpt_control,&
+            error=error)
        CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
        CALL cp_subsys_get(subsys,particles=particles,error=error)
 
-!    *** compute the mulliken charges ***
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-            "DFT%PRINT%MULLIKEN",error=error),cp_p_file)) THEN
-          unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%MULLIKEN",&
-               extension=".mulliken",middle_name="",log_filename=.FALSE.,&
-               error=error)
-          mulliken_title="  Mulliken charges : iteration level: " &
-                                //cp_iter_string(logger%iter_info, print_key,error=error)
-          CALL mulliken_charges(rho%rho_ao,matrix_s(1)%matrix,para_env,particle_set, &
-                                  unit_nr,mulliken_title)
+       ! Compute Atomic Charges
+       CALL qs_scf_post_charges(input, logger, qs_env, rho, matrix_s, mos, para_env, error)
 
-          CALL cp_print_key_finished_output(unit_nr, logger,input,&
-               "DFT%PRINT%MULLIKEN", error=error)
-       END IF
-
-!    *** compute the Lowdin charges ***
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-            "DFT%PRINT%LOWDIN",error=error),cp_p_file)) THEN
-          unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%LOWDIN",&
-               extension=".lowdin",log_filename=.FALSE.,error=error)
-          lowdin_title="  Lowdin charges : iteration level: " &
-                                //cp_iter_string(logger%iter_info, print_key,error=error)
-          CALL lowdin_charges(matrix_s(1)%matrix,mos,particle_set, &
-                                  unit_nr,lowdin_title,error=error)
-          CALL cp_print_key_finished_output(unit_nr, logger,input,&
-               "DFT%PRINT%LOWDIN", error=error)
-       END IF
-
-       CALL resp_fit(qs_env,error)
-
-!    *** Fit charges with the Bloechl scheme
-       print_key => section_vals_get_subs_vals(input,"PROPERTIES%FIT_CHARGE", error=error)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,&
-            error=error),cp_p_file)) THEN
-          unit_nr=cp_print_key_unit_nr(logger,input,"PROPERTIES%FIT_CHARGE",&
-               extension=".Fitcharge",log_filename=.FALSE.,error=error)
-          density_fit_section => section_vals_get_subs_vals(input,"DFT%DENSITY_FITTING",error=error)
-          CALL get_ddapc(qs_env,.FALSE.,density_fit_section,iwc=unit_nr,error=error)
-          CALL cp_print_key_finished_output(unit_nr, logger,input,&
-               "PROPERTIES%FIT_CHARGE", error=error)
-       END IF
-
-!    ***  Print Localized orbitals
+       ! Print Localized orbitals
        print_key => section_vals_get_subs_vals(dft_section,"PRINT%LOCALIZATION",error=error)
        p_loc=BTEST(cp_print_key_should_output(logger%iter_info,print_key,&
-           error=error),cp_p_file)
-!    ***  Print Molecular States
+            error=error),cp_p_file)
+       ! Print Molecular States
        print_key => section_vals_get_subs_vals(dft_section,"PRINT%MOLECULAR_STATES",error=error)
        p_molstates=BTEST(cp_print_key_should_output(logger%iter_info,print_key,&
-           error=error),cp_p_file)
+            error=error),cp_p_file)
 
-!    *** setup the grids needed to compute a wavefunction given a vector
+       ! Setup the grids needed to compute a wavefunction given a vector..
        IF ( ((BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
               error=error),cp_p_file).OR.&
               BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%LOCALIZATION%CUBES",&
@@ -345,87 +286,62 @@ CONTAINS
                 section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO",error=error) /=0 ) &
             ).OR. p_loc ) THEN
           CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
-               pw_pools=pw_pools,auxbas_rs_pool=auxbas_rs_pool,error=error)
+                          pw_pools=pw_pools,auxbas_rs_pool=auxbas_rs_pool,error=error)
           CALL rs_pool_create_rs(auxbas_rs_pool,rs, error=error)
           CALL pw_pool_init_coeff(auxbas_pw_pool,wf_r,&
-               use_data = REALDATA3D,&
-               in_space = REALSPACE, error=error)
+                                  use_data = REALDATA3D,&
+                                  in_space = REALSPACE, error=error)
           CALL pw_pool_init_coeff(auxbas_pw_pool,wf_g,&
-               use_data = COMPLEXDATA1D,&
-               in_space = RECIPROCALSPACE, error=error)
+                                  use_data = COMPLEXDATA1D,&
+                                  in_space = RECIPROCALSPACE, error=error)
        END IF
 
-! *** makes the MOs eigenstates, computes eigenvalues, write cubes
+       ! Makes the MOs eigenstates, computes eigenvalues, write cubes
        IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
             error=error),cp_p_file) .AND. section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO",error=error) /=0) THEN
-         IF (qs_env%dft_control%restricted) THEN
-          !
-          ! The issue is that one state is different from the others, so we certainly can't rotate all N+1 alpha states among themselves
-          ! furthermore, alpha and beta orbitals do have the same shape, but not the same v_xc, therefore these seems to be no reason that
-          ! they should have the same eigenvalues.
-          ! So it looks like I need a convincing definition of an eigenstate in this case :-)
-          ! 
-          IF (ionode) WRITE(output_unit,*) " Unclear how we define MOs in the restricted case ... skipping"
-         ELSE
-          DO ispin=1,dft_control%nspins
-             CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
-                             eigenvalues=mo_eigenvalues,homo=homo,nmo=nmo)
-             IF (ionode) WRITE(output_unit,*) " "
-             IF (ionode) WRITE(output_unit,*) " Eigenvalues of the occupied subspace spin ",ispin
-             IF (homo .NE. nmo) THEN
-                IF (ionode) WRITE(output_unit,*) &
-                    " and ",nmo-homo," added MO eigenvalues"
-             ENDIF
-             IF (ionode) WRITE(output_unit,*) " ---------------------------------------------"
-             ! also rotate the OT derivs, since they are needed for force calculations
-             IF (ASSOCIATED(qs_env%mo_derivs)) THEN
-                 mo_coeff_deriv=>qs_env%mo_derivs(ispin)%matrix
-             ELSE
-                 mo_coeff_deriv=>NULL()
-             ENDIF
-             CALL calculate_subspace_eigenvalues(mo_coeff,&
-                  ks_rmpv(ispin)%matrix,mo_eigenvalues, &
-                  para_env=qs_env%para_env,scr=output_unit, &
-                  ionode=ionode, do_rotation=.TRUE.,co_rotate=mo_coeff_deriv,error=error)
+          IF (qs_env%dft_control%restricted) THEN
+             !
+             ! The issue is that one state is different from the others, 
+             ! so we certainly can't rotate all N+1 alpha states among themselves
+             ! furthermore, alpha and beta orbitals do have the same shape, 
+             ! but not the same v_xc, therefore these seems to be no reason that
+             ! they should have the same eigenvalues.
+             ! So it looks like I need a convincing definition of an eigenstate in this case :-)
+             ! 
+             IF (ionode) WRITE(output_unit,*) " Unclear how we define MOs in the restricted case ... skipping"
+          ELSE
+             DO ispin=1,dft_control%nspins
+                CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
+                                eigenvalues=mo_eigenvalues,homo=homo,nmo=nmo)
+                IF (ionode) WRITE(output_unit,*) " "
+                IF (ionode) WRITE(output_unit,*) " Eigenvalues of the occupied subspace spin ",ispin
+                IF (homo .NE. nmo) THEN
+                   IF (ionode) WRITE(output_unit,*)" and ",nmo-homo," added MO eigenvalues"
+                ENDIF
+                IF (ionode) WRITE(output_unit,*) " ---------------------------------------------"
+                ! Also rotate the OT derivs, since they are needed for force calculations
+                IF (ASSOCIATED(qs_env%mo_derivs)) THEN
+                   mo_coeff_deriv=>qs_env%mo_derivs(ispin)%matrix
+                ELSE
+                   mo_coeff_deriv=>NULL()
+                ENDIF
+                CALL calculate_subspace_eigenvalues(mo_coeff,ks_rmpv(ispin)%matrix,mo_eigenvalues, &
+                  para_env=qs_env%para_env,scr=output_unit, ionode=ionode, do_rotation=.TRUE.,&
+                  co_rotate=mo_coeff_deriv,error=error)
 
-             IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
-                  error=error),cp_p_file) .AND. section_get_lval(dft_section,"PRINT%MO_CUBES%WRITE_CUBE",error=error)) THEN
-                nhomo=section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO",error=error)
-                IF (nhomo==-1) nhomo=homo
-                DO ivector=MAX(1,&
-                   homo-nhomo+1),homo
-                   CALL get_qs_env(qs_env=qs_env,&
-                                   atomic_kind_set=atomic_kind_set,&
-                                   cell=cell,&
-                                   dft_control=dft_control,&
-                                   particle_set=particle_set,&
-                                   pw_env=pw_env,error=error)
-                   CALL calculate_wavefunction(mo_coeff,ivector,wf_r,&
-                        wf_g,atomic_kind_set,cell,dft_control,particle_set,&
-                        pw_env ,error=error)
-                   WRITE(filename,'(a4,I5.5,a1,I1.1)')"WFN_",ivector,"_",ispin
-                   unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%MO_CUBES",&
-                        extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
-                   WRITE(title,*) "WAVEFUNCTION ",ivector," spin ",ispin," i.e. HOMO - ",ivector-homo
-                   CALL rs_pw_to_cube(wf_r%pw,unit_nr,ionode,title,rs,particles=particles,&
-                        stride=section_get_ival(dft_section,"PRINT%MO_CUBES%STRIDE",error=error),&
-                        error=error)
-                   CALL cp_print_key_finished_output(unit_nr,logger,input,&
-                        "DFT%PRINT%MO_CUBES",error=error)
-                ENDDO
-             END IF
-          ENDDO
-         ENDIF
+                ! Prints the cube files of OCCUPIED ORBITALS
+                CALL qs_scf_post_occ_cubes(input, dft_section, dft_control, logger, qs_env,&
+                     mo_coeff, rs, wf_g, wf_r, particles, homo, ispin, ionode, error)
+             ENDDO
+          ENDIF
        ENDIF
 
-! *** init the localization environment, needed e.g. for wannier functions and molecular states
+       ! Initialize the localization environment, needed e.g. for wannier functions and molecular states
        IF(dft_control%qs_control%localized_wfn) THEN
 
           my_localized_wfn_control =>  dft_control%qs_control%localized_wfn_control
           CALL localized_wfn_control_retain(my_localized_wfn_control,error=error)
           CPPrecondition(ASSOCIATED(my_localized_wfn_control),cp_failure_level,routineP,error,failure)
-!     this should be done only in the at selected steps of the iter_level we are in (MD or..)
-!     for this I need to know the niter and the iter_level to refer to
           my_localized_wfn = (.NOT. failure .AND. .TRUE.)
           IF(my_localized_wfn) THEN
              CALL qs_loc_env_create(qs_loc_env_new,error=error)
@@ -434,6 +350,7 @@ CONTAINS
           CALL localized_wfn_control_release(my_localized_wfn_control,error=error)
 
        ELSEIF (p_loc)THEN
+
           NULLIFY(qs_loc_env)
           ALLOCATE(qs_loc_env)
           CALL qs_loc_init(qs_loc_env,qs_env,error=error)
@@ -449,175 +366,83 @@ CONTAINS
                r_val=qs_loc_env%eps_localization,error=error)
        ENDIF
 
-! *** gets localization info for the occupied orbs
-! *** possibly gets wannier functions
-! *** possibly gets molecular states
-
+       ! Gets localization info for the occupied orbs
+       !  - Possibly gets wannier functions
+       !  - Possibly gets molecular states
        IF (my_localized_wfn) THEN
 
           loc_section => section_vals_get_subs_vals(dft_section,"QS%LOCALIZE",error=error)
           CALL qs_loc_driver(qs_env,qs_loc_env_new,loc_section,error=error)
 
        ELSEIF (p_loc) THEN
-          IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-               "DFT%PRINT%LOCALIZATION/TOTAL_DIPOLE",&
-               error=error),cp_p_file)) THEN
 
-             NULLIFY(gth_potential)
-             dipole=0.0_dp
-             ! charges of the atoms involved
-             DO i=1,SIZE(particle_set)
-                CALL get_atomic_kind(particle_set(i)%atomic_kind,ghost=ghost,&
-                     gth_potential=gth_potential)
-                zeff = 0.0_dp
-                IF (.NOT.ghost) THEN
-                   CALL get_potential(gth_potential,zeff=zeff)
-                   CPPrecondition(cell%orthorhombic,cp_failure_level,routineP,error,failure)
-                   DO idir=1,3
-                      r_pbc(idir) = particle_set(i) % r(idir)!-0.5_dp*cell%hmat(idir,idir)
-                   END DO
-                   dipole=dipole + zeff*r_pbc
+          IF (qs_env%dft_control%restricted) THEN
+             IF (ionode) WRITE(output_unit,*) " Unclear how we define MOs / localization in the restricted case ... skipping"
+          ELSE
+             DO ispin=1,dft_control%nspins
+                CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
+                                eigenvalues=mo_eigenvalues,homo=homo,nmo=nmo)
+                ! Get eigenstates
+                IF (section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO",error=error)==0) THEN
+                   IF (ionode) WRITE(output_unit,*) " "
+                   IF (ionode) WRITE(output_unit,*) " Eigenvalues of the occupied subspace spin ",ispin
+                   IF (homo .NE. nmo) THEN
+                      IF (ionode) WRITE(output_unit,*) " and ",nmo-homo," added MO eigenvalues"
+                   ENDIF
+                   IF (ionode) WRITE(output_unit,*) " ---------------------------------------------"
+                   ! Also rotate the OT derivs, since they are needed for force calculations
+                   IF (ASSOCIATED(qs_env%mo_derivs)) THEN
+                      mo_coeff_deriv=>qs_env%mo_derivs(ispin)%matrix
+                   ELSE
+                      mo_coeff_deriv=>NULL()
+                   ENDIF
+                   CALL calculate_subspace_eigenvalues(mo_coeff,ks_rmpv(ispin)%matrix, &
+                        evals_arg=mo_eigenvalues, para_env=qs_env%para_env,scr=output_unit, &
+                        ionode=ionode, do_rotation=.TRUE.,error=error)
                 END IF
-             END DO
-          END IF
-         IF (qs_env%dft_control%restricted) THEN
-          IF (ionode) WRITE(output_unit,*) " Unclear how we define MOs / localization in the restricted case ... skipping"
-         ELSE
-          DO ispin=1,dft_control%nspins
-             CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
-                                              eigenvalues=mo_eigenvalues,homo=homo,nmo=nmo)
-             ! just get eigenstates
-             IF (section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO",error=error)==0) THEN
-                IF (ionode) WRITE(output_unit,*) " "
-                IF (ionode) WRITE(output_unit,*) " Eigenvalues of the occupied subspace spin ",ispin
-                IF (homo .NE. nmo) THEN
-                   IF (ionode) WRITE(output_unit,*) &
-                       " and ",nmo-homo," added MO eigenvalues"
+                NULLIFY(mo_localized)
+                CALL cp_fm_create(mo_localized,mo_coeff%matrix_struct,error=error)
+                ALLOCATE(center(mo_localized%matrix_struct%ncol_global,6))
+                CALL cp_fm_to_fm(mo_coeff,mo_localized,error=error)
+                ! Do localization..
+                WRITE(filename,'(a13,I1.1)') "HOMO_CENTERS_",ispin
+                IF (ionode) WRITE(output_unit,*) ""
+                IF (ionode) WRITE(output_unit,*) "Computing localization properties"
+                qs_loc_env%filename = filename
+                loc_print_key => section_vals_get_subs_vals(input,"DFT%PRINT%LOCALIZATION",error=error) 
+                CALL qs_loc_compute_properties(qs_loc_env,molecule_set,mo_localized,center,ionode,loc_print_key,&
+                                               error=error)
+                IF (ionode) WRITE(output_unit,*) "Results in ",filename
+
+                ! Write the wannier functions to cubes
+                CALL qs_scf_post_wannier(input, dft_section, dft_control, logger, qs_env,&
+                     rs, wf_g, wf_r, mo_localized, particles, homo, ispin, ionode, center, error)
+
+                ! Compute the molecular states
+                IF ( p_molstates ) THEN
+                   CALL construct_molecular_states ( molecule_set, mo_localized, mo_coeff, mo_eigenvalues, &
+                                                     ks_rmpv ( ispin ) % matrix, matrix_s(1)%matrix, qs_env, &
+                                                     wf_r, wf_g, force_env_section=qs_env%input, error=error)
                 ENDIF
-                IF (ionode) WRITE(output_unit,*) " ---------------------------------------------"
-                ! also rotate the OT derivs, since they are needed for force calculations
-                IF (ASSOCIATED(qs_env%mo_derivs)) THEN
-                    mo_coeff_deriv=>qs_env%mo_derivs(ispin)%matrix
-                ELSE
-                    mo_coeff_deriv=>NULL()
-                ENDIF
-                CALL calculate_subspace_eigenvalues(mo_coeff,ks_rmpv(ispin)%matrix, &
-                     evals_arg=mo_eigenvalues, para_env=qs_env%para_env,scr=output_unit, &
-                     ionode=ionode, do_rotation=.TRUE.,error=error)
-             ENDIF
-             NULLIFY(mo_localized)
-             CALL cp_fm_create(mo_localized,mo_coeff%matrix_struct,error=error)
-             ALLOCATE(center(mo_localized%matrix_struct%ncol_global,6))
-             CALL cp_fm_to_fm(mo_coeff,mo_localized,error=error)
-             ! do localization computation
-             WRITE(filename,'(a13,I1.1)') "HOMO_CENTERS_",ispin
-             IF (ionode) WRITE(output_unit,*) ""
-             IF (ionode) WRITE(output_unit,*) "Computing localization properties"
-             unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%LOCALIZATION",&
-                  extension=".data",middle_name=TRIM(filename),&
-                  log_filename=.FALSE.,on_file=.TRUE.,error=error)
-             loc_print_key => section_vals_get_subs_vals(input,"DFT%PRINT%LOCALIZATION",error=error) 
-             CALL qs_loc_compute_properties(qs_loc_env,molecule_set,mo_localized,center,ionode,unit_nr,&
-                  loc_print_key,error=error)
-             CALL cp_print_key_finished_output(unit_nr,logger,input,&
-                  "DFT%PRINT%LOCALIZATION",on_file=.TRUE.,error=error)
-             IF (ionode) WRITE(output_unit,*) "Results in ",filename
+                CALL cp_fm_release(mo_localized,error=error)
+                DEALLOCATE(center)
+             ENDDO
+          ENDIF
 
-             IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-                  "DFT%PRINT%LOCALIZATION/TOTAL_DIPOLE",&
-                  error=error),cp_p_file)) THEN
-                ! charges of the wfc involved
-                DO i=1,SIZE(center,1)
-                   r_pbc = center(i,1:3)
-                   dipole=dipole - (3.0_dp-REAL(dft_control%nspins,dp)) * r_pbc
-                ENDDO
-             END IF
-
-             ! write the wannier functions to cubes
-             IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%LOCALIZATION%CUBES",&
-                  error=error),cp_p_file).AND. .NOT. p_molstates ) THEN
-
-                nhomo=section_get_ival(dft_section,"PRINT%LOCALIZATION%CUBES%NHOMO",error=error)
-                IF(nhomo==-1) nhomo=homo
-                DO ivector=MAX(1,homo-nhomo+1),homo
-                   CALL get_qs_env(qs_env=qs_env,&
-                                   atomic_kind_set=atomic_kind_set,&
-                                   cell=cell,&
-                                   dft_control=dft_control,&
-                                   particle_set=particle_set,&
-                                   pw_env=pw_env,error=error)
-                   CALL calculate_wavefunction(mo_localized,ivector,wf_r, &
-                        wf_g,atomic_kind_set,cell,dft_control,particle_set, &
-                        pw_env ,error=error)
-
-                   WRITE(filename,'(a8,I5.5,a1,I1.1)') "WANNIER",ivector,"_",ispin
-                   unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%LOCALIZATION%CUBES",&
-                        extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
-                   ! title name
-                   WRITE(title,'(A7,I5.5,A1,I1.1,A1,6G10.4)') "WANNIER",ivector,"_",ispin," ",&
-                     center(ivector,1:3)*angstrom, &
-                     center(ivector,4:6)*angstrom
-                   CALL rs_pw_to_cube(wf_r%pw,unit_nr,ionode,title,rs,&
-                        particles=particles,&
-                        stride=section_get_ival(dft_section,"PRINT%LOCALIZATION%CUBES%STRIDE",error=error),&
-                        error=error)
-                   CALL cp_print_key_finished_output(unit_nr,logger,input,&
-                        "DFT%PRINT%LOCALIZATION%CUBES",error=error)
-                ENDDO
-             END IF
-             ! compute the molecular states
-             IF ( p_molstates ) THEN
-                  CALL construct_molecular_states ( molecule_set, mo_localized, &
-                                                    mo_coeff, mo_eigenvalues, &
-                                                    ks_rmpv ( ispin ) % matrix, &
-                                                    matrix_s(1)%matrix, &
-                                                    qs_env,    &
-                                                    wf_r, wf_g, force_env_section=qs_env%input, error=error)
-             ENDIF
-             CALL cp_fm_release(mo_localized,error=error)
-
-             IF (.FALSE.) &
-             CALL level_shift_testing(atomic_kind_set, particle_set, cell, center, &
-                                      pw_env, rho, rho_core, error=error)
-
-             DEALLOCATE(center)
-          ENDDO
-         ENDIF
-
-          IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-               "DFT%PRINT%LOCALIZATION/TOTAL_DIPOLE",&
-               first_time=first_time,error=error),cp_p_file)) THEN
-             dipole=pbc(dipole,cell)
-             unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%LOCALIZATION",&
-                  extension=".newDipole",log_filename=.FALSE.,on_file=.TRUE.,&
-                  error=error)
-             IF (unit_nr>0) THEN
-                IF (first_time) THEN
-                   WRITE(unit=unit_nr,fmt="(a)")&
-                        "# iter_level    dipole(x,y,z)[au] delta_dipole(x,y,z)[au]"
-                END IF
-                iter=cp_iter_string(logger%iter_info,error=error)
-                WRITE(unit=unit_nr,fmt="(a,6(es18.8))")&
-                     iter(1:15),&
-                     dipole,pbc(dipole-old_dipole,cell)
-             END IF
-             CALL cp_print_key_finished_output(unit_nr,logger,input,&
-                  "DFT%PRINT%LOCALIZATION",on_file=.TRUE.,error=error)
-             old_dipole=dipole
-          END IF
-
+          ! Print Total Dipole
+          CALL qs_scf_post_loc_dip(input, dft_control, logger, qs_env, error)
        ENDIF
 
-! gets the lumos, and eigenvalues for the lumos
+       ! Gets the lumos, and eigenvalues for the lumos
        IF ((BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
             error=error),cp_p_file) .OR.dft_control%do_tddfpt_calculation ) .AND. &
-           section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO",error=error) /= 0) THEN
+            section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO",error=error) /= 0) THEN
           ALLOCATE(unoccupied_orbs(dft_control%nspins))
           ALLOCATE(unoccupied_evals(dft_control%nspins))
           DO ispin=1,dft_control%nspins
              NULLIFY(unoccupied_orbs(ispin)%matrix)
              NULLIFY(unoccupied_evals(ispin)%evals)
-! write eigenvalues and a set of cubes
+             ! Always write eigenvalues
              IF (ionode) WRITE(output_unit,*) " "
              IF (ionode) WRITE(output_unit,*) " Lowest Eigenvalues of the unoccupied subspace spin ",ispin
              IF (ionode) WRITE(output_unit,*) " -----------------------------------------------------"
@@ -654,52 +479,16 @@ CONTAINS
                   unoccupied_evals(ispin)%evals, para_env=qs_env%para_env,scr=output_unit, &
                   ionode=ionode,error=error)
 
-             IF (p_loc) THEN
-                IF (ionode) WRITE(output_unit,*) ""
-                IF (ionode) WRITE(output_unit,*) "Computing localization properties"
-                WRITE(filename,'(a13,I1.1)') "LUMO_CENTERS_",ispin
-                unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%LOCALIZATION",&
-                     extension=".data",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
-                loc_print_key => section_vals_get_subs_vals(input,"DFT%PRINT%LOCALIZATION",error=error)
-                ALLOCATE(center(unoccupied_orbs(ispin)%matrix%matrix_struct%ncol_global,6))
-                CALL qs_loc_compute_properties(qs_loc_env,molecule_set,unoccupied_orbs(ispin)%matrix,&
-                                center,ionode,unit_nr,loc_print_key,error=error)
-                DEALLOCATE(center)
-                CALL cp_print_key_finished_output(unit_nr,logger,input,&
-                     "DFT%PRINT%LOCALIZATION",error=error)
-                IF (ionode) WRITE(output_unit,*) "Results in ",filename
-             ENDIF
+             ! Localization
+             CALL qs_scf_post_loc(input, logger, unoccupied_orbs, qs_loc_env, molecule_set,&
+                  output_unit, ispin, ionode, p_loc, error)
 
-             IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
-                  error=error),cp_p_file) .AND. section_get_lval(dft_section,"PRINT%MO_CUBES%WRITE_CUBE",error=error) ) THEN
-                DO ivector=1,nlumos
-                   CALL get_qs_env(qs_env=qs_env,&
-                                   atomic_kind_set=atomic_kind_set,&
-                                   cell=cell,&
-                                   dft_control=dft_control,&
-                                   particle_set=particle_set,&
-                                   pw_env=pw_env,error=error)
-                   CALL calculate_wavefunction(unoccupied_orbs(ispin)%matrix,&
-                        ivector,wf_r, &
-                        wf_g, atomic_kind_set,cell,dft_control,particle_set, &
-                        pw_env, error=error)
-                   WRITE(filename,'(a4,I5.5,a1,I1.1)')"WFN_",homo+ivector,"_",ispin
-                   unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%MO_CUBES",&
-                        extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
-                   WRITE(title,*) "WAVEFUNCTION ",homo+ivector," spin ",ispin," i.e. LUMO + ",ivector-1
-                   CALL rs_pw_to_cube(wf_r%pw,unit_nr,ionode,title,rs,&
-                        particles=particles,&
-                        stride=section_get_ival(dft_section,"PRINT%MO_CUBES%STRIDE",error=error),&
-                        error=error)
-                   CALL cp_print_key_finished_output(unit_nr,logger,input,&
-                        "DFT%PRINT%MO_CUBES",error=error)
-                ENDDO
-             ENDIF
+             ! Prints the cube files of UNOCCUPIED ORBITALS
+             CALL qs_scf_post_unocc_cubes(input, dft_section, dft_control, logger, qs_env,&
+                  unoccupied_orbs, rs, wf_g, wf_r, particles, nlumos, homo, ispin, ionode, error)
           ENDDO
 
-          !--------------------------------------!
-          ! save the info for tddfpt calculation !
-          !--------------------------------------!
+          ! Save the info for tddfpt calculation
           IF (dft_control%do_tddfpt_calculation) THEN
              ALLOCATE(tddfpt_control%lumos_eigenvalues(nlumos,dft_control%nspins))
              DO ispin=1, dft_control%nspins
@@ -711,7 +500,7 @@ CONTAINS
 
        ENDIF
 
-! *** deallocate grids needed to compute wavefunctions
+       ! Deallocate grids needed to compute wavefunctions
        IF ( ((BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
               error=error),cp_p_file).OR.&
               BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%LOCALIZATION%CUBES",&
@@ -727,8 +516,8 @@ CONTAINS
           CALL rs_pool_give_back_rs(auxbas_rs_pool,rs, error=error)
        END IF
 
-! *** destroy the localization environment
-       IF(dft_control%qs_control%localized_wfn .AND. my_localized_wfn) THEN
+       ! Destroy the localization environment
+       IF (dft_control%qs_control%localized_wfn .AND. my_localized_wfn) THEN
           CALL qs_loc_env_destroy(qs_loc_env_new, error=error)
        ELSEIF (p_loc) THEN
           CALL qs_loc_destroy(qs_loc_env,error=error)
@@ -736,95 +525,692 @@ CONTAINS
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        ENDIF
 
-! *** compute the optical conductivity (needs homos and lumos)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-            "DFT%PRINT%OPTICAL_CONDUCTIVITY",error=error),cp_p_file)) THEN
-           IF (ionode) WRITE(output_unit,*) " "
-           IF (ionode) WRITE(output_unit,*) " Computing the optical conductivity "
-           IF (ionode) WRITE(output_unit,*) " Experimental version "
-           IF (ionode) WRITE(output_unit,*) " Check the code before believing results "
-           homoEQnmo=.TRUE.
-           DO ispin=1,dft_control%nspins
-              CALL get_mo_set(mo_set=mos(ispin)%mo_set,homo=homo,nmo=nmo)
-              IF (homo.NE.nmo) homoEQnmo=.FALSE.
-           ENDDO
-           IF (.NOT. homoEQnmo) THEN
-              IF (ionode) WRITE(output_unit,*) " homo.NE.nmo : skip optical conductivty "
-           ELSE
-             IF (.NOT.( BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
-              error=error),cp_p_file) )) &
-              CALL stop_program("optical_conductivity","Needs MO_CUBES to be activated")
-             filename="CONDUCTIVITY"
-             unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%OPTICAL_CONDUCTIVITY",&
-                  extension=".data",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
-             CALL get_cell(cell,deth=volume)
-             DO ispin=1,dft_control%nspins
-                CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
-                                                       eigenvalues=mo_eigenvalues)
-                CALL optical_conductivity(matrix_s,mo_coeff,mo_eigenvalues, &
-                                            unoccupied_orbs(ispin)%matrix,unoccupied_evals(ispin)%evals, &
-                                            volume,ionode,unit_nr,error=error)
-             ENDDO
-             CALL cp_print_key_finished_output(unit_nr,logger,input,&
-                  "DFT%PRINT%OPTICAL_CONDUCTIVITY",error=error)
-             IF (ionode) WRITE(output_unit,*) " Results written to file ",filename
-           ENDIF
-       ENDIF
+       ! Compute the optical conductivity (needs homos and lumos)
+       CALL qs_scf_post_optc(input, dft_section, dft_control, logger, qs_env,&
+            unoccupied_orbs, unoccupied_evals, ionode, output_unit, error)
 
+       ! This is just a deallocation for printing MO_CUBES or TDDFPT
        IF ((BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
-              error=error),cp_p_file).OR.dft_control%do_tddfpt_calculation ) &
-          .AND. section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO",error=error) /= 0) THEN
-        DO ispin=1,dft_control%nspins
-           DEALLOCATE(unoccupied_evals(ispin)%evals)
-           IF (.NOT.dft_control%do_tddfpt_calculation) &
-                CALL cp_fm_release(unoccupied_orbs(ispin)%matrix,error=error)
-        ENDDO
-        DEALLOCATE(unoccupied_evals)
-        IF (.NOT.dft_control%do_tddfpt_calculation) DEALLOCATE(unoccupied_orbs)
+            error=error),cp_p_file).OR.dft_control%do_tddfpt_calculation ) &
+            .AND. section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO",error=error) /= 0) THEN
+          DO ispin=1,dft_control%nspins
+             DEALLOCATE(unoccupied_evals(ispin)%evals)
+             IF (.NOT.dft_control%do_tddfpt_calculation) &
+                  CALL cp_fm_release(unoccupied_orbs(ispin)%matrix,error=error)
+          ENDDO
+          DEALLOCATE(unoccupied_evals)
+          IF (.NOT.dft_control%do_tddfpt_calculation) DEALLOCATE(unoccupied_orbs)
        ENDIF
+       
+       ! Print coherent X-ray diffraction spectrum
+       CALL qs_scf_post_xray(input, dft_section, logger, qs_env, ionode, output_unit, error)
+       
+       ! Calculation of Electric Field Gradients
+       CALL qs_scf_post_efg(input, logger, qs_env, dft_control, error)
+       
+       ! Calculation of EPR Hyperfine Coupling Tensors
+       CALL qs_scf_post_epr(input, logger, qs_env, error)
+       
+    END IF
+    
+    CALL timestop(0.0_dp,handle)
 
+  END SUBROUTINE scf_post_calculation
+
+!!****f* qs_scf_post/qs_scf_post_charges [1.0] *
+!!
+!!   NAME
+!!     qs_scf_post_charges
+!!
+!!   FUNCTION
+!!     Computes and Prints Atomic Charges with several methods
+!!
+!!   NOTES
+!!     
+!!   ARGUMENTS
+!!     - qs_env: the qs_env in which the qs_env lives
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!*** **********************************************************************
+  SUBROUTINE qs_scf_post_charges(input, logger, qs_env, rho, matrix_s, mos, para_env, error)
+    TYPE(section_vals_type), POINTER         :: input
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_charges', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_path_length)       :: lowdin_title, mulliken_title
+    INTEGER                                  :: unit_nr
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(section_vals_type), POINTER         :: density_fit_section, print_key
+
+    NULLIFY(particle_set)
+    CALL get_qs_env(qs_env=qs_env,&
+                    particle_set=particle_set,&
+                    error=error)
+    
+    ! Compute the mulliken charges
+    print_key => section_vals_get_subs_vals(input,"DFT%PRINT%MULLIKEN", error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+       unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%MULLIKEN",extension=".mulliken",&
+            middle_name="",log_filename=.FALSE.,error=error)
+       mulliken_title="  Mulliken charges : iteration level: "//cp_iter_string(logger%iter_info, print_key,error=error)
+       CALL mulliken_charges(rho%rho_ao,matrix_s(1)%matrix,para_env,particle_set,unit_nr,mulliken_title)
+
+       CALL cp_print_key_finished_output(unit_nr, logger,input,"DFT%PRINT%MULLIKEN",error=error)
     END IF
 
-    ! Print coherent X-ray diffraction spectrum
+    ! Compute the Loewdin charges
+    print_key => section_vals_get_subs_vals(input,"DFT%PRINT%LOWDIN", error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+       unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%LOWDIN",extension=".lowdin",&
+            log_filename=.FALSE.,error=error)
+       lowdin_title="  Lowdin charges : iteration level: "//cp_iter_string(logger%iter_info, print_key,error=error)
+       CALL lowdin_charges(matrix_s(1)%matrix, mos, particle_set, unit_nr, lowdin_title, error=error)
+       CALL cp_print_key_finished_output(unit_nr, logger,input,"DFT%PRINT%LOWDIN", error=error)
+    END IF
+    
+    ! Compute the RESP charges
+    CALL resp_fit(qs_env,error)
 
-    print_key => section_vals_get_subs_vals(&
-                   section_vals=input,&
-                   subsection_name="DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM",&
-                   error=error)
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),&
-              cp_p_file)) THEN
-      q_max = section_get_rval(&
-                section_vals=dft_section,&
-                keyword_name="PRINT%XRAY_DIFFRACTION_SPECTRUM%Q_MAX",&
-                error=error)
-      unit_nr = cp_print_key_unit_nr(&
-                  logger=logger,&
-                  basis_section=input,&
-                  print_key_path="DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM",&
-                  extension=".dat",&
-                  middle_name="xray",&
-                  log_filename=.FALSE.,&
-                  error=error)
-      CALL xray_diffraction_spectrum(qs_env=qs_env,&
-                                     unit_number=unit_nr,&
-                                     q_max=q_max,&
-                                     error=error)
-      IF (ionode) THEN
-        INQUIRE (UNIT=unit_nr,NAME=filename)
-        WRITE (UNIT=output_unit,FMT="(/,/,T2,A,2(/,/,T3,A),/)")&
-          "X-RAY DIFFRACTION SPECTRUM",&
-          "The coherent X-ray diffraction spectrum was written to the file:",&
-          TRIM(filename)
-      END IF
-      CALL cp_print_key_finished_output(&
-             unit_nr=unit_nr,&
-             logger=logger,&
-             basis_section=input,&
-             print_key_path="DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM",&
-             error=error)
+    ! Compute the Density Derived Atomic Point charges with the Bloechl scheme
+    print_key => section_vals_get_subs_vals(input,"PROPERTIES%FIT_CHARGE", error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+       unit_nr=cp_print_key_unit_nr(logger,input,"PROPERTIES%FIT_CHARGE",extension=".Fitcharge",&
+            log_filename=.FALSE.,error=error)
+       density_fit_section => section_vals_get_subs_vals(input,"DFT%DENSITY_FITTING",error=error)
+       CALL get_ddapc(qs_env,.FALSE.,density_fit_section,iwc=unit_nr,error=error)
+       CALL cp_print_key_finished_output(unit_nr, logger,input,"PROPERTIES%FIT_CHARGE", error=error)
     END IF
 
-    ! Calculation of Electric Field Gradients
+  END SUBROUTINE qs_scf_post_charges
+!!****f* qs_scf_post/qs_scf_post_wannier [1.0] *
+!!
+!!   NAME
+!!     qs_scf_post_wannier
+!!
+!!   FUNCTION
+!!     Prints WANNIER centers
+!!
+!!   NOTES
+!!     
+!!   ARGUMENTS
+!!     - qs_env: the qs_env in which the qs_env lives
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!*** **********************************************************************
+  SUBROUTINE qs_scf_post_wannier(input, dft_section, dft_control, logger, qs_env,&
+       rs, wf_g, wf_r, mo_localized, particles, homo, ispin, ionode, center, error)
+    TYPE(section_vals_type), POINTER         :: input, dft_section
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(realspace_grid_type), POINTER       :: rs
+    TYPE(coeff_type)                         :: wf_g, wf_r
+    TYPE(cp_fm_type), POINTER                :: mo_localized
+    TYPE(particle_list_type), POINTER        :: particles
+    INTEGER, INTENT(IN)                      :: homo, ispin
+    LOGICAL, INTENT(IN)                      :: ionode
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: center
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_wannier', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_path_length)       :: filename, title
+    INTEGER                                  :: ivector, nhomo, unit_nr
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(pw_env_type), POINTER               :: pw_env
+
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%LOCALIZATION%CUBES",&
+         error=error),cp_p_file)) THEN 
+
+       nhomo=section_get_ival(dft_section,"PRINT%LOCALIZATION%CUBES%NHOMO",error=error)
+       IF(nhomo==-1) nhomo=homo
+       DO ivector=MAX(1,homo-nhomo+1),homo
+          CALL get_qs_env(qs_env=qs_env,&
+                          atomic_kind_set=atomic_kind_set,&
+                          cell=cell,&
+                          particle_set=particle_set,&
+                          pw_env=pw_env,&
+                          error=error)
+          CALL calculate_wavefunction(mo_localized,ivector,wf_r,wf_g,atomic_kind_set,cell,&
+               dft_control,particle_set,pw_env ,error=error)
+
+          WRITE(filename,'(a8,I5.5,a1,I1.1)') "WANNIER",ivector,"_",ispin
+          unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%LOCALIZATION%CUBES",&
+               extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
+          ! Title name
+          WRITE(title,'(A7,I5.5,A1,I1.1,A1,6G10.4)') "WANNIER",ivector,"_",ispin," ",&
+               center(ivector,1:3)*angstrom, &
+               center(ivector,4:6)*angstrom
+          CALL rs_pw_to_cube(wf_r%pw,unit_nr,ionode,title,rs,&
+               particles=particles,&
+               stride=section_get_ival(dft_section,"PRINT%LOCALIZATION%CUBES%STRIDE",error=error),&
+               error=error)
+          CALL cp_print_key_finished_output(unit_nr,logger,input,&
+               "DFT%PRINT%LOCALIZATION%CUBES",error=error)
+       ENDDO
+    END IF
+
+  END SUBROUTINE qs_scf_post_wannier
+
+!!****f* qs_scf_post/qs_scf_post_loc_dip [1.0] *
+!!
+!!   NAME
+!!     qs_scf_post_loc_dip
+!!
+!!   FUNCTION
+!!     Computes and prints the Dipole (using localized charges)
+!!
+!!   NOTES
+!!     
+!!   ARGUMENTS
+!!     - qs_env: the qs_env in which the qs_env lives
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!*** **********************************************************************
+  SUBROUTINE qs_scf_post_loc_dip(input, dft_control, logger, qs_env, error)
+    TYPE(section_vals_type), POINTER         :: input
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_loc_dip', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: iter
+    INTEGER                                  :: i, idir, unit_nr
+    LOGICAL                                  :: failure, first_time, ghost
+    REAL(KIND=dp)                            :: zeff
+    REAL(KIND=dp), DIMENSION(3)              :: dipole, r_pbc
+    REAL(kind=dp), DIMENSION(3), SAVE        :: old_dipole = 0
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: center
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(gth_potential_type), POINTER        :: gth_potential
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+
+    failure = .FALSE.
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
+         "DFT%PRINT%LOCALIZATION/TOTAL_DIPOLE",first_time=first_time,error=error),cp_p_file)) THEN
+       NULLIFY(gth_potential, cell, particle_set, gth_potential)
+       CALL get_qs_env(qs_env=qs_env,&
+                       cell=cell,&
+                       particle_set=particle_set,&
+                       error=error)
+
+       dipole=0.0_dp
+       ! Charges of the atoms involved
+       DO i=1,SIZE(particle_set)
+          CALL get_atomic_kind(particle_set(i)%atomic_kind,ghost=ghost,&
+               gth_potential=gth_potential)
+          zeff = 0.0_dp
+          IF (.NOT.ghost) THEN
+             CALL get_potential(gth_potential,zeff=zeff)
+             CPPrecondition(cell%orthorhombic,cp_failure_level,routineP,error,failure)
+             DO idir=1,3
+                r_pbc(idir) = particle_set(i) % r(idir)
+             END DO
+             dipole=dipole + zeff*r_pbc
+          END IF
+       END DO
+
+       ! Charges of the wfc involved
+       DO i=1,SIZE(center,1)
+          r_pbc = center(i,1:3)
+          dipole=dipole - (3.0_dp-REAL(dft_control%nspins,dp)) * r_pbc
+       ENDDO
+       dipole=pbc(dipole,cell)
+
+       unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%LOCALIZATION",&
+            extension=".Dipole",log_filename=.FALSE.,on_file=.TRUE.,error=error)
+       IF (unit_nr>0) THEN
+          IF (first_time) THEN
+             WRITE(unit=unit_nr,fmt="(a)")&
+                  "# iter_level    dipole(x,y,z)[au] delta_dipole(x,y,z)[au]"
+          END IF
+          iter=cp_iter_string(logger%iter_info,error=error)
+          WRITE(unit=unit_nr,fmt="(a,6(es18.8))")&
+               iter(1:15),&
+               dipole,pbc(dipole-old_dipole,cell)
+       END IF
+       CALL cp_print_key_finished_output(unit_nr,logger,input,&
+            "DFT%PRINT%LOCALIZATION",on_file=.TRUE.,error=error)
+       old_dipole=dipole
+    END IF
+
+  END SUBROUTINE qs_scf_post_loc_dip
+
+!!****f* qs_scf_post/qs_scf_post_loc [1.0] *
+!!
+!!   NAME
+!!     qs_scf_post_loc
+!!
+!!   FUNCTION
+!!     Computes and prints info about Localization
+!!
+!!   NOTES
+!!     
+!!   ARGUMENTS
+!!     - qs_env: the qs_env in which the qs_env lives
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!*** **********************************************************************
+  SUBROUTINE qs_scf_post_loc(input, logger, unoccupied_orbs, qs_loc_env, molecule_set,&
+       output_unit, ispin, ionode, p_loc, error)
+    TYPE(section_vals_type), POINTER         :: input
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: unoccupied_orbs
+    TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    INTEGER, INTENT(IN)                      :: output_unit, ispin
+    LOGICAL, INTENT(IN)                      :: ionode, p_loc
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_loc', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_path_length)       :: filename
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: center
+    TYPE(section_vals_type), POINTER         :: loc_print_key
+
+    IF (p_loc) THEN
+       IF (ionode) WRITE(output_unit,*) ""
+       IF (ionode) WRITE(output_unit,*) "Computing localization properties"
+       WRITE(filename,'(a13,I1.1)') "LUMO_CENTERS_",ispin
+       qs_loc_env%filename = filename
+       loc_print_key => section_vals_get_subs_vals(input,"DFT%PRINT%LOCALIZATION",error=error)
+       ALLOCATE(center(unoccupied_orbs(ispin)%matrix%matrix_struct%ncol_global,6))
+       CALL qs_loc_compute_properties(qs_loc_env,molecule_set,unoccupied_orbs(ispin)%matrix,&
+            center,ionode,loc_print_key,error=error)
+       DEALLOCATE(center)
+       IF (ionode) WRITE(output_unit,*) "Results in ",filename
+    ENDIF
+
+  END SUBROUTINE qs_scf_post_loc
+
+!!****f* qs_scf_post/qs_scf_post_occ_cubes [1.0] *
+!!
+!!   NAME
+!!     qs_scf_post_occ_cubes
+!!
+!!   FUNCTION
+!!     Computes and prints the Cube Files for MO
+!!
+!!   NOTES
+!!     
+!!   ARGUMENTS
+!!     - qs_env: the qs_env in which the qs_env lives
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!*** **********************************************************************
+  SUBROUTINE qs_scf_post_occ_cubes(input, dft_section, dft_control, logger, qs_env,&
+       mo_coeff, rs, wf_g, wf_r, particles, homo, ispin, ionode, error)
+    TYPE(section_vals_type), POINTER         :: input, dft_section
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(realspace_grid_type), POINTER       :: rs
+    TYPE(coeff_type)                         :: wf_g, wf_r
+    TYPE(particle_list_type), POINTER        :: particles
+    INTEGER, INTENT(IN)                      :: homo, ispin
+    LOGICAL, INTENT(IN)                      :: ionode
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_occ_cubes', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_path_length)       :: filename, title
+    INTEGER                                  :: ivector, nhomo, unit_nr
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(pw_env_type), POINTER               :: pw_env
+
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
+         error=error),cp_p_file) .AND. section_get_lval(dft_section,"PRINT%MO_CUBES%WRITE_CUBE",error=error)) THEN
+       nhomo=section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO",error=error)
+       IF (nhomo==-1) nhomo=homo
+       DO ivector=MAX(1,homo-nhomo+1),homo
+          CALL get_qs_env(qs_env=qs_env,&
+                          atomic_kind_set=atomic_kind_set,&
+                          cell=cell,&
+                          particle_set=particle_set,&
+                          pw_env=pw_env,&
+                          error=error)
+          CALL calculate_wavefunction(mo_coeff,ivector,wf_r,wf_g,atomic_kind_set,&
+               cell,dft_control,particle_set,pw_env ,error=error)
+          WRITE(filename,'(a4,I5.5,a1,I1.1)')"WFN_",ivector,"_",ispin
+          unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%MO_CUBES",extension=".cube",&
+               middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
+          WRITE(title,*) "WAVEFUNCTION ",ivector," spin ",ispin," i.e. HOMO - ",ivector-homo
+          CALL rs_pw_to_cube(wf_r%pw,unit_nr,ionode,title,rs,particles=particles,&
+               stride=section_get_ival(dft_section,"PRINT%MO_CUBES%STRIDE",error=error),&
+               error=error)
+          CALL cp_print_key_finished_output(unit_nr,logger,input,"DFT%PRINT%MO_CUBES",error=error)
+       ENDDO
+    END IF
+
+  END SUBROUTINE qs_scf_post_occ_cubes
+
+!!****f* qs_scf_post/qs_scf_post_unocc_cubes [1.0] *
+!!
+!!   NAME
+!!     qs_scf_post_unocc_cubes
+!!
+!!   FUNCTION
+!!     Computes and prints the Cube Files for MO
+!!
+!!   NOTES
+!!     
+!!   ARGUMENTS
+!!     - qs_env: the qs_env in which the qs_env lives
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!*** **********************************************************************
+  SUBROUTINE qs_scf_post_unocc_cubes(input, dft_section, dft_control, logger, qs_env,&
+       unoccupied_orbs, rs, wf_g, wf_r, particles, nlumos, homo, ispin, ionode, error)
+    TYPE(section_vals_type), POINTER         :: input, dft_section
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: unoccupied_orbs
+    TYPE(realspace_grid_type), POINTER       :: rs
+    TYPE(coeff_type)                         :: wf_g, wf_r
+    TYPE(particle_list_type), POINTER        :: particles
+    INTEGER, INTENT(IN)                      :: nlumos, homo, ispin
+    LOGICAL, INTENT(IN)                      :: ionode
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_unocc_cubes', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_path_length)       :: filename, title
+    INTEGER                                  :: ivector, unit_nr
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(pw_env_type), POINTER               :: pw_env
+
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",error=error),cp_p_file)&
+         .AND.  section_get_lval(dft_section,"PRINT%MO_CUBES%WRITE_CUBE",error=error) ) THEN
+       NULLIFY(atomic_kind_set, particle_set, pw_env, cell)
+       DO ivector=1,nlumos
+          CALL get_qs_env(qs_env=qs_env,&
+                          atomic_kind_set=atomic_kind_set,&
+                          cell=cell,&
+                          particle_set=particle_set,&
+                          pw_env=pw_env,&
+                          error=error)
+          CALL calculate_wavefunction(unoccupied_orbs(ispin)%matrix, ivector, wf_r, wf_g, atomic_kind_set,&
+               cell, dft_control, particle_set, pw_env, error=error)
+          WRITE(filename,'(a4,I5.5,a1,I1.1)')"WFN_",homo+ivector,"_",ispin
+          unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%MO_CUBES",extension=".cube",&
+               middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
+          WRITE(title,*) "WAVEFUNCTION ",homo+ivector," spin ",ispin," i.e. LUMO + ",ivector-1
+          CALL rs_pw_to_cube(wf_r%pw, unit_nr, ionode, title, rs, particles=particles,&
+               stride=section_get_ival(dft_section,"PRINT%MO_CUBES%STRIDE",error=error),&
+               error=error)
+          CALL cp_print_key_finished_output(unit_nr,logger,input,"DFT%PRINT%MO_CUBES",error=error)
+       ENDDO
+    ENDIF
+
+  END SUBROUTINE qs_scf_post_unocc_cubes
+
+!!****f* qs_scf_post/qs_scf_post_optc [1.0] *
+!!
+!!   NAME
+!!     qs_scf_post_optc
+!!
+!!   FUNCTION
+!!     Computes and prints the optical conductivity
+!!
+!!   NOTES
+!!     
+!!   ARGUMENTS
+!!     - qs_env: the qs_env in which the qs_env lives
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!*** **********************************************************************
+  SUBROUTINE qs_scf_post_optc(input, dft_section, dft_control, logger, qs_env,&
+       unoccupied_orbs, unoccupied_evals, ionode, output_unit, error)
+    TYPE(section_vals_type), POINTER         :: input, dft_section
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: unoccupied_orbs
+    TYPE(evals_p_type), DIMENSION(:), &
+      POINTER                                :: unoccupied_evals
+    LOGICAL, INTENT(IN)                      :: ionode
+    INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_optc', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_path_length)       :: filename
+    INTEGER                                  :: homo, ispin, nmo, unit_nr
+    LOGICAL                                  :: homoEQnmo
+    REAL(KIND=dp)                            :: volume
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
+
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
+         "DFT%PRINT%OPTICAL_CONDUCTIVITY",error=error),cp_p_file)) THEN
+       NULLIFY(mos, cell, mo_coeff, mo_eigenvalues)
+       CALL get_qs_env(qs_env, mos=mos, cell=cell, matrix_s=matrix_s,error=error)
+       IF (ionode) WRITE(output_unit,*) " "
+       IF (ionode) WRITE(output_unit,*) " Computing the optical conductivity "
+       IF (ionode) WRITE(output_unit,*) " Experimental version "
+       IF (ionode) WRITE(output_unit,*) " Check the code before believing results "
+       homoEQnmo=.TRUE.
+       DO ispin=1,dft_control%nspins
+          CALL get_mo_set(mo_set=mos(ispin)%mo_set,homo=homo,nmo=nmo)
+          IF (homo.NE.nmo) homoEQnmo=.FALSE.
+       ENDDO
+       IF (.NOT. homoEQnmo) THEN
+          IF (ionode) WRITE(output_unit,*) " homo.NE.nmo : skip optical conductivty "
+       ELSE
+          IF (.NOT.( BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
+               error=error),cp_p_file) )) &
+               CALL stop_program("optical_conductivity","Needs MO_CUBES to be activated")
+          filename="CONDUCTIVITY"
+          unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%OPTICAL_CONDUCTIVITY",&
+               extension=".data",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
+          CALL get_cell(cell,deth=volume)
+
+          DO ispin=1,dft_control%nspins
+             CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
+                             eigenvalues=mo_eigenvalues)
+             CALL optical_conductivity(matrix_s, mo_coeff, mo_eigenvalues, unoccupied_orbs(ispin)%matrix,&
+                                       unoccupied_evals(ispin)%evals, volume, ionode, unit_nr, error=error)
+          ENDDO
+          CALL cp_print_key_finished_output(unit_nr,logger,input,"DFT%PRINT%OPTICAL_CONDUCTIVITY",&
+               error=error)
+          IF (ionode) WRITE(output_unit,*) " Results written to file ",filename
+       ENDIF
+    ENDIF
+  END SUBROUTINE qs_scf_post_optc
+
+!!****f* qs_scf_post/qs_scf_post_xray [1.0] *
+!!
+!!   NAME
+!!     qs_scf_post_xray
+!!
+!!   FUNCTION
+!!     Computes and prints X-RAY spectra
+!!
+!!   NOTES
+!!     
+!!   ARGUMENTS
+!!     - qs_env: the qs_env in which the qs_env lives
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!*** **********************************************************************
+  SUBROUTINE qs_scf_post_xray(input, dft_section, logger, qs_env, ionode, output_unit, error)
+    TYPE(section_vals_type), POINTER         :: input, dft_section
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, INTENT(IN)                      :: ionode
+    INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_xray', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_path_length)       :: filename
+    INTEGER                                  :: unit_nr
+    REAL(KIND=dp)                            :: q_max
+    TYPE(section_vals_type), POINTER         :: print_key
+
+    print_key => section_vals_get_subs_vals(section_vals=input,&
+         subsection_name="DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM",error=error)
+
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+       q_max = section_get_rval(section_vals=dft_section,&
+            keyword_name="PRINT%XRAY_DIFFRACTION_SPECTRUM%Q_MAX",error=error)
+       unit_nr = cp_print_key_unit_nr(logger=logger,basis_section=input,&
+            print_key_path="DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM",extension=".dat",&
+            middle_name="xray",log_filename=.FALSE.,error=error)
+       CALL xray_diffraction_spectrum(qs_env=qs_env,unit_number=unit_nr,&
+                                      q_max=q_max,error=error)
+       IF (ionode) THEN
+          INQUIRE (UNIT=unit_nr,NAME=filename)
+          WRITE (UNIT=output_unit,FMT="(/,/,T2,A,2(/,/,T3,A),/)")&
+               "X-RAY DIFFRACTION SPECTRUM",&
+               "The coherent X-ray diffraction spectrum was written to the file:",&
+               TRIM(filename)
+       END IF
+       CALL cp_print_key_finished_output(unit_nr=unit_nr,logger=logger,&
+            basis_section=input,print_key_path="DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM",&
+            error=error)
+    END IF
+
+  END SUBROUTINE qs_scf_post_xray
+
+!!****f* qs_scf_post/qs_scf_post_efg [1.0] *
+!!
+!!   NAME
+!!     qs_scf_post_efg
+!!
+!!   FUNCTION
+!!     Computes and prints Electric Field Gradient
+!!
+!!   NOTES
+!!     
+!!   ARGUMENTS
+!!     - qs_env: the qs_env in which the qs_env lives
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!*** **********************************************************************
+  SUBROUTINE qs_scf_post_efg(input, logger, qs_env, dft_control, error)
+    TYPE(section_vals_type), POINTER         :: input
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_efg', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ispin, istat
+    LOGICAL                                  :: do_et
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: my_mos
+    TYPE(section_vals_type), POINTER         :: et_section, print_key
+
     print_key => section_vals_get_subs_vals(section_vals=input,&
                    subsection_name="DFT%PRINT%ELECTRIC_FIELD_GRADIENT",&
                    error=error)
@@ -850,16 +1236,47 @@ CONTAINS
                   error=error)
              CALL cp_fm_to_fm(qs_env%mos(ispin)%mo_set%mo_coeff,&
                               my_mos(ispin)%matrix,error=error)
-
-                
           END DO
           CALL set_et_coupling_type(qs_env%et_coupling,et_mo_coeff=my_mos,error=error)
           DEALLOCATE(my_mos)
-       ELSE
        END IF
     END IF    
-    
-    ! Calculation of EPR Hyperfine Coupling Tensors
+
+  END SUBROUTINE qs_scf_post_efg
+
+!!****f* qs_scf_post/qs_scf_post_epr [1.0] *
+!!
+!!   NAME
+!!     qs_scf_post_epr
+!!
+!!   FUNCTION
+!!     Dumps EPR 
+!!
+!!   NOTES
+!!     
+!!   ARGUMENTS
+!!     - qs_env: the qs_env in which the qs_env lives
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!*** **********************************************************************
+  SUBROUTINE qs_scf_post_epr(input, logger, qs_env, error)
+    TYPE(section_vals_type), POINTER         :: input
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_epr', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(section_vals_type), POINTER         :: print_key
+
     print_key => section_vals_get_subs_vals(section_vals=input,&
                    subsection_name="DFT%PRINT%HYPERFINE_COUPLING_TENSOR",&
                    error=error)
@@ -868,12 +1285,30 @@ CONTAINS
        CALL qs_epr_hyp_calc(qs_env=qs_env,error=error)
     END IF
 
-    CALL timestop(0.0_dp,handle)
+  END SUBROUTINE qs_scf_post_epr
 
-  END SUBROUTINE scf_post_calculation
-
-  ! ***************************************************************************
-
+!!****f* qs_scf_post/write_available_results [1.0] *
+!!
+!!   NAME
+!!     write_available_results
+!!
+!!   FUNCTION
+!!     Write QS results always available (if switched on through the print_keys)
+!!
+!!   NOTES
+!!     
+!!   ARGUMENTS
+!!     - qs_env: the qs_env in which the qs_env lives
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!*** **********************************************************************
   SUBROUTINE write_available_results(qs_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -881,14 +1316,22 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'write_available_results', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, ionode
-    REAL(KIND=dp)                            :: total_abs_spin_dens
+    CHARACTER(LEN=default_path_length)       :: filename
+    INTEGER                                  :: handle, homo, ispin, iw, nmo, &
+                                                output_unit, unit_nr
+    LOGICAL                                  :: all_equal, failure, ionode
+    REAL(KIND=dp)                            :: maxocc, s_square, &
+                                                s_square_ideal, &
+                                                total_abs_spin_dens
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type)                         :: wf_r
     TYPE(coeff_type), POINTER                :: rho_core
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
     TYPE(cp_subsystem_type), POINTER         :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -904,22 +1347,9 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: ks_rmpv, matrix_s
-    TYPE(scf_control_type), POINTER          :: scf_control
-
-    TYPE evals_p_type
-         REAL(KIND = dp), DIMENSION(:), POINTER :: evals
-    END TYPE
-    INTEGER :: ispin, output_unit
-    REAL(KIND=dp)      :: s_square_ideal,s_square,maxocc
-    LOGICAL            :: all_equal
-    REAL(KIND=dp), DIMENSION(:), POINTER :: occupation_numbers
-    INTEGER            :: homo, nmo, unit_nr
-    TYPE(section_vals_type), POINTER :: dft_section, input
-    TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
     TYPE(realspace_grid_type), POINTER       :: rs
-    INTEGER            :: handle, iw
-    CHARACTER(LEN=default_path_length)     :: filename
-    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(section_vals_type), POINTER         :: dft_section, input
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
@@ -940,7 +1370,7 @@ CONTAINS
             input=input,cell=cell,subsys=subsys,error=error)
        CALL cp_subsys_get(subsys,particles=particles,error=error)
 
-! *** if the dft_section tells you to do so, write last wavefunction to screen
+       ! *** if the dft_section tells you to do so, write last wavefunction to screen
        dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
        IF (dft_control%nspins == 2) THEN
          CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,4,6,&
@@ -952,7 +1382,7 @@ CONTAINS
                            dft_section,last=.TRUE.,error=error)
        END IF
 
-!   *** Integrated absolute spin density and spin contamination ***
+       !   *** Integrated absolute spin density and spin contamination ***
        IF (dft_control%nspins.eq.2) THEN
           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
           CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
@@ -987,13 +1417,15 @@ CONTAINS
             IF (ionode) WRITE(UNIT=output_unit,FMT="(T3,A)")&
               "WARNING: S**2 computation does not yet treat fractional occupied orbitals"
           END IF
-          CALL compute_s_square(mos=mos, matrix_s=matrix_s, s_square=s_square, s_square_ideal=s_square_ideal,error=error)
+          CALL compute_s_square(mos=mos, matrix_s=matrix_s, s_square=s_square,&
+               s_square_ideal=s_square_ideal,error=error)
           IF (ionode) WRITE(UNIT=output_unit,fmt='(T3,A,T60,2F10.5)') &
                "Ideal and single determinant S**2 : ",s_square_ideal,s_square
        ENDIF
-!   *** total density ***
+
+       !   *** total density ***
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-            "DFT%PRINT%TOT_DENSITY_CUBE", error=error),cp_p_file)) THEN ! write the electron density
+            "DFT%PRINT%TOT_DENSITY_CUBE", error=error),cp_p_file)) THEN
           NULLIFY(rho_core)
           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,rho_core=rho_core,&
                error=error)
@@ -1022,9 +1454,9 @@ CONTAINS
           CALL rs_pool_give_back_rs(auxbas_rs_pool,rs,error=error)
        END IF
 
-!   *** Cube file of the electron density ***
+       !   *** Cube file of the electron density ***
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-            "DFT%PRINT%E_DENSITY_CUBE", error=error),cp_p_file)) THEN ! write the electron density
+            "DFT%PRINT%E_DENSITY_CUBE", error=error),cp_p_file)) THEN
           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
           CALL pw_env_get(pw_env, auxbas_rs_pool=auxbas_rs_pool,error=error)
           CALL rs_pool_create_rs(auxbas_rs_pool,rs, error=error)
@@ -1072,7 +1504,7 @@ CONTAINS
           CALL rs_pool_give_back_rs(auxbas_rs_pool,rs,error=error)
        ENDIF
 
-!   *** write the hartree potential ***
+       !   *** write the hartree potential ***
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
             "DFT%PRINT%V_HARTREE_CUBE",error=error),cp_p_file)) THEN
           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
@@ -1089,19 +1521,20 @@ CONTAINS
           CALL rs_pool_give_back_rs(auxbas_rs_pool,rs,error=error)
        ENDIF
 
-!    *** write the density matrix ***
+       !    *** write the density matrix ***
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
             "DFT%PRINT%AO_MATRICES/DENSITY",error=error),cp_p_file)) THEN
           iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/DENSITY",&
                extension=".Log",error=error)
           DO ispin=1,dft_control%nspins
-             CALL write_sparse_matrix(rho%rho_ao(ispin)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+             CALL write_sparse_matrix(rho%rho_ao(ispin)%matrix,4,6,qs_env,&
+                  para_env,output_unit=iw,error=error)
           END DO
           CALL cp_print_key_finished_output(iw,logger,input,&
                "DFT%PRINT%AO_MATRICES/DENSITY", error=error)
        END IF
 
-!    **** the Kohn-Sham matrix itself
+       !    **** the Kohn-Sham matrix itself
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
             "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",error=error),cp_p_file)) THEN
           CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,&

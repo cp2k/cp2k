@@ -79,7 +79,8 @@ MODULE md_energies
   END TYPE average_quantities_type
 
 
-  PUBLIC :: md_energy
+  PUBLIC :: md_energy,&
+            get_output_format
 
 !!***
 !******************************************************************************
@@ -1026,7 +1027,7 @@ CONTAINS
 !!*****************************************************************************
   SUBROUTINE get_output_format(section,path,my_form,my_ext,error)
     TYPE(section_vals_type), POINTER         :: section
-    CHARACTER(LEN=*), INTENT(IN)             :: path
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: path
     CHARACTER(LEN=*), INTENT(OUT)            :: my_form, my_ext
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1037,7 +1038,11 @@ CONTAINS
 
     my_form = "FORMATTED"
     my_ext  = ".xyz"
-    CALL section_vals_val_get(section,TRIM(path)//"%FORMAT",i_val=output_format,error=error)
+    IF (PRESENT(path)) THEN
+       CALL section_vals_val_get(section,TRIM(path)//"%FORMAT",i_val=output_format,error=error)
+    ELSE
+       CALL section_vals_val_get(section,"FORMAT",i_val=output_format,error=error)
+    END IF
     IF(output_format==dump_dcd) THEN
        my_form = "UNFORMATTED"
        my_ext  = ".dcd"
