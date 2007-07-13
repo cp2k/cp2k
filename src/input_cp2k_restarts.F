@@ -1538,17 +1538,17 @@ CONTAINS
     ALLOCATE(work(3),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ! CELL VECTORS - A
-    work(1:3) = cell%hmat(1,1:3)/conv_factor
+    work(1:3) = cell%hmat(1:3,1)/conv_factor
     CALL section_vals_val_set(work_section,"A",r_vals_ptr=work,error=error)
     ALLOCATE(work(3),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ! CELL VECTORS - B
-    work(1:3) = cell%hmat(2,1:3)/conv_factor
+    work(1:3) = cell%hmat(1:3,2)/conv_factor
     CALL section_vals_val_set(work_section,"B",r_vals_ptr=work,error=error)
     ALLOCATE(work(3),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ! CELL VECTORS - C
-    work(1:3) = cell%hmat(3,1:3)/conv_factor
+    work(1:3) = cell%hmat(1:3,3)/conv_factor
     CALL section_vals_val_set(work_section,"C",r_vals_ptr=work,error=error)
     CALL section_vals_val_unset(work_section,"ABC",error=error)
     ! CELL_REF
@@ -1558,17 +1558,17 @@ CONTAINS
        ALLOCATE(work(3),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ! CELL VECTORS - A
-       work(1:3) = cell_ref%hmat(1,1:3)/conv_factor
+       work(1:3) = cell_ref%hmat(1:3,1)/conv_factor
        CALL section_vals_val_set(work_section,"A",r_vals_ptr=work,error=error)
        ALLOCATE(work(3),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ! CELL VECTORS - B
-       work(1:3) = cell_ref%hmat(2,1:3)/conv_factor
+       work(1:3) = cell_ref%hmat(1:3,2)/conv_factor
        CALL section_vals_val_set(work_section,"B",r_vals_ptr=work,error=error)
        ALLOCATE(work(3),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ! CELL VECTORS - C
-       work(1:3) = cell_ref%hmat(3,1:3)/conv_factor
+       work(1:3) = cell_ref%hmat(1:3,3)/conv_factor
        CALL section_vals_val_set(work_section,"C",r_vals_ptr=work,error=error)
     END IF
     CALL timestop(0.0_dp,handle)
