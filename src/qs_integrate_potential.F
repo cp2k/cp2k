@@ -1550,6 +1550,7 @@ CONTAINS
         END DO
       END DO
     END DO
+    DEALLOCATE(vab)
 
   CONTAINS
 
@@ -1596,6 +1597,9 @@ CONTAINS
 
     lp=la_max_local+lb_max_local
     ALLOCATE(coef_xyz(((lp+1)*(lp+2)*(lp+3))/6))
+    ALLOCATE(pol_z(1:2,0:lp,-cmax:0))
+    ALLOCATE(pol_y(1:2,0:lp,-cmax:0))
+    ALLOCATE(pol_x(0:lp,-cmax:cmax))
 #include "prep.f90"
 
 !   *** initialise the coefficient matrix, we transform the sum
@@ -1613,6 +1617,12 @@ CONTAINS
 #include "call_integrate.f90"
 
     CALL xyz_to_vab()
+    ! deallocation needed to pass around a pgi bug..
+    DEALLOCATE(coef_xyz)
+    DEALLOCATE(pol_z)
+    DEALLOCATE(pol_y)
+    DEALLOCATE(pol_x)
+    DEALLOCATE(map)
 
     END SUBROUTINE integrate_ortho 
 
@@ -1714,6 +1724,10 @@ CONTAINS
        ENDDO
 
     ENDDO
+    ! deallocation needed to pass around a pgi bug..
+    DEALLOCATE(coef_tyz)
+    DEALLOCATE(coef_ttz)
+    DEALLOCATE(alpha)
 
     END SUBROUTINE xyz_to_vab
 
@@ -1921,6 +1935,14 @@ CONTAINS
 
       CALL xyz_to_vab()
 
+      ! deallocation needed to pass around a pgi bug..
+      DEALLOCATE(hmatgridp)
+      DEALLOCATE(grid_map)
+      DEALLOCATE(coef_map)
+      DEALLOCATE(coef_xtt)
+      DEALLOCATE(coef_xyt)
+      DEALLOCATE(coef_ijk)
+      DEALLOCATE(coef_xyz)
     END SUBROUTINE integrate_general_opt
 
     SUBROUTINE integrate_general()

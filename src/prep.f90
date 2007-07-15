@@ -1,6 +1,3 @@
-    ALLOCATE(pol_z(1:2,0:lp,-cmax:0))
-    ALLOCATE(pol_y(1:2,0:lp,-cmax:0))
-    ALLOCATE(pol_x(0:lp,-cmax:cmax))
 !
 !   compute the values of all (x-xp)**lp*exp(..)
 !

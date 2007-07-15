@@ -2589,6 +2589,11 @@ CONTAINS
     IF (ga_gb_function /= FUNC_AB) THEN
        DEALLOCATE(pab_local)
     ENDIF
+    ! deallocation needed to pass around a pgi bug.. 
+    DEALLOCATE(alpha)
+    DEALLOCATE(coef_xtt)
+    DEALLOCATE(coef_xyt)
+    DEALLOCATE(coef_xyz)
 
   CONTAINS
 
@@ -2636,6 +2641,9 @@ CONTAINS
         END DO
       END IF
     ENDDO
+    ALLOCATE(pol_z(1:2,0:lp,-cmax:0))
+    ALLOCATE(pol_y(1:2,0:lp,-cmax:0))
+    ALLOCATE(pol_x(0:lp,-cmax:cmax))
 
 #include "prep.f90"
 
@@ -2651,6 +2659,11 @@ CONTAINS
 #include "call_collocate.f90"
 
     END IF
+    ! deallocation needed to pass around a pgi bug..
+    DEALLOCATE(pol_z)
+    DEALLOCATE(pol_y)
+    DEALLOCATE(pol_x)
+    DEALLOCATE(map)
 
     END SUBROUTINE collocate_ortho
 
@@ -2852,6 +2865,11 @@ CONTAINS
       ENDDO
       !t2=nanotime_ia32()
       !write(6,*) t2-t1
+      ! deallocation needed to pass around a pgi bug..
+      DEALLOCATE(coef_ijk)
+      DEALLOCATE(coef_map)
+      DEALLOCATE(hmatgridp)
+      DEALLOCATE(grid_map)
 
     END SUBROUTINE collocate_general_opt
 
