@@ -29,8 +29,8 @@ MODULE qmmm_elpot
                                              cp_print_key_should_output
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE erf_fn,                          ONLY: erf
-  USE input_constants,                 ONLY: do_qmmm_gauss,&
-                                             do_qmmm_coulomb,&
+  USE input_constants,                 ONLY: do_qmmm_coulomb,&
+                                             do_qmmm_gauss,&
                                              do_qmmm_swave
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -103,12 +103,11 @@ CONTAINS
     CHARACTER(LEN=200)                       :: myFormat
     CHARACTER(LEN=80)                        :: FileName
     INTEGER                                  :: I, ig, ig_start, J, K, myind, &
-                                                ndim, Np, stat
+                                                ndim, Np, output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
-    LOGICAL                                  :: failure, found
-    REAL(KIND=dp)                            :: A, G, rc, rc2, rc3, rc4, rc5, &
-                                                rc6, rc7, Rmax, Rmin, t, t1, &
-                                                t2, x, x2, x3, x4, x5, x6, x7
+    LOGICAL                                  :: failure, found, ionode
+    REAL(KIND=dp)                            :: A, G, rc, Rmax, Rmin, t, t1, &
+                                                t2, x
     REAL(KIND=dp), DIMENSION(:), POINTER     :: radius
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pot0_2
     TYPE(cp_logger_type), POINTER            :: logger
@@ -116,6 +115,11 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: print_pot
 
     logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    output_unit = -1
+    IF (ionode) THEN
+      output_unit= cp_logger_get_default_unit_nr(logger)
+    END IF
     Rmin = 0.0_dp
     Rmax = SQRT(mm_cell%hmat(1,1)**2+&
                 mm_cell%hmat(2,2)**2+&
@@ -244,7 +248,7 @@ CONTAINS
           DEALLOCATE(potentials(K)%Pot)
           CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
           NULLIFY(potentials(K)%Pot)
-          WRITE(*,'(A)')" QMMM Potential - Spline Interpolation - not Initialized!"
+          IF (output_unit>0) WRITE(output_unit,'(A)')" QMMM Potential - Spline Interpolation - not Initialized!"
           CYCLE Potential_Type
        END SELECT
        NULLIFY(mm_atom_index)

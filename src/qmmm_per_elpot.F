@@ -29,8 +29,8 @@ MODULE qmmm_per_elpot
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE ewald_spline_util,               ONLY: Setup_Ewald_Spline
-  USE input_constants,                 ONLY: do_qmmm_gauss,&
-                                             do_qmmm_coulomb,&
+  USE input_constants,                 ONLY: do_qmmm_coulomb,&
+                                             do_qmmm_gauss,&
                                              do_qmmm_swave
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -100,9 +100,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: I, idim, ig, ig_start, iw, ix, iy, iz, K, Kmax(3), &
-      n_rep_real(3), n_rep_real_val, ncoarsel, ncoarset, Ndim, stat
+      n_rep_real(3), n_rep_real_val, ncoarsel, ncoarset, Ndim, output_unit, &
+      stat
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, ionode
     REAL(KIND=dp) :: Ak, alpha, box(3), Fac(3), fs, g, g2, Gk, Gmax, &
       mymaxradius, npl, npt, Prefactor, rc, rc2, Rmax, tmp, vec(3), vol
     REAL(KIND=dp), DIMENSION(:), POINTER     :: gx, gy, gz, Lg
@@ -113,6 +114,11 @@ CONTAINS
     ncoarset = PRODUCT(ncp)
     ncoarsel = PRODUCT(ncpl)
     logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    output_unit = -1
+    IF (ionode) THEN
+      output_unit= cp_logger_get_default_unit_nr(logger)
+    END IF
     Rmax = SQRT(mm_cell%hmat(1,1)**2+&
                 mm_cell%hmat(2,2)**2+&
                 mm_cell%hmat(3,3)**2 ) 
@@ -225,7 +231,7 @@ CONTAINS
           DEALLOCATE(per_potentials(K)%Pot)
           CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
           NULLIFY(per_potentials(K)%Pot)
-          WRITE(*,'(A)')" QMMM Periodic Potential - not Initialized!"
+          IF (output_unit>0) WRITE(output_unit,'(A)')" QMMM Periodic Potential - not Initialized!"
           CYCLE Potential_Type
        END SELECT
 

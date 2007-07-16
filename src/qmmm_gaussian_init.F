@@ -26,15 +26,14 @@
 !****************************************************************************
 MODULE qmmm_gaussian_init
   USE cell_types,                      ONLY: cell_type
-  USE cp_output_handling,              ONLY: cp_p_file,&
-                                             cp_print_key_should_output
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
   USE input_constants,                 ONLY: do_qmmm_gauss,&
                                              do_qmmm_swave
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
+  USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE memory_utilities,                ONLY: reallocate
@@ -105,7 +104,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ilevel, j, Ndim, &
-                                                num_geep_gauss, stat
+                                                num_geep_gauss, output_unit, &
+                                                stat
     LOGICAL                                  :: Failure, Found, use_geep_lib
     REAL(KIND=dp)                            :: alpha, mymaxradius, Prefactor
     REAL(KIND=dp), DIMENSION(:), POINTER     :: c_radius, radius
@@ -114,15 +114,13 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
     TYPE(qmmm_gaussian_type), POINTER        :: mypgf
-    TYPE(section_vals_type), POINTER         :: print_gen
 
 ! Statements
 
-    NULLIFY(mypgf, gridlevel_info, radius, c_radius, print_gen, logger)
+    NULLIFY(mypgf, gridlevel_info, radius, c_radius, logger)
     failure = .FALSE.
     IF (.NOT.failure) THEN
        logger => cp_error_get_logger(error)
-       print_gen => section_vals_get_subs_vals(print_section,"PROGRAM_RUN_INFO",error=error)
        CALL section_vals_val_get(qmmm_section,"USE_GEEP_LIB",i_val=num_geep_gauss,error=error)
        IF (num_geep_gauss == 0) THEN
           use_geep_lib = .FALSE.
@@ -234,9 +232,10 @@ CONTAINS
           !
           ! End of gaussian initialization...
        CASE DEFAULT
-          IF (BTEST(cp_print_key_should_output(logger%iter_info,print_gen,error=error),cp_p_file).AND.&
-               logger%para_env%mepos==logger%para_env%source) &
-          WRITE(*,'(A)')" QMMM Gaussian Data Not Initialized!"
+          output_unit =cp_print_key_unit_nr(logger,print_section,"PROGRAM_RUN_INFO",&
+          extension=".qmmmLog",error=error)
+          IF (output_unit>0) WRITE(output_unit,'(A)')" QMMM Gaussian Data Not Initialized!"
+          CALL cp_print_key_finished_output(output_unit,logger,print_section,"PROGRAM_RUN_INFO",error=error)
        END SELECT
     END IF
   END SUBROUTINE qmmm_gaussian_initialize

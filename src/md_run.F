@@ -903,10 +903,10 @@ END SUBROUTINE md_output
            END DO ! isub
 
            IF (iw>0) THEN
-             WRITE (UNIT=6,FMT="(/,T2,A,F10.2,A,F10.2,A)")&
+             WRITE (UNIT=iw,FMT="(/,T2,A,F10.2,A,F10.2,A)")&
                   "Temperature  shell internal motion scaled to requested temperature:",&
                   temperature*kelvin," K  ->",simpar%temp_sh_ext*kelvin," K"
-             WRITE (UNIT=6,FMT="(/,T2,A,(T58,A3,F20.10))")&
+             WRITE (UNIT=iw,FMT="(/,T2,A,(T58,A3,F20.10))")&
                   "Centre of mass motion (COM):","x =",vcom(1)/total_mass,&
                                                  "y =",vcom(2)/total_mass,&
                                                  "z =",vcom(3)/total_mass

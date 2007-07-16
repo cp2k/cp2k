@@ -54,8 +54,10 @@ MODULE qs_linres_nmr_shift
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE mathconstants,                   ONLY: gaussi, twopi
+  USE mathconstants,                   ONLY: gaussi,&
+                                             twopi
   USE mathlib,                         ONLY: diamat_all
+  USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
@@ -94,11 +96,9 @@ MODULE qs_linres_nmr_shift
                                              real_matrix_p_type,&
                                              replicate_matrix_structure,&
                                              set_matrix
-  USE message_passing,                 ONLY: mp_sum 
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -122,14 +122,15 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: ispin, iB
     TYPE(cp_error_type), INTENT(INOUT)       :: error
-    !
+
     CHARACTER(LEN=*), PARAMETER :: routineN = 'chi_analytic', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, idir, idir2, ii, &
                                                 iiB, iii, iiiB, istat, &
-                                                istate, nao, nstates(2)
-    LOGICAL                                  :: failure, gapw
+                                                istate, nao, nstates(2), &
+                                                output_unit
+    LOGICAL                                  :: failure, gapw, ionode
     REAL(dp)                                 :: chi(3), contrib, contrib2, &
                                                 dk(3)
     REAL(dp), DIMENSION(:), POINTER          :: occupation
@@ -144,15 +145,17 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: mo_coeff, momxpsi_istate, &
                                                 psi0_istate, psi_p1_istate, &
                                                 psi_p2_istate, psi_rxp_istate
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
-         POINTER                             :: mos
+      POINTER                                :: mos
     TYPE(real_matrix_p_type), DIMENSION(:), &
-         POINTER                             :: matrix_s, op_mom_ao, op_p_ao
+      POINTER                                :: matrix_s, op_mom_ao, op_p_ao
     TYPE(real_matrix_p_type), &
-         DIMENSION(:, :), POINTER            :: op_mom_der_ao
+      DIMENSION(:, :), POINTER               :: op_mom_der_ao
 
+!
 
     CALL timeset(routineN,"I"," ",handle)
     
@@ -162,6 +165,12 @@ CONTAINS
     NULLIFY(op_mom_ao,op_mom_der_ao,centers_set)
     NULLIFY(psi0_istate,psi_rxp_istate,psi_p1_istate,psi_p2_istate,momxpsi_istate)
     NULLIFY(op_p_ao,psi1_p,psi1_rxp,psi1_D)
+    logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    output_unit = -1
+    IF (ionode) THEN
+      output_unit= cp_logger_get_default_unit_nr(logger)
+    END IF
 
     CALL get_qs_env(qs_env=qs_env,&
          &          dft_control=dft_control,&
@@ -171,10 +180,13 @@ CONTAINS
          &          error=error)
 
     gapw = dft_control%qs_control%gapw
-write(*,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
-write(*,*) 'chi_analytic: gapw=',gapw,' reset to .false.'
-gapw=.false.
-write(*,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
+    IF (output_unit>0) THEN
+       WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
+       WRITE(output_unit,*) 'chi_analytic: gapw=',gapw,' reset to .false.'
+       WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
+    END IF
+    gapw=.FALSE.
+
 
     CALL get_nmr_env(nmr_env=nmr_env,&
          &           nao=nao,&
@@ -446,11 +458,11 @@ write(*,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
 
     ENDDO  ! istate
 
-    WRITE(*,*) "CHI TENSOR : iB =", iB
+    IF (output_unit>0) WRITE(output_unit,*) "CHI TENSOR : iB =", iB
     DO idir = 1,3
        nmr_env%chi_tensor(idir,iB) = nmr_env%chi_tensor(idir,iB)+&
             &                        chi(idir)*nmr_env%chi_factor
-       WRITE(*,*) idir, nmr_env%chi_tensor(idir,iB)
+       IF (output_unit>0) WRITE(output_unit,*) idir, nmr_env%chi_tensor(idir,iB)
     ENDDO
     !
     ! deallocate the sparse matrices
@@ -616,17 +628,18 @@ write(*,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'gsum_shift_pwgrid', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iat, iatom, n_nics, natom
     INTEGER, DIMENSION(:), POINTER           :: cs_atom_list
     LOGICAL                                  :: failure
-    REAL(dp)                                 :: R_iatom(3), &
-                                                ra(3)
+    REAL(dp)                                 :: R_iatom(3), ra(3)
     REAL(dp), DIMENSION(:, :), POINTER       :: r_nics
     REAL(dp), DIMENSION(:, :, :), POINTER    :: chemical_shift, &
                                                 chemical_shift_nics
-    !
+
+!
+
     failure = .FALSE.
     NULLIFY(cs_atom_list,chemical_shift,chemical_shift_nics,r_nics)
     CPPrecondition(ASSOCIATED(shift_pw_gspace%pw),cp_failure_level,routineP,error,failure)
@@ -663,11 +676,14 @@ write(*,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
   END SUBROUTINE gsum_shift_pwgrid
 
   FUNCTION gsumr(r,pw)
-    REAL(dp), INTENT(IN)        :: r(3)
-    TYPE(pw_type), POINTER      :: pw
-    TYPE(pw_grid_type), POINTER :: grid
-    COMPLEX(dp)                 :: gsumr,rg
-    INTEGER                     :: ig
+    REAL(dp), INTENT(IN)                     :: r(3)
+    TYPE(pw_type), POINTER                   :: pw
+    COMPLEX(dp)                              :: gsumr
+
+    COMPLEX(dp)                              :: rg
+    INTEGER                                  :: ig
+    TYPE(pw_grid_type), POINTER              :: grid
+
     grid => pw%pw_grid
     gsumr = CMPLX(0.0_dp,0.0_dp,KIND=dp)
     DO ig = grid%first_gne0,grid%ngpts_cut_local
@@ -781,31 +797,29 @@ write(*,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'nmr_print_shift', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=default_string_length)     :: name, title
     INTEGER                                  :: i, iatom, ir, istat, j, &
                                                 n_nics, nat_print, natom, &
-                                                unit_atoms, output_unit, unit_nics
+                                                output_unit, unit_atoms, &
+                                                unit_nics
     INTEGER, DIMENSION(:), POINTER           :: cs_atom_list
-    LOGICAL                                  :: gapw,failure
+    LOGICAL                                  :: failure, gapw, ionode
     REAL(dp) :: chi_aniso, chi_iso, chi_sym(3,3), chi_sym_tot(3,3), &
       chi_tensor(3,3), chi_tensor_loc(3,3), chi_tmp(3,3), eigenv(3), &
       eigenv_tmp(3), rpos(3), shift_nosym(3,3), shift_sym(3,3), shift_tmp(3,3)
     REAL(dp), DIMENSION(:, :), POINTER       :: eigenv_chi, r_nics
-    REAL(dp), DIMENSION(:, :, :), POINTER    :: chemical_shift, &
-                                                chemical_shift_loc, &
-                                                chemical_shift_loc_nics, &
-                                                chemical_shift_nics, &
-                                                chemical_shift_tot, &
-                                                chemical_shift_nics_tot
+    REAL(dp), DIMENSION(:, :, :), POINTER :: chemical_shift, &
+      chemical_shift_loc, chemical_shift_loc_nics, chemical_shift_nics, &
+      chemical_shift_nics_tot, chemical_shift_tot
+    REAL(dp), EXTERNAL                       :: DDOT
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    REAL(dp), EXTERNAL                       :: DDOT
 
     failure = .FALSE.
 
@@ -814,7 +828,11 @@ write(*,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
     NULLIFY (logger, particle_set,atom_kind,dft_control)
     NULLIFY (eigenv_chi)
     logger => cp_error_get_logger(error)
-    output_unit = cp_logger_get_default_unit_nr(logger)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    output_unit = -1
+    IF (ionode) THEN
+      output_unit= cp_logger_get_default_unit_nr(logger)
+    END IF
 
     CALL get_nmr_env(nmr_env, chemical_shift=chemical_shift, &
          chemical_shift_nics=chemical_shift_nics, &

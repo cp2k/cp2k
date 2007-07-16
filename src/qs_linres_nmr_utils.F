@@ -39,8 +39,7 @@ MODULE qs_linres_nmr_utils
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                             cp_fm_scale_and_add,&
-                                             cp_fm_scale
+                                             cp_fm_scale_and_add
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              fm_pool_create_fm,&
                                              fm_pool_give_back_fm,&
@@ -120,7 +119,6 @@ MODULE qs_linres_nmr_utils
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -138,30 +136,29 @@ CONTAINS
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
-    !
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_do_nmr', &
-         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, homo, idir, ii, iii, &
-                                                ispin, ist_true, istat, istate, &
-                                                istate2, nao, ncubes, nmo, &
-                                                nstates(2), output_unit
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_do_nmr', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: handle, homo, idir, ii, iii, ispin, ist_true, istat, istate, &
+      istate2, nao, ncubes, nmo, nstates(2), output_unit
     INTEGER, DIMENSION(:), POINTER           :: list_cubes
-    INTEGER, DIMENSION(:,:,:), POINTER       :: statetrueindex
+    INTEGER, DIMENSION(:, :, :), POINTER     :: statetrueindex
     LOGICAL                                  :: failure, ionode
     REAL(dp)                                 :: dk(3), dkl(3), dl(3)
     REAL(dp), DIMENSION(:), POINTER          :: dkl_vec_ii, dkl_vec_iii
     REAL(dp), DIMENSION(:, :), POINTER       :: vecbuf_dklxp0
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_2d_r_p_type), DIMENSION(:), &
-         POINTER                             :: centers_set
+      POINTER                                :: centers_set
     TYPE(cp_fm_p_type), DIMENSION(:), &
-         POINTER                             :: h1_psi0, psi1, fm_work_ii, fm_work_iii
+      POINTER                                :: fm_work_ii, fm_work_iii, &
+                                                h1_psi0, psi1
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
-         POINTER                             :: p_psi0, psi1_D, psi1_p, &
+      POINTER                                :: p_psi0, psi1_D, psi1_p, &
                                                 psi1_rxp, rxp_psi0
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
-         POINTER                             :: ao_mo_fm_pools
+      POINTER                                :: ao_mo_fm_pools
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
@@ -169,9 +166,11 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(mo_set_p_type), DIMENSION(:), &
-         POINTER                             :: mos
+      POINTER                                :: mos
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(section_vals_type), POINTER         :: lr_section, nmr_section
+
+!
 
     failure   = .FALSE.
     CALL timeset(routineN,"I"," ",handle)
@@ -524,9 +523,7 @@ CONTAINS
     ! probably a lot of memory is required
     ! Better to free what is not anymore necessary in p_env
 
-write(*,*) 'enter p_env_release'
     CALL p_env_release(p_env,error=error)
-write(*,*) 'exit p_env_release'
     !
     !Calculate current density and induced field
     CALL nmr_response_current(nmr_env,qs_env,psi1,h1_psi0,error=error)
@@ -569,15 +566,15 @@ write(*,*) 'exit p_env_release'
     TYPE(nmr_env_type)                       :: nmr_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
-    !
+
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_env_init', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2)                         :: label
     CHARACTER(LEN=default_string_length)     :: nics_file_name
     INTEGER :: handle, homo, i_B, icount, idir, ini, ir, ispin, istat, &
-         istate, istate2, istate_next, j, k, n_mo(2), n_rep, nao, nmo, nat_print, &
-         natom, ncubes, nmoloc, nspins, nstates, output_unit
+      istate, istate2, istate_next, j, k, n_mo(2), n_rep, nao, nat_print, &
+      natom, ncubes, nmo, nmoloc, nspins, nstates, output_unit
     INTEGER, DIMENSION(:), POINTER           :: bounds, list
     LOGICAL                                  :: failure, gapw, my_end
     LOGICAL, ALLOCATABLE, DIMENSION(:, :)    :: state_done
@@ -590,19 +587,21 @@ write(*,*) 'exit p_env_release'
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(jrho_atom_type), DIMENSION(:), &
-         POINTER                             :: jrho1_atom_set
+      POINTER                                :: jrho1_atom_set
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(mo_set_p_type), DIMENSION(:), &
-         POINTER                             :: mos
+      POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
-         POINTER                             :: particle_set
+      POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(real_matrix_p_type), DIMENSION(:), &
-         POINTER                             :: matrix_s
+      POINTER                                :: matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: lr_section, nmr_section
+
+!
 
     CALL timeset("nmr_env_init","I"," ",handle)
 
@@ -1047,9 +1046,6 @@ write(*,*) 'exit p_env_release'
     !
     ! Initialize local current density if GAPW calculation
     IF(gapw) THEN
-       !write(*,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
-       !write(*,*) 'nmr_env_init: we dont compute list_3c_jrho_atom and init_jrho_atom_set'
-       !write(*,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
        !write(*,*) 'nmr_env_init: enter list_3c_jrho_atom'
        CALL list_3c_jrho_atom(qs_env,error=error)
        !write(*,*) 'nmr_env_init: enter init_jrho_atom_set'

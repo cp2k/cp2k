@@ -53,13 +53,12 @@ MODULE qs_linres_nmr_atom_current
                                              jrho_atom_type,&
                                              nmr_env_type,&
                                              set2zero_jrho_atom_rad
-  USE qs_neighbor_list_types,          ONLY: first_list,first_node,get_neighbor_list,&
-                                             get_neighbor_list_set,get_neighbor_node,&
-                                             neighbor_list_set_p_type,neighbor_list_type,&
-                                             neighbor_node_type,next,reduced_3c_list_type
-  USE qs_oce_types,                    ONLY: build_reduced_3c_lists,&
-                                             deallocate_vtriple,&
-                                             allocate_vtriple,&
+  USE qs_neighbor_list_types,          ONLY: &
+       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
+       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
+       neighbor_node_type, next, reduced_3c_list_type
+  USE qs_oce_types,                    ONLY: allocate_vtriple,&
+                                             build_reduced_3c_lists,&
                                              oce_matrix_type,&
                                              retrieve_sac_list
   USE qs_rho_atom_types,               ONLY: rho_atom_coeff
@@ -68,7 +67,6 @@ MODULE qs_linres_nmr_atom_current
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -113,12 +111,14 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(nmr_env_type)                       :: nmr_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-         POINTER                             :: mat_jp, mat_jp_pii, mat_jp_piii
+      POINTER                                :: mat_jp, mat_jp_pii, &
+                                                mat_jp_piii
     INTEGER, INTENT(IN)                      :: iB, idir
     TYPE(cp_error_type), INTENT(INOUT)       :: error
-    !
+
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_jrho_atom_coeff', &
-         &                                     routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
+
     INTEGER :: handle, iab, iat, iatom, ii, iii, ikind, ilist, inode, isgfa, &
       isgfb, ispin, istat, jatom, jkind, katom, kkind, kneighbor, last_jatom, &
       last_katom, max_gau, max_nsgf, maxsoc, nat, natom, nkind, nlist, nnode, &
@@ -149,9 +149,9 @@ CONTAINS
       POINTER                                :: jp_block, jp_ii_block, &
                                                 jp_iii_block, jp_RARnu
 
-    TYPE(particle_type), DIMENSION(:), &
-         POINTER                                :: particle_set
-    !
+!
+!
+
     CALL timeset("calculate_jrho_atom_coeff","I"," ",handle)
     !
     failure =.FALSE.
@@ -558,17 +558,19 @@ CONTAINS
     TYPE(nmr_env_type)                       :: nmr_env
     INTEGER, INTENT(IN)                      :: IB, idir
     TYPE(cp_error_type), INTENT(inout)       :: error
-    !
-    CHARACTER(len=*), PARAMETER              :: routineN = 'calculate_jrho_atom_rad', &
-         &                                      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_jrho_atom_rad', &
+      routineP = moduleN//':'//routineN
+
     INTEGER :: handle, i1, i2, iat, iatom, icg, ikind, ipgf1, ipgf2, iset1, &
       iset2, iso, iso1, iso1_first, iso1_last, iso2, iso2_first, iso2_last, &
       ispin, istat, l, l_iso, lmax12, lmax_expansion, lmin12, m1s, m2s, &
-      max_iso_not0, max_nso, maxl, maxso, mepos, n1s, n2s, natom, nkind, nr, &
-      nset, nspins, num_pe, size1, size2, natom_tot
+      max_iso_not0, max_nso, maxl, maxso, mepos, n1s, n2s, natom, natom_tot, &
+      nkind, nr, nset, nspins, num_pe, size1, size2
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf
     LOGICAL                                  :: failure, paw_atom
+    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: is_set_to_0
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: g1, g2
     REAL(dp), ALLOCATABLE, DIMENSION(:, :) :: cjc_h_block, cjc_ii_h_block, &
       cjc_ii_s_block, cjc_iii_h_block, cjc_iii_s_block, cjc_s_block, dgg_1, &
@@ -579,7 +581,6 @@ CONTAINS
       Fr_c_s_ii, Fr_c_s_iii, zet
     REAL(dp), DIMENSION(:, :, :), POINTER    :: my_CG
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: my_CG_dxyz_asym
-    REAL(dp)                                 :: zet12
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atom_kind
@@ -591,8 +592,10 @@ CONTAINS
     TYPE(jrho_atom_type), DIMENSION(:), &
       POINTER                                :: jrho1_atom_set
     TYPE(jrho_atom_type), POINTER            :: jrho1_atom
-    LOGICAL,ALLOCATABLE,DIMENSION(:)         :: is_set_to_0
-    !
+
+!
+!
+
     CALL timeset("calculate_jrho_atom_rad","I"," ",handle)
     !
     failure =.FALSE.
@@ -613,7 +616,7 @@ CONTAINS
          &           jrho1_atom_set=jrho1_atom_set,&
          &           error=error)
     !
-    natom_tot = size(jrho1_atom_set,1)
+    natom_tot = SIZE(jrho1_atom_set,1)
     ALLOCATE(is_set_to_0(natom_tot),STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     is_set_to_0(:) = .FALSE.
@@ -738,8 +741,8 @@ CONTAINS
                       DO ispin=1,nspins
                          !------------------------------------------------------------------
                          ! mQai_\alpha\alpha'
-                         cjc_h_block = huge(1d0)!0.0_dp
-                         cjc_s_block = huge(1d0)!0.0_dp
+                         cjc_h_block = HUGE(1d0)!0.0_dp
+                         cjc_s_block = HUGE(1d0)!0.0_dp
                          !
                          ! Hard term
                          coeff => jrho1_atom_set(iatom)%cjc_h(ispin)%r_coef
@@ -752,8 +755,8 @@ CONTAINS
                               &coeff(iso1_first:iso1_last,iso2_first:iso2_last)
                          !------------------------------------------------------------------
                          ! Qci_\alpha\alpha'
-                         cjc_ii_h_block = huge(1d0)!0.0_dp
-                         cjc_ii_s_block = huge(1d0)!0.0_dp
+                         cjc_ii_h_block = HUGE(1d0)!0.0_dp
+                         cjc_ii_s_block = HUGE(1d0)!0.0_dp
                          !
                          ! Hard term
                          coeff => jrho1_atom_set(iatom)%cjc_ii_h(ispin)%r_coef
@@ -766,8 +769,8 @@ CONTAINS
                               &   coeff(iso1_first:iso1_last,iso2_first:iso2_last)
                          !------------------------------------------------------------------
                          ! Qbi_\alpha\alpha'
-                         cjc_iii_h_block = huge(1d0)!0.0_dp
-                         cjc_iii_s_block = huge(1d0)!0.0_dp
+                         cjc_iii_h_block = HUGE(1d0)!0.0_dp
+                         cjc_iii_s_block = HUGE(1d0)!0.0_dp
                          !
                          ! Hard term
                          coeff => jrho1_atom_set(iatom)%cjc_iii_h(ispin)%r_coef
@@ -822,18 +825,18 @@ CONTAINS
                                !
                                iso1 = harmonics%ind_cg_a(icg,iso,iset1,iset2)
                                iso2 = harmonics%ind_cg_b(icg,iso,iset1,iset2)
-                               if(.NOT.(iso2>0.AND.iso1>0))then
-                                  write(*,*) 'iso1=',iso1
-                                  write(*,*) 'iso2=',iso2
-                                  write(*,*) '.... will stop!'
-                               endif
+                               IF(.NOT.(iso2>0.AND.iso1>0))THEN
+                                  WRITE(*,*) 'iso1=',iso1
+                                  WRITE(*,*) 'iso2=',iso2
+                                  WRITE(*,*) '.... will stop!'
+                               ENDIF
                                CPPrecondition(iso2>0.AND.iso1>0,cp_failure_level,routineP,error,failure)
                                !
                                l = indso(1,iso1) + indso(1,iso2)
-                               if(l.GT.lmax_expansion.OR.l.LT..0) then
-                                  write(*,*) 'calculate_jrho_atom_rad: 1 l',l
-                                  write(*,*) 'calculate_jrho_atom_rad: 1 lmax_expansion',lmax_expansion
-                               endif
+                               IF(l.GT.lmax_expansion.OR.l.LT..0) THEN
+                                  WRITE(*,*) 'calculate_jrho_atom_rad: 1 l',l
+                                  WRITE(*,*) 'calculate_jrho_atom_rad: 1 lmax_expansion',lmax_expansion
+                               ENDIF
                                CPPrecondition(l<=lmax_expansion,cp_failure_level,routineP,error,failure)
                                !------------------------------------------------------------------
                                ! Rai
@@ -910,27 +913,27 @@ CONTAINS
                                iso1 = harmonics%ind_cg_a_dxyz_asym(icg,iso,iset1,iset2)
                                iso2 = harmonics%ind_cg_b_dxyz_asym(icg,iso,iset1,iset2)
                                !
-                               if(.NOT.(iso2>0.AND.iso1>0))then
-                                  write(*,*) 'harmonics%ncg_dxyz_asym'
-                                  write(*,*) 'harmonics%ncg_dxyz_asym',harmonics%ncg_dxyz_asym(iso,iset1,iset2)
-                                  write(*,*) 'harmonics%ncg_dxyz',harmonics%ncg_dxyz(iso,iset1,iset2)
-                                  write(*,*) 'size(indso,1)=',size(indso,1),' size(indso,2)=',size(indso,2)
-                                  write(*,*) 'ubound(indso,2)=',ubound(indso,2)
-                                  write(*,*) 'iso1=',iso1,' iso2=',iso2,' iso=',iso,' icg=',icg
-                                  write(*,*) '.... will stop!'
-                               endif
+                               IF(.NOT.(iso2>0.AND.iso1>0))THEN
+                                  WRITE(*,*) 'harmonics%ncg_dxyz_asym'
+                                  WRITE(*,*) 'harmonics%ncg_dxyz_asym',harmonics%ncg_dxyz_asym(iso,iset1,iset2)
+                                  WRITE(*,*) 'harmonics%ncg_dxyz',harmonics%ncg_dxyz(iso,iset1,iset2)
+                                  WRITE(*,*) 'size(indso,1)=',SIZE(indso,1),' size(indso,2)=',SIZE(indso,2)
+                                  WRITE(*,*) 'ubound(indso,2)=',UBOUND(indso,2)
+                                  WRITE(*,*) 'iso1=',iso1,' iso2=',iso2,' iso=',iso,' icg=',icg
+                                  WRITE(*,*) '.... will stop!'
+                               ENDIF
                                CPPrecondition(iso2>0.AND.iso1>0,cp_failure_level,routineP,error,failure)
                                !
                                l = indso(1,iso1) + indso(1,iso2)
-                               if(l.GT.lmax_expansion) then
-                                  write(*,*) 'calculate_jrho_atom_rad: 2 indso',lbound(indso,2),ubound(indso,2)
-                                  write(*,*) 'calculate_jrho_atom_rad: 2 iso2',iso2
-                                  write(*,*) 'calculate_jrho_atom_rad: 2 iso1',iso1
-                                  write(*,*) 'calculate_jrho_atom_rad: 2 indso(1,iso1)',indso(1,iso1)
-                                  write(*,*) 'calculate_jrho_atom_rad: 2 indso(1,iso2)',indso(1,iso2)
-                                  write(*,*) 'calculate_jrho_atom_rad: 2 l',l
-                                  write(*,*) 'calculate_jrho_atom_rad: 2 lmax_expansion',lmax_expansion
-                               endif
+                               IF(l.GT.lmax_expansion) THEN
+                                  WRITE(*,*) 'calculate_jrho_atom_rad: 2 indso',LBOUND(indso,2),UBOUND(indso,2)
+                                  WRITE(*,*) 'calculate_jrho_atom_rad: 2 iso2',iso2
+                                  WRITE(*,*) 'calculate_jrho_atom_rad: 2 iso1',iso1
+                                  WRITE(*,*) 'calculate_jrho_atom_rad: 2 indso(1,iso1)',indso(1,iso1)
+                                  WRITE(*,*) 'calculate_jrho_atom_rad: 2 indso(1,iso2)',indso(1,iso2)
+                                  WRITE(*,*) 'calculate_jrho_atom_rad: 2 l',l
+                                  WRITE(*,*) 'calculate_jrho_atom_rad: 2 lmax_expansion',lmax_expansion
+                               ENDIF
                                CPPrecondition(l<=lmax_expansion,cp_failure_level,routineP,error,failure)
                                !------------------------------------------------------------------
                                ! Daij
@@ -1027,36 +1030,41 @@ CONTAINS
     TYPE(nmr_env_type)                       :: nmr_env
     INTEGER, INTENT(IN)                      :: IB, idir
     TYPE(cp_error_type), INTENT(inout)       :: error
-    !
-    CHARACTER(len=*), PARAMETER              :: routineN = 'shift_atom', &
-                                                routineP = moduleN//':'//routineN
-    INTEGER                                  :: handle,ia,iat,iatom,idir2,idir3,ikind,&
-         &                                      ir,ispin,jatom,mepos,n_nics,na,natom,&
-         &                                      natom_tot,nkind,nr,nspins,num_pe,output_unit
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'shift_atom', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: handle, ia, iat, iatom, idir2, idir3, ikind, ir, ispin, jatom, &
+      mepos, n_nics, na, natom, natom_tot, nkind, nr, nspins, num_pe, &
+      output_unit
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, jatomisneighbor, &
                                                 paw_atom, store_current
-    REAL(dp)                                 :: ddiff,distance,jrho1_tot,r_iatom(3),&
-         &                                      r_jatom(3),rdiff(3),rij(3),rvec(3),&
-         &                                      scale_fac,threshold,itegrated_jrho
-    REAL(dp), DIMENSION(:, :), POINTER       :: jrho_h_grid,jrho_s_grid,r_nics
-    REAL(dp), DIMENSION(:, :, :), POINTER    :: chemical_shift_loc,chemical_shift_loc_nics
+    REAL(dp) :: ddiff, distance, itegrated_jrho, jrho1_tot, r_iatom(3), &
+      r_jatom(3), rdiff(3), rij(3), rvec(3), scale_fac, threshold
+    REAL(dp), DIMENSION(:, :), POINTER       :: jrho_h_grid, jrho_s_grid, &
+                                                r_nics
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: chemical_shift_loc, &
+                                                chemical_shift_loc_nics
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     TYPE(jrho_atom_type), DIMENSION(:), &
-         POINTER                             :: jrho1_atom_set
+      POINTER                                :: jrho1_atom_set
     TYPE(jrho_atom_type), POINTER            :: jrho1_atom
     TYPE(particle_type), DIMENSION(:), &
-         POINTER                             :: particle_set
-    TYPE(cp_logger_type), POINTER            :: logger
-    !
+      POINTER                                :: particle_set
+
+!
+!
+
     CALL timeset("shift_atom","I"," ",handle)
     !
     failure =.FALSE.
@@ -1272,20 +1280,21 @@ CONTAINS
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     INTEGER, INTENT(IN)                      :: iB, idir, ispin
     TYPE(cp_error_type), INTENT(INOUT)       :: error
-    !
+
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_jrho_atom_ang', &
-         &                                     routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: ia, iiB, iiiB, ir, iso, &
                                                 max_iso_not0, na, nr
     LOGICAL                                  :: failure
     REAL(dp)                                 :: rad_part
-    REAL(dp), DIMENSION(:, :), POINTER       :: Fr_a_h,Fr_a_h_ii,Fr_a_h_iii,&
-         &                                      Fr_a_s,Fr_a_s_ii,Fr_a_s_iii,&
-         &                                      Fr_b_h,Fr_b_h_ii,Fr_b_h_iii,&
-         &                                      Fr_b_s,Fr_b_s_ii,Fr_b_s_iii,&
-         &                                      Fr_c_h_ii,Fr_c_h_iii,Fr_c_s_ii,&
-         &                                      Fr_c_s_iii,a,slm
-    !
+    REAL(dp), DIMENSION(:, :), POINTER :: a, Fr_a_h, Fr_a_h_ii, Fr_a_h_iii, &
+      Fr_a_s, Fr_a_s_ii, Fr_a_s_iii, Fr_b_h, Fr_b_h_ii, Fr_b_h_iii, Fr_b_s, &
+      Fr_b_s_ii, Fr_b_s_iii, Fr_c_h_ii, Fr_c_h_iii, Fr_c_s_ii, Fr_c_s_iii, slm
+
+!
+!
+
     failure = .FALSE.
     NULLIFY(Fr_a_h,Fr_a_s,Fr_a_h_ii,Fr_a_s_ii,Fr_a_h_iii,Fr_a_s_iii,&
          &  Fr_b_h,Fr_b_s,Fr_b_h_ii,Fr_b_s_ii,Fr_b_h_iii,Fr_b_s_iii,&
@@ -1435,10 +1444,10 @@ CONTAINS
                                                 sab_orb_neighbor_list_local
     TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
     TYPE(oce_matrix_type), POINTER           :: oce
-    TYPE(reduced_3c_list_type), &
-      DIMENSION(:), POINTER                  :: reduced_3c_oce
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(reduced_3c_list_type), &
+      DIMENSION(:), POINTER                  :: reduced_3c_oce
 
 ! *****************************************************************************
 
@@ -1547,12 +1556,6 @@ CONTAINS
        ENDDO  ! jkind
 
     ENDDO  ! ikind
-
-!   the vlist can be deallocated already here
-!write(*,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING '
-!write(*,*) 'list_3c_jrho_atom: doesnt call deallocate_vtriple'
-!    CALL deallocate_vtriple(oce%voce,error=error)
-!write(*,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING '
 
   END SUBROUTINE list_3c_jrho_atom
 

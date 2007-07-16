@@ -95,11 +95,19 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: Ftarget, &
                                                 mm_potential_file_name, Units
     INTEGER                                  :: IRad, istart, Ival, j, Nog, &
-                                                Nval, stat
-    LOGICAL                                  :: failure, Found, Found_Radius
+                                                Nval, output_unit, stat
+    LOGICAL                                  :: failure, Found, Found_Radius, &
+                                                ionode
     REAL(KIND=dp)                            :: fconv, my_radius, Radius
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: parser
 
+    logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    output_unit = -1
+    IF (ionode) THEN
+       output_unit= cp_logger_get_default_unit_nr(logger)
+    END IF
     Nval = SIZE(qmmm_gaussian_fns)
     Ival = 0
     CALL section_vals_val_get(qmmm_section,"MM_POTENTIAL_FILE_NAME",&
@@ -178,7 +186,7 @@ CONTAINS
           END DO
        ELSE
 !       *** Stop program, if the end of file is reached ***
-          WRITE(*,'(A,F12.6,A)')"Discrepancies in Radius: ",Radius," definition."
+          IF (output_unit>0) WRITE(output_unit,'(A,F12.6,A)')"Discrepancies in Radius: ",Radius," definition."
           CALL stop_program(routineN,moduleN,__LINE__,"Radius Value not found in MM_POTENTIAL file",para_env)
        END IF
 
