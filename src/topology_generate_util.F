@@ -759,7 +759,7 @@ CONTAINS
              ! so we need to reorder them on the basis of the generated name
              IF (.NOT.topology%reorder_atom) THEN
                 topology%reorder_atom = .TRUE.
-                WRITE(output_unit,'(T2,"GENERATE|",A)')&
+                IF (output_unit>0) WRITE(output_unit,'(T2,"GENERATE|",A)')&
                      " Molecules names have been generated. Now reordering particle set in order to have ",&
                      " atoms belonging to the same molecule in a sequential order."
              END IF
