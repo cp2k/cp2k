@@ -200,7 +200,7 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, error )
     INTEGER                                  :: handle, i, iatom, ikind, &
                                                 natoms, nkind, output_unit, &
                                                 stat
-    INTEGER, ALLOCATABLE, DIMENSION(:), SAVE :: natom_of_kind
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: calculate_forces, failure, &
                                                 ionode

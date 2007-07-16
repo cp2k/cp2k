@@ -850,7 +850,6 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,only_apply_tras
                                                 only_apply_trasl_loc, &
                                                 qmmm_added_chrg, qmmm_link, &
                                                 qmmm_link_imomm
-    LOGICAL, SAVE                            :: do_translate = .TRUE.
     REAL(KIND=dp)                            :: energy_mm, energy_qm
     REAL(KIND=dp), DIMENSION(3)              :: max_coord, min_coord, transl_v
     TYPE(cell_type), POINTER                 :: mm_cell, qm_cell
@@ -909,8 +908,8 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,only_apply_tras
      min_coord=MIN(min_coord,particles_mm(qm_atom_index(ip))%r)
      max_coord=MAX(max_coord,particles_mm(qm_atom_index(ip))%r)
   END DO
-  IF (.NOT.force_env%qmmm_env%center_qm_subsys0) do_translate = .FALSE.
-  IF (do_translate) THEN
+  IF (.NOT.force_env%qmmm_env%center_qm_subsys0) force_env%qmmm_env%do_translate = .FALSE.
+  IF (force_env%qmmm_env%do_translate) THEN
      !
      ! The first time we always translate all the system in order
      ! to centre the QM system in the box.
@@ -934,7 +933,7 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,only_apply_tras
      IF (logger%para_env%mepos==logger%para_env%source) &
           WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),fmt='(/1X,A)')&
           " Translating the system in order to center the QM fragment in the QM box."
-     IF (.NOT.force_env%qmmm_env%center_qm_subsys) do_translate = .FALSE.
+     IF (.NOT.force_env%qmmm_env%center_qm_subsys) force_env%qmmm_env%do_translate = .FALSE.
   END IF
   IF (only_apply_trasl_loc) RETURN
   isubsys=-1
@@ -1967,10 +1966,9 @@ SUBROUTINE rescale_forces (force_env, error)
     CHARACTER(len=*), PARAMETER :: routineN = 'rescale_forces', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iparticle, &
-                                                isub
+    INTEGER                                  :: handle, iparticle, isub
     LOGICAL                                  :: explicit, failure
-    REAL(KIND=dp)                            :: max_value, force(3), mod_force
+    REAL(KIND=dp)                            :: force(3), max_value, mod_force
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(particle_list_type), POINTER        :: particles

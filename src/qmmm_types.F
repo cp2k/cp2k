@@ -168,7 +168,7 @@ MODULE qmmm_types
   TYPE qmmm_env_qm_type
      INTEGER :: ref_count, id_nr
      LOGICAL                                                 :: center_qm_subsys
-     LOGICAL                                                 :: center_qm_subsys0
+     LOGICAL                                                 :: center_qm_subsys0, do_translate
      LOGICAL                                                 :: compatibility
      LOGICAL                                                 :: qmmm_link
      LOGICAL                                                 :: move_mm_charges
@@ -413,6 +413,7 @@ SUBROUTINE qmmm_env_qm_create(qmmm_env, error)
              qmmm_env%aug_pools, qmmm_env%potentials,&
              qmmm_env%qmmm_links, qmmm_env%added_charges,&
              qmmm_env%per_potentials)
+     qmmm_env%do_translate     = .TRUE.
      qmmm_env%center_qm_subsys = .TRUE.
      qmmm_env%center_qm_subsys0= .TRUE.
      qmmm_env%compatibility    = .TRUE.

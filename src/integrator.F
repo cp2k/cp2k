@@ -70,7 +70,8 @@ MODULE integrator
   USE md,                              ONLY: simulation_parameters_type
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type,&
-                                             reftraj_type
+                                             reftraj_type,&
+                                             set_md_env
   USE message_passing,                 ONLY: mp_sum
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
@@ -1446,9 +1447,8 @@ CONTAINS
       isubsys, nmolecule, nmolecule_kind, nparticle, nparticle_kind, &
       nparticle_local, nshell, shell_index
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: first, is_shell, &
+    LOGICAL                                  :: first, first_time, is_shell, &
                                                 shell_adiabatic, shell_present
-    LOGICAL, SAVE                            :: first_time = .TRUE.
     REAL(dp)                                 :: kin
     REAL(dp), DIMENSION(3, 3)                :: pv_kin
     REAL(KIND=dp) :: arg_r, arg_v, dm, dmc, dms, dt, fac_massc, fac_masss, &
@@ -1494,7 +1494,7 @@ CONTAINS
     NULLIFY (shell,shell_particles,shell_particle_set,core_particles, core_particle_set)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
                     nhc_part=nhc_part, nhc_baro=nhc_baro, npt = npt, &
-                    itimes = itimes, para_env=para_env )
+                    itimes = itimes, first_time=first_time, para_env=para_env )
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar % nfree,KIND=dp)
 
@@ -1878,8 +1878,10 @@ CONTAINS
 ! Deallocate old variables
     CALL deallocate_old ( )
   END DO
-  first_time = .FALSE.
-
+  IF (first_time) THEN
+     first_time = .FALSE.
+     CALL set_md_env(md_env, first_time=first_time,error=error)
+  END IF
   END SUBROUTINE npt_i
 !!*** **********************************************************************
 !!****f* integrator/reftraj *
@@ -2014,8 +2016,7 @@ CONTAINS
     INTEGER :: iparticle, iparticle_kind, iparticle_local, iroll, istat, &
       isubsys, nmolecule, nmolecule_kind, nparticle, nparticle_kind, &
       nparticle_local
-    LOGICAL                                  :: first
-    LOGICAL, SAVE                            :: first_time = .TRUE.
+    LOGICAL                                  :: first, first_time
     REAL(dp)                                 :: arg_r, arg_v, arg_vx, infree, &
                                                 kin, poly_r, poly_v, poly_vx, &
                                                 roll_tol, scale_r, scale_v, &
@@ -2054,7 +2055,7 @@ CONTAINS
 
     NULLIFY(gci)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
-                    npt = npt, para_env=para_env)
+                    npt = npt, first_time=first_time, para_env=para_env)
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar % nfree, dp )
 
@@ -2263,8 +2264,10 @@ CONTAINS
 ! Deallocate old variables
     CALL deallocate_old ( )
   END DO
-  first_time = .FALSE.
-
+  IF (first_time) THEN
+     first_time = .FALSE.
+     CALL set_md_env(md_env, first_time=first_time,error=error)
+  END IF
   END SUBROUTINE nph_uniaxial
 !!*****
 !******************************************************************************
@@ -2309,8 +2312,7 @@ CONTAINS
     INTEGER :: iparticle, iparticle_kind, iparticle_local, iroll, istat, &
       isubsys, nmolecule, nmolecule_kind, nparticle, nparticle_kind, &
       nparticle_local
-    LOGICAL                                  :: first
-    LOGICAL, SAVE                            :: first_time
+    LOGICAL                                  :: first, first_time
     REAL(dp) :: aa, aax, arg_r, arg_v, arg_vx, gamma1, infree, kin, poly_r, &
       poly_v, poly_vx, roll_tol, scale_r, scale_v, scale_vx
     REAL(dp), DIMENSION(3)                   :: vector_r, vector_v
@@ -2582,8 +2584,10 @@ CONTAINS
 ! Deallocate old variables
     CALL deallocate_old ( )
   END DO
-  first_time = .FALSE.
-
+  IF (first_time) THEN
+     first_time = .FALSE.
+     CALL set_md_env(md_env, first_time=first_time,error=error)
+  END IF
   END SUBROUTINE nph_uniaxial_damped
 !!*****
 !******************************************************************************
@@ -2861,9 +2865,8 @@ CONTAINS
       isubsys, j, nmolecule, nmolecule_kind, nparticle, nparticle_kind, &
       nparticle_local, nshell, shell_index
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: first, is_shell, &
+    LOGICAL                                  :: first, first_time, is_shell, &
                                                 shell_adiabatic, shell_present
-    LOGICAL, SAVE                            :: first_time = .TRUE.
     REAL(dp)                                 :: kin
     REAL(dp), DIMENSION(3, 3)                :: pv_kin
     REAL(KIND=dp)                            :: dm, dmc, dms, dt, fac_massc, &
@@ -3357,9 +3360,10 @@ CONTAINS
 ! Deallocate old variables
     CALL deallocate_old ( )
   END DO
-  first_time = .FALSE.
-
-
+  IF (first_time) THEN
+     first_time = .FALSE.
+     CALL set_md_env(md_env, first_time=first_time,error=error)
+  END IF
  END SUBROUTINE npt_f
 !!*****
 !******************************************************************************

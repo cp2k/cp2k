@@ -81,7 +81,7 @@ MODULE fist_environment_types
   TYPE fist_environment_type
     PRIVATE
     INTEGER :: id_nr, ref_count
-    LOGICAL                                        :: qmmm
+    LOGICAL                                        :: qmmm, first_time
     LOGICAL                                        :: shell_model, shell_model_ad
     TYPE ( qmmm_env_mm_type ), POINTER             :: qmmm_env
     TYPE ( cell_type ), POINTER                    :: cell
@@ -151,7 +151,7 @@ CONTAINS
                            molecule_set, cell, cell_ref, ewald_env,  &
                            fist_nonbond_env, thermo, para_env, subsys,  &
                            qmmm, qmmm_env, input, shell_model, shell_model_ad,&
-                           shell_particle_set, core_particle_set, error )
+                           shell_particle_set, core_particle_set, first_time, error )
 
 !   Purpose: Get the FIST environment.
 
@@ -184,10 +184,10 @@ CONTAINS
       POINTER                                :: qmmm_env
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input
-    LOGICAL, OPTIONAL                        :: shell_model
-    LOGICAL, OPTIONAL                        :: shell_model_ad
-    TYPE(particle_type), OPTIONAL, POINTER   :: shell_particle_set( : )
-    TYPE(particle_type), OPTIONAL, POINTER   :: core_particle_set( : )
+    LOGICAL, OPTIONAL                        :: shell_model, shell_model_ad
+    TYPE(particle_type), OPTIONAL, POINTER   :: shell_particle_set( : ), &
+                                                core_particle_set( : )
+    LOGICAL, OPTIONAL                        :: first_time
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_fist_env', &
@@ -197,9 +197,8 @@ CONTAINS
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(mol_new_list_type), POINTER         :: molecules_new
-    TYPE(particle_list_type), POINTER        :: particles
-    TYPE(particle_list_type), POINTER        :: shell_particles
-    TYPE(particle_list_type), POINTER        :: core_particles
+    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
+                                                shell_particles
 
 !   ---------------------------------------------------------------------------
 
@@ -209,6 +208,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(fist_env%subsys),cp_failure_level,routineP,error,failure)
 
     IF ( PRESENT ( input ) ) input => fist_env%input
+    IF ( PRESENT ( first_time ) ) first_time = fist_env % first_time
     IF ( PRESENT ( qmmm ) ) qmmm = fist_env % qmmm
     IF ( PRESENT ( qmmm_env )) qmmm_env => fist_env % qmmm_env
     IF ( PRESENT ( cell ) ) cell => fist_env % cell
@@ -264,6 +264,7 @@ CONTAINS
     NULLIFY (fist_env%fist_nonbond_env)
     NULLIFY (fist_env%subsys)
     fist_env % qmmm = .FALSE.
+    fist_env % first_time = .TRUE.
     fist_env % shell_model = .FALSE.
     fist_env % shell_model_ad = .FALSE.
     CALL qmmm_env_mm_create(fist_env%qmmm_env, error)
@@ -282,7 +283,7 @@ CONTAINS
                            local_particles, local_molecules, molecule_kind_set, &
                            molecule_set, cell, cell_ref, ewald_env,  &
                            fist_nonbond_env, thermo, subsys, qmmm, qmmm_env, &
-                           input, shell_model, shell_model_ad, error )
+                           input, shell_model, shell_model_ad, first_time, error )
 
 !   Purpose: Set the FIST environment.
 
@@ -311,8 +312,8 @@ CONTAINS
       POINTER                                :: qmmm_env
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input
-    LOGICAL, OPTIONAL                        :: shell_model
-    LOGICAL, OPTIONAL                        :: shell_model_ad
+    LOGICAL, OPTIONAL                        :: shell_model, shell_model_ad, &
+                                                first_time
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_fist_env', &
@@ -327,10 +328,8 @@ CONTAINS
     failure=.FALSE.
     CPPrecondition(fist_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    IF (PRESENT(qmmm)) THEN
-       fist_env%qmmm = qmmm
-    END IF
-
+    IF (PRESENT(first_time)) fist_env%first_time = first_time
+    IF (PRESENT(qmmm)) fist_env%qmmm = qmmm
     IF (PRESENT(qmmm_env)) THEN
        CALL qmmm_env_mm_retain(qmmm_env, error)
        CALL qmmm_env_mm_release(fist_env%qmmm_env, error=error)

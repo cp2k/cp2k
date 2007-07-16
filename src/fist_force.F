@@ -39,7 +39,8 @@ MODULE fist_force
                                              ewald_print
   USE fist_energy_types,               ONLY: fist_energy_type
   USE fist_environment_types,          ONLY: fist_environment_type,&
-                                             get_fist_env
+                                             get_fist_env,&
+                                             set_fist_env
   USE fist_intra_force,                ONLY: force_intra_control
   USE fist_neighbor_list_control,      ONLY: list_control
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type
@@ -131,9 +132,8 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
     INTEGER :: ewald_type, handle, i, ii, ikind, iparticle_kind, &
       iparticle_local, iw, j, natoms, nlocal_particles, node, nparticle_kind, &
       nparticle_local, nshell, stat
-    LOGICAL                                  :: failure, shell_model_ad, &
-                                                shell_present
-    LOGICAL, SAVE                            :: first_time = .TRUE.
+    LOGICAL                                  :: failure, first_time, &
+                                                shell_model_ad, shell_present
     REAL(KIND=dp) :: mass, massc, masss, pot_bend, pot_bond, pot_imptors, &
       pot_manybody, pot_nonbond, pot_onef, pot_shell, pot_torsion, &
       pot_urey_bradley, umass, vg_coulomb, xdum1, xdum2, xdum3
@@ -183,7 +183,8 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
                       local_molecules = local_molecules, thermo = thermo, &
                       molecule_kind_set = molecule_kind_set,  &
                       fist_nonbond_env = fist_nonbond_env, cell = cell, & 
-                      shell_model=shell_present, shell_model_ad=shell_model_ad, error=error)
+                      shell_model=shell_present, shell_model_ad=shell_model_ad, &
+                      first_time=first_time, error=error)
 
   CALL ewald_env_get ( ewald_env, ewald_type = ewald_type ,error=error)
 
@@ -773,7 +774,10 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
      DEALLOCATE ( fshell_nonbond, STAT = stat )
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
-  first_time = .FALSE.
+  IF (first_time) THEN
+     first_time = .FALSE.
+     CALL set_fist_env(fist_env, first_time=first_time, error=error)
+  END IF
   CALL cp_print_key_finished_output(iw,logger,fist_section,&
        "PRINT%DERIVATIVES",error=error)
   CALL timestop(0.0_dp,handle)
