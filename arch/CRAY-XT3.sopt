@@ -23,3 +23,12 @@ hartree_local_3centers.o: hartree_local_3centers.f90
 	$(FC) -c $(FCFLAGS2) $<
 qs_ks_atom.o: qs_ks_atom.f90
 	$(FC) -c $(FCFLAGS2) $<
+qmmm_gpw_energy.o: qmmm_gpw_energy.f90
+	$(FC) -c $(FCFLAGS2) $<
+nddo_methods.o: nddo_methods.f90
+	$(FC) -c $(FCFLAGS2) $<
+kg_ppl.o: kg_ppl.f90
+	$(FC) -c $(FCFLAGS2) $<
+qs_dftb_coulomb.o: qs_dftb_coulomb.f90
+	$(FC) -c $(FCFLAGS2) $<
+
