@@ -759,7 +759,6 @@ CONTAINS
     LOGICAL                                  :: failure, first_time, ghost
     REAL(KIND=dp)                            :: zeff
     REAL(KIND=dp), DIMENSION(3)              :: dipole, r_pbc
-    REAL(kind=dp), DIMENSION(3), SAVE        :: old_dipole = 0
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: center
     TYPE(cell_type), POINTER                 :: cell
     TYPE(gth_potential_type), POINTER        :: gth_potential
@@ -808,11 +807,11 @@ CONTAINS
           iter=cp_iter_string(logger%iter_info,error=error)
           WRITE(unit=unit_nr,fmt="(a,6(es18.8))")&
                iter(1:15),&
-               dipole,pbc(dipole-old_dipole,cell)
+               dipole,pbc(dipole-qs_env%results%dipole,cell)
        END IF
        CALL cp_print_key_finished_output(unit_nr,logger,input,&
             "DFT%PRINT%LOCALIZATION",on_file=.TRUE.,error=error)
-       old_dipole=dipole
+       qs_env%results%dipole=dipole
     END IF
 
   END SUBROUTINE qs_scf_post_loc_dip

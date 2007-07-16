@@ -183,7 +183,8 @@ MODULE qs_environment_types
             qs_env_release,&
             qs_env_reorthogonalize_vectors,&
             qs_env_retain,&
-            set_qs_env
+            set_qs_env,&
+            qs_store_results_type
 
 !!***
 !****************************************************************************
@@ -285,6 +286,9 @@ MODULE qs_environment_types
 !!     08.2004 renamed some of the very short names (s,c,k,h) for easier grepping
 !!
 !!*** *********************************************************************
+  TYPE qs_store_results_type
+     REAL(KIND=dp), DIMENSION(3)                          :: dipole
+  END TYPE qs_store_results_type
 
   TYPE qs_environment_type
 !   PRIVATE
@@ -347,7 +351,8 @@ MODULE qs_environment_types
     TYPE(ep_qs_type), POINTER                             :: ep_qs_env
     TYPE(x_hf_type),POINTER                               :: x_data
     TYPE(et_coupling_type),POINTER                        :: et_coupling   
-    TYPE (qs_dftb_pairpot_type), DIMENSION(:,:), POINTER  :: dftb_potential
+    TYPE(qs_dftb_pairpot_type), DIMENSION(:,:), POINTER   :: dftb_potential
+    TYPE(qs_store_results_type)                           :: results
   END TYPE qs_environment_type
 
 ! *****************************************************************************
@@ -731,10 +736,22 @@ CONTAINS
     qs_env%qmmm_periodic=.FALSE.
     qs_env%requires_mo_derivs=.FALSE.
     qs_env%use_harris=.FALSE.
+    ! Zero all variables containing results
+    CALL init_results(qs_env%results, error)
     NULLIFY(qs_env%mo_derivs)
 
   END SUBROUTINE init_qs_env
 
+
+  SUBROUTINE init_results(results, error)
+    TYPE(qs_store_results_type) :: results
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_results', &
+      routineP = moduleN//':'//routineN
+    
+    results%dipole=0.0_dp
+  END SUBROUTINE init_results
 ! *****************************************************************************
 
   SUBROUTINE set_qs_env(qs_env,cell,super_cell,cell_ref,use_ref_cell, &
