@@ -1532,7 +1532,7 @@ CONTAINS
     CALL reallocate(gto_basis_set%gcc,1,ng,1,1,1,nset)
 
     DO iset=1,nset
-      CALL get_sto_ng ( zet(iset), ng, nq(iset), lq(iset), zetg, gcc )
+      CALL get_sto_ng ( zet(iset), ng, nq(iset), lq(iset), zetg, gcc, error )
       gto_basis_set%lmax(iset) = lq(iset)
       gto_basis_set%lmin(iset) = lq(iset)
       gto_basis_set%npgf(iset) = ng

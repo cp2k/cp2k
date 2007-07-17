@@ -57,18 +57,18 @@ MODULE sto_ng
 CONTAINS
 
 !***************************************************************************
-SUBROUTINE get_sto_ng ( zeta, n, nq, lq, alpha, coef ) 
+SUBROUTINE get_sto_ng ( zeta, n, nq, lq, alpha, coef, error ) 
 
     REAL(KIND=dp), INTENT(IN)                :: zeta
     INTEGER, INTENT(IN)                      :: n, nq, lq
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: alpha, coef
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_sto_ng', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: m, na, nc
     LOGICAL                                  :: failure
-    TYPE(cp_error_type)                      :: error
 
 !---------------------------------------------------------------------------
 
