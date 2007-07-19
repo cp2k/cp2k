@@ -1323,6 +1323,15 @@ CONTAINS
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key_section=print_key,&
+            name="BASIS_MOLOPT_QUANTITIES",&
+            description="Print the two quantities needed in the basis molopt generation:"//&
+            " total energy and condition number of the overlap matrix (S matrix)",&
+            print_level=high_print_level,each=(/1/),&
+            filename="__STD_OUT__",error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key_section=print_key,&
             name="HYPERFINE_COUPLING_TENSOR",&
             description="Calculate and print the EPR hyperfine coupling tensor"//&
             " at atomic positions",&

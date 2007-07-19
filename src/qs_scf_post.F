@@ -35,6 +35,7 @@ MODULE qs_scf_post
   USE cp_control_types,                ONLY: dft_control_type,&
                                              tddfpt_control_type
   USE cp_ddapc_util,                   ONLY: get_ddapc
+  USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -56,6 +57,7 @@ MODULE qs_scf_post
                                              rs_pool_give_back_rs
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_type
+  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
   USE et_coupling_types,               ONLY: set_et_coupling_type
   USE external_potential_types,        ONLY: get_potential,&
                                              gth_potential_type
@@ -94,6 +96,7 @@ MODULE qs_scf_post
                                              calculate_wavefunction
   USE qs_conductivity,                 ONLY: optical_conductivity
   USE qs_electric_field_gradient,      ONLY: qs_efg_calc
+  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_epr_hyp,                      ONLY: qs_epr_hyp_calc
@@ -550,6 +553,10 @@ CONTAINS
        
        ! Calculation of EPR Hyperfine Coupling Tensors
        CALL qs_scf_post_epr(input, logger, qs_env, error)
+
+       ! Calculation of properties needed for BASIS_MOLOPT optimizations
+       CALL qs_scf_post_molopt(input, logger, qs_env, error)
+
        
     END IF
     
@@ -1242,6 +1249,96 @@ CONTAINS
     END IF    
 
   END SUBROUTINE qs_scf_post_efg
+
+!!****f* qs_scf_post/qs_scf_post_molopt [1.0] *
+!!
+!!   NAME
+!!     qs_scf_post_molopt
+!!
+!!   FUNCTION
+!!     computes the condition number of the overlap matrix and 
+!!     prints the value of the total energy. This is needed
+!!     for BASIS_MOLOPT optimizations
+!!
+!!   NOTES
+!!
+!!   ARGUMENTS
+!!     - qs_env: the qs_env in which the qs_env lives
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!
+!!
+!!   MODIFICATION HISTORY
+!!     2007-07 Created [Joost VandeVondele]
+!!
+!!
+!!*** **********************************************************************
+  SUBROUTINE qs_scf_post_molopt(input, logger, qs_env, error)
+    TYPE(section_vals_type), POINTER         :: input
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_molopt', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(section_vals_type), POINTER         :: print_key
+    INTEGER                                  :: unit_nr,nao
+    TYPE(qs_energy_type), POINTER            :: energy
+    REAL(KIND=dp)                            :: S_cond_number
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
+    TYPE(cp_fm_type), POINTER                :: fm_s, fm_work,mo_coeff
+    TYPE(cp_fm_struct_type), POINTER         :: ao_ao_fmstruct
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: eigenvalues
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+
+    print_key => section_vals_get_subs_vals(section_vals=input,&
+                   subsection_name="DFT%PRINT%BASIS_MOLOPT_QUANTITIES",&
+                   error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),&
+              cp_p_file)) THEN
+
+
+       CALL get_qs_env(qs_env,energy=energy,matrix_s=matrix_s,mos=mos,error=error)
+     
+       ! set up the two needed full matrices, using mo_coeff as a template
+       CALL get_mo_set(mo_set=mos(1)%mo_set,mo_coeff=mo_coeff,nao=nao)
+       CALL cp_fm_struct_create(fmstruct=ao_ao_fmstruct,&
+            nrow_global=nao, ncol_global=nao,&
+            template_fmstruct=mo_coeff%matrix_struct, error=error)
+       CALL cp_fm_create(fm_s, matrix_struct=ao_ao_fmstruct,&
+                     name="fm_s", error=error)
+       CALL cp_fm_create(fm_work, matrix_struct=ao_ao_fmstruct,&
+                     name="fm_work", error=error)
+       CALL cp_fm_struct_release(ao_ao_fmstruct,error=error)
+       ALLOCATE(eigenvalues(nao))
+
+       CALL copy_sm_to_fm(matrix_s(1)%matrix,fm_s,error=error)
+       CALL cp_fm_syevd(fm_s,fm_work,eigenvalues,error=error)
+       CALL cp_fm_release(fm_s,error=error)
+       CALL cp_fm_release(fm_work,error=error)
+
+       S_cond_number=MAXVAL(abs(eigenvalues))/MAX(MINVAL(abs(eigenvalues)),EPSILON(0.0_dp))
+
+       unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%BASIS_MOLOPT_QUANTITIES",&
+          extension=".molopt",error=error)
+
+       IF (unit_nr>0) THEN
+           ! please keep this format fixed, needs to be grepable for molopt 
+           ! optimizations
+           write(unit_nr,'(T2,A28,2A25)') "","Tot. Ener.","S Cond. Numb."
+           write(unit_nr,'(T2,A28,2E25.17)') "BASIS_MOLOPT_QUANTITIES",energy%total,S_cond_number
+       ENDIF
+
+       CALL cp_print_key_finished_output(unit_nr,logger,input,&
+            "DFT%PRINT%BASIS_MOLOPT_QUANTITIES",error=error)
+
+    END IF
+
+  END SUBROUTINE qs_scf_post_molopt
 
 !!****f* qs_scf_post/qs_scf_post_epr [1.0] *
 !!
