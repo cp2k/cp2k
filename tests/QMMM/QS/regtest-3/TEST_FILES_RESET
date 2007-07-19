@@ -142,3 +142,5 @@ C4H10-qmmm-gauss-5.inp
 C4H10-qmmm-gauss-6.inp
 #  
 C4H10-qmmm-gauss-7.inp
+# bug fix in clean bends
+constr_hb_mm.inp

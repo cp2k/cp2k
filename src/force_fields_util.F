@@ -611,40 +611,26 @@ CONTAINS
             bend_list=bend_list)
        IF (ASSOCIATED(colv_list)) THEN
           DO ibend=1,nbend
-             counter=0
              unsetme = .FALSE.
              atm_a = bend_list(ibend)%a
              atm_b = bend_list(ibend)%b
              atm_c = bend_list(ibend)%c
-             central = 0
              DO icolv=1,SIZE(colv_list)
                 IF ((colv_list(icolv)%type_id == dist_colvar_id).AND.&
                      ((.NOT.colv_list(icolv)%use_points).OR.(SIZE(colv_list(icolv)%i_atoms)==2))) THEN
                    atm2_a = colv_list(icolv)%i_atoms(1)
                    atm2_b = colv_list(icolv)%i_atoms(2)
-                   ! Check to see if we have a central bend atom in dist list
-                   IF ( central == 0 ) THEN
-                      IF ( atm2_a == atm_b ) central = atm2_a
-                      IF ( atm2_b == atm_b ) central = atm2_b
-                   ENDIF
-                   ! If so, check the other two atoms for a match
-                   IF ( atm2_a == central ) THEN
-                      IF(atm2_b==atm_a.OR.atm2_b==atm_c) counter=counter+1
-                      ! If so, check the other two atoms for a match
-                   ELSEIF ( atm2_b == central ) THEN
-                      IF(atm2_a==atm_a.OR.atm2_a==atm_c) counter=counter+1
-                      ! If not, check the other two atoms for a match
-                   ELSE
-                      IF(atm2_a==atm_a.OR.atm2_a==atm_c) counter=counter+1
-                      IF(atm2_b==atm_a.OR.atm2_b==atm_c) counter=counter+1
-                   ENDIF
+                   ! Check that the bonds we're constraining does not involve atoms defining
+                   ! a bend..
+                   IF  ((( atm2_a == atm_a ).AND.( atm2_b == atm_c )).OR.&
+                        (( atm2_a == atm_c ).AND.( atm2_b == atm_a ))) THEN
+                      unsetme=.TRUE.
+                      EXIT
+                   END IF
                 END IF
              END DO
              ! must have central atom to be involved in bend
-             IF ( central /= 0 ) THEN
-                IF(counter>=4) unsetme=.TRUE.
-                IF(unsetme) bend_list(ibend)%name = "UNSET"
-             ENDIF
+             IF(unsetme) bend_list(ibend)%name = "UNSET"
           END DO
        END IF
     END DO

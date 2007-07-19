@@ -136,6 +136,7 @@ MODULE force_env_methods
                                              qs_ks_release
   USE qs_numerical_pressure,           ONLY: qs_calc_numerical_pressure
   USE restraint,                       ONLY: restraint_control
+  USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: cp_virial,&
@@ -1094,15 +1095,15 @@ SUBROUTINE mixed_energy_forces(force_env, need_f, error)
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: coupling_function
+    CHARACTER(LEN=default_string_length)     :: def_error, this_error
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: data_function, my_par, &
                                                 parameters, variables
-    INTEGER                                  :: iforce_eval, iparticle, j, &
-                                                jparticle, mixing_type, &
-                                                mydim, natom, nforce_eval, &
-                                                stat
+    INTEGER :: iforce_eval, iparticle, j, jparticle, mixing_type, mydim, &
+      natom, nforce_eval, output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: glob_natoms, map_index
-    LOGICAL                                  :: failure, virial_consistent
+    LOGICAL                                  :: failure, ionode, &
+                                                virial_consistent
     REAL(KIND=dp) :: coupling_parameter, dedf, der_1, der_2, dx, energy, err, &
       lambda, lerr, restraint_strength, restraint_target, sd
     REAL(KIND=dp), DIMENSION(:), POINTER     :: energies, my_val, par_values
@@ -1126,7 +1127,10 @@ SUBROUTINE mixed_energy_forces(force_env, need_f, error)
     TYPE(virial_type), POINTER               :: loc_virial, virial_mix
 
     failure=.FALSE.
+    output_unit = -1
     logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)    
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
     ! Get infos about the mixed subsys
     CALL force_env_get(force_env=force_env,&
@@ -1348,7 +1352,16 @@ SUBROUTINE mixed_energy_forces(force_env, need_f, error)
           CALL section_vals_val_get(force_env_section,"MIXED%GENERIC%DX",r_val=dx,error=error)
           CALL section_vals_val_get(force_env_section,"MIXED%GENERIC%ERROR_LIMIT",r_val=lerr,error=error)
           dedf = evalfd(1,iforce_eval,my_val,dx,err)
-          CPPostconditionNoFail(ABS(err)<lerr,cp_warning_level,routineP,error)
+          IF ((ABS(err)>lerr).AND.(output_unit>0)) THEN
+             WRITE(this_error,"(A,G12.6,A)")"(",err,")"
+             WRITE(def_error,"(A,G12.6,A)")"(",lerr,")"
+             CALL compress(this_error,.TRUE.)
+             CALL compress(def_error,.TRUE.)
+             CALL cp_assert(.FALSE.,cp_warning_level,-300,routineP,&
+                  'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)//&
+                  ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'//&
+                  TRIM(def_error)//' .',error)
+          END IF
           ! General Mapping of forces...
           CALL mixed_map_forces(particles_mix, virial_mix, global_forces, virials, dedf, iforce_eval,&
                nforce_eval, map_index, mapping_section, .FALSE., error)
@@ -1417,19 +1430,22 @@ SUBROUTINE dump_der_par(my_val, my_par, dx, lerr, root_section, nforce_eval, err
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: coupling_function
-    CHARACTER(LEN=default_string_length)     :: par
+    CHARACTER(LEN=default_string_length)     :: def_error, par, this_error
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: data_function
-    INTEGER                                  :: i, iforce_eval, ipar, j, &
+    INTEGER                                  :: i, iforce_eval, ipar, iw, j, &
                                                 output_unit
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit, failure, ionode
     REAL(KIND=dp)                            :: d_ene_w, dedf, ene_w, err
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: fe_section
 
     NULLIFY(data_function)
     failure = .FALSE.
+    output_unit = -1
     logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
     fe_section => section_vals_get_subs_vals(root_section,&
          "MOTION%FREE_ENERGY%ALCHEMICAL_CHANGE",error=error)
     CALL section_vals_get(fe_section, explicit=explicit, error=error)
@@ -1441,7 +1457,16 @@ SUBROUTINE dump_der_par(my_val, my_par, dx, lerr, root_section, nforce_eval, err
        CPPrecondition(i<=SIZE(my_par),cp_failure_level,routineP,error,failure)
        ipar = i
        dedf = evalfd(1,ipar,my_val,dx,err)
-       CPPostconditionNoFail(ABS(err)<lerr,cp_warning_level,routineP,error)
+       IF ((ABS(err)>lerr).AND.(output_unit>0)) THEN
+          WRITE(this_error,"(A,G12.6,A)")"(",err,")"
+          WRITE(def_error,"(A,G12.6,A)")"(",lerr,")"
+          CALL compress(this_error,.TRUE.)
+          CALL compress(def_error,.TRUE.)
+          CALL cp_assert(.FALSE.,cp_warning_level,-300,routineP,&
+               'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)//&
+               ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'//&
+               TRIM(def_error)//' .',error)
+       END IF
 
        ! We must print now the energy of the biased system, the weigthing energy 
        ! and the derivative w.r.t.the coupling parameter of the biased energy
@@ -1456,26 +1481,35 @@ SUBROUTINE dump_der_par(my_val, my_par, dx, lerr, root_section, nforce_eval, err
        CALL parsef(2,TRIM(coupling_function),my_par)       
        ene_w   = evalf(2,my_val)
        d_ene_w = evalfd(2,ipar,my_val,dx,err)
-       CPPostconditionNoFail(ABS(err)<lerr,cp_warning_level,routineP,error)
+       IF ((ABS(err)>lerr).AND.(output_unit>0)) THEN
+          WRITE(this_error,"(A,G12.6,A)")"(",err,")"
+          WRITE(def_error,"(A,G12.6,A)")"(",lerr,")"
+          CALL compress(this_error,.TRUE.)
+          CALL compress(def_error,.TRUE.)
+          CALL cp_assert(.FALSE.,cp_warning_level,-300,routineP,&
+               'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)//&
+               ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'//&
+               TRIM(def_error)//' .',error)
+       END IF
 
        ! Print info
-       output_unit = cp_print_key_unit_nr(logger,root_section,"MOTION%FREE_ENERGY%FREE_ENERGY_INFO",&
+       iw = cp_print_key_unit_nr(logger,root_section,"MOTION%FREE_ENERGY%FREE_ENERGY_INFO",&
                         extension=".free_energy",error=error)
-       IF (output_unit>0) THEN
-          WRITE(output_unit,'(T2,79("-"),T37," oOo ")')
+       IF (iw>0) THEN
+          WRITE(iw,'(T2,79("-"),T37," oOo ")')
           DO iforce_eval = 1, nforce_eval
-             WRITE(output_unit,'(T2,"ALCHEMICAL CHANGE| FORCE_EVAL Nr.",I5,T48,"ENERGY (Hartree)= ",F15.9)')&
+             WRITE(iw,'(T2,"ALCHEMICAL CHANGE| FORCE_EVAL Nr.",I5,T48,"ENERGY (Hartree)= ",F15.9)')&
                   iforce_eval, my_val(iforce_eval)
           END DO
-          WRITE(output_unit,'(T2,"ALCHEMICAL CHANGE| DERIVATIVE OF TOTAL ENERGY  [ PARAMETER (",A,") ]",T66,F15.9)')&
+          WRITE(iw,'(T2,"ALCHEMICAL CHANGE| DERIVATIVE OF TOTAL ENERGY  [ PARAMETER (",A,") ]",T66,F15.9)')&
                TRIM(par),dedf
-          WRITE(output_unit,'(T2,"ALCHEMICAL CHANGE| DERIVATIVE OF BIASED ENERGY [ PARAMETER (",A,") ]",T66,F15.9)')&
+          WRITE(iw,'(T2,"ALCHEMICAL CHANGE| DERIVATIVE OF BIASED ENERGY [ PARAMETER (",A,") ]",T66,F15.9)')&
                TRIM(par),dedf-d_ene_w
-          WRITE(output_unit,'(T2,"ALCHEMICAL CHANGE| BIASING UMBRELLA POTENTIAL  ",T66,F15.9)')&
+          WRITE(iw,'(T2,"ALCHEMICAL CHANGE| BIASING UMBRELLA POTENTIAL  ",T66,F15.9)')&
                ene_w
-          WRITE(output_unit,'(T2,79("-"))')
+          WRITE(iw,'(T2,79("-"))')
        END IF
-       CALL cp_print_key_finished_output(output_unit,logger,root_section,&
+       CALL cp_print_key_finished_output(iw,logger,root_section,&
             "MOTION%FREE_ENERGY%FREE_ENERGY_INFO",error=error)
     END IF
 
