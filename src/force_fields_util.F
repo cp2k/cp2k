@@ -528,10 +528,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'clean_intra_force_kind', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atm2_a, atm2_b, atm2_c, atm_a, atm_b, atm_c, atm_d, central, &
-      counter, handle, i, ibend, ibond, icolv, ig3x3, ig4x6, iimpr, ikind, &
-      itorsion, iub, iw, j, k, nbend, nbond, newkind, ng3x3, ng4x6, nimpr, &
-      ntorsion, nub, stat
+    INTEGER :: atm2_a, atm2_b, atm2_c, atm_a, atm_b, atm_c, atm_d, counter, &
+      handle, i, ibend, ibond, icolv, ig3x3, ig4x6, iimpr, ikind, itorsion, &
+      iub, iw, j, k, nbend, nbond, newkind, ng3x3, ng4x6, nimpr, ntorsion, &
+      nub, stat
     INTEGER, POINTER                         :: bad1(:), bad2(:)
     LOGICAL                                  :: failure, unsetme, valid_kind
     TYPE(bend_kind_type), DIMENSION(:), &
@@ -629,7 +629,6 @@ CONTAINS
                    END IF
                 END IF
              END DO
-             ! must have central atom to be involved in bend
              IF(unsetme) bend_list(ibend)%name = "UNSET"
           END DO
        END IF
