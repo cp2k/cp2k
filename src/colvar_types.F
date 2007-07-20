@@ -337,7 +337,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_check_points', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, natoms, npoints, nrep, stat
+    INTEGER                                  :: i, natoms, npoints, irep, nrep, stat
     INTEGER, DIMENSION(:), POINTER           :: atoms
     LOGICAL                                  :: explicit, failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r, weights
@@ -364,11 +364,19 @@ CONTAINS
           SELECT CASE(colvar%points(i)%type_id)
           CASE(do_clv_geo_center)
              ! Define a point through a list of atoms..
-             CALL section_vals_val_get(point_sections,"ATOMS",i_rep_section=i,i_vals=atoms,error=error)
-             natoms = SIZE(atoms)
+             CALL section_vals_val_get(point_sections,"ATOMS",i_rep_section=i,n_rep_val=nrep,i_vals=atoms,error=error)
+             DO irep=1,nrep
+               CALL section_vals_val_get(point_sections,"ATOMS",i_rep_section=i,i_rep_val=irep,i_vals=atoms,error=error)
+               natoms = natoms + SIZE(atoms)
+             END DO
              ALLOCATE(colvar%points(i)%atoms(natoms),stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             colvar%points(i)%atoms = atoms
+             natoms = 0
+             DO irep=1,nrep
+               CALL section_vals_val_get(point_sections,"ATOMS",i_rep_section=i,i_rep_val=irep,i_vals=atoms,error=error)
+               colvar%points(i)%atoms(natoms+1:) = atoms(:)
+               natoms = natoms + SIZE(atoms)
+             END DO
              ! Define weights of the list
              ALLOCATE(colvar%points(i)%weights(natoms),stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
