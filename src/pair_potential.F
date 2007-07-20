@@ -25,15 +25,11 @@ MODULE pair_potential
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
-  USE erf_fn,                          ONLY: erfc
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
-  USE fparser,                         ONLY: EvalErrType,&
-                                             evalf,&
-                                             finalizef,&
+  USE fparser,                         ONLY: finalizef,&
                                              initf,&
                                              parsef
-  USE input_constants,                 ONLY: do_ewald_none
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE memory_utilities,                ONLY: reallocate
@@ -42,6 +38,8 @@ MODULE pair_potential
        ip_type, list_pot, lj_charmm_type, lj_type, nn_type, &
        pair_potential_pp_type, pair_potential_single_type, &
        potential_single_allocation, tersoff_type, wl_type
+  USE pair_potential_util,             ONLY: ener_coul,&
+                                             ener_pot
   USE shell_potential_types,           ONLY: get_shell,&
                                              shell_kind_type
   USE splines_methods,                 ONLY: init_spline,&
@@ -55,7 +53,6 @@ MODULE pair_potential
                                              spline_factor_release,&
                                              spline_factor_type
   USE string_table,                    ONLY: str2id
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort
@@ -70,153 +67,11 @@ MODULE pair_potential
                                           DEFAULT_HICUT_VALUE=1.0E3_dp
   INTEGER, PARAMETER, PRIVATE          :: MAX_POINTS=2000000
 
-  PUBLIC :: potential_f
   PUBLIC :: spline_nonbond_control,&
             get_nonbond_storage
 
 
 CONTAINS
-
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential/ener_pot [1.0] *
-  !!
-  !!   NAME
-  !!     ener_pot
-  !!
-  !!   FUNCTION
-  !!     Evaluates the nonbond potential energy for the implemented FF kinds
-  !!
-  !!   AUTHOR
-  !!
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!
-  !!   SOURCE
-  !******************************************************************************
-  FUNCTION ener_pot ( pot, r, energy_cutoff, vdw_scale14 ) RESULT(value)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: pot
-    REAL(KIND=dp), INTENT(IN)                :: r, energy_cutoff, vdw_scale14
-    REAL(KIND=dp)                            :: value
-
-    INTEGER                                  :: i, index, n
-    REAL(KIND=dp)                            :: pp, qq, scale
-
-    IF (pot%type==lj_charmm_type) THEN
-       value = vdw_scale14 * &
-            4.0_dp*pot%lj%epsilon*(pot%lj%sigma12*r**(-12)-pot%lj% &
-            sigma6*r**(-6)) - energy_cutoff
-    ELSE IF (pot%type==lj_type) THEN
-       value = vdw_scale14 * pot%lj%epsilon* &
-            (pot%lj%sigma12*r**(-12)-pot%lj%sigma6*r**(-6)) - energy_cutoff
-    ELSE IF (pot%type==ip_type) THEN
-       value = 0._dp
-       IF ( r > pot % ipbv % rcore ) THEN
-          DO i = 2, 15
-             value = value + pot % ipbv % a(i)/(r**(i-1)*REAL(i-1,dp))
-          END DO
-       ELSE
-          ! use a linear potential
-          value = pot % ipbv % m * r + pot % ipbv % b
-       ENDIF
-       value=value - energy_cutoff
-    ELSE IF (pot%type==wl_type) THEN
-       value = pot%willis%a*EXP(-pot%willis%b*r) - pot%willis%c/r**6 &
-            - energy_cutoff
-    ELSE IF (pot%type==gw_type) THEN
-       scale = EXP(pot%goodwin%m*(-(r/pot%goodwin%dc)**pot%goodwin%mc+(pot% &
-            goodwin%d/pot%goodwin%dc)**pot%goodwin%mc))
-       value = scale*pot%goodwin%vr0*(pot%goodwin%d/r)**pot%goodwin%m
-    ELSE IF (pot%type==ft_type) THEN
-       value = pot%ft%a*EXP(-pot%ft%b*r) - pot%ft%c/r**6 - pot%ft%d/r**8 &
-            - energy_cutoff
-    ELSE IF (pot%type==ea_type) THEN
-       index = INT ( r / pot % eam % drar ) + 1
-       IF ( index > 5000 ) THEN
-          index = 5000
-       ELSEIF ( index < 1 ) THEN
-          index = 1
-       ENDIF
-       qq = r - pot % eam % rval (index)
-       pp =  pot % eam % phi ( index ) + &
-            qq * pot % eam % phip ( index )
-       value = pp - energy_cutoff
-    ELSE IF (pot%type==b4_type) THEN
-      IF(r<=pot%buck4r%r1) THEN
-        pp = pot%buck4r%a*EXP(-pot%buck4r%b*r)
-      ELSEIF(r>pot%buck4r%r1.AND.r<=pot%buck4r%r2) THEN
-        pp = 0.0_dp
-        DO n = 0,pot%buck4r%npoly1
-          pp = pp+pot%buck4r%poly1(n)*r**n
-        END DO 
-      ELSEIF(r>pot%buck4r%r2.AND.r<=pot%buck4r%r3) THEN
-        pp = 0.0_dp
-        DO n = 0,pot%buck4r%npoly2
-          pp = pp+pot%buck4r%poly2(n)*r**n
-        END DO 
-      ELSEIF(r>pot%buck4r%r3)THEN
-        pp = -pot%buck4r%c/r**6
-      END IF
-      value = pp - energy_cutoff
-    ELSE IF (pot%type==bm_type) THEN
-      value = pot%buckmo%f0*(pot%buckmo%b1+pot%buckmo%b2)*&
-               EXP((pot%buckmo%a1+pot%buckmo%a2-r)/(pot%buckmo%b1+pot%buckmo%b2))&
-               - pot%buckmo%c/r**6  &
-               + pot%buckmo%d*(EXP(-2._dp*pot%buckmo%beta*(r-pot%buckmo%r0))- &
-                               2.0_dp*EXP(-pot%buckmo%beta*(r-pot%buckmo%r0))) &
-               - energy_cutoff
-    ELSE IF (pot%type==gp_type) THEN
-       pot%gp%values(1)=r
-       value = evalf(pot%gp%myid,pot%gp%values) - energy_cutoff
-       IF (EvalErrType > 0) &
-            CALL stop_program("ener_pot","Error evaluating generic potential energy function")
-    ELSE
-       value = 0.0_dp
-    END IF
-  END FUNCTION ener_pot
-
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential/ener_coul [1.0] *
-  !!
-  !!   NAME
-  !!     ener_coul
-  !!
-  !!   FUNCTION
-  !!     Evaluates the Coulomb electrostatic energy
-  !!
-  !!   AUTHOR
-  !!
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!
-  !!   SOURCE
-  !******************************************************************************
-  FUNCTION ener_coul ( e_cutoff_coul, fac, r, ewald_type,alpha, my_do_14 )
-
-    REAL(KIND=dp), INTENT(IN)                :: e_cutoff_coul, fac, r
-    INTEGER, INTENT(IN)                      :: ewald_type
-    REAL(KIND=dp), INTENT(IN)                :: alpha
-    LOGICAL, INTENT(IN)                      :: my_do_14
-    REAL(KIND=dp)                            :: ener_coul
-
-    ener_coul= 0.0_dp
-    IF (.NOT. my_do_14 ) THEN
-       IF (ewald_type /= do_ewald_none) THEN
-          ener_coul = fac * erfc ( alpha * r ) / r -  e_cutoff_coul
-       ELSE
-          ener_coul = fac / r - e_cutoff_coul
-       END IF
-    ELSE
-       ! to avoid a large numberof points in the spline generation
-       ! we evaluate the 1-4 interactions analytically..
-       ener_coul = 0.0_dp
-    ENDIF
-
-  END FUNCTION ener_coul
 
   !******************************************************************************
   !!****
@@ -642,16 +497,19 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'generate_spline_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: jx, mfac
+    INTEGER                                  :: jx, mfac, output_unit
     LOGICAL                                  :: check, failure
     REAL(KIND=dp)                            :: diffmax, dx2, e, f, myfac1, &
                                                 myfac2, x, x2, xdum, xdum1, &
                                                 xsav
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(spline_data_type), POINTER          :: spline_data
     TYPE(spline_factor_type), POINTER        :: spl_f
 
     failure = .FALSE.
-    NULLIFY(spl_f)
+    NULLIFY(logger, spl_f)
+    logger => cp_error_get_logger(error)
+    output_unit= cp_logger_get_default_unit_nr(logger)
     check = PRESENT(energy_cutoff)
     CALL spline_factor_create(spl_f, error)
     IF (do_nonbonded) THEN
@@ -702,7 +560,7 @@ CONTAINS
              e =  e + ener_pot(pot, x , energy_cutoff, my_vdw_scale14 )
           END IF
           IF (e<max_energy) THEN
-             xdum1   = ABS(e-potential_s(spl_p,x*x,xdum,spl_f))
+             xdum1   = ABS(e-potential_s(spl_p,x*x,xdum,spl_f,output_unit))
              diffmax = MAX(diffmax,xdum1)
              xsav = MIN(x,xsav)
           END IF
@@ -746,7 +604,7 @@ CONTAINS
           IF (do_nonbonded) THEN
              e =  e + ener_pot(pot, x , energy_cutoff, my_vdw_scale14 )
           END IF
-          WRITE(1000+n,*) x, e, potential_s(spl_p,x*x,xdum,spl_f)
+          WRITE(1000+n,*) x, e, potential_s(spl_p,x*x,xdum,spl_f,output_unit)
           x2 = x2 + dx2
        END DO
        WRITE(1000+n,*)
@@ -1529,66 +1387,6 @@ CONTAINS
        END IF
     END DO
   END SUBROUTINE get_indexes
-
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential/potential_f [1.0] *
-  !!
-  !!   NAME
-  !!     potential_f
-  !!
-  !!   FUNCTION
-  !!    Evaluates the nonbond and electrostaitic potential analytically
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [tlaino] 2006.05
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!
-  !!   SOURCE
-  !******************************************************************************
-  SUBROUTINE potential_f ( rijsq, potparm, qi, qj, iatom, jatom, energy, ewald_env, error )
-    REAL(KIND=dp), INTENT(IN)                :: rijsq
-    TYPE(pair_potential_pp_type), POINTER    :: potparm
-    REAL(KIND=dp), INTENT(IN)                :: qi, qj
-    INTEGER, INTENT(IN)                      :: iatom, jatom
-    REAL(KIND=dp), INTENT(OUT)               :: energy
-    TYPE(ewald_environment_type), OPTIONAL, &
-      POINTER                                :: ewald_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    INTEGER                                  :: ewald_type
-    REAL(KIND=dp)                            :: alpha, e_cutoff_coul, &
-                                                energy_cutoff, eps0, f, &
-                                                hicut, rij
-
-    rij = SQRT ( rijsq )
-    hicut = SQRT ( potparm %pot(iatom, jatom) %pot % rcutsq )
-    IF (ABS(hicut) <= MIN_HICUT_VALUE) hicut = DEFAULT_HICUT_VALUE
-    ! If genpot we need to get ready for the evaluation of the potential
-    IF (potparm%pot(iatom,jatom)%pot%type==gp_type) THEN
-       CALL initf(potparm%pot(iatom,jatom)%pot%gp%myid)
-       CALL parsef(potparm%pot(iatom,jatom)%pot%gp%myid,&
-                   TRIM(potparm%pot(iatom,jatom)%pot%gp%potential),&
-                   potparm%pot(iatom,jatom)%pot%gp%parameters)
-    END IF
-    energy_cutoff = ener_pot ( potparm%pot(iatom,jatom)%pot, hicut, 0.0_dp, 1.0_dp)
-
-    ! non-bond energy
-    energy = ener_pot ( potparm%pot(iatom,jatom)%pot, rij, energy_cutoff, 1.0_dp)
-    IF (potparm%pot(iatom,jatom)%pot%type==gp_type) THEN
-      CALL finalizef()
-    ENDIF
-    ! real-space ewald non-bond energy
-    IF ( PRESENT ( ewald_env ) ) THEN
-       CALL ewald_env_get(ewald_env,ewald_type=ewald_type,alpha=alpha,eps0=eps0,error=error)
-       f = ifourpi / eps0 * qi * qj
-       e_cutoff_coul = ener_coul ( 0.0_dp, f, hicut, ewald_type, alpha, my_do_14=.FALSE.)
-       energy = energy + ener_coul (e_cutoff_coul, f, rij, ewald_type, alpha, my_do_14=.FALSE.)
-    END IF
-
-  END SUBROUTINE potential_f
 
 END MODULE pair_potential
 

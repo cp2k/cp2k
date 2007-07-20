@@ -107,7 +107,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: a_kind, atom_a, atom_b, b_kind, handle, i, ikind, ilist, &
-      ipair, jkind, nkinds, npairs, shell_a, shell_b, shell_type
+      ipair, jkind, nkinds, npairs, output_unit, shell_a, shell_b, shell_type
     INTEGER, DIMENSION(:, :), POINTER        :: list
     LOGICAL                                  :: all_terms, do_shell, failure, &
                                                 shell_present, swap_ab
@@ -119,6 +119,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3, 3)           :: pv_com
     REAL(KIND=dp), DIMENSION(3, 4)           :: rab_list
     REAL(KIND=dp), DIMENSION(4)              :: rab2_list
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
     TYPE(pair_potential_pp_type), POINTER    :: potparm
@@ -135,6 +136,9 @@ CONTAINS
     TYPE(spline_factor_type), POINTER        :: spl_c, spl_cs, spl_f, spl_sc
 
     CALL timeset ( routineN, handle )
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    output_unit= cp_logger_get_default_unit_nr(logger)
     pp = 0.0_dp
     NULLIFY(pot,c_spline_data,cs_spline_data,sc_spline_data,rshell_last_update_pbc)
     NULLIFY(spl_f, spl_c, spl_cs, spl_sc)
@@ -282,7 +286,7 @@ CONTAINS
                 ! core-core or core-ion/ion-core: Coulomb only
                 rab = rab_list(:,1)
                 rab2 = rab2_list(1)
-                energy =  potential_s (c_spline_data,rab2,fscalar, spl_c)
+                energy =  potential_s (c_spline_data,rab2,fscalar, spl_c, output_unit)
                 pot_nonbond = pot_nonbond + energy
                 fr(1) = fscalar*rab(1)
                 fr(2) = fscalar*rab(2)
@@ -322,7 +326,7 @@ CONTAINS
                    ! shell-shell : VDW + Coulomb
                    rab = rab_list(:,4)
                    rab2 = rab2_list(4)
-                   energy =  potential_s (spline_data,rab2,fscalar,spl_f)
+                   energy =  potential_s (spline_data,rab2,fscalar,spl_f,output_unit)
                    pot_nonbond = pot_nonbond + energy
                    fr(1) = fscalar*rab(1)
                    fr(2) = fscalar*rab(2)
@@ -346,7 +350,7 @@ CONTAINS
                    ! core-shell : Coulomb only
                    rab = rab_list(:,2)
                    rab2 = rab2_list(2)
-                   energy =  potential_s (cs_spline_data,rab2,fscalar,spl_cs)
+                   energy =  potential_s (cs_spline_data,rab2,fscalar,spl_cs,output_unit)
                    pot_nonbond = pot_nonbond + energy
                    fr(1) = fscalar*rab(1)
                    fr(2) = fscalar*rab(2)
@@ -370,7 +374,7 @@ CONTAINS
                    ! shell-core : Coulomb only
                    rab = rab_list(:,3)
                    rab2 = rab2_list(3)
-                   energy =  potential_s (sc_spline_data,rab2,fscalar,spl_sc)
+                   energy =  potential_s (sc_spline_data,rab2,fscalar,spl_sc,output_unit)
                    pot_nonbond = pot_nonbond + energy
                    fr(1) = fscalar*rab(1)
                    fr(2) = fscalar*rab(2)
@@ -394,7 +398,7 @@ CONTAINS
                    ! shell-ion or ion-shell : VDW + Coulomb
                    rab = rab_list(:,4)
                    rab2 = rab2_list(4)
-                   energy =  potential_s (spline_data,rab2,fscalar,spl_f)
+                   energy =  potential_s (spline_data,rab2,fscalar,spl_f,output_unit)
                    pot_nonbond = pot_nonbond + energy
                    fr(1) = fscalar*rab(1)
                    fr(2) = fscalar*rab(2)
@@ -445,7 +449,7 @@ CONTAINS
                 ! Ion-Ion : no shell model
                 rab  = rab_com
                 rab2 = rab2_com
-                energy =  potential_s(c_spline_data,rab2,fscalar,spl_c)
+                energy =  potential_s(c_spline_data,rab2,fscalar,spl_c,output_unit)
                 pot_nonbond = pot_nonbond + energy
                 fr(1) = fscalar*rab(1)
                 fr(2) = fscalar*rab(2)

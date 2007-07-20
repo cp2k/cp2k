@@ -491,7 +491,8 @@ SUBROUTINE  debug_control ( force_env, error)
   energy_numer = 0.0_dp
   pv_test = 0.0_dp
   CALL force_onefour_numer ( molecule_set, molecule_kind_set, local_molecules, &
-                              particle_set, f_numer, energy_numer, delta,cell )
+                              particle_set, f_numer, energy_numer, delta,cell,&
+                              iw)
   CALL mp_sum( f_numer, group )
   CALL mp_sum( energy_numer, group )
   IF ( iw > 0 ) THEN
@@ -549,7 +550,8 @@ SUBROUTINE  debug_control ( force_env, error)
   ENDIF
 ! Debug ub virial
   CALL pv_onefour_numer ( molecule_set, molecule_kind_set, local_molecules, &
-                          particle_set, cell, pv_test, delta ,error=error)
+                          particle_set, cell, pv_test, delta ,error=error,&
+                          output_unit=iw)
   CALL mp_sum ( pv_test, group )
   IF ( iw > 0 ) THEN
 ! write out the virials

@@ -288,6 +288,7 @@ OBJECTS_GENERIC =\
  output_utilities.o\
  pair_potential.o\
  pair_potential_types.o\
+ pair_potential_util.o\
  parallel_include.o\
  parallel_rng_types.o\
  particle_list_types.o\

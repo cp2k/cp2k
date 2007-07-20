@@ -430,13 +430,14 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
                    pot_torsion, pot_imptors, pot_onef, pot_shell, pv_bond, pv_bend, &
                    pv_urey_bradley, pv_torsion, pv_imptors, pv_onef, pv_shell,    &
                    debug % f_bond, debug % f_bend, debug % f_torsion,  &
-                   debug % f_ub, debug % f_imptors, debug % f_onef, cell )
+                   debug % f_ub, debug % f_imptors, debug % f_onef, cell, error )
   ELSE
     CALL force_intra_control ( molecule_set, molecule_kind_set, local_molecules, &
                    particle_set, shell_particle_set, core_particle_set, &
                    pot_bond, pot_bend, pot_urey_bradley, &
                    pot_torsion, pot_imptors, pot_onef, pot_shell, pv_bond, pv_bend, &
-                   pv_urey_bradley, pv_torsion, pv_imptors, pv_onef, pv_shell, cell=cell )
+                   pv_urey_bradley, pv_torsion, pv_imptors, pv_onef, pv_shell, cell=cell,&
+                   error=error)
   ENDIF
 
   IF (iw>0) THEN

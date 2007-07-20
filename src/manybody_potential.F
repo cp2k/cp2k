@@ -145,16 +145,20 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, jx, kx, n, nkx, &
-                                                npoints, nsize, nspline, ntype
+                                                npoints, nsize, nspline, &
+                                                ntype, output_unit
     LOGICAL                                  :: check_bounds, failure
     REAL(KIND=dp)                            :: diffmax, dx2, e, ediff, &
                                                 hicut, locut, x, x2, xdum, &
                                                 xdum1, xsav
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(spline_data_type), POINTER          :: spline_data, spline_data2
     TYPE(spline_factor_type), POINTER        :: spl_f
 
     failure = .FALSE.
-    NULLIFY(spl_f)
+    NULLIFY(logger, spl_f)
+    logger => cp_error_get_logger(error)
+    output_unit= cp_logger_get_default_unit_nr(logger)
     CALL spline_factor_create(spl_f, error)
     spl_f%rscale = 1.0_dp
     spl_f%fscale = 1.0_dp    
@@ -208,7 +212,7 @@ CONTAINS
                    x = x2
                    e = manybody_pot ( potparm%pot ( i, j )%pot, x )
                    IF (e<max_energy) THEN
-                      xdum1   = ABS(e-potential_s(spline_env%spl_pp(n)%spl_p,x*x,xdum,spl_f))
+                      xdum1   = ABS(e-potential_s(spline_env%spl_pp(n)%spl_p,x*x,xdum,spl_f,output_unit))
                       diffmax = MAX(diffmax,xdum1)
                       xsav = MIN(x,xsav)
                    END IF
@@ -267,7 +271,7 @@ CONTAINS
                    DO jx = 1, 5000
                       x = x2
                       e = manybody_pot ( potparm%pot ( i, j )%pot, x )
-                      WRITE(2000+n,*) x, e, potential_s(spline_env%spl_pp(n)%spl_p,x*x,xdum,spl_f)
+                      WRITE(2000+n,*) x, e, potential_s(spline_env%spl_pp(n)%spl_p,x*x,xdum,spl_f,output_unit)
                       x2 = x2 + dx2
                    END DO
                    WRITE(2000+n,*)
@@ -1557,7 +1561,7 @@ CONTAINS
 
     INTEGER :: atom_a, atom_b, handle, ikind, ilist, ipair, istat, iunique, &
       jkind, jlist, junique, m, nkinds, nloc_size, npairs, npairs_2, nunique, &
-      stat
+      output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: work_list
     INTEGER, DIMENSION(:, :), POINTER        :: full_loc_list, list, sort_list
     LOGICAL                                  :: failure, is_eam, is_tersoff
@@ -1566,6 +1570,7 @@ CONTAINS
       rab2, rab2_max, rtmp(3)
     REAL(KIND=dp), DIMENSION(3)              :: cell_v, cell_v_2, cvi
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: loc_cell_v
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair, &
                                                 neighbor_kind_pair_2
@@ -1579,7 +1584,9 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset ( routineN, handle )
-    NULLIFY(spl_f)
+    NULLIFY(logger, spl_f)
+    logger => cp_error_get_logger(error)
+    output_unit= cp_logger_get_default_unit_nr(logger)
     CALL spline_factor_create(spl_f, error)
     spl_f%rscale = 1.0_dp
     spl_f%fscale = 1.0_dp
@@ -1641,7 +1648,7 @@ CONTAINS
              rab = rab+cell_v
              rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
              IF (rab2 <= rab2_max) THEN
-                energy =  potential_s (spl_p,rab2,fscalar,spl_f)
+                energy =  potential_s (spl_p,rab2,fscalar,spl_f,output_unit)
                 pot_nonbond = pot_nonbond + energy
                 fr(1) = fscalar*rab(1)
                 fr(2) = fscalar*rab(2)

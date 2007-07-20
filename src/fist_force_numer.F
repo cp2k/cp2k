@@ -63,10 +63,10 @@ MODULE fist_force_numer
                                              ub_type
   USE molecule_types_new,              ONLY: get_molecule,&
                                              molecule_type
-  USE pair_potential,                  ONLY: potential_f
   USE pair_potential_types,            ONLY: ea_type,&
                                              pair_potential_pp_type,&
                                              tersoff_type
+  USE pair_potential_util,             ONLY: potential_f
   USE particle_types,                  ONLY: particle_type
   USE pme,                             ONLY: pme_evaluate
   USE pw_grid_types,                   ONLY: pw_grid_type
@@ -213,7 +213,8 @@ END SUBROUTINE force_bond_numer
 !******************************************************************************
 
 SUBROUTINE force_onefour_numer ( molecule_set, molecule_kind_set, local_molecules, &
-                                particle_set, f_numer, pot, numerical_shift, cell )
+                                particle_set, f_numer, pot, numerical_shift, cell,&
+                                output_unit)
 
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
@@ -224,6 +225,7 @@ SUBROUTINE force_onefour_numer ( molecule_set, molecule_kind_set, local_molecule
     REAL(KIND=dp), INTENT(INOUT)             :: pot
     REAL(KIND=dp), INTENT(IN)                :: numerical_shift
     TYPE(cell_type), POINTER                 :: cell
+    INTEGER, INTENT(IN)                      :: output_unit
 
     INTEGER :: akind, bkind, first_atom, i, ibond, idim, ikind, imol, &
       index_a, index_b, nkind, nmol_per_kind, nonfo
@@ -267,7 +269,7 @@ SUBROUTINE force_onefour_numer ( molecule_set, molecule_kind_set, local_molecule
         ! LJ contribution
         spl_p => onfo_list ( ibond ) % onfo_kind % spl_p
         spl_f => onfo_list ( ibond ) % onfo_kind % spl_f
-        e0 = potential_s ( spl_p, rab2, fscalar, spl_f )
+        e0 = potential_s ( spl_p, rab2, fscalar, spl_f, output_unit )
         ! EI contribution
         rinv2 = 1.0_dp/rab2
         rinv  = SQRT(rinv2)
@@ -279,13 +281,13 @@ SUBROUTINE force_onefour_numer ( molecule_set, molecule_kind_set, local_molecule
         DO idim = 1, 3
            delta(idim) = numerical_shift
            rab2_minus_delta = DOT_PRODUCT ( rij - delta, rij - delta )
-           em1 = potential_s ( spl_p, rab2_minus_delta, fscalar, spl_f )
+           em1 = potential_s ( spl_p, rab2_minus_delta, fscalar, spl_f, output_unit )
            rinv2 = 1.0_dp/rab2_minus_delta
            rinv  = SQRT(rinv2)
            em2 = spl_p(1)%spline_data%ei_scale14 * rinv - spl_p(1)%spline_data%ei_cutoff14
            em=em1+em2
            rab2_plus_delta = DOT_PRODUCT ( rij + delta, rij + delta )
-           ep1 =  potential_s ( spl_p, rab2_plus_delta, fscalar, spl_f )
+           ep1 =  potential_s ( spl_p, rab2_plus_delta, fscalar, spl_f, output_unit )
            rinv2 = 1.0_dp/rab2_plus_delta
            rinv  = SQRT(rinv2)
            ep2 = spl_p(1)%spline_data%ei_scale14 * rinv - spl_p(1)%spline_data%ei_cutoff14
@@ -1238,7 +1240,7 @@ END SUBROUTINE pv_bond_numer
 !******************************************************************************
 
 SUBROUTINE pv_onefour_numer ( molecule_set, molecule_kind_set, local_molecules, &
-                           particle_set, cell, pv_test, delta, error )
+                           particle_set, cell, pv_test, delta, error, output_unit )
 
 
     TYPE(molecule_type), POINTER             :: molecule_set( : )
@@ -1250,6 +1252,7 @@ SUBROUTINE pv_onefour_numer ( molecule_set, molecule_kind_set, local_molecules, 
       INTENT(INOUT)                          :: pv_test
     REAL(KIND=dp), INTENT(IN)                :: delta
     TYPE(cp_error_type), INTENT(inout)       :: error
+    INTEGER, INTENT(IN)                      :: output_unit
 
     INTEGER                                  :: i, ii, isos, j, jj, k, natoms
     REAL(KIND=dp)                            :: idelta, vm, vp
@@ -1287,7 +1290,7 @@ SUBROUTINE pv_onefour_numer ( molecule_set, molecule_kind_set, local_molecules, 
            particle_set ( i ) % r ( : ) = MATMUL(cell_local % hmat,s(:,i))
         END DO
         CALL potential_onefour ( molecule_set, molecule_kind_set, local_molecules, &
-                              particle_set, vp, cell_local )
+                              particle_set, vp, cell_local, output_unit )
 
 ! tweak again
         cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) - 2.0_dp*delta
@@ -1300,7 +1303,7 @@ SUBROUTINE pv_onefour_numer ( molecule_set, molecule_kind_set, local_molecules, 
            particle_set ( i ) % r ( : ) = MATMUL(cell_local % hmat,s(:,i))
         END DO
         CALL potential_onefour ( molecule_set, molecule_kind_set, local_molecules, &
-                                 particle_set, vm, cell_local )
+                                 particle_set, vm, cell_local, output_unit )
 
 ! calculate the derivative
         dvdh(ii,jj) = (vm-vp)*idelta
@@ -2390,7 +2393,7 @@ END SUBROUTINE potential_bond
 !******************************************************************************
 
 SUBROUTINE potential_onefour ( molecule_set, molecule_kind_set, local_molecules, &
-                               particle_set, energy, cell )
+                               particle_set, energy, cell, output_unit )
 
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
@@ -2398,6 +2401,7 @@ SUBROUTINE potential_onefour ( molecule_set, molecule_kind_set, local_molecules,
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: energy
     TYPE(cell_type), POINTER                 :: cell
+    INTEGER, INTENT(IN)                      :: output_unit
 
     INTEGER                                  :: akind, bkind, first_atom, i, &
                                                 ibond, ikind, imol, index_a, &
@@ -2440,7 +2444,7 @@ SUBROUTINE potential_onefour ( molecule_set, molecule_kind_set, local_molecules,
         rab2 = DOT_PRODUCT ( rij, rij )
         spl_p => onfo_list ( ibond ) % onfo_kind % spl_p
         spl_f => onfo_list ( ibond ) % onfo_kind % spl_f
-        e0 = potential_s ( spl_p, rab2, fscalar, spl_f )
+        e0 = potential_s ( spl_p, rab2, fscalar, spl_f, output_unit )
         rinv2 = 1.0_dp/rab2
         rinv  = SQRT(rinv2)
         e1 = spl_p(1)%spline_data%ei_scale14 * rinv - spl_p(1)%spline_data%ei_cutoff14

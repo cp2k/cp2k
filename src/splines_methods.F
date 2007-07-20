@@ -209,7 +209,7 @@ CONTAINS
   !!
   !!   FUNCTION
   !!     calculates the potential interpolated with splines value at a given point
-  !!     and the first derivative WITHOUT checks
+  !!     and the first derivative. Checks included to avoid just segfaulting!!
   !!
   !!   AUTHOR
   !!     unknown
@@ -233,12 +233,13 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
 
-  FUNCTION potential_s (spl_p, xxi, y1, spl_f )
+  FUNCTION potential_s (spl_p, xxi, y1, spl_f, output_unit )
     TYPE(spline_data_p_type), DIMENSION(:), &
       POINTER                                :: spl_p
     REAL(KIND=dp), INTENT(IN)                :: xxi
     REAL(KIND=dp), INTENT(OUT)               :: y1
     TYPE(spline_factor_type), POINTER        :: spl_f
+    INTEGER, INTENT(IN)                      :: output_unit
     REAL(KIND=dp)                            :: potential_s
 
     REAL(KIND=dp), PARAMETER                 :: f13 = 1.0_dp/3.0_dp
@@ -246,17 +247,26 @@ CONTAINS
     INTEGER                                  :: i
     REAL(KIND=dp)                            :: a, b, h26, invh, &
                                                 potential_s2, x4, xx, xx0, &
-                                                y2, y2hi, y2lo, yhi, ylo
+                                                y2, y2hi, y2lo, yhi, ylo, yy
 
     xx0  = 1.0_dp/xxi
     xx   = spl_f%rscale(1)*xx0
     x4   = xx * xx
     h26  = spl_p(1)%spline_data%h26
     invh = spl_p(1)%spline_data%invh
+    IF (xx >= spl_p(1)%spline_data%xn) THEN
+       ! In case the value is not on the spline let's print a warning and give the value
+       ! for the smaller point available in the spline..
+       ! This should happen in very few cases though..
+       yy = spl_p(1)%spline_data%xn-spl_p(1)%spline_data%h
+       WRITE(output_unit,FMT='(/,80("*"),/,"*",1X,"Value of r in Input =",F11.6,'//&
+            '" not in the spline range. Using =",F11.6,T80,"*",/,80("*"))')SQRT(1.0_dp/xx), SQRT(1.0_dp/yy)
+       xx = yy
+    END IF
     i = (xx-spl_p(1)%spline_data%x1)*invh + 1
     a = (spl_p(1)%spline_data%x1-xx)*invh + REAL(i,kind=dp)
     b = 1.0_dp - a
-
+    
     ylo  = spl_p(1)%spline_data%y(i)
     yhi  = spl_p(1)%spline_data%y(i+1)
     y2lo = spl_p(1)%spline_data%y2(i)
@@ -267,13 +277,22 @@ CONTAINS
     IF (spl_p(1)%spline_data%dual) THEN
        ! In case here we compute the non-bonded spline
        xx   = spl_f%rscale(2)*xx0
+       IF (xx >= spl_p(2)%spline_data%xn) THEN
+          ! In case the value is not on the spline let's print a warning and give the value
+          ! for the smaller point available in the spline..
+          ! This should happen in very few cases though..
+          yy = spl_p(2)%spline_data%xn-spl_p(2)%spline_data%h
+          WRITE(output_unit,FMT='(/,80("*"),/,"*",1X,"Value of r in Input =",F11.6,'//&
+               '" not in the spline range. Using =",F11.6,T80,"*",/,80("*"))')SQRT(1.0_dp/xx), SQRT(1.0_dp/yy)
+          xx = yy
+       END IF
        x4   = xx * xx
        h26  = spl_p(2)%spline_data%h26
        invh = spl_p(2)%spline_data%invh
        i = (xx-spl_p(2)%spline_data%x1)*invh + 1
        a = (spl_p(2)%spline_data%x1-xx)*invh + REAL(i,kind=dp)
        b = 1.0_dp - a
-
+       
        ylo  = spl_p(2)%spline_data%y(i)
        yhi  = spl_p(2)%spline_data%y(i+1)
        y2lo = spl_p(2)%spline_data%y2(i)
