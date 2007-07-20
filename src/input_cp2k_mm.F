@@ -1094,6 +1094,16 @@ CONTAINS
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="GEO_CHECK",&
+            description="This keyword enables the check that two atoms are never below the minimum"//&
+            " value used to construct the splines during the construction of the neighbouring list."//&
+            " Disabling this keyword avoids CP2K to abort in case two atoms are below the minimum "//&
+            " value of the radius used to generate the splines.",&
+            usage="GEO_CHECK",&
+            default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
       
     END IF
 

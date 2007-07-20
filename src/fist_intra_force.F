@@ -109,8 +109,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: type_func
     INTEGER :: first_atom, handle, i, ibend, ibond, ikind, imol, imul, &
       index_a, index_b, index_c, index_d, ionef, ishell, itorsion, nbends, &
-      nbonds, nimptors, nkind, nmol_per_kind, nonefs, nshell, ntorsions, nub, &
-      output_unit
+      nbonds, nimptors, nkind, nmol_per_kind, nonefs, nshell, ntorsions, nub
     REAL(KIND=dp) :: d12, d32, dist, dist1, dist2, energy, fscalar, id12, &
       id32, is32, ism, isn, iw1, iw2, rab2, rinv, rinv2, s32, sm, sn, theta, &
       w1, w2
@@ -135,7 +134,6 @@ CONTAINS
     CALL timeset ( routineN, handle )
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    output_unit= cp_logger_get_default_unit_nr(logger)
 
     IF ( PRESENT ( f_bond)) f_bond = 0.0_dp
     IF ( PRESENT ( f_bend)) f_bend = 0.0_dp
@@ -457,7 +455,7 @@ CONTAINS
              spl_f => onef_list ( ionef ) % onfo_kind % spl_f
              IF (.NOT.ASSOCIATED(spl_p)) CYCLE
              ! LJ contribution
-             energy = potential_s ( spl_p, rab2, fscalar, spl_f, output_unit )
+             energy = potential_s ( spl_p, rab2, fscalar, spl_f, logger )
              pot_onef = pot_onef + energy
              ! EI contribution
              rinv2 = 1.0_dp/rab2

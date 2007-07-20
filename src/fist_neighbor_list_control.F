@@ -92,10 +92,8 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
       iparticle_local, ishell, istat, jkind, last_update, nparticle, &
       nparticle_kind, nparticle_local, nshell, num_update, output_unit
     INTEGER, DIMENSION(:, :), POINTER        :: pot_type
-    LOGICAL                                  :: build_from_scratch, &
-                                                shell_adiabatic, &
-                                                shell_present, &
-                                                update_neighbor_lists
+    LOGICAL :: build_from_scratch, geo_check, shell_adiabatic, shell_present, &
+      update_neighbor_lists
     REAL(KIND=dp)                            :: aup, dr2, dr2_max, lup, &
                                                 verlet_skin
     REAL(KIND=dp), DIMENSION(3)              :: dr, rab, s, s2r
@@ -145,6 +143,8 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
   update_neighbor_lists = .FALSE.
   CALL section_vals_val_get(force_env_section,"MM%FORCEFIELD%NEIGHBOR_LISTS%NEIGHBOR_LISTS_FROM_SCRATCH",&
        l_val=build_from_scratch,error=error)
+  CALL section_vals_val_get(force_env_section,"MM%FORCEFIELD%NEIGHBOR_LISTS%GEO_CHECK",&
+       l_val=geo_check,error=error)
   IF (ASSOCIATED(r_last_update)) THEN
      CALL section_vals_val_get(force_env_section,"MM%FORCEFIELD%NEIGHBOR_LISTS%VERLET_SKIN",&
           r_val=verlet_skin,error=error)
@@ -228,6 +228,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
                                     local_particles,cell,rlist_cutsq,rlist_lowsq,&
                                     nonbonded,para_env,&
                                     build_from_scratch=build_from_scratch,&
+                                    geo_check=geo_check,&
                                     force_env_section=force_env_section,&
                                     pot_type=pot_type,&
                                     error=error)

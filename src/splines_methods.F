@@ -233,18 +233,18 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
 
-  FUNCTION potential_s (spl_p, xxi, y1, spl_f, output_unit )
+  FUNCTION potential_s (spl_p, xxi, y1, spl_f, logger )
     TYPE(spline_data_p_type), DIMENSION(:), &
       POINTER                                :: spl_p
     REAL(KIND=dp), INTENT(IN)                :: xxi
     REAL(KIND=dp), INTENT(OUT)               :: y1
     TYPE(spline_factor_type), POINTER        :: spl_f
-    INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(cp_logger_type), POINTER            :: logger
     REAL(KIND=dp)                            :: potential_s
 
     REAL(KIND=dp), PARAMETER                 :: f13 = 1.0_dp/3.0_dp
 
-    INTEGER                                  :: i
+    INTEGER                                  :: i, output_unit
     REAL(KIND=dp)                            :: a, b, h26, invh, &
                                                 potential_s2, x4, xx, xx0, &
                                                 y2, y2hi, y2lo, yhi, ylo, yy
@@ -258,6 +258,7 @@ CONTAINS
        ! In case the value is not on the spline let's print a warning and give the value
        ! for the smaller point available in the spline..
        ! This should happen in very few cases though..
+       output_unit= cp_logger_get_default_unit_nr(logger)
        yy = spl_p(1)%spline_data%xn-spl_p(1)%spline_data%h
        WRITE(output_unit,FMT='(/,80("*"),/,"*",1X,"Value of r in Input =",F11.6,'//&
             '" not in the spline range. Using =",F11.6,T80,"*",/,80("*"))')SQRT(1.0_dp/xx), SQRT(1.0_dp/yy)
@@ -281,6 +282,7 @@ CONTAINS
           ! In case the value is not on the spline let's print a warning and give the value
           ! for the smaller point available in the spline..
           ! This should happen in very few cases though..
+          output_unit= cp_logger_get_default_unit_nr(logger)
           yy = spl_p(2)%spline_data%xn-spl_p(2)%spline_data%h
           WRITE(output_unit,FMT='(/,80("*"),/,"*",1X,"Value of r in Input =",F11.6,'//&
                '" not in the spline range. Using =",F11.6,T80,"*",/,80("*"))')SQRT(1.0_dp/xx), SQRT(1.0_dp/yy)

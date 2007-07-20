@@ -601,7 +601,7 @@ CONTAINS
        CALL timeset(TRIM(routineN)//"_3",'I','',handle2)
        CALL build_fist_neighbor_lists(atomic_kind_set,particle_set,&
             cell=topology%cell, r_max=r_max, r_minsq=r_minsq, nonbonded=nonbonded,&
-            para_env=para_env, build_from_scratch=.TRUE.,&
+            para_env=para_env, build_from_scratch=.TRUE.,geo_check=.TRUE.,&
             force_env_section=force_env_section,error=error)
        IF (iw>0) THEN
           WRITE(iw,'(T2,"GENERATE| Number of prescreened bonds (neighbors):",T71,I10)')&

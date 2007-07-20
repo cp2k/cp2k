@@ -104,7 +104,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE build_fist_neighbor_lists(atomic_kind_set,particle_set,&
        local_particles,cell,r_max, r_minsq, nonbonded,para_env,&
-       build_from_scratch,force_env_section,pot_type,error)
+       build_from_scratch,geo_check,force_env_section,pot_type,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -116,7 +116,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: r_max, r_minsq
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(cp_para_env_type), POINTER          :: para_env
-    LOGICAL, INTENT(IN)                      :: build_from_scratch
+    LOGICAL, INTENT(IN)                      :: build_from_scratch, geo_check
     TYPE(section_vals_type), POINTER         :: force_env_section
     INTEGER, DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: pot_type
@@ -207,8 +207,8 @@ CONTAINS
     ! Build the nonbonded neighbor lists
 
     CALL build_neighbor_lists(nonbonded,particle_set,atom,cell,maxatom_local,&
-         print_subcell_grid,output_unit,r_max,r_minsq,&
-         build_from_scratch,"NONBONDED",skip_kind,my_pot_type,error)
+         print_subcell_grid,output_unit,r_max,r_minsq, build_from_scratch,&
+         geo_check,"NONBONDED",skip_kind,my_pot_type,error)
 
     print_key_path = "MM%PRINT%NEIGHBOR_LISTS"
 
@@ -290,8 +290,8 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE build_neighbor_lists(nonbonded,particle_set,atom,cell,maxatom_local,&
-       print_subcell_grid,output_unit,r_max,r_minsq,&
-       build_from_scratch,name,skip_kind,pot_type,error)
+       print_subcell_grid,output_unit,r_max,r_minsq,build_from_scratch,geo_check,&
+       name,skip_kind,pot_type,error)
 
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(particle_type), DIMENSION(:), &
@@ -303,7 +303,7 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: print_subcell_grid
     INTEGER, INTENT(IN)                      :: output_unit
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: r_max, r_minsq
-    LOGICAL, INTENT(IN)                      :: build_from_scratch
+    LOGICAL, INTENT(IN)                      :: build_from_scratch, geo_check
     CHARACTER(LEN=*), INTENT(IN)             :: name
     LOGICAL, DIMENSION(:), POINTER           :: skip_kind
     INTEGER, DIMENSION(:, :), POINTER        :: pot_type
@@ -634,7 +634,7 @@ CONTAINS
                               SQRT(rab2_min),&
                               "; increase EMAX_SPLINE."
                          IF (rab2 < rab2_min/(1.06_dp)**2) THEN
-                            CALL stop_program(routineN, &
+                            IF (geo_check) CALL stop_program(routineN, &
                                  "GEOMETRY wrong or EMAX_SPLINE too small!")
                          END IF
                       END IF

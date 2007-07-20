@@ -497,7 +497,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'generate_spline_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: jx, mfac, output_unit
+    INTEGER                                  :: jx, mfac
     LOGICAL                                  :: check, failure
     REAL(KIND=dp)                            :: diffmax, dx2, e, f, myfac1, &
                                                 myfac2, x, x2, xdum, xdum1, &
@@ -509,7 +509,6 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(logger, spl_f)
     logger => cp_error_get_logger(error)
-    output_unit= cp_logger_get_default_unit_nr(logger)
     check = PRESENT(energy_cutoff)
     CALL spline_factor_create(spl_f, error)
     IF (do_nonbonded) THEN
@@ -560,7 +559,7 @@ CONTAINS
              e =  e + ener_pot(pot, x , energy_cutoff, my_vdw_scale14 )
           END IF
           IF (e<max_energy) THEN
-             xdum1   = ABS(e-potential_s(spl_p,x*x,xdum,spl_f,output_unit))
+             xdum1   = ABS(e-potential_s(spl_p,x*x,xdum,spl_f,logger))
              diffmax = MAX(diffmax,xdum1)
              xsav = MIN(x,xsav)
           END IF
@@ -604,7 +603,7 @@ CONTAINS
           IF (do_nonbonded) THEN
              e =  e + ener_pot(pot, x , energy_cutoff, my_vdw_scale14 )
           END IF
-          WRITE(1000+n,*) x, e, potential_s(spl_p,x*x,xdum,spl_f,output_unit)
+          WRITE(1000+n,*) x, e, potential_s(spl_p,x*x,xdum,spl_f,logger)
           x2 = x2 + dx2
        END DO
        WRITE(1000+n,*)
