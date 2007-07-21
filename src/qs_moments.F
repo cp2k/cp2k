@@ -21,7 +21,9 @@
 
 MODULE qs_moments
 
-  USE ai_moments,                      ONLY: moment
+  USE ai_moments,                      ONLY: contract_cossin,&
+                                             cossin,&
+                                             moment
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -30,18 +32,51 @@ MODULE qs_moments
   USE block_p_types,                   ONLY: block_p_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
+  USE cp_cfm_basic_linalg,             ONLY: cp_cfm_lu_decompose
+  USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                             cp_cfm_release,&
+                                             cp_cfm_type
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
+  USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
+                                             fm_pool_create_fm
+  USE cp_fm_types,                     ONLY: &
+       cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, &
+       cp_fm_p_type, cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, &
+       cp_fm_to_fm, cp_fm_type
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type
+  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
+                                             cp_sm_fm_multiply
+  USE cp_control_types,                ONLY: dft_control_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE distribution_1d_types,           ONLY: distribution_1d_type
   USE kinds,                           ONLY: dp
-  USE orbital_pointers,                ONLY: ncoset
+  USE mathconstants,                   ONLY: twopi
+  USE message_passing,                 ONLY: mp_sum
+  USE orbital_pointers,                ONLY: current_maxl,&
+                                             indco,&
+                                             ncoset
   USE particle_types,                  ONLY: particle_type
+  USE physcon,                         ONLY: bohr,&
+                                             debye
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_mo_types,                     ONLY: get_mo_set,&
+                                             mo_set_p_type
   USE qs_neighbor_list_types,          ONLY: &
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_set_type, &
        neighbor_list_type, neighbor_node_type, next
+  USE qs_rho_types,                    ONLY: qs_rho_type
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
+                                             allocate_matrix,&
+                                             cp_sm_sm_trace,&
+                                             deallocate_matrix,&
+                                             deallocate_matrix_set,&
                                              get_block_node,&
                                              real_matrix_p_type,&
+                                             real_matrix_type,&
                                              replicate_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -55,7 +90,8 @@ MODULE qs_moments
 
 ! *** Public subroutines ***
 
-  PUBLIC :: build_moment_matrix
+  PUBLIC :: build_local_moment_matrix, build_berry_moment_matrix
+  PUBLIC :: qs_moment_berry_phase, qs_moment_locop
 
 !!***
 ! *****************************************************************************
@@ -64,7 +100,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE build_moment_matrix(qs_env,moments,nmoments,ref_point,error)
+  SUBROUTINE build_local_moment_matrix(qs_env,moments,nmoments,ref_point,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -74,7 +110,7 @@ CONTAINS
       INTENT(IN), OPTIONAL                   :: ref_point
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_moment_matrix', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_local_moment_matrix', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, iab, iatom, icol, ikind, ilist, inode, irow, iset, &
@@ -232,7 +268,10 @@ CONTAINS
 
             ! this guarentees minimum image convention
             ! anything else would not make sense
-            IF (jatom == last_jatom) CYCLE
+            IF (jatom == last_jatom) THEN
+              neighbor_node => next(neighbor_node)
+              CYCLE
+            END IF
 
             last_jatom = jatom
 
@@ -255,7 +294,11 @@ CONTAINS
 
             ra(:) = pbc(particle_set(iatom)%r(:),cell)
             rb(:) = pbc(particle_set(jatom)%r(:),cell)
-            rc(:) = 0.5_dp * (ref_point(:,iatom) + ref_point(:,jatom))
+            IF ( PRESENT (ref_point) ) THEN
+               rc(:) = 0.5_dp * (ref_point(:,iatom) + ref_point(:,jatom))
+            ELSE
+               rc(:) = 0._dp
+            END IF
             rab(:) = ra(:) - rb(:)
             rab(:) = pbc(rab,cell)
             rac(:) = ra(:) - rc(:)
@@ -343,7 +386,700 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
 
-  END SUBROUTINE build_moment_matrix
+  END SUBROUTINE build_local_moment_matrix
+
+! *****************************************************************************
+
+  SUBROUTINE build_berry_moment_matrix(qs_env,cosmat,sinmat,kvec,error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(real_matrix_type), POINTER          :: cosmat, sinmat
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: kvec
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_berry_moment_matrix', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: handle, iab, iatom, icol, ikind, ilist, inode, irow, iset, &
+      istat, jatom, jkind, jset, last_jatom, ldab, ldsa, ldsb, ldwork, natom, &
+      ncoa, ncob, nkind, nlist, nnode, nseta, nsetb, sgfa, sgfb
+    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
+                                                lb_min, npgfa, npgfb, nsgfa, &
+                                                nsgfb
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
+    LOGICAL                                  :: failure
+    REAL(dp), DIMENSION(:, :), POINTER       :: cblock, cosab, sblock, sinab, &
+                                                work
+    REAL(KIND=dp)                            :: dab
+    REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
+                                                zeta, zetb
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_orb
+    TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
+    TYPE(neighbor_list_type), POINTER        :: neighbor_list
+    TYPE(neighbor_node_type), POINTER        :: neighbor_node
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+
+! ------------------------------------------------------------------------------
+
+    CALL timeset(routineN,"I","",handle)
+
+    failure = .FALSE.
+
+    NULLIFY (atomic_kind_set,particle_set,sab_orb,cell)
+    CALL get_qs_env(qs_env=qs_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    particle_set=particle_set,cell=cell,&
+                    sab_orb=sab_orb,error=error)
+
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, maxco=ldwork )
+    ldab = ldwork
+    ALLOCATE(cosab(ldab,ldab),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(sinab(ldab,ldab),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(work(ldwork,ldwork),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    nkind = SIZE(atomic_kind_set)
+    natom = SIZE(particle_set)
+
+    DO ikind=1,nkind
+
+      atomic_kind => atomic_kind_set(ikind)
+
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           orb_basis_set=orb_basis_set)
+
+      IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
+
+      CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                             first_sgf=first_sgfa,&
+                             lmax=la_max,&
+                             lmin=la_min,&
+                             npgf=npgfa,&
+                             nset=nseta,&
+                             nsgf_set=nsgfa,&
+                             pgf_radius=rpgfa,&
+                             set_radius=set_radius_a,&
+                             sphi=sphi_a,&
+                             zet=zeta)
+      ldsa = SIZE(sphi_a,1)
+
+      DO jkind=1,nkind
+
+        atomic_kind => atomic_kind_set(jkind)
+
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             orb_basis_set=orb_basis_set)
+
+        IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
+
+        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                               first_sgf=first_sgfb,&
+                               lmax=lb_max,&
+                               lmin=lb_min,&
+                               npgf=npgfb,&
+                               nset=nsetb,&
+                               nsgf_set=nsgfb,&
+                               pgf_radius=rpgfb,&
+                               set_radius=set_radius_b,&
+                               sphi=sphi_b,&
+                               zet=zetb)
+
+        iab = ikind + nkind*(jkind - 1)
+        ldsb = SIZE(sphi_b,1)
+
+        IF (.NOT.ASSOCIATED(sab_orb(iab)%neighbor_list_set)) CYCLE
+
+        neighbor_list_set => sab_orb(iab)%neighbor_list_set
+
+        CALL get_neighbor_list_set(neighbor_list_set=neighbor_list_set,&
+                                   nlist=nlist)
+
+        neighbor_list => first_list(neighbor_list_set)
+
+        DO ilist=1,nlist
+
+          CALL get_neighbor_list(neighbor_list=neighbor_list,&
+                                 atom=iatom,&
+                                 nnode=nnode)
+
+          last_jatom = 0
+
+          neighbor_node => first_node(neighbor_list)
+
+          DO inode=1,nnode
+
+            CALL get_neighbor_node(neighbor_node=neighbor_node,&
+                                   neighbor=jatom)
+
+            ! this guarentees minimum image convention
+            ! anything else would not make sense
+            IF (jatom == last_jatom) THEN
+              neighbor_node => next(neighbor_node)
+              CYCLE
+            END IF
+
+            last_jatom = jatom
+
+            IF (iatom <= jatom) THEN
+              irow = iatom
+              icol = jatom
+            ELSE
+              irow = jatom
+              icol = iatom
+            END IF
+
+            NULLIFY (cblock)
+            CALL get_block_node(matrix=cosmat,&
+                                block_row=irow,&
+                                block_col=icol,&
+                                BLOCK=cblock)
+            cblock = 0._dp
+            NULLIFY (sblock)
+            CALL get_block_node(matrix=sinmat,&
+                                block_row=irow,&
+                                block_col=icol,&
+                                BLOCK=sblock)
+            sblock = 0._dp
+
+            ra(:) = pbc(particle_set(iatom)%r(:),cell)
+            rb(:) = pbc(particle_set(jatom)%r(:),cell)
+            rab(:) = ra(:) - rb(:)
+            rab(:) = pbc(rab,cell)
+            dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
+
+            DO iset=1,nseta
+
+              ncoa = npgfa(iset)*ncoset(la_max(iset))
+              sgfa = first_sgfa(1,iset)
+
+              DO jset=1,nsetb
+
+                IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
+
+                ncob = npgfb(jset)*ncoset(lb_max(jset))
+                sgfb = first_sgfb(1,jset)
+
+!               *** Calculate the primitive integrals ***
+                CALL cossin(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
+                            lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
+                            ra,rb,kvec,cosab,sinab)
+                CALL contract_cossin(cblock,sblock,&
+                            iatom,ncoa,nsgfa(iset),sgfa,sphi_a,ldsa,&
+                            jatom,ncob,nsgfb(jset),sgfb,sphi_b,ldsb,&
+                            cosab,sinab,ldab,work,ldwork)
+
+              END DO
+            END DO
+
+            neighbor_node => next(neighbor_node)
+
+          END DO
+
+          neighbor_list => next(neighbor_list)
+
+        END DO
+
+      END DO
+    END DO
+
+    DEALLOCATE(cosab,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(sinab,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(work,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE build_berry_moment_matrix
+
+! *****************************************************************************
+
+  SUBROUTINE qs_moment_berry_phase (qs_env,nmoments,unit_number,error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    INTEGER, INTENT(IN)                      :: nmoments, unit_number
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_moment_berry_phase', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=8), ALLOCATABLE, &
+      DIMENSION(:)                           :: rlab
+    INTEGER                                  :: handle, ia, iatom, ikind, &
+      istat, ix, iy, iz, l, nm, nmom, ispin, i, nmo, nao, nmotot
+    LOGICAL                                  :: failure, uniform
+    REAL(dp)                                 :: charge, dd, ztot, trace, occ
+    COMPLEX(dp)                              :: zdet, zdeta, xphase(3)
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: rmom
+    REAL(dp), DIMENSION(3)                   :: rcc, ria, kvec
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
+    TYPE(real_matrix_type), POINTER          :: cosmat, sinmat
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      POINTER                                :: op_fm_set
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: opvec
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
+    TYPE(cp_cfm_type), POINTER               :: eigrmat
+    COMPLEX(dp) :: zi(3), zij(3,3), zijk(3,3,3), zijkl(3,3,3,3)
+    REAL(dp) :: ci(3), cij(3,3), cijk(3,3,3), cijkl(3,3,3,3)
+
+! -------------------------------------------------------------------------
+
+     failure = .FALSE.
+     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+
+     IF (.NOT.failure) THEN
+
+       CALL timeset(routineN,"I","",handle)
+
+       ! restrict maximum moment available
+       nmom = MIN(nmoments,1)
+
+       nm = (6 + 11*nmom + 6*nmom**2 + nmom**3)/6 - 1
+       ALLOCATE (rmom(nm+1,3),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE (rlab(nm+1),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       rmom = 0._dp
+       rlab = ""
+
+       para_env => qs_env%para_env
+       NULLIFY ( dft_control, rho, cell, particle_set )
+       CALL get_qs_env ( qs_env, dft_control=dft_control, rho=rho, cell=cell,&
+                         particle_set=particle_set, error=error)
+       NULLIFY ( local_particles )
+       CALL get_qs_env ( qs_env, local_particles=local_particles, error=error)
+       NULLIFY ( matrix_s, mos )
+       CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, mos=mos, error=error)
+
+       NULLIFY ( cosmat, sinmat )
+       CALL replicate_matrix(source=matrix_s(1)%matrix,&
+                            TARGET=cosmat,target_name="COS MOM",error=error)
+       CALL replicate_matrix(source=matrix_s(1)%matrix,&
+                            TARGET=sinmat,target_name="SIN MOM",error=error)
+
+       ALLOCATE ( op_fm_set( 2, dft_control%nspins ), STAT = istat )
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE ( opvec( dft_control%nspins ), STAT = istat )
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       nmotot = 0
+       DO ispin = 1, dft_control%nspins
+         NULLIFY(tmp_fm_struct,mo_coeff)
+         CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff,nao=nao,nmo=nmo)
+         nmotot = nmotot + nmo
+         CALL cp_fm_create (opvec(ispin)%matrix , mo_coeff%matrix_struct ,error=error)
+         CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nmo,&
+              ncol_global=nmo,para_env=para_env,context=mo_coeff%matrix_struct%context,&
+              error=error)
+         DO i = 1, SIZE ( op_fm_set, 1 )
+            NULLIFY(op_fm_set(i,ispin)%matrix)
+            CALL cp_fm_create (op_fm_set(i,ispin)%matrix , tmp_fm_struct ,error=error)
+         END DO
+         CALL cp_fm_struct_release(tmp_fm_struct,error=error)
+       END DO
+       CALL cp_cfm_create ( eigrmat, op_fm_set(1,1)%matrix%matrix_struct ,error=error)
+
+       ! occupation
+       DO ispin = 1, dft_control%nspins
+         CALL get_mo_set(mo_set=mos(ispin)%mo_set,maxocc=occ,uniform_occupation=uniform)
+         CPPostcondition(uniform,cp_failure_level,routineP,error,failure)
+       END DO
+
+       ! nuclear contribution
+       ! center of charge
+       rcc = 0._dp
+       ztot = 0._dp
+       DO ikind = 1,SIZE(local_particles%n_el)
+          DO ia = 1,local_particles%n_el(ikind)
+            iatom = local_particles%list(ikind)%array(ia)
+            ria = particle_set(iatom)%r
+            ria = pbc(ria,cell)
+            atomic_kind => particle_set(iatom)%atomic_kind
+            CALL get_atomic_kind(atomic_kind=atomic_kind,core_charge=charge)
+            rcc(:) = rcc(:) + charge*ria(:)
+            ztot = ztot + charge
+          END DO
+       END DO
+       CALL mp_sum(rcc,para_env%group)
+       CALL mp_sum(ztot,para_env%group)
+       IF (ABS(ztot) > 0._dp) rcc(:) = rcc(:)/ztot
+       ria = twopi * REAL(nmotot,dp) * matmul ( cell%h_inv, rcc )
+       xphase = CMPLX ( COS(ria), SIN(ria), dp )
+
+       DO ikind = 1,SIZE(local_particles%n_el)
+          DO ia = 1,local_particles%n_el(ikind)
+            iatom = local_particles%list(ikind)%array(ia)
+            ria = particle_set(iatom)%r - rcc
+            ria = pbc(ria,cell)
+            atomic_kind => particle_set(iatom)%atomic_kind
+            CALL get_atomic_kind(atomic_kind=atomic_kind,core_charge=charge)
+            rmom(1,2) = rmom(1,2) - charge
+            DO l = 1, nm
+              ix = indco(1,l+1)
+              iy = indco(2,l+1)
+              iz = indco(3,l+1)
+              dd = 1._dp
+              IF (ix > 0) dd = dd * ria(1)**ix
+              IF (iy > 0) dd = dd * ria(2)**iy
+              IF (iz > 0) dd = dd * ria(3)**iz
+              rmom(l+1,2) = rmom(l+1,2) - charge * dd
+              CALL set_label (rlab(l+1),ix,iy,iz)
+            END DO
+          END DO
+       END DO
+       CALL mp_sum(rmom(:,2),para_env%group)
+
+       ! electronic contribution
+
+       ! charge
+       DO ispin=1,dft_control%nspins
+         CALL cp_sm_sm_trace(rho%rho_ao(ispin)%matrix,matrix_s(1)%matrix,trace,&
+                                para_env,error)
+         rmom(1,1) = trace
+       END DO
+
+       zi = 0._dp
+       zij = 0._dp
+       zijk = 0._dp
+       zijkl = 0._dp
+
+       DO l = 1, nmom
+         SELECT CASE (l)
+           CASE (1)
+             ! Dipole
+             DO i = 1, 3
+                kvec(:) = twopi*cell%h_inv(i,:)
+                CALL build_berry_moment_matrix(qs_env,cosmat,sinmat,kvec,error)
+                CALL op_orbbas (cosmat,sinmat,mos,op_fm_set,opvec,error)
+                zdet = CMPLX ( 1._dp, 0._dp, dp )
+                DO ispin = 1, dft_control%nspins
+                  eigrmat%local_data(:,:) = &
+                          CMPLX (op_fm_set(1,ispin)%matrix%local_data(:,:), &
+                                 -op_fm_set(2,ispin)%matrix%local_data(:,:),dp)
+                  CALL cp_cfm_lu_decompose ( eigrmat, zdeta )
+                  zdet = zdet * zdeta
+                END DO
+                zi(i) = zdet
+             END DO
+             zi = zi * xphase
+           CASE (2)
+             ! Quadrupole
+           CASE (3)
+             ! Octapole
+           CASE (4)
+             ! Hexadecapole
+           CASE DEFAULT
+             CALL cp_unimplemented_error(fromWhere=routineP, &
+                  message="Berry phase moments bigger than 4 not implemented", &
+                  error=error, error_level=cp_failure_level)
+         END SELECT
+       END DO
+       DO l = 1, nmom
+         SELECT CASE (l)
+           CASE (1)
+             ci = ATAN(AIMAG(zi)/REAL(zi,dp))
+             rmom(2:4,1) = occ * MATMUL ( cell%hmat, ci )/twopi
+           CASE (2)
+             ! Quadrupole
+             CALL cp_unimplemented_error(fromWhere=routineP, &
+                  message="Berry phase moments bigger than 4 not implemented", &
+                  error=error, error_level=cp_failure_level)
+           CASE (3)
+             ! Octapole
+             CALL cp_unimplemented_error(fromWhere=routineP, &
+                  message="Berry phase moments bigger than 4 not implemented", &
+                  error=error, error_level=cp_failure_level)
+           CASE (4)
+             ! Hexadecapole
+             CALL cp_unimplemented_error(fromWhere=routineP, &
+                  message="Berry phase moments bigger than 4 not implemented", &
+                  error=error, error_level=cp_failure_level)
+           CASE DEFAULT
+             CALL cp_unimplemented_error(fromWhere=routineP, &
+                  message="Berry phase moments bigger than 4 not implemented", &
+                  error=error, error_level=cp_failure_level)
+         END SELECT
+       END DO
+
+       rmom(:,3) = rmom(:,1) + rmom(:,2)
+       rmom(:,:) = -rmom(:,:)
+       CALL print_moments(unit_number,nmom,rmom,rlab)
+
+       DEALLOCATE (rmom,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE (rlab,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+       CALL deallocate_matrix ( cosmat, error )
+       CALL deallocate_matrix ( sinmat, error )
+
+       DO ispin = 1, dft_control%nspins
+         CALL cp_fm_release(opvec(ispin)%matrix,error=error)
+         DO i = 1, SIZE ( op_fm_set, 1 )
+           CALL cp_fm_release(op_fm_set(i,ispin)%matrix,error=error)
+         END DO
+       END DO
+       CALL cp_cfm_release(eigrmat,error=error)
+       DEALLOCATE ( op_fm_set, STAT = istat )
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE ( opvec, STAT = istat )
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+       CALL timestop(0.0_dp,handle)
+
+     END IF
+
+  END SUBROUTINE qs_moment_berry_phase
+
+  SUBROUTINE op_orbbas (cosmat,sinmat,mos,op_fm_set,opvec,error)
+
+    TYPE(real_matrix_type), POINTER          :: cosmat, sinmat
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      POINTER                                :: op_fm_set
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: opvec
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    INTEGER                                  :: i, nao, nmo
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+
+    DO i=1,SIZE ( op_fm_set, 2 )   ! spin
+      CALL get_mo_set(mo_set=mos(i)%mo_set,nao=nao,mo_coeff=mo_coeff,nmo=nmo)
+      CALL cp_sm_fm_multiply(cosmat, mo_coeff, opvec(i)%matrix, ncol=nmo, error=error)
+      CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff,opvec(i)%matrix,0.0_dp,&
+              op_fm_set(1,i)%matrix,error=error)
+      CALL cp_sm_fm_multiply(sinmat, mo_coeff, opvec(i)%matrix, ncol=nmo, error=error)
+      CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff,opvec(i)%matrix,0.0_dp,&
+              op_fm_set(2,i)%matrix,error=error)
+    ENDDO
+
+  END SUBROUTINE op_orbbas
+
+! ***************************************************************************
+
+  SUBROUTINE qs_moment_locop (qs_env,nmoments,unit_number,error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    INTEGER, INTENT(IN)                      :: nmoments, unit_number
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_moment_locop', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=8), ALLOCATABLE, &
+      DIMENSION(:)                           :: rlab
+    INTEGER                                  :: handle, i, ia, iatom, ikind, &
+                                                ispin, istat, ix, iy, iz, l, &
+                                                nm, nmom
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: charge, dd, strace, trace
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: rmom
+    REAL(dp), DIMENSION(3)                   :: ria
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s, moments
+
+! -------------------------------------------------------------------------
+
+     failure = .FALSE.
+     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+
+     IF (.NOT.failure) THEN
+
+       CALL timeset(routineN,"I","",handle)
+
+       ! only allow for moments up to maxl set by basis
+       nmom = MIN (nmoments,current_maxl)
+       ! electronic contribution
+       NULLIFY ( moments )
+       CALL build_local_moment_matrix(qs_env,moments,nmom,error=error)
+       NULLIFY ( dft_control, rho, cell, particle_set )
+       CALL get_qs_env ( qs_env, dft_control=dft_control, rho=rho, cell=cell,&
+                         particle_set=particle_set, error=error)
+       para_env => qs_env%para_env
+       NULLIFY ( matrix_s )
+       CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s,error=error)
+
+       nm = SIZE(moments)
+       ALLOCATE (rmom(nm+1,3),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE (rlab(nm+1),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       rmom=0._dp
+       rlab = ""
+
+       DO ispin=1,dft_control%nspins
+         CALL cp_sm_sm_trace(rho%rho_ao(ispin)%matrix,matrix_s(1)%matrix,trace,&
+                                para_env,error)
+         rmom(1,1) = trace
+       END DO
+
+       DO i = 1, SIZE(moments)
+          strace = 0._dp
+          DO ispin=1,dft_control%nspins
+            CALL cp_sm_sm_trace(rho%rho_ao(ispin)%matrix,moments(i)%matrix,trace,&
+                                para_env,error)
+            strace = strace + trace
+          END DO
+          rmom(i+1,1) = strace
+       END DO
+
+       CALL deallocate_matrix_set ( moments, error )
+
+       ! nuclear contribution
+       CALL get_qs_env(qs_env=qs_env,&
+                      local_particles=local_particles,error=error)
+       DO ikind = 1,SIZE(local_particles%n_el)
+          DO ia = 1,local_particles%n_el(ikind)
+            iatom = local_particles%list(ikind)%array(ia)
+            ria = particle_set(iatom)%r
+            ria = pbc(ria,cell)
+            atomic_kind => particle_set(iatom)%atomic_kind
+            CALL get_atomic_kind(atomic_kind=atomic_kind,core_charge=charge)
+            rmom(1,2) = rmom(1,2) - charge
+            DO l = 1, nm
+              ix = indco(1,l+1)
+              iy = indco(2,l+1)
+              iz = indco(3,l+1)
+              dd = 1._dp
+              IF (ix > 0) dd = dd * ria(1)**ix
+              IF (iy > 0) dd = dd * ria(2)**iy
+              IF (iz > 0) dd = dd * ria(3)**iz
+              rmom(l+1,2) = rmom(l+1,2) - charge * dd
+              CALL set_label (rlab(l+1),ix,iy,iz)
+            END DO
+          END DO
+       END DO
+       CALL mp_sum(rmom(:,2),para_env%group)
+       rmom(:,:) = -rmom(:,:)
+       rmom(:,3) = rmom(:,1) + rmom(:,2)
+
+       CALL print_moments(unit_number,nmom,rmom,rlab)
+
+       DEALLOCATE (rmom,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE (rlab,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+       CALL timestop(0.0_dp,handle)
+
+     END IF
+
+  END SUBROUTINE qs_moment_locop
+
+  SUBROUTINE set_label(label,ix,iy,iz)
+    CHARACTER(LEN=*), INTENT(OUT)            :: label
+    INTEGER, INTENT(IN)                      :: ix, iy, iz
+
+    INTEGER                                  :: i
+
+    label = ""
+    DO i=1,ix
+      WRITE(label(i:),"(A1)") "X"
+    END DO
+    DO i=ix+1,ix+iy
+      WRITE(label(i:),"(A1)") "Y"
+    END DO
+    DO i=ix+iy+1,ix+iy+iz
+      WRITE(label(i:),"(A1)") "Z"
+    END DO
+    
+  END SUBROUTINE set_label
+
+  SUBROUTINE print_moments(unit_number,nmom,rmom,rlab)
+    INTEGER, INTENT(IN)                      :: unit_number, nmom
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: rmom
+    CHARACTER(LEN=8), DIMENSION(:)           :: rlab
+
+    INTEGER                                  :: i, i0, i1, j, l
+    REAL(dp)                                 :: dd
+
+    IF (unit_number > 0) THEN
+      DO l=0,nmom
+        SELECT CASE (l)
+          CASE (0)
+            WRITE(unit_number,"(T3,A)") "Charges"
+            WRITE(unit_number,"(T5,A,T18,F12.4,T36,A,T42,F12.4,T60,A,T68,F12.4)") &
+             "Electronic=",rmom(1,1),"Core=",rmom(1,2),"Total=",rmom(1,3)
+          CASE (1)
+            dd=SQRT(SUM(rmom(2:4,3)**2))*debye
+            WRITE(unit_number,"(T3,A)") "Dipole moment [Debye]"
+            WRITE(unit_number,"(T5,3(A,A,F12.4,4X),T60,A,T68,F12.5)") &
+             (TRIM(rlab(i)),"=",rmom(i,3)*debye,i=2,4),"Total=",dd
+          CASE (2)
+            WRITE(unit_number,"(T3,A)") "Quadrupole moment [Debye*Angstrom]"
+            WRITE(unit_number,"(T17,3(A,A,F12.4,9X))") &
+             (TRIM(rlab(i)),"=",rmom(i,3)*debye/bohr,i=5,7)
+            WRITE(unit_number,"(T17,3(A,A,F12.4,9X))") &
+             (TRIM(rlab(i)),"=",rmom(i,3)*debye/bohr,i=8,10)
+          CASE (3)
+            WRITE(unit_number,"(T3,A)") "Octapole moment [Debye*Angstrom**2]"
+            WRITE(unit_number,"(T7,4(A,A,F12.4,3X))") &
+             (TRIM(rlab(i)),"=",rmom(i,3)*debye/bohr/bohr,i=11,14)
+            WRITE(unit_number,"(T7,4(A,A,F12.4,3X))") &
+             (TRIM(rlab(i)),"=",rmom(i,3)*debye/bohr/bohr,i=15,18)
+            WRITE(unit_number,"(T7,4(A,A,F12.4,3X))") &
+             (TRIM(rlab(i)),"=",rmom(i,3)*debye/bohr/bohr,i=19,20)
+          CASE (4)
+            WRITE(unit_number,"(T3,A)") "Hexadecapole moment [Debye*Angstrom**3]"
+            WRITE(unit_number,"(T6,4(A,A,F12.4,2X))") &
+             (TRIM(rlab(i)),"=",rmom(i,3)*debye/bohr/bohr/bohr,i=21,24)
+            WRITE(unit_number,"(T6,4(A,A,F12.4,2X))") &
+             (TRIM(rlab(i)),"=",rmom(i,3)*debye/bohr/bohr/bohr,i=25,28)
+            WRITE(unit_number,"(T6,4(A,A,F12.4,2X))") &
+             (TRIM(rlab(i)),"=",rmom(i,3)*debye/bohr/bohr/bohr,i=29,32)
+            WRITE(unit_number,"(T6,4(A,A,F12.4,2X))") &
+             (TRIM(rlab(i)),"=",rmom(i,3)*debye/bohr/bohr/bohr,i=32,35)
+          CASE DEFAULT
+            WRITE(unit_number,"(T3,A,A,I2)") "Higher moment [Debye*Angstrom**(L-1)]",&
+               "  L=",l
+            i0 = (6 + 11*(l-1) + 6*(l-1)**2 + (l-1)**3)/6
+            i1 = (6 + 11*l + 6*l**2 + l**3)/6 - 1
+            dd = debye/(bohr)**(l-1)
+            DO i=i0,i1,3
+              WRITE(unit_number,"(T18,3(A,A,F12.4,4X)))") &
+                (TRIM(rlab(j+1)),"=",rmom(j+1,3)*dd,j=i,MIN(i1,i+2))
+            END DO
+        END SELECT
+      END DO
+    END IF
+
+  END SUBROUTINE print_moments
+
+!***************************************************************************
 
 !***************************************************************************
 

@@ -58,7 +58,7 @@ MODULE kg_scf_post
   USE physcon,                         ONLY: debye
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_moments,                      ONLY: build_moment_matrix
+  USE qs_moments,                      ONLY: build_local_moment_matrix
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
                                              real_matrix_p_type
   USE timings,                         ONLY: timeset,&
@@ -226,7 +226,7 @@ CONTAINS
              i_val=nmoments,error=error)
 
         NULLIFY ( moments )
-        CALL build_moment_matrix(qs_env,moments,nmoments,&
+        CALL build_local_moment_matrix(qs_env,moments,nmoments,&
                                  ref_point=ref_point,error=error)
   
         nm = SIZE(moments,1)

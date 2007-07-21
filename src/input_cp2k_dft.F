@@ -1136,22 +1136,23 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="TOTAL_DIPOLE",&
-            description="prints out the total dipole of the wannier centers.",&
+            description="Print out the total dipole calcuated from the Wannier centers. "//&
+            "This only makes sense for isolated systems.",&
             usage="TOTAL_DIPOLE", default_l_val=.FALSE., &
             lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MOLECULAR_DIPOLES",&
-            description="prints out the  dipoles of the several molecules",&
+            description="Print out molecular dipoles calculated from Wannier centers",&
             usage="MOLECULAR_DIPOLES", default_l_val=.TRUE., &
             lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="JACOBI_FALLBACK",&
-            description="If the jacobi method should be used in no convergence"//&
-            " could be obtained using the crazy rotations",&
+            description="Use Jacobi method in case no convergence was achieved"//&
+            " by using the crazy rotations method.",&
             usage="JACOBI_FALLBACK", default_l_val=.TRUE., &
             lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
@@ -1210,8 +1211,43 @@ CONTAINS
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       !Printing of Moments
+       CALL cp_print_key_section_create(print_key,"MOMENTS",&
+            description="Controls printing of electric moments", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+
+       CALL keyword_create(keyword=keyword,&
+            name="MAX_MOMENT",&
+            description="Maximum moment to be calculated",&
+            usage="MAX_MOMENT {integer}",&
+            repeats=.FALSE.,&
+            required=.FALSE.,&
+            n_var=1,&
+            type_of_var=integer_t,&
+            default_i_val=1,&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword=keyword,&
+            name="PERIODIC",&
+            description="Use Berry phase formula (PERIODIC=T) or simple operator (PERIODIC=F)",&
+            usage="PERIODIC {logical}",&
+            repeats=.FALSE.,&
+            required=.FALSE.,&
+            n_var=1,&
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,& 
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+       !End of Printing of Moments
+
        CALL cp_print_key_section_create(print_key,"MOLECULAR_STATES",&
-            description="Controls the printing of the molecular states (requires the LOCALIZATION keyword)", &
+            description="Controls printing of molecular states (requires LOCALIZATION keyword)", &
             print_level=high_print_level,each=(/1/),filename=" ",&
             error=error)
 

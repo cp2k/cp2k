@@ -118,6 +118,8 @@ MODULE qs_scf_post
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
                                              write_mo_set
+  USE qs_moments,                      ONLY: qs_moment_berry_phase, &
+                                             qs_moment_locop
   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
   USE qs_resp,                         ONLY: resp_fit
   USE qs_rho_types,                    ONLY: qs_rho_type
@@ -192,13 +194,15 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: filename
     INTEGER                                  :: handle, homo, ispin, istat, &
-                                                n, nao, nlumos, nmo, &
+                                                n, nao, nlumos, nmo, nmos,&
                                                 output_unit
-    LOGICAL                                  :: failure, ionode, &
+    LOGICAL                                  :: failure, ionode, uniform_occ,&
                                                 my_localized_wfn, p_loc, &
                                                 p_molstates
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: center
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: center
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: scenter
     TYPE(coeff_type)                         :: wf_g, wf_r
     TYPE(coeff_type), POINTER                :: rho_core
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -235,6 +239,8 @@ CONTAINS
                                                 loc_section, print_key
     TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
 
+!------------------------------------------------------------------------------
+
     CALL timeset(routineN,"I",'',handle)
 
     ! Writes the data that is already available in qs_env
@@ -270,6 +276,9 @@ CONTAINS
        ! Compute Atomic Charges
        CALL qs_scf_post_charges(input, logger, qs_env, rho, matrix_s, mos, para_env, error)
 
+       ! Moments of charge distribution
+       CALL qs_scf_post_moments(input, logger, qs_env, ionode, output_unit, error)
+
        ! Print Localized orbitals
        print_key => section_vals_get_subs_vals(dft_section,"PRINT%LOCALIZATION",error=error)
        p_loc=BTEST(cp_print_key_should_output(logger%iter_info,print_key,&
@@ -282,8 +291,8 @@ CONTAINS
        ! Setup the grids needed to compute a wavefunction given a vector..
        IF ( ((BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
               error=error),cp_p_file).OR.&
-              BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%LOCALIZATION%CUBES",&
-              error=error),cp_p_file)&
+              BTEST(cp_print_key_should_output(logger%iter_info,dft_section,&
+              "PRINT%LOCALIZATION%CUBES",error=error),cp_p_file)&
              ).AND. &
               ( section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO",error=error) /= 0 .OR. &
                 section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO",error=error) /=0 ) &
@@ -301,7 +310,8 @@ CONTAINS
 
        ! Makes the MOs eigenstates, computes eigenvalues, write cubes
        IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
-            error=error),cp_p_file) .AND. section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO",error=error) /=0) THEN
+           error=error),cp_p_file) .AND. &
+           section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO",error=error) /=0) THEN
           IF (qs_env%dft_control%restricted) THEN
              !
              ! The issue is that one state is different from the others, 
@@ -311,7 +321,8 @@ CONTAINS
              ! they should have the same eigenvalues.
              ! So it looks like I need a convincing definition of an eigenstate in this case :-)
              ! 
-             IF (ionode) WRITE(output_unit,*) " Unclear how we define MOs in the restricted case ... skipping"
+             IF (ionode) WRITE(output_unit,*) &
+                " Unclear how we define MOs in the restricted case ... skipping"
           ELSE
              DO ispin=1,dft_control%nspins
                 CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
@@ -339,7 +350,8 @@ CONTAINS
           ENDIF
        ENDIF
 
-       ! Initialize the localization environment, needed e.g. for wannier functions and molecular states
+       ! Initialize the localization environment, 
+       ! needed e.g. for wannier functions and molecular states
        IF(dft_control%qs_control%localized_wfn) THEN
 
           my_localized_wfn_control =>  dft_control%qs_control%localized_wfn_control
@@ -380,8 +392,18 @@ CONTAINS
        ELSEIF (p_loc) THEN
 
           IF (qs_env%dft_control%restricted) THEN
-             IF (ionode) WRITE(output_unit,*) " Unclear how we define MOs / localization in the restricted case ... skipping"
+             IF (ionode) WRITE(output_unit,*) &
+              " Unclear how we define MOs / localization in the restricted case ... skipping"
           ELSE
+             nmos=0
+             DO ispin=1,dft_control%nspins
+                CALL get_mo_set(mo_set=mos(ispin)%mo_set,nmo=nmo,uniform_occupation=uniform_occ)
+                CPPrecondition(uniform_occ,cp_failure_level,routineP,error,failure)
+                nmos=MAX(nmos,nmo)
+             END DO
+             ALLOCATE(center(nmos,6,dft_control%nspins),STAT=istat)
+             CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+             center = 0._dp
              DO ispin=1,dft_control%nspins
                 CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
                                 eigenvalues=mo_eigenvalues,homo=homo,nmo=nmo)
@@ -405,7 +427,6 @@ CONTAINS
                 END IF
                 NULLIFY(mo_localized)
                 CALL cp_fm_create(mo_localized,mo_coeff%matrix_struct,error=error)
-                ALLOCATE(center(mo_localized%matrix_struct%ncol_global,6))
                 CALL cp_fm_to_fm(mo_coeff,mo_localized,error=error)
                 ! Do localization..
                 WRITE(filename,'(a13,I1.1)') "HOMO_CENTERS_",ispin
@@ -413,27 +434,28 @@ CONTAINS
                 IF (ionode) WRITE(output_unit,*) "Computing localization properties"
                 qs_loc_env%filename = filename
                 loc_print_key => section_vals_get_subs_vals(input,"DFT%PRINT%LOCALIZATION",error=error) 
-                CALL qs_loc_compute_properties(qs_loc_env,molecule_set,mo_localized,center,ionode,loc_print_key,&
-                                               error=error)
+                scenter => center(:,:,ispin)
+                CALL qs_loc_compute_properties(qs_loc_env,molecule_set,mo_localized,&
+                     scenter,ionode,loc_print_key,error=error)
                 IF (ionode) WRITE(output_unit,*) "Results in ",filename
 
                 ! Write the wannier functions to cubes
                 CALL qs_scf_post_wannier(input, dft_section, dft_control, logger, qs_env,&
-                     rs, wf_g, wf_r, mo_localized, particles, homo, ispin, ionode, center, error)
+                     rs, wf_g, wf_r, mo_localized, particles, homo, ispin, ionode, scenter, error)
 
                 ! Compute the molecular states
                 IF ( p_molstates ) THEN
-                   CALL construct_molecular_states ( molecule_set, mo_localized, mo_coeff, mo_eigenvalues, &
-                                                     ks_rmpv ( ispin ) % matrix, matrix_s(1)%matrix, qs_env, &
-                                                     wf_r, wf_g, force_env_section=qs_env%input, error=error)
+                   CALL construct_molecular_states ( molecule_set, mo_localized, mo_coeff, &
+                        mo_eigenvalues, ks_rmpv(ispin)%matrix, matrix_s(1)%matrix, qs_env, &
+                        wf_r, wf_g, force_env_section=qs_env%input, error=error)
                 ENDIF
                 CALL cp_fm_release(mo_localized,error=error)
-                DEALLOCATE(center)
              ENDDO
+             ! Print Total Dipole
+             CALL qs_scf_post_loc_dip(input, dft_control, center, logger, qs_env, error)
+             DEALLOCATE(center,STAT=istat)
+             CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
           ENDIF
-
-          ! Print Total Dipole
-          CALL qs_scf_post_loc_dip(input, dft_control, logger, qs_env, error)
        ENDIF
 
        ! Gets the lumos, and eigenvalues for the lumos
@@ -751,22 +773,22 @@ CONTAINS
 !!
 !!
 !!*** **********************************************************************
-  SUBROUTINE qs_scf_post_loc_dip(input, dft_control, logger, qs_env, error)
-    TYPE(section_vals_type), POINTER         :: input
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
+  SUBROUTINE qs_scf_post_loc_dip(input, dft_control, center, logger, qs_env, error)
+    TYPE(section_vals_type), POINTER            :: input
+    TYPE(dft_control_type), POINTER             :: dft_control
+    REAL(KIND=dp), DIMENSION(:, :, :), POINTER  :: center
+    TYPE(cp_logger_type), POINTER               :: logger
+    TYPE(qs_environment_type), POINTER          :: qs_env
+    TYPE(cp_error_type), INTENT(inout)          :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_loc_dip', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: iter
-    INTEGER                                  :: i, idir, unit_nr
+    INTEGER                                  :: i, idir, unit_nr, ispins
     LOGICAL                                  :: failure, first_time, ghost
-    REAL(KIND=dp)                            :: zeff
+    REAL(KIND=dp)                            :: zeff, zwfc
     REAL(KIND=dp), DIMENSION(3)              :: dipole, r_pbc
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: center
     TYPE(cell_type), POINTER                 :: cell
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(particle_type), DIMENSION(:), &
@@ -788,7 +810,7 @@ CONTAINS
                gth_potential=gth_potential)
           zeff = 0.0_dp
           IF (.NOT.ghost) THEN
-             CALL get_potential(gth_potential,zeff=zeff)
+             CALL get_atomic_kind(particle_set(i)%atomic_kind,core_charge=zeff)
              CPPrecondition(cell%orthorhombic,cp_failure_level,routineP,error,failure)
              DO idir=1,3
                 r_pbc(idir) = particle_set(i) % r(idir)
@@ -798,9 +820,13 @@ CONTAINS
        END DO
 
        ! Charges of the wfc involved
-       DO i=1,SIZE(center,1)
-          r_pbc = center(i,1:3)
-          dipole=dipole - (3.0_dp-REAL(dft_control%nspins,dp)) * r_pbc
+       ! Warning, this assumes the same occupation for all states
+       zwfc = 3.0_dp-REAL(dft_control%nspins,dp)
+       DO ispins=1,dft_control%nspins
+         DO i=1,SIZE(center,1)
+            r_pbc = center(i,1:3,ispins)
+            dipole=dipole - zwfc * r_pbc
+         ENDDO
        ENDDO
        dipole=pbc(dipole,cell)
 
@@ -1115,6 +1141,81 @@ CONTAINS
        ENDIF
     ENDIF
   END SUBROUTINE qs_scf_post_optc
+
+!!****f* qs_scf_post/qs_scf_post_moments [1.0] *
+!!
+!!   NAME
+!!     qs_scf_post_moments
+!!
+!!   FUNCTION
+!!     Computes and prints electric moments
+!!
+!!   NOTES
+!!     
+!!   ARGUMENTS
+!!     - qs_env: the qs_env in which the qs_env lives
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!*** **********************************************************************
+  SUBROUTINE qs_scf_post_moments(input, logger, qs_env, ionode, output_unit, error)
+    TYPE(section_vals_type), POINTER         :: input
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, INTENT(IN)                      :: ionode
+    INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_moments', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_path_length)       :: filename
+    INTEGER                                  :: unit_nr, maxmom
+    LOGICAL                                  :: periodic
+    TYPE(section_vals_type), POINTER         :: print_key
+
+    print_key => section_vals_get_subs_vals(section_vals=input,&
+         subsection_name="DFT%PRINT%MOMENTS",error=error)
+
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+
+       maxmom = section_get_ival(section_vals=input,&
+             keyword_name="DFT%PRINT%MOMENTS%MAX_MOMENT",error=error)
+       periodic = section_get_lval(section_vals=input,&
+             keyword_name="DFT%PRINT%MOMENTS%PERIODIC",error=error)
+       unit_nr = cp_print_key_unit_nr(logger=logger,basis_section=input,&
+             print_key_path="DFT%PRINT%MOMENTS",extension=".dat",&
+             middle_name="moments",log_filename=.FALSE.,error=error)
+
+       IF (ionode) THEN
+          IF(unit_nr /= output_unit) THEN
+            INQUIRE (UNIT=unit_nr,NAME=filename)
+            WRITE (UNIT=output_unit,FMT="(/,T2,A,2(/,T3,A),/)")&
+                 "MOMENTS","The electric moments are written to file:",&
+                 TRIM(filename)
+          ELSE
+            WRITE (UNIT=output_unit,FMT="(/,T2,A)") "ELECTRIC MOMENTS"
+          END IF
+       END IF
+
+       IF (periodic) THEN
+          CALL qs_moment_berry_phase(qs_env,maxmom,unit_nr,error)
+       ELSE
+          CALL qs_moment_locop(qs_env,maxmom,unit_nr,error)
+       END IF
+
+       CALL cp_print_key_finished_output(unit_nr=unit_nr,logger=logger,&
+            basis_section=input,print_key_path="DFT%PRINT%MOMENTS",&
+            error=error)
+    END IF
+
+  END SUBROUTINE qs_scf_post_moments
 
 !!****f* qs_scf_post/qs_scf_post_xray [1.0] *
 !!
