@@ -33,7 +33,8 @@ MODULE input_cp2k_colvar
                                              section_create,&
                                              section_release,&
                                              section_type
-  USE input_val_types,                 ONLY: integer_t,&
+  USE input_val_types,                 ONLY: char_t,&
+                                             integer_t,&
                                              real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
@@ -240,6 +241,20 @@ CONTAINS
             description="Specify indexes of atoms/points building the coordination variable. ",&
             usage="ATOMS_TO {integer} {integer} ..",required=.TRUE.,repeats=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="KINDS_FROM",&
+            description="Specify alternatively kinds of atoms building the coordination variable.",&
+            usage="KINDS_FROM {CHAR} {CHAR} ..",required=.FALSE.,repeats=.TRUE.,&
+            n_var=-1, type_of_var=char_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="KINDS_TO",&
+            description="Specify alternatively kinds of atoms building the coordination variable.",&
+            usage="KINDS_TO {CHAR} {CHAR} ..",required=.FALSE.,repeats=.TRUE.,&
+            n_var=-1, type_of_var=char_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

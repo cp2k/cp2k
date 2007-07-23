@@ -28,7 +28,7 @@ MODULE topology_constraint_util
   USE colvar_types,                    ONLY: &
        colvar_clone, colvar_counters, colvar_create, colvar_p_reallocate, &
        colvar_release, colvar_setup, colvar_type, dist_colvar_id, &
-       torsion_colvar_id
+       post_process_colvar, torsion_colvar_id
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -110,7 +110,7 @@ CONTAINS
     TYPE(qmmm_env_mm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
     TYPE(particle_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: particle_set
+      POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: input_file
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
@@ -126,9 +126,9 @@ CONTAINS
       DIMENSION(:), POINTER                  :: atom_typeh, cnds
     INTEGER :: first, first_atom, gind, handle, i, ii, iw, j, k, k1loc, &
       k2loc, kk, last, last_atom, m, n_start_colv, natom, nbond, ncolv_glob, &
-      ncolv_mol, nfixd_list_gci, nfixd_restraint, nfixed_atoms, ng3x3, &
-      ng3x3_restraint, ng4x6, ng4x6_restraint, nhdist, nmolecule, nrep, &
-      offset, output_unit, stat, nfixd_restart
+      ncolv_mol, nfixd_list_gci, nfixd_restart, nfixd_restraint, &
+      nfixed_atoms, ng3x3, ng3x3_restraint, ng4x6, ng4x6_restraint, nhdist, &
+      nmolecule, nrep, offset, output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: constr_x_glob, inds, &
                                                 molecule_list
     LOGICAL :: exclude_mm, exclude_qm, failure, fix_atom_mm, &
@@ -403,6 +403,11 @@ CONTAINS
     ! 3. Set the COLVAR constraint molecule_kind_set(ikind)%colv_list
     !-----------------------------------------------------------------------------
     IF(topology%const_colv) THEN
+       ! Post Process of COLVARS..
+       DO ii = 1, SIZE(cons_info%colvar_set)
+          CALL post_process_colvar(cons_info%colvar_set(ii)%colvar, particle_set, error)
+       END DO
+       ! Real constraint/restraint part..
        CALL give_constraint_array(cons_info%const_colv_mol,&
                                   cons_info%const_colv_molname,&
                                   cons_info%colv_intermolecular,&

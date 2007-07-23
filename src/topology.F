@@ -22,7 +22,8 @@ MODULE topology
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE atoms_input,                     ONLY: read_atoms_input
   USE cell_types,                      ONLY: read_cell
-  USE colvar_types,                    ONLY: colvar_p_type
+  USE colvar_types,                    ONLY: colvar_p_type,&
+                                             post_process_colvar
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -241,7 +242,13 @@ CONTAINS
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 9. Deal with the constraint stuff if requested
+    ! 9. Post-Process colvar definitions (if needed)
+    !----------------------------------------------------------------------------
+    CALL topology_post_proc_colvar(colvar_p, particle_set, error)
+
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 10. Deal with the constraint stuff if requested
     !-----------------------------------------------------------------------------
     IF (my_qmmm) THEN
        CALL topology_constraint_pack(molecule_kind_set,molecule_set,&
@@ -255,7 +262,7 @@ CONTAINS
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 10. Dump the topology informations
+    ! 11. Dump the topology informations
     !-----------------------------------------------------------------------------
     iw2 = cp_print_key_unit_nr(logger,subsys_section,"TOPOLOGY%DUMP_PDB",&
           file_status="REPLACE",extension=".pdb",error=error)
@@ -273,7 +280,7 @@ CONTAINS
          "TOPOLOGY%DUMP_PSF",error=error)  
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 11. Cleanup the topology structure type
+    ! 12. Cleanup the topology structure type
     !-----------------------------------------------------------------------------
     CALL deallocate_topology(topology, error)
     CALL timestop(0.0_dp,handle)
@@ -568,6 +575,43 @@ CONTAINS
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO",error=error)
   END SUBROUTINE coordinate_control
+
+!******************************************************************************
+!!****** topology/topology_post_proc_colvar [1.0] *
+!!
+!!   NAME
+!!     topology_post_proc_colvar
+!!
+!!   FUNCTION
+!!
+!!
+!!   AUTHOR
+!!     Teodoro Laino [tlaino] - 07.2007
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE topology_post_proc_colvar(colvar_p, particle_set, error)
+
+    TYPE(colvar_p_type), DIMENSION(:), &
+      POINTER                                :: colvar_p
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'topology_post_proc_colvar', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+
+    IF (ASSOCIATED(colvar_p)) THEN
+       DO i = 1, SIZE(colvar_p)
+          CALL post_process_colvar(colvar_p(i)%colvar, particle_set, error)
+       END DO
+    END IF
+  END SUBROUTINE topology_post_proc_colvar
 
 END MODULE topology
 

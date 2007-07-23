@@ -109,6 +109,8 @@ CONTAINS
 
     CHARACTER(LEN=7)                         :: tag
     CHARACTER(LEN=default_string_length)     :: tmpStr, tmpStr2
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: c_kinds
     INTEGER                                  :: handle, iatm, iw, k, kk, &
                                                 n_var, ndim, stat
     INTEGER, DIMENSION(:), POINTER           :: iatms
@@ -120,11 +122,9 @@ CONTAINS
       point_section, qparm_section, rotation_section, torsion_section, &
       wrk_section
 
-    NULLIFY(logger)
+    NULLIFY(logger, c_kinds, iatms)
     logger => cp_error_get_logger(error)
     CALL timeset(routineN,"I","",handle)
-
-    NULLIFY(iatms)
     failure=.FALSE.
 
     distance_section     => section_vals_get_subs_vals(colvar_section,"DISTANCE",i_rep_section=icol,error=error)
@@ -180,28 +180,60 @@ CONTAINS
        wrk_section => coordination_section
        CALL colvar_create(colvar, coord_colvar_id, error)
        CALL colvar_check_points(colvar, coordination_section, error)
+       NULLIFY(colvar%coord_param%i_at_from, colvar%coord_param%c_kinds_from)
+       NULLIFY(colvar%coord_param%i_at_to, colvar%coord_param%c_kinds_to)
        ! This section can be repeated
        CALL section_vals_val_get(coordination_section,"ATOMS_FROM",n_rep_val=n_var,error=error)
        ndim = 0
-       NULLIFY(colvar%coord_param%i_at_from)
-       NULLIFY(colvar%coord_param%i_at_to)
-       DO k = 1, n_var
-          CALL section_vals_val_get(coordination_section,"ATOMS_FROM",i_rep_val=k,i_vals=iatms,error=error)
-          CALL reallocate(colvar%coord_param%i_at_from,1, ndim+SIZE(iatms))
-          colvar%coord_param%i_at_from(ndim+1:ndim+SIZE(iatms)) = iatms 
-          ndim = ndim + SIZE(iatms)
-       END DO
-       colvar%coord_param%n_atoms_from = ndim
+       IF (n_var /= 0) THEN
+          ! INDEX LIST
+          DO k = 1, n_var
+             CALL section_vals_val_get(coordination_section,"ATOMS_FROM",i_rep_val=k,i_vals=iatms,error=error)
+             CALL reallocate(colvar%coord_param%i_at_from,1, ndim+SIZE(iatms))
+             colvar%coord_param%i_at_from(ndim+1:ndim+SIZE(iatms)) = iatms 
+             ndim = ndim + SIZE(iatms)
+          END DO
+          colvar%coord_param%n_atoms_from = ndim
+          colvar%coord_param%use_kinds_from = .FALSE.
+       ELSE
+          ! KINDS
+          CALL section_vals_val_get(coordination_section,"KINDS_FROM",n_rep_val=n_var,error=error)
+          CPPostcondition(n_var>0,cp_failure_level,routinep,error,failure)
+          DO k = 1, n_var
+             CALL section_vals_val_get(coordination_section,"KINDS_FROM",i_rep_val=k,c_vals=c_kinds,error=error)
+             CALL reallocate(colvar%coord_param%c_kinds_from,1, ndim+SIZE(c_kinds))
+             colvar%coord_param%c_kinds_from(ndim+1:ndim+SIZE(c_kinds)) = c_kinds
+             ndim = ndim + SIZE(c_kinds)
+          END DO
+          colvar%coord_param%n_atoms_from = 0
+          colvar%coord_param%use_kinds_from = .TRUE.
+       END IF
        ! This section can be repeated
        CALL section_vals_val_get(coordination_section,"ATOMS_TO",n_rep_val=n_var,error=error)
        ndim = 0
-       DO k = 1, n_var
-          CALL section_vals_val_get(coordination_section,"ATOMS_TO",i_rep_val=k,i_vals=iatms,error=error)
-          CALL reallocate(colvar%coord_param%i_at_to,1, ndim+SIZE(iatms))
-          colvar%coord_param%i_at_to(ndim+1:ndim+SIZE(iatms)) = iatms 
-          ndim = ndim + SIZE(iatms)
-       END DO
-       colvar%coord_param%n_atoms_to = ndim
+       IF (n_var /= 0) THEN
+          ! INDEX LIST
+          DO k = 1, n_var
+             CALL section_vals_val_get(coordination_section,"ATOMS_TO",i_rep_val=k,i_vals=iatms,error=error)
+             CALL reallocate(colvar%coord_param%i_at_to,1, ndim+SIZE(iatms))
+             colvar%coord_param%i_at_to(ndim+1:ndim+SIZE(iatms)) = iatms 
+             ndim = ndim + SIZE(iatms)
+          END DO
+          colvar%coord_param%n_atoms_to = ndim
+          colvar%coord_param%use_kinds_to = .FALSE.
+       ELSE
+          ! KINDS
+          CALL section_vals_val_get(coordination_section,"KINDS_TO",n_rep_val=n_var,error=error)
+          CPPostcondition(n_var>0,cp_failure_level,routinep,error,failure)
+          DO k = 1, n_var
+             CALL section_vals_val_get(coordination_section,"KINDS_TO",i_rep_val=k,c_vals=c_kinds,error=error)
+             CALL reallocate(colvar%coord_param%c_kinds_to,1, ndim+SIZE(c_kinds))
+             colvar%coord_param%c_kinds_to(ndim+1:ndim+SIZE(c_kinds)) = c_kinds
+             ndim = ndim + SIZE(c_kinds)
+          END DO
+          colvar%coord_param%n_atoms_to = 0
+          colvar%coord_param%use_kinds_to = .TRUE.
+       END IF
        ! Let's finish reading the other parameters
        CALL section_vals_val_get(coordination_section,"R0",r_val=colvar%coord_param%r_0,error=error)
        CALL section_vals_val_get(coordination_section,"NN",i_val=colvar%coord_param%nncrd,error=error)
@@ -312,12 +344,24 @@ CONTAINS
           WRITE ( iw, '( A,T71,2I5)' )   ' COLVARS| BOND          >>> '//tag,&
                colvar%dist_param%i_at,colvar%dist_param%j_at
        CASE(coord_colvar_id)
-          WRITE ( iw, '( A,T71,I10)' )  (' COLVARS| COORDINATION  >>> FROM '//tag,&
-               colvar%coord_param%i_at_from(kk),&
-               kk=1,SIZE(colvar%coord_param%i_at_from))
-          WRITE ( iw, '( A,T71,I10)' )  (' COLVARS| COORDINATION  >>>   TO '//tag,&
-               colvar%coord_param%i_at_to(kk),&
-               kk=1,SIZE(colvar%coord_param%i_at_to))
+          IF (colvar%coord_param%use_kinds_from) THEN
+             WRITE ( iw, '( A,T71,A10)' )  (' COLVARS| COORDINATION  >>> FROM KINDS',&
+                  ADJUSTR(colvar%coord_param%c_kinds_from(kk)(1:10)),&
+                  kk=1,SIZE(colvar%coord_param%c_kinds_from))
+          ELSE
+             WRITE ( iw, '( A,T71,I10)' )  (' COLVARS| COORDINATION  >>> FROM '//tag,&
+                  colvar%coord_param%i_at_from(kk),&
+                  kk=1,SIZE(colvar%coord_param%i_at_from))
+          END IF
+          IF (colvar%coord_param%use_kinds_to) THEN
+             WRITE ( iw, '( A,T71,A10)' )  (' COLVARS| COORDINATION  >>>   TO KINDS',&
+                  ADJUSTR(colvar%coord_param%c_kinds_to(kk)(1:10)),&
+                  kk=1,SIZE(colvar%coord_param%c_kinds_to))
+          ELSE
+             WRITE ( iw, '( A,T71,I10)' )  (' COLVARS| COORDINATION  >>>   TO '//tag,&
+                  colvar%coord_param%i_at_to(kk),&
+                  kk=1,SIZE(colvar%coord_param%i_at_to))
+          END IF
           WRITE ( iw, '( A,T71,F10.5)' ) ' COLVARS| R0',colvar%coord_param%r_0
           WRITE ( iw, '( A,T71,I10)' )   ' COLVARS| NN',colvar%coord_param%nncrd
           WRITE ( iw, '( A,T71,I10)' )   ' COLVARS| ND',colvar%coord_param%ndcrd
@@ -1063,11 +1107,8 @@ CONTAINS
       POINTER                                :: my_particles
 
     failure=.FALSE.
-    n_atoms_to=colvar%coord_param%n_atoms_to
-    n_atoms_from=colvar%coord_param%n_atoms_from
-    nncrd=colvar%coord_param%nncrd
-    ndcrd=colvar%coord_param%ndcrd
-    r_0=colvar%coord_param%r_0
+    ! If we defined the coordination number with KINDS then we have still
+    ! to fill few missing informations...
     NULLIFY(particles_i)
     CPPrecondition(colvar%type_id==coord_colvar_id,cp_failure_level,routineP,error,failure)
     IF (PRESENT(particles)) THEN
@@ -1077,6 +1118,11 @@ CONTAINS
        CALL cp_subsys_get(subsys,particles=particles_i,error=error)
        my_particles => particles_i%els
     END IF
+    n_atoms_to=colvar%coord_param%n_atoms_to
+    n_atoms_from=colvar%coord_param%n_atoms_from
+    nncrd=colvar%coord_param%nncrd
+    ndcrd=colvar%coord_param%ndcrd
+    r_0=colvar%coord_param%r_0
 
     ncoord=0.0_dp
     colvar%dsdr=0.0_dp

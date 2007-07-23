@@ -15,6 +15,7 @@ ZrO.inp            1
 Ar-12.inp          1
 Ar-13.inp          1
 # Metadynamics and restart of metadynamics
+H2O-meta_kinds.inp 1
 H2O-meta.inp       1
 H2O-meta_res0.inp  1
 H2O-meta_res1.inp  1
