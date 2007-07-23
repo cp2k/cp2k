@@ -58,7 +58,8 @@ MODULE md_run
                                              initialize_nhc_part,&
                                              initialize_npt
   USE init_extended_system_variables,  ONLY: init_nhc_forces
-  USE input_constants,                 ONLY: langevin_ensemble
+  USE input_constants,                 ONLY: langevin_ensemble,&
+                                             reftraj_ensemble
   USE input_cp2k_restarts,             ONLY: update_subsys,&
                                              write_restart
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -397,98 +398,99 @@ CONTAINS
     apply_cns0 = .FALSE.
     IF (simpar%constraint) &
     CALL section_vals_val_get(motion_section,"CONSTRAINT%CONSTRAIN_INIT",l_val=apply_cns0,error=error)
-    DO ibead = 1, nbeads
-       IF (apply_cns0) THEN
-          CALL force_env_calc_energy_force ( force_env_p(ibead)%force_env,&
-               calc_force=.TRUE.,error=error)          
-          CALL force_env_shake(force_env_p(ibead)%force_env,shake_tol=simpar%shake_tol,&
-               log_unit=simpar%info_constraint,lagrange_mult=simpar%lagrange_multipliers,&
-               dump_lm=simpar%dump_lm,compold=.TRUE.,error=error)
-          CALL force_env_rattle(force_env_p(ibead)%force_env,shake_tol=simpar%shake_tol,&
-               log_unit=simpar%info_constraint,lagrange_mult=simpar%lagrange_multipliers,&
-               dump_lm=simpar%dump_lm,reset=.TRUE.,error=error)
-          IF (simpar%do_respa)THEN
-             CALL force_env_calc_energy_force ( &
-                  force_env_p(ibead)%force_env%sub_force_env(1)%force_env,&
-                  calc_force=.TRUE.,error=error)
-             CALL force_env_shake(force_env_p(ibead)%force_env%sub_force_env(1)%force_env,&
-                  shake_tol=simpar%shake_tol,log_unit=simpar%info_constraint,&
-                  lagrange_mult=simpar%lagrange_multipliers,dump_lm=simpar%dump_lm,compold=.TRUE.,error=error)
-             CALL force_env_rattle(force_env_p(ibead)%force_env%sub_force_env(1)%force_env,&
-                  shake_tol=simpar%shake_tol,log_unit=simpar%info_constraint,&
-                  lagrange_mult=simpar%lagrange_multipliers,dump_lm=simpar%dump_lm,reset=.TRUE.,error=error)          
-          END IF
-          ! Reinitialize velocities rescaling properly after rattle
-          CALL force_env_get( force_env_p(ibead)%force_env, subsys=subsys, &
-               force_env_section=force_env_section, error=error )
-          DO isubsys=1,SIZE(subsys)
-             subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",&
-                                                          i_rep_section=isubsys,&
-                                                          error=error)
-             CALL update_subsys(subsys_section,force_env_p(ibead)%force_env,.FALSE.,error)
-             CALL cp_subsys_get(subsys(isubsys)%subsys,&
-                                molecule_kinds_new=molecule_kinds_new,&
-                                particles=particles,&
-                                error=error)
-             NULLIFY (work_section)
-             work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
-             print_section => section_vals_get_subs_vals(motion_section,"MD%PRINT",error=error)
-             CALL initialize_velocities(simpar,particles%els,&
-                                        molecule_kinds=molecule_kinds_new,&
-                                        para_env=para_env,&
-                                        globenv=globenv,&
-                                        print_section=print_section,&
-                                        work_section=work_section,&
-                                        force_rescaling=.TRUE.,&
-                                        error=error)
-          END DO
-       END IF
-
-       IF(save_mem) THEN
-
-          NULLIFY (work_section)
-          work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
-          CALL section_vals_remove_values(work_section, error)
-
-          IF(shell_present .AND. shell_adiabatic) THEN
-             NULLIFY (work_section)
-             work_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
-             CALL section_vals_remove_values(work_section, error)
-             NULLIFY (work_section)
-             work_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY",error=error)
+    IF (simpar%ensemble /= reftraj_ensemble) THEN
+      DO ibead = 1, nbeads
+         IF (apply_cns0) THEN
+            CALL force_env_calc_energy_force ( force_env_p(ibead)%force_env,&
+                 calc_force=.TRUE.,error=error)          
+            CALL force_env_shake(force_env_p(ibead)%force_env,shake_tol=simpar%shake_tol,&
+                 log_unit=simpar%info_constraint,lagrange_mult=simpar%lagrange_multipliers,&
+                 dump_lm=simpar%dump_lm,compold=.TRUE.,error=error)
+            CALL force_env_rattle(force_env_p(ibead)%force_env,shake_tol=simpar%shake_tol,&
+                 log_unit=simpar%info_constraint,lagrange_mult=simpar%lagrange_multipliers,&
+                 dump_lm=simpar%dump_lm,reset=.TRUE.,error=error)
+            IF (simpar%do_respa)THEN
+               CALL force_env_calc_energy_force ( &
+                    force_env_p(ibead)%force_env%sub_force_env(1)%force_env,&
+                    calc_force=.TRUE.,error=error)
+               CALL force_env_shake(force_env_p(ibead)%force_env%sub_force_env(1)%force_env,&
+                    shake_tol=simpar%shake_tol,log_unit=simpar%info_constraint,&
+                    lagrange_mult=simpar%lagrange_multipliers,dump_lm=simpar%dump_lm,compold=.TRUE.,error=error)
+               CALL force_env_rattle(force_env_p(ibead)%force_env%sub_force_env(1)%force_env,&
+                    shake_tol=simpar%shake_tol,log_unit=simpar%info_constraint,&
+                    lagrange_mult=simpar%lagrange_multipliers,dump_lm=simpar%dump_lm,reset=.TRUE.,error=error)          
+            END IF
+            ! Reinitialize velocities rescaling properly after rattle
+            CALL force_env_get( force_env_p(ibead)%force_env, subsys=subsys, &
+                 force_env_section=force_env_section, error=error )
+            DO isubsys=1,SIZE(subsys)
+               subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",&
+                                                            i_rep_section=isubsys,&
+                                                            error=error)
+               CALL update_subsys(subsys_section,force_env_p(ibead)%force_env,.FALSE.,error)
+               CALL cp_subsys_get(subsys(isubsys)%subsys,&
+                                  molecule_kinds_new=molecule_kinds_new,&
+                                  particles=particles,&
+                                  error=error)
+               NULLIFY (work_section)
+               work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
+               print_section => section_vals_get_subs_vals(motion_section,"MD%PRINT",error=error)
+               CALL initialize_velocities(simpar,particles%els,&
+                                          molecule_kinds=molecule_kinds_new,&
+                                          para_env=para_env,&
+                                          globenv=globenv,&
+                                          print_section=print_section,&
+                                          work_section=work_section,&
+                                          force_rescaling=.TRUE.,&
+                                          error=error)
+            END DO
+         END IF
+      
+         IF(save_mem) THEN
+            NULLIFY (work_section)
+            work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
             CALL section_vals_remove_values(work_section, error)
-          END IF
-
-       END IF
-
-       CALL force_env_calc_energy_force ( force_env_p(ibead)%force_env,&
-            calc_force=.TRUE.,error=error)
- 
-       IF (simpar%do_respa)THEN
-          CALL force_env_calc_energy_force ( &
-            force_env_p(ibead)%force_env%sub_force_env(1)%force_env,&
-            calc_force=.TRUE.,error=error)
-       END IF
-       CALL force_env_get( force_env_p(ibead)%force_env, subsys=subsys, &
-                           error=error )
-
-       CALL cp_subsys_get(subsys(1)%subsys,&
-              atomic_kinds=atomic_kinds,&
-              local_particles=local_particles,&
-              particles=particles,&
-              error=error)
-
-       CALL virial_evaluate(atomic_kinds%els, particles%els, &
-              local_particles, force_env_p(ibead)%force_env%virial,&
-              force_env_p(ibead)%force_env%para_env%group,&
-              error=error)
-
-    END DO
-
-    CALL section_vals_val_get(motion_section,"MD%STEP_START_VAL",i_val=itimes,error=error)
-    CALL section_vals_val_get(motion_section,"MD%TIME_START_VAL",r_val=t,error=error)
-    CALL md_energy ( md_env, error ) ! inits the print env at itimes == 0
-
+      
+            IF(shell_present .AND. shell_adiabatic) THEN
+               NULLIFY (work_section)
+               work_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
+               CALL section_vals_remove_values(work_section, error)
+               NULLIFY (work_section)
+               work_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY",error=error)
+              CALL section_vals_remove_values(work_section, error)
+            END IF
+         END IF
+      
+         CALL force_env_calc_energy_force ( force_env_p(ibead)%force_env,&
+              calc_force=.TRUE.,error=error)
+      
+         IF (simpar%do_respa)THEN
+            CALL force_env_calc_energy_force ( &
+              force_env_p(ibead)%force_env%sub_force_env(1)%force_env,&
+              calc_force=.TRUE.,error=error)
+         END IF
+         CALL force_env_get( force_env_p(ibead)%force_env, subsys=subsys, &
+                             error=error )
+      
+         CALL cp_subsys_get(subsys(1)%subsys,&
+                atomic_kinds=atomic_kinds,&
+                local_particles=local_particles,&
+                particles=particles,&
+                error=error)
+      
+         CALL virial_evaluate(atomic_kinds%els, particles%els, &
+                local_particles, force_env_p(ibead)%force_env%virial,&
+                force_env_p(ibead)%force_env%para_env%group,&
+                error=error)
+      
+      END DO
+      
+      CALL section_vals_val_get(motion_section,"MD%STEP_START_VAL",i_val=itimes,error=error)
+      CALL section_vals_val_get(motion_section,"MD%TIME_START_VAL",r_val=t,error=error)
+      CALL md_energy ( md_env, error ) ! inits the print env at itimes == 0
+    ELSE
+       itimes = -1
+    END IF
     CALL cp_print_key_finished_output(simpar%info_constraint, logger,&
          root_section,"MOTION%CONSTRAINT%CONSTRAINT_INFO",error=error)
     CALL cp_print_key_finished_output(simpar%lagrange_multipliers, logger,&

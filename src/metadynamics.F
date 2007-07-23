@@ -27,8 +27,11 @@
 MODULE metadynamics
   USE colvar_methods,                  ONLY: colvar_eval_glob_f
   USE colvar_types,                    ONLY: colvar_p_type
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                             cp_print_key_unit_nr
+  USE cp_output_handling,              ONLY: cp_add_iter_level,&
+                                             cp_iterate,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr,&
+                                             cp_rm_iter_level
   USE cp_para_env,                     ONLY: cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
@@ -598,8 +601,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'hills', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ih, iw, j, n_colvar, &
-                                                n_step, ndum, stat, Fpr
+    INTEGER                                  :: i, ih, iter_level, iw, j, &
+                                                n_colvar, n_step, ndum, stat
     INTEGER, POINTER                         :: n_hills
     LOGICAL                                  :: explicit, failure
     REAL(dp)                                 :: dfunc, dp2, rval
@@ -622,7 +625,11 @@ CONTAINS
     ww_history      => hills_env%ww_history
     n_hills         => hills_env%n_hills
     colvars         => meta_env%metavar
-
+    ! Create a temporary logger level specific for metadynamics
+    CALL cp_add_iter_level(logger%iter_info,"METADYNAMICS",n_rlevel_new=iter_level,&
+         error=error)
+    CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=n_hills,error=error)   
+    !
     ALLOCATE(ddp(meta_env%n_colvar), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     n_colvar=meta_env%n_colvar
@@ -746,6 +753,7 @@ CONTAINS
           NULLIFY(tnp)
        ENDIF
        n_hills = n_hills + 1
+       CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=n_hills,error=error)      
        !
        ! Now add the hill
        !
@@ -763,22 +771,17 @@ CONTAINS
        CALL cp_print_key_finished_output(iw,logger,meta_env%metadyn_section,&
             "PRINT%PROGRAM_RUN_INFO", error=error)
        ! Print Hills file
-       CALL section_vals_val_get(meta_env%metadyn_section,"PRINT%HILLS%EACH",i_val=Fpr,&
-            error=error)
-       IF (MOD(n_hills,Fpr)==0) THEN
-          iw = cp_print_key_unit_nr(logger,meta_env%metadyn_section,&
-               "PRINT%HILLS",extension=".metadynLog",ignore_should_output=.TRUE.,&
-               error=error)
-          IF (iw>0) THEN
-             WRITE(iw,'(f12.1,30f13.5)')&
-                  meta_env%dt*meta_env%n_steps,  &
-                  (hills_env%ss_history(ih,n_hills),ih=1,n_colvar), &
-                  (hills_env%delta_s_history(ih,n_hills),ih=1,n_colvar),&
-                  hills_env%ww_history(n_hills)
-          END IF
-          CALL cp_print_key_finished_output(iw,logger,meta_env%metadyn_section,&
-               "PRINT%HILLS", ignore_should_output=.TRUE., error=error)
+       iw = cp_print_key_unit_nr(logger,meta_env%metadyn_section,&
+            "PRINT%HILLS",extension=".metadynLog",error=error)
+       IF (iw>0) THEN
+          WRITE(iw,'(f12.1,30f13.5)')&
+               meta_env%dt*meta_env%n_steps,  &
+               (hills_env%ss_history(ih,n_hills),ih=1,n_colvar), &
+               (hills_env%delta_s_history(ih,n_hills),ih=1,n_colvar),&
+               hills_env%ww_history(n_hills)
        END IF
+       CALL cp_print_key_finished_output(iw,logger,meta_env%metadyn_section,&
+            "PRINT%HILLS", error=error)
     END IF
     !
     ! Forces from the hills
@@ -799,6 +802,8 @@ CONTAINS
     ENDDO
     DEALLOCATE(ddp, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    CALL cp_rm_iter_level(logger%iter_info,n_rlevel_att=iter_level,&
+         error=error)    
   END SUBROUTINE hills
 
 END MODULE metadynamics

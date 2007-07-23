@@ -62,7 +62,10 @@ MODULE integrator
        dyn_coeff_mass_atom, dyn_coeff_mass_coeff, dyn_coeff_mass_global, &
        dyn_coeff_mass_kind, nph_ensemble, nph_uniaxial_damped_ensemble, &
        nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble
-  USE kinds,                           ONLY: dp,&
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: default_path_length,&
+                                             dp,&
                                              dp_size
   USE mathlib,                         ONLY: matmul_3x3,&
                                              matvec_3x3,&
@@ -153,7 +156,8 @@ CONTAINS
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'langevin'
+    CHARACTER(len=*), PARAMETER :: routineN = 'langevin', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: iparticle, iparticle_kind, iparticle_local, istat, isubsys, &
       nmolecule, nmolecule_kind, nparticle, nparticle_kind, nparticle_local
@@ -394,7 +398,8 @@ CONTAINS
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'nve'
+    CHARACTER(len=*), PARAMETER :: routineN = 'nve', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: icoef, iparticle, iparticle_kind, iparticle_local, istat, &
       isubsys, mass_storage, nmolecule, nmolecule_kind, nparticle, &
@@ -811,7 +816,8 @@ CONTAINS
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'isokin'
+    CHARACTER(len=*), PARAMETER :: routineN = 'isokin', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: iparticle, iparticle_kind, iparticle_local, istat, isubsys, &
       nparticle, nparticle_kind, nparticle_local
@@ -989,7 +995,8 @@ CONTAINS
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'nvt'
+    CHARACTER(len=*), PARAMETER :: routineN = 'nvt', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: icoef, iparticle, iparticle_kind, iparticle_local, istat, &
       isubsys, mass_storage, nmolecule, nmolecule_kind, nparticle, &
@@ -1436,7 +1443,8 @@ CONTAINS
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'npt_i'
+    CHARACTER(len=*), PARAMETER :: routineN = 'npt_i', &
+      routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: box_change = .TRUE.
     REAL(KIND=dp), PARAMETER                 :: e2 = 1.0_dp/6.0_dp, &
                                                 e4 = e2/20.0_dp, &
@@ -1907,11 +1915,14 @@ CONTAINS
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'reftraj'
+    CHARACTER(len=*), PARAMETER :: routineN = 'reftraj', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=10)                        :: AA
     CHARACTER(LEN=80)                        :: title
+    CHARACTER(LEN=default_path_length)       :: filename
     INTEGER                                  :: I, istat, nparticle, Nread
+    LOGICAL                                  :: eval_EF
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pos
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -1923,7 +1934,10 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(reftraj_type), POINTER              :: reftraj_info
+    TYPE(section_vals_type), POINTER         :: root_section
 
+    NULLIFY(root_section, reftraj_info, particle_set, particles, force_env_p,&
+         subsys, para_env)
     CALL get_md_env(md_env=md_env, reftraj_info=reftraj_info, &
                     force_env_p=force_env_p,para_env = para_env)
     IF (SIZE(force_env_p)/=1) THEN
@@ -1931,24 +1945,27 @@ CONTAINS
                          "MD_ENV with more than (or less) than one "//&
                          "force_env not supported atm!")
     END IF
-    CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,error=error)
+    CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
+                       root_section=root_section,error=error)
     IF (SIZE(subsys)/=1) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
                          "MD_ENV with more than (or less) than one subsys "//&
                          "not supported atm!")
     END IF
     CALL cp_subsys_get(subsys=subsys(1)%subsys, particles=particles,error=error)
-    nparticle = particles%n_els
+    nparticle    = particles%n_els
     particle_set => particles%els
     ALLOCATE (pos(3,nparticle),STAT=istat)
-    IF (istat /= 0) CALL stop_memory("reftraj",moduleN,__LINE__,&
-                                              "pos",3*nparticle*dp_size)
-
-    ! read from file
+    IF (istat /= 0) CALL stop_memory("reftraj",moduleN,&
+         __LINE__,&
+         "pos",3*nparticle*dp_size)
+    
+    ! SnapShots read from an external file
     IF (para_env%mepos==para_env%source) THEN
        ! open only the first time, retain the file open for reading the next frame in the file
        IF (reftraj_info%unit<0) THEN
-          CALL open_file("reftraj.xyz",unit_number=reftraj_info%unit)
+          CALL section_vals_val_get(root_section,"MOTION%MD%REFTRAJ%FILENAME",c_val=filename,error=error)
+          CALL open_file(TRIM(filename),unit_number=reftraj_info%unit)
        ENDIF
        READ(reftraj_info%unit,*,ERR=999,END=998) Nread
        READ(reftraj_info%unit,'(A)',ERR=999,END=998) title
@@ -1963,7 +1980,9 @@ CONTAINS
     ENDIF
     CALL update_particle_set ( particle_set, para_env % group, pos = pos )
     DEALLOCATE(pos)
-    CALL force_env_calc_energy_force(force_env_p(1)%force_env,error=error)
+    ! Task to perform on the reference trajectory
+    CALL section_vals_val_get(root_section,"MOTION%MD%REFTRAJ%EVAL_ENERGY_FORCES",l_val=eval_EF,error=error)
+    CALL force_env_calc_energy_force(force_env_p(1)%force_env,eval_energy_forces=eval_EF,error=error)
 
     RETURN
 998 CONTINUE ! end of file
@@ -2007,7 +2026,8 @@ CONTAINS
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'nph_uniaxial'
+    CHARACTER(len=*), PARAMETER :: routineN = 'nph_uniaxial', &
+      routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: box_change = .TRUE.
     REAL(dp), PARAMETER                      :: e2 = 1._dp/6._dp, &
                                                 e4 = e2/20._dp, &
@@ -2303,7 +2323,8 @@ CONTAINS
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'nph_uniaxial_damped'
+    CHARACTER(len=*), PARAMETER :: routineN = 'nph_uniaxial_damped', &
+      routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: box_change = .TRUE.
     REAL(dp), PARAMETER                      :: e2 = 1._dp/6._dp, &
                                                 e4 = e2/20._dp, &
@@ -2618,6 +2639,9 @@ CONTAINS
       POINTER                                :: npt
     CHARACTER(LEN=*), INTENT(IN)             :: char
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_particle_set', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: idim, iparticle, &
                                                 iparticle_kind, &
                                                 iparticle_local, &
@@ -2686,6 +2710,9 @@ CONTAINS
     TYPE(npt_info_type), DIMENSION(:, :), &
       POINTER                                :: npt
     CHARACTER(LEN=*), INTENT(IN)             :: char
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_vel', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: idim, iparticle, &
                                                 iparticle_kind, &
@@ -2854,7 +2881,8 @@ CONTAINS
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'npt_f'
+    CHARACTER(len=*), PARAMETER :: routineN = 'npt_f', &
+      routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: box_change = .TRUE.
     REAL(KIND=dp), PARAMETER                 :: e2 = 1.0_dp/6.0_dp, &
                                                 e4 = e2/20.0_dp, &
@@ -3929,7 +3957,8 @@ END SUBROUTINE update_veps
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'nve_respa'
+    CHARACTER(len=*), PARAMETER :: routineN = 'nve_respa', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: i_step, icoef, iparticle, iparticle_kind, iparticle_local, &
       istat, isubsys, mass_storage, n_time_steps, nmolecule, nmolecule_kind, &

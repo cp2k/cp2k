@@ -20,6 +20,7 @@
 
 MODULE md_environment_types
   USE cell_types,                      ONLY: cell_type
+  USE cp_files,                        ONLY: close_file
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -63,7 +64,7 @@ MODULE md_environment_types
 
   TYPE reftraj_type
      INTEGER :: unit
-  END TYPE
+  END TYPE reftraj_type
 
 ! *** Public subroutines and data types ***
   PUBLIC :: md_environment_type, reftraj_type, set_md_env,   &
@@ -280,7 +281,7 @@ SUBROUTINE md_env_release(md_env, error)
     INTEGER                                  :: i, istat, stat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
+    failure=.FALSE.
 
   IF (ASSOCIATED(md_env)) THEN
      CPPreconditionNoFail(md_env%ref_count>0,cp_failure_level,routineP,error)
@@ -301,6 +302,9 @@ SUBROUTINE md_env_release(md_env, error)
         CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
         DEALLOCATE( md_env % t , stat=istat )
         CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+        IF ( md_env%reftraj_info%unit /= -1 ) THEN 
+           CALL close_file(unit_number=md_env%reftraj_info%unit)
+        END IF
         DEALLOCATE( md_env % reftraj_info , stat=istat )
         CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
         NULLIFY ( md_env % cell )

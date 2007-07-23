@@ -193,12 +193,13 @@ CONTAINS
 !******************************************************************************
 
   RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
-       calc_force, consistent_energies, skip_external_control, error)
+       calc_force, consistent_energies, skip_external_control, eval_energy_forces, error)
 
     TYPE(force_env_type), POINTER            :: force_env
     LOGICAL, INTENT(IN), OPTIONAL            :: calc_force, &
                                                 consistent_energies, &
-                                                skip_external_control
+                                                skip_external_control, &
+                                                eval_energy_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_calc_energy_force', &
@@ -207,8 +208,8 @@ CONTAINS
     INTEGER                                  :: isubsys, nat, output_unit, &
                                                 print_forces, stat
     LOGICAL                                  :: energy_consistency, failure, &
-                                                ionode, my_skip, need_f, pvd, &
-                                                pvn
+                                                ionode, my_eval, my_skip, &
+                                                need_f, pvd, pvn
     REAL(kind=dp)                            :: e_pot
     REAL(kind=dp), DIMENSION(:), POINTER     :: pos
     TYPE(cell_type), POINTER                 :: cell
@@ -229,15 +230,13 @@ CONTAINS
     END IF
     failure=.FALSE.
     need_f=.TRUE.
+    my_eval=.TRUE.
     my_skip=.FALSE.
+    energy_consistency=.FALSE.
+    IF (PRESENT(eval_energy_forces)) my_eval = eval_energy_forces
     IF (PRESENT(skip_external_control)) my_skip = skip_external_control
-
     IF (PRESENT(calc_force)) need_f=calc_force
-    IF (PRESENT(consistent_energies)) THEN
-       energy_consistency = consistent_energies
-    ELSE
-       energy_consistency = .FALSE.
-    END IF
+    IF (PRESENT(consistent_energies)) energy_consistency = consistent_energies
 
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
@@ -251,48 +250,50 @@ CONTAINS
        CALL virial_set(virial,pv_availability=.TRUE.,pv_numer=pvn,pv_diagonal=pvd)
     END IF
     IF (.NOT.failure) THEN
-       SELECT CASE ( force_env%in_use )
-       CASE ( use_fist_force )
-          CALL fist_force_control( force_env%fist_env,virial, force_env%para_env, &
-               force_env_section=force_env%force_env_section, error=error)
-       CASE (use_ep_force)
-          CALL ep_env_calc_e_f(force_env%ep_env,need_f,error=error)
-       CASE ( use_qs_force )
-          IF (.NOT.need_f) THEN
-             CALL qs_energies(qs_env=force_env%qs_env, globenv=force_env%globenv, &
-                  consistent_energies=energy_consistency, &
-                  calc_forces=calc_force, error=error)
-             IF (virial%pv_availability.AND.virial%pv_numer) THEN
-                CALL qs_calc_numerical_pressure(force_env,error=error)
-             END IF
-          ELSE
-             CALL qs_forces(force_env%qs_env,force_env%globenv,&
-                  error=error)
-             IF (virial%pv_availability.AND.virial%pv_numer) THEN
-                CALL qs_calc_numerical_pressure(force_env,error=error)
-             END IF
-          END IF
-
-       CASE ( use_kg_force )
-          IF (.NOT.need_f) THEN
-             root_section=>force_env%root_section
-             CALL kg_energies ( force_env%kg_env,root_section, force_env%globenv, error=error )
-          ELSE
-             CALL kg_force_control ( force_env%kg_env, force_env%globenv, error=error )
-          END IF
-       CASE (use_eip_force)
-          IF (force_env%eip_env%eip_model == use_lenosky_eip) THEN
-             CALL eip_lenosky(force_env, error=error)
-          ELSE IF (force_env%eip_env%eip_model == use_bazant_eip) THEN
-             CALL eip_bazant(force_env, error=error)
-          END IF
-       CASE ( use_qmmm )
-          CALL qmmm_energy_and_forces(force_env,need_f,error=error)
-       CASE ( use_mixed_force )
-          CALL mixed_energy_forces(force_env,need_f,error=error)
-       CASE default
-          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-       END SELECT
+       IF (my_eval) THEN 
+         SELECT CASE ( force_env%in_use )
+         CASE ( use_fist_force )
+            CALL fist_force_control( force_env%fist_env,virial, force_env%para_env, &
+                 force_env_section=force_env%force_env_section, error=error)
+         CASE (use_ep_force)
+            CALL ep_env_calc_e_f(force_env%ep_env,need_f,error=error)
+         CASE ( use_qs_force )
+            IF (.NOT.need_f) THEN
+               CALL qs_energies(qs_env=force_env%qs_env, globenv=force_env%globenv, &
+                    consistent_energies=energy_consistency, &
+                    calc_forces=calc_force, error=error)
+               IF (virial%pv_availability.AND.virial%pv_numer) THEN
+                  CALL qs_calc_numerical_pressure(force_env,error=error)
+               END IF
+            ELSE
+               CALL qs_forces(force_env%qs_env,force_env%globenv,&
+                    error=error)
+               IF (virial%pv_availability.AND.virial%pv_numer) THEN
+                  CALL qs_calc_numerical_pressure(force_env,error=error)
+               END IF
+            END IF
+         
+         CASE ( use_kg_force )
+            IF (.NOT.need_f) THEN
+               root_section=>force_env%root_section
+               CALL kg_energies ( force_env%kg_env,root_section, force_env%globenv, error=error )
+            ELSE
+               CALL kg_force_control ( force_env%kg_env, force_env%globenv, error=error )
+            END IF
+         CASE (use_eip_force)
+            IF (force_env%eip_env%eip_model == use_lenosky_eip) THEN
+               CALL eip_lenosky(force_env, error=error)
+            ELSE IF (force_env%eip_env%eip_model == use_bazant_eip) THEN
+               CALL eip_bazant(force_env, error=error)
+            END IF
+         CASE ( use_qmmm )
+            CALL qmmm_energy_and_forces(force_env,need_f,error=error)
+         CASE ( use_mixed_force )
+            CALL mixed_energy_forces(force_env,need_f,error=error)
+         CASE default
+            CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+         END SELECT
+       END IF
        IF (.NOT.my_skip) THEN
           ! warning: shell-model not yet implemented for these options
           ! Metadynamics

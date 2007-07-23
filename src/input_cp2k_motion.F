@@ -2560,6 +2560,10 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_reftraj_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
        CALL section_create(subsection,name="print",&
             description="Controls the printing properties during an MD run",&
             n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
@@ -2658,6 +2662,68 @@ SUBROUTINE create_respa_section(section, error)
 
   END IF
 END SUBROUTINE create_respa_section
+
+!***************************************************************************
+!!****f* input_cp2k/create_reftraj_section *
+!!
+!!   NAME
+!!     create_reftraj_section
+!!
+!!   FUNCTION
+!!     Defines parameters for REFTRAJ analysis
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: will contain the coeff section 
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+
+SUBROUTINE create_reftraj_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_reftraj_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+  failure=.FALSE.
+  
+  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN  
+
+     CALL section_create(section,name="REFTRAJ",&
+          description="Loads an external trajectory file and performs analysis on the"//&
+          " loaded snapshots.",&
+          n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+          error=error)
+       
+     NULLIFY(keyword)
+
+     CALL keyword_create(keyword, name="FILENAME",&
+          description="Specify the filename where the trajectory is stored.",repeats=.FALSE.,&
+          usage="FILENAME <CHARACTER>", default_lc_val="reftraj.xyz", &
+          error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="eval_energy_forces",&
+          description="Eval energy and forces during a REFTRAJ run",&
+          repeats=.FALSE., default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,&
+          error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+     
+  END IF
+END SUBROUTINE create_reftraj_section
 
 !***************************************************************************
 !!****f* input_cp2k/create_msst_section *
