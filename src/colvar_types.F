@@ -1202,8 +1202,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'post_process_colvar', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, natoms, nkinds
+    INTEGER                                  :: i, j, natoms, nkinds, stat
+    LOGICAL                                  :: failure
 
+    failure = .FALSE.
     natoms = SIZE(particles)
     IF (colvar%type_id == coord_colvar_id) THEN
        IF (colvar%coord_param%use_kinds_from.OR.colvar%coord_param%use_kinds_to) THEN
@@ -1220,6 +1222,8 @@ CONTAINS
                    END IF
                 END DO
              END DO
+             stat=colvar%coord_param%n_atoms_from
+             CPPostcondition(stat/=0,cp_failure_level,routineP,error,failure)
           END IF
           ! Atoms to
           IF (colvar%coord_param%use_kinds_to) THEN
@@ -1234,6 +1238,8 @@ CONTAINS
                    END IF
                 END DO
              END DO
+             stat=colvar%coord_param%n_atoms_to
+             CPPostcondition(stat/=0,cp_failure_level,routineP,error,failure)
           END IF
           ! Setup the colvar
           CALL colvar_setup(colvar, error)

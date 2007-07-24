@@ -54,6 +54,7 @@ MODULE colvar_methods
   USE particle_types,                  ONLY: particle_type
   USE spherical_harmonics,             ONLY: dlegendre,&
                                              legendre
+  USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -207,6 +208,10 @@ CONTAINS
           END DO
           colvar%coord_param%n_atoms_from = 0
           colvar%coord_param%use_kinds_from = .TRUE.
+          ! Uppercase the label
+          DO k = 1, ndim
+             CALL uppercase(colvar%coord_param%c_kinds_from(k))
+          END DO
        END IF
        ! This section can be repeated
        CALL section_vals_val_get(coordination_section,"ATOMS_TO",n_rep_val=n_var,error=error)
@@ -233,6 +238,10 @@ CONTAINS
           END DO
           colvar%coord_param%n_atoms_to = 0
           colvar%coord_param%use_kinds_to = .TRUE.
+          ! Uppercase the label
+          DO k = 1, ndim
+             CALL uppercase(colvar%coord_param%c_kinds_to(k))
+          END DO
        END IF
        ! Let's finish reading the other parameters
        CALL section_vals_val_get(coordination_section,"R0",r_val=colvar%coord_param%r_0,error=error)
