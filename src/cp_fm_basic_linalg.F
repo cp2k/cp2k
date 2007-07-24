@@ -1134,8 +1134,12 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
         END IF
       END DO
     END DO
-
-    a(:,:) = c(:,:)
+     
+    DO icol_local=1,ncol_local
+    DO irow_local=1,nrow_local
+       a(irow_local,icol_local) = c(irow_local,icol_local)
+    ENDDO
+    ENDDO
 
     CALL pdtran(nrow_global,ncol_global,1.0_dp,a(1,1),1,1,desca,1.0_dp,c(1,1),1,1,descc)
 
