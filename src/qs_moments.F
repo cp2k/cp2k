@@ -1070,7 +1070,7 @@ CONTAINS
             i1 = (6 + 11*l + 6*l**2 + l**3)/6 - 1
             dd = debye/(bohr)**(l-1)
             DO i=i0,i1,3
-              WRITE(unit_number,"(T18,3(A,A,F12.4,4X)))") &
+              WRITE(unit_number,"(T18,3(A,A,F12.4,4X))") &
                 (TRIM(rlab(j+1)),"=",rmom(j+1,3)*dd,j=i,MIN(i1,i+2))
             END DO
         END SELECT
