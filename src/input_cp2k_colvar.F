@@ -223,7 +223,7 @@ CONTAINS
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="coordination",&
             description="Section to define the coordination number as a collective variable.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
         
        NULLIFY(subsection, keyword)
@@ -330,7 +330,7 @@ CONTAINS
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="distance_difference",&
             description="Section to define difference between two distances as collective variables.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
         
        NULLIFY(keyword, subsection)
@@ -391,7 +391,7 @@ CONTAINS
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="torsion",&
             description="Section to define the torsion as a collective variables.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
         
        NULLIFY(keyword, subsection)
@@ -452,7 +452,7 @@ CONTAINS
        CALL section_create(section,name="bond_rotation",&
             description="Section to define the rotation of a bond/line with respect to"//&
                  "another bond/line",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
         
        NULLIFY(keyword, subsection)
@@ -518,10 +518,9 @@ CONTAINS
 !!     teo
 !!
 !!*** **********************************************************************
-  SUBROUTINE create_colvar_angle_section(section,error,description)
+  SUBROUTINE create_colvar_angle_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: description
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_angle_section', &
       routineP = moduleN//':'//routineN
@@ -534,18 +533,10 @@ CONTAINS
     
     IF (.NOT.failure) THEN
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-       IF (PRESENT(description)) THEN
-          CALL section_create(section,name="angle",&
-               description=description,&
-               n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-               error=error)
-       ELSE
-          CALL section_create(section,name="angle",&
-               description="Section to define the angle as a collective variables.",&
-               n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-               error=error)
-       END IF
-
+       CALL section_create(section,name="angle",&
+            description="Section to define the angle as a collective variables.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
        NULLIFY(keyword, subsection)
 
        CALL keyword_create(keyword, name="ATOMS",&
@@ -587,10 +578,9 @@ CONTAINS
 !!     teo
 !!
 !!*** **********************************************************************
-  SUBROUTINE create_colvar_dist_section(section,error,description)
+  SUBROUTINE create_colvar_dist_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: description
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_dist_section', &
       routineP = moduleN//':'//routineN
@@ -603,18 +593,10 @@ CONTAINS
     
     IF (.NOT.failure) THEN
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-       IF (PRESENT(description)) THEN
-          CALL section_create(section,name="distance",&
-               description=description,&
-               n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-               error=error)
-       ELSE
-          CALL section_create(section,name="distance",&
-               description="Section to define the distance as a collective variables.",&
-               n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-               error=error)
-       END IF
-
+       CALL section_create(section,name="distance",&
+            description="Section to define the distance as a collective variables.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
        NULLIFY(keyword, subsection)
 
        CALL keyword_create(keyword, name="ATOMS",&
@@ -655,10 +637,9 @@ CONTAINS
 !!     teo
 !!
 !!*** **********************************************************************
-  SUBROUTINE create_colvar_d_pl_section(section,error,description)
+  SUBROUTINE create_colvar_d_pl_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: description
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_d_pl_section', &
       routineP = moduleN//':'//routineN
@@ -671,19 +652,11 @@ CONTAINS
     
     IF (.NOT.failure) THEN
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-       IF (PRESENT(description)) THEN
-          CALL section_create(section,name="distance_point_plane",&
-               description=description,&
-               n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-               error=error)
-       ELSE
-          CALL section_create(section,name="distance_point_plane",&
-               description="Section to define the distance of a point from a plane"//&
-               "as a collective variables.",&
-               n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-               error=error)
-       END IF
-
+       CALL section_create(section,name="distance_point_plane",&
+            description="Section to define the distance of a point from a plane"//&
+            "as a collective variables.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
        NULLIFY(keyword, subsection)
 
        CALL keyword_create(keyword, name="ATOMS_PLANE",&
@@ -827,7 +800,7 @@ CONTAINS
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="qparm",&
             description="Section to define the Q parameter (crystalline order parameter) as a collective variable.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
         
        NULLIFY(keyword, subsection)
@@ -916,7 +889,7 @@ CONTAINS
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="hydronium",&
             description="Section to define the formation of a hydronium as a collective variable.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
         
        NULLIFY(keyword, subsection)
