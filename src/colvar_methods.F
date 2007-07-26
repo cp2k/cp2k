@@ -25,12 +25,21 @@
 !****************************************************************************
 MODULE colvar_methods
   USE cell_types,                      ONLY: cell_type
-  USE colvar_types,                    ONLY: &
-       angle_colvar_id, colvar_check_points, colvar_create, colvar_setup, &
-       colvar_type, coord_colvar_id, ddiff_colvar_id, dist_colvar_id, &
-       eval_point_der, eval_point_pos, hydronium_colvar_id, &
-       plane_distance_colvar_id, qparm_colvar_id, rotation_colvar_id, &
-       torsion_colvar_id
+  USE colvar_types,                    ONLY: angle_colvar_id, &
+                                             colvar_check_points, &
+                                             colvar_create, &
+                                             colvar_setup, &
+                                             colvar_type, &
+                                             coord_colvar_id, &
+                                             ddiff_colvar_id, &
+                                             dist_colvar_id, &
+                                             eval_point_der, &
+                                             eval_point_pos, &
+                                             hydronium_colvar_id, &
+                                             plane_distance_colvar_id, &
+                                             qparm_colvar_id, &
+                                             rotation_colvar_id, &
+                                             torsion_colvar_id
   USE constraint_fxd,                  ONLY: check_fixed_atom_cns_colv
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -39,6 +48,13 @@ MODULE colvar_methods
                                              cp_subsystem_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
+  USE input_constants,                 ONLY: do_clv_xyz,&
+                                             do_clv_x,&
+                                             do_clv_y,&
+                                             do_clv_z,&
+                                             do_clv_xy,&
+                                             do_clv_xz,&
+                                             do_clv_yz
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -1069,28 +1085,29 @@ CONTAINS
     ss=ss-NINT(ss)
     xij=MATMUL(cell%hmat,ss)
     SELECT CASE (colvar%dist_param%axis_id)
-    CASE(1)
+    CASE(do_clv_x)
        xij(2)=0.0_dp
        xij(3)=0.0_dp
        r12=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
-    CASE(2) 
+    CASE(do_clv_y) 
        xij(1)=0.0_dp
        xij(3)=0.0_dp
        r12=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
-    CASE(3) 
+    CASE(do_clv_z) 
        xij(1)=0.0_dp
        xij(2)=0.0_dp
        r12=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
-    CASE(4) 
+    CASE(do_clv_xy) 
        xij(3)=0.0_dp
        r12=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
-    CASE(5) 
+    CASE(do_clv_xz) 
        xij(2)=0.0_dp
        r12=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
-    CASE(6) 
+    CASE(do_clv_yz) 
        xij(1)=0.0_dp
        r12=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
     CASE DEFAULT
+       !do_clv_xyz
        r12=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
     END SELECT
 
