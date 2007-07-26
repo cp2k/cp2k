@@ -56,6 +56,7 @@ MODULE md_environment_types
      TYPE ( lnhc_parameters_type ), POINTER :: nhc_part ( : )
      TYPE ( lnhc_parameters_type ), POINTER :: nhc_coef ( : )
      TYPE ( lnhc_parameters_type ), POINTER :: nhc_baro ( : )
+     TYPE ( lnhc_parameters_type ), POINTER :: nhc_shell ( : )
      TYPE ( npt_info_type ), POINTER :: npt ( :, : )
      TYPE ( simulation_parameters_type ), POINTER :: simpar
      TYPE ( reftraj_type ), POINTER :: reftraj_info
@@ -84,7 +85,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE get_md_env ( md_env, itimes, constant, used_time, cell,  &
-                          simpar, nhc_part, nhc_coef, nhc_baro, &
+                          simpar, nhc_part, nhc_coef, nhc_baro, nhc_shell, &
                           npt, force_env_p, para_env, reftraj_info, t,&
                           md_approach_nr, accepted_md, init, first_time, fe_env)
 
@@ -100,7 +101,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: simpar
     TYPE(lnhc_parameters_type), OPTIONAL, &
       POINTER                                :: nhc_part( : ), nhc_coef( : ), &
-                                                nhc_baro( : )
+                                                nhc_baro( : ), nhc_shell( : )
     TYPE(npt_info_type), OPTIONAL, POINTER   :: npt( :, : )
     TYPE(force_env_p_type), OPTIONAL, &
       POINTER                                :: force_env_p( : )
@@ -130,6 +131,7 @@ CONTAINS
     IF ( PRESENT ( nhc_part ) ) nhc_part => md_env % nhc_part
     IF ( PRESENT ( nhc_coef ) ) nhc_coef => md_env % nhc_coef
     IF ( PRESENT ( nhc_baro ) ) nhc_baro => md_env % nhc_baro
+    IF ( PRESENT ( nhc_shell ) ) nhc_shell => md_env % nhc_shell
     IF ( PRESENT ( npt ) ) npt => md_env % npt
     IF ( PRESENT ( force_env_p ) ) force_env_p => md_env % force_env_p
     IF ( PRESENT ( para_env ) ) para_env => md_env % para_env
@@ -176,6 +178,7 @@ CONTAINS
     NULLIFY ( md_env % nhc_part )
     NULLIFY ( md_env % nhc_coef )
     NULLIFY ( md_env % nhc_baro )
+    NULLIFY ( md_env % nhc_shell )
     NULLIFY ( md_env % npt )
     NULLIFY ( md_env % force_env_p )
     NULLIFY ( md_env % fe_env )
@@ -312,6 +315,7 @@ SUBROUTINE md_env_release(md_env, error)
         NULLIFY ( md_env % nhc_part )
         NULLIFY ( md_env % nhc_coef )
         NULLIFY ( md_env % nhc_baro )
+        NULLIFY ( md_env % nhc_shell )
         NULLIFY ( md_env % npt )
         IF (ASSOCIATED(md_env%force_env_p)) THEN
            DO i=1,SIZE(md_env%force_env_p)
@@ -330,7 +334,7 @@ END SUBROUTINE md_env_release
 
 ! *****************************************************************************
   SUBROUTINE set_md_env ( md_env, itimes, constant, cell, simpar, &
-                          nhc_part, nhc_coef, nhc_baro, fe_env, &
+                          nhc_part, nhc_coef, nhc_baro, nhc_shell, fe_env, &
                           npt, force_env_p, para_env, accepted_md, md_approach_nr ,&
                           init, first_time, error)
 
@@ -346,7 +350,7 @@ END SUBROUTINE md_env_release
       OPTIONAL, POINTER                      :: simpar
     TYPE(lnhc_parameters_type), OPTIONAL, &
       POINTER                                :: nhc_part( : ), nhc_coef( : ), &
-                                                nhc_baro( : )
+                                                nhc_baro( : ), nhc_shell( : )
     TYPE(free_energy_type), OPTIONAL, &
       POINTER                                :: fe_env
     TYPE(npt_info_type), OPTIONAL, POINTER   :: npt( :, : )
@@ -370,6 +374,7 @@ END SUBROUTINE md_env_release
     IF ( PRESENT ( nhc_part ) ) md_env % nhc_part => nhc_part
     IF ( PRESENT ( nhc_coef ) ) md_env % nhc_coef => nhc_coef
     IF ( PRESENT ( nhc_baro ) ) md_env % nhc_baro => nhc_baro
+    IF ( PRESENT ( nhc_shell ) ) md_env % nhc_shell => nhc_shell
     IF ( PRESENT ( npt ) ) md_env % npt => npt
     IF ( PRESENT ( itimes ) ) md_env % itimes => itimes
     IF ( PRESENT ( fe_env ) ) md_env % fe_env => fe_env

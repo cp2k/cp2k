@@ -21,6 +21,8 @@
 
 MODULE init_extended_system_types
 
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
   USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -38,6 +40,7 @@ MODULE init_extended_system_types
                                              npt_i_ensemble
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
+                                             section_vals_remove_values,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -48,7 +51,8 @@ MODULE init_extended_system_types
                                              molecule_type
   USE nhc_mapping,                     ONLY: nhc_to_barostat_mapping,&
                                              nhc_to_coef_mapping,&
-                                             nhc_to_particle_mapping
+                                             nhc_to_particle_mapping,&
+                                             nhc_to_shell_mapping
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
 #include "cp_common_uses.h"
@@ -56,7 +60,7 @@ MODULE init_extended_system_types
   IMPLICIT NONE
 
   PUBLIC :: initialize_nhc_part, initialize_nhc_baro, initialize_npt, &
-            initialize_nhc_coef
+            initialize_nhc_coef, initialize_nhc_shell
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'init_extended_system_types'
@@ -197,7 +201,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-  SUBROUTINE initialize_nhc_baro ( simpar, para_env, globenv, nhc, work_section, error )
+  SUBROUTINE initialize_nhc_baro ( simpar, para_env, globenv, nhc, nose_section, save_mem, error )
 
 
     TYPE(simulation_parameters_type), &
@@ -206,24 +210,21 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
-    TYPE(section_vals_type), POINTER         :: work_section
+    TYPE(section_vals_type), POINTER         :: nose_section
+    LOGICAL, INTENT(IN)                      :: save_mem
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_baro', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ind, isos, j
-    LOGICAL                                  :: explicit, restart
+    INTEGER                                  :: i, isos, j
+    LOGICAL                                  :: restart
     REAL(KIND=dp)                            :: temp
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer
-    TYPE(section_vals_type), POINTER         :: work_section2
 
 !------------------------------------------------------------------------------
 ! fire up the thermostats, if NPT
 
-    NULLIFY(buffer,work_section2)
     CALL nhc_to_barostat_mapping ( simpar, nhc, para_env)
-    explicit = .FALSE.
     restart = .FALSE.
     ! Set up the Yoshida weights
     IF ( nhc % nyosh > 0 ) THEN
@@ -233,68 +234,9 @@ CONTAINS
        CALL set_yoshida_coef ( nhc, simpar % dt )
     ENDIF
 
-    IF (ASSOCIATED(work_section)) THEN
-       work_section2 => section_vals_get_subs_vals(work_section,"VELOCITY",error=error)
-       CALL section_vals_get(work_section2, explicit=explicit, error=error)
-       restart=explicit
-       work_section2 => section_vals_get_subs_vals(work_section,"COORD",error=error)
-       CALL section_vals_get(work_section2, explicit=explicit, error=error)
-       CALL cp_assert(restart.or..not.explicit,cp_failure_level,cp_assertion_failed,routineP,&
-            "You need to define both VELOCITY and COORD and MASS and FORCE section (or none) in the NOSE section",&
-            error=error)
-       restart=explicit.and.restart
-       work_section2 => section_vals_get_subs_vals(work_section,"MASS",error=error)
-       CALL section_vals_get(work_section2, explicit=explicit, error=error)
-       CALL cp_assert(restart.or..not.explicit,cp_failure_level,cp_assertion_failed,routineP,&
-            "You need to define both VELOCITY and COORD and MASS and FORCE section (or none) in the NOSE section",&
-            error=error)
-       restart=explicit.and.restart
-       work_section2 => section_vals_get_subs_vals(work_section,"FORCE",error=error)
-       CALL section_vals_get(work_section2, explicit=explicit, error=error)
-       CALL cp_assert(restart.or..not.explicit,cp_failure_level,cp_assertion_failed,routineP,&
-            "You need to define both VELOCITY and COORD and MASS and FORCE section (or none) in the NOSE section",&
-            error=error)
-       restart=explicit.and.restart
-    END IF
+     CALL restart_nose(nhc,nose_section,save_mem,restart,error)
 
-    IF ( restart ) THEN
-       CALL section_vals_val_get(work_section,"COORD%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
-       DO i = 1, SIZE ( nhc % nvt, 2)
-          ind = nhc % INDEX(i)
-          ind = (ind-1) * nhc % nhc_len
-          DO j = 1, SIZE(nhc % nvt, 1)
-             ind = ind + 1
-             nhc % nvt(j,i) % eta = buffer ( ind )
-          END DO
-       END DO
-       CALL section_vals_val_get(work_section,"VELOCITY%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
-       DO i = 1, SIZE ( nhc % nvt, 2)
-          ind = nhc % INDEX(i)
-          ind = (ind-1) * nhc % nhc_len
-          DO j = 1, SIZE(nhc % nvt, 1)
-             ind = ind + 1
-             nhc % nvt(j,i) % v = buffer ( ind )
-          END DO
-       END DO
-       CALL section_vals_val_get(work_section,"MASS%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
-       DO i = 1, SIZE ( nhc % nvt, 2)
-          ind = nhc % INDEX(i)
-          ind = (ind-1) * nhc % nhc_len
-          DO j = 1, SIZE(nhc % nvt, 1)
-             ind = ind + 1
-             nhc % nvt(j,i) % mass = buffer ( ind )
-          END DO
-       END DO
-       CALL section_vals_val_get(work_section,"FORCE%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
-       DO i = 1, SIZE ( nhc % nvt, 2)
-          ind = nhc % INDEX(i)
-          ind = (ind-1) * nhc % nhc_len
-          DO j = 1, SIZE(nhc % nvt, 1)
-             ind = ind + 1
-             nhc % nvt(j,i) % f = buffer ( ind )
-          END DO
-       END DO
-    ELSE
+     IF(.NOT. restart) THEN
        ! Initializing thermostat forces and velocities for the Nose-Hoover
        ! Chain variables
        SELECT CASE (simpar % ensemble )
@@ -305,7 +247,7 @@ CONTAINS
        IF ( nhc % nhc_len /= 0 ) &
             CALL init_nhc_variables ( nhc, simpar % tau_nhc,  &
             temp, para_env, globenv ,error=error)
-    END IF
+     END IF
 
   END SUBROUTINE initialize_nhc_baro
 
@@ -327,7 +269,7 @@ CONTAINS
 
   SUBROUTINE initialize_nhc_part ( box, simpar, local_molecules, molecule, &
        molecule_kind_set, para_env, globenv, nhc, print_section, nose_section,&
-       gci, error)
+       gci, save_mem, error)
 
     TYPE(cell_type), INTENT(IN)              :: box
     TYPE(simulation_parameters_type), &
@@ -341,19 +283,18 @@ CONTAINS
       INTENT(INOUT)                          :: nhc
     TYPE(section_vals_type), POINTER         :: print_section, nose_section
     TYPE(global_constraint_type), POINTER    :: gci
+    LOGICAL, INTENT(IN)                      :: save_mem
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_part', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ind, isos, iw, j, natom, &
+    INTEGER                                  :: isos, iw, natom, &
                                                 nconstraint_ext, &
                                                 nconstraint_int, nfree, &
                                                 nrestraints_int
-    LOGICAL                                  :: explicit, restart
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer
+    LOGICAL                                  :: restart
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: work_section2
 
 !------------------------------------------------------------------------------
 ! Initialize simpar%nfree to dim (because at this point no
@@ -362,9 +303,7 @@ CONTAINS
 ! multiple thermostats etc...simpar % nfree will be set
 ! to zero in nhc_particle_setup.f)
 
-    NULLIFY(buffer, work_section2)
     simpar % nfree = 6 - SUM ( box % perd ( 1:3 ) )
-    explicit = .FALSE.
     restart = .FALSE.
     ! fire up the thermostats, if not NVE
     CALL nhc_to_particle_mapping ( simpar, local_molecules, molecule, &
@@ -378,68 +317,9 @@ CONTAINS
        CALL set_yoshida_coef ( nhc, simpar % dt )
     ENDIF
 
-    IF (ASSOCIATED(nose_section)) THEN
-       work_section2 => section_vals_get_subs_vals(nose_section,"VELOCITY",error=error)
-       CALL section_vals_get(work_section2, explicit=explicit, error=error)
-       restart=explicit
-       work_section2 => section_vals_get_subs_vals(nose_section,"COORD",error=error)
-       CALL section_vals_get(work_section2, explicit=explicit, error=error)
-       CALL cp_assert(restart.or..not.explicit,cp_failure_level,cp_assertion_failed,routineP,&
-            "You need to define both VELOCITY and COORD and MASS and FORCE section (or none) in the NOSE section",&
-            error=error)
-       restart=explicit.and.restart
-       work_section2 => section_vals_get_subs_vals(nose_section,"MASS",error=error)
-       CALL section_vals_get(work_section2, explicit=explicit, error=error)
-       CALL cp_assert(restart.or..not.explicit,cp_failure_level,cp_assertion_failed,routineP,&
-            "You need to define both VELOCITY and COORD and MASS and FORCE section (or none) in the NOSE section",&
-            error=error)
-       restart=explicit.and.restart
-       work_section2 => section_vals_get_subs_vals(nose_section,"FORCE",error=error)
-       CALL section_vals_get(work_section2, explicit=explicit, error=error)
-       CALL cp_assert(restart.or..not.explicit,cp_failure_level,cp_assertion_failed,routineP,&
-            "You need to define both VELOCITY and COORD and MASS and FORCE section (or none) in the NOSE section",&
-            error=error)
-       restart=explicit.and.restart
-    END IF
+     CALL restart_nose(nhc,nose_section,save_mem,restart,error)
 
-    IF (restart) THEN
-       CALL section_vals_val_get(nose_section,"COORD%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
-       DO i = 1, SIZE ( nhc % nvt, 2)
-          ind = nhc % INDEX(i)
-          ind = (ind-1) * nhc % nhc_len
-          DO j = 1, SIZE(nhc % nvt, 1)
-             ind = ind + 1
-             nhc % nvt(j,i) % eta = buffer ( ind )
-          END DO
-       END DO
-       CALL section_vals_val_get(nose_section,"VELOCITY%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
-       DO i = 1, SIZE ( nhc % nvt, 2)
-          ind = nhc % INDEX(i)
-          ind = (ind-1) * nhc % nhc_len
-          DO j = 1, SIZE(nhc % nvt, 1)
-             ind = ind + 1
-             nhc % nvt(j,i) % v = buffer ( ind )
-          END DO
-       END DO
-       CALL section_vals_val_get(nose_section,"MASS%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
-       DO i = 1, SIZE ( nhc % nvt, 2)
-          ind = nhc % INDEX(i)
-          ind = (ind-1) * nhc % nhc_len
-          DO j = 1, SIZE(nhc % nvt, 1)
-             ind = ind + 1
-             nhc % nvt(j,i) % mass = buffer ( ind )
-          END DO
-       END DO
-       CALL section_vals_val_get(nose_section,"FORCE%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
-       DO i = 1, SIZE ( nhc % nvt, 2)
-          ind = nhc % INDEX(i)
-          ind = (ind-1) * nhc % nhc_len
-          DO j = 1, SIZE(nhc % nvt, 1)
-             ind = ind + 1
-             nhc % nvt(j,i) % f = buffer ( ind )
-          END DO
-       END DO
-    ELSE
+    IF(.NOT. restart) THEN
        ! Initializing thermostat forces and velocities for the Nose-Hoover
        ! Chain variables
        IF ( nhc % nhc_len /= 0 ) &
@@ -499,109 +379,48 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-  SUBROUTINE initialize_nhc_coef ( dyn_coeff_set, root_section, para_env, globenv, nhc, work_section, error )
+  SUBROUTINE initialize_nhc_coef ( dyn_coeff_set, para_env, globenv, nhc, &
+             coeff_section, dt, save_mem, error )
 
     !  IMPLICIT NONE
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
-    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
-    TYPE(section_vals_type), POINTER         :: work_section
+    TYPE(section_vals_type), POINTER         :: coeff_section
+    REAL(KIND=dp),INTENT(IN)                 :: dt
+    LOGICAL, INTENT(IN)                      :: save_mem
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_coef', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ind, isos, j
-    LOGICAL                                  :: explicit, restart
-    REAL(KIND=dp)                            :: dt, kg_coeff_target_temp, &
+    INTEGER                                  :: isos
+    LOGICAL                                  :: restart
+    REAL(KIND=dp)                            :: kg_coeff_target_temp, &
                                                 tau_nhc
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer
-    TYPE(section_vals_type), POINTER         :: coeff_section, &
-                                                md_new_section, nose_section, &
-                                                work_section2
+    TYPE(section_vals_type), POINTER         :: nose_section
 
 !------------------------------------------------------------------------------
 
-    NULLIFY(coeff_section,nose_section,buffer,work_section2)
-    explicit  =.FALSE.
+    NULLIFY(nose_section)
+!    NULLIFY(buffer,work_section2)
+!    explicit  =.FALSE.
     restart = .FALSE.
-    md_new_section => section_vals_get_subs_vals(root_section,"MOTION%MD",error=error)
-    coeff_section => section_vals_get_subs_vals(md_new_section,"KG_COEFF",error=error)
     nose_section => section_vals_get_subs_vals(coeff_section,"nose",error=error)
     CALL section_vals_val_get(nose_section,"timecon",r_val=tau_nhc,error=error)
     CALL section_vals_val_get(coeff_section,"temperature",r_val=kg_coeff_target_temp,error=error)
-    CALL section_vals_val_get(md_new_section,"timestep",r_val=dt,error=error)
 
     ! fire up the thermostats
-    CALL nhc_to_coef_mapping ( dyn_coeff_set, nhc, root_section, para_env ,error=error)
+    CALL nhc_to_coef_mapping ( dyn_coeff_set, nhc, coeff_section, para_env ,error=error)
 
-    IF (ASSOCIATED(work_section)) THEN
-       work_section2 => section_vals_get_subs_vals(work_section,"VELOCITY",error=error)
-       CALL section_vals_get(work_section2, explicit=explicit, error=error)
-       restart=explicit
-       work_section2 => section_vals_get_subs_vals(work_section,"COORD",error=error)
-       CALL section_vals_get(work_section2, explicit=explicit, error=error)
-       CALL cp_assert(restart.or..not.explicit,cp_failure_level,cp_assertion_failed,routineP,&
-            "You need to define both VELOCITY and COORD and MASS and FORCE section (or none) in the NOSE section",&
-            error=error)
-       restart=explicit.and.restart
-       work_section2 => section_vals_get_subs_vals(work_section,"MASS",error=error)
-       CALL section_vals_get(work_section2, explicit=explicit, error=error)
-       CALL cp_assert(restart.or..not.explicit,cp_failure_level,cp_assertion_failed,routineP,&
-            "You need to define both VELOCITY and COORD and MASS and FORCE section (or none) in the NOSE section",&
-            error=error)
-       restart=explicit.and.restart
-       work_section2 => section_vals_get_subs_vals(work_section,"FORCE",error=error)
-       CALL section_vals_get(work_section2, explicit=explicit, error=error)
-       CALL cp_assert(restart.or..not.explicit,cp_failure_level,cp_assertion_failed,routineP,&
-            "You need to define both VELOCITY and COORD and MASS and FORCE section (or none) in the NOSE section",&
-            error=error)
-       restart=explicit.and.restart
-    END IF
 
     IF ( nhc % nhc_len /= 0 ) THEN
-       IF (restart) THEN
-          CALL section_vals_val_get(work_section,"COORD%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
-          DO i = 1, SIZE ( nhc % nvt, 2)
-             ind = nhc % INDEX(i)
-             ind = (ind-1) * nhc % nhc_len
-             DO j = 1, SIZE(nhc % nvt, 1)
-                ind = ind + 1
-                nhc % nvt(j,i) % eta = buffer ( ind )
-             END DO
-          END DO
-          CALL section_vals_val_get(work_section,"VELOCITY%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
-          DO i = 1, SIZE ( nhc % nvt, 2)
-             ind = nhc % INDEX(i)
-             ind = (ind-1) * nhc % nhc_len
-             DO j = 1, SIZE(nhc % nvt, 1)
-                ind = ind + 1
-                nhc % nvt(j,i) % v = buffer ( ind )
-             END DO
-          END DO
-          CALL section_vals_val_get(work_section,"MASS%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
-          DO i = 1, SIZE ( nhc % nvt, 2)
-             ind = nhc % INDEX(i)
-             ind = (ind-1) * nhc % nhc_len
-             DO j = 1, SIZE(nhc % nvt, 1)
-                ind = ind + 1
-                nhc % nvt(j,i) % mass = buffer ( ind )
-             END DO
-          END DO
-          CALL section_vals_val_get(work_section,"FORCE%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
-          DO i = 1, SIZE ( nhc % nvt, 2)
-             ind = nhc % INDEX(i)
-             ind = (ind-1) * nhc % nhc_len
-             DO j = 1, SIZE(nhc % nvt, 1)
-                ind = ind + 1
-                nhc % nvt(j,i) % f = buffer ( ind )
-             END DO
-          END DO
-       ELSE
+       CALL restart_nose(nhc, nose_section, save_mem, restart, error)
+       
+       IF(.NOT. restart) THEN
           ! Initializing thermostat forces and velocities for the Nose-Hoover
           ! Chain variables
           CALL init_nhc_variables (nhc, tau_nhc, kg_coeff_target_temp, para_env, globenv,error=error)
@@ -620,6 +439,72 @@ CONTAINS
 
   END SUBROUTINE initialize_nhc_coef
 
+!******************************************************************************
+!!****** initialize_extended_types/initialize_nhc_shell [1.0] *
+!!
+!!   NAME
+!!     initialize_nhc_shell
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+
+  SUBROUTINE initialize_nhc_shell(simpar, para_env, globenv, nhc, atomic_kind_set, &
+             local_particles, nose_section, save_mem, error)
+ 
+    TYPE(simulation_parameters_type), &
+      INTENT(INOUT)                          :: simpar
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(lnhc_parameters_type), &
+      INTENT(INOUT)                          :: nhc
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(section_vals_type), POINTER         :: nose_section
+    LOGICAL, INTENT(IN)                      :: save_mem
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_shell', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: isos
+    LOGICAL                                  :: restart
+
+!------------------------------------------------------------------------------
+
+    CALL nhc_to_shell_mapping(simpar, nhc, atomic_kind_set, local_particles, para_env)
+
+    IF(.NOT. simpar%shell_nose) RETURN
+
+    restart = .FALSE.
+    
+   ! Set up the Yoshida weights
+    IF ( nhc % nyosh > 0 ) THEN
+       ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = isos )
+       IF ( isos /= 0 ) CALL stop_memory ( routineN, &
+            'nhc%dt_yosh', nhc % nyosh )
+       CALL set_yoshida_coef ( nhc, simpar % dt )
+    ENDIF
+
+     CALL restart_nose(nhc, nose_section, save_mem, restart, error)
+
+    IF(.NOT. restart) THEN
+      ! Initialize thermostat forces and velocities
+      ! Chain variables
+      IF ( nhc % nhc_len /= 0 ) &
+            CALL init_nhc_variables (nhc, simpar%shell_tau_nhc, simpar%temp_sh_ext, &
+                 para_env, globenv, error=error)
+
+    END IF    
+
+  END SUBROUTINE  initialize_nhc_shell
+  
 !!*****
 !******************************************************************************
 !!****** extended_system_initialize/set_yoshida_coef [1.0] *
@@ -708,6 +593,132 @@ SUBROUTINE set_yoshida_coef ( nhc, dt )
   nhc % dt_yosh = dt * yosh_wt / REAL ( nhc % nc,KIND=dp)
 
 END SUBROUTINE set_yoshida_coef
+
+!******************************************************************************
+!!****** initialize_extended_types/restart_nose [1.0] *
+!!
+!!   NAME
+!!     restart_nose 
+!!
+!!   FUNCTION
+!!     read coordinate, velocities, forces and masses of the
+!!     thermostat from restart file
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!   MODIFICATION HISTORY
+!!    24-07-07 created 
+!!
+!!   SOURCE
+!******************************************************************************
+
+
+
+  SUBROUTINE restart_nose(nhc,nose_section,save_mem,restart,error)
+
+  
+    TYPE(lnhc_parameters_type), &
+      INTENT(INOUT)                          :: nhc
+    TYPE(section_vals_type), POINTER         :: nose_section
+    LOGICAL,INTENT(IN)                       :: save_mem
+    LOGICAL,INTENT(OUT)                    :: restart
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'restart_nose', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ind, j  
+    LOGICAL                                  :: explicit
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer
+    TYPE(section_vals_type), POINTER         :: work_section
+
+
+    NULLIFY(buffer, work_section)
+    explicit = .FALSE.
+    restart = .FALSE.
+    
+    IF (ASSOCIATED(nose_section)) THEN
+       work_section => section_vals_get_subs_vals(nose_section,"VELOCITY",error=error)
+       CALL section_vals_get(work_section, explicit=explicit, error=error)
+       restart=explicit
+       work_section => section_vals_get_subs_vals(nose_section,"COORD",error=error)
+       CALL section_vals_get(work_section, explicit=explicit, error=error)
+       CALL cp_assert(restart.or..not.explicit,cp_failure_level,cp_assertion_failed,routineP,&
+            "You need to define both VELOCITY and COORD and MASS and FORCE section (or none) in the NOSE section",&
+            error=error)
+       restart=explicit.and.restart
+       work_section => section_vals_get_subs_vals(nose_section,"MASS",error=error)
+       CALL section_vals_get(work_section, explicit=explicit, error=error)
+       CALL cp_assert(restart.or..not.explicit,cp_failure_level,cp_assertion_failed,routineP,&
+            "You need to define both VELOCITY and COORD and MASS and FORCE section (or none) in the NOSE section",&
+            error=error)
+       restart=explicit.and.restart
+       work_section => section_vals_get_subs_vals(nose_section,"FORCE",error=error)
+       CALL section_vals_get(work_section, explicit=explicit, error=error)
+       CALL cp_assert(restart.or..not.explicit,cp_failure_level,cp_assertion_failed,routineP,&
+            "You need to define both VELOCITY and COORD and MASS and FORCE section (or none) in the NOSE section",&
+            error=error)
+       restart=explicit.and.restart
+    END IF
+
+    IF (restart) THEN
+       CALL section_vals_val_get(nose_section,"COORD%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
+       DO i = 1, SIZE ( nhc % nvt, 2)
+          ind = nhc % INDEX(i)
+          ind = (ind-1) * nhc % nhc_len
+          DO j = 1, SIZE(nhc % nvt, 1)
+             ind = ind + 1
+             nhc % nvt(j,i) % eta = buffer ( ind )
+          END DO
+       END DO
+       CALL section_vals_val_get(nose_section,"VELOCITY%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
+       DO i = 1, SIZE ( nhc % nvt, 2)
+          ind = nhc % INDEX(i)
+          ind = (ind-1) * nhc % nhc_len
+          DO j = 1, SIZE(nhc % nvt, 1)
+             ind = ind + 1
+             nhc % nvt(j,i) % v = buffer ( ind )
+          END DO
+       END DO
+       CALL section_vals_val_get(nose_section,"MASS%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
+       DO i = 1, SIZE ( nhc % nvt, 2)
+          ind = nhc % INDEX(i)
+          ind = (ind-1) * nhc % nhc_len
+          DO j = 1, SIZE(nhc % nvt, 1)
+             ind = ind + 1
+             nhc % nvt(j,i) % mass = buffer ( ind )
+          END DO
+       END DO
+       CALL section_vals_val_get(nose_section,"FORCE%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
+       DO i = 1, SIZE ( nhc % nvt, 2)
+          ind = nhc % INDEX(i)
+          ind = (ind-1) * nhc % nhc_len
+          DO j = 1, SIZE(nhc % nvt, 1)
+             ind = ind + 1
+             nhc % nvt(j,i) % f = buffer ( ind )
+          END DO
+       END DO
+
+       IF(save_mem) THEN
+         NULLIFY(work_section)
+         work_section => section_vals_get_subs_vals(nose_section,"COORD",error=error)
+         CALL section_vals_remove_values(work_section, error)
+         NULLIFY(work_section)
+         work_section => section_vals_get_subs_vals(nose_section,"VELOCITY",error=error)
+         CALL section_vals_remove_values(work_section, error)
+         NULLIFY(work_section)
+         work_section => section_vals_get_subs_vals(nose_section,"FORCE",error=error)
+         CALL section_vals_remove_values(work_section, error)
+         NULLIFY(work_section)
+         work_section => section_vals_get_subs_vals(nose_section,"MASS",error=error)
+         CALL section_vals_remove_values(work_section, error)
+       END IF
+     ENDIF
+
+  
+  END SUBROUTINE restart_nose
+
 
 !!*****
 !******************************************************************************

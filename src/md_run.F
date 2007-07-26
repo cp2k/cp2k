@@ -56,6 +56,7 @@ MODULE md_run
   USE init_extended_system_types,      ONLY: initialize_nhc_baro,&
                                              initialize_nhc_coef,&
                                              initialize_nhc_part,&
+                                             initialize_nhc_shell,&
                                              initialize_npt
   USE init_extended_system_variables,  ONLY: init_nhc_forces
   USE input_constants,                 ONLY: langevin_ensemble,&
@@ -85,7 +86,8 @@ MODULE md_run
   USE physcon,                         ONLY: kelvin
   USE shell_potential_types,           ONLY: shell_kind_type
   USE termination,                     ONLY: external_control,&
-                                             stop_memory
+                                             stop_memory,&
+                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
@@ -156,7 +158,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, ibead, in_use, &
                                                 istat, istep, isubsys, &
-                                                iter_level, nbeads
+                                                iter_level, nbeads, nshell
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: apply_cns0, failure, &
                                                 save_mem, shell_adiabatic, &
@@ -240,10 +242,13 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (extended_type%nhc_coef(nbeads),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (extended_type%nhc_shell(nbeads),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ibead=1,nbeads
        CALL lnhc_init(extended_type%nhc_part(ibead))
        CALL lnhc_init(extended_type%nhc_baro(ibead))
        CALL lnhc_init(extended_type%nhc_coef(ibead))
+       CALL lnhc_init(extended_type%nhc_shell(ibead))
     ENDDO
 
     DO ibead = 1, nbeads
@@ -265,7 +270,11 @@ CONTAINS
               molecules_new=molecules_new,&
               gci=gci,&
               particles=particles,&
+              shell_particles=shell_particles,&
               error=error)
+
+          CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,&
+               shell_present=shell_present, shell_adiabatic=shell_adiabatic)
           !
           ! Possibly restart Nose particles
           !
@@ -276,14 +285,14 @@ CONTAINS
                                    molecules_new%els, molecule_kinds_new%els,&
                                    para_env, globenv, extended_type%nhc_part(ibead), &
                                    print_section=print_section,nose_section=work_section,&
-                                   gci=gci,error=error)
+                                   gci=gci,save_mem=save_mem,error=error)
           !
           ! Possibly restart barostat
           !
           NULLIFY(work_section)
           work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%NOSE",error=error)
           CALL initialize_nhc_baro(simpar,para_env,globenv, extended_type%nhc_baro(ibead),&
-                                   work_section=work_section,error=error)
+                                   nose_section=work_section, save_mem=save_mem,error=error)
 
           IF (ASSOCIATED(dyn_coeff_set)) THEN
              !
@@ -291,10 +300,10 @@ CONTAINS
              ! Possibly restart KG coefficients
              !
              NULLIFY(work_section)
-             work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%NOSE",error=error)
+             work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF",error=error)
              CALL initialize_nhc_coef(dyn_coeff_set(isubsys)%dyn_coeff_set,&
-                                   root_section,para_env,globenv,extended_type%nhc_coef(ibead), &
-                                   work_section=work_section,error=error)
+                                   para_env,globenv,extended_type%nhc_coef(ibead), &
+                                   coeff_section=work_section, dt=simpar%dt, save_mem=save_mem, error=error)
 
              NULLIFY(work_section)
              work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF",error=error)
@@ -302,6 +311,20 @@ CONTAINS
                   work_section=work_section,error=error)
              CALL init_nhc_forces (nhc_coef=extended_type% nhc_coef(ibead),error=error)
           END IF
+
+          IF(shell_present .AND. shell_adiabatic) THEN
+            ! Initialize SHELL thermostats, possibly restart
+            nshell = SIZE(shell_particles%els)
+            NULLIFY(work_section)
+            work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%NOSE",error=error)
+            CALL initialize_nhc_shell(simpar, para_env, globenv,extended_type%nhc_shell(ibead),&
+                                      atomic_kinds%els, local_particles, &
+                                      work_section, save_mem, error=error)
+          ELSE IF(simpar%shell_nose .AND. .NOT.  shell_adiabatic) THEN                            
+             CALL stop_program(routineN,moduleN,__LINE__,&
+                               "Nose on the core-shell motion only with adiabatic shell-model ") 
+          END IF
+
        END DO
        !
        ! Possibly restart Barostat
@@ -333,7 +356,7 @@ CONTAINS
          print_section => section_vals_get_subs_vals(motion_section,"MD%PRINT",error=error)
 
          IF(shell_present .AND. shell_adiabatic) THEN
-            ! shell-model with constraint NYI
+           ! shell-model with constraint NYI
            CPPostcondition(.NOT.simpar%constraint,cp_failure_level,routineP,error,failure)
            work2_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
            work3_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY",error=error)
@@ -366,6 +389,9 @@ CONTAINS
 
        CALL init_nhc_forces ( nhc_part=extended_type%nhc_part(ibead),error=error)
        CALL init_nhc_forces ( nhc_baro=extended_type%nhc_baro(ibead),error=error)
+       IF(shell_adiabatic .AND. simpar%shell_nose) THEN
+          CALL init_nhc_forces( nhc_shell=extended_type%nhc_shell(ibead),error=error)
+       END IF
 
     END DO
 
@@ -385,6 +411,10 @@ CONTAINS
     IF (ASSOCIATED(dyn_coeff_set)) THEN
        CALL set_md_env( md_env, nhc_coef=extended_type%nhc_coef,error=error)
     END IF
+
+    IF(shell_present .AND. shell_adiabatic) THEN
+       CALL set_md_env(md_env, nhc_shell=extended_type%nhc_shell,error=error) 
+    END IF        
 
     ! loop over number of beads
     IF (simpar%ensemble == langevin_ensemble) THEN
@@ -546,6 +576,7 @@ CONTAINS
     CALL lnhc_dealloc(extended_type%nhc_part)
     CALL lnhc_dealloc(extended_type%nhc_baro)
     CALL lnhc_dealloc(extended_type%nhc_coef)
+    CALL lnhc_dealloc(extended_type%nhc_shell)
     CALL npt_dealloc(extended_type%npt_info)
 
     DEALLOCATE(simpar,STAT=istat)

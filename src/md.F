@@ -55,7 +55,8 @@ MODULE md
   USE parallel_rng_types,              ONLY: next_random_number
   USE particle_types,                  ONLY: particle_type
   USE shell_potential_types,           ONLY: shell_kind_type
-  USE termination,                     ONLY: stop_memory
+  USE termination,                     ONLY: stop_memory, &
+                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -98,13 +99,12 @@ MODULE md
      LOGICAL :: constraint
      LOGICAL :: annealing
      LOGICAL :: dump_lm 
-     LOGICAL :: vshell_rescale
      INTEGER :: nfree
      INTEGER :: nc
      INTEGER :: nyosh
      INTEGER :: nhclen
      INTEGER :: info_constraint
-       INTEGER :: lagrange_multipliers
+     INTEGER :: lagrange_multipliers
      REAL (KIND=dp) :: tau_nhc
      REAL (KIND=dp) :: tau_cell
      REAL (KIND=dp), POINTER, DIMENSION ( : ) :: dt_yosh
@@ -117,6 +117,14 @@ MODULE md
      REAL (KIND=dp) :: var_w
      LOGICAL        :: multi_time_switch, do_respa
      INTEGER        :: n_time_steps
+     !SHELL parameters
+     INTEGER :: shell_nc
+     INTEGER :: shell_nhclen
+     INTEGER :: shell_nhcopt
+     INTEGER :: shell_nyosh
+     LOGICAL :: vshell_rescale
+     LOGICAL :: shell_nose
+     REAL (KIND=dp) :: shell_tau_nhc
      REAL (KIND=dp) :: temp_sh_ext
      REAL (KIND=dp) :: temp_sh_tol
 
@@ -350,7 +358,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: explicit, failure
-    TYPE(section_vals_type), POINTER         :: tmp_section
+    TYPE(section_vals_type), POINTER         :: tmp_section, tmp2_section
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -362,9 +370,6 @@ CONTAINS
        CALL section_vals_val_get(md_section,"TEMPERATURE",r_val=simpar%temp_ext,error=error)
        CALL section_vals_val_get(md_section,"TEMP_TOL",r_val=simpar%temp_tol,error=error)
        CALL section_vals_val_get(md_section,"COMVEL_TOL",r_val=simpar%comvel_tol,error=error)
-       CALL section_vals_val_get(md_section,"TEMP_SHELL",r_val=simpar%temp_sh_ext,error=error)
-       CALL section_vals_val_get(md_section,"TEMP_SHELL_TOL",r_val=simpar%temp_sh_tol,error=error)
-       CALL section_vals_val_get(md_section,"VSHELL_RESCALE",l_val=simpar%vshell_rescale,error=error)
 
        IF (simpar%ensemble == langevin_ensemble) THEN
           CALL section_vals_val_get(md_section, "GAMMA", r_val=simpar%gamma, error=error)
@@ -416,6 +421,26 @@ CONTAINS
             ignore_required=.TRUE.,error=error)
        simpar%multi_time_switch = .FALSE.
        IF (simpar%do_respa) simpar%multi_time_switch = .TRUE.
+
+       tmp_section => section_vals_get_subs_vals(md_section,"SHELL",error=error)
+       CALL section_vals_val_get(tmp_section,"TEMPERATURE",r_val=simpar%temp_sh_ext,error=error)
+       CALL section_vals_val_get(tmp_section,"TEMP_TOL",r_val=simpar%temp_sh_tol,error=error)
+       CALL section_vals_val_get(tmp_section,"NOSE_PARTICLE",l_val=simpar%vshell_rescale,error=error)
+       tmp2_section => section_vals_get_subs_vals(tmp_section,"NOSE",error=error)
+       CALL section_vals_val_get(tmp_section,"NOSE%_SECTION_PARAMETERS_",&
+            l_val=simpar%shell_nose,error=error)
+       IF(simpar%vshell_rescale .AND. simpar%shell_nose) THEN
+         CALL stop_program(routineN,moduleN,__LINE__,&
+              "SHELL model: NOSE_PARTICLE and shell_nose are not compatible") 
+       END IF        
+       IF (simpar%shell_nose) THEN
+         CALL section_vals_val_get(tmp2_section,"LENGTH",i_val=simpar%shell_nhclen,error=error)
+         CALL section_vals_val_get(tmp2_section,"YOSHIDA",i_val=simpar%shell_nyosh,error=error)
+         CALL section_vals_val_get(tmp2_section,"TIMECON",r_val=simpar%shell_tau_nhc,error=error)
+         CALL section_vals_val_get(tmp2_section,"MTS",i_val=simpar%shell_nc,error=error)
+         CALL section_vals_val_get(tmp2_section,"NHCOPT",i_val=simpar%shell_nhcopt,error=error)
+       END IF
+
     END IF
 
   END SUBROUTINE read_md_new_section
@@ -452,13 +477,10 @@ CONTAINS
     simpar % temp_baro = 0.0_dp
     simpar % temp_tol = 0.0_dp
     simpar % comvel_tol = 0.0_dp
-    simpar % temp_sh_ext = 0.0_dp
-    simpar % temp_sh_tol = 0.0_dp
     simpar % p_ext = 0.0_dp
     simpar % f_annealing = 1.0_dp
     simpar % constraint = .FALSE.
     simpar % annealing = .FALSE.
-    simpar % vshell_rescale=.FALSE.
     simpar % shake_tol = 1.0E-6_dp
     simpar % nhclen = 3
     simpar % nc = 2
@@ -476,7 +498,16 @@ CONTAINS
     simpar%noisy_gamma = 0.0_dp
     simpar%shadow_gamma = 0.0_dp
     simpar%var_w = 0.0_dp
-
+    ! SHELL parameters
+    simpar % shell_nose = .FALSE.
+    simpar % temp_sh_ext = 0.0_dp
+    simpar % temp_sh_tol = 0.0_dp
+    simpar % vshell_rescale=.FALSE.
+    simpar % shell_nhclen = 3
+    simpar % shell_nc = 2
+    simpar % shell_nyosh = 3
+    simpar % shell_tau_nhc = 1000.0_dp
+    simpar % shell_nhcopt = 101
   END SUBROUTINE set_md_defaults
 
   !******************************************************************************

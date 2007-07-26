@@ -187,8 +187,10 @@ SUBROUTINE init_nhc_variables ( nhc,tau_nhc,temp_ext, para_env, globenv, error )
       END DO
       number = nhc % num_nhc
 
-      IF (nhc % dis_type=='DIS_REP') CALL mp_sum(akin,para_env%group)
-      IF (nhc % dis_type=='DIS_REP') CALL mp_sum(number,para_env%group)
+      IF (nhc % dis_type=='DIS_REP') THEN
+          CALL mp_sum(akin,para_env%group)
+          CALL mp_sum(number,para_env%group)
+      ENDIF    
 
 ! scale velocities to get the correct initial temperature
       temp = 2.0_dp*akin/REAL(number)
@@ -338,9 +340,11 @@ END SUBROUTINE init_barostat_variables
 !!
 !!   SOURCE
 !******************************************************************************
-SUBROUTINE init_nhc_forces ( nhc_part, nhc_baro, nhc_coef , error)
+SUBROUTINE init_nhc_forces ( nhc_part, nhc_baro, nhc_coef , nhc_shell, error)
+
     TYPE(lnhc_parameters_type), &
-      INTENT(INOUT), OPTIONAL                :: nhc_part, nhc_baro, nhc_coef
+      INTENT(INOUT), OPTIONAL                :: nhc_part, nhc_baro, &
+                                                nhc_coef, nhc_shell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i, j
@@ -389,6 +393,22 @@ IF(PRESENT(nhc_coef)) THEN
      END DO
   END DO
 END IF
+
+! assign the forces
+
+IF(PRESENT(nhc_shell)) THEN
+  DO i = 1, SIZE ( nhc_shell % nvt, 2 )
+     DO j = 2, SIZE ( nhc_shell % nvt, 1 )
+        nhc_shell % nvt ( j, i ) % f = nhc_shell % nvt ( j-1, i ) % mass * &
+                                      nhc_shell % nvt ( j-1, i ) % v *  &
+                                      nhc_shell % nvt ( j-1, i ) % v -  &
+                                      nhc_shell % nvt ( j, i ) % nkt
+        nhc_shell % nvt ( j, i ) % f = nhc_shell % nvt ( j, i ) % f &
+                                     /nhc_shell % nvt ( j, i ) % mass
+     END DO
+  END DO
+END IF
+
 
 END SUBROUTINE init_nhc_forces
 

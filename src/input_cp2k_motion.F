@@ -2363,7 +2363,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: baro_section, coeff_section, &
                                                 nose_section, print_key, &
-                                                subsection, uni_section
+                                                shell_section, subsection, uni_section
 
     failure=.FALSE.
 
@@ -2374,7 +2374,7 @@ CONTAINS
             n_keywords=13, n_subsections=6, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       NULLIFY(keyword, coeff_section, nose_section, uni_section, baro_section, subsection)
+       NULLIFY(keyword, coeff_section, nose_section, uni_section, baro_section, shell_section, subsection)
        CALL keyword_create(keyword, name="ensemble",&
             description="The ensemble/integrator that you want to use for MD propagation",&
             usage="ensemble nve",&
@@ -2465,27 +2465,27 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(&
-             keyword=keyword,&
-             name="temp_shell",&
-             description="The temperature in K used to control "//&
-                         "the internal velocities of the core-shell motion ",&
-             usage="tempe_shell 5.0",&
-             default_r_val=cp_unit_to_cp2k(value=0.0_dp,&
-                                           unit_str="K",&
-                                           error=error),&
-             unit_str="K",&
-             error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="temp_shell_tol",&
-            description="The maximum accepted oscillations of the temperature"//&
-            " of the internal core-hell motion from the wanted temperature."//&
-            "If it is 0 no rescaling is performed", &
-            usage="temp_shell_tol 0.0", default_r_val=0.0_dp, unit_str='K', error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+!       CALL keyword_create(&
+!             keyword=keyword,&
+!             name="temp_shell",&
+!             description="The temperature in K used to control "//&
+!                         "the internal velocities of the core-shell motion ",&
+!             usage="tempe_shell 5.0",&
+!             default_r_val=cp_unit_to_cp2k(value=0.0_dp,&
+!                                           unit_str="K",&
+!                                           error=error),&
+!             unit_str="K",&
+!             error=error)
+!       CALL section_add_keyword(section,keyword,error=error)
+!       CALL keyword_release(keyword,error=error)
+!
+!       CALL keyword_create(keyword, name="temp_shell_tol",&
+!            description="The maximum accepted oscillations of the temperature"//&
+!            " of the internal core-hell motion from the wanted temperature."//&
+!            "If it is 0 no rescaling is performed", &
+!            usage="temp_shell_tol 0.0", default_r_val=0.0_dp, unit_str='K', error=error)
+!       CALL section_add_keyword(section,keyword,error=error)
+!       CALL keyword_release(keyword,error=error)
 
 
        CALL keyword_create(keyword, name="gamma",&
@@ -2530,15 +2530,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="vshell_rescale",&   
-            description="If NOSE, the velocitie of core and shell are simply rescaled together "//&
-            "with the velocities of the corresponding particles. This might favour heat exchange "//&
-            " making necessary some kind of control of the internal core-shell kinetic energy (TEMP_SHELL_TOL)",&
-            usage="vshell_rescale LOGICAL",&
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
 
        CALL create_msst_section(uni_section, error=error)
        CALL section_add_subsection(section, uni_section, error=error)
@@ -2560,6 +2551,10 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_SHELL_section(shell_section, error=error)
+       CALL section_add_subsection(section, shell_section, error=error)
+       CALL section_release(shell_section,error=error)       
+       
        CALL create_reftraj_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -4004,5 +3999,161 @@ SUBROUTINE create_band_section(section,error)
        CALL section_release(subsection,error=error)
     END IF
   END SUBROUTINE create_opt_band_section
+  
+!***************************************************************************
+!!****f* input_cp2k/create_shell_section *
+!!
+!!   NAME
+!!     create_shell_section
+!!
+!!   FUNCTION
+!!     -
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: will contain some parameters for the shells dynamics
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+
+SUBROUTINE create_shell_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_shell_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: sub2section, subsection
+
+  failure=.FALSE.
+  
+  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN  
+
+       CALL section_create(section,name="shell",&
+            description="Parameters of shell model in adiabatic dynamics.",&
+            n_keywords=2, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(keyword,subsection,sub2section)
+
+       CALL keyword_create(&
+             keyword=keyword,&
+             name="temperature",&
+             description="The temperature in K used to control "//&
+                         "the internal velocities of the core-shell motion ",&
+             usage="temperature 5.0",&
+             default_r_val=cp_unit_to_cp2k(value=0.0_dp,unit_str="K",error=error),&
+             unit_str="K", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       CALL keyword_create(keyword, name="temp_tol",&
+            description="The maximum accepted oscillations of the temperature"//&
+            " of the internal core-hell motion from the wanted temperature."//&
+            "If it is 0 no rescaling is performed", &
+            usage="temp_tol 0.0", default_r_val=0.0_dp, unit_str='K', error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="nose_particle",&   
+            description="If nvt or npt, the core and shell velocities are controlled "//&
+            "by the same thermostat used for the particle. This might favour heat exchange "//&
+            "and additional rescaling of the internal core-shell velocity is needed (TEMP_TOL)",&
+            usage="nose_particle LOGICAL",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_create(sub2section,name="NOSE",&
+            description="Parameters for restarting of the core-shell thermostat",&
+            n_keywords=3, n_subsections=4, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(keyword,subsection)
+
+       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+            description="controls the activation of core-shell thermostat",&
+            usage="&NOSE T",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(sub2section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       CALL keyword_create(keyword, name="nhcopt",&
+            description="global or massive thermostats", usage="NHCOPT GLOBAL", &
+            default_i_val=nhc_global,enum_c_vals=s2a("global","massive"),&
+            enum_desc=s2a("just one thermostat for all the core-shell pairs",&
+            "each core-shell pair has its own thermostat"),&
+            enum_i_vals=(/nhc_global,nhc_massive/),error=error)
+            
+       CALL section_add_keyword(sub2section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="length",&
+            description="length of the NoseHoover chain", usage="length integer", &
+            default_i_val=3,&
+            error=error)
+       CALL section_add_keyword(sub2section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="Yoshida",&
+            description="order of the yoshida integretor usef for the thermostat",&
+            usage="Yoshida integer", &
+            default_i_val=3,&
+            error=error)
+       CALL section_add_keyword(sub2section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="timecon",&
+            description="timeconstant of the thermostat chain",&
+            usage="timeconstant real", &
+            default_r_val=cp_unit_to_cp2k(1000.0_dp,"fs",error=error),&
+            unit_str="fs",error=error)
+       CALL section_add_keyword(sub2section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="mts", &
+            variants=s2a("multiple_time_steps","mult_t_steps"),&
+            description="number of multiple timesteps to be used for the NoseHoover chain",&
+            usage="mts integer", &
+            default_i_val=2,&
+            error=error)
+       CALL section_add_keyword(sub2section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+ 
+       CALL create_coord_section(subsection,"THERMOSTAT SHELL",error=error)
+       CALL section_add_subsection(sub2section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+       
+       CALL create_velocity_section(subsection,"THERMOSTAT SHELL",error=error)
+       CALL section_add_subsection(sub2section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_mass_section(subsection,"THERMOSTAT SHELL",error=error)
+       CALL section_add_subsection(sub2section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_force_section(subsection,"THERMOSTAT SHELL",error=error)
+       CALL section_add_subsection(sub2section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL section_add_subsection(section,sub2section,error=error)
+       CALL section_release(sub2section,error=error)
+
+    END IF
+  END SUBROUTINE create_shell_section
+
+
 
 END MODULE input_cp2k_motion

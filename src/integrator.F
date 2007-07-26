@@ -1029,6 +1029,8 @@ CONTAINS
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(lnhc_parameters_type), &
       DIMENSION(:), POINTER                  :: nhc_coef
+    TYPE(lnhc_parameters_type), &
+      DIMENSION(:), POINTER                  :: nhc_shell
     TYPE(lnhc_parameters_type), POINTER      :: nhc( : )
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
@@ -1048,10 +1050,10 @@ CONTAINS
     TYPE(virial_type), POINTER               :: virial
 
     NULLIFY(gci)
-    NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef,cell)
+    NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef,nhc_shell,cell)
     NULLIFY (shell,shell_particles,shell_particle_set,core_particles, core_particle_set)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
-                    nhc_part=nhc,nhc_coef=nhc_coef,para_env=para_env)
+                    nhc_part=nhc,nhc_coef=nhc_coef,nhc_shell=nhc_shell,para_env=para_env)
     dt = simpar%dt
     IF (SIZE(force_env_p)/=1) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
@@ -1128,11 +1130,15 @@ CONTAINS
 
 ! perform Nose'-Hoover chain dynamimcs
       IF(shell_adiabatic) THEN
-!!   shell_particle_set%v, core_particle_set%v,  as well as  particle_set%v are modified in lnhc
+!!      shell_particle_set%v, core_particle_set%v,  as well as  particle_set%v are modified in lnhc
         CALL lnhc ( nhc ( isubsys ), molecule_kind_set, molecule_set, &
                     atomic_kind_set, particle_set, local_molecules, para_env % group , &
                     shell_adiabatic=shell_adiabatic, shell_particle_set=shell_particle_set,&
                     core_particle_set=core_particle_set,  vshell_rescale=simpar%vshell_rescale)
+
+!!      perform Nose'-Hoover chain dynamimcs for the core-shell motion
+        CALL lnhc (nhc_shell (isubsys), atomic_kind_set, particle_set, local_particles, shell_particle_set,&
+                    core_particle_set, simpar%shell_nose, para_env % group  )
       ELSE
         CALL lnhc ( nhc ( isubsys ), molecule_kind_set, molecule_set, &
                     atomic_kind_set, particle_set, local_molecules, para_env % group )
@@ -1335,6 +1341,11 @@ CONTAINS
                     atomic_kind_set, particle_set, local_molecules, &
                     vel, para_env % group , shell_adiabatic = shell_adiabatic, &
                     shell_vel=shell_vel, core_vel=core_vel, vshell_rescale=simpar%vshell_rescale)
+
+!!      perform Nose'-Hoover chain dynamimcs for the core-shell motion
+        CALL lnhc (nhc_shell (isubsys), atomic_kind_set, particle_set, local_particles,&
+                   vel, shell_vel, core_vel, simpar%shell_nose, para_env % group  )
+
       ELSE
         CALL lnhc ( nhc ( isubsys ), molecule_kind_set, molecule_set, &
                     atomic_kind_set, particle_set, local_molecules, vel, para_env % group )
@@ -1479,7 +1490,7 @@ CONTAINS
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
     TYPE(global_constraint_type), POINTER    :: gci
-    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro( : ), nhc_part( : )
+    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro( : ), nhc_part( : ), nhc_shell(:)
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(molecule_kind_type), DIMENSION(:), &
@@ -1498,10 +1509,10 @@ CONTAINS
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
 
-    NULLIFY(gci)
+    NULLIFY(gci,nhc_baro,nhc_part,nhc_shell)
     NULLIFY (shell,shell_particles,shell_particle_set,core_particles, core_particle_set)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
-                    nhc_part=nhc_part, nhc_baro=nhc_baro, npt = npt, &
+                    nhc_part=nhc_part, nhc_baro=nhc_baro, nhc_shell=nhc_shell, npt = npt, &
                     itimes = itimes, first_time=first_time, para_env=para_env )
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar % nfree,KIND=dp)
@@ -1602,6 +1613,11 @@ CONTAINS
                     atomic_kind_set, particle_set, local_molecules, para_env % group , &
                     shell_adiabatic=shell_adiabatic, shell_particle_set=shell_particle_set,&
                     core_particle_set=core_particle_set, vshell_rescale=simpar%vshell_rescale)
+
+!!      perform Nose'-Hoover chain dynamimcs for the core-shell motion
+        CALL lnhc (nhc_shell (isubsys), atomic_kind_set, particle_set, local_particles, shell_particle_set,&
+                    core_particle_set, simpar%shell_nose, para_env % group  )
+
       ELSE
         CALL lnhc ( nhc_part ( isubsys ), molecule_kind_set, molecule_set, &
                     atomic_kind_set, particle_set, local_molecules, para_env % group )
@@ -1840,6 +1856,11 @@ CONTAINS
                     atomic_kind_set, particle_set, local_molecules, &
                     vel, para_env % group , shell_adiabatic = shell_adiabatic, &
                     shell_vel=shell_vel, core_vel=core_vel, vshell_rescale=simpar%vshell_rescale)
+
+!!      perform Nose'-Hoover chain dynamimcs for the core-shell motion
+        CALL lnhc (nhc_shell (isubsys), atomic_kind_set, particle_set, local_particles,&
+                   vel, shell_vel, core_vel, simpar%shell_nose, para_env % group  )
+
       ELSE
         CALL lnhc ( nhc_part ( isubsys ), molecule_kind_set, molecule_set, &
                     atomic_kind_set, particle_set, local_molecules, vel, para_env % group )
@@ -2370,7 +2391,7 @@ CONTAINS
 
     NULLIFY(gci)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
-                    npt = npt, first_time=first_time, para_env=para_env)
+                    npt = npt, para_env=para_env)
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar % nfree, dp )
     gamma1 = simpar % gamma_nph
@@ -2920,7 +2941,7 @@ CONTAINS
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
     TYPE(global_constraint_type), POINTER    :: gci
-    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro( : ), nhc_part( : )
+    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro( : ), nhc_part( : ), nhc_shell(:)
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(molecule_kind_type), DIMENSION(:), &
@@ -2939,11 +2960,11 @@ CONTAINS
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
 
-    NULLIFY(gci)
+    NULLIFY(gci,nhc_baro,nhc_part,nhc_shell)
     NULLIFY (shell,shell_particles,shell_particle_set,core_particles, core_particle_set)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
-                    nhc_part=nhc_part, nhc_baro=nhc_baro, npt = npt, &
-                    itimes = itimes, first_time=first_time, para_env=para_env )
+                    nhc_part=nhc_part, nhc_baro=nhc_baro, nhc_shell=nhc_shell, npt = npt, &
+                    itimes = itimes, para_env=para_env )
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar % nfree,KIND=dp)
 
@@ -3039,6 +3060,11 @@ CONTAINS
                     atomic_kind_set, particle_set, local_molecules, para_env % group , &
                     shell_adiabatic=shell_adiabatic, shell_particle_set=shell_particle_set,&
                     core_particle_set=core_particle_set, vshell_rescale=simpar%vshell_rescale)
+
+!!      perform Nose'-Hoover chain dynamimcs for the core-shell motion
+        CALL lnhc (nhc_shell (isubsys), atomic_kind_set, particle_set, local_particles, shell_particle_set,&
+                    core_particle_set, simpar%shell_nose, para_env % group  )
+
       ELSE
         CALL lnhc ( nhc_part ( isubsys ), molecule_kind_set, molecule_set, &
                     atomic_kind_set, particle_set, local_molecules, para_env % group )
@@ -3344,6 +3370,11 @@ CONTAINS
                     atomic_kind_set, particle_set, local_molecules, &
                     vel, para_env % group , shell_adiabatic = shell_adiabatic, &
                     shell_vel=shell_vel, core_vel=core_vel, vshell_rescale=simpar%vshell_rescale)
+
+!!      perform Nose'-Hoover chain dynamimcs for the core-shell motion
+        CALL lnhc (nhc_shell (isubsys), atomic_kind_set, particle_set, local_particles,&
+                   vel, shell_vel, core_vel, simpar%shell_nose, para_env % group  )
+
      ELSE
         CALL lnhc ( nhc_part ( isubsys ), molecule_kind_set, molecule_set, &
                    atomic_kind_set, particle_set, local_molecules, vel, para_env % group )

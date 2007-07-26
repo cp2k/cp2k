@@ -79,6 +79,7 @@ MODULE extended_system_types
      TYPE ( lnhc_parameters_type ), POINTER :: nhc_part  ( : )
      TYPE ( lnhc_parameters_type ), POINTER :: nhc_baro ( : )
      TYPE ( lnhc_parameters_type ), POINTER :: nhc_coef (:)
+     TYPE ( lnhc_parameters_type ), POINTER :: nhc_shell (:)
      TYPE ( npt_info_type ), POINTER :: npt_info ( :, : )
   END TYPE extended_system_type
 
@@ -97,6 +98,7 @@ MODULE extended_system_types
     NULLIFY(extended_type%nhc_part)
     NULLIFY(extended_type%nhc_baro)
     NULLIFY(extended_type%nhc_coef)
+    NULLIFY(extended_type%nhc_shell)
     NULLIFY(extended_type%npt_info)
   END SUBROUTINE
 
