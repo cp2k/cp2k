@@ -606,8 +606,18 @@ CONTAINS
             n_var=2, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="AXIS",&
+            description="Define the axes along which the colvar should be evaluated",&
+            usage="AXIS (XYZ | X | Y | Z | XY| XZ | YZ)",&
+            enum_c_vals=s2a( "XYZ","X", "Y", "Z", "XY", "XZ", "YZ"),&
+            enum_i_vals=(/ do_clv_xyz, do_clv_x, do_clv_y,do_clv_z, do_clv_xy, do_clv_xz, do_clv_yz/),&
+            default_i_val=do_clv_xyz, error=error)
+    
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
-       ! Must be present in each colvar and handled properly
+
+! Must be present in each colvar and handled properly
        CALL create_point_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)

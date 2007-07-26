@@ -445,7 +445,14 @@ MODULE input_constants
                                 use_perd_none=7
 
   INTEGER, PARAMETER, PUBLIC :: do_clv_geo_center=0,&
-                                do_clv_fix_point =1
+                                do_clv_fix_point =1,&
+                                do_clv_xyz       =0,&
+                                do_clv_x         =1,&
+                                do_clv_y         =2,&
+                                do_clv_z         =3,&
+                                do_clv_xy        =4,&
+                                do_clv_xz        =5,&
+                                do_clv_yz        =6
 
   INTEGER, PARAMETER, PUBLIC :: xc_pot_energy_none=0, &
                                 xc_pot_energy_xc_functional=1, &

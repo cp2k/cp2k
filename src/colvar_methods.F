@@ -161,6 +161,7 @@ CONTAINS
        CALL section_vals_val_get(distance_section,"ATOMS",i_vals=iatms,error=error)
        colvar%dist_param%i_at = iatms(1)
        colvar%dist_param%j_at = iatms(2)
+       CALL section_vals_val_get(distance_section,"AXIS",i_val=colvar%dist_param%axis_id,error=error)
     ELSE IF (my_subsection(2)) THEN
        ! Angle
        wrk_section => angle_section
@@ -1067,16 +1068,41 @@ CONTAINS
     ss=MATMUL(cell%h_inv,xpi-xpj)
     ss=ss-NINT(ss)
     xij=MATMUL(cell%hmat,ss)
-    r12=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
+    SELECT CASE (colvar%dist_param%axis_id)
+    CASE(1)
+       xij(2)=0.0_dp
+       xij(3)=0.0_dp
+       r12=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
+    CASE(2) 
+       xij(1)=0.0_dp
+       xij(3)=0.0_dp
+       r12=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
+    CASE(3) 
+       xij(1)=0.0_dp
+       xij(2)=0.0_dp
+       r12=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
+    CASE(4) 
+       xij(3)=0.0_dp
+       r12=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
+    CASE(5) 
+       xij(2)=0.0_dp
+       r12=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
+    CASE(6) 
+       xij(1)=0.0_dp
+       r12=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
+    CASE DEFAULT
+       r12=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
+    END SELECT
+
     colvar%ss=r12
     fi(:)=xij/r12
     fj(:)=-xij/r12
+
     CALL put_derivative(colvar, 1, fi)
     CALL put_derivative(colvar, 2, fj)
-    
+
   END SUBROUTINE dist_colvar
   !***************************************************************************
-
   !!****f* colvar/coord_colvar [1.0] *
   !!
   !!   NAME

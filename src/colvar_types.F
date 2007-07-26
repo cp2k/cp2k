@@ -98,7 +98,7 @@ MODULE colvar_types
   !!   SOURCE
   !***************************************************************************
   TYPE dist_colvar_type
-     INTEGER       :: i_at, j_at
+     INTEGER       :: i_at, j_at, axis_id
   END TYPE dist_colvar_type
 
   TYPE coord_colvar_type
@@ -281,6 +281,9 @@ CONTAINS
        CASE(dist_colvar_id)
           ALLOCATE(colvar%dist_param, stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          colvar%dist_param%i_at = 0
+          colvar%dist_param%j_at = 0
+          colvar%dist_param%axis_id = 0
        CASE(coord_colvar_id)
           ALLOCATE(colvar%coord_param, stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
@@ -860,6 +863,7 @@ CONTAINS
     CASE(dist_colvar_id)
        colvar_out%dist_param%i_at = colvar_in%dist_param%i_at + my_offset
        colvar_out%dist_param%j_at = colvar_in%dist_param%j_at + my_offset
+       colvar_out%dist_param%axis_id = colvar_in%dist_param%axis_id
     CASE(coord_colvar_id)
        colvar_out%coord_param%n_atoms_to   = colvar_in%coord_param%n_atoms_to  
        colvar_out%coord_param%n_atoms_from = colvar_in%coord_param%n_atoms_from
