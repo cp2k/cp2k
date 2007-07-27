@@ -1028,9 +1028,7 @@ CONTAINS
       POINTER                                :: force_env_p
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(lnhc_parameters_type), &
-      DIMENSION(:), POINTER                  :: nhc_coef
-    TYPE(lnhc_parameters_type), &
-      DIMENSION(:), POINTER                  :: nhc_shell
+      DIMENSION(:), POINTER                  :: nhc_coef, nhc_shell
     TYPE(lnhc_parameters_type), POINTER      :: nhc( : )
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
@@ -1490,7 +1488,8 @@ CONTAINS
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
     TYPE(global_constraint_type), POINTER    :: gci
-    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro( : ), nhc_part( : ), nhc_shell(:)
+    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro( : ), nhc_part( : ), &
+                                                nhc_shell(:)
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(molecule_kind_type), DIMENSION(:), &
@@ -2941,7 +2940,8 @@ CONTAINS
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
     TYPE(global_constraint_type), POINTER    :: gci
-    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro( : ), nhc_part( : ), nhc_shell(:)
+    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro( : ), nhc_part( : ), &
+                                                nhc_shell(:)
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(molecule_kind_type), DIMENSION(:), &

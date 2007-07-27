@@ -40,7 +40,6 @@ MODULE extended_system_dynamics
   USE shell_potential_types,           ONLY: shell_kind_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: get_limit
 
   IMPLICIT NONE
 
@@ -168,10 +167,8 @@ CONTAINS
     TYPE(pw_type), INTENT(INOUT)             :: pw
     INTEGER, INTENT(IN)                      :: group
 
-    INTEGER                                  :: handle, i,  &
-                                                n, ncoef
+    INTEGER                                  :: handle, i, n, ncoef
     REAL(KIND=dp)                            :: flops
-
 
     CALL timeset('LNHC','I','Mflops',handle)
     flops = 0.0_dp
@@ -235,8 +232,7 @@ END SUBROUTINE lnhc_pw
       INTENT(INOUT)                          :: npt
     INTEGER, INTENT(IN)                      :: group
 
-    INTEGER                                  :: handle, i,  &
-                                                j, n, ncoef
+    INTEGER                                  :: handle, i, j, n, ncoef
     REAL(KIND=dp)                            :: flops
 
 !------------------------------------------------------------------------------
@@ -321,16 +317,15 @@ SUBROUTINE lnhc_particle_set ( nhc, molecule_kind_set, molecule_set,  &
                                                 core_particle_set( : )
     LOGICAL, OPTIONAL                        :: vshell_rescale
 
-    INTEGER :: first_atom, handle, i, ii, ikind, imol, imol_local,  &
-      ipart, jj, last_atom, n, nmol_local, npart_local, &
-      shell_index
-    LOGICAL                                  :: my_shell_adiabatic, my_vshell_rescale
+    INTEGER :: first_atom, handle, i, ii, ikind, imol, imol_local, ipart, jj, &
+      last_atom, n, nmol_local, npart_local, shell_index
+    LOGICAL                                  :: my_shell_adiabatic, &
+                                                my_vshell_rescale
     REAL(KIND=dp)                            :: fac_massc, fac_masss, flops, &
-                                                mass, scale, vc(3), vs(3)
+                                                mass, vc(3), vs(3)
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(shell_kind_type), POINTER           :: shell
-
 
 !------------------------------------------------------------------------------
 
@@ -511,13 +506,14 @@ SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
     REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: shell_vel(:,:), core_vel(:,:)
     LOGICAL, OPTIONAL                        :: vshell_rescale
 
-    INTEGER :: first_atom, handle, i, ii, ikind, imol, imol_local, &
-      ipart, jj, last_atom, n, nmol_local, npart_local, &
-      shell_index
-    INTEGER, SAVE :: iter = 0
-    LOGICAL                                  :: my_shell_adiabatic, my_vshell_rescale
+    INTEGER :: first_atom, handle, i, ii, ikind, imol, imol_local, ipart, jj, &
+      last_atom, n, nmol_local, npart_local, shell_index
+    INTEGER, SAVE                            :: iter = 0
+    LOGICAL                                  :: my_shell_adiabatic, &
+                                                my_vshell_rescale
     REAL(KIND=dp)                            :: fac_massc, fac_masss, flops, &
-                                                mass, mtot, scale, vc(3), vcom(3), vs(3)
+                                                mass, mtot, vc(3), vcom(3), &
+                                                vs(3)
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(shell_kind_type), POINTER           :: shell
@@ -660,7 +656,7 @@ SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
     flops = flops + REAL ( npart_local*3,KIND=dp)
   END IF
   IF(debug_this_module) THEN
-     write(115,'(I10,3f16.10)') iter, vcom(1)/mtot, vcom(2)/mtot, vcom(3)/mtot
+     WRITE(115,'(I10,3f16.10)') iter, vcom(1)/mtot, vcom(2)/mtot, vcom(3)/mtot
   END IF
 
   flops = flops * 1.E-6_dp
@@ -680,17 +676,20 @@ END SUBROUTINE lnhc_particles
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_particles
-    TYPE(particle_type), POINTER             :: shell_particle_set(:),&
+    TYPE(particle_type), POINTER             :: shell_particle_set(:), &
                                                 core_particle_set(:)
     LOGICAL, INTENT(IN)                      :: shell_nose
     INTEGER, INTENT(IN)                      :: group
-    
-    INTEGER :: handle, ii, iparticle, iparticle_kind, iparticle_local, n,&
-               nparticle_kind, nparticle_local, nshell_local, shell_index
-    LOGICAL :: is_shell
-    REAL(dp) :: flops, mass, mu_mass, massc, masss, umass, v(3), vc(3), vs(3), v_sc(3)
+
+    INTEGER :: handle, ii, iparticle, iparticle_kind, iparticle_local, n, &
+      nparticle_kind, nparticle_local, nshell_local, shell_index
+    LOGICAL                                  :: is_shell
+    REAL(dp)                                 :: flops, mass, massc, masss, &
+                                                mu_mass, umass, v(3), &
+                                                v_sc(3), vc(3), vs(3)
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(shell_kind_type), POINTER           :: shell
+
 !------------------------------------------------------------------------------
 
     NULLIFY(atomic_kind,shell)
@@ -797,16 +796,20 @@ END SUBROUTINE lnhc_particles
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_particles
-    REAL(KIND=dp), INTENT(INOUT)             :: vel(:,:), shell_vel(:,:), core_vel(:,:)
+    REAL(KIND=dp), INTENT(INOUT)             :: vel(:,:), shell_vel(:,:), &
+                                                core_vel(:,:)
     LOGICAL, INTENT(IN)                      :: shell_nose
     INTEGER, INTENT(IN)                      :: group
-    
-    INTEGER :: handle, ii, iparticle, iparticle_kind, iparticle_local, n,&
-               nparticle_kind, nparticle_local, nshell_local, shell_index
-    LOGICAL :: is_shell
-    REAL(dp) :: flops, mass, mu_mass, massc, masss, umass, v(3), vc(3), vs(3), v_sc(3)
+
+    INTEGER :: handle, ii, iparticle, iparticle_kind, iparticle_local, n, &
+      nparticle_kind, nparticle_local, nshell_local, shell_index
+    LOGICAL                                  :: is_shell
+    REAL(dp)                                 :: flops, mass, massc, masss, &
+                                                mu_mass, umass, v(3), &
+                                                v_sc(3), vc(3), vs(3)
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(shell_kind_type), POINTER           :: shell
+
 !------------------------------------------------------------------------------
 
     NULLIFY(atomic_kind,shell)
@@ -954,11 +957,10 @@ END SUBROUTINE lnhc_particles
 
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
-    REAL(dp), INTENT(INOUT)                  :: flops  
+    REAL(dp), INTENT(INOUT)                  :: flops
 
-    INTEGER :: i, inc, inhc, iyosh, n, nx1,nx2
-    REAL(dp) ::  scale  
-  
+    INTEGER                                  :: inc, inhc, iyosh, n, nx1, nx2
+    REAL(dp)                                 :: scale
 
     nx1 = SIZE ( nhc % nvt ,1 )
     nx2 = SIZE ( nhc % nvt ,2 )

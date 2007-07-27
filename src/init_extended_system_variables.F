@@ -343,8 +343,8 @@ END SUBROUTINE init_barostat_variables
 SUBROUTINE init_nhc_forces ( nhc_part, nhc_baro, nhc_coef , nhc_shell, error)
 
     TYPE(lnhc_parameters_type), &
-      INTENT(INOUT), OPTIONAL                :: nhc_part, nhc_baro, &
-                                                nhc_coef, nhc_shell
+      INTENT(INOUT), OPTIONAL                :: nhc_part, nhc_baro, nhc_coef, &
+                                                nhc_shell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i, j

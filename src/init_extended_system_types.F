@@ -21,8 +21,7 @@
 
 MODULE init_extended_system_types
 
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
+  USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -217,7 +216,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_baro', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, isos, j
+    INTEGER                                  :: isos
     LOGICAL                                  :: restart
     REAL(KIND=dp)                            :: temp
 
@@ -390,7 +389,7 @@ CONTAINS
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
     TYPE(section_vals_type), POINTER         :: coeff_section
-    REAL(KIND=dp),INTENT(IN)                 :: dt
+    REAL(KIND=dp), INTENT(IN)                :: dt
     LOGICAL, INTENT(IN)                      :: save_mem
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -399,8 +398,7 @@ CONTAINS
 
     INTEGER                                  :: isos
     LOGICAL                                  :: restart
-    REAL(KIND=dp)                            :: kg_coeff_target_temp, &
-                                                tau_nhc
+    REAL(KIND=dp)                            :: kg_coeff_target_temp, tau_nhc
     TYPE(section_vals_type), POINTER         :: nose_section
 
 !------------------------------------------------------------------------------
@@ -621,18 +619,17 @@ END SUBROUTINE set_yoshida_coef
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
     TYPE(section_vals_type), POINTER         :: nose_section
-    LOGICAL,INTENT(IN)                       :: save_mem
-    LOGICAL,INTENT(OUT)                    :: restart
+    LOGICAL, INTENT(IN)                      :: save_mem
+    LOGICAL, INTENT(OUT)                     :: restart
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'restart_nose', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ind, j  
+    INTEGER                                  :: i, ind, j
     LOGICAL                                  :: explicit
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer
     TYPE(section_vals_type), POINTER         :: work_section
-
 
     NULLIFY(buffer, work_section)
     explicit = .FALSE.

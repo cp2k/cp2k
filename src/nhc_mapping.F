@@ -58,7 +58,7 @@ MODULE nhc_mapping
 
   ! *** Global parameters ***
   
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = "nhc_mapping"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'nhc_mapping'
   
   PUBLIC :: nhc_to_particle_mapping, nhc_to_barostat_mapping, &
             nhc_to_coef_mapping, nhc_to_shell_mapping
@@ -92,7 +92,7 @@ CONTAINS
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
     TYPE(cp_para_env_type), POINTER          :: para_env
-    
+
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nhc_to_barostat_mapping', &
       routineP = moduleN//':'//routineN
 
@@ -211,7 +211,7 @@ SUBROUTINE nhc_to_particle_mapping ( simpar, local_molecules, molecule_set, &
     TYPE(cp_para_env_type), POINTER          :: para_env
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nhc_to_particle_mapping', &
-        routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER :: atm_offset, atom_increment, finish, first_atom, i, icount, &
       ielement, ii, iii, ikind, imol, imol_local, ipart, isos, j, jj, kk, &
@@ -223,10 +223,11 @@ SUBROUTINE nhc_to_particle_mapping ( simpar, local_molecules, molecule_set, &
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: point
     INTEGER, DIMENSION(:), POINTER           :: massive_atom_list
     LOGICAL                                  :: have_global, nointer, noneflag
+    REAL(KIND=dp)                            :: fac
     TYPE(colvar_counters)                    :: ncolv
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
-    REAL(KIND=dp) :: fac
+
 !------------------------------------------------------------------------------
 
   NULLIFY ( massive_atom_list )
@@ -819,9 +820,8 @@ END SUBROUTINE nhc_to_particle_mapping
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nhc_to_shell_mapping', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, iparticle_kind, isos, j, &
-                                                nkind, nparticle_local, nshell_local,&
-                                                number, sum_of_thermostats
+    INTEGER :: i, iparticle_kind, isos, j, nkind, nparticle_local, &
+      nshell_local, number, sum_of_thermostats
     LOGICAL                                  :: is_shell, nointer
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 

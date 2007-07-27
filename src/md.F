@@ -55,7 +55,7 @@ MODULE md
   USE parallel_rng_types,              ONLY: next_random_number
   USE particle_types,                  ONLY: particle_type
   USE shell_potential_types,           ONLY: shell_kind_type
-  USE termination,                     ONLY: stop_memory, &
+  USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -358,7 +358,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: explicit, failure
-    TYPE(section_vals_type), POINTER         :: tmp_section, tmp2_section
+    TYPE(section_vals_type), POINTER         :: tmp2_section, tmp_section
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
