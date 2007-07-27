@@ -867,11 +867,15 @@ SUBROUTINE keyword_describe_html(keyword, unit_nr, error)
                WRITE(unit_nr,'(a)',advance="NO") '. Default value: '
             ENDIF
             CALL val_write(keyword%default_value,unit=keyword%unit,unit_nr=unit_nr,error=error)
-      END IF
-      IF (ASSOCIATED(keyword%unit)) THEN
-         my_unit=cp_unit_desc(keyword%unit,accept_undefined=.TRUE.,error=error)
-         WRITE(unit_nr,'(a)',advance="NO") TRIM(my_unit)
-      END IF
+            IF (ASSOCIATED(keyword%unit)) THEN
+               WRITE(unit_nr,'(a)',advance="NO") TRIM(my_unit)
+            END IF
+      ELSE
+            IF (ASSOCIATED(keyword%unit)) THEN
+               my_unit=cp_unit_desc(keyword%unit,accept_undefined=.TRUE.,error=error)
+               WRITE(unit_nr,'(a)',advance="NO") '. Default unit: ' // '[' // TRIM(my_unit)// '].'
+            END IF
+      ENDIF
 
       IF (keyword%type_of_var==enum_t) THEN
             IF (ANY(keyword%enum%desc.NE."")) THEN
