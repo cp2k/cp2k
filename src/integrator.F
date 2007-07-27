@@ -2390,7 +2390,7 @@ CONTAINS
 
     NULLIFY(gci)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
-                    npt = npt, para_env=para_env)
+                    npt = npt, first_time=first_time, para_env=para_env)
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar % nfree, dp )
     gamma1 = simpar % gamma_nph
@@ -2964,7 +2964,7 @@ CONTAINS
     NULLIFY (shell,shell_particles,shell_particle_set,core_particles, core_particle_set)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
                     nhc_part=nhc_part, nhc_baro=nhc_baro, nhc_shell=nhc_shell, npt = npt, &
-                    itimes = itimes, para_env=para_env )
+                    itimes = itimes, first_time=first_time, para_env=para_env )
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar % nfree,KIND=dp)
 
