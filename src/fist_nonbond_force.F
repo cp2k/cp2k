@@ -223,7 +223,7 @@ CONTAINS
           IF (do_shell) THEN
              a_kind  = particle_set(atom_a)%atomic_kind%kind_number
              b_kind  = particle_set(atom_b)%atomic_kind%kind_number
-             swap_ab = (b_kind<a_kind)
+             swap_ab = (b_kind>a_kind)
              IF (swap_ab) THEN
                 cs_spline_data => pot%sc_coul_spline_data
                 sc_spline_data => pot%cs_coul_spline_data

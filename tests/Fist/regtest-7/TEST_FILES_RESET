@@ -1,0 +1,9 @@
+# Bug fix for core-shell in the oder of the kinds
+uo2_nvt.inp
+uo2_shell_npt300.inp
+uo2_shell_npti.inp
+uo2_shell_nve.inp
+uo2_shell_nve_r.inp
+uo2_shell_nvt.inp
+uo2_shell_nvt_res_2.inp
+uo2_shell_nvt_res.inp
