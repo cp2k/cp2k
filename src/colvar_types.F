@@ -25,7 +25,8 @@
 !****************************************************************************
 MODULE colvar_types
   USE input_constants,                 ONLY: do_clv_fix_point,&
-                                             do_clv_geo_center
+                                             do_clv_geo_center,&
+                                             do_clv_xyz
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -281,9 +282,7 @@ CONTAINS
        CASE(dist_colvar_id)
           ALLOCATE(colvar%dist_param, stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-          colvar%dist_param%i_at = 0
-          colvar%dist_param%j_at = 0
-          colvar%dist_param%axis_id = 0
+          colvar%dist_param%axis_id = do_clv_xyz
        CASE(coord_colvar_id)
           ALLOCATE(colvar%coord_param, stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)

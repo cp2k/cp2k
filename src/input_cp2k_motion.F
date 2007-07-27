@@ -2361,9 +2361,8 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: baro_section, coeff_section, &
-                                                nose_section, print_key, &
-                                                shell_section, subsection, uni_section
+    TYPE(section_type), POINTER :: baro_section, coeff_section, nose_section, &
+      print_key, shell_section, subsection, uni_section
 
     failure=.FALSE.
 
@@ -2464,29 +2463,6 @@ CONTAINS
             usage="annealing 0.0", default_r_val=1.0_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-
-!       CALL keyword_create(&
-!             keyword=keyword,&
-!             name="temp_shell",&
-!             description="The temperature in K used to control "//&
-!                         "the internal velocities of the core-shell motion ",&
-!             usage="tempe_shell 5.0",&
-!             default_r_val=cp_unit_to_cp2k(value=0.0_dp,&
-!                                           unit_str="K",&
-!                                           error=error),&
-!             unit_str="K",&
-!             error=error)
-!       CALL section_add_keyword(section,keyword,error=error)
-!       CALL keyword_release(keyword,error=error)
-!
-!       CALL keyword_create(keyword, name="temp_shell_tol",&
-!            description="The maximum accepted oscillations of the temperature"//&
-!            " of the internal core-hell motion from the wanted temperature."//&
-!            "If it is 0 no rescaling is performed", &
-!            usage="temp_shell_tol 0.0", default_r_val=0.0_dp, unit_str='K', error=error)
-!       CALL section_add_keyword(section,keyword,error=error)
-!       CALL keyword_release(keyword,error=error)
-
 
        CALL keyword_create(keyword, name="gamma",&
             description="Gamma parameter for the Langevin dynamics",&

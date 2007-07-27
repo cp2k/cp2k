@@ -135,13 +135,10 @@ CONTAINS
                                                 sc_spline_data, spline_data
     TYPE(spline_factor_type), POINTER        :: spl_c, spl_cs, spl_f, spl_sc
 
-
-
     CALL timeset ( routineN, handle )
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     pp = 0.0_dp
-    swap_ab = .FALSE.
     NULLIFY(pot,c_spline_data,cs_spline_data,sc_spline_data,rshell_last_update_pbc)
     NULLIFY(spl_f, spl_c, spl_cs, spl_sc)
     CALL fist_nonbond_env_get ( fist_nonbond_env, nonbonded = nonbonded, &
@@ -185,7 +182,6 @@ CONTAINS
 ! !$OMP             ptens31,ptens32,ptens33) &
 ! !$OMP private(ipair) 
 
-
     Lists: DO ilist=1,nonbonded%nlists
        neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
        npairs=neighbor_kind_pair%npairs
@@ -228,7 +224,7 @@ CONTAINS
              a_kind  = particle_set(atom_a)%atomic_kind%kind_number
              b_kind  = particle_set(atom_b)%atomic_kind%kind_number
              swap_ab = (b_kind<a_kind)
-             IF (swap_ab .AND. shell_type==sh_sh) THEN
+             IF (swap_ab) THEN
                 cs_spline_data => pot%sc_coul_spline_data
                 sc_spline_data => pot%cs_coul_spline_data
                 spl_cs         => pot%spl_sc
@@ -290,7 +286,6 @@ CONTAINS
                 rab = rab_list(:,1)
                 rab2 = rab2_list(1)
                 energy =  potential_s (c_spline_data,rab2,fscalar, spl_c, logger)
-
                 pot_nonbond = pot_nonbond + energy
                 fr(1) = fscalar*rab(1)
                 fr(2) = fscalar*rab(2)
@@ -443,7 +438,7 @@ CONTAINS
                 ptens23 = ptens23 + pv_com(2,3)
                 ptens33 = ptens33 + pv_com(3,3)
                 ! Let's restore the proper order to save time...
-                IF (swap_ab .AND. shell_type==sh_sh) THEN
+                IF (swap_ab) THEN
                    cs_spline_data => pot%cs_coul_spline_data
                    sc_spline_data => pot%sc_coul_spline_data
                    spl_cs         => pot%spl_cs
@@ -475,7 +470,6 @@ CONTAINS
                 ptens23 = ptens23 + rab(2) * fr(3)
                 ptens33 = ptens33 + rab(3) * fr(3)
              END IF
-
           END IF 
        END DO Pairs
     END DO Lists
