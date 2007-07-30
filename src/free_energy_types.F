@@ -25,12 +25,13 @@
 !!
 !****************************************************************************
 MODULE free_energy_types
+  USE input_constants,                 ONLY: do_fe_ac,&
+                                             do_fe_ui
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE input_constants, only: do_fe_ui
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -83,9 +84,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fe_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: id_method, stat, i
+    INTEGER                                  :: i, id_method, stat
     LOGICAL                                  :: explicit, failure
-    TYPE(section_vals_type), POINTER         :: fe_section, ui_section, ui_var_section
+    TYPE(section_vals_type), POINTER         :: fe_section, ui_section, &
+                                                ui_var_section
 
     failure=.FALSE.
     CPPreconditionNoFail(.NOT.ASSOCIATED(fe_env),cp_failure_level,routineP,error)
@@ -98,6 +100,7 @@ CONTAINS
        CASE (do_fe_ui)
           ALLOCATE(fe_env, stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          NULLIFY(fe_env%covmx, fe_env%uivar)
           fe_env%type = id_method
           ui_section => section_vals_get_subs_vals(fe_section,"UMBRELLA_INTEGRATION",error=error)
           ui_var_section => section_vals_get_subs_vals(ui_section,"UVAR",error=error)
@@ -116,6 +119,14 @@ CONTAINS
              NULLIFY(fe_env%uivar(fe_env%ncolvar)%ss)
           END DO
           CALL section_vals_val_get(ui_section,"EPS_CONV",r_val=fe_env%eps_conv,error=error)
+       CASE (do_fe_ac)
+          ALLOCATE(fe_env, stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          NULLIFY(fe_env%covmx, fe_env%uivar)
+          ALLOCATE(fe_env%covmx(3,0), stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          fe_env%type = id_method
+          CALL section_vals_val_get(fe_section,"ALCHEMICAL_CHANGE%EPS_CONV",r_val=fe_env%eps_conv,error=error)          
        CASE DEFAULT
           ! Do Nothing
        END SELECT

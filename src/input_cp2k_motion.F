@@ -462,6 +462,19 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="EPS_CONV",&
+            description="Set the relative tolerance for the convergence of the free energy derivative",&
+            usage="EPS_CONV <REAL>",&
+            default_r_val=1.0E-2_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="NEQUIL_STEPS",&
+            description="Set the number of equilibration steps, skipped to compute averages",&
+            usage="NEQUIL_STEPS <INTEGER>",&
+            default_i_val=0,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
     END IF
   END SUBROUTINE create_ac_section

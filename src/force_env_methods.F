@@ -1340,7 +1340,7 @@ SUBROUTINE mixed_energy_forces(force_env, need_f, error)
           my_par(SIZE(variables)+1:) = parameters(1:SIZE(parameters))
           my_val(SIZE(variables)+1:) = par_values(1:SIZE(parameters))
        END IF
-       CALL initf(2)
+       CALL initf(1)
        CALL parsef(1,TRIM(coupling_function),my_par)
        ! Now the hardest part.. map energy with corresponding force_eval
        mixed_energy%pot= evalf(1,my_val)
@@ -1368,9 +1368,12 @@ SUBROUTINE mixed_energy_forces(force_env, need_f, error)
                nforce_eval, map_index, mapping_section, .FALSE., error)
           my_val(iforce_eval) = energies(iforce_eval)
        END DO
-       ! If we're performing an alchemical change transformation we have to print out
-       ! the derivative w.r.t. the parameter lambda
-       CALL dump_der_par(my_val, my_par, dx, lerr, root_section, nforce_eval, error)
+       ! Let's store the needed information..
+       force_env%mixed_env%par = my_par
+       force_env%mixed_env%val = my_val
+       force_env%mixed_env%dx  = dx
+       force_env%mixed_env%lerr= lerr
+       force_env%mixed_env%coupling_function = TRIM(coupling_function)
        CALL finalizef()
        DEALLOCATE(my_par,stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1398,123 +1401,6 @@ SUBROUTINE mixed_energy_forces(force_env, need_f, error)
     DEALLOCATE(virials, stat=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 END SUBROUTINE mixed_energy_forces
-
-!!****f* force_env_types/dump_der_par *
-!!
-!!   NAME
-!!     dump_der_par
-!!
-!!   FUNCTION
-!!     Dumps additional information when performing an alchemical change run
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino - University of Zurich [tlaino] - 05.2007
-!!
-!!*** **********************************************************************
-SUBROUTINE dump_der_par(my_val, my_par, dx, lerr, root_section, nforce_eval, error)
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: my_val
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: my_par
-    REAL(KIND=dp), INTENT(IN)                :: dx, lerr
-    TYPE(section_vals_type), POINTER         :: root_section
-    INTEGER, INTENT(IN)                      :: nforce_eval
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dump_der_par', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=default_path_length)       :: coupling_function
-    CHARACTER(LEN=default_string_length)     :: def_error, par, this_error
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: data_function
-    INTEGER                                  :: i, iforce_eval, ipar, iw, j, &
-                                                output_unit
-    LOGICAL                                  :: explicit, failure, ionode
-    REAL(KIND=dp)                            :: d_ene_w, dedf, ene_w, err
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: fe_section
-
-    NULLIFY(data_function)
-    failure = .FALSE.
-    output_unit = -1
-    logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
-    fe_section => section_vals_get_subs_vals(root_section,&
-         "MOTION%FREE_ENERGY%ALCHEMICAL_CHANGE",error=error)
-    CALL section_vals_get(fe_section, explicit=explicit, error=error)
-    IF (explicit) THEN
-       CALL section_vals_val_get(fe_section,"PARAMETER",c_val=par,error=error)
-       DO i = 1, SIZE(my_par)
-          IF (my_par(i)==par) EXIT
-       END DO
-       CPPrecondition(i<=SIZE(my_par),cp_failure_level,routineP,error,failure)
-       ipar = i
-       dedf = evalfd(1,ipar,my_val,dx,err)
-       IF ((ABS(err)>lerr).AND.(output_unit>0)) THEN
-          WRITE(this_error,"(A,G12.6,A)")"(",err,")"
-          WRITE(def_error,"(A,G12.6,A)")"(",lerr,")"
-          CALL compress(this_error,.TRUE.)
-          CALL compress(def_error,.TRUE.)
-          CALL cp_assert(.FALSE.,cp_warning_level,-300,routineP,&
-               'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)//&
-               ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'//&
-               TRIM(def_error)//' .',error)
-       END IF
-
-       ! We must print now the energy of the biased system, the weigthing energy 
-       ! and the derivative w.r.t.the coupling parameter of the biased energy
-       ! Retrieve the expression of the weighting function:
-       CALL section_vals_val_get(fe_section,"WEIGHTING_FUNCTION",&
-            c_vals=data_function,error=error)
-       ! Clean the function structure
-       coupling_function = ""
-       DO j = 1, SIZE(data_function)
-          coupling_function(LEN_TRIM(coupling_function)+1:) = TRIM(data_function(j))
-       END DO
-       CALL parsef(2,TRIM(coupling_function),my_par)       
-       ene_w   = evalf(2,my_val)
-       d_ene_w = evalfd(2,ipar,my_val,dx,err)
-       IF ((ABS(err)>lerr).AND.(output_unit>0)) THEN
-          WRITE(this_error,"(A,G12.6,A)")"(",err,")"
-          WRITE(def_error,"(A,G12.6,A)")"(",lerr,")"
-          CALL compress(this_error,.TRUE.)
-          CALL compress(def_error,.TRUE.)
-          CALL cp_assert(.FALSE.,cp_warning_level,-300,routineP,&
-               'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)//&
-               ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'//&
-               TRIM(def_error)//' .',error)
-       END IF
-
-       ! Print info
-       iw = cp_print_key_unit_nr(logger,root_section,"MOTION%FREE_ENERGY%FREE_ENERGY_INFO",&
-                        extension=".free_energy",error=error)
-       IF (iw>0) THEN
-          WRITE(iw,'(T2,79("-"),T37," oOo ")')
-          DO iforce_eval = 1, nforce_eval
-             WRITE(iw,'(T2,"ALCHEMICAL CHANGE| FORCE_EVAL Nr.",I5,T48,"ENERGY (Hartree)= ",F15.9)')&
-                  iforce_eval, my_val(iforce_eval)
-          END DO
-          WRITE(iw,'(T2,"ALCHEMICAL CHANGE| DERIVATIVE OF TOTAL ENERGY  [ PARAMETER (",A,") ]",T66,F15.9)')&
-               TRIM(par),dedf
-          WRITE(iw,'(T2,"ALCHEMICAL CHANGE| DERIVATIVE OF BIASED ENERGY [ PARAMETER (",A,") ]",T66,F15.9)')&
-               TRIM(par),dedf-d_ene_w
-          WRITE(iw,'(T2,"ALCHEMICAL CHANGE| BIASING UMBRELLA POTENTIAL  ",T66,F15.9)')&
-               ene_w
-          WRITE(iw,'(T2,79("-"))')
-       END IF
-       CALL cp_print_key_finished_output(iw,logger,root_section,&
-            "MOTION%FREE_ENERGY%FREE_ENERGY_INFO",error=error)
-    END IF
-
-END SUBROUTINE dump_der_par
 
 !!****f* force_env_types/mixed_map_forces *
 !!
