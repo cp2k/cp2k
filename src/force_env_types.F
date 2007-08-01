@@ -277,88 +277,100 @@ END SUBROUTINE force_env_retain
 !!     04.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-RECURSIVE SUBROUTINE force_env_release(force_env, error)
+  RECURSIVE SUBROUTINE force_env_release(force_env, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i, my_group, stat
     LOGICAL                                  :: failure
+    TYPE(cp_error_type)                      :: my_error
 
-  failure=.FALSE.
-
-  IF (ASSOCIATED(force_env)) THEN
-     CPPreconditionNoFail(force_env%ref_count>0,cp_failure_level,routineP,error)
-     force_env%ref_count=force_env%ref_count-1
-     IF (force_env%ref_count==0) THEN
-        force_env%ref_count=1
-        SELECT CASE ( force_env%in_use )
-        CASE ( use_fist_force )
-           CALL fist_env_release(force_env%fist_env,error=error)
-        CASE ( use_qs_force )
-           CALL qs_env_release(force_env%qs_env,error=error)
-        CASE ( use_kg_force )
-           CALL kg_env_release(force_env%kg_env,error=error)
-        CASE ( use_eip_force )
-           CALL eip_env_release(force_env%eip_env, error=error)
-        CASE ( use_ep_force )
-           CALL ep_env_release(force_env%ep_env, error=error)
-        CASE (use_mixed_force)
-           CALL mixed_env_release(force_env%mixed_env,error=error)
-        END SELECT
-        IF (ASSOCIATED(force_env%subsys)) THEN
-           DO i=1,SIZE(force_env%subsys)
-              CALL cp_subsys_release(force_env%subsys(i)%subsys, error=error)
-           END DO
-           DEALLOCATE(force_env%subsys, stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        IF (ASSOCIATED(force_env%dyn_coeff_set)) THEN
-           DO i=1,SIZE(force_env%dyn_coeff_set)
-              CALL dyn_coeff_set_release(force_env%dyn_coeff_set(i)%dyn_coeff_set,error=error)
-           END DO
-           DEALLOCATE(force_env%dyn_coeff_set, stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        IF (ASSOCIATED(force_env%sub_force_env)) THEN
-           DO i=1,SIZE(force_env%sub_force_env)
-              IF (.NOT.ASSOCIATED(force_env%sub_force_env(i)%force_env)) CYCLE
-              CALL force_env_release(force_env%sub_force_env(i)%force_env,&
-                   error=error)
-           END DO
-           DEALLOCATE(force_env%sub_force_env,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        IF (ASSOCIATED(force_env%extended_energies)) THEN
-           DEALLOCATE(force_env%extended_energies,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        CALL cpot_release(force_env%cpot_env,error=error)
-
-        CALL globenv_release(force_env%globenv,force_env%para_env,error=error)
-        CALL cp_para_env_release(force_env%para_env,error=error)
-        ! Not deallocated
-        CPAssert(.NOT.ASSOCIATED(force_env%kg_env),cp_warning_level,routineP,error,failure)
-        CPAssert(.NOT.ASSOCIATED(force_env%fist_env),cp_warning_level,routineP,error,failure)
-        CPAssert(.NOT.ASSOCIATED(force_env%qs_env),cp_warning_level,routineP,error,failure)
-        CPAssert(.NOT.ASSOCIATED(force_env%eip_env),cp_warning_level,routineP,error,failure)
-        CPAssert(.NOT.ASSOCIATED(force_env%ep_env),cp_warning_level,routineP,error,failure)
-        CPAssert(.NOT.ASSOCIATED(force_env%mixed_env),cp_warning_level,routineP,error,failure)
-        CALL meta_env_release(force_env%meta_env,error=error)
-        CALL fp_env_release(force_env%fp_env,error=error)
-        CALL qmmm_env_qm_release(force_env%qmmm_env,error=error)
-        CALL virial_release(force_env%virial,error=error)
-        CALL section_vals_release(force_env%force_env_section,error=error)
-        CALL section_vals_release(force_env%root_section,error=error)
-        force_env%ref_count=0
-        DEALLOCATE(force_env,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-     END IF
-  END IF
-  NULLIFY(force_env)
-END SUBROUTINE force_env_release
+    failure=.FALSE.
+    IF (ASSOCIATED(force_env)) THEN
+       CPPreconditionNoFail(force_env%ref_count>0,cp_failure_level,routineP,error)
+       force_env%ref_count=force_env%ref_count-1
+       IF (force_env%ref_count==0) THEN
+          force_env%ref_count=1
+          ! Deallocate Subsys
+          IF (ASSOCIATED(force_env%subsys)) THEN
+             DO i=1,SIZE(force_env%subsys)
+                CALL cp_subsys_release(force_env%subsys(i)%subsys, error=error)
+             END DO
+             DEALLOCATE(force_env%subsys, stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          ! Deallocate KG structures
+          IF (ASSOCIATED(force_env%dyn_coeff_set)) THEN
+             DO i=1,SIZE(force_env%dyn_coeff_set)
+                CALL dyn_coeff_set_release(force_env%dyn_coeff_set(i)%dyn_coeff_set,error=error)
+             END DO
+             DEALLOCATE(force_env%dyn_coeff_set, stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          ! Deallocate SUB_FORCE_ENV
+          IF (ASSOCIATED(force_env%sub_force_env)) THEN
+             DO i=1,SIZE(force_env%sub_force_env)
+                IF (.NOT.ASSOCIATED(force_env%sub_force_env(i)%force_env)) CYCLE
+                ! Use the proper error to deallocate..
+                my_error=error
+                IF (force_env%in_use==use_mixed_force) THEN
+                   my_group = force_env%mixed_env%group_distribution(force_env%para_env%mepos)
+                   my_error = force_env%mixed_env%sub_error(my_group+1)
+                END IF
+                CALL force_env_release(force_env%sub_force_env(i)%force_env,&
+                     error=my_error)
+                CALL cp_error_check(my_error, failure)
+             END DO
+             DEALLOCATE(force_env%sub_force_env,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          ! Deallocate Energy type
+          IF (ASSOCIATED(force_env%extended_energies)) THEN
+             DEALLOCATE(force_env%extended_energies,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+    
+          SELECT CASE ( force_env%in_use )
+          CASE ( use_fist_force )
+             CALL fist_env_release(force_env%fist_env,error=error)
+          CASE ( use_qs_force )
+             CALL qs_env_release(force_env%qs_env,error=error)
+          CASE ( use_kg_force )
+             CALL kg_env_release(force_env%kg_env,error=error)
+          CASE ( use_eip_force )
+             CALL eip_env_release(force_env%eip_env, error=error)
+          CASE ( use_ep_force )
+             CALL ep_env_release(force_env%ep_env, error=error)
+          CASE (use_mixed_force)
+             CALL mixed_env_release(force_env%mixed_env,error=error)
+          END SELECT
+    
+          CALL cpot_release(force_env%cpot_env,error=error)
+          CALL globenv_release(force_env%globenv,force_env%para_env,error=error)
+          CALL cp_para_env_release(force_env%para_env,error=error)
+          ! Not deallocated
+          CPAssert(.NOT.ASSOCIATED(force_env%kg_env),cp_warning_level,routineP,error,failure)
+          CPAssert(.NOT.ASSOCIATED(force_env%fist_env),cp_warning_level,routineP,error,failure)
+          CPAssert(.NOT.ASSOCIATED(force_env%qs_env),cp_warning_level,routineP,error,failure)
+          CPAssert(.NOT.ASSOCIATED(force_env%eip_env),cp_warning_level,routineP,error,failure)
+          CPAssert(.NOT.ASSOCIATED(force_env%ep_env),cp_warning_level,routineP,error,failure)
+          CPAssert(.NOT.ASSOCIATED(force_env%mixed_env),cp_warning_level,routineP,error,failure)
+          CALL meta_env_release(force_env%meta_env,error=error)
+          CALL fp_env_release(force_env%fp_env,error=error)
+          CALL qmmm_env_qm_release(force_env%qmmm_env,error=error)
+          CALL virial_release(force_env%virial,error=error)
+          CALL section_vals_release(force_env%force_env_section,error=error)
+          CALL section_vals_release(force_env%root_section,error=error)
+          force_env%ref_count=0
+          DEALLOCATE(force_env,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       END IF
+    END IF
+    NULLIFY(force_env)
+  END SUBROUTINE force_env_release
 !***************************************************************************
 
 !!****f* force_env_types/force_env_get [1.0] *
