@@ -1100,8 +1100,8 @@ SUBROUTINE mixed_energy_forces(force_env, need_f, error)
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: data_function, my_par, &
                                                 parameters, variables
-    INTEGER :: iforce_eval, iparticle, j, jparticle, mixing_type, mydim, &
-      natom, nforce_eval, output_unit, stat
+    INTEGER :: iforce_eval, iparticle, j, jparticle, mixing_type, my_group, &
+      mydim, natom, nforce_eval, output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: glob_natoms, map_index
     LOGICAL                                  :: failure, ionode, &
                                                 virial_consistent
@@ -1110,6 +1110,7 @@ SUBROUTINE mixed_energy_forces(force_env, need_f, error)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: energies, my_val, par_values
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: forces
     TYPE(cell_type), POINTER                 :: cell, cell_mix
+    TYPE(cp_error_type)                      :: my_error
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys_mix
@@ -1168,23 +1169,26 @@ SUBROUTINE mixed_energy_forces(force_env, need_f, error)
        NULLIFY(subsystems(iforce_eval)%subsys, particles(iforce_eval)%list, virials(iforce_eval)%virial)
        CALL virial_create (virials(iforce_eval)%virial, error)
        IF (.NOT.ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) CYCLE
+       ! From this point on the error is the sub_error
+       my_group = force_env%mixed_env%group_distribution(force_env%para_env%mepos)
+       my_error = force_env%mixed_env%sub_error(my_group+1)
        ! Get all available subsys
        CALL force_env_get(force_env=force_env%sub_force_env(iforce_eval)%force_env,&
                           subsys=subsystems(iforce_eval)%subsys,&
                           cell=cell,&
-                          error=error)
+                          error=my_error)
        ! Check whether virial can be consistently used..
        IF (virial_mix%pv_availability) THEN
-          virial_consistent = virial_consistent.AND.compare_cells(cell_mix, cell, error)
+          virial_consistent = virial_consistent.AND.compare_cells(cell_mix, cell, my_error)
        END IF
        ! Get available particles
        CALL cp_subsys_get(subsys=subsystems(iforce_eval)%subsys(1)%subsys,&
-                          particles=particles(iforce_eval)%list,error=error)
+                          particles=particles(iforce_eval)%list,error=my_error)
 
        ! Get Mapping index array
        natom = SIZE(particles(iforce_eval)%list%els)
        CALL get_subsys_map_index(mapping_section, natom, iforce_eval, nforce_eval, &
-            map_index, error)
+            map_index, my_error)
 
        ! Mapping particles from iforce_eval environment to the mixed env
        DO iparticle = 1, natom
@@ -1196,14 +1200,14 @@ SUBROUTINE mixed_energy_forces(force_env, need_f, error)
        CALL force_env_calc_energy_force(force_env%sub_force_env(iforce_eval)%force_env,&
                                         calc_force=need_f,&
                                         skip_external_control=.TRUE.,&
-                                        error=error)
+                                        error=my_error)
        ! Only the rank 0 process collect info for each computation
        IF ( force_env%sub_force_env(iforce_eval)%force_env%para_env%mepos==&
             force_env%sub_force_env(iforce_eval)%force_env%para_env%source) THEN
           CALL force_env_get(force_env%sub_force_env(iforce_eval)%force_env,&
                              potential_energy=energy,&
                              virial=loc_virial,&
-                             error=error)
+                             error=my_error)
           energies(iforce_eval)    = energy
           glob_natoms(iforce_eval) = natom 
           CALL cp_virial (loc_virial, virials(iforce_eval)%virial)
@@ -1211,8 +1215,9 @@ SUBROUTINE mixed_energy_forces(force_env, need_f, error)
        ! Deallocate map_index array
        IF (ASSOCIATED(map_index)) THEN
           DEALLOCATE(map_index, stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,my_error,failure)
        END IF
+       CALL cp_error_check(my_error, failure)
     END DO
     ! Final check on virial
     CALL cp_assert(virial_consistent,cp_failure_level,cp_assertion_failed,&
