@@ -302,17 +302,20 @@ CONTAINS
 
     INTEGER                                  :: iforce_env
     REAL(KIND=dp)                            :: nhc_coef_kin, nhc_coef_pot, &
-                                                nhc_part_kin, nhc_part_pot
+                                                nhc_part_kin, nhc_part_pot,&
+                                                nhc_shell_kin, nhc_shell_pot
     TYPE(dyn_coeff_set_p_type), &
       DIMENSION(:), POINTER                  :: dyn_coeff_set
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
     TYPE(lnhc_parameters_type), &
-      DIMENSION(:), POINTER                  :: nhc_coef, nhc_part
+      DIMENSION(:), POINTER                  :: nhc_coef, nhc_part, nhc_shell
+    TYPE(simulation_parameters_type), &
+      POINTER                                :: simpar
 
     NULLIFY(dyn_coeff_set, force_env_p, nhc_part, nhc_coef)
     CALL get_md_env (md_env, force_env_p=force_env_p, nhc_part=nhc_part,&
-         nhc_coef=nhc_coef)
+         nhc_coef=nhc_coef, nhc_shell=nhc_shell, simpar=simpar )
     CALL get_nhc_energies ( nhc_part ( 1 ), nhc_part_pot, nhc_part_kin, int_grp )
     cons = md_ener% ekin + md_ener%epot +  md_ener % ekin_shell + nhc_part_kin + nhc_part_pot
     DO iforce_env = 1, SIZE(force_env_p)
@@ -329,6 +332,11 @@ CONTAINS
           END IF
        END IF
     END DO
+
+    IF(simpar%shell_nose .AND. ASSOCIATED(nhc_shell)) THEN
+      CALL get_nhc_energies ( nhc_shell(1), nhc_shell_pot, nhc_shell_kin, int_grp )
+      cons = cons + nhc_shell_kin + nhc_shell_pot
+    END IF        
 
   END SUBROUTINE get_econs_nvt
 
@@ -356,15 +364,16 @@ CONTAINS
 
     REAL(KIND=dp)                            :: baro_kin, baro_pot, nfree, &
                                                 nhc_baro_kin, nhc_baro_pot, &
-                                                nhc_part_kin, nhc_part_pot
+                                                nhc_part_kin, nhc_part_pot, &
+                                                nhc_shell_kin, nhc_shell_pot
     TYPE(cell_type), POINTER                 :: box
-    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro( : ), nhc_part( : )
+    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro( : ), nhc_part( : ), nhc_shell( : )
     TYPE(npt_info_type), POINTER             :: npt( :, : )
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
 
     CALL get_md_env ( md_env, nhc_part=nhc_part, nhc_baro=nhc_baro, &
-         simpar = simpar, npt = npt, cell = box )
+         simpar = simpar, npt = npt, cell = box,  nhc_shell=nhc_shell)
     CALL get_nhc_energies ( nhc_part ( 1 ), nhc_part_pot, nhc_part_kin, int_grp )
     CALL get_nhc_energies ( nhc_baro ( 1 ), nhc_baro_pot, nhc_baro_kin, int_grp )
     CALL get_baro_energies ( box, simpar, npt, baro_kin, baro_pot, int_grp )
@@ -373,6 +382,11 @@ CONTAINS
 
     cons = md_ener%ekin + md_ener%epot + md_ener % ekin_shell + nhc_part_kin + nhc_part_pot  &
          + nhc_baro_kin + nhc_baro_pot + baro_kin + baro_pot
+
+    IF(simpar%shell_nose .AND. ASSOCIATED(nhc_shell)) THEN
+      CALL get_nhc_energies ( nhc_shell(1), nhc_shell_pot, nhc_shell_kin, int_grp )
+      cons = cons + nhc_shell_kin + nhc_shell_pot
+    END IF
   END SUBROUTINE get_econs_npt
 
   !******************************************************************************
