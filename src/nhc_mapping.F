@@ -857,7 +857,7 @@ END SUBROUTINE nhc_to_particle_mapping
       
 ! 2) massive
       IF(simpar%shell_nhcopt==nhc_massive) THEN
-        sum_of_thermostats = nshell_local
+        sum_of_thermostats = 3 * nshell_local
       END IF        
       number = sum_of_thermostats
       
