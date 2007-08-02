@@ -36,10 +36,10 @@ MODULE four_center_integrals
                                              dp_size,&
                                              int_8
   USE libint_interface,                ONLY: &
-       evaluate_deriv_eri, evaluate_eri, evaluate_eri_periodic, &
-       evaluate_eri_screen, evaluate_eri_screen_periodic, &
-       initialize_libderiv, initialize_libint, lib_deriv, lib_int,&
-       evaluate_deriv_eri_periodic
+       evaluate_deriv_eri, evaluate_deriv_eri_periodic, evaluate_eri, &
+       evaluate_eri_periodic, evaluate_eri_screen, &
+       evaluate_eri_screen_periodic, initialize_libderiv, initialize_libint, &
+       lib_deriv, lib_int
   USE mathconstants
   USE mathlib,                         ONLY: symmetrize_matrix
   USE message_passing,                 ONLY: mp_max,&
@@ -1271,10 +1271,10 @@ MODULE four_center_integrals
 
     INTEGER :: coord, handle, i_atom, iatom, ikind, iset, j_atom, jatom, &
       jkind, jset, k_atom, katom, kkind, kset, l_atom, latom, lkind, lset, &
-      ma, max_am, max_set, maxsgf, mb, mc, md, natom, ncoa, ncob, ncoc, ncod, &
-      nseta, nsetb, nsetc, nsetd, nsgfa_total, nsgfb_total, nsgfc_total, &
-      nsgfd_total, nspins, pa, pa1, pa2, pb, pb1, pb2, pc, pc1, pc2, pd, pd1, &
-      pd2, sgfa, sgfb, sgfc, sgfd, stat, max_k
+      ma, max_am, max_k, max_set, maxsgf, mb, mc, md, natom, ncoa, ncob, &
+      ncoc, ncod, nseta, nsetb, nsetc, nsetd, nsgfa_total, nsgfb_total, &
+      nsgfc_total, nsgfd_total, nspins, pa, pa1, pa2, pb, pb1, pb2, pc, pc1, &
+      pc2, pd, pd1, pd2, sgfa, sgfb, sgfc, sgfd, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, &
                                                 last_sgf_global
     INTEGER, DIMENSION(:), POINTER :: la_max, la_min, lb_max, lb_min, lc_max, &
@@ -1283,8 +1283,8 @@ MODULE four_center_integrals
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb, &
                                                 first_sgfc, first_sgfd
     LOGICAL                                  :: failure, screen_pmat_forces
-    REAL(dp) :: eps_schwarz, fac, hf_fraction, max_val1, max_val2, ra(3), &
-      rb(3), rc(3), rd(3), screen_max, temp1, temp1b, temp2, box_size(3)
+    REAL(dp) :: box_size(3), eps_schwarz, fac, hf_fraction, max_val1, &
+      max_val2, ra(3), rb(3), rc(3), rd(3), screen_max, temp1, temp1b, temp2
     REAL(dp), DIMENSION(:, :), POINTER       :: sphi_a, sphi_b, sphi_c, &
                                                 sphi_d, work_forces, zeta, &
                                                 zetb, zetc, zetd
@@ -1299,7 +1299,6 @@ MODULE four_center_integrals
       POINTER                                :: pmax_set
     REAL(KIND=dp), &
       DIMENSION(:, :, :, :, :, :), POINTER   :: screen_periodic
-
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atom_kind
@@ -2341,10 +2340,11 @@ MODULE four_center_integrals
 
     INTEGER :: coord, forces_map(4,2), handle, i_atom, iatom, ikind, iset, &
       j_atom, jatom, jkind, jset, k_atom, katom, kkind, kset, l_atom, latom, &
-      lkind, lset, ma, max_am, max_set, maxsgf, mb, mc, md, natom, nco_max, &
-      ncoa, ncob, ncoc, ncod, nseta, nsetb, nsetc, nsetd, nsgfa_total, &
-      nsgfb_total, nsgfc_total, nsgfd_total, nspins, p_index, pa, pa1, pa2, &
-      pb, pb1, pb2, pc, pc1, pc2, pd, pd1, pd2, sgfa, sgfb, sgfc, sgfd, stat, max_k
+      lkind, lset, ma, max_am, max_k, max_set, maxsgf, mb, mc, md, natom, &
+      nco_max, ncoa, ncob, ncoc, ncod, nseta, nsetb, nsetc, nsetd, &
+      nsgfa_total, nsgfb_total, nsgfc_total, nsgfd_total, nspins, p_index, &
+      pa, pa1, pa2, pb, pb1, pb2, pc, pc1, pc2, pd, pd1, pd2, sgfa, sgfb, &
+      sgfc, sgfd, stat
     INTEGER(KIND=int_8)                      :: distribution_counter
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, &
                                                 last_sgf_global
@@ -2355,9 +2355,9 @@ MODULE four_center_integrals
                                                 first_sgfc, first_sgfd, &
                                                 is_assoc_atomic_block
     LOGICAL                                  :: failure, screen_pmat_forces
-    REAL(KIND=dp) :: eps_schwarz, fac, hf_fraction, max_val1, max_val2, &
-      pmax_max, ra(3), rb(3), rc(3), rd(3), screen_max, symm_fac, temp1, &
-      temp1b, temp2, temp3, temp3b, box_size(3)
+    REAL(KIND=dp) :: box_size(3), eps_schwarz, fac, hf_fraction, max_val1, &
+      max_val2, pmax_max, ra(3), rb(3), rc(3), rd(3), screen_max, symm_fac, &
+      temp1, temp1b, temp2, temp3, temp3b
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:), TARGET                   :: primitive_forces
     REAL(KIND=dp), DIMENSION(:), POINTER     :: T1, T2
@@ -3676,8 +3676,7 @@ MODULE four_center_integrals
     INTEGER, INTENT(IN)                      :: max_k
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routineN = 'comp_screen_mat_per', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'comp_screen_mat_per', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, jatom, jset, k, &
@@ -3914,7 +3913,7 @@ MODULE four_center_integrals
     REAL(dp), DIMENSION(:, :)                :: screen1, screen2
     REAL(dp), INTENT(IN)                     :: eps_schwarz
     INTEGER, INTENT(IN)                      :: max_k
-    
+
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'forces4_periodic'
 
     INTEGER :: ipgf, jpgf, kpgf, la, lb, lc, ld, lpgf, offset_a, offset_a1, &
