@@ -173,7 +173,7 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  FUNCTION ener_coul ( e_cutoff_coul, fac, r, ewald_type,alpha, my_do_14 )
+  FUNCTION ener_coul ( e_cutoff_coul, fac, r, ewald_type, alpha, my_do_14 )
 
     REAL(KIND=dp), INTENT(IN)                :: e_cutoff_coul, fac, r
     INTEGER, INTENT(IN)                      :: ewald_type
@@ -229,8 +229,8 @@ CONTAINS
                                                 energy_cutoff, eps0, f, &
                                                 hicut, rij
 
-    rij = SQRT ( rijsq )
-    hicut = SQRT ( potparm %pot(iatom, jatom) %pot % rcutsq )
+    rij = SQRT (rijsq)
+    hicut = SQRT (potparm%pot(iatom, jatom)%pot%rcutsq )
     IF (ABS(hicut) <= MIN_HICUT_VALUE) hicut = DEFAULT_HICUT_VALUE
     ! If genpot we need to get ready for the evaluation of the potential
     IF (potparm%pot(iatom,jatom)%pot%type==gp_type) THEN

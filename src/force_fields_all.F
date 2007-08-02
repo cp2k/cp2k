@@ -2831,9 +2831,15 @@ CONTAINS
           IF (n>0) THEN
              spl_p => spline_manybody_env%spl_pp(n)%spl_p
              IF ( ASSOCIATED ( spl_p ) ) THEN
-                CALL spline_data_p_retain ( spl_p, error )
-                CALL spline_data_p_release ( potparm_nonbond%pot ( ikind, jkind )%pot%rho_spline_data, error )
-                potparm_nonbond%pot ( ikind, jkind )%pot % rho_spline_data => spl_p
+                SELECT CASE(potparm_nonbond%pot(ikind,jkind)%pot%type)
+                CASE(ea_type)
+                   CALL spline_data_p_retain ( spl_p, error )
+                   CALL spline_data_p_release ( potparm_nonbond%pot(ikind,jkind)%pot%eam%rho_spline_data, error )
+                   potparm_nonbond%pot(ikind,jkind)%pot%eam%rho_spline_data => spl_p
+                CASE DEFAULT
+                   ! Should never reach this point
+ CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                END SELECT
              ENDIF
           END IF
        END DO

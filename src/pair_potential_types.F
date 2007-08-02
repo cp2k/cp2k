@@ -141,6 +141,7 @@ MODULE pair_potential_types
      REAL ( KIND = dp )                     :: drar, drhoar, acutal
      REAL ( KIND = dp ), DIMENSION ( 5000 ) :: rho, phi, frho, rhoval, rval
      REAL ( KIND = dp ), DIMENSION ( 5000 ) :: rhop, phip, frhop
+     TYPE ( spline_data_p_type ),  POINTER, DIMENSION(:) :: rho_spline_data
   END TYPE eam_pot_type
 
   TYPE buck4ran_pot_type
@@ -213,7 +214,6 @@ MODULE pair_potential_types
      TYPE ( buck4ran_pot_type ),   POINTER :: buck4r
      TYPE ( buckmorse_pot_type ),  POINTER :: buckmo
      TYPE ( tersoff_pot_type ),    POINTER :: tersoff
-     TYPE ( spline_data_p_type ),  POINTER, DIMENSION(:) :: rho_spline_data         ! for EAM type potentials
      TYPE ( spline_data_p_type ),  POINTER, DIMENSION(:) :: pair_spline_data
      TYPE ( spline_data_p_type ),  POINTER, DIMENSION(:) :: c_coul_spline_data      ! for shell-model (core-ion or core-core)
      TYPE ( spline_data_p_type ),  POINTER, DIMENSION(:) :: cs_coul_spline_data     ! for shell-model (core-shell) 
@@ -368,7 +368,6 @@ CONTAINS
                 potparm%spl_cs,&
                 potparm%spl_sc,&
                 potparm%pair_spline_data,&
-                potparm%rho_spline_data,&
                 potparm%c_coul_spline_data,&
                 potparm%cs_coul_spline_data,&
                 potparm%sc_coul_spline_data)
@@ -410,8 +409,6 @@ CONTAINS
     potparm % at1           = 'NULL'
     potparm % at2           = 'NULL'
     potparm % rcutsq        = 0.0_dp
-    IF (ASSOCIATED( potparm % rho_spline_data )) &
-         CALL spline_data_p_release ( potparm % rho_spline_data ,error=error)
     IF (ASSOCIATED( potparm % pair_spline_data ))&
          CALL spline_data_p_release ( potparm % pair_spline_data ,error=error)
     IF (ASSOCIATED( potparm % c_coul_spline_data )) &
@@ -482,9 +479,6 @@ CONTAINS
        potparm_dest % at1           = potparm_source % at1
        potparm_dest % at2           = potparm_source % at2
        potparm_dest % rcutsq        = potparm_source % rcutsq
-       IF (ASSOCIATED( potparm_source % rho_spline_data )) THEN
-          CALL spline_data_p_copy ( potparm_source % rho_spline_data, potparm_dest % rho_spline_data, error=error  )
-       END IF
        IF (ASSOCIATED( potparm_source % pair_spline_data )) THEN
           CALL spline_data_p_copy ( potparm_source % pair_spline_data, potparm_dest % pair_spline_data, error=error  )
        END IF
@@ -593,7 +587,6 @@ CONTAINS
     failure = .FALSE.
     IF (.NOT.failure) THEN
        CPPostcondition(ASSOCIATED(potparm),cp_failure_level,routineP,error,failure)
-       CALL spline_data_p_release  ( potparm% rho_spline_data, error=error )
        CALL spline_data_p_release( potparm% pair_spline_data ,error=error)
        CALL spline_data_p_release( potparm% c_coul_spline_data, error=error )
        CALL spline_data_p_release( potparm% cs_coul_spline_data, error=error )
@@ -1024,7 +1017,6 @@ CONTAINS
           NULLIFY ( p%pot(i)%pot%spl_cs )
           NULLIFY ( p%pot(i)%pot%spl_sc )
           NULLIFY ( p%pot(i)%pot%pair_spline_data )
-          NULLIFY ( p%pot(i)%pot%rho_spline_data )
           NULLIFY ( p%pot(i)%pot%c_coul_spline_data )
           NULLIFY ( p%pot(i)%pot%sc_coul_spline_data )
           NULLIFY ( p%pot(i)%pot%cs_coul_spline_data )
@@ -1703,6 +1695,7 @@ CONTAINS
        CPPostcondition(.NOT.ASSOCIATED(potparm%eam),cp_failure_level,routineP,error,failure)
        ALLOCATE(potparm%eam, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       NULLIFY(potparm%eam%rho_spline_data)
        CALL pair_potential_eam_clean(potparm, error=error)
     END IF
   END SUBROUTINE pair_potential_eam_create
@@ -1753,6 +1746,10 @@ CONTAINS
        potparm_dest% eam % rhop          = potparm_source% eam % rhop
        potparm_dest% eam % phip          = potparm_source% eam % phip
        potparm_dest% eam % frhop         = potparm_source% eam % frhop
+       IF (ASSOCIATED( potparm_source%eam%rho_spline_data )) THEN
+          CALL spline_data_p_copy ( potparm_source%eam%rho_spline_data, &
+               potparm_dest%eam%rho_spline_data, error=error  )
+       END IF
     END IF
   END SUBROUTINE pair_potential_eam_copy
 
@@ -1799,6 +1796,8 @@ CONTAINS
        potparm% eam % rhop          = 0.0_dp
        potparm% eam % phip          = 0.0_dp
        potparm% eam % frhop         = 0.0_dp
+       IF (ASSOCIATED( potparm%eam%rho_spline_data )) &
+            CALL spline_data_p_release ( potparm%eam%rho_spline_data ,error=error)
     END IF
   END SUBROUTINE pair_potential_eam_clean
 
@@ -1833,6 +1832,7 @@ CONTAINS
     failure = .FALSE.
     IF (.NOT.failure) THEN
        IF (ASSOCIATED(potparm%eam)) THEN
+          CALL spline_data_p_release  ( potparm%eam%rho_spline_data, error=error )
           DEALLOCATE(potparm%eam, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
