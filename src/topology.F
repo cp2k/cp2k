@@ -28,10 +28,16 @@ MODULE topology
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: &
-       do_conn_g87, do_conn_g96, do_conn_generate, do_conn_mol_set, &
-       do_conn_off, do_conn_psf, do_conn_psf_u, do_coord_g96, do_coord_pdb, &
-       do_coord_xyz
+  USE input_constants,                 ONLY: do_conn_g87, &
+                                             do_conn_g96, &
+                                             do_conn_generate, &
+                                             do_conn_mol_set, &
+                                             do_conn_off, &
+                                             do_conn_psf, &
+                                             do_conn_psf_u, &
+                                             do_coord_g96, &
+                                             do_coord_pdb, &
+                                             do_coord_xyz
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -428,7 +434,8 @@ CONTAINS
           IF ((itmp<map0).OR.(itmp>map9)) EXIT
        END DO
        element0 = elements(i)(1:j)
-       CALL check_subsys_element(element0,my_element,subsys_section,error)
+       IF(.NOT.( (topology%conn_type==do_conn_g87).OR.(topology%conn_type==do_conn_g96) )) &
+         CALL check_subsys_element(element0,my_element,subsys_section,error)
        ! Earn time fixing same element labels for same atoms
        element0 = elements(i)
        DO k = i, topology%natoms

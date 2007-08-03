@@ -1498,7 +1498,7 @@ CONTAINS
       POINTER                                :: namearray(:)
     INTEGER                                  :: handle, iatom, icon, itemp, &
                                                 itype, iw, jatom, ncon, &
-                                                ntype, offset
+                                                ntype, offset, stat
     LOGICAL                                  :: failure, found
     REAL(KIND=dp)                            :: cost2, csq, sdet
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1748,6 +1748,8 @@ CONTAINS
          "PRINT%FF_INFO",error=error)
     CALL timestop(0.0_dp,handle)
 
+    DEALLOCATE(namearray,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE read_force_field_gromos
 
 
