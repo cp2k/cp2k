@@ -1,0 +1,87 @@
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      VDW_SCALE14   1.0
+      EI_SCALE14   1.0
+      PARM_FILE_NAME ala-wat.gtop
+      PARMTYPE G96
+      &spline
+       rcut_nb 7.0
+      &end
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .4
+        GMAX 27
+        O_SPLINE 4
+        #EWALD_TYPE PME
+        #ALPHA .4
+        #NS_MAX 25
+      &END EWALD
+    &END POISSON
+    &PRINT
+      #&FF_INFO
+      #  SPLINE_INFO
+      #&END
+    &END
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 15.0 15.0 15.0
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      CONN_FILE ala-wat.gtop
+      CONNECTIVITY G96
+      COORDINATE G96
+      COORD_FILE ala-wat.g96
+      #PARA_RES F
+    &END TOPOLOGY
+    &PRINT
+      &TOPOLOGY_INFO
+        #GTOP_INFO
+        #G96_INFO
+      &END TOPOLOGY_INFO
+    &END 
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PRINT_LEVEL LOW
+  PROGRAM CP2K
+  PROJECT ttt
+  RUN_TYPE md
+  #RUN_TYPE debug
+  #TRACE
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVT
+    STEPS 100
+    TIMESTEP 0.5
+    TEMPERATURE 298
+    &NOSE
+      TIMECON 10
+    &END NOSE
+  &END MD
+  &CONSTRAINT
+    &G3X3
+      DISTANCES 1.8897 1.8897 3.0859
+      MOLECULE 2
+      ATOMS 1 2 3
+    &END G3X3
+  &END CONSTRAINT
+  &PRINT
+    &RESTART OFF
+    &END
+    &RESTART_HISTORY OFF
+    &END
+    &TRAJECTORY OFF
+    &END
+    &VELOCITIES OFF
+    &END
+  &END
+&END MOTION
