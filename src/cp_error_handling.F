@@ -669,21 +669,23 @@ CONTAINS
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_error_handle_error(error, fromWhere, message)
+  SUBROUTINE cp_error_handle_error(error, fromWhere, message, ionode)
     TYPE(cp_error_type), INTENT(in)          :: error
     CHARACTER(len=*), INTENT(in)             :: fromWhere, message
+    LOGICAL, INTENT(IN)                      :: ionode
 
     INTEGER                                  :: mepos
     TYPE(cp_logger_type), POINTER            :: logger
 
     logger => cp_error_get_logger(error)
     IF (debug_this_module) PRINT *, "entred in cp_error_handle_error"
-    
-    ! print stack only when stopping? print to stdout?
-    CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
 
-    CALL cp_error_message(error%level, fromWhere, &
-         'err='//ADJUSTL(cp_to_string(error%error_nr))//message, error)
+    IF (ionode) THEN    
+       ! print stack only when stopping? print to stdout?
+       CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
+       CALL cp_error_message(error%level, fromWhere, &
+            'err='//ADJUSTL(cp_to_string(error%error_nr))//message, error)
+    END IF
     IF (error%level >= error%stop_level) THEN
        logger => cp_error_get_logger(error)
        mepos=logger%para_env%mepos
@@ -769,7 +771,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_assert(condition, level, error_nr, fromWhere, &
-       message, error,failure,info)
+       message, error,failure,info,only_ionode)
 !! the condition that is checked, if false, an error did happen
     LOGICAL, INTENT(in)                      :: condition
     INTEGER, INTENT(in)                      :: level, error_nr
@@ -778,20 +780,31 @@ CONTAINS
       OPTIONAL                               :: error
     LOGICAL, INTENT(inout), OPTIONAL         :: failure
     CHARACTER(len=*), OPTIONAL               :: info
+    LOGICAL, INTENT(in), OPTIONAL            :: only_ionode
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_assert', &
       routineP = moduleN//':'//routineN
 
+    LOGICAL                                  :: ionode
     TYPE(cp_error_type)                      :: err
+    TYPE(cp_logger_type), POINTER            :: logger
 
 !! level of the error
 !! error number
 !! is set to true if condition is false
 
+    ionode = .TRUE.
     IF (.NOT. condition) THEN
        IF (debug_this_module) PRINT *, "assertion failed, in "//fromWhere//" msg="//message
        IF (PRESENT(failure)) THEN
           failure=.TRUE.
+       END IF
+       IF (PRESENT(only_ionode)) THEN
+          IF (only_ionode) THEN
+             NULLIFY(logger)
+             logger => cp_error_get_logger(error)
+             ionode = logger%para_env%mepos==logger%para_env%source
+          END IF
        END IF
        CALL cp_error_init(err, level=level,error_nr=error_nr, &
             template_error=error)
@@ -802,7 +815,7 @@ CONTAINS
           END IF
           IF (PRESENT(info)) error%info=info
        END IF
-       CALL cp_error_handle_error(err, fromWhere,message)
+       CALL cp_error_handle_error(err, fromWhere,message,ionode)
        CALL cp_error_dealloc_ref(err)
     ELSE
        IF (debug_this_module) PRINT *, "assertion checked, in "//fromWhere//" msg="//message

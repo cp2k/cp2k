@@ -33,7 +33,6 @@ MODULE atoms_input
                                              get_cell,&
                                              pbc,&
                                              scaled_to_real
-  USE checkpoint_handler,              ONLY: Pwarning
   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
                                              cp_sll_val_type
   USE input_section_types,             ONLY: section_vals_get,&
@@ -104,9 +103,10 @@ CONTAINS
                                                 j, natom, output_unit, &
                                                 start_c, wrd
     LOGICAL                                  :: explicit, failure, ionode, &
-                                                is_ok, my_overwrite, my_save_mem, &
+                                                is_ok, my_overwrite, &
+                                                my_save_mem, &
                                                 scaled_coordinates
-    REAL(KIND=dp)                            :: unit_of_length, r0(3)
+    REAL(KIND=dp)                            :: r0(3), unit_of_length
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
@@ -151,9 +151,11 @@ CONTAINS
     topology%natoms = natom
     IF (my_overwrite) THEN
        CPPostcondition(SIZE(atom_info%r,2)==natom, cp_failure_level, routineP, error, failure)
-       CALL Pwarning("Overwriting coordinates. Active coordinates read from &COORD section."//&
-            " Active coordinates READ from &COORD section",&
-            root_section, error)
+       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+            "Overwriting coordinates. Active coordinates read from &COORD section."//&
+            " Active coordinates READ from &COORD section "//&
+CPSourceFileRef,&
+          error,only_ionode=.TRUE.)
        CALL section_vals_list_get(coord_section,"_DEFAULT_KEYWORD_",list=list,error=error)
        DO iatom=1,natom
           ! we use only the first default_string_length characters of each line
@@ -324,8 +326,8 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_sll_val_type), POINTER           :: list
-    TYPE(section_vals_type), POINTER         :: shell_coord_section
-    TYPE(section_vals_type), POINTER         :: core_coord_section
+    TYPE(section_vals_type), POINTER         :: core_coord_section, &
+                                                shell_coord_section
     TYPE(shell_kind_type), POINTER           :: shell
     TYPE(val_type), POINTER                  :: val
 
@@ -334,10 +336,9 @@ CONTAINS
     NULLIFY(logger, atomic_kind, list, shell_coord_section, shell, val)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
+    output_unit = -1
     IF (ionode) THEN
       output_unit= cp_logger_get_default_unit_nr(logger)
-    ELSE
-      output_unit = -1
     END IF
 
     IF(PRESENT(save_mem)) my_save_mem=save_mem
@@ -346,10 +347,7 @@ CONTAINS
     CALL section_vals_get(shell_coord_section, explicit=explicit, error=error)
     IF (.NOT.explicit) RETURN
 
-    explicit = .FALSE.
-
     CALL timeset(routineN,"I",'',handle)
-
     CALL get_cell(cell=cell,&
        scaled_coordinates=scaled_coordinates,&
        unit_of_length=unit_of_length)
@@ -365,10 +363,11 @@ CONTAINS
     IF(.NOT. failure) THEN
       ALLOCATE (r(3,nshell),at_name(nshell),at_index(nshell), STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-      CALL Pwarning("Overwriting shells coordinates. "//&
-           " Active coordinates READ from &SHELL_COORD section",&
-           root_section, error)
+      CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+           "Overwriting shells coordinates. "//&
+           " Active coordinates READ from &SHELL_COORD section. "//&
+CPSourceFileRef,&
+           error,only_ionode=.TRUE.)
       CALL section_vals_list_get(shell_coord_section,"_DEFAULT_KEYWORD_",list=list,error=error)
       DO ishell=1,nshell
          ! we use only the first default_string_length characters of each line
@@ -414,20 +413,20 @@ CONTAINS
                n_rep_val=nshell,error=error)
 
    CPPostcondition(SIZE(core_particle_set,1)==nshell,cp_failure_level,routineP,error,failure)
-          IF(.NOT. failure) THEN
-            ALLOCATE (rc(3,nshell),at_name_c(nshell),at_index_c(nshell), STAT=istat)
-            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-            CALL Pwarning("Overwriting cores coordinates. "//&
-                 " Active coordinates READ from &SHELL_COORD section",&
-                 root_section, error)
-            CALL section_vals_list_get(core_coord_section,"_DEFAULT_KEYWORD_",list=list,error=error)
-            DO ishell=1,nshell
-               ! we use only the first default_string_length characters of each line
-              is_ok=cp_sll_val_next(list,val,error=error)
-              CALL val_get(val,c_val=line_att,error=error)
-              start_c=1
-              DO wrd=1,5
+          ALLOCATE (rc(3,nshell),at_name_c(nshell),at_index_c(nshell), STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+               "Overwriting cores coordinates. "//&
+               " Active coordinates READ from &SHELL_COORD section. "//&
+CPSourceFileRef,&
+               error,only_ionode=.TRUE.)
+          CALL section_vals_list_get(core_coord_section,"_DEFAULT_KEYWORD_",list=list,error=error)
+          DO ishell=1,nshell
+             ! we use only the first default_string_length characters of each line
+             is_ok=cp_sll_val_next(list,val,error=error)
+             CALL val_get(val,c_val=line_att,error=error)
+             start_c=1
+             DO wrd=1,5
                 DO j=start_c,LEN(line_att)
                    IF (line_att(j:j)/=' ') THEN
                       start_c=j
@@ -454,9 +453,8 @@ CONTAINS
                    READ (line_att(start_c:end_c-1),*) rc(wrd-1,ishell)
                 END IF
                 start_c=end_c
-              END DO
-            END DO
-          END IF ! failure
+             END DO
+          END DO
           IF(my_save_mem) CALL section_vals_remove_values(core_coord_section, error)
         END IF  ! explicit
       END IF  ! core_particle_set
@@ -519,7 +517,6 @@ CONTAINS
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       DEALLOCATE(rc,at_index_c,at_name_c,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    
     END IF  ! failure
     IF(my_save_mem) CALL section_vals_remove_values(shell_coord_section, error)
     CALL timestop(0.0_dp,handle)

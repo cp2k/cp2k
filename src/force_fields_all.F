@@ -29,7 +29,6 @@ MODULE force_fields_all
                                              set_atomic_kind
   USE atoms_input,                     ONLY: read_shell_coord_input
   USE cell_types,                      ONLY: cell_type
-  USE checkpoint_handler,              ONLY: Pwarning
   USE ewald_environment_types,         ONLY: ewald_environment_type
   USE external_potential_types,        ONLY: elp_potential_type,&
                                              get_potential,&
@@ -102,6 +101,7 @@ MODULE force_fields_all
             force_field_pack_tors,&
             force_field_pack_impr,&
             force_field_pack_ch,&
+            force_field_pack_shell,&
             force_field_pack_sbe,&
             force_field_pack_onfo,&
             force_field_pack_sne,&
@@ -903,7 +903,7 @@ CONTAINS
 !!*****************************************************************************
 
   SUBROUTINE force_field_pack_bond (particle_set, molecule_kind_set, molecule_set, &
-       ff_type, root_section, fatal, Ainfo, chm_info, inp_info, gro_info, error)
+       ff_type, fatal, Ainfo, chm_info, inp_info, gro_info, error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -912,7 +912,6 @@ CONTAINS
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
-    TYPE(section_vals_type), POINTER         :: root_section
     LOGICAL                                  :: fatal
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: Ainfo
@@ -997,8 +996,11 @@ CONTAINS
                    bond_list(j)%bond_kind%name = "CHARMM"
                    bond_list(j)%bond_kind%k(1) = chm_info%bond_k(k)
                    bond_list(j)%bond_kind%r0   = chm_info%bond_r0(k)
-                   IF (found) CALL Pwarning("Multiple Bond declarations: "//TRIM(name_atm_a)//&
-                        " and "//TRIM(name_atm_b)//" overwriting!",root_section,error)
+                   CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
+                        "Multiple Bond declarations: "//TRIM(name_atm_a)//" and "//&
+                        TRIM(name_atm_b)//" overwriting! "//&
+CPSourceFileRef,&
+                        error,only_ionode=.TRUE.)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -1015,8 +1017,11 @@ CONTAINS
                    bond_list(j)%bond_kind%name = inp_info%bond_kind(k)
                    bond_list(j)%bond_kind%k(:) = inp_info%bond_k(:,k)
                    bond_list(j)%bond_kind%r0   = inp_info%bond_r0(k)
-                   IF (found) CALL Pwarning("Multiple Bond declarations: "//TRIM(name_atm_a)//&
-                        " and "//TRIM(name_atm_b)//" overwriting!",root_section,error)
+                   CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
+                        "Multiple Bond declarations: "//TRIM(name_atm_a)//" and "//&
+                        TRIM(name_atm_b)//" overwriting! "//&
+CPSourceFileRef,&
+                        error,only_ionode=.TRUE.)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -1065,7 +1070,7 @@ CONTAINS
 !!*****************************************************************************
 
   SUBROUTINE force_field_pack_bend (particle_set, molecule_kind_set, molecule_set, &
-       ff_type, root_section, fatal, Ainfo, chm_info, inp_info, gro_info, error)
+       ff_type, fatal, Ainfo, chm_info, inp_info, gro_info, error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -1074,7 +1079,6 @@ CONTAINS
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
-    TYPE(section_vals_type), POINTER         :: root_section
     LOGICAL                                  :: fatal
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: Ainfo
@@ -1163,9 +1167,11 @@ CONTAINS
                    bend_list(j)%bend_kind%name   = "CHARMM"
                    bend_list(j)%bend_kind%k      = chm_info%bend_k(k)
                    bend_list(j)%bend_kind%theta0 = chm_info%bend_theta0(k)
-                   IF (found) CALL Pwarning("Multiple Bend declarations: "//TRIM(name_atm_a)//&
-                        ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting!",&
-                        root_section,error)
+                   CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
+                        "Multiple Bend declarations: "//TRIM(name_atm_a)//&
+                        ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting! "//&
+CPSourceFileRef,&
+                        error,only_ionode=.TRUE.)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -1184,9 +1190,11 @@ CONTAINS
                    bend_list(j)%bend_kind%name   = inp_info%bend_kind(k)
                    bend_list(j)%bend_kind%k      = inp_info%bend_k(k)
                    bend_list(j)%bend_kind%theta0 = inp_info%bend_theta0(k)
-                   IF (found) CALL Pwarning("Multiple Bend declarations: "//TRIM(name_atm_a)//&
-                        ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting!",&
-                        root_section,error)
+                   CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
+                        "Multiple Bend declarations: "//TRIM(name_atm_a)//&
+                        ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting! "//&
+CPSourceFileRef,&
+                        error,only_ionode=.TRUE.)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -1236,7 +1244,7 @@ CONTAINS
 !!*****************************************************************************
 
   SUBROUTINE force_field_pack_ub (particle_set, molecule_kind_set, molecule_set, &
-      root_section, Ainfo, chm_info, inp_info, iw, error)
+       Ainfo, chm_info, inp_info, iw, error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -1244,7 +1252,6 @@ CONTAINS
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
-    TYPE(section_vals_type), POINTER         :: root_section
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: Ainfo
     TYPE(charmm_info_type), POINTER          :: chm_info
@@ -1314,8 +1321,11 @@ CONTAINS
                    ub_list(j)%ub_kind%r0     = chm_info%ub_r0(k)
                    IF(iw>0) WRITE(iw,*) "    Found UB ",TRIM(name_atm_a)," ",&
                         TRIM(name_atm_b)," ",TRIM(name_atm_c)
-                   IF (found) CALL Pwarning("Multiple UB declarations: "//TRIM(name_atm_a)//&
-                        ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting!",root_section,error)
+                   CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
+                        "Multiple UB declarations: "//TRIM(name_atm_a)//&
+                        ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting! "//&
+CPSourceFileRef,&
+                        error,only_ionode=.TRUE.)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -1334,8 +1344,11 @@ CONTAINS
                    ub_list(j)%ub_kind%name   = inp_info%ub_kind(k)
                    ub_list(j)%ub_kind%k(:)   = inp_info%ub_k(:,k)
                    ub_list(j)%ub_kind%r0     = inp_info%ub_r0(k)
-                   IF (found) CALL Pwarning("Multiple UB declarations: "//TRIM(name_atm_a)//&
-                        ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting!",root_section,error)
+                   CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
+                        "Multiple UB declarations: "//TRIM(name_atm_a)//&
+                        ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting! "//&
+CPSourceFileRef,&
+                        error,only_ionode=.TRUE.)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -1633,7 +1646,7 @@ CONTAINS
 !!*****************************************************************************
 
   SUBROUTINE force_field_pack_impr (particle_set, molecule_kind_set, molecule_set, &
-       ff_type, root_section, Ainfo, chm_info, inp_info, gro_info, error)
+       ff_type, Ainfo, chm_info, inp_info, gro_info, error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -1642,7 +1655,6 @@ CONTAINS
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
-    TYPE(section_vals_type), POINTER         :: root_section
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: Ainfo
     TYPE(charmm_info_type), POINTER          :: chm_info
@@ -1741,9 +1753,12 @@ CONTAINS
                    impr_list(j)%impr_kind%name = "CHARMM"
                    impr_list(j)%impr_kind%k    = chm_info%impr_k(k)
                    impr_list(j)%impr_kind%phi0 = chm_info%impr_phi0(k)
-                   IF (found) CALL Pwarning("Multiple Improper declarations: "//TRIM(name_atm_a)//&
+                   CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
+                        "Multiple Improper declarations: "//TRIM(name_atm_a)//&
                         ","//TRIM(name_atm_b)//","//TRIM(name_atm_c)//" and "//TRIM(name_atm_d)//&
-                        " overwriting!",root_section,error)
+                        " overwriting! "//&
+CPSourceFileRef,&
+                        error,only_ionode=.TRUE.)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -1761,9 +1776,12 @@ CONTAINS
                       impr_list(j)%impr_kind%name = "CHARMM"
                       impr_list(j)%impr_kind%k    = chm_info%impr_k(k)
                       impr_list(j)%impr_kind%phi0 = chm_info%impr_phi0(k)
-                      IF (found) CALL Pwarning("Multiple Improper declarations: "//TRIM(name_atm_a)//&
+                      CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
+                           "Multiple Improper declarations: "//TRIM(name_atm_a)//&
                            ","//TRIM(name_atm_b)//","//TRIM(name_atm_c)//" and "//TRIM(name_atm_d)//&
-                           " overwriting!",root_section,error)
+                           " overwriting! "//&
+CPSourceFileRef,&
+                           error,only_ionode=.TRUE.)
                       found = .TRUE.
                       EXIT
                    END IF
@@ -1785,9 +1803,12 @@ CONTAINS
                    impr_list(j)%impr_kind%name = inp_info%impr_kind(k)
                    impr_list(j)%impr_kind%k    = inp_info%impr_k(k)
                    impr_list(j)%impr_kind%phi0 = inp_info%impr_phi0(k)
-                   IF (found) CALL Pwarning("Multiple Improper declarations: "//TRIM(name_atm_a)//&
+                   CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
+                        "Multiple Improper declarations: "//TRIM(name_atm_a)//&
                         ","//TRIM(name_atm_b)//","//TRIM(name_atm_c)//" and "//TRIM(name_atm_d)//&
-                        " overwriting!",root_section,error)
+                        " overwriting! "//&
+CPSourceFileRef,&
+                        error,only_ionode=.TRUE.)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -1844,26 +1865,12 @@ CONTAINS
 !!   INPUTS
 !!*****************************************************************************
 
-  SUBROUTINE force_field_pack_ch  (particle_set, atomic_kind_set,&
-       molecule_kind_set, molecule_set, root_section, qmmm_env,&
-       subsys_section, shell_particle_set, core_particle_set, cell, fatal,&
-       iw, Ainfo, my_qmmm, chm_info, inp_info, error)
+  SUBROUTINE force_field_pack_ch  ( atomic_kind_set, qmmm_env, fatal, iw,&
+       Ainfo, my_qmmm, chm_info, inp_info, error)
 
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(molecule_kind_type), DIMENSION(:), &
-      POINTER                                :: molecule_kind_set
-    TYPE(molecule_type), DIMENSION(:), &
-      POINTER                                :: molecule_set
-    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
-    TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: shell_particle_set, &
-                                                core_particle_set
-    TYPE(cell_type), POINTER                 :: cell
     LOGICAL                                  :: fatal
     INTEGER                                  :: iw
     CHARACTER(LEN=default_string_length), &
@@ -1877,37 +1884,21 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: atmname, name_atm_a
-    INTEGER                                  :: counter, first, handle2, i, &
-                                                ilink, j, last, n, natom, &
-                                                nmol, nshell_tot, stat
-    INTEGER, DIMENSION(:), POINTER           :: molecule_list, my_atom_list, &
-                                                shell_list_tmp
-    LOGICAL :: failure, found, found_p, found_shell, is_a_shell, &
-      is_link_atom, null_massfrac, only_manybody, only_qm, save_mem, &
-      shell_adiabatic
-    REAL(KIND=dp)                            :: atmmass, scale_factor
+    INTEGER                                  :: handle2, i, ilink, j, stat
+    INTEGER, DIMENSION(:), POINTER           :: my_atom_list
+    LOGICAL                                  :: failure, found, found_p, &
+                                                is_link_atom, only_manybody, &
+                                                only_qm
+    REAL(KIND=dp)                            :: scale_factor
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charge
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(elp_potential_type), POINTER        :: elp_potential
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    TYPE(molecule_type), POINTER             :: molecule
-    TYPE(section_vals_type), POINTER         :: global_section
-    TYPE(shell_kind_type), POINTER           :: shell
-    TYPE(shell_type), DIMENSION(:), POINTER  :: shell_list
 
     failure = .FALSE.
 
     CALL timeset(routineN,'I','',handle2)
     ALLOCATE(charge(SIZE(atomic_kind_set)),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    nshell_tot = 0
-    n = 0
-    null_massfrac =.FALSE.
-
-    NULLIFY(global_section)
-    global_section => section_vals_get_subs_vals(root_section,"GLOBAL",error=error)
-    CALL section_vals_val_get(global_section,"SAVE_MEM",l_val=save_mem,error=error)
-
     DO i=1,SIZE(atomic_kind_set)
        atomic_kind => atomic_kind_set(i)
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -1918,7 +1909,6 @@ CONTAINS
             qeff=charge(i))
 
        found = .FALSE.
-       found_shell = .FALSE.
        only_qm = qmmm_ff_precond_only_qm(id1=atmname,is_link=is_link_atom)
        CALL uppercase(atmname)
        IF(charge(i)/=-HUGE(0.0_dp)) found = .TRUE.
@@ -1927,8 +1917,11 @@ CONTAINS
           DO j=1,SIZE(chm_info%charge_atm)
              IF((chm_info%charge_atm(j))==atmname) THEN
                 charge(i) = chm_info%charge(j)
-                IF (found) CALL Pwarning("Multiple charge declarations: "//TRIM(atmname)//&
-                     " overwriting!",root_section,error)
+                CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
+                     "Multiple charge declarations: "//TRIM(atmname)//&
+                     " overwriting! "//&
+CPSourceFileRef,&
+                     error,only_ionode=.TRUE.)
                 found = .TRUE.
              END IF
           END DO
@@ -1939,8 +1932,11 @@ CONTAINS
              IF (iw>0) WRITE(iw,*)"Charge Checking ::",TRIM(inp_info%charge_atm(j)),atmname
              IF((inp_info%charge_atm(j))==atmname) THEN
                 charge(i) = inp_info%charge(j)
-                IF (found) CALL Pwarning("Multiple charge declarations: "//TRIM(atmname)//&
-                     " overwriting!",root_section,error)
+                CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
+                     "Multiple charge declarations: "//TRIM(atmname)//&
+                     " overwriting! "//&
+CPSourceFileRef,&
+                     error,only_ionode=.TRUE.)
                 found = .TRUE.
              END IF
           END DO
@@ -2000,17 +1996,102 @@ CONTAINS
        CALL set_atomic_kind(atomic_kind=atomic_kind,&
             elp_potential=elp_potential)
 
+    END DO
+    DEALLOCATE (charge,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL timestop(0.0_dp,handle2)
+
+  END SUBROUTINE force_field_pack_ch
+
+!******************************************************************************
+!!****** force_fields_all/force_field_pack_shell [1.0] *
+!!
+!!   NAME
+!!     force_field_pack_shell
+!!
+!!   SYNOPSIS
+!!
+!!   FUNCTION
+!!     Set up shell potential parameters
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   OPTIONS
+!!
+!!   INPUTS
+!!*****************************************************************************
+
+  SUBROUTINE force_field_pack_shell  (particle_set, atomic_kind_set,&
+       molecule_kind_set, molecule_set, root_section, subsys_section,&
+       shell_particle_set, core_particle_set, cell, iw, inp_info, error)
+
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    TYPE(section_vals_type), POINTER         :: root_section, subsys_section
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: shell_particle_set, &
+                                                core_particle_set
+    TYPE(cell_type), POINTER                 :: cell
+    INTEGER                                  :: iw
+    TYPE(input_info_type), POINTER           :: inp_info
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_shell', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: atmname
+    INTEGER                                  :: counter, first, handle2, i, &
+                                                j, last, n, natom, nmol, &
+                                                nshell_tot, stat
+    INTEGER, DIMENSION(:), POINTER           :: molecule_list, shell_list_tmp
+    LOGICAL :: failure, found_shell, is_a_shell, is_link_atom, null_massfrac, &
+      only_qm, save_mem, shell_adiabatic
+    REAL(KIND=dp)                            :: atmmass
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(molecule_type), POINTER             :: molecule
+    TYPE(section_vals_type), POINTER         :: global_section
+    TYPE(shell_kind_type), POINTER           :: shell
+    TYPE(shell_type), DIMENSION(:), POINTER  :: shell_list
+
+    failure = .FALSE.
+
+    CALL timeset(routineN,'I','',handle2)
+    nshell_tot = 0
+    n = 0
+    null_massfrac =.FALSE.
+
+    NULLIFY(global_section)
+    global_section => section_vals_get_subs_vals(root_section,"GLOBAL",error=error)
+    CALL section_vals_val_get(global_section,"SAVE_MEM",l_val=save_mem,error=error)
+
+    DO i=1,SIZE(atomic_kind_set)
+       atomic_kind => atomic_kind_set(i)
+       CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                            name=atmname)
+
+       found_shell = .FALSE.
+       only_qm = qmmm_ff_precond_only_qm(id1=atmname,is_link=is_link_atom)
+       CALL uppercase(atmname)
+
        ! The shell potential can be defined only from input
        IF(ASSOCIATED(inp_info%shell_list)) THEN
           DO j=1,SIZE(inp_info%shell_list)
-             IF (iw>0) WRITE(iw,*)"Shell Checking ::",&
-                       TRIM(inp_info%shell_list(j)%atm_name),atmname
+             IF (iw>0) WRITE(iw,*)"Shell Checking ::",TRIM(inp_info%shell_list(j)%atm_name),atmname
 
              IF((inp_info%shell_list(j)%atm_name)==atmname) THEN
                 CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                     shell=shell, mass=atmmass,natom=natom)
+                     shell=shell, mass=atmmass, natom=natom)
                 IF(.NOT. ASSOCIATED(shell)) THEN
-                  CALL shell_create(shell,error)
+                   CALL shell_create(shell,error)
                 END IF
                 nshell_tot = nshell_tot + natom
                 shell%charge_core=inp_info%shell_list(j)%shell%charge_core
@@ -2020,12 +2101,14 @@ CONTAINS
                 shell%k_spring=inp_info%shell_list(j)%shell%k_spring
                 shell%max_dist=inp_info%shell_list(j)%shell%max_dist
                 shell%shell_cutoff=inp_info%shell_list(j)%shell%shell_cutoff
-
+                
                 shell%mass_shell=shell%massfrac*atmmass
                 shell%mass_core=atmmass-shell%mass_shell
-
-                IF (found_shell) CALL Pwarning("Multiple shell declarations: "//TRIM(atmname)//&
-                     " overwriting!",root_section,error)
+                CALL cp_assert(.NOT.found_shell,cp_warning_level,cp_assertion_failed,routineP,&
+                     "Multiple Shell declarations: "//TRIM(atmname)//&
+                     " overwriting! "//&
+CPSourceFileRef,&
+                     error,only_ionode=.TRUE.)
                 found_shell = .TRUE.
                 CALL set_atomic_kind(atomic_kind=atomic_kind,&
                      shell=shell, shell_active=.TRUE.,error=error)
@@ -2039,100 +2122,95 @@ CONTAINS
     ! If shell-model is present: Create particle_set of shells (coord. vel. force)
     NULLIFY(shell_particle_set,core_particle_set)
     IF(nshell_tot>0) THEN
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, shell_adiabatic=shell_adiabatic)
-      IF(shell_adiabatic .AND. null_massfrac) THEN
-         CALL stop_program(TRIM(routineN),"Shell-model adiabatic: at least one shell_kind has mass=0 Abort..")
-      END IF
-      CALL allocate_particle_set(shell_particle_set,nshell_tot)
-      CALL allocate_particle_set(core_particle_set,nshell_tot)
-      counter = 0
-      DO i = 1,SIZE(particle_set)
-        NULLIFY(atomic_kind,shell)
-        atomic_kind => particle_set(i)%atomic_kind
-        CALL get_atomic_kind(atomic_kind=atomic_kind, shell_active=is_a_shell)
-        IF(is_a_shell) THEN
-          counter = counter+1
-          particle_set(i)%shell_index = counter
-          shell_particle_set(counter)%shell_index=counter
-          shell_particle_set(counter)%atomic_kind => particle_set(i)%atomic_kind
-          shell_particle_set(counter)%r(1:3) =  particle_set(i)%r(1:3)
-          shell_particle_set(counter)%atom_index =   i
-          core_particle_set(counter)%shell_index=counter
-          core_particle_set(counter)%atomic_kind => particle_set(i)%atomic_kind
-          core_particle_set(counter)%r(1:3) =  particle_set(i)%r(1:3)
-          core_particle_set(counter)%atom_index =   i
-        ELSE
-          particle_set(i)%shell_index = 0
-        END IF
-      END DO  ! i atom in particle_set
-      CPPostcondition(counter==nshell_tot,cp_failure_level,routineP,error,failure)
+       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, shell_adiabatic=shell_adiabatic)
+       IF(shell_adiabatic .AND. null_massfrac) THEN
+          CALL stop_program(TRIM(routineN),"Shell-model adiabatic: at least one shell_kind has mass=0 Abort..")
+       END IF
+       CALL allocate_particle_set(shell_particle_set,nshell_tot)
+       CALL allocate_particle_set(core_particle_set,nshell_tot)
+       counter = 0
+       DO i = 1,SIZE(particle_set)
+          NULLIFY(atomic_kind,shell)
+          atomic_kind => particle_set(i)%atomic_kind
+          CALL get_atomic_kind(atomic_kind=atomic_kind, shell_active=is_a_shell)
+          IF(is_a_shell) THEN
+             counter = counter+1
+             particle_set(i)%shell_index = counter
+             shell_particle_set(counter)%shell_index=counter
+             shell_particle_set(counter)%atomic_kind => particle_set(i)%atomic_kind
+             shell_particle_set(counter)%r(1:3) =  particle_set(i)%r(1:3)
+             shell_particle_set(counter)%atom_index =   i
+             core_particle_set(counter)%shell_index=counter
+             core_particle_set(counter)%atomic_kind => particle_set(i)%atomic_kind
+             core_particle_set(counter)%r(1:3) =  particle_set(i)%r(1:3)
+             core_particle_set(counter)%atom_index =   i
+          ELSE
+             particle_set(i)%shell_index = 0
+          END IF
+       END DO
+       CPPostcondition(counter==nshell_tot,cp_failure_level,routineP,error,failure)
 
       ! Initialize the shells coordinates
-      ! Teo: Why are shell coordinates initialized here when all other things related
-      ! to coordinates have been already initialized ? For consistency this should be 
-      ! moved in the coordinate_control module..
-      IF(shell_adiabatic) THEN
-        CALL read_shell_coord_input(particle_set, shell_particle_set, cell,&
-             root_section, subsys_section, core_particle_set, save_mem=save_mem, error=error)
-      ELSE
-        CALL read_shell_coord_input(particle_set, shell_particle_set, cell,&
-             root_section, subsys_section,save_mem=save_mem, error=error)
-      END IF
+       IF(shell_adiabatic) THEN
+          CALL read_shell_coord_input(particle_set, shell_particle_set, cell,&
+               root_section, subsys_section, core_particle_set, save_mem=save_mem,&
+               error=error)
+       ELSE
+          CALL read_shell_coord_input(particle_set, shell_particle_set, cell,&
+               root_section, subsys_section,save_mem=save_mem, error=error)
+       END IF
 
-      ! Determine the number of shells per molecule kind
-      n = 0
-      DO i=1,SIZE(molecule_kind_set)
-        molecule_kind => molecule_kind_set(i)
-        CALL get_molecule_kind(molecule_kind=molecule_kind,&
-             molecule_list=molecule_list, natom=natom, nmolecule=nmol)
-        molecule=>molecule_set(molecule_list(1))
-        CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
-        ALLOCATE(shell_list_tmp(natom),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        counter = 0
-        DO j = first, last
-          atomic_kind => particle_set(j)%atomic_kind
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               shell_active=is_a_shell)
-          IF(is_a_shell) THEN
-            counter = counter+1
-            shell_list_tmp(counter) = j - first + 1
-          END IF
-        END DO  ! j atom in molecule_kind i, molecule 1 of the molecule_list
-        IF(counter/=0) THEN
+       ! Determine the number of shells per molecule kind
+       n = 0
+       DO i=1,SIZE(molecule_kind_set)
+          molecule_kind => molecule_kind_set(i)
           CALL get_molecule_kind(molecule_kind=molecule_kind,&
-               shell_list=shell_list)
-          IF(ASSOCIATED(shell_list)) THEN
-             DEALLOCATE(shell_list,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             NULLIFY(shell_list)
-          END IF
-          ALLOCATE(shell_list(counter), STAT=stat)
+               molecule_list=molecule_list, natom=natom, nmolecule=nmol)
+          molecule=>molecule_set(molecule_list(1))
+          CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
+          ALLOCATE(shell_list_tmp(natom),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DO j = 1, counter
-            shell_list(j)%a = shell_list_tmp(j)
-            atomic_kind => particle_set(shell_list_tmp(j)+first-1)%atomic_kind
-            CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                 name=atmname, shell=shell)
-            CALL uppercase(atmname)
-            shell_list(j)%name = atmname 
-            shell_list(j)%shell_kind => shell
-          END DO
-          CALL set_molecule_kind(molecule_kind=molecule_kind,&
-               nshell=counter, shell_list=shell_list)
-        END IF
-        DEALLOCATE(shell_list_tmp,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        n = n + nmol * counter 
-      END DO  ! i molecule kind
+          counter = 0
+          DO j = first, last
+             atomic_kind => particle_set(j)%atomic_kind
+             CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                  shell_active=is_a_shell)
+             IF(is_a_shell) THEN
+                counter = counter+1
+                shell_list_tmp(counter) = j - first + 1
+             END IF
+          END DO  ! j atom in molecule_kind i, molecule 1 of the molecule_list
+          IF(counter/=0) THEN
+             CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                  shell_list=shell_list)
+             IF(ASSOCIATED(shell_list)) THEN
+                DEALLOCATE(shell_list,STAT=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                NULLIFY(shell_list)
+             END IF
+             ALLOCATE(shell_list(counter), STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             DO j = 1, counter
+                shell_list(j)%a = shell_list_tmp(j)
+                atomic_kind => particle_set(shell_list_tmp(j)+first-1)%atomic_kind
+                CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                     name=atmname, shell=shell)
+                CALL uppercase(atmname)
+                shell_list(j)%name = atmname 
+                shell_list(j)%shell_kind => shell
+             END DO
+             CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                  nshell=counter, shell_list=shell_list)
+          END IF
+          DEALLOCATE(shell_list_tmp,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          n = n + nmol * counter 
+       END DO  ! i molecule kind
     END IF  ! nshell_tot>0
     CPPostcondition(n==nshell_tot,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (charge,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
     CALL timestop(0.0_dp,handle2)
 
-  END SUBROUTINE force_field_pack_ch
+  END SUBROUTINE force_field_pack_shell
 
 !******************************************************************************
 !!****** force_fields_all/force_field_pack_sbe [1.0] *
@@ -2154,14 +2232,13 @@ CONTAINS
 !!   INPUTS
 !!*****************************************************************************
 
-  SUBROUTINE force_field_pack_sbe  (atomic_kind_set, ff_type, root_section, qmmm_env,&
+  SUBROUTINE force_field_pack_sbe  (atomic_kind_set, ff_type, qmmm_env,&
        iw, Ainfo,  chm_info, inp_info, gro_info, potparm_bond, ewald_env, &
        spline_bond_env, iw2, iw3, iw4, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
-    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
     INTEGER                                  :: iw
     CHARACTER(LEN=default_string_length), &
@@ -2242,8 +2319,11 @@ CONTAINS
                 pot%set(1)%lj%sigma6  = gro_info%nonbond_c6_14(ii,jj)
                 pot%set(1)%lj%sigma12 = gro_info%nonbond_c12_14(ii,jj)
                 pot%rcutsq     = (10.0_dp*bohr)**2
-                IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
-                     " and "//TRIM(name_atm_b)//" overwriting!",root_section,error)
+                CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
+                     "Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
+                     " and "//TRIM(name_atm_b)//" overwriting! "//&
+CPSourceFileRef,&
+                     error,only_ionode=.TRUE.)
                 found = .TRUE.
              END IF
           END IF
@@ -2301,8 +2381,11 @@ CONTAINS
              pot%set(1)%lj%sigma6  = 0.5_dp*rmin**6
              pot%set(1)%lj%sigma12 = 0.25_dp*rmin**12
              pot%rcutsq     = (10.0_dp*bohr)**2
-             IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
-                  " and "//TRIM(name_atm_b)//" overwriting!",root_section,error)
+             CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
+                  "Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
+                  " and "//TRIM(name_atm_b)//" overwriting! "//&
+CPSourceFileRef,&
+                  error,only_ionode=.TRUE.)
              found = .TRUE.
           END IF
 
@@ -2318,13 +2401,20 @@ CONTAINS
                      ((name_atm_a)==(inp_info%nonbonded14%pot(k)%pot%at2))) ) THEN
                    IF (ff_type%multiple_potential) THEN
                       CALL pair_potential_single_add(inp_info%nonbonded14%pot(k)%pot,pot,error)
-                      IF (found) CALL Pwarning("Multiple ONFO declaration: "//TRIM(name_atm_a)//&
-                           " and "//TRIM(name_atm_b)//" adding!",root_section,error)
+                      CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
+                           "Multiple ONFO declaration: "//TRIM(name_atm_a)//&
+                           " and "//TRIM(name_atm_b)//" ADDING! "//&
+CPSourceFileRef,&
+                           error,only_ionode=.TRUE.)
+                      potparm_bond%pot(i,j)%pot => pot
                       potparm_bond%pot(j,i)%pot => pot
                    ELSE
                       CALL pair_potential_single_copy(inp_info%nonbonded14%pot(k)%pot,pot,error)
-                      IF (found) CALL Pwarning("Multiple ONFO declarations: "//TRIM(name_atm_a)//&
-                           " and "//TRIM(name_atm_b)//" overwriting!",root_section,error)
+                      CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
+                           "Multiple ONFO declarations: "//TRIM(name_atm_a)//&
+                           " and "//TRIM(name_atm_b)//" OVERWRITING! "//&
+CPSourceFileRef,&
+                           error,only_ionode=.TRUE.)
                    END IF
                    IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a)," ",TRIM(name_atm_b)
                    found = .TRUE.
@@ -2349,16 +2439,20 @@ CONTAINS
                            ((name_atm_a) ==(qmmm_env%inp_info%nonbonded14%pot(k)%pot%at2))) ) THEN
                          IF (qmmm_env%multiple_potential) THEN
                             CALL pair_potential_single_add(qmmm_env%inp_info%nonbonded14%pot(k)%pot,pot,error)
-                            IF (found) CALL Pwarning("Multiple ONFO declarations: "//TRIM(name_atm_a)//&
-                                 " and "//TRIM(name_atm_b)//" adding QM/MM forcefield specifications",&
-                                 root_section,error)
+                            CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
+                                 "Multiple ONFO declaration: "//TRIM(name_atm_a)//&
+                                 " and "//TRIM(name_atm_b)//" ADDING QM/MM forcefield specifications! "//&
+CPSourceFileRef,&
+                                 error,only_ionode=.TRUE.)
                             potparm_bond%pot(i,j)%pot => pot
                             potparm_bond%pot(j,i)%pot => pot
                          ELSE
                             CALL pair_potential_single_copy(qmmm_env%inp_info%nonbonded14%pot(k)%pot,pot,error)
-                            IF (found) CALL Pwarning("Multiple ONFO declarations: "//TRIM(name_atm_a)//&
-                                 " and "//TRIM(name_atm_b)//" overwriting with QM/MM forcefield specifications",&
-                                 root_section,error)
+                            CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
+                                 "Multiple ONFO declaration: "//TRIM(name_atm_a)//&
+                                 " and "//TRIM(name_atm_b)//" OVERWRITING QM/MM forcefield specifications! "//&
+CPSourceFileRef,&
+                                 error,only_ionode=.TRUE.)
                          END IF
                          IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a),&
                               " ",TRIM(name_atm_b)
@@ -2527,13 +2621,12 @@ CONTAINS
 !!   INPUTS
 !!*****************************************************************************
 
-  SUBROUTINE force_field_pack_sne (atomic_kind_set, ff_type, root_section, qmmm_env,&
+  SUBROUTINE force_field_pack_sne (atomic_kind_set, ff_type, qmmm_env,&
        fatal, iw, Ainfo, chm_info, inp_info, gro_info, potparm_nonbond, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
-    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
     LOGICAL                                  :: fatal
     INTEGER                                  :: iw
@@ -2608,9 +2701,11 @@ CONTAINS
                 pot%set(1)%lj%sigma6  = gro_info%nonbond_c6(ii,jj)
                 pot%set(1)%lj%sigma12 = gro_info%nonbond_c12(ii,jj)
                 pot%rcutsq     = (10.0_dp*bohr)**2
-                IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
-                     " and "//TRIM(name_atm_b)//" overwriting!",&
-                     root_section,error)
+                CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
+                     "Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
+                     " and "//TRIM(name_atm_b)//" overwriting! "//&
+CPSourceFileRef,&
+                     error,only_ionode=.TRUE.)
                 found = .TRUE.
              END IF
           END IF
@@ -2642,9 +2737,11 @@ CONTAINS
                 pot%set(1)%lj%sigma6  = 0.5_dp*rmin**6
                 pot%set(1)%lj%sigma12 = 0.25_dp*rmin**12
                 pot%rcutsq     = (10.0_dp*bohr)**2
-                IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
-                     " and "//TRIM(name_atm_b)//" overwriting!",&
-                     root_section,error)
+                CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
+                     "Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
+                     " and "//TRIM(name_atm_b)//" overwriting! "//&
+CPSourceFileRef,&
+                     error,only_ionode=.TRUE.)
                 found = .TRUE.
              END IF
           END IF
@@ -2661,14 +2758,20 @@ CONTAINS
                      ((name_atm_a)==(inp_info%nonbonded%pot(k)%pot%at2))) ) THEN
                    IF (ff_type%multiple_potential) THEN
                       CALL pair_potential_single_add(inp_info%nonbonded%pot(k)%pot,pot,error)
-                      IF (found) CALL Pwarning("Multiple non-bonded declaration: "//TRIM(name_atm_a)//&
-                           " and "//TRIM(name_atm_b)//" adding!",root_section,error)
+                      CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
+                           "Multiple ONFO declaration: "//TRIM(name_atm_a)//&
+                           " and "//TRIM(name_atm_b)//" ADDING! "//&
+CPSourceFileRef,&
+                           error,only_ionode=.TRUE.)
                       potparm_nonbond%pot(i,j)%pot => pot
                       potparm_nonbond%pot(j,i)%pot => pot
                    ELSE
                       CALL pair_potential_single_copy(inp_info%nonbonded%pot(k)%pot,pot,error)
-                      IF (found) CALL Pwarning("Multiple non-bonded declarations: "//TRIM(name_atm_a)//&
-                           " and "//TRIM(name_atm_b)//" overwriting!",root_section,error)
+                      CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
+                           "Multiple ONFO declaration: "//TRIM(name_atm_a)//&
+                           " and "//TRIM(name_atm_b)//" OVERWRITING! "//&
+CPSourceFileRef,&
+                           error,only_ionode=.TRUE.)
                    END IF
                    IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a)," ",TRIM(name_atm_b)
                    found = .TRUE.
@@ -2693,15 +2796,20 @@ CONTAINS
                            ((name_atm_a) ==(qmmm_env%inp_info%nonbonded%pot(k)%pot%at2))) ) THEN
                          IF (qmmm_env%multiple_potential) THEN
                             CALL pair_potential_single_add(qmmm_env%inp_info%nonbonded%pot(k)%pot,pot,error)
-                            IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
-                                 " and "//TRIM(name_atm_b)//" adding QM/MM forcefield specifications",&
-                                 root_section,error)
+                            CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
+                                 "Multiple ONFO declaration: "//TRIM(name_atm_a)//&
+                                 " and "//TRIM(name_atm_b)//" ADDING QM/MM forcefield specifications! "//&
+CPSourceFileRef,&
+                                 error,only_ionode=.TRUE.)
+                            potparm_nonbond%pot(i,j)%pot => pot
                             potparm_nonbond%pot(j,i)%pot => pot
                          ELSE
                             CALL pair_potential_single_copy(qmmm_env%inp_info%nonbonded%pot(k)%pot,pot,error)
-                            IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
-                                 " and "//TRIM(name_atm_b)//" overwriting with QM/MM forcefield specifications",&
-                                 root_section,error)
+                            CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
+                                 "Multiple ONFO declaration: "//TRIM(name_atm_a)//&
+                                 " and "//TRIM(name_atm_b)//" OVERWRITING QM/MM forcefield specifications! "//&
+CPSourceFileRef,&
+                                 error,only_ionode=.TRUE.)
                          END IF
                          IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a)," ",TRIM(name_atm_b)
                          found = .TRUE.

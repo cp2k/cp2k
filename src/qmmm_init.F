@@ -34,7 +34,6 @@ MODULE qmmm_init
                                              get_cell,&
                                              read_cell,&
                                              write_cell
-  USE checkpoint_handler,              ONLY: Pwarning
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -235,9 +234,12 @@ CONTAINS
        qmmm_env_qm%periodic = explicit
        IF (qmmm_coupl_type == do_qmmm_none) THEN
           qmmm_env_qm%periodic = .FALSE.
-          CALL Pwarning("QMMM PERIODIC CALCULATION WITH NONE COUPLING WAS REQUESTED! "//&
-                        "SWITCHING OFF THE PERIODIC KEYWORD SINCE PERIODIC AND NON-PERIODIC "//&
-                        "CALCULATION WITH NONE COUPLING REPRESENT THE SAME METHOD!",root_section, error)
+          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+               "QMMM PERIODIC CALCULATION WITH NONE COUPLING WAS REQUESTED! "//&
+               "SWITCHING OFF THE PERIODIC KEYWORD SINCE PERIODIC AND NON-PERIODIC "//&
+               "CALCULATION WITH NONE COUPLING REPRESENT THE SAME METHOD! "//&
+CPSourceFileRef,&
+               error,only_ionode=.TRUE.)
        END IF
 
        ! First Initialize Fist...
