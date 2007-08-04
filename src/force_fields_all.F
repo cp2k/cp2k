@@ -48,7 +48,6 @@ MODULE force_fields_all
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
-  USE manybody_potential,              ONLY: spline_manybody_control
   USE memory_utilities,                ONLY: reallocate
   USE molecule_kind_types,             ONLY: &
        bend_type, bond_type, get_molecule_kind, impr_type, &
@@ -62,7 +61,8 @@ MODULE force_fields_all
        ea_type, lj_charmm_type, lj_type, nn_type, nosh_nosh, nosh_sh, &
        pair_potential_lj_create, pair_potential_pp_create, &
        pair_potential_pp_release, pair_potential_pp_type, &
-       pair_potential_single_clean, pair_potential_single_copy, sh_sh, &
+       pair_potential_single_add, pair_potential_single_clean, &
+       pair_potential_single_copy, pair_potential_single_type, sh_sh, &
        tersoff_type
   USE particle_types,                  ONLY: allocate_particle_set,&
                                              particle_type
@@ -75,7 +75,6 @@ MODULE force_fields_all
   USE splines_types,                   ONLY: spline_data_p_release,&
                                              spline_data_p_retain,&
                                              spline_data_p_type,&
-                                             spline_env_create,&
                                              spline_environment_type,&
                                              spline_factor_copy
   USE string_utilities,                ONLY: compress,&
@@ -107,7 +106,6 @@ MODULE force_fields_all
             force_field_pack_onfo,&
             force_field_pack_sne,&
             force_field_pack_ppse,&
-            force_field_pack_mbse,&
             force_field_pack_pp
 
 !!*****
@@ -1884,8 +1882,9 @@ CONTAINS
                                                 nmol, nshell_tot, stat
     INTEGER, DIMENSION(:), POINTER           :: molecule_list, my_atom_list, &
                                                 shell_list_tmp
-    LOGICAL :: failure, found, found_shell, is_a_shell, is_link_atom, &
-      null_massfrac, only_qm, save_mem, shell_adiabatic
+    LOGICAL :: failure, found, found_p, found_shell, is_a_shell, &
+      is_link_atom, null_massfrac, only_manybody, only_qm, save_mem, &
+      shell_adiabatic
     REAL(KIND=dp)                            :: atmmass, scale_factor
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charge
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -1949,18 +1948,26 @@ CONTAINS
        IF (ASSOCIATED(inp_info%nonbonded)) THEN
           IF (ASSOCIATED(inp_info%nonbonded%pot)) THEN
              ! Let's find the nonbonded potential where this atom is involved
+             only_manybody = .TRUE.
+             found_p       = .FALSE.
              DO j = 1, SIZE(inp_info%nonbonded%pot)
                 IF ( atmname==inp_info%nonbonded%pot(j)%pot %at1.OR.&
                      atmname==inp_info%nonbonded%pot(j)%pot %at2) THEN
-                   SELECT CASE(inp_info%nonbonded%pot(j)%pot%type)
+                   SELECT CASE(inp_info%nonbonded%pot(j)%pot%type(1))
                    CASE (ea_type,tersoff_type)
                       ! Charge is zero for EAM and TERSOFF type potential
-                      charge(i) = 0.0_dp
-                      found     = .TRUE.
+                      ! Do nothing..
+                   CASE DEFAULT
+                      only_manybody = .FALSE.
                       EXIT
                    END SELECT
+                   found_p = .TRUE.
                 END IF
              END DO
+             IF (only_manybody.AND.found_p) THEN
+                charge(i) = 0.0_dp
+                found     = .TRUE.
+             END IF
           END IF
        END IF
        IF (.NOT.found) CALL store_FF_missing_par(atm1=TRIM(name_atm_a),&
@@ -2182,13 +2189,15 @@ CONTAINS
                                                 epsilon_b, rmin, rmin2_a, &
                                                 rmin2_b
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: pot
     TYPE(spline_data_p_type), DIMENSION(:), &
       POINTER                                :: spl_p
 
     failure = .FALSE.
     use_qmmm_ff = qmmm_env%use_qmmm_ff
     allocate_spline_bond_env = .FALSE.
-
+    NULLIFY(pot)
     CALL timeset(routineN,'I','',handle2)
     CALL pair_potential_pp_create (potparm_bond, SIZE(atomic_kind_set), error)
     DO i=1,SIZE(atomic_kind_set)
@@ -2205,6 +2214,7 @@ CONTAINS
           only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b)
           CALL uppercase(name_atm_a)
           CALL uppercase(name_atm_b)
+          pot => potparm_bond%pot(i,j)%pot
 
           IF(ASSOCIATED(gro_info%nonbond_a_14)) THEN
              ii = 0 
@@ -2224,14 +2234,14 @@ CONTAINS
                 END IF
              END DO
              IF(ii/=0 .AND. jj/=0) THEN
-                CALL  pair_potential_lj_create(potparm_bond%pot(i,j)%pot, error)
-                potparm_bond%pot(i,j)%pot%type       = lj_type
-                potparm_bond%pot(i,j)%pot%at1        = name_atm_a
-                potparm_bond%pot(i,j)%pot%at2        = name_atm_b
-                potparm_bond%pot(i,j)%pot%lj%epsilon = 1.0_dp
-                potparm_bond%pot(i,j)%pot%lj%sigma6  = gro_info%nonbond_c6_14(ii,jj)
-                potparm_bond%pot(i,j)%pot%lj%sigma12 = gro_info%nonbond_c12_14(ii,jj)
-                potparm_bond%pot(i,j)%pot%rcutsq     = (10.0_dp*bohr)**2
+                CALL  pair_potential_lj_create(pot%set(1)%lj, error)
+                pot%type       = lj_type
+                pot%at1        = name_atm_a
+                pot%at2        = name_atm_b
+                pot%set(1)%lj%epsilon = 1.0_dp
+                pot%set(1)%lj%sigma6  = gro_info%nonbond_c6_14(ii,jj)
+                pot%set(1)%lj%sigma12 = gro_info%nonbond_c12_14(ii,jj)
+                pot%rcutsq     = (10.0_dp*bohr)**2
                 IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
                      " and "//TRIM(name_atm_b)//" overwriting!",root_section,error)
                 found = .TRUE.
@@ -2283,14 +2293,14 @@ CONTAINS
              rmin = rmin2_a + rmin2_b
              ! ABS to allow for mixing the two different sign conventions for epsilon
              epsilon0 = SQRT(ABS(epsilon_a*epsilon_b))
-             CALL  pair_potential_lj_create(potparm_bond%pot(i,j)%pot, error)
-             potparm_bond%pot(i,j)%pot%type       = lj_charmm_type
-             potparm_bond%pot(i,j)%pot%at1        = name_atm_a
-             potparm_bond%pot(i,j)%pot%at2        = name_atm_b
-             potparm_bond%pot(i,j)%pot%lj%epsilon = epsilon0
-             potparm_bond%pot(i,j)%pot%lj%sigma6  = 0.5_dp*rmin**6
-             potparm_bond%pot(i,j)%pot%lj%sigma12 = 0.25_dp*rmin**12
-             potparm_bond%pot(i,j)%pot%rcutsq     = (10.0_dp*bohr)**2
+             CALL  pair_potential_lj_create(pot%set(1)%lj, error)
+             pot%type       = lj_charmm_type
+             pot%at1        = name_atm_a
+             pot%at2        = name_atm_b
+             pot%set(1)%lj%epsilon = epsilon0
+             pot%set(1)%lj%sigma6  = 0.5_dp*rmin**6
+             pot%set(1)%lj%sigma12 = 0.25_dp*rmin**12
+             pot%rcutsq     = (10.0_dp*bohr)**2
              IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
                   " and "//TRIM(name_atm_b)//" overwriting!",root_section,error)
              found = .TRUE.
@@ -2306,13 +2316,18 @@ CONTAINS
                      ((name_atm_b)==(inp_info%nonbonded14%pot(k)%pot%at2))) .OR.  &
                      (((name_atm_b)==(inp_info%nonbonded14%pot(k)%pot%at1))  .AND. &
                      ((name_atm_a)==(inp_info%nonbonded14%pot(k)%pot%at2))) ) THEN
-                   CALL pair_potential_single_copy(inp_info%nonbonded14%pot(k)%pot,&
-                        potparm_bond%pot(i,j)%pot,error)
-                   IF (found) CALL Pwarning("Multiple ONFO declarations: "//TRIM(name_atm_a)//&
-                        " and "//TRIM(name_atm_b)//" overwriting!",root_section,error)
+                   IF (ff_type%multiple_potential) THEN
+                      CALL pair_potential_single_add(inp_info%nonbonded14%pot(k)%pot,pot,error)
+                      IF (found) CALL Pwarning("Multiple ONFO declaration: "//TRIM(name_atm_a)//&
+                           " and "//TRIM(name_atm_b)//" adding!",root_section,error)
+                      potparm_bond%pot(j,i)%pot => pot
+                   ELSE
+                      CALL pair_potential_single_copy(inp_info%nonbonded14%pot(k)%pot,pot,error)
+                      IF (found) CALL Pwarning("Multiple ONFO declarations: "//TRIM(name_atm_a)//&
+                           " and "//TRIM(name_atm_b)//" overwriting!",root_section,error)
+                   END IF
                    IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a)," ",TRIM(name_atm_b)
                    found = .TRUE.
-                   EXIT
                 END IF
              END DO
           END IF
@@ -2332,15 +2347,22 @@ CONTAINS
                            ((name_atm_b) ==(qmmm_env%inp_info%nonbonded14%pot(k)%pot%at2))) .OR.  &
                            (((name_atm_b)==(qmmm_env%inp_info%nonbonded14%pot(k)%pot%at1))  .AND. &
                            ((name_atm_a) ==(qmmm_env%inp_info%nonbonded14%pot(k)%pot%at2))) ) THEN
-                         CALL pair_potential_single_copy(qmmm_env%inp_info%nonbonded14%pot(k)%pot,&
-                              potparm_bond%pot(i,j)%pot,error)
-                         IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
-                              " and "//TRIM(name_atm_b)//" overwriting with QM/MM forcefield specifications",&
-                              root_section,error)
+                         IF (qmmm_env%multiple_potential) THEN
+                            CALL pair_potential_single_add(qmmm_env%inp_info%nonbonded14%pot(k)%pot,pot,error)
+                            IF (found) CALL Pwarning("Multiple ONFO declarations: "//TRIM(name_atm_a)//&
+                                 " and "//TRIM(name_atm_b)//" adding QM/MM forcefield specifications",&
+                                 root_section,error)
+                            potparm_bond%pot(i,j)%pot => pot
+                            potparm_bond%pot(j,i)%pot => pot
+                         ELSE
+                            CALL pair_potential_single_copy(qmmm_env%inp_info%nonbonded14%pot(k)%pot,pot,error)
+                            IF (found) CALL Pwarning("Multiple ONFO declarations: "//TRIM(name_atm_a)//&
+                                 " and "//TRIM(name_atm_b)//" overwriting with QM/MM forcefield specifications",&
+                                 root_section,error)
+                         END IF
                          IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a),&
                               " ",TRIM(name_atm_b)
                          found = .TRUE.
-                         EXIT
                       END IF
                    END DO
                 END IF
@@ -2353,19 +2375,19 @@ CONTAINS
                                        type_name="Spline_Bond_Env",&
                                        array=Ainfo,&
                                        error=error)
-             CALL pair_potential_single_clean( potparm_bond%pot(i,j)%pot ,error=error)
-             potparm_bond%pot(i,j)%pot%type       = nn_type
-             potparm_bond%pot(i,j)%pot%at1        = name_atm_a
-             potparm_bond%pot(i,j)%pot%at2        = name_atm_b
+             CALL pair_potential_single_clean( pot ,error=error)
+             pot%type       = nn_type
+             pot%at1        = name_atm_a
+             pot%at2        = name_atm_b
           ELSE
              allocate_spline_bond_env = .TRUE.
           END IF
           ! If defined global RCUT let's use it
           IF(ff_type%rcut_nb>0.0_dp) THEN
-             potparm_bond%pot(i,j)%pot%rcutsq     = ff_type%rcut_nb*ff_type%rcut_nb
+             pot%rcutsq     = ff_type%rcut_nb*ff_type%rcut_nb
           END IF
           IF (only_qm) THEN
-             CALL pair_potential_single_clean( potparm_bond%pot(i,j)%pot ,error=error)
+             CALL pair_potential_single_clean( pot ,error=error)
           END IF
        END DO  ! atom kind j
     END DO  ! atom kind i
@@ -2535,11 +2557,14 @@ CONTAINS
                                                 use_qmmm_ff
     REAL(KIND=dp)                            :: epsilon0, rmin
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: pot
 
     CALL timeset(routineN,'I','',handle2)
     failure = .FALSE.
     use_qmmm_ff = qmmm_env%use_qmmm_ff
-
+    NULLIFY(pot)
+    
     CALL pair_potential_pp_create ( potparm_nonbond, SIZE(atomic_kind_set),error )
     DO i=1,SIZE(atomic_kind_set)
        atomic_kind => atomic_kind_set(i)
@@ -2555,6 +2580,7 @@ CONTAINS
           only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b)
           CALL uppercase(name_atm_a)
           CALL uppercase(name_atm_b)
+          pot => potparm_nonbond%pot(i,j)%pot
 
           ! loop over params from GROMOS
           IF(ASSOCIATED(gro_info%nonbond_a)) THEN
@@ -2574,14 +2600,14 @@ CONTAINS
              END DO
 
              IF(ii/=0 .AND. jj/=0) THEN
-                CALL  pair_potential_lj_create(potparm_nonbond%pot(i,j)%pot, error)
-                potparm_nonbond%pot(i,j)%pot%type       = lj_type
-                potparm_nonbond%pot(i,j)%pot%at1        = name_atm_a
-                potparm_nonbond%pot(i,j)%pot%at2        = name_atm_b
-                potparm_nonbond%pot(i,j)%pot%lj%epsilon = 1.0_dp
-                potparm_nonbond%pot(i,j)%pot%lj%sigma6  = gro_info%nonbond_c6(ii,jj)
-                potparm_nonbond%pot(i,j)%pot%lj%sigma12  = gro_info%nonbond_c12(ii,jj)
-                potparm_nonbond%pot(i,j)%pot%rcutsq     = (10.0_dp*bohr)**2
+                CALL  pair_potential_lj_create(pot%set(1)%lj, error)
+                pot%type       = lj_type
+                pot%at1        = name_atm_a
+                pot%at2        = name_atm_b
+                pot%set(1)%lj%epsilon = 1.0_dp
+                pot%set(1)%lj%sigma6  = gro_info%nonbond_c6(ii,jj)
+                pot%set(1)%lj%sigma12 = gro_info%nonbond_c12(ii,jj)
+                pot%rcutsq     = (10.0_dp*bohr)**2
                 IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
                      " and "//TRIM(name_atm_b)//" overwriting!",&
                      root_section,error)
@@ -2608,38 +2634,44 @@ CONTAINS
                 rmin = chm_info%nonbond_rmin2(ii)+chm_info%nonbond_rmin2(jj)
                 epsilon0 = SQRT(chm_info%nonbond_eps(ii)*&
                      chm_info%nonbond_eps(jj))
-                CALL  pair_potential_lj_create(potparm_nonbond%pot(i,j)%pot, error)
-                potparm_nonbond%pot(i,j)%pot%type       = lj_charmm_type
-                potparm_nonbond%pot(i,j)%pot%at1        = name_atm_a
-                potparm_nonbond%pot(i,j)%pot%at2        = name_atm_b
-                potparm_nonbond%pot(i,j)%pot%lj%epsilon = epsilon0
-                potparm_nonbond%pot(i,j)%pot%lj%sigma6  = 0.5_dp*rmin**6
-                potparm_nonbond%pot(i,j)%pot%lj%sigma12 = 0.25_dp*rmin**12
-                potparm_nonbond%pot(i,j)%pot%rcutsq     = (10.0_dp*bohr)**2
+                CALL  pair_potential_lj_create(pot%set(1)%lj, error)
+                pot%type       = lj_charmm_type
+                pot%at1        = name_atm_a
+                pot%at2        = name_atm_b
+                pot%set(1)%lj%epsilon = epsilon0
+                pot%set(1)%lj%sigma6  = 0.5_dp*rmin**6
+                pot%set(1)%lj%sigma12 = 0.25_dp*rmin**12
+                pot%rcutsq     = (10.0_dp*bohr)**2
                 IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
                      " and "//TRIM(name_atm_b)//" overwriting!",&
                      root_section,error)
                 found = .TRUE.
              END IF
           END IF
-
+          
           ! always have the input param last to overwrite all the other ones
           IF(ASSOCIATED(inp_info%nonbonded)) THEN
              DO k=1,SIZE(inp_info%nonbonded%pot)
                 IF(iw>0) WRITE(iw,*) "    TESTING ",TRIM(name_atm_a),TRIM(name_atm_b),&
                      " with ",TRIM(inp_info%nonbonded%pot(k)%pot%at1),&
                      TRIM(inp_info%nonbonded%pot(k)%pot%at2)
-                IF((((name_atm_a)==(inp_info%nonbonded%pot(k)%pot%at1))  .AND. &
+                IF(( ((name_atm_a)==(inp_info%nonbonded%pot(k)%pot%at1))  .AND. &
                      ((name_atm_b)==(inp_info%nonbonded%pot(k)%pot%at2))) .OR.  &
-                     (((name_atm_b)==(inp_info%nonbonded%pot(k)%pot%at1))  .AND. &
+                    (((name_atm_b)==(inp_info%nonbonded%pot(k)%pot%at1))  .AND. &
                      ((name_atm_a)==(inp_info%nonbonded%pot(k)%pot%at2))) ) THEN
-                   CALL pair_potential_single_copy(inp_info%nonbonded%pot(k)%pot,potparm_nonbond%pot(i,j)%pot,error)
-                   IF (found) CALL Pwarning("Multiple non-bonded declarations: "//TRIM(name_atm_a)//&
-                        " and "//TRIM(name_atm_b)//" overwriting!",&
-                        root_section,error)
+                   IF (ff_type%multiple_potential) THEN
+                      CALL pair_potential_single_add(inp_info%nonbonded%pot(k)%pot,pot,error)
+                      IF (found) CALL Pwarning("Multiple non-bonded declaration: "//TRIM(name_atm_a)//&
+                           " and "//TRIM(name_atm_b)//" adding!",root_section,error)
+                      potparm_nonbond%pot(i,j)%pot => pot
+                      potparm_nonbond%pot(j,i)%pot => pot
+                   ELSE
+                      CALL pair_potential_single_copy(inp_info%nonbonded%pot(k)%pot,pot,error)
+                      IF (found) CALL Pwarning("Multiple non-bonded declarations: "//TRIM(name_atm_a)//&
+                           " and "//TRIM(name_atm_b)//" overwriting!",root_section,error)
+                   END IF
                    IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a)," ",TRIM(name_atm_b)
                    found = .TRUE.
-                   EXIT
                 END IF
              END DO
           END IF
@@ -2654,20 +2686,25 @@ CONTAINS
                    DO k=1,SIZE(qmmm_env%inp_info%nonbonded%pot)
                       IF(iw>0) WRITE(iw,*) "    TESTING ",TRIM(name_atm_a),TRIM(name_atm_b),&
                            " with ",TRIM(qmmm_env%inp_info%nonbonded%pot(k)%pot%at1),&
-                           TRIM(qmmm_env%inp_info%nonbonded%pot(k)%pot%at2)
+                                    TRIM(qmmm_env%inp_info%nonbonded%pot(k)%pot%at2)
                       IF(( ((name_atm_a) ==(qmmm_env%inp_info%nonbonded%pot(k)%pot%at1))  .AND. &
                            ((name_atm_b) ==(qmmm_env%inp_info%nonbonded%pot(k)%pot%at2))) .OR.  &
                            (((name_atm_b)==(qmmm_env%inp_info%nonbonded%pot(k)%pot%at1))  .AND. &
                            ((name_atm_a) ==(qmmm_env%inp_info%nonbonded%pot(k)%pot%at2))) ) THEN
-                         CALL pair_potential_single_copy(qmmm_env%inp_info%nonbonded%pot(k)%pot,&
-                              potparm_nonbond%pot(i,j)%pot,error)
-                         IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
-                              " and "//TRIM(name_atm_b)//" overwriting with QM/MM forcefield specifications",&
-                              root_section,error)
-                         IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a),&
-                              " ",TRIM(name_atm_b)
+                         IF (qmmm_env%multiple_potential) THEN
+                            CALL pair_potential_single_add(qmmm_env%inp_info%nonbonded%pot(k)%pot,pot,error)
+                            IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
+                                 " and "//TRIM(name_atm_b)//" adding QM/MM forcefield specifications",&
+                                 root_section,error)
+                            potparm_nonbond%pot(j,i)%pot => pot
+                         ELSE
+                            CALL pair_potential_single_copy(qmmm_env%inp_info%nonbonded%pot(k)%pot,pot,error)
+                            IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
+                                 " and "//TRIM(name_atm_b)//" overwriting with QM/MM forcefield specifications",&
+                                 root_section,error)
+                         END IF
+                         IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a)," ",TRIM(name_atm_b)
                          found = .TRUE.
-                         EXIT
                       END IF
                    END DO
                 END IF
@@ -2683,22 +2720,21 @@ CONTAINS
           END IF
           ! If defined global RCUT let's use it
           IF(ff_type%rcut_nb>0.0_dp) THEN
-             potparm_nonbond%pot(i,j)%pot%rcutsq     = ff_type%rcut_nb*ff_type%rcut_nb
+             pot%rcutsq     = ff_type%rcut_nb*ff_type%rcut_nb
           END IF
           IF((is_a_shell .AND. .NOT. is_b_shell) .OR. (is_b_shell .AND. .NOT. is_a_shell)) THEN
-             potparm_nonbond%pot(i,j)%pot%shell_type  = nosh_sh
+             pot%shell_type  = nosh_sh
           ELSE IF (is_a_shell .AND. is_b_shell) THEN
-             potparm_nonbond%pot(i,j)%pot%shell_type  = sh_sh
+             pot%shell_type  = sh_sh
           ELSE
-             potparm_nonbond%pot(i,j)%pot%shell_type  = nosh_nosh
+             pot%shell_type  = nosh_nosh
           END IF
           IF (only_qm) THEN
-             CALL pair_potential_single_clean( potparm_nonbond%pot(i,j)%pot ,error=error)
+             CALL pair_potential_single_clean( pot ,error=error)
           END IF
        END DO  ! jkind
     END DO   ! ikind
     CALL timestop(0.0_dp,handle2)
-
   END SUBROUTINE force_field_pack_sne
 
 !******************************************************************************
@@ -2770,84 +2806,6 @@ CONTAINS
     CALL timestop(0.0_dp,handle2)
 
   END SUBROUTINE force_field_pack_ppse
-
-!******************************************************************************
-!!****** force_fields_all/force_field_pack_mbse [1.0] *
-!!
-!!   NAME
-!!     force_field_pack_mbse
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     create the manybody spline environment
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*****************************************************************************
-
-  SUBROUTINE force_field_pack_mbse  (atomic_kind_set, ff_type, &
-       iw2, iw3, potparm_nonbond, spline_manybody_env, error)
-
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(force_field_type), INTENT(INOUT)    :: ff_type
-    INTEGER                                  :: iw2, iw3
-    TYPE(pair_potential_pp_type), POINTER    :: potparm_nonbond
-    TYPE(spline_environment_type), POINTER   :: spline_manybody_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_mbse', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle2, ikind, jkind, n, &
-                                                nkinds
-    LOGICAL                                  :: failure, shell_present
-    TYPE(spline_data_p_type), DIMENSION(:), &
-      POINTER                                :: spl_p
-
-    CALL timeset(routineN,'I','',handle2)
-    failure = .FALSE.
-
-    nkinds = SIZE(atomic_kind_set)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, shell_present=shell_present)
-    CALL spline_env_create(spline_manybody_env, nkinds, error=error)
-    CALL spline_manybody_control(spline_manybody_env, potparm_nonbond,&
-         eps_spline=ff_type%eps_spline,max_energy=ff_type%max_energy,&
-         rlow_nb=ff_type%rlow_nb, emax_spline=ff_type%emax_spline, iw=iw2,&
-         iw2=iw3, error=error)
-
-    DO ikind = 1, SIZE ( potparm_nonbond%pot, 1 )
-       DO jkind = ikind, SIZE ( potparm_nonbond%pot, 2)
-          !---------------------------------------
-          ! The many-body contribution (only EAM)
-          !---------------------------------------
-          n = spline_manybody_env % spltab ( ikind, jkind )
-          IF (n>0) THEN
-             spl_p => spline_manybody_env%spl_pp(n)%spl_p
-             IF ( ASSOCIATED ( spl_p ) ) THEN
-                SELECT CASE(potparm_nonbond%pot(ikind,jkind)%pot%type)
-                CASE(ea_type)
-                   CALL spline_data_p_retain ( spl_p, error )
-                   CALL spline_data_p_release ( potparm_nonbond%pot(ikind,jkind)%pot%eam%rho_spline_data, error )
-                   potparm_nonbond%pot(ikind,jkind)%pot%eam%rho_spline_data => spl_p
-                CASE DEFAULT
-                   ! Should never reach this point
- CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-                END SELECT
-             ENDIF
-          END IF
-       END DO
-    END DO
-
-    CALL timestop(0.0_dp,handle2)
-
-  END SUBROUTINE force_field_pack_mbse
 
 !******************************************************************************
 !!****** force_fields_all/force_field_pack_pp [1.0] *

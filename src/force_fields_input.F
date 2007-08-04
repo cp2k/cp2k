@@ -57,11 +57,10 @@ MODULE force_fields_input
   USE message_passing,                 ONLY: mp_bcast
   USE pair_potential_types,            ONLY: &
        b4_type, bm_type, do_potential_single_allocation, ea_type, &
-       eam_pot_type, ft_type, gp_type, gw_type, ip_type, lj_charmm_type, &
-       no_potential_single_allocation, pair_potential_p_type, &
-       pair_potential_reallocate, pair_potential_single_type, &
+       eam_pot_type, ft_pot_type, ft_type, gp_type, gw_type, ip_type, &
+       ipbv_pot_type, lj_charmm_type, no_potential_single_allocation, &
+       pair_potential_p_type, pair_potential_reallocate, &
        potential_single_allocation, tersoff_type, wl_type
-  USE physcon,                         ONLY: bohr
   USE shell_potential_types,           ONLY: shell_p_create,&
                                              shell_p_type
   USE string_utilities,                ONLY: compress,&
@@ -143,6 +142,7 @@ CONTAINS
        potential_single_allocation = no_potential_single_allocation
        IF (unique_spline) potential_single_allocation = do_potential_single_allocation
 
+       CALL section_vals_val_get(ff_section,"MULTIPLE_POTENTIAL",l_val=ff_type%multiple_potential,error=error)
        CALL section_vals_val_get(ff_section,"NONBONDED",l_val=ff_type%nonbonded,error=error)
        tmp_section  => section_vals_get_subs_vals(ff_section,"NONBONDED",error=error)
        CALL section_vals_get(tmp_section,explicit=explicit,error=error)
@@ -351,71 +351,70 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE set_IPBV_ff(at1, at2, nonbonded )
+  SUBROUTINE set_IPBV_ff(at1, at2, ipbv )
     CHARACTER(LEN=*), INTENT(IN)             :: at1, at2
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: nonbonded
+    TYPE(ipbv_pot_type), POINTER             :: ipbv
 
     IF  ( ( at1(1:1) == 'O' ) .AND. ( at2 (1:1) == 'O' ) ) THEN
-       nonbonded%ipbv%rcore = 0.9_dp                  ! a.u.
-       nonbonded%ipbv%m = -1.2226442563398141E+11_dp   ! Kelvin/a.u.
-       nonbonded%ipbv%b =  1.1791292385486696E+11_dp  ! Hartree
+       ipbv%rcore = 0.9_dp                  ! a.u.
+       ipbv%m = -1.2226442563398141E+11_dp   ! Kelvin/a.u.
+       ipbv%b =  1.1791292385486696E+11_dp  ! Hartree
 
        ! Hartree*a.u.^2
-       nonbonded%ipbv% a ( 2 ) = 4.786380682394_dp
-       nonbonded%ipbv% a ( 3 ) = -1543.407053545_dp
-       nonbonded%ipbv% a ( 4 ) = 88783.31188529_dp
-       nonbonded%ipbv% a ( 5 ) = -2361200.155376_dp
-       nonbonded%ipbv% a ( 6 ) = 35940504.84679_dp
-       nonbonded%ipbv% a ( 7 ) = -339762743.6358_dp
-       nonbonded%ipbv% a ( 8 ) = 2043874926.466_dp
-       nonbonded%ipbv% a ( 9 ) = -7654856796.383_dp
-       nonbonded%ipbv% a ( 10 ) = 16195251405.65_dp
-       nonbonded%ipbv% a ( 11 ) = -13140392992.18_dp
-       nonbonded%ipbv% a ( 12 ) = -9285572894.245_dp
-       nonbonded%ipbv% a ( 13 ) = 8756947519.029_dp
-       nonbonded%ipbv% a ( 14 ) = 15793297761.67_dp
-       nonbonded%ipbv% a ( 15 ) = 12917180227.21_dp
+       ipbv% a ( 2 ) = 4.786380682394_dp
+       ipbv% a ( 3 ) = -1543.407053545_dp
+       ipbv% a ( 4 ) = 88783.31188529_dp
+       ipbv% a ( 5 ) = -2361200.155376_dp
+       ipbv% a ( 6 ) = 35940504.84679_dp
+       ipbv% a ( 7 ) = -339762743.6358_dp
+       ipbv% a ( 8 ) = 2043874926.466_dp
+       ipbv% a ( 9 ) = -7654856796.383_dp
+       ipbv% a ( 10 ) = 16195251405.65_dp
+       ipbv% a ( 11 ) = -13140392992.18_dp
+       ipbv% a ( 12 ) = -9285572894.245_dp
+       ipbv% a ( 13 ) = 8756947519.029_dp
+       ipbv% a ( 14 ) = 15793297761.67_dp
+       ipbv% a ( 15 ) = 12917180227.21_dp
     ELSEIF(((at1(1:1) == 'O').AND.(at2 (1:1) == 'H')).OR.&
          ((at1(1:1) == 'H').AND.(at2 (1:1) == 'O')))  THEN
-       nonbonded%ipbv%rcore = 2.95_dp       ! a.u.
+       ipbv%rcore = 2.95_dp       ! a.u.
 
-       nonbonded%ipbv%m = -0.004025691139759147_dp  ! Hartree/a.u.
-       nonbonded%ipbv%b =  -2.193731138097428_dp    ! Hartree
+       ipbv%m = -0.004025691139759147_dp  ! Hartree/a.u.
+       ipbv%b =  -2.193731138097428_dp    ! Hartree
        ! Hartree*a.u.^2
-       nonbonded%ipbv% a ( 2 ) = -195.7716013277_dp
-       nonbonded%ipbv% a ( 3 ) = 15343.78613395_dp
-       nonbonded%ipbv% a ( 4 ) = -530864.4586516_dp
-       nonbonded%ipbv% a ( 5 ) = 10707934.39058_dp
-       nonbonded%ipbv% a ( 6 ) = -140099704.7890_dp
-       nonbonded%ipbv% a ( 7 ) = 1250943273.785_dp
-       nonbonded%ipbv% a ( 8 ) = -7795458330.676_dp
-       nonbonded%ipbv% a ( 9 ) = 33955897217.31_dp
-       nonbonded%ipbv% a ( 10 ) = -101135640744.0_dp
-       nonbonded%ipbv% a ( 11 ) = 193107995718.7_dp
-       nonbonded%ipbv% a ( 12 ) = -193440560940.0_dp
-       nonbonded%ipbv% a ( 13 ) =-4224406093.918E0_dp
-       nonbonded%ipbv% a ( 14 ) = 217192386506.5E0_dp
-       nonbonded%ipbv% a ( 15 ) = -157581228915.5_dp
+       ipbv% a ( 2 ) = -195.7716013277_dp
+       ipbv% a ( 3 ) = 15343.78613395_dp
+       ipbv% a ( 4 ) = -530864.4586516_dp
+       ipbv% a ( 5 ) = 10707934.39058_dp
+       ipbv% a ( 6 ) = -140099704.7890_dp
+       ipbv% a ( 7 ) = 1250943273.785_dp
+       ipbv% a ( 8 ) = -7795458330.676_dp
+       ipbv% a ( 9 ) = 33955897217.31_dp
+       ipbv% a ( 10 ) = -101135640744.0_dp
+       ipbv% a ( 11 ) = 193107995718.7_dp
+       ipbv% a ( 12 ) = -193440560940.0_dp
+       ipbv% a ( 13 ) =-4224406093.918E0_dp
+       ipbv% a ( 14 ) = 217192386506.5E0_dp
+       ipbv% a ( 15 ) = -157581228915.5_dp
     ELSEIF ( ( at1(1:1) == 'H' ) .AND. ( at2 (1:1) == 'H' ) ) THEN
-       nonbonded%ipbv%rcore = 3.165_dp     ! a.u.
-       nonbonded%ipbv%m = 0.002639704108787555_dp  ! Hartree/a.u.
-       nonbonded%ipbv%b = -0.2735482611857583_dp ! Hartree
+       ipbv%rcore = 3.165_dp     ! a.u.
+       ipbv%m = 0.002639704108787555_dp  ! Hartree/a.u.
+       ipbv%b = -0.2735482611857583_dp ! Hartree
        ! Hartree*a.u.^2
-       nonbonded%ipbv% a ( 2 ) = -26.29456010782_dp
-       nonbonded%ipbv% a ( 3 ) =  2373.352548248_dp
-       nonbonded%ipbv% a ( 4 ) = -93880.43551360_dp
-       nonbonded%ipbv% a ( 5 ) =  2154624.884809_dp
-       nonbonded%ipbv% a ( 6 ) = -31965151.34955_dp
-       nonbonded%ipbv% a ( 7 ) = 322781785.3278_dp
-       nonbonded%ipbv% a ( 8 ) = -2271097368.668_dp
-       nonbonded%ipbv% a ( 9 ) = 11169163192.90_dp
-       nonbonded%ipbv% a ( 10 ) =-37684457778.47_dp
-       nonbonded%ipbv% a ( 11 ) = 82562104256.03_dp
-       nonbonded%ipbv% a ( 12 ) = -100510435213.4_dp
-       nonbonded%ipbv% a ( 13 ) = 24570342714.65E0_dp
-       nonbonded%ipbv% a ( 14 ) = 88766181532.94E0_dp
-       nonbonded%ipbv% a ( 15 ) = -79705131323.98_dp
+       ipbv% a ( 2 ) = -26.29456010782_dp
+       ipbv% a ( 3 ) =  2373.352548248_dp
+       ipbv% a ( 4 ) = -93880.43551360_dp
+       ipbv% a ( 5 ) =  2154624.884809_dp
+       ipbv% a ( 6 ) = -31965151.34955_dp
+       ipbv% a ( 7 ) = 322781785.3278_dp
+       ipbv% a ( 8 ) = -2271097368.668_dp
+       ipbv% a ( 9 ) = 11169163192.90_dp
+       ipbv% a ( 10 ) =-37684457778.47_dp
+       ipbv% a ( 11 ) = 82562104256.03_dp
+       ipbv% a ( 12 ) = -100510435213.4_dp
+       ipbv% a ( 13 ) = 24570342714.65E0_dp
+       ipbv% a ( 14 ) = 88766181532.94E0_dp
+       ipbv% a ( 15 ) = -79705131323.98_dp
     ELSE
        CALL stop_program ("input_nonbonded","IPBV only for WATER")
     ENDIF
@@ -438,41 +437,40 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE set_BMHFT_ff(at1, at2, nonbonded )
+  SUBROUTINE set_BMHFT_ff(at1, at2, ft )
     CHARACTER(LEN=*), INTENT(IN)             :: at1, at2
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: nonbonded
+    TYPE(ft_pot_type), POINTER               :: ft
 
-    nonbonded%ft%b =  3.1545_dp     ! Ang^-1
-    CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded%ft%b , l_power = -1  )
+    ft%b =  3.1545_dp     ! Ang^-1
+    CALL convert_to_cp2k_units ( "ANGSTROM", length =  ft%b , l_power = -1  )
     IF  ( ( at1(1:2) == 'NA' ) .AND. ( at2 (1:2) == 'NA' ) ) THEN
-       nonbonded%ft%a = 424.097_dp  ! eV
-       CALL convert_to_cp2k_units ( "EV", energy = nonbonded%ft%a )
-       nonbonded%ft%c =    1.05_dp  ! eV * Ang^6
-       CALL convert_to_cp2k_units ( "EV", energy = nonbonded%ft%c )
-       CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded%ft%c , l_power = 6  )
-       nonbonded%ft%d =   0.499_dp  ! eV * Ang^8
-       CALL convert_to_cp2k_units ( "EV", energy = nonbonded%ft%d )
-       CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded%ft%d , l_power = 8  )
+       ft%a = 424.097_dp  ! eV
+       CALL convert_to_cp2k_units ( "EV", energy = ft%a )
+       ft%c =    1.05_dp  ! eV * Ang^6
+       CALL convert_to_cp2k_units ( "EV", energy = ft%c )
+       CALL convert_to_cp2k_units ( "ANGSTROM", length =  ft%c , l_power = 6  )
+       ft%d =   0.499_dp  ! eV * Ang^8
+       CALL convert_to_cp2k_units ( "EV", energy = ft%d )
+       CALL convert_to_cp2k_units ( "ANGSTROM", length =  ft%d , l_power = 8  )
     ELSEIF(((at1(1:2) == 'NA').AND.(at2(1:2) == 'CL')).OR.&
          ((at1(1:2) == 'CL').AND.(at2(1:2) == 'NA'))) THEN
-       nonbonded%ft%a = 1256.31_dp  ! eV
-       CALL convert_to_cp2k_units ( "EV", energy = nonbonded%ft%a )
-       nonbonded%ft%c =    7.00_dp  ! eV * Ang^6
-       CALL convert_to_cp2k_units ( "EV", energy = nonbonded%ft%c )
-       CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded%ft%c , l_power = 6  )
-       nonbonded%ft%d =   8.676_dp  ! eV * Ang^8
-       CALL convert_to_cp2k_units ( "EV", energy = nonbonded%ft%d )
-       CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded%ft%d , l_power = 8  )
+       ft%a = 1256.31_dp  ! eV
+       CALL convert_to_cp2k_units ( "EV", energy = ft%a )
+       ft%c =    7.00_dp  ! eV * Ang^6
+       CALL convert_to_cp2k_units ( "EV", energy = ft%c )
+       CALL convert_to_cp2k_units ( "ANGSTROM", length =  ft%c , l_power = 6  )
+       ft%d =   8.676_dp  ! eV * Ang^8
+       CALL convert_to_cp2k_units ( "EV", energy = ft%d )
+       CALL convert_to_cp2k_units ( "ANGSTROM", length =  ft%d , l_power = 8  )
     ELSEIF ( ( at1(1:2) == 'CL' ) .AND. ( at2 (1:2) == 'CL' ) ) THEN
-       nonbonded%ft%a = 3488.998_dp ! eV
-       CALL convert_to_cp2k_units ( "EV", energy = nonbonded%ft%a )
-       nonbonded%ft%c =    72.50_dp ! eV * Ang^6
-       CALL convert_to_cp2k_units ( "EV", energy = nonbonded%ft%c )
-       CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded%ft%c , l_power = 6  )
-       nonbonded%ft%d =  145.427_dp ! eV * Ang^8
-       CALL convert_to_cp2k_units ( "EV", energy = nonbonded%ft%d )
-       CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded%ft%d , l_power = 8  )
+       ft%a = 3488.998_dp ! eV
+       CALL convert_to_cp2k_units ( "EV", energy = ft%a )
+       ft%c =    72.50_dp ! eV * Ang^6
+       CALL convert_to_cp2k_units ( "EV", energy = ft%c )
+       CALL convert_to_cp2k_units ( "ANGSTROM", length =  ft%c , l_power = 6  )
+       ft%d =  145.427_dp ! eV * Ang^8
+       CALL convert_to_cp2k_units ( "EV", energy = ft%d )
+       CALL convert_to_cp2k_units ( "ANGSTROM", length =  ft%d , l_power = 8  )
     ELSE
        CALL stop_program ("input_nonbonded","BMHFT only for NaCl")
     ENDIF
@@ -520,9 +518,9 @@ CONTAINS
        CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
        CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
        CALL section_vals_val_get(section,"PARM_FILE_NAME",i_rep_section=isec,&
-            c_val=nonbonded%pot(start+isec)%pot%eam%eam_file_name,error=error)
-       CALL read_eam_data ( nonbonded%pot(start+isec)%pot%eam, para_env,  mm_section,error)
-       nonbonded%pot(start+isec)%pot%rcutsq  = nonbonded%pot(start+isec)%pot%eam%acutal**2
+            c_val=nonbonded%pot(start+isec)%pot%set(1)%eam%eam_file_name,error=error)
+       CALL read_eam_data ( nonbonded%pot(start+isec)%pot%set(1)%eam, para_env,  mm_section,error)
+       nonbonded%pot(start+isec)%pot%rcutsq  = nonbonded%pot(start+isec)%pot%set(1)%eam%acutal**2
     END DO
   END SUBROUTINE read_eam_section
 
@@ -568,9 +566,9 @@ CONTAINS
        nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
        CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
        CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
-       nonbonded%pot(start+isec)%pot %lj%epsilon = epsilon
-       nonbonded%pot(start+isec)%pot %lj%sigma6  = sigma**6
-       nonbonded%pot(start+isec)%pot %lj%sigma12 = sigma**12
+       nonbonded%pot(start+isec)%pot %set(1)%lj%epsilon = epsilon
+       nonbonded%pot(start+isec)%pot %set(1)%lj%sigma6  = sigma**6
+       nonbonded%pot(start+isec)%pot %set(1)%lj%sigma12 = sigma**12
        nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
     END DO
   END SUBROUTINE read_lj_section
@@ -618,9 +616,9 @@ CONTAINS
        nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
        CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
        CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
-       nonbonded%pot(start+isec)%pot %willis%a = a
-       nonbonded%pot(start+isec)%pot %willis%b = b
-       nonbonded%pot(start+isec)%pot %willis%c = c
+       nonbonded%pot(start+isec)%pot %set(1)%willis%a = a
+       nonbonded%pot(start+isec)%pot %set(1)%willis%b = b
+       nonbonded%pot(start+isec)%pot %set(1)%willis%c = c
        nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
     END DO
   END SUBROUTINE read_wl_section
@@ -670,11 +668,11 @@ CONTAINS
        nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
        CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
        CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
-       nonbonded%pot(start+isec)%pot %goodwin%vr0 = vr0
-       nonbonded%pot(start+isec)%pot %goodwin%d = d
-       nonbonded%pot(start+isec)%pot %goodwin%dc = dc
-       nonbonded%pot(start+isec)%pot %goodwin%m = m
-       nonbonded%pot(start+isec)%pot %goodwin%mc = mc
+       nonbonded%pot(start+isec)%pot %set(1)%goodwin%vr0 = vr0
+       nonbonded%pot(start+isec)%pot %set(1)%goodwin%d = d
+       nonbonded%pot(start+isec)%pot %set(1)%goodwin%dc = dc
+       nonbonded%pot(start+isec)%pot %set(1)%goodwin%m = m
+       nonbonded%pot(start+isec)%pot %set(1)%goodwin%mc = mc
        nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
     END DO
   END SUBROUTINE read_gd_section
@@ -718,7 +716,7 @@ CONTAINS
        CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
        CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
        CALL set_IPBV_ff(nonbonded%pot(start+isec)%pot %at1, nonbonded%pot(start+isec)%pot %at2,&
-            nonbonded%pot(start+isec)%pot )
+            nonbonded%pot(start+isec)%pot%set(1)%ipbv )
        CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
        nonbonded%pot(start+isec)%pot%rcutsq     = rcut**2
     END DO
@@ -766,16 +764,16 @@ CONTAINS
        CALL section_vals_val_get(section,"A",i_rep_section=isec,n_rep_val=i,error=error)
        IF (i==1) THEN
           CALL section_vals_val_get(section,"A",i_rep_section=isec,&
-               r_val=nonbonded%pot(start+isec)%pot%ft%a,error=error)
+               r_val=nonbonded%pot(start+isec)%pot%set(1)%ft%a,error=error)
           CALL section_vals_val_get(section,"B",i_rep_section=isec,&
-               r_val=nonbonded%pot(start+isec)%pot%ft%b,error=error)
+               r_val=nonbonded%pot(start+isec)%pot%set(1)%ft%b,error=error)
           CALL section_vals_val_get(section,"C",i_rep_section=isec,&
-               r_val=nonbonded%pot(start+isec)%pot%ft%c,error=error)
+               r_val=nonbonded%pot(start+isec)%pot%set(1)%ft%c,error=error)
           CALL section_vals_val_get(section,"D",i_rep_section=isec,&
-               r_val=nonbonded%pot(start+isec)%pot%ft%d,error=error)
+               r_val=nonbonded%pot(start+isec)%pot%set(1)%ft%d,error=error)
        ELSE
           CALL set_BMHFT_ff(nonbonded%pot(start+isec)%pot %at1, nonbonded%pot(start+isec)%pot %at2,&
-               nonbonded%pot(start+isec)%pot )
+               nonbonded%pot(start+isec)%pot%set(1)%ft )
        END IF
        CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
        nonbonded%pot(start+isec)%pot%rcutsq     = rcut**2
@@ -859,22 +857,22 @@ CONTAINS
        nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
        CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
        CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
-       nonbonded%pot(start+isec)%pot %buck4r%a = a
-       nonbonded%pot(start+isec)%pot %buck4r%b = b
-       nonbonded%pot(start+isec)%pot %buck4r%c = c
-       nonbonded%pot(start+isec)%pot %buck4r%r1 = r1
-       nonbonded%pot(start+isec)%pot %buck4r%r2 = r2
-       nonbonded%pot(start+isec)%pot %buck4r%r3 = r3
-       nonbonded%pot(start+isec)%pot %buck4r%npoly1 = np1-1
+       nonbonded%pot(start+isec)%pot %set(1)%buck4r%a = a
+       nonbonded%pot(start+isec)%pot %set(1)%buck4r%b = b
+       nonbonded%pot(start+isec)%pot %set(1)%buck4r%c = c
+       nonbonded%pot(start+isec)%pot %set(1)%buck4r%r1 = r1
+       nonbonded%pot(start+isec)%pot %set(1)%buck4r%r2 = r2
+       nonbonded%pot(start+isec)%pot %set(1)%buck4r%r3 = r3
+       nonbonded%pot(start+isec)%pot %set(1)%buck4r%npoly1 = np1-1
        IF( np1-1 > 10) THEN
          CALL stop_program ("input_nonbonded","BUCK4r: too high polynomial order (>0)")
        END IF
-       nonbonded%pot(start+isec)%pot %buck4r%poly1(0:np1-1) = coeff1(0:np1-1)
-       nonbonded%pot(start+isec)%pot %buck4r%npoly2 = np2-1
+       nonbonded%pot(start+isec)%pot %set(1)%buck4r%poly1(0:np1-1) = coeff1(0:np1-1)
+       nonbonded%pot(start+isec)%pot %set(1)%buck4r%npoly2 = np2-1
        IF( np2-1 > 10) THEN
          CALL stop_program ("input_nonbonded","BUCK4r: too high polynomial order (>0)")
        END IF
-       nonbonded%pot(start+isec)%pot %buck4r%poly2(0:np2-1) = coeff2(0:np2-1)
+       nonbonded%pot(start+isec)%pot %set(1)%buck4r%poly2(0:np2-1) = coeff2(0:np2-1)
        nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
        DEALLOCATE(coeff1,coeff2,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -942,31 +940,31 @@ CONTAINS
        ! function name: read as an array of strings to better treat the presence of
        ! white spaces..
        ! function name
-       nonbonded%pot(start+isec)%pot %gp%potential = " "
+       nonbonded%pot(start+isec)%pot %set(1)%gp%potential = " "
        idim = 1
        DO i = 1, SIZE(fun)
-          nonbonded%pot(start+isec)%pot %gp%potential = nonbonded%pot(start+isec)%pot %gp%potential(1:idim)//&
-               TRIM(fun(i))
+          nonbonded%pot(start+isec)%pot%set(1)%gp%potential = &
+               nonbonded%pot(start+isec)%pot%set(1)%gp%potential(1:idim)//TRIM(fun(i))
           idim = idim + LEN_TRIM(fun(i))
           IF (idim > default_path_length) &
                CALL stop_program ("input_nonbonded","read_gp_section: string for funtion too long!")
        END DO
-       CALL compress(nonbonded%pot(start+isec)%pot %gp%potential, full=.TRUE.)
+       CALL compress(nonbonded%pot(start+isec)%pot %set(1)%gp%potential, full=.TRUE.)
        ! parameters
        idim = 1
        IF (ASSOCIATED(parameters)) idim = idim + SIZE(parameters)
-       ALLOCATE(nonbonded%pot(start+isec)%pot %gp%parameters(idim),stat=stat)
+       ALLOCATE(nonbonded%pot(start+isec)%pot %set(1)%gp%parameters(idim),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       IF (ASSOCIATED(parameters)) nonbonded%pot(start+isec)%pot %gp%parameters(2:)  = parameters
+       IF (ASSOCIATED(parameters)) nonbonded%pot(start+isec)%pot %set(1)%gp%parameters(2:)  = parameters
        ! values
-       ALLOCATE(nonbonded%pot(start+isec)%pot %gp%values(idim),stat=stat)
+       ALLOCATE(nonbonded%pot(start+isec)%pot %set(1)%gp%values(idim),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       nonbonded%pot(start+isec)%pot %gp%values = 0.0_dp
-       IF (ASSOCIATED(values)) nonbonded%pot(start+isec)%pot %gp%values(2:) = values
+       nonbonded%pot(start+isec)%pot %set(1)%gp%values = 0.0_dp
+       IF (ASSOCIATED(values)) nonbonded%pot(start+isec)%pot %set(1)%gp%values(2:) = values
        ! variables
        CPPostcondition(SIZE(variables)==1,cp_failure_level,routineP,error,failure)
-       nonbonded%pot(start+isec)%pot %gp%variables = variables(1)
-       nonbonded%pot(start+isec)%pot %gp%parameters(1:1) = variables(1)
+       nonbonded%pot(start+isec)%pot %set(1)%gp%variables = variables(1)
+       nonbonded%pot(start+isec)%pot %set(1)%gp%parameters(1:1) = variables(1)
        ! rcut
        nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
     END DO
@@ -1013,22 +1011,22 @@ CONTAINS
        CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
        CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
 
-       CALL section_vals_val_get(tersoff_section,"A",r_val=nonbonded%pot(start+isec)%pot%tersoff%A,error=error)
-       CALL section_vals_val_get(tersoff_section,"B",r_val=nonbonded%pot(start+isec)%pot%tersoff%B,error=error)
-       CALL section_vals_val_get(tersoff_section,"lambda1",r_val=nonbonded%pot(start+isec)%pot%tersoff%lambda1,error=error)
-       CALL section_vals_val_get(tersoff_section,"lambda2",r_val=nonbonded%pot(start+isec)%pot%tersoff%lambda2,error=error)
-       CALL section_vals_val_get(tersoff_section,"alpha",r_val=nonbonded%pot(start+isec)%pot%tersoff%alpha,error=error)
-       CALL section_vals_val_get(tersoff_section,"beta",r_val=nonbonded%pot(start+isec)%pot%tersoff%beta,error=error)
-       CALL section_vals_val_get(tersoff_section,"n",r_val=nonbonded%pot(start+isec)%pot%tersoff%n,error=error)
-       CALL section_vals_val_get(tersoff_section,"c",r_val=nonbonded%pot(start+isec)%pot%tersoff%c,error=error)
-       CALL section_vals_val_get(tersoff_section,"d",r_val=nonbonded%pot(start+isec)%pot%tersoff%d,error=error)
-       CALL section_vals_val_get(tersoff_section,"h",r_val=nonbonded%pot(start+isec)%pot%tersoff%h,error=error)
-       CALL section_vals_val_get(tersoff_section,"lambda3",r_val=nonbonded%pot(start+isec)%pot%tersoff%lambda3,error=error)
-       CALL section_vals_val_get(tersoff_section,"bigR",r_val=nonbonded%pot(start+isec)%pot%tersoff%bigR,error=error)
-       CALL section_vals_val_get(tersoff_section,"bigD",r_val=nonbonded%pot(start+isec)%pot%tersoff%bigD,error=error)
+       CALL section_vals_val_get(tersoff_section,"A",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%A,error=error)
+       CALL section_vals_val_get(tersoff_section,"B",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%B,error=error)
+       CALL section_vals_val_get(tersoff_section,"lambda1",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%lambda1,error=error)
+       CALL section_vals_val_get(tersoff_section,"lambda2",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%lambda2,error=error)
+       CALL section_vals_val_get(tersoff_section,"alpha",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%alpha,error=error)
+       CALL section_vals_val_get(tersoff_section,"beta",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%beta,error=error)
+       CALL section_vals_val_get(tersoff_section,"n",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%n,error=error)
+       CALL section_vals_val_get(tersoff_section,"c",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%c,error=error)
+       CALL section_vals_val_get(tersoff_section,"d",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%d,error=error)
+       CALL section_vals_val_get(tersoff_section,"h",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%h,error=error)
+       CALL section_vals_val_get(tersoff_section,"lambda3",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%lambda3,error=error)
+       CALL section_vals_val_get(tersoff_section,"bigR",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%bigR,error=error)
+       CALL section_vals_val_get(tersoff_section,"bigD",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%bigD,error=error)
 
-       nonbonded%pot(start+isec)%pot %rcutsq = (nonbonded%pot(start+isec)%pot%tersoff%bigR+&
-                                                nonbonded%pot(start+isec)%pot%tersoff%bigD)**2
+       nonbonded%pot(start+isec)%pot %rcutsq = (nonbonded%pot(start+isec)%pot%set(1)%tersoff%bigR+&
+                                                nonbonded%pot(start+isec)%pot%set(1)%tersoff%bigD)**2
     END DO
   END SUBROUTINE read_tersoff_section
 
@@ -1084,15 +1082,15 @@ CONTAINS
        nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
        CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
        CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
-       nonbonded%pot(start+isec)%pot %buckmo%f0 = f0
-       nonbonded%pot(start+isec)%pot %buckmo%a1 = a1
-       nonbonded%pot(start+isec)%pot %buckmo%a2 = a2
-       nonbonded%pot(start+isec)%pot %buckmo%b1 = b1
-       nonbonded%pot(start+isec)%pot %buckmo%b2 = b2
-       nonbonded%pot(start+isec)%pot %buckmo%c = c
-       nonbonded%pot(start+isec)%pot %buckmo%d = d
-       nonbonded%pot(start+isec)%pot %buckmo%r0 = r0
-       nonbonded%pot(start+isec)%pot %buckmo%beta = beta
+       nonbonded%pot(start+isec)%pot %set(1)%buckmo%f0 = f0
+       nonbonded%pot(start+isec)%pot %set(1)%buckmo%a1 = a1
+       nonbonded%pot(start+isec)%pot %set(1)%buckmo%a2 = a2
+       nonbonded%pot(start+isec)%pot %set(1)%buckmo%b1 = b1
+       nonbonded%pot(start+isec)%pot %set(1)%buckmo%b2 = b2
+       nonbonded%pot(start+isec)%pot %set(1)%buckmo%c = c
+       nonbonded%pot(start+isec)%pot %set(1)%buckmo%d = d
+       nonbonded%pot(start+isec)%pot %set(1)%buckmo%r0 = r0
+       nonbonded%pot(start+isec)%pot %set(1)%buckmo%beta = beta
        nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
     END DO
   END SUBROUTINE read_bm_section

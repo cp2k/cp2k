@@ -386,17 +386,26 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
     
-    NULLIFY(subsection )
+    NULLIFY(subsection,keyword)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="FORCEFIELD",&
             description="Specify information on the QM/MM forcefield",&
             n_keywords=0, n_subsections=2, repeats=.TRUE., required=.TRUE.,&
             error=error)    
+
+       CALL keyword_create(keyword, name="MULTIPLE_POTENTIAL",&
+            description="Enables the possibility to define NONBONDED and NONBONDED14 as a"//&
+            " sum of different kinds of potential. Useful for piecewise defined potentials.",&
+            usage="MULTIPLE_POTENTIAL T",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
        CALL create_qmmm_ff_nb_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)

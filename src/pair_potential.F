@@ -16,7 +16,8 @@
 !!     September 2005 - Introduced the Born-Mayer-Huggins-Fumi-Tosi  Potential
 !!                      BMHTF
 !!     2006 - Major rewriting of the routines.. Linear scaling setup of splines
-!!
+!!     2007 - Teodoro Laino - University of Zurich - Multiple potential 
+!!            Major rewriting nr.2
 !!   SOURCE
 !******************************************************************************
 
@@ -35,7 +36,7 @@ MODULE pair_potential
   USE memory_utilities,                ONLY: reallocate
   USE pair_potential_types,            ONLY: &
        b4_type, bm_type, compare_pot, ea_type, ft_type, gp_type, gw_type, &
-       ip_type, list_pot, lj_charmm_type, lj_type, nn_type, &
+       ip_type, list_pot, lj_charmm_type, lj_type, multi_type, nn_type, &
        pair_potential_pp_type, pair_potential_single_type, &
        potential_single_allocation, tersoff_type, wl_type
   USE pair_potential_util,             ONLY: ener_coul,&
@@ -95,7 +96,7 @@ CONTAINS
     TYPE(pair_potential_pp_type), POINTER    :: potparm
     INTEGER, INTENT(IN)                      :: ntype
 
-    INTEGER                                  :: i, j, ngp
+    INTEGER                                  :: i, j, k, ngp
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
 
@@ -105,7 +106,7 @@ CONTAINS
     DO i = 1, ntype ! i:  first  atom type
        DO j = 1, i  ! j:  second atom type
           pot => potparm%pot(i,j)%pot
-          IF (pot%type==gp_type) ngp = ngp + 1
+          ngp = ngp + COUNT(pot%type==gp_type)
        END DO
     END DO
     CALL initf(ngp)
@@ -113,11 +114,13 @@ CONTAINS
     DO i = 1, ntype ! i:  first  atom type
        DO j = 1, i  ! j:  second atom type
           pot => potparm%pot(i,j)%pot
-          IF (pot%type==gp_type) THEN 
-             ngp = ngp + 1
-             pot%gp%myid = ngp
-             CALL parsef(ngp,TRIM(pot%gp%potential),pot%gp%parameters)
-          END IF
+          DO k = 1, SIZE(pot%type)
+             IF (pot%type(k)==gp_type) THEN 
+                ngp = ngp + 1
+                pot%set(k)%gp%myid = ngp
+                CALL parsef(ngp,TRIM(pot%set(k)%gp%potential),pot%set(k)%gp%parameters)
+             END IF
+          END DO
        END DO
     END DO
   END SUBROUTINE init_genpot
@@ -165,8 +168,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_nonbond_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ewald_type, handle, i, j, n, &
-                                                ncount, npoints, ntype
+    INTEGER                                  :: ewald_type, handle, i, j, k, &
+                                                n, ncount, npoints, ntype
     LOGICAL                                  :: do_i_shell_model, &
                                                 do_j_shell_model, &
                                                 do_shell_model, failure, &
@@ -208,6 +211,29 @@ CONTAINS
           CALL get_atom_info(atomic_kind, my_do_14, do_shell_model=do_j_shell_model, error=error)
           do_shell_model   = do_i_shell_model .OR. do_j_shell_model
 
+          ! Setup of Exclusion Types
+          pot%only_mb = .TRUE.
+          pot%only_pp = .TRUE.
+          DO k = 1, SIZE(pot%type)
+             SELECT CASE(pot%type(k))
+             CASE (lj_type,lj_charmm_type,wl_type,gw_type,ft_type,ip_type,b4_type,bm_type,gp_type,ea_type)
+                pot%only_mb = .FALSE.
+             CASE (tersoff_type)
+                pot%only_pp = .FALSE.
+             CASE (nn_type)
+                ! Do nothing..
+             CASE DEFAULT
+                ! Never reach this point
+                CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+             END SELECT
+             ! Special case for EAM
+             SELECT CASE(pot%type(k))
+             CASE (ea_type)
+                pot%only_pp = .FALSE.
+             END SELECT
+          END DO
+
+          ! Starting SetUp of splines
           IF (.NOT.pot%undef) CYCLE
           ncount = ncount + 1
           n = spline_env % spltab(i,j)
@@ -269,12 +295,15 @@ CONTAINS
              END IF
           END IF
           pot%undef = .FALSE.
-          IF (ANY(potential_single_allocation==pot%type)) THEN
-             ! Restoring the proper values for the generating spline pot
-             IF ((pot%type==lj_type).OR.(pot%type==lj_charmm_type)) THEN
-                pot%lj%sigma6  = pot%lj%sigma6*pot%spl_f%rscale(2)**3
-                pot%lj%sigma12 = pot%lj%sigma6**2
-                pot%lj%epsilon = pot%lj%epsilon*pot%spl_f%fscale(2)
+          ! Unique Spline working only for a pure LJ potential..
+          IF (SIZE(pot%type)==1) THEN
+             IF (ANY(potential_single_allocation==pot%type(1))) THEN
+                ! Restoring the proper values for the generating spline pot
+                IF ((pot%type(1)==lj_type).OR.(pot%type(1)==lj_charmm_type)) THEN
+                   pot%set(1)%lj%sigma6  = pot%set(1)%lj%sigma6*pot%spl_f%rscale(2)**3
+                   pot%set(1)%lj%sigma12 = pot%set(1)%lj%sigma6**2
+                   pot%set(1)%lj%epsilon = pot%set(1)%lj%epsilon*pot%spl_f%fscale(2)
+                END IF
              END IF
           END IF
           ! Correct Cutoff...
@@ -609,7 +638,7 @@ CONTAINS
        WRITE(1000+n,*)
     END IF
     ! In case of potential allowing a cumulative allocation...
-    IF (ANY(potential_single_allocation==pot%type)) THEN
+    IF (ANY(potential_single_allocation==pot%type(1))) THEN
        ! Setup spline for coulomb potential
        spline_data => spl_p(1)%spline_data
        CALL init_splinexy (spline_data, npoints+1)
@@ -706,13 +735,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_nonbond_storage', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, idim, iend, istart, j, k, locij, min_val, n, ndim, &
-      nk, ntype, nunique, nvar, pot_target, stat, tmpij(2), tmpij0(2)
+    INTEGER :: handle, i, idim, iend, istart, j, k, locij, n, ndim, nk, &
+      ntype, nunique, nvar, pot_target, stat, tmpij(2), tmpij0(2)
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: Iwork1, Iwork2, my_index
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: tmp_index
     INTEGER, DIMENSION(:), POINTER           :: array_double_allocation
     LOGICAL :: at_least_one, check, do_i_shell_model, do_j_shell_model, &
-      failure, first_val, my_do_14, shell_present
+      failure, my_do_14, shell_present
     REAL(KIND=dp)                            :: my_ei_scale14, &
                                                 my_vdw_scale14, qci, qcj, qi, &
                                                 qj, qsi, qsj
@@ -741,16 +770,10 @@ CONTAINS
     tmp_index = HUGE(0)
     DO pot_target = MINVAL(list_pot), MAXVAL(list_pot)
        ndim  = 0
-       first_val = .FALSE.
-       n     = 0
        DO i = 1, ntype
           DO j = 1, i
-             n = n + 1
-             IF (potparm%pot(i,j)%pot%type==pot_target) THEN
-                IF (.NOT.first_val) THEN
-                   min_val = n
-                   first_val = .TRUE.
-                END IF
+             IF (SIZE(potparm%pot(i,j)%pot%type)/=1) CYCLE
+             IF (potparm%pot(i,j)%pot%type(1)==pot_target) THEN
                 tmp_index(i,j) = 1
                 tmp_index(j,i) = 1
                 ndim = ndim + 1
@@ -795,7 +818,8 @@ CONTAINS
        DO i = 1, ntype
           DO j = 1, i
              n = n + 1
-             IF (potparm%pot(i,j)%pot%type==pot_target) THEN
+             IF (SIZE(potparm%pot(i,j)%pot%type)/=1) CYCLE
+             IF (potparm%pot(i,j)%pot%type(1)==pot_target) THEN
                 nk = nk + 1
                 my_index(nk) = n
              END IF
@@ -813,71 +837,72 @@ CONTAINS
                 atomic_kind=> atomic_kind_set(j)
                 CALL get_atom_info(atomic_kind, my_do_14, qj, qcj, qsj, do_j_shell_model, error)
                 n = n + 1
-                IF (potparm%pot(i,j)%pot%type==pot_target) THEN
+                IF (SIZE(potparm%pot(i,j)%pot%type)/=1) CYCLE
+                IF (potparm%pot(i,j)%pot%type(1)==pot_target) THEN
                    nk = nk + 1
                    my_index(nk) = n
                    SELECT CASE(pot_target)
                    CASE (lj_type,lj_charmm_type)
-                      pot_par(nk,1)  = potparm%pot(i,j)%pot%lj%epsilon
-                      pot_par(nk,2)  = potparm%pot(i,j)%pot%lj%sigma6
-                      pot_par(nk,3)  = potparm%pot(i,j)%pot%lj%sigma12
+                      pot_par(nk,1)  = potparm%pot(i,j)%pot%set(1)%lj%epsilon
+                      pot_par(nk,2)  = potparm%pot(i,j)%pot%set(1)%lj%sigma6
+                      pot_par(nk,3)  = potparm%pot(i,j)%pot%set(1)%lj%sigma12
                    CASE(gp_type)
-                      pot_par(nk,1)  = str2id(potparm%pot(i,j)%pot%gp%potential)
-                      pot_par(nk,2)  = str2id(potparm%pot(i,j)%pot%gp%variables)
+                      pot_par(nk,1)  = str2id(potparm%pot(i,j)%pot%set(1)%gp%potential)
+                      pot_par(nk,2)  = str2id(potparm%pot(i,j)%pot%set(1)%gp%variables)
                    CASE (wl_type)
-                      pot_par(nk,1)  = potparm%pot(i,j)%pot%willis%a
-                      pot_par(nk,2)  = potparm%pot(i,j)%pot%willis%b
-                      pot_par(nk,3)  = potparm%pot(i,j)%pot%willis%c
+                      pot_par(nk,1)  = potparm%pot(i,j)%pot%set(1)%willis%a
+                      pot_par(nk,2)  = potparm%pot(i,j)%pot%set(1)%willis%b
+                      pot_par(nk,3)  = potparm%pot(i,j)%pot%set(1)%willis%c
                    CASE (gw_type)
-                      pot_par(nk,1)  = potparm%pot(i,j)%pot%goodwin%vr0
-                      pot_par(nk,2)  = potparm%pot(i,j)%pot%goodwin%m
-                      pot_par(nk,3)  = potparm%pot(i,j)%pot%goodwin%mc
-                      pot_par(nk,4)  = potparm%pot(i,j)%pot%goodwin%d
-                      pot_par(nk,5)  = potparm%pot(i,j)%pot%goodwin%dc
+                      pot_par(nk,1)  = potparm%pot(i,j)%pot%set(1)%goodwin%vr0
+                      pot_par(nk,2)  = potparm%pot(i,j)%pot%set(1)%goodwin%m
+                      pot_par(nk,3)  = potparm%pot(i,j)%pot%set(1)%goodwin%mc
+                      pot_par(nk,4)  = potparm%pot(i,j)%pot%set(1)%goodwin%d
+                      pot_par(nk,5)  = potparm%pot(i,j)%pot%set(1)%goodwin%dc
                    CASE (ea_type)
-                      pot_par(nk,1)  = potparm%pot(i,j)%pot%eam%drar
-                      pot_par(nk,2)  = potparm%pot(i,j)%pot%eam%drhoar
-                      pot_par(nk,3)  = potparm%pot(i,j)%pot%eam%acutal
+                      pot_par(nk,1)  = potparm%pot(i,j)%pot%set(1)%eam%drar
+                      pot_par(nk,2)  = potparm%pot(i,j)%pot%set(1)%eam%drhoar
+                      pot_par(nk,3)  = potparm%pot(i,j)%pot%set(1)%eam%acutal
                    CASE (ft_type)
-                      pot_par(nk,1)  = potparm%pot(i,j)%pot%ft%A
-                      pot_par(nk,2)  = potparm%pot(i,j)%pot%ft%B
-                      pot_par(nk,3)  = potparm%pot(i,j)%pot%ft%C
-                      pot_par(nk,4)  = potparm%pot(i,j)%pot%ft%D
+                      pot_par(nk,1)  = potparm%pot(i,j)%pot%set(1)%ft%A
+                      pot_par(nk,2)  = potparm%pot(i,j)%pot%set(1)%ft%B
+                      pot_par(nk,3)  = potparm%pot(i,j)%pot%set(1)%ft%C
+                      pot_par(nk,4)  = potparm%pot(i,j)%pot%set(1)%ft%D
                    CASE (ip_type)
-                      pot_par(nk,1)  = potparm%pot(i,j)%pot%ipbv%rcore
-                      pot_par(nk,2)  = potparm%pot(i,j)%pot%ipbv%m
-                      pot_par(nk,3)  = potparm%pot(i,j)%pot%ipbv%b
+                      pot_par(nk,1)  = potparm%pot(i,j)%pot%set(1)%ipbv%rcore
+                      pot_par(nk,2)  = potparm%pot(i,j)%pot%set(1)%ipbv%m
+                      pot_par(nk,3)  = potparm%pot(i,j)%pot%set(1)%ipbv%b
                    CASE (b4_type)
-                      pot_par(nk,1)  = potparm%pot(i,j)%pot%buck4r%a
-                      pot_par(nk,2)  = potparm%pot(i,j)%pot%buck4r%b
-                      pot_par(nk,3)  = potparm%pot(i,j)%pot%buck4r%c
-                      pot_par(nk,4)  = potparm%pot(i,j)%pot%buck4r%r1
-                      pot_par(nk,5)  = potparm%pot(i,j)%pot%buck4r%r2
-                      pot_par(nk,6)  = potparm%pot(i,j)%pot%buck4r%r3
+                      pot_par(nk,1)  = potparm%pot(i,j)%pot%set(1)%buck4r%a
+                      pot_par(nk,2)  = potparm%pot(i,j)%pot%set(1)%buck4r%b
+                      pot_par(nk,3)  = potparm%pot(i,j)%pot%set(1)%buck4r%c
+                      pot_par(nk,4)  = potparm%pot(i,j)%pot%set(1)%buck4r%r1
+                      pot_par(nk,5)  = potparm%pot(i,j)%pot%set(1)%buck4r%r2
+                      pot_par(nk,6)  = potparm%pot(i,j)%pot%set(1)%buck4r%r3
                    CASE (bm_type)
-                      pot_par(nk,1)  = potparm%pot(i,j)%pot%buckmo%f0
-                      pot_par(nk,2)  = potparm%pot(i,j)%pot%buckmo%a1
-                      pot_par(nk,3)  = potparm%pot(i,j)%pot%buckmo%a2
-                      pot_par(nk,4)  = potparm%pot(i,j)%pot%buckmo%b1
-                      pot_par(nk,5)  = potparm%pot(i,j)%pot%buckmo%b2
-                      pot_par(nk,6)  = potparm%pot(i,j)%pot%buckmo%c
-                      pot_par(nk,7)  = potparm%pot(i,j)%pot%buckmo%d
-                      pot_par(nk,8)  = potparm%pot(i,j)%pot%buckmo%r0
-                      pot_par(nk,9)  = potparm%pot(i,j)%pot%buckmo%beta
+                      pot_par(nk,1)  = potparm%pot(i,j)%pot%set(1)%buckmo%f0
+                      pot_par(nk,2)  = potparm%pot(i,j)%pot%set(1)%buckmo%a1
+                      pot_par(nk,3)  = potparm%pot(i,j)%pot%set(1)%buckmo%a2
+                      pot_par(nk,4)  = potparm%pot(i,j)%pot%set(1)%buckmo%b1
+                      pot_par(nk,5)  = potparm%pot(i,j)%pot%set(1)%buckmo%b2
+                      pot_par(nk,6)  = potparm%pot(i,j)%pot%set(1)%buckmo%c
+                      pot_par(nk,7)  = potparm%pot(i,j)%pot%set(1)%buckmo%d
+                      pot_par(nk,8)  = potparm%pot(i,j)%pot%set(1)%buckmo%r0
+                      pot_par(nk,9)  = potparm%pot(i,j)%pot%set(1)%buckmo%beta
                    CASE (tersoff_type)
-                      pot_par(nk,1)  = potparm%pot(i,j)%pot%tersoff%A
-                      pot_par(nk,2)  = potparm%pot(i,j)%pot%tersoff%B
-                      pot_par(nk,3)  = potparm%pot(i,j)%pot%tersoff%lambda1
-                      pot_par(nk,4)  = potparm%pot(i,j)%pot%tersoff%lambda2
-                      pot_par(nk,5)  = potparm%pot(i,j)%pot%tersoff%alpha
-                      pot_par(nk,6)  = potparm%pot(i,j)%pot%tersoff%beta
-                      pot_par(nk,7)  = potparm%pot(i,j)%pot%tersoff%n
-                      pot_par(nk,8)  = potparm%pot(i,j)%pot%tersoff%c
-                      pot_par(nk,9)  = potparm%pot(i,j)%pot%tersoff%d
-                      pot_par(nk,10) = potparm%pot(i,j)%pot%tersoff%h
-                      pot_par(nk,11) = potparm%pot(i,j)%pot%tersoff%lambda3
-                      pot_par(nk,12) = potparm%pot(i,j)%pot%tersoff%bigR
-                      pot_par(nk,13) = potparm%pot(i,j)%pot%tersoff%bigD
+                      pot_par(nk,1)  = potparm%pot(i,j)%pot%set(1)%tersoff%A
+                      pot_par(nk,2)  = potparm%pot(i,j)%pot%set(1)%tersoff%B
+                      pot_par(nk,3)  = potparm%pot(i,j)%pot%set(1)%tersoff%lambda1
+                      pot_par(nk,4)  = potparm%pot(i,j)%pot%set(1)%tersoff%lambda2
+                      pot_par(nk,5)  = potparm%pot(i,j)%pot%set(1)%tersoff%alpha
+                      pot_par(nk,6)  = potparm%pot(i,j)%pot%set(1)%tersoff%beta
+                      pot_par(nk,7)  = potparm%pot(i,j)%pot%set(1)%tersoff%n
+                      pot_par(nk,8)  = potparm%pot(i,j)%pot%set(1)%tersoff%c
+                      pot_par(nk,9)  = potparm%pot(i,j)%pot%set(1)%tersoff%d
+                      pot_par(nk,10) = potparm%pot(i,j)%pot%set(1)%tersoff%h
+                      pot_par(nk,11) = potparm%pot(i,j)%pot%set(1)%tersoff%lambda3
+                      pot_par(nk,12) = potparm%pot(i,j)%pot%set(1)%tersoff%bigR
+                      pot_par(nk,13) = potparm%pot(i,j)%pot%set(1)%tersoff%bigD
                    CASE (nn_type)
                       ! no checks
                    CASE DEFAULT
@@ -985,20 +1010,20 @@ CONTAINS
                                  check, error)
              CASE(gp_type)
                 check = .TRUE.
-                IF  (ASSOCIATED(potparm%pot(tmpij(1) ,tmpij(2) )%pot%gp%parameters).AND.&
-                     ASSOCIATED(potparm%pot(tmpij0(1),tmpij0(2))%pot%gp%parameters)) THEN
-                   IF  (SIZE(potparm%pot(tmpij(1) ,tmpij(2) )%pot%gp%parameters)==&
-                        SIZE(potparm%pot(tmpij0(1),tmpij0(2))%pot%gp%parameters)) THEN
-                      IF  (ANY(potparm%pot(tmpij(1) ,tmpij(2) )%pot%gp%parameters /= &
-                               potparm%pot(tmpij0(1),tmpij0(2))%pot%gp%parameters)) check = .FALSE.
+                IF  (ASSOCIATED(potparm%pot(tmpij(1) ,tmpij(2) )%pot%set(1)%gp%parameters).AND.&
+                     ASSOCIATED(potparm%pot(tmpij0(1),tmpij0(2))%pot%set(1)%gp%parameters)) THEN
+                   IF  (SIZE(potparm%pot(tmpij(1) ,tmpij(2) )%pot%set(1)%gp%parameters)==&
+                        SIZE(potparm%pot(tmpij0(1),tmpij0(2))%pot%set(1)%gp%parameters)) THEN
+                      IF  (ANY(potparm%pot(tmpij(1) ,tmpij(2) )%pot%set(1)%gp%parameters /= &
+                               potparm%pot(tmpij0(1),tmpij0(2))%pot%set(1)%gp%parameters)) check = .FALSE.
                    END IF
                 END IF
-                IF  (ASSOCIATED(potparm%pot(tmpij(1) ,tmpij(2) )%pot%gp%values).AND.&
-                     ASSOCIATED(potparm%pot(tmpij0(1),tmpij0(2))%pot%gp%values)) THEN
-                   IF  (SIZE(potparm%pot(tmpij(1) ,tmpij(2) )%pot%gp%values)==&
-                        SIZE(potparm%pot(tmpij0(1),tmpij0(2))%pot%gp%values)) THEN
-                      IF (ANY(potparm%pot(tmpij(1) ,tmpij(2) )%pot%gp%values /= &
-                              potparm%pot(tmpij0(1),tmpij0(2))%pot%gp%values))     check = .FALSE.
+                IF  (ASSOCIATED(potparm%pot(tmpij(1) ,tmpij(2) )%pot%set(1)%gp%values).AND.&
+                     ASSOCIATED(potparm%pot(tmpij0(1),tmpij0(2))%pot%set(1)%gp%values)) THEN
+                   IF  (SIZE(potparm%pot(tmpij(1) ,tmpij(2) )%pot%set(1)%gp%values)==&
+                        SIZE(potparm%pot(tmpij0(1),tmpij0(2))%pot%set(1)%gp%values)) THEN
+                      IF (ANY(potparm%pot(tmpij(1) ,tmpij(2) )%pot%set(1)%gp%values /= &
+                              potparm%pot(tmpij0(1),tmpij0(2))%pot%set(1)%gp%values))     check = .FALSE.
                    END IF
                 END IF
              CASE default
@@ -1012,7 +1037,7 @@ CONTAINS
                   atomic_kind_set, my_do_14, scale_cutoff, ewald_env, my_ei_scale14,&
                   my_vdw_scale14, error)
              ! Single allocation potential
-             IF (ANY(potential_single_allocation==potparm%pot(tmpij(2),tmpij(1))%pot%type)) THEN
+             IF (ANY(potential_single_allocation==potparm%pot(tmpij(2),tmpij(1))%pot%type(1))) THEN
                 CALL reallocate(array_double_allocation, 1, SIZE(array_double_allocation)+1)
                 array_double_allocation(SIZE(array_double_allocation)) = nunique
              END IF
@@ -1033,7 +1058,7 @@ CONTAINS
                atomic_kind_set, my_do_14, scale_cutoff, ewald_env, my_ei_scale14,&
                my_vdw_scale14, error)
           ! Single allocation potential
-          IF (ANY(potential_single_allocation==potparm%pot(tmpij(2),tmpij(1))%pot%type)) THEN
+          IF (ANY(potential_single_allocation==potparm%pot(tmpij(2),tmpij(1))%pot%type(1))) THEN
              CALL reallocate(array_double_allocation, 1, SIZE(array_double_allocation)+1)
              array_double_allocation(SIZE(array_double_allocation)) = nunique
           END IF
@@ -1055,8 +1080,23 @@ CONTAINS
        END IF
        DEALLOCATE(my_index,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END DO  ! pot_target
-
+    END DO
+    ! Multiple defined potential
+    n     = 0
+    DO i = 1, ntype
+       DO j = 1, i
+          n  = n + 1
+          IF (SIZE(potparm%pot(i,j)%pot%type)==1) CYCLE
+          nunique = nunique + 1
+          tmp_index(i,j) = nunique
+          tmp_index(j,i) = nunique
+          !
+          CALL set_potparm_index(potparm, (/n/), multi_type, ntype, tmpij,&
+               atomic_kind_set, my_do_14, scale_cutoff, ewald_env, my_ei_scale14,&
+               my_vdw_scale14, error)         
+       END DO
+    END DO
+    ! Concluding the postprocess..
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, shell_present=shell_present)
     CALL spline_env_create ( spline_env, ntype, nunique, array_double_allocation, error=error )
     spline_env%spltab=tmp_index
@@ -1118,7 +1158,7 @@ CONTAINS
     INTEGER                                  :: ewald_type, i, min_val, &
                                                 nvalues, stat, tmpij(2), value
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: wrk
-    LOGICAL                                  :: do_i_shell_model, &
+    LOGICAL                                  :: check, do_i_shell_model, &
                                                 do_j_shell_model, &
                                                 do_shell_model, failure
     REAL(KIND=dp) :: alpha, eps0, fac, hicut0, l_elec, l_elec_c, l_elec_cs, &
@@ -1148,13 +1188,17 @@ CONTAINS
           value = my_index(i)
           CALL get_indexes(value,ntype,tmpij)
           pot => potparm%pot(tmpij(1),tmpij(2))%pot
+          ! Preliminary check.. 
+          check = SIZE(pot%type)==1
+          CPPostcondition(check,cp_failure_level,routineP,error,failure)
+
           atomic_kind=> atomic_kind_set(tmpij(1))
           CALL get_atom_info(atomic_kind, my_do_14, qi, qci, qsi, do_i_shell_model, error)
           atomic_kind=> atomic_kind_set(tmpij(2))
           CALL get_atom_info(atomic_kind, my_do_14, qj, qcj, qsj, do_j_shell_model, error)
           do_shell_model   = do_shell_model .OR. do_i_shell_model .OR. do_j_shell_model
-          sigma6(i) = pot%lj%sigma6
-          l_epsilon = pot%lj%epsilon
+          sigma6(i) = pot%set(1)%lj%sigma6
+          l_epsilon = pot%set(1)%lj%epsilon
           l_elec    = ABS(qsi * qsj)
           l_elec_c  = ABS(qci * qcj)
           l_elec_cs = ABS(qci * qsj)
@@ -1225,6 +1269,8 @@ CONTAINS
        l_elec_sc = qsi * qcj
 
        IF (ANY(potential_single_allocation==pot_target)) THEN
+          check = SIZE(pot%type)==1
+          CPPostcondition(check,cp_failure_level,routineP,error,failure)
           ! Undef potential.. this will be used to compute the splines..
           ! Coulomb Potential
           pot%e_fac = -m_elec
@@ -1236,13 +1282,13 @@ CONTAINS
           END IF
           ! Non bonded potential
           IF ((pot_target==lj_type).OR.(pot_target==lj_charmm_type)) THEN
-             l_sigma6  = pot%lj%sigma6
-             l_epsilon = pot%lj%epsilon
+             l_sigma6  = pot%set(1)%lj%sigma6
+             l_epsilon = pot%set(1)%lj%epsilon
              ! Undef potential.. this will be used to compute the splines..
              IF (pot%undef) THEN
-                pot%lj%sigma6  = m_sigma6
-                pot%lj%sigma12 = m_sigma6**2
-                pot%lj%epsilon = m_epsilon
+                pot%set(1)%lj%sigma6  = m_sigma6
+                pot%set(1)%lj%sigma12 = m_sigma6**2
+                pot%set(1)%lj%epsilon = m_epsilon
              END IF
              pot%spl_f%rscale(2) = 1.0_dp
              pot%spl_f%fscale(2) = 0.0_dp

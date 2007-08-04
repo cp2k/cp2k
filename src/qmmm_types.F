@@ -200,6 +200,7 @@ MODULE qmmm_types
      INTEGER :: ref_count, id_nr
      LOGICAL                                                 :: qmmm_link
      LOGICAL                                                 :: use_qmmm_ff
+     LOGICAL                                                 :: multiple_potential
      INTEGER                                                 :: qmmm_coupl_type
      INTEGER,        DIMENSION(:), POINTER                   :: qm_atom_index
      INTEGER,        DIMENSION(:), POINTER                   :: mm_link_atoms
@@ -257,8 +258,8 @@ CONTAINS
                qmmm_env%fist_scale_charge_link,&
                qmmm_env%inp_info)
        qmmm_env%qmmm_coupl_type=do_qmmm_none
-       qmmm_env%qmmm_link = .FALSE.
-       qmmm_env%use_qmmm_ff = .FALSE.
+       qmmm_env%qmmm_link          = .FALSE.
+       qmmm_env%use_qmmm_ff        = .FALSE.
        ALLOCATE(qmmm_env%inp_info, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL init_inp_info(qmmm_env%inp_info)

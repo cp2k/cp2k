@@ -559,7 +559,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
       handle, i_val, iatom, ibend, ibond, ichain, ifunct, imolecule, imul, &
       itorsion, itype, jbend, jbond, jtorsion, jtype, natoms, nbend, nbond, &
       nchains, ns_max, ntorsion, ntypes, o_spline, stat, unit
-    LOGICAL                                  :: failure, use_ref_cell
+    LOGICAL                                  :: check, failure, use_ref_cell
     REAL(KIND=dp)                            :: alpha, charge, epsilon, r_val
     REAL(KIND=dp), DIMENSION(1:3)            :: abc
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
@@ -848,14 +848,16 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
          WRITE(unit,10000) "      &NONBONDED"
          DO itype=1,SIZE(potparm%pot,1)
             DO jtype=itype,SIZE(potparm%pot,2)
+               check =SIZE(potparm%pot(itype,jtype)%pot%type)==1
+               CPPostcondition(check,cp_failure_level,routineP,error,failure)
                WRITE(unit,10000) "        &LENNARD-JONES"
                WRITE(unit,30002) "          ATOMS ",&
                   TRIM(ADJUSTL(potparm%pot(itype,jtype)%pot%at1)),&
                   TRIM(ADJUSTL(potparm%pot(itype,jtype)%pot%at2))
                WRITE(unit,20002) "          EPSILON ",&
-                  potparm%pot(itype,jtype)%pot%lj%epsilon*kelvin
+                  potparm%pot(itype,jtype)%pot%set(1)%lj%epsilon*kelvin
                WRITE(unit,20002) "          SIGMA ",&
-                  potparm%pot(itype,jtype)%pot%lj%sigma6**(1.0_dp/6.0_dp)*&
+                  potparm%pot(itype,jtype)%pot%set(1)%lj%sigma6**(1.0_dp/6.0_dp)*&
                   angstrom
                WRITE(unit,20000) "          RCUT ",&
                   potparm%pot(itype,jtype)%pot%rcutsq**0.5_dp*angstrom

@@ -1,0 +1,87 @@
+&FORCE_EVAL
+  METHOD Fist
+  &MM
+    &FORCEFIELD
+      &BEND
+        ATOMS H O H
+        K [rad^-2kcalmol] 110.0
+        THETA0 [deg] 104.52
+      &END BEND
+      &BOND
+        ATOMS O H
+        K [angstrom^-2kcalmol] 900.0 
+        R0 [angstrom] 0.9572
+      &END BOND
+      &CHARGE
+        ATOM O
+        CHARGE -0.834
+      &END CHARGE
+      &CHARGE
+        ATOM H
+        CHARGE 0.417
+      &END CHARGE
+      &NONBONDED
+        &LENNARD-JONES
+          atoms O O
+          EPSILON [kcalmol]  0.152073
+          SIGMA   [angstrom] 3.1507
+          RCUT    [angstrom] 11.4
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          atoms O O
+          EPSILON [kcalmol]  0.152073
+          SIGMA   [angstrom] 3.1507
+          RCUT    [angstrom] 11.4
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          atoms O H
+          EPSILON [kcalmol] 0.0836
+          SIGMA [angstrom] 1.775
+          RCUT  [angstrom] 11.4
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          atoms H H
+          EPSILON [kcalmol]  0.04598
+          SIGMA   [angstrom] 0.400
+          RCUT    [angstrom] 11.4
+        &END LENNARD-JONES
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .5
+        GMAX 12
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 10.0 10.0 10.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+  O        -3.8785691310        5.2764260121        1.0006790295 H2O
+  H        -3.0208695451        4.8843099287        1.1665969668 H2O
+  H        -4.4253035786        4.5255560719        0.7690283147 H2O
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+
+&GLOBAL
+  PROJECT H2O-1
+  RUN_TYPE MD
+  &WARNINGS
+  &END
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TIMESTEP 0.5
+    TEMPERATURE 298
+  &END MD
+&END MOTION
+

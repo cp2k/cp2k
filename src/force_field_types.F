@@ -198,7 +198,8 @@ MODULE force_field_types
     LOGICAL                                   :: scale_cutoff,&
                                                  nonbonded,&
                                                  nonbonded14,&
-                                                 electrostatics
+                                                 electrostatics,&
+                                                 multiple_potential
   END TYPE force_field_type
 
 ! *** Public subroutines ***

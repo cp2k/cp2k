@@ -293,7 +293,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
                              pot_nonbond, f_nonbond, pv_nonbond, ewald_env=ewald_env,&
                              atomic_kind_set=atomic_kind_set, error=error)
         CALL force_nonbond_manybody ( fist_nonbond_env, particle_set, cell, &
-                                      pot_nonbond, f_nonbond, pv_nonbond  ,error=error)
+                                      f_nonbond, pv_nonbond  ,error=error)
      END IF
   ELSE
      f_nonbond  = 0.0_dp

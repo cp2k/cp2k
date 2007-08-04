@@ -41,13 +41,11 @@ MODULE fist_nonbond_force
   USE mathconstants,                   ONLY: pi
   USE mathlib,                         ONLY: matvec_3x3
   USE message_passing,                 ONLY: mp_sum
-  USE pair_potential_types,            ONLY: ea_type,&
-                                             nosh_nosh,&
+  USE pair_potential_types,            ONLY: nosh_nosh,&
                                              nosh_sh,&
                                              pair_potential_pp_type,&
                                              pair_potential_single_type,&
-                                             sh_sh,&
-                                             tersoff_type
+                                             sh_sh
   USE particle_types,                  ONLY: particle_type
   USE shell_potential_types,           ONLY: shell_kind_type
   USE splines_methods,                 ONLY: potential_s
@@ -191,9 +189,8 @@ CONTAINS
        list  =>neighbor_kind_pair%list
        cvi   = neighbor_kind_pair%cell_vector
        pot   =>potparm%pot(ikind,jkind)%pot
-       ! Manybody potentials are handled in the manybody routine...
-       IF(pot%type == ea_type)      CYCLE
-       IF(pot%type == tersoff_type) CYCLE
+       ! In case we have manybody potentials only they will be handled in the manybody routine...
+       IF (pot%only_mb) CYCLE
        ! Setup spline_data set
        spl_f       => pot%spl_f
        spline_data => pot%pair_spline_data

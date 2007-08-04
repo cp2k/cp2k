@@ -3127,20 +3127,23 @@ END SUBROUTINE potential_nonbond
                          IF (DOT_PRODUCT(wrk,wrk) < 1.0E-6_dp) exclude_flag = .TRUE.
                     END IF
                     IF (.NOT.exclude_flag ) THEN
-                      SELECT CASE ( potparm %pot( ikind, jkind )%pot % type )
-                      CASE ( ea_type )
-                        CALL stop_program ( "force_nonbond_numer","DEBUG results for EAM are in regtest" )
-                      CASE ( tersoff_type )
-                        ! Do Nothing..
-                      CASE DEFAULT
-                        CALL finite_difference_evaluate(ewald_env,     &
-                                                       potparm, rab,    &
-                                                       ikind, jkind, &
-                                                       atom_a, atom_b, &
-                                                       qi, qj, &
-                                                       numerical_shift, &
-                                                       f_numer,     &
-                                                       energy_numer,error=error)
+                       IF (SIZE(potparm %pot( ikind, jkind )%pot % TYPE)/=1) THEN
+                          CALL stop_program ( "force_nonbond_numer","To be fixed for multiple potential!!" )
+                       END IF
+                       SELECT CASE ( potparm %pot( ikind, jkind )%pot % type(1) )
+                       CASE ( ea_type )
+                          CALL stop_program ( "force_nonbond_numer","DEBUG results for EAM are in regtest" )
+                       CASE ( tersoff_type )
+                          ! Do Nothing..
+                       CASE DEFAULT
+                          CALL finite_difference_evaluate(ewald_env,     &
+                                                          potparm, rab,    &
+                                                          ikind, jkind, &
+                                                          atom_a, atom_b, &
+                                                          qi, qj, &
+                                                          numerical_shift, &
+                                                          f_numer,     &
+                                                          energy_numer,error=error)
                       END SELECT
                     END IF
                   END IF

@@ -39,7 +39,8 @@ MODULE pair_potential_types
   PRIVATE
   ! when adding a new nonbonedd potential please update also the list_pot
   ! used for the linear scaling screening of potential calculation
-  INTEGER, PUBLIC, PARAMETER :: nn_type= 0,&
+  INTEGER, PUBLIC, PARAMETER :: multi_type=-1,&
+                                nn_type= 0,&
                                 lj_type= 1,&
                                 lj_charmm_type= 2,&
                                 ft_type= 3,&
@@ -51,6 +52,7 @@ MODULE pair_potential_types
                                 bm_type= 9,&
                                 gp_type=10,&
                                 tersoff_type=11
+
 
   INTEGER, PUBLIC, PARAMETER, DIMENSION(12) :: list_pot = (/nn_type,&
                                                            lj_type,&
@@ -80,6 +82,7 @@ MODULE pair_potential_types
   PUBLIC :: pair_potential_single_release,&
             pair_potential_single_create,&
             pair_potential_single_copy,&
+            pair_potential_single_add,&
             pair_potential_single_clean,&
             pair_potential_single_type
 
@@ -99,7 +102,8 @@ MODULE pair_potential_types
             buck4ran_pot_type,&
             buckmorse_pot_type,&
             gp_pot_type,&
-            tersoff_pot_type
+            tersoff_pot_type,&
+            pot_set_type
 
   PUBLIC :: pair_potential_lj_create
   PUBLIC :: compare_pot
@@ -141,7 +145,6 @@ MODULE pair_potential_types
      REAL ( KIND = dp )                     :: drar, drhoar, acutal
      REAL ( KIND = dp ), DIMENSION ( 5000 ) :: rho, phi, frho, rhoval, rval
      REAL ( KIND = dp ), DIMENSION ( 5000 ) :: rhop, phip, frhop
-     TYPE ( spline_data_p_type ),  POINTER, DIMENSION(:) :: rho_spline_data
   END TYPE eam_pot_type
 
   TYPE buck4ran_pot_type
@@ -193,17 +196,7 @@ MODULE pair_potential_types
      REAL (KIND=dp) :: bigD          ! Used to be D = Rij - D
   END TYPE tersoff_pot_type
 
-  TYPE pair_potential_single_type
-     REAL (KIND=dp) :: rcutsq
-     REAL (KIND=dp) :: e_fac
-     REAL (KIND=dp) :: e_fcc
-     REAL (KIND=dp) :: e_fcs
-     REAL (KIND=dp) :: e_fsc
-     LOGICAL        :: undef
-     INTEGER        :: TYPE
-     INTEGER        :: shell_type
-     CHARACTER ( LEN = default_string_length ) :: at1
-     CHARACTER ( LEN = default_string_length ) :: at2
+  TYPE pot_set_type
      TYPE ( ipbv_pot_type ),       POINTER :: ipbv
      TYPE ( gp_pot_type),          POINTER :: gp
      TYPE ( lj_pot_type ),         POINTER :: lj
@@ -214,6 +207,20 @@ MODULE pair_potential_types
      TYPE ( buck4ran_pot_type ),   POINTER :: buck4r
      TYPE ( buckmorse_pot_type ),  POINTER :: buckmo
      TYPE ( tersoff_pot_type ),    POINTER :: tersoff
+  END TYPE pot_set_type
+
+  TYPE pair_potential_single_type
+     REAL (KIND=dp) :: rcutsq
+     REAL (KIND=dp) :: e_fac
+     REAL (KIND=dp) :: e_fcc
+     REAL (KIND=dp) :: e_fcs
+     REAL (KIND=dp) :: e_fsc
+     LOGICAL        :: undef, only_pp, only_mb
+     INTEGER        :: shell_type
+     CHARACTER ( LEN = default_string_length )   :: at1
+     CHARACTER ( LEN = default_string_length )   :: at2
+     INTEGER, POINTER, DIMENSION(:)              :: TYPE
+     TYPE ( pot_set_type), POINTER, DIMENSION(:) :: set
      TYPE ( spline_data_p_type ),  POINTER, DIMENSION(:) :: pair_spline_data
      TYPE ( spline_data_p_type ),  POINTER, DIMENSION(:) :: c_coul_spline_data      ! for shell-model (core-ion or core-core)
      TYPE ( spline_data_p_type ),  POINTER, DIMENSION(:) :: cs_coul_spline_data     ! for shell-model (core-shell) 
@@ -263,61 +270,75 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'compare_pot', &
       routineP = moduleN//':'//routineN
 
-    compare=.FALSE.
-    IF (pot1%type/=pot2%type) RETURN
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure
 
-    SELECT CASE(pot1%type)
-    CASE (lj_type,lj_charmm_type)
-       IF  ((pot1%lj%epsilon==pot2%lj%epsilon).AND.&
-            (pot1%lj%sigma6 ==pot2%lj%sigma6 ).AND.&
-            (pot1%lj%sigma12==pot2%lj%sigma12)) compare=.TRUE.
-    CASE (wl_type)
-       IF  ((pot1%willis%a==pot2%willis%a).AND.&
-            (pot1%willis%b==pot2%willis%b).AND.&
-            (pot1%willis%c==pot2%willis%c)) compare=.TRUE.
-    CASE (gw_type)
-       IF  ((pot1%goodwin%vr0==pot2%goodwin%vr0).AND.&
-            (pot1%goodwin%m  ==pot2%goodwin%m  ).AND.&
-            (pot1%goodwin%mc ==pot2%goodwin%mc ).AND.&
-            (pot1%goodwin%d  ==pot2%goodwin%d  ).AND.&
-            (pot1%goodwin%dc ==pot2%goodwin%dc )) compare=.TRUE.
-    CASE (ea_type)
-       IF  ((pot1%eam%drar  ==pot2%eam%drar  ).AND.&
-            (pot1%eam%drhoar==pot2%eam%drhoar).AND.&
-            (pot1%eam%acutal==pot2%eam%acutal).AND.&
-            (SUM(ABS(pot1%eam%rho   -pot2%eam%rho   ))==0.0_dp).AND.&
-            (SUM(ABS(pot1%eam%phi   -pot2%eam%phi   ))==0.0_dp).AND.&
-            (SUM(ABS(pot1%eam%frho  -pot2%eam%frho  ))==0.0_dp).AND.&
-            (SUM(ABS(pot1%eam%rhoval-pot2%eam%rhoval))==0.0_dp).AND.&
-            (SUM(ABS(pot1%eam%rval  -pot2%eam%rval  ))==0.0_dp).AND.&
-            (SUM(ABS(pot1%eam%rhop  -pot2%eam%rhop  ))==0.0_dp).AND.&
-            (SUM(ABS(pot1%eam%phip  -pot2%eam%phip  ))==0.0_dp).AND.&
-            (SUM(ABS(pot1%eam%frhop -pot2%eam%frhop ))==0.0_dp)) compare=.TRUE.
-    CASE (ft_type)
-       IF  ((pot1%ft%A==pot2%ft%A).AND.&
-            (pot1%ft%B==pot2%ft%B).AND.&
-            (pot1%ft%C==pot2%ft%C).AND.&
-            (pot1%ft%D==pot2%ft%D)) compare=.TRUE.
-    CASE (ip_type)
-       IF  ((SUM(ABS(pot1%ipbv%a-pot2%ipbv%a))==0.0_dp).AND.&
-            (pot1%ipbv%rcore==pot2%ipbv%rcore).AND.&
-            (pot1%ipbv%m    ==pot2%ipbv%m    ).AND.&
-            (pot1%ipbv%b    ==pot2%ipbv%b    )) compare=.TRUE.
-    CASE (tersoff_type)
-       IF  ((pot1%tersoff%A       == pot2%tersoff%A       ).AND.&
-            (pot1%tersoff%B       == pot2%tersoff%B       ).AND.&
-            (pot1%tersoff%lambda1 == pot2%tersoff%lambda1 ).AND.&
-            (pot1%tersoff%lambda2 == pot2%tersoff%lambda2 ).AND.&
-            (pot1%tersoff%alpha   == pot2%tersoff%alpha   ).AND.&
-            (pot1%tersoff%beta    == pot2%tersoff%beta    ).AND.&
-            (pot1%tersoff%n       == pot2%tersoff%n       ).AND.&
-            (pot1%tersoff%c       == pot2%tersoff%c       ).AND.&
-            (pot1%tersoff%d       == pot2%tersoff%d       ).AND.&
-            (pot1%tersoff%h       == pot2%tersoff%h       ).AND.&
-            (pot1%tersoff%lambda3 == pot2%tersoff%lambda3 ).AND.&
-            (pot1%tersoff%bigR    == pot2%tersoff%bigR    ).AND.&
-            (pot1%tersoff%bigD    == pot2%tersoff%bigD    )) compare=.TRUE.
-    END SELECT
+    failure=.FALSE.
+    compare=.FALSE.
+    ! Preliminary checks
+
+    CPPostcondition(ASSOCIATED(pot1%type),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(pot2%type),cp_failure_level,routineP,error,failure)
+    IF (SIZE(pot1%type)/=SIZE(pot2%type)) RETURN
+    IF (ANY(pot1%type/=pot2%type))        RETURN
+
+    ! Checking the real values of parameters
+    CPPostcondition(ASSOCIATED(pot1%set),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(pot2%set),cp_failure_level,routineP,error,failure)
+    DO i = 1, SIZE(pot1%type)
+       SELECT CASE(pot1%type(i))
+       CASE (lj_type,lj_charmm_type)
+          IF  ((pot1%set(i)%lj%epsilon==pot2%set(i)%lj%epsilon).AND.&
+               (pot1%set(i)%lj%sigma6 ==pot2%set(i)%lj%sigma6 ).AND.&
+               (pot1%set(i)%lj%sigma12==pot2%set(i)%lj%sigma12)) compare=.TRUE.
+       CASE (wl_type)
+          IF  ((pot1%set(i)%willis%a==pot2%set(i)%willis%a).AND.&
+               (pot1%set(i)%willis%b==pot2%set(i)%willis%b).AND.&
+               (pot1%set(i)%willis%c==pot2%set(i)%willis%c)) compare=.TRUE.
+       CASE (gw_type)
+          IF  ((pot1%set(i)%goodwin%vr0==pot2%set(i)%goodwin%vr0).AND.&
+               (pot1%set(i)%goodwin%m  ==pot2%set(i)%goodwin%m  ).AND.&
+               (pot1%set(i)%goodwin%mc ==pot2%set(i)%goodwin%mc ).AND.&
+               (pot1%set(i)%goodwin%d  ==pot2%set(i)%goodwin%d  ).AND.&
+               (pot1%set(i)%goodwin%dc ==pot2%set(i)%goodwin%dc )) compare=.TRUE.
+       CASE (ea_type)
+          IF  ((pot1%set(i)%eam%drar  ==pot2%set(i)%eam%drar  ).AND.&
+               (pot1%set(i)%eam%drhoar==pot2%set(i)%eam%drhoar).AND.&
+               (pot1%set(i)%eam%acutal==pot2%set(i)%eam%acutal).AND.&
+               (SUM(ABS(pot1%set(i)%eam%rho   -pot2%set(i)%eam%rho   ))==0.0_dp).AND.&
+               (SUM(ABS(pot1%set(i)%eam%phi   -pot2%set(i)%eam%phi   ))==0.0_dp).AND.&
+               (SUM(ABS(pot1%set(i)%eam%frho  -pot2%set(i)%eam%frho  ))==0.0_dp).AND.&
+               (SUM(ABS(pot1%set(i)%eam%rhoval-pot2%set(i)%eam%rhoval))==0.0_dp).AND.&
+               (SUM(ABS(pot1%set(i)%eam%rval  -pot2%set(i)%eam%rval  ))==0.0_dp).AND.&
+               (SUM(ABS(pot1%set(i)%eam%rhop  -pot2%set(i)%eam%rhop  ))==0.0_dp).AND.&
+               (SUM(ABS(pot1%set(i)%eam%phip  -pot2%set(i)%eam%phip  ))==0.0_dp).AND.&
+               (SUM(ABS(pot1%set(i)%eam%frhop -pot2%set(i)%eam%frhop ))==0.0_dp)) compare=.TRUE.
+       CASE (ft_type)
+          IF  ((pot1%set(i)%ft%A==pot2%set(i)%ft%A).AND.&
+               (pot1%set(i)%ft%B==pot2%set(i)%ft%B).AND.&
+               (pot1%set(i)%ft%C==pot2%set(i)%ft%C).AND.&
+               (pot1%set(i)%ft%D==pot2%set(i)%ft%D)) compare=.TRUE.
+       CASE (ip_type)
+          IF  ((SUM(ABS(pot1%set(i)%ipbv%a-pot2%set(i)%ipbv%a))==0.0_dp).AND.&
+               (pot1%set(i)%ipbv%rcore==pot2%set(i)%ipbv%rcore).AND.&
+               (pot1%set(i)%ipbv%m    ==pot2%set(i)%ipbv%m    ).AND.&
+               (pot1%set(i)%ipbv%b    ==pot2%set(i)%ipbv%b    )) compare=.TRUE.
+       CASE (tersoff_type)
+          IF  ((pot1%set(i)%tersoff%A       == pot2%set(i)%tersoff%A       ).AND.&
+               (pot1%set(i)%tersoff%B       == pot2%set(i)%tersoff%B       ).AND.&
+               (pot1%set(i)%tersoff%lambda1 == pot2%set(i)%tersoff%lambda1 ).AND.&
+               (pot1%set(i)%tersoff%lambda2 == pot2%set(i)%tersoff%lambda2 ).AND.&
+               (pot1%set(i)%tersoff%alpha   == pot2%set(i)%tersoff%alpha   ).AND.&
+               (pot1%set(i)%tersoff%beta    == pot2%set(i)%tersoff%beta    ).AND.&
+               (pot1%set(i)%tersoff%n       == pot2%set(i)%tersoff%n       ).AND.&
+               (pot1%set(i)%tersoff%c       == pot2%set(i)%tersoff%c       ).AND.&
+               (pot1%set(i)%tersoff%d       == pot2%set(i)%tersoff%d       ).AND.&
+               (pot1%set(i)%tersoff%h       == pot2%set(i)%tersoff%h       ).AND.&
+               (pot1%set(i)%tersoff%lambda3 == pot2%set(i)%tersoff%lambda3 ).AND.&
+               (pot1%set(i)%tersoff%bigR    == pot2%set(i)%tersoff%bigR    ).AND.&
+               (pot1%set(i)%tersoff%bigD    == pot2%set(i)%tersoff%bigD    )) compare=.TRUE.
+       END SELECT
+    END DO
 
   END SUBROUTINE compare_pot
   !******************************************************************************
@@ -337,15 +358,16 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_single_create(potparm, error)
+  SUBROUTINE pair_potential_single_create(potparm, nset, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
+    INTEGER, INTENT(IN), OPTIONAL            :: nset
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pair_potential_single_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: i, lnset, stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -353,17 +375,14 @@ CONTAINS
     IF (.NOT.failure) THEN
        ALLOCATE(potparm, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       NULLIFY( potparm%ipbv,&
-                potparm%lj,&
-                potparm%gp,&
-                potparm%ft,&
-                potparm%willis,&
-                potparm%goodwin,&
-                potparm%eam,&
-                potparm%buck4r,&
-                potparm%buckmo,&
-                potparm%tersoff,&
-                potparm%spl_f,&
+       lnset = 1
+       IF (PRESENT(nset)) lnset = nset
+       ! Standard allocation to size 1
+       ALLOCATE(potparm%type(lnset), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(potparm%set(lnset), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       NULLIFY( potparm%spl_f,&
                 potparm%spl_c,&
                 potparm%spl_cs,&
                 potparm%spl_sc,&
@@ -371,6 +390,18 @@ CONTAINS
                 potparm%c_coul_spline_data,&
                 potparm%cs_coul_spline_data,&
                 potparm%sc_coul_spline_data)
+       DO i = 1, lnset
+          NULLIFY( potparm%set(i)%ipbv,&
+                   potparm%set(i)%lj,&
+                   potparm%set(i)%gp,&
+                   potparm%set(i)%ft,&
+                   potparm%set(i)%willis,&
+                   potparm%set(i)%goodwin,&
+                   potparm%set(i)%eam,&
+                   potparm%set(i)%buck4r,&
+                   potparm%set(i)%buckmo,&
+                   potparm%set(i)%tersoff)
+       END DO
        CALL pair_potential_single_clean(potparm, error)
     END IF
   END SUBROUTINE pair_potential_single_create
@@ -400,12 +431,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pair_potential_single_clean', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     potparm % type          = nn_type
     potparm % shell_type    = nosh_nosh
     potparm % undef         = .TRUE.
+    potparm % only_mb       = .FALSE.
+    potparm % only_pp       = .FALSE.
     potparm % at1           = 'NULL'
     potparm % at2           = 'NULL'
     potparm % rcutsq        = 0.0_dp
@@ -427,17 +461,18 @@ CONTAINS
     IF (ASSOCIATED( potparm % spl_sc ))&
          CALL spline_factor_release ( potparm % spl_sc ,error=error)
 
-    CALL pair_potential_lj_clean (potparm, error=error)
-    CALL pair_potential_williams_clean (potparm, error=error)
-    CALL pair_potential_goodwin_clean (potparm, error=error)
-    CALL pair_potential_eam_clean (potparm, error=error)
-    CALL pair_potential_buck4r_clean (potparm, error=error)
-    CALL pair_potential_buckmo_clean (potparm, error=error)
-    CALL pair_potential_bmhft_clean (potparm, error=error)
-    CALL pair_potential_ipbv_clean (potparm, error=error)
-    CALL pair_potential_gp_clean (potparm, error=error)
-    CALL pair_potential_tersoff_clean (potparm, error=error)
-
+    DO i = 1, SIZE(potparm%type)
+       CALL pair_potential_lj_clean (potparm%set(i)%lj, error=error)
+       CALL pair_potential_williams_clean (potparm%set(i)%willis, error=error)
+       CALL pair_potential_goodwin_clean (potparm%set(i)%goodwin, error=error)
+       CALL pair_potential_eam_clean (potparm%set(i)%eam, error=error)
+       CALL pair_potential_buck4r_clean (potparm%set(i)%buck4r, error=error)
+       CALL pair_potential_buckmo_clean (potparm%set(i)%buckmo, error=error)
+       CALL pair_potential_bmhft_clean (potparm%set(i)%ft, error=error)
+       CALL pair_potential_ipbv_clean (potparm%set(i)%ipbv, error=error)
+       CALL pair_potential_gp_clean (potparm%set(i)%gp, error=error)
+       CALL pair_potential_tersoff_clean (potparm%set(i)%tersoff, error=error)
+    END DO
   END SUBROUTINE pair_potential_single_clean
 
   !******************************************************************************
@@ -465,17 +500,22 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pair_potential_single_copy', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPPostcondition(ASSOCIATED(potparm_source),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        IF (.NOT.ASSOCIATED(potparm_dest)) THEN
-          CALL pair_potential_single_create(potparm_dest,error)
+          CALL pair_potential_single_create(potparm_dest,SIZE(potparm_source%type),error)
+       ELSE
+          CALL pair_potential_single_clean(potparm_dest, error)
        END IF
-       potparm_dest % TYPE          = potparm_source % TYPE
+       potparm_dest % type          = potparm_source % type
        potparm_dest % shell_type    = potparm_source % shell_type
        potparm_dest % undef         = potparm_source % undef
+       potparm_dest % only_pp       = potparm_source % only_pp
+       potparm_dest % only_mb       = potparm_source % only_mb
        potparm_dest % at1           = potparm_source % at1
        potparm_dest % at2           = potparm_source % at2
        potparm_dest % rcutsq        = potparm_source % rcutsq
@@ -505,18 +545,162 @@ CONTAINS
           CALL spline_factor_copy ( potparm_source % spl_sc, potparm_dest % spl_sc, error=error  )
        END IF
 
-       CALL pair_potential_lj_copy (potparm_source, potparm_dest, error=error)
-       CALL pair_potential_williams_copy (potparm_source, potparm_dest, error=error)
-       CALL pair_potential_goodwin_copy (potparm_source, potparm_dest, error=error)
-       CALL pair_potential_eam_copy (potparm_source, potparm_dest, error=error)
-       CALL pair_potential_bmhft_copy (potparm_source, potparm_dest, error=error)
-       CALL pair_potential_ipbv_copy (potparm_source, potparm_dest, error=error)
-       CALL pair_potential_buck4r_copy (potparm_source, potparm_dest, error=error)
-       CALL pair_potential_buckmo_copy (potparm_source, potparm_dest, error=error)
-       CALL pair_potential_gp_copy (potparm_source, potparm_dest, error=error)
-       CALL pair_potential_tersoff_copy (potparm_source, potparm_dest, error=error)
+       DO i = 1, SIZE(potparm_source%type)
+          CALL pair_potential_lj_copy (potparm_source%set(i)%lj, potparm_dest%set(i)%lj, error=error)
+          CALL pair_potential_williams_copy (potparm_source%set(i)%willis, potparm_dest%set(i)%willis, error=error)
+          CALL pair_potential_goodwin_copy (potparm_source%set(i)%goodwin, potparm_dest%set(i)%goodwin, error=error)
+          CALL pair_potential_eam_copy (potparm_source%set(i)%eam, potparm_dest%set(i)%eam, error=error)
+          CALL pair_potential_bmhft_copy (potparm_source%set(i)%ft, potparm_dest%set(i)%ft, error=error)
+          CALL pair_potential_ipbv_copy (potparm_source%set(i)%ipbv, potparm_dest%set(i)%ipbv, error=error)
+          CALL pair_potential_buck4r_copy (potparm_source%set(i)%buck4r, potparm_dest%set(i)%buck4r, error=error)
+          CALL pair_potential_buckmo_copy (potparm_source%set(i)%buckmo, potparm_dest%set(i)%buckmo, error=error)
+          CALL pair_potential_gp_copy (potparm_source%set(i)%gp, potparm_dest%set(i)%gp, error=error)
+          CALL pair_potential_tersoff_copy (potparm_source%set(i)%tersoff, potparm_dest%set(i)%tersoff, error=error)
+       END DO
     END IF
   END SUBROUTINE pair_potential_single_copy
+
+  !******************************************************************************
+  !!****
+  !!****s* pair_potential_types/pair_potential_single_add [1.0] *
+  !!
+  !!   NAME
+  !!     pair_potential_single_add
+  !!
+  !!   FUNCTION
+  !!     Add potential parameter type to an existing potential poarameter type
+  !!     Used in case of multiple_potential definition
+  !!
+  !!   AUTHOR
+  !!     Teodoro Laino [teo] 11.2005
+  !!
+  !!   MODIFICATION HISTORY
+  !!
+  !!   SOURCE
+  !******************************************************************************
+  SUBROUTINE pair_potential_single_add(potparm_source, potparm_dest, error)
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm_source, potparm_dest
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pair_potential_single_add', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, j, size_dest, size_source
+    LOGICAL                                  :: failure, check, allocate_new
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm_tmp
+
+    failure = .FALSE.
+    CPPostcondition(ASSOCIATED(potparm_source),cp_failure_level,routineP,error,failure)
+    IF (.NOT.failure) THEN
+       ! At this level we expect all splines types
+       ! be not allocated.. No sense add splines at this level.. in case fail!
+       check = (.NOT.ASSOCIATED( potparm_source % pair_spline_data )).AND.&
+               (.NOT.ASSOCIATED( potparm_source % c_coul_spline_data )).AND.&
+               (.NOT.ASSOCIATED( potparm_source % cs_coul_spline_data )).AND.&
+               (.NOT.ASSOCIATED( potparm_source % sc_coul_spline_data )).AND.&
+               (.NOT.ASSOCIATED( potparm_source % spl_f )).AND.&
+               (.NOT.ASSOCIATED( potparm_source % spl_c )).AND.&
+               (.NOT.ASSOCIATED( potparm_source % spl_cs )).AND.&
+               (.NOT.ASSOCIATED( potparm_source % spl_sc ))
+       CPPostcondition(check,cp_failure_level,routineP,error,failure)
+       check = (.NOT.ASSOCIATED( potparm_dest % pair_spline_data )).AND.&
+               (.NOT.ASSOCIATED( potparm_dest % c_coul_spline_data )).AND.&
+               (.NOT.ASSOCIATED( potparm_dest % cs_coul_spline_data )).AND.&
+               (.NOT.ASSOCIATED( potparm_dest % sc_coul_spline_data )).AND.&
+               (.NOT.ASSOCIATED( potparm_dest % spl_f )).AND.&
+               (.NOT.ASSOCIATED( potparm_dest % spl_c )).AND.&
+               (.NOT.ASSOCIATED( potparm_dest % spl_cs )).AND.&
+               (.NOT.ASSOCIATED( potparm_dest % spl_sc ))
+       CPPostcondition(check,cp_failure_level,routineP,error,failure)
+       ! Increase the size of the destination potparm (in case) and copy the new data
+       size_source = SIZE(potparm_source%type)
+       allocate_new = .NOT.ASSOCIATED(potparm_dest)
+       IF (.NOT.allocate_new) THEN
+          size_dest = SIZE(potparm_dest%type)
+          IF (size_dest==1) THEN
+             check = (ASSOCIATED(potparm_dest%set(1)%lj)).OR.&
+                     (ASSOCIATED(potparm_dest%set(1)%willis)).OR.&
+                     (ASSOCIATED(potparm_dest%set(1)%goodwin)).OR.&
+                     (ASSOCIATED(potparm_dest%set(1)%eam)).OR.&
+                     (ASSOCIATED(potparm_dest%set(1)%ft)).OR.&
+                     (ASSOCIATED(potparm_dest%set(1)%ipbv)).OR.&
+                     (ASSOCIATED(potparm_dest%set(1)%buck4r)).OR.&
+                     (ASSOCIATED(potparm_dest%set(1)%buckmo)).OR.&
+                     (ASSOCIATED(potparm_dest%set(1)%gp)).OR.&
+                     (ASSOCIATED(potparm_dest%set(1)%tersoff))
+             IF (.NOT.check) THEN 
+                allocate_new = .TRUE.
+                CALL pair_potential_single_release(potparm_dest, error)
+             END IF
+          END IF
+       END IF
+       IF (allocate_new) THEN
+          size_dest = 0
+          CALL pair_potential_single_create(potparm_dest,size_source,error)
+          potparm_dest % shell_type    = potparm_source % shell_type
+          potparm_dest % undef         = potparm_source % undef
+          potparm_dest % only_pp       = potparm_source % only_pp
+          potparm_dest % only_mb       = potparm_source % only_mb
+          potparm_dest % at1           = potparm_source % at1
+          potparm_dest % at2           = potparm_source % at2
+          potparm_dest % rcutsq        = potparm_source % rcutsq
+       ELSE
+          size_dest = SIZE(potparm_dest%type)
+          NULLIFY(potparm_tmp)
+          CALL pair_potential_single_copy(potparm_dest,potparm_tmp,error)
+          CALL pair_potential_single_release(potparm_dest, error)
+          CALL pair_potential_single_create(potparm_dest,size_dest+size_source,error)
+          ! Copy back original informations.. 
+          potparm_dest % shell_type = potparm_tmp % shell_type
+          potparm_dest % undef      = potparm_tmp % undef
+          potparm_dest % only_pp    = potparm_tmp % only_pp
+          potparm_dest % only_mb    = potparm_tmp % only_mb
+          potparm_dest % at1        = potparm_tmp % at1
+          potparm_dest % at2        = potparm_tmp % at2
+          potparm_dest % rcutsq     = potparm_tmp % rcutsq
+          DO i = 1, size_dest
+             potparm_dest%type(i) = potparm_tmp%type(i)
+             CALL pair_potential_lj_copy (potparm_tmp%set(i)%lj, potparm_dest%set(i)%lj, error=error)
+             CALL pair_potential_williams_copy (potparm_tmp%set(i)%willis, potparm_dest%set(i)%willis, error=error)
+             CALL pair_potential_goodwin_copy (potparm_tmp%set(i)%goodwin, potparm_dest%set(i)%goodwin, error=error)
+             CALL pair_potential_eam_copy (potparm_tmp%set(i)%eam, potparm_dest%set(i)%eam, error=error)
+             CALL pair_potential_bmhft_copy (potparm_tmp%set(i)%ft, potparm_dest%set(i)%ft, error=error)
+             CALL pair_potential_ipbv_copy (potparm_tmp%set(i)%ipbv, potparm_dest%set(i)%ipbv, error=error)
+             CALL pair_potential_buck4r_copy (potparm_tmp%set(i)%buck4r, potparm_dest%set(i)%buck4r, error=error)
+             CALL pair_potential_buckmo_copy (potparm_tmp%set(i)%buckmo, potparm_dest%set(i)%buckmo, error=error)
+             CALL pair_potential_gp_copy (potparm_tmp%set(i)%gp, potparm_dest%set(i)%gp, error=error)
+             CALL pair_potential_tersoff_copy (potparm_tmp%set(i)%tersoff, potparm_dest%set(i)%tersoff, error=error)
+          END DO
+          CALL pair_potential_single_release ( potparm_tmp, error )
+       END IF
+       ! Further check with main option with source and dest (already filled with few informations)
+       check= (potparm_dest % shell_type == potparm_source % shell_type).AND.&
+              (potparm_dest % undef    .EQV.potparm_source % undef     ).AND.&
+              (potparm_dest % only_pp  .EQV.potparm_source % only_pp   ).AND.&
+              (potparm_dest % only_mb  .EQV.potparm_source % only_mb   ).AND.&
+              (potparm_dest % at1        == potparm_source % at1       ).AND.&
+              (potparm_dest % at2        == potparm_source % at2       ).AND.&
+              (potparm_dest % rcutsq     == potparm_source % rcutsq    )
+       CPPostcondition(check,cp_failure_level,routineP,error,failure)
+       ! Now copy the new pair_potential type
+       DO i = size_dest+1, size_dest+size_source
+          j = i-size_dest
+          potparm_dest%type(i) = potparm_source%type(j)
+          CALL pair_potential_lj_copy (potparm_source%set(j)%lj, potparm_dest%set(i)%lj, error=error)
+          CALL pair_potential_williams_copy (potparm_source%set(j)%willis, potparm_dest%set(i)%willis, error=error)
+          CALL pair_potential_goodwin_copy (potparm_source%set(j)%goodwin, potparm_dest%set(i)%goodwin, error=error)
+          CALL pair_potential_eam_copy (potparm_source%set(j)%eam, potparm_dest%set(i)%eam, error=error)
+          CALL pair_potential_bmhft_copy (potparm_source%set(j)%ft, potparm_dest%set(i)%ft, error=error)
+          CALL pair_potential_ipbv_copy (potparm_source%set(j)%ipbv, potparm_dest%set(i)%ipbv, error=error)
+          CALL pair_potential_buck4r_copy (potparm_source%set(j)%buck4r, potparm_dest%set(i)%buck4r, error=error)
+          CALL pair_potential_buckmo_copy (potparm_source%set(j)%buckmo, potparm_dest%set(i)%buckmo, error=error)
+          CALL pair_potential_gp_copy (potparm_source%set(j)%gp, potparm_dest%set(i)%gp, error=error)
+          CALL pair_potential_tersoff_copy (potparm_source%set(j)%tersoff, potparm_dest%set(i)%tersoff, error=error)
+       END DO
+    END IF
+  END SUBROUTINE pair_potential_single_add
 
   !******************************************************************************
   !!****
@@ -549,7 +733,9 @@ CONTAINS
     CPPostcondition(ASSOCIATED(potparm_source),cp_failure_level,routineP,error,failure)
     CPPostcondition(ASSOCIATED(potparm_dest),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
-       IF (.NOT.ASSOCIATED(potparm_dest%pot)) CALL pair_potential_single_create(potparm_dest%pot, error)
+       IF (.NOT.ASSOCIATED(potparm_dest%pot)) THEN 
+          CALL pair_potential_single_create(potparm_dest%pot, SIZE(potparm_source%pot%type), error)
+       END IF
        CALL pair_potential_single_copy(potparm_source%pot, potparm_dest%pot, error=error)
     END IF
   END SUBROUTINE pair_potential_copy
@@ -581,7 +767,7 @@ CONTAINS
       routineN = 'pair_potential_single_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: i, stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -595,16 +781,22 @@ CONTAINS
        CALL spline_factor_release( potparm% spl_c, error=error )
        CALL spline_factor_release( potparm% spl_cs, error=error )
        CALL spline_factor_release( potparm% spl_sc, error=error )
-       CALL pair_potential_ipbv_release     ( potparm, error=error )
-       CALL pair_potential_lj_release       ( potparm, error=error )
-       CALL pair_potential_bmhft_release    ( potparm, error=error )
-       CALL pair_potential_williams_release ( potparm, error=error )
-       CALL pair_potential_goodwin_release  ( potparm, error=error )
-       CALL pair_potential_eam_release      ( potparm, error=error )
-       CALL pair_potential_buck4r_release   ( potparm, error=error )
-       CALL pair_potential_buckmo_release   ( potparm, error=error )
-       CALL pair_potential_gp_release       ( potparm, error=error )
-       CALL pair_potential_tersoff_release  ( potparm, error=error )
+       DO i = 1, SIZE(potparm%type)
+          CALL pair_potential_ipbv_release     ( potparm%set(i)%ipbv, error=error )
+          CALL pair_potential_lj_release       ( potparm%set(i)%lj, error=error )
+          CALL pair_potential_bmhft_release    ( potparm%set(i)%ft, error=error )
+          CALL pair_potential_williams_release ( potparm%set(i)%willis, error=error )
+          CALL pair_potential_goodwin_release  ( potparm%set(i)%goodwin, error=error )
+          CALL pair_potential_eam_release      ( potparm%set(i)%eam, error=error )
+          CALL pair_potential_buck4r_release   ( potparm%set(i)%buck4r, error=error )
+          CALL pair_potential_buckmo_release   ( potparm%set(i)%buckmo, error=error )
+          CALL pair_potential_gp_release       ( potparm%set(i)%gp, error=error )
+          CALL pair_potential_tersoff_release  ( potparm%set(i)%tersoff, error=error )
+       END DO
+       DEALLOCATE(potparm%type, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(potparm%set, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(potparm, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
@@ -882,7 +1074,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_reallocate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ipot, lb1_old, ub1_old
+    INTEGER                                  :: i, ipot, lb1_old, std_dim, &
+                                                ub1_old
     LOGICAL :: check, failure, lbmhft, lbuck4r, lbuckmo, leam, lgoodwin, lgp, &
       lipbv, llj, llj_charmm, ltersoff, lwilliams
     TYPE(pair_potential_p_type), POINTER     :: work
@@ -984,33 +1177,38 @@ CONTAINS
        IF (ASSOCIATED(work)) THEN
           CALL pair_potential_p_copy(work, p, istart=lb1_old, iend=ub1_old, error=error)
        END IF
+       std_dim = 1
        DO i = ub1_old+1, ub1_new
+          check = (SIZE(p%pot(i)%pot%type)==std_dim).AND.(SIZE(p%pot(i)%pot%type)==std_dim)
+          CPPostcondition(check,cp_failure_level,routineP,error,failure)
           p % pot ( i ) % pot % type  = nn_type
           p % pot ( i ) % pot % shell_type  = nosh_nosh
-          p % pot ( i ) % pot % undef = .TRUE.
+          p % pot ( i ) % pot % undef   = .TRUE.
+          p % pot ( i ) % pot % only_pp = .FALSE.
+          p % pot ( i ) % pot % only_mb = .FALSE.
           p % pot ( i ) % pot % at1   = 'NULL'
           p % pot ( i ) % pot % at2   = 'NULL'
           SELECT CASE (ipot)
           CASE (lj_type,lj_charmm_type)
-             CALL pair_potential_lj_create(p%pot(i)%pot, error=error)
+             CALL pair_potential_lj_create(p%pot(i)%pot%set(std_dim)%lj, error=error)
           CASE (wl_type)
-             CALL pair_potential_williams_create(p%pot(i)%pot, error=error)
+             CALL pair_potential_williams_create(p%pot(i)%pot%set(std_dim)%willis, error=error)
           CASE (gw_type)
-             CALL pair_potential_goodwin_create(p%pot(i)%pot, error=error)
+             CALL pair_potential_goodwin_create(p%pot(i)%pot%set(std_dim)%goodwin, error=error)
           CASE (ea_type)
-             CALL pair_potential_eam_create(p%pot(i)%pot, error=error)
+             CALL pair_potential_eam_create(p%pot(i)%pot%set(std_dim)%eam, error=error)
           CASE (ft_type)
-             CALL pair_potential_bmhft_create(p%pot(i)%pot, error=error)
+             CALL pair_potential_bmhft_create(p%pot(i)%pot%set(std_dim)%ft, error=error)
           CASE (ip_type)
-             CALL pair_potential_ipbv_create(p%pot(i)%pot, error=error)
+             CALL pair_potential_ipbv_create(p%pot(i)%pot%set(std_dim)%ipbv, error=error)
           CASE (b4_type)
-             CALL pair_potential_buck4r_create(p%pot(i)%pot, error=error)
+             CALL pair_potential_buck4r_create(p%pot(i)%pot%set(std_dim)%buck4r, error=error)
           CASE (bm_type)
-             CALL pair_potential_buckmo_create(p%pot(i)%pot, error=error)
+             CALL pair_potential_buckmo_create(p%pot(i)%pot%set(std_dim)%buckmo, error=error)
           CASE (gp_type)
-             CALL pair_potential_gp_create(p%pot(i)%pot, error=error)
+             CALL pair_potential_gp_create(p%pot(i)%pot%set(std_dim)%gp, error=error)
           CASE (tersoff_type)
-             CALL pair_potential_tersoff_create(p%pot(i)%pot, error=error)
+             CALL pair_potential_tersoff_create(p%pot(i)%pot%set(std_dim)%tersoff, error=error)
           END SELECT
           NULLIFY ( p%pot(i)%pot%spl_f  )
           NULLIFY ( p%pot(i)%pot%spl_c  )
@@ -1043,9 +1241,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_gp_create(potparm, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm
+  SUBROUTINE pair_potential_gp_create(gp, error)
+    TYPE(gp_pot_type), POINTER               :: gp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_gp_create', &
@@ -1056,10 +1253,10 @@ CONTAINS
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       CPPostcondition(.NOT.ASSOCIATED(potparm%gp),cp_failure_level,routineP,error,failure)
-       ALLOCATE(potparm%gp, stat=stat)
+       CPPostcondition(.NOT.ASSOCIATED(gp),cp_failure_level,routineP,error,failure)
+       ALLOCATE(gp, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL pair_potential_gp_clean(potparm, error=error)
+       CALL pair_potential_gp_clean(gp, error=error)
     END IF
   END SUBROUTINE pair_potential_gp_create
 
@@ -1080,9 +1277,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_gp_copy(potparm_source, potparm_dest, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm_source, potparm_dest
+  SUBROUTINE pair_potential_gp_copy(gp_source, gp_dest, error)
+    TYPE(gp_pot_type), POINTER               :: gp_source, gp_dest
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_gp_copy', &
@@ -1092,26 +1288,24 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(potparm_source),cp_failure_level,routineP,error,failure)
-    CPPostcondition(ASSOCIATED(potparm_dest),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
-       IF (.NOT.ASSOCIATED(potparm_source%gp)) RETURN
-       IF (ASSOCIATED(potparm_dest%gp)) CALL pair_potential_gp_release(potparm_dest, error=error)
-       CALL pair_potential_gp_create(potparm_dest, error=error)
-       potparm_dest% gp % myid      = potparm_source% gp % myid
-       potparm_dest% gp % potential = potparm_source% gp % potential
-       potparm_dest% gp % variables = potparm_source% gp % variables
-       IF (ASSOCIATED(potparm_source% gp % parameters)) THEN
-          idim = SIZE(potparm_source% gp % parameters)
-          ALLOCATE(potparm_dest% gp % parameters(idim),stat=stat)
+       IF (.NOT.ASSOCIATED(gp_source)) RETURN
+       IF (ASSOCIATED(gp_dest)) CALL pair_potential_gp_release(gp_dest, error=error)
+       CALL pair_potential_gp_create(gp_dest, error=error)
+       gp_dest%myid      = gp_source%myid
+       gp_dest%potential = gp_source%potential
+       gp_dest%variables = gp_source%variables
+       IF (ASSOCIATED(gp_source%parameters)) THEN
+          idim = SIZE(gp_source%parameters)
+          ALLOCATE(gp_dest%parameters(idim),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          potparm_dest% gp % parameters = potparm_source% gp % parameters
+          gp_dest%parameters = gp_source%parameters
        END IF
-       IF (ASSOCIATED(potparm_source% gp % values)) THEN
-          idim = SIZE(potparm_source% gp % values)
-          ALLOCATE(potparm_dest% gp % values(idim),stat=stat)
+       IF (ASSOCIATED(gp_source%values)) THEN
+          idim = SIZE(gp_source%values)
+          ALLOCATE(gp_dest%values(idim),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          potparm_dest% gp % values = potparm_source% gp % values
+          gp_dest%values = gp_source%values
        END IF
     END IF
   END SUBROUTINE pair_potential_gp_copy
@@ -1133,9 +1327,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_gp_clean(potparm, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm
+  SUBROUTINE pair_potential_gp_clean(gp, error)
+    TYPE(gp_pot_type), POINTER               :: gp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_gp_clean', &
@@ -1145,12 +1338,12 @@ CONTAINS
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       IF (.NOT.ASSOCIATED(potparm % gp)) RETURN
-       potparm % gp % myid      = 0
-       potparm % gp % potential = ""
-       potparm % gp % variables = ""
-       NULLIFY (potparm % gp % parameters)
-       NULLIFY (potparm % gp % values)
+       IF (.NOT.ASSOCIATED(gp)) RETURN
+       gp%myid      = 0
+       gp%potential = ""
+       gp%variables = ""
+       NULLIFY (gp%parameters)
+       NULLIFY (gp%values)
     END IF
   END SUBROUTINE pair_potential_gp_clean
 
@@ -1171,9 +1364,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_gp_release(potparm, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm
+  SUBROUTINE pair_potential_gp_release(gp, error)
+    TYPE(gp_pot_type), POINTER               :: gp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_gp_release', &
@@ -1184,19 +1376,19 @@ CONTAINS
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       IF (ASSOCIATED(potparm%gp)) THEN
-          IF (ASSOCIATED(potparm%gp%parameters)) THEN
-             DEALLOCATE(potparm%gp%parameters, stat=stat)
+       IF (ASSOCIATED(gp)) THEN
+          IF (ASSOCIATED(gp%parameters)) THEN
+             DEALLOCATE(gp%parameters, stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
-          IF (ASSOCIATED(potparm%gp%values)) THEN
-             DEALLOCATE(potparm%gp%values, stat=stat)
+          IF (ASSOCIATED(gp%values)) THEN
+             DEALLOCATE(gp%values, stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
-          DEALLOCATE(potparm%gp, stat=stat)
+          DEALLOCATE(gp, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
-       NULLIFY(potparm%gp)
+       NULLIFY(gp)
     END IF
   END SUBROUTINE pair_potential_gp_release
 
@@ -1217,9 +1409,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_lj_create(potparm, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm
+  SUBROUTINE pair_potential_lj_create(lj, error)
+    TYPE(lj_pot_type), POINTER               :: lj
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_lj_create', &
@@ -1230,10 +1421,10 @@ CONTAINS
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       CPPostcondition(.NOT.ASSOCIATED(potparm%lj),cp_failure_level,routineP,error,failure)
-       ALLOCATE(potparm%lj, stat=stat)
+       CPPostcondition(.NOT.ASSOCIATED(lj),cp_failure_level,routineP,error,failure)
+       ALLOCATE(lj, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL pair_potential_lj_clean(potparm, error=error)
+       CALL pair_potential_lj_clean(lj, error=error)
     END IF
   END SUBROUTINE pair_potential_lj_create
 
@@ -1254,9 +1445,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_lj_copy(potparm_source, potparm_dest, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm_source, potparm_dest
+  SUBROUTINE pair_potential_lj_copy(lj_source, lj_dest, error)
+    TYPE(lj_pot_type), POINTER               :: lj_source, lj_dest
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_lj_copy', &
@@ -1265,15 +1455,13 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(potparm_source),cp_failure_level,routineP,error,failure)
-    CPPostcondition(ASSOCIATED(potparm_dest),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
-       IF (.NOT.ASSOCIATED(potparm_source%lj)) RETURN
-       IF (ASSOCIATED(potparm_dest%lj)) CALL pair_potential_lj_release(potparm_dest, error=error)
-       CALL pair_potential_lj_create(potparm_dest, error=error)
-       potparm_dest% lj % epsilon = potparm_source% lj % epsilon
-       potparm_dest% lj % sigma6  = potparm_source% lj % sigma6
-       potparm_dest% lj % sigma12 = potparm_source% lj % sigma12
+       IF (.NOT.ASSOCIATED(lj_source)) RETURN
+       IF (ASSOCIATED(lj_dest)) CALL pair_potential_lj_release(lj_dest, error=error)
+       CALL pair_potential_lj_create(lj_dest, error=error)
+       lj_dest%epsilon = lj_source%epsilon
+       lj_dest%sigma6  = lj_source%sigma6
+       lj_dest%sigma12 = lj_source%sigma12
     END IF
   END SUBROUTINE pair_potential_lj_copy
 
@@ -1294,9 +1482,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_lj_clean(potparm, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm
+  SUBROUTINE pair_potential_lj_clean(lj, error)
+    TYPE(lj_pot_type), POINTER               :: lj
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_lj_clean', &
@@ -1306,10 +1493,10 @@ CONTAINS
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       IF (.NOT.ASSOCIATED(potparm%lj)) RETURN
-       potparm% lj % epsilon = 0.0_dp
-       potparm% lj % sigma6  = 0.0_dp
-       potparm% lj % sigma12 = 0.0_dp
+       IF (.NOT.ASSOCIATED(lj)) RETURN
+       lj%epsilon = 0.0_dp
+       lj%sigma6  = 0.0_dp
+       lj%sigma12 = 0.0_dp
     END IF
   END SUBROUTINE pair_potential_lj_clean
 
@@ -1330,9 +1517,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_lj_release(potparm, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm
+  SUBROUTINE pair_potential_lj_release(lj, error)
+    TYPE(lj_pot_type), POINTER               :: lj
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_lj_release', &
@@ -1343,11 +1529,11 @@ CONTAINS
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       IF (ASSOCIATED(potparm%lj)) THEN
-          DEALLOCATE(potparm%lj, stat=stat)
+       IF (ASSOCIATED(lj)) THEN
+          DEALLOCATE(lj, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
-       NULLIFY(potparm%lj)
+       NULLIFY(lj)
     END IF
   END SUBROUTINE pair_potential_lj_release
 
@@ -1368,9 +1554,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_williams_create(potparm, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm
+  SUBROUTINE pair_potential_williams_create(willis, error)
+    TYPE(williams_pot_type), POINTER         :: willis
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
@@ -1382,10 +1567,10 @@ CONTAINS
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       CPPostcondition(.NOT.ASSOCIATED(potparm%willis),cp_failure_level,routineP,error,failure)
-       ALLOCATE(potparm%willis, stat=stat)
+       CPPostcondition(.NOT.ASSOCIATED(willis),cp_failure_level,routineP,error,failure)
+       ALLOCATE(willis, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL pair_potential_williams_clean(potparm, error=error)
+       CALL pair_potential_williams_clean(willis, error=error)
     END IF
   END SUBROUTINE pair_potential_williams_create
 
@@ -1406,9 +1591,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_williams_copy(potparm_source, potparm_dest, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm_source, potparm_dest
+  SUBROUTINE pair_potential_williams_copy(willis_source, willis_dest, error)
+    TYPE(williams_pot_type), POINTER         :: willis_source, willis_dest
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_williams_copy', &
@@ -1417,15 +1601,13 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(potparm_source),cp_failure_level,routineP,error,failure)
-    CPPostcondition(ASSOCIATED(potparm_dest),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
-       IF (.NOT.ASSOCIATED(potparm_source%willis)) RETURN
-       IF (ASSOCIATED(potparm_dest%willis)) CALL pair_potential_williams_release(potparm_dest, error=error)
-       CALL pair_potential_williams_create(potparm_dest, error=error)
-       potparm_dest% willis % a = potparm_source% willis % a
-       potparm_dest% willis % b = potparm_source% willis % b
-       potparm_dest% willis % c = potparm_source% willis % c
+       IF (.NOT.ASSOCIATED(willis_source)) RETURN
+       IF (ASSOCIATED(willis_dest)) CALL pair_potential_williams_release(willis_dest, error=error)
+       CALL pair_potential_williams_create(willis_dest, error=error)
+       willis_dest%a = willis_source%a
+       willis_dest%b = willis_source%b
+       willis_dest%c = willis_source%c
     END IF
   END SUBROUTINE pair_potential_williams_copy
 
@@ -1446,9 +1628,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_williams_clean(potparm, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm
+  SUBROUTINE pair_potential_williams_clean(willis, error)
+    TYPE(williams_pot_type), POINTER         :: willis
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
@@ -1459,10 +1640,10 @@ CONTAINS
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       IF(.NOT.ASSOCIATED(potparm%willis)) RETURN
-       potparm% willis % a = 0.0_dp
-       potparm% willis % b = 0.0_dp
-       potparm% willis % c = 0.0_dp
+       IF(.NOT.ASSOCIATED(willis)) RETURN
+       willis%a = 0.0_dp
+       willis%b = 0.0_dp
+       willis%c = 0.0_dp
     END IF
   END SUBROUTINE pair_potential_williams_clean
 
@@ -1483,9 +1664,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_williams_release(potparm, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm
+  SUBROUTINE pair_potential_williams_release(willis, error)
+    TYPE(williams_pot_type), POINTER         :: willis
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
@@ -1497,11 +1677,11 @@ CONTAINS
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       IF (ASSOCIATED(potparm%willis)) THEN
-          DEALLOCATE(potparm%willis, stat=stat)
+       IF (ASSOCIATED(willis)) THEN
+          DEALLOCATE(willis, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
-       NULLIFY(potparm%willis)
+       NULLIFY(willis)
     END IF
   END SUBROUTINE pair_potential_williams_release
 
@@ -1522,9 +1702,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_goodwin_create(potparm, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm
+  SUBROUTINE pair_potential_goodwin_create(goodwin, error)
+    TYPE(goodwin_pot_type), POINTER          :: goodwin
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
@@ -1536,10 +1715,10 @@ CONTAINS
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       CPPostcondition(.NOT.ASSOCIATED(potparm%goodwin),cp_failure_level,routineP,error,failure)
-       ALLOCATE(potparm%goodwin, stat=stat)
+       CPPostcondition(.NOT.ASSOCIATED(goodwin),cp_failure_level,routineP,error,failure)
+       ALLOCATE(goodwin, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL pair_potential_goodwin_clean(potparm, error=error)
+       CALL pair_potential_goodwin_clean(goodwin, error=error)
     END IF
   END SUBROUTINE pair_potential_goodwin_create
 
@@ -1560,9 +1739,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_goodwin_copy(potparm_source, potparm_dest, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm_source, potparm_dest
+  SUBROUTINE pair_potential_goodwin_copy(goodwin_source, goodwin_dest, error)
+    TYPE(goodwin_pot_type), POINTER          :: goodwin_source, goodwin_dest
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_goodwin_copy', &
@@ -1571,17 +1749,15 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(potparm_source),cp_failure_level,routineP,error,failure)
-    CPPostcondition(ASSOCIATED(potparm_dest),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
-       IF (.NOT.ASSOCIATED(potparm_source%goodwin)) RETURN
-       IF (ASSOCIATED(potparm_dest%goodwin)) CALL pair_potential_goodwin_release(potparm_dest, error=error)
-       CALL pair_potential_goodwin_create(potparm_dest, error=error)
-       potparm_dest% goodwin % vr0 = potparm_source% goodwin % vr0
-       potparm_dest% goodwin % d   = potparm_source% goodwin % d
-       potparm_dest% goodwin % dc  = potparm_source% goodwin % dc
-       potparm_dest% goodwin % m   = potparm_source% goodwin % m
-       potparm_dest% goodwin % mc  = potparm_source% goodwin % mc
+       IF (.NOT.ASSOCIATED(goodwin_source)) RETURN
+       IF (ASSOCIATED(goodwin_dest)) CALL pair_potential_goodwin_release(goodwin_dest, error=error)
+       CALL pair_potential_goodwin_create(goodwin_dest, error=error)
+       goodwin_dest%vr0 = goodwin_source%vr0
+       goodwin_dest%d   = goodwin_source%d
+       goodwin_dest%dc  = goodwin_source%dc
+       goodwin_dest%m   = goodwin_source%m
+       goodwin_dest%mc  = goodwin_source%mc
     END IF
   END SUBROUTINE pair_potential_goodwin_copy
 
@@ -1602,9 +1778,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_goodwin_clean(potparm, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm
+  SUBROUTINE pair_potential_goodwin_clean(goodwin, error)
+    TYPE(goodwin_pot_type), POINTER          :: goodwin
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_goodwin_clean', &
@@ -1614,12 +1789,12 @@ CONTAINS
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       IF(.NOT.ASSOCIATED(potparm%goodwin)) RETURN
-       potparm% goodwin % vr0 = 0.0_dp
-       potparm% goodwin % d   = 0.0_dp
-       potparm% goodwin % dc  = 0.0_dp
-       potparm% goodwin % m   = 0.0_dp
-       potparm% goodwin % mc  = 0.0_dp
+       IF(.NOT.ASSOCIATED(goodwin)) RETURN
+       goodwin%vr0 = 0.0_dp
+       goodwin%d   = 0.0_dp
+       goodwin%dc  = 0.0_dp
+       goodwin%m   = 0.0_dp
+       goodwin%mc  = 0.0_dp
     END IF
   END SUBROUTINE pair_potential_goodwin_clean
 
@@ -1640,9 +1815,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_goodwin_release(potparm, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm
+  SUBROUTINE pair_potential_goodwin_release(goodwin, error)
+    TYPE(goodwin_pot_type), POINTER          :: goodwin
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
@@ -1654,11 +1828,11 @@ CONTAINS
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       IF (ASSOCIATED(potparm%goodwin)) THEN
-          DEALLOCATE(potparm%goodwin, stat=stat)
+       IF (ASSOCIATED(goodwin)) THEN
+          DEALLOCATE(goodwin, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
-       NULLIFY(potparm%goodwin)
+       NULLIFY(goodwin)
     END IF
   END SUBROUTINE pair_potential_goodwin_release
 
@@ -1679,9 +1853,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_eam_create(potparm, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm
+  SUBROUTINE pair_potential_eam_create(eam, error)
+    TYPE(eam_pot_type), POINTER              :: eam
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_eam_create', &
@@ -1692,11 +1865,10 @@ CONTAINS
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       CPPostcondition(.NOT.ASSOCIATED(potparm%eam),cp_failure_level,routineP,error,failure)
-       ALLOCATE(potparm%eam, stat=stat)
+       CPPostcondition(.NOT.ASSOCIATED(eam),cp_failure_level,routineP,error,failure)
+       ALLOCATE(eam, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       NULLIFY(potparm%eam%rho_spline_data)
-       CALL pair_potential_eam_clean(potparm, error=error)
+       CALL pair_potential_eam_clean(eam, error=error)
     END IF
   END SUBROUTINE pair_potential_eam_create
 
@@ -1717,9 +1889,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_eam_copy(potparm_source, potparm_dest, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm_source, potparm_dest
+  SUBROUTINE pair_potential_eam_copy(eam_source, eam_dest, error)
+    TYPE(eam_pot_type), POINTER              :: eam_source, eam_dest
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_eam_copy', &
@@ -1728,28 +1899,22 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(potparm_source),cp_failure_level,routineP,error,failure)
-    CPPostcondition(ASSOCIATED(potparm_dest),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
-       IF (.NOT.ASSOCIATED(potparm_source%eam)) RETURN
-       IF (ASSOCIATED(potparm_dest%eam)) CALL pair_potential_eam_release(potparm_dest, error=error)
-       CALL pair_potential_eam_create(potparm_dest, error=error)
-       potparm_dest% eam % eam_file_name = potparm_source% eam % eam_file_name
-       potparm_dest% eam % drar          = potparm_source% eam % drar
-       potparm_dest% eam % drhoar        = potparm_source% eam % drhoar
-       potparm_dest% eam % acutal        = potparm_source% eam % acutal
-       potparm_dest% eam % rho           = potparm_source% eam % rho
-       potparm_dest% eam % phi           = potparm_source% eam % phi
-       potparm_dest% eam % frho          = potparm_source% eam % frho
-       potparm_dest% eam % rhoval        = potparm_source% eam % rhoval
-       potparm_dest% eam % rval          = potparm_source% eam % rval
-       potparm_dest% eam % rhop          = potparm_source% eam % rhop
-       potparm_dest% eam % phip          = potparm_source% eam % phip
-       potparm_dest% eam % frhop         = potparm_source% eam % frhop
-       IF (ASSOCIATED( potparm_source%eam%rho_spline_data )) THEN
-          CALL spline_data_p_copy ( potparm_source%eam%rho_spline_data, &
-               potparm_dest%eam%rho_spline_data, error=error  )
-       END IF
+       IF (.NOT.ASSOCIATED(eam_source)) RETURN
+       IF (ASSOCIATED(eam_dest)) CALL pair_potential_eam_release(eam_dest, error=error)
+       CALL pair_potential_eam_create(eam_dest, error=error)
+       eam_dest%eam_file_name = eam_source%eam_file_name
+       eam_dest%drar          = eam_source%drar
+       eam_dest%drhoar        = eam_source%drhoar
+       eam_dest%acutal        = eam_source%acutal
+       eam_dest%rho           = eam_source%rho
+       eam_dest%phi           = eam_source%phi
+       eam_dest%frho          = eam_source%frho
+       eam_dest%rhoval        = eam_source%rhoval
+       eam_dest%rval          = eam_source%rval
+       eam_dest%rhop          = eam_source%rhop
+       eam_dest%phip          = eam_source%phip
+       eam_dest%frhop         = eam_source%frhop
     END IF
   END SUBROUTINE pair_potential_eam_copy
 
@@ -1770,9 +1935,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_eam_clean(potparm, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm
+  SUBROUTINE pair_potential_eam_clean(eam, error)
+    TYPE(eam_pot_type), POINTER              :: eam
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_eam_clean', &
@@ -1782,22 +1946,20 @@ CONTAINS
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       IF(.NOT.ASSOCIATED(potparm%eam)) RETURN
-       potparm% eam % eam_file_name = 'NULL'
-       potparm% eam % drar          = 0.0_dp
-       potparm% eam % drhoar        = 0.0_dp
-       potparm% eam % acutal        = 0.0_dp
+       IF(.NOT.ASSOCIATED(eam)) RETURN
+       eam%eam_file_name = 'NULL'
+       eam%drar          = 0.0_dp
+       eam%drhoar        = 0.0_dp
+       eam%acutal        = 0.0_dp
        ! Arrays
-       potparm% eam % rho           = 0.0_dp
-       potparm% eam % phi           = 0.0_dp
-       potparm% eam % frho          = 0.0_dp
-       potparm% eam % rhoval        = 0.0_dp
-       potparm% eam % rval          = 0.0_dp
-       potparm% eam % rhop          = 0.0_dp
-       potparm% eam % phip          = 0.0_dp
-       potparm% eam % frhop         = 0.0_dp
-       IF (ASSOCIATED( potparm%eam%rho_spline_data )) &
-            CALL spline_data_p_release ( potparm%eam%rho_spline_data ,error=error)
+       eam%rho           = 0.0_dp
+       eam%phi           = 0.0_dp
+       eam%frho          = 0.0_dp
+       eam%rhoval        = 0.0_dp
+       eam%rval          = 0.0_dp
+       eam%rhop          = 0.0_dp
+       eam%phip          = 0.0_dp
+       eam%frhop         = 0.0_dp
     END IF
   END SUBROUTINE pair_potential_eam_clean
 
@@ -1818,9 +1980,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_eam_release(potparm, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm
+  SUBROUTINE pair_potential_eam_release(eam, error)
+    TYPE(eam_pot_type), POINTER              :: eam
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_eam_release', &
@@ -1831,12 +1992,11 @@ CONTAINS
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       IF (ASSOCIATED(potparm%eam)) THEN
-          CALL spline_data_p_release  ( potparm%eam%rho_spline_data, error=error )
-          DEALLOCATE(potparm%eam, stat=stat)
+       IF (ASSOCIATED(eam)) THEN
+          DEALLOCATE(eam, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
-       NULLIFY(potparm%eam)
+       NULLIFY(eam)
     END IF
   END SUBROUTINE pair_potential_eam_release
 
@@ -1857,9 +2017,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_bmhft_create(potparm, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm
+  SUBROUTINE pair_potential_bmhft_create(ft, error)
+    TYPE(ft_pot_type), POINTER               :: ft
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_bmhft_create', &
@@ -1870,10 +2029,10 @@ CONTAINS
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       CPPostcondition(.NOT.ASSOCIATED(potparm%ft),cp_failure_level,routineP,error,failure)
-       ALLOCATE(potparm%ft, stat=stat)
+       CPPostcondition(.NOT.ASSOCIATED(ft),cp_failure_level,routineP,error,failure)
+       ALLOCATE(ft, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL pair_potential_bmhft_clean(potparm, error=error)
+       CALL pair_potential_bmhft_clean(ft, error=error)
     END IF
   END SUBROUTINE pair_potential_bmhft_create
 
@@ -1894,9 +2053,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_bmhft_copy(potparm_source, potparm_dest, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm_source, potparm_dest
+  SUBROUTINE pair_potential_bmhft_copy(ft_source, ft_dest, error)
+    TYPE(ft_pot_type), POINTER               :: ft_source, ft_dest
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_bmhft_copy', &
@@ -1905,16 +2063,14 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(potparm_source),cp_failure_level,routineP,error,failure)
-    CPPostcondition(ASSOCIATED(potparm_dest),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
-       IF (.NOT.ASSOCIATED(potparm_source%ft)) RETURN
-       IF (ASSOCIATED(potparm_dest%ft)) CALL pair_potential_bmhft_release(potparm_dest, error=error)
-       CALL pair_potential_bmhft_create(potparm_dest, error=error)
-       potparm_dest% ft %  A     = potparm_source% ft %  A
-       potparm_dest% ft %  B     = potparm_source% ft %  B
-       potparm_dest% ft %  C     = potparm_source% ft %  C
-       potparm_dest% ft %  D     = potparm_source% ft %  D
+       IF (.NOT.ASSOCIATED(ft_source)) RETURN
+       IF (ASSOCIATED(ft_dest)) CALL pair_potential_bmhft_release(ft_dest, error=error)
+       CALL pair_potential_bmhft_create(ft_dest, error=error)
+       ft_dest%A = ft_source%A
+       ft_dest%B = ft_source%B
+       ft_dest%C = ft_source%C
+       ft_dest%D = ft_source%D
     END IF
   END SUBROUTINE pair_potential_bmhft_copy
 
@@ -1935,9 +2091,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_bmhft_clean(potparm, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm
+  SUBROUTINE pair_potential_bmhft_clean(ft, error)
+    TYPE(ft_pot_type), POINTER               :: ft
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_bmhft_clean', &
@@ -1947,11 +2102,11 @@ CONTAINS
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       IF(.NOT.ASSOCIATED(potparm%ft)) RETURN
-       potparm%ft % A = 0.0_dp
-       potparm%ft % B = 0.0_dp
-       potparm%ft % C = 0.0_dp
-       potparm%ft % D = 0.0_dp
+       IF(.NOT.ASSOCIATED(ft)) RETURN
+       ft%A = 0.0_dp
+       ft%B = 0.0_dp
+       ft%C = 0.0_dp
+       ft%D = 0.0_dp
     END IF
   END SUBROUTINE pair_potential_bmhft_clean
 
@@ -1972,9 +2127,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_bmhft_release(potparm, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm
+  SUBROUTINE pair_potential_bmhft_release(ft, error)
+    TYPE(ft_pot_type), POINTER               :: ft
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_bmhft_release', &
@@ -1985,11 +2139,11 @@ CONTAINS
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       IF (ASSOCIATED(potparm%ft)) THEN
-          DEALLOCATE(potparm%ft, stat=stat)
+       IF (ASSOCIATED(ft)) THEN
+          DEALLOCATE(ft, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
-       NULLIFY(potparm%ft)
+       NULLIFY(ft)
     END IF
   END SUBROUTINE pair_potential_bmhft_release
 
@@ -2010,9 +2164,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_ipbv_create(potparm, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm
+  SUBROUTINE pair_potential_ipbv_create(ipbv, error)
+    TYPE(ipbv_pot_type), POINTER             :: ipbv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_ipbv_create', &
@@ -2023,10 +2176,10 @@ CONTAINS
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       CPPostcondition(.NOT.ASSOCIATED(potparm%ipbv),cp_failure_level,routineP,error,failure)
-       ALLOCATE(potparm%ipbv, stat=stat)
+       CPPostcondition(.NOT.ASSOCIATED(ipbv),cp_failure_level,routineP,error,failure)
+       ALLOCATE(ipbv, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL pair_potential_ipbv_clean(potparm, error=error)
+       CALL pair_potential_ipbv_clean(ipbv, error=error)
     END IF
   END SUBROUTINE pair_potential_ipbv_create
 
@@ -2047,9 +2200,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_ipbv_copy(potparm_source, potparm_dest, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm_source, potparm_dest
+  SUBROUTINE pair_potential_ipbv_copy(ipbv_source, ipbv_dest, error)
+    TYPE(ipbv_pot_type), POINTER             :: ipbv_source, ipbv_dest
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_ipbv_copy', &
@@ -2058,16 +2210,14 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(potparm_source),cp_failure_level,routineP,error,failure)
-    CPPostcondition(ASSOCIATED(potparm_dest),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
-       IF (.NOT.ASSOCIATED(potparm_source%ipbv)) RETURN
-       IF (ASSOCIATED(potparm_dest%ipbv)) CALL pair_potential_ipbv_release(potparm_dest, error=error)
-       CALL pair_potential_ipbv_create(potparm_dest, error=error)
-       potparm_dest% ipbv %  a        = potparm_source% ipbv % a
-       potparm_dest% ipbv %  rcore    = potparm_source% ipbv % rcore
-       potparm_dest% ipbv %  b        = potparm_source% ipbv % b
-       potparm_dest% ipbv %  m        = potparm_source% ipbv % m
+       IF (.NOT.ASSOCIATED(ipbv_source)) RETURN
+       IF (ASSOCIATED(ipbv_dest)) CALL pair_potential_ipbv_release(ipbv_dest, error=error)
+       CALL pair_potential_ipbv_create(ipbv_dest, error=error)
+       ipbv_dest%a     = ipbv_source%a
+       ipbv_dest%rcore = ipbv_source%rcore
+       ipbv_dest%b     = ipbv_source%b
+       ipbv_dest%m     = ipbv_source%m
     END IF
   END SUBROUTINE pair_potential_ipbv_copy
 
@@ -2088,9 +2238,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_ipbv_clean(potparm, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm
+  SUBROUTINE pair_potential_ipbv_clean(ipbv, error)
+    TYPE(ipbv_pot_type), POINTER             :: ipbv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_ipbv_clean', &
@@ -2100,11 +2249,11 @@ CONTAINS
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       IF(.NOT.ASSOCIATED(potparm%ipbv)) RETURN
-       potparm%ipbv % a        = 0.0_dp
-       potparm%ipbv % rcore    = 0.0_dp
-       potparm%ipbv % b        = 0.0_dp
-       potparm%ipbv % m        = 0.0_dp
+       IF(.NOT.ASSOCIATED(ipbv)) RETURN
+       ipbv%a     = 0.0_dp
+       ipbv%rcore = 0.0_dp
+       ipbv%b     = 0.0_dp
+       ipbv%m     = 0.0_dp
     END IF
   END SUBROUTINE pair_potential_ipbv_clean
 
@@ -2125,9 +2274,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_ipbv_release(potparm, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm
+  SUBROUTINE pair_potential_ipbv_release(ipbv, error)
+    TYPE(ipbv_pot_type), POINTER             :: ipbv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_ipbv_release', &
@@ -2138,11 +2286,11 @@ CONTAINS
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       IF (ASSOCIATED(potparm%ipbv)) THEN
-          DEALLOCATE(potparm%ipbv, stat=stat)
+       IF (ASSOCIATED(ipbv)) THEN
+          DEALLOCATE(ipbv, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
-       NULLIFY(potparm%ipbv)
+       NULLIFY(ipbv)
     END IF
   END SUBROUTINE pair_potential_ipbv_release
 
@@ -2163,9 +2311,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_buck4r_create(potparm, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm
+  SUBROUTINE pair_potential_buck4r_create(buck4r, error)
+    TYPE(buck4ran_pot_type), POINTER         :: buck4r
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_buck4r_create', &
@@ -2176,10 +2323,10 @@ CONTAINS
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       CPPostcondition(.NOT.ASSOCIATED(potparm%buck4r),cp_failure_level,routineP,error,failure)
-       ALLOCATE(potparm%buck4r, stat=stat)
+       CPPostcondition(.NOT.ASSOCIATED(buck4r),cp_failure_level,routineP,error,failure)
+       ALLOCATE(buck4r, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL pair_potential_buck4r_clean(potparm, error=error)
+       CALL pair_potential_buck4r_clean(buck4r, error=error)
     END IF
   END SUBROUTINE pair_potential_buck4r_create
 
@@ -2200,9 +2347,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_buck4r_copy(potparm_source, potparm_dest, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm_source, potparm_dest
+  SUBROUTINE pair_potential_buck4r_copy(buck4r_source, buck4r_dest, error)
+    TYPE(buck4ran_pot_type), POINTER         :: buck4r_source, buck4r_dest
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_buck4r_copy', &
@@ -2211,22 +2357,20 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(potparm_source),cp_failure_level,routineP,error,failure)
-    CPPostcondition(ASSOCIATED(potparm_dest),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
-       IF (.NOT.ASSOCIATED(potparm_source%buck4r)) RETURN
-       IF (ASSOCIATED(potparm_dest%buck4r)) CALL pair_potential_buck4r_release(potparm_dest, error=error)
-       CALL pair_potential_buck4r_create(potparm_dest, error=error)
-       potparm_dest% buck4r % a = potparm_source% buck4r % a
-       potparm_dest% buck4r % b = potparm_source% buck4r % b
-       potparm_dest% buck4r % c = potparm_source% buck4r % c
-       potparm_dest% buck4r % r1 = potparm_source% buck4r % r1
-       potparm_dest% buck4r % r2 = potparm_source% buck4r % r2
-       potparm_dest% buck4r % r3 = potparm_source% buck4r % r3
-       potparm_dest% buck4r % poly1 = potparm_source% buck4r % poly1
-       potparm_dest% buck4r % poly2 = potparm_source% buck4r % poly2
-       potparm_dest% buck4r % npoly1 = potparm_source% buck4r % npoly1
-       potparm_dest% buck4r % npoly2 = potparm_source% buck4r % npoly2
+       IF (.NOT.ASSOCIATED(buck4r_source)) RETURN
+       IF (ASSOCIATED(buck4r_dest)) CALL pair_potential_buck4r_release(buck4r_dest, error=error)
+       CALL pair_potential_buck4r_create(buck4r_dest, error=error)
+       buck4r_dest%a      = buck4r_source%a
+       buck4r_dest%b      = buck4r_source%b
+       buck4r_dest%c      = buck4r_source%c
+       buck4r_dest%r1     = buck4r_source%r1
+       buck4r_dest%r2     = buck4r_source%r2
+       buck4r_dest%r3     = buck4r_source%r3
+       buck4r_dest%poly1  = buck4r_source%poly1
+       buck4r_dest%poly2  = buck4r_source%poly2
+       buck4r_dest%npoly1 = buck4r_source%npoly1
+       buck4r_dest%npoly2 = buck4r_source%npoly2
     END IF
   END SUBROUTINE pair_potential_buck4r_copy
 
@@ -2247,9 +2391,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_buck4r_clean(potparm, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm
+  SUBROUTINE pair_potential_buck4r_clean(buck4r, error)
+    TYPE(buck4ran_pot_type), POINTER         :: buck4r
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_buck4r_clean', &
@@ -2259,17 +2402,17 @@ CONTAINS
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       IF(.NOT.ASSOCIATED(potparm%buck4r)) RETURN
-       potparm% buck4r % a = 0.0_dp
-       potparm% buck4r % b = 0.0_dp
-       potparm% buck4r % c = 0.0_dp
-       potparm% buck4r % r1 = 0.0_dp
-       potparm% buck4r % r2 = 0.0_dp
-       potparm% buck4r % r3 = 0.0_dp
-       potparm% buck4r % poly1 = 0.0_dp
-       potparm% buck4r % npoly1 = 0
-       potparm% buck4r % poly2 = 0.0_dp
-       potparm% buck4r % npoly2 = 0
+       IF(.NOT.ASSOCIATED(buck4r)) RETURN
+       buck4r%a  = 0.0_dp
+       buck4r%b  = 0.0_dp
+       buck4r%c  = 0.0_dp
+       buck4r%r1 = 0.0_dp
+       buck4r%r2 = 0.0_dp
+       buck4r%r3 = 0.0_dp
+       buck4r%poly1  = 0.0_dp
+       buck4r%npoly1 = 0
+       buck4r%poly2  = 0.0_dp
+       buck4r%npoly2 = 0
     END IF
   END SUBROUTINE pair_potential_buck4r_clean
 
@@ -2290,9 +2433,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_buck4r_release(potparm, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm
+  SUBROUTINE pair_potential_buck4r_release(buck4r, error)
+    TYPE(buck4ran_pot_type), POINTER         :: buck4r
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
@@ -2304,11 +2446,11 @@ CONTAINS
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       IF (ASSOCIATED(potparm%buck4r)) THEN
-          DEALLOCATE(potparm%buck4r, stat=stat)
+       IF (ASSOCIATED(buck4r)) THEN
+          DEALLOCATE(buck4r, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
-       NULLIFY(potparm%willis)
+       NULLIFY(buck4r)
     END IF
   END SUBROUTINE pair_potential_buck4r_release
 
@@ -2329,9 +2471,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_buckmo_create(potparm, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm
+  SUBROUTINE pair_potential_buckmo_create(buckmo, error)
+    TYPE(buckmorse_pot_type), POINTER        :: buckmo
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_buckmo_create', &
@@ -2342,10 +2483,10 @@ CONTAINS
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       CPPostcondition(.NOT.ASSOCIATED(potparm%buckmo),cp_failure_level,routineP,error,failure)
-       ALLOCATE(potparm%buckmo, stat=stat)
+       CPPostcondition(.NOT.ASSOCIATED(buckmo),cp_failure_level,routineP,error,failure)
+       ALLOCATE(buckmo, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL pair_potential_buckmo_clean(potparm, error=error)
+       CALL pair_potential_buckmo_clean(buckmo, error=error)
     END IF
   END SUBROUTINE pair_potential_buckmo_create
 
@@ -2366,9 +2507,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_buckmo_copy(potparm_source, potparm_dest, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm_source, potparm_dest
+  SUBROUTINE pair_potential_buckmo_copy(buckmo_source, buckmo_dest, error)
+    TYPE(buckmorse_pot_type), POINTER        :: buckmo_source, buckmo_dest
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_buckmo_copy', &
@@ -2377,21 +2517,19 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(potparm_source),cp_failure_level,routineP,error,failure)
-    CPPostcondition(ASSOCIATED(potparm_dest),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
-       IF (.NOT.ASSOCIATED(potparm_source%buckmo)) RETURN
-       IF (ASSOCIATED(potparm_dest%buckmo)) CALL pair_potential_buckmo_release(potparm_dest, error=error)
-       CALL pair_potential_buckmo_create(potparm_dest, error=error)
-       potparm_dest% buckmo % f0 = potparm_source% buckmo % f0
-       potparm_dest% buckmo % a1 = potparm_source% buckmo % a1
-       potparm_dest% buckmo % a2 = potparm_source% buckmo % a2
-       potparm_dest% buckmo % b1 = potparm_source% buckmo % b1
-       potparm_dest% buckmo % b2 = potparm_source% buckmo % b2
-       potparm_dest% buckmo % c = potparm_source% buckmo % c
-       potparm_dest% buckmo % d  = potparm_source% buckmo % d
-       potparm_dest% buckmo % r0 = potparm_source% buckmo % r0
-       potparm_dest% buckmo % beta = potparm_source% buckmo % beta
+       IF (.NOT.ASSOCIATED(buckmo_source)) RETURN
+       IF (ASSOCIATED(buckmo_dest)) CALL pair_potential_buckmo_release(buckmo_dest, error=error)
+       CALL pair_potential_buckmo_create(buckmo_dest, error=error)
+       buckmo_dest%f0   = buckmo_source%f0
+       buckmo_dest%a1   = buckmo_source%a1
+       buckmo_dest%a2   = buckmo_source%a2
+       buckmo_dest%b1   = buckmo_source%b1
+       buckmo_dest%b2   = buckmo_source%b2
+       buckmo_dest%c    = buckmo_source%c
+       buckmo_dest%d    = buckmo_source%d
+       buckmo_dest%r0   = buckmo_source%r0
+       buckmo_dest%beta = buckmo_source%beta
     END IF
   END SUBROUTINE pair_potential_buckmo_copy
 
@@ -2412,9 +2550,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_buckmo_clean(potparm, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm
+  SUBROUTINE pair_potential_buckmo_clean(buckmo, error)
+    TYPE(buckmorse_pot_type), POINTER        :: buckmo
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_buckmo_clean', &
@@ -2424,16 +2561,16 @@ CONTAINS
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       IF(.NOT.ASSOCIATED(potparm%buckmo)) RETURN
-       potparm% buckmo % f0 = 0.0_dp
-       potparm% buckmo % a1 = 0.0_dp
-       potparm% buckmo % a2 = 0.0_dp
-       potparm% buckmo % b1 = 0.0_dp
-       potparm% buckmo % b2 = 0.0_dp
-       potparm% buckmo % c = 0.0_dp
-       potparm% buckmo % d  = 0.0_dp
-       potparm% buckmo % r0 = 0.0_dp
-       potparm% buckmo % beta = 0.0_dp
+       IF(.NOT.ASSOCIATED(buckmo)) RETURN
+       buckmo%f0 = 0.0_dp
+       buckmo%a1 = 0.0_dp
+       buckmo%a2 = 0.0_dp
+       buckmo%b1 = 0.0_dp
+       buckmo%b2 = 0.0_dp
+       buckmo%c = 0.0_dp
+       buckmo%d  = 0.0_dp
+       buckmo%r0 = 0.0_dp
+       buckmo%beta = 0.0_dp
     END IF
   END SUBROUTINE pair_potential_buckmo_clean
 
@@ -2454,9 +2591,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_buckmo_release(potparm, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm
+  SUBROUTINE pair_potential_buckmo_release(buckmo, error)
+    TYPE(buckmorse_pot_type), POINTER        :: buckmo
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
@@ -2468,11 +2604,11 @@ CONTAINS
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       IF (ASSOCIATED(potparm%buckmo)) THEN
-          DEALLOCATE(potparm%buckmo, stat=stat)
+       IF (ASSOCIATED(buckmo)) THEN
+          DEALLOCATE(buckmo, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
-       NULLIFY(potparm%willis)
+       NULLIFY(buckmo)
     END IF
   END SUBROUTINE pair_potential_buckmo_release
 
@@ -2495,9 +2631,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_tersoff_create(potparm, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm
+  SUBROUTINE pair_potential_tersoff_create(tersoff, error)
+    TYPE(tersoff_pot_type), POINTER          :: tersoff
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
@@ -2509,10 +2644,10 @@ CONTAINS
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       CPPostcondition(.NOT.ASSOCIATED(potparm%tersoff),cp_failure_level,routineP,error,failure)
-       ALLOCATE(potparm%tersoff, stat=stat)
+       CPPostcondition(.NOT.ASSOCIATED(tersoff),cp_failure_level,routineP,error,failure)
+       ALLOCATE(tersoff, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL pair_potential_tersoff_clean(potparm, error=error)
+       CALL pair_potential_tersoff_clean(tersoff, error=error)
     END IF
   END SUBROUTINE pair_potential_tersoff_create
 
@@ -2533,9 +2668,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_tersoff_copy(potparm_source, potparm_dest, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm_source, potparm_dest
+  SUBROUTINE pair_potential_tersoff_copy(tersoff_source, tersoff_dest, error)
+    TYPE(tersoff_pot_type), POINTER          :: tersoff_source, tersoff_dest
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_tersoff_copy', &
@@ -2544,25 +2678,23 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(potparm_source),cp_failure_level,routineP,error,failure)
-    CPPostcondition(ASSOCIATED(potparm_dest),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
-       IF (.NOT.ASSOCIATED(potparm_source%tersoff)) RETURN
-       IF (ASSOCIATED(potparm_dest%tersoff)) CALL pair_potential_tersoff_release(potparm_dest, error=error)
-       CALL pair_potential_tersoff_create(potparm_dest, error=error)
-       potparm_dest% tersoff % A       = potparm_source% tersoff % A
-       potparm_dest% tersoff % B       = potparm_source% tersoff % B
-       potparm_dest% tersoff % lambda1 = potparm_source% tersoff % lambda1
-       potparm_dest% tersoff % lambda2 = potparm_source% tersoff % lambda2
-       potparm_dest% tersoff % alpha   = potparm_source% tersoff % alpha
-       potparm_dest% tersoff % beta    = potparm_source% tersoff % beta
-       potparm_dest% tersoff % n       = potparm_source% tersoff % n
-       potparm_dest% tersoff % c       = potparm_source% tersoff % c
-       potparm_dest% tersoff % d       = potparm_source% tersoff % d
-       potparm_dest% tersoff % h       = potparm_source% tersoff % h
-       potparm_dest% tersoff % lambda3 = potparm_source% tersoff % lambda3
-       potparm_dest% tersoff % bigR    = potparm_source% tersoff % bigR
-       potparm_dest% tersoff % bigD    = potparm_source% tersoff % bigD
+       IF (.NOT.ASSOCIATED(tersoff_source)) RETURN
+       IF (ASSOCIATED(tersoff_dest)) CALL pair_potential_tersoff_release(tersoff_dest, error=error)
+       CALL pair_potential_tersoff_create(tersoff_dest, error=error)
+       tersoff_dest%A       = tersoff_source%A
+       tersoff_dest%B       = tersoff_source%B
+       tersoff_dest%lambda1 = tersoff_source%lambda1
+       tersoff_dest%lambda2 = tersoff_source%lambda2
+       tersoff_dest%alpha   = tersoff_source%alpha
+       tersoff_dest%beta    = tersoff_source%beta
+       tersoff_dest%n       = tersoff_source%n
+       tersoff_dest%c       = tersoff_source%c
+       tersoff_dest%d       = tersoff_source%d
+       tersoff_dest%h       = tersoff_source%h
+       tersoff_dest%lambda3 = tersoff_source%lambda3
+       tersoff_dest%bigR    = tersoff_source%bigR
+       tersoff_dest%bigD    = tersoff_source%bigD
     END IF
   END SUBROUTINE pair_potential_tersoff_copy
 
@@ -2583,9 +2715,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_tersoff_clean(potparm, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm
+  SUBROUTINE pair_potential_tersoff_clean(tersoff, error)
+    TYPE(tersoff_pot_type), POINTER          :: tersoff
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_tersoff_clean', &
@@ -2595,20 +2726,20 @@ CONTAINS
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       IF(.NOT.ASSOCIATED(potparm%tersoff)) RETURN
-       potparm% tersoff % A       = 0.0_dp
-       potparm% tersoff % B       = 0.0_dp
-       potparm% tersoff % lambda1 = 0.0_dp
-       potparm% tersoff % lambda2 = 0.0_dp
-       potparm% tersoff % alpha   = 0.0_dp
-       potparm% tersoff % beta    = 0.0_dp
-       potparm% tersoff % n       = 0.0_dp
-       potparm% tersoff % c       = 0.0_dp
-       potparm% tersoff % d       = 0.0_dp
-       potparm% tersoff % h       = 0.0_dp
-       potparm% tersoff % lambda3 = 0.0_dp
-       potparm% tersoff % bigR    = 0.0_dp
-       potparm% tersoff % bigD    = 0.0_dp
+       IF(.NOT.ASSOCIATED(tersoff)) RETURN
+       tersoff%A       = 0.0_dp
+       tersoff%B       = 0.0_dp
+       tersoff%lambda1 = 0.0_dp
+       tersoff%lambda2 = 0.0_dp
+       tersoff%alpha   = 0.0_dp
+       tersoff%beta    = 0.0_dp
+       tersoff%n       = 0.0_dp
+       tersoff%c       = 0.0_dp
+       tersoff%d       = 0.0_dp
+       tersoff%h       = 0.0_dp
+       tersoff%lambda3 = 0.0_dp
+       tersoff%bigR    = 0.0_dp
+       tersoff%bigD    = 0.0_dp
     END IF
   END SUBROUTINE pair_potential_tersoff_clean
 
@@ -2629,9 +2760,8 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_tersoff_release(potparm, error)
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: potparm
+  SUBROUTINE pair_potential_tersoff_release(tersoff, error)
+    TYPE(tersoff_pot_type), POINTER          :: tersoff
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
@@ -2643,11 +2773,11 @@ CONTAINS
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       IF (ASSOCIATED(potparm%tersoff)) THEN
-          DEALLOCATE(potparm%tersoff, stat=stat)
+       IF (ASSOCIATED(tersoff)) THEN
+          DEALLOCATE(tersoff, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
-       NULLIFY(potparm%tersoff)
+       NULLIFY(tersoff)
     END IF
   END SUBROUTINE pair_potential_tersoff_release
 

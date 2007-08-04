@@ -43,7 +43,8 @@ MODULE fist_neighbor_list_control
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE message_passing,                 ONLY: mp_max
-  USE pair_potential_types,            ONLY: pair_potential_pp_type
+  USE pair_potential_types,            ONLY: pair_potential_pp_type,&
+                                             tersoff_type
   USE particle_types,                  ONLY: particle_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
@@ -220,7 +221,10 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
      END IF
      DO ikind = 1, nparticle_kind
         DO jkind = ikind, nparticle_kind
-           pot_type(ikind, jkind) = potparm%pot(ikind, jkind)%pot%type
+           pot_type(ikind, jkind) = -HUGE(0)
+           IF (ANY(potparm%pot(ikind, jkind)%pot%type==tersoff_type)) THEN
+              pot_type(ikind, jkind) = tersoff_type
+           END IF
            pot_type(jkind, ikind) = pot_type(ikind, jkind)
         END DO
      END DO

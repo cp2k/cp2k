@@ -47,12 +47,11 @@ MODULE force_fields_util
        torsion_kind_type, ub_kind_dealloc_ref, ub_kind_type
   USE force_fields_all,                ONLY: &
        force_field_pack_bend, force_field_pack_bond, force_field_pack_ch, &
-       force_field_pack_impr, force_field_pack_mbse, force_field_pack_onfo, &
-       force_field_pack_pp, force_field_pack_ppse, force_field_pack_sbe, &
-       force_field_pack_sne, force_field_pack_tors, force_field_pack_ub, &
-       force_field_unique_bend, force_field_unique_bond, &
-       force_field_unique_impr, force_field_unique_onfo, &
-       force_field_unique_tors, force_field_unique_ub
+       force_field_pack_impr, force_field_pack_onfo, force_field_pack_pp, &
+       force_field_pack_ppse, force_field_pack_sbe, force_field_pack_sne, &
+       force_field_pack_tors, force_field_pack_ub, force_field_unique_bend, &
+       force_field_unique_bond, force_field_unique_impr, &
+       force_field_unique_onfo, force_field_unique_tors, force_field_unique_ub
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -150,8 +149,8 @@ CONTAINS
     TYPE(pair_potential_pp_type), POINTER    :: potparm_bond, potparm_nonbond
     TYPE(spline_data_type), POINTER          :: spline_data
     TYPE(spline_environment_type), POINTER :: spline_bond_env, &
-      spline_c_coul_env, spline_cs_coul_env, spline_manybody_env, &
-      spline_nonbond_env, spline_sc_coul_env
+      spline_c_coul_env, spline_cs_coul_env, spline_nonbond_env, &
+      spline_sc_coul_env
 
     CALL timeset(routineN,'I','',handle)
     failure = .FALSE.
@@ -307,11 +306,6 @@ CONTAINS
        CALL force_field_pack_pp (atomic_kind_set, spline_nonbond_env, spline_c_coul_env,&
             spline_cs_coul_env, spline_sc_coul_env, potparm_nonbond, shell_present,&
             error)
-       !--------------------------------------------------------------------------
-       ! 16. create the manybody spline environment
-       !--------------------------------------------------------------------------
-       CALL  force_field_pack_mbse  (atomic_kind_set, ff_type, iw2, iw3, potparm_nonbond,&
-            spline_manybody_env, error)
     END IF
     ! Create non bond environment
     CALL fist_nonbond_env_create (fist_nonbond_env, potparm_nonbond, ff_type%nonbonded14, &
@@ -319,7 +313,6 @@ CONTAINS
 
     ! Release all spline_environments
     IF (ff_type%nonbonded) THEN
-       CALL spline_env_release (spline_manybody_env,error)
        CALL spline_env_release (spline_nonbond_env,error)
        IF(shell_present) THEN
           CALL spline_env_release (spline_c_coul_env, error)

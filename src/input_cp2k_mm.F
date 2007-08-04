@@ -317,6 +317,14 @@ CONTAINS
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MULTIPLE_POTENTIAL",&
+            description="Enables the possibility to define NONBONDED and NONBONDED14 as a"//&
+            " sum of different kinds of potential. Useful for piecewise defined potentials.",&
+            usage="MULTIPLE_POTENTIAL T",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        !
        ! subsections
        !

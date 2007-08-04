@@ -1122,10 +1122,11 @@ CPSourceFileRef,&
        ! Do we want to use a different FF for the non-bonded QM/MM interactions?
        !
        qmmm_ff_section => section_vals_get_subs_vals(qmmm_section,"FORCEFIELD",error=error)
-       CALL section_vals_get(qmmm_ff_section,explicit=explicit,error=error)
-       IF (explicit) THEN
+       CALL section_vals_get(qmmm_ff_section,explicit=qmmm_env%use_qmmm_ff,error=error)
+       IF (qmmm_env%use_qmmm_ff) THEN
+          CALL section_vals_val_get(qmmm_ff_section,"MULTIPLE_POTENTIAL",&
+               l_val=qmmm_env%multiple_potential,error=error)
           CALL read_qmmm_ff_section(qmmm_ff_section, qmmm_env%inp_info, error=error)
-          qmmm_env%use_qmmm_ff = .TRUE.
        END IF
     END IF
   END SUBROUTINE setup_qmmm_vars_mm

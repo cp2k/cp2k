@@ -79,80 +79,82 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: r, energy_cutoff, vdw_scale14
     REAL(KIND=dp)                            :: value
 
-    INTEGER                                  :: i, index, n
-    REAL(KIND=dp)                            :: pp, qq, scale
+    INTEGER                                  :: i, index, j, n
+    REAL(KIND=dp)                            :: pp, qq, scale, lvalue
 
-    IF (pot%type==lj_charmm_type) THEN
-       value = vdw_scale14 * &
-            4.0_dp*pot%lj%epsilon*(pot%lj%sigma12*r**(-12)-pot%lj% &
-            sigma6*r**(-6)) - energy_cutoff
-    ELSE IF (pot%type==lj_type) THEN
-       value = vdw_scale14 * pot%lj%epsilon* &
-            (pot%lj%sigma12*r**(-12)-pot%lj%sigma6*r**(-6)) - energy_cutoff
-    ELSE IF (pot%type==ip_type) THEN
-       value = 0._dp
-       IF ( r > pot % ipbv % rcore ) THEN
-          DO i = 2, 15
-             value = value + pot % ipbv % a(i)/(r**(i-1)*REAL(i-1,dp))
-          END DO
+    value = 0.0_dp
+    DO j = 1, SIZE(pot%type)
+       IF (pot%type(j)==lj_charmm_type) THEN
+          lvalue = vdw_scale14 * &
+               4.0_dp*pot%set(j)%lj%epsilon*(pot%set(j)%lj%sigma12*r**(-12)-pot%set(j)%lj% &
+               sigma6*r**(-6))
+       ELSE IF (pot%type(j)==lj_type) THEN
+          lvalue = vdw_scale14 * pot%set(j)%lj%epsilon* &
+               (pot%set(j)%lj%sigma12*r**(-12)-pot%set(j)%lj%sigma6*r**(-6))
+       ELSE IF (pot%type(j)==ip_type) THEN
+          lvalue = 0._dp
+          IF ( r > pot%set(j)%ipbv%rcore ) THEN
+             DO i = 2, 15
+                lvalue = lvalue + pot%set(j)%ipbv%a(i)/(r**(i-1)*REAL(i-1,dp))
+             END DO
+          ELSE
+             ! use a linear potential
+             lvalue = pot%set(j)%ipbv%m * r + pot%set(j)%ipbv%b
+          ENDIF
+          lvalue=lvalue
+       ELSE IF (pot%type(j)==wl_type) THEN
+          lvalue = pot%set(j)%willis%a*EXP(-pot%set(j)%willis%b*r) - pot%set(j)%willis%c/r**6 
+       ELSE IF (pot%type(j)==gw_type) THEN
+          scale = EXP(pot%set(j)%goodwin%m*(-(r/pot%set(j)%goodwin%dc)**pot%set(j)%goodwin%mc+&
+               (pot%set(j)%goodwin%d/pot%set(j)%goodwin%dc)**pot%set(j)%goodwin%mc))
+          lvalue = scale*pot%set(j)%goodwin%vr0*(pot%set(j)%goodwin%d/r)**pot%set(j)%goodwin%m
+       ELSE IF (pot%type(j)==ft_type) THEN
+          lvalue = pot%set(j)%ft%a*EXP(-pot%set(j)%ft%b*r) - pot%set(j)%ft%c/r**6 - pot%set(j)%ft%d/r**8
+       ELSE IF (pot%type(j)==ea_type) THEN
+          index = INT ( r / pot % set(j) % eam % drar ) + 1
+          IF ( index > 5000 ) THEN
+             index = 5000
+          ELSEIF ( index < 1 ) THEN
+             index = 1
+          ENDIF
+          qq = r - pot % set(j) % eam % rval (index)
+          pp =  pot % set(j) % eam % phi ( index ) + &
+               qq * pot % set(j) % eam % phip ( index )
+          lvalue = pp
+       ELSE IF (pot%type(j)==b4_type) THEN
+         IF(r<=pot%set(j)%buck4r%r1) THEN
+           pp = pot%set(j)%buck4r%a*EXP(-pot%set(j)%buck4r%b*r)
+         ELSEIF(r>pot%set(j)%buck4r%r1.AND.r<=pot%set(j)%buck4r%r2) THEN
+           pp = 0.0_dp
+           DO n = 0,pot%set(j)%buck4r%npoly1
+             pp = pp+pot%set(j)%buck4r%poly1(n)*r**n
+           END DO 
+         ELSEIF(r>pot%set(j)%buck4r%r2.AND.r<=pot%set(j)%buck4r%r3) THEN
+           pp = 0.0_dp
+           DO n = 0,pot%set(j)%buck4r%npoly2
+             pp = pp+pot%set(j)%buck4r%poly2(n)*r**n
+           END DO 
+         ELSEIF(r>pot%set(j)%buck4r%r3)THEN
+           pp = -pot%set(j)%buck4r%c/r**6
+         END IF
+         lvalue = pp
+       ELSE IF (pot%type(j)==bm_type) THEN
+         lvalue = pot%set(j)%buckmo%f0*(pot%set(j)%buckmo%b1+pot%set(j)%buckmo%b2)*&
+                  EXP((pot%set(j)%buckmo%a1+pot%set(j)%buckmo%a2-r)/(pot%set(j)%buckmo%b1+pot%set(j)%buckmo%b2))&
+                  - pot%set(j)%buckmo%c/r**6  &
+                  + pot%set(j)%buckmo%d*(EXP(-2._dp*pot%set(j)%buckmo%beta*(r-pot%set(j)%buckmo%r0))- &
+                                  2.0_dp*EXP(-pot%set(j)%buckmo%beta*(r-pot%set(j)%buckmo%r0)))
+       ELSE IF (pot%type(j)==gp_type) THEN
+          pot%set(j)%gp%values(1)=r
+          lvalue = evalf(pot%set(j)%gp%myid,pot%set(j)%gp%values)
+          IF (EvalErrType > 0) &
+               CALL stop_program("ener_pot","Error evaluating generic potential energy function")
        ELSE
-          ! use a linear potential
-          value = pot % ipbv % m * r + pot % ipbv % b
-       ENDIF
-       value=value - energy_cutoff
-    ELSE IF (pot%type==wl_type) THEN
-       value = pot%willis%a*EXP(-pot%willis%b*r) - pot%willis%c/r**6 &
-            - energy_cutoff
-    ELSE IF (pot%type==gw_type) THEN
-       scale = EXP(pot%goodwin%m*(-(r/pot%goodwin%dc)**pot%goodwin%mc+(pot% &
-            goodwin%d/pot%goodwin%dc)**pot%goodwin%mc))
-       value = scale*pot%goodwin%vr0*(pot%goodwin%d/r)**pot%goodwin%m
-    ELSE IF (pot%type==ft_type) THEN
-       value = pot%ft%a*EXP(-pot%ft%b*r) - pot%ft%c/r**6 - pot%ft%d/r**8 &
-            - energy_cutoff
-    ELSE IF (pot%type==ea_type) THEN
-       index = INT ( r / pot % eam % drar ) + 1
-       IF ( index > 5000 ) THEN
-          index = 5000
-       ELSEIF ( index < 1 ) THEN
-          index = 1
-       ENDIF
-       qq = r - pot % eam % rval (index)
-       pp =  pot % eam % phi ( index ) + &
-            qq * pot % eam % phip ( index )
-       value = pp - energy_cutoff
-    ELSE IF (pot%type==b4_type) THEN
-      IF(r<=pot%buck4r%r1) THEN
-        pp = pot%buck4r%a*EXP(-pot%buck4r%b*r)
-      ELSEIF(r>pot%buck4r%r1.AND.r<=pot%buck4r%r2) THEN
-        pp = 0.0_dp
-        DO n = 0,pot%buck4r%npoly1
-          pp = pp+pot%buck4r%poly1(n)*r**n
-        END DO 
-      ELSEIF(r>pot%buck4r%r2.AND.r<=pot%buck4r%r3) THEN
-        pp = 0.0_dp
-        DO n = 0,pot%buck4r%npoly2
-          pp = pp+pot%buck4r%poly2(n)*r**n
-        END DO 
-      ELSEIF(r>pot%buck4r%r3)THEN
-        pp = -pot%buck4r%c/r**6
-      END IF
-      value = pp - energy_cutoff
-    ELSE IF (pot%type==bm_type) THEN
-      value = pot%buckmo%f0*(pot%buckmo%b1+pot%buckmo%b2)*&
-               EXP((pot%buckmo%a1+pot%buckmo%a2-r)/(pot%buckmo%b1+pot%buckmo%b2))&
-               - pot%buckmo%c/r**6  &
-               + pot%buckmo%d*(EXP(-2._dp*pot%buckmo%beta*(r-pot%buckmo%r0))- &
-                               2.0_dp*EXP(-pot%buckmo%beta*(r-pot%buckmo%r0))) &
-               - energy_cutoff
-    ELSE IF (pot%type==gp_type) THEN
-       pot%gp%values(1)=r
-       value = evalf(pot%gp%myid,pot%gp%values) - energy_cutoff
-       IF (EvalErrType > 0) &
-            CALL stop_program("ener_pot","Error evaluating generic potential energy function")
-    ELSE
-       value = 0.0_dp
-    END IF
+          lvalue = 0.0_dp
+       END IF
+       value = value + lvalue
+    END DO
+    value = value - energy_cutoff
   END FUNCTION ener_pot
 
   !******************************************************************************
@@ -224,7 +226,7 @@ CONTAINS
       POINTER                                :: ewald_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: ewald_type
+    INTEGER                                  :: ewald_type, i, max_id
     REAL(KIND=dp)                            :: alpha, e_cutoff_coul, &
                                                 energy_cutoff, eps0, f, &
                                                 hicut, rij
@@ -233,18 +235,26 @@ CONTAINS
     hicut = SQRT (potparm%pot(iatom, jatom)%pot%rcutsq )
     IF (ABS(hicut) <= MIN_HICUT_VALUE) hicut = DEFAULT_HICUT_VALUE
     ! If genpot we need to get ready for the evaluation of the potential
-    IF (potparm%pot(iatom,jatom)%pot%type==gp_type) THEN
-       CALL initf(potparm%pot(iatom,jatom)%pot%gp%myid)
-       CALL parsef(potparm%pot(iatom,jatom)%pot%gp%myid,&
-                   TRIM(potparm%pot(iatom,jatom)%pot%gp%potential),&
-                   potparm%pot(iatom,jatom)%pot%gp%parameters)
+    IF (ANY(potparm%pot(iatom,jatom)%pot%type==gp_type)) THEN
+       max_id = -HUGE(0)
+       DO i = 1, SIZE(potparm%pot(iatom,jatom)%pot%type)
+          IF (potparm%pot(iatom,jatom)%pot%type(i)/=gp_type) CYCLE
+          max_id = MAX(max_id, potparm%pot(iatom,jatom)%pot%set(i)%gp%myid)
+       END DO
+       CALL initf(max_id)
+       DO i = 1, SIZE(potparm%pot(iatom,jatom)%pot%type)
+          IF (potparm%pot(iatom,jatom)%pot%type(i)/=gp_type) CYCLE
+          CALL parsef(potparm%pot(iatom,jatom)%pot%set(i)%gp%myid,&
+                      TRIM(potparm%pot(iatom,jatom)%pot%set(i)%gp%potential),&
+                      potparm%pot(iatom,jatom)%pot%set(i)%gp%parameters)
+       END DO
     END IF
     energy_cutoff = ener_pot ( potparm%pot(iatom,jatom)%pot, hicut, 0.0_dp, 1.0_dp)
 
     ! non-bond energy
     energy = ener_pot ( potparm%pot(iatom,jatom)%pot, rij, energy_cutoff, 1.0_dp)
-    IF (potparm%pot(iatom,jatom)%pot%type==gp_type) THEN
-      CALL finalizef()
+    IF (ANY(potparm%pot(iatom,jatom)%pot%type==gp_type)) THEN
+       CALL finalizef()
     ENDIF
     ! real-space ewald non-bond energy
     IF ( PRESENT ( ewald_env ) ) THEN
