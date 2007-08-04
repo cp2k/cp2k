@@ -6,5 +6,4 @@
 # tests GAPW GTH and ALL
 #XAS
 CO.inp             1
-CO_xastphh.inp     1
-CO_xastpfh.inp     1
+CO_xastpxfh.inp    1

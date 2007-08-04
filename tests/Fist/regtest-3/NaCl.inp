@@ -13,14 +13,17 @@
       &END CHARGE
       &NONBONDED
         &BMHFT
+          map_atoms NA NA
           atoms NA NA
           RCUT 10.0
         &END BMHFT
         &BMHFT
+          map_atoms NA CL
           atoms NA CL
           RCUT 10.0
         &END BMHFT
         &BMHFT
+          map_atoms CL CL
           atoms CL CL
           RCUT 10.0
         &END BMHFT

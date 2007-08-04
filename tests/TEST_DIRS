@@ -39,6 +39,8 @@ QMMM/QS/regtest-2-swave
 KG/regtest
 QMMM/QS/regtest-2-erf
 QS/regtest-gapw-1
+QS/regtest-gapw-3
+QS/regtest-gapw-4
 QS/regtest-chi-1
 DFTB/regtest-nonscc
 SE/regtest

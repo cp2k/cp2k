@@ -1641,6 +1641,14 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="MAP_ATOMS",&
+            description="Defines the kinds for which internally is defined the BMHFT nonbond potential"//&
+            " at the moment only Na and Cl.",&
+            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            n_var=2, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="RCUT",&
             description="Defines the cutoff parameter of the BMHFT potential",&
             usage="RCUT {real}", default_r_val=7.8_dp,&

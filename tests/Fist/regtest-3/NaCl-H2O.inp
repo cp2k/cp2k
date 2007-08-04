@@ -7,15 +7,18 @@
       parmtype CHM
       &NONBONDED
         &BMHFT
-          atoms Na+ Na+
+          atoms IP IP
+          map_atoms Na+ Na+
           RCUT 11.0
         &END BMHFT
         &BMHFT
-          atoms Cl- Na+
+          map_atoms Cl- Na+
+          atoms IM IP
           RCUT 11.0
         &END BMHFT
         &BMHFT
-          atoms Cl- Cl-
+          map_atoms Cl- Cl-
+          atoms IM IM
           RCUT 11.0
         &END BMHFT
       &END NONBONDED

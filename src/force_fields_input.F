@@ -749,6 +749,8 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: atm_names
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(2)                           :: map_atoms
     INTEGER                                  :: i, isec, n_items
     REAL(KIND=dp)                            :: rcut
 
@@ -772,8 +774,11 @@ CONTAINS
           CALL section_vals_val_get(section,"D",i_rep_section=isec,&
                r_val=nonbonded%pot(start+isec)%pot%set(1)%ft%d,error=error)
        ELSE
-          CALL set_BMHFT_ff(nonbonded%pot(start+isec)%pot %at1, nonbonded%pot(start+isec)%pot %at2,&
-               nonbonded%pot(start+isec)%pot%set(1)%ft )
+          CALL section_vals_val_get(section,"MAP_ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
+          map_atoms = atm_names
+          CALL uppercase(map_atoms(1))
+          CALL uppercase(map_atoms(2))
+          CALL set_BMHFT_ff(map_atoms(1), map_atoms(2), nonbonded%pot(start+isec)%pot%set(1)%ft )
        END IF
        CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
        nonbonded%pot(start+isec)%pot%rcutsq     = rcut**2
