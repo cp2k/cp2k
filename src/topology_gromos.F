@@ -58,7 +58,7 @@ CONTAINS
 
 !!*****
 !******************************************************************************
-!!****** topology/pre_read_topology_gromos [1.0] *
+!!****** topology_gromos/pre_read_topology_gromos [1.0] *
 !!
 !!   NAME
 !!     pre_read_topology_gromos
@@ -129,7 +129,7 @@ CONTAINS
 
 !!*****
 !******************************************************************************
-!!****** topology/read_topology_gromos [1.0] *
+!!****** topology_gromos/read_topology_gromos [1.0] *
 !!
 !!   NAME
 !!     read_topology_gromos
@@ -660,6 +660,7 @@ CONTAINS
         END DO
     END IF
     label = TRIM(avail_section(21))
+    ncon  = 0
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
     IF(found) THEN
       CALL parser_get_next_line(parser,1,error=error)
@@ -770,7 +771,7 @@ CONTAINS
 
 !!*****
 !******************************************************************************
-!!****** topology/write_topology_gromos [1.0] *
+!!****** topology_gromos/write_topology_gromos [1.0] *
 !!
 !!   NAME
 !!     write_topology_gromos
@@ -910,23 +911,8 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE write_topology_gromos
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 !******************************************************************************
-!!****** topology_gromos/read_coordinate_g96 [1.0] *
+!!****** topology_gromos_gromos/read_coordinate_g96 [1.0] *
 !!
 !!   NAME
 !!     read_coordinate_g96
@@ -1011,9 +997,6 @@ CONTAINS
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
-
-
-
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1065,6 +1048,9 @@ CONTAINS
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! VELOCITY SECTION
 ! ikuo - don't have a velocity section in topology_type yet...
+! teo  - Please, never add a velocity section to the topology_type, instead
+!        use the restart module of CP2K to dump GROMOS velocities in the 
+!        proper section (where CP2K expects to find velocities)..
 !   natom=0
 !   IF(iw>0) WRITE(iw,'(T2,A)') 'G96_INFO| Parsing the VELOCITY section'
 !   CALL parser_create(parser,topology%coord_file_name,para_env=para_env)

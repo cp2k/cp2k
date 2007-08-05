@@ -1478,35 +1478,36 @@ CPSourceFileRef,&
 
              ! loop over params from GROMOS
              IF(ASSOCIATED(gro_info%torsion_k)) THEN
-               k=SIZE(gro_info%torsion_k)
-               READ(torsion_list(j)%name(6:80),*) itype
-               IF(itype>0) THEN
-                 CALL reallocate(torsion_list(j)%torsion_kind%k,1,1)
-                 CALL reallocate(torsion_list(j)%torsion_kind%m,1,1)
-                 CALL reallocate(torsion_list(j)%torsion_kind%cosphi0,1,1)
-                 torsion_list(j)%torsion_kind%nmul   = 1
-                 torsion_list(j)%torsion_kind%m(1)   = gro_info%torsion_m(itype)
-                 torsion_list(j)%torsion_kind%k(1)   = gro_info%torsion_k(itype)
-                 torsion_list(j)%torsion_kind%cosphi0(1) = gro_info%torsion_cosphi0(itype)
-                 IF(ff_type%ff_type=="G87") torsion_list(j)%torsion_kind%name   = "G87"
-                 IF(ff_type%ff_type=="G96") torsion_list(j)%torsion_kind%name   = "G96"
-                 IF(ff_type%ff_type=="G87") torsion_list(j)%name   = "G87"
-                 IF(ff_type%ff_type=="G96") torsion_list(j)%name   = "G96"
-                 found = .TRUE.
-               ELSE
-                 CALL reallocate(torsion_list(j)%torsion_kind%k,1,1)
-                 CALL reallocate(torsion_list(j)%torsion_kind%m,1,1)
-                 CALL reallocate(torsion_list(j)%torsion_kind%cosphi0,1,1)
-                 torsion_list(j)%torsion_kind%nmul   = 1
-                 torsion_list(j)%torsion_kind%m(1)   = gro_info%torsion_m(itype/k)
-                 torsion_list(j)%torsion_kind%k(1)   = gro_info%torsion_k(itype/k)
-                 torsion_list(j)%torsion_kind%cosphi0(1) = gro_info%torsion_cosphi0(itype/k)
-                 IF(ff_type%ff_type=="G87") torsion_list(j)%torsion_kind%name   = "G87"
-                 IF(ff_type%ff_type=="G96") torsion_list(j)%torsion_kind%name   = "G96"
-                 IF(ff_type%ff_type=="G87") torsion_list(j)%name   = "G87"
-                 IF(ff_type%ff_type=="G96") torsion_list(j)%name   = "G96"
-                 found = .TRUE.
-               END IF
+                k=SIZE(gro_info%torsion_k)
+                READ(torsion_list(j)%name(6:80),*) itype
+                IF(itype>0) THEN
+                   CALL reallocate(torsion_list(j)%torsion_kind%k,1,1)
+                   CALL reallocate(torsion_list(j)%torsion_kind%m,1,1)
+                   CALL reallocate(torsion_list(j)%torsion_kind%cosphi0,1,1)
+                   torsion_list(j)%torsion_kind%nmul   = 1
+                   torsion_list(j)%torsion_kind%m(1)   = gro_info%torsion_m(itype)
+                   torsion_list(j)%torsion_kind%k(1)   = gro_info%torsion_k(itype)
+                   torsion_list(j)%torsion_kind%cosphi0(1) = gro_info%torsion_cosphi0(itype)
+                   IF(ff_type%ff_type=="G87") torsion_list(j)%torsion_kind%name   = "G87"
+                   IF(ff_type%ff_type=="G96") torsion_list(j)%torsion_kind%name   = "G96"
+                   IF(ff_type%ff_type=="G87") torsion_list(j)%name   = "G87"
+                   IF(ff_type%ff_type=="G96") torsion_list(j)%name   = "G96"
+                   found = .TRUE.
+                ELSE
+                   CALL reallocate(torsion_list(j)%torsion_kind%k,1,1)
+                   CALL reallocate(torsion_list(j)%torsion_kind%m,1,1)
+                   CALL reallocate(torsion_list(j)%torsion_kind%cosphi0,1,1)
+                   torsion_list(j)%torsion_kind%nmul   = 1
+                   torsion_list(j)%torsion_kind%m(1)   = gro_info%torsion_m(itype/k)
+                   torsion_list(j)%torsion_kind%k(1)   = gro_info%torsion_k(itype/k)
+                   torsion_list(j)%torsion_kind%cosphi0(1) = gro_info%torsion_cosphi0(itype/k)
+                   IF(ff_type%ff_type=="G87") torsion_list(j)%torsion_kind%name   = "G87"
+                   IF(ff_type%ff_type=="G96") torsion_list(j)%torsion_kind%name   = "G96"
+                   IF(ff_type%ff_type=="G87") torsion_list(j)%name   = "G87"
+                   IF(ff_type%ff_type=="G96") torsion_list(j)%name   = "G96"
+                   found = .TRUE.
+                END IF
+                imul = torsion_list(j)%torsion_kind%nmul
              END IF
 
              ! loop over params from CHARMM
