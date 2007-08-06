@@ -66,12 +66,15 @@ MODULE pair_potential_types
                                                            bm_type,&
                                                            gp_type,&
                                                            tersoff_type /)
-
+  ! Shell model
   INTEGER, PUBLIC, PARAMETER :: nosh_nosh=0,&
                                 nosh_sh=1,&
                                 sh_sh=2
+
   INTEGER, PUBLIC, PARAMETER, DIMENSION(3) :: list_sh_type =(/nosh_nosh,nosh_sh,sh_sh/)
+
   ! Single Spline generation info
+  REAL(KIND=dp), PARAMETER, PUBLIC         :: not_initialized=-HUGE(0.0_dp)
   INTEGER, PARAMETER, DIMENSION(2), PUBLIC :: do_potential_single_allocation=(/lj_type,lj_charmm_type/)
   INTEGER, PARAMETER, DIMENSION(2), PUBLIC :: no_potential_single_allocation=(/-HUGE(0),-HUGE(0)/)
   INTEGER, DIMENSION(2), PUBLIC            :: potential_single_allocation
@@ -197,6 +200,7 @@ MODULE pair_potential_types
   END TYPE tersoff_pot_type
 
   TYPE pot_set_type
+     REAL ( KIND=dp )                      :: rmin, rmax
      TYPE ( ipbv_pot_type ),       POINTER :: ipbv
      TYPE ( gp_pot_type),          POINTER :: gp
      TYPE ( lj_pot_type ),         POINTER :: lj
@@ -271,7 +275,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, mycompare
 
     failure=.FALSE.
     compare=.FALSE.
@@ -286,21 +290,22 @@ CONTAINS
     CPPostcondition(ASSOCIATED(pot1%set),cp_failure_level,routineP,error,failure)
     CPPostcondition(ASSOCIATED(pot2%set),cp_failure_level,routineP,error,failure)
     DO i = 1, SIZE(pot1%type)
+       mycompare = .FALSE.
        SELECT CASE(pot1%type(i))
        CASE (lj_type,lj_charmm_type)
           IF  ((pot1%set(i)%lj%epsilon==pot2%set(i)%lj%epsilon).AND.&
                (pot1%set(i)%lj%sigma6 ==pot2%set(i)%lj%sigma6 ).AND.&
-               (pot1%set(i)%lj%sigma12==pot2%set(i)%lj%sigma12)) compare=.TRUE.
+               (pot1%set(i)%lj%sigma12==pot2%set(i)%lj%sigma12)) mycompare=.TRUE.
        CASE (wl_type)
           IF  ((pot1%set(i)%willis%a==pot2%set(i)%willis%a).AND.&
                (pot1%set(i)%willis%b==pot2%set(i)%willis%b).AND.&
-               (pot1%set(i)%willis%c==pot2%set(i)%willis%c)) compare=.TRUE.
+               (pot1%set(i)%willis%c==pot2%set(i)%willis%c)) mycompare=.TRUE.
        CASE (gw_type)
           IF  ((pot1%set(i)%goodwin%vr0==pot2%set(i)%goodwin%vr0).AND.&
                (pot1%set(i)%goodwin%m  ==pot2%set(i)%goodwin%m  ).AND.&
                (pot1%set(i)%goodwin%mc ==pot2%set(i)%goodwin%mc ).AND.&
                (pot1%set(i)%goodwin%d  ==pot2%set(i)%goodwin%d  ).AND.&
-               (pot1%set(i)%goodwin%dc ==pot2%set(i)%goodwin%dc )) compare=.TRUE.
+               (pot1%set(i)%goodwin%dc ==pot2%set(i)%goodwin%dc )) mycompare=.TRUE.
        CASE (ea_type)
           IF  ((pot1%set(i)%eam%drar  ==pot2%set(i)%eam%drar  ).AND.&
                (pot1%set(i)%eam%drhoar==pot2%set(i)%eam%drhoar).AND.&
@@ -312,17 +317,17 @@ CONTAINS
                (SUM(ABS(pot1%set(i)%eam%rval  -pot2%set(i)%eam%rval  ))==0.0_dp).AND.&
                (SUM(ABS(pot1%set(i)%eam%rhop  -pot2%set(i)%eam%rhop  ))==0.0_dp).AND.&
                (SUM(ABS(pot1%set(i)%eam%phip  -pot2%set(i)%eam%phip  ))==0.0_dp).AND.&
-               (SUM(ABS(pot1%set(i)%eam%frhop -pot2%set(i)%eam%frhop ))==0.0_dp)) compare=.TRUE.
+               (SUM(ABS(pot1%set(i)%eam%frhop -pot2%set(i)%eam%frhop ))==0.0_dp)) mycompare=.TRUE.
        CASE (ft_type)
           IF  ((pot1%set(i)%ft%A==pot2%set(i)%ft%A).AND.&
                (pot1%set(i)%ft%B==pot2%set(i)%ft%B).AND.&
                (pot1%set(i)%ft%C==pot2%set(i)%ft%C).AND.&
-               (pot1%set(i)%ft%D==pot2%set(i)%ft%D)) compare=.TRUE.
+               (pot1%set(i)%ft%D==pot2%set(i)%ft%D)) mycompare=.TRUE.
        CASE (ip_type)
           IF  ((SUM(ABS(pot1%set(i)%ipbv%a-pot2%set(i)%ipbv%a))==0.0_dp).AND.&
                (pot1%set(i)%ipbv%rcore==pot2%set(i)%ipbv%rcore).AND.&
                (pot1%set(i)%ipbv%m    ==pot2%set(i)%ipbv%m    ).AND.&
-               (pot1%set(i)%ipbv%b    ==pot2%set(i)%ipbv%b    )) compare=.TRUE.
+               (pot1%set(i)%ipbv%b    ==pot2%set(i)%ipbv%b    )) mycompare=.TRUE.
        CASE (tersoff_type)
           IF  ((pot1%set(i)%tersoff%A       == pot2%set(i)%tersoff%A       ).AND.&
                (pot1%set(i)%tersoff%B       == pot2%set(i)%tersoff%B       ).AND.&
@@ -336,8 +341,12 @@ CONTAINS
                (pot1%set(i)%tersoff%h       == pot2%set(i)%tersoff%h       ).AND.&
                (pot1%set(i)%tersoff%lambda3 == pot2%set(i)%tersoff%lambda3 ).AND.&
                (pot1%set(i)%tersoff%bigR    == pot2%set(i)%tersoff%bigR    ).AND.&
-               (pot1%set(i)%tersoff%bigD    == pot2%set(i)%tersoff%bigD    )) compare=.TRUE.
+               (pot1%set(i)%tersoff%bigD    == pot2%set(i)%tersoff%bigD    )) mycompare=.TRUE.
        END SELECT
+       mycompare = mycompare.AND.&
+                  (pot1%set(i)%rmin == pot2%set(i)%rmin ).AND.(pot1%set(i)%rmax == pot2%set(i)%rmax )
+       IF ((mycompare).AND.(i==1)) compare = .TRUE.
+       compare = compare .AND. mycompare
     END DO
 
   END SUBROUTINE compare_pot
@@ -391,6 +400,8 @@ CONTAINS
                 potparm%cs_coul_spline_data,&
                 potparm%sc_coul_spline_data)
        DO i = 1, lnset
+          potparm%set(i)%rmin = not_initialized
+          potparm%set(i)%rmax = not_initialized
           NULLIFY( potparm%set(i)%ipbv,&
                    potparm%set(i)%lj,&
                    potparm%set(i)%gp,&
@@ -462,6 +473,8 @@ CONTAINS
          CALL spline_factor_release ( potparm % spl_sc ,error=error)
 
     DO i = 1, SIZE(potparm%type)
+       potparm%set(i)%rmin = not_initialized
+       potparm%set(i)%rmax = not_initialized
        CALL pair_potential_lj_clean (potparm%set(i)%lj, error=error)
        CALL pair_potential_williams_clean (potparm%set(i)%willis, error=error)
        CALL pair_potential_goodwin_clean (potparm%set(i)%goodwin, error=error)
@@ -546,6 +559,8 @@ CONTAINS
        END IF
 
        DO i = 1, SIZE(potparm_source%type)
+          potparm_dest%set(i)%rmin = potparm_source%set(i)%rmin
+          potparm_dest%set(i)%rmax = potparm_source%set(i)%rmax
           CALL pair_potential_lj_copy (potparm_source%set(i)%lj, potparm_dest%set(i)%lj, error=error)
           CALL pair_potential_williams_copy (potparm_source%set(i)%willis, potparm_dest%set(i)%willis, error=error)
           CALL pair_potential_goodwin_copy (potparm_source%set(i)%goodwin, potparm_dest%set(i)%goodwin, error=error)
@@ -587,7 +602,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, size_dest, size_source
-    LOGICAL                                  :: failure, check, allocate_new
+    LOGICAL                                  :: allocate_new, check, failure
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm_tmp
 
@@ -662,6 +677,8 @@ CONTAINS
           potparm_dest % rcutsq     = potparm_tmp % rcutsq
           DO i = 1, size_dest
              potparm_dest%type(i) = potparm_tmp%type(i)
+             potparm_dest%set(i)%rmin = potparm_tmp%set(i)%rmin
+             potparm_dest%set(i)%rmax = potparm_tmp%set(i)%rmax
              CALL pair_potential_lj_copy (potparm_tmp%set(i)%lj, potparm_dest%set(i)%lj, error=error)
              CALL pair_potential_williams_copy (potparm_tmp%set(i)%willis, potparm_dest%set(i)%willis, error=error)
              CALL pair_potential_goodwin_copy (potparm_tmp%set(i)%goodwin, potparm_dest%set(i)%goodwin, error=error)
@@ -688,6 +705,8 @@ CONTAINS
        DO i = size_dest+1, size_dest+size_source
           j = i-size_dest
           potparm_dest%type(i) = potparm_source%type(j)
+          potparm_dest%set(i)%rmin = potparm_source%set(j)%rmin
+          potparm_dest%set(i)%rmax = potparm_source%set(j)%rmax
           CALL pair_potential_lj_copy (potparm_source%set(j)%lj, potparm_dest%set(i)%lj, error=error)
           CALL pair_potential_williams_copy (potparm_source%set(j)%willis, potparm_dest%set(i)%willis, error=error)
           CALL pair_potential_goodwin_copy (potparm_source%set(j)%goodwin, potparm_dest%set(i)%goodwin, error=error)
@@ -1188,6 +1207,8 @@ CONTAINS
           p % pot ( i ) % pot % only_mb = .FALSE.
           p % pot ( i ) % pot % at1   = 'NULL'
           p % pot ( i ) % pot % at2   = 'NULL'
+          p % pot ( i ) % pot % set(std_dim) % rmin = not_initialized
+          p % pot ( i ) % pot % set(std_dim) % rmax = not_initialized
           SELECT CASE (ipot)
           CASE (lj_type,lj_charmm_type)
              CALL pair_potential_lj_create(p%pot(i)%pot%set(std_dim)%lj, error=error)

@@ -551,7 +551,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: atm_names
-    INTEGER                                  :: isec, n_items
+    INTEGER                                  :: isec, n_items, n_rep
     REAL(KIND=dp)                            :: epsilon, rcut, sigma
 
     CALL section_vals_get(section,n_repetition=n_items,error=error)
@@ -570,6 +570,13 @@ CONTAINS
        nonbonded%pot(start+isec)%pot %set(1)%lj%sigma6  = sigma**6
        nonbonded%pot(start+isec)%pot %set(1)%lj%sigma12 = sigma**12
        nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
+       ! 
+       CALL section_vals_val_get ( section, "RMIN", i_rep_section=isec, n_rep_val=n_rep, error=error)
+       IF(n_rep==1) CALL section_vals_val_get(section,"RMIN",i_rep_section=isec,&
+            r_val=nonbonded%pot(start+isec)%pot%set(1)%rmin,error=error)
+       CALL section_vals_val_get ( section, "RMAX", i_rep_section=isec, n_rep_val=n_rep, error=error)
+       IF(n_rep==1) CALL section_vals_val_get(section,"RMAX",i_rep_section=isec,&
+            r_val=nonbonded%pot(start+isec)%pot%set(1)%rmax,error=error)
     END DO
   END SUBROUTINE read_lj_section
 
@@ -600,7 +607,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: atm_names
-    INTEGER                                  :: isec, n_items
+    INTEGER                                  :: isec, n_items, n_rep
     REAL(KIND=dp)                            :: a, b, c, rcut
 
     CALL section_vals_get(section,n_repetition=n_items,error=error)
@@ -620,6 +627,13 @@ CONTAINS
        nonbonded%pot(start+isec)%pot %set(1)%willis%b = b
        nonbonded%pot(start+isec)%pot %set(1)%willis%c = c
        nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
+       ! 
+       CALL section_vals_val_get ( section, "RMIN", i_rep_section=isec, n_rep_val=n_rep, error=error)
+       IF(n_rep==1) CALL section_vals_val_get(section,"RMIN",i_rep_section=isec,&
+            r_val=nonbonded%pot(start+isec)%pot%set(1)%rmin,error=error)
+       CALL section_vals_val_get ( section, "RMAX", i_rep_section=isec, n_rep_val=n_rep, error=error)
+       IF(n_rep==1) CALL section_vals_val_get(section,"RMAX",i_rep_section=isec,&
+            r_val=nonbonded%pot(start+isec)%pot%set(1)%rmax,error=error)
     END DO
   END SUBROUTINE read_wl_section
 
@@ -650,7 +664,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: atm_names
-    INTEGER                                  :: isec, m, mc, n_items
+    INTEGER                                  :: isec, m, mc, n_items, n_rep
     REAL(KIND=dp)                            :: d, dc, rcut, vr0
 
     CALL section_vals_get(section,n_repetition=n_items,error=error)
@@ -674,6 +688,13 @@ CONTAINS
        nonbonded%pot(start+isec)%pot %set(1)%goodwin%m = m
        nonbonded%pot(start+isec)%pot %set(1)%goodwin%mc = mc
        nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
+       ! 
+       CALL section_vals_val_get ( section, "RMIN", i_rep_section=isec, n_rep_val=n_rep, error=error)
+       IF(n_rep==1) CALL section_vals_val_get(section,"RMIN",i_rep_section=isec,&
+            r_val=nonbonded%pot(start+isec)%pot%set(1)%rmin,error=error)
+       CALL section_vals_val_get ( section, "RMAX", i_rep_section=isec, n_rep_val=n_rep, error=error)
+       IF(n_rep==1) CALL section_vals_val_get(section,"RMAX",i_rep_section=isec,&
+            r_val=nonbonded%pot(start+isec)%pot%set(1)%rmax,error=error)
     END DO
   END SUBROUTINE read_gd_section
 
@@ -704,7 +725,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: atm_names
-    INTEGER                                  :: isec, n_items
+    INTEGER                                  :: isec, n_items, n_rep
     REAL(KIND=dp)                            :: rcut
 
     CALL section_vals_get(section,n_repetition=n_items,error=error)
@@ -719,6 +740,13 @@ CONTAINS
             nonbonded%pot(start+isec)%pot%set(1)%ipbv )
        CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
        nonbonded%pot(start+isec)%pot%rcutsq     = rcut**2
+       ! 
+       CALL section_vals_val_get ( section, "RMIN", i_rep_section=isec, n_rep_val=n_rep, error=error)
+       IF(n_rep==1) CALL section_vals_val_get(section,"RMIN",i_rep_section=isec,&
+            r_val=nonbonded%pot(start+isec)%pot%set(1)%rmin,error=error)
+       CALL section_vals_val_get ( section, "RMAX", i_rep_section=isec, n_rep_val=n_rep, error=error)
+       IF(n_rep==1) CALL section_vals_val_get(section,"RMAX",i_rep_section=isec,&
+            r_val=nonbonded%pot(start+isec)%pot%set(1)%rmax,error=error)
     END DO
   END SUBROUTINE read_ipbv_section
 
@@ -748,10 +776,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: atm_names
-    CHARACTER(LEN=default_string_length), &
       DIMENSION(2)                           :: map_atoms
-    INTEGER                                  :: i, isec, n_items
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: atm_names
+    INTEGER                                  :: i, isec, n_items, n_rep
     REAL(KIND=dp)                            :: rcut
 
     CALL section_vals_get(section,n_repetition=n_items,error=error)
@@ -782,6 +810,13 @@ CONTAINS
        END IF
        CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
        nonbonded%pot(start+isec)%pot%rcutsq     = rcut**2
+       ! 
+       CALL section_vals_val_get ( section, "RMIN", i_rep_section=isec, n_rep_val=n_rep, error=error)
+       IF(n_rep==1) CALL section_vals_val_get(section,"RMIN",i_rep_section=isec,&
+            r_val=nonbonded%pot(start+isec)%pot%set(1)%rmin,error=error)
+       CALL section_vals_val_get ( section, "RMAX", i_rep_section=isec, n_rep_val=n_rep, error=error)
+       IF(n_rep==1) CALL section_vals_val_get(section,"RMAX",i_rep_section=isec,&
+            r_val=nonbonded%pot(start+isec)%pot%set(1)%rmax,error=error)
     END DO
   END SUBROUTINE read_bmhft_section
 
@@ -881,6 +916,13 @@ CONTAINS
        nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
        DEALLOCATE(coeff1,coeff2,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ! 
+       CALL section_vals_val_get ( section, "RMIN", i_rep_section=isec, n_rep_val=n_rep, error=error)
+       IF(n_rep==1) CALL section_vals_val_get(section,"RMIN",i_rep_section=isec,&
+            r_val=nonbonded%pot(start+isec)%pot%set(1)%rmin,error=error)
+       CALL section_vals_val_get ( section, "RMAX", i_rep_section=isec, n_rep_val=n_rep, error=error)
+       IF(n_rep==1) CALL section_vals_val_get(section,"RMAX",i_rep_section=isec,&
+            r_val=nonbonded%pot(start+isec)%pot%set(1)%rmax,error=error)
     END DO
   END SUBROUTINE read_b4_section
 
@@ -972,6 +1014,13 @@ CONTAINS
        nonbonded%pot(start+isec)%pot %set(1)%gp%parameters(1:1) = variables(1)
        ! rcut
        nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
+       ! 
+       CALL section_vals_val_get ( section, "RMIN", i_rep_section=isec, n_rep_val=n_rep, error=error)
+       IF(n_rep==1) CALL section_vals_val_get(section,"RMIN",i_rep_section=isec,&
+            r_val=nonbonded%pot(start+isec)%pot%set(1)%rmin,error=error)
+       CALL section_vals_val_get ( section, "RMAX", i_rep_section=isec, n_rep_val=n_rep, error=error)
+       IF(n_rep==1) CALL section_vals_val_get(section,"RMAX",i_rep_section=isec,&
+            r_val=nonbonded%pot(start+isec)%pot%set(1)%rmax,error=error)
     END DO
   END SUBROUTINE read_gp_section
 
@@ -1062,7 +1111,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: atm_names
-    INTEGER                                  :: isec, n_items
+    INTEGER                                  :: isec, n_items, n_rep
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a1, a2, b1, b2, beta, c, d, &
                                                 f0, r0, rcut
@@ -1097,6 +1146,13 @@ CONTAINS
        nonbonded%pot(start+isec)%pot %set(1)%buckmo%r0 = r0
        nonbonded%pot(start+isec)%pot %set(1)%buckmo%beta = beta
        nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
+       ! 
+       CALL section_vals_val_get ( section, "RMIN", i_rep_section=isec, n_rep_val=n_rep, error=error)
+       IF(n_rep==1) CALL section_vals_val_get(section,"RMIN",i_rep_section=isec,&
+            r_val=nonbonded%pot(start+isec)%pot%set(1)%rmin,error=error)
+       CALL section_vals_val_get ( section, "RMAX", i_rep_section=isec, n_rep_val=n_rep, error=error)
+       IF(n_rep==1) CALL section_vals_val_get(section,"RMAX",i_rep_section=isec,&
+            r_val=nonbonded%pot(start+isec)%pot%set(1)%rmax,error=error)
     END DO
   END SUBROUTINE read_bm_section
 

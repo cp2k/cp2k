@@ -35,7 +35,7 @@ MODULE pair_potential_util
   USE mathconstants,                   ONLY: pi
   USE pair_potential_types,            ONLY: &
        b4_type, bm_type, ea_type, ft_type, gp_type, gw_type, ip_type, &
-       lj_charmm_type, lj_type, pair_potential_pp_type, &
+       lj_charmm_type, lj_type, not_initialized, pair_potential_pp_type, &
        pair_potential_single_type, wl_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -80,10 +80,15 @@ CONTAINS
     REAL(KIND=dp)                            :: value
 
     INTEGER                                  :: i, index, j, n
-    REAL(KIND=dp)                            :: pp, qq, scale, lvalue
+    REAL(KIND=dp)                            :: lvalue, pp, qq, scale
 
     value = 0.0_dp
     DO j = 1, SIZE(pot%type)
+       ! A lower boundary for the potential definition was defined
+       IF ((pot%set(j)%rmin /= not_initialized).AND.( r <  pot%set(j)%rmin )) CYCLE
+       ! An upper boundary for the potential definition was defined
+       IF ((pot%set(j)%rmax /= not_initialized).AND.( r >= pot%set(j)%rmax )) CYCLE
+       ! If within limits let's compute the potential...
        IF (pot%type(j)==lj_charmm_type) THEN
           lvalue = vdw_scale14 * &
                4.0_dp*pot%set(j)%lj%epsilon*(pot%set(j)%lj%sigma12*r**(-12)-pot%set(j)%lj% &
