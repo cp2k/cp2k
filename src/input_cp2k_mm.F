@@ -1211,14 +1211,14 @@ CONTAINS
        CALL keyword_create(keyword, name="RMIN",&
             description="Defines the lower bound of the potential. If not set the range is the"//&
             " full range generate by the spline", required=.TRUE., usage="RMIN {real}", &
-            type_of_var=real_t, error=error)
+            type_of_var=real_t,  unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMAX",&
             description="Defines the upper bound of the potential. If not set the range is the"//&
             " full range generate by the spline", required=.TRUE., usage="RMAX {real}", &
-            type_of_var=real_t, error=error)
+            type_of_var=real_t,  unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1360,14 +1360,14 @@ CONTAINS
        CALL keyword_create(keyword, name="RMIN",&
             description="Defines the lower bound of the potential. If not set the range is the"//&
             " full range generate by the spline", required=.TRUE., usage="RMIN {real}", &
-            type_of_var=real_t, error=error)
+            type_of_var=real_t,  unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMAX",&
             description="Defines the upper bound of the potential. If not set the range is the"//&
             " full range generate by the spline", required=.TRUE., usage="RMAX {real}", &
-            type_of_var=real_t, error=error)
+            type_of_var=real_t,  unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1458,14 +1458,14 @@ CONTAINS
        CALL keyword_create(keyword, name="RMIN",&
             description="Defines the lower bound of the potential. If not set the range is the"//&
             " full range generate by the spline", required=.TRUE., usage="RMIN {real}", &
-            type_of_var=real_t, error=error)
+            type_of_var=real_t,  unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMAX",&
             description="Defines the upper bound of the potential. If not set the range is the"//&
             " full range generate by the spline", required=.TRUE., usage="RMAX {real}", &
-            type_of_var=real_t, error=error)
+            type_of_var=real_t,  unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1569,14 +1569,14 @@ CONTAINS
        CALL keyword_create(keyword, name="RMIN",&
             description="Defines the lower bound of the potential. If not set the range is the"//&
             " full range generate by the spline", required=.TRUE., usage="RMIN {real}", &
-            type_of_var=real_t, error=error)
+            type_of_var=real_t,  unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMAX",&
             description="Defines the upper bound of the potential. If not set the range is the"//&
             " full range generate by the spline", required=.TRUE., usage="RMAX {real}", &
-            type_of_var=real_t, error=error)
+            type_of_var=real_t,  unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1646,14 +1646,14 @@ CONTAINS
        CALL keyword_create(keyword, name="RMIN",&
             description="Defines the lower bound of the potential. If not set the range is the"//&
             " full range generate by the spline", required=.TRUE., usage="RMIN {real}", &
-            type_of_var=real_t, error=error)
+            type_of_var=real_t,  unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMAX",&
             description="Defines the upper bound of the potential. If not set the range is the"//&
             " full range generate by the spline", required=.TRUE., usage="RMAX {real}", &
-            type_of_var=real_t, error=error)
+            type_of_var=real_t,  unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1757,14 +1757,14 @@ CONTAINS
        CALL keyword_create(keyword, name="RMIN",&
             description="Defines the lower bound of the potential. If not set the range is the"//&
             " full range generate by the spline", required=.TRUE., usage="RMIN {real}", &
-            type_of_var=real_t, error=error)
+            type_of_var=real_t,  unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMAX",&
             description="Defines the upper bound of the potential. If not set the range is the"//&
             " full range generate by the spline", required=.TRUE., usage="RMAX {real}", &
-            type_of_var=real_t, error=error)
+            type_of_var=real_t,  unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1894,14 +1894,14 @@ CONTAINS
        CALL keyword_create(keyword, name="RMIN",&
             description="Defines the lower bound of the potential. If not set the range is the"//&
             " full range generate by the spline", required=.TRUE., usage="RMIN {real}", &
-            type_of_var=real_t, error=error)
+            type_of_var=real_t,  unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMAX",&
             description="Defines the upper bound of the potential. If not set the range is the"//&
             " full range generate by the spline", required=.TRUE., usage="RMAX {real}", &
-            type_of_var=real_t, error=error)
+            type_of_var=real_t,  unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -2034,14 +2034,14 @@ CONTAINS
        CALL keyword_create(keyword, name="RMIN",&
             description="Defines the lower bound of the potential. If not set the range is the"//&
             " full range generate by the spline", required=.TRUE., usage="RMIN {real}", &
-            type_of_var=real_t, error=error)
+            type_of_var=real_t,  unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMAX",&
             description="Defines the upper bound of the potential. If not set the range is the"//&
             " full range generate by the spline", required=.TRUE., usage="RMAX {real}", &
-            type_of_var=real_t, error=error)
+            type_of_var=real_t,  unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

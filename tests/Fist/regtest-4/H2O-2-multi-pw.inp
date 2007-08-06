@@ -27,14 +27,14 @@
           EPSILON [kcalmol]  0.152073
           SIGMA   [angstrom] 3.1507
           RCUT    [angstrom] 11.4
-          RMAX    2.0
+          RMAX    [angstrom] 2.0
         &END LENNARD-JONES
         &LENNARD-JONES
           atoms O O
           EPSILON [kcalmol]  0.152073
           SIGMA   [angstrom] 3.1507
           RCUT    [angstrom] 11.4
-          RMIN   2.0
+          RMIN   [angstrom] 2.0
         &END LENNARD-JONES
         &LENNARD-JONES
           atoms O H
