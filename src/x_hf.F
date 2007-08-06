@@ -33,9 +33,9 @@ MODULE x_hf
   IMPLICIT NONE
   PRIVATE
   PUBLIC  x_hf_type, x_hf_create, x_hf_release, x_hf_screening_type ,&
-          x_hf_set_distr_energy, proc_assoc_energy,&
-          x_hf_set_distr_forces, proc_assoc_forces, x_hf_create_neighbor_cells,&
-          x_hf_cell_type
+          x_hf_set_distr_energy, &
+          x_hf_set_distr_forces, x_hf_create_neighbor_cells,&
+          x_hf_cell_type, x_hf_distribution
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'x_hf'
 
@@ -74,6 +74,11 @@ MODULE x_hf
   TYPE x_hf_cell_type
     INTEGER                                  :: cell(3)
   END TYPE
+
+  TYPE x_hf_distribution
+    INTEGER                                  :: istart, jstart, kstart, lstart
+    INTEGER(KIND=int_8)                      :: number_of_integrals
+  END TYPE
   
   TYPE x_hf_type
     REAL(dp), DIMENSION(:), POINTER          :: x_buffer
@@ -84,13 +89,15 @@ MODULE x_hf
     INTEGER                                  :: number_of_elements
     TYPE(x_hf_screening_type)                :: screening_parameter
     INTEGER(KIND=int_8), DIMENSION(:),&
-                             POINTER         :: integral_distribution_energy
-    INTEGER(KIND=int_8), DIMENSION(:),&
                              POINTER         :: integral_distribution_forces
     TYPE(x_hf_cell_type), DIMENSION(:), &
                POINTER                       :: neighbor_cells
     LOGICAL                                  :: do_periodic
     INTEGER                                  :: number_of_k_loops
+    TYPE(x_hf_distribution), DIMENSION(:),&
+                             POINTER         :: distribution_energy
+    TYPE(x_hf_distribution), DIMENSION(:),&
+                             POINTER         :: distribution_forces
   END TYPE
 
   CONTAINS
@@ -139,8 +146,9 @@ MODULE x_hf
       ALLOCATE(x_data%x_screening_buffer(natom,natom,max_set,max_set))
     END IF
 
-    ALLOCATE(x_data%integral_distribution_energy(1))
+    ALLOCATE(x_data%distribution_forces(1))
     ALLOCATE(x_data%integral_distribution_forces(1))
+    ALLOCATE(x_data%distribution_energy(1))
   END SUBROUTINE x_hf_create 
 
   SUBROUTINE x_hf_release(x_data,error)
@@ -165,7 +173,9 @@ MODULE x_hf
       DEALLOCATE(x_data%x_screening_buffer,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    DEALLOCATE(x_data%integral_distribution_energy,STAT=stat)
+    DEALLOCATE(x_data%distribution_energy,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(x_data%distribution_forces,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(x_data%integral_distribution_forces,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -173,9 +183,9 @@ MODULE x_hf
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE x_hf_release
 
-  SUBROUTINE x_hf_set_distr_energy(distr, x_data, error)
-    INTEGER(KIND=int_8), DIMENSION(:), &
-      POINTER                                :: distr
+  SUBROUTINE x_hf_set_distr_energy(ptr_to_distr,x_data, error)
+    TYPE(x_hf_distribution), DIMENSION(:), &
+      POINTER                                :: ptr_to_distr
     TYPE(x_hf_type), POINTER                 :: x_data
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -185,35 +195,17 @@ MODULE x_hf
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-    DEALLOCATE(x_data%integral_distribution_energy,STAT=stat)
+    DEALLOCATE(x_data%distribution_energy,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    ALLOCATE(x_data%integral_distribution_energy(SIZE(distr)))
-    x_data%integral_distribution_energy = distr
+    ALLOCATE(x_data%distribution_energy(SIZE(ptr_to_distr)))
+    x_data%distribution_energy = ptr_to_distr
+
   END SUBROUTINE x_hf_set_distr_energy
 
-  FUNCTION proc_assoc_energy(counter, distribution)
-    INTEGER(KIND=int_8)                      :: counter
-    INTEGER(KIND=int_8), DIMENSION(:), &
-      POINTER                                :: distribution
-    LOGICAL                                  :: proc_assoc_energy
-
-    INTEGER                                  :: ipos, mysize
-
-    mysize = SIZE(distribution,1)/2
-    
-    proc_assoc_energy = .FALSE.
-    DO ipos = 1,mysize
-      IF(counter>=distribution(2*ipos-1) .AND. counter<=distribution(2*ipos) ) THEN
-        proc_assoc_energy = .TRUE.
-        RETURN
-      END IF
-    END DO
-  END FUNCTION proc_assoc_energy
-
-  SUBROUTINE x_hf_set_distr_forces(distr, x_data, error)
-    INTEGER(KIND=int_8), DIMENSION(:), &
-      POINTER                                :: distr
+  SUBROUTINE x_hf_set_distr_forces(ptr_to_distr, x_data, error)
+    TYPE(x_hf_distribution), DIMENSION(:), &
+      POINTER                                :: ptr_to_distr
     TYPE(x_hf_type), POINTER                 :: x_data
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -223,32 +215,14 @@ MODULE x_hf
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-    DEALLOCATE(x_data%integral_distribution_forces,STAT=stat)
+    DEALLOCATE(x_data%distribution_forces,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+   
+    ALLOCATE(x_data%distribution_forces(SIZE(ptr_to_distr)))
+    x_data%distribution_forces = ptr_to_distr
 
-    ALLOCATE(x_data%integral_distribution_forces(SIZE(distr)))
-    x_data%integral_distribution_forces = distr
   END SUBROUTINE x_hf_set_distr_forces
 
-  FUNCTION proc_assoc_forces(counter, distribution)
-    INTEGER(KIND=int_8)                      :: counter
-    INTEGER(KIND=int_8), DIMENSION(:), &
-      POINTER                                :: distribution
-    LOGICAL                                  :: proc_assoc_forces
-
-    INTEGER                                  :: ipos, mysize
-
-    mysize = SIZE(distribution,1)/2
-
-    proc_assoc_forces = .FALSE.
-    DO ipos = 1,mysize
-      IF(counter>=distribution(2*ipos-1) .AND. counter<=distribution(2*ipos) ) THEN
-        proc_assoc_forces = .TRUE.
-        RETURN
-      END IF
-    END DO
-  END FUNCTION proc_assoc_forces
-  
   SUBROUTINE x_hf_create_neighbor_cells(x_data, pbc_shells, error)
     TYPE(x_hf_type), POINTER                 :: x_data
     INTEGER, INTENT(IN)                      :: pbc_shells
