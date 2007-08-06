@@ -34,7 +34,7 @@ MODULE pair_potential_util
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE pair_potential_types,            ONLY: &
-       b4_type, bm_type, ea_type, ft_type, gp_type, gw_type, ip_type, &
+       b4_type, bm_type, ea_type, ft_type, gp_type, gw_type, hfdb_type, ip_type, &
        lj_charmm_type, lj_type, not_initialized, pair_potential_pp_type, &
        pair_potential_single_type, wl_type
   USE termination,                     ONLY: stop_program
@@ -80,7 +80,7 @@ CONTAINS
     REAL(KIND=dp)                            :: value
 
     INTEGER                                  :: i, index, j, n
-    REAL(KIND=dp)                            :: lvalue, pp, qq, scale
+    REAL(KIND=dp)                            :: frs, lvalue, pp, qq, rs, scale
 
     value = 0.0_dp
     DO j = 1, SIZE(pot%type)
@@ -154,6 +154,19 @@ CONTAINS
           lvalue = evalf(pot%set(j)%gp%myid,pot%set(j)%gp%values)
           IF (EvalErrType > 0) &
                CALL stop_program("ener_pot","Error evaluating generic potential energy function")
+       ELSE IF (pot%type(j)==hfdb_type) THEN
+         rs = r / pot%set(j)%hfdb%r0
+         frs = EXP(-(pot%set(j)%hfdb%d / rs -1.0_dp)**2)
+         IF(rs < pot%set(j)%hfdb%d) THEN
+           pp = pot%set(j)%hfdb%a * EXP(-pot%set(j)%hfdb%alpha * rs + pot%set(j)%hfdb%beta * rs * rs) - &
+                frs * (pot%set(j)%hfdb%c6 /(rs)**6 + pot%set(j)%hfdb%c8 /(rs)**8 + &
+                pot%set(j)%hfdb%c10 /(rs)**10)
+         ELSE
+           pp = pot%set(j)%hfdb%a * EXP(-pot%set(j)%hfdb%alpha * rs + pot%set(j)%hfdb%beta * rs * rs) - &
+                (pot%set(j)%hfdb%c6 /(rs)**6 + pot%set(j)%hfdb%c8 /(rs)**8 + &
+                 pot%set(j)%hfdb%c10 /(rs)**10)
+         END IF        
+         lvalue = pot%set(j)%hfdb%eps * pp             
        ELSE
           lvalue = 0.0_dp
        END IF

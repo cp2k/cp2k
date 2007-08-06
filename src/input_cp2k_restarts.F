@@ -228,6 +228,7 @@ CONTAINS
 
        IF(save_mem) THEN
           CALL update_subsys_release(md_env,force_env,root_section,error)
+          CALL update_motion_release(md_env,motion_section,error)
        END IF
     ENDIF
 
@@ -364,6 +365,118 @@ CONTAINS
 
   END SUBROUTINE update_subsys_release
 
+!!****f* input_cp2k_restarts/update_subsys_release [1.0] *
+!!
+!!   NAME
+!!    update_motion_release 
+!!
+!!   FUNCTION
+!!     deallocate the nose subsections (coord, vel, force, mass) in the md section
+!!
+!!   NOTES
+!!
+!!
+!!   ARGUMENTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!   MODIFICATION HISTORY
+!!     08.2007 created [MI]
+!!
+!!*** **********************************************************************
+
+  SUBROUTINE update_motion_release(md_env,motion_section,error)
+
+    TYPE(md_environment_type), &
+      POINTER                                :: md_env
+    TYPE(section_vals_type), POINTER         :: motion_section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'update_motion_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro( : ), nhc_coef( : ), &
+                                                nhc_part( : ), nhc_shell(:)
+    TYPE(section_vals_type), POINTER         :: work_section
+
+    CALL timeset(routineN,handle)
+
+
+    NULLIFY( nhc_part, nhc_baro, nhc_coef, nhc_shell, work_section)
+
+    CALL get_md_env ( md_env=md_env,&
+                      nhc_part=nhc_part,&
+                      nhc_baro=nhc_baro,&
+                      nhc_coef=nhc_coef,&
+                      nhc_shell=nhc_shell)
+
+                     
+    IF (ASSOCIATED(nhc_part)) THEN
+       work_section => section_vals_get_subs_vals(motion_section,"MD%NOSE%COORD",error=error)
+       CALL section_vals_remove_values(work_section, error)
+       NULLIFY(work_section)
+       work_section => section_vals_get_subs_vals(motion_section,"MD%NOSE%VELOCITY",error=error)
+       CALL section_vals_remove_values(work_section, error)
+       NULLIFY(work_section)
+       work_section => section_vals_get_subs_vals(motion_section,"MD%NOSE%FORCE",error=error)
+       CALL section_vals_remove_values(work_section, error)
+       NULLIFY(work_section)
+       work_section => section_vals_get_subs_vals(motion_section,"MD%NOSE%MASS",error=error)
+       CALL section_vals_remove_values(work_section, error)
+    ENDIF
+
+    IF (ASSOCIATED(nhc_baro)) THEN
+       NULLIFY(work_section)
+       work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%NOSE%COORD",error=error)
+       CALL section_vals_remove_values(work_section, error)
+       NULLIFY(work_section)
+       work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%NOSE%VELOCITY",error=error)
+       CALL section_vals_remove_values(work_section, error)
+       NULLIFY(work_section)
+       work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%NOSE%FORCE",error=error)
+       CALL section_vals_remove_values(work_section, error)
+       NULLIFY(work_section)
+       work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%NOSE%MASS",error=error)
+       CALL section_vals_remove_values(work_section, error)
+    END IF
+    
+    IF (ASSOCIATED(nhc_coef)) THEN
+       work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%NOSE%COORD",error=error)
+       CALL section_vals_remove_values(work_section, error)
+       NULLIFY(work_section)
+       work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%NOSE%VELOCITY",error=error)
+       CALL section_vals_remove_values(work_section, error)
+       NULLIFY(work_section)
+       work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%NOSE%FORCE",error=error)
+       CALL section_vals_remove_values(work_section, error)
+       NULLIFY(work_section)
+       work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%NOSE%MASS",error=error)
+       CALL section_vals_remove_values(work_section, error)
+    ENDIF
+
+    IF (ASSOCIATED(nhc_shell)) THEN
+       work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%NOSE%COORD",error=error)
+       CALL section_vals_remove_values(work_section, error)
+       NULLIFY(work_section)
+       work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%NOSE%VELOCITY",error=error)
+       CALL section_vals_remove_values(work_section, error)
+       NULLIFY(work_section)
+       work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%NOSE%FORCE",error=error)
+       CALL section_vals_remove_values(work_section, error)
+       NULLIFY(work_section)
+       work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%NOSE%MASS",error=error)
+       CALL section_vals_remove_values(work_section, error)
+    ENDIF
+
+
+    CALL timestop(handle)
+
+
+  END SUBROUTINE   update_motion_release
 
 !!****f* input_cp2k_restarts/update_input [1.0] *
 !!
@@ -530,7 +643,7 @@ CONTAINS
     TYPE(dyn_coeff_type), POINTER            :: coeffs
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
     TYPE(lnhc_parameters_type), POINTER      :: nhc_baro( : ), nhc_coef( : ), &
-                                                nhc_part( : )
+                                                nhc_part( : ), nhc_shell(:)
     TYPE(npt_info_type), POINTER             :: npt( :, : )
     TYPE(section_vals_type), POINTER         :: replica_section, work_section
 
@@ -538,12 +651,13 @@ CONTAINS
     CALL timeset(routineN,"I",'',handle)
     NULLIFY (logger,nhc_part,nhc_baro,npt,para_env)
     NULLIFY (atomic_kind_set, work_section, dyn_coeff_set, md_approach_nr, accepted_md)
-    NULLIFY (atomic_kind, coeffs, aux_basis_set, nhc_coef, t, itimes)
+    NULLIFY (atomic_kind, coeffs, aux_basis_set, nhc_coef, nhc_shell, t, itimes)
     IF (PRESENT(md_env)) THEN
        CALL get_md_env ( md_env=md_env,&
                          nhc_part=nhc_part,&
                          nhc_baro=nhc_baro,&
                          nhc_coef=nhc_coef,&
+                         nhc_shell=nhc_shell,&
                          npt=npt,&
                          t=t,&
                          itimes=itimes,&
@@ -756,22 +870,9 @@ CONTAINS
 
        work_section => section_vals_get_subs_vals(motion_section,"MD%NOSE",error=error)
        CALL set_template_restart(work_section, eta, veta, fnhc, mnhc, error)
-       IF(my_save_mem) THEN
-         NULLIFY(work_section)
-         work_section => section_vals_get_subs_vals(motion_section,"MD%NOSE%COORD",error=error)
-         CALL section_vals_remove_values(work_section, error)
-         NULLIFY(work_section)
-         work_section => section_vals_get_subs_vals(motion_section,"MD%NOSE%VELOCITY",error=error)
-         CALL section_vals_remove_values(work_section, error)
-         NULLIFY(work_section)
-         work_section => section_vals_get_subs_vals(motion_section,"MD%NOSE%FORCE",error=error)
-         CALL section_vals_remove_values(work_section, error)
-         NULLIFY(work_section)
-         work_section => section_vals_get_subs_vals(motion_section,"MD%NOSE%MASS",error=error)
-         CALL section_vals_remove_values(work_section, error)
-       END IF
     END IF
     CALL timestop(0.0_dp,handle2)
+
     ! BAROSTAT
     CALL timeset(routineN//"_BAROSTAT","I",'',handle2)
     IF (ASSOCIATED(nhc_baro)) THEN
@@ -799,20 +900,6 @@ CONTAINS
        
        work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%NOSE",error=error)
        CALL set_template_restart(work_section, eta, veta, fnhc, mnhc, error)
-       IF(my_save_mem) THEN
-         NULLIFY(work_section)
-         work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%NOSE%COORD",error=error)
-         CALL section_vals_remove_values(work_section, error)
-         NULLIFY(work_section)
-         work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%NOSE%VELOCITY",error=error)
-         CALL section_vals_remove_values(work_section, error)
-         NULLIFY(work_section)
-         work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%NOSE%FORCE",error=error)
-         CALL section_vals_remove_values(work_section, error)
-         NULLIFY(work_section)
-         work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%NOSE%MASS",error=error)
-         CALL section_vals_remove_values(work_section, error)
-       END IF
        
     END IF
     CALL timestop(0.0_dp,handle2)
@@ -954,6 +1041,191 @@ CONTAINS
        END IF
     END IF
     CALL timestop(0.0_dp,handle2)
+    
+    ! SHELL THERMOSTAT
+    CALL timeset(routineN//"_SHELL","I",'',handle2)
+    IF (ASSOCIATED(nhc_shell)) THEN
+       nhc_len = SIZE(nhc_shell(1)%nvt,1)
+       num_nhc = SIZE(nhc_shell(1)%nvt,2)
+       numneed = num_nhc
+          
+       ALLOCATE ( nhc_per_proc( para_env % num_pe ), STAT = stat )
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       nhc_per_proc ( : ) = 0
+
+       CALL mp_allgather(numneed,nhc_per_proc,para_env%group)
+
+       IF (nhc_shell ( 1 ) % dis_type=='INTER_REP') THEN
+          tot_nhcneed = nhc_per_proc(1)
+       ELSE
+          tot_nhcneed = SUM ( nhc_per_proc )
+       ENDIF
+
+       NULLIFY(work,index)
+
+       !-----------------------------------------------------------------------------
+       !-----------------------------------------------------------------------------
+       ! nhc_shell%eta  
+       !-----------------------------------------------------------------------------
+       ALLOCATE(eta(tot_nhcneed*nhc_len), STAT = stat )
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO iproc=1,para_env%num_pe
+          CALL reallocate(work,1,nhc_per_proc(iproc)*nhc_len)
+          CALL reallocate(index,1,nhc_per_proc(iproc))
+          IF(para_env%mepos == (iproc-1)) THEN
+             INDEX(:)=0
+             counter=0
+             DO i=1,nhc_len
+                DO j=1,num_nhc
+                   counter=counter+1
+                   work(counter)=nhc_shell(1)%nvt(i,j)%eta
+                   INDEX(j) = nhc_shell ( 1 ) % INDEX ( j )
+                END DO
+             END DO
+          ELSE
+             work(:) = 0.0_dp
+          END IF
+          CALL mp_bcast(work,iproc-1,para_env%group)
+          CALL mp_bcast(index,iproc-1,para_env%group)
+          counter=0
+          DO i=1,nhc_len
+             DO j=1,nhc_per_proc(iproc)
+                counter = counter+1
+                eta((INDEX(j)-1)*nhc_len+i) = work(counter)
+             END DO
+          END DO
+       END DO
+
+       !-----------------------------------------------------------------------------
+       !-----------------------------------------------------------------------------
+       ! nhc_shell % veta   
+       !-----------------------------------------------------------------------------
+       ALLOCATE(veta(tot_nhcneed*nhc_len), STAT = stat )
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO iproc=1,para_env%num_pe
+          CALL reallocate(work,1,nhc_per_proc(iproc)*nhc_len)
+          CALL reallocate(index,1,nhc_per_proc(iproc))
+          IF(para_env%mepos == (iproc-1)) THEN
+             INDEX(:)=0
+             counter=0
+             DO i=1,nhc_len
+                DO j=1,num_nhc
+                   counter=counter+1
+                   work(counter)=nhc_shell(1)%nvt(i,j)%v
+                   INDEX(j) = nhc_shell ( 1 ) % index ( j )
+                END DO
+             END DO
+          ELSE
+             work(:) = 0.0_dp
+          END IF
+          CALL mp_bcast(work,iproc-1,para_env%group)
+          CALL mp_bcast(index,iproc-1,para_env%group)
+          counter=0
+          DO i=1,nhc_len
+             DO j=1,nhc_per_proc(iproc)
+                counter = counter+1
+                veta((INDEX(j)-1)*nhc_len+i) = work(counter)
+             END DO
+          END DO
+       END DO
+
+       !-----------------------------------------------------------------------------
+       !-----------------------------------------------------------------------------
+       ! nhc_shell % force
+       !-----------------------------------------------------------------------------
+       ALLOCATE(fnhc(tot_nhcneed*nhc_len), STAT = stat )
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO iproc=1,para_env%num_pe
+          CALL reallocate(work,1,nhc_per_proc(iproc)*nhc_len)
+          CALL reallocate(index,1,nhc_per_proc(iproc))
+          IF(para_env%mepos == (iproc-1)) THEN
+             INDEX(:)=0
+             counter=0
+             DO i=1,nhc_len
+                DO j=1,num_nhc
+                   counter=counter+1
+                   work(counter)=nhc_shell(1)%nvt(i,j)%f
+                   INDEX(j) = nhc_shell ( 1 ) % index ( j )
+                END DO
+             END DO
+          ELSE
+             work(:) = 0.0_dp
+          END IF
+          CALL mp_bcast(work,iproc-1,para_env%group)
+          CALL mp_bcast(index,iproc-1,para_env%group)
+          counter=0
+          DO i=1,nhc_len
+             DO j=1,nhc_per_proc(iproc)
+                counter = counter+1
+                fnhc((INDEX(j)-1)*nhc_len+i) = work(counter)
+             END DO
+          END DO
+       END DO
+
+
+       !-----------------------------------------------------------------------------
+       !-----------------------------------------------------------------------------
+       ! nhc_shell % mass
+       !-----------------------------------------------------------------------------
+       ALLOCATE(mnhc(tot_nhcneed*nhc_len), STAT = stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)    
+       DO iproc=1,para_env%num_pe
+          CALL reallocate(work,1,nhc_per_proc(iproc)*nhc_len)
+          CALL reallocate(index,1,nhc_per_proc(iproc))
+          IF(para_env%mepos == (iproc-1)) THEN
+             INDEX(:)=0
+             counter=0
+             DO i=1,nhc_len
+                DO j=1,num_nhc
+                   counter=counter+1
+                   work(counter)=nhc_shell(1)%nvt(i,j)%mass
+                   INDEX(j) = nhc_shell ( 1 ) % index ( j )
+                END DO
+             END DO
+          ELSE
+             work(:) = 0.0_dp
+          END IF
+          CALL mp_bcast(work,iproc-1,para_env%group)
+          CALL mp_bcast(index,iproc-1,para_env%group)
+          counter=0
+          DO i=1,nhc_len
+             DO j=1,nhc_per_proc(iproc)
+                counter = counter+1
+                mnhc((INDEX(j)-1)*nhc_len+i) = work(counter)
+             END DO
+          END DO
+       END DO
+
+       DEALLOCATE ( work, STAT = stat )
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
+       DEALLOCATE ( index, STAT = stat )
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
+       DEALLOCATE ( nhc_per_proc, STAT = stat )
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
+
+
+      IF ( nhc_shell ( 1 ) % dis_type=='INTER_REP' ) THEN
+        eta  = 0.0_dp
+        veta = 0.0_dp
+        counter = 0
+        DO i=1,SIZE(nhc_shell(1)%nvt,1)
+          DO j=1,SIZE(nhc_shell(1)%nvt,2)
+                counter = counter + 1
+                eta (counter)= nhc_shell(1)%nvt(i,j)%eta
+                veta(counter)= nhc_shell(1)%nvt(i,j)%v
+                fnhc(counter)= nhc_shell(1)%nvt(i,j)%f
+                mnhc(counter)= nhc_shell(1)%nvt(i,j)%mass
+          END DO
+        END DO
+      END IF
+       
+      work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%NOSE",error=error)
+      CALL set_template_restart(work_section, eta, veta, fnhc, mnhc, error)    
+    END IF
+
+    
+    CALL timestop(0.0_dp,handle2)
+
     CALL timeset(routineN//"_META","I",'',handle2)
     IF (ASSOCIATED(meta_env)) THEN
        CALL section_vals_val_set(meta_env%metadyn_section,"STEP_START_VAL",&
