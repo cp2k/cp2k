@@ -1020,7 +1020,9 @@ CONTAINS
              ENDIF
 
              IF (.NOT. map_consistent) THEN
-                IF ( ALL ( 100.0_dp*ABS(jpblock) < eps_rho_rspace) ) THEN
+                IF ( ALL ( 100.0_dp*ABS(jpblock)      < eps_rho_rspace) .AND. &
+                     ALL ( 100.0_dp*ABS(jpblock_rii)  < eps_rho_rspace) .AND. &
+                     ALL ( 100.0_dp*ABS(jpblock_riii) < eps_rho_rspace) ) THEN
                   sab_orb_neighbor_node => next(sab_orb_neighbor_node)
                   CYCLE
                 END IF
