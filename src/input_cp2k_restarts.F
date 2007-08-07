@@ -391,8 +391,7 @@ CONTAINS
 
   SUBROUTINE update_motion_release(md_env,motion_section,error)
 
-    TYPE(md_environment_type), &
-      POINTER                                :: md_env
+    TYPE(md_environment_type), POINTER       :: md_env
     TYPE(section_vals_type), POINTER         :: motion_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -1489,7 +1488,8 @@ CONTAINS
 
     INTEGER                                  :: iforce_eval, myid, nforce_eval
     INTEGER, DIMENSION(:), POINTER           :: i_force_eval
-    LOGICAL                                  :: failure, skip_vel_section, multiple_subsys
+    LOGICAL                                  :: failure, multiple_subsys, &
+                                                skip_vel_section
     TYPE(section_vals_type), POINTER         :: force_env_sections, &
                                                 rng_section, subsys_section
     TYPE(virial_type), POINTER               :: virial
@@ -2036,20 +2036,23 @@ CONTAINS
 !!     02.2006 created [teo]
 !!
 !!*** **********************************************************************
-  SUBROUTINE section_velocity_val_set(velocity_section, particles, velocity, n_els, conv_factor, error)
+  SUBROUTINE section_velocity_val_set(velocity_section, particles, velocity, conv_factor, error)
 
     TYPE(section_vals_type), POINTER         :: velocity_section
-    TYPE(particle_list_type), POINTER,OPTIONAL        :: particles
-    REAL(KIND=dp), OPTIONAL                  :: conv_factor
-    TYPE(cp_error_type), INTENT(inout),OPTIONAL       :: error
+    TYPE(particle_list_type), OPTIONAL, &
+      POINTER                                :: particles
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: velocity
+    REAL(KIND=dp)                            :: conv_factor
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_velocity_val_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ik, irk, Nlist, stat, nloop
-    INTEGER, OPTIONAL                        :: n_els
-    LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(:,:), POINTER,OPTIONAL     :: velocity
+    INTEGER                                  :: handle, ik, irk, Nlist, &
+                                                nloop, stat
+    LOGICAL                                  :: failure, check
     REAL(KIND=dp), DIMENSION(:), POINTER     :: vel
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
     TYPE(section_type), POINTER              :: section
@@ -2066,8 +2069,11 @@ CONTAINS
          "section "//TRIM(section%name)//" does not contain keyword "//&
          "_DEFAULT_KEYWORD_",error,failure)
 
+    ! At least one of the two arguments must be present..
+    check = PRESENT(particles).NEQV.PRESENT(velocity) 
+    CPPostcondition(check,cp_failure_level,routineP,error,failure)
     IF(PRESENT(particles)) nloop = particles%n_els
-    IF(PRESENT(n_els))     nloop = n_els
+    IF(PRESENT(velocity))  nloop = SIZE(velocity,2)
     
     DO
        IF (SIZE(velocity_section%values,2)==1) EXIT
@@ -2082,10 +2088,8 @@ CONTAINS
        ALLOCATE(vel(3),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ! Always stored in A.U.
-       IF(PRESENT(particles)) &
-          vel = particles%els(irk)%v(1:3)/conv_factor
-       IF(PRESENT(velocity)) &
-          vel = velocity(1:3,irk)/conv_factor
+       IF(PRESENT(particles)) vel = particles%els(irk)%v(1:3)/conv_factor
+       IF(PRESENT(velocity))  vel = velocity(1:3,irk)/conv_factor
 
        CALL val_create(my_val,r_vals_ptr=vel,error=error)
 

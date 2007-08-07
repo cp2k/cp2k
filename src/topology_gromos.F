@@ -32,8 +32,8 @@ MODULE topology_gromos
                                              parser_search_string
   USE input_constants,                 ONLY: do_skip_14
   USE input_cp2k_restarts,             ONLY: section_velocity_val_set
-  USE input_section_types,             ONLY: section_vals_type, &
-                                             section_vals_get_subs_vals
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
@@ -933,7 +933,6 @@ CONTAINS
     TYPE(topology_parameters_type)           :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(section_vals_type), POINTER         :: velocity_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_g96', &
@@ -943,12 +942,14 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: label, string
     CHARACTER(LEN=default_string_length), &
       DIMENSION(5)                           :: avail_section
-    INTEGER                                  :: handle, itemp, iw, natom,istat
-    LOGICAL                                  :: found,failure
+    INTEGER                                  :: handle, istat, itemp, iw, &
+                                                natom
+    LOGICAL                                  :: failure, found
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: velocity
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: parser
-    REAL(KIND=dp), POINTER, DIMENSION(:,:)   :: velocity
+    TYPE(section_vals_type), POINTER         :: velocity_section
 
     NULLIFY(parser, logger, velocity)
     logger => cp_error_get_logger(error)
@@ -1082,7 +1083,7 @@ CONTAINS
         CALL parser_release(parser,error=error)
         velocity_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
         CALL section_velocity_val_set(velocity_section, velocity=velocity, &
-                                      n_els=natom, conv_factor=1.0_dp, error=error)
+                                      conv_factor=1.0_dp, error=error)
       END IF
     END IF
     DEALLOCATE(velocity,STAT=istat)

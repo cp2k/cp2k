@@ -225,7 +225,7 @@ CONTAINS
     topology%create_molecules=.FALSE.
     topology%molecules_check=.FALSE.
     topology%coordinate=.FALSE.
-    topology%coordinate=.FALSE.
+    topology%use_g96_velocity=.FALSE.
     topology%nhcopt=do_nhcopt_global
     topology%coord_type=-1
     topology%coord_file_name=''
