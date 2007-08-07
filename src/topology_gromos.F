@@ -31,7 +31,9 @@ MODULE topology_gromos
                                              parser_release,&
                                              parser_search_string
   USE input_constants,                 ONLY: do_skip_14
-  USE input_section_types,             ONLY: section_vals_type
+  USE input_cp2k_restarts,             ONLY: section_velocity_val_set
+  USE input_section_types,             ONLY: section_vals_type, &
+                                             section_vals_get_subs_vals
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
@@ -931,6 +933,7 @@ CONTAINS
     TYPE(topology_parameters_type)           :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
+    TYPE(section_vals_type), POINTER         :: velocity_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_g96', &
@@ -940,13 +943,14 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: label, string
     CHARACTER(LEN=default_string_length), &
       DIMENSION(5)                           :: avail_section
-    INTEGER                                  :: handle, itemp, iw, natom
-    LOGICAL                                  :: found
+    INTEGER                                  :: handle, itemp, iw, natom,istat
+    LOGICAL                                  :: found,failure
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: parser
+    REAL(KIND=dp), POINTER, DIMENSION(:,:)   :: velocity
 
-    NULLIFY(parser, logger)
+    NULLIFY(parser, logger, velocity)
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/G96_INFO",&
          extension=".subsysLog",error=error)
@@ -1001,12 +1005,12 @@ CONTAINS
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! POSITION SECTION
-    natom=0
     IF(iw>0) WRITE(iw,'(T2,A)') 'G96_INFO| Parsing the POSITION section'
     CALL parser_create(parser,topology%coord_file_name,para_env=para_env,error=error)
     label = TRIM(avail_section(3))
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
     IF(found) THEN
+      natom=0
       CALL parser_get_next_line(parser,1,error=error)
       CALL parser_get_object(parser,string,string_length=default_string_length,error=error)
       DO
@@ -1038,6 +1042,7 @@ CONTAINS
       END DO
     END IF
     CALL parser_release(parser,error=error)
+    CALL reallocate(velocity,1,3,1,natom)
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1047,35 +1052,41 @@ CONTAINS
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! VELOCITY SECTION
-! ikuo - don't have a velocity section in topology_type yet...
-! teo  - Please, never add a velocity section to the topology_type, instead
-!        use the restart module of CP2K to dump GROMOS velocities in the 
-!        proper section (where CP2K expects to find velocities)..
-!   natom=0
-!   IF(iw>0) WRITE(iw,'(T2,A)') 'G96_INFO| Parsing the VELOCITY section'
-!   CALL parser_create(parser,topology%coord_file_name,para_env=para_env)
-!   label = TRIM(avail_section(3))
-!   CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
-!   IF(found) THEN
-!     CALL parser_get_next_line(parser,1,error=error)
-!     CALL parser_get_object(parser,string,string_length=default_string_length)
-!     DO
-!       IF(string == TRIM("END")) EXIT
-!       natom=natom+1
-!       IF(natom>SIZE(atom_info%label_molname)) THEN
-!         CALL reallocate(atom_info%v,1,3,1,nblock_atom+natom)
-!       END IF
-!       READ (string,*) &
-!         atom_info%label_resid(natom),atom_info%label_resname(natom),&
-!         atom_info%label_atmname(natom),&
-!         itemp, atom_info%v(1,natom), atom_info%v(2,natom), atom_info%v(3,natom)
-!       atom_info%label_molname(natom)=atom_info%label_resname(natom)
-!       IF(iw>0) WRITE(iw,*) "G96_INFO| PUT VELOCITY INFO HERE!!!!"
-!       CALL parser_get_next_line(parser,1,error=error)
-!       CALL parser_get_object(parser,string,string_length=default_string_length)
-!     END DO
-!   END IF
-!   CALL parser_release(parser,error=error)
+    IF(topology%use_g96_velocity) THEN
+      IF(iw>0) WRITE(iw,'(T2,A)') 'G96_INFO| Parsing the VELOCITY section'
+      CALL parser_create(parser,topology%coord_file_name,para_env=para_env,error=error)
+      label = TRIM(avail_section(4))
+      CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
+      IF(found) THEN
+        natom=0
+        CALL parser_get_next_line(parser,1,error=error)
+        CALL parser_get_object(parser,string,string_length=default_string_length,error=error)
+        DO
+          IF(string == TRIM("END")) EXIT
+          natom=natom+1
+          READ (string,*) &
+            atom_info%label_resid(natom),atom_info%label_resname(natom),&
+            atom_info%label_atmname(natom),&
+            itemp,velocity(1,natom),velocity(2,natom),velocity(3,natom)
+          atom_info%label_molname(natom)=atom_info%label_resname(natom)
+          CALL convert_to_cp2k_units("NM",length=velocity(1,natom))
+          CALL convert_to_cp2k_units("NM",length=velocity(2,natom))
+          CALL convert_to_cp2k_units("NM",length=velocity(3,natom))
+          CALL convert_to_cp2k_units("PS",time=velocity(1,natom),t_power=-1)
+          CALL convert_to_cp2k_units("PS",time=velocity(2,natom),t_power=-1)
+          CALL convert_to_cp2k_units("PS",time=velocity(3,natom),t_power=-1)
+          IF(iw>0) WRITE(iw,*) "G96_INFO| PUT VELOCITY INFO HERE!!!!"
+          CALL parser_get_next_line(parser,1,error=error)
+          CALL parser_get_object(parser,string,string_length=default_string_length,error=error)
+        END DO
+        CALL parser_release(parser,error=error)
+        velocity_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
+        CALL section_velocity_val_set(velocity_section, velocity=velocity, &
+                                      n_els=natom, conv_factor=1.0_dp, error=error)
+      END IF
+    END IF
+    DEALLOCATE(velocity,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

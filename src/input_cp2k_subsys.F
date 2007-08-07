@@ -1213,7 +1213,7 @@ CONTAINS
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL section_create(section,name="topology",&
+       CALL section_create(section,name="TOPOLOGY",&
             description="Section specifying information regarding how to handle the topology"// &
             " for classical runs.",&
             n_keywords=5, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
@@ -1251,17 +1251,24 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL cp_print_key_section_create(print_key,"dump_pdb",&
+       CALL cp_print_key_section_create(print_key,"DUMP_PDB",&
             description="controls the dumping of the PDB at the starting geometry",&
             print_level=debug_print_level, filename="topology_pdb.pdb",error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"dump_psf",&
+       CALL cp_print_key_section_create(print_key,"DUMP_PSF",&
             description="controls the dumping of the PSF connectivity",&
             print_level=debug_print_level, filename="topology_psf.psf",error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
+
+       CALL keyword_create(keyword, name="USE_G96_VELOCITY",&
+            description="Use the velocities in the G96 coordinate files as the starting velocity",&
+            usage="USE_G96_VELOCITY logical",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
        ! Character
        CALL keyword_create(keyword, name="COORD_FILE_NAME",&

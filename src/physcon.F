@@ -35,6 +35,7 @@
 !!     mu_perm     : Magnetic constant or permeability of vacuum [N/A**2]
 !!     n_avogadro  : Avogrado constant [1/mol]
 !!     permittivity: Electric constant or permittivity of vacuum [F/m]
+!!     picoseconds : Conversion factor [a.u.] -> [ps]
 !!     rydberg     : Rydberg constant [1/m]
 !!     seconds     : Conversion factor [a.u.] -> [s]
 !!     vibfac      : Conversion factor [a.u./Bohr**2] -> [1/cm]
@@ -73,7 +74,7 @@ MODULE physcon
 
   REAL(KIND = dp) :: a_bohr,a_fine,a_mass,angstrom,bohr,boltzmann,c_light,e_charge,&
               e_mass,evolt,femtoseconds,h_bar,h_planck,hz,joule,kcalmol,kelvin,&
-              kjmol,massunit,mu_perm,mhz,n_avogadro,permittivity,rydberg,&
+              kjmol,massunit,mu_perm,mhz,n_avogadro,permittivity,picoseconds,rydberg,&
               seconds,vibfac,wavenum, debye, e_gfactor
 
   REAL(KIND = dp), DIMENSION(maxmom) :: esu
@@ -82,7 +83,7 @@ MODULE physcon
 
   PUBLIC :: a_bohr,a_fine,a_mass,angstrom,bohr,boltzmann,c_light,e_charge,&
             e_mass,evolt,femtoseconds,h_bar,h_planck,hz,joule,kcalmol,kelvin,&
-            kjmol,massunit,mu_perm,mhz,n_avogadro,permittivity,rydberg,&
+            kjmol,massunit,mu_perm,mhz,n_avogadro,permittivity,picoseconds,rydberg,&
             seconds,vibfac,wavenum, debye, e_gfactor
 
 ! *** Public subroutines ***
@@ -196,6 +197,10 @@ CONTAINS
 !   *** [a.u.] -> [fs] ***
 
     femtoseconds = 1.0E+15_dp*seconds
+
+!   *** [a.u.] -> [ps] ***
+
+    picoseconds = 1.0E+12_dp*seconds
 
 !   *** [a.u.] -> [J] ***
 

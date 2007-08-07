@@ -136,10 +136,10 @@ MODULE topology_types
      INTEGER                                   :: exclude_vdw
      INTEGER                                   :: exclude_ei
      INTEGER                                   :: bondparm_type
-     !TRY TO REMOVE THIS FOUR VARIABLE IN THE FUTURE
+     !TRY TO REMOVE THIS FIVE VARIABLE IN THE FUTURE
      INTEGER                                   :: natoms, natom_type
      INTEGER                                   :: nmol, nmol_type, nmol_conn
-     !TRY TO REMOVE THIS FOUR VARIABLE IN THE FUTURE
+     !TRY TO REMOVE THIS FIVE VARIABLE IN THE FUTURE
      LOGICAL                                   :: aa_element
      LOGICAL                                   :: molname_generated
      REAL(KIND=dp)                             :: bondparm_factor
@@ -147,6 +147,7 @@ MODULE topology_types
      LOGICAL                                   :: reorder_atom
      LOGICAL                                   :: molecules_check
      LOGICAL                                   :: coordinate
+     LOGICAL                                   :: use_g96_velocity
      CHARACTER (LEN=default_path_length)       :: coord_file_name
      CHARACTER (LEN=default_path_length)       :: conn_file_name
      LOGICAL                                   :: const_atom
@@ -223,6 +224,7 @@ CONTAINS
     topology%reorder_atom=.FALSE.
     topology%create_molecules=.FALSE.
     topology%molecules_check=.FALSE.
+    topology%coordinate=.FALSE.
     topology%coordinate=.FALSE.
     topology%nhcopt=do_nhcopt_global
     topology%coord_type=-1

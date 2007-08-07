@@ -103,7 +103,8 @@ MODULE input_cp2k_restarts
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_restarts'
 
   PUBLIC :: write_restart,&
-            update_subsys
+            update_subsys,&
+            section_velocity_val_set
 
 !!*****
 !******************************************************************************
@@ -2035,18 +2036,20 @@ CONTAINS
 !!     02.2006 created [teo]
 !!
 !!*** **********************************************************************
-  SUBROUTINE section_velocity_val_set(velocity_section, particles, conv_factor, error)
+  SUBROUTINE section_velocity_val_set(velocity_section, particles, velocity, n_els, conv_factor, error)
 
     TYPE(section_vals_type), POINTER         :: velocity_section
-    TYPE(particle_list_type), POINTER        :: particles
-    REAL(KIND=dp)                            :: conv_factor
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(particle_list_type), POINTER,OPTIONAL        :: particles
+    REAL(KIND=dp), OPTIONAL                  :: conv_factor
+    TYPE(cp_error_type), INTENT(inout),OPTIONAL       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_velocity_val_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ik, irk, Nlist, stat
+    INTEGER                                  :: handle, ik, irk, Nlist, stat, nloop
+    INTEGER, OPTIONAL                        :: n_els
     LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:,:), POINTER,OPTIONAL     :: velocity
     REAL(KIND=dp), DIMENSION(:), POINTER     :: vel
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
     TYPE(section_type), POINTER              :: section
@@ -2062,6 +2065,10 @@ CONTAINS
     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
          "section "//TRIM(section%name)//" does not contain keyword "//&
          "_DEFAULT_KEYWORD_",error,failure)
+
+    IF(PRESENT(particles)) nloop = particles%n_els
+    IF(PRESENT(n_els))     nloop = n_els
+    
     DO
        IF (SIZE(velocity_section%values,2)==1) EXIT
        CALL section_vals_add_values(velocity_section,error=error)
@@ -2071,11 +2078,15 @@ CONTAINS
     IF (ASSOCIATED(vals)) THEN
        Nlist = cp_sll_val_get_length(vals,error)
     END IF
-    DO irk=1,particles%n_els
+    DO irk=1,nloop
        ALLOCATE(vel(3),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ! Always stored in A.U.
-       vel = particles%els(irk)%v(1:3)/conv_factor
+       IF(PRESENT(particles)) &
+          vel = particles%els(irk)%v(1:3)/conv_factor
+       IF(PRESENT(velocity)) &
+          vel = velocity(1:3,irk)/conv_factor
+
        CALL val_create(my_val,r_vals_ptr=vel,error=error)
 
        IF (Nlist /= 0) THEN

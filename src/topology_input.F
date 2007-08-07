@@ -112,6 +112,7 @@ SUBROUTINE read_topology_section ( topology, topology_section, globenv, error )
      CALL section_vals_val_get(topology_section,"GENERATE%CREATE_MOLECULES",&
           l_val=topology%create_molecules,error=error)
      CALL section_vals_val_get(topology_section,"MOL_CHECK",l_val=topology % molecules_check,error=error)
+     CALL section_vals_val_get(topology_section,"USE_G96_VELOCITY",l_val=topology % use_g96_velocity,error=error)
      ! Character
      CALL section_vals_val_get(topology_section,"COORD_FILE",n_rep_val=n_rep, error=error)
      IF (n_rep /=0) THEN

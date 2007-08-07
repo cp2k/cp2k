@@ -95,6 +95,8 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
 ! convert time
      IF ( unit_char == 'FS' ) &
      time = time * units % fs ** tt
+     IF ( unit_char == 'PS' ) &
+     time = time * units % ps ** tt
   ENDIF
 
   IF ( PRESENT ( temperature ) ) THEN
