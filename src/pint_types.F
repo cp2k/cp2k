@@ -1880,6 +1880,7 @@ SUBROUTINE normalmode_calc_uf_h(normalmode_env,mass_beads,ux,uf_h,e_h,error)
         ! starting at 2 since the centroid is at 1 and it's mass_beads
         ! SHOULD be zero anyways:
 
+        uf_h(1,idim) = 0.0_dp
         DO ibead = 2, normalmode_env%p
            f = - mass_beads(ibead,idim)*normalmode_env%harm*ux(ibead,idim)
            uf_h(ibead,idim)= f
