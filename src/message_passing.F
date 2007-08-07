@@ -1797,7 +1797,8 @@ SUBROUTINE mp_sum_8i1(msg,gid)
     INTEGER(KIND=int_8), INTENT(INOUT)                   :: msg
     INTEGER, INTENT(IN)                      :: gid
 
-    INTEGER                                  :: ierr, msglen, res
+    INTEGER                                  :: ierr, msglen
+    INTEGER(KIND=int_8)                      :: res
     INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_8i1', &
       routineP = moduleN//':'//routineN
