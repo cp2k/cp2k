@@ -8,6 +8,7 @@ H2O-32_PME_distr.inp      2
 # Central Force Water test (Nir)
 cf_genpot.inp             2
 # Tersoff potential test
+Si_tersoff_rcut.inp       2
 Si_tersoff.inp            2
 Si_tersoff_2.inp          2
 Si_tersoff_3.inp          2

@@ -51,10 +51,10 @@ MODULE pair_potential_types
                                 b4_type= 8,&
                                 bm_type= 9,&
                                 gp_type=10,&
-                                tersoff_type=11,&
-                                hfdb_type=12
+                                tersoff_type=11
 
-  INTEGER, PUBLIC, PARAMETER, DIMENSION(13) :: list_pot = (/nn_type,&
+
+  INTEGER, PUBLIC, PARAMETER, DIMENSION(12) :: list_pot = (/nn_type,&
                                                            lj_type,&
                                                            lj_charmm_type,&
                                                            ft_type,&
@@ -65,9 +65,7 @@ MODULE pair_potential_types
                                                            b4_type,&
                                                            bm_type,&
                                                            gp_type,&
-                                                           tersoff_type,&
-                                                           hfdb_type /)
-
+                                                           tersoff_type /)
   ! Shell model
   INTEGER, PUBLIC, PARAMETER :: nosh_nosh=0,&
                                 nosh_sh=1,&
@@ -108,7 +106,6 @@ MODULE pair_potential_types
             buckmorse_pot_type,&
             gp_pot_type,&
             tersoff_pot_type,&
-            hfdb_pot_type,&
             pot_set_type
 
   PUBLIC :: pair_potential_lj_create
@@ -200,19 +197,8 @@ MODULE pair_potential_types
      REAL (KIND=dp) :: lambda3
      REAL (KIND=dp) :: bigR          ! Used to be R = Rij + D
      REAL (KIND=dp) :: bigD          ! Used to be D = Rij - D
+     REAL (KIND=dp) :: rcutsq        ! Always set to (bigR+bigD)^2
   END TYPE tersoff_pot_type
-
-  TYPE hfdb_pot_type
-     REAL (KIND=dp) :: eps
-     REAL (KIND=dp) :: a
-     REAL (KIND=dp) :: c6
-     REAL (KIND=dp) :: c8
-     REAL (KIND=dp) :: c10
-     REAL (KIND=dp) :: d
-     REAL (KIND=dp) :: r0
-     REAL (KIND=dp) :: alpha
-     REAL (KIND=dp) :: beta
-  END TYPE hfdb_pot_type
 
   TYPE pot_set_type
      REAL ( KIND=dp )                      :: rmin, rmax
@@ -226,7 +212,6 @@ MODULE pair_potential_types
      TYPE ( buck4ran_pot_type ),   POINTER :: buck4r
      TYPE ( buckmorse_pot_type ),  POINTER :: buckmo
      TYPE ( tersoff_pot_type ),    POINTER :: tersoff
-     TYPE ( hfdb_pot_type ),       POINTER :: hfdb
   END TYPE pot_set_type
 
   TYPE pair_potential_single_type
@@ -356,6 +341,7 @@ CONTAINS
                (pot1%set(i)%tersoff%d       == pot2%set(i)%tersoff%d       ).AND.&
                (pot1%set(i)%tersoff%h       == pot2%set(i)%tersoff%h       ).AND.&
                (pot1%set(i)%tersoff%lambda3 == pot2%set(i)%tersoff%lambda3 ).AND.&
+               (pot1%set(i)%tersoff%rcutsq  == pot2%set(i)%tersoff%rcutsq  ).AND.&
                (pot1%set(i)%tersoff%bigR    == pot2%set(i)%tersoff%bigR    ).AND.&
                (pot1%set(i)%tersoff%bigD    == pot2%set(i)%tersoff%bigD    )) mycompare=.TRUE.
        END SELECT
@@ -427,8 +413,7 @@ CONTAINS
                    potparm%set(i)%eam,&
                    potparm%set(i)%buck4r,&
                    potparm%set(i)%buckmo,&
-                   potparm%set(i)%tersoff,&
-                   potparm%set(i)%hfdb)
+                   potparm%set(i)%tersoff)
        END DO
        CALL pair_potential_single_clean(potparm, error)
     END IF
@@ -502,7 +487,6 @@ CONTAINS
        CALL pair_potential_ipbv_clean (potparm%set(i)%ipbv, error=error)
        CALL pair_potential_gp_clean (potparm%set(i)%gp, error=error)
        CALL pair_potential_tersoff_clean (potparm%set(i)%tersoff, error=error)
-    CALL pair_potential_hfdb_clean (potparm%set(i)%hfdb, error=error)
     END DO
   END SUBROUTINE pair_potential_single_clean
 
@@ -589,7 +573,6 @@ CONTAINS
           CALL pair_potential_buckmo_copy (potparm_source%set(i)%buckmo, potparm_dest%set(i)%buckmo, error=error)
           CALL pair_potential_gp_copy (potparm_source%set(i)%gp, potparm_dest%set(i)%gp, error=error)
           CALL pair_potential_tersoff_copy (potparm_source%set(i)%tersoff, potparm_dest%set(i)%tersoff, error=error)
-          CALL pair_potential_hfdb_copy (potparm_source%set(i)%hfdb, potparm_dest%set(i)%hfdb, error=error)
        END DO
     END IF
   END SUBROUTINE pair_potential_single_copy
@@ -663,8 +646,7 @@ CONTAINS
                      (ASSOCIATED(potparm_dest%set(1)%buck4r)).OR.&
                      (ASSOCIATED(potparm_dest%set(1)%buckmo)).OR.&
                      (ASSOCIATED(potparm_dest%set(1)%gp)).OR.&
-                     (ASSOCIATED(potparm_dest%set(1)%tersoff)).OR.&
-                     (ASSOCIATED(potparm_dest%set(1)%hfdb))
+                     (ASSOCIATED(potparm_dest%set(1)%tersoff))
              IF (.NOT.check) THEN 
                 allocate_new = .TRUE.
                 CALL pair_potential_single_release(potparm_dest, error)
@@ -709,7 +691,6 @@ CONTAINS
              CALL pair_potential_buckmo_copy (potparm_tmp%set(i)%buckmo, potparm_dest%set(i)%buckmo, error=error)
              CALL pair_potential_gp_copy (potparm_tmp%set(i)%gp, potparm_dest%set(i)%gp, error=error)
              CALL pair_potential_tersoff_copy (potparm_tmp%set(i)%tersoff, potparm_dest%set(i)%tersoff, error=error)
-             CALL pair_potential_hfdb_copy (potparm_tmp%set(i)%hfdb, potparm_dest%set(i)%hfdb, error=error)
           END DO
           CALL pair_potential_single_release ( potparm_tmp, error )
        END IF
@@ -738,7 +719,6 @@ CONTAINS
           CALL pair_potential_buckmo_copy (potparm_source%set(j)%buckmo, potparm_dest%set(i)%buckmo, error=error)
           CALL pair_potential_gp_copy (potparm_source%set(j)%gp, potparm_dest%set(i)%gp, error=error)
           CALL pair_potential_tersoff_copy (potparm_source%set(j)%tersoff, potparm_dest%set(i)%tersoff, error=error)
-          CALL pair_potential_hfdb_copy (potparm_source%set(j)%hfdb, potparm_dest%set(i)%hfdb, error=error)
        END DO
     END IF
   END SUBROUTINE pair_potential_single_add
@@ -833,7 +813,6 @@ CONTAINS
           CALL pair_potential_buckmo_release   ( potparm%set(i)%buckmo, error=error )
           CALL pair_potential_gp_release       ( potparm%set(i)%gp, error=error )
           CALL pair_potential_tersoff_release  ( potparm%set(i)%tersoff, error=error )
-          CALL pair_potential_hfdb_release     ( potparm%set(i)%hfdb, error=error )
        END DO
        DEALLOCATE(potparm%type, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1105,12 +1084,12 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_reallocate(p,lb1_new,ub1_new,lj,lj_charmm,williams,&
-                           goodwin,eam,bmhft,ipbv,buck4r,buckmo,gp,tersoff, hfdb,error)
+                           goodwin,eam,bmhft,ipbv,buck4r,buckmo,gp,tersoff,error)
     TYPE(pair_potential_p_type), POINTER     :: p
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new
     LOGICAL, INTENT(IN), OPTIONAL            :: lj, lj_charmm, williams, &
                                                 goodwin, eam, bmhft, ipbv, &
-                                                buck4r, buckmo, gp, tersoff,hfdb
+                                                buck4r, buckmo, gp, tersoff
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_reallocate', &
@@ -1119,7 +1098,7 @@ CONTAINS
     INTEGER                                  :: i, ipot, lb1_old, std_dim, &
                                                 ub1_old
     LOGICAL :: check, failure, lbmhft, lbuck4r, lbuckmo, leam, lgoodwin, lgp, &
-      lhfdb, lipbv, llj, llj_charmm, ltersoff, lwilliams
+      lipbv, llj, llj_charmm, ltersoff, lwilliams
     TYPE(pair_potential_p_type), POINTER     :: work
 
     NULLIFY(work)
@@ -1136,78 +1115,71 @@ CONTAINS
     lbuckmo   = .FALSE. ; IF (PRESENT(buckmo))    lbuckmo   = buckmo
     lgp       = .FALSE. ; IF (PRESENT(gp))        lgp       = gp
     ltersoff  = .FALSE. ; IF (PRESENT(tersoff))   ltersoff  = tersoff
-    lhfdb     = .FALSE. ; IF (PRESENT(hfdb))      lhfdb  = hfdb
 
     IF (llj) THEN
        ipot  = lj_type
        check = .NOT.(llj_charmm.OR.lwilliams.OR.lgoodwin.OR.leam.OR.lbmhft&
-                     .OR.lipbv.OR.lbuck4r.OR.lbuckmo.OR.lgp.OR.ltersoff.OR.lhfdb)
+                     .OR.lipbv.OR.lbuck4r.OR.lbuckmo.OR.lgp.OR.ltersoff)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (llj_charmm) THEN
        ipot  = lj_charmm_type
        check = .NOT.(llj.OR.lwilliams.OR.lgoodwin.OR.leam.OR.lbmhft.OR.lipbv&
-                     .OR.lbuck4r.OR.lbuckmo.OR.lgp.OR.ltersoff.OR.lhfdb)
+                     .OR.lbuck4r.OR.lbuckmo.OR.lgp.OR.ltersoff)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lwilliams) THEN
        ipot  = wl_type
        check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.leam.OR.lbmhft.OR.lipbv&
-                     .OR.lbuck4r.OR.lbuckmo.OR.lgp.OR.ltersoff.OR.lhfdb)
+                     .OR.lbuck4r.OR.lbuckmo.OR.lgp.OR.ltersoff)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lgoodwin) THEN
        ipot  = gw_type
        check = .NOT.(llj.OR.llj_charmm.OR.lwilliams.OR.leam.OR.lbmhft.OR.lipbv&
-                     .OR.lbuck4r.OR.lbuckmo.OR.lgp.OR.ltersoff.OR.lhfdb)
+                     .OR.lbuck4r.OR.lbuckmo.OR.lgp.OR.ltersoff)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (leam) THEN
        ipot  = ea_type
        check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.lwilliams.OR.lbmhft.OR.lipbv&
-                     .OR.lbuck4r.OR.lbuckmo.OR.lgp.OR.ltersoff.OR.lhfdb)
+                     .OR.lbuck4r.OR.lbuckmo.OR.lgp.OR.ltersoff)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lbmhft) THEN
        ipot  = ft_type
        check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.leam.OR.lwilliams.OR.lipbv&
-                     .OR.lbuck4r.OR.lbuckmo.OR.lgp.OR.ltersoff.OR.lhfdb)
+                     .OR.lbuck4r.OR.lbuckmo.OR.lgp.OR.ltersoff)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lipbv) THEN
        ipot  = ip_type
        check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.leam.OR.lwilliams.OR.lbmhft&
-                     .OR.lbuck4r.OR.lbuckmo.OR.lgp.OR.ltersoff.OR.lhfdb)
+                     .OR.lbuck4r.OR.lbuckmo.OR.lgp.OR.ltersoff)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lbuck4r) THEN
        ipot  = b4_type
        check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.leam.OR.lwilliams.OR.lbmhft&
-                     .OR.lipbv.OR.lbuckmo.OR.lgp.OR.ltersoff.OR.lhfdb)
+                     .OR.lipbv.OR.lbuckmo.OR.lgp.OR.ltersoff)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lbuckmo) THEN
        ipot  = bm_type
        check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.leam.OR.lwilliams.OR.lbmhft&
-                    .OR.lipbv.OR.lbuck4r.OR.lgp.OR.ltersoff.OR.lhfdb)
+                    .OR.lipbv.OR.lbuck4r.OR.lgp.OR.ltersoff)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (ltersoff) THEN
        ipot  = tersoff_type
        check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.leam.OR.lwilliams.OR.lbmhft&
-                    .OR.lipbv.OR.lbuck4r.OR.lbuckmo.OR.lgp.OR.lhfdb)
+                    .OR.lipbv.OR.lbuck4r.OR.lbuckmo.OR.lgp)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lgp) THEN
        ipot  = gp_type
        check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.leam.OR.lwilliams.OR.lbmhft&
-                    .OR.lipbv.OR.lbuck4r.OR.lbuckmo.OR.ltersoff.OR.lhfdb)
-       CPPostcondition(check,cp_failure_level,routineP,error,failure)
-    END IF
-    IF (lhfdb) THEN
-       ipot  = hfdb_type
-       check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.leam.OR.lwilliams.OR.lbmhft&
-                    .OR.lipbv.OR.lbuck4r.OR.lbuckmo.OR.lgp.OR.ltersoff)
+                    .OR.lipbv.OR.lbuck4r.OR.lbuckmo.OR.ltersoff)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
 
@@ -1260,8 +1232,6 @@ CONTAINS
              CALL pair_potential_gp_create(p%pot(i)%pot%set(std_dim)%gp, error=error)
           CASE (tersoff_type)
              CALL pair_potential_tersoff_create(p%pot(i)%pot%set(std_dim)%tersoff, error=error)
-          CASE (hfdb_type)
-             CALL pair_potential_hfdb_create(p%pot(i)%pot%set(std_dim)%hfdb, error=error)
           END SELECT
           NULLIFY ( p%pot(i)%pot%spl_f  )
           NULLIFY ( p%pot(i)%pot%spl_c  )
@@ -2748,6 +2718,7 @@ CONTAINS
        tersoff_dest%lambda3 = tersoff_source%lambda3
        tersoff_dest%bigR    = tersoff_source%bigR
        tersoff_dest%bigD    = tersoff_source%bigD
+       tersoff_dest%rcutsq  = tersoff_source%rcutsq
     END IF
   END SUBROUTINE pair_potential_tersoff_copy
 
@@ -2793,6 +2764,7 @@ CONTAINS
        tersoff%lambda3 = 0.0_dp
        tersoff%bigR    = 0.0_dp
        tersoff%bigD    = 0.0_dp
+       tersoff%rcutsq  = 0.0_dp
     END IF
   END SUBROUTINE pair_potential_tersoff_clean
 
@@ -2835,179 +2807,6 @@ CONTAINS
   END SUBROUTINE pair_potential_tersoff_release
 
   !******************************************************************************
-  
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_hfdb_create [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_hfdb_create
-  !!
-  !!   FUNCTION
-  !!     Creates HFD-B type by 
-  !!     Aziz and Chen, J. Chem. Phys., 1977, Vol. 67, 5719
-  !!     Aziz and Slaman, Mol. Phys., 1986, Vol. 58(4), 679-697
-  !!
-  !!   AUTHOR
-  !!     MI 08.2007
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
-  SUBROUTINE pair_potential_hfdb_create(hfdb, error)
-    TYPE(hfdb_pot_type), &
-      POINTER                                :: hfdb
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_hfdb_create', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-    IF (.NOT.failure) THEN
-       CPPostcondition(.NOT.ASSOCIATED(hfdb),cp_failure_level,routineP,error,failure)
-       ALLOCATE(hfdb, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL pair_potential_hfdb_clean(hfdb, error=error)
-    END IF
-  END SUBROUTINE pair_potential_hfdb_create
-
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_hfdb_copy [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_hfdb_copy
-  !!
-  !!   FUNCTION
-  !!     Copies HFD-B type by 
-  !!     Aziz and Chen, J. Chem. Phys., 1977, Vol. 67, 5719
-  !!     Aziz and Slaman, Mol. Phys., 1986, Vol. 58(4), 679-697
-  !!
-  !!   AUTHOR
-  !!     MI 08.2007
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
-  SUBROUTINE pair_potential_hfdb_copy(hfdb_source, hfdb_dest, error)
-    TYPE(hfdb_pot_type), &
-      POINTER                                :: hfdb_source, hfdb_dest
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_hfdb_copy', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-    IF (.NOT.failure) THEN
-       IF (.NOT.ASSOCIATED(hfdb_source)) RETURN
-       IF (ASSOCIATED(hfdb_dest)) CALL pair_potential_hfdb_release(hfdb_dest, error=error)
-       CALL pair_potential_hfdb_create(hfdb_dest, error=error)
-       hfdb_dest% eps = hfdb_source% eps
-       hfdb_dest% a = hfdb_source% a
-       hfdb_dest% c6 = hfdb_source% c6
-       hfdb_dest% c8 = hfdb_source% c8
-       hfdb_dest% c10 = hfdb_source% c10
-       hfdb_dest% d  = hfdb_source% d
-       hfdb_dest% r0 = hfdb_source% r0
-       hfdb_dest% alpha = hfdb_source% alpha
-       hfdb_dest% beta = hfdb_source% beta
-    END IF
-  END SUBROUTINE pair_potential_hfdb_copy
-
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_hfdb_clean [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_hfdb_clean
-  !!
-  !!   FUNCTION
-  !!     Cleans HFD-B type by
-  !!     Aziz and Chen, J. Chem. Phys., 1977, Vol. 67, 5719
-  !!     Aziz and Slaman, Mol. Phys., 1986, Vol. 58(4), 679-697
-  !!
-  !!   AUTHOR
-  !!     MI 08.2007
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
-  SUBROUTINE pair_potential_hfdb_clean(hfdb, error)
-    TYPE(hfdb_pot_type), &
-      POINTER                                :: hfdb
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_hfdb_clean', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-    IF (.NOT.failure) THEN
-       IF(.NOT.ASSOCIATED(hfdb)) RETURN
-        hfdb % eps = 0.0_dp
-        hfdb % a = 0.0_dp
-        hfdb % c6 = 0.0_dp
-        hfdb % c8 = 0.0_dp
-        hfdb % c10 = 0.0_dp
-        hfdb % d  = 0.0_dp
-        hfdb % r0 = 0.0_dp
-        hfdb % alpha = 0.0_dp
-        hfdb % beta = 0.0_dp
-    END IF
-  END SUBROUTINE pair_potential_hfdb_clean
-
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_hfdb_release [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_hfdb_release
-  !!
-  !!   FUNCTION
-  !!     Destroys HFD-B type by
-  !!     Aziz and Chen, J. Chem. Phys., 1977, Vol. 67, 5719
-  !!     Aziz and Slaman, Mol. Phys., 1986, Vol. 58(4), 679-697
-  !!
-  !!   AUTHOR
-  !!     MI  08.2007
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
-  SUBROUTINE pair_potential_hfdb_release(hfdb, error)
-    TYPE(hfdb_pot_type), &
-      POINTER                                :: hfdb
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: &
-      routineN = 'pair_potential_hfdb_release', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-    IF (.NOT.failure) THEN
-       IF (ASSOCIATED(hfdb)) THEN
-          DEALLOCATE(hfdb, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       END IF
-       NULLIFY(hfdb)
-    END IF
-  END SUBROUTINE pair_potential_hfdb_release
-
-  !******************************************************************************
-
 
 END MODULE pair_potential_types
 

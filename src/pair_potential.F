@@ -36,7 +36,7 @@ MODULE pair_potential
   USE memory_utilities,                ONLY: reallocate
   USE pair_potential_types,            ONLY: &
        b4_type, bm_type, compare_pot, ea_type, ft_type, gp_type, gw_type, &
-       hfdb_type, ip_type, list_pot, lj_charmm_type, lj_type, multi_type, nn_type, &
+       ip_type, list_pot, lj_charmm_type, lj_type, multi_type, nn_type, &
        pair_potential_pp_type, pair_potential_single_type, &
        potential_single_allocation, tersoff_type, wl_type
   USE pair_potential_util,             ONLY: ener_coul,&
@@ -805,8 +805,6 @@ CONTAINS
           nvar = 2 + nvar
        CASE (tersoff_type)
           nvar = 13 + nvar
-       CASE (hfdb_type)
-          nvar = 9 + nvar
        CASE (nn_type)
           nvar = nvar
        CASE DEFAULT
@@ -905,16 +903,6 @@ CONTAINS
                       pot_par(nk,11) = potparm%pot(i,j)%pot%set(1)%tersoff%lambda3
                       pot_par(nk,12) = potparm%pot(i,j)%pot%set(1)%tersoff%bigR
                       pot_par(nk,13) = potparm%pot(i,j)%pot%set(1)%tersoff%bigD
-                   CASE (hfdb_type)
-                      pot_par(nk,1)  = potparm%pot(i,j)%pot%set(1)%hfdb%eps
-                      pot_par(nk,2)  = potparm%pot(i,j)%pot%set(1)%hfdb%a
-                      pot_par(nk,3)  = potparm%pot(i,j)%pot%set(1)%hfdb%c6
-                      pot_par(nk,4)  = potparm%pot(i,j)%pot%set(1)%hfdb%c6
-                      pot_par(nk,5)  = potparm%pot(i,j)%pot%set(1)%hfdb%c6
-                      pot_par(nk,6)  = potparm%pot(i,j)%pot%set(1)%hfdb%d
-                      pot_par(nk,7)  = potparm%pot(i,j)%pot%set(1)%hfdb%r0
-                      pot_par(nk,8)  = potparm%pot(i,j)%pot%set(1)%hfdb%alpha
-                      pot_par(nk,9)  = potparm%pot(i,j)%pot%set(1)%hfdb%beta
                    CASE (nn_type)
                       ! no checks
                    CASE DEFAULT

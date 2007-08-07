@@ -199,22 +199,21 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'energy_manybody', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, atom_b, handle, i, ikind, ilist, index, ipair, &
-      iparticle, iparticle_local, istat, iunique, jkind, jlist, junique, m, &
-      nloc_size, npairs, npairs_2, nparticle, nparticle_local, nunique, stat
-    INTEGER, DIMENSION(:), POINTER           :: work_list
-    INTEGER, DIMENSION(:, :), POINTER        :: full_loc_list, list, sort_list
-    LOGICAL                                  :: failure
+    INTEGER :: atom_a, atom_b, handle, i, ifirst, ikind, ilast, ilist, index, &
+      ipair, iparticle, iparticle_local, istat, iunique, jkind, junique, &
+      mpair, nloc_size, npairs, nparticle, nparticle_local, nunique, stat
+    INTEGER, DIMENSION(:), POINTER           :: glob_loc_list_a, work_list
+    INTEGER, DIMENSION(:, :), POINTER        :: glob_loc_list, list, sort_list
+    LOGICAL                                  :: any_tersoff, failure
     REAL(dp)                                 :: b_ij, embed, f_A, f_C, f_R, &
                                                 pot_loc, qr, rab2_max
     REAL(dp), POINTER                        :: fembed( : )
     REAL(KIND=dp)                            :: drij, rij(3)
-    REAL(KIND=dp), DIMENSION(3)              :: cell_v, cell_v_2, cvi
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: loc_cell_v
+    REAL(KIND=dp), DIMENSION(3)              :: cell_v, cvi
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: glob_cell_v
     TYPE(eam_pot_type), POINTER              :: eam
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
-    TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair, &
-                                                neighbor_kind_pair_2
+    TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
     TYPE(pair_potential_pp_type), POINTER    :: potparm
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
@@ -222,6 +221,8 @@ CONTAINS
     TYPE(tersoff_pot_type), POINTER          :: tersoff
 
     NULLIFY(eam, tersoff)
+    any_tersoff = .FALSE.
+    failure = .FALSE.
     CALL timeset ( routineN, handle )
     CALL fist_nonbond_env_get ( fist_nonbond_env, r_last_update_pbc=r_last_update_pbc,&
          potparm = potparm ,error=error)
@@ -261,105 +262,96 @@ CONTAINS
        END DO
     END DO
     ! Other manybody potential
-    CALL fist_nonbond_env_get(fist_nonbond_env,nonbonded=nonbonded,error=error)
-    DO ilist=1,nonbonded%nlists
-       neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
-       npairs=neighbor_kind_pair%npairs
-       IF (npairs ==0) CYCLE
-       ikind = neighbor_kind_pair%ikind
-       jkind = neighbor_kind_pair%jkind
-       list  =>neighbor_kind_pair%list
-       cvi   = neighbor_kind_pair%cell_vector
-       pot => potparm %pot ( ikind, jkind ) % pot
-       DO i = 1, SIZE(pot%type)
-         IF(pot%type(i) /= tersoff_type) CYCLE
-         rab2_max = pot%rcutsq
-         CALL matvec_3x3(cell_v, cell%hmat,cvi)
-         pot     => potparm%pot( ikind, jkind )%pot
-         tersoff => pot%set(i)%tersoff
-         IF (npairs /=0) THEN
-            ALLOCATE(sort_list(2,npairs),&
-                 work_list (npairs),stat=istat)
-            IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                 "allocate sort_list")       
-            sort_list = list(:,1:npairs)
-            ! Sort the list of neighbors, this increases the efficiency for single 
-            ! potential contributions
-            CALL sort(sort_list(1,:),npairs,work_list)
-            DO ipair = 1, npairs
-               work_list(ipair)=sort_list(2,work_list(ipair))
-            END DO
-            sort_list(2,:) = work_list
-            ! find number of unique elements of array index 1
-            nunique = 1
-            DO ipair = 1, npairs-1
-               IF (sort_list(1,ipair+1)/=sort_list(1,ipair)) nunique = nunique + 1
-            END DO
-            ipair   = 1
-            junique = sort_list(1,ipair)
-            DO iunique = 1, nunique
-               atom_a = junique
-               ! Create a local list (atom_a local only) of all possible neighbors
-               ! i.e. kind independent
-               ! (1) First get array size
-               nloc_size = 0
-               DO jlist=1,nonbonded%nlists
-                  neighbor_kind_pair_2 => nonbonded%neighbor_kind_pairs(jlist)
-                  npairs_2=neighbor_kind_pair_2%npairs
-                  IF ((npairs_2 /=0).AND.(neighbor_kind_pair_2%ikind==ikind)) THEN
-                     nloc_size = nloc_size + COUNT(neighbor_kind_pair_2%list(1,1:npairs_2)==atom_a)
-                  END IF
-               END DO
-               ! (2) Allocate Array and fill with values
-               ALLOCATE(full_loc_list(2,nloc_size),stat=stat)
-               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-               ALLOCATE(loc_cell_v(3,nloc_size),stat=stat)
-               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-               nloc_size = 0
-               DO jlist=1,nonbonded%nlists
-                  neighbor_kind_pair_2 => nonbonded%neighbor_kind_pairs(jlist)
-                  npairs_2=neighbor_kind_pair_2%npairs
-                  IF ((npairs_2 /=0).AND.(neighbor_kind_pair_2%ikind==ikind)) THEN
-                     CALL matvec_3x3(cell_v_2, cell%hmat, REAL(neighbor_kind_pair_2%cell_vector,KIND=dp))
-                     DO m = 1, npairs_2
-                        IF (neighbor_kind_pair_2%list(1,m)==atom_a) THEN
-                           nloc_size = nloc_size + 1
-                           full_loc_list(1:2,nloc_size) = neighbor_kind_pair_2%list(1:2,m)
-                           loc_cell_v   (1:3,nloc_size) = cell_v_2
-                        END IF
-                     END DO
-                  END IF
-               END DO
-               DO WHILE (ipair<=npairs)
-                  IF (sort_list(1,ipair)/=junique) EXIT
-                  atom_b = sort_list(2,ipair)
-                  ! Energy terms
-                  pot_loc = 0.0_dp
-                  rij(:) = r_last_update_pbc(atom_b)%r(:)-r_last_update_pbc(atom_a)%r(:)+cell_v
-                  drij = DOT_PRODUCT(rij,rij)
-                  ipair = ipair + 1
-                  IF(drij>rab2_max) CYCLE
-                  drij = SQRT(drij)
-                  b_ij   = ter_b_ij(tersoff,r_last_update_pbc,atom_a,atom_b,full_loc_list,loc_cell_v,cell_v,pot%rcutsq)
-                  f_C    = ter_f_C (tersoff,drij)
-                  f_A    = ter_f_A (tersoff,drij)
-                  f_R    = ter_f_R (tersoff,drij)
-                  pot_loc = f_C*(f_R + b_ij*f_A)
-                  pot_manybody = pot_manybody + 0.5_dp*pot_loc
-               END DO
-               IF (ipair<=npairs) junique = sort_list(1,ipair)
-               ! Destroy local list
-               DEALLOCATE(full_loc_list,stat=stat)
-               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-               DEALLOCATE(loc_cell_v,stat=stat)
-               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-            END DO
-            DEALLOCATE(sort_list,work_list,stat=istat)
-            IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                 "deallocate sort_list")
-         END IF
-      END DO
+    ! TERSOFF
+    DO ikind = 1, SIZE ( atomic_kind_set )
+       DO jkind =  ikind, SIZE ( atomic_kind_set )
+          pot => potparm %pot ( ikind, jkind ) % pot
+          any_tersoff = any_tersoff .OR. ANY(pot%type==tersoff_type)
+       END DO
     END DO
+    CALL fist_nonbond_env_get(fist_nonbond_env,nonbonded=nonbonded,error=error)
+    IF (any_tersoff) THEN
+       NULLIFY(glob_loc_list, glob_cell_v, glob_loc_list_a)
+       CALL setup_tersoff_arrays(nonbonded, potparm, glob_loc_list, glob_cell_v, glob_loc_list_a, cell, error)
+       DO ilist=1,nonbonded%nlists
+          neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
+          npairs=neighbor_kind_pair%npairs
+          IF (npairs ==0) CYCLE
+          ikind = neighbor_kind_pair%ikind
+          jkind = neighbor_kind_pair%jkind
+          list  =>neighbor_kind_pair%list
+          cvi   = neighbor_kind_pair%cell_vector
+          pot => potparm %pot ( ikind, jkind ) % pot
+          DO i = 1, SIZE(pot%type)
+            IF(pot%type(i) /= tersoff_type) CYCLE
+            rab2_max = pot%set(i)%tersoff%rcutsq
+            CALL matvec_3x3(cell_v, cell%hmat,cvi)
+            pot     => potparm%pot( ikind, jkind )%pot
+            tersoff => pot%set(i)%tersoff
+            IF (npairs /=0) THEN
+               ALLOCATE(sort_list(2,npairs),&
+                    work_list (npairs),stat=istat)
+               IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                    "allocate sort_list")       
+               sort_list = list(:,1:npairs)
+               ! Sort the list of neighbors, this increases the efficiency for single 
+               ! potential contributions
+               CALL sort(sort_list(1,:),npairs,work_list)
+               DO ipair = 1, npairs
+                  work_list(ipair)=sort_list(2,work_list(ipair))
+               END DO
+               sort_list(2,:) = work_list
+               ! find number of unique elements of array index 1
+               nunique = 1
+               DO ipair = 1, npairs-1
+                  IF (sort_list(1,ipair+1)/=sort_list(1,ipair)) nunique = nunique + 1
+               END DO
+               ipair   = 1
+               junique = sort_list(1,ipair)
+               ifirst  = 1
+               DO iunique = 1, nunique
+                  atom_a = junique
+                  IF (glob_loc_list_a(ifirst)>atom_a) CYCLE
+                  DO mpair = ifirst, SIZE(glob_loc_list_a)
+                     IF (glob_loc_list_a(mpair)==atom_a) EXIT
+                  END DO
+                  ifirst = mpair
+                  DO mpair = ifirst, SIZE(glob_loc_list_a)
+                     IF (glob_loc_list_a(mpair)/=atom_a) EXIT
+                  END DO
+                  ilast = mpair-1
+                  nloc_size = 0
+                  IF (ifirst/=0) nloc_size = ilast-ifirst+1
+                  DO WHILE (ipair<=npairs)
+                     IF (sort_list(1,ipair)/=junique) EXIT
+                     atom_b = sort_list(2,ipair)
+                     ! Energy terms
+                     pot_loc = 0.0_dp
+                     rij(:) = r_last_update_pbc(atom_b)%r(:)-r_last_update_pbc(atom_a)%r(:)+cell_v
+                     drij = DOT_PRODUCT(rij,rij)
+                     ipair = ipair + 1
+                     IF(drij>rab2_max) CYCLE
+                     drij = SQRT(drij)
+                     b_ij   = ter_b_ij(tersoff,r_last_update_pbc,atom_a,atom_b,nloc_size,&
+                          glob_loc_list(:,ifirst:ilast), glob_cell_v(:,ifirst:ilast), cell_v,&
+                          tersoff%rcutsq)
+                     f_C    = ter_f_C (tersoff,drij)
+                     f_A    = ter_f_A (tersoff,drij)
+                     f_R    = ter_f_R (tersoff,drij)
+                     pot_loc = f_C*(f_R + b_ij*f_A)
+                     pot_manybody = pot_manybody + 0.5_dp*pot_loc
+                  END DO
+                  ifirst = ilast + 1
+                  IF (ipair<=npairs) junique = sort_list(1,ipair)
+               END DO
+               DEALLOCATE(sort_list,work_list,stat=istat)
+               IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                    "deallocate sort_list")
+            END IF
+         END DO
+       END DO
+       CALL destroy_tersoff_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a, error)
+    END IF
     CALL timestop ( handle )
   END SUBROUTINE energy_manybody
 
@@ -672,12 +664,15 @@ CONTAINS
 !!     
 !!
 !!*** **********************************************************************
-  FUNCTION ter_b_ij(tersoff,r_last_update_pbc,iparticle,jparticle,full_loc_list, loc_cell_v, cell_v,rcutsq)
+  FUNCTION ter_b_ij(tersoff,r_last_update_pbc,iparticle,jparticle, n_loc_size,&
+       full_loc_list, loc_cell_v, cell_v,rcutsq)
     TYPE(tersoff_pot_type), POINTER          :: tersoff
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update_pbc
-    INTEGER, INTENT(IN)                      :: iparticle, jparticle
-    INTEGER, DIMENSION(:, :), POINTER        :: full_loc_list
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: loc_cell_v
+    INTEGER, INTENT(IN)                      :: iparticle, jparticle, &
+                                                n_loc_size
+    INTEGER, DIMENSION(2, 1:n_loc_size)      :: full_loc_list
+    REAL(KIND=dp), &
+      DIMENSION(3, 1:n_loc_size)             :: loc_cell_v
     REAL(KIND=dp), DIMENSION(3)              :: cell_v
     REAL(KIND=dp), INTENT(IN)                :: rcutsq
     REAL(KIND=dp)                            :: ter_b_ij
@@ -690,7 +685,8 @@ CONTAINS
     n = tersoff%n
     beta = tersoff%beta
     ter_b_ij = 0.0_dp
-    zeta_ij = ter_zeta_ij(tersoff,r_last_update_pbc,iparticle,jparticle,full_loc_list, loc_cell_v, cell_v,rcutsq)
+    zeta_ij = ter_zeta_ij(tersoff,r_last_update_pbc,iparticle,jparticle,&
+         n_loc_size,full_loc_list, loc_cell_v, cell_v,rcutsq)
     ter_b_ij = (1.0_dp+(beta*zeta_ij)**n)**(-0.5_dp/n)
 
   END FUNCTION ter_b_ij
@@ -717,12 +713,15 @@ CONTAINS
 !!     
 !!
 !!*** **********************************************************************
-  FUNCTION ter_b_ij_d(tersoff,r_last_update_pbc,iparticle,jparticle,full_loc_list, loc_cell_v, cell_v,rcutsq)
+  FUNCTION ter_b_ij_d(tersoff,r_last_update_pbc,iparticle,jparticle,n_loc_size,&
+       full_loc_list, loc_cell_v, cell_v,rcutsq)
     TYPE(tersoff_pot_type), POINTER          :: tersoff
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update_pbc
-    INTEGER, INTENT(IN)                      :: iparticle, jparticle
-    INTEGER, DIMENSION(:, :), POINTER        :: full_loc_list
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: loc_cell_v
+    INTEGER, INTENT(IN)                      :: iparticle, jparticle, &
+                                                n_loc_size
+    INTEGER, DIMENSION(2, 1:n_loc_size)      :: full_loc_list
+    REAL(KIND=dp), &
+      DIMENSION(3, 1:n_loc_size)             :: loc_cell_v
     REAL(KIND=dp), DIMENSION(3)              :: cell_v
     REAL(KIND=dp), INTENT(IN)                :: rcutsq
     REAL(KIND=dp)                            :: ter_b_ij_d
@@ -736,7 +735,8 @@ CONTAINS
     n           = tersoff%n
     beta        = tersoff%beta
     beta_n      = beta**n
-    zeta_ij     = ter_zeta_ij(tersoff,r_last_update_pbc,iparticle,jparticle,full_loc_list, loc_cell_v, cell_v,rcutsq)
+    zeta_ij     = ter_zeta_ij(tersoff,r_last_update_pbc,iparticle,jparticle,n_loc_size,&
+         full_loc_list, loc_cell_v, cell_v,rcutsq)
     zeta_ij_nm1 = 0.0_dp
     IF (zeta_ij>0.0_dp) zeta_ij_nm1 = zeta_ij**(n-1.0_dp)
     zeta_ij_n   = zeta_ij**(n)
@@ -769,12 +769,15 @@ CONTAINS
 !!     Using a local list of neighbors - [tlaino] 2007
 !!
 !!*** **********************************************************************
-  FUNCTION ter_zeta_ij(tersoff,r_last_update_pbc,iparticle,jparticle,full_loc_list, loc_cell_v, cell_v,rcutsq)
+  FUNCTION ter_zeta_ij(tersoff,r_last_update_pbc,iparticle,jparticle,n_loc_size,&
+       full_loc_list, loc_cell_v, cell_v,rcutsq)
     TYPE(tersoff_pot_type), POINTER          :: tersoff
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update_pbc
-    INTEGER, INTENT(IN)                      :: iparticle, jparticle
-    INTEGER, DIMENSION(:, :), POINTER        :: full_loc_list
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: loc_cell_v
+    INTEGER, INTENT(IN)                      :: iparticle, jparticle, &
+                                                n_loc_size
+    INTEGER, DIMENSION(2, 1:n_loc_size)      :: full_loc_list
+    REAL(KIND=dp), &
+      DIMENSION(3, 1:n_loc_size)             :: loc_cell_v
     REAL(KIND=dp), DIMENSION(3)              :: cell_v
     REAL(KIND=dp), INTENT(IN)                :: rcutsq
     REAL(KIND=dp)                            :: ter_zeta_ij
@@ -795,7 +798,7 @@ CONTAINS
     rij(:) = r_last_update_pbc(jparticle)%r(:)-r_last_update_pbc(iparticle)%r(:)+cell_v
     drij = SQRT(DOT_PRODUCT(rij,rij))
     ter_zeta_ij = 0.0_dp
-    DO ilist = 1, SIZE(full_loc_list,2)
+    DO ilist = 1, n_loc_size
        kparticle = full_loc_list(2,ilist)
        IF (kparticle==jparticle) CYCLE
        cell_v_2 = loc_cell_v(:,ilist)
@@ -837,15 +840,17 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE ter_zeta_ij_d(tersoff,r_last_update_pbc,iparticle,jparticle,f_nonbond,ptens_nonbond,prefactor,&
-       full_loc_list, loc_cell_v, cell_v,rcutsq)
+       n_loc_size,full_loc_list, loc_cell_v, cell_v,rcutsq)
     TYPE(tersoff_pot_type), POINTER          :: tersoff
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update_pbc
     INTEGER, INTENT(IN)                      :: iparticle, jparticle
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: f_nonbond, ptens_nonbond
     REAL(KIND=dp), INTENT(IN)                :: prefactor
-    INTEGER, DIMENSION(:, :), POINTER        :: full_loc_list
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: loc_cell_v
+    INTEGER, INTENT(IN)                      :: n_loc_size
+    INTEGER, DIMENSION(2, 1:n_loc_size)      :: full_loc_list
+    REAL(KIND=dp), &
+      DIMENSION(3, 1:n_loc_size)             :: loc_cell_v
     REAL(KIND=dp), DIMENSION(3)              :: cell_v
     REAL(KIND=dp), INTENT(IN)                :: rcutsq
 
@@ -870,7 +875,7 @@ CONTAINS
     rij_hat(:) = rij(:) / drij
 
     nparticle = SIZE ( r_last_update_pbc )
-    DO ilist = 1, SIZE (full_loc_list,2)
+    DO ilist = 1, n_loc_size
        kparticle = full_loc_list(2,ilist)
        IF (kparticle==jparticle) CYCLE
        cell_v_2 = loc_cell_v(:,ilist)
@@ -1151,13 +1156,15 @@ CONTAINS
 !!      Using a local list of neighbors - [tlaino] 2007
 !!
 !!*** **********************************************************************
-  SUBROUTINE get_force_tersoff(tersoff,r_last_update_pbc, cell_v, full_loc_list, loc_cell_v,&
-       iparticle,jparticle,f_nonbond,ptens_nonbond,rcutsq)
+  SUBROUTINE get_force_tersoff(tersoff,r_last_update_pbc, cell_v, n_loc_size,&
+       full_loc_list, loc_cell_v, iparticle,jparticle,f_nonbond,ptens_nonbond,rcutsq)
     TYPE(tersoff_pot_type), POINTER          :: tersoff
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update_pbc
     REAL(KIND=dp), DIMENSION(3)              :: cell_v
-    INTEGER, DIMENSION(:, :), POINTER        :: full_loc_list
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: loc_cell_v
+    INTEGER, INTENT(IN)                      :: n_loc_size
+    INTEGER, DIMENSION(2, 1:n_loc_size)      :: full_loc_list
+    REAL(KIND=dp), &
+      DIMENSION(3, 1:n_loc_size)             :: loc_cell_v
     INTEGER, INTENT(IN)                      :: iparticle, jparticle
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: f_nonbond, ptens_nonbond
@@ -1176,8 +1183,8 @@ CONTAINS
     rij_hat(:) = rij(:) / drij 
 
     fac = - 0.5_dp
-    b_ij  = ter_b_ij  (tersoff,r_last_update_pbc,iparticle,jparticle,full_loc_list, loc_cell_v,cell_v,rcutsq)
-    b_ij_d= ter_b_ij_d(tersoff,r_last_update_pbc,iparticle,jparticle,full_loc_list, loc_cell_v,cell_v,rcutsq)
+    b_ij  = ter_b_ij  (tersoff,r_last_update_pbc,iparticle,jparticle,n_loc_size,full_loc_list, loc_cell_v,cell_v,rcutsq)
+    b_ij_d= ter_b_ij_d(tersoff,r_last_update_pbc,iparticle,jparticle,n_loc_size,full_loc_list, loc_cell_v,cell_v,rcutsq)
     f_A   = ter_f_A   (tersoff,drij)
     f_A_d = ter_f_A_d (tersoff,drij)
     f_C   = ter_f_C   (tersoff,drij)
@@ -1264,7 +1271,7 @@ CONTAINS
     ! Lets do the f_A3 piece derivative of b_ij
     prefactor = f_C * b_ij_d * f_A * fac  ! Note need to do d(Zeta_ij)/dR
     CALL ter_zeta_ij_d(tersoff,r_last_update_pbc,iparticle,jparticle,f_nonbond,ptens_nonbond,prefactor,&
-         full_loc_list, loc_cell_v,cell_v,rcutsq)
+         n_loc_size, full_loc_list, loc_cell_v,cell_v,rcutsq)
     CALL timestop ( handle )
   END SUBROUTINE get_force_tersoff
 
@@ -1304,29 +1311,29 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'force_nonbond_manybody', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, atom_b, handle, i, ikind, ilist, ipair, istat, &
-      iunique, jkind, jlist, junique, m, nkinds, nloc_size, npairs, npairs_2, &
+    INTEGER :: atom_a, atom_b, handle, i, ifirst, ikind, ilast, ilist, ipair, &
+      istat, iunique, jkind, junique, mpair, nkinds, nloc_size, npairs, &
       nunique, stat
-    INTEGER, DIMENSION(:), POINTER           :: work_list
-    INTEGER, DIMENSION(:, :), POINTER        :: full_loc_list, list, sort_list
-    LOGICAL                                  :: failure
+    INTEGER, DIMENSION(:), POINTER           :: glob_loc_list_a, work_list
+    INTEGER, DIMENSION(:, :), POINTER        :: glob_loc_list, list, sort_list
+    LOGICAL                                  :: any_tersoff, failure
     REAL(KIND=dp) :: f_eam, fr(3), ptens11, ptens12, ptens13, ptens21, &
       ptens22, ptens23, ptens31, ptens32, ptens33, rab(3), rab2, rab2_max, &
       rtmp(3)
-    REAL(KIND=dp), DIMENSION(3)              :: cell_v, cell_v_2, cvi
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: loc_cell_v
+    REAL(KIND=dp), DIMENSION(3)              :: cell_v, cvi
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: glob_cell_v
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(eam_pot_type), POINTER              :: eam
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
-    TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair, &
-                                                neighbor_kind_pair_2
+    TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
     TYPE(pair_potential_pp_type), POINTER    :: potparm
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update_pbc
     TYPE(tersoff_pot_type), POINTER          :: tersoff
 
-    failure = .FALSE.
+    failure     = .FALSE.
+    any_tersoff = .FALSE.
     CALL timeset ( routineN, handle )
     NULLIFY(logger,eam,tersoff)
     logger => cp_error_get_logger(error)
@@ -1372,6 +1379,7 @@ CONTAINS
        CALL matvec_3x3(cell_v, cell%hmat,cvi)
        DO i = 1, SIZE(pot%type)
           ! EAM
+          any_tersoff = any_tersoff.OR.ANY(pot%type==tersoff_type)
           IF (pot%type(i)==ea_type) THEN
              eam => pot%set(i)%eam
              DO ipair = 1, npairs
@@ -1408,10 +1416,29 @@ CONTAINS
                 ENDIF
              END DO
           END IF
-          ! TERSOFF
-          IF (pot%type(i)==tersoff_type) THEN
-             tersoff => pot%set(i)%tersoff
-             IF (npairs /=0) THEN
+       END DO
+    END DO
+    ! Special way of handling the tersoff potential..
+    IF (any_tersoff) THEN
+       NULLIFY(glob_loc_list, glob_cell_v, glob_loc_list_a)
+       CALL setup_tersoff_arrays(nonbonded, potparm, glob_loc_list, glob_cell_v, glob_loc_list_a, cell, error)
+       DO ilist=1,nonbonded%nlists
+          neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
+          npairs=neighbor_kind_pair%npairs
+          IF (npairs ==0) CYCLE
+          ikind = neighbor_kind_pair%ikind
+          jkind = neighbor_kind_pair%jkind
+          list  =>neighbor_kind_pair%list
+          cvi   = neighbor_kind_pair%cell_vector
+          pot => potparm %pot( ikind, jkind )%pot
+       
+          IF (pot%only_pp) CYCLE
+          rab2_max = pot%rcutsq
+          CALL matvec_3x3(cell_v, cell%hmat,cvi)
+          DO i = 1, SIZE(pot%type)
+             ! TERSOFF
+             IF (pot%type(i)==tersoff_type) THEN
+                tersoff => pot%set(i)%tersoff
                 ALLOCATE(sort_list(2,npairs),&
                      work_list (npairs),stat=istat)
                 IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -1431,64 +1458,43 @@ CONTAINS
                 END DO
                 ipair   = 1
                 junique = sort_list(1,ipair)
+                ifirst  = 1
                 DO iunique = 1, nunique
                    atom_a = junique
-                   ! Create a local list (atom_a local only) of all possible neighbors
-                   ! i.e. kind independent
-                   ! (1) First get array size
-                   nloc_size = 0
-                   DO jlist=1,nonbonded%nlists
-                      neighbor_kind_pair_2 => nonbonded%neighbor_kind_pairs(jlist)
-                      npairs_2=neighbor_kind_pair_2%npairs
-                      IF ((npairs_2 /=0).AND.(neighbor_kind_pair_2%ikind==ikind)) THEN
-                         nloc_size = nloc_size + COUNT(neighbor_kind_pair_2%list(1,1:npairs_2)==atom_a)
-                      END IF
+                   IF (glob_loc_list_a(ifirst)>atom_a) CYCLE
+                   DO mpair = ifirst, SIZE(glob_loc_list_a)
+                      IF (glob_loc_list_a(mpair)==atom_a) EXIT
                    END DO
-                   ! (2) Allocate Array and fill with values
-                   ALLOCATE(full_loc_list(2,nloc_size),stat=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                   ALLOCATE(loc_cell_v(3,nloc_size),stat=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                   nloc_size = 0
-                   DO jlist=1,nonbonded%nlists
-                      neighbor_kind_pair_2 => nonbonded%neighbor_kind_pairs(jlist)
-                      npairs_2=neighbor_kind_pair_2%npairs
-                      IF ((npairs_2 /=0).AND.(neighbor_kind_pair_2%ikind==ikind)) THEN
-                         CALL matvec_3x3(cell_v_2, cell%hmat, REAL(neighbor_kind_pair_2%cell_vector,KIND=dp))
-                         DO m = 1, npairs_2
-                            IF (neighbor_kind_pair_2%list(1,m)==atom_a) THEN
-                               nloc_size = nloc_size + 1
-                               full_loc_list(1:2,nloc_size) = neighbor_kind_pair_2%list(1:2,m)
-                               loc_cell_v   (1:3,nloc_size) = cell_v_2
-                            END IF
-                         END DO
-                      END IF
+                   ifirst = mpair
+                   DO mpair = ifirst, SIZE(glob_loc_list_a)
+                      IF (glob_loc_list_a(mpair)/=atom_a) EXIT
                    END DO
+                   ilast = mpair-1
+                   nloc_size = 0
+                   IF (ifirst/=0) nloc_size = ilast-ifirst+1
                    DO WHILE (ipair<=npairs)
                       IF (sort_list(1,ipair)/=junique) EXIT
                       atom_b = sort_list(2,ipair)
                       ! Derivative terms
                       rtmp = r_last_update_pbc(atom_b)%r(:)-r_last_update_pbc(atom_a)%r(:) + cell_v
                       ipair = ipair + 1
-                      IF (DOT_PRODUCT(rtmp,rtmp)<=pot%rcutsq) THEN
-                         CALL get_force_tersoff ( tersoff, r_last_update_pbc, cell_v, full_loc_list, loc_cell_v,&
-                              atom_a, atom_b, f_nonbond, ptens_nonbond, pot%rcutsq)
+                      IF (DOT_PRODUCT(rtmp,rtmp)<=tersoff%rcutsq) THEN
+                         CALL get_force_tersoff ( tersoff, r_last_update_pbc, cell_v, &
+                              nloc_size, glob_loc_list(:,ifirst:ilast), glob_cell_v(:,ifirst:ilast),&
+                              atom_a, atom_b, f_nonbond, ptens_nonbond, tersoff%rcutsq)
                       END IF
                    END DO
+                   ifirst = ilast + 1
                    IF (ipair<=npairs) junique = sort_list(1,ipair)
-                   ! Destroy local list
-                   DEALLOCATE(full_loc_list,stat=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                   DEALLOCATE(loc_cell_v,stat=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                 END DO
                 DEALLOCATE(sort_list,work_list,stat=istat)
                 IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                      "deallocate sort_list")
-             ENDIF
-          END IF
+             END IF
+          END DO
        END DO
-    END DO
+       CALL destroy_tersoff_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a, error)
+    END IF
     ptens_nonbond(1,1) = ptens_nonbond(1,1) + ptens11
     ptens_nonbond(1,2) = ptens_nonbond(1,2) + ptens12
     ptens_nonbond(1,3) = ptens_nonbond(1,3) + ptens13
@@ -1501,5 +1507,180 @@ CONTAINS
     CALL timestop ( handle )
   END SUBROUTINE force_nonbond_manybody
 
+!!****f* manybody_potential/setup_tersoff_arrays [1.0] *
+!!
+!!   NAME
+!!     setup_tersoff_arrays
+!!
+!!   FUNCTION
+!!     
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Teodoro Laino - University of Zurich
+!!
+!!   MODIFICATION HISTORY
+!!     Fast implementation of the tersoff potential - [tlaino] 2007
+!!
+!!*** **********************************************************************
+  SUBROUTINE setup_tersoff_arrays(nonbonded, potparm, glob_loc_list, glob_cell_v, glob_loc_list_a, cell, error)
+    TYPE(fist_neighbor_type), POINTER        :: nonbonded
+    TYPE(pair_potential_pp_type), POINTER    :: potparm
+    INTEGER, DIMENSION(:, :), POINTER        :: glob_loc_list
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: glob_cell_v
+    INTEGER, DIMENSION(:), POINTER           :: glob_loc_list_a
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_tersoff_arrays', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, ikind, ilist, &
+                                                ipair, jkind, npairs, &
+                                                npairs_tot, stat
+    INTEGER, DIMENSION(:), POINTER           :: work_list, work_list2
+    INTEGER, DIMENSION(:, :), POINTER        :: list
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(3)              :: cell_v, cvi
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rwork_list
+    TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: pot
+    TYPE(tersoff_pot_type), POINTER          :: tersoff
+
+    CPPostcondition(.NOT.ASSOCIATED(glob_loc_list),cp_failure_level,routineP,error,failure)
+    CPPostcondition(.NOT.ASSOCIATED(glob_loc_list_a),cp_failure_level,routineP,error,failure)
+    CPPostcondition(.NOT.ASSOCIATED(glob_cell_v),cp_failure_level,routineP,error,failure)
+    failure = .FALSE.
+    CALL timeset ( routineN, handle )
+    npairs_tot = 0
+    DO ilist=1,nonbonded%nlists
+       neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
+       npairs=neighbor_kind_pair%npairs
+       IF (npairs ==0) CYCLE
+       ikind = neighbor_kind_pair%ikind
+       jkind = neighbor_kind_pair%jkind
+       pot => potparm %pot( ikind, jkind )%pot
+       
+       IF (pot%only_pp) CYCLE
+       DO i = 1, SIZE(pot%type)
+          IF (pot%type(i)==tersoff_type) npairs_tot = npairs_tot + npairs
+       END DO
+    END DO
+    ALLOCATE(work_list(npairs_tot), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(work_list2(npairs_tot), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(glob_loc_list(2,npairs_tot), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(glob_cell_v(3,npairs_tot), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ! Fill arrays with data
+    npairs_tot = 0
+    DO ilist=1,nonbonded%nlists
+       neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
+       npairs=neighbor_kind_pair%npairs
+       IF (npairs ==0) CYCLE
+       ikind = neighbor_kind_pair%ikind
+       jkind = neighbor_kind_pair%jkind
+       list  =>neighbor_kind_pair%list
+       cvi   = neighbor_kind_pair%cell_vector
+       pot   => potparm %pot( ikind, jkind )%pot
+       
+       IF (pot%only_pp) CYCLE
+       CALL matvec_3x3(cell_v, cell%hmat, cvi)
+       DO i = 1, SIZE(pot%type)
+          ! TERSOFF
+          IF (pot%type(i)==tersoff_type) THEN
+             tersoff => pot%set(i)%tersoff
+             DO ipair = 1, npairs
+                glob_loc_list(:,npairs_tot+ipair) = list(:,ipair)
+                glob_cell_v(1:3,npairs_tot+ipair) = cell_v(1:3)
+             END DO
+             npairs_tot = npairs_tot + npairs
+          END IF
+       END DO
+    END DO
+    ! Order the arrays w.r.t. the first index of glob_loc_list
+    CALL sort(glob_loc_list(1,:),npairs_tot,work_list)
+    DO ipair = 1, npairs_tot
+       work_list2(ipair)=glob_loc_list(2,work_list(ipair))
+    END DO
+    glob_loc_list(2,:) = work_list2
+    DEALLOCATE(work_list2, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(rwork_list(3,npairs_tot), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     DO ipair = 1, npairs_tot
+       rwork_list(:,ipair)=glob_cell_v(:,work_list(ipair))
+    END DO
+    glob_cell_v = rwork_list
+    DEALLOCATE(rwork_list, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(work_list, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(glob_loc_list_a(npairs_tot), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    glob_loc_list_a = glob_loc_list(1,:)
+    CALL timestop ( handle )
+  END SUBROUTINE setup_tersoff_arrays
+
+
+!!****f* manybody_potential/destroy_tersoff_arrays [1.0] *
+!!
+!!   NAME
+!!     destroy_tersoff_arrays
+!!
+!!   FUNCTION
+!!     
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Teodoro Laino - University of Zurich
+!!
+!!   MODIFICATION HISTORY
+!!     Fast implementation of the tersoff potential - [tlaino] 2007
+!!
+!!*** **********************************************************************
+  SUBROUTINE destroy_tersoff_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a, error)
+    INTEGER, DIMENSION(:, :), POINTER        :: glob_loc_list
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: glob_cell_v
+    INTEGER, DIMENSION(:), POINTER           :: glob_loc_list_a
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'destroy_tersoff_arrays', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    IF (ASSOCIATED(glob_loc_list)) THEN
+       DEALLOCATE(glob_loc_list, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)      
+    END IF
+    IF (ASSOCIATED(glob_loc_list_a)) THEN
+       DEALLOCATE(glob_loc_list_a, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)      
+    END IF
+    IF (ASSOCIATED(glob_cell_v)) THEN
+       DEALLOCATE(glob_cell_v, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+
+  END SUBROUTINE destroy_tersoff_arrays
+  
 END MODULE manybody_potential
 

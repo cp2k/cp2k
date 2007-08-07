@@ -1039,10 +1039,6 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
       
-       CALL create_hfdb_section(subsection, error=error)
-       CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)
-      
     END IF
 
   END SUBROUTINE create_NONBONDED_section
@@ -2053,148 +2049,6 @@ CONTAINS
   END SUBROUTINE create_Buckmorse_section
 
 !***************************************************************************
-!!****f* input_cp2k_mm/create_hfdb_section [1.0] *
-!!
-!!   NAME
-!!     create_hfdb_section
-!!
-!!   FUNCTION
-!!     This section specifies the input parameters for HFD-B potential type
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!*** **********************************************************************
-  SUBROUTINE create_hfdb_section(section,error)
-    TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_hfdb_section', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
-    
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL section_create(section,name="HFDB",&
-            description="This section specifies the input parameters for"//&
-            " HFD-B potential type (Aziz and Chen, J. Chem. Phys., 1977, Vol. 67, 5719)."//&
-            " Functional Form: V(r) = EPSILON*U(X); X=r/r0,"//&
-            " U(X)=A*EXP(-alpha/X+beta/X^2))-F(X)*(C6/X^6+C8/X^8+C10/X^10); "//&
-            "F(X)=EXP(-(D/X-1.0)^2) if X<D, F(X)=1.0 otherwise.",&
-            n_keywords=11, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-            error=error)
-
-       NULLIFY(keyword)
-       
-       CALL keyword_create(keyword, name="ATOMS",&
-            description="Defines the atomic kind involved in the nonbond potential",&
-            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
-            n_var=2, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="EPSILON",&
-            description="Defines the EPSILON parameter of HFDB potential",&
-            usage="EPSILON {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=1, unit_str="K_e", error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="A",&
-            description="Defines the A parameter of HFD-B potential",&
-            usage="A {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=1, unit_str="", error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="C6",&
-            description="Defines the C6 parameter of  potential",&
-            usage="C6 {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=1, unit_str="", error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="C8",&
-            description="Defines the C8 parameter of HFD-B potential",&
-            usage="C8 {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=1, unit_str="", error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="C10",&
-            description="Defines the C10 parameter of HFD-B potential",&
-            usage="C10 {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=1, unit_str="", error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="D",&
-            description="Defines the D parameter of HFD-B potential",&
-            usage="D {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=1, unit_str="",error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="R0",&
-            description="Defines the R0 parameter of HFD-B potential ",&
-            usage="R0 {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=1, unit_str="angstrom",error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="Alpha",&
-            description="Defines the Alpha parameter of HFD-B potential  ",&
-            usage="Alpha {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=1, unit_str="",error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="Beta",&
-            description="Defines the Beta parameter of HFD-B potential  ",&
-            usage="Beta {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=1, unit_str="",error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="RCUT",&
-            description="Defines the cutoff parameter of the HFD-B potential",&
-            usage="RCUT {real}",default_r_val=cp_unit_to_cp2k(value=10.0_dp,&
-            unit_str="angstrom", error=error),&
-            unit_str="angstrom", error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="RMIN",&
-            description="Defines the lower bound of the potential. If not set the range is the"//&
-            " full range generate by the spline", required=.TRUE., usage="RMIN {real}", &
-            type_of_var=real_t,  unit_str="angstrom", error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="RMAX",&
-            description="Defines the upper bound of the potential. If not set the range is the"//&
-            " full range generate by the spline", required=.TRUE., usage="RMAX {real}", &
-            type_of_var=real_t,  unit_str="angstrom", error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-
-    END IF
-  END SUBROUTINE create_hfdb_section
-  
-!***************************************************************************
 !!****f* input_cp2k_mm/create_Tersoff_section [1.0] *
 !!
 !!   NAME
@@ -2354,6 +2208,17 @@ CONTAINS
             default_r_val=cp_unit_to_cp2k(value=0.15_dp,&
                                           unit_str="angstrom",&
                                           error=error),&
+            n_var=1, unit_str="angstrom", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RCUT",&
+            description="Defines the cutoff parameter of the tersoff potential. "//&
+            " This parameter is in principle already defined by the values of "//&
+            " bigD and bigR. But it is necessary to define it when using the tersoff "//&
+            " in conjuction with other potentials (for the same atomic pair) in order to have"//&
+            " the same consistent definition of RCUT for all potentials.",&
+            usage="RCUT {real}",required=.TRUE., type_of_var=real_t,&
             n_var=1, unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

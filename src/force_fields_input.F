@@ -57,7 +57,7 @@ MODULE force_fields_input
   USE message_passing,                 ONLY: mp_bcast
   USE pair_potential_types,            ONLY: &
        b4_type, bm_type, do_potential_single_allocation, ea_type, &
-       eam_pot_type, ft_pot_type, ft_type, gp_type, gw_type, hfdb_type, ip_type, &
+       eam_pot_type, ft_pot_type, ft_type, gp_type, gw_type, ip_type, &
        ipbv_pot_type, lj_charmm_type, no_potential_single_allocation, &
        pair_potential_p_type, pair_potential_reallocate, &
        potential_single_allocation, tersoff_type, wl_type
@@ -116,7 +116,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_section1', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: nb4, nbends, nbm, nbmhft, nbonds, nchg, neam, ngd, ngp, nhfdb, nipbv, &
+    INTEGER :: nb4, nbends, nbm, nbmhft, nbonds, nchg, neam, ngd, ngp, nipbv, &
       nlj, nshell, ntersoff, ntors, ntot, nubs, nwl
     LOGICAL                                  :: explicit, failure, &
                                                 unique_spline
@@ -223,14 +223,7 @@ CONTAINS
           ntot=nlj+nwl+neam+ngd+nipbv+nbmhft+nb4+nbm+ngp
           IF (explicit) THEN
              CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+ntersoff,tersoff=.TRUE.,error=error)
-             CALL read_tersoff_section(inp_info%nonbonded,tmp_section2,ntot,error)
-          END IF
-          tmp_section2 => section_vals_get_subs_vals(tmp_section,"HFDB",error=error)
-          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nhfdb,error=error)
-          ntot=nlj+nwl+neam+ngd+nipbv+nbmhft+nb4+nbm+ngp+ntersoff
-          IF (explicit) THEN
-             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nhfdb,hfdb=.TRUE.,error=error)
-             CALL read_hfdb_section(inp_info%nonbonded,tmp_section2,ntot,error)
+             CALL read_tersoff_section(inp_info%nonbonded,tmp_section2,ntot,tmp_section2,error)
           END IF
        END IF
 
@@ -1048,10 +1041,11 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE read_tersoff_section(nonbonded, section, start, error)
+  SUBROUTINE read_tersoff_section(nonbonded, section, start, tersoff_section,error)
     TYPE(pair_potential_p_type), POINTER     :: nonbonded
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
+    TYPE(section_vals_type), POINTER         :: tersoff_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_tersoff_section', &
@@ -1059,7 +1053,8 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: atm_names
-    INTEGER                                  :: isec, n_items
+    INTEGER                                  :: isec, n_items, n_rep
+    REAL(KIND=dp)                            :: rcut, rcutsq
 
     CALL section_vals_get(section,n_repetition=n_items,error=error)
     DO isec = 1, n_items
@@ -1071,22 +1066,31 @@ CONTAINS
        CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
        CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
 
-       CALL section_vals_val_get(section,"A",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%A,error=error)
-       CALL section_vals_val_get(section,"B",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%B,error=error)
-       CALL section_vals_val_get(section,"lambda1",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%lambda1,error=error)
-       CALL section_vals_val_get(section,"lambda2",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%lambda2,error=error)
-       CALL section_vals_val_get(section,"alpha",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%alpha,error=error)
-       CALL section_vals_val_get(section,"beta",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%beta,error=error)
-       CALL section_vals_val_get(section,"n",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%n,error=error)
-       CALL section_vals_val_get(section,"c",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%c,error=error)
-       CALL section_vals_val_get(section,"d",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%d,error=error)
-       CALL section_vals_val_get(section,"h",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%h,error=error)
-       CALL section_vals_val_get(section,"lambda3",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%lambda3,error=error)
-       CALL section_vals_val_get(section,"bigR",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%bigR,error=error)
-       CALL section_vals_val_get(section,"bigD",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%bigD,error=error)
+       CALL section_vals_val_get(tersoff_section,"A",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%A,error=error)
+       CALL section_vals_val_get(tersoff_section,"B",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%B,error=error)
+       CALL section_vals_val_get(tersoff_section,"lambda1",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%lambda1,error=error)
+       CALL section_vals_val_get(tersoff_section,"lambda2",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%lambda2,error=error)
+       CALL section_vals_val_get(tersoff_section,"alpha",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%alpha,error=error)
+       CALL section_vals_val_get(tersoff_section,"beta",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%beta,error=error)
+       CALL section_vals_val_get(tersoff_section,"n",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%n,error=error)
+       CALL section_vals_val_get(tersoff_section,"c",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%c,error=error)
+       CALL section_vals_val_get(tersoff_section,"d",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%d,error=error)
+       CALL section_vals_val_get(tersoff_section,"h",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%h,error=error)
+       CALL section_vals_val_get(tersoff_section,"lambda3",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%lambda3,error=error)
+       CALL section_vals_val_get(tersoff_section,"bigR",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%bigR,error=error)
+       CALL section_vals_val_get(tersoff_section,"bigD",r_val=nonbonded%pot(start+isec)%pot%set(1)%tersoff%bigD,error=error)
 
-       nonbonded%pot(start+isec)%pot %rcutsq = (nonbonded%pot(start+isec)%pot%set(1)%tersoff%bigR+&
-                                                nonbonded%pot(start+isec)%pot%set(1)%tersoff%bigD)**2
+       rcutsq = (nonbonded%pot(start+isec)%pot%set(1)%tersoff%bigR+&
+                 nonbonded%pot(start+isec)%pot%set(1)%tersoff%bigD)**2
+       nonbonded%pot(start+isec)%pot%set(1)%tersoff%rcutsq =  rcutsq
+       nonbonded%pot(start+isec)%pot%rcutsq = rcutsq
+
+       ! In case it is defined override the standard specification of RCUT
+       CALL section_vals_val_get ( tersoff_section, "RCUT", n_rep_val=n_rep, error=error)
+       IF(n_rep==1) THEN 
+          CALL section_vals_val_get(tersoff_section,"RCUT",r_val=rcut,error=error)
+          nonbonded%pot(start+isec)%pot %rcutsq = rcut**2
+       END IF
     END DO
   END SUBROUTINE read_tersoff_section
 
@@ -1161,80 +1165,6 @@ CONTAINS
             r_val=nonbonded%pot(start+isec)%pot%set(1)%rmax,error=error)
     END DO
   END SUBROUTINE read_bm_section
-!******************************************************************************
-!!****** force_fields_input/read_hfdb_section [1.0] *
-!!
-!!   NAME
-!!     read_hfdb_section
-!!
-!!   FUNCTION
-!!     Reads the HFD-B potential section
-!!   (Aziz and Slaman, Molecular Physics, 1986, Vol. 58(4), 679-697)
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-  SUBROUTINE read_hfdb_section(nonbonded, section, start, error)
-    TYPE(pair_potential_p_type), POINTER     :: nonbonded
-    TYPE(section_vals_type), POINTER         :: section
-    INTEGER, INTENT(IN)                      :: start
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'read_hfdb_section', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: atm_names
-    INTEGER                                  :: isec, n_items, n_rep
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: a, alpha, beta, c6, c8, c10, d, &
-                                                eps, r0, rcut
-
-    failure = .FALSE.
-    CALL section_vals_get(section,n_repetition=n_items,error=error)
-    DO isec = 1, n_items
-       CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
-       CALL section_vals_val_get(section,"EPSILON",i_rep_section=isec,r_val=eps,error=error)
-       CALL section_vals_val_get(section,"A",i_rep_section=isec,r_val=a,error=error)
-       CALL section_vals_val_get(section,"C6",i_rep_section=isec,r_val=c6,error=error)
-       CALL section_vals_val_get(section,"C8",i_rep_section=isec,r_val=c8,error=error)
-       CALL section_vals_val_get(section,"C10",i_rep_section=isec,r_val=c10,error=error)
-       CALL section_vals_val_get(section,"D",i_rep_section=isec,r_val=d,error=error)
-       CALL section_vals_val_get(section,"R0",i_rep_section=isec,r_val=r0,error=error)
-       CALL section_vals_val_get(section,"Alpha",i_rep_section=isec,r_val=alpha,error=error)
-       CALL section_vals_val_get(section,"Beta",i_rep_section=isec,r_val=beta,error=error)
-       CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
-
-       nonbonded%pot(start+isec)%pot %type = hfdb_type
-       nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
-       nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
-       CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
-       CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
-       nonbonded%pot(start+isec)%pot%set(1)%hfdb%eps = eps
-       nonbonded%pot(start+isec)%pot%set(1)%hfdb%a = a
-       nonbonded%pot(start+isec)%pot%set(1)%hfdb%c6 = c6
-       nonbonded%pot(start+isec)%pot%set(1)%hfdb%c8 = c8
-       nonbonded%pot(start+isec)%pot%set(1)%hfdb%c10 = c10
-       nonbonded%pot(start+isec)%pot%set(1)%hfdb%d = d
-       nonbonded%pot(start+isec)%pot%set(1)%hfdb%r0 = r0
-       nonbonded%pot(start+isec)%pot%set(1)%hfdb%alpha = alpha
-       nonbonded%pot(start+isec)%pot%set(1)%hfdb%beta = beta
-       nonbonded%pot(start+isec)%pot%rcutsq = rcut*rcut
-
-       ! 
-       CALL section_vals_val_get ( section, "RMIN", i_rep_section=isec, n_rep_val=n_rep, error=error)
-       IF(n_rep==1) CALL section_vals_val_get(section,"RMIN",i_rep_section=isec,&
-            r_val=nonbonded%pot(start+isec)%pot%set(1)%rmin,error=error)
-       CALL section_vals_val_get ( section, "RMAX", i_rep_section=isec, n_rep_val=n_rep, error=error)
-       IF(n_rep==1) CALL section_vals_val_get(section,"RMAX",i_rep_section=isec,&
-            r_val=nonbonded%pot(start+isec)%pot%set(1)%rmax,error=error)
-
-    END DO
-  END SUBROUTINE read_hfdb_section
 
 !******************************************************************************
 !!****** force_fields_input/read_chrg_section [1.0] *
