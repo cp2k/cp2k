@@ -31,7 +31,8 @@ MODULE pair_potential
   USE fparser,                         ONLY: finalizef,&
                                              initf,&
                                              parsef
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_path_length,&
+                                             dp
   USE mathconstants,                   ONLY: pi
   USE memory_utilities,                ONLY: reallocate
   USE pair_potential_types,            ONLY: &
@@ -526,6 +527,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'generate_spline_low', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=default_path_length)       :: message
     INTEGER                                  :: jx, mfac
     LOGICAL                                  :: check, failure
     REAL(KIND=dp)                            :: diffmax, dx2, e, f, myfac1, &
@@ -595,12 +597,13 @@ CONTAINS
           x2 = x2 + dx2
        END DO
        IF (npoints > MAX_POINTS) THEN
-          IF (iw>0) THEN
-             WRITE(iw,'(A,I5,A,F15.9)') "SPLINE_INFO| Number of points: ",npoints,&
-                  " obtained accuracy ",diffmax
-          END IF
-          WRITE(*,'(A)')"MM SPLINE: no convergence on required accuracy (adjust EPS_SPLINE and rerun)"
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          WRITE(message,'(A,I8,A,G12.6,A)') "SPLINE_INFO| Number of points: ",npoints,&
+               " obtained accuracy ",diffmax,". MM SPLINE: no convergence on required"//&
+               " accuracy (adjust EPS_SPLINE and rerun)"
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed, routineP,&
+                        TRIM(message)//" "//&
+CPSourceFileRef,&
+                        error,only_ionode=.TRUE.)
        END IF
        IF (diffmax > eps_spline ) THEN
           npoints   = CEILING(1.2_dp*REAL(npoints,KIND=dp))
