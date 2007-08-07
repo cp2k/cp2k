@@ -414,16 +414,28 @@ CONTAINS
        CALL keyword_create(keyword, name="R0_NB",&
             description="Specify the minimum value of the distance interval "//&
             " that brackets the value of emax_spline.",&
-            usage="R0_NB <REAL>",&
-            default_r_val=0.9_dp,error=error)
+            usage="R0_NB <REAL>",default_r_val=cp_unit_to_cp2k(value=0.9_dp,&
+                                        unit_str="bohr",&
+                                        error=error),&
+            unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RCUT_NB",&
+            description="Cutoff radius for nonbonded interactions. This value overrides "//&
+            " the value specified in the potential definition and is global for all potentials.",&
+            usage="RCUT_NB {real}", default_r_val=cp_unit_to_cp2k(value=-1.0_dp,&
+                                        unit_str="angstrom",&
+                                        error=error),&
+            unit_str="angstrom",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)                     
 
        CALL keyword_create(keyword, name="EMAX_SPLINE",&
             description="Specify the maximum value of the potential up to which"//&
             " splines will be constructed",&
             usage="EMAX_SPLINE <REAL>",&
-            default_r_val=0.5_dp,error=error)
+            default_r_val=0.5_dp,unit_str="hartree",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -431,22 +443,15 @@ CONTAINS
             description="Specify the maximum value of energy used to check the accuracy"//&
             " requested through EPS_SPLINE. Energy values larger than EMAX_ACCURACY"//&
             " generally do not  satisfy the requested accuracy",&
-            usage="EMAX_ACCURACY <REAL>", default_r_val=0.02_dp,error=error)
+            usage="EMAX_ACCURACY <REAL>", default_r_val=0.02_dp,unit_str="hartree",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
     
-       CALL keyword_create(keyword, name="RCUT_NB",&
-            description="Cutoff radius for nonbonded interactions",&
-            usage="RCUT_NB {real}", type_of_var=real_t, default_r_val=-1.0_dp,&
-            unit_str="angstrom",error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)                     
-
        CALL keyword_create(keyword, name="EPS_SPLINE",&
             description="Specify the threshold for the choice of the number of"//&
             " points used in the splines (comparing the splined value with the "//&
             " analytically evaluated one)",&
-            usage="EPS_SPLINE <REAL>", default_r_val=1.0E-7_dp,error=error)
+            usage="EPS_SPLINE <REAL>", default_r_val=1.0E-7_dp,unit_str="hartree",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

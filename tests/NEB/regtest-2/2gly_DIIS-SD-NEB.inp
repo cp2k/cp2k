@@ -9,7 +9,7 @@
         EMAX_ACCURACY 500.0
         EMAX_SPLINE  1.0E10
         EPS_SPLINE 1.0E-3
-        R0_NB 0.0001
+        R0_NB [bohr] 0.0001
         RCUT_NB  20.0
       &END
     &END FORCEFIELD

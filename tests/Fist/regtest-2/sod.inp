@@ -35,7 +35,7 @@
       &SPLINE
         EMAX_SPLINE 1.0
         EMAX_ACCURACY 1.0
-        R0_NB 3.5
+        R0_NB [bohr] 3.5
       &END SPLINE
 
       &NONBONDED
