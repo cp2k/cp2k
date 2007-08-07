@@ -2760,7 +2760,7 @@ CPSourceFileRef,&
                    IF (ff_type%multiple_potential) THEN
                       CALL pair_potential_single_add(inp_info%nonbonded%pot(k)%pot,pot,error)
                       CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                           "Multiple ONFO declaration: "//TRIM(name_atm_a)//&
+                           "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
                            " and "//TRIM(name_atm_b)//" ADDING! "//&
 CPSourceFileRef,&
                            error,only_ionode=.TRUE.)
@@ -2769,7 +2769,7 @@ CPSourceFileRef,&
                    ELSE
                       CALL pair_potential_single_copy(inp_info%nonbonded%pot(k)%pot,pot,error)
                       CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                           "Multiple ONFO declaration: "//TRIM(name_atm_a)//&
+                           "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
                            " and "//TRIM(name_atm_b)//" OVERWRITING! "//&
 CPSourceFileRef,&
                            error,only_ionode=.TRUE.)
@@ -2798,7 +2798,7 @@ CPSourceFileRef,&
                          IF (qmmm_env%multiple_potential) THEN
                             CALL pair_potential_single_add(qmmm_env%inp_info%nonbonded%pot(k)%pot,pot,error)
                             CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                                 "Multiple ONFO declaration: "//TRIM(name_atm_a)//&
+                                 "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
                                  " and "//TRIM(name_atm_b)//" ADDING QM/MM forcefield specifications! "//&
 CPSourceFileRef,&
                                  error,only_ionode=.TRUE.)
@@ -2807,7 +2807,7 @@ CPSourceFileRef,&
                          ELSE
                             CALL pair_potential_single_copy(qmmm_env%inp_info%nonbonded%pot(k)%pot,pot,error)
                             CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                                 "Multiple ONFO declaration: "//TRIM(name_atm_a)//&
+                                 "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
                                  " and "//TRIM(name_atm_b)//" OVERWRITING QM/MM forcefield specifications! "//&
 CPSourceFileRef,&
                                  error,only_ionode=.TRUE.)
