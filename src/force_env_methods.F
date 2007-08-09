@@ -193,7 +193,8 @@ CONTAINS
 !******************************************************************************
 
   RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
-       calc_force, consistent_energies, skip_external_control, eval_energy_forces, error)
+       calc_force, consistent_energies, skip_external_control, eval_energy_forces,&
+       error)
 
     TYPE(force_env_type), POINTER            :: force_env
     LOGICAL, INTENT(IN), OPTIONAL            :: calc_force, &
@@ -223,11 +224,8 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) THEN
-      output_unit= cp_logger_get_default_unit_nr(logger)
-    ELSE
-      output_unit = -1
-    END IF
+    output_unit = -1
+    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
     failure=.FALSE.
     need_f=.TRUE.
     my_eval=.TRUE.

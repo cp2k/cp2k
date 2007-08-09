@@ -15,12 +15,15 @@
       MAP_CONSISTENT
     &END QS
     &SCF
-      WRITE_RESTART_EACH -1
       SCF_GUESS ATOMIC
       MAX_SCF 3
       &OT ON
         PRECONDITIONER FULL_SINGLE
       &END OT
+      &PRINT
+         &RESTART OFF
+         &END
+      &END
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE

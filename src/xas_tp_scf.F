@@ -485,17 +485,12 @@ CONTAINS
        END IF
 
        ! ** Write restart file **
-       IF (xas_control%write_restart_each>0.AND.&
-          MODULO(iter_count,xas_control%write_restart_each)==0) THEN
-          CALL xas_write_restart(xas_control, xas_section,qs_env,&
-                iatom,error=error)
-       END IF
-
+       CALL xas_write_restart(xas_control, xas_section, scf_section, qs_env,iatom,error=error)
 
        IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
          scf_section,"PRINT%ITERATION_INFO/TIME_CUMUL",error=error),cp_p_file)) t1 = m_walltime()
 
-!   *** mixing methods have the new density matrix in p_mix_new
+       !   *** mixing methods have the new density matrix in p_mix_new
        IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
            DO ispin=1,dft_control%nspins
               CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
@@ -504,7 +499,7 @@ CONTAINS
        ENDIF
 
 
-! ** update qs_env%rho
+       ! ** update qs_env%rho
        CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
        CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
 
@@ -514,10 +509,7 @@ CONTAINS
 
 
     !   *** Write restart file ***
-    IF (xas_control%write_restart_each>=0) THEN
-       CALL xas_write_restart(xas_control, xas_section,qs_env,&
-                iatom,error=error)
-    END IF
+    CALL xas_write_restart(xas_control, xas_section, scf_section, qs_env, iatom,error=error)
 
     IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
@@ -977,8 +969,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'xes_scf_once', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, homo, ispin, istate, nao, nelectron, nmo, nvirtual, &
-      nvirtual1, nvirtual2, output_unit, writerestart
+    INTEGER                                  :: handle, homo, ispin, istate, &
+                                                nao, nelectron, nmo, &
+                                                nvirtual, nvirtual1, &
+                                                nvirtual2, output_unit
     LOGICAL                                  :: failure, ionode
     REAL(KIND=dp), DIMENSION(:), POINTER     :: all_evals, eigenvalues
     TYPE(cp_fm_type), POINTER                :: all_vectors, mo_coeff
@@ -1022,14 +1016,11 @@ CONTAINS
       CALL init_scf_run(scf_env=scf_env,qs_env=qs_env,&
            scf_section=scf_section, error=error)
 
-      writerestart = scf_control%write_restart_each
-      scf_control%write_restart_each = -1
       CALL scf_env_do_scf(scf_env=scf_env, qs_env=qs_env, globenv=globenv, &
            converged=converged, should_stop=should_stop, error=error)
       CALL scf_env_cleanup(scf_env,qs_env=qs_env,error=error)
-      scf_control%write_restart_each= writerestart
 
-!   The eigenstate of the KS Hamiltonian are nedeed
+      !   The eigenstate of the KS Hamiltonian are nedeed
       NULLIFY(mo_coeff,eigenvalues)
       IF(scf_control%use_ot) THEN
          IF (output_unit>0) THEN

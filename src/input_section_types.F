@@ -194,7 +194,7 @@ MODULE input_section_types
 !!   SOURCE
 !***************************************************************************
   TYPE section_vals_type
-     INTEGER :: ref_count, id_nr
+     INTEGER :: ref_count, id_nr, ibak
      TYPE(section_type),POINTER :: section
      TYPE(cp_sll_val_p_type), DIMENSION(:,:), POINTER :: values
      TYPE(section_vals_p_type), DIMENSION(:,:), POINTER :: subs_vals
@@ -1053,6 +1053,7 @@ RECURSIVE SUBROUTINE section_vals_create(section_vals,section,error)
      last_section_vals_id=last_section_vals_id+1
      section_vals%id_nr=last_section_vals_id
      section_vals%ref_count=1
+     section_vals%ibak=0
      CALL section_retain(section,error=error)
      section_vals%section => section
      section%frozen=.TRUE.

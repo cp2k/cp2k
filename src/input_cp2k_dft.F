@@ -285,19 +285,20 @@ CONTAINS
     NULLIFY(keyword)
     CALL keyword_create(keyword, name="BASIS_SET_FILE_NAME",&
          description="Name of the basis set file, may include a path",&
-         usage="BASIS_SET_FILE_NAME ../BASIS_SET",&
+         usage="BASIS_SET_FILE_NAME <FILENAME>",&
          default_lc_val="BASIS_SET",error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     CALL keyword_create(keyword, name="POTENTIAL_FILE_NAME",&
          description="Name of the pseudo potential file, may include a path",&
-         usage="POTENTIAL_FILE_NAME ../POTENTIAL",&
+         usage="POTENTIAL_FILE_NAME <FILENAME>",&
          default_lc_val="POTENTIAL",error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
-    CALL keyword_create(keyword, name="RESTART_FILE_NAME",&
+    CALL keyword_create(keyword, name="WFN_RESTART_FILE_NAME",&
+         variants=(/"RESTART_FILE_NAME"/),&
          description="Name of the wavefunction restart file, may include a path",&
-         usage="RESTART_FILE_NAME ../RESTART",&
+         usage="WFN_RESTART_FILE_NAME <FILENAME>",&
          default_lc_val="RESTART",error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
@@ -3294,20 +3295,6 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
        NULLIFY(keyword)
-       CALL keyword_create(keyword, name="WRITE_RESTART_EACH",&
-            description="How often the wavefunction restart file should be "//&
-            "written during the scf cycle (0=only at the end of each MD step, "//&
-            "-1=never).",&
-            usage="WRITE_RESTART_EACH 5", default_i_val=10,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="WRITE_HISTORY_RESTART",&
-            description="Writes the history pipeline into files after each MD step.",&
-            usage="WRITE_HISTORY_RESTART TRUE", default_l_val=.FALSE., &
-            lone_keyword_l_val=.TRUE., required=.FALSE., error=error)
-       CALL section_add_keyword(section, keyword, error=error)
-       CALL keyword_release(keyword, error=error)
 
        CALL keyword_create(keyword, name="MAX_ITER_LUMO",&
             variants=(/"MAX_ITER_LUMOS"/),&
@@ -3513,7 +3500,35 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL section_create(subsection,"PRINT","printing of information during the scf",&
-            error=error,repeats=.FALSE.,required=.FALSE.)
+            error=error, repeats=.FALSE., required=.FALSE.)
+
+        CALL cp_print_key_section_create(print_key,"RESTART",&
+            description="Controls the dumping of the MO restart file during scf."//&
+                        "By default keeps a short history of three restarts."//&
+                        "See also RESTART_HISTORY", &
+            print_level=silent_print_level, common_iter_levels=2, each=(/1,1/), &
+            filename="RESTART",error=error)
+       CALL keyword_create(keyword, name="BACKUP_COPIES",&
+             description="Specifies the maximum index of backup copies.",&
+             usage="BACKUP_COPIES {int}",&
+             default_i_val=3, error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"RESTART_HISTORY",&
+            description="Dumps unique MO restart files during the run keeping all of them.",&
+            print_level=silent_print_level, common_iter_levels=0, each=(/500,500/), &
+            filename="RESTART",error=error)
+       CALL keyword_create(keyword, name="BACKUP_COPIES",&
+             description="Specifies the maximum index of backup copies.",&
+             usage="BACKUP_COPIES {int}",&
+             default_i_val=3, error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"iteration_info",&
             description="Controls the printing of basic iteration information during the scf.", &

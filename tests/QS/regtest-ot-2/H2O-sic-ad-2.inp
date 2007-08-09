@@ -3,6 +3,7 @@
   METHOD Quickstep
   &DFT
     LSD
+    RESTART_FILE_NAME H2O-RESTART.wfn
     &MGRID
       CUTOFF 200
     &END MGRID

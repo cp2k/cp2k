@@ -71,13 +71,11 @@ MODULE qs_scf
                                              cp_fm_release,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_output_handling,              ONLY: cp_add_iter_level,&
-                                             cp_iterate,&
+  USE cp_output_handling,              ONLY: cp_iterate,&
                                              cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
-                                             cp_print_key_unit_nr,&
-                                             cp_rm_iter_level
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
@@ -101,10 +99,8 @@ MODULE qs_scf
                                              section_vals_type,&
                                              section_vals_val_get
   USE kahan_sum,                       ONLY: accurate_sum
-  USE kinds,                           ONLY: default_path_length,&
-                                             dp
+  USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
-                                             m_mov,&
                                              m_walltime
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: evolt,&
@@ -378,14 +374,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_env_do_scf', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_path_length)       :: file_name, filename1, &
-                                                filename2
     INTEGER                                  :: handle, handle2, i, ispin, &
-                                                iter_level, nvec, &
-                                                output_unit, total_steps
-    LOGICAL :: diis_step, energy_only, failure, gapw, gapw_xc, harris_energy, &
-      harris_flag, has_unit_metric, outer_loop_converged, use_jacobi, &
-      use_virial
+                                                iter_count, output_unit, &
+                                                total_steps
+    LOGICAL :: diis_step, energy_only, exit_inner_loop, failure, gapw, &
+      gapw_xc, harris_energy, harris_flag, has_unit_metric, &
+      outer_loop_converged, use_jacobi, use_virial
     REAL(KIND=dp)                            :: outer_loop_eps, t1, t2
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -397,6 +391,7 @@ CONTAINS
       POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -407,7 +402,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: dft_section, harris_section, &
                                                 input, scf_section
     TYPE(virial_type), POINTER               :: virial
-    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
     CALL timeset(routineN,"I"," ",handle)
 
@@ -473,6 +467,7 @@ CONTAINS
     ! *** outer loop of the scf, can treat other variables, 
     ! *** such as lagrangian multipliers
     scf_env%outer_scf%iter_count=0
+    iter_count = 0
     total_steps = 0
     scf_outer_loop: DO
 
@@ -488,135 +483,115 @@ CONTAINS
        ! qs_env%rho%rho_r and qs_env%rho%rho_g should be up to date here
 
        scf_env%iter_count = 0
-
-       CALL cp_add_iter_level(logger%iter_info,"SCF",&
-                              n_rlevel_new=iter_level,&
-                              error=error)
-
+       exit_inner_loop    = .FALSE.
        scf_loop: DO
 
           CALL timeset("scf_iter","I"," ",handle2)
 
           scf_env%iter_count = scf_env%iter_count + 1
+          iter_count =  iter_count + 1
+          CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=iter_count,error=error)
 
           IF (output_unit > 0) CALL m_flush(output_unit)
 
           total_steps = total_steps + 1
-          IF (scf_env%iter_count > scf_control%max_scf) THEN
-             IF (output_unit>0) THEN
-                WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
-                     "*** Skip SCF loop, SCF run probably NOT converged ***"
-             END IF
-             converged=.FALSE.
-             CALL timestop(0.0_dp,handle2)
-             EXIT scf_loop
-          END IF
-
-          CALL cp_iterate(logger%iter_info,&
-                          last=.FALSE.,&
-                          iter_nr=scf_env%iter_count,&
-                          error=error)
-
           CALL qs_ks_update_qs_env(ks_env,&
                                    qs_env=qs_env,&
                                    calculate_forces=.FALSE.,&
                                    just_energy=energy_only,&
                                    diis_step=diis_step,&
                                    error=error)
-
+          
           ! print 'heavy weight' or relatively expensive quantities
           CALL qs_scf_loop_print(qs_env,scf_env,para_env,error)
-
+          
           scf_env%p_mix = scf_control%p_mix
           scf_env%iter_param = 0.0_dp
           IF (scf_env%mixing_method==ao_mixing_nr) scf_env%iter_param = scf_env%p_mix
-
+          
           ! this takes known energy and derivatives and produces 
           ! new wfns and or density matrix
           SELECT CASE (scf_env%method)
           CASE DEFAULT
              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                    routineP,"unknown scf method: "//&
-                    cp_to_string(scf_env%method),error,failure)
+                  routineP,"unknown scf method: "//&
+                  cp_to_string(scf_env%method),error,failure)
           CASE(general_diag_method_nr)
-            IF (dft_control%roks) THEN
-              CALL qs_scf_loop_do_roks_diag(scf_env,mos,matrix_ks,matrix_s,&
-                                            scf_control,scf_section,diis_step,&
-                                            has_unit_metric,error)
-            ELSE
-              CALL qs_scf_loop_do_general_diag(scf_env,mos,rho,matrix_ks,&
-                                               matrix_s,scf_control,scf_section, &
-                                               diis_step,use_jacobi,error)
-            END IF
+             IF (dft_control%roks) THEN
+                CALL qs_scf_loop_do_roks_diag(scf_env,mos,matrix_ks,matrix_s,&
+                                              scf_control,scf_section,diis_step,&
+                                              has_unit_metric,error)
+             ELSE
+                CALL qs_scf_loop_do_general_diag(scf_env,mos,rho,matrix_ks,&
+                                                 matrix_s,scf_control,scf_section, &
+                                                 diis_step,use_jacobi,error)
+             END IF
           CASE(special_diag_method_nr)
-            IF (dft_control%roks) THEN
-              CALL qs_scf_loop_do_roks_diag(scf_env,mos,matrix_ks,matrix_s,&
-                                            scf_control,scf_section,diis_step,&
-                                            has_unit_metric,error)
-            ELSE
-              CALL qs_scf_loop_do_special_diag(scf_env,mos,rho,matrix_ks,&
-                                               scf_control,scf_section, &
-                                               diis_step,error)
-            END IF
+             IF (dft_control%roks) THEN
+                CALL qs_scf_loop_do_roks_diag(scf_env,mos,matrix_ks,matrix_s,&
+                                              scf_control,scf_section,diis_step,&
+                                              has_unit_metric,error)
+             ELSE
+                CALL qs_scf_loop_do_special_diag(scf_env,mos,rho,matrix_ks,&
+                                                 scf_control,scf_section, &
+                                                 diis_step,error)
+             END IF
           CASE(ot_method_nr)
              CALL qs_scf_loop_do_ot(scf_env,mos,rho,qs_env%mo_derivs,energy%total, &
                                     matrix_s, energy_only, has_unit_metric,error)
           END SELECT
-
+          
           ! another heavy weight print object, print controlled by dft_section
           IF (SIZE(mos) > 1) THEN
-            CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,&
-                              4,6,dft_section,spin="ALPHA",last=.FALSE.,error=error)
-            CALL write_mo_set(mos(2)%mo_set,atomic_kind_set,particle_set,&
-                              4,6,dft_section,spin="BETA",last=.FALSE.,error=error)
+             CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,&
+                               4,6,dft_section,spin="ALPHA",last=.FALSE.,error=error)
+             CALL write_mo_set(mos(2)%mo_set,atomic_kind_set,particle_set,&
+                               4,6,dft_section,spin="BETA",last=.FALSE.,error=error)
           ELSE
-            CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,&
-                              4,6,dft_section,last=.FALSE.,error=error)
+             CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,&
+                               4,6,dft_section,last=.FALSE.,error=error)
           END IF
 
-          ! ** calculation of the harris energy correction *** !
+          ! ** calculation of the harris energy correction ***
           IF (harris_flag) THEN
-            CALL harris_energy_correction(qs_env, harris_env, &
-                                          para_env=para_env, fast=.TRUE., error=error)
-            IF (scf_env%method .NE. ot_method_nr) THEN
-              CALL harris_eigenvalue_trace_KS_Pmix(scf_env, qs_env, &
-                          harris_env, error=error)
-            ELSE
-              CALL harris_eigenvalue_calculation(qs_env=qs_env, &
-                          harris_env=harris_env, error=error)
-            END IF
+             CALL harris_energy_correction(qs_env, harris_env, para_env=para_env,&
+                                           fast=.TRUE., error=error)
+             IF (scf_env%method .NE. ot_method_nr) THEN
+                CALL harris_eigenvalue_trace_KS_Pmix(scf_env, qs_env, harris_env,error=error)
+             ELSE
+                CALL harris_eigenvalue_calculation(qs_env=qs_env, harris_env=harris_env,error=error)
+             END IF
 
-            CALL section_vals_val_get(harris_section, "HARRIS_ENERGY", &
-                          l_val=harris_energy, error=error)
-            IF ((globenv%run_type_id == qs_debug_run) .OR. (harris_energy)) THEN
-              energy%total = harris_env%harris_energy%Eharris
-            END IF
+             CALL section_vals_val_get(harris_section, "HARRIS_ENERGY",l_val=harris_energy,error=error)
+             IF ((globenv%run_type_id == qs_debug_run) .OR. (harris_energy)) THEN
+                energy%total = harris_env%harris_energy%Eharris
+             END IF
           END IF
 
           SELECT CASE(scf_env%mixing_method)
           CASE(ao_mixing_nr)
              CALL scf_env_density_mixing(scf_env%p_mix_new,scf_env%mixing_method,&
-                            scf_env%p_mix,scf_env%iter_delta, qs_env=qs_env,error=error)
+                  scf_env%p_mix,scf_env%iter_delta, qs_env=qs_env,error=error)
           CASE(no_mixing_nr)
           CASE DEFAULT
              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                    routineP,"unknown scf mixing method: "//&
-                    cp_to_string(scf_env%mixing_method),error,failure)
+                  routineP,"unknown scf mixing method: "//&
+                  cp_to_string(scf_env%mixing_method),error,failure)
           END SELECT
 
           t2 = m_walltime()
-
-          IF ((output_unit>0).and.scf_env%print_iter_line) THEN
+          
+          IF ((output_unit>0).AND.scf_env%print_iter_line) THEN
              WRITE (UNIT=output_unit,&
                   FMT="(T2,I5,2X,A,T22,E10.2,T32,F8.2,T40,2F20.10)")&
                   scf_env%iter_count,TRIM(scf_env%iter_method),&
                   scf_env%iter_param,t2 - t1,scf_env%iter_delta,energy%total
           END IF
-
+          
           IF (harris_flag) THEN
              CALL harris_postprocessing(harris_env, error=error)
           END IF
-
+          
           ! ** can we exit the SCF loop  ?
           CALL external_control(should_stop,"SCF",globenv,error)
           IF (scf_env%iter_delta < scf_control%eps_scf) THEN
@@ -624,24 +599,71 @@ CONTAINS
                 WRITE(UNIT=output_unit,FMT="(/,T3,A,I5,A/)")&
                      "*** SCF run converged in ",scf_env%iter_count," steps ***"
              END IF
-             CALL timestop(0.0_dp,handle2)
-             EXIT scf_loop
+             exit_inner_loop = .TRUE.
           ELSE IF (should_stop.OR.  scf_env%iter_count >= scf_control%max_scf) THEN
              IF (output_unit>0) THEN
                 WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
                      "*** SCF run NOT converged ***"
              END IF
              converged=.FALSE.
-             CALL timestop(0.0_dp,handle2)
-             EXIT scf_loop
+             exit_inner_loop = .TRUE.
+          END IF
+          ! ** In case we decide to exit we perform few more check to see if this one
+          ! ** is really the last SCF step
+          IF (exit_inner_loop) THEN
+             CALL cleanup_scf_loop(scf_env,error)
+
+             ! now, print out energies and charges corresponding to the obtained wfn
+             ! (this actually is not 100% consistent at this point)!
+             CALL qs_scf_print_summary(output_unit,rho,qs_charges,energy,scf_env, &
+                  dft_control,qs_env%qmmm,gapw,gapw_xc)
+
+             IF (harris_flag) THEN
+                energy%total = harris_env%harris_energy%Eharris
+             END IF
+             
+             ! *** mixing methods need to undo mixing of the density matrix 
+             !     (restore original density) ***
+             IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
+                CALL scf_env_density_mixing(scf_env%p_mix_new,scf_env%mixing_method,&
+                                            scf_env%p_mix,scf_env%iter_delta,&
+                                            qs_env=qs_env,invert=.TRUE.,error=error)
+                DO ispin=1,dft_control%nspins
+                   CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
+                                        rho%rho_ao(ispin)%matrix,error=error)
+                END DO
+             ENDIF
+
+             !   *** update rspace rho since the mo changed
+             !   *** this might not always be needed (i.e. no post calculation / no forces )
+             !   *** but guarantees that rho and wfn are consistent at this point
+             CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
+             CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
+
+             outer_loop_converged=.TRUE.
+             IF (scf_control%outer_scf%have_scf) THEN
+                ! We have an outer SCF loop...
+                scf_env%outer_scf%iter_count=scf_env%outer_scf%iter_count+1
+                outer_loop_converged=.FALSE.
+             
+                CALL outer_loop_gradient(qs_env,scf_env,error)
+                outer_loop_eps=SQRT(SUM(scf_env%outer_scf%gradient(:,scf_env%outer_scf%iter_count)**2))/ &
+                     SIZE(scf_env%outer_scf%gradient,1)
+                IF (outer_loop_eps<scf_control%outer_scf%eps_scf) outer_loop_converged=.TRUE.
+             END IF
+             ! ** Let's tag the last SCF cycle so we can print informations only of the last step
+             IF (outer_loop_converged.OR.scf_env%outer_scf%iter_count>scf_control%outer_scf%max_scf) THEN
+                CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=iter_count,error=error)
+             END IF
           END IF
 
-          ! ** Write restart file **
-          IF (scf_control%write_restart_each>0) THEN
-             IF (MODULO(scf_env%iter_count,scf_control%write_restart_each)==0) THEN
-                CALL write_mo_set(mos,particle_set,para_env,&
-                    id_nr=0,dft_section=dft_section,error=error)
-             ENDIF
+          !   *** Write WaveFunction restart file ***
+          CALL write_mo_set(mos,particle_set,para_env,dft_section=dft_section,error=error)
+
+          !   *** Exit if we have finished with the SCF inner loop ***
+          IF (exit_inner_loop) THEN
+             CALL timestop(0.0_dp,handle2)
+             EXIT scf_loop     
           END IF
 
           IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
@@ -663,91 +685,17 @@ CONTAINS
 
        END DO scf_loop
 
-       CALL cleanup_scf_loop(scf_env,error)
-
-       ! now, print out energies and charges corresponding to the obtained wfn
-       ! (this actually is not 100% consistent at this point)!
-       CALL qs_scf_print_summary(output_unit,rho,qs_charges,energy,scf_env, &
-                                 dft_control,qs_env%qmmm,gapw,gapw_xc)
-
-       IF (harris_flag) THEN
-         energy%total = harris_env%harris_energy%Eharris
-       END IF
-
-       !   *** Write restart file ***
-       IF (scf_control%write_restart_each>=0) THEN
-          CALL write_mo_set(mos,particle_set,para_env,&
-               id_nr=0,dft_section=dft_section,error=error)
-       END IF
-       
-       IF (scf_control%write_history_restart) THEN
-          nvec = MIN(qs_env%wf_history%memory_depth, qs_env%wf_history%snapshot_count)
-
-          IF (para_env%ionode) THEN
-            CALL section_vals_val_get(dft_section, "RESTART_FILE_NAME", &
-                 c_val=file_name, error=error)
-
-            filename1 = file_name
-            filename2 = file_name
-            DO i=1,nvec
-              IF ((nvec-i) /= 0) THEN
-                filename1((LEN_TRIM(file_name)+1):(LEN(file_name))) = "-"//&
-                     ADJUSTL(cp_to_string(nvec-i))
-              END IF
-              IF ((nvec-i+1) /= 0) THEN
-                filename2((LEN_TRIM(file_name)+1):(LEN(file_name))) = "-"//&
-                     ADJUSTL(cp_to_string(nvec-i+1))
-              END IF
-              IF ((nvec-i+1) > 1) THEN
-                CALL m_mov(filename1, filename2)
-              END IF
-            END DO
-            filename1 = file_name
-            filename2((LEN_TRIM(file_name)+1):(LEN(file_name))) = "-"//&
-                 ADJUSTL(cp_to_string(1))
-            CALL m_mov(filename1, filename2)
-          END IF
-       END IF
-
-       ! *** mixing methods need to undo mixing of the density matrix 
-       !     (restore original density) ***
-       IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
-           CALL scf_env_density_mixing(scf_env%p_mix_new,scf_env%mixing_method,&
-                                       scf_env%p_mix,scf_env%iter_delta,&
-                                       qs_env=qs_env,invert=.TRUE.,error=error)
-           DO ispin=1,dft_control%nspins
-              CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
-                                 rho%rho_ao(ispin)%matrix,error=error)
-           END DO
-       ENDIF
-
-       !   *** update rspace rho since the mo changed
-       !   *** this might not always be needed (i.e. no post calculation / no forces )
-       !   *** but guarantees that rho and wfn are consistent at this point
-       CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
-       CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
-
-       CALL cp_rm_iter_level(logger%iter_info,&
-                             n_rlevel_att=iter_level,&
-                             error=error)
-
        IF (.NOT. scf_control%outer_scf%have_scf) EXIT scf_outer_loop
 
-       scf_env%outer_scf%iter_count=scf_env%outer_scf%iter_count+1
-       outer_loop_converged=.FALSE.
-
-       CALL outer_loop_gradient(qs_env,scf_env,error)
-       outer_loop_eps=SQRT(SUM(scf_env%outer_scf%gradient(:,scf_env%outer_scf%iter_count)**2))/ &
-                           SIZE(scf_env%outer_scf%gradient,1)
-       IF (outer_loop_eps<scf_control%outer_scf%eps_scf) outer_loop_converged=.TRUE.
-
+       ! ** In case we use the OUTER SCF loop let's print some info..
        IF (output_unit>0) THEN
           WRITE(output_unit,'(/,T3,A,I4,A,F25.14)') &
-                            "outer SCF iter = ",scf_env%outer_scf%iter_count, &
-                            " energy = ",scf_env%outer_scf%energy(scf_env%outer_scf%iter_count)
+               "outer SCF iter = ",scf_env%outer_scf%iter_count, &
+               " energy = ",scf_env%outer_scf%energy(scf_env%outer_scf%iter_count)
           DO i=1,SIZE(scf_env%outer_scf%gradient(:,scf_env%outer_scf%iter_count))
-             WRITE(output_unit,'(T3,F25.14,F25.14)') scf_env%outer_scf%variables(i,scf_env%outer_scf%iter_count), &
-                                                     scf_env%outer_scf%gradient(i,scf_env%outer_scf%iter_count)
+             WRITE(output_unit,'(T3,F25.14,F25.14)') &
+                  scf_env%outer_scf%variables(i,scf_env%outer_scf%iter_count), &
+                  scf_env%outer_scf%gradient(i,scf_env%outer_scf%iter_count)
           ENDDO
        ENDIF
 
@@ -771,12 +719,11 @@ CONTAINS
        ENDIF
 
        CALL outer_loop_optimize(scf_env,scf_control,error)
-
        CALL outer_loop_update_qs_env(qs_env,scf_env,error)
-
        CALL qs_ks_did_change(ks_env,potential_changed=.TRUE.,error=error)
 
     END DO scf_outer_loop
+
     IF(qs_env%dft_control%qs_control%becke_constraint)THEN
        CALL pw_env_get(qs_env%pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
        CALL pw_pool_give_back_coeff(auxbas_pw_pool,&
@@ -1270,11 +1217,11 @@ END SUBROUTINE qs_scf_print_summary
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_scf_loop', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=80)                        :: msg
     INTEGER                                  :: handle, i, ispin, nmo, &
                                                 number_of_OT_envs, stat
-    LOGICAL                                  :: do_rotation, failure, &
-                                                has_unit_metric, dftb, semi
-    CHARACTER(LEN=80)                        :: msg
+    LOGICAL                                  :: dftb, do_rotation, failure, &
+                                                has_unit_metric, semi
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control

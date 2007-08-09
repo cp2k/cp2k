@@ -20,6 +20,11 @@
       &OT ON
         PRECONDITIONER NONE
       &END OT
+      &PRINT
+        &RESTART
+           FILENAME =RESTART
+        &END
+      &END
     &END SCF
   &END DFT
   &SUBSYS

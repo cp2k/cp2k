@@ -15,6 +15,11 @@
       EPS_SCF 1.0E-4
       MAX_SCF 3
       SCF_GUESS ATOMIC
+      &PRINT
+        &RESTART
+           FILENAME =RESTART
+        &END
+      &END
     &END SCF
     &XC
       &XC_FUNCTIONAL Pade

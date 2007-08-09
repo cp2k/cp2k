@@ -36,11 +36,11 @@ MODULE qs_initial_guess
                                              cp_sm_fm_multiply
   USE external_potential_types,        ONLY: all_potential_type,&
                                              gth_potential_type
-  USE input_constants,                 ONLY: no_guess,&
-                                             atomic_guess,&
+  USE input_constants,                 ONLY: atomic_guess,&
                                              core_guess,&
                                              densities_guess,&
                                              history_guess,&
+                                             no_guess,&
                                              random_guess,&
                                              restart_guess
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -125,8 +125,9 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: file_name, filename
     INTEGER :: atom_a, density_guess, group, handle, homo, i, iatom, id_nr, &
-      ikind, iset, isgf, isgfa, ishell, ispin, istat, la, maxl, maxll, nao, &
-      natom, ncount, nelectron, nmo, not_read, nset, nspin, nvec, qs_env_id
+      ikind, iset, isgf, isgfa, ishell, ispin, istat, j, la, last_read, maxl, &
+      maxll, nao, natom, ncount, nelectron, nmo, not_read, nset, nspin, nvec, &
+      qs_env_id
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf
     INTEGER, DIMENSION(:), POINTER           :: atom_list, elec_conf, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, l, last_sgfa
@@ -134,8 +135,8 @@ CONTAINS
                                                 ortho_basis
     REAL(KIND=dp)                            :: maxocc, nelec, paa, scale, &
                                                 total_rho, trps1, trps2
-    REAL(KIND=dp), DIMENSION(0:3)            :: edftb
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: econf, pdiag, sdiag
+    REAL(KIND=dp), DIMENSION(0:3)            :: edftb
     TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -209,7 +210,7 @@ CONTAINS
     ! in sync with read_mo_set_from_restart
     id_nr=0
     IF (density_guess == restart_guess) THEN
-        CALL section_vals_val_get(qs_env%input,"DFT%RESTART_FILE_NAME",&
+        CALL section_vals_val_get(qs_env%input,"DFT%WFN_RESTART_FILE_NAME",&
              c_val=file_name,error=error)
         INQUIRE(FILE=file_name,exist=exist)
         IF (.NOT. exist) THEN
@@ -226,30 +227,31 @@ CONTAINS
           END IF
         END IF
     ELSE IF (density_guess == history_guess) THEN
-       CALL section_vals_val_get(qs_env%input, "DFT%RESTART_FILE_NAME", &
+       CALL section_vals_val_get(qs_env%input, "DFT%WFN_RESTART_FILE_NAME", &
             c_val=file_name, error=error)
 
        nvec = qs_env%wf_history%memory_depth
        not_read = nvec+1
+       ! At this level we read the saved backup RESTART files..
        DO i=1,nvec
-         filename = file_name
-         filename((LEN_TRIM(file_name)+1):LEN(file_name)) = "-"//&
-              ADJUSTL(cp_to_string(i))
-         INQUIRE(FILE=filename,exist=exist)
-         IF ((.NOT. exist) .AND. (i < not_read)) THEN
-           not_read = i
-         END IF
+          j = i - 1
+          filename = TRIM(file_name)
+          IF (j/=0) filename = TRIM(file_name)//".bak-"//ADJUSTL(cp_to_string(j))
+          INQUIRE(FILE=filename,exist=exist)
+          IF ((.NOT. exist) .AND. (i < not_read)) THEN
+             not_read = i
+          END IF
        END DO
        IF (not_read == 1) THEN
-         ! Is RESTART present?
-         filename = file_name
-         filename((LEN_TRIM(filename)+1):(LEN(filename))) = "-"//&
-             ADJUSTL(cp_to_string(1))
-         INQUIRE(FILE=filename,exist=exist)
-         IF (.NOT. exist) THEN
-           density_guess = atomic_guess
-         END IF
+          ! Is RESTART present?
+          density_guess = restart_guess
+          filename = TRIM(file_name)
+          INQUIRE(FILE=filename,exist=exist)
+          IF (.NOT. exist) THEN
+             density_guess = atomic_guess
+          END IF
        END IF
+       last_read = not_read - 1
     END IF
 
     IF (density_guess == restart_guess) THEN
@@ -286,45 +288,41 @@ CONTAINS
 
     ELSE IF (density_guess == history_guess) THEN
        IF (not_read > 1) THEN
-         DO i=1,not_read-1
-           CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
-           CALL read_mo_set(mo_array,atomic_kind_set,particle_set,qs_env%para_env,&
-                id_nr=not_read-i,multiplicity=dft_control%multiplicity,dft_section=dft_section,error=error)
-
-           DO ispin=1,nspin
-             IF (scf_control%level_shift /= 0.0_dp) THEN
-               CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
-                               mo_coeff=mo_coeff)
-               CALL cp_fm_to_fm(mo_coeff,ortho,error=error)
-             END IF
-           
-             ! make all nmo vectors present orthonormal
-             CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
-                  mo_coeff=mo_coeff, nmo=nmo, homo=homo)
-
-             IF(ortho_basis) THEN
-               CALL make_basis_simple(mo_coeff,nmo,error=error)
-             ELSE
-               ! ortho so that one can restart for different positions (basis sets?)
-               CALL make_basis_sm(mo_coeff,homo,s_sparse(1)%matrix,error=error)
-             ENDIF
-             ! only alpha spin is kept for restricted
-             IF (dft_control%restricted) EXIT
-           END DO
-           IF (dft_control%restricted) CALL mo_set_restrict(mo_array,error=error)
-           DO ispin=1,nspin
-             CALL calculate_density_matrix(mo_array(ispin)%mo_set, &
-                                           p_rmpv(ispin)%matrix,error=error)
-           ENDDO
-
-           ! Write to extrapolation pipeline
-           CALL wfi_update(wf_history=qs_env%wf_history, qs_env=qs_env, dt=1.0_dp, error=error)
-         END DO
-
-         !CALL wfi_extrapolate(wf_history=qs_env%wf_history, qs_env=qs_env, dt=1.0_dp, &
-         !                     extrapolation_method_nr=extrapolation_method_nr, &
-         !                     orthogonal_wf=orthogonal_wf, error=error)
-
+          DO i=1, last_read
+             j = last_read -i
+             CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
+             CALL read_mo_set(mo_array,atomic_kind_set,particle_set,qs_env%para_env,&
+                  id_nr=j,multiplicity=dft_control%multiplicity,&
+                  dft_section=dft_section,error=error)
+          
+             DO ispin=1,nspin
+                IF (scf_control%level_shift /= 0.0_dp) THEN
+                   CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
+                                   mo_coeff=mo_coeff)
+                   CALL cp_fm_to_fm(mo_coeff,ortho,error=error)
+                END IF
+            
+                ! make all nmo vectors present orthonormal
+                CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff, nmo=nmo, homo=homo)
+          
+                IF(ortho_basis) THEN
+                   CALL make_basis_simple(mo_coeff,nmo,error=error)
+                ELSE
+                   ! ortho so that one can restart for different positions (basis sets?)
+                   CALL make_basis_sm(mo_coeff,homo,s_sparse(1)%matrix,error=error)
+                ENDIF
+                ! only alpha spin is kept for restricted
+                IF (dft_control%restricted) EXIT
+             END DO
+             IF (dft_control%restricted) CALL mo_set_restrict(mo_array,error=error)
+             DO ispin=1,nspin
+                CALL calculate_density_matrix(mo_array(ispin)%mo_set, &
+                                              p_rmpv(ispin)%matrix,error=error)
+             ENDDO
+          
+             ! Write to extrapolation pipeline
+             CALL wfi_update(wf_history=qs_env%wf_history, qs_env=qs_env, dt=1.0_dp, error=error)
+          END DO
        END IF
 
     ELSE IF (density_guess == random_guess) THEN

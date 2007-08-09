@@ -28,10 +28,11 @@ MODULE scf_control_types
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE input_constants,                 ONLY: &
-       no_guess, atomic_guess, core_guess, general_roks, high_spin_roks, &
-       outer_scf_ddapc_constraint, outer_scf_none, outer_scf_optimizer_diis, &
-       outer_scf_optimizer_none, outer_scf_becke, outer_scf_optimizer_sd, &
-       outer_scf_s2_constraint, outer_scf_optimizer_bisect
+       atomic_guess, core_guess, general_roks, high_spin_roks, &
+       outer_scf_becke, outer_scf_ddapc_constraint, outer_scf_none, &
+       outer_scf_optimizer_bisect, outer_scf_optimizer_diis, &
+       outer_scf_optimizer_none, outer_scf_optimizer_sd, &
+       outer_scf_s2_constraint
   USE input_cp2k_dft,                  ONLY: create_scf_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type
@@ -98,11 +99,6 @@ MODULE scf_control_types
 !!     - max_iter_lumus: maxumum number of iterations used to calculate
 !!       the lumos at the end of the scf
 !!     - max_scf: max scf iterations
-!!     - write_restart_each: after how many iterations a restart file
-!!       should be written if the convergence is not yet acheived
-!!       (<0 never, 0 only upon convergence)
-!!     - write_history_restart: indicates if history pipline should be
-!!                              written into files at each MD step.
 !!     - nrow_block: number of rows of a full matrix block
 !!     - ncol_block: number of of columns in a block of a full matrix
 !!     - id_nr: unique number to identify an scf control
@@ -137,9 +133,9 @@ MODULE scf_control_types
                              jacobi_threshold, gspace_mixing_a, gspace_mixing_b
     INTEGER               :: max_iter_lumos, max_diis
     INTEGER               :: max_scf,nrow_block,max_scf_hist,&
-                             ncol_block,maxl,nkind, write_restart_each
+                             ncol_block,maxl,nkind
     LOGICAL               :: gradient_functional,gth_potential_present,&
-                             use_cholesky,use_ot,write_history_restart
+                             use_cholesky,use_ot
     INTEGER               :: ref_count,id_nr
     INTEGER, DIMENSION(2) :: added_mos
     INTEGER                               :: roks_scheme
@@ -219,8 +215,6 @@ CONTAINS
       scf_control%id_nr=last_scf_c_id_nr
       scf_control%eps_jacobi = 0.0_dp
       scf_control%jacobi_threshold = 1.0E-7_dp
-      scf_control%write_restart_each=10
-      scf_control%write_history_restart=.FALSE.
       scf_control%added_mos=0
       scf_control%max_scf_hist = 0
       scf_control%gspace_mixing_a = 1.0_dp
@@ -461,10 +455,6 @@ CONTAINS
        CALL section_vals_val_get(scf_section,"work_syevx",&
             r_val=scf_control%work_syevx,error=error)
        scf_control%work_syevx = MIN(MAX(0.0_dp,scf_control%work_syevx),1.0_dp)
-       CALL section_vals_val_get(scf_section,"write_restart_each",&
-            i_val=scf_control%write_restart_each,error=error)
-       CALL section_vals_val_get(scf_section, "write_history_restart", &
-            l_val=scf_control%write_history_restart, error=error)
 
        ! Read ROKS parameters
 
@@ -624,7 +614,7 @@ CONTAINS
           CALL keyword_get(keyword,enum=enum,error=error)
 
           WRITE (UNIT=output_unit,&
-                 FMT="(/,/,T2,A,T25,A,T71,A10,/,T25,56('-'),4(/,T25,A,T76,I5),/,"//&
+                 FMT="(/,/,T2,A,T25,A,T71,A10,/,T25,56('-'),3(/,T25,A,T76,I5),/,"//&
                      "T25,56('-'),6(/,T25,A,T72,ES9.2),/,T25,56('-'),"//&
                      "6(/,T25,A,T76,F5.2),1(/,T25,A,T71,2I5))")&
             "SCF PARAMETERS",&
@@ -632,7 +622,6 @@ CONTAINS
             "max_scf:           ",scf_control%max_scf,&
             "max_scf_history:   ",scf_control%max_scf_hist,&
             "max_diis:          ",scf_control%max_diis,&
-            "write_restart_each:",scf_control%write_restart_each,&
             "eps_scf:           ",scf_control%eps_scf,&
             "eps_scf_history:   ",scf_control%eps_scf_hist,&
             "eps_diis:          ",scf_control%eps_diis,&

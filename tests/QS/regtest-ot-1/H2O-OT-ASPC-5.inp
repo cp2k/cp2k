@@ -16,7 +16,18 @@
       &OT ON
         MINIMIZER DIIS
       &END OT
-      WRITE_HISTORY_RESTART
+      &PRINT
+        &RESTART
+           FILENAME =SCF_RESTART
+           BACKUP_COPIES 0
+        &END
+        &RESTART_HISTORY
+           EACH 1 0
+           ADD_LAST NUMERIC
+           FILENAME =RESTART
+           BACKUP_COPIES 4
+        &END
+      &END
     &END SCF
     &XC
       &XC_FUNCTIONAL Pade

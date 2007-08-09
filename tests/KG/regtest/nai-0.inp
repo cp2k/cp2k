@@ -19,7 +19,12 @@
       MAX_DIIS 5
       MAX_SCF 300
       SCF_GUESS atomic
-      WRITE_RESTART_EACH 100
+      &PRINT
+        &RESTART
+           FILENAME =RESTART
+           EACH 1 100
+        &END
+      &END
     &END SCF
     &XC
       &XC_FUNCTIONAL

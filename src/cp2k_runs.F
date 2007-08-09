@@ -9,8 +9,10 @@ MODULE cp2k_runs
   USE cp_files,                        ONLY: close_file,&
                                              get_unit_number,&
                                              open_file
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                             cp_print_key_unit_nr
+  USE cp_output_handling,              ONLY: cp_add_iter_level,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr,&
+                                             cp_rm_iter_level
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release,&
                                              cp_para_env_retain
@@ -145,12 +147,12 @@ CONTAINS
 
     CHARACTER(LEN=512)                       :: matching_string(15), &
                                                 unknown_string
-    INTEGER :: f_env_handle, i, ierr, matching_rank(15), method_name_id, &
-      new_env_id, prog_name_id, run_type_id, unit_nr
+    INTEGER :: f_env_handle, i, ierr, iter_level, matching_rank(15), &
+      method_name_id, new_env_id, prog_name_id, run_type_id, unit_nr
     LOGICAL                                  :: echo_input, failure, &
                                                 I_was_ionode, was_present
     TYPE(cp_error_type)                      :: error, suberror
-    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_logger_type), POINTER            :: logger, sublogger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(force_env_type), POINTER            :: force_env
@@ -300,8 +302,13 @@ CONTAINS
 
                   CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                   "Energy/Force run not available for all methods "//&
-                   CPSourceFileRef,&
+                  CPSourceFileRef,&
                   suberror,failure)
+
+             sublogger => cp_error_get_logger(error)
+             CALL cp_add_iter_level(sublogger%iter_info,"JUST_ENERGY",&
+                  n_rlevel_new=iter_level,&
+                  error=suberror)             
              SELECT CASE(globenv%run_type_id)
              CASE (energy_run)
                 CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,error=suberror)
@@ -310,7 +317,9 @@ CONTAINS
              CASE default
                 CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
              END SELECT
-
+             CALL cp_rm_iter_level(sublogger%iter_info,&
+                  n_rlevel_att=iter_level,&
+                  error=suberror)
           CASE (mol_dyn_run)
              CALL qs_mol_dyn ( force_env, globenv, error=suberror )
           CASE (geo_opt_run)

@@ -5,7 +5,6 @@
     CHARGE +1
     BASIS_SET_FILE_NAME ../EMSL_BASIS_SETS
     POTENTIAL_FILE_NAME ../POTENTIAL
-    RESTART_FILE_NAME H2-pbe.restart
     &MGRID
       CUTOFF 250
       REL_CUTOFF 50
@@ -21,8 +20,12 @@
       EPS_SCF 1.0E-6
       SCF_GUESS ATOMIC
       MAX_SCF 10
+      &PRINT
+        &RESTART
+           FILENAME =H2-pbe.restart
+        &END
+      &END
     &END SCF
-#These are the coefficients used for PBE0
     &XC
       &XC_FUNCTIONAL PBE
       &END XC_FUNCTIONAL

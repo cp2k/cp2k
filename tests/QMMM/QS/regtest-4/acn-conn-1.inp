@@ -16,10 +16,15 @@
       MAP_CONSISTENT
     &END QS
     &SCF
-      WRITE_RESTART_EACH 0
       SCF_GUESS ATOMIC
       MAX_SCF 2
       EPS_SCF 1.0E-6
+      &PRINT 
+         &RESTART
+            EACH 1 0
+            COMMON_ITERATION_LEVELS 0
+         &END
+      &END
     &END SCF
     &XC
       &XC_FUNCTIONAL PADE

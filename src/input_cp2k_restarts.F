@@ -192,7 +192,7 @@ CONTAINS
               motion_section,keys(ikey),error=error),cp_p_file)) THEN
 
               ires = cp_print_key_unit_nr(logger,motion_section,TRIM(keys(ikey)),&
-                        extension=".restart",  do_backup=.TRUE., &
+                        extension=".restart",  do_backup=(ikey==2), &
                         error=error)
 
               IF (ires>0) THEN
@@ -2052,7 +2052,7 @@ CONTAINS
 
     INTEGER                                  :: handle, ik, irk, Nlist, &
                                                 nloop, stat
-    LOGICAL                                  :: failure, check
+    LOGICAL                                  :: check, failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: vel
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
     TYPE(section_type), POINTER              :: section

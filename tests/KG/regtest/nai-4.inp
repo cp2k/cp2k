@@ -20,7 +20,12 @@
       MAX_DIIS 5
       MAX_SCF 300
       SCF_GUESS atomic
-      WRITE_RESTART_EACH 100
+      &PRINT
+        &RESTART
+           FILENAME =RESTART
+           EACH 1 100
+        &END
+      &END
     &END SCF
     &XC
       &XC_FUNCTIONAL
@@ -91,7 +96,7 @@
   &END MD
 &END MOTION
 &EXT_RESTART
-   EXTERNAL_FILE nai.restart
+   EXTERNAL_FILE nai-1.restart
    RESTART_BAROSTAT F
    RESTART_BAROSTAT_NOSE F
    RESTART_CELL F

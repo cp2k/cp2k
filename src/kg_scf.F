@@ -45,8 +45,7 @@ MODULE kg_scf
                                              random_guess,&
                                              restart_guess
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_type
   USE kahan_sum,                       ONLY: accurate_sum
   USE kg_diis_methods,                 ONLY: kg_diis_b_clear,&
                                              kg_diis_b_create,&
@@ -323,8 +322,8 @@ CONTAINS
 
     INTEGER :: handle, handle2, i, ib, imol, ispin, istat, iw, jb, nb, nb1, &
       nelectron_global, nmolecule_global, nmolecule_kind, output_unit
-    LOGICAL :: diis_step, do_level_shift, do_overlap, energy_only, failure, &
-      id_equal, ionode, should_stop, use_cholesky, use_jacobi
+    LOGICAL :: diis_step, do_level_shift, energy_only, failure, id_equal, &
+      ionode, should_stop, use_cholesky, use_jacobi
     REAL(dp)                                 :: diis_error, t1, t2
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: orthonormality
     REAL(dp), DIMENSION(:), POINTER          :: diis_ev_global
@@ -671,11 +670,8 @@ CONTAINS
        END IF
 
 !   *** Write restart file ***
-       IF (scf_control%write_restart_each>0.AND.&
-            MODULO(scf_env%iter_count,scf_control%write_restart_each)==0) THEN
-          CALL write_mo_mol_restart(kg_fm,para_env,nspins=dft_control%nspins,id_nr=1,&
-               force_env_section=kg_env%input,error=error)
-       END IF
+       CALL write_mo_mol_restart(kg_fm,para_env,nspins=dft_control%nspins,id_nr=1,&
+            force_env_section=kg_env%input,error=error)
 
        IF (BTEST(cp_print_key_should_output(logger%iter_info,&
          scf_section,"PRINT%ITERATION_INFO/TIME_CUMUL",error=error),cp_p_file)) t1 = m_walltime()
@@ -724,10 +720,8 @@ CONTAINS
     END IF
 
 !   *** Write restart file ***
-    IF (scf_control%write_restart_each>=0) THEN
-       CALL write_mo_mol_restart(kg_fm,para_env,nspins=dft_control%nspins,id_nr=1,&
-            force_env_section=kg_env%input,error=error)
-    END IF
+    CALL write_mo_mol_restart(kg_fm,para_env,nspins=dft_control%nspins,id_nr=1,&
+         force_env_section=kg_env%input,error=error)
 
     ! Retrieve the last kg_fm_set
     CALL get_kg_env(kg_env=kg_env, kg_fm_set=kg_fm,error=error)

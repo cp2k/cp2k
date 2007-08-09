@@ -975,11 +975,12 @@ FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension,&
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_unit_nr', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_path_length)       :: filename, filename_bak
+    CHARACTER(len=default_path_length)       :: filename, filename_bak, &
+                                                filename_bak_1, filename_bak_2
     CHARACTER(len=default_string_length)     :: my_file_action, my_file_form, &
                                                 my_file_position, &
                                                 my_file_status, outPath
-    INTEGER, SAVE                            :: ibak = 0
+    INTEGER                                  :: i, nbak
     LOGICAL                                  :: failure, found, my_do_backup, &
                                                 my_local, my_on_file, &
                                                 my_should_output
@@ -1038,15 +1039,19 @@ FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension,&
            IF (my_do_backup) THEN
               INQUIRE(FILE=filename,EXIST=found)
               IF (found) THEN
-                 !
-                 ! try cycling through more than 1 bak file to avoid corruption
-                 ! if the original happens to be corrupted
-                 ! the current scheme is a bit of a hack, since it always starts from 0
-                 ! and the ibak is incremented for any backup being made
-                 !
-                 ibak=ibak+1
-                 filename_bak=TRIM(filename)//".bak-"//ADJUSTL(cp_to_string(1+MODULO(ibak,3)))
-                 CALL m_mov(TRIM(filename), TRIM(filename_bak))
+                 CALL section_vals_val_get(print_key,"BACKUP_COPIES",i_val=nbak,error=error)
+                 print_key%ibak=print_key%ibak+1
+                 ! Recent backup copies correspond to lower backup indexes
+                 DO i = MIN(nbak,print_key%ibak), 2, -1
+                   filename_bak_1=TRIM(filename)//".bak-"//ADJUSTL(cp_to_string(i))
+                   filename_bak_2=TRIM(filename)//".bak-"//ADJUSTL(cp_to_string(i-1))
+                   CALL m_mov(TRIM(filename_bak_2), TRIM(filename_bak_1))
+                 END DO
+                 IF (nbak/=0) THEN
+                    ! The last backup is always the one with index 1
+                    filename_bak=TRIM(filename)//".bak-"//ADJUSTL(cp_to_string(1))
+                    CALL m_mov(TRIM(filename), TRIM(filename_bak))
+                 END IF
               END IF
            END IF
            CALL open_file(file_name=filename,file_status=my_file_status,&

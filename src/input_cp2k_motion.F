@@ -315,6 +315,14 @@ CONTAINS
                         "See also RESTART_HISTORY", &
             print_level=silent_print_level, common_iter_levels=1,&
             filename="",error=error)
+
+       CALL keyword_create(keyword, name="BACKUP_COPIES",&
+             description="Specifies the maximum index of backup copies.",&
+             usage="BACKUP_COPIES {int}",&
+             default_i_val=3, error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -3535,6 +3543,13 @@ SUBROUTINE create_pint_section(section,error)
             description="Controls how often a restart is written", &
             print_level=low_print_level,each=(/20/),add_last=(/1/),&
             error=error)
+       CALL keyword_create(keyword, name="BACKUP_COPIES",&
+             description="Specifies the maximum index of backup copies.",&
+             usage="BACKUP_COPIES {int}",&
+             default_i_val=3, error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)        
 

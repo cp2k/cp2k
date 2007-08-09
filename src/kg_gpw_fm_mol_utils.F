@@ -26,6 +26,10 @@ MODULE kg_gpw_fm_mol_utils
 
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
@@ -37,8 +41,7 @@ MODULE kg_gpw_fm_mol_utils
                                              kg_fm_p_type,&
                                              mol_mo_set_p_type,&
                                              mol_mo_set_type
-  USE kinds,                           ONLY: default_path_length,&
-                                             dp,&
+  USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
   USE memory_utilities,                ONLY: reallocate
@@ -770,16 +773,17 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_mol_restart', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=30), DIMENSION(2) :: keys = (/&
+      "DFT%SCF%PRINT%RESTART_HISTORY","DFT%SCF%PRINT%RESTART        "/)
     CHARACTER(LEN=6)                         :: method
-    CHARACTER(LEN=default_path_length)       :: file_name
-    INTEGER :: group, handle, imo, imol_found, imol_global, imol_local, &
-      imol_proc, imolecule_kind, ispin, istat, n_ao, n_mo(2), nao_max, &
+    INTEGER :: group, handle, ikey, imo, imol_found, imol_global, imol_local, &
+      imol_proc, imolecule_kind, ires, ispin, istat, n_ao, n_mo(2), nao_max, &
       nelectron_global, nelectron_spin(2), nmo_max, nmolecule_global, &
-      nmolecule_kind, nmolecule_local, output_unit, restart_unit, source
+      nmolecule_kind, nmolecule_local, output_unit, source
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nao_molkind, natom_molkind, &
                                                 nmol_molkind
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: nel_molkind
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: failure
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: eig_buffer, occ_buffer
     REAL(dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: mo_buffer
@@ -795,181 +799,165 @@ CONTAINS
       POINTER                                :: mos
     TYPE(mol_mo_set_type), POINTER           :: mo_set
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,"I","",handle)
-
     failure = .FALSE.
-
     group = para_env%group
     source = para_env%source
     logger=>cp_error_get_logger(error)
-    ionode = para_env%ionode
-    IF(ionode) THEN
-       output_unit=cp_logger_get_default_unit_nr(logger)
-    ELSE
-       output_unit = -1
-    END IF
+    
+   IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+           force_env_section,keys(1),error=error),cp_p_file) .OR.  &
+        BTEST(cp_print_key_should_output(logger%iter_info,&
+           force_env_section,keys(2),error=error),cp_p_file) ) THEN
 
-    method ="KG_GPW"
-    nmolecule_kind = SIZE(kg_fm%kg_fm_mol_set)
-    nmolecule_global = kg_fm%nmolecule_global
-    nelectron_global = kg_fm%nelectron_global
-    nao_max = kg_fm%nao_max
-    nmo_max = kg_fm%nmo_max
+      method ="KG_GPW"
+      nmolecule_kind = SIZE(kg_fm%kg_fm_mol_set)
+      nmolecule_global = kg_fm%nmolecule_global
+      nelectron_global = kg_fm%nelectron_global
+      nao_max = kg_fm%nao_max
+      nmo_max = kg_fm%nmo_max
 
-    IF (para_env%ionode) THEN
+      DO ikey=1,SIZE(keys)
 
-       CALL section_vals_val_get(force_env_section,"DFT%RESTART_FILE_NAME",&
-            c_val=file_name,error=error)
-      IF (id_nr/=1) THEN
-        file_name(LEN_TRIM(file_name):LEN(file_name)) = "-"//&
-                    ADJUSTL(cp_to_string(id_nr))
-      END IF
+         IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+              force_env_section,keys(ikey),error=error),cp_p_file)) THEN
 
-      CALL open_file(file_name=file_name,&
-                     file_action="WRITE",&
-                     file_form="UNFORMATTED",&
-                     file_status="REPLACE",&
-                     unit_number=restart_unit)
+            ires = cp_print_key_unit_nr(logger,force_env_section,keys(ikey),&
+                 extension=".wfn", file_status="REPLACE", file_action="WRITE",&
+                 do_backup=.TRUE., file_form="UNFORMATTED", error=error)
+    
+            IF (ires>0) THEN
 
-!     *** create some info about the molecules ***
+               !     *** create some info about the molecules ***
+               ALLOCATE(nmol_molkind(nmolecule_kind),STAT=istat)
+               CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+               ALLOCATE(nao_molkind(nmolecule_kind),STAT=istat)
+               CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+               ALLOCATE(natom_molkind(nmolecule_kind),STAT=istat)
+               CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+               ALLOCATE(nel_molkind(2,nmolecule_kind),STAT=istat)
+               CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+               
+               DO imolecule_kind = 1,nmolecule_kind
+                  NULLIFY(fm_mol_set)
+                  fm_mol_set => kg_fm%kg_fm_mol_set(imolecule_kind)
+                  CALL  get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_set,&
+                                          nmol_kind_global=nmol_molkind(imolecule_kind),&
+                                          n_ao = nao_molkind(imolecule_kind),&
+                                          natom = natom_molkind(imolecule_kind), &
+                                          nelectron_spin=nel_molkind(1:2,imolecule_kind) )
+               END DO
 
+               WRITE (ires) method, nmolecule_kind, nmolecule_global, nelectron_global, nspins
+               WRITE (ires) nmol_molkind
+               WRITE (ires) nao_molkind
+               WRITE (ires) natom_molkind
+               WRITE (ires) nel_molkind(1,1:nmolecule_kind)
+               WRITE (ires) nel_molkind(2,1:nmolecule_kind)
+               
+               DEALLOCATE(nmol_molkind,STAT=istat)
+               CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+               DEALLOCATE(nao_molkind,STAT=istat)
+               CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+               DEALLOCATE(natom_molkind,STAT=istat)
+               CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+               DEALLOCATE(nel_molkind,STAT=istat)
+               CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            END IF
 
-      ALLOCATE(nmol_molkind(nmolecule_kind),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE(nao_molkind(nmolecule_kind),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE(natom_molkind(nmolecule_kind),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE(nel_molkind(2,nmolecule_kind),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            ! The following is done by all the processor
+            ! The MOs etc are communicated to all the processor, one molecule at a time
 
-      DO imolecule_kind = 1,nmolecule_kind
-        NULLIFY(fm_mol_set)
-        fm_mol_set => kg_fm%kg_fm_mol_set(imolecule_kind)
-        CALL  get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_set,&
-                                nmol_kind_global=nmol_molkind(imolecule_kind),&
-                                n_ao = nao_molkind(imolecule_kind),&
-                                natom = natom_molkind(imolecule_kind), &
-                                nelectron_spin=nel_molkind(1:2,imolecule_kind) )
-      END DO
+            ALLOCATE(mo_buffer(nao_max,nmo_max,nspins),STAT=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            ALLOCATE(eig_buffer(nmo_max,nspins),STAT=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            ALLOCATE(occ_buffer(nmo_max,nspins),STAT=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-      WRITE (restart_unit) method, nmolecule_kind, nmolecule_global, nelectron_global, nspins
-      WRITE (restart_unit) nmol_molkind
-      WRITE (restart_unit) nao_molkind
-      WRITE (restart_unit) natom_molkind
-      WRITE (restart_unit) nel_molkind(1,1:nmolecule_kind)
-      WRITE (restart_unit) nel_molkind(2,1:nmolecule_kind)
+            DO imol_global = 1,nmolecule_global
+               imol_found = 0
+               imol_proc = -1
+               CALL dcopy(nao_max*nmo_max*nspins,0.0_dp,0,mo_buffer(1,1,1),1)
+               CALL dcopy(nmo_max*nspins,0.0_dp,0,eig_buffer(1,1),1)
+               CALL dcopy(nmo_max*nspins,0.0_dp,0,occ_buffer(1,1),1)
+               DO imolecule_kind = 1,nmolecule_kind
+                  NULLIFY(fm_mol_set,mol_blocks,mos, mo_set)
+                  NULLIFY(mo,eigenvalues,occupation_numbers)
+                  fm_mol_set => kg_fm%kg_fm_mol_set(imolecule_kind)
+                  CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_set,  &
+                       nmolecule_local = nmolecule_local,&
+                       n_ao=n_ao, n_mo=n_mo,nelectron_spin=nelectron_spin,&
+                       fm_mol_blocks=mol_blocks)
+                  DO imol_local = 1,nmolecule_local
+                     mol_block => mol_blocks(imol_local)
+                     IF(imol_global == mol_block%imol_global) THEN
+                        ! Molecule found, now retrieve the MO etc
+                        ! fill mo_buffer, eig_buffer, occ_buffer one spin at a time
+                        ! write them down in the restart
+                        ! and ciaociao
+                        imol_found = 1
+                        imol_proc = para_env%mepos
+                        CALL get_fm_mol_block(fm_mol_block=mol_block, mos = mos)
+                        DO ispin = 1,nspins
+                           mo_set => mos(ispin)%mo_set
+                           CALL get_mol_mo_set(mo_set=mo_set,mo=mo,eigenvalues=eigenvalues,&
+                                occupation_numbers=occupation_numbers)
 
-      DEALLOCATE(nmol_molkind,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      DEALLOCATE(nao_molkind,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      DEALLOCATE(natom_molkind,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      DEALLOCATE(nel_molkind,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+                           DO imo = 1 , n_mo(ispin)
+                              CALL DCOPY(n_ao,mo(1,imo),1,mo_buffer(1,imo,ispin),1)
+                              eig_buffer(imo,ispin) = eigenvalues(imo)
+                              occ_buffer(imo,ispin) = occupation_numbers(imo)
+                           END DO
+                        END DO
+                     END IF
+                  END DO  ! imol_local
+               END DO  ! imolecule_kind
 
-    END IF  ! ionode
+               CALL mp_sum(imol_found,group)
 
-    ! The following is done by all the processor
-    ! The MOs etc are communicated to all the processor, one molecule at a time
+               IF(imol_found==0 ) THEN
+                  IF(output_unit>0) &
+                       WRITE(output_unit,*) " WRITE RESTART : ", imol_global, " MOLECULE NOT FOUND ON ANY PROC. "
+                  CALL stop_program (routineP,"Error ")
+               ELSEIF(imol_found >=2 ) THEN
+                  IF(output_unit>0) &
+                       WRITE(output_unit,*) " WRITE RESTART : ", imol_global, " ON MORE THAN ONE PROC. "
+                  CALL stop_program (routineP,"Error ")
+               ELSE
+                  CALL mp_sum(mo_buffer,group)
+                  CALL mp_sum(eig_buffer,group)
+                  CALL mp_sum(occ_buffer,group)
+                  DO ispin = 1,nspins
+                     IF((ires>0).AND.(n_mo(ispin)>0)) THEN
+                        WRITE (ires) imol_global , ispin
+                        WRITE (ires) n_mo(ispin),n_ao,nelectron_spin(ispin)
+                        WRITE (ires) eig_buffer(1:n_mo(ispin),ispin)
+                        WRITE (ires) occ_buffer(1:n_mo(ispin),ispin)
+                        DO imo = 1,n_mo(ispin)
+                           WRITE (ires) mo_buffer(1:n_ao,imo,ispin)
+                        END DO
+                     END IF
+                  END DO
+               END IF
+            END DO ! imol_global
 
-    ALLOCATE(mo_buffer(nao_max,nmo_max,nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(eig_buffer(nmo_max,nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(occ_buffer(nmo_max,nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            DEALLOCATE(mo_buffer,STAT=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            DEALLOCATE(eig_buffer,STAT=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            DEALLOCATE(occ_buffer,STAT=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    DO imol_global = 1,nmolecule_global
-      imol_found = 0
-      imol_proc = -1
-      CALL dcopy(nao_max*nmo_max*nspins,0.0_dp,0,mo_buffer(1,1,1),1)
-      CALL dcopy(nmo_max*nspins,0.0_dp,0,eig_buffer(1,1),1)
-      CALL dcopy(nmo_max*nspins,0.0_dp,0,occ_buffer(1,1),1)
-      DO imolecule_kind = 1,nmolecule_kind
-        NULLIFY(fm_mol_set,mol_blocks,mos, mo_set)
-        NULLIFY(mo,eigenvalues,occupation_numbers)
-        fm_mol_set => kg_fm%kg_fm_mol_set(imolecule_kind)
-        CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_set,  &
-                               nmolecule_local = nmolecule_local,&
-                               n_ao=n_ao, n_mo=n_mo,nelectron_spin=nelectron_spin,&
-                               fm_mol_blocks=mol_blocks)
-        DO imol_local = 1,nmolecule_local
-           mol_block => mol_blocks(imol_local)
-           IF(imol_global == mol_block%imol_global) THEN
-             ! Molecule found, now retrieve the MO etc
-             ! fill mo_buffer, eig_buffer, occ_buffer one spin at a time
-             ! write them down in the restart
-             ! and ciaociao
-             imol_found = 1
-             imol_proc = para_env%mepos
-             CALL get_fm_mol_block(fm_mol_block=mol_block, mos = mos)
-             DO ispin = 1,nspins
-                mo_set => mos(ispin)%mo_set
-                CALL get_mol_mo_set(mo_set=mo_set,mo=mo,eigenvalues=eigenvalues,&
-                                    occupation_numbers=occupation_numbers)
-
-                DO imo = 1 , n_mo(ispin)
-                  CALL DCOPY(n_ao,mo(1,imo),1,mo_buffer(1,imo,ispin),1)
-                  eig_buffer(imo,ispin) = eigenvalues(imo)
-                  occ_buffer(imo,ispin) = occupation_numbers(imo)
-                END DO
-             END DO
-           END IF
-
-        END DO  ! imol_local
-
-      END DO  ! imolecule_kind
-
-      CALL mp_sum(imol_found,group)
-
-      IF(imol_found==0 ) THEN
-        IF(output_unit>0) &
-           WRITE(output_unit,*) " WRITE RESTART : ", imol_global, " MOLECULE NOT FOUND ON ANY PROC. "
-        CALL stop_program (routineP,"Error ")
-      ELSEIF(imol_found >=2 ) THEN
-        IF(output_unit>0) &
-             WRITE(output_unit,*) " WRITE RESTART : ", imol_global, " ON MORE THAN ONE PROC. "
-        CALL stop_program (routineP,"Error ")
-      ELSE
-
-        CALL mp_sum(mo_buffer,group)
-        CALL mp_sum(eig_buffer,group)
-        CALL mp_sum(occ_buffer,group)
-
-        DO ispin = 1,nspins
-         IF(para_env%ionode.AND.(n_mo(ispin)>0)) THEN
-           WRITE (restart_unit) imol_global , ispin
-           WRITE (restart_unit) n_mo(ispin),n_ao,&
-                                nelectron_spin(ispin)
-           WRITE (restart_unit) eig_buffer(1:n_mo(ispin),ispin)
-           WRITE (restart_unit) occ_buffer(1:n_mo(ispin),ispin)
-           DO imo = 1,n_mo(ispin)
-             WRITE (restart_unit) mo_buffer(1:n_ao,imo,ispin)
-          END DO
-
+            CALL cp_print_key_finished_output(ires,logger,force_env_section,&
+                 TRIM(keys(ikey)), error=error)
          END IF
-        END DO
-
-      END IF
-
-    END DO ! imol_global
-
-    DEALLOCATE(mo_buffer,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(eig_buffer,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(occ_buffer,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-    IF (para_env%ionode) CALL close_file(unit_number=restart_unit)
-
-    CALL timestop(0.0_dp,handle)
-
-  END SUBROUTINE write_mo_mol_restart
+      END DO
+   END IF
+      
+   CALL timestop(0.0_dp,handle)
+   
+ END SUBROUTINE write_mo_mol_restart
 
 !***************************************************************************
 !!****f* kg_gpw_fm_mol_utils/read_mo_mol_restart
@@ -1060,7 +1048,7 @@ CONTAINS
 
     IF (para_env%ionode) THEN
 
-      CALL section_vals_val_get(force_env_section,"DFT%RESTART_FILE_NAME",&
+      CALL section_vals_val_get(force_env_section,"DFT%WFN_RESTART_FILE_NAME",&
             c_val=file_name,error=error)
       IF (id_nr/=1) THEN
         file_name(LEN_TRIM(file_name):LEN(file_name)) = "-"//&

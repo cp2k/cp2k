@@ -38,7 +38,9 @@ MODULE xas_restart
   USE cp_fm_types,                     ONLY: cp_fm_set_all,&
                                              cp_fm_set_submatrix,&
                                              cp_fm_type
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_path_length,&
@@ -53,7 +55,7 @@ MODULE xas_restart
                                              make_basis_sm
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
-                                             write_mo_set
+                                             write_mo_set_low
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
@@ -482,10 +484,10 @@ CONTAINS
 
   !*****************************************************************************
 
-  SUBROUTINE xas_write_restart(xas_control,xas_section,qs_env,iatom,error)
+  SUBROUTINE xas_write_restart(xas_control,xas_section,scf_section,qs_env,iatom,error)
 
     TYPE(xas_control_type)                   :: xas_control
-    TYPE(section_vals_type), POINTER         :: xas_section
+    TYPE(section_vals_type), POINTER         :: xas_section, scf_section
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: iatom
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -494,8 +496,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: filename
-    INTEGER                                  :: group, handle, ia, ie, &
-                                                output_unit, rst_unit, source
+    INTEGER                                  :: handle, ia, ie, output_unit, &
+                                                rst_unit, source
     LOGICAL                                  :: failure, ionode
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -504,57 +506,45 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,"I","",handle)
-
     failure = .FALSE.
-
-    NULLIFY(mos,para_env,particle_set)
-    NULLIFY(logger)
+    NULLIFY(mos,para_env,particle_set,logger)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
-    output_unit = -1
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+         scf_section,"PRINT%RESTART",error=error),cp_p_file)) THEN
 
-
-    output_unit = cp_print_key_unit_nr(logger,xas_section,&
-         "PRINT%PROGRAM_RUN_INFO",&
-         extension=".Log",error=error)
-
-    CALL get_qs_env( qs_env=qs_env, mos=mos, &
-         para_env=para_env, particle_set=particle_set ,error=error)
-    group = para_env%group
-    source = para_env%source
-
-    ! open file
-    IF(ionode) THEN
-      ! check if the restart file exists
-      CALL xstring (xas_control%xas_rootfname, ia, ie )
-      filename = xas_control%xas_rootfname(ia:ie)//'_at'//&
-                 TRIM(ADJUSTL(cp_to_string(iatom)))//'.rst'
-
-      CALL open_file(file_name=TRIM(filename),&
-                     file_action="WRITE",&
-                     file_form="UNFORMATTED",&
-                     file_status="REPLACE",&
-                     unit_number=rst_unit)
-      IF(output_unit>0) THEN
-         WRITE (UNIT=output_unit,FMT="(/,T10,A,I5,A,A,/)")&
-             "Xas orbitals  for the absorbing atom ", iatom,&
-             " are written in ", filename
-
-      END IF
+       output_unit = cp_print_key_unit_nr(logger,xas_section,&
+            "PRINT%PROGRAM_RUN_INFO",extension=".Log",error=error)
+       
+       CALL get_qs_env( qs_env=qs_env, mos=mos, &
+            para_env=para_env, particle_set=particle_set ,error=error)
+       
+       ! Open file
+       rst_unit = -1
+       IF(ionode) THEN
+          ! Check if the restart file exists
+          CALL xstring (xas_control%xas_rootfname, ia, ie )
+          filename = xas_control%xas_rootfname(ia:ie)//'_at'//&
+               TRIM(ADJUSTL(cp_to_string(iatom)))//'.rst'
+          
+          CALL open_file(file_name=TRIM(filename),&
+               file_action="WRITE",&
+               file_form="UNFORMATTED",&
+               file_status="REPLACE",&
+               unit_number=rst_unit)
+          IF(output_unit>0) THEN
+             WRITE (UNIT=output_unit,FMT="(/,T10,A,I5,A,A,/)")&
+                  "Xas orbitals  for the absorbing atom ", iatom,&
+                  " are written in ", filename
+             
+          END IF
+       END IF
+       ! Write mos
+       CALL write_mo_set_low(mos, particle_set, para_env, rst_unit, error)
+       ! Close file
+       IF(ionode)  CALL close_file(unit_number=rst_unit)
     END IF
-
-    ! write mos
-    CALL write_mo_set(mos, particle_set,&
-                         para_env, rst_unit=rst_unit, error=error)
-
-    ! close file
-    IF(ionode) THEN
-      CALL close_file(unit_number=rst_unit)
-    END IF
-
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE xas_write_restart

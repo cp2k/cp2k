@@ -51,6 +51,9 @@
       &PRINT
         &TOTAL_DENSITIES MEDIUM
         &END
+        &RESTART
+           FILENAME =RESTART
+        &END
       &END
     &END SCF
    &POISSON

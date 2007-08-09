@@ -19,6 +19,11 @@
         LINESEARCH 3PNT
         ROTATION
       &END OT
+      &PRINT
+        &RESTART
+           FILENAME =RESTART
+        &END
+      &END
     &END SCF
     &XC
       &XC_FUNCTIONAL Pade

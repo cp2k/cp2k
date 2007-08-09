@@ -62,9 +62,9 @@ MODULE qs_mo_types
   USE orbital_pointers,                ONLY: indco,&
                                              nco,&
                                              nso
-  USE orbital_transformation_matrices, ONLY: orbtramat
-  USE orbital_symbols,                 ONLY: cgf_symbol, &
+  USE orbital_symbols,                 ONLY: cgf_symbol,&
                                              sgf_symbol
+  USE orbital_transformation_matrices, ONLY: orbtramat
   USE output_utilities,                ONLY: print_warning
   USE particle_types,                  ONLY: particle_type
   USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
@@ -123,6 +123,7 @@ MODULE qs_mo_types
             set_mo_occupation,&
             set_mo_set, &
             write_mo_set, &
+            write_mo_set_low,&
             mo_set_restrict
 
 ! *****************************************************************************
@@ -594,195 +595,209 @@ CONTAINS
   END SUBROUTINE set_mo_set
 
 ! *****************************************************************************
-  SUBROUTINE write_mo_set_to_restart(mo_array,particle_set,&
-                                     para_env,id_nr, dft_section, rst_unit,error)
+  SUBROUTINE write_mo_set_to_restart(mo_array, particle_set, para_env, dft_section, error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cp_para_env_type), POINTER          :: para_env
-    INTEGER, INTENT(in), OPTIONAL            :: id_nr
-    TYPE(section_vals_type), OPTIONAL, &
-      POINTER                                :: dft_section
-    INTEGER, INTENT(in), OPTIONAL            :: rst_unit
+    TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_set_to_restart', &
       routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
 
-    CHARACTER(LEN=default_path_length)       :: file_name
-    INTEGER :: handle, i, i_block, iatom, iset, ishell, ispin, istat, j, &
-      lshell, max_block, nao, natom, nmo, nset, nset_max, nshell_max, nspin, &
-      restart_unit, lmax
-    INTEGER, DIMENSION(:), POINTER           :: nset_info, nshell
-    INTEGER, DIMENSION(:, :), POINTER        :: l, nshell_info
-    INTEGER, DIMENSION(:, :, :), POINTER     :: nso_info
-    LOGICAL                                  :: ionode
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
+    CHARACTER(LEN=30), DIMENSION(2) :: &
+      keys = (/"SCF%PRINT%RESTART_HISTORY","SCF%PRINT%RESTART        "/)
+    INTEGER                                  :: handle, i, ikey, ires
+    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-    TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
-
-!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
-
-    nspin = SIZE(mo_array)
-
-    nao = mo_array(1)%mo_set%nao
+    failure = .FALSE.
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
 
-    IF (para_env%ionode) THEN
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+         dft_section,keys(1),error=error),cp_p_file) .OR.  &
+         BTEST(cp_print_key_should_output(logger%iter_info,&
+         dft_section,keys(2),error=error),cp_p_file) ) THEN
 
-      IF(PRESENT(dft_section)) THEN
-        CALL section_vals_val_get(dft_section,"RESTART_FILE_NAME",&
-             c_val=file_name,error=error)
-        IF (id_nr/=0) THEN
-           file_name(LEN_TRIM(file_name):LEN(file_name)) = "-"//&
-                ADJUSTL(cp_to_string(id_nr))
-        END IF
+       DO ikey=1,SIZE(keys)
 
-        CALL open_file(file_name=file_name,&
-             file_action="WRITE",&
-             file_form="UNFORMATTED",&
-             file_status="REPLACE",&
-             unit_number=restart_unit)
-      ELSEIF (PRESENT(rst_unit)) THEN
-         restart_unit = rst_unit
-      ELSE
-         CALL stop_program(routine,"not known restart file-unit")
-      END IF
+          IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+               dft_section,keys(ikey),error=error),cp_p_file)) THEN
+             
+             ires = cp_print_key_unit_nr(logger,dft_section,keys(ikey),&
+                  extension=".wfn", file_status="REPLACE", file_action="WRITE",&
+                  do_backup=.TRUE., file_form="UNFORMATTED", error=error)
 
-!     *** create some info about the basis set first ***
-      natom = SIZE(particle_set,1)
-      nset_max = 0
-      nshell_max = 0
-
-      DO iatom=1,natom
-        NULLIFY(orb_basis_set,dftb_parameter)
-        CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-                orb_basis_set=orb_basis_set,dftb_parameter=dftb_parameter)
-        IF (ASSOCIATED(orb_basis_set)) THEN
-          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                                 nset=nset,&
-                                 nshell=nshell,&
-                                 l=l)
-          nset_max = MAX(nset_max,nset)
-          DO iset=1,nset
-            nshell_max = MAX(nshell_max,nshell(iset))
-          END DO
-        ELSEIF (ASSOCIATED(dftb_parameter)) THEN
-          CALL get_dftb_atom_param(dftb_parameter,lmax=lmax)
-          nset_max = MAX(nset_max,1)
-          nshell_max = MAX(nshell_max,lmax+1)
-        ELSE
-          CALL stop_program(routine,"unknown basis type")
-        END IF
-      END DO
-
-      ALLOCATE (nso_info(nshell_max,nset_max,natom),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"nso_info",&
-                                       nshell_max*nset_max*natom*int_size)
-      nso_info(:,:,:) = 0
-
-      ALLOCATE (nshell_info(nset_max,natom),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"nshell_info",&
-                                       nset_max*natom*int_size)
-      nshell_info(:,:) = 0
-
-      ALLOCATE (nset_info(natom),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"nset_info",natom*int_size)
-      nset_info(:) = 0
-
-      DO iatom=1,natom
-        NULLIFY(orb_basis_set,dftb_parameter)
-        CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-                orb_basis_set=orb_basis_set,dftb_parameter=dftb_parameter)
-        IF (ASSOCIATED(orb_basis_set)) THEN
-          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                                 nset=nset,&
-                                 nshell=nshell,&
-                                 l=l)
-          nset_info(iatom) = nset
-          DO iset=1,nset
-            nshell_info(iset,iatom)=nshell(iset)
-            DO ishell=1,nshell(iset)
-              lshell = l(ishell,iset)
-              nso_info(ishell,iset,iatom) = nso(lshell)
-            END DO
-          END DO
-        ELSEIF (ASSOCIATED(dftb_parameter)) THEN
-          CALL get_dftb_atom_param(dftb_parameter,lmax=lmax)
-          nset_info(iatom) = 1
-          nshell_info(1,iatom)=lmax+1
-          DO ishell=1,lmax+1
-            lshell = ishell-1
-            nso_info(ishell,1,iatom) = nso(lshell)
-          END DO
-        ELSE
-          CALL stop_program(routine,"unknown basis type")
-        END IF
-      END DO
-
-      WRITE (restart_unit) natom,nspin,nao,nset_max,nshell_max
-      WRITE (restart_unit) nset_info
-      WRITE (restart_unit) nshell_info
-      WRITE (restart_unit) nso_info
-
-      DEALLOCATE (nset_info,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"nset_info")
-
-      DEALLOCATE (nshell_info,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"nshell_info")
-
-      DEALLOCATE (nso_info,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"nso_info")
-
-    END IF
-
-    ! use the scalapack block size as a default for buffering columns
-    CALL cp_fm_get_info(mo_array(1)%mo_set%mo_coeff,ncol_block=max_block,error=error)
-    ALLOCATE(vecbuffer(nao,max_block),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"vecbuffer",nao*max_block*dp_size)
-
-    DO ispin=1,nspin
-
-      nmo=mo_array(ispin)%mo_set%nmo
-
-      IF (para_env%ionode.AND.(nmo > 0)) THEN
-        WRITE (restart_unit) nmo,&
-                             mo_array(ispin)%mo_set%homo,&
-                             mo_array(ispin)%mo_set%lfomo,&
-                             mo_array(ispin)%mo_set%nelectron
-        WRITE (restart_unit) mo_array(ispin)%mo_set%eigenvalues(1:nmo),&
-                             mo_array(ispin)%mo_set%occupation_numbers(1:nmo)
-      END IF
-
-      DO i=1,nmo,MAX(max_block,1)
-        i_block=MIN(max_block,nmo-i+1)
-        CALL cp_fm_get_submatrix(mo_array(ispin)%mo_set%mo_coeff,vecbuffer,1,i,nao,i_block,error=error)
-        ! doing this in one write would increase efficiency, but breaks RESTART compatibility.
-        ! to old ones, and in cases where max_block is different between runs, as might happen during
-        ! restarts with a different number of CPUs
-        DO j=1,i_block
-           IF (para_env%ionode) WRITE (restart_unit) vecbuffer(1:nao,j)
-        ENDDO
-      END DO
-
-    END DO
-
-    DEALLOCATE (vecbuffer,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"vecbuffer")
-
-    IF(PRESENT(dft_section) .AND. para_env%ionode) THEN
-      CALL close_file(unit_number=restart_unit)
+             CALL write_mo_set_low(mo_array, particle_set, para_env, ires, error)
+             
+             CALL cp_print_key_finished_output(ires,logger,dft_section,&
+                  TRIM(keys(ikey)), error=error)
+          END IF
+       END DO
     END IF
 
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE write_mo_set_to_restart
+
+! *****************************************************************************
+  SUBROUTINE write_mo_set_low(mo_array, particle_set, para_env, ires, error)
+
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mo_array
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER                                  :: ires
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_set_low', &
+      routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
+
+    INTEGER :: handle, i, i_block, iatom, iset, ishell, ispin, istat, j, &
+      lmax, lshell, max_block, nao, natom, nmo, nset, nset_max, nshell_max, &
+      nspin
+    INTEGER, DIMENSION(:), POINTER           :: nset_info, nshell
+    INTEGER, DIMENSION(:, :), POINTER        :: l, nshell_info
+    INTEGER, DIMENSION(:, :, :), POINTER     :: nso_info
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
+
+    CALL timeset(routineN,"I","",handle)
+    failure = .FALSE.
+    nspin = SIZE(mo_array)
+    nao = mo_array(1)%mo_set%nao
+    logger => cp_error_get_logger(error)
+
+    IF (ires>0) THEN
+       !     *** create some info about the basis set first ***
+       natom = SIZE(particle_set,1)
+       nset_max = 0
+       nshell_max = 0
+       
+       DO iatom=1,natom
+          NULLIFY(orb_basis_set,dftb_parameter)
+          CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+               orb_basis_set=orb_basis_set,dftb_parameter=dftb_parameter)
+          IF (ASSOCIATED(orb_basis_set)) THEN
+             CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                  nset=nset,&
+                  nshell=nshell,&
+                  l=l)
+             nset_max = MAX(nset_max,nset)
+             DO iset=1,nset
+                nshell_max = MAX(nshell_max,nshell(iset))
+             END DO
+          ELSEIF (ASSOCIATED(dftb_parameter)) THEN
+             CALL get_dftb_atom_param(dftb_parameter,lmax=lmax)
+             nset_max = MAX(nset_max,1)
+             nshell_max = MAX(nshell_max,lmax+1)
+          ELSE
+             CALL stop_program(routine,"unknown basis type")
+          END IF
+       END DO
+       
+       ALLOCATE (nso_info(nshell_max,nset_max,natom),STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routine,"nso_info",&
+            nshell_max*nset_max*natom*int_size)
+       nso_info(:,:,:) = 0
+       
+       ALLOCATE (nshell_info(nset_max,natom),STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routine,"nshell_info",&
+            nset_max*natom*int_size)
+       nshell_info(:,:) = 0
+       
+       ALLOCATE (nset_info(natom),STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routine,"nset_info",natom*int_size)
+       nset_info(:) = 0
+       
+       DO iatom=1,natom
+          NULLIFY(orb_basis_set,dftb_parameter)
+          CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+               orb_basis_set=orb_basis_set,dftb_parameter=dftb_parameter)
+          IF (ASSOCIATED(orb_basis_set)) THEN
+             CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                  nset=nset,&
+                  nshell=nshell,&
+                  l=l)
+             nset_info(iatom) = nset
+             DO iset=1,nset
+                nshell_info(iset,iatom)=nshell(iset)
+                DO ishell=1,nshell(iset)
+                   lshell = l(ishell,iset)
+                   nso_info(ishell,iset,iatom) = nso(lshell)
+                END DO
+             END DO
+          ELSEIF (ASSOCIATED(dftb_parameter)) THEN
+             CALL get_dftb_atom_param(dftb_parameter,lmax=lmax)
+             nset_info(iatom) = 1
+             nshell_info(1,iatom)=lmax+1
+             DO ishell=1,lmax+1
+                lshell = ishell-1
+                nso_info(ishell,1,iatom) = nso(lshell)
+             END DO
+          ELSE
+             CALL stop_program(routine,"unknown basis type")
+          END IF
+       END DO
+       
+       WRITE (ires) natom,nspin,nao,nset_max,nshell_max
+       WRITE (ires) nset_info
+       WRITE (ires) nshell_info
+       WRITE (ires) nso_info
+       
+       DEALLOCATE (nset_info,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routine,"nset_info")
+       
+       DEALLOCATE (nshell_info,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routine,"nshell_info")
+       
+       DEALLOCATE (nso_info,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routine,"nso_info")
+       
+    END IF
+    
+    ! use the scalapack block size as a default for buffering columns
+    CALL cp_fm_get_info(mo_array(1)%mo_set%mo_coeff,ncol_block=max_block,error=error)
+    ALLOCATE(vecbuffer(nao,max_block),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"vecbuffer",nao*max_block*dp_size)
+    
+    DO ispin=1,nspin
+       nmo=mo_array(ispin)%mo_set%nmo
+       IF ((ires>0).AND.(nmo > 0)) THEN
+          WRITE (ires) nmo,&
+               mo_array(ispin)%mo_set%homo,&
+               mo_array(ispin)%mo_set%lfomo,&
+               mo_array(ispin)%mo_set%nelectron
+          WRITE (ires) mo_array(ispin)%mo_set%eigenvalues(1:nmo),&
+               mo_array(ispin)%mo_set%occupation_numbers(1:nmo)
+       END IF
+       
+       DO i=1,nmo,MAX(max_block,1)
+          i_block=MIN(max_block,nmo-i+1)
+          CALL cp_fm_get_submatrix(mo_array(ispin)%mo_set%mo_coeff,vecbuffer,1,i,nao,i_block,error=error)
+          ! doing this in one write would increase efficiency, but breaks RESTART compatibility.
+          ! to old ones, and in cases where max_block is different between runs, as might happen during
+          ! restarts with a different number of CPUs
+          DO j=1,i_block
+             IF (ires>0) WRITE (ires) vecbuffer(1:nao,j)
+          ENDDO
+       END DO
+    END DO
+    
+    DEALLOCATE (vecbuffer,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"vecbuffer")
+    
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE write_mo_set_low
 
 ! *****************************************************************************
 
@@ -805,13 +820,13 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: file_name
     INTEGER :: group, handle, i, iatom, irow, iset, iset_read, ishell, &
-      ishell_read, iso, ispin, istat, lshell, nao, nao_read, natom, &
-      natom_read, nelectron, nmo, nmo_read, nset, nset_max, nshell_max, &
-      nspin, nspin_read, offset_read, restart_unit, source, lmax, nnshell
+      ishell_read, iso, ispin, istat, lmax, lshell, nao, nao_read, natom, &
+      natom_read, nelectron, nmo, nmo_read, nnshell, nset, nset_max, &
+      nshell_max, nspin, nspin_read, offset_read, restart_unit, source
     INTEGER, DIMENSION(:), POINTER           :: nset_info, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, nshell_info
     INTEGER, DIMENSION(:, :, :), POINTER     :: nso_info, offset_info
-    LOGICAL                                  :: did_change, use_this, minbas
+    LOGICAL                                  :: did_change, minbas, use_this
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer, vecbuffer_read
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -830,11 +845,10 @@ CONTAINS
     IF (para_env%ionode) THEN
 
       natom = SIZE(particle_set,1)
-      CALL section_vals_val_get(dft_section,"RESTART_FILE_NAME",&
-           c_val=file_name,error=error)
+      CALL section_vals_val_get(dft_section,"WFN_RESTART_FILE_NAME",c_val=file_name,error=error)
       IF (id_nr/=0) THEN
-        file_name((LEN_TRIM(file_name)+1):LEN(file_name)) = "-"//&
-                         ADJUSTL(cp_to_string(id_nr))
+         ! Is it one of the backup files?
+         file_name = TRIM(file_name)//".bak-"//ADJUSTL(cp_to_string(id_nr))
       END IF
 
       CALL open_file(file_name=file_name,&
@@ -844,7 +858,7 @@ CONTAINS
                      unit_number=restart_unit)
 
       READ (restart_unit) natom_read,nspin_read,nao_read,nset_max,nshell_max
-!
+
       ! we should allow for restarting with different spin settings
       IF (nspin_read /= nspin) THEN
         WRITE(cp_logger_get_default_unit_nr(logger),*)  &
@@ -1117,8 +1131,8 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_set_to_output_unit'
 
-    CHARACTER(LEN=12), DIMENSION(:), POINTER :: bcgf_symbol
     CHARACTER(LEN=12)                        :: symbol
+    CHARACTER(LEN=12), DIMENSION(:), POINTER :: bcgf_symbol
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=2*default_string_length)   :: name
     CHARACTER(LEN=22)                        :: fmtstr2
@@ -1126,11 +1140,10 @@ CONTAINS
     CHARACTER(LEN=38)                        :: fmtstr3
     CHARACTER(LEN=6), DIMENSION(:), POINTER  :: bsgf_symbol
     INTEGER :: from, iatom, icgf, ico, icol, irow, iset, isgf, ishell, iso, &
-      istat, iw, jcol, left, lshell, natom, ncgf, ncol, ncol_global, &
-      nrow_global, nset, nsgf, right, scf_step, to, width, lmax
+      istat, iw, jcol, left, lmax, lshell, natom, ncgf, ncol, ncol_global, &
+      nrow_global, nset, nsgf, right, scf_step, to, width
     INTEGER, DIMENSION(:), POINTER           :: nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l
-    INTEGER, DIMENSION(3)                    :: mxyz
     LOGICAL                                  :: ionode, my_last, p_cart, &
                                                 p_eval, p_evec, p_occ, &
                                                 should_output
