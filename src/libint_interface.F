@@ -43,8 +43,7 @@ MODULE libint_interface
   PRIVATE
   PUBLIC initialize_libint, evaluate_eri, lib_int, terminate_libint,&
          initialize_libderiv, lib_deriv, terminate_libderiv, evaluate_deriv_eri,&
-         evaluate_eri_screen, evaluate_eri_periodic, evaluate_eri_screen_periodic ,&
-         evaluate_deriv_eri_periodic
+         evaluate_eri_screen, pbc
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'libint_interface'
 
@@ -412,11 +411,10 @@ MODULE libint_interface
       IF(n_a+n_b > n_c+n_d) THEN
         perm_case = perm_case + 4
       END IF
-
       SELECT CASE(perm_case)
         CASE(1)
           CALL build_quartet_data(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max,&
-                            screening_parameter, prim, do_periodic=.FALSE.)
+                            screening_parameter, prim)
           lib%PrimQuartet = C_LOC(prim)
           lib%AB=A-B
           lib%CD=C-D
@@ -433,14 +431,18 @@ MODULE libint_interface
                   primitives(offset_a+i,&
                              offset_b+j,&
                              offset_c+k,&
-                             offset_d+l)=p_work(p3+l)
+                             offset_d+l)=&
+                  primitives(offset_a+i,&
+                             offset_b+j,&
+                             offset_c+k,&
+                             offset_d+l)+p_work(p3+l)
                 END DO
               END DO
             END DO
           END DO
         CASE(2)
           CALL build_quartet_data(B,A,C,D,Zeta_B, Zeta_A, Zeta_C, Zeta_D, m_max,&
-                            screening_parameter, prim, do_periodic=.FALSE.)
+                            screening_parameter, prim)
           lib%PrimQuartet = C_LOC(prim)
           lib%AB=B-A
           lib%CD=C-D
@@ -457,14 +459,18 @@ MODULE libint_interface
                   primitives(offset_a+i,&
                              offset_b+j,&
                              offset_c+k,&
-                             offset_d+l)=p_work(p3+l)
+                             offset_d+l)=&
+                  primitives(offset_a+i,&
+                             offset_b+j,&
+                             offset_c+k,&
+                             offset_d+l)+p_work(p3+l)
                 END DO
               END DO
             END DO
           END DO
         CASE(3)
           CALL build_quartet_data(A,B,D,C,Zeta_A, Zeta_B, Zeta_D, Zeta_C, m_max,&
-                            screening_parameter, prim, do_periodic=.FALSE.)
+                            screening_parameter, prim)
           lib%PrimQuartet = C_LOC(prim)
           lib%AB=A-B
           lib%CD=D-C
@@ -481,14 +487,18 @@ MODULE libint_interface
                   primitives(offset_a+i,&
                              offset_b+j,&
                              offset_c+k,&
-                             offset_d+l)=p_work(p3+k)
+                             offset_d+l)=&
+                  primitives(offset_a+i,&
+                             offset_b+j,&
+                             offset_c+k,&
+                             offset_d+l)+p_work(p3+k)
                 END DO
               END DO
             END DO
           END DO
         CASE(4)
           CALL build_quartet_data(B,A,D,C,Zeta_B, Zeta_A, Zeta_D, Zeta_C, m_max,&
-                            screening_parameter, prim, do_periodic=.FALSE.)
+                            screening_parameter, prim)
           lib%PrimQuartet = C_LOC(prim)
           lib%AB=B-A
           lib%CD=D-C
@@ -505,14 +515,18 @@ MODULE libint_interface
                   primitives(offset_a+i,&
                              offset_b+j,&
                              offset_c+k,&
-                             offset_d+l)=p_work(p3+k)
+                             offset_d+l)=&
+                  primitives(offset_a+i,&
+                             offset_b+j,&
+                             offset_c+k,&
+                             offset_d+l)+p_work(p3+k)
                 END DO
               END DO
             END DO
           END DO
         CASE(5)
           CALL build_quartet_data(C,D,A,B,Zeta_C, Zeta_D, Zeta_A, Zeta_B, m_max,&
-                            screening_parameter, prim, do_periodic=.FALSE.)
+                            screening_parameter, prim)
           lib%PrimQuartet = C_LOC(prim)
           lib%AB=C-D
           lib%CD=A-B
@@ -529,14 +543,18 @@ MODULE libint_interface
                   primitives(offset_a+i,&
                              offset_b+j,&
                              offset_c+k,&
-                             offset_d+l)=p_work(p3+j)
+                             offset_d+l)=&
+                  primitives(offset_a+i,&
+                             offset_b+j,&
+                             offset_c+k,&
+                             offset_d+l)+p_work(p3+j)
                 END DO
               END DO
             END DO
           END DO
         CASE(6)
           CALL build_quartet_data(C,D,B,A,Zeta_C, Zeta_D, Zeta_B, Zeta_A, m_max,&
-                            screening_parameter, prim, do_periodic=.FALSE.)
+                            screening_parameter, prim)
           lib%PrimQuartet = C_LOC(prim)
           lib%AB=C-D
           lib%CD=B-A
@@ -553,14 +571,18 @@ MODULE libint_interface
                   primitives(offset_a+i,&
                              offset_b+j,&
                              offset_c+k,&
-                             offset_d+l)=p_work(p3+i)
+                             offset_d+l)=&
+                  primitives(offset_a+i,&
+                             offset_b+j,&
+                             offset_c+k,&
+                             offset_d+l)+p_work(p3+i)
                 END DO
               END DO
             END DO
           END DO
         CASE(7)
           CALL build_quartet_data(D,C,A,B,Zeta_D, Zeta_C, Zeta_A, Zeta_B, m_max,&
-                            screening_parameter, prim, do_periodic=.FALSE.)
+                            screening_parameter, prim)
           lib%PrimQuartet = C_LOC(prim)
           lib%AB=D-C
           lib%CD=A-B
@@ -577,14 +599,18 @@ MODULE libint_interface
                   primitives(offset_a+i,&
                              offset_b+j,&
                              offset_c+k,&
-                             offset_d+l)=p_work(p3+j)
+                             offset_d+l)=&
+                  primitives(offset_a+i,&
+                             offset_b+j,&
+                             offset_c+k,&
+                             offset_d+l)+p_work(p3+j)
                 END DO
               END DO
             END DO
           END DO
         CASE(8)
           CALL build_quartet_data(D,C,B,A,Zeta_D, Zeta_C, Zeta_B, Zeta_A, m_max,&
-                            screening_parameter, prim, do_periodic=.FALSE.)
+                            screening_parameter, prim)
           lib%PrimQuartet = C_LOC(prim)
           lib%AB=D-C
           lib%CD=B-A
@@ -601,7 +627,11 @@ MODULE libint_interface
                   primitives(offset_a+i,&
                              offset_b+j,&
                              offset_c+k,&
-                             offset_d+l)=p_work(p3+i)
+                             offset_d+l)=&
+                  primitives(offset_a+i,&
+                             offset_b+j,&
+                             offset_c+k,&
+                             offset_d+l)+p_work(p3+i)
                 END DO
               END DO
             END DO
@@ -609,8 +639,9 @@ MODULE libint_interface
       END SELECT
     ELSE
       CALL build_quartet_data(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max,&
-                            screening_parameter, prim, do_periodic=.FALSE.)
-      primitives(offset_a+1,offset_b+1,offset_c+1,offset_d+1) = prim%F(1)
+                            screening_parameter, prim)
+      primitives(offset_a+1,offset_b+1,offset_c+1,offset_d+1) = &
+        primitives(offset_a+1,offset_b+1,offset_c+1,offset_d+1)+prim%F(1)
     END IF
 #endif
   END SUBROUTINE evaluate_eri
@@ -638,44 +669,30 @@ MODULE libint_interface
 
 #if defined(__LIBINT)
   SUBROUTINE build_quartet_data(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max, &
-                              screening_parameter, prim, do_periodic, box_size, shift1)
+                              screening_parameter, prim)
      
     REAL(KIND=C_DOUBLE)                :: A(3), B(3), C(3), D(3)
     REAL(KIND=C_DOUBLE), INTENT(IN)    :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
     INTEGER(KIND=C_INT), INTENT(IN)    :: m_max
     TYPE(x_hf_screening_type)          :: screening_parameter 
     TYPE(prim_data)                    :: prim
-    LOGICAL, INTENT(IN)                :: do_periodic
-    REAL(dp), INTENT(IN), OPTIONAL     :: box_size(3), shift1(3)
 
     REAL(KIND=C_DOUBLE)                :: P(3), Q(3), W(3), AB(3), CD(3), PQ(3), C1(3), D1(3)
     REAL(KIND=C_DOUBLE)                :: Zeta, Eta, Rho
-    REAL(KIND=C_DOUBLE)                :: AB2, CD2, PQ2,factor,shift(3)
+    REAL(KIND=C_DOUBLE)                :: AB2, CD2, PQ2,factor,shift(3), temp(3)
     REAL(KIND=C_DOUBLE)                :: S1234, T, omega_corr2, omega_corr, omega2, tmp
     REAL(KIND=C_DOUBLE), DIMENSION(17) :: Fm
     INTEGER                            :: i
-
 
     Zeta = Zeta_A + Zeta_B
     Eta  = Zeta_C + Zeta_D
     Rho  = Zeta*Eta/(Zeta+Eta)
     
-    C1 = C
-    D1 = D
     P = (Zeta_A*A + Zeta_B*B)/Zeta
     Q = (Zeta_C*C + Zeta_D*D)/Eta
     AB = A-B
     CD = C-D
-    IF( do_periodic ) THEN
-      CALL pbc(P-Q,box_size,PQ)
-      shift = -PQ + P-Q 
-      C = C + shift + shift1
-      D = D + shift + shift1
-      Q = (Zeta_C*C + Zeta_D*D)/Eta
-      PQ = P-Q 
-    ELSE
-      PQ = P-Q
-    END IF
+    PQ = P-Q
    
     W = (Zeta*P + Eta*Q)/(Zeta+Eta)
     AB2 = DOT_PRODUCT(AB,AB)
@@ -738,10 +755,6 @@ MODULE libint_interface
     prim%pon       = Rho/Eta
     prim%oo2p      = 1.0_dp/(2.0_dp*Rho)
     prim%ss_r12_ss = 0.0_dp                      !Not used in libint,libderiv
-   
-    C = C1
-    D = D1
-
   END SUBROUTINE build_quartet_data
 #endif 
 !***************************************************************************
@@ -968,6 +981,7 @@ MODULE libint_interface
                 p3 = (p2 + k-1)*nco(n_d)
                 DO l = 1,nco(n_d)
                   primitive_forces(offset_a+i,offset_b+j,offset_c+k,offset_d+l,full_perm1(n))=&
+                  primitive_forces(offset_a+i,offset_b+j,offset_c+k,offset_d+l,full_perm1(n))+&
                                    work_forces(p3+l,n)
                 END DO
               END DO
@@ -1002,6 +1016,7 @@ MODULE libint_interface
                 p3 = (p2 + k-1)*nco(n_d)
                 DO l = 1,nco(n_d)
                   primitive_forces(offset_a+i,offset_b+j,offset_c+k,offset_d+l,full_perm2(n))=&
+                  primitive_forces(offset_a+i,offset_b+j,offset_c+k,offset_d+l,full_perm2(n))+&
                                    work_forces(p3+l,n)
                 END DO
               END DO
@@ -1036,6 +1051,7 @@ MODULE libint_interface
                 p3 = (p2 + l-1) * nco(n_c)
                 DO k = 1,nco(n_c)
                   primitive_forces(offset_a+i,offset_b+j,offset_c+k,offset_d+l,full_perm3(n))=&
+                  primitive_forces(offset_a+i,offset_b+j,offset_c+k,offset_d+l,full_perm3(n))+&
                                    work_forces(p3+k,n)
                 END DO
               END DO
@@ -1070,6 +1086,7 @@ MODULE libint_interface
                 p3 = (p2 + l-1)*nco(n_c)
                 DO k = 1,nco(n_c)
                   primitive_forces(offset_a+i,offset_b+j,offset_c+k,offset_d+l,full_perm4(n))=&
+                  primitive_forces(offset_a+i,offset_b+j,offset_c+k,offset_d+l,full_perm4(n))+&
                                    work_forces(p3+k,n)
                 END DO
               END DO
@@ -1104,6 +1121,7 @@ MODULE libint_interface
                 p3 = (p2 + i-1)*nco(n_b)
                 DO j = 1,nco(n_b)
                   primitive_forces(offset_a+i,offset_b+j,offset_c+k,offset_d+l,full_perm5(n))=&
+                  primitive_forces(offset_a+i,offset_b+j,offset_c+k,offset_d+l,full_perm5(n))+&
                                    work_forces(p3+j,n)
                 END DO
               END DO
@@ -1138,6 +1156,7 @@ MODULE libint_interface
                 p3 = (p2 + j-1)*nco(n_a)
                 DO i = 1,nco(n_a)
                   primitive_forces(offset_a+i,offset_b+j,offset_c+k,offset_d+l,full_perm6(n))=&
+                  primitive_forces(offset_a+i,offset_b+j,offset_c+k,offset_d+l,full_perm6(n))+&
                                    work_forces(p3+i,n)
                 END DO
               END DO
@@ -1172,6 +1191,7 @@ MODULE libint_interface
                 p3 = (p2 + i-1) *nco(n_b)
                 DO j = 1,nco(n_b)
                   primitive_forces(offset_a+i,offset_b+j,offset_c+k,offset_d+l,full_perm7(n))=&
+                  primitive_forces(offset_a+i,offset_b+j,offset_c+k,offset_d+l,full_perm7(n))+&
                                    work_forces(p3+j,n)
                 END DO
               END DO
@@ -1206,6 +1226,7 @@ MODULE libint_interface
                 p3 = (p2 + j-1) * nco(n_a)
                 DO i = 1,nco(n_a)
                   primitive_forces(offset_a+i,offset_b+j,offset_c+k,offset_d+l,full_perm8(n))=&
+                  primitive_forces(offset_a+i,offset_b+j,offset_c+k,offset_d+l,full_perm8(n))+&
                                    work_forces(p3+i,n)
                 END DO
               END DO
@@ -1281,7 +1302,7 @@ MODULE libint_interface
       SELECT CASE(perm_case)
         CASE(1)
           CALL build_quartet_data(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max,&
-                            screening_parameter, prim, do_periodic=.FALSE.)
+                            screening_parameter, prim)
           lib%PrimQuartet = C_LOC(prim)
           lib%AB=A-B
           lib%CD=C-D
@@ -1293,7 +1314,7 @@ MODULE libint_interface
           END DO
         CASE(2)
           CALL build_quartet_data(B,A,C,D,Zeta_B, Zeta_A, Zeta_C, Zeta_D, m_max,&
-                            screening_parameter, prim, do_periodic=.FALSE.)
+                            screening_parameter, prim)
           lib%PrimQuartet = C_LOC(prim)
           lib%AB=B-A
           lib%CD=C-D
@@ -1305,7 +1326,7 @@ MODULE libint_interface
           END DO
         CASE(3)
           CALL build_quartet_data(A,B,D,C,Zeta_A, Zeta_B, Zeta_D, Zeta_C, m_max,&
-                            screening_parameter, prim, do_periodic=.FALSE.)
+                            screening_parameter, prim)
           lib%PrimQuartet = C_LOC(prim)
           lib%AB=A-B
           lib%CD=D-C
@@ -1317,7 +1338,7 @@ MODULE libint_interface
           END DO
         CASE(4)
           CALL build_quartet_data(B,A,D,C,Zeta_B, Zeta_A, Zeta_D, Zeta_C, m_max,&
-                            screening_parameter, prim, do_periodic=.FALSE.)
+                            screening_parameter, prim)
           lib%PrimQuartet = C_LOC(prim)
           lib%AB=B-A
           lib%CD=D-C
@@ -1329,7 +1350,7 @@ MODULE libint_interface
           END DO
         CASE(5)
           CALL build_quartet_data(C,D,A,B,Zeta_C, Zeta_D, Zeta_A, Zeta_B, m_max,&
-                            screening_parameter, prim, do_periodic=.FALSE.)
+                            screening_parameter, prim)
           lib%PrimQuartet = C_LOC(prim)
           lib%AB=C-D
           lib%CD=A-B
@@ -1341,7 +1362,7 @@ MODULE libint_interface
           END DO
         CASE(6)
           CALL build_quartet_data(C,D,B,A,Zeta_C, Zeta_D, Zeta_B, Zeta_A, m_max,&
-                            screening_parameter, prim, do_periodic=.FALSE.)
+                            screening_parameter, prim)
           lib%PrimQuartet = C_LOC(prim)
           lib%AB=C-D
           lib%CD=B-A
@@ -1353,7 +1374,7 @@ MODULE libint_interface
           END DO
         CASE(7)
           CALL build_quartet_data(D,C,A,B,Zeta_D, Zeta_C, Zeta_A, Zeta_B, m_max,&
-                            screening_parameter, prim, do_periodic=.FALSE.)
+                            screening_parameter, prim)
           lib%PrimQuartet = C_LOC(prim)
           lib%AB=D-C
           lib%CD=A-B
@@ -1365,7 +1386,7 @@ MODULE libint_interface
           END DO
         CASE(8)
           CALL build_quartet_data(D,C,B,A,Zeta_D, Zeta_C, Zeta_B, Zeta_A, m_max,&
-                            screening_parameter, prim, do_periodic=.FALSE.)
+                            screening_parameter, prim)
           lib%PrimQuartet = C_LOC(prim)
           lib%AB=D-C
           lib%CD=B-A
@@ -1378,1451 +1399,12 @@ MODULE libint_interface
       END SELECT
     ELSE
       CALL build_quartet_data(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max,&
-                            screening_parameter, prim, do_periodic=.FALSE.)
+                            screening_parameter, prim)
       max_val = ABS(prim%F(1))
     END IF
 #endif
   END SUBROUTINE evaluate_eri_screen
-
-
 !***************************************************************************
-
-!!***** libint_interface/evaluate_eri_periodic [1.0] *
-!!
-!!   NAME
-!!     evaluate_eri_periodic
-!!
-!!   FUNCTION
-!!     Evaluate electron repulsion integrals for a primitive quartet wrt pbc
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     06.2007 created [Manuel Guidon]
-!!     08.2007 refactured permutation part [Manuel Guidon]
-!!
-!!****************************************************************************
-
-  SUBROUTINE evaluate_eri_periodic(lib,A,B,C,D,Zeta_A,Zeta_B,Zeta_C,Zeta_D,&
-                                   n_a,n_b,n_c,n_d,&
-                                   ncoa,ncob,ncoc,ncod,&
-                                   offset_a,offset_b,offset_c,offset_d,&
-                                   primitives,screening_parameter, box_size, neighbor_cells,&
-                                   screen1, screen2, eps_schwarz, max_k)
-    
-    TYPE(lib_int)                            :: lib
-    REAL(dp), INTENT(IN),TARGET              :: A(3), B(3), C(3), D(3)
-    REAL(dp), INTENT(IN),TARGET              :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
-    INTEGER, INTENT(IN)                      :: n_a, n_b, n_c, n_d
-    INTEGER, INTENT(IN)                      :: ncoa,ncob,ncoc,ncod,offset_a,offset_b,offset_c,offset_d
-    REAL(dp), DIMENSION(ncoa,ncob,ncoc,ncod) :: primitives
-    TYPE(x_hf_screening_type)                :: screening_parameter
-    REAL(dp), INTENT(IN)                     :: box_size(3)
-    TYPE(x_hf_cell_type), DIMENSION(:), &
-                          POINTER            :: neighbor_cells
-    REAL(dp), DIMENSION(:,:)                 :: screen1, screen2
-    REAL(dp), INTENT(IN)                     :: eps_schwarz
-    INTEGER, INTENT(IN)                      :: max_k
- 
-#if defined(__LIBINT)
-    INTEGER                                  :: i,j,k,l
-    TYPE(prim_data),TARGET                   :: prim
-    INTEGER(KIND=C_INT)                      :: m_max
-    INTEGER(KIND=C_INT)                      :: mysize,a_mysize(1)
-   
-   
-    PROCEDURE(build), POINTER                :: pbuild
-    TYPE(C_PTR)                              :: pc_result 
-    REAL(dp), DIMENSION(:), POINTER          :: p_work, p_work_sum
-    REAL(dp), DIMENSION(3)                   :: pbc_B, pbc_D, pbc_A, pbc_C, im_B, im_D, im_A, im_C, A11,B11,C11,D11
-    REAL(dp)                                 :: shift(3)
-    INTEGER                                  :: perm_case, p1, p2, p3
-    !permutation of configuration
-    
-    perm_case = 1
-    If(n_a<n_b) THEN
-      perm_case = perm_case + 1
-    END IF
-
-    IF(n_c<n_d) THEN
-      perm_case = perm_case + 2
-    END IF
- 
-    IF( n_a+n_b > n_c+n_d) THEN
-      perm_case = perm_case + 4
-    END IF
-   
-    m_max = n_a+n_b+n_c+n_d
-    mysize = nco(n_a)*nco(n_b)*nco(n_c)*nco(n_d)
-    a_mysize = mysize
-
-    ALLOCATE(p_work_sum(mysize))
-    p_work_sum = 0.0_dp
-    SELECT CASE(perm_case)
-      CASE(1)
-        CALL pbc(B-A, box_size, pbc_B)
-        B11 = A + pbc_B
-        CALL pbc(D-C, box_size, pbc_D)
-        D11 = C + pbc_D
-        DO i = 1,size(neighbor_cells)
-          im_B(1) = B11(1) + neighbor_cells(i)%cell(1) * box_size(1)
-          im_B(2) = B11(2) + neighbor_cells(i)%cell(2) * box_size(2)
-          im_B(3) = B11(3) + neighbor_cells(i)%cell(3) * box_size(3)
-          DO j = 1,size(neighbor_cells)
-            IF(screen1(i,j)*screen2(i,j)<eps_schwarz) CYCLE
-            im_D(1) = D11(1) + neighbor_cells(j)%cell(1) * box_size(1)
-            im_D(2) = D11(2) + neighbor_cells(j)%cell(2) * box_size(2)
-            im_D(3) = D11(3) + neighbor_cells(j)%cell(3) * box_size(3)
-            !This loop is still in experimental status
-            DO k=1,max_k!size(neighbor_cells)
-              shift(1) =  neighbor_cells(k)%cell(1) * box_size(1)
-              shift(2) =  neighbor_cells(k)%cell(2) * box_size(2)
-              shift(3) =  neighbor_cells(k)%cell(3) * box_size(3)
-
-              CALL build_quartet_data(A,im_B,C,im_D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max,&
-                   screening_parameter, prim, do_periodic=.TRUE.,box_size=box_size,shift1=shift)
-              IF(m_max/=0) THEN 
-                lib%PrimQuartet = C_LOC(prim)
-                lib%AB=A-im_B
-                lib%CD=C-im_D
-                CALL C_F_PROCPOINTER(build_eri(n_d,n_c,n_b,n_a),pbuild)
-                pc_result = pbuild(lib,1)
-                CALL C_F_POINTER(pc_result, p_work, a_mysize)
-                p_work_sum = p_work_sum + p_work
-              ELSE
-                p_work_sum =p_work_sum + prim%F(1)
-              END IF
-            END DO
-          END DO
-        END DO
-        DO i = 1,nco(n_a)
-          p1 = (i-1) *nco(n_b)
-          DO j = 1,nco(n_b)
-            p2 = (p1 + j-1)*nco(n_c)
-            DO k = 1,nco(n_c)
-              p3 = (p2 + k-1)*nco(n_d)
-              DO l = 1,nco(n_d)
-                primitives(offset_a+i,&
-                           offset_b+j,&
-                           offset_c+k,&
-                           offset_d+l)=p_work_sum(p3+l)
-              END DO
-            END DO
-          END DO
-        END DO
-      CASE(2)
-        CALL pbc(A-B, box_size, pbc_A)
-        A11  = B + pbc_A
-        CALL pbc(D-C, box_size, pbc_D)
-        D11 = C + pbc_D
-        DO i = 1,size(neighbor_cells)
-          im_A(1) = A11(1) + neighbor_cells(i)%cell(1) * box_size(1)
-          im_A(2) = A11(2) + neighbor_cells(i)%cell(2) * box_size(2)
-          im_A(3) = A11(3) + neighbor_cells(i)%cell(3) * box_size(3)
-          DO j = 1,size(neighbor_cells)
-            IF(screen1(i,j)*screen2(i,j)<eps_schwarz) CYCLE
-            im_D(1) = D11(1) + neighbor_cells(j)%cell(1) * box_size(1)
-            im_D(2) = D11(2) + neighbor_cells(j)%cell(2) * box_size(2)
-            im_D(3) = D11(3) + neighbor_cells(j)%cell(3) * box_size(3)
-            !This loop is still in experimental status
-            DO k=1,max_k!size(neighbor_cells)
-              shift(1) =  neighbor_cells(k)%cell(1) * box_size(1)
-              shift(2) =  neighbor_cells(k)%cell(2) * box_size(2)
-              shift(3) =  neighbor_cells(k)%cell(3) * box_size(3)
-              CALL build_quartet_data(B,im_A,C,im_D,Zeta_B, Zeta_A, Zeta_C, Zeta_D, m_max,&
-                   screening_parameter, prim, do_periodic=.TRUE.,box_size=box_size,shift1=shift)
-              IF(m_max/=0) THEN
-                lib%PrimQuartet = C_LOC(prim)
-                lib%AB=B-im_A
-                lib%CD=C-im_D
-                CALL C_F_PROCPOINTER(build_eri(n_d,n_c,n_a,n_b),pbuild)
-                pc_result = pbuild(lib,1)
-                CALL C_F_POINTER(pc_result, p_work, a_mysize)
-                p_work_sum = p_work_sum + p_work
-              ELSE
-                p_work_sum =p_work_sum + prim%F(1)
-              END IF
-            END DO
-          END DO
-        END DO
-        DO j = 1,nco(n_b)
-          p1 = (j-1)*nco(n_a)
-          DO i = 1,nco(n_a)
-            p2 = (p1 + i-1)*nco(n_c)
-            DO k = 1,nco(n_c)
-              p3 = (p2 + k-1)*nco(n_d)
-              DO l = 1,nco(n_d)
-                primitives(offset_a+i,&
-                           offset_b+j,&
-                           offset_c+k,&
-                           offset_d+l)=p_work_sum(p3+l)
-              END DO
-            END DO
-          END DO
-        END DO
-      CASE(3)
-        CALL pbc(B-A, box_size, pbc_B)
-        B11 = A + pbc_B
-        CALL pbc(C-D, box_size, pbc_C)
-        C11 = D + pbc_C
-        DO i = 1,size(neighbor_cells)
-          im_B(1) = B11(1) + neighbor_cells(i)%cell(1) * box_size(1)
-          im_B(2) = B11(2) + neighbor_cells(i)%cell(2) * box_size(2)
-          im_B(3) = B11(3) + neighbor_cells(i)%cell(3) * box_size(3)
-          DO j = 1,size(neighbor_cells)
-            IF(screen1(i,j)*screen2(i,j)<eps_schwarz) CYCLE
-            im_C(1) = C11(1) + neighbor_cells(j)%cell(1) * box_size(1)
-            im_C(2) = C11(2) + neighbor_cells(j)%cell(2) * box_size(2)
-            im_C(3) = C11(3) + neighbor_cells(j)%cell(3) * box_size(3)
-            !This loop is still in experimental status
-            DO k=1,max_k!size(neighbor_cells)
-              shift(1) =  neighbor_cells(k)%cell(1) * box_size(1)
-              shift(2) =  neighbor_cells(k)%cell(2) * box_size(2)
-              shift(3) =  neighbor_cells(k)%cell(3) * box_size(3)
-              CALL build_quartet_data(A,im_B,D,im_C,Zeta_A, Zeta_B, Zeta_D, Zeta_C, m_max,&
-                   screening_parameter, prim, do_periodic=.TRUE.,box_size=box_size,shift1=shift)
-              IF(m_max/=0) THEN
-                lib%PrimQuartet = C_LOC(prim)
-                lib%AB=A-im_B
-                lib%CD=D-im_C
-                CALL C_F_PROCPOINTER(build_eri(n_c,n_d,n_b,n_a),pbuild)
-                pc_result = pbuild(lib,1)
-                CALL C_F_POINTER(pc_result, p_work, a_mysize)
-                p_work_sum = p_work_sum + p_work
-              ELSE
-                p_work_sum =p_work_sum + prim%F(1)
-              END IF
-            END DO
-          END DO
-        END DO
-        DO i = 1,nco(n_a)
-          p1 = (i-1)*nco(n_b)
-          DO j = 1,nco(n_b)
-            p2 = (p1 + j-1)*nco(n_d)
-            DO l = 1,nco(n_d)
-              p3 = (p2 + l-1) * nco(n_c)
-              DO k = 1,nco(n_c)
-                primitives(offset_a+i,&
-                           offset_b+j,&
-                           offset_c+k,&
-                           offset_d+l)=p_work_sum(p3+k)
-              END DO
-            END DO
-          END DO
-        END DO
-      CASE(4)
-        CALL pbc(A-B, box_size, pbc_A)
-        A11 = B + pbc_A
-        CALL pbc(C-D, box_size, pbc_C)
-        C11 = D + pbc_C
-        DO i = 1,size(neighbor_cells)
-          im_A(1) = A11(1) + neighbor_cells(i)%cell(1) * box_size(1)
-          im_A(2) = A11(2) + neighbor_cells(i)%cell(2) * box_size(2)
-          im_A(3) = A11(3) + neighbor_cells(i)%cell(3) * box_size(3)
-          DO j = 1,size(neighbor_cells)
-            IF(screen1(i,j)*screen2(i,j)<eps_schwarz) CYCLE
-            im_C(1) = C11(1) + neighbor_cells(j)%cell(1) * box_size(1)
-            im_C(2) = C11(2) + neighbor_cells(j)%cell(2) * box_size(2)
-            im_C(3) = C11(3) + neighbor_cells(j)%cell(3) * box_size(3)
-            !This loop is still in experimental status
-            DO k=1,max_k!size(neighbor_cells)
-              shift(1) =  neighbor_cells(k)%cell(1) * box_size(1)
-              shift(2) =  neighbor_cells(k)%cell(2) * box_size(2)
-              shift(3) =  neighbor_cells(k)%cell(3) * box_size(3)
-
-              CALL build_quartet_data(B,im_A,D,im_C,Zeta_B, Zeta_A, Zeta_D, Zeta_C, m_max,&
-                   screening_parameter, prim, do_periodic=.TRUE.,box_size=box_size,shift1=shift)
-              IF(m_max/=0) THEN
-                lib%PrimQuartet = C_LOC(prim)
-                lib%AB=B-im_A
-                lib%CD=D-im_C
-                CALL C_F_PROCPOINTER(build_eri(n_c,n_d,n_a,n_b),pbuild)
-                pc_result = pbuild(lib,1)
-                CALL C_F_POINTER(pc_result, p_work, a_mysize)
-                p_work_sum = p_work_sum + p_work
-              ELSE
-                p_work_sum =p_work_sum + prim%F(1)
-              END IF
-            END DO
-          END DO
-        END DO
-        DO j = 1,nco(n_b)
-          p1 = (j-1)*nco(n_a)
-          DO i = 1,nco(n_a)
-            p2 = (p1 + i-1)*nco(n_d)
-            DO l = 1,nco(n_d)
-              p3 = (p2 + l-1)*nco(n_c)
-              DO k = 1,nco(n_c)
-                primitives(offset_a+i,&
-                           offset_b+j,&
-                           offset_c+k,&
-                           offset_d+l)=p_work_sum(p3+k)
-              END DO
-            END DO
-          END DO
-        END DO
-      CASE(5)
-        CALL pbc(D-C, box_size, pbc_D)
-        D11 = C + pbc_D
-        CALL pbc(B-A, box_size, pbc_B)
-        B11 = A + pbc_B
-        DO i = 1,size(neighbor_cells)
-          im_D(1) = D11(1) + neighbor_cells(i)%cell(1) * box_size(1)
-          im_D(2) = D11(2) + neighbor_cells(i)%cell(2) * box_size(2)
-          im_D(3) = D11(3) + neighbor_cells(i)%cell(3) * box_size(3)
-          DO j = 1,size(neighbor_cells)
-            IF(screen1(i,j)*screen2(i,j)<eps_schwarz) CYCLE
-            im_B(1) = B11(1) + neighbor_cells(j)%cell(1) * box_size(1)
-            im_B(2) = B11(2) + neighbor_cells(j)%cell(2) * box_size(2)
-            im_B(3) = B11(3) + neighbor_cells(j)%cell(3) * box_size(3)
-            !This loop is still in experimental status
-            DO k=1,max_k!size(neighbor_cells)
-              shift(1) =  neighbor_cells(k)%cell(1) * box_size(1)
-              shift(2) =  neighbor_cells(k)%cell(2) * box_size(2)
-              shift(3) =  neighbor_cells(k)%cell(3) * box_size(3)
-
-              CALL build_quartet_data(C,im_D,A,im_B,Zeta_C, Zeta_D, Zeta_A, Zeta_B, m_max,&
-                   screening_parameter, prim, do_periodic=.TRUE.,box_size=box_size,shift1=shift)
-              IF(m_max/=0) THEN
-                lib%PrimQuartet = C_LOC(prim)
-                lib%AB=C-im_D
-                lib%CD=A-im_B
-                CALL C_F_PROCPOINTER(build_eri(n_b,n_a,n_d,n_c),pbuild)
-                pc_result = pbuild(lib,1)
-                CALL C_F_POINTER(pc_result, p_work, a_mysize)
-                p_work_sum = p_work_sum + p_work
-              ELSE
-                p_work_sum =p_work_sum + prim%F(1)
-              END IF
-            END DO
-          END DO
-        END DO
-        DO k = 1,nco(n_c)
-          p1 = (k-1)*nco(n_d)
-           DO l = 1,nco(n_d)
-             p2 = (p1 + l-1)*nco(n_a)
-             DO i = 1,nco(n_a)
-               p3 = (p2 + i-1)*nco(n_b)
-               DO j = 1,nco(n_b)
-                 primitives(offset_a+i,&
-                            offset_b+j,&
-                            offset_c+k,&
-                            offset_d+l)=p_work_sum(p3+j)
-               END DO
-             END DO
-           END DO
-         END DO
-      CASE(6)
-        CALL pbc(D-C, box_size, pbc_D)
-        D11 = C + pbc_D
-        CALL pbc(A-B, box_size, pbc_A)
-        A11 = B + pbc_A
-        DO i = 1,size(neighbor_cells)
-          im_D(1) = D11(1) + neighbor_cells(i)%cell(1) * box_size(1)
-          im_D(2) = D11(2) + neighbor_cells(i)%cell(2) * box_size(2)
-          im_D(3) = D11(3) + neighbor_cells(i)%cell(3) * box_size(3)
-          DO j = 1,size(neighbor_cells)
-            IF(screen1(i,j)*screen2(i,j)<eps_schwarz) CYCLE
-            im_A(1) = A11(1) + neighbor_cells(j)%cell(1) * box_size(1)
-            im_A(2) = A11(2) + neighbor_cells(j)%cell(2) * box_size(2)
-            im_A(3) = A11(3) + neighbor_cells(j)%cell(3) * box_size(3)
-            !This loop is still in experimental status
-            DO k=1,max_k!size(neighbor_cells)
-              shift(1) =  neighbor_cells(k)%cell(1) * box_size(1)
-              shift(2) =  neighbor_cells(k)%cell(2) * box_size(2)
-              shift(3) =  neighbor_cells(k)%cell(3) * box_size(3)
-
-              CALL build_quartet_data(C,im_D,B,im_A,Zeta_C, Zeta_D, Zeta_B, Zeta_A, m_max,&
-                   screening_parameter, prim, do_periodic=.TRUE.,box_size=box_size,shift1=shift)
-              IF(m_max/=0) THEN
-                lib%PrimQuartet = C_LOC(prim)
-                lib%AB=C-im_D
-                lib%CD=B-im_A
-                CALL C_F_PROCPOINTER(build_eri(n_a,n_b,n_d,n_c),pbuild)
-                pc_result = pbuild(lib,1)
-                CALL C_F_POINTER(pc_result, p_work, a_mysize)
-                p_work_sum = p_work_sum + p_work
-              ELSE
-                p_work_sum =p_work_sum + prim%F(1)
-              END IF
-            END DO
-          END DO
-        END DO
-        DO k = 1,nco(n_c)
-          p1 = (k-1)*nco(n_d)
-           DO l = 1,nco(n_d)
-             p2 = (p1 + l-1)*nco(n_b)
-             DO j = 1,nco(n_b)
-               p3 = (p2 + j-1)*nco(n_a)
-               DO i = 1,nco(n_a)
-                 primitives(offset_a+i,&
-                            offset_b+j,&
-                            offset_c+k,&
-                            offset_d+l)=p_work_sum(p3+i)
-               END DO
-             END DO
-           END DO
-         END DO
-      CASE(7)
-        CALL pbc(C-D, box_size, pbc_C)
-        C11 = D + pbc_C
-        CALL pbc(B-A, box_size, pbc_B)
-        B11 = A + pbc_B
-        DO i = 1,size(neighbor_cells)
-          im_C(1) = C11(1) + neighbor_cells(i)%cell(1) * box_size(1)
-          im_C(2) = C11(2) + neighbor_cells(i)%cell(2) * box_size(2)
-          im_C(3) = C11(3) + neighbor_cells(i)%cell(3) * box_size(3)
-          DO j = 1,size(neighbor_cells)
-            IF(screen1(i,j)*screen2(i,j)<eps_schwarz) CYCLE
-            im_B(1) = B11(1) + neighbor_cells(j)%cell(1) * box_size(1)
-            im_B(2) = B11(2) + neighbor_cells(j)%cell(2) * box_size(2)
-            im_B(3) = B11(3) + neighbor_cells(j)%cell(3) * box_size(3)
-            !This loop is still in experimental status
-            DO k=1,max_k!size(neighbor_cells)
-              shift(1) =  neighbor_cells(k)%cell(1) * box_size(1)
-              shift(2) =  neighbor_cells(k)%cell(2) * box_size(2)
-              shift(3) =  neighbor_cells(k)%cell(3) * box_size(3)
-
-              CALL build_quartet_data(D,im_C,A,im_B,Zeta_D, Zeta_C, Zeta_A, Zeta_B, m_max,&
-                   screening_parameter, prim, do_periodic=.TRUE.,box_size=box_size,shift1=shift)
-              IF(m_max/=0) THEN
-                lib%PrimQuartet = C_LOC(prim)
-                lib%AB=D-im_C
-                lib%CD=A-im_B
-                CALL C_F_PROCPOINTER(build_eri(n_b,n_a,n_c,n_d),pbuild)
-                pc_result = pbuild(lib,1)
-                CALL C_F_POINTER(pc_result, p_work, a_mysize)
-                p_work_sum = p_work_sum + p_work
-              ELSE
-                p_work_sum =p_work_sum + prim%F(1)
-              END IF
-            END DO
-          END DO
-        END DO
-        DO l = 1,nco(n_d)
-          p1 = (l-1)*nco(n_c)
-           DO k = 1,nco(n_c)
-             p2 = (p1 + k-1) * nco(n_a)
-             DO i = 1,nco(n_a)
-               p3 = (p2 + i-1) *nco(n_b)
-               DO j = 1,nco(n_b)
-                 primitives(offset_a+i,&
-                            offset_b+j,&
-                            offset_c+k,&
-                            offset_d+l)=p_work_sum(p3+j)
-               END DO
-             END DO
-           END DO
-         END DO
-      CASE(8)
-        CALL pbc(C-D, box_size, pbc_C)
-        C11 = D + pbc_C
-        CALL pbc(A-B, box_size, pbc_A)
-        A11 = B + pbc_A
-        DO i = 1,size(neighbor_cells)
-          im_C(1) = C11(1) + neighbor_cells(i)%cell(1) * box_size(1)
-          im_C(2) = C11(2) + neighbor_cells(i)%cell(2) * box_size(2)
-          im_C(3) = C11(3) + neighbor_cells(i)%cell(3) * box_size(3)
-          DO j = 1,size(neighbor_cells)
-            IF(screen1(i,j)*screen2(i,j)<eps_schwarz) CYCLE
-            im_A(1) = A11(1) + neighbor_cells(j)%cell(1) * box_size(1)
-            im_A(2) = A11(2) + neighbor_cells(j)%cell(2) * box_size(2)
-            im_A(3) = A11(3) + neighbor_cells(j)%cell(3) * box_size(3)
-            !This loop is still in experimental status
-            DO k=1,max_k!size(neighbor_cells)
-              shift(1) =  neighbor_cells(k)%cell(1) * box_size(1)
-              shift(2) =  neighbor_cells(k)%cell(2) * box_size(2)
-              shift(3) =  neighbor_cells(k)%cell(3) * box_size(3)
-
-              CALL build_quartet_data(D,im_C,B,im_A,Zeta_D, Zeta_C, Zeta_B, Zeta_A, m_max,&
-                   screening_parameter, prim, do_periodic=.TRUE.,box_size=box_size,shift1=shift)
-              IF(m_max/=0) THEN
-                lib%PrimQuartet = C_LOC(prim)
-                lib%AB=D-im_C
-                lib%CD=B-im_A
-                CALL C_F_PROCPOINTER(build_eri(n_a,n_b,n_c,n_d),pbuild)
-                pc_result = pbuild(lib,1)
-                CALL C_F_POINTER(pc_result, p_work, a_mysize)
-                p_work_sum = p_work_sum + p_work
-              ELSE
-                p_work_sum =p_work_sum + prim%F(1)
-              END IF
-            END DO
-          END DO
-        END DO
-        DO l = 1,nco(n_d)
-          p1 = (l-1)*nco(n_c)
-          DO k = 1,nco(n_c)
-            p2 = (p1 + k-1) * nco(n_b)
-            DO j = 1,nco(n_b)
-              p3 = (p2 + j-1) * nco(n_a)
-              DO i = 1,nco(n_a)
-                primitives(offset_a+i,&
-                           offset_b+j,&
-                           offset_c+k,&
-                           offset_d+l)=p_work_sum(p3+i)
-              END DO
-            END DO
-          END DO
-        END DO
-    END SELECT
-    DEALLOCATE(p_work_sum)
-#endif
-  END SUBROUTINE evaluate_eri_periodic
-
-!***************************************************************************
-
-!!***** libint_interface/evaluate_eri_screen_periodic [1.0] *
-!!
-!!   NAME
-!!     evaluate_eri_screen_periodic
-!!
-!!   FUNCTION
-!!     Evaluate electron repulsion integrals for a primitive quartet wrt pbc
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     06.2007 created [Manuel Guidon]
-!!     08.2007 refactured permutation part [Manuel Guidon]
-!!
-!!****************************************************************************
-
-  SUBROUTINE evaluate_eri_screen_periodic(lib,A,B,C,D,Zeta_A,Zeta_B,Zeta_C,Zeta_D,&
-                                          n_a,n_b,n_c,n_d,&
-                                          screening_parameter, box_size, neighbor_cells,&
-                                          max_val, max_k)
-    
-    TYPE(lib_int)                            :: lib
-    REAL(dp), INTENT(IN),TARGET              :: A(3), B(3), C(3), D(3)
-    REAL(dp), INTENT(IN),TARGET              :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
-    INTEGER, INTENT(IN)                      :: n_a, n_b, n_c, n_d
-    TYPE(x_hf_screening_type)                :: screening_parameter
-    REAL(dp), INTENT(IN)                     :: box_size(3)
-    TYPE(x_hf_cell_type), DIMENSION(:), &
-                          POINTER            :: neighbor_cells
-    REAL(dp), INTENT(INOUT), &
-              DIMENSION(:,:)                 :: max_val
-    INTEGER, INTENT(IN)                      :: max_k
-
- 
-#if defined(__LIBINT)
-    INTEGER                                  :: i,j,k
-    TYPE(prim_data),TARGET                   :: prim
-    INTEGER(KIND=C_INT)                      :: m_max
-    INTEGER(KIND=C_INT)                      :: mysize,a_mysize(1)
-   
-    PROCEDURE(build), POINTER                :: pbuild
-    TYPE(C_PTR)                              :: pc_result 
-    REAL(dp), DIMENSION(:), POINTER          :: p_work, p_work_sum
-    REAL(dp), DIMENSION(3)                   :: shift,pbc_B, pbc_D, pbc_A, pbc_C, im_B, im_D, im_A, im_C, A11,B11,C11,D11
-    INTEGER                                  :: perm_case
-    !permutation of configuration
-
-    perm_case = 1
-    If(n_a<n_b) THEN
-      perm_case = perm_case + 1
-    END IF
-
-    IF(n_c<n_d) THEN
-      perm_case = perm_case + 2
-    END IF
- 
-    IF( n_a+n_b > n_c+n_d) THEN
-      perm_case = perm_case + 4
-    END IF
-   
-    m_max = n_a+n_b+n_c+n_d
-    mysize = nco(n_a)*nco(n_b)*nco(n_c)*nco(n_d)
-    a_mysize = mysize
-
-    ALLOCATE(p_work_sum(mysize))
-    p_work_sum = 0.0_dp
-    SELECT CASE(perm_case)
-      CASE(1)
-        CALL pbc(B-A, box_size, pbc_B)
-        B11 = A + pbc_B
-        CALL pbc(D-C, box_size, pbc_D)
-        D11 = C + pbc_D
-        DO i = 1,size(neighbor_cells)
-          im_B(1) = B11(1) + neighbor_cells(i)%cell(1) * box_size(1)
-          im_B(2) = B11(2) + neighbor_cells(i)%cell(2) * box_size(2)
-          im_B(3) = B11(3) + neighbor_cells(i)%cell(3) * box_size(3)
-          DO j = 1,size(neighbor_cells)
-            im_D(1) = D11(1) + neighbor_cells(j)%cell(1) * box_size(1)
-            im_D(2) = D11(2) + neighbor_cells(j)%cell(2) * box_size(2)
-            im_D(3) = D11(3) + neighbor_cells(j)%cell(3) * box_size(3)
-            !This loop is still in experimental status
-            DO k=1,max_k!size(neighbor_cells)
-              shift(1) =  neighbor_cells(k)%cell(1) * box_size(1)
-              shift(2) =  neighbor_cells(k)%cell(2) * box_size(2)
-              shift(3) =  neighbor_cells(k)%cell(3) * box_size(3)
-
-              CALL build_quartet_data(A,im_B,C,im_D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max,&
-                   screening_parameter, prim, do_periodic=.TRUE.,box_size=box_size,shift1=shift)
-
-              IF(m_max/=0) THEN 
-                lib%PrimQuartet = C_LOC(prim)
-                lib%AB=A-im_B
-                lib%CD=C-im_D
-                CALL C_F_PROCPOINTER(build_eri(n_d,n_c,n_b,n_a),pbuild)
-                pc_result = pbuild(lib,1)
-                CALL C_F_POINTER(pc_result, p_work, a_mysize)
-                p_work_sum = p_work_sum + p_work
-                max_val(i,j) = MAX(MAXVAL(ABS(p_work)),max_val(i,j))
-              ELSE
-                p_work_sum =p_work_sum + prim%F(1)
-                max_val(i,j) = MAX(ABS(prim%F(1)),max_val(i,j))
-              END IF
-            END DO
-          END DO
-        END DO
-      CASE(2)
-        CALL pbc(A-B, box_size, pbc_A)
-        A11  = B + pbc_A
-        CALL pbc(D-C, box_size, pbc_D)
-        D11 = C + pbc_D
-        DO i = 1,size(neighbor_cells)
-          im_A(1) = A11(1) + neighbor_cells(i)%cell(1) * box_size(1)
-          im_A(2) = A11(2) + neighbor_cells(i)%cell(2) * box_size(2)
-          im_A(3) = A11(3) + neighbor_cells(i)%cell(3) * box_size(3)
-          DO j = 1,size(neighbor_cells)
-            im_D(1) = D11(1) + neighbor_cells(j)%cell(1) * box_size(1)
-            im_D(2) = D11(2) + neighbor_cells(j)%cell(2) * box_size(2)
-            im_D(3) = D11(3) + neighbor_cells(j)%cell(3) * box_size(3)
-            !This loop is still in experimental status
-            DO k=1,max_k!size(neighbor_cells)
-              shift(1) =  neighbor_cells(k)%cell(1) * box_size(1)
-              shift(2) =  neighbor_cells(k)%cell(2) * box_size(2)
-              shift(3) =  neighbor_cells(k)%cell(3) * box_size(3)
-              CALL build_quartet_data(B,im_A,C,im_D,Zeta_B, Zeta_A, Zeta_C, Zeta_D, m_max,&
-                   screening_parameter, prim, do_periodic=.TRUE.,box_size=box_size,shift1=shift)
-              IF(m_max/=0) THEN
-                lib%PrimQuartet = C_LOC(prim)
-                lib%AB=B-im_A
-                lib%CD=C-im_D
-                CALL C_F_PROCPOINTER(build_eri(n_d,n_c,n_a,n_b),pbuild)
-                pc_result = pbuild(lib,1)
-                CALL C_F_POINTER(pc_result, p_work, a_mysize)
-                p_work_sum = p_work_sum + p_work
-                max_val(i,j) = MAX(MAXVAL(ABS(p_work)),max_val(i,j))
-              ELSE
-                p_work_sum =p_work_sum + prim%F(1)
-                max_val(i,j) = MAX(ABS(prim%F(1)),max_val(i,j))
-              END IF
-            END DO
-          END DO
-        END DO
-      CASE(3)
-        CALL pbc(B-A, box_size, pbc_B)
-        B11 = A + pbc_B
-        CALL pbc(C-D, box_size, pbc_C)
-        C11 = D + pbc_C
-        DO i = 1,size(neighbor_cells)
-          im_B(1) = B11(1) + neighbor_cells(i)%cell(1) * box_size(1)
-          im_B(2) = B11(2) + neighbor_cells(i)%cell(2) * box_size(2)
-          im_B(3) = B11(3) + neighbor_cells(i)%cell(3) * box_size(3)
-          DO j = 1,size(neighbor_cells)
-            im_C(1) = C11(1) + neighbor_cells(j)%cell(1) * box_size(1)
-            im_C(2) = C11(2) + neighbor_cells(j)%cell(2) * box_size(2)
-            im_C(3) = C11(3) + neighbor_cells(j)%cell(3) * box_size(3)
-            !This loop is still in experimental status
-            DO k=1,max_k!size(neighbor_cells)
-              shift(1) =  neighbor_cells(k)%cell(1) * box_size(1)
-              shift(2) =  neighbor_cells(k)%cell(2) * box_size(2)
-              shift(3) =  neighbor_cells(k)%cell(3) * box_size(3)
-              CALL build_quartet_data(A,im_B,D,im_C,Zeta_A, Zeta_B, Zeta_D, Zeta_C, m_max,&
-                   screening_parameter, prim, do_periodic=.TRUE.,box_size=box_size,shift1=shift)
-              IF(m_max/=0) THEN
-                lib%PrimQuartet = C_LOC(prim)
-                lib%AB=A-im_B
-                lib%CD=D-im_C
-                CALL C_F_PROCPOINTER(build_eri(n_c,n_d,n_b,n_a),pbuild)
-                pc_result = pbuild(lib,1)
-                CALL C_F_POINTER(pc_result, p_work, a_mysize)
-                p_work_sum = p_work_sum + p_work
-                max_val(i,j) = MAX(MAXVAL(ABS(p_work)),max_val(i,j))
-              ELSE
-                p_work_sum =p_work_sum + prim%F(1)
-                max_val(i,j) = MAX(ABS(prim%F(1)),max_val(i,j))
-              END IF
-            END DO
-          END DO
-        END DO
-      CASE(4)
-        CALL pbc(A-B, box_size, pbc_A)
-        A11 = B + pbc_A
-        CALL pbc(C-D, box_size, pbc_C)
-        C11 = D + pbc_C
-        DO i = 1,size(neighbor_cells)
-          im_A(1) = A11(1) + neighbor_cells(i)%cell(1) * box_size(1)
-          im_A(2) = A11(2) + neighbor_cells(i)%cell(2) * box_size(2)
-          im_A(3) = A11(3) + neighbor_cells(i)%cell(3) * box_size(3)
-          DO j = 1,size(neighbor_cells)
-            im_C(1) = C11(1) + neighbor_cells(j)%cell(1) * box_size(1)
-            im_C(2) = C11(2) + neighbor_cells(j)%cell(2) * box_size(2)
-            im_C(3) = C11(3) + neighbor_cells(j)%cell(3) * box_size(3)
-            !This loop is still in experimental status
-            DO k=1,max_k!size(neighbor_cells)
-              shift(1) =  neighbor_cells(k)%cell(1) * box_size(1)
-              shift(2) =  neighbor_cells(k)%cell(2) * box_size(2)
-              shift(3) =  neighbor_cells(k)%cell(3) * box_size(3)
-
-              CALL build_quartet_data(B,im_A,D,im_C,Zeta_B, Zeta_A, Zeta_D, Zeta_C, m_max,&
-                   screening_parameter, prim, do_periodic=.TRUE.,box_size=box_size,shift1=shift)
-              IF(m_max/=0) THEN
-                lib%PrimQuartet = C_LOC(prim)
-                lib%AB=B-im_A
-                lib%CD=D-im_C
-                CALL C_F_PROCPOINTER(build_eri(n_c,n_d,n_a,n_b),pbuild)
-                pc_result = pbuild(lib,1)
-                CALL C_F_POINTER(pc_result, p_work, a_mysize)
-                p_work_sum = p_work_sum + p_work
-                max_val(i,j) = MAX(MAXVAL(ABS(p_work)),max_val(i,j))
-              ELSE
-                p_work_sum =p_work_sum + prim%F(1)
-                max_val(i,j) = MAX(ABS(prim%F(1)),max_val(i,j))
-              END IF
-            END DO
-          END DO
-        END DO
-      CASE(5)
-        CALL pbc(D-C, box_size, pbc_D)
-        D11 = C + pbc_D
-        CALL pbc(B-A, box_size, pbc_B)
-        B11 = A + pbc_B
-        DO i = 1,size(neighbor_cells)
-          im_D(1) = D11(1) + neighbor_cells(i)%cell(1) * box_size(1)
-          im_D(2) = D11(2) + neighbor_cells(i)%cell(2) * box_size(2)
-          im_D(3) = D11(3) + neighbor_cells(i)%cell(3) * box_size(3)
-          DO j = 1,size(neighbor_cells)
-            im_B(1) = B11(1) + neighbor_cells(j)%cell(1) * box_size(1)
-            im_B(2) = B11(2) + neighbor_cells(j)%cell(2) * box_size(2)
-            im_B(3) = B11(3) + neighbor_cells(j)%cell(3) * box_size(3)
-            !This loop is still in experimental status
-            DO k=1,max_k!size(neighbor_cells)
-              shift(1) =  neighbor_cells(k)%cell(1) * box_size(1)
-              shift(2) =  neighbor_cells(k)%cell(2) * box_size(2)
-              shift(3) =  neighbor_cells(k)%cell(3) * box_size(3)
-
-              CALL build_quartet_data(C,im_D,A,im_B,Zeta_C, Zeta_D, Zeta_A, Zeta_B, m_max,&
-                   screening_parameter, prim, do_periodic=.TRUE.,box_size=box_size,shift1=shift)
-              IF(m_max/=0) THEN
-                lib%PrimQuartet = C_LOC(prim)
-                lib%AB=C-im_D
-                lib%CD=A-im_B
-                CALL C_F_PROCPOINTER(build_eri(n_b,n_a,n_d,n_c),pbuild)
-                pc_result = pbuild(lib,1)
-                CALL C_F_POINTER(pc_result, p_work, a_mysize)
-                p_work_sum = p_work_sum + p_work
-                max_val(i,j) = MAX(MAXVAL(ABS(p_work)),max_val(i,j))
-              ELSE
-                p_work_sum =p_work_sum + prim%F(1)
-                max_val(i,j) = MAX(ABS(prim%F(1)),max_val(i,j))
-              END IF
-            END DO
-          END DO
-        END DO
-      CASE(6)
-        CALL pbc(D-C, box_size, pbc_D)
-        D11 = C + pbc_D
-        CALL pbc(A-B, box_size, pbc_A)
-        A11 = B + pbc_A
-        DO i = 1,size(neighbor_cells)
-          im_D(1) = D11(1) + neighbor_cells(i)%cell(1) * box_size(1)
-          im_D(2) = D11(2) + neighbor_cells(i)%cell(2) * box_size(2)
-          im_D(3) = D11(3) + neighbor_cells(i)%cell(3) * box_size(3)
-          DO j = 1,size(neighbor_cells)
-            im_A(1) = A11(1) + neighbor_cells(j)%cell(1) * box_size(1)
-            im_A(2) = A11(2) + neighbor_cells(j)%cell(2) * box_size(2)
-            im_A(3) = A11(3) + neighbor_cells(j)%cell(3) * box_size(3)
-            !This loop is still in experimental status
-            DO k=1,max_k!size(neighbor_cells)
-              shift(1) =  neighbor_cells(k)%cell(1) * box_size(1)
-              shift(2) =  neighbor_cells(k)%cell(2) * box_size(2)
-              shift(3) =  neighbor_cells(k)%cell(3) * box_size(3)
-
-              CALL build_quartet_data(C,im_D,B,im_A,Zeta_C, Zeta_D, Zeta_B, Zeta_A, m_max,&
-                   screening_parameter, prim, do_periodic=.TRUE.,box_size=box_size,shift1=shift)
-              IF(m_max/=0) THEN
-                lib%PrimQuartet = C_LOC(prim)
-                lib%AB=C-im_D
-                lib%CD=B-im_A
-                CALL C_F_PROCPOINTER(build_eri(n_a,n_b,n_d,n_c),pbuild)
-                pc_result = pbuild(lib,1)
-                CALL C_F_POINTER(pc_result, p_work, a_mysize)
-                p_work_sum = p_work_sum + p_work
-                max_val(i,j) = MAX(MAXVAL(ABS(p_work)),max_val(i,j))
-              ELSE
-                p_work_sum =p_work_sum + prim%F(1)
-                max_val(i,j) = MAX(ABS(prim%F(1)),max_val(i,j))
-              END IF
-            END DO
-          END DO
-        END DO
-      CASE(7)
-        CALL pbc(C-D, box_size, pbc_C)
-        C11 = D + pbc_C
-        CALL pbc(B-A, box_size, pbc_B)
-        B11 = A + pbc_B
-        DO i = 1,size(neighbor_cells)
-          im_C(1) = C11(1) + neighbor_cells(i)%cell(1) * box_size(1)
-          im_C(2) = C11(2) + neighbor_cells(i)%cell(2) * box_size(2)
-          im_C(3) = C11(3) + neighbor_cells(i)%cell(3) * box_size(3)
-          DO j = 1,size(neighbor_cells)
-            im_B(1) = B11(1) + neighbor_cells(j)%cell(1) * box_size(1)
-            im_B(2) = B11(2) + neighbor_cells(j)%cell(2) * box_size(2)
-            im_B(3) = B11(3) + neighbor_cells(j)%cell(3) * box_size(3)
-            !This loop is still in experimental status
-            DO k=1,max_k!size(neighbor_cells)
-              shift(1) =  neighbor_cells(k)%cell(1) * box_size(1)
-              shift(2) =  neighbor_cells(k)%cell(2) * box_size(2)
-              shift(3) =  neighbor_cells(k)%cell(3) * box_size(3)
-
-              CALL build_quartet_data(D,im_C,A,im_B,Zeta_D, Zeta_C, Zeta_A, Zeta_B, m_max,&
-                   screening_parameter, prim, do_periodic=.TRUE.,box_size=box_size,shift1=shift)
-              IF(m_max/=0) THEN
-                lib%PrimQuartet = C_LOC(prim)
-                lib%AB=D-im_C
-                lib%CD=A-im_B
-                CALL C_F_PROCPOINTER(build_eri(n_b,n_a,n_c,n_d),pbuild)
-                pc_result = pbuild(lib,1)
-                CALL C_F_POINTER(pc_result, p_work, a_mysize)
-                p_work_sum = p_work_sum + p_work
-                max_val(i,j) = MAX(MAXVAL(ABS(p_work)),max_val(i,j))
-              ELSE
-                p_work_sum =p_work_sum + prim%F(1)
-                max_val(i,j) = MAX(ABS(prim%F(1)),max_val(i,j))
-              END IF
-            END DO
-          END DO
-        END DO
-      CASE(8)
-        CALL pbc(C-D, box_size, pbc_C)
-        C11 = D + pbc_C
-        CALL pbc(A-B, box_size, pbc_A)
-        A11 = B + pbc_A
-        DO i = 1,size(neighbor_cells)
-          im_C(1) = C11(1) + neighbor_cells(i)%cell(1) * box_size(1)
-          im_C(2) = C11(2) + neighbor_cells(i)%cell(2) * box_size(2)
-          im_C(3) = C11(3) + neighbor_cells(i)%cell(3) * box_size(3)
-          DO j = 1,size(neighbor_cells)
-            im_A(1) = A11(1) + neighbor_cells(j)%cell(1) * box_size(1)
-            im_A(2) = A11(2) + neighbor_cells(j)%cell(2) * box_size(2)
-            im_A(3) = A11(3) + neighbor_cells(j)%cell(3) * box_size(3)
-            !This loop is still in experimental status
-            DO k=1,max_k!size(neighbor_cells)
-              shift(1) =  neighbor_cells(k)%cell(1) * box_size(1)
-              shift(2) =  neighbor_cells(k)%cell(2) * box_size(2)
-              shift(3) =  neighbor_cells(k)%cell(3) * box_size(3)
-
-              CALL build_quartet_data(D,im_C,B,im_A,Zeta_D, Zeta_C, Zeta_B, Zeta_A, m_max,&
-                   screening_parameter, prim, do_periodic=.TRUE.,box_size=box_size,shift1=shift)
-              IF(m_max/=0) THEN
-                lib%PrimQuartet = C_LOC(prim)
-                lib%AB=D-im_C
-                lib%CD=B-im_A
-                CALL C_F_PROCPOINTER(build_eri(n_a,n_b,n_c,n_d),pbuild)
-                pc_result = pbuild(lib,1)
-                CALL C_F_POINTER(pc_result, p_work, a_mysize)
-                p_work_sum = p_work_sum + p_work
-                max_val(i,j) = MAX(MAXVAL(ABS(p_work)),max_val(i,j))
-              ELSE
-                p_work_sum =p_work_sum + prim%F(1)
-              END IF
-            END DO
-          END DO
-        END DO
-    END SELECT
-    DEALLOCATE(p_work_sum)
-#endif
-  END SUBROUTINE evaluate_eri_screen_periodic
-
-!***************************************************************************
-
-!!***** libint_interface/evaluate_deriv_eri_periodic [1.0] *
-!!
-!!   NAME
-!!     evaluate_deriv_eri_periodic
-!!
-!!   FUNCTION
-!!     Evaluates derivatives of electron repulsion integrals for a primitive quartet
-!!     wrt pbc
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     07.2007 created [Manuel Guidon]
-!!     08.2007 refactured permutation part [Manuel Guidon]
-!!
-!!****************************************************************************
-
-  SUBROUTINE evaluate_deriv_eri_periodic(deriv,A,B,C,D,Zeta_A,Zeta_B,Zeta_C,Zeta_D,&
-                                         n_a,n_b,n_c,n_d,work_forces,&
-                                         ncoa, ncob, ncoc, ncod,&
-                                         primitive_forces,&
-                                         offset_a, offset_b, offset_c, offset_d,&
-                                         screening_parameter, box_size, neighbor_cells, screen1, &
-                                         screen2, eps_schwarz, max_k)
-    
-    TYPE(lib_deriv)                          :: deriv
-    REAL(dp), INTENT(IN),TARGET              :: A(3), B(3), C(3), D(3)
-    REAL(dp), INTENT(IN),TARGET              :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
-    INTEGER, INTENT(IN)                      :: n_a, n_b, n_c, n_d
-    REAL(dp), DIMENSION(:,:), POINTER        :: work_forces
-    INTEGER, INTENT(IN)                      :: ncoa, ncob, ncoc, ncod
-    REAL(dp), DIMENSION(ncoa,ncob,ncoc,ncod,12) &
-                                             :: primitive_forces
-    INTEGER, INTENT(IN)                      :: offset_a, offset_b, offset_c, offset_d
-    TYPE(x_hf_screening_type)                :: screening_parameter
-    REAL(dp), INTENT(IN)                     :: box_size(3)
-    TYPE(x_hf_cell_type), DIMENSION(:), &
-                          POINTER            :: neighbor_cells
-    REAL(dp), DIMENSION(:,:)                 :: screen1, screen2
-    REAL(dp), INTENT(IN)                     :: eps_schwarz
-    INTEGER, INTENT(IN)                      :: max_k
-     
-#if defined(__LIBINT)
-    INTEGER                                  :: i,j,k,l
-    TYPE(prim_data),TARGET                   :: prim
-    INTEGER(KIND=C_INT)                      :: m_max
-    INTEGER(KIND=C_INT)                      :: mysize,a_mysize(1)
-    
-    TYPE(C_PTR)                              :: pc_result 
-   
-    PROCEDURE(build_deriv1), POINTER         :: pbuild_deriv1
-    REAL(C_DOUBLE), DIMENSION(:), POINTER    :: tmp_data
-    REAL(C_DOUBLE), DIMENSION(:,:),&
-                                  POINTER    :: work_forces_sum
-    REAL(dp), DIMENSION(3)                   :: shift, pbc_B, pbc_D, pbc_A, pbc_C, im_B, im_D, im_A, im_C, &
-                                                A11, B11, C11, D11
-    INTEGER                                  :: perm_case, p1, p2, p3,n
-  
-    !permutation of configuration
-
-    perm_case = 1
-    If(n_a<n_b) THEN
-      perm_case = perm_case + 1
-    END IF
-
-    IF(n_c<n_d) THEN
-      perm_case = perm_case + 2
-    END IF
- 
-    IF( n_a+n_b > n_c+n_d) THEN
-      perm_case = perm_case + 4
-    END IF
-   
-    m_max = n_a+n_b+n_c+n_d+1
-    mysize = nco(n_a)*nco(n_b)*nco(n_c)*nco(n_d)
-    a_mysize = mysize
-
-    ALLOCATE(work_forces_sum(mysize,12))
-    work_forces_sum = 0.0_dp
-    SELECT CASE(perm_case)
-      CASE(1)
-        CALL pbc(B-A, box_size, pbc_B)
-        B11 = A + pbc_B
-        CALL pbc(D-C, box_size, pbc_D)
-        D11 = C + pbc_D
-        DO i = 1,size(neighbor_cells)
-          im_B(1) = B11(1) + neighbor_cells(i)%cell(1) * box_size(1)
-          im_B(2) = B11(2) + neighbor_cells(i)%cell(2) * box_size(2)
-          im_B(3) = B11(3) + neighbor_cells(i)%cell(3) * box_size(3)
-          DO j = 1,size(neighbor_cells)
-            IF(screen1(i,j)*screen2(i,j)<eps_schwarz) CYCLE
-            im_D(1) = D11(1) + neighbor_cells(j)%cell(1) * box_size(1)
-            im_D(2) = D11(2) + neighbor_cells(j)%cell(2) * box_size(2)
-            im_D(3) = D11(3) + neighbor_cells(j)%cell(3) * box_size(3)
-            !This loop is still in experimental status
-            DO k=1,max_k!size(neighbor_cells)
-              shift(1) =  neighbor_cells(k)%cell(1) * box_size(1)
-              shift(2) =  neighbor_cells(k)%cell(2) * box_size(2)
-              shift(3) =  neighbor_cells(k)%cell(3) * box_size(3)
-
-              CALL build_deriv_data(A,im_B,C,im_D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max,&
-                   screening_parameter, prim, do_periodic=.TRUE.,box_size=box_size,shift1=shift)
-              deriv%PrimQuartet = C_LOC(prim)
-              deriv%AB=A-im_B
-              deriv%CD=C-im_D
-              CALL C_F_PROCPOINTER(build_deriv1_eri(n_d,n_c,n_b,n_a),pbuild_deriv1)
-              CALL pbuild_deriv1(deriv,1)
-              DO l=1,12
-                IF(l==4 .OR. l==5 .OR. l==6) CYCLE
-                pc_result = deriv%ABCD(l)
-                CALL C_F_POINTER(pc_result, tmp_data , a_mysize)
-                work_forces(1:mysize,l) = tmp_data
-              END DO
-              DO l=4,6
-                work_forces(1:mysize,l) = - 1.0_dp* (work_forces(1:mysize,l-3) + &
-                                                     work_forces(1:mysize,l+3) + &
-                                                     work_forces(1:mysize,l+6) )
-              END DO
-              work_forces_sum = work_forces_sum + work_forces
-            END DO
-          END DO
-        END DO
-        DO n=1,12
-          DO i = 1,nco(n_a)
-            p1 = (i-1) *nco(n_b)
-            DO j = 1,nco(n_b)
-              p2 = (p1 + j-1)*nco(n_c)
-              DO k = 1,nco(n_c)
-                p3 = (p2 + k-1)*nco(n_d)
-                DO l = 1,nco(n_d)
-                  primitive_forces(offset_a+i,&
-                                   offset_b+j,&
-                                   offset_c+k,&
-                                   offset_d+l, full_perm1(n))=work_forces_sum(p3+l,n)
-                END DO
-              END DO
-            END DO
-          END DO
-        END DO
-      CASE(2)
-        CALL pbc(A-B, box_size, pbc_A)
-        A11  = B + pbc_A
-        CALL pbc(D-C, box_size, pbc_D)
-        D11 = C + pbc_D
-        DO i = 1,size(neighbor_cells)
-          im_A(1) = A11(1) + neighbor_cells(i)%cell(1) * box_size(1)
-          im_A(2) = A11(2) + neighbor_cells(i)%cell(2) * box_size(2)
-          im_A(3) = A11(3) + neighbor_cells(i)%cell(3) * box_size(3)
-          DO j = 1,size(neighbor_cells)
-            IF(screen1(i,j)*screen2(i,j)<eps_schwarz) CYCLE
-            im_D(1) = D11(1) + neighbor_cells(j)%cell(1) * box_size(1)
-            im_D(2) = D11(2) + neighbor_cells(j)%cell(2) * box_size(2)
-            im_D(3) = D11(3) + neighbor_cells(j)%cell(3) * box_size(3)
-            !This loop is still in experimental status
-            DO k=1,max_k!size(neighbor_cells)
-              shift(1) =  neighbor_cells(k)%cell(1) * box_size(1)
-              shift(2) =  neighbor_cells(k)%cell(2) * box_size(2)
-              shift(3) =  neighbor_cells(k)%cell(3) * box_size(3)
-              CALL build_deriv_data(B,im_A,C,im_D,Zeta_B, Zeta_A, Zeta_C, Zeta_D, m_max,&
-                   screening_parameter, prim, do_periodic=.TRUE.,box_size=box_size,shift1=shift)
-              deriv%PrimQuartet = C_LOC(prim)
-              deriv%AB=B-im_A
-              deriv%CD=C-im_D
-              CALL C_F_PROCPOINTER(build_deriv1_eri(n_d,n_c,n_a,n_b),pbuild_deriv1)
-              CALL pbuild_deriv1(deriv,1)
-              CALL C_F_POINTER(pc_result, tmp_data, a_mysize)
-              CALL pbuild_deriv1(deriv,1)
-              DO l=1,12
-                IF(l==4 .OR. l==5 .OR. l==6) CYCLE
-                pc_result = deriv%ABCD(l)
-                CALL C_F_POINTER(pc_result, tmp_data , a_mysize)
-                work_forces(1:mysize,l) = tmp_data
-              END DO
-              DO l=4,6
-                work_forces(1:mysize,l) = - 1.0_dp* (work_forces(1:mysize,l-3) + &
-                                                     work_forces(1:mysize,l+3) + &
-                                                     work_forces(1:mysize,l+6) )
-              END DO
-              work_forces_sum = work_forces_sum + work_forces
-            END DO
-          END DO
-        END DO
-        DO n=1,12
-          DO j = 1,nco(n_b)
-            p1 = (j-1)*nco(n_a)
-            DO i = 1,nco(n_a)
-              p2 = (p1 + i-1)*nco(n_c)
-              DO k = 1,nco(n_c)
-                p3 = (p2 + k-1)*nco(n_d)
-                DO l = 1,nco(n_d)
-                  primitive_forces(offset_a+i,&
-                                   offset_b+j,&
-                                   offset_c+k,&
-                                   offset_d+l,full_perm2(n))=work_forces_sum(p3+l,n)
-                END DO
-              END DO
-            END DO
-          END DO
-        END DO
-      CASE(3)
-        CALL pbc(B-A, box_size, pbc_B)
-        B11 = A + pbc_B
-        CALL pbc(C-D, box_size, pbc_C)
-        C11 = D + pbc_C
-        DO i = 1,size(neighbor_cells)
-          im_B(1) = B11(1) + neighbor_cells(i)%cell(1) * box_size(1)
-          im_B(2) = B11(2) + neighbor_cells(i)%cell(2) * box_size(2)
-          im_B(3) = B11(3) + neighbor_cells(i)%cell(3) * box_size(3)
-          DO j = 1,size(neighbor_cells)
-            IF(screen1(i,j)*screen2(i,j)<eps_schwarz) CYCLE
-            im_C(1) = C11(1) + neighbor_cells(j)%cell(1) * box_size(1)
-            im_C(2) = C11(2) + neighbor_cells(j)%cell(2) * box_size(2)
-            im_C(3) = C11(3) + neighbor_cells(j)%cell(3) * box_size(3)
-            !This loop is still in experimental status
-            DO k=1,max_k!size(neighbor_cells)
-              shift(1) =  neighbor_cells(k)%cell(1) * box_size(1)
-              shift(2) =  neighbor_cells(k)%cell(2) * box_size(2)
-              shift(3) =  neighbor_cells(k)%cell(3) * box_size(3)
-              CALL build_deriv_data(A,im_B,D,im_C,Zeta_A, Zeta_B, Zeta_D, Zeta_C, m_max,&
-                   screening_parameter, prim, do_periodic=.TRUE.,box_size=box_size,shift1=shift)
-              deriv%PrimQuartet = C_LOC(prim)
-              deriv%AB=A-im_B
-              deriv%CD=D-im_C
-              CALL C_F_PROCPOINTER(build_deriv1_eri(n_c,n_d,n_b,n_a),pbuild_deriv1)
-              CALL pbuild_deriv1(deriv,1)
-              CALL C_F_POINTER(pc_result, tmp_data, a_mysize)
-              CALL pbuild_deriv1(deriv,1)
-              DO l=1,12
-                IF(l==4 .OR. l==5 .OR. l==6) CYCLE
-                pc_result = deriv%ABCD(l)
-                CALL C_F_POINTER(pc_result, tmp_data , a_mysize)
-                work_forces(1:mysize,l) = tmp_data
-              END DO
-              DO l=4,6
-                work_forces(1:mysize,l) = - 1.0_dp* (work_forces(1:mysize,l-3) + &
-                                                     work_forces(1:mysize,l+3) + &
-                                                     work_forces(1:mysize,l+6) )
-              END DO
-              work_forces_sum = work_forces_sum + work_forces
-            END DO
-          END DO
-        END DO
-        DO n=1,12
-          DO i = 1,nco(n_a)
-            p1 = (i-1)*nco(n_b)
-            DO j = 1,nco(n_b)
-              p2 = (p1 + j-1)*nco(n_d)
-              DO l = 1,nco(n_d)
-                p3 = (p2 + l-1) * nco(n_c)
-                DO k = 1,nco(n_c)
-                  primitive_forces(offset_a+i,&
-                                   offset_b+j,&
-                                   offset_c+k,&
-                                   offset_d+l,full_perm3(n))=work_forces_sum(p3+k,n)
-                END DO
-              END DO
-            END DO
-          END DO
-        END DO
-      CASE(4)
-        CALL pbc(A-B, box_size, pbc_A)
-        A11 = B + pbc_A
-        CALL pbc(C-D, box_size, pbc_C)
-        C11 = D + pbc_C
-        DO i = 1,size(neighbor_cells)
-          im_A(1) = A11(1) + neighbor_cells(i)%cell(1) * box_size(1)
-          im_A(2) = A11(2) + neighbor_cells(i)%cell(2) * box_size(2)
-          im_A(3) = A11(3) + neighbor_cells(i)%cell(3) * box_size(3)
-          DO j = 1,size(neighbor_cells)
-            IF(screen1(i,j)*screen2(i,j)<eps_schwarz) CYCLE
-            im_C(1) = C11(1) + neighbor_cells(j)%cell(1) * box_size(1)
-            im_C(2) = C11(2) + neighbor_cells(j)%cell(2) * box_size(2)
-            im_C(3) = C11(3) + neighbor_cells(j)%cell(3) * box_size(3)
-            !This loop is still in experimental status
-            DO k=1,max_k!size(neighbor_cells)
-              shift(1) =  neighbor_cells(k)%cell(1) * box_size(1)
-              shift(2) =  neighbor_cells(k)%cell(2) * box_size(2)
-              shift(3) =  neighbor_cells(k)%cell(3) * box_size(3)
-
-              CALL build_deriv_data(B,im_A,D,im_C,Zeta_B, Zeta_A, Zeta_D, Zeta_C, m_max,&
-                   screening_parameter, prim, do_periodic=.TRUE.,box_size=box_size,shift1=shift)
-              deriv%PrimQuartet = C_LOC(prim)
-              deriv%AB=B-im_A
-              deriv%CD=D-im_C
-              CALL C_F_PROCPOINTER(build_deriv1_eri(n_c,n_d,n_a,n_b),pbuild_deriv1)
-              CALL pbuild_deriv1(deriv,1)
-              CALL C_F_POINTER(pc_result, tmp_data, a_mysize)
-              CALL pbuild_deriv1(deriv,1)
-              DO l=1,12
-                IF(l==4 .OR. l==5 .OR. l==6) CYCLE
-                pc_result = deriv%ABCD(l)
-                CALL C_F_POINTER(pc_result, tmp_data , a_mysize)
-                work_forces(1:mysize,l) = tmp_data
-              END DO
-              DO l=4,6
-                work_forces(1:mysize,l) = - 1.0_dp* (work_forces(1:mysize,l-3) + &
-                                                     work_forces(1:mysize,l+3) + &
-                                                     work_forces(1:mysize,l+6) )
-              END DO
-              work_forces_sum = work_forces_sum + work_forces
-            END DO
-          END DO
-        END DO
-        DO n=1,12
-          DO j = 1,nco(n_b)
-            p1 = (j-1)*nco(n_a)
-            DO i = 1,nco(n_a)
-              p2 = (p1 + i-1)*nco(n_d)
-              DO l = 1,nco(n_d)
-                p3 = (p2 + l-1)*nco(n_c)
-                DO k = 1,nco(n_c)
-                  primitive_forces(offset_a+i,&
-                                   offset_b+j,&
-                                   offset_c+k,&
-                                   offset_d+l,full_perm4(n))=work_forces_sum(p3+k,n)
-                END DO
-              END DO
-            END DO
-          END DO
-        END DO
-      CASE(5)
-        CALL pbc(D-C, box_size, pbc_D)
-        D11 = C + pbc_D
-        CALL pbc(B-A, box_size, pbc_B)
-        B11 = A + pbc_B
-        DO i = 1,size(neighbor_cells)
-          im_D(1) = D11(1) + neighbor_cells(i)%cell(1) * box_size(1)
-          im_D(2) = D11(2) + neighbor_cells(i)%cell(2) * box_size(2)
-          im_D(3) = D11(3) + neighbor_cells(i)%cell(3) * box_size(3)
-          DO j = 1,size(neighbor_cells)
-            IF(screen1(i,j)*screen2(i,j)<eps_schwarz) CYCLE
-            im_B(1) = B11(1) + neighbor_cells(j)%cell(1) * box_size(1)
-            im_B(2) = B11(2) + neighbor_cells(j)%cell(2) * box_size(2)
-            im_B(3) = B11(3) + neighbor_cells(j)%cell(3) * box_size(3)
-            !This loop is still in experimental status
-            DO k=1,max_k!size(neighbor_cells)
-              shift(1) =  neighbor_cells(k)%cell(1) * box_size(1)
-              shift(2) =  neighbor_cells(k)%cell(2) * box_size(2)
-              shift(3) =  neighbor_cells(k)%cell(3) * box_size(3)
-
-              CALL build_deriv_data(C,im_D,A,im_B,Zeta_C, Zeta_D, Zeta_A, Zeta_B, m_max,&
-                   screening_parameter, prim, do_periodic=.TRUE.,box_size=box_size,shift1=shift)
-              deriv%PrimQuartet = C_LOC(prim)
-              deriv%AB=C-im_D
-              deriv%CD=A-im_B
-              CALL C_F_PROCPOINTER(build_deriv1_eri(n_b,n_a,n_d,n_c),pbuild_deriv1)
-              CALL pbuild_deriv1(deriv,1)
-              CALL C_F_POINTER(pc_result, tmp_data, a_mysize)
-              CALL pbuild_deriv1(deriv,1)
-              DO l=1,12
-                IF(l==4 .OR. l==5 .OR. l==6) CYCLE
-                pc_result = deriv%ABCD(l)
-                CALL C_F_POINTER(pc_result, tmp_data , a_mysize)
-                work_forces(1:mysize,l) = tmp_data
-              END DO
-              DO l=4,6
-                work_forces(1:mysize,l) = - 1.0_dp* (work_forces(1:mysize,l-3) + &
-                                                     work_forces(1:mysize,l+3) + &
-                                                     work_forces(1:mysize,l+6) )
-              END DO
-              work_forces_sum = work_forces_sum + work_forces
-            END DO
-          END DO
-        END DO
-        DO n=1,12
-          DO k = 1,nco(n_c)
-            p1 = (k-1)*nco(n_d)
-             DO l = 1,nco(n_d)
-               p2 = (p1 + l-1)*nco(n_a)
-               DO i = 1,nco(n_a)
-                 p3 = (p2 + i-1)*nco(n_b)
-                 DO j = 1,nco(n_b)
-                   primitive_forces(offset_a+i,&
-                                    offset_b+j,&
-                                    offset_c+k,&
-                                    offset_d+l,full_perm5(n))=work_forces_sum(p3+j,n)
-                 END DO
-               END DO
-             END DO
-           END DO
-         END DO
-      CASE(6)
-        CALL pbc(D-C, box_size, pbc_D)
-        D11 = C + pbc_D
-        CALL pbc(A-B, box_size, pbc_A)
-        A11 = B + pbc_A
-        DO i = 1,size(neighbor_cells)
-          im_D(1) = D11(1) + neighbor_cells(i)%cell(1) * box_size(1)
-          im_D(2) = D11(2) + neighbor_cells(i)%cell(2) * box_size(2)
-          im_D(3) = D11(3) + neighbor_cells(i)%cell(3) * box_size(3)
-          DO j = 1,size(neighbor_cells)
-            IF(screen1(i,j)*screen2(i,j)<eps_schwarz) CYCLE
-            im_A(1) = A11(1) + neighbor_cells(j)%cell(1) * box_size(1)
-            im_A(2) = A11(2) + neighbor_cells(j)%cell(2) * box_size(2)
-            im_A(3) = A11(3) + neighbor_cells(j)%cell(3) * box_size(3)
-            !This loop is still in experimental status
-            DO k=1,max_k!size(neighbor_cells)
-              shift(1) =  neighbor_cells(k)%cell(1) * box_size(1)
-              shift(2) =  neighbor_cells(k)%cell(2) * box_size(2)
-              shift(3) =  neighbor_cells(k)%cell(3) * box_size(3)
-
-              CALL build_deriv_data(C,im_D,B,im_A,Zeta_C, Zeta_D, Zeta_B, Zeta_A, m_max,&
-                   screening_parameter, prim, do_periodic=.TRUE.,box_size=box_size,shift1=shift)
-              deriv%PrimQuartet = C_LOC(prim)
-              deriv%AB=C-im_D
-              deriv%CD=B-im_A
-              CALL C_F_PROCPOINTER(build_deriv1_eri(n_a,n_b,n_d,n_c),pbuild_deriv1)
-              CALL pbuild_deriv1(deriv,1)
-              CALL C_F_POINTER(pc_result, tmp_data, a_mysize)
-              CALL pbuild_deriv1(deriv,1)
-              DO l=1,12
-                IF(l==4 .OR. l==5 .OR. l==6) CYCLE
-                pc_result = deriv%ABCD(l)
-                CALL C_F_POINTER(pc_result, tmp_data , a_mysize)
-                work_forces(1:mysize,l) = tmp_data
-              END DO
-              DO l=4,6
-                work_forces(1:mysize,l) = - 1.0_dp* (work_forces(1:mysize,l-3) + &
-                                                     work_forces(1:mysize,l+3) + &
-                                                     work_forces(1:mysize,l+6) )
-              END DO
-              work_forces_sum = work_forces_sum + work_forces
-            END DO
-          END DO
-        END DO
-        DO n=1,12
-          DO k = 1,nco(n_c)
-            p1 = (k-1)*nco(n_d)
-             DO l = 1,nco(n_d)
-               p2 = (p1 + l-1)*nco(n_b)
-               DO j = 1,nco(n_b)
-                 p3 = (p2 + j-1)*nco(n_a)
-                 DO i = 1,nco(n_a)
-                   primitive_forces(offset_a+i,&
-                                    offset_b+j,&
-                                    offset_c+k,&
-                                    offset_d+l,full_perm6(n))=work_forces_sum(p3+i,n)
-                 END DO
-               END DO
-             END DO
-           END DO
-         END DO
-      CASE(7)
-        CALL pbc(C-D, box_size, pbc_C)
-        C11 = D + pbc_C
-        CALL pbc(B-A, box_size, pbc_B)
-        B11 = A + pbc_B
-        DO i = 1,size(neighbor_cells)
-          im_C(1) = C11(1) + neighbor_cells(i)%cell(1) * box_size(1)
-          im_C(2) = C11(2) + neighbor_cells(i)%cell(2) * box_size(2)
-          im_C(3) = C11(3) + neighbor_cells(i)%cell(3) * box_size(3)
-          DO j = 1,size(neighbor_cells)
-            IF(screen1(i,j)*screen2(i,j)<eps_schwarz) CYCLE
-            im_B(1) = B11(1) + neighbor_cells(j)%cell(1) * box_size(1)
-            im_B(2) = B11(2) + neighbor_cells(j)%cell(2) * box_size(2)
-            im_B(3) = B11(3) + neighbor_cells(j)%cell(3) * box_size(3)
-            !This loop is still in experimental status
-            DO k=1,max_k!size(neighbor_cells)
-              shift(1) =  neighbor_cells(k)%cell(1) * box_size(1)
-              shift(2) =  neighbor_cells(k)%cell(2) * box_size(2)
-              shift(3) =  neighbor_cells(k)%cell(3) * box_size(3)
-
-              CALL build_deriv_data(D,im_C,A,im_B,Zeta_D, Zeta_C, Zeta_A, Zeta_B, m_max,&
-                   screening_parameter, prim, do_periodic=.TRUE.,box_size=box_size,shift1=shift)
-              deriv%PrimQuartet = C_LOC(prim)
-              deriv%AB=D-im_C
-              deriv%CD=A-im_B
-              CALL C_F_PROCPOINTER(build_deriv1_eri(n_b,n_a,n_c,n_d),pbuild_deriv1)
-              CALL pbuild_deriv1(deriv,1)
-              CALL C_F_POINTER(pc_result, tmp_data, a_mysize)
-              CALL pbuild_deriv1(deriv,1)
-              DO l=1,12
-                IF(l==4 .OR. l==5 .OR. l==6) CYCLE
-                pc_result = deriv%ABCD(l)
-                CALL C_F_POINTER(pc_result, tmp_data , a_mysize)
-                work_forces(1:mysize,l) = tmp_data
-              END DO
-              DO l=4,6
-                work_forces(1:mysize,l) = - 1.0_dp* (work_forces(1:mysize,l-3) + &
-                                                     work_forces(1:mysize,l+3) + &
-                                                     work_forces(1:mysize,l+6) )
-              END DO
-              work_forces_sum = work_forces_sum + work_forces
-            END DO
-          END DO
-        END DO
-        DO n=1,12
-          DO l = 1,nco(n_d)
-            p1 = (l-1)*nco(n_c)
-             DO k = 1,nco(n_c)
-               p2 = (p1 + k-1) * nco(n_a)
-               DO i = 1,nco(n_a)
-                 p3 = (p2 + i-1) *nco(n_b)
-                 DO j = 1,nco(n_b)
-                   primitive_forces(offset_a+i,&
-                                    offset_b+j,&
-                                    offset_c+k,&
-                                    offset_d+l,full_perm7(n))=work_forces_sum(p3+j,n)
-                 END DO
-               END DO
-             END DO
-           END DO
-         END DO
-      CASE(8)
-        CALL pbc(C-D, box_size, pbc_C)
-        C11 = D + pbc_C
-        CALL pbc(A-B, box_size, pbc_A)
-        A11 = B + pbc_A
-        DO i = 1,size(neighbor_cells)
-          im_C(1) = C11(1) + neighbor_cells(i)%cell(1) * box_size(1)
-          im_C(2) = C11(2) + neighbor_cells(i)%cell(2) * box_size(2)
-          im_C(3) = C11(3) + neighbor_cells(i)%cell(3) * box_size(3)
-          DO j = 1,size(neighbor_cells)
-            IF(screen1(i,j)*screen2(i,j)<eps_schwarz) CYCLE
-            im_A(1) = A11(1) + neighbor_cells(j)%cell(1) * box_size(1)
-            im_A(2) = A11(2) + neighbor_cells(j)%cell(2) * box_size(2)
-            im_A(3) = A11(3) + neighbor_cells(j)%cell(3) * box_size(3)
-            !This loop is still in experimental status
-            DO k=1,max_k!size(neighbor_cells)
-              shift(1) =  neighbor_cells(k)%cell(1) * box_size(1)
-              shift(2) =  neighbor_cells(k)%cell(2) * box_size(2)
-              shift(3) =  neighbor_cells(k)%cell(3) * box_size(3)
-
-              CALL build_deriv_data(D,im_C,B,im_A,Zeta_D, Zeta_C, Zeta_B, Zeta_A, m_max,&
-                   screening_parameter, prim, do_periodic=.TRUE.,box_size=box_size,shift1=shift)
-              deriv%PrimQuartet = C_LOC(prim)
-              deriv%AB=D-im_C
-              deriv%CD=B-im_A
-              CALL C_F_PROCPOINTER(build_deriv1_eri(n_a,n_b,n_c,n_d),pbuild_deriv1)
-              CALL pbuild_deriv1(deriv,1)
-              CALL C_F_POINTER(pc_result, tmp_data, a_mysize)
-              CALL pbuild_deriv1(deriv,1)
-              DO l=1,12
-                IF(l==4 .OR. l==5 .OR. l==6) CYCLE
-                pc_result = deriv%ABCD(l)
-                CALL C_F_POINTER(pc_result, tmp_data , a_mysize)
-                work_forces(1:mysize,l) = tmp_data
-              END DO
-              DO l=4,6
-                work_forces(1:mysize,l) = - 1.0_dp* (work_forces(1:mysize,l-3) + &
-                                                     work_forces(1:mysize,l+3) + &
-                                                     work_forces(1:mysize,l+6) )
-              END DO
-              work_forces_sum = work_forces_sum + work_forces
-            END DO
-          END DO
-        END DO
-        DO n=1,12
-          DO l = 1,nco(n_d)
-            p1 = (l-1)*nco(n_c)
-            DO k = 1,nco(n_c)
-              p2 = (p1 + k-1) * nco(n_b)
-              DO j = 1,nco(n_b)
-                p3 = (p2 + j-1) * nco(n_a)
-                DO i = 1,nco(n_a)
-                  primitive_forces(offset_a+i,&
-                                   offset_b+j,&
-                                   offset_c+k,&
-                                   offset_d+l,full_perm8(n))=work_forces_sum(p3+i,n)
-                END DO
-              END DO
-            END DO
-          END DO
-        END DO
-    END SELECT
-
-    DEALLOCATE(work_forces_sum)
-#endif
-  END SUBROUTINE evaluate_deriv_eri_periodic
-
-
 
 !!***** libint_interface/pbc [1.0] *
 !!
