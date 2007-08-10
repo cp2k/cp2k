@@ -161,8 +161,6 @@ CPSourceFileRef,&
           ! we use only the first default_string_length characters of each line
           is_ok=cp_sll_val_next(list,val,error=error)
           CALL val_get(val,c_val=line_att,error=error)
-          !CALL section_vals_val_get(coord_section,"_DEFAULT_KEYWORD_",&
-          !     i_rep_val=iatom,c_val=line_att,error=error)
           ! *** Read name and atomic coordinates ***
           start_c=1
           DO wrd=1,4
@@ -206,8 +204,6 @@ CPSourceFileRef,&
           ! we use only the first default_string_length characters of each line
           is_ok=cp_sll_val_next(list,val,error=error)
           CALL val_get(val,c_val=line_att,error=error)
-          !CALL section_vals_val_get(coord_section,"_DEFAULT_KEYWORD_",&
-          !     i_rep_val=iatom,c_val=line_att,error=error)
           ILEN = default_string_length
           atom_info%label_molname(iatom) = ""
           atom_info%label_resname(iatom) = ""

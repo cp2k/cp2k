@@ -43,7 +43,12 @@ MODULE string_utilities
             substitute_special_xml_tokens,&
             uppercase,&
             xstring,str_search, s2a, &
-            pattern_match,typo_match,backslash,star,question
+            pattern_match,&
+            typo_match,&
+            backslash,&
+            star,&
+            question,&
+            remove_word
 
   INTERFACE s2a
     MODULE PROCEDURE s2a_1,s2a_2,s2a_3,s2a_4,s2a_5,s2a_6, s2a_7,s2a_8,s2a_9, &
@@ -534,6 +539,31 @@ END FUNCTION
 
 ! *****************************************************************************
 
+  SUBROUTINE remove_word(string)
+
+!   Purpose: remove a word from a string (words are separated by white spaces)
+
+!   ***************************************************************************
+
+    CHARACTER(LEN=*), INTENT(INOUT)          :: string
+
+    INTEGER                                  :: i
+
+! possibly clean white spaces
+
+    i = 1
+    DO WHILE(string(i:i)==" ")
+       i = i + 1
+    END DO
+    ! now remove the word
+    DO WHILE(string(i:i)/=" ")
+       i = i + 1
+    END DO
+    string = string(i:)
+
+  END SUBROUTINE remove_word
+
+! *****************************************************************************
   SUBROUTINE substitute_special_xml_tokens(inp_string,out_string,ltu)
 
 !   Purpose: Substitute special XML tokens like "<" or ">" in inp_string.

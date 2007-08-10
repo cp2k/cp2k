@@ -1,0 +1,98 @@
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-8
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-4
+      SCF_GUESS ATOMIC
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL Pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 4.0 4.0 4.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+    O   0.000000    0.000000   -0.065587
+    H   0.000000   -0.757136    0.520545
+    H   0.000000    0.757136    0.520545
+    &END COORD
+    &KIND H
+       &BASIS
+          # Basis set name:  DZVP-GTH-PADE  for symbol:  H
+          # Basis set read from the basis set filename: BASIS_SET
+ 2
+ 1 0 0 4 2
+ 8.3744350009 -0.0238943732 0.
+ 1.805868146 -0.1397943259 0.
+ 0.4852531032 -0.2530970874 0.
+ 0.1658235797 -0.6955307423 1.
+ 2 1 1 1 1
+ 0.7 1.
+       &END BASIS
+       POTENTIAL GTH
+       &POTENTIAL
+          # Potential name:  GTH-PADE-Q1  for symbol:  H
+          # Potential read from the potential filename: POTENTIAL
+ 1
+ 0.2 2 -4.1802368 0.72507482
+ 0
+       &END POTENTIAL
+    &END KIND
+    &KIND O
+       &BASIS
+          # Basis set name:  DZVP-GTH-PADE  for symbol:  O
+          # Basis set read from the basis set filename: BASIS_SET
+ 2
+ 2 0 1 4 2 2
+ 8.3044042305 0.1510163077 0. -0.0995678047 0.
+ 2.4579452461 -0.0393193874 0. -0.3011430914 0.
+ 0.7597363524 -0.6971729792 0. -0.475085273 0.
+ 0.2136387585 -0.3841125601 1. -0.3798775565 1.
+ 3 2 2 1 1
+ 0.8 1.
+       &END BASIS
+       POTENTIAL GTH
+       &POTENTIAL
+          # Potential name:  GTH-PADE-Q6  for symbol:  O
+          # Potential read from the potential filename: POTENTIAL
+ 2 4
+ 0.24762086 2 -16.58031797 2.39570092
+ 2
+ 0.22178614 1 18.26691718
+ 0.2568289 0
+       &END POTENTIAL
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+
+  PROJECT H2O
+  RUN_TYPE MD
+  PRINT_LEVEL LOW
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 5
+    TIMESTEP 0.1
+    TEMPERATURE 300.0
+    &NOSE
+      LENGTH 3
+      YOSHIDA 3
+      TIMECON 100.0
+      MTS 2
+    &END NOSE
+  &END MD
+&END MOTION

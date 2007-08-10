@@ -827,6 +827,99 @@ CONTAINS
     END IF
   END SUBROUTINE create_core_vel_section
 
+!***************************************************************************
+!!****f* input_cp2k_subsys/create_potential_section [1.0] *
+!!
+!!   NAME
+!!     create_potential_section
+!!
+!!   FUNCTION
+!!     Creates the &POTENTIAL section
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_potential_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_potential_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="potential",&
+            description="Section used to specify Potentials.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword)
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="CP2K Pseudo Potential Standard Format (GTH, ALL or ELP)",&
+            repeats=.TRUE.,type_of_var=lchar_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    END IF
+  END SUBROUTINE create_potential_section
+
+!***************************************************************************
+!!****f* input_cp2k_subsys/create_basis_section [1.0] *
+!!
+!!   NAME
+!!     create_basis_section
+!!
+!!   FUNCTION
+!!     Creates the &BASIS section
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_basis_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_basis_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="basis",&
+            description="Section used to specify a general basis set for QM calculations.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword)
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="CP2K Basis Set Standard Format",repeats=.TRUE.,&
+            type_of_var=lchar_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    END IF
+  END SUBROUTINE create_basis_section
 
 !***************************************************************************
 !!****f* input_cp2k_subsys/create_coord_section [1.0] *
@@ -1010,6 +1103,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
 
@@ -1103,7 +1197,7 @@ CONTAINS
        CALL keyword_create(keyword, name="POTENTIAL",&
             variants=(/ "POT" /),&
             description="The name of the pseudopotential for the defined kind.",&
-            usage="POTENTIAL <PSEUDO-POTENTIAL-NAME>", default_c_val="", n_var=1,&
+            usage="POTENTIAL <PSEUDO-POTENTIAL-NAME>", default_c_val=" ", n_var=1,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1171,6 +1265,14 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       NULLIFY(subsection)
+       CALL create_basis_section(subsection, error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_potential_section(subsection, error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
     END IF
 
   END SUBROUTINE create_kind_section
@@ -1207,7 +1309,8 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection, &
-                                                subsubsection, subsubsubsection
+                                                subsubsection, &
+                                                subsubsubsection
 
     failure=.FALSE.
 

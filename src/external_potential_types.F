@@ -21,6 +21,8 @@
 
 MODULE external_potential_types
 
+  USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
+                                             cp_sll_val_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_parser,                       ONLY: cp_parser_type,&
                                              parser_create,&
@@ -28,8 +30,13 @@ MODULE external_potential_types
                                              parser_release,&
                                              parser_search_string,&
                                              parser_test_next_token
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_val_get
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_list_get,&
+                                             section_vals_type,&
+                                             section_vals_val_get,&
+                                             section_vals_val_set
+  USE input_val_types,                 ONLY: val_get,&
+                                             val_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mathconstants,                   ONLY: dfac,&
@@ -45,7 +52,8 @@ MODULE external_potential_types
                                              nso
   USE orbital_transformation_matrices, ONLY: orbtramat
   USE periodic_table,                  ONLY: ptable
-  USE string_utilities,                ONLY: uppercase
+  USE string_utilities,                ONLY: remove_word,&
+                                             uppercase
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
 #include "cp_common_uses.h"
@@ -880,38 +888,41 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE read_all_potential(element_symbol,potential_name,potential,&
-                                zeff_correction, para_env, dft_section, error)
+  SUBROUTINE read_all_potential(element_symbol,potential_name,potential,zeff_correction,&
+       para_env, dft_section, potential_section, error)
 
-!   Purpose: Read an atomic all-electron potential data set.
+    !   Purpose: Read an atomic all-electron potential data set.
 
-!   History: - Creation (14.05.2000,MK)
+    !   History: - Creation (14.05.2000,MK)
 
-!   ***************************************************************************
+    !   ***************************************************************************
 
     CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, potential_name
     TYPE(all_potential_type), POINTER        :: potential
     REAL(KIND=dp)                            :: zeff_correction
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(section_vals_type), POINTER         :: dft_section
+    TYPE(section_vals_type), POINTER         :: dft_section, potential_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_all_potential'
 
     CHARACTER(LEN=240)                       :: line
     CHARACTER(LEN=242)                       :: line2
+    CHARACTER(len=5*default_string_length)   :: line_att
     CHARACTER(len=default_string_length)     :: potential_file_name
     CHARACTER(LEN=LEN(element_symbol))       :: symbol
     CHARACTER(LEN=LEN(element_symbol)+2)     :: symbol2
     CHARACTER(LEN=LEN(potential_name))       :: apname
     CHARACTER(LEN=LEN(potential_name)+2)     :: apname2
-    INTEGER                                  :: istat, l, strlen1, strlen2
+    INTEGER                                  :: irep, istat, l, strlen1, &
+                                                strlen2
     INTEGER, DIMENSION(:), POINTER           :: elec_conf
-    LOGICAL                                  :: found
+    LOGICAL                                  :: found, is_ok, match, &
+                                                read_from_input
     REAL(KIND=dp)                            :: alpha, r
     TYPE(cp_parser_type), POINTER            :: parser
-
-!   ---------------------------------------------------------------------------
+    TYPE(cp_sll_val_type), POINTER           :: list
+    TYPE(val_type), POINTER                  :: val
 
     line2 = ""
     symbol2 = ""
@@ -919,126 +930,174 @@ CONTAINS
     NULLIFY(parser)
 
     potential%name = potential_name
+    read_from_input = .FALSE.
+    CALL section_vals_get(potential_section,explicit=read_from_input, error=error)
+    IF (.NOT.read_from_input) THEN
+       CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",c_val=potential_file_name,&
+            error=error)
+       CALL parser_create(parser,potential_file_name,para_env=para_env,error=error)
+    END IF
 
-    CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",&
-         c_val=potential_file_name,error=error)
-    CALL parser_create(parser,potential_file_name,&
-         para_env=para_env,error=error)
-
-!   *** Search for the requested potential in the potential file   ***
-!   *** until the potential is found or the end of file is reached ***
+    !   *** Search for the requested potential in the potential file   ***
+    !   *** until the potential is found or the end of file is reached ***
 
     apname = potential_name
     symbol = element_symbol
-
+    irep   = 0
     search_loop: DO
+       IF (read_from_input) THEN
+          NULLIFY(list, val)
+          found = .TRUE.
+          CALL section_vals_list_get(potential_section,"_DEFAULT_KEYWORD_",list=list,error=error)
+       ELSE
+          CALL parser_search_string(parser,TRIM(apname),.TRUE.,found,line,error=error)
+       END IF
+       IF (found) THEN
+          CALL uppercase(symbol)
+          CALL uppercase(apname)
 
-      CALL parser_search_string(parser,apname,.TRUE.,found,line,error=error)
+          IF (read_from_input) THEN
+             match = .TRUE.
+          ELSE
+             !       *** Check both the element symbol and the atomic potential name ***
+             match = .FALSE.
+             CALL uppercase(line)
+             line2 = " "//line//" "
+             symbol2 = " "//TRIM(symbol)//" "
+             apname2 = " "//TRIM(apname)//" "
+             strlen1 = LEN_TRIM(symbol2) + 1
+             strlen2 = LEN_TRIM(apname2) + 1
 
-      IF (found) THEN
+             IF ( (INDEX(line2,symbol2(:strlen1)) > 0).AND.&
+                  (INDEX(line2,apname2(:strlen2)) > 0)) match = .TRUE.
+          END IF
+          IF (match) THEN
+             !         *** Read the electronic configuration ***
+             NULLIFY (elec_conf)
+             l = 0
+             CALL reallocate(elec_conf,0,l)
+             IF (read_from_input) THEN
+                is_ok=cp_sll_val_next(list,val,error=error)
+                IF (.NOT.is_ok) CALL stop_memory(routineN,moduleN,&
+__LINE__,&
+                     "Error reading the Potential from input file!!")
+                CALL val_get(val,c_val=line_att,error=error)
+                READ(line_att,*)elec_conf(l)
+                CALL remove_word(line_att)
+                DO WHILE (LEN_TRIM(line_att) /= 0)
+                   l = l + 1
+                   CALL reallocate(elec_conf,0,l)
+                   READ(line_att,*)elec_conf(l)
+                   CALL remove_word(line_att)
+                END DO
+             ELSE
+                CALL parser_get_object(parser,elec_conf(l),newline=.TRUE.,error=error)
+                DO WHILE (parser_test_next_token(parser,error=error) == "INT")
+                   l = l + 1
+                   CALL reallocate(elec_conf,0,l)
+                   CALL parser_get_object(parser,elec_conf(l),error=error)
+                END DO
+                irep = irep + 1
+                WRITE(line_att,*)elec_conf
+                CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
+                     c_val=TRIM(line_att), error=error)              
+             END IF
 
-        CALL uppercase(line)
-        CALL uppercase(symbol)
-        CALL uppercase(apname)
+             CALL reallocate(potential%elec_conf,0,l)
+             potential%elec_conf(:) = elec_conf(:)
 
-!       *** Check both the element symbol and the atomic potential name ***
+             potential%zeff_correction = zeff_correction
+             potential%zeff = REAL(SUM(elec_conf),dp)+zeff_correction
 
-        line2 = " "//line//" "
-        symbol2 = " "//TRIM(symbol)//" "
-        apname2 = " "//TRIM(apname)//" "
-        strlen1 = LEN_TRIM(symbol2) + 1
-        strlen2 = LEN_TRIM(apname2) + 1
+             DEALLOCATE (elec_conf,STAT=istat)
+             IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                  "elec_conf")
 
-        IF ((INDEX(line2,symbol2(:strlen1)) > 0).AND.&
-            (INDEX(line2,apname2(:strlen2)) > 0)) THEN
+             !         *** Read r(loc) to define the exponent of the core charge    ***
+             !         *** distribution and calculate the corresponding coefficient ***
 
-!         *** Read the electronic configuration ***
+             IF (read_from_input) THEN
+                is_ok=cp_sll_val_next(list,val,error=error)
+                IF (.NOT.is_ok) CALL stop_memory(routineN,moduleN,&
+__LINE__,&
+                     "Error reading the Potential from input file!!")
+                CALL val_get(val,c_val=line_att,error=error)
+                READ(line_att,*)r                          
+             ELSE
+                CALL parser_get_object(parser,r,newline=.TRUE.,error=error)
+                irep = irep + 1
+                WRITE(line_att,*)r
+                CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
+                     c_val=TRIM(line_att), error=error)
+             END IF
+             alpha = 1.0_dp/(2.0_dp*r**2)
 
-          NULLIFY (elec_conf)
+             potential%alpha_core_charge = alpha
+             potential%ccore_charge = potential%zeff*SQRT((alpha/pi)**3)
 
-          l = 0
-          CALL reallocate(elec_conf,0,l)
-          CALL parser_get_object(parser,elec_conf(l),newline=.TRUE.,error=error)
-          DO WHILE (parser_test_next_token(parser,error=error) == "INT")
-            l = l + 1
-            CALL reallocate(elec_conf,0,l)
-            CALL parser_get_object(parser,elec_conf(l),error=error)
-          END DO
-
-          CALL reallocate(potential%elec_conf,0,l)
-          potential%elec_conf(:) = elec_conf(:)
-
-          potential%zeff_correction = zeff_correction
-          potential%zeff = REAL(SUM(elec_conf),dp)+zeff_correction
-
-          DEALLOCATE (elec_conf,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                           "elec_conf")
-
-!         *** Read r(loc) to define the exponent of the core charge    ***
-!         *** distribution and calculate the corresponding coefficient ***
-
-          CALL parser_get_object(parser,r,newline=.TRUE.,error=error)
-
-          alpha = 1.0_dp/(2.0_dp*r**2)
-
-          potential%alpha_core_charge = alpha
-          potential%ccore_charge = potential%zeff*SQRT((alpha/pi)**3)
-
-          EXIT search_loop
-
-        END IF
-
-      ELSE
-
-!       *** Stop program, if the end of file is reached ***
-
-        CALL stop_program(routineN,moduleN,__LINE__,&
-                          "The requested atomic potential <"//&
-                          TRIM(potential_name)//&
-                          "> was not found in the potential file <"//&
-                          TRIM(potential_file_name)//">")
-
-      END IF
-
+             EXIT search_loop
+          END IF
+       ELSE
+          !       *** Stop program, if the end of file is reached ***
+          CALL stop_program(routineN,moduleN,__LINE__,&
+               "The requested atomic potential <"//&
+               TRIM(potential_name)//&
+               "> was not found in the potential file <"//&
+               TRIM(potential_file_name)//">")
+       END IF
     END DO search_loop
 
-    CALL parser_release(parser,error=error)
-
+    IF (.NOT.read_from_input) THEN
+       ! Dump the potential info the in potential section
+       IF (match) THEN
+          irep = irep + 1
+          WRITE(line_att,*)"         # Potential name: "//apname2(:strlen2)//" for symbol: "//symbol2(:strlen1)             
+          CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
+               c_val=TRIM(line_att), error=error)
+          irep = irep + 1
+          WRITE(line_att,*)"         # Potential read from the potential filename: "//TRIM(potential_file_name)
+          CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
+               c_val=TRIM(line_att), error=error)
+       END IF
+       CALL parser_release(parser,error=error)
+    END IF
   END SUBROUTINE read_all_potential
 
 ! *****************************************************************************
 
-  SUBROUTINE read_elp_potential(element_symbol,potential_name,potential,&
-                                para_env,dft_section,error)
+  SUBROUTINE read_elp_potential(element_symbol,potential_name,potential,para_env,&
+       dft_section,potential_section,error)
 
-!   Purpose: Read an effective charge potential data set.
-!   History: creation 22-09-2002, GT
+    !   Purpose: Read an effective charge potential data set.
+    !   History: creation 22-09-2002, GT
 
-!   ***************************************************************************
+    !   ***************************************************************************
 
     CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, potential_name
     TYPE(elp_potential_type), POINTER        :: potential
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(section_vals_type), POINTER         :: dft_section
+    TYPE(section_vals_type), POINTER         :: dft_section, potential_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_elp_potential'
 
     CHARACTER(LEN=240)                       :: line
     CHARACTER(LEN=242)                       :: line2
+    CHARACTER(len=5*default_string_length)   :: line_att
     CHARACTER(len=default_string_length)     :: potential_file_name
     CHARACTER(LEN=LEN(element_symbol))       :: symbol
     CHARACTER(LEN=LEN(element_symbol)+2)     :: symbol2
     CHARACTER(LEN=LEN(potential_name))       :: apname
     CHARACTER(LEN=LEN(potential_name)+2)     :: apname2
-    INTEGER                                  :: i, j, maxlppl, n, nalpha_ppl, &
-                                                nmax, strlen1, strlen2
-    LOGICAL                                  :: found
+    INTEGER                                  :: i, irep, j, maxlppl, n, &
+                                                nalpha_ppl, nmax, strlen1, &
+                                                strlen2
+    LOGICAL                                  :: found, is_ok, match, &
+                                                read_from_input
     REAL(KIND=dp)                            :: alpha, qeff
     TYPE(cp_parser_type), POINTER            :: parser
-
-!   ---------------------------------------------------------------------------
+    TYPE(cp_sll_val_type), POINTER           :: list
+    TYPE(val_type), POINTER                  :: val
 
     line2 = ""
     symbol2 = ""
@@ -1048,156 +1107,227 @@ CONTAINS
     NULLIFY(parser)
 
     potential%name = potential_name
+    read_from_input = .FALSE.
+    CALL section_vals_get(potential_section,explicit=read_from_input, error=error)
+    IF (.NOT.read_from_input) THEN
+       CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",c_val=potential_file_name,&
+            error=error)
+       CALL parser_create(parser,potential_file_name,para_env=para_env,error=error)
+    END IF
 
-    CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",&
-         c_val=potential_file_name,error=error)
-    CALL parser_create(parser,potential_file_name,&
-         para_env=para_env,error=error)
-
-!   *** Search for the requested potential in the potential file   ***
-!   *** until the potential is found or the end of file is reached ***
+    !   *** Search for the requested potential in the potential file   ***
+    !   *** until the potential is found or the end of file is reached ***
 
     apname = potential_name
     symbol = element_symbol
-
+    irep   = 0
     search_loop: DO
+       IF (read_from_input) THEN
+          NULLIFY(list, val)
+          found = .TRUE.
+          CALL section_vals_list_get(potential_section,"_DEFAULT_KEYWORD_",list=list,error=error)
+       ELSE
+          CALL parser_search_string(parser,TRIM(apname),.TRUE.,found,line,error=error)
+       END IF
+       IF (found) THEN
+          CALL uppercase(symbol)
+          CALL uppercase(apname)
+          IF (read_from_input) THEN
+             match = .TRUE.
+          ELSE
+             !       *** Check both the element symbol and the atomic potential name ***
+             match = .FALSE.
+             CALL uppercase(line)
+             line2 = " "//line//" "
+             symbol2 = " "//TRIM(symbol)//" "
+             apname2 = " "//TRIM(apname)//" "
+             strlen1 = LEN_TRIM(symbol2) + 1
+             strlen2 = LEN_TRIM(apname2) + 1
 
-      CALL parser_search_string(parser,TRIM(apname),.TRUE.,found,line,error=error)
-
-      IF (found) THEN
-
-        CALL uppercase(line)
-        CALL uppercase(symbol)
-        CALL uppercase(apname)
-
-!       *** Check both the element symbol and the atomic potential name ***
-
-        line2 = " "//line//" "
-        symbol2 = " "//TRIM(symbol)//" "
-        apname2 = " "//TRIM(apname)//" "
-        strlen1 = LEN_TRIM(symbol2) + 1
-        strlen2 = LEN_TRIM(apname2) + 1
-
-        IF ((INDEX(line2,symbol2(:strlen1)) > 0).AND.&
-            (INDEX(line2,apname2(:strlen2)) > 0)) THEN
-
-!         *** Read the effective charge qeff ***
-
-          CALL parser_get_object(parser,qeff,newline=.TRUE.,error=error)
-
-          potential%qeff = qeff
-
-!         *** read alpha and calculate the corresponding coefficient ***
-
-          CALL parser_get_object(parser,alpha,newline=.TRUE.,error=error)
-
-          potential%alpha_core_charge = alpha
-          potential%ccore_charge = potential%qeff*SQRT((alpha/pi)**3)
-          potential%cerf_ppl = potential%qeff*SQRT((alpha/pi)**3)
-
-          CALL parser_get_object(parser,nalpha_ppl,newline=.TRUE.,error=error)
-
-          potential%nalpha_ppl = nalpha_ppl
-
-          IF (nalpha_ppl > 0) THEN
-            CALL reallocate(potential%alpha_ppl,1,nalpha_ppl)
-            CALL reallocate(potential%nexp_ppl,1,nalpha_ppl)
-            DO i=1,nalpha_ppl
-              CALL parser_get_object(parser,potential%alpha_ppl(i),newline=.TRUE.,error=error)
-              CALL parser_get_object(parser,n,error=error)
-              potential%nexp_ppl(i)=n
-              IF (n > nmax) THEN
-                nmax = n
-                CALL reallocate(potential%cexp_ppl,1,nalpha_ppl,1,nmax)
-              END IF
-              DO j=1,n
-                 CALL parser_get_object(parser,potential%cexp_ppl(i,j),error=error)
-                 potential%cexp_ppl(i,j) = (2.0_dp*potential%alpha_ppl(i))**(j - 1)*&
-                                           potential%cexp_ppl(i,j)
-              END DO
-            END DO
-
-!           *** Check if alpha_core_charge = alpha_ppl(1) ***
-
-            IF (potential%alpha_core_charge /= potential%alpha_ppl(1)) THEN
-              CALL stop_program(routineN,moduleN,__LINE__,&
-                                "exponent of the core charge and "//&
-                                "alpha_ppl(1) must be equal")
-            END IF
-
-            maxlppl = 2*(nmax - 1)
-
-            IF (maxlppl > -1)  CALL init_orbital_pointers(maxlppl)
-
+             IF ( (INDEX(line2,symbol2(:strlen1)) > 0).AND.&
+                  (INDEX(line2,apname2(:strlen2)) > 0) ) match = .TRUE.
           END IF
+          IF (match) THEN
+             !         *** Read the effective charge qeff ***
+             IF (read_from_input) THEN
+                is_ok=cp_sll_val_next(list,val,error=error)
+                IF (.NOT.is_ok) CALL stop_memory(routineN,moduleN,&
+                     __LINE__,&
+                     "Error reading the Potential from input file!!")
+                CALL val_get(val,c_val=line_att,error=error)
+                READ(line_att,*)qeff                
+             ELSE
+                CALL parser_get_object(parser,qeff,newline=.TRUE.,error=error)
+                irep = irep + 1
+                WRITE(line_att,*)qeff
+                CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
+                     c_val=TRIM(line_att), error=error)                
+             END IF
+             potential%qeff = qeff
 
-          EXIT search_loop
+             !         *** read alpha and calculate the corresponding coefficient ***
+             IF (read_from_input) THEN
+                is_ok=cp_sll_val_next(list,val,error=error)
+                IF (.NOT.is_ok) CALL stop_memory(routineN,moduleN,&
+                     __LINE__,&
+                     "Error reading the Potential from input file!!")
+                CALL val_get(val,c_val=line_att,error=error)
+                READ(line_att,*)alpha
+             ELSE
+                CALL parser_get_object(parser,alpha,newline=.TRUE.,error=error)
+                irep = irep + 1
+                WRITE(line_att,*)alpha
+                CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
+                     c_val=TRIM(line_att), error=error) 
+             END IF
+             potential%alpha_core_charge = alpha
+             potential%ccore_charge = potential%qeff*SQRT((alpha/pi)**3)
+             potential%cerf_ppl = potential%qeff*SQRT((alpha/pi)**3)
 
-        END IF
+             IF (read_from_input) THEN
+                is_ok=cp_sll_val_next(list,val,error=error)
+                IF (.NOT.is_ok) CALL stop_memory(routineN,moduleN,&
+                     __LINE__,&
+                     "Error reading the Potential from input file!!")
+                CALL val_get(val,c_val=line_att,error=error)
+                READ(line_att,*)nalpha_ppl
+             ELSE
+                CALL parser_get_object(parser,nalpha_ppl,newline=.TRUE.,error=error)
+                irep = irep + 1
+                WRITE(line_att,*)nalpha_ppl
+                CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
+                     c_val=TRIM(line_att), error=error) 
+             END IF
+             potential%nalpha_ppl = nalpha_ppl
 
-      ELSE
+             IF (nalpha_ppl > 0) THEN
+                CALL reallocate(potential%alpha_ppl,1,nalpha_ppl)
+                CALL reallocate(potential%nexp_ppl,1,nalpha_ppl)
+                DO i=1,nalpha_ppl
+                   IF (read_from_input) THEN
+                      is_ok=cp_sll_val_next(list,val,error=error)
+                      IF (.NOT.is_ok) CALL stop_memory(routineN,moduleN,&
+                           __LINE__,&
+                           "Error reading the Potential from input file!!")
+                      CALL val_get(val,c_val=line_att,error=error)
+                      READ(line_att,*)potential%alpha_ppl(i)
+                      CALL remove_word(line_att)
+                      READ(line_att,*)n
+                      CALL remove_word(line_att)
+                   ELSE
+                      line_att = ""
+                      CALL parser_get_object(parser,potential%alpha_ppl(i),newline=.TRUE.,error=error)
+                      CALL parser_get_object(parser,n,error=error)
+                      WRITE(line_att,*)potential%alpha_ppl(i),n
+                   END IF
+                   potential%nexp_ppl(i)=n
+                   IF (n > nmax) THEN
+                      nmax = n
+                      CALL reallocate(potential%cexp_ppl,1,nalpha_ppl,1,nmax)
+                   END IF
+                   DO j=1,n
+                      IF (read_from_input) THEN
+                         READ(line_att,*)potential%cexp_ppl(i,j)
+                         CALL remove_word(line_att)
+                      ELSE
+                         CALL parser_get_object(parser,potential%cexp_ppl(i,j),error=error)
+                         WRITE(line_att(LEN_TRIM(line_att)+1:),*)potential%cexp_ppl(i,j)
+                      END IF
+                      potential%cexp_ppl(i,j) = (2.0_dp*potential%alpha_ppl(i))**(j - 1)*&
+                           potential%cexp_ppl(i,j)
+                   END DO
+                   IF (.NOT.read_from_input) THEN
+                      irep = irep + 1
+                      CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
+                           c_val=TRIM(line_att), error=error)
+                   ELSE
+                      IF (LEN_TRIM(line_att)/=0) CALL stop_memory(routineN,moduleN,&
+                           __LINE__,&
+                           "Error reading the Potential from input file!!")
+                   END IF
+                END DO
 
-!       *** Stop program, if the end of file is reached ***
+                !           *** Check if alpha_core_charge = alpha_ppl(1) ***
+                IF (potential%alpha_core_charge /= potential%alpha_ppl(1)) THEN
+                   CALL stop_program(routineN,moduleN,__LINE__,&
+                        "exponent of the core charge and "//&
+                        "alpha_ppl(1) must be equal")
+                END IF
 
-        CALL stop_program(routineN,moduleN,__LINE__,&
-                          "The requested atomic potential <"//&
-                          TRIM(potential_name)//&
-                          "> was not found in the potential file <"//&
-                          TRIM(potential_file_name)//">",para_env)
-
-      END IF
-
+                maxlppl = 2*(nmax - 1)
+                IF (maxlppl > -1)  CALL init_orbital_pointers(maxlppl)
+             END IF
+             EXIT search_loop
+          END IF
+       ELSE
+          !       *** Stop program, if the end of file is reached ***
+          CALL stop_program(routineN,moduleN,__LINE__,&
+               "The requested atomic potential <"//&
+               TRIM(potential_name)//&
+               "> was not found in the potential file <"//&
+               TRIM(potential_file_name)//">",para_env)
+       END IF
     END DO search_loop
-
-    CALL parser_release(parser,error=error)
-
+    IF (.NOT.read_from_input) THEN
+       ! Dump the potential info the in potential section
+       IF (match) THEN
+          irep = irep + 1
+          WRITE(line_att,*)"         # Potential name: "//apname2(:strlen2)//" for symbol: "//symbol2(:strlen1)             
+          CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
+               c_val=TRIM(line_att), error=error)
+          irep = irep + 1
+          WRITE(line_att,*)"         # Potential read from the potential filename: "//TRIM(potential_file_name)
+          CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
+               c_val=TRIM(line_att), error=error)
+       END IF
+       CALL parser_release(parser,error=error)
+    END IF
   END SUBROUTINE read_elp_potential
 
 ! *****************************************************************************
 
-  SUBROUTINE read_gth_potential(element_symbol,potential_name,potential,&
-                                zeff_correction, para_env, dft_section, error)
+  SUBROUTINE read_gth_potential(element_symbol,potential_name,potential,zeff_correction,&
+       para_env, dft_section, potential_section, error)
 
-!   Purpose: Read an atomic GTH potential data set.
+    !   Purpose: Read an atomic GTH potential data set.
 
-!   Literature: - S. Goedecker, M. Teter and J. Hutter,
-!                 Phys. Rev. B 54, 1703 (1996)
-!               - C. Hartwigsen, S. Goedecker and J. Hutter,
-!                 Phys. Rev. B 58, 3641 (1998)
+    !   Literature: - S. Goedecker, M. Teter and J. Hutter,
+    !                 Phys. Rev. B 54, 1703 (1996)
+    !               - C. Hartwigsen, S. Goedecker and J. Hutter,
+    !                 Phys. Rev. B 58, 3641 (1998)
 
-!   History: - Creation (14.05.2000,MK)
+    !   History: - Creation (14.05.2000,MK)
 
-!   ***************************************************************************
+    !   ***************************************************************************
 
     CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, potential_name
     TYPE(gth_potential_type), POINTER        :: potential
     REAL(KIND=dp), INTENT(IN)                :: zeff_correction
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(section_vals_type), POINTER         :: dft_section
+    TYPE(section_vals_type), POINTER         :: dft_section, potential_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_gth_potential'
 
     CHARACTER(LEN=240)                       :: line
     CHARACTER(LEN=242)                       :: line2
+    CHARACTER(len=5*default_string_length)   :: line_att
     CHARACTER(len=default_string_length)     :: potential_file_name
     CHARACTER(LEN=LEN(element_symbol))       :: symbol
     CHARACTER(LEN=LEN(element_symbol)+2)     :: symbol2
     CHARACTER(LEN=LEN(potential_name))       :: apname
     CHARACTER(LEN=LEN(potential_name)+2)     :: apname2
-    INTEGER                                  :: i, istat, j, l, lppnl, &
-                                                lprj_ppnl_max, maxlppl, n, &
-                                                nppnl, nprj_ppnl, &
-                                                nprj_ppnl_max, strlen1, &
-                                                strlen2
+    INTEGER :: i, irep, istat, j, l, lppnl, lprj_ppnl_max, maxlppl, n, nppnl, &
+      nprj_ppnl, nprj_ppnl_max, strlen1, strlen2
     INTEGER, DIMENSION(:), POINTER           :: elec_conf
-    LOGICAL                                  :: found
+    LOGICAL                                  :: found, is_ok, match, &
+                                                read_from_input
     REAL(KIND=dp)                            :: alpha, r
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: hprj_ppnl
     TYPE(cp_parser_type), POINTER            :: parser
-
-!   ---------------------------------------------------------------------------
+    TYPE(cp_sll_val_type), POINTER           :: list
+    TYPE(val_type), POINTER                  :: val
 
     line2 = ""
     symbol2 = ""
@@ -1205,198 +1335,327 @@ CONTAINS
     NULLIFY(parser)
 
     potential%name = potential_name
+    read_from_input = .FALSE.
+    CALL section_vals_get(potential_section,explicit=read_from_input, error=error)
+    IF (.NOT.read_from_input) THEN
+       CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",c_val=potential_file_name,&
+            error=error)
+       CALL parser_create(parser,potential_file_name,para_env=para_env,error=error)
+    END IF
 
-
-    CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",&
-         c_val=potential_file_name,error=error)
-    CALL parser_create(parser,potential_file_name,&
-         para_env=para_env,error=error)
-
-!   *** Search for the requested potential in the potential file   ***
-!   *** until the potential is found or the end of file is reached ***
+    !   *** Search for the requested potential in the potential file   ***
+    !   *** until the potential is found or the end of file is reached ***
 
     apname = potential_name
     symbol = element_symbol
-
+    irep   = 0
     search_loop: DO
+       IF (read_from_input) THEN
+          NULLIFY(list, val)
+          found = .TRUE.
+          CALL section_vals_list_get(potential_section,"_DEFAULT_KEYWORD_",list=list,error=error)
+       ELSE
+          CALL parser_search_string(parser,TRIM(apname),.TRUE.,found,line,error=error)
+       END IF
+       IF (found) THEN
+          CALL uppercase(symbol)
+          CALL uppercase(apname)
+          IF (read_from_input) THEN
+             match = .TRUE.
+          ELSE
+             !       *** Check both the element symbol and the atomic potential name ***
+             match = .FALSE.
+             CALL uppercase(line)
+             line2 = " "//line//" "
+             symbol2 = " "//TRIM(symbol)//" "
+             apname2 = " "//TRIM(apname)//" "
+             strlen1 = LEN_TRIM(symbol2) + 1
+             strlen2 = LEN_TRIM(apname2) + 1
 
-      CALL parser_search_string(parser,TRIM(apname),.TRUE.,found,line,error=error)
-
-      IF (found) THEN
-
-        CALL uppercase(line)
-        CALL uppercase(symbol)
-        CALL uppercase(apname)
-
-!       *** Check both the element symbol and the atomic potential name ***
-
-        line2 = " "//line//" "
-        symbol2 = " "//TRIM(symbol)//" "
-        apname2 = " "//TRIM(apname)//" "
-        strlen1 = LEN_TRIM(symbol2) + 1
-        strlen2 = LEN_TRIM(apname2) + 1
-
-        IF ((INDEX(line2,symbol2(:strlen1)) > 0).AND.&
-            (INDEX(line2,apname2(:strlen2)) > 0)) THEN
-
-!         *** Read the electronic configuration ***
-
-          NULLIFY (elec_conf)
-          l = 0
-          CALL reallocate(elec_conf,0,l)
-          CALL parser_get_object(parser,elec_conf(l),newline=.TRUE.,error=error)
-          DO WHILE (parser_test_next_token(parser,error=error) == "INT")
-            l = l + 1
-            CALL reallocate(elec_conf,0,l)
-            CALL parser_get_object(parser,elec_conf(l),error=error)
-          END DO
-
-          CALL reallocate(potential%elec_conf,0,l)
-          potential%elec_conf(:) = elec_conf(:)
-
-          potential%zeff_correction = zeff_correction
-          potential%zeff = REAL(SUM(elec_conf),dp)+zeff_correction
-
-          DEALLOCATE (elec_conf,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                           "elec_conf")
-
-!         *** Read r(loc) to define the exponent of the core charge    ***
-!         *** distribution and calculate the corresponding coefficient ***
-
-          CALL parser_get_object(parser,r,newline=.TRUE.,error=error)
-
-          alpha = 1.0_dp/(2.0_dp*r**2)
-
-          potential%alpha_core_charge = alpha
-          potential%ccore_charge = potential%zeff*SQRT((alpha/pi)**3)
-
-          potential%alpha_ppl = alpha
-          potential%cerf_ppl = potential%zeff*SQRT((alpha/pi)**3)
-
-!         *** Read the parameters for the local part ***
-!         *** of the GTH pseudopotential (ppl)       ***
-
-          CALL parser_get_object(parser,n,error=error)
-          potential%nexp_ppl = n
-          CALL reallocate(potential%cexp_ppl,1,n)
-
-          DO i=1,n
-            CALL parser_get_object(parser,potential%cexp_ppl(i),error=error)
-            potential%cexp_ppl(i) = (2.0_dp*potential%alpha_ppl)**(i - 1)*&
-                                    potential%cexp_ppl(i)
-          END DO
-
-          maxlppl = 2*(n - 1)
-
-          IF (maxlppl > -1) CALL init_orbital_pointers(maxlppl)
-
-!         *** Read the parameters for the non-local  ***
-!         *** part of the GTH pseudopotential (ppnl) ***
-
-          CALL parser_get_object(parser,n,newline=.TRUE.,error=error)
-
-          potential%lppnl = n - 1
-          potential%nppnl = 0
-
-          potential%lprj_ppnl_max = n - 1
-          potential%nprj_ppnl_max = 0
-
-          IF (n > 0) THEN
-
-            lppnl = potential%lppnl
-            nppnl = potential%nppnl
-
-            CALL init_orbital_pointers(lppnl)
-
-            NULLIFY (hprj_ppnl)
-
-!           *** Load the parameter for n non-local projectors ***
-
-            CALL reallocate(potential%alpha_ppnl,0,lppnl)
-            CALL reallocate(potential%nprj_ppnl,0,lppnl)
-
-            lprj_ppnl_max = -1
-            nprj_ppnl_max = 0
-
-            DO l=0,lppnl
-              CALL parser_get_object(parser,r,newline=.TRUE.,error=error)
-              CALL parser_get_object(parser,nprj_ppnl,error=error)
-              IF (r==0.0_dp.AND.nprj_ppnl/=0) THEN 
-                  CALL stop_program(routineN,moduleN,__LINE__,&
-                                    "An error was detected in the atomic potential <"//&
-                                    TRIM(potential_name)//&
-                                    "> potential file <"//&
-                                    TRIM(potential_file_name)//">",para_env)
-              END IF
-              potential%alpha_ppnl(l) = 0.0_dp
-              IF (r/=0.0_dp.AND.n/=0)  potential%alpha_ppnl(l) = 1.0_dp/(2.0_dp*r**2)
-              potential%nprj_ppnl(l) = nprj_ppnl
-              nppnl = nppnl + nprj_ppnl*nco(l)
-              IF (nprj_ppnl > nprj_ppnl_max) THEN
-                nprj_ppnl_max = nprj_ppnl
-                CALL reallocate(hprj_ppnl,1,nprj_ppnl_max,&
-                                          1,nprj_ppnl_max,&
-                                          0,lppnl)
-              END IF
-              DO i=1,nprj_ppnl
-                IF (i == 1) THEN
-                  CALL parser_get_object(parser,hprj_ppnl(i,i,l),error=error)
-                ELSE
-                  CALL parser_get_object(parser,hprj_ppnl(i,i,l),newline=.TRUE.,error=error)
-                END IF
-                DO j=i+1,nprj_ppnl
-                  CALL parser_get_object(parser,hprj_ppnl(i,j,l),error=error)
-                END DO
-              END DO
-              IF (nprj_ppnl > 1) THEN
-                CALL symmetrize_matrix(hprj_ppnl(:,:,l),"upper_to_lower")
-              END IF
-              lprj_ppnl_max = MAX(lprj_ppnl_max,l + 2*(nprj_ppnl - 1))
-            END DO
-
-            potential%nppnl = nppnl
-
-            CALL init_orbital_pointers(lprj_ppnl_max)
-
-            potential%lprj_ppnl_max = lprj_ppnl_max
-            potential%nprj_ppnl_max = nprj_ppnl_max
-
-            CALL reallocate(potential%hprj_ppnl,1,nprj_ppnl_max,&
-                                                1,nprj_ppnl_max,&
-                                                0,lppnl)
-            potential%hprj_ppnl(:,:,:) = hprj_ppnl(:,:,:)
-
-            CALL reallocate(potential%cprj,1,ncoset(lprj_ppnl_max),1,nppnl)
-            CALL reallocate(potential%cprj_ppnl,1,nprj_ppnl_max,0,lppnl)
-            CALL reallocate(potential%vprj_ppnl,1,nppnl,1,nppnl)
-
-            DEALLOCATE (hprj_ppnl,STAT=istat)
-            IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                             "hprj_ppnl")
-
+             IF ( (INDEX(line2,symbol2(:strlen1)) > 0).AND.&
+                  (INDEX(line2,apname2(:strlen2)) > 0) ) match = .TRUE.
           END IF
+          IF (match) THEN
+             !         *** Read the electronic configuration ***
+             NULLIFY (elec_conf)
+             l = 0
+             CALL reallocate(elec_conf,0,l)
+             IF (read_from_input) THEN
+                is_ok=cp_sll_val_next(list,val,error=error)
+                IF (.NOT.is_ok) CALL stop_memory(routineN,moduleN,&
+__LINE__,&
+                     "Error reading the Potential from input file!!")
+                CALL val_get(val,c_val=line_att,error=error)
+                READ(line_att,*)elec_conf(l)
+                CALL remove_word(line_att)
+                DO WHILE (LEN_TRIM(line_att) /= 0)
+                   l = l + 1
+                   CALL reallocate(elec_conf,0,l)
+                   READ(line_att,*)elec_conf(l)
+                   CALL remove_word(line_att)
+                END DO
+             ELSE            
+                CALL parser_get_object(parser,elec_conf(l),newline=.TRUE.,error=error)
+                DO WHILE (parser_test_next_token(parser,error=error) == "INT")
+                   l = l + 1
+                   CALL reallocate(elec_conf,0,l)
+                   CALL parser_get_object(parser,elec_conf(l),error=error)
+                END DO
+                irep = irep + 1
+                WRITE(line_att,*)elec_conf
+                CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
+                     c_val=TRIM(line_att), error=error)              
+             END IF
 
-          EXIT search_loop
+             CALL reallocate(potential%elec_conf,0,l)
+             potential%elec_conf(:) = elec_conf(:)
 
-        END IF
+             potential%zeff_correction = zeff_correction
+             potential%zeff = REAL(SUM(elec_conf),dp)+zeff_correction
 
-      ELSE
+             DEALLOCATE (elec_conf,STAT=istat)
+             IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                  "elec_conf")
 
-!       *** Stop program, if the end of file is reached ***
+             !         *** Read r(loc) to define the exponent of the core charge    ***
+             !         *** distribution and calculate the corresponding coefficient ***
 
-        CALL stop_program(routineN,moduleN,__LINE__,&
-                          "The requested atomic potential <"//&
-                          TRIM(potential_name)//&
-                          "> was not found in the potential file <"//&
-                          TRIM(potential_file_name)//">",para_env)
+             IF (read_from_input) THEN
+                is_ok=cp_sll_val_next(list,val,error=error)
+                IF (.NOT.is_ok) CALL stop_memory(routineN,moduleN,&
+__LINE__,&
+                     "Error reading the Potential from input file!!")
+                CALL val_get(val,c_val=line_att,error=error)
+                READ(line_att,*)r
+                CALL remove_word(line_att)
+             ELSE
+                line_att = ""
+                CALL parser_get_object(parser,r,newline=.TRUE.,error=error)
+                WRITE(line_att(LEN_TRIM(line_att)+1:),*)r
+             END IF
+             alpha = 1.0_dp/(2.0_dp*r**2)
 
-      END IF
+             potential%alpha_core_charge = alpha
+             potential%ccore_charge = potential%zeff*SQRT((alpha/pi)**3)
 
+             potential%alpha_ppl = alpha
+             potential%cerf_ppl = potential%zeff*SQRT((alpha/pi)**3)
+
+             !         *** Read the parameters for the local part ***
+             !         *** of the GTH pseudopotential (ppl)       ***
+
+             IF (read_from_input) THEN
+                READ(line_att,*)n
+                CALL remove_word(line_att)
+             ELSE
+                CALL parser_get_object(parser,n,error=error)
+                WRITE(line_att(LEN_TRIM(line_att)+1:),*)n
+             END IF
+             potential%nexp_ppl = n
+             CALL reallocate(potential%cexp_ppl,1,n)
+
+             DO i=1,n
+                IF (read_from_input) THEN
+                   READ(line_att,*)potential%cexp_ppl(i)
+                   CALL remove_word(line_att)
+                ELSE
+                   CALL parser_get_object(parser,potential%cexp_ppl(i),error=error)
+                   WRITE(line_att(LEN_TRIM(line_att)+1:),*)potential%cexp_ppl(i)
+                END IF
+                potential%cexp_ppl(i) = (2.0_dp*potential%alpha_ppl)**(i - 1)*&
+                     potential%cexp_ppl(i)
+             END DO
+
+             IF (.NOT.read_from_input) THEN
+                irep = irep + 1
+                CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
+                     c_val=TRIM(line_att), error=error)
+                line_att = ""
+             ELSE
+                IF (LEN_TRIM(line_att)/=0) CALL stop_memory(routineN,moduleN,&
+__LINE__,&
+                     "Error reading the Potential from input file!!")
+             END IF
+             maxlppl = 2*(n - 1)
+
+             IF (maxlppl > -1) CALL init_orbital_pointers(maxlppl)
+
+             !         *** Read the parameters for the non-local  ***
+             !         *** part of the GTH pseudopotential (ppnl) ***
+             IF (read_from_input) THEN
+                is_ok=cp_sll_val_next(list,val,error=error)
+                IF (.NOT.is_ok) CALL stop_memory(routineN,moduleN,&
+__LINE__,&
+                     "Error reading the Potential from input file!!")
+                CALL val_get(val,c_val=line_att,error=error)
+                READ(line_att,*)n
+                CALL remove_word(line_att)               
+             ELSE
+                CALL parser_get_object(parser,n,newline=.TRUE.,error=error)
+                irep = irep + 1
+                WRITE(line_att,*)n
+                CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
+                     c_val=TRIM(line_att), error=error)
+             END IF
+             potential%lppnl = n - 1
+             potential%nppnl = 0
+
+             potential%lprj_ppnl_max = n - 1
+             potential%nprj_ppnl_max = 0
+
+             IF (n > 0) THEN
+
+                lppnl = potential%lppnl
+                nppnl = potential%nppnl
+
+                CALL init_orbital_pointers(lppnl)
+
+                NULLIFY (hprj_ppnl)
+
+                !           *** Load the parameter for n non-local projectors ***
+
+                CALL reallocate(potential%alpha_ppnl,0,lppnl)
+                CALL reallocate(potential%nprj_ppnl,0,lppnl)
+
+                lprj_ppnl_max = -1
+                nprj_ppnl_max = 0
+
+                DO l=0,lppnl
+                   IF (read_from_input) THEN
+                      is_ok=cp_sll_val_next(list,val,error=error)
+                      IF (.NOT.is_ok) CALL stop_memory(routineN,moduleN,&
+__LINE__,&
+                           "Error reading the Potential from input file!!")
+                      CALL val_get(val,c_val=line_att,error=error)
+                      READ(line_att,*)r
+                      CALL remove_word(line_att)
+                      READ(line_att,*)nprj_ppnl
+                      CALL remove_word(line_att)
+                   ELSE
+                      line_att =""
+                      CALL parser_get_object(parser,r,newline=.TRUE.,error=error)
+                      CALL parser_get_object(parser,nprj_ppnl,error=error)
+                      WRITE(line_att(LEN_TRIM(line_att)+1:),*)r, nprj_ppnl
+                   END IF
+                   IF (r==0.0_dp.AND.nprj_ppnl/=0) THEN 
+                      CALL stop_program(routineN,moduleN,&
+__LINE__,&
+                           "An error was detected in the atomic potential <"//&
+                           TRIM(potential_name)//&
+                           "> potential file <"//&
+                           TRIM(potential_file_name)//">",para_env)
+                   END IF
+                   potential%alpha_ppnl(l) = 0.0_dp
+                   IF (r/=0.0_dp.AND.n/=0)  potential%alpha_ppnl(l) = 1.0_dp/(2.0_dp*r**2)
+                   potential%nprj_ppnl(l) = nprj_ppnl
+                   nppnl = nppnl + nprj_ppnl*nco(l)
+                   IF (nprj_ppnl > nprj_ppnl_max) THEN
+                      nprj_ppnl_max = nprj_ppnl
+                      CALL reallocate(hprj_ppnl,1,nprj_ppnl_max,&
+                           1,nprj_ppnl_max,&
+                           0,lppnl)
+                   END IF
+                   DO i=1,nprj_ppnl
+                      IF (i == 1) THEN
+                         IF (read_from_input) THEN
+                           READ(line_att,*)hprj_ppnl(i,i,l)
+                           CALL remove_word(line_att) 
+                         ELSE
+                            CALL parser_get_object(parser,hprj_ppnl(i,i,l),error=error)
+                            WRITE(line_att(LEN_TRIM(line_att)+1:),*)hprj_ppnl(i,i,l)
+                         END IF
+                      ELSE
+                         IF (read_from_input) THEN
+                            IF (LEN_TRIM(line_att)/=0) CALL stop_memory(routineN,moduleN,&
+__LINE__,&
+                                 "Error reading the Potential from input file!!")
+                            is_ok=cp_sll_val_next(list,val,error=error)
+                            IF (.NOT.is_ok) CALL stop_memory(routineN,moduleN,&
+__LINE__,&
+                                 "Error reading the Potential from input file!!")
+                            CALL val_get(val,c_val=line_att,error=error)
+                            READ(line_att,*)hprj_ppnl(i,i,l)
+                            CALL remove_word(line_att)
+                         ELSE
+                            irep = irep + 1
+                            CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
+                                 c_val=TRIM(line_att), error=error)                 
+                            line_att =""
+                            CALL parser_get_object(parser,hprj_ppnl(i,i,l),newline=.TRUE.,error=error)
+                            WRITE(line_att(LEN_TRIM(line_att)+1:),*)hprj_ppnl(i,i,l)
+                         END IF
+                      END IF
+                      DO j=i+1,nprj_ppnl
+                         IF (read_from_input) THEN
+                            READ(line_att,*)hprj_ppnl(i,j,l)
+                            CALL remove_word(line_att)
+                         ELSE
+                            CALL parser_get_object(parser,hprj_ppnl(i,j,l),error=error)
+                            WRITE(line_att(LEN_TRIM(line_att)+1:),*)hprj_ppnl(i,j,l)
+                         END IF
+                      END DO
+                   END DO
+                   IF (.NOT.read_from_input) THEN
+                      irep = irep + 1
+                      CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
+                           c_val=TRIM(line_att), error=error)                 
+                      line_att =""
+                   ELSE
+                      IF (LEN_TRIM(line_att)/=0) CALL stop_memory(routineN,moduleN,&
+__LINE__,&
+                           "Error reading the Potential from input file!!")
+                   END IF
+                   IF (nprj_ppnl > 1) THEN
+                      CALL symmetrize_matrix(hprj_ppnl(:,:,l),"upper_to_lower")
+                   END IF
+                   lprj_ppnl_max = MAX(lprj_ppnl_max,l + 2*(nprj_ppnl - 1))
+                END DO
+
+                potential%nppnl = nppnl
+                CALL init_orbital_pointers(lprj_ppnl_max)
+
+                potential%lprj_ppnl_max = lprj_ppnl_max
+                potential%nprj_ppnl_max = nprj_ppnl_max
+                CALL reallocate(potential%hprj_ppnl,1,nprj_ppnl_max,&
+                     1,nprj_ppnl_max,&
+                     0,lppnl)
+                potential%hprj_ppnl(:,:,:) = hprj_ppnl(:,:,:)
+
+                CALL reallocate(potential%cprj,1,ncoset(lprj_ppnl_max),1,nppnl)
+                CALL reallocate(potential%cprj_ppnl,1,nprj_ppnl_max,0,lppnl)
+                CALL reallocate(potential%vprj_ppnl,1,nppnl,1,nppnl)
+
+                DEALLOCATE (hprj_ppnl,STAT=istat)
+                IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
+__LINE__,&
+                     "hprj_ppnl")
+             END IF
+             EXIT search_loop
+          END IF
+       ELSE
+          !       *** Stop program, if the end of file is reached ***
+          CALL stop_program(routineN,moduleN,&
+__LINE__,&
+               "The requested atomic potential <"//&
+               TRIM(potential_name)//&
+               "> was not found in the potential file <"//&
+               TRIM(potential_file_name)//">",para_env)
+       END IF
     END DO search_loop
-
-    CALL parser_release(parser,error=error)
-
+    IF (.NOT.read_from_input) THEN
+       ! Dump the potential info the in potential section
+       IF (match) THEN
+          irep = irep + 1
+          WRITE(line_att,*)"         # Potential name: "//apname2(:strlen2)//" for symbol: "//symbol2(:strlen1)             
+          CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
+               c_val=TRIM(line_att), error=error)
+          irep = irep + 1
+          WRITE(line_att,*)"         # Potential read from the potential filename: "//TRIM(potential_file_name)
+          CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
+               c_val=TRIM(line_att), error=error)
+       END IF
+       CALL parser_release(parser,error=error)
+    END IF
   END SUBROUTINE read_gth_potential
 
 ! *****************************************************************************

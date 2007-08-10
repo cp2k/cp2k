@@ -397,8 +397,8 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_atomic_kind'
 
-    LOGICAL                                  :: softb_local
     INTEGER                                  :: l
+    LOGICAL                                  :: softb_local
 
 !   ---------------------------------------------------------------------------
 
@@ -1204,9 +1204,10 @@ CONTAINS
                                                 naux, ngrid_ang, ngrid_rad, &
                                                 norb, z
     INTEGER, DIMENSION(:), POINTER           :: elec_conf
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: explicit, failure
     REAL(KIND=dp)                            :: zeff_correction
-    TYPE(section_vals_type), POINTER         :: dft_section
+    TYPE(section_vals_type), POINTER         :: basis_section, dft_section, &
+                                                potential_section
 
     NULLIFY (elec_conf)
 
@@ -1403,10 +1404,16 @@ CONTAINS
     !   *** Allocate and initialise the orbital basis set data set structure ***
     CALL init_orbital_pointers(5) ! debug the SUN optimizer
 
-    IF (orb_basis_set_name /= '') THEN
+    explicit = .FALSE.
+    IF (k_rep>0) THEN
+       basis_section  => section_vals_get_subs_vals(kind_section,"BASIS",i_rep_section=k_rep,&
+            can_return_null=.TRUE.,error=error)
+       CALL section_vals_get(basis_section, explicit=explicit,error=error)
+    END IF
+    IF ((orb_basis_set_name /= '').OR.explicit) THEN
        CALL allocate_gto_basis_set(atomic_kind%orb_basis_set)
        CALL read_gto_basis_set(atomic_kind%element_symbol,orb_basis_set_name,&
-            atomic_kind%orb_basis_set,para_env,force_env_section,error)
+            atomic_kind%orb_basis_set,para_env,force_env_section,basis_section,error)
        CALL set_gto_basis_set(gto_basis_set=atomic_kind%orb_basis_set,&
             norm_type=norb)
     END IF
@@ -1414,17 +1421,21 @@ CONTAINS
     !   *** Allocate and initialise the auxiliary basis set data set structure ***
 
     IF (aux_basis_set_name /= '') THEN
-
        CALL allocate_gto_basis_set(atomic_kind%aux_basis_set)
        CALL read_gto_basis_set(atomic_kind%element_symbol,aux_basis_set_name,&
-            atomic_kind%aux_basis_set,para_env,force_env_section,error)
+            atomic_kind%aux_basis_set,para_env,force_env_section,error=error)
        CALL set_gto_basis_set(gto_basis_set=atomic_kind%aux_basis_set,&
             norm_type=naux)
     END IF
 
     !   *** Allocate and initialise the potential data set structure ***
-
-    IF (potential_name /= '') THEN
+    explicit = .FALSE.
+    IF (k_rep>0) THEN
+       potential_section  => section_vals_get_subs_vals(kind_section,"POTENTIAL",&
+            i_rep_section=k_rep,can_return_null=.TRUE.,error=error)
+       CALL section_vals_get(potential_section, explicit=explicit,error=error)
+    END IF
+    IF ((potential_name /= '').OR.explicit) THEN
 
        ipos = INDEX(potential_name,"-")
 
@@ -1441,7 +1452,7 @@ CONTAINS
           CALL allocate_potential(atomic_kind%all_potential)
           CALL read_potential(atomic_kind%element_symbol,potential_name,&
                atomic_kind%all_potential,zeff_correction,para_env,&
-               dft_section,error)
+               dft_section,potential_section,error)
           CALL set_potential(atomic_kind%all_potential,z=z)
           CALL get_atomic_kind(atomic_kind,elec_conf=elec_conf)
           IF (.NOT.ASSOCIATED(elec_conf)) THEN
@@ -1466,7 +1477,7 @@ CONTAINS
              CALL allocate_potential(atomic_kind%gth_potential)
              CALL read_potential(atomic_kind%element_symbol,potential_name,&
                   atomic_kind%gth_potential,zeff_correction,para_env,&
-                  dft_section,error)
+                  dft_section,potential_section,error)
              CALL set_potential(atomic_kind%gth_potential,z=z)
              CALL get_atomic_kind(atomic_kind,elec_conf=elec_conf)
              IF (.NOT.ASSOCIATED(elec_conf)) THEN
@@ -1478,7 +1489,7 @@ CONTAINS
           CALL allocate_potential(atomic_kind%elp_potential)
           CALL read_potential(atomic_kind%element_symbol,potential_name,&
                atomic_kind%elp_potential,para_env,&
-               dft_section,error)
+               dft_section,potential_section,error)
        CASE DEFAULT
           CALL stop_program(routineN,moduleN,__LINE__,&
                "An invalid potential type <"//&
@@ -1486,7 +1497,6 @@ CONTAINS
                "for the atomic kind <"//&
                TRIM(atomic_kind%name),para_env)
        END SELECT
-
     ELSE
        IF (atomic_kind%gpw_type_forced) THEN
           IF (ASSOCIATED(atomic_kind%elec_conf)) atomic_kind%elec_conf = 0
