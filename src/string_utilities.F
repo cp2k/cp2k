@@ -46,8 +46,9 @@ MODULE string_utilities
             pattern_match,typo_match,backslash,star,question
 
   INTERFACE s2a
-    MODULE PROCEDURE s2a_1,s2a_2,s2a_3,s2a_4,s2a_5,s2a_6, &
-                     s2a_7,s2a_8,s2a_9,s2a_10,s2a_11,s2a_12, s2a_13, s2a_14  ! should be clear how to add more
+    MODULE PROCEDURE s2a_1,s2a_2,s2a_3,s2a_4,s2a_5,s2a_6, s2a_7,s2a_8,s2a_9, &
+                     s2a_10,s2a_11,s2a_12, s2a_13, s2a_14, s2a_15, s2a_16, s2a_17, s2a_18, s2a_19, & 
+                     s2a_20,s2a_21,s2a_22, s2a_23, s2a_24, s2a_25, s2a_26, s2a_27, s2a_28, s2a_29 ! should be clear how to add more
   END INTERFACE 
 
 
@@ -224,6 +225,193 @@ PURE FUNCTION s2a_14(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14) RESULT(a)
 
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
   a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11; a(12)=s12; a(13)=s13; a(14)=s14
+END FUNCTION
+PURE FUNCTION s2a_15(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15) RESULT(a)
+    CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
+                                                s8, s9, s10, s11, s12, s13, &
+                                                s14,s15
+    CHARACTER(LEN=1000), DIMENSION(15)       :: a
+
+  a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
+  a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11; a(12)=s12; a(13)=s13; a(14)=s14
+  a(15)=s15
+END FUNCTION
+PURE FUNCTION s2a_16(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
+                     s16) RESULT(a)
+    CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
+                                                s8, s9, s10, s11, s12, s13, &
+                                                s14,s15,s16
+    CHARACTER(LEN=1000), DIMENSION(16)       :: a
+
+  a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
+  a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11; a(12)=s12; a(13)=s13; a(14)=s14
+  a(15)=s15; a(16)=s16
+END FUNCTION
+PURE FUNCTION s2a_17(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
+                     s16,s17) RESULT(a)
+    CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
+                                                s8, s9, s10, s11, s12, s13, &
+                                                s14,s15,s16,s17
+    CHARACTER(LEN=1000), DIMENSION(17)       :: a
+
+  a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
+  a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11; a(12)=s12; a(13)=s13; a(14)=s14
+  a(15)=s15; a(16)=s16; a(17)=s17
+END FUNCTION
+PURE FUNCTION s2a_18(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
+                     s16,s17,s18) RESULT(a)
+    CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
+                                                s8, s9, s10, s11, s12, s13, &
+                                                s14,s15,s16,s17,s18
+    CHARACTER(LEN=1000), DIMENSION(18)       :: a
+
+  a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
+  a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11; a(12)=s12; a(13)=s13; a(14)=s14
+  a(15)=s15; a(16)=s16; a(17)=s17; a(18)=s18
+END FUNCTION
+PURE FUNCTION s2a_19(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
+                     s16,s17,s18,s19) RESULT(a)
+    CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
+                                                s8, s9, s10, s11, s12, s13, &
+                                                s14,s15,s16,s17,s18,s19
+    CHARACTER(LEN=1000), DIMENSION(19)       :: a
+
+  a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
+  a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11; a(12)=s12; a(13)=s13; a(14)=s14
+  a(15)=s15; a(16)=s16; a(17)=s17; a(18)=s18; a(19)=s19
+END FUNCTION
+PURE FUNCTION s2a_20(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
+                     s16,s17,s18,s19,s20) RESULT(a)
+    CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
+                                                s8, s9, s10, s11, s12, s13, &
+                                                s14,s15,s16,s17,s18,s19,s20
+    CHARACTER(LEN=1000), DIMENSION(20)       :: a
+
+  a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
+  a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11; a(12)=s12; a(13)=s13; a(14)=s14
+  a(15)=s15; a(16)=s16; a(17)=s17; a(18)=s18; a(19)=s19; a(20)=s20
+END FUNCTION
+PURE FUNCTION s2a_21(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
+                     s16,s17,s18,s19,s20,s21) RESULT(a)
+    CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
+                                                s8, s9, s10, s11, s12, s13, &
+                                                s14,s15,s16,s17,s18,s19,s20, &
+                                                s21
+    CHARACTER(LEN=1000), DIMENSION(21)       :: a
+
+  a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
+  a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11; a(12)=s12; a(13)=s13; a(14)=s14
+  a(15)=s15; a(16)=s16; a(17)=s17; a(18)=s18; a(19)=s19; a(20)=s20
+  a(21)=s21
+END FUNCTION
+PURE FUNCTION s2a_22(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
+                     s16,s17,s18,s19,s20,s21,s22) RESULT(a)
+    CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
+                                                s8, s9, s10, s11, s12, s13, &
+                                                s14,s15,s16,s17,s18,s19,s20, &
+                                                s21,s22
+    CHARACTER(LEN=1000), DIMENSION(22)       :: a
+
+  a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
+  a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11; a(12)=s12; a(13)=s13; a(14)=s14
+  a(15)=s15; a(16)=s16; a(17)=s17; a(18)=s18; a(19)=s19; a(20)=s20
+  a(21)=s21; a(22)=s22
+END FUNCTION
+PURE FUNCTION s2a_23(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
+                     s16,s17,s18,s19,s20,s21,s22,s23) RESULT(a)
+    CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
+                                                s8, s9, s10, s11, s12, s13, &
+                                                s14,s15,s16,s17,s18,s19,s20, &
+                                                s21,s22,s23
+    CHARACTER(LEN=1000), DIMENSION(23)       :: a
+
+  a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
+  a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11; a(12)=s12; a(13)=s13; a(14)=s14
+  a(15)=s15; a(16)=s16; a(17)=s17; a(18)=s18; a(19)=s19; a(20)=s20
+  a(21)=s21; a(22)=s22; a(23)=s23
+END FUNCTION
+PURE FUNCTION s2a_24(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
+                     s16,s17,s18,s19,s20,s21,s22,s23,s24) RESULT(a)
+    CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
+                                                s8, s9, s10, s11, s12, s13, &
+                                                s14,s15,s16,s17,s18,s19,s20, &
+                                                s21,s22,s23,s24
+    CHARACTER(LEN=1000), DIMENSION(24)       :: a
+
+  a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
+  a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11; a(12)=s12; a(13)=s13; a(14)=s14
+  a(15)=s15; a(16)=s16; a(17)=s17; a(18)=s18; a(19)=s19; a(20)=s20
+  a(21)=s21; a(22)=s22; a(23)=s23; a(24)=s24
+END FUNCTION
+PURE FUNCTION s2a_25(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
+                     s16,s17,s18,s19,s20,s21,s22,s23,s24,s25) RESULT(a)
+    CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
+                                                s8, s9, s10, s11, s12, s13, &
+                                                s14,s15,s16,s17,s18,s19,s20, &
+                                                s21,s22,s23,s24,s25
+    CHARACTER(LEN=1000), DIMENSION(25)       :: a
+
+  a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
+  a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11; a(12)=s12; a(13)=s13; a(14)=s14
+  a(15)=s15; a(16)=s16; a(17)=s17; a(18)=s18; a(19)=s19; a(20)=s20
+  a(21)=s21; a(22)=s22; a(23)=s23; a(24)=s24; a(25)=s25
+END FUNCTION
+PURE FUNCTION s2a_26(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
+                     s16,s17,s18,s19,s20,s21,s22,s23,s24,s25,s26) RESULT(a)
+    CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
+                                                s8, s9, s10, s11, s12, s13, &
+                                                s14,s15,s16,s17,s18,s19,s20, &
+                                                s21,s22,s23,s24,s25,s26
+    CHARACTER(LEN=1000), DIMENSION(26)       :: a
+
+  a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
+  a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11; a(12)=s12; a(13)=s13; a(14)=s14
+  a(15)=s15; a(16)=s16; a(17)=s17; a(18)=s18; a(19)=s19; a(20)=s20
+  a(21)=s21; a(22)=s22; a(23)=s23; a(24)=s24; a(25)=s25; a(26)=s26
+END FUNCTION
+PURE FUNCTION s2a_27(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
+                     s16,s17,s18,s19,s20,s21,s22,s23,s24,s25,s26,s27) RESULT(a)
+    CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
+                                                s8, s9, s10, s11, s12, s13, &
+                                                s14,s15,s16,s17,s18,s19,s20, &
+                                                s21,s22,s23,s24,s25,s26,s27
+    CHARACTER(LEN=1000), DIMENSION(27)       :: a
+
+  a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
+  a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11; a(12)=s12; a(13)=s13; a(14)=s14
+  a(15)=s15; a(16)=s16; a(17)=s17; a(18)=s18; a(19)=s19; a(20)=s20
+  a(21)=s21; a(22)=s22; a(23)=s23; a(24)=s24; a(25)=s25; a(26)=s26
+  a(27)=s27
+END FUNCTION
+PURE FUNCTION s2a_28(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
+                     s16,s17,s18,s19,s20,s21,s22,s23,s24,s25,s26,s27,s28) RESULT(a)
+    CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
+                                                s8, s9, s10, s11, s12, s13, &
+                                                s14,s15,s16,s17,s18,s19,s20, &
+                                                s21,s22,s23,s24,s25,s26,s27, &
+                                                s28
+    CHARACTER(LEN=1000), DIMENSION(28)       :: a
+
+  a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
+  a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11; a(12)=s12; a(13)=s13; a(14)=s14
+  a(15)=s15; a(16)=s16; a(17)=s17; a(18)=s18; a(19)=s19; a(20)=s20
+  a(21)=s21; a(22)=s22; a(23)=s23; a(24)=s24; a(25)=s25; a(26)=s26
+  a(27)=s27; a(28)=s28
+END FUNCTION
+PURE FUNCTION s2a_29(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
+                     s16,s17,s18,s19,s20,s21,s22,s23,s24,s25,s26,s27,s28,s29) RESULT(a)
+    CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
+                                                s8, s9, s10, s11, s12, s13, &
+                                                s14,s15,s16,s17,s18,s19,s20, &
+                                                s21,s22,s23,s24,s25,s26,s27, &
+                                                s28,s29
+    CHARACTER(LEN=1000), DIMENSION(29)       :: a
+
+  a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
+  a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11; a(12)=s12; a(13)=s13; a(14)=s14
+  a(15)=s15; a(16)=s16; a(17)=s17; a(18)=s18; a(19)=s19; a(20)=s20
+  a(21)=s21; a(22)=s22; a(23)=s23; a(24)=s24; a(25)=s25; a(26)=s26
+  a(27)=s27; a(28)=s28; a(29)=s29
 END FUNCTION
 ! *****************************************************************************
 
