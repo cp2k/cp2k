@@ -24,3 +24,8 @@ h2o-32_3.inp
 h2o-32_4.inp
 #new tests
 ch2o-r.inp
+#reset for RESTART file option
+ch2o-1.inp
+ch2o-2.inp
+ch2o-3.inp
+ch2o-r.inp

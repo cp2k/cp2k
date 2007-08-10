@@ -17,6 +17,11 @@
       SCF_GUESS NONE
       MIXING 1.
       MAX_SCF  2
+      &PRINT
+        &RESTART
+          FILENAME =RESTART
+        &END
+      &END
     &END SCF
   &END DFT
   &SUBSYS
