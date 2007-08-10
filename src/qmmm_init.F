@@ -239,7 +239,7 @@ CONTAINS
                "SWITCHING OFF THE PERIODIC KEYWORD SINCE PERIODIC AND NON-PERIODIC "//&
                "CALCULATION WITH NONE COUPLING REPRESENT THE SAME METHOD! "//&
 CPSourceFileRef,&
-               error,only_ionode=.TRUE.)
+               only_ionode=.TRUE.)
        END IF
 
        ! First Initialize Fist...

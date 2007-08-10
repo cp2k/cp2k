@@ -50,7 +50,6 @@ MODULE qs_initial_guess
                                              dp,&
                                              dp_size,&
                                              int_size
-  USE machine,                         ONLY: m_mov
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
@@ -160,6 +159,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    failure = .FALSE.
     NULLIFY(all_potential,atomic_kind, mo_coeff, sv,&
          gth_potential, orb_basis_set, atomic_kind_set, particle_set,&
          ortho,work2,work1,mo_array,s_sparse,p_rmpv,scf_control, &
@@ -213,18 +213,15 @@ CONTAINS
         CALL section_vals_val_get(qs_env%input,"DFT%WFN_RESTART_FILE_NAME",&
              c_val=file_name,error=error)
         INQUIRE(FILE=file_name,exist=exist)
-        IF (.NOT. exist) THEN
-          filename = file_name
-          filename((LEN_TRIM(filename)+1):(LEN(filename))) = "-"//&
-               ADJUSTL(cp_to_string(1))
-          INQUIRE(FILE=filename,exist=exist)
-          IF (.NOT. exist) THEN
-            density_guess = atomic_guess
-          ELSE
-            IF (qs_env%para_env%ionode) THEN
-              CALL m_mov(filename, file_name)
-            END IF
-          END IF
+        IF (.NOT.exist) THEN
+           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                "User requested to restart the wavefunction from the file named: "//&
+                TRIM(file_name)//". This file does not exist. Please check the existence of"//&
+                " the file or change properly the value of the keyword WFN_RESTART_FILE_NAME."//&
+                " Calculation continues using ATOMIC GUESS. "//&
+CPSourceFileRef,&
+                only_ionode=.TRUE.)
+           density_guess = atomic_guess
         END IF
     ELSE IF (density_guess == history_guess) THEN
        CALL section_vals_val_get(qs_env%input, "DFT%WFN_RESTART_FILE_NAME", &
@@ -243,11 +240,19 @@ CONTAINS
           END IF
        END DO
        IF (not_read == 1) THEN
-          ! Is RESTART present?
           density_guess = restart_guess
           filename = TRIM(file_name)
           INQUIRE(FILE=filename,exist=exist)
           IF (.NOT. exist) THEN
+             CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                  "User requested to restart the wavefunction from a series of restart files named: "//&
+                  TRIM(file_name)//" with extensions (.bak-n). These files do not exist."//&
+                  " Even trying to switch to a plain restart wave-function failes because the"//&
+                  " file named: "//TRIM(file_name)//" does not exist. Please check the existence of"//&
+                  " the file or change properly the value of the keyword WFN_RESTART_FILE_NAME. "//&
+                  " Calculation continues using ATOMIC GUESS. "//&
+CPSourceFileRef,&
+                  only_ionode=.TRUE.)
              density_guess = atomic_guess
           END IF
        END IF

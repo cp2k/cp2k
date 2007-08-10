@@ -799,15 +799,15 @@ CONTAINS
        IF (PRESENT(failure)) THEN
           failure=.TRUE.
        END IF
+       CALL cp_error_init(err, level=level,error_nr=error_nr, &
+            template_error=error)
        IF (PRESENT(only_ionode)) THEN
           IF (only_ionode) THEN
              NULLIFY(logger)
-             logger => cp_error_get_logger(error)
+             logger => cp_error_get_logger(err)
              ionode = logger%para_env%mepos==logger%para_env%source
           END IF
        END IF
-       CALL cp_error_init(err, level=level,error_nr=error_nr, &
-            template_error=error)
        IF (PRESENT(error)) THEN
           IF (error%level < level) THEN
              error%level=level

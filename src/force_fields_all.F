@@ -1000,7 +1000,7 @@ CONTAINS
                         "Multiple Bond declarations: "//TRIM(name_atm_a)//" and "//&
                         TRIM(name_atm_b)//" overwriting! "//&
 CPSourceFileRef,&
-                        error,only_ionode=.TRUE.)
+                        only_ionode=.TRUE.)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -1021,7 +1021,7 @@ CPSourceFileRef,&
                         "Multiple Bond declarations: "//TRIM(name_atm_a)//" and "//&
                         TRIM(name_atm_b)//" overwriting! "//&
 CPSourceFileRef,&
-                        error,only_ionode=.TRUE.)
+                        only_ionode=.TRUE.)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -1171,7 +1171,7 @@ CPSourceFileRef,&
                         "Multiple Bend declarations: "//TRIM(name_atm_a)//&
                         ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting! "//&
 CPSourceFileRef,&
-                        error,only_ionode=.TRUE.)
+                        only_ionode=.TRUE.)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -1194,7 +1194,7 @@ CPSourceFileRef,&
                         "Multiple Bend declarations: "//TRIM(name_atm_a)//&
                         ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting! "//&
 CPSourceFileRef,&
-                        error,only_ionode=.TRUE.)
+                        only_ionode=.TRUE.)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -1325,7 +1325,7 @@ CPSourceFileRef,&
                         "Multiple UB declarations: "//TRIM(name_atm_a)//&
                         ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting! "//&
 CPSourceFileRef,&
-                        error,only_ionode=.TRUE.)
+                        only_ionode=.TRUE.)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -1348,7 +1348,7 @@ CPSourceFileRef,&
                         "Multiple UB declarations: "//TRIM(name_atm_a)//&
                         ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting! "//&
 CPSourceFileRef,&
-                        error,only_ionode=.TRUE.)
+                        only_ionode=.TRUE.)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -1759,7 +1759,7 @@ CPSourceFileRef,&
                         ","//TRIM(name_atm_b)//","//TRIM(name_atm_c)//" and "//TRIM(name_atm_d)//&
                         " overwriting! "//&
 CPSourceFileRef,&
-                        error,only_ionode=.TRUE.)
+                        only_ionode=.TRUE.)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -1782,7 +1782,7 @@ CPSourceFileRef,&
                            ","//TRIM(name_atm_b)//","//TRIM(name_atm_c)//" and "//TRIM(name_atm_d)//&
                            " overwriting! "//&
 CPSourceFileRef,&
-                           error,only_ionode=.TRUE.)
+                           only_ionode=.TRUE.)
                       found = .TRUE.
                       EXIT
                    END IF
@@ -1809,7 +1809,7 @@ CPSourceFileRef,&
                         ","//TRIM(name_atm_b)//","//TRIM(name_atm_c)//" and "//TRIM(name_atm_d)//&
                         " overwriting! "//&
 CPSourceFileRef,&
-                        error,only_ionode=.TRUE.)
+                        only_ionode=.TRUE.)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -1922,7 +1922,7 @@ CPSourceFileRef,&
                      "Multiple charge declarations: "//TRIM(atmname)//&
                      " overwriting! "//&
 CPSourceFileRef,&
-                     error,only_ionode=.TRUE.)
+                     only_ionode=.TRUE.)
                 found = .TRUE.
              END IF
           END DO
@@ -1937,7 +1937,7 @@ CPSourceFileRef,&
                      "Multiple charge declarations: "//TRIM(atmname)//&
                      " overwriting! "//&
 CPSourceFileRef,&
-                     error,only_ionode=.TRUE.)
+                     only_ionode=.TRUE.)
                 found = .TRUE.
              END IF
           END DO
@@ -2109,7 +2109,7 @@ CPSourceFileRef,&
                      "Multiple Shell declarations: "//TRIM(atmname)//&
                      " overwriting! "//&
 CPSourceFileRef,&
-                     error,only_ionode=.TRUE.)
+                     only_ionode=.TRUE.)
                 found_shell = .TRUE.
                 CALL set_atomic_kind(atomic_kind=atomic_kind,&
                      shell=shell, shell_active=.TRUE.,error=error)
@@ -2324,7 +2324,7 @@ CPSourceFileRef,&
                      "Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
                      " and "//TRIM(name_atm_b)//" overwriting! "//&
 CPSourceFileRef,&
-                     error,only_ionode=.TRUE.)
+                     only_ionode=.TRUE.)
                 found = .TRUE.
              END IF
           END IF
@@ -2386,7 +2386,7 @@ CPSourceFileRef,&
                   "Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
                   " and "//TRIM(name_atm_b)//" overwriting! "//&
 CPSourceFileRef,&
-                  error,only_ionode=.TRUE.)
+                  only_ionode=.TRUE.)
              found = .TRUE.
           END IF
 
@@ -2406,7 +2406,7 @@ CPSourceFileRef,&
                            "Multiple ONFO declaration: "//TRIM(name_atm_a)//&
                            " and "//TRIM(name_atm_b)//" ADDING! "//&
 CPSourceFileRef,&
-                           error,only_ionode=.TRUE.)
+                           only_ionode=.TRUE.)
                       potparm_bond%pot(i,j)%pot => pot
                       potparm_bond%pot(j,i)%pot => pot
                    ELSE
@@ -2415,7 +2415,7 @@ CPSourceFileRef,&
                            "Multiple ONFO declarations: "//TRIM(name_atm_a)//&
                            " and "//TRIM(name_atm_b)//" OVERWRITING! "//&
 CPSourceFileRef,&
-                           error,only_ionode=.TRUE.)
+                           only_ionode=.TRUE.)
                    END IF
                    IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a)," ",TRIM(name_atm_b)
                    found = .TRUE.
@@ -2444,7 +2444,7 @@ CPSourceFileRef,&
                                  "Multiple ONFO declaration: "//TRIM(name_atm_a)//&
                                  " and "//TRIM(name_atm_b)//" ADDING QM/MM forcefield specifications! "//&
 CPSourceFileRef,&
-                                 error,only_ionode=.TRUE.)
+                                 only_ionode=.TRUE.)
                             potparm_bond%pot(i,j)%pot => pot
                             potparm_bond%pot(j,i)%pot => pot
                          ELSE
@@ -2453,7 +2453,7 @@ CPSourceFileRef,&
                                  "Multiple ONFO declaration: "//TRIM(name_atm_a)//&
                                  " and "//TRIM(name_atm_b)//" OVERWRITING QM/MM forcefield specifications! "//&
 CPSourceFileRef,&
-                                 error,only_ionode=.TRUE.)
+                                 only_ionode=.TRUE.)
                          END IF
                          IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a),&
                               " ",TRIM(name_atm_b)
@@ -2706,7 +2706,7 @@ CPSourceFileRef,&
                      "Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
                      " and "//TRIM(name_atm_b)//" overwriting! "//&
 CPSourceFileRef,&
-                     error,only_ionode=.TRUE.)
+                     only_ionode=.TRUE.)
                 found = .TRUE.
              END IF
           END IF
@@ -2742,7 +2742,7 @@ CPSourceFileRef,&
                      "Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
                      " and "//TRIM(name_atm_b)//" overwriting! "//&
 CPSourceFileRef,&
-                     error,only_ionode=.TRUE.)
+                     only_ionode=.TRUE.)
                 found = .TRUE.
              END IF
           END IF
@@ -2763,7 +2763,7 @@ CPSourceFileRef,&
                            "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
                            " and "//TRIM(name_atm_b)//" ADDING! "//&
 CPSourceFileRef,&
-                           error,only_ionode=.TRUE.)
+                           only_ionode=.TRUE.)
                       potparm_nonbond%pot(i,j)%pot => pot
                       potparm_nonbond%pot(j,i)%pot => pot
                    ELSE
@@ -2772,7 +2772,7 @@ CPSourceFileRef,&
                            "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
                            " and "//TRIM(name_atm_b)//" OVERWRITING! "//&
 CPSourceFileRef,&
-                           error,only_ionode=.TRUE.)
+                           only_ionode=.TRUE.)
                    END IF
                    IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a)," ",TRIM(name_atm_b)
                    found = .TRUE.
@@ -2801,7 +2801,7 @@ CPSourceFileRef,&
                                  "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
                                  " and "//TRIM(name_atm_b)//" ADDING QM/MM forcefield specifications! "//&
 CPSourceFileRef,&
-                                 error,only_ionode=.TRUE.)
+                                 only_ionode=.TRUE.)
                             potparm_nonbond%pot(i,j)%pot => pot
                             potparm_nonbond%pot(j,i)%pot => pot
                          ELSE
@@ -2810,7 +2810,7 @@ CPSourceFileRef,&
                                  "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
                                  " and "//TRIM(name_atm_b)//" OVERWRITING QM/MM forcefield specifications! "//&
 CPSourceFileRef,&
-                                 error,only_ionode=.TRUE.)
+                                 only_ionode=.TRUE.)
                          END IF
                          IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a)," ",TRIM(name_atm_b)
                          found = .TRUE.

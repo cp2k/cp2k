@@ -155,7 +155,7 @@ CONTAINS
             "Overwriting coordinates. Active coordinates read from &COORD section."//&
             " Active coordinates READ from &COORD section "//&
 CPSourceFileRef,&
-          error,only_ionode=.TRUE.)
+          only_ionode=.TRUE.)
        CALL section_vals_list_get(coord_section,"_DEFAULT_KEYWORD_",list=list,error=error)
        DO iatom=1,natom
           ! we use only the first default_string_length characters of each line
@@ -367,7 +367,7 @@ CPSourceFileRef,&
            "Overwriting shells coordinates. "//&
            " Active coordinates READ from &SHELL_COORD section. "//&
 CPSourceFileRef,&
-           error,only_ionode=.TRUE.)
+           only_ionode=.TRUE.)
       CALL section_vals_list_get(shell_coord_section,"_DEFAULT_KEYWORD_",list=list,error=error)
       DO ishell=1,nshell
          ! we use only the first default_string_length characters of each line
@@ -404,7 +404,6 @@ CPSourceFileRef,&
          END DO
       END DO
 
-
       IF(PRESENT(core_particle_set)) THEN
         core_coord_section => section_vals_get_subs_vals(subsys_section,"core_COORD",error=error)
         CALL section_vals_get(core_coord_section, explicit=explicit, error=error)
@@ -419,7 +418,7 @@ CPSourceFileRef,&
                "Overwriting cores coordinates. "//&
                " Active coordinates READ from &SHELL_COORD section. "//&
 CPSourceFileRef,&
-               error,only_ionode=.TRUE.)
+               only_ionode=.TRUE.)
           CALL section_vals_list_get(core_coord_section,"_DEFAULT_KEYWORD_",list=list,error=error)
           DO ishell=1,nshell
              ! we use only the first default_string_length characters of each line

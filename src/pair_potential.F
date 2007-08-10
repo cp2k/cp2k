@@ -603,7 +603,7 @@ CONTAINS
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed, routineP,&
                         TRIM(message)//" "//&
 CPSourceFileRef,&
-                        error,only_ionode=.TRUE.)
+                        only_ionode=.TRUE.)
        END IF
        IF (diffmax > eps_spline ) THEN
           npoints   = CEILING(1.2_dp*REAL(npoints,KIND=dp))
