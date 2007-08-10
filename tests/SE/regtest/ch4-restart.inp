@@ -11,7 +11,13 @@
     &SCF
       MAX_SCF 20
       SCF_GUESS RESTART
+      &PRINT
+        &RESTART
+           FILENAME =RESTART
+        &END
+      &END
     &END SCF
+    RESTART_FILE_NAME ch4-RESTART.wfn
   &END DFT
   &SUBSYS
     &CELL
