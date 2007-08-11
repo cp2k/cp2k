@@ -560,7 +560,8 @@ END FUNCTION cp_printkey_is_on
        first=ALL(iteration_info%iteration(1:iteration_info%n_rlevel)==1)
     ELSE
        CPPrecondition(print_key%ref_count>0,cp_failure_level,routineP,error,failure)
-       res=.FALSE.
+       res   = .FALSE.
+       first = .FALSE.
        IF (.NOT. failure) THEN
           NULLIFY(each,add_last)
           CALL section_vals_val_get(print_key,"EACH",i_vals=each,error=error)
