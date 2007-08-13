@@ -26,21 +26,19 @@
 !******************************************************************************
 
 MODULE qs_environment
-  USE bibliography,                    ONLY: cite_reference, Iannuzzi2007
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
                                              atomic_kind_list_release,&
                                              atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              check_atomic_kind_set,&
-                                             get_atomic_kind,&
                                              get_atomic_kind_set,&
                                              init_atomic_kind_set,&
                                              init_gapw_basis_set,&
                                              read_atomic_kind_set,&
                                              write_atomic_kind_set,&
                                              write_gto_basis_sets
-  USE basis_set_types,                 ONLY: get_gto_basis_set,&
-                                             gto_basis_set_type
+  USE bibliography,                    ONLY: Iannuzzi2007,&
+                                             cite_reference
   USE cell_types,                      ONLY: cell_clone,&
                                              cell_create,&
                                              cell_release,&
@@ -212,6 +210,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_init', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: max_set, natom
     LOGICAL                                  :: do_et, do_hf, harris_flag, &
                                                 my_qmmm, my_qmmm_periodic, &
                                                 use_ref_cell
@@ -233,8 +232,6 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER :: cell_section, colvar_section, &
       et_coupling_section, harris_section, hf_section, kind_section
-    INTEGER                                  :: iatom, natom, nseta, iset,&
-                                                max_set
 
     NULLIFY(my_subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
          particle_set,atomic_kinds,particles,mols,mol_kinds,my_cell,my_cell_ref,&
@@ -921,7 +918,7 @@ CONTAINS
     CALL write_total_numbers(atomic_kind_set,particle_set,qs_env%input,error)
 
     ! Print the atomic coordinates
-    CALL write_qs_particle_coordinates(particle_set,cell,subsys_section,error)
+    CALL write_qs_particle_coordinates(particle_set,cell,subsys_section,label="QUICKSTEP",error=error)
 
     ! Print the interatomic distances
     CALL write_particle_distances(particle_set,cell,subsys_section,error)

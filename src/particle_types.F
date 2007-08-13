@@ -661,7 +661,7 @@ END SUBROUTINE clone_particle
                     unit_of_length_name=unit_of_length_name)
 
       WRITE (UNIT=iw,FMT="(/,/,T2,A)")&
-        "ATOMIC COORDINATES IN "//TRIM(unit_of_length_name)
+        "MODULE FIST:  ATOMIC COORDINATES IN "//TRIM(unit_of_length_name)
       WRITE (UNIT=iw,&
            FMT="(/,T3,A,7X,2(A1,11X),A1,8X,A8,5X,A6,/)")&
         "Atom  Kind  ATM_TYP","X","Y","Z","  q(eff)","  Mass"
@@ -686,7 +686,7 @@ END SUBROUTINE clone_particle
 
   END SUBROUTINE write_fist_particle_coordinates
 
-  SUBROUTINE write_qs_particle_coordinates(particle_set,cell,subsys_section,error)
+  SUBROUTINE write_qs_particle_coordinates(particle_set,cell,subsys_section,label,error)
 
 !   Purpose: Write the atomic coordinates to the output unit.
 !   History: - Creation (05.06.2000,MK)
@@ -695,6 +695,7 @@ END SUBROUTINE clone_particle
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: subsys_section
+    CHARACTER(LEN=*), INTENT(IN)             :: label
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=2)                         :: element_symbol
@@ -715,7 +716,7 @@ END SUBROUTINE clone_particle
                     unit_of_length_name=unit_of_length_name)
 
       WRITE (UNIT=iw,FMT="(/,/,T2,A)")&
-        "ATOMIC COORDINATES IN "//TRIM(unit_of_length_name)
+        "MODULE "//TRIM(label)//":  ATOMIC COORDINATES IN "//TRIM(unit_of_length_name)
       WRITE (UNIT=iw,&
            FMT="(/,T3,A,7X,2(A1,11X),A1,8X,A8,5X,A6,/)")&
         "Atom  Kind  Element","X","Y","Z","  Z(eff)","  Mass"

@@ -295,7 +295,7 @@ CONTAINS
     CALL write_total_numbers(atomic_kind_set,particle_set,kg_env%input,error)
 
     ! Print the atomic coordinates
-    CALL write_qs_particle_coordinates(particle_set,cell,subsys_section,error)
+    CALL write_qs_particle_coordinates(particle_set,cell,subsys_section,label="KIM-GORDON",error=error)
 
     ! Print the interatomic distances ***
     CALL write_particle_distances(particle_set,cell,subsys_section,error)

@@ -287,7 +287,7 @@ CONTAINS
 !   *** Print the atomic coordinates 
     CALL write_qs_particle_coordinates(particle_set, cell=cell, &
                                        subsys_section=subsys_section, &
-                                       error=error)
+                                       label="EIP",error=error)
     CALL write_particle_distances(particle_set, cell=cell, &
                                   subsys_section=subsys_section, &
                                   error=error)

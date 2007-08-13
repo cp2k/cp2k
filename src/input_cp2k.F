@@ -1680,6 +1680,16 @@ END SUBROUTINE create_cpot_section
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
+       CALL keyword_create(keyword, name="DEFINE_FRAGMENTS",&
+            description="Specify the fragments definition of the force_eval through the fragments of the"//&
+            " force_eval_mixed. This avoids the pedantic definition of the fragments for the force_eval,"//&
+            " assuming the order of the fragments for the specified force_eval is the same as the sequence "//&
+            " of integers provided. Easier to USE should be preferred to the specification of the single fragments.",&
+            usage="DEFINE_FRAGMENTS <INTEGER> .. <INTEGER>", type_of_var=integer_t, n_var=-1,&
+            error=error)
+       CALL section_add_keyword(sub2section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
             description="Defines the index of the force_eval for which fragments and mappings are provided",&
             usage="<INTEGER>",  type_of_var=integer_t, n_var=1, required=.TRUE.,error=error)
