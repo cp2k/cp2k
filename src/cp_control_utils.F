@@ -14,6 +14,7 @@
 !******************************************************************************
 
 MODULE cp_control_utils
+  USE bibliography,                    ONLY: cite_reference, Lippert1997, Lippert1999
   USE cp_control_types,                ONLY: dft_control_create,&
                                              dft_control_type,&
                                              qs_control_type,&
@@ -451,10 +452,12 @@ CONTAINS
     qs_control%semi_empirical = .FALSE.
     SELECT CASE (qs_control%method_id)
       CASE (do_method_gapw)
+        CALL cite_reference(Lippert1999)
         qs_control%gapw = .TRUE.
       CASE (do_method_gapw_xc)
         qs_control%gapw_xc = .TRUE.
       CASE (do_method_gpw)
+        CALL cite_reference(Lippert1997)
         qs_control%gpw = .TRUE.
       CASE (do_method_dftb)
         qs_control%dftb = .TRUE.

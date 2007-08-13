@@ -21,7 +21,7 @@
 !******************************************************************************
 
 MODULE kg_main
-
+  USE bibliography,                    ONLY: cite_reference, Iannuzzi2006
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE force_env_methods,               ONLY: force_env_create
   USE force_env_types,                 ONLY: force_env_type
@@ -86,6 +86,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,"I","",handle)
+    CALL cite_reference(Iannuzzi2006)
     failure=.FALSE.
     CALL kg_env_create(kg_env,para_env=para_env,error=error)
 

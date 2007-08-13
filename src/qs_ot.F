@@ -22,6 +22,8 @@
 !!
 MODULE qs_ot
 ! *****************************************************************************
+  USE bibliography,                    ONLY: cite_reference,&
+                                             VandeVondele2003
   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
                                              cp_cfm_gemm
   USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
@@ -293,6 +295,8 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,fm_struct_ref,ortho_k,error)
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_k_k, fm_struct_n_o, &
                                                 fm_struct_o_k, fm_struct_o_o
     TYPE(cp_para_env_type), POINTER          :: para_env
+
+   CALL cite_reference(VandeVondele2003)
 
    NULLIFY(fm_struct_o_o, fm_struct_o_k, fm_struct_k_k, fm_struct_n_o)
    NULLIFY(qs_ot_env%preconditioner)

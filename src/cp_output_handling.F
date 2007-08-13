@@ -189,7 +189,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_print_key_section_create(print_key_section, name, description, &
-       print_level,each,add_last,filename,common_iter_levels,store,error)
+       print_level,each,add_last,filename,common_iter_levels,store,citations,error)
     TYPE(section_type), POINTER              :: print_key_section
     CHARACTER(len=*), INTENT(in)             :: name, description
     INTEGER, INTENT(in), OPTIONAL            :: print_level
@@ -198,6 +198,7 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(in), OPTIONAL   :: filename
     INTEGER, INTENT(in), OPTIONAL            :: common_iter_levels
     LOGICAL, INTENT(IN), OPTIONAL            :: store
+    INTEGER, DIMENSION(:), OPTIONAL          :: citations
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_section_create', &
@@ -221,6 +222,7 @@ CONTAINS
 
        CALL section_create(print_key_section,name=name,description=description,&
             n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            citations=citations,&
             error=error)
 
        NULLIFY(keyword, val,enum)

@@ -23,6 +23,8 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_keyword_types
+  USE reference_manager,               ONLY: print_reference, &
+                                             print_format_journal
   USE cp_units,                        ONLY: cp_unit_create,&
                                              cp_unit_desc,&
                                              cp_unit_release,&
@@ -105,6 +107,7 @@ MODULE input_keyword_types
 !!     - usage: how to use it "MAXSCF 10"
 !!     - description: what does it do: "MAXSCF : determines the maximum 
 !!       number of steps in an SCF run"
+!!     - citations: references to literature associated with this keyword
 !!     - type_of_var: the type of keyword (controls how it is parsed)
 !!       it can be one of: no_parse_t,logical_t, integer_t, real_t,
 !!       char_t
@@ -131,6 +134,7 @@ MODULE input_keyword_types
      CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER:: names
      CHARACTER(LEN=usage_string_length) :: usage
      CHARACTER(LEN=description_string_length) :: description
+     INTEGER, POINTER, DIMENSION(:) :: citations
      INTEGER :: type_of_var,n_var
      LOGICAL :: repeats, required
      TYPE(enumeration_type), POINTER :: enum
@@ -172,7 +176,7 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
      lone_keyword_val, lone_keyword_l_val, lone_keyword_r_val, lone_keyword_c_val,&
      lone_keyword_i_val, lone_keyword_l_vals, lone_keyword_r_vals, &
      lone_keyword_c_vals, lone_keyword_i_vals, enum_c_vals, enum_i_vals, &
-     enum,enum_strict,enum_desc,unit_str,error)
+     enum,enum_strict,enum_desc,unit_str,citations,error)
     TYPE(keyword_type), POINTER              :: keyword
     CHARACTER(len=*), INTENT(in)             :: name, description
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: usage
@@ -217,6 +221,7 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
     CHARACTER(len=*), DIMENSION(:), &
       INTENT(in), OPTIONAL                   :: enum_desc
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: unit_str
+    INTEGER, DIMENSION(:), OPTIONAL, INTENT(IN) :: citations
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
 
@@ -263,6 +268,14 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
      END IF
      CPPrecondition(LEN_TRIM(description)<=LEN(keyword%description),cp_failure_level,routineP,error,failure)
      keyword%description=description
+
+     IF (PRESENT(citations)) THEN
+        ALLOCATE(keyword%citations(SIZE(citations,1)),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        keyword%citations=citations
+     ELSE
+         NULLIFY(keyword%citations) 
+     ENDIF
      
      keyword%repeats=.FALSE.
      IF (PRESENT(repeats)) keyword%repeats=repeats
@@ -522,6 +535,10 @@ SUBROUTINE keyword_release(keyword, error)
         CALL val_release(keyword%lone_keyword_value,error=error)
         CALL enum_release(keyword%enum,error=error)
         CALL cp_unit_release(keyword%unit,error=error)
+        IF (ASSOCIATED(keyword%citations)) THEN
+            DEALLOCATE(keyword%citations,stat=stat)
+            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        ENDIF
         DEALLOCATE(keyword,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
@@ -550,7 +567,7 @@ END SUBROUTINE keyword_release
 !!
 !!*** **********************************************************************
 SUBROUTINE keyword_get(keyword,names,usage,description,type_of_var,n_var,&
-     default_value, lone_keyword_value,required,repeats,enum,error)
+     default_value, lone_keyword_value,required,repeats,enum,citations,error)
     TYPE(keyword_type), POINTER              :: keyword
     CHARACTER(len=default_string_length), &
       DIMENSION(:), OPTIONAL, POINTER        :: names
@@ -561,6 +578,7 @@ SUBROUTINE keyword_get(keyword,names,usage,description,type_of_var,n_var,&
     LOGICAL, INTENT(out), OPTIONAL           :: required, repeats
     TYPE(enumeration_type), OPTIONAL, &
       POINTER                                :: enum
+    INTEGER, DIMENSION(:), POINTER, OPTIONAL :: citations
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
 
@@ -584,6 +602,7 @@ SUBROUTINE keyword_get(keyword,names,usage,description,type_of_var,n_var,&
      IF (PRESENT(default_value)) default_value => keyword%default_value
      IF (PRESENT(lone_keyword_value)) lone_keyword_value => keyword%lone_keyword_value
      IF (PRESENT(enum)) enum => keyword%enum
+     IF (PRESENT(citations)) citations => keyword%citations
   END IF
 END SUBROUTINE keyword_get
 !***************************************************************************
@@ -785,7 +804,7 @@ SUBROUTINE keyword_describe_html(keyword, unit_nr, error)
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length)     :: c_string, my_unit
-    INTEGER                                  :: i
+    INTEGER                                  :: i,iref
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -909,6 +928,19 @@ SUBROUTINE keyword_describe_html(keyword, unit_nr, error)
           END DO
       ENDIF
     ENDIF
+    IF (ASSOCIATED(keyword%citations)) THEN
+       IF (SIZE(keyword%citations,1)>1) THEN
+          WRITE(unit_nr,*) '<BR> This keyword cites following references: '
+       ELSE
+          WRITE(unit_nr,*) '<BR> This keyword cites following reference: '
+       ENDIF
+       DO iref=1,SIZE(keyword%citations,1)
+          write(unit_nr,'(A,I0,A)') '<A HREF="references.html#reference_',keyword%citations(iref),'" TITLE="'
+          CALL print_reference(keyword%citations(iref),format=print_format_journal,unit=unit_nr)
+          write(unit_nr,'(A,I0,A)') '">',keyword%citations(iref),'</A>'
+       ENDDO
+    ENDIF
+
 END SUBROUTINE keyword_describe_html
 
 ! *****************************************************************************

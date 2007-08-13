@@ -26,6 +26,7 @@
 !******************************************************************************
 
 MODULE qs_environment
+  USE bibliography,                    ONLY: cite_reference, Iannuzzi2007
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
                                              atomic_kind_list_release,&
                                              atomic_kind_list_type
@@ -903,6 +904,7 @@ CONTAINS
 
     ! Print XES/XAS control parameters
     IF (dft_control%do_xas_calculation) THEN
+      CALL cite_reference(Iannuzzi2007)
       CALL write_xas_control(dft_control%xas_control,dft_section,error=error)
     END IF
 

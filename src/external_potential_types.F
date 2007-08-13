@@ -20,7 +20,8 @@
 !******************************************************************************
 
 MODULE external_potential_types
-
+  USE bibliography,                    ONLY: Goedecker1996, Hartwigsen1998, Krack2005, &
+                                             cite_reference
   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
                                              cp_sll_val_type
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -1333,6 +1334,10 @@ __LINE__,&
     symbol2 = ""
     apname2 = ""
     NULLIFY(parser)
+
+    CALL cite_reference(Goedecker1996)
+    CALL cite_reference(Hartwigsen1998)
+    CALL cite_reference(Krack2005)
 
     potential%name = potential_name
     read_from_input = .FALSE.

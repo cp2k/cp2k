@@ -85,6 +85,8 @@ MODULE cp2k_runs
   USE qs_debug,                        ONLY: qs_debug_energy_and_forces
   USE qs_linres_module,                ONLY: linres_calculation
   USE qs_tddfpt_module,                ONLY: tddfpt_calculation
+  USE reference_manager,               ONLY: print_all_references, &
+                                             print_format_html
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE vibrational_analysis,            ONLY: vb_anal
@@ -738,6 +740,17 @@ WRITE(unit_nr,*) ' <!-- END CODE --></TD><TD> '
 
        CALL close_file(unit_nr)
        CALL section_release(root_section,error=error)
+
+       CALL open_file(unit_number=unit_nr,file_name="references.html",&
+            file_action="WRITE", file_status="REPLACE")
+       WRITE(unit_nr,*) "<HTML><BODY><HEAD><TITLE>The cp2k literature list</TITLE>"
+       WRITE(unit_nr,*) "<H1>CP2K references</H1>"
+       CALL print_all_references(sorted=.FALSE.,cited_only=.FALSE., &
+                          format=print_format_html,unit=unit_nr)
+       WRITE(unit_nr,*) '<BR><hr>Back to the <A HREF="http://cp2k.berlios.de/">CP2K homepage</A>'
+       WRITE(unit_nr,*) "</BODY></HTML>"
+       CALL close_file(unit_nr)
+
     END IF
   END SUBROUTINE write_cp2k_html_manual
 

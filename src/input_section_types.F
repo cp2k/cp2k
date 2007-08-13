@@ -45,6 +45,8 @@ MODULE input_section_types
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE output_utilities,                ONLY: print_message
+  USE reference_manager,               ONLY: print_reference, &
+                                             print_format_journal
   USE string_utilities,                ONLY: compress,&
                                              substitute_special_xml_tokens,&
                                              typo_match,&
@@ -126,6 +128,7 @@ MODULE input_section_types
 !!     - n_keywords: the number of keywords in this section
 !!     - name: name of the section
 !!     - description: description of the section
+!!     - citations: references to literature associated to this section
 !!     - keywords: array with the keywords of this section (might be
 !!       oversized)
 !!     - subsections: sections contained in this section
@@ -141,8 +144,9 @@ MODULE input_section_types
   TYPE section_type
      LOGICAL :: frozen, required, repeats
      INTEGER :: id_nr,ref_count, n_keywords, n_subsections
-     CHARACTER(len=default_string_length) :: name
-     CHARACTER(len=description_string_length) :: description
+     CHARACTER(len=default_string_length)        :: name
+     CHARACTER(len=description_string_length)    :: description
+     INTEGER, POINTER, DIMENSION(:)              :: citations
      TYPE(keyword_p_type), DIMENSION(:), POINTER :: keywords
      TYPE(section_p_type), POINTER, DIMENSION(:) :: subsections
   END TYPE section_type
@@ -231,11 +235,12 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE section_create(section,name,description,n_keywords,&
-     n_subsections, repeats, required,error)
+     n_subsections, repeats, required, citations, error)
     TYPE(section_type), POINTER              :: section
     CHARACTER(len=*), INTENT(in)             :: name, description
     INTEGER, INTENT(in), OPTIONAL            :: n_keywords, n_subsections
     LOGICAL, INTENT(in), OPTIONAL            :: repeats, required
+    INTEGER, INTENT(IN), DIMENSION(:), OPTIONAL :: citations
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
 
@@ -272,6 +277,13 @@ SUBROUTINE section_create(section,name,description,n_keywords,&
      section%repeats=.FALSE.
      IF (PRESENT(required)) section%required=required
      IF (PRESENT(repeats)) section%repeats=repeats
+
+     NULLIFY(section%citations)
+     IF (PRESENT(citations)) THEN
+        ALLOCATE(section%citations(SIZE(citations)),stat=stat)
+        section%citations=citations
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     ENDIF
 
      ALLOCATE(section%keywords(-1:my_n_keywords),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -369,6 +381,10 @@ RECURSIVE SUBROUTINE section_release(section,error)
      CPPreconditionNoFail(section%ref_count>0,cp_failure_level,routineP,error)
      section%ref_count=section%ref_count-1
      IF (section%ref_count==0) THEN
+        IF (ASSOCIATED(section%citations)) THEN
+           DEALLOCATE(section%citations,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        ENDIF
         IF (ASSOCIATED(section%keywords)) THEN
            DO i=-1,UBOUND(section%keywords,1)
               CALL keyword_release(section%keywords(i)%keyword,error=error)
@@ -491,7 +507,7 @@ RECURSIVE SUBROUTINE section_describe_html(section, prefix, depth, unit_nr,  err
 
     CHARACTER(LEN=1000)                      :: local_prefix
     CHARACTER(LEN=256), DIMENSION(50), SAVE  :: location, name
-    INTEGER                                  :: idepth, ikeyword, isub
+    INTEGER                                  :: idepth, ikeyword, isub, iref
     LOGICAL                                  :: failure, has_keywords
 
 ! a local stack of info
@@ -516,6 +532,20 @@ RECURSIVE SUBROUTINE section_describe_html(section, prefix, depth, unit_nr,  err
      WRITE(179,FMT='(A)') '<A HREF="'//TRIM(location(depth+1))//'">'//TRIM(name(depth+1))//'</A>.'
 
      WRITE(179,*) '<BR><BR>'//TRIM(section%description)
+
+     IF (ASSOCIATED(section%citations)) THEN
+       IF (SIZE(section%citations,1)>1) THEN
+          WRITE(179,*) '<BR><BR> This section cites following references: ' 
+       ELSE
+          WRITE(179,*) '<BR><BR> This section cites following reference: ' 
+       ENDIF
+       DO iref=1,SIZE(section%citations,1)
+          write(179,'(A,I0,A)') '<A HREF="references.html#reference_',section%citations(iref),'" TITLE="'
+          CALL print_reference(section%citations(iref),format=print_format_journal,unit=179)
+          write(179,'(A,I0,A)') '">',section%citations(iref),'</A>'
+       ENDDO
+     ENDIF
+
      WRITE(179,*) "<H2> Subsections</H2>"
      IF (section%n_subsections>0) THEN
         WRITE(179,*) "<UL>"
@@ -830,11 +860,12 @@ END FUNCTION section_get_keyword
 !!
 !!*** **********************************************************************
 SUBROUTINE section_get(section,frozen, required, repeats,id_nr,ref_count, &
-     name,description,error)
+     name,description,citations,error)
     TYPE(section_type), POINTER              :: section
     LOGICAL, INTENT(out), OPTIONAL           :: frozen, required, repeats
     INTEGER, INTENT(out), OPTIONAL           :: id_nr, ref_count
     CHARACTER(len=*), INTENT(out), OPTIONAL  :: name, description
+    INTEGER, POINTER, DIMENSION(:), OPTIONAL :: citations
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
 
@@ -855,6 +886,7 @@ SUBROUTINE section_get(section,frozen, required, repeats,id_nr,ref_count, &
      IF (PRESENT(ref_count)) ref_count=section%ref_count
      IF (PRESENT(name)) name=section%name
      IF (PRESENT(description)) description=section%description
+     IF (PRESENT(description)) citations=>section%citations
   END IF
 END SUBROUTINE section_get
 !***************************************************************************

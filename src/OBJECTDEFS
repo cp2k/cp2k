@@ -19,6 +19,7 @@ OBJECTS_GENERIC =\
  bessel_lib.o\
  beta_gamma_psi.o\
  bfgs_optimizer.o\
+ bibliography.o\
  block_p_types.o\
  bsse.o\
  cell_types.o\
@@ -430,6 +431,7 @@ OBJECTS_GENERIC =\
  realspace_grid_cube.o\
  realspace_grid_types.o\
  realspace_task_selection.o\
+ reference_manager.o\
  replica_methods.o\
  replica_types.o\
  restraint.o\

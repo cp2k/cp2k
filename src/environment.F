@@ -67,6 +67,8 @@ MODULE environment
                                              write_rng_matrices,&
                                              write_rng_stream
   USE physcon,                         ONLY: write_physcon
+  USE reference_manager,               ONLY: print_all_references, &
+                                             print_format_journal
   USE string_utilities,                ONLY: ascii_to_string,&
                                              integer_to_string,&
                                              string_to_ascii
@@ -794,6 +796,22 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
        use_HPM=.FALSE.
     ENDIF
 #endif
+
+    IF (.NOT. failure) THEN
+       iw = cp_print_key_unit_nr(logger,root_section,"GLOBAL%REFERENCES",&
+            extension=".Log",error=error)
+       IF (iw>0) THEN
+           WRITE (UNIT=iw,FMT="(/,T2,A)") REPEAT("-",79)
+           WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
+           WRITE (UNIT=iw,FMT="(T2,A,T30,A,T80,A)") "-","R E F E R E N C E S","-"
+           WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
+           WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
+           CALL print_all_references(sorted=.TRUE.,cited_only=.TRUE., &
+                          format=print_format_journal,unit=iw)
+       ENDIF
+       CALL cp_print_key_finished_output(iw,logger,root_section,&
+            "GLOBAL%REFERENCES",error=error)
+    ENDIF
 
     CALL timestop(0.0_dp,globenv%handle) ! corresponding the "CP2K" in cp2k_init
 

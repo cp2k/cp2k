@@ -17,7 +17,7 @@
 !!****
 
 MODULE qs_tddfpt_module
-
+  USE bibliography,                    ONLY: Iannuzzi2005,cite_reference
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE global_types,                    ONLY: global_environment_type
@@ -98,6 +98,7 @@ CONTAINS
     dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
 
     IF (section_get_ival(dft_section,"EXCITATIONS",error=error) /= tddfpt_excitations) RETURN
+    CALL cite_reference(Iannuzzi2005)
 
     CALL timeset(routineN,"I","",handle)
 

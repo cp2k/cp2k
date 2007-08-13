@@ -23,6 +23,9 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_cp2k_dft
+  USE bibliography,                    ONLY: VandeVondele2003,Lippert1997,Lippert1999, &
+                                             VandeVondele2005a,Krack2000,Krack2002,&
+                                             Iannuzzi2005,Iannuzzi2006,Iannuzzi2007
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants
@@ -1291,6 +1294,7 @@ CONTAINS
             print_level=debug_print_level,&
             each=(/1/),&
             filename="",&
+            citations=(/Krack2002/),&
             error=error)
        CALL keyword_create(&
             keyword=keyword,&
@@ -1431,6 +1435,7 @@ CONTAINS
        CALL section_create(section,"qs",&
             description="parameters needed to set up the Quickstep framework",&
             n_keywords=34, n_subsections=2, repeats=.FALSE., required=.FALSE.,&
+            citations=(/Lippert1997,Lippert1999,Krack2002,VandeVondele2005a/),&
             error=error)
 
        NULLIFY(keyword, subsection)
@@ -1719,6 +1724,7 @@ CONTAINS
             do_method_kg_pol, do_method_kg_nopol, do_method_kg_gpw, &
             do_method_mndo, do_method_am1, do_method_pm3, do_method_pdg, &
             do_method_dftb/),&
+            citations=(/Lippert1997,Lippert1999,VandeVondele2005a,Iannuzzi2006/),&
             default_i_val=do_method_gpw, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2800,6 +2806,7 @@ CONTAINS
        CALL section_create(section,"tddfpt",&
             description="parameters needed to set up the Time Dependent Density Functional PT",&
             n_keywords=5, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            citations=(/Iannuzzi2005/),&
             error=error)
 
        NULLIFY(subsection,keyword)
@@ -4456,14 +4463,14 @@ CONTAINS
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL section_create(section,"ot",&
+       CALL section_create(section,"OT",&
             description="Sets the various options for the orbital transformation (OT) method. "//&
             "Default settings already provide an efficient, yet robust method. "//&
             "Most systems benefit from using the FULL_ALL preconditioner "//&
             "combined with a small value (0.001) of ENERGY_GAP."//&
             "Well-behaved systems might benefit from using a DIIS minimizer.",&
             n_keywords=6, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-            error=error)
+            citations=(/VandeVondele2003/), error=error)
 
        NULLIFY(keyword)
 
@@ -4629,6 +4636,7 @@ CONTAINS
             enum_i_vals=(/ot_precond_full_all,ot_precond_full_single_inverse,ot_precond_full_single, &
             ot_precond_full_kinetic,ot_precond_s_inverse,&
             ot_precond_sparse_diag,ot_precond_none/),&
+            citations=(/VandeVondele2003/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -4709,6 +4717,7 @@ CONTAINS
             "excitation should be specified. "//&
             "Localization of the orbitals may be useful.",&
             n_keywords=10, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            citations=(/Iannuzzi2007/),&
             error=error)
 
        NULLIFY(keyword,subsection,print_key)

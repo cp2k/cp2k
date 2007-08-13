@@ -26,6 +26,8 @@
 !*******************************************************************************
 
 MODULE qs_main
+  USE bibliography,                    ONLY: cite_reference,&
+                                             VandeVondele2005a
   USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsystem_type
@@ -106,6 +108,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
 
     CALL timeset(routineN,"I","",handle)
+    CALL cite_reference(VandeVondele2005a)
     failure = .FALSE.
     NULLIFY(qs_env, sub_force_env)
     !Reference qs_env

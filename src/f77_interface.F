@@ -104,6 +104,8 @@ MODULE f77_interface
                                              timer_env_type,&
                                              timeset,&
                                              timestop
+  USE bibliography,                    ONLY: add_all_references
+  USE reference_manager,               ONLY: remove_all_references
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -250,6 +252,9 @@ CONTAINS
 
        CALL init_physcon()
        CALL init_cp2k_units(error=error)
+
+       !   *** init the bibliography ***
+       CALL add_all_references()
     ELSE
        ierr=cp_failure_level
     END IF
@@ -300,6 +305,8 @@ CONTAINS
        ierr=cp_error_get_level(error)
        CALL cp_rm_default_logger()
        CALL rm_cp2k_units(error=error)
+       !   *** deallocate the bibliography ***
+       CALL remove_all_references()
        CALL rm_timer_env()
        CALL rm_mp_perf_env()
        CALL string_table_deallocate(0)

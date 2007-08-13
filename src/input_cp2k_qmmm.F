@@ -23,6 +23,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_cp2k_qmmm
+  USE bibliography,                    ONLY: Laino2005, Laino2006
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE input_constants
   USE input_cp2k_mm,                   ONLY: create_GENPOT_section,&
@@ -99,6 +100,7 @@ CONTAINS
        CALL section_create(section,name="qmmm",&
             description="Input for QM/MM calculations.",&
             n_keywords=6, n_subsections=3, repeats=.FALSE., required=.TRUE.,&
+            citations=(/Laino2005,Laino2006/),&
             error=error)
 
        NULLIFY(keyword, subsection )
@@ -315,6 +317,7 @@ CONTAINS
        CALL section_create(section,name="PERIODIC",&
             description="Specify parameters for QM/MM periodic boundary conditions calculations",&
             n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            citations=(/Laino2006/),&
             error=error)    
 
        CALL keyword_create(keyword, name="GMAX",&

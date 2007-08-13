@@ -28,6 +28,9 @@ MODULE qmmm_init
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              set_atomic_kind
+  USE bibliography,                    ONLY: cite_reference,&
+                                             Laino2005,&
+                                             Laino2006
   USE cell_types,                      ONLY: cell_clone,&
                                              cell_release,&
                                              cell_type,&
@@ -177,6 +180,8 @@ CONTAINS
          print_gen, logger, mm_el_pot_radius_corr, super_cell)
     logger => cp_error_get_logger(error)
     IF (.NOT. failure) THEN
+       ! citations
+       CALL cite_reference(Laino2005)
        ! Input section...
        IF (.NOT.ASSOCIATED(subsys_section)) THEN
           subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",&
@@ -232,6 +237,7 @@ CONTAINS
        ! Periodic boundary condition calculation
        CALL section_vals_get(qmmm_periodic,explicit=explicit,error=error)
        qmmm_env_qm%periodic = explicit
+       IF (explicit) CALL cite_reference(Laino2006)
        IF (qmmm_coupl_type == do_qmmm_none) THEN
           qmmm_env_qm%periodic = .FALSE.
           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
