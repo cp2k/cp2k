@@ -1013,21 +1013,8 @@ END SUBROUTINE parser_next_token
              RETURN
           END IF
 
-          idot_first = INDEX(string(iz),".")
+          READ(UNIT=string(iz),FMT=*,IOSTAT=istat) z(iz)
 
-          IF (idot_first > 0) THEN
-             idot_last = INDEX(string(iz),".",.TRUE.)
-             istat = 0
-             IF (idot_first == idot_last) THEN
-                READ (UNIT=string(iz),FMT=*,IOSTAT=istat) z(iz)
-             ELSE
-                istat = 1
-             END IF
-          ELSE IF (integer_object(string(iz),error=error)) THEN
-             READ (UNIT=string(iz),FMT=*,IOSTAT=istat) z(iz)
-          ELSE
-             istat = 1
-          END IF
           IF (istat /= 0) THEN
              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                   routineP, "A real type object was expected, found <"//&
