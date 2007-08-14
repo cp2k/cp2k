@@ -33,7 +33,7 @@ MODULE input_cp2k_poisson
                                              section_create,&
                                              section_release,&
                                              section_type
-  USE input_val_types,                 ONLY: real_t
+  USE input_val_types,                 ONLY: real_t, integer_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
   USE timings,                         ONLY: timeset,&
@@ -440,14 +440,18 @@ SUBROUTINE create_ewald_section(section,error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="gmax",&
-         description="maximum number of grid points (SPME and EWALD)",&
-         usage="gmax [integer]", default_i_val=25,error=error)
+         description="number of grid points (SPME and EWALD). If a single number is specified,"// &
+                     "the same number of points is used for all three directions on the grid."// &
+                     "If three numbers are given, each direction can have a different number of points."// &
+                     "The number of points needs to be FFTable (which depends on the library used) and for odd EWALD."// &
+                     "The optimal number depends e.g. on alpha and the size of the cell.",&
+         usage="gmax 25 25 25", n_var=-1, type_of_var=integer_t, error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="ns_max",&
-         description="number of grid points on small mesh (PME only)",&
-         usage="ns_max 12", default_i_val=12,error=error)
+         description="number of grid points on small mesh (PME only), should be odd.",&
+         usage="ns_max 11", default_i_val=11,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 

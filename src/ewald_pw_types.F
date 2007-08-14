@@ -244,7 +244,7 @@ SUBROUTINE ewald_pw_init ( ewald_pw, ewald_env, cell, cell_ref, print_section, e
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: ewald_type, gmax, handle, npts_s( 3 ), ns_max, nsmax, &
+    INTEGER :: ewald_type, gmax(3), handle, npts_s( 3 ), ns_max, nsmax, &
       o_spline, output_unit, rs_distributed_id, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, alphasq, cutoff, &
@@ -289,12 +289,12 @@ SUBROUTINE ewald_pw_init ( ewald_pw, ewald_env, cell, cell_ref, print_section, e
                                        extension=".Log",error=error)
        CALL pw_grid_create( pw_big_grid, MPI_COMM_SELF ,error=error)
        ! set up EWALD "Classic"
-       IF ( gmax == 2 * ( gmax / 2 ) ) THEN
+       IF ( ANY(gmax == 2 * ( gmax / 2 )) ) THEN
           CALL stop_program ( "initialize_ewalds", "gmax has to be odd" )
        END IF
        pw_big_grid % bounds ( 1, : ) = -gmax / 2
        pw_big_grid % bounds ( 2, : ) = +gmax / 2
-       npts_s = (/ gmax, gmax, gmax /)
+       npts_s = gmax
        pw_big_grid % grid_span = HALFSPACE
 
        CALL pw_find_cutoff ( npts_s, cell_ref, cutoff ,error=error)
@@ -386,7 +386,7 @@ SUBROUTINE ewald_pw_init ( ewald_pw, ewald_env, cell, cell_ref, print_section, e
           CALL pw_poisson_create(ewald_pw%poisson_env,error=error)
        END IF
        CALL pw_grid_create( pw_big_grid, para_env%group ,error=error)
-       npts_s = (/ gmax, gmax, gmax /)
+       npts_s = gmax
        pw_big_grid % grid_span = HALFSPACE
        pw_big_grid % bounds ( 1, : ) = -gmax/2
        pw_big_grid % bounds ( 2, : ) = -gmax/2 + gmax - 1

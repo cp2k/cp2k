@@ -555,7 +555,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
     CHARACTER(LEN=default_string_length)     :: c_val, mol_name, name, &
                                                 name_a, name_b, name_c, &
                                                 name_d, unit_type
-    INTEGER :: current_bend, current_bond, current_torsion, ewald_type, gmax, &
+    INTEGER :: current_bend, current_bond, current_torsion, ewald_type, gmax(3), &
       handle, i_val, iatom, ibend, ibond, ichain, ifunct, imolecule, imul, &
       itorsion, itype, jbend, jbond, jtorsion, jtype, natoms, nbend, nbond, &
       nchains, ns_max, ntorsion, ntypes, o_spline, stat, unit
@@ -677,11 +677,11 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
          CASE ( do_ewald_ewald )
             WRITE(unit,10000) "       EWALD_TYPE ewald"
             WRITE(unit,20000) "       ALPHA ",alpha
-            WRITE(unit,20003) "       GMAX ",gmax
+            WRITE(unit,20014) "       GMAX ",gmax
          CASE ( do_ewald_none )
             WRITE(unit,10000) "       EWALD_TYPE none"
             WRITE(unit,20000) "       ALPHA ",alpha
-            WRITE(unit,20003) "       GMAX ",gmax
+            WRITE(unit,20014) "       GMAX ",gmax
          CASE ( do_ewald_pme )
             WRITE(unit,10000) "       EWALD_TYPE pme"
             WRITE(unit,20000) "       ALPHA ",alpha
@@ -690,7 +690,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
          CASE ( do_ewald_spme )
             WRITE(unit,10000) "       EWALD_TYPE pme"
             WRITE(unit,20000) "       ALPHA ",alpha
-            WRITE(unit,20003) "       GMAX ",gmax
+            WRITE(unit,20014) "       GMAX ",gmax
             WRITE(unit,20003) "       O_SPLINE ",o_spline
          END SELECT
          WRITE(unit,10000) "      &END EWALD"
@@ -1094,6 +1094,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
 20001 FORMAT(A,A)
 20002 FORMAT(A,F18.12)
 20003 FORMAT(A,I10)
+20014 FORMAT(A,3I10)
 20004 FORMAT(A,E12.6)
 30000 FORMAT(A,F12.8,2X,I8)
 30001 FORMAT(A,A,F16.10)

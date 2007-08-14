@@ -33,7 +33,8 @@ MODULE ewald_environment_types
                                              SILENT
   USE input_constants,                 ONLY: do_ewald_none,&
                                              do_ewald_pme,&
-                                             do_ewald_spme
+                                             do_ewald_spme,&
+                                             do_ewald_ewald
   USE input_cp2k_poisson,              ONLY: create_ewald_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type
@@ -67,7 +68,7 @@ MODULE ewald_environment_types
     REAL (KIND=dp) :: alpha               ! ewald alpha
     REAL (KIND=dp) :: eps0                ! permittivity constant
     REAL (KIND=dp) :: epsilon             ! tolerance for small grid (PME)
-    INTEGER   :: gmax                     ! max Miller index
+    INTEGER   :: gmax(3)                  ! max Miller index
     INTEGER   :: ns_max                   ! # grid points for small grid (PME)
     INTEGER   :: o_spline                 ! order of spline (SPME)
     INTEGER   :: rs_distributed_id        ! realspace distribution
@@ -137,7 +138,7 @@ MODULE ewald_environment_types
     CHARACTER(default_string_length), &
       OPTIONAL                               :: unit_type
     REAL(KIND=dp), OPTIONAL                  :: alpha, eps0, epsilon
-    INTEGER, OPTIONAL                        :: gmax, ns_max, o_spline, &
+    INTEGER, OPTIONAL                        :: gmax(3), ns_max, o_spline, &
                                                 rs_distributed_id, group
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
@@ -189,7 +190,7 @@ MODULE ewald_environment_types
     CHARACTER(default_string_length), &
       OPTIONAL                               :: unit_type
     REAL(KIND=dp), OPTIONAL                  :: alpha, eps0, epsilon
-    INTEGER, OPTIONAL                        :: gmax, ns_max, o_spline, &
+    INTEGER, OPTIONAL                        :: gmax(3), ns_max, o_spline, &
                                                 rs_distributed_id
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
@@ -284,7 +285,7 @@ SUBROUTINE ewald_env_create ( ewald_env, para_env, error )
     ! Defaults
     ewald_env % eps0 = units%eps0
     ewald_env % alpha = 0.4_dp
-    ewald_env % gmax = 10
+    ewald_env % gmax = -1
     ewald_env % o_spline = 5
     ewald_env % rs_distributed_id = -1
     ewald_env % ns_max = 10
@@ -407,6 +408,9 @@ SUBROUTINE read_ewald_section ( ewald_env, ewald_section, error )
     TYPE(section_vals_type), POINTER         :: ewald_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_ewald_section', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: iw
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dummy
@@ -416,66 +420,87 @@ SUBROUTINE read_ewald_section ( ewald_env, ewald_section, error )
     TYPE(section_type), POINTER              :: section
     TYPE(unit_convert_type), POINTER         :: units
 
-  NULLIFY( units, enum, keyword, section)
-  CALL get_cp2k_units ( units )
+    INTEGER, DIMENSION(:), POINTER :: gmax_read
 
-  failure = .FALSE.
-  IF (.NOT.failure) THEN
-     CALL section_vals_val_get(ewald_section,&
-          "EWALD_TYPE",i_val=ewald_env%ewald_type,error=error)
-     CALL section_vals_val_get(ewald_section,&
-          "ALPHA",r_val=ewald_env%alpha,error=error)
-     CALL section_vals_val_get(ewald_section,&
-          "GMAX",i_val=ewald_env%gmax,error=error)
-     CALL section_vals_val_get(ewald_section,&
-          "NS_MAX",i_val=ewald_env%ns_max,error=error)
-     CALL section_vals_val_get(ewald_section,&
-          "O_SPLINE",i_val=ewald_env%o_spline,error=error)
-     CALL section_vals_val_get(ewald_section,&
-          "EPSILON",r_val=ewald_env%epsilon,error=error)
-     CALL section_vals_val_get(ewald_section,&
-          "RS_GRID",i_val=ewald_env%rs_distributed_id,error=error)
-  END IF
+    NULLIFY( units, enum, keyword, section)
 
-  logger=>cp_error_get_logger(error)
+    CALL get_cp2k_units ( units )
 
-  iw=cp_print_key_unit_nr(logger,ewald_section,"PRINT%PROGRAM_RUN_INFO",&
-                                         extension=".log",error=error)
+    failure = .FALSE.
+    IF (.NOT.failure) THEN
+       CALL section_vals_val_get(ewald_section,&
+            "EWALD_TYPE",i_val=ewald_env%ewald_type,error=error)
+       CALL section_vals_val_get(ewald_section,&
+            "ALPHA",r_val=ewald_env%alpha,error=error)
 
-  IF ( iw > 0 ) THEN
-     CALL create_ewald_section(section,error=error)
-     keyword => section_get_keyword(section,"EWALD_TYPE",error=error)
-     CALL keyword_get(keyword,enum=enum,error=error)
-     IF ( ewald_env % ewald_type /= do_ewald_none ) THEN
-        dummy = cp_unit_from_cp2k(ewald_env % alpha,"angstrom^-1",error=error)
-        WRITE ( iw, '( A,T67,A14 )' ) ' Ewald| Summation is done by:', &
-             ADJUSTR(TRIM(enum_i2c(enum,ewald_env % ewald_type,error=error)))
-        WRITE ( iw, '( A,A18,A,T71,F10.4 )' ) &
-             ' Ewald| Alpha parameter [','ANGSTROM^-1',']', dummy
+       ! we have no defaults for gmax, gmax is only needed for ewald and spme
+       SELECT CASE ( ewald_env % ewald_type )
+       CASE ( do_ewald_ewald, do_ewald_spme)
+         CALL section_vals_val_get(ewald_section, "GMAX",i_vals=gmax_read,error=error)
+         SELECT CASE (SIZE(gmax_read,1))
+         CASE (1)
+           ewald_env%gmax = gmax_read(1)
+         CASE (3)
+           ewald_env%gmax = gmax_read
+         CASE DEFAULT
+           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+         END SELECT  
+       CASE DEFAULT
+         ! this should not be used for do_ewald_none and do_ewald_ewald
+         ewald_env%gmax = HUGE(0)
+       END SELECT
 
-        SELECT CASE ( ewald_env % ewald_type )
-        CASE DEFAULT
-           WRITE ( iw, '( A,T71,I10 )' ) &
-                ' Ewald| G-space max. Miller index', ewald_env % gmax
-        CASE ( do_ewald_pme)
-           WRITE ( iw, '( A,T71,I10 )' ) &
-                ' EWALD| Max small-grid points (input) ', ewald_env % ns_max
-           WRITE ( iw, '( A,T71,E10.4 )' ) &
-                ' EWALD| Gaussian tolerance (input) ', ewald_env % epsilon
-        CASE ( do_ewald_spme )
-           WRITE ( iw, '( A,T71,I10 )' ) &
-                ' Ewald| G-space max. Miller index', ewald_env % gmax
-           WRITE ( iw, '( A,T71,I10 )' ) &
-                ' Ewald| Spline interpolation order ', ewald_env % o_spline
-        END SELECT
-     ELSE
-        WRITE ( iw, '( A, T73, A )' ) ' Ewald| ','not used'
-     END IF
-     CALL section_release(section,error=error)
-  END IF
+       CALL section_vals_val_get(ewald_section,&
+            "NS_MAX",i_val=ewald_env%ns_max,error=error)
+       CALL section_vals_val_get(ewald_section,&
+            "O_SPLINE",i_val=ewald_env%o_spline,error=error)
+       CALL section_vals_val_get(ewald_section,&
+            "EPSILON",r_val=ewald_env%epsilon,error=error)
+       CALL section_vals_val_get(ewald_section,&
+            "RS_GRID",i_val=ewald_env%rs_distributed_id,error=error)
+    END IF
 
-  CALL cp_print_key_finished_output(iw,logger,ewald_section,&
-               "PRINT%PROGRAM_RUN_INFO", error=error)
+    logger=>cp_error_get_logger(error)
+
+    iw=cp_print_key_unit_nr(logger,ewald_section,"PRINT%PROGRAM_RUN_INFO",&
+                                           extension=".log",error=error)
+
+    IF ( iw > 0 ) THEN
+       CALL create_ewald_section(section,error=error)
+       keyword => section_get_keyword(section,"EWALD_TYPE",error=error)
+       CALL keyword_get(keyword,enum=enum,error=error)
+       IF ( ewald_env % ewald_type /= do_ewald_none ) THEN
+          dummy = cp_unit_from_cp2k(ewald_env % alpha,"angstrom^-1",error=error)
+          WRITE ( iw, '( A,T67,A14 )' ) ' Ewald| Summation is done by:', &
+               ADJUSTR(TRIM(enum_i2c(enum,ewald_env % ewald_type,error=error)))
+          WRITE ( iw, '( A,A18,A,T71,F10.4 )' ) &
+               ' Ewald| Alpha parameter [','ANGSTROM^-1',']', dummy
+
+          SELECT CASE ( ewald_env % ewald_type )
+          CASE ( do_ewald_ewald)
+             WRITE ( iw, '( A,T71,3I10 )' ) &
+                  ' Ewald| G-space max. Miller index', ewald_env % gmax
+          CASE ( do_ewald_pme)
+             WRITE ( iw, '( A,T71,I10 )' ) &
+                  ' EWALD| Max small-grid points (input) ', ewald_env % ns_max
+             WRITE ( iw, '( A,T71,E10.4 )' ) &
+                  ' EWALD| Gaussian tolerance (input) ', ewald_env % epsilon
+          CASE ( do_ewald_spme )
+             WRITE ( iw, '( A,T51,3I10 )' ) &
+                  ' Ewald| G-space max. Miller index', ewald_env % gmax
+             WRITE ( iw, '( A,T71,I10 )' ) &
+                  ' Ewald| Spline interpolation order ', ewald_env % o_spline
+          CASE DEFAULT
+             CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          END SELECT
+       ELSE
+          WRITE ( iw, '( A, T73, A )' ) ' Ewald| ','not used'
+       END IF
+       CALL section_release(section,error=error)
+    END IF
+
+    CALL cp_print_key_finished_output(iw,logger,ewald_section,&
+                 "PRINT%PROGRAM_RUN_INFO", error=error)
 
 END SUBROUTINE read_ewald_section
 
