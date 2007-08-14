@@ -55,11 +55,11 @@
       &END NONBONDED
     &END FORCEFIELD
     
-    #&POISSON
-    #  &EWALD
-    #    EWALD_TYPE NONE
-    #  &END EWALD
-    #&END POISSON
+    &POISSON
+      &EWALD
+        GMAX 25
+      &END EWALD
+    &END POISSON
 
     &PRINT
       &SUBCELL

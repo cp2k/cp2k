@@ -17,6 +17,7 @@
     &POISSON
       &EWALD
         EWALD_TYPE spme
+        GMAX 25
         ALPHA .44
         NS_MAX 50
       &END EWALD

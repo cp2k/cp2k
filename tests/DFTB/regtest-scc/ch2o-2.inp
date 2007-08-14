@@ -21,6 +21,7 @@
     &POISSON
       &EWALD
        EWALD_TYPE SPME
+       GMAX 25
       &END EWALD
       POISSON_SOLVER ANALYTIC
       PERIODIC NONE

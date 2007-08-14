@@ -8,6 +8,12 @@
        &END TERSOFF
       &END NONBONDED
     &END FORCEFIELD
+    &POISSON
+      &EWALD
+        GMAX 25
+      &END EWALD
+    &END POISSON
+
   &END MM
   &SUBSYS
     &CELL
