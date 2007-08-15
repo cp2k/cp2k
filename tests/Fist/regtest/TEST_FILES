@@ -15,6 +15,7 @@ pot_tor.inp              2
 pot_onfo.inp             2
 pot_onfo_elec.inp        2
 # EWALD test
+gmax.inp                 2
 #
 #
 #
