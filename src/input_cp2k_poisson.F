@@ -23,6 +23,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_cp2k_poisson
+  USE bibliography,                    ONLY: Toukmaji1996
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants
@@ -411,6 +412,7 @@ SUBROUTINE create_ewald_section(section,error)
     CALL section_create(section,name="ewald",&
          description="Ewald parameters controlling electrostatic only for CLASSICAL MM.",&
          n_keywords=7, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+         citations=(/Toukmaji1996/),&
          error=error)
 
     NULLIFY(keyword,print_key,subsection)

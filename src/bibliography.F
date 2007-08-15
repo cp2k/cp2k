@@ -49,7 +49,7 @@ MODULE bibliography
   ! all reference keys
   INTEGER, PUBLIC, SAVE ::  VandeVondele2005a, VandeVondele2003, Laino2005, Laino2006, &
              Goedecker1996, Hartwigsen1998, Krack2005, Lippert1997, Lippert1999, Krack2000,&
-             Krack2002, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007
+             Krack2002, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Toukmaji1996
 
 CONTAINS
 !!****f* bibliography/add_all_references *
@@ -336,6 +336,24 @@ CONTAINS
              "UT ISI:000231615300005",&
              "ER"),&
              DOI="10.2533/000942905777676164")
+
+      CALL add_reference(key=Toukmaji1996,ISI_record=s2a(&
+             "PT J",&
+             "AU Toukmaji, AY",&
+             "   Board, JA",&
+             "TI Ewald summation techniques in perspective: A survey",&
+             "SO COMPUTER PHYSICS COMMUNICATIONS",&
+             "SN 0010-4655",&
+             "PD JUN",&
+             "PY 1996",&
+             "VL 95",&
+             "IS 2-3",&
+             "BP 73",&
+             "EP 92",&
+             "UT ISI:A1996UQ97300001",&
+             "ER"),&
+           DOI="10.1016/0010-4655(96)00016-1")
+
 
   END SUBROUTINE add_all_references
 
