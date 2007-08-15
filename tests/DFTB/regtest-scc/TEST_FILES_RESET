@@ -37,3 +37,12 @@ ch2o-ot5.inp
 ch2o-ot6.inp 
 #new
 h2o-5.inp
+# use new default alpha for ewald sums
+h2o-1.inp
+h2o-2.inp
+h2o-3.inp
+h2o-4.inp
+h2o.inp
+h2o-5.inp
+ch2o-2.inp
+ch2o-3.inp

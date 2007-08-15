@@ -24,6 +24,7 @@
 !****************************************************************************
 MODULE input_cp2k_poisson
   USE cp_output_handling,              ONLY: cp_print_key_section_create
+  USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
@@ -418,7 +419,7 @@ SUBROUTINE create_ewald_section(section,error)
          " NONE standard real-space coulomb potential is computed together"//&
          " with the non-bonded contributions."//&
          " EWALD is the standard non-fft based ewald."//&
-         " SPME is the smooth particle mesh using beta-Euler splines."//&
+         " SPME is the smooth particle mesh using beta-Euler splines (recommended)."//&
          " PME is the particle mesh using fft interpolation.",&
          usage="EWALD_TYPE {EWALD|SPME|PME|NONE}",&
          default_i_val=do_ewald_ewald,&
@@ -434,8 +435,10 @@ SUBROUTINE create_ewald_section(section,error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="alpha",&
-         description="alpha parameter associated with Ewald (EWALD|PME|SPME)",&
-         usage="alpha .44", default_r_val=.44_dp, unit_str='angstrom^-1',error=error)
+         description="alpha parameter associated with Ewald (EWALD|PME|SPME). Recommended is alpha = 3.5 / r_cut.",&
+         usage="alpha .30",&
+         default_r_val=cp_unit_to_cp2k(value=0.35_dp,unit_str="angstrom^-1", error=error), &
+         unit_str='angstrom^-1',error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -443,8 +446,8 @@ SUBROUTINE create_ewald_section(section,error)
          description="number of grid points (SPME and EWALD). If a single number is specified,"// &
                      "the same number of points is used for all three directions on the grid."// &
                      "If three numbers are given, each direction can have a different number of points."// &
-                     "The number of points needs to be FFTable (which depends on the library used) and for odd EWALD."// &
-                     "The optimal number depends e.g. on alpha and the size of the cell.",&
+                     "The number of points needs to be FFTable (which depends on the library used) and odd for EWALD."// &
+                     "The optimal number depends e.g. on alpha and the size of the cell. 1 point per Angstrom is common.",&
          usage="gmax 25 25 25", n_var=-1, type_of_var=integer_t, error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
