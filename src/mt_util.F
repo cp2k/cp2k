@@ -4,6 +4,8 @@
 !-----------------------------------------------------------------------------!
 
 MODULE mt_util
+  USE bibliography,                    ONLY: cite_reference,&
+                                             Martyna1999
   USE cell_types,                      ONLY: cell_type
   USE erf_fn,                          ONLY: erf
   USE input_constants,                 ONLY: MT0D,&
@@ -83,6 +85,7 @@ CONTAINS
     !
     ! For Martyna-Tuckerman we set up an auxiliary pw_pool at an higher cutoff
     !
+    CALL cite_reference(Martyna1999)
     IF (ASSOCIATED(super_ref_pw_grid)) THEN
        CALL pw_pool_create ( pw_pool_aux, pw_grid = super_ref_pw_grid ,error=error)
     END IF

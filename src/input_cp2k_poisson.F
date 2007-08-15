@@ -23,7 +23,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_cp2k_poisson
-  USE bibliography,                    ONLY: Toukmaji1996
+  USE bibliography,                    ONLY: Toukmaji1996,Martyna1999
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants
@@ -103,6 +103,7 @@ CONTAINS
             usage="POISSON_SOLVER char",&
             enum_c_vals=s2a( "PERIODIC", "ANALYTIC", "MT", "MULTIPOLE"),&
             enum_i_vals=(/ use_periodic, use_analytic, use_mt, use_multipole/),&
+            citations=(/Martyna1999/),&
             default_i_val=use_periodic, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
@@ -315,7 +316,7 @@ CONTAINS
 !!     create_mt_section
 !!
 !!   FUNCTION
-!!     Creates the Martyna-Tukerman section
+!!     Creates the Martyna-Tuckerman section
 !!
 !!   NOTES
 !!     -
@@ -349,6 +350,7 @@ CONTAINS
                         "twice as large as charge density (and serious artefacts can result "//&
                         "if the cell is much smaller).",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            citations=(/Martyna1999/),&
             error=error)
 
        NULLIFY(keyword)

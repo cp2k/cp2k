@@ -49,7 +49,7 @@ MODULE bibliography
   ! all reference keys
   INTEGER, PUBLIC, SAVE ::  VandeVondele2005a, VandeVondele2003, Laino2005, Laino2006, &
              Goedecker1996, Hartwigsen1998, Krack2005, Lippert1997, Lippert1999, Krack2000,&
-             Krack2002, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Toukmaji1996
+             Krack2002, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Toukmaji1996, Martyna1999
 
 CONTAINS
 !!****f* bibliography/add_all_references *
@@ -353,6 +353,25 @@ CONTAINS
              "UT ISI:A1996UQ97300001",&
              "ER"),&
            DOI="10.1016/0010-4655(96)00016-1")
+
+     CALL add_reference(key=Martyna1999,ISI_record=s2a(&
+            "PT J",&
+            "AU Martyna, GJ",&
+            "   Tuckerman, ME",&
+            "TI A reciprocal space based method for treating long range interactions in",&
+            "   ab initio and force-field-based calculations in clusters",&
+            "SO JOURNAL OF CHEMICAL PHYSICS",&
+            "SN 0021-9606",&
+            "PD FEB 8",&
+            "PY 1999",&
+            "VL 110",&
+            "IS 6",&
+            "BP 2810",&
+            "EP 2821",&
+            "UT ISI:000078379800010",&
+            "ER"),&
+           DOI="10.1063/1.477923")
+
 
 
   END SUBROUTINE add_all_references
