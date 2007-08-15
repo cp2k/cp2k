@@ -1645,7 +1645,7 @@ CPSourceFileRef,&
          ncol_local=fm_ncol_local, nrow_local=fm_nrow_local,&
          row_indices=fm_row_indices, col_indices=fm_col_indices,&
          para_env=fm_para_env,error=error)
-    CALL cp_fm_get_info(matrix_g,ncol_global=g_matrix_ncol_g,&
+    CALL cp_fm_get_info(my_matrix_g,ncol_global=g_matrix_ncol_g,&
          nrow_global=g_matrix_nrow_g,error=error)
     IF (PRESENT(ncol)) THEN
        CPPrecondition(ncol<=fm_ncol_global,cp_failure_level,routineP,error,failure)
