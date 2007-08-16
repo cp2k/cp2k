@@ -1,3 +1,9 @@
+# by default some intel compilers put temporaries on the stack
+# this might lead to segmentation faults if the stack limit is set to low
+# stack limits can be increased by sysadmins or e.g with ulimit -s 256000
+# furthermore new ifort (tested to work fine with 10.0.025) compilers support the option
+# -heap-arrays 64
+# add this to the compilation flags if the other options do not work
 # The following settings worked for:
 # - AMD64 Opteron cluster
 # - SUSE Linux 9.1 (x86_64) including the precompiled FFTW library
@@ -32,3 +38,7 @@ LIBS     = $(MKLPATH)/libmkl_lapack.a\
            -lpthread -ldfftw
 
 OBJECTS_ARCHITECTURE = machine_intel.o
+
+ifposix.int:
+	touch ifposix.int
+
