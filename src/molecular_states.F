@@ -46,6 +46,7 @@ MODULE molecular_states
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_vals_type
   USE kinds,                           ONLY: default_string_length,&
+                                             default_path_length,&
                                              dp
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_maxloc
@@ -97,7 +98,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=default_string_length)     :: filename
+    CHARACTER(LEN=default_path_length)     :: filename
     INTEGER                                  :: i, imol, iproc, isos, j, k, &
                                                 ncol_global, nproc, &
                                                 nrow_global, ns, output_unit, &

@@ -50,6 +50,7 @@ MODULE mc_types
                                              section_vals_val_get,&
                                              section_vals_val_set
   USE kinds,                           ONLY: default_string_length,&
+                                             default_path_length,&
                                              dp,&
                                              dp_size,&
                                              int_size
@@ -114,16 +115,16 @@ MODULE mc_types
       LOGICAL :: lrestart
       LOGICAL :: lstop
       CHARACTER ( LEN = 20 ) :: ensemble
-      CHARACTER ( LEN = 40 ) :: restart_file_name
-      CHARACTER ( LEN = 40 ) :: molecules_file
-      CHARACTER ( LEN = 40 ) :: moves_file
-      CHARACTER ( LEN = 40 ) :: coords_file
-      CHARACTER ( LEN = 40 ) :: energy_file
-      CHARACTER ( LEN = 40 ) :: displacement_file
-      CHARACTER ( LEN = 40 ) :: cell_file
-      CHARACTER ( LEN = 40 ) :: dat_file
-      CHARACTER ( LEN = 40 ) :: data_file
-      CHARACTER ( LEN = 200 ) :: box2_file
+      CHARACTER ( LEN = default_path_length ) :: restart_file_name
+      CHARACTER ( LEN = default_path_length ) :: molecules_file
+      CHARACTER ( LEN = default_path_length ) :: moves_file
+      CHARACTER ( LEN = default_path_length ) :: coords_file
+      CHARACTER ( LEN = default_path_length ) :: energy_file
+      CHARACTER ( LEN = default_path_length ) :: displacement_file
+      CHARACTER ( LEN = default_path_length ) :: cell_file
+      CHARACTER ( LEN = default_path_length ) :: dat_file
+      CHARACTER ( LEN = default_path_length ) :: data_file
+      CHARACTER ( LEN = default_path_length ) :: box2_file
       CHARACTER ( LEN = 200 ) :: fft_lib
       CHARACTER ( LEN = 50 ) :: PROGRAM
       REAL ( dp ),DIMENSION(:),POINTER :: pmtraion_mol,pmtrans_mol,pmrot_mol,pmswap_mol,&

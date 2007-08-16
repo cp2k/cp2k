@@ -204,7 +204,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_section_create', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_string_length)     :: my_filename
+    CHARACTER(len=default_path_length)       :: my_filename
     INTEGER                                  :: my_comm_iter_levels, &
                                                 my_print_level
     LOGICAL                                  :: failure, mystore

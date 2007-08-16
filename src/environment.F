@@ -495,9 +495,10 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_global_section', &
       start_section_label = "GLOBAL"
 
-    CHARACTER(len=default_string_length) :: basis_set_file_name, &
-      coord_file_name, env_num, mm_potential_file_name, potential_file_name, &
+    CHARACTER(len=default_path_length) :: basis_set_file_name, &
+      coord_file_name, mm_potential_file_name, potential_file_name, &
       restart_file_name
+    CHARACTER(len=default_string_length) :: env_num
     INTEGER                                  :: iforce_eval, method_name_id, &
                                                 nforce_eval, num_threads, &
                                                 output_unit, print_level

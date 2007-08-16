@@ -237,7 +237,6 @@ CONTAINS
     CHARACTER(LEN=6)   :: extension
     CHARACTER(LEN=12)  :: cgfsym
     CHARACTER(LEN=80)  :: name
-    CHARACTER(LEN=200) :: file_name
     REAL(KIND = dp)    :: dab,dac,dbc,f,f0,rab2,rac2,rbc2
     INTEGER            :: added_mos,atom_a,atom_b,atom_c,first_col,handle,i,iab,&
                           iac,iat,iatom,ibc,icell,ico,icol,idx,ikind,ilist,&

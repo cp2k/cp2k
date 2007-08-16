@@ -38,6 +38,7 @@ MODULE qs_dftb_parameters
   USE external_potential_types,        ONLY: set_potential
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
+                                             default_path_length,&
                                              dp
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_bcast
@@ -87,9 +88,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=6)                         :: cspline
-    CHARACTER(LEN=default_string_length)     :: file_name, iname, jname, &
+    CHARACTER(LEN=default_path_length)     :: file_name
+    CHARACTER(LEN=default_string_length)     :: iname, jname, &
                                                 name_a, name_b, skfn
-    CHARACTER(LEN=default_string_length), &
+    CHARACTER(LEN=default_path_length), &
       ALLOCATABLE, DIMENSION(:, :)           :: sk_files
     INTEGER :: ikind, isp, istat, j, jkind, k, l, l1, l2, llm, lmax, lmax_a, &
       lmax_b, lp, m, n_urpoly, ngrd, nkind, output_unit, runit, spdim, z

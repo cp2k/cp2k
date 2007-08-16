@@ -45,6 +45,7 @@ MODULE mc_control
                                              section_vals_val_get
   USE kg_main,                         ONLY: kg_create_force_env
   USE kinds,                           ONLY: default_string_length,&
+                                             default_path_length,&
                                              dp,&
                                              dp_size,&
                                              int_size
@@ -118,7 +119,7 @@ SUBROUTINE write_mc_restart ( nnstep, mc_par, nchains,force_env )
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'write_mc_restart'
 
     CHARACTER(LEN=20)                        :: ensemble
-    CHARACTER(LEN=40)                        :: restart_file_name
+    CHARACTER(LEN=default_path_length)       :: restart_file_name
     INTEGER                                  :: handle, ichain, imol_type, &
                                                 iparticle, iunit, natom, &
                                                 nmol_types, nmolecule, &
@@ -230,7 +231,7 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, mc_nunits_tot,rng_stream)
     CHARACTER(default_string_length), &
       DIMENSION(:, :), POINTER               :: atom_names
     CHARACTER(LEN=20)                        :: ensemble, mc_ensemble
-    CHARACTER(LEN=40)                        :: dat_file, restart_file_name
+    CHARACTER(LEN=default_path_length)       :: dat_file, restart_file_name
     INTEGER                                  :: group, handle, i, ipart, &
                                                 istat, iunit, nmol_types, &
                                                 nstart, nunits_tot, &

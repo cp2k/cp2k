@@ -40,7 +40,8 @@ MODULE qs_linres_epr_ownutils
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             default_path_length
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_sum,&
                                              mp_sync
@@ -489,7 +490,7 @@ CONTAINS
     LOGICAL                                  :: gapw
     TYPE(coeff_type), POINTER                :: wf_r
     INTEGER                                  :: unit_nr, istat
-    CHARACTER(LEN=80)                        :: ext, filename
+    CHARACTER(LEN=default_path_length)       :: ext, filename
     TYPE(section_vals_type), POINTER         :: epr_section
     LOGICAL                                  :: ionode
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool

@@ -39,6 +39,7 @@ MODULE external_potential_types
   USE input_val_types,                 ONLY: val_get,&
                                              val_type
   USE kinds,                           ONLY: default_string_length,&
+                                             default_path_length,&
                                              dp
   USE mathconstants,                   ONLY: dfac,&
                                              fac,&
@@ -910,7 +911,7 @@ CONTAINS
     CHARACTER(LEN=240)                       :: line
     CHARACTER(LEN=242)                       :: line2
     CHARACTER(len=5*default_string_length)   :: line_att
-    CHARACTER(len=default_string_length)     :: potential_file_name
+    CHARACTER(len=default_path_length)       :: potential_file_name
     CHARACTER(LEN=LEN(element_symbol))       :: symbol
     CHARACTER(LEN=LEN(element_symbol)+2)     :: symbol2
     CHARACTER(LEN=LEN(potential_name))       :: apname
@@ -1084,8 +1085,8 @@ __LINE__,&
 
     CHARACTER(LEN=240)                       :: line
     CHARACTER(LEN=242)                       :: line2
-    CHARACTER(len=5*default_string_length)   :: line_att
-    CHARACTER(len=default_string_length)     :: potential_file_name
+    CHARACTER(LEN=5*default_string_length)   :: line_att
+    CHARACTER(LEN=default_path_length)       :: potential_file_name
     CHARACTER(LEN=LEN(element_symbol))       :: symbol
     CHARACTER(LEN=LEN(element_symbol)+2)     :: symbol2
     CHARACTER(LEN=LEN(potential_name))       :: apname
@@ -1313,7 +1314,7 @@ __LINE__,&
     CHARACTER(LEN=240)                       :: line
     CHARACTER(LEN=242)                       :: line2
     CHARACTER(len=5*default_string_length)   :: line_att
-    CHARACTER(len=default_string_length)     :: potential_file_name
+    CHARACTER(len=default_path_length)       :: potential_file_name
     CHARACTER(LEN=LEN(element_symbol))       :: symbol
     CHARACTER(LEN=LEN(element_symbol)+2)     :: symbol2
     CHARACTER(LEN=LEN(potential_name))       :: apname

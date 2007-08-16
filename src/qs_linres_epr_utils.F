@@ -73,6 +73,7 @@ MODULE qs_linres_epr_utils
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
+                                             default_path_length,&
                                              dp
   USE mathconstants,                   ONLY: fourpi !R
   USE memory_utilities,                ONLY: reallocate
@@ -529,7 +530,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2)                         :: label
-!R  CHARACTER(LEN=default_string_length)     :: nics_file_name
+!R  CHARACTER(LEN=default_path_length)       :: nics_file_name
     INTEGER :: handle, homo, i_B, icount, idir, ini, ir, ispin, istat, &
       istate, istate2, istate_next, j, k, n_mo(2), n_rep, nao, nat_print, &
       natom, ncubes, nmoloc, nspins, nstates, output_unit, i1 !R

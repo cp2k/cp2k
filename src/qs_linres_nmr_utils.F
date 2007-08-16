@@ -73,6 +73,7 @@ MODULE qs_linres_nmr_utils
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
+                                             default_path_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
   USE particle_types,                  ONLY: particle_type
@@ -571,7 +572,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2)                         :: label
-    CHARACTER(LEN=default_string_length)     :: nics_file_name
+    CHARACTER(LEN=default_path_length)     :: nics_file_name
     INTEGER :: handle, homo, i_B, icount, idir, ini, ir, ispin, istat, &
       istate, istate2, istate_next, j, k, n_mo(2), n_rep, nao, nat_print, &
       natom, ncubes, nmo, nmoloc, nspins, nstates, output_unit

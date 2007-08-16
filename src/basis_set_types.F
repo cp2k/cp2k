@@ -37,6 +37,7 @@ MODULE basis_set_types
   USE input_val_types,                 ONLY: val_get,&
                                              val_type
   USE kinds,                           ONLY: default_string_length,&
+                                             default_path_length,&
                                              dp,&
                                              dp_size
   USE mathconstants,                   ONLY: dfac,&
@@ -834,7 +835,7 @@ CONTAINS
     CHARACTER(LEN=240)                       :: line
     CHARACTER(LEN=242)                       :: line2
     CHARACTER(len=5*default_string_length)   :: line_att
-    CHARACTER(len=default_string_length)     :: basis_set_file_name
+    CHARACTER(len=default_path_length)       :: basis_set_file_name
     CHARACTER(LEN=LEN(basis_set_name))       :: bsname
     CHARACTER(LEN=LEN(basis_set_name)+2)     :: bsname2
     CHARACTER(LEN=LEN(element_symbol))       :: symbol

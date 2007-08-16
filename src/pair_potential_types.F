@@ -144,7 +144,7 @@ MODULE pair_potential_types
   END TYPE goodwin_pot_type
 
   TYPE eam_pot_type
-     CHARACTER ( len = default_string_length ) :: eam_file_name
+     CHARACTER ( len = default_path_length ) :: eam_file_name
      REAL ( KIND = dp )                     :: drar, drhoar, acutal
      REAL ( KIND = dp ), DIMENSION ( 5000 ) :: rho, phi, frho, rhoval, rval
      REAL ( KIND = dp ), DIMENSION ( 5000 ) :: rhop, phip, frhop

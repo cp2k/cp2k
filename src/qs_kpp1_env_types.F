@@ -33,6 +33,7 @@ MODULE qs_kpp1_env_types
                                              open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: default_string_length,&
+                                             default_path_length,&
                                              dp
   USE pw_types,                        ONLY: pw_p_type
   USE realspace_grid_cube,             ONLY: rs_pw_to_cube
@@ -316,7 +317,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_write', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_string_length)     :: base_filename, filename
+    CHARACTER(len=default_path_length)       :: base_filename, filename
     INTEGER                                  :: file_unit, idir, ispin, &
                                                 my_unit_nr
     LOGICAL                                  :: failure, my_local, &

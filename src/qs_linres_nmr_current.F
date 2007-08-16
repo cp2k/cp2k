@@ -76,7 +76,8 @@ MODULE qs_linres_nmr_current
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             default_path_length
   USE mathconstants,                   ONLY: twopi
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: coset,&
@@ -205,7 +206,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_response_current', &
          routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=80)                        :: ext, filename
+    CHARACTER(LEN=default_path_length)       :: ext, filename
     INTEGER :: handle, homo, i_B, iao, iatom, idir, idir2, idir3, ii_B, &
          iii_B, ispin, istat, istate, nao, natom, nmo, nspins, unit_nr, output_unit
     LOGICAL                                  :: failure, gapw, ionode, uni_occ

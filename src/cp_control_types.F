@@ -225,6 +225,7 @@ MODULE cp_control_types
      INTEGER                                   :: diag_method
      INTEGER                                   :: oe_corr
      INTEGER                                   :: sic_method_id
+     INTEGER                                   :: sic_list_id
      REAL(KIND=dp)                             :: sic_scaling_a,sic_scaling_b
      REAL(KIND = dp), DIMENSION(:,:), POINTER  :: lumos_eigenvalues
   END TYPE tddfpt_control_type
@@ -242,6 +243,7 @@ MODULE cp_control_types
                                         ref_count,&
                                         id_nr,&
                                         xas_estate
+     INTEGER                         :: sic_list_id
      REAL(KIND=dp)                   :: sic_scaling_a,&
                                         sic_scaling_b
      LOGICAL                         :: forces,&
