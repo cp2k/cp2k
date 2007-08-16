@@ -208,7 +208,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
   IF(shell_present .AND. .NOT.ASSOCIATED(rcore_last_update_pbc)) THEN
     ALLOCATE (rcore_last_update_pbc(nshell),STAT=istat)
      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,"rshell_last_update_pbc",&
+        CALL stop_memory(routineN,moduleN,__LINE__,"rcore_last_update_pbc",&
              3*nshell*dp_size)
      END IF 
   END IF
