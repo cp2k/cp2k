@@ -119,24 +119,21 @@ END SUBROUTINE m_datum
 
 ! *****************************************************************************
 
-
-
   SUBROUTINE m_mov(source,TARGET)
-
+    USE IFPOSIX, ONLY: PXFRENAME
     CHARACTER(LEN=*), INTENT(IN)             :: source, TARGET
+    INTEGER*4 :: ierrno,len_source,len_target
 
     CHARACTER(LEN=2*default_string_length+4) :: cmd
-    INTEGER                                  :: ierrno, istat, system
 
-!   ---------------------------------------------------------------------------
+    ! cmd = "mv " // source(1:LEN_TRIM(source)) // " " // TARGET(1:LEN_TRIM(TARGET))
+    ! istat = system(cmd)
+    len_source=LEN_TRIM(source)
+    len_target=LEN_TRIM(target)
+    CALL PXFRENAME(source,len_source,target,len_target,ierrno)
 
-    cmd = "mv " // source(1:LEN_TRIM(source)) // " " // TARGET(1:LEN_TRIM(TARGET))
-
-    istat = 0
-    istat = system(cmd)
-   
-    IF(istat.NE.0) THEN
-      WRITE(*,*) "SYSTEM CALL RETURN (m_mov)",istat,IERRNO()
+    IF(ierrno.NE.0) THEN
+       write(*,*) "PXFRENAME returned",ierrno
     END IF
 
 
