@@ -87,6 +87,7 @@ MODULE integrator
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type,&
                                              update_particle_set
+  USE qmmm_util,                       ONLY: apply_qmmm_walls
   USE shell_potential_types,           ONLY: shell_kind_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -221,6 +222,9 @@ CONTAINS
                        dyn_coeff_set=dyn_coeff_set,&
                        virial=virial,&
                        error=error)
+
+    ! Do some checks on coordinates and box
+    CALL apply_qmmm_walls(force_env_p(1)%force_env, error=error)
 
     DO isubsys=1,SIZE(subsys)
 
@@ -460,7 +464,11 @@ CONTAINS
                          "force_env not supported atm!")
     END IF
     CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
-                       dyn_coeff_set=dyn_coeff_set, virial = virial, cell=cell,error=error)
+                       dyn_coeff_set=dyn_coeff_set, virial = virial,&
+                       cell=cell,error=error)
+
+    ! Do some checks on coordinates and box
+    CALL apply_qmmm_walls(force_env_p(1)%force_env, error=error)
 
     DO isubsys=1,SIZE(subsys)
 
@@ -499,7 +507,8 @@ CONTAINS
 
       IF(shell_present) THEN
         CALL cp_subsys_get(subsys=subsys(isubsys)%subsys,&
-             shell_particles=shell_particles, core_particles=core_particles, error=error)
+             shell_particles=shell_particles, core_particles=core_particles,&
+             error=error)
         shell_particle_set =>  shell_particles%els
         nshell = SIZE(shell_particles%els)
 
@@ -529,7 +538,7 @@ CONTAINS
 
       IF (simpar%constraint) CALL getold(gci,local_molecules, molecule_set,  &
                                          molecule_kind_set, particle_set, cell, error)
-
+      
 !     *** Velocity Verlet (first part) ***
       IF(shell_adiabatic) THEN
         DO iparticle_kind=1,nparticle_kind
@@ -853,6 +862,9 @@ CONTAINS
     END IF
     CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,error=error)
 
+    ! Do some checks on coordinates and box
+    CALL apply_qmmm_walls(force_env_p(1)%force_env, error=error)
+
     IF (SIZE(subsys)/=1) THEN
        ! presumably one just needs to get e.g. kinetic energy of the full system by looping
        ! over the subsystems
@@ -1060,6 +1072,9 @@ CONTAINS
     END IF
     CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
                        dyn_coeff_set=dyn_coeff_set, virial=virial, cell=cell,error=error)
+
+    ! Do some checks on coordinates and box
+    CALL apply_qmmm_walls(force_env_p(1)%force_env, error=error)
 
     DO isubsys=1,SIZE(subsys)
 
@@ -1524,6 +1539,9 @@ CONTAINS
     CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
                        virial = virial, cell = cell ,error=error)
 
+    ! Do some checks on coordinates and box
+    CALL apply_qmmm_walls(force_env_p(1)%force_env, error=error)
+
     DO isubsys=1,SIZE(subsys)
 
       CALL cp_subsys_get(subsys=subsys(isubsys)%subsys,&
@@ -1569,7 +1587,8 @@ CONTAINS
 
       IF(shell_present) THEN
         CALL cp_subsys_get(subsys=subsys(isubsys)%subsys,&
-             shell_particles=shell_particles, core_particles=core_particles, error=error)
+             shell_particles=shell_particles, core_particles=core_particles,&
+             error=error)
         shell_particle_set =>  shell_particles%els
         nshell = SIZE(shell_particles%els)
 
@@ -1967,6 +1986,10 @@ CONTAINS
     END IF
     CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
                        root_section=root_section,error=error)
+
+    ! Do some checks on coordinates and box
+    CALL apply_qmmm_walls(force_env_p(1)%force_env, error=error)
+
     IF (SIZE(subsys)/=1) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
                          "MD_ENV with more than (or less) than one subsys "//&
@@ -2106,6 +2129,9 @@ CONTAINS
     END IF
     CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
                        virial = virial, cell = cell ,error=error)
+
+    ! Do some checks on coordinates and box
+    CALL apply_qmmm_walls(force_env_p(1)%force_env, error=error)
 
     DO isubsys=1,SIZE(subsys)
 
@@ -2975,6 +3001,9 @@ CONTAINS
     END IF
     CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
                        virial = virial, cell = cell ,error=error)
+
+    ! Do some checks on coordinates and box
+    CALL apply_qmmm_walls(force_env_p(1)%force_env, error=error)
 
     DO isubsys=1,SIZE(subsys)
 
@@ -4050,6 +4079,9 @@ END SUBROUTINE update_veps
 
     CALL force_env_get(force_env=force_env_p(1)%force_env%sub_force_env(1)%force_env,&
          subsys=subsys_respa,error=error)
+
+    ! Do some checks on coordinates and box
+    CALL apply_qmmm_walls(force_env_p(1)%force_env, error=error)
 
     DO isubsys=1,SIZE(subsys)
 

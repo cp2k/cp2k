@@ -113,16 +113,18 @@ MODULE force_env_methods
   USE particle_types,                  ONLY: particle_type,&
                                              update_particle_set,&
                                              write_particle_coordinates
-  USE qmmm_elpot,                      ONLY: qmmm_validate_this_run
   USE qmmm_gpw_energy,                 ONLY: qmmm_el_coupling
   USE qmmm_gpw_forces,                 ONLY: qmmm_forces
   USE qmmm_links_methods,              ONLY: qmmm_added_chrg_coord,&
                                              qmmm_added_chrg_forces,&
                                              qmmm_link_Imomm_coord,&
                                              qmmm_link_Imomm_forces
-  USE qmmm_types,                      ONLY: qmmm_env_qm_retain,&
+  USE qmmm_types,                      ONLY: fist_subsys,&
+                                             qmmm_env_qm_retain,&
                                              qmmm_env_qm_type,&
-                                             qmmm_links_type
+                                             qmmm_links_type,&
+                                             qs_subsys
+  USE qmmm_util,                       ONLY: apply_qmmm_translate
   USE qs_energy,                       ONLY: qs_energies
   USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -159,7 +161,6 @@ MODULE force_env_methods
             ep_create_force_env,&
             force_env_calc_energy_force, &
             force_env_set_cell,&
-            apply_qmmm_trasl,&
             force_env_shake,&
             force_env_rattle
 
@@ -835,23 +836,21 @@ END SUBROUTINE force_env_set_cell
 !!     05.2004 created [fawzi]
 !!
 !!*** **********************************************************************
-RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,only_apply_trasl,error)
+RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
     TYPE(force_env_type), POINTER            :: force_env
-    LOGICAL, INTENT(IN), OPTIONAL            :: calc_force, only_apply_trasl
+    LOGICAL, INTENT(IN), OPTIONAL            :: calc_force
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_energy_and_forces', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: fist_subsys = 1, qs_subsys = 2
 
     INTEGER                                  :: ip, isubsys, output_unit
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, qm_subsys_index
     LOGICAL                                  :: failure, need_f, &
-                                                only_apply_trasl_loc, &
                                                 qmmm_added_chrg, qmmm_link, &
                                                 qmmm_link_imomm
     REAL(KIND=dp)                            :: energy_mm, energy_qm
-    REAL(KIND=dp), DIMENSION(3)              :: max_coord, min_coord, transl_v
+    REAL(KIND=dp), DIMENSION(3)              :: max_coord, min_coord
     TYPE(cell_type), POINTER                 :: mm_cell, qm_cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsystem_p_type), &
@@ -868,22 +867,21 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,only_apply_tras
   qmmm_link       = .FALSE.
   qmmm_link_imomm = .FALSE.
   qmmm_added_chrg = .FALSE.
-  only_apply_trasl_loc = .FALSE. ; IF (PRESENT(only_apply_trasl)) only_apply_trasl_loc = only_apply_trasl
   logger => cp_error_get_logger(error)
   IF (PRESENT(calc_force)) need_f=calc_force
   NULLIFY(subsys_mm, subsys_qm, qm_atom_index,particles_mm,particles_qm, qm_cell, mm_cell)
   NULLIFY(force_env_section)
   force_env_section => force_env%sub_force_env(qs_subsys)%force_env%force_env_section
-
+  
   CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(force_env%qmmm_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(force_env%qmmm_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
   CALL force_env_get(force_env%sub_force_env(fist_subsys)%force_env,&
-       cell=mm_cell,subsys=subsys_mm,error=error)
+                     cell=mm_cell,subsys=subsys_mm,error=error)
   CALL force_env_get(force_env%sub_force_env(qs_subsys)%force_env,&
-       cell=qm_cell,subsys=subsys_qm,error=error)
+                     cell=qm_cell,subsys=subsys_qm,error=error)
   qm_atom_index   => force_env%qmmm_env%qm_atom_index
   qm_subsys_index => force_env%qmmm_env%qm_subsys_index
   qmmm_link       =  force_env%qmmm_env%qmmm_link
@@ -898,59 +896,15 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,only_apply_tras
   CPPrecondition(SIZE(subsys_qm)==1,cp_failure_level,routineP,error,failure)
   CPPrecondition(SIZE(subsys_mm)==1,cp_failure_level,routineP,error,failure)
 
-  particles_qm => subsys_qm(1)%subsys%particles%els
-  isubsys=-1
-  DO ip=1,SIZE(qm_atom_index)
-     IF (isubsys/=qm_subsys_index(ip)) THEN
-        isubsys=qm_subsys_index(ip)
-        particles_mm => subsys_mm(isubsys)%subsys%particles%els
-     END IF
-     min_coord=MIN(min_coord,particles_mm(qm_atom_index(ip))%r)
-     max_coord=MAX(max_coord,particles_mm(qm_atom_index(ip))%r)
-  END DO
-  IF (.NOT.force_env%qmmm_env%center_qm_subsys0) force_env%qmmm_env%do_translate = .FALSE.
-  IF (force_env%qmmm_env%do_translate) THEN
-     !
-     ! The first time we always translate all the system in order
-     ! to centre the QM system in the box.
-     !
-     transl_v = (max_coord + min_coord) / 2.0_dp
-     transl_v(1) = transl_v(1) - qm_cell%hmat(1,1)/2.0_dp
-     transl_v(2) = transl_v(2) - qm_cell%hmat(2,2)/2.0_dp
-     transl_v(3) = transl_v(3) - qm_cell%hmat(3,3)/2.0_dp
+  ! Possibly translate the system
+  CALL apply_qmmm_translate(force_env, error)
 
-     IF (ANY(force_env%qmmm_env%utrasl /= 1.0_dp)) THEN
-        transl_v = REAL( FLOOR(transl_v/force_env%qmmm_env%utrasl),KIND=dp) *&
-             force_env%qmmm_env%utrasl
-     END IF
-     DO isubsys=1,SIZE(subsys_mm)
-        particles_mm => subsys_mm(isubsys)%subsys%particles%els
-        DO ip=1,subsys_mm(isubsys)%subsys%particles%n_els
-           particles_mm(ip)%r = &
-                particles_mm(ip)%r - transl_v
-        END DO
-     END DO
-     IF (logger%para_env%mepos==logger%para_env%source) &
-          WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),fmt='(/1X,A)')&
-          " Translating the system in order to center the QM fragment in the QM box."
-     IF (.NOT.force_env%qmmm_env%center_qm_subsys) force_env%qmmm_env%do_translate = .FALSE.
-  END IF
-  IF (only_apply_trasl_loc) RETURN
-  isubsys=-1
-  DO ip=1,SIZE(qm_atom_index)
-     IF (isubsys/=qm_subsys_index(ip)) THEN
-        isubsys=qm_subsys_index(ip)
-        particles_mm => subsys_mm(isubsys)%subsys%particles%els
-     END IF
-     particles_qm(ip)%r=particles_mm(qm_atom_index(ip))%r
-  END DO
+  particles_mm => subsys_mm(1)%subsys%particles%els
+  particles_qm => subsys_qm(1)%subsys%particles%els
   ! If present QM/MM links (just IMOMM) correct the position of the qm-link atom
   IF (qmmm_link_imomm) CALL qmmm_link_Imomm_coord(qmmm_links, particles_qm, qm_atom_index, error)
   ! If add charges get their position NOW!
   IF (qmmm_added_chrg) CALL qmmm_added_chrg_coord(force_env%qmmm_env, particles_mm, error)
-
-  ! Do some checks on coordinates and box
-  CALL qmmm_validate_this_run(particles_qm, particles_mm, mm_cell, qm_cell, error=error)
 
   ! Initialize ks_qmmm_env
   CALL ks_qmmm_env_rebuild(qs_env=force_env%sub_force_env(qs_subsys)%force_env%qs_env,&
@@ -1027,39 +981,6 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,only_apply_tras
   CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
        "QMMM%PRINT%DERIVATIVES",error=error)
 END SUBROUTINE qmmm_energy_and_forces
-
-!!****f* force_env_methods/apply_qmmm_trasl [1.0] *
-!!
-!!   NAME
-!!     qmmm_forces
-!!
-!!   FUNCTION
-!!     wrapper to handle the translation of the system during geometry
-!!     optimizations
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     05.2006 created [teo]
-!!
-!!*** **********************************************************************
-SUBROUTINE apply_qmmm_trasl(force_env, error)
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-  SELECT CASE(force_env%in_use)
-  CASE(use_qmmm)
-     CALL qmmm_energy_and_forces(force_env,only_apply_trasl=.TRUE.,error=error)
-  END SELECT
-
-END SUBROUTINE apply_qmmm_trasl
 
 !! ****f* force_env_methods/mixed_energy_forces  [1.0] 
 !!

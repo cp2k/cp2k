@@ -28,9 +28,9 @@ MODULE qmmm_init
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              set_atomic_kind
-  USE bibliography,                    ONLY: cite_reference,&
-                                             Laino2005,&
-                                             Laino2006
+  USE bibliography,                    ONLY: Laino2005,&
+                                             Laino2006,&
+                                             cite_reference
   USE cell_types,                      ONLY: cell_clone,&
                                              cell_release,&
                                              cell_type,&
@@ -1809,8 +1809,6 @@ CPSourceFileRef,&
     INTEGER                                  :: my_type
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: tmp
-
-! Local Variabels
 
      failure = .FALSE.
      IF (.NOT.failure) THEN

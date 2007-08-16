@@ -29,8 +29,7 @@ MODULE gopt_f_types
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
-  USE force_env_methods,               ONLY: apply_qmmm_trasl,&
-                                             force_env_calc_energy_force
+  USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_release,&
                                              force_env_retain,&
@@ -43,6 +42,7 @@ MODULE gopt_f_types
   USE kinds,                           ONLY: dp
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: write_structure_data
+  USE qmmm_util,                       ONLY: apply_qmmm_translate
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -440,7 +440,7 @@ SUBROUTINE gopt_f_create_x0(gopt_env, x0, error)
   CALL force_env_get(gopt_env%force_env, subsys=subsys,&
        error=error)
   ! before starting we handle the case of translating coordinates (QM/MM)
-  CALL apply_qmmm_trasl(gopt_env%force_env,error=error)
+  CALL apply_qmmm_translate(gopt_env%force_env,error=error)
   ndg=0
   DO isubsys=1,SIZE(subsys)
      CALL cp_subsys_get(subsys(isubsys)%subsys, particles=particles,&

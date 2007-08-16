@@ -1,0 +1,82 @@
+
+&FORCE_EVAL
+  METHOD QMMM
+  &DFT
+    &QS
+      METHOD AM1
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+    &END SCF
+  &END DFT
+  &MM
+    &FORCEFIELD
+      parm_file_name ../../../Fist/sample_pot/water.pot
+      parmtype CHM
+      &CHARGE
+        ATOM OT
+        CHARGE -0.8476
+      &END CHARGE
+      &CHARGE
+        ATOM HT
+        CHARGE 0.4238
+      &END CHARGE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 30
+      &END EWALD
+    &END POISSON
+  &END MM
+  &QMMM
+    &CELL
+      ABC 6.0 6.0 6.0
+      UNIT ANGSTROM
+      PERIODIC NONE
+    &END CELL
+    NOCENTER
+    ECOUPL COULOMB
+    &QM_KIND H
+      MM_INDEX 2 3
+    &END QM_KIND
+    &QM_KIND O
+      MM_INDEX 1
+    &END QM_KIND
+    &WALLS
+      WALL_SKIN [angstrom] 1.5
+    &END
+  &END
+  &SUBSYS
+    &CELL
+      ABC 24.955 24.955 24.955
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+ OT     2.5823489343        3.3608067323        2.0248141522   MOL1
+ HT     1.7737219427        3.8256086976        1.7969317355   MOL1
+ HT     2.7086102587        3.5728574276        2.8965659855   MOL1
+ OT     3.4241197154        2.5562705389       -0.0309841525   MOL2
+ HT     3.1983961473        2.6494193607        0.8741420330   MOL2
+ HT     3.9300560476        3.2683381184       -0.0758230077   MOL2
+    &END
+    &TOPOLOGY
+      COORD_FILE_NAME ../../../Fist/sample_pdb/water_2.pdb
+      COORDINATE pdb
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PROJECT water_1
+  RUN_TYPE MD
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 100
+    TIMESTEP 1.0
+    TEMPERATURE 3000
+  &END MD
+&END MOTION

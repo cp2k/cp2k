@@ -326,6 +326,7 @@ OBJECTS_GENERIC =\
  qmmm_se_forces.o\
  qmmm_topology_util.o\
  qmmm_types.o\
+ qmmm_util.o\
  qs_all_potential.o\
  qs_charges_types.o\
  qs_collocate_density.o\

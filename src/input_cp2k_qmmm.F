@@ -23,8 +23,10 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_cp2k_qmmm
-  USE bibliography,                    ONLY: Laino2005, Laino2006
+  USE bibliography,                    ONLY: Laino2005,&
+                                             Laino2006
   USE cp_output_handling,              ONLY: cp_print_key_section_create
+  USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants
   USE input_cp2k_mm,                   ONLY: create_GENPOT_section,&
                                              create_Goodwin_section,&
@@ -257,7 +259,7 @@ CONTAINS
 
        CALL create_qmmm_periodic_section(subsection, error)
        CALL section_add_subsection(section,subsection,error=error)
-       CALL section_release(subsection,error=error)       
+       CALL section_release(subsection,error=error)
 
        CALL create_qmmm_link_section(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
@@ -271,6 +273,10 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)       
 
+       CALL create_qmmm_walls_section(subsection, error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
        CALL create_print_qmmm_section(subsection, error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
@@ -278,6 +284,58 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_qmmm_section
+
+!!****f* input_cp2k_qmmm/create_qmmm_walls_section *
+!!
+!!   NAME
+!!     create_qmmm_walls_section
+!!
+!!   FUNCTION
+!!     Input section to set QM/MM periodic boundary conditions
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     tlaino
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_qmmm_walls_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_qmmm_walls_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+    
+    NULLIFY(keyword)
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="WALLS",&
+            description="Enables reflective Walls for the QM box. This can be used to avoid that QM "//&
+            " atoms move out of the QM box.",&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)    
+
+       CALL keyword_create(keyword, name="WALL_SKIN",&
+            description="Specify the value of the skin of the Wall. Velocity are inverted whenever "//&
+            " atoms fall within the skin of the Wall.",&
+            usage="WALL_SKIN <real>",n_var=1,&
+            default_r_val=cp_unit_to_cp2k(0.5_dp,"angstrom",error=error),&
+            unit_str="angstrom",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_qmmm_walls_section
 
 !!****f* input_cp2k_qmmm/create_qmmm_periodic_section *
 !!

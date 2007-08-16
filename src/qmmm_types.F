@@ -51,6 +51,8 @@ MODULE qmmm_types
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_types'
   INTEGER, SAVE, PRIVATE :: last_qmmm_env_id_nr=0
+  INTEGER, PARAMETER, PUBLIC           :: fist_subsys = 1,&
+                                          qs_subsys   = 2
 
   PUBLIC :: qmmm_env_qm_type, gridlevel_info_type, qmmm_pot_type, qmmm_pot_p_type
   PUBLIC :: qmmm_env_qm_retain, qmmm_env_qm_release, qmmm_env_qm_create

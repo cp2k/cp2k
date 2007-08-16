@@ -38,7 +38,6 @@ MODULE qmmm_elpot
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: rootpi
   USE memory_utilities,                ONLY: reallocate
-  USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_type
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
                                              qmmm_gaussian_type
@@ -53,8 +52,7 @@ MODULE qmmm_elpot
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_elpot'
-  PUBLIC :: qmmm_potential_init,&
-            qmmm_validate_this_run
+  PUBLIC :: qmmm_potential_init
   
 CONTAINS
 !!****f* qmmm_elpot/qmmm_potential_init [1.0] *
@@ -314,43 +312,5 @@ CONTAINS
     Pot%npts          =  npts
 
   END SUBROUTINE qmmm_pot_type_create
-
-!!****f* qmmm_elpot/qmmm_validate_this_run [1.0] *
-!!
-!!   NAME
-!!     qmmm_validate_this_run
-!!
-!!   FUNCTION
-!!     Validates the qmmm run checking if  all setup for electrostatic
-!!     potential are still fulfilled
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     01.2005 created [tlaino]
-!!
-!!*** ********************************************************************** 
-  SUBROUTINE qmmm_validate_this_run(particles_qm, particles_mm, mm_cell, qm_cell, error)
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particles_qm, particles_mm
-    TYPE(cell_type), POINTER                 :: mm_cell, qm_cell
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    REAL(KIND=dp)                            :: Rmax
-
-    Rmax = SQRT(mm_cell%hmat(1,1)**2+&
-                mm_cell%hmat(2,2)**2+&
-                mm_cell%hmat(3,3)**2 ) 
-    
-
-  END SUBROUTINE qmmm_validate_this_run
 
 END MODULE qmmm_elpot

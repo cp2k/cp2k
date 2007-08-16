@@ -13,3 +13,6 @@ h2_dbg_-2.inp        3
 water_3_fdbg.inp     3
 water_3_fdbg_inv.inp 3 
 water_3_full.inp     7
+#QMMM Walls
+water_3_NOwalls.inp  2
+water_3_walls.inp    2
