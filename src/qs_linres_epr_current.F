@@ -76,7 +76,8 @@ MODULE qs_linres_epr_current
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             default_path_length
   USE mathconstants,                   ONLY: twopi
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: coset,&
@@ -205,7 +206,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_response_current', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=80)                        :: ext, filename
+    CHARACTER(LEN=default_path_length)       :: ext, filename
     CHARACTER, DIMENSION(3)                  :: labels
 
     DATA labels /'x','y','z'/
