@@ -271,6 +271,7 @@ CPSourceFileRef,&
              transl_v = REAL( FLOOR(transl_v/force_env%qmmm_env%utrasl),KIND=dp) *&
                   force_env%qmmm_env%utrasl
           END IF
+          force_env%qmmm_env%transl_v = force_env%qmmm_env%transl_v + transl_v
           DO isubsys=1,SIZE(subsys_mm)
              particles_mm => subsys_mm(isubsys)%subsys%particles%els
              DO ip=1,subsys_mm(isubsys)%subsys%particles%n_els

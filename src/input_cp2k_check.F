@@ -32,8 +32,8 @@ MODULE input_cp2k_check
                                              cp_unit_set_type
   USE input_constants,                 ONLY: &
        xc_funct_blyp, xc_funct_bp, xc_funct_hcth120, xc_funct_no_shortcut, &
-       xc_funct_olyp, xc_funct_pade, xc_funct_pbe, xc_funct_tpss, xc_none, &
-       xc_funct_xwpbe
+       xc_funct_olyp, xc_funct_pade, xc_funct_pbe, xc_funct_tpss, &
+       xc_funct_xwpbe, xc_none
   USE input_cp2k,                      ONLY: create_cp2k_root_section
   USE input_parsing,                   ONLY: section_vals_parse
   USE input_section_types,             ONLY: &
@@ -284,8 +284,10 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
                                                 iforce_eval, myi, n_rep_val, &
                                                 nforce_eval1, nforce_eval2
     LOGICAL                                  :: failure, flag, flag2, &
-                                                subsys_check
+                                                qmmm_check, subsys_check,&
+                                                explicit1, explicit2
     REAL(KIND=dp)                            :: myt
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: vec, work
     TYPE(cp_error_type)                      :: sub_error
     TYPE(cp_parser_type), POINTER            :: cpparser
     TYPE(cp_unit_set_type), POINTER          :: default_units
@@ -405,6 +407,19 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
                    " subsys.One of them has an allocated subsys while the other has not! Check your"//&
                    " input file or whether the restart file is compatible with the input!",&
                    error,failure)    
+           END IF
+           ! QMMM restarts
+           CALL section_vals_val_get(r_section,"RESTART_QMMM",l_val=flag,error=error)
+           section1 => section_vals_get_subs_vals3(sections1,"QMMM",i_rep_section=iforce_eval,error=error)
+           section2 => section_vals_get_subs_vals3(sections2,"QMMM",i_rep_section=iforce_eval,error=error)
+           CALL section_vals_get(section1,explicit=explicit1,error=error)
+           CALL section_vals_get(section2,explicit=explicit2,error=error)
+           qmmm_check = (explicit1.AND.explicit2)
+           IF (flag.AND.qmmm_check) THEN
+              CALL section_vals_val_get(section1,"INITIAL_TRANSLATION_VECTOR",r_vals=vec,error=error)
+              ALLOCATE(work(3))
+              work = vec
+              CALL section_vals_val_set(section2,"INITIAL_TRANSLATION_VECTOR",r_vals_ptr=work,error=error)
            END IF
         END DO  ! iforce_eval
         CALL section_vals_val_get(r_section,"RESTART_COUNTERS",l_val=flag,&

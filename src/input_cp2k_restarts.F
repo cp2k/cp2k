@@ -50,7 +50,8 @@ MODULE input_cp2k_restarts
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
                                              force_env_type,&
-                                             multiple_fe_list
+                                             multiple_fe_list,&
+                                             use_qmmm
   USE input_constants,                 ONLY: mol_dyn_run,&
                                              mon_car_run,&
                                              pint_run,&
@@ -1491,7 +1492,8 @@ CONTAINS
     LOGICAL                                  :: failure, multiple_subsys, &
                                                 skip_vel_section
     TYPE(section_vals_type), POINTER         :: force_env_sections, &
-                                                rng_section, subsys_section
+                                                qmmm_section, rng_section, &
+                                                subsys_section
     TYPE(virial_type), POINTER               :: virial
 
     failure = .FALSE.
@@ -1515,6 +1517,10 @@ CONTAINS
     rng_section    => section_vals_get_subs_vals(subsys_section,"RNG_INIT",error=error)
     CALL update_rng(rng_section,force_env,error)
 
+    qmmm_section   => section_vals_get_subs_vals3(force_env_sections,"QMMM",&
+         i_rep_section=i_force_eval(iforce_eval),error=error)
+    CALL update_qmmm(qmmm_section,force_env,error)
+
     ! And now update only the cells of all other force_eval
     ! This is to make consistent for cell variable runs..
     IF (nforce_eval>1) THEN
@@ -1533,6 +1539,54 @@ CONTAINS
     DEALLOCATE(i_force_eval)
     
   END SUBROUTINE update_force_eval
+
+!!****f* input_cp2k_restarts/update_qmmm [1.0] *
+!!
+!!   NAME
+!!     update_qmmm
+!!
+!!   FUNCTION
+!!     Updates the qmmm section if needed
+!!
+!!   NOTES
+!!     
+!!
+!!   ARGUMENTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     08.2007 created [teo]
+!!
+!!*** **********************************************************************
+  SUBROUTINE update_qmmm(qmmm_section,force_env,error)
+    TYPE(section_vals_type), POINTER         :: qmmm_section
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'update_qmmm', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: explicit, failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: work
+
+    failure = .FALSE. 
+    SELECT CASE(force_env%in_use)
+    CASE(use_qmmm)   
+       CALL section_vals_get(qmmm_section, explicit=explicit, error=error)
+       CPPostcondition(explicit,cp_failure_level,routineP,error,failure)
+       
+       ALLOCATE(work(3),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       work = force_env%qmmm_env%transl_v
+       CALL section_vals_val_set(qmmm_section,"INITIAL_TRANSLATION_VECTOR",r_vals_ptr=work,error=error)
+    END SELECT
+
+  END SUBROUTINE update_qmmm
 
 !!****f* input_cp2k_restarts/update_rng [1.0] *
 !!

@@ -334,6 +334,15 @@ CONTAINS
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       CALL cp_print_key_section_create(print_key,"TRANSLATION_VECTOR",&
+            description="Dumps the traslation vector applied along an MD (if any). Useful"//&
+            " for postprocessing of QMMM trajectories in which the QM fragment is continuously"//&
+            " centered in the QM box",&
+            print_level=high_print_level, common_iter_levels=1,&
+            filename="",error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
     END IF

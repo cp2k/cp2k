@@ -118,7 +118,7 @@ CONTAINS
                                                 title
     INTEGER :: box, cocrd, cofrc, covel, crd, delta_t, ene, ener_mix, frc, &
       handle, i, iskip, isubsys, iw, nat, nshell, outformat, shcrd, shene, &
-      shfrc, shvel, str, vel
+      shfrc, shvel, str, vel, trsl
     INTEGER, POINTER                         :: itimes
     LOGICAL :: init, init_coforce, init_cotraj, init_covel, init_force, &
       init_shforce, init_shtraj, init_shvel, init_traj, init_vel, is_mixed, &
@@ -593,6 +593,18 @@ CONTAINS
          covel = 0
          shfrc = 0 
          cofrc = 0
+       END IF
+       !-------------------------------------------
+       ! Print QMMM translation vector if requested
+       !-------------------------------------------
+       IF (qmmm) THEN
+          trsl = cp_print_key_unit_nr(logger,motion_section,"PRINT%TRANSLATION_VECTOR",&
+               extension=".translation", middle_name="qmmm", error=error)
+          IF (trsl>0) THEN
+             WRITE(trsl,'(I10,3F15.10)')itimes,force_env_p(1)%force_env%qmmm_env%transl_v
+          END IF
+          CALL cp_print_key_finished_output(trsl,logger,motion_section,&
+               "PRINT%TRANSLATION_VECTOR", error=error)
        END IF
        !------------------
        ! Print Coordinates

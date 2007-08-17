@@ -180,6 +180,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)     
 
+       CALL keyword_create(keyword, name="initial_translation_vector",&
+            description="This keyword specify the initial translation vector to be applied to the system.",&
+            usage="initial_translation_vector <REAL> <REAL> <REAL>",&
+            n_var=3, default_r_vals=(/0.0_dp, 0.0_dp, 0.0_dp/),error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)     
+
        CALL keyword_create(keyword, name="E_COUPL",&
             variants=s2a("QMMM_COUPLING","ECOUPL"),& 
             description="Specifies the type of the QM - MM electrostatic coupling.",&

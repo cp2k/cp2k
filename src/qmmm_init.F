@@ -283,8 +283,8 @@ CPSourceFileRef,&
        qmmm_env_qm%num_qm_atoms = SIZE(qm_atom_index)
        qmmm_env_qm%num_mm_atoms = SIZE(mm_atom_index)
        IF ( iw > 0 ) THEN
-          WRITE(iw,'(A,I6)')" Number of QM atoms: ",qmmm_env_qm%num_qm_atoms
-          WRITE(iw,'(A,I6)')" Number of MM atoms: ",qmmm_env_qm%num_mm_atoms
+          WRITE(iw,'(A,I8)')" Number of QM atoms: ",qmmm_env_qm%num_qm_atoms
+          WRITE(iw,'(A,I8)')" Number of MM atoms: ",qmmm_env_qm%num_mm_atoms
           WRITE(iw,'(A)')" QM cell ::"
           CALL write_cell(qm_cell_small, subsys_section, error=error)
        END IF
@@ -643,7 +643,7 @@ CPSourceFileRef,&
                 qm_index = qmmm_links%imomm(I)%link%qm_index
                 mm_index = qmmm_links%imomm(I)%link%mm_index
                 alpha    = qmmm_links%imomm(I)%link%alpha
-                WRITE(iw,FMT="(T2,A,T20,A9,I6,1X,A9,I6,T55,A6,F12.6)")"TYPE: IMOMM",&
+                WRITE(iw,FMT="(T2,A,T20,A9,I8,1X,A9,I8,T62,A6,F12.6)")"TYPE: IMOMM",&
                      "QM INDEX:",qm_index,"MM INDEX:",mm_index,"ALPHA:",alpha
              END DO
           END IF
@@ -652,7 +652,7 @@ CPSourceFileRef,&
              DO I = 1, SIZE(qmmm_links%pseudo)
                 qm_index = qmmm_links%pseudo(I)%link%qm_index
                 mm_index = qmmm_links%pseudo(I)%link%mm_index
-                WRITE(iw,FMT="(T2,A,T20,A9,I6,1X,A9,I6,T55)")"TYPE: PSEUDO",&
+                WRITE(iw,FMT="(T2,A,T20,A9,I8,1X,A9,I8)")"TYPE: PSEUDO",&
                      "QM INDEX:",qm_index,"MM INDEX:",mm_index
              END DO
           END IF
@@ -1809,6 +1809,7 @@ CPSourceFileRef,&
     INTEGER                                  :: my_type
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: tmp
+    REAL(KINd=dp), DIMENSION(:), POINTER     :: vec
 
      failure = .FALSE.
      IF (.NOT.failure) THEN
@@ -1827,6 +1828,8 @@ CPSourceFileRef,&
         CASE(do_center_grid)
            qmmm_env%utrasl = dr
         END SELECT
+        CALL section_vals_val_get(qmmm_section,"INITIAL_TRANSLATION_VECTOR",r_vals=vec,error=error)
+        qmmm_env%transl_v = vec
      END IF
    END SUBROUTINE setup_origin_mm_cell
 
