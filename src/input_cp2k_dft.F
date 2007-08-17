@@ -25,7 +25,8 @@
 MODULE input_cp2k_dft
   USE bibliography,                    ONLY: VandeVondele2003,Lippert1997,Lippert1999, &
                                              VandeVondele2005a,Krack2000,Krack2002,&
-                                             Iannuzzi2005,Iannuzzi2006,Iannuzzi2007
+                                             Iannuzzi2005,Iannuzzi2006,Iannuzzi2007,&
+                                             VandeVondele2005b,Perdew1981,Avezac2005
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants
@@ -4335,6 +4336,7 @@ CONTAINS
        CALL section_create(section,"sic",&
             description="parameters for the self interaction correction",&
             n_keywords=6, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            citations=(/VandeVondele2005b,Perdew1981,Avezac2005/),&
             error=error)
 
        NULLIFY(keyword)
@@ -4342,6 +4344,7 @@ CONTAINS
        CALL keyword_create(keyword, name="SIC_SCALING_A",&
             description="Scaling of the coulomb term in sic [experimental]",&
             usage="SIC_SCALING_A 0.5",&
+            citations=(/VandeVondele2005b/),&
             default_r_val=1.0_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -4349,6 +4352,7 @@ CONTAINS
        CALL keyword_create(keyword, name="SIC_SCALING_B",&
             description="Scaling of the xc term in sic [experimental]",&
             usage="SIC_SCALING_B 0.5",&
+            citations=(/VandeVondele2005b/),&
             default_r_val=1.0_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -4357,11 +4361,32 @@ CONTAINS
             description="Method used to remove the self interaction",&
             usage="SIC_METHOD MAURI_US",&
             default_i_val=sic_none,&
-            enum_c_vals=s2a( "NONE", "MAURI_US", "MAURI_SPZ", "AD"),&
-            enum_i_vals=(/sic_none,sic_mauri_us,sic_mauri_spz,sic_ad/),&
+            enum_c_vals=s2a( "NONE", "MAURI_US", "MAURI_SPZ", "AD", "EXPLICIT_ORBITALS"),&
+            enum_i_vals=(/sic_none,sic_mauri_us,sic_mauri_spz,sic_ad,sic_eo/),&
+            enum_desc=s2a("Do not apply a sic correction",&
+                          "Employ a (scaled) correction proposed by Mauri and co-workers"//&
+                                 " on the spin density / doublet unpaired orbital",&
+                          "Employ a (scaled) Perdew-Zunger expression"//&
+                                 " on the spin density / doublet unpaired orbital",&
+                          "The average density correction",&
+                          "(scaled) Perdew-Zunger correction explicitly on a set of orbitals."),&
+            citations=(/VandeVondele2005b,Perdew1981,Avezac2005/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ORBITAL_SET",&
+            description="Type of orbitals treated with the SIC",&
+            usage="ORBITAL_SET ALL",&
+            default_i_val=sic_list_unpaired,&
+            enum_c_vals=s2a("UNPAIRED","ALL"),&
+            enum_desc=s2a("correction for the unpaired orbitals only, requires a restricted open shell calculation",&
+                          "correction for all orbitals, requires a LSD or ROKS calculation"),&
+            enum_i_vals=(/sic_list_unpaired,sic_list_all/),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+ 
 
     END IF
   END SUBROUTINE create_sic_section

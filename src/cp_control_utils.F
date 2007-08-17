@@ -14,31 +14,17 @@
 !******************************************************************************
 
 MODULE cp_control_utils
-  USE bibliography,                    ONLY: cite_reference, Lippert1997, Lippert1999
+  USE bibliography,                    ONLY: cite_reference,&
+                                             Lippert1997,&
+                                             Lippert1999,&
+                                             VandeVondele2005b
   USE cp_control_types,                ONLY: dft_control_create,&
                                              dft_control_type,&
                                              qs_control_type,&
                                              tddfpt_control_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE input_constants,                 ONLY: &
-       bsse_run, do_band, do_ddapc_constraint, do_ddapc_restraint, &
-       do_loc_crazy, do_loc_direct, do_loc_jacobi, do_loc_none, &
-       do_method_am1, do_method_dftb, do_method_gapw, do_method_gapw_xc, &
-       do_method_gpw, do_method_kg_pol, do_method_mndo, do_method_pdg, &
-       do_method_pm3, do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, &
-       do_pwgrid_spherical, do_s2_constraint, do_s2_restraint, &
-       electronic_spectra_run, elstr_method_name, energy_force_run, &
-       energy_run, geo_opt_run, linear_response_run, mol_dyn_run, &
-       mon_car_run, op_loc_berry, op_loc_boys, pint_run, qs_debug_run, &
-       quadrature_name, sic_ad, sic_mauri_spz, sic_mauri_us, sic_none, &
-       state_loc_all, state_loc_fromitoj, state_loc_list, state_loc_upton, &
-       tddfpt_excitations, vib_anal, xc_debug_new_routine, xc_deriv_fd, &
-       xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, xc_deriv_pw, &
-       xc_deriv_spline2, xc_deriv_spline2_smooth, xc_deriv_spline3, &
-       xc_deriv_spline3_smooth, xc_new_f_routine, xc_none, xc_old_f_routine, &
-       xc_rho_nn10, xc_rho_nn50, xc_rho_no_smooth, xc_rho_spline2_smooth, &
-       xc_rho_spline3_smooth, xc_test_lsd_f_routine
+  USE input_constants
   USE input_cp2k_check,                ONLY: xc_functionals_expand
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -46,6 +32,7 @@ MODULE cp_control_utils
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
+                                             default_path_length,&
                                              dp,&
                                              dp_size
   USE qs_loc_control,                  ONLY: read_loc_section
@@ -87,7 +74,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE read_dft_control (MODULE dft_types)"
 
-    CHARACTER(len=default_string_length)     :: basis_set_file_name, &
+    CHARACTER(len=default_path_length)       :: basis_set_file_name, &
                                                 potential_file_name
     INTEGER                                  :: excitations, method_id, run_id
     LOGICAL                                  :: failure, is_present, l_param, &
@@ -181,6 +168,8 @@ CONTAINS
          error=error)
     CALL section_vals_val_get(tmp_section,"SIC_METHOD",&
          i_val=dft_control%sic_method_id,error=error)
+    CALL section_vals_val_get(tmp_section,"ORBITAL_SET",&
+         i_val=dft_control%sic_list_id,error=error)
     CALL section_vals_val_get(tmp_section,"SIC_SCALING_A",&
          r_val=dft_control%sic_scaling_a,error=error)
     CALL section_vals_val_get(tmp_section,"SIC_SCALING_B",&
@@ -627,6 +616,8 @@ CONTAINS
     sic_section=>section_vals_get_subs_vals(t_section,"SIC",error=error)
     CALL section_vals_val_get(sic_section,"SIC_METHOD",&
          i_val=t_control%sic_method_id,error=error)
+    CALL section_vals_val_get(sic_section,"ORBITAL_SET",&
+         i_val=t_control%sic_list_id,error=error)
     CALL section_vals_val_get(sic_section,"SIC_SCALING_A",&
          r_val=t_control%sic_scaling_a,error=error)
     CALL section_vals_val_get(sic_section,"SIC_SCALING_B",&
@@ -713,6 +704,7 @@ CONTAINS
            "DFT| Force calculation"," NO"
        END IF
 
+       IF (dft_control%sic_method_id.NE.sic_none) CALL cite_reference(VandeVondele2005b)
        SELECT CASE ( dft_control%sic_method_id )
        CASE ( sic_none )
          tmpstr = "NO"
@@ -722,6 +714,8 @@ CONTAINS
          tmpstr = "US/MAURI SIC"
        CASE ( sic_ad )
          tmpstr = "AD SIC"
+       CASE ( sic_eo )
+	 tmpstr = "Explicit Orbital SIC"
        CASE DEFAULT
          ! fix throughout the cp2k for this option
          CALL stop_program(routineN,moduleN,__LINE__,&
@@ -735,6 +729,17 @@ CONTAINS
          WRITE (UNIT=output_unit,FMT="(T2,A,T66,ES15.6)")&
            "DFT| SIC scaling parameter a",dft_control%sic_scaling_a,&
            "DFT| SIC scaling parameter b",dft_control%sic_scaling_b
+       END IF
+
+       IF (dft_control%sic_method_id == sic_eo) THEN
+         IF (dft_control%sic_list_id==sic_list_all) THEN
+           WRITE (UNIT=output_unit,FMT="(T2,A,T66,A)")&
+             "DFT| SIC orbitals","ALL"
+         ENDIF
+         IF (dft_control%sic_list_id==sic_list_unpaired) THEN
+           WRITE (UNIT=output_unit,FMT="(T2,A,T66,A)")&
+             "DFT| SIC orbitals","UNPAIRED"
+         ENDIF
        END IF
 
        CALL section_vals_val_get(xc_section,"density_cutoff",&

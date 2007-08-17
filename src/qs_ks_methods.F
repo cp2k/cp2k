@@ -66,6 +66,7 @@ MODULE qs_ks_methods
                                              copy_sm_to_fm,&
                                              cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
+
   USE ep_qs_types,                     ONLY: ep_qs_type
   USE et_coupling,                     ONLY: becke_constraint
   USE four_center_integrals,           ONLY: derivatives_four_center,&
@@ -81,6 +82,9 @@ MODULE qs_ks_methods
                                              sic_mauri_spz,&
                                              sic_mauri_us,&
                                              sic_none,&
+                                             sic_eo,&
+                                             sic_list_all,&
+                                             sic_list_unpaired,&
                                              xc_none
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -141,6 +145,7 @@ MODULE qs_ks_methods
                                              real_matrix_p_type,&
                                              real_matrix_type,&
                                              replicate_matrix_structure,&
+                                             deallocate_matrix,&
                                              set_matrix,&
                                              transfer_matrix
   USE timings,                         ONLY: timeset,&
@@ -815,7 +820,7 @@ CONTAINS
                      error=error)
 
                END DO  ! ispin
-            ELSE
+             ELSE
                DO ispin=1,nspins
                   v_rspace_new(ispin)%pw%cr3d  =&
                        v_rspace_new(ispin)%pw%pw_grid%dvol * &
@@ -839,6 +844,7 @@ CONTAINS
                      v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d &
                           +becke%becke_pot%pw%cr3d*qs_env%dft_control%qs_control%becke_control%strength
                   END IF
+
                   ! the electrostatic sic contribution
                   SELECT CASE (dft_control%sic_method_id)
                   CASE (sic_none)
@@ -852,32 +858,36 @@ CONTAINS
                                                  +v_sic_rspace%pw%cr3d
                      ENDIF
                   CASE ( sic_ad )
-                    v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d-v_sic_rspace%pw%cr3d
-                 END SELECT
-                 ! add the part due to v_rspace
-                 IF (do_ep) THEN
-                    my_rho => ep_qs_env%dH_coeffs
-                 ELSE
-                    my_rho => rho%rho_ao
-                 END IF
-                 IF (ASSOCIATED(matrix_dv)) THEN
-                    CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                         p=my_rho(ispin),h=ks_matrix(ispin),&
-                         qs_env=qs_env, &
-                         calculate_forces=calculate_forces,&
-                         gapw=gapw,matrix_dv=matrix_dv(3*(ispin-1)+1:3*ispin),&
-                         error=error)
-                 ELSE
-                    CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                         p=my_rho(ispin),h=ks_matrix(ispin),&
-                         qs_env=qs_env, &
-                         calculate_forces=calculate_forces,&
-                         gapw=gapw, error=error)
-                 END IF
-                 CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace_new(ispin),&
-                       error=error)
+                     v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d-v_sic_rspace%pw%cr3d
+                  CASE ( sic_eo )
+                     ! NOTHING TO BE DONE
+                  END SELECT
+
+                  ! add the part due to v_rspace
+                  IF (do_ep) THEN
+                     my_rho => ep_qs_env%dH_coeffs
+                  ELSE
+                     my_rho => rho%rho_ao
+                  END IF
+                  IF (ASSOCIATED(matrix_dv)) THEN
+                     CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+                          p=my_rho(ispin),h=ks_matrix(ispin),&
+                          qs_env=qs_env, &
+                          calculate_forces=calculate_forces,&
+                          gapw=gapw,matrix_dv=matrix_dv(3*(ispin-1)+1:3*ispin),&
+                          error=error)
+                  ELSE
+                     CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+                          p=my_rho(ispin),h=ks_matrix(ispin),&
+                          qs_env=qs_env, &
+                          calculate_forces=calculate_forces,&
+                          gapw=gapw, error=error)
+                  END IF
+                  CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace_new(ispin),&
+                        error=error)
                END DO
-            END IF
+             END IF
+
              SELECT CASE (dft_control%sic_method_id)
              CASE (sic_none)
              CASE (sic_mauri_us,sic_mauri_spz, sic_ad )
@@ -885,6 +895,7 @@ CONTAINS
              END SELECT
              DEALLOCATE(v_rspace_new,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+
           ELSE
              ! not implemented (or at least not tested)
              CPPrecondition(dft_control%sic_method_id==sic_none,cp_failure_level,routineP,error,failure)
@@ -1051,6 +1062,10 @@ CONTAINS
           ENDDO
        ENDIF
 
+       ! deal with sic on explicit orbitals
+       CALL sic_explicit_orbitals(energy,qs_env,dft_control,poisson_env,just_energy,&
+                                  calculate_forces,auxbas_pw_pool,error)
+
        ! adds s2_restraint energy and orbital derivatives
        IF (dft_control%qs_control%s2_restraint) THEN
            CPPrecondition(dft_control%nspins == 2,cp_failure_level,routineP,error,failure)
@@ -1132,8 +1147,317 @@ CONTAINS
 
   END SUBROUTINE qs_ks_build_kohn_sham_matrix
 
-! *****************************************************************************
+!!****f* qs_ks_methods/sic_explicit_orbitals *
+!!
+!!   NAME
+!!     sic_explicit_orbitals
+!!
+!!   FUNCTION
+!!     do sic calculations on explicit orbitals
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** **********************************************************************
+  SUBROUTINE sic_explicit_orbitals(energy,qs_env,dft_control,poisson_env,just_energy,&
+                               calculate_forces,auxbas_pw_pool,error)
 
+    TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
+    LOGICAL, INTENT(IN)                      :: just_energy, calculate_forces
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(*), PARAMETER :: routineN = 'sic_explicit_orbitals', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER, ALLOCATABLE, DIMENSION(:,:)     :: sic_orbital_list
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: mo_derivs
+    TYPE(becke_constraint_type),POINTER      :: becke
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mo_array
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(coeff_type)                         :: orb_rho_r, orb_rho_g, &
+                                                work_v_gspace, &
+                                                work_v_rspace, tmp_g, tmp_r
+    TYPE(real_matrix_type), POINTER          :: orb_density_matrix,orb_h
+    TYPE(real_matrix_p_type)                 :: orb_density_matrix_p,orb_h_p
+    TYPE(cp_fm_type), POINTER                :: matrix_v, matrix_hv
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: mo_derivs_local
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_pool_type), POINTER              :: xc_pw_pool
+    TYPE(section_vals_type), POINTER         :: input, xc_section
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc, rho_g, rho_r, tau, vxc_tau
+    TYPE(cell_type), POINTER                 :: cell
+
+    INTEGER :: Norb,Iorb,stat,handle,i,k_alpha,k_beta,n
+    LOGICAL :: failure
+    REAL(KIND=dp) :: total_rho, ener, exc
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: scaling_factor
+
+    IF (dft_control%sic_method_id .NE. sic_eo) RETURN
+
+    CALL timeset(routineN,handle)
+
+    failure=.FALSE.
+
+
+    NULLIFY(tau,vxc_tau)
+
+    ! generate the lists of orbitals that need sic treatment
+    CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array,rho=rho,pw_env=pw_env, &
+                    input=input, cell=cell, error=error)
+    xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+
+    CALL pw_env_get(pw_env,xc_pw_pool=xc_pw_pool, error=error)
+
+    ! we have two spins
+    CPPrecondition(SIZE(mo_array,1)==2,cp_failure_level,routineP,error,failure)
+
+    k_alpha=0 ; k_beta=0
+    SELECT CASE(dft_control%sic_list_id)
+    CASE(sic_list_all)
+
+      CALL get_mo_set(mo_set=mo_array(1)%mo_set,mo_coeff=mo_coeff)
+      CALL cp_fm_get_info(mo_coeff,ncol_global=k_alpha,error=error)
+
+      IF (SIZE(mo_array,1)>1) THEN
+          CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff=mo_coeff)
+          CALL cp_fm_get_info(mo_coeff,ncol_global=k_beta,error=error)
+      ENDIF
+
+      Norb=k_alpha + k_beta
+      ALLOCATE(sic_orbital_list(3,Norb),stat=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+      iorb=0
+      DO i=1,k_alpha
+         iorb=iorb+1 
+         sic_orbital_list(1,iorb)=1
+         sic_orbital_list(2,iorb)=i
+         sic_orbital_list(3,iorb)=1
+      ENDDO
+      DO i=1,k_beta
+         iorb=iorb+1 
+         sic_orbital_list(1,iorb)=2
+         sic_orbital_list(2,iorb)=i
+         IF (SIZE(mo_derivs,1)==1) THEN
+             sic_orbital_list(3,iorb)=1
+         ELSE
+             sic_orbital_list(3,iorb)=2
+         ENDIF
+      ENDDO
+
+    CASE(sic_list_unpaired)
+      ! we have two spins
+      CPPrecondition(SIZE(mo_array,1)==2,cp_failure_level,routineP,error,failure)
+      ! we have them restricted 
+      CPPrecondition(SIZE(mo_derivs,1)==1,cp_failure_level,routineP,error,failure)
+      CPPrecondition(dft_control%restricted,cp_failure_level,routineP,error,failure)
+
+      CALL get_mo_set(mo_set=mo_array(1)%mo_set,mo_coeff=mo_coeff)
+      CALL cp_fm_get_info(mo_coeff,ncol_global=k_alpha,error=error)
+
+      CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff=mo_coeff)
+      CALL cp_fm_get_info(mo_coeff,ncol_global=k_beta,error=error)
+
+      Norb=k_alpha-k_beta
+      ALLOCATE(sic_orbital_list(3,Norb),stat=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      
+      iorb=0
+      DO i=k_beta+1,k_alpha
+         iorb=iorb+1 
+         sic_orbital_list(1,iorb)=1
+         sic_orbital_list(2,iorb)=i
+         ! we are guaranteed to be restricted
+         sic_orbital_list(3,iorb)=1
+      ENDDO
+
+    CASE DEFAULT
+      CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    END SELECT
+
+    ! data needed for each of the orbs
+    CALL pw_pool_init_coeff(auxbas_pw_pool,orb_rho_r,&
+                            use_data=REALDATA3D,&
+                            in_space=REALSPACE,error=error)
+    CALL pw_pool_init_coeff(auxbas_pw_pool,tmp_r,&
+                            use_data=REALDATA3D,&
+                            in_space=REALSPACE,error=error)
+    CALL pw_pool_init_coeff(auxbas_pw_pool,orb_rho_g,&
+                            use_data=COMPLEXDATA1D,&
+                            in_space=RECIPROCALSPACE,error=error)
+    CALL pw_pool_init_coeff(auxbas_pw_pool,tmp_g,&
+                            use_data=COMPLEXDATA1D,&
+                            in_space=RECIPROCALSPACE,error=error)
+    CALL pw_pool_init_coeff(auxbas_pw_pool,work_v_gspace,&
+                            use_data = COMPLEXDATA1D,&
+                            in_space = RECIPROCALSPACE, error=error)
+    CALL pw_pool_init_coeff(auxbas_pw_pool,work_v_rspace,&
+                            use_data=REALDATA3D,&
+                            in_space=REALSPACE,error=error)
+
+
+    NULLIFY(orb_density_matrix)
+    CALL replicate_matrix_structure(source=rho%rho_ao(1)%matrix,&
+                                    TARGET=orb_density_matrix,&
+                                    target_name="orb_density_matrix",error=error)
+    orb_density_matrix_p%matrix=>orb_density_matrix
+
+    NULLIFY(orb_h)
+    CALL replicate_matrix_structure(source=rho%rho_ao(1)%matrix,&
+                                    TARGET=orb_h,&
+                                    target_name="orb_density_matrix",error=error)
+    orb_h_p%matrix=>orb_h
+
+    CALL get_mo_set(mo_set=mo_array(1)%mo_set,mo_coeff=mo_coeff)
+
+    CALL cp_fm_struct_create(fm_struct_tmp, ncol_global=1, &
+                             template_fmstruct=mo_coeff%matrix_struct, error=error)
+    CALL cp_fm_create(matrix_v,fm_struct_tmp, name="matrix_v",error=error)
+    CALL cp_fm_create(matrix_hv,fm_struct_tmp, name="matrix_hv",error=error)
+    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+
+    ALLOCATE(mo_derivs_local(SIZE(mo_derivs,1)),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO I=1,SIZE(mo_derivs,1)
+       CALL cp_fm_create(mo_derivs_local(I)%matrix,mo_derivs(I)%matrix%matrix_struct,error=error)
+    ENDDO
+
+    ALLOCATE(rho_r(2),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    rho_r(1)%pw=>orb_rho_r%pw
+    rho_r(2)%pw=>tmp_r%pw
+    CALL coeff_zero(tmp_r)
+    
+    ALLOCATE(rho_g(2),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    rho_g(1)%pw=>orb_rho_g%pw
+    rho_g(2)%pw=>tmp_g%pw
+    CALL coeff_zero(tmp_g)
+
+    NULLIFY(vxc)
+    ! ALLOCATE(vxc(2),stat=stat)
+    ! CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ! CALL pw_pool_create_pw(xc_pw_pool,vxc(1)%pw,&
+    !         in_space=REALSPACE, use_data=REALDATA3D,error=error)
+    ! CALL pw_pool_create_pw(xc_pw_pool,vxc(2)%pw,&
+    !         in_space=REALSPACE, use_data=REALDATA3D,error=error)
+
+    ! now apply to SIC correction to each selected orbital
+    DO iorb=1,Norb
+       ! extract the proper orbital from the mo_coeff
+       CALL get_mo_set(mo_set=mo_array(sic_orbital_list(1,iorb))%mo_set,mo_coeff=mo_coeff)
+       CALL cp_fm_to_fm(mo_coeff,matrix_v,1,sic_orbital_list(2,iorb),1)
+
+       ! construct the density matrix and the corresponding density
+       CALL set_matrix(orb_density_matrix,0.0_dp)
+       CALL cp_sm_plus_fm_fm_t(orb_density_matrix,matrix_v=matrix_v,ncol=1,&
+                                  alpha=1.0_dp,error=error)
+
+       CALL calculate_rho_elec(matrix_p=orb_density_matrix,&
+                rho=orb_rho_r,rho_gspace=orb_rho_g, total_rho=total_rho,&
+                qs_env=qs_env, error=error)
+
+       ! write(6,*) 'Orbital ',sic_orbital_list(1,iorb),sic_orbital_list(2,iorb)
+       ! write(6,*) 'Total orbital rho= ',total_rho
+
+       ! compute the energy functional for this orbital and its derivative
+
+       CALL pw_poisson_solve(poisson_env,orb_rho_g%pw, ener, work_v_gspace%pw,error=error)
+       energy%hartree=energy%hartree - dft_control % sic_scaling_a * ener
+       IF (.NOT. just_energy) THEN
+            CALL coeff_transform_space(work_v_gspace, work_v_rspace)
+            CALL coeff_scale(work_v_rspace, - dft_control % sic_scaling_a * work_v_rspace%pw%pw_grid%dvol)
+            CALL set_matrix(orb_h,0.0_dp)
+       ENDIF
+
+
+       IF (just_energy) THEN
+           exc=xc_exc_calc(rho_r=rho_r, rho_g=rho_g, tau=tau, xc_section=xc_section,&
+                   cell=cell, pw_pool=xc_pw_pool, error=error)
+       ELSE
+           CALL xc_vxc_pw_create1(vxc_rho=vxc, rho_r=rho_r,&
+                   rho_g=rho_g, tau=tau, vxc_tau=vxc_tau, exc=exc, xc_section=xc_section, cell=cell, &
+                   pw_pool=xc_pw_pool, error=error)
+           ! add to the existing work_v_rspace
+           work_v_rspace%pw%cr3d = work_v_rspace%pw%cr3d - &
+                   dft_control % sic_scaling_b * vxc(1) % pw %pw_grid%dvol *  vxc(1) % pw % cr3d 
+       END IF
+       energy%exc = energy%exc - dft_control % sic_scaling_b * exc
+
+
+       IF (.NOT. just_energy) THEN
+           CALL integrate_v_rspace(v_rspace=work_v_rspace,p=orb_density_matrix_p,h=orb_h_p,&
+                                   qs_env=qs_env,calculate_forces=calculate_forces,error=error) 
+
+           ! add this to the mo_derivs
+           CALL cp_sm_fm_multiply(orb_h,matrix_v,matrix_hv, 1, error=error)
+           ALLOCATE(scaling_factor(1))
+           scaling_factor= 2.0_dp 
+           CALL cp_fm_column_scale(matrix_hv,scaling_factor)
+           DEALLOCATE(scaling_factor)
+           ! silly trick, copy to an array of the right size and add to mo_derivs
+           CALL cp_fm_set_all(mo_derivs_local(sic_orbital_list(3,iorb))%matrix,0.0_dp,error=error)
+           CALL cp_fm_to_fm(matrix_hv,mo_derivs_local(sic_orbital_list(3,iorb))%matrix,1,1,sic_orbital_list(2,iorb))
+           CALL cp_fm_scale_and_add(1.0_dp,mo_derivs(sic_orbital_list(3,iorb))%matrix, &
+                                    1.0_dp,mo_derivs_local(sic_orbital_list(3,iorb))%matrix,error=error)
+
+           ! need to deallocate vxc
+           CALL pw_pool_give_back_pw(xc_pw_pool,vxc(1)%pw,error=error)
+           CALL pw_pool_give_back_pw(xc_pw_pool,vxc(2)%pw,error=error)
+           DEALLOCATE(vxc)
+
+       ENDIF
+
+    ENDDO
+
+    CALL pw_pool_give_back_coeff(auxbas_pw_pool,orb_rho_r,error=error)
+    CALL pw_pool_give_back_coeff(auxbas_pw_pool,tmp_r,error=error)
+    CALL pw_pool_give_back_coeff(auxbas_pw_pool,orb_rho_g,error=error)
+    CALL pw_pool_give_back_coeff(auxbas_pw_pool,tmp_g,error=error)
+    CALL pw_pool_give_back_coeff(auxbas_pw_pool,work_v_gspace,error=error)
+    CALL pw_pool_give_back_coeff(auxbas_pw_pool,work_v_rspace,error=error)
+
+    CALL deallocate_matrix(orb_density_matrix,error=error)
+    CALL deallocate_matrix(orb_h,error=error)
+    CALL cp_fm_release(matrix_v,error)
+    CALL cp_fm_release(matrix_hv,error)
+    DO I=1,SIZE(mo_derivs,1)
+       CALL cp_fm_release(mo_derivs_local(I)%matrix,error=error)
+    ENDDO
+    DEALLOCATE(mo_derivs_local)
+    DEALLOCATE(rho_r)
+    DEALLOCATE(rho_g)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE sic_explicit_orbitals
+!!****f* qs_ks_methods/calc_v_sic_rspace *
+!!
+!!   NAME
+!!     calc_v_sic_rspace
+!!
+!!   FUNCTION
+!!     do sic calculations on the spin density
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** **********************************************************************
   SUBROUTINE calc_v_sic_rspace(v_sic_rspace,energy,&
                                qs_env,dft_control,rho,poisson_env,just_energy,&
                                calculate_forces,auxbas_pw_pool,error)
@@ -1167,6 +1491,8 @@ CONTAINS
     NULLIFY(mo_array)
 
     IF (dft_control%sic_method_id == sic_none) RETURN
+    IF (dft_control%sic_method_id == sic_eo) RETURN
+
     CALL cp_assert(.NOT. dft_control%qs_control%gapw, cp_failure_level,cp_assertion_failed,routineP,&
                    "sic and GAPW not yet compatible",error,failure)
 
@@ -1765,6 +2091,8 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
         my_scaling=1.0_dp-dft_control % sic_scaling_b
         ! no idea yet what to do here in that case
         CPPrecondition(.NOT.rho_struct%tau_r_valid ,cp_failure_level,routineP,error,failure)
+     CASE ( sic_eo )
+        ! NOTHING TO BE DONE
      CASE DEFAULT
         ! this case has not yet been treated here
         CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,"NYI",error,failure)

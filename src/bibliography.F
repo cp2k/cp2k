@@ -49,7 +49,8 @@ MODULE bibliography
   ! all reference keys
   INTEGER, PUBLIC, SAVE ::  VandeVondele2005a, VandeVondele2003, Laino2005, Laino2006, &
              Goedecker1996, Hartwigsen1998, Krack2005, Lippert1997, Lippert1999, Krack2000,&
-             Krack2002, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Toukmaji1996, Martyna1999
+             Krack2002, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Toukmaji1996, Martyna1999,&
+             VandeVondele2005b, Perdew1981,Avezac2005
 
 CONTAINS
 !!****f* bibliography/add_all_references *
@@ -372,7 +373,58 @@ CONTAINS
             "ER"),&
            DOI="10.1063/1.477923")
 
+    CALL add_reference(key=VandeVondele2005b,ISI_record=s2a(&
+            "PT J",&
+            "AU VandeVondele, J",&
+            "   Sprik, M",&
+            "TI A molecular dynamics study of the hydroxyl radical in solution applying",&
+            "   self-interaction-corrected density functional methods",&
+            "SO PHYSICAL CHEMISTRY CHEMICAL PHYSICS",&
+            "SN 1463-9076",&
+            "PY 2005",&
+            "VL 7",&
+            "IS 7",&
+            "BP 1363",&
+            "EP 1367",&
+            "UT ISI:000227707200005",&
+            "ER"),&
+            DOI="10.1039/b501603g")
 
+    CALL add_reference(key=Perdew1981,ISI_record=s2a(&
+            "PT J",&
+            "AU PERDEW, JP",&
+            "   ZUNGER, A",&
+            "TI SELF-INTERACTION CORRECTION TO DENSITY-FUNCTIONAL APPROXIMATIONS FOR",&
+            "   MANY-ELECTRON SYSTEMS",&
+            "SO PHYSICAL REVIEW B",&
+            "SN 0163-1829",&
+            "PY 1981",&
+            "VL 23",&
+            "IS 10",&
+            "BP 5048",&
+            "EP 5079",&
+            "UT ISI:A1981LR24700023",&
+            "ER"),&
+            DOI="10.1103/PhysRevB.23.5048")
+
+    CALL add_reference(key=Avezac2005,ISI_record=s2a(&
+            "PT J",&
+            'AU d''Avezac, M',&
+            "   Calandra, M",&
+            "   Mauri, F",&
+            "TI Density functional theory description of hole-trapping in SiO2: A",&
+            "   self-interaction-corrected approach",&
+            "SO PHYSICAL REVIEW B",&
+            "SN 1098-0121",&
+            "PD MAY",&
+            "PY 2005",&
+            "VL 71",&
+            "IS 20",&
+            "AR 205210",&
+            "DI ARTN 205210",&
+            "UT ISI:000230244300043",&
+            "ER"),&
+            DOI="10.1103/PhysRevB.71.205210")
 
   END SUBROUTINE add_all_references
 
