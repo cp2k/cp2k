@@ -906,6 +906,8 @@ CONTAINS
     IF (PRESENT(sac_3c)) qs_env%sac_3c => sac_3c
     IF (PRESENT(sbc_3c)) qs_env%sbc_3c => sbc_3c
     IF (PRESENT(energy)) qs_env%energy => energy
+    ! if intels checking (-C) complains here, you have rediscovered a bug in the intel
+    ! compiler (present in at least 10.0.025). A testcase has been submitted to intel.
     IF (PRESENT(force)) qs_env%force => force
     IF (PRESENT(use_harris)) qs_env%use_harris = use_harris
     IF (PRESENT(harris_env)) qs_env%harris_env => harris_env
