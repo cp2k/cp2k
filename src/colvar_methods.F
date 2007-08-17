@@ -341,23 +341,24 @@ CONTAINS
        tag = "ATOMS: "
        IF (colvar%use_points) tag = "POINTS:"
        WRITE ( iw, '( A )')'          ----------------------------------------------------------------------'
+       WRITE ( iw, '( A,I8)' )   ' COLVARS| COLVAR INPUT INDEX: ',icol
        SELECT CASE(colvar%type_id)
        CASE(angle_colvar_id)
-          WRITE ( iw, '( A,T66,3I5)' )   ' COLVARS| ANGLE          >>> '//tag,&
+          WRITE ( iw, '( A,T57,3I8)' )   ' COLVARS| ANGLE          >>> '//tag,&
                colvar%angle_param%i_at_angle
        CASE(ddiff_colvar_id)
-          WRITE ( iw, '( A,T61,4I5)' )   ' COLVARS| DIFFERENCE BETWEEN TWO DISTANCES   >>> '//tag,&
+          WRITE ( iw, '( A,T49,4I8)' )   ' COLVARS| DISTANCE DIFFERENCE  >>> '//tag,&
                colvar%ddiff_param%i_at_ddiff
        CASE(plane_distance_colvar_id)
-          WRITE ( iw, '( A,T66,3I5)' )   ' COLVARS| PLANE DISTANCE    - PLANE  >>> '//tag,&
+          WRITE ( iw, '( A,T57,3I8)' )   ' COLVARS| PLANE DISTANCE - PLANE  >>> '//tag,&
                colvar%plane_distance_param%plane
-          WRITE ( iw, '( A,T76,1I5)' )   ' COLVARS| PLANE DISTANCE    - POINT  >>> '//tag,&
+          WRITE ( iw, '( A,T73,1I8)' )   ' COLVARS| PLANE DISTANCE - POINT  >>> '//tag,&
                colvar%plane_distance_param%point
        CASE(torsion_colvar_id)
-          WRITE ( iw, '( A,T61,4I5)' )   ' COLVARS| TORSION       >>> '//tag,&
+          WRITE ( iw, '( A,T49,4I8)' )   ' COLVARS| TORSION       >>> '//tag,&
                colvar%torsion_param%i_at_tors
        CASE(dist_colvar_id)
-          WRITE ( iw, '( A,T71,2I5)' )   ' COLVARS| BOND          >>> '//tag,&
+          WRITE ( iw, '( A,T65,2I8)' )   ' COLVARS| BOND          >>> '//tag,&
                colvar%dist_param%i_at,colvar%dist_param%j_at
        CASE(coord_colvar_id)
           IF (colvar%coord_param%use_kinds_from) THEN
