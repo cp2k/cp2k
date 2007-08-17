@@ -1,0 +1,43 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    ROKS
+    MULTIPLICITY 3
+    &MGRID
+      CUTOFF 100
+    &END MGRID
+    &QS
+    &END QS
+    &SCF
+      MAX_SCF 5
+      &OT 
+       ROTATION
+      &END
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL Pade
+      &END XC_FUNCTIONAL
+    &END XC
+    &SIC
+       SIC_SCALING_A 0.2
+       SIC_SCALING_B 0.2
+       SIC_METHOD EXPLICIT_ORBITALS
+       ORBITAL_SET UNPAIRED
+    &END
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 6.0 6.0 6.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+    C   0.000000  0.000000  0.000000
+    &END COORD
+    &KIND C
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q4
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+&END GLOBAL
