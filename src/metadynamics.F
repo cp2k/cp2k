@@ -226,6 +226,8 @@ CONTAINS
     CALL section_vals_val_get(metadyn_section,"WW",r_val=meta_env%hills_env%ww,error=error)
     CALL section_vals_val_get(metadyn_section,"NT_HILLS",i_val=meta_env%hills_env%nt_hills,error=error)
     CALL section_vals_val_get(metadyn_section,"STEP_START_VAL",i_val=meta_env%n_steps,error=error)
+    CPPreconditionNoFail(meta_env%n_steps>=0,cp_failure_level,routineP,error)
+    IF (meta_env%n_steps/=0)  meta_env%n_steps = meta_env%n_steps - 1
     CALL section_vals_val_get(metadyn_section,"NHILLS_START_VAL",&
          i_val=meta_env%hills_env%n_hills,error=error)
     CALL section_vals_val_get(metadyn_section,"TEMPERATURE",r_val=meta_env%temp_wanted,error=error)
@@ -251,7 +253,7 @@ CONTAINS
           WRITE ( iw, '( A)' )    ' METADYN|  -  The last hill in the restart file will be re-evaluated'
           WRITE ( iw, '( A)' )    ' METADYN|  -  in order to avoid double counting.'
           WRITE ( iw, '( A,T71,I10)' )    ' METADYN| Actual number of previously spawned hills',&
-               meta_env%hills_env%n_hills-1
+               meta_env%hills_env%n_hills
        END IF
        IF (meta_env%extended_lagrange) THEN
           WRITE ( iw, '( A )' )        ' METADYN| Extended Lagrangian Scheme '
@@ -372,7 +374,6 @@ CONTAINS
 !!
 !!*** **********************************************************************  
   SUBROUTINE metadyn_add_forces(meta_env,force_env,error)
-!FM not safe with multiple non overlapping para_env for the subsys (sounds likely)
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -643,7 +644,6 @@ CONTAINS
        hills_history => section_vals_get_subs_vals(meta_env%metadyn_section,"SPAWNED_HILLS_POS",error=error)
        CALL section_vals_get(hills_history, explicit=explicit, error=error)
        IF (explicit) THEN
-          n_hills = n_hills - 1
           CALL section_vals_val_get( hills_history,"_DEFAULT_KEYWORD_",n_rep_val=ndum, error=error)
           !
           ! ss_history
@@ -655,7 +655,7 @@ CONTAINS
           DEALLOCATE(ww_history,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
           !
-          CPPostcondition(n_hills==ndum-1,cp_failure_level,routinep,error,failure)
+          CPPostcondition(n_hills==ndum,cp_failure_level,routinep,error,failure)
           ALLOCATE(ss_history(n_colvar,n_hills), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
           ALLOCATE(delta_s_history(n_colvar,n_hills), stat=stat)
@@ -678,7 +678,7 @@ CONTAINS
              ! delta_s_history
              !
              CALL section_vals_val_get( hills_history,"_DEFAULT_KEYWORD_",n_rep_val=ndum, error=error)
-             CPPostcondition(n_hills==ndum-1,cp_failure_level,routinep,error,failure)
+             CPPostcondition(n_hills==ndum,cp_failure_level,routinep,error,failure)
              DO i = 1, n_hills
                 CALL section_vals_val_get(hills_history,"_DEFAULT_KEYWORD_",&
                      i_rep_val=i, r_vals=rvals, error=error)
@@ -702,7 +702,7 @@ CONTAINS
              !
              CALL section_vals_val_get( hills_history,"_DEFAULT_KEYWORD_",&
                   n_rep_val=ndum, error=error)
-             CPPostcondition(n_hills==ndum-1,cp_failure_level,routinep,error,failure)
+             CPPostcondition(n_hills==ndum,cp_failure_level,routinep,error,failure)
              DO i = 1, n_hills
                 CALL section_vals_val_get(hills_history,"_DEFAULT_KEYWORD_",&
                      i_rep_val=i, r_val=rval, error=error)

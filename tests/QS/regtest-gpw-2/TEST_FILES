@@ -27,3 +27,7 @@ H2O-tpss.inp       1
 H2O-tpss_new.inp   1
 # farming
 farming.inp        0
+#more checking on metadynamics RESTART
+H2O-meta_coord.inp     2
+H2O-meta_coord_1.inp   2
+H2O-meta_coord_2.inp   2

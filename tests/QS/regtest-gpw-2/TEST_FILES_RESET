@@ -177,3 +177,6 @@ spin_restraint.inp
 spin_restraint.inp
 #  
 C2H4-meta.inp
+# bug fix restart metadynamics
+H2O-meta_res2.inp
+H2O-meta_res3.inp
