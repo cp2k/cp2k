@@ -1050,18 +1050,22 @@ CONTAINS
     END IF
     ssss = ri(1)
     ! Tapering function
-    ft = taper ( rij )
-    core(:,:) = ft*core(:,:)
-    ssss = ft*ssss
+    ft = 1.0_dp
+    dft= 0.0_dp
+    IF (itype/=0) THEN
+       ft = taper ( rij )
+       dft= dtaper_ana ( rij )
+    END IF
     ! If no orbitals are present on the atom let's zero the integral contribution
     IF (sepi%natorb == -1) core(:,1) = 0.0_dp
     IF (sepj%natorb == -1) core(:,2) = 0.0_dp
-    !
-    dssss = dri(1)
-    ! Tapering function
-    dft= dtaper_ana ( rij )
+    ! First derivatives..
+    dssss      = dri(1)
     dcore(:,:) = ft*dcore(:,:)+dft*core(:,:)
-    dssss = ft*dssss+dft*ssss
+    dssss      = ft*dssss+dft*ssss
+    ! Then values of functions
+    core(:,:)  = ft*core(:,:)
+    ssss       = ft*ssss
     ! If no orbitals are present on the atom let's zero the integral contribution
     IF (sepi%natorb == -1) dcore(:,1) = 0.0_dp
     IF (sepj%natorb == -1) dcore(:,2) = 0.0_dp

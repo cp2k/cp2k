@@ -1,0 +1,100 @@
+
+&FORCE_EVAL
+  METHOD QMMM
+  &DFT
+    &QS
+      METHOD AM1
+      EXTRAPOLATION USE_PREV_WF
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+      MAX_SCF 50
+      EPS_SCF 1.0E-6
+      &OT
+        PRECONDITIONER NONE
+        MINIMIZER DIIS
+      &END
+      &OUTER_SCF
+        MAX_SCF 5
+        EPS_SCF 1.0E-6
+      &END
+    &END SCF
+  &END DFT
+  &MM
+    &FORCEFIELD
+      parm_file_name ../sample_pot/zwitt.pot
+      parmtype CHM
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .4
+        GMAX 60
+      &END EWALD
+    &END POISSON
+  &END MM
+  &QMMM
+    &CELL
+      ABC 15.0 15.0 15.0
+      UNIT ANGSTROM
+    &END CELL
+    ECOUPL COULOMB
+    NOCENTER
+
+    &MM_KIND H1
+      RADIUS 0.44
+    &END MM_KIND
+    &MM_KIND H2
+      RADIUS 0.44
+    &END MM_KIND
+    &MM_KIND O
+      RADIUS 0.78
+    &END MM_KIND
+
+    &QM_KIND H
+      MM_INDEX 2 3 4 7
+    &END QM_KIND
+    &QM_KIND O
+      MM_INDEX 8
+    &END QM_KIND
+    &QM_KIND N 
+      MM_INDEX 1 6
+    &END QM_KIND
+    &QM_KIND C 
+      MM_INDEX 5
+    &END QM_KIND
+  &END QMMM
+  &SUBSYS
+    &CELL
+      ABC 50.0 50.0 50.0
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      CONN_FILE ../sample_psf/zwitt.psf
+      CONNECTIVITY PSF
+      COORD_FILE_NAME ../sample_pdb/zwitt.pdb
+      COORDINATE PDB
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PRINT_LEVEL LOW
+  PROJECT DEBUG
+  RUN_TYPE MD
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 5
+    TIMESTEP 0.5
+    TEMPERATURE 300
+  &END MD
+  &PRINT
+    &TRAJECTORY
+      ADD_LAST NO
+    &END
+    &VELOCITIES OFF
+    &END
+  &END
+&END MOTION

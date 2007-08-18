@@ -1394,7 +1394,8 @@ CONTAINS
 
       ssss = ri(1)
       ! Tapering function
-      ft = taper ( rij )
+      ft = 1.0_dp
+      IF (itype /=0) ft = taper ( rij )
       core(:,:) = ft*core(:,:)
       ssss = ft*ssss
       ! If no orbitals are present on the atom let's zero the integral contribution

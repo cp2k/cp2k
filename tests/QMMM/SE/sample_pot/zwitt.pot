@@ -1,0 +1,104 @@
+*>>>>>>>   AMBER FF Converted into CHARMM FF style                      <<<<<<<
+*>>>>>>>   Generated on :: 20070525 192950.667 +0200 by :: teo          <<<<<<<
+*>>>>>>>   pcihpc07                                                     <<<<<<<
+*>>>>>>>   Leap Title :: MOL                                            <<<<<<<
+*>>>>>>>   Send all comments related to the FFs conversion to           <<<<<<<
+*>>>>>>>   teodoro.laino@gmail.com                                      <<<<<<<
+ 
+BONDS
+!
+!V(bond) = Kb(b - b0)**2
+!
+!Kb: kcal/mole/A**2
+!b0: A
+!
+!atom type Kb          b0
+!
+n4   hn1    369.000000000    1.033000000
+n2   hn2    375.500000000    1.029000000
+HW   OW     553.000000000    0.957200000
+HW   HW     553.000000000    1.513600000
+n4   c      255.500000000    1.546000000
+c    n2     374.600000000    1.420000000
+c    o      648.000000000    1.214000000
+ 
+ANGLES
+!
+!V(angle) = Ktheta(Theta - Theta0)**2
+!
+!V(Urey-Bradley) = Kub(S - S0)**2
+!
+!Ktheta: kcal/mole/rad**2
+!Theta0: degrees
+!Kub: kcal/mole/A**2 (Urey-Bradley)
+!S0: A
+!
+!atom types     Ktheta    Theta0   Kub     S0
+!
+hn1  n4   hn1     40.500000000  108.110046161
+hn1  n4   c       44.700000000  110.860047626
+c    n2   hn2     51.500000000  126.500054215
+n4   c    n2      64.700000000  114.640049017
+n4   c    o       69.600000000  118.830050985
+n2   c    o       73.000000000  122.500052501
+ 
+DIHEDRALS
+!
+!V(dihedral) = Kchi(1 + cos(n(chi) - delta))
+!
+!Kchi: kcal/mole
+!n: multiplicity
+!delta: degrees
+!
+!atom types             Kchi    n   delta
+!
+n4   c    n2   hn2      4.150000000    2  180.000077144
+hn1  n4   c    n2       0.188888889    3    0.000000000
+hn1  n4   c    o        0.188888889    3    0.000000000
+hn2  n2   c    o        4.150000000    2  180.000077144
+n4   n2   c    o       10.500000000    2  180.000077144
+ 
+IMPROPER
+!
+!V(improper) = Kpsi(psi - psi0)**2
+!
+!Kpsi: kcal/mole/rad**2
+!psi0: degrees
+!note that the second column of numbers (0) is ignored
+!
+!atom types           Kpsi                   psi0
+!
+ 
+NONBONDED
+!
+!V(Lennard-Jones) = Eps,i,j[(Rmin,i,j/ri,j)**12 - 2(Rmin,i,j/ri,j)**6]
+!
+!epsilon: kcal/mole, Eps,i,j = sqrt(eps,i * eps,j)
+!Rmin/2: A, Rmin,i,j = Rmin/2,i + Rmin/2,j
+!
+!atom  ignored    epsilon      Rmin/2   ignored   eps,1-4       Rmin/2,1-4
+!
+n4       0.000000000    0.170000000    1.824000000
+hn1      0.000000000    0.015700000    0.600000000
+c        0.000000000    0.086000000    1.908000000
+n2       0.000000000    0.170000000    1.824000000
+hn2      0.000000000    0.015700000    0.600000000
+o        0.000000000    0.210000000    1.661200000
+OW       0.000000000    0.152000000    1.768300000
+HW       0.000000000    0.000000000    0.000000000
+ 
+END
+
+!
+! This Section can be cutted & pasted into the Fist input file..
+!
+CHARGES
+n4      -0.353000000
+hn1      0.283000000
+c        0.801000000
+n2      -1.024000000
+hn2      0.408000000
+o       -0.681000000
+OW      -0.834000000
+HW       0.417000000
+END CHARGES
