@@ -702,7 +702,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     natom = SIZE(qs_loc_env%particle_set)
     ntot =  natom + SIZE(center,1)
-    CALL allocate_particle_set(particle_set, ntot)
+    CALL allocate_particle_set(particle_set, ntot,error)
     CALL allocate_atomic_kind_set(atomic_kind_set,1,error)
     atomic_kind => atomic_kind_set(1)
     CALL set_atomic_kind(atomic_kind=atomic_kind,kind_number=0,&
@@ -739,7 +739,7 @@ CONTAINS
     END IF
     CALL write_particle_coordinates(particle_set,iunit,outformat,"POS",title,qs_loc_env%cell)
     CALL m_flush(iunit)
-    CALL deallocate_particle_set(particle_set)
+    CALL deallocate_particle_set(particle_set,error)
     CALL deallocate_atomic_kind_set(atomic_kind_set,error)
   END SUBROUTINE print_wannier_traj
 

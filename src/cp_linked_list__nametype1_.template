@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2001  CP2K developers group                                 !
+!   Copyright (C) 2000 - 2007  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 [defines]
@@ -271,7 +271,7 @@ CONTAINS
     TYPE(cp_sll_[nametype1]_type), POINTER :: sll
     [type1in], OPTIONAL :: first_el
     TYPE(cp_sll_[nametype1]_type), POINTER, OPTIONAL :: rest
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout) :: error
 
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_[nametype1]:cp_sll_[nametype1]_create'
@@ -321,7 +321,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_sll_[nametype1]_dealloc(sll,error)
     TYPE(cp_sll_[nametype1]_type), POINTER :: sll
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout) :: error
 
     CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_[nametype1]/cp_sll_[nametype1]_dealloc'
 
@@ -356,7 +356,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_sll_[nametype1]_dealloc_node(sll,error)
     TYPE(cp_sll_[nametype1]_type), POINTER :: sll
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout) :: error
 
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_[nametype1]/cp_sll_[nametype1]_dealloc_node'
@@ -401,7 +401,7 @@ CONTAINS
     TYPE(cp_sll_[nametype1]_type), POINTER :: sll
     [type1in], OPTIONAL :: first_el
     TYPE(cp_sll_[nametype1]_type), POINTER, OPTIONAL :: rest
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout) :: error
 
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_[nametype1]:cp_set_sll_[nametype1]'
@@ -452,7 +452,7 @@ CONTAINS
     TYPE(cp_sll_[nametype1]_type), OPTIONAL, POINTER :: rest
     LOGICAL, OPTIONAL, INTENT(out) :: empty
     INTEGER, INTENT(out), OPTIONAL :: length
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout) :: error
 
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_[nametype1]:cp_sll_[nametype1]_get'
@@ -498,7 +498,7 @@ CONTAINS
 !!*** **********************************************************************
   FUNCTION cp_sll_[nametype1]_get_first_el(sll,error) RESULT(res)
     TYPE(cp_sll_[nametype1]_type), POINTER :: sll
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout) :: error
     [type1] :: res
 
     LOGICAL :: failure
@@ -542,7 +542,7 @@ CONTAINS
   FUNCTION cp_sll_[nametype1]_get_rest(sll, iter, error) RESULT(res)
     TYPE(cp_sll_[nametype1]_type), POINTER :: sll
     INTEGER, OPTIONAL :: iter
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout) :: error
     TYPE(cp_sll_[nametype1]_type), POINTER :: res
 
     LOGICAL :: failure
@@ -608,7 +608,7 @@ CPSourceFileRef,&
   FUNCTION cp_sll_[nametype1]_get_empty(sll,error) RESULT(res)
     LOGICAL :: res
     TYPE(cp_sll_[nametype1]_type), POINTER :: sll
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout) :: error
 
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_[nametype1]:cp_sll_[nametype1]_get_empty'
@@ -643,7 +643,7 @@ CPSourceFileRef,&
 !!*** **********************************************************************
   FUNCTION cp_sll_[nametype1]_get_length(sll,error) RESULT(res)
     TYPE(cp_sll_[nametype1]_type), pointer :: sll
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout) :: error
     INTEGER ::res
 
     LOGICAL :: failure
@@ -692,7 +692,7 @@ CPSourceFileRef,&
     [type1] :: res
     TYPE(cp_sll_[nametype1]_type), POINTER :: sll
     INTEGER, INTENT(in) :: index
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout) :: error
 
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_[nametype1]/cp_sll_[nametype1]_get_el_at'
@@ -744,7 +744,7 @@ CPSourceFileRef,&
     [type1in] :: value
     TYPE(cp_sll_[nametype1]_type), POINTER :: sll
     INTEGER, INTENT(in) :: index
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout) :: error
 
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_[nametype1]/cp_sll_[nametype1]_set_el_at'
@@ -792,7 +792,7 @@ CPSourceFileRef,&
 !!*** **********************************************************************
   FUNCTION cp_sll_[nametype1]_next(iterator,el_att,error) RESULT(res)
     TYPE(cp_sll_[nametype1]_type), POINTER :: iterator
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout) :: error
     [type1out], OPTIONAL :: el_att
     LOGICAL :: res
 
@@ -840,7 +840,7 @@ CPSourceFileRef,&
   SUBROUTINE cp_sll_[nametype1]_insert_el(sll,el,error)
     TYPE(cp_sll_[nametype1]_type), POINTER :: sll
     [type1in]:: el
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout) :: error
 
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_[nametype1]:cp_sll_[nametype1]_add_el'
@@ -880,7 +880,7 @@ CPSourceFileRef,&
 !!*** **********************************************************************
   SUBROUTINE cp_sll_[nametype1]_rm_first_el(sll,error)
     TYPE(cp_sll_[nametype1]_type), POINTER :: sll
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout) :: error
 
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_[nametype1]/cp_sll_[nametype1]_rm_first_el'
@@ -930,7 +930,7 @@ CPSourceFileRef,&
     [type1in] :: el
     INTEGER, INTENT(in) :: index
     TYPE(cp_sll_[nametype1]_type), POINTER :: sll
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout) :: error
 
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_[nametype1]/cp_sll_[nametype1]_insert_el_at'
@@ -980,7 +980,7 @@ CPSourceFileRef,&
 !!*** **********************************************************************
   SUBROUTINE cp_sll_[nametype1]_rm_el_at(sll,index,error)
     TYPE(cp_sll_[nametype1]_type), POINTER :: sll
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout) :: error
     INTEGER, INTENT(in)::index
 
     LOGICAL :: failure
@@ -1032,7 +1032,7 @@ CPSourceFileRef,&
 !!*** **********************************************************************
   SUBROUTINE cp_sll_[nametype1]_rm_all_el(sll,error)
     TYPE(cp_sll_[nametype1]_type), POINTER :: sll
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout) :: error
 
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_[nametype1]/cp_sll_[nametype1]_rm_all_el'
@@ -1076,7 +1076,7 @@ CPSourceFileRef,&
 !!*** **********************************************************************
 FUNCTION cp_sll_[nametype1]_to_array(sll,error) RESULT(res)
   TYPE(cp_sll_[nametype1]_type), POINTER :: sll
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  TYPE(cp_error_type), INTENT(inout) :: error
   [type1arrayEl], DIMENSION(:), POINTER :: res
   
   LOGICAL :: failure
@@ -1126,7 +1126,7 @@ END FUNCTION cp_sll_[nametype1]_to_array
 !!*** **********************************************************************
 FUNCTION cp_sll_[nametype1]_from_array(array,error) RESULT(res)
   [type1arrayEl], DIMENSION(:), INTENT(in) :: array
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  TYPE(cp_error_type), INTENT(inout) :: error
   TYPE(cp_sll_[nametype1]_type), POINTER :: res
   
   LOGICAL :: failure
@@ -1188,7 +1188,7 @@ SUBROUTINE cp_sll_[nametype1]_insert_ordered(sll,el,insert_equals,&
   LOGICAL, OPTIONAL, INTENT(in) :: insert_equals
   LOGICAL, OPTIONAL, INTENT(out) :: did_insert
   TYPE(cp_sll_[nametype1]_type), POINTER, OPTIONAL :: pos
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  TYPE(cp_error_type), INTENT(inout) :: error
   
   LOGICAL :: failure,i_eq
   CHARACTER(len=*), PARAMETER :: routineN='cp_sll_[nametype1]_insert_ordered',&
@@ -1205,9 +1205,9 @@ SUBROUTINE cp_sll_[nametype1]_insert_ordered(sll,el,insert_equals,&
      CALL cp_sll_[nametype1]_create(sll,first_el=el,error=error)
      IF (PRESENT(did_insert)) did_insert=.TRUE.
      IF (PRESENT(pos)) pos=>sll
-  ELSE IF (.NOT.[lessQ](sll%first_el,el)) THEN
+  ELSE IF (.NOT.[lessQ](sll%first_el,el,error=error)) THEN
      IF (PRESENT(pos)) pos=>sll
-     IF (i_eq.OR.[lessQ](el,sll%first_el)) THEN
+     IF (i_eq.OR.[lessQ](el,sll%first_el,error=error)) THEN
         CALL cp_sll_[nametype1]_insert_el(sll,el,error=error)
         IF (PRESENT(did_insert)) did_insert=.TRUE.
         IF (PRESENT(pos)) pos=>sll
@@ -1220,16 +1220,16 @@ SUBROUTINE cp_sll_[nametype1]_insert_ordered(sll,el,insert_equals,&
            IF (PRESENT(did_insert)) did_insert=.TRUE.
            IF (PRESENT(pos)) pos=>iter%rest
            EXIT
-        ELSE IF (.NOT.[lessQ](iter%rest%first_el,el)) THEN
+        ELSE IF (.NOT.[lessQ](iter%rest%first_el,el,error=error)) THEN
            IF (PRESENT(pos)) pos=>iter
-           IF (i_eq.OR. [lessQ](el,iter%rest%first_el)) THEN
+           IF (i_eq.OR. [lessQ](el,iter%rest%first_el,error=error)) THEN
               CALL cp_sll_[nametype1]_insert_el(iter%rest,el,error=error)
               IF (PRESENT(did_insert)) did_insert=.TRUE.
               IF (PRESENT(pos)) pos=>iter%rest
            END IF
            EXIT
         END IF
-        CPInvariant(cp_sll_[nametype1]_next(iter),cp_failure_level,routineP,error,failure)
+        CPInvariant(cp_sll_[nametype1]_next(iter,error=error),cp_failure_level,routineP,error,failure)
      END DO
      CPAssert(ASSOCIATED(iter),cp_failure_level,routineP,error,failure)
   END IF
@@ -1279,7 +1279,7 @@ SUBROUTINE cp_sll_[nametype1]_insert_ordered2(sll,el,compare_function,&
   LOGICAL, OPTIONAL, INTENT(in) :: insert_equals
   LOGICAL, OPTIONAL, INTENT(out) :: did_insert
   TYPE(cp_sll_[nametype1]_type), POINTER, OPTIONAL :: pos
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  TYPE(cp_error_type), INTENT(inout) :: error
   
   LOGICAL :: failure,i_eq
   CHARACTER(len=*), PARAMETER :: routineN='cp_sll_[nametype1]_insert_ordered2',&
@@ -1324,7 +1324,7 @@ SUBROUTINE cp_sll_[nametype1]_insert_ordered2(sll,el,compare_function,&
            END IF
            EXIT
         END IF
-        CPInvariant(cp_sll_[nametype1]_next(iter),cp_failure_level,routineP,error,failure)
+        CPInvariant(cp_sll_[nametype1]_next(iter,error=error),cp_failure_level,routineP,error,failure)
      END DO
      CPAssert(ASSOCIATED(iter),cp_failure_level,routineP,error,failure)
   END IF
@@ -1362,7 +1362,7 @@ FUNCTION cp_sll_[nametype1]_contains(sll,el,ordered,error) RESULT(res)
   TYPE(cp_sll_[nametype1]_type), POINTER :: sll
   [type1in] :: el
   LOGICAL, INTENT(in), OPTIONAL :: ordered
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  TYPE(cp_error_type), INTENT(inout) :: error
   
   LOGICAL :: failure,ord
   CHARACTER(len=*), PARAMETER :: routineN='cp_sll_[nametype1]_contains',&
@@ -1377,15 +1377,15 @@ FUNCTION cp_sll_[nametype1]_contains(sll,el,ordered,error) RESULT(res)
   IF (ord) THEN
      DO
         IF (.NOT.cp_sll_[nametype1]_next(iter,el_att=el_att,error=error)) EXIT
-        IF (.NOT.[lessQ](el_att,el)) THEN
-           res=.NOT.[lessQ](el,el_att)
+        IF (.NOT.[lessQ](el_att,el,error=error)) THEN
+           res=.NOT.[lessQ](el,el_att,error=error)
            RETURN
         END IF
      END DO
   ELSE
      DO
         IF (.NOT.cp_sll_[nametype1]_next(iter,el_att=el_att,error=error)) EXIT
-        IF (.NOT.[equalQ](el_att,el)) THEN
+        IF (.NOT.[equalQ](el_att,el,error)) THEN
            res=.TRUE.
            RETURN
         END IF
@@ -1436,7 +1436,7 @@ FUNCTION cp_sll_[nametype1]_contains2(sll,el,compare_function,ordered,error)&
      END FUNCTION compare_function
   END INTERFACE
   LOGICAL, INTENT(in), OPTIONAL :: ordered
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  TYPE(cp_error_type), INTENT(inout) :: error
   
   LOGICAL :: failure
   INTEGER :: comp

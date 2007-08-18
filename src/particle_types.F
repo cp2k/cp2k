@@ -160,7 +160,7 @@ END SUBROUTINE clone_particle
 
 ! *****************************************************************************
 
-  SUBROUTINE allocate_particle_set(particle_set,nparticle)
+  SUBROUTINE allocate_particle_set(particle_set,nparticle,error)
 
 !   Purpose: Allocate a particle set.
 
@@ -171,6 +171,7 @@ END SUBROUTINE clone_particle
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     INTEGER, INTENT(IN)                      :: nparticle
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_particle_set'
 
@@ -178,7 +179,7 @@ END SUBROUTINE clone_particle
 
 !   ---------------------------------------------------------------------------
 
-    IF (ASSOCIATED(particle_set)) CALL deallocate_particle_set(particle_set)
+    IF (ASSOCIATED(particle_set)) CALL deallocate_particle_set(particle_set,error=error)
 
     ALLOCATE (particle_set(nparticle),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -199,7 +200,7 @@ END SUBROUTINE clone_particle
 
 ! *****************************************************************************
 
-  SUBROUTINE deallocate_particle_set(particle_set)
+  SUBROUTINE deallocate_particle_set(particle_set,error)
 
 !   Purpose: Deallocate a particle set.
 
@@ -209,6 +210,7 @@ END SUBROUTINE clone_particle
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_particle_set'
 

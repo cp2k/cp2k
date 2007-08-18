@@ -4,8 +4,8 @@
 !-----------------------------------------------------------------------------!
 
 ! less not much meaningful...
-#define CP_SLL_PW_LESS_Q(el1,el2) ( el1 %id_nr < el2 %id_nr )
-#define CP_SLL_PW_EQUAL_Q(el1,el2) ( el1 %id_nr == el2 %id_nr )
+#define CP_SLL_PW_LESS_Q(el1,el2,error) ( el1 %id_nr < el2 %id_nr )
+#define CP_SLL_PW_EQUAL_Q(el1,el2,error) ( el1 %id_nr == el2 %id_nr )
 
 !!****h* cp2k/cp_linked_list_pw [1.0] *
 !!
@@ -1267,9 +1267,9 @@ SUBROUTINE cp_sll_pw_insert_ordered(sll,el,insert_equals,&
      CALL cp_sll_pw_create(sll,first_el=el,error=error)
      IF (PRESENT(did_insert)) did_insert=.TRUE.
      IF (PRESENT(pos)) pos=>sll
-  ELSE IF (.NOT.CP_SLL_PW_LESS_Q(sll%first_el,el)) THEN
+  ELSE IF (.NOT.CP_SLL_PW_LESS_Q(sll%first_el,el,error=error)) THEN
      IF (PRESENT(pos)) pos=>sll
-     IF (i_eq.OR.CP_SLL_PW_LESS_Q(el,sll%first_el)) THEN
+     IF (i_eq.OR.CP_SLL_PW_LESS_Q(el,sll%first_el,error=error)) THEN
         CALL cp_sll_pw_insert_el(sll,el,error=error)
         IF (PRESENT(did_insert)) did_insert=.TRUE.
         IF (PRESENT(pos)) pos=>sll
@@ -1282,9 +1282,9 @@ SUBROUTINE cp_sll_pw_insert_ordered(sll,el,insert_equals,&
            IF (PRESENT(did_insert)) did_insert=.TRUE.
            IF (PRESENT(pos)) pos=>iter%rest
            EXIT
-        ELSE IF (.NOT.CP_SLL_PW_LESS_Q(iter%rest%first_el,el)) THEN
+        ELSE IF (.NOT.CP_SLL_PW_LESS_Q(iter%rest%first_el,el,error=error)) THEN
            IF (PRESENT(pos)) pos=>iter
-           IF (i_eq.OR. CP_SLL_PW_LESS_Q(el,iter%rest%first_el)) THEN
+           IF (i_eq.OR. CP_SLL_PW_LESS_Q(el,iter%rest%first_el,error=error)) THEN
               CALL cp_sll_pw_insert_el(iter%rest,el,error=error)
               IF (PRESENT(did_insert)) did_insert=.TRUE.
               IF (PRESENT(pos)) pos=>iter%rest
@@ -1444,15 +1444,15 @@ FUNCTION cp_sll_pw_contains(sll,el,ordered,error) RESULT(res)
   IF (ord) THEN
      DO
         IF (.NOT.cp_sll_pw_next(iter,el_att=el_att,error=error)) EXIT
-        IF (.NOT.CP_SLL_PW_LESS_Q(el_att,el)) THEN
-           res=.NOT.CP_SLL_PW_LESS_Q(el,el_att)
+        IF (.NOT.CP_SLL_PW_LESS_Q(el_att,el,error=error)) THEN
+           res=.NOT.CP_SLL_PW_LESS_Q(el,el_att,error=error)
            RETURN
         END IF
      END DO
   ELSE
      DO
         IF (.NOT.cp_sll_pw_next(iter,el_att=el_att,error=error)) EXIT
-        IF (.NOT.CP_SLL_PW_EQUAL_Q(el_att,el)) THEN
+        IF (.NOT.CP_SLL_PW_EQUAL_Q(el_att,el,error)) THEN
            res=.TRUE.
            RETURN
         END IF
@@ -1551,8 +1551,8 @@ END FUNCTION cp_sll_pw_contains2
 !  arrayEl = "%pw"
 !  defines = 
 !    "! less not much meaningful...
-!     #define CP_SLL_PW_LESS_Q(el1,el2) ( el1 %id_nr < el2 %id_nr )
-!     #define CP_SLL_PW_EQUAL_Q(el1,el2) ( el1 %id_nr == el2 %id_nr )
+!     #define CP_SLL_PW_LESS_Q(el1,el2,error) ( el1 %id_nr < el2 %id_nr )
+!     #define CP_SLL_PW_EQUAL_Q(el1,el2,error) ( el1 %id_nr == el2 %id_nr )
 !     "
 !  equalQ = "CP_SLL_PW_EQUAL_Q"
 !  lessQ = "CP_SLL_PW_LESS_Q"

@@ -3,8 +3,8 @@
 !   Copyright (C) 2000 - 2007  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-#define CP_SLL_I_LESS_Q(el1,el2) ( el1 < el2 )
-#define CP_SLL_I_EQUAL_Q(el1,el2) ( el1 == el2 )
+#define CP_SLL_I_LESS_Q(el1,el2,error) ( el1 < el2 )
+#define CP_SLL_I_EQUAL_Q(el1,el2,error) ( el1 == el2 )
 
 !!****h* cp2k/cp_linked_list_int [1.0] *
 !!
@@ -1260,9 +1260,9 @@ SUBROUTINE cp_sll_int_insert_ordered(sll,el,insert_equals,&
      CALL cp_sll_int_create(sll,first_el=el,error=error)
      IF (PRESENT(did_insert)) did_insert=.TRUE.
      IF (PRESENT(pos)) pos=>sll
-  ELSE IF (.NOT.CP_SLL_I_LESS_Q(sll%first_el,el)) THEN
+  ELSE IF (.NOT.CP_SLL_I_LESS_Q(sll%first_el,el,error=error)) THEN
      IF (PRESENT(pos)) pos=>sll
-     IF (i_eq.OR.CP_SLL_I_LESS_Q(el,sll%first_el)) THEN
+     IF (i_eq.OR.CP_SLL_I_LESS_Q(el,sll%first_el,error=error)) THEN
         CALL cp_sll_int_insert_el(sll,el,error=error)
         IF (PRESENT(did_insert)) did_insert=.TRUE.
         IF (PRESENT(pos)) pos=>sll
@@ -1275,9 +1275,9 @@ SUBROUTINE cp_sll_int_insert_ordered(sll,el,insert_equals,&
            IF (PRESENT(did_insert)) did_insert=.TRUE.
            IF (PRESENT(pos)) pos=>iter%rest
            EXIT
-        ELSE IF (.NOT.CP_SLL_I_LESS_Q(iter%rest%first_el,el)) THEN
+        ELSE IF (.NOT.CP_SLL_I_LESS_Q(iter%rest%first_el,el,error=error)) THEN
            IF (PRESENT(pos)) pos=>iter
-           IF (i_eq.OR. CP_SLL_I_LESS_Q(el,iter%rest%first_el)) THEN
+           IF (i_eq.OR. CP_SLL_I_LESS_Q(el,iter%rest%first_el,error=error)) THEN
               CALL cp_sll_int_insert_el(iter%rest,el,error=error)
               IF (PRESENT(did_insert)) did_insert=.TRUE.
               IF (PRESENT(pos)) pos=>iter%rest
@@ -1436,15 +1436,15 @@ FUNCTION cp_sll_int_contains(sll,el,ordered,error) RESULT(res)
   IF (ord) THEN
      DO
         IF (.NOT.cp_sll_int_next(iter,el_att=el_att,error=error)) EXIT
-        IF (.NOT.CP_SLL_I_LESS_Q(el_att,el)) THEN
-           res=.NOT.CP_SLL_I_LESS_Q(el,el_att)
+        IF (.NOT.CP_SLL_I_LESS_Q(el_att,el,error=error)) THEN
+           res=.NOT.CP_SLL_I_LESS_Q(el,el_att,error=error)
            RETURN
         END IF
      END DO
   ELSE
      DO
         IF (.NOT.cp_sll_int_next(iter,el_att=el_att,error=error)) EXIT
-        IF (.NOT.CP_SLL_I_EQUAL_Q(el_att,el)) THEN
+        IF (.NOT.CP_SLL_I_EQUAL_Q(el_att,el,error)) THEN
            res=.TRUE.
            RETURN
         END IF
@@ -1538,8 +1538,8 @@ END FUNCTION cp_sll_int_contains2
 !  array= = "="
 !  arrayEl = ""
 !  defines = 
-!    "#define CP_SLL_I_LESS_Q(el1,el2) ( el1 < el2 )
-!     #define CP_SLL_I_EQUAL_Q(el1,el2) ( el1 == el2 )
+!    "#define CP_SLL_I_LESS_Q(el1,el2,error) ( el1 < el2 )
+!     #define CP_SLL_I_EQUAL_Q(el1,el2,error) ( el1 == el2 )
 !     "
 !  equalQ = "CP_SLL_I_EQUAL_Q"
 !  lessQ = "CP_SLL_I_LESS_Q"

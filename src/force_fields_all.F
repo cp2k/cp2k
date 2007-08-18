@@ -2127,8 +2127,8 @@ CPSourceFileRef,&
        IF(shell_adiabatic .AND. null_massfrac) THEN
           CALL stop_program(TRIM(routineN),"Shell-model adiabatic: at least one shell_kind has mass=0 Abort..")
        END IF
-       CALL allocate_particle_set(shell_particle_set,nshell_tot)
-       CALL allocate_particle_set(core_particle_set,nshell_tot)
+       CALL allocate_particle_set(shell_particle_set,nshell_tot,error)
+       CALL allocate_particle_set(core_particle_set,nshell_tot,error)
        counter = 0
        DO i = 1,SIZE(particle_set)
           NULLIFY(atomic_kind,shell)

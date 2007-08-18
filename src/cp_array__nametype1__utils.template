@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2002  CP2K developers group                                 !
+!   Copyright (C) 2000 - 2007  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 [defines]
@@ -196,7 +196,7 @@ SUBROUTINE cp_1d_[nametype1]_write(array, unit_nr, el_format, error)
   [type1], DIMENSION(:), INTENT(in) :: array
   INTEGER, INTENT(in) :: unit_nr
   CHARACTER(len=*), INTENT(in), OPTIONAL :: el_format
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  TYPE(cp_error_type), INTENT(inout) :: error
   
   LOGICAL :: failure
   INTEGER :: iostat, i
@@ -267,7 +267,7 @@ SUBROUTINE cp_2d_[nametype1]_write(array, unit_nr, el_format, error)
   [type1], DIMENSION(:,:), INTENT(in) :: array
   INTEGER, INTENT(in) :: unit_nr
   CHARACTER(len=*), INTENT(in), OPTIONAL :: el_format
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  TYPE(cp_error_type), INTENT(inout) :: error
   
   LOGICAL :: failure
   INTEGER :: iostat, i
@@ -332,7 +332,7 @@ END SUBROUTINE cp_2d_[nametype1]_write
     [type1], DIMENSION(:), POINTER :: array
     INTEGER, INTENT(in) :: n
     [type1], INTENT(in), OPTIONAL :: init
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout) :: error
 
     LOGICAL :: failure
     INTEGER :: stat
@@ -395,7 +395,7 @@ END SUBROUTINE cp_2d_[nametype1]_write
     [type1], DIMENSION(:,:), POINTER :: array
     INTEGER, INTENT(in) :: n_rows, n_cols
     [type1], INTENT(in), OPTIONAL :: init
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout) :: error
 
     LOGICAL :: failure
     INTEGER :: stat
@@ -457,7 +457,7 @@ FUNCTION cp_1d_[nametype1]_bsearch(array, el, l_index, u_index, error)&
   [type1], DIMENSION(:), intent(in) :: array
   [type1], intent(in) :: el
   INTEGER, INTENT(in), OPTIONAL :: l_index, u_index
-  type(cp_error_type), optional, intent(inout) :: error
+  type(cp_error_type), intent(inout) :: error
   integer :: res
   
   logical :: failure

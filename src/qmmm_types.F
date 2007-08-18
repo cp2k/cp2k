@@ -827,7 +827,7 @@ SUBROUTINE add_set_release(added_charges, error)
         CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
      END IF
      IF (ASSOCIATED(added_charges%added_particles)) THEN
-        CALL deallocate_particle_set(added_charges%added_particles)
+        CALL deallocate_particle_set(added_charges%added_particles,error)
      END IF
      IF (ASSOCIATED(added_charges%mm_atom_index)) THEN
         DEALLOCATE(added_charges%mm_atom_index, stat=stat)
@@ -919,7 +919,7 @@ SUBROUTINE create_add_set_type(added_charges, ndim, error)
      !
      ALLOCATE(added_charges%add_env(ndim),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-     CALL allocate_particle_set(added_charges%added_particles,ndim)
+     CALL allocate_particle_set(added_charges%added_particles,ndim,error)
      ALLOCATE(added_charges%mm_atom_index(ndim), stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
      ALLOCATE(added_charges%mm_atom_chrg(ndim), stat=stat)

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2002  CP2K developers group                                 !
+!   Copyright (C) 2000 - 2007  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 !!****h* cp2k/[el_typename]_list_types [1.0] *
@@ -164,7 +164,7 @@ SUBROUTINE [el_typename]_list_create(list, els_ptr, &
   [el_type], DIMENSION(:), POINTER, OPTIONAL :: els_ptr
   LOGICAL, INTENT(in), OPTIONAL :: owns_els
   INTEGER, INTENT(in), OPTIONAL :: n_els
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  TYPE(cp_error_type), INTENT(inout) :: error
   
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='[el_typename]_list_create',&
@@ -228,7 +228,7 @@ END SUBROUTINE [el_typename]_list_create
 !!*** **********************************************************************
 SUBROUTINE [el_typename]_list_retain(list, error)
   TYPE([el_typename]_list_type), POINTER :: list
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  TYPE(cp_error_type), INTENT(inout) :: error
   
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='[el_typename]_list_retain',&
@@ -269,7 +269,7 @@ END SUBROUTINE [el_typename]_list_retain
 !!*** **********************************************************************
 SUBROUTINE [el_typename]_list_release(list, error)
   TYPE([el_typename]_list_type), POINTER :: list
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  TYPE(cp_error_type), INTENT(inout) :: error
   
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='[el_typename]_list_release',&

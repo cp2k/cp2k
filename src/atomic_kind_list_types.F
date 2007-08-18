@@ -291,7 +291,7 @@ SUBROUTINE atomic_kind_list_release(list, error)
      IF (list%ref_count==0) THEN
         IF (list%owns_els) THEN
            IF (ASSOCIATED(list%els)) THEN
-              CALL deallocate_atomic_kind_set(list%els,error)
+              CALL deallocate_atomic_kind_set(list%els,error=error)
            END IF
         END IF
         NULLIFY(list%els)
@@ -308,7 +308,7 @@ END SUBROUTINE atomic_kind_list_release
 ! [template(el_typename,el_type,USE,deallocate_els_code)]
 ! ARGS:
 !  USE = "use atomic_kind_types, only: atomic_kind_type,deallocate_atomic_kind_set"
-!  deallocate_els_code = "call deallocate_atomic_kind_set(list%els)"
+!  deallocate_els_code = "call deallocate_atomic_kind_set(list%els,error=error)"
 !  el_type = "type(atomic_kind_type)"
 !  el_typename = "atomic_kind"
 

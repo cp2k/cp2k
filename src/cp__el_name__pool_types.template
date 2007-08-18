@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2002  CP2K developers group                                 !
+!   Copyright (C) 2000 - 2007  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 !!****h* cp2k/cp_[el_name]_pool_types [1.0] *
@@ -170,7 +170,7 @@ CONTAINS
        [pool_create-extra_args] error)
     TYPE(cp_[el_name]_pool_type), POINTER :: pool
     [el_struct_type], POINTER :: el_struct
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type),  INTENT(inout) :: error
     [pool_create-extra_args_types]
 
     LOGICAL :: failure
@@ -218,7 +218,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE [el_name]_pool_retain(pool,error)
     TYPE(cp_[el_name]_pool_type), POINTER :: pool
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type),  INTENT(inout) :: error
 
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN='[el_name]_pool_retain',&
@@ -259,7 +259,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE [el_name]_pool_flush_cache(pool,error)
     TYPE(cp_[el_name]_pool_type), POINTER :: pool
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout) :: error
 
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN='[el_name]_pool_flush_cache',&
@@ -273,7 +273,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        iterator => pool%cache
        DO
-          IF (.NOT.cp_sll_[el_name]_next(iterator,el_att=el_att)) EXIT
+          IF (.NOT.cp_sll_[el_name]_next(iterator,el_att=el_att,error=error)) EXIT
           CALL [el_release](el_att,error=error)
        END DO
        CALL cp_sll_[el_name]_dealloc(pool%cache,error=error)
@@ -306,7 +306,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE [el_name]_pool_release(pool,error)
     TYPE(cp_[el_name]_pool_type), POINTER :: pool
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout) :: error
 
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN='cp_[el_name]_pool_release',&
@@ -361,7 +361,7 @@ CONTAINS
        [create_el-extra_args] error)
     TYPE(cp_[el_name]_pool_type), POINTER :: pool
     [el_type], POINTER :: element
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type),  INTENT(inout) :: error
     [create_el-extra_args_types]
 
     LOGICAL :: failure
@@ -375,8 +375,8 @@ CONTAINS
     CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        IF (ASSOCIATED(pool%cache)) THEN
-          element => cp_sll_[el_name]_get_first_el(pool%cache)
-          CALL cp_sll_[el_name]_rm_first_el(pool%cache)
+          element => cp_sll_[el_name]_get_first_el(pool%cache,error=error)
+          CALL cp_sll_[el_name]_rm_first_el(pool%cache,error=error)
           [create_el-reuse_commands]
        ELSE
           NULLIFY(element)
@@ -420,7 +420,7 @@ CONTAINS
     TYPE(cp_[el_name]_pool_type), POINTER :: pool
     INTEGER, INTENT(in) :: n_elements
     [el_array_type], DIMENSION(:), POINTER :: elements
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout) :: error
     [create_els-extra_args_types]
 
     LOGICAL :: failure
@@ -474,7 +474,7 @@ CONTAINS
   SUBROUTINE [el_name]_pool_give_back_[el_name](pool, element, error)
     TYPE(cp_[el_name]_pool_type), POINTER :: pool
     [el_type], POINTER :: element
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout) :: error
 
     LOGICAL :: failure, did_insert
     CHARACTER(len=*), PARAMETER :: routineN='[el_name]_pool_give_back_[el_name]',&
@@ -496,7 +496,7 @@ CONTAINS
                insert_equals=.FALSE., did_insert=did_insert, error=error)
           CPPostcondition(did_insert,cp_failure_level,routineP,error,failure)
        ELSE
-          CALL cp_sll_[el_name]_insert_el(pool%cache, el=element)
+          CALL cp_sll_[el_name]_insert_el(pool%cache, el=element,error=error)
        END IF
     END IF
     NULLIFY(element)
@@ -533,7 +533,7 @@ CONTAINS
   SUBROUTINE [el_name]_pool_give_back_[el_name]_vect(pool, elements, error)
     TYPE(cp_[el_name]_pool_type), POINTER :: pool
     [el_array_type], DIMENSION(:), POINTER :: elements
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout) :: error
 
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN='[el_name]_pool_give_back_elements_vect',&
@@ -585,7 +585,7 @@ CONTAINS
 FUNCTION [el_name]_pool_get_el_struct(pool,error) RESULT(res)
   [el_struct_type], POINTER :: res
   TYPE(cp_[el_name]_pool_type), POINTER :: pool
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  TYPE(cp_error_type), INTENT(inout) :: error
   
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='[el_name]_pool_get_el_struct',&
@@ -631,7 +631,7 @@ END FUNCTION [el_name]_pool_get_el_struct
 SUBROUTINE [el_name]_pools_copy(source_pools, target_pools, error)
   TYPE(cp_[el_name]_pool_p_type), DIMENSION(:), POINTER :: source_pools,&
        target_pools
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  TYPE(cp_error_type), INTENT(inout) :: error
   
   LOGICAL :: failure
   INTEGER :: stat, i
@@ -678,7 +678,7 @@ END SUBROUTINE [el_name]_pools_copy
 !!*** **********************************************************************
 SUBROUTINE [el_name]_pools_dealloc(pools, error)
   TYPE(cp_[el_name]_pool_p_type), DIMENSION(:), POINTER :: pools
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout)   :: error
+  TYPE(cp_error_type), INTENT(inout)   :: error
   
   LOGICAL :: failure
   INTEGER :: stat, i
@@ -721,7 +721,7 @@ END SUBROUTINE [el_name]_pools_dealloc
 !!*** **********************************************************************
 SUBROUTINE [el_name]_pools_flush_cache(pools, error)
   TYPE(cp_[el_name]_pool_p_type), DIMENSION(:), POINTER :: pools
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout)   :: error
+  TYPE(cp_error_type), INTENT(inout)   :: error
   
   LOGICAL :: failure
   INTEGER :: stat,i
@@ -766,7 +766,7 @@ SUBROUTINE [el_name]_pools_create_[el_name]_vect(pools,elements,&
      [create_els-extra_args]error)
   TYPE(cp_[el_name]_pool_p_type), DIMENSION(:), POINTER :: pools
   [el_array_type], DIMENSION(:), POINTER :: elements
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  TYPE(cp_error_type), INTENT(inout) :: error
   [create_els-extra_args_types]
   
   LOGICAL :: failure
@@ -823,7 +823,7 @@ END SUBROUTINE [el_name]_pools_create_[el_name]_vect
 SUBROUTINE [el_name]_pools_give_back_[el_name]_vect(pools,elements,error)
   TYPE(cp_[el_name]_pool_p_type), DIMENSION(:), POINTER :: pools
   [el_array_type], DIMENSION(:), POINTER :: elements
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  TYPE(cp_error_type), INTENT(inout) :: error
   
   LOGICAL :: failure
   INTEGER :: i, stat

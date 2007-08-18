@@ -245,7 +245,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     CALL timeset(routineN//'_3',handle2)
     NULLIFY(particle_set)
-    CALL allocate_particle_set(particle_set,topology%natoms)
+    CALL allocate_particle_set(particle_set,topology%natoms,error)
     CALL timestop(0.0_dp,handle2)
 
 

@@ -12,24 +12,24 @@
 !!     pool for for elements that are retained and released
 !!
 !!   NOTES
-!!    ____              _ _     __  __           _ _  __         _____ _     _       _____ _ _      _
+!!    ____              _ _     __  __           _ _  __         _____ _     _       _____ _ _      _ 
 !!   |  _ \  ___  _ __ ( ) |_  |  \/  | ___   __| (_)/ _|_   _  |_   _| |__ (_)___  |  ___(_) | ___| |
 !!   | | | |/ _ \| '_ \|/| __| | |\/| |/ _ \ / _` | | |_| | | |   | | | '_ \| / __| | |_  | | |/ _ \ |
 !!   | |_| | (_) | | | | | |_  | |  | | (_) | (_| | |  _| |_| |   | | | | | | \__ \ |  _| | | |  __/_|
 !!   |____/ \___/|_| |_|  \__| |_|  |_|\___/ \__,_|_|_|  \__, |   |_| |_| |_|_|___/ |_|   |_|_|\___(_)
-!!                                                       |___/
-!!     ____ _                  ___                              _ _       _       _
-!!    / ___| | ___  ___  ___  |_ _|_ __ ___  _ __ ___   ___  __| (_) __ _| |_ ___| |_   _
+!!                                                       |___/                                        
+!!     ____ _                  ___                              _ _       _       _       
+!!    / ___| | ___  ___  ___  |_ _|_ __ ___  _ __ ___   ___  __| (_) __ _| |_ ___| |_   _ 
 !!   | |   | |/ _ \/ __|/ _ \  | || '_ ` _ \| '_ ` _ \ / _ \/ _` | |/ _` | __/ _ \ | | | |
 !!   | |___| | (_) \__ \  __/  | || | | | | | | | | | |  __/ (_| | | (_| | ||  __/ | |_| |
 !!    \____|_|\___/|___/\___| |___|_| |_| |_|_| |_| |_|\___|\__,_|_|\__,_|\__\___|_|\__, |
-!!                                                                                  |___/
-!!    _____ _     _       _____ _ _      _
+!!                                                                                  |___/ 
+!!    _____ _     _       _____ _ _      _ 
 !!   |_   _| |__ (_)___  |  ___(_) | ___| |
 !!     | | | '_ \| / __| | |_  | | |/ _ \ |
 !!     | | | | | | \__ \ |  _| | | |  __/_|
 !!     |_| |_| |_|_|___/ |_|   |_|_|\___(_)
-!!
+!!   
 !!     This is a template
 !!
 !!     **** DO NOT MODIFY THE .F FILES ****
@@ -110,7 +110,7 @@ MODULE cp_fm_pool_types
      PRIVATE
      INTEGER :: ref_count, id_nr
      TYPE(cp_fm_struct_type), POINTER :: el_struct
-
+     
      TYPE(cp_sll_fm_type), POINTER :: cache
   END TYPE cp_fm_pool_type
 !!***
@@ -162,8 +162,8 @@ CONTAINS
 !!     - pool: the pool to create
 !!     - el_struct: the structure of the elements that are stored in
 !!       this pool
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -195,7 +195,7 @@ CONTAINS
        pool%id_nr=last_fm_pool_id_nr
        pool%ref_count=1
        NULLIFY(pool%cache)
-
+       
     END IF
   END SUBROUTINE fm_pool_create
 !***************************************************************************
@@ -213,8 +213,8 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - pool: the pool to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -256,8 +256,8 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - pool: the pool to flush
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -305,8 +305,8 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - pool: the pool to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -359,7 +359,7 @@ CONTAINS
 !!     - pool: the pool from where you get the element
 !!     - element: will contain the new element
 !!     - name: the name for the new matrix (optional)
-!!     - error: variable to control error logging, stopping,...
+!!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling
 !!
 !!   AUTHOR
@@ -389,12 +389,12 @@ CONTAINS
        IF (ASSOCIATED(pool%cache)) THEN
           element => cp_sll_fm_get_first_el(pool%cache,error=error)
           CALL cp_sll_fm_rm_first_el(pool%cache,error=error)
-
+          
        ELSE
           NULLIFY(element)
               CALL cp_fm_create(element,matrix_struct=pool%el_struct,error=error)
        END IF
-
+       
     IF (PRESENT(name)) THEN
       element%name=name
       element%print_count=0
@@ -403,7 +403,7 @@ CONTAINS
       element%print_count=0
       ! guarantee output unicity?
     END IF
-
+    
     END IF
     CPPostcondition(ASSOCIATED(element),cp_failure_level,routineP,error,failure)
     CPPostcondition(element%ref_count==1,cp_warning_level,routineP,error,failure)
@@ -427,8 +427,8 @@ CONTAINS
 !!     - n_elements: the number of elements in the vector
 !!     - elements: will contain the new vector
 !!     - name: the name for the new matrixes (optional)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -471,7 +471,7 @@ CONTAINS
       END IF
 
        END DO
-
+       
     END IF
   END SUBROUTINE fm_pool_create_fm_vect
 !***************************************************************************
@@ -492,8 +492,8 @@ CONTAINS
 !!   INPUTS
 !!     - pool: the pool where to cache the element
 !!     - element: the element to give back
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -556,8 +556,8 @@ CPSourceFileRef,&
 !!   INPUTS
 !!     - pool: the pool where to cache the elements
 !!     - elements: the elements to give back
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -611,8 +611,8 @@ CPSourceFileRef,&
 !!
 !!   INPUTS
 !!     - pool: the pool you are interested in
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -632,7 +632,7 @@ FUNCTION fm_pool_get_el_struct(pool,error) RESULT(res)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-
+  
   CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
   CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -659,8 +659,8 @@ END FUNCTION fm_pool_get_el_struct
 !!   INPUTS
 !!     - source_pools: the pools to copy
 !!     - target_pools: will contains the new pools
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -681,7 +681,7 @@ SUBROUTINE fm_pools_copy(source_pools, target_pools, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-
+  
   CPPrecondition(ASSOCIATED(source_pools),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      ALLOCATE(target_pools(SIZE(source_pools)),stat=stat)
@@ -709,8 +709,8 @@ END SUBROUTINE fm_pools_copy
 !!
 !!   INPUTS
 !!     - pools: the pools to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -731,7 +731,7 @@ SUBROUTINE fm_pools_dealloc(pools, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-
+  
   IF (ASSOCIATED(pools)) THEN
      DO i=1,SIZE(pools)
         CALL fm_pool_release(pools(i)%pool,error=error)
@@ -755,8 +755,8 @@ END SUBROUTINE fm_pools_dealloc
 !!
 !!   INPUTS
 !!     - pools: the pools to flush
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -777,7 +777,7 @@ SUBROUTINE fm_pools_flush_cache(pools, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-
+  
   CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
   IF (.NOT.failure) THEN
      DO i=1,SIZE(pools)
@@ -802,8 +802,8 @@ END SUBROUTINE fm_pools_flush_cache
 !!     - pools: the pools to create the elements from
 !!     - elements: will contain the vector of elements
 !!     - name: the name for the new matrixes (optional)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -830,7 +830,7 @@ SUBROUTINE fm_pools_create_fm_vect(pools,elements,&
 
   failure=.FALSE.
   NULLIFY(pool)
-
+  
   CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      ALLOCATE(elements(SIZE(pools)),stat=stat)
@@ -850,7 +850,7 @@ SUBROUTINE fm_pools_create_fm_vect(pools,elements,&
       END IF
 
      END DO
-
+     
   END IF
 END SUBROUTINE fm_pools_create_fm_vect
 !***************************************************************************
@@ -870,8 +870,8 @@ END SUBROUTINE fm_pools_create_fm_vect
 !!   INPUTS
 !!     - pools: the pool where to give back the vector
 !!     - elements: the vector of elements to give back
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -894,7 +894,7 @@ SUBROUTINE fm_pools_give_back_fm_vect(pools,elements,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-
+  
   CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(elements),cp_failure_level,routineP,error,failure)
   CPPrecondition(SIZE(pools)==SIZE(elements),cp_failure_level,routineP,error,failure)
