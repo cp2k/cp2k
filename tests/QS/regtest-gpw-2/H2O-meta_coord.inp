@@ -55,7 +55,7 @@
 &MOTION
   &MD
     ENSEMBLE NVT
-    STEPS 30
+    STEPS 10
     TIMESTEP 0.5
     TEMPERATURE 300.0
     &NOSE
@@ -68,7 +68,7 @@
   &FREE_ENERGY
     &METADYN
       DO_HILLS
-      NT_HILLS 3
+      NT_HILLS 2
       WW 1.0e-3
       &METAVAR
         SCALE 0.02

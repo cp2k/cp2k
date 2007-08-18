@@ -6,7 +6,6 @@
     MULTIPLICITY 1
    
     POTENTIAL_FILE_NAME ../POTENTIAL
-    RESTART_FILE_NAME ../RESTART
     &MGRID
       CUTOFF 5
       COMMENSURATE
@@ -21,7 +20,7 @@
       EPS_SCF 1.0E-6
       &PRINT 
          &RESTART
-            EACH 1 0
+            EACH 1 1 0
             COMMON_ITERATION_LEVELS 0
          &END
       &END

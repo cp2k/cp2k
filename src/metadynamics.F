@@ -605,7 +605,8 @@ CONTAINS
     INTEGER                                  :: i, ih, iter_level, iw, j, &
                                                 n_colvar, n_step, ndum, stat
     INTEGER, POINTER                         :: n_hills
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit, failure, &
+                                                skip_this_point
     REAL(dp)                                 :: dfunc, dp2, rval
     REAL(dp), DIMENSION(:), POINTER          :: ddp
     REAL(dp), DIMENSION(:, :), POINTER       :: delta_s_history, ss_history, &
@@ -626,6 +627,7 @@ CONTAINS
     ww_history      => hills_env%ww_history
     n_hills         => hills_env%n_hills
     colvars         => meta_env%metavar
+    skip_this_point = .FALSE.
     ! Create a temporary logger level specific for metadynamics
     CALL cp_add_iter_level(logger%iter_info,"METADYNAMICS",n_rlevel_new=iter_level,&
          error=error)
@@ -644,6 +646,7 @@ CONTAINS
        hills_history => section_vals_get_subs_vals(meta_env%metadyn_section,"SPAWNED_HILLS_POS",error=error)
        CALL section_vals_get(hills_history, explicit=explicit, error=error)
        IF (explicit) THEN
+          skip_this_point = .TRUE.
           CALL section_vals_val_get( hills_history,"_DEFAULT_KEYWORD_",n_rep_val=ndum, error=error)
           !
           ! ss_history
@@ -718,7 +721,7 @@ CONTAINS
     !
     ! Proceed with normal calculation
     !
-    IF(MODULO(n_step,hills_env%nt_hills)==0)THEN
+    IF((MODULO(n_step,hills_env%nt_hills)==0).AND.(.NOT.skip_this_point))THEN
        IF(SIZE(ss_history,2)< n_hills+1)THEN
           ALLOCATE(tmp(n_colvar,n_hills+100), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)

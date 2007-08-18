@@ -22,7 +22,7 @@
            BACKUP_COPIES 0
         &END
         &RESTART_HISTORY
-           EACH 1 0
+           EACH 1 1 0
            ADD_LAST NUMERIC
            FILENAME =RESTART
            BACKUP_COPIES 4

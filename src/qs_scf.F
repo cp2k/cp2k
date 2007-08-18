@@ -71,11 +71,13 @@ MODULE qs_scf
                                              cp_fm_release,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_output_handling,              ONLY: cp_iterate,&
+  USE cp_output_handling,              ONLY: cp_add_iter_level,&
+                                             cp_iterate,&
                                              cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
-                                             cp_print_key_unit_nr
+                                             cp_print_key_unit_nr,&
+                                             cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
@@ -375,8 +377,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, handle2, i, ispin, &
-                                                iter_count, output_unit, &
-                                                total_steps
+                                                iter_count, iter_level, &
+                                                output_unit, total_steps
     LOGICAL :: diis_step, energy_only, exit_inner_loop, failure, gapw, &
       gapw_xc, harris_energy, harris_flag, has_unit_metric, &
       outer_loop_converged, use_jacobi, use_virial
@@ -463,7 +465,8 @@ CONTAINS
             "Step","Update method","Time","Convergence","Total energy",&
             REPEAT("-",77)
     END IF
-
+    CALL cp_add_iter_level(logger%iter_info,"SCF",n_rlevel_new=iter_level,&
+         error=error)
     ! *** outer loop of the scf, can treat other variables, 
     ! *** such as lagrangian multipliers
     scf_env%outer_scf%iter_count=0
@@ -730,6 +733,8 @@ CONTAINS
             qs_env%dft_control%qs_control%becke_control%becke_pot,error=error)
        qs_env%dft_control%qs_control%becke_control%need_pot=.TRUE.
     END IF
+    CALL cp_rm_iter_level(logger%iter_info,n_rlevel_att=iter_level,&
+         error=error)
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE scf_env_do_scf

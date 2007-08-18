@@ -180,3 +180,9 @@ C2H4-meta.inp
 # bug fix restart metadynamics
 H2O-meta_res2.inp
 H2O-meta_res3.inp
+#bug fix metadyn and making the regtests shorter..
+H2O-meta_coord.inp
+H2O-meta_coord_1.inp
+H2O-meta_coord_2.inp
+H2O-meta_res2.inp
+H2O-meta_res3.inp

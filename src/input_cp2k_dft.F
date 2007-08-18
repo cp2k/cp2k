@@ -23,10 +23,10 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_cp2k_dft
-  USE bibliography,                    ONLY: VandeVondele2003,Lippert1997,Lippert1999, &
-                                             VandeVondele2005a,Krack2000,Krack2002,&
-                                             Iannuzzi2005,Iannuzzi2006,Iannuzzi2007,&
-                                             VandeVondele2005b,Perdew1981,Avezac2005
+  USE bibliography,                    ONLY: &
+       Avezac2005, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Krack2002, &
+       Lippert1997, Lippert1999, Perdew1981, VandeVondele2003, &
+       VandeVondele2005a, VandeVondele2005b
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants
@@ -3514,7 +3514,7 @@ CONTAINS
             description="Controls the dumping of the MO restart file during scf."//&
                         "By default keeps a short history of three restarts."//&
                         "See also RESTART_HISTORY", &
-            print_level=silent_print_level, common_iter_levels=2, each=(/1,1/), &
+            print_level=silent_print_level, common_iter_levels=3, each=(/1,1,1/), &
             filename="RESTART",error=error)
        CALL keyword_create(keyword, name="BACKUP_COPIES",&
              description="Specifies the maximum index of backup copies.",&
@@ -3527,7 +3527,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"RESTART_HISTORY",&
             description="Dumps unique MO restart files during the run keeping all of them.",&
-            print_level=silent_print_level, common_iter_levels=0, each=(/500,500/), &
+            print_level=silent_print_level, common_iter_levels=0, each=(/500,500,500/), &
             filename="RESTART",error=error)
        CALL keyword_create(keyword, name="BACKUP_COPIES",&
              description="Specifies the maximum index of backup copies.",&
