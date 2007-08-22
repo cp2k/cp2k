@@ -849,7 +849,7 @@ CONTAINS
     ! using just one set of MOs and special casing most of the code
     ! right now we'll just take care of what is effectively an additional constraint
     ! at as few places as possible, just duplicating the beta orbitals
-    IF (dft_control%restricted) THEN
+    IF (dft_control%restricted .AND. logger%para_env%mepos==logger%para_env%source) THEN
        ! it is really not yet tested till the end ! Joost
        iw = cp_logger_get_default_unit_nr(logger,local=.FALSE.)
        WRITE(iw,*) ""
