@@ -136,7 +136,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: fij, rij
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dsblock, gblock, gmcharge, &
                                                 ksblock, mcin, mcout, pblock, &
-                                                sblock
+                                                sblock, ksblock_2
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -151,7 +151,7 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
-    TYPE(real_block_node_type), POINTER      :: block_node
+    TYPE(real_block_node_type), POINTER      :: block_node, block_node_2
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: gamma_matrix, matrix_p, &
                                                 matrix_s
@@ -314,13 +314,16 @@ CONTAINS
       DO iatom=1,natom
         NULLIFY(block_node)
         block_node => first_block_node(ks_matrix(1)%matrix,iatom)
+        IF (size(ks_matrix,1)>1) block_node_2 => first_block_node(ks_matrix(2)%matrix,iatom)
         DO WHILE (ASSOCIATED(block_node))
-          NULLIFY(ksblock,sblock)
+          NULLIFY(ksblock,sblock,ksblock_2)
           CALL get_block_node(block_node=block_node,block_col=jatom,block=ksblock)
+          IF (size(ks_matrix,1)>1) CALL get_block_node(block_node=block_node_2,block_col=jatom,block=ksblock_2)
           CALL get_block_node(matrix=matrix_s(1)%matrix,block_row=iatom,&
                  block_col=jatom,block=sblock)
           gmij = 0.5_dp*(gmcharge(iatom,1)+gmcharge(jatom,1))
           ksblock = ksblock - gmij*sblock
+          IF (size(ks_matrix,1)>1) ksblock_2 = ksblock_2 - gmij*sblock
           IF ( calculate_forces ) THEN
             ikind  = kind_of(iatom)
             atom_i = atom_of_kind(iatom)
@@ -348,6 +351,7 @@ CONTAINS
             END IF
           END IF
           block_node => next_block_node(block_node)
+          IF (size(ks_matrix,1)>1) block_node_2 => next_block_node(block_node_2)
         END DO
       END DO
       IF ( calculate_forces .AND. SIZE(matrix_p) == 2) THEN
