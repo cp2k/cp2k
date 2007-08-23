@@ -116,12 +116,9 @@ END SUBROUTINE m_datum
 
     CHARACTER(LEN=*), INTENT(IN)             :: source, TARGET
 
-    CHARACTER(LEN=2*default_string_length+4) :: cmd
-
 !   ---------------------------------------------------------------------------
 
-    cmd = "mv " // source(1:LEN_TRIM(source)) // " " // TARGET(1:LEN_TRIM(TARGET))
-    CALL system(cmd)
+    CALL rename(TRIM(source),TRIM(target))
 
   END SUBROUTINE m_mov
 
