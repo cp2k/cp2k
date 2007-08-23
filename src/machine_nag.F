@@ -154,8 +154,7 @@ END SUBROUTINE m_datum
 
 !   ---------------------------------------------------------------------------
 
-    cmd = "mv " // source(1:LEN_TRIM(source)) // " " // TARGET(1:LEN_TRIM(TARGET))
-    CALL system(cmd)
+    CALL rename(TRIM(source),TRIM(target))
 
   END SUBROUTINE m_mov
 
