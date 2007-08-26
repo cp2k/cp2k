@@ -670,8 +670,7 @@ CONTAINS
             is_ok=cp_sll_val_next(list,val,error=error)
             CALL val_get(val,r_vals=vel,error=error)
             atomic_kind => part ( i ) % atomic_kind
-            CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass, &
-                 shell_active=is_shell, shell= shell )
+            CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass)
             mass_tot = mass_tot + mass
             IF (is_fixed(i)) THEN
                part ( i ) % v ( 1 ) = 0.0_dp
@@ -717,7 +716,7 @@ CONTAINS
        vcom_new=vcom
        DO i = 1, natoms
           atomic_kind => part ( i ) % atomic_kind
-          CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass, shell_active=is_shell  )
+          CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass)
           ! first subtract the COM
           IF (.NOT.is_fixed(i)) THEN
              v = part ( i ) % v ( : ) - vcom ( : )
@@ -734,8 +733,7 @@ CONTAINS
             vcom_new = 0.0_dp
             DO i = 1, natoms
               atomic_kind => part ( i ) % atomic_kind
-              CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass, &
-                    shell_active=is_shell )
+              CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass)
               part ( i ) % v ( 1 ) = sc * part ( i ) % v ( 1 )
               part ( i ) % v ( 2 ) = sc * part ( i ) % v ( 2 )
               part ( i ) % v ( 3 ) = sc * part ( i ) % v ( 3 )
@@ -759,6 +757,18 @@ CONTAINS
                ENDIF
             END DO  ! i
             vcom_new=vcom_new/ denom
+            vcom = vcom_new
+            akin = 0.0_dp
+            DO i = 1, natoms
+               atomic_kind => part ( i ) % atomic_kind
+               CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass)
+               IF (.NOT.is_fixed(i)) THEN
+                  v = part ( i ) % v ( : ) - vcom ( : )
+                  akin = akin + 0.5_dp * mass * SUM( v * v)
+               END IF
+            END DO
+            temp = 2.0_dp * akin / REAL ( simpar % nfree,KIND=dp)
+            temp0 = 2.0_dp * akin0 / REAL ( simpar % nfree,KIND=dp)            
           END IF
        END IF
     ELSE

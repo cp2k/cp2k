@@ -1797,6 +1797,18 @@ SUBROUTINE force_env_rattle(force_env,dt,shake_tol,log_unit,lagrange_mult,dump_l
                        molecules%els(i)%lci%lcolv(j)%lambda = 0.0_dp
                     END DO
                  END IF
+                 IF (ASSOCIATED(molecules%els(i)%lci%lg3x3)) THEN
+                    DO j = 1, SIZE(molecules%els(i)%lci%lg3x3)
+                       ! Reset langrange multiplier
+                       molecules%els(i)%lci%lg3x3(j)%lambda = 0.0_dp
+                    END DO
+                 END IF
+                 IF (ASSOCIATED(molecules%els(i)%lci%lg4x6)) THEN
+                    DO j = 1, SIZE(molecules%els(i)%lci%lg4x6)
+                       ! Reset langrange multiplier
+                       molecules%els(i)%lci%lg4x6(j)%lambda = 0.0_dp
+                    END DO
+                 END IF
               END DO
            END IF
         END IF
