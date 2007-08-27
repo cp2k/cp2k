@@ -1599,7 +1599,7 @@ CPSourceFileRef,&
                      WRITE(iw,'(/,2("UTIL_INFO| ",A,/))')&
                      "Multiple Torsion declarations: "//TRIM(name_atm_a)//&
                      ","//TRIM(name_atm_b)//","//TRIM(name_atm_c)//" and "//TRIM(name_atm_d),&
-                     "Present torsion multiplicity "//TRIM(ldum)//" ."
+                     "Number of defined torsions: "//TRIM(ldum)//" ."
              END IF
              !
              ! QM/MM modifications
