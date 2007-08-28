@@ -173,7 +173,7 @@ MODULE qs_linres_types
      INTEGER, DIMENSION(:), POINTER              :: list_cubes
 !R   INTEGER, DIMENSION(:), POINTER              :: cs_atom_list
 !R   INTEGER, DIMENSION(:), POINTER              :: do_calc_cs_atom
-     INTEGER, DIMENSION(:,:), POINTER            :: statetrueindex
+     INTEGER, DIMENSION(:,:,:), POINTER          :: statetrueindex
      LOGICAL                                     :: full_epr,simpleepr_done(6),& !R
                                                     simpleepr_converged(6),& !R
                                                     restart_epr !R
@@ -184,7 +184,8 @@ MODULE qs_linres_types
 !R   REAL(dp)                                    :: chi_tensor_loc(3,3)
      REAL(dp), DIMENSION(:,:), POINTER           :: basisfun_center
      REAL(dp)                                    :: g_free_factor, g_zke_factor,& !R
-                                                    g_so_factor, g_soo_factor !R
+                                                    g_so_factor, g_soo_factor,& !R
+						    g_soo_chicorr_factor !R
      REAL(dp)                                    :: g_zke !R
 !R   REAL(dp), DIMENSION(:,:), POINTER           :: r_nics
 !R   REAL(dp), DIMENSION(:,:,:), POINTER         :: chemical_shift
@@ -206,10 +207,13 @@ MODULE qs_linres_types
           POINTER                                :: jp2_ao
      TYPE(real_matrix_p_type), DIMENSION(:), & !R
           POINTER                                :: matrix_v !R
+     TYPE(real_matrix_p_type), DIMENSION(:), & !RY
+          POINTER                                :: matrix_h_wonl !RY
      TYPE(real_matrix_type), POINTER             :: jp1_ao
      TYPE(qs_rho_p_type),DIMENSION(:,:), POINTER :: nablavks_set !R
      TYPE(nablavks_atom_type),DIMENSION(:), &
           POINTER                                :: nablavks_atom_set !R
+     TYPE(qs_rho_p_type),DIMENSION(:), POINTER   :: delta_set !RA
      TYPE(qs_rho_p_type),DIMENSION(:,:), POINTER :: bind_set !R
      TYPE(rho_atom_coeff),DIMENSION(:,:),POINTER :: bind_atom_set !R
      TYPE(rho_atom_type), DIMENSION(:), &
@@ -442,9 +446,11 @@ CONTAINS
 !R     NULLIFY(epr_env%do_calc_cs_atom)
        NULLIFY(epr_env%nablavks_set) !R
        NULLIFY(epr_env%nablavks_atom_set) !R
+       NULLIFY(epr_env%delta_set) !R
        NULLIFY(epr_env%bind_set) !R
        NULLIFY(epr_env%bind_atom_set) !R
        NULLIFY(epr_env%matrix_v) !R
+       NULLIFY(epr_env%matrix_h_wonl) !RX
        NULLIFY(epr_env%g_total) !R
        NULLIFY(epr_env%g_so) !R
        NULLIFY(epr_env%g_soo) !R
@@ -472,7 +478,7 @@ CONTAINS
     REAL(dp), INTENT(out), OPTIONAL          :: chi_tensor(3,3)
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: list_cubes, cs_atom_list, &
                                                 do_calc_cs_atom
-    INTEGER, DIMENSION(:,:,:), OPTIONAL, &
+    INTEGER, DIMENSION(:, :, :), OPTIONAL, &
       POINTER                                :: statetrueindex
     REAL(dp), INTENT(out), OPTIONAL          :: chi_tensor_loc(3,3)
     REAL(dp), DIMENSION(:, :), OPTIONAL, &
@@ -617,8 +623,8 @@ CONTAINS
              basisfun_center, centers_set,&
              psi1_p, psi1_rxp, psi1_D, p_psi0, rxp_psi0,&
              jrho1_atom_set, jrho1_set, op_p_ao, op_rmd_ao, &
-             jp1_ao, jp2_ao, matrix_v, &
-             nablavks_set, nablavks_atom_set, &
+             jp1_ao, jp2_ao, matrix_v, matrix_h_wonl, &
+             nablavks_set, delta_set, nablavks_atom_set, & ! RA
              bind_set, bind_atom_set, &
              vks_atom_set, error)
 
@@ -626,7 +632,7 @@ CONTAINS
     INTEGER, INTENT(OUT), OPTIONAL           :: nao, nstates(2) !R
 !R  REAL(dp), INTENT(out), OPTIONAL          :: chi_tensor(3,3)
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: list_cubes !R
-    INTEGER, DIMENSION(:, :), OPTIONAL, &
+    INTEGER, DIMENSION(:, :, :), OPTIONAL, &
       POINTER                                :: statetrueindex
 !R  REAL(dp), INTENT(out), OPTIONAL          :: chi_tensor_loc(3,3)
 !R  REAL(dp), DIMENSION(:, :), OPTIONAL, &
@@ -657,15 +663,19 @@ CONTAINS
       OPTIONAL, POINTER                      :: jp2_ao
     TYPE(real_matrix_p_type), DIMENSION(:), & !R
       OPTIONAL, POINTER                      :: matrix_v !R
+    TYPE(real_matrix_p_type), DIMENSION(:), & !R
+      OPTIONAL, POINTER                      :: matrix_h_wonl !RX
     TYPE(qs_rho_p_type), DIMENSION(:,:), & !R
       OPTIONAL, POINTER                      :: nablavks_set !R
+    TYPE(qs_rho_p_type), DIMENSION(:), & !RA
+      OPTIONAL, POINTER                      :: delta_set !RA
     TYPE(nablavks_atom_type), DIMENSION(:), & !R
       OPTIONAL, POINTER                      :: nablavks_atom_set !R
     TYPE(qs_rho_p_type), DIMENSION(:,:), & !R
       OPTIONAL, POINTER                      :: bind_set !R
     TYPE(rho_atom_coeff), DIMENSION(:,:), & !R
       OPTIONAL, POINTER                      :: bind_atom_set !R
-     TYPE(rho_atom_type), DIMENSION(:), &
+    TYPE(rho_atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: vks_atom_set !R
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -692,7 +702,7 @@ CONTAINS
 !R     IF(PRESENT(chemical_shift)) chemical_shift => epr_env%chemical_shift
 !R     IF(PRESENT(r_nics)) r_nics => epr_env%r_nics
      IF(PRESENT(basisfun_center)) basisfun_center => epr_env%basisfun_center
-     IF(PRESENT(centers_set)) centers_set => epr_env%centers_set
+     !IF(PRESENT(centers_set)) centers_set => epr_env%centers_set !RX
      IF(PRESENT(psi1_p)) psi1_p => epr_env%psi1_p
      IF(PRESENT(psi1_rxp)) psi1_rxp => epr_env%psi1_rxp
      IF(PRESENT(psi1_D)) psi1_D => epr_env%psi1_D
@@ -709,8 +719,10 @@ CONTAINS
      IF(PRESENT(g_soo)) g_soo => epr_env%g_soo
      IF(PRESENT(bind0)) bind0 => epr_env%bind0
      IF(PRESENT(matrix_v)) matrix_v => epr_env%matrix_v
+     IF(PRESENT(matrix_h_wonl)) matrix_h_wonl => epr_env%matrix_h_wonl !RY
      IF(PRESENT(nablavks_set)) nablavks_set => epr_env%nablavks_set
      IF(PRESENT(nablavks_atom_set)) nablavks_atom_set => epr_env%nablavks_atom_set
+     IF(PRESENT(delta_set)) delta_set => epr_env%delta_set ! RA
      IF(PRESENT(bind_set)) bind_set => epr_env%bind_set
      IF(PRESENT(bind_atom_set)) bind_atom_set => epr_env%bind_atom_set
      IF(PRESENT(vks_atom_set)) vks_atom_set => epr_env%vks_atom_set
@@ -718,18 +730,25 @@ CONTAINS
   END SUBROUTINE get_epr_env
 
   SUBROUTINE set_epr_env(epr_env,g_free_factor,g_zke_factor,& !R
-                         g_so_factor,g_soo_factor,jrho1_atom_set,& !R
-                         vks_atom_set, nablavks_atom_set,error) !R
+                         g_so_factor,g_soo_factor,g_soo_chicorr_factor,jrho1_atom_set,jrho1_set,& !R !RX
+                         vks_atom_set,delta_set,nablavks_set,nablavks_atom_set,error) !R !RX ! RA
 
     TYPE(epr_env_type)                       :: epr_env
 !R  REAL(dp), INTENT(IN), OPTIONAL :: shift_factor, chi_factor, &
 !R    chi_SI2shiftppm, chi_SI2ppmcgs, chi_tensor(3,3), chi_tensor_loc(3,3)
     REAL(dp), INTENT(IN), OPTIONAL           :: g_free_factor, g_zke_factor,& !R
-                                                g_so_factor, g_soo_factor !R
+                                                g_so_factor, g_soo_factor,& !R
+						g_soo_chicorr_factor !R
     TYPE(jrho_atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: jrho1_atom_set
+    TYPE(qs_rho_p_type), DIMENSION(:, :), & !RX
+      OPTIONAL, POINTER                      :: jrho1_set !RX
+    TYPE(qs_rho_p_type), DIMENSION(:,:), & !RX
+      OPTIONAL, POINTER                      :: nablavks_set !RX
     TYPE(nablavks_atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: nablavks_atom_set
+    TYPE(qs_rho_p_type), DIMENSION(:), & !RX
+      OPTIONAL, POINTER                      :: delta_set !RX
     TYPE(rho_atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: vks_atom_set
     TYPE(cp_error_type), INTENT(inout), &
@@ -738,7 +757,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'set_epr_env', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iB, idir
+    INTEGER                                  :: iB, idir, ispin
     LOGICAL                                  :: failure
 
     failure =.FALSE.
@@ -749,6 +768,7 @@ CONTAINS
     IF(PRESENT(g_zke_factor)) epr_env%g_zke_factor=g_zke_factor !R
     IF(PRESENT(g_so_factor)) epr_env%g_so_factor=g_so_factor !R
     IF(PRESENT(g_soo_factor)) epr_env%g_soo_factor=g_soo_factor !R
+    IF(PRESENT(g_soo_chicorr_factor)) epr_env%g_soo_chicorr_factor=g_soo_chicorr_factor !R
 !R   IF(PRESENT(shift_factor)) epr_env%chi_factor=chi_factor
 !R   IF(PRESENT(shift_factor)) epr_env%chi_factor=chi_factor
 !R   IF(PRESENT(chi_SI2shiftppm)) epr_env%chi_SI2shiftppm=chi_SI2shiftppm
@@ -775,12 +795,43 @@ CONTAINS
        epr_env%jrho1_atom_set => jrho1_atom_set
     ENDIF
 
+     IF(PRESENT(jrho1_set)) THEN !RX
+        IF(ASSOCIATED(epr_env%jrho1_set)) THEN !RX
+           DO iB = 1,3 !RX
+             DO idir = 1,3 !RX
+               CALL qs_rho_release(epr_env%jrho1_set(idir,iB)%rho,error=error) !RX
+             END DO !RX
+           END DO !RX
+        END IF !RX
+        epr_env%jrho1_set => jrho1_set !RX
+    ENDIF !RX
+
+    IF(PRESENT(nablavks_set)) THEN !RX
+        IF(ASSOCIATED(epr_env%nablavks_set)) THEN !RX
+           DO ispin = 1,2 !RX
+             DO idir = 1,3 !RX
+               CALL qs_rho_release(epr_env%nablavks_set(idir,ispin)%rho,error=error) !RX ! RA
+             END DO !RX
+           END DO !RX
+        END IF !RX
+        epr_env%nablavks_set => nablavks_set !RX
+    ENDIF !RX
+
     IF(PRESENT(nablavks_atom_set)) THEN
        IF(ASSOCIATED(epr_env%nablavks_atom_set)) THEN
           CALL deallocate_nablavks_atom_set(epr_env%nablavks_atom_set,error=error)
        ENDIF
        epr_env%nablavks_atom_set => nablavks_atom_set
     ENDIF
+
+    IF(PRESENT(delta_set)) THEN !RX ! RA
+        IF(ASSOCIATED(epr_env%delta_set)) THEN !RX
+           DO ispin = 1,2 !RX
+             CALL qs_rho_release(epr_env%delta_set(ispin)%rho,error=error) !RX
+           END DO !RX
+        END IF !RX
+        epr_env%delta_set => delta_set !RX
+    ENDIF !RX
 
     IF(PRESENT(vks_atom_set)) THEN
        IF(ASSOCIATED(epr_env%vks_atom_set)) THEN
@@ -826,7 +877,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_nablavks_atom_set'
 
     INTEGER                                  :: i, iat, idir, istat, n, &
-                                                NATOM
+                                                natom !RX
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -836,15 +887,17 @@ CONTAINS
 
     DO iat = 1,natom
        IF(ASSOCIATED(nablavks_atom_set(iat)%nablavks_vec_rad_h)) THEN
-          n = SIZE(nablavks_atom_set(iat)%nablavks_vec_rad_h,2)
-          DO i=1,n
-             DO idir = 1,3
-                DEALLOCATE(nablavks_atom_set(iat)%nablavks_vec_rad_h(idir,i)%r_coef,STAT=istat)
-                CPPrecondition(istat==0, cp_failure_level,routineN,error,failure)
-                DEALLOCATE(nablavks_atom_set(iat)%nablavks_vec_rad_s(idir,i)%r_coef,STAT=istat)
-                CPPrecondition(istat==0, cp_failure_level,routineN,error,failure)
+          IF(ASSOCIATED(nablavks_atom_set(iat)%nablavks_vec_rad_h(1,1)%r_coef)) THEN
+             n = SIZE(nablavks_atom_set(iat)%nablavks_vec_rad_h,2)
+             DO i=1,n
+                DO idir = 1,3
+                   DEALLOCATE(nablavks_atom_set(iat)%nablavks_vec_rad_h(idir,i)%r_coef,STAT=istat)
+                   CPPrecondition(istat==0, cp_failure_level,routineN,error,failure)
+                   DEALLOCATE(nablavks_atom_set(iat)%nablavks_vec_rad_s(idir,i)%r_coef,STAT=istat)
+                   CPPrecondition(istat==0, cp_failure_level,routineN,error,failure)
+                ENDDO
              ENDDO
-          ENDDO
+	  ENDIF   
           DEALLOCATE(nablavks_atom_set(iat)%nablavks_vec_rad_h,STAT=istat)
           CPPrecondition(istat==0, cp_failure_level,routineN,error,failure)
           DEALLOCATE(nablavks_atom_set(iat)%nablavks_vec_rad_s,STAT=istat)
@@ -1240,10 +1293,10 @@ CONTAINS
                             atom_list=atom_list,natom=nat, &
                             paw_atom=paw_atom,&
                             harmonics=harmonics,&
-                            grid_atom=grid_atom)
+			    grid_atom=grid_atom)
 
-       na = grid_atom%ng_sphere
-       nr = grid_atom%nr
+       na = grid_atom%ng_sphere 
+       nr = grid_atom%nr 
 
        CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
                               maxso=maxso, nset=nset)
@@ -1403,14 +1456,14 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_nablavks_atom_set(nablavks_atom_set,atomic_kind_set,nspins,store_current,error)
+  SUBROUTINE init_nablavks_atom_set(nablavks_atom_set,atomic_kind_set,nspins,error) !RX
 
     TYPE(nablavks_atom_type), DIMENSION(:), &
       POINTER                                :: nablavks_atom_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     INTEGER, INTENT(IN)                      :: nspins
-    LOGICAL, INTENT(IN)                      :: store_current
+!RX LOGICAL, INTENT(IN)                      :: store_current
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1422,6 +1475,7 @@ CONTAINS
     LOGICAL                                  :: failure, paw_atom
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(harmonics_atom_type), POINTER       :: harmonics
 
     CALL timeset("init_nablavks_atom_set","I"," ",handle)
@@ -1449,8 +1503,10 @@ CONTAINS
                             atom_list=atom_list,natom=nat, &
                             paw_atom=paw_atom,&
                             harmonics=harmonics,&
-                            ngrid_rad=nr,&
-                            ngrid_ang=na)
+			    grid_atom=grid_atom)
+
+       na = grid_atom%ng_sphere 
+       nr = grid_atom%nr 
 
        CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
                               maxso=maxso, nset=nset)

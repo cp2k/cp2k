@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2005  CP2K developers group                                 !
+!   Copyright (C) 2000 - 2007  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 !!****m* cp2k/qs_linres_epr_op
 !!
@@ -14,9 +14,9 @@
 !!
 !!   NOTE
 !!     The interactions are considered only within the minimum image convention
-!!  
+!!
 !!   AUTHOR
-!!      MI 
+!!      MI
 !!
 !!   MODIFICATION HISTORY
 !!      created 07-2005 [MI]
@@ -41,7 +41,8 @@ MODULE qs_linres_epr_op
                                              cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_set_submatrix,&
-                                             cp_fm_type
+                                             cp_fm_type,&
+                                             cp_fm_to_fm
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -61,7 +62,8 @@ MODULE qs_linres_epr_op
                                              mo_set_p_type
   USE qs_operators_ao,                 ONLY: p_xyz_ao,&
                                              rmc_x_p_xyz_ao
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
+                                             checksum_matrix, set_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -76,7 +78,7 @@ MODULE qs_linres_epr_op
 !!***
 ! *****************************************************************************
 CONTAINS
-                                      
+
 ! *****************************************************************************
 !!****f* qs_linres_epr_op/epr_operators
 !!
@@ -85,14 +87,14 @@ CONTAINS
 !!
 !!   FUNCTION
 !!     Calculate the first order hamiltonian applied to the ao
-!!     and then apply them to the ground state orbitals, 
+!!     and then apply them to the ground state orbitals,
 !!     the h1_psi1 full matrices are then ready to solve the
 !!     non-homogeneous linear equations that give the psi1
-!!     linear response orbitals. 
+!!     linear response orbitals.
 !!
 !!   NOTES
 !!     For the operators rxp and D the h1 depends on the psi0 to which
-!!     is applied, or better the center of charge of the psi0 is 
+!!     is applied, or better the center of charge of the psi0 is
 !!     used to define the position operator
 !!     The centers of the orbitals result form the orbital localization procedure
 !!     that typicaly uses the berry phase operator to define the Wannier centers.
@@ -109,8 +111,7 @@ CONTAINS
 
     TYPE(epr_env_type)                       :: epr_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_operators', &
       routineP = moduleN//':'//routineN
@@ -121,7 +122,7 @@ CONTAINS
                                                 nsgf, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     LOGICAL                                  :: failure, ionode
-    REAL(dp)                                 :: ck(3), ckdk(3), dk(3)
+    REAL(dp)                                 :: ck(3), ckdk(3), dk(3), chk(3)
     REAL(dp), DIMENSION(:, :), POINTER       :: basisfun_center, vecbuf_c0
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -146,9 +147,6 @@ CONTAINS
       POINTER                                :: op_p_ao, op_rmd_ao
     TYPE(section_vals_type), POINTER         :: lr_section
 
-!dbg
-!dbg
-
     CALL timeset(routineN,"I"," ",handle)
 
     failure = .FALSE.
@@ -156,7 +154,7 @@ CONTAINS
     NULLIFY(atomic_kind_set,cell,dft_control,linres_control)
     NULLIFY(logger,mos,particle_set,lr_section,fm_work1)
     NULLIFY(basisfun_center, centers_set, p_psi0, rxp_psi0, op_p_ao, op_rmd_ao)
- 
+
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
     lr_section => section_vals_get_subs_vals(qs_env%input,&
@@ -168,8 +166,6 @@ CONTAINS
       WRITE (UNIT=output_unit,FMT="(T10,A,/)")&
          "Calculation of the p and (r-d)xp operators applied to psi0"
     END IF
-    CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
-         "PRINT%PROGRAM_RUN_INFO",error=error)
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, cell=cell, &
                     dft_control=dft_control, linres_control=linres_control,&
@@ -179,10 +175,83 @@ CONTAINS
     CALL get_epr_env(epr_env=epr_env, nao=nao, centers_set=centers_set,&
                      basisfun_center=basisfun_center, &
                      p_psi0=p_psi0, rxp_psi0=rxp_psi0,&
-                     op_p_ao=op_p_ao, op_rmd_ao=op_rmd_ao)
+                     op_p_ao=op_p_ao, op_rmd_ao=op_rmd_ao,error=error)
 
+    NULLIFY(vecbuf_c0)
+    ALLOCATE(vecbuf_c0(1,nao),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DO idir = 1,3
+      NULLIFY(vecbuf_Rmdc0(idir)%array)
+      ALLOCATE(vecbuf_Rmdc0(idir)%array(1,nao),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    END DO
+
+    ! Calculate the (r - dk)xp operator applied to psi0k
+    ! We use the distributive property of the vector product and calculatr
+    ! (r-c)xp + (c-d)xp
+    ! where c depends on the contracted functions and not on the states
+    ! d is the center of a specific state and a loop over states is needed
+    ! the second term can be added in a second moment as a correction
+    ! notice: (r-c) and p are operators, whereas (c-d) is a multiplicative factor
+
+!!$    !First term: operator matrix elements
+!!$    CALL rmc_x_p_xyz_ao(op_rmd_ao,qs_env,minimum_image=.FALSE.,error=error)
+!************************************************************
+    IF(output_unit>0) THEN
+       WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
+       WRITE(output_unit,*) 'rmc_x_p_xyz_ao: L is computed for each states'
+       WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
+    ENDIF
+
+    DO ispin=1,dft_control%nspins
+       p_psi0(ispin,1)%matrix%local_data=0d0
+       p_psi0(ispin,2)%matrix%local_data=0d0
+       p_psi0(ispin,3)%matrix%local_data=0d0
+       CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo,homo=homo)
+       DO istate = 1,homo    
+          CALL set_matrix(op_rmd_ao(1)%matrix,0.0_dp)
+          CALL set_matrix(op_rmd_ao(2)%matrix,0.0_dp)
+          CALL set_matrix(op_rmd_ao(3)%matrix,0.0_dp)
+
+          CALL rmc_x_p_xyz_ao(op_rmd_ao,qs_env,minimum_image=.FALSE.,&
+               & wancen=centers_set(ispin)%array(1:3,istate),error=error)
+
+          DO idir = 1,3
+             CALL cp_fm_set_all(rxp_psi0(ispin,idir)%matrix,0.0_dp,error=error)
+             CALL cp_sm_fm_multiply(op_rmd_ao(idir)%matrix,mo_coeff,&
+                  rxp_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
+             CALL cp_fm_to_fm(rxp_psi0(ispin,idir)%matrix,&
+                  &           p_psi0(ispin,idir)%matrix,1,istate,istate)
+          END DO
+       ENDDO
+       rxp_psi0(ispin,1)%matrix%local_data = p_psi0(ispin,1)%matrix%local_data
+       rxp_psi0(ispin,2)%matrix%local_data = p_psi0(ispin,2)%matrix%local_data
+       rxp_psi0(ispin,3)%matrix%local_data = p_psi0(ispin,3)%matrix%local_data
+    ENDDO
+    !
+    ! print checksums
+    chk(1) = checksum_matrix(op_rmd_ao(1)%matrix,para_env)
+    chk(2) = checksum_matrix(op_rmd_ao(2)%matrix,para_env)
+    chk(3) = checksum_matrix(op_rmd_ao(3)%matrix,para_env)
+    IF(output_unit>0) THEN
+       write(output_unit,'(A,E23.16)') 'epr_operators: CheckSum L_x =',chk(1)
+       write(output_unit,'(A,E23.16)') 'epr_operators: CheckSum L_y =',chk(2)
+       write(output_unit,'(A,E23.16)') 'epr_operators: CheckSum L_z =',chk(3)
+    ENDIF
+!************************************************************
+    !
     ! Calculate the px py pz operators
-    CALL p_xyz_ao(op_p_ao,qs_env,minimum_image=.TRUE.,error=error)
+    CALL p_xyz_ao(op_p_ao,qs_env,minimum_image=.FALSE.,error=error)
+    !
+    ! print checksums
+    chk(1) = checksum_matrix(op_p_ao(1)%matrix,para_env)
+    chk(2) = checksum_matrix(op_p_ao(2)%matrix,para_env)
+    chk(3) = checksum_matrix(op_p_ao(3)%matrix,para_env)
+    IF(output_unit>0) THEN
+       WRITE(output_unit,'(A,E23.16)') 'epr_operators: CheckSum P_x =',chk(1)
+       WRITE(output_unit,'(A,E23.16)') 'epr_operators: CheckSum P_y =',chk(2)
+       WRITE(output_unit,'(A,E23.16)') 'epr_operators: CheckSum P_z =',chk(3)
+    ENDIF
     ! Apply the p operator to the psi0
     DO idir = 1,3
       DO ispin = 1, dft_control%nspins
@@ -190,38 +259,22 @@ CONTAINS
          CALL cp_fm_set_all(p_psi0(ispin,idir)%matrix,0.0_dp,error=error)
          CALL cp_sm_fm_multiply(op_p_ao(idir)%matrix,mo_coeff,&
                 p_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
-      END DO 
-    END DO 
-
-    NULLIFY(vecbuf_c0)
-    ALLOCATE(vecbuf_c0(1,nao),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DO idir = 1,3 
-      NULLIFY(vecbuf_Rmdc0(idir)%array)
-      ALLOCATE(vecbuf_Rmdc0(idir)%array(1,nao),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    END DO 
-
-    ! Calculate the (r - dk)xp operator applied to psi0k
-    ! We use the distributive property of the vector product and calculatr
-    ! (r-c)xp + (c-d)xp 
-    ! where c depends on the contracted functions and not on the states
-    ! d is the center of a specific state and a loop over states is needed
-    ! the second term can be added in a second moment as a correction
-    ! notice: (r-c) and p are operators, whereas (c-d) is a multiplicative factor
-
-    !First term: operator matrix elements
-    CALL rmc_x_p_xyz_ao(op_rmd_ao,qs_env,minimum_image=.TRUE.,error=error)
-
+      END DO
+    END DO
+    !************************************************************
+    !
+    CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
+         "PRINT%PROGRAM_RUN_INFO",error=error)
+    !
     ! Apply the (r-c)xp operator to the psi0
-    DO ispin = 1, dft_control%nspins
-      CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo, homo=homo)
-      DO idir = 1,3
-         CALL cp_fm_set_all(rxp_psi0(ispin,idir)%matrix,0.0_dp,error=error)
-         CALL cp_sm_fm_multiply(op_rmd_ao(idir)%matrix,mo_coeff,&
-                rxp_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
-      END DO 
-    END DO 
+    !DO ispin = 1, dft_control%nspins
+    !  CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo, homo=homo)
+    !  DO idir = 1,3
+    !     CALL cp_fm_set_all(rxp_psi0(ispin,idir)%matrix,0.0_dp,error=error)
+    !     CALL cp_sm_fm_multiply(op_rmd_ao(idir)%matrix,mo_coeff,&
+    !            rxp_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
+    !  END DO
+    !END DO
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
 
@@ -235,7 +288,7 @@ CONTAINS
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf)
 
-    !Build 3 arrays where for each contracted basis function 
+    !Build 3 arrays where for each contracted basis function
     !the x y and z coordinates of the center are given
     DO iatom = 1,natom
       DO iao = first_sgf(iatom),last_sgf(iatom)
@@ -245,29 +298,28 @@ CONTAINS
       END DO
     END DO
 
-    
+
     !Calculate the second term of the operator state by state
-    DO ispin = 1, dft_control%nspins
+    DO ispin = 1, -1!dft_control%nspins
        CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo,homo=homo)
-      
-      !   Allocate full matrices as working storage in the calculation 
+
+      !   Allocate full matrices as working storage in the calculation
       !   of the rxp operator matrix. 3 matrices for the 3 Cartesian direction
       !   plus one to apply the momentum oprator to the modified mos fm
        NULLIFY(tmp_fm_struct)
        CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
-            ncol_global=homo,para_env=para_env,context=mo_coeff%matrix_struct%context,&
-            error=error)
+            ncol_global=homo,para_env=para_env,context=mo_coeff%matrix_struct%context,error=error)
        DO idir = 1,3
           NULLIFY(fm_Rmd_mos(idir)%matrix)
-          CALL cp_fm_create (fm_Rmd_mos(idir)%matrix,tmp_fm_struct,error=error) 
-       END DO 
+          CALL cp_fm_create (fm_Rmd_mos(idir)%matrix,tmp_fm_struct,error=error)
+       END DO
        CALL cp_fm_create (fm_work1,tmp_fm_struct,error=error)
-       CALL cp_fm_struct_release ( tmp_fm_struct,error=error )
+       CALL cp_fm_struct_release ( tmp_fm_struct ,error=error)
 
    ! This part should be done better, using the full matrix distribution
        DO istate = 1,homo
          CALL cp_fm_get_submatrix(mo_coeff,vecbuf_c0,1,istate,nao,1,transpose=.TRUE.,error=error)
-!!         !center of the localized psi0 state istate 
+!!         !center of the localized psi0 state istate
          dk(1:3) = centers_set(ispin)%array(1:3,istate)
          DO idir = 1,3
 !!!  This loop should be distributed over the processors
@@ -378,7 +430,7 @@ CONTAINS
     ELSE
     END IF
 
-  END SUBROUTINE set_vecp 
+  END SUBROUTINE set_vecp
 !****************************************************************************
   SUBROUTINE set_vecp_rev(i1,i2,i3)
 
@@ -394,7 +446,7 @@ CONTAINS
     ELSE
     END IF
 
-  END SUBROUTINE set_vecp_rev 
+  END SUBROUTINE set_vecp_rev
 
 !****************************************************************************
 END MODULE qs_linres_epr_op

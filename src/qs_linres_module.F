@@ -50,8 +50,8 @@ MODULE qs_linres_module
   USE qs_linres_epr_ownutils,          ONLY: epr_g_print,& !R
                                              epr_g_zke,& !R
                                              epr_g_so,& !R
-                                             epr_g_soo,& !R
-                                             epr_nablavks
+                                             epr_g_soo !R
+  USE qs_linres_epr_nablavks,          ONLY: epr_nablavks !R
   USE qs_linres_methods,               ONLY: linres_localize
   USE qs_linres_nmr_op,                ONLY: nmr_operators
   USE qs_linres_nmr_utils,             ONLY: nmr_do_nmr,&
@@ -194,9 +194,9 @@ CONTAINS
            linres_control%do_kernel = .FALSE. !R
 
            IF(.NOT.linres_control%localized_psi0) THEN !R
-!            CALL stop_program(routineP,& !R
-!                              "Are you sure that you want to calculate the g tensor without localized psi0??") !R
-!
+             CALL stop_program(routineP,& !R
+                               "Are you sure that you want to calculate the g tensor without localized psi0??") !R
+ 
              CALL linres_localize(linres_control%localized_wfn_control,qs_env,& !R
                                   dft_control%nspins,globenv,centers_only=.TRUE.,error=error) !R
            END IF !R
@@ -212,7 +212,7 @@ CONTAINS
            CALL epr_g_soo(epr_env,qs_env,error=error) !R
            CALL epr_g_print(epr_env,qs_env,error=error) !R
            CALL epr_env_cleanup(epr_env,error=error) !R
-     STOP 'lr_calculation'
+!R     STOP 'lr_calculation'
          END IF
        END IF
 

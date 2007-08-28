@@ -1,20 +1,20 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2005,2006  CP2K developers group                            !
+!   Copyright (C) 2000 - 2007  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 
 !!****m* cp2k/qs_linres_epr_current *
 !!
-!!   NAME 
+!!   NAME
 !!     qs_linres_epr_current
 !!
 !!   FUNCTION
 !!     given the response wavefunctions obtained by the application
 !!     of the (rxp), p, and ((dk-dl)xp) operators,
 !!     here the current density vector (jx, jy, jz)
-!!     is computed for the 3 directions of the magnetic field (Bx, By, Bz)   
-!!     
+!!     is computed for the 3 directions of the magnetic field (Bx, By, Bz)
+!!
 !!
 !!   AUTHOR
 !!     MI
@@ -57,8 +57,8 @@ MODULE qs_linres_epr_atom_current
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
        neighbor_node_type, next, reduced_3c_list_type
-  USE qs_oce_types,                    ONLY: build_reduced_3c_lists,&
-                                             deallocate_vtriple,&
+  USE qs_oce_types,                    ONLY: allocate_vtriple,&
+                                             build_reduced_3c_lists,&
                                              oce_matrix_type,&
                                              retrieve_sac_list
   USE qs_rho_atom_types,               ONLY: rho_atom_coeff
@@ -71,30 +71,28 @@ MODULE qs_linres_epr_atom_current
 
   IMPLICIT NONE
 
-
   PRIVATE
 
- ! *** Public subroutines ***
-  PUBLIC :: calculate_jrho_atom_coeff, calculate_jrho_atom_rad, list_3c_jrho_atom, shift_atom,&
-            calculate_jrho_atom_ang
+  ! *** Public subroutines ***
+  PUBLIC :: calculate_jrho_atom_coeff,calculate_jrho_atom_rad,list_3c_jrho_atom,calculate_jrho_atom_ang !R ,&
+            !R       &    shift_atom
 
-! *** Global parameters (only in this module)
-
+  ! *** Global parameters (only in this module)
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_epr_atom_current'
 
 !!***
 ! *****************************************************************************
 
- CONTAINS
+CONTAINS
 
 ! *****************************************************************************
- 
+
 !!****f* cp2k/qs_linres_epr_atom_current/calculate_jrho_atom_coeff!!
 !!   NAME
 !!     calculate_jrho_atom_coeff
 !!
 !!   FUNCTION
-!!     Calculate the expansio coefficients for the atomic terms 
+!!     Calculate the expansion coefficients for the atomic terms
 !!     of the current densitiy in GAPW
 !!
 !!   NOTES
@@ -108,16 +106,15 @@ MODULE qs_linres_epr_atom_current
 !****************************************************************************
 
   SUBROUTINE calculate_jrho_atom_coeff(qs_env,epr_env,mat_jp,mat_jp_pii,&
-             mat_jp_piii,iB,idir,error)
-
+       &                               mat_jp_piii,iB,idir,error)
+    !
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(epr_env_type)                       :: epr_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: mat_jp, mat_jp_pii, &
                                                 mat_jp_piii
     INTEGER, INTENT(IN)                      :: iB, idir
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_jrho_atom_coeff', &
       routineP = moduleN//':'//routineN
@@ -128,7 +125,7 @@ MODULE qs_linres_epr_atom_current
       nnode_c, nsetc, nsgfa, nsgfb, nsoctot, nspins
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, new_atom_b, paw_atom
-    REAL(dp)                                 :: rab(3), rac(3), rbc(3)
+    REAL(dp)                                 :: rab(3), rbc(3)
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: PC
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: C_coeff_hh_a, C_coeff_hh_b, &
@@ -152,398 +149,415 @@ MODULE qs_linres_epr_atom_current
       POINTER                                :: jp_block, jp_ii_block, &
                                                 jp_iii_block, jp_RARnu
 
-! *****************************************************************************
+!
+!
 
     CALL timeset("calculate_jrho_atom_coeff","I"," ",handle)
-
+    !
     failure =.FALSE.
-    NULLIFY (atom_list,atomic_kind_set,dft_control,orb_basis_set,sab_orb)
-    NULLIFY (jrho1_atom_set,oce,reduced_3c_oce)
-    NULLIFY (jp_block,jp_ii_block,jp_ii_block,jp_RARnu)
-    NULLIFY (C_coeff_hh_a, C_coeff_hh_b,C_coeff_ss_a, C_coeff_ss_b)
-    NULLIFY (sab_orb_neighbor_list,sab_orb_neighbor_list_local,sab_orb_neighbor_node)
-
+    NULLIFY(atom_list,atomic_kind_set,dft_control,orb_basis_set,sab_orb,&
+         &  jrho1_atom_set,oce,reduced_3c_oce,jp_block,jp_ii_block,&
+         &  jp_ii_block,jp_RARnu,C_coeff_hh_a,C_coeff_hh_b,C_coeff_ss_a,&
+         &  C_coeff_ss_b,sab_orb_neighbor_list,sab_orb_neighbor_list_local,&
+         &  sab_orb_neighbor_node)
+    !
     CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
-                    dft_control=dft_control,&
-                    oce=oce,&
-                    sab_all=sab_orb,&
-                    error=error)
-
+         &          atomic_kind_set=atomic_kind_set,&
+         &          dft_control=dft_control,&
+         &          oce=oce,&
+         &          sab_all=sab_orb,&
+         &          error=error)
+    !
+    CPPrecondition(ASSOCIATED(oce),cp_failure_level,routineP,error,failure)
+    !
     CALL get_epr_env(epr_env=epr_env,&
-                     jrho1_atom_set=jrho1_atom_set)
-
+         &           jrho1_atom_set=jrho1_atom_set,&
+         &           error=error)
+    !
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             maxsgf=max_nsgf,&
-                             maxgtops=max_gau)
-
-   ! Density matrices
-
-    nkind = SIZE(atomic_kind_set)
-    natom = SIZE(jrho1_atom_set)
+         &                   maxsgf=max_nsgf,&
+         &                   maxgtops=max_gau)
+    !
+    ! Density-like matrices
+    nkind  = SIZE(atomic_kind_set)
+    natom  = SIZE(jrho1_atom_set)
     nspins = dft_control%nspins
     CALL set_vecp(iB,ii,iii)
-
-    ALLOCATE(jp_block(nspins),jp_ii_block(nspins),jp_iii_block(nspins),STAT=istat)
+    !
+    ! Allocate some arrays
+    ALLOCATE(jp_block(nspins),jp_ii_block(nspins),jp_iii_block(nspins),&
+         &   jp_RARnu(nspins),PC(max_nsgf,max_gau),STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(jp_RARnu(nspins),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (PC(max_nsgf,max_gau),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-
-   ! Reset CJC coefficients and local density arrays
+    !
+    ! Reset CJC coefficients and local density arrays
     DO ikind = 1 ,nkind
-      NULLIFY(atomic_kind, atom_list)
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           atom_list=atom_list,natom=nat,&
-                           paw_atom=paw_atom)
+       NULLIFY(atomic_kind, atom_list)
+       atomic_kind => atomic_kind_set(ikind)
+       CALL get_atomic_kind(atomic_kind=atomic_kind,&
+            &               atom_list=atom_list,&
+            &               natom=nat,&
+            &               paw_atom=paw_atom)
+       !
+       ! Quick cycle if needed.
+       IF(.NOT. paw_atom) CYCLE
+       !
+       ! Initialize the density matrix-like arrays.
+       DO iat = 1,nat
+          iatom = atom_list(iat)
+          DO ispin = 1, nspins
+             jrho1_atom_set(iatom)%cjc_h(ispin)%r_coef = 0.0_dp
+             jrho1_atom_set(iatom)%cjc_s(ispin)%r_coef = 0.0_dp
+             jrho1_atom_set(iatom)%cjc_ii_h(ispin)%r_coef = 0.0_dp
+             jrho1_atom_set(iatom)%cjc_ii_s(ispin)%r_coef = 0.0_dp
+             jrho1_atom_set(iatom)%cjc_iii_h(ispin)%r_coef = 0.0_dp
+             jrho1_atom_set(iatom)%cjc_iii_s(ispin)%r_coef = 0.0_dp
+!R           IF(epr_env%store_current) THEN
+                jrho1_atom_set(iatom)%jrho_vec_rad_h(idir,iB,ispin)%r_coef = 0.0_dp
+                jrho1_atom_set(iatom)%jrho_vec_rad_s(idir,iB,ispin)%r_coef = 0.0_dp
+!R           ELSE
+!R              jrho1_atom_set(iatom)%jrho_rad_h(ispin)%r_coef = 0.0_dp
+!R              jrho1_atom_set(iatom)%jrho_rad_s(ispin)%r_coef = 0.0_dp
+!R           ENDIF
+          ENDDO ! ispin
+       ENDDO ! iat
+    ENDDO ! ikind
+    !
+    ! Three centers
+    DO ikind = 1,nkind
+       atomic_kind => atomic_kind_set(ikind)
+       CALL get_atomic_kind(atomic_kind=atomic_kind,&
+            &               orb_basis_set=orb_basis_set)
+       IF(.NOT.ASSOCIATED(orb_basis_set)) CYCLE
+       
+       CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+            &                 nsgf=nsgfa)
 
-      IF(.NOT. paw_atom) CYCLE
-      DO iat = 1,nat
-        iatom = atom_list(iat)
-        DO ispin = 1, nspins
+       DO jkind = 1,nkind
+          atomic_kind => atomic_kind_set(jkind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+               &               orb_basis_set=orb_basis_set)
 
-          jrho1_atom_set(iatom)%cjc_h(ispin)%r_coef = 0.0_dp
-          jrho1_atom_set(iatom)%cjc_s(ispin)%r_coef = 0.0_dp
-          jrho1_atom_set(iatom)%cjc_ii_h(ispin)%r_coef = 0.0_dp
-          jrho1_atom_set(iatom)%cjc_ii_s(ispin)%r_coef = 0.0_dp
-          jrho1_atom_set(iatom)%cjc_iii_h(ispin)%r_coef = 0.0_dp
-          jrho1_atom_set(iatom)%cjc_iii_s(ispin)%r_coef = 0.0_dp
-!R        IF(epr_env%store_current) THEN
-            jrho1_atom_set(iatom)%jrho_vec_rad_h(idir,iB,ispin)%r_coef = 0.0_dp
-            jrho1_atom_set(iatom)%jrho_vec_rad_s(idir,iB,ispin)%r_coef = 0.0_dp
-!R        ELSE
-!R          jrho1_atom_set(iatom)%jrho_rad_h(ispin)%r_coef = 0.0_dp
-!R          jrho1_atom_set(iatom)%jrho_rad_s(ispin)%r_coef = 0.0_dp
-!R        END IF
+          IF(.NOT.ASSOCIATED(orb_basis_set)) CYCLE
 
-        ENDDO  ! ispin
-      ENDDO  ! iat
-    END DO ! ikind
+          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+               &                 nsgf=nsgfb)
 
+          iab = ikind + nkind*(jkind - 1)
 
-   ! Three centers 
-    DO ikind = 1 ,nkind
-      atomic_kind => atomic_kind_set(ikind)
+          IF(.NOT.ASSOCIATED(sab_orb(iab)%neighbor_list_set)) CYCLE
 
-      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           orb_basis_set=orb_basis_set)
-      IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
+          CALL get_neighbor_list_set(neighbor_list_set=&
+               &                    sab_orb(iab)%neighbor_list_set,&
+               &                    nlist=nlist)
 
-      CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                             nsgf=nsgfa)
+          NULLIFY(sab_orb_neighbor_list)
+          !
+          ! Allocate temporary block to store the sum of the 3 blocks before contraction
+          DO ispin = 1,nspins
+             NULLIFY(jp_RARnu(ispin)%r_coef)
+             ALLOCATE(jp_RARnu(ispin)%r_coef(nsgfa,nsgfb),STAT=istat)
+             CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+          ENDDO
 
-      DO jkind=1,nkind
+          DO ilist = 1,nlist
+             IF(.NOT.ASSOCIATED(sab_orb_neighbor_list)) THEN
+                sab_orb_neighbor_list => first_list(sab_orb(iab)%neighbor_list_set)
+             ELSE
+                sab_orb_neighbor_list => next(sab_orb_neighbor_list)
+             ENDIF
+             sab_orb_neighbor_list_local => sab_orb_neighbor_list
 
-        atomic_kind => atomic_kind_set(jkind)
-        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                             orb_basis_set=orb_basis_set)
+             CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list_local,&
+                  &                 atom=iatom,nnode=nnode)
+             last_jatom = 0
+             sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
 
-        IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
+             DO inode = 1,nnode
+                CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
+                     &                 neighbor=jatom,r=rab,&
+                     &                 reduced_3c_oce=reduced_3c_oce)
 
-        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                               nsgf=nsgfb)
-
-        iab = ikind + nkind*(jkind - 1)
-
-        IF (.NOT.ASSOCIATED(sab_orb(iab)%neighbor_list_set)) CYCLE
-
-        CALL get_neighbor_list_set(neighbor_list_set=&
-                                   sab_orb(iab)%neighbor_list_set,&
-                                   nlist=nlist)
-
-        NULLIFY ( sab_orb_neighbor_list )
-
-        ! Allocate temporary block to store the sum of the 3 blocks before contraction
-        DO ispin = 1,nspins
-          NULLIFY(jp_RARnu(ispin)%r_coef)
-          ALLOCATE(jp_RARnu(ispin)%r_coef(nsgfa,nsgfb),STAT=istat) 
-          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-        END DO
-
-        DO ilist=1,nlist
-
-
-          IF ( .NOT. ASSOCIATED(sab_orb_neighbor_list) ) THEN
-            sab_orb_neighbor_list => first_list(sab_orb(iab)%neighbor_list_set)
-          ELSE
-            sab_orb_neighbor_list => next(sab_orb_neighbor_list)
-          END IF
-          sab_orb_neighbor_list_local => sab_orb_neighbor_list
-
-          CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list_local,&
-                                 atom=iatom,&
-                                 nnode=nnode)
-          last_jatom = 0
-          sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
-
-          DO inode=1,nnode
-
-            CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
-                                   neighbor=jatom,&
-                                   r=rab,&
-                                   reduced_3c_oce=reduced_3c_oce)
-
-            IF (jatom /= last_jatom) THEN
-              new_atom_b = .TRUE.
-              last_jatom = jatom
-            ELSE
-              new_atom_b = .FALSE.
-              sab_orb_neighbor_node => next(sab_orb_neighbor_node)
-              CYCLE
-            END IF
-
-   ! Take the block \mu \nu of jpab, jpab_ii and jpab_iii, ! 
-            DO ispin = 1,nspins
-               NULLIFY(jp_block(ispin)%r_coef)
-               NULLIFY(jp_ii_block(ispin)%r_coef)
-               NULLIFY(jp_iii_block(ispin)%r_coef)
-               CALL get_block_node(matrix=mat_jp(ispin)%matrix,&
-                                  block_row=iatom,&
-                                  block_col=jatom,&
-                                  BLOCK=jp_block(ispin)%r_coef)
-               CALL get_block_node(matrix=mat_jp_pii(ispin)%matrix,&
-                                  block_row=iatom,&
-                                  block_col=jatom,&
-                                  BLOCK=jp_ii_block(ispin)%r_coef)
-               CALL get_block_node(matrix=mat_jp_piii(ispin)%matrix,&
-                                  block_row=iatom,&
-                                  block_col=jatom,&
-                                  BLOCK=jp_iii_block(ispin)%r_coef)
-            ENDDO
-
-   ! Loop over atoms
-            DO kkind=1,nkind
-
-              atomic_kind => atomic_kind_set(kkind)
-
-              CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                                   orb_basis_set=orb_basis_set,&
-                                   paw_atom=paw_atom)
-
-              CALL  get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                                      nset =nsetc, maxso=maxsoc)
-
-              nsoctot = maxsoc*nsetc
-
-              IF(.NOT. paw_atom)  CYCLE
-
-              last_katom = 0
-
-              nnode_c = reduced_3c_oce(kkind)%nnode
-              DO kneighbor = 1,nnode_c
-
-                katom = reduced_3c_oce(kkind)%index_atom(kneighbor)
-                rbc(1:3) = reduced_3c_oce(kkind)%rbc(1:3,kneighbor)
-
-   ! multiply by (RA-R\nu)_iii and (RA-R\nu)_ii and sum
+                IF(jatom /= last_jatom) THEN
+                   new_atom_b = .TRUE.
+                   last_jatom = jatom
+                ELSE
+                   new_atom_b = .FALSE.
+                   sab_orb_neighbor_node => next(sab_orb_neighbor_node)
+                   CYCLE
+                ENDIF
+                !
+                ! Take the block \mu\nu of jpab, jpab_ii and jpab_iii
                 DO ispin = 1,nspins
-                DO isgfb = 1, nsgfb
-                DO isgfa = 1, nsgfa
-                  jp_RARnu(ispin)%r_coef(isgfa,isgfb) =  &
-                    jp_block(ispin)%r_coef(isgfa,isgfb)  & 
-                   -jp_iii_block(ispin)%r_coef(isgfa,isgfb)*rbc(ii)&
-                   + jp_ii_block(ispin)%r_coef(isgfa,isgfb)*rbc(iii)
-                END DO 
-                END DO 
-                END DO
 
-                NULLIFY(C_coeff_hh_a)
-                CALL get_block_node(matrix=oce%hardo(1)%matrix,&
-                                    block_row=katom,&
-                                    block_col=iatom,&
-                                    BLOCK=C_coeff_hh_a)
+                   !write(*,*) 'iatom',iatom,'jatom',jatom
 
-                NULLIFY(C_coeff_ss_a)
-                CALL get_block_node(matrix=oce%softo(1)%matrix,&
-                                    block_row=katom,&
-                                    block_col=iatom,&
-                                    BLOCK=C_coeff_ss_a)
+                   NULLIFY(jp_block(ispin)%r_coef)
+                   NULLIFY(jp_ii_block(ispin)%r_coef)
+                   NULLIFY(jp_iii_block(ispin)%r_coef)
+                   CALL get_block_node(matrix=mat_jp(ispin)%matrix,&
+                        &              block_row=iatom,&
+                        &              block_col=jatom,&
+                        &              BLOCK=jp_block(ispin)%r_coef)
+                   CALL get_block_node(matrix=mat_jp_pii(ispin)%matrix,&
+                        &              block_row=iatom,&
+                        &              block_col=jatom,&
+                        &              BLOCK=jp_ii_block(ispin)%r_coef)
+                   CALL get_block_node(matrix=mat_jp_piii(ispin)%matrix,&
+                        &              block_row=iatom,&
+                        &              block_col=jatom,&
+                        &              BLOCK=jp_iii_block(ispin)%r_coef)
+                ENDDO
+                !
+                ! Loop over atoms
+                DO kkind = 1,nkind
 
+                   atomic_kind => atomic_kind_set(kkind)
 
-   ! De-contract and copy into the final matrix
-               IF(iatom==jatom) THEN
+                   CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                        &               orb_basis_set=orb_basis_set,&
+                        &               paw_atom=paw_atom)
 
-                 DO ispin = 1,nspins
+                   CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                        &                 nset=nsetc,maxso=maxsoc)
 
-                    !First Matrix hard
-                     CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,1.0_dp,&
-                               jp_RARnu(ispin)%r_coef,nsgfa,&
-                               C_coeff_hh_a,SIZE(C_coeff_hh_a,1),&
-                               0.0_dp,PC,max_nsgf)
-                     CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,1.0_dp,C_coeff_hh_a,&
-                               SIZE(C_coeff_hh_a,1),PC,max_nsgf,1.0_dp,&
-                               jrho1_atom_set(katom)%cjc_h(ispin)%r_coef,nsoctot)
-                    !First Matrix soft
-                     CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,1.0_dp,&
-                               jp_RARnu(ispin)%r_coef,nsgfa,&
-                               C_coeff_hh_a,SIZE(C_coeff_ss_a,1),&
-                               0.0_dp,PC,max_nsgf)
-                     CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,1.0_dp,C_coeff_hh_a,&
-                               SIZE(C_coeff_hh_a,1),PC,max_nsgf,1.0_dp,&
-                               jrho1_atom_set(katom)%cjc_s(ispin)%r_coef,nsoctot)
+                   nsoctot = maxsoc*nsetc
+                   !
+                   ! Quick cycle if needed.
+                   IF(.NOT.paw_atom) CYCLE
 
-                    !Second Matrix hard
-                     CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,1.0_dp,&
-                               jp_ii_block(ispin)%r_coef,nsgfa,&
-                               C_coeff_hh_a,SIZE(C_coeff_hh_a,1),&
-                               0.0_dp,PC,max_nsgf)
-                     CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,1.0_dp,C_coeff_hh_a,&
-                               SIZE(C_coeff_hh_a,1),PC,max_nsgf,1.0_dp,&
-                               jrho1_atom_set(katom)%cjc_ii_h(ispin)%r_coef,nsoctot)
-                    !Second Matrix soft
-                     CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,1.0_dp,&
-                               jp_ii_block(ispin)%r_coef,nsgfa,&
-                               C_coeff_hh_a,SIZE(C_coeff_ss_a,1),&
-                               0.0_dp,PC,max_nsgf)
-                     CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,1.0_dp,C_coeff_hh_a,&
-                               SIZE(C_coeff_hh_a,1),PC,max_nsgf,1.0_dp,&
-                               jrho1_atom_set(katom)%cjc_ii_s(ispin)%r_coef,nsoctot)
+                   last_katom = 0
 
+                   nnode_c = reduced_3c_oce(kkind)%nnode
+                   DO kneighbor = 1,nnode_c
 
-                    !Third Matrix hard
-                     CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,1.0_dp,&
-                               jp_iii_block(ispin)%r_coef,nsgfa,&
-                               C_coeff_hh_a,SIZE(C_coeff_hh_a,1),&
-                               0.0_dp,PC,max_nsgf)
-                     CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,1.0_dp,C_coeff_hh_a,&
-                               SIZE(C_coeff_hh_a,1),PC,max_nsgf,1.0_dp,&
-                               jrho1_atom_set(katom)%cjc_iii_h(ispin)%r_coef,nsoctot)
-                    !Third Matrix soft
-                     CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,1.0_dp,&
-                               jp_iii_block(ispin)%r_coef,nsgfa,&
-                               C_coeff_hh_a,SIZE(C_coeff_ss_a,1),&
-                               0.0_dp,PC,max_nsgf)
-                     CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,1.0_dp,C_coeff_hh_a,&
-                               SIZE(C_coeff_hh_a,1),PC,max_nsgf,1.0_dp,&
-                               jrho1_atom_set(katom)%cjc_iii_s(ispin)%r_coef,nsoctot)
-     
-                 END DO  ! ispin
-
-               ELSE
-
-                 NULLIFY(C_coeff_hh_b)
-                 CALL get_block_node(matrix=oce%hardo(1)%matrix,&
-                                    block_row=katom,&
-                                    block_col=jatom,&
-                                    BLOCK=C_coeff_hh_b)
-
-                 NULLIFY(C_coeff_ss_b)
-                 CALL get_block_node(matrix=oce%softo(1)%matrix,&
-                                    block_row=katom,&
-                                    block_col=jatom,&
-                                    BLOCK=C_coeff_ss_b)
-
-
-                 DO ispin = 1,nspins
-
-                    !First Matrix hard
-                     CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,1.0_dp,&
-                               jp_RARnu(ispin)%r_coef,nsgfa,&
-                               C_coeff_hh_b,SIZE(C_coeff_hh_b,1),&
-                               0.0_dp,PC,max_nsgf)
-                     CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,1.0_dp,C_coeff_hh_a,&
-                               SIZE(C_coeff_hh_a,1),PC,max_nsgf,1.0_dp,&
-                               jrho1_atom_set(katom)%cjc_h(ispin)%r_coef,nsoctot)
-                    !First Matrix soft
-                     CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,1.0_dp,&
-                               jp_RARnu(ispin)%r_coef,nsgfa,&
-                               C_coeff_hh_b,SIZE(C_coeff_ss_b,1),&
-                               0.0_dp,PC,max_nsgf)
-                     CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,1.0_dp,C_coeff_hh_a,&
-                               SIZE(C_coeff_hh_a,1),PC,max_nsgf,1.0_dp,&
-                               jrho1_atom_set(katom)%cjc_s(ispin)%r_coef,nsoctot)
-
-                    !Second Matrix hard
-                     CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,1.0_dp,&
-                               jp_ii_block(ispin)%r_coef,nsgfa,&
-                               C_coeff_hh_b,SIZE(C_coeff_hh_b,1),&
-                               0.0_dp,PC,max_nsgf)
-                     CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,1.0_dp,C_coeff_hh_a,&
-                               SIZE(C_coeff_hh_a,1),PC,max_nsgf,1.0_dp,&
-                               jrho1_atom_set(katom)%cjc_ii_h(ispin)%r_coef,nsoctot)
-                    !Second Matrix soft
-                     CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,1.0_dp,&
-                               jp_ii_block(ispin)%r_coef,nsgfa,&
-                               C_coeff_hh_b,SIZE(C_coeff_ss_b,1),&
-                               0.0_dp,PC,max_nsgf)
-                     CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,1.0_dp,C_coeff_hh_a,&
-                               SIZE(C_coeff_hh_a,1),PC,max_nsgf,1.0_dp,&
-                               jrho1_atom_set(katom)%cjc_ii_s(ispin)%r_coef,nsoctot)
-
-
-                    !Third Matrix hard
-                     CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,1.0_dp,&
-                               jp_iii_block(ispin)%r_coef,nsgfa,&
-                               C_coeff_hh_b,SIZE(C_coeff_hh_b,1),&
-                               0.0_dp,PC,max_nsgf)
-                     CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,1.0_dp,C_coeff_hh_a,&
-                               SIZE(C_coeff_hh_a,1),PC,max_nsgf,1.0_dp,&
-                               jrho1_atom_set(katom)%cjc_iii_h(ispin)%r_coef,nsoctot)
-                    !Third Matrix soft
-                     CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,1.0_dp,&
-                               jp_iii_block(ispin)%r_coef,nsgfa,&
-                               C_coeff_hh_b,SIZE(C_coeff_ss_b,1),&
-                               0.0_dp,PC,max_nsgf)
-                     CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,1.0_dp,C_coeff_hh_a,&
-                               SIZE(C_coeff_hh_a,1),PC,max_nsgf,1.0_dp,&
-                               jrho1_atom_set(katom)%cjc_iii_s(ispin)%r_coef,nsoctot)
-
-                 END DO  ! ispin
-
-               END IF
-
-
-              END DO  ! kneighbor
-            END DO  ! kkind
-          sab_orb_neighbor_node => next(sab_orb_neighbor_node)
-          ENDDO  ! inode
-
-        END DO  ! ilist
-        DO ispin = 1,nspins
-          DEALLOCATE(jp_RARnu(ispin)%r_coef,STAT=istat) 
-          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-        END DO
-
-      END DO ! jkind 
-    END DO ! ikind 
-
+                      katom = reduced_3c_oce(kkind)%index_atom(kneighbor)
+                      rbc(1:3) = reduced_3c_oce(kkind)%rbc(1:3,kneighbor)
+                      !
+                      ! Compute the modified Qai matrix as
+                      ! mQai_\mu\nu = Qai_\mu\nu - Qbi_\mu\nu * (R_A-R_\nu)_ii 
+                      !             + Qci_\mu\nu * (R_A-R_\nu)_iii
+                      DO ispin = 1,nspins
+                         jp_RARnu(ispin)%r_coef=0.0_dp ! not needed
+                      DO isgfb = 1,nsgfb
+                      DO isgfa = 1,nsgfa
+                         jp_RARnu(ispin)%r_coef(isgfa,isgfb) =  &
+                              &  jp_block(ispin)%r_coef(isgfa,isgfb)  &
+                              & -jp_iii_block(ispin)%r_coef(isgfa,isgfb)*rbc(ii)&
+                              & +jp_ii_block(ispin)%r_coef(isgfa,isgfb)*rbc(iii)
+                      ENDDO
+                      ENDDO
+                      ENDDO
+                      !
+                      ! Get the d_A's for the hard and soft densities.
+                      NULLIFY(C_coeff_hh_a)
+                      CALL get_block_node(matrix=oce%hardo(1)%matrix,&
+                           &              block_row=katom,&
+                           &              block_col=iatom,&
+                           &              BLOCK=C_coeff_hh_a)
+                      !
+                      NULLIFY(C_coeff_ss_a)
+                      CALL get_block_node(matrix=oce%softo(1)%matrix,&
+                           &              block_row=katom,&
+                           &              block_col=iatom,&
+                           &              BLOCK=C_coeff_ss_a)
+                      !
+                      ! De-contract and copy into the final matrix.
+                      ! The hard and soft density matrix-like terms are computed here.
+                      IF(iatom==jatom) THEN
+                         !
+                         DO ispin = 1,nspins
+                            !------------------------------------------------------------------
+                            ! mQai_\alpha\alpha'
+                            ! hard
+                            CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,&
+                                 &     1.0_dp,jp_RARnu(ispin)%r_coef(1,1),nsgfa,&
+                                 &     C_coeff_hh_a(1,1),SIZE(C_coeff_hh_a,1),&
+                                 &     0.0_dp,PC(1,1),max_nsgf)
+                            CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,&
+                                 &     1.0_dp,C_coeff_hh_a(1,1),SIZE(C_coeff_hh_a,1),&
+                                 &     PC(1,1),max_nsgf,&
+                                 &     1.0_dp,jrho1_atom_set(katom)%cjc_h(ispin)%r_coef(1,1),nsoctot)
+                            !
+                            ! soft
+                            CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,&
+                                 &     1.0_dp,jp_RARnu(ispin)%r_coef(1,1),nsgfa,&
+                                 &     C_coeff_ss_a(1,1),SIZE(C_coeff_ss_a,1),&
+                                 &     0.0_dp,PC(1,1),max_nsgf)
+                            CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,&
+                                 &     1.0_dp,C_coeff_ss_a(1,1),SIZE(C_coeff_ss_a,1),&
+                                 &     PC(1,1),max_nsgf,&
+                                 &     1.0_dp,jrho1_atom_set(katom)%cjc_s(ispin)%r_coef(1,1),nsoctot)
+                            !------------------------------------------------------------------
+                            ! Qci_\alpha\alpha'
+                            ! hard
+                            CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,&
+                                 &     1.0_dp,jp_ii_block(ispin)%r_coef(1,1),nsgfa,&
+                                 &     C_coeff_hh_a(1,1),SIZE(C_coeff_hh_a,1),&
+                                 &     0.0_dp,PC(1,1),max_nsgf)
+                            CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,&
+                                 &     1.0_dp,C_coeff_hh_a(1,1),SIZE(C_coeff_hh_a,1),&
+                                 &     PC(1,1),max_nsgf,&
+                                 &     1.0_dp,jrho1_atom_set(katom)%cjc_ii_h(ispin)%r_coef(1,1),nsoctot)
+                            !
+                            ! soft
+                            CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,&
+                                 &     1.0_dp,jp_ii_block(ispin)%r_coef(1,1),nsgfa,&
+                                 &     C_coeff_ss_a(1,1),SIZE(C_coeff_ss_a,1),&
+                                 &     0.0_dp,PC(1,1),max_nsgf)
+                            CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,&
+                                 &     1.0_dp,C_coeff_ss_a(1,1),SIZE(C_coeff_ss_a,1),&
+                                 &     PC(1,1),max_nsgf,&
+                                 &     1.0_dp,jrho1_atom_set(katom)%cjc_ii_s(ispin)%r_coef(1,1),nsoctot)
+                            !------------------------------------------------------------------
+                            ! Qbi_\alpha\alpha'
+                            ! hard
+                            CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,&
+                                 &     1.0_dp,jp_iii_block(ispin)%r_coef(1,1),nsgfa,&
+                                 &     C_coeff_hh_a(1,1),SIZE(C_coeff_hh_a,1),&
+                                 &     0.0_dp,PC(1,1),max_nsgf)
+                            CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,&
+                                 &     1.0_dp,C_coeff_hh_a(1,1),SIZE(C_coeff_hh_a,1),&
+                                 &     PC(1,1),max_nsgf,&
+                                 &     1.0_dp,jrho1_atom_set(katom)%cjc_iii_h(ispin)%r_coef(1,1),nsoctot)
+                            !
+                            ! soft
+                            CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,&
+                                 &     1.0_dp,jp_iii_block(ispin)%r_coef(1,1),nsgfa,&
+                                 &     C_coeff_ss_a(1,1),SIZE(C_coeff_ss_a,1),&
+                                 &     0.0_dp,PC(1,1),max_nsgf)
+                            CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,&
+                                 &     1.0_dp,C_coeff_ss_a(1,1),SIZE(C_coeff_ss_a,1),&
+                                 &     PC(1,1),max_nsgf,&
+                                 &     1.0_dp,jrho1_atom_set(katom)%cjc_iii_s(ispin)%r_coef(1,1),nsoctot)
+                            !------------------------------------------------------------------
+                         ENDDO ! ispin
+                         !
+                      ELSE
+                         !
+                         ! Get the d_B's for the hard and soft densities.
+                         NULLIFY(C_coeff_hh_b)
+                         CALL get_block_node(matrix=oce%hardo(1)%matrix,&
+                              &              block_row=katom,&
+                              &              block_col=jatom,&
+                              &              BLOCK=C_coeff_hh_b)
+                         !
+                         NULLIFY(C_coeff_ss_b)
+                         CALL get_block_node(matrix=oce%softo(1)%matrix,&
+                              &              block_row=katom,&
+                              &              block_col=jatom,&
+                              &              BLOCK=C_coeff_ss_b)
+                         !
+                         DO ispin = 1,nspins
+                            !------------------------------------------------------------------
+                            ! mQai_\alpha\alpha'
+                            ! hard
+                            CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,&
+                                 &     1.0_dp,jp_RARnu(ispin)%r_coef(1,1),nsgfa,&
+                                 &     C_coeff_hh_b(1,1),SIZE(C_coeff_hh_b,1),&
+                                 &     0.0_dp,PC(1,1),max_nsgf)
+                            CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,&
+                                 &     1.0_dp,C_coeff_hh_a(1,1),SIZE(C_coeff_hh_a,1),&
+                                 &     PC(1,1),max_nsgf,&
+                                 &     1.0_dp,jrho1_atom_set(katom)%cjc_h(ispin)%r_coef(1,1),nsoctot)
+                            !
+                            ! soft
+                            CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,&
+                                 &     1.0_dp,jp_RARnu(ispin)%r_coef(1,1),nsgfa,&
+                                 &     C_coeff_ss_b(1,1),SIZE(C_coeff_ss_b,1),&
+                                 &     0.0_dp,PC(1,1),max_nsgf)
+                            CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,&
+                                 &     1.0_dp,C_coeff_ss_a(1,1),SIZE(C_coeff_ss_a,1),&
+                                 &     PC(1,1),max_nsgf,&
+                                 &     1.0_dp,jrho1_atom_set(katom)%cjc_s(ispin)%r_coef(1,1),nsoctot)
+                            !------------------------------------------------------------------
+                            ! Qci_\alpha\alpha'
+                            ! hard
+                            CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,&
+                                 &     1.0_dp,jp_ii_block(ispin)%r_coef(1,1),nsgfa,&
+                                 &     C_coeff_hh_b(1,1),SIZE(C_coeff_hh_b,1),&
+                                 &     0.0_dp,PC(1,1),max_nsgf)
+                            CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,&
+                                 &     1.0_dp,C_coeff_hh_a(1,1),SIZE(C_coeff_hh_a,1),&
+                                 &     PC(1,1),max_nsgf,&
+                                 &     1.0_dp,jrho1_atom_set(katom)%cjc_ii_h(ispin)%r_coef(1,1),nsoctot)
+                            !
+                            ! soft
+                            CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,&
+                                 &     1.0_dp,jp_ii_block(ispin)%r_coef(1,1),nsgfa,&
+                                 &     C_coeff_ss_b(1,1),SIZE(C_coeff_ss_b,1),&
+                                 &     0.0_dp,PC(1,1),max_nsgf)
+                            CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,&
+                                 &     1.0_dp,C_coeff_ss_a(1,1),SIZE(C_coeff_ss_a,1),&
+                                 &     PC(1,1),max_nsgf,&
+                                 &     1.0_dp,jrho1_atom_set(katom)%cjc_ii_s(ispin)%r_coef(1,1),nsoctot)
+                            !------------------------------------------------------------------
+                            ! Qbi_\alpha\alpha'
+                            ! hard
+                            CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,&
+                                 &     1.0_dp,jp_iii_block(ispin)%r_coef(1,1),nsgfa,&
+                                 &     C_coeff_hh_b(1,1),SIZE(C_coeff_hh_b,1),&
+                                 &     0.0_dp,PC(1,1),max_nsgf)
+                            CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,&
+                                 &     1.0_dp,C_coeff_hh_a(1,1),SIZE(C_coeff_hh_a,1),&
+                                 &     PC(1,1),max_nsgf,&
+                                 &     1.0_dp,jrho1_atom_set(katom)%cjc_iii_h(ispin)%r_coef(1,1),nsoctot)
+                            !
+                            ! soft
+                            CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,&
+                                 &     1.0_dp,jp_iii_block(ispin)%r_coef(1,1),nsgfa,&
+                                 &     C_coeff_ss_b(1,1),SIZE(C_coeff_ss_b,1),&
+                                 &     0.0_dp,PC(1,1),max_nsgf)
+                            CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,&
+                                 &     1.0_dp,C_coeff_ss_a(1,1),SIZE(C_coeff_ss_a,1),&
+                                 &     PC(1,1),max_nsgf,&
+                                 &     1.0_dp,jrho1_atom_set(katom)%cjc_iii_s(ispin)%r_coef(1,1),nsoctot)
+                            !------------------------------------------------------------------
+                         ENDDO ! ispin
+                      ENDIF ! iatom==jatom
+                      !
+                   ENDDO ! kneighbor
+                ENDDO ! kkind
+                sab_orb_neighbor_node => next(sab_orb_neighbor_node)
+             ENDDO ! inode
+             !
+          ENDDO ! ilist
+          DO ispin = 1,nspins
+             DEALLOCATE(jp_RARnu(ispin)%r_coef,STAT=istat)
+             CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+          ENDDO
+       ENDDO ! jkind
+    ENDDO ! ikind
+    !
+    ! parallel sum up 
     DO iatom = 1,natom
-
        DO ispin = 1,nspins
-         IF(ASSOCIATED(jrho1_atom_set(iatom)%cjc_h(ispin)%r_coef)) THEN
-           CALL mp_sum(jrho1_atom_set(iatom)%cjc_h(ispin)%r_coef,qs_env%para_env%group)
-           CALL mp_sum(jrho1_atom_set(iatom)%cjc_s(ispin)%r_coef,qs_env%para_env%group)
-           CALL mp_sum(jrho1_atom_set(iatom)%cjc_ii_h(ispin)%r_coef,qs_env%para_env%group)
-           CALL mp_sum(jrho1_atom_set(iatom)%cjc_ii_s(ispin)%r_coef,qs_env%para_env%group)
-           CALL mp_sum(jrho1_atom_set(iatom)%cjc_iii_h(ispin)%r_coef,qs_env%para_env%group)
-           CALL mp_sum(jrho1_atom_set(iatom)%cjc_iii_s(ispin)%r_coef,qs_env%para_env%group)
-         END IF
+          IF(ASSOCIATED(jrho1_atom_set(iatom)%cjc_h(ispin)%r_coef)) THEN
+             CALL mp_sum(jrho1_atom_set(iatom)%cjc_h(ispin)%r_coef,qs_env%para_env%group)
+             CALL mp_sum(jrho1_atom_set(iatom)%cjc_s(ispin)%r_coef,qs_env%para_env%group)
+             CALL mp_sum(jrho1_atom_set(iatom)%cjc_ii_h(ispin)%r_coef,qs_env%para_env%group)
+             CALL mp_sum(jrho1_atom_set(iatom)%cjc_ii_s(ispin)%r_coef,qs_env%para_env%group)
+             CALL mp_sum(jrho1_atom_set(iatom)%cjc_iii_h(ispin)%r_coef,qs_env%para_env%group)
+             CALL mp_sum(jrho1_atom_set(iatom)%cjc_iii_s(ispin)%r_coef,qs_env%para_env%group)
+          ENDIF
        ENDDO
-
-    END DO
-
-    DEALLOCATE (PC,STAT=istat)
+    ENDDO
+    !
+    ! clean up
+    DEALLOCATE(PC,jp_block,jp_ii_block,jp_iii_block,jp_RARnu,STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (jp_block,jp_ii_block,jp_iii_block,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (jp_RARnu,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-
+    !
     CALL timestop(0.0_dp,handle)
-
+    !
   END SUBROUTINE calculate_jrho_atom_coeff
 
 ! *****************************************************************************
 
   SUBROUTINE calculate_jrho_atom_rad(qs_env,epr_env,IB,idir,error)
-
+    !
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(epr_env_type)                       :: epr_env
     INTEGER, INTENT(IN)                      :: IB, idir
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_jrho_atom_rad', &
       routineP = moduleN//':'//routineN
@@ -551,16 +565,16 @@ MODULE qs_linres_epr_atom_current
     INTEGER :: handle, i1, i2, iat, iatom, icg, ikind, ipgf1, ipgf2, iset1, &
       iset2, iso, iso1, iso1_first, iso1_last, iso2, iso2_first, iso2_last, &
       ispin, istat, l, l_iso, lmax12, lmax_expansion, lmin12, m1s, m2s, &
-      max_iso_not0, max_nso, maxl, maxso, mepos, n1s, n2s, natom, nkind, nr, &
-      nset, nspins, num_pe, size1, size2
+      max_iso_not0, max_nso, maxl, maxso, mepos, n1s, n2s, natom, natom_tot, &
+      nkind, nr, nset, nspins, num_pe, size1, size2
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf
     LOGICAL                                  :: failure, paw_atom
+    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: is_set_to_0
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: g1, g2
     REAL(dp), ALLOCATABLE, DIMENSION(:, :) :: cjc_h_block, cjc_ii_h_block, &
-      cjc_ii_s_block, cjc_iii_h_block, cjc_iii_s_block, cjc_s_block, & !R
-      gg, gg_lm1 !R
-    REAL(dp), DIMENSION(100,20)               :: dgg_1,dgg_2
+      cjc_ii_s_block, cjc_iii_h_block, cjc_iii_s_block, cjc_s_block, dgg_1, &
+      dgg_2, gg, gg_lm1
     REAL(dp), DIMENSION(:, :), POINTER :: coeff, Fr_a_h, Fr_a_h_ii, &
       Fr_a_h_iii, Fr_a_s, Fr_a_s_ii, Fr_a_s_iii, Fr_b_h, Fr_b_h_ii, &
       Fr_b_h_iii, Fr_b_s, Fr_b_s_ii, Fr_b_s_iii, Fr_c_h_ii, Fr_c_h_iii, &
@@ -579,614 +593,822 @@ MODULE qs_linres_epr_atom_current
       POINTER                                :: jrho1_atom_set
     TYPE(jrho_atom_type), POINTER            :: jrho1_atom
 
+!
+!
+
     CALL timeset("calculate_jrho_atom_rad","I"," ",handle)
-
+    !
     failure =.FALSE.
-    NULLIFY (atomic_kind_set,dft_control,para_env)
-    NULLIFY (coeff,Fr_a_h, Fr_a_s,Fr_a_h_ii, Fr_a_s_ii,Fr_a_h_iii, Fr_a_s_iii)
-    NULLIFY (Fr_b_h, Fr_b_s,Fr_b_h_ii, Fr_b_s_ii,Fr_b_h_iii, Fr_b_s_iii)
-    NULLIFY (Fr_c_h_ii, Fr_c_s_ii,Fr_c_h_iii, Fr_c_s_iii)
-    NULLIFY (jrho1_atom_set,jrho1_atom)
-
+    NULLIFY(atomic_kind_set,dft_control,para_env,&
+         &  coeff,Fr_a_h,Fr_a_s,Fr_a_h_ii,Fr_a_s_ii,&
+         &  Fr_a_h_iii,Fr_a_s_iii,Fr_b_h,Fr_b_s,Fr_b_h_ii,&
+         &  Fr_b_s_ii,Fr_b_h_iii,Fr_b_s_iii,Fr_c_h_ii,&
+         &  Fr_c_s_ii,Fr_c_h_iii,Fr_c_s_iii,jrho1_atom_set,&
+         &  jrho1_atom)
+    !
     CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
-                    dft_control=dft_control,&
-                    para_env=para_env,&
-                    error=error)
-
+         &          atomic_kind_set=atomic_kind_set,&
+         &          dft_control=dft_control,&
+         &          para_env=para_env,&
+         &          error=error)
+    !
     CALL get_epr_env(epr_env=epr_env,&
-                     jrho1_atom_set=jrho1_atom_set)
-
-
+         &           jrho1_atom_set=jrho1_atom_set,&
+         &           error=error)
+    !
+    natom_tot = SIZE(jrho1_atom_set,1)
+    ALLOCATE(is_set_to_0(natom_tot),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    is_set_to_0(:) = .FALSE.
+    !
     nkind = SIZE(atomic_kind_set)
     nspins = dft_control%nspins
-
+    !
     DO ikind = 1,nkind
-      NULLIFY (atom_kind,atom_list,grid_atom,harmonics,orb_basis_set)
-      NULLIFY (lmax, lmin, npgf, zet) 
-      NULLIFY (grid_atom,harmonics)
-      NULLIFY (my_CG,my_CG_dxyz_asym)
-      atom_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atom_kind, atom_list=atom_list,&
-                           grid_atom=grid_atom,natom=natom,&
-                           paw_atom=paw_atom, harmonics=harmonics,&
-                           orb_basis_set=orb_basis_set)
-
-      IF(.NOT. paw_atom) CYCLE
-
-      CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                             lmax=lmax,lmin=lmin,&
-                             maxl=maxl, npgf=npgf, nset=nset, zet=zet,&
-                             maxso=maxso)
-
-      max_iso_not0 = harmonics%max_iso_not0
-      nr           = grid_atom%nr
-      lmax_expansion = indso(1,max_iso_not0)
-!     Distribute the atoms of this kind
-      num_pe = para_env%num_pe
-      mepos  = para_env%mepos
-      bo = get_limit( natom, num_pe, mepos )
-
-      my_CG           => harmonics%my_CG
-      my_CG_dxyz_asym => harmonics%my_CG_dxyz_asym
-
-
-      ALLOCATE(g1(nr),g2(nr),gg(nr,0:2*maxl),gg_lm1(nr,0:2*maxl),STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-!R    ALLOCATE(dgg_1(nr,0:2*maxl),dgg_2(nr,0:2*maxl),STAT=istat)
-!R    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-
-      max_nso = nsoset(maxl)
-      ALLOCATE (cjc_h_block(max_nso,max_nso),cjc_s_block(max_nso,max_nso),STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE (cjc_ii_h_block(max_nso,max_nso),cjc_ii_s_block(max_nso,max_nso),STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE (cjc_iii_h_block(max_nso,max_nso),cjc_iii_s_block(max_nso,max_nso),STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-
-      m1s = 0
-      DO iset1 = 1,nset
-        n1s = nsoset(lmax(iset1))
-        DO ipgf1  = 1,npgf(iset1)
-
-          iso1_first = nsoset(lmin(iset1)-1)+1+n1s*(ipgf1-1)+m1s
-          iso1_last  = nsoset(lmax(iset1))+n1s*(ipgf1-1)+m1s
-          size1 = iso1_last - iso1_first + 1
-          i1 = nsoset(lmin(iset1)-1)+1
-
-          g1(1:nr) = EXP(-zet(ipgf1,iset1)*grid_atom%rad2(1:nr))
-
-          m2s = 0
-          DO iset2 = 1,nset
-            n2s=nsoset(lmax(iset2))
-            DO ipgf2 = 1,npgf(iset2)
-              iso2_first = nsoset(lmin(iset2)-1)+1+n2s*(ipgf2-1)+m2s
-              iso2_last  = nsoset(lmax(iset2))+n2s*(ipgf2-1)+m2s
-              size2 = iso2_last - iso2_first + 1
-              i2 = nsoset(lmin(iset2)-1)+1
-
-              g2(1:nr) = EXP(-zet(ipgf2,iset2)*grid_atom%rad2(1:nr))
-
-              lmin12 = lmin(iset1)+lmin(iset2)
-              lmax12 = lmax(iset1)+lmax(iset2)
-
-              gg = 0.0_dp
-              gg_lm1 = 0.0_dp
-              dgg_1 = 0.0_dp
-              dgg_2 = 0.0_dp
-
-              ! Take only the terms of expansion for L < lmax_expansion
-              IF(lmin12 .LE. lmax_expansion) THEN
-
-                IF(lmax12 .GT. lmax_expansion) lmax12 = lmax_expansion
-
-                IF (lmin12 == 0) THEN
-                  gg(1:nr,lmin12) = g1(1:nr)*g2(1:nr)
-                  gg_lm1(1:nr,lmin12) = 0.0_dp
-                ELSE
-                  gg(1:nr,lmin12) = grid_atom%rad2l(1:nr,lmin12)*g1(1:nr)*g2(1:nr)
-                  gg_lm1(1:nr,lmin12) = grid_atom%rad2l(1:nr,lmin12-1)*g1(1:nr)*g2(1:nr)
-                END IF
-
-                DO l=lmin12+1,lmax12
-                  gg(1:nr,l) = grid_atom%rad(1:nr)*gg(1:nr,l-1)
-                  gg_lm1(1:nr,l) = gg(1:nr,l-1)
-                  dgg_1(1:nr,l-1) = 2.0_dp*(zet(ipgf1,iset1) - zet(ipgf2,iset2))*&
-                                    gg(1:nr,l)
-                  IF(l-2>=lmin12) THEN
-                    dgg_2(1:nr,l-2) = 2.0_dp*(zet(ipgf1,iset1)- zet(ipgf2,iset2))* & 
-                                      gg(1:nr,l)
-                  END IF
-                END DO
-                dgg_1(1:nr,lmax12)   = 2.0_dp*(zet(ipgf1,iset1)- zet(ipgf2,iset2))*&
-                                       grid_atom%rad(1:nr) * gg(1:nr,lmax12)
-                dgg_2(1:nr,lmax12-1) = 2.0_dp*(zet(ipgf1,iset1)- zet(ipgf2,iset2))*&
-                                       grid_atom%rad(1:nr) * gg(1:nr,lmax12)
-                dgg_2(1:nr,lmax12)   = dgg_2(1:nr,lmax12-1) * grid_atom%rad(1:nr)
-
-              ELSE
-                CYCLE
-              END IF  ! lmin12
-
-              DO iat = bo(1),bo(2)
-                iatom = atom_list(iat)
-
-                DO ispin=1,nspins
-
-                  cjc_h_block  = 0.0_dp
-                  cjc_s_block  = 0.0_dp
-                  coeff => jrho1_atom_set(iatom)%cjc_h(ispin)%r_coef
-                  cjc_h_block(i1:i1+size1-1,i2:i2+size2-1) = &
-                             coeff(iso1_first:iso1_last,iso2_first:iso2_last)
-                  coeff => jrho1_atom_set(iatom)%cjc_s(ispin)%r_coef
-                  cjc_s_block(i1:i1+size1-1,i2:i2+size2-1) = &
-                             coeff(iso1_first:iso1_last,iso2_first:iso2_last)
-
-                  cjc_ii_h_block = 0.0_dp
-                  cjc_ii_s_block = 0.0_dp
-                  coeff => jrho1_atom_set(iatom)%cjc_ii_h(ispin)%r_coef
-                  cjc_ii_h_block(i1:i1+size1-1,i2:i2+size2-1) = &
-                             coeff(iso1_first:iso1_last,iso2_first:iso2_last)
-                  coeff => jrho1_atom_set(iatom)%cjc_ii_s(ispin)%r_coef
-                  cjc_ii_s_block(i1:i1+size1-1,i2:i2+size2-1) = &
-                             coeff(iso1_first:iso1_last,iso2_first:iso2_last)
-
-                  cjc_iii_h_block = 0.0_dp
-                  cjc_iii_s_block = 0.0_dp
-                  coeff => jrho1_atom_set(iatom)%cjc_iii_h(ispin)%r_coef
-                  cjc_iii_h_block(i1:i1+size1-1,i2:i2+size2-1) = &
-                             coeff(iso1_first:iso1_last,iso2_first:iso2_last)
-                  coeff => jrho1_atom_set(iatom)%cjc_iii_s(ispin)%r_coef
-                  cjc_iii_s_block(i1:i1+size1-1,i2:i2+size2-1) = &
-                             coeff(iso1_first:iso1_last,iso2_first:iso2_last)
-
-                  jrho1_atom => jrho1_atom_set(iatom)
-                  ! Allocation radial functions
-                  IF(.NOT. ASSOCIATED(jrho1_atom_set(iatom)%jrho_a_h(ispin)%r_coef)) THEN
-                    CALL allocate_jrho_atom_rad(jrho1_atom,ispin,nr,max_iso_not0, error=error)
-                  ELSE
-                    CALL set2zero_jrho_atom_rad(jrho1_atom,ispin,error=error)
-                  END IF
-
-                  Fr_a_h => jrho1_atom%jrho_a_h(ispin)%r_coef
-                  Fr_a_s => jrho1_atom%jrho_a_s(ispin)%r_coef
-                  Fr_b_h => jrho1_atom%jrho_b_h(ispin)%r_coef
-                  Fr_b_s => jrho1_atom%jrho_b_s(ispin)%r_coef
-
-                  Fr_a_h_ii => jrho1_atom%jrho_a_h_ii(ispin)%r_coef
-                  Fr_a_s_ii => jrho1_atom%jrho_a_s_ii(ispin)%r_coef
-                  Fr_b_h_ii => jrho1_atom%jrho_b_h_ii(ispin)%r_coef
-                  Fr_b_s_ii => jrho1_atom%jrho_b_s_ii(ispin)%r_coef
-                  Fr_c_h_ii => jrho1_atom%jrho_c_h_ii(ispin)%r_coef
-                  Fr_c_s_ii => jrho1_atom%jrho_c_s_ii(ispin)%r_coef
-
-                  Fr_a_h_iii => jrho1_atom%jrho_a_h_iii(ispin)%r_coef
-                  Fr_a_s_iii => jrho1_atom%jrho_a_s_iii(ispin)%r_coef
-                  Fr_b_h_iii => jrho1_atom%jrho_b_h_iii(ispin)%r_coef
-                  Fr_b_s_iii => jrho1_atom%jrho_b_s_iii(ispin)%r_coef
-                  Fr_c_h_iii => jrho1_atom%jrho_c_h_iii(ispin)%r_coef
-                  Fr_c_s_iii => jrho1_atom%jrho_c_s_iii(ispin)%r_coef
-
-                  DO iso = 1,max_iso_not0
-                    l_iso = indso(1,iso)
-                    DO icg = 1,harmonics%ncg(iso,iset1,iset2)
-                      iso1 = harmonics%ind_cg_a(icg,iso,iset1,iset2)
-                      iso2 = harmonics%ind_cg_b(icg,iso,iset1,iset2)
-
-                      l = indso(1,iso1) + indso(1,iso2)
-                      CPPrecondition(l<=lmax_expansion,cp_failure_level,routineP,error,failure)
-
-                      Fr_a_h(1:nr,iso) = Fr_a_h(1:nr,iso) + &
-                           dgg_1(1:nr,l)*cjc_h_block(iso1,iso2)*my_CG(iso1,iso2,iso)
-                      Fr_a_s(1:nr,iso) = Fr_a_s(1:nr,iso) + &
-                           dgg_1(1:nr,l)*cjc_s_block(iso1,iso2)*my_CG(iso1,iso2,iso)
-
-                      Fr_a_h_ii(1:nr,iso) = Fr_a_h_ii(1:nr,iso) + &
-                           dgg_2(1:nr,l)*cjc_ii_h_block(iso1,iso2)*my_CG(iso1,iso2,iso)
-                      Fr_a_s_ii(1:nr,iso) = Fr_a_s_ii(1:nr,iso) + &
-                           dgg_2(1:nr,l)*cjc_ii_s_block(iso1,iso2)*my_CG(iso1,iso2,iso)
-
-                      Fr_c_h_ii(1:nr,iso) = Fr_c_h_ii(1:nr,iso) + &
-                           gg(1:nr,l)*cjc_ii_h_block(iso1,iso2)*my_CG(iso1,iso2,iso)
-                      Fr_c_s_ii(1:nr,iso) = Fr_c_s_ii(1:nr,iso) + &
-                           gg(1:nr,l)*cjc_ii_s_block(iso1,iso2)*my_CG(iso1,iso2,iso)
-
-                      Fr_a_h_iii(1:nr,iso) = Fr_a_h_iii(1:nr,iso) + &
-                           dgg_2(1:nr,l)*cjc_iii_h_block(iso1,iso2)*my_CG(iso1,iso2,iso)
-                      Fr_a_s_iii(1:nr,iso) = Fr_a_s_iii(1:nr,iso) + &
-                           dgg_2(1:nr,l)*cjc_iii_s_block(iso1,iso2)*my_CG(iso1,iso2,iso)
-
-                      Fr_c_h_iii(1:nr,iso) = Fr_c_h_iii(1:nr,iso) + &
-                           gg(1:nr,l)*cjc_iii_h_block(iso1,iso2)*my_CG(iso1,iso2,iso)
-                      Fr_c_s_iii(1:nr,iso) = Fr_c_s_iii(1:nr,iso) + &
-                           gg(1:nr,l)*cjc_iii_s_block(iso1,iso2)*my_CG(iso1,iso2,iso)
-
-                    END DO  !icg
-
-                    DO icg = 1,harmonics%ncg_dxyz_asym(iso,iset1,iset2)
-                      iso1 = harmonics%ind_cg_a_dxyz(icg,iso,iset1,iset2)
-                      iso2 = harmonics%ind_cg_b_dxyz(icg,iso,iset1,iset2)
-                      l = indso(1,iso1) + indso(1,iso2)
-
-                      Fr_b_h(1:nr,iso) = Fr_b_h(1:nr,iso) + &
-                                       gg_lm1(1:nr,l)*cjc_h_block(iso1,iso2)*&
-                                       my_CG_dxyz_asym(idir,iso1,iso2,iso)
-                      Fr_b_s(1:nr,iso) = Fr_b_s(1:nr,iso) + &
-                                       gg_lm1(1:nr,l)*cjc_s_block(iso1,iso2)*&
-                                       my_CG_dxyz_asym(idir,iso1,iso2,iso)
-
-                      Fr_b_h_ii(1:nr,iso) = Fr_b_h_ii(1:nr,iso) + &
-                                       gg(1:nr,l)*cjc_ii_h_block(iso1,iso2)*&
-                                       my_CG_dxyz_asym(idir,iso1,iso2,iso)
-                      Fr_b_s_ii(1:nr,iso) = Fr_b_s_ii(1:nr,iso) + &
-                                       gg(1:nr,l)*cjc_ii_s_block(iso1,iso2)*&
-                                       my_CG_dxyz_asym(idir,iso1,iso2,iso)
-
-                      Fr_b_h_iii(1:nr,iso) = Fr_b_h_iii(1:nr,iso) + &
-                                       gg(1:nr,l)*cjc_iii_h_block(iso1,iso2)*&
-                                       my_CG_dxyz_asym(idir,iso1,iso2,iso)
-                      Fr_b_s_iii(1:nr,iso) = Fr_b_s_iii(1:nr,iso) + &
-                                       gg(1:nr,l)*cjc_iii_s_block(iso1,iso2)*&
-                                       my_CG_dxyz_asym(idir,iso1,iso2,iso)
-
-                    END DO  ! icg
-
-                  END DO  ! iso
-
-                  NULLIFY(Fr_a_h,Fr_a_s,Fr_a_h_ii,Fr_a_s_ii,Fr_a_h_iii,Fr_a_s_iii)
-                  NULLIFY(Fr_b_h,Fr_b_s,Fr_b_h_ii,Fr_b_s_ii,Fr_b_h_iii,Fr_b_s_iii)
-                  NULLIFY(Fr_c_h_ii,Fr_c_s_ii,Fr_c_h_iii,Fr_c_s_iii)
-
-                END DO  ! ispin
-
-              END DO  ! iat
-
-            END DO  !ipgf2
-            m2s = m2s+maxso
-
-          END DO  ! iset2
-
-        END DO  ! ipgf1
-        m1s = m1s+maxso
-
-      END DO  ! iset1
-
-      DEALLOCATE (cjc_h_block,cjc_s_block,STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-      DEALLOCATE (cjc_ii_h_block,cjc_ii_s_block,STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-      DEALLOCATE (cjc_iii_h_block,cjc_iii_s_block,STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-!R      DEALLOCATE(g1,g2,gg,gg_lm1,dgg_1,dgg_2,STAT=istat)
-      DEALLOCATE(g1,STAT=istat)
-      DEALLOCATE(g2,STAT=istat)
-      DEALLOCATE(gg,STAT=istat)
-      DEALLOCATE(gg_lm1,STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-
-    END DO  ! ikind
-
+       NULLIFY(atom_kind,atom_list,grid_atom,harmonics,orb_basis_set,&
+            &  lmax,lmin,npgf,zet,grid_atom,harmonics,my_CG,my_CG_dxyz_asym)
+       !
+       atom_kind => atomic_kind_set(ikind)
+       CALL get_atomic_kind(atomic_kind=atom_kind,&
+            &               atom_list=atom_list,&
+            &               grid_atom=grid_atom,&
+            &               natom=natom,&
+            &               paw_atom=paw_atom,&
+            &               harmonics=harmonics,&
+            &               orb_basis_set=orb_basis_set)
+       !
+       ! Quick cycle if needed.
+       IF(.NOT.paw_atom) CYCLE
+       !
+       CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+            &                 lmax=lmax,lmin=lmin,&
+            &                 maxl=maxl,npgf=npgf,&
+            &                 nset=nset,zet=zet,&
+            &                 maxso=maxso)
+       !
+       nr = grid_atom%nr
+       max_iso_not0 = harmonics%max_iso_not0
+       lmax_expansion = indso(1,max_iso_not0)
+       !
+       ! Distribute the atoms of this kind
+       num_pe = para_env%num_pe
+       mepos  = para_env%mepos
+       bo = get_limit(natom,num_pe,mepos)
+       !
+       my_CG => harmonics%my_CG
+       my_CG_dxyz_asym => harmonics%my_CG_dxyz_asym
+       !
+       ! Allocate some arrays.
+       max_nso = nsoset(maxl)
+       ALLOCATE(g1(nr),g2(nr),gg(nr,0:2*maxl),gg_lm1(nr,0:2*maxl),&
+            &   dgg_1(nr,0:2*maxl),dgg_2(nr,0:2*maxl),&
+            &   cjc_h_block(max_nso,max_nso),cjc_s_block(max_nso,max_nso),&
+            &   cjc_ii_h_block(max_nso,max_nso),cjc_ii_s_block(max_nso,max_nso),&
+            &   cjc_iii_h_block(max_nso,max_nso),cjc_iii_s_block(max_nso,max_nso),&
+            &   STAT=istat)
+       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+       !
+       m1s = 0
+       DO iset1 = 1,nset
+          n1s = nsoset(lmax(iset1))
+          DO ipgf1  = 1,npgf(iset1)
+             iso1_first = nsoset(lmin(iset1)-1)+1+n1s*(ipgf1-1)+m1s
+             iso1_last  = nsoset(lmax(iset1))+n1s*(ipgf1-1)+m1s
+             size1 = iso1_last - iso1_first + 1
+             i1 = nsoset(lmin(iset1)-1)+1
+             !
+             g1(1:nr) = EXP(-zet(ipgf1,iset1)*grid_atom%rad2(1:nr))
+             !
+             m2s = 0
+             DO iset2 = 1,nset
+                n2s=nsoset(lmax(iset2))
+                DO ipgf2 = 1,npgf(iset2)
+                   iso2_first = nsoset(lmin(iset2)-1)+1+n2s*(ipgf2-1)+m2s
+                   iso2_last  = nsoset(lmax(iset2))+n2s*(ipgf2-1)+m2s
+                   size2 = iso2_last - iso2_first + 1
+                   i2 = nsoset(lmin(iset2)-1)+1
+                   !
+                   g2(1:nr) = EXP(-zet(ipgf2,iset2)*grid_atom%rad2(1:nr))
+                   !
+                   lmin12 = lmin(iset1)+lmin(iset2)
+                   lmax12 = lmax(iset1)+lmax(iset2)
+                   !
+                   gg = 0.0_dp
+                   gg_lm1 = 0.0_dp
+                   dgg_1 = 0.0_dp
+                   dgg_2 = 0.0_dp
+                   !
+                   ! Take only the terms of expansion for L < lmax_expansion
+                   IF(lmin12.LE.lmax_expansion) THEN
+                      !
+                      IF(lmax12.GT.lmax_expansion) lmax12 = lmax_expansion
+                      !
+                      IF(lmin12==0) THEN
+                         gg(1:nr,lmin12) = g1(1:nr)*g2(1:nr)
+                         gg_lm1(1:nr,lmin12) = 0.0_dp
+                      ELSE
+                         gg(1:nr,lmin12) = grid_atom%rad2l(1:nr,lmin12)*g1(1:nr)*g2(1:nr)
+                         gg_lm1(1:nr,lmin12) = grid_atom%rad2l(1:nr,lmin12-1)*g1(1:nr)*g2(1:nr)
+                      ENDIF
+                      !
+                      DO l=lmin12+1,lmax12
+                         gg(1:nr,l) = grid_atom%rad(1:nr)*gg(1:nr,l-1)
+                         gg_lm1(1:nr,l) = gg(1:nr,l-1)
+                         !dgg_1(1:nr,l-1) = 2.0_dp*(zet(ipgf1,iset1)-zet(ipgf2,iset2))*gg(1:nr,l)
+                         !IF(l-2>=lmin12) dgg_2(1:nr,l-2) = 2.0_dp*(zet(ipgf1,iset1)-zet(ipgf2,iset2))&
+                         !     &                                  *gg(1:nr,l)
+                      ENDDO
+                      !dgg_1(1:nr,lmax12) = 2.0_dp*(zet(ipgf1,iset1)-zet(ipgf2,iset2))&
+                      !     &                     *grid_atom%rad(1:nr)*gg(1:nr,lmax12)
+                      !IF(lmax12-1.GE.0) THEN
+                      !   dgg_2(1:nr,lmax12-1) = 2.0_dp*(zet(ipgf1,iset1)-zet(ipgf2,iset2))&
+                      !        &                       *grid_atom%rad(1:nr)*gg(1:nr,lmax12)
+                      !   dgg_2(1:nr,lmax12)   = dgg_2(1:nr,lmax12-1)*grid_atom%rad(1:nr)
+                      !ENDIF
+                      !vw the following is naive but safe wv!
+                      DO l=lmin12,lmax12
+                         dgg_1(1:nr,l)=2.0_dp*(zet(ipgf1,iset1)-zet(ipgf2,iset2))&
+                              &              *gg(1:nr,l)*grid_atom%rad(1:nr)
+                         dgg_2(1:nr,l)=dgg_1(1:nr,l)*grid_atom%rad(1:nr)
+                      ENDDO
+                   ELSE
+                      CYCLE
+                   ENDIF ! lmin12
+                   !
+                   DO iat = bo(1),bo(2)
+                      iatom = atom_list(iat)
+                      !
+                      DO ispin=1,nspins
+                         !------------------------------------------------------------------
+                         ! mQai_\alpha\alpha'
+                         cjc_h_block = HUGE(1d0)!0.0_dp
+                         cjc_s_block = HUGE(1d0)!0.0_dp
+                         !
+                         ! Hard term
+                         coeff => jrho1_atom_set(iatom)%cjc_h(ispin)%r_coef
+                         cjc_h_block(i1:i1+size1-1,i2:i2+size2-1) = &
+                              &coeff(iso1_first:iso1_last,iso2_first:iso2_last)
+                         !
+                         ! Soft term
+                         coeff => jrho1_atom_set(iatom)%cjc_s(ispin)%r_coef
+                         cjc_s_block(i1:i1+size1-1,i2:i2+size2-1) = &
+                              &coeff(iso1_first:iso1_last,iso2_first:iso2_last)
+                         !------------------------------------------------------------------
+                         ! Qci_\alpha\alpha'
+                         cjc_ii_h_block = HUGE(1d0)!0.0_dp
+                         cjc_ii_s_block = HUGE(1d0)!0.0_dp
+                         !
+                         ! Hard term
+                         coeff => jrho1_atom_set(iatom)%cjc_ii_h(ispin)%r_coef
+                         cjc_ii_h_block(i1:i1+size1-1,i2:i2+size2-1) = &
+                              &   coeff(iso1_first:iso1_last,iso2_first:iso2_last)
+                         !
+                         ! Soft term
+                         coeff => jrho1_atom_set(iatom)%cjc_ii_s(ispin)%r_coef
+                         cjc_ii_s_block(i1:i1+size1-1,i2:i2+size2-1) = &
+                              &   coeff(iso1_first:iso1_last,iso2_first:iso2_last)
+                         !------------------------------------------------------------------
+                         ! Qbi_\alpha\alpha'
+                         cjc_iii_h_block = HUGE(1d0)!0.0_dp
+                         cjc_iii_s_block = HUGE(1d0)!0.0_dp
+                         !
+                         ! Hard term
+                         coeff => jrho1_atom_set(iatom)%cjc_iii_h(ispin)%r_coef
+                         cjc_iii_h_block(i1:i1+size1-1,i2:i2+size2-1) = &
+                              &    coeff(iso1_first:iso1_last,iso2_first:iso2_last)
+                         !
+                         ! Soft term
+                         coeff => jrho1_atom_set(iatom)%cjc_iii_s(ispin)%r_coef
+                         cjc_iii_s_block(i1:i1+size1-1,i2:i2+size2-1) = &
+                              &    coeff(iso1_first:iso1_last,iso2_first:iso2_last)
+                         !------------------------------------------------------------------
+                         !
+                         ! Allocation radial functions
+                         jrho1_atom => jrho1_atom_set(iatom)
+                         IF(.NOT.ASSOCIATED(jrho1_atom%jrho_a_h(ispin)%r_coef)) THEN
+                            CALL allocate_jrho_atom_rad(jrho1_atom,ispin,nr,max_iso_not0,error=error)
+                            is_set_to_0(iatom) = .TRUE.
+                         ELSE
+                            IF(.NOT.is_set_to_0(iatom)) THEN
+                               CALL set2zero_jrho_atom_rad(jrho1_atom,ispin,error=error)
+                               is_set_to_0(iatom) = .TRUE.
+                            ENDIF
+                         ENDIF
+                         !------------------------------------------------------------------
+                         ! 
+                         Fr_a_h => jrho1_atom%jrho_a_h(ispin)%r_coef
+                         Fr_a_s => jrho1_atom%jrho_a_s(ispin)%r_coef
+                         Fr_b_h => jrho1_atom%jrho_b_h(ispin)%r_coef
+                         Fr_b_s => jrho1_atom%jrho_b_s(ispin)%r_coef
+                         !------------------------------------------------------------------
+                         !
+                         Fr_a_h_ii => jrho1_atom%jrho_a_h_ii(ispin)%r_coef
+                         Fr_a_s_ii => jrho1_atom%jrho_a_s_ii(ispin)%r_coef
+                         Fr_b_h_ii => jrho1_atom%jrho_b_h_ii(ispin)%r_coef
+                         Fr_b_s_ii => jrho1_atom%jrho_b_s_ii(ispin)%r_coef
+                         Fr_c_h_ii => jrho1_atom%jrho_c_h_ii(ispin)%r_coef ! not needed
+                         Fr_c_s_ii => jrho1_atom%jrho_c_s_ii(ispin)%r_coef ! not needed
+                         !------------------------------------------------------------------
+                         !
+                         Fr_a_h_iii => jrho1_atom%jrho_a_h_iii(ispin)%r_coef
+                         Fr_a_s_iii => jrho1_atom%jrho_a_s_iii(ispin)%r_coef
+                         Fr_b_h_iii => jrho1_atom%jrho_b_h_iii(ispin)%r_coef
+                         Fr_b_s_iii => jrho1_atom%jrho_b_s_iii(ispin)%r_coef
+                         Fr_c_h_iii => jrho1_atom%jrho_c_h_iii(ispin)%r_coef ! not needed
+                         Fr_c_s_iii => jrho1_atom%jrho_c_s_iii(ispin)%r_coef ! not needed
+                         !------------------------------------------------------------------
+                         !
+                         DO iso = 1,max_iso_not0
+                            l_iso = indso(1,iso) ! not needed
+                            !
+                            DO icg = 1,harmonics%ncg(iso,iset1,iset2)
+                               !
+                               iso1 = harmonics%ind_cg_a(icg,iso,iset1,iset2)
+                               iso2 = harmonics%ind_cg_b(icg,iso,iset1,iset2)
+                               IF(.NOT.(iso2>0.AND.iso1>0))THEN
+                                  WRITE(*,*) 'iso1=',iso1
+                                  WRITE(*,*) 'iso2=',iso2
+                                  WRITE(*,*) '.... will stop!'
+                               ENDIF
+                               CPPrecondition(iso2>0.AND.iso1>0,cp_failure_level,routineP,error,failure)
+                               !
+                               l = indso(1,iso1) + indso(1,iso2)
+                               IF(l.GT.lmax_expansion.OR.l.LT..0) THEN
+                                  WRITE(*,*) 'calculate_jrho_atom_rad: 1 l',l
+                                  WRITE(*,*) 'calculate_jrho_atom_rad: 1 lmax_expansion',lmax_expansion
+                               ENDIF
+                               CPPrecondition(l<=lmax_expansion,cp_failure_level,routineP,error,failure)
+                               !------------------------------------------------------------------
+                               ! Rai
+                               !
+                               ! Hard term
+                               Fr_a_h(1:nr,iso)     = Fr_a_h(1:nr,iso) + &
+                                    &                 dgg_1(1:nr,l)*cjc_h_block(iso1,iso2)*&
+                                    &                 my_CG(iso1,iso2,iso)
+                               !
+                               ! Soft term
+                               Fr_a_s(1:nr,iso)     = Fr_a_s(1:nr,iso) + &
+                                    &                 dgg_1(1:nr,l)*cjc_s_block(iso1,iso2)*&
+                                    &                 my_CG(iso1,iso2,iso)
+                               !------------------------------------------------------------------
+                               ! Rci
+                               !
+                               ! Hard term
+                               Fr_a_h_ii(1:nr,iso)  = Fr_a_h_ii(1:nr,iso) + &
+                                    &                 dgg_2(1:nr,l)*cjc_ii_h_block(iso1,iso2)*&
+                                    &                 my_CG(iso1,iso2,iso)
+                               !
+                               ! Soft term
+                               Fr_a_s_ii(1:nr,iso)  = Fr_a_s_ii(1:nr,iso) + &
+                                    &                 dgg_2(1:nr,l)*cjc_ii_s_block(iso1,iso2)*&
+                                    &                 my_CG(iso1,iso2,iso)
+                               !------------------------------------------------------------------
+                               ! Rbi
+                               !
+                               ! Hard term
+                               Fr_a_h_iii(1:nr,iso) = Fr_a_h_iii(1:nr,iso) + &
+                                    &                 dgg_2(1:nr,l)*cjc_iii_h_block(iso1,iso2)*&
+                                    &                 my_CG(iso1,iso2,iso)
+                               !
+                               ! Soft term
+                               Fr_a_s_iii(1:nr,iso) = Fr_a_s_iii(1:nr,iso) + &
+                                    &                 dgg_2(1:nr,l)*cjc_iii_s_block(iso1,iso2)*&
+                                    &                 my_CG(iso1,iso2,iso)
+                               !------------------------------------------------------------------
+                               ! Pci
+                               ! not needed
+                               !
+                               ! Hard term
+                               Fr_c_h_ii(1:nr,iso)  = Fr_c_h_ii(1:nr,iso) + &
+                                    &                 gg(1:nr,l)*cjc_ii_h_block(iso1,iso2)*&
+                                    &                 my_CG(iso1,iso2,iso)
+                               !
+                               ! Soft term
+                               Fr_c_s_ii(1:nr,iso)  = Fr_c_s_ii(1:nr,iso) + &
+                                    &                 gg(1:nr,l)*cjc_ii_s_block(iso1,iso2)*&
+                                    &                 my_CG(iso1,iso2,iso)
+                               Fr_c_h_ii(1:nr,iso)  = 1.23456789e10! HUGE(1d0)
+                               Fr_c_s_ii(1:nr,iso)  = 1.23456789e10! HUGE(1d0)
+                               !------------------------------------------------------------------
+                               ! Pbi
+                               ! not needed
+                               !
+                               ! Hard term
+                               Fr_c_h_iii(1:nr,iso) = Fr_c_h_iii(1:nr,iso) + &
+                                    &                 gg(1:nr,l)*cjc_iii_h_block(iso1,iso2)*&
+                                    &                 my_CG(iso1,iso2,iso)
+                               !
+                               ! Soft term
+                               Fr_c_s_iii(1:nr,iso) = Fr_c_s_iii(1:nr,iso) + &
+                                    &                 gg(1:nr,l)*cjc_iii_s_block(iso1,iso2)*&
+                                    &                 my_CG(iso1,iso2,iso)
+                               Fr_c_h_iii(1:nr,iso) = 1.23456789e10!HUGE(1d0)
+                               Fr_c_s_iii(1:nr,iso) = 1.23456789e10!HUGE(1d0)
+                               !------------------------------------------------------------------
+                            ENDDO !icg
+                            !
+                            !
+                            DO icg = 1,harmonics%ncg_dxyz_asym(iso,iset1,iset2)
+                               !
+                               iso1 = harmonics%ind_cg_a_dxyz_asym(icg,iso,iset1,iset2)
+                               iso2 = harmonics%ind_cg_b_dxyz_asym(icg,iso,iset1,iset2)
+                               !
+                               IF(.NOT.(iso2>0.AND.iso1>0))THEN
+                                  WRITE(*,*) 'harmonics%ncg_dxyz_asym'
+                                  WRITE(*,*) 'harmonics%ncg_dxyz_asym',harmonics%ncg_dxyz_asym(iso,iset1,iset2)
+                                  WRITE(*,*) 'harmonics%ncg_dxyz',harmonics%ncg_dxyz(iso,iset1,iset2)
+                                  WRITE(*,*) 'size(indso,1)=',SIZE(indso,1),' size(indso,2)=',SIZE(indso,2)
+                                  WRITE(*,*) 'ubound(indso,2)=',UBOUND(indso,2)
+                                  WRITE(*,*) 'iso1=',iso1,' iso2=',iso2,' iso=',iso,' icg=',icg
+                                  WRITE(*,*) '.... will stop!'
+                               ENDIF
+                               CPPrecondition(iso2>0.AND.iso1>0,cp_failure_level,routineP,error,failure)
+                               !
+                               l = indso(1,iso1) + indso(1,iso2)
+                               IF(l.GT.lmax_expansion) THEN
+                                  WRITE(*,*) 'calculate_jrho_atom_rad: 2 indso',LBOUND(indso,2),UBOUND(indso,2)
+                                  WRITE(*,*) 'calculate_jrho_atom_rad: 2 iso2',iso2
+                                  WRITE(*,*) 'calculate_jrho_atom_rad: 2 iso1',iso1
+                                  WRITE(*,*) 'calculate_jrho_atom_rad: 2 indso(1,iso1)',indso(1,iso1)
+                                  WRITE(*,*) 'calculate_jrho_atom_rad: 2 indso(1,iso2)',indso(1,iso2)
+                                  WRITE(*,*) 'calculate_jrho_atom_rad: 2 l',l
+                                  WRITE(*,*) 'calculate_jrho_atom_rad: 2 lmax_expansion',lmax_expansion
+                               ENDIF
+                               CPPrecondition(l<=lmax_expansion,cp_failure_level,routineP,error,failure)
+                               !------------------------------------------------------------------
+                               ! Daij
+                               !
+                               ! Hard term
+                               Fr_b_h(1:nr,iso) = Fr_b_h(1:nr,iso) + &
+                                    &             gg_lm1(1:nr,l)*cjc_h_block(iso1,iso2)*&
+                                    &             my_CG_dxyz_asym(idir,iso1,iso2,iso)
+                               !
+                               ! Soft term
+                               Fr_b_s(1:nr,iso) = Fr_b_s(1:nr,iso) + &
+                                    &             gg_lm1(1:nr,l)*cjc_s_block(iso1,iso2)*&
+                                    &             my_CG_dxyz_asym(idir,iso1,iso2,iso)
+                               !------------------------------------------------------------------
+                               ! Dcij
+                               !
+                               ! Hard term
+                               Fr_b_h_ii(1:nr,iso) = Fr_b_h_ii(1:nr,iso) + &
+                                    &                gg(1:nr,l)*cjc_ii_h_block(iso1,iso2)*&
+                                    &                my_CG_dxyz_asym(idir,iso1,iso2,iso)
+                               !
+                               ! Soft term
+                               Fr_b_s_ii(1:nr,iso) = Fr_b_s_ii(1:nr,iso) + &
+                                       &                gg(1:nr,l)*cjc_ii_s_block(iso1,iso2)*&
+                                       &                my_CG_dxyz_asym(idir,iso1,iso2,iso)
+                               !------------------------------------------------------------------
+                               ! Dbij
+                               !
+                               ! Hard term
+                               Fr_b_h_iii(1:nr,iso) = Fr_b_h_iii(1:nr,iso) + &
+                                       &                 gg(1:nr,l)*cjc_iii_h_block(iso1,iso2)*&
+                                       &                 my_CG_dxyz_asym(idir,iso1,iso2,iso)
+                               !
+                               ! Soft term
+                               Fr_b_s_iii(1:nr,iso) = Fr_b_s_iii(1:nr,iso) + &
+                                    &                 gg(1:nr,l)*cjc_iii_s_block(iso1,iso2)*&
+                                    &                 my_CG_dxyz_asym(idir,iso1,iso2,iso)
+                               !------------------------------------------------------------------
+                            ENDDO ! icg
+                         ENDDO  ! iso
+                         !
+                         NULLIFY(Fr_c_h_ii,Fr_c_s_ii,Fr_c_h_iii,Fr_c_s_iii,&
+                              &  Fr_a_h,Fr_a_s,Fr_a_h_ii,Fr_a_s_ii,Fr_a_h_iii,&
+                              &  Fr_a_s_iii,Fr_b_h,Fr_b_s,Fr_b_h_ii,Fr_b_s_ii,&
+                              &  Fr_b_h_iii,Fr_b_s_iii)
+                         !
+                      ENDDO ! ispin
+                   ENDDO ! iat
+                   !
+                   !------------------------------------------------------------------
+                   ! 
+                   Fr_a_h => jrho1_atom%jrho_a_h(1)%r_coef
+                   Fr_a_s => jrho1_atom%jrho_a_s(1)%r_coef
+                   Fr_b_h => jrho1_atom%jrho_b_h(1)%r_coef
+                   Fr_b_s => jrho1_atom%jrho_b_s(1)%r_coef
+                   Fr_a_h_ii => jrho1_atom%jrho_a_h_ii(1)%r_coef
+                   Fr_a_s_ii => jrho1_atom%jrho_a_s_ii(1)%r_coef
+                   Fr_b_h_ii => jrho1_atom%jrho_b_h_ii(1)%r_coef
+                   Fr_b_s_ii => jrho1_atom%jrho_b_s_ii(1)%r_coef
+                   Fr_c_h_ii => jrho1_atom%jrho_c_h_ii(1)%r_coef ! not needed
+                   Fr_c_s_ii => jrho1_atom%jrho_c_s_ii(1)%r_coef ! not needed
+                   Fr_a_h_iii => jrho1_atom%jrho_a_h_iii(1)%r_coef
+                   Fr_a_s_iii => jrho1_atom%jrho_a_s_iii(1)%r_coef
+                   Fr_b_h_iii => jrho1_atom%jrho_b_h_iii(1)%r_coef
+                   Fr_b_s_iii => jrho1_atom%jrho_b_s_iii(1)%r_coef
+                   Fr_c_h_iii => jrho1_atom%jrho_c_h_iii(1)%r_coef ! not needed
+                   Fr_c_s_iii => jrho1_atom%jrho_c_s_iii(1)%r_coef ! not needed
+                ENDDO !ipgf2
+                m2s = m2s+maxso
+             ENDDO ! iset2
+          ENDDO ! ipgf1
+          m1s = m1s+maxso
+       ENDDO ! iset1
+       !
+       DEALLOCATE(cjc_h_block,cjc_s_block,cjc_ii_h_block,cjc_ii_s_block,&
+            &     cjc_iii_h_block,cjc_iii_s_block,g1,g2,gg,gg_lm1,dgg_1,&
+            &     dgg_2,STAT=istat)
+       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    ENDDO ! ikind
+    !
+    !
+    DEALLOCATE(is_set_to_0,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    !
     CALL timestop(0.0_dp,handle)
-
-
+    !
   END SUBROUTINE calculate_jrho_atom_rad
 
 ! *****************************************************************************
 
-  SUBROUTINE shift_atom(qs_env,epr_env,iB,idir,error)
-
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(epr_env_type)                       :: epr_env
-    INTEGER, INTENT(IN)                      :: IB, idir
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'shift_atom', &
-      routineP = moduleN//':'//routineN
-
-
-    INTEGER :: handle, ia, iat, iatom, idir2, idir3, ikind, ir, ispin, &
-               jatom, mepos, na, natom, natom_tot,  nkind, nr,& !R
-               nspins, num_pe
-    INTEGER, DIMENSION(2)                    :: bo
-    INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, jatomisneighbor, &
-                                                paw_atom, store_current
-    REAL(dp) :: ddiff, distance, jrho1_tot, r_iatom(3), r_jatom(3), rdiff(3), &
-      rij(3), rvec(3), scale_fac, threshold
-    REAL(dp), DIMENSION(:, :), POINTER       :: jrho_h_grid, jrho_s_grid
-!R                                              r_nics
-!R  REAL(dp), DIMENSION(:, :, :), POINTER    :: chemical_shift_loc, &
-!R                                              chemical_shift_loc_nics
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(grid_atom_type), POINTER            :: grid_atom
-    TYPE(harmonics_atom_type), POINTER       :: harmonics
-    TYPE(jrho_atom_type), DIMENSION(:), &
-      POINTER                                :: jrho1_atom_set
-    TYPE(jrho_atom_type), POINTER            :: jrho1_atom
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-
-    CALL timeset("shift_atom","I"," ",handle)
-
-    failure =.FALSE.
-    NULLIFY (atomic_kind_set,cell,dft_control,para_env,particle_set)
-    NULLIFY (jrho1_atom_set,jrho1_atom) !R
-    NULLIFY (jrho_h_grid, jrho_s_grid) !R
-    NULLIFY (atom_kind,atom_list,grid_atom,harmonics)
-
-    CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
-                    cell=cell,&
-                    dft_control=dft_control,&
-                    para_env=para_env,&
-                    particle_set=particle_set,&
-                    error=error)
-
-    CALL get_epr_env(epr_env=epr_env,&
-         jrho1_atom_set=jrho1_atom_set)
-!R  CALL get_epr_env(epr_env=epr_env,&
-!R       chemical_shift_loc=chemical_shift_loc, &
-!R       chemical_shift_loc_nics=chemical_shift_loc_nics, &
-!R       jrho1_atom_set=jrho1_atom_set,&
-!R       n_nics=n_nics, r_nics=r_nics)
-
-    nkind = SIZE(atomic_kind_set,1)
-    natom_tot = SIZE(particle_set,1)
-    nspins = dft_control%nspins
-!R  store_current = epr_env%store_current
-
-    ! Loop over atoms to collocate the current on each atomic grid, JA
-    ! Per each JA, loop over the points where the shift needs to be computed
-
-    DO ikind = 1,nkind
-
-      NULLIFY (atom_kind,atom_list,grid_atom,harmonics)
-      atom_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atom_kind,atom_list=atom_list,&
-                           natom=natom, paw_atom=paw_atom,&
-                           harmonics=harmonics,grid_atom=grid_atom)
-
-      nr = grid_atom%nr
-      na = grid_atom%ng_sphere
-      IF (.NOT.paw_atom) CYCLE
-
-      ! Distribute the atoms of this kind
-
-      num_pe = para_env%num_pe
-      mepos  = para_env%mepos
-      bo = get_limit( natom, num_pe, mepos )
-
-      DO iat = bo(1),bo(2) 
-        iatom = atom_list(iat)
-        r_iatom(1:3) = pbc(particle_set(iatom)%r,cell)
-
-        NULLIFY (jrho1_atom,jrho_h_grid,jrho_s_grid)
-        jrho1_atom => jrho1_atom_set(iatom)
-
-        DO ispin = 1,nspins
-
-!R        IF(store_current) THEN
-            jrho_h_grid => jrho1_atom%jrho_vec_rad_h(idir,iB,ispin)%r_coef
-            jrho_s_grid => jrho1_atom%jrho_vec_rad_s(idir,iB,ispin)%r_coef
-!R        ELSE
-!R          jrho_h_grid => jrho1_atom%jrho_rad_h(ispin)%r_coef
-!R          jrho_s_grid => jrho1_atom%jrho_rad_s(ispin)%r_coef
-!R        END IF
-
-          jrho_h_grid = 0.0_dp
-          jrho_s_grid = 0.0_dp
-          CALL calculate_jrho_atom_ang(jrho1_atom,jrho_h_grid,jrho_s_grid,&
-               grid_atom,harmonics,iB,idir,ispin,error=error)
-
-       ! And now compute the shift somehow ......... if you can
-
-          ! loop over the atoms neighbors of iatom in terms of the current density
-          ! for each compute the contribution to the shift coming from the
-          ! local current density at iatom
-          DO ia = 1,na
-          DO ir = 1,nr
-             rvec(1) =  grid_atom%rad(ir)*harmonics%a(1,ia)
-             rvec(2) =  grid_atom%rad(ir)*harmonics%a(2,ia)
-             rvec(3) =  grid_atom%rad(ir)*harmonics%a(3,ia)
-
-             jrho1_tot = (jrho_h_grid(ir,ia)-jrho_s_grid(ir,ia))*grid_atom%weight(ia,ir)
-             DO jatom = 1,natom_tot
-               ! be sure you take the minimum image
-               rij(1:3) = pbc(particle_set(iatom)%r,particle_set(jatom)%r,cell)
-               distance = SQRT(rij(1)*rij(1)+rij(2)*rij(2)+rij(3)*rij(3))
-               jatomisneighbor = (distance .LE. threshold)
-
-               IF(jatomisneighbor) THEN
-
-                  rdiff(1) = rij(1) - rvec(1)
-                  rdiff(2) = rij(2) - rvec(2)
-                  rdiff(3) = rij(3) - rvec(3)
-                  ddiff = SQRT( rdiff(1)*rdiff(1)+ rdiff(2)*rdiff(2) + rdiff(3)*rdiff(3))
-       ! the component idir of J contributes to the components idir2/=idir of the shift 
-                  DO idir2 = 1,3
-
-                    IF(idir2/=idir) THEN
-                      CALL set_vecp_rev(idir,idir2,idir3)
-                      scale_fac=fac_vecp(idir3,idir2,idir)
-
-                      IF(ddiff .GT. EPSILON(0.0_dp)) THEN
-!R                      chemical_shift_loc(idir3,iB,jatom) = &
-!R                               chemical_shift_loc(idir3,iB,jatom) + &
-!R                               scale_fac*rdiff(idir2)*jrho1_tot/(ddiff*ddiff*ddiff)
-                      END IF
-
-                    END IF
-                  END DO  ! idir2
-
-               END IF
-
-             END DO  ! jatom
-
-!R           IF(epr_env%do_nics) THEN
+!R  SUBROUTINE shift_atom(qs_env,epr_env,iB,idir,error)
+!R    !
+!R    TYPE(qs_environment_type), POINTER       :: qs_env
+!R    TYPE(epr_env_type)                       :: epr_env
+!R    INTEGER, INTENT(IN)                      :: IB, idir
+!R    TYPE(cp_error_type), INTENT(inout)       :: error
 !R
-!R             DO jatom = 1,n_nics
-!R               r_jatom(1:3) = r_nics(1:3,jatom)
-!R               rij(1:3) = pbc(particle_set(iatom)%r,r_jatom,cell)
+!R    CHARACTER(len=*), PARAMETER :: routineN = 'shift_atom', &
+!R      routineP = moduleN//':'//routineN
 !R
-!R               distance = SQRT(rij(1)*rij(1)+rij(2)*rij(2)+rij(3)*rij(3))
-!R               jatomisneighbor = (distance .LE. threshold)
+!R    INTEGER :: handle, ia, iat, iatom, idir2, idir3, ikind, ir, ispin, jatom, &
+!R      mepos, n_nics, na, natom, natom_tot, nkind, nr, nspins, num_pe, &
+!R      output_unit
+!R    INTEGER, DIMENSION(2)                    :: bo
+!R    INTEGER, DIMENSION(:), POINTER           :: atom_list
+!R    LOGICAL                                  :: failure, jatomisneighbor, &
+!R                                                paw_atom, store_current
+!R    REAL(dp) :: ddiff, distance, itegrated_jrho, jrho1_tot, r_iatom(3), &
+!R      r_jatom(3), rdiff(3), rij(3), rvec(3), scale_fac, threshold
+!R    REAL(dp), DIMENSION(:, :), POINTER       :: jrho_h_grid, jrho_s_grid, &
+!R                                                r_nics
+!R    REAL(dp), DIMENSION(:, :, :), POINTER    :: chemical_shift_loc, &
+!R                                                chemical_shift_loc_nics
+!R    TYPE(atomic_kind_type), DIMENSION(:), &
+!R      POINTER                                :: atomic_kind_set
+!R    TYPE(atomic_kind_type), POINTER          :: atom_kind
+!R    TYPE(cell_type), POINTER                 :: cell
+!R    TYPE(cp_logger_type), POINTER            :: logger
+!R    TYPE(cp_para_env_type), POINTER          :: para_env
+!R    TYPE(dft_control_type), POINTER          :: dft_control
+!R    TYPE(grid_atom_type), POINTER            :: grid_atom
+!R    TYPE(harmonics_atom_type), POINTER       :: harmonics
+!R    TYPE(jrho_atom_type), DIMENSION(:), &
+!R      POINTER                                :: jrho1_atom_set
+!R    TYPE(jrho_atom_type), POINTER            :: jrho1_atom
+!R    TYPE(particle_type), DIMENSION(:), &
+!R      POINTER                                :: particle_set
 !R
-!R               IF(jatomisneighbor) THEN
+!R!
+!R!
 !R
-!R                 rdiff(1) = rij(1) - rvec(1)
-!R                 rdiff(2) = rij(2) - rvec(2)
-!R                 rdiff(3) = rij(3) - rvec(3)
-!R                 ddiff = SQRT( rdiff(1)*rdiff(1)+ rdiff(2)*rdiff(2) + rdiff(3)*rdiff(3))
-!R     ! the component idir of J contributes to the components idir2/=idir of the shift 
-!R                 DO idir2 = 1,3
+!R    CALL timeset("shift_atom","I"," ",handle)
+!R    !
+!R    failure =.FALSE.
+!R    NULLIFY(atomic_kind_set,cell,dft_control,para_env,particle_set,&
+!R         &  chemical_shift_loc,chemical_shift_loc_nics,jrho1_atom_set,&
+!R         &  jrho1_atom,r_nics,jrho_h_grid,jrho_s_grid,atom_kind,&
+!R         &  atom_list,grid_atom,harmonics,logger)
+!R    !
+!R    logger => cp_error_get_logger(error)
+!R    output_unit= cp_logger_get_default_unit_nr(logger)
+!R    !
+!R    CALL get_qs_env(qs_env=qs_env,&
+!R         &          atomic_kind_set=atomic_kind_set,&
+!R         &          cell=cell,&
+!R         &          dft_control=dft_control,&
+!R         &          para_env=para_env,&
+!R         &          particle_set=particle_set,&
+!R         &          error=error)
 !R
-!R                   IF(idir2/=idir) THEN
-!R                     CALL set_vecp_rev(idir,idir2,idir3)
-!R                     scale_fac=fac_vecp(idir3,idir2,idir)
+!R    CALL get_epr_env(epr_env=epr_env,&
+!R         &           chemical_shift_loc=chemical_shift_loc, &
+!R         &           chemical_shift_loc_nics=chemical_shift_loc_nics, &
+!R         &           jrho1_atom_set=jrho1_atom_set,&
+!R         &           n_nics=n_nics,&
+!R         &           r_nics=r_nics,&
+!R         &           error=error)
+!R    !
+!R    nkind = SIZE(atomic_kind_set,1)
+!R    natom_tot = SIZE(particle_set,1)
+!R    nspins = dft_control%nspins
+!R    store_current = epr_env%store_current
+!R    itegrated_jrho = 0.0_dp
+!R    !
+!R    ! Loop over atoms to collocate the current on each atomic grid, JA
+!R    ! Per each JA, loop over the points where the shift needs to be computed
+!R    DO ikind = 1,nkind
 !R
-!R                     IF(ddiff .GT. EPSILON(0.0_dp)) THEN
-!R                       chemical_shift_loc_nics(idir3,iB,jatom) = &
-!R                               chemical_shift_loc_nics(idir3,iB,jatom) + &
-!R                               scale_fac*rdiff(idir2)*jrho1_tot/(ddiff*ddiff*ddiff)
-!R                     END IF
+!R       NULLIFY(atom_kind,atom_list,grid_atom,harmonics)
+!R       atom_kind => atomic_kind_set(ikind)
+!R       CALL get_atomic_kind(atomic_kind=atom_kind,&
+!R            &               atom_list=atom_list,&
+!R            &               natom=natom,&
+!R            &               paw_atom=paw_atom,&
+!R            &               harmonics=harmonics,&
+!R            &               grid_atom=grid_atom)
+!R       !
+!R       na = grid_atom%ng_sphere
+!R       nr = grid_atom%nr
+!R       !
+!R       ! Quick cycle if needed
+!R       IF(.NOT.paw_atom) CYCLE
+!R       !
+!R       ! Distribute the atoms of this kind
+!R       num_pe = para_env%num_pe
+!R       mepos  = para_env%mepos
+!R       bo = get_limit( natom, num_pe, mepos )
+!R       !
+!R       DO iat = bo(1),bo(2)
+!R          iatom = atom_list(iat)
+!R          r_iatom(1:3) = pbc(particle_set(iatom)%r,cell)
+!R          !
+!R          NULLIFY(jrho1_atom,jrho_h_grid,jrho_s_grid)
+!R          jrho1_atom => jrho1_atom_set(iatom)
+!R          !
+!R          DO ispin = 1,nspins
+!R             
+!R             IF(store_current) THEN
+!R                jrho_h_grid => jrho1_atom%jrho_vec_rad_h(idir,iB,ispin)%r_coef
+!R                jrho_s_grid => jrho1_atom%jrho_vec_rad_s(idir,iB,ispin)%r_coef
+!R             ELSE
+!R                jrho_h_grid => jrho1_atom%jrho_rad_h(ispin)%r_coef
+!R                jrho_s_grid => jrho1_atom%jrho_rad_s(ispin)%r_coef
+!R             ENDIF
 !R
-!R                   END IF
-!R                 END DO   ! idir2
+!R             jrho_h_grid = 0.0_dp
+!R             jrho_s_grid = 0.0_dp
+!R             !
+!R             ! Compute the local (hard/soft) current density response
+!R             CALL calculate_jrho_atom_ang(jrho1_atom,jrho_h_grid,jrho_s_grid,&
+!R                  &                       grid_atom,harmonics,iB,idir,ispin,&
+!R                  &                       error=error)
+!R             !
+!R             ! loop over the atoms neighbors of iatom in terms of the current density
+!R             ! for each compute the contribution to the shift coming from the
+!R             ! local current density at iatom
+!R             DO ia = 1,na
+!R                DO ir = 1,nr
+!R                   !
+!R                   rvec(1) = grid_atom%rad(ir)*harmonics%a(1,ia)
+!R                   rvec(2) = grid_atom%rad(ir)*harmonics%a(2,ia)
+!R                   rvec(3) = grid_atom%rad(ir)*harmonics%a(3,ia)
+!R                   !
+!R                   !vw Can we compute that in calculate_jrho_atom_ang? wv!
+!R                   jrho1_tot = (jrho_h_grid(ir,ia)-jrho_s_grid(ir,ia)) * grid_atom%weight(ia,ir)
 !R
-!R               END IF
+!R                   itegrated_jrho = itegrated_jrho+jrho1_tot
 !R
-!R             END DO  ! jatom
+!R                   DO jatom = 1,natom_tot
+!R                      ! be sure you take the minimum image
+!R                      rij(1:3) = pbc(particle_set(iatom)%r,particle_set(jatom)%r,cell)
+!R                      distance = SQRT(rij(1)*rij(1)+rij(2)*rij(2)+rij(3)*rij(3))
+!R                      ! the right thing to do is to build a list of neighbors, but for the time being
+!R                      ! let's simply use a cutoff here
 !R
-!R           END IF  ! do_nics
-          END DO  ! ir
-          END DO  ! ia
-
-        END DO 
-
-      END DO  ! iat
-
-    END DO  ! ikind
-!R  CALL mp_sum(chemical_shift_loc,para_env%group) !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!R  IF(epr_env%do_nics) THEN
-!R    CALL mp_sum(chemical_shift_loc_nics,para_env%group)
-!R  END IF
-
-    CALL timestop(0.0_dp,handle)
-
-  END SUBROUTINE shift_atom
+!R!!$    my_minimum_image = .FALSE.
+!R!!$    IF(PRESENT(minimum_image)) THEN
+!R!!$       my_minimum_image=minimum_image
+!R!!$       Lxo2 = SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) )/2.0_dp
+!R!!$       Lyo2 = SQRT ( SUM ( cell % hmat ( :, 2 ) ** 2 ) )/2.0_dp
+!R!!$       Lzo2 = SQRT ( SUM ( cell % hmat ( :, 3 ) ** 2 ) )/2.0_dp
+!R!!$    END IF
+!R!!$            IF(my_minimum_image) THEN
+!R!!$              IF(ABS(rab(1)) > Lxo2 .OR. ABS(rab(2)) > Lyo2 .OR. ABS(rab(3)) > Lzo2) THEN
+!R!!$                sab_orb_neighbor_node => next(sab_orb_neighbor_node)
+!R!!$                CYCLE
+!R!!$              END IF
+!R!!$            END IF
+!R
+!R                      threshold = 60.0_dp
+!R                      jatomisneighbor = (distance .LE. threshold)
+!R                      IF(jatomisneighbor) THEN
+!R
+!R                         rdiff(1) = rij(1) - rvec(1)
+!R                         rdiff(2) = rij(2) - rvec(2)
+!R                         rdiff(3) = rij(3) - rvec(3)
+!R                         ddiff = SQRT( rdiff(1)*rdiff(1)+ rdiff(2)*rdiff(2) + rdiff(3)*rdiff(3))
+!R                         ! the component idir of J contributes to the components idir2/=idir of the shift
+!R                         DO idir2 = 1,3
+!R
+!R                            IF(idir2/=idir) THEN
+!R                               CALL set_vecp_rev(idir,idir2,idir3)
+!R                               scale_fac=fac_vecp(idir3,idir2,idir)
+!R
+!R                               !IF(ddiff .GT. EPSILON(0.0_dp)) THEN
+!R                               IF(ddiff.GT.1.0E-12_dp) THEN
+!R                                  chemical_shift_loc(idir3,iB,jatom) = &
+!R                                       chemical_shift_loc(idir3,iB,jatom) + &
+!R                                       epr_env%shift_factor_gapw*scale_fac*rdiff(idir2)&
+!R                                       & * jrho1_tot/(ddiff*ddiff*ddiff)
+!R                               ENDIF
+!R
+!R                            ENDIF
+!R                         ENDDO ! idir2
+!R                         
+!R                      ENDIF
+!R
+!R                   ENDDO ! jatom
+!R
+!R                   IF(epr_env%do_nics) THEN
+!R
+!R                      DO jatom = 1,n_nics
+!R                         r_jatom(1:3) = r_nics(1:3,jatom)
+!R                         rij(1:3) = pbc(particle_set(iatom)%r,r_jatom,cell)
+!R
+!R                         distance = SQRT(rij(1)*rij(1)+rij(2)*rij(2)+rij(3)*rij(3))
+!R                         jatomisneighbor = (distance .LE. threshold)
+!R
+!R                         IF(jatomisneighbor) THEN
+!R
+!R                            rdiff(1) = rij(1) - rvec(1)
+!R                            rdiff(2) = rij(2) - rvec(2)
+!R                            rdiff(3) = rij(3) - rvec(3)
+!R                            ddiff = SQRT( rdiff(1)*rdiff(1)+ rdiff(2)*rdiff(2) + rdiff(3)*rdiff(3))
+!R                            ! the component idir of J contributes to the components idir2/=idir of the shift
+!R                            DO idir2 = 1,3
+!R
+!R                               IF(idir2/=idir) THEN
+!R                                  CALL set_vecp_rev(idir,idir2,idir3)
+!R                                  scale_fac=fac_vecp(idir3,idir2,idir)
+!R
+!R                                  IF(ddiff .GT. EPSILON(0.0_dp)) THEN
+!R                                     chemical_shift_loc_nics(idir3,iB,jatom) = &
+!R                                          chemical_shift_loc_nics(idir3,iB,jatom) + &
+!R                                          scale_fac*rdiff(idir2)*jrho1_tot/(ddiff*ddiff*ddiff)
+!R                                  ENDIF
+!R
+!R                               ENDIF
+!R                            ENDDO ! idir2
+!R                            
+!R                         ENDIF
+!R
+!R                      ENDDO ! jatom
+!R
+!R                   ENDIF ! do_nics
+!R                ENDDO ! ir
+!R             ENDDO ! ia
+!R          ENDDO ! ispin
+!R       ENDDO ! iat
+!R    ENDDO ! ikind
+!R    !
+!R    IF(output_unit>0) THEN
+!R       WRITE(output_unit,'(T2,A,E24.16)') 'Integrated local j_'&
+!R            &//ACHAR(idir+119)//ACHAR(iB+119)//'(r)=',itegrated_jrho
+!R    ENDIF
+!R    !
+!R    CALL mp_sum(chemical_shift_loc,para_env%group)
+!R    IF(epr_env%do_nics) THEN
+!R       CALL mp_sum(chemical_shift_loc_nics,para_env%group)
+!R    ENDIF
+!R    !
+!R    CALL timestop(0.0_dp,handle)
+!R    !
+!R  END SUBROUTINE shift_atom
 
 ! *****************************************************************************
 
   SUBROUTINE calculate_jrho_atom_ang(jrho1_atom,jrho_h,jrho_s,grid_atom,&
-             harmonics,iB,idir,ispin,error)
-
+       &                             harmonics,iB,idir,ispin,error)
+    !
     TYPE(jrho_atom_type), POINTER            :: jrho1_atom
     REAL(dp), DIMENSION(:, :), POINTER       :: jrho_h, jrho_s
     TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     INTEGER, INTENT(IN)                      :: iB, idir, ispin
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_jrho_atom_ang', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ia, iiB, iiiB, ir, iso, &
-                                                max_iso, na, nr
+                                                max_iso_not0, na, nr
     LOGICAL                                  :: failure
     REAL(dp)                                 :: rad_part
-    REAL(dp), DIMENSION(:, :), POINTER :: Fr_a_h, Fr_a_h_ii, Fr_a_h_iii, &
+    REAL(dp), DIMENSION(:, :), POINTER :: a, Fr_a_h, Fr_a_h_ii, Fr_a_h_iii, &
       Fr_a_s, Fr_a_s_ii, Fr_a_s_iii, Fr_b_h, Fr_b_h_ii, Fr_b_h_iii, Fr_b_s, &
-      Fr_b_s_ii, Fr_b_s_iii, Fr_c_h_ii, Fr_c_h_iii, Fr_c_s_ii, Fr_c_s_iii
+      Fr_b_s_ii, Fr_b_s_iii, Fr_c_h_ii, Fr_c_h_iii, Fr_c_s_ii, Fr_c_s_iii, slm
+
+!
+!
 
     failure = .FALSE.
-    NULLIFY (Fr_a_h, Fr_a_s,Fr_a_h_ii, Fr_a_s_ii,Fr_a_h_iii, Fr_a_s_iii)
-    NULLIFY (Fr_b_h, Fr_b_s,Fr_b_h_ii, Fr_b_s_ii,Fr_b_h_iii, Fr_b_s_iii)
-    NULLIFY (Fr_c_h_ii, Fr_c_s_ii,Fr_c_h_iii, Fr_c_s_iii)
-
-    CPPrecondition(ASSOCIATED(jrho1_atom),cp_failure_level,routineP,error,failure)
+    NULLIFY(Fr_a_h,Fr_a_s,Fr_a_h_ii,Fr_a_s_ii,Fr_a_h_iii,Fr_a_s_iii,&
+         &  Fr_b_h,Fr_b_s,Fr_b_h_ii,Fr_b_s_ii,Fr_b_h_iii,Fr_b_s_iii,&
+         &  Fr_c_h_ii,Fr_c_s_ii,Fr_c_h_iii,Fr_c_s_iii,a,slm)
+    !
     CPPrecondition(ASSOCIATED(jrho_h),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(jrho_s),cp_failure_level,routineP,error,failure)
-
-      nr = grid_atom%nr
-      na = grid_atom%ng_sphere
-      max_iso = harmonics%max_iso_not0
-
-      Fr_a_h => jrho1_atom%jrho_a_h(ispin)%r_coef
-      Fr_a_s => jrho1_atom%jrho_a_s(ispin)%r_coef
-      Fr_b_h => jrho1_atom%jrho_b_h(ispin)%r_coef
-      Fr_b_s => jrho1_atom%jrho_b_s(ispin)%r_coef
-  
-      Fr_a_h_ii => jrho1_atom%jrho_a_h_ii(ispin)%r_coef
-      Fr_a_s_ii => jrho1_atom%jrho_a_s_ii(ispin)%r_coef
-      Fr_b_h_ii => jrho1_atom%jrho_b_h_ii(ispin)%r_coef
-      Fr_b_s_ii => jrho1_atom%jrho_b_s_ii(ispin)%r_coef
-      Fr_c_h_ii => jrho1_atom%jrho_c_h_ii(ispin)%r_coef
-      Fr_c_s_ii => jrho1_atom%jrho_c_s_ii(ispin)%r_coef
-  
-      Fr_a_h_iii => jrho1_atom%jrho_a_h_iii(ispin)%r_coef
-      Fr_a_s_iii => jrho1_atom%jrho_a_s_iii(ispin)%r_coef
-      Fr_b_h_iii => jrho1_atom%jrho_b_h_iii(ispin)%r_coef
-      Fr_b_s_iii => jrho1_atom%jrho_b_s_iii(ispin)%r_coef
-      Fr_c_h_iii => jrho1_atom%jrho_c_h_iii(ispin)%r_coef
-      Fr_c_s_iii => jrho1_atom%jrho_c_s_iii(ispin)%r_coef
-
-      CALL set_vecp(iB,iiB,iiiB)
-
-      DO ir = 1,nr
-        DO iso = 1,max_iso
+    CPPrecondition(ASSOCIATED(jrho1_atom),cp_failure_level,routineP,error,failure)
+    ! just to be sure...
+    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_a_h),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_a_s),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_b_h),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_b_s),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_a_h(ispin)%r_coef),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_a_s(ispin)%r_coef),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_b_h(ispin)%r_coef),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_b_s(ispin)%r_coef),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_a_h_ii),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_a_s_ii),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_b_h_ii),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_b_s_ii),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_c_h_ii),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_c_s_ii),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_a_h_ii(ispin)%r_coef),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_a_s_ii(ispin)%r_coef),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_b_h_ii(ispin)%r_coef),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_b_s_ii(ispin)%r_coef),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_c_h_ii(ispin)%r_coef),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_c_s_ii(ispin)%r_coef),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_a_h_iii),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_a_s_iii),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_b_h_iii),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_b_s_iii),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_c_h_iii),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_c_s_iii),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_a_h_iii(ispin)%r_coef),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_a_s_iii(ispin)%r_coef),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_b_h_iii(ispin)%r_coef),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_b_s_iii(ispin)%r_coef),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_c_h_iii(ispin)%r_coef),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_c_s_iii(ispin)%r_coef),cp_failure_level,routineP,error,failure)
+    !
+    !
+    nr = grid_atom%nr
+    na = grid_atom%ng_sphere
+    max_iso_not0 = harmonics%max_iso_not0
+    !------------------------------------------------------------------
+    !
+    Fr_a_h => jrho1_atom%jrho_a_h(ispin)%r_coef !Rai
+    Fr_a_s => jrho1_atom%jrho_a_s(ispin)%r_coef
+    Fr_b_h => jrho1_atom%jrho_b_h(ispin)%r_coef !Daij
+    Fr_b_s => jrho1_atom%jrho_b_s(ispin)%r_coef
+    !------------------------------------------------------------------
+    !
+    Fr_a_h_ii => jrho1_atom%jrho_a_h_ii(ispin)%r_coef !Rci
+    Fr_a_s_ii => jrho1_atom%jrho_a_s_ii(ispin)%r_coef
+    Fr_b_h_ii => jrho1_atom%jrho_b_h_ii(ispin)%r_coef !Dcij
+    Fr_b_s_ii => jrho1_atom%jrho_b_s_ii(ispin)%r_coef
+    Fr_c_h_ii => jrho1_atom%jrho_c_h_ii(ispin)%r_coef !Pci !not needed
+    Fr_c_s_ii => jrho1_atom%jrho_c_s_ii(ispin)%r_coef      !not needed
+    !------------------------------------------------------------------
+    !
+    Fr_a_h_iii => jrho1_atom%jrho_a_h_iii(ispin)%r_coef !Rbi
+    Fr_a_s_iii => jrho1_atom%jrho_a_s_iii(ispin)%r_coef
+    Fr_b_h_iii => jrho1_atom%jrho_b_h_iii(ispin)%r_coef !Dbij
+    Fr_b_s_iii => jrho1_atom%jrho_b_s_iii(ispin)%r_coef
+    Fr_c_h_iii => jrho1_atom%jrho_c_h_iii(ispin)%r_coef !Pbi !not needed
+    Fr_c_s_iii => jrho1_atom%jrho_c_s_iii(ispin)%r_coef      !not needed
+    !------------------------------------------------------------------
+    !
+    a   => harmonics%a
+    slm => harmonics%slm
+    !
+    CALL set_vecp(iB,iiB,iiiB)
+    !
+    DO ir = 1,nr
+       DO iso = 1,max_iso_not0
           DO ia = 1,na
-
-            rad_part = harmonics%a(idir,ia)*Fr_a_h(ir,iso)+Fr_b_h(ir,iso)-&
-                       harmonics%a(iiB,ia)*&
-                       (harmonics%a(idir,ia)*Fr_a_h_iii(ir,iso)+Fr_b_h_iii(ir,iso))+&
-                       harmonics%a(iiiB,ia)*&
-                       (harmonics%a(idir,ia)*Fr_a_h_ii(ir,iso)+Fr_b_h_ii(ir,iso))
-!            IF(idir==iiB) THEN
-!              rad_part = rad_part - Fr_c_h_iii(ir,iso)
-!            ELSEIF(idir==iiiB) THEN
-!              rad_part = rad_part + Fr_c_h_ii(ir,iso)
-!            END IF
-                       
-            jrho_h(ir,ia) = jrho_h(ir,ia) + rad_part * harmonics%slm(ia,iso)
-
-            rad_part = harmonics%a(idir,ia)*Fr_a_s(ir,iso)+Fr_b_s(ir,iso)-&
-                       harmonics%a(iiB,ia)*&
-                       (harmonics%a(idir,ia)*Fr_a_s_iii(ir,iso)+Fr_b_s_iii(ir,iso))+&
-                       harmonics%a(iiiB,ia)*&
-                       (harmonics%a(idir,ia)*Fr_a_s_ii(ir,iso)+Fr_b_s_ii(ir,iso))
-!            IF(idir==iiB) THEN
-!              rad_part = rad_part - Fr_c_s_iii(ir,iso)
-!            ELSEIF(idir==iiiB) THEN
-!              rad_part = rad_part + Fr_c_s_ii(ir,iso)
-!            END IF
-                       
-            jrho_s(ir,ia) = jrho_s(ir,ia) + rad_part * harmonics%slm(ia,iso)
-
-          END DO  ! ia
-        END DO  ! iso
-      
-      END DO  ! ir 
-
+             !------------------------------------------------------------------
+             ! Hard current density response
+             ! radial(ia,ir) = (               aj(ia) * Rai(ir,iso) + Daij 
+             !                  -  aii(ia) * ( aj(ia) * Rbi(ir,iso) + Dbij )
+             !                  + aiii(ia) * ( aj(ia) * Rci(ir,iso) + Dcij ) 
+             !                 ) * Ylm(ia)
+             rad_part =             a(idir,ia)*Fr_a_h    (ir,iso)+Fr_b_h    (ir,iso)&
+                  &   - a( iiB,ia)*(a(idir,ia)*Fr_a_h_iii(ir,iso)+Fr_b_h_iii(ir,iso))&
+                  &   + a(iiiB,ia)*(a(idir,ia)*Fr_a_h_ii (ir,iso)+Fr_b_h_ii (ir,iso))
+             !
+             jrho_h(ir,ia) = jrho_h(ir,ia) + rad_part * slm(ia,iso)
+             !------------------------------------------------------------------
+             ! Soft current density response
+             rad_part =             a(idir,ia)*Fr_a_s    (ir,iso)+Fr_b_s    (ir,iso)&
+                  &   - a( iiB,ia)*(a(idir,ia)*Fr_a_s_iii(ir,iso)+Fr_b_s_iii(ir,iso))&
+                  &   + a(iiiB,ia)*(a(idir,ia)*Fr_a_s_ii (ir,iso)+Fr_b_s_ii (ir,iso))
+             !
+             jrho_s(ir,ia) = jrho_s(ir,ia) + rad_part * slm(ia,iso)
+             !------------------------------------------------------------------
+          ENDDO ! ia
+       ENDDO ! iso
+    ENDDO ! ir
+    !
   END SUBROUTINE calculate_jrho_atom_ang
 
 ! *****************************************************************************
 !!****f* cp2k/qs_linres_epr_atom_current/list_3c_jrho_atom
 !!   NAME
-!!    list_3c_jrho_atom 
+!!    list_3c_jrho_atom
 !!
 !!   FUNCTION
-!!     Prepare the 3 center lists used tocpmpute the atomic terms of the current density
+!!     Prepare the 3 center lists used to cpmpute the atomic terms of the current density
 !!     New lists need to be constructed because the density matrices
-!!     are not symmetric, hence, the ij and the ji pairs  are not equivalens and bpth
+!!     are not symmetric, hence, the ij and the ji pairs  are not equivalent and both
 !!     need to be considered
-!!     
+!!
 !!
 !!   NOTES
 !!
@@ -1201,8 +1423,7 @@ MODULE qs_linres_epr_atom_current
   SUBROUTINE list_3c_jrho_atom(qs_env, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'list_3c_jrho_atom', &
       routineP = moduleN//':'//routineN
@@ -1223,6 +1444,8 @@ MODULE qs_linres_epr_atom_current
                                                 sab_orb_neighbor_list_local
     TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
     TYPE(oce_matrix_type), POINTER           :: oce
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
     TYPE(reduced_3c_list_type), &
       DIMENSION(:), POINTER                  :: reduced_3c_oce
 
@@ -1231,85 +1454,93 @@ MODULE qs_linres_epr_atom_current
     NULLIFY (sac_oce, sbc_oce, oce)
     NULLIFY (atomic_kind,atomic_kind_set)
     NULLIFY (sab_orb_neighbor_list,sab_orb_neighbor_list_local)
-    NULLIFY (sab_orb_neighbor_node,reduced_3c_oce) 
+    NULLIFY (sab_orb_neighbor_node,reduced_3c_oce)
+    NULLIFY (particle_set)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     sab_all=sab_orb,&
                     sac_oce=sac_oce,&
                     sbc_oce=sbc_oce,&
+                    particle_set=particle_set,&
                     oce=oce,&
-                    error=error)
+                    &error=error)
+
+    nkind = SIZE(atomic_kind_set,1)
+    natom = SIZE(particle_set,1)
 
     CPPrecondition(ASSOCIATED(sab_orb),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(sac_oce),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(sbc_oce),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(oce),cp_failure_level,routineP,error,failure)
 
-    nkind = SIZE(atomic_kind_set)
+    !vw that should be done before the call to list_3c_jrho_atom wv!
+    CALL allocate_vtriple(oce%voce,nkind,natom,error)
+    CPPrecondition(ASSOCIATED(oce%voce),cp_failure_level,routineP,error,failure)
+
 
 !   *** Retrieve data of SAC_OCE and of SAC_3C neighbors of atom "iatom" ***
 
     DO ikind = 1,nkind
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           natom=nat,atom_list=atom_list)
-      DO iat = 1,nat
-        iatom = atom_list(iat)
-        CALL retrieve_sac_list(oce%voce,sac_oce,iatom,ikind,nkind,error=error)
-      END DO
+       atomic_kind => atomic_kind_set(ikind)
+       CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                            natom=nat,atom_list=atom_list)
+       DO iat = 1,nat
+          iatom = atom_list(iat)
+          CALL retrieve_sac_list(oce%voce,sac_oce,iatom,ikind,nkind,error=error)
+       ENDDO
 
-    END DO
- 
+    ENDDO
+
     DO ikind=1,nkind
 
-      DO jkind=1,nkind
+       DO jkind=1,nkind
 
-        iab = ikind + nkind*(jkind - 1)
+          iab = ikind + nkind*(jkind - 1)
 
-        IF (.NOT.ASSOCIATED(sab_orb(iab)%neighbor_list_set)) CYCLE
+          IF(.NOT.ASSOCIATED(sab_orb(iab)%neighbor_list_set)) CYCLE
 
-        CALL get_neighbor_list_set(neighbor_list_set=&
-                                   sab_orb(iab)%neighbor_list_set,&
-                                   nlist=nlist)
-        NULLIFY ( sab_orb_neighbor_list )
+          CALL get_neighbor_list_set(neighbor_list_set=&
+                                     sab_orb(iab)%neighbor_list_set,&
+                                     nlist=nlist)
+          NULLIFY( sab_orb_neighbor_list )
 
-        DO ilist=1,nlist
-          IF ( .NOT. ASSOCIATED(sab_orb_neighbor_list) ) THEN
-            sab_orb_neighbor_list => first_list(sab_orb(iab)%neighbor_list_set)
-          ELSE
-            sab_orb_neighbor_list => next(sab_orb_neighbor_list)
-          END IF
-          sab_orb_neighbor_list_local => sab_orb_neighbor_list
+          DO ilist=1,nlist
+             IF( .NOT. ASSOCIATED(sab_orb_neighbor_list) ) THEN
+                sab_orb_neighbor_list => first_list(sab_orb(iab)%neighbor_list_set)
+             ELSE
+                sab_orb_neighbor_list => next(sab_orb_neighbor_list)
+             END IF
+             sab_orb_neighbor_list_local => sab_orb_neighbor_list
 
-          CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list_local,&
-                                 atom=iatom,&
-                                 nnode=nnode)
-          last_jatom = 0
+             CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list_local,&
+                                    atom=iatom,&
+                                    nnode=nnode)
+             last_jatom = 0
 
-          sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
+             sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
 
-          DO inode=1,nnode
+             DO inode=1,nnode
 
-            CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
-                                   neighbor=jatom,&
-                                   r=rab)
+                CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
+                                       neighbor=jatom,&
+                                       r=rab)
 
-            IF (jatom /= last_jatom) THEN
-              new_atom_b = .TRUE.
-              last_jatom = jatom
-            ELSE
-              new_atom_b = .FALSE.
-            END IF
+                IF(jatom /= last_jatom) THEN
+                   new_atom_b = .TRUE.
+                   last_jatom = jatom
+                ELSE
+                   new_atom_b = .FALSE.
+                END IF
 
-            CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
-                                    reduced_3c_oce=reduced_3c_oce)
+                CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
+                                       reduced_3c_oce=reduced_3c_oce)
 
 !           *** Build reduced 3-center lists
-            CALL build_reduced_3c_lists(atomic_kind_set, iatom, jatom,&
-                 ikind, jkind, sbc_oce, oce%voce, reduced_3c_oce,&
-                 .TRUE.,qs_env%dft_control%qs_control%eps_rho_rspace,error)
- 
+                CALL build_reduced_3c_lists(atomic_kind_set, iatom, jatom,&
+                     ikind, jkind, sbc_oce, oce%voce, reduced_3c_oce,&
+                     .TRUE.,qs_env%dft_control%qs_control%eps_rho_rspace,error)
+
 ! This should not be necessary
 !            *** Calculate the coefficients of the one center expansions ***
 !                CALL set_up_oce(atomic_kind_set,reduced_3c_oce,oce,&
@@ -1317,16 +1548,14 @@ MODULE qs_linres_epr_atom_current
 !                              oceh,oces,nder,dist_list,error=error)
 !
 
-          END DO  ! inode
+                sab_orb_neighbor_node => next(sab_orb_neighbor_node)
+             ENDDO  ! inode
 
-        END DO  ! ilist
+          ENDDO  ! ilist
 
-      END DO  ! jkind
+       ENDDO  ! jkind
 
-    END DO  ! ikind
-
-!   the vlist can be deallocated already here
-    CALL deallocate_vtriple(oce%voce,error=error)
+    ENDDO  ! ikind
 
   END SUBROUTINE list_3c_jrho_atom
 
