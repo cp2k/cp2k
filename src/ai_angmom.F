@@ -133,13 +133,31 @@ CONTAINS
         f0 = (pi*zetp)**1.5_dp
         f1 = zetb(jpgf)*zetp
         f2 = 0.5_dp*zetp
-        bc1 = f1*(/0._dp,-rbc(3),rbc(2)/)
-        bc2 = f1*(/rbc(3),0._dp,-rbc(1)/)
-        bc3 = f1*(/-rbc(2),rbc(1),0._dp/)
-        ac1 = zeta(ipgf)*zetp*(/0._dp,rac(3),-rac(2)/)
-        ac2 = zeta(ipgf)*zetp*(/-rac(3),0._dp,rac(1)/)
-        ac3 = zeta(ipgf)*zetp*(/rac(2),-rac(1),0._dp/)
-
+        ! 
+        bc1(1) =  0._dp
+        bc1(2) = -f1*rbc(3)
+        bc1(3) =  f1*rbc(2)
+        !
+        bc2(1) =  f1*rbc(3)
+        bc2(2) =  0._dp
+        bc2(3) = -f1*rbc(1)
+        !
+        bc3(1) = -f1*rbc(2)
+        bc3(2) =  f1*rbc(1)
+        bc3(3) =  0._dp
+        !
+        ac1(1) =  0._dp
+        ac1(2) =  zeta(ipgf)*zetp*rac(3)
+        ac1(3) = -zeta(ipgf)*zetp*rac(2)
+        !
+        ac2(1) = -zeta(ipgf)*zetp*rac(3)
+        ac2(2) =  0._dp
+        ac2(3) =  zeta(ipgf)*zetp*rac(1)
+        !
+        ac3(1) =  zeta(ipgf)*zetp*rac(2)
+        ac3(2) = -zeta(ipgf)*zetp*rac(1)
+        ac3(3) =  0._dp
+        !
 !       *** Calculate the basic two-center overlap integral [s|s] ***
 !       *** Calculate the basic two-center angular momentum integral [s|L|s] ***
 
