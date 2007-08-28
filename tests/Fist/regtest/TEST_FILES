@@ -57,3 +57,5 @@ argon_msst_damped.inp     2
 h2.inp                    7
 # parser test
 h2_parse.inp              7
+# complex torsion potential
+TNF2.inp                  7

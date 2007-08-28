@@ -502,7 +502,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="TORSION",&
             description="specifies the torsion potential of the MM system."//&
-            "Functional Form (CHARMM): K*[1+cos[M*PHI-PHI0]].",&
+            "Functional Form (CHARMM): K * [ 1 +  cos[M*PHI] * cos[PHI0]].",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
@@ -530,14 +530,14 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PHI0",&
-            description="Defines the phase of the potential",&
+            description="Defines the phase of the potential.",&
             usage="PHI0 {real}", required=.TRUE., type_of_var=real_t,&
             n_var=1, unit_str="rad", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="M",&
-            description="Defines the multiplicity of the potential",&
+            description="Defines the multiplicity of the potential.",&
             usage="M {integer}", required=.TRUE., type_of_var=integer_t,&
             n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -585,7 +585,7 @@ CONTAINS
        CALL section_create(section,name="BEND",&
             description="specifies the bend potential of the MM system."//&
             "Functional Form (G96): K*(COS(THETA)-THETA0)^2"//&
-            "Functional Form (HARMONIC/CHARMM/G87): K*(THETA-THETA0)^2",&
+            "Functional Form (HARMONIC/CHARMM/G87): 1/2*K*(THETA-THETA0)^2",&
             n_keywords=1, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
@@ -698,7 +698,7 @@ CONTAINS
             description="specifies the bond potential the MM system"//&
             "Functional Form (QUARTIC): (1/2*K1+[1/3*K2+1/4*K3*|R-R0|]*|R-R0|)(R-R0)^2"//&
             "Functional Form (G96): 1/4*K*(R-R0)^2"//&
-            "Functional Form (HARMONIC|CHARMM|G87): K*(R-R0)^2",&
+            "Functional Form (HARMONIC|CHARMM|G87): 1/2*K*(R-R0)^2",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
