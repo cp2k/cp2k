@@ -1390,61 +1390,56 @@ CONTAINS
           ALLOCATE (jrho1_atom_set(iatom)%cjc_iii_s(nspins), STAT=istat)
          CPPrecondition(istat==0,cp_failure_level,routineN,error,failure)
 
-          IF (paw_atom) THEN 
+          DO ispin = 1,nspins
 
-            DO ispin = 1,nspins
+             NULLIFY(jrho1_atom_set(iatom)%jrho_a_h(ispin)%r_coef)
+             NULLIFY(jrho1_atom_set(iatom)%jrho_a_s(ispin)%r_coef)
+             NULLIFY(jrho1_atom_set(iatom)%jrho_b_h(ispin)%r_coef)
+             NULLIFY(jrho1_atom_set(iatom)%jrho_b_s(ispin)%r_coef)
 
-              NULLIFY(jrho1_atom_set(iatom)%jrho_a_h(ispin)%r_coef)
-              NULLIFY(jrho1_atom_set(iatom)%jrho_a_s(ispin)%r_coef)
-              NULLIFY(jrho1_atom_set(iatom)%jrho_b_h(ispin)%r_coef)
-              NULLIFY(jrho1_atom_set(iatom)%jrho_b_s(ispin)%r_coef)
+             NULLIFY(jrho1_atom_set(iatom)%jrho_a_h_ii(ispin)%r_coef)
+             NULLIFY(jrho1_atom_set(iatom)%jrho_a_s_ii(ispin)%r_coef)
+             NULLIFY(jrho1_atom_set(iatom)%jrho_b_h_ii(ispin)%r_coef)
+             NULLIFY(jrho1_atom_set(iatom)%jrho_b_s_ii(ispin)%r_coef)
+             NULLIFY(jrho1_atom_set(iatom)%jrho_c_h_ii(ispin)%r_coef)
+             NULLIFY(jrho1_atom_set(iatom)%jrho_c_s_ii(ispin)%r_coef)
 
-              NULLIFY(jrho1_atom_set(iatom)%jrho_a_h_ii(ispin)%r_coef)
-              NULLIFY(jrho1_atom_set(iatom)%jrho_a_s_ii(ispin)%r_coef)
-              NULLIFY(jrho1_atom_set(iatom)%jrho_b_h_ii(ispin)%r_coef)
-              NULLIFY(jrho1_atom_set(iatom)%jrho_b_s_ii(ispin)%r_coef)
-              NULLIFY(jrho1_atom_set(iatom)%jrho_c_h_ii(ispin)%r_coef)
-              NULLIFY(jrho1_atom_set(iatom)%jrho_c_s_ii(ispin)%r_coef)
+             NULLIFY(jrho1_atom_set(iatom)%jrho_a_h_iii(ispin)%r_coef)
+             NULLIFY(jrho1_atom_set(iatom)%jrho_a_s_iii(ispin)%r_coef)
+             NULLIFY(jrho1_atom_set(iatom)%jrho_b_h_iii(ispin)%r_coef)
+             NULLIFY(jrho1_atom_set(iatom)%jrho_b_s_iii(ispin)%r_coef)
+             NULLIFY(jrho1_atom_set(iatom)%jrho_c_h_iii(ispin)%r_coef)
+             NULLIFY(jrho1_atom_set(iatom)%jrho_c_s_iii(ispin)%r_coef)
 
-              NULLIFY(jrho1_atom_set(iatom)%jrho_a_h_iii(ispin)%r_coef)
-              NULLIFY(jrho1_atom_set(iatom)%jrho_a_s_iii(ispin)%r_coef)
-              NULLIFY(jrho1_atom_set(iatom)%jrho_b_h_iii(ispin)%r_coef)
-              NULLIFY(jrho1_atom_set(iatom)%jrho_b_s_iii(ispin)%r_coef)
-              NULLIFY(jrho1_atom_set(iatom)%jrho_c_h_iii(ispin)%r_coef)
-              NULLIFY(jrho1_atom_set(iatom)%jrho_c_s_iii(ispin)%r_coef)
+             NULLIFY(jrho1_atom_set(iatom)%cjc_h(ispin)%r_coef)
+             NULLIFY(jrho1_atom_set(iatom)%cjc_s(ispin)%r_coef)
+             NULLIFY(jrho1_atom_set(iatom)%cjc_ii_h(ispin)%r_coef)
+             NULLIFY(jrho1_atom_set(iatom)%cjc_ii_s(ispin)%r_coef)
+             NULLIFY(jrho1_atom_set(iatom)%cjc_iii_h(ispin)%r_coef)
+             NULLIFY(jrho1_atom_set(iatom)%cjc_iii_s(ispin)%r_coef)
 
-              NULLIFY(jrho1_atom_set(iatom)%cjc_h(ispin)%r_coef)
-              ALLOCATE(jrho1_atom_set(iatom)%cjc_h(ispin)%r_coef(1:nsotot,1:nsotot),STAT=istat)
-              CPPrecondition(istat==0,cp_failure_level,routineN,error,failure) 
-              NULLIFY(jrho1_atom_set(iatom)%cjc_s(ispin)%r_coef)
-              ALLOCATE(jrho1_atom_set(iatom)%cjc_s(ispin)%r_coef(1:nsotot,1:nsotot),STAT=istat)
-              CPPrecondition(istat==0,cp_failure_level,routineN,error,failure) 
-              NULLIFY(jrho1_atom_set(iatom)%cjc_ii_h(ispin)%r_coef)
-              ALLOCATE(jrho1_atom_set(iatom)%cjc_ii_h(ispin)%r_coef(1:nsotot,1:nsotot),STAT=istat)
-              CPPrecondition(istat==0,cp_failure_level,routineN,error,failure) 
-              NULLIFY(jrho1_atom_set(iatom)%cjc_ii_s(ispin)%r_coef)
-              ALLOCATE(jrho1_atom_set(iatom)%cjc_ii_s(ispin)%r_coef(1:nsotot,1:nsotot),STAT=istat)
-              CPPrecondition(istat==0,cp_failure_level,routineN,error,failure) 
-              NULLIFY(jrho1_atom_set(iatom)%cjc_iii_h(ispin)%r_coef)
-              ALLOCATE(jrho1_atom_set(iatom)%cjc_iii_h(ispin)%r_coef(1:nsotot,1:nsotot),STAT=istat)
-              CPPrecondition(istat==0,cp_failure_level,routineN,error,failure) 
-              NULLIFY(jrho1_atom_set(iatom)%cjc_iii_s(ispin)%r_coef)
-              ALLOCATE(jrho1_atom_set(iatom)%cjc_iii_s(ispin)%r_coef(1:nsotot,1:nsotot),STAT=istat)
-              CPPrecondition(istat==0,cp_failure_level,routineN,error,failure) 
+             IF(paw_atom) THEN
+                ALLOCATE(jrho1_atom_set(iatom)%cjc_h(ispin)%r_coef(1:nsotot,1:nsotot),&
+                     &   STAT=istat)
+                CPPrecondition(istat==0,cp_failure_level,routineN,error,failure)
+                ALLOCATE(jrho1_atom_set(iatom)%cjc_s(ispin)%r_coef(1:nsotot,1:nsotot),&
+                     &   STAT=istat)
+                CPPrecondition(istat==0,cp_failure_level,routineN,error,failure)
+                ALLOCATE(jrho1_atom_set(iatom)%cjc_ii_h(ispin)%r_coef(1:nsotot,1:nsotot),&
+                     &   STAT=istat)
+                CPPrecondition(istat==0,cp_failure_level,routineN,error,failure)
+                ALLOCATE(jrho1_atom_set(iatom)%cjc_ii_s(ispin)%r_coef(1:nsotot,1:nsotot),&
+                     &   STAT=istat)
+                CPPrecondition(istat==0,cp_failure_level,routineN,error,failure)
+                ALLOCATE(jrho1_atom_set(iatom)%cjc_iii_h(ispin)%r_coef(1:nsotot,1:nsotot),&
+                     &   STAT=istat)
+                CPPrecondition(istat==0,cp_failure_level,routineN,error,failure)
+                ALLOCATE(jrho1_atom_set(iatom)%cjc_iii_s(ispin)%r_coef(1:nsotot,1:nsotot),&
+                     &   STAT=istat)
+                CPPrecondition(istat==0,cp_failure_level,routineN,error,failure)
+             ENDIF
 
-
-            END DO  ! ispin
-          ELSE
-             DO ispin = 1,nspins
-                NULLIFY(jrho1_atom_set(iatom)%cjc_h(ispin)%r_coef)
-                NULLIFY(jrho1_atom_set(iatom)%cjc_s(ispin)%r_coef)
-                NULLIFY(jrho1_atom_set(iatom)%cjc_ii_h(ispin)%r_coef)
-                NULLIFY(jrho1_atom_set(iatom)%cjc_ii_s(ispin)%r_coef)
-                NULLIFY(jrho1_atom_set(iatom)%cjc_iii_h(ispin)%r_coef)
-                NULLIFY(jrho1_atom_set(iatom)%cjc_iii_s(ispin)%r_coef)
-             END DO  ! ispin
-
-          END IF  ! paw_atom
+          ENDDO ! ispin
 
        END DO  ! iat
 
