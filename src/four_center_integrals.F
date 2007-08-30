@@ -37,6 +37,7 @@ MODULE four_center_integrals
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_8
+  USE erf_fn,                          ONLY: erfc
   USE libint_interface,                ONLY: evaluate_deriv_eri,&
                                              evaluate_eri,&
                                              evaluate_eri_screen,&
@@ -84,7 +85,7 @@ MODULE four_center_integrals
   TYPE(lib_int), SAVE      :: lib
   TYPE(lib_deriv), SAVE    :: deriv
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'four_center_integrals'
-  REAL, PARAMETER         :: epsilon = 0.00001_dp
+  REAL(KIND=dp), PARAMETER :: epsilon = 0.00001_dp
   
 
 !***
