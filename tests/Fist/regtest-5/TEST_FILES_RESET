@@ -12,3 +12,5 @@ water_3_dist_3.inp
 water_3_dist_inter2.inp
 # faster bonded correct gaussian and bug fix for stress tensor in shell model
 water_3_dist_startC.inp
+# bug fix in NVT + fixed atom constraints
+nh3_4x6_fixd.inp

@@ -372,6 +372,7 @@ SUBROUTINE lnhc_particle_set ( nhc, molecule_kind_set, molecule_set,  &
    
     !   force on the first bead in every thermostat chain
     DO n = 1, nhc % num_nhc
+       IF (nhc % nvt(1,n) % nkt==0.0_dp) CYCLE
        nhc % nvt(1,n) % f = (nhc % s_kin(n)-nhc % nvt(1,n) % nkt)/ &
             nhc % nvt(1,n) % mass
     END DO
@@ -561,6 +562,7 @@ SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
 
 ! force on the first bead in every thermostat chain
   DO n = 1, nhc % num_nhc
+     IF (nhc % nvt(1,n) % nkt==0.0_dp) CYCLE     
      nhc % nvt(1,n) % f = (nhc % s_kin(n)-nhc % nvt(1,n) % nkt)/ &
           nhc % nvt(1,n) % mass
   END DO
@@ -977,6 +979,7 @@ END SUBROUTINE lnhc_particles
    
           ! update velocity of other thermostats on chain (from nhc_len-1 to 1)  ! O2
           DO n = 1, nhc % num_nhc
+             IF (nhc % nvt(1,n) % nkt == 0.0_dp) CYCLE
              DO inhc = nhc % nhc_len - 1, 1, -1
                 scale = EXP(-0.125_dp*nhc % nvt(inhc+1,n) % v*nhc % dt_yosh(iyosh))
                 nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v*scale ! scale
@@ -997,6 +1000,7 @@ END SUBROUTINE lnhc_particles
    
           ! now accumulate the scale factor for particle velocities
           DO n = 1, nhc % num_nhc
+             IF (nhc % nvt(1,n) % nkt == 0.0_dp) CYCLE
              nhc % v_scale(n) = nhc % v_scale(n)*EXP(-0.5_dp* &
                                 nhc % dt_yosh(iyosh)*nhc % nvt(1,n) % v)
           END DO
@@ -1005,6 +1009,7 @@ END SUBROUTINE lnhc_particles
    
           ! update the force on first thermostat again (since particle velocities changed)
           DO n = 1, nhc % num_nhc
+             IF (nhc % nvt(1,n) % nkt == 0.0_dp) CYCLE
              nhc % nvt(1,n) % f = (nhc % s_kin(n)*nhc % v_scale(n)*&
                                    nhc % v_scale(n)-nhc % nvt(1,n) % nkt)&
                                   /nhc % nvt(1,n) % mass
@@ -1014,6 +1019,7 @@ END SUBROUTINE lnhc_particles
           ! update velocity of other thermostats on chain (from 1 to nhc_len-1)  ! O2
           DO inhc = 1, nhc % nhc_len - 1
              DO n = 1, nhc % num_nhc
+                IF (nhc % nvt(1,n) % nkt == 0.0_dp) CYCLE
                 scale = EXP(-0.125_dp*nhc % nvt(inhc+1,n) % v*nhc % dt_yosh(iyosh))
                 nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v*scale ! scale
                 nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v + &
@@ -1023,6 +1029,7 @@ END SUBROUTINE lnhc_particles
    
              ! updating the forces on all the thermostats
              DO n = 1, nhc % num_nhc
+                IF (nhc % nvt(1,n) % nkt == 0.0_dp) CYCLE
                 nhc % nvt(inhc+1,n) % f = (nhc % nvt(inhc,n) % mass*nhc % nvt(inhc,n) % v &
                                           *nhc % nvt(inhc,n) % v-nhc % nvt(inhc+1,n) % nkt)/ &
                                            nhc % nvt(inhc+1,n) % mass
