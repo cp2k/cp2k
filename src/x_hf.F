@@ -35,7 +35,7 @@ MODULE x_hf
   PUBLIC  x_hf_type, x_hf_create, x_hf_release, x_hf_screening_type ,&
           x_hf_set_distr_energy, &
           x_hf_set_distr_forces, x_hf_create_neighbor_cells,&
-          x_hf_cell_type, x_hf_distribution
+          x_hf_cell_type, x_hf_distribution, x_hf_box_scheme
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'x_hf'
 
@@ -80,10 +80,18 @@ MODULE x_hf
     INTEGER(KIND=int_8)                      :: number_of_integrals
   END TYPE
   
+  TYPE x_hf_box_scheme
+    REAL(dp)                                 :: center(3)
+    REAL(dp)                                 :: K
+    REAL(dp)                                 :: R
+    REAL(dp)                                 :: alpha
+  END TYPE
+ 
+
+
   TYPE x_hf_type
     REAL(dp), DIMENSION(:), POINTER          :: x_buffer
-    REAL(dp), DIMENSION(:, :, :, :), &
-              POINTER                        :: x_screening_buffer
+    REAL(dp), DIMENSION(:, :, :, :), POINTER :: x_screening_buffer
     REAL(dp), DIMENSION(:, :, :, :, :, :), &
               POINTER                        :: x_screening_buffer_periodic
     INTEGER                                  :: number_of_elements
@@ -98,6 +106,9 @@ MODULE x_hf
                              POINTER         :: distribution_energy
     TYPE(x_hf_distribution), DIMENSION(:),&
                              POINTER         :: distribution_forces
+    TYPE(x_hf_box_scheme), DIMENSION(:,:),&
+                           POINTER           :: far_field_boxes
+    
   END TYPE
 
   CONTAINS
@@ -114,14 +125,18 @@ MODULE x_hf
     INTEGER                                  :: max_memory, nkloops, &
                                                 number_of_precalc_integrals, &
                                                 pbc_shells, stat, TYPE
-    LOGICAL                                  :: do_periodic
+    LOGICAL                                  :: do_periodic, failure
     REAL(dp)                                 :: omega
     TYPE(section_vals_type), POINTER         :: hf_pbc_section
+
+    failure = .FALSE.
 
     CALL section_vals_val_get(hf_section,"MAX_MEMORY",i_val=max_memory,error=error)
     number_of_precalc_integrals = max_memory * 1024*1024/dp_size
     ALLOCATE(x_data,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(x_data%x_buffer(number_of_precalc_integrals),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     x_data%number_of_elements = number_of_precalc_integrals
     CALL section_vals_val_get(hf_section,"screening_type",i_val=TYPE,error=error)
     CALL section_vals_val_get(hf_section,"omega",r_val=omega,error=error)
@@ -137,18 +152,27 @@ MODULE x_hf
       hf_pbc_section => section_vals_get_subs_vals(hf_section,"PERIODIC",error=error)
       CALL section_vals_val_get(hf_pbc_section,"NUMBER_OF_SHELLS",i_val=pbc_shells,error=error)
       ALLOCATE(x_data%neighbor_cells(1),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       CALL x_hf_create_neighbor_cells(x_data,pbc_shells, error=error)
       ALLOCATE(x_data%x_screening_buffer_periodic(natom,natom,max_set,max_set,&
-                                                  SIZE(x_data%neighbor_cells),SIZE(x_data%neighbor_cells)))
+                                                  SIZE(x_data%neighbor_cells),SIZE(x_data%neighbor_cells)),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       CALL section_vals_val_get(hf_pbc_section,"NUMBER_OF_K_LOOPS",i_val=nkloops,error=error)
       x_data%number_of_k_loops = nkloops
     ELSE
-      ALLOCATE(x_data%x_screening_buffer(natom,natom,max_set,max_set))
+      ALLOCATE(x_data%x_screening_buffer(natom,natom,max_set,max_set),STAT=stat)
     END IF
 
-    ALLOCATE(x_data%distribution_forces(1))
-    ALLOCATE(x_data%integral_distribution_forces(1))
-    ALLOCATE(x_data%distribution_energy(1))
+    ALLOCATE(x_data%distribution_forces(1),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(x_data%integral_distribution_forces(1),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(x_data%distribution_energy(1),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ALLOCATE(x_data%far_field_boxes(1,1),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
   END SUBROUTINE x_hf_create 
 
   SUBROUTINE x_hf_release(x_data,error)
@@ -179,6 +203,10 @@ MODULE x_hf
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(x_data%integral_distribution_forces,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    DEALLOCATE(x_data%far_field_boxes,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
     DEALLOCATE(x_data,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE x_hf_release
