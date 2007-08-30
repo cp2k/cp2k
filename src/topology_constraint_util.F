@@ -1041,7 +1041,7 @@ END SUBROUTINE setup_g4x6_list
        IF  (ANY(lcolv(ncolv_mol)%colvar%i_atom > last_atom).OR.&
             ANY(lcolv(ncolv_mol)%colvar%i_atom < first_atom)) THEN
           WRITE(*,'(T5,"|",T8,A)')"Error in constraints setup!"
-          WRITE(*,'(T5,"|",T8,A)')"A constrained has been defined for a molecule type",&
+          WRITE(*,'(T5,"|",T8,A)')"A constraint has been defined for a molecule type",&
                " but the atoms specified in the constraint and the atoms defined for",&
                " the molecule DO NOT match!",&
                "This could be very probable due to a wrong connectivity, or an error",&
@@ -1110,7 +1110,7 @@ END SUBROUTINE setup_g4x6_list
             (g3x3_list(k)%b+first_atom-1 > last_atom ).OR.&
             (g3x3_list(k)%c+first_atom-1 > last_atom )) THEN
           WRITE(*,'(T5,"|",T8,A)')"Error in constraints setup!"
-          WRITE(*,'(T5,"|",T8,A)')"A constrained has been defined for a molecule type",&
+          WRITE(*,'(T5,"|",T8,A)')"A constraint has been defined for a molecule type",&
                " but the atoms specified in the constraint and the atoms defined for",&
                " the molecule DO NOT match!",&
                "This could be very probable due to a wrong connectivity, or an error",&

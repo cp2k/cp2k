@@ -573,8 +573,8 @@ CONTAINS
           IF (output_unit>0) THEN
              WRITE(output_unit,'(T2,"GENERATE|",A)')&
                   " ERROR in connectivity generation!",&
-                  " The THRESHOLD to select possible bonds is bigger than the MAX bondlength",&
-                  " used to build the neighbors lists. Increase the BONDLENGTH_MAX patameter"
+                  " The THRESHOLD to select possible bonds is larger than the max. bondlength",&
+                  " used to build the neighbors lists. Increase the BONDLENGTH_MAX parameter"
              WRITE(output_unit,'(T2,"GENERATE|",2(A,F11.6),A)')&
                   " Present THRESHOLD (",my_maxrad*bondparm_factor," ). "//&
                   " Present BONDLENGTH_MAX (",r_max(1,1)," )"
