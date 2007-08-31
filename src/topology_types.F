@@ -85,6 +85,7 @@ MODULE topology_types
      LOGICAL, POINTER                              :: fixed_mol_restraint(:)                  ! Restraints control
      REAL(KIND=dp), POINTER                        :: fixed_mol_k0(:)                         ! Restraints control
      CHARACTER(LEN=default_string_length), POINTER :: fixed_molnames(:)
+     LOGICAL, POINTER, DIMENSION(:)                :: fixed_exclude_qm, fixed_exclude_mm
      ! Collective constraints
      INTEGER                                       :: nconst_colv
      INTEGER, POINTER                              :: const_colv_mol(:)
@@ -94,6 +95,7 @@ MODULE topology_types
      LOGICAL, POINTER                              :: colv_intermolecular(:)
      LOGICAL, POINTER                              :: colv_restraint(:)                       ! Restraints control
      REAL(KIND=dp), POINTER                        :: colv_k0(:)                              ! Restraints control
+     LOGICAL, POINTER, DIMENSION(:)                :: colv_exclude_qm, colv_exclude_mm
      ! G3x3
      INTEGER                                       :: nconst_g33
      INTEGER, POINTER                              :: const_g33_mol(:)
@@ -107,6 +109,7 @@ MODULE topology_types
      LOGICAL, POINTER                              :: g33_intermolecular(:)
      LOGICAL, POINTER                              :: g33_restraint(:)                        ! Restraints control
      REAL(KIND=dp), POINTER                        :: g33_k0(:)                               ! Restraints control
+     LOGICAL, POINTER, DIMENSION(:)                :: g33_exclude_qm, g33_exclude_mm
      ! G4x6
      INTEGER                                       :: nconst_g46
      INTEGER, POINTER                              :: const_g46_mol(:)
@@ -124,6 +127,7 @@ MODULE topology_types
      LOGICAL, POINTER                              :: g46_intermolecular(:)
      LOGICAL, POINTER                              :: g46_restraint(:)                        ! Restraints control
      REAL(KIND=dp), POINTER                        :: g46_k0(:)                               ! Restraints control
+     LOGICAL, POINTER, DIMENSION(:)                :: g46_exclude_qm, g46_exclude_mm
   END TYPE constraint_info_type
 
   TYPE topology_parameters_type
@@ -165,13 +169,13 @@ MODULE topology_types
   END TYPE constr_list_type
 
   PUBLIC :: atom_info_type,&
-       connectivity_info_type,&
-       constraint_info_type,&
-       topology_parameters_type,&
-       constr_list_type
+            connectivity_info_type,&
+            constraint_info_type,&
+            topology_parameters_type,&
+            constr_list_type
 
   PUBLIC :: init_topology,&
-       deallocate_topology
+            deallocate_topology
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_types'
   PRIVATE
@@ -312,6 +316,7 @@ CONTAINS
     NULLIFY(constraint_info%fixed_k0)
     NULLIFY(constraint_info%fixed_mol_restraint)
     NULLIFY(constraint_info%fixed_mol_k0)
+    NULLIFY(constraint_info%fixed_exclude_qm, constraint_info%fixed_exclude_mm)
     ! Collective Constraints
     constraint_info%nconst_colv = 0
     NULLIFY(constraint_info%colvar_set)
@@ -321,6 +326,7 @@ CONTAINS
     NULLIFY(constraint_info%colv_intermolecular)
     NULLIFY(constraint_info%colv_restraint)
     NULLIFY(constraint_info%colv_k0)
+    NULLIFY(constraint_info%colv_exclude_qm, constraint_info%colv_exclude_mm)
     ! G3x3
     constraint_info%nconst_g33 = 0
     NULLIFY(constraint_info%const_g33_mol)
@@ -334,6 +340,7 @@ CONTAINS
     NULLIFY(constraint_info%g33_intermolecular)
     NULLIFY(constraint_info%g33_restraint)
     NULLIFY(constraint_info%g33_k0)
+    NULLIFY(constraint_info%g33_exclude_qm, constraint_info%g33_exclude_mm)
     ! G4x6
     constraint_info%nconst_g46 = 0
     NULLIFY(constraint_info%const_g46_mol)
@@ -351,6 +358,7 @@ CONTAINS
     NULLIFY(constraint_info%g46_intermolecular)
     NULLIFY(constraint_info%g46_restraint)
     NULLIFY(constraint_info%g46_k0)
+    NULLIFY(constraint_info%g46_exclude_qm, constraint_info%g46_exclude_mm)
 
   END SUBROUTINE init_constraint
 
@@ -608,6 +616,14 @@ CONTAINS
           DEALLOCATE(constraint_info%fixed_mol_k0, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
+       IF(ASSOCIATED(constraint_info%fixed_exclude_qm)) THEN
+          DEALLOCATE(constraint_info%fixed_exclude_qm, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF(ASSOCIATED(constraint_info%fixed_exclude_mm)) THEN
+          DEALLOCATE(constraint_info%fixed_exclude_mm, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
        ! Collective Constraint
        IF (ASSOCIATED(constraint_info%colvar_set)) THEN
           DO i = 1, SIZE(constraint_info%colvar_set)
@@ -641,6 +657,14 @@ CONTAINS
        END IF
        IF(ASSOCIATED(constraint_info%colv_k0)) THEN
           DEALLOCATE(constraint_info%colv_k0,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF(ASSOCIATED(constraint_info%colv_exclude_qm)) THEN
+          DEALLOCATE(constraint_info%colv_exclude_qm, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF(ASSOCIATED(constraint_info%colv_exclude_mm)) THEN
+          DEALLOCATE(constraint_info%colv_exclude_mm, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
        ! G3x3
@@ -686,6 +710,14 @@ CONTAINS
        END IF
        IF(ASSOCIATED(constraint_info%g33_k0)) THEN
           DEALLOCATE(constraint_info%g33_k0,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF(ASSOCIATED(constraint_info%g33_exclude_qm)) THEN
+          DEALLOCATE(constraint_info%g33_exclude_qm, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF(ASSOCIATED(constraint_info%g33_exclude_mm)) THEN
+          DEALLOCATE(constraint_info%g33_exclude_mm, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
        ! G4x6
@@ -747,6 +779,14 @@ CONTAINS
        END IF
        IF(ASSOCIATED(constraint_info%g46_k0)) THEN
           DEALLOCATE(constraint_info%g46_k0,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF(ASSOCIATED(constraint_info%g46_exclude_qm)) THEN
+          DEALLOCATE(constraint_info%g46_exclude_qm, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF(ASSOCIATED(constraint_info%g46_exclude_mm)) THEN
+          DEALLOCATE(constraint_info%g46_exclude_mm, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END IF

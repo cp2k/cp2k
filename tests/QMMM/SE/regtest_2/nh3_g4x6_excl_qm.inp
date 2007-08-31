@@ -1,0 +1,91 @@
+&FORCE_EVAL
+  METHOD QMMM
+  &DFT
+    &QS
+      METHOD AM1
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+    &END SCF
+  &END DFT
+  &QMMM
+    NOCENTER
+    &CELL
+      ABC 6.0 6.0 6.0
+      UNIT ANGSTROM
+    &END CELL
+    ECOUPL NONE
+    &QM_KIND H
+      MM_INDEX 2 3 4
+    &END QM_KIND
+    &QM_KIND N
+      MM_INDEX 1
+    &END QM_KIND
+  &END
+  &MM
+    &FORCEFIELD
+      parm_file_name ../../../Fist/sample_pot/nh3.pot
+      parmtype CHM
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 30
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 10.0 10.0 10.0
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE_NAME ../sample_pdb/NH3.pdb
+      COORDINATE pdb
+      CONNECTIVITY MOL_SET
+      &MOL_SET
+        &MOLECULE
+          NMOL 2
+          CONN_FILE_NAME ../../../Fist/sample_psf/nh3.psf
+          CONNECTIVITY UPSF
+        &END
+      &END
+    &END TOPOLOGY
+    &PRINT
+      &MOLECULES
+      &END
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PROJECT NH3-G46-EXQM
+  RUN_TYPE md
+  PRINT_LEVEL LOW
+&END GLOBAL
+&MOTION
+  &CONSTRAINT
+    CONSTRAIN_INIT T
+    &G4X6
+      DISTANCES 1.9275 1.9275 1.9275 3.1483 3.1483 3.1483
+      MOLNAME MOL01
+      ATOMS 1 2 3 4
+      EXCLUDE_QM
+    &END G4X6
+  &END CONSTRAINT
+  &MD
+    ENSEMBLE NVE
+    STEPS 20
+    TIMESTEP 0.5
+    TEMPERATURE 298
+    &NOSE
+      LENGTH 3
+      YOSHIDA 3
+      TIMECON 1000
+      MTS 2
+    &END NOSE
+  &END MD
+&END MOTION
+

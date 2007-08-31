@@ -159,6 +159,9 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_md_section', &
+      routineP = moduleN//':'//routineN
+
     CHARACTER(LEN=default_path_length)       :: filename
     INTEGER                                  :: iw
     INTEGER, DIMENSION(:), POINTER           :: iprint
@@ -312,6 +315,14 @@ CONTAINS
           WRITE ( iw, '( A,A4,A, T71, E10.4 )' ) &
                ' SHOCK| Barostat Mass [', 'au', '] ', &
                simpar % cmass
+       END IF
+       ! Print warning for temp_tol
+       IF (simpar % temp_tol > 0.0_dp) THEN
+          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+               "A temperature tolerance (TEMP_TOL) is used during the MD. "//&
+               "Due to the velocity rescaling algorithm jumps may appear in the conserved quantity. "//&
+CPSourceFileRef,&
+               only_ionode=.TRUE.)
        END IF
     END IF
 

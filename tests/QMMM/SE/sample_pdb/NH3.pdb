@@ -1,0 +1,8 @@
+ATOM      5 NH3  NH3 A   2      -5.612   0.338   1.176  1.00 -1.14      AMMO N
+ATOM      6 HC   NH3 A   2      -4.751   0.181   0.654  1.00  0.38      AMMO H
+ATOM      7 HC   NH3 A   2      -5.594  -0.259   2.043  1.00  0.38      AMMO H
+ATOM      8 HC   NH3 A   2      -5.450   1.320   1.518  1.00  0.38      AMMO H
+ATOM     21 NH3  NH3 A   6      -5.431  -5.410   1.645  1.00 -1.14      AMMO N
+ATOM     22 HC   NH3 A   6      -4.538  -5.350   1.105  1.00  0.38      AMMO H
+ATOM     23 HC   NH3 A   6      -5.088  -6.094   2.380  1.00  0.38      AMMO H
+ATOM     24 HC   NH3 A   6      -6.119  -5.889   1.072  1.00  0.38      AMMO H

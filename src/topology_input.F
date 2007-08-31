@@ -230,6 +230,10 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         ALLOCATE(cons_info%g33_k0(ncons),stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%g33_exclude_qm(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%g33_exclude_mm(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         DO ig = 1, ncons
            CALL check_restraint(g3x3_section,&
                                 is_restraint=cons_info%g33_restraint(ig), &
@@ -239,6 +243,11 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
                                 error=error)
            cons_info%const_g33_mol(ig)     = 0
            cons_info%const_g33_molname(ig) = "UNDEF"
+           ! Exclude QM or MM
+           CALL section_vals_val_get(g3x3_section,"EXCLUDE_QM",i_rep_section=ig,&
+                l_val=cons_info%g33_exclude_qm(ig),error=error)
+           CALL section_vals_val_get(g3x3_section,"EXCLUDE_MM",i_rep_section=ig,&
+                l_val=cons_info%g33_exclude_mm(ig),error=error)
            ! Intramolecular restraint 
            CALL section_vals_val_get(g3x3_section,"INTERMOLECULAR",i_rep_section=ig,&
                 l_val=cons_info%g33_intermolecular(ig),error=error)
@@ -317,6 +326,10 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         ALLOCATE(cons_info%g46_k0(ncons),stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%g46_exclude_qm(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%g46_exclude_mm(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         DO ig = 1, ncons
            CALL check_restraint(g4x6_section,&
                                 is_restraint=cons_info%g46_restraint(ig), &
@@ -326,6 +339,11 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
                                 error=error)
            cons_info%const_g46_mol(ig)     = 0
            cons_info%const_g46_molname(ig) = "UNDEF"
+           ! Exclude QM or MM
+           CALL section_vals_val_get(g4x6_section,"EXCLUDE_QM",i_rep_section=ig,&
+                l_val=cons_info%g46_exclude_qm(ig),error=error)
+           CALL section_vals_val_get(g4x6_section,"EXCLUDE_MM",i_rep_section=ig,&
+                l_val=cons_info%g46_exclude_mm(ig),error=error)
            ! Intramolecular restraint 
            CALL section_vals_val_get(g4x6_section,"INTERMOLECULAR",i_rep_section=ig,&
                 l_val=cons_info%g46_intermolecular(ig),error=error)
@@ -389,6 +407,10 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         ALLOCATE(cons_info%fixed_mol_k0(msize),stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%fixed_exclude_qm(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%fixed_exclude_mm(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         DO ig = 1, ncons
            isize_old  = isize
            msize_old  = msize
@@ -439,6 +461,15 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
               CALL reallocate(cons_info%fixed_mol_k0,1,msize+SIZE(tmpstringlist,1))
               msize  = SIZE(cons_info%fixed_molnames)
               cons_info%fixed_molnames(:)=tmpstringlist(:)
+              ! Exclude QM or MM work only if defined MOLNAME
+              CALL reallocate(cons_info%fixed_exclude_qm,1,msize)
+              CALL reallocate(cons_info%fixed_exclude_mm,1,msize)              
+              CALL section_vals_val_get(fix_atom_section,"EXCLUDE_QM",i_rep_section=ig,&
+                   l_val=cons_info%fixed_exclude_qm(msize_old+1),error=error)
+              CALL section_vals_val_get(fix_atom_section,"EXCLUDE_MM",i_rep_section=ig,&
+                   l_val=cons_info%fixed_exclude_mm(msize_old+1),error=error)
+              cons_info%fixed_exclude_qm(msize_old+1:msize) = cons_info%fixed_exclude_qm(msize_old+1)
+              cons_info%fixed_exclude_mm(msize_old+1:msize) = cons_info%fixed_exclude_mm(msize_old+1)
            END IF
            !Check for restraints
            IF (n_rep /=0) THEN
@@ -513,6 +544,10 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         ALLOCATE(cons_info%colv_k0(ncons),stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%colv_exclude_qm(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%colv_exclude_mm(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         DO ig = 1, ncons
            CALL check_restraint(collective_section,&
                                 is_restraint=cons_info%colv_restraint(ig), &
@@ -522,6 +557,11 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
                                 error=error)
            cons_info%const_colv_mol(ig)     = 0
            cons_info%const_colv_molname(ig) = "UNDEF"
+           ! Exclude QM or MM
+           CALL section_vals_val_get(collective_section,"EXCLUDE_QM",i_rep_section=ig,&
+                l_val=cons_info%colv_exclude_qm(ig),error=error)
+           CALL section_vals_val_get(collective_section,"EXCLUDE_MM",i_rep_section=ig,&
+                l_val=cons_info%colv_exclude_mm(ig),error=error)
            ! Intramolecular restraint 
            CALL section_vals_val_get(collective_section,"INTERMOLECULAR",i_rep_section=ig,&
                 l_val=cons_info%colv_intermolecular(ig),error=error)

@@ -132,8 +132,9 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: constr_x_glob, inds, &
                                                 molecule_list
     LOGICAL :: exclude_mm, exclude_qm, failure, fix_atom_mm, &
-      fix_atom_molname, fix_atom_qm, fix_atom_qmmm, fix_fixed_atom, ionode, &
-      is_qm, ishbond, ldummy, restart_restraint_clv, restart_restraint_pos
+      fix_atom_molname, fix_atom_qm, fix_atom_qmmm, fix_fixed_atom, &
+      found_molname, ionode, is_qm, ishbond, ldummy, restart_restraint_clv, &
+      restart_restraint_pos
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: missed_molname
     REAL(KIND=dp)                            :: rmod, rvec(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: hdist, r
@@ -252,12 +253,17 @@ CONTAINS
              END DO
              CALL section_vals_val_get(hbonds_section,"MOLNAME",c_vals=cnds,error=error)
              DO i = 1, SIZE(cnds)
+                found_molname = .FALSE.
                 DO k = 1, SIZE(molecule_kind_set)
                    molecule_kind => molecule_kind_set(k)
                    name = molecule_kind%name
                    ldummy = qmmm_ff_precond_only_qm(id1=name)
-                   IF (cnds(i) == name) constr_x_mol(k)%constr(1) = 1
+                   IF (cnds(i) == name) THEN 
+                      constr_x_mol(k)%constr(1) = 1
+                      found_molname = .TRUE.
+                   END IF
                 END DO
+                CALL print_warning_molname(found_molname, cnds(i), error)
              END DO
           END IF
        END IF
@@ -321,8 +327,12 @@ CONTAINS
        CALL reallocate(cons_info%colv_intermolecular,1,cons_info%nconst_colv)
        CALL reallocate(cons_info%colv_restraint,1,cons_info%nconst_colv)
        CALL reallocate(cons_info%colv_k0,1,cons_info%nconst_colv)
+       CALL reallocate(cons_info%colv_exclude_qm,1,cons_info%nconst_colv)
+       CALL reallocate(cons_info%colv_exclude_mm,1,cons_info%nconst_colv)
        ! Bonds involving hydrogens are by their nature only intramolecular
        cons_info%colv_intermolecular(n_start_colv+1:cons_info%nconst_colv) = .FALSE.
+       cons_info%colv_exclude_qm(n_start_colv+1:cons_info%nconst_colv) = .FALSE.
+       cons_info%colv_exclude_mm(n_start_colv+1:cons_info%nconst_colv) = .FALSE.
        cons_info%colv_restraint(n_start_colv+1:cons_info%nconst_colv) = cons_info%hbonds_restraint
        cons_info%colv_k0(n_start_colv+1:cons_info%nconst_colv)        = cons_info%hbonds_k0
        !
@@ -414,6 +424,8 @@ CONTAINS
                                   constr_x_mol,&
                                   constr_x_glob,&
                                   molecule_kind_set,&
+                                  cons_info%colv_exclude_qm,&
+                                  cons_info%colv_exclude_mm,&
                                   error)
        ! Intramolecular constraints
        gind = 0
@@ -485,6 +497,8 @@ CONTAINS
                                   constr_x_mol,&
                                   constr_x_glob,&
                                   molecule_kind_set,&
+                                  cons_info%g33_exclude_qm,&
+                                  cons_info%g33_exclude_mm,&
                                   error)
        ! Intramolecular constraints
        DO ii = 1, SIZE(molecule_kind_set)
@@ -542,6 +556,8 @@ CONTAINS
                                   constr_x_mol,&
                                   constr_x_glob,&
                                   molecule_kind_set,&
+                                  cons_info%g46_exclude_qm,&
+                                  cons_info%g46_exclude_mm,&
                                   error)
        ! Intramolecular constraints
        DO ii = 1, SIZE(molecule_kind_set)
@@ -604,7 +620,7 @@ CONTAINS
           molecule_kind => molecule_kind_set(i)
           CALL get_molecule_kind(molecule_kind=molecule_kind,&
                nmolecule=nmolecule,molecule_list=molecule_list, name=molname)
-          ldummy = qmmm_ff_precond_only_qm(id1=molname)
+          is_qm = qmmm_ff_precond_only_qm(id1=molname)
           WHERE(molname.EQ.cons_info%fixed_molnames)
             missed_molname=.FALSE.
           END WHERE
@@ -615,7 +631,13 @@ CONTAINS
              CALL get_molecule ( molecule, first_atom = first, last_atom = last )
              fix_atom_molname=.FALSE.
              IF (ASSOCIATED(cons_info%fixed_molnames)) THEN
-                IF (ANY(cons_info%fixed_molnames.EQ.molname)) fix_atom_molname=.TRUE.
+                DO k = 1, SIZE(cons_info%fixed_molnames)
+                   IF (cons_info%fixed_molnames(k).EQ.molname) THEN
+                      fix_atom_molname=.TRUE.
+                      IF (is_qm.AND.cons_info%fixed_exclude_qm(k))        fix_atom_molname=.FALSE.
+                      IF ((.NOT.is_qm).AND.cons_info%fixed_exclude_mm(k)) fix_atom_molname=.FALSE.
+                   END IF
+                END DO
              ENDIF
              DO k = first, last
                 fix_atom_qmmm=.FALSE.
@@ -642,111 +664,113 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           kk              = 0
           nfixd_restraint = 0
-          DO j=1,nmolecule
-             molecule => molecule_set(molecule_list(j))
-             CALL get_molecule ( molecule, first_atom = first, last_atom = last )
-             fix_atom_molname=.FALSE.
-             IF (ASSOCIATED(cons_info%fixed_molnames)) THEN
-                DO k1loc = 1, SIZE(cons_info%fixed_molnames)
-                   IF (cons_info%fixed_molnames(k1loc).EQ.molname) THEN
-                      fix_atom_molname=.TRUE.
-                      EXIT
+          IF (nfixed_atoms/=0) THEN
+             DO j=1,nmolecule
+                molecule => molecule_set(molecule_list(j))
+                CALL get_molecule ( molecule, first_atom = first, last_atom = last )
+                fix_atom_molname=.FALSE.
+                IF (ASSOCIATED(cons_info%fixed_molnames)) THEN
+                   DO k1loc = 1, SIZE(cons_info%fixed_molnames)
+                      IF (cons_info%fixed_molnames(k1loc).EQ.molname) THEN
+                         fix_atom_molname=.TRUE.
+                         EXIT
+                      END IF
+                   END DO
+                ENDIF
+                DO k=first,last
+                   ! FIXED LIST ATOMS
+                   fix_fixed_atom = .FALSE.
+                   DO k2loc=1,SIZE(cons_info%fixed_atoms)
+                      IF (cons_info%fixed_atoms(k2loc) == k) THEN
+                         fix_fixed_atom = .TRUE.
+                         EXIT
+                      END IF
+                   END DO
+                   ! QMMM FIXED ATOMS (QM OR MM)
+                   fix_atom_qmmm=.FALSE.
+                   fix_atom_mm  =.FALSE.
+                   fix_atom_qm  =.FALSE.
+                   IF (PRESENT(qmmm_env)) THEN
+                      SELECT CASE(cons_info%freeze_qm)
+                      CASE(do_constr_atomic)
+                         IF (ANY(qmmm_env%qm_atom_index==k)) THEN 
+                            fix_atom_qmmm=.TRUE.
+                            fix_atom_qm = .TRUE.
+                         END IF
+                      CASE(do_constr_molec)
+                         IF (ANY(qmmm_env%qm_molecule_index == molecule_list(j))) THEN 
+                            fix_atom_qmmm = .TRUE.
+                            fix_atom_qm   = .TRUE.
+                         END IF
+                      END SELECT
+                      SELECT CASE(cons_info%freeze_mm)
+                      CASE(do_constr_atomic)
+                         IF (ALL(qmmm_env%qm_atom_index/=k)) THEN 
+                            fix_atom_qmmm=.TRUE.
+                            fix_atom_mm = .TRUE.
+                         END IF
+                      CASE(do_constr_molec)
+                         IF (ALL(qmmm_env%qm_molecule_index /= molecule_list(j))) THEN 
+                            fix_atom_qmmm = .TRUE.
+                            fix_atom_mm = .TRUE.
+                         END IF
+                      END SELECT
+                      ! We should never reach this point but let's check it anyway
+                      IF (fix_atom_qm.AND.fix_atom_mm) THEN
+                         CALL stop_program(TRIM(routineN),"Atom number: "//cp_to_string(k)//&
+                              " has been defined both QM and MM. General Error!")
+                      END IF
                    END IF
-                END DO
-             ENDIF
-             DO k=first,last
-                ! FIXED LIST ATOMS
-                fix_fixed_atom = .FALSE.
-                DO k2loc=1,SIZE(cons_info%fixed_atoms)
-                   IF (cons_info%fixed_atoms(k2loc) == k) THEN
-                      fix_fixed_atom = .TRUE.
-                      EXIT
-                   END IF
-                END DO
-                ! QMMM FIXED ATOMS (QM OR MM)
-                fix_atom_qmmm=.FALSE.
-                fix_atom_mm  =.FALSE.
-                fix_atom_qm  =.FALSE.
-                IF (PRESENT(qmmm_env)) THEN
-                   SELECT CASE(cons_info%freeze_qm)
-                   CASE(do_constr_atomic)
-                      IF (ANY(qmmm_env%qm_atom_index==k)) THEN 
-                         fix_atom_qmmm=.TRUE.
-                         fix_atom_qm = .TRUE.
-                      END IF
-                   CASE(do_constr_molec)
-                      IF (ANY(qmmm_env%qm_molecule_index == molecule_list(j))) THEN 
-                         fix_atom_qmmm = .TRUE.
-                         fix_atom_qm   = .TRUE.
-                      END IF
-                   END SELECT
-                   SELECT CASE(cons_info%freeze_mm)
-                   CASE(do_constr_atomic)
-                      IF (ALL(qmmm_env%qm_atom_index/=k)) THEN 
-                         fix_atom_qmmm=.TRUE.
-                         fix_atom_mm = .TRUE.
-                      END IF
-                   CASE(do_constr_molec)
-                      IF (ALL(qmmm_env%qm_molecule_index /= molecule_list(j))) THEN 
-                         fix_atom_qmmm = .TRUE.
-                         fix_atom_mm = .TRUE.
-                      END IF
-                   END SELECT
-                   ! We should never reach this point but let's check it anyway
-                   IF (fix_atom_qm.AND.fix_atom_mm) THEN
+                   ! Check that the fixed atom constraint/restraint is unique
+                   IF ((fix_fixed_atom.AND.fix_atom_qmmm).OR.(fix_fixed_atom.AND.fix_atom_molname)&
+                        .OR.(fix_atom_qmmm.AND.fix_atom_molname)) THEN 
                       CALL stop_program(TRIM(routineN),"Atom number: "//cp_to_string(k)//&
-                           " has been defined both QM and MM. General Error!")
+                           " has been constrained/restrained to be fixed in more than one"//&
+                           " input section. Check and correct your input file!")
                    END IF
-                END IF
-                ! Check that the fixed atom constraint/restraint is unique
-                IF ((fix_fixed_atom.AND.fix_atom_qmmm).OR.(fix_fixed_atom.AND.fix_atom_molname)&
-                     .OR.(fix_atom_qmmm.AND.fix_atom_molname)) THEN 
-                   CALL stop_program(TRIM(routineN),"Atom number: "//cp_to_string(k)//&
-                        " has been constrained/restrained to be fixed in more than one"//&
-                        " input section. Check and correct your input file!")
-                END IF
-                ! Let's store the atom index
-                IF (fix_fixed_atom.OR.fix_atom_qmmm.OR.fix_atom_molname) THEN
-                   kk = kk + 1
-                   fixd_list(kk)%fixd  = k
-                   fixd_list(kk)%coord = particle_set(k)%r
-                   ! Possibly Restraint
-                   IF     (fix_fixed_atom) THEN
-                      fixd_list(kk)%restraint%active = cons_info%fixed_restraint(k2loc)
-                      fixd_list(kk)%restraint%k0     = cons_info%fixed_k0(k2loc)
-                   ELSEIF (fix_atom_qm) THEN
-                      fixd_list(kk)%restraint%active = cons_info%fixed_qm_restraint
-                      fixd_list(kk)%restraint%k0     = cons_info%fixed_qm_k0
-                   ELSEIF (fix_atom_mm) THEN
-                      fixd_list(kk)%restraint%active = cons_info%fixed_mm_restraint
-                      fixd_list(kk)%restraint%k0     = cons_info%fixed_mm_k0
-                   ELSEIF (fix_atom_molname) THEN
-                      fixd_list(kk)%restraint%active = cons_info%fixed_mol_restraint(k1loc)
-                      fixd_list(kk)%restraint%k0     = cons_info%fixed_mol_k0(k1loc)
-                   ELSE
-                      ! Should never reach this point
-                      CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-                   END IF
-                   IF (fixd_list(kk)%restraint%active) THEN 
-                      nfixd_restraint = nfixd_restraint+ 1
-                      nfixd_restart   = nfixd_restart  + 1
-                      IF (restart_restraint_pos) THEN
-                         ! Read  coord0 value for restraint
-                         CALL section_vals_val_get(fixd_restr_rest,"_DEFAULT_KEYWORD_",&
-                              i_rep_val=nfixd_restart, r_vals=r, error=error)
-                         fixd_list(kk)%coord = r
+                   ! Let's store the atom index
+                   IF (fix_fixed_atom.OR.fix_atom_qmmm.OR.fix_atom_molname) THEN
+                      kk = kk + 1
+                      fixd_list(kk)%fixd  = k
+                      fixd_list(kk)%coord = particle_set(k)%r
+                      ! Possibly Restraint
+                      IF     (fix_fixed_atom) THEN
+                         fixd_list(kk)%restraint%active = cons_info%fixed_restraint(k2loc)
+                         fixd_list(kk)%restraint%k0     = cons_info%fixed_k0(k2loc)
+                      ELSEIF (fix_atom_qm) THEN
+                         fixd_list(kk)%restraint%active = cons_info%fixed_qm_restraint
+                         fixd_list(kk)%restraint%k0     = cons_info%fixed_qm_k0
+                      ELSEIF (fix_atom_mm) THEN
+                         fixd_list(kk)%restraint%active = cons_info%fixed_mm_restraint
+                         fixd_list(kk)%restraint%k0     = cons_info%fixed_mm_k0
+                      ELSEIF (fix_atom_molname) THEN
+                         fixd_list(kk)%restraint%active = cons_info%fixed_mol_restraint(k1loc)
+                         fixd_list(kk)%restraint%k0     = cons_info%fixed_mol_k0(k1loc)
                       ELSE
-                         ! Write coord0 value for restraint
-                         ALLOCATE(r(3),stat=stat)
-                         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                         r = fixd_list(kk)%coord
-                         CALL section_vals_val_set(fixd_restr_rest,"_DEFAULT_KEYWORD_",&
-                              i_rep_val=nfixd_restart, r_vals_ptr=r, error=error)                         
+                         ! Should never reach this point
+                         CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                      END IF
+                      IF (fixd_list(kk)%restraint%active) THEN 
+                         nfixd_restraint = nfixd_restraint+ 1
+                         nfixd_restart   = nfixd_restart  + 1
+                         IF (restart_restraint_pos) THEN
+                            ! Read  coord0 value for restraint
+                            CALL section_vals_val_get(fixd_restr_rest,"_DEFAULT_KEYWORD_",&
+                                 i_rep_val=nfixd_restart, r_vals=r, error=error)
+                            fixd_list(kk)%coord = r
+                         ELSE
+                            ! Write coord0 value for restraint
+                            ALLOCATE(r(3),stat=stat)
+                            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                            r = fixd_list(kk)%coord
+                            CALL section_vals_val_set(fixd_restr_rest,"_DEFAULT_KEYWORD_",&
+                                 i_rep_val=nfixd_restart, r_vals_ptr=r, error=error)                         
+                         END IF
                       END IF
                    END IF
-                END IF
+                END DO
              END DO
-          END DO
+          END IF
           IF (iw>0) THEN 
              WRITE(iw,*)"MOLECULE KIND:",i," NR. FIXED ATOMS:",SIZE(fixd_list(:)%fixd)," LIST::",fixd_list(:)%fixd
           END IF
@@ -1225,7 +1249,7 @@ END SUBROUTINE setup_lg4x6
 !!   INPUTS
 !!*** *************************************************************************
   SUBROUTINE give_constraint_array(const_mol, const_molname, const_intermolecular,&
-       constr_x_mol, constr_x_glob, molecule_kind_set, error)
+       constr_x_mol, constr_x_glob, molecule_kind_set, exclude_qm, exclude_mm, error)
     
     INTEGER, DIMENSION(:), POINTER           :: const_mol
     CHARACTER(LEN=default_string_length), &
@@ -1236,6 +1260,7 @@ END SUBROUTINE setup_lg4x6
     INTEGER, DIMENSION(:), POINTER           :: constr_x_glob
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
+    LOGICAL, DIMENSION(:), POINTER           :: exclude_qm, exclude_mm
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'give_constraint_array', &
@@ -1244,7 +1269,7 @@ END SUBROUTINE setup_lg4x6
     CHARACTER(LEN=default_string_length)     :: myname, name
     INTEGER                                  :: handle, i, iglob, isize, k, &
                                                 stat
-    LOGICAL                                  :: failure, ldummy
+    LOGICAL                                  :: failure, found_molname, is_qm
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
     failure = .FALSE.
@@ -1275,21 +1300,69 @@ END SUBROUTINE setup_lg4x6
                 constr_x_mol(k)%constr(isize+1) = i
              ELSE
                 myname = const_molname(i)
+                found_molname = .FALSE.
                 DO k = 1, SIZE(molecule_kind_set)
                    molecule_kind => molecule_kind_set(k)
                    name = molecule_kind%name
-                   ldummy = qmmm_ff_precond_only_qm(id1=name)
+                   is_qm = qmmm_ff_precond_only_qm(id1=name)
+                   IF (is_qm.AND.exclude_qm(i))      CYCLE
+                   IF (.NOT.is_qm.AND.exclude_mm(i)) CYCLE
                    IF (name==myname) THEN
                       isize = SIZE(constr_x_mol(k)%constr)
                       CALL reallocate(constr_x_mol(k)%constr, 1, isize+1)
                       constr_x_mol(k)%constr(isize+1) = i
+                      found_molname = .TRUE.
                    END IF
                 END DO
+                CALL print_warning_molname(found_molname, myname, error)
              END IF
           END IF
        END DO
     END IF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE give_constraint_array
+
+!******************************************************************************
+!!****** topology_constraint_util/print_warning_molname [1.0] *
+!!
+!!   NAME
+!!     print_warning_molname
+!!
+!!   SYNOPSIS
+!!
+!!   FUNCTION
+!!     Prints a warning message if undefined molnames are used to define constraints
+!!
+!!   AUTHOR
+!!     Teodoro Laino [2007] - Zurich University
+!!
+!!   MODIFICATION HISTORY
+!!     
+!!
+!!   OPTIONS
+!!
+!!   INPUTS
+!!*** *************************************************************************
+  SUBROUTINE print_warning_molname(found, name, error)
+    LOGICAL, INTENT(IN)                      :: found
+    CHARACTER(LEN=*), INTENT(IN)             :: name
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'print_warning_molname', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    CALL cp_assert(found,cp_warning_level,cp_assertion_failed,routineP,&
+         " MOLNAME ("//TRIM(name)//") was defined for constraints, but this molecule name "//&
+         "is not defined. Please check carefully your PDB, PSF (has priority over PDB) or "//&
+         "input driven CP2K coordinates. In case you may not find the reason for this warning "//&
+         "it may be a good idea to print all molecule information (including kind name) activating "//&
+         "the print_key MOLECULES specific of the SUBSYS%PRINT section. "//&
+CPSourceFileRef,&
+         only_ionode=.TRUE.)
+    
+  END SUBROUTINE print_warning_molname
 
 END MODULE topology_constraint_util

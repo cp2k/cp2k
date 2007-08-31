@@ -900,6 +900,20 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="EXCLUDE_QM",&
+            description="Does not apply the constraint to the QM region within a QM/MM calculation",&
+            usage="EXCLUDE_QM <LOGICAL>",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EXCLUDE_MM",&
+            description="Does not apply the constraint to the MM region within a QM/MM calculation",&
+            usage="EXCLUDE_MM <LOGICAL>",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
     END IF
 
   END SUBROUTINE create_collective_section
@@ -993,6 +1007,22 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="EXCLUDE_QM",&
+            description="Does not apply the constraint to the QM region within a QM/MM calculation."//&
+            " This keyword is active only together with MOLNAME",&
+            usage="EXCLUDE_QM <LOGICAL>",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EXCLUDE_MM",&
+            description="Does not apply the constraint to the MM region within a QM/MM calculation."//&
+            " This keyword is active only together with MOLNAME",&
+            usage="EXCLUDE_MM <LOGICAL>",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
     END IF
 
   END SUBROUTINE create_fixed_atom_section
@@ -1070,10 +1100,25 @@ CONTAINS
        ! Real
        CALL keyword_create(keyword, name="DISTANCES",&
             description="The constrained distances' values.",&
-            usage="DISTANCES {real} {real} {real}", type_of_var=real_t, n_var=-1,error=error)
+            usage="DISTANCES {real} {real} {real}", type_of_var=real_t,&
+            unit_str="internal_cp2k",n_var=-1,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)              
 
+       ! Logical
+       CALL keyword_create(keyword, name="EXCLUDE_QM",&
+            description="Does not apply the constraint to the QM region within a QM/MM calculation",&
+            usage="EXCLUDE_QM <LOGICAL>",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EXCLUDE_MM",&
+            description="Does not apply the constraint to the MM region within a QM/MM calculation",&
+            usage="EXCLUDE_MM <LOGICAL>",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
     END IF
 
   END SUBROUTINE create_g3x3_section
@@ -1244,10 +1289,24 @@ CONTAINS
        CALL keyword_create(keyword, name="DISTANCES",&
             description="The constrained distances' values.",&
             usage="DISTANCES {real} {real} {real} {real} {real} {real}",&
-            type_of_var=real_t, n_var=6,error=error)
+            type_of_var=real_t, n_var=6,unit_str="internal_cp2k",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)              
 
+       ! Logical
+       CALL keyword_create(keyword, name="EXCLUDE_QM",&
+            description="Does not apply the constraint to the QM region within a QM/MM calculation",&
+            usage="EXCLUDE_QM <LOGICAL>",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EXCLUDE_MM",&
+            description="Does not apply the constraint to the MM region within a QM/MM calculation",&
+            usage="EXCLUDE_MM <LOGICAL>",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
     END IF
 
   END SUBROUTINE create_g4x6_section
