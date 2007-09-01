@@ -118,7 +118,7 @@ CONTAINS
     stack_pointer=stack_pointer+1
     IF (stack_pointer>max_timer_env_stack) THEN
        PRINT*,'stack_pointer too large is add_timer_env'
-       STOP
+       STOP 1
     ENDIF
     NULLIFY(timer_env_stack(stack_pointer)%timer_env)
     IF (PRESENT(timer_env)) THEN
@@ -154,7 +154,7 @@ SUBROUTINE timer_env_create(timer_env)
     ALLOCATE(timer_env,stat=stat)
     IF (stat/=0) THEN
       PRINT*,moduleN//':timer_env_create error allocationg timer_env'
-      STOP
+      STOP 1
     END IF
     last_timer_env_id=last_timer_env_id+1
     timer_env%id_nr=last_timer_env_id
@@ -184,7 +184,7 @@ END SUBROUTINE
 SUBROUTINE rm_timer_env()
   IF (stack_pointer<1) THEN
      PRINT*,'no timer env available in destroy_timer_env'
-     STOP
+     STOP 1
   ENDIF
   CALL timer_env_release(timer_env_stack(stack_pointer)%timer_env)
   stack_pointer=stack_pointer-1
@@ -209,7 +209,7 @@ FUNCTION get_timer_env() RESULT(res)
 
   IF (stack_pointer<1) THEN
      PRINT*,'no timer env available in get_timer_env'
-     STOP
+     STOP 1
   ENDIF
   res => timer_env_stack(stack_pointer)%timer_env
 END FUNCTION get_timer_env
@@ -233,12 +233,12 @@ SUBROUTINE timer_env_retain(timer_env)
 
   IF (.NOT.ASSOCIATED(timer_env)) THEN
      PRINT*,moduleN,':timer_env_retain ERROR, unassociated timer_env'
-     STOP
+     STOP 1
   ENDIF
   IF (timer_env%ref_count<1) THEN
      PRINT*,moduleN,':timer_env_retain ERROR, timer_env%ref_count=',&
           timer_env%ref_count
-     STOP
+     STOP 1
   ENDIF
   timer_env%ref_count=timer_env%ref_count+1
 END SUBROUTINE timer_env_retain
@@ -267,7 +267,7 @@ SUBROUTINE timer_env_release(timer_env)
      IF (timer_env%ref_count<1) THEN
         PRINT*,moduleN,':timer_env_release ERROR, timer_env%ref_count=',&
              timer_env%ref_count,"id_nr=",timer_env%id_nr
-        STOP
+        STOP 1
      ENDIF
      timer_env%ref_count=timer_env%ref_count-1
      IF (timer_env%ref_count==0) THEN
@@ -279,7 +279,7 @@ SUBROUTINE timer_env_release(timer_env)
         DEALLOCATE(timer_env,stat=stat)
         IF (stat/=0) THEN
            PRINT*,moduleN,':timer_env_release ERROR deallocating, stat=',stat
-           STOP
+           STOP 1
         ENDIF
      END IF
   END IF
@@ -335,11 +335,11 @@ SUBROUTINE timeset_full ( name, ct, pu, handle )
 
    IF (stack_pointer<1) THEN
       PRINT*,'no timer env available in timeset'
-      STOP
+      STOP 1
    ENDIF
    IF (LEN_TRIM(name)>LEN(timer_env%clock_name)) THEN
       PRINT *,"timings:timeset, timer name too long: '",TRIM(name),"'"
-      STOP
+      STOP 1
    END IF
    timer_env => timer_env_stack(stack_pointer)%timer_env
 !..add name to subroutine stack
@@ -359,7 +359,7 @@ SUBROUTINE timeset_full ( name, ct, pu, handle )
      PRINT *,'ERROR hit max_timer in timeset'
      PRINT *,"name ",name,timer_env%num_timer
      PRINT *,timer_env%clock_name
-     STOP
+     STOP 1
   ENDIF
 
   DO i=timer_env%num_timer,handle+1,-1
@@ -475,7 +475,7 @@ SUBROUTINE timestop_full ( perf, handle )
 
    IF (stack_pointer<1) THEN
       PRINT*,'no timer env available in timestop'
-      STOP 
+      STOP  1
    ENDIF
 
    timer_env => timer_env_stack(stack_pointer)%timer_env
@@ -485,7 +485,7 @@ SUBROUTINE timestop_full ( perf, handle )
       PRINT*,'mismatched timestop '&
         //TRIM(timer_env%routine_stack(timer_env%stack_size))//&
              ' in routine timestop'
-      STOP
+      STOP 1
   END IF
   timer_env%handle_stack (timer_env%stack_size)=0
 
@@ -493,7 +493,7 @@ SUBROUTINE timestop_full ( perf, handle )
 !    CALL stop_program ( 'timestop', 'handle > num_timer' )
 ! intermediate work-around
      PRINT*,'handle > num_timer in routine timestop'
-     STOP
+     STOP 1
   ELSE
 #if defined(__HPM)
      IF (use_HPM) THEN
@@ -581,7 +581,7 @@ SUBROUTINE timeprint(iw,r_timings)
 
   IF (stack_pointer<1) THEN
       PRINT*,'no timer env available in time_set'
-      STOP
+      STOP 1
   ENDIF
 
   timer_env => timer_env_stack(stack_pointer)%timer_env
@@ -673,7 +673,7 @@ SUBROUTINE trace_debug ( set, trace_sync, para_env )
 
    IF (stack_pointer<1) THEN
       PRINT*,'no timer env available in trace_debug'
-      STOP
+      STOP 1
    ENDIF
  
    timer_env => timer_env_stack(stack_pointer)%timer_env
@@ -692,7 +692,7 @@ SUBROUTINE trace_debug ( set, trace_sync, para_env )
 !   CALL stop_program("trace_debug","unknown action")
 !   intermediate work-around
     PRINT*,'unknown action requested in routine trace_debug'
-    STOP
+    STOP 1
   END SELECT
 
   timer_env%astring = " >>>>>>>>>>>>> "
@@ -738,7 +738,7 @@ SUBROUTINE print_stack ( iw )
 
   IF (stack_pointer<1) THEN
       PRINT*,'no timer env available in print_stack'
-      STOP
+      STOP 1
   ENDIF
 
   timer_env => timer_env_stack(stack_pointer)%timer_env
@@ -795,7 +795,7 @@ FUNCTION timer_binsearch(el,list,ord_idx,lb,ub)RESULT(res)
   ui=ub
   IF (ui>SIZE(list)) THEN
      PRINT *, "error in timings:timer_binsearch, ui>size(list)",ui,SIZE(list)
-     STOP
+     STOP 1
   END IF
   DO
      IF (li>ui) EXIT

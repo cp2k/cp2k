@@ -639,7 +639,6 @@ CONTAINS
     CALL print_message(message,unit_nr,1,1,1)
     CALL print_stack(unit_nr)
     CALL mp_abort()
-    STOP ! just to be sure...
   END SUBROUTINE cp_error_common_stop
 !****************************************************************************
 

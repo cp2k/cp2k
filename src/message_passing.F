@@ -568,6 +568,7 @@ SUBROUTINE mp_abort ( )
 #else
   CALL m_abort() ! uncomment if you want nice core dumps
 #endif
+  ! this routine never returns
   STOP 1
 
 END SUBROUTINE mp_abort
