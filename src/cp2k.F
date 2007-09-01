@@ -47,7 +47,7 @@ PROGRAM cp2k
   USE cp2k_runs,         ONLY : write_cp2k_html_manual, &
                                 write_xml_file, run_input
   USE machine,           ONLY : m_iargc,m_getarg
-  USE message_passing,   ONLY : mp_sync
+  USE message_passing,   ONLY : mp_sync, mp_abort
   USE kinds,             ONLY : default_path_length
   USE f77_interface,     ONLY : init_cp2k, finalize_cp2k, &
                                 check_input, default_para_env
@@ -247,6 +247,9 @@ arg_loop: DO WHILE (i_arg<n_arg)
 
         IF (run_it .OR. force_run) THEN
            CALL run_input(input_file_name,output_file_name,ierr=ierr)
+           IF (ierr.NE.0) THEN
+              CALL mp_abort()
+           ENDIF
         END IF
      ENDIF
 

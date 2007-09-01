@@ -543,7 +543,7 @@ SUBROUTINE mp_stop ( ierr, prg_code )
   CALL mpi_abort ( MPI_COMM_WORLD, prg_code )
 #endif
 
-  STOP "mp_stop"
+  STOP 1
 
 
 END SUBROUTINE mp_stop
@@ -567,8 +567,8 @@ SUBROUTINE mp_abort ( )
   CALL mpi_abort ( MPI_COMM_WORLD, 0 )
 #else
   CALL m_abort() ! uncomment if you want nice core dumps
-  STOP
 #endif
+  STOP 1
 
 END SUBROUTINE mp_abort
 

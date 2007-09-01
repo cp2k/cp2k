@@ -70,15 +70,15 @@ CONTAINS
 
     IF (istat /= 0) THEN
       WRITE (UNIT=message,FMT="(A,I6,A,I6,A)")&
-        "An error occurred inquiring the unit with the number ",unit_number,&
+        "CP2K: An error occurred inquiring the unit with the number ",unit_number,&
         " (IOSTAT = ",istat,")"
       WRITE(6,*) TRIM(message)
-      STOP  ! should actually do error recovery....
+      STOP 1  ! should actually do error recovery....
     ELSE IF (.NOT.exists) THEN
       WRITE (UNIT=message,FMT="(A,I6,A,I6,A)")&
-        "The specified unit number ",unit_number," does not exist"
+        "CP2K: The specified unit number ",unit_number," does not exist"
       WRITE(6,*) TRIM(message)
-      STOP  ! should actually do error recovery....
+      STOP 1  ! should actually do error recovery....
     END IF
 
 !   *** Close the specified file ***
@@ -97,9 +97,9 @@ CONTAINS
 
       IF (istat /= 0) THEN
         WRITE (UNIT=message,FMT="(A,I6,A,I6,A)")&
-          "An error occurred closing the file with the unit number ",unit_number," (IOSTAT = ",istat,")"
+          "CP2K: An error occurred closing the file with the unit number ",unit_number," (IOSTAT = ",istat,")"
         WRITE(6,*) TRIM(message)
-        STOP  ! should actually do error recovery....
+        STOP 1 ! should actually do error recovery....
       END IF
 
     END IF
@@ -191,9 +191,9 @@ CONTAINS
        CALL uppercase(pad_string)
        IF (form_string=="UNFORMATTED") THEN
           WRITE (UNIT=message,FMT="(A)")&
-               "The PAD= specifier is not allowed for an UNFORMATTED file!"
+               "CP2K: The PAD= specifier is not allowed for an UNFORMATTED file!"
           WRITE(6,*) TRIM(message)
-          STOP  ! should actually do error recovery....          
+          STOP 1  ! should actually do error recovery....          
        END IF
     ELSE
        pad_string = "YES"
@@ -219,14 +219,14 @@ CONTAINS
 
     IF (istat /= 0) THEN
       WRITE (UNIT=message,FMT="(A,I6,A)")&
-        "An error occurred inquiring the file <"//TRIM(file_name)//&
+        "CP2K: An error occurred inquiring the file <"//TRIM(file_name)//&
         "> (IOSTAT = ",istat,")"
       WRITE(6,*) TRIM(message)
-      STOP  ! should actually do error recovery....
+      STOP 1  ! should actually do error recovery....
     ELSE IF (status_string == "OLD") THEN
       IF (.NOT.exists) THEN
-         WRITE(6,*) "The specified file "//TRIM(file_name)//" can not be opened, it does not exist"
-         STOP  ! should actually do error recovery....
+         WRITE(6,*) "CP2K: The specified file "//TRIM(file_name)//" can not be opened, it does not exist"
+         STOP 1  ! should actually do error recovery....
       END IF
     END IF
 
@@ -244,8 +244,8 @@ CONTAINS
       unit_number = get_unit_number()
 
       IF (unit_number < 0) THEN
-         WRITE(6,*) "Problems opening file, there are no free units left"
-         STOP  ! should actually do error recovery....
+         WRITE(6,*) "CP2K: Problems opening file, there are no free units left"
+         STOP 1  ! should actually do error recovery....
       END IF
 
       IF (TRIM(form_string)== "FORMATTED") THEN
@@ -271,10 +271,10 @@ CONTAINS
 
       IF (istat /= 0) THEN
         WRITE (UNIT=message,FMT="(A,I6,A,I6,A)")&
-          "An error occurred opening the file <"//TRIM(file_name)//&
+          "CP2K: An error occurred opening the file <"//TRIM(file_name)//&
           "> with the unit number ",unit_number," (IOSTAT = ",istat,")"
         WRITE(6,*) TRIM(message)
-        STOP  ! should actually do error recovery....
+        STOP 1  ! should actually do error recovery....
       END IF
 
     END IF
