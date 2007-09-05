@@ -345,7 +345,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_check_points', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, irep, natoms, npoints, &
+    INTEGER                                  :: i, irep, natoms, nweights, npoints, &
                                                 nrep, stat
     INTEGER, DIMENSION(:), POINTER           :: atoms
     LOGICAL                                  :: explicit, failure
@@ -367,6 +367,7 @@ CONTAINS
        ! Read points definition
        DO i = 1, npoints
           natoms = 0
+          nweights = 0
           NULLIFY(colvar%points(i)%atoms)
           NULLIFY(colvar%points(i)%weights)
           CALL section_vals_val_get(point_sections,"TYPE",i_rep_section=i,i_val=colvar%points(i)%type_id,error=error)
@@ -391,10 +392,13 @@ CONTAINS
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              colvar%points(i)%weights = 1.0_dp/REAL(natoms,KIND=dp)
              CALL section_vals_val_get(point_sections,"WEIGHTS",i_rep_section=i,n_rep_val=nrep,error=error)
-             IF (nrep==1) THEN
-                CALL section_vals_val_get(point_sections,"WEIGHTS",i_rep_section=i,r_vals=weights,error=error)
-                CPPostcondition(SIZE(weights)==natoms,cp_failure_level,routineP,error,failure)
-                colvar%points(i)%weights = weights
+             IF (nrep/=0) THEN
+                DO irep=1,nrep
+                   CALL section_vals_val_get(point_sections,"WEIGHTS",i_rep_section=i,i_rep_val=irep,r_vals=weights,error=error)
+                   colvar%points(i)%weights(nweights+1:) = weights(:)
+                   nweights = nweights + SIZE(weights)
+                END DO
+                CPPostcondition(natoms==nweights,cp_failure_level,routineP,error,failure)
              END IF
           CASE(do_clv_fix_point )
              ! Define the point as a fixed point in space..

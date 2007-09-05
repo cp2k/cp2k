@@ -758,7 +758,7 @@ CONTAINS
        CALL keyword_create(keyword, name="WEIGHTS",&
             description="Specifies the weights for a weighted geometrical center. Default is 1/natoms for every atom",&
             usage="WEIGHTS {real} {real} {real} {real}",required=.FALSE.,&
-            n_var=-1, type_of_var=real_t, repeats=.FALSE., error=error)
+            n_var=-1, type_of_var=real_t, repeats=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
