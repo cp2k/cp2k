@@ -1358,13 +1358,13 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"DUMP_PDB",&
             description="controls the dumping of the PDB at the starting geometry",&
-            print_level=debug_print_level, filename="topology_pdb.pdb",error=error)
+            print_level=debug_print_level, filename="dump",error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"DUMP_PSF",&
             description="controls the dumping of the PSF connectivity",&
-            print_level=debug_print_level, filename="topology_psf.psf",error=error)
+            print_level=debug_print_level, filename="dump",error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
