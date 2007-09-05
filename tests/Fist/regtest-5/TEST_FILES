@@ -73,3 +73,5 @@ H2OFe-5_75-6.inp          2
 H2OFe-5_75-7.inp          2
 #target two different molecule name (same nature)
 water_3_dist_2_restr.inp  2
+# check charges of Ti in the dumped topology
+interface.inp             2

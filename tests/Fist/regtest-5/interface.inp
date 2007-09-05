@@ -1,0 +1,256 @@
+&FORCE_EVAL
+  METHOD FIST
+   &MM
+     &PRINT
+       &FF_INFO
+       &END
+     &END
+     &FORCEFIELD
+       PARM_FILE_NAME ../sample_pot/acn.pot
+       PARMTYPE CHM
+      &SPLINE
+        EMAX_SPLINE 1000
+      &END
+      &CHARGE
+        ATOM YC
+CHARGE 0.48            
+      &END CHARGE
+      &CHARGE
+        ATOM I1
+CHARGE -1.0
+      &END CHARGE
+      &CHARGE
+        ATOM CT
+CHARGE -0.48      
+      &END CHARGE
+      &CHARGE
+        ATOM YN
+CHARGE -0.531        
+      &END CHARGE
+      &CHARGE
+        ATOM HC
+CHARGE 0.177      
+      &END CHARGE
+      &CHARGE
+        ATOM TI
+CHARGE 2.0824117312
+      &END CHARGE
+      &CHARGE
+        ATOM O
+CHARGE -1.04121
+      &END CHARGE
+      &BOND
+        ATOMS HC CT
+        KIND QUARTIC
+     K  0.3296890432 -0.5218235500 0.4290887413
+     R0  2.0715
+      &END BOND
+       &NONBONDED
+         &LENNARD-JONES
+           atoms HC O
+     EPSILON  3.0923
+     SIGMA  2.9048921595
+           RCUT 15.00
+         &END LENNARD-JONES
+         &LENNARD-JONES
+           atoms HC TI
+     EPSILON  1.03869
+     SIGMA  2.6129375740
+           RCUT 15.00
+         &END LENNARD-JONES
+         &LENNARD-JONES
+           atoms YC O
+     EPSILON  1.20623
+     SIGMA  4.4230034810
+           RCUT 15.00
+         &END LENNARD-JONES
+         &LENNARD-JONES
+           atoms YC TI
+     EPSILON  2.97184
+     SIGMA  2.6734175168
+           RCUT 15.00
+         &END LENNARD-JONES
+         &LENNARD-JONES
+           atoms YN O
+     EPSILON  1.47088
+     SIGMA  4.3028848872
+           RCUT 15.00
+         &END LENNARD-JONES
+         &LENNARD-JONES
+           atoms YN TI
+     EPSILON  0.352899
+     SIGMA  4.1319025644
+           RCUT 15.00
+         &END LENNARD-JONES
+         &LENNARD-JONES
+           atoms CT O
+     EPSILON  2.93582
+     SIGMA  1.6818063234
+           RCUT 15.00
+         &END LENNARD-JONES
+         &LENNARD-JONES
+           atoms CT TI
+     EPSILON  3.65529
+     SIGMA  4.1347358579
+           RCUT 15.00
+         &END LENNARD-JONES
+         &LENNARD-JONES
+           atoms I1 O
+     EPSILON  0.0000000
+     SIGMA  3.000000000000
+           RCUT 1.00
+         &END LENNARD-JONES
+         &LENNARD-JONES
+           atoms I1 TI
+     EPSILON  0.0000000
+     SIGMA  3.000000000000
+           RCUT 1.00
+         &END LENNARD-JONES
+        &WILLIAMS
+          atoms Ti O
+       A  196786806.1720000034
+       B  5.154639175257731959
+       C  146103.0407276
+        RCUT 10.0
+        &END WILLIAMS
+        &WILLIAMS
+          atoms O O
+       A  137236296.486
+       B  4.273504273504273504
+       C  350688.130326
+        RCUT 10.0
+        &END WILLIAMS
+        &WILLIAMS
+          atoms Ti Ti
+       A  361134323.34
+       B  6.493506493506493506
+       C  60923.637672
+        RCUT 10.0
+        &END WILLIAMS
+        &END NONBONDED
+     &END FORCEFIELD
+     &POISSON
+       &EWALD
+         EWALD_TYPE spme
+         ALPHA .35
+         GMAX 24 24 40
+       &END EWALD
+     &END POISSON
+   &END MM
+  &SUBSYS
+    &TOPOLOGY
+       CONNECTIVITY GENERATE
+       ! check the charges of Ti
+       &DUMP_PSF
+       &END
+       ! CONNECTIVITY PSF
+       ! CONN_FILE topology.psf
+    &END 
+    &CELL
+    ABC 22.692   20.4539964  40.16
+     UNIT ANGSTROM
+    &END CELL
+     &COORD
+Ti 0. 0. -7.583 1
+O -8.036432E-8 1.8385214 -6.85123 4
+YC -11.04517 -10.02431 6.408567 ACN
+CT -10.00833 -9.098343 7.020560 ACN
+YN -11.96169 -10.54267 5.954522 ACN
+HC -9.136765 -9.758293 7.252505 ACN
+HC -9.790688 -8.318348 6.329801 ACN
+HC -10.40202 -8.723755 7.938682 ACN
+     &END COORD
+    &KIND TI 
+       ELEMENT Ti
+    &END KIND
+    &KIND I1
+       ELEMENT I
+       MASS 4.0
+    &END KIND
+    &KIND YC
+       ELEMENT C
+    &END KIND
+    &KIND YN
+       ELEMENT N
+    &END KIND
+    &KIND HC
+       ELEMENT H
+    &END KIND
+    &KIND CT
+       ELEMENT C
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTW3
+  RUN_TYPE MD
+  WALLTIME 17000000
+  PROJECT TEST
+  PRINT_LEVEL LOW
+&END GLOBAL
+&MOTION
+  !&CONSTRAINT
+  !   &COLLECTIVE
+  !     COLVAR 1
+  !     INTERMOLECULAR
+  !     TARGET [angstrom] 11.00
+  !   &END COLLECTIVE
+  !   &LAGRANGE_MULTIPLIERS
+  !     COMMON_ITERATION_LEVELS 1
+  !   &END
+  !&END
+   &MD
+    ENSEMBLE NVT
+    ! STEPS 2000000
+    STEPS 1
+    TIMESTEP 0.5
+    TEMPERATURE 300.0
+    &NOSE
+      LENGTH 3
+      YOSHIDA 3
+      TIMECON 2000
+      MTS 2
+    &END NOSE
+    &PRINT
+      &ENERGY
+        EACH 1
+      &END
+    &END
+   &END MD
+   &PRINT
+    &RESTART_HISTORY OFF
+    &END
+    &RESTART
+      EACH 1000
+    &END RESTART
+     &FORCES OFF
+     &END
+     &TRAJECTORY
+        EACH 200
+     &END
+     &VELOCITIES OFF
+     &END
+   &END
+&END MOTION
+! &EXT_RESTART
+!   RESTART_FILE_NAME TEST-1.restart
+!   RESTART_COUNTERS  F
+!   RESTART_POS  T
+!   RESTART_VEL  F
+!   RESTART_RANDOMG  F
+!   RESTART_KG_COEFF_POS  F
+!   RESTART_KG_COEFF_VEL  F
+!   RESTART_SHELL_POS  F
+!   RESTART_CORE_POS  F
+!   RESTART_SHELL_VELOCITY  F
+!   RESTART_CORE_VELOCITY  F
+!   RESTART_KG_NOSE  F
+!   RESTART_BAROSTAT  F
+!   RESTART_BAROSTAT_NOSE  F
+!   RESTART_NOSE  F
+!   RESTART_CELL  F
+!   RESTART_METADYNAMICS  F
+!   RESTART_BAND  F
+!   RESTART_QMMM  F
+!   RESTART_CONSTRAINT  F
+! &END EXT_RESTART

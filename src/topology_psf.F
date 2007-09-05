@@ -919,37 +919,37 @@ CPSourceFileRef,&
     ! Check for charges.. (need to dump them in the PSF..)
     ALLOCATE(charges(topology%natoms),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF (ALL(atom_info%atm_charge==-HUGE(0.0_dp))) THEN
-       ! Collect charges from Input file..
-       NULLIFY(tmp_section)
-       tmp_section => section_vals_get_subs_vals(force_env_section,"MM%FORCEFIELD%CHARGE",error=error)
-       CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nchg,error=error)
-       IF (explicit) THEN
-          ALLOCATE(charge_atm(nchg),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(charge_inp(nchg),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          CALL read_chrg_section(charge_atm,charge_inp,tmp_section,0,error)
-          DO j = 1, topology%natoms
-             record = atom_info%label_atmname(j)
-             ldum = qmmm_ff_precond_only_qm(record)
-             DO i = 1, nchg
-                IF (record==charge_atm(i)) THEN
-                   charges(j) = charge_inp(i)
-                   EXIT
-                END IF
-             END DO
+    charges = atom_info%atm_charge
+    ! Collect charges from Input file..
+    NULLIFY(tmp_section)
+    tmp_section => section_vals_get_subs_vals(force_env_section,"MM%FORCEFIELD%CHARGE",error=error)
+    CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nchg,error=error)
+    IF (explicit) THEN
+       ALLOCATE(charge_atm(nchg),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(charge_inp(nchg),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL read_chrg_section(charge_atm,charge_inp,tmp_section,0,error)
+       DO j = 1, topology%natoms
+          record = atom_info%label_atmname(j)
+          ldum = qmmm_ff_precond_only_qm(record)
+          CALL uppercase(record)
+          DO i = 1, nchg
+             IF (record==charge_atm(i)) THEN
+                charges(j) = charge_inp(i)
+                EXIT
+             END IF
           END DO
-          DEALLOCATE(charge_atm,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(charge_inp,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ELSE
-          charges = -99.0_dp
-       END IF
-    ELSE
-       charges = atom_info%atm_charge
+       END DO
+       DEALLOCATE(charge_atm,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(charge_inp,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
+    ! fixup for topology output
+    DO j = 1, topology%natoms
+       IF (charges(j).EQ.-HUGE(0.0_dp)) charges(j)=-99.0_dp
+    ENDDO
     record = cp_print_key_generate_filename(logger,print_key,&
          extension=".psf",my_local=.FALSE.,error=error)
     ! build the EXT format
