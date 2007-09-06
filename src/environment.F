@@ -784,7 +784,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     IF (.NOT. failure) THEN
        iw=cp_print_key_unit_nr(logger,root_section,"GLOBAL%PROGRAM_RUN_INFO",&
                                          extension=".log",error=error)
-       CALL describe_mp_perf_env ( para_env%group,iw )
+       CALL describe_mp_perf_env ( iw )
        CALL cp_print_key_finished_output(iw,logger,root_section,&
                "GLOBAL%PROGRAM_RUN_INFO", error=error)
     ENDIF

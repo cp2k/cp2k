@@ -385,11 +385,11 @@ SUBROUTINE mp_perf_env_retain(perf_env)
 END SUBROUTINE mp_perf_env_retain
 
 !.. reports the performance counters for the MPI run
-SUBROUTINE mp_perf_env_describe ( perf_env, mp_comm, scr )
+SUBROUTINE mp_perf_env_describe ( perf_env, iw )
     TYPE(mp_perf_env_type), POINTER          :: perf_env
-    INTEGER, INTENT(IN)                      :: mp_comm, scr
+    INTEGER, INTENT(IN)                      :: iw
 
-    INTEGER                                  :: i, iw, numtask, taskid
+    INTEGER                                  :: i, numtask, taskid
     REAL(KIND=dp)                            :: per, vol
 
   IF (.not.ASSOCIATED(perf_env)) THEN
@@ -399,9 +399,7 @@ SUBROUTINE mp_perf_env_describe ( perf_env, mp_comm, scr )
      CALL mp_stop ( perf_env%ref_count, "invalid perf_env%ref_count : message_passing @ mp_perf_env_describe" )   
   ENDIF
 #if defined(__parallel)
-  CALL mp_environ ( numtask, taskid, mp_comm )
-  iw = scr
-  IF ( taskid == 0 ) THEN
+  IF ( iw > 0 ) THEN
     WRITE ( iw, '( /, 1X, 79("-") )' )
     WRITE ( iw, '( " -", 77X, "-" )' )
     WRITE ( iw, '( " -", 24X, A, 24X, "-" )' ) ' MESSAGE PASSING PERFORMANCE '
@@ -453,13 +451,13 @@ FUNCTION get_mp_perf_env () RESULT(res)
 
 END FUNCTION get_mp_perf_env
 
-SUBROUTINE describe_mp_perf_env(mp_comm, scr)
-    INTEGER, INTENT(in)                      :: mp_comm, scr
+SUBROUTINE describe_mp_perf_env(scr)
+    INTEGER, INTENT(in)                      :: scr
 
     TYPE(mp_perf_env_type), POINTER          :: perf_env
 
   perf_env => get_mp_perf_env()
-  CALL mp_perf_env_describe(perf_env,mp_comm,scr)
+  CALL mp_perf_env_describe(perf_env, scr)
 END SUBROUTINE describe_mp_perf_env
 
 !!****f* message_passing/add_perf *
