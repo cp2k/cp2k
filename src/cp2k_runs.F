@@ -211,8 +211,6 @@ CONTAINS
           WRITE(unit_nr,'(T15,A)') ""
           WRITE(unit_nr,'(T15,A)') "This is also online for the latest version of CP2K:"
           WRITE(unit_nr,'(T15,A)') "http://cp2k.berlios.de/input/"
-          WRITE(unit_nr,'(T15,A)') "or in single file format"
-          WRITE(unit_nr,'(T15,A)') "http://cp2k.berlios.de/cp2k_input.htm "
           WRITE(unit_nr,'(T15,A)') ""
           WRITE(unit_nr,'(T15,A)') "If this input was an input of a previous version"
           WRITE(unit_nr,'(T15,A)') "of cp2k, you can try to convert it with --permissive-echo."
