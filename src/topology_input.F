@@ -187,9 +187,9 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
                                                 g3x3_section, g4x6_section, &
                                                 hbonds_section
 
-  cons_info    => topology%cons_info
-  failure = .FALSE.
-  IF (.NOT.failure) THEN
+  cons_info => topology%cons_info
+  failure   = .FALSE.
+  IF (ASSOCIATED(constraint_section)) THEN
      hbonds_section     => section_vals_get_subs_vals(constraint_section,"HBONDS",error=error)
      g3x3_section       => section_vals_get_subs_vals(constraint_section,"G3X3",error=error)
      g4x6_section       => section_vals_get_subs_vals(constraint_section,"G4X6",error=error)

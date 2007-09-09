@@ -119,7 +119,7 @@ CONTAINS
 !!*** *************************************************************************
 
 SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_section,&
-     subsys_section, error )
+     subsys_section, use_motion_section, error )
 
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(section_vals_type), POINTER         :: root_section
@@ -127,6 +127,7 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 subsys_section
+    LOGICAL, INTENT(IN)                      :: use_motion_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'fist_init'
@@ -211,7 +212,7 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
   CALL topology_control ( atomic_kind_set, particle_set, molecule_kind_set, molecule_set,&
        subsystem%colvar_p, subsystem%gci, root_section, para_env, globenv,qmmm=qmmm,&
        qmmm_env=qmmm_env, force_env_section=force_env_section,subsys_section=subsys_section,&
-       error=error)
+       use_motion_section=use_motion_section, error=error)
 
   CALL force_field_control ( atomic_kind_set, particle_set,&
                              molecule_kind_set, molecule_set,&

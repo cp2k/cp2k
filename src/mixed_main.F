@@ -86,7 +86,7 @@ CONTAINS
 !!*** *************************************************************************
 
   SUBROUTINE mixed_create_force_env ( force_env, root_section, para_env,globenv,&
-       force_env_section, n_subforce_eval, error )
+       force_env_section, n_subforce_eval, use_motion_section, error )
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: root_section
@@ -94,6 +94,7 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
     INTEGER, INTENT(IN)                      :: n_subforce_eval
+    LOGICAL, INTENT(IN)                      :: use_motion_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mixed_create_force_env', &
@@ -119,7 +120,7 @@ CONTAINS
     output_unit=cp_print_key_unit_nr(logger,force_env_section,"MIXED%PROGRAM_RUN_INFO",&
                                          extension=".log",error=error)
 
-    CALL mixed_env_create( mixed_env, para_env = para_env ,error=error)
+    CALL mixed_env_create( mixed_env, para_env = para_env, error=error)
     ! Setup the new parallel env
     NULLIFY(group_partition)
     group_size_wish_set=.FALSE.
@@ -233,7 +234,8 @@ CONTAINS
 
     ! *** initializations for the setup of the MIXED environment ***
     CALL set_mixed_env (mixed_env, error=error)
-    CALL mixed_init ( mixed_env, root_section, para_env, globenv, force_env_section, error )
+    CALL mixed_init ( mixed_env, root_section, para_env, globenv, force_env_section, &
+                      use_motion_section, error )
     CALL force_env_create ( force_env, root_section, mixed_env = mixed_env, &
          para_env = para_env, globenv = globenv, &
          force_env_section=force_env_section,&

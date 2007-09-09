@@ -187,7 +187,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE qs_init(qs_env,root_section,globenv,subsystem,cell,cell_ref,qmmm,&
-       qmmm_periodic,force_env_section,subsys_section,error)
+       qmmm_periodic,force_env_section,subsys_section,use_motion_section,error)
 
 !   Purpose: Read the input and the database files for the setup of the
 !            QUICKSTEP environment.
@@ -205,6 +205,7 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: qmmm, qmmm_periodic
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 subsys_section
+    LOGICAL, INTENT(IN)                      :: use_motion_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_init', &
@@ -295,7 +296,7 @@ CONTAINS
        CALL topology_control (atomic_kind_set,particle_set, molecule_kind_set, molecule_set,&
             my_subsystem%colvar_p,my_subsystem%gci, root_section, para_env, globenv,&
             force_env_section=force_env_section, subsys_section=subsys_section,&
-            error=error)
+            use_motion_section=use_motion_section, error=error)
 
        CALL read_atomic_kind_set(atomic_kind_set,kind_section,para_env,&
             force_env_section,error)

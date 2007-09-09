@@ -365,7 +365,8 @@ CONTAINS
                subsys_section=subsys_section,error=error)
 
           CALL quickstep_create_force_env(force_env_loc,root_section,para_env,globenv,subsystem=subsys_loc,&
-               force_env_section=force_env_section, subsys_section=subsys_section, error=error)
+               force_env_section=force_env_section, subsys_section=subsys_section, use_motion_section=.FALSE.,&
+               error=error)
 
           CALL cp_subsys_release(subsys_loc,error=error)
           !

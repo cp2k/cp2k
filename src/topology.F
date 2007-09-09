@@ -28,16 +28,10 @@ MODULE topology
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: do_conn_g87, &
-                                             do_conn_g96, &
-                                             do_conn_generate, &
-                                             do_conn_mol_set, &
-                                             do_conn_off, &
-                                             do_conn_psf, &
-                                             do_conn_psf_u, &
-                                             do_coord_g96, &
-                                             do_coord_pdb, &
-                                             do_coord_xyz
+  USE input_constants,                 ONLY: &
+       do_conn_g87, do_conn_g96, do_conn_generate, do_conn_mol_set, &
+       do_conn_off, do_conn_psf, do_conn_psf_u, do_coord_g96, do_coord_pdb, &
+       do_coord_xyz
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -124,7 +118,7 @@ CONTAINS
 !******************************************************************************
   SUBROUTINE topology_control(atomic_kind_set, particle_set, molecule_kind_set,&
        molecule_set, colvar_p, gci, root_section, para_env, globenv, qmmm, qmmm_env,&
-       force_env_section, subsys_section, error)
+       force_env_section, subsys_section, use_motion_section, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -145,6 +139,7 @@ CONTAINS
       POINTER                                :: qmmm_env
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 subsys_section
+    LOGICAL, INTENT(IN)                      :: use_motion_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_control', &
@@ -165,7 +160,9 @@ CONTAINS
     NULLIFY(cell_section, constraint_section, topology_section)
 
     cell_section => section_vals_get_subs_vals(subsys_section,"CELL",error=error)
-    constraint_section =>  section_vals_get_subs_vals(root_section,"MOTION%CONSTRAINT",error=error)
+    IF (use_motion_section) THEN
+       constraint_section =>  section_vals_get_subs_vals(root_section,"MOTION%CONSTRAINT",error=error)
+    END IF
     topology_section   =>  section_vals_get_subs_vals(subsys_section,"TOPOLOGY",error=error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO",&
          extension=".mmLog",error=error)

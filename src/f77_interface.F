@@ -26,6 +26,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE f77_interface
+  USE bibliography,                    ONLY: add_all_references
   USE cp2k_units,                      ONLY: init_cp2k_units,&
                                              rm_cp2k_units
   USE cp_files,                        ONLY: open_file
@@ -92,8 +93,9 @@ MODULE f77_interface
   USE mixed_main,                      ONLY: mixed_create_force_env
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: init_physcon
-  USE qmmm_init,                       ONLY: qmmm_create_force_env
+  USE qmmm_main,                       ONLY: qmmm_create_force_env
   USE qs_main,                         ONLY: quickstep_create_force_env
+  USE reference_manager,               ONLY: remove_all_references
   USE string_table,                    ONLY: string_table_allocate,&
                                              string_table_deallocate
   USE timings,                         ONLY: add_timer_env,&
@@ -104,8 +106,6 @@ MODULE f77_interface
                                              timer_env_type,&
                                              timeset,&
                                              timestop
-  USE bibliography,                    ONLY: add_all_references
-  USE reference_manager,               ONLY: remove_all_references
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -605,15 +605,13 @@ END SUBROUTINE f_env_rm_defaults
     CHARACTER(len=*), PARAMETER :: routineN = 'create_force_env', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, iforce_eval, isubforce_eval, k, method_name_id, my_group, &
-      nforce_eval, ngroups, nsubforce_size, stat, unit_nr
+    INTEGER :: handle, i, iforce_eval, isubforce_eval, k, method_name_id, &
+      my_group, nforce_eval, ngroups, nsubforce_size, stat, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: group_distribution, &
                                                 i_force_eval, &
                                                 lgroup_distribution
-    LOGICAL                                  :: check, failure, &
-                                                multiple_subsys, my_echo, &
-                                                my_owns_out_unit, &
-                                                use_multiple_para_env
+    LOGICAL :: check, failure, multiple_subsys, my_echo, my_owns_out_unit, &
+      use_motion_section, use_multiple_para_env
     TYPE(cp_error_type)                      :: error, my_error
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: my_para_env, para_env
@@ -628,7 +626,6 @@ END SUBROUTINE f_env_rm_defaults
       force_env_sections, fp_section, input_file, root_section, &
       subsys_section, wrk_section
     TYPE(timer_env_type), POINTER            :: timer_env
-
 
     failure=.FALSE.
 
@@ -737,6 +734,7 @@ END SUBROUTINE f_env_rm_defaults
        END IF
        nsubforce_size        = nforce_eval-1
        use_multiple_para_env = .FALSE.
+       use_motion_section    = .TRUE.
        DO iforce_eval = 1, nforce_eval
           NULLIFY(force_env_section, my_force_env, subsys_section)
           ! Reference subsys from the first ordered force_eval
@@ -766,8 +764,10 @@ END SUBROUTINE f_env_rm_defaults
           IF (nforce_eval>1) THEN
              CALL section_vals_duplicate(force_env_sections,force_env_section,&
                   i_force_eval(iforce_eval),i_force_eval(iforce_eval),my_error)
+             IF (iforce_eval/=1) use_motion_section = .FALSE.
           ELSE
              force_env_section => force_env_sections
+             use_motion_section = .TRUE.
           END IF
           CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=my_error)
 
@@ -780,27 +780,27 @@ END SUBROUTINE f_env_rm_defaults
           CASE (do_fist)
              CALL fist_create_force_env ( my_force_env, root_section, my_para_env, globenv,&
                   force_env_section=force_env_section, subsys_section=subsys_section,&
-                  error=my_error )
+                  use_motion_section=use_motion_section, error=my_error )
           CASE (do_kg)
              CALL kg_create_force_env ( my_force_env, root_section, my_para_env, globenv,&
                   force_env_section=force_env_section, subsys_section=subsys_section,&
-                  error=my_error)
+                  use_motion_section=use_motion_section, error=my_error)
           CASE (do_qs)
              CALL quickstep_create_force_env( my_force_env, root_section, my_para_env, globenv,&
                   force_env_section=force_env_section, subsys_section=subsys_section,&
-                  error=my_error)
+                  use_motion_section=use_motion_section, error=my_error)
           CASE (do_qmmm)
              CALL qmmm_create_force_env( my_force_env, root_section, my_para_env, globenv,&
                   force_env_section=force_env_section, subsys_section=subsys_section,&
-                  error=my_error)
+                  use_motion_section=use_motion_section, error=my_error)
           CASE (do_eip)
              CALL eip_create_force_env(my_force_env, root_section,  my_para_env, globenv, &
                   force_env_section=force_env_section, subsys_section=subsys_section,&
-                  error=my_error)
+                  use_motion_section=use_motion_section, error=my_error)
           CASE (do_mixed)
              CALL mixed_create_force_env(my_force_env, root_section, my_para_env, globenv,&
                   force_env_section=force_env_section, n_subforce_eval=nsubforce_size,&
-                  error=my_error)
+                  use_motion_section=use_motion_section, error=my_error)
              use_multiple_para_env = .TRUE.
              lgroup_distribution => my_force_env%mixed_env%group_distribution
           CASE default
@@ -811,18 +811,21 @@ CPSourceFileRef,&
                my_error,failure)
           END SELECT
 
-          ! Free Energy and Flexible Partition Setup
-          fe_section => section_vals_get_subs_vals(root_section,"MOTION%FREE_ENERGY",error=my_error)
-          CALL metadyn_read(meta_env, root_section, my_para_env, fe_section, error=my_error)
-          CALL force_env_set(my_force_env,meta_env=meta_env,error=my_error)
-          CALL meta_env_release(meta_env,error=my_error)
-          NULLIFY(fp_env)
-          fp_section => section_vals_get_subs_vals(root_section,"MOTION%FLEXIBLE_PARTITIONING",error=my_error)
-          CALL fp_env_create(fp_env,error=my_error)
-          CALL fp_env_read(fp_env,fp_section,error=my_error)
-          CALL fp_env_write(fp_env,fp_section,error=my_error)
-          CALL force_env_set(my_force_env,fp_env=fp_env,error=my_error)
-          CALL fp_env_release(fp_env,error=my_error)
+          NULLIFY(meta_env, fp_env)
+          IF (use_motion_section) THEN
+             ! Metadynamics Setup
+             fe_section => section_vals_get_subs_vals(root_section,"MOTION%FREE_ENERGY",error=my_error)
+             CALL metadyn_read(meta_env, root_section, my_para_env, fe_section, error=my_error)
+             CALL force_env_set(my_force_env,meta_env=meta_env,error=my_error)
+             CALL meta_env_release(meta_env,error=my_error)
+             ! Flexible Partition Setup
+             fp_section => section_vals_get_subs_vals(root_section,"MOTION%FLEXIBLE_PARTITIONING",error=my_error)
+             CALL fp_env_create(fp_env,error=my_error)
+             CALL fp_env_read(fp_env,fp_section,error=my_error)
+             CALL fp_env_write(fp_env,fp_section,error=my_error)
+             CALL force_env_set(my_force_env,fp_env=fp_env,error=my_error)
+             CALL fp_env_release(fp_env,error=my_error)
+          END IF
           ! Handle multiple force_eval
           IF (nforce_eval>1.AND.iforce_eval==1) THEN
              ALLOCATE(my_force_env%sub_force_env(nsubforce_size),stat=stat)

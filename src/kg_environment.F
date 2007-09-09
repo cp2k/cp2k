@@ -153,7 +153,7 @@ CONTAINS
 !!*****************************************************************************
 
   SUBROUTINE kg_init (kg_env,root_section,para_env,globenv,force_env_section,&
-       subsys_section, error)
+       subsys_section, use_motion_section, error)
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(section_vals_type), POINTER         :: root_section
@@ -161,6 +161,7 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 subsys_section
+    LOGICAL, INTENT(IN)                      :: use_motion_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'kg_init'
@@ -260,7 +261,8 @@ CONTAINS
     ! topology
     CALL topology_control (atomic_kind_set,particle_set, molecule_kind_set,molecule_set,&
          kg_env%subsys%colvar_p, kg_env%subsys%gci, root_section,para_env,globenv, &
-         force_env_section=force_env_section, subsys_section=subsys_section, error=error)
+         force_env_section=force_env_section, subsys_section=subsys_section, &
+         use_motion_section=use_motion_section, error=error)
 
     ! Read/write the atomic kind set
     kind_section => section_vals_get_subs_vals(subsys_section,"KIND",error=error)

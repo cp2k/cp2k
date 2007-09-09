@@ -44,8 +44,8 @@ MODULE mc_control
                                              section_vals_type,&
                                              section_vals_val_get
   USE kg_main,                         ONLY: kg_create_force_env
-  USE kinds,                           ONLY: default_string_length,&
-                                             default_path_length,&
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp,&
                                              dp_size,&
                                              int_size
@@ -463,15 +463,15 @@ SUBROUTINE mc_create_force_env ( force_env, para_env, input_file_name,&
       CASE ( do_fist )
          CALL fist_create_force_env(force_env, root_section, para_env, globenv,&
                                     force_env_section=force_env_section, subsys_section=subsys_section,&
-                                    error=error)
+                                    use_motion_section=.TRUE., error=error)
       CASE ( do_qs )
          CALL quickstep_create_force_env(force_env, root_section,  para_env,globenv, &
                                          force_env_section=force_env_section, subsys_section=subsys_section,&
-                                         error=error)
+                                         use_motion_section=.TRUE., error=error)
       CASE ( do_kg )
          CALL kg_create_force_env ( force_env, root_section, para_env, globenv, &
                                     force_env_section=force_env_section, subsys_section=subsys_section,&
-                                    error=error)
+                                    use_motion_section=.TRUE., error=error)
       CASE default
          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
       END SELECT

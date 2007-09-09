@@ -77,7 +77,7 @@ CONTAINS
 !!*** *************************************************************************
 
   SUBROUTINE fist_create_force_env ( force_env, root_section, para_env, globenv,&
-       qmmm, qmmm_env, force_env_section, subsys_section, error )
+       qmmm, qmmm_env, force_env_section, subsys_section, use_motion_section, error )
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -87,6 +87,7 @@ CONTAINS
       POINTER                                :: qmmm_env
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 subsys_section
+    LOGICAL, INTENT(IN)                      :: use_motion_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fist_create_force_env', &
@@ -111,7 +112,7 @@ CONTAINS
     ! *** Read the input and the database files and perform further  ***
     ! *** initializations for the setup of the FIST environment ***
     CALL fist_init ( fist_env, root_section, para_env, globenv, force_env_section,&
-         subsys_section, error )
+         subsys_section, use_motion_section, error )
 
     CALL force_env_create ( force_env, root_section, fist_env = fist_env, &
          para_env = para_env, globenv = globenv, &

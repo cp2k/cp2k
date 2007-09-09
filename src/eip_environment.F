@@ -114,13 +114,14 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE eip_init(eip_env, root_section, para_env, globenv, force_env_section,&
-       subsys_section, error)
+       subsys_section, use_motion_section, error)
     TYPE(eip_environment_type), POINTER      :: eip_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 subsys_section
+    LOGICAL, INTENT(IN)                      :: use_motion_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_init', &
@@ -182,7 +183,8 @@ CONTAINS
       CALL topology_control(atomic_kind_set, particle_set,molecule_kind_set,&
            molecule_set, subsystem%colvar_p, subsystem%gci, root_section, &
            para_env, globenv, force_env_section=force_env_section,&
-           subsys_section=subsys_section, error=error)
+           subsys_section=subsys_section, use_motion_section=use_motion_section,&
+           error=error)
 
       CALL particle_list_create(particles, els_ptr=particle_set, error=error)
       CALL atomic_kind_list_create(atomic_kinds, els_ptr=atomic_kind_set, error=error)

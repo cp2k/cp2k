@@ -98,13 +98,15 @@ CONTAINS
 !!
 !!*** *************************************************************************
 
-SUBROUTINE mixed_init ( mixed_env, root_section,para_env, globenv, force_env_section, error )
+SUBROUTINE mixed_init ( mixed_env, root_section,para_env, globenv, force_env_section,&
+                        use_motion_section, error )
 
     TYPE(mixed_environment_type), POINTER    :: mixed_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
+    LOGICAL, INTENT(IN)                      :: use_motion_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'mixed_init'
@@ -159,7 +161,7 @@ SUBROUTINE mixed_init ( mixed_env, root_section,para_env, globenv, force_env_sec
   CALL topology_control ( atomic_kind_set, particle_set, molecule_kind_set, molecule_set,&
        subsystem%colvar_p,subsystem%gci,root_section,para_env,globenv,&
        force_env_section=force_env_section, subsys_section=subsys_section,&
-       error=error)
+       use_motion_section=use_motion_section, error=error)
 
   CALL particle_list_create ( particles, els_ptr = particle_set, error = error )
   CALL atomic_kind_list_create ( atomic_kinds, els_ptr = atomic_kind_set, error = error )

@@ -320,6 +320,7 @@ OBJECTS_GENERIC =\
  qmmm_gpw_forces.o\
  qmmm_init.o\
  qmmm_links_methods.o\
+ qmmm_main.o\
  qmmm_per_elpot.o\
  qmmm_pw_grid.o\
  qmmm_se_energy.o\

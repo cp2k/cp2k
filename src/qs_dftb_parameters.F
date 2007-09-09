@@ -37,13 +37,14 @@ MODULE qs_dftb_parameters
                                              parser_release
   USE external_potential_types,        ONLY: set_potential
   USE input_section_types,             ONLY: section_vals_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             default_path_length,&
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_bcast
   USE physcon,                         ONLY: angstrom,&
                                              kcalmol
+  USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE qs_dftb_types,                   ONLY: qs_dftb_atom_type,&
                                              qs_dftb_pairpot_create,&
                                              qs_dftb_pairpot_init,&
@@ -87,15 +88,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_dftb_param_init', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=2)                         :: iel, jel
     CHARACTER(LEN=6)                         :: cspline
-    CHARACTER(LEN=default_path_length)     :: file_name
-    CHARACTER(LEN=default_string_length)     :: iname, jname, &
-                                                name_a, name_b, skfn
+    CHARACTER(LEN=default_path_length)       :: file_name
     CHARACTER(LEN=default_path_length), &
       ALLOCATABLE, DIMENSION(:, :)           :: sk_files
+    CHARACTER(LEN=default_string_length)     :: iname, jname, name_a, name_b, &
+                                                skfn
     INTEGER :: ikind, isp, istat, j, jkind, k, l, l1, l2, llm, lmax, lmax_a, &
       lmax_b, lp, m, n_urpoly, ngrd, nkind, output_unit, runit, spdim, z
-    LOGICAL                                  :: at_end, failure, found, &
+    LOGICAL                                  :: at_end, failure, found, ldum, &
                                                 search, sklist
     REAL(dp)                                 :: da, db, dgrd, dij, energy, &
                                                 eps_disp, ra, radmax, rb, &
@@ -114,7 +116,6 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     failure = .FALSE.
-
     output_unit = -1
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -152,18 +153,20 @@ CONTAINS
 
     nkind  = SIZE(atomic_kind_set)
     ALLOCATE(sk_files(nkind,nkind),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_fatal_level,routineP,error,failure)
     ! allocate potential structures
     ALLOCATE(dftb_potential(nkind,nkind),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_fatal_level,routineP,error,failure)
     CALL qs_dftb_pairpot_init(dftb_potential,error)
 
     DO ikind = 1, nkind
       atomic_kind_a => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind_a,name=iname)
+      CALL get_atomic_kind(atomic_kind=atomic_kind_a,name=iname,element_symbol=iel)
+      ldum = qmmm_ff_precond_only_qm(iname)
       DO jkind = 1, nkind
         atomic_kind_b => atomic_kind_set(jkind)
-        CALL get_atomic_kind(atomic_kind=atomic_kind_b,name=jname)
+        CALL get_atomic_kind(atomic_kind=atomic_kind_b,name=jname,element_symbol=jel)
+        ldum = qmmm_ff_precond_only_qm(jname)
         found = .FALSE.
         DO k=1,SIZE(dftb_control%sk_pair_list,2)
           name_a=TRIM(dftb_control%sk_pair_list(1,k))
@@ -188,7 +191,16 @@ CONTAINS
             CALL parser_get_object(parser,name_b,error=error)
             name_a = TRIM(name_a)
             name_b = TRIM(name_b)
+            !Checking Names
             IF ( (iname==name_a .AND. jname==name_b) ) THEN 
+              CALL parser_get_object(parser,skfn,string_length=8,error=error)
+              sk_files(ikind,jkind) = TRIM(dftb_control%sk_file_path)//"/"//&
+                                      TRIM(skfn)
+              found = .TRUE.
+              EXIT
+            END IF
+            !Checking Element
+            IF ( (iel==name_a .AND. jel==name_b) ) THEN 
               CALL parser_get_object(parser,skfn,string_length=8,error=error)
               sk_files(ikind,jkind) = TRIM(dftb_control%sk_file_path)//"/"//&
                                       TRIM(skfn)
@@ -198,10 +210,9 @@ CONTAINS
           END DO
           CALL parser_release(parser,error=error)
         END IF
-        CPPostcondition(found,cp_failure_level,routineP,error,failure)
+        CPPostcondition(found,cp_fatal_level,routineP,error,failure)
       END DO
     END DO
-
     ! reading the files
     ! read all pairs, equal kind first
     DO ikind = 1, nkind
@@ -270,9 +281,9 @@ CONTAINS
 
       ! Slater-Koster table
       ALLOCATE(fmat(ngrd,10),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(istat==0,cp_fatal_level,routineP,error,failure)
       ALLOCATE(smat(ngrd,10),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(istat==0,cp_fatal_level,routineP,error,failure)
       IF ( para_env%ionode ) THEN
         DO k=1,ngrd
           READ (runit,fmt=*,END=1,err=1) fwork(1:10),swork(1:10)
@@ -328,9 +339,9 @@ CONTAINS
               ! spline dimension and left-hand cutoff
               READ (runit,fmt=*,END=1,err=1) spdim,s_cut
               ALLOCATE(spxr(spdim,2),STAT=istat)
-              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+              CPPostcondition(istat==0,cp_fatal_level,routineP,error,failure)
               ALLOCATE(scoeff(spdim,4),STAT=istat)
-              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+              CPPostcondition(istat==0,cp_fatal_level,routineP,error,failure)
               ! e-functions describing left-hand extrapolation
               READ (runit,fmt=*,END=1,err=1) srep(1:3)
               DO isp = 1,spdim-1
@@ -351,9 +362,9 @@ CONTAINS
       CALL mp_bcast(spdim,para_env%source,para_env%group)
       IF ( spdim > 0 .AND. (.NOT. para_env%ionode)) THEN
         ALLOCATE(spxr(spdim,2),STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_fatal_level,routineP,error,failure)
         ALLOCATE(scoeff(spdim,4),STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_fatal_level,routineP,error,failure)
       END IF
       IF(spdim > 0) THEN
         CALL mp_bcast(spxr,para_env%source,para_env%group)
@@ -402,14 +413,14 @@ CONTAINS
       END IF
 
       DEALLOCATE(fmat,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(istat==0,cp_fatal_level,routineP,error,failure)
       DEALLOCATE(smat,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(istat==0,cp_fatal_level,routineP,error,failure)
       IF(spdim > 0) THEN
         DEALLOCATE(spxr,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_fatal_level,routineP,error,failure)
         DEALLOCATE(scoeff,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_fatal_level,routineP,error,failure)
       END IF
 
     END DO
@@ -474,9 +485,9 @@ CONTAINS
 
         ! Slater-Koster table
         ALLOCATE(fmat(ngrd,10),STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_fatal_level,routineP,error,failure)
         ALLOCATE(smat(ngrd,10),STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_fatal_level,routineP,error,failure)
         IF ( para_env%ionode ) THEN
           DO k=1,ngrd
             READ (runit,fmt=*,END=1,err=1) fwork(1:10),swork(1:10)
@@ -499,9 +510,9 @@ CONTAINS
                 ! spline dimension and left-hand cutoff
                 READ (runit,fmt=*,END=1,err=1) spdim,s_cut
                 ALLOCATE(spxr(spdim,2),STAT=istat)
-                CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(istat==0,cp_fatal_level,routineP,error,failure)
                 ALLOCATE(scoeff(spdim,4),STAT=istat)
-                CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(istat==0,cp_fatal_level,routineP,error,failure)
                 ! e-functions describing left-hand extrapolation
                 READ (runit,fmt=*,END=1,err=1) srep(1:3)
                 DO isp = 1,spdim-1
@@ -522,9 +533,9 @@ CONTAINS
         CALL mp_bcast(spdim,para_env%source,para_env%group)
         IF ( spdim > 0 .AND. (.NOT. para_env%ionode)) THEN
           ALLOCATE(spxr(spdim,2),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_fatal_level,routineP,error,failure)
           ALLOCATE(scoeff(spdim,4),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_fatal_level,routineP,error,failure)
         END IF
         IF(spdim > 0) THEN
           CALL mp_bcast(spxr,para_env%source,para_env%group)
@@ -573,21 +584,21 @@ CONTAINS
         END IF
 
         DEALLOCATE(fmat,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_fatal_level,routineP,error,failure)
         DEALLOCATE(smat,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_fatal_level,routineP,error,failure)
         IF(spdim > 0) THEN
           DEALLOCATE(spxr,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_fatal_level,routineP,error,failure)
           DEALLOCATE(scoeff,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_fatal_level,routineP,error,failure)
         END IF
 
       END DO
     END DO
 
     DEALLOCATE(sk_files,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_fatal_level,routineP,error,failure)
 
     ! read dispersion parameters
     IF ( dftb_control%dispersion ) THEN
@@ -692,7 +703,7 @@ CONTAINS
     RETURN
 
 1   CONTINUE
-    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    CPPostcondition(.FALSE.,cp_fatal_level,routineP,error,failure)
 
   END SUBROUTINE qs_dftb_param_init
 

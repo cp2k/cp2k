@@ -76,7 +76,7 @@ CONTAINS
       STOP 1  ! should actually do error recovery....
     ELSE IF (.NOT.exists) THEN
       WRITE (UNIT=message,FMT="(A,I6,A,I6,A)")&
-        "CP2K: The specified unit number ",unit_number," does not exist"
+        "CP2K: The specified unit number ",unit_number," can not be closed, it does not exist."
       WRITE(6,*) TRIM(message)
       STOP 1  ! should actually do error recovery....
     END IF
@@ -225,7 +225,7 @@ CONTAINS
       STOP 1  ! should actually do error recovery....
     ELSE IF (status_string == "OLD") THEN
       IF (.NOT.exists) THEN
-         WRITE(6,*) "CP2K: The specified file "//TRIM(file_name)//" can not be opened, it does not exist"
+         WRITE(6,*) "CP2K: The specified file "//TRIM(file_name)//" can not be opened, it does not exist."
          STOP 1  ! should actually do error recovery....
       END IF
     END IF

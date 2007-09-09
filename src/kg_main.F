@@ -21,7 +21,8 @@
 !******************************************************************************
 
 MODULE kg_main
-  USE bibliography,                    ONLY: cite_reference, Iannuzzi2006
+  USE bibliography,                    ONLY: Iannuzzi2006,&
+                                             cite_reference
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE force_env_methods,               ONLY: force_env_create
   USE force_env_types,                 ONLY: force_env_type
@@ -69,7 +70,7 @@ CONTAINS
 !******************************************************************************
 
   SUBROUTINE kg_create_force_env(force_env,root_section,para_env, globenv,&
-       force_env_section, subsys_section, error)
+       force_env_section, subsys_section, use_motion_section, error)
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: root_section
@@ -77,6 +78,7 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 subsys_section
+    LOGICAL, INTENT(IN)                      :: use_motion_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_create_force_env', &
@@ -91,7 +93,7 @@ CONTAINS
     CALL kg_env_create(kg_env,para_env=para_env,error=error)
 
     CALL kg_init( kg_env, root_section, para_env, globenv, force_env_section, &
-         subsys_section, error )
+         subsys_section, use_motion_section, error )
     CALL force_env_create(force_env,root_section, kg_env=kg_env, &
          para_env= para_env, globenv=globenv, force_env_section=force_env_section,&
          error=error)
