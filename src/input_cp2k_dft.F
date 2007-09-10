@@ -26,7 +26,7 @@ MODULE input_cp2k_dft
   USE bibliography,                    ONLY: &
        Avezac2005, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Krack2002, &
        Lippert1997, Lippert1999, Perdew1981, VandeVondele2003, &
-       VandeVondele2005a, VandeVondele2005b
+       VandeVondele2005a, VandeVondele2005b, Porezag1995, Seifert1996, Elstner1998, Zhechkov2005
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants
@@ -1792,6 +1792,7 @@ CONTAINS
        CALL section_create(section,"DFTB",&
             description="Parameters needed to set up the DFTB methods",&
             n_keywords=1, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            citations=(/Porezag1995, Seifert1996, Elstner1998, Zhechkov2005/),&
             error=error)
 
        NULLIFY(subsection)
@@ -1802,6 +1803,7 @@ CONTAINS
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="self_consistent",&
             description="Use self_consistent method",&
+            citations=(/Elstner1998/),&
             usage="SELF_CONSISTENT",default_l_val=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1820,6 +1822,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="dispersion",&
             description="Use dispersion correction",&
+            citations=(/Zhechkov2005/),&
             usage="DISPERSION",default_l_val=.FALSE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

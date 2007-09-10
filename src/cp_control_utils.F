@@ -17,7 +17,7 @@ MODULE cp_control_utils
   USE bibliography,                    ONLY: cite_reference,&
                                              Lippert1997,&
                                              Lippert1999,&
-                                             VandeVondele2005b
+                                             VandeVondele2005b,Porezag1995, Seifert1996, Elstner1998, Zhechkov2005
   USE cp_control_types,                ONLY: dft_control_create,&
                                              dft_control_type,&
                                              qs_control_type,&
@@ -450,6 +450,8 @@ CONTAINS
         qs_control%gpw = .TRUE.
       CASE (do_method_dftb)
         qs_control%dftb = .TRUE.
+        CALL cite_reference(Porezag1995)
+        CALL cite_reference(Seifert1996)
       CASE (do_method_mndo,do_method_am1,do_method_pm3,do_method_pdg)
         qs_control%semi_empirical = .TRUE.
     END SELECT
@@ -554,6 +556,11 @@ CONTAINS
     END DO
     CALL section_vals_val_get(dftb_parameter,"UFF_FORCE_FIELD",&
                  c_val=qs_control%dftb_control%uff_force_field,error=error)
+
+    IF (qs_control%dftb) THEN
+       IF (qs_control%dftb_control%dispersion) CALL cite_reference(Zhechkov2005)
+       IF (qs_control%dftb_control%self_consistent) CALL cite_reference(Elstner1998)
+    ENDIF
 
   END SUBROUTINE read_qs_section
 

@@ -50,7 +50,7 @@ MODULE bibliography
   INTEGER, PUBLIC, SAVE ::  VandeVondele2005a, VandeVondele2003, Laino2005, Laino2006, &
              Goedecker1996, Hartwigsen1998, Krack2005, Lippert1997, Lippert1999, Krack2000,&
              Krack2002, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Toukmaji1996, Martyna1999,&
-             VandeVondele2005b, Perdew1981,Avezac2005
+             VandeVondele2005b, Perdew1981,Avezac2005, Porezag1995, Seifert1996, Elstner1998, Zhechkov2005
 
 CONTAINS
 !!****f* bibliography/add_all_references *
@@ -425,6 +425,91 @@ CONTAINS
             "UT ISI:000230244300043",&
             "ER"),&
             DOI="10.1103/PhysRevB.71.205210")
+
+    CALL add_reference(key=Zhechkov2005,ISI_record=s2a(&
+            "PT J",&
+            "AU Zhechkov, L",&
+            "   Heine, T",&
+            "   Patchkovskii, S",&
+            "   Seifert, G",&
+            "   Duarte, HA",&
+            "TI An efficient a Posteriori treatment for dispersion interaction in",&
+            "   density-functional-based tight binding",&
+            "SO JOURNAL OF CHEMICAL THEORY AND COMPUTATION",&
+            "SN 1549-9618",&
+            "PD SEP-OCT",&
+            "PY 2005",&
+            "VL 1",&
+            "IS 5",&
+            "BP 841",&
+            "EP 847",&
+            "UT ISI:000231871500009",&
+            "ER"),&
+            DOI="10.1021/ct050065y")
+
+    CALL add_reference(key=Elstner1998,ISI_record=s2a(&
+            "PT J",&
+            "AU Elstner, M",&
+            "   Porezag, D",&
+            "   Jungnickel, G",&
+            "   Elsner, J",&
+            "   Haugk, M",&
+            "   Frauenheim, T",&
+            "   Suhai, S",&
+            "   Seifert, G",&
+            "TI Self-consistent-charge density-functional tight-binding method for",&
+            "   simulations of complex materials properties",&
+            "SO PHYSICAL REVIEW B",&
+            "SN 1098-0121",&
+            "PD SEP 15",&
+            "PY 1998",&
+            "VL 58",&
+            "IS 11",&
+            "BP 7260",&
+            "EP 7268",&
+            "UT ISI:000076058800081",&
+            "ER"),&
+            DOI="10.1103/PhysRevB.58.7260")
+
+    CALL add_reference(key=Seifert1996,ISI_record=s2a(&
+            "PT J",&
+            "AU Seifert, G",&
+            "   Porezag, D",&
+            "   Frauenheim, T",&
+            "TI Calculations of molecules, clusters, and solids with a simplified",&
+            "   LCAO-DFT-LDA scheme",&
+            "SO INTERNATIONAL JOURNAL OF QUANTUM CHEMISTRY",&
+            "SN 0020-7608",&
+            "PD APR 15",&
+            "PY 1996",&
+            "VL 58",&
+            "IS 2",&
+            "BP 185",&
+            "EP 192",&
+            "UT ISI:A1996UB73600008",&
+            "ER"),&
+            DOI="10.1002/(SICI)1097-461X(1996)58:2<185::AID-QUA7>3.0.CO;2-U")
+
+    CALL add_reference(key=Porezag1995,ISI_record=s2a(&
+            "PT J",&
+            "AU POREZAG, D",&
+            "   FRAUENHEIM, T",&
+            "   KOHLER, T",&
+            "   SEIFERT, G",&
+            "   KASCHNER, R",&
+            "TI CONSTRUCTION OF TIGHT-BINDING-LIKE POTENTIALS ON THE BASIS OF",&
+            "   DENSITY-FUNCTIONAL THEORY - APPLICATION TO CARBON",&
+            "SO PHYSICAL REVIEW B",&
+            "SN 0163-1829",&
+            "PD MAY 15",&
+            "PY 1995",&
+            "VL 51",&
+            "IS 19",&
+            "BP 12947",&
+            "EP 12957",&
+            "UT ISI:A1995QZ16500002",&
+            "ER"),&
+            DOI="10.1103/PhysRevB.51.12947")
 
   END SUBROUTINE add_all_references
 
