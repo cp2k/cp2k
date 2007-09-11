@@ -92,7 +92,7 @@ MODULE x_hf
   TYPE x_hf_type
     REAL(dp), DIMENSION(:), POINTER          :: x_buffer
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: x_screening_buffer
-    REAL(dp), DIMENSION(:, :, :, :, :, :), &
+    REAL(dp), DIMENSION(:, :, :, :, :), &
               POINTER                        :: x_screening_buffer_periodic
     INTEGER                                  :: number_of_elements
     TYPE(x_hf_screening_type)                :: screening_parameter
@@ -155,7 +155,7 @@ MODULE x_hf
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       CALL x_hf_create_neighbor_cells(x_data,pbc_shells, error=error)
       ALLOCATE(x_data%x_screening_buffer_periodic(natom,natom,max_set,max_set,&
-                                                  SIZE(x_data%neighbor_cells),SIZE(x_data%neighbor_cells)),STAT=stat)
+               SIZE(x_data%neighbor_cells)),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       CALL section_vals_val_get(hf_pbc_section,"NUMBER_OF_K_LOOPS",i_val=nkloops,error=error)
       x_data%number_of_k_loops = nkloops
