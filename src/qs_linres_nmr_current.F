@@ -417,21 +417,21 @@ CONTAINS
              ENDIF
              !
              ! Build the first density matrix
-             density_matrix(ispin)%matrix => nmr_env%jp1_ao
+             density_matrix(ispin)%matrix => nmr_env%jp1_ao(ispin)%matrix
              CALL set_matrix(density_matrix(ispin)%matrix ,0.0_dp)
              CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix(ispin)%matrix ,&
                   &                  matrix_v=psi0_fk,matrix_g=psi_a_iB,&
                   &                  ncol=homo,alpha=alpha,error=error)
              !
              ! Build the second density matrix
-             density_matrix_iii(ispin)%matrix => nmr_env%jp2_ao(1)%matrix
+             density_matrix_iii(ispin)%matrix => nmr_env%jp2_ao(1,ispin)%matrix
              CALL set_matrix(density_matrix_iii(ispin)%matrix,0.0_dp)
              CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix_iii(ispin)%matrix ,&
                   &                  matrix_v=psi0_fk,matrix_g=nmr_env%psi1_p(ispin,iii_B)%matrix,&
                   &                  ncol=homo,alpha=alpha,error=error)
              !
              ! Build the third density matrix
-             density_matrix_ii(ispin)%matrix => nmr_env%jp2_ao(2)%matrix
+             density_matrix_ii(ispin)%matrix => nmr_env%jp2_ao(2,ispin)%matrix
              CALL set_matrix(density_matrix_ii(ispin)%matrix ,0.0_dp)
              CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix_ii(ispin)%matrix ,&
                   &                  matrix_v=psi0_fk,matrix_g=nmr_env%psi1_p(ispin,ii_B)%matrix,&

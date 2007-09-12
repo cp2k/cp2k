@@ -163,9 +163,10 @@ MODULE qs_linres_types
      TYPE(qs_rho_p_type),DIMENSION(:,:), POINTER :: jrho1_set
      TYPE(real_matrix_p_type), DIMENSION(:), &
           POINTER                                :: op_p_ao, op_rmd_ao
-     TYPE(real_matrix_p_type), DIMENSION(:), &
+     TYPE(real_matrix_p_type), DIMENSION(:,:), &
           POINTER                                :: jp2_ao
-     TYPE(real_matrix_type), POINTER             :: jp1_ao
+     TYPE(real_matrix_p_type), DIMENSION(:), &
+          POINTER                                :: jp1_ao
   END TYPE nmr_env_type
 
   TYPE epr_env_type
@@ -203,13 +204,14 @@ MODULE qs_linres_types
      TYPE(qs_rho_p_type),DIMENSION(:,:), POINTER :: jrho1_set
      TYPE(real_matrix_p_type), DIMENSION(:), &
           POINTER                                :: op_p_ao, op_rmd_ao
-     TYPE(real_matrix_p_type), DIMENSION(:), &
+     TYPE(real_matrix_p_type), DIMENSION(:,:), &
           POINTER                                :: jp2_ao
      TYPE(real_matrix_p_type), DIMENSION(:), & !R
           POINTER                                :: matrix_v !R
      TYPE(real_matrix_p_type), DIMENSION(:), & !RY
           POINTER                                :: matrix_h_wonl !RY
-     TYPE(real_matrix_type), POINTER             :: jp1_ao
+     TYPE(real_matrix_p_type), DIMENSION(:), &
+          POINTER                                :: jp1_ao
      TYPE(qs_rho_p_type),DIMENSION(:,:), POINTER :: nablavks_set !R
      TYPE(nablavks_atom_type),DIMENSION(:), &
           POINTER                                :: nablavks_atom_set !R
@@ -501,9 +503,9 @@ CONTAINS
       OPTIONAL, POINTER                      :: jrho1_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: op_p_ao, op_rmd_ao
-    TYPE(real_matrix_type), OPTIONAL, &
-      POINTER                                :: jp1_ao
     TYPE(real_matrix_p_type), DIMENSION(:), &
+         OPTIONAL, POINTER                   :: jp1_ao
+    TYPE(real_matrix_p_type), DIMENSION(:,:), &
       OPTIONAL, POINTER                      :: jp2_ao
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -657,9 +659,9 @@ CONTAINS
       OPTIONAL, POINTER                      :: jrho1_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: op_p_ao, op_rmd_ao
-    TYPE(real_matrix_type), OPTIONAL, &
-      POINTER                                :: jp1_ao
     TYPE(real_matrix_p_type), DIMENSION(:), &
+         OPTIONAL, POINTER                   :: jp1_ao
+    TYPE(real_matrix_p_type), DIMENSION(:,:), &
       OPTIONAL, POINTER                      :: jp2_ao
     TYPE(real_matrix_p_type), DIMENSION(:), & !R
       OPTIONAL, POINTER                      :: matrix_v !R

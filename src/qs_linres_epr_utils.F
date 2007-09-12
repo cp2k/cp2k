@@ -1020,19 +1020,31 @@ CONTAINS
     ENDDO
     !
     ! Current density matrix in x y and z:
-    CALL replicate_matrix_structure(epr_env%op_rmd_ao(1)%matrix, &
-         &                          epr_env%jp1_ao,"epr_env%jp1_ao",&
-         &                          target_symmetry="none",error=error)
-    CALL set_matrix(epr_env%jp1_ao,0.0_dp)
-
-    ALLOCATE( epr_env%jp2_ao(2),STAT=istat)
+    !
+    !jp1_ao
+    ALLOCATE( epr_env%jp1_ao(nspins),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DO ispin = 1,nspins
+       NULLIFY(epr_env%jp1_ao(ispin)%matrix)
+       CALL replicate_matrix_structure(epr_env%op_rmd_ao(1)%matrix, &
+            &                          epr_env%jp1_ao(ispin)%matrix,"epr_env%jp1_ao"//&
+            &                          "-"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+            &                          target_symmetry="none",error=error)
+       CALL set_matrix(epr_env%jp1_ao(ispin)%matrix,0.0_dp)
+    ENDDO
+    !
+    !jp2_ao
+    ALLOCATE( epr_env%jp2_ao(2,nspins),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO idir = 1,2
-       NULLIFY(epr_env%jp2_ao(idir)%matrix)
-       CALL replicate_matrix_structure(epr_env%op_rmd_ao(1)%matrix, &
-            &                          epr_env%jp2_ao(idir)%matrix,"epr_env%jp2_ao"//&
-            &                          "-"//TRIM(ADJUSTL(cp_to_string(idir))),&
-            &                          target_symmetry="none",error=error)
+       DO ispin = 1,nspins
+          NULLIFY(epr_env%jp2_ao(idir,ispin)%matrix)
+          CALL replicate_matrix_structure(epr_env%op_rmd_ao(1)%matrix, &
+               &                          epr_env%jp2_ao(idir,ispin)%matrix,"epr_env%jp2_ao"//&
+               &                          "-"//TRIM(ADJUSTL(cp_to_string(idir)))//&
+               &                          "-"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+               &                          target_symmetry="none",error=error)
+       ENDDO
     ENDDO
     !
     ! If the current density on the grid needs to be stored
@@ -1216,7 +1228,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_env_cleanup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i_B, idir, ispin, istat
+    INTEGER                                  :: i_B, idir, ispin, istat, i, j
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -1307,15 +1319,21 @@ CONTAINS
         END IF
         !jp1_ao
         IF(ASSOCIATED(epr_env%jp1_ao)) THEN
-          CALL deallocate_matrix(epr_env%jp1_ao,error=error)
+          DO i = 1,SIZE(epr_env%jp1_ao,1)
+              CALL deallocate_matrix(epr_env%jp1_ao(i)%matrix,error=error)
+          END DO
+          DEALLOCATE(epr_env%jp1_ao,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         END IF
         !jp2_ao
         IF(ASSOCIATED(epr_env%jp2_ao)) THEN
-          DO idir = 1,2
-              CALL deallocate_matrix(epr_env%jp2_ao(idir)%matrix,error=error)
-          END DO
-          DEALLOCATE(epr_env%jp2_ao,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+           DO i = 1,SIZE(epr_env%jp2_ao,1)
+              DO j = 1,SIZE(epr_env%jp2_ao,2)
+                 CALL deallocate_matrix(epr_env%jp2_ao(i,j)%matrix,error=error)
+              END DO
+           END DO
+           DEALLOCATE(epr_env%jp2_ao,STAT=istat)
+           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         END IF
         ! Current density on the grid
         IF(ASSOCIATED(epr_env%jrho1_set)) THEN

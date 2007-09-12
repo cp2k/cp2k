@@ -570,7 +570,7 @@ CONTAINS
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf
     LOGICAL                                  :: failure, paw_atom
-    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: is_set_to_0
+    LOGICAL, ALLOCATABLE, DIMENSION(:,:)     :: is_set_to_0
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: g1, g2
     REAL(dp), ALLOCATABLE, DIMENSION(:, :) :: cjc_h_block, cjc_ii_h_block, &
       cjc_ii_s_block, cjc_iii_h_block, cjc_iii_s_block, cjc_s_block, dgg_1, &
@@ -616,13 +616,13 @@ CONTAINS
          &           jrho1_atom_set=jrho1_atom_set,&
          &           error=error)
     !
-    natom_tot = SIZE(jrho1_atom_set,1)
-    ALLOCATE(is_set_to_0(natom_tot),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-    is_set_to_0(:) = .FALSE.
-    !
     nkind = SIZE(atomic_kind_set)
     nspins = dft_control%nspins
+    !
+    natom_tot = SIZE(jrho1_atom_set,1)
+    ALLOCATE(is_set_to_0(natom_tot,nspins),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    is_set_to_0(:,:) = .FALSE.
     !
     DO ikind = 1,nkind
        NULLIFY(atom_kind,atom_list,grid_atom,harmonics,orb_basis_set,&
@@ -787,11 +787,11 @@ CONTAINS
                          jrho1_atom => jrho1_atom_set(iatom)
                          IF(.NOT.ASSOCIATED(jrho1_atom%jrho_a_h(ispin)%r_coef)) THEN
                             CALL allocate_jrho_atom_rad(jrho1_atom,ispin,nr,max_iso_not0,error=error)
-                            is_set_to_0(iatom) = .TRUE.
+                            is_set_to_0(iatom,ispin) = .TRUE.
                          ELSE
-                            IF(.NOT.is_set_to_0(iatom)) THEN
+                            IF(.NOT.is_set_to_0(iatom,ispin)) THEN
                                CALL set2zero_jrho_atom_rad(jrho1_atom,ispin,error=error)
-                               is_set_to_0(iatom) = .TRUE.
+                               is_set_to_0(iatom,ispin) = .TRUE.
                             ENDIF
                          ENDIF
                          !------------------------------------------------------------------
@@ -985,22 +985,6 @@ CONTAINS
                    !
                    !------------------------------------------------------------------
                    ! 
-                   Fr_a_h => jrho1_atom%jrho_a_h(1)%r_coef
-                   Fr_a_s => jrho1_atom%jrho_a_s(1)%r_coef
-                   Fr_b_h => jrho1_atom%jrho_b_h(1)%r_coef
-                   Fr_b_s => jrho1_atom%jrho_b_s(1)%r_coef
-                   Fr_a_h_ii => jrho1_atom%jrho_a_h_ii(1)%r_coef
-                   Fr_a_s_ii => jrho1_atom%jrho_a_s_ii(1)%r_coef
-                   Fr_b_h_ii => jrho1_atom%jrho_b_h_ii(1)%r_coef
-                   Fr_b_s_ii => jrho1_atom%jrho_b_s_ii(1)%r_coef
-                   Fr_c_h_ii => jrho1_atom%jrho_c_h_ii(1)%r_coef ! not needed
-                   Fr_c_s_ii => jrho1_atom%jrho_c_s_ii(1)%r_coef ! not needed
-                   Fr_a_h_iii => jrho1_atom%jrho_a_h_iii(1)%r_coef
-                   Fr_a_s_iii => jrho1_atom%jrho_a_s_iii(1)%r_coef
-                   Fr_b_h_iii => jrho1_atom%jrho_b_h_iii(1)%r_coef
-                   Fr_b_s_iii => jrho1_atom%jrho_b_s_iii(1)%r_coef
-                   Fr_c_h_iii => jrho1_atom%jrho_c_h_iii(1)%r_coef ! not needed
-                   Fr_c_s_iii => jrho1_atom%jrho_c_s_iii(1)%r_coef ! not needed
                 ENDDO !ipgf2
                 m2s = m2s+maxso
              ENDDO ! iset2
