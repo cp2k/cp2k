@@ -1010,10 +1010,10 @@ SUBROUTINE make_full_all(preconditioner_env, matrix_c0, matrix_h, matrix_s, c0_e
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     REAL(KIND=dp), PARAMETER                 :: fudge_factor = 0.25_dp, &
-                                                lambda = 10.0_dp
+                                                lambda_base = 10.0_dp
 
     INTEGER                                  :: k, n
-    REAL(KIND=dp)                            :: error_estimate
+    REAL(KIND=dp)                            :: error_estimate,lambda
     REAL(KIND=dp), DIMENSION(:), POINTER     :: diag, norms, shifted_evals
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER :: matrix_hc0, matrix_left, matrix_pre, &
@@ -1086,6 +1086,7 @@ SUBROUTINE make_full_all(preconditioner_env, matrix_c0, matrix_h, matrix_s, c0_e
     CALL cp_fm_release(matrix_left,error=error)
 
     ALLOCATE(shifted_evals(k))
+    lambda = lambda_base + error_estimate
     shifted_evals=c0_evals - lambda
     CALL cp_fm_to_fm(matrix_sc0,matrix_hc0,error=error)
     CALL cp_fm_column_scale(matrix_hc0,shifted_evals)
