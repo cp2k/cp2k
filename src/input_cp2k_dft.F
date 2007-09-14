@@ -3177,6 +3177,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="SCREEN_ON_INITIAL_P",&
+            description="Screen on an initial density matrix. For the first MD step"//&
+                        " this matrix must be provided by a Restart File.",&
+            usage="SCREEN_ON_INITIAL_P = TRUE", default_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL cp_print_key_section_create(print_key,"HF_INFO",&
             description="Controls the printing basic info about hf method", &
             print_level=medium_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&

@@ -86,7 +86,7 @@ MODULE four_center_integrals
   TYPE(lib_deriv), SAVE    :: deriv
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'four_center_integrals'
   REAL(KIND=dp), PARAMETER :: epsilon = 0.00001_dp
-  
+   INTEGER :: iteration_count = 0
 
 !***
 !****************************************************************************
@@ -397,6 +397,7 @@ MODULE four_center_integrals
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(handle)
   END SUBROUTINE compute_screening_matrices
+
 !!***** four_center_integrals/compute_pmax_matrices [1.0] *
 !!
 !!   NAME
@@ -1777,13 +1778,13 @@ MODULE four_center_integrals
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb, &
                                                 first_sgfc, first_sgfd, &
                                                 is_assoc_atomic_block
-    LOGICAL                                  :: buffer_overflow, failure, &
+    LOGICAL                                  :: buffer_overflow, &
+                                                do_p_screening, failure, &
                                                 first_j_loop, first_k_loop, &
                                                 first_l_loop
-    REAL(dp) :: box_size(3), count_far, count_near, ene_x_aa, ene_x_bb, &
-      eps_schwarz, fac, hf_fraction, K, Kbox, max_val1, max_val2, &
-      memory_usage, omega_box, ra(3), rb(3), Rbox, rc(3), rd(3), screen_max, &
-      symm_fac, tmp
+    REAL(dp) :: box_size(3), ene_x_aa, ene_x_bb, eps_schwarz, fac, &
+      hf_fraction, K, Kbox, max_val1, max_val2, memory_usage, omega_box, &
+      ra(3), rb(3), Rbox, rc(3), rd(3), screen_max, symm_fac, tmp
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: primitive_integrals, T1
     REAL(dp), DIMENSION(:, :), POINTER       :: full_ks, full_ks_beta, &
                                                 screen_atom, sphi_a, sphi_b, &
@@ -1807,8 +1808,6 @@ MODULE four_center_integrals
     TYPE(real_block_node_type), POINTER      :: block_node, block_node_beta
     TYPE(x_hf_screening_type)                :: screening_parameter
 
-    count_near = 0
-    count_far = 0
 ! many timings somewhat more clear
 
     CALL mp_sync(para_env%group)
@@ -1870,6 +1869,15 @@ MODULE four_center_integrals
 
     CALL timestop(handle_getP)
 
+    CALL section_vals_val_get(hf_section,"SCREEN_ON_INITIAL_P",l_val=do_p_screening,error=error)
+    IF( do_p_screening) THEN
+      IF(geometry_did_change ) THEN
+        CALL update_pmax_matrix(qs_env%x_data%initial_p, &
+                    full_density,full_density_beta,&
+                    particle_set,atomic_kind_set,error)
+      END IF
+    END IF
+
     ALLOCATE(full_ks(SIZE(full_density,1),SIZE(full_density,2)))
     full_ks = 0.0_dp
     IF(nspins==2) THEN
@@ -1922,18 +1930,24 @@ MODULE four_center_integrals
                             block_col=jatom,&
                             BLOCK=sparse_block)
 
-        block_node => next_block_node(block_node)
         is_assoc_atomic_block(iatom,jatom) = 1
         is_assoc_atomic_block(jatom,iatom) = 1
+        block_node => next_block_node(block_node)
       END DO
     END DO
     
     CALL mp_sum(is_assoc_atomic_block,para_env%group)
 
     IF( geometry_did_change ) THEN
-      CALL load_balance_energy(qs_env%x_data,eps_schwarz,particle_set,atomic_kind_set,para_env,&
-                               screening_parameter,screen_set,screen_atom,screen_max,&
-                               is_assoc_atomic_block,ks_matrix,do_periodic,error)
+      IF( do_p_screening) THEN
+        CALL load_balance_energy(qs_env%x_data,eps_schwarz,particle_set,atomic_kind_set,para_env,&
+                                 screening_parameter,screen_set,screen_atom,screen_max,&
+                                 is_assoc_atomic_block,ks_matrix,do_periodic,pmax_set=qs_env%x_data%initial_p,error=error)
+      ELSE
+        CALL load_balance_energy(qs_env%x_data,eps_schwarz,particle_set,atomic_kind_set,para_env,&
+                                 screening_parameter,screen_set,screen_atom,screen_max,&
+                                 is_assoc_atomic_block,ks_matrix,do_periodic,error=error)
+      END IF
     END IF
     ! precompute maximum nco and allocate scratch
     nco_max=0
@@ -2061,6 +2075,12 @@ MODULE four_center_integrals
                         ncod = npgfd(lset)*ncoset(ld_max(lset)) 
                         sgfd = first_sgfd(1,lset)
                         max_val2 = max_val1 * screen_set(katom,latom,kset,lset)
+                        IF( do_p_screening) THEN
+                          max_val2 = max_val2 * MAX(qs_env%x_data%initial_p(iset,kset,iatom,katom), &
+                                                    qs_env%x_data%initial_p(jset,lset,jatom,latom), &
+                                                    qs_env%x_data%initial_p(iset,lset,iatom,latom), &
+                                                    qs_env%x_data%initial_p(kset,jset,katom,jatom))
+                        END IF
                         IF(max_val2<eps_schwarz) CYCLE
                         box_idx1 = (iatom-1)*natom+jatom
                         box_idx2 = (iset-1)*max_set+jset
@@ -2086,6 +2106,12 @@ MODULE four_center_integrals
                               Kbox = qs_env%x_data%far_field_boxes(box_idx1, box_idx2)%K * &
                                      qs_env%x_data%far_field_boxes(box_idx3, box_idx4)%K
                               max_val2 = 1.0_dp/Rbox*Kbox
+                              IF( do_p_screening) THEN
+                                max_val2 = max_val2 * MAX(qs_env%x_data%initial_p(iset,kset,iatom,katom), &
+                                                          qs_env%x_data%initial_p(jset,lset,jatom,latom), &
+                                                          qs_env%x_data%initial_p(iset,lset,iatom,latom), &
+                                                          qs_env%x_data%initial_p(kset,jset,katom,jatom))
+                              END IF
                             CASE(do_hf_screening_short)
                               omega_box = 1.0_dp/qs_env%x_data%far_field_boxes(box_idx1, box_idx2)%alpha + &
                                           1.0_dp/qs_env%x_data%far_field_boxes(box_idx3, box_idx4)%alpha + &
@@ -2094,6 +2120,12 @@ MODULE four_center_integrals
                               Kbox = qs_env%x_data%far_field_boxes(box_idx1, box_idx2)%K * &
                                      qs_env%x_data%far_field_boxes(box_idx3, box_idx4)%K
                               max_val2 = erfc(omega_box*Rbox)/Rbox*Kbox
+                              IF( do_p_screening) THEN
+                                max_val2 = max_val2 * MAX(qs_env%x_data%initial_p(iset,kset,iatom,katom), &
+                                                          qs_env%x_data%initial_p(jset,lset,jatom,latom), &
+                                                          qs_env%x_data%initial_p(iset,lset,iatom,latom), &
+                                                          qs_env%x_data%initial_p(kset,jset,katom,jatom))
+                              END IF
                           END SELECT
                           IF(max_val2<eps_schwarz) CYCLE
                         END IF
@@ -2263,7 +2295,6 @@ MODULE four_center_integrals
     IF(nspins==2) CALL mp_sum(ene_x_bb,para_env%group)
 
     CALL timeset(routineN//"_dist_KS",handle_dist_ks)
-
     DO iatom=1,ks_matrix(1)%matrix%nblock_row
       block_node => first_block_node(ks_matrix(1)%matrix,iatom)
       IF(nspins == 2) block_node_beta => first_block_node(ks_matrix(2)%matrix,iatom)
@@ -2585,9 +2616,9 @@ MODULE four_center_integrals
                             block_col=jatom,&
                             BLOCK=sparse_block)
 
-        block_node => next_block_node(block_node)
         is_assoc_atomic_block(iatom,jatom) = 1
         is_assoc_atomic_block(jatom,iatom) = 1
+        block_node => next_block_node(block_node)
       END DO
     END DO
 
@@ -3000,7 +3031,7 @@ MODULE four_center_integrals
 
   SUBROUTINE load_balance_energy(x_data, eps_schwarz, particle_set,atomic_kind_set,para_env,&
                                  screening_parameter, screen_set, screen_atom, screen_max,&
-                                 is_assoc_atomic_block_global,ks_matrix,do_periodic,error)
+                                 is_assoc_atomic_block_global,ks_matrix,do_periodic,error, pmax_set)
     TYPE(x_hf_type), POINTER                 :: x_data
     REAL(KIND=dp), INTENT(IN)                :: eps_schwarz
     TYPE(particle_type), DIMENSION(:), &
@@ -3018,14 +3049,17 @@ MODULE four_center_integrals
       POINTER                                :: ks_matrix
     LOGICAL                                  :: do_periodic
     TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(dp), DIMENSION(:, :, :, :), &
+      OPTIONAL, POINTER                      :: pmax_set
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'load_balance_energy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: box_idx1, box_idx2, box_idx3, box_idx4, handle, i, iatom, &
-      ipos, iset, jatom, jset, katom, kset, latom, lset, max_set, mepos, &
-      natom, nseta, nsetb, nsetc, nsetd, pgf_radius_box, restore_iatom, &
-      restore_jatom, restore_katom, restore_latom, stat
+    INTEGER :: box_idx1, box_idx2, box_idx3, box_idx4, first_from, first_to, &
+      handle, i, iatom, icpu, ipos, iset, jatom, jset, katom, kset, latom, &
+      lset, max_set, mepos, natom, nseta, nsetb, nsetc, nsetd, &
+      pgf_radius_box, restore_iatom, restore_jatom, restore_katom, &
+      restore_latom, stat
     INTEGER(KIND=int_8) :: current_counter, distribution_counter_end, &
       distribution_counter_start, int_per_cpu, max_dev, min_dev, nbins, ncpu, &
       opt_max, opt_nbin, restore_counter, total_integrals, total_integrals2
@@ -3034,20 +3068,23 @@ MODULE four_center_integrals
     INTEGER(KIND=int_8), ALLOCATABLE, &
       DIMENSION(:, :)                        :: cost_array
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_pos
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: first_dist
     INTEGER, DIMENSION(:), POINTER           :: npgfa, npgfb, npgfc, npgfd, &
                                                 nsgfa, nsgfb, nsgfc, nsgfd
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: do_p_screening, failure
     REAL(dp)                                 :: K, Kbox, omega_box, ra(3), &
                                                 rb(3), Rbox, rc(3), rd(3)
     REAL(KIND=dp)                            :: max_val1, max_val2
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sparse_block, zeta, zetb, &
-                                                zetc, zetd
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zeta, zetb, zetc, zetd
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
-    TYPE(real_block_node_type), POINTER      :: block_node
     TYPE(x_hf_distribution), DIMENSION(:), &
       POINTER                                :: ptr_to_tmp_dist
     TYPE(x_hf_distribution), &
       DIMENSION(:, :), POINTER               :: tmp_dist
+
+    do_p_screening = .FALSE.
+    IF(PRESENT(pmax_set)) do_p_screening = .TRUE.
+    
 
     natom=SIZE(particle_set)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, maxnset=max_set) 
@@ -3068,96 +3105,120 @@ MODULE four_center_integrals
       DEALLOCATE(tmp_dist,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ELSE
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
+      !Simple distribution on first loop variable
+      ALLOCATE(first_dist(ncpu,2), STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)      
+      first_dist = -1
+      first_from = 1
+      first_to = 1
+      outer: DO icpu=1,ncpu
+        IF(first_from > natom ) EXIT outer
+        first_to = first_from + natom/ncpu + 1
+        first_to = MIN(first_to, natom)
+        first_dist(icpu,1) = first_from
+        first_dist(icpu,2) = first_to
+        IF(first_to == natom) EXIT outer
+        first_from = first_to + 1
+       END DO outer
 
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
       !Calculate total numbers of integrals that have to be calculated (wrt screening and symmetry)
       total_integrals = 0
-      DO iatom=1,ks_matrix(1)%matrix%nblock_row!natom
-        block_node => first_block_node(ks_matrix(1)%matrix,iatom)
-        CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, orb_basis_set=orb_basis)
-        ra=particle_set(iatom)%r(:)
-        CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nseta, nsgf_set=nsgfa, zet=zeta, npgf=npgfa)
-        DO WHILE (ASSOCIATED(block_node))
-          CALL get_block_node(block_node=block_node,&
-                              block_col=jatom,&
-                              BLOCK=sparse_block)
-          block_node => next_block_node(block_node)
-          IF (screen_atom(iatom,jatom) * screen_max < eps_schwarz) CYCLE
-          CALL get_atomic_kind(atomic_kind=particle_set(jatom)%atomic_kind, orb_basis_set=orb_basis)
-          rb=particle_set(jatom)%r(:)
-          CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nsetb, nsgf_set=nsgfb, zet=zetb, npgf=npgfb)
-          DO katom=1,natom
-            CALL get_atomic_kind(atomic_kind=particle_set(katom)%atomic_kind, orb_basis_set=orb_basis)
-            rc=particle_set(katom)%r(:)
-            CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nsetc, nsgf_set=nsgfc, zet=zetc, npgf=npgfc)
-            DO latom=katom,natom
-              IF (screen_atom(iatom,jatom) * screen_atom(katom,latom) < eps_schwarz) CYCLE
-              IF(.NOT. (is_assoc_atomic_block_global(iatom,latom)  >=1 .AND. &
-                        is_assoc_atomic_block_global(iatom,katom)  >=1 .AND. &
-                        is_assoc_atomic_block_global(jatom,katom)  >=1 .AND. &
-                        is_assoc_atomic_block_global(jatom,latom)  >=1 ) ) CYCLE
+      IF(first_dist(para_env%mepos+1,1) /= -1 ) THEN
+        DO iatom=first_dist(para_env%mepos+1,1),first_dist(para_env%mepos+1,2)!1,natom
+          CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, orb_basis_set=orb_basis)
+          ra=particle_set(iatom)%r(:)
+          CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nseta, nsgf_set=nsgfa, zet=zeta, npgf=npgfa)
+          DO jatom=iatom,natom
+            IF (screen_atom(iatom,jatom) * screen_max < eps_schwarz) CYCLE
+            CALL get_atomic_kind(atomic_kind=particle_set(jatom)%atomic_kind, orb_basis_set=orb_basis)
+            rb=particle_set(jatom)%r(:)
+            CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nsetb, nsgf_set=nsgfb, zet=zetb, npgf=npgfb)
+            DO katom=1,natom
+              CALL get_atomic_kind(atomic_kind=particle_set(katom)%atomic_kind, orb_basis_set=orb_basis)
+              rc=particle_set(katom)%r(:)
+              CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nsetc, nsgf_set=nsgfc, zet=zetc, npgf=npgfc)
+              DO latom=katom,natom
+                IF (screen_atom(iatom,jatom) * screen_atom(katom,latom) < eps_schwarz) CYCLE
+                IF(.NOT. (is_assoc_atomic_block_global(iatom,latom)  >=1 .AND. &
+                          is_assoc_atomic_block_global(iatom,katom)  >=1 .AND. &
+                          is_assoc_atomic_block_global(jatom,katom)  >=1 .AND. &
+                          is_assoc_atomic_block_global(jatom,latom)  >=1 ) ) CYCLE 
+ 
+                IF((katom+latom<=iatom+jatom))  THEN
+                  IF( ((iatom+jatom).EQ.(katom+latom) ) .AND.(katom<iatom)) CYCLE
+                 
+                  CALL get_atomic_kind(atomic_kind=particle_set(latom)%atomic_kind, orb_basis_set=orb_basis)
+                  rd=particle_set(latom)%r(:)
+                  CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nsetd, nsgf_set=nsgfd, zet=zetd, npgf=npgfd)
 
-              IF((katom+latom<=iatom+jatom))  THEN
-                IF( ((iatom+jatom).EQ.(katom+latom) ) .AND.(katom<iatom)) CYCLE
-                
-                CALL get_atomic_kind(atomic_kind=particle_set(latom)%atomic_kind, orb_basis_set=orb_basis)
-                rd=particle_set(latom)%r(:)
-                CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nsetd, nsgf_set=nsgfd, zet=zetd, npgf=npgfd)
-
-                DO iset = 1, nseta
-                  DO jset = 1,nsetb
-                    max_val1 = screen_set(iatom,jatom,iset,jset)
-                    IF (max_val1 * screen_atom(katom,latom) < eps_schwarz) CYCLE
-                    DO kset = 1,nsetc
-                      DO lset = 1,nsetd
-                        max_val2 = max_val1 * screen_set(katom,latom,kset,lset)
-                        IF(max_val2<eps_schwarz) CYCLE
-                        box_idx1 = (iatom-1)*natom+jatom
-                        box_idx2 = (iset-1)*max_set+jset
-                        box_idx3 = (katom-1)*natom+latom
-                        box_idx4 = (kset-1)*max_set+lset
-                        Rbox = (x_data%far_field_boxes(box_idx1,box_idx2)%center(1) - &
-                                x_data%far_field_boxes(box_idx3,box_idx4)%center(1))**2 + &
-                               (x_data%far_field_boxes(box_idx1,box_idx2)%center(2) - &
-                                x_data%far_field_boxes(box_idx3,box_idx4)%center(2))**2 + &
-                               (x_data%far_field_boxes(box_idx1,box_idx2)%center(3) - &
-                                x_data%far_field_boxes(box_idx3,box_idx4)%center(3))**2
-                        Rbox = SQRT(Rbox)
-                        Rbox = Rbox - x_data%far_field_boxes(box_idx1, box_idx2)%R - &
-                                      x_data%far_field_boxes(box_idx3, box_idx4)%R
-                        pgf_radius_box = INT(1.0_dp/ &
-                              (SQRT(2.0_dp*x_data%far_field_boxes(box_idx1, box_idx2)%alpha)*erfc(epsilon)))
-                        pgf_radius_box = pgf_radius_box + INT(1.0_dp/ &
-                              (SQRT(2.0_dp*x_data%far_field_boxes(box_idx3, box_idx4)%alpha)*erfc(epsilon))) + 2
-                        IF(Rbox>pgf_radius_box) THEN
-                          max_val2 = 0.0_dp
-                          SELECT CASE(screening_parameter%screening_type)
-                            CASE(do_hf_screening_none)
-                              Kbox = x_data%far_field_boxes(box_idx1, box_idx2)%K * &
-                                     x_data%far_field_boxes(box_idx3, box_idx4)%K
-                              max_val2 = 1.0_dp/Rbox*Kbox
-                            CASE(do_hf_screening_short)
-                              omega_box = 1.0_dp/x_data%far_field_boxes(box_idx1, box_idx2)%alpha + &
-                                          1.0_dp/x_data%far_field_boxes(box_idx3, box_idx4)%alpha + &
-                                          1.0_dp/(screening_parameter%omega**2)
-                              omega_box = 1.0_dp/omega_box
-                              Kbox = x_data%far_field_boxes(box_idx1, box_idx2)%K * &
-                                     x_data%far_field_boxes(box_idx3, box_idx4)%K
-                              max_val2 = erfc(omega_box*Rbox)/Rbox*Kbox
-                          END SELECT
+                  DO iset = 1, nseta
+                    DO jset = 1,nsetb
+                      max_val1 = screen_set(iatom,jatom,iset,jset)
+                      IF (max_val1 * screen_atom(katom,latom) < eps_schwarz) CYCLE
+                      DO kset = 1,nsetc
+                        DO lset = 1,nsetd
+                          max_val2 = max_val1 * screen_set(katom,latom,kset,lset)
+                          IF( do_p_screening) THEN
+                            max_val2 = max_val2 * MAX(pmax_set(iset,kset,iatom,katom), pmax_set(jset,lset,jatom,latom),&
+                                                  pmax_set(iset,lset,iatom,latom) , pmax_set(kset,jset,katom,jatom))
+                          END IF
                           IF(max_val2<eps_schwarz) CYCLE
-                        END IF
-                        total_integrals = total_integrals + nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
+                          box_idx1 = (iatom-1)*natom+jatom
+                          box_idx2 = (iset-1)*max_set+jset
+                          box_idx3 = (katom-1)*natom+latom
+                          box_idx4 = (kset-1)*max_set+lset
+                          Rbox = (x_data%far_field_boxes(box_idx1,box_idx2)%center(1) - &
+                                  x_data%far_field_boxes(box_idx3,box_idx4)%center(1))**2 + &
+                                 (x_data%far_field_boxes(box_idx1,box_idx2)%center(2) - &
+                                  x_data%far_field_boxes(box_idx3,box_idx4)%center(2))**2 + &
+                                 (x_data%far_field_boxes(box_idx1,box_idx2)%center(3) - &
+                                  x_data%far_field_boxes(box_idx3,box_idx4)%center(3))**2
+                          Rbox = SQRT(Rbox)
+                          Rbox = Rbox - x_data%far_field_boxes(box_idx1, box_idx2)%R - &
+                                        x_data%far_field_boxes(box_idx3, box_idx4)%R
+                          pgf_radius_box = INT(1.0_dp/ &
+                                (SQRT(2.0_dp*x_data%far_field_boxes(box_idx1, box_idx2)%alpha)*erfc(epsilon)))
+                          pgf_radius_box = pgf_radius_box + INT(1.0_dp/ &
+                                (SQRT(2.0_dp*x_data%far_field_boxes(box_idx3, box_idx4)%alpha)*erfc(epsilon))) + 2
+                          IF(Rbox>pgf_radius_box) THEN
+                            max_val2 = 0.0_dp
+                            SELECT CASE(screening_parameter%screening_type)
+                              CASE(do_hf_screening_none)
+                                Kbox = x_data%far_field_boxes(box_idx1, box_idx2)%K * &
+                                       x_data%far_field_boxes(box_idx3, box_idx4)%K
+                                max_val2 = 1.0_dp/Rbox*Kbox
+                                IF( do_p_screening) THEN
+                                  max_val2 = max_val2 * MAX(pmax_set(iset,kset,iatom,katom), pmax_set(jset,lset,jatom,latom),&
+                                             pmax_set(iset,lset,iatom,latom) , pmax_set(kset,jset,katom,jatom))
+                                END IF
+                              CASE(do_hf_screening_short)
+                                omega_box = 1.0_dp/x_data%far_field_boxes(box_idx1, box_idx2)%alpha + &
+                                            1.0_dp/x_data%far_field_boxes(box_idx3, box_idx4)%alpha + &
+                                            1.0_dp/(screening_parameter%omega**2)
+                                omega_box = 1.0_dp/omega_box
+                                Kbox = x_data%far_field_boxes(box_idx1, box_idx2)%K * &
+                                       x_data%far_field_boxes(box_idx3, box_idx4)%K
+                                max_val2 = erfc(omega_box*Rbox)/Rbox*Kbox
+                                IF( do_p_screening) THEN
+                                  max_val2 = max_val2 * MAX(pmax_set(iset,kset,iatom,katom), pmax_set(jset,lset,jatom,latom),&
+                                                 pmax_set(iset,lset,iatom,latom) , pmax_set(kset,jset,katom,jatom))
+                                END IF
+                            END SELECT
+                            IF(max_val2<eps_schwarz) CYCLE
+                          END IF
+                          total_integrals = total_integrals + nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
+                        ENDDO
                       ENDDO
                     ENDDO
                   ENDDO
-                ENDDO
-              END IF
+                END IF
+              ENDDO
             ENDDO
           ENDDO
         ENDDO
-      ENDDO
-      CALL mp_sum_i8(total_integrals,para_env%group)
+      END IF
+      CALL mp_sum_i8(total_integrals, para_env%group)
       opt_max = HUGE(opt_max)  
       ALLOCATE(cost_array(11,11))
       DO ipos = 1,11
@@ -3216,6 +3277,11 @@ MODULE four_center_integrals
                       DO kset = 1,nsetc
                         DO lset = 1,nsetd
                           max_val2 = max_val1 * screen_set(katom,latom,kset,lset)
+                          IF( do_p_screening) THEN
+                            max_val2 = max_val2 * MAX(pmax_set(iset,kset,iatom,katom), pmax_set(jset,lset,jatom,latom),&
+                                       pmax_set(iset,lset,iatom,latom) , pmax_set(kset,jset,katom,jatom))
+                          END IF
+
                           IF(max_val2<eps_schwarz) CYCLE
                           box_idx1 = (iatom-1)*natom+jatom
                           box_idx2 = (iset-1)*max_set+jset
@@ -3242,6 +3308,10 @@ MODULE four_center_integrals
                                 Kbox = x_data%far_field_boxes(box_idx1, box_idx2)%K * &
                                        x_data%far_field_boxes(box_idx3, box_idx4)%K
                                 max_val2 = 1.0_dp/Rbox*Kbox
+                                IF( do_p_screening) THEN
+                                  max_val2 = max_val2 * MAX(pmax_set(iset,kset,iatom,katom), pmax_set(jset,lset,jatom,latom),&
+                                             pmax_set(iset,lset,iatom,latom) , pmax_set(kset,jset,katom,jatom))
+                                END IF
                               CASE(do_hf_screening_short)
                                 omega_box = 1.0_dp/x_data%far_field_boxes(box_idx1, box_idx2)%alpha + &
                                             1.0_dp/x_data%far_field_boxes(box_idx3, box_idx4)%alpha + &
@@ -3250,6 +3320,10 @@ MODULE four_center_integrals
                                 Kbox = x_data%far_field_boxes(box_idx1, box_idx2)%K * &
                                        x_data%far_field_boxes(box_idx3, box_idx4)%K
                                 max_val2 = erfc(omega_box*Rbox)/Rbox*Kbox
+                                IF( do_p_screening) THEN
+                                  max_val2 = max_val2 * MAX(pmax_set(iset,kset,iatom,katom), pmax_set(jset,lset,jatom,latom),&
+                                             pmax_set(iset,lset,iatom,latom) , pmax_set(kset,jset,katom,jatom))
+                                END IF
                             END SELECT
                             IF(max_val2<eps_schwarz) CYCLE
                           END IF
@@ -3283,11 +3357,9 @@ MODULE four_center_integrals
           END IF
         END IF
        
-        total_integrals2 = 0
         max_dev = 0
         min_dev = 0
         DO mepos = 1,ncpu 
-          total_integrals2 = total_integrals2 + cost_per_cpu(mepos)
           IF(total_integrals/ncpu>cost_per_cpu(mepos)) THEN
             IF(ABS(total_integrals/ncpu-cost_per_cpu(mepos))>min_dev) min_dev = ABS(total_integrals/ncpu-cost_per_cpu(mepos))
           ELSE
@@ -3309,11 +3381,9 @@ MODULE four_center_integrals
         END IF
       END DO
       !Call routine again for nbins = opt_nbin
-      nbins = opt_nbin 
+      nbins = opt_nbin
       !floor value
-      total_integrals2 = total_integrals +(ncpu*nbins- MOD(total_integrals,ncpu*nbins))
-      int_per_cpu = total_integrals2 / ncpu
-      int_per_cpu = int_per_cpu/nbins
+      int_per_cpu = CEILING(REAL(total_integrals)/REAL(ncpu)/REAL(nbins),int_8)
       ALLOCATE(tmp_dist(ncpu,nbins),STAT=stat)
       tmp_dist(:,:)%istart = 0
       tmp_dist(:,:)%jstart = 0
@@ -3368,6 +3438,10 @@ MODULE four_center_integrals
                     DO kset = 1,nsetc
                       DO lset = 1,nsetd
                         max_val2 = max_val1 * screen_set(katom,latom,kset,lset)
+                        IF( do_p_screening) THEN
+                          max_val2 = max_val2 * MAX(pmax_set(iset,kset,iatom,katom), pmax_set(jset,lset,jatom,latom),&
+                                     pmax_set(iset,lset,iatom,latom) , pmax_set(kset,jset,katom,jatom))
+                        END IF
                         IF(max_val2<eps_schwarz) CYCLE
                         box_idx1 = (iatom-1)*natom+jatom
                         box_idx2 = (iset-1)*max_set+jset
@@ -3393,6 +3467,10 @@ MODULE four_center_integrals
                               Kbox = x_data%far_field_boxes(box_idx1, box_idx2)%K * &
                                      x_data%far_field_boxes(box_idx3, box_idx4)%K
                               max_val2 = 1.0_dp/Rbox*Kbox
+                              IF( do_p_screening) THEN
+                                max_val2 = max_val2 * MAX(pmax_set(iset,kset,iatom,katom), pmax_set(jset,lset,jatom,latom),&
+                                           pmax_set(iset,lset,iatom,latom) , pmax_set(kset,jset,katom,jatom))
+                              END IF
                             CASE(do_hf_screening_short)
                               omega_box = 1.0_dp/x_data%far_field_boxes(box_idx1, box_idx2)%alpha + &
                                           1.0_dp/x_data%far_field_boxes(box_idx3, box_idx4)%alpha + &
@@ -3401,6 +3479,10 @@ MODULE four_center_integrals
                               Kbox = x_data%far_field_boxes(box_idx1, box_idx2)%K * &
                                      x_data%far_field_boxes(box_idx3, box_idx4)%K
                               max_val2 = erfc(omega_box*Rbox)/Rbox*Kbox
+                              IF( do_p_screening) THEN
+                                max_val2 = max_val2 * MAX(pmax_set(iset,kset,iatom,katom), pmax_set(jset,lset,jatom,latom),&
+                                           pmax_set(iset,lset,iatom,latom) , pmax_set(kset,jset,katom,jatom))
+                              END IF
                           END SELECT
                           IF(max_val2<eps_schwarz) CYCLE
                         END IF
@@ -3409,7 +3491,6 @@ MODULE four_center_integrals
                     ENDDO
                   ENDDO
                 ENDDO
-  
                 IF( current_counter >= int_per_cpu) THEN
                   tmp_dist(mepos,tmp_pos(mepos))%number_of_integrals = distribution_counter_end - distribution_counter_start +1
                   distribution_counter_start = distribution_counter_end + 1
@@ -3424,6 +3505,7 @@ MODULE four_center_integrals
                   IF( mepos>ncpu) THEN
                     mepos = mepos - ncpu
                   END IF
+                 
                   tmp_dist(mepos,tmp_pos(mepos))%istart= iatom
                   tmp_dist(mepos,tmp_pos(mepos))%jstart= jatom
                   tmp_dist(mepos,tmp_pos(mepos))%kstart= katom
@@ -3526,10 +3608,11 @@ MODULE four_center_integrals
     CHARACTER(LEN=*), PARAMETER :: routineN = 'load_balance_forces', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: box_idx1, box_idx2, box_idx3, box_idx4, handle, i, iatom, &
-      ipos, iset, jatom, jset, katom, kset, latom, lset, max_set, mepos, &
-      natom, nseta, nsetb, nsetc, nsetd, pgf_radius_box, restore_iatom, &
-      restore_jatom, restore_katom, restore_latom, stat
+    INTEGER :: box_idx1, box_idx2, box_idx3, box_idx4, first_from, first_to, &
+      handle, i, iatom, icpu, ipos, iset, jatom, jset, katom, kset, latom, &
+      lset, max_set, mepos, natom, nseta, nsetb, nsetc, nsetd, &
+      pgf_radius_box, restore_iatom, restore_jatom, restore_katom, &
+      restore_latom, stat
     INTEGER(KIND=int_8) :: current_counter, distribution_counter_end, &
       distribution_counter_start, int_per_cpu, max_dev, min_dev, nbins, ncpu, &
       opt_max, opt_nbin, restore_counter, total_integrals, total_integrals2
@@ -3538,13 +3621,12 @@ MODULE four_center_integrals
     INTEGER(KIND=int_8), ALLOCATABLE, &
       DIMENSION(:, :)                        :: cost_array
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_pos
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: first_dist
     INTEGER, DIMENSION(:), POINTER           :: nsgfa, nsgfb, nsgfc, nsgfd
     LOGICAL                                  :: failure
     REAL(dp)                                 :: Kbox, omega_box, Rbox
     REAL(KIND=dp)                            :: max_val1, max_val2
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sparse_block
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
-    TYPE(real_block_node_type), POINTER      :: block_node
     TYPE(x_hf_distribution), DIMENSION(:), &
       POINTER                                :: ptr_to_tmp_dist
     TYPE(x_hf_distribution), &
@@ -3568,104 +3650,116 @@ MODULE four_center_integrals
       DEALLOCATE(tmp_dist,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ELSE
+      !Simple distribution on first loop variable
+      ALLOCATE(first_dist(ncpu,2), STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      first_dist = -1
+      first_from = 1
+      first_to = 1
+      outer: DO icpu=1,ncpu
+        IF(first_from > natom ) EXIT outer
+        first_to = first_from + natom/ncpu + 1
+        first_to = MIN(first_to, natom)
+        first_dist(icpu,1) = first_from
+        first_dist(icpu,2) = first_to
+        IF(first_to == natom) EXIT outer
+        first_from = first_to + 1
+       END DO outer
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxnset=max_set)
  
       !Calculate total numbers of integrals that have to be calculated (wrt screening and symmetry)
       total_integrals = 0
-      distribution_counter_end = 0    
-      DO iatom=1,ks_matrix(1)%matrix%nblock_row!natom
-        block_node => first_block_node(ks_matrix(1)%matrix,iatom)
-        CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, orb_basis_set=orb_basis)
-        CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nseta, nsgf_set=nsgfa)
-        DO WHILE (ASSOCIATED(block_node))
-        CALL get_block_node(block_node=block_node,&
-                              block_col=jatom,&
-                              BLOCK=sparse_block)
-          block_node => next_block_node(block_node)
-          IF (screen_atom(iatom,jatom) * screen_max < eps_schwarz) CYCLE
-          CALL get_atomic_kind(atomic_kind=particle_set(jatom)%atomic_kind, orb_basis_set=orb_basis)
-          CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nsetb, nsgf_set=nsgfb)
-          DO katom=1,natom
-            CALL get_atomic_kind(atomic_kind=particle_set(katom)%atomic_kind, orb_basis_set=orb_basis)
-            CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nsetc, nsgf_set=nsgfc)
-            DO latom=katom,natom
-              !All four centers equivalent => zero-contribution
-              IF((iatom==jatom .AND. iatom==katom .AND. iatom==latom)) CYCLE
+      distribution_counter_end = 0
+      IF(first_dist(para_env%mepos+1,1) /= -1 ) THEN
+        DO iatom=first_dist(para_env%mepos+1,1),first_dist(para_env%mepos+1,2)
+          CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, orb_basis_set=orb_basis)
+          CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nseta, nsgf_set=nsgfa)
+          DO jatom=iatom,natom 
+            IF (screen_atom(iatom,jatom) * screen_max < eps_schwarz) CYCLE
+            CALL get_atomic_kind(atomic_kind=particle_set(jatom)%atomic_kind, orb_basis_set=orb_basis)
+            CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nsetb, nsgf_set=nsgfb)
+            DO katom=1,natom
+              CALL get_atomic_kind(atomic_kind=particle_set(katom)%atomic_kind, orb_basis_set=orb_basis)
+              CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nsetc, nsgf_set=nsgfc)
+              DO latom=katom,natom
+                !All four centers equivalent => zero-contribution
+                IF((iatom==jatom .AND. iatom==katom .AND. iatom==latom)) CYCLE
   
-            IF (screen_atom(iatom,jatom) * screen_atom(katom,latom) < eps_schwarz) CYCLE
-              IF(.NOT. (is_assoc_atomic_block_global(iatom,latom)  >=1 .AND. &
-                        is_assoc_atomic_block_global(iatom,katom)  >=1 .AND. &
-                        is_assoc_atomic_block_global(jatom,katom)  >=1 .AND. &
-                        is_assoc_atomic_block_global(jatom,latom)  >=1 ) ) CYCLE
-
-              IF((katom+latom<=iatom+jatom))  THEN
-                IF( ((iatom+jatom).EQ.(katom+latom) ) .AND.(katom<iatom)) CYCLE
-              
-                CALL get_atomic_kind(atomic_kind=particle_set(latom)%atomic_kind, orb_basis_set=orb_basis)
-                CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nsetd, nsgf_set=nsgfd)
+                IF (screen_atom(iatom,jatom) * screen_atom(katom,latom) < eps_schwarz) CYCLE
+                IF(.NOT. (is_assoc_atomic_block_global(iatom,latom)  >=1 .AND. &
+                          is_assoc_atomic_block_global(iatom,katom)  >=1 .AND. &
+                          is_assoc_atomic_block_global(jatom,katom)  >=1 .AND. &
+                          is_assoc_atomic_block_global(jatom,latom)  >=1 ) ) CYCLE
   
-                DO iset = 1, nseta
-                  DO jset = 1,nsetb
-                    max_val1 = screen_set(iatom,jatom,iset,jset)
-                    IF (max_val1 * screen_atom(katom,latom) < eps_schwarz) CYCLE
-                    DO kset = 1,nsetc
-                      DO lset = 1,nsetd
-                        max_val2 = max_val1 * screen_set(katom,latom,kset,lset) * &
-                                   2.0_dp*MAX(pmax_set(iset,kset,iatom,katom) * pmax_set(jset,lset,jatom,latom),&
-                                              pmax_set(iset,lset,iatom,latom) * pmax_set(kset,jset,katom,jatom))
-                        IF(max_val2<eps_schwarz) CYCLE
-                        IF(.NOT. do_periodic) THEN
-                          box_idx1 = (iatom-1)*natom+jatom
-                          box_idx2 = (iset-1)*max_set+jset
-                          box_idx3 = (katom-1)*natom+latom
-                          box_idx4 = (kset-1)*max_set+lset
-                          Rbox = (x_data%far_field_boxes(box_idx1,box_idx2)%center(1) - &
-                                  x_data%far_field_boxes(box_idx3,box_idx4)%center(1))**2 + &
-                                 (x_data%far_field_boxes(box_idx1,box_idx2)%center(2) - &
-                                  x_data%far_field_boxes(box_idx3,box_idx4)%center(2))**2 + &
-                                 (x_data%far_field_boxes(box_idx1,box_idx2)%center(3) - &
-                                  x_data%far_field_boxes(box_idx3,box_idx4)%center(3))**2
-                          Rbox = SQRT(Rbox)
-                          Rbox = Rbox - x_data%far_field_boxes(box_idx1, box_idx2)%R - &
-                                        x_data%far_field_boxes(box_idx3, box_idx4)%R
-                          pgf_radius_box = INT(1.0_dp/ &
-                                (SQRT(2.0_dp*x_data%far_field_boxes(box_idx1, box_idx2)%alpha)*erfc(epsilon)))
-                          pgf_radius_box = pgf_radius_box + INT(1.0_dp/ &
-                                (SQRT(2.0_dp*x_data%far_field_boxes(box_idx3, box_idx4)%alpha)*erfc(epsilon))) + 2
-                          IF(Rbox>pgf_radius_box) THEN
-                            max_val2 = 0.0_dp
-                            SELECT CASE(screening_parameter%screening_type)
-                              CASE(do_hf_screening_none)
-                                Kbox = x_data%far_field_boxes(box_idx1, box_idx2)%K * &
-                                       x_data%far_field_boxes(box_idx3, box_idx4)%K
-                                max_val2 = 1.0_dp/Rbox*Kbox*&
-                                           2.0_dp*MAX(pmax_set(iset,kset,iatom,katom) * pmax_set(jset,lset,jatom,latom),&
-                                           pmax_set(iset,lset,iatom,latom) * pmax_set(kset,jset,katom,jatom))
-                              CASE(do_hf_screening_short)
-                                omega_box = 1.0_dp/x_data%far_field_boxes(box_idx1, box_idx2)%alpha + &
-                                            1.0_dp/x_data%far_field_boxes(box_idx3, box_idx4)%alpha + &
-                                            1.0_dp/(screening_parameter%omega**2)
-                                omega_box = 1.0_dp/omega_box
-                                Kbox = x_data%far_field_boxes(box_idx1, box_idx2)%K * &
-                                       x_data%far_field_boxes(box_idx3, box_idx4)%K
-                                max_val2 = erfc(omega_box*Rbox)/Rbox*Kbox* &
-                                           2.0_dp*MAX(pmax_set(iset,kset,iatom,katom) * pmax_set(jset,lset,jatom,latom),&
-                                           pmax_set(iset,lset,iatom,latom) * pmax_set(kset,jset,katom,jatom))
-                            END SELECT
-                            IF(max_val2<eps_schwarz) CYCLE
+                IF((katom+latom<=iatom+jatom))  THEN
+                  IF( ((iatom+jatom).EQ.(katom+latom) ) .AND.(katom<iatom)) CYCLE
+                
+                  CALL get_atomic_kind(atomic_kind=particle_set(latom)%atomic_kind, orb_basis_set=orb_basis)
+                  CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nsetd, nsgf_set=nsgfd)
+  
+                  DO iset = 1, nseta
+                    DO jset = 1,nsetb
+                      max_val1 = screen_set(iatom,jatom,iset,jset)
+                      IF (max_val1 * screen_atom(katom,latom) < eps_schwarz) CYCLE
+                      DO kset = 1,nsetc
+                        DO lset = 1,nsetd
+                          max_val2 = max_val1 * screen_set(katom,latom,kset,lset) * &
+                                     2.0_dp*MAX(pmax_set(iset,kset,iatom,katom) * pmax_set(jset,lset,jatom,latom),&
+                                                pmax_set(iset,lset,iatom,latom) * pmax_set(kset,jset,katom,jatom))
+                          IF(max_val2<eps_schwarz) CYCLE
+                          IF(.NOT. do_periodic) THEN
+                            box_idx1 = (iatom-1)*natom+jatom
+                            box_idx2 = (iset-1)*max_set+jset
+                            box_idx3 = (katom-1)*natom+latom
+                            box_idx4 = (kset-1)*max_set+lset
+                            Rbox = (x_data%far_field_boxes(box_idx1,box_idx2)%center(1) - &
+                                    x_data%far_field_boxes(box_idx3,box_idx4)%center(1))**2 + &
+                                   (x_data%far_field_boxes(box_idx1,box_idx2)%center(2) - &
+                                    x_data%far_field_boxes(box_idx3,box_idx4)%center(2))**2 + &
+                                   (x_data%far_field_boxes(box_idx1,box_idx2)%center(3) - &
+                                    x_data%far_field_boxes(box_idx3,box_idx4)%center(3))**2
+                            Rbox = SQRT(Rbox)
+                            Rbox = Rbox - x_data%far_field_boxes(box_idx1, box_idx2)%R - &
+                                          x_data%far_field_boxes(box_idx3, box_idx4)%R
+                            pgf_radius_box = INT(1.0_dp/ &
+                                  (SQRT(2.0_dp*x_data%far_field_boxes(box_idx1, box_idx2)%alpha)*erfc(epsilon)))
+                            pgf_radius_box = pgf_radius_box + INT(1.0_dp/ &
+                                  (SQRT(2.0_dp*x_data%far_field_boxes(box_idx3, box_idx4)%alpha)*erfc(epsilon))) + 2
+                            IF(Rbox>pgf_radius_box) THEN
+                              max_val2 = 0.0_dp
+                              SELECT CASE(screening_parameter%screening_type)
+                                CASE(do_hf_screening_none)
+                                  Kbox = x_data%far_field_boxes(box_idx1, box_idx2)%K * &
+                                         x_data%far_field_boxes(box_idx3, box_idx4)%K
+                                  max_val2 = 1.0_dp/Rbox*Kbox*&
+                                             2.0_dp*MAX(pmax_set(iset,kset,iatom,katom) * pmax_set(jset,lset,jatom,latom),&
+                                             pmax_set(iset,lset,iatom,latom) * pmax_set(kset,jset,katom,jatom))
+                                CASE(do_hf_screening_short)
+                                  omega_box = 1.0_dp/x_data%far_field_boxes(box_idx1, box_idx2)%alpha + &
+                                              1.0_dp/x_data%far_field_boxes(box_idx3, box_idx4)%alpha + &
+                                              1.0_dp/(screening_parameter%omega**2)
+                                  omega_box = 1.0_dp/omega_box
+                                  Kbox = x_data%far_field_boxes(box_idx1, box_idx2)%K * &
+                                         x_data%far_field_boxes(box_idx3, box_idx4)%K
+                                  max_val2 = erfc(omega_box*Rbox)/Rbox*Kbox* &
+                                             2.0_dp*MAX(pmax_set(iset,kset,iatom,katom) * pmax_set(jset,lset,jatom,latom),&
+                                             pmax_set(iset,lset,iatom,latom) * pmax_set(kset,jset,katom,jatom))
+                              END SELECT
+                              IF(max_val2<eps_schwarz) CYCLE
+                            END IF
                           END IF
-                        END IF
-
-                        total_integrals = total_integrals + nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
+  
+                          total_integrals = total_integrals + nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
+                        ENDDO
                       ENDDO
                     ENDDO
                   ENDDO
-                ENDDO
-              END IF
+                END IF
+              ENDDO
             ENDDO
           ENDDO
         ENDDO
-      ENDDO
+      END IF
       CALL mp_sum_i8(total_integrals,para_env%group)
   
       opt_max = HUGE(opt_max)
@@ -3797,11 +3891,9 @@ MODULE four_center_integrals
           END IF
         END IF
        
-        total_integrals2 = 0
         max_dev = 0
         min_dev = 0
         DO mepos = 1,ncpu 
-          total_integrals2 = total_integrals2 + cost_per_cpu(mepos)
           IF(total_integrals/ncpu>cost_per_cpu(mepos)) THEN
             IF(ABS(total_integrals/ncpu-cost_per_cpu(mepos))>min_dev) min_dev = ABS(total_integrals/ncpu-cost_per_cpu(mepos))
           ELSE
@@ -3829,9 +3921,7 @@ MODULE four_center_integrals
       !Call routine again for nbins = opt_nbin
       nbins = opt_nbin
       !floor value
-      total_integrals2 = total_integrals +(ncpu*nbins- MOD(total_integrals,ncpu*nbins))
-      int_per_cpu = total_integrals2 / ncpu
-      int_per_cpu = int_per_cpu/nbins
+      int_per_cpu = CEILING(REAL(total_integrals)/REAL(ncpu)/REAL(nbins),int_8)
       ALLOCATE(tmp_dist(ncpu,nbins),STAT=stat)
       tmp_dist(:,:)%istart = 0
       tmp_dist(:,:)%jstart = 0
@@ -4902,5 +4992,126 @@ MODULE four_center_integrals
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(handle)
   END SUBROUTINE screen_farfield_per
-!***************************************************************************
+
+!!***** four_center_integrals/update_pmax_matrix [1.0] *
+!!
+!!   NAME
+!!     update_pmax_matrix
+!!
+!!   FUNCTION
+!!     updates the maximum of the density matrix in compressed form for screening purposes 
+!!
+!!   NOTES
+!!     - updates for each pair of shells the maximum absolute value of p
+!!
+!!   INPUTS
+!!    -  pmax_set: buffer to store matrix
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!    09.2007 created [Manuel Guidon]
+!!
+!****************************************************************************
+  
+  SUBROUTINE update_pmax_matrix(pmax_set, &
+              full_density,full_density_beta,particle_set,atomic_kind_set,error)
+
+    REAL(kind=dp), DIMENSION(:, :, :, :), &
+      POINTER                                :: pmax_set
+    REAL(kind=dp), DIMENSION(:, :), POINTER  :: full_density, &
+                                                full_density_beta
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'update_pmax_matrix', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: handle, jatom, jset, katom, kset, max_set, mb, mc, natom, &
+      nsetb, nsetc, nsgfb_total, nsgfc_total, pb, pb1, pb2, pc, pc1, pc2, &
+      sgfb, sgfc, stat
+    INTEGER, DIMENSION(:), POINTER           :: last_sgf_global, nsgfb, nsgfc
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfb, first_sgfc
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: pmax_tmp
+    TYPE(atomic_kind_type), POINTER          :: atom_kind
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_b, orb_basis_c
+
+    CALL timeset(routineN,handle)
+    failure = .FALSE.
+
+    natom=SIZE(particle_set)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, maxnset=max_set)
+
+    ! create a mapping array of easy access to the density matrix elements
+    ALLOCATE(last_sgf_global(0:natom),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    last_sgf_global(0)=0
+    DO jatom=1,natom
+      atom_kind => particle_set(jatom)%atomic_kind
+ 
+      CALL get_atomic_kind(atomic_kind=atom_kind,&
+                           orb_basis_set=orb_basis_b)
+      CALL get_gto_basis_set(gto_basis_set=orb_basis_b,&
+                             nsgf=nsgfb_total)
+      last_sgf_global(jatom) = last_sgf_global(jatom-1)+nsgfb_total
+    END DO
+
+    pmax_set=0.0_dp
+
+    DO jatom=1,natom
+
+      atom_kind => particle_set(jatom)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atom_kind,&
+                           orb_basis_set=orb_basis_b)
+      CALL get_gto_basis_set(gto_basis_set=orb_basis_b,&
+                             nsgf=nsgfb_total,&
+                             nset=nsetb,& 
+                             first_sgf=first_sgfb,&
+                             nsgf_set=nsgfb)
+      pb1 = last_sgf_global(jatom) - nsgfb_total
+
+      DO katom = 1,natom
+        atom_kind => particle_set(katom)%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atom_kind,&
+                             orb_basis_set=orb_basis_c)
+        CALL get_gto_basis_set(gto_basis_set=orb_basis_c,&
+                               nsgf=nsgfc_total,&
+                               nset=nsetc,&
+                               first_sgf=first_sgfc,&
+                               nsgf_set=nsgfc)
+        pc1 = last_sgf_global(katom) - nsgfc_total
+
+        DO jset = 1,nsetb
+          sgfb = first_sgfb(1,jset)
+          DO kset = 1,nsetc
+            sgfc = first_sgfc(1,kset)
+            pmax_tmp = 0.0_dp
+            DO mc = 1,nsgfc(kset)
+               pc2 = mc+sgfc-1
+               pc = pc1 + pc2
+               DO mb = 1,nsgfb(jset)
+                  pb2 = mb+sgfb-1
+                  pb = pb1 + pb2
+                  pmax_tmp=MAX(pmax_tmp,ABS(full_density(pb,pc)))
+                  IF( ASSOCIATED(full_density_beta) ) pmax_tmp=MAX(pmax_tmp,ABS(full_density_beta(pb,pc)))
+               ENDDO
+            ENDDO
+            pmax_set(jset,kset,jatom,katom) = pmax_tmp
+          END DO
+        END DO
+      END DO
+    END DO
+
+    DEALLOCATE(last_sgf_global,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE update_pmax_matrix
+
 END MODULE four_center_integrals

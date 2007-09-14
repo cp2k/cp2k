@@ -108,7 +108,8 @@ MODULE x_hf
                              POINTER         :: distribution_forces
     TYPE(x_hf_box_scheme), DIMENSION(:,:),&
                            POINTER           :: far_field_boxes
-    
+    REAL(dp), DIMENSION(:,:,:,:), POINTER &
+                                             :: initial_p
   END TYPE
 
   CONTAINS
@@ -125,7 +126,8 @@ MODULE x_hf
     INTEGER                                  :: max_memory, nkloops, &
                                                 number_of_precalc_integrals, &
                                                 pbc_shells, stat, TYPE
-    LOGICAL                                  :: do_periodic, failure
+    LOGICAL                                  :: do_p_screening, do_periodic, &
+                                                failure
     REAL(dp)                                 :: omega
     TYPE(section_vals_type), POINTER         :: hf_pbc_section
 
@@ -172,6 +174,16 @@ MODULE x_hf
 
     ALLOCATE(x_data%far_field_boxes(1,1),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    
+    CALL section_vals_val_get(hf_section,"SCREEN_ON_INITIAL_P",l_val=do_p_screening,error=error) 
+    IF( do_p_screening) THEN
+      ALLOCATE(x_data%initial_p(max_set,max_set,natom,natom),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ELSE
+      ALLOCATE(x_data%initial_p(1,1,1,1),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+
 
   END SUBROUTINE x_hf_create 
 
@@ -205,6 +217,9 @@ MODULE x_hf
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     DEALLOCATE(x_data%far_field_boxes,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    DEALLOCATE(x_data%initial_p,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     DEALLOCATE(x_data,STAT=stat)
