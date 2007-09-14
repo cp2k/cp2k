@@ -119,10 +119,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'shake_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ikind, imol, &
-                                                ishake_ext, ishake_int, k, &
-                                                n3x3con, n4x6con, nkind, &
-                                                nmol_per_kind
+    INTEGER :: handle, i, ikind, imol, ishake_ext, ishake_int, k, n3x3con, &
+      n4x6con, nconstraint, nkind, nmol_per_kind
     LOGICAL                                  :: do_ext_constraint
     REAL(KIND=dp)                            :: int_max_sigma, mass, max_sigma
     REAL(KIND=dp), DIMENSION(SIZE(pos, 2))   :: imass
@@ -152,7 +150,9 @@ CONTAINS
              molecule => molecule_set ( i ) 
              molecule_kind => molecule % molecule_kind
              CALL get_molecule_kind ( molecule_kind, ncolv = ncolv,  &
-                  ng3x3 = n3x3con, ng4x6=n4x6con )
+                                      ng3x3 = n3x3con, ng4x6=n4x6con,&
+                                      nconstraint=nconstraint )
+             IF (nconstraint==0) CYCLE
              ishake_int = 0
              int_max_sigma  = -1.0E+10_dp
              Shake_Intra_Loop: DO WHILE ((ABS(int_max_sigma)>=shake_tol).AND.(ishake_int<=Max_Shake_Iter))
@@ -189,11 +189,11 @@ CONTAINS
           ! Collective Variables
           IF ( gci%ncolv%ntot /= 0 ) &
                CALL shake_colv_ext(gci, particle_set, pos, vel, dt, ishake_ext,&
-               cell, imass, max_sigma, error )
+               cell, imass, max_sigma, error)
           CALL restore_temporary_set( particle_set, local_particles, pos=pos, vel=vel )
        END IF
+       CALL shake_ext_info(log_unit,ishake_ext,max_sigma,error)
     END DO Shake_Inter_Loop
-    CALL shake_ext_info(log_unit,ishake_ext,max_sigma,error)
     CALL dump_lagrange_mult(dump_lm, lagrange_mult,local_molecules,molecule_set,gci,&
          molecule_kind_set,group,"S",error)
     CALL timestop ( 0.0_dp, handle )
@@ -234,10 +234,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rattle_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ikind, imol, &
-                                                irattle_ext, irattle_int, k, &
-                                                n3x3con, n4x6con, nkind, &
-                                                nmol_per_kind
+    INTEGER :: handle, i, ikind, imol, irattle_ext, irattle_int, k, n3x3con, &
+      n4x6con, nconstraint, nkind, nmol_per_kind
     LOGICAL                                  :: do_ext_constraint
     REAL(KIND=dp)                            :: int_max_sigma, mass, max_sigma
     REAL(KIND=dp), DIMENSION(SIZE(vel, 2))   :: imass
@@ -267,7 +265,8 @@ CONTAINS
              molecule => molecule_set ( i ) 
              molecule_kind => molecule % molecule_kind
              CALL get_molecule_kind ( molecule_kind, ncolv = ncolv, ng3x3 = n3x3con,&
-                  ng4x6 = n4x6con )
+                                      ng4x6 = n4x6con ,nconstraint=nconstraint )
+             IF (nconstraint==0) CYCLE
              irattle_int   = 0
              int_max_sigma = -1.0E+10_dp
              Rattle_Intra_Loop: DO WHILE ( ABS ( int_max_sigma ) >=  rattle_tol )
@@ -303,8 +302,8 @@ CONTAINS
                irattle_ext, cell, imass, max_sigma, error )  
           CALL restore_temporary_set ( particle_set, local_particles, vel = vel )
        END IF
+       CALL rattle_ext_info(log_unit,irattle_ext,max_sigma,error)
     END DO Rattle_Inter_Loop
-    CALL rattle_ext_info(log_unit,irattle_ext,max_sigma,error)
     CALL dump_lagrange_mult(dump_lm,lagrange_mult,local_molecules,molecule_set,gci,&
          molecule_kind_set,group,"R",error)
     CALL timestop ( 0.0_dp, handle )
@@ -351,7 +350,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, ikind, imol, ishake_ext, ishake_int, k, &
-      lagrange_mult, log_unit, n3x3con, n4x6con, nkind, nmol_per_kind
+      lagrange_mult, log_unit, n3x3con, n4x6con, nconstraint, nkind, &
+      nmol_per_kind
     LOGICAL                                  :: do_ext_constraint, dump_lm
     REAL(KIND=dp)                            :: dt, int_max_sigma, mass, &
                                                 max_sigma, shake_tol
@@ -394,7 +394,9 @@ CONTAINS
              molecule => molecule_set ( i ) 
              molecule_kind => molecule % molecule_kind
              CALL get_molecule_kind ( molecule_kind, ncolv = ncolv,  &
-                  ng3x3 = n3x3con, ng4x6=n4x6con )
+                                      ng3x3 = n3x3con, ng4x6=n4x6con,&
+                                      nconstraint=nconstraint )
+             IF (nconstraint==0) CYCLE
              ishake_int = 0
              int_max_sigma = -1.0E+10_dp
              Shake_Roll_Intra_Loop: DO WHILE (ABS(int_max_sigma)>=shake_tol)
@@ -434,8 +436,8 @@ CONTAINS
                v_shake, dt, ishake_ext, cell, imass, max_sigma, error )
           CALL restore_temporary_set ( particle_set, local_particles, pos = pos, vel = vel )
        END IF
+       CALL shake_ext_info(log_unit,ishake_ext,max_sigma,error)
     END DO Shake_Inter_Loop
-    CALL shake_ext_info(log_unit,ishake_ext,max_sigma,error)
     CALL dump_lagrange_mult(dump_lm,lagrange_mult,local_molecules,molecule_set,gci,&
          molecule_kind_set,group,"S",error)
     CALL check_tol ( roll_tol, iroll, 'SHAKE', r_shake )
@@ -488,7 +490,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, ikind, imol, irattle_ext, irattle_int, k, &
-      lagrange_mult, log_unit, n3x3con, n4x6con, nkind, nmol_per_kind
+      lagrange_mult, log_unit, n3x3con, n4x6con, nconstraint, nkind, &
+      nmol_per_kind
     LOGICAL                                  :: do_ext_constraint, dump_lm
     REAL(KIND=dp)                            :: amass, dt, int_max_sigma, &
                                                 max_sigma, rattle_tol
@@ -532,7 +535,9 @@ CONTAINS
              molecule => molecule_set ( i ) 
              molecule_kind => molecule % molecule_kind
              CALL get_molecule_kind ( molecule_kind, ncolv = ncolv,  &
-                  ng3x3 = n3x3con, ng4x6 = n4x6con )
+                                      ng3x3 = n3x3con, ng4x6 = n4x6con,&
+                                      nconstraint=nconstraint )
+             IF (nconstraint==0) CYCLE
              int_max_sigma = -1.0E+10_dp
              irattle_int = 0
              Rattle_Roll_Intramolecular: DO WHILE (ABS(int_max_sigma)>=rattle_tol)
@@ -572,8 +577,8 @@ CONTAINS
                irattle_ext, veps, cell, imass, max_sigma, error  )     
           CALL restore_temporary_set ( particle_set, local_particles, vel = vel )
        END IF
+       CALL rattle_ext_info(log_unit,irattle_ext,max_sigma,error)
     END DO Rattle_Inter_Loop
-    CALL rattle_ext_info(log_unit,irattle_ext,max_sigma,error)
     CALL dump_lagrange_mult(dump_lm,lagrange_mult,local_molecules,molecule_set,gci,&
          molecule_kind_set,para_env%group,"R",error)
     CALL check_tol ( roll_tol, iroll, 'RATTLE', veps = veps )
@@ -775,6 +780,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: max_sigma
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(LEN=default_string_length)     :: string
     INTEGER                                  :: my_log_unit
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -789,9 +795,10 @@ CONTAINS
     IF (ishake_ext > Max_Shake_Iter) THEN
        NULLIFY(logger)
        logger => cp_error_get_logger(error)
+       string = cp_to_string(Max_Shake_Iter)
        my_log_unit= cp_logger_get_default_unit_nr(logger,local=.TRUE.)
        WRITE(my_log_unit,'(T2,"SHAKE_INFO|",2X,A,T80,A)')"WARNING! Shake NOT converged in "//&
-            cp_to_string(Max_Shake_Iter)//" iterations in external constraint loop","!"
+            TRIM(string)//" iterations in external constraint loop","!"
        WRITE(my_log_unit,'(T2,"SHAKE_INFO|",2X,A,T80,A)')"WARNING! CP2K GOES but results could be"//&
             " meaningless","!"
        WRITE(my_log_unit,FMT='(T2,79("*"))')
@@ -817,6 +824,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: max_sigma
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(LEN=default_string_length)     :: string
     INTEGER                                  :: my_log_unit
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -831,10 +839,12 @@ CONTAINS
        NULLIFY(logger)
        logger => cp_error_get_logger(error)
        my_log_unit= cp_logger_get_default_unit_nr(logger,local=.TRUE.)
+       string = cp_to_string(Max_shake_Iter)
        WRITE(my_log_unit,'(T2,"RATTLE_INFO|",2X,A,T80,A)')"WARNING! Rattle NOT converged in "//&
-            cp_to_string(Max_shake_Iter)//" iterations","!"
+            TRIM(string)//" iterations","!"
+       string = cp_to_string(i)
        WRITE(my_log_unit,'(T2,"RATTLE_INFO|",2X,A,T80,A)')"WARNING! Rattle NOT converged for molecule Nr. "//&
-            cp_to_string(i),"!"
+            TRIM(string),"!"
        WRITE(my_log_unit,'(T2,"RATTLE_INFO|",2X,A,T80,A)')"WARNING! CP2K GOES but results could be"//&
             " meaningless","!"
        WRITE(my_log_unit,FMT='(T2,79("*"))')
@@ -860,6 +870,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: max_sigma
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(LEN=default_string_length)     :: string
     INTEGER                                  :: my_log_unit
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -875,8 +886,9 @@ CONTAINS
        NULLIFY(logger)
        logger => cp_error_get_logger(error)
        my_log_unit= cp_logger_get_default_unit_nr(logger,local=.TRUE.)
+       string = cp_to_string(Max_shake_Iter)
        WRITE(my_log_unit,'(T2,"RATTLE_INFO|",2X,A,T80,A)')"WARNING! Rattle not converged in "//&
-            cp_to_string(Max_shake_Iter)//" iterations in external constraint loop","!"
+            TRIM(string)//" iterations in external constraint loop","!"
        WRITE(my_log_unit,'(T2,"RATTLE_INFO|",2X,A,T80,A)')"WARNING! CP2K GOES but results could be"//&
             " meaningless","!"
        WRITE(my_log_unit,FMT='(T2,79("*"))')

@@ -1651,6 +1651,7 @@ SUBROUTINE force_env_shake(force_env,dt,shake_tol,log_unit,lagrange_mult,dump_lm
         ! Possibly reset the lagrange multipliers
         IF (PRESENT(reset)) THEN
            IF (reset) THEN
+              ! Reset Intramolecular constraints
               DO i = 1,SIZE(molecules%els)
                  IF (ASSOCIATED(molecules%els(i)%lci%lcolv)) THEN
                     DO j = 1, SIZE(molecules%els(i)%lci%lcolv)
@@ -1658,7 +1659,40 @@ SUBROUTINE force_env_shake(force_env,dt,shake_tol,log_unit,lagrange_mult,dump_lm
                        molecules%els(i)%lci%lcolv(j)%lambda = 0.0_dp
                     END DO
                  END IF
+                 IF (ASSOCIATED(molecules%els(i)%lci%lg3x3)) THEN
+                    DO j = 1, SIZE(molecules%els(i)%lci%lg3x3)
+                       ! Reset langrange multiplier
+                       molecules%els(i)%lci%lg3x3(j)%lambda = 0.0_dp
+                    END DO
+                 END IF
+                 IF (ASSOCIATED(molecules%els(i)%lci%lg4x6)) THEN
+                    DO j = 1, SIZE(molecules%els(i)%lci%lg4x6)
+                       ! Reset langrange multiplier
+                       molecules%els(i)%lci%lg4x6(j)%lambda = 0.0_dp
+                    END DO
+                 END IF
               END DO
+              ! Reset Intermolecular constraints
+              IF (ASSOCIATED(gci)) THEN
+                 IF (ASSOCIATED(gci%lcolv)) THEN
+                    DO j = 1, SIZE(gci%lcolv)
+                       ! Reset langrange multiplier
+                       gci%lcolv(j)%lambda = 0.0_dp
+                    END DO
+                 END IF
+                 IF (ASSOCIATED(gci%lg3x3)) THEN
+                    DO j = 1, SIZE(gci%lg3x3)
+                       ! Reset langrange multiplier
+                       gci%lg3x3(j)%lambda = 0.0_dp
+                    END DO
+                 END IF
+                 IF (ASSOCIATED(gci%lg4x6)) THEN
+                    DO j = 1, SIZE(gci%lg4x6)
+                       ! Reset langrange multiplier
+                       gci%lg4x6(j)%lambda = 0.0_dp
+                    END DO
+                 END IF                
+              END IF
            END IF
         END IF
 
@@ -1790,6 +1824,7 @@ SUBROUTINE force_env_rattle(force_env,dt,shake_tol,log_unit,lagrange_mult,dump_l
         ! Possibly reset the lagrange multipliers
         IF (PRESENT(reset)) THEN
            IF (reset) THEN
+              ! Reset Intramolecular constraints
               DO i = 1,SIZE(molecules%els)
                  IF (ASSOCIATED(molecules%els(i)%lci%lcolv)) THEN
                     DO j = 1, SIZE(molecules%els(i)%lci%lcolv)
@@ -1810,6 +1845,27 @@ SUBROUTINE force_env_rattle(force_env,dt,shake_tol,log_unit,lagrange_mult,dump_l
                     END DO
                  END IF
               END DO
+              ! Reset Intermolecular constraints
+              IF (ASSOCIATED(gci)) THEN
+                 IF (ASSOCIATED(gci%lcolv)) THEN
+                    DO j = 1, SIZE(gci%lcolv)
+                       ! Reset langrange multiplier
+                       gci%lcolv(j)%lambda = 0.0_dp
+                    END DO
+                 END IF
+                 IF (ASSOCIATED(gci%lg3x3)) THEN
+                    DO j = 1, SIZE(gci%lg3x3)
+                       ! Reset langrange multiplier
+                       gci%lg3x3(j)%lambda = 0.0_dp
+                    END DO
+                 END IF
+                 IF (ASSOCIATED(gci%lg4x6)) THEN
+                    DO j = 1, SIZE(gci%lg4x6)
+                       ! Reset langrange multiplier
+                       gci%lg4x6(j)%lambda = 0.0_dp
+                    END DO
+                 END IF                
+              END IF
            END IF
         END IF
 
