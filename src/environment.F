@@ -67,7 +67,7 @@ MODULE environment
                                              write_rng_matrices,&
                                              write_rng_stream
   USE physcon,                         ONLY: write_physcon
-  USE reference_manager,               ONLY: print_all_references, &
+  USE reference_manager,               ONLY: print_all_references,&
                                              print_format_journal
   USE string_utilities,                ONLY: ascii_to_string,&
                                              integer_to_string,&
@@ -147,25 +147,25 @@ CONTAINS
 
   SUBROUTINE cp2k_init(para_env,output_unit,globenv,input_file_name)
 
-    TYPE(global_environment_type), POINTER :: globenv
-    CHARACTER(LEN=*) :: input_file_name
-    INTEGER  :: output_unit
+    TYPE(global_environment_type), POINTER         :: globenv
+    CHARACTER(LEN=*)                               :: input_file_name
+    INTEGER                                        :: output_unit
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "cp2k_init"
 
 !   *** Local variables ***
 
-    CHARACTER(LEN=default_path_length) :: cwd
-    CHARACTER(LEN=30)                  :: host_name,string,user_name
-    CHARACTER(LEN=26)                  :: datx
-    INTEGER                            :: ipe,istat,l,my_output_unit,pid,&
-                                          strstart,strend
-    LOGICAL           :: ionode
+    CHARACTER(LEN=default_path_length)             :: cwd
+    CHARACTER(LEN=default_string_length)           :: host_name,string,user_name
+    CHARACTER(LEN=26)                              :: datx
+    INTEGER                                        :: ipe,istat,l,my_output_unit,pid,&
+                                                      strstart,strend
+    LOGICAL                                        :: ionode
 
-    INTEGER, DIMENSION(:), ALLOCATABLE   :: all_pid
-    INTEGER, DIMENSION(:,:), ALLOCATABLE :: all_host
-    TYPE(cp_logger_type), POINTER :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER, DIMENSION(:), ALLOCATABLE             :: all_pid
+    INTEGER, DIMENSION(:,:), ALLOCATABLE           :: all_host
+    TYPE(cp_logger_type), POINTER                  :: logger
+    TYPE(cp_para_env_type), POINTER                :: para_env
 
 #if defined(__HPM)
 #include "f_hpm.h"
@@ -258,8 +258,8 @@ CONTAINS
       WRITE (UNIT=my_output_unit,&
              FMT="(/,A,T55,A26,/,A,T51,A30,/,A,T51,A30,/,A,T71,I10)")&
         "  **** **** ******  **  PROGRAM STARTED AT ",ADJUSTR(datx),&
-        " ***** ** ***  *** **   PROGRAM STARTED ON ",ADJUSTR(host_name),&
-        " **    ****   ******    PROGRAM STARTED BY ",ADJUSTR(user_name),&
+        " ***** ** ***  *** **   PROGRAM STARTED ON ",ADJUSTR(host_name(1:30)),&
+        " **    ****   ******    PROGRAM STARTED BY ",ADJUSTR(user_name(1:30)),&
         " ***** **    ** ** **   PROGRAM PROCESS ID ",pid
       WRITE (UNIT=my_output_unit,FMT="(A,T44,A37)")&
         "  **** **  *******  **  PROGRAM STARTED IN ",ADJUSTR(cwd(1:37))
@@ -498,7 +498,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     CHARACTER(len=default_path_length) :: basis_set_file_name, &
       coord_file_name, mm_potential_file_name, potential_file_name, &
       restart_file_name
-    CHARACTER(len=default_string_length) :: env_num
+    CHARACTER(len=default_string_length)     :: env_num
     INTEGER                                  :: iforce_eval, method_name_id, &
                                                 nforce_eval, num_threads, &
                                                 output_unit, print_level
@@ -748,16 +748,16 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
   SUBROUTINE cp2k_finalize(root_section,para_env,globenv,error)
 
     TYPE(section_vals_type), POINTER         :: root_section
-    TYPE(global_environment_type), POINTER :: globenv
-    TYPE(cp_error_type), INTENT(inout) :: error
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=default_path_length) :: cwd
-    CHARACTER(LEN=30)                  :: host_name,user_name
-    CHARACTER(LEN=26)                  :: datx
-    INTEGER                            :: l,iw,pid,unit_exit
-    LOGICAL                            :: delete_it,failure
-    TYPE(cp_logger_type), POINTER      :: logger
-    REAL(KIND=dp)                      :: r_timings
+    CHARACTER(LEN=default_path_length)       :: cwd
+    CHARACTER(LEN=default_string_length)     :: host_name,user_name
+    CHARACTER(LEN=26)                        :: datx
+    INTEGER                                  :: l,iw,pid,unit_exit
+    LOGICAL                                  :: delete_it,failure
+    TYPE(cp_logger_type), POINTER            :: logger
+    REAL(KIND=dp)                            :: r_timings
     TYPE(cp_para_env_type), POINTER          :: para_env
 #if defined(__HPM)
 #include "f_hpm.h"
@@ -808,7 +808,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
            WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
            WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
            CALL print_all_references(sorted=.TRUE.,cited_only=.TRUE., &
-                          format=print_format_journal,unit=iw)
+                          FORMAT=print_format_journal,unit=iw)
        ENDIF
        CALL cp_print_key_finished_output(iw,logger,root_section,&
             "GLOBAL%REFERENCES",error=error)
@@ -852,8 +852,8 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
         WRITE (UNIT=iw,&
                FMT="(A,T55,A26,/,A,T51,A30,/,A,T51,A30,/,A,T71,I10)")&
           "  **** **** ******  **  PROGRAM ENDED AT   ",ADJUSTR(datx),&
-          " ***** ** ***  *** **   PROGRAM RAN ON     ",ADJUSTR(host_name),&
-          " **    ****   ******    PROGRAM RAN BY     ",ADJUSTR(user_name),&
+          " ***** ** ***  *** **   PROGRAM RAN ON     ",ADJUSTR(host_name(1:30)),&
+          " **    ****   ******    PROGRAM RAN BY     ",ADJUSTR(user_name(1:30)),&
           " ***** **    ** ** **   PROGRAM PROCESS ID ",pid
         WRITE (UNIT=iw,FMT="(A,T44,A37)")&
           "  **** **  *******  **  PROGRAM STARTED IN ",ADJUSTR(cwd(1:37))
