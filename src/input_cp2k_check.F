@@ -35,6 +35,7 @@ MODULE input_cp2k_check
        xc_funct_olyp, xc_funct_pade, xc_funct_pbe, xc_funct_tpss, &
        xc_funct_xwpbe, xc_none
   USE input_cp2k,                      ONLY: create_cp2k_root_section
+  USE input_keyword_types,             ONLY: keyword_type
   USE input_parsing,                   ONLY: section_vals_parse
   USE input_section_types,             ONLY: &
        section_release, section_type, section_vals_create, section_vals_get, &
@@ -42,6 +43,7 @@ MODULE input_cp2k_check
        section_vals_release, section_vals_remove_values, &
        section_vals_set_subs_vals, section_vals_type, section_vals_val_get, &
        section_vals_val_set, section_vals_val_unset
+  USE input_val_types,                 ONLY: logical_t
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -283,9 +285,9 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
     INTEGER                                  :: handle, i_rep_val, &
                                                 iforce_eval, myi, n_rep_val, &
                                                 nforce_eval1, nforce_eval2
-    LOGICAL                                  :: failure, flag, flag2, &
-                                                qmmm_check, subsys_check,&
-                                                explicit1, explicit2
+    LOGICAL                                  :: explicit1, explicit2, &
+                                                failure, flag, flag2, &
+                                                qmmm_check, subsys_check
     REAL(KIND=dp)                            :: myt
     REAL(KIND=dp), DIMENSION(:), POINTER     :: vec, work
     TYPE(cp_error_type)                      :: sub_error
@@ -301,10 +303,8 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
 
   failure=.FALSE. 
   IF (.NOT. failure) THEN
-     r_section => section_vals_get_subs_vals(input_file,&
-          "EXT_RESTART",error=error)
-     CALL section_vals_val_get(r_section,"RESTART_FILE_NAME", &
-          c_val=r_file_path, error=error)
+     r_section => section_vals_get_subs_vals(input_file, "EXT_RESTART",error=error)
+     CALL section_vals_val_get(r_section,"RESTART_FILE_NAME", c_val=r_file_path, error=error)
 
      IF (r_file_path/=" ") THEN
         CALL cp_error_init(sub_error,template_error=error,stop_level=cp_fatal_level)
@@ -334,6 +334,9 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
                 routineP,"Restart and input file MUST have the number of force_env sections",&
                 error,failure)
         END IF
+        ! Handle default restarts
+        CALL handle_defaults_restart(r_section, error=error)
+
         ! Real restart of force_evals
         DO iforce_eval = 1, nforce_eval1
            section1 => section_vals_get_subs_vals3(sections1,"SUBSYS",&
@@ -581,9 +584,7 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
         CALL section_vals_val_get(r_section,"CUSTOM_PATH",n_rep_val=n_rep_val,&
              error=error)
         DO i_rep_val=1,n_rep_val
-           CALL section_vals_val_get(r_section,"CUSTOM_PATH",&
-                i_rep_val=i_rep_val,c_val=path,&
-                error=error)
+           CALL section_vals_val_get(r_section,"CUSTOM_PATH",i_rep_val=i_rep_val,c_val=path,error=error)
            IF (path/=" ") THEN
               section => section_vals_get_subs_vals(restart_input,&
                    path,error=error)
@@ -591,8 +592,7 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
                    section,error=error)
            END IF
         END DO
-        CALL section_vals_val_set(r_section,"RESTART_FILE_NAME",&
-             c_val=" ",error=error)
+        CALL section_vals_val_set(r_section,"RESTART_FILE_NAME", c_val=" ",error=error)
         CALL section_vals_release(restart_input,error=error)
      END IF
   END IF
@@ -793,4 +793,60 @@ SUBROUTINE remove_restart_info(input_file,error)
 END SUBROUTINE remove_restart_info
 !***************************************************************************
 
+!!****f* input_cp2k_check/handle_defaults_restart *
+!!
+!!   NAME
+!!     handle_defaults_restart
+!!
+!!   FUNCTION
+!!     This subroutine controls the defaults for the restartable quantities..
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - input_file: the input file to initialize
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo - University of Zurich - 09.2007 [tlaino]
+!!
+!!*** **********************************************************************
+  SUBROUTINE handle_defaults_restart(r_section,error)
+    TYPE(section_vals_type), POINTER         :: r_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'handle_defaults_restart', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ik, nval
+    LOGICAL                                  :: failure, restart_default
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: section
+
+    CALL timeset(routineN,handle)
+    failure=.FALSE. 
+    IF (.NOT. failure) THEN
+       NULLIFY(keyword, section)
+       CALL section_vals_get(r_section, section=section, error=error)
+       CALL section_vals_val_get(r_section,"RESTART_DEFAULT",l_val=restart_default,error=error)
+       DO ik=-1,section%n_keywords
+          keyword => section%keywords(ik)%keyword
+          IF (ASSOCIATED(keyword)) THEN
+             IF (keyword%type_of_var==logical_t.AND.keyword%names(1)(1:8)=="RESTART_") THEN
+                IF (TRIM(keyword%names(1))=="RESTART_DEFAULT") CYCLE
+                CALL section_vals_val_get(r_section,keyword%names(1),n_rep_val=nval,error=error)
+                IF (nval==0) THEN
+                   ! User didn't specify any value, use the value of the RESTART_DEFAULT keyword..
+                   CALL section_vals_val_set(r_section,keyword%names(1),l_val=restart_default,error=error)
+                END IF
+             END IF
+          END IF
+       END DO
+    END IF
+   CALL timestop(handle)
+
+  END SUBROUTINE handle_defaults_restart
+  
 END MODULE input_cp2k_check

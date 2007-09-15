@@ -55,6 +55,7 @@ MODULE input_cp2k
        section_vals_get_subs_vals, section_vals_type
   USE input_val_types,                 ONLY: char_t,&
                                              integer_t,&
+                                             logical_t,&
                                              no_t,&
                                              real_t
   USE kinds,                           ONLY: dp
@@ -954,106 +955,114 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="RESTART_DEFAULT",&
+            description="This keyword controls the default value for all possible "//&
+            " restartable keywords, unless explicitly defined. For example setting"//&
+            " this keyword to .FALSE. does not restart any quantity. If, at the "//&
+            " same time, one keyword is set to .TRUE. only that quantity will be"//&
+            " restarted.", default_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_COUNTERS",&
             description="Restarts the counters in MD schemes",&
-            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
+            type_of_var=logical_t, lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_POS",&
             description="Takes the positions from the external file",&
-            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_VEL",&
             description="Takes the velocities from the external file",&
-            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-      CALL keyword_create(keyword, name="RESTART_RANDOMG",&
+       CALL keyword_create(keyword, name="RESTART_RANDOMG",&
             description="Restarts the random number generator from the external file",&
-            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_KG_COEFF_POS",&
             description="Restarts the positions of coefficents of kg from the external file",&
-            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_KG_COEFF_VEL",&
             description="Restarts the velocity of coefficents of kg from the external file",&
-            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_SHELL_POS",&
             description="Takes the positions of the shells from the external file (only if shel-model)",&
-            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_CORE_POS",&
             description="Takes the positions of the cores from the external file (only if shel-model)",&
-            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RESTART_SHELL_VELOCITY",&
             description="Takes the velocities of the shells from the external file (only if shel-model)",&
-            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_CORE_VELOCITY",&
             description="Takes the velocities of the shells from the external file (only if shel-model)",&
-            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_KG_NOSE",&
             description="Restarts the nose thermostats of the kg coefficents "//&
             "from the EXTERNAL file",&
-            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_BAROSTAT",&
             description="Restarts the barostat from the external file",&
-            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_BAROSTAT_NOSE",&
             description="Restarts the barostat thermostat from the external file",&
-            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_NOSE",&
             description="Restarts the nose thermostats of the particles "//&
             "from the EXTERNAL file",&
-            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_CELL",&
             description="Restarts the cell (and cell_ref) "//&
             "from the EXTERNAL file",&
-            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_METADYNAMICS",&
             description="Restarts hills from a previous metadynamics run "//&
             "from the EXTERNAL file",&
-            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_BAND",&
             description="Restarts positions and velocities of the Band.",&
-            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_QMMM",&
             description="Restarts the following specific QMMM info: translation vectors.",&
-            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_CONSTRAINT",&
             description="Restarts constraint section. It's necessary when doing restraint"//&
             " calculation to have a perfect energy conservation. For constraints only it's"//&
             " use is optional.",&
-            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="CUSTOM_PATH",&
