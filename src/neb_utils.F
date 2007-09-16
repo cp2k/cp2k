@@ -173,7 +173,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: dummy_char
     INTEGER :: handle, i, input_nr_replica, j, jtarg, natom, neb_nr_replica, &
       nr_replica_to_interpolate, stat
-    LOGICAL                                  :: explicit, failure, &
+    LOGICAL                                  :: explicit, failure, my_end, &
                                                 skip_vel_section
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: distance
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rptr
@@ -236,7 +236,13 @@ CONTAINS
              CALL parser_get_next_line(parser,1,error=error)
              DO j = 1, natom
                 ! Atom coordinates
-                CALL parser_get_next_line(parser,1,error=error)
+                CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+                CALL cp_assert(.NOT.my_end,cp_fatal_level,cp_assertion_failed,routineP,&
+                     "Number of lines in XYZ format not equal to the number of atoms."//&
+                     " Error in XYZ format for REPLICA coordinates. Very probably the"//&
+                     " line with title is missing or is empty. Please check the XYZ file and rerun your job!"//&
+CPSourceFileRef,&
+                only_ionode=.TRUE.)
                 READ(parser%input_line,*)dummy_char,coords((j-1)*3+1:(j-1)*3+3,i)
                 CALL convert_to_cp2k_units("ANGSTROM",length=coords((j-1)*3+1,i))
                 CALL convert_to_cp2k_units("ANGSTROM",length=coords((j-1)*3+2,i))

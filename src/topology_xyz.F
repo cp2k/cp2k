@@ -78,12 +78,13 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: my_default_index
     INTEGER                                  :: frame, handle, i, iw, j, natom
-    LOGICAL                                  :: my_end
+    LOGICAL                                  :: failure, my_end
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: parser
 
     NULLIFY(parser, logger)
+    failure = .FALSE.
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/XYZ_INFO",&
          extension=".subsysLog",error=error)
@@ -147,7 +148,15 @@ CONTAINS
           CALL convert_to_cp2k_units("ANGSTROM",length=atom_info%r(2,j))
           CALL convert_to_cp2k_units("ANGSTROM",length=atom_info%r(3,j))
           CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
-          IF (my_end) EXIT Frames
+          IF (my_end) THEN 
+             CALL cp_assert(j==natom,cp_fatal_level,cp_assertion_failed,routineP,&
+                  "Number of lines in XYZ format not equal to the number of atoms."//&
+                  " Error in XYZ format. Very probably the line with title is missing or is empty."//&
+                  " Please check the XYZ file and rerun your job!"//&
+CPSourceFileRef,&
+             only_ionode=.TRUE.)
+             EXIT Frames
+          END IF
        END DO
     END DO Frames
     CALL parser_release(parser,error=error)
