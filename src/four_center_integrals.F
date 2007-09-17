@@ -3062,7 +3062,7 @@ MODULE four_center_integrals
       restore_latom, stat
     INTEGER(KIND=int_8) :: current_counter, distribution_counter_end, &
       distribution_counter_start, int_per_cpu, max_dev, min_dev, nbins, ncpu, &
-      opt_max, opt_nbin, restore_counter, total_integrals, total_integrals2
+      opt_max, opt_nbin, restore_counter, total_integrals
     INTEGER(KIND=int_8), ALLOCATABLE, &
       DIMENSION(:)                           :: cost_per_cpu
     INTEGER(KIND=int_8), ALLOCATABLE, &
@@ -3230,9 +3230,7 @@ MODULE four_center_integrals
         nbins = cost_array(i,1)
         IF(MOD(i,para_env%num_pe) /= para_env%mepos ) CYCLE
         !floor value
-        total_integrals2 = total_integrals +(ncpu*nbins- MOD(total_integrals,ncpu*nbins))
-        int_per_cpu = total_integrals2 / ncpu
-        int_per_cpu = int_per_cpu/nbins
+        int_per_cpu = (total_integrals + ncpu*nbins -1 ) / (ncpu*nbins)
         ALLOCATE(cost_per_cpu(ncpu))
         cost_per_cpu = 0
         current_counter = 0
@@ -3383,7 +3381,7 @@ MODULE four_center_integrals
       !Call routine again for nbins = opt_nbin
       nbins = opt_nbin
       !floor value
-      int_per_cpu = CEILING(REAL(total_integrals)/REAL(ncpu)/REAL(nbins),int_8)
+      int_per_cpu = (total_integrals + ncpu*nbins -1 ) / (ncpu*nbins) 
       ALLOCATE(tmp_dist(ncpu,nbins),STAT=stat)
       tmp_dist(:,:)%istart = 0
       tmp_dist(:,:)%jstart = 0
@@ -3536,7 +3534,7 @@ MODULE four_center_integrals
         IF(para_env%mepos == mepos-1)&
            CALL x_hf_set_distr_energy(ptr_to_tmp_dist,x_data,error=error)
       END DO
-      DEALLOCATE(tmp_dist,tmp_pos,STAT=stat)
+      DEALLOCATE(tmp_dist,tmp_pos,first_dist,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     CALL timestop(handle)
@@ -3615,7 +3613,7 @@ MODULE four_center_integrals
       restore_latom, stat
     INTEGER(KIND=int_8) :: current_counter, distribution_counter_end, &
       distribution_counter_start, int_per_cpu, max_dev, min_dev, nbins, ncpu, &
-      opt_max, opt_nbin, restore_counter, total_integrals, total_integrals2
+      opt_max, opt_nbin, restore_counter, total_integrals
     INTEGER(KIND=int_8), ALLOCATABLE, &
       DIMENSION(:)                           :: cost_per_cpu
     INTEGER(KIND=int_8), ALLOCATABLE, &
@@ -3761,7 +3759,6 @@ MODULE four_center_integrals
         ENDDO
       END IF
       CALL mp_sum_i8(total_integrals,para_env%group)
-  
       opt_max = HUGE(opt_max)
       ALLOCATE(cost_array(11,11))
       DO ipos = 1,11
@@ -3772,9 +3769,7 @@ MODULE four_center_integrals
         nbins = cost_array(i,1)
         IF(MOD(i,para_env%num_pe) /= para_env%mepos ) CYCLE
         !floor value
-        total_integrals2 = total_integrals +(ncpu*nbins- MOD(total_integrals,ncpu*nbins))
-        int_per_cpu = total_integrals2 / ncpu
-        int_per_cpu = int_per_cpu/nbins
+        int_per_cpu = (total_integrals + ncpu*nbins -1 ) / (ncpu*nbins)
         ALLOCATE(cost_per_cpu(ncpu))
         cost_per_cpu = 0
         current_counter = 0
@@ -3921,7 +3916,7 @@ MODULE four_center_integrals
       !Call routine again for nbins = opt_nbin
       nbins = opt_nbin
       !floor value
-      int_per_cpu = CEILING(REAL(total_integrals)/REAL(ncpu)/REAL(nbins),int_8)
+      int_per_cpu = (total_integrals + ncpu*nbins -1 ) / (ncpu*nbins)
       ALLOCATE(tmp_dist(ncpu,nbins),STAT=stat)
       tmp_dist(:,:)%istart = 0
       tmp_dist(:,:)%jstart = 0
@@ -4063,7 +4058,7 @@ MODULE four_center_integrals
         IF(para_env%mepos == mepos-1)&
           CALL x_hf_set_distr_forces(ptr_to_tmp_dist,x_data,error=error)
       END DO
-      DEALLOCATE(tmp_dist,tmp_pos,STAT=stat)
+      DEALLOCATE(tmp_dist,tmp_pos,first_dist,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     CALL timestop(handle)
