@@ -6,7 +6,10 @@
 # in gas and condensed phases
 #
 # Joost VandeVondele and Juerg Hutter
-# submitted to JCP
+# J. Chem. Phys. 127, 114105 (2007)
+#
+# URL: http://link.aip.org/link/?JCP/127/114105
+# DOI: 10.1063/1.2770708
 #
 # In this work, we have shown that accurate basis sets (e.g. small BSSE, close to the basis set limit)
 # but well conditioned (and thus suitable for a wide variety of chemical environments, i.e. gas and condensed phases)
