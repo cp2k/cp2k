@@ -1,3 +1,5 @@
 #
 # faster bonded correct gaussian and bug fix for stress tensor in shell model
 2gly_IT-NEB-res.inp
+# New memory distribution for FIST neighbor lists: resetting due to numerics
+2gly_IT-NEB-res.inp

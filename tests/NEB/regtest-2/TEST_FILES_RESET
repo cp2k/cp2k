@@ -26,3 +26,5 @@
 2gly_DIIS-SD-2.inp
 2gly_DIIS-SD-NEB.inp
 2gly_DIIS-NEB.inp
+# New memory distribution for FIST neighbor lists: resetting due to numerics
+2gly_DIIS-DNEB.inp

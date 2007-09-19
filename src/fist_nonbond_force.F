@@ -104,8 +104,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'force_nonbond', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: a_kind, atom_a, atom_b, b_kind, handle, i, ikind, ilist, &
-      ipair, jkind, nkinds, npairs, shell_a, shell_b, shell_type
+    INTEGER :: a_kind, atom_a, atom_b, b_kind, handle, i, iend, igrp, ikind, &
+      ilist, ipair, istart, jkind, nkinds, npairs, shell_a, shell_b, &
+      shell_type
     INTEGER, DIMENSION(:, :), POINTER        :: list
     LOGICAL                                  :: all_terms, do_shell, failure, &
                                                 shell_present, swap_ab
@@ -162,13 +163,13 @@ CONTAINS
 ! incorrect omp (i.e. threads can write to the variable an other thread might be reading (e.g. pot_nonbonded))
 ! !$OMP parallel do default(none) &
 ! !$OMP shared(nkinds) &
-! !$OMP private(ikind,jkind) &
+! !$OMP private(ikind,jkind,id_kind,istart,iend) &
 ! !$OMP private(spline_data) &
 ! !$OMP shared(potparm) &
 ! !$OMP private(ab) &
 ! !$OMP shared(nonbonded) &
 ! !$OMP private(rab,rab2_max) &
-! !$OMP private(ilist,nlist,atom_a,atom_b,npairs,cvi,list,inode,nnode) &
+! !$OMP private(ilist,nlist,igrp,atom_a,atom_b,npairs,cvi,list,inode,nnode) &
 ! !$OMP shared(cell) &
 ! !$OMP shared(pot_nonbond) &
 ! !$OMP private(f_eam,pot,fr,fscalar,energy) &
@@ -184,291 +185,303 @@ CONTAINS
        neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
        npairs=neighbor_kind_pair%npairs
        IF (npairs ==0) CYCLE
-       ikind = neighbor_kind_pair%ikind
-       jkind = neighbor_kind_pair%jkind
-       list  =>neighbor_kind_pair%list
-       cvi   = neighbor_kind_pair%cell_vector
-       pot   =>potparm%pot(ikind,jkind)%pot
-       ! In case we have manybody potentials only they will be handled in the manybody routine...
-       IF (pot%only_mb) CYCLE
-       ! Setup spline_data set
-       spl_f       => pot%spl_f
-       spline_data => pot%pair_spline_data
-       shell_type  = pot%shell_type 
-       IF(shell_type/=nosh_nosh) THEN
-          c_spline_data => pot%c_coul_spline_data
-          spl_c         => pot%spl_c
-          CPPostcondition(PRESENT(fshell_nonbond),cp_failure_level,routineP,error,failure)
-          do_shell = .TRUE.
-       ELSE
-          c_spline_data => pot%pair_spline_data
-          spl_c         => pot%spl_f
-          do_shell = .FALSE.
-       END IF
-       IF(shell_type==sh_sh) THEN
-          cs_spline_data => pot%cs_coul_spline_data
-          sc_spline_data => pot%sc_coul_spline_data
-          spl_cs         => pot%spl_cs
-          spl_sc         => pot%spl_sc
-       END IF
-       rab2_max = pot%rcutsq
+       list  => neighbor_kind_pair%list
+       cvi   =  neighbor_kind_pair%cell_vector
        CALL matvec_3x3(cell_v, cell%hmat, cvi)
-       Pairs: DO ipair = 1, npairs
-          atom_a = list(1,ipair)
-          atom_b = list(2,ipair)
-          all_terms = .TRUE.
-          IF (do_shell) THEN
-             a_kind  = particle_set(atom_a)%atomic_kind%kind_number
-             b_kind  = particle_set(atom_b)%atomic_kind%kind_number
-             swap_ab = (b_kind>a_kind)
-             IF (swap_ab) THEN
-                cs_spline_data => pot%sc_coul_spline_data
-                sc_spline_data => pot%cs_coul_spline_data
-                spl_cs         => pot%spl_sc
-                spl_sc         => pot%spl_cs
-             END IF
-             IF(shell_type==sh_sh) THEN
-                shell_a = particle_set(atom_a)%shell_index
-                shell_b = particle_set(atom_b)%shell_index
-                rab_cc =  rcore_last_update_pbc(shell_b)%r -  rcore_last_update_pbc(shell_a)%r
-                rab_cs = rshell_last_update_pbc(shell_b)%r -  rcore_last_update_pbc(shell_a)%r
-                rab_sc =  rcore_last_update_pbc(shell_b)%r - rshell_last_update_pbc(shell_a)%r
-                rab_ss = rshell_last_update_pbc(shell_b)%r - rshell_last_update_pbc(shell_a)%r
-                rab_list(1:3,1) = rab_cc(1:3)+cell_v(1:3)
-                rab_list(1:3,2) = rab_cs(1:3)+cell_v(1:3)
-                rab_list(1:3,3) = rab_sc(1:3)+cell_v(1:3)
-                rab_list(1:3,4) = rab_ss(1:3)+cell_v(1:3)
-             ELSEIF(shell_type==nosh_sh .AND. particle_set(atom_a)%shell_index/=0) THEN
-                shell_a = particle_set(atom_a)%shell_index
-                shell_b = 0
-                rab_cc = r_last_update_pbc(atom_b)%r -  rcore_last_update_pbc(shell_a)%r
-                rab_sc = 0.0_dp
-                rab_cs = 0.0_dp
-                rab_ss = r_last_update_pbc(atom_b)%r - rshell_last_update_pbc(shell_a)%r
-                rab_list(1:3,1) = rab_cc(1:3)+cell_v(1:3)
-                rab_list(1:3,2) = 0.0_dp
-                rab_list(1:3,3) = 0.0_dp
-                rab_list(1:3,4) = rab_ss(1:3)+cell_v(1:3)
-             ELSEIF(shell_type==nosh_sh .AND. particle_set(atom_b)%shell_index/=0) THEN
-                shell_b = particle_set(atom_b)%shell_index
-                shell_a = 0
-                rab_cc =  rcore_last_update_pbc(shell_b)%r - r_last_update_pbc(atom_a)%r
-                rab_sc = 0.0_dp
-                rab_cs = 0.0_dp
-                rab_ss = rshell_last_update_pbc(shell_b)%r - r_last_update_pbc(atom_a)%r
-                rab_list(1:3,1) = rab_cc(1:3)+cell_v(1:3)
-                rab_list(1:3,2) = 0.0_dp
-                rab_list(1:3,3) = 0.0_dp
-                rab_list(1:3,4) = rab_ss(1:3)+cell_v(1:3)
-             END IF
-             ! Compute the term only if all the pairs (cc,cs,sc,ss) are within the cut-off
-             Check_terms: DO i = 1,4
-                rab2_list(i) = rab_list(1,i)**2+rab_list(2,i)**2+rab_list(3,i)**2
-                IF (rab2_list(i) >= rab2_max) THEN
-                   all_terms = .FALSE.
-                   EXIT Check_terms
-                END IF
-             END DO Check_terms
-             rab_com  = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
+       Kind_Group_Loop: DO igrp = 1, neighbor_kind_pair%ngrp_kind
+          istart  = neighbor_kind_pair%grp_kind_start(igrp)
+          iend    = neighbor_kind_pair%grp_kind_end(igrp)
+          ikind   = neighbor_kind_pair%ij_kind(1,igrp)
+          jkind   = neighbor_kind_pair%ij_kind(2,igrp)
+          pot     => potparm%pot(ikind,jkind)%pot
+          ! In case we have manybody potentials only they will be handled in the manybody routine...
+          IF (pot%only_mb) CYCLE
+          ! Setup spline_data set
+          spl_f       => pot%spl_f
+          spline_data => pot%pair_spline_data
+          shell_type  =  pot%shell_type 
+          IF(shell_type/=nosh_nosh) THEN
+             c_spline_data => pot%c_coul_spline_data
+             spl_c         => pot%spl_c
+             CPPostcondition(PRESENT(fshell_nonbond),cp_failure_level,routineP,error,failure)
+             do_shell = .TRUE.
           ELSE
-             rab_cc   = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
-             rab_com  = rab_cc
+             c_spline_data => pot%pair_spline_data
+             spl_c         => pot%spl_f
+             do_shell = .FALSE.
           END IF
-          rab_com  = rab_com + cell_v
-          rab2_com = rab_com(1)**2 + rab_com(2)**2 + rab_com(3)**2
-          IF (rab2_com <= rab2_max .AND. all_terms) THEN
+          IF(shell_type==sh_sh) THEN
+             cs_spline_data => pot%cs_coul_spline_data
+             sc_spline_data => pot%sc_coul_spline_data
+             spl_cs         => pot%spl_cs
+             spl_sc         => pot%spl_sc
+          END IF
+          rab2_max = pot%rcutsq
+          Pairs: DO ipair = istart, iend
+             atom_a = list(1,ipair)
+             atom_b = list(2,ipair)
+             all_terms = .TRUE.
              IF (do_shell) THEN
-                ! SHELL MODEL
-                ! core-core or core-ion/ion-core: Coulomb only
-                rab = rab_list(:,1)
-                rab2 = rab2_list(1)
-                energy =  potential_s (c_spline_data,rab2,fscalar, spl_c, logger)
-                pot_nonbond = pot_nonbond + energy
-                fr(1) = fscalar*rab(1)
-                fr(2) = fscalar*rab(2)
-                fr(3) = fscalar*rab(3)
-                IF(shell_a /= 0 ) THEN
-                   fcore_nonbond(1,shell_a) = fcore_nonbond(1,shell_a) - fr(1)
-                   fcore_nonbond(2,shell_a) = fcore_nonbond(2,shell_a) - fr(2)
-                   fcore_nonbond(3,shell_a) = fcore_nonbond(3,shell_a) - fr(3)
-                ELSE
-                   f_nonbond(1,atom_a) = f_nonbond(1,atom_a) - fr(1)
-                   f_nonbond(2,atom_a) = f_nonbond(2,atom_a) - fr(2)
-                   f_nonbond(3,atom_a) = f_nonbond(3,atom_a) - fr(3)
-                   CPPostcondition(shell_b/=0,cp_failure_level,routineP,error,failure)
+                a_kind  = particle_set(atom_a)%atomic_kind%kind_number
+                b_kind  = particle_set(atom_b)%atomic_kind%kind_number
+                swap_ab = (b_kind>a_kind)
+                IF (swap_ab) THEN
+                   cs_spline_data => pot%sc_coul_spline_data
+                   sc_spline_data => pot%cs_coul_spline_data
+                   spl_cs         => pot%spl_sc
+                   spl_sc         => pot%spl_cs
                 END IF
-                
-                IF(shell_b /= 0 ) THEN
-                   fcore_nonbond(1,shell_b) = fcore_nonbond(1,shell_b) + fr(1)
-                   fcore_nonbond(2,shell_b) = fcore_nonbond(2,shell_b) + fr(2)
-                   fcore_nonbond(3,shell_b) = fcore_nonbond(3,shell_b) + fr(3)
-                ELSE
-                   f_nonbond(1,atom_b) = f_nonbond(1,atom_b) + fr(1)
-                   f_nonbond(2,atom_b) = f_nonbond(2,atom_b) + fr(2)
-                   f_nonbond(3,atom_b) = f_nonbond(3,atom_b) + fr(3)
-                   CPPostcondition(shell_a/=0,cp_failure_level,routineP,error,failure)
-                END IF
-                pv_com(1,1) = rab(1) * fr(1)
-                pv_com(1,2) = rab(1) * fr(2)
-                pv_com(1,3) = rab(1) * fr(3)
-                pv_com(2,1) = rab(2) * fr(1)
-                pv_com(2,2) = rab(2) * fr(2)
-                pv_com(2,3) = rab(2) * fr(3)
-                pv_com(3,1) = rab(3) * fr(1)
-                pv_com(3,2) = rab(3) * fr(2)
-                pv_com(3,3) = rab(3) * fr(3)
-
                 IF(shell_type==sh_sh) THEN
-                   ! shell-shell : VDW + Coulomb
-                   rab = rab_list(:,4)
-                   rab2 = rab2_list(4)
-                   energy =  potential_s (spline_data,rab2,fscalar,spl_f,logger)
-
+                   shell_a = particle_set(atom_a)%shell_index
+                   shell_b = particle_set(atom_b)%shell_index
+                   rab_cc =  rcore_last_update_pbc(shell_b)%r -  rcore_last_update_pbc(shell_a)%r
+                   rab_cs = rshell_last_update_pbc(shell_b)%r -  rcore_last_update_pbc(shell_a)%r
+                   rab_sc =  rcore_last_update_pbc(shell_b)%r - rshell_last_update_pbc(shell_a)%r
+                   rab_ss = rshell_last_update_pbc(shell_b)%r - rshell_last_update_pbc(shell_a)%r
+                   rab_list(1:3,1) = rab_cc(1:3)+cell_v(1:3)
+                   rab_list(1:3,2) = rab_cs(1:3)+cell_v(1:3)
+                   rab_list(1:3,3) = rab_sc(1:3)+cell_v(1:3)
+                   rab_list(1:3,4) = rab_ss(1:3)+cell_v(1:3)
+                ELSEIF(shell_type==nosh_sh .AND. particle_set(atom_a)%shell_index/=0) THEN
+                   shell_a = particle_set(atom_a)%shell_index
+                   shell_b = 0
+                   rab_cc = r_last_update_pbc(atom_b)%r -  rcore_last_update_pbc(shell_a)%r
+                   rab_sc = 0.0_dp
+                   rab_cs = 0.0_dp
+                   rab_ss = r_last_update_pbc(atom_b)%r - rshell_last_update_pbc(shell_a)%r
+                   rab_list(1:3,1) = rab_cc(1:3)+cell_v(1:3)
+                   rab_list(1:3,2) = 0.0_dp
+                   rab_list(1:3,3) = 0.0_dp
+                   rab_list(1:3,4) = rab_ss(1:3)+cell_v(1:3)
+                ELSEIF(shell_type==nosh_sh .AND. particle_set(atom_b)%shell_index/=0) THEN
+                   shell_b = particle_set(atom_b)%shell_index
+                   shell_a = 0
+                   rab_cc =  rcore_last_update_pbc(shell_b)%r - r_last_update_pbc(atom_a)%r
+                   rab_sc = 0.0_dp
+                   rab_cs = 0.0_dp
+                   rab_ss = rshell_last_update_pbc(shell_b)%r - r_last_update_pbc(atom_a)%r
+                   rab_list(1:3,1) = rab_cc(1:3)+cell_v(1:3)
+                   rab_list(1:3,2) = 0.0_dp
+                   rab_list(1:3,3) = 0.0_dp
+                   rab_list(1:3,4) = rab_ss(1:3)+cell_v(1:3)
+                END IF
+                ! Compute the term only if all the pairs (cc,cs,sc,ss) are within the cut-off
+                Check_terms: DO i = 1,4
+                   rab2_list(i) = rab_list(1,i)**2+rab_list(2,i)**2+rab_list(3,i)**2
+                   IF (rab2_list(i) >= rab2_max) THEN
+                      all_terms = .FALSE.
+                      EXIT Check_terms
+                   END IF
+                END DO Check_terms
+                rab_com  = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
+             ELSE
+                rab_cc   = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
+                rab_com  = rab_cc
+             END IF
+             rab_com  = rab_com + cell_v
+             rab2_com = rab_com(1)**2 + rab_com(2)**2 + rab_com(3)**2
+             IF (do_shell) THEN
+                IF (rab2_com <= rab2_max .AND. all_terms) THEN
+                   ! SHELL MODEL
+                   ! core-core or core-ion/ion-core: Coulomb only
+                   rab = rab_list(:,1)
+                   rab2 = rab2_list(1)
+                   energy =  potential_s (c_spline_data,rab2,fscalar, spl_c, logger)
                    pot_nonbond = pot_nonbond + energy
                    fr(1) = fscalar*rab(1)
                    fr(2) = fscalar*rab(2)
                    fr(3) = fscalar*rab(3)
-                   fshell_nonbond(1,shell_a) = fshell_nonbond(1,shell_a) - fr(1)
-                   fshell_nonbond(2,shell_a) = fshell_nonbond(2,shell_a) - fr(2)
-                   fshell_nonbond(3,shell_a) = fshell_nonbond(3,shell_a) - fr(3)
-                   fshell_nonbond(1,shell_b) = fshell_nonbond(1,shell_b) + fr(1)
-                   fshell_nonbond(2,shell_b) = fshell_nonbond(2,shell_b) + fr(2)
-                   fshell_nonbond(3,shell_b) = fshell_nonbond(3,shell_b) + fr(3)
-                   pv_com(1,1) = pv_com(1,1) + rab(1) * fr(1)
-                   pv_com(1,2) = pv_com(1,2) + rab(1) * fr(2)
-                   pv_com(1,3) = pv_com(1,3) + rab(1) * fr(3)
-                   pv_com(2,1) = pv_com(2,1) + rab(2) * fr(1)
-                   pv_com(2,2) = pv_com(2,2) + rab(2) * fr(2)
-                   pv_com(2,3) = pv_com(2,3) + rab(2) * fr(3)
-                   pv_com(3,1) = pv_com(3,1) + rab(3) * fr(1)
-                   pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2)
-                   pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3)
-
-                   ! core-shell : Coulomb only
-                   rab = rab_list(:,2)
-                   rab2 = rab2_list(2)
-                   energy =  potential_s (cs_spline_data,rab2,fscalar,spl_cs,logger)
-                   pot_nonbond = pot_nonbond + energy
-                   fr(1) = fscalar*rab(1)
-                   fr(2) = fscalar*rab(2)
-                   fr(3) = fscalar*rab(3)
-                   fcore_nonbond(1,shell_a) = fcore_nonbond(1,shell_a) - fr(1)
-                   fcore_nonbond(2,shell_a) = fcore_nonbond(2,shell_a) - fr(2)
-                   fcore_nonbond(3,shell_a) = fcore_nonbond(3,shell_a) - fr(3)
-                   fshell_nonbond(1,shell_b) = fshell_nonbond(1,shell_b) + fr(1)
-                   fshell_nonbond(2,shell_b) = fshell_nonbond(2,shell_b) + fr(2)
-                   fshell_nonbond(3,shell_b) = fshell_nonbond(3,shell_b) + fr(3)
-                   pv_com(1,1) = pv_com(1,1) + rab(1) * fr(1)
-                   pv_com(1,2) = pv_com(1,2) + rab(1) * fr(2)
-                   pv_com(1,3) = pv_com(1,3) + rab(1) * fr(3)
-                   pv_com(2,1) = pv_com(2,1) + rab(2) * fr(1)
-                   pv_com(2,2) = pv_com(2,2) + rab(2) * fr(2)
-                   pv_com(2,3) = pv_com(2,3) + rab(2) * fr(3)
-                   pv_com(3,1) = pv_com(3,1) + rab(3) * fr(1)
-                   pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2)
-                   pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3)
-                   
-                   ! shell-core : Coulomb only
-                   rab = rab_list(:,3)
-                   rab2 = rab2_list(3)
-                   energy =  potential_s (sc_spline_data,rab2,fscalar,spl_sc,logger)
-                   pot_nonbond = pot_nonbond + energy
-                   fr(1) = fscalar*rab(1)
-                   fr(2) = fscalar*rab(2)
-                   fr(3) = fscalar*rab(3)
-                   fshell_nonbond(1,shell_a) = fshell_nonbond(1,shell_a) - fr(1)
-                   fshell_nonbond(2,shell_a) = fshell_nonbond(2,shell_a) - fr(2)
-                   fshell_nonbond(3,shell_a) = fshell_nonbond(3,shell_a) - fr(3)
-                   fcore_nonbond(1,shell_b) = fcore_nonbond(1,shell_b) + fr(1)
-                   fcore_nonbond(2,shell_b) = fcore_nonbond(2,shell_b) + fr(2)
-                   fcore_nonbond(3,shell_b) = fcore_nonbond(3,shell_b) + fr(3)
-                   pv_com(1,1) = pv_com(1,1) + rab(1) * fr(1)
-                   pv_com(1,2) = pv_com(1,2) + rab(1) * fr(2)
-                   pv_com(1,3) = pv_com(1,3) + rab(1) * fr(3)
-                   pv_com(2,1) = pv_com(2,1) + rab(2) * fr(1)
-                   pv_com(2,2) = pv_com(2,2) + rab(2) * fr(2)
-                   pv_com(2,3) = pv_com(2,3) + rab(2) * fr(3)
-                   pv_com(3,1) = pv_com(3,1) + rab(3) * fr(1)
-                   pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2)
-                   pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3)
-                ELSEIF(shell_type==nosh_sh) THEN
-                   ! shell-ion or ion-shell : VDW + Coulomb
-                   rab = rab_list(:,4)
-                   rab2 = rab2_list(4)
-                   energy =  potential_s (spline_data,rab2,fscalar,spl_f,logger)
-                   pot_nonbond = pot_nonbond + energy
-                   fr(1) = fscalar*rab(1)
-                   fr(2) = fscalar*rab(2)
-                   fr(3) = fscalar*rab(3)
-                   IF(shell_a/=0) THEN
-                      fshell_nonbond(1,shell_a) = fshell_nonbond(1,shell_a) - fr(1)
-                      fshell_nonbond(2,shell_a) = fshell_nonbond(2,shell_a) - fr(2)
-                      fshell_nonbond(3,shell_a) = fshell_nonbond(3,shell_a) - fr(3)
-                      f_nonbond(1,atom_b) = f_nonbond(1,atom_b) + fr(1)
-                      f_nonbond(2,atom_b) = f_nonbond(2,atom_b) + fr(2)
-                      f_nonbond(3,atom_b) = f_nonbond(3,atom_b) + fr(3)
+                   IF(shell_a /= 0 ) THEN
+                      fcore_nonbond(1,shell_a) = fcore_nonbond(1,shell_a) - fr(1)
+                      fcore_nonbond(2,shell_a) = fcore_nonbond(2,shell_a) - fr(2)
+                      fcore_nonbond(3,shell_a) = fcore_nonbond(3,shell_a) - fr(3)
                    ELSE
                       f_nonbond(1,atom_a) = f_nonbond(1,atom_a) - fr(1)
                       f_nonbond(2,atom_a) = f_nonbond(2,atom_a) - fr(2)
                       f_nonbond(3,atom_a) = f_nonbond(3,atom_a) - fr(3)
+                      CPPostcondition(shell_b/=0,cp_failure_level,routineP,error,failure)
+                   END IF
+                   
+                   IF(shell_b /= 0 ) THEN
+                      fcore_nonbond(1,shell_b) = fcore_nonbond(1,shell_b) + fr(1)
+                      fcore_nonbond(2,shell_b) = fcore_nonbond(2,shell_b) + fr(2)
+                      fcore_nonbond(3,shell_b) = fcore_nonbond(3,shell_b) + fr(3)
+                   ELSE
+                      f_nonbond(1,atom_b) = f_nonbond(1,atom_b) + fr(1)
+                      f_nonbond(2,atom_b) = f_nonbond(2,atom_b) + fr(2)
+                      f_nonbond(3,atom_b) = f_nonbond(3,atom_b) + fr(3)
+                      CPPostcondition(shell_a/=0,cp_failure_level,routineP,error,failure)
+                   END IF
+                   pv_com(1,1) = rab(1) * fr(1)
+                   pv_com(1,2) = rab(1) * fr(2)
+                   pv_com(1,3) = rab(1) * fr(3)
+                   pv_com(2,1) = rab(2) * fr(1)
+                   pv_com(2,2) = rab(2) * fr(2)
+                   pv_com(2,3) = rab(2) * fr(3)
+                   pv_com(3,1) = rab(3) * fr(1)
+                   pv_com(3,2) = rab(3) * fr(2)
+                   pv_com(3,3) = rab(3) * fr(3)
+          
+                   IF(shell_type==sh_sh) THEN
+                      ! shell-shell : VDW + Coulomb
+                      rab  = rab_list(:,4)
+                      rab2 = rab2_list(4)
+                      energy =  potential_s (spline_data,rab2,fscalar,spl_f,logger)
+                      pot_nonbond = pot_nonbond + energy
+                      fr(1) = fscalar*rab(1)
+                      fr(2) = fscalar*rab(2)
+                      fr(3) = fscalar*rab(3)
+                      fshell_nonbond(1,shell_a) = fshell_nonbond(1,shell_a) - fr(1)
+                      fshell_nonbond(2,shell_a) = fshell_nonbond(2,shell_a) - fr(2)
+                      fshell_nonbond(3,shell_a) = fshell_nonbond(3,shell_a) - fr(3)
                       fshell_nonbond(1,shell_b) = fshell_nonbond(1,shell_b) + fr(1)
                       fshell_nonbond(2,shell_b) = fshell_nonbond(2,shell_b) + fr(2)
                       fshell_nonbond(3,shell_b) = fshell_nonbond(3,shell_b) + fr(3)
+                      pv_com(1,1) = pv_com(1,1) + rab(1) * fr(1)
+                      pv_com(1,2) = pv_com(1,2) + rab(1) * fr(2)
+                      pv_com(1,3) = pv_com(1,3) + rab(1) * fr(3)
+                      pv_com(2,1) = pv_com(2,1) + rab(2) * fr(1)
+                      pv_com(2,2) = pv_com(2,2) + rab(2) * fr(2)
+                      pv_com(2,3) = pv_com(2,3) + rab(2) * fr(3)
+                      pv_com(3,1) = pv_com(3,1) + rab(3) * fr(1)
+                      pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2)
+                      pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3)
+          
+                      ! core-shell : Coulomb only
+                      rab  = rab_list(:,2)
+                      rab2 = rab2_list(2)
+                      energy =  potential_s (cs_spline_data,rab2,fscalar,spl_cs,logger)
+                      pot_nonbond = pot_nonbond + energy
+                      fr(1) = fscalar*rab(1)
+                      fr(2) = fscalar*rab(2)
+                      fr(3) = fscalar*rab(3)
+                      fcore_nonbond(1,shell_a) = fcore_nonbond(1,shell_a) - fr(1)
+                      fcore_nonbond(2,shell_a) = fcore_nonbond(2,shell_a) - fr(2)
+                      fcore_nonbond(3,shell_a) = fcore_nonbond(3,shell_a) - fr(3)
+                      fshell_nonbond(1,shell_b) = fshell_nonbond(1,shell_b) + fr(1)
+                      fshell_nonbond(2,shell_b) = fshell_nonbond(2,shell_b) + fr(2)
+                      fshell_nonbond(3,shell_b) = fshell_nonbond(3,shell_b) + fr(3)
+                      pv_com(1,1) = pv_com(1,1) + rab(1) * fr(1)
+                      pv_com(1,2) = pv_com(1,2) + rab(1) * fr(2)
+                      pv_com(1,3) = pv_com(1,3) + rab(1) * fr(3)
+                      pv_com(2,1) = pv_com(2,1) + rab(2) * fr(1)
+                      pv_com(2,2) = pv_com(2,2) + rab(2) * fr(2)
+                      pv_com(2,3) = pv_com(2,3) + rab(2) * fr(3)
+                      pv_com(3,1) = pv_com(3,1) + rab(3) * fr(1)
+                      pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2)
+                      pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3)
+                      
+                      ! shell-core : Coulomb only
+                      rab  = rab_list(:,3)
+                      rab2 = rab2_list(3)
+                      energy =  potential_s (sc_spline_data,rab2,fscalar,spl_sc,logger)
+                      pot_nonbond = pot_nonbond + energy
+                      fr(1) = fscalar*rab(1)
+                      fr(2) = fscalar*rab(2)
+                      fr(3) = fscalar*rab(3)
+                      fshell_nonbond(1,shell_a) = fshell_nonbond(1,shell_a) - fr(1)
+                      fshell_nonbond(2,shell_a) = fshell_nonbond(2,shell_a) - fr(2)
+                      fshell_nonbond(3,shell_a) = fshell_nonbond(3,shell_a) - fr(3)
+                      fcore_nonbond(1,shell_b) = fcore_nonbond(1,shell_b) + fr(1)
+                      fcore_nonbond(2,shell_b) = fcore_nonbond(2,shell_b) + fr(2)
+                      fcore_nonbond(3,shell_b) = fcore_nonbond(3,shell_b) + fr(3)
+                      pv_com(1,1) = pv_com(1,1) + rab(1) * fr(1)
+                      pv_com(1,2) = pv_com(1,2) + rab(1) * fr(2)
+                      pv_com(1,3) = pv_com(1,3) + rab(1) * fr(3)
+                      pv_com(2,1) = pv_com(2,1) + rab(2) * fr(1)
+                      pv_com(2,2) = pv_com(2,2) + rab(2) * fr(2)
+                      pv_com(2,3) = pv_com(2,3) + rab(2) * fr(3)
+                      pv_com(3,1) = pv_com(3,1) + rab(3) * fr(1)
+                      pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2)
+                      pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3)
+                   ELSEIF(shell_type==nosh_sh) THEN
+                      ! shell-ion or ion-shell : VDW + Coulomb
+                      rab = rab_list(:,4)
+                      rab2 = rab2_list(4)
+                      energy =  potential_s (spline_data,rab2,fscalar,spl_f,logger)
+                      pot_nonbond = pot_nonbond + energy
+                      fr(1) = fscalar*rab(1)
+                      fr(2) = fscalar*rab(2)
+                      fr(3) = fscalar*rab(3)
+                      IF(shell_a/=0) THEN
+                         fshell_nonbond(1,shell_a) = fshell_nonbond(1,shell_a) - fr(1)
+                         fshell_nonbond(2,shell_a) = fshell_nonbond(2,shell_a) - fr(2)
+                         fshell_nonbond(3,shell_a) = fshell_nonbond(3,shell_a) - fr(3)
+                         f_nonbond(1,atom_b) = f_nonbond(1,atom_b) + fr(1)
+                         f_nonbond(2,atom_b) = f_nonbond(2,atom_b) + fr(2)
+                         f_nonbond(3,atom_b) = f_nonbond(3,atom_b) + fr(3)
+                      ELSE
+                         f_nonbond(1,atom_a) = f_nonbond(1,atom_a) - fr(1)
+                         f_nonbond(2,atom_a) = f_nonbond(2,atom_a) - fr(2)
+                         f_nonbond(3,atom_a) = f_nonbond(3,atom_a) - fr(3)
+                         fshell_nonbond(1,shell_b) = fshell_nonbond(1,shell_b) + fr(1)
+                         fshell_nonbond(2,shell_b) = fshell_nonbond(2,shell_b) + fr(2)
+                         fshell_nonbond(3,shell_b) = fshell_nonbond(3,shell_b) + fr(3)
+                      END IF
+                      pv_com(1,1) = pv_com(1,1) + rab(1) * fr(1)
+                      pv_com(1,2) = pv_com(1,2) + rab(1) * fr(2)
+                      pv_com(1,3) = pv_com(1,3) + rab(1) * fr(3)
+                      pv_com(2,1) = pv_com(2,1) + rab(2) * fr(1)
+                      pv_com(2,2) = pv_com(2,2) + rab(2) * fr(2)
+                      pv_com(2,3) = pv_com(2,3) + rab(2) * fr(3)
+                      pv_com(3,1) = pv_com(3,1) + rab(3) * fr(1)
+                      pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2)
+                      pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3)
                    END IF
-                   pv_com(1,1) = pv_com(1,1) + rab(1) * fr(1)
-                   pv_com(1,2) = pv_com(1,2) + rab(1) * fr(2)
-                   pv_com(1,3) = pv_com(1,3) + rab(1) * fr(3)
-                   pv_com(2,1) = pv_com(2,1) + rab(2) * fr(1)
-                   pv_com(2,2) = pv_com(2,2) + rab(2) * fr(2)
-                   pv_com(2,3) = pv_com(2,3) + rab(2) * fr(3)
-                   pv_com(3,1) = pv_com(3,1) + rab(3) * fr(1)
-                   pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2)
-                   pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3)
-                END IF
-                ptens11 = ptens11 + pv_com(1,1)
-                ptens21 = ptens21 + pv_com(2,1)
-                ptens31 = ptens31 + pv_com(3,1)
-                ptens12 = ptens12 + pv_com(1,2)
-                ptens22 = ptens22 + pv_com(2,2)
-                ptens32 = ptens32 + pv_com(3,2)
-                ptens13 = ptens13 + pv_com(1,3)
-                ptens23 = ptens23 + pv_com(2,3)
-                ptens33 = ptens33 + pv_com(3,3)
-                ! Let's restore the proper order to save time...
-                IF (swap_ab) THEN
-                   cs_spline_data => pot%cs_coul_spline_data
-                   sc_spline_data => pot%sc_coul_spline_data
-                   spl_cs         => pot%spl_cs
-                   spl_sc         => pot%spl_sc
+                   ptens11 = ptens11 + pv_com(1,1)
+                   ptens21 = ptens21 + pv_com(2,1)
+                   ptens31 = ptens31 + pv_com(3,1)
+                   ptens12 = ptens12 + pv_com(1,2)
+                   ptens22 = ptens22 + pv_com(2,2)
+                   ptens32 = ptens32 + pv_com(3,2)
+                   ptens13 = ptens13 + pv_com(1,3)
+                   ptens23 = ptens23 + pv_com(2,3)
+                   ptens33 = ptens33 + pv_com(3,3)
+                   ! Let's restore the proper order to save time...
+                   IF (swap_ab) THEN
+                      cs_spline_data => pot%cs_coul_spline_data
+                      sc_spline_data => pot%sc_coul_spline_data
+                      spl_cs         => pot%spl_cs
+                      spl_sc         => pot%spl_sc
+                   END IF
+                ELSE
+                   IF (swap_ab) THEN
+                      cs_spline_data => pot%cs_coul_spline_data
+                      sc_spline_data => pot%sc_coul_spline_data
+                      spl_cs         => pot%spl_cs
+                      spl_sc         => pot%spl_sc
+                   END IF
                 END IF
              ELSE
-                ! NO SHELL MODEL...
-                ! Ion-Ion : no shell model
-                rab  = rab_com
-                rab2 = rab2_com
-                energy =  potential_s(c_spline_data,rab2,fscalar,spl_c,logger)
-                pot_nonbond = pot_nonbond + energy
-                fr(1) = fscalar*rab(1)
-                fr(2) = fscalar*rab(2)
-                fr(3) = fscalar*rab(3)
-                f_nonbond(1,atom_a) = f_nonbond(1,atom_a) - fr(1)
-                f_nonbond(2,atom_a) = f_nonbond(2,atom_a) - fr(2)
-                f_nonbond(3,atom_a) = f_nonbond(3,atom_a) - fr(3)
-                f_nonbond(1,atom_b) = f_nonbond(1,atom_b) + fr(1)
-                f_nonbond(2,atom_b) = f_nonbond(2,atom_b) + fr(2)
-                f_nonbond(3,atom_b) = f_nonbond(3,atom_b) + fr(3)
-                ptens11 = ptens11 + rab(1) * fr(1)
-                ptens21 = ptens21 + rab(2) * fr(1)
-                ptens31 = ptens31 + rab(3) * fr(1)
-                ptens12 = ptens12 + rab(1) * fr(2)
-                ptens22 = ptens22 + rab(2) * fr(2)
-                ptens32 = ptens32 + rab(3) * fr(2)
-                ptens13 = ptens13 + rab(1) * fr(3)
-                ptens23 = ptens23 + rab(2) * fr(3)
-                ptens33 = ptens33 + rab(3) * fr(3)
+                IF (rab2_com <= rab2_max .AND. all_terms) THEN
+                   ! NO SHELL MODEL...
+                   ! Ion-Ion : no shell model
+                   rab  = rab_com
+                   rab2 = rab2_com
+                   energy =  potential_s(c_spline_data,rab2,fscalar,spl_c,logger)
+                   pot_nonbond = pot_nonbond + energy
+                   fr(1) = fscalar*rab(1)
+                   fr(2) = fscalar*rab(2)
+                   fr(3) = fscalar*rab(3)
+                   f_nonbond(1,atom_a) = f_nonbond(1,atom_a) - fr(1)
+                   f_nonbond(2,atom_a) = f_nonbond(2,atom_a) - fr(2)
+                   f_nonbond(3,atom_a) = f_nonbond(3,atom_a) - fr(3)
+                   f_nonbond(1,atom_b) = f_nonbond(1,atom_b) + fr(1)
+                   f_nonbond(2,atom_b) = f_nonbond(2,atom_b) + fr(2)
+                   f_nonbond(3,atom_b) = f_nonbond(3,atom_b) + fr(3)
+                   ptens11 = ptens11 + rab(1) * fr(1)
+                   ptens21 = ptens21 + rab(2) * fr(1)
+                   ptens31 = ptens31 + rab(3) * fr(1)
+                   ptens12 = ptens12 + rab(1) * fr(2)
+                   ptens22 = ptens22 + rab(2) * fr(2)
+                   ptens32 = ptens32 + rab(3) * fr(2)
+                   ptens13 = ptens13 + rab(1) * fr(3)
+                   ptens23 = ptens23 + rab(2) * fr(3)
+                   ptens33 = ptens33 + rab(3) * fr(3)
+                END IF
              END IF
-          END IF 
-       END DO Pairs
+          END DO Pairs
+       END DO Kind_Group_Loop
     END DO Lists
     ptens_nonbond(1,1) = ptens_nonbond(1,1) + ptens11
     ptens_nonbond(1,2) = ptens_nonbond(1,2) + ptens12

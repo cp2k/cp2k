@@ -51,6 +51,7 @@ MODULE fist_neighbor_lists
                                              dp,&
                                              int_size
   USE mathlib,                         ONLY: matvec_3x3
+  USE memory_utilities,                ONLY: reallocate
   USE pair_potential_types,            ONLY: tersoff_type
   USE particle_types,                  ONLY: particle_type
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
@@ -204,11 +205,14 @@ CONTAINS
 
        END IF
     END DO
-    ! Build the nonbonded neighbor lists
 
+    ! Build the nonbonded neighbor lists
     CALL build_neighbor_lists(nonbonded,particle_set,atom,cell,maxatom_local,&
          print_subcell_grid,output_unit,r_max,r_minsq, build_from_scratch,&
          geo_check,"NONBONDED",skip_kind,my_pot_type,error)
+
+    ! Sort the list according kinds for each cell
+    CALL sort_neighbor_lists(nonbonded, nkind, error)
 
     print_key_path = "MM%PRINT%NEIGHBOR_LISTS"
 
@@ -315,9 +319,10 @@ CONTAINS
     CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER :: a_i, a_j, a_k, atom_a, atom_b, b_i, b_j, b_k, b_pi, b_pj, &
       b_pk, bg_i, bg_j, bg_k, handle, i, i1, iab, iatom_local, icell, &
-      icellmap, ii, ii_start, ij, ij_start, ik, ik_start, ikind, imap, &
-      imax_cell, iw, ix, j, j1, jatom_local, jcell, jkind, jx, k, kcell, kx, &
-      natom_local_a, ncellmax, nkind, nkind00, stat, tmpdim, xdim, ydim, zdim
+      icellmap, id_kind, ii, ii_start, ij, ij_start, ik, ik_start, ikind, &
+      imap, imax_cell, iw, ix, j, j1, jatom_local, jcell, jkind, jx, k, &
+      kcell, kx, natom_local_a, ncellmax, nkind, nkind00, stat, tmpdim, xdim, &
+      ydim, zdim
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: work
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cellmap
     INTEGER, DIMENSION(3)                    :: isubcell, ncell, nsubcell, &
@@ -378,7 +383,7 @@ CONTAINS
           isubcell=MAX(isubcell(:),(INT(sab_max(:)*REAL(nsubcell(:),KIND=dp)+0.5_dp)+1))
        END DO
     END DO
-    CALL fist_neighbor_init(nonbonded, nkind, ncell, error)
+    CALL fist_neighbor_init(nonbonded, ncell, error)
     ! Print headline
     IF (print_subcell_grid) THEN
        WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/)")&
@@ -404,23 +409,13 @@ CONTAINS
                 IF (cellmap(icell,jcell,kcell)==-1) THEN
                    imap=imap+1
                    cellmap(icell,jcell,kcell)=imap
-                   ! Store info on the kinds indexes in the neighbor kind type
-                   DO jkind = 1, nkind
-                      DO ikind = jkind, nkind
-                         IF (skip_kind(ikind).AND.skip_kind(jkind)) CYCLE
-                         j1  = nkind-jkind+1
-                         iab = nkind00-j1*(j1+1)/2+(ikind-jkind+1)+imap*nkind00
-                         CPPostcondition(iab<=nonbonded%nlists,cp_failure_level,routineP,error,failure)
-                         neighbor_kind_pair => nonbonded%neighbor_kind_pairs(iab)
+                   iab = imap+1
+                   CPPostcondition(iab<=nonbonded%nlists,cp_failure_level,routineP,error,failure)
+                   neighbor_kind_pair => nonbonded%neighbor_kind_pairs(iab)
 
-                         neighbor_kind_pair%ikind = ikind ! Up  index
-                         neighbor_kind_pair%jkind = jkind ! Low index
-                         neighbor_kind_pair%cell_vector(1) = icell
-                         neighbor_kind_pair%cell_vector(2) = jcell
-                         neighbor_kind_pair%cell_vector(3) = kcell
-                      END DO
-                   END DO
-                   !
+                   neighbor_kind_pair%cell_vector(1) = icell
+                   neighbor_kind_pair%cell_vector(2) = jcell
+                   neighbor_kind_pair%cell_vector(3) = kcell
                 ENDIF
              ENDDO
           ENDDO
@@ -614,14 +609,15 @@ CONTAINS
                 IF (rab2 < rab2_max) THEN
                    ! Diagonal storage
                    j1  = MIN(ikind,jkind)
-                   i1  = MAX(ikind,jkind)-j1
+                   i1  = MAX(ikind,jkind)-j1+1
                    j1  = nkind - j1 + 1
-                   iab = nkind00-j1*(j1+1)/2+(i1+1)+icellmap*nkind00
+                   id_kind = nkind00-(j1*(j1+1)/2)+i1
+                   iab     = icellmap+1
                    neighbor_kind_pair => nonbonded%neighbor_kind_pairs(iab)
                    ! Store the pair
                    CALL fist_neighbor_add(neighbor_kind_pair, atom_a, atom_b,&
                         exclusion_list = particle_set(atom_a)%list_exclude_vdw,&
-                        particle_set=particle_set, rab=rab, added=added,&
+                        particle_set=particle_set, rab=rab, added=added, id_kind=id_kind,&
                         is_tersoff_pot=is_tersoff_pot,cell=cell,error=error)
                    ! Check for too close hits
                    IF (added) THEN
@@ -843,5 +839,139 @@ CONTAINS
     IF (output_unit > 0) WRITE (UNIT=output_unit,FMT="(/,T2,A)") TRIM(string)
 
   END SUBROUTINE write_neighbor_lists
+
+!!****f* fist_neighbor_lists/sort_neighbor_lists [1.0] *
+!!
+!!   NAME
+!!     sort_neighbor_lists
+!!
+!!   FUNCTION
+!!     Sort the generated neighbor list according the kind
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Teodoro Laino - University of Zurich
+!!
+!!   MODIFICATION HISTORY
+!!     09.2007 created [tlaino] University of Zurich - Reducing memory usage 
+!!             for the FIST neighbor lists
+!!
+!!*** **********************************************************************
+  SUBROUTINE sort_neighbor_lists(nonbonded, nkinds, error)
+
+    TYPE(fist_neighbor_type), POINTER        :: nonbonded
+    INTEGER, INTENT(IN)                      :: nkinds
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'sort_neighbor_lists', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, iab, id_kind, ikind, &
+                                                ipair, jkind, max_alloc_size, &
+                                                npairs, stat, tmp
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: indj
+    INTEGER, DIMENSION(:), POINTER           :: work
+    INTEGER, DIMENSION(:, :), POINTER        :: ab_work
+    LOGICAL                                  :: failure
+    TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
+
+    failure = .FALSE.
+    NULLIFY(neighbor_kind_pair)
+    CALL timeset(routineN,"I","",handle)
+    max_alloc_size = nkinds*(nkinds+1)/2
+    ALLOCATE(indj(max_alloc_size),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    id_kind = 0
+    Ext_Loop: DO jkind = 1, nkinds
+       DO ikind = jkind, nkinds
+          id_kind = id_kind + 1
+          indj(id_kind)=jkind
+       END DO
+    END DO Ext_Loop
+    DO iab=1, nonbonded%nlists
+       neighbor_kind_pair => nonbonded%neighbor_kind_pairs(iab)
+       npairs = neighbor_kind_pair%npairs
+       IF (npairs/=0) THEN 
+          ALLOCATE(work(1:npairs),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(ab_work(2,1:npairs),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DO ipair = 1, npairs
+             ab_work(1,ipair) = neighbor_kind_pair%list(1,ipair)
+             ab_work(2,ipair) = neighbor_kind_pair%list(2,ipair)
+          END DO
+          CALL sort(neighbor_kind_pair%id_kind,npairs,work)
+          ! Remap atoms
+          DO ipair = 1, npairs
+             tmp = work(ipair)
+             neighbor_kind_pair%list(1,ipair) = ab_work(1,tmp)
+             neighbor_kind_pair%list(2,ipair) = ab_work(2,tmp)
+          END DO
+          DEALLOCATE(work,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(ab_work,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          IF (ASSOCIATED(neighbor_kind_pair%grp_kind_start)) THEN
+             DEALLOCATE(neighbor_kind_pair%grp_kind_start,stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          ALLOCATE(neighbor_kind_pair%grp_kind_start(max_alloc_size),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          IF (ASSOCIATED(neighbor_kind_pair%grp_kind_end)) THEN
+             DEALLOCATE(neighbor_kind_pair%grp_kind_end,stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          ALLOCATE(neighbor_kind_pair%grp_kind_end(max_alloc_size),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          IF (ASSOCIATED(neighbor_kind_pair%ij_kind)) THEN
+             DEALLOCATE(neighbor_kind_pair%ij_kind,stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          ALLOCATE(neighbor_kind_pair%ij_kind(2,max_alloc_size),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ipair = 1 
+          neighbor_kind_pair%ngrp_kind = 1
+          neighbor_kind_pair%grp_kind_start(neighbor_kind_pair%ngrp_kind)=ipair
+          jkind = indj(neighbor_kind_pair%id_kind(ipair))
+          tmp   = nkinds - jkind
+          ikind = nkinds + neighbor_kind_pair%id_kind(ipair) - max_alloc_size +&
+               (tmp*(tmp+1)/2)
+          neighbor_kind_pair%ij_kind(1,neighbor_kind_pair%ngrp_kind) = ikind
+          neighbor_kind_pair%ij_kind(2,neighbor_kind_pair%ngrp_kind) = jkind
+          ! Define groups
+          DO ipair = 2, npairs
+             IF (neighbor_kind_pair%id_kind(ipair)/=neighbor_kind_pair%id_kind(ipair-1)) THEN
+                neighbor_kind_pair%grp_kind_end(neighbor_kind_pair%ngrp_kind) = ipair-1
+                neighbor_kind_pair%ngrp_kind = neighbor_kind_pair%ngrp_kind + 1
+                neighbor_kind_pair%grp_kind_start(neighbor_kind_pair%ngrp_kind)=ipair
+                ! 
+                jkind = indj(neighbor_kind_pair%id_kind(ipair))
+                tmp   = nkinds - jkind
+                ikind = nkinds + neighbor_kind_pair%id_kind(ipair) - max_alloc_size +&
+                     (tmp*(tmp+1)/2)
+                neighbor_kind_pair%ij_kind(1,neighbor_kind_pair%ngrp_kind) = ikind
+                neighbor_kind_pair%ij_kind(2,neighbor_kind_pair%ngrp_kind) = jkind
+             END IF
+          END DO
+          neighbor_kind_pair%grp_kind_end(neighbor_kind_pair%ngrp_kind) = npairs
+          ! Get the real size..
+          CALL reallocate(neighbor_kind_pair%grp_kind_start,1,neighbor_kind_pair%ngrp_kind)
+          CALL reallocate(neighbor_kind_pair%grp_kind_end,  1,neighbor_kind_pair%ngrp_kind)
+          CALL reallocate(neighbor_kind_pair%ij_kind,   1,2,1,neighbor_kind_pair%ngrp_kind)
+       END IF
+       ! Clean the memory..
+       DEALLOCATE(neighbor_kind_pair%id_kind,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END DO
+    DEALLOCATE(indj,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL timestop(0.0_dp,handle)
+  END SUBROUTINE sort_neighbor_lists
 
 END MODULE fist_neighbor_lists
