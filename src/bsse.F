@@ -517,7 +517,17 @@ CONTAINS
        IF (explicit) THEN
           DO i=1, nconf
              CALL section_vals_val_get(configurations,"GLB_CONF", i_rep_section=i, i_vals=glb_conf, error=error)
+             CALL cp_assert(SIZE(glb_conf)==SIZE(conf),cp_fatal_level,cp_assertion_failed,routineP,&
+                  "GLB_CONF requires a binary description of the configuration. Number of integer "//&
+                  "different from the number of fragments defined!"//&
+CPSourceFileRef,&
+                  only_ionode=.TRUE.)
              CALL section_vals_val_get(configurations,"SUB_CONF", i_rep_section=i, i_vals=sub_conf, error=error)
+             CALL cp_assert(SIZE(sub_conf)==SIZE(conf),cp_fatal_level,cp_assertion_failed,routineP,&
+                  "SUB_CONF requires a binary description of the configuration. Number of integer "//&
+                  "different from the number of fragments defined!"//&
+CPSourceFileRef,&
+                  only_ionode=.TRUE.)
              WRITE (glb_conf_s,*)glb_conf ; CALL compress(glb_conf_s,full=.TRUE.)
              WRITE (sub_conf_s,*)sub_conf ; CALL compress(sub_conf_s,full=.TRUE.)
              IF ((conf_s==glb_conf_s).AND.(conf_loc_s==sub_conf_s)) THEN
