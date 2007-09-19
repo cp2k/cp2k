@@ -44,7 +44,8 @@ MODULE bsse
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_val_get,&
+                                             section_vals_val_set
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
@@ -249,7 +250,7 @@ CONTAINS
 !!
 !!*** ********************************************************************** 
   SUBROUTINE eval_bsse_energy_low(force_env, force_env_loc, conf, conf_loc, n_frags, &
-       root_section,globenv, energy, error)
+       root_section, globenv, energy, error)
     TYPE(force_env_type), POINTER            :: force_env, force_env_loc
     INTEGER, DIMENSION(:), INTENT(IN)        :: conf, conf_loc
     TYPE(section_vals_type), POINTER         :: n_frags, root_section
@@ -263,10 +264,8 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: name
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: atom_type
-    INTEGER                                  :: i, isize, j, jj, k, &
-                                                method_name_id, my_targ, &
-                                                n_rep, num_of_frag, old_size, &
-                                                stat
+    INTEGER :: i, isize, j, jj, k, method_name_id, my_targ, n_rep, &
+      num_of_frag, old_size, present_charge, present_multpl, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_index, atom_list, &
                                                 my_conf, subsys_index, tmplist
     LOGICAL                                  :: failure
@@ -276,7 +275,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: subsys
     TYPE(cp_subsystem_type), POINTER         :: subsys_loc
     TYPE(particle_list_type), POINTER        :: particles
-    TYPE(section_vals_type), POINTER         :: bsse_section, &
+    TYPE(section_vals_type), POINTER         :: bsse_section, dft_section, &
                                                 force_env_section, &
                                                 subsys_section
 
@@ -289,6 +288,7 @@ CONTAINS
     CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
     bsse_section   => section_vals_get_subs_vals(force_env_section,"BSSE",error=error)
     subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
+    dft_section    => section_vals_get_subs_vals(force_env_section,"DFT",error=error)
     IF (.NOT.failure) THEN
        ALLOCATE(my_conf(SIZE(conf)), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -327,6 +327,8 @@ CONTAINS
              CPPostcondition(conf(i)/=0,cp_failure_level,routineP,error,failure)
           END IF
        END DO
+       CALL conf_info_setup(present_charge, present_multpl, conf, conf_loc, bsse_section,&
+            dft_section, error)
        !
        ! Get names and modify the ghost ones
        !
@@ -350,7 +352,8 @@ CONTAINS
              END DO
           END IF
        END DO
-       CALL dump_bsse_info(atom_index, atom_type, conf, conf_loc, bsse_section, error)
+       CALL dump_bsse_info(atom_index, atom_type, conf, conf_loc, bsse_section,&
+                           present_charge, present_multpl,  error)
        !
        ! Let's start setting up environments and calculations
        !
@@ -413,12 +416,14 @@ CONTAINS
 !!     07.2005 created [tlaino]
 !!
 !!*** ********************************************************************** 
-  SUBROUTINE  dump_bsse_info(atom_index, atom_type, conf, conf_loc, bsse_section, error)
+  SUBROUTINE  dump_bsse_info(atom_index, atom_type, conf, conf_loc, bsse_section, &
+                             present_charge, present_multpl, error)
     INTEGER, DIMENSION(:), POINTER           :: atom_index
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: atom_type
     INTEGER, DIMENSION(:), INTENT(IN)        :: conf, conf_loc
     TYPE(section_vals_type), POINTER         :: bsse_section
+    INTEGER, INTENT(IN)                      :: present_charge, present_multpl
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_bsse_info', &
@@ -443,6 +448,8 @@ CONTAINS
           WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
           WRITE (UNIT=iw,FMT="(T2,A,T5,A,T30,A,T55,A,T80,A)")&
                "-","BSSE CALCULATION","FRAGMENT CONF: "//TRIM(conf_s),"FRAGMENT SUBCONF: "//TRIM(conf_loc_s),"-"
+          WRITE (UNIT=iw,FMT="(T2,A,T30,A,I6,T55,A,I6,T80,A)") "-","CHARGE =",present_charge,"MULTIPLICITY =",&
+                                                         present_multpl,"-"
           WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
           WRITE (UNIT=iw,FMT="(T2,A,T20,A,T60,A,T80,A)") "-","ATOM INDEX","ATOM NAME","-"
           WRITE (UNIT=iw,FMT="(T2,A,T20,A,T60,A,T80,A)") "-","----------","---------","-"
@@ -458,6 +465,98 @@ CONTAINS
     END IF
   END SUBROUTINE dump_bsse_info
 
+!!****f* bsse/conf_info_setup [1.0] *
+!!
+!!   NAME
+!!     conf_info_setup
+!!
+!!   FUNCTION
+!!     Read modified parameters for configurations
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino - University of Zurich
+!!
+!!   MODIFICATION HISTORY
+!!     09.2007 created [tlaino]
+!!
+!!*** ********************************************************************** 
+  SUBROUTINE  conf_info_setup(present_charge, present_multpl, conf, conf_loc,&
+       bsse_section, dft_section, error)
+    INTEGER, INTENT(OUT)                     :: present_charge, present_multpl
+    INTEGER, DIMENSION(:), INTENT(IN)        :: conf, conf_loc
+    TYPE(section_vals_type), POINTER         :: bsse_section, dft_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'conf_info_setup', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=default_string_length)     :: conf_loc_s, conf_s, &
+                                                glb_conf_s, sub_conf_s
+    INTEGER                                  :: i, nconf
+    INTEGER, DIMENSION(:), POINTER           :: glb_conf, sub_conf
+    LOGICAL                                  :: explicit, failure
+    TYPE(section_vals_type), POINTER         :: configurations
+
+    present_charge = 0
+    present_multpl = 0
+    failure = .FALSE.
+    NULLIFY(configurations, glb_conf, sub_conf)
+    IF (.NOT.failure) THEN
+       WRITE (conf_s,*)conf ;         CALL compress(conf_s,full=.TRUE.)
+       WRITE (conf_loc_s,*)conf_loc ; CALL compress(conf_loc_s,full=.TRUE.)
+       ! Loop over all configurations to pick up the right one
+       configurations => section_vals_get_subs_vals(bsse_section,"CONFIGURATION",error=error)
+       CALL section_vals_get(configurations,explicit=explicit,n_repetition=nconf,error=error)
+       IF (explicit) THEN
+          DO i=1, nconf
+             CALL section_vals_val_get(configurations,"GLB_CONF", i_rep_section=i, i_vals=glb_conf, error=error)
+             CALL section_vals_val_get(configurations,"SUB_CONF", i_rep_section=i, i_vals=sub_conf, error=error)
+             WRITE (glb_conf_s,*)glb_conf ; CALL compress(glb_conf_s,full=.TRUE.)
+             WRITE (sub_conf_s,*)sub_conf ; CALL compress(sub_conf_s,full=.TRUE.)
+             IF ((conf_s==glb_conf_s).AND.(conf_loc_s==sub_conf_s)) THEN
+                CALL section_vals_val_get(configurations,"CHARGE", i_rep_section=i,&
+                                          i_val=present_charge, error=error)
+                CALL section_vals_val_get(configurations,"MULTIPLICITY", i_rep_section=i,&
+                                          i_val=present_multpl, error=error)
+             END IF
+          END DO
+       END IF
+       ! Setup parameter for this configuration
+       CALL section_vals_val_set(dft_section,"CHARGE",i_val=present_charge, error=error)
+       CALL section_vals_val_set(dft_section,"MULTIPLICITY",i_val=present_multpl, error=error)
+    END IF
+  END SUBROUTINE conf_info_setup
+
+
+!!****f* bsse/dump_bsse_results [1.0] *
+!!
+!!   NAME
+!!     dump_bsse_results
+!!
+!!   FUNCTION
+!!     Dumps results
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino - University of Zurich
+!!
+!!   MODIFICATION HISTORY
+!!     09.2007 created [tlaino]
+!!
+!!*** ********************************************************************** 
   SUBROUTINE  dump_bsse_results(conf, Em,  num_of_frag, bsse_section, error)
     INTEGER, DIMENSION(:, :), INTENT(IN)     :: conf
     REAL(KIND=dp), DIMENSION(:), POINTER     :: Em

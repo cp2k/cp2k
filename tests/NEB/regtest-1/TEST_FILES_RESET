@@ -14,3 +14,5 @@
 2gly_B-NEB.inp
 2gly_IT-NEB.inp
 2gly_CI-NEB.inp
+# reset due to the new neighbor list for FIST. Numerics.
+2gly_B-NEB.inp

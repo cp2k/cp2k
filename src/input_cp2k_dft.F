@@ -24,9 +24,10 @@
 !****************************************************************************
 MODULE input_cp2k_dft
   USE bibliography,                    ONLY: &
-       Avezac2005, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Krack2002, &
-       Lippert1997, Lippert1999, Perdew1981, VandeVondele2003, &
-       VandeVondele2005a, VandeVondele2005b, Porezag1995, Seifert1996, Elstner1998, Zhechkov2005
+       Avezac2005, Elstner1998, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, &
+       Krack2002, Lippert1997, Lippert1999, Perdew1981, Porezag1995, &
+       Seifert1996, VandeVondele2003, VandeVondele2005a, VandeVondele2005b, &
+       Zhechkov2005
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants
@@ -3844,12 +3845,12 @@ CONTAINS
             error=error)
 
        NULLIFY(keyword, subsection)
+       ! FRAGMENT SECTION
        CALL section_create(subsection,name="FRAGMENT",&
             description="Specify the atom number belonging to this fragment.",&
             n_keywords=2, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
-       ! Integer
        CALL keyword_create(keyword, name="LIST",&
             description="Specifies a list of atoms.",&
             usage="LIST {integer} {integer} .. {integer}", required=.FALSE.,&
@@ -3863,9 +3864,50 @@ CONTAINS
             n_var=2, type_of_var=integer_t, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
+
+       ! CONFIGURATION SECTION
+       CALL section_create(subsection,name="CONFIGURATION",&
+            description="Specify additional parameters for the combinatorial configurations.",&
+            n_keywords=2, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="GLB_CONF",&
+            description="Specifies the global configuration using 1 or 0.",&
+            usage="GLB_CONF {integer} {integer} .. {integer}", required=.TRUE.,&
+            n_var=-1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="SUB_CONF",&
+            description="Specifies the subconfiguration using 1 or 0 belonging to the global configuration.",&
+            usage="SUB_CONF {integer} {integer} .. {integer}", required=.TRUE.,&
+            n_var=-1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       CALL keyword_create(keyword=keyword,&
+            name="MULTIPLICITY",&
+            variants=(/"MULTIP"/),&
+            description="Specify for each fragment the multiplicity. Two times the total spin plus one. "//&
+            "Specify 3 for a triplet, 4 for a quartet,and so on. Default is 1 (singlet) for an "//&
+            "even number and 2 (doublet) for an odd number of electrons.",&
+            usage="MULTIPLICITY 3",&
+            default_i_val=0,& ! this default value is just a flag to get the above
+            error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CHARGE",&
+            description="The total charge for each fragment.",&
+            usage="CHARGE -1",&
+            default_i_val=0,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
 
        CALL create_print_bsse_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
