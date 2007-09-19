@@ -3180,7 +3180,15 @@ CONTAINS
        CALL keyword_create(keyword, name="SCREEN_ON_INITIAL_P",&
             description="Screen on an initial density matrix. For the first MD step"//&
                         " this matrix must be provided by a Restart File.",&
-            usage="SCREEN_ON_INITIAL_P = TRUE", default_l_val=.FALSE.,error=error)
+            usage="SCREEN_ON_INITIAL_P  TRUE", default_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="P_SCREEN_CORRECTION_FACTOR",&
+            description="Recalculates integrals on the fly if the actual density matrix is"//&
+                        " smaller by a given factor than the initial one. If the factor is set"//&
+                        " to 0.0_dp, this feature is enabled.",&
+            usage="P_SCREEN_CORRECTION_FACTOR  10.0_dp", default_r_val=0.0_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

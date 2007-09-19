@@ -86,7 +86,7 @@ MODULE four_center_integrals
   TYPE(lib_deriv), SAVE    :: deriv
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'four_center_integrals'
   REAL(KIND=dp), PARAMETER :: epsilon = 0.00001_dp
-   INTEGER :: iteration_count = 0
+
 
 !***
 !****************************************************************************
@@ -1778,19 +1778,18 @@ MODULE four_center_integrals
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb, &
                                                 first_sgfc, first_sgfd, &
                                                 is_assoc_atomic_block
-    LOGICAL                                  :: buffer_overflow, &
-                                                do_p_screening, failure, &
-                                                first_j_loop, first_k_loop, &
-                                                first_l_loop
-    REAL(dp) :: box_size(3), ene_x_aa, ene_x_bb, eps_schwarz, fac, &
-      hf_fraction, K, Kbox, max_val1, max_val2, memory_usage, omega_box, &
+    LOGICAL :: buffer_overflow, do_correct_p_screening, do_p_screening, &
+      failure, first_j_loop, first_k_loop, first_l_loop
+    REAL(dp) :: actual_pmax_entry, box_size(3), ene_x_aa, ene_x_bb, &
+      eps_schwarz, fac, hf_fraction, K, Kbox, max_val1, max_val2, &
+      memory_usage, omega_box, p_screening_correction_factor, pmax_entry, &
       ra(3), rb(3), Rbox, rc(3), rd(3), screen_max, symm_fac, tmp
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: primitive_integrals, T1
     REAL(dp), DIMENSION(:, :), POINTER       :: full_ks, full_ks_beta, &
                                                 screen_atom, sphi_a, sphi_b, &
                                                 sphi_c, sphi_d, zeta, zetb, &
                                                 zetc, zetd
-    REAL(dp), DIMENSION(:, :, :, :), POINTER :: screen_set
+    REAL(dp), DIMENSION(:, :, :, :), POINTER :: actual_pmax_set, screen_set
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: full_density, &
                                                 full_density_beta, &
                                                 sparse_block, &
@@ -1866,22 +1865,37 @@ MODULE four_center_integrals
       CALL symmetrize_matrix(full_density_beta,"upper_to_lower")
       CALL mp_sum(full_density_beta,para_env%group)
     END IF
-
+     
     CALL timestop(handle_getP)
 
     CALL section_vals_val_get(hf_section,"SCREEN_ON_INITIAL_P",l_val=do_p_screening,error=error)
+    CALL section_vals_val_get(hf_section,"P_SCREEN_CORRECTION_FACTOR",r_val=p_screening_correction_factor,error=error)
+    do_correct_p_screening = .FALSE.
+    IF( p_screening_correction_factor /= 0.0_dp) THEN
+      do_correct_p_screening = .TRUE.
+    END IF  
     IF( do_p_screening) THEN
+      pmax_entry = 0.0_dp
+      actual_pmax_entry = 0.0_dp
+      ALLOCATE(actual_pmax_set(max_set,max_set,natom,natom), STAT=stat)
+      actual_pmax_set = 0.0_dp
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CALL update_pmax_matrix(actual_pmax_set, full_density, full_density_beta, &
+                              particle_set,atomic_kind_set,error)
       IF(geometry_did_change ) THEN
+        qs_env%x_data%initial_p = 0.0_dp
         CALL update_pmax_matrix(qs_env%x_data%initial_p, &
                     full_density,full_density_beta,&
                     particle_set,atomic_kind_set,error)
       END IF
     END IF
-
-    ALLOCATE(full_ks(SIZE(full_density,1),SIZE(full_density,2)))
+    
+    ALLOCATE(full_ks(SIZE(full_density,1),SIZE(full_density,2)),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     full_ks = 0.0_dp
     IF(nspins==2) THEN
-      ALLOCATE(full_ks_beta(SIZE(full_density,1),SIZE(full_density,2)))
+      ALLOCATE(full_ks_beta(SIZE(full_density,1),SIZE(full_density,2)),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       full_ks_beta = 0.0_dp
     END IF
    
@@ -1912,6 +1926,8 @@ MODULE four_center_integrals
       END IF
     END IF
     CALL timeset(routineN//"_main",handle_main)
+
+
 
     total_integrals_to_store=0
     memory_usage = 0.0_dp
@@ -1949,6 +1965,7 @@ MODULE four_center_integrals
                                  is_assoc_atomic_block,ks_matrix,do_periodic,error=error)
       END IF
     END IF
+
     ! precompute maximum nco and allocate scratch
     nco_max=0
     DO iatom=1,natom
@@ -2075,13 +2092,36 @@ MODULE four_center_integrals
                         ncod = npgfd(lset)*ncoset(ld_max(lset)) 
                         sgfd = first_sgfd(1,lset)
                         max_val2 = max_val1 * screen_set(katom,latom,kset,lset)
-                        IF( do_p_screening) THEN
-                          max_val2 = max_val2 * MAX(qs_env%x_data%initial_p(iset,kset,iatom,katom), &
-                                                    qs_env%x_data%initial_p(jset,lset,jatom,latom), &
-                                                    qs_env%x_data%initial_p(iset,lset,iatom,latom), &
-                                                    qs_env%x_data%initial_p(kset,jset,katom,jatom))
-                        END IF
                         IF(max_val2<eps_schwarz) CYCLE
+                        IF( do_p_screening) THEN
+                          pmax_entry = MAX(qs_env%x_data%initial_p(iset,kset,iatom,katom), &
+                                           qs_env%x_data%initial_p(jset,lset,jatom,latom), &
+                                           qs_env%x_data%initial_p(iset,lset,iatom,latom), &
+                                           qs_env%x_data%initial_p(kset,jset,katom,jatom))
+                          actual_pmax_entry = MAX(actual_pmax_set(iset,kset,iatom,katom), &
+                                                  actual_pmax_set(jset,lset,jatom,latom), &
+                                                  actual_pmax_set(iset,lset,iatom,latom), &
+                                                  actual_pmax_set(kset,jset,katom,jatom))
+                          max_val2 = max_val2 * pmax_entry
+                        END IF
+                        IF(max_val2<eps_schwarz) THEN
+                          IF( do_correct_p_screening ) THEN
+                            IF(do_p_screening) THEN
+                              IF(pmax_entry*p_screening_correction_factor < actual_pmax_entry) THEN
+                                CALL on_the_fly(do_periodic, ra, rb, rc, rd, zeta, zetb, zetc, zetd, &
+                                                la_min, la_max, lb_min, lb_max, lc_min, lc_max, ld_min, ld_max, &
+                                                npgfa, npgfb, npgfc, npgfd, ncoa, ncob, ncoc, ncod, &
+                                                nsgfa, nsgfb, nsgfc, nsgfd, sgfa, sgfb, sgfc, sgfd, &
+                                                primitive_integrals, screening_parameter, box_size, qs_env, screen_periodic, &
+                                                eps_schwarz, max_k, sphi_a, sphi_b, sphi_c, sphi_d, T1, &
+                                                full_ks, full_ks_beta, full_density, full_density_beta, fac, symm_fac, &
+                                                iset, jset, kset, lset, iatom, jatom, katom, latom, pa1, pb1, pc1, pd1, nspins)
+ 
+                              END IF
+                            ENDIF
+                          END IF
+                          CYCLE
+                        END IF
                         box_idx1 = (iatom-1)*natom+jatom
                         box_idx2 = (iset-1)*max_set+jset
                         box_idx3 = (katom-1)*natom+latom
@@ -2106,11 +2146,9 @@ MODULE four_center_integrals
                               Kbox = qs_env%x_data%far_field_boxes(box_idx1, box_idx2)%K * &
                                      qs_env%x_data%far_field_boxes(box_idx3, box_idx4)%K
                               max_val2 = 1.0_dp/Rbox*Kbox
+                              IF(max_val2 < eps_schwarz ) CYCLE
                               IF( do_p_screening) THEN
-                                max_val2 = max_val2 * MAX(qs_env%x_data%initial_p(iset,kset,iatom,katom), &
-                                                          qs_env%x_data%initial_p(jset,lset,jatom,latom), &
-                                                          qs_env%x_data%initial_p(iset,lset,iatom,latom), &
-                                                          qs_env%x_data%initial_p(kset,jset,katom,jatom))
+                                max_val2 = max_val2 * pmax_entry
                               END IF
                             CASE(do_hf_screening_short)
                               omega_box = 1.0_dp/qs_env%x_data%far_field_boxes(box_idx1, box_idx2)%alpha + &
@@ -2120,14 +2158,29 @@ MODULE four_center_integrals
                               Kbox = qs_env%x_data%far_field_boxes(box_idx1, box_idx2)%K * &
                                      qs_env%x_data%far_field_boxes(box_idx3, box_idx4)%K
                               max_val2 = erfc(omega_box*Rbox)/Rbox*Kbox
+                              IF(max_val2 < eps_schwarz ) CYCLE
                               IF( do_p_screening) THEN
-                                max_val2 = max_val2 * MAX(qs_env%x_data%initial_p(iset,kset,iatom,katom), &
-                                                          qs_env%x_data%initial_p(jset,lset,jatom,latom), &
-                                                          qs_env%x_data%initial_p(iset,lset,iatom,latom), &
-                                                          qs_env%x_data%initial_p(kset,jset,katom,jatom))
+                                max_val2 = max_val2 * pmax_entry
                               END IF
                           END SELECT
-                          IF(max_val2<eps_schwarz) CYCLE
+                          IF(max_val2 < eps_schwarz) THEN
+                            IF( do_correct_p_screening ) THEN
+                              IF(do_p_screening) THEN
+                                IF(pmax_entry*p_screening_correction_factor < actual_pmax_entry) THEN
+                                  CALL on_the_fly(do_periodic, ra, rb, rc, rd, zeta, zetb, zetc, zetd, &
+                                                  la_min, la_max, lb_min, lb_max, lc_min, lc_max, ld_min, ld_max, &
+                                                  npgfa, npgfb, npgfc, npgfd, ncoa, ncob, ncoc, ncod, &
+                                                  nsgfa, nsgfb, nsgfc, nsgfd, sgfa, sgfb, sgfc, sgfd, &
+                                                  primitive_integrals, screening_parameter, box_size, qs_env, screen_periodic, &
+                                                  eps_schwarz, max_k, sphi_a, sphi_b, sphi_c, sphi_d, T1, &
+                                                  full_ks, full_ks_beta, full_density, full_density_beta, fac, symm_fac, &
+                                                  iset, jset, kset, lset, iatom, jatom, katom, latom, pa1, pb1, pc1, pd1, nspins)
+                                END IF
+                              END IF
+
+                              CYCLE
+                            END IF
+                          END IF
                         END IF
 
                         current_counter = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
@@ -2259,7 +2312,6 @@ MODULE four_center_integrals
         first_j_loop = .FALSE.
       END DO !iatom
     END DO outer !bin
-
 
     DEALLOCATE(primitive_integrals,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -2398,6 +2450,10 @@ MODULE four_center_integrals
       DEALLOCATE(full_density_beta,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       DEALLOCATE(full_ks_beta, STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(do_p_screening) THEN
+      DEALLOCATE(actual_pmax_set,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     !
@@ -3219,7 +3275,7 @@ MODULE four_center_integrals
         ENDDO
       END IF
       CALL mp_sum_i8(total_integrals, para_env%group)
-      opt_max = HUGE(opt_max)  
+      opt_max = HUGE(opt_max)
       ALLOCATE(cost_array(11,11))
       DO ipos = 1,11
         cost_array(ipos,1) = 2**(ipos-1)
@@ -4987,6 +5043,7 @@ MODULE four_center_integrals
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(handle)
   END SUBROUTINE screen_farfield_per
+!***************************************************************************
 
 !!***** four_center_integrals/update_pmax_matrix [1.0] *
 !!
@@ -5108,5 +5165,146 @@ MODULE four_center_integrals
     CALL timestop(handle)
 
   END SUBROUTINE update_pmax_matrix
+!***************************************************************************
+
+!!***** four_center_integrals/on_the_fly [1.0] *
+!!
+!!   NAME
+!!     on_the_fly
+!!
+!!   FUNCTION
+!!     This routine does the correction to the screening on an in inital
+!!     density matrix. It is basically a copy from the out-core part in
+!!     integrate_four_center_symm.
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     -
+
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     09.2007 created [Manuel Guidon]
+!!
+!!****************************************************************************
+
+  SUBROUTINE on_the_fly(do_periodic, ra, rb, rc, rd, zeta, zetb, zetc, zetd, &
+                        la_min, la_max, lb_min, lb_max, lc_min, lc_max, ld_min, ld_max, &
+                        npgfa, npgfb, npgfc, npgfd, ncoa, ncob, ncoc, ncod, &
+                        nsgfa, nsgfb, nsgfc, nsgfd, sgfa, sgfb, sgfc, sgfd, &
+                        primitive_integrals, screening_parameter, box_size, qs_env, screen_periodic, &
+                        eps_schwarz, max_k, sphi_a, sphi_b, sphi_c, sphi_d, T1, & 
+                        full_ks, full_ks_beta, full_density, full_density_beta, fac, symm_fac, &
+                        iset, jset, kset, lset, iatom, jatom, katom, latom, pa1, pb1, pc1, pd1, nspins)
+
+    LOGICAL, INTENT(IN)                      :: do_periodic
+    REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3)
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: zeta, zetb, zetc, zetd
+    INTEGER, DIMENSION(:), INTENT(IN)        :: la_min, la_max, lb_min, &
+                                                lb_max, lc_min, lc_max, &
+                                                ld_min, ld_max, npgfa, npgfb, &
+                                                npgfc, npgfd
+    INTEGER, INTENT(IN)                      :: ncoa, ncob, ncoc, ncod
+    INTEGER, DIMENSION(:), INTENT(IN)        :: nsgfa, nsgfb, nsgfc, nsgfd
+    INTEGER, INTENT(IN)                      :: sgfa, sgfb, sgfc, sgfd
+    REAL(dp), DIMENSION(:)                   :: primitive_integrals
+    TYPE(x_hf_screening_type)                :: screening_parameter
+    REAL(dp)                                 :: box_size(3)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    REAL(KIND=dp), &
+      DIMENSION(:, :, :, :, :), POINTER      :: screen_periodic
+    REAL(dp), INTENT(IN)                     :: eps_schwarz
+    INTEGER, INTENT(IN)                      :: max_k
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: sphi_a, sphi_b, sphi_c, sphi_d
+    REAL(dp), DIMENSION(:)                   :: T1
+    REAL(dp), DIMENSION(:, :)                :: full_ks, full_ks_beta, &
+                                                full_density, &
+                                                full_density_beta
+    REAL(dp)                                 :: fac, symm_fac
+    INTEGER, INTENT(IN)                      :: iset, jset, kset, lset, &
+                                                iatom, jatom, katom, latom, &
+                                                pa1, pb1, pc1, pd1, nspins
+
+    INTEGER                                  :: ma, mb, mc, md, p_index, pa, &
+                                                pa2, pb, pb2, pc, pc2, pd, pd2
+    REAL(dp)                                 :: tmp
+
+    IF( .NOT.do_periodic ) THEN 
+      CALL coulomb4(ra, rb, rc, rd,&
+                    zeta(1:npgfa(iset),iset), zetb(1:npgfb(jset),jset), &
+                    zetc(1:npgfc(kset),kset), zetd(1:npgfd(lset),lset),&
+                    la_min(iset), la_max(iset), lb_min(jset), lb_max(jset),&
+                    lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset),&
+                    npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset),&
+                    ncoa,ncob,ncoc,ncod,&
+                    primitive_integrals,&
+                    screening_parameter)
+    ELSE
+      CALL coulomb4_periodic(ra, rb, rc, rd,&
+                             zeta(1:npgfa(iset),iset), zetb(1:npgfb(jset),jset), &
+                             zetc(1:npgfc(kset),kset), zetd(1:npgfd(lset),lset),&
+                             la_min(iset), la_max(iset), lb_min(jset), lb_max(jset),&
+                             lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset),&
+                             npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset),&
+                             ncoa,ncob,ncoc,ncod,&
+                             primitive_integrals,&
+                             screening_parameter, box_size, &
+                             qs_env%x_data%neighbor_cells, screen_periodic(iatom,jatom,iset,jset,:),&
+                             screen_periodic(katom,latom,kset,lset,:), eps_schwarz, max_k)
+    END IF
+
+    CALL dgemm("T","N",ncob*ncoc*ncod,nsgfa(iset),ncoa,&
+               1.0_dp, primitive_integrals(1),ncoa,&
+               sphi_a(1,sgfa), SIZE(sphi_a,1),&
+               0.0_dp, T1(1),ncob*ncoc*ncod)
+  
+    CALL dgemm("T","N",nsgfa(iset)*ncoc*ncod,nsgfb(jset),ncob,&
+               1.0_dp, T1(1),ncob,&
+               sphi_b(1,sgfb), SIZE(sphi_b,1),&
+               0.0_dp, primitive_integrals(1),nsgfa(iset)*ncoc*ncod)
+  
+    CALL dgemm("T","N",nsgfa(iset)*nsgfb(jset)*ncod,nsgfc(kset),ncoc,&
+               1.0_dp, primitive_integrals(1),ncoc,&
+               sphi_c(1,sgfc), SIZE(sphi_c,1),&
+               0.0_dp, T1(1),nsgfa(iset)*nsgfb(jset)*ncod)
+  
+    CALL dgemm("T","N",nsgfa(iset)*nsgfb(jset)*nsgfc(kset),nsgfd(lset),ncod,&
+               1.0_dp, T1(1),ncod,&
+               sphi_d(1,sgfd), SIZE(sphi_d,1),&
+               0.0_dp, primitive_integrals(1),nsgfa(iset)*nsgfb(jset)*nsgfc(kset))
+
+    p_index=0 
+    DO md = 1,nsgfd(lset)
+      pd2 = md+sgfd-1
+      pd = pd1 + pd2
+      DO mc = 1,nsgfc(kset)
+        pc2 = mc+sgfc-1
+        pc = pc1 + pc2
+        DO mb = 1,nsgfb(jset)
+          pb2 = mb+sgfb-1
+          pb = pb1 + pb2
+          DO ma = 1,nsgfa(iset)
+            pa2 = ma+sgfa-1
+            pa = pa1 + pa2
+            p_index=p_index+1
+            tmp = fac*symm_fac*primitive_integrals(p_index)
+            full_ks(pa,pd) = full_ks(pa,pd)-tmp*full_density(pb,pc)
+            full_ks(pa,pc) = full_ks(pa,pc)-tmp*full_density(pb,pd)
+            full_ks(pb,pc) = full_ks(pb,pc)-tmp*full_density(pa,pd)
+            full_ks(pb,pd) = full_ks(pb,pd)-tmp*full_density(pa,pc)
+            IF( nspins == 2 ) THEN
+              full_ks_beta(pa,pd) = full_ks_beta(pa,pd)-tmp*full_density_beta(pb,pc)
+              full_ks_beta(pa,pc) = full_ks_beta(pa,pc)-tmp*full_density_beta(pb,pd)
+              full_ks_beta(pb,pc) = full_ks_beta(pb,pc)-tmp*full_density_beta(pa,pd)
+              full_ks_beta(pb,pd) = full_ks_beta(pb,pd)-tmp*full_density_beta(pa,pc)
+            END IF
+          END DO
+        END DO
+      END DO
+    END DO
+  END SUBROUTINE on_the_fly
 
 END MODULE four_center_integrals
