@@ -337,9 +337,6 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     ENDIF
 #endif
 
-!   *** Read the CP2K section ***
-
-    CALL read_cp2k_section(root_section,para_env,globenv,error=error)
 
     ! try to use better names for the local log if it is not too late
     CALL section_vals_val_get(root_section,"GLOBAL%OUTPUT_FILE_NAME",&
@@ -356,6 +353,9 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     END IF
     logger%iter_info%project_name=c_val
     CALL section_vals_val_get(root_section,"GLOBAL%PRINT_LEVEL",i_val=logger%iter_info%print_level,error=error)
+
+!   *** Read the CP2K section ***
+    CALL read_cp2k_section(root_section,para_env,globenv,error=error)
 
     iw = cp_print_key_unit_nr(logger,root_section,"GLOBAL%PRINT/BASIC_DATA_TYPES",&
          extension=".Log",error=error)
@@ -496,15 +496,15 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
       start_section_label = "GLOBAL"
 
     CHARACTER(len=default_path_length) :: basis_set_file_name, &
-      coord_file_name, mm_potential_file_name, potential_file_name, &
-      restart_file_name
+      coord_file_name, mm_potential_file_name, potential_file_name
+      
     CHARACTER(len=default_string_length)     :: env_num
     INTEGER                                  :: iforce_eval, method_name_id, &
                                                 nforce_eval, num_threads, &
                                                 output_unit, print_level
     INTEGER, DIMENSION(:), POINTER           :: i_force_eval
     LOGICAL                                  :: ata, explicit, failure, &
-                                                trace, trace_sync
+                                                trace, trace_sync, exist
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: dft_section, &
                                                 force_env_sections, &
@@ -585,8 +585,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
               c_val=basis_set_file_name , ignore_required=.TRUE., error=error)
          CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",&
               c_val=potential_file_name , ignore_required=.TRUE., error=error)
-         CALL section_vals_val_get(dft_section,"RESTART_FILE_NAME",&
-              c_val=restart_file_name , ignore_required=.TRUE., error=error)
+
          CALL section_vals_val_get(qmmm_section,"MM_POTENTIAL_FILE_NAME",&
               c_val=mm_potential_file_name, ignore_required=.TRUE., error=error)
          ! SUBSYS - If any
@@ -608,11 +607,8 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
               ADJUSTR(potential_file_name(:40)),&
               start_section_label//"| MM Potential file name",&
               ADJUSTR(mm_potential_file_name(:40)),&
-              start_section_label//"| Restart file name",&
-              ADJUSTR(restart_file_name(:40)),&
               start_section_label//"| Coordinate file name",&
               ADJUSTR(coord_file_name(:40))
-
       END DO
       DEALLOCATE(i_force_eval)
       

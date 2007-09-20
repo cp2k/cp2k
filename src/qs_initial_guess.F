@@ -65,7 +65,8 @@ MODULE qs_initial_guess
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
                                              mo_set_restrict,&
-                                             read_mo_set
+                                             read_mo_set,&
+                                             wfn_restart_file_name
   USE qs_scf_methods,                  ONLY: eigensolver,&
                                              simple_eigensolver
   USE qs_scf_types,                    ONLY: qs_scf_env_type
@@ -156,9 +157,9 @@ CONTAINS
                                                 s_sparse
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, input
+    TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
-
+    logger => cp_error_get_logger(error)
     failure = .FALSE.
     NULLIFY(all_potential,atomic_kind, mo_coeff, sv,&
          gth_potential, orb_basis_set, atomic_kind_set, particle_set,&
@@ -210,9 +211,7 @@ CONTAINS
     ! in sync with read_mo_set_from_restart
     id_nr=0
     IF (density_guess == restart_guess) THEN
-        CALL section_vals_val_get(qs_env%input,"DFT%WFN_RESTART_FILE_NAME",&
-             c_val=file_name,error=error)
-        INQUIRE(FILE=file_name,exist=exist)
+        CALL wfn_restart_file_name(file_name,exist,dft_section,logger,error)
         IF (.NOT.exist) THEN
            CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                 "User requested to restart the wavefunction from the file named: "//&
@@ -224,9 +223,7 @@ CPSourceFileRef,&
            density_guess = atomic_guess
         END IF
     ELSE IF (density_guess == history_guess) THEN
-       CALL section_vals_val_get(qs_env%input, "DFT%WFN_RESTART_FILE_NAME", &
-            c_val=file_name, error=error)
-
+       CALL wfn_restart_file_name(file_name,exist,dft_section,logger,error)
        nvec = qs_env%wf_history%memory_depth
        not_read = nvec+1
        ! At this level we read the saved backup RESTART files..

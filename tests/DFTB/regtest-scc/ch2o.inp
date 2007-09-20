@@ -17,11 +17,6 @@
     &SCF
       SCF_GUESS RESTART
       MAX_SCF  20
-      &PRINT
-        &RESTART
-           FILENAME =RESTART
-        &END
-      &END
     &END SCF
   &END DFT
   &SUBSYS

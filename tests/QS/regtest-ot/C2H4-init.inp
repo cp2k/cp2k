@@ -15,11 +15,6 @@
       MAX_SCF 1
       &OT OFF
       &END OT
-      &PRINT
-         &RESTART
-            FILENAME =RESTART
-         &END
-      &END
     &END SCF
     &XC
       &XC_FUNCTIONAL PADE
@@ -51,5 +46,5 @@
 &END FORCE_EVAL
 &GLOBAL
   FFTLIB FFTSG
-  PROJECT H2O
+  PROJECT C2H4
 &END GLOBAL

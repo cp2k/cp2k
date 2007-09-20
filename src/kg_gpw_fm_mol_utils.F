@@ -32,7 +32,8 @@ MODULE kg_gpw_fm_mol_utils
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_val_get,&
+                                             section_vals_get_subs_vals
   USE kg_gpw_fm_mol_types,             ONLY: fm_mol_blocks_type,&
                                              get_fm_mol_block,&
                                              get_kg_fm_mol_set,&
@@ -51,6 +52,7 @@ MODULE kg_gpw_fm_mol_utils
   USE sparse_matrix_types,             ONLY: get_block_node,&
                                              real_matrix_type,&
                                              set_matrix
+  USE qs_mo_types,                     ONLY: wfn_restart_file_name
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -1029,6 +1031,10 @@ CONTAINS
     TYPE(mol_mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(mol_mo_set_type), POINTER           :: mo_set
+    LOGICAL                                  :: explicit,exist
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: dft_section
+
 
 !   ---------------------------------------------------------------------------
 
@@ -1039,6 +1045,7 @@ CONTAINS
 
     group = para_env%group
     source = para_env%source
+    logger => cp_error_get_logger(error)
 
     method ="KG_GPW"
     nmolecule_kind = SIZE(kg_fm%kg_fm_mol_set)
@@ -1049,8 +1056,8 @@ CONTAINS
 
     IF (para_env%ionode) THEN
 
-      CALL section_vals_val_get(force_env_section,"DFT%WFN_RESTART_FILE_NAME",&
-            c_val=file_name,error=error)
+      dft_section=>section_vals_get_subs_vals(force_env_section,"DFT",error=error)
+      CALL wfn_restart_file_name(file_name,exist,dft_section,logger,error)
       IF (id_nr/=1) THEN
         file_name(LEN_TRIM(file_name):LEN(file_name)) = "-"//&
                     ADJUSTL(cp_to_string(id_nr))

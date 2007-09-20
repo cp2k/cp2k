@@ -49,6 +49,7 @@ MODULE qs_mo_types
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
+                                             cp_print_key_generate_filename,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_section_types,             ONLY: section_vals_type,&
@@ -58,6 +59,10 @@ MODULE qs_mo_types
                                              dp,&
                                              dp_size,&
                                              int_size
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_val_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type
   USE message_passing,                 ONLY: mp_bcast
   USE orbital_pointers,                ONLY: indco,&
                                              nco,&
@@ -119,6 +124,7 @@ MODULE qs_mo_types
             deallocate_mo_set,&
             get_mo_set,&
             init_mo_set,&
+            wfn_restart_file_name,&
             read_mo_set,&
             set_mo_occupation,&
             set_mo_set, &
@@ -800,6 +806,27 @@ CONTAINS
   END SUBROUTINE write_mo_set_low
 
 ! *****************************************************************************
+  SUBROUTINE wfn_restart_file_name(filename,exist,dft_section,logger,error)
+    CHARACTER(LEN=default_path_length),INTENT(OUT)       :: filename
+    LOGICAL                           ,INTENT(OUT)       :: exist
+    TYPE(section_vals_type), POINTER                     :: dft_section
+    TYPE(cp_logger_type), POINTER                        :: logger
+    TYPE(cp_error_type), INTENT(inout)                   :: error
+    TYPE(section_vals_type), POINTER                     :: print_key
+    INTEGER :: n_rep_val
+
+    CALL section_vals_val_get(dft_section,"WFN_RESTART_FILE_NAME",n_rep_val=n_rep_val,error=error)
+    IF (n_rep_val>0) THEN
+      CALL section_vals_val_get(dft_section,"WFN_RESTART_FILE_NAME",c_val=filename,error=error)
+    ELSE
+      ! try to read from the filename that is generated automatically from the printkey
+      print_key => section_vals_get_subs_vals(dft_section,"SCF%PRINT%RESTART",error=error)
+      filename = cp_print_key_generate_filename(logger,print_key, &
+                  extension=".wfn", my_local=.FALSE., error=error)
+    ENDIF
+    INQUIRE(FILE=filename,exist=exist)
+
+  END SUBROUTINE
 
   SUBROUTINE read_mo_set_from_restart(mo_array,atomic_kind_set,particle_set,&
                                       para_env,id_nr,multiplicity,dft_section,error)
@@ -831,6 +858,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
+    LOGICAL                                  :: exist
 
 !   ---------------------------------------------------------------------------
 
@@ -845,7 +873,7 @@ CONTAINS
     IF (para_env%ionode) THEN
 
       natom = SIZE(particle_set,1)
-      CALL section_vals_val_get(dft_section,"WFN_RESTART_FILE_NAME",c_val=file_name,error=error)
+      CALL wfn_restart_file_name(file_name,exist,dft_section,logger,error)
       IF (id_nr/=0) THEN
          ! Is it one of the backup files?
          file_name = TRIM(file_name)//".bak-"//ADJUSTL(cp_to_string(id_nr))

@@ -15,11 +15,6 @@
       MAX_SCF 3
       MIXING 0.4
       SCF_GUESS atomic
-      &PRINT
-        &RESTART
-           FILENAME =RESTART
-        &END
-      &END
     &END SCF
     &XC
       &XC_FUNCTIONAL PADE
