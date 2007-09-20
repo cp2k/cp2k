@@ -489,10 +489,10 @@ CPSourceFileRef,&
                   i=1,MIN(2,(nphi-iphi+1)))
           END DO
        END IF
-       conn_info%impr_a=conn_info%impr_a+natom_prev
-       conn_info%impr_b=conn_info%impr_b+natom_prev
-       conn_info%impr_c=conn_info%impr_c+natom_prev
-       conn_info%impr_d=conn_info%impr_d+natom_prev
+       conn_info%impr_a(nphi_prev+1:)=conn_info%impr_a(nphi_prev+1:)+natom_prev
+       conn_info%impr_b(nphi_prev+1:)=conn_info%impr_b(nphi_prev+1:)+natom_prev
+       conn_info%impr_c(nphi_prev+1:)=conn_info%impr_c(nphi_prev+1:)+natom_prev
+       conn_info%impr_d(nphi_prev+1:)=conn_info%impr_d(nphi_prev+1:)+natom_prev
     END IF
 
     CALL parser_release(parser,error=error)

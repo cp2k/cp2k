@@ -1206,7 +1206,8 @@ CONTAINS
        ! Real
        CALL keyword_create(keyword, name="TARGETS",&
             description="The constrained distances' values  for the types defines in ATOM_TYPE.",&
-            usage="TARGETS {real} {real} {real}", type_of_var=real_t, n_var=-1, error=error)
+            usage="TARGETS {real} {real} {real}", type_of_var=real_t, n_var=-1,&
+            unit_str="internal_cp2k", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)              
 
