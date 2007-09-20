@@ -3536,7 +3536,7 @@ CONTAINS
             description="Controls the dumping of the MO restart file during scf."//&
                         "By default keeps a short history of three restarts."//&
                         "See also RESTART_HISTORY", &
-            print_level=silent_print_level, common_iter_levels=3, each=(/1,1,1/), &
+            print_level=silent_print_level, common_iter_levels=3, each=(/1,1,20/), &
             filename="RESTART",error=error)
        CALL keyword_create(keyword, name="BACKUP_COPIES",&
              description="Specifies the maximum index of backup copies.",&
