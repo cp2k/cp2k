@@ -46,7 +46,7 @@ PROGRAM cp2k
 
   USE cp2k_runs,         ONLY : write_cp2k_html_manual, &
                                 write_xml_file, run_input
-  USE machine,           ONLY : m_iargc,m_getarg
+  USE machine,           ONLY : m_iargc,m_getarg, default_output_unit
   USE message_passing,   ONLY : mp_sync, mp_abort
   USE kinds,             ONLY : default_path_length
   USE f77_interface,     ONLY : init_cp2k, finalize_cp2k, &
@@ -60,9 +60,6 @@ PROGRAM cp2k
   LOGICAL                              :: check, manual, usage, echo_input, command_line_error,&
                                           permissive
   LOGICAL                              :: run_it, force_run, has_input, xml
-  ! this is the only place that should need unit 6 all others will get
-  ! something reasonable from the cp_logger
-  INTEGER, PARAMETER                   :: default_output_unit = 6
   TYPE(cp_error_type)                  :: error ! XXXXXXXXXXXXXX uninitialised error
 
   ! output goes to the screen by default

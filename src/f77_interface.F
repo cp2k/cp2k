@@ -203,7 +203,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_cp2k', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: default_output_unit = 6
 
     INTEGER                                  :: mpi_comm_default, stat, &
                                                 unit_nr

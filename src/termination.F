@@ -33,7 +33,9 @@ MODULE termination
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
-  USE machine,                         ONLY: m_walltime
+  USE machine,                         ONLY: m_walltime, &
+                                             m_flush, &
+                                             default_output_unit
   USE message_passing,                 ONLY: mp_abort,&
                                              mp_bcast
   USE output_utilities,                ONLY: print_message
@@ -166,7 +168,8 @@ CONTAINS
 ! just in case there is not enough memory do even trim... and fail with
 ! with a mystery core dump
 
-    WRITE(6,*) "Out of memory ..."
+    WRITE(default_output_unit,*) "Out of memory ..."
+    CALL m_flush(default_output_unit)
     IF (memory == 0) THEN
       WRITE (message,"(A)")&
         "The memory allocation for the data object <"//TRIM(array)//"> failed"
@@ -312,6 +315,7 @@ CONTAINS
       CALL print_message("ERROR in "//TRIM(routine),error_unit,2,2,0)
       CALL print_message(error_message,error_unit,1,1,1)
       CALL print_stack(error_unit)
+      CALL m_flush(error_unit)
       CALL mp_abort()
     END IF
 
@@ -353,6 +357,7 @@ CONTAINS
       CALL compress(message)
       CALL print_message(message,error_unit,1,1,0)
       CALL print_stack(error_unit)
+      CALL m_flush(error_unit)
       CALL mp_abort()
     END IF
 

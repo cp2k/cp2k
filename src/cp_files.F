@@ -18,8 +18,9 @@
 !!   SOURCE
 !******************************************************************************
 MODULE cp_files
-  USE string_utilities,                ONLY: uppercase
-
+  USE machine, ONLY: default_output_unit, &
+                     default_input_unit, &
+                     m_flush
   IMPLICIT NONE
   PRIVATE
 
@@ -32,7 +33,7 @@ MODULE cp_files
   INTEGER, PARAMETER, PRIVATE :: max_unit_number=999
 ! *****************************************************************************
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_files'
-  INTEGER, DIMENSION(2), PARAMETER :: reserved_unit_numbers = (/5,6/)
+  INTEGER, DIMENSION(2), PARAMETER :: reserved_unit_numbers = (/default_input_unit,default_output_unit/)
 CONTAINS
   !!****f* cp_log_handling/close_file *
   !!
@@ -72,12 +73,14 @@ CONTAINS
       WRITE (UNIT=message,FMT="(A,I6,A,I6,A)")&
         "CP2K: An error occurred inquiring the unit with the number ",unit_number,&
         " (IOSTAT = ",istat,")"
-      WRITE(6,*) TRIM(message)
+      WRITE(default_output_unit,*) TRIM(message)
+      CALL m_flush(default_output_unit)
       STOP 1  ! should actually do error recovery....
     ELSE IF (.NOT.exists) THEN
       WRITE (UNIT=message,FMT="(A,I6,A,I6,A)")&
         "CP2K: The specified unit number ",unit_number," can not be closed, it does not exist."
-      WRITE(6,*) TRIM(message)
+      WRITE(default_output_unit,*) TRIM(message)
+      CALL m_flush(default_output_unit)
       STOP 1  ! should actually do error recovery....
     END IF
 
@@ -88,7 +91,6 @@ CONTAINS
 
       IF (PRESENT(file_status)) THEN
         status_string = file_status
-        CALL uppercase(status_string)
       ELSE
         status_string = "KEEP"
       END IF
@@ -98,7 +100,8 @@ CONTAINS
       IF (istat /= 0) THEN
         WRITE (UNIT=message,FMT="(A,I6,A,I6,A)")&
           "CP2K: An error occurred closing the file with the unit number ",unit_number," (IOSTAT = ",istat,")"
-        WRITE(6,*) TRIM(message)
+        WRITE(default_output_unit,*) TRIM(message)
+      CALL m_flush(default_output_unit)
         STOP 1 ! should actually do error recovery....
       END IF
 
@@ -174,25 +177,23 @@ CONTAINS
 
     IF (PRESENT(file_status)) THEN
       status_string = file_status
-      CALL uppercase(status_string)
     ELSE
       status_string = "OLD"
     END IF
 
     IF (PRESENT(file_form)) THEN
       form_string = file_form
-      CALL uppercase(form_string)
     ELSE
       form_string = "FORMATTED"
     END IF
 
     IF (PRESENT(file_pad)) THEN
        pad_string = file_pad
-       CALL uppercase(pad_string)
        IF (form_string=="UNFORMATTED") THEN
           WRITE (UNIT=message,FMT="(A)")&
                "CP2K: The PAD= specifier is not allowed for an UNFORMATTED file!"
-          WRITE(6,*) TRIM(message)
+          WRITE(default_output_unit,*) TRIM(message)
+      CALL m_flush(default_output_unit)
           STOP 1  ! should actually do error recovery....          
        END IF
     ELSE
@@ -201,14 +202,12 @@ CONTAINS
 
     IF (PRESENT(file_action)) THEN
       action_string = file_action
-      CALL uppercase(action_string)
     ELSE
       action_string = "READ"
     END IF
 
     IF (PRESENT(file_position)) THEN
       position_string = file_position
-      CALL uppercase(position_string)
     ELSE
       position_string = "REWIND"
     END IF
@@ -221,11 +220,13 @@ CONTAINS
       WRITE (UNIT=message,FMT="(A,I6,A)")&
         "CP2K: An error occurred inquiring the file <"//TRIM(file_name)//&
         "> (IOSTAT = ",istat,")"
-      WRITE(6,*) TRIM(message)
+      WRITE(default_output_unit,*) TRIM(message)
+      CALL m_flush(default_output_unit)
       STOP 1  ! should actually do error recovery....
     ELSE IF (status_string == "OLD") THEN
       IF (.NOT.exists) THEN
-         WRITE(6,*) "CP2K: The specified file "//TRIM(file_name)//" can not be opened, it does not exist."
+         WRITE(default_output_unit,*) "CP2K: The specified file "//TRIM(file_name)//" can not be opened, it does not exist."
+      CALL m_flush(default_output_unit)
          STOP 1  ! should actually do error recovery....
       END IF
     END IF
@@ -244,7 +245,8 @@ CONTAINS
       unit_number = get_unit_number()
 
       IF (unit_number < 0) THEN
-         WRITE(6,*) "CP2K: Problems opening file, there are no free units left"
+         WRITE(default_output_unit,*) "CP2K: Problems opening file, there are no free units left"
+      CALL m_flush(default_output_unit)
          STOP 1  ! should actually do error recovery....
       END IF
 
@@ -273,7 +275,8 @@ CONTAINS
         WRITE (UNIT=message,FMT="(A,I6,A,I6,A)")&
           "CP2K: An error occurred opening the file <"//TRIM(file_name)//&
           "> with the unit number ",unit_number," (IOSTAT = ",istat,")"
-        WRITE(6,*) TRIM(message)
+        WRITE(default_output_unit,*) TRIM(message)
+      CALL m_flush(default_output_unit)
         STOP 1  ! should actually do error recovery....
       END IF
 

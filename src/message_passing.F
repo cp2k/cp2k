@@ -38,7 +38,9 @@ MODULE message_passing
                                              int_size,&
                                              sp, int_8
   USE machine,                         ONLY: m_abort,&
-                                             m_walltime
+                                             m_walltime,&
+                                             m_flush,&
+                                             default_output_unit
   USE parallel_include
 #if defined(__mp_timeset__)
   USE timings,                         ONLY: timeset,&
@@ -531,13 +533,15 @@ SUBROUTINE mp_stop ( ierr, prg_code )
   numtask=1
   taskid=0
 #endif
-  WRITE(*,'(/,A,T71,I10)') ' CP2K| Stopped by processor number',taskid
-  WRITE(*,'(A," ",A)') ' CP2K| ', TRIM(prg_code)
-  WRITE(*,'(A,T71,I10,/)') ' CP2K| Error number was ',ierr
+  WRITE(default_output_unit,'(/,A,T71,I10)') ' CP2K| Stopped by processor number',taskid
+  WRITE(default_output_unit,'(A," ",A)') ' CP2K| ', TRIM(prg_code)
+  WRITE(default_output_unit,'(A,T71,I10,/)') ' CP2K| Error number was ',ierr
+  CALL m_flush(default_output_unit)
 
 #if defined(__parallel)
   CALL mpi_error_string ( ierr, error_string, len )
-  WRITE(*,'(A,A)') ' CP2K| ', ADJUSTR ( error_string )
+  WRITE(default_output_unit,'(A,A)') ' CP2K| ', ADJUSTR ( error_string )
+  CALL m_flush(default_output_unit)
   CALL mpi_abort ( MPI_COMM_WORLD, prg_code )
 #endif
 
@@ -558,8 +562,9 @@ SUBROUTINE mp_abort ( )
   numtask=1
   taskid=0
 #endif
-  WRITE(*,'(/,A,T71,I10)') ' CP2K| Stopped by process number',taskid
-  WRITE(*,'(A,/)')         ' CP2K| Abnormal program termination'
+  WRITE(default_output_unit,'(/,A,T71,I10)') ' CP2K| Stopped by process number',taskid
+  WRITE(default_output_unit,'(A,/)')         ' CP2K| Abnormal program termination'
+  CALL m_flush(default_output_unit)
 
 #if defined(__parallel)
   CALL mpi_abort ( MPI_COMM_WORLD, 0 )
@@ -1099,7 +1104,8 @@ SUBROUTINE mp_shift_im( msg, group, displ_in)
 ! this seems not to work (on SUN)
 !    CALL mpi_error_string ( ierror, estring, elen )
 !    WRITE (*,*) estring(1:elen)
-     WRITE (*,*) msglen,status
+     WRITE (default_output_unit,*) msglen,status
+     CALL m_flush(default_output_unit)
      CALL mp_stop ( ierror, "mpi_sendrecv_replace @ mp_shift_im" )
   END IF
   CALL add_perf(perf_id=7,count=1,time=t_end-t_start,msg_size=msglen*intlen)

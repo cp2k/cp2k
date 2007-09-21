@@ -22,12 +22,13 @@
 !******************************************************************************
 
 MODULE output_utilities
+  USE machine, ONLY : default_output_unit, &
+                      m_flush
 
   IMPLICIT NONE
 
   PRIVATE
 
-  INTEGER, PARAMETER :: default_output_unit = 6
 
   PUBLIC :: print_message,&
             print_warning
@@ -212,6 +213,8 @@ CONTAINS
     DO i=1,blank_lines_after
       WRITE (UNIT=output_unit,FMT="(A)") ""
     END DO
+
+    CALL m_flush(output_unit)
 
   END SUBROUTINE print_message
 
