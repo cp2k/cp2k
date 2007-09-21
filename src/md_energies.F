@@ -628,7 +628,7 @@ CONTAINS
           ELSEIF(outformat==dump_xmol) THEN
              !         *** This information can be digested by Molden ***
              WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
-                  " i =",itimes,", E =",epot
+                  " i = ",itimes," , E =",epot
           ELSE
              title = ""
           END IF
