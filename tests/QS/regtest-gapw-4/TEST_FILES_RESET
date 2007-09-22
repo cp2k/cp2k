@@ -1,3 +1,7 @@
 #
 # reset Cu.inp for testing the TEST_FILES_RESET feature
 #
+#  
+CO.inp
+#  
+CO_xastpxfh.inp

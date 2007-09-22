@@ -2,3 +2,19 @@
 # reset Cu.inp for testing the TEST_FILES_RESET feature
 #
 He2-all-md.inp
+#  
+H2O-gapw-gth.inp
+#  
+H2O-gapw-all.inp
+#  
+H2O-gapwxc-gth.inp
+#  
+H2S-gapw.inp
+#  
+OF_gapw_all_lsd_LB.inp
+#  
+H-gapw-all.inp
+#  
+He2-all.inp
+#  
+He2-all-md.inp

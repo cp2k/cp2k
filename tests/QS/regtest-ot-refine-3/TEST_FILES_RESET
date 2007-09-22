@@ -1,1 +1,17 @@
 # Enter input files to reset
+#  
+h2o_ot_lwdn_on_the_fly_l1.inp
+#  
+h2o_ot_poly_on_the_fly_l1.inp
+#  
+o2_ot_lwdn_on_the_fly_l1.inp
+#  
+o2_ot_poly_on_the_fly_l1.inp
+#  
+h2o_ot_refine_3.inp
+#  
+h2o_ot_refine_4.inp
+#  
+o2_ot_refine_3.inp
+#  
+o2_ot_refine_4.inp

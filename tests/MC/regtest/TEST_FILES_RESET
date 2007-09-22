@@ -24,3 +24,5 @@ virial.inp
 virial.inp
 # problem with the input file
 virial.inp
+#  
+MC_QS.inp

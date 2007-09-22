@@ -1,3 +1,7 @@
 #
 # reset Cu.inp for testing the TEST_FILES_RESET feature
 #
+#  
+H2-pbe-restart-run.inp
+#  
+H2-pbe-restart-rerun.inp

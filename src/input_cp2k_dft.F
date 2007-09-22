@@ -1602,9 +1602,12 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MAP_CONSISTENT",&
-            description="Guarantee an exact derivative (Hks) of the energy",&
-            usage="MAP_CONSISTENT",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+            description="Compute the exact derivative (Hks) of the energy with respect to the density matrix. "//&
+                        "This is slightly more expensive than using an approximate computation, "//&
+                        "but consistent mapping can improve the stability of the SCF procedure, "//&
+                        "especially for a tight EPS_SCF and a less tight EPS_DEFAULT.",&
+            usage="MAP_CONSISTENT FALSE",&
+            default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
