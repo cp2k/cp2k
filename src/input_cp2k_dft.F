@@ -1680,7 +1680,8 @@ CONTAINS
 
        CALL keyword_create(keyword, name="EXTRAPOLATION",&
             variants=s2a("INTERPOLATION","WF_INTERPOLATION"),&
-            description="Extrapolation strategy for the wavefunction during e.g. MD (OT requires PS).",&
+            description="Extrapolation strategy for the wavefunction during e.g. MD."//&
+                        "PS and ASPC are recommended, see also EXTRAPOLATION_ORDER.",&
             usage="EXTRAPOLATION PS",&     
             enum_c_vals=s2a("USE_GUESS","USE_PREV_P","USE_PREV_RHO_R","LINEAR_WF",&
             "LINEAR_P","LINEAR_PS","USE_PREV_WF","PS","FROZEN","ASPC"),&
@@ -1691,10 +1692,9 @@ CONTAINS
             "Linear extrapolation of the density matrix",&
             "Linear extrapolation of the density matrix times the overlap matrix",&
             "Use the previous wavefunction",&
-            "Higher order extrapolation of the density matrix times the overlap matrix"//&
-            " (recommended for most systems and required for OT).",&
+            "Higher order extrapolation of the density matrix times the overlap matrix",&
             "Frozen ...",&
-            "Always stable predictor corrector"),&
+            "Always stable predictor corrector, similar to PS, but going for MD stability instead of intial guess accuracy."),&
             enum_i_vals=(/ do_extrpl_use_guess,& 
             do_extrpl_use_prev_p,&
             do_extrpl_use_prev_rho_r,&
@@ -1705,13 +1705,17 @@ CONTAINS
             do_extrpl_ps,&
             do_extrpl_frozen,&
             do_extrpl_aspc /),&
-            default_i_val=do_extrpl_linear_p, error=error)
+            default_i_val=do_extrpl_ps, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="EXTRAPOLATION_ORDER",&
-            description="Order for the PS extrapolation (typically 2-4).",&
-            usage="EXTRAPOLATION_ORDER {integer}",default_i_val=0, error=error)
+            description="Order for the PS extrapolation (typically 2-4). "//&
+                        "higher order might bring more accuracy, but comes, "//&
+                        "for large systems, also at some cost. "//&
+                        "In some cases, a high order extrapolation is not stable,"//&
+                        " and the order needs to be reduced.",&
+            usage="EXTRAPOLATION_ORDER {integer}",default_i_val=3, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

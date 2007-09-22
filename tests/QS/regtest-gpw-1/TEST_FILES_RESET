@@ -196,3 +196,7 @@ H2.inp
 H2O-geoopt.inp
 #  
 H2O-fixed.inp
+#  
+H2O-MD-harris.inp
+#  
+H2O-MD-harris.inp

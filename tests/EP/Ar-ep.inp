@@ -10,6 +10,7 @@
       EPS_DEFAULT 1.0E-12
       EPS_GVG 1.0E-6
       EPS_RHO 1.0E-8
+      EXTRAPOLATION LINEAR_P
     &END QS
     &SCF
       EPS_DIIS 0.1
