@@ -72,6 +72,7 @@ having CVS write permission.
                              <a href="cp2k_input.htm">DHTML</a> (requires Javascript), or
                              <a href="cp2k_input_nojavascript.htm">single HTML page</a></li>
 -->
+ <li><a href="changelog.html">A list of recent changes to the sources</a></li>
  <li><a href="http://cvs.berlios.de/cgi-bin/viewcvs.cgi/cp2k/cp2k/src/?sortby=date">Browse the sources and follow development</a></li>
  <li><a href="regtest.html">Automatic regression tester</a></li>
  <li><a href="http://developer.berlios.de/projects/cp2k">The Berlios project page</a></li>
