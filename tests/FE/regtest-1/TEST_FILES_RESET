@@ -1,2 +1,8 @@
 #
 # just add file names for which the reference needs to be reset below, with some comment
+#  
+Solv_alch_chng.inp
+#  
+Solv_alch_chng_dist.inp
+#  
+Solv_alch_chng_simpl.inp

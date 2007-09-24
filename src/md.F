@@ -767,9 +767,9 @@ CPSourceFileRef,&
                 part ( i ) % v ( 2 ) = 0.0_dp
                 part ( i ) % v ( 3 ) = 0.0_dp
              ELSE
-                part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream,error=error)
-                part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream,error=error)
-                part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream,error=error)
+                part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream,error=error) / sqrt(mass)
+                part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream,error=error) / sqrt(mass)
+                part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream,error=error) / sqrt(mass)
                 vcom ( 1 ) = vcom ( 1 ) + mass * part ( i ) % v ( 1 )
                 vcom ( 2 ) = vcom ( 2 ) + mass * part ( i ) % v ( 2 )
                 vcom ( 3 ) = vcom ( 3 ) + mass * part ( i ) % v ( 3 )
@@ -792,6 +792,9 @@ CPSourceFileRef,&
                 akin = akin + 0.5_dp * ( mass * part ( i ) % v ( 3 ) * part ( i ) % v ( 3 ) )
              END IF
           END DO
+
+          ! this rescaling is still wrong, it should take the masses into account
+          ! rescaling is generally not correct, so needs fixing
           temp = 0.0_dp
           sc   = 0.0_dp
           IF (simpar % nfree /= 0) THEN
