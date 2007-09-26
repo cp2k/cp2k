@@ -118,6 +118,9 @@ SUBROUTINE fftw33d ( fft_in_place, fsign, scale, n, zin, zout )
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)        :: zin
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)        :: zout
 
+! This file is part of the fftw distribution and can be found in the
+! corresponding include directory
+! add this to the path to the -I flags of the CPP
 #if defined ( __FFTW3 )
 #include "fftw3.f"
 #endif

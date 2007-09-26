@@ -2,7 +2,6 @@
 
  PROJECT      xas_hch_igloiii
  IOLEVEL      MEDIUM
- FFTLIB       FFTSG
  RUN_TYPE     ENERGY
 &END 
 

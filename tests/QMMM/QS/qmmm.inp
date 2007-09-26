@@ -128,7 +128,6 @@ WARNING duplicate non firstlevel section MM_KIND
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  FFTLIB FFTSG
 
   PROJECT water3
   RUN_TYPE MD

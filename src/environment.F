@@ -23,6 +23,7 @@
 !******************************************************************************
 
 MODULE environment
+  USE bibliography,                    ONLY: cite_reference,Frigo2005
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -35,7 +36,8 @@ MODULE environment
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        do_cp2k, do_eip, do_farming, do_fist, do_kg, do_qs, do_test, &
-       energy_run, mol_dyn_run, none_run, program_names, run_type_names
+       energy_run, mol_dyn_run, none_run, program_names, run_type_names, &
+       do_fft_sg, do_fft_fftw2, do_fft_fftw3, do_fft_essl, do_fft_acml, do_fft_mkl, do_fft_sci, do_fft_fftw
   USE input_section_types,             ONLY: section_get_lval,&
                                              section_get_rval,&
                                              section_vals_get,&
@@ -501,10 +503,11 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     CHARACTER(len=default_string_length)     :: env_num
     INTEGER                                  :: iforce_eval, method_name_id, &
                                                 nforce_eval, num_threads, &
-                                                output_unit, print_level
+                                                output_unit, print_level, &
+                                                i_fft
     INTEGER, DIMENSION(:), POINTER           :: i_force_eval
     LOGICAL                                  :: ata, explicit, failure, &
-                                                trace, trace_sync, exist
+                                                trace, trace_sync, exist, efl
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: dft_section, &
                                                 force_env_sections, &
@@ -519,7 +522,8 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
 
     global_section => section_vals_get_subs_vals(root_section,"GLOBAL",error=error)
     CALL section_vals_val_get(global_section,"BLACS_GRID",i_val=globenv%blacs_grid_layout,error=error)
-    CALL section_vals_val_get(global_section,"FFT_LIBRARY",c_val=globenv%default_fft_library,error=error)
+    CALL section_vals_val_get(global_section,"PREFERRED_FFT_LIBRARY",i_val=i_fft,error=error)
+
     CALL section_vals_val_get(global_section,"PRINT_LEVEL",i_val=print_level,error=error)
     CALL section_vals_val_get(global_section,"PROGRAM_NAME",i_val=globenv%prog_name_id,error=error)
     CALL section_vals_val_get(global_section,"PROJECT_NAME",c_val=globenv%project_name,error=error)
@@ -532,8 +536,29 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     logger=>cp_error_get_logger(error)
     output_unit=cp_print_key_unit_nr(logger,global_section,"PROGRAM_RUN_INFO",&
                                          extension=".log",error=error)
-
     IF(trace) CALL trace_debug("start",trace_sync,para_env)
+
+    SELECT CASE(i_fft)
+    CASE(do_fft_sg)
+      globenv%default_fft_library="FFTSG"
+    CASE(do_fft_fftw2)
+      globenv%default_fft_library="FFTW2"
+      CALL cite_reference(Frigo2005)
+    CASE(do_fft_fftw3)
+      globenv%default_fft_library="FFTW3"
+      CALL cite_reference(Frigo2005)
+    CASE(do_fft_essl)
+      globenv%default_fft_library="FFTESSL"
+    CASE(do_fft_acml)
+      globenv%default_fft_library="FFTACML"
+    CASE(do_fft_mkl)
+      globenv%default_fft_library="FFTMKL"
+    CASE(do_fft_sci)
+      globenv%default_fft_library="FFTSCI"
+    CASE DEFAULT
+       CALL stop_program(routineN,moduleN,__LINE__,&
+               " unknown FFT type",para_env)
+    END SELECT
 
     IF (globenv%run_type_id == 0) THEN
        SELECT CASE (globenv%prog_name_id)
@@ -617,7 +642,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
            ADJUSTR(program_names(globenv%prog_name_id)(:40)),&
            start_section_label//"| Project name",&
            ADJUSTR(globenv%project_name(:40)),&
-           start_section_label//"| Default FFT library",&
+           start_section_label//"| Preferred FFT library",&
            ADJUSTR(globenv%default_fft_library(:40)),&
            start_section_label//"| Run type",&
            ADJUSTR(run_type_names(globenv%run_type_id)(:40))
@@ -625,6 +650,9 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
       CALL section_vals_val_get(global_section,"ALLTOALL_SGL",l_val=ata,error=error)
       WRITE (UNIT=output_unit,FMT="(T2,A,T80,L1)")&
         start_section_label//"| All-to-all communication in single precision",ata
+      CALL section_vals_val_get(global_section,"EXTENDED_FFT_LENGTHS",l_val=efl,error=error)
+      WRITE (UNIT=output_unit,FMT="(T2,A,T80,L1)")&
+        start_section_label//"| FFTs using library dependent lengths",efl
 
       WRITE (UNIT=output_unit,FMT="(T2,A,T75,I6)")&
         start_section_label//"| Global print level",print_level,&
@@ -671,44 +699,87 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     COMPLEX(KIND=dp), DIMENSION(4, 4, 4)     :: zz
     INTEGER                                  :: output_unit, stat
     INTEGER, DIMENSION(3)                    :: n
-    LOGICAL                                  :: was_present
+    LOGICAL                                  :: try_fftw
+    CHARACTER(LEN=10)                        :: fftw_name
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: global_section
 
 !   ---------------------------------------------------------------------------
 
-    was_present = .FALSE.
     global_section => section_vals_get_subs_vals(root_section,"GLOBAL",error=error)
-    CALL section_vals_get(global_section,explicit=was_present,error=error)
     CALL read_global_section(root_section,para_env,globenv,error=error)
     logger => cp_error_get_logger(error)
     output_unit=cp_print_key_unit_nr(logger,global_section,"PROGRAM_RUN_INFO",&
                                          extension=".log",error=error)
 
-!   *** Initialize FFT library ***
-    CALL init_fft(fftlib=TRIM(globenv%default_fft_library),&
-                  alltoall=section_get_lval(global_section,"ALLTOALL_SGL",error))
 
-!   *** Check for FFT library ***
     n(:) = 4
     zz(:,:,:) = 0.0_dp
+
+    !
+    ! Setup the FFT library
+    ! If the user has specified PREFERRED_FFT_LIBRARY try that first (default FFTW)
+    ! If that one is not available, try FFTW (unless it has been tried already)
+    ! If FFTW is not available use FFTSG
+    !
+    IF (globenv%default_fft_library.EQ."FFTW2" .OR. globenv%default_fft_library.EQ."FFTW3") THEN
+       try_fftw=.FALSE.
+    ELSE
+       try_fftw=.TRUE.
+       SELECT CASE(do_fft_fftw)
+       CASE(do_fft_fftw2)
+         fftw_name="FFTW2"
+       CASE(do_fft_fftw3)
+         fftw_name="FFTW3"
+       CASE DEFAULT
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                  " unknown FFT type",para_env)
+       END SELECT
+    ENDIF
+
+!   *** Initialize FFT library with the user's prefered FFT library ***
+    CALL init_fft(fftlib=TRIM(globenv%default_fft_library),&
+                  alltoall=section_get_lval(global_section,"ALLTOALL_SGL",error), &
+                  fftsg_sizes=.NOT.section_get_lval(global_section,"EXTENDED_FFT_LENGTHS",error))
+
+!   *** Check for FFT library ***
     CALL fft3d(1,n,zz,status=stat)
     IF (stat /= 0) THEN
-      IF (output_unit > 0) THEN
-         WRITE(output_unit,'(A,A,T55,A)') &
-           " WARNING : FFT library "//TRIM(globenv%default_fft_library)//&
-           " is not available "," Trying FFTSG as a default"
+
+      IF (try_fftw) THEN
+         IF (output_unit > 0) THEN
+            WRITE(output_unit,'(A,A,T55,A)') &
+              " WARNING : FFT library "//TRIM(globenv%default_fft_library)//&
+              " is not available "," Trying "//TRIM(fftw_name)
+         ENDIF
+         globenv%default_fft_library=fftw_name
+         CALL init_fft(fftlib=TRIM(globenv%default_fft_library),&
+                       alltoall=section_get_lval(global_section,"ALLTOALL_SGL",error), &
+                       fftsg_sizes=.NOT.section_get_lval(global_section,"EXTENDED_FFT_LENGTHS",error))
+
+         CALL fft3d(1,n,zz,status=stat)
       ENDIF
-      globenv%default_fft_library="FFTSG"
-      CALL init_fft(fftlib=TRIM(globenv%default_fft_library),&
-                    alltoall=section_get_lval(global_section,"ALLTOALL_SGL",error))
-      CALL fft3d(1,n,zz,status=stat)
-      IF (stat /= 0) THEN
-           CALL stop_program(routineN,moduleN,__LINE__,&
-                             "The default FFT library <"//&
-                             TRIM(globenv%default_fft_library)//&
-                             "> is not available",para_env)
+
+      IF (stat /=0 ) THEN
+
+         IF (output_unit > 0) THEN
+            WRITE(output_unit,'(A,A,T55,A)') &
+              " WARNING : FFT library "//TRIM(globenv%default_fft_library)//&
+              " is not available "," Trying FFTSG as a default"
+         ENDIF
+
+         globenv%default_fft_library="FFTSG"
+         CALL init_fft(fftlib=TRIM(globenv%default_fft_library),&
+                       alltoall=section_get_lval(global_section,"ALLTOALL_SGL",error), &
+                       fftsg_sizes=.NOT.section_get_lval(global_section,"EXTENDED_FFT_LENGTHS",error))
+
+         CALL fft3d(1,n,zz,status=stat)
+         IF (stat /= 0) THEN
+              CALL stop_program(routineN,moduleN,__LINE__,"FFTSG not functional....",para_env)
+         ENDIF
+
       ENDIF
+
     END IF
 
     CALL cp_print_key_finished_output(output_unit,logger,global_section,&

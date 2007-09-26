@@ -17,6 +17,11 @@
 !!
 !!*****
 !******************************************************************************
+!
+! This file is part of the mkl distribution and can be found in the 
+! corresponding include directory
+! add this to the path to the -I flags of the CPP
+!
 #if defined ( __FFTMKL )
 #include "mkl_dfti.f90"
 #endif

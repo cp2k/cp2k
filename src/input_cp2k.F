@@ -26,6 +26,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_cp2k
+  USE bibliography,                    ONLY: Frigo2005
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_parser,                       ONLY: cp_parser_type,&
@@ -325,14 +326,38 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    CALL keyword_create(keyword, name="FFT_LIBRARY",&
-         variants=s2a("FFT_LIB","FFTLIB"),&
-         description="Which fft library to use to perform the ffts."//&
-                     "The available libraries depend on compile time options,"//&
-                     "FFTSG FFTW2 FFTW3 FFTESSL FFTACML FFTMKL FFTSCI could be available."//&
-                     "FFTW3, FFTW2, FFTESSL, FFTSG are (roughly in that order) tested and recommended.",&
-         usage="FFT_LIBRARY FFTW",&
-         default_c_val="FFTSG",error=error)
+    CALL keyword_create(keyword, name="PREFERRED_FFT_LIBRARY",&
+         description="Specifies the FFT library which should be preferred. "//&
+                     "If it is not available, use FFTW if this is linked in, if FFTW is not available use FFTSG. "//&
+                     "Contrary to earlier CP2K versions, all libraries will result in the same grids, "//&
+                     "i.e. the subset of grids which all FFT libraries can transform. "//&
+                     "See EXTENDED_FFT_LENGTHS if larger FFTs or grids that more precisely match a given cutoff are needed, "//&
+                     "or older results need to be reproduced. "//&
+                     "FFTW is often (close to) optimal, and well tested with CP2K.",&
+         usage="PREFERRED_FFT_LIBRARY FFTW",&
+         citations=(/Frigo2005/),&
+         default_i_val=do_fft_fftw, &
+         enum_i_vals=(/do_fft_sg,do_fft_fftw,do_fft_essl,do_fft_acml,do_fft_mkl,do_fft_sci/),&
+         enum_c_vals=s2a("FFTSG","FFTW","FFTESSL","FFTACML","FFTMKL","FFTSCI"),&
+         enum_desc=s2a("Stefan Goedecker FFT, always available, will be used in case a FFT lib is specified and not available",&
+                       "a fast portable FFT library. Recommended. This will use either FFTW2 or FFTW3, as available",&
+                       "available/tuned for IBM machines",&
+                       "available/tuned for AMD machines (untested)",&
+                       "available/tuned for INTEL machines (untested)",&
+                       "available/tuned for SGI machines (untested)"),&
+         error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="EXTENDED_FFT_LENGTHS",&
+         description="Use fft library specific values for the allows number of points in FFTs. "//&
+                     "Use this to obtain, with certain fft libraries, "//&
+                     "larger allowed grids, or grids that more precisely match a given cutoff. "//&
+                     "IMPORTANT NOTE: in this case, the actual grids used in CP2K depends on the FFT library. "//&
+                     "A change of FFT library must therefore be considered equivalent to a change of basis, "//&
+                     "which implies a change of total energy. ",&
+         usage="EXTENDED_FFT_LENGTHS",&
+         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 

@@ -536,4 +536,20 @@ MODULE input_constants
                                 do_hf_screening_short=2,&
                                 do_hf_screening_long=3
 
+  ! FFT library
+  ! these might need sync with fft_lib.F
+  INTEGER, PARAMETER, PUBLIC :: do_fft_sg=1,&
+                                do_fft_fftw2=2,&
+                                do_fft_fftw3=3,&
+                                do_fft_essl=4,&
+                                do_fft_acml=5,&
+                                do_fft_mkl=6,&
+                                do_fft_sci=7
+  ! fftw will automatically be either FFTW2 or FFTW3 
+#if defined ( __FFTW2 )
+  INTEGER, PARAMETER, PUBLIC :: do_fft_fftw=do_fft_fftw2
+#else
+  INTEGER, PARAMETER, PUBLIC :: do_fft_fftw=do_fft_fftw3
+#endif
+
 END MODULE input_constants

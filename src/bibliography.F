@@ -50,7 +50,8 @@ MODULE bibliography
   INTEGER, PUBLIC, SAVE ::  VandeVondele2005a, VandeVondele2003, Laino2005, Laino2006, &
              Goedecker1996, Hartwigsen1998, Krack2005, Lippert1997, Lippert1999, Krack2000,&
              Krack2002, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Toukmaji1996, Martyna1999,&
-             VandeVondele2005b, Perdew1981,Avezac2005, Porezag1995, Seifert1996, Elstner1998, Zhechkov2005
+             VandeVondele2005b, Perdew1981,Avezac2005, Porezag1995, Seifert1996, Elstner1998, Zhechkov2005,&
+             Frigo2005
 
 CONTAINS
 !!****f* bibliography/add_all_references *
@@ -510,6 +511,24 @@ CONTAINS
             "UT ISI:A1995QZ16500002",&
             "ER"),&
             DOI="10.1103/PhysRevB.51.12947")
+
+    CALL add_reference(key=Frigo2005,ISI_record=s2a(&
+            "PT J",&
+            "AU Frigo, M",&
+            "   Johnson, SG",&
+            "TI The design and implementation of FFTW3",&
+            "SO PROCEEDINGS OF THE IEEE",&
+            "SN 0018-9219",&
+            "PD FEB",&
+            "PY 2005",&
+            "VL 93",&
+            "IS 2",&
+            "BP 216",&
+            "EP 231",&
+            "UT ISI:000226542300002",&
+            "ER"),&
+            DOI="10.1109/JPROC.2004.840301")
+
 
   END SUBROUTINE add_all_references
 

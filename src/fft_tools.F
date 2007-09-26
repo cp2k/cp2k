@@ -46,9 +46,11 @@ MODULE fft_tools
   INTEGER, PARAMETER :: FFT_RADIX_CLOSEST = 493, FFT_RADIX_NEXT = 494
   INTEGER, PARAMETER :: FFT_RADIX_ALLOWED = 495, FFT_RADIX_DISALLOWED = 496
   INTEGER, PARAMETER :: FFT_RADIX_NEXT_ODD = 497
-  
-  INTEGER :: fft_type = 0
-  LOGICAL :: alltoall_sgl = .FALSE.
+ 
+  ! these saved variables are FFT globals
+  INTEGER, SAVE :: fft_type = 0
+  LOGICAL, SAVE :: alltoall_sgl = .FALSE.
+  LOGICAL, SAVE :: use_fftsg_sizes = .TRUE.
 
   INTERFACE fft3d
      MODULE PROCEDURE fft3d_s, fft3d_ps, fft3d_pb
@@ -78,14 +80,19 @@ CONTAINS
 !!*****
 !******************************************************************************
 
-SUBROUTINE init_fft ( fftlib, fftnum, alltoall )
+SUBROUTINE init_fft ( fftlib, fftnum, alltoall, fftsg_sizes )
 
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: fftlib
     INTEGER, INTENT(IN), OPTIONAL            :: fftnum
     LOGICAL, INTENT(IN), OPTIONAL            :: alltoall
+    LOGICAL, INTENT(IN), OPTIONAL            :: fftsg_sizes
 
     COMPLEX(KIND=dp)                         :: zz( 4, 4, 4 )
     INTEGER                                  :: fft_library, i, n(3) = 4, stat
+
+  IF ( PRESENT ( fftsg_sizes ) ) THEN
+     use_fftsg_sizes = fftsg_sizes
+  ENDIF
 
   IF ( PRESENT ( alltoall ) ) THEN
      alltoall_sgl = alltoall
@@ -147,13 +154,20 @@ SUBROUTINE fft_radix_operations ( radix_in, radix_out, operation )
 
     INTEGER                                  :: i, iloc, ldata
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: DATA
+    INTEGER, PARAMETER                       :: fft_type_sg=1
 
 !------------------------------------------------------------------------------
 
   ldata = 1024
   ALLOCATE ( DATA(ldata) )
-  DATA = 10000
-  CALL fft_get_lengths ( fft_type, DATA, ldata )
+  DATA = -1
+
+  ! if the user wants to use fftsg sizes go for it
+  IF (use_fftsg_sizes) THEN
+      CALL fft_get_lengths ( fft_type_sg, DATA, ldata )
+  ELSE
+      CALL fft_get_lengths ( fft_type, DATA, ldata )
+  ENDIF
 
   iloc = 0
   DO i = 1, ldata

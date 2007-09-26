@@ -115,7 +115,6 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  FFTLIB FFTW
 
   PROJECT project_multi_frag
   RUN_TYPE MD

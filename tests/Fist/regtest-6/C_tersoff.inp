@@ -1,5 +1,4 @@
 &GLOBAL
-  FFTLIB FFTSG
   PROJECT md1
   RUN_TYPE md
   #RUN_TYPE debug

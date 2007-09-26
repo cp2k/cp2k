@@ -29,7 +29,7 @@ FUNCTION fft_library ( fftlib ) RESULT ( flib )
       flib = -1
     CASE ( "FFTSG" )
       flib = 1
-    CASE ( "FFTW","FFTW2" )
+    CASE ( "FFTW2" )
       flib = 2
     CASE ( "FFTW3" )
       flib = 3
