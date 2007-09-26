@@ -203,7 +203,8 @@ CONTAINS
     CALL get_md_env(md_env=md_env,&
                     simpar=simpar,&
                     force_env_p=force_env_p,&
-                    para_env=para_env)
+                    para_env=para_env,&
+                    error=error)
 
     force_env => force_env_p(1)%force_env
 
@@ -456,7 +457,7 @@ CONTAINS
     NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef,para_env,cell,gci)
     NULLIFY (shell,shell_particles,shell_particle_set,core_particles, core_particle_set)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
-                    nhc_coef=nhc_coef, para_env = para_env)
+                    nhc_coef=nhc_coef, para_env = para_env, error=error)
     dt = simpar%dt
     IF (SIZE(force_env_p)/=1) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
@@ -850,8 +851,8 @@ CONTAINS
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
 
-    CALL get_md_env(md_env=md_env,simpar=simpar, &
-                    force_env_p=force_env_p,para_env=para_env)
+    CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
+                    para_env=para_env, error=error)
 
     dt = simpar%dt
 
@@ -1062,8 +1063,8 @@ CONTAINS
     NULLIFY(gci)
     NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef,nhc_shell,cell)
     NULLIFY (shell,shell_particles,shell_particle_set,core_particles, core_particle_set)
-    CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
-                    nhc_part=nhc,nhc_coef=nhc_coef,nhc_shell=nhc_shell,para_env=para_env)
+    CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,nhc_part=nhc,&
+                    nhc_coef=nhc_coef,nhc_shell=nhc_shell,para_env=para_env,error=error)
     dt = simpar%dt
     IF (SIZE(force_env_p)/=1) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
@@ -1525,9 +1526,9 @@ CONTAINS
 
     NULLIFY(gci,nhc_baro,nhc_part,nhc_shell)
     NULLIFY (shell,shell_particles,shell_particle_set,core_particles, core_particle_set)
-    CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
-                    nhc_part=nhc_part, nhc_baro=nhc_baro, nhc_shell=nhc_shell, npt = npt, &
-                    itimes = itimes, first_time=first_time, para_env=para_env )
+    CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,nhc_part=nhc_part,&
+                    nhc_baro=nhc_baro, nhc_shell=nhc_shell, npt = npt, itimes = itimes,&
+                    first_time=first_time, para_env=para_env, error=error)
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar % nfree,KIND=dp)
 
@@ -1977,8 +1978,8 @@ CONTAINS
 
     NULLIFY(root_section, reftraj_info, particle_set, particles, force_env_p,&
          subsys, para_env)
-    CALL get_md_env(md_env=md_env, reftraj_info=reftraj_info, &
-                    force_env_p=force_env_p,para_env = para_env)
+    CALL get_md_env(md_env=md_env, reftraj_info=reftraj_info,force_env_p=force_env_p,&
+                    para_env = para_env, error=error)
     IF (SIZE(force_env_p)/=1) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
                          "MD_ENV with more than (or less) than one "//&
@@ -2117,8 +2118,8 @@ CONTAINS
     TYPE(virial_type), POINTER               :: virial
 
     NULLIFY(gci)
-    CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
-                    npt = npt, first_time=first_time, para_env=para_env)
+    CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,npt = npt,&
+                    first_time=first_time, para_env=para_env, error=error)
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar % nfree, dp )
 
@@ -2415,8 +2416,8 @@ CONTAINS
     TYPE(virial_type), POINTER               :: virial
 
     NULLIFY(gci)
-    CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
-                    npt = npt, first_time=first_time, para_env=para_env)
+    CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,npt = npt,&
+                    first_time=first_time, para_env=para_env, error=error)
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar % nfree, dp )
     gamma1 = simpar % gamma_nph
@@ -2988,9 +2989,9 @@ CONTAINS
 
     NULLIFY(gci,nhc_baro,nhc_part,nhc_shell)
     NULLIFY (shell,shell_particles,shell_particle_set,core_particles, core_particle_set)
-    CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
-                    nhc_part=nhc_part, nhc_baro=nhc_baro, nhc_shell=nhc_shell, npt = npt, &
-                    itimes = itimes, first_time=first_time, para_env=para_env )
+    CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,nhc_part=nhc_part,&
+                    nhc_baro=nhc_baro, nhc_shell=nhc_shell, npt = npt,itimes = itimes,&
+                    first_time=first_time, para_env=para_env, error=error)
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar % nfree,KIND=dp)
 
@@ -4063,8 +4064,8 @@ END SUBROUTINE update_veps
 
     NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef,para_env,cell,subsys_respa)
     NULLIFY (particles_respa, particle_set_respa,gci)
-    CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
-         nhc_coef=nhc_coef, para_env = para_env)
+    CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,nhc_coef=nhc_coef,&
+                    para_env = para_env, error=error)
     dt = simpar%dt
 
     n_time_steps=simpar%n_time_steps

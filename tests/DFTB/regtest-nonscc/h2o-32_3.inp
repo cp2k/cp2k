@@ -138,12 +138,14 @@
     PV_AVA T
     PV_NUM F
     PV_DIA F
-    &NOSE
-      LENGTH 3
-      YOSHIDA 3
-      TIMECON [wavenumber_t] 2000
-      MTS 2
-    &END NOSE
+    &THERMOSTAT
+      &NOSE
+        LENGTH 3
+        YOSHIDA 3
+        TIMECON [wavenumber_t] 2000
+        MTS 2
+      &END NOSE
+    &END
     &BAROSTAT
       PRESSURE 1.0
       TIMECON 300

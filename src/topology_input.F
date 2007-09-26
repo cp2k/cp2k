@@ -133,7 +133,6 @@ SUBROUTINE read_topology_section ( topology, topology_section, globenv, error )
           i_val=topology % bondparm_type,error=error)
      CALL section_vals_val_get(topology_section,"GENERATE%BONDPARM_FACTOR", &
                                r_val=topology % bondparm_factor,error=error)
-     CALL section_vals_val_get(topology_section,"NHCOPT",i_val=topology % nhcopt,error=error)
 
   END IF
   CALL timestop(handle)

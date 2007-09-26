@@ -118,7 +118,7 @@ CONTAINS
                                                 title
     INTEGER :: box, cocrd, cofrc, covel, crd, delta_t, ene, ener_mix, frc, &
       handle, i, iskip, isubsys, iw, nat, nshell, outformat, shcrd, shene, &
-      shfrc, shvel, str, vel, trsl
+      shfrc, shvel, str, trsl, vel
     INTEGER, POINTER                         :: itimes
     LOGICAL :: init, init_coforce, init_cotraj, init_covel, init_force, &
       init_shforce, init_shtraj, init_shvel, init_traj, init_vel, is_mixed, &
@@ -163,7 +163,8 @@ CONTAINS
          used_time = used_time,&
          simpar=simpar,&
          force_env_p=force_env_p,&
-         init=init)
+         init=init,&
+         error=error)
 
     root_section=>force_env_p(1)%force_env%root_section
     motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)

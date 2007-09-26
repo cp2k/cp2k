@@ -77,12 +77,14 @@ ABC 5.0 5.0 5.0
     STEPS 5000
     TIMESTEP 0.5
     TEMPERATURE 350.0
-    &NOSE
-      LENGTH 3
-      YOSHIDA 3
-      TIMECON 100.0
-      MTS 2
-    &END NOSE
+    &THERMOSTAT
+      &NOSE
+        LENGTH 3
+        YOSHIDA 3
+        TIMECON 100.0
+        MTS 2
+      &END NOSE
+    &END
   &END MD
   &PRINT
    &VELOCITIES OFF

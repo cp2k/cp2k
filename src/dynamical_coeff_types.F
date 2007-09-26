@@ -410,13 +410,13 @@ SUBROUTINE get_dyn_coeff(coeffs,pos,vel,forces,masses,n_els,&
 
 END SUBROUTINE get_dyn_coeff
 !***************************************************************************
-SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,root_section,para_env,globenv,work_section,skipvel,error)
+SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,motion_section,para_env,globenv,coeff_section,skipvel,error)
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
-    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(section_vals_type), POINTER         :: motion_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(section_vals_type), POINTER         :: work_section
+    TYPE(section_vals_type), POINTER         :: coeff_section
     LOGICAL, INTENT(IN), OPTIONAL            :: skipvel
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -431,8 +431,7 @@ SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,root_section,para_env,globenv,
     REAL(kind=dp)                            :: kg_coeff_target_temp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer
     TYPE(dyn_coeff_type), POINTER            :: coeffs
-    TYPE(section_vals_type), POINTER         :: coeff_section, &
-                                                storage_section, work_section2
+    TYPE(section_vals_type), POINTER         :: storage_section, work_section2
 
 !***************************************************************************
 
@@ -452,9 +451,6 @@ SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,root_section,para_env,globenv,
   ncoef_atom_max=0
 
   ! get the kg coefficients' parameters from input structure
-
-  NULLIFY(coeff_section)
-  coeff_section => section_vals_get_subs_vals(root_section,"MOTION%MD%KG_COEFF",error=error)
   storage_section =>  section_vals_get_subs_vals(coeff_section,"STORAGE",error=error)
   CALL section_vals_val_get(storage_section,"type",i_val=dyn_coeff_set%mass_storage,error=error)
   CALL section_vals_val_get(coeff_section,"mass",r_val=dyn_coeff_set%global_mass,error=error)
@@ -492,18 +488,18 @@ SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,root_section,para_env,globenv,
   CALL dyn_coeff_set_init_masses(dyn_coeff_set,mbuffer,storage_section,para_env,error)
 
 
-  work_section2 => section_vals_get_subs_vals(work_section,"COORD",error=error)
+  work_section2 => section_vals_get_subs_vals(coeff_section,"COORD",error=error)
   CALL section_vals_get(work_section2, explicit=explicit, error=error)
   nkind=SIZE(dyn_coeff_set%coeffs_of_kind)
   IF (explicit) THEN
-     CALL section_vals_val_get(work_section,"RESTART_INDEX%_DEFAULT_KEYWORD_",i_vals=ibuffer,error=error)
+     CALL section_vals_val_get(coeff_section,"RESTART_INDEX%_DEFAULT_KEYWORD_",i_vals=ibuffer,error=error)
      DO ikind=1, nkind
         coeffs=>dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
         IF(ASSOCIATED(coeffs))THEN
            DO iel= 1,coeffs%n_els
               iatom=dyn_coeff_set%distribution%list(ikind)%array(iel)
               i=locate(ibuffer,iatom)
-              CALL section_vals_val_get(work_section,"COORD%_DEFAULT_KEYWORD_",r_vals=buffer,&
+              CALL section_vals_val_get(coeff_section,"COORD%_DEFAULT_KEYWORD_",r_vals=buffer,&
                    i_rep_val=i,error=error)
               DO icoef=1,coeffs%ncoef_atom
                  coeffs%pos(iel,icoef)=buffer(icoef)
@@ -514,17 +510,17 @@ SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,root_section,para_env,globenv,
   END IF
 
   IF (.NOT.my_skipvel) THEN
-     work_section2 => section_vals_get_subs_vals(work_section,"VELOCITY",error=error)
+     work_section2 => section_vals_get_subs_vals(coeff_section,"VELOCITY",error=error)
      CALL section_vals_get(work_section2, explicit=explicit, error=error)
      IF (explicit) THEN
-        CALL section_vals_val_get(work_section,"RESTART_INDEX%_DEFAULT_KEYWORD_",i_vals=ibuffer,error=error)
+        CALL section_vals_val_get(coeff_section,"RESTART_INDEX%_DEFAULT_KEYWORD_",i_vals=ibuffer,error=error)
         DO ikind=1, nkind
            coeffs=>dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
            IF(ASSOCIATED(coeffs))THEN
               DO iel= 1,coeffs%n_els
                  iatom=dyn_coeff_set%distribution%list(ikind)%array(iel)
                  i=locate(ibuffer,iatom)
-                 CALL section_vals_val_get(work_section,"VELOCITY%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
+                 CALL section_vals_val_get(coeff_section,"VELOCITY%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
                  DO icoef=1,coeffs%ncoef_atom
                     coeffs%vel(iel,icoef)=buffer(icoef)
                  END DO
@@ -533,7 +529,7 @@ SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,root_section,para_env,globenv,
         END DO
      ELSE
         CALL dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set, &
-                                    mbuffer,root_section,para_env,globenv,error=error)
+                                    mbuffer,motion_section,para_env,globenv,error=error)
      END IF
   END IF
 
@@ -667,13 +663,13 @@ END SUBROUTINE dyn_coeff_set_initialize
   END SUBROUTINE dyn_coeff_set_init_masses
 !*************************************************************************
 SUBROUTINE dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set, &
-                                  mbuffer,root_section,para_env,globenv,error)
+                                  mbuffer,motion_section,para_env,globenv,error)
 
     REAL(KIND=dp)                            :: kg_coeff_target_temp
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: mbuffer
-    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(section_vals_type), POINTER         :: motion_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -799,7 +795,7 @@ SUBROUTINE dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set, &
 
 
   logger => cp_error_get_logger(error)
-  output_unit=cp_print_key_unit_nr(logger,root_section,"MOTION%MD%PRINT%PROGRAM_RUN_INFO",&
+  output_unit=cp_print_key_unit_nr(logger, motion_section,"MD%PRINT%PROGRAM_RUN_INFO",&
                                          extension=".log",error=error)
 
   IF ( output_unit>0 ) THEN
@@ -811,8 +807,8 @@ SUBROUTINE dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set, &
           'Coefs Centre of mass velocity ', vcom
   END IF
 
-          CALL cp_print_key_finished_output(output_unit,logger,root_section,&
-               "MOTION%MD%PRINT%PROGRAM_RUN_INFO", error=error)
+          CALL cp_print_key_finished_output(output_unit,logger,motion_section,&
+               "MD%PRINT%PROGRAM_RUN_INFO", error=error)
 
 END SUBROUTINE dyn_coeff_set_init_vel
 !*****************************************************************************

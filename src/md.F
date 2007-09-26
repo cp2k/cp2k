@@ -34,7 +34,8 @@ MODULE md
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
-       ensemble_name_types, isokin_ensemble, langevin_ensemble, nph_ensemble, &
+       do_region_global, do_thermo_csvr, do_thermo_nose, ensemble_name_types, &
+       isokin_ensemble, langevin_ensemble, nph_ensemble, &
        nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
        npt_i_ensemble, nve_ensemble, nvt_ensemble
   USE input_section_types,             ONLY: section_vals_get,&
@@ -101,6 +102,7 @@ MODULE md
      LOGICAL :: dump_lm 
      INTEGER :: nfree
      INTEGER :: nc
+     INTEGER :: thermostat_type, shell_thermostat_type
      INTEGER :: nyosh
      INTEGER :: nhclen
      INTEGER :: info_constraint
@@ -120,13 +122,14 @@ MODULE md
      !SHELL parameters
      INTEGER :: shell_nc
      INTEGER :: shell_nhclen
-     INTEGER :: shell_nhcopt
+     INTEGER :: shell_region, part_region
      INTEGER :: shell_nyosh
      LOGICAL :: vshell_rescale
      LOGICAL :: shell_nose
      REAL (KIND=dp) :: shell_tau_nhc
      REAL (KIND=dp) :: temp_sh_ext
      REAL (KIND=dp) :: temp_sh_tol
+     REAL (KIND=dp) :: csvr_thermo_energy
 
   END TYPE simulation_parameters_type
 
@@ -182,7 +185,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     iw=cp_print_key_unit_nr(logger,md_section,"PRINT%PROGRAM_RUN_INFO",extension=".log",error=error)
 
-    CALL read_md_new_section(simpar, root_section, md_section, error)
+    CALL read_md_low(simpar, root_section, md_section, error)
     IF ( iw > 0 ) WRITE (iw, *)
 
     ! Begin setup Langevin dynamics
@@ -220,17 +223,27 @@ CONTAINS
             simpar % f_annealing
        IF ( simpar % ensemble == nvt_ensemble .OR. simpar % ensemble == npt_i_ensemble &
             .OR. simpar % ensemble == npt_f_ensemble ) THEN
-          WRITE ( iw, '( A )' ) ' MD| Nose-Hoover-Chain parameters '
-          WRITE ( iw, '( A,T77,I4 )' ) ' MD| Nose-Hoover-Chain length ', &
-               simpar % nhclen
-          WRITE ( iw, '( A,A4,A,T71,F10.2 )' ) &
-               ' MD| Nose-Hoover-Chain time constant [', 'fs' ,'] ',&
-               simpar % tau_nhc/unit%fs
-          WRITE ( iw, '( A,T77,I4 )' ) ' MD| Order of Yoshida integrator ', &
-               simpar % nyosh
-          WRITE ( iw, '( A,T77,I4 )' ) ' MD| Number of multiple time steps', &
-               simpar % nc
-       END IF
+          SELECT CASE(simpar%thermostat_type)
+          CASE(do_thermo_nose)
+             WRITE ( iw, '( A )' ) ' MD| Nose-Hoover-Chain parameters '
+             WRITE ( iw, '( A,T77,I4 )' ) ' MD| Nose-Hoover-Chain length ', &
+                  simpar % nhclen
+             WRITE ( iw, '( A,A4,A,T71,F10.2 )' ) &
+                  ' MD| Nose-Hoover-Chain time constant [', 'fs' ,'] ',&
+                  simpar % tau_nhc/unit%fs
+             WRITE ( iw, '( A,T77,I4 )' ) ' MD| Order of Yoshida integrator ', &
+                  simpar % nyosh
+             WRITE ( iw, '( A,T77,I4 )' ) ' MD| Number of multiple time steps', &
+                  simpar % nc
+          CASE(do_thermo_csvr)
+             WRITE ( iw, '( A,A4,A,T71,F10.2 )' ) &
+                  ' MD| Canonical Sampling through velocity rescaling time constant [', 'fs' ,'] ',&
+                  simpar % tau_nhc/unit%fs
+             WRITE ( iw, '( A,T71,F10.2 )' ) &
+                  ' MD| Canonical Sampling Initial Thermostat Energy ',&
+                  simpar % csvr_thermo_energy
+          END SELECT
+       END    IF
        IF (  simpar % ensemble == npt_i_ensemble .OR. simpar % ensemble == npt_f_ensemble ) THEN
           WRITE ( iw, '( A,A3,A, T71, F10.2 )' ) &
                ' MD| Pressure [','Bar','] ', simpar % p_ext*unit%bar
@@ -332,14 +345,14 @@ CPSourceFileRef,&
   END SUBROUTINE read_md_section
 
   !******************************************************************************
-  !!****** md/read_md_new_section [1.0] *
+  !!****** md/read_md_low [1.0] *
   !!
   !!   NAME
-  !!     read_md_new_section
+  !!     read_md_low
   !!
   !!
   !!   FUNCTION
-  !!     Parses the MD input section
+  !!     Low Level: Parses the MD input section
   !!
   !!   AUTHOR
   !!     teo
@@ -348,20 +361,22 @@ CPSourceFileRef,&
   !!
   !!
   !!*** *************************************************************************
-  SUBROUTINE read_md_new_section(simpar, root_section, md_section, error)
+  SUBROUTINE read_md_low(simpar, root_section, md_section, error)
     TYPE(simulation_parameters_type), &
       INTENT(INOUT)                          :: simpar
     TYPE(section_vals_type), POINTER         :: root_section, md_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'read_md_new_section', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_md_low', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: explicit, failure
-    TYPE(section_vals_type), POINTER         :: tmp2_section, tmp_section
+    TYPE(section_vals_type), POINTER         :: thermostat_section, &
+                                                tmp2_section, tmp_section
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
+       NULLIFY( tmp2_section, tmp_section, thermostat_section )
        CALL section_vals_val_get(md_section,"ANNEALING",r_val=simpar%f_annealing,error=error)
        IF (simpar%f_annealing /= 1.0_dp) simpar % annealing = .TRUE.
        CALL section_vals_val_get(md_section,"ENSEMBLE",i_val=simpar%ensemble,error=error)
@@ -387,7 +402,7 @@ CPSourceFileRef,&
           simpar%constraint = .TRUE.
           CALL section_vals_val_get(tmp_section,"SHAKE",r_val=simpar%shake_tol,error=error)
        END IF
-
+       
        IF (simpar%ensemble == nph_uniaxial_ensemble.OR.simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
           tmp_section => section_vals_get_subs_vals(md_section,"MSST",error=error)
           CALL section_vals_val_get(tmp_section,"PRESSURE",r_val=simpar%p0,error=error)
@@ -398,23 +413,36 @@ CPSourceFileRef,&
           CALL section_vals_val_get(tmp_section,"CMASS",r_val=simpar%cmass,error=error)
           CALL section_vals_val_get(tmp_section,"VSHOCK",r_val=simpar%v_shock,error=error)
        END IF
-
+       
        SELECT CASE (simpar%ensemble)
        CASE(nph_ensemble, nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble)
-         tmp_section => section_vals_get_subs_vals(md_section,"BAROSTAT",error=error)
-         CALL section_vals_val_get(tmp_section,"PRESSURE",r_val=simpar%p_ext,error=error)
-         CALL section_vals_val_get(tmp_section,"TIMECON",r_val=simpar%tau_cell,error=error)
+          tmp_section => section_vals_get_subs_vals(md_section,"BAROSTAT",error=error)
+          CALL section_vals_val_get(tmp_section,"PRESSURE",r_val=simpar%p_ext,error=error)
+          CALL section_vals_val_get(tmp_section,"TIMECON",r_val=simpar%tau_cell,error=error)
        END SELECT
 
        SELECT CASE (simpar%ensemble)
        CASE(npt_f_ensemble, npt_i_ensemble, nvt_ensemble)
-         tmp_section => section_vals_get_subs_vals(md_section,"NOSE",error=error)
-         CALL section_vals_val_get(tmp_section,"LENGTH",i_val=simpar%nhclen,error=error)
-         CALL section_vals_val_get(tmp_section,"YOSHIDA",i_val=simpar%nyosh,error=error)
-         CALL section_vals_val_get(tmp_section,"TIMECON",r_val=simpar%tau_nhc,error=error)
-         CALL section_vals_val_get(tmp_section,"MTS",i_val=simpar%nc,error=error)
+          thermostat_section => section_vals_get_subs_vals(md_section,"THERMOSTAT",error=error)
+          CALL section_vals_val_get(thermostat_section,"TYPE",i_val=simpar%thermostat_type,error=error)
+          CALL section_vals_val_get(thermostat_section,"REGION",i_val=simpar%part_region,error=error)
+          SELECT CASE (simpar%thermostat_type)
+          CASE (do_thermo_nose)
+             ! Nose-Hoover Thermostat
+             tmp_section => section_vals_get_subs_vals(thermostat_section,"NOSE",error=error)
+             CALL section_vals_val_get(tmp_section,"LENGTH",i_val=simpar%nhclen,error=error)
+             CALL section_vals_val_get(tmp_section,"YOSHIDA",i_val=simpar%nyosh,error=error)
+             CALL section_vals_val_get(tmp_section,"TIMECON",r_val=simpar%tau_nhc,error=error)
+             CALL section_vals_val_get(tmp_section,"MTS",i_val=simpar%nc,error=error)
+          CASE (do_thermo_csvr)
+             ! Canonical Sampling through velocity rescaling
+             tmp_section => section_vals_get_subs_vals(thermostat_section,"CSVR",error=error)
+             CALL section_vals_val_get(tmp_section,"TIMECON",r_val=simpar%tau_nhc,error=error)
+             CALL section_vals_val_get(tmp_section,"THERMOSTAT_ENERGY",r_val=simpar%csvr_thermo_energy,error=error)
+          END SELECT
        END SELECT
 
+       ! RESPA
        tmp_section => section_vals_get_subs_vals(md_section,"RESPA",error=error)
        CALL section_vals_get(tmp_section, explicit=simpar%do_respa, error=error)
        CALL section_vals_val_get(tmp_section,"FREQUENCY",i_val=simpar%n_time_steps,&
@@ -422,28 +450,45 @@ CPSourceFileRef,&
        simpar%multi_time_switch = .FALSE.
        IF (simpar%do_respa) simpar%multi_time_switch = .TRUE.
 
+       ! CORE-SHELL MODEL
        tmp_section => section_vals_get_subs_vals(md_section,"SHELL",error=error)
-       CALL section_vals_val_get(tmp_section,"TEMPERATURE",r_val=simpar%temp_sh_ext,error=error)
-       CALL section_vals_val_get(tmp_section,"TEMP_TOL",r_val=simpar%temp_sh_tol,error=error)
-       CALL section_vals_val_get(tmp_section,"NOSE_PARTICLE",l_val=simpar%vshell_rescale,error=error)
-       tmp2_section => section_vals_get_subs_vals(tmp_section,"NOSE",error=error)
-       CALL section_vals_val_get(tmp_section,"NOSE%_SECTION_PARAMETERS_",&
-            l_val=simpar%shell_nose,error=error)
-       IF(simpar%vshell_rescale .AND. simpar%shell_nose) THEN
-         CALL stop_program(routineN,moduleN,__LINE__,&
-              "SHELL model: NOSE_PARTICLE and shell_nose are not compatible") 
-       END IF        
-       IF (simpar%shell_nose) THEN
-         CALL section_vals_val_get(tmp2_section,"LENGTH",i_val=simpar%shell_nhclen,error=error)
-         CALL section_vals_val_get(tmp2_section,"YOSHIDA",i_val=simpar%shell_nyosh,error=error)
-         CALL section_vals_val_get(tmp2_section,"TIMECON",r_val=simpar%shell_tau_nhc,error=error)
-         CALL section_vals_val_get(tmp2_section,"MTS",i_val=simpar%shell_nc,error=error)
-         CALL section_vals_val_get(tmp2_section,"NHCOPT",i_val=simpar%shell_nhcopt,error=error)
+       CALL section_vals_get(tmp_section, explicit=explicit, error=error)
+       IF (explicit) THEN
+          CALL section_vals_val_get(tmp_section,"TEMPERATURE",r_val=simpar%temp_sh_ext,error=error)
+          CALL section_vals_val_get(tmp_section,"TEMP_TOL",r_val=simpar%temp_sh_tol,error=error)
+          CALL section_vals_val_get(tmp_section,"NOSE_PARTICLE",l_val=simpar%vshell_rescale,error=error)
+          thermostat_section => section_vals_get_subs_vals(tmp_section,"THERMOSTAT",error=error)
+          CALL section_vals_get(thermostat_section, explicit=explicit, error=error)
+          IF (explicit) THEN
+             CALL section_vals_val_get(thermostat_section,"TYPE",i_val=simpar%shell_thermostat_type,error=error)
+             SELECT CASE (simpar%shell_thermostat_type)
+             CASE (do_thermo_nose)
+                ! Nose-Hoover Thermostat
+                CALL section_vals_val_get(thermostat_section,"REGION",i_val=simpar%shell_region,error=error)
+                tmp2_section => section_vals_get_subs_vals(thermostat_section,"NOSE",error=error)
+                CALL section_vals_get(tmp2_section,explicit=simpar%shell_nose,error=error)
+                IF(simpar%vshell_rescale .AND. simpar%shell_nose) THEN
+                   CALL stop_program(routineN,moduleN,&
+__LINE__,&
+                                     "SHELL model: NOSE_PARTICLE and shell_nose are not compatible") 
+                END IF
+                IF (simpar%shell_nose) THEN
+                   CALL section_vals_val_get(tmp2_section,"LENGTH",i_val=simpar%shell_nhclen,error=error)
+                   CALL section_vals_val_get(tmp2_section,"YOSHIDA",i_val=simpar%shell_nyosh,error=error)
+                   CALL section_vals_val_get(tmp2_section,"TIMECON",r_val=simpar%shell_tau_nhc,error=error)
+                   CALL section_vals_val_get(tmp2_section,"MTS",i_val=simpar%shell_nc,error=error)
+                END IF
+             CASE (do_thermo_csvr)
+                ! Canonical Sampling through velocity rescaling
+                CALL cp_unimplemented_error(fromWhere=routineP, &
+                     message="CSVR thermostat not implemented for SHELL MODEL", &
+                     error=error, error_level=cp_fatal_level)
+             END SELECT
+          END IF
        END IF
-
     END IF
 
-  END SUBROUTINE read_md_new_section
+  END SUBROUTINE read_md_low
 
   !******************************************************************************
   !!****** md/set_md_defaults [1.0] *
@@ -482,10 +527,6 @@ CPSourceFileRef,&
     simpar % constraint = .FALSE.
     simpar % annealing = .FALSE.
     simpar % shake_tol = 1.0E-6_dp
-    simpar % nhclen = 3
-    simpar % nc = 2
-    simpar % nyosh = 3
-    simpar % tau_nhc = 1000.0_dp
     simpar % tau_cell = 1000.0_dp
     simpar % p0 = 0._dp
     simpar % v0 = 0._dp
@@ -507,7 +548,8 @@ CPSourceFileRef,&
     simpar % shell_nc = 2
     simpar % shell_nyosh = 3
     simpar % shell_tau_nhc = 1000.0_dp
-    simpar % shell_nhcopt = 101
+    simpar % shell_region = do_region_global
+    simpar % part_region = do_region_global
   END SUBROUTINE set_md_defaults
 
   !******************************************************************************
@@ -767,9 +809,9 @@ CPSourceFileRef,&
                 part ( i ) % v ( 2 ) = 0.0_dp
                 part ( i ) % v ( 3 ) = 0.0_dp
              ELSE
-                part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream,error=error) / sqrt(mass)
-                part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream,error=error) / sqrt(mass)
-                part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream,error=error) / sqrt(mass)
+                part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+                part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+                part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
                 vcom ( 1 ) = vcom ( 1 ) + mass * part ( i ) % v ( 1 )
                 vcom ( 2 ) = vcom ( 2 ) + mass * part ( i ) % v ( 2 )
                 vcom ( 3 ) = vcom ( 3 ) + mass * part ( i ) % v ( 3 )

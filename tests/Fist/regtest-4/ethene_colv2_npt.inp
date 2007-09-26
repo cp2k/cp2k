@@ -68,12 +68,14 @@
     STEPS 50
     TIMESTEP 2.5
     TEMPERATURE 298
-    &NOSE
-      LENGTH 1
-      YOSHIDA 3
-      TIMECON 500
-      MTS 2
-    &END NOSE
+    &THERMOSTAT
+      &NOSE
+        LENGTH 1
+        YOSHIDA 3
+        TIMECON 500
+        MTS 2
+      &END NOSE
+    &END
     &BAROSTAT
     &END
   &END MD

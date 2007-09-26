@@ -146,11 +146,13 @@ H       8.687134       8.667252       2.448452
     STEPS 3
     TIMESTEP 0.1
     TEMPERATURE 300.0
-    &NOSE
-      LENGTH 3
-      YOSHIDA 3
-      TIMECON 100.0
-      MTS 2
-    &END NOSE
+    &THERMOSTAT
+      &NOSE
+        LENGTH 3
+        YOSHIDA 3
+        TIMECON 100.0
+        MTS 2
+      &END NOSE
+    &END THERMOSTAT
   &END MD
 &END MOTION

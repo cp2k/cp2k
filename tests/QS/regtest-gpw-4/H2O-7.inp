@@ -51,7 +51,9 @@
     TIMESTEP 0.1
     TEMPERATURE 300.0
     PV_AVA 
-    &NOSE
+    &THERMOSTAT
+      &NOSE
+      &END
     &END
     &BAROSTAT
     &END

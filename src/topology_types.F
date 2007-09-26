@@ -31,7 +31,6 @@ MODULE topology_types
   USE input_constants,                 ONLY: do_bondparm_covalent,&
                                              do_conn_generate,&
                                              do_constr_none,&
-                                             do_nhcopt_global,&
                                              do_skip_13
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
@@ -136,7 +135,7 @@ MODULE topology_types
      TYPE (constraint_info_type),POINTER       :: cons_info
      TYPE (cell_type), POINTER                 :: cell, cell_ref
      INTEGER                                   :: conn_type
-     INTEGER                                   :: coord_type, nhcopt
+     INTEGER                                   :: coord_type
      INTEGER                                   :: exclude_vdw
      INTEGER                                   :: exclude_ei
      INTEGER                                   :: bondparm_type
@@ -230,7 +229,6 @@ CONTAINS
     topology%molecules_check=.FALSE.
     topology%coordinate=.FALSE.
     topology%use_g96_velocity=.FALSE.
-    topology%nhcopt=do_nhcopt_global
     topology%coord_type=-1
     topology%coord_file_name=''
     topology%conn_type=do_conn_generate

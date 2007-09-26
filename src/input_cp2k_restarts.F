@@ -295,7 +295,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
 
     IF (PRESENT(md_env)) THEN
-       CALL get_md_env ( md_env=md_env,force_env_p=force_env_p)
+       CALL get_md_env ( md_env=md_env,force_env_p=force_env_p,error=error)
        CPPrecondition(ASSOCIATED(force_env_p),cp_failure_level,routineP,error,failure)
        my_force_env => force_env_p(1)%force_env
     ELSEIF (PRESENT(force_env)) THEN 
@@ -413,63 +413,64 @@ CONTAINS
                       nhc_part=nhc_part,&
                       nhc_baro=nhc_baro,&
                       nhc_coef=nhc_coef,&
-                      nhc_shell=nhc_shell)
+                      nhc_shell=nhc_shell,&
+                      error=error)
 
                      
     IF (ASSOCIATED(nhc_part)) THEN
-       work_section => section_vals_get_subs_vals(motion_section,"MD%NOSE%COORD",error=error)
+       work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE%COORD",error=error)
        CALL section_vals_remove_values(work_section, error)
        NULLIFY(work_section)
-       work_section => section_vals_get_subs_vals(motion_section,"MD%NOSE%VELOCITY",error=error)
+       work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE%VELOCITY",error=error)
        CALL section_vals_remove_values(work_section, error)
        NULLIFY(work_section)
-       work_section => section_vals_get_subs_vals(motion_section,"MD%NOSE%FORCE",error=error)
+       work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE%FORCE",error=error)
        CALL section_vals_remove_values(work_section, error)
        NULLIFY(work_section)
-       work_section => section_vals_get_subs_vals(motion_section,"MD%NOSE%MASS",error=error)
+       work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE%MASS",error=error)
        CALL section_vals_remove_values(work_section, error)
     ENDIF
 
     IF (ASSOCIATED(nhc_baro)) THEN
        NULLIFY(work_section)
-       work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%NOSE%COORD",error=error)
+       work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%NOSE%COORD",error=error)
        CALL section_vals_remove_values(work_section, error)
        NULLIFY(work_section)
-       work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%NOSE%VELOCITY",error=error)
+       work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%NOSE%VELOCITY",error=error)
        CALL section_vals_remove_values(work_section, error)
        NULLIFY(work_section)
-       work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%NOSE%FORCE",error=error)
+       work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%NOSE%FORCE",error=error)
        CALL section_vals_remove_values(work_section, error)
        NULLIFY(work_section)
-       work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%NOSE%MASS",error=error)
+       work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%NOSE%MASS",error=error)
        CALL section_vals_remove_values(work_section, error)
     END IF
     
     IF (ASSOCIATED(nhc_coef)) THEN
-       work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%NOSE%COORD",error=error)
+       work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%THERMOSTAT%NOSE%COORD",error=error)
        CALL section_vals_remove_values(work_section, error)
        NULLIFY(work_section)
-       work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%NOSE%VELOCITY",error=error)
+       work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%THERMOSTAT%NOSE%VELOCITY",error=error)
        CALL section_vals_remove_values(work_section, error)
        NULLIFY(work_section)
-       work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%NOSE%FORCE",error=error)
+       work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%THERMOSTAT%NOSE%FORCE",error=error)
        CALL section_vals_remove_values(work_section, error)
        NULLIFY(work_section)
-       work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%NOSE%MASS",error=error)
+       work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%THERMOSTAT%NOSE%MASS",error=error)
        CALL section_vals_remove_values(work_section, error)
     ENDIF
 
     IF (ASSOCIATED(nhc_shell)) THEN
-       work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%NOSE%COORD",error=error)
+       work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE%COORD",error=error)
        CALL section_vals_remove_values(work_section, error)
        NULLIFY(work_section)
-       work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%NOSE%VELOCITY",error=error)
+       work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE%VELOCITY",error=error)
        CALL section_vals_remove_values(work_section, error)
        NULLIFY(work_section)
-       work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%NOSE%FORCE",error=error)
+       work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE%FORCE",error=error)
        CALL section_vals_remove_values(work_section, error)
        NULLIFY(work_section)
-       work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%NOSE%MASS",error=error)
+       work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE%MASS",error=error)
        CALL section_vals_remove_values(work_section, error)
     ENDIF
 
@@ -542,7 +543,8 @@ CONTAINS
     IF (lcond) THEN
        IF (PRESENT(md_env)) THEN
           CALL get_md_env ( md_env=md_env,&
-               force_env_p=force_env_p)
+                            force_env_p=force_env_p,&
+                            error=error)
           
           CPPrecondition(ASSOCIATED(force_env_p),cp_failure_level,routineP,error,failure)
           my_force_env => force_env_p(1)%force_env       
@@ -664,7 +666,8 @@ CONTAINS
                          itimes=itimes,&
                          accepted_md=accepted_md,&
                          md_approach_nr=md_approach_nr,&
-                         para_env=para_env)
+                         para_env=para_env,&
+                         error=error)
     ELSE
        IF (ASSOCIATED(force_env)) THEN
           para_env => force_env%para_env
@@ -869,7 +872,7 @@ CONTAINS
           END DO
        END IF
 
-       work_section => section_vals_get_subs_vals(motion_section,"MD%NOSE",error=error)
+       work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE",error=error)
        CALL set_template_restart(work_section, eta, veta, fnhc, mnhc, error)
     END IF
     CALL timestop(0.0_dp,handle2)
@@ -899,9 +902,8 @@ CONTAINS
           END DO
        END DO
        
-       work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%NOSE",error=error)
-       CALL set_template_restart(work_section, eta, veta, fnhc, mnhc, error)
-       
+       work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%NOSE",error=error)
+       CALL set_template_restart(work_section, eta, veta, fnhc, mnhc, error)   
     END IF
     CALL timestop(0.0_dp,handle2)
     CALL timeset(routineN//"_NPT","I",'',handle2)
@@ -1037,7 +1039,7 @@ CONTAINS
              END DO
           END DO
           
-          work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%NOSE",error=error)
+          work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%THERMOSTAT%NOSE",error=error)
           CALL set_template_restart(work_section, eta, veta, fnhc, mnhc, error)    
        END IF
     END IF
@@ -1220,7 +1222,7 @@ CONTAINS
         END DO
       END IF
        
-      work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%NOSE",error=error)
+      work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE",error=error)
       CALL set_template_restart(work_section, eta, veta, fnhc, mnhc, error)    
     END IF
 

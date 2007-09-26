@@ -15,6 +15,7 @@ OBJECTS_GENERIC =\
  atomic_kind_list_types.o\
  atomic_kind_types.o\
  atoms_input.o\
+ barostat_types.o\
  basis_set_types.o\
  bessel_lib.o\
  beta_gamma_psi.o\
@@ -90,6 +91,8 @@ OBJECTS_GENERIC =\
  cp_subsystem_types.o\
  cp_units.o\
  cpot_types.o\
+ csvr_system_types.o\
+ csvr_system_utils.o\
  cube_utils.o\
  dg_rho0_types.o\
  dg_types.o\
@@ -460,6 +463,7 @@ OBJECTS_GENERIC =\
  structure_factor_types.o\
  structure_factors.o\
  termination.o\
+ thermostat_types.o\
  timings.o\
  topology.o\
  topology_coordinate_util.o\

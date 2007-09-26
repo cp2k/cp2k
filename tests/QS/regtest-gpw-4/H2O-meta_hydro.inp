@@ -10,12 +10,15 @@
     STEPS 5
     TIMESTEP 0.50
     TEMPERATURE 150
-    &NOSE
-      LENGTH     3
-      YOSHIDA             3
-      TIMECON  [wavenumber_t] 5000
-      MTS        2
-    &END NOSE
+    &THERMOSTAT
+      REGION MASSIVE
+      &NOSE
+        LENGTH     3
+        YOSHIDA             3
+        TIMECON  [wavenumber_t] 5000
+        MTS        2
+      &END NOSE
+    &END
   &END MD
   &FREE_ENERGY
     METHOD METADYN
@@ -56,9 +59,6 @@
  H        0.252000        0.281000       -3.381000
  H        0.100000        0.930000        0.350000
     &END COORD
-    &TOPOLOGY
-      NHCOPT MASSIVE
-    &END TOPOLOGY
     &KIND O
       BASIS_SET DZVP-GTH-PADE
       POTENTIAL GTH-BLYP-q6

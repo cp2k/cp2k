@@ -178,8 +178,8 @@ CONTAINS
        ENDDO
     ELSE
        CALL init_barostat_variables ( npt_info, simpar % tau_cell, temp,  &
-            box % deth, simpar % nfree, simpar % ensemble, &
-            simpar % cmass, para_env, globenv ,error=error)
+            box % deth, simpar % nfree, simpar % ensemble, simpar % cmass,&
+            para_env, globenv ,error=error)
     END IF
   END SUBROUTINE initialize_npt
 
@@ -379,9 +379,7 @@ CONTAINS
 !******************************************************************************
 
   SUBROUTINE initialize_nhc_coef ( dyn_coeff_set, para_env, globenv, nhc, &
-             coeff_section, dt, save_mem, error )
-
-    !  IMPLICIT NONE
+             coeff_section, dt, save_mem, nose_section, error )
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -391,6 +389,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: coeff_section
     REAL(KIND=dp), INTENT(IN)                :: dt
     LOGICAL, INTENT(IN)                      :: save_mem
+    TYPE(section_vals_type), POINTER         :: nose_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_coef', &
@@ -399,21 +398,13 @@ CONTAINS
     INTEGER                                  :: isos
     LOGICAL                                  :: restart
     REAL(KIND=dp)                            :: kg_coeff_target_temp, tau_nhc
-    TYPE(section_vals_type), POINTER         :: nose_section
 
-!------------------------------------------------------------------------------
-
-    NULLIFY(nose_section)
-!    NULLIFY(buffer,work_section2)
-!    explicit  =.FALSE.
     restart = .FALSE.
-    nose_section => section_vals_get_subs_vals(coeff_section,"nose",error=error)
     CALL section_vals_val_get(nose_section,"timecon",r_val=tau_nhc,error=error)
     CALL section_vals_val_get(coeff_section,"temperature",r_val=kg_coeff_target_temp,error=error)
 
     ! fire up the thermostats
     CALL nhc_to_coef_mapping ( dyn_coeff_set, nhc, coeff_section, para_env ,error=error)
-
 
     IF ( nhc % nhc_len /= 0 ) THEN
        CALL restart_nose(nhc, nose_section, save_mem, restart, error)

@@ -114,7 +114,7 @@ CONTAINS
     ! module.
     ! In this routine specifically biased MD are handled.
     CALL get_md_env(md_env, force_env_p=force_env_p, fe_env=fe_env, simpar=simpar,&
-         itimes=istep)
+         itimes=istep, error=error)
     force_env => force_env_p(1)%force_env
     IF (.NOT.ASSOCIATED(force_env%meta_env).AND.ASSOCIATED(fe_env)) THEN
        SELECT CASE(fe_env%type)

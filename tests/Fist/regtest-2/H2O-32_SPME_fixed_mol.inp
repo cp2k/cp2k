@@ -154,9 +154,6 @@
     H                   2.706   3.053   1.282   H2O
     H                   3.542   2.615   0.020   H2O
     &END COORD
-    &TOPOLOGY
-       NHCOPT MOLECULE
-    &END
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
@@ -180,11 +177,14 @@
     STEPS 50
     TIMESTEP 1.0
     TEMPERATURE 300.0
-    &NOSE
-      LENGTH 3
-      YOSHIDA 3
-      TIMECON 1000
-    &END NOSE
+    &THERMOSTAT
+      REGION MOLECULE
+      &NOSE
+        LENGTH 3
+        YOSHIDA 3
+        TIMECON 1000
+      &END NOSE
+    &END
   &END MD
   &PRINT
     &RESTART OFF

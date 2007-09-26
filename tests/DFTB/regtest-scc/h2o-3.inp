@@ -145,12 +145,14 @@
     STEPS 2
     TIMESTEP 0.48
     TEMPERATURE 330.0
-    &NOSE
-      LENGTH 3
-      YOSHIDA 3
-      TIMECON [wavenumber_t] 2000
-      MTS 2
-    &END NOSE
+    &THERMOSTAT
+      &NOSE
+        LENGTH 3
+        YOSHIDA 3
+        TIMECON [wavenumber_t] 2000
+        MTS 2
+      &END NOSE
+    &END
   &END MD
 &END MOTION
 

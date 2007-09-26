@@ -155,7 +155,6 @@ MODULE molecule_kind_types
     TYPE(fixd_constraint_type), DIMENSION(:), POINTER :: fixd_list
     TYPE(shell_type), DIMENSION(:), POINTER           :: shell_list
     CHARACTER(LEN=default_string_length)              :: name
-    INTEGER                                           :: nhcopt
     REAL(KIND = dp)                                   :: charge,&
                                                          mass
     INTEGER                                           :: kind_number,&
@@ -320,7 +319,6 @@ CONTAINS
       molecule_kind_set(imolecule_kind)%mass = 0.0_dp
       molecule_kind_set(imolecule_kind)%name = ""
       molecule_kind_set(imolecule_kind)%molname_generated = .FALSE.
-      molecule_kind_set(imolecule_kind)%nhcopt = -1
       molecule_kind_set(imolecule_kind)%kind_number = imolecule_kind
       molecule_kind_set(imolecule_kind)%natom = 0
       molecule_kind_set(imolecule_kind)%nbend = 0
@@ -530,8 +528,7 @@ CONTAINS
   SUBROUTINE get_molecule_kind(molecule_kind,atom_list,bond_list,bend_list,&
                                ub_list,impr_list,onfo_list,colv_list,fixd_list,&
                                g3x3_list,g4x6_list,torsion_list,shell_list,&
-                               name,nhcopt,&
-                               mass,charge,kind_number,natom,nbend,nbond,nub,&
+                               name,mass,charge,kind_number,natom,nbend,nbond,nub,&
                                nimpr,nonfo,nconstraint,nfixd,&
                                ncolv,ng3x3,ng4x6,&
                                nfixd_restraint, ng3x3_restraint, ng4x6_restraint,&
@@ -574,7 +571,6 @@ CONTAINS
       OPTIONAL, POINTER                      :: shell_list
     CHARACTER(LEN=default_string_length), &
       INTENT(OUT), OPTIONAL                  :: name
-    INTEGER, INTENT(OUT), OPTIONAL           :: nhcopt
     REAL(KIND=dp), OPTIONAL                  :: mass, charge
     INTEGER, INTENT(OUT), OPTIONAL           :: kind_number, natom, nbend, &
                                                 nbond, nub, nimpr, nonfo, &
@@ -626,7 +622,6 @@ CONTAINS
       IF (PRESENT(shell_list)) shell_list => molecule_kind%shell_list
       IF (PRESENT(name)) name = molecule_kind%name
       IF (PRESENT(molname_generated)) molname_generated = molecule_kind%molname_generated
-      IF (PRESENT(nhcopt)) nhcopt = molecule_kind%nhcopt
       IF (PRESENT(mass)) mass = molecule_kind%mass
       IF (PRESENT(charge)) charge = molecule_kind%charge
       IF (PRESENT(kind_number)) kind_number = molecule_kind%kind_number
@@ -829,7 +824,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE set_molecule_kind(molecule_kind,name,mass,charge,kind_number,&
-                               molecule_list,atom_list,nhcopt,nbond,bond_list,&
+                               molecule_list,atom_list,nbond,bond_list,&
                                nbend,bend_list,nub,ub_list,nimpr,impr_list,&
                                nonfo,onfo_list,ntorsion,torsion_list,fixd_list,&
                                ncolv,colv_list,ng3x3,g3x3_list,ng4x6,nfixd,g4x6_list,&
@@ -852,7 +847,7 @@ CONTAINS
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: molecule_list
     TYPE(atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atom_list
-    INTEGER, INTENT(IN), OPTIONAL            :: nhcopt, nbond
+    INTEGER, INTENT(IN), OPTIONAL            :: nbond
     TYPE(bond_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: bond_list
     INTEGER, INTENT(IN), OPTIONAL            :: nbend
@@ -917,7 +912,6 @@ CONTAINS
       END IF
       IF (PRESENT(molname_generated)) molecule_kind%molname_generated = molname_generated
       IF (PRESENT(name)) molecule_kind%name = name
-      IF (PRESENT(nhcopt)) molecule_kind%nhcopt = nhcopt
       IF (PRESENT(mass)) molecule_kind%mass = mass
       IF (PRESENT(charge)) molecule_kind%charge = charge
       IF (PRESENT(kind_number)) molecule_kind%kind_number = kind_number

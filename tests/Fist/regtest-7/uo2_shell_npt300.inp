@@ -72,7 +72,6 @@
       CONNECTIVITY UPSF
       COORD_FILE ../sample_xyz/uo2_displ.xyz
       COORDINATE XYZ
-      NHCOPT MOLECULE
     &END TOPOLOGY
     &KIND U
       MASS 238.03000
@@ -99,12 +98,15 @@
       PRESSURE 0.
       TIMECON 1000
     &END BAROSTAT
-    &NOSE
-      LENGTH 6
-      YOSHIDA 3
-      TIMECON 1000
-      MTS 2
-    &END NOSE
+    &THERMOSTAT
+      REGION MOLECULE
+      &NOSE
+        LENGTH 6
+        YOSHIDA 3
+        TIMECON 1000
+        MTS 2
+      &END NOSE
+    &END
     &PRINT
       &ENERGY
         EACH 1

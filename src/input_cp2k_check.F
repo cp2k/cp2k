@@ -464,24 +464,24 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
            CALL section_vals_set_subs_vals(input_file,"MOTION%MD%BAROSTAT%VELOCITY",&
                 section,error=error)
         END IF
-        CALL section_vals_val_get(r_section,"RESTART_BAROSTAT_NOSE",l_val=flag,&
+        CALL section_vals_val_get(r_section,"RESTART_BAROSTAT_THERMOSTAT",l_val=flag,&
              error=error)
         IF (flag.AND.check_restart(input_file, restart_input, "MOTION%MD%BAROSTAT",error)) THEN
            section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%MD%BAROSTAT%NOSE%COORD",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%BAROSTAT%NOSE%COORD",&
+                "MOTION%MD%BAROSTAT%THERMOSTAT%NOSE%COORD",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%BAROSTAT%THERMOSTAT%NOSE%COORD",&
                 section,error=error)
            section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%MD%BAROSTAT%NOSE%VELOCITY",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%BAROSTAT%NOSE%VELOCITY",&
+                "MOTION%MD%BAROSTAT%THERMOSTAT%NOSE%VELOCITY",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%BAROSTAT%THERMOSTAT%NOSE%VELOCITY",&
                 section,error=error)
            section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%MD%BAROSTAT%NOSE%MASS",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%BAROSTAT%NOSE%MASS",&
+                "MOTION%MD%BAROSTAT%THERMOSTAT%NOSE%MASS",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%BAROSTAT%THERMOSTAT%NOSE%MASS",&
                 section,error=error)
            section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%MD%BAROSTAT%NOSE%FORCE",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%BAROSTAT%NOSE%FORCE",&
+                "MOTION%MD%BAROSTAT%THERMOSTAT%NOSE%FORCE",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%BAROSTAT%THERMOSTAT%NOSE%FORCE",&
                 section,error=error)
         END IF
         CALL section_vals_val_get(r_section,"RESTART_KG_COEFF_POS",l_val=flag,&
@@ -508,44 +508,44 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
            CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%VELOCITY",&
                 section,error=error)
         END IF
-        CALL section_vals_val_get(r_section,"RESTART_KG_NOSE",l_val=flag,&
+        CALL section_vals_val_get(r_section,"RESTART_KG_THERMOSTAT",l_val=flag,&
              error=error)
-        IF (flag.AND.check_restart(input_file, restart_input, "MOTION%MD%KG_COEFF%NOSE",error)) THEN
+        IF (flag.AND.check_restart(input_file, restart_input, "MOTION%MD%KG_COEFF%THERMOSTAT%NOSE",error)) THEN
            section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%MD%KG_COEFF%NOSE%COORD",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%NOSE%COORD",&
+                "MOTION%MD%KG_COEFF%THERMOSTAT%NOSE%COORD",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%THERMOSTAT%NOSE%COORD",&
                 section,error=error)
            section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%MD%KG_COEFF%NOSE%VELOCITY",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%NOSE%VELOCITY",&
+                "MOTION%MD%KG_COEFF%THERMOSTAT%NOSE%VELOCITY",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%THERMOSTAT%NOSE%VELOCITY",&
                 section,error=error)
            section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%MD%KG_COEFF%NOSE%MASS",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%NOSE%MASS",&
+                "MOTION%MD%KG_COEFF%THERMOSTAT%NOSE%MASS",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%THERMOSTAT%NOSE%MASS",&
                 section,error=error)
            section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%MD%KG_COEFF%NOSE%FORCE",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%NOSE%FORCE",&
+                "MOTION%MD%KG_COEFF%THERMOSTAT%NOSE%FORCE",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%THERMOSTAT%NOSE%FORCE",&
                 section,error=error)
         END IF
-        CALL section_vals_val_get(r_section,"RESTART_NOSE",l_val=flag,&
+        CALL section_vals_val_get(r_section,"RESTART_THERMOSTAT",l_val=flag,&
              error=error)
-        IF (flag.AND.check_restart(input_file, restart_input, "MOTION%MD%NOSE",error)) THEN
+        IF (flag.AND.check_restart(input_file, restart_input, "MOTION%MD%THERMOSTAT%NOSE",error)) THEN
            section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%MD%NOSE%COORD",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%NOSE%COORD",&
+                "MOTION%MD%THERMOSTAT%NOSE%COORD",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%THERMOSTAT%NOSE%COORD",&
                 section,error=error)
            section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%MD%NOSE%VELOCITY",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%NOSE%VELOCITY",&
+                "MOTION%MD%THERMOSTAT%NOSE%VELOCITY",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%THERMOSTAT%NOSE%VELOCITY",&
                 section,error=error)
            section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%MD%NOSE%MASS",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%NOSE%MASS",&
+                "MOTION%MD%THERMOSTAT%NOSE%MASS",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%THERMOSTAT%NOSE%MASS",&
                 section,error=error)
            section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%MD%NOSE%FORCE",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%NOSE%FORCE",&
+                "MOTION%MD%THERMOSTAT%NOSE%FORCE",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%THERMOSTAT%NOSE%FORCE",&
                 section,error=error)
         END IF
         CALL section_vals_val_get(r_section,"RESTART_CONSTRAINT",l_val=flag,&
@@ -725,16 +725,16 @@ SUBROUTINE remove_restart_info(input_file,error)
           "MOTION%MD%BAROSTAT%VELOCITY",error=error)
      CALL section_vals_remove_values(section_to_delete,error)
      section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%MD%BAROSTAT%NOSE%COORD",error=error)
+          "MOTION%MD%BAROSTAT%THERMOSTAT%NOSE%COORD",error=error)
      CALL section_vals_remove_values(section_to_delete,error)
      section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%MD%BAROSTAT%NOSE%VELOCITY",error=error)
+          "MOTION%MD%BAROSTAT%THERMOSTAT%NOSE%VELOCITY",error=error)
      CALL section_vals_remove_values(section_to_delete,error)
      section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%MD%BAROSTAT%NOSE%MASS",error=error)
+          "MOTION%MD%BAROSTAT%THERMOSTAT%NOSE%MASS",error=error)
      CALL section_vals_remove_values(section_to_delete,error)
      section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%MD%BAROSTAT%NOSE%FORCE",error=error)
+          "MOTION%MD%BAROSTAT%THERMOSTAT%NOSE%FORCE",error=error)
      CALL section_vals_remove_values(section_to_delete,error)
      section_to_delete => section_vals_get_subs_vals(input_file,&
           "MOTION%MD%KG_COEFF%RESTART_INDEX",error=error)
@@ -749,28 +749,28 @@ SUBROUTINE remove_restart_info(input_file,error)
           "MOTION%MD%KG_COEFF%VELOCITY",error=error)
      CALL section_vals_remove_values(section_to_delete,error)
      section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%MD%KG_COEFF%NOSE%COORD",error=error)
+          "MOTION%MD%KG_COEFF%THERMOSTAT%NOSE%COORD",error=error)
      CALL section_vals_remove_values(section_to_delete,error)
      section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%MD%KG_COEFF%NOSE%VELOCITY",error=error)
+          "MOTION%MD%KG_COEFF%THERMOSTAT%NOSE%VELOCITY",error=error)
      CALL section_vals_remove_values(section_to_delete,error)
      section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%MD%KG_COEFF%NOSE%MASS",error=error)
+          "MOTION%MD%KG_COEFF%THERMOSTAT%NOSE%MASS",error=error)
      CALL section_vals_remove_values(section_to_delete,error)
      section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%MD%KG_COEFF%NOSE%FORCE",error=error)
+          "MOTION%MD%KG_COEFF%THERMOSTAT%NOSE%FORCE",error=error)
      CALL section_vals_remove_values(section_to_delete,error)
      section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%MD%NOSE%COORD",error=error)
+          "MOTION%MD%THERMOSTAT%NOSE%COORD",error=error)
      CALL section_vals_remove_values(section_to_delete,error)
      section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%MD%NOSE%VELOCITY",error=error)
+          "MOTION%MD%THERMOSTAT%NOSE%VELOCITY",error=error)
      CALL section_vals_remove_values(section_to_delete,error)
      section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%MD%NOSE%MASS",error=error)
+          "MOTION%MD%THERMOSTAT%NOSE%MASS",error=error)
      CALL section_vals_remove_values(section_to_delete,error)
      section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%MD%NOSE%FORCE",error=error)
+          "MOTION%MD%THERMOSTAT%NOSE%FORCE",error=error)
      CALL section_vals_remove_values(section_to_delete,error)
      ! Constrained/Restrained section not reset.. to be done externally..
      section_to_delete => section_vals_get_subs_vals(input_file,&

@@ -2451,8 +2451,8 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER :: baro_section, coeff_section, nose_section, &
-      print_key, shell_section, subsection, uni_section
+    TYPE(section_type), POINTER :: baro_section, coeff_section, print_key, &
+      shell_section, subsection, thermo_section, uni_section
 
     failure=.FALSE.
 
@@ -2463,7 +2463,8 @@ CONTAINS
             n_keywords=13, n_subsections=6, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       NULLIFY(keyword, coeff_section, nose_section, uni_section, baro_section, shell_section, subsection)
+       NULLIFY(keyword, coeff_section,uni_section, baro_section, thermo_section, &
+            shell_section, subsection)
        CALL keyword_create(keyword, name="ensemble",&
             description="The ensemble/integrator that you want to use for MD propagation",&
             usage="ensemble nve",&
@@ -2542,7 +2543,7 @@ CONTAINS
        CALL keyword_create(keyword, name="comvel_tol",&
             description="The maximum accepted velocity of the center of mass"//&
             "If it is 0 no subtraction is performed. "//&
-            "With Shell-Model, comvel may drift if SUBSYS%TOPOLOGY%NHCOPT /= GLOBAL ", &
+            "With Shell-Model, comvel may drift if SUBSYS%TOPOLOGY%REGION /= GLOBAL ", &
             usage="comvel_tol 0.0", default_r_val=0.0_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2596,7 +2597,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-
        CALL create_msst_section(uni_section, error=error)
        CALL section_add_subsection(section, uni_section, error=error)
        CALL section_release(uni_section,error=error)       
@@ -2605,19 +2605,19 @@ CONTAINS
        CALL section_add_subsection(section, baro_section, error=error)
        CALL section_release(baro_section,error=error)
 
+       CALL create_thermostat_section(thermo_section, error=error)
+       CALL section_add_subsection(section, thermo_section, error=error)
+       CALL section_release(thermo_section,error=error)
+
        CALL create_coeff_section(coeff_section, error=error)
        CALL section_add_subsection(section, coeff_section, error=error)
        CALL section_release(coeff_section,error=error)
-
-       CALL create_nose_section(nose_section, error=error)
-       CALL section_add_subsection(section, nose_section, error=error)
-       CALL section_release(nose_section,error=error)
 
        CALL create_respa_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       CALL create_SHELL_section(shell_section, error=error)
+       CALL create_shell_section(shell_section, error=error)
        CALL section_add_subsection(section, shell_section, error=error)
        CALL section_release(shell_section,error=error)       
        
@@ -2631,14 +2631,14 @@ CONTAINS
             error=error)
        NULLIFY(print_key)
        CALL cp_print_key_section_create(print_key,"energy",&
-            description="controls the output the ener file",&
+            description="Controls the output the ener file",&
             print_level=low_print_level, common_iter_levels=1,&
             filename="",error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
               
        CALL cp_print_key_section_create(print_key,"SHELL_ENERGY",&
-            description="controls the output the shell ener file (only if shell-model)",&
+            description="Controls the output the shell ener file (only if shell-model)",&
             print_level=medium_print_level, common_iter_levels=1,&
             filename="",error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
@@ -2665,6 +2665,89 @@ CONTAINS
 
     END IF
 END SUBROUTINE create_md_section
+
+!***************************************************************************
+!!****f* input_cp2k/create_thermostat_section *
+!!
+!!   NAME
+!!     create_thermostat_section
+!!
+!!   FUNCTION
+!!     Specifies parameter for thermostat for constant temperature ensembles
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: will contain the coeff section 
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo [tlaino] - University of Zurich - 09.2007
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_thermostat_section(section, just_restart_info, error)
+    TYPE(section_type), POINTER              :: section
+    LOGICAL, INTENT(IN), OPTIONAL            :: just_restart_info
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_thermostat_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure, my_just_restart_info
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: csvr_section, nose_section
+
+    failure=.FALSE.
+    
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       my_just_restart_info = .FALSE.
+       IF (PRESENT(just_restart_info)) my_just_restart_info = just_restart_info
+       NULLIFY(csvr_section, nose_section)
+       
+       CALL section_create(section,name="THERMOSTAT",&
+            description="Specify thermostat type and parameters controlling the thermostat.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.NOT.my_just_restart_info,&
+            error=error)
+       NULLIFY(keyword)
+       
+       IF (.NOT.my_just_restart_info) THEN
+          CALL keyword_create(keyword, name="TYPE",&
+               description="Specify the thermostat used for the constant temperature ensembles.",&
+               usage="thermostat NOSE",&
+               default_i_val=do_thermo_nose,&
+               enum_c_vals=s2a("NOSE","CSVR"),&
+               enum_i_vals=(/do_thermo_nose,&
+               do_thermo_csvr/),&
+               enum_desc=s2a("Uses the Nose-Hoover thermostat.",&
+               "Uses the canonical sampling through velocity rescaling."),&
+               error=error)
+          CALL section_add_keyword(section,keyword,error=error)
+          CALL keyword_release(keyword,error=error)
+
+          CALL keyword_create(keyword, name="REGION",&
+               description="Determines the number of DOF each NHC is attached to.",&
+               usage="REGION (GLOBAL||MOLECULE||MASSIVE||NONE)", &
+               enum_c_vals=s2a( "GLOBAL", "MOLECULE", "MASSIVE", "NONE"),&
+               enum_i_vals=(/do_region_global, do_region_molecule,&
+                             do_region_massive, do_region_none/),&
+                             default_i_val=do_region_global,error=error)
+          CALL section_add_keyword(section,keyword,error=error)
+          CALL keyword_release(keyword,error=error)
+       END IF
+
+       CALL create_nose_section(nose_section, my_just_restart_info, error=error)
+       CALL section_add_subsection(section, nose_section, error=error)
+       CALL section_release(nose_section,error=error)
+       
+       CALL create_csvr_section(csvr_section, my_just_restart_info, error=error)
+       CALL section_add_subsection(section, csvr_section, error=error)
+       CALL section_release(csvr_section,error=error)
+       
+    END IF
+  END SUBROUTINE create_thermostat_section
 
 !***************************************************************************
 !!****f* input_cp2k/create_respa_section *
@@ -2908,7 +2991,7 @@ SUBROUTINE create_barostat_section(section, error)
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: sub2section, subsection
+    TYPE(section_type), POINTER              :: subsection, thermo_section
 
   failure=.FALSE.
   
@@ -2920,7 +3003,7 @@ SUBROUTINE create_barostat_section(section, error)
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       NULLIFY(keyword,subsection,sub2section)
+       NULLIFY(keyword,subsection,thermo_section)
        CALL keyword_create(keyword, name="PRESSURE",&
             description="Initial pressure",&
             usage="PRESSURE real",&
@@ -2944,29 +3027,9 @@ SUBROUTINE create_barostat_section(section, error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
-       CALL section_create(sub2section,name="NOSE",&
-            description="Parameters for restarting of the barostat thermostat",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-            error=error)
- 
-       CALL create_coord_section(subsection,"THERMOSTAT BAROSTAT",error=error)
-       CALL section_add_subsection(sub2section,subsection,error=error)
-       CALL section_release(subsection,error=error)
-       
-       CALL create_velocity_section(subsection,"THERMOSTAT BAROSTAT",error=error)
-       CALL section_add_subsection(sub2section,subsection,error=error)
-       CALL section_release(subsection,error=error)
-
-       CALL create_mass_section(subsection,"THERMOSTAT BAROSTAT",error=error)
-       CALL section_add_subsection(sub2section,subsection,error=error)
-       CALL section_release(subsection,error=error)
-
-       CALL create_force_section(subsection,"THERMOSTAT BAROSTAT",error=error)
-       CALL section_add_subsection(sub2section,subsection,error=error)
-       CALL section_release(subsection,error=error)
-
-       CALL section_add_subsection(section,sub2section,error=error)
-       CALL section_release(sub2section,error=error)
+       CALL create_thermostat_section(thermo_section, just_restart_info=.TRUE., error=error)
+       CALL section_add_subsection(section, thermo_section, error=error)
+       CALL section_release(thermo_section,error=error)
 
     END IF
   END SUBROUTINE create_barostat_section
@@ -3002,7 +3065,7 @@ SUBROUTINE create_coeff_section(coeff_section, error)
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: nose_section, subsection
+    TYPE(section_type), POINTER              :: subsection, thermo_section
 
   failure=.FALSE.
   
@@ -3014,7 +3077,7 @@ SUBROUTINE create_coeff_section(coeff_section, error)
             n_keywords=5, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
        
-       NULLIFY(nose_section, keyword, subsection)
+       NULLIFY(thermo_section, keyword, subsection)
        CALL keyword_create(keyword, name="ensemble",&
             description="md ensemble for KG-POL coefficients", usage="ENSEMBLE NVT", &
             default_i_val=nvt_ensemble,&
@@ -3024,19 +3087,7 @@ SUBROUTINE create_coeff_section(coeff_section, error)
        CALL section_add_keyword(coeff_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="nhcopt",&
-            description="global or massive thermostats for KG-POL coefficients", &
-            usage="NHCOPT GLOBAL", &
-            default_i_val=nhc_global,&
-            enum_c_vals=s2a("global","massive"),&
-            enum_desc=s2a("just one thermostat for all the coefficents",&
-            "each coefficient has its own thermostat"),&
-            enum_i_vals=(/nhc_global,nhc_massive/),&
-            error=error)
-       CALL section_add_keyword(coeff_section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-      CALL section_create(subsection,name="storage",&
+       CALL section_create(subsection,name="storage",&
             description="Specify information on the setup of the effective masses in KG-POL",&
             n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)       
@@ -3100,9 +3151,9 @@ SUBROUTINE create_coeff_section(coeff_section, error)
        CALL section_add_subsection(coeff_section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       CALL create_nose_section(nose_section, error=error)
-       CALL section_add_subsection(coeff_section, nose_section, error=error)
-       CALL section_release(nose_section,error=error)
+       CALL create_thermostat_section(thermo_section, error=error)
+       CALL section_add_subsection(coeff_section, thermo_section, error=error)
+       CALL section_release(thermo_section,error=error)
        
        CALL create_coord_section(subsection,"KG_COEFF",error=error)
        CALL section_add_subsection(coeff_section,subsection,error=error)
@@ -3114,6 +3165,7 @@ SUBROUTINE create_coeff_section(coeff_section, error)
 
     END IF
   END SUBROUTINE create_coeff_section
+
 !***************************************************************************
 !!****f* input_cp2k/create_nose_section *
 !!
@@ -3136,8 +3188,9 @@ SUBROUTINE create_coeff_section(coeff_section, error)
 !!
 !!*** **********************************************************************
 
-SUBROUTINE create_nose_section(section, error)
+SUBROUTINE create_nose_section(section, just_restart_info, error)
     TYPE(section_type), POINTER              :: section
+    LOGICAL, INTENT(IN)                      :: just_restart_info
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_nose_section', &
@@ -3153,41 +3206,43 @@ SUBROUTINE create_nose_section(section, error)
   IF (.NOT. failure) THEN  
        CALL section_create(section,name="nose",&
             description="paramameters of the Nose Hoover thermostat chain",&
-            required=.TRUE.,error=error)
+            required=.NOT. just_restart_info,error=error)
 
        NULLIFY(keyword,subsection)
-       CALL keyword_create(keyword, name="length",&
-            description="length of the NoseHoover chain", usage="length integer", &
-            default_i_val=3,&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+       IF (.NOT. just_restart_info) THEN
+          CALL keyword_create(keyword, name="length",&
+               description="length of the NoseHoover chain", usage="length integer", &
+               default_i_val=3,&
+               error=error)
+          CALL section_add_keyword(section,keyword,error=error)
+          CALL keyword_release(keyword,error=error)
+          
+          CALL keyword_create(keyword, name="Yoshida",&
+               description="order of the yoshida integretor usef for the thermostat",&
+               usage="Yoshida integer", &
+               default_i_val=3,&
+               error=error)
+          CALL section_add_keyword(section,keyword,error=error)
+          CALL keyword_release(keyword,error=error)
+          
+          CALL keyword_create(keyword, name="timecon",&
+               description="timeconstant of the thermostat chain",&
+               usage="timeconstant real", &
+               default_r_val=cp_unit_to_cp2k(1000.0_dp,"fs",error=error),&
+               unit_str="fs",error=error)
+          CALL section_add_keyword(section,keyword,error=error)
+          CALL keyword_release(keyword,error=error)
+          
+          CALL keyword_create(keyword, name="mts", &
+               variants=s2a("multiple_time_steps","mult_t_steps"),&
+               description="number of multiple timesteps to be used for the NoseHoover chain",&
+               usage="mts integer", &
+               default_i_val=2,&
+               error=error)
+          CALL section_add_keyword(section,keyword,error=error)
+          CALL keyword_release(keyword,error=error)
+       END IF
 
-       CALL keyword_create(keyword, name="Yoshida",&
-            description="order of the yoshida integretor usef for the thermostat",&
-            usage="Yoshida integer", &
-            default_i_val=3,&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="timecon",&
-            description="timeconstant of the thermostat chain",&
-            usage="timeconstant real", &
-            default_r_val=cp_unit_to_cp2k(1000.0_dp,"fs",error=error),&
-            unit_str="fs",error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="mts", &
-            variants=s2a("multiple_time_steps","mult_t_steps"),&
-            description="number of multiple timesteps to be used for the NoseHoover chain",&
-            usage="mts integer", &
-            default_i_val=2,&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-      
        CALL create_coord_section(subsection,"NOSE HOOVER",error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
@@ -3207,6 +3262,73 @@ SUBROUTINE create_nose_section(section, error)
   END IF
 
 END SUBROUTINE create_nose_section
+
+!***************************************************************************
+!!****f* input_cp2k/create_csvr_section *
+!!
+!!   NAME
+!!     create_csvr_section
+!!
+!!   FUNCTION
+!!     -
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: will contain the ewald section 
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo [tlaino] - University of Zurich - 09.2007
+!!
+!!*** **********************************************************************
+
+SUBROUTINE create_csvr_section(section, just_restart_info, error)
+    TYPE(section_type), POINTER              :: section
+    LOGICAL, INTENT(IN)                      :: just_restart_info
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_csvr_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+  failure=.FALSE.
+  
+  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN  
+       CALL section_create(section,name="csvr",&
+            description="Paramameters of the canonical sampling through velocity rescaling thermostat.",&
+            required=.TRUE.,error=error)
+
+       NULLIFY(keyword)
+
+       IF (.NOT.just_restart_info) THEN
+          CALL keyword_create(keyword, name="timecon",&
+               description="timeconstant of the thermostat.",&
+               usage="timeconstant real", &
+               default_r_val=cp_unit_to_cp2k(1000.0_dp,"fs",error=error),&
+               unit_str="fs",error=error)
+          CALL section_add_keyword(section,keyword,error=error)
+          CALL keyword_release(keyword,error=error)
+       END IF
+
+       CALL keyword_create(keyword, name="thermostat_energy",&
+            description="This keyword is used by the thermostat to accumulate the net energy "//&
+            " exchange between the system and the thermostat.",&
+            usage="timeconstant real", &
+            type_of_var=real_t,&
+            default_r_val=0.0_dp,&
+            unit_str="internal_cp2k",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+  END IF
+
+END SUBROUTINE create_csvr_section
 
 !***************************************************************************
 
@@ -4104,7 +4226,7 @@ SUBROUTINE create_shell_section(section, error)
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: sub2section, subsection
+    TYPE(section_type), POINTER              :: thermo_section
 
   failure=.FALSE.
   
@@ -4113,10 +4235,10 @@ SUBROUTINE create_shell_section(section, error)
 
        CALL section_create(section,name="shell",&
             description="Parameters of shell model in adiabatic dynamics.",&
-            n_keywords=2, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=2, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       NULLIFY(keyword,subsection,sub2section)
+       NULLIFY(keyword,thermo_section)
 
        CALL keyword_create(&
              keyword=keyword,&
@@ -4146,87 +4268,11 @@ SUBROUTINE create_shell_section(section, error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL section_create(sub2section,name="NOSE",&
-            description="Parameters for restarting of the core-shell thermostat",&
-            n_keywords=3, n_subsections=4, repeats=.FALSE., required=.FALSE.,&
-            error=error)
-
-       NULLIFY(keyword,subsection)
-
-       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
-            description="controls the activation of core-shell thermostat",&
-            usage="&NOSE T",&
-            default_l_val=.FALSE.,&
-            lone_keyword_l_val=.TRUE.,&
-            error=error)
-       CALL section_add_keyword(sub2section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       
-       CALL keyword_create(keyword, name="nhcopt",&
-            description="global or massive thermostats", usage="NHCOPT GLOBAL", &
-            default_i_val=nhc_global,enum_c_vals=s2a("global","massive"),&
-            enum_desc=s2a("just one thermostat for all the core-shell pairs",&
-            "each core-shell pair has its own thermostat"),&
-            enum_i_vals=(/nhc_global,nhc_massive/),error=error)
-            
-       CALL section_add_keyword(sub2section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="length",&
-            description="length of the NoseHoover chain", usage="length integer", &
-            default_i_val=3,&
-            error=error)
-       CALL section_add_keyword(sub2section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="Yoshida",&
-            description="order of the yoshida integretor usef for the thermostat",&
-            usage="Yoshida integer", &
-            default_i_val=3,&
-            error=error)
-       CALL section_add_keyword(sub2section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="timecon",&
-            description="timeconstant of the thermostat chain",&
-            usage="timeconstant real", &
-            default_r_val=cp_unit_to_cp2k(1000.0_dp,"fs",error=error),&
-            unit_str="fs",error=error)
-       CALL section_add_keyword(sub2section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="mts", &
-            variants=s2a("multiple_time_steps","mult_t_steps"),&
-            description="number of multiple timesteps to be used for the NoseHoover chain",&
-            usage="mts integer", &
-            default_i_val=2,&
-            error=error)
-       CALL section_add_keyword(sub2section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
- 
-       CALL create_coord_section(subsection,"THERMOSTAT SHELL",error=error)
-       CALL section_add_subsection(sub2section,subsection,error=error)
-       CALL section_release(subsection,error=error)
-       
-       CALL create_velocity_section(subsection,"THERMOSTAT SHELL",error=error)
-       CALL section_add_subsection(sub2section,subsection,error=error)
-       CALL section_release(subsection,error=error)
-
-       CALL create_mass_section(subsection,"THERMOSTAT SHELL",error=error)
-       CALL section_add_subsection(sub2section,subsection,error=error)
-       CALL section_release(subsection,error=error)
-
-       CALL create_force_section(subsection,"THERMOSTAT SHELL",error=error)
-       CALL section_add_subsection(sub2section,subsection,error=error)
-       CALL section_release(subsection,error=error)
-
-       CALL section_add_subsection(section,sub2section,error=error)
-       CALL section_release(sub2section,error=error)
+       CALL create_thermostat_section(thermo_section, error=error)
+       CALL section_add_subsection(section, thermo_section, error=error)
+       CALL section_release(thermo_section,error=error)
 
     END IF
   END SUBROUTINE create_shell_section
-
-
 
 END MODULE input_cp2k_motion

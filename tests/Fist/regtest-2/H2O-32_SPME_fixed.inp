@@ -177,11 +177,13 @@
     STEPS 50
     TIMESTEP 1.0
     TEMPERATURE 300.0
-    &NOSE
-      LENGTH 3
-      YOSHIDA 3
-      TIMECON 1000
-    &END NOSE
+    &THERMOSTAT
+      &NOSE
+        LENGTH 3
+        YOSHIDA 3
+        TIMECON 1000
+      &END NOSE
+    &END
   &END MD
   &PRINT
     &RESTART OFF

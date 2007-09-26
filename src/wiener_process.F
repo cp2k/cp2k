@@ -62,16 +62,25 @@ MODULE wiener_process
 CONTAINS
 
 ! *****************************************************************************
-
+!!****f* wiener_process/create_wiener_process *
+!!
+!!   NAME
+!!     create_wiener_process
+!!
+!!   FUNCTION
+!!     Create a Wiener process for Langevin dynamics and initialize an
+!!     independent random number generator for each atom in all force
+!!     environment and all the subsystems/fragments therein.
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!     Creation (06.07.2005,MK)
+!!
+!!*** **********************************************************************
   SUBROUTINE create_wiener_process(md_env,error)
-
-    ! Purpose: Create a Wiener process for Langevin dynamics and initialize an
-    !          independent random number generator for each atom in all force
-    !          environment and all the subsystems/fragments therein.
-
-    ! History: - Creation (06.07.2005,MK)
-
-    ! *************************************************************************
 
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -99,8 +108,6 @@ CONTAINS
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
 
-! -------------------------------------------------------------------------
-
     failure = .FALSE.
     NULLIFY(work_section)
     CPPrecondition (ASSOCIATED(md_env),cp_failure_level,routineP,error,failure)
@@ -108,7 +115,8 @@ CONTAINS
     CALL get_md_env(md_env=md_env,&
                     force_env_p=force_env_p,&
                     para_env=para_env,&
-                    simpar=simpar)
+                    simpar=simpar,&
+                    error=error)
 
     IF (simpar%ensemble == langevin_ensemble) THEN
 

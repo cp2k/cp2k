@@ -23,7 +23,9 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_cp2k_subsys
-  USE bibliography,                    ONLY: Goedecker1996, Hartwigsen1998, Krack2005
+  USE bibliography,                    ONLY: Goedecker1996,&
+                                             Hartwigsen1998,&
+                                             Krack2005
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants
@@ -1416,17 +1418,6 @@ CONTAINS
             default_i_val=do_skip_13,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="NHCOPT",&
-            description="Determines the number of DOF each NHC is attached to.",&
-            usage="NHCOPT (GLOBAL||MOLECULE||MASSIVE||NONE)", &
-            enum_c_vals=s2a( "GLOBAL", "MOLECULE", "MASSIVE", "NONE"),&
-            enum_i_vals=(/do_nhcopt_global, do_nhcopt_molecule,&
-                          do_nhcopt_massive, do_nhcopt_none/),&
-            default_i_val=do_nhcopt_global,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
-
  
        NULLIFY(subsection, subsubsection)
        CALL section_create(subsection,name="GENERATE",&

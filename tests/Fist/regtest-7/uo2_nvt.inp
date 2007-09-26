@@ -77,7 +77,6 @@
       CONNECTIVITY UPSF
       COORD_FILE ../sample_xyz/uo2_displ_12.xyz
       COORDINATE XYZ
-      NHCOPT MOLECULE
     &END TOPOLOGY
     &KIND U
       MASS 238.03000
@@ -108,7 +107,10 @@
       TEMPERATURE 25.0
       TEMP_TOL 25.0
     &END
-    &NOSE
+    &THERMOSTAT
+      REGION MOLECULE
+      &NOSE
+      &END
     &END
     &PRINT
       &ENERGY 

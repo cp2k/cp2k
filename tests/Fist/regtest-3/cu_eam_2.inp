@@ -76,7 +76,9 @@
     TEMPERATURE 85.0
     &BAROSTAT
     &END
-    &NOSE
+    &THERMOSTAT
+      &NOSE
+      &END
     &END
   &END MD
 &END MOTION

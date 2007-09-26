@@ -44,6 +44,7 @@ MODULE velocity_verlet_control
   IMPLICIT NONE
 
   PRIVATE
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'velocity_verlet_control'
   PUBLIC :: velocity_verlet
 
 !!***
@@ -73,6 +74,9 @@ SUBROUTINE velocity_verlet ( md_env, error )
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'velocity_verlet', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle, in_use
     TYPE(force_env_p_type), POINTER          :: force_env_p( : )
     TYPE(simulation_parameters_type), &
@@ -83,7 +87,7 @@ SUBROUTINE velocity_verlet ( md_env, error )
   CALL timeset ( 'velocity_verlet', 'I', ' ', handle )
 
 ! get force environment
-  CALL get_md_env ( md_env, force_env_p=force_env_p, simpar=simpar )
+  CALL get_md_env ( md_env, force_env_p=force_env_p, simpar=simpar, error=error)
 ! get in_use
   CALL force_env_get ( force_env=force_env_p ( 1 ) % force_env, in_use=in_use ,error=error)
 

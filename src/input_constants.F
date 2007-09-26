@@ -153,7 +153,7 @@ MODULE input_constants
      "reading frames from a file called reftraj.xyz (e.g. for property calculation)",&
      "langevin dynamics (constant temperature)                                     "/)
 
-  INTEGER, PARAMETER, PUBLIC :: nhc_global=101,nhc_massive=102
+  INTEGER, PARAMETER, PUBLIC :: do_thermo_nose=101,do_thermo_csvr=102
   !
   ! Run Types
   INTEGER, PARAMETER, PUBLIC :: none_run=1,&
@@ -312,10 +312,10 @@ MODULE input_constants
                                 do_center_none=0,&
                                 do_center_grid=1
 
-  INTEGER, PARAMETER, PUBLIC :: do_nhcopt_global=0, &
-                                do_nhcopt_molecule=1,&
-                                do_nhcopt_massive=2,&
-                                do_nhcopt_none=3,&
+  INTEGER, PARAMETER, PUBLIC :: do_region_global=0, &
+                                do_region_molecule=1,&
+                                do_region_massive=2,&
+                                do_region_none=3,&
                                 do_bondparm_covalent=0,&
                                 do_bondparm_vdw=1,&
                                 do_skip_12=0,&

@@ -72,7 +72,9 @@
     STEPS 2
     TIMESTEP 0.25
     TEMPERATURE 298.15
-    &NOSE
+    &THERMOSTAT
+      &NOSE
+      &END
     &END
   &END MD
   &PRINT

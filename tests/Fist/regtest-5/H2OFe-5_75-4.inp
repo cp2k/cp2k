@@ -2575,12 +2575,6 @@
     STEPS 5
     TIMESTEP 0.5
     TEMPERATURE 200.0
-    &NOSE
-      LENGTH 3
-      YOSHIDA 3
-      TIMECON 300
-      MTS 2
-    &END NOSE
     &PRINT
      &ENERGY
       EACH 1

@@ -24,6 +24,9 @@ MODULE md_run
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
+  USE barostat_types,                  ONLY: barostat_type,&
+                                             create_barostat_type,&
+                                             release_barostat_type
   USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
@@ -36,13 +39,6 @@ MODULE md_run
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_initialize,&
-                                             dyn_coeff_set_p_type
-  USE extended_system_types,           ONLY: extended_system_type,&
-                                             extended_type_init,&
-                                             lnhc_dealloc,&
-                                             lnhc_init,&
-                                             npt_dealloc
   USE force_env_methods,               ONLY: force_env_calc_energy_force,&
                                              force_env_rattle,&
                                              force_env_shake
@@ -53,12 +49,6 @@ MODULE md_run
   USE free_energy_types,               ONLY: fe_env_create,&
                                              free_energy_type
   USE global_types,                    ONLY: global_environment_type
-  USE init_extended_system_types,      ONLY: initialize_nhc_baro,&
-                                             initialize_nhc_coef,&
-                                             initialize_nhc_part,&
-                                             initialize_nhc_shell,&
-                                             initialize_npt
-  USE init_extended_system_variables,  ONLY: init_nhc_forces
   USE input_constants,                 ONLY: langevin_ensemble,&
                                              reftraj_ensemble
   USE input_cp2k_restarts,             ONLY: update_subsys,&
@@ -80,14 +70,14 @@ MODULE md_run
                                              set_md_env
   USE message_passing,                 ONLY: mp_sum
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
-  USE mol_new_list_types,              ONLY: mol_new_list_type
-  USE molecule_types_new,              ONLY: global_constraint_type
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: kelvin
   USE shell_potential_types,           ONLY: shell_kind_type
   USE termination,                     ONLY: external_control,&
-                                             stop_memory,&
-                                             stop_program
+                                             stop_memory
+  USE thermostat_types,                ONLY: create_thermostat_type,&
+                                             release_thermostat_type,&
+                                             thermostat_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
@@ -112,12 +102,31 @@ MODULE md_run
      MODULE PROCEDURE qs_mol_dyn1, qs_mol_dyn2
   END INTERFACE
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
+!!****f* md_run/qs_mol_dyn1 [1.0] *
+!!
+!!   NAME
+!!     qs_mol_dyn1
+!!
+!!   FUNCTION
+!!     Main driver module for Molecular Dynamics
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     
+!!
+!!   MODIFICATION HISTORY
+!!     
+!!
+!!*** **********************************************************************
   SUBROUTINE qs_mol_dyn1 ( force_env, globenv, error )
 
     TYPE(force_env_type), POINTER            :: force_env
@@ -139,14 +148,29 @@ CONTAINS
   END SUBROUTINE qs_mol_dyn1
 
 ! *****************************************************************************
-
+!!****f* md_run/qs_mol_dyn2 [1.0] *
+!!
+!!   NAME
+!!     qs_mol_dyn2
+!!
+!!   FUNCTION
+!!     Purpose: Driver routine for MD run using QUICKSTEP.
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Creation (07.11.2002,MK)
+!!
+!!   MODIFICATION HISTORY
+!!     
+!!
+!!*** **********************************************************************
   SUBROUTINE qs_mol_dyn2 ( force_env_p, globenv, error )
-
-!   Purpose: Driver routine for MD run using QUICKSTEP.
-
-!   History: - Creation (07.11.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
@@ -156,9 +180,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn2', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ibead, in_use, &
-                                                istat, istep, isubsys, &
-                                                iter_level, nbeads, nshell
+    INTEGER                                  :: handle, i, ibead, istat, &
+                                                istep, isubsys, iter_level, &
+                                                nbeads
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: apply_cns0, failure, &
                                                 save_mem, shell_adiabatic, &
@@ -167,21 +191,16 @@ CONTAINS
                                                 time_iter_stop
     REAL(KIND=dp), POINTER                   :: t, used_time
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(barostat_type), POINTER             :: barostat
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
-    TYPE(distribution_1d_type), POINTER      :: local_molecules, &
-                                                local_particles
-    TYPE(dyn_coeff_set_p_type), &
-      DIMENSION(:), POINTER                  :: dyn_coeff_set
-    TYPE(extended_system_type)               :: extended_type
+    TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(free_energy_type), POINTER          :: fe_env
-    TYPE(global_constraint_type), POINTER    :: gci
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
-    TYPE(mol_new_list_type), POINTER         :: molecules_new
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
     TYPE(section_vals_type), POINTER :: force_env_section, global_section, &
@@ -189,18 +208,19 @@ CONTAINS
       work2_section, work3_section, work_section
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
+    TYPE(thermostat_type), POINTER           :: thermostat
 
     CALL timeset(routineN,"I","",handle)
     CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(force_env_p),cp_failure_level,routineP,error,failure)
 
     failure=.FALSE.
-    NULLIFY ( particles, shell_particles, core_particles, local_molecules,&
-              cell, cell_ref, dyn_coeff_set,&
-              simpar,itimes,used_time,subsys,motion_section,gci )
-    NULLIFY (md_env,molecule_kinds_new, molecules_new, force_env_section,&
-         work_section, work2_section, work3_section, print_section, atomic_kinds, local_particles, t,&
-         fe_env)
+    NULLIFY (particles, shell_particles, core_particles, cell, cell_ref, &
+         simpar, itimes, used_time, subsys, motion_section, thermostat, &
+         barostat)
+    NULLIFY (md_env, molecule_kinds_new, force_env_section, work_section, &
+         work2_section, work3_section, print_section, atomic_kinds, &
+         local_particles, t, fe_env)
     logger => cp_error_get_logger(error)
     root_section=>force_env_p ( 1 ) % force_env % root_section
     para_env=>force_env_p ( 1 ) % force_env % para_env
@@ -214,7 +234,7 @@ CONTAINS
 
     nbeads = SIZE ( force_env_p )
     DO i = 1, nbeads
-      CPPrecondition ( ASSOCIATED ( force_env_p ( i ) % force_env ), cp_failure_level,routineP,error,failure)
+      CPPrecondition(ASSOCIATED(force_env_p(i)%force_env),cp_failure_level,routineP,error,failure)
     END DO
 
     ALLOCATE (simpar,STAT=istat)
@@ -225,7 +245,9 @@ CONTAINS
     CALL cp_add_iter_level(logger%iter_info,"MD",n_rlevel_new=iter_level,&
          error=error)
     CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=0,error=error)
+    ! Read MD section
     CALL read_md_section ( simpar, root_section, error )
+    ! Setup print_keys
     simpar%info_constraint = cp_print_key_unit_nr(logger,root_section,&
          "MOTION%CONSTRAINT%CONSTRAINT_INFO",&
          extension=".shakeLog",log_filename=.FALSE.,error=error)
@@ -235,108 +257,24 @@ CONTAINS
     simpar%dump_lm = BTEST(cp_print_key_should_output(logger%iter_info,root_section,&
          "MOTION%CONSTRAINT%LAGRANGE_MULTIPLIERS",error=error),cp_p_file)
 
-    CALL extended_type_init(extended_type)
-    ALLOCATE (extended_type%nhc_part(nbeads),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (extended_type%nhc_baro(nbeads),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (extended_type%nhc_coef(nbeads),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (extended_type%nhc_shell(nbeads),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DO ibead=1,nbeads
-       CALL lnhc_init(extended_type%nhc_part(ibead))
-       CALL lnhc_init(extended_type%nhc_baro(ibead))
-       CALL lnhc_init(extended_type%nhc_coef(ibead))
-       CALL lnhc_init(extended_type%nhc_shell(ibead))
-    ENDDO
+    ! Create md_env
+    CALL md_env_create(md_env, para_env, error=error)
 
+    ! If requested setup Thermostats
+    CALL create_thermostat_type(thermostat, motion_section, force_env_p,&
+         simpar, para_env, globenv, error )
+
+    ! If requested setup Barostat
+    CALL create_barostat_type(barostat, motion_section, force_env_p,&
+         simpar, para_env, globenv, error )
+
+    CALL set_md_env(md_env, thermostat=thermostat, barostat=barostat, error=error)
+
+    ! Always initialize velocities and possibly restart them
     DO ibead = 1, nbeads
        CALL force_env_get( force_env_p(ibead)%force_env, subsys=subsys, &
-                          dyn_coeff_set=dyn_coeff_set,in_use=in_use,&
-                          cell=cell, cell_ref = cell_ref,&
+                          cell=cell, cell_ref=cell_ref,&
                           force_env_section=force_env_section, error=error )
-
-       ! Define a reference cell for compatibility with MD restarts
-       DO isubsys=1,SIZE(subsys)
-          subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",i_rep_section=isubsys,&
-               error=error)
-
-          CALL cp_subsys_get(subsys(isubsys)%subsys,&
-              local_molecules_new=local_molecules,&
-              molecule_kinds_new=molecule_kinds_new,&
-              atomic_kinds=atomic_kinds,&
-              local_particles=local_particles,&
-              molecules_new=molecules_new,&
-              gci=gci,&
-              particles=particles,&
-              shell_particles=shell_particles,&
-              error=error)
-
-          CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,&
-               shell_present=shell_present, shell_adiabatic=shell_adiabatic)
-          !
-          ! Possibly restart Nose particles
-          !
-          NULLIFY(work_section)
-          work_section => section_vals_get_subs_vals(motion_section,"MD%NOSE",error=error)
-          print_section => section_vals_get_subs_vals(motion_section,"MD%PRINT",error=error)
-          CALL initialize_nhc_part(cell,simpar,local_molecules, &
-                                   molecules_new%els, molecule_kinds_new%els,&
-                                   para_env, globenv, extended_type%nhc_part(ibead), &
-                                   print_section=print_section,nose_section=work_section,&
-                                   gci=gci,save_mem=save_mem,error=error)
-          !
-          ! Possibly restart barostat
-          !
-          NULLIFY(work_section)
-          work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%NOSE",error=error)
-          CALL initialize_nhc_baro(simpar,para_env,globenv, extended_type%nhc_baro(ibead),&
-                                   nose_section=work_section, save_mem=save_mem,error=error)
-
-          IF (ASSOCIATED(dyn_coeff_set)) THEN
-             !
-             ! Initialize coef thermostats and setup coefficient forces, velocities and effective masses
-             ! Possibly restart KG coefficients
-             !
-             NULLIFY(work_section)
-             work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF",error=error)
-             CALL initialize_nhc_coef(dyn_coeff_set(isubsys)%dyn_coeff_set,&
-                                   para_env,globenv,extended_type%nhc_coef(ibead), &
-                                   coeff_section=work_section, dt=simpar%dt, save_mem=save_mem, error=error)
-
-             NULLIFY(work_section)
-             work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF",error=error)
-             CALL dyn_coeff_set_initialize(dyn_coeff_set(isubsys)%dyn_coeff_set, root_section, para_env, globenv,&
-                  work_section=work_section,error=error)
-             CALL init_nhc_forces (nhc_coef=extended_type% nhc_coef(ibead),error=error)
-          END IF
-
-          IF(shell_present .AND. shell_adiabatic) THEN
-            ! Initialize SHELL thermostats, possibly restart
-            nshell = SIZE(shell_particles%els)
-            NULLIFY(work_section)
-            work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%NOSE",error=error)
-            CALL initialize_nhc_shell(simpar, para_env, globenv,extended_type%nhc_shell(ibead),&
-                                      atomic_kinds%els, local_particles, &
-                                      work_section, save_mem, error=error)
-          ELSE IF(simpar%shell_nose .AND. .NOT.  shell_adiabatic) THEN                            
-             CALL stop_program(routineN,moduleN,__LINE__,&
-                               "Nose on the core-shell motion only with adiabatic shell-model ") 
-          END IF
-
-       END DO
-       !
-       ! Possibly restart Barostat
-       !
-       NULLIFY(work_section)
-       work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT",error=error)
-       CALL initialize_npt (simpar,para_env,globenv,extended_type%npt_info,&
-            cell,work_section=work_section,error=error)
-       !
-       ! Always initialize velocities
-       ! and possibly restart them
-       !
        DO isubsys=1,SIZE(subsys)
          subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",&
                                                       i_rep_section=isubsys,&
@@ -386,36 +324,14 @@ CONTAINS
        IF ( ASSOCIATED ( cell_ref ) ) THEN
           IF ( simpar % v0 == 0._dp ) simpar % v0 = cell_ref % deth
        ENDIF
-
-       CALL init_nhc_forces ( nhc_part=extended_type%nhc_part(ibead),error=error)
-       CALL init_nhc_forces ( nhc_baro=extended_type%nhc_baro(ibead),error=error)
-       IF(shell_adiabatic .AND. simpar%shell_nose) THEN
-          CALL init_nhc_forces( nhc_shell=extended_type%nhc_shell(ibead),error=error)
-       END IF
-
     END DO
 
-    CALL md_env_create ( md_env, para_env, error = error )
     ! Setup Free Energy Calculation (if required)
     CALL fe_env_create ( fe_env, motion_section, error)
 
-    CALL set_md_env(md_env=md_env,&
-                    simpar=simpar,&
-                    fe_env=fe_env,&
-                    nhc_part=extended_type%nhc_part,&
-                    nhc_baro=extended_type%nhc_baro,&
-                    npt=extended_type%npt_info,&
-                    cell=cell,&
-                    force_env_p=force_env_p,error=error)
-
-    IF (ASSOCIATED(dyn_coeff_set)) THEN
-       CALL set_md_env( md_env, nhc_coef=extended_type%nhc_coef,error=error)
-    END IF
-
-    IF(shell_present .AND. shell_adiabatic) THEN
-       CALL set_md_env(md_env, nhc_shell=extended_type%nhc_shell,error=error) 
-    END IF        
-
+    CALL set_md_env(md_env=md_env, simpar=simpar, fe_env=fe_env, cell=cell, force_env_p=force_env_p,&
+                    error=error)
+   
     ! loop over number of beads
     IF (simpar%ensemble == langevin_ensemble) THEN
       CALL create_wiener_process(md_env,error)
@@ -424,10 +340,10 @@ CONTAINS
     time_iter_start=m_walltime()
 
     CALL get_md_env ( md_env, force_env_p=force_env_p, itimes = itimes, &
-                      t = t, used_time = used_time )
+                      t = t, used_time = used_time, error=error )
     apply_cns0 = .FALSE.
     IF (simpar%constraint) &
-    CALL section_vals_val_get(motion_section,"CONSTRAINT%CONSTRAIN_INIT",l_val=apply_cns0,error=error)
+         CALL section_vals_val_get(motion_section,"CONSTRAINT%CONSTRAIN_INIT",l_val=apply_cns0,error=error)
     IF (simpar%ensemble /= reftraj_ensemble) THEN
       DO ibead = 1, nbeads
          IF (apply_cns0) THEN
@@ -571,13 +487,9 @@ CONTAINS
          error=error)
     CALL md_env_release ( md_env, error )
 
-    ! just deallocate this stuff ??
-    ! seem to need proper init / destroy subroutines ... to be fixed
-    CALL lnhc_dealloc(extended_type%nhc_part)
-    CALL lnhc_dealloc(extended_type%nhc_baro)
-    CALL lnhc_dealloc(extended_type%nhc_coef)
-    CALL lnhc_dealloc(extended_type%nhc_shell)
-    CALL npt_dealloc(extended_type%npt_info)
+    ! Preliminary Setup
+    CALL release_thermostat_type(thermostat, error=error)
+    CALL release_barostat_type(barostat, error=error)
 
     DEALLOCATE(simpar,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

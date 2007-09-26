@@ -1014,7 +1014,7 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
             type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_KG_NOSE",&
+       CALL keyword_create(keyword, name="RESTART_KG_THERMOSTAT",&
             description="Restarts the nose thermostats of the kg coefficents "//&
             "from the EXTERNAL file",&
             type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
@@ -1025,12 +1025,12 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
             type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_BAROSTAT_NOSE",&
+       CALL keyword_create(keyword, name="RESTART_BAROSTAT_THERMOSTAT",&
             description="Restarts the barostat thermostat from the external file",&
             type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_NOSE",&
+       CALL keyword_create(keyword, name="RESTART_THERMOSTAT",&
             description="Restarts the nose thermostats of the particles "//&
             "from the EXTERNAL file",&
             type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)

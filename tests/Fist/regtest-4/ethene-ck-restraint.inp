@@ -65,12 +65,6 @@
     STEPS 2
     TIMESTEP 0.5
     TEMPERATURE 298
-    &NOSE
-      LENGTH 3
-      YOSHIDA 3
-      TIMECON 1000
-      MTS 2
-    &END NOSE
   &END MD
   &CONSTRAINT
     &COLLECTIVE

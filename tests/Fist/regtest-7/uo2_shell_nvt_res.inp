@@ -72,7 +72,6 @@
       CONNECTIVITY UPSF
       COORD_FILE ../sample_xyz/uo2_displ.xyz
       COORDINATE XYZ
-      NHCOPT MOLECULE
     &END TOPOLOGY
     &KIND U
       MASS 238.03000
@@ -100,12 +99,15 @@
       TEMP_TOL 25.0
     &END
     PV_AVA
-    &NOSE
-      LENGTH 6
-      YOSHIDA 3
-      TIMECON 1000
-      MTS 2
-    &END NOSE
+    &THERMOSTAT
+      REGION MOLECULE
+      &NOSE
+        LENGTH 6
+        YOSHIDA 3
+        TIMECON 1000
+        MTS 2
+      &END NOSE
+    &END
     &PRINT
       &ENERGY
         EACH 1

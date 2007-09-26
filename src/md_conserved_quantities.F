@@ -72,7 +72,7 @@ MODULE md_conserved_quantities
 
 
   PUBLIC :: compute_conserved_quantity
-
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md_conserved_quantities'
 
   !******************************************************************************
 CONTAINS
@@ -112,21 +112,20 @@ CONTAINS
     TYPE(md_environment_type), POINTER       :: md_env
     REAL(KIND=dp), INTENT(IN)                :: epot
     REAL(KIND=dp), INTENT(OUT)               :: cons
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: cons_rel, ekin, temp_part, &
-                                                ekin_qm, temp_qm, temp_baro, &
-                                                ekin_coefs, temp_coefs, &
-                                                ekin_shell, temp_shell
-    LOGICAL, INTENT(OUT), OPTIONAL           :: qmmm
-    LOGICAL, INTENT(OUT), OPTIONAL           :: shell_present
-    LOGICAL, INTENT(OUT), OPTIONAL           :: shell_adiabatic
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL :: cons_rel, ekin, temp_part, &
+      ekin_qm, temp_qm, temp_baro, ekin_coefs, temp_coefs, ekin_shell, &
+      temp_shell
+    LOGICAL, INTENT(OUT), OPTIONAL           :: qmmm, shell_adiabatic, &
+                                                shell_present
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_conserved_quantity'
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_conserved_quantity', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: int_grp, nfree_qm, nfree_shell
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: myqmmm, my_shell_adiabatic, &
-                                                my_shell_present
+    LOGICAL                                  :: my_shell_adiabatic, &
+                                                my_shell_present, myqmmm
     REAL(KIND=dp), POINTER                   :: constant
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(force_env_p_type), POINTER          :: force_env_p(:)
@@ -147,11 +146,12 @@ CONTAINS
     my_shell_present = .FALSE.
 
     CALL get_md_env (md_env=md_env,&
-         constant=constant,&
-         itimes=itimes,&
-         simpar=simpar,&
-         para_env = para_env, &
-         force_env_p=force_env_p)
+                     constant=constant,&
+                     itimes=itimes,&
+                     simpar=simpar,&
+                     para_env = para_env, &
+                     force_env_p=force_env_p,&
+                     error=error)
 
     int_grp =  para_env % group
 
@@ -187,11 +187,11 @@ CONTAINS
     CASE ( nvt_ensemble)
        CALL get_econs_nvt (md_env, md_ener, cons, int_grp,error=error)
     CASE (  npt_i_ensemble,  npt_f_ensemble )
-       CALL get_econs_npt (md_env, md_ener, cons, int_grp)
+       CALL get_econs_npt (md_env, md_ener, cons, int_grp, error=error)
     CASE (  nph_uniaxial_ensemble )
-       CALL get_econs_nph_uniaxial (md_env, md_ener, cons, int_grp)
+       CALL get_econs_nph_uniaxial (md_env, md_ener, cons, int_grp, error=error)
     CASE ( nph_uniaxial_damped_ensemble )
-       CALL get_econs_nph_uniaxial (md_env, md_ener, cons, int_grp)
+       CALL get_econs_nph_uniaxial (md_env, md_ener, cons, int_grp, error=error)
     CASE ( langevin_ensemble )
        cons = md_ener%ekin + md_ener%epot
     END SELECT
@@ -204,18 +204,18 @@ CONTAINS
     IF ((PRESENT(cons_rel)).AND.(itimes /= 0 )) THEN
        cons_rel = ABS((cons-constant)/constant)
     END IF
-    IF (PRESENT(ekin))        ekin       = md_ener%ekin
-    IF (PRESENT(ekin_qm))     ekin_qm    = md_ener%ekin_qm
-    IF (PRESENT(temp_part))   temp_part  = md_ener%temp_part
-    IF (PRESENT(temp_qm))     temp_qm    = md_ener%temp_qm
-    IF (PRESENT(temp_baro))   temp_baro  = md_ener%temp_baro
-    IF (PRESENT(ekin_coefs))  ekin_coefs = md_ener%ekin_coefs
-    IF (PRESENT(temp_coefs))  temp_coefs = md_ener%temp_coefs
-    IF (PRESENT(qmmm))        qmmm       = myqmmm
-    IF (PRESENT(ekin_shell))  ekin_shell    = md_ener%ekin_shell
-    IF (PRESENT(temp_shell))  temp_shell    = md_ener%temp_shell
-    IF (PRESENT(shell_adiabatic)) shell_adiabatic    = my_shell_adiabatic
-    IF (PRESENT(shell_present)) shell_present    = my_shell_present
+    IF (PRESENT(ekin))            ekin       = md_ener%ekin
+    IF (PRESENT(ekin_qm))         ekin_qm    = md_ener%ekin_qm
+    IF (PRESENT(temp_part))       temp_part  = md_ener%temp_part
+    IF (PRESENT(temp_qm))         temp_qm    = md_ener%temp_qm
+    IF (PRESENT(temp_baro))       temp_baro  = md_ener%temp_baro
+    IF (PRESENT(ekin_coefs))      ekin_coefs = md_ener%ekin_coefs
+    IF (PRESENT(temp_coefs))      temp_coefs = md_ener%temp_coefs
+    IF (PRESENT(qmmm))            qmmm       = myqmmm
+    IF (PRESENT(ekin_shell))      ekin_shell = md_ener%ekin_shell
+    IF (PRESENT(temp_shell))      temp_shell = md_ener%temp_shell
+    IF (PRESENT(shell_adiabatic)) shell_adiabatic = my_shell_adiabatic
+    IF (PRESENT(shell_present))   shell_present   = my_shell_present
 
   END SUBROUTINE compute_conserved_quantity
 
@@ -242,6 +242,9 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: int_grp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_econs_nve', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: iforce_env
     REAL(KIND=dp)                            :: nhc_coef_kin, nhc_coef_pot
     TYPE(dyn_coeff_set_p_type), &
@@ -253,23 +256,20 @@ CONTAINS
 
     NULLIFY(dyn_coeff_set, force_env_p, nhc_coef)
 
-    CALL get_md_env (md_env, force_env_p=force_env_p, nhc_coef=nhc_coef)
-
+    CALL get_md_env (md_env, force_env_p=force_env_p, nhc_coef=nhc_coef, error=error)
     cons = md_ener % ekin + md_ener % epot + md_ener % ekin_shell
 
+    ! Correct for KG coeff
     DO iforce_env = 1, SIZE(force_env_p)
-
        CALL force_env_get (force_env = force_env_p(iforce_env)%force_env, &
-            dyn_coeff_set=dyn_coeff_set,error=error)
+                           dyn_coeff_set=dyn_coeff_set,error=error)
 
        IF (ASSOCIATED (dyn_coeff_set)) THEN
-
           CALL get_coef_ke (dyn_coeff_set(1)%dyn_coeff_set, md_ener%ekin_coefs, &
-               md_ener%temp_coefs, int_grp)
+                            md_ener%temp_coefs, int_grp, error)
           cons = cons + md_ener%ekin_coefs
           IF (ASSOCIATED(nhc_coef)) THEN
-             CALL get_nhc_energies ( nhc_coef(1), nhc_coef_pot, nhc_coef_kin,&
-                  int_grp )
+             CALL get_nhc_energies ( nhc_coef(1), nhc_coef_pot, nhc_coef_kin, int_grp, error )
              cons = cons + nhc_coef_kin + nhc_coef_pot
           END IF
        END IF
@@ -300,9 +300,12 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: int_grp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_econs_nvt', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: iforce_env
     REAL(KIND=dp)                            :: nhc_coef_kin, nhc_coef_pot, &
-                                                nhc_part_kin, nhc_part_pot,&
+                                                nhc_part_kin, nhc_part_pot, &
                                                 nhc_shell_kin, nhc_shell_pot
     TYPE(dyn_coeff_set_p_type), &
       DIMENSION(:), POINTER                  :: dyn_coeff_set
@@ -315,26 +318,26 @@ CONTAINS
 
     NULLIFY(dyn_coeff_set, force_env_p, nhc_part, nhc_coef)
     CALL get_md_env (md_env, force_env_p=force_env_p, nhc_part=nhc_part,&
-         nhc_coef=nhc_coef, nhc_shell=nhc_shell, simpar=simpar )
-    CALL get_nhc_energies ( nhc_part ( 1 ), nhc_part_pot, nhc_part_kin, int_grp )
+         nhc_coef=nhc_coef, nhc_shell=nhc_shell, simpar=simpar, error=error )
+    CALL get_nhc_energies ( nhc_part ( 1 ), nhc_part_pot, nhc_part_kin, int_grp, error )
     cons = md_ener% ekin + md_ener%epot +  md_ener % ekin_shell + nhc_part_kin + nhc_part_pot
     DO iforce_env = 1, SIZE(force_env_p)
        CALL force_env_get (force_env=force_env_p(iforce_env)%force_env, &
             dyn_coeff_set=dyn_coeff_set,error=error)
        IF (ASSOCIATED (dyn_coeff_set)) THEN
           CALL get_coef_ke (dyn_coeff_set(1)%dyn_coeff_set, md_ener%ekin_coefs, &
-               md_ener%temp_coefs, int_grp)
+               md_ener%temp_coefs, int_grp, error)
           cons = cons + md_ener%ekin_coefs
           IF (ASSOCIATED(nhc_coef)) THEN
              CALL get_nhc_energies ( nhc_coef(1), nhc_coef_pot, nhc_coef_kin,&
-                  int_grp )
+                  int_grp, error )
              cons = cons + nhc_coef_kin + nhc_coef_pot
           END IF
        END IF
     END DO
 
     IF(simpar%shell_nose .AND. ASSOCIATED(nhc_shell)) THEN
-      CALL get_nhc_energies ( nhc_shell(1), nhc_shell_pot, nhc_shell_kin, int_grp )
+      CALL get_nhc_energies ( nhc_shell(1), nhc_shell_pot, nhc_shell_kin, int_grp, error )
       cons = cons + nhc_shell_kin + nhc_shell_pot
     END IF        
 
@@ -356,27 +359,31 @@ CONTAINS
   !!     none
   !!
   !!*****************************************************************************
-  SUBROUTINE get_econs_npt ( md_env, md_ener, cons, int_grp)
+  SUBROUTINE get_econs_npt ( md_env, md_ener, cons, int_grp, error)
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(md_ener_type), INTENT(inout)        :: md_ener
     REAL(KIND=dp), INTENT(OUT)               :: cons
     INTEGER, INTENT(IN)                      :: int_grp
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    REAL(KIND=dp)                            :: baro_kin, baro_pot, nfree, &
-                                                nhc_baro_kin, nhc_baro_pot, &
-                                                nhc_part_kin, nhc_part_pot, &
-                                                nhc_shell_kin, nhc_shell_pot
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_econs_npt', &
+      routineP = moduleN//':'//routineN
+
+    REAL(KIND=dp) :: baro_kin, baro_pot, nfree, nhc_baro_kin, nhc_baro_pot, &
+      nhc_part_kin, nhc_part_pot, nhc_shell_kin, nhc_shell_pot
     TYPE(cell_type), POINTER                 :: box
-    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro( : ), nhc_part( : ), nhc_shell( : )
+    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro( : ), nhc_part( : ), &
+                                                nhc_shell( : )
     TYPE(npt_info_type), POINTER             :: npt( :, : )
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
 
+    NULLIFY(nhc_baro, nhc_part, nhc_shell, npt)
     CALL get_md_env ( md_env, nhc_part=nhc_part, nhc_baro=nhc_baro, &
-         simpar = simpar, npt = npt, cell = box,  nhc_shell=nhc_shell)
-    CALL get_nhc_energies ( nhc_part ( 1 ), nhc_part_pot, nhc_part_kin, int_grp )
-    CALL get_nhc_energies ( nhc_baro ( 1 ), nhc_baro_pot, nhc_baro_kin, int_grp )
-    CALL get_baro_energies ( box, simpar, npt, baro_kin, baro_pot, int_grp )
+         simpar = simpar, npt = npt, cell = box,  nhc_shell=nhc_shell, error=error)
+    CALL get_nhc_energies ( nhc_part ( 1 ), nhc_part_pot, nhc_part_kin, int_grp, error=error )
+    CALL get_nhc_energies ( nhc_baro ( 1 ), nhc_baro_pot, nhc_baro_kin, int_grp, error=error )
+    CALL get_baro_energies ( box, simpar, npt, baro_kin, baro_pot, int_grp, error=error )
     nfree = SIZE ( npt, 1 ) * SIZE ( npt, 2 )
     md_ener % temp_baro = 2.0_dp * baro_kin / nfree
 
@@ -384,7 +391,7 @@ CONTAINS
          + nhc_baro_kin + nhc_baro_pot + baro_kin + baro_pot
 
     IF(simpar%shell_nose .AND. ASSOCIATED(nhc_shell)) THEN
-      CALL get_nhc_energies ( nhc_shell(1), nhc_shell_pot, nhc_shell_kin, int_grp )
+      CALL get_nhc_energies ( nhc_shell(1), nhc_shell_pot, nhc_shell_kin, int_grp, error )
       cons = cons + nhc_shell_kin + nhc_shell_pot
     END IF
   END SUBROUTINE get_econs_npt
@@ -405,11 +412,15 @@ CONTAINS
   !!     none
   !!
   !!*****************************************************************************
-  SUBROUTINE get_econs_nph_uniaxial ( md_env, md_ener, cons, int_grp)
+  SUBROUTINE get_econs_nph_uniaxial ( md_env, md_ener, cons, int_grp, error)
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(md_ener_type), INTENT(inout)        :: md_ener
     REAL(KIND=dp), INTENT(OUT)               :: cons
     INTEGER, INTENT(IN)                      :: int_grp
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_econs_nph_uniaxial', &
+      routineP = moduleN//':'//routineN
 
     REAL(KIND=dp)                            :: baro_kin, baro_pot
     TYPE(cell_type), POINTER                 :: box
@@ -417,9 +428,9 @@ CONTAINS
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
 
-    CALL get_md_env ( md_env, simpar = simpar, npt = npt, cell = box )
+    CALL get_md_env ( md_env, simpar = simpar, npt = npt, cell = box, error=error )
 
-    CALL get_baro_energies ( box, simpar, npt, baro_kin, baro_pot, int_grp )
+    CALL get_baro_energies ( box, simpar, npt, baro_kin, baro_pot, int_grp, error=error )
     md_ener % temp_baro = 2.0_dp * baro_kin
     cons = md_ener%ekin + md_ener%epot + baro_kin + baro_pot
   END SUBROUTINE get_econs_nph_uniaxial
@@ -440,7 +451,7 @@ CONTAINS
   !!     none
   !!
   !!*** *************************************************************************
-  SUBROUTINE get_baro_energies ( box, simpar, npt, baro_kin, baro_pot, int_grp )
+  SUBROUTINE get_baro_energies ( box, simpar, npt, baro_kin, baro_pot, int_grp, error )
 
     TYPE(cell_type), INTENT(IN)              :: box
     TYPE(simulation_parameters_type), &
@@ -449,6 +460,10 @@ CONTAINS
       INTENT(IN)                             :: npt
     REAL(KIND=dp), INTENT(OUT)               :: baro_kin, baro_pot
     INTEGER, INTENT(IN)                      :: int_grp
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_baro_energies', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j
     REAL(dp)                                 :: iv0, v0, v_shock
@@ -500,10 +515,14 @@ CONTAINS
   !!     none
   !!
   !!***8*************************************************************************
-  SUBROUTINE get_nhc_energies ( nhc, nhc_pot, nhc_kin, int_grp )
+  SUBROUTINE get_nhc_energies ( nhc, nhc_pot, nhc_kin, int_grp, error )
     TYPE(lnhc_parameters_type), INTENT(IN)   :: nhc
     REAL(KIND=dp), INTENT(OUT)               :: nhc_pot, nhc_kin
     INTEGER                                  :: int_grp
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_nhc_energies', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: l, n
 
@@ -524,6 +543,7 @@ CONTAINS
        CALL mp_sum(nhc_pot,int_grp)
     END IF
   END SUBROUTINE get_nhc_energies
+
   !******************************************************************************
   !!****** md_conserved_quantity/get_part_ke [1.0] *
   !!
@@ -543,19 +563,17 @@ CONTAINS
   SUBROUTINE get_part_ke ( md_env, ekin, ekin_qm, ekin_shell, nfree_qm, &
              nfree_shell, nfree, int_grp, shell_present, error )
     TYPE(md_environment_type), POINTER       :: md_env
-    REAL(KIND=dp), INTENT(OUT)               :: ekin, ekin_qm
-    REAL(KIND=dp), INTENT(OUT)               :: ekin_shell
-    INTEGER, INTENT(OUT)                     :: nfree_qm
-    INTEGER, INTENT(OUT)                     :: nfree_shell
+    REAL(KIND=dp), INTENT(OUT)               :: ekin, ekin_qm, ekin_shell
+    INTEGER, INTENT(OUT)                     :: nfree_qm, nfree_shell
     INTEGER, INTENT(IN)                      :: nfree, int_grp
     LOGICAL, INTENT(OUT)                     :: shell_present
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: i, iparticle, iparticle_kind, &
-                                                iparticle_local, &
-                                                nparticle_kind, &
-                                                nparticle_local,&
-                                                shell_index
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_part_ke', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: i, iparticle, iparticle_kind, iparticle_local, nparticle_kind, &
+      nparticle_local, shell_index
     LOGICAL                                  :: shell_adiabatic
     REAL(KIND=dp)                            :: ekin_c, ekin_com, ekin_s, mass
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -567,15 +585,12 @@ CONTAINS
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
-    TYPE(particle_list_type), POINTER        :: particles
-    TYPE(particle_list_type), POINTER        :: shell_particles
-    TYPE(particle_list_type), POINTER        :: core_particles
+    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
+                                                shell_particles
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: shell_particle_set
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: core_particle_set
+      POINTER                                :: core_particle_set, &
+                                                particle_set, &
+                                                shell_particle_set
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(shell_kind_type), POINTER           :: shell
 
@@ -589,7 +604,7 @@ CONTAINS
     nfree_shell = -HUGE(0)
 
     NULLIFY(qmmm_env)
-    CALL get_md_env ( md_env, force_env_p = force_env_p )
+    CALL get_md_env ( md_env, force_env_p = force_env_p, error=error )
     CALL force_env_get ( force_env = force_env_p(1)%force_env,&
                          subsys = subsys ,&
                          qmmm_env=qmmm_env,&
@@ -693,11 +708,15 @@ CONTAINS
   !!     gt 06-02-04 adapted to new dynamical coeffs type
   !!
   !!*****************************************************************************
-  SUBROUTINE get_coef_ke ( dyn_coeff_set, ekinc, ctemp, int_group )
+  SUBROUTINE get_coef_ke ( dyn_coeff_set, ekinc, ctemp, int_group, error )
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     REAL(KIND=dp), INTENT(out)               :: ekinc, ctemp
     INTEGER                                  :: int_group
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_coef_ke', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: icoef, iel, ikind, ncoefs
     LOGICAL                                  :: gmass

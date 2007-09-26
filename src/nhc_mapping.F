@@ -30,10 +30,10 @@ MODULE nhc_mapping
                                              get_dyn_coeff
   USE extended_system_types,           ONLY: lnhc_parameters_type
   USE input_constants,                 ONLY: &
-       do_nhcopt_global, do_nhcopt_massive, do_nhcopt_molecule, &
-       isokin_ensemble, langevin_ensemble, nhc_global, nhc_massive, &
-       nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
-       npt_i_ensemble, nve_ensemble, nvt_ensemble, reftraj_ensemble
+       do_region_global, do_region_massive, do_region_molecule, &
+       isokin_ensemble, langevin_ensemble, nph_uniaxial_damped_ensemble, &
+       nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, nve_ensemble, &
+       nvt_ensemble, reftraj_ensemble
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -215,7 +215,7 @@ CONTAINS
     INTEGER :: atm_offset, atom_increment, finish, first_atom, i, icount, &
       ielement, ii, iii, ikind, ilist, imol, imol_local, ipart, isos, j, jj, &
       katom, kk, last_atom, ll, natom, natoms_local, nc, nfixd, &
-      nfixd_restraint, nhcopt, nkind, nmol_local, nmol_per_kind, nmolecule, &
+      nfixd_restraint, region, nkind, nmol_local, nmol_per_kind, nmolecule, &
       number, number_total, start, sum_of_thermostats
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: const_mol, deg_of_freedom, &
                                                 tot_const
@@ -259,13 +259,12 @@ CONTAINS
        have_global = .FALSE.
        ! variable to denote independent thermostats (no communication necessary)
        nointer = .TRUE.
-
+       region  = simpar%part_region
 
        ! 1) count the 'global' to determine distribution scheme
        DO i = 1, nkind
           molecule_kind => molecule_kind_set ( i )
-          CALL get_molecule_kind ( molecule_kind, nhcopt=nhcopt )
-          IF ( ( nhcopt == do_nhcopt_global ) ) THEN
+          IF ( ( region == do_region_global ) ) THEN
              have_global = .TRUE.
              nointer = .FALSE.
              sum_of_thermostats = 1
@@ -275,8 +274,8 @@ CONTAINS
        ! 2) count the 'molecule'
        DO i = 1, nkind
           molecule_kind => molecule_kind_set ( i )
-          CALL get_molecule_kind ( molecule_kind, nhcopt=nhcopt, nmolecule=nmolecule )
-          IF ( ( nhcopt == do_nhcopt_molecule ) ) THEN
+          CALL get_molecule_kind ( molecule_kind, nmolecule=nmolecule )
+          IF ( ( region == do_region_molecule ) ) THEN
              sum_of_thermostats = sum_of_thermostats + nmolecule
              ! If we have ONE kind and ONE molecule, then effectively we have a GLOBAL thermostat
              ! and the degrees of freedom will be computed correctly for this special case
@@ -287,9 +286,9 @@ CONTAINS
        ! 3) count the 'massive'
        DO i = 1, nkind
           molecule_kind => molecule_kind_set ( i )
-          CALL get_molecule_kind ( molecule_kind, nhcopt=nhcopt, nmolecule=nmolecule, &
+          CALL get_molecule_kind ( molecule_kind, nmolecule=nmolecule, &
                natom=natom )
-          IF ( ( nhcopt == do_nhcopt_massive) ) THEN
+          IF ( ( region == do_region_massive) ) THEN
              sum_of_thermostats = sum_of_thermostats + 3 * natom * nmolecule
           END IF
        END DO
@@ -310,10 +309,10 @@ CONTAINS
              DO ikind = 1, nkind
                 nmol_local = local_molecules % n_el ( ikind )
                 molecule_kind => molecule_kind_set ( ikind )
-                CALL get_molecule_kind ( molecule_kind, nhcopt=nhcopt, natom=natom )
-                IF (nhcopt==do_nhcopt_molecule) THEN
+                CALL get_molecule_kind ( molecule_kind, natom=natom )
+                IF (region==do_region_molecule) THEN
                    number = number + nmol_local
-                ELSE IF (nhcopt==do_nhcopt_massive) THEN
+                ELSE IF (region==do_region_massive) THEN
                    number = number + 3*nmol_local*natom
                 ELSE
                    CALL stop_program ( 'nhc_', '' )
@@ -334,7 +333,7 @@ CONTAINS
        nmol_local = 0
        DO ikind = 1, nkind
           molecule_kind => molecule_kind_set ( ikind )
-          CALL get_molecule_kind ( molecule_kind, nhcopt=nhcopt, natom=natom )
+          CALL get_molecule_kind ( molecule_kind, natom=natom )
           natoms_local = natoms_local + natom * local_molecules % n_el ( ikind )
           nmol_local = nmol_local + local_molecules % n_el ( ikind )
        END DO
@@ -424,16 +423,15 @@ CONTAINS
 
        CALL massive_list_generate ( molecule_set, molecule_kind_set, &
                                     local_molecules, para_env,&
-                                    massive_atom_list )
+                                    massive_atom_list, region )
        ! DEAL WITH DIS & GLOBAL CASE
        icount = 0
        IF ( nhc % dis_type == 'NONE' .OR. nhc % dis_type == 'DIS_REP' ) THEN
           DO ikind = 1, nkind
              nmol_local =  local_molecules % n_el ( ikind )
              molecule_kind => molecule_kind_set ( ikind )
-             CALL get_molecule_kind ( molecule_kind, nhcopt=nhcopt )
              DO imol_local = 1, nmol_local
-                IF ( nhcopt==do_nhcopt_global) THEN
+                IF ( region==do_region_global) THEN
                    icount = icount + 1
                    DO ii = 1, 3
                       DO jj = point ( 1, icount ), point ( 2, icount )
@@ -453,10 +451,9 @@ CONTAINS
           DO ikind = 1, nkind
              nmol_local =  local_molecules % n_el ( ikind )
              molecule_kind => molecule_kind_set ( ikind )
-             CALL get_molecule_kind ( molecule_kind, nhcopt=nhcopt )
              DO imol_local = 1, nmol_local
                 imol = local_molecules % list ( ikind ) % array ( imol_local )
-                IF ( nhcopt==do_nhcopt_molecule) THEN
+                IF ( region==do_region_molecule) THEN
                    icount = icount + 1
                    number = number + 1
                    nhc % index ( number ) = imol
@@ -481,13 +478,12 @@ CONTAINS
           DO ikind = 1, nkind
              nmol_local =  local_molecules % n_el ( ikind )
              molecule_kind => molecule_kind_set ( ikind )
-             CALL get_molecule_kind ( molecule_kind, nhcopt=nhcopt )
              DO imol_local = 1, nmol_local
                 imol = local_molecules % list ( ikind ) % array ( imol_local )
                 molecule => molecule_set ( imol )
                 CALL get_molecule ( molecule, first_atom = first_atom, &
                      last_atom = last_atom )
-                IF ( nhcopt==do_nhcopt_massive) THEN
+                IF ( region==do_region_massive) THEN
                    icount = icount + 1
                    IF ( tot_const ( icount ) > 0 ) CALL stop_program ( routineN, &
                         "Massive thermostats with constraints are impossible" )
@@ -520,8 +516,7 @@ CONTAINS
           DO ikind = 1, nkind
              ! doing global thermostat option
              molecule_kind => molecule_kind_set ( ikind )
-             CALL get_molecule_kind ( molecule_kind, nhcopt = nhcopt )
-             IF ( nhcopt==do_nhcopt_global) THEN
+             IF ( region==do_region_global) THEN
                 ! map the thermostat number to the molecule
                 DO ii = 1, 3
                    DO jj = point ( 1, ikind ), point ( 2, ikind )
@@ -540,9 +535,9 @@ CONTAINS
           DO ikind = 1, nkind
              ! doing global thermostat option
              molecule_kind => molecule_kind_set ( ikind )
-             CALL get_molecule_kind ( molecule_kind, nhcopt = nhcopt, natom = natom )
+             CALL get_molecule_kind ( molecule_kind, natom = natom )
              ! doing molecular thermostat option
-             IF ( nhcopt==do_nhcopt_molecule ) THEN
+             IF ( region==do_region_molecule ) THEN
                 ! map the thermostat number to the molecule
                 number = number + 1
                 nhc % index ( number ) = number
@@ -566,9 +561,8 @@ CONTAINS
           DO ikind = 1, nkind
              ! doing global thermostat option
              molecule_kind => molecule_kind_set ( ikind )
-             CALL get_molecule_kind ( molecule_kind, nhcopt = nhcopt )
              ! doing  massive thermostat option
-             IF ( nhcopt==do_nhcopt_massive) THEN
+             IF ( region==do_region_massive) THEN
                 IF ( tot_const ( ikind ) > 0 ) CALL stop_program ( routineN, &
                      "Massive thermostats with constraints are impossible" )
                 DO ii = point ( 1, ikind ), point ( 2, ikind )
@@ -684,11 +678,9 @@ CONTAINS
 
 !------------------------------------------------------------------------------
 
-    nose_section => section_vals_get_subs_vals(kg_coeff_section,&
-         "nose",error=error)
+    nose_section => section_vals_get_subs_vals(kg_coeff_section,"thermostat%nose",error=error)
 
     CALL section_vals_val_get(kg_coeff_section,"ensemble",i_val=kg_coeff_ens,error=error)
-    CALL section_vals_val_get(kg_coeff_section,"nhcopt",i_val=kg_coeff_nhc,error=error)
     CALL section_vals_val_get(kg_coeff_section,"temperature",r_val=kg_coeff_temp,error=error)
 
     SELECT CASE ( kg_coeff_ens )
@@ -702,6 +694,7 @@ CONTAINS
        nhc % num_nhc = 0
        nhc % dis_type = ''
     CASE ( nvt_ensemble )
+       CALL section_vals_val_get(kg_coeff_section,"THERMOSTAT%REGION",i_val=kg_coeff_nhc,error=error)
        CALL section_vals_val_get(nose_section,"yoshida",i_val=nhc % nyosh ,error=error)
        CALL section_vals_val_get(nose_section,"mts",i_val=nhc % nc ,error=error)
        CALL section_vals_val_get(nose_section,"length",i_val=nhc % nhc_len ,error=error)
@@ -719,10 +712,10 @@ CONTAINS
 
        ! Counting the global number of thermostats
 
-       IF ( kg_coeff_nhc == nhc_global )  THEN
+       IF ( kg_coeff_nhc == do_region_global )  THEN
           nointer=.FALSE.
           number=1
-       ELSEIF ( kg_coeff_nhc == nhc_massive )  THEN
+       ELSEIF ( kg_coeff_nhc == do_region_massive )  THEN
           number=ncoef_local
        ENDIF
 
@@ -760,7 +753,7 @@ CONTAINS
 
        i=0
        number = 0
-       IF ( kg_coeff_nhc == nhc_global )  THEN
+       IF ( kg_coeff_nhc == do_region_global )  THEN
           DO i= 1, ncoef_local
              DO j = 1, SIZE ( nhc % p_kin, 1 )
                 nhc % p_kin ( j, i ) % point => nhc % s_kin ( 1 )
@@ -768,7 +761,7 @@ CONTAINS
              END DO
           END DO
           nhc % index ( 1 ) = 1
-       ELSEIF (  kg_coeff_nhc == nhc_massive )  THEN
+       ELSEIF (  kg_coeff_nhc == do_region_massive )  THEN
           DO i = 1, ncoef_local
              DO j = 1, SIZE ( nhc % p_kin, 1 )
                 number = number + 1
@@ -856,13 +849,13 @@ CONTAINS
        END DO
 
        ! 1) global
-       IF(simpar%shell_nhcopt==nhc_global ) THEN
+       IF(simpar%shell_region==do_region_global ) THEN
           nointer = .FALSE.
           sum_of_thermostats = 1
        END IF
 
        ! 2) massive
-       IF(simpar%shell_nhcopt==nhc_massive) THEN
+       IF(simpar%shell_region==do_region_massive) THEN
           sum_of_thermostats = 3 * nshell_local
        END IF
        number = sum_of_thermostats
@@ -891,7 +884,7 @@ CONTAINS
 
        i=0
        number = 0
-       IF(simpar%shell_nhcopt==nhc_global ) THEN
+       IF(simpar%shell_region==do_region_global ) THEN
           ! here distribute      
           DO i =1,nshell_local
              DO j = 1, 3
@@ -900,7 +893,7 @@ CONTAINS
              END DO
           END DO
           nhc%index(1) = 1
-       ELSEIF(simpar%shell_nhcopt==nhc_massive) THEN
+       ELSEIF(simpar%shell_region==do_region_massive) THEN
           ! here distribute      
           DO i =1,nshell_local
              DO j = 1, 3
@@ -956,16 +949,16 @@ CONTAINS
 
   !******************************************************************************
   SUBROUTINE massive_list_generate ( molecule_set, molecule_kind_set, &
-       local_molecules, para_env, massive_atom_list )
+       local_molecules, para_env, massive_atom_list, region )
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, POINTER                         :: massive_atom_list( : )
+    INTEGER, INTENT(IN)                      :: region
 
     INTEGER :: first_atom, i, ikind, imol, iproc, isos, j, k, natom, ncount, &
-      nhcopt, nkind, nmol_per_kind, num_massive_atm, num_massive_atm_local, &
-      offset
+      nkind, nmol_per_kind, num_massive_atm, num_massive_atm_local, offset
     INTEGER, DIMENSION(:), POINTER           :: array_num_massive_atm, &
                                                 local_atm_list, work
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -982,8 +975,8 @@ CONTAINS
           i = local_molecules%list(ikind)%array(imol)
           molecule => molecule_set ( i )
           molecule_kind => molecule % molecule_kind
-          CALL get_molecule_kind(molecule_kind,natom=natom,nhcopt=nhcopt)
-          IF(nhcopt == do_nhcopt_massive) THEN
+          CALL get_molecule_kind(molecule_kind,natom=natom)
+          IF(region == do_region_massive) THEN
              num_massive_atm_local = num_massive_atm_local + natom
              CALL reallocate(local_atm_list,1,num_massive_atm_local)
              CALL get_molecule (molecule,first_atom=first_atom)

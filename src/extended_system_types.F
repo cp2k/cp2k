@@ -15,21 +15,31 @@
 !!     CJM
 !!
 !!   MODIFICATION HISTORY
+!!     Teodoro Laino - 09.2007 - University of Zurich
+!!       Cleaned the typo.. no need to have an extended
+!!       type. Thermostat and Barostat type have been created
 !!
 !!   SOURCE
 !******************************************************************************
 
 MODULE extended_system_types
   USE kinds,                           ONLY: dp
-  USE termination,                     ONLY: stop_program
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: extended_system_type, extended_type_init, &
-            lnhc_dealloc, lnhc_init, npt_dealloc, &
-            lnhc_parameters_type, npt_info_type, nhc_info_type, &
-            particle_kinetic_type, particle_scale_type, extended_energy_type
+
+  PUBLIC :: lnhc_dealloc,&
+       lnhc_init,&
+       lnhc_parameters_type,&
+       npt_info_type,&
+       nhc_info_type, &
+       particle_kinetic_type,&
+       particle_scale_type,&
+       extended_energy_type,&
+       nhc_set_type
+
 
   TYPE extended_energy_type
      REAL(KIND=dp)   ::  energy_g3x3_restraint,&
@@ -62,48 +72,58 @@ MODULE extended_system_types
   END TYPE particle_scale_type
 
   TYPE lnhc_parameters_type
-     CHARACTER ( LEN = 10 ) :: dis_type
-     INTEGER :: nyosh, nc, nhc_len, num_nhc
-     REAL (KIND=dp), POINTER :: dt_yosh ( : )
-     TYPE ( nhc_info_type ), POINTER :: nvt ( :, : )
-     TYPE ( particle_kinetic_type ), POINTER :: p_kin ( :, : )
-     TYPE ( particle_scale_type ), POINTER :: p_scale ( :, : )
-     REAL (KIND=dp), POINTER :: v_scale ( : )
-     REAL (KIND=dp), POINTER :: s_kin ( : )
-     INTEGER, POINTER :: INDEX ( : )
+     CHARACTER ( LEN = 10 )                  :: dis_type
+     INTEGER                                 :: nyosh, nc, nhc_len, num_nhc
+     REAL (KIND=dp), POINTER                 :: dt_yosh(:)
+     TYPE ( nhc_info_type ), POINTER         :: nvt (:,:)
+     TYPE ( particle_kinetic_type ), POINTER :: p_kin (:,:)
+     TYPE ( particle_scale_type ), POINTER   :: p_scale (:,:)
+     REAL (KIND=dp), POINTER                 :: v_scale (:)
+     REAL (KIND=dp), POINTER                 :: s_kin (:)
+     INTEGER, POINTER                        :: INDEX(:)
   END TYPE lnhc_parameters_type
 
-  TYPE extended_system_type
-     !PRIVATE
+  TYPE nhc_set_type
      INTEGER :: id_nr, ref_count, in_use
      TYPE ( lnhc_parameters_type ), POINTER :: nhc_part  ( : )
      TYPE ( lnhc_parameters_type ), POINTER :: nhc_baro ( : )
      TYPE ( lnhc_parameters_type ), POINTER :: nhc_coef (:)
      TYPE ( lnhc_parameters_type ), POINTER :: nhc_shell (:)
-     TYPE ( npt_info_type ), POINTER :: npt_info ( :, : )
-  END TYPE extended_system_type
-
-! *** Global parameters ***
+  END TYPE nhc_set_type
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'extended_system_types'
 
-  CONTAINS
+CONTAINS
 
-!***********
-!  nullify all pointers 
-!***********
-  SUBROUTINE extended_type_init(extended_type)
-    TYPE(extended_system_type), INTENT(OUT)  :: extended_type
-
-    NULLIFY(extended_type%nhc_part)
-    NULLIFY(extended_type%nhc_baro)
-    NULLIFY(extended_type%nhc_coef)
-    NULLIFY(extended_type%nhc_shell)
-    NULLIFY(extended_type%npt_info)
-  END SUBROUTINE
-
-  SUBROUTINE lnhc_init(lnhc)
+! *****************************************************************************
+!!****f* extended_system_types/lnhc_init [1.0] *
+!!
+!!   NAME
+!!    lnhc_init 
+!!
+!!   FUNCTION
+!!     Initialize type for Nose-Hoover thermostat
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     
+!!
+!!   MODIFICATION HISTORY
+!!     
+!!
+!!*** **********************************************************************
+  SUBROUTINE lnhc_init(lnhc, error)
     TYPE(lnhc_parameters_type), INTENT(OUT)  :: lnhc
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'lnhc_init', &
+      routineP = moduleN//':'//routineN
 
     NULLIFY(lnhc%dt_yosh)
     NULLIFY(lnhc%nvt)
@@ -117,76 +137,81 @@ MODULE extended_system_types
     lnhc%nc=0 
     lnhc%nhc_len=0 
     lnhc%num_nhc=0
-  END SUBROUTINE
+  END SUBROUTINE lnhc_init
 
-!******
-!  deallocate lnhc_dealloc
-!******
-SUBROUTINE lnhc_dealloc ( lnhc )
+
+! *****************************************************************************
+!!****f* extended_system_types/lnhc_dealloc [1.0] *
+!!
+!!   NAME
+!!     lnhc_dealloc
+!!
+!!   FUNCTION
+!!     Deallocate type for Nose-Hoover thermostat
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     
+!!
+!!   MODIFICATION HISTORY
+!!     
+!!
+!!*** **********************************************************************
+  SUBROUTINE lnhc_dealloc ( lnhc, error )
     TYPE(lnhc_parameters_type), &
       DIMENSION(:), POINTER                  :: lnhc
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: i, isos
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'lnhc_dealloc', &
+      routineP = moduleN//':'//routineN
 
-   IF (ASSOCIATED(lnhc)) THEN
-    DO I=1,SIZE(lnhc)
-      IF ( ASSOCIATED ( lnhc(I) % dt_yosh ) ) THEN
-        DEALLOCATE ( lnhc(I) % dt_yosh , STAT = isos )
-        IF (isos/=0) CALL stop_program('extended_system_type_destroy', &
-         'failed to allocate lnhc % dt_yosh' )
-      END IF
-      IF ( ASSOCIATED ( lnhc(I) % nvt ) ) THEN
-        DEALLOCATE ( lnhc(I) % nvt , STAT = isos )
-        IF (isos/=0) CALL stop_program('extended_system_type_destroy', &
-         'failed to allocate lnhc % nvt' )
-      ENDIF
-      IF ( ASSOCIATED ( lnhc(I) % p_kin ) ) THEN
-        DEALLOCATE ( lnhc(I) % p_kin , STAT = isos )
-        IF (isos/=0) CALL stop_program('extended_system_type_destroy', &
-         'failed to allocate lnhc % p_kin' )
-      END IF
-      IF ( ASSOCIATED ( lnhc(I) % p_scale ) ) THEN
-        DEALLOCATE ( lnhc(I) % p_scale , STAT = isos )
-        IF (isos/=0) CALL stop_program('extended_system_type_destroy', &
-         'failed to allocate lnhc % p_scale' )
-      END IF
-      IF ( ASSOCIATED ( lnhc(I) % v_scale ) ) THEN
-        DEALLOCATE ( lnhc(I) % v_scale , STAT = isos )
-        IF (isos/=0) CALL stop_program('extended_system_type_destroy', &
-         'failed to allocate lnhc % v_scale' )
-      END IF
-      IF ( ASSOCIATED ( lnhc(I) % s_kin ) ) THEN
-        DEALLOCATE ( lnhc(I) % s_kin , STAT = isos )
-        IF (isos/=0) CALL stop_program('extended_system_type_destroy', &
-         'failed to allocate lnhc % s_kin' )
-      END IF
-      IF ( ASSOCIATED ( lnhc(I) % index ) ) THEN
-        DEALLOCATE ( lnhc(I) % index , STAT = isos )
-        IF (isos/=0) CALL stop_program('extended_system_type_destroy', &
-         'failed to allocate lnhc % index' )
-      END IF
-    ENDDO
-    DEALLOCATE ( lnhc , STAT = isos )
-    IF (isos/=0) CALL stop_program('extended_system_type_destroy', &
-         'failed to allocate lnhc ' )
-   ENDIF
- 
- END SUBROUTINE lnhc_dealloc
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
 
- SUBROUTINE npt_dealloc ( npt_info )
-    TYPE(npt_info_type), POINTER             :: npt_info(:,:)
+    failure = .FALSE.
 
-    INTEGER                                  :: isos
+    IF (ASSOCIATED(lnhc)) THEN
+       DO i = 1, SIZE(lnhc)
+          IF ( ASSOCIATED(lnhc(i)%dt_yosh)) THEN
+             DEALLOCATE (lnhc(i)%dt_yosh, STAT=stat)
+             CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+          END IF
+          IF (ASSOCIATED (lnhc(i)%nvt)) THEN
+             DEALLOCATE (lnhc(i)%nvt, STAT=stat)
+             CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+          ENDIF
+          IF (ASSOCIATED (lnhc(i)%p_kin)) THEN
+             DEALLOCATE (lnhc(i)%p_kin, STAT=stat)
+             CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+          END IF
+          IF (ASSOCIATED (lnhc(i)%p_scale)) THEN
+             DEALLOCATE (lnhc(i)%p_scale, STAT=stat)
+             CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+          END IF
+          IF (ASSOCIATED (lnhc(i)%v_scale)) THEN
+             DEALLOCATE (lnhc(i)%v_scale, STAT=stat)
+             CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+          END IF
+          IF (ASSOCIATED (lnhc(i)%s_kin)) THEN
+             DEALLOCATE (lnhc(i)%s_kin, STAT=stat)
+             CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+          END IF
+          IF (ASSOCIATED (lnhc(i)%index)) THEN
+             DEALLOCATE (lnhc(i)%index, STAT=stat)
+             CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+          END IF
+       ENDDO
+       DEALLOCATE (lnhc, STAT=stat)
+       CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+    ENDIF
 
-   IF ( ASSOCIATED ( npt_info ) ) THEN
-        DEALLOCATE ( npt_info , STAT = isos )
-        IF (isos/=0) CALL stop_program('extended_system_type_destroy', &
-         'failed to allocate npt_info' )
-  END IF
+  END SUBROUTINE lnhc_dealloc
 
- END SUBROUTINE npt_dealloc
-
-!!*****
-!******************************************************************************
 END MODULE extended_system_types
 !******************************************************************************

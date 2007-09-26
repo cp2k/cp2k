@@ -63,9 +63,11 @@
     STEPS 100
     TIMESTEP 0.5
     TEMPERATURE 298
-    &NOSE
-      TIMECON 10
-    &END NOSE
+    &THERMOSTAT
+      &NOSE
+        TIMECON 10
+      &END NOSE
+    &END
   &END MD
   &CONSTRAINT
     &G3X3

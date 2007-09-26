@@ -63,7 +63,6 @@
     &TOPOLOGY
       COORD_FILE_NAME ../sample_pdb/NH3.pdb
       COORDINATE PDB
-      NHCOPT MOLECULE
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
@@ -112,12 +111,15 @@
     STEPS 5
     TIMESTEP 2.5
     TEMPERATURE 298
-    &NOSE
-      LENGTH 1
-      YOSHIDA 3
-      TIMECON 500
-      MTS 2
-    &END NOSE
+    &THERMOSTAT
+      REGION MOLECULE
+      &NOSE
+        LENGTH 1
+        YOSHIDA 3
+        TIMECON 500
+        MTS 2
+      &END NOSE
+    &END
     &BAROSTAT
     &END
   &END MD
