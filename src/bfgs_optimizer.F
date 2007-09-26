@@ -127,7 +127,7 @@ CONTAINS
     rat         = 0.0_dp
 
     output_unit = cp_print_key_unit_nr(logger,root_section,&
-         "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO",&
+         "MOTION%GEO_OPT%PRINT%PROGRAM_RUN_INFO",&
          extension=".geoLog",error=error)
 
     CALL force_env_get(force_env,&
@@ -358,7 +358,7 @@ CONTAINS
        CALL close_file(unit_number=hesunit)
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,root_section,&
-         "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO", error=error)
+         "MOTION%GEO_OPT%PRINT%PROGRAM_RUN_INFO", error=error)
 
     CALL cp_rm_iter_level(logger%iter_info,ihandle,error)
     CALL timestop(0.0_dp,handle)

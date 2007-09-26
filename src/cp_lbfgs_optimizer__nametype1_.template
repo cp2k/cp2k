@@ -789,7 +789,7 @@ CPSourceFileRef,&
              !op=3 ended iter             
              wildcard = "LBFGS"	     
              dataunit = cp_print_key_unit_nr(logger,input,&
-                  "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO",extension=".geoLog",error=error)
+                  "MOTION%GEO_OPT%PRINT%PROGRAM_RUN_INFO",extension=".geoLog",error=error)
              IF (dataunit>0) THEN
                 CALL write_cycle_infos(dataunit,optimizer%isave(30),optimizer%f,&
                      optimizer%f-optimizer%eold,emin=optimizer%emin,wildcard=wildcard)
@@ -798,7 +798,7 @@ CPSourceFileRef,&
              CALL check_converg(SIZE(optimizer%x),optimizer%x-xold,optimizer%gradient,&
                   dataunit>0,dataunit,conv,gopt_param)
              CALL cp_print_key_finished_output(dataunit,logger,input,&
-                  "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO", error=error)
+                  "MOTION%GEO_OPT%PRINT%PROGRAM_RUN_INFO", error=error)
              optimizer%eold = optimizer%f
              optimizer%emin = MIN(optimizer%emin,optimizer%eold)
              xold = optimizer%x
@@ -809,7 +809,7 @@ CPSourceFileRef,&
              ! Specific L-BFGS convergence cryteria.. overrides the convergence cryteria on
              ! stepsize and gradients
              dataunit = cp_print_key_unit_nr(logger,input,&
-                  "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO",extension=".geoLog",error=error)
+                  "MOTION%GEO_OPT%PRINT%PROGRAM_RUN_INFO",extension=".geoLog",error=error)
              IF (dataunit>0) THEN
                 wildcard = "LBFGS"
                 CALL write_cycle_infos(dataunit,optimizer%isave(30),optimizer%f,wildcard=wildcard)
@@ -818,7 +818,7 @@ CPSourceFileRef,&
                 WRITE(dataunit,'(T2,A)')"*****"
              END IF
              CALL cp_print_key_finished_output(dataunit,logger,input,&
-                  "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO", error=error)
+                  "MOTION%GEO_OPT%PRINT%PROGRAM_RUN_INFO", error=error)
              IF (PRESENT(converged)) converged=.TRUE.
              EXIT
           CASE (5)

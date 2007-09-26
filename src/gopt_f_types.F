@@ -573,7 +573,7 @@ SUBROUTINE gopt_param_read(gopt_param, root_section, error)
 
     NULLIFY(gopt_section)
     gopt_section =>  section_vals_get_subs_vals(root_section,&
-         "MOTION%GEOOPT",error=error)
+         "MOTION%GEO_OPT",error=error)
     failure=.FALSE.
     IF (.NOT.failure) THEN
        CALL section_vals_val_get(gopt_section,"OPTIMIZER",i_val=gopt_param%method_id,error=error)

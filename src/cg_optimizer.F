@@ -120,7 +120,7 @@ CONTAINS
        motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
        ionode      = para_env%source==para_env%mepos
        output_unit = cp_print_key_unit_nr(logger,motion_section,&
-         "GEOOPT%PRINT%PROGRAM_RUN_INFO",&
+         "GEO_OPT%PRINT%PROGRAM_RUN_INFO",&
          extension=".geoLog",error=error)
 
        CALL force_env_get(force_env,&
@@ -144,7 +144,7 @@ CONTAINS
             globenv, force_env_section, motion_section, gopt_env, error)
 
        CALL cp_print_key_finished_output(output_unit,logger,motion_section,&
-            "GEOOPT%PRINT%PROGRAM_RUN_INFO", error=error)
+            "GEO_OPT%PRINT%PROGRAM_RUN_INFO", error=error)
     END IF
     CALL cp_rm_iter_level(logger%iter_info,ihandle,error)
     CALL timestop(0.0_dp,handle)
