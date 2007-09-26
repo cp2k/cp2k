@@ -435,6 +435,9 @@ CPSourceFileRef,&
              CALL section_vals_val_get(tmp_section,"TIMECON",r_val=simpar%tau_nhc,error=error)
              CALL section_vals_val_get(tmp_section,"MTS",i_val=simpar%nc,error=error)
           CASE (do_thermo_csvr)
+             CALL cp_unimplemented_error(fromWhere=routineP, &
+                  message="CSVR thermostat not implemented yet!", &
+                  error=error, error_level=cp_fatal_level)
              ! Canonical Sampling through velocity rescaling
              tmp_section => section_vals_get_subs_vals(thermostat_section,"CSVR",error=error)
              CALL section_vals_val_get(tmp_section,"TIMECON",r_val=simpar%tau_nhc,error=error)
