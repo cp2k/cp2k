@@ -69,7 +69,7 @@ MODULE cp_error_handling
        cp_error_get, cp_error_reset, cp_error_get_level,&
        cp_error_get_print_level, cp_error_get_nr,&
        cp_error_get_logger, cp_error_get_stop_level,&
-       cp_error_common_stop, cp_error_handle_error,&
+       cp_error_handle_error,&
        cp_error_message, cp_error_propagate_error,&
        cp_error_check, cp_error_synchronize_error
 
@@ -634,10 +634,7 @@ CONTAINS
     INTEGER                                  :: unit_nr
 
     unit_nr = cp_logger_get_default_unit_nr()
-    CALL print_stack(unit_nr)
-    CALL print_message("ERROR in "//TRIM(fromWhere),unit_nr,2,2,0)
-    CALL print_message(message,unit_nr,1,1,1)
-    CALL print_stack(unit_nr)
+    CALL print_message("ERROR in "//TRIM(fromWhere)//" "//TRIM(message),unit_nr,2,2,0)
     CALL mp_abort()
   END SUBROUTINE cp_error_common_stop
 !****************************************************************************
@@ -679,17 +676,17 @@ CONTAINS
     logger => cp_error_get_logger(error)
     IF (debug_this_module) PRINT *, "entred in cp_error_handle_error"
 
-    IF (ionode) THEN    
-       ! print stack only when stopping? print to stdout?
-       CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
+    IF (ionode .AND. error%level < error%stop_level) THEN    
        CALL cp_error_message(error%level, fromWhere, &
             'err='//ADJUSTL(cp_to_string(error%error_nr))//message, error)
     END IF
     IF (error%level >= error%stop_level) THEN
-       logger => cp_error_get_logger(error)
        mepos=logger%para_env%mepos
-       CALL cp_error_common_stop(fromWhere//' processor '//&
-            cp_to_string(mepos)//' ',message)
+       CALL cp_error_message(error%level, fromWhere//' processor '//&
+            cp_to_string(mepos)//' ', &
+            'err='//ADJUSTL(cp_to_string(error%error_nr))//message, error)
+       CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
+       CALL mp_abort()
     END IF
   END SUBROUTINE cp_error_handle_error
 !***************************************************************************
@@ -879,14 +876,16 @@ CONTAINS
           END IF
           error%info=iError%info
        END IF
-       IF (iError%level >= cp_error_get_print_level(error)) THEN
-          IF (PRESENT(message)) THEN
-             CALL cp_error_message(iError%level, fromWhere,"propagated error "//&
-                  message, error)
-          ELSE
-             CALL cp_error_message(iError%level, fromWhere,"propagated error",error)
+       IF (debug_this_module) THEN
+          IF (iError%level >= cp_error_get_print_level(error)) THEN
+               IF (PRESENT(message)) THEN
+                  CALL cp_error_message(iError%level, fromWhere,"propagated error "//&
+                       message, error)
+               ELSE
+                  CALL cp_error_message(iError%level, fromWhere,"propagated error",error)
+               END IF
           END IF
-       END IF
+       ENDIF
     END IF
   END SUBROUTINE cp_error_propagate_error
 !***************************************************************************
