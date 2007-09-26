@@ -129,3 +129,5 @@ C2H4.inp
 C2H4.inp
 #  
 sic_ddapc_rt.inp
+# numerical for NAG after reorganizing thermostats
+He2_ddapc_constraint-4.inp
