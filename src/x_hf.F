@@ -78,6 +78,8 @@ MODULE x_hf
   TYPE x_hf_distribution
     INTEGER                                  :: istart, jstart, kstart, lstart
     INTEGER(KIND=int_8)                      :: number_of_integrals
+    INTEGER(KIND=int_8)                      :: cost
+    INTEGER                                  :: original_cpu_id
   END TYPE
   
   TYPE x_hf_box_scheme

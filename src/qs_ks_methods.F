@@ -70,9 +70,7 @@ MODULE qs_ks_methods
   USE ep_qs_types,                     ONLY: ep_qs_type
   USE et_coupling,                     ONLY: becke_constraint
   USE four_center_integrals,           ONLY: derivatives_four_center,&
-                                             integrate_four_center,&
-                                             integrate_four_center_symm,&
-                                             derivatives_four_center_symm
+                                             integrate_four_center
   USE harris_env_types,                ONLY: harris_env_type
   USE hartree_local_2centers,          ONLY: integrate_vhg0_g0
   USE hartree_local_3centers,          ONLY: integrate_a_vhg0_b
@@ -711,28 +709,17 @@ CONTAINS
        
        ! *** Add Hartree-Fock contribution if required ***
        IF ( do_hf ) THEN
-         CALL section_vals_val_get(hf_section,"USE_ERI_SYMMETRIES",l_val=use_eri_symmetry,error=error)
           hf_pbc_section => section_vals_get_subs_vals(hf_section,"PERIODIC",error=error)
           CALL section_vals_get(hf_pbc_section,explicit=do_hf_periodic,error=error)
          DO ispin = 1,nspins
            CALL set_matrix(ks_matrix(ispin)%matrix,0.0_dp)
          END DO
-         IF( use_eri_symmetry ) THEN
-           CALL integrate_four_center_symm(qs_env, ks_matrix,energy,rho,hf_section,&
-                                      para_env,ks_env%s_mstruct_changed,do_hf_periodic,error)
-           IF ( calculate_forces ) THEN
-             CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
-             CALL derivatives_four_center_symm(qs_env, ks_matrix,energy,rho,hf_section,&
+         CALL integrate_four_center(qs_env, ks_matrix,energy,rho,hf_section,&
+                                    para_env,ks_env%s_mstruct_changed,do_hf_periodic,error)
+         IF ( calculate_forces ) THEN
+           CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
+           CALL derivatives_four_center(qs_env, ks_matrix,energy,rho,hf_section,&
                                         para_env, do_hf_periodic, error)
-           END IF
-         ELSE
-           CALL integrate_four_center(qs_env, ks_matrix,energy,rho,hf_section,&
-                                      para_env,ks_env%s_mstruct_changed,do_hf_periodic,error)
-           IF ( calculate_forces ) THEN
-             CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
-             CALL derivatives_four_center(qs_env, ks_matrix,energy,rho,hf_section,&
-                                          para_env, do_hf_periodic ,error)
-           END IF
          END IF
 
          ! *** Add Core-Hamiltonian-Matrix ***
