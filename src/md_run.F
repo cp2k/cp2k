@@ -94,21 +94,17 @@ MODULE md_run
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md_run'
 
-  PUBLIC :: qs_mol_dyn, &
+  PUBLIC :: qs_mol_dyn,&
+            qs_mol_dyn_low,&
             temperature_control
-
-
-  INTERFACE qs_mol_dyn
-     MODULE PROCEDURE qs_mol_dyn1, qs_mol_dyn2
-  END INTERFACE
 
 CONTAINS
 
 ! *****************************************************************************
-!!****f* md_run/qs_mol_dyn1 [1.0] *
+!!****f* md_run/qs_mol_dyn [1.0] *
 !!
 !!   NAME
-!!     qs_mol_dyn1
+!!     qs_mol_dyn
 !!
 !!   FUNCTION
 !!     Main driver module for Molecular Dynamics
@@ -127,31 +123,38 @@ CONTAINS
 !!     
 !!
 !!*** **********************************************************************
-  SUBROUTINE qs_mol_dyn1 ( force_env, globenv, error )
+  SUBROUTINE qs_mol_dyn ( force_env, globenv, error )
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn1', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
+    TYPE(md_environment_type), POINTER       :: md_env
 
+    NULLIFY(md_env, force_env_p, para_env)
     ALLOCATE(force_env_p(1), stat=stat)
     CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
     force_env_p(1)%force_env => force_env
-    CALL qs_mol_dyn2 ( force_env_p, globenv, error )
+    para_env=>force_env_p ( 1 ) % force_env % para_env
+    ! Real call to MD driver - Low Level
+    CALL md_env_create(md_env, para_env, error=error)
+    CALL qs_mol_dyn_low(md_env, force_env_p, globenv, error)
+    CALL md_env_release(md_env, error=error)
 
-  END SUBROUTINE qs_mol_dyn1
+  END SUBROUTINE qs_mol_dyn
 
 ! *****************************************************************************
-!!****f* md_run/qs_mol_dyn2 [1.0] *
+!!****f* md_run/qs_mol_dyn_low [1.0] *
 !!
 !!   NAME
-!!     qs_mol_dyn2
+!!     qs_mol_dyn_low
 !!
 !!   FUNCTION
 !!     Purpose: Driver routine for MD run using QUICKSTEP.
@@ -170,14 +173,15 @@ CONTAINS
 !!     
 !!
 !!*** **********************************************************************
-  SUBROUTINE qs_mol_dyn2 ( force_env_p, globenv, error )
+  SUBROUTINE qs_mol_dyn_low ( md_env, force_env_p, globenv, error )
 
+    TYPE(md_environment_type), POINTER       :: md_env
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn2', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn_low', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ibead, istat, &
@@ -199,7 +203,6 @@ CONTAINS
       DIMENSION(:), POINTER                  :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(free_energy_type), POINTER          :: fe_env
-    TYPE(md_environment_type), POINTER       :: md_env
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
@@ -218,7 +221,7 @@ CONTAINS
     NULLIFY (particles, shell_particles, core_particles, cell, cell_ref, &
          simpar, itimes, used_time, subsys, motion_section, thermostat, &
          barostat)
-    NULLIFY (md_env, molecule_kinds_new, force_env_section, work_section, &
+    NULLIFY (molecule_kinds_new, force_env_section, work_section, &
          work2_section, work3_section, print_section, atomic_kinds, &
          local_particles, t, fe_env)
     logger => cp_error_get_logger(error)
@@ -256,9 +259,6 @@ CONTAINS
          extension=".LagrangeMultLog",log_filename=.FALSE.,error=error)
     simpar%dump_lm = BTEST(cp_print_key_should_output(logger%iter_info,root_section,&
          "MOTION%CONSTRAINT%LAGRANGE_MULTIPLIERS",error=error),cp_p_file)
-
-    ! Create md_env
-    CALL md_env_create(md_env, para_env, error=error)
 
     ! If requested setup Thermostats
     CALL create_thermostat_type(thermostat, motion_section, force_env_p,&
@@ -327,7 +327,7 @@ CONTAINS
     END DO
 
     ! Setup Free Energy Calculation (if required)
-    CALL fe_env_create ( fe_env, motion_section, error)
+    CALL fe_env_create (fe_env, motion_section, error)
 
     CALL set_md_env(md_env=md_env, simpar=simpar, fe_env=fe_env, cell=cell, force_env_p=force_env_p,&
                     error=error)
@@ -485,7 +485,6 @@ CONTAINS
 
     CALL cp_rm_iter_level(logger%iter_info,n_rlevel_att=iter_level,&
          error=error)
-    CALL md_env_release ( md_env, error )
 
     ! Preliminary Setup
     CALL release_thermostat_type(thermostat, error=error)
@@ -496,7 +495,7 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
 
-  END SUBROUTINE qs_mol_dyn2
+  END SUBROUTINE qs_mol_dyn_low
 
 !!****f* md_run/md_output *
 !!
