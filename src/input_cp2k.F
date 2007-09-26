@@ -336,14 +336,14 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
                      "FFTW is often (close to) optimal, and well tested with CP2K.",&
          usage="PREFERRED_FFT_LIBRARY FFTW",&
          citations=(/Frigo2005/),&
-         default_i_val=do_fft_fftw, &
+         default_i_val=do_fft_acml, &
          enum_i_vals=(/do_fft_sg,do_fft_fftw,do_fft_essl,do_fft_acml,do_fft_mkl,do_fft_sci/),&
          enum_c_vals=s2a("FFTSG","FFTW","FFTESSL","FFTACML","FFTMKL","FFTSCI"),&
          enum_desc=s2a("Stefan Goedecker FFT, always available, will be used in case a FFT lib is specified and not available",&
                        "a fast portable FFT library. Recommended. This will use either FFTW2 or FFTW3, as available",&
                        "available/tuned for IBM machines",&
-                       "available/tuned for AMD machines (untested)",&
-                       "available/tuned for INTEL machines (untested)",&
+                       "available/tuned for AMD machines (buggy & untested)",&
+                       "available/tuned for INTEL machines (untested in parallel)",&
                        "available/tuned for SGI machines (untested)"),&
          error=error)
     CALL section_add_keyword(section,keyword,error=error)
