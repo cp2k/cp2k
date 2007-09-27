@@ -1589,26 +1589,27 @@ SUBROUTINE section_vals_remove_values(section_vals,error)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
-  CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     NULLIFY(el, vals)
-     ! Allocate a null 0 dimension array of values
-     ALLOCATE(new_values(0,0),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     ! Release old values
-     DO j=1,SIZE(section_vals%values,2)
-        DO i=-1,UBOUND(section_vals%values,1)
-           vals => section_vals%values(i,j)%list
-           DO WHILE (cp_sll_val_next(vals,el_att=el,error=error))
-              CALL val_release(el,error=error)
+  IF (ASSOCIATED(section_vals)) THEN
+     CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
+     IF (.NOT. failure) THEN
+        NULLIFY(el, vals)
+        ! Allocate a null 0 dimension array of values
+        ALLOCATE(new_values(0,0),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ! Release old values
+        DO j=1,SIZE(section_vals%values,2)
+           DO i=-1,UBOUND(section_vals%values,1)
+              vals => section_vals%values(i,j)%list
+              DO WHILE (cp_sll_val_next(vals,el_att=el,error=error))
+                 CALL val_release(el,error=error)
+              END DO
+              CALL cp_sll_val_dealloc(section_vals%values(i,j)%list,error=error)
            END DO
-           CALL cp_sll_val_dealloc(section_vals%values(i,j)%list,error=error)
         END DO
-     END DO
-     DEALLOCATE(section_vals%values,stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-     section_vals%values => new_values
+        DEALLOCATE(section_vals%values,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        section_vals%values => new_values
+     END IF
   END IF
 END SUBROUTINE section_vals_remove_values
 !***************************************************************************

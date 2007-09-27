@@ -291,7 +291,8 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    NULLIFY(core_particles,logger,my_force_env,force_env_p,my_force_b,particles, shell_particles,subsys,work_section)
+    NULLIFY(core_particles,logger,my_force_env,force_env_p,my_force_b, particles,&
+            shell_particles,subsys,work_section)
     logger => cp_error_get_logger(error)
 
     IF (PRESENT(md_env)) THEN
@@ -302,7 +303,6 @@ CONTAINS
           my_force_env => force_env
     END IF
     IF (ASSOCIATED(my_force_env))  THEN
-
 
       NULLIFY(subsys_section)
       CALL section_vals_val_get(root_section,"GLOBAL%RUN_TYPE",i_val=myid,error=error)
@@ -356,13 +356,11 @@ CONTAINS
                  CALL Section_vals_remove_values(work_section, error=error)
               END IF
             END IF
+         END DO
 
-         END DO  ! isubsys
-
-      END DO  ! iforce_env
+      END DO
       DEALLOCATE(i_force_eval)
-    END IF  ! associated my_force_env
-
+    END IF
     CALL timestop(handle)
 
   END SUBROUTINE update_subsys_release
@@ -417,67 +415,43 @@ CONTAINS
                       error=error)
 
                      
-    IF (ASSOCIATED(nhc_part)) THEN
-       work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE%COORD",error=error)
-       CALL section_vals_remove_values(work_section, error)
-       NULLIFY(work_section)
-       work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE%VELOCITY",error=error)
-       CALL section_vals_remove_values(work_section, error)
-       NULLIFY(work_section)
-       work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE%FORCE",error=error)
-       CALL section_vals_remove_values(work_section, error)
-       NULLIFY(work_section)
-       work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE%MASS",error=error)
-       CALL section_vals_remove_values(work_section, error)
-    ENDIF
+    work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE%COORD",error=error)
+    CALL section_vals_remove_values(work_section, error)
+    work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE%VELOCITY",error=error)
+    CALL section_vals_remove_values(work_section, error)
+    work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE%FORCE",error=error)
+    CALL section_vals_remove_values(work_section, error)
+    work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE%MASS",error=error)
+    CALL section_vals_remove_values(work_section, error)
 
-    IF (ASSOCIATED(nhc_baro)) THEN
-       NULLIFY(work_section)
-       work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%NOSE%COORD",error=error)
-       CALL section_vals_remove_values(work_section, error)
-       NULLIFY(work_section)
-       work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%NOSE%VELOCITY",error=error)
-       CALL section_vals_remove_values(work_section, error)
-       NULLIFY(work_section)
-       work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%NOSE%FORCE",error=error)
-       CALL section_vals_remove_values(work_section, error)
-       NULLIFY(work_section)
-       work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%NOSE%MASS",error=error)
-       CALL section_vals_remove_values(work_section, error)
-    END IF
+    work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%NOSE%COORD",error=error)
+    CALL section_vals_remove_values(work_section, error)
+    work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%NOSE%VELOCITY",error=error)
+    CALL section_vals_remove_values(work_section, error)
+    work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%NOSE%FORCE",error=error)
+    CALL section_vals_remove_values(work_section, error)
+    work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%NOSE%MASS",error=error)
+    CALL section_vals_remove_values(work_section, error)
     
-    IF (ASSOCIATED(nhc_coef)) THEN
-       work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%THERMOSTAT%NOSE%COORD",error=error)
-       CALL section_vals_remove_values(work_section, error)
-       NULLIFY(work_section)
-       work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%THERMOSTAT%NOSE%VELOCITY",error=error)
-       CALL section_vals_remove_values(work_section, error)
-       NULLIFY(work_section)
-       work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%THERMOSTAT%NOSE%FORCE",error=error)
-       CALL section_vals_remove_values(work_section, error)
-       NULLIFY(work_section)
-       work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%THERMOSTAT%NOSE%MASS",error=error)
-       CALL section_vals_remove_values(work_section, error)
-    ENDIF
+    work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%THERMOSTAT%NOSE%COORD",error=error)
+    CALL section_vals_remove_values(work_section, error)
+    work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%THERMOSTAT%NOSE%VELOCITY",error=error)
+    CALL section_vals_remove_values(work_section, error)
+    work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%THERMOSTAT%NOSE%FORCE",error=error)
+    CALL section_vals_remove_values(work_section, error)
+    work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%THERMOSTAT%NOSE%MASS",error=error)
+    CALL section_vals_remove_values(work_section, error)
 
-    IF (ASSOCIATED(nhc_shell)) THEN
-       work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE%COORD",error=error)
-       CALL section_vals_remove_values(work_section, error)
-       NULLIFY(work_section)
-       work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE%VELOCITY",error=error)
-       CALL section_vals_remove_values(work_section, error)
-       NULLIFY(work_section)
-       work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE%FORCE",error=error)
-       CALL section_vals_remove_values(work_section, error)
-       NULLIFY(work_section)
-       work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE%MASS",error=error)
-       CALL section_vals_remove_values(work_section, error)
-    ENDIF
-
+    work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE%COORD",error=error)
+    CALL section_vals_remove_values(work_section, error)
+    work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE%VELOCITY",error=error)
+    CALL section_vals_remove_values(work_section, error)
+    work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE%FORCE",error=error)
+    CALL section_vals_remove_values(work_section, error)
+    work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE%MASS",error=error)
+    CALL section_vals_remove_values(work_section, error)
 
     CALL timestop(handle)
-
-
   END SUBROUTINE   update_motion_release
 
 !!****f* input_cp2k_restarts/update_input [1.0] *

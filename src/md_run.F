@@ -21,9 +21,6 @@
 
 MODULE md_run
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set
   USE barostat_types,                  ONLY: barostat_type,&
                                              create_barostat_type,&
                                              release_barostat_type
@@ -39,9 +36,7 @@ MODULE md_run
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE force_env_methods,               ONLY: force_env_calc_energy_force,&
-                                             force_env_rattle,&
-                                             force_env_shake
+  USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
                                              force_env_type
@@ -51,16 +46,13 @@ MODULE md_run
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: langevin_ensemble,&
                                              reftraj_ensemble
-  USE input_cp2k_restarts,             ONLY: update_subsys,&
-                                             write_restart
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_remove_values,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
-  USE md,                              ONLY: initialize_velocities,&
-                                             read_md_section,&
+  USE md,                              ONLY: read_md_section,&
                                              simulation_parameters_type
   USE md_energies,                     ONLY: md_energy
   USE md_environment_types,            ONLY: get_md_env,&
@@ -68,11 +60,11 @@ MODULE md_run
                                              md_env_release,&
                                              md_environment_type,&
                                              set_md_env
-  USE message_passing,                 ONLY: mp_sum
-  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
+  USE md_util,                         ONLY: comvel_control,&
+                                             md_output,&
+                                             setup_velocities,&
+                                             temperature_control
   USE particle_list_types,             ONLY: particle_list_type
-  USE physcon,                         ONLY: kelvin
-  USE shell_potential_types,           ONLY: shell_kind_type
   USE termination,                     ONLY: external_control,&
                                              stop_memory
   USE thermostat_types,                ONLY: create_thermostat_type,&
@@ -80,7 +72,6 @@ MODULE md_run
                                              thermostat_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: get_limit
   USE velocity_verlet_control,         ONLY: velocity_verlet
   USE virial_methods,                  ONLY: virial_evaluate
   USE wiener_process,                  ONLY: create_wiener_process
@@ -95,8 +86,7 @@ MODULE md_run
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md_run'
 
   PUBLIC :: qs_mol_dyn,&
-            qs_mol_dyn_low,&
-            temperature_control
+            qs_mol_dyn_low
 
 CONTAINS
 
@@ -170,7 +160,7 @@ CONTAINS
 !!     Creation (07.11.2002,MK)
 !!
 !!   MODIFICATION HISTORY
-!!     
+!!     Cleaning (09.2007) Teodoro Laino [tlaino] - University of Zurich
 !!
 !!*** **********************************************************************
   SUBROUTINE qs_mol_dyn_low ( md_env, force_env_p, globenv, error )
@@ -185,12 +175,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ibead, istat, &
-                                                istep, isubsys, iter_level, &
-                                                nbeads
+                                                istep, iter_level, nbeads
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: apply_cns0, failure, &
-                                                save_mem, shell_adiabatic, &
-                                                shell_present, should_stop
+    LOGICAL                                  :: check, failure, save_mem, &
+                                                should_stop
     REAL(KIND=dp)                            :: time_iter_start, &
                                                 time_iter_stop
     REAL(KIND=dp), POINTER                   :: t, used_time
@@ -203,12 +191,9 @@ CONTAINS
       DIMENSION(:), POINTER                  :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(free_energy_type), POINTER          :: fe_env
-    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
-    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
-                                                shell_particles
+    TYPE(particle_list_type), POINTER        :: particles
     TYPE(section_vals_type), POINTER :: force_env_section, global_section, &
-      motion_section, print_section, root_section, subsys_section, &
-      work2_section, work3_section, work_section
+      motion_section, root_section, subsys_section, work_section
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(thermostat_type), POINTER           :: thermostat
@@ -218,12 +203,9 @@ CONTAINS
     CPPrecondition(ASSOCIATED(force_env_p),cp_failure_level,routineP,error,failure)
 
     failure=.FALSE.
-    NULLIFY (particles, shell_particles, core_particles, cell, cell_ref, &
-         simpar, itimes, used_time, subsys, motion_section, thermostat, &
-         barostat)
-    NULLIFY (molecule_kinds_new, force_env_section, work_section, &
-         work2_section, work3_section, print_section, atomic_kinds, &
-         local_particles, t, fe_env)
+    NULLIFY (particles, cell, cell_ref, simpar, itimes, used_time, subsys, &
+             motion_section, thermostat, barostat, force_env_section,&
+             work_section, atomic_kinds, local_particles, t, fe_env)
     logger => cp_error_get_logger(error)
     root_section=>force_env_p ( 1 ) % force_env % root_section
     para_env=>force_env_p ( 1 ) % force_env % para_env
@@ -234,11 +216,11 @@ CONTAINS
     global_section => section_vals_get_subs_vals(root_section,"GLOBAL",error=error)
     CALL section_vals_val_get(global_section,"SAVE_MEM",l_val=save_mem,error=error)
 
-
-    nbeads = SIZE ( force_env_p )
-    DO i = 1, nbeads
-      CPPrecondition(ASSOCIATED(force_env_p(i)%force_env),cp_failure_level,routineP,error,failure)
-    END DO
+    ! Preliminary checks on force_env
+    nbeads = SIZE(force_env_p)
+    CPPrecondition(nbeads==1,cp_failure_level,routineP,error,failure)
+    check = ASSOCIATED(force_env_p(nbeads)%force_env)
+    CPPrecondition(check,cp_failure_level,routineP,error,failure)
 
     ALLOCATE (simpar,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -270,141 +252,40 @@ CONTAINS
 
     CALL set_md_env(md_env, thermostat=thermostat, barostat=barostat, error=error)
 
-    ! Always initialize velocities and possibly restart them
-    DO ibead = 1, nbeads
-       CALL force_env_get( force_env_p(ibead)%force_env, subsys=subsys, &
-                          cell=cell, cell_ref=cell_ref,&
-                          force_env_section=force_env_section, error=error )
-       DO isubsys=1,SIZE(subsys)
-         subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",&
-                                                      i_rep_section=isubsys,&
-                                                      error=error)
-         CALL cp_subsys_get(subsys(isubsys)%subsys,&
-                            atomic_kinds=atomic_kinds,&
-                            molecule_kinds_new=molecule_kinds_new,&
-                            particles=particles,&
-                            shell_particles=shell_particles,&
-                            core_particles=core_particles,&
-                            error=error)
+    CALL force_env_get(force_env_p(nbeads)%force_env, subsys=subsys, cell=cell,&
+         force_env_section=force_env_section, error=error )
 
-         CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,&
-              shell_present=shell_present, shell_adiabatic=shell_adiabatic)
-         NULLIFY (work_section,work2_section, work3_section)
-         work_section  => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
-         print_section => section_vals_get_subs_vals(motion_section,"MD%PRINT",error=error)
+    ! Set V0 if needed
+    IF ( ASSOCIATED ( cell_ref ) ) THEN
+       IF ( simpar % v0 == 0._dp ) simpar % v0 = cell_ref % deth
+    ENDIF
 
-         IF(shell_present .AND. shell_adiabatic) THEN
-           ! shell-model with constraint NYI
-           CPPostcondition(.NOT.simpar%constraint,cp_failure_level,routineP,error,failure)
-           work2_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
-           work3_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY",error=error)
-           CALL initialize_velocities(simpar,particles%els,&
-                                      molecule_kinds=molecule_kinds_new,&
-                                      para_env=para_env,&
-                                      globenv=globenv,&
-                                      print_section=print_section,&
-                                      work_section=work_section,&
-                                      work2_section=work2_section,&
-                                      work3_section=work3_section,&
-                                      shell_part=shell_particles%els,&
-                                      core_part=core_particles%els,&
-                                      error=error)
-         ELSE
-           CALL initialize_velocities(simpar,particles%els,&
-                                      molecule_kinds=molecule_kinds_new,&
-                                      para_env=para_env,&
-                                      globenv=globenv,&
-                                      print_section=print_section,&
-                                      work_section=work_section,&
-                                      error=error)
-         END IF
-       END DO
-
-       ! Set V0 if needed
-       IF ( ASSOCIATED ( cell_ref ) ) THEN
-          IF ( simpar % v0 == 0._dp ) simpar % v0 = cell_ref % deth
-       ENDIF
-    END DO
+    ! Initialize velocities possibly applying constraints at the zeroth MD step
+    CALL setup_velocities(force_env_p, simpar, globenv, motion_section, error)
 
     ! Setup Free Energy Calculation (if required)
     CALL fe_env_create (fe_env, motion_section, error)
 
-    CALL set_md_env(md_env=md_env, simpar=simpar, fe_env=fe_env, cell=cell, force_env_p=force_env_p,&
-                    error=error)
+    CALL set_md_env(md_env=md_env, simpar=simpar, fe_env=fe_env, cell=cell,&
+                    force_env_p=force_env_p, error=error)
    
-    ! loop over number of beads
-    IF (simpar%ensemble == langevin_ensemble) THEN
-      CALL create_wiener_process(md_env,error)
-    END IF
-
+    ! Possibly initialize Wiener processes
+    IF (simpar%ensemble == langevin_ensemble) CALL create_wiener_process(md_env,error)
     time_iter_start=m_walltime()
 
     CALL get_md_env ( md_env, force_env_p=force_env_p, itimes = itimes, &
                       t = t, used_time = used_time, error=error )
-    apply_cns0 = .FALSE.
-    IF (simpar%constraint) &
-         CALL section_vals_val_get(motion_section,"CONSTRAINT%CONSTRAIN_INIT",l_val=apply_cns0,error=error)
+
+    ! Computing Forces at zero MD step
     IF (simpar%ensemble /= reftraj_ensemble) THEN
-      DO ibead = 1, nbeads
-         IF (apply_cns0) THEN
-            CALL force_env_calc_energy_force ( force_env_p(ibead)%force_env,&
-                 calc_force=.TRUE.,error=error)          
-            CALL force_env_shake(force_env_p(ibead)%force_env,shake_tol=simpar%shake_tol,&
-                 log_unit=simpar%info_constraint,lagrange_mult=simpar%lagrange_multipliers,&
-                 dump_lm=simpar%dump_lm,compold=.TRUE.,error=error)
-            CALL force_env_rattle(force_env_p(ibead)%force_env,shake_tol=simpar%shake_tol,&
-                 log_unit=simpar%info_constraint,lagrange_mult=simpar%lagrange_multipliers,&
-                 dump_lm=simpar%dump_lm,reset=.TRUE.,error=error)
-            IF (simpar%do_respa)THEN
-               CALL force_env_calc_energy_force ( &
-                    force_env_p(ibead)%force_env%sub_force_env(1)%force_env,&
-                    calc_force=.TRUE.,error=error)
-               CALL force_env_shake(force_env_p(ibead)%force_env%sub_force_env(1)%force_env,&
-                    shake_tol=simpar%shake_tol,log_unit=simpar%info_constraint,&
-                    lagrange_mult=simpar%lagrange_multipliers,dump_lm=simpar%dump_lm,compold=.TRUE.,error=error)
-               CALL force_env_rattle(force_env_p(ibead)%force_env%sub_force_env(1)%force_env,&
-                    shake_tol=simpar%shake_tol,log_unit=simpar%info_constraint,&
-                    lagrange_mult=simpar%lagrange_multipliers,dump_lm=simpar%dump_lm,reset=.TRUE.,error=error)          
-            END IF
-            ! Reinitialize velocities rescaling properly after rattle
-            CALL force_env_get( force_env_p(ibead)%force_env, subsys=subsys, &
-                 force_env_section=force_env_section, error=error )
-            DO isubsys=1,SIZE(subsys)
-               subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",&
-                                                            i_rep_section=isubsys,&
-                                                            error=error)
-               CALL update_subsys(subsys_section,force_env_p(ibead)%force_env,.FALSE.,error)
-               CALL cp_subsys_get(subsys(isubsys)%subsys,&
-                                  molecule_kinds_new=molecule_kinds_new,&
-                                  particles=particles,&
-                                  error=error)
-               NULLIFY (work_section)
-               work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
-               print_section => section_vals_get_subs_vals(motion_section,"MD%PRINT",error=error)
-               CALL initialize_velocities(simpar,particles%els,&
-                                          molecule_kinds=molecule_kinds_new,&
-                                          para_env=para_env,&
-                                          globenv=globenv,&
-                                          print_section=print_section,&
-                                          work_section=work_section,&
-                                          force_rescaling=.TRUE.,&
-                                          error=error)
-            END DO
-         END IF
-      
-         IF(save_mem) THEN
-            NULLIFY (work_section)
-            work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
-            CALL section_vals_remove_values(work_section, error)
-      
-            IF(shell_present .AND. shell_adiabatic) THEN
-               NULLIFY (work_section)
-               work_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
-               CALL section_vals_remove_values(work_section, error)
-               NULLIFY (work_section)
-               work_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY",error=error)
-              CALL section_vals_remove_values(work_section, error)
-            END IF
+       DO ibead = 1, nbeads
+          IF(save_mem) THEN
+             work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
+             CALL section_vals_remove_values(work_section, error)
+             work_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
+             CALL section_vals_remove_values(work_section, error)
+             work_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY",error=error)
+             CALL section_vals_remove_values(work_section, error)
          END IF
       
          CALL force_env_calc_energy_force ( force_env_p(ibead)%force_env,&
@@ -415,6 +296,7 @@ CONTAINS
               force_env_p(ibead)%force_env%sub_force_env(1)%force_env,&
               calc_force=.TRUE.,error=error)
          END IF
+
          CALL force_env_get( force_env_p(ibead)%force_env, subsys=subsys, &
                              error=error )
       
@@ -428,22 +310,23 @@ CONTAINS
                 local_particles, force_env_p(ibead)%force_env%virial,&
                 force_env_p(ibead)%force_env%para_env%group,&
                 error=error)
-      
       END DO
-      
       CALL section_vals_val_get(motion_section,"MD%STEP_START_VAL",i_val=itimes,error=error)
       CALL section_vals_val_get(motion_section,"MD%TIME_START_VAL",r_val=t,error=error)
       CALL md_energy ( md_env, error ) ! inits the print env at itimes == 0
     ELSE
        itimes = -1
     END IF
+    
     CALL cp_print_key_finished_output(simpar%info_constraint, logger,&
          root_section,"MOTION%CONSTRAINT%CONSTRAINT_INFO",error=error)
     CALL cp_print_key_finished_output(simpar%lagrange_multipliers, logger,&
          root_section,"MOTION%CONSTRAINT%LAGRANGE_MULTIPLIERS",error=error)
 
+    ! Real MD Loop
     DO istep=1,simpar%nsteps
       itimes = itimes + 1
+
       CALL cp_iterate(logger%iter_info,last=(istep==simpar%nsteps),&
            iter_nr=itimes,error=error)
       ! Open possible Shake output units
@@ -455,15 +338,19 @@ CONTAINS
            extension=".LagrangeMultLog",log_filename=.FALSE.,error=error)
       simpar%dump_lm = BTEST(cp_print_key_should_output(logger%iter_info,root_section,&
            "MOTION%CONSTRAINT%LAGRANGE_MULTIPLIERS",error=error),cp_p_file)      
+
       ! Velocity Verlet Integrator
       CALL velocity_verlet(md_env,error)
+
       ! Close Shake output if requested...
       CALL cp_print_key_finished_output(simpar%info_constraint, logger,&
            root_section,"MOTION%CONSTRAINT%CONSTRAINT_INFO",error=error)
       CALL cp_print_key_finished_output(simpar%lagrange_multipliers, logger,&
            root_section,"MOTION%CONSTRAINT%LAGRANGE_MULTIPLIERS",error=error)
+
       ! Free Energy calculation
       CALL free_energy_evaluate(md_env,should_stop,motion_section,error)
+
       IF (should_stop) EXIT
       ! Test for EXIT_MD or for WALL_TIME to exit 
       ! IF so we don't overwrite the restart or append to the trajectory
@@ -472,6 +359,7 @@ CONTAINS
       ! with wrong coordinates (due to the last integration step with fake forces)..
       CALL external_control(should_stop,"MD",globenv,error=error)
       IF (should_stop) EXIT
+
       DO ibead=1,nbeads
         CALL temperature_control(simpar,force_env_p(ibead)%force_env,logger,error)
         CALL comvel_control(simpar,force_env_p(ibead)%force_env,logger,error)
@@ -480,661 +368,20 @@ CONTAINS
       used_time = time_iter_stop - time_iter_start
       time_iter_start=time_iter_stop
 
-      CALL md_output(md_env,force_env_section,motion_section,root_section,error)
+      CALL md_output(md_env,force_env_section,root_section,error)
     END DO
 
     CALL cp_rm_iter_level(logger%iter_info,n_rlevel_att=iter_level,&
          error=error)
 
-    ! Preliminary Setup
+    ! Deallocate Thermostats and Barostats
     CALL release_thermostat_type(thermostat, error=error)
     CALL release_barostat_type(barostat, error=error)
 
     DEALLOCATE(simpar,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE qs_mol_dyn_low
 
-!!****f* md_run/md_output *
-!!
-!!   NAME
-!!     md_output
-!!
-!!   FUNCTION
-!!     collects the part of the MD that, basically, does the output
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
-SUBROUTINE md_output(md_env,force_env_section,motion_section,root_section,error)
-    TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(section_vals_type), POINTER         :: force_env_section, &
-                                                motion_section, root_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'md_output', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle
-
-    CALL timeset(routineN,handle)
-
-
-    CALL md_energy ( md_env, error ) ! also writes trajectories
-
-    CALL write_restart(md_env=md_env,root_section=root_section,&
-         force_env_section=force_env_section,error=error)
-
-    CALL timestop(handle)
-
-END SUBROUTINE md_output
-
-! *****************************************************************************
-
-  SUBROUTINE temperature_control(simpar,force_env,logger, error)
-
-    ! Perform all temperature manipulations during a QS MD run.
-
-    ! - Creation (15.09.2003,MK)
-    ! - adapted to force_env (05.10.2003,fawzi)
-
-    ! *************************************************************************
-
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'temperature_control', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: atom, bo(2), handle, iatom, &
-                                                ikind, isubsys, iw, mepos, &
-                                                natom, nfree_shell, num_pe, &
-                                                shell_index
-    INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, is_shell, &
-                                                shell_adiabatic
-    REAL(KIND=dp) :: e_kinetic, ekin_c, ekin_com, ekin_s, ekin_shell, &
-      fac_massc, fac_masss, mass, scale, temperature, total_mass, v2
-    REAL(KIND=dp), DIMENSION(3)              :: v, vc, vcom, vs
-    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
-    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
-                                                shell_particles
-    TYPE(shell_kind_type), POINTER           :: shell
-
-! -------------------------------------------------------------------------
-
-    CALL timeset(routineN,"I","",handle)
-
-    NULLIFY(atomic_kind,atomic_kinds,particles,atom_list,subsys,para_env)
-    NULLIFY( core_particles, shell_particles, shell)
-
-    CPPrecondition(ASSOCIATED(simpar),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
-
-    IF (simpar%temp_tol > 0.0_dp ) THEN
-
-      CALL force_env_get(force_env,subsys=subsys,para_env=para_env,error=error)
-      iw = cp_print_key_unit_nr(logger,force_env%root_section,&
-           "MOTION%MD%PRINT%PROGRAM_RUN_INFO",&
-           extension=".mdLog",error=error)
-
-
-      e_kinetic = 0.0_dp
-      total_mass = 0.0_dp
-      vcom(:) = 0.0_dp
-      DO isubsys=1,SIZE(subsys)
-
-        CALL cp_subsys_get(subsys(isubsys)%subsys,&
-                           atomic_kinds=atomic_kinds,&
-                           particles=particles,&
-                           error=error)
-
-        ! Calculate the current temperature
-
-        DO ikind=1,atomic_kinds%n_els
-          atomic_kind => atomic_kinds%els(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                               atom_list=atom_list,&
-                               mass=mass,&
-                               natom=natom)
-          v2 = 0.0_dp
-          v(:) = 0.0_dp
-          DO iatom=1,natom
-            atom = atom_list(iatom)
-            v2 = v2 + particles%els(atom)%v(1)*particles%els(atom)%v(1) +&
-                      particles%els(atom)%v(2)*particles%els(atom)%v(2) +&
-                      particles%els(atom)%v(3)*particles%els(atom)%v(3)
-            v(:) = v(:) + particles%els(atom)%v(:)
-          END DO
-          e_kinetic = e_kinetic + 0.5_dp*mass*v2
-          vcom(:) = vcom(:) + mass*v(:)
-          total_mass = total_mass + REAL(natom,KIND=dp)*mass
-        END DO
-
-      END DO  ! isubsys
-      
-      temperature = 0.0_dp
-      IF (simpar%nfree /=0) temperature = 2.0_dp*e_kinetic/REAL(simpar%nfree,KIND=dp)
-
-      IF (iw>0) THEN
-        WRITE (UNIT=iw,FMT="(/,T2,A,(T58,A3,F20.10))")&
-          "Centre of mass motion (COM):","x =",vcom(1)/total_mass,&
-                                         "y =",vcom(2)/total_mass,&
-                                         "z =",vcom(3)/total_mass
-      END IF
-
-      ! Scale temperature to reference temperture, if requested
-
-      IF (ABS(simpar%temp_ext - temperature) > simpar%temp_tol) THEN
-
-        scale = SQRT(simpar%temp_ext/temperature)
-
-        DO isubsys=1,SIZE(subsys)
-
-          CALL cp_subsys_get(subsys(isubsys)%subsys,&
-                             atomic_kinds=atomic_kinds,&
-                             particles=particles,&
-                             shell_particles=shell_particles,&
-                             core_particles=core_particles,&
-                             error=error)
-
-          CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,&
-               shell_adiabatic=shell_adiabatic)
-
-          IF(shell_adiabatic) THEN
-            nfree_shell = 3*SIZE(shell_particles%els)
-            ekin_shell = 0.0_dp
-            DO ikind=1,atomic_kinds%n_els
-              atomic_kind => atomic_kinds%els(ikind)
-              CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                                   atom_list=atom_list,&
-                                   mass=mass,&
-                                   natom=natom,&
-                                   shell_active=is_shell,shell=shell)
-              IF(is_shell) THEN
-                fac_masss = shell%mass_shell/mass 
-                fac_massc = shell%mass_core/mass 
-                DO iatom=1,natom
-                  atom = atom_list(iatom)
-                  particles%els(atom)%v(:) = scale*particles%els(atom)%v(:)
-                  shell_index = particles%els(atom)%shell_index
-                  vs(1:3) = shell_particles%els(shell_index)%v(1:3)
-                  vc(1:3) = core_particles%els(shell_index)%v(1:3)
-                  shell_particles%els(shell_index)%v(1) = &
-                        particles%els(atom)%v(1) + fac_massc*(vs(1)-vc(1))
-                  shell_particles%els(shell_index)%v(2) = &
-                        particles%els(atom)%v(2) + fac_massc*(vs(2)-vc(2))
-                  shell_particles%els(shell_index)%v(3) = &
-                        particles%els(atom)%v(3) + fac_massc*(vs(3)-vc(3))
-                  core_particles%els(shell_index)%v(1) = &
-                        particles%els(atom)%v(1) + fac_masss*(vc(1)-vs(1))
-                  core_particles%els(shell_index)%v(2) = &
-                        particles%els(atom)%v(2) + fac_masss*(vc(2)-vs(2))
-                  core_particles%els(shell_index)%v(3) = &
-                        particles%els(atom)%v(3) + fac_masss*(vc(3)-vs(3))
-                END DO  ! iatom
-              ELSE
-                DO iatom=1,natom
-                  atom = atom_list(iatom)
-                  particles%els(atom)%v(:) = scale*particles%els(atom)%v(:)
-                END DO  ! iatom
-              END IF
-            END DO  ! ikind
-          ELSE
-            DO ikind=1,atomic_kinds%n_els
-              atomic_kind => atomic_kinds%els(ikind)
-              CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                                   atom_list=atom_list,&
-                                   mass=mass,&
-                                   natom=natom)
-              v2 = 0.0_dp
-              DO iatom=1,natom
-                atom = atom_list(iatom)
-                particles%els(atom)%v(:) = scale*particles%els(atom)%v(:)
-              END DO
-            END DO
-          END IF
-
-        END DO
-
-        IF (iw>0) THEN
-          WRITE (UNIT=iw,FMT="(/,T2,A,F10.2,A,F10.2,A)")&
-            "Temperature scaled to requested temperature:",&
-            temperature*kelvin," K  ->",simpar%temp_ext*kelvin," K"
-        END IF
-
-      END IF
-
-      CALL cp_print_key_finished_output(iw,logger,force_env%root_section,&
-           "MOTION%MD%PRINT%PROGRAM_RUN_INFO", error=error)
-    END IF
-
-!   control the internal core-shell motion
-    IF(simpar%temp_sh_tol > 0.0_dp) THEN
-
-
-      ekin_shell = 0.0_dp
-      ekin_c = 0.0_dp
-      ekin_s = 0.0_dp
-      nfree_shell = 0
-
-      CALL force_env_get(force_env,subsys=subsys,para_env=para_env,error=error)
-      iw = cp_print_key_unit_nr(logger,force_env%root_section,&
-           "MOTION%MD%PRINT%PROGRAM_RUN_INFO",&
-           extension=".mdLog",error=error)
-
-      num_pe = para_env%num_pe
-      mepos  = para_env%mepos
-
-      DO isubsys=1,SIZE(subsys)
-
-        CALL cp_subsys_get(subsys(isubsys)%subsys,&
-                           atomic_kinds=atomic_kinds,&
-                           particles=particles,&
-                           shell_particles=shell_particles,&
-                           core_particles=core_particles,&
-                           error=error)
-
-        ! Calculate the current temperature
-
-        CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,&
-             shell_adiabatic=shell_adiabatic)
-
-        IF(shell_adiabatic) THEN
-          nfree_shell = nfree_shell + 3*SIZE(shell_particles%els)
-
-          DO ikind=1,atomic_kinds%n_els
-            atomic_kind => atomic_kinds%els(ikind)
-            CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                                 atom_list=atom_list,&
-                                 mass=mass,&
-                                 natom=natom,&
-                                 shell_active=is_shell,shell=shell)
-
-            bo = get_limit( natom, num_pe, mepos )
-            IF(is_shell) THEN
-               fac_masss = shell%mass_shell/mass 
-               fac_massc = shell%mass_core/mass 
-               DO iatom=bo(1),bo(2)
-                  atom = atom_list(iatom)
-                  shell_index = particles%els(atom)%shell_index
-                  vs(1:3) = shell_particles%els(shell_index)%v(1:3)
-                  vc(1:3) =  core_particles%els(shell_index)%v(1:3)
-                  ekin_c = 0.5_dp * shell%mass_core  * (vc(1)*vc(1) + vc(2)*vc(2) + vc(3)*vc(3))
-                  ekin_s = 0.5_dp * shell%mass_shell * (vs(1)*vs(1) + vs(2)*vs(2) + vs(3)*vs(3))
-
-                  v(:) =  particles%els(atom)%v(:)
-                  ekin_com = 0.5_dp*mass * (v(1)*v(1) + v(2)*v(2) + v(3)*v(3))
-                  ekin_shell = ekin_shell + ekin_c + ekin_s - ekin_com
-               END DO  ! iatom
-            END IF  ! is_shell
-          END DO  ! ikind
-        END IF  ! shell_adiabatic
-      END DO ! isub
-      CALL mp_sum(ekin_shell,para_env%group)
-
-      temperature = 0.0_dp
-      IF(nfree_shell > 0) THEN
-        temperature = 2.0_dp*ekin_shell/REAL(nfree_shell,KIND=dp)
-
-        IF (ABS(simpar%temp_sh_ext - temperature) > simpar%temp_sh_tol) THEN
-
-           scale = 0.0_dp
-           IF (temperature>EPSILON(0.0_dp)) scale = SQRT(simpar%temp_sh_ext/temperature)
-
-           total_mass = 0.0_dp
-           vcom(:)    = 0.0_dp
-           e_kinetic  = 0.0_dp
-           DO isubsys = 1,SIZE(subsys)
-
-             CALL cp_subsys_get(subsys(isubsys)%subsys,&
-                           atomic_kinds=atomic_kinds,&
-                           particles=particles,&
-                           shell_particles=shell_particles,&
-                           core_particles=core_particles,&
-                           error=error)
-
-             total_mass = 0.0_dp
-             DO ikind=1,atomic_kinds%n_els
-               atomic_kind => atomic_kinds%els(ikind)
-               CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                                    atom_list=atom_list,&
-                                    mass=mass,&
-                                    natom=natom,&
-                                    shell_active=is_shell,shell=shell)
-               IF(is_shell) THEN
-                  fac_massc = 1.0_dp/mass 
-                  DO iatom= 1, natom
-                     atom = atom_list(iatom)
-                     shell_index = particles%els(atom)%shell_index
-                     vs(1:3) = shell_particles%els(shell_index)%v(1:3)
-                     vc(1:3) = core_particles%els(shell_index)%v(1:3)
-                     v(:) = particles%els(atom)%v(:)
-
-                     shell_particles%els(shell_index)%v(1:3) = v(1:3) -&
-                              shell%mass_core*scale*fac_massc*(vc(1:3)-vs(1:3))  
-                     core_particles%els(shell_index)%v(1:3) =  v(1:3) + &
-                              shell%mass_shell*scale*fac_massc*(vc(1:3)-vs(1:3))
-
-                     vcom = vcom + v * mass
-                     total_mass = total_mass+mass
-                     e_kinetic = e_kinetic + &
-                                 0.5_dp*mass*(v(1)*v(1)+v(2)*v(2)+v(3)*v(3))
-                  END DO  ! iatom
-               ELSE
-                  DO iatom= 1,natom
-                     atom = atom_list(iatom)
-                     v(:) = particles%els(atom)%v(:)
-                     vcom = vcom + v * mass
-                     total_mass = total_mass+mass
-                  END DO
-               END IF  ! is_shell
-             END DO  ! ikind
-           END DO ! isub
-
-           IF (iw>0) THEN
-             WRITE (UNIT=iw,FMT="(/,T2,A,F10.2,A,F10.2,A)")&
-                  "Temperature  shell internal motion scaled to requested temperature:",&
-                  temperature*kelvin," K  ->",simpar%temp_sh_ext*kelvin," K"
-             WRITE (UNIT=iw,FMT="(/,T2,A,(T58,A3,F20.10))")&
-                  "Centre of mass motion (COM):","x =",vcom(1)/total_mass,&
-                                                 "y =",vcom(2)/total_mass,&
-                                                 "z =",vcom(3)/total_mass
-           END IF
-
-        ENDIF
-      END IF  ! nfree_shell
-      CALL cp_print_key_finished_output(iw,logger,force_env%root_section,&
-           "MOTION%MD%PRINT%PROGRAM_RUN_INFO", error=error)
-    END IF  ! simpar%temp_sh_tol > 0
-
-    CALL timestop(0.0_dp,handle)
-
-  END SUBROUTINE temperature_control
-
-! *****************************************************************************
-
-  SUBROUTINE comvel_control(simpar,force_env,logger, error)
-
-    ! Set to 0 the velocity of the COM along MD runs, if required.
-
-    ! - Creation (29.04.2007,MI)
-
-    ! *************************************************************************
-
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'comvel_control', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: atom, bo(2), handle, iatom, &
-                                                ikind, isubsys, iw, mepos, &
-                                                natom, num_pe, shell_index
-    INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, is_shell, &
-                                                shell_adiabatic
-    REAL(KIND=dp)                            :: e_kinetic, fac_massc, &
-                                                fac_masss, mass, scale, &
-                                                temp_new, temperature, &
-                                                total_mass, v2, vel_com
-    REAL(KIND=dp), DIMENSION(3)              :: v, vc, vcom, vcom_new, vs
-    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
-    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
-                                                shell_particles
-    TYPE(shell_kind_type), POINTER           :: shell
-
-! -------------------------------------------------------------------------
-
-    CALL timeset(routineN,"I","",handle)
-
-    NULLIFY(atomic_kind,atomic_kinds,particles,atom_list,subsys,para_env)
-    NULLIFY( core_particles, shell_particles, shell)
-
-    CPPrecondition(ASSOCIATED(simpar),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
-
-    IF (simpar%comvel_tol > 0.0_dp ) THEN
-
-      CALL force_env_get(force_env,subsys=subsys,para_env=para_env,error=error)
-      iw = cp_print_key_unit_nr(logger,force_env%root_section,&
-           "MOTION%MD%PRINT%PROGRAM_RUN_INFO",&
-           extension=".mdLog",error=error)
-
-
-      num_pe = para_env%num_pe
-      mepos  = para_env%mepos
-
-      e_kinetic = 0.0_dp
-      total_mass = 0.0_dp
-      vcom(:) = 0.0_dp
-      DO isubsys=1,SIZE(subsys)
-
-        CALL cp_subsys_get(subsys(isubsys)%subsys,&
-                           atomic_kinds=atomic_kinds,&
-                           particles=particles,&
-                           error=error)
-
-        ! Calculate the current com velocity and the temperature
-
-        DO ikind=1,atomic_kinds%n_els
-          atomic_kind => atomic_kinds%els(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                               atom_list=atom_list,&
-                               mass=mass,&
-                               natom=natom)
-          v2 = 0.0_dp
-          v(:) = 0.0_dp
-          bo = get_limit( natom, num_pe, mepos )
-          DO iatom=bo(1),bo(2)
-            atom = atom_list(iatom)
-            v2 = v2 + particles%els(atom)%v(1)*particles%els(atom)%v(1) +&
-                      particles%els(atom)%v(2)*particles%els(atom)%v(2) +&
-                      particles%els(atom)%v(3)*particles%els(atom)%v(3)
-            v(:) = v(:) + particles%els(atom)%v(:)
-          END DO
-          e_kinetic = e_kinetic + 0.5_dp*mass*v2
-          vcom(:) = vcom(:) + mass*v(:)
-          total_mass = total_mass + REAL(natom,KIND=dp)*mass
-        END DO
-      END DO  ! isubsys
-      CALL mp_sum(e_kinetic,para_env%group)
-      CALL mp_sum(vcom,para_env%group)
-      CALL mp_sum(total_mass,para_env%group)
-
-      temperature = 0.0_dp
-      IF (simpar%nfree /= 0) temperature = 2.0_dp*e_kinetic/REAL(simpar%nfree,KIND=dp)
-      vcom = vcom / total_mass
-      vel_com = SQRT(vcom(1)*vcom(1)+vcom(2)*vcom(2)+vcom(3)*vcom(3))
-
-      ! Subtract the velocity of the COM, if requested
-
-      IF (vel_com > simpar%comvel_tol) THEN
-
-        e_kinetic = 0.0_dp
-        v(:) = 0.0_dp
-        DO isubsys=1,SIZE(subsys)
-
-          CALL cp_subsys_get(subsys(isubsys)%subsys,&
-                             atomic_kinds=atomic_kinds,&
-                             particles=particles,&
-                             shell_particles=shell_particles,&
-                             core_particles=core_particles,&
-                             error=error)
-
-          CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,&
-               shell_adiabatic=shell_adiabatic)
-
-          IF(shell_adiabatic) THEN
-            DO ikind=1,atomic_kinds%n_els
-              atomic_kind => atomic_kinds%els(ikind)
-              CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                                   atom_list=atom_list,&
-                                   mass=mass,&
-                                   natom=natom,&
-                                   shell_active=is_shell,shell=shell)
-              IF(is_shell) THEN
-                v2 = 0.0_dp
-                DO iatom=1,natom
-                  atom = atom_list(iatom)
-                  shell_index = particles%els(atom)%shell_index
-                  particles%els(atom)%v(:) = particles%els(atom)%v(:) - vcom(:)
-                  v2 = v2 + particles%els(atom)%v(1)*particles%els(atom)%v(1) +&
-                            particles%els(atom)%v(2)*particles%els(atom)%v(2) +&
-                            particles%els(atom)%v(3)*particles%els(atom)%v(3)
-                  shell_particles%els(shell_index)%v(:) = shell_particles%els(shell_index)%v(:) -vcom(:)
-                  core_particles%els(shell_index)%v(:) = core_particles%els(shell_index)%v(:) -vcom(:)
-                END DO  ! iatom
-                e_kinetic = e_kinetic + 0.5_dp*mass*v2
-              ELSE
-                v2 = 0.0_dp
-                DO iatom=1,natom
-                  atom = atom_list(iatom)
-                  particles%els(atom)%v(:) = particles%els(atom)%v(:) - vcom(:)
-                  v2 = v2 + particles%els(atom)%v(1)*particles%els(atom)%v(1) +&
-                            particles%els(atom)%v(2)*particles%els(atom)%v(2) +&
-                            particles%els(atom)%v(3)*particles%els(atom)%v(3)
-                END DO  ! iatom
-                e_kinetic = e_kinetic + 0.5_dp*mass*v2
-              END IF
-            END DO  ! ikind
-          ELSE
-            DO ikind=1,atomic_kinds%n_els
-              atomic_kind => atomic_kinds%els(ikind)
-              CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                                   atom_list=atom_list,&
-                                   mass=mass,&
-                                   natom=natom)
-              v2 = 0.0_dp
-              DO iatom=1,natom
-                atom = atom_list(iatom)
-                particles%els(atom)%v(:) = particles%els(atom)%v(:)-vcom(:)
-                v2 = v2 + particles%els(atom)%v(1)*particles%els(atom)%v(1) +&
-                          particles%els(atom)%v(2)*particles%els(atom)%v(2) +&
-                          particles%els(atom)%v(3)*particles%els(atom)%v(3)
-              END DO
-              e_kinetic = e_kinetic + 0.5_dp*mass*v2
-            END DO  ! ikind
-          END IF  ! shell_adiabatic
-
-        END DO  ! isub
-        
-        temp_new = 0.0_dp
-        IF (simpar%nfree /=0) temp_new = 2.0_dp*e_kinetic/REAL(simpar%nfree,KIND=dp)
-        scale = SQRT( temperature / temp_new)
-        vcom_new = 0.0_dp
-        DO isubsys=1,SIZE(subsys)
-
-          CALL cp_subsys_get(subsys(isubsys)%subsys,&
-                             atomic_kinds=atomic_kinds,&
-                             particles=particles,&
-                             shell_particles=shell_particles,&
-                             core_particles=core_particles,&
-                             error=error)
-
-          CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,&
-               shell_adiabatic=shell_adiabatic)
-
-          IF(shell_adiabatic) THEN
-            DO ikind=1,atomic_kinds%n_els
-              atomic_kind => atomic_kinds%els(ikind)
-              CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                                   atom_list=atom_list,&
-                                   mass=mass,&
-                                   natom=natom,&
-                                   shell_active=is_shell,shell=shell)
-              IF(is_shell) THEN
-                fac_masss = shell%mass_shell/mass
-                fac_massc = shell%mass_core/mass
-                v(:) = 0.0_dp
-                DO iatom=1,natom
-                  atom = atom_list(iatom)
-                  particles%els(atom)%v(:) = scale*particles%els(atom)%v(:)
-                  v(:) = v(:) + particles%els(atom)%v(:) 
-                  shell_index = particles%els(atom)%shell_index
-                  vs(1:3) = shell_particles%els(shell_index)%v(1:3)
-                  vc(1:3) = core_particles%els(shell_index)%v(1:3)
-                  shell_particles%els(shell_index)%v(1) = &
-                        particles%els(atom)%v(1) + fac_massc*(vs(1)-vc(1))
-                  shell_particles%els(shell_index)%v(2) = &
-                        particles%els(atom)%v(2) + fac_massc*(vs(2)-vc(2))
-                  shell_particles%els(shell_index)%v(3) = &
-                        particles%els(atom)%v(3) + fac_massc*(vs(3)-vc(3))
-                  core_particles%els(shell_index)%v(1) = &
-                        particles%els(atom)%v(1) + fac_masss*(vc(1)-vs(1))
-                  core_particles%els(shell_index)%v(2) = &
-                        particles%els(atom)%v(2) + fac_masss*(vc(2)-vs(2))
-                  core_particles%els(shell_index)%v(3) = &
-                        particles%els(atom)%v(3) + fac_masss*(vc(3)-vs(3))
-                END DO  ! iatom
-                vcom_new(:) = vcom_new(:) + mass*v(:)
-              ELSE
-                v(:) = 0.0_dp
-                DO iatom=1,natom
-                  atom = atom_list(iatom)
-                  particles%els(atom)%v(:) = scale*particles%els(atom)%v(:)
-                  v(:) = v(:) + particles%els(atom)%v(:) 
-                END DO  ! iatom
-                vcom_new(:) = vcom_new(:) + mass*v(:)
-              END IF
-            END DO  ! ikind
-          ELSE
-            DO ikind=1,atomic_kinds%n_els
-              atomic_kind => atomic_kinds%els(ikind)
-              CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                                   atom_list=atom_list,&
-                                   mass=mass,&
-                                   natom=natom)
-              v(:) = 0.0_dp
-              DO iatom=1,natom
-                atom = atom_list(iatom)
-                particles%els(atom)%v(:) = scale*particles%els(atom)%v(:)
-                v(:) = v(:) + particles%els(atom)%v(:) 
-              END DO
-              vcom_new(:) = vcom_new(:) + mass*v(:)
-            END DO
-          END IF
-
-        END DO  ! isub
-        IF (iw>0) THEN
-          WRITE (UNIT=iw,FMT="(/,T2,A)") &
-            " #########  The velocity of the COM has been subtracted:"
-          WRITE (UNIT=iw,FMT="(T2,10X,A,3F16.10,A)") &
-            "VCOM = ",vcom(1:3)," a.u.  ->"
-          WRITE (UNIT=iw,FMT="(T2,16X,A,3F16.10,A)") &
-            "  ->", vcom_new(1:3)," a.u"
-        END IF
-
-      END IF  !vel_com > simpar%comvel_tol
-
-      CALL cp_print_key_finished_output(iw,logger,force_env%root_section,&
-           "MOTION%MD%PRINT%PROGRAM_RUN_INFO", error=error)
-    END IF
-
-    CALL timestop(0.0_dp,handle)
-
-  END SUBROUTINE comvel_control
-
-  ! ***************************************************************************
 END MODULE md_run

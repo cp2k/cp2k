@@ -259,6 +259,7 @@ OBJECTS_GENERIC =\
  md_energies.o\
  md_environment_types.o\
  md_run.o\
+ md_util.o\
  memory_utilities.o\
  message_passing.o\
  metadynamics.o\
