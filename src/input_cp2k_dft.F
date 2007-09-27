@@ -3199,7 +3199,7 @@ CONTAINS
             description="Recalculates integrals on the fly if the actual density matrix is"//&
                         " larger by a given factor than the initial one. If the factor is set"//&
                         " to 0.0_dp, this feature is disbled.",&
-            usage="P_SCREEN_CORRECTION_FACTOR  10.0_dp", default_r_val=0.0_dp,error=error)
+            usage="P_SCREEN_CORRECTION_FACTOR  0.0_dp", default_r_val=0.0_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
