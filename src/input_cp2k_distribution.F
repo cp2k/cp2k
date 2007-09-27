@@ -93,12 +93,11 @@ CONTAINS
        CALL keyword_create(keyword,name="COST_MODEL",&
             description="The cost model that needs to be minimized ",&
             usage="COST_MODEL BLOCK_COUNT",&
-            enum_c_vals=s2a("BLOCK_COUNT","BLOCK_SURFACE", "BLOCK_LMAX", "BLOCK_HFX"),&
-            enum_i_vals=(/model_block_count, model_block_surface,model_block_lmax, model_block_hfx/),&
+            enum_c_vals=s2a("BLOCK_COUNT","BLOCK_SURFACE", "BLOCK_LMAX"),&
+            enum_i_vals=(/model_block_count, model_block_surface,model_block_lmax/),&
             enum_desc=s2a("the number of blocks",&
                           "the number of blocks weighted by the number elements per block",&
-                          "the number of blocks weighted by the sum of the lmax", &
-                          "estimated memory cost for hfx of the block"),&
+                          "the number of blocks weighted by the sum of the lmax"), &
             default_i_val=model_block_surface,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

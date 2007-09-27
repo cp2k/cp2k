@@ -82,7 +82,7 @@ MODULE four_center_integrals
   IMPLICIT NONE
   PRIVATE
    
-  PUBLIC  integrate_four_center, derivatives_four_center, compute_memory_needs
+  PUBLIC  integrate_four_center, derivatives_four_center
 
   TYPE(lib_int), SAVE      :: lib
   TYPE(lib_deriv), SAVE    :: deriv
@@ -543,127 +543,6 @@ MODULE four_center_integrals
     CALL timestop(handle)
 
   END SUBROUTINE compute_pmax_matrices
-!!***** four_center_integrals/compute_memory_needs [1.0] *
-!!
-!!   NAME
-!!     compute_memory_needs
-!!
-!!   FUNCTION
-!!     calculates the needed memory to store the matrix elements, taking the screening into account
-!!
-!!   NOTES
-!!     based on the row/col distribution given, computes for each local block_ab the needed memory to store the corresponding integrals
-!!     this nees to remain in sync with the integrate_four_center routine.
-!!     This distribution is then used to load balance HFX.
-!!
-!!   INPUTS
-!!     memory block ab : output : each element corresponds to the number of integrals that need
-!!                                to be stored if this block of H_ks is local to the CPU.
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!
-!!   MODIFICATION HISTORY
-!!    05.2007 created [Joost VandeVondele]
-!!
-!!****************************************************************************
-
-  SUBROUTINE compute_memory_needs(memory_blocks_ab,eps_schwarz,particle_set,atomic_kind_set,para_env,&
-                                  screening_parameter,error)
-    INTEGER, DIMENSION(:, :), INTENT(OUT)    :: memory_blocks_ab
-    REAL(KIND=dp), INTENT(IN)                :: eps_schwarz
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(x_hf_screening_type)                :: screening_parameter
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_memory_needs', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER :: handle, iatom, iblock, iset, jatom, jset, katom, kset, latom, &
-      lset, max_am, natom, nseta, nsetb, nsetc, nsetd, stat
-    INTEGER, DIMENSION(:), POINTER           :: nsgfa, nsgfb, nsgfc, nsgfd
-    LOGICAL                                  :: failure, include_ab
-    REAL(KIND=dp)                            :: max_val1, max_val2, screen_max
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: screen_atom
-    REAL(KIND=dp), DIMENSION(:, :, :, :), &
-      POINTER                                :: screen_set
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis
-
-    CALL timeset(routineN,handle)
-    failure=.FALSE.
-
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, maxlgto=max_am)
-    CALL initialize_libint(lib, max_am, error)
-
-    memory_blocks_ab = 0
-
-    ! set up screening matrices
-    CALL compute_screening_matrices(screen_set,screen_atom,screen_max,particle_set,&
-                                    atomic_kind_set,screening_parameter,.FALSE.,error=error)
-
-    ! loop over this CPU's share of the atoms and compute the memory cost of the atomic blocks
-    ! do not compute this for blocks that will not be associated
-    natom=SIZE(particle_set)
-    iblock=0
-    DO iatom=1,natom
-      DO jatom=1,natom
-        iblock=iblock+1
-        IF (MOD(iblock,para_env%num_pe) .NE. para_env%mepos) CYCLE
-        CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, orb_basis_set=orb_basis)
-        CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nseta, nsgf_set=nsgfa)
-        CALL get_atomic_kind(atomic_kind=particle_set(jatom)%atomic_kind, orb_basis_set=orb_basis)
-        CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nsetb, nsgf_set=nsgfb)
-        DO katom=1,natom
-          CALL get_atomic_kind(atomic_kind=particle_set(katom)%atomic_kind, orb_basis_set=orb_basis)
-          CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nsetc, nsgf_set=nsgfc)
-          DO latom=1,natom
-            ! IF( ((iatom <= jatom).AND.(katom<=latom)).AND.(katom+latom<=iatom+jatom))  THEN
-            IF( ((.TRUE.).AND.(katom<=latom)).AND.(katom+latom<=iatom+jatom))  THEN
-              IF( ((iatom+jatom).EQ.(katom+latom) ) .AND.(katom<MIN(iatom,jatom))) CYCLE
-    
-            
-              ! take the symmetric storage form into account
-               IF (iatom > jatom) THEN
-                 include_ab = (MODULO(iatom + jatom,2) /= 0)
-               ELSE
-                 include_ab = (MODULO(iatom + jatom,2) == 0)
-               END IF
-               IF (.NOT. include_ab) CYCLE
-
-              CALL get_atomic_kind(atomic_kind=particle_set(latom)%atomic_kind, orb_basis_set=orb_basis)
-              CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nsetd, nsgf_set=nsgfd)
-
-              DO iset = 1, nseta
-                DO jset = 1,nsetb
-                  max_val1 = screen_set(iatom,jatom,iset,jset)
-                  DO kset = 1,nsetc
-                    DO lset = 1,nsetd
-                      max_val2 = max_val1 * screen_set(katom,latom,kset,lset)
-                      IF(max_val2<eps_schwarz) CYCLE
-                      memory_blocks_ab(iatom,jatom)=memory_blocks_ab(iatom,jatom) + &
-                                                    nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
-                    ENDDO
-                  ENDDO
-                ENDDO
-              ENDDO
-            END IF
-          ENDDO
-        ENDDO
-      ENDDO
-    ENDDO
-
-    DEALLOCATE(screen_set,screen_atom,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    CALL mp_sum(memory_blocks_ab,para_env%group)
-
-    CALL timestop(handle)
-
-  END SUBROUTINE compute_memory_needs
 !***************************************************************************
 
 !!***** four_center_integrals/forces4 [1.0] *
@@ -3921,7 +3800,7 @@ MODULE four_center_integrals
           ptr_to_tmp_dist => tmp_dist(icpu,1:tmp_pos(icpu)-1)
         END IF
       END DO
-      
+     
       CALL x_hf_set_distr_energy(ptr_to_tmp_dist,x_data,error=error)
       DEALLOCATE(tmp_dist, full_dist, tmp_pos, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

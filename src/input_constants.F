@@ -528,8 +528,7 @@ MODULE input_constants
   ! cost models for distribution 2d
   INTEGER, PARAMETER, PUBLIC :: model_block_count=453, &
                                 model_block_surface=454, &
-                                model_block_lmax=455, &
-                                model_block_hfx=456
+                                model_block_lmax=455
 
   ! HFX screening type
   INTEGER, PARAMETER, PUBLIC :: do_hf_screening_none=1,&
