@@ -1312,9 +1312,8 @@ MODULE four_center_integrals
                                                     iset, jset, kset, lset, iatom, jatom, katom, latom, pa1, pb1, pc1, pd1, nspins)
                                   END IF 
                                 END IF
-  
-                                CYCLE
                               END IF
+                              CYCLE
                             END IF
                           END IF
 
