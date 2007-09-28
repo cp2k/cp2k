@@ -37,12 +37,17 @@
       &END PBE
      &END XC_FUNCTIONAL
       &HF
-       EPS_SCHWARZ 1.0E-10
-       MAX_MEMORY 10 
-       FRACTION 0.25
-       SCREENING_TYPE SHORTRANGE
+        &SCREENING
+          EPS_SCHWARZ 1.0E-10
+          EPS_BOX 1.0E-10
+        &END
+        &INTERACTION_POTENTIAL
+          POTENTIAL_TYPE SHORTRANGE
 #Omega = 0.15/sqrt(2)
-       OMEGA 0.106
+          OMEGA 0.106
+        &END 
+        MAX_MEMORY 10 
+        FRACTION 0.25
       &END
     &END XC
   &END DFT

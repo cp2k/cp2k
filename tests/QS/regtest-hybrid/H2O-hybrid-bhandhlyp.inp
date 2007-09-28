@@ -31,15 +31,18 @@
        &END BECKE88
       &END XC_FUNCTIONAL
       &HF
-       EPS_SCHWARZ 1.0E-16 
-       MAX_MEMORY  100 
-       FRACTION 0.5
+        &SCREENING
+          EPS_SCHWARZ 1.0E-16 
+          EPS_BOX 1.0E-16
+        &END
+        MAX_MEMORY  100 
+        FRACTION 0.5
       &END
     &END XC
   &END DFT
   &SUBSYS
     &CELL
-            ABC 6.0 6.0 6.0
+      ABC 6.0 6.0 6.0
       UNIT ANGSTROM
       PERIODIC NONE
     &END CELL

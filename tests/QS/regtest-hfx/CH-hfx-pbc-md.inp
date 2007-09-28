@@ -20,12 +20,15 @@
        &XC_FUNCTIONAL NONE
        &END XC_FUNCTIONAL
        &HF
-        EPS_SCHWARZ 1.0E-6
-        MAX_MEMORY  10
-        SCREEN_PMAT_FORCES TRUE
-        &PERIODIC
-          NUMBER_OF_SHELLS 2
-        &END
+         &SCREENING
+           EPS_SCHWARZ 1.0E-6
+           EPS_BOX 1.0E-6
+           SCREEN_P_FORCES TRUE
+         &END
+         MAX_MEMORY  10
+         &PERIODIC
+           NUMBER_OF_SHELLS 2
+         &END
        &END
     &END XC
   &END DFT

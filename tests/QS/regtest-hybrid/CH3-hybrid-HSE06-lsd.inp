@@ -37,11 +37,17 @@
       &END PBE
       &END XC_FUNCTIONAL
       &HF
-       EPS_SCHWARZ 1.0E-10
-       EPS_SCHWARZ_FORCES 1.0E-5
-       MAX_MEMORY  100
-       SCREENING_TYPE SHORTRANGE
-       FRACTION 0.11
+        &SCREENING
+          EPS_SCHWARZ 1.0E-10
+          EPS_SCHWARZ_FORCES 1.0E-5
+          EPS_BOX 1.0E-10
+          EPS_BOX_FORCES 1.0E-5
+        &END
+        &INTERACTION_POTENTIAL
+          POTENTIAL_TYPE SHORTRANGE
+        &END
+        MAX_MEMORY  100
+        FRACTION 0.11
       &END
     &END XC
   &END DFT

@@ -38,9 +38,12 @@
        &END 
       &END XC_FUNCTIONAL
       &HF
-       EPS_SCHWARZ 1.0E-10 
-       MAX_MEMORY  5 
-       FRACTION 0.20
+        &SCREENING
+          EPS_SCHWARZ 1.0E-10 
+          EPS_BOX 1.0E-10
+        &END 
+        MAX_MEMORY  5 
+        FRACTION 0.20
       &END
     &END XC
   &END DFT
