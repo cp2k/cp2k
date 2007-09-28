@@ -19,28 +19,38 @@ How to compile CP2K code
      go to http://www.gnu.org/software/make/make.html 
      download from http://ftp.gnu.org/pub/gnu/make/
 
- 2b) an f95 compiler, BLAS and LAPACK should be installed
+ 2b) an f95 compiler should be installed on your system. Some compilers (e.g. pgf90) have more bugs than
+     others. g95 can be conveniently used (download the default integer 32 versions!),
+     but native compilers tend to be about 20 percent faster.
+
+ 2c) BLAS and LAPACK should be installed
      (use the latest versions available, download all patches)
      http://www.netlib.org/blas/
      http://www.netlib.org/lapack/ (see also http://www.netlib.org/lapack-dev/)
      http://math-atlas.sourceforge.net/
      http://www.tacc.utexas.edu/resources/software/ (GotoBLAS)
-     using vendor provided libraries can make a very significant difference (e.g. mkl, essl)
+     using vendor provided libraries can make a very significant difference (up to 100% use e.g. acml, mkl, essl)
+     notice that the blas/lapack used must match the compiler used.
 
- 2c) MPI and SCALAPACK are needed for parallel runs
+ 2d) MPI and SCALAPACK are needed for parallel runs
      (use the latest versions available, download all patches !!)
      http://www-unix.mcs.anl.gov/mpi/mpich/
      http://www.netlib.org/scalapack/ (see also http://www.netlib.org/lapack-dev/)
+     Scalapack can be part of acml or cluster mkl, and these libraries are recommended.
 
- 2d) fftw can be used to improve FFT speed (depending on architecture)
+ 2e) fftw can be used to improve FFT speed (depending on architecture).
+     It is strongly recommended to install and use FFTW3.
      the current version of the code works with FFTW 2.X or FFTW 3.X (use -D__FFTW2 *or* -D__FFTW3)
      http://www.fftw.org/
+     Notice that FFTW must know the Fortran compiler you will use in order to install properly
+     (e.g. 'export F77=g95' before configure if you intend to use g95)
 
- 2e) Hartree-Fock exchange (optional) requires the libint package to be installed, and a Fortran compiler that
+ 2f) Hartree-Fock exchange (optional) requires the libint package to be installed, and a Fortran compiler that
      supports ISO_C_BINDING and Fortran procedure pointers (g95, xlf90 ?) (use -D__LIBINT). 
      Tested against libinit-1.1.2, and currently hardcoded to the default angular momentum LIBINT_MAX_AM 5
      (check your include/libint/libint.h to see if it matches)
      http://www.chem.vt.edu/chem-dept/valeev/software/libint/libint.html
+     Note, do *not* use libinit-1.1.3.
 
  3) to compile the code:
 
