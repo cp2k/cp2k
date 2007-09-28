@@ -2,7 +2,7 @@
 !                                                                             !
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000, 2001, 2002, 2003  CP2K developers group               !
-!   Copyright (C) 2004, 2005, 2006        CP2K developers group               !
+!   Copyright (C) 2004, 2005, 2006, 2007  CP2K developers group               !
 !                                                                             !
 !   This program is free software; you can redistribute it and/or modify      !
 !   it under the terms of the GNU General Public License as published by      !
@@ -16,7 +16,12 @@
 !                                                                             !
 !   You should have received a copy of the GNU General Public License         !
 !   along with this program; if not, write to the Free Software               !
-!   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.                 !
+!   Foundation, Inc., 51 Franklin Street, Fifth Floor,                        !
+!   Boston, MA  02110-1301, USA.                                              !
+!                                                                             !
+!   See also http://www.fsf.org/licensing/licenses/gpl.html                   !
 !                                                                             !
 !-----------------------------------------------------------------------------!
-! http://cp2k.berlios.de/                                                     !
+!   CP2K, including its sources and pointers to the authors                   !
+!   can be found at  http://cp2k.berlios.de/                                  !
+!-----------------------------------------------------------------------------!
