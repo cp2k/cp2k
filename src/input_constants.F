@@ -530,10 +530,12 @@ MODULE input_constants
                                 model_block_surface=454, &
                                 model_block_lmax=455
 
-  ! HFX screening type
-  INTEGER, PARAMETER, PUBLIC :: do_hf_screening_none=1,&
-                                do_hf_screening_short=2,&
-                                do_hf_screening_long=3
+
+  ! HFX potential type
+  INTEGER, PARAMETER, PUBLIC :: do_hf_potential_coulomb=1,&
+                                do_hf_potential_short=2,&
+                                do_hf_potential_long=3
+
 
   ! FFT library
   ! these might need sync with fft_lib.F

@@ -187,6 +187,7 @@ OBJECTS_GENERIC =\
  input_cp2k_dft.o\
  input_cp2k_distribution.o\
  input_cp2k_eip.o\
+ input_cp2k_hfx.o\
  input_cp2k_mm.o\
  input_cp2k_motion.o\
  input_cp2k_poisson.o\

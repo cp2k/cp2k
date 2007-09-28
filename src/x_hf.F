@@ -32,10 +32,12 @@ MODULE x_hf
 
   IMPLICIT NONE
   PRIVATE
-  PUBLIC  x_hf_type, x_hf_create, x_hf_release, x_hf_screening_type ,&
+  PUBLIC  x_hf_type, x_hf_create, x_hf_release,& 
           x_hf_set_distr_energy, &
           x_hf_set_distr_forces, x_hf_create_neighbor_cells,&
-          x_hf_cell_type, x_hf_distribution, x_hf_box_scheme
+          x_hf_cell_type, x_hf_distribution, x_hf_box_scheme,&
+          x_hf_potential_type, x_hf_screening_type, x_hf_periodic_type,&
+          x_hf_memory_type, x_hf_load_balance_type, x_hf_general_type
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'x_hf'
 
@@ -66,9 +68,46 @@ MODULE x_hf
 !!     11.2006 created [Manuel Guidon]
 !!
 !***************************************************************************
-  TYPE x_hf_screening_type
+
+  TYPE x_hf_potential_type
+    INTEGER                                  :: potential_type
     REAL(dp)                                 :: omega
-    INTEGER                                  :: screening_type
+  END TYPE
+
+  TYPE x_hf_screening_type
+    REAL(dp)                                 :: eps_schwarz
+    REAL(dp)                                 :: eps_schwarz_forces
+    REAL(dp)                                 :: eps_box
+    REAL(dp)                                 :: eps_box_forces
+    LOGICAL                                  :: do_p_screening_forces
+    LOGICAL                                  :: do_initial_p_screening
+    LOGICAL                                  :: do_initial_p_screening_correction
+    REAL(dp)                                 :: initial_p_screening_correction
+  END TYPE
+  
+  TYPE x_hf_memory_type
+    INTEGER                                  :: max_memory
+    INTEGER(int_8)                           :: number_of_integrals
+  END TYPE
+
+  TYPE x_hf_periodic_type
+    INTEGER                                  :: number_of_shells
+    LOGICAL                                  :: do_periodic
+  END TYPE
+
+  TYPE x_hf_load_balance_type
+    INTEGER                                  :: nbins
+    INTEGER                                  :: moves
+    INTEGER                                  :: cycles
+    INTEGER                                  :: reduction_steps
+    REAL(dp)                                 :: reduction_factor
+    REAL(dp)                                 :: temperature
+    REAL(dp)                                 :: tolerance
+    REAL(dp)                                 :: swap_probability
+  END TYPE
+
+  TYPE x_hf_general_type
+    REAL(dp)                                 :: fraction
   END TYPE
 
   TYPE x_hf_cell_type
@@ -88,16 +127,19 @@ MODULE x_hf
     REAL(dp)                                 :: R
     REAL(dp)                                 :: alpha
   END TYPE
- 
-
 
   TYPE x_hf_type
+    TYPE(x_hf_potential_type)                :: potential_parameter
+    TYPE(x_hf_screening_type)                :: screening_parameter
+    TYPE(x_hf_memory_type)                   :: memory_parameter
+    TYPE(x_hf_periodic_type)                 :: periodic_parameter
+    TYPE(x_hf_load_balance_type)             :: load_balance_parameter
+    TYPE(x_hf_general_type)                  :: general_parameter
     REAL(dp), DIMENSION(:), POINTER          :: x_buffer
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: x_screening_buffer
     REAL(dp), DIMENSION(:, :, :, :, :), &
               POINTER                        :: x_screening_buffer_periodic
     INTEGER                                  :: number_of_elements
-    TYPE(x_hf_screening_type)                :: screening_parameter
     INTEGER(KIND=int_8), DIMENSION(:),&
                              POINTER         :: integral_distribution_forces
     TYPE(x_hf_cell_type), DIMENSION(:), &
@@ -121,7 +163,6 @@ MODULE x_hf
     TYPE(section_vals_type), POINTER         :: hf_section
     INTEGER, INTENT(IN)                      :: natom, max_set
     TYPE(cp_error_type), INTENT(inout)       :: error
-
     CHARACTER(LEN=*), PARAMETER :: routineN = 'x_hf_create', &
       routineP = moduleN//':'//routineN
 
@@ -132,21 +173,85 @@ MODULE x_hf
                                                 failure
     REAL(dp)                                 :: omega
     TYPE(section_vals_type), POINTER         :: hf_pbc_section
+    INTEGER                                  :: int_val
+    REAL(dp)                                 :: real_val
+    LOGICAL                                  :: logic_val
+    TYPE(section_vals_type), POINTER         :: hf_sub_section
 
     failure = .FALSE.
 
-    CALL section_vals_val_get(hf_section,"MAX_MEMORY",i_val=max_memory,error=error)
-    number_of_precalc_integrals = max_memory * 1024*1024/dp_size
     ALLOCATE(x_data,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    !! Get data from input file
+    !!
+    !! General params
+    CALL section_vals_val_get(hf_section, "FRACTION", r_val=real_val, error=error)
+    x_data%general_parameter%fraction = real_val
+
+    !! Memory section
+    CALL section_vals_val_get(hf_section, "MAX_MEMORY", i_val=int_val, error=error)
+    x_data%memory_parameter%max_memory = int_val
+    number_of_precalc_integrals = int_val * 1024*1024/dp_size
     ALLOCATE(x_data%x_buffer(number_of_precalc_integrals),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     x_data%number_of_elements = number_of_precalc_integrals
-    CALL section_vals_val_get(hf_section,"screening_type",i_val=TYPE,error=error)
-    CALL section_vals_val_get(hf_section,"omega",r_val=omega,error=error)
- 
-    x_data%screening_parameter%screening_type = TYPE
-    x_data%screening_parameter%omega = omega
+
+
+    !! PERIODIC section
+    hf_sub_section => section_vals_get_subs_vals(hf_section,"PERIODIC",error=error)
+    CALL section_vals_get(hf_sub_section, explicit=logic_val, error=error)
+    x_data%periodic_parameter%do_periodic = logic_val
+    CALL section_vals_val_get(hf_sub_section, "NUMBER_OF_SHELLS", i_val=int_val, error=error)
+    x_data%periodic_parameter%number_of_shells = int_val
+    
+    !! SCREENING section
+    hf_sub_section => section_vals_get_subs_vals(hf_section,"SCREENING",error=error)
+    CALL section_vals_val_get(hf_sub_section, "EPS_SCHWARZ", r_val=real_val, error=error)
+    x_data%screening_parameter%eps_schwarz = real_val
+    CALL section_vals_val_get(hf_sub_section, "EPS_BOX", r_val=real_val, error=error)
+    x_data%screening_parameter%eps_box = real_val 
+    CALL section_vals_val_get(hf_sub_section, "EPS_SCHWARZ_FORCES", r_val=real_val, error=error)
+    x_data%screening_parameter%eps_schwarz_forces = real_val 
+    CALL section_vals_val_get(hf_sub_section, "EPS_BOX_FORCES", r_val=real_val, error=error)
+    x_data%screening_parameter%eps_box_forces = real_val 
+    CALL section_vals_val_get(hf_sub_section, "SCREEN_P_FORCES", l_val=logic_val, error=error)
+    x_data%screening_parameter%do_p_screening_forces = logic_val 
+    CALL section_vals_val_get(hf_sub_section, "SCREEN_ON_INITIAL_P", l_val=logic_val, error=error)
+    x_data%screening_parameter%do_initial_p_screening = logic_val 
+    CALL section_vals_val_get(hf_sub_section, "P_SCREEN_CORRECTION_FACTOR", r_val=real_val, error=error)
+    IF( real_val == 0.0_dp ) THEN
+      x_data%screening_parameter%do_initial_p_screening_correction = .FALSE. 
+    ELSE
+      x_data%screening_parameter%do_initial_p_screening_correction = .TRUE. 
+    END IF
+    x_data%screening_parameter%initial_p_screening_correction = real_val 
+
+    !! INTERACTION_POTENTIAL section
+    hf_sub_section => section_vals_get_subs_vals(hf_section,"INTERACTION_POTENTIAL",error=error)
+    CALL section_vals_val_get(hf_sub_section, "POTENTIAL_TYPE", i_val=int_val, error=error)
+    x_data%potential_parameter%potential_type = int_val
+    CALL section_vals_val_get(hf_sub_section, "OMEGA", r_val=real_val, error=error)
+    x_data%potential_parameter%omega = real_val 
+
+    !! LOAD_BALANCE section
+    hf_sub_section => section_vals_get_subs_vals(hf_section,"LOAD_BALANCE",error=error)
+    CALL section_vals_val_get(hf_sub_section, "NBINS", i_val=int_val, error=error)
+    x_data%load_balance_parameter%nbins = int_val
+    CALL section_vals_val_get(hf_sub_section, "MOVES", i_val=int_val, error=error)
+    x_data%load_balance_parameter%moves = int_val
+    CALL section_vals_val_get(hf_sub_section, "CYCLES", i_val=int_val, error=error)
+    x_data%load_balance_parameter%cycles = int_val
+    CALL section_vals_val_get(hf_sub_section, "REDUCTION_STEPS", i_val=int_val, error=error)
+    x_data%load_balance_parameter%reduction_steps = int_val
+    CALL section_vals_val_get(hf_sub_section, "REDUCTION_FACTOR", r_val=real_val, error=error)
+    x_data%load_balance_parameter%reduction_factor = real_val
+    CALL section_vals_val_get(hf_sub_section, "TEMPERATURE", r_val=real_val, error=error)
+    x_data%load_balance_parameter%temperature = real_val
+    CALL section_vals_val_get(hf_sub_section, "TOLERANCE", r_val=real_val, error=error)
+    x_data%load_balance_parameter%tolerance = real_val
+    CALL section_vals_val_get(hf_sub_section, "SWAP_PROBABILITY", r_val=real_val, error=error)
+    x_data%load_balance_parameter%swap_probability = real_val
 
     hf_pbc_section => section_vals_get_subs_vals(hf_section,"PERIODIC",error=error)
     CALL section_vals_get(hf_pbc_section,explicit=do_periodic,error=error)
@@ -177,15 +282,13 @@ MODULE x_hf
     ALLOCATE(x_data%far_field_boxes(1,1),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     
-    CALL section_vals_val_get(hf_section,"SCREEN_ON_INITIAL_P",l_val=do_p_screening,error=error) 
-    IF( do_p_screening) THEN
+    IF( x_data%screening_parameter%do_initial_p_screening) THEN
       ALLOCATE(x_data%initial_p(max_set,max_set,natom,natom),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ELSE
       ALLOCATE(x_data%initial_p(1,1,1,1),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-
 
   END SUBROUTINE x_hf_create 
 

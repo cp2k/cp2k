@@ -28,13 +28,13 @@ MODULE libint_interface
 #endif
   USE erf_fn,                          ONLY: erfc
   USE gamma,                           ONLY: fgamma
-  USE input_constants,                 ONLY: do_hf_screening_none, &
-                                             do_hf_screening_short, &
-                                             do_hf_screening_long
+  USE input_constants,                 ONLY: do_hf_potential_coulomb, &
+                                             do_hf_potential_short, &
+                                             do_hf_potential_long
   USE mathconstants
   USE orbital_pointers
   USE kinds,                           ONLY: dp
-  USE x_hf,                            ONLY: x_hf_screening_type,&
+  USE x_hf,                            ONLY: x_hf_potential_type,&
                                              x_hf_cell_type
 
 #include "cp_common_uses.h"      
@@ -375,7 +375,7 @@ MODULE libint_interface
                           n_a,n_b,n_c,n_d,&
                           ncoa,ncob,ncoc,ncod,&
                           offset_a,offset_b,offset_c,offset_d,&
-                          primitives,screening_parameter)
+                          primitives,potential_parameter)
     
     TYPE(lib_int)                           :: lib
     REAL(dp), INTENT(IN),TARGET             :: A(3), B(3), C(3), D(3)
@@ -383,7 +383,7 @@ MODULE libint_interface
     INTEGER, INTENT(IN)                     :: n_a, n_b, n_c, n_d
     INTEGER, INTENT(IN)                     :: ncoa,ncob,ncoc,ncod,offset_a,offset_b,offset_c,offset_d
     REAL(dp), DIMENSION(ncoa,ncob,ncoc,ncod):: primitives
-    TYPE(x_hf_screening_type)               :: screening_parameter
+    TYPE(x_hf_potential_type)               :: potential_parameter
  
 #if defined(__LIBINT)
     INTEGER                                  :: i,j,k,l, perm_case, p1, p2, p3
@@ -414,7 +414,7 @@ MODULE libint_interface
       SELECT CASE(perm_case)
         CASE(1)
           CALL build_quartet_data(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max,&
-                            screening_parameter, prim)
+                            potential_parameter, prim)
           lib%PrimQuartet = C_LOC(prim)
           lib%AB=A-B
           lib%CD=C-D
@@ -442,7 +442,7 @@ MODULE libint_interface
           END DO
         CASE(2)
           CALL build_quartet_data(B,A,C,D,Zeta_B, Zeta_A, Zeta_C, Zeta_D, m_max,&
-                            screening_parameter, prim)
+                            potential_parameter, prim)
           lib%PrimQuartet = C_LOC(prim)
           lib%AB=B-A
           lib%CD=C-D
@@ -470,7 +470,7 @@ MODULE libint_interface
           END DO
         CASE(3)
           CALL build_quartet_data(A,B,D,C,Zeta_A, Zeta_B, Zeta_D, Zeta_C, m_max,&
-                            screening_parameter, prim)
+                            potential_parameter, prim)
           lib%PrimQuartet = C_LOC(prim)
           lib%AB=A-B
           lib%CD=D-C
@@ -498,7 +498,7 @@ MODULE libint_interface
           END DO
         CASE(4)
           CALL build_quartet_data(B,A,D,C,Zeta_B, Zeta_A, Zeta_D, Zeta_C, m_max,&
-                            screening_parameter, prim)
+                            potential_parameter, prim)
           lib%PrimQuartet = C_LOC(prim)
           lib%AB=B-A
           lib%CD=D-C
@@ -526,7 +526,7 @@ MODULE libint_interface
           END DO
         CASE(5)
           CALL build_quartet_data(C,D,A,B,Zeta_C, Zeta_D, Zeta_A, Zeta_B, m_max,&
-                            screening_parameter, prim)
+                            potential_parameter, prim)
           lib%PrimQuartet = C_LOC(prim)
           lib%AB=C-D
           lib%CD=A-B
@@ -554,7 +554,7 @@ MODULE libint_interface
           END DO
         CASE(6)
           CALL build_quartet_data(C,D,B,A,Zeta_C, Zeta_D, Zeta_B, Zeta_A, m_max,&
-                            screening_parameter, prim)
+                            potential_parameter, prim)
           lib%PrimQuartet = C_LOC(prim)
           lib%AB=C-D
           lib%CD=B-A
@@ -582,7 +582,7 @@ MODULE libint_interface
           END DO
         CASE(7)
           CALL build_quartet_data(D,C,A,B,Zeta_D, Zeta_C, Zeta_A, Zeta_B, m_max,&
-                            screening_parameter, prim)
+                            potential_parameter, prim)
           lib%PrimQuartet = C_LOC(prim)
           lib%AB=D-C
           lib%CD=A-B
@@ -610,7 +610,7 @@ MODULE libint_interface
           END DO
         CASE(8)
           CALL build_quartet_data(D,C,B,A,Zeta_D, Zeta_C, Zeta_B, Zeta_A, m_max,&
-                            screening_parameter, prim)
+                            potential_parameter, prim)
           lib%PrimQuartet = C_LOC(prim)
           lib%AB=D-C
           lib%CD=B-A
@@ -639,7 +639,7 @@ MODULE libint_interface
       END SELECT
     ELSE
       CALL build_quartet_data(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max,&
-                            screening_parameter, prim)
+                            potential_parameter, prim)
       primitives(offset_a+1,offset_b+1,offset_c+1,offset_d+1) = &
         primitives(offset_a+1,offset_b+1,offset_c+1,offset_d+1)+prim%F(1)
     END IF
@@ -669,12 +669,12 @@ MODULE libint_interface
 
 #if defined(__LIBINT)
   SUBROUTINE build_quartet_data(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max, &
-                              screening_parameter, prim)
+                              potential_parameter, prim)
      
     REAL(KIND=C_DOUBLE)                :: A(3), B(3), C(3), D(3)
     REAL(KIND=C_DOUBLE), INTENT(IN)    :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
     INTEGER(KIND=C_INT), INTENT(IN)    :: m_max
-    TYPE(x_hf_screening_type)          :: screening_parameter 
+    TYPE(x_hf_potential_type)          :: potential_parameter 
     TYPE(prim_data)                    :: prim
 
     REAL(KIND=C_DOUBLE)                :: P(3), Q(3), W(3), AB(3), CD(3), PQ(3), C1(3), D1(3)
@@ -703,12 +703,12 @@ MODULE libint_interface
     S1234= EXP((-Zeta_A*Zeta_B/Zeta*AB2)+(-Zeta_C*Zeta_D/Eta*CD2))
     T = Rho*PQ2
 
-    SELECT CASE(screening_parameter%screening_type)
-      CASE(do_hf_screening_none)
+    SELECT CASE(potential_parameter%potential_type)
+      CASE(do_hf_potential_coulomb)
         CALL fgamma(m_max,T,prim%F)
-      CASE(do_hf_screening_short)
+      CASE(do_hf_potential_short)
         CALL fgamma(m_max,T,prim%F)
-        omega2 = screening_parameter%omega**2
+        omega2 = potential_parameter%omega**2
         omega_corr2 = omega2/(omega2+Rho)
         omega_corr = SQRT(omega_corr2)
         T = T*omega_corr2
@@ -718,8 +718,8 @@ MODULE libint_interface
           prim%F(i)=prim%F(i) + Fm(i)*tmp
           tmp = tmp * omega_corr2 
         END DO
-      CASE(do_hf_screening_long)
-        omega2 = screening_parameter%omega**2
+      CASE(do_hf_potential_long)
+        omega2 = potential_parameter%omega**2
         omega_corr2 = omega2/(omega2+Rho)
         omega_corr = SQRT(omega_corr2)
         T = T*omega_corr2
@@ -780,12 +780,12 @@ MODULE libint_interface
 
 #if defined(__LIBINT)
   SUBROUTINE build_deriv_data(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max,&
-                            screening_parameter, prim, do_periodic, box_size, shift1)
+                            potential_parameter, prim, do_periodic, box_size, shift1)
      
     REAL(KIND=C_DOUBLE)                :: A(3), B(3), C(3), D(3)
     REAL(KIND=C_DOUBLE), INTENT(IN)    :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
     INTEGER(KIND=C_INT), INTENT(IN)    :: m_max
-    TYPE(x_hf_screening_type)          :: screening_parameter
+    TYPE(x_hf_potential_type)          :: potential_parameter
     TYPE(prim_data)                    :: prim
     LOGICAL, INTENT(IN)                :: do_periodic
     REAL(dp), INTENT(IN), OPTIONAL     :: box_size(3), shift1(3)
@@ -827,12 +827,12 @@ MODULE libint_interface
     S1234= EXP((-Zeta_A*Zeta_B/Zeta*AB2)+(-Zeta_C*Zeta_D/Eta*CD2))
     T = Rho*PQ2
 
-    SELECT CASE(screening_parameter%screening_type)
-      CASE(do_hf_screening_none)
+    SELECT CASE(potential_parameter%potential_type)
+      CASE(do_hf_potential_coulomb)
         CALL fgamma(m_max,T,prim%F)
-      CASE(do_hf_screening_short)
+      CASE(do_hf_potential_short)
         CALL fgamma(m_max,T,prim%F)
-        omega2 = screening_parameter%omega**2
+        omega2 = potential_parameter%omega**2
         omega_corr2 = omega2/(omega2+Rho)
         omega_corr = SQRT(omega_corr2)
         T = T*omega_corr2
@@ -840,8 +840,8 @@ MODULE libint_interface
         DO i=1,m_max+1
           prim%F(i)=prim%F(i) - omega_corr*Fm(i)*omega_corr2**(i-1)
         END DO
-      CASE(do_hf_screening_long)
-        omega2 = screening_parameter%omega**2
+      CASE(do_hf_potential_long)
+        omega2 = potential_parameter%omega**2
         omega_corr2 = omega2/(omega2+Rho)
         omega_corr = SQRT(omega_corr2)
         T = T*omega_corr2
@@ -907,7 +907,7 @@ MODULE libint_interface
                                 ncoa, ncob, ncoc, ncod,&
                                 primitive_forces,&
                                 offset_a, offset_b, offset_c, offset_d,&
-                                screening_parameter)
+                                potential_parameter)
     
     TYPE(lib_deriv)                         :: deriv
     REAL(dp), INTENT(IN),TARGET             :: A(3), B(3), C(3), D(3)
@@ -918,7 +918,7 @@ MODULE libint_interface
     REAL(dp), DIMENSION(ncoa,ncob,ncoc,ncod,12) &
                                             :: primitive_forces
     INTEGER, INTENT(IN)                     :: offset_a, offset_b, offset_c, offset_d
-    TYPE(x_hf_screening_type)               :: screening_parameter
+    TYPE(x_hf_potential_type)               :: potential_parameter
 #if defined(__LIBINT)
     INTEGER                                 :: i,j,k,l
     TYPE(prim_data),TARGET                  :: prim
@@ -955,7 +955,7 @@ MODULE libint_interface
     SELECT CASE(perm_case)
       CASE(1)
         CALL build_deriv_data(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max,&
-                          screening_parameter, prim, do_periodic=.FALSE.)
+                          potential_parameter, prim, do_periodic=.FALSE.)
         deriv%PrimQuartet = C_LOC(prim)
         deriv%AB=A-B
         deriv%CD=C-D
@@ -990,7 +990,7 @@ MODULE libint_interface
         END DO
       CASE(2)
         CALL build_deriv_data(B,A,C,D,Zeta_B, Zeta_A, Zeta_C, Zeta_D, m_max,&
-                           screening_parameter, prim, do_periodic=.FALSE.)
+                           potential_parameter, prim, do_periodic=.FALSE.)
         deriv%PrimQuartet = C_LOC(prim)
         deriv%AB=B-A
         deriv%CD=C-D
@@ -1025,7 +1025,7 @@ MODULE libint_interface
         END DO
      CASE(3)
         CALL build_deriv_data(A,B,D,C,Zeta_A, Zeta_B, Zeta_D, Zeta_C, m_max,&
-                          screening_parameter, prim, do_periodic=.FALSE.)
+                          potential_parameter, prim, do_periodic=.FALSE.)
         deriv%PrimQuartet = C_LOC(prim)
         deriv%AB=A-B
         deriv%CD=D-C
@@ -1060,7 +1060,7 @@ MODULE libint_interface
         END DO
       CASE(4)
         CALL build_deriv_data(B,A,D,C,Zeta_B, Zeta_A, Zeta_D, Zeta_C, m_max,&
-                          screening_parameter, prim, do_periodic=.FALSE.)
+                          potential_parameter, prim, do_periodic=.FALSE.)
         deriv%PrimQuartet = C_LOC(prim)
         deriv%AB=B-A
         deriv%CD=D-C
@@ -1095,7 +1095,7 @@ MODULE libint_interface
         END DO
       CASE(5)
         CALL build_deriv_data(C,D,A,B,Zeta_C, Zeta_D, Zeta_A, Zeta_B, m_max,&
-                          screening_parameter, prim, do_periodic=.FALSE.)
+                          potential_parameter, prim, do_periodic=.FALSE.)
         deriv%PrimQuartet = C_LOC(prim)
         deriv%AB=C-D
         deriv%CD=A-B
@@ -1130,7 +1130,7 @@ MODULE libint_interface
         END DO
       CASE(6)
         CALL build_deriv_data(C,D,B,A,Zeta_C, Zeta_D, Zeta_B, Zeta_A, m_max,&
-                          screening_parameter, prim, do_periodic=.FALSE.)
+                          potential_parameter, prim, do_periodic=.FALSE.)
         deriv%PrimQuartet = C_LOC(prim)
         deriv%AB=C-D
         deriv%CD=B-A
@@ -1165,7 +1165,7 @@ MODULE libint_interface
         END DO
       CASE(7)
         CALL build_deriv_data(D,C,A,B,Zeta_D, Zeta_C, Zeta_A, Zeta_B, m_max,&
-                          screening_parameter, prim, do_periodic=.FALSE.)
+                          potential_parameter, prim, do_periodic=.FALSE.)
         deriv%PrimQuartet = C_LOC(prim)
         deriv%AB=D-C
         deriv%CD=A-B
@@ -1200,7 +1200,7 @@ MODULE libint_interface
         END DO
       CASE(8)
         CALL build_deriv_data(D,C,B,A,Zeta_D, Zeta_C, Zeta_B, Zeta_A, m_max,&
-                          screening_parameter, prim, do_periodic=.FALSE.)
+                          potential_parameter, prim, do_periodic=.FALSE.)
         deriv%PrimQuartet = C_LOC(prim)
         deriv%AB=D-C
         deriv%CD=B-A
@@ -1261,14 +1261,14 @@ MODULE libint_interface
 
   SUBROUTINE evaluate_eri_screen(lib,A,B,C,D,Zeta_A,Zeta_B,Zeta_C,Zeta_D,&
                                  n_a,n_b,n_c,n_d,&
-                                 max_val, screening_parameter)
+                                 max_val, potential_parameter)
     
     TYPE(lib_int)                           :: lib
     REAL(dp), INTENT(IN),TARGET             :: A(3), B(3), C(3), D(3)
     REAL(dp), INTENT(IN),TARGET             :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
     INTEGER, INTENT(IN)                     :: n_a, n_b, n_c, n_d
     REAL(dp), INTENT(INOUT)                 :: max_val
-    TYPE(x_hf_screening_type)               :: screening_parameter
+    TYPE(x_hf_potential_type)               :: potential_parameter
 
 #if defined(__LIBINT)
     INTEGER                                  :: i
@@ -1302,7 +1302,7 @@ MODULE libint_interface
       SELECT CASE(perm_case)
         CASE(1)
           CALL build_quartet_data(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max,&
-                            screening_parameter, prim)
+                            potential_parameter, prim)
           lib%PrimQuartet = C_LOC(prim)
           lib%AB=A-B
           lib%CD=C-D
@@ -1314,7 +1314,7 @@ MODULE libint_interface
           END DO
         CASE(2)
           CALL build_quartet_data(B,A,C,D,Zeta_B, Zeta_A, Zeta_C, Zeta_D, m_max,&
-                            screening_parameter, prim)
+                            potential_parameter, prim)
           lib%PrimQuartet = C_LOC(prim)
           lib%AB=B-A
           lib%CD=C-D
@@ -1326,7 +1326,7 @@ MODULE libint_interface
           END DO
         CASE(3)
           CALL build_quartet_data(A,B,D,C,Zeta_A, Zeta_B, Zeta_D, Zeta_C, m_max,&
-                            screening_parameter, prim)
+                            potential_parameter, prim)
           lib%PrimQuartet = C_LOC(prim)
           lib%AB=A-B
           lib%CD=D-C
@@ -1338,7 +1338,7 @@ MODULE libint_interface
           END DO
         CASE(4)
           CALL build_quartet_data(B,A,D,C,Zeta_B, Zeta_A, Zeta_D, Zeta_C, m_max,&
-                            screening_parameter, prim)
+                            potential_parameter, prim)
           lib%PrimQuartet = C_LOC(prim)
           lib%AB=B-A
           lib%CD=D-C
@@ -1350,7 +1350,7 @@ MODULE libint_interface
           END DO
         CASE(5)
           CALL build_quartet_data(C,D,A,B,Zeta_C, Zeta_D, Zeta_A, Zeta_B, m_max,&
-                            screening_parameter, prim)
+                            potential_parameter, prim)
           lib%PrimQuartet = C_LOC(prim)
           lib%AB=C-D
           lib%CD=A-B
@@ -1362,7 +1362,7 @@ MODULE libint_interface
           END DO
         CASE(6)
           CALL build_quartet_data(C,D,B,A,Zeta_C, Zeta_D, Zeta_B, Zeta_A, m_max,&
-                            screening_parameter, prim)
+                            potential_parameter, prim)
           lib%PrimQuartet = C_LOC(prim)
           lib%AB=C-D
           lib%CD=B-A
@@ -1374,7 +1374,7 @@ MODULE libint_interface
           END DO
         CASE(7)
           CALL build_quartet_data(D,C,A,B,Zeta_D, Zeta_C, Zeta_A, Zeta_B, m_max,&
-                            screening_parameter, prim)
+                            potential_parameter, prim)
           lib%PrimQuartet = C_LOC(prim)
           lib%AB=D-C
           lib%CD=A-B
@@ -1386,7 +1386,7 @@ MODULE libint_interface
           END DO
         CASE(8)
           CALL build_quartet_data(D,C,B,A,Zeta_D, Zeta_C, Zeta_B, Zeta_A, m_max,&
-                            screening_parameter, prim)
+                            potential_parameter, prim)
           lib%PrimQuartet = C_LOC(prim)
           lib%AB=D-C
           lib%CD=B-A
@@ -1399,7 +1399,7 @@ MODULE libint_interface
       END SELECT
     ELSE
       CALL build_quartet_data(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max,&
-                            screening_parameter, prim)
+                              potential_parameter, prim)
       max_val = ABS(prim%F(1))
     END IF
 #endif
