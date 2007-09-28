@@ -31,9 +31,9 @@ MODULE md_environment_types
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              npt_info_type
-  USE force_env_types,                 ONLY: force_env_p_type,&
-                                             force_env_release,&
-                                             force_env_retain
+  USE force_env_types,                 ONLY: force_env_release,&
+                                             force_env_retain,&
+                                             force_env_type
   USE free_energy_types,               ONLY: fe_env_release,&
                                              free_energy_type
   USE input_constants,                 ONLY: do_thermo_nose
@@ -60,7 +60,7 @@ MODULE md_environment_types
      REAL (KIND=dp), POINTER            :: constant
      TYPE (cp_para_env_type), POINTER   :: para_env
      TYPE (cell_type), POINTER          :: cell
-     TYPE (force_env_p_type), POINTER   :: force_env_p(:)
+     TYPE (force_env_type), POINTER     :: force_env
      TYPE (thermostat_type), POINTER    :: thermostat
      TYPE (barostat_type), POINTER      :: barostat
      TYPE (reftraj_type), POINTER       :: reftraj_info
@@ -143,7 +143,7 @@ CONTAINS
     NULLIFY ( md_env % simpar )
     NULLIFY ( md_env % thermostat )
     NULLIFY ( md_env % barostat )
-    NULLIFY ( md_env % force_env_p )
+    NULLIFY ( md_env % force_env )
     NULLIFY ( md_env % fe_env )
     md_env % para_env => para_env
     CALL cp_para_env_retain ( md_env % para_env ,error=error)
@@ -244,7 +244,7 @@ SUBROUTINE md_env_release(md_env, error)
     CHARACTER(len=*), PARAMETER :: routineN = 'md_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, istat, stat
+    INTEGER                                  :: istat, stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -275,15 +275,9 @@ SUBROUTINE md_env_release(md_env, error)
         CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
         NULLIFY ( md_env % cell )
         NULLIFY ( md_env % simpar )
-        CALL release_barostat_type( md_env%barostat, error)
-        CALL release_thermostat_type( md_env%thermostat, error)
-        IF (ASSOCIATED(md_env%force_env_p)) THEN
-           DO i=1,SIZE(md_env%force_env_p)
-              CALL force_env_release(md_env%force_env_p(i)%force_env, error=error)
-           END DO
-           DEALLOCATE(md_env%force_env_p, stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
+        CALL release_barostat_type(md_env%barostat, error)
+        CALL release_thermostat_type(md_env%thermostat, error)
+        CALL force_env_release(md_env%force_env, error=error)
         md_env%ref_count=0
         DEALLOCATE(md_env,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -318,7 +312,7 @@ END SUBROUTINE md_env_release
 !!*** **********************************************************************
   SUBROUTINE get_md_env ( md_env, itimes, constant, used_time, cell,  &
                           simpar, nhc_part, nhc_coef, nhc_baro, nhc_shell, &
-                          npt, force_env_p, para_env, reftraj_info, t,&
+                          npt, force_env, para_env, reftraj_info, t,&
                           md_approach_nr, accepted_md, init, first_time,&
                           fe_env, thermostat, barostat, error)
 
@@ -332,8 +326,7 @@ END SUBROUTINE md_env_release
       POINTER                                :: nhc_part, nhc_coef, nhc_baro, &
                                                 nhc_shell
     TYPE(npt_info_type), OPTIONAL, POINTER   :: npt( :, : )
-    TYPE(force_env_p_type), OPTIONAL, &
-      POINTER                                :: force_env_p( : )
+    TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
     TYPE(reftraj_type), OPTIONAL, POINTER    :: reftraj_info
@@ -381,7 +374,7 @@ END SUBROUTINE md_env_release
           npt => md_env%barostat%npt
        END IF
     END IF
-    IF (PRESENT ( force_env_p ) ) force_env_p => md_env % force_env_p
+    IF (PRESENT ( force_env) ) force_env => md_env % force_env
     IF (PRESENT ( para_env ) ) para_env => md_env % para_env
     IF (PRESENT ( reftraj_info ) ) reftraj_info => md_env % reftraj_info
     IF (PRESENT (init)) init=md_env%init 
@@ -413,7 +406,7 @@ END SUBROUTINE md_env_release
 !!     
 !!
 !!*** **********************************************************************
-  SUBROUTINE set_md_env ( md_env, itimes, constant, cell, simpar, fe_env, force_env_p,&
+  SUBROUTINE set_md_env ( md_env, itimes, constant, cell, simpar, fe_env, force_env,&
                           para_env, accepted_md, md_approach_nr , init, first_time,&
                           thermostat, barostat, error)
 
@@ -425,8 +418,7 @@ END SUBROUTINE md_env_release
       OPTIONAL, POINTER                      :: simpar
     TYPE(free_energy_type), OPTIONAL, &
       POINTER                                :: fe_env
-    TYPE(force_env_p_type), OPTIONAL, &
-      POINTER                                :: force_env_p( : )
+    TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
     INTEGER, OPTIONAL, POINTER               :: accepted_md, md_approach_nr
@@ -438,7 +430,6 @@ END SUBROUTINE md_env_release
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_md_env', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i
     LOGICAL                                  :: check, failure
 
     failure = .FALSE.
@@ -463,19 +454,14 @@ END SUBROUTINE md_env_release
     IF ( PRESENT ( accepted_md ) ) md_env % accepted_md => accepted_md
     IF ( PRESENT ( md_approach_nr ) ) md_env % md_approach_nr => md_approach_nr
     IF ( PRESENT ( constant ) ) md_env % constant => constant
-    IF ( PRESENT ( force_env_p ) ) THEN
-       ! accept null pointers?
-       IF (ASSOCIATED(force_env_p)) THEN
-          DO i=1,SIZE(force_env_p)
-             CALL force_env_retain ( force_env_p(i) % force_env ,error=error)
-          END DO
+    IF ( PRESENT ( force_env ) ) THEN
+       IF (ASSOCIATED(force_env)) THEN
+          CALL force_env_retain (force_env, error=error)
        END IF
-       IF (ASSOCIATED(md_env%force_env_p)) THEN
-          DO i=1,SIZE(md_env%force_env_p)
-             CALL force_env_release ( md_env % force_env_p(i) % force_env ,error=error)
-          END DO
+       IF (ASSOCIATED(md_env%force_env)) THEN
+          CALL force_env_release (md_env%force_env, error=error)
        END IF
-       md_env % force_env_p => force_env_p
+       md_env%force_env => force_env
     END IF
 
   END SUBROUTINE set_md_env

@@ -30,7 +30,7 @@ MODULE wiener_process
   USE distribution_1d_types,           ONLY: distribution_1d_type,&
                                              init_local_particle_set
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_p_type
+                                             force_env_type
   USE input_constants,                 ONLY: langevin_ensemble
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
@@ -89,8 +89,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=40)                        :: name
-    INTEGER :: i, iparticle, iparticle_kind, iparticle_local, istat, &
-      nparticle, nparticle_kind, nparticle_local
+    INTEGER :: iparticle, iparticle_kind, iparticle_local, istat, nparticle, &
+      nparticle_kind, nparticle_local
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: seed
@@ -99,8 +99,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_particles
-    TYPE(force_env_p_type), DIMENSION(:), &
-      POINTER                                :: force_env_p
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 subsys_section, work_section
@@ -108,14 +107,11 @@ CONTAINS
       POINTER                                :: simpar
 
     failure = .FALSE.
-    NULLIFY(work_section)
+    NULLIFY(work_section,force_env)
     CPPrecondition (ASSOCIATED(md_env),cp_failure_level,routineP,error,failure)
 
-    CALL get_md_env(md_env=md_env,&
-         force_env_p=force_env_p,&
-         para_env=para_env,&
-         simpar=simpar,&
-         error=error)
+    CALL get_md_env(md_env=md_env, force_env=force_env, para_env=para_env,&
+         simpar=simpar, error=error)
 
     IF (simpar%ensemble == langevin_ensemble) THEN
 
@@ -123,73 +119,70 @@ CONTAINS
 
        initial_seed = next_rng_seed(error=error)
 
-       DO i=1,SIZE(force_env_p)
+       CALL force_env_get(force_env,force_env_section=force_env_section,&
+            subsys=subsys,error=error)
 
-          CALL force_env_get(force_env_p(i)%force_env,force_env_section=force_env_section,&
-               subsys=subsys,error=error)
+       subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
 
-          subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
+       CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
+            particles=particles,error=error)
 
-          CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
-               particles=particles,error=error)
+       nparticle_kind = atomic_kinds%n_els
+       nparticle = particles%n_els
 
-          nparticle_kind = atomic_kinds%n_els
-          nparticle = particles%n_els
+       ! Allocate the (local) data structures for the Wiener process
 
-          ! Allocate the (local) data structures for the Wiener process
+       ALLOCATE(local_particles%local_particle_set(nparticle_kind),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-          ALLOCATE(local_particles%local_particle_set(nparticle_kind),STAT=istat)
+       DO iparticle_kind=1,nparticle_kind
+          nparticle_local = local_particles%n_el(iparticle_kind)
+          ALLOCATE (local_particles%local_particle_set(iparticle_kind)%rng(nparticle_local),STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-          DO iparticle_kind=1,nparticle_kind
-             nparticle_local = local_particles%n_el(iparticle_kind)
-             ALLOCATE (local_particles%local_particle_set(iparticle_kind)%rng(nparticle_local),STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-             DO iparticle_local=1,nparticle_local
-                NULLIFY (local_particles%local_particle_set(iparticle_kind)%rng(iparticle_local)%stream)
-             END DO
+          DO iparticle_local=1,nparticle_local
+             NULLIFY (local_particles%local_particle_set(iparticle_kind)%rng(iparticle_local)%stream)
           END DO
-          
-          ! Each process generates all seeds. The seed generation should be
-          ! quite fast and in this way a broadcast is avoided.
-
-          ALLOCATE (seed(3,2,nparticle),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-          seed(:,:,1) = initial_seed
-          DO iparticle=2,nparticle
-             seed(:,:,iparticle) = next_rng_seed(seed(:,:,iparticle-1),error=error)
-          END DO
-
-          ! Update initial seed
-
-          initial_seed = next_rng_seed(seed(:,:,nparticle),error=error)
-
-          ! Create a random number stream (Wiener process) for each particle
-
-          DO iparticle_kind=1,nparticle_kind
-             nparticle_local = local_particles%n_el(iparticle_kind)
-             DO iparticle_local=1,nparticle_local
-                iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-                WRITE (UNIT=name,FMT="(A,I8)") "Wiener process for particle",iparticle
-                CALL compress(name)
-                CALL create_rng_stream(rng_stream=local_particles%local_particle_set(iparticle_kind)%&
-                     &rng(iparticle_local)%stream,name=name,distribution_type=GAUSSIAN,&
-                     extended_precision=.TRUE., seed=seed(:,:,iparticle),error=error)
-             END DO
-          END DO
-
-          DEALLOCATE (seed,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-          ! Possibly restart Wiener process
-          NULLIFY (work_section)
-          work_section => section_vals_get_subs_vals(section_vals=subsys_section,&
-               subsection_name="RNG_INIT", error=error)
-          CALL init_local_particle_set(distribution_1d=local_particles,&
-               nparticle_kind=nparticle_kind, nparticle=nparticle,&
-               work_section=work_section,error=error)
        END DO
+
+       ! Each process generates all seeds. The seed generation should be
+       ! quite fast and in this way a broadcast is avoided.
+
+       ALLOCATE (seed(3,2,nparticle),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+       seed(:,:,1) = initial_seed
+       DO iparticle=2,nparticle
+          seed(:,:,iparticle) = next_rng_seed(seed(:,:,iparticle-1),error=error)
+       END DO
+
+       ! Update initial seed
+
+       initial_seed = next_rng_seed(seed(:,:,nparticle),error=error)
+
+       ! Create a random number stream (Wiener process) for each particle
+
+       DO iparticle_kind=1,nparticle_kind
+          nparticle_local = local_particles%n_el(iparticle_kind)
+          DO iparticle_local=1,nparticle_local
+             iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+             WRITE (UNIT=name,FMT="(A,I8)") "Wiener process for particle",iparticle
+             CALL compress(name)
+             CALL create_rng_stream(rng_stream=local_particles%local_particle_set(iparticle_kind)%&
+                  &rng(iparticle_local)%stream,name=name,distribution_type=GAUSSIAN,&
+                  extended_precision=.TRUE., seed=seed(:,:,iparticle),error=error)
+          END DO
+       END DO
+
+       DEALLOCATE (seed,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+       ! Possibly restart Wiener process
+       NULLIFY (work_section)
+       work_section => section_vals_get_subs_vals(section_vals=subsys_section,&
+            subsection_name="RNG_INIT", error=error)
+       CALL init_local_particle_set(distribution_1d=local_particles,&
+            nparticle_kind=nparticle_kind, nparticle=nparticle,&
+            work_section=work_section,error=error)
     END IF
 
   END SUBROUTINE create_wiener_process

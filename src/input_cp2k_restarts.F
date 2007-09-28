@@ -48,7 +48,6 @@ MODULE input_cp2k_restarts
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              npt_info_type
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_p_type,&
                                              force_env_type,&
                                              multiple_fe_list,&
                                              use_qmmm
@@ -279,8 +278,6 @@ CONTAINS
                                                 skip_vel_section
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(force_env_p_type), DIMENSION(:), &
-      POINTER                                :: force_env_p
     TYPE(force_env_type), POINTER            :: my_force_b, my_force_env
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
@@ -290,19 +287,16 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    NULLIFY(core_particles,logger,my_force_env,force_env_p,my_force_b, particles,&
+    NULLIFY(core_particles,logger,my_force_env, my_force_b, particles,&
          shell_particles,subsys,work_section)
     logger => cp_error_get_logger(error)
 
     IF (PRESENT(md_env)) THEN
-       CALL get_md_env ( md_env=md_env,force_env_p=force_env_p,error=error)
-       CPPrecondition(ASSOCIATED(force_env_p),cp_failure_level,routineP,error,failure)
-       my_force_env => force_env_p(1)%force_env
+       CALL get_md_env ( md_env=md_env,force_env=my_force_env,error=error)
     ELSEIF (PRESENT(force_env)) THEN 
        my_force_env => force_env
     END IF
     IF (ASSOCIATED(my_force_env))  THEN
-
        NULLIFY(subsys_section)
        CALL section_vals_val_get(root_section,"GLOBAL%RUN_TYPE",i_val=myid,error=error)
        skip_vel_section =((myid /= mol_dyn_run).AND.&
@@ -478,8 +472,6 @@ CONTAINS
     INTEGER                                  :: handle
     LOGICAL                                  :: failure, lcond, my_save_mem
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(force_env_p_type), DIMENSION(:), &
-      POINTER                                :: force_env_p
     TYPE(force_env_type), POINTER            :: my_force_env
     TYPE(kg_environment_type), POINTER       :: my_kg_env
     TYPE(meta_env_type), POINTER             :: my_meta_env
@@ -488,7 +480,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    NULLIFY(logger,motion_section,my_force_env,my_kg_env,my_meta_env,force_env_p)
+    NULLIFY(logger,motion_section,my_force_env,my_kg_env,my_meta_env)
     my_save_mem = .FALSE.
     IF(PRESENT(save_mem)) my_save_mem=save_mem
 
@@ -499,12 +491,7 @@ CONTAINS
     lcond = PRESENT(md_env).OR.PRESENT(force_env).OR.PRESENT(kg_env)
     IF (lcond) THEN
        IF (PRESENT(md_env)) THEN
-          CALL get_md_env ( md_env=md_env,&
-                            force_env_p=force_env_p,&
-                            error=error)
-          
-          CPPrecondition(ASSOCIATED(force_env_p),cp_failure_level,routineP,error,failure)
-          my_force_env => force_env_p(1)%force_env       
+          CALL get_md_env ( md_env=md_env, force_env=my_force_env, error=error)
        ELSE IF (PRESENT(force_env)) THEN 
           my_force_env => force_env
        END IF

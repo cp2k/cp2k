@@ -34,7 +34,7 @@ MODULE thermostat_types
                                              lnhc_init,&
                                              nhc_set_type
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_p_type
+                                             force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE init_extended_system_types,      ONLY: initialize_nhc_baro,&
                                              initialize_nhc_coef,&
@@ -104,11 +104,10 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE create_thermostat_type(thermostat,motion_section, &
-       force_env_p, simpar, para_env, globenv, error )
+       force_env, simpar, para_env, globenv, error )
     TYPE(thermostat_type), POINTER           :: thermostat
     TYPE(section_vals_type), POINTER         :: motion_section
-    TYPE(force_env_p_type), DIMENSION(:), &
-      POINTER                                :: force_env_p
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -118,7 +117,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_thermostat_type', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ibead, nbeads, nshell, stat
+    INTEGER                                  :: nshell, stat
     LOGICAL :: check, explicit_baro, explicit_kg, explicit_part, &
       explicit_shell, failure, save_mem, shell_adiabatic, shell_present
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -136,8 +135,6 @@ CONTAINS
       thermo_shell_section, work_section
 
     failure =.FALSE.
-    nbeads = SIZE(force_env_p)
-    CPPrecondition(nbeads==1,cp_failure_level,routineP,error,failure)
     check = .NOT.ASSOCIATED(thermostat)
     CPPrecondition(check,cp_failure_level,routineP,error,failure)
     thermo_part_section  => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT",error=error)
@@ -178,85 +175,74 @@ CONTAINS
     CALL lnhc_init(thermostat%nhc%nhc_shell,error=error)
 
     ! Particles
-    DO ibead = 1, nbeads
-       CALL force_env_get( force_env_p(ibead)%force_env, subsys=subsys, cell=cell, error=error )
-       CALL cp_subsys_get(subsys, local_molecules_new=local_molecules,&
-            molecule_kinds_new=molecule_kinds_new,molecules_new=molecules_new,&
-            gci=gci,error=error)
+    CALL force_env_get(force_env, subsys=subsys, cell=cell, error=error )
+    CALL cp_subsys_get(subsys, local_molecules_new=local_molecules,&
+         molecule_kinds_new=molecule_kinds_new,molecules_new=molecules_new,&
+         gci=gci,error=error)
        
-       ! Initialize or possibly restart Nose on Particles
-       work_section => section_vals_get_subs_vals(thermo_part_section,"NOSE",error=error)
-       print_section => section_vals_get_subs_vals(motion_section,"MD%PRINT",error=error)
-       CALL initialize_nhc_part(cell, simpar, local_molecules, molecules_new%els,&
-            molecule_kinds_new%els, para_env, globenv, thermostat%nhc%nhc_part,&
-            print_section=print_section, nose_section=work_section, gci=gci,&
-            save_mem=save_mem, error=error)
-       CALL init_nhc_forces ( nhc_part=thermostat%nhc%nhc_part,error=error)
-    END DO
-
+    ! Initialize or possibly restart Nose on Particles
+    work_section => section_vals_get_subs_vals(thermo_part_section,"NOSE",error=error)
+    print_section => section_vals_get_subs_vals(motion_section,"MD%PRINT",error=error)
+    CALL initialize_nhc_part(cell, simpar, local_molecules, molecules_new%els,&
+         molecule_kinds_new%els, para_env, globenv, thermostat%nhc%nhc_part,&
+         print_section=print_section, nose_section=work_section, gci=gci,&
+         save_mem=save_mem, error=error)
+    CALL init_nhc_forces ( nhc_part=thermostat%nhc%nhc_part,error=error)
 
     ! Coefficients
-    DO ibead = 1, nbeads
-       CALL force_env_get( force_env_p(ibead)%force_env, subsys=subsys,&
-                           dyn_coeff_set=dyn_coeff_set, error=error )
+    CALL force_env_get(force_env, subsys=subsys, dyn_coeff_set=dyn_coeff_set, error=error )
        
-       IF (ASSOCIATED(dyn_coeff_set)) THEN
-          ! Initialize coef thermostats and setup coefficient forces, velocities and effective masses
-          ! Possibly restart KG coefficients
-          kg_coeff_section  => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF",error=error)
-          work_section      => section_vals_get_subs_vals(kg_coeff_section,"THERMOSTAT%NOSE",error=error)
-          CALL initialize_nhc_coef(dyn_coeff_set, para_env, globenv,&
-               thermostat%nhc%nhc_coef, coeff_section=kg_coeff_section,&
-               nose_section=work_section, dt=simpar%dt, save_mem=save_mem,&
-               error=error)
-          
-          CALL dyn_coeff_set_initialize(dyn_coeff_set, motion_section, para_env,&
-               globenv, coeff_section=kg_coeff_section, error=error)
-          CALL init_nhc_forces (nhc_coef=thermostat%nhc%nhc_coef,error=error)
-       ELSE
-          DEALLOCATE (thermostat%nhc%nhc_coef,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       END IF
-    END DO
-
-    ! Core-Shell Model
-    DO ibead = 1, nbeads
-       CALL force_env_get( force_env_p(ibead)%force_env, subsys=subsys, error=error )
-       
-       CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds,&
-            local_particles=local_particles,shell_particles=shell_particles,&
+    IF (ASSOCIATED(dyn_coeff_set)) THEN
+       ! Initialize coef thermostats and setup coefficient forces, velocities and effective masses
+       ! Possibly restart KG coefficients
+       kg_coeff_section  => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF",error=error)
+       work_section      => section_vals_get_subs_vals(kg_coeff_section,"THERMOSTAT%NOSE",error=error)
+       CALL initialize_nhc_coef(dyn_coeff_set, para_env, globenv,&
+            thermostat%nhc%nhc_coef, coeff_section=kg_coeff_section,&
+            nose_section=work_section, dt=simpar%dt, save_mem=save_mem,&
             error=error)
        
-       CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,&
-            shell_present=shell_present,shell_adiabatic=shell_adiabatic)
-
-       IF(shell_present .AND. shell_adiabatic) THEN
-          ! Initialize SHELL thermostats, possibly restart
-          nshell = SIZE(shell_particles%els)
-          work_section => section_vals_get_subs_vals(thermo_shell_section,"NOSE",error=error)
-          CALL initialize_nhc_shell(simpar, para_env, globenv, thermostat%nhc%nhc_shell,&
-               atomic_kinds%els, local_particles, work_section, save_mem,&
-               error=error)
-          CALL init_nhc_forces( nhc_shell=thermostat%nhc%nhc_shell,error=error)
-       ELSE IF(simpar%shell_nose .AND. .NOT.  shell_adiabatic) THEN                            
-          CALL stop_program(routineN,moduleN,&
-__LINE__,&
-          "Nose on the core-shell motion only with adiabatic shell-model ") 
-       ELSE
-          DEALLOCATE (thermostat%nhc%nhc_shell,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       END IF
-    END DO
+       CALL dyn_coeff_set_initialize(dyn_coeff_set, motion_section, para_env,&
+            globenv, coeff_section=kg_coeff_section, error=error)
+       CALL init_nhc_forces (nhc_coef=thermostat%nhc%nhc_coef,error=error)
+    ELSE
+       DEALLOCATE (thermostat%nhc%nhc_coef,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    
+    ! Core-Shell Model
+    CALL force_env_get(force_env, subsys=subsys, error=error )
+    
+    CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds,&
+         local_particles=local_particles,shell_particles=shell_particles,&
+         error=error)
+    
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,&
+         shell_present=shell_present,shell_adiabatic=shell_adiabatic)
+    
+    IF(shell_present .AND. shell_adiabatic) THEN
+       ! Initialize SHELL thermostats, possibly restart
+       nshell = SIZE(shell_particles%els)
+       work_section => section_vals_get_subs_vals(thermo_shell_section,"NOSE",error=error)
+       CALL initialize_nhc_shell(simpar, para_env, globenv, thermostat%nhc%nhc_shell,&
+            atomic_kinds%els, local_particles, work_section, save_mem,&
+            error=error)
+       CALL init_nhc_forces( nhc_shell=thermostat%nhc%nhc_shell,error=error)
+    ELSE IF(simpar%shell_nose .AND. .NOT.  shell_adiabatic) THEN                            
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            "Nose on the core-shell motion only with adiabatic shell-model ") 
+    ELSE
+       DEALLOCATE (thermostat%nhc%nhc_shell,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
     
     ! Barostat
-    DO ibead = 1, nbeads
-       CALL force_env_get( force_env_p(ibead)%force_env, cell=cell, error=error )
-       ! Initialize and possibly restart thermostat of barostat
-       work_section => section_vals_get_subs_vals(thermo_baro_section,"NOSE",error=error)
-       CALL initialize_nhc_baro(simpar, para_env, globenv, thermostat%nhc%nhc_baro,&
-            nose_section=work_section, save_mem=save_mem, error=error)
-       CALL init_nhc_forces ( nhc_baro=thermostat%nhc%nhc_baro,error=error)
-    END DO
+    CALL force_env_get( force_env, cell=cell, error=error )
+    ! Initialize and possibly restart thermostat of barostat
+    work_section => section_vals_get_subs_vals(thermo_baro_section,"NOSE",error=error)
+    CALL initialize_nhc_baro(simpar, para_env, globenv, thermostat%nhc%nhc_baro,&
+         nose_section=work_section, save_mem=save_mem, error=error)
+    CALL init_nhc_forces ( nhc_baro=thermostat%nhc%nhc_baro,error=error)
     
   END SUBROUTINE create_thermostat_type
 

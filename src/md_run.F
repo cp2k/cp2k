@@ -38,7 +38,6 @@ MODULE md_run
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_p_type,&
                                              force_env_type
   USE free_energy_methods,             ONLY: free_energy_evaluate
   USE free_energy_types,               ONLY: fe_env_create,&
@@ -122,20 +121,14 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(force_env_p_type), DIMENSION(:), &
-      POINTER                                :: force_env_p
     TYPE(md_environment_type), POINTER       :: md_env
 
-    NULLIFY(md_env, force_env_p, para_env)
-    ALLOCATE(force_env_p(1), stat=stat)
-    CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
-    force_env_p(1)%force_env => force_env
-    para_env=>force_env_p ( 1 ) % force_env % para_env
+    NULLIFY(md_env, para_env)
+    para_env=> force_env % para_env
     ! Real call to MD driver - Low Level
     CALL md_env_create(md_env, para_env, error=error)
-    CALL qs_mol_dyn_low(md_env, force_env_p, globenv, error)
+    CALL qs_mol_dyn_low(md_env, force_env, globenv, error)
     CALL md_env_release(md_env, error=error)
 
   END SUBROUTINE qs_mol_dyn
@@ -163,22 +156,20 @@ CONTAINS
 !!     Cleaning (09.2007) Teodoro Laino [tlaino] - University of Zurich
 !!
 !!*** **********************************************************************
-  SUBROUTINE qs_mol_dyn_low ( md_env, force_env_p, globenv, error )
+  SUBROUTINE qs_mol_dyn_low ( md_env, force_env, globenv, error )
 
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(force_env_p_type), DIMENSION(:), &
-      POINTER                                :: force_env_p
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ibead, istat, &
-                                                istep, iter_level, nbeads
+    INTEGER                                  :: handle, i, istat, istep, &
+                                                iter_level
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: check, failure, save_mem, &
-                                                should_stop
+    LOGICAL                                  :: failure, save_mem, should_stop
     REAL(KIND=dp)                            :: time_iter_start, &
                                                 time_iter_stop
     REAL(KIND=dp), POINTER                   :: t, used_time
@@ -199,15 +190,15 @@ CONTAINS
 
     CALL timeset(routineN,"I","",handle)
     CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(force_env_p),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
 
     failure=.FALSE.
     NULLIFY (particles, cell, cell_ref, simpar, itimes, used_time, subsys, &
              motion_section, thermostat, barostat, force_env_section,&
              work_section, atomic_kinds, local_particles, t, fe_env)
     logger => cp_error_get_logger(error)
-    root_section=>force_env_p ( 1 ) % force_env % root_section
-    para_env=>force_env_p ( 1 ) % force_env % para_env
+    root_section => force_env % root_section
+    para_env     => force_env % para_env
 
     motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
 
@@ -215,16 +206,10 @@ CONTAINS
     global_section => section_vals_get_subs_vals(root_section,"GLOBAL",error=error)
     CALL section_vals_val_get(global_section,"SAVE_MEM",l_val=save_mem,error=error)
 
-    ! Preliminary checks on force_env
-    nbeads = SIZE(force_env_p)
-    CPPrecondition(nbeads==1,cp_failure_level,routineP,error,failure)
-    check = ASSOCIATED(force_env_p(nbeads)%force_env)
-    CPPrecondition(check,cp_failure_level,routineP,error,failure)
-
     ALLOCATE (simpar,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "simpar",0)
-    force_env_section => force_env_p(1)%force_env%force_env_section
+    force_env_section => force_env%force_env_section
     subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
     CALL cp_add_iter_level(logger%iter_info,"MD",n_rlevel_new=iter_level,&
          error=error)
@@ -242,17 +227,17 @@ CONTAINS
          "MOTION%CONSTRAINT%LAGRANGE_MULTIPLIERS",error=error),cp_p_file)
 
     ! If requested setup Thermostats
-    CALL create_thermostat_type(thermostat, motion_section, force_env_p,&
+    CALL create_thermostat_type(thermostat, motion_section, force_env,&
          simpar, para_env, globenv, error )
 
     ! If requested setup Barostat
-    CALL create_barostat_type(barostat, motion_section, force_env_p,&
+    CALL create_barostat_type(barostat, motion_section, force_env,&
          simpar, para_env, globenv, error )
 
     CALL set_md_env(md_env, thermostat=thermostat, barostat=barostat, error=error)
 
-    CALL force_env_get(force_env_p(nbeads)%force_env, subsys=subsys, cell=cell,&
-         force_env_section=force_env_section, error=error )
+    CALL force_env_get(force_env, subsys=subsys, cell=cell, force_env_section=force_env_section,&
+         error=error )
 
     ! Set V0 if needed
     IF ( ASSOCIATED ( cell_ref ) ) THEN
@@ -260,56 +245,50 @@ CONTAINS
     ENDIF
 
     ! Initialize velocities possibly applying constraints at the zeroth MD step
-    CALL setup_velocities(force_env_p, simpar, globenv, motion_section, error)
+    CALL setup_velocities(force_env, simpar, globenv, motion_section, error)
 
     ! Setup Free Energy Calculation (if required)
     CALL fe_env_create (fe_env, motion_section, error)
 
     CALL set_md_env(md_env=md_env, simpar=simpar, fe_env=fe_env, cell=cell,&
-                    force_env_p=force_env_p, error=error)
+                    force_env=force_env, error=error)
    
     ! Possibly initialize Wiener processes
     IF (simpar%ensemble == langevin_ensemble) CALL create_wiener_process(md_env,error)
     time_iter_start=m_walltime()
 
-    CALL get_md_env ( md_env, force_env_p=force_env_p, itimes = itimes, &
+    CALL get_md_env ( md_env, force_env=force_env, itimes = itimes, &
                       t = t, used_time = used_time, error=error )
 
     ! Computing Forces at zero MD step
     IF (simpar%ensemble /= reftraj_ensemble) THEN
-       DO ibead = 1, nbeads
-          IF(save_mem) THEN
-             work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
-             CALL section_vals_remove_values(work_section, error)
-             work_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
-             CALL section_vals_remove_values(work_section, error)
-             work_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY",error=error)
-             CALL section_vals_remove_values(work_section, error)
-         END IF
+       IF(save_mem) THEN
+          work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
+          CALL section_vals_remove_values(work_section, error)
+          work_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
+          CALL section_vals_remove_values(work_section, error)
+          work_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY",error=error)
+          CALL section_vals_remove_values(work_section, error)
+       END IF
+       
+       CALL force_env_calc_energy_force ( force_env, calc_force=.TRUE.,error=error)
+       
+       IF (simpar%do_respa)THEN
+          CALL force_env_calc_energy_force ( force_env%sub_force_env(1)%force_env,&
+               calc_force=.TRUE.,error=error)
+       END IF
+       
+       CALL force_env_get( force_env, subsys=subsys, error=error )
       
-         CALL force_env_calc_energy_force ( force_env_p(ibead)%force_env,&
-              calc_force=.TRUE.,error=error)
+       CALL cp_subsys_get(subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
+            particles=particles,error=error)
       
-         IF (simpar%do_respa)THEN
-            CALL force_env_calc_energy_force ( &
-              force_env_p(ibead)%force_env%sub_force_env(1)%force_env,&
-              calc_force=.TRUE.,error=error)
-         END IF
+       CALL virial_evaluate(atomic_kinds%els, particles%els, local_particles,&
+            force_env%virial, force_env%para_env%group, error=error)
 
-         CALL force_env_get( force_env_p(ibead)%force_env, subsys=subsys, &
-                             error=error )
-      
-         CALL cp_subsys_get(subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
-                particles=particles,error=error)
-      
-         CALL virial_evaluate(atomic_kinds%els, particles%els, &
-                local_particles, force_env_p(ibead)%force_env%virial,&
-                force_env_p(ibead)%force_env%para_env%group,&
-                error=error)
-      END DO
-      CALL section_vals_val_get(motion_section,"MD%STEP_START_VAL",i_val=itimes,error=error)
-      CALL section_vals_val_get(motion_section,"MD%TIME_START_VAL",r_val=t,error=error)
-      CALL md_energy ( md_env, error ) ! inits the print env at itimes == 0
+       CALL section_vals_val_get(motion_section,"MD%STEP_START_VAL",i_val=itimes,error=error)
+       CALL section_vals_val_get(motion_section,"MD%TIME_START_VAL",r_val=t,error=error)
+       CALL md_energy ( md_env, error ) ! inits the print env at itimes == 0
     ELSE
        itimes = -1
     END IF
@@ -356,10 +335,9 @@ CONTAINS
       CALL external_control(should_stop,"MD",globenv,error=error)
       IF (should_stop) EXIT
 
-      DO ibead=1,nbeads
-        CALL temperature_control(simpar,force_env_p(ibead)%force_env,logger,error)
-        CALL comvel_control(simpar,force_env_p(ibead)%force_env,logger,error)
-      END DO
+      CALL temperature_control(simpar,force_env,logger,error)
+      CALL comvel_control(simpar,force_env,logger,error)
+
       time_iter_stop=m_walltime()
       used_time = time_iter_stop - time_iter_start
       time_iter_start=time_iter_stop

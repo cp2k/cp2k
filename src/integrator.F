@@ -56,7 +56,6 @@ MODULE integrator
   USE force_env_methods,               ONLY: force_env_calc_energy_force,&
                                              force_env_set_cell
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_p_type,&
                                              force_env_type
   USE input_constants,                 ONLY: &
        dyn_coeff_mass_atom, dyn_coeff_mass_coeff, dyn_coeff_mass_global, &
@@ -175,9 +174,6 @@ CONTAINS
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
-    TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
-    TYPE(force_env_p_type), DIMENSION(:), &
-      POINTER                                :: force_env_p
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
@@ -194,32 +190,18 @@ CONTAINS
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
 
-    NULLIFY (cell)
-    NULLIFY (dyn_coeff_set)
-    NULLIFY (para_env, gci)
-
-    CALL get_md_env(md_env=md_env,&
-         simpar=simpar,&
-         force_env_p=force_env_p,&
-         para_env=para_env,&
-         error=error)
-
-    force_env => force_env_p(1)%force_env
-
+    NULLIFY (cell, para_env, gci, force_env)
+    CALL get_md_env(md_env=md_env, simpar=simpar, force_env=force_env,&
+         para_env=para_env, error=error)
+    
     dt = simpar%dt
     gam = simpar%gamma+simpar%shadow_gamma
 
-    IF (SIZE(force_env_p) /= 1) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "MD_ENV with more than (or less) than one "//&
-            "force_env not supported atm!")
-    END IF
-
     CALL force_env_get(force_env=force_env,subsys=subsys,cell=cell,&
-         dyn_coeff_set=dyn_coeff_set,virial=virial,error=error)
+         virial=virial,error=error)
 
     ! Do some checks on coordinates and box
-    CALL apply_qmmm_walls(force_env_p(1)%force_env, error=error)
+    CALL apply_qmmm_walls(force_env, error=error)
 
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
@@ -311,11 +293,6 @@ CONTAINS
 
     DEALLOCATE (pos,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pos")
-
-    IF (ASSOCIATED(dyn_coeff_set)) THEN
-       CALL stop_memory(routineN,moduleN,__LINE__,&
-            "dyn_coeff_set: not implemented with Langevin")
-    END IF
 
     ! Update forces
     CALL force_env_calc_energy_force(force_env,error=error)
@@ -415,8 +392,7 @@ CONTAINS
       POINTER                                :: coeffs_of_kind
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(dyn_coeff_type), POINTER            :: coeffs
-    TYPE(force_env_p_type), DIMENSION(:), &
-      POINTER                                :: force_env_p
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(lnhc_parameters_type), POINTER      :: nhc_coef
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
@@ -436,21 +412,16 @@ CONTAINS
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
 
-    NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef,para_env,cell,gci)
+    NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef,para_env,cell,gci, force_env)
     NULLIFY (shell,shell_particles,shell_particle_set,core_particles, core_particle_set)
-    CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
+    CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,&
          nhc_coef=nhc_coef, para_env = para_env, error=error)
     dt = simpar%dt
-    IF (SIZE(force_env_p)/=1) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "MD_ENV with more than (or less) than one "//&
-            "force_env not supported atm!")
-    END IF
-    CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
+    CALL force_env_get(force_env=force_env,subsys=subsys,&
          dyn_coeff_set=dyn_coeff_set, virial = virial, cell=cell,error=error)
 
     ! Do some checks on coordinates and box
-    CALL apply_qmmm_walls(force_env_p(1)%force_env, error=error)
+    CALL apply_qmmm_walls(force_env, error=error)
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
          particles=particles,local_molecules_new=local_molecules,molecules_new=molecules, &
@@ -625,7 +596,7 @@ CONTAINS
     END IF
 
     !     *** Update forces ***
-    CALL force_env_calc_energy_force(force_env_p(1)%force_env,error=error)
+    CALL force_env_calc_energy_force(force_env,error=error)
 
     !     *** Velocity Verlet (second part) ***
     IF(shell_adiabatic) THEN
@@ -806,28 +777,23 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_particles
-    TYPE(force_env_p_type), DIMENSION(:), &
-      POINTER                                :: force_env_p
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
 
-    CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
+    NULLIFY(force_env)
+    CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,&
          para_env=para_env, error=error)
 
     dt = simpar%dt
 
-    IF (SIZE(force_env_p)/=1) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "MD_ENV with more than (or less) than one "//&
-            "force_env not supported atm!")
-    END IF
-    CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,error=error)
+    CALL force_env_get(force_env=force_env,subsys=subsys,error=error)
 
     ! Do some checks on coordinates and box
-    CALL apply_qmmm_walls(force_env_p(1)%force_env, error=error)
+    CALL apply_qmmm_walls(force_env, error=error)
 
     IF (simpar%constraint) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
@@ -875,7 +841,7 @@ CONTAINS
        work(:,iparticle) = 0.0_dp
     END DO
 
-    CALL force_env_calc_energy_force(force_env_p(1)%force_env,error=error)
+    CALL force_env_calc_energy_force(force_env,error=error)
 
     ! compute K,a,b,s,ds
     CALL get_s_ds()
@@ -987,8 +953,7 @@ CONTAINS
       POINTER                                :: coeffs_of_kind
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(dyn_coeff_type), POINTER            :: coeffs
-    TYPE(force_env_p_type), DIMENSION(:), &
-      POINTER                                :: force_env_p
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(lnhc_parameters_type), POINTER      :: nhc, nhc_coef, nhc_shell
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
@@ -1008,22 +973,18 @@ CONTAINS
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
 
-    NULLIFY(gci)
+    NULLIFY(gci,force_env)
     NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef,nhc_shell,cell)
     NULLIFY (shell,shell_particles,shell_particle_set,core_particles, core_particle_set)
-    CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,nhc_part=nhc,&
+    CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,nhc_part=nhc,&
          nhc_coef=nhc_coef,nhc_shell=nhc_shell,para_env=para_env,error=error)
     dt = simpar%dt
-    IF (SIZE(force_env_p)/=1) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "MD_ENV with more than (or less) than one "//&
-            "force_env not supported atm!")
-    END IF
-    CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
-         dyn_coeff_set=dyn_coeff_set, virial=virial, cell=cell,error=error)
+
+    CALL force_env_get(force_env=force_env, subsys=subsys, dyn_coeff_set=dyn_coeff_set,&
+         virial=virial, cell=cell,error=error)
 
     ! Do some checks on coordinates and box
-    CALL apply_qmmm_walls(force_env_p(1)%force_env, error=error)
+    CALL apply_qmmm_walls(force_env, error=error)
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
          particles=particles,local_molecules_new=local_molecules,molecules_new=molecules,&
@@ -1216,7 +1177,7 @@ CONTAINS
 
     !     *** Update forces ***
 
-    CALL force_env_calc_energy_force(force_env_p(1)%force_env,error=error)
+    CALL force_env_calc_energy_force(force_env,error=error)
 
     !     *** Velocity Verlet (second part) ***
 
@@ -1436,8 +1397,7 @@ CONTAINS
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
-    TYPE(force_env_p_type), DIMENSION(:), &
-      POINTER                                :: force_env_p
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(lnhc_parameters_type), POINTER      :: nhc_baro, nhc_part, nhc_shell
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
@@ -1458,24 +1418,19 @@ CONTAINS
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
 
-    NULLIFY(gci,nhc_baro,nhc_part,nhc_shell)
+    NULLIFY(gci,nhc_baro,nhc_part,nhc_shell,force_env)
     NULLIFY (shell,shell_particles,shell_particle_set,core_particles, core_particle_set)
-    CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,nhc_part=nhc_part,&
+    CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,nhc_part=nhc_part,&
          nhc_baro=nhc_baro, nhc_shell=nhc_shell, npt = npt, itimes = itimes,&
          first_time=first_time, para_env=para_env, error=error)
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar % nfree,KIND=dp)
 
-    IF (SIZE(force_env_p)/=1) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "MD_ENV with more than (or less) than one "//&
-            "force_env not supported atm!")
-    END IF
-    CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
-         virial = virial, cell = cell ,error=error)
+    CALL force_env_get(force_env=force_env, subsys=subsys, virial=virial,&
+         cell=cell, error=error)
 
     ! Do some checks on coordinates and box
-    CALL apply_qmmm_walls(force_env_p(1)%force_env, error=error)
+    CALL apply_qmmm_walls(force_env, error=error)
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
          particles=particles,local_molecules_new=local_molecules,molecules_new=molecules, &
@@ -1703,8 +1658,8 @@ CONTAINS
 
     !     *** Update forces ***
 
-    CALL force_env_set_cell(force_env_p(1)%force_env, cell, .TRUE.,error)
-    CALL force_env_calc_energy_force(force_env_p(1)%force_env,error=error)
+    CALL force_env_set_cell(force_env, cell, .TRUE.,error)
+    CALL force_env_calc_energy_force(force_env,error=error)
 
     !     *** Velocity Verlet (second part) ***
 
@@ -1892,28 +1847,22 @@ CONTAINS
       DIMENSION(:, :)                        :: pos
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(force_env_p_type), DIMENSION(:), &
-      POINTER                                :: force_env_p
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(reftraj_type), POINTER              :: reftraj_info
     TYPE(section_vals_type), POINTER         :: root_section
 
-    NULLIFY(root_section, reftraj_info, particle_set, particles, force_env_p,&
+    NULLIFY(root_section, reftraj_info, particle_set, particles, force_env,&
          subsys, para_env)
-    CALL get_md_env(md_env=md_env, reftraj_info=reftraj_info,force_env_p=force_env_p,&
+    CALL get_md_env(md_env=md_env, reftraj_info=reftraj_info,force_env=force_env,&
          para_env = para_env, error=error)
-    IF (SIZE(force_env_p)/=1) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "MD_ENV with more than (or less) than one "//&
-            "force_env not supported atm!")
-    END IF
-    CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
-         root_section=root_section,error=error)
+
+    CALL force_env_get(force_env=force_env, subsys=subsys, root_section=root_section,error=error)
 
     ! Do some checks on coordinates and box
-    CALL apply_qmmm_walls(force_env_p(1)%force_env, error=error)
+    CALL apply_qmmm_walls(force_env, error=error)
     CALL cp_subsys_get(subsys=subsys, particles=particles,error=error)
     nparticle    = particles%n_els
     particle_set => particles%els
@@ -1944,7 +1893,7 @@ CONTAINS
     DEALLOCATE(pos)
     ! Task to perform on the reference trajectory
     CALL section_vals_val_get(root_section,"MOTION%MD%REFTRAJ%EVAL_ENERGY_FORCES",l_val=eval_EF,error=error)
-    CALL force_env_calc_energy_force(force_env_p(1)%force_env,eval_energy_forces=eval_EF,error=error)
+    CALL force_env_calc_energy_force(force_env,eval_energy_forces=eval_EF,error=error)
 
     RETURN
 998 CONTINUE ! end of file
@@ -2016,8 +1965,7 @@ CONTAINS
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
-    TYPE(force_env_p_type), DIMENSION(:), &
-      POINTER                                :: force_env_p
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
@@ -2033,22 +1981,16 @@ CONTAINS
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
 
-    NULLIFY(gci)
-    CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,npt = npt,&
+    NULLIFY(gci, force_env)
+    CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,npt = npt,&
          first_time=first_time, para_env=para_env, error=error)
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar % nfree, dp )
 
-    IF (SIZE(force_env_p)/=1) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "MD_ENV with more than (or less) than one "//&
-            "force_env not supported atm!")
-    END IF
-    CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
-         virial = virial, cell = cell ,error=error)
+    CALL force_env_get(force_env, subsys=subsys, virial = virial, cell=cell ,error=error)
 
     ! Do some checks on coordinates and box
-    CALL apply_qmmm_walls(force_env_p(1)%force_env, error=error)
+    CALL apply_qmmm_walls(force_env, error=error)
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
          particles=particles,local_molecules_new=local_molecules, molecules_new=molecules, gci=gci,&
@@ -2170,8 +2112,8 @@ CONTAINS
 
     !     *** Update forces (and stress)***
 
-    CALL force_env_set_cell(force_env_p(1)%force_env, cell, .TRUE.,error)
-    CALL force_env_calc_energy_force(force_env_p(1)%force_env, error=error)
+    CALL force_env_set_cell(force_env, cell, .TRUE.,error)
+    CALL force_env_calc_energy_force(force_env, error=error)
 
     !     *** Velocity Verlet (second part) ***
 
@@ -2303,8 +2245,7 @@ CONTAINS
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
-    TYPE(force_env_p_type), DIMENSION(:), &
-      POINTER                                :: force_env_p
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
@@ -2320,20 +2261,14 @@ CONTAINS
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
 
-    NULLIFY(gci)
-    CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,npt = npt,&
+    NULLIFY(gci, force_env)
+    CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,npt = npt,&
          first_time=first_time, para_env=para_env, error=error)
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar % nfree, dp )
     gamma1 = simpar % gamma_nph
 
-    IF (SIZE(force_env_p)/=1) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "MD_ENV with more than (or less) than one "//&
-            "force_env not supported atm!")
-    END IF
-    CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
-         virial = virial, cell = cell ,error=error)
+    CALL force_env_get(force_env, subsys=subsys, virial = virial, cell = cell ,error=error)
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
          particles=particles,local_molecules_new=local_molecules,molecules_new=molecules,gci=gci,&
@@ -2466,8 +2401,8 @@ CONTAINS
 
     !     *** Update forces ***
 
-    CALL force_env_set_cell(force_env_p(1)%force_env, cell, .TRUE.,error)
-    CALL force_env_calc_energy_force(force_env_p(1)%force_env, error=error)
+    CALL force_env_set_cell(force_env, cell, .TRUE.,error)
+    CALL force_env_calc_energy_force(force_env, error=error)
 
     !     *** Velocity Verlet (second part) ***
 
@@ -2843,8 +2778,7 @@ END SUBROUTINE nph_uniaxial_damped
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
-    TYPE(force_env_p_type), DIMENSION(:), &
-      POINTER                                :: force_env_p
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(lnhc_parameters_type), POINTER      :: nhc_baro, nhc_part, nhc_shell
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
@@ -2865,24 +2799,18 @@ END SUBROUTINE nph_uniaxial_damped
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
 
-    NULLIFY(gci,nhc_baro,nhc_part,nhc_shell)
+    NULLIFY(gci,nhc_baro,nhc_part,nhc_shell, force_env)
     NULLIFY (shell,shell_particles,shell_particle_set,core_particles, core_particle_set)
-    CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,nhc_part=nhc_part,&
+    CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,nhc_part=nhc_part,&
          nhc_baro=nhc_baro, nhc_shell=nhc_shell, npt = npt,itimes = itimes,&
          first_time=first_time, para_env=para_env, error=error)
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar % nfree,KIND=dp)
 
-    IF (SIZE(force_env_p)/=1) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "MD_ENV with more than (or less) than one "//&
-            "force_env not supported atm!")
-    END IF
-    CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
-         virial = virial, cell = cell ,error=error)
+    CALL force_env_get(force_env, subsys=subsys,virial = virial, cell = cell ,error=error)
 
     ! Do some checks on coordinates and box
-    CALL apply_qmmm_walls(force_env_p(1)%force_env, error=error)
+    CALL apply_qmmm_walls(force_env, error=error)
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
          particles=particles,local_molecules_new=local_molecules,molecules_new=molecules, &
@@ -3165,8 +3093,8 @@ END SUBROUTINE nph_uniaxial_damped
 
     !     *** Update forces ***
 
-    CALL force_env_set_cell(force_env_p(1)%force_env, cell, .TRUE.,error)
-    CALL force_env_calc_energy_force(force_env_p(1)%force_env,error=error)
+    CALL force_env_set_cell(force_env, cell, .TRUE.,error)
+    CALL force_env_calc_energy_force(force_env,error=error)
 
     !     *** Velocity Verlet (second part) ***
     IF(shell_adiabatic) THEN
@@ -3904,8 +3832,7 @@ END SUBROUTINE nph_uniaxial_damped
       POINTER                                :: coeffs_of_kind
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(dyn_coeff_type), POINTER            :: coeffs
-    TYPE(force_env_p_type), DIMENSION(:), &
-      POINTER                                :: force_env_p
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(lnhc_parameters_type), POINTER      :: nhc_coef
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
@@ -3923,26 +3850,20 @@ END SUBROUTINE nph_uniaxial_damped
     TYPE(virial_type), POINTER               :: virial
 
     NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef,para_env,cell,subsys_respa)
-    NULLIFY (particles_respa, particle_set_respa,gci)
-    CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,nhc_coef=nhc_coef,&
+    NULLIFY (particles_respa, particle_set_respa,gci, force_env)
+    CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,nhc_coef=nhc_coef,&
          para_env = para_env, error=error)
     dt = simpar%dt
 
     n_time_steps=simpar%n_time_steps
 
-    IF (SIZE(force_env_p)/=1) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "MD_ENV with more than (or less) than one "//&
-            "force_env not supported atm!")
-    END IF
-    CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
-         dyn_coeff_set=dyn_coeff_set, virial = virial, cell=cell,error=error)
+    CALL force_env_get(force_env,subsys=subsys, dyn_coeff_set=dyn_coeff_set,&
+         virial = virial, cell=cell,error=error)
 
-    CALL force_env_get(force_env=force_env_p(1)%force_env%sub_force_env(1)%force_env,&
-         subsys=subsys_respa,error=error)
+    CALL force_env_get(force_env%sub_force_env(1)%force_env,subsys=subsys_respa,error=error)
 
     ! Do some checks on coordinates and box
-    CALL apply_qmmm_walls(force_env_p(1)%force_env, error=error)
+    CALL apply_qmmm_walls(force_env, error=error)
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
          particles=particles, local_molecules_new=local_molecules, molecules_new=molecules,&
@@ -4056,7 +3977,7 @@ END SUBROUTINE nph_uniaxial_damped
 
        !     *** Update forces ***
 
-       CALL force_env_calc_energy_force(force_env_p(1)%force_env%sub_force_env(1)%force_env,error=error)
+       CALL force_env_calc_energy_force(force_env%sub_force_env(1)%force_env,error=error)
 
        !     *** Velocity Verlet (second part) ***
 
@@ -4129,7 +4050,7 @@ END SUBROUTINE nph_uniaxial_damped
     !     *** Multiple time step (second part) ***
 
     ! Compute forces for respa force_env
-    CALL force_env_calc_energy_force(force_env_p(1)%force_env,error=error)
+    CALL force_env_calc_energy_force(force_env,error=error)
 
     DO iparticle_kind=1,nparticle_kind
        atomic_kind => atomic_kind_set(iparticle_kind)

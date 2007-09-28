@@ -35,7 +35,7 @@ MODULE md_conserved_quantities
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              npt_info_type
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_p_type
+                                             force_env_type
   USE input_constants,                 ONLY: &
        dyn_coeff_mass_global, isokin_ensemble, langevin_ensemble, &
        nph_ensemble, nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, &
@@ -127,7 +127,6 @@ CONTAINS
                                                 my_shell_present, myqmmm
     REAL(KIND=dp), POINTER                   :: constant
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(force_env_p_type), POINTER          :: force_env_p(:)
     TYPE(md_ener_type)                       :: md_ener
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
@@ -149,7 +148,6 @@ CONTAINS
                      itimes=itimes,&
                      simpar=simpar,&
                      para_env = para_env, &
-                     force_env_p=force_env_p,&
                      error=error)
 
     int_grp =  para_env % group
@@ -244,34 +242,27 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_econs_nve', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iforce_env
     REAL(KIND=dp)                            :: nhc_coef_kin, nhc_coef_pot
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
-    TYPE(force_env_p_type), DIMENSION(:), &
-      POINTER                                :: force_env_p
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(lnhc_parameters_type), POINTER      :: nhc_coef
 
-    NULLIFY(dyn_coeff_set, force_env_p, nhc_coef)
+    NULLIFY(dyn_coeff_set, force_env, nhc_coef)
 
-    CALL get_md_env (md_env, force_env_p=force_env_p, nhc_coef=nhc_coef, error=error)
+    CALL get_md_env (md_env, force_env=force_env, nhc_coef=nhc_coef, error=error)
     cons = md_ener % ekin + md_ener % epot + md_ener % ekin_shell
 
     ! Correct for KG coeff
-    DO iforce_env = 1, SIZE(force_env_p)
-       CALL force_env_get (force_env = force_env_p(iforce_env)%force_env, &
-                           dyn_coeff_set=dyn_coeff_set,error=error)
+    CALL force_env_get (force_env = force_env, dyn_coeff_set=dyn_coeff_set,error=error)
 
-       IF (ASSOCIATED (dyn_coeff_set)) THEN
-          CALL get_coef_ke (dyn_coeff_set, md_ener%ekin_coefs, &
-                            md_ener%temp_coefs, int_grp, error)
-          cons = cons + md_ener%ekin_coefs
-          IF (ASSOCIATED(nhc_coef)) THEN
-             CALL get_nhc_energies ( nhc_coef, nhc_coef_pot, nhc_coef_kin, int_grp, error )
-             cons = cons + nhc_coef_kin + nhc_coef_pot
-          END IF
+    IF (ASSOCIATED (dyn_coeff_set)) THEN
+       CALL get_coef_ke (dyn_coeff_set, md_ener%ekin_coefs, md_ener%temp_coefs, int_grp, error)
+       cons = cons + md_ener%ekin_coefs
+       IF (ASSOCIATED(nhc_coef)) THEN
+          CALL get_nhc_energies ( nhc_coef, nhc_coef_pot, nhc_coef_kin, int_grp, error )
+          cons = cons + nhc_coef_kin + nhc_coef_pot
        END IF
-    END DO
-
+    END IF
   END SUBROUTINE get_econs_nve
 
   !******************************************************************************
@@ -300,36 +291,29 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_econs_nvt', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iforce_env
     REAL(KIND=dp)                            :: nhc_coef_kin, nhc_coef_pot, &
                                                 nhc_part_kin, nhc_part_pot, &
                                                 nhc_shell_kin, nhc_shell_pot
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
-    TYPE(force_env_p_type), DIMENSION(:), &
-      POINTER                                :: force_env_p
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(lnhc_parameters_type), POINTER      :: nhc_coef, nhc_part, nhc_shell
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
 
-    NULLIFY(dyn_coeff_set, force_env_p, nhc_part, nhc_coef)
-    CALL get_md_env (md_env, force_env_p=force_env_p, nhc_part=nhc_part,&
+    NULLIFY(dyn_coeff_set, force_env, nhc_part, nhc_coef)
+    CALL get_md_env (md_env, force_env=force_env, nhc_part=nhc_part,&
          nhc_coef=nhc_coef, nhc_shell=nhc_shell, simpar=simpar, error=error )
     CALL get_nhc_energies ( nhc_part, nhc_part_pot, nhc_part_kin, int_grp, error )
     cons = md_ener% ekin + md_ener%epot +  md_ener % ekin_shell + nhc_part_kin + nhc_part_pot
-    DO iforce_env = 1, SIZE(force_env_p)
-       CALL force_env_get (force_env=force_env_p(iforce_env)%force_env, &
-            dyn_coeff_set=dyn_coeff_set,error=error)
-       IF (ASSOCIATED (dyn_coeff_set)) THEN
-          CALL get_coef_ke (dyn_coeff_set, md_ener%ekin_coefs, &
-               md_ener%temp_coefs, int_grp, error)
-          cons = cons + md_ener%ekin_coefs
-          IF (ASSOCIATED(nhc_coef)) THEN
-             CALL get_nhc_energies ( nhc_coef, nhc_coef_pot, nhc_coef_kin,&
-                  int_grp, error )
-             cons = cons + nhc_coef_kin + nhc_coef_pot
-          END IF
+    CALL force_env_get (force_env=force_env, dyn_coeff_set=dyn_coeff_set,error=error)
+    IF (ASSOCIATED (dyn_coeff_set)) THEN
+       CALL get_coef_ke (dyn_coeff_set, md_ener%ekin_coefs, md_ener%temp_coefs, int_grp, error)
+       cons = cons + md_ener%ekin_coefs
+       IF (ASSOCIATED(nhc_coef)) THEN
+          CALL get_nhc_energies ( nhc_coef, nhc_coef_pot, nhc_coef_kin, int_grp, error )
+          cons = cons + nhc_coef_kin + nhc_coef_pot
        END IF
-    END DO
+    END IF
 
     IF(simpar%shell_nose .AND. ASSOCIATED(nhc_shell)) THEN
       CALL get_nhc_energies ( nhc_shell, nhc_shell_pot, nhc_shell_kin, int_grp, error )
@@ -576,8 +560,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_particles
-    TYPE(force_env_p_type), DIMENSION(:), &
-      POINTER                                :: force_env_p
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
     TYPE(particle_type), DIMENSION(:), &
@@ -597,11 +580,8 @@ CONTAINS
     nfree_shell = -HUGE(0)
 
     NULLIFY(qmmm_env)
-    CALL get_md_env ( md_env, force_env_p = force_env_p, error=error )
-    CALL force_env_get ( force_env = force_env_p(1)%force_env,&
-                         subsys = subsys ,&
-                         qmmm_env=qmmm_env,&
-                         error=error)
+    CALL get_md_env ( md_env, force_env = force_env, error=error )
+    CALL force_env_get (force_env, subsys = subsys, qmmm_env=qmmm_env, error=error)
     CALL cp_subsys_get(subsys=subsys,&
          atomic_kinds=atomic_kinds,&
          local_particles=local_particles,&

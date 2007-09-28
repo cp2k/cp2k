@@ -26,7 +26,6 @@ MODULE free_energy_methods
                                              cp_print_key_unit_nr
   USE cp_subsys_types,                 ONLY: cp_subsys_type
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_p_type,&
                                              force_env_type
   USE fparser,                         ONLY: evalf,&
                                              evalfd,&
@@ -67,6 +66,7 @@ CONTAINS
 !!
 !!   FUNCTION
 !!     Main driver for free energy calculations
+!!     In this routine we handle specifically biased MD.
 !!
 !!   NOTES
 !!
@@ -96,7 +96,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: my_val
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(force_env_p_type), POINTER          :: force_env_p( : )
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(free_energy_type), POINTER          :: fe_env
     TYPE(section_vals_type), POINTER         :: root_section
@@ -104,17 +103,15 @@ CONTAINS
       POINTER                                :: simpar
     TYPE(ui_var_type), POINTER               :: cv
 
-    NULLIFY(force_env_p, force_env, istep, subsys, cv, root_section, simpar)
+    NULLIFY(force_env, istep, subsys, cv, root_section, simpar)
     logger => cp_error_get_logger(error)
     CALL timeset(routineN,"I","",handle)
     failure   = .FALSE.
     converged = .FALSE.
-    ! Metadynamics is also a free energy calculation but is handled in a different
-    ! module.
-    ! In this routine specifically biased MD are handled.
-    CALL get_md_env(md_env, force_env_p=force_env_p, fe_env=fe_env, simpar=simpar,&
+    CALL get_md_env(md_env, force_env=force_env, fe_env=fe_env, simpar=simpar,&
          itimes=istep, error=error)
-    force_env => force_env_p(1)%force_env
+    ! Metadynamics is also a free energy calculation but is handled in a different
+    ! module. 
     IF (.NOT.ASSOCIATED(force_env%meta_env).AND.ASSOCIATED(fe_env)) THEN
        SELECT CASE(fe_env%type)
        CASE(do_fe_ui)

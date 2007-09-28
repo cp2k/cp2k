@@ -24,7 +24,7 @@ MODULE barostat_types
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE extended_system_types,           ONLY: npt_info_type
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_p_type
+                                             force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE init_extended_system_types,      ONLY: initialize_npt
   USE input_section_types,             ONLY: section_vals_get,&
@@ -78,12 +78,11 @@ CONTAINS
 !!     09.2007 created [tlaino]
 !!
 !!*** **********************************************************************
-  SUBROUTINE create_barostat_type( barostat, motion_section, force_env_p,&
+  SUBROUTINE create_barostat_type( barostat, motion_section, force_env,&
        simpar, para_env, globenv, error )
     TYPE(barostat_type), POINTER             :: barostat
     TYPE(section_vals_type), POINTER         :: motion_section
-    TYPE(force_env_p_type), DIMENSION(:), &
-      POINTER                                :: force_env_p
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -110,8 +109,7 @@ CONTAINS
        barostat%id_nr      = last_barostat_id_nr
        barostat%ref_count  =  1
        NULLIFY(barostat%npt)
-       CPPrecondition(SIZE(force_env_p)==1,cp_failure_level,routineP,error,failure)
-       CALL force_env_get( force_env_p(1)%force_env, cell=cell, error=error )
+       CALL force_env_get( force_env, cell=cell, error=error )
        ! Initialize or possibly restart Barostat
        CALL initialize_npt (simpar, para_env, globenv, barostat%npt,&
             cell, work_section=barostat_section, error=error)

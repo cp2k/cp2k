@@ -31,7 +31,7 @@ MODULE md_energies
                                              cp_subsys_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_p_type,&
+                                             force_env_type,&
                                              use_mixed_force
   USE input_constants,                 ONLY: dump_dcd,&
                                              dump_xmol,&
@@ -134,7 +134,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
-    TYPE(force_env_p_type), POINTER          :: force_env_p( : )
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
     TYPE(section_vals_type), POINTER         :: force_env_section, &
@@ -154,25 +154,17 @@ CONTAINS
     shell_adiabatic = .FALSE.
     shell_present   = .FALSE.
     NULLIFY(dyn_coeff_set,motion_section)
-    CALL get_md_env(md_env=md_env,&
-         itimes=itimes,&
-         constant=constant,&
-         t=t,&
-         used_time = used_time,&
-         simpar=simpar,&
-         force_env_p=force_env_p,&
-         init=init,&
-         error=error)
+    CALL get_md_env(md_env=md_env, itimes=itimes, constant=constant, t=t, used_time = used_time,&
+         simpar=simpar, force_env=force_env, init=init, error=error)
 
-    root_section=>force_env_p(1)%force_env%root_section
+    root_section   => force_env%root_section
     motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
     force_env_section => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
 
-    CALL force_env_get(force_env=force_env_p(1)%force_env,&
-         cell=cell,cell_ref=cell_ref,subsys=subsys,dyn_coeff_set=dyn_coeff_set,&
-         virial = virial,error=error)
+    CALL force_env_get(force_env, cell=cell,cell_ref=cell_ref,subsys=subsys,&
+         dyn_coeff_set=dyn_coeff_set, virial = virial,error=error)
 
-    is_mixed=force_env_p ( 1 ) % force_env%in_use == use_mixed_force
+    is_mixed= (force_env%in_use == use_mixed_force)
 
     CALL cp_subsys_get(subsys,particles=particles,error=error)
     nat=particles%n_els
@@ -199,7 +191,7 @@ CONTAINS
        ENDIF
     ENDIF
 
-    CALL force_env_get(force_env_p ( 1 ) % force_env, potential_energy=epot, error=error)
+    CALL force_env_get(force_env, potential_energy=epot, error=error)
     IF (ASSOCIATED (dyn_coeff_set)) THEN
        CALL compute_conserved_quantity(md_env,&
             epot,&
@@ -525,7 +517,7 @@ CONTAINS
          str = 0
        END IF
        IF(shell_present) THEN
-         CALL force_env_get(force_env_p(1)%force_env,harmonic_shell=harm_shell,error=error)
+         CALL force_env_get(force_env,harmonic_shell=harm_shell,error=error)
          shene=cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%SHELL_ENERGY",&
             extension=".shener",file_position=my_pos, file_action=my_act,error=error)
 
@@ -586,7 +578,7 @@ CONTAINS
           trsl = cp_print_key_unit_nr(logger,motion_section,"PRINT%TRANSLATION_VECTOR",&
                extension=".translation", middle_name="qmmm", error=error)
           IF (trsl>0) THEN
-             WRITE(trsl,'(I10,3F15.10)')itimes,force_env_p(1)%force_env%qmmm_env%transl_v
+             WRITE(trsl,'(I10,3F15.10)')itimes,force_env%qmmm_env%transl_v
           END IF
           CALL cp_print_key_finished_output(trsl,logger,motion_section,&
                "PRINT%TRANSLATION_VECTOR", error=error)
@@ -716,8 +708,8 @@ CONTAINS
        !------------------
        IF (ener_mix>0 .AND. is_mixed) THEN
           WRITE (ener_mix,"(I8,F12.3,F20.9,"//&
-               cp_to_string(SIZE(force_env_p(1)%force_env%mixed_env%energies))//"F20.9,F20.9)")&
-               itimes,t*femtoseconds,epot,force_env_p(1)%force_env%mixed_env%energies,cons
+               cp_to_string(SIZE(force_env%mixed_env%energies))//"F20.9,F20.9)")&
+               itimes,t*femtoseconds,epot,force_env%mixed_env%energies,cons
           CALL m_flush(ener_mix)
        END IF
        !------------------
