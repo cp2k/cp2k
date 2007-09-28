@@ -24,6 +24,8 @@
 
 MODULE environment
   USE bibliography,                    ONLY: cite_reference,Frigo2005
+  USE cp2k_info,                       ONLY: compile_arch,compile_date,compile_host,compile_lastcvs, &
+                                             cp2k_year, cp2k_version, cp2k_home
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -89,30 +91,6 @@ MODULE environment
   IMPLICIT NONE
 
   PRIVATE
-
-#if defined(__COMPILE_ARCH)
-  CHARACTER(LEN=*), PARAMETER :: compile_arch = __COMPILE_ARCH
-#else
-  CHARACTER(LEN=*), PARAMETER :: compile_arch = "unknown: -D__COMPILE_ARCH=?"
-#endif
-
-#if defined(__COMPILE_DATE)
-  CHARACTER(LEN=*), PARAMETER :: compile_date = __COMPILE_DATE
-#else
-  CHARACTER(LEN=*), PARAMETER :: compile_date = "unknown: -D__COMPILE_DATE=?"
-#endif
-
-#if defined(__COMPILE_HOST)
-  CHARACTER(LEN=*), PARAMETER :: compile_host = __COMPILE_HOST
-#else
-  CHARACTER(LEN=*), PARAMETER :: compile_host = "unknown: -D__COMPILE_HOST=?"
-#endif
-
-#if defined(__COMPILE_LASTCVS)
-  CHARACTER(LEN=*), PARAMETER :: compile_lastcvs = __COMPILE_LASTCVS
-#else
-  CHARACTER(LEN=*), PARAMETER :: compile_lastcvs = "/No CVS/Entry in src dir//"
-#endif
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'environment'
 
@@ -269,7 +247,14 @@ CONTAINS
         WRITE (UNIT=my_output_unit,FMT="(T44,A)")&
           cwd(l:MIN(LEN_TRIM(cwd),l+36))
       END DO
+
       WRITE (UNIT=my_output_unit,FMT="(/,T2,A,T31,A50)")&
+        "CP2K| version string: ",&
+        ADJUSTR(TRIM(cp2k_version))
+      WRITE (UNIT=my_output_unit,FMT="(T2,A,T41,A40)")&
+        "CP2K| is freely available from ",&
+        ADJUSTR(TRIM(cp2k_home))
+      WRITE (UNIT=my_output_unit,FMT="(T2,A,T31,A50)")&
         "CP2K| Program compiled at",&
         ADJUSTR(compile_date(1:MIN(50,LEN(compile_date))))
       WRITE (UNIT=my_output_unit,FMT="(T2,A,T31,A50)")&
@@ -874,6 +859,11 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
            WRITE (UNIT=iw,FMT="(T2,A,T30,A,T80,A)") "-","R E F E R E N C E S","-"
            WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
            WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
+
+           WRITE (UNIT=iw,FMT="(T2,A)") ""
+           WRITE (UNIT=iw,FMT="(T2,A)") TRIM(cp2k_version)//", the CP2K developers group ("//TRIM(cp2k_year)//")."
+           WRITE (UNIT=iw,FMT="(T2,A)") "CP2K is freely available from "//TRIM(cp2k_home)//" ."
+
            CALL print_all_references(sorted=.TRUE.,cited_only=.TRUE., &
                           FORMAT=print_format_journal,unit=iw)
        ENDIF

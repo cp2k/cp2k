@@ -237,7 +237,7 @@ f77_int_low.o: f77_interface.o cp2k_runs.o replica_methods.o ep_methods.F
 
 # to recpp environment.F whenever the CVS/Entries file is updated (and exists)
 ifneq ($(strip $(SRCENTRY)),)
-environment.f90:$(SRCENTRY)
+cp2k_info.f90:$(SRCENTRY)
 endif
 
 ### Load the automatically generated rules of sfmakedepend ###

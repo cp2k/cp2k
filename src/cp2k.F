@@ -9,27 +9,33 @@
 !!     cp2k, The main program    
 !!
 !!   COPYRIGHT
-!!I---------------------------------------------------------------------------I
-!!I                                                                           I
-!!I CP2K: A general program to perform molecular dynamics simulations         I
-!!I Copyright (C) 2000,2001,2002,2003,2004,2005,2006,2007                     I
-!!I                   The  CP2K developers group                              I
-!!I                                                                           I
-!!I This program is free software; you can redistribute it and/or modify      I
-!!I it under the terms of the GNU General Public License as published by      I
-!!I the Free Software Foundation; either version 2 of the License, or         I
-!!I (at your option) any later version.                                       I
-!!I                                                                           I
-!!I This program is distributed in the hope that it will be useful,           I
-!!I but WITHOUT ANY WARRANTY; without even the implied warranty of            I
-!!I MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the             I
-!!I GNU General Public License for more details.                              I
-!!I                                                                           I
-!!I You should have received a copy of the GNU General Public License         I
-!!I along with this program; if not, write to the Free Software               I
-!!I Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.                 I
-!!I                                                                           I
-!!I---------------------------------------------------------------------------I
+!-----------------------------------------------------------------------------!
+!                                                                             !
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000, 2001, 2002, 2003  CP2K developers group               !
+!   Copyright (C) 2004, 2005, 2006, 2007  CP2K developers group               !
+!                                                                             !
+!   This program is free software; you can redistribute it and/or modify      !
+!   it under the terms of the GNU General Public License as published by      !
+!   the Free Software Foundation; either version 2 of the License, or         !
+!   (at your option) any later version.                                       !
+!                                                                             !
+!   This program is distributed in the hope that it will be useful,           !
+!   but WITHOUT ANY WARRANTY; without even the implied warranty of            !
+!   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the             !
+!   GNU General Public License for more details.                              !
+!                                                                             !
+!   You should have received a copy of the GNU General Public License         !
+!   along with this program; if not, write to the Free Software               !
+!   Foundation, Inc., 51 Franklin Street, Fifth Floor,                        !
+!   Boston, MA  02110-1301, USA.                                              !
+!                                                                             !
+!   See also http://www.fsf.org/licensing/licenses/gpl.html                   !
+!                                                                             !
+!-----------------------------------------------------------------------------!
+!   CP2K, including its sources and pointers to the authors                   !
+!   can be found at  http://cp2k.berlios.de/                                  !
+!-----------------------------------------------------------------------------!
 !!
 !!   FUNCTION
 !!      starts the program
@@ -43,7 +49,7 @@
 !!
 !------------------------------------------------------------------------------
 PROGRAM cp2k
-
+  USE cp2k_info,         ONLY : print_cp2k_license,cp2k_version
   USE cp2k_runs,         ONLY : write_cp2k_html_manual, &
                                 write_xml_file, run_input
   USE machine,           ONLY : m_iargc,m_getarg, default_output_unit
@@ -59,7 +65,7 @@ PROGRAM cp2k
   INTEGER                              :: ierr, i, n_arg, i_arg
   LOGICAL                              :: check, manual, usage, echo_input, command_line_error,&
                                           permissive
-  LOGICAL                              :: run_it, force_run, has_input, xml
+  LOGICAL                              :: run_it, force_run, has_input, xml, print_version, print_license
   TYPE(cp_error_type)                  :: error ! XXXXXXXXXXXXXX uninitialised error
 
   ! output goes to the screen by default
@@ -88,6 +94,8 @@ PROGRAM cp2k
      run_it     =.TRUE.
      force_run  =.FALSE.
      permissive =.FALSE.
+     print_version =.FALSE.
+     print_license =.FALSE.
      command_line_error=.FALSE.
      xml = .FALSE.
      input_file_name  = "Missing input file name"   ! no default
@@ -120,6 +128,12 @@ arg_loop: DO WHILE (i_arg<n_arg)
            echo_input=.TRUE.
         CASE("--html-manual")
            manual=.TRUE.
+           run_it=.FALSE.
+        CASE("-v","--version")
+           print_version=.TRUE.
+           run_it=.FALSE.
+        CASE("--license")
+           print_license=.TRUE.
            run_it=.FALSE.
         CASE("--run","-r")
            force_run=.TRUE.
@@ -199,6 +213,8 @@ arg_loop: DO WHILE (i_arg<n_arg)
            "--check, -c       : perform a syntax check of [input_file]",&
            "--echo, -e        : echos [input_file], and makes all defaults explicit",&
            "                    The input is also checked, but only failure is reported",&
+           "--version,-v      : print the CP2K version number",&
+           "--license         : print the CP2K license",&
            "--help, -h        : writes this message",&
            "--html-manual     : writes a HTML reference manual of the CP2K input file",&
            "                    in the current directory. index.html is a good starting",&
@@ -212,6 +228,21 @@ arg_loop: DO WHILE (i_arg<n_arg)
      END IF
 
      IF (.NOT. command_line_error) THEN
+
+        ! write the version string
+        IF (print_version) THEN
+           IF (default_para_env%source==default_para_env%mepos) THEN
+              WRITE(output_unit,'(T2,A)') cp2k_version
+           ENDIF
+        ENDIF
+
+        ! write the license
+        IF (print_license) THEN
+           IF (default_para_env%source==default_para_env%mepos) THEN
+              CALL print_cp2k_license(output_unit)
+           ENDIF
+        ENDIF
+
         ! if a manual is needed
         IF (manual) THEN
            IF (default_para_env%mepos==default_para_env%source) THEN
