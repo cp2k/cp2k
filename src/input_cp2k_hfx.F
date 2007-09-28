@@ -1,0 +1,505 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2007  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
+!!****h* cp2k/input_cp2k_hfx
+!!
+!!   NAME
+!!     input_cp2k_hfx
+!!
+!!   FUNCTION
+!!     function that builds the hartree fock exchange section of the input
+!!
+!!   NOTES
+!!     -
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     09.2007 created
+!!
+!!   SOURCE
+!****************************************************************************
+MODULE input_cp2k_hfx
+  USE cp_output_handling,              ONLY: cp_print_key_section_create
+  USE input_constants
+  USE input_keyword_types,             ONLY: keyword_create,&
+                                             keyword_release,&
+                                             keyword_type
+  USE input_section_types,             ONLY: section_add_keyword,&
+                                             section_add_subsection,&
+                                             section_create,&
+                                             section_release,&
+                                             section_type
+  USE kinds,                           ONLY: dp
+  USE string_utilities,                ONLY: s2a
+#include "cp_common_uses.h"
+
+  IMPLICIT NONE
+  PRIVATE
+
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_hfx'
+
+  PUBLIC :: create_hf_section
+
+!****************************************************************************
+CONTAINS
+
+!!****f* input_cp2k_dft/create_hf_section [1.0] *
+!!
+!!   NAME
+!!     create_hf_section
+!!
+!!   FUNCTION
+!!     creates the input section for the hf part
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Manuel/Joost
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_hf_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_hf_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key, subsection
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"HF",&
+            description="Sets up the Hartree-Fock parameters if requested ",&
+            n_keywords=5, n_subsections=2, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword, print_key, subsection)
+
+       CALL keyword_create(keyword, name="FRACTION",&
+            description="The fraction of Hartree-Fock to add to the total energy. "//&
+                        "1.0 implies standard Hartree-Fock if used with XC_FUNCTIONAL NONE.",&
+            usage="FRACTION 1.0", default_r_val=1.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MAX_MEMORY",&
+            description="Defines the maximum amount of memory [MB] used to store precomputed "//&
+                         "four-center integrals",&
+            usage="MAX_MEMORY 512", default_i_val=512,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL cp_print_key_section_create(print_key,"HF_INFO",&
+            description="Controls the printing basic info about hf method", &
+            print_level=medium_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+       
+       CALL create_hf_pbc_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_hf_screening_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_hf_potential_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_hf_load_balance_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+    END IF
+ 
+  END SUBROUTINE create_hf_section
+  !***************************************************************************
+
+!!!****f* input_cp2k_dft/create_hf_load_balance_section [1.0] *
+!!
+!!   NAME
+!!     create_hf_potential_section
+!!
+!!   FUNCTION
+!!     creates the input section for the hf potential part
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_hf_load_balance_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_hf_load_balance_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"LOAD_BALANCE",&
+            description="Sets up interaction potential if requested ",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(keyword)
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="NBINS",&
+            description="Number of bins to be used on each process to distribute "//&
+                        "in a first step.",&
+            usage="NBINS 32",&
+            default_i_val=16,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       
+       CALL keyword_create(keyword, name="MOVES",&
+            description="Total number of Monte Carlo moves to use in the optimization",&
+            usage="MOVES 1000000 ",&
+            n_var=1,default_i_val=100000,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword,name="CYCLES",&
+            description="How many annealing cycles to use",&
+            usage="CYCLES 10", default_i_val=10, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword,name="REDUCTION_STEPS",&
+            description="How many temperature reduction steps have to be performed per cycle",&
+            usage="REDUCTION_STEPS 5", default_i_val=5, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword,name="REDUCTION_FACTOR",&
+            description="How to scale the temperature at each reduction step",&
+            usage="REDUCTION_FACTOR 0.8", default_r_val=0.8_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword,name="TEMPERATURE",&
+            description="Highest temperature to be used (in units of the maximum cost of a non-zero 2D block)",&
+            usage="TEMPERATURE 0.5", default_r_val=0.5_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword,name="TOLERANCE",&
+            description="If the found distribution is within a fraction of the theoretical optimal one, the optimization stops",&
+            usage="TOLERANCE 0.01", default_r_val=0.02_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword,name="SWAP_PROBABILITY",&
+            description="Probability of a col/row assignment swap",&
+            usage="SWAP_PROBABILITY 0.8", default_r_val=0.9_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       NULLIFY(print_key)
+       CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
+            description="Controls the printing of basic information during the run", &
+            print_level=low_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section, print_key, error=error)
+       CALL section_release(print_key,error=error)
+
+    END IF
+ 
+  END SUBROUTINE create_hf_load_balance_section
+  !***************************************************************************
+
+!!!****f* input_cp2k_dft/create_hf_potential_section [1.0] *
+!!
+!!   NAME
+!!     create_hf_potential_section
+!!
+!!   FUNCTION
+!!     creates the input section for the hf potential part
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_hf_potential_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_hf_potential_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"INTERACTION_POTENTIAL",&
+            description="Sets up interaction potential if requested ",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(keyword)
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="POTENTIAL_TYPE",&
+            description="Which interaction potential should be used "//&
+                         "(Coulomb, longrange or shortrange).",&
+            usage="POTENTIAL_TYPE SHORTRANGE",&
+            enum_c_vals=s2a("COULOMB","SHORTRANGE","LONGRANGE"),&
+            enum_i_vals=(/do_hf_potential_coulomb, do_hf_potential_short, do_hf_potential_long/),&
+            enum_desc=s2a("Coulomb potential: 1/r", &
+                          "Shortrange potential: erfc(omega*r)/r",&
+                          "Longrange potential: erf(omega*r)/r"),&
+            default_i_val=do_hf_potential_coulomb, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       NULLIFY(keyword)
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="OMEGA",&
+            description="Parameter for short/longrange interaction",&
+            usage="OMEGA 0.5",&
+            default_r_val=0.0_dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    END IF
+ 
+  END SUBROUTINE create_hf_potential_section
+
+!***************************************************************************
+!****f* input_cp2k_dft/create_hf_screening_section [1.0] *
+!!
+!!   NAME
+!!     create_hf_screening_section
+!!
+!!   FUNCTION
+!!     creates the input section for the hf screening part
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_hf_screening_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_hf_screening_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"SCREENING",&
+            description="Sets up screening parameters if requested ",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword)
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="EPS_SCHWARZ",&
+            description="Screens the near field part of the electronic repulsion "//&
+                        "integrals using the Schwarz inequality for the given "//&
+                        "threshold.",&  
+            usage="EPS_SCHWARZ 1.0E-6",&
+            default_r_val=1.0E-10_dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       NULLIFY(keyword)
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="EPS_BOX",&
+            description="Screens the far field part of the electronic repulsion "//&
+                        "integrals using a box screening for the given "//&
+                        "threshold.",&
+            usage="EPS_BOX 1.0E-6",&
+            default_r_val=1.0E-10_dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       NULLIFY(keyword)
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="EPS_SCHWARZ_FORCES",&
+            description="Screens the near field part of the electronic repulsion "//&
+                        "integrals using the Schwarz inequality for the given "//&
+                        "threshold. This will be approximately the accuracy of the forces, "//&
+                        " and should normally be similar to EPS_SCF",&  
+            usage="EPS_SCHWARZ_FORCES 1.0E-5",&
+            default_r_val=1.0E-6_dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       NULLIFY(keyword)
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="EPS_BOX_FORCES",&
+            description="Screens the far field part of the electronic repulsion "//&
+                        "integrals using a box screening for the given "//&
+                        "threshold. This will be approximately the accuracy of the forces, "//&
+                        "and should normally be similar to EPS_SCF",&
+            usage="EPS_BOX_FORCES 1.0E-5",&
+            default_r_val=1.0E-6_dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       NULLIFY(keyword)
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="SCREEN_P_FORCES",&
+            description="Screens the electronic repulsion integrals for the forces "//&
+                        "using the density matrix. "//&
+                        "This results in a significant speedup for large systems, "//&
+                        "but might require a somewhat tigher EPS_SCHWARZ_FORCES.", &
+            usage="SCREEN_P_FORCES TRUE",&
+            default_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       NULLIFY(keyword)
+       CALL keyword_create(keyword, name="SCREEN_ON_INITIAL_P",&
+            description="Screen on an initial density matrix. For the first MD step"//&
+                        " this matrix must be provided by a Restart File.",&
+            usage="SCREEN_ON_INITIAL_P  TRUE", default_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       NULLIFY(keyword)
+       CALL keyword_create(keyword, name="P_SCREEN_CORRECTION_FACTOR",&
+            description="Recalculates integrals on the fly if the actual density matrix is"//&
+                        " larger by a given factor than the initial one. If the factor is set"//&
+                        " to 0.0_dp, this feature is disbled.",&
+            usage="P_SCREEN_CORRECTION_FACTOR  0.0_dp", default_r_val=0.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    END IF
+ 
+  END SUBROUTINE create_hf_screening_section
+
+!***************************************************************************
+
+!!****f* input_cp2k_dft/create_hf_pbc_section [1.0] *
+!!
+!!   NAME
+!!     create_hf_pbc_section
+!!
+!!   FUNCTION
+!!     creates the input section for the hf-pbc part
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_hf_pbc_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_hf_pbc_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"PERIODIC",&
+            description="Sets up periodic boundary condition parameters if requested ",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+       NULLIFY(keyword)
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="NUMBER_OF_SHELLS",&
+            description="Number of shells taken into account for periodicity",&
+            usage="CUTOFF_RADIUS 2",&
+            default_i_val=0,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="NUMBER_OF_K_LOOPS",&
+            description="Number of iterations in the 3rd loop. Only for experimental purpose",&
+            usage="NUMBER_OF_K_LOOPS 2",&
+            default_i_val=1,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    END IF
+ 
+  END SUBROUTINE create_hf_pbc_section
+
+END MODULE input_cp2k_hfx
