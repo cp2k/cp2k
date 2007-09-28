@@ -8,7 +8,8 @@ MODULE farming_methods
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE farming_types,                   ONLY: farming_env_type
+  USE farming_types,                   ONLY: farming_env_type, &
+                                             init_job_type, job_pending, job_running, job_finished
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -18,11 +19,79 @@ MODULE farming_methods
 
   IMPLICIT NONE
   PRIVATE
-  PUBLIC  :: farming_parse_input
+  PUBLIC  :: farming_parse_input, get_next_job
+
+  ! must be negative in order to avoid confusion with job numbers
+  INTEGER, PARAMETER, PUBLIC    :: do_nothing = -1, &
+                                   do_wait    = -2, &
+                                   do_deadlock = -3
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'farming_methods'
 
 CONTAINS
+
+  SUBROUTINE get_next_job(farming_env,start,end,current,todo)
+    TYPE(farming_env_type), POINTER          :: farming_env
+    INTEGER, INTENT(IN)                      :: start, end
+    INTEGER, INTENT(INOUT)                   :: current
+    INTEGER, INTENT(OUT)                     :: todo
+
+    INTEGER :: itry,idep,ndep,icheck
+    LOGICAL :: dep_ok
+
+    IF (farming_env%cycle) THEN
+        IF (current<start) THEN
+           current=start
+        ELSE
+           current=current+1
+        ENDIF
+        IF (current>end) THEN
+            todo=do_nothing
+        ELSE
+            todo=MODULO(current-1,farming_env%njobs)+1
+        ENDIF
+    ELSE
+        ! find a pending job
+        itry=start
+        todo=do_nothing
+        DO itry=start,end
+           IF (farming_env%job(itry)%status==job_pending) THEN
+           
+              ! see if all dependencies are OK
+              ndep=SIZE(farming_env%job(itry)%dependencies)
+              dep_ok=.TRUE.
+              dep: DO idep=1,ndep
+                 DO icheck=start,end
+                    IF (farming_env%job(icheck)%status.NE.job_finished) THEN
+                      IF (farming_env%job(icheck)%id==farming_env%job(itry)%dependencies(idep)) THEN
+                          dep_ok=.FALSE. 
+                          EXIT dep
+                      ENDIF
+                    ENDIF
+                 ENDDO
+              ENDDO dep
+
+              ! if there are pending jobs, the slave can not be told to stop
+              ! at least wait if there are unresolved dependencies
+              IF (dep_OK) THEn
+                  todo=itry
+                  EXIT
+              ELSE
+                  todo=do_wait
+              ENDIF
+           ENDIF
+        ENDDO
+        ! If we have to wait, but there are no running jobs we are deadlocked
+        ! which we signal
+        IF (todo==do_wait) THEN
+           dep_OK=.FALSE.
+           DO itry=start,end
+              IF (farming_env%job(icheck)%status.EQ.job_running) dep_OK=.TRUE.
+           ENDDO 
+           IF (.NOT. dep_OK) todo=do_deadlock
+        ENDIF
+    ENDIF
+  END SUBROUTINE get_next_job
 
   SUBROUTINE farming_parse_input(farming_env,root_section,para_env,error)
     TYPE(farming_env_type), POINTER          :: farming_env
@@ -35,11 +104,13 @@ CONTAINS
 
     CHARACTER(LEN=3)                         :: text
     INTEGER                                  :: i, iunit, n_rep_val, &
-                                                output_unit, stat
+                                                output_unit, stat, num_slaves
     INTEGER, DIMENSION(:), POINTER           :: i_vals
     LOGICAL                                  :: failure, found
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: farming_section, jobs_section
+    INTEGER, POINTER, DIMENSION(:)           :: dependencies
+    LOGICAL                                  :: has_dep
 
     failure=.FALSE.
 
@@ -80,34 +151,81 @@ CONTAINS
       END IF
    END IF
 
-   CALL section_vals_val_get(farming_section,"restart",&
+   CALL section_vals_val_get(farming_section,"RESTART",&
         l_val=farming_env%restart,error=error)      
-   CALL section_vals_val_get(farming_section,"max_steps",&
+   CALL section_vals_val_get(farming_section,"MAX_JOBS_PER_GROUP",&
         i_val=farming_env%max_steps,error=error)      
-   CALL section_vals_val_get(farming_section,"cycle",&
+   CALL section_vals_val_get(farming_section,"CYCLE",&
         l_val=farming_env%cycle,error=error)      
+   CALL section_vals_val_get(farming_section,"WAIT_TIME",&
+        r_val=farming_env%wait_time,error=error)      
+
+   CALL section_vals_val_get(farming_section,"MASTER_SLAVE",&
+        l_val=farming_env%master_slave,error=error)      
+
 
    jobs_section => section_vals_get_subs_vals(farming_section,"JOB",error=error)
    CALL section_vals_get(jobs_section,n_repetition=farming_env % njobs,error=error)
    
-   ALLOCATE(farming_env%Job_cwd(farming_env % njobs),STAT=stat)
+   ALLOCATE(farming_env%Job(farming_env % njobs),STAT=stat)
    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-   ALLOCATE(farming_env%Job_input(farming_env % njobs),STAT=stat)
-   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+   CALL init_job_type(farming_env%job)
+
    IF (.NOT. failure) THEN
+      has_dep=.FALSE.
       DO i=1,farming_env%njobs
          CALL section_vals_val_get(jobs_section,i_rep_section=i,&
-              keyword_name="directory",c_val=farming_env%Job_cwd(i),error=error)
+              keyword_name="DIRECTORY",c_val=farming_env%Job(i)%cwd,error=error)
          CALL section_vals_val_get(jobs_section,i_rep_section=i,&
-              keyword_name="input_file_name",c_val=farming_env%Job_input(i),error=error)
+              keyword_name="INPUT_FILE_NAME",c_val=farming_env%Job(i)%input,error=error)
+
+         ! if job id is not specified the job id is the index
+         CALL section_vals_val_get(jobs_section,i_rep_section=i,&
+              keyword_name="JOB_ID",n_rep_val=n_rep_val,error=error)
+         IF (n_rep_val==0) THEN
+              farming_env%Job(i)%id=i
+         ELSE
+              CALL section_vals_val_get(jobs_section,i_rep_section=i,&
+                   keyword_name="JOB_ID",i_val=farming_env%Job(i)%id,error=error)
+         ENDIF
+
+         ! get dependencies
+         CALL section_vals_val_get(jobs_section,i_rep_section=i,&
+              keyword_name="DEPENDENCIES",n_rep_val=n_rep_val,error=error)
+         IF (n_rep_val==0) THEN
+            ALLOCATE(farming_env%Job(i)%dependencies(0))
+         ELSE
+            CALL section_vals_val_get(jobs_section,i_rep_section=i,&
+                 keyword_name="DEPENDENCIES",i_vals=dependencies,error=error)
+            ALLOCATE(farming_env%Job(i)%dependencies(SIZE(dependencies,1)))
+            farming_env%Job(i)%dependencies=dependencies
+            IF (SIZE(dependencies,1).NE.0) has_dep=.TRUE.
+         ENDIF
       END DO
    END IF
+
+   IF (has_dep) THEN
+      CPPostcondition(farming_env%master_slave,cp_failure_level,routineP,error,failure)
+      CPPostcondition(.NOT.farming_env%cycle,cp_failure_level,routineP,error,failure)
+   ENDIF
 
    IF (.NOT. failure) THEN
      
       logger => cp_error_get_logger(error)
       output_unit=cp_print_key_unit_nr(logger,root_section,"GLOBAL%PROGRAM_RUN_INFO",&
                                          extension=".log",error=error)
+
+      ! master slave not supported
+      IF (para_env%num_pe==1) THEN
+         farming_env%master_slave=.FALSE.
+         WRITE(output_unit,FMT="(T2,A)") "FARMING| Master-slave setup not support for serial runs"
+      ENDIF
+      IF (farming_env%master_slave) THEN
+         num_slaves=para_env%num_pe-1
+      ELSE
+         num_slaves=para_env%num_pe
+      ENDIF
+
       IF (output_unit > 0) THEN
         WRITE(output_unit,FMT="(T2,A,T71,I10)") "FARMING| Number of jobs found",farming_env%njobs
         IF (farming_env%ngroup_wish_set) THEN
@@ -119,10 +237,10 @@ CONTAINS
                  WRITE(output_unit,FMT='(I4)',ADVANCE="NO") farming_env%group_partition(i)
               END DO
               WRITE(output_unit,*)
-              IF (SUM(farming_env%group_partition).NE.para_env%num_pe) THEN
+              IF (SUM(farming_env%group_partition).NE.num_slaves) THEN
                  WRITE(output_unit,FMT="(T2,A,T61,I10,T71,I10)") &
-                     "FARMING| WARNING : partition CPUs not equal actual number ", &
-                     para_env%num_pe, SUM(farming_env%group_partition)
+                     "FARMING| WARNING : group partition CPUs not equal to the available number (ignoring master) ", &
+                     num_slaves, SUM(farming_env%group_partition)
                  WRITE(output_unit,FMT="(T2,A)") "FARMING|          partition data ignored" ! any better idea ??
                  DEALLOCATE(farming_env%group_partition)
               ENDIF

@@ -1,0 +1,62 @@
+&GLOBAL
+  PROGRAM FARMING
+  RUN_TYPE NONE
+&END GLOBAL
+
+&FARMING
+  NGROUPS 5
+  MASTER_SLAVE
+  &JOB
+    DIRECTORY dir-1
+    INPUT_FILE_NAME water.inp
+    JOB_ID 1
+  &END JOB
+  &JOB
+    DIRECTORY dir-2
+    INPUT_FILE_NAME water.inp
+    JOB_ID 1
+  &END JOB
+  &JOB
+    DIRECTORY dir-3
+    INPUT_FILE_NAME water.inp
+    JOB_ID 2
+    DEPENDENCIES 1
+  &END JOB
+  &JOB
+    DIRECTORY dir-4
+    INPUT_FILE_NAME water.inp
+    JOB_ID 3
+    DEPENDENCIES 1 2
+  &END JOB
+  &JOB
+    DIRECTORY dir-5
+    INPUT_FILE_NAME water.inp
+    JOB_ID 4
+    DEPENDENCIES 5
+  &END JOB
+  &JOB
+    DIRECTORY dir-6
+    INPUT_FILE_NAME water.inp
+    JOB_ID 5
+    DEPENDENCIES 3
+  &END JOB
+  &JOB
+    DIRECTORY dir-7
+    INPUT_FILE_NAME water.inp
+    JOB_ID 5
+    DEPENDENCIES 3
+  &END JOB
+  &JOB
+    DIRECTORY dir-8
+    INPUT_FILE_NAME water.inp
+    JOB_ID 5
+    DEPENDENCIES 3
+  &END JOB
+  &JOB
+    DIRECTORY dir-9
+    INPUT_FILE_NAME water.inp
+    JOB_ID 5
+    DEPENDENCIES 3
+  &END JOB
+&END FARMING
+

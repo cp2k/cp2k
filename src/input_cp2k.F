@@ -1269,15 +1269,24 @@ SUBROUTINE create_farming_section(section,error)
          repeats=.FALSE., required=.TRUE., error=error)
   NULLIFY(keyword)
 
-  CALL keyword_create(keyword, name="GROUP_SIZE",&
-         description="Gives the wanted size of a working group.",&
-         usage="group_size 2", default_i_val=8, error=error)
+  CALL keyword_create(keyword, name="MASTER_SLAVE",&
+         description="If a master-slave setup should be employed, in which one process is used to distribute the tasks. "//&
+                     "This is most useful to load-balance if not all jobs have the same length, "//&
+                     "and a lot of CPUs/groups are availabe.",&
+         usage="MASTER_SLAVE",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
   CALL section_add_keyword(section,keyword,error=error)
   CALL keyword_release(keyword,error=error)
 
   CALL keyword_create(keyword, name="NGROUPS",variants=(/"NGROUP"/),&
-         description="Gives the wanted number of groups.",&
+         description="Gives the preferred number of working groups.",&
          usage="ngroups 4", type_of_var=integer_t, error=error)
+  CALL section_add_keyword(section,keyword,error=error)
+  CALL keyword_release(keyword,error=error)
+
+  CALL keyword_create(keyword, name="GROUP_SIZE",&
+         description="Gives the preferred size of a working group, "//&
+                     "groups will always be equal or larger than this size.",&
+         usage="group_size 2", default_i_val=8, error=error)
   CALL section_add_keyword(section,keyword,error=error)
   CALL keyword_release(keyword,error=error)
 
@@ -1288,44 +1297,75 @@ SUBROUTINE create_farming_section(section,error)
   CALL keyword_release(keyword,error=error)
 
   CALL keyword_create(keyword, name="RESTART",&
-         description="if you are restarting a farming job (and should pick up where the previous left off)",&
+         description="restart a farming job (and should pick up where the previous left off)",&
          usage="RESTART",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
          error=error)
   CALL section_add_keyword(section,keyword,error=error)
   CALL keyword_release(keyword,error=error)
 
-  CALL keyword_create(keyword, name="MAX_STEP",variants=(/"max_steps"/),&
-         description="maximum number of steps done by a processor",&
+  CALL keyword_create(keyword, name="MAX_JOBS_PER_GROUP",&
+         variants=(/"MAX_JOBS"/),&
+         description="maximum number of jobs executed per group",&
          usage="max_step 4", default_i_val=HUGE(0)/32768, error=error)
   CALL section_add_keyword(section,keyword,error=error)
   CALL keyword_release(keyword,error=error)
 
   CALL keyword_create(keyword, name="CYCLE",&
-         description="If farming should cycle between the inputs" ,&
+         description="If farming should process all jobs in a cyclic way, stopping only if MAX_JOBS_PER_GROUP is exceeded." ,&
          usage="CYCLE",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
          error=error)
   CALL section_add_keyword(section,keyword,error=error)
   CALL keyword_release(keyword,error=error)
 
+  CALL keyword_create(keyword, name="WAIT_TIME",&
+         description="Time to wait [s] for a new task if no task is currently available, make this zero if no clock is available",&
+         usage="WAIT_TIME 0.1",default_r_val=0.5_dp, error=error)
+  CALL section_add_keyword(section,keyword,error=error)
+  CALL keyword_release(keyword,error=error)
+
   NULLIFY(sub_section)
-  CALL section_create(sub_section,name="job",&
+  CALL section_create(sub_section,name="JOB",&
          description="description of the jobs to be executed",&
          repeats=.TRUE., required=.TRUE., error=error)
 
-  CALL keyword_create(keyword,name="directory",&
+  CALL keyword_create(keyword,name="DIRECTORY",&
        description="the directory in which the job should be executed",&
-       usage="directory /my/path",&
+       usage="DIRECTORY /my/path",&
        required=.TRUE.,default_lc_val=".",error=error)
   CALL section_add_keyword(sub_section,keyword,error=error)
   CALL keyword_release(keyword,error=error)
 
-  CALL keyword_create(keyword,name="input_file_name",&
+  CALL keyword_create(keyword,name="INPUT_FILE_NAME",&
        description="the filename of the input file",&
        usage="input_file my_input.inp",&
        required=.TRUE.,default_lc_val="input.inp",error=error)
   CALL section_add_keyword(sub_section,keyword,error=error)
   CALL keyword_release(keyword,error=error)
   
+  CALL keyword_create(keyword,name="JOB_ID",&
+       description="An ID used to indentify a job in DEPENDENCIES. "//&
+                   "JOB_IDs do not need to be unique, dependencies will be on all jobs with a given ID. "//&
+                   "If no JOB_ID is given, the index of the &JOB section in the input file will be used. ",&
+       usage="JOB_ID 13", type_of_var=integer_t, error=error)
+  CALL section_add_keyword(sub_section,keyword,error=error)
+  CALL keyword_release(keyword,error=error)
+
+  CALL keyword_create(keyword,name="DEPENDENCIES",&
+       description="specifies a list of JOB_IDs on which the current job depends. "//&
+                   "The current job will not be executed before all the dependencies have finished. "//&
+                   "The keyword requires a MASTER_SLAVE farming run. "//&
+                   "Beyond the default case, some special cases might arise: "//&
+                   "1) circular dependencies will lead to a deadlock. "//&
+                   "2) This keyword is not compatible with CYCLE. "//&
+                   "3) MAX_JOBS_PER_GROUP is ignored (though only a total of MAX_JOBS_PER_GROUP*NGROUPS jobs will be executed) "//&
+                   "4) dependencies on jobs that will not be executed (due to RESTART or MAX_JOBS_PER_GROUP) are ignored. "//&
+                   "Additionally, note that, on some file systems, "//&
+                   " output (restart) files might not be immediately available on all compute nodes,"//&
+                   "potentially resulting in unexpected failures.", &
+       usage="DEPENDENCIES 13 1 7",type_of_var=integer_t, n_var=-1, error=error)
+  CALL section_add_keyword(sub_section,keyword,error=error)
+  CALL keyword_release(keyword,error=error)
+
   CALL section_add_subsection(section, sub_section, error=error)
   CALL section_release(sub_section,error=error)
 

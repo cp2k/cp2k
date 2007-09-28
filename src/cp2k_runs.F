@@ -36,10 +36,15 @@ MODULE cp2k_runs
                                              f_env_add_defaults,&
                                              f_env_rm_defaults,&
                                              f_env_type
-  USE farming_methods,                 ONLY: farming_parse_input
+  USE farming_methods,                 ONLY: farming_parse_input, &
+                                             get_next_job, &
+                                             do_nothing, &
+                                             do_wait, &
+                                             do_deadlock
   USE farming_types,                   ONLY: deallocate_farming_env,&
                                              farming_env_type,&
-                                             init_farming_env
+                                             init_farming_env,&
+                                             job_pending,job_running,job_finished
   USE fist_debug,                      ONLY: fist_debug_control => debug_control
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
@@ -71,21 +76,20 @@ MODULE cp2k_runs
                                              dp
   USE library_tests,                   ONLY: lib_test
   USE machine,                         ONLY: m_chdir,&
+                                             m_flush,&
                                              m_getcwd,&
                                              m_walltime
   USE mc_run,                          ONLY: do_mon_car
   USE md_run,                          ONLY: qs_mol_dyn
-  USE message_passing,                 ONLY: mp_comm_free,&
-                                             mp_comm_split,&
-                                             mp_environ,&
-                                             mp_sum,&
-                                             mp_sync
+  USE message_passing,                 ONLY: &
+       mp_any_source, mp_bcast, mp_comm_dup, mp_comm_free, mp_comm_split, &
+       mp_environ, mp_recv, mp_send, mp_sum, mp_sync
   USE neb_methods,                     ONLY: neb
   USE pint_methods,                    ONLY: do_pint_run
   USE qs_debug,                        ONLY: qs_debug_energy_and_forces
   USE qs_linres_module,                ONLY: linres_calculation
   USE qs_tddfpt_module,                ONLY: tddfpt_calculation
-  USE reference_manager,               ONLY: print_all_references, &
+  USE reference_manager,               ONLY: print_all_references,&
                                              print_format_html
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -427,15 +431,22 @@ CPSourceFileRef,&
 
     CHARACTER(len=*), PARAMETER :: routineN = 'farming_run', &
       routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: slave_status_done = -3, &
+                                                slave_status_wait = -4 
 
     CHARACTER(len=5)                         :: label
     CHARACTER(LEN=default_path_length)       :: output_file
     CHARACTER(LEN=default_string_length)     :: str
-    INTEGER :: handle, i, i_job_to_restart, ierr, ijob, ijob_end, ijob_start, &
-      iunit, n_jobs_to_run, new_group, new_output_unit, new_rank, new_size, &
-      ngroups, output_unit, stat
-    INTEGER, DIMENSION(:), POINTER           :: group_distribution
-    LOGICAL                                  :: failure, found, run_OK
+    INTEGER :: dest, handle, i, i_job_to_restart, ierr, ijob, ijob_end, &
+      ijob_start, ijob_current, iunit, n_jobs_to_run, new_group, new_output_unit, new_rank, &
+      new_size, ngroups, num_slaves, output_unit, primus_slave, slave_group, &
+      slave_rank, source, stat, tag, todo
+    INTEGER, DIMENSION(:), POINTER           :: group_distribution, &
+                                                master_slave_partition, &
+                                                slave_distribution, &
+                                                slave_status
+    LOGICAL                                  :: failure, found, master, &
+                                                run_OK, slave
     REAL(KIND=dp)                            :: t1, t2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: waittime
     TYPE(cp_logger_type), POINTER            :: logger
@@ -444,6 +455,8 @@ CPSourceFileRef,&
     TYPE(farming_env_type), POINTER          :: farming_env
     TYPE(section_type), POINTER              :: g_section
     TYPE(section_vals_type), POINTER         :: g_data
+
+! the primus of all slaves, talks to the master on topics concerning all slaves
 
     failure=.FALSE.
     CALL timeset(routineN,'I','',handle)
@@ -462,25 +475,94 @@ CPSourceFileRef,&
     CALL m_getcwd(farming_env%cwd)
     CALL farming_parse_input(farming_env,root_section,para_env,error)
 
-    ! split the current communicator
-    ALLOCATE(group_distribution(0:para_env%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF (farming_env%group_size_wish_set) THEN
-       CALL mp_comm_split(para_env%group,new_group,ngroups,group_distribution,&
-               subgroup_min_size=farming_env%group_size_wish)
-    ELSE IF (farming_env%ngroup_wish_set) THEN
-       CALL mp_comm_split(para_env%group,new_group,ngroups,group_distribution,&
-               n_subgroups=farming_env%ngroup_wish,&
-               group_partition=farming_env%group_partition)
-    ELSE
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-    ENDIF
-    CALL mp_environ(new_size,new_rank,new_group)
+    ! the full mpi group is first split in a slave group and a master group, the latter being at most 1 process
+    slave=.TRUE.
+    master=.FALSE.
+    IF (farming_env%master_slave) THEN
+       IF (output_unit>0) WRITE(output_unit,FMT="(T2,A)") "FARMING| using a master-slave setup"
 
+       ALLOCATE(master_slave_partition(0:1))
+       master_slave_partition=(/1,para_env%num_pe-1/)
+       ALLOCATE(group_distribution(0:para_env%num_pe-1),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       CALL mp_comm_split(para_env%group,slave_group,ngroups,group_distribution,&
+                   n_subgroups=2, group_partition=master_slave_partition)
+       DEALLOCATE(master_slave_partition)
+       DEALLOCATE(group_distribution)
+       CALL mp_environ(num_slaves,slave_rank,slave_group)
+
+       IF (para_env%mepos==0) THEN
+           slave =.FALSE.
+           master=.TRUE.
+           ! on the master node, num_slaves corresponds to the size of the master group
+           ! due to the mp_environ call.
+           CPPostcondition(num_slaves==1,cp_failure_level,routineP,error,failure)
+           num_slaves=para_env%num_pe-1
+           slave_rank=-1
+       ENDIF
+       CPPostcondition(num_slaves==para_env%num_pe-1,cp_failure_level,routineP,error,failure)
+    ELSE
+       ! all processes are slaves
+       IF (output_unit>0) WRITE(output_unit,FMT="(T2,A)") "FARMING| using a slave-only setup"
+       CALL mp_comm_dup(para_env%group,slave_group)
+       CALL mp_environ(num_slaves,slave_rank,slave_group)
+    ENDIF
+    IF (output_unit>0) WRITE(output_unit,FMT="(T2,A,I0)") "FARMING| number of slaves ",num_slaves
+    
+    ! keep track of which para_env rank is which slave/master
+    ALLOCATE(slave_distribution(0:para_env%num_pe-1),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    slave_distribution=0
+    slave_distribution(para_env%mepos)=slave_rank
+    CALL mp_sum(slave_distribution,para_env%group)
+    ! we do have a primus inter pares
+    primus_slave=0
+    DO i=1,para_env%num_pe-1
+       IF (slave_distribution(i)==0) primus_slave=i
+    ENDDO
+
+    ! split the current communicator for the slaves
+    ! in a new_group, new_size and new_rank according to the number of groups required according to the input
+    ALLOCATE(group_distribution(0:num_slaves-1),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    group_distribution=-1
+    IF (slave) THEN
+        IF (farming_env%group_size_wish_set) THEN
+           CALL mp_comm_split(slave_group,new_group,ngroups,group_distribution,&
+                   subgroup_min_size=farming_env%group_size_wish)
+        ELSE IF (farming_env%ngroup_wish_set) THEN
+           CALL mp_comm_split(slave_group,new_group,ngroups,group_distribution,&
+                   n_subgroups=farming_env%ngroup_wish,&
+                   group_partition=farming_env%group_partition)
+        ELSE
+           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+        ENDIF
+        CALL mp_environ(new_size,new_rank,new_group)
+    ENDIF
+
+
+    ! transfer the info about the slave group distribution to the master
+    IF (farming_env%master_slave) THEN
+       IF (para_env%mepos==primus_slave) THEN
+           tag=1
+           CALL mp_send(group_distribution,0,tag,para_env%group)
+           tag=2
+           CALL mp_send(ngroups,0,tag,para_env%group)
+       ENDIF
+       IF (para_env%mepos==0) THEN
+           tag=1
+           CALL mp_recv(group_distribution,primus_slave,tag,para_env%group)
+           tag=2
+           CALL mp_recv(ngroups,primus_slave,tag,para_env%group)
+       ENDIF
+    ENDIF
+
+    ! write info on group distribution
     IF (output_unit>0) THEN
-        WRITE(output_unit,FMT="(T2,A,T71,I10)") "FARMING| Number of created MPI groups:",ngroups
-        WRITE(output_unit,FMT="(T2,A)",ADVANCE="NO") "FARMING| Task to group correspondence:"
-        DO i=0,para_env%num_pe-1
+        WRITE(output_unit,FMT="(T2,A,T71,I10)") "FARMING| Number of created MPI (slave) groups:",ngroups
+        WRITE(output_unit,FMT="(T2,A)",ADVANCE="NO") "FARMING| MPI (slave) process to group correspondence:"
+        DO i=0,num_slaves-1
            IF (MODULO(i,4)==0) WRITE(output_unit,*)
            WRITE(output_unit,FMT='(A3,I4,A3,I4,A1)',ADVANCE="NO")&
                 "  (",i," : ",group_distribution(i),")"
@@ -489,10 +571,9 @@ CPSourceFileRef,&
     ENDIF
 
     ! protect about too many jobs being run in single go. Not more jobs are allowed than the number in the input file
-
-    ! and determine the restart point
+    ! and determine the future restart point
     IF (farming_env%cycle) THEN
-       n_jobs_to_run=MIN(farming_env%njobs,farming_env%max_steps*ngroups)
+       n_jobs_to_run=farming_env%max_steps*ngroups
        i_job_to_restart=MODULO(farming_env%restart_n+n_jobs_to_run-1,farming_env%njobs)+1
     ELSE
        n_jobs_to_run=MIN(farming_env%njobs,farming_env%max_steps*ngroups)
@@ -500,7 +581,7 @@ CPSourceFileRef,&
        i_job_to_restart=n_jobs_to_run+farming_env%restart_n
     ENDIF
 
-    ! and write it now, that's the point where the next job starts, even if this one is running
+    ! and write the restart now, that's the point where the next job starts, even if this one is running
     IF (para_env%ionode) THEN
        iunit=get_unit_number()
        OPEN(UNIT=iunit,FILE="RESTARTFARM")
@@ -508,112 +589,171 @@ CPSourceFileRef,&
        CLOSE(UNIT=iunit)
     ENDIF
 
-    ! this is the job range to be executed. Will be treated cycle
+    ! this is the job range to be executed. 
     ijob_start=farming_env%restart_n
     ijob_end=ijob_start+n_jobs_to_run-1
-
-    IF (output_unit>0) THEN
-      IF (ijob_end-ijob_start<0) THEN
-        WRITE(output_unit,FMT="(T2,A)") "FARMING| --- WARNING --- NO JOBS NEED EXECUTION ? "
-        WRITE(output_unit,FMT="(T2,A)") "FARMING| is the cycle keyword required ?"
-        WRITE(output_unit,FMT="(T2,A)") "FARMING| or is a stray RESTARTFARM present ?"
-      ELSE
-        WRITE(output_unit,FMT="(T2,A)") "FARMING| List of jobs : "
-        DO ijob=ijob_start,ijob_end
-         i=MODULO(ijob-1,farming_env%njobs)+1
-         WRITE(output_unit,FMT=*) "Job: ",i," Dir: ",TRIM(farming_env%Job_cwd(i))," Input: ", &
-           TRIM(farming_env%Job_input(i))," MPI group:", MODULO(i-1,ngroups)
-        ENDDO
-      ENDIF
+    IF (output_unit>0 .AND. ijob_end-ijob_start<0) THEN
+       WRITE(output_unit,FMT="(T2,A)") "FARMING| --- WARNING --- NO JOBS NEED EXECUTION ? "
+       WRITE(output_unit,FMT="(T2,A)") "FARMING| is the cycle keyword required ?"
+       WRITE(output_unit,FMT="(T2,A)") "FARMING| or is a stray RESTARTFARM present ?"
+       WRITE(output_unit,FMT="(T2,A)") "FARMING| or is the group_size requested smaller than the number of CPUs?"
     ENDIF
 
+    ! actual executions of the jobs in two different modes
+    IF (farming_env%master_slave) THEN
+       IF (slave) THEN
+          ! keep on doing work until master has decided otherwise
+          todo=do_wait
+          DO
+             IF (new_rank==0) THEN
+                ! the head slave tells the master he's done or ready to start
+                ! the message tells what has been done lately
+                tag=1
+                dest=0
+                CALL mp_send(todo,dest,tag,para_env%group)
 
-    DO ijob=ijob_start,ijob_end
-       i=MODULO(ijob-1,farming_env%njobs)+1
-       ! this farms out the jobs
-       IF (MODULO(ijob-1,ngroups)==group_distribution(para_env%mepos)) THEN
-          ! change to the new working directory
-          CALL m_chdir(TRIM(farming_env%Job_cwd(i)),ierr)
+                ! gets the new todo item
+                tag=2
+                source=0
+                CALL mp_recv(todo,source,tag,para_env%group)
 
-          ! generate a fresh call to cp2k_run
-          IF (ierr==0) THEN
-              IF (new_rank == 0) THEN
+                ! and informs his peer slaves
+                CALL mp_bcast(todo,0,new_group)
+             ELSE
+                CALL mp_bcast(todo,0,new_group)
+             ENDIF
+            
+             ! if the todo is do_nothing we are flagged to quit. Otherwise it is the job number
+             SELECT CASE(todo)
+             CASE(do_wait,do_deadlock)
+                ! go for a next round, but we first wait a bit
+                t1=m_walltime()
+                DO 
+                  t2=m_walltime()
+                  IF (t2-t1>farming_env%wait_time) EXIT
+                ENDDO
+             CASE(do_nothing)
+                EXIT
+             CASE(1:)
+                CALL execute_job(todo)
+             END SELECT
+          ENDDO
+       ELSE ! master
+          ALLOCATE(slave_status(0:ngroups-1),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          slave_status=slave_status_wait
+          ijob_current=ijob_start-1 
 
-                 ! generate the output file
-                  WRITE(output_file,'(A12,I5.5)') "FARMING_OUT_",i
-                  CALL parser_create(my_parser,file_name=TRIM(farming_env%Job_input(i)),error=error)
-                  label="&GLOBAL"
-                  CALL parser_search_string(my_parser,label,ignore_case=.TRUE.,found=found,error=error)
-                  IF (found) THEN
-                     CALL create_global_section(g_section,error=error)
-                     CALL section_vals_create(g_data,g_section,error=error)
-                     CALL cp_unit_set_create(default_units, "OUTPUT",error=error)
-                     CALL section_vals_parse(g_data,my_parser,default_units,&
-                          error=error)
-                     CALL cp_unit_set_release(default_units,error=error)
-                     CALL section_vals_val_get(g_data,"PROJECT",&
-                          c_val=str, error=error)
-                     IF (str.NE."") output_file=TRIM(str)//".out"
-                     CALL section_vals_val_get(g_data,"OUTPUT_FILE_NAME",&
-                             c_val=str,error=error)
-                     IF (str.NE."") output_file=str
-                     CALL section_vals_release(g_data,error=error)
-                     CALL section_release(g_section,error=error)
-                  END IF
-                  CALL parser_release(my_parser,error=error)
-                  CALL open_file(file_name=TRIM(output_file),&
-                        file_action="WRITE",&
-                        file_status="UNKNOWN",&
-                        file_position="APPEND",&
-                        unit_number=new_output_unit)
-              ELSE
-                ! this should never be used by cp2k_run, but e.g. still happens, incorrectly,
-                ! on eror, writes now to fort.999 so that error messages can be recovered and fixed
-                new_output_unit=999
-              ENDIF
+          DO 
+             IF (ALL(slave_status==slave_status_done)) EXIT
 
-              IF (output_unit > 0) WRITE(output_unit,FMT="(T2,A,I5.5,A)") " Running Job ",i, &
-                        " output to "//TRIM(farming_env%Job_cwd(i))//"/"//TRIM(output_file)
-              run_OK=cp2k_run(TRIM(farming_env%Job_input(i)),new_output_unit,new_group)
+             ! who's the next slave waiting for work
+             tag=1
+             source=mp_any_source
+             CALL mp_recv(todo,source,tag,para_env%group) ! updates source
+             IF (todo>0) THEN
+                farming_env%Job(todo)%status=job_finished
+                IF (output_unit>0) THEN
+                   WRITE(output_unit,FMT=*) "Job finished: ",todo
+                   CALL m_flush(output_unit)
+                ENDIF
+             ENDIF
 
-              IF (new_rank == 0) CALL close_file(unit_number=new_output_unit)
+             ! get the next job in line, this could be do_nothing, if we're finished
+             CALL get_next_job(farming_env,ijob_start,ijob_end,ijob_current,todo)
+             dest=source
+             tag =2 
+             CALL mp_send(todo,dest,tag,para_env%group)
 
-          ELSE ! problem if just one node does not change...
-              IF (output_unit > 0 ) WRITE(output_unit,FMT="(T2,A,A)") &
-                     " ... Failed to change dir to "//TRIM(farming_env%Job_cwd(i))
-          ENDIF
+             IF (todo>0) THEN
+               farming_env%Job(todo)%status=job_running
+               IF (output_unit>0) THEN
+                 WRITE(output_unit,FMT=*) "Job: ",todo," Dir: ",TRIM(farming_env%Job(todo)%cwd), &
+                                        " assigned to group ",group_distribution(slave_distribution(dest))
+                 CALL m_flush(output_unit)
+               ENDIF
+             ELSE
+               IF (todo==do_nothing) THEN
+                   slave_status(group_distribution(slave_distribution(dest)))=slave_status_done
+                   IF (output_unit>0) THEN
+                      WRITE(output_unit,FMT=*) "group done: ",group_distribution(slave_distribution(dest))
+                      CALL m_flush(output_unit)
+                   ENDIF
+               ENDIF
+               IF (todo==do_deadlock) THEN
+                   IF (output_unit>0) THEN
+                      WRITE(output_unit,FMT=*) ""
+                      WRITE(output_unit,FMT=*) "FARMING JOB DEADLOCKED ... CIRCULAR DEPENDENCIES"
+                      WRITE(output_unit,FMT=*) ""
+                      CALL m_flush(output_unit)
+                   ENDIF
+                   CPPostcondition(todo.NE.do_deadlock,cp_failure_level,routineP,error,failure)
+               ENDIF
+             ENDIF
 
-          ! change to the original working directory
-          CALL m_chdir(TRIM(farming_env%cwd),ierr)
-          IF (ierr/=0) THEN
-              IF (output_unit > 0) WRITE(output_unit,FMT="(T2,A,A)") &
-                         " ... Failed to change back home to "//TRIM(farming_env%cwd)
-          ENDIF
+          ENDDO
+
+          DEALLOCATE(slave_status,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        ENDIF
-    ENDDO
+    ELSE
+       ! this is the non-master-slave mode way of executing the jobs  
+       ! the i-th job in the input is always executed by the MODULO(i-1,ngroups)-th group
+       ! (needed for cyclic runs, we don't want two groups working on the same job)
+       IF (output_unit>0) THEN
+         IF (ijob_end-ijob_start>=0) THEN
+           WRITE(output_unit,FMT="(T2,A)") "FARMING| List of jobs : "
+           DO ijob=ijob_start,ijob_end
+            i=MODULO(ijob-1,farming_env%njobs)+1
+            WRITE(output_unit,FMT=*) "Job: ",i," Dir: ",TRIM(farming_env%Job(i)%cwd)," Input: ", &
+              TRIM(farming_env%Job(i)%input)," MPI group:", MODULO(i-1,ngroups)
+           ENDDO
+         ENDIF
+       ENDIF
 
+       DO ijob=ijob_start,ijob_end
+          i=MODULO(ijob-1,farming_env%njobs)+1
+          ! this farms out the jobs
+          IF (MODULO(i-1,ngroups)==group_distribution(slave_rank)) THEN
+             IF (output_unit > 0) WRITE(output_unit,FMT="(T2,A,I5.5,A)",ADVANCE="NO") " Running Job ",i, &
+                           " in "//TRIM(farming_env%Job(i)%cwd)//"."
+             CALL execute_job(i)
+             IF (output_unit > 0) WRITE(output_unit,FMT="(A)") " Done, output in "//TRIM(output_file)
+          ENDIF
+       ENDDO
+    ENDIF
+
+    ! keep information about how long each process has to wait
+    ! i.e. the load imbalance
     t1=m_walltime()
     CALL mp_sync(para_env%group)
     t2=m_walltime()
-    ALLOCATE(waittime(0:ngroups-1))
+    ALLOCATE(waittime(0:para_env%num_pe-1))
     waittime=0.0_dp
-    IF (new_rank==0) waittime(group_distribution(para_env%mepos))=t2-t1
+    waittime(para_env%mepos)=t2-t1
     CALL mp_sum(waittime,para_env%group)
     IF (output_unit>0) THEN
-       WRITE(output_unit,'(T2,A)') "Group idle times [s] at the end of the run"
-       DO i=0,ngroups-1
+       WRITE(output_unit,'(T2,A)') "Process idle times [s] at the end of the run"
+       DO i=0,para_env%num_pe-1
          WRITE(output_unit,FMT='(A2,I4,A3,F8.3,A1)',ADVANCE="NO")&
                 " (",i," : ",waittime(i),")"
          IF (MOD(i+1,4)==0) WRITE(output_unit,'(A)') ""
        ENDDO
+       CALL m_flush(output_unit)
     ENDIF
     DEALLOCATE(waittime)
 
     ! give back the communicators of the split groups
-    CALL mp_comm_free(new_group)
+    IF (slave) CALL mp_comm_free(new_group)
+    CALL mp_comm_free(slave_group)
+
+    ! and message passing deallocate structures
     DEALLOCATE(group_distribution,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(slave_distribution,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
     ! clean the farming env
     CALL deallocate_farming_env(farming_env)
 
@@ -622,6 +762,59 @@ CPSourceFileRef,&
 
     CALL timestop(0.0_dp,handle)
 
+  CONTAINS
+    SUBROUTINE execute_job(i)
+       INTEGER :: i
+
+       ! change to the new working directory
+       CALL m_chdir(TRIM(farming_env%Job(i)%cwd),ierr)
+       CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+
+       ! generate a fresh call to cp2k_run
+       IF (new_rank == 0) THEN
+
+          ! generate the output file
+           WRITE(output_file,'(A12,I5.5)') "FARMING_OUT_",i
+           CALL parser_create(my_parser,file_name=TRIM(farming_env%Job(i)%input),error=error)
+           label="&GLOBAL"
+           CALL parser_search_string(my_parser,label,ignore_case=.TRUE.,found=found,error=error)
+           IF (found) THEN
+              CALL create_global_section(g_section,error=error)
+              CALL section_vals_create(g_data,g_section,error=error)
+              CALL cp_unit_set_create(default_units, "OUTPUT",error=error)
+              CALL section_vals_parse(g_data,my_parser,default_units,&
+                   error=error)
+              CALL cp_unit_set_release(default_units,error=error)
+              CALL section_vals_val_get(g_data,"PROJECT",&
+                   c_val=str, error=error)
+              IF (str.NE."") output_file=TRIM(str)//".out"
+              CALL section_vals_val_get(g_data,"OUTPUT_FILE_NAME",&
+                      c_val=str,error=error)
+              IF (str.NE."") output_file=str
+              CALL section_vals_release(g_data,error=error)
+              CALL section_release(g_section,error=error)
+           END IF
+           CALL parser_release(my_parser,error=error)
+           CALL open_file(file_name=TRIM(output_file),&
+                 file_action="WRITE",&
+                 file_status="UNKNOWN",&
+                 file_position="APPEND",&
+                 unit_number=new_output_unit)
+       ELSE
+         ! this should never be used by cp2k_run, but e.g. still happens, incorrectly,
+         ! on eror, writes now to fort.999 so that error messages can be recovered and fixed
+         new_output_unit=999
+       ENDIF
+
+       run_OK=cp2k_run(TRIM(farming_env%Job(i)%input),new_output_unit,new_group)
+
+       IF (new_rank == 0) CALL close_file(unit_number=new_output_unit)
+
+       ! change to the original working directory
+       CALL m_chdir(TRIM(farming_env%cwd),ierr)
+       CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+
+     END SUBROUTINE execute_job
   END SUBROUTINE farming_run
 
 !!****f* cp2k_runs/write_cp2k_html_manual *
@@ -744,7 +937,7 @@ WRITE(unit_nr,*) ' <!-- END CODE --></TD><TD> '
        WRITE(unit_nr,*) "<HTML><BODY><HEAD><TITLE>The cp2k literature list</TITLE>"
        WRITE(unit_nr,*) "<H1>CP2K references</H1>"
        CALL print_all_references(sorted=.FALSE.,cited_only=.FALSE., &
-                          format=print_format_html,unit=unit_nr)
+                          FORMAT=print_format_html,unit=unit_nr)
        WRITE(unit_nr,*) '<BR><hr>Back to the <A HREF="http://cp2k.berlios.de/">CP2K homepage</A>'
        WRITE(unit_nr,*) "</BODY></HTML>"
        CALL close_file(unit_nr)
