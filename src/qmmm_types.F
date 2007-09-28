@@ -183,7 +183,6 @@ MODULE qmmm_types
      REAL(KIND=dp)                                           :: eps_mm_rspace
      REAL(KIND=dp), DIMENSION(3)                             :: dOmmOqm, utrasl, transl_v
      REAL(KIND=dp), DIMENSION(:), POINTER                    :: maxradius
-     INTEGER,        DIMENSION(:), POINTER                   :: qm_subsys_index
      INTEGER,        DIMENSION(:), POINTER                   :: qm_atom_index
      INTEGER,        DIMENSION(:), POINTER                   :: mm_atom_index
      REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_atom_chrg
@@ -410,7 +409,7 @@ SUBROUTINE qmmm_env_qm_create(qmmm_env, error)
      qmmm_env%ref_count=1
      last_qmmm_env_id_nr=last_qmmm_env_id_nr+1
      qmmm_env%id_nr=last_qmmm_env_id_nr
-     NULLIFY(qmmm_env%qm_atom_index,qmmm_env%qm_subsys_index,&
+     NULLIFY(qmmm_env%qm_atom_index,&
              qmmm_env%mm_atom_index,qmmm_env%mm_atom_chrg,&
              qmmm_env%pgfs, qmmm_env%maxradius,&
              qmmm_env%aug_pools, qmmm_env%potentials,&
@@ -532,10 +531,6 @@ SUBROUTINE qmmm_env_qm_release(qmmm_env,error)
         END IF
         IF (ASSOCIATED(qmmm_env%mm_el_pot_radius_corr)) THEN
            DEALLOCATE(qmmm_env%mm_el_pot_radius_corr,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
-        END IF
-        IF (ASSOCIATED(qmmm_env%qm_subsys_index)) THEN
-           DEALLOCATE(qmmm_env%qm_subsys_index,stat=stat)
            CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
         END IF
         IF (ASSOCIATED(qmmm_env%pgfs)) THEN

@@ -26,9 +26,9 @@ MODULE mc_ensembles
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_p_type,&
-                                             cp_subsystem_pp_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_p_type,&
+                                             cp_subsys_type
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
@@ -46,8 +46,8 @@ MODULE mc_ensembles
   USE mc_coordinates,                  ONLY: check_for_overlap,&
                                              create_discrete_array,&
                                              find_mc_test_molecule,&
-                                             mc_coordinate_fold,&
                                              get_center_of_mass,&
+                                             mc_coordinate_fold,&
                                              rotate_molecule
   USE mc_environment_types,            ONLY: get_mc_env,&
                                              mc_environment_p_type,&
@@ -82,9 +82,9 @@ MODULE mc_ensembles
                                              particle_list_type
   USE particle_types,                  ONLY: write_particle_coordinates
   USE physcon,                         ONLY: angstrom,&
-                                             n_avogadro,&
+                                             boltzmann,&
                                              joule,&
-                                             boltzmann
+                                             n_avogadro
   USE termination,                     ONLY: external_control,&
                                              stop_memory,&
                                              stop_program
@@ -185,10 +185,9 @@ CONTAINS
                                                 final_energy, initial_energy, &
                                                 last_bias_energy, old_energy
     TYPE(cell_p_type), DIMENSION(:), POINTER :: cell
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: biassys
-    TYPE(cp_subsystem_pp_type), &
-      DIMENSION(:), POINTER                  :: oldsys
+    TYPE(cp_subsys_p_type), DIMENSION(:), &
+      POINTER                                :: oldsys
+    TYPE(cp_subsys_type), POINTER            :: biassys
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: bias_env, force_env
     TYPE(mc_averages_p_type), DIMENSION(:), &
@@ -354,7 +353,7 @@ CONTAINS
             subsys=oldsys(ibox)%subsys,cell=cell(ibox)%cell,&
             error=error)
          CALL get_cell(cell(ibox)%cell,abc=abc(:,ibox))
-         CALL cp_subsys_get(oldsys(ibox)%subsys(1)%subsys, &
+         CALL cp_subsys_get(oldsys(ibox)%subsys, &
             particles=particles_old(ibox)%list, error=error)
 ! record the old coordinates, in case a move is rejected
          DO iparticle=1,nunits_tot(ibox)
@@ -865,7 +864,7 @@ CONTAINS
                subsys=oldsys(ibox)%subsys,cell=cell(ibox)%cell,&
                error=error)
             CALL get_cell(cell(ibox)%cell,abc=abc(:,ibox))
-            CALL cp_subsys_get(oldsys(ibox)%subsys(1)%subsys,&
+            CALL cp_subsys_get(oldsys(ibox)%subsys,&
                particles=particles_old(ibox)%list, error=error)
          ENDDO
 
@@ -1008,7 +1007,7 @@ CONTAINS
                   IF(lbias) THEN
                      CALL force_env_get(bias_env(ibox)%force_env,&
                           subsys=biassys,error=error)
-                     CALL cp_subsys_get(biassys(1)%subsys,&
+                     CALL cp_subsys_get(biassys,&
                           particles=particles_bias, error=error)
 
                      DO iunit=1,nunits_tot(ibox)
@@ -1216,33 +1215,24 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
-! *** local
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_compute_virial'
 
-    INTEGER, DIMENSION(:, :), POINTER        :: nchains
+    INTEGER :: current_division, end_atom, group, ibin, idivision, iparticle, &
+      iprint, istat, itemp, iunit, ivirial, iw, nbins, nchain_total, &
+      nintegral_divisions, nmol_types, nvirial, nvirial_temps, source, &
+      start_atom
     INTEGER, DIMENSION(:), POINTER           :: mol_type, nunits, nunits_tot
-    INTEGER                                  :: group, nintegral_divisions,&
-                                                iparticle, istat, iunit, &
-                                                ivirial, iw, nchain_total, &
-                                                idivision, current_division, &
-                                                nmol_types, source, iprint,&
-                                                start_atom, end_atom, nvirial,&
-                                                ibin, nbins, itemp, nvirial_temps
+    INTEGER, DIMENSION(:, :), POINTER        :: nchains
     LOGICAL                                  :: ionode, loverlap
-    REAL(dp), DIMENSION(:), POINTER          :: virial_cutoffs,virial_stepsize,&
-         BETA,virial_temps
-    REAL(dp), DIMENSION(:, :), POINTER       :: mass,r_old,mayer
-    REAL(KIND=dp)                            :: ave_virial,&
-                                                previous_exponential,distance,&
-                                                current_exponential,&
-                                                exponent,trial_energy,&
-                                                integral,previous_value,&
-                                                current_value,square_value,&
-                                                triangle_value
-    REAL(KIND=dp), DIMENSION(1:3)            :: abc,center_of_mass
+    REAL(dp), DIMENSION(:), POINTER          :: BETA, virial_cutoffs, &
+                                                virial_stepsize, virial_temps
+    REAL(dp), DIMENSION(:, :), POINTER       :: mass, mayer, r_old
+    REAL(KIND=dp) :: ave_virial, current_value, distance, exponent, integral, &
+      previous_value, square_value, trial_energy, triangle_value
+    REAL(KIND=dp), DIMENSION(1:3)            :: abc, center_of_mass
     TYPE(cell_p_type), DIMENSION(:), POINTER :: cell
-    TYPE(cp_subsystem_pp_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_p_type), DIMENSION(:), &
+      POINTER                                :: subsys
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env
     TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
@@ -1251,11 +1241,12 @@ CONTAINS
     TYPE(particle_list_p_type), &
       DIMENSION(:), POINTER                  :: particles
 
+! *** local
 !***********************************************************************
-
 ! these are current magic numbers for how we compute the virial...
 ! we break it up into three parts to integrate the function so provide
 ! better statistics
+
     nintegral_divisions=3
     ALLOCATE (virial_cutoffs(1:nintegral_divisions),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -1331,7 +1322,7 @@ CONTAINS
            subsys=subsys(1)%subsys,cell=cell(1)%cell,&
            error=error)
       CALL get_cell(cell(1)%cell,abc=abc(:))
-      CALL cp_subsys_get(subsys(1)%subsys(1)%subsys, &
+      CALL cp_subsys_get(subsys(1)%subsys, &
            particles=particles(1)%list, error=error)
 
 ! check and make sure the box is big enough

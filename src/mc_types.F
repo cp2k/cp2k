@@ -29,8 +29,8 @@ MODULE mc_types
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_p_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
   USE fist_environment_types,          ONLY: fist_environment_type,&
                                              get_fist_env
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
@@ -49,8 +49,8 @@ MODULE mc_types
                                              section_vals_type,&
                                              section_vals_val_get,&
                                              section_vals_val_set
-  USE kinds,                           ONLY: default_string_length,&
-                                             default_path_length,&
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp,&
                                              dp_size,&
                                              int_size
@@ -315,17 +315,18 @@ CONTAINS
 
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
-    INTEGER, INTENT(OUT), OPTIONAL           :: nstep, iuptrans, iupvolume, &
-                                                nmoves, nswapmoves, rm, cl, &
-                                                diff, nstart, source, group,&
-                                                nvirial
+    INTEGER, INTENT(OUT), OPTIONAL           :: nstep, nvirial, iuptrans, &
+                                                iupvolume, nmoves, &
+                                                nswapmoves, rm, cl, diff, &
+                                                nstart, source, group
     LOGICAL, INTENT(OUT), OPTIONAL           :: lbias, ionode, lrestart, lstop
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: rmvolume
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: rmbond, rmangle, rmrot, &
                                                 rmtrans
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: temperature, pressure, BETA, pmswap, &
-                                                pmvolume, pmtraion, pmtrans
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: temperature, pressure, BETA, &
+                                                pmswap, pmvolume, pmtraion, &
+                                                pmtrans
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL :: ensemble, PROGRAM, &
       restart_file_name, molecules_file, moves_file, coords_file, &
       energy_file, displacement_file, cell_file, dat_file, data_file, &
@@ -339,7 +340,7 @@ CONTAINS
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: avbmc_atom
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: avbmc_rmin, avbmc_rmax, &
-                                                rmdihedral, virial_temps
+                                                rmdihedral
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input_file
     TYPE(mc_molecule_info_type), OPTIONAL, &
@@ -352,6 +353,8 @@ CONTAINS
     TYPE(mc_input_file_type), OPTIONAL, &
       POINTER                                :: mc_input_file, mc_bias_file
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: pmvol_box
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: virial_temps
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mc_par', &
       routineP = moduleN//':'//routineN
@@ -1229,8 +1232,9 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
     CHARACTER(LEN=default_string_length)     :: format_box_string, &
                                                 format_string, &
                                                 format_string_int
-    INTEGER                                  :: handle, ia, ie, imol, itype, &
-                                                iw, method_name_id, stop_num, istat
+    INTEGER                                  :: handle, ia, ie, imol, istat, &
+                                                itype, iw, method_name_id, &
+                                                stop_num
     INTEGER, DIMENSION(:), POINTER           :: temp_i_array
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:), POINTER          :: temp_r_array
@@ -1701,8 +1705,7 @@ SUBROUTINE mc_determine_molecule_info(force_env,mc_molecule_info,error,box_numbe
     LOGICAL                                  :: lnew_type
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(mol_kind_new_list_p_type), &
       DIMENSION(:), POINTER                  :: molecule_kinds_new
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -1746,7 +1749,7 @@ SUBROUTINE mc_determine_molecule_info(force_env,mc_molecule_info,error,box_numbe
        IF(ibox == skip_box) CYCLE
        CALL force_env_get(force_env(ibox)%force_env,&
             subsys=subsys,error=error)
-       CALL cp_subsys_get(subsys(1)%subsys, &
+       CALL cp_subsys_get(subsys, &
             molecule_kinds_new=molecule_kinds_new(ibox)%list,&
             particles=particles(ibox)%list,error=error)
        ntypes=ntypes+SIZE(molecule_kinds_new(ibox)%list%els(:))
@@ -2007,10 +2010,11 @@ SUBROUTINE mc_molecule_info_destroy(mc_molecule_info)
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_input_parameters_check'
 
-    INTEGER                                  :: imol_type, nboxes, nmol_types,&
-                                                nchain_total
+    INTEGER                                  :: imol_type, nboxes, &
+                                                nchain_total, nmol_types
     INTEGER, DIMENSION(:), POINTER           :: nunits
     TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
+
 !******************************************************************************
 
     CALL get_mc_par(mc_par,mc_molecule_info=mc_molecule_info)

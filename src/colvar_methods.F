@@ -2,6 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2007  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
+
 !!****h* cp2k/colvar_methods [1.0] *
 !!
 !!   NAME
@@ -34,9 +35,8 @@ MODULE colvar_methods
   USE constraint_fxd,                  ONLY: check_fixed_atom_cns_colv
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_p_type,&
-                                             cp_subsystem_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE input_constants,                 ONLY: do_clv_x,&
@@ -523,8 +523,8 @@ CONTAINS
   !!     Alessandro Laio and fawzi
   !!
   !!*** **********************************************************************
-  SUBROUTINE colvar_eval_glob_f(isubsys,icolvar,force_env,error)
-    INTEGER                                  :: isubsys, icolvar
+  SUBROUTINE colvar_eval_glob_f(icolvar,force_env,error)
+    INTEGER                                  :: icolvar
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -534,41 +534,40 @@ CONTAINS
     LOGICAL                                  :: colvar_ok, failure
     TYPE(cell_type), POINTER                 :: cell
     TYPE(colvar_type), POINTER               :: colvar
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
 
     failure=.FALSE.
     NULLIFY(subsys,cell,colvar)
     CALL force_env_get(force_env,subsys=subsys,cell=cell,error=error)
-    colvar_ok=ASSOCIATED(subsys(isubsys)%subsys%colvar_p)
+    colvar_ok=ASSOCIATED(subsys%colvar_p)
     CPAssert(colvar_ok,cp_failure_level,routineP,error,failure)
 
     IF (.NOT. failure) THEN
-       colvar => subsys(isubsys)%subsys%colvar_p(icolvar)%colvar
+       colvar => subsys%colvar_p(icolvar)%colvar
        SELECT CASE(colvar%type_id)
        CASE (dist_colvar_id)
-          CALL dist_colvar(colvar,cell,subsys=subsys(isubsys)%subsys,error=error)
+          CALL dist_colvar(colvar,cell,subsys=subsys,error=error)
        CASE (coord_colvar_id)
-          CALL coord_colvar(colvar,cell,subsys=subsys(isubsys)%subsys, error=error)
+          CALL coord_colvar(colvar,cell,subsys=subsys, error=error)
        CASE (torsion_colvar_id)
-          CALL torsion_colvar(colvar,cell,subsys=subsys(isubsys)%subsys, error=error)
+          CALL torsion_colvar(colvar,cell,subsys=subsys, error=error)
        CASE (angle_colvar_id)
-          CALL angle_colvar(colvar,cell,subsys=subsys(isubsys)%subsys, error=error)
+          CALL angle_colvar(colvar,cell,subsys=subsys, error=error)
        CASE (ddiff_colvar_id)
-          CALL ddiff_colvar(colvar,cell,subsys=subsys(isubsys)%subsys, error=error)
+          CALL ddiff_colvar(colvar,cell,subsys=subsys, error=error)
        CASE (plane_distance_colvar_id)
-          CALL plane_distance_colvar(colvar,cell,subsys=subsys(isubsys)%subsys, error=error)
+          CALL plane_distance_colvar(colvar,cell,subsys=subsys, error=error)
        CASE (rotation_colvar_id)
-          CALL rotation_colvar(colvar,cell,subsys=subsys(isubsys)%subsys, error=error)
+          CALL rotation_colvar(colvar,cell,subsys=subsys, error=error)
        CASE (qparm_colvar_id)
-          CALL qparm_colvar(colvar,cell,subsys=subsys(isubsys)%subsys, error=error)
+          CALL qparm_colvar(colvar,cell,subsys=subsys, error=error)
        CASE (hydronium_colvar_id)
-          CALL hydronium_colvar(colvar,cell,subsys=subsys(isubsys)%subsys, error=error)
+          CALL hydronium_colvar(colvar,cell,subsys=subsys, error=error)
        CASE default
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
        ! Check for fixed atom constraints
-       CALL check_fixed_atom_cns_colv(subsys(isubsys)%subsys%gci%fixd_list,colvar)
+       CALL check_fixed_atom_cns_colv(subsys%gci%fixd_list,colvar)
     END IF
   END SUBROUTINE colvar_eval_glob_f
   !***************************************************************************
@@ -652,8 +651,7 @@ CONTAINS
 
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_subsystem_type), OPTIONAL, &
-      POINTER                                :: subsys
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particles
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -774,8 +772,7 @@ CONTAINS
   SUBROUTINE rotation_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_subsystem_type), OPTIONAL, &
-      POINTER                                :: subsys
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particles
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -873,8 +870,7 @@ CONTAINS
   SUBROUTINE ddiff_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_subsystem_type), OPTIONAL, &
-      POINTER                                :: subsys
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particles
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -952,8 +948,7 @@ CONTAINS
   SUBROUTINE angle_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_subsystem_type), OPTIONAL, &
-      POINTER                                :: subsys
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particles
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1039,8 +1034,7 @@ CONTAINS
   SUBROUTINE dist_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_subsystem_type), OPTIONAL, &
-      POINTER                                :: subsys
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particles
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1122,8 +1116,7 @@ CONTAINS
   SUBROUTINE coord_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_subsystem_type), OPTIONAL, &
-      POINTER                                :: subsys
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particles
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1212,8 +1205,7 @@ CONTAINS
 
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_subsystem_type), OPTIONAL, &
-      POINTER                                :: subsys
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particles
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1381,8 +1373,7 @@ CONTAINS
   SUBROUTINE qparm_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_subsystem_type), OPTIONAL, &
-      POINTER                                :: subsys
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particles
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1531,8 +1522,7 @@ CONTAINS
   SUBROUTINE hydronium_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_subsystem_type), OPTIONAL, &
-      POINTER                                :: subsys
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particles
     TYPE(cp_error_type), INTENT(inout), &

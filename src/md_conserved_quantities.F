@@ -27,11 +27,10 @@ MODULE md_conserved_quantities
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_p_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_p_type,&
-                                             dyn_coeff_set_type,&
+  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
                                              dyn_coeff_type
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              npt_info_type
@@ -247,12 +246,10 @@ CONTAINS
 
     INTEGER                                  :: iforce_env
     REAL(KIND=dp)                            :: nhc_coef_kin, nhc_coef_pot
-    TYPE(dyn_coeff_set_p_type), &
-      DIMENSION(:), POINTER                  :: dyn_coeff_set
+    TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
-    TYPE(lnhc_parameters_type), &
-      DIMENSION(:), POINTER                  :: nhc_coef
+    TYPE(lnhc_parameters_type), POINTER      :: nhc_coef
 
     NULLIFY(dyn_coeff_set, force_env_p, nhc_coef)
 
@@ -265,11 +262,11 @@ CONTAINS
                            dyn_coeff_set=dyn_coeff_set,error=error)
 
        IF (ASSOCIATED (dyn_coeff_set)) THEN
-          CALL get_coef_ke (dyn_coeff_set(1)%dyn_coeff_set, md_ener%ekin_coefs, &
+          CALL get_coef_ke (dyn_coeff_set, md_ener%ekin_coefs, &
                             md_ener%temp_coefs, int_grp, error)
           cons = cons + md_ener%ekin_coefs
           IF (ASSOCIATED(nhc_coef)) THEN
-             CALL get_nhc_energies ( nhc_coef(1), nhc_coef_pot, nhc_coef_kin, int_grp, error )
+             CALL get_nhc_energies ( nhc_coef, nhc_coef_pot, nhc_coef_kin, int_grp, error )
              cons = cons + nhc_coef_kin + nhc_coef_pot
           END IF
        END IF
@@ -307,29 +304,27 @@ CONTAINS
     REAL(KIND=dp)                            :: nhc_coef_kin, nhc_coef_pot, &
                                                 nhc_part_kin, nhc_part_pot, &
                                                 nhc_shell_kin, nhc_shell_pot
-    TYPE(dyn_coeff_set_p_type), &
-      DIMENSION(:), POINTER                  :: dyn_coeff_set
+    TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
-    TYPE(lnhc_parameters_type), &
-      DIMENSION(:), POINTER                  :: nhc_coef, nhc_part, nhc_shell
+    TYPE(lnhc_parameters_type), POINTER      :: nhc_coef, nhc_part, nhc_shell
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
 
     NULLIFY(dyn_coeff_set, force_env_p, nhc_part, nhc_coef)
     CALL get_md_env (md_env, force_env_p=force_env_p, nhc_part=nhc_part,&
          nhc_coef=nhc_coef, nhc_shell=nhc_shell, simpar=simpar, error=error )
-    CALL get_nhc_energies ( nhc_part ( 1 ), nhc_part_pot, nhc_part_kin, int_grp, error )
+    CALL get_nhc_energies ( nhc_part, nhc_part_pot, nhc_part_kin, int_grp, error )
     cons = md_ener% ekin + md_ener%epot +  md_ener % ekin_shell + nhc_part_kin + nhc_part_pot
     DO iforce_env = 1, SIZE(force_env_p)
        CALL force_env_get (force_env=force_env_p(iforce_env)%force_env, &
             dyn_coeff_set=dyn_coeff_set,error=error)
        IF (ASSOCIATED (dyn_coeff_set)) THEN
-          CALL get_coef_ke (dyn_coeff_set(1)%dyn_coeff_set, md_ener%ekin_coefs, &
+          CALL get_coef_ke (dyn_coeff_set, md_ener%ekin_coefs, &
                md_ener%temp_coefs, int_grp, error)
           cons = cons + md_ener%ekin_coefs
           IF (ASSOCIATED(nhc_coef)) THEN
-             CALL get_nhc_energies ( nhc_coef(1), nhc_coef_pot, nhc_coef_kin,&
+             CALL get_nhc_energies ( nhc_coef, nhc_coef_pot, nhc_coef_kin,&
                   int_grp, error )
              cons = cons + nhc_coef_kin + nhc_coef_pot
           END IF
@@ -337,7 +332,7 @@ CONTAINS
     END DO
 
     IF(simpar%shell_nose .AND. ASSOCIATED(nhc_shell)) THEN
-      CALL get_nhc_energies ( nhc_shell(1), nhc_shell_pot, nhc_shell_kin, int_grp, error )
+      CALL get_nhc_energies ( nhc_shell, nhc_shell_pot, nhc_shell_kin, int_grp, error )
       cons = cons + nhc_shell_kin + nhc_shell_pot
     END IF        
 
@@ -372,8 +367,7 @@ CONTAINS
     REAL(KIND=dp) :: baro_kin, baro_pot, nfree, nhc_baro_kin, nhc_baro_pot, &
       nhc_part_kin, nhc_part_pot, nhc_shell_kin, nhc_shell_pot
     TYPE(cell_type), POINTER                 :: box
-    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro( : ), nhc_part( : ), &
-                                                nhc_shell( : )
+    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro, nhc_part, nhc_shell
     TYPE(npt_info_type), POINTER             :: npt( :, : )
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
@@ -381,8 +375,8 @@ CONTAINS
     NULLIFY(nhc_baro, nhc_part, nhc_shell, npt)
     CALL get_md_env ( md_env, nhc_part=nhc_part, nhc_baro=nhc_baro, &
          simpar = simpar, npt = npt, cell = box,  nhc_shell=nhc_shell, error=error)
-    CALL get_nhc_energies ( nhc_part ( 1 ), nhc_part_pot, nhc_part_kin, int_grp, error=error )
-    CALL get_nhc_energies ( nhc_baro ( 1 ), nhc_baro_pot, nhc_baro_kin, int_grp, error=error )
+    CALL get_nhc_energies ( nhc_part, nhc_part_pot, nhc_part_kin, int_grp, error=error )
+    CALL get_nhc_energies ( nhc_baro, nhc_baro_pot, nhc_baro_kin, int_grp, error=error )
     CALL get_baro_energies ( box, simpar, npt, baro_kin, baro_pot, int_grp, error=error )
     nfree = SIZE ( npt, 1 ) * SIZE ( npt, 2 )
     md_ener % temp_baro = 2.0_dp * baro_kin / nfree
@@ -391,7 +385,7 @@ CONTAINS
          + nhc_baro_kin + nhc_baro_pot + baro_kin + baro_pot
 
     IF(simpar%shell_nose .AND. ASSOCIATED(nhc_shell)) THEN
-      CALL get_nhc_energies ( nhc_shell(1), nhc_shell_pot, nhc_shell_kin, int_grp, error )
+      CALL get_nhc_energies ( nhc_shell, nhc_shell_pot, nhc_shell_kin, int_grp, error )
       cons = cons + nhc_shell_kin + nhc_shell_pot
     END IF
   END SUBROUTINE get_econs_npt
@@ -580,8 +574,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
@@ -609,7 +602,7 @@ CONTAINS
                          subsys = subsys ,&
                          qmmm_env=qmmm_env,&
                          error=error)
-    CALL cp_subsys_get(subsys=subsys(1)%subsys,&
+    CALL cp_subsys_get(subsys=subsys,&
          atomic_kinds=atomic_kinds,&
          local_particles=local_particles,&
          particles=particles,shell_particles=shell_particles,&

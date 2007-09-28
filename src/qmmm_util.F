@@ -25,7 +25,7 @@
  
 MODULE qmmm_util
   USE cell_types,                      ONLY: cell_type
-  USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type,&
                                              use_qmmm
@@ -81,16 +81,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'apply_qmmm_walls', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ip, isubsys, qm_index
-    INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, qm_subsys_index
+    INTEGER                                  :: ip, qm_index
+    INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
     LOGICAL                                  :: explicit, failure, is_x(2), &
                                                 is_y(2), is_z(2)
     REAL(KIND=dp)                            :: skin
     REAL(KIND=dp), DIMENSION(3)              :: coord, qm_cell_diag
     TYPE(cell_type), POINTER                 :: mm_cell, qm_cell
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys_mm, subsys_qm
+    TYPE(cp_subsys_type), POINTER            :: subsys_mm, subsys_qm
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles_mm, particles_qm
     TYPE(section_vals_type), POINTER         :: walls_section
@@ -114,22 +113,14 @@ CONTAINS
        CALL force_env_get(force_env%sub_force_env(qs_subsys)%force_env,&
                           cell=qm_cell,subsys=subsys_qm,error=error)
        qm_atom_index   => force_env%qmmm_env%qm_atom_index
-       qm_subsys_index => force_env%qmmm_env%qm_subsys_index
        CPPrecondition(ASSOCIATED(qm_atom_index),cp_failure_level,routineP,error,failure)
-       CPPrecondition(ASSOCIATED(qm_subsys_index),cp_failure_level,routineP,error,failure)
-       CPPrecondition(SIZE(subsys_qm)==1,cp_failure_level,routineP,error,failure)
-       CPPrecondition(SIZE(subsys_mm)==1,cp_failure_level,routineP,error,failure)
    
-       particles_qm => subsys_qm(1)%subsys%particles%els
+       particles_qm => subsys_qm%particles%els
        qm_cell_diag = (/qm_cell%hmat(1,1),&
                         qm_cell%hmat(2,2),&
                         qm_cell%hmat(3,3)/)
-       isubsys=-1
+       particles_mm => subsys_mm%particles%els
        DO ip=1,SIZE(qm_atom_index)
-          IF (isubsys/=qm_subsys_index(ip)) THEN
-             isubsys=qm_subsys_index(ip)
-             particles_mm => subsys_mm(isubsys)%subsys%particles%els
-          END IF
           qm_index = qm_atom_index(ip)
           coord = particles_mm(qm_index)%r
           IF (ANY(coord<skin).OR.ANY(coord>(qm_cell_diag-skin))) THEN
@@ -211,14 +202,13 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'apply_qmmm_translate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ip, isubsys
-    INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, qm_subsys_index
+    INTEGER                                  :: ip
+    INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: max_coord, min_coord, transl_v
     TYPE(cell_type), POINTER                 :: mm_cell, qm_cell
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys_mm, subsys_qm
+    TYPE(cp_subsys_type), POINTER            :: subsys_mm, subsys_qm
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles_mm, particles_qm
 
@@ -240,19 +230,11 @@ CPSourceFileRef,&
        CALL force_env_get(force_env%sub_force_env(qs_subsys)%force_env,&
                           cell=qm_cell,subsys=subsys_qm,error=error)
        qm_atom_index   => force_env%qmmm_env%qm_atom_index
-       qm_subsys_index => force_env%qmmm_env%qm_subsys_index
        CPPrecondition(ASSOCIATED(qm_atom_index),cp_failure_level,routineP,error,failure)
-       CPPrecondition(ASSOCIATED(qm_subsys_index),cp_failure_level,routineP,error,failure)
-       CPPrecondition(SIZE(subsys_qm)==1,cp_failure_level,routineP,error,failure)
-       CPPrecondition(SIZE(subsys_mm)==1,cp_failure_level,routineP,error,failure)
 
-       particles_qm => subsys_qm(1)%subsys%particles%els
-       isubsys=-1
+       particles_qm => subsys_qm%particles%els
+       particles_mm => subsys_mm%particles%els
        DO ip=1,SIZE(qm_atom_index)
-          IF (isubsys/=qm_subsys_index(ip)) THEN
-             isubsys=qm_subsys_index(ip)
-             particles_mm => subsys_mm(isubsys)%subsys%particles%els
-          END IF
           min_coord=MIN(min_coord,particles_mm(qm_atom_index(ip))%r)
           max_coord=MAX(max_coord,particles_mm(qm_atom_index(ip))%r)
        END DO
@@ -272,23 +254,17 @@ CPSourceFileRef,&
                   force_env%qmmm_env%utrasl
           END IF
           force_env%qmmm_env%transl_v = force_env%qmmm_env%transl_v + transl_v
-          DO isubsys=1,SIZE(subsys_mm)
-             particles_mm => subsys_mm(isubsys)%subsys%particles%els
-             DO ip=1,subsys_mm(isubsys)%subsys%particles%n_els
-                particles_mm(ip)%r = particles_mm(ip)%r - transl_v
-             END DO
+          particles_mm => subsys_mm%particles%els
+          DO ip=1,subsys_mm%particles%n_els
+             particles_mm(ip)%r = particles_mm(ip)%r - transl_v
           END DO
           IF (logger%para_env%mepos==logger%para_env%source) &
                WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),fmt='(/1X,A)')&
                " Translating the system in order to center the QM fragment in the QM box."
           IF (.NOT.force_env%qmmm_env%center_qm_subsys) force_env%qmmm_env%do_translate = .FALSE.
        END IF
-       isubsys=-1
+       particles_mm => subsys_mm%particles%els
        DO ip=1,SIZE(qm_atom_index)
-          IF (isubsys/=qm_subsys_index(ip)) THEN
-             isubsys=qm_subsys_index(ip)
-             particles_mm => subsys_mm(isubsys)%subsys%particles%els
-          END IF
           particles_qm(ip)%r=particles_mm(qm_atom_index(ip))%r
        END DO
     END SELECT

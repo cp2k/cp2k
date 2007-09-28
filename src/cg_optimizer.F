@@ -31,8 +31,8 @@ MODULE cg_optimizer
                                              cp_print_key_unit_nr,&
                                              cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_p_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
@@ -103,8 +103,7 @@ CONTAINS
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -123,11 +122,8 @@ CONTAINS
          "GEO_OPT%PRINT%PROGRAM_RUN_INFO",&
          extension=".geoLog",error=error)
 
-       CALL force_env_get(force_env,&
-                          subsys=subsys,error=error)
-       CALL cp_subsys_get(subsys=subsys(1)%subsys,&
-                          atomic_kinds=atomic_kinds,&
-                          particles=particles,error=error)
+       CALL force_env_get(force_env,subsys=subsys,error=error)
+       CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,particles=particles,error=error)
 
        IF(output_unit>0)THEN
           WRITE(UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
@@ -204,8 +200,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: g, h, xi
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -278,10 +273,8 @@ CONTAINS
              dataunit = cp_print_key_unit_nr(logger,root_section,&
                   "MOTION%PRINT%TRAJECTORY",extension=".xyz",error=error)
              IF (dataunit>0) THEN
-                CALL force_env_get(force_env,&
-                     subsys=subsys,error=error)
-                CALL cp_subsys_get(subsys=subsys(1)%subsys,&
-                     particles=particles,error=error)
+                CALL force_env_get(force_env,subsys=subsys,error=error)
+                CALL cp_subsys_get(subsys=subsys,particles=particles,error=error)
                 particle_set => particles%els
 
                 WRITE (UNIT=title,FMT="(A,I8,A,F20.10)") " i =",its,", E =",opt_energy

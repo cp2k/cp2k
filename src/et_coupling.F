@@ -39,13 +39,11 @@ MODULE et_coupling
                                              cp_print_key_unit_nr
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type
-  USE cp_subsystem_types,              ONLY: cp_subsys_get
-  USE input_section_types,             ONLY: section_vals_get,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_list_get,&
+  USE cp_subsys_types,                 ONLY: cp_subsys_get
+  USE input_constants,                 ONLY: do_spin_density
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE input_constants,                 ONLY: do_spin_density
   USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp,&
                                              int_size
@@ -87,10 +85,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calc_et_coupling', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, k, nao, ncol_local, &
-                                                nmo, nrow_local, iw,my_id, handle
+    INTEGER                                  :: handle, i, iw, j, k, my_id, &
+                                                nao, ncol_local, nmo, &
+                                                nrow_local
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: sign
     REAL(KIND=dp)                            :: Sda, strength, tttt, Waa, &
                                                 Wbb, Wda
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: a, b, S_det
@@ -332,27 +330,28 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(coeff_type)                         :: becke_const
+    LOGICAL                                  :: calc_pot, calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'becke_constraint', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, iatom, ip, j, jatom, k, &
-                                                np(3),handle,pre
+    INTEGER                                  :: handle, i, iatom, ip, j, &
+                                                jatom, k, np(3)
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: catom
     INTEGER, DIMENSION(2, 3)                 :: bo
-    LOGICAL                                  :: failure,calc_pot,calculate_forces
+    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: dE, dist1, dist2, dvol, my1, &
                                                 myexp, strength, &
                                                 sum_cell_f_all, &
-                                                sum_cell_f_constr, target_val,ax
+                                                sum_cell_f_constr, target_val
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: cell_functions
     REAL(kind=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: R12
     REAL(kind=dp), DIMENSION(3)              :: cell_v, dist_vec, dr, grid_p, &
-                                                r, r1, shift,dE_diff
+                                                r, r1, shift
+    REAL(kind=dp), DIMENSION(:), POINTER     :: coeff
     TYPE(cell_type), POINTER                 :: cell
-    REAL(kind=dp),DIMENSION(:),POINTER       :: coeff
     TYPE(particle_list_type), POINTER        :: particles
 
   failure=.FALSE.
@@ -515,39 +514,33 @@ END SUBROUTINE becke_constraint
     CHARACTER(len=*), PARAMETER :: routineN = 'becke_force', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, iatom, ip, j,&
-                                                jatom, k,istat, &
-                                                np(3),handle, katom,&
-                                                ispin,natom,ikind
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: catom,atom_of_kind, kind_of
+    INTEGER                                  :: handle, i, iatom, ikind, ip, &
+                                                ispin, istat, j, jatom, k, &
+                                                natom, np(3)
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, catom, kind_of
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: dE, dist1, dist2, dvol, my1, &
-                                                polyn, f_3, strength, &
-                                                sum_cell_f_all, &
-                                                sum_cell_f_constr, target_val,&
-                                                tmp_const,sum_Pm,th,dpolyn
-    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: P_i,coefficients
+    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: is_constraint
+    REAL(kind=dp) :: dist1, dist2, dpolyn, dvol, f_3, my1, polyn, strength, &
+      sum_cell_f_constr, sum_Pm, target_val, th, tmp_const
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: coefficients, P_i
     REAL(kind=dp), ALLOCATABLE, &
-         DIMENSION(:, :)                     :: R12,s_my_ij,dw_dR,integrated,&
-                                                d_sum_const_dR,d_sum_Pm_dR,dP_i_dRi
+      DIMENSION(:, :)                        :: d_sum_const_dR, d_sum_Pm_dR, &
+                                                dP_i_dRi, dw_dR, integrated, &
+                                                R12, s_my_ij
     REAL(kind=dp), ALLOCATABLE, &
-         DIMENSION(:, :,:)                   :: ds_dR,dP_i_dRj
-    REAL(kind=dp), DIMENSION(3)              :: cell_v, dist_vec_i, dr, grid_p, &
-                                                r, r1, shift,dist_vec_j,&
-                                                dr_i_dR,dr_j_dR,dr_ij_dR,&
-                                                dmy_dR_j,df_3_dR,&
-                                                dmy_dR_i,dr1_r2
+      DIMENSION(:, :, :)                     :: dP_i_dRj, ds_dR
+    REAL(kind=dp), DIMENSION(3) :: cell_v, dist_vec_i, dist_vec_j, dmy_dR_i, &
+      dmy_dR_j, dr, dr1_r2, dr_i_dR, dr_ij_dR, dr_j_dR, grid_p, r, r1, shift
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    LOGICAL,DIMENSION(:),ALLOCATABLE         :: is_constraint
+    TYPE(qs_rho_type), POINTER               :: rho
 
   failure=.FALSE.
   CALL timeset(routineN,"I","",handle)

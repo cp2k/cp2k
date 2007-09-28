@@ -32,8 +32,8 @@ MODULE bfgs_optimizer
                                              cp_print_key_unit_nr,&
                                              cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_p_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
@@ -47,10 +47,6 @@ MODULE bfgs_optimizer
   USE machine,                         ONLY: m_flush
   USE mathlib,                         ONLY: diamat_all
   USE message_passing,                 ONLY: mp_bcast
-  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
-  USE molecule_kind_types,             ONLY: fixd_constraint_type,&
-                                             get_molecule_kind,&
-                                             molecule_kind_type
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type,&
                                              write_particle_coordinates
@@ -73,8 +69,21 @@ MODULE bfgs_optimizer
 
 CONTAINS
 
-!!*** **********************************************************************
-
+!!****** bfgs_optimizer/geoopt_bfgs [1.0] *
+!!
+!!   NAME
+!!    geoopt_bfgs 
+!!
+!!   FUNCTION
+!!    Main driver for BFGS geometry optimizations 
+!!
+!!   AUTHOR
+!!
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!***************************************************************************
   SUBROUTINE geoopt_bfgs(force_env,gopt_param,root_section,globenv,force_env_section,&
        gopt_env, x0, error)
 
@@ -106,8 +115,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -134,7 +142,7 @@ CONTAINS
          cell=cell,&
          subsys=subsys,error=error)
 
-    CALL cp_subsys_get(subsys=subsys(1)%subsys,&
+    CALL cp_subsys_get(subsys=subsys,&
          atomic_kinds=atomic_kinds,&
          particles=particles,error=error)
 
@@ -246,7 +254,7 @@ CONTAINS
            CALL force_env_get(force_env,&
                               cell=cell,&
                               subsys=subsys,error=error)
-           CALL cp_subsys_get(subsys=subsys(1)%subsys,&
+           CALL cp_subsys_get(subsys=subsys,&
                               particles=particles,error=error)
            particle_set => particles%els
            WRITE (UNIT=title,FMT="(A,I8,A,F20.10)") " i =",it,", E =",etot
@@ -365,8 +373,21 @@ CONTAINS
 
   END SUBROUTINE geoopt_bfgs
 
-! *********************************************************************************
-
+!!****** bfgs_optimizer/rat_fun_opt [1.0] *
+!!
+!!   NAME
+!!    rat_fun_opt 
+!!
+!!   FUNCTION
+!!    
+!!
+!!   AUTHOR
+!!
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!***************************************************************************
   SUBROUTINE rat_fun_opt(ndf,dg,eigval,work,eigvec,g)
 
     INTEGER, INTENT(IN)                      :: ndf
@@ -386,8 +407,6 @@ CONTAINS
                                                 ssize, step, stol
 
     CALL timeset(routineN,handle)
-
-!   ** Locals **
 
     stol  = 1.0E-8_dp
     ssize = 0.2_dp
@@ -520,12 +539,22 @@ CONTAINS
 
   END SUBROUTINE  rat_fun_opt
 
-! ******************************************************************************
-
+!!****** bfgs_optimizer/bfgs [1.0] *
+!!
+!!   NAME
+!!    bfgs 
+!!
+!!   FUNCTION
+!!    
+!!
+!!   AUTHOR
+!!
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!***************************************************************************
   SUBROUTINE bfgs(ndf,dx,dg,hes,work)
-
-!   ** Globals **
-
     INTEGER, INTENT(IN)                      :: ndf
     REAL(KIND=dp), INTENT(INOUT)             :: dx(ndf), dg(ndf), &
                                                 hes(ndf*(ndf+1)/2), work(ndf)
@@ -559,11 +588,22 @@ CONTAINS
 
   END SUBROUTINE bfgs
 
-!  *******************************************************************************
-
+!!****** bfgs_optimizer/set_hes_eig [1.0] *
+!!
+!!   NAME
+!!    set_hes_eig 
+!!
+!!   FUNCTION
+!!    
+!!
+!!   AUTHOR
+!!
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!***************************************************************************
   SUBROUTINE set_hes_eig(ndf,eigval,work)
-
-!    ** Globals **
     INTEGER, INTENT(IN)                      :: ndf
     REAL(KIND=dp), INTENT(INOUT)             :: eigval(ndf), work(ndf)
 
@@ -578,8 +618,6 @@ CONTAINS
     LOGICAL                                  :: neg
 
     CALL timeset(routineN,handle)
-
-!    ** Locals **
 
      DO indf = 1, ndf
        IF(eigval(indf) < 0.0_dp )neg = .TRUE.
@@ -613,8 +651,21 @@ CONTAINS
 
   END SUBROUTINE set_hes_eig
 
-! ******************************************************************************
-
+!!****** bfgs_optimizer/geoopt_get_step [1.0] *
+!!
+!!   NAME
+!!    geoopt_get_step 
+!!
+!!   FUNCTION
+!!    
+!!
+!!   AUTHOR
+!!
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!***************************************************************************
   SUBROUTINE geoopt_get_step(ndf,eigval,eigvec,hes_mat,dr,g)
 
     INTEGER, INTENT(IN)                      :: ndf
@@ -650,11 +701,22 @@ CONTAINS
 
   END SUBROUTINE geoopt_get_step
 
-! *****************************************************************************
-
+!!****** bfgs_optimizer/trust_radius [1.0] *
+!!
+!!   NAME
+!!    trust_radius 
+!!
+!!   FUNCTION
+!!    
+!!
+!!   AUTHOR
+!!
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!***************************************************************************
   SUBROUTINE trust_radius(ndf,nfree,step,rad,rat,dr,output_unit,ionode)
-
-!   ** Globals **
     INTEGER, INTENT(IN)                      :: ndf, nfree
     REAL(KIND=dp), INTENT(INOUT)             :: step, rad, rat, dr(ndf)
     INTEGER, INTENT(IN)                      :: output_unit
@@ -668,8 +730,6 @@ CONTAINS
     REAL(KIND=dp)                            :: DDOT, scal
 
     CALL timeset(routineN,handle)
-
-!   ** Locals **
 
     step = DDOT(ndf,dr,1,dr,1)
     scal = MAX(one,LOG10(REAL(nfree,dp)))
@@ -690,8 +750,21 @@ CONTAINS
 
   END SUBROUTINE trust_radius
 
-! ******************************************************************************
-
+!!****** bfgs_optimizer/energy_predict [1.0] *
+!!
+!!   NAME
+!!    energy_predict  
+!!
+!!   FUNCTION
+!!    
+!!
+!!   AUTHOR
+!!
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!***************************************************************************
    SUBROUTINE energy_predict(ndf,work,hes,dr,g,ionode,output_unit,conv,pred)
 
     INTEGER, INTENT(IN)                      :: ndf
@@ -722,8 +795,21 @@ CONTAINS
 
   END SUBROUTINE energy_predict
 
-! ***********************************************************************************
-
+!!****** bfgs_optimizer/write_cycle_infos [1.0] *
+!!
+!!   NAME
+!!    write_cycle_infos  
+!!
+!!   FUNCTION
+!!    
+!!
+!!   AUTHOR
+!!
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!***************************************************************************
  SUBROUTINE write_cycle_infos(output_unit,it,etot,ediff,pred,rat,step,rad,emin,wildcard)
 
     INTEGER, INTENT(IN)                      :: output_unit, it
@@ -775,8 +861,21 @@ CONTAINS
      IF (it==0) WRITE(UNIT=output_unit,FMT="(T2,51('-'))")
  END SUBROUTINE write_cycle_infos
 
-! ***********************************************************************************
-
+!!****** bfgs_optimizer/update_trust_rad [1.0] *
+!!
+!!   NAME
+!!     update_trust_rad 
+!!
+!!   FUNCTION
+!!    
+!!
+!!   AUTHOR
+!!
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!***************************************************************************
    SUBROUTINE update_trust_rad(rat,rad,step,ediff)
 
     REAL(KIND=dp), INTENT(INOUT)             :: rat, rad, step, ediff
@@ -850,8 +949,21 @@ CONTAINS
 
   END SUBROUTINE update_trust_rad
 
-! ***************************************************************************
-
+!!****** bfgs_optimizer/check_converg [1.0] *
+!!
+!!   NAME
+!!    check_converg  
+!!
+!!   FUNCTION
+!!    
+!!
+!!   AUTHOR
+!!
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!***************************************************************************
   SUBROUTINE check_converg(ndf,dr,g,ionode,output_unit,conv,gopt_param)
 
     INTEGER, INTENT(IN)                      :: ndf
@@ -862,13 +974,13 @@ CONTAINS
     TYPE(gopt_param_type), POINTER           :: gopt_param
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_converg', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: indf
     LOGICAL                                  :: conv_dx, conv_g, conv_rdx, &
-         conv_rg
+                                                conv_rg
     REAL(KIND=dp)                            :: dumm, dxcon, gcon, maxdum(4), &
-         rmsgcon, rmsxcon
+                                                rmsgcon, rmsxcon
 
     dxcon = gopt_param%max_dr
     gcon = gopt_param%max_force

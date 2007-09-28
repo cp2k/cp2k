@@ -2,6 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2007  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
+
 !!****** cp2k/fist_environment_types [1.0] *
 !!
 !!   NAME
@@ -31,12 +32,12 @@ MODULE fist_environment_types
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_types,              ONLY: cp_subsys_create,&
+  USE cp_subsys_types,                 ONLY: cp_subsys_create,&
                                              cp_subsys_get,&
                                              cp_subsys_release,&
                                              cp_subsys_retain,&
                                              cp_subsys_set,&
-                                             cp_subsystem_type
+                                             cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_env_release,&
                                              ewald_env_retain,&
@@ -75,27 +76,43 @@ MODULE fist_environment_types
 
   IMPLICIT NONE
   PRIVATE
-!
 
-
+!!****s* fist_environment_types/fist_environment_type [1.0] *
+!!
+!!   NAME
+!!     fist_environment_type
+!!
+!!   FUNCTION
+!!     
+!!
+!!   ATTRIBUTES
+!!     
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     11/03
+!!
+!!   SOURCE
+!***************************************************************************
   TYPE fist_environment_type
     PRIVATE
-    INTEGER :: id_nr, ref_count
-    LOGICAL                                        :: qmmm, first_time
-    LOGICAL                                        :: shell_model, shell_model_ad
-    TYPE ( qmmm_env_mm_type ), POINTER             :: qmmm_env
-    TYPE ( cell_type ), POINTER                    :: cell
-    TYPE ( cell_type ), POINTER                    :: cell_ref
-    TYPE ( ewald_environment_type ), POINTER       :: ewald_env
-    TYPE ( ewald_pw_type ),          POINTER       :: ewald_pw
-    TYPE ( fist_energy_type ), POINTER             :: thermo
-    TYPE ( cp_para_env_type ), POINTER             :: para_env
-    TYPE ( cp_subsystem_type ), POINTER            :: subsys
-    TYPE ( fist_nonbond_env_type ), POINTER        :: fist_nonbond_env
-    TYPE(section_vals_type), POINTER               :: input
+    INTEGER                                      :: id_nr, ref_count
+    LOGICAL                                      :: qmmm, first_time
+    LOGICAL                                      :: shell_model, shell_model_ad
+    TYPE (qmmm_env_mm_type), POINTER             :: qmmm_env
+    TYPE (cell_type), POINTER                    :: cell
+    TYPE (cell_type), POINTER                    :: cell_ref
+    TYPE (ewald_environment_type), POINTER       :: ewald_env
+    TYPE (ewald_pw_type),          POINTER       :: ewald_pw
+    TYPE (fist_energy_type), POINTER             :: thermo
+    TYPE (cp_para_env_type), POINTER             :: para_env
+    TYPE (cp_subsys_type), POINTER               :: subsys
+    TYPE (fist_nonbond_env_type), POINTER        :: fist_nonbond_env
+    TYPE(section_vals_type), POINTER             :: input
  END TYPE fist_environment_type
 
-! *****************************************************************************
 
 !!****s* fist_environment_types/fist_environment_p_type [1.0] *
 !!
@@ -115,25 +132,21 @@ MODULE fist_environment_types
 !!     11/03
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   TYPE fist_environment_p_type
      TYPE(fist_environment_type), POINTER :: fist_env
   END TYPE fist_environment_p_type
-!!***
-  !****************************************************************************
 
 ! *** Public data types ***
-
-  PUBLIC :: fist_environment_type,        &
+  PUBLIC :: fist_environment_type,&
             fist_environment_p_type
 
 ! *** Public subroutines ***
-
   PUBLIC :: get_fist_env,&
             init_fist_env,&
             set_fist_env,&
-            fist_env_create, &
-            fist_env_release, &
+            fist_env_create,&
+            fist_env_release,&
             fist_env_retain
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_environment_types'
@@ -144,18 +157,31 @@ MODULE fist_environment_types
 
 CONTAINS
 
-! *****************************************************************************
-
+!!****s* fist_environment_types/get_fist_env [1.0] *
+!!
+!!   NAME
+!!     get_fist_env
+!!
+!!   FUNCTION
+!!     Purpose: Get the FIST environment.
+!!
+!!   ATTRIBUTES
+!!     - fist_env: the pointer to the fist_env
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     11/03
+!!
+!!   SOURCE
+!***************************************************************************
   SUBROUTINE get_fist_env( fist_env, atomic_kind_set, particle_set, ewald_pw,  &
                            local_particles, local_molecules, molecule_kind_set, &
                            molecule_set, cell, cell_ref, ewald_env,  &
                            fist_nonbond_env, thermo, para_env, subsys,  &
                            qmmm, qmmm_env, input, shell_model, shell_model_ad,&
                            shell_particle_set, core_particle_set, first_time, error )
-
-!   Purpose: Get the FIST environment.
-
-!   ***************************************************************************
 
     TYPE(fist_environment_type), INTENT(IN)  :: fist_env
     TYPE(atomic_kind_type), OPTIONAL, &
@@ -177,8 +203,7 @@ CONTAINS
       POINTER                                :: thermo
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
-    TYPE(cp_subsystem_type), OPTIONAL, &
-      POINTER                                :: subsys
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     LOGICAL, OPTIONAL                        :: qmmm
     TYPE(qmmm_env_mm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
@@ -200,11 +225,8 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
 
-!   ---------------------------------------------------------------------------
-
     failure=.FALSE.
     NULLIFY( atomic_kinds, particles, molecules_new, molecule_kinds_new )
-!    CPPrecondition(fist_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(fist_env%subsys),cp_failure_level,routineP,error,failure)
 
     IF ( PRESENT ( input ) ) input => fist_env%input
@@ -239,20 +261,31 @@ CONTAINS
     IF (PRESENT(core_particle_set)) core_particle_set => core_particles%els
 
   END SUBROUTINE get_fist_env
-!
-! *****************************************************************************
 
+!!****s* fist_environment_types/init_fist_env [1.0] *
+!!
+!!   NAME
+!!     init_fist_env 
+!!
+!!   FUNCTION
+!!     Initialise the FIST environment.
+!!
+!!   ATTRIBUTES
+!!     - fist_env: the pointer to the fist_env
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     11/03
+!!
+!!   SOURCE
+!***************************************************************************
   SUBROUTINE init_fist_env ( fist_env, para_env, error )
-
-!   Purpose: Initialise the FIST environment.
-
-!   ***************************************************************************
 
     TYPE(fist_environment_type), INTENT(OUT) :: fist_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
-
-!   ---------------------------------------------------------------------------
 
     NULLIFY (fist_env%input)
     NULLIFY (fist_env%cell)
@@ -277,15 +310,30 @@ CONTAINS
 
   END SUBROUTINE init_fist_env
 
-! *****************************************************************************
-
+!!****s* fist_environment_types/set_fist_env [1.0] *
+!!
+!!   NAME
+!!     set_fist_env 
+!!
+!!   FUNCTION
+!!     Set the FIST environment.
+!!
+!!   ATTRIBUTES
+!!     - fist_env: the pointer to the fist_env
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     11/03
+!!
+!!   SOURCE
+!***************************************************************************
   SUBROUTINE set_fist_env( fist_env, atomic_kind_set, particle_set, ewald_pw, &
                            local_particles, local_molecules, molecule_kind_set, &
                            molecule_set, cell, cell_ref, ewald_env,  &
                            fist_nonbond_env, thermo, subsys, qmmm, qmmm_env, &
                            input, shell_model, shell_model_ad, first_time, error )
-
-!   Purpose: Set the FIST environment.
 
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(atomic_kind_type), OPTIONAL, &
@@ -305,8 +353,7 @@ CONTAINS
       POINTER                                :: fist_nonbond_env
     TYPE(fist_energy_type), OPTIONAL, &
       POINTER                                :: thermo
-    TYPE(cp_subsystem_type), OPTIONAL, &
-      POINTER                                :: subsys
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     LOGICAL, OPTIONAL                        :: qmmm
     TYPE(qmmm_env_mm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
@@ -424,39 +471,38 @@ CONTAINS
        fist_env%shell_model_ad = shell_model_ad
     END IF
 
-!***************************************************************************
+
   END SUBROUTINE set_fist_env
-!***************************************************************************
-!
-!****f* fist_environment_types/fist_env_create [1.0] *
-!
-!   NAME
-!     fist_env_create
-!
-!   SYNOPSIS
-!     Subroutine fist_env_create(fist_env, para_env, error)
-!       Type(fist_environment_type), Pointer:: fist_env
-!       Type(cp_para_env_type), Pointer:: para_env
-!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!     End Subroutine fist_env_create
-!
-!   FUNCTION
-!     allocates and intitializes a fist_env
-!
-!   ARGUMENTS
-!     - fist_env: the object to create
-!     - para_env: the parallel environement for the qs_env
-!     - error: variable to control error logging, stopping,...
-!       see module cp_error_handling
-!
-!   AUTHOR
-!     Fawzi Mohamed
-!
-!   MODIFICATION HISTORY
-!     12.2002 created [fawzi]
-!
-!*** **********************************************************************
-SUBROUTINE fist_env_create(fist_env,para_env,error)
+
+!!****f* fist_environment_types/fist_env_create [1.0] *
+!!
+!!   NAME
+!!     fist_env_create
+!!
+!!   SYNOPSIS
+!!     Subroutine fist_env_create(fist_env, para_env, error)
+!!       Type(fist_environment_type), Pointer:: fist_env
+!!       Type(cp_para_env_type), Pointer:: para_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine fist_env_create
+!!
+!!   FUNCTION
+!!     allocates and intitializes a fist_env
+!!
+!!   ARGUMENTS
+!!     - fist_env: the object to create
+!!     - para_env: the parallel environement for the qs_env
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     12.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE fist_env_create(fist_env,para_env,error)
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -467,46 +513,45 @@ SUBROUTINE fist_env_create(fist_env,para_env,error)
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
-
-  ALLOCATE(fist_env, stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CALL init_fist_env(fist_env,para_env=para_env, error=error)
-  END IF
-END SUBROUTINE fist_env_create
-!***************************************************************************
-
-!****f* fist_environment_types/fist_env_retain [1.0] *
-!
-!   NAME
-!     fist_env_retain
-!
-!   SYNOPSIS
-!     Subroutine fist_env_retain(fist_env, error)
-!       Type(fist_environment_type), Pointer:: fist_env
-!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!     End Subroutine fist_env_retain
-!
-!   FUNCTION
-!     retains the given fist_env (see doc/ReferenceCounting.html)
-!
-!   NOTES
-!     -
-!
-!   ARGUMENTS
-!     - fist_env: the object to retain
-!     - error: variable to control error logging, stopping,...
-!       see module cp_error_handling
-!
-!   AUTHOR
-!     Fawzi Mohamed
-!
-!   MODIFICATION HISTORY
-!     12.2002 created [fawzi]
-!
-!*** **********************************************************************
-SUBROUTINE fist_env_retain(fist_env,error)
+    failure=.FALSE.
+    
+    ALLOCATE(fist_env, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL init_fist_env(fist_env,para_env=para_env, error=error)
+    END IF
+  END SUBROUTINE fist_env_create
+  
+!!****f* fist_environment_types/fist_env_retain [1.0] *
+!!
+!!   NAME
+!!     fist_env_retain
+!!
+!!   SYNOPSIS
+!!     Subroutine fist_env_retain(fist_env, error)
+!!       Type(fist_environment_type), Pointer:: fist_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine fist_env_retain
+!!
+!!   FUNCTION
+!!     retains the given fist_env (see doc/ReferenceCounting.html)
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - fist_env: the object to retain
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     12.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE fist_env_retain(fist_env,error)
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -515,46 +560,44 @@ SUBROUTINE fist_env_retain(fist_env,error)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
+    failure=.FALSE.
+    CPPrecondition(ASSOCIATED(fist_env),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CPPrecondition(fist_env%ref_count>0,cp_failure_level,routineP,error,failure)
+       fist_env%ref_count=fist_env%ref_count+1
+    END IF
+  END SUBROUTINE fist_env_retain
+  
+!!****f* fist_environment_types/fist_env_release [1.0] *
 !!
-  CPPrecondition(ASSOCIATED(fist_env),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CPPrecondition(fist_env%ref_count>0,cp_failure_level,routineP,error,failure)
-     fist_env%ref_count=fist_env%ref_count+1
-  END IF
-END SUBROUTINE fist_env_retain
-!***************************************************************************
-
-!****f* fist_environment_types/fist_env_release [1.0] *
-!
-!   NAME
-!     fist_env_release
-!
-!   SYNOPSIS
-!     Subroutine fist_env_release(fist_env, error)
-!       Type(fist_environment_type), Pointer:: fist_env
-!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!     End Subroutine fist_env_release
-!
-!   FUNCTION
-!     releases the given fist_env (see doc/ReferenceCounting.html)
-!
-!   NOTES
-!     -
-!
-!   ARGUMENTS
-!     - fist_env: the object to release
-!     - error: variable to control error logging, stopping,...
-!       see module cp_error_handling
-!
-!   AUTHOR
-!     Fawzi Mohamed
-!
-!   MODIFICATION HISTORY
-!     12.2002 created [fawzi]
-!
-!*** **********************************************************************
-SUBROUTINE fist_env_release(fist_env,error)
+!!   NAME
+!!     fist_env_release
+!!
+!!   SYNOPSIS
+!!     Subroutine fist_env_release(fist_env, error)
+!!       Type(fist_environment_type), Pointer:: fist_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine fist_env_release
+!!
+!!   FUNCTION
+!!     releases the given fist_env (see doc/ReferenceCounting.html)
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - fist_env: the object to release
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     12.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE fist_env_release(fist_env,error)
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -564,29 +607,29 @@ SUBROUTINE fist_env_release(fist_env,error)
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
+    failure=.FALSE.
+    
+    IF (ASSOCIATED(fist_env)) THEN
+       CPPrecondition(fist_env%ref_count>0,cp_failure_level,routineP,error,failure)
+       fist_env%ref_count=fist_env%ref_count-1
+       IF (fist_env%ref_count<1) THEN
+          CALL qmmm_env_mm_release(fist_env%qmmm_env, error=error)
+          CALL cell_release(fist_env%cell,error=error)
+          CALL cell_release(fist_env%cell_ref,error=error)
+          CALL ewald_pw_release(fist_env%ewald_pw,error=error)
+          CALL ewald_env_release(fist_env%ewald_env,error=error)
+          CALL cp_para_env_release(fist_env%para_env,error=error)
+          CALL deallocate_fist_energy(fist_env%thermo)
+          
+          CALL fist_nonbond_env_release ( fist_env % fist_nonbond_env, error = error )
+          
+          CALL cp_subsys_release(fist_env%subsys,error=error)
+          CALL section_vals_release(fist_env%input,error=error)
+          DEALLOCATE(fist_env, stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       END IF
+    END IF
+    NULLIFY(fist_env)
+  END SUBROUTINE fist_env_release
 
-  IF (ASSOCIATED(fist_env)) THEN
-     CPPrecondition(fist_env%ref_count>0,cp_failure_level,routineP,error,failure)
-     fist_env%ref_count=fist_env%ref_count-1
-     IF (fist_env%ref_count<1) THEN
-        CALL qmmm_env_mm_release(fist_env%qmmm_env, error=error)
-        CALL cell_release(fist_env%cell,error=error)
-        CALL cell_release(fist_env%cell_ref,error=error)
-        CALL ewald_pw_release(fist_env%ewald_pw,error=error)
-        CALL ewald_env_release(fist_env%ewald_env,error=error)
-        CALL cp_para_env_release(fist_env%para_env,error=error)
-        CALL deallocate_fist_energy(fist_env%thermo)
-
-        CALL fist_nonbond_env_release ( fist_env % fist_nonbond_env, error = error )
-
-        CALL cp_subsys_release(fist_env%subsys,error=error)
-        CALL section_vals_release(fist_env%input,error=error)
-        DEALLOCATE(fist_env, stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-     END IF
-  END IF
-  NULLIFY(fist_env)
-END SUBROUTINE fist_env_release
-!***************************************************************************
 END MODULE fist_environment_types

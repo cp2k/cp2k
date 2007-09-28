@@ -35,11 +35,11 @@ MODULE eip_environment
                                              read_cell,&
                                              write_cell
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_methods,            ONLY: cp_subsys_read_colvar
-  USE cp_subsystem_types,              ONLY: cp_subsys_create,&
+  USE cp_subsys_methods,               ONLY: cp_subsys_read_colvar
+  USE cp_subsys_types,                 ONLY: cp_subsys_create,&
                                              cp_subsys_release,&
                                              cp_subsys_set,&
-                                             cp_subsystem_type
+                                             cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d
@@ -134,7 +134,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell, cell_ref
-    TYPE(cp_subsystem_type), POINTER         :: subsystem
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(molecule_kind_type), DIMENSION(:), &
@@ -156,7 +156,7 @@ CONTAINS
     IF (.NOT. failure) THEN
       ! nullifying  pointers
       NULLIFY( cell_section, colvar_section, eip_section, &
-              cell, cell_ref, subsystem, molecule_kind_set, molecule_set, &
+              cell, cell_ref, subsys, molecule_kind_set, molecule_set, &
               particle_set, atomic_kind_set, particles, molecules, &
               molecule_kinds, atomic_kinds)
 
@@ -176,12 +176,12 @@ CONTAINS
       CALL get_cell(cell=cell, abc=abc)
       CALL write_cell(cell=cell, subsys_section=subsys_section,error=error)
 
-      CALL cp_subsys_create(subsystem, para_env=para_env, error=error)
-      CALL cp_subsys_read_colvar(subsys=subsystem, colvar_section=colvar_section, &
+      CALL cp_subsys_create(subsys, para_env=para_env, error=error)
+      CALL cp_subsys_read_colvar(subsys=subsys, colvar_section=colvar_section, &
                                  error=error)
 
       CALL topology_control(atomic_kind_set, particle_set,molecule_kind_set,&
-           molecule_set, subsystem%colvar_p, subsystem%gci, root_section, &
+           molecule_set, subsys%colvar_p, subsys%gci, root_section, &
            para_env, globenv, force_env_section=force_env_section,&
            subsys_section=subsys_section, use_motion_section=use_motion_section,&
            error=error)
@@ -190,7 +190,7 @@ CONTAINS
       CALL atomic_kind_list_create(atomic_kinds, els_ptr=atomic_kind_set, error=error)
       CALL mol_new_list_create(molecules, els_ptr=molecule_set, error=error)
       CALL mol_kind_new_list_create(molecule_kinds, els_ptr=molecule_kind_set, error=error)
-      CALL cp_subsys_set(subsystem, particles=particles, atomic_kinds=atomic_kinds, &
+      CALL cp_subsys_set(subsys, particles=particles, atomic_kinds=atomic_kinds, &
                          molecules_new=molecules, molecule_kinds_new=molecule_kinds, &
                          error=error)
       CALL particle_list_release(particles, error=error)
@@ -198,13 +198,13 @@ CONTAINS
       CALL mol_new_list_release(molecules, error=error)
       CALL mol_kind_new_list_release(molecule_kinds, error=error)
 
-      CALL eip_init_subsys(eip_env=eip_env, subsystem=subsystem, cell=cell, &
+      CALL eip_init_subsys(eip_env=eip_env, subsys=subsys, cell=cell, &
                            cell_ref=cell_ref, use_ref_cell=use_ref_cell, &
                            subsys_section=subsys_section,error=error)
 
       CALL cell_release(cell, error=error)
       CALL cell_release(cell_ref, error=error)
-      CALL cp_subsys_release(subsystem, error=error)
+      CALL cp_subsys_release(subsys, error=error)
     END IF
 
     CALL timestop(0.0_dp, handle)
@@ -225,7 +225,7 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - eip_env: The eip environment of matter
-!!     - subsystem: the subsystem
+!!     - subsys: the subsys
 !!     - cell: Pointer to the actual simulation cell
 !!     - cell_ref: Pointer to the reference cell, used e.g. in NPT simulations
 !!     - use_ref_cell: Logical which indicates if cell_ref is in use
@@ -239,10 +239,10 @@ CONTAINS
 !!     03.2006 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE eip_init_subsys(eip_env, subsystem, cell, cell_ref, &
+  SUBROUTINE eip_init_subsys(eip_env, subsys, cell, cell_ref, &
                              use_ref_cell, subsys_section, error)
     TYPE(eip_environment_type), POINTER      :: eip_env
-    TYPE(cp_subsystem_type), POINTER         :: subsystem
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     LOGICAL, INTENT(in)                      :: use_ref_cell
     TYPE(section_vals_type), POINTER         :: subsys_section
@@ -273,10 +273,10 @@ CONTAINS
 
     failure = .FALSE.
 
-    particle_set => subsystem%particles%els
-    atomic_kind_set => subsystem%atomic_kinds%els
-    molecule_kind_set => subsystem%molecule_kinds_new%els
-    molecule_set => subsystem%molecules_new%els
+    particle_set => subsys%particles%els
+    atomic_kind_set => subsys%atomic_kinds%els
+    molecule_kind_set => subsys%molecule_kinds_new%els
+    molecule_set => subsys%molecules_new%els
 
 !   *** Print the atomic kind set ***
     CALL write_atomic_kind_set(atomic_kind_set, subsys_section, &
@@ -314,7 +314,7 @@ CONTAINS
 
     eip_env%eip_forces(:,:) = 0.0_dp
 
-    CALL eip_env_set(eip_env=eip_env, subsystem=subsystem, cell=cell, &
+    CALL eip_env_set(eip_env=eip_env, subsys=subsys, cell=cell, &
                      cell_ref=cell_ref, use_ref_cell=use_ref_cell, &
                      local_molecules=local_molecules, &
                      local_particles=local_particles, error=error)
@@ -375,11 +375,11 @@ CONTAINS
     eip_section => section_vals_get_subs_vals(eip_env%force_env_input, &
                                               "EIP", error=error)
 
-    atomic_kind_set => eip_env%subsystem%atomic_kinds%els
+    atomic_kind_set => eip_env%subsys%atomic_kinds%els
 
     ! loop over all kinds
     DO i=1,SIZE(atomic_kind_set)
-      atomic_kind_ptr => eip_env%subsystem%atomic_kinds%els(i)
+      atomic_kind_ptr => eip_env%subsys%atomic_kinds%els(i)
       CALL get_atomic_kind(atomic_kind=atomic_kind_ptr, &
                            name=eip_atomic_kind_name)
       SELECT CASE(eip_atomic_kind_name)

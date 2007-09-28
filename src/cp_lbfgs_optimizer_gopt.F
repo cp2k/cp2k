@@ -62,8 +62,8 @@ MODULE cp_lbfgs_optimizer_gopt
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_p_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE gopt_f_types,                    ONLY: cp_eval_at,&
@@ -646,8 +646,7 @@ CPSourceFileRef,&
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xold
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -756,11 +755,8 @@ CPSourceFileRef,&
              dataunit = cp_print_key_unit_nr(logger,input,&
                   "MOTION%PRINT%TRAJECTORY",extension=".xyz",error=error)
              IF (dataunit>0) THEN
-                CALL force_env_get(force_env,&
-                     cell=cell,&
-                     subsys=subsys,error=error)           
-                CALL cp_subsys_get(subsys=subsys(1)%subsys,&
-                     particles=particles,error=error)
+                CALL force_env_get(force_env,cell=cell,subsys=subsys,error=error)           
+                CALL cp_subsys_get(subsys=subsys,particles=particles,error=error)
                 particle_set => particles%els              
                 WRITE (UNIT=title,FMT="(A,I8,A,F20.10)") " i =",optimizer%isave(30),", E =",optimizer%f
                 CALL write_particle_coordinates(particle_set,dataunit,&

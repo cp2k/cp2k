@@ -55,7 +55,7 @@ MODULE metadynamics_types
      LOGICAL       :: do_wall_p,do_wall_m
      REAL(KIND=dp) :: wall_p, wall_m
      REAL(KIND=dp) :: TARGET
-     INTEGER       :: icolvar,isubsys
+     INTEGER       :: icolvar
   END TYPE metavar_type
 
   TYPE meta_env_type

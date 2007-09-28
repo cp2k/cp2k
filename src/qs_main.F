@@ -30,7 +30,7 @@ MODULE qs_main
                                              cite_reference
   USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_types,              ONLY: cp_subsystem_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_type
   USE force_env_methods,               ONLY: force_env_create
   USE force_env_types,                 ONLY: force_env_p_type,&
                                              force_env_type
@@ -83,15 +83,14 @@ CONTAINS
 !!
 !******************************************************************************
   SUBROUTINE quickstep_create_force_env(force_env,root_section,para_env,globenv,&
-       subsystem,cell,cell_ref, qmmm, qmmm_periodic, force_env_section, subsys_section,&
+       subsys,cell,cell_ref, qmmm, qmmm_periodic, force_env_section, subsys_section,&
        use_motion_section, error)
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_subsystem_type), OPTIONAL, &
-      POINTER                                :: subsystem
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
     LOGICAL, INTENT(IN), OPTIONAL            :: qmmm, qmmm_periodic
     TYPE(section_vals_type), POINTER         :: force_env_section, &
@@ -114,7 +113,7 @@ CONTAINS
     NULLIFY(qs_env, sub_force_env)
     !Reference qs_env
     CALL qs_env_create(qs_env,para_env,error=error)
-    CALL qs_init( qs_env, root_section, globenv, subsystem=subsystem, cell=cell, cell_ref=cell_ref,&
+    CALL qs_init( qs_env, root_section, globenv, subsys=subsys, cell=cell, cell_ref=cell_ref,&
          qmmm=qmmm, qmmm_periodic=qmmm_periodic, force_env_section=force_env_section,&
          subsys_section=subsys_section, use_motion_section=use_motion_section, error=error)
     CALL force_env_create(force_env,root_section, qs_env=qs_env, para_env=para_env, globenv=globenv,&

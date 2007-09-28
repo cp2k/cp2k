@@ -329,8 +329,8 @@ END SUBROUTINE md_env_release
     TYPE(simulation_parameters_type), &
       OPTIONAL, POINTER                      :: simpar
     TYPE(lnhc_parameters_type), OPTIONAL, &
-      POINTER                                :: nhc_part( : ), nhc_coef( : ), &
-                                                nhc_baro( : ), nhc_shell( : )
+      POINTER                                :: nhc_part, nhc_coef, nhc_baro, &
+                                                nhc_shell
     TYPE(npt_info_type), OPTIONAL, POINTER   :: npt( :, : )
     TYPE(force_env_p_type), OPTIONAL, &
       POINTER                                :: force_env_p( : )

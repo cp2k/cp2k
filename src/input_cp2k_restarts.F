@@ -36,8 +36,8 @@ MODULE input_cp2k_restarts
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_p_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
                                              dyn_coeff_type
@@ -272,14 +272,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_subsys_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iforce_eval, isubsys, &
-                                                myid, nforce_eval
+    INTEGER                                  :: handle, iforce_eval, myid, &
+                                                nforce_eval
     INTEGER, DIMENSION(:), POINTER           :: i_force_eval
     LOGICAL                                  :: explicit, failure, &
                                                 skip_vel_section
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
     TYPE(force_env_type), POINTER            :: my_force_b, my_force_env
@@ -292,7 +291,7 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(core_particles,logger,my_force_env,force_env_p,my_force_b, particles,&
-            shell_particles,subsys,work_section)
+         shell_particles,subsys,work_section)
     logger => cp_error_get_logger(error)
 
     IF (PRESENT(md_env)) THEN
@@ -300,66 +299,60 @@ CONTAINS
        CPPrecondition(ASSOCIATED(force_env_p),cp_failure_level,routineP,error,failure)
        my_force_env => force_env_p(1)%force_env
     ELSEIF (PRESENT(force_env)) THEN 
-          my_force_env => force_env
+       my_force_env => force_env
     END IF
     IF (ASSOCIATED(my_force_env))  THEN
 
-      NULLIFY(subsys_section)
-      CALL section_vals_val_get(root_section,"GLOBAL%RUN_TYPE",i_val=myid,error=error)
-      skip_vel_section =((myid /= mol_dyn_run).AND.&
-                         (myid /= mon_car_run).AND.&
-                         (myid /= pint_run))
+       NULLIFY(subsys_section)
+       CALL section_vals_val_get(root_section,"GLOBAL%RUN_TYPE",i_val=myid,error=error)
+       skip_vel_section =((myid /= mol_dyn_run).AND.&
+            (myid /= mon_car_run).AND.&
+            (myid /= pint_run))
 
-      force_env_sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
-      CALL multiple_fe_list(force_env_sections, root_section, i_force_eval, nforce_eval, error)
+       force_env_sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
+       CALL multiple_fe_list(force_env_sections, root_section, i_force_eval, nforce_eval, error)
 
-      DO iforce_eval=1,nforce_eval
-         subsys_section => section_vals_get_subs_vals3(force_env_sections,"SUBSYS",&
-              i_rep_section=i_force_eval(iforce_eval),error=error)
-         CALL section_vals_get(subsys_section, explicit=explicit, error=error)
-         IF (.NOT.explicit) CYCLE ! Nothing to update...
+       DO iforce_eval=1,nforce_eval
+          subsys_section => section_vals_get_subs_vals3(force_env_sections,"SUBSYS",&
+               i_rep_section=i_force_eval(iforce_eval),error=error)
+          CALL section_vals_get(subsys_section, explicit=explicit, error=error)
+          IF (.NOT.explicit) CYCLE ! Nothing to update...
 
-         my_force_b => my_force_env
-         IF (iforce_eval>1) my_force_b => my_force_env%sub_force_env(iforce_eval-1)%force_env
+          my_force_b => my_force_env
+          IF (iforce_eval>1) my_force_b => my_force_env%sub_force_env(iforce_eval-1)%force_env
 
-         CALL force_env_get(my_force_b, subsys=subsys, error=error)
+          CALL force_env_get(my_force_b, subsys=subsys, error=error)
 
-         CPPostcondition(SIZE(subsys)==1,cp_failure_level,routineP,error,failure)
-         DO isubsys=1,SIZE(subsys)
-            CALL cp_subsys_get(subsys(isubsys)%subsys,&
-                 particles=particles, &
-                 shell_particles=shell_particles, &
-                 core_particles=core_particles, error=error)       
+          CALL cp_subsys_get(subsys, particles=particles, shell_particles=shell_particles,&
+               core_particles=core_particles, error=error)       
 
-            work_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
-            CALL section_vals_remove_values(work_section, error)
+          work_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
+          CALL section_vals_remove_values(work_section, error)
 
-            work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
-            IF (.NOT.skip_vel_section) THEN
-               CALL section_vals_remove_values(work_section, error)
-            END IF
+          work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
+          IF (.NOT.skip_vel_section) THEN
+             CALL section_vals_remove_values(work_section, error)
+          END IF
 
-            IF(ASSOCIATED(shell_particles)) THEN
-              work_section => section_vals_get_subs_vals(subsys_section,"SHELL_COORD",error=error)
-              CALL Section_vals_remove_values(work_section, error=error)
-              work_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
-              IF (.NOT.skip_vel_section) THEN
-                  CALL Section_vals_remove_values(work_section, error=error)
-              END IF
-            END IF
+          IF(ASSOCIATED(shell_particles)) THEN
+             work_section => section_vals_get_subs_vals(subsys_section,"SHELL_COORD",error=error)
+             CALL Section_vals_remove_values(work_section, error=error)
+             work_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
+             IF (.NOT.skip_vel_section) THEN
+                CALL Section_vals_remove_values(work_section, error=error)
+             END IF
+          END IF
 
-            IF(ASSOCIATED(core_particles)) THEN
-              work_section => section_vals_get_subs_vals(subsys_section,"CORE_COORD",error=error)
-              CALL Section_vals_remove_values(work_section, error=error)
-              work_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY",error=error)
-              IF (.NOT.skip_vel_section) THEN
-                 CALL Section_vals_remove_values(work_section, error=error)
-              END IF
-            END IF
-         END DO
-
-      END DO
-      DEALLOCATE(i_force_eval)
+          IF(ASSOCIATED(core_particles)) THEN
+             work_section => section_vals_get_subs_vals(subsys_section,"CORE_COORD",error=error)
+             CALL Section_vals_remove_values(work_section, error=error)
+             work_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY",error=error)
+             IF (.NOT.skip_vel_section) THEN
+                CALL Section_vals_remove_values(work_section, error=error)
+             END IF
+          END IF
+       END DO
+       DEALLOCATE(i_force_eval)
     END IF
     CALL timestop(handle)
 
@@ -398,22 +391,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro( : ), nhc_coef( : ), &
-                                                nhc_part( : ), nhc_shell(:)
     TYPE(section_vals_type), POINTER         :: work_section
 
     CALL timeset(routineN,handle)
 
 
-    NULLIFY( nhc_part, nhc_baro, nhc_coef, nhc_shell, work_section)
-
-    CALL get_md_env ( md_env=md_env,&
-                      nhc_part=nhc_part,&
-                      nhc_baro=nhc_baro,&
-                      nhc_coef=nhc_coef,&
-                      nhc_shell=nhc_shell,&
-                      error=error)
-
+    NULLIFY( work_section)
                      
     work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE%COORD",error=error)
     CALL section_vals_remove_values(work_section, error)
@@ -619,8 +602,8 @@ CONTAINS
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(dyn_coeff_type), POINTER            :: coeffs
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
-    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro( : ), nhc_coef( : ), &
-                                                nhc_part( : ), nhc_shell(:)
+    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro, nhc_coef, nhc_part, &
+                                                nhc_shell
     TYPE(npt_info_type), POINTER             :: npt( :, : )
     TYPE(section_vals_type), POINTER         :: replica_section, work_section
 
@@ -673,8 +656,8 @@ CONTAINS
        !-----------------------------------------------------------------------------
        ! write out nhc_part variable in a consistent way for restarts
        !-----------------------------------------------------------------------------
-       nhc_len = SIZE(nhc_part(1)%nvt,1)
-       num_nhc = SIZE(nhc_part(1)%nvt,2)
+       nhc_len = SIZE(nhc_part%nvt,1)
+       num_nhc = SIZE(nhc_part%nvt,2)
        numneed = num_nhc
        ALLOCATE ( nhc_per_proc( para_env % num_pe ), STAT = stat )
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -682,7 +665,7 @@ CONTAINS
 
        CALL mp_allgather(numneed,nhc_per_proc,para_env%group)
 
-       IF (nhc_part ( 1 ) % dis_type=='INTER_REP') THEN
+       IF (nhc_part%dis_type=='INTER_REP') THEN
           tot_nhcneed = nhc_per_proc(1)
        ELSE
           tot_nhcneed = SUM ( nhc_per_proc )
@@ -705,8 +688,8 @@ CONTAINS
              DO i=1,nhc_len
                 DO j=1,num_nhc
                    counter=counter+1
-                   work(counter)=nhc_part(1)%nvt(i,j)%eta
-                   INDEX(j) = nhc_part ( 1 ) % INDEX ( j )
+                   work(counter)=nhc_part%nvt(i,j)%eta
+                   INDEX(j) = nhc_part%index(j)
                 END DO
              END DO
           ELSE
@@ -739,8 +722,8 @@ CONTAINS
              DO i=1,nhc_len
                 DO j=1,num_nhc
                    counter=counter+1
-                   work(counter)=nhc_part(1)%nvt(i,j)%v
-                   INDEX(j) = nhc_part ( 1 ) % index ( j )
+                   work(counter)=nhc_part%nvt(i,j)%v
+                   INDEX(j) = nhc_part%index(j)
                 END DO
              END DO
           ELSE
@@ -772,8 +755,8 @@ CONTAINS
              DO i=1,nhc_len
                 DO j=1,num_nhc
                    counter=counter+1
-                   work(counter)=nhc_part(1)%nvt(i,j)%f
-                   INDEX(j) = nhc_part ( 1 ) % index ( j )
+                   work(counter)=nhc_part%nvt(i,j)%f
+                   INDEX(j) = nhc_part%index(j)
                 END DO
              END DO
           ELSE
@@ -806,8 +789,8 @@ CONTAINS
              DO i=1,nhc_len
                 DO j=1,num_nhc
                    counter=counter+1
-                   work(counter)=nhc_part(1)%nvt(i,j)%mass
-                   INDEX(j) = nhc_part ( 1 ) % index ( j )
+                   work(counter)=nhc_part%nvt(i,j)%mass
+                   INDEX(j) = nhc_part%index(j)
                 END DO
              END DO
           ELSE
@@ -831,17 +814,17 @@ CONTAINS
        DEALLOCATE ( nhc_per_proc, STAT = stat )
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
 
-       IF ( nhc_part ( 1 ) % dis_type=='INTER_REP' ) THEN
+       IF ( nhc_part%dis_type=='INTER_REP' ) THEN
           eta  = 0.0_dp
           veta = 0.0_dp
           counter = 0
-          DO i=1,SIZE(nhc_part(1)%nvt,1)
-             DO j=1,SIZE(nhc_part(1)%nvt,2)
+          DO i=1,SIZE(nhc_part%nvt,1)
+             DO j=1,SIZE(nhc_part%nvt,2)
                 counter = counter + 1
-                eta (counter)= nhc_part(1)%nvt(i,j)%eta
-                veta(counter)= nhc_part(1)%nvt(i,j)%v
-                fnhc(counter)= nhc_part(1)%nvt(i,j)%f
-                mnhc(counter)= nhc_part(1)%nvt(i,j)%mass
+                eta (counter)= nhc_part%nvt(i,j)%eta
+                veta(counter)= nhc_part%nvt(i,j)%v
+                fnhc(counter)= nhc_part%nvt(i,j)%f
+                mnhc(counter)= nhc_part%nvt(i,j)%mass
              END DO
           END DO
        END IF
@@ -854,8 +837,8 @@ CONTAINS
     ! BAROSTAT
     CALL timeset(routineN//"_BAROSTAT","I",'',handle2)
     IF (ASSOCIATED(nhc_baro)) THEN
-       nhc_len     = SIZE(nhc_baro(1)%nvt,1)
-       tot_nhcneed = SIZE(nhc_baro(1)%nvt,2)
+       nhc_len     = SIZE(nhc_baro%nvt,1)
+       tot_nhcneed = SIZE(nhc_baro%nvt,2)
        ALLOCATE(eta(tot_nhcneed*nhc_len), STAT = stat )
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(veta(tot_nhcneed*nhc_len), STAT = stat )
@@ -866,13 +849,13 @@ CONTAINS
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
        
        counter = 0
-       DO i=1,SIZE(nhc_baro(1)%nvt,1)
-          DO j=1,SIZE(nhc_baro(1)%nvt,2)
+       DO i=1,SIZE(nhc_baro%nvt,1)
+          DO j=1,SIZE(nhc_baro%nvt,2)
              counter = counter + 1
-             eta (counter)= nhc_baro(1)%nvt(i,j)%eta
-             veta(counter)= nhc_baro(1)%nvt(i,j)%v
-             fnhc(counter)= nhc_baro(1)%nvt(i,j)%f
-             mnhc(counter)= nhc_baro(1)%nvt(i,j)%mass
+             eta (counter)= nhc_baro%nvt(i,j)%eta
+             veta(counter)= nhc_baro%nvt(i,j)%v
+             fnhc(counter)= nhc_baro%nvt(i,j)%f
+             mnhc(counter)= nhc_baro%nvt(i,j)%mass
           END DO
        END DO
        
@@ -899,6 +882,7 @@ CONTAINS
        CALL set_template_restart(work_section, veta=veta, mnhc=mnhc, error=error)
     END IF
     CALL timestop(0.0_dp,handle2)
+
     ! COEFFICIENTS 
     CALL timeset(routineN//"_KG","I",'',handle2)
     IF (ASSOCIATED(kg_env)) THEN
@@ -907,8 +891,7 @@ CONTAINS
             dyn_coeff_set=dyn_coeff_set,&
             error=error)
        
-       IF (ASSOCIATED(dyn_coeff_set)) THEN
-          
+       IF (ASSOCIATED(dyn_coeff_set)) THEN          
           nsgf_max=0
           n_el=0
           DO ikind=1,SIZE(atomic_kind_set)
@@ -991,8 +974,8 @@ CONTAINS
           !
           ! NOSE OF KG_COEFF
           !
-          nhc_len     = SIZE(nhc_coef(1)%nvt,1)
-          tot_nhcneed = SIZE(nhc_coef(1)%nvt,2)
+          nhc_len     = SIZE(nhc_coef%nvt,1)
+          tot_nhcneed = SIZE(nhc_coef%nvt,2)
           ALLOCATE(eta(tot_nhcneed*nhc_len), STAT = stat )
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(veta(tot_nhcneed*nhc_len), STAT = stat )
@@ -1003,13 +986,13 @@ CONTAINS
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
           
           counter = 0
-          DO i=1,SIZE(nhc_coef(1)%nvt,1)
-             DO j=1,SIZE(nhc_coef(1)%nvt,2)
+          DO i=1,SIZE(nhc_coef%nvt,1)
+             DO j=1,SIZE(nhc_coef%nvt,2)
                 counter = counter + 1
-                eta (counter)= nhc_coef(1)%nvt(i,j)%eta
-                veta(counter)= nhc_coef(1)%nvt(i,j)%v
-                fnhc(counter)= nhc_coef(1)%nvt(i,j)%f
-                mnhc(counter)= nhc_coef(1)%nvt(i,j)%mass
+                eta (counter)= nhc_coef%nvt(i,j)%eta
+                veta(counter)= nhc_coef%nvt(i,j)%v
+                fnhc(counter)= nhc_coef%nvt(i,j)%f
+                mnhc(counter)= nhc_coef%nvt(i,j)%mass
              END DO
           END DO
           
@@ -1022,8 +1005,8 @@ CONTAINS
     ! SHELL THERMOSTAT
     CALL timeset(routineN//"_SHELL","I",'',handle2)
     IF (ASSOCIATED(nhc_shell)) THEN
-       nhc_len = SIZE(nhc_shell(1)%nvt,1)
-       num_nhc = SIZE(nhc_shell(1)%nvt,2)
+       nhc_len = SIZE(nhc_shell%nvt,1)
+       num_nhc = SIZE(nhc_shell%nvt,2)
        numneed = num_nhc
           
        ALLOCATE ( nhc_per_proc( para_env % num_pe ), STAT = stat )
@@ -1032,7 +1015,7 @@ CONTAINS
 
        CALL mp_allgather(numneed,nhc_per_proc,para_env%group)
 
-       IF (nhc_shell ( 1 ) % dis_type=='INTER_REP') THEN
+       IF (nhc_shell%dis_type=='INTER_REP') THEN
           tot_nhcneed = nhc_per_proc(1)
        ELSE
           tot_nhcneed = SUM ( nhc_per_proc )
@@ -1055,8 +1038,8 @@ CONTAINS
              DO i=1,nhc_len
                 DO j=1,num_nhc
                    counter=counter+1
-                   work(counter)=nhc_shell(1)%nvt(i,j)%eta
-                   INDEX(j) = nhc_shell ( 1 ) % INDEX ( j )
+                   work(counter)=nhc_shell%nvt(i,j)%eta
+                   INDEX(j) = nhc_shell%index(j)
                 END DO
              END DO
           ELSE
@@ -1088,8 +1071,8 @@ CONTAINS
              DO i=1,nhc_len
                 DO j=1,num_nhc
                    counter=counter+1
-                   work(counter)=nhc_shell(1)%nvt(i,j)%v
-                   INDEX(j) = nhc_shell ( 1 ) % index ( j )
+                   work(counter)=nhc_shell%nvt(i,j)%v
+                   INDEX(j) = nhc_shell%index(j)
                 END DO
              END DO
           ELSE
@@ -1121,8 +1104,8 @@ CONTAINS
              DO i=1,nhc_len
                 DO j=1,num_nhc
                    counter=counter+1
-                   work(counter)=nhc_shell(1)%nvt(i,j)%f
-                   INDEX(j) = nhc_shell ( 1 ) % index ( j )
+                   work(counter)=nhc_shell%nvt(i,j)%f
+                   INDEX(j) = nhc_shell%index(j)
                 END DO
              END DO
           ELSE
@@ -1155,8 +1138,8 @@ CONTAINS
              DO i=1,nhc_len
                 DO j=1,num_nhc
                    counter=counter+1
-                   work(counter)=nhc_shell(1)%nvt(i,j)%mass
-                   INDEX(j) = nhc_shell ( 1 ) % index ( j )
+                   work(counter)=nhc_shell%nvt(i,j)%mass
+                   INDEX(j) = nhc_shell%index(j)
                 END DO
              END DO
           ELSE
@@ -1181,17 +1164,17 @@ CONTAINS
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
 
 
-      IF ( nhc_shell ( 1 ) % dis_type=='INTER_REP' ) THEN
+      IF ( nhc_shell%dis_type=='INTER_REP' ) THEN
         eta  = 0.0_dp
         veta = 0.0_dp
         counter = 0
-        DO i=1,SIZE(nhc_shell(1)%nvt,1)
-          DO j=1,SIZE(nhc_shell(1)%nvt,2)
+        DO i=1,SIZE(nhc_shell%nvt,1)
+          DO j=1,SIZE(nhc_shell%nvt,2)
                 counter = counter + 1
-                eta (counter)= nhc_shell(1)%nvt(i,j)%eta
-                veta(counter)= nhc_shell(1)%nvt(i,j)%v
-                fnhc(counter)= nhc_shell(1)%nvt(i,j)%f
-                mnhc(counter)= nhc_shell(1)%nvt(i,j)%mass
+                eta (counter)= nhc_shell%nvt(i,j)%eta
+                veta(counter)= nhc_shell%nvt(i,j)%v
+                fnhc(counter)= nhc_shell%nvt(i,j)%f
+                mnhc(counter)= nhc_shell%nvt(i,j)%mass
           END DO
         END DO
       END IF
@@ -1571,6 +1554,7 @@ CONTAINS
 !!
 !!   FUNCTION
 !!     Updates the rng section of the input file
+!!     Write current status of the parallel random number generator (RNG)
 !!
 !!   NOTES
 !!     
@@ -1589,8 +1573,6 @@ CONTAINS
 
   SUBROUTINE update_rng(rng_section,force_env,error)
 
-    ! Write current status of the parallel random number generator (RNG)
-
     TYPE(section_vals_type), POINTER         :: rng_section
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -1599,71 +1581,54 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=rng_record_length)         :: rng_record
-    INTEGER :: iparticle, iparticle_kind, iparticle_local, istat, isubsys, &
-      nparticle, nparticle_kind, nparticle_local
+    INTEGER :: iparticle, iparticle_kind, iparticle_local, istat, nparticle, &
+      nparticle_kind, nparticle_local
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: ascii
     LOGICAL                                  :: failure
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(particle_list_type), POINTER        :: particles
 
-! -------------------------------------------------------------------------
-
     CALL force_env_get(force_env, subsys=subsys, para_env=para_env, error=error)
+    CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds, local_particles=local_particles,&
+         particles=particles, error=error)
 
-    ! The structure for multiple subsys has to be still decided
+    IF (ASSOCIATED(local_particles%local_particle_set)) THEN
+       nparticle_kind = atomic_kinds%n_els
+       nparticle = particles%n_els
 
-    CPPostcondition(SIZE(subsys)==1,cp_failure_level,routineP,error,failure)
+       ALLOCATE (ascii(rng_record_length,nparticle),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ascii = 0
 
-    DO isubsys=1,SIZE(subsys)
-
-      CALL cp_subsys_get(subsys=subsys(isubsys)%subsys,&
-                         atomic_kinds=atomic_kinds,&
-                         local_particles=local_particles,&
-                         particles=particles,&
-                         error=error)
-
-      IF (.NOT.ASSOCIATED(local_particles%local_particle_set)) CYCLE
-
-      nparticle_kind = atomic_kinds%n_els
-      nparticle = particles%n_els
-
-      ALLOCATE (ascii(rng_record_length,nparticle),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      ascii = 0
-
-      DO iparticle=1,nparticle
-        DO iparticle_kind=1,nparticle_kind
-          nparticle_local = local_particles%n_el(iparticle_kind)
-          DO iparticle_local=1,nparticle_local
-            IF (iparticle == local_particles%list(iparticle_kind)%array(iparticle_local)) THEN
-              CALL dump_rng_stream(rng_stream=local_particles%local_particle_set(iparticle_kind)%&
-                   &rng(iparticle_local)%stream,&
-                   rng_record=rng_record, error=error)
-              CALL string_to_ascii(rng_record,ascii(:,iparticle))
-            END IF
+       DO iparticle=1,nparticle
+          DO iparticle_kind=1,nparticle_kind
+             nparticle_local = local_particles%n_el(iparticle_kind)
+             DO iparticle_local=1,nparticle_local
+                IF (iparticle == local_particles%list(iparticle_kind)%array(iparticle_local)) THEN
+                   CALL dump_rng_stream(rng_stream=local_particles%local_particle_set(iparticle_kind)%&
+                        &rng(iparticle_local)%stream,&
+                        rng_record=rng_record, error=error)
+                   CALL string_to_ascii(rng_record,ascii(:,iparticle))
+                END IF
+             END DO
           END DO
-        END DO
-      END DO
+       END DO
 
-      CALL mp_sum(ascii,para_env%group)
+       CALL mp_sum(ascii,para_env%group)
 
-      CALL section_rng_val_set(rng_section=rng_section,&
-                               particles=particles,&
-                               ascii=ascii,&
-                               error=error)
+       CALL section_rng_val_set(rng_section=rng_section,&
+            particles=particles,&
+            ascii=ascii,&
+            error=error)
 
-      DEALLOCATE (ascii,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-    END DO
+       DEALLOCATE (ascii,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    END IF
 
   END SUBROUTINE update_rng
-
-  ! ***************************************************************************
 
 !!****f* input_cp2k_restarts/update_subsys [1.0] *
 !!
@@ -1696,12 +1661,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_subsys', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, isubsys, my_unit
+    INTEGER                                  :: handle, my_unit
     LOGICAL                                  :: failure, scale, use_ref_cell
     REAL(KIND=dp)                            :: conv_factor
     TYPE(cell_type), POINTER                 :: cell, cell_ref
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
@@ -1712,64 +1676,62 @@ CONTAINS
          subsys, cell, cell_ref)
     CALL timeset(routineN,"I",'',handle)
     CALL force_env_get(force_env,&
-                       subsys=subsys,&
-                       cell=cell,&
-                       cell_ref=cell_ref,&
-                       use_ref_cell=use_ref_cell,&
-                       error=error)
-    ! The structure for multiple subsys has to be still decided..
-    CPPostcondition(SIZE(subsys)==1,cp_failure_level,routineP,error,failure)
-    DO isubsys=1,SIZE(subsys)
-       CALL cp_subsys_get(subsys(isubsys)%subsys,&
-            particles=particles, molecules_new=molecules, &
-            shell_particles=shell_particles, &
-            core_particles=core_particles, error=error)       
-       work_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
-       CALL section_vals_val_get(subsys_section,"CELL%UNITS",i_val=my_unit,error=error)
-       scale = .FALSE.
-       SELECT CASE(my_unit)
-       CASE (use_unit_angstrom,use_unit_scaled_angstrom)
-          conv_factor = bohr
-          IF (my_unit==use_unit_scaled_angstrom) scale = .TRUE.
-       CASE (use_unit_bohr,use_unit_scaled_bohr)
-          conv_factor = 1.0_dp
-          IF (my_unit==use_unit_scaled_bohr) scale = .TRUE.
-       CASE DEFAULT
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-       END SELECT
-       !    Coordinates and Velocities
-       work_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
-       CALL section_coord_val_set(work_section, particles, molecules, conv_factor, scale,&
-            cell, error=error)
+         subsys=subsys,&
+         cell=cell,&
+         cell_ref=cell_ref,&
+         use_ref_cell=use_ref_cell,&
+         error=error)
 
-       work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
+    CALL cp_subsys_get(subsys,&
+         particles=particles, molecules_new=molecules, &
+         shell_particles=shell_particles, &
+         core_particles=core_particles, error=error)       
+    work_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
+    CALL section_vals_val_get(subsys_section,"CELL%UNITS",i_val=my_unit,error=error)
+    scale = .FALSE.
+    SELECT CASE(my_unit)
+    CASE (use_unit_angstrom,use_unit_scaled_angstrom)
+       conv_factor = bohr
+       IF (my_unit==use_unit_scaled_angstrom) scale = .TRUE.
+    CASE (use_unit_bohr,use_unit_scaled_bohr)
+       conv_factor = 1.0_dp
+       IF (my_unit==use_unit_scaled_bohr) scale = .TRUE.
+    CASE DEFAULT
+       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    END SELECT
+    !    Coordinates and Velocities
+    work_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
+    CALL section_coord_val_set(work_section, particles, molecules, conv_factor, scale,&
+         cell, error=error)
+
+    work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
+    IF (.NOT.skip_vel_section) THEN
+       CALL section_velocity_val_set(work_section, particles, conv_factor=1.0_dp, error=error)
+    ELSE
+       CALL section_vals_remove_values(work_section, error)
+    END IF
+    ! write restart input for shell-model
+    IF(ASSOCIATED(shell_particles)) THEN
+       work_section => section_vals_get_subs_vals(subsys_section,"SHELL_COORD",error=error)
+       CALL section_coord_val_set(work_section, shell_particles, molecules, &
+            conv_factor, scale, cell, shell=.TRUE., error=error)
        IF (.NOT.skip_vel_section) THEN
-          CALL section_velocity_val_set(work_section, particles, conv_factor=1.0_dp, error=error)
-       ELSE
-          CALL section_vals_remove_values(work_section, error)
+          work_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
+          CALL section_velocity_val_set(work_section, shell_particles, conv_factor=1.0_dp, error=error)
        END IF
-       ! write restart input for shell-model
-       IF(ASSOCIATED(shell_particles)) THEN
-         work_section => section_vals_get_subs_vals(subsys_section,"SHELL_COORD",error=error)
-         CALL section_coord_val_set(work_section, shell_particles, molecules, &
-              conv_factor, scale, cell, shell=.TRUE., error=error)
-         IF (.NOT.skip_vel_section) THEN
-           work_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
-           CALL section_velocity_val_set(work_section, shell_particles, conv_factor=1.0_dp, error=error)
-         END IF
-       ENDIF
-       IF(ASSOCIATED(core_particles)) THEN
-         work_section => section_vals_get_subs_vals(subsys_section,"CORE_COORD",error=error)
-         CALL section_coord_val_set(work_section, core_particles, molecules, &
-              conv_factor, scale, cell, shell=.TRUE., error=error)
-         IF (.NOT.skip_vel_section) THEN
-           work_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY",error=error)
-           CALL section_velocity_val_set(work_section, core_particles, conv_factor=1.0_dp, error=error)
-         END IF
-       ENDIF
-       ! Updating cell info
-       CALL update_cell_section(force_env, subsys_section, error)
-    END DO
+    ENDIF
+    IF(ASSOCIATED(core_particles)) THEN
+       work_section => section_vals_get_subs_vals(subsys_section,"CORE_COORD",error=error)
+       CALL section_coord_val_set(work_section, core_particles, molecules, &
+            conv_factor, scale, cell, shell=.TRUE., error=error)
+       IF (.NOT.skip_vel_section) THEN
+          work_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY",error=error)
+          CALL section_velocity_val_set(work_section, core_particles, conv_factor=1.0_dp, error=error)
+       END IF
+    ENDIF
+    ! Updating cell info
+    CALL update_cell_section(force_env, subsys_section, error)
+
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE update_subsys
 

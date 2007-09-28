@@ -221,13 +221,6 @@ CONTAINS
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="SUBSYS",&
-            description="Specifies which subsystem the qm atom belongs to.",&
-            usage="SUBSYS integer",n_var=1,type_of_var=integer_t,&
-            default_i_val=1,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)    
 
@@ -665,14 +658,6 @@ CONTAINS
             default_r_val=CHARGE_SCALE_FACTOR,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)       
-
-       CALL keyword_create(keyword, name="SUBSYS",&
-            description="Specifies which subsystem the qm/mm link atoms belong to.",&
-            usage="SUBSYS integer",n_var=1,type_of_var=integer_t,&
-            default_i_val=1,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
 
        CALL section_create(subsection,name="MOVE_MM_CHARGE",&
             description="Specify information to move a classical charge before the"//&

@@ -29,12 +29,12 @@ MODULE mixed_environment_types
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_p_type,&
                                              cp_para_env_type
-  USE cp_subsystem_types,              ONLY: cp_subsys_create,&
+  USE cp_subsys_types,                 ONLY: cp_subsys_create,&
                                              cp_subsys_get,&
                                              cp_subsys_release,&
                                              cp_subsys_retain,&
                                              cp_subsys_set,&
-                                             cp_subsystem_type
+                                             cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE input_section_types,             ONLY: section_vals_release,&
                                              section_vals_retain,&
@@ -63,30 +63,45 @@ MODULE mixed_environment_types
   IMPLICIT NONE
   PRIVATE
 
+!!****s* mixed_environment_types/mixed_environment_type [1.0] *
+!!
+!!   NAME
+!!     mixed_environment_type
+!!
+!!   FUNCTION
+!!     
+!!
+!!   ATTRIBUTES
+!!     - mixed_env: the pointer to the mixed_env
+!!
+!!   AUTHOR
+!!     fschiff
+!!
+!!   MODIFICATION HISTORY
+!!     11/06
+!!
+!!   SOURCE
+!***************************************************************************
   TYPE mixed_environment_type
-    INTEGER :: id_nr, ref_count
-    TYPE ( cell_type ), POINTER                    :: cell
-    TYPE ( cell_type ), POINTER                    :: cell_ref
-    TYPE ( mixed_energy_type ), POINTER            :: mixed_energy
-    TYPE ( cp_para_env_type ), POINTER             :: para_env
-    TYPE ( cp_subsystem_type ), POINTER            :: subsys
-    TYPE(section_vals_type), POINTER               :: input
-    REAL(KIND=dp), DIMENSION(:), POINTER           :: energies
-    ! Parallelization of multiple force_eval
-    INTEGER                                        :: new_group, ngroups
-    INTEGER, DIMENSION(:), POINTER                 :: group_distribution
-    TYPE ( cp_para_env_p_type),&
-         DIMENSION(:), POINTER                     :: sub_para_env
-    TYPE ( cp_error_type), &
-         DIMENSION(:), POINTER                     :: sub_error
-    REAL(KIND=dp), POINTER, DIMENSION(:)           :: val
-    CHARACTER(LEN=default_string_length),&
-         DIMENSION(:), POINTER                     :: par
-    REAL(KIND=dp)                                  :: dx, lerr
-    CHARACTER(default_path_length)                 :: coupling_function
- END TYPE mixed_environment_type
-
-! *****************************************************************************
+     INTEGER :: id_nr, ref_count
+     TYPE ( cell_type ), POINTER                      :: cell
+     TYPE ( cell_type ), POINTER                      :: cell_ref
+     TYPE ( mixed_energy_type ), POINTER              :: mixed_energy
+     TYPE ( cp_para_env_type ), POINTER               :: para_env
+     TYPE ( cp_subsys_type ), POINTER                 :: subsys
+     TYPE(section_vals_type), POINTER                 :: input
+     REAL(KIND=dp), DIMENSION(:), POINTER             :: energies
+     ! Parallelization of multiple force_eval
+     INTEGER                                          :: new_group, ngroups
+     INTEGER, DIMENSION(:), POINTER                   :: group_distribution
+     TYPE (cp_para_env_p_type),DIMENSION(:), POINTER  :: sub_para_env
+     TYPE (cp_error_type), DIMENSION(:), POINTER      :: sub_error
+     REAL(KIND=dp), POINTER, DIMENSION(:)             :: val
+     CHARACTER(LEN=default_string_length),&
+          DIMENSION(:), POINTER                       :: par
+     REAL(KIND=dp)                                    :: dx, lerr
+     CHARACTER(default_path_length)                   :: coupling_function
+  END TYPE mixed_environment_type
 
 !!****s* mixed_environment_types/mixed_environment_p_type [1.0] *
 !!
@@ -106,12 +121,10 @@ MODULE mixed_environment_types
 !!     11/06
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   TYPE mixed_environment_p_type
      TYPE(mixed_environment_type), POINTER :: mixed_env
   END TYPE mixed_environment_p_type
-!!***
-  !****************************************************************************
 
 ! *** Public data types ***
 
@@ -130,22 +143,32 @@ MODULE mixed_environment_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mixed_environment_types'
   INTEGER, PRIVATE, SAVE :: last_mixed_env_id_nr=0
 
-!***
-! *****************************************************************************
-
 CONTAINS
 
-! *****************************************************************************
-
+!!****s* mixed_environment_types/get_mixed_env [1.0] *
+!!
+!!   NAME
+!!     get_mixed_env 
+!!
+!!   FUNCTION
+!!     Get the MIXED environment.
+!!
+!!   ATTRIBUTES
+!!     - mixed_env: the pointer to the mixed_env
+!!
+!!   AUTHOR
+!!     
+!!
+!!   MODIFICATION HISTORY
+!!     
+!!
+!!   SOURCE
+!***************************************************************************
   SUBROUTINE get_mixed_env( mixed_env, atomic_kind_set, particle_set,  &
                            local_particles, local_molecules, molecule_kind_set, &
                            molecule_set, cell, cell_ref, &
                            mixed_energy, para_env, sub_para_env, subsys,  &
                            input, error )
-
-!   Purpose: Get the MIXED environment.
-
-!   ***************************************************************************
 
     TYPE(mixed_environment_type), INTENT(IN) :: mixed_env
     TYPE(atomic_kind_type), OPTIONAL, &
@@ -164,8 +187,7 @@ CONTAINS
       POINTER                                :: para_env
     TYPE(cp_para_env_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: sub_para_env
-    TYPE(cp_subsystem_type), OPTIONAL, &
-      POINTER                                :: subsys
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -179,11 +201,8 @@ CONTAINS
     TYPE(mol_new_list_type), POINTER         :: molecules_new
     TYPE(particle_list_type), POINTER        :: particles
 
-!   ---------------------------------------------------------------------------
-
     failure=.FALSE.
     NULLIFY( atomic_kinds, particles, molecules_new, molecule_kinds_new )
-!    CPPrecondition(fist_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(mixed_env%subsys),cp_failure_level,routineP,error,failure)
 
     IF ( PRESENT ( input ) ) input => mixed_env%input
@@ -207,21 +226,32 @@ CONTAINS
     IF (PRESENT(molecule_set)) molecule_set => molecules_new%els
 
   END SUBROUTINE get_mixed_env
-!
-! *****************************************************************************
 
+!!****s* mixed_environment_types/init_mixed_env [1.0] *
+!!
+!!   NAME
+!!     init_mixed_env 
+!!
+!!   FUNCTION
+!!     Initialise the MIXED environment.
+!!
+!!   ATTRIBUTES
+!!     - mixed_env: the pointer to the mixed_env
+!!
+!!   AUTHOR
+!!     
+!!
+!!   MODIFICATION HISTORY
+!!     
+!!
+!!   SOURCE
+!***************************************************************************
   SUBROUTINE init_mixed_env ( mixed_env, para_env, error )
-
-!   Purpose: Initialise the MIXED environment.
-
-!   ***************************************************************************
 
     TYPE(mixed_environment_type), &
       INTENT(OUT)                            :: mixed_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
-
-!   ---------------------------------------------------------------------------
 
     NULLIFY (mixed_env%input)
     NULLIFY (mixed_env%cell)
@@ -242,14 +272,29 @@ CONTAINS
 
   END SUBROUTINE init_mixed_env
 
-! *****************************************************************************
-
+!!****s* mixed_environment_types/set_mixed_env [1.0] *
+!!
+!!   NAME
+!!     set_mixed_env 
+!!
+!!   FUNCTION
+!!     Set the MIXED environment.
+!!
+!!   ATTRIBUTES
+!!     - mixed_env: the pointer to the mixed_env
+!!
+!!   AUTHOR
+!!     
+!!
+!!   MODIFICATION HISTORY
+!!     
+!!
+!!   SOURCE
+!***************************************************************************
   SUBROUTINE set_mixed_env( mixed_env, atomic_kind_set, particle_set, &
                            local_particles, local_molecules, molecule_kind_set, &
                            molecule_set, cell, cell_ref, mixed_energy, subsys, &
                            input, sub_para_env, error )
-
-!   Purpose: Set the MIXED environment.
 
     TYPE(mixed_environment_type), POINTER    :: mixed_env
     TYPE(atomic_kind_type), OPTIONAL, &
@@ -264,8 +309,7 @@ CONTAINS
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
     TYPE(mixed_energy_type), OPTIONAL, &
       POINTER                                :: mixed_energy
-    TYPE(cp_subsystem_type), OPTIONAL, &
-      POINTER                                :: subsys
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input
     TYPE(cp_para_env_p_type), DIMENSION(:), &
@@ -356,37 +400,35 @@ CONTAINS
       CALL mol_new_list_release(molecules_new,error=error)
     END IF
 
-!***************************************************************************
   END SUBROUTINE set_mixed_env
-!***************************************************************************
-!
-!****f* mixed_environment_types/mixed_env_create [1.0] *
-!
-!   NAME
-!     mixed_env_create
-!
-!   SYNOPSIS
-!     Subroutine mixed_env_create(mixed_env, para_env, error)
-!       Type(mixed_environment_type), Pointer:: mixed_env
-!       Type(cp_para_env_type), Pointer:: para_env
-!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!     End Subroutine mixed_env_create
-!
-!   FUNCTION
-!     allocates and intitializes a mixed_env
-!
-!   ARGUMENTS
-!     - mixed_env: the object to create
-!     - para_env: the parallel environement for the qs_env
-!     - error: variable to control error logging, stopping,...
-!       see module cp_error_handling
-!
-!   AUTHOR
-!     fschiff 11.06
-!
-!
-!*** **********************************************************************
-SUBROUTINE mixed_env_create(mixed_env,para_env,error)
+
+!!****f* mixed_environment_types/mixed_env_create [1.0] *
+!!
+!!   NAME
+!!     mixed_env_create
+!!
+!!   SYNOPSIS
+!!     Subroutine mixed_env_create(mixed_env, para_env, error)
+!!       Type(mixed_environment_type), Pointer:: mixed_env
+!!       Type(cp_para_env_type), Pointer:: para_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine mixed_env_create
+!!
+!!   FUNCTION
+!!     allocates and intitializes a mixed_env
+!!
+!!   ARGUMENTS
+!!     - mixed_env: the object to create
+!!     - para_env: the parallel environement for the qs_env
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     fschiff 11.06
+!!
+!!
+!!*** **********************************************************************
+  SUBROUTINE mixed_env_create(mixed_env,para_env,error)
     TYPE(mixed_environment_type), POINTER    :: mixed_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -397,44 +439,43 @@ SUBROUTINE mixed_env_create(mixed_env,para_env,error)
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
-
-  ALLOCATE(mixed_env, stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CALL init_mixed_env(mixed_env,para_env=para_env, error=error)
-  END IF
-END SUBROUTINE mixed_env_create
-!***************************************************************************
-
-!****f* mixed_environment_types/mixed_env_retain [1.0] *
-!
-!   NAME
-!     mixed_env_retain
-!
-!   SYNOPSIS
-!     Subroutine mixed_env_retain(mixed_env, error)
-!       Type(mixed_environment_type), Pointer:: mixed_env
-!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!     End Subroutine mixed_env_retain
-!
-!   FUNCTION
-!     retains the given mixed_env (see doc/ReferenceCounting.html)
-!
-!   NOTES
-!     -
-!
-!   ARGUMENTS
-!     - mixed_env: the object to retain
-!     - error: variable to control error logging, stopping,...
-!       see module cp_error_handling
-!
-!   AUTHOR
-!     fschiff 11.06
-!
-!
-!*** **********************************************************************
-SUBROUTINE mixed_env_retain(mixed_env,error)
+    failure=.FALSE.
+    
+    ALLOCATE(mixed_env, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL init_mixed_env(mixed_env,para_env=para_env, error=error)
+    END IF
+  END SUBROUTINE mixed_env_create
+  
+!!****f* mixed_environment_types/mixed_env_retain [1.0] *
+!!
+!!   NAME
+!!     mixed_env_retain
+!!
+!!   SYNOPSIS
+!!     Subroutine mixed_env_retain(mixed_env, error)
+!!       Type(mixed_environment_type), Pointer:: mixed_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine mixed_env_retain
+!!
+!!   FUNCTION
+!!     retains the given mixed_env (see doc/ReferenceCounting.html)
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - mixed_env: the object to retain
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     fschiff 11.06
+!!
+!!
+!!*** **********************************************************************
+  SUBROUTINE mixed_env_retain(mixed_env,error)
     TYPE(mixed_environment_type), POINTER    :: mixed_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -443,44 +484,43 @@ SUBROUTINE mixed_env_retain(mixed_env,error)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
+    failure=.FALSE.
+    
+    CPPrecondition(ASSOCIATED(mixed_env),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CPPrecondition(mixed_env%ref_count>0,cp_failure_level,routineP,error,failure)
+       mixed_env%ref_count=mixed_env%ref_count+1
+    END IF
+  END SUBROUTINE mixed_env_retain
 
-  CPPrecondition(ASSOCIATED(mixed_env),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CPPrecondition(mixed_env%ref_count>0,cp_failure_level,routineP,error,failure)
-     mixed_env%ref_count=mixed_env%ref_count+1
-  END IF
-END SUBROUTINE mixed_env_retain
-!***************************************************************************
-
-!****f* mixed_environment_types/mixed_env_release [1.0] *
-!
-!   NAME
-!     mixed_env_release
-!
-!   SYNOPSIS
-!     Subroutine mixed_env_release(mixed_env, error)
-!       Type(mixed_environment_type), Pointer:: mixed_env
-!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!     End Subroutine mixed_env_release
-!
-!   FUNCTION
-!     releases the given mixed_env (see doc/ReferenceCounting.html)
-!
-!   NOTES
-!     -
-!
-!   ARGUMENTS
-!     - mixed_env: the object to release
-!     - error: variable to control error logging, stopping,...
-!       see module cp_error_handling
-!
-!   AUTHOR
-!     fschiff 11.06
-!
-!
-!*** **********************************************************************
-SUBROUTINE mixed_env_release(mixed_env,error)
+!!****f* mixed_environment_types/mixed_env_release [1.0] *
+!!
+!!   NAME
+!!     mixed_env_release
+!!
+!!   SYNOPSIS
+!!     Subroutine mixed_env_release(mixed_env, error)
+!!       Type(mixed_environment_type), Pointer:: mixed_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine mixed_env_release
+!!
+!!   FUNCTION
+!!     releases the given mixed_env (see doc/ReferenceCounting.html)
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - mixed_env: the object to release
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     fschiff 11.06
+!!
+!!
+!!*** **********************************************************************
+  SUBROUTINE mixed_env_release(mixed_env,error)
     TYPE(mixed_environment_type), POINTER    :: mixed_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -490,49 +530,49 @@ SUBROUTINE mixed_env_release(mixed_env,error)
     INTEGER                                  :: i, ngroups, stat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
+    failure=.FALSE.
+    
+    IF (ASSOCIATED(mixed_env)) THEN
+       CPPrecondition(mixed_env%ref_count>0,cp_failure_level,routineP,error,failure)
+       mixed_env%ref_count=mixed_env%ref_count-1
+       IF (mixed_env%ref_count<1) THEN
+          CALL cell_release(mixed_env%cell,error=error)
+          ngroups = SIZE(mixed_env%sub_para_env)
+          DO i = 1, ngroups
+             IF (ASSOCIATED(mixed_env%sub_para_env(i)%para_env)) THEN
+                CALL cp_error_dealloc_ref(mixed_env%sub_error(i), error)
+                CALL cp_para_env_release(mixed_env%sub_para_env(i)%para_env,error=error)
+             END IF
+          END DO
+          DEALLOCATE(mixed_env%sub_para_env, stat=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(mixed_env%sub_error, stat=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(mixed_env%energies, stat=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          IF (ASSOCIATED(mixed_env%par)) THEN
+             DEALLOCATE(mixed_env%par, stat=stat)
+             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          IF (ASSOCIATED(mixed_env%val)) THEN
+             DEALLOCATE(mixed_env%val, stat=stat)
+             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          CALL cell_release(mixed_env%cell_ref,error=error)
+          CALL cp_para_env_release(mixed_env%para_env,error=error)
+          CALL deallocate_mixed_energy(mixed_env%mixed_energy)
+          CALL cp_subsys_release(mixed_env%subsys,error=error)
+          CALL section_vals_release(mixed_env%input,error=error)
+          IF (ASSOCIATED(mixed_env%group_distribution)) THEN
+             DEALLOCATE(mixed_env%group_distribution, stat=stat)
+             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          DEALLOCATE(mixed_env, stat=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+    END IF
+    NULLIFY(mixed_env)
+    
+  END SUBROUTINE mixed_env_release
 
-  IF (ASSOCIATED(mixed_env)) THEN
-     CPPrecondition(mixed_env%ref_count>0,cp_failure_level,routineP,error,failure)
-     mixed_env%ref_count=mixed_env%ref_count-1
-     IF (mixed_env%ref_count<1) THEN
-        CALL cell_release(mixed_env%cell,error=error)
-        ngroups = SIZE(mixed_env%sub_para_env)
-        DO i = 1, ngroups
-           IF (ASSOCIATED(mixed_env%sub_para_env(i)%para_env)) THEN
-              CALL cp_error_dealloc_ref(mixed_env%sub_error(i), error)
-              CALL cp_para_env_release(mixed_env%sub_para_env(i)%para_env,error=error)
-           END IF
-        END DO
-        DEALLOCATE(mixed_env%sub_para_env, stat=stat)
-        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-        DEALLOCATE(mixed_env%sub_error, stat=stat)
-        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-        DEALLOCATE(mixed_env%energies, stat=stat)
-        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-        IF (ASSOCIATED(mixed_env%par)) THEN
-           DEALLOCATE(mixed_env%par, stat=stat)
-           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-        END IF
-        IF (ASSOCIATED(mixed_env%val)) THEN
-           DEALLOCATE(mixed_env%val, stat=stat)
-           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-        END IF
-        CALL cell_release(mixed_env%cell_ref,error=error)
-        CALL cp_para_env_release(mixed_env%para_env,error=error)
-        CALL deallocate_mixed_energy(mixed_env%mixed_energy)
-        CALL cp_subsys_release(mixed_env%subsys,error=error)
-        CALL section_vals_release(mixed_env%input,error=error)
-        IF (ASSOCIATED(mixed_env%group_distribution)) THEN
-           DEALLOCATE(mixed_env%group_distribution, stat=stat)
-           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-        END IF
-        DEALLOCATE(mixed_env, stat=stat)
-        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-     END IF
-  END IF
-  NULLIFY(mixed_env)
-
-END SUBROUTINE mixed_env_release
-!***************************************************************************
 END MODULE mixed_environment_types

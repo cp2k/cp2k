@@ -33,8 +33,8 @@ MODULE md_run
                                              cp_print_key_unit_nr,&
                                              cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_p_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
@@ -187,8 +187,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(free_energy_type), POINTER          :: fe_env
     TYPE(particle_list_type), POINTER        :: particles
@@ -300,11 +299,8 @@ CONTAINS
          CALL force_env_get( force_env_p(ibead)%force_env, subsys=subsys, &
                              error=error )
       
-         CALL cp_subsys_get(subsys(1)%subsys,&
-                atomic_kinds=atomic_kinds,&
-                local_particles=local_particles,&
-                particles=particles,&
-                error=error)
+         CALL cp_subsys_get(subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
+                particles=particles,error=error)
       
          CALL virial_evaluate(atomic_kinds%els, particles%els, &
                 local_particles, force_env_p(ibead)%force_env%virial,&

@@ -28,9 +28,8 @@ MODULE md_util
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_p_type,&
-                                             cp_subsystem_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
   USE force_env_methods,               ONLY: force_env_calc_energy_force,&
                                              force_env_rattle,&
                                              force_env_shake
@@ -132,7 +131,7 @@ CONTAINS
        vsubtract, error)
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
-    TYPE(cp_subsystem_type), POINTER         :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: vcom
     REAL(KIND=dp), INTENT(OUT)               :: e_kinetic, temperature
     LOGICAL, INTENT(IN), OPTIONAL            :: do_shell
@@ -273,7 +272,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE scale_velocity(subsys, temp_expected, temperature, temp_tol, iw, error)
-    TYPE(cp_subsystem_type), POINTER         :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     REAL(KIND=dp), INTENT(IN)                :: temp_expected, temperature, &
                                                 temp_tol
     INTEGER, INTENT(IN)                      :: iw
@@ -369,7 +368,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE scale_velocity_internal(subsys, temp_expected, temperature, temp_tol, iw, error)
-    TYPE(cp_subsystem_type), POINTER         :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     REAL(KIND=dp), INTENT(IN)                :: temp_expected, temperature, &
                                                 temp_tol
     INTEGER, INTENT(IN)                      :: iw
@@ -473,45 +472,39 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'temperature_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, isubsys, iw
+    INTEGER                                  :: handle, iw
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: e_kinetic, temperature
     REAL(KIND=dp), DIMENSION(3)              :: vcom
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
 
     CALL timeset(routineN,"I","",handle)
     NULLIFY(subsys, para_env)
     CPPrecondition(ASSOCIATED(simpar),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
     CALL force_env_get(force_env,subsys=subsys,para_env=para_env,error=error)
-    isubsys = SIZE(subsys)
-    CPPrecondition(isubsys==1,cp_failure_level,routineP,error,failure)
+
     iw = cp_print_key_unit_nr(logger,force_env%root_section,&
          "MOTION%MD%PRINT%PROGRAM_RUN_INFO",extension=".mdLog",error=error)
     ! Control the particle motion
     IF (simpar%temp_tol > 0.0_dp ) THEN
-      CALL compute_ekin_temp_part(simpar, subsys(isubsys)%subsys, vcom, e_kinetic,&
-                                  temperature, error=error)
+      CALL compute_ekin_temp_part(simpar, subsys, vcom, e_kinetic, temperature, error=error)
       IF (iw>0) THEN
         WRITE (UNIT=iw,FMT="(/,T2,A,(T58,A3,F20.10))")&
           "Centre of mass motion (COM):","x =",vcom(1),"y =",vcom(2),"z =",vcom(3)
       END IF
-      CALL scale_velocity(subsys(isubsys)%subsys, simpar%temp_ext, temperature,&
-                          simpar%temp_tol, iw, error)
+      CALL scale_velocity(subsys, simpar%temp_ext, temperature, simpar%temp_tol, iw, error)
    END IF
    
    ! Control the internal core-shell motion
    IF(simpar%temp_sh_tol > 0.0_dp) THEN
-      CALL compute_ekin_temp_part(simpar, subsys(isubsys)%subsys, vcom, e_kinetic, temperature,&
-           do_shell=.TRUE., error=error)
+      CALL compute_ekin_temp_part(simpar, subsys, vcom, e_kinetic, temperature, do_shell=.TRUE., error=error)
       IF (iw>0) THEN
          WRITE (UNIT=iw,FMT="(/,T2,A,(T58,A3,F20.10))")&
               "Centre of mass motion (COM):","x =",vcom(1),"y =",vcom(2),"z =",vcom(3)
       END IF
-      CALL scale_velocity_internal(subsys(isubsys)%subsys, simpar%temp_sh_ext, temperature,&
-           simpar%temp_sh_tol, iw, error)
+      CALL scale_velocity_internal(subsys, simpar%temp_sh_ext, temperature, simpar%temp_sh_tol, iw, error)
     END IF
     CALL cp_print_key_finished_output(iw,logger,force_env%root_section,&
          "MOTION%MD%PRINT%PROGRAM_RUN_INFO", error=error)
@@ -546,14 +539,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'comvel_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, isubsys, iw
+    INTEGER                                  :: handle, iw
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: e_kinetic, temp_new, &
                                                 temperature, vel_com
     REAL(KIND=dp), DIMENSION(3)              :: vcom, vcom_new
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
 
     CALL timeset(routineN,"I","",handle)
     NULLIFY(subsys, para_env)
@@ -562,25 +554,22 @@ CONTAINS
 
     IF (simpar%comvel_tol > 0.0_dp ) THEN
       CALL force_env_get(force_env,subsys=subsys,para_env=para_env,error=error)
-      isubsys = SIZE(subsys)
-      CPPrecondition(isubsys==1,cp_failure_level,routineP,error,failure)
+
       iw = cp_print_key_unit_nr(logger,force_env%root_section,&
            "MOTION%MD%PRINT%PROGRAM_RUN_INFO",&
            extension=".mdLog",error=error)
-      CALL compute_ekin_temp_part(simpar, subsys(isubsys)%subsys, vcom, e_kinetic,&
-           temperature, error=error)
+      CALL compute_ekin_temp_part(simpar, subsys, vcom, e_kinetic, temperature, error=error)
       vel_com = SQRT(vcom(1)**2+vcom(2)**2+vcom(3)**2)
 
       ! Subtract the velocity of the COM, if requested
       IF (vel_com > simpar%comvel_tol) THEN
-         CALL compute_ekin_temp_part(simpar, subsys(isubsys)%subsys, vcom_new, e_kinetic,&
-              temp_new, vsubtract= vcom, error=error)
+         CALL compute_ekin_temp_part(simpar, subsys, vcom_new, e_kinetic, temp_new, vsubtract= vcom, error=error)
          IF (iw>0) THEN
             WRITE (UNIT=iw,FMT="(T2,'MD| ',A,3F12.6,A)") &
                  "Old VCOM = ",vcom(1:3)," a.u.",&
                  "New VCOM =", vcom_new(1:3)," a.u"
          END IF
-         CALL scale_velocity(subsys(isubsys)%subsys, temperature, temp_new, 0.0_dp, iw, error)
+         CALL scale_velocity(subsys, temperature, temp_new, 0.0_dp, iw, error)
       END IF
       CALL cp_print_key_finished_output(iw,logger,force_env%root_section,&
            "MOTION%MD%PRINT%PROGRAM_RUN_INFO", error=error)
@@ -618,14 +607,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_velocities', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ibead, isubsys
+    INTEGER                                  :: handle, ibead
     LOGICAL                                  :: apply_cns0, failure, &
                                                 shell_adiabatic, shell_present
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
@@ -644,50 +632,43 @@ CONTAINS
        CALL force_env_get(force_env_p(ibead)%force_env, subsys=subsys, &
                           cell=cell, cell_ref=cell_ref, para_env=para_env,&
                           force_env_section=force_env_section, error=error )
-       DO isubsys=1,SIZE(subsys)
-          subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",&
-               i_rep_section=isubsys, error=error)
+       subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
 
-          CALL cp_subsys_get(subsys(isubsys)%subsys,&
-                             atomic_kinds=atomic_kinds,&
-                             molecule_kinds_new=molecule_kinds_new,&
-                             particles=particles,&
-                             shell_particles=shell_particles,&
-                             core_particles=core_particles,&
-                             error=error)
+       CALL cp_subsys_get(subsys,atomic_kinds=atomic_kinds,molecule_kinds_new=molecule_kinds_new,&
+            particles=particles,shell_particles=shell_particles,core_particles=core_particles,&
+            error=error)
 
-          CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,&
-                                   shell_present=shell_present,&
-                                   shell_adiabatic=shell_adiabatic)
-          NULLIFY (work_section,work2_section, work3_section)
-          work_section  => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
+       CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,shell_present=shell_present,&
+            shell_adiabatic=shell_adiabatic)
+       NULLIFY (work_section,work2_section, work3_section)
+       work_section  => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
 
-          IF(shell_present .AND. shell_adiabatic) THEN
-             ! shell-model with constraint NYI
-             CPPostcondition(.NOT.simpar%constraint,cp_failure_level,routineP,error,failure)
-             work2_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
-             work3_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY",error=error)
-             CALL initialize_velocities(simpar,particles%els,&
-                                        molecule_kinds=molecule_kinds_new,&
-                                        para_env=para_env,&
-                                        globenv=globenv,&
-                                        print_section=print_section,&
-                                        work_section=work_section,&
-                                        work2_section=work2_section,&
-                                        work3_section=work3_section,&
-                                        shell_part=shell_particles%els,&
-                                        core_part=core_particles%els,&
-                                        error=error)
-          ELSE
-             CALL initialize_velocities(simpar,particles%els,&
-                                        molecule_kinds=molecule_kinds_new,&
-                                        para_env=para_env,&
-                                        globenv=globenv,&
-                                        print_section=print_section,&
-                                        work_section=work_section,&
-                                        error=error)
-          END IF
-       END DO
+       IF(shell_present .AND. shell_adiabatic) THEN
+          ! shell-model with constraint NYI
+          CPPostcondition(.NOT.simpar%constraint,cp_failure_level,routineP,error,failure)
+          work2_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
+          work3_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY",error=error)
+          CALL initialize_velocities(simpar,particles%els,&
+                                     molecule_kinds=molecule_kinds_new,&
+                                     para_env=para_env,&
+                                     globenv=globenv,&
+                                     print_section=print_section,&
+                                     work_section=work_section,&
+                                     work2_section=work2_section,&
+                                     work3_section=work3_section,&
+                                     shell_part=shell_particles%els,&
+                                     core_part=core_particles%els,&
+                                     error=error)
+       ELSE
+          CALL initialize_velocities(simpar,particles%els,&
+                                     molecule_kinds=molecule_kinds_new,&
+                                     para_env=para_env,&
+                                     globenv=globenv,&
+                                     print_section=print_section,&
+                                     work_section=work_section,&
+                                     error=error)
+       END IF
+
        ! Apply constraints if required and rescale velocities..
        IF (simpar%ensemble /= reftraj_ensemble) THEN
           IF (apply_cns0) THEN
@@ -711,23 +692,20 @@ CONTAINS
                      lagrange_mult=simpar%lagrange_multipliers,dump_lm=simpar%dump_lm,reset=.TRUE.,error=error)
              END IF
              ! Reinitialize velocities rescaling properly after rattle
-             DO isubsys=1,SIZE(subsys)
-                subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",&
-                     i_rep_section=isubsys,error=error)
-                CALL update_subsys(subsys_section,force_env_p(ibead)%force_env,.FALSE.,error)
-                CALL cp_subsys_get(subsys(isubsys)%subsys,molecule_kinds_new=molecule_kinds_new,&
-                     particles=particles,error=error)
-                NULLIFY (work_section)
-                work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
-                CALL initialize_velocities(simpar,particles%els,&
-                                           molecule_kinds=molecule_kinds_new,&
-                                           para_env=para_env,&
-                                           globenv=globenv,&
-                                           print_section=print_section,&
-                                           work_section=work_section,&
-                                           force_rescaling=.TRUE.,&
-                                           error=error)
-             END DO
+             subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
+             CALL update_subsys(subsys_section,force_env_p(ibead)%force_env,.FALSE.,error)
+             CALL cp_subsys_get(subsys,molecule_kinds_new=molecule_kinds_new,&
+                  particles=particles,error=error)
+             NULLIFY (work_section)
+             work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
+             CALL initialize_velocities(simpar,particles%els,&
+                                        molecule_kinds=molecule_kinds_new,&
+                                        para_env=para_env,&
+                                        globenv=globenv,&
+                                        print_section=print_section,&
+                                        work_section=work_section,&
+                                        force_rescaling=.TRUE.,&
+                                        error=error)
           END IF
        END IF
     END DO

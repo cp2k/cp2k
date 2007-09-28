@@ -31,8 +31,8 @@ MODULE pint_types
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_p_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE f77_interface,                   ONLY: f_env_add_defaults,&
                                              f_env_rm_defaults,&
@@ -294,8 +294,7 @@ CONTAINS
     REAL(kind=dp), DIMENSION(3, 2)           :: seed
     TYPE(cp_error_type)                      :: new_error
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(replica_env_type), POINTER          :: rep_env
@@ -435,12 +434,9 @@ CONTAINS
        CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id,&
             f_env=f_env,new_error=new_error, failure=failure)
        logger => cp_error_get_logger(new_error)
-       CALL force_env_get(force_env=f_env%force_env,&
-            subsys=subsys,&
+       CALL force_env_get(force_env=f_env%force_env,subsys=subsys,&
             error=new_error)
-       CALL cp_subsys_get(subsys(1)%subsys,&
-            particles=particles,&
-            error=new_error)
+       CALL cp_subsys_get(subsys,particles=particles,error=new_error)
 
        idim=0
        DO iat=1,pint_env%ndim/3
@@ -450,11 +446,6 @@ CONTAINS
              pint_env%mass(idim)=mass
           END DO
        END DO
-!       CALL cp_assert(logger%iter_info%iteration(2)==pint_env%iter,&
-!            cp_failure_level,cp_assertion_failed,routineP,&
-!            "md & force_eval lost synchro "//&
-!            CPSourceFileRef,&
-!            error,failure)
        ! set to iter-1 since the initial force evaluation will increment it
        logger%iter_info%iteration(2)=pint_env%iter-1
        CALL f_env_rm_defaults(f_env,new_error,ierr)
@@ -2410,8 +2401,7 @@ SUBROUTINE pint_write_centroids(pint_env,error)
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type)                      :: new_error
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(section_vals_type), POINTER         :: print_key
@@ -2444,13 +2434,8 @@ SUBROUTINE pint_write_centroids(pint_env,error)
            IF (unit_nr>0) THEN
               iter=logger%iter_info%iteration(1)
               logger%iter_info%iteration(1)=0
-              CALL force_env_get(force_env=f_env%force_env,&
-                   cell=cell,&
-                   subsys=subsys,&
-                   error=new_error)
-              CALL cp_subsys_get(subsys(1)%subsys,&
-                   particles=particles,&
-                   error=new_error)
+              CALL force_env_get(force_env=f_env%force_env,cell=cell,subsys=subsys,error=new_error)
+              CALL cp_subsys_get(subsys,particles=particles,error=new_error)
 
               nb=REAL(pint_env%p,dp)
               idim=0

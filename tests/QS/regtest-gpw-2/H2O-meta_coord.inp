@@ -74,7 +74,6 @@
       &METAVAR
         SCALE 0.02
         COLVAR 1
-        SUBSYS 1
       &END METAVAR
       &PRINT
         &COLVAR

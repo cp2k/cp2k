@@ -69,11 +69,11 @@ MODULE qs_environment
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_methods,            ONLY: cp_subsys_read_colvar
-  USE cp_subsystem_types,              ONLY: cp_subsys_create,&
+  USE cp_subsys_methods,               ONLY: cp_subsys_read_colvar
+  USE cp_subsys_types,                 ONLY: cp_subsys_create,&
                                              cp_subsys_release,&
                                              cp_subsys_set,&
-                                             cp_subsystem_type
+                                             cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d
@@ -186,7 +186,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE qs_init(qs_env,root_section,globenv,subsystem,cell,cell_ref,qmmm,&
+  SUBROUTINE qs_init(qs_env,root_section,globenv,subsys,cell,cell_ref,qmmm,&
        qmmm_periodic,force_env_section,subsys_section,use_motion_section,error)
 
 !   Purpose: Read the input and the database files for the setup of the
@@ -199,8 +199,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_subsystem_type), OPTIONAL, &
-      POINTER                                :: subsystem
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
     LOGICAL, INTENT(IN), OPTIONAL            :: qmmm, qmmm_periodic
     TYPE(section_vals_type), POINTER         :: force_env_section, &
@@ -221,7 +220,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: my_cell, my_cell_ref
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsystem_type), POINTER         :: my_subsystem
+    TYPE(cp_subsys_type), POINTER            :: my_subsys
     TYPE(mol_kind_new_list_type), POINTER    :: mol_kinds
     TYPE(mol_new_list_type), POINTER         :: mols
     TYPE(molecule_kind_type), DIMENSION(:), &
@@ -234,7 +233,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER :: cell_section, colvar_section, &
       et_coupling_section, harris_section, hf_section, kind_section
 
-    NULLIFY(my_subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
+    NULLIFY(my_subsys, molecule_kind_set, molecule_set, atomic_kind_set,&
          particle_set,atomic_kinds,particles,mols,mol_kinds,my_cell,my_cell_ref,&
          cell_section, harris_section, kind_section)
     para_env=>qs_env%para_env
@@ -281,20 +280,20 @@ CONTAINS
 
     !   Kind section
     kind_section => section_vals_get_subs_vals(subsys_section,"KIND",error=error)
-    IF (PRESENT(subsystem)) THEN
-       my_subsystem => subsystem
-       CALL read_atomic_kind_set(my_subsystem%atomic_kinds%els,kind_section,para_env,&
+    IF (PRESENT(subsys)) THEN
+       my_subsys => subsys
+       CALL read_atomic_kind_set(my_subsys%atomic_kinds%els,kind_section,para_env,&
             force_env_section,error)
     ELSE
-       CALL cp_subsys_create(my_subsystem,para_env=para_env,error=error)
+       CALL cp_subsys_create(my_subsys,para_env=para_env,error=error)
 
        colvar_section => section_vals_get_subs_vals(subsys_section,"COLVAR",error=error)
-       CALL cp_subsys_read_colvar( my_subsystem, colvar_section, error=error)
+       CALL cp_subsys_read_colvar( my_subsys, colvar_section, error=error)
 
        !   *** Read the particle coordinates and allocate the atomic kind, ***
        !   *** the molecule kind, and the molecule data structures         ***
        CALL topology_control (atomic_kind_set,particle_set, molecule_kind_set, molecule_set,&
-            my_subsystem%colvar_p,my_subsystem%gci, root_section, para_env, globenv,&
+            my_subsys%colvar_p,my_subsys%gci, root_section, para_env, globenv,&
             force_env_section=force_env_section, subsys_section=subsys_section,&
             use_motion_section=use_motion_section, error=error)
 
@@ -307,7 +306,7 @@ CONTAINS
        CALL atomic_kind_list_create(atomic_kinds,els_ptr=atomic_kind_set,error=error)
        CALL mol_new_list_create(mols,els_ptr=molecule_set,error=error)
        CALL mol_kind_new_list_create(mol_kinds,els_ptr=molecule_kind_set,error=error)
-       CALL cp_subsys_set(my_subsystem,particles=particles,atomic_kinds=atomic_kinds,&
+       CALL cp_subsys_set(my_subsys,particles=particles,atomic_kinds=atomic_kinds,&
             molecules_new=mols,molecule_kinds_new=mol_kinds,error=error)
        CALL particle_list_release(particles,error=error)
        CALL atomic_kind_list_release(atomic_kinds,error=error)
@@ -315,12 +314,12 @@ CONTAINS
        CALL mol_kind_new_list_release(mol_kinds,error=error)
     END IF
 
-    CALL qs_init_subsys(qs_env,my_subsystem,my_cell,my_cell_ref,use_ref_cell,&
+    CALL qs_init_subsys(qs_env,my_subsys,my_cell,my_cell_ref,use_ref_cell,&
          root_section,subsys_section,globenv,my_qmmm,harris=harris_flag,error=error)
 
     IF (.NOT.PRESENT(cell))      CALL cell_release(my_cell,error=error)
     IF (.NOT.PRESENT(cell_ref))  CALL cell_release(my_cell_ref,error=error)
-    IF (.NOT.PRESENT(subsystem)) CALL cp_subsys_release(my_subsystem,error=error)
+    IF (.NOT.PRESENT(subsys)) CALL cp_subsys_release(my_subsys,error=error)
 
     do_hf =.FALSE.
     hf_section => section_vals_get_subs_vals(qs_env%input,"DFT%XC%HF",error=error)
@@ -340,7 +339,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE qs_init_subsys(qs_env,subsystem,cell,cell_ref,use_ref_cell,&
+  SUBROUTINE qs_init_subsys(qs_env,subsys,cell,cell_ref,use_ref_cell,&
        root_section,subsys_section,globenv,qmmm,harris,error)
 
 !   Purpose: Read the input and the database files for the setup of the
@@ -351,7 +350,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_subsystem_type), POINTER         :: subsystem
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     LOGICAL, INTENT(in)                      :: use_ref_cell
     TYPE(section_vals_type), POINTER         :: root_section, subsys_section
@@ -443,10 +442,10 @@ CONTAINS
     qs_section =>  section_vals_get_subs_vals(dft_section,"QS",error=error)
     et_coupling_section =>  section_vals_get_subs_vals(qs_env%input,&
                             "PROPERTIES%ET_COUPLING",error=error)
-    particle_set => subsystem%particles%els
-    atomic_kind_set => subsystem%atomic_kinds%els
-    molecule_set => subsystem%molecules_new%els
-    molecule_kind_set => subsystem%molecule_kinds_new%els
+    particle_set => subsys%particles%els
+    atomic_kind_set => subsys%atomic_kinds%els
+    molecule_set => subsys%molecules_new%els
+    molecule_kind_set => subsys%molecule_kinds_new%els
 
 !   *** Read the input section with the DFT control parameters ***
 
@@ -634,7 +633,7 @@ CONTAINS
 
 !   *** Set the current Quickstep environment ***
 
-    CALL set_qs_env(qs_env,subsys=subsystem,error=error)
+    CALL set_qs_env(qs_env,subsys=subsys,error=error)
     CALL set_qs_env(qs_env=qs_env,&
                     cell=cell,&
                     cell_ref=cell_ref,&
@@ -650,7 +649,7 @@ CONTAINS
       CALL set_qs_env(qs_env=qs_env, harris_env=harris_env, error=error)
     END IF
 
-    CALL cp_subsys_set(subsystem,local_molecules_new=local_molecules,&
+    CALL cp_subsys_set(subsys,local_molecules_new=local_molecules,&
          local_particles=local_particles,error=error)
 
     CALL distribution_1d_release(local_particles,error=error)

@@ -35,7 +35,7 @@ MODULE f77_interface
                                              cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_type
   USE eip_main,                        ONLY: eip_create_force_env
   USE environment,                     ONLY: cp2k_finalize,&
                                              cp2k_init,&
@@ -1020,11 +1020,10 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'set_pos', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: idir, ii, ip, isub, my_n_el
+    INTEGER                                  :: idir, ii, ip, my_n_el
     LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: error
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(particle_list_type), POINTER        :: particles
 
@@ -1034,19 +1033,14 @@ CPSourceFileRef,&
     CALL f_env_add_defaults(env_id,f_env,error,failure)
     IF (.not.failure) THEN
        NULLIFY(subsys)
-       CALL force_env_get(f_env%force_env,&
-            subsys=subsys,error=error)
+       CALL force_env_get(f_env%force_env,subsys=subsys,error=error)
        CALL cp_error_check(error,failure)
        IF (.NOT.failure) THEN
           CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
        END IF
        IF (.NOT.failure) THEN
-          my_n_el=0
-          DO isub=1,SIZE(subsys)
-             particles => subsys(isub)%subsys%particles
-             my_n_el=my_n_el+particles%n_els
-          END DO
-          my_n_el=3*my_n_el
+          particles => subsys%particles
+          my_n_el=3*particles%n_els
           CALL cp_assert(my_n_el==n_el,cp_failure_level,cp_assertion_failed,&
                routineP,"wrong pos size ("//cp_to_string(n_el)//" vs"//&
                cp_to_string(my_n_el)//") "//&
@@ -1055,13 +1049,11 @@ CPSourceFileRef,&
        END IF
        IF (.NOT.failure) THEN
           ii=0
-          DO isub=1,SIZE(subsys)
-             particles => subsys(isub)%subsys%particles
-             DO ip=1,particles%n_els
-                DO idir=1,3
-                   ii=ii+1
-                   particles%els(ip)%r(idir)=new_pos(ii)
-                END DO
+          particles => subsys%particles
+          DO ip=1,particles%n_els
+             DO idir=1,3
+                ii=ii+1
+                particles%els(ip)%r(idir)=new_pos(ii)
              END DO
           END DO
        END IF
@@ -1143,11 +1135,10 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'set_vel', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: idir, ii, ip, isub, my_n_el
+    INTEGER                                  :: idir, ii, ip, my_n_el
     LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: error
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(particle_list_type), POINTER        :: particles
 
@@ -1157,19 +1148,14 @@ CPSourceFileRef,&
     CALL f_env_add_defaults(env_id,f_env,error,failure)
     IF (.not.failure) THEN
        NULLIFY(subsys)
-       CALL force_env_get(f_env%force_env,&
-            subsys=subsys,error=error)
+       CALL force_env_get(f_env%force_env,subsys=subsys,error=error)
        CALL cp_error_check(error,failure)
        IF (.NOT.failure) THEN
           CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
        END IF
        IF (.NOT.failure) THEN
-          my_n_el=0
-          DO isub=1,SIZE(subsys)
-             particles => subsys(isub)%subsys%particles
-             my_n_el=my_n_el+particles%n_els
-          END DO
-          my_n_el=3*my_n_el
+          particles => subsys%particles
+          my_n_el=3*particles%n_els
           CALL cp_assert(my_n_el==n_el,cp_failure_level,cp_assertion_failed,&
                routineP,"wrong vel size ("//cp_to_string(n_el)//" vs"//&
                cp_to_string(my_n_el)//") "//&
@@ -1178,13 +1164,11 @@ CPSourceFileRef,&
        END IF
        IF (.NOT.failure) THEN
           ii=0
-          DO isub=1,SIZE(subsys)
-             particles => subsys(isub)%subsys%particles
-             DO ip=1,particles%n_els
-                DO idir=1,3
-                   ii=ii+1
-                   particles%els(ip)%v(idir)=new_vel(ii)
-                END DO
+          particles => subsys%particles
+          DO ip=1,particles%n_els
+             DO idir=1,3
+                ii=ii+1
+                particles%els(ip)%v(idir)=new_vel(ii)
              END DO
           END DO
        END IF
@@ -1222,11 +1206,10 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'get_vel', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: idir, ii, ip, isub, my_n_el
+    INTEGER                                  :: idir, ii, ip, my_n_el
     LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: error
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(particle_list_type), POINTER        :: particles
 
@@ -1236,20 +1219,15 @@ CPSourceFileRef,&
     CALL f_env_add_defaults(env_id,f_env,error,failure)
     IF (.not.failure) THEN
        IF (.NOT.failure) THEN
-          CALL force_env_get(f_env%force_env,&
-               subsys=subsys,error=error)
+          CALL force_env_get(f_env%force_env,subsys=subsys,error=error)
           CALL cp_error_check(error,failure)
        END IF
        IF (.NOT.failure) THEN
           CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
        END IF
        IF (.NOT.failure) THEN
-          my_n_el=0
-          DO isub=1,SIZE(subsys)
-             particles => subsys(isub)%subsys%particles
-             my_n_el=my_n_el+particles%n_els
-          END DO
-          my_n_el=3*my_n_el
+          particles => subsys%particles
+          my_n_el=3*particles%n_els
           CALL cp_assert(my_n_el==n_el,cp_failure_level,cp_assertion_failed,&
                routineP,"wrong vel size ("//cp_to_string(n_el)//" vs"//&
                cp_to_string(my_n_el)//&
@@ -1258,13 +1236,11 @@ CPSourceFileRef,&
        END IF
        IF (.NOT.failure) THEN
           ii=0
-          DO isub=1,SIZE(subsys)
-             particles => subsys(isub)%subsys%particles
-             DO ip=1,particles%n_els
-                DO idir=1,3
-                   ii=ii+1
-                   vel(ii)=particles%els(ip)%v(idir)
-                END DO
+          particles => subsys%particles
+          DO ip=1,particles%n_els
+             DO idir=1,3
+                ii=ii+1
+                vel(ii)=particles%els(ip)%v(idir)
              END DO
           END DO
        END IF
@@ -1302,11 +1278,10 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'get_force', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: idir, ii, ip, isub, my_n_el
+    INTEGER                                  :: idir, ii, ip, my_n_el
     LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: error
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(particle_list_type), POINTER        :: particles
 
@@ -1317,20 +1292,15 @@ CPSourceFileRef,&
     IF (.not.failure) THEN
        IF (.NOT.failure) THEN
           NULLIFY(subsys)
-          CALL force_env_get(f_env%force_env,&
-               subsys=subsys,error=error)
+          CALL force_env_get(f_env%force_env,subsys=subsys,error=error)
           CALL cp_error_check(error,failure)
        END IF
        IF (.NOT.failure) THEN
           CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
        END IF
        IF (.NOT.failure) THEN
-          my_n_el=0
-          DO isub=1,SIZE(subsys)
-             particles => subsys(isub)%subsys%particles
-             my_n_el=my_n_el+particles%n_els
-          END DO
-          my_n_el=3*my_n_el
+          particles => subsys%particles
+          my_n_el=3*particles%n_els
           CALL cp_assert(my_n_el==n_el,cp_failure_level,cp_assertion_failed,&
                routineP,"wrong force size ("//cp_to_string(n_el)//" vs"//&
                cp_to_string(my_n_el)//&
@@ -1339,13 +1309,11 @@ CPSourceFileRef,&
        END IF
        IF (.NOT.failure) THEN
           ii=0
-          DO isub=1,SIZE(subsys)
-             particles => subsys(isub)%subsys%particles
-             DO ip=1,particles%n_els
-                DO idir=1,3
-                   ii=ii+1
-                   force(ii)=particles%els(ip)%f(idir)
-                END DO
+          particles => subsys%particles
+          DO ip=1,particles%n_els
+             DO idir=1,3
+                ii=ii+1
+                force(ii)=particles%els(ip)%f(idir)
              END DO
           END DO
        END IF

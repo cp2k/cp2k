@@ -30,11 +30,11 @@ MODULE eip_environment_types
   USE cell_types,                      ONLY: cell_release,&
                                              cell_retain,&
                                              cell_type
-  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_release,&
                                              cp_subsys_retain,&
                                              cp_subsys_set,&
-                                             cp_subsystem_type
+                                             cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE input_section_types,             ONLY: section_vals_release,&
                                              section_vals_type
@@ -129,7 +129,7 @@ MODULE eip_environment_types
     REAL(KIND=dp)                                    :: coord_avg, &
                                                         coord_var, &
                                                         count
-    TYPE(cp_subsystem_type), POINTER                 :: subsystem
+    TYPE(cp_subsys_type), POINTER                    :: subsys
     TYPE(section_vals_type), POINTER                 :: eip_input, &
                                                         force_env_input
     TYPE(cell_type), POINTER                         :: cell
@@ -262,11 +262,11 @@ CONTAINS
           DEALLOCATE(eip_env%eip_forces, stat=stat)
           CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
         END IF
-        IF (ASSOCIATED(eip_env%subsystem)) THEN
-          CALL cp_subsys_release(eip_env%subsystem, error=error)
+        IF (ASSOCIATED(eip_env%subsys)) THEN
+          CALL cp_subsys_release(eip_env%subsys, error=error)
         END IF
-        IF (ASSOCIATED(eip_env%subsystem)) THEN
-          CALL cp_subsys_release(eip_env%subsystem, error=error)
+        IF (ASSOCIATED(eip_env%subsys)) THEN
+          CALL cp_subsys_release(eip_env%subsys, error=error)
         END IF
         !IF (ASSOCIATED(eip_env%eip_input)) THEN
         !  CALL section_vals_release(eip_env%eip_input, error=error)
@@ -317,7 +317,7 @@ CONTAINS
 !!     - coord_var: The variance of the coordination number
 !!     - count: Counts how often the empirical interatomic potential function
 !!              is called. Don't ask why this is a real!
-!!     - subsystem: the particles, molecules,... of this environment
+!!     - subsys: the particles, molecules,... of this environment
 !!     - atomic_kind_set: The set of all atomic kinds involved
 !!     - particle_set: The set of all particles
 !!     - local_particles: All particles on this particular node
@@ -343,7 +343,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE eip_env_get(eip_env, id_nr, eip_model, eip_energy, eip_energy_var, &
-                         eip_forces, coord_avg, coord_var, count, subsystem, &
+                         eip_forces, coord_avg, coord_var, count, subsys, &
                          atomic_kind_set, particle_set , local_particles, &
                          molecule_kind_set, molecule_set, local_molecules, &
                          eip_input, force_env_input, cell, cell_ref, &
@@ -356,8 +356,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: eip_forces
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: coord_avg, coord_var, count
-    TYPE(cp_subsystem_type), OPTIONAL, &
-      POINTER                                :: subsystem
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
@@ -412,8 +411,8 @@ CONTAINS
       IF (PRESENT(coord_avg)) coord_avg = eip_env%coord_avg
       IF (PRESENT(coord_var)) coord_var = eip_env%coord_var
       IF (PRESENT(count)) count = eip_env%count
-      IF (PRESENT(subsystem)) subsystem => eip_env%subsystem
-      CALL cp_subsys_get(eip_env%subsystem, &
+      IF (PRESENT(subsys)) subsys => eip_env%subsys
+      CALL cp_subsys_get(eip_env%subsys, &
                          atomic_kinds=atomic_kinds, &
                          particles=particles, &
                          molecule_kinds_new=molecule_kinds_new, &
@@ -463,7 +462,7 @@ CONTAINS
 !!     - coord_var: The variance of the coordination number
 !!     - count: Counts how often the empirical interatomic potential function
 !!              is called. Don't ask why this is a real!
-!!     - subsystem: the particles, molecules,... of this environment
+!!     - subsys: the particles, molecules,... of this environment
 !!     - atomic_kind_set: The set of all atomic kinds involved
 !!     - particle_set: The set of all particles
 !!     - local_particles: All particles on this particular node
@@ -489,7 +488,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE eip_env_set(eip_env, id_nr, eip_model, eip_energy, eip_energy_var, &
-                         eip_forces, coord_avg, coord_var, count, subsystem, &
+                         eip_forces, coord_avg, coord_var, count, subsys, &
                          atomic_kind_set, particle_set , local_particles, &
                          molecule_kind_set, molecule_set, local_molecules, &
                          eip_input, force_env_input, cell, cell_ref, &
@@ -502,8 +501,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: eip_forces
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: coord_avg, coord_var, count
-    TYPE(cp_subsystem_type), OPTIONAL, &
-      POINTER                                :: subsystem
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
@@ -556,16 +554,16 @@ CONTAINS
       IF (PRESENT(coord_avg)) eip_env%coord_avg = coord_avg
       IF (PRESENT(coord_var)) eip_env%coord_var = coord_var
       IF (PRESENT(count)) eip_env%count = count
-      IF (PRESENT(subsystem)) THEN
-        CALL cp_subsys_retain(subsystem, error=error)
-        CALL cp_subsys_release(eip_env%subsystem, error=error)
-        eip_env%subsystem => subsystem
+      IF (PRESENT(subsys)) THEN
+        CALL cp_subsys_retain(subsys, error=error)
+        CALL cp_subsys_release(eip_env%subsys, error=error)
+        eip_env%subsys => subsys
       END IF
       IF (PRESENT(atomic_kind_set)) THEN
         CALL atomic_kind_list_create(atomic_kinds, &
                                      els_ptr=atomic_kind_set, &
                                      error=error)
-        CALL cp_subsys_set(eip_env%subsystem, &
+        CALL cp_subsys_set(eip_env%subsys, &
                            atomic_kinds=atomic_kinds, &
                            error=error)
         CALL atomic_kind_list_release(atomic_kinds, error=error)
@@ -574,7 +572,7 @@ CONTAINS
         CALL particle_list_create(particles, &
                                   els_ptr=particle_set, &
                                   error=error)
-        CALL cp_subsys_set(eip_env%subsystem, &
+        CALL cp_subsys_set(eip_env%subsys, &
                            particles=particles, &
                            error=error)
         CALL particle_list_release(particles, error=error)
@@ -583,7 +581,7 @@ CONTAINS
         CALL mol_kind_new_list_create(molecule_kinds_new, &
                                       els_ptr=molecule_kind_set, &
                                       error=error)
-        CALL cp_subsys_set(eip_env%subsystem, &
+        CALL cp_subsys_set(eip_env%subsys, &
                            molecule_kinds_new=molecule_kinds_new, &
                            error=error)
         CALL mol_kind_new_list_release(molecule_kinds_new, error=error)
@@ -592,18 +590,18 @@ CONTAINS
         CALL mol_new_list_create(molecules_new, &
                                  els_ptr=molecule_set, &
                                  error=error)
-        CALL cp_subsys_set(eip_env%subsystem, &
+        CALL cp_subsys_set(eip_env%subsys, &
                            molecules_new=molecules_new, &
                            error=error)
         CALL mol_new_list_release(molecules_new,error=error)
       END IF
       IF (PRESENT(local_particles)) THEN
-        CALL cp_subsys_set(eip_env%subsystem, &
+        CALL cp_subsys_set(eip_env%subsys, &
                            local_particles=local_particles, &
                            error=error)
       END IF
       IF (PRESENT(local_molecules)) THEN
-        CALL cp_subsys_set(eip_env%subsystem, &
+        CALL cp_subsys_set(eip_env%subsys, &
                            local_molecules_new=local_molecules, &
                            error=error)
       END IF
@@ -682,8 +680,8 @@ CONTAINS
       IF (ASSOCIATED(eip_env%eip_forces)) THEN
         eip_env%eip_forces(:,:)      = 0.0_dp
       END IF
-      IF (ASSOCIATED(eip_env%subsystem)) THEN
-        CALL cp_subsys_release(eip_env%subsystem, error=error)
+      IF (ASSOCIATED(eip_env%subsys)) THEN
+        CALL cp_subsys_release(eip_env%subsys, error=error)
       END IF
       IF (ASSOCIATED(eip_env%eip_input)) THEN
         CALL section_vals_release(eip_env%eip_input, error=error)
@@ -743,18 +741,13 @@ CONTAINS
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-!   ------------------------------------------------------------------------
-
     failure = .FALSE.
   
     ALLOCATE(eip_env, stat=stat)
     CPPostcondition(stat == 0, cp_failure_level, routineP, error, failure)
 
-    !ALLOCATE(eip_env%eip_forces(3,natom), stat=stat)
-    !CPPostcondition(stat == 0, cp_failure_level, routineP, error, failure)
-
     NULLIFY(eip_env%eip_forces)
-    NULLIFY(eip_env%subsystem)
+    NULLIFY(eip_env%subsys)
     NULLIFY(eip_env%eip_input)
     NULLIFY(eip_env%force_env_input)
     NULLIFY(eip_env%cell)

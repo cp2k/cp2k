@@ -35,10 +35,9 @@ MODULE qmmm_main
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_methods,            ONLY: create_small_subsystem
-  USE cp_subsystem_types,              ONLY: cp_subsys_release,&
-                                             cp_subsystem_p_type,&
-                                             cp_subsystem_type
+  USE cp_subsys_methods,               ONLY: create_small_subsys
+  USE cp_subsys_types,                 ONLY: cp_subsys_release,&
+                                             cp_subsys_type
   USE fist_main,                       ONLY: fist_create_force_env
   USE force_env_methods,               ONLY: force_env_create
   USE force_env_types,                 ONLY: force_env_get,&
@@ -128,7 +127,7 @@ CONTAINS
     INTEGER                                  :: handle, isubf, iw, iw2, &
                                                 qmmm_coupl_type, stat
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index, mm_link_atoms, &
-                                                qm_atom_index, qm_subsys_index
+                                                qm_atom_index
     LOGICAL :: add_mm_charges, explicit, failure, move_mm_charges, nocenter, &
       nocompatibility, qmmm_link, qmmm_link_Imomm
     REAL(dp), DIMENSION(:), POINTER          :: mm_atom_chrg, &
@@ -142,9 +141,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: mm_cell, qm_cell_small, &
                                                 super_cell
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys_mm
-    TYPE(cp_subsystem_type), POINTER         :: subsys_qm
+    TYPE(cp_subsys_type), POINTER            :: subsys_mm, subsys_qm
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: sub_force_env
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env_mm
@@ -243,7 +240,6 @@ CPSourceFileRef,&
 
        CALL force_env_get(sub_force_env(1)%force_env,subsys=subsys_mm,&
             cell=mm_cell,error=error)
-       CPPrecondition(SIZE(subsys_mm)==1,cp_failure_level,routineP,error,failure)
 
        ! Set up QM/MM Options
        CALL setup_qmmm_vars_qm (qmmm_section,&
@@ -252,7 +248,6 @@ CPSourceFileRef,&
                                 qm_atom_type,&
                                 qm_atom_index,&
                                 mm_atom_index,&
-                                qm_subsys_index,&
                                 qm_cell_small,&
                                 qmmm_coupl_type,&
                                 eps_mm_rspace,&
@@ -261,7 +256,6 @@ CPSourceFileRef,&
 
        qmmm_env_qm%qm_atom_index   => qm_atom_index
        qmmm_env_qm%mm_atom_index   => mm_atom_index
-       qmmm_env_qm%qm_subsys_index => qm_subsys_index
        qmmm_env_qm%eps_mm_rspace   = eps_mm_rspace
        qmmm_env_qm%qmmm_coupl_type = qmmm_coupl_type
        qmmm_env_qm%qmmm_link       = qmmm_link
@@ -324,16 +318,15 @@ CPSourceFileRef,&
 
 
        CALL section_vals_val_set(force_env_section,"METHOD",i_val=do_qs,error=error)
-       CALL create_small_subsystem(subsys_qm,&
+       CALL create_small_subsys(subsys_qm,&
             big_subsys=subsys_mm,small_para_env=para_env,&
             small_cell=qm_cell_small,sub_atom_index=qm_atom_index,&
-            sub_subsys_index=qm_subsys_index,&
             sub_atom_kind_name=qm_atom_type, root_section=root_section, para_env=para_env, &
             force_env_section=force_env_section, subsys_section=subsys_section,error=error)
        IF (qmmm_link_imomm) CALL qmmm_link_Imomm_coord(qmmm_links, subsys_qm%particles%els,&
             qm_atom_index, error)
        CALL quickstep_create_force_env(sub_force_env(2)%force_env,root_section,para_env,&
-            globenv, subsystem=subsys_qm, cell=qm_cell_small, qmmm=.TRUE.,&
+            globenv, subsys=subsys_qm, cell=qm_cell_small, qmmm=.TRUE.,&
             qmmm_periodic=qmmm_env_qm%periodic, force_env_section=force_env_section,&
             subsys_section=subsys_section,use_motion_section=use_motion_section,&
             error=error)

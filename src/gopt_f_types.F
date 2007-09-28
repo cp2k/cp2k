@@ -27,8 +27,8 @@
 MODULE gopt_f_types
   USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_p_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_release,&
@@ -162,7 +162,7 @@ CONTAINS
 !!     none
 !!
 !!*** **********************************************************************
-SUBROUTINE gopt_f_create(gopt_env, force_env, globenv, error)
+  SUBROUTINE gopt_f_create(gopt_env, force_env, globenv, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
@@ -174,21 +174,21 @@ SUBROUTINE gopt_f_create(gopt_env, force_env, globenv, error)
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
-  
-  ALLOCATE(gopt_env, stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  IF (.NOT.failure) THEN
-     gopt_env%ref_count=1
-     last_gopt_f_id=last_gopt_f_id+1
-     gopt_env%id_nr=last_gopt_f_id
-     CALL force_env_retain(force_env, error=error)
-     gopt_env%force_env => force_env
-     gopt_env%globenv => globenv
-     gopt_env%force_env_section => force_env%force_env_section
-     gopt_env%motion_section =>  section_vals_get_subs_vals(force_env%root_section,"MOTION",error=error)
-  END IF
-END SUBROUTINE gopt_f_create
+    failure=.FALSE.
+
+    ALLOCATE(gopt_env, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF (.NOT.failure) THEN
+       gopt_env%ref_count=1
+       last_gopt_f_id=last_gopt_f_id+1
+       gopt_env%id_nr=last_gopt_f_id
+       CALL force_env_retain(force_env, error=error)
+       gopt_env%force_env => force_env
+       gopt_env%globenv => globenv
+       gopt_env%force_env_section => force_env%force_env_section
+       gopt_env%motion_section =>  section_vals_get_subs_vals(force_env%root_section,"MOTION",error=error)
+    END IF
+  END SUBROUTINE gopt_f_create
 !***************************************************************************
 
 !!****f* gopt_f_types/gopt_f_retain [1.0] *
@@ -213,7 +213,7 @@ END SUBROUTINE gopt_f_create
 !!     none
 !!
 !!*** **********************************************************************
-SUBROUTINE gopt_f_retain(gopt_env, error)
+  SUBROUTINE gopt_f_retain(gopt_env, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -222,14 +222,14 @@ SUBROUTINE gopt_f_retain(gopt_env, error)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
-  
-  CPPrecondition(ASSOCIATED(gopt_env),cp_failure_level,routineP,error,failure)
-  IF (.NOT.failure) THEN
-     CPPreconditionNoFail(gopt_env%ref_count>0,cp_failure_level,routineP,error)
-     gopt_env%ref_count=gopt_env%ref_count+1
-  END IF
-END SUBROUTINE gopt_f_retain
+    failure=.FALSE.
+
+    CPPrecondition(ASSOCIATED(gopt_env),cp_failure_level,routineP,error,failure)
+    IF (.NOT.failure) THEN
+       CPPreconditionNoFail(gopt_env%ref_count>0,cp_failure_level,routineP,error)
+       gopt_env%ref_count=gopt_env%ref_count+1
+    END IF
+  END SUBROUTINE gopt_f_retain
 !***************************************************************************
 
 
@@ -255,7 +255,7 @@ END SUBROUTINE gopt_f_retain
 !!     none
 !!
 !!*** **********************************************************************
-SUBROUTINE gopt_f_release(gopt_env, error)
+  SUBROUTINE gopt_f_release(gopt_env, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -265,20 +265,20 @@ SUBROUTINE gopt_f_release(gopt_env, error)
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
-  
-  IF (ASSOCIATED(gopt_env)) THEN
-     CPPreconditionNoFail(gopt_env%ref_count>0,cp_failure_level,routineP,error)
-     gopt_env%ref_count=gopt_env%ref_count-1
-     IF (gopt_env%ref_count==0) THEN
-        CALL force_env_release(gopt_env%force_env,error=error)
-        NULLIFY(gopt_env%force_env, gopt_env%globenv, gopt_env%force_env_section,&
-             gopt_env%motion_section)
-        DEALLOCATE(gopt_env, stat=stat)
-        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-     END IF
-  END IF
-END SUBROUTINE gopt_f_release
+    failure=.FALSE.
+
+    IF (ASSOCIATED(gopt_env)) THEN
+       CPPreconditionNoFail(gopt_env%ref_count>0,cp_failure_level,routineP,error)
+       gopt_env%ref_count=gopt_env%ref_count-1
+       IF (gopt_env%ref_count==0) THEN
+          CALL force_env_release(gopt_env%force_env,error=error)
+          NULLIFY(gopt_env%force_env, gopt_env%globenv, gopt_env%force_env_section,&
+               gopt_env%motion_section)
+          DEALLOCATE(gopt_env, stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       END IF
+    END IF
+  END SUBROUTINE gopt_f_release
 !***************************************************************************
 
 !!****f* gopt_f_types/cp_eval_at [1.0] *
@@ -309,7 +309,7 @@ END SUBROUTINE gopt_f_release
 !!     none
 !!
 !!*** **********************************************************************
-SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, para_env, force_env_section, error)
+  SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, para_env, force_env_section, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: x
     REAL(KIND=dp), INTENT(out), OPTIONAL     :: f
@@ -323,78 +323,66 @@ SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, para_env, force_env_sect
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_eval_at', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, idg, idir, ip, isubsys
+    INTEGER                                  :: handle, idg, idir, ip
     LOGICAL                                  :: failure
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
 
-  failure=.FALSE.
-  NULLIFY(particles, subsys, cell)
-  
-  CALL timeset(routineN,"I","",handle)
-  
-  CALL force_env_get(gopt_env%force_env, subsys=subsys,&
-       cell=cell,error=error)
-  idg=0
-  DO isubsys=1,SIZE(subsys)
-     CALL cp_subsys_get(subsys(isubsys)%subsys, particles=particles,&
-          error=error)
-     DO ip=1,particles%n_els
-        DO idir=1,3
-           idg=idg+1
-           particles%els(ip)%r(idir)=x(idg)
-        END DO
-     END DO
-     CALL write_structure_data(particles%els,cell,gopt_env%motion_section,error)
-  END DO
+    failure=.FALSE.
+    NULLIFY(particles, subsys, cell)
 
-  CALL force_env_calc_energy_force(gopt_env%force_env,&
-       calc_force=PRESENT(gradient),error=error)
+    CALL timeset(routineN,"I","",handle)
 
-  ! This call is necessary for QM/MM if a Translation is applied
-  ! this makes the geometry optimizer consistent
-  idg=0
-  DO isubsys=1,SIZE(subsys)
-     CALL cp_subsys_get(subsys(isubsys)%subsys, particles=particles,&
-          error=error)
-     DO ip=1,particles%n_els
-        DO idir=1,3
-           idg=idg+1
-           particles%els(ip)%r(idir)=x(idg)
-        END DO
-     END DO
-  END DO
+    CALL force_env_get(gopt_env%force_env, subsys=subsys,&
+         cell=cell,error=error)
+    idg=0
+    CALL cp_subsys_get(subsys, particles=particles, error=error)
+    DO ip=1,particles%n_els
+       DO idir=1,3
+          idg=idg+1
+          particles%els(ip)%r(idir)=x(idg)
+       END DO
+    END DO
+    CALL write_structure_data(particles%els,cell,gopt_env%motion_section,error)
 
-  IF (PRESENT(f)) THEN
-     CALL force_env_get(gopt_env%force_env,potential_energy=f,&
-          error=error)
-  END IF
+    CALL force_env_calc_energy_force(gopt_env%force_env,&
+         calc_force=PRESENT(gradient),error=error)
 
-  IF (PRESENT(gradient)) THEN
-     IF (master==para_env%mepos) THEN ! we are on the master
-        CPPrecondition(ASSOCIATED(gradient),cp_failure_level,routineP,error,failure)
-        CALL force_env_get(gopt_env%force_env, subsys=subsys,&
-             error=error)
-        idg=0
-        DO isubsys=1,SIZE(subsys)
-           CALL cp_subsys_get(subsys(isubsys)%subsys, particles=particles,&
-                error=error)
-           DO ip=1,particles%n_els
-              DO idir=1,3
-                 idg=idg+1
-                 CPInvariant(SIZE(gradient)>=idg,cp_failure_level,routineP,error,failure)
-                 gradient(idg)=-particles%els(ip)%f(idir)
-              END DO
-           END DO
-        END DO
-     END IF
-  END IF
+    ! This call is necessary for QM/MM if a Translation is applied
+    ! this makes the geometry optimizer consistent
+    idg=0
+    CALL cp_subsys_get(subsys, particles=particles,error=error)
+    DO ip=1,particles%n_els
+       DO idir=1,3
+          idg=idg+1
+          particles%els(ip)%r(idir)=x(idg)
+       END DO
+    END DO
 
-    
-  CALL timestop(0.0_dp,handle)
-END SUBROUTINE cp_eval_at
+    IF (PRESENT(f)) THEN
+       CALL force_env_get(gopt_env%force_env,potential_energy=f,&
+            error=error)
+    END IF
+
+    IF (PRESENT(gradient)) THEN
+       IF (master==para_env%mepos) THEN ! we are on the master
+          CPPrecondition(ASSOCIATED(gradient),cp_failure_level,routineP,error,failure)
+          CALL force_env_get(gopt_env%force_env, subsys=subsys,&
+               error=error)
+          idg=0
+          CALL cp_subsys_get(subsys, particles=particles,error=error)
+          DO ip=1,particles%n_els
+             DO idir=1,3
+                idg=idg+1
+                CPInvariant(SIZE(gradient)>=idg,cp_failure_level,routineP,error,failure)
+                gradient(idg)=-particles%els(ip)%f(idir)
+             END DO
+          END DO
+       END IF
+    END IF
+    CALL timestop(0.0_dp,handle)
+  END SUBROUTINE cp_eval_at
 
 !!****f* gopt_f_types/gopt_f_create_x0 [1.0] *
 !!
@@ -419,7 +407,7 @@ END SUBROUTINE cp_eval_at
 !!     none
 !!
 !!*** **********************************************************************
-SUBROUTINE gopt_f_create_x0(gopt_env, x0, error)
+  SUBROUTINE gopt_f_create_x0(gopt_env, x0, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -427,43 +415,36 @@ SUBROUTINE gopt_f_create_x0(gopt_env, x0, error)
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_create_x0', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: idg, idir, ip, isubsys, ndg, &
-                                                stat
+    INTEGER                                  :: idg, idir, ip, ndg, stat
     LOGICAL                                  :: failure
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
 
-  failure=.FALSE.
-  NULLIFY(particles,subsys)
-  
-  CALL force_env_get(gopt_env%force_env, subsys=subsys,&
-       error=error)
-  ! before starting we handle the case of translating coordinates (QM/MM)
-  CALL apply_qmmm_translate(gopt_env%force_env,error=error)
-  ndg=0
-  DO isubsys=1,SIZE(subsys)
-     CALL cp_subsys_get(subsys(isubsys)%subsys, particles=particles,&
-          error=error)
-     ndg=ndg+particles%n_els*3
-  END DO
-  
-  ALLOCATE(x0(ndg),stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  
-  idg=0
-  DO isubsys=1,SIZE(subsys)
-     CALL cp_subsys_get(subsys(isubsys)%subsys, particles=particles,&
-          error=error)
-     DO ip=1,particles%n_els
-        DO idir=1,3
-           idg=idg+1
-           CPInvariant(SIZE(x0)>=idg,cp_failure_level,routineP,error,failure)
-           x0(idg)=particles%els(ip)%r(idir)
-        END DO
-     END DO
-  END DO
-END SUBROUTINE gopt_f_create_x0
+    failure=.FALSE.
+    NULLIFY(particles,subsys)
+
+    CALL force_env_get(gopt_env%force_env, subsys=subsys,&
+         error=error)
+    ! before starting we handle the case of translating coordinates (QM/MM)
+    CALL apply_qmmm_translate(gopt_env%force_env,error=error)
+    ndg=0
+    CALL cp_subsys_get(subsys, particles=particles,error=error)
+    ndg=ndg+particles%n_els*3
+
+    ALLOCATE(x0(ndg),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    idg=0
+    CALL cp_subsys_get(subsys, particles=particles,error=error)
+    DO ip=1,particles%n_els
+       DO idir=1,3
+          idg=idg+1
+          CPInvariant(SIZE(x0)>=idg,cp_failure_level,routineP,error,failure)
+          x0(idg)=particles%els(ip)%r(idir)
+       END DO
+    END DO
+
+  END SUBROUTINE gopt_f_create_x0
 !***************************************************************************
 
 !!****f* gopt_f_types/gopt_param_create [1.0] *
@@ -489,7 +470,7 @@ END SUBROUTINE gopt_f_create_x0
 !!     08.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE gopt_param_create(gopt_param,error)
+  SUBROUTINE gopt_param_create(gopt_param,error)
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -499,36 +480,36 @@ SUBROUTINE gopt_param_create(gopt_param,error)
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
-  
-  ALLOCATE(gopt_param, stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  
-  IF (.NOT. failure) THEN
-     last_gopt_param_id=last_gopt_param_id+1
-     gopt_param%id_nr=last_gopt_param_id
-     gopt_param%ref_count=1
-     gopt_param%method_id=default_bfgs_method_id
-     gopt_param%max_h_rank=5
-     gopt_param%max_f_per_iter=3
-     gopt_param%max_iter=200
-     gopt_param%wanted_proj_gradient=1.0e-3_dp
-     gopt_param%wanted_rel_f_error=1.0e5_dp
-     gopt_param%hesrest=.FALSE.
-     gopt_param%Fletcher_Reeves_ON=.FALSE.
-     gopt_param%use_fit_line_search=.FALSE.
-     gopt_param%max_steep_steps=0
-     gopt_param%max_dr = 0.0030_dp
-     gopt_param%max_force = 0.00045_dp
-     gopt_param%rms_dr = 0.0015_dp
-     gopt_param%rms_force = 0.00030_dp
-     gopt_param%brent_tol = 1.0E-4_dp
-     gopt_param%initial_step = 0.2_dp
-     gopt_param%brent_max_iter = 100
-     gopt_param%brack_limit = 100.0_dp
-     gopt_param%restart_limit = 0.1_dp
-  END IF
-END SUBROUTINE gopt_param_create
+    failure=.FALSE.
+
+    ALLOCATE(gopt_param, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    IF (.NOT. failure) THEN
+       last_gopt_param_id=last_gopt_param_id+1
+       gopt_param%id_nr=last_gopt_param_id
+       gopt_param%ref_count=1
+       gopt_param%method_id=default_bfgs_method_id
+       gopt_param%max_h_rank=5
+       gopt_param%max_f_per_iter=3
+       gopt_param%max_iter=200
+       gopt_param%wanted_proj_gradient=1.0e-3_dp
+       gopt_param%wanted_rel_f_error=1.0e5_dp
+       gopt_param%hesrest=.FALSE.
+       gopt_param%Fletcher_Reeves_ON=.FALSE.
+       gopt_param%use_fit_line_search=.FALSE.
+       gopt_param%max_steep_steps=0
+       gopt_param%max_dr = 0.0030_dp
+       gopt_param%max_force = 0.00045_dp
+       gopt_param%rms_dr = 0.0015_dp
+       gopt_param%rms_force = 0.00030_dp
+       gopt_param%brent_tol = 1.0E-4_dp
+       gopt_param%initial_step = 0.2_dp
+       gopt_param%brent_max_iter = 100
+       gopt_param%brack_limit = 100.0_dp
+       gopt_param%restart_limit = 0.1_dp
+    END IF
+  END SUBROUTINE gopt_param_create
 !***************************************************************************
 
 !!****f* gopt_f_types/gopt_param_read [1.0] *
@@ -554,7 +535,7 @@ END SUBROUTINE gopt_param_create
 !!     08.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE gopt_param_read(gopt_param, root_section, error)
+  SUBROUTINE gopt_param_read(gopt_param, root_section, error)
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -621,7 +602,7 @@ SUBROUTINE gopt_param_read(gopt_param, root_section, error)
 !!     none
 !!
 !!*** **********************************************************************
-SUBROUTINE gopt_param_retain(gopt_param, error)
+  SUBROUTINE gopt_param_retain(gopt_param, error)
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -630,14 +611,14 @@ SUBROUTINE gopt_param_retain(gopt_param, error)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
-  
-  CPPrecondition(ASSOCIATED(gopt_param),cp_failure_level,routineP,error,failure)
-  IF (.NOT.failure) THEN
-     CPPreconditionNoFail(gopt_param%ref_count>0,cp_failure_level,routineP,error)
-     gopt_param%ref_count=gopt_param%ref_count+1
-  END IF
-END SUBROUTINE gopt_param_retain
+    failure=.FALSE.
+
+    CPPrecondition(ASSOCIATED(gopt_param),cp_failure_level,routineP,error,failure)
+    IF (.NOT.failure) THEN
+       CPPreconditionNoFail(gopt_param%ref_count>0,cp_failure_level,routineP,error)
+       gopt_param%ref_count=gopt_param%ref_count+1
+    END IF
+  END SUBROUTINE gopt_param_retain
 !***************************************************************************
 
 
@@ -663,7 +644,7 @@ END SUBROUTINE gopt_param_retain
 !!     none
 !!
 !!*** **********************************************************************
-SUBROUTINE gopt_param_release(gopt_param, error)
+  SUBROUTINE gopt_param_release(gopt_param, error)
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -673,17 +654,17 @@ SUBROUTINE gopt_param_release(gopt_param, error)
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
-  
-  IF (ASSOCIATED(gopt_param)) THEN
-     CPPreconditionNoFail(gopt_param%ref_count>0,cp_failure_level,routineP,error)
-     gopt_param%ref_count=gopt_param%ref_count-1
-     IF (gopt_param%ref_count==0) THEN
-        DEALLOCATE(gopt_param, stat=stat)
-        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-     END IF
-  END IF
-END SUBROUTINE gopt_param_release
+    failure=.FALSE.
+
+    IF (ASSOCIATED(gopt_param)) THEN
+       CPPreconditionNoFail(gopt_param%ref_count>0,cp_failure_level,routineP,error)
+       gopt_param%ref_count=gopt_param%ref_count-1
+       IF (gopt_param%ref_count==0) THEN
+          DEALLOCATE(gopt_param, stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       END IF
+    END IF
+  END SUBROUTINE gopt_param_release
 !***************************************************************************
 
 END MODULE gopt_f_types

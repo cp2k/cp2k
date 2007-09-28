@@ -24,7 +24,7 @@ MODULE free_energy_methods
   USE colvar_methods,                  ONLY: colvar_eval_glob_f
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
                                              force_env_type
@@ -88,15 +88,14 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: coupling_function
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: my_par
-    INTEGER                                  :: handle, ic, icolvar, isubsys, &
+    INTEGER                                  :: handle, ic, icolvar, &
                                                 nforce_eval, output_unit
     INTEGER, POINTER                         :: istep
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: beta, dx, lerr
     REAL(KIND=dp), DIMENSION(:), POINTER     :: my_val
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(force_env_p_type), POINTER          :: force_env_p( : )
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(free_energy_type), POINTER          :: fe_env
@@ -123,11 +122,10 @@ CONTAINS
           CALL force_env_get(force_env, subsys=subsys, error=error)
           DO ic=1,fe_env%ncolvar
              cv => fe_env%uivar(ic)
-             isubsys = cv%isubsys
              icolvar = cv%icolvar
-             CALL colvar_eval_glob_f(isubsys,icolvar,force_env,error=error)
+             CALL colvar_eval_glob_f(icolvar,force_env,error=error)
              CALL reallocate(cv%ss,1,istep)
-             cv%ss(istep) = subsys(isubsys)%subsys%colvar_p(icolvar)%colvar%ss
+             cv%ss(istep) = subsys%colvar_p(icolvar)%colvar%ss
           END DO
           ! Check Free Energy derivative convergence
           output_unit = cp_print_key_unit_nr(logger,motion_section,&

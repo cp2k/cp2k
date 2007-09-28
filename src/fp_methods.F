@@ -32,8 +32,8 @@ MODULE fp_methods
   USE cp_output_handling,              ONLY: cp_iter_string,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_p_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
   USE fp_types,                        ONLY: fp_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fac,&
@@ -64,7 +64,7 @@ CONTAINS
 !!    and writes the weights file
 !!
 !!   NOTES
-!!    currently limited to 1 subsystem
+!!    
 !!
 !!   INPUTS
 !!
@@ -74,8 +74,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE fp_eval(fp_env, subsys, cell, error)
     TYPE(fp_type), POINTER                   :: fp_env
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -100,9 +99,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(fp_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(fp_env%use_fp,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
-    ! limitation can be easily removed
-    CPPrecondition(SIZE(subsys,1)==1,cp_failure_level,routineP,error,failure)
-    CALL cp_subsys_get(subsys(1)%subsys,particles=particles_list,error=error)
+    CALL cp_subsys_get(subsys,particles=particles_list,error=error)
     particles=>particles_list%els
 
     ! compute the force due to the reflecting walls

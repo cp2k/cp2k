@@ -30,11 +30,11 @@ MODULE mixed_environment
                                              read_cell,&
                                              write_cell
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_methods,            ONLY: cp_subsys_read_colvar
-  USE cp_subsystem_types,              ONLY: cp_subsys_create,&
+  USE cp_subsys_methods,               ONLY: cp_subsys_read_colvar
+  USE cp_subsys_types,                 ONLY: cp_subsys_create,&
                                              cp_subsys_release,&
                                              cp_subsys_set,&
-                                             cp_subsystem_type
+                                             cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d
@@ -119,7 +119,7 @@ SUBROUTINE mixed_init ( mixed_env, root_section,para_env, globenv, force_env_sec
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_subsystem_type), POINTER         :: subsystem
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(mol_kind_new_list_type), POINTER    :: mol_kinds
     TYPE(mol_new_list_type), POINTER         :: mols
     TYPE(molecule_kind_type), DIMENSION(:), &
@@ -136,7 +136,7 @@ SUBROUTINE mixed_init ( mixed_env, root_section,para_env, globenv, force_env_sec
   failure = .FALSE.
   logger => cp_error_get_logger(error)
 
-  NULLIFY ( subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
+  NULLIFY ( subsys, molecule_kind_set, molecule_set, atomic_kind_set,&
             particle_set,atomic_kinds,particles,mols,mol_kinds,cell,cell_ref)
   NULLIFY ( cell_section)
 
@@ -144,11 +144,11 @@ SUBROUTINE mixed_init ( mixed_env, root_section,para_env, globenv, force_env_sec
   cell_section => section_vals_get_subs_vals(subsys_section,"CELL",error=error)
 
   CALL set_mixed_env(mixed_env,input=force_env_section,error=error)
-  CALL cp_subsys_create ( subsystem, para_env = para_env, error = error )
+  CALL cp_subsys_create ( subsys, para_env = para_env, error = error )
 
-  ! read colvars and add to subsystem
+  ! read colvars and add to subsys
   colvar_section => section_vals_get_subs_vals(subsys_section,"COLVAR",error=error)
-  CALL cp_subsys_read_colvar( subsystem, colvar_section, error=error)
+  CALL cp_subsys_read_colvar( subsys, colvar_section, error=error)
 
   CALL read_cell( cell, cell_ref, use_ref_cell = use_ref_cell, error=error,&
        cell_section=cell_section)
@@ -159,7 +159,7 @@ SUBROUTINE mixed_init ( mixed_env, root_section,para_env, globenv, force_env_sec
 
   ! Topology
   CALL topology_control ( atomic_kind_set, particle_set, molecule_kind_set, molecule_set,&
-       subsystem%colvar_p,subsystem%gci,root_section,para_env,globenv,&
+       subsys%colvar_p,subsys%gci,root_section,para_env,globenv,&
        force_env_section=force_env_section, subsys_section=subsys_section,&
        use_motion_section=use_motion_section, error=error)
 
@@ -167,26 +167,26 @@ SUBROUTINE mixed_init ( mixed_env, root_section,para_env, globenv, force_env_sec
   CALL atomic_kind_list_create ( atomic_kinds, els_ptr = atomic_kind_set, error = error )
   CALL mol_new_list_create ( mols, els_ptr = molecule_set, error = error )
   CALL mol_kind_new_list_create ( mol_kinds, els_ptr = molecule_kind_set, error = error )
-  CALL cp_subsys_set ( subsystem, particles = particles, atomic_kinds = atomic_kinds, &
+  CALL cp_subsys_set ( subsys, particles = particles, atomic_kinds = atomic_kinds, &
        molecules_new = mols, molecule_kinds_new = mol_kinds, error = error )
   CALL particle_list_release ( particles, error = error )
   CALL atomic_kind_list_release ( atomic_kinds, error = error )
   CALL mol_new_list_release ( mols, error = error )
   CALL mol_kind_new_list_release ( mol_kinds, error = error )
 
-  CALL mixed_init_subsys ( mixed_env, subsystem, cell, cell_ref, use_ref_cell, &
+  CALL mixed_init_subsys ( mixed_env, subsys, cell, cell_ref, use_ref_cell, &
                           force_env_section, subsys_section, error )
 
   CALL cell_release(cell,error=error)
   CALL cell_release(cell_ref,error=error)
-  CALL cp_subsys_release(subsystem,error=error)
+  CALL cp_subsys_release(subsys,error=error)
 
   CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE mixed_init
 
 !   ***************************************************************************
-  SUBROUTINE mixed_init_subsys ( mixed_env, subsystem, cell, cell_ref, use_ref_cell, &
+  SUBROUTINE mixed_init_subsys ( mixed_env, subsys, cell, cell_ref, use_ref_cell, &
                                 force_env_section, subsys_section, error )
 
 !   Purpose: Read the input and the database files for the setup of the
@@ -196,7 +196,7 @@ END SUBROUTINE mixed_init
 
 !   ***************************************************************************
     TYPE(mixed_environment_type), POINTER    :: mixed_env
-    TYPE(cp_subsystem_type), POINTER         :: subsystem
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     LOGICAL, INTENT(IN)                      :: use_ref_cell
     TYPE(section_vals_type), POINTER         :: force_env_section, &
@@ -220,10 +220,10 @@ END SUBROUTINE mixed_init
 
   CALL timeset(routineN,"I",'',handle)
   NULLIFY ( mixed_energy, local_molecules, local_particles)
-  particle_set => subsystem % particles % els
-  atomic_kind_set => subsystem % atomic_kinds % els
-  molecule_set => subsystem % molecules_new % els
-  molecule_kind_set => subsystem % molecule_kinds_new % els
+  particle_set => subsys % particles % els
+  atomic_kind_set => subsys % atomic_kinds % els
+  molecule_set => subsys % molecules_new % els
+  molecule_kind_set => subsys % molecule_kinds_new % els
 
   ! Create the mixed_energy_type
   CALL allocate_mixed_energy( mixed_energy )
@@ -242,7 +242,7 @@ END SUBROUTINE mixed_init
                                  error=error )
 
   ! set the mixed_env
-  CALL set_mixed_env ( mixed_env = mixed_env, subsys = subsystem, error = error )
+  CALL set_mixed_env ( mixed_env = mixed_env, subsys = subsys, error = error )
   CALL set_mixed_env ( mixed_env=mixed_env,&
                       cell=cell, cell_ref=cell_ref, &
                       local_molecules=local_molecules,&

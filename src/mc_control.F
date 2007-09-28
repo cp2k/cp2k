@@ -2,6 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2007  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
+
 !!****** mc_control.F *********************************************************
 !!
 !!   NAME
@@ -26,8 +27,8 @@ MODULE mc_control
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_p_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
   USE environment,                     ONLY: cp2k_read
   USE fist_main,                       ONLY: fist_create_force_env
   USE force_env_types,                 ONLY: force_env_get,&
@@ -129,8 +130,7 @@ SUBROUTINE write_mc_restart ( nnstep, mc_par, nchains,force_env )
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type)                      :: error
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(particle_list_type), POINTER        :: particles
@@ -152,7 +152,7 @@ SUBROUTINE write_mc_restart ( nnstep, mc_par, nchains,force_env )
   CALL force_env_get(force_env,cell=cell,subsys=subsys,&
                          error=error)
   CALL get_cell(cell,abc=abc)
-  CALL cp_subsys_get(subsys(1)%subsys, &
+  CALL cp_subsys_get(subsys, &
              molecule_kinds_new=molecule_kinds_new,&
              particles=particles, error=error)
 
@@ -244,8 +244,7 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, mc_nunits_tot,rng_stream)
     REAL(KIND=dp), DIMENSION(1:3)            :: abc, box_length
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type)                      :: error
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(mc_input_file_type), POINTER        :: mc_input_file
     TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
     TYPE(particle_list_type), POINTER        :: particles
@@ -320,7 +319,7 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, mc_nunits_tot,rng_stream)
       CALL force_env_get(force_env,cell=cell,subsys=subsys,&
          error=error)
       CALL get_cell(cell,abc=abc)
-      CALL cp_subsys_get(subsys(1)%subsys, &
+      CALL cp_subsys_get(subsys, &
          particles=particles, error=error)
 
       IF(ionode) THEN

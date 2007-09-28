@@ -32,32 +32,29 @@ MODULE qs_linres_epr_nablavks
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
-  USE cell_types,                      ONLY: cell_type,&
-                                             pbc
+  USE cell_types,                      ONLY: cell_type
   USE coefficient_types,               ONLY: coeff_copy,&
                                              coeff_transform_space,&
                                              coeff_type,&
                                              coeff_zero
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
-                                             cp_print_key_unit_nr,&
-					     cp_p_file
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
   USE erf_fn,                          ONLY: erf
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential,&
                                              gth_potential_type
-  USE input_section_types,             ONLY: section_get_ival,&
-                                             section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi,&
-                                             twopi,&
-                                             rootpi
+                                             rootpi,&
+                                             twopi
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
@@ -68,16 +65,13 @@ MODULE qs_linres_epr_nablavks
                                              pw_pool_init_coeff,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             pw_copy,&
-					     pw_derive,&
-					     pw_sumup,&
-                                             pw_type,&
-					     pw_integral_aa,&
                                              REALDATA3D,&
-					     REALSPACE,&
-					     RECIPROCALSPACE,&
-					     SQUARE
-  USE qs_collocate_density,            ONLY: calculate_total_rho
+                                             REALSPACE,&
+                                             RECIPROCALSPACE,&
+                                             pw_copy,&
+                                             pw_derive,&
+                                             pw_sumup,&
+                                             pw_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_ks_methods,                   ONLY: calc_rho_tot_gspace,&
@@ -88,7 +82,6 @@ MODULE qs_linres_epr_nablavks
                                              qs_rho_type
   USE realspace_grid_cube,             ONLY: rs_pw_to_cube
   USE termination,                     ONLY: stop_memory
-  USE util,                            ONLY: get_limit
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -121,81 +114,53 @@ CONTAINS
 
   SUBROUTINE epr_nablavks(epr_env,qs_env,error)
 
-    TYPE(epr_env_type)                          :: epr_env
-    TYPE(qs_environment_type), POINTER          :: qs_env
+    TYPE(epr_env_type)                       :: epr_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                                  :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_g_print', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_nablavks', &
       routineP = moduleN//':'//routineN
 
-    TYPE(all_potential_type), POINTER           :: all_potential
-    TYPE(atomic_kind_type), DIMENSION(:),&
-       POINTER                                  :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER             :: atomic_kind
-    TYPE(cell_type), POINTER                    :: cell
-    TYPE(coeff_type), POINTER                   :: rho_tot_gspace,&
-                                                   v_hartree_gspace,&
-						   v_hartree_gtemp,&
-						   v_hartree_rtemp,&
-						   v_coulomb_gspace,&
-						   v_coulomb_gtemp,&
-						   v_coulomb_rtemp,&
-						   v_xc_gtemp,&
-						   v_xc_rtemp,&
-                                                   wf_r
-    TYPE(coeff_type), DIMENSION(:), POINTER     :: v_rspace_new,&
-                                                   v_tau_rspace
-    TYPE(cp_logger_type), POINTER               :: logger
-    TYPE(cp_para_env_type), POINTER             :: para_env
-    TYPE(cp_subsystem_type), POINTER            :: subsys
-    TYPE(dft_control_type), POINTER             :: dft_control
-    TYPE(particle_list_type), POINTER           :: particles
+    CHARACTER(LEN=80)                        :: ext, filename
+    COMPLEX(KIND=dp)                         :: gtemp
+    INTEGER :: iat, iatom, idir, iexp, ig, ikind, ispin, istat, ix, iy, iz, &
+      natom, nexp_ppl, nkind, nspins, output_unit, unit_nr
+    INTEGER, DIMENSION(2, 3)                 :: bo
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    LOGICAL                                  :: all_potential_present, gapw, &
+                                                gapw_xc, gth_gspace, &
+                                                gth_potential_present, ionode
+    REAL(KIND=dp)                            :: alpha, arg, charge, ehartree, &
+                                                exc, exp_rap, sqrt_alpha, &
+                                                sqrt_rap
+    REAL(KIND=dp), DIMENSION(3)              :: rap, ratom, roffset, rpoint
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: cexp_ppl
+    TYPE(all_potential_type), POINTER        :: all_potential
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: v_rspace_new, v_tau_rspace
+    TYPE(coeff_type), POINTER :: rho_tot_gspace, v_coulomb_gspace, &
+      v_coulomb_gtemp, v_coulomb_rtemp, v_hartree_gspace, v_hartree_gtemp, &
+      v_hartree_rtemp, v_xc_gtemp, v_xc_rtemp, wf_r
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(gth_potential_type), POINTER        :: gth_potential
+    TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
-       POINTER                                  :: particle_set
-    TYPE(pw_env_type), POINTER                  :: pw_env
-    TYPE(pw_poisson_type), POINTER              :: poisson_env
-    TYPE(pw_pool_type), POINTER                 :: auxbas_pw_pool
-    TYPE(pw_type), POINTER                      :: pwx, pwy, pwz
-    TYPE(qs_rho_p_type),DIMENSION(:,:), POINTER :: nablavks_set
-    TYPE(qs_rho_type), POINTER                  :: rho
-    TYPE(section_vals_type), POINTER            :: lr_section,&
-                                                   epr_section
-    CHARACTER(LEN=80)                           :: ext, filename
-    TYPE(gth_potential_type), POINTER           :: gth_potential
-    INTEGER, DIMENSION(:), POINTER              :: atom_list
-    INTEGER                                     :: cnt,&
-                                                   iat,&
-						   iatom,&
-						   idir,&
-						   iexp,&
-                                                   ikind,&
-						   ispin,&
-						   istat,&
-						   ig,&
-						   ix,&
-						   iy,&
-						   iz,&
-                                                   natom,&
-						   nexp_ppl,&
-                                                   nkind,&
-						   nspins,&
-                                                   output_unit,&
-						   unit_nr
-    INTEGER, DIMENSION(2,3)                     :: bo
-    LOGICAL                                     :: all_potential_present,&
-                                                   failure,&
-						   ionode,&
-						   gapw,&
-						   gapw_xc,&
-                                                   gth_potential_present,&
-						   gth_gspace
-    REAL(KIND = dp)                             :: arg, charge, sqrt_rap,&
-                                                   ehartree, alpha, sqrt_alpha,&
-						   exp_rap, exc
-    REAL(KIND = dp), DIMENSION(3)               :: ratom, rpoint, roffset, rap
-    REAL(KIND = dp), DIMENSION(:), POINTER      :: cexp_ppl
-    COMPLEX(KIND = dp)                          :: gtemp
+      POINTER                                :: particle_set
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(pw_type), POINTER                   :: pwx, pwy, pwz
+    TYPE(qs_rho_p_type), DIMENSION(:, :), &
+      POINTER                                :: nablavks_set
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(section_vals_type), POINTER         :: epr_section, lr_section
 
     NULLIFY(auxbas_pw_pool)
     NULLIFY(cell)
@@ -238,18 +203,18 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
-		    cell=cell,&
-		    dft_control=dft_control,&
-		    para_env=para_env,&
-		    particle_set=particle_set,&
-		    pw_env=pw_env,&
-		    rho=rho,&
-		    subsys=subsys,&
-		    error=error)
+                    cell=cell,&
+                    dft_control=dft_control,&
+                    para_env=para_env,&
+                    particle_set=particle_set,&
+                    pw_env=pw_env,&
+                    rho=rho,&
+                    subsys=subsys,&
+                    error=error)
 
     CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,&
                     poisson_env=poisson_env,&
-		    error=error)
+                    error=error)
 
     CALL cp_subsys_get(subsys,particles=particles,error=error)
 
@@ -299,7 +264,7 @@ CONTAINS
                             error=error)
     CALL pw_pool_init_coeff(pool=auxbas_pw_pool,coeff=v_hartree_rtemp,&
                             use_data=REALDATA3D,in_space=REALSPACE,&
-			    error=error)
+                            error=error)
     CALL pw_pool_init_coeff(pool=auxbas_pw_pool,coeff=rho_tot_gspace,&
                             use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
                             error=error)
@@ -355,16 +320,16 @@ CONTAINS
        IF (gth_potential_present) THEN
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                gth_potential=gth_potential,&
-			       atom_list=atom_list,natom=natom)
+                               atom_list=atom_list,natom=natom)
           IF (ASSOCIATED(gth_potential)) THEN
-	      NULLIFY(cexp_ppl)
+              NULLIFY(cexp_ppl)
               CALL get_potential(potential=gth_potential,&
                                  zeff=charge,&
-				 alpha_ppl=alpha,&
-				 nexp_ppl=nexp_ppl,&
-				 cexp_ppl=cexp_ppl)
+                                 alpha_ppl=alpha,&
+                                 nexp_ppl=nexp_ppl,&
+                                 cexp_ppl=cexp_ppl)
 
-              sqrt_alpha = sqrt(alpha)
+              sqrt_alpha = SQRT(alpha)
 
               IF (gth_gspace) THEN
 
@@ -386,9 +351,9 @@ CONTAINS
                                          error=error)
                  CALL pw_pool_init_coeff(pool=auxbas_pw_pool,coeff=v_coulomb_rtemp,&
                                          use_data=REALDATA3D,in_space=REALSPACE,&
-             			         error=error)
+                                              error=error)
                  
-		 CALL coeff_zero(v_coulomb_gspace)
+                 CALL coeff_zero(v_coulomb_gspace)
 
                  DO iat = 1, natom ! natom = # atoms for ikind
 
@@ -396,65 +361,72 @@ CONTAINS
                     ratom = particle_set(iatom)%r
 
                     DO ig = v_coulomb_gspace%pw%pw_grid%first_gne0,v_coulomb_gspace%pw%pw_grid%ngpts_cut_local
-		       gtemp = 0.0_dp
- 		       gtemp = - fourpi * charge / cell%deth * EXP ( - v_coulomb_gspace%pw%pw_grid%gsq(ig) / (4.0_dp * alpha) ) &
- 		               / v_coulomb_gspace%pw%pw_grid%gsq(ig)
+                       gtemp = 0.0_dp
+                        gtemp = - fourpi * charge / cell%deth * &
+                             EXP ( - v_coulomb_gspace%pw%pw_grid%gsq(ig) / (4.0_dp * alpha) ) &
+                                / v_coulomb_gspace%pw%pw_grid%gsq(ig)
 
-		       arg = DOT_PRODUCT(v_coulomb_gspace%pw%pw_grid%g(:,ig),ratom)
+                       arg = DOT_PRODUCT(v_coulomb_gspace%pw%pw_grid%g(:,ig),ratom)
 
                        SELECT CASE (nexp_ppl)
-	                  CASE(1)
-			     gtemp = gtemp + &
-			             (twopi)**(1.5_dp) / ( cell%deth * (2.0_dp * alpha)**(1.5_dp) ) * &
-				     EXP ( - v_coulomb_gspace%pw%pw_grid%gsq(ig) / (4.0_dp * alpha) ) * ( &
-		             ! C1
-			             + cexp_ppl(1) & 
-			             )
-			  CASE(2)
-			     gtemp = gtemp + &
-			             (twopi)**(1.5_dp) / ( cell%deth * (2.0_dp * alpha)**(1.5_dp) ) * &
-				     EXP ( - v_coulomb_gspace%pw%pw_grid%gsq(ig) / (4.0_dp * alpha) ) * ( &
-		             ! C1
-			             + cexp_ppl(1) & 
-			     ! C2
-			             + cexp_ppl(2) / (2.0_dp * alpha) * ( 3.0_dp - v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) ) &
-			             )
-			  CASE(3)
-			     gtemp = gtemp + &
-			             (twopi)**(1.5_dp) / ( cell%deth * (2.0_dp * alpha)**(1.5_dp) ) * &
-				     EXP ( - v_coulomb_gspace%pw%pw_grid%gsq(ig) / (4.0_dp * alpha) ) * ( &
-		             ! C1
-			             + cexp_ppl(1) & 
-			     ! C2
-			             + cexp_ppl(2) / (2.0_dp * alpha) * ( 3.0_dp - v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) ) &
-			     ! C3
-			             + cexp_ppl(3) / (2.0_dp * alpha)**2 * ( 15.0_dp - 10.0_dp * v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) &
-				                       + ( v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) )**2 ) &
-			             )
-			  CASE(4)
-			     gtemp = gtemp + &
-			             (twopi)**(1.5_dp) / ( cell%deth * (2.0_dp * alpha)**(1.5_dp) ) * &
-				     EXP ( - v_coulomb_gspace%pw%pw_grid%gsq(ig) / (4.0_dp * alpha) ) * ( &
-		             ! C1
-			             + cexp_ppl(1) & 
-			     ! C2
-			             + cexp_ppl(2) / (2.0_dp * alpha) * ( 3.0_dp - v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) ) &
-			     ! C3
-			             + cexp_ppl(3) / (2.0_dp * alpha)**2 * ( 15.0_dp - 10.0_dp * v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) &
-				                       + ( v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) )**2 ) &
-			     ! C4
-			             + cexp_ppl(4) / (2.0_dp * alpha)**3 * ( 105.0_dp - 105.0_dp * v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) &
-				                       + 21.0_dp * ( v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) )**2 &
-						       - ( v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) )**3 ) &
-			             )
-		       END SELECT
+                          CASE(1)
+                             gtemp = gtemp + &
+                                     (twopi)**(1.5_dp) / ( cell%deth * (2.0_dp * alpha)**(1.5_dp) ) * &
+                                     EXP ( - v_coulomb_gspace%pw%pw_grid%gsq(ig) / (4.0_dp * alpha) ) * ( &
+                             ! C1
+                                     + cexp_ppl(1) & 
+                                     )
+                          CASE(2)
+                             gtemp = gtemp + &
+                                     (twopi)**(1.5_dp) / ( cell%deth * (2.0_dp * alpha)**(1.5_dp) ) * &
+                                     EXP ( - v_coulomb_gspace%pw%pw_grid%gsq(ig) / (4.0_dp * alpha) ) * ( &
+                             ! C1
+                                     + cexp_ppl(1) & 
+                             ! C2
+                                     + cexp_ppl(2) / (2.0_dp * alpha) * &
+                                     ( 3.0_dp - v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) ) &
+                                     )
+                          CASE(3)
+                             gtemp = gtemp + &
+                                     (twopi)**(1.5_dp) / ( cell%deth * (2.0_dp * alpha)**(1.5_dp) ) * &
+                                     EXP ( - v_coulomb_gspace%pw%pw_grid%gsq(ig) / (4.0_dp * alpha) ) * ( &
+                             ! C1
+                                     + cexp_ppl(1) & 
+                             ! C2
+                                     + cexp_ppl(2) / (2.0_dp * alpha) * &
+                                     ( 3.0_dp - v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) ) &
+                             ! C3
+                                     + cexp_ppl(3) / (2.0_dp * alpha)**2 * &
+                                     ( 15.0_dp - 10.0_dp * v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) &
+                                                       + ( v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) )**2 ) &
+                                     )
+                          CASE(4)
+                             gtemp = gtemp + &
+                                     (twopi)**(1.5_dp) / ( cell%deth * (2.0_dp * alpha)**(1.5_dp) ) * &
+                                     EXP ( - v_coulomb_gspace%pw%pw_grid%gsq(ig) / (4.0_dp * alpha) ) * ( &
+                             ! C1
+                                     + cexp_ppl(1) & 
+                             ! C2
+                                     + cexp_ppl(2) / (2.0_dp * alpha) * &
+                                     ( 3.0_dp - v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) ) &
+                             ! C3
+                                     + cexp_ppl(3) / (2.0_dp * alpha)**2 * &
+                                     ( 15.0_dp - 10.0_dp * v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) &
+                                                       + ( v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) )**2 ) &
+                             ! C4
+                                     + cexp_ppl(4) / (2.0_dp * alpha)**3 * &
+                                     ( 105.0_dp - 105.0_dp * v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) &
+                                          + 21.0_dp * ( v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) )**2 &
+                                                       - ( v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) )**3 ) &
+                                     )
+                       END SELECT
 
-		       gtemp = gtemp * CMPLX(COS(arg),-SIN(arg),KIND=dp)
+                       gtemp = gtemp * CMPLX(COS(arg),-SIN(arg),KIND=dp)
                        v_coulomb_gspace%pw%cc(ig) = v_coulomb_gspace%pw%cc(ig) + gtemp 
-		    END DO
-		    IF ( v_coulomb_gspace%pw%pw_grid%have_g0 ) v_coulomb_gspace%pw%cc(1) = 0.0_dp
+                    END DO
+                    IF ( v_coulomb_gspace%pw%pw_grid%have_g0 ) v_coulomb_gspace%pw%cc(1) = 0.0_dp
 
-		 END DO
+                 END DO
 
                  CALL coeff_copy(v_coulomb_gspace, v_coulomb_gtemp)
                  CALL pw_derive(v_coulomb_gtemp%pw, (/1,0,0/) )
@@ -484,10 +456,10 @@ CONTAINS
                  DEALLOCATE(v_coulomb_rtemp,STAT=istat)
                  IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                                       "v_coulomb_rtemp",0)
-	      ELSE
+              ELSE
 
-	         ! Attic of the atomic parallellisation
-		 !
+                 ! Attic of the atomic parallellisation
+                 !
                  ! bo(2)
                  ! bo = get_limit(natom, para_env%num_pe, para_env%mepos)
                  ! DO iat =  bo(1),bo(2) ! natom = # atoms for ikind
@@ -505,80 +477,86 @@ CONTAINS
                        DO iy = bo(1,2),bo(2,2)
                           DO iz = bo(1,3),bo(2,3)
                               rpoint = (/REAL(ix,dp)*pwx%pw_grid%dr(1),&
-   	                              REAL(iy,dp)*pwx%pw_grid%dr(2),&
-   	                              REAL(iz,dp)*pwx%pw_grid%dr(3)/)
-   		              rpoint = rpoint + roffset
- 			      rap = rpoint - ratom
-   	                      rap(1)=MODULO(rap(1),cell%hmat(1,1))-cell%hmat(1,1)/2._dp
-   	                      rap(2)=MODULO(rap(2),cell%hmat(2,2))-cell%hmat(2,2)/2._dp
+                                         REAL(iy,dp)*pwx%pw_grid%dr(2),&
+                                         REAL(iz,dp)*pwx%pw_grid%dr(3)/)
+                                 rpoint = rpoint + roffset
+                               rap = rpoint - ratom
+                                 rap(1)=MODULO(rap(1),cell%hmat(1,1))-cell%hmat(1,1)/2._dp
+                                 rap(2)=MODULO(rap(2),cell%hmat(2,2))-cell%hmat(2,2)/2._dp
                               rap(3)=MODULO(rap(3),cell%hmat(3,3))-cell%hmat(3,3)/2._dp
-                              sqrt_rap = sqrt(DOT_PRODUCT(rap,rap))
-   			      exp_rap = exp( - alpha * sqrt_rap**2 )
+                              sqrt_rap = SQRT(DOT_PRODUCT(rap,rap))
+                                 exp_rap = EXP( - alpha * sqrt_rap**2 )
                               IF (sqrt_rap < 1.e-10_dp ) sqrt_rap = 1.e-10_dp
                               ! d_x
     
-       		              pwx%cr3d(ix,iy,iz) = pwx%cr3d(ix,iy,iz) + charge * ( &
-     		                        - 2.0_dp * sqrt_alpha * exp( - sqrt_rap**2 * sqrt_alpha**2 ) * rap(1) &
-     					/ ( rootpi * sqrt_rap**2 ) &
-     					+ erf( sqrt_rap * sqrt_alpha ) * rap(1) &
-     					/ sqrt_rap**3 )
+                                     pwx%cr3d(ix,iy,iz) = pwx%cr3d(ix,iy,iz) + charge * ( &
+                                             - 2.0_dp * sqrt_alpha * EXP( - sqrt_rap**2 * sqrt_alpha**2 ) * rap(1) &
+                                             / ( rootpi * sqrt_rap**2 ) &
+                                             + erf( sqrt_rap * sqrt_alpha ) * rap(1) &
+                                             / sqrt_rap**3 )
                               
-   			      DO iexp = 1,nexp_ppl
-   			         pwx%cr3d(ix,iy,iz) = pwx%cr3d(ix,iy,iz) + ( &
-   			                - 2.0_dp * alpha * rap(1) * exp_rap * cexp_ppl(iexp) * ( sqrt_rap**2 )**(iexp - 1) )
-   			         IF (iexp > 1) THEN
-   			            pwx%cr3d(ix,iy,iz) = pwx%cr3d(ix,iy,iz) + ( &
-   				    2.0_dp * exp_rap * cexp_ppl(iexp) * ( sqrt_rap**2 )**(iexp - 2) * REAL(iexp - 1,dp) * rap(1) )
-   			         END IF
-   			      END DO
+                                 DO iexp = 1,nexp_ppl
+                                    pwx%cr3d(ix,iy,iz) = pwx%cr3d(ix,iy,iz) + ( &
+                                           - 2.0_dp * alpha * rap(1) * exp_rap * &
+                                           cexp_ppl(iexp) * ( sqrt_rap**2 )**(iexp - 1) )
+                                    IF (iexp > 1) THEN
+                                       pwx%cr3d(ix,iy,iz) = pwx%cr3d(ix,iy,iz) + ( &
+                                       2.0_dp * exp_rap * cexp_ppl(iexp) * &
+                                       ( sqrt_rap**2 )**(iexp - 2) * REAL(iexp - 1,dp) * rap(1) )
+                                    END IF
+                                 END DO
    
                               ! d_y
     
-      		              pwy%cr3d(ix,iy,iz) = pwy%cr3d(ix,iy,iz) + charge * ( &
-    		                        - 2.0_dp * sqrt_alpha * exp( - sqrt_rap**2 * sqrt_alpha**2 ) * rap(2) &
-    					/ ( rootpi * sqrt_rap**2 ) &
-    					+ erf( sqrt_rap * sqrt_alpha ) * rap(2) &
-    					/ sqrt_rap**3 )
+                                    pwy%cr3d(ix,iy,iz) = pwy%cr3d(ix,iy,iz) + charge * ( &
+                                            - 2.0_dp * sqrt_alpha * EXP( - sqrt_rap**2 * sqrt_alpha**2 ) * rap(2) &
+                                            / ( rootpi * sqrt_rap**2 ) &
+                                            + erf( sqrt_rap * sqrt_alpha ) * rap(2) &
+                                            / sqrt_rap**3 )
                               
-   			      DO iexp = 1,nexp_ppl
-   			         pwy%cr3d(ix,iy,iz) = pwy%cr3d(ix,iy,iz) + ( &
-   			                - 2.0_dp * alpha * rap(2) * exp_rap * cexp_ppl(iexp) * ( sqrt_rap**2 )**(iexp - 1) )
-   			         IF (iexp > 1) THEN
-   			            pwy%cr3d(ix,iy,iz) = pwy%cr3d(ix,iy,iz) + ( &
-   				    2.0_dp * exp_rap * cexp_ppl(iexp) * ( sqrt_rap**2 )**(iexp - 2) * REAL(iexp - 1,dp) * rap(2) )
-   			         END IF
-   			      END DO
+                                 DO iexp = 1,nexp_ppl
+                                    pwy%cr3d(ix,iy,iz) = pwy%cr3d(ix,iy,iz) + ( &
+                                           - 2.0_dp * alpha * rap(2) * exp_rap * cexp_ppl(iexp) *&
+                                           ( sqrt_rap**2 )**(iexp - 1) )
+                                    IF (iexp > 1) THEN
+                                       pwy%cr3d(ix,iy,iz) = pwy%cr3d(ix,iy,iz) + ( &
+                                       2.0_dp * exp_rap * cexp_ppl(iexp) * ( sqrt_rap**2 )**(iexp - 2) *&
+                                       REAL(iexp - 1,dp) * rap(2) )
+                                    END IF
+                                 END DO
    
                               ! d_z
     
-      		              pwz%cr3d(ix,iy,iz) = pwz%cr3d(ix,iy,iz) + charge * ( &
-    		                        - 2.0_dp * sqrt_alpha * exp( - sqrt_rap**2 * sqrt_alpha**2 ) * rap(3) &
-    					/ ( rootpi * sqrt_rap**2 ) &
-    					+ erf( sqrt_rap * sqrt_alpha ) * rap(3) &
-    					/ sqrt_rap**3 )
+                                    pwz%cr3d(ix,iy,iz) = pwz%cr3d(ix,iy,iz) + charge * ( &
+                                            - 2.0_dp * sqrt_alpha * EXP( - sqrt_rap**2 * sqrt_alpha**2 ) * rap(3) &
+                                            / ( rootpi * sqrt_rap**2 ) &
+                                            + erf( sqrt_rap * sqrt_alpha ) * rap(3) &
+                                            / sqrt_rap**3 )
    
-   			      DO iexp = 1,nexp_ppl
-   			         pwz%cr3d(ix,iy,iz) = pwz%cr3d(ix,iy,iz) + ( &
-   			                - 2.0_dp * alpha * rap(3) * exp_rap * cexp_ppl(iexp) * ( sqrt_rap**2 )**(iexp - 1) )
-   			         IF (iexp > 1) THEN
-   			            pwz%cr3d(ix,iy,iz) = pwz%cr3d(ix,iy,iz) + ( &
-   				    2.0_dp * exp_rap * cexp_ppl(iexp) * ( sqrt_rap**2 )**(iexp - 2) * REAL(iexp - 1,dp) * rap(3) )
-   			         END IF
-   			      END DO
+                                 DO iexp = 1,nexp_ppl
+                                    pwz%cr3d(ix,iy,iz) = pwz%cr3d(ix,iy,iz) + ( &
+                                           - 2.0_dp * alpha * rap(3) * exp_rap * cexp_ppl(iexp) *&
+                                           ( sqrt_rap**2 )**(iexp - 1) )
+                                    IF (iexp > 1) THEN
+                                       pwz%cr3d(ix,iy,iz) = pwz%cr3d(ix,iy,iz) + ( &
+                                       2.0_dp * exp_rap * cexp_ppl(iexp) * ( sqrt_rap**2 )**(iexp - 2) *&
+                                       REAL(iexp - 1,dp) * rap(3) )
+                                    END IF
+                                 END DO
    
-   		          END DO ! iz
-   		       END DO ! iy
-   		    END DO ! ix
+                             END DO ! iz
+                          END DO ! iy
+                       END DO ! ix
    
                  END DO ! iat
               END IF ! gth_gspace
-		 
+                 
           END IF ! ASSOCIATED(gth_potential)
 
        ELSE IF (all_potential_present) THEN
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                all_potential=all_potential,&
-			       atom_list=atom_list,natom=natom)
+                               atom_list=atom_list,natom=natom)
           IF (ASSOCIATED(all_potential)) THEN
               CALL get_potential(potential=all_potential,&
                                  zeff=charge)
@@ -609,7 +587,7 @@ CONTAINS
                             error=error)
     CALL pw_pool_init_coeff(pool=auxbas_pw_pool,coeff=v_xc_rtemp,&
                             use_data=REALDATA3D,in_space=REALSPACE,&
-			    error=error)
+                            error=error)
 
     CALL qs_vxc_create(qs_env=qs_env,&
          vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=exc, &
@@ -708,7 +686,6 @@ CONTAINS
           CALL rs_pw_to_cube(wf_r%pw,unit_nr,ionode,"NABLA V_KS ",&
                   particles=particles,&
                   stride=1,&
-!                  stride=section_get_ival(epr_section,"PRINT%NABLAVKS_CUBES%STRIDE",error=error),&
                   error=error)
           CALL cp_print_key_finished_output(unit_nr,logger,epr_section,&
                   "PRINT%NABLAVKS_CUBES",error=error)

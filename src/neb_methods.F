@@ -35,7 +35,7 @@ MODULE neb_methods
                                              cp_print_key_unit_nr,&
                                              cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_type
   USE f77_interface,                   ONLY: f_env_add_defaults,&
                                              f_env_rm_defaults,&
                                              f_env_type
@@ -112,8 +112,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: coords, vels
     TYPE(cp_error_type)                      :: new_error
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(neb_type), POINTER                  :: neb_env
     TYPE(particle_type), DIMENSION(:), &
@@ -165,8 +164,7 @@ CONTAINS
           CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
                new_error=new_error, failure=failure)
           CALL force_env_get(f_env%force_env,subsys=subsys,error=error)
-          CPPostcondition(SIZE(subsys)==1,cp_failure_level,routineP,error,failure)
-          particle_set => subsys(1)%subsys%particles%els
+          particle_set => subsys%particles%els
           ! Read NEB controlling parameters
           ALLOCATE(neb_env, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

@@ -28,9 +28,9 @@ MODULE mc_moves
                                              cell_release,&
                                              cell_type,&
                                              get_cell
-  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_set,&
-                                             cp_subsystem_p_type
+                                             cp_subsys_type
   USE force_env_methods,               ONLY: force_env_calc_energy_force,&
                                              force_env_set_cell
   USE force_env_types,                 ONLY: force_env_get,&
@@ -207,8 +207,7 @@ CONTAINS
                                                 rand, value, w
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r_new, r_old
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(molecule_kind_type), POINTER        :: molecule_kind, &
@@ -275,7 +274,7 @@ CONTAINS
       ENDIF
 
 ! now find the molecule type associated with this guy
-      CALL cp_subsys_get(subsys(1)%subsys, &
+      CALL cp_subsys_get(subsys, &
            particles=particles, molecule_kinds_new=molecule_kinds_new,&
            error=error)
       DO imol_type=1,SIZE(molecule_kinds_new%els(:))
@@ -445,12 +444,11 @@ CONTAINS
 ! reject the move
 ! restore the coordinates
             CALL force_env_get(bias_env,subsys=subsys,error=error)
-            CALL cp_subsys_get(subsys(1)%subsys, &
-                particles=particles, error=error)
+            CALL cp_subsys_get(subsys,particles=particles, error=error)
             DO ipart=start_atom,end_atom
                particles%els(ipart)%r(1:3)=r_old(1:3,ipart-start_atom+1)
             ENDDO
-            CALL cp_subsys_set(subsys(1)%subsys,particles=particles,error=error)
+            CALL cp_subsys_set(subsys,particles=particles,error=error)
 
          ENDIF
 
@@ -537,8 +535,7 @@ END SUBROUTINE mc_conformation_change
                                                 rand, value, w
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r_old
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
     TYPE(particle_list_type), POINTER        :: particles
 
@@ -590,8 +587,7 @@ END SUBROUTINE mc_conformation_change
 
 ! grab the coordinates
          CALL force_env_get(bias_env,subsys=subsys,error=error)
-         CALL cp_subsys_get(subsys(1)%subsys, &
-            particles=particles, error=error)
+         CALL cp_subsys_get(subsys,particles=particles, error=error)
 
 ! save the coordinates
          DO ipart=1,nunits_tot(box_number)
@@ -605,8 +601,7 @@ END SUBROUTINE mc_conformation_change
 
 ! grab the coordinates
          CALL force_env_get(force_env,subsys=subsys,error=error)
-         CALL cp_subsys_get(subsys(1)%subsys, &
-            particles=particles, error=error)
+         CALL cp_subsys_get(subsys,particles=particles, error=error)
       ENDIF
 
 ! record the attempt
@@ -638,7 +633,7 @@ END SUBROUTINE mc_conformation_change
          particles%els(iparticle)%r(move_direction)=&
              particles%els(iparticle)%r(move_direction)+dis_mol
       ENDDO
-      CALL cp_subsys_set(subsys(1)%subsys,particles=particles,error=error)
+      CALL cp_subsys_set(subsys,particles=particles,error=error)
 
 ! figure out if there is any overlap...need the number of the molecule
       lreject=.FALSE.
@@ -700,12 +695,11 @@ END SUBROUTINE mc_conformation_change
 ! reject the move
 ! restore the coordinates
             CALL force_env_get(bias_env,subsys=subsys,error=error)
-            CALL cp_subsys_get(subsys(1)%subsys, &
-               particles=particles, error=error)
+            CALL cp_subsys_get(subsys,particles=particles, error=error)
             DO ipart=1,nunits_tot(box_number)
                particles%els(ipart)%r(1:3)=r_old(1:3,ipart)
             ENDDO
-            CALL cp_subsys_set(subsys(1)%subsys,particles=particles,error=error)
+            CALL cp_subsys_set(subsys,particles=particles,error=error)
 
          ENDIF
 
@@ -792,8 +786,7 @@ END SUBROUTINE mc_conformation_change
       sindg, value, w
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r_old
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
     TYPE(particle_list_type), POINTER        :: particles
 
@@ -853,8 +846,7 @@ END SUBROUTINE mc_conformation_change
 
 ! grab the coordinates
          CALL force_env_get(bias_env,subsys=subsys,error=error)
-         CALL cp_subsys_get(subsys(1)%subsys, &
-            particles=particles, error=error)
+         CALL cp_subsys_get(subsys,particles=particles, error=error)
 
 ! save the coordinates
          DO ipart=1,nunits_tot(box_number)
@@ -868,8 +860,7 @@ END SUBROUTINE mc_conformation_change
 
 ! grab the coordinates
          CALL force_env_get(force_env,subsys=subsys,error=error)
-         CALL cp_subsys_get(subsys(1)%subsys, &
-            particles=particles, error=error)
+         CALL cp_subsys_get(subsys,particles=particles, error=error)
       ENDIF
 
 ! grab the masses
@@ -971,7 +962,7 @@ END SUBROUTINE mc_conformation_change
          ENDDO
 
       ENDIF
-      CALL cp_subsys_set(subsys(1)%subsys,particles=particles,error=error)
+      CALL cp_subsys_set(subsys,particles=particles,error=error)
 
 ! check for overlap
       lreject=.FALSE.
@@ -1032,12 +1023,11 @@ END SUBROUTINE mc_conformation_change
 ! reject the move
 ! restore the coordinates
             CALL force_env_get(bias_env,subsys=subsys,error=error)
-            CALL cp_subsys_get(subsys(1)%subsys, &
-             particles=particles, error=error)
+            CALL cp_subsys_get(subsys,particles=particles, error=error)
             DO ipart=1,nunits_tot(box_number)
                particles%els(ipart)%r(1:3)=r_old(1:3,ipart)
             ENDDO
-            CALL cp_subsys_set(subsys(1)%subsys,particles=particles,error=error)
+            CALL cp_subsys_set(subsys,particles=particles,error=error)
 
          ENDIF
 
@@ -1138,8 +1128,7 @@ END SUBROUTINE mc_conformation_change
     REAL(KIND=dp), DIMENSION(1:3, 1:3)       :: hmat_test
     TYPE(cell_type), POINTER                 :: cell, cell_old, cell_test
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: oldsys
+    TYPE(cp_subsys_type), POINTER            :: oldsys
     TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
     TYPE(particle_list_type), POINTER        :: particles_old
 
@@ -1184,7 +1173,7 @@ END SUBROUTINE mc_conformation_change
       CALL get_cell(cell,abc=abc)
       CALL cell_create(cell_old,error=error)
       CALL cell_clone(cell,cell_old,error=error)
-      CALL cp_subsys_get(oldsys(1)%subsys,particles=particles_old, &
+      CALL cp_subsys_get(oldsys,particles=particles_old, &
          error=error)
 
 ! find the old cell length
@@ -2280,8 +2269,7 @@ END SUBROUTINE mc_conformation_change
       DIMENSION(:, :)                        :: r_new
     REAL(KIND=dp), DIMENSION(1:3)            :: abc, RIJ
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys, subsys_force
+    TYPE(cp_subsys_type), POINTER            :: subsys, subsys_force
     TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -2325,7 +2313,7 @@ END SUBROUTINE mc_conformation_change
 
 ! grab the coordinates
          CALL force_env_get(bias_env,cell=cell,subsys=subsys,error=error)
-         CALL cp_subsys_get(subsys(1)%subsys, &
+         CALL cp_subsys_get(subsys, &
             particles=particles, molecule_kinds_new=molecule_kinds_new,&
             error=error)
          molecule_kind => molecule_kinds_new%els(1)
@@ -2339,7 +2327,7 @@ END SUBROUTINE mc_conformation_change
 
 ! grab the coordinates
          CALL force_env_get(force_env,cell=cell,subsys=subsys,error=error)
-         CALL cp_subsys_get(subsys(1)%subsys, &
+         CALL cp_subsys_get(subsys, &
             particles=particles,  molecule_kinds_new=molecule_kinds_new,&
             error=error)
          molecule_kind => molecule_kinds_new%els(1)
@@ -2478,15 +2466,11 @@ END SUBROUTINE mc_conformation_change
 
 ! need to reset the old coordinates
          IF(lbias) THEN
-            CALL force_env_get(bias_env,&
-            subsys=subsys,error=error)
-            CALL cp_subsys_get(subsys(1)%subsys, &
-            particles=particles,error=error)
+            CALL force_env_get(bias_env,subsys=subsys,error=error)
+            CALL cp_subsys_get(subsys,particles=particles,error=error)
          ELSE
-            CALL force_env_get(force_env,&
-               subsys=subsys,error=error)
-            CALL cp_subsys_get(subsys(1)%subsys, &
-               particles=particles,error=error)
+            CALL force_env_get(force_env,subsys=subsys,error=error)
+            CALL cp_subsys_get(subsys,particles=particles,error=error)
          ENDIF
          DO ipart=1,nunits_tot(box_number)
             particles%els(ipart)%r(1:3)=r_old(1:3,ipart)
@@ -2501,14 +2485,10 @@ END SUBROUTINE mc_conformation_change
 ! potential
       IF(lbias) THEN
 ! need to give the force_env the coords from the bias_env
-         CALL force_env_get(force_env,&
-            subsys=subsys_force,error=error)
-         CALL cp_subsys_get(subsys_force(1)%subsys, &
-            particles=particles_force,error=error)
-         CALL force_env_get(bias_env,&
-            subsys=subsys,error=error)
-         CALL cp_subsys_get(subsys(1)%subsys, &
-            particles=particles,error=error)
+         CALL force_env_get(force_env,subsys=subsys_force,error=error)
+         CALL cp_subsys_get(subsys_force,particles=particles_force,error=error)
+         CALL force_env_get(bias_env,subsys=subsys,error=error)
+         CALL cp_subsys_get(subsys,particles=particles,error=error)
          DO ipart=1,nunits_tot(box_number)
             particles_force%els(ipart)%r(1:3)=particles%els(ipart)%r(1:3)
          ENDDO
@@ -2608,34 +2588,27 @@ END SUBROUTINE mc_conformation_change
          ENDIF
 
 ! update coordinates
-         CALL force_env_get(force_env,&
-            subsys=subsys,error=error)
-         CALL cp_subsys_get(subsys(1)%subsys, &
-            particles=particles,error=error)
+         CALL force_env_get(force_env,subsys=subsys,error=error)
+         CALL cp_subsys_get(subsys,particles=particles,error=error)
          DO ipart=1,nunits_tot(box_number)
             r_old(1:3,ipart)=particles%els(ipart)%r(1:3)
          ENDDO
-
-
       ELSE
-
 ! reject the move...need to restore the old coordinates
          IF(lbias) THEN
             CALL force_env_get(bias_env,subsys=subsys,error=error)
-            CALL cp_subsys_get(subsys(1)%subsys, &
-               particles=particles, error=error)
+            CALL cp_subsys_get(subsys,particles=particles, error=error)
             DO ipart=1,nunits_tot(box_number)
                particles%els(ipart)%r(1:3)=r_old(1:3,ipart)
             ENDDO
-            CALL cp_subsys_set(subsys(1)%subsys,particles=particles,error=error)
+            CALL cp_subsys_set(subsys,particles=particles,error=error)
          ENDIF
          CALL force_env_get(force_env,subsys=subsys,error=error)
-         CALL cp_subsys_get(subsys(1)%subsys, &
-            particles=particles, error=error)
+         CALL cp_subsys_get(subsys,particles=particles, error=error)
          DO ipart=1,nunits_tot(box_number)
             particles%els(ipart)%r(1:3)=r_old(1:3,ipart)
          ENDDO
-         CALL cp_subsys_set(subsys(1)%subsys,particles=particles,error=error)
+         CALL cp_subsys_set(subsys,particles=particles,error=error)
 
       ENDIF
 

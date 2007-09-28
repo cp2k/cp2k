@@ -193,7 +193,6 @@ Ar        2.5394666990        5.0789333979        5.0789333979
       &END PRINT
       &METAVAR
         COLVAR 1
-        SUBSYS 1
         SCALE .12
       &END METAVAR
     &END METADYN

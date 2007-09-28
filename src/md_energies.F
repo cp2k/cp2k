@@ -27,9 +27,9 @@ MODULE md_energies
                                              unit_convert_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_p_type
-  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_p_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
+  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
                                              use_mixed_force
@@ -117,8 +117,8 @@ CONTAINS
                                                 my_pos, remark1, remark2, &
                                                 title
     INTEGER :: box, cocrd, cofrc, covel, crd, delta_t, ene, ener_mix, frc, &
-      handle, i, iskip, isubsys, iw, nat, nshell, outformat, shcrd, shene, &
-      shfrc, shvel, str, trsl, vel
+      handle, i, iskip, iw, nat, nshell, outformat, shcrd, shene, shfrc, &
+      shvel, str, trsl, vel
     INTEGER, POINTER                         :: itimes
     LOGICAL :: init, init_coforce, init_cotraj, init_covel, init_force, &
       init_shforce, init_shtraj, init_shvel, init_traj, init_vel, is_mixed, &
@@ -132,10 +132,8 @@ CONTAINS
     TYPE(average_quantities_type), SAVE      :: averages
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
-    TYPE(dyn_coeff_set_p_type), &
-      DIMENSION(:), POINTER                  :: dyn_coeff_set
+    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(force_env_p_type), POINTER          :: force_env_p( : )
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
@@ -171,22 +169,13 @@ CONTAINS
     force_env_section => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
 
     CALL force_env_get(force_env=force_env_p(1)%force_env,&
-         cell=cell,&
-         cell_ref=cell_ref,&
-         subsys=subsys,&
-         dyn_coeff_set=dyn_coeff_set,&
-         virial = virial, &
-         error=error)
+         cell=cell,cell_ref=cell_ref,subsys=subsys,dyn_coeff_set=dyn_coeff_set,&
+         virial = virial,error=error)
 
     is_mixed=force_env_p ( 1 ) % force_env%in_use == use_mixed_force
 
-    nat=0
-    DO isubsys=1,SIZE(subsys)
-       CALL cp_subsys_get(subsys(isubsys)%subsys,&
-            particles=particles,&
-            error=error)
-       nat=nat+particles%n_els
-    END DO
+    CALL cp_subsys_get(subsys,particles=particles,error=error)
+    nat=particles%n_els
 
     ! Computing the scalar pressure
     IF ( virial % pv_availability ) THEN
@@ -546,13 +535,8 @@ CONTAINS
             file_form=my_form, middle_name="shpos", is_new_file=init_shtraj,&
             error=error)
 
-         nshell=0
-         DO isubsys=1,SIZE(subsys)
-           CALL cp_subsys_get(subsys(isubsys)%subsys,&
-                shell_particles=shell_particles,&
-               error=error)
-           nshell=nshell+shell_particles%n_els
-         END DO
+         CALL cp_subsys_get(subsys,shell_particles=shell_particles,error=error)
+         nshell=shell_particles%n_els
        ELSE
          shene = 0
          shcrd = 0
@@ -633,13 +617,9 @@ CONTAINS
           ELSE
              title = ""
           END IF
-          DO isubsys=1,SIZE(subsys)
-             CALL cp_subsys_get(subsys(isubsys)%subsys,&
-                  particles=particles,&
-                  error=error)
-             CALL write_particle_coordinates(particles%els,crd,&
-                  outformat,"POS",title,cell)
-          END DO
+          CALL cp_subsys_get(subsys,particles=particles,error=error)
+          CALL write_particle_coordinates(particles%els,crd,&
+               outformat,"POS",title,cell)
           CALL m_flush(crd)
        END IF
        !------------------
@@ -697,13 +677,9 @@ CONTAINS
           ELSE
              title = ""
           END IF
-          DO isubsys=1,SIZE(subsys)
-             CALL cp_subsys_get(subsys(isubsys)%subsys,&
-                  particles=particles,&
-                  error=error)
-             CALL write_particle_coordinates(particles%els,vel,&
-                  outformat,"VEL",title,cell)
-          END DO
+          CALL cp_subsys_get(subsys,particles=particles,error=error)
+          CALL write_particle_coordinates(particles%els,vel,&
+               outformat,"VEL",title,cell)
           CALL m_flush(vel)
        END IF
        !------------------
@@ -730,13 +706,9 @@ CONTAINS
           ELSE
              title = ""
           END IF
-          DO isubsys=1,SIZE(subsys)
-             CALL cp_subsys_get(subsys(isubsys)%subsys,&
-                  particles=particles,&
-                  error=error)
-             CALL write_particle_coordinates(particles%els,frc,&
-                  outformat,"FORCE",title,cell)
-          END DO
+          CALL cp_subsys_get(subsys,particles=particles,error=error)
+          CALL write_particle_coordinates(particles%els,frc,&
+               outformat,"FORCE",title,cell)
           CALL m_flush(frc)
        END IF
        !------------------
@@ -797,13 +769,9 @@ CONTAINS
           ELSE
              title = ""
           END IF
-          DO isubsys=1,SIZE(subsys)
-             CALL cp_subsys_get(subsys(isubsys)%subsys,&
-                  shell_particles=shell_particles,&
-                  error=error)
-             CALL write_particle_coordinates(shell_particles%els,shcrd,&
-                  outformat,"POS",title,cell)
-          END DO
+          CALL cp_subsys_get(subsys,shell_particles=shell_particles,error=error)
+          CALL write_particle_coordinates(shell_particles%els,shcrd,&
+               outformat,"POS",title,cell)
           CALL m_flush(shcrd)
        END IF
        !------------------
@@ -830,13 +798,9 @@ CONTAINS
           ELSE
              title = ""
           END IF
-          DO isubsys=1,SIZE(subsys)
-             CALL cp_subsys_get(subsys(isubsys)%subsys,&
-                  shell_particles=shell_particles,&
-                  error=error)
-             CALL write_particle_coordinates(shell_particles%els,shvel,&
-                  outformat,"VEL",title,cell)
-          END DO
+          CALL cp_subsys_get(subsys,shell_particles=shell_particles,error=error)
+          CALL write_particle_coordinates(shell_particles%els,shvel,&
+               outformat,"VEL",title,cell)
           CALL m_flush(shvel)
        END IF
        !------------------
@@ -863,13 +827,9 @@ CONTAINS
           ELSE
              title = ""
           END IF
-          DO isubsys=1,SIZE(subsys)
-             CALL cp_subsys_get(subsys(isubsys)%subsys,&
-                  shell_particles=shell_particles,&
-                  error=error)
-             CALL write_particle_coordinates(shell_particles%els,shfrc,&
-                  outformat,"FORCE",title,cell)
-          END DO
+          CALL cp_subsys_get(subsys,shell_particles=shell_particles,error=error)
+          CALL write_particle_coordinates(shell_particles%els,shfrc,&
+               outformat,"FORCE",title,cell)
           CALL m_flush(shfrc)
        END IF
        !------------------
@@ -897,13 +857,9 @@ CONTAINS
           ELSE
              title = ""
           END IF
-          DO isubsys=1,SIZE(subsys)
-             CALL cp_subsys_get(subsys(isubsys)%subsys,&
-                  core_particles=core_particles,&
-                  error=error)
-             CALL write_particle_coordinates(core_particles%els,cocrd,&
-                  outformat,"POS",title,cell)
-          END DO
+          CALL cp_subsys_get(subsys,core_particles=core_particles,error=error)
+          CALL write_particle_coordinates(core_particles%els,cocrd,&
+               outformat,"POS",title,cell)
           CALL m_flush(cocrd)
        END IF
        !------------------
@@ -930,13 +886,9 @@ CONTAINS
           ELSE
              title = ""
           END IF
-          DO isubsys=1,SIZE(subsys)
-             CALL cp_subsys_get(subsys(isubsys)%subsys,&
-                  core_particles=core_particles,&
-                  error=error)
-             CALL write_particle_coordinates(core_particles%els,covel,&
-                  outformat,"VEL",title,cell)
-          END DO
+          CALL cp_subsys_get(subsys,core_particles=core_particles,error=error)
+          CALL write_particle_coordinates(core_particles%els,covel,&
+               outformat,"VEL",title,cell)
           CALL m_flush(covel)
        END IF
        !------------------
@@ -963,13 +915,9 @@ CONTAINS
           ELSE
              title = ""
           END IF
-          DO isubsys=1,SIZE(subsys)
-             CALL cp_subsys_get(subsys(isubsys)%subsys,&
-                  core_particles=core_particles,&
-                  error=error)
-             CALL write_particle_coordinates(core_particles%els,cofrc,&
-                  outformat,"FORCE",title,cell)
-          END DO
+          CALL cp_subsys_get(subsys,core_particles=core_particles,error=error)
+          CALL write_particle_coordinates(core_particles%els,cofrc,&
+               outformat,"FORCE",title,cell)
           CALL m_flush(cofrc)
        END IF
 

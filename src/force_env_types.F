@@ -27,12 +27,12 @@ MODULE force_env_types
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_env,                     ONLY: cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_types,              ONLY: cp_subsys_release,&
-                                             cp_subsystem_p_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_release,&
+                                             cp_subsys_type
   USE cpot_types,                      ONLY: cpot_release,&
                                              cpot_type
-  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_p_type,&
-                                             dyn_coeff_set_release
+  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_release,&
+                                             dyn_coeff_set_type
   USE eip_environment_types,           ONLY: eip_env_get,&
                                              eip_env_release,&
                                              eip_environment_type
@@ -144,10 +144,6 @@ MODULE force_env_types
 !!     - fp_env: the flexible partitioning environment
 !!     read-only attributes (get them *only* through force_env_get):
 !!     - subsys: the fragments that build up the actual system.
-!!       The subsystems (and thus their para_envs) are supposed to be ordered in
-!!       some way, so that looping with i=1,.. and doing blocking mpi
-!!       communication in the actual subsystem on all processors should not
-!!       deadlock.
 !!     - ep_env: environment for an ep calculation
 !!     - cell: the cell of the actual system
 !!
@@ -169,8 +165,8 @@ MODULE force_env_types
      TYPE ( fp_type ), POINTER                           :: fp_env
      TYPE ( qs_environment_type ), POINTER               :: qs_env
      TYPE ( eip_environment_type ), POINTER              :: eip_env
-     TYPE ( cp_subsystem_p_type ), DIMENSION(:), POINTER :: subsys
-     TYPE ( dyn_coeff_set_p_type ), DIMENSION(:),POINTER :: dyn_coeff_set
+     TYPE ( cp_subsys_type ), POINTER                    :: subsys
+     TYPE ( dyn_coeff_set_type ), POINTER                :: dyn_coeff_set
      TYPE ( global_environment_type ), POINTER           :: globenv
      TYPE ( cp_para_env_type ), POINTER                  :: para_env
      TYPE ( force_env_p_type ), DIMENSION(:), POINTER    :: sub_force_env
@@ -296,19 +292,11 @@ END SUBROUTINE force_env_retain
           force_env%ref_count=1
           ! Deallocate Subsys
           IF (ASSOCIATED(force_env%subsys)) THEN
-             DO i=1,SIZE(force_env%subsys)
-                CALL cp_subsys_release(force_env%subsys(i)%subsys, error=error)
-             END DO
-             DEALLOCATE(force_env%subsys, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CALL cp_subsys_release(force_env%subsys, error=error)
           END IF
           ! Deallocate KG structures
           IF (ASSOCIATED(force_env%dyn_coeff_set)) THEN
-             DO i=1,SIZE(force_env%dyn_coeff_set)
-                CALL dyn_coeff_set_release(force_env%dyn_coeff_set(i)%dyn_coeff_set,error=error)
-             END DO
-             DEALLOCATE(force_env%dyn_coeff_set, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CALL dyn_coeff_set_release(force_env%dyn_coeff_set,error=error)
           END IF
           ! Deallocate SUB_FORCE_ENV
           IF (ASSOCIATED(force_env%sub_force_env)) THEN
@@ -413,10 +401,9 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
       POINTER                                :: kg_env
     TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
     TYPE(fp_type), OPTIONAL, POINTER         :: fp_env
-    TYPE(dyn_coeff_set_p_type), &
-      DIMENSION(:), OPTIONAL, POINTER        :: dyn_coeff_set
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), OPTIONAL, POINTER        :: subsys
+    TYPE(dyn_coeff_set_type), OPTIONAL, &
+      POINTER                                :: dyn_coeff_set
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: potential_energy, &
@@ -769,11 +756,9 @@ SUBROUTINE force_env_pos_get(force_env,pos,n_el,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_pos_get', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, idir, ii, ip, isub, &
-                                                my_n_el
+    INTEGER                                  :: handle, idir, ii, ip, my_n_el
     LOGICAL                                  :: failure
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
 
   failure=.FALSE.
@@ -791,12 +776,8 @@ SUBROUTINE force_env_pos_get(force_env,pos,n_el,error)
         CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
      END IF
      IF (.NOT.failure) THEN
-        my_n_el=0
-        DO isub=1,SIZE(subsys)
-           particles => subsys(isub)%subsys%particles
-           my_n_el=my_n_el+particles%n_els
-        END DO
-        my_n_el=3*my_n_el
+        particles => subsys%particles
+        my_n_el=3*particles%n_els
         CALL cp_assert(my_n_el==n_el,cp_failure_level,cp_assertion_failed,&
                        routineP,"wrong pos size ("//cp_to_string(n_el)&
                        //" vs" // &
@@ -805,13 +786,11 @@ SUBROUTINE force_env_pos_get(force_env,pos,n_el,error)
      END IF
      IF (.NOT.failure) THEN
         ii=0
-        DO isub=1,SIZE(subsys)
-           particles => subsys(isub)%subsys%particles
-           DO ip=1,particles%n_els
-              DO idir=1,3
-                 ii=ii+1
-                 pos(ii)=particles%els(ip)%r(idir)
-              END DO
+        particles => subsys%particles
+        DO ip=1,particles%n_els
+           DO idir=1,3
+              ii=ii+1
+              pos(ii)=particles%els(ip)%r(idir)
            END DO
         END DO
      END IF
@@ -850,10 +829,8 @@ FUNCTION force_env_get_natom(force_env,error) RESULT(n_atom)
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_get_natom', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: isub
     LOGICAL                                  :: failure
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
 
   failure=.FALSE.
@@ -868,10 +845,8 @@ FUNCTION force_env_get_natom(force_env,error) RESULT(n_atom)
         CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
      END IF
      IF (.NOT.failure) THEN
-        DO isub=1,SIZE(subsys)
-           particles => subsys(isub)%subsys%particles
-           n_atom=n_atom+particles%n_els
-        END DO
+        particles => subsys%particles
+        n_atom=particles%n_els
      END IF
   END IF
 END FUNCTION force_env_get_natom

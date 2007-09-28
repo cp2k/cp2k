@@ -3,7 +3,6 @@
 !   Copyright (C) 2000 - 2007  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
 !!****** cp2k/kg_environment_types [1.0] *
 !!
 !!   NAME
@@ -39,12 +38,12 @@ MODULE kg_environment_types
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE cp_subsystem_types,              ONLY: cp_subsys_create,&
+  USE cp_subsys_types,                 ONLY: cp_subsys_create,&
                                              cp_subsys_get,&
                                              cp_subsys_release,&
                                              cp_subsys_retain,&
                                              cp_subsys_set,&
-                                             cp_subsystem_type
+                                             cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_retain,&
@@ -103,6 +102,21 @@ MODULE kg_environment_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_environment_types'
   INTEGER, PRIVATE, SAVE :: last_kg_env_id_nr=0
 
+!!****f* kg_environment_types/kg_environment_type [1.0] *
+!!
+!!   NAME
+!!    kg_environment_type 
+!!
+!!   SYNOPSIS
+!!     
+!!
+!!   FUNCTION
+!!     
+!!
+!!   ARGUMENTS
+!!
+!!
+!!*** **********************************************************************
   TYPE kg_environment_type
     INTEGER :: id_nr, ref_count
     LOGICAL :: use_ref_cell
@@ -123,7 +137,7 @@ MODULE kg_environment_types
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sac_ppl_aux
     TYPE(kg_scf_env_type), POINTER                        :: scf_env
     TYPE(scf_control_type),POINTER                        :: scf_control
-    TYPE(cp_subsystem_type), POINTER                      :: subsys
+    TYPE(cp_subsys_type), POINTER                      :: subsys
     TYPE(qs_environment_type), POINTER                    :: sub_qs_env
     TYPE(section_vals_type), POINTER                      :: input
   END TYPE kg_environment_type
@@ -140,13 +154,24 @@ MODULE kg_environment_types
             kg_env_create, &
             kg_env_retain, &
             kg_env_release
-!!***
-! *****************************************************************************
 
 CONTAINS
 
-! *****************************************************************************
-
+!!****f* kg_environment_types/get_kg_env [1.0] *
+!!
+!!   NAME
+!!     get_kg_env
+!!
+!!   SYNOPSIS
+!!     
+!!
+!!   FUNCTION
+!!     Get the KG environment.
+!!
+!!   ARGUMENTS
+!!
+!!
+!!*** **********************************************************************
   SUBROUTINE get_kg_env( kg_env,atomic_kind_set,cell,cell_ref, &
                          use_ref_cell,sub_qs_env,&
                          dft_control,distribution_2d,&
@@ -158,10 +183,6 @@ CONTAINS
                          blacs_env,particle_set,rho,rspw,scf_env,&
                          sac_ppl,sac_ppl_aux,scf_control,subsys,&
                          virial, error)
-
-!   Purpose: Get the KG environment.
-
-!   ***************************************************************************
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -206,8 +227,7 @@ CONTAINS
       DIMENSION(:), OPTIONAL, POINTER        :: sac_ppl, sac_ppl_aux
     TYPE(scf_control_type), OPTIONAL, &
       POINTER                                :: scf_control
-    TYPE(cp_subsystem_type), OPTIONAL, &
-      POINTER                                :: subsys
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -220,11 +240,8 @@ CONTAINS
     TYPE(mol_new_list_type), POINTER         :: molecules_new
     TYPE(particle_list_type), POINTER        :: particles
 
-!   ---------------------------------------------------------------------------
-
     failure=.FALSE.
     NULLIFY(atomic_kinds, particles,molecule_kinds_new, molecules_new)
-!    CPPrecondition(ASSOCIATED(kg_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(kg_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(kg_env%subsys),cp_failure_level,routineP,error,failure)
 
@@ -277,19 +294,26 @@ CONTAINS
 
   END SUBROUTINE get_kg_env
 
-! *****************************************************************************
-
+!!****f* kg_environment_types/init_kg_env [1.0] *
+!!
+!!   NAME
+!!     init_kg_env
+!!
+!!   SYNOPSIS
+!!     
+!!
+!!   FUNCTION
+!!     Initialise the KG environment.
+!!
+!!   ARGUMENTS
+!!
+!!
+!!*** **********************************************************************
   SUBROUTINE init_kg_env ( kg_env, para_env, error )
-
-!   Purpose: Initialise the KG environment.
-
-!   ***************************************************************************
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
-
-!   ---------------------------------------------------------------------------
 
     NULLIFY (kg_env%blacs_env)
     NULLIFY (kg_env%cell)
@@ -323,8 +347,21 @@ CONTAINS
 
   END SUBROUTINE init_kg_env
 
-! *****************************************************************************
-
+!!****f* kg_environment_types/set_kg_env [1.0] *
+!!
+!!   NAME
+!!     set_kg_env
+!!
+!!   SYNOPSIS
+!!     
+!!
+!!   FUNCTION
+!!     set the KG environment.
+!!
+!!   ARGUMENTS
+!!
+!!
+!!*** **********************************************************************
   SUBROUTINE set_kg_env( kg_env,atomic_kind_set,cell,cell_ref,use_ref_cell,  &
                          dft_control,distribution_2d,dyn_coeff_set,energy,input,force, &
                          kg_fm_set,local_particles,local_molecules,&
@@ -332,10 +369,6 @@ CONTAINS
                          sub_qs_env,particle_set,rho,rspw,scf_env,&
                          sac_ppl,sac_ppl_aux,scf_control,subsys,virial,&
                          error)
-
-!   Purpose: set the KG environment.
-
-!   ***************************************************************************
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -372,8 +405,7 @@ CONTAINS
       DIMENSION(:), OPTIONAL, POINTER        :: sac_ppl, sac_ppl_aux
     TYPE(scf_control_type), OPTIONAL, &
       POINTER                                :: scf_control
-    TYPE(cp_subsystem_type), OPTIONAL, &
-      POINTER                                :: subsys
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -387,7 +419,6 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
 
     failure=.FALSE.
-!    CPPrecondition(ASSOCIATED(kg_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(kg_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
     IF (PRESENT(virial)) THEN
@@ -516,9 +547,6 @@ CONTAINS
     END IF
 
   END SUBROUTINE set_kg_env
-
-!***************************************************************************
-! *****************************************************************************
 
 !!****f* kg_environment_types/kg_env_create [1.0] *
 !!

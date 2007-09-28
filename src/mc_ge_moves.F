@@ -31,10 +31,10 @@ MODULE mc_ge_moves
                                              cell_type,&
                                              get_cell
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_p_type,&
                                              cp_subsys_set,&
-                                             cp_subsystem_p_type,&
-                                             cp_subsystem_pp_type
+                                             cp_subsys_type
   USE force_env_methods,               ONLY: force_env_calc_energy_force,&
                                              force_env_set_cell
   USE force_env_types,                 ONLY: force_env_get,&
@@ -152,8 +152,8 @@ CONTAINS
                                                 last_bias_energy
     INTEGER, INTENT(IN)                      :: nboxes
     INTEGER, DIMENSION(:), INTENT(IN)        :: box_flag
-    TYPE(cp_subsystem_pp_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_p_type), DIMENSION(:), &
+      POINTER                                :: subsys
     TYPE(particle_list_p_type), &
       DIMENSION(:), POINTER                  :: particles
     TYPE(rng_stream_type), POINTER           :: rng_stream
@@ -169,8 +169,8 @@ CONTAINS
     LOGICAL                                  :: ionode, lbias, loverlap
     REAL(KIND=dp)                            :: BETA, energies, rand, w
     REAL(KIND=dp), DIMENSION(1:nboxes)       :: bias_energy_old, new_energy
-    TYPE(cp_subsystem_pp_type), &
-      DIMENSION(:), POINTER                  :: subsys_bias
+    TYPE(cp_subsys_p_type), DIMENSION(:), &
+      POINTER                                :: subsys_bias
     TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
     TYPE(particle_list_p_type), &
       DIMENSION(:), POINTER                  :: particles_bias
@@ -214,7 +214,7 @@ CONTAINS
       DO ibox=1,nboxes
          CALL force_env_get(force_env(ibox)%force_env,&
             subsys=subsys(ibox)%subsys,error=error)
-         CALL cp_subsys_get(subsys(ibox)%subsys(1)%subsys, &
+         CALL cp_subsys_get(subsys(ibox)%subsys, &
             particles=particles(ibox)%list, error=error)
       ENDDO
 
@@ -226,7 +226,7 @@ CONTAINS
 ! grab the coords from bias_env and put them into force_env
                CALL force_env_get(bias_env(ibox)%force_env,&
                   subsys=subsys_bias(ibox)%subsys,error=error)
-               CALL cp_subsys_get(subsys_bias(ibox)%subsys(1)%subsys, &
+               CALL cp_subsys_get(subsys_bias(ibox)%subsys, &
                   particles=particles_bias(ibox)%list, error=error)
 
                DO iparticle=1,nunits_tot(ibox)
@@ -429,10 +429,10 @@ CONTAINS
 
 ! make sure the coordinates are transferred
       DO ibox=1,nboxes
-         CALL cp_subsys_set(subsys(ibox)%subsys(1)%subsys,&
+         CALL cp_subsys_set(subsys(ibox)%subsys,&
             particles=particles(ibox)%list,error=error)
          IF(lbias .AND. box_flag(ibox) == 1) &
-            CALL cp_subsys_set(subsys_bias(ibox)%subsys(1)%subsys,&
+            CALL cp_subsys_set(subsys_bias(ibox)%subsys,&
             particles=particles_bias(ibox)%list,error=error)
       ENDDO
 
@@ -544,10 +544,9 @@ CONTAINS
                                                 displace_molecule, pos_insert
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mass
     TYPE(cell_type), POINTER                 :: cell_insert, cell_remove
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: insert_sys, remove_sys
-    TYPE(cp_subsystem_pp_type), &
-      DIMENSION(:), POINTER                  :: oldsys
+    TYPE(cp_subsys_p_type), DIMENSION(:), &
+      POINTER                                :: oldsys
+    TYPE(cp_subsys_type), POINTER            :: insert_sys, remove_sys
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: test_env, test_env_bias
     TYPE(mc_input_file_type), POINTER        :: mc_bias_file, mc_input_file
@@ -595,7 +594,7 @@ CONTAINS
       DO ibox=1,2
          CALL force_env_get(force_env(ibox)%force_env,&
              subsys=oldsys(ibox)%subsys,error=error)
-         CALL cp_subsys_get(oldsys(ibox)%subsys(1)%subsys, &
+         CALL cp_subsys_get(oldsys(ibox)%subsys, &
             particles=particles_old(ibox)%list, &
             error=error)
       ENDDO
@@ -956,7 +955,7 @@ CONTAINS
 
       CALL force_env_get(test_env(insert_box)%force_env,&
          subsys=insert_sys,error=error)
-      CALL cp_subsys_get(insert_sys(1)%subsys, &
+      CALL cp_subsys_get(insert_sys, &
          particles=particles_insert,error=error)
 
       DO iatom=1,ins_atoms
@@ -1001,7 +1000,7 @@ CONTAINS
 
       CALL force_env_get(test_env(insert_box)%force_env,&
          subsys=insert_sys,error=error)
-      CALL cp_subsys_get(insert_sys(1)%subsys, &
+      CALL cp_subsys_get(insert_sys, &
          particles=particles_insert,error=error)
 
       DO iatom=1,ins_atoms
@@ -1196,14 +1195,14 @@ CONTAINS
 ! update coordinates
          CALL force_env_get(test_env(insert_box)%force_env,&
             subsys=insert_sys,error=error)
-         CALL cp_subsys_get(insert_sys(1)%subsys, &
+         CALL cp_subsys_get(insert_sys, &
             particles=particles_insert,error=error)
          DO ipart=1,ins_atoms
             r_old(1:3,ipart,insert_box)=particles_insert%els(ipart)%r(1:3)
          ENDDO
          CALL force_env_get(test_env(remove_box)%force_env,&
             subsys=remove_sys,error=error)
-         CALL cp_subsys_get(remove_sys(1)%subsys, &
+         CALL cp_subsys_get(remove_sys, &
             particles=particles_remove,error=error)
          DO ipart=1,rem_atoms
             r_old(1:3,ipart,remove_box)=particles_remove%els(ipart)%r(1:3)
@@ -1372,8 +1371,8 @@ CONTAINS
                                                 old_cell_length
     REAL(KIND=dp), DIMENSION(1:3, 1:3, 1:2)  :: hmat_test
     TYPE(cell_p_type), DIMENSION(:), POINTER :: cell, cell_old, cell_test
-    TYPE(cp_subsystem_pp_type), &
-      DIMENSION(:), POINTER                  :: oldsys
+    TYPE(cp_subsys_p_type), DIMENSION(:), &
+      POINTER                                :: oldsys
     TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
     TYPE(particle_list_p_type), &
       DIMENSION(:), POINTER                  :: particles_old
@@ -1446,7 +1445,7 @@ CONTAINS
          NULLIFY(cell_old(ibox)%cell)
          CALL cell_create(cell_old(ibox)%cell,error=error)
          CALL cell_clone(cell(ibox)%cell,cell_old(ibox)%cell,error=error)
-         CALL cp_subsys_get(oldsys(ibox)%subsys(1)%subsys, &
+         CALL cp_subsys_get(oldsys(ibox)%subsys, &
             particles=particles_old(ibox)%list, error=error)
 
 ! find the old cell length

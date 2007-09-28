@@ -74,8 +74,8 @@ MODULE cp_lbfgs_optimizer_[nametype1]
                                              write_particle_distances,&
                                              write_qs_particle_coordinates,&
                                              write_particle_coordinates
-  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_p_type  
+  USE cp_subsys_types,              ONLY: cp_subsys_get,&
+                                             cp_subsys_type  
   USE machine,                         ONLY: m_flush
   USE gopt_f_types,                    ONLY: gopt_param_type
   USE particle_list_types,             ONLY: particle_list_type
@@ -264,7 +264,7 @@ CONTAINS
        error)
     TYPE(cp_lbfgs_opt_[nametype1]_type), POINTER :: optimizer
     TYPE(cp_para_env_type), POINTER :: para_env
-    [type1], pointer :: obj_funct
+    [type1], POINTER :: obj_funct
     REAL(kind=dp), DIMENSION(:), INTENT(in) :: x0
     INTEGER, INTENT(in), OPTIONAL :: m,print_every, master, max_f_per_iter
     REAL(kind=dp), INTENT(in), OPTIONAL ::wanted_projected_gradient,&
@@ -380,11 +380,11 @@ SUBROUTINE cp_opt_[nametype1]_retain(optimizer,error)
   TYPE(cp_lbfgs_opt_[nametype1]_type), POINTER :: optimizer
   TYPE(cp_error_type), INTENT(inout) :: error
   
-  logical :: failure
-  character(len=*), parameter :: routineN='cp_opt_[nametype1]_retain',&
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cp_opt_[nametype1]_retain',&
         routineP=moduleN//':'//routineN
 
-  failure=.false.
+  failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -427,10 +427,10 @@ SUBROUTINE cp_opt_[nametype1]_release(optimizer,error)
   CHARACTER(len=*), PARAMETER :: routineN='cp_opt_[nametype1]_release',&
        routineP=moduleN//':'//routineN
 
-  call timeset(routineN//','//moduleN,'I',"",handle)
+  CALL timeset(routineN//','//moduleN,'I',"",handle)
   failure=.FALSE.
 
-  IF (associated(optimizer)) THEN
+  IF (ASSOCIATED(optimizer)) THEN
      CPPreconditionNoFail(optimizer%ref_count>0,cp_failure_level,routineP,error)
      optimizer%ref_count=optimizer%ref_count-1
      IF (optimizer%ref_count==0) THEN
@@ -480,7 +480,7 @@ SUBROUTINE cp_opt_[nametype1]_release(optimizer,error)
      END IF
   END IF
   NULLIFY(optimizer)
-  call timestop(0.0_dp,handle)
+  CALL timestop(0.0_dp,handle)
 END SUBROUTINE cp_opt_[nametype1]_release
   !***************************************************************************
 
@@ -615,7 +615,7 @@ CPSourceFileRef,&
   SUBROUTINE cp_opt_[nametype1]_step(optimizer,n_iter,f,last_f,&
        projected_gradient, converged, force_env_section, input, force_env,&
        gopt_param, error)
-    TYPE(cp_lbfgs_opt_[nametype1]_type), pointer :: optimizer
+    TYPE(cp_lbfgs_opt_[nametype1]_type), POINTER :: optimizer
     INTEGER, INTENT(out), OPTIONAL :: n_iter
     REAL(kind=dp), INTENT(out), OPTIONAL :: f, last_f, projected_gradient
     TYPE(section_vals_type), POINTER :: force_env_section, input
@@ -630,8 +630,8 @@ CPSourceFileRef,&
          routineP=moduleN//':'//routineN
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), &
+      POINTER                  :: subsys
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -740,16 +740,13 @@ CPSourceFileRef,&
                optimizer%para_env%group)
           ! Dump info
           IF (optimizer%status == 3) THEN
-	     if (is_master) &
+	     IF (is_master) &
              CALL cp_iterate(logger%iter_info,iter_nr=optimizer%isave(30),error=error)
              dataunit = cp_print_key_unit_nr(logger,input,&
                   "MOTION%PRINT%TRAJECTORY",extension=".xyz",error=error)
              IF (dataunit>0) THEN
-                CALL force_env_get(force_env,&
-                     cell=cell,&
-                     subsys=subsys,error=error)           
-                CALL cp_subsys_get(subsys=subsys(1)%subsys,&
-                     particles=particles,error=error)
+                CALL force_env_get(force_env,cell=cell,subsys=subsys,error=error)           
+                CALL cp_subsys_get(subsys=subsys,particles=particles,error=error)
                 particle_set => particles%els              
                 WRITE (UNIT=title,FMT="(A,I8,A,F20.10)") " i =",optimizer%isave(30),", E =",optimizer%f
                 CALL write_particle_coordinates(particle_set,dataunit,&
@@ -894,7 +891,7 @@ CPSourceFileRef,&
 !!*** **********************************************************************
   SUBROUTINE cp_opt_[nametype1]_bcast_res(optimizer, n_iter,f,last_f,&
        projected_gradient,error)
-    TYPE(cp_lbfgs_opt_[nametype1]_type), pointer :: optimizer
+    TYPE(cp_lbfgs_opt_[nametype1]_type), POINTER :: optimizer
     INTEGER, OPTIONAL, INTENT(out) :: n_iter
     REAL(kind=dp), OPTIONAL, INTENT(inout) :: f, last_f, projected_gradient
     TYPE(cp_error_type), INTENT(inout) :: error
@@ -908,7 +905,7 @@ CPSourceFileRef,&
     failure=.FALSE.
 
     !  call timeset(routineN//','//moduleN,'I',"",handle)
-    CPPrecondition(associated(optimizer),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
     CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        IF (optimizer%master==optimizer%para_env%mepos) THEN
@@ -973,7 +970,7 @@ CPSourceFileRef,&
     failure=.FALSE.
 
     !call timeset(routineN//','//moduleN,'I',"",handle)
-    CPPrecondition(associated(optimizer),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
     CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL cp_opt_[nametype1]_step(optimizer,n_iter=n_iter,f=f,&
@@ -1024,7 +1021,7 @@ CPSourceFileRef,&
     failure=.FALSE.
 
     !  call timeset(routineN//','//moduleN,'I',"",handle)
-    CPPrecondition(associated(optimizer),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
     CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        optimizer%task='STOPPED on user request'

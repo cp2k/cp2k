@@ -33,8 +33,8 @@ MODULE qmmm_init
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_p_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
   USE external_potential_types,        ONLY: elp_potential_type,&
                                              get_potential,&
                                              set_potential
@@ -111,7 +111,7 @@ CONTAINS
 !!
 !!
 !!   INPUTS
-!!     - subsys: the subsystem containing the MM charges
+!!     - subsys: the subsys containing the MM charges
 !!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
@@ -125,8 +125,7 @@ CONTAINS
  SUBROUTINE assign_mm_charges_and_radius(subsys, mm_atom_chrg,mm_el_pot_radius,mm_el_pot_radius_corr,&
                                          mm_atom_index, mm_link_atoms, mm_link_scale_factor,&
                                          error)
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     REAL(dp), DIMENSION(:), POINTER          :: mm_atom_chrg, &
                                                 mm_el_pot_radius, &
                                                 mm_el_pot_radius_corr
@@ -143,8 +142,7 @@ CONTAINS
       POINTER                                :: particle_set
 
    NULLIFY(particle_set, my_kind)
-   CALL cp_subsys_get(subsys=subsys(1)%subsys,&
-                      particles=particles,error=error)
+   CALL cp_subsys_get(subsys=subsys,particles=particles,error=error)
    particle_set => particles%els
 
    DO I = 1, SIZE(mm_atom_index)
@@ -184,7 +182,7 @@ CONTAINS
 !!
 !!
 !!   INPUTS
-!!     - subsys: the subsystem containing the MM charges
+!!     - subsys: the subsys containing the MM charges
 !!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
@@ -273,7 +271,7 @@ CONTAINS
 !!
 !!
 !!   INPUTS
-!!     - subsys: the subsystem containing the MM charges
+!!     - subsys: the subsys containing the MM charges
 !!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
@@ -585,17 +583,14 @@ CONTAINS
   !!
   !!*************************************************************************
   SUBROUTINE setup_qmmm_vars_qm( qmmm_section, qmmm_env, subsys_mm, qm_atom_type,&
-                              qm_atom_index, mm_atom_index, qm_subsys_index,&
-                              qm_cell_small, qmmm_coupl_type, eps_mm_rspace, qmmm_link,&
-                              error)
+       qm_atom_index, mm_atom_index, qm_cell_small, qmmm_coupl_type, eps_mm_rspace,&
+       qmmm_link, error)
     TYPE(section_vals_type), POINTER         :: qmmm_section
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys_mm
+    TYPE(cp_subsys_type), POINTER            :: subsys_mm
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: qm_atom_type
-    INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, mm_atom_index, &
-                                                qm_subsys_index
+    INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, mm_atom_index
     TYPE(cell_type), POINTER                 :: qm_cell_small
     INTEGER, INTENT(OUT)                     :: qmmm_coupl_type
     REAL(KIND=dp), INTENT(OUT)               :: eps_mm_rspace
@@ -635,8 +630,7 @@ CONTAINS
        ! Initialization of arrays and core_charge_radius...
        !
        tmp_radius=0.0_dp
-       CALL cp_subsys_get(subsys=subsys_mm(1)%subsys,&
-                          atomic_kinds=atomic_kinds,&
+       CALL cp_subsys_get(subsys=subsys_mm,atomic_kinds=atomic_kinds,&
                           error=error)
        DO Ikind = 1, SIZE(atomic_kinds%els)
           atomic_kind => atomic_kinds%els(Ikind)
@@ -652,7 +646,6 @@ CONTAINS
                                qm_atom_index=qm_atom_index,&
                                qm_atom_type=qm_atom_type,&
                                mm_link_atoms=mm_link_atoms,&
-                               qm_subsys_index=qm_subsys_index,&
                                qmmm_link=qmmm_link,&
                                error=error)
        !
@@ -714,12 +707,12 @@ CPSourceFileRef,&
     !
     ! Build MM atoms list
     !
-    size_mm_system = SIZE(subsys_mm(1)%subsys%particles%els) - SIZE(qm_atom_index)
+    size_mm_system = SIZE(subsys_mm%particles%els) - SIZE(qm_atom_index)
     IF (qmmm_link.AND.ASSOCIATED(mm_link_atoms)) size_mm_system = size_mm_system + SIZE(mm_link_atoms)
     ALLOCATE(mm_atom_index(size_mm_system))
     icount = 0
 
-    DO i = 1, SIZE(subsys_mm(1)%subsys%particles%els)
+    DO i = 1, SIZE(subsys_mm%particles%els)
        is_mm = .TRUE.
        IF ( ANY(qm_atom_index == i)) THEN
          is_mm =.FALSE.
@@ -923,13 +916,12 @@ CPSourceFileRef,&
   !!
   !!*************************************************************************
   SUBROUTINE setup_qm_atom_list(qmmm_section,qm_atom_index,qm_atom_type,&
-       qm_subsys_index, mm_link_atoms, mm_link_scale_factor, qmmm_link, &
-       fist_scale_charge_link, error)
+       mm_link_atoms, mm_link_scale_factor, qmmm_link, fist_scale_charge_link, error)
     TYPE(section_vals_type), POINTER         :: qmmm_section
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: qm_atom_index
     CHARACTER(len=default_string_length), &
       DIMENSION(:), OPTIONAL, POINTER        :: qm_atom_type
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: qm_subsys_index, mm_link_atoms
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: mm_link_atoms
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: mm_link_scale_factor
     LOGICAL, INTENT(OUT), OPTIONAL           :: qmmm_link
@@ -941,8 +933,10 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length)     :: qm_atom_kind, qm_link_element
-    INTEGER :: ikind, k, link_involv_mm, link_type, mm_index, n_var, nkind, &
-      nlinks, num_qm_atom_tot, qm_subsys_type, stat
+    INTEGER                                  :: ikind, k, link_involv_mm, &
+                                                link_type, mm_index, n_var, &
+                                                nkind, nlinks, &
+                                                num_qm_atom_tot, stat
     INTEGER, DIMENSION(:), POINTER           :: mm_indexes
     LOGICAL                                  :: explicit, failure
     REAL(KIND=dp)                            :: scale_f
@@ -1005,11 +999,8 @@ CPSourceFileRef,&
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (PRESENT(qm_atom_type))    ALLOCATE(qm_atom_type(num_qm_atom_tot),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF (PRESENT(qm_subsys_index)) ALLOCATE(qm_subsys_index(num_qm_atom_tot),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (PRESENT(qm_atom_index))   qm_atom_index    =   0
     IF (PRESENT(qm_atom_type))    qm_atom_type     = " "
-    IF (PRESENT(qm_subsys_index)) qm_subsys_index  =   0
     num_qm_atom_tot = 1
     DO ikind=1,nkind
        CALL section_vals_val_get(qm_kinds,"MM_INDEX",i_rep_section=ikind,n_rep_val=n_var,&
@@ -1025,11 +1016,6 @@ CPSourceFileRef,&
                   c_val=qm_atom_kind,error=error)
              qm_atom_type (num_qm_atom_tot:num_qm_atom_tot + SIZE(mm_indexes)-1)   = qm_atom_kind
           END IF
-          IF (PRESENT(qm_subsys_index)) THEN
-             CALL section_vals_val_get(qm_kinds,"SUBSYS",i_rep_section=ikind,i_val=qm_subsys_type,&
-                  error=error)
-             qm_subsys_index(num_qm_atom_tot:num_qm_atom_tot + SIZE(mm_indexes)-1) = qm_subsys_type
-          END IF
           num_qm_atom_tot = num_qm_atom_tot + SIZE(mm_indexes)
        END DO
     END DO
@@ -1038,11 +1024,6 @@ CPSourceFileRef,&
     IF (PRESENT(mm_link_atoms).AND.(link_involv_mm /= 0))            mm_link_atoms        = 0
     IF (explicit) THEN
        DO ikind = 1, nlinks
-          IF (PRESENT(qm_subsys_index)) THEN
-             CALL section_vals_val_get(qmmm_links,"SUBSYS",i_rep_section=ikind,&
-                  i_val=qm_subsys_type,error=error)
-             qm_subsys_index(num_qm_atom_tot:num_qm_atom_tot) = qm_subsys_type
-          END IF
           IF (PRESENT(qm_atom_type)) THEN
               CALL section_vals_val_get(qmmm_links,"QM_KIND",i_rep_section=ikind,c_val=qm_link_element,&
                   error=error)

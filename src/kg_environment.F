@@ -43,8 +43,8 @@ MODULE kg_environment
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_methods,            ONLY: cp_subsys_read_colvar
-  USE cp_subsystem_types,              ONLY: cp_subsystem_type
+  USE cp_subsys_methods,               ONLY: cp_subsys_read_colvar
+  USE cp_subsys_types,                 ONLY: cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
@@ -246,7 +246,7 @@ CONTAINS
     CALL write_dft_control ( dft_control, dft_section, error)
     CALL write_qs_control ( dft_control % qs_control, dft_section, error)
 
-    ! read colvars and add to subsystem
+    ! read colvars and add to subsys
     colvar_section => section_vals_get_subs_vals(subsys_section,"COLVAR",error=error)
     CALL cp_subsys_read_colvar( kg_env%subsys, colvar_section, error=error)
 
@@ -384,7 +384,7 @@ CONTAINS
     CALL kg_env_setup(kg_env,kg_gpw,error)
 
     IF ( kg_gpw ) THEN
-      !Sets up qs_env for subsystems
+      !Sets up qs_env for subsys
       CALL kg_subsys_setup(kg_env,force_env_section,subsys_section,error)
     ELSE
       CALL dft_control_release(dft_control, error=error)
@@ -519,7 +519,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsystem_type), POINTER         :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
     TYPE(distribution_2d_type), POINTER      :: distribution_2d

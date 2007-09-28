@@ -34,8 +34,8 @@ MODULE metadynamics
                                              cp_rm_iter_level
   USE cp_para_env,                     ONLY: cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_p_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE input_constants,                 ONLY: do_fe_meta
@@ -159,7 +159,6 @@ CONTAINS
           meta_env%metavar(i)%wall_p=0.0_dp
           meta_env%metavar(i)%wall_m=0.0_dp
           meta_env%metavar(i)%icolvar=0
-          meta_env%metavar(i)%isubsys=0
        END DO
     END IF
   END SUBROUTINE metadyn_create
@@ -269,7 +268,6 @@ CONTAINS
        DO i=1,n_colvar
           WRITE ( iw, '( A )')'          ----------------------------------------------------------------------'
           WRITE ( iw, '( A,T71,I10)' )      ' METAVARS| Collective Variable Number',meta_env%metavar(i)%icolvar
-          WRITE ( iw, '( A,T71,I10)' )      ' METAVARS| Subsys',meta_env%metavar(i)%isubsys
           IF (meta_env%extended_lagrange) THEN
              WRITE ( iw, '( A,T71,F10.6)' )    ' METAVARS| Lambda Parameter',meta_env%metavar(i)%lambda
              WRITE ( iw, '( A,T66,F15.6)' )    ' METAVARS| Collective Variable Mass',meta_env%metavar(i)%mass
@@ -323,7 +321,6 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CALL section_vals_val_get(metavar_section,"SUBSYS",i_rep_section=icol,i_val=metavar%isubsys,error=error)
     CALL section_vals_val_get(metavar_section,"COLVAR",i_rep_section=icol,i_val=metavar%icolvar,error=error)
     !
     CALL section_vals_val_get(metavar_section,"WALL_PLUS",i_rep_section=icol,n_rep_val=n_rep,error=error)
@@ -381,16 +378,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_add_forces', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, i_c, icolvar, ii, isubsys, &
-                                                iw
+    INTEGER                                  :: i, i_c, icolvar, ii, iw
     LOGICAL                                  :: explicit, failure
     REAL(kind=dp)                            :: dt, ekin_w, fac_t, fft, norm, &
                                                 rval, scal, ss0_test, tol_ekin
     TYPE(colvar_p_type), DIMENSION(:), &
       POINTER                                :: colvar_p
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(metavar_type), POINTER              :: cv
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(section_vals_type), POINTER         :: ss0_section, vvp_section
@@ -423,10 +418,9 @@ CONTAINS
     ! compute ss and the derivative of ss with respect to the atomic positions
     DO i_c=1,meta_env%n_colvar
        cv => meta_env%metavar(i_c)
-       isubsys = cv%isubsys
        icolvar = cv%icolvar
-       CALL colvar_eval_glob_f(isubsys,icolvar,force_env,error=error)
-       cv%ss = subsys(isubsys)%subsys%colvar_p(icolvar)%colvar%ss
+       CALL colvar_eval_glob_f(icolvar,force_env,error=error)
+       cv%ss = subsys%colvar_p(icolvar)%colvar%ss
        !
        ! Restart for Extended Lagrangian Metadynamics
        !
@@ -469,10 +463,9 @@ CONTAINS
           cv => meta_env%metavar(i_c)
           cv%cv_energy = 0.0_dp
           cv%ff_s      = 0.0_dp
-          isubsys=cv%isubsys
           icolvar=cv%icolvar
           NULLIFY(particles)
-          CALL cp_subsys_get(subsys(isubsys)%subsys, colvar_p=colvar_p, &
+          CALL cp_subsys_get(subsys, colvar_p=colvar_p, &
                particles=particles,error=error)
           DO ii=1,colvar_p(icolvar)%colvar%n_atom_s
              i=colvar_p(icolvar)%colvar%i_atom(ii)
@@ -485,11 +478,10 @@ CONTAINS
           cv => meta_env%metavar(i_c)
           cv%cv_energy = 0.5_dp*cv%lambda*(cv%ss-cv%ss0)**2.0_dp
           cv%ff_s      = cv%lambda*(cv%ss-cv%ss0)
-          isubsys      = cv%isubsys
           icolvar      = cv%icolvar
           ! forces on the atoms
           NULLIFY(particles)
-          CALL cp_subsys_get(subsys(isubsys)%subsys, colvar_p=colvar_p, &
+          CALL cp_subsys_get(subsys, colvar_p=colvar_p, &
                particles=particles,error=error)
           DO ii=1,colvar_p(icolvar)%colvar%n_atom_s
              i=colvar_p(icolvar)%colvar%i_atom(ii)
@@ -536,9 +528,8 @@ CONTAINS
        IF((cv%do_wall_p .AND. cv%ss  > cv%wall_p) .OR. &
             (cv%do_wall_m .AND. cv%ss  < cv%wall_m))  THEN    
           NULLIFY(particles)
-          isubsys=cv%isubsys
           icolvar=cv%icolvar
-          CALL cp_subsys_get(subsys(isubsys)%subsys, colvar_p=colvar_p, &
+          CALL cp_subsys_get(subsys, colvar_p=colvar_p, &
                particles=particles,error=error)
           scal=0.0_dp
           norm=0.0_dp

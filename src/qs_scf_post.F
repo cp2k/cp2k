@@ -55,12 +55,11 @@ MODULE qs_scf_post
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_type,&
                                              rs_pool_create_rs,&
                                              rs_pool_give_back_rs
-  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
   USE et_coupling_types,               ONLY: set_et_coupling_type
-  USE external_potential_types,        ONLY: get_potential,&
-                                             gth_potential_type
+  USE external_potential_types,        ONLY: gth_potential_type
   USE input_constants,                 ONLY: do_loc_none,&
                                              ot_precond_full_all
   USE input_section_types,             ONLY: section_get_ival,&
@@ -118,7 +117,7 @@ MODULE qs_scf_post
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
                                              write_mo_set
-  USE qs_moments,                      ONLY: qs_moment_berry_phase, &
+  USE qs_moments,                      ONLY: qs_moment_berry_phase,&
                                              qs_moment_locop
   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
   USE qs_resp,                         ONLY: resp_fit
@@ -194,15 +193,15 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: filename
     INTEGER                                  :: handle, homo, ispin, istat, &
-                                                n, nao, nlumos, nmo, nmos,&
+                                                n, nao, nlumos, nmo, nmos, &
                                                 output_unit
-    LOGICAL                                  :: failure, ionode, uniform_occ,&
+    LOGICAL                                  :: failure, ionode, &
                                                 my_localized_wfn, p_loc, &
-                                                p_molstates
+                                                p_molstates, uniform_occ
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: scenter
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: center
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: scenter
     TYPE(coeff_type)                         :: wf_g, wf_r
     TYPE(coeff_type), POINTER                :: rho_core
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -213,7 +212,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
-    TYPE(cp_subsystem_type), POINTER         :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(evals_p_type), DIMENSION(:), &
       POINTER                                :: unoccupied_evals
@@ -774,18 +773,19 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE qs_scf_post_loc_dip(input, dft_control, center, logger, qs_env, error)
-    TYPE(section_vals_type), POINTER            :: input
-    TYPE(dft_control_type), POINTER             :: dft_control
-    REAL(KIND=dp), DIMENSION(:, :, :), POINTER  :: center
-    TYPE(cp_logger_type), POINTER               :: logger
-    TYPE(qs_environment_type), POINTER          :: qs_env
-    TYPE(cp_error_type), INTENT(inout)          :: error
+    TYPE(section_vals_type), POINTER         :: input
+    TYPE(dft_control_type), POINTER          :: dft_control
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: center
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_loc_dip', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: iter
-    INTEGER                                  :: i, idir, unit_nr, ispins
+    INTEGER                                  :: i, idir, ispins, unit_nr
     LOGICAL                                  :: failure, first_time, ghost
     REAL(KIND=dp)                            :: zeff, zwfc
     REAL(KIND=dp), DIMENSION(3)              :: dipole, r_pbc
@@ -1176,7 +1176,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: filename
-    INTEGER                                  :: unit_nr, maxmom
+    INTEGER                                  :: maxmom, unit_nr
     LOGICAL                                  :: periodic
     TYPE(section_vals_type), POINTER         :: print_key
 
@@ -1384,17 +1384,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_molopt', &
       routineP = moduleN//':'//routineN
 
-    TYPE(section_vals_type), POINTER         :: print_key
-    INTEGER                                  :: unit_nr,nao
-    TYPE(qs_energy_type), POINTER            :: energy
+    INTEGER                                  :: nao, unit_nr
     REAL(KIND=dp)                            :: S_cond_number
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
-    TYPE(cp_fm_type), POINTER                :: fm_s, fm_work,mo_coeff
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigenvalues
     TYPE(cp_fm_struct_type), POINTER         :: ao_ao_fmstruct
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: eigenvalues
+    TYPE(cp_fm_type), POINTER                :: fm_s, fm_work, mo_coeff
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
+    TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
+    TYPE(section_vals_type), POINTER         :: print_key
 
     print_key => section_vals_get_subs_vals(section_vals=input,&
                    subsection_name="DFT%PRINT%BASIS_MOLOPT_QUANTITIES",&
@@ -1422,7 +1422,7 @@ CONTAINS
        CALL cp_fm_release(fm_s,error=error)
        CALL cp_fm_release(fm_work,error=error)
 
-       S_cond_number=MAXVAL(abs(eigenvalues))/MAX(MINVAL(abs(eigenvalues)),EPSILON(0.0_dp))
+       S_cond_number=MAXVAL(ABS(eigenvalues))/MAX(MINVAL(ABS(eigenvalues)),EPSILON(0.0_dp))
 
        unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%BASIS_MOLOPT_QUANTITIES",&
           extension=".molopt",error=error)
@@ -1430,8 +1430,8 @@ CONTAINS
        IF (unit_nr>0) THEN
            ! please keep this format fixed, needs to be grepable for molopt 
            ! optimizations
-           write(unit_nr,'(T2,A28,2A25)') "","Tot. Ener.","S Cond. Numb."
-           write(unit_nr,'(T2,A28,2E25.17)') "BASIS_MOLOPT_QUANTITIES",energy%total,S_cond_number
+           WRITE(unit_nr,'(T2,A28,2A25)') "","Tot. Ener.","S Cond. Numb."
+           WRITE(unit_nr,'(T2,A28,2E25.17)') "BASIS_MOLOPT_QUANTITIES",energy%total,S_cond_number
        ENDIF
 
        CALL cp_print_key_finished_output(unit_nr,logger,input,&
@@ -1529,7 +1529,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
-    TYPE(cp_subsystem_type), POINTER         :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -1745,9 +1745,7 @@ CONTAINS
                "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX", error=error)
        END IF
     END IF
-
     CALL timestop(handle)
-
   END SUBROUTINE write_available_results
 
 END MODULE

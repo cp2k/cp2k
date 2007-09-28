@@ -45,7 +45,7 @@ MODULE free_energy_types
 
   TYPE ui_var_type
      REAL(KIND=dp), DIMENSION(:), POINTER  :: ss 
-     INTEGER       :: icolvar,isubsys
+     INTEGER       :: icolvar
   END TYPE ui_var_type
 
   TYPE free_energy_type
@@ -114,8 +114,6 @@ CONTAINS
              ! Read Umbrella Integration Variable definition
              CALL section_vals_val_get(ui_var_section,"COLVAR",&
                   i_val=fe_env%uivar(fe_env%ncolvar)%icolvar,i_rep_section=i,error=error)
-             CALL section_vals_val_get(ui_var_section,"SUBSYS",&
-                  i_val=fe_env%uivar(fe_env%ncolvar)%isubsys,i_rep_section=i,error=error)
              NULLIFY(fe_env%uivar(fe_env%ncolvar)%ss)
           END DO
           CALL section_vals_val_get(ui_section,"EPS_CONV",r_val=fe_env%eps_conv,error=error)

@@ -81,12 +81,10 @@
       &METAVAR
         SCALE 0.02
         COLVAR 1
-        SUBSYS 1
       &END METAVAR
       &METAVAR
         SCALE 0.02
         COLVAR 2
-        SUBSYS 1
       &END METAVAR
     &END METADYN
   &END

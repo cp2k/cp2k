@@ -26,11 +26,11 @@ MODULE qs_numerical_pressure
                                              cell_create,&
                                              cell_release,&
                                              cell_type,&
+                                             get_hinv,&
                                              real_to_scaled,&
-                                             scaled_to_real,&
-                                             get_hinv
+                                             scaled_to_real
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
@@ -66,18 +66,17 @@ MODULE qs_numerical_pressure
       routineP = moduleN//':'//routineN
     REAL(kind=dp), PARAMETER                 :: Dx = 0.001_dp
 
-    INTEGER                                  :: ip, iseq, isubsys, iw, i, j, k, &
-                                                l, stat, iq
+    INTEGER                                  :: i, ip, iq, iseq, iw, j, k, &
+                                                stat
     LOGICAL                                  :: failure
     REAL(kind=dp), DIMENSION(2)              :: numer_energy
     REAL(kind=dp), DIMENSION(3)              :: s
-    REAL(kind=dp), DIMENSION(3,3)            :: numer_stress = 0.0_dp
+    REAL(kind=dp), DIMENSION(3, 3)           :: numer_stress = 0.0_dp
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: pos_ref
     TYPE(cell_type), POINTER                 :: cell, cell_local, cell_ref
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles
@@ -102,19 +101,14 @@ MODULE qs_numerical_pressure
            'NUMERICAL STRESS ********************************'
        END IF
 
-       iseq = 0
-       DO isubsys=1, SIZE(subsys)
-          iseq = iseq + subsys(isubsys)%subsys%particles%n_els
-       END DO
+       iseq = subsys%particles%n_els
        ALLOCATE( pos_ref(iseq,3), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        iseq = 0
-       DO isubsys=1, SIZE(subsys)
-          particles => subsys(isubsys)%subsys%particles%els
-          DO ip = 1, subsys(isubsys)%subsys%particles%n_els
-             iseq = iseq + 1
-             pos_ref(iseq,:) = particles(ip)%r
-          END DO
+       particles => subsys%particles%els
+       DO ip = 1, subsys%particles%n_els
+          iseq = iseq + 1
+          pos_ref(iseq,:) = particles(ip)%r
        END DO
        CALL force_env_get(force_env,cell=cell,cell_ref=cell_ref,&
                           virial=virial, error=error)
@@ -133,13 +127,11 @@ MODULE qs_numerical_pressure
                 !
                 ! Then scale positions.
                 !
-                DO isubsys = 1, SIZE(subsys)
-                   particles => subsys(isubsys)%subsys%particles%els
-                   DO j = 1, subsys(isubsys)%subsys%particles%n_els
-                      iseq = iseq + 1
-                      CALL real_to_scaled(s,pos_ref(iseq,1:3),cell_local)
-                      CALL scaled_to_real(particles(j)%r,s,cell)
-                   END DO
+                particles => subsys%particles%els
+                DO j = 1, subsys%particles%n_els
+                   iseq = iseq + 1
+                   CALL real_to_scaled(s,pos_ref(iseq,1:3),cell_local)
+                   CALL scaled_to_real(particles(j)%r,s,cell)
                 END DO
                 !
                 ! Since the box has changed, rebuild grids, i.e. pw_env and ks_env
@@ -167,12 +159,10 @@ MODULE qs_numerical_pressure
        ! Reset postions and rebuild environment.
        !
        iseq = 0
-       DO isubsys=1, SIZE(subsys)
-          particles => subsys(isubsys)%subsys%particles%els
-          DO ip = 1, subsys(isubsys)%subsys%particles%n_els
-             iseq = iseq + 1
-             particles(ip)%r = pos_ref(iseq,:)
-          END DO
+       particles => subsys%particles%els
+       DO ip = 1, subsys%particles%n_els
+          iseq = iseq + 1
+          particles(ip)%r = pos_ref(iseq,:)
        END DO
        CALL get_hinv ( cell )
 

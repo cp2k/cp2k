@@ -76,10 +76,6 @@ MODULE dynamical_coeff_types
    TYPE(dyn_coeff_p_type), POINTER, DIMENSION(:) :: coeffs_of_kind
   END TYPE dyn_coeff_set_type
 
-  TYPE dyn_coeff_set_p_type
-   TYPE(dyn_coeff_set_type), POINTER :: dyn_coeff_set
-  END TYPE dyn_coeff_set_p_type
-
   TYPE dyn_coeff_type
    INTEGER :: ref_count, id_nr
    INTEGER :: n_els
@@ -94,7 +90,7 @@ MODULE dynamical_coeff_types
 
 ! *** Public structures ***
 
-  PUBLIC :: dyn_coeff_set_type, dyn_coeff_set_p_type,&
+  PUBLIC :: dyn_coeff_set_type, &
             dyn_coeff_type, dyn_coeff_p_type
 
 ! *** Public Subroutines ***

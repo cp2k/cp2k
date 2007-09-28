@@ -2353,13 +2353,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="SUBSYS",&
-            description="Specifies the subsystem to which the colvar belongs. Default 1.",&
-            usage="SUBSYS {integer}",&
-            default_i_val=1,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
-    
     END IF
 
   END SUBROUTINE create_metavar_section
@@ -2412,12 +2405,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="SUBSYS",&
-            description="Specifies the subsystem to which the colvar belongs. Default 1.",&
-            usage="SUBSYS {integer}",&
-            default_i_val=1,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
     END IF
 
   END SUBROUTINE create_uvar_section

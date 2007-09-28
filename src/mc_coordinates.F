@@ -18,8 +18,8 @@
 MODULE mc_coordinates
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell
-  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_p_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
@@ -107,8 +107,7 @@ SUBROUTINE check_for_overlap ( force_env, nchains, nunits,loverlap,mol_type,&
     REAL(KIND=dp), DIMENSION(1:3)            :: abc, box_length, RIJ
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type)                      :: error
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: oldsys
+    TYPE(cp_subsys_type), POINTER            :: oldsys
     TYPE(particle_list_type), POINTER        :: particles
 
 !------------------------------------------------------------------------------
@@ -125,8 +124,7 @@ SUBROUTINE check_for_overlap ( force_env, nchains, nunits,loverlap,mol_type,&
 ! get the particle coordinates and the cell length
       CALL force_env_get(force_env,cell=cell,subsys=oldsys,error=error)
       CALL get_cell(cell,abc=abc)
-      CALL cp_subsys_get(oldsys(1)%subsys, &
-            particles=particles, error=error)
+      CALL cp_subsys_get(oldsys,particles=particles, error=error)
 
       ALLOCATE(r(1:3,1:MAXVAL(nunits),1:SUM(nchains)),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -437,8 +435,7 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
     REAL(KIND=dp), DIMENSION(1:3)            :: abc, center_of_mass, diff, &
                                                 r_insert
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: oldsys
+    TYPE(cp_subsys_type), POINTER            :: oldsys
     TYPE(particle_list_type), POINTER        :: particles
 
 !------------------------------------------------------------------------------
@@ -446,11 +443,11 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
 
       CALL timeset(routineN,'I','',handle)
 
+      NULLIFY(oldsys)
 ! get the particle coordinates and the cell length
       CALL force_env_get(force_env,cell=cell,subsys=oldsys,error=error)
       CALL get_cell(cell,abc=abc)
-      CALL cp_subsys_get(oldsys(1)%subsys, &
-            particles=particles, error=error)
+      CALL cp_subsys_get(oldsys,particles=particles, error=error)
 
 
 

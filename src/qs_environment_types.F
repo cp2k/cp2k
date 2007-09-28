@@ -50,13 +50,11 @@ MODULE qs_environment_types
                                              cp_para_env_type
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
                                              sm_pools_give_back_matrix_vect
-  USE cp_subsystem_types,              ONLY: cp_subsys_create,&
+  USE cp_subsys_types,                 ONLY: cp_subsys_create,&
                                              cp_subsys_get,&
                                              cp_subsys_release,&
                                              cp_subsys_retain,&
-                                             cp_subsystem_type
-  USE qs_dftb_types,                   ONLY: qs_dftb_pairpot_type,&
-                                             qs_dftb_pairpot_release
+                                             cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_retain,&
@@ -64,14 +62,14 @@ MODULE qs_environment_types
   USE ep_qs_types,                     ONLY: ep_qs_release,&
                                              ep_qs_retain,&
                                              ep_qs_type
-  USE et_coupling_types,               ONLY: et_coupling_type,&
-                                             et_coupling_release
-  USE ewald_environment_types,         ONLY: ewald_environment_type,&
+  USE et_coupling_types,               ONLY: et_coupling_release,&
+                                             et_coupling_type
+  USE ewald_environment_types,         ONLY: ewald_env_release,&
                                              ewald_env_retain,&
-                                             ewald_env_release
-  USE ewald_pw_types,                  ONLY: ewald_pw_type,&
+                                             ewald_environment_type
+  USE ewald_pw_types,                  ONLY: ewald_pw_release,&
                                              ewald_pw_retain,&
-                                             ewald_pw_release
+                                             ewald_pw_type
   USE harris_env_types,                ONLY: harris_env_release,&
                                              harris_env_type
   USE hartree_local_types,             ONLY: ecoul_1center_type,&
@@ -100,6 +98,8 @@ MODULE qs_environment_types
   USE qs_charges_types,                ONLY: qs_charges_release,&
                                              qs_charges_retain,&
                                              qs_charges_type
+  USE qs_dftb_types,                   ONLY: qs_dftb_pairpot_release,&
+                                             qs_dftb_pairpot_type
   USE qs_energy_types,                 ONLY: deallocate_qs_energy,&
                                              qs_energy_type
   USE qs_force_types,                  ONLY: deallocate_qs_force,&
@@ -124,8 +124,8 @@ MODULE qs_environment_types
                                              mpools_retain,&
                                              qs_matrix_pools_type
   USE qs_mo_methods,                   ONLY: make_basis_cholesky,&
-                                             make_basis_sm,&
-                                             make_basis_simple
+                                             make_basis_simple,&
+                                             make_basis_sm
   USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                              mo_set_p_type
   USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
@@ -335,7 +335,7 @@ MODULE qs_environment_types
     TYPE(qs_scf_env_type), POINTER                        :: scf_env
     TYPE(qs_matrix_pools_type), POINTER                   :: mpools
     TYPE(distribution_2d_type), POINTER                   :: distribution_2d
-    TYPE(cp_subsystem_type), POINTER                      :: subsys
+    TYPE(cp_subsys_type), POINTER                      :: subsys
     TYPE(oce_matrix_type), POINTER                        :: oce
     TYPE(local_rho_type), POINTER                         :: local_rho_set
     TYPE(hartree_local_type),  POINTER                    :: hartree_local
@@ -437,11 +437,12 @@ CONTAINS
     TYPE(harris_env_type), OPTIONAL, POINTER :: harris_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: matrix_h, matrix_ks, &
-      matrix_s, matrix_w, matrix_dv, gamma_matrix
+                                                matrix_s, matrix_w, &
+                                                matrix_dv, gamma_matrix
     TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho, rho_buffer, rho_xc
     TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env
-    TYPE(ewald_environment_type), &
-      OPTIONAL, POINTER                      :: ewald_env
+    TYPE(ewald_environment_type), OPTIONAL, &
+      POINTER                                :: ewald_env
     TYPE(ewald_pw_type), OPTIONAL, POINTER   :: ewald_pw
     TYPE(qs_matrix_pools_type), OPTIONAL, &
       POINTER                                :: mpools
@@ -474,8 +475,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: molecule_set
-    TYPE(cp_subsystem_type), OPTIONAL, &
-      POINTER                                :: subsys
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(oce_matrix_type), OPTIONAL, POINTER :: oce
     TYPE(rho_atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho_atom_set
@@ -510,9 +510,10 @@ CONTAINS
     INTEGER, INTENT(out), OPTIONAL           :: outer_scf_ihistory
     TYPE(ep_qs_type), OPTIONAL, POINTER      :: ep_qs_env
     TYPE(x_hf_type), OPTIONAL, POINTER       :: x_data
-    TYPE(et_coupling_type),OPTIONAL,POINTER  :: et_coupling
-    TYPE (qs_dftb_pairpot_type), &
-          DIMENSION(:,:), OPTIONAL, POINTER  :: dftb_potential
+    TYPE(et_coupling_type), OPTIONAL, &
+      POINTER                                :: et_coupling
+    TYPE(qs_dftb_pairpot_type), &
+      DIMENSION(:, :), OPTIONAL, POINTER     :: dftb_potential
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', &
@@ -744,12 +745,12 @@ CONTAINS
 
 
   SUBROUTINE init_results(results, error)
-    TYPE(qs_store_results_type) :: results
+    TYPE(qs_store_results_type)              :: results
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_results', &
       routineP = moduleN//':'//routineN
-    
+
     results%dipole=0.0_dp
   END SUBROUTINE init_results
 ! *****************************************************************************
@@ -795,10 +796,11 @@ CONTAINS
     TYPE(harris_env_type), OPTIONAL, POINTER :: harris_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: matrix_h, matrix_ks, &
-      matrix_s, matrix_w, matrix_dv, gamma_matrix
+                                                matrix_s, matrix_w, &
+                                                matrix_dv, gamma_matrix
     TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env
-    TYPE(ewald_environment_type), &
-      OPTIONAL, POINTER                      :: ewald_env
+    TYPE(ewald_environment_type), OPTIONAL, &
+      POINTER                                :: ewald_env
     TYPE(ewald_pw_type), OPTIONAL, POINTER   :: ewald_pw
     TYPE(qs_matrix_pools_type), OPTIONAL, &
       POINTER                                :: mpools
@@ -820,8 +822,7 @@ CONTAINS
       POINTER                                :: distribution_2d
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: dft_section, input
-    TYPE(cp_subsystem_type), OPTIONAL, &
-      POINTER                                :: subsys
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(oce_matrix_type), OPTIONAL, POINTER :: oce
     TYPE(rho_atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho_atom_set
@@ -854,9 +855,10 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: outer_scf_ihistory
     TYPE(ep_qs_type), OPTIONAL, POINTER      :: ep_qs_env
     TYPE(x_hf_type), OPTIONAL, POINTER       :: x_data
-    TYPE(et_coupling_type),OPTIONAL,POINTER  :: et_coupling
-    TYPE (qs_dftb_pairpot_type), &
-          DIMENSION(:,:), OPTIONAL, POINTER  :: dftb_potential
+    TYPE(et_coupling_type), OPTIONAL, &
+      POINTER                                :: et_coupling
+    TYPE(qs_dftb_pairpot_type), &
+      DIMENSION(:, :), OPTIONAL, POINTER     :: dftb_potential
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_env', &
@@ -1393,7 +1395,7 @@ SUBROUTINE qs_env_release(qs_env,error)
           CALL et_coupling_release(qs_env%et_coupling,error)
         END IF
         IF (ASSOCIATED(qs_env%dftb_potential)) THEN
-          call qs_dftb_pairpot_release(qs_env%dftb_potential,error)
+          CALL qs_dftb_pairpot_release(qs_env%dftb_potential,error)
         END IF
 
         ! no we are ready to deallocate the full structure
@@ -1446,9 +1448,8 @@ SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, ispin, n_col,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, my_n_col
-    LOGICAL                                  :: failure, &
-                                                ortho_contains_cholesky, &
-                                                ortho_basis
+    LOGICAL                                  :: failure, ortho_basis, &
+                                                ortho_contains_cholesky
     TYPE(cp_fm_pool_type), POINTER           :: maxao_maxmo_fm_pool
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(qs_scf_env_type), POINTER           :: scf_env

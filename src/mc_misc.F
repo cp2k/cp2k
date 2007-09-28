@@ -26,8 +26,8 @@ MODULE mc_misc
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_p_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
   USE external_potential_types,        ONLY: elp_potential_type,&
@@ -555,10 +555,10 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
     CHARACTER(LEN=default_string_length)     :: c_val, mol_name, name, &
                                                 name_a, name_b, name_c, &
                                                 name_d, unit_type
-    INTEGER :: current_bend, current_bond, current_torsion, ewald_type, gmax(3), &
-      handle, i_val, iatom, ibend, ibond, ichain, ifunct, imolecule, imul, &
-      itorsion, itype, jbend, jbond, jtorsion, jtype, natoms, nbend, nbond, &
-      nchains, ns_max, ntorsion, ntypes, o_spline, stat, unit
+    INTEGER :: current_bend, current_bond, current_torsion, ewald_type, &
+      gmax(3), handle, i_val, iatom, ibend, ibond, ichain, ifunct, imolecule, &
+      imul, itorsion, itype, jbend, jbond, jtorsion, jtype, natoms, nbend, &
+      nbond, nchains, ns_max, ntorsion, ntypes, o_spline, stat, unit
     LOGICAL                                  :: check, failure, use_ref_cell
     REAL(KIND=dp)                            :: alpha, charge, epsilon, r_val
     REAL(KIND=dp), DIMENSION(1:3)            :: abc
@@ -569,8 +569,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
     TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list
     TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
     TYPE(cell_type), POINTER                 :: cell, cell_ref
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(fist_environment_type), POINTER     :: fist_env
@@ -632,7 +631,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
       END SELECT
 
 ! get some molecule information
-      CALL cp_subsys_get(subsys(1)%subsys, &
+      CALL cp_subsys_get(subsys, &
          molecule_kinds_new=molecule_kinds_new,error=error)
 
 ! more than one molecule?

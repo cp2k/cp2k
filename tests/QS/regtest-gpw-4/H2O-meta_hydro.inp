@@ -30,7 +30,6 @@
     &METAVAR
       LAMBDA 1.2
       MASS 40.
-      SUBSYS 1
       COLVAR 1
       SCALE .050
     &END METAVAR 

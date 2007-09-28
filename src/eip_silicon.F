@@ -33,8 +33,8 @@ MODULE eip_silicon
                                              cp_print_key_should_output, &
                                              cp_print_key_unit_nr, &
                                              cp_p_file
-  USE cp_subsystem_types,              ONLY: cp_subsys_get, &
-                                             cp_subsystem_type
+  USE cp_subsys_types,              ONLY: cp_subsys_get, &
+                                             cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE eip_environment_types,           ONLY: eip_environment_type, &
                                              eip_env_get
@@ -130,7 +130,7 @@ CONTAINS
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(distribution_1d_type), POINTER      :: local_particles
-    TYPE(cp_subsystem_type), POINTER         :: subsys
+    TYPE(cp_subsys_type), POINTER         :: subsys
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
 
@@ -152,7 +152,7 @@ CONTAINS
 
       CALL force_env_get(force_env=force_env, eip_env=eip_env, error=error)
       CALL eip_env_get(eip_env=eip_env, cell=cell, particle_set=particle_set, &
-                       subsystem=subsys, local_particles=local_particles, &
+                       subsys=subsys, local_particles=local_particles, &
                        atomic_kind_set=atomic_kind_set, error=error)
       CALL get_cell(cell=cell, abc=abc)
 
@@ -335,7 +335,7 @@ CONTAINS
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(distribution_1d_type), POINTER      :: local_particles
-    TYPE(cp_subsystem_type), POINTER         :: subsys
+    TYPE(cp_subsys_type), POINTER         :: subsys
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
 
@@ -357,7 +357,7 @@ CONTAINS
 
       CALL force_env_get(force_env=force_env, eip_env=eip_env, error=error)
       CALL eip_env_get(eip_env=eip_env, cell=cell, particle_set=particle_set, &
-                       subsystem=subsys, local_particles=local_particles, &
+                       subsys=subsys, local_particles=local_particles, &
                        atomic_kind_set=atomic_kind_set, error=error)
       CALL get_cell(cell=cell, abc=abc)
 

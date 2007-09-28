@@ -85,10 +85,10 @@ MODULE extended_system_types
 
   TYPE nhc_set_type
      INTEGER :: id_nr, ref_count, in_use
-     TYPE ( lnhc_parameters_type ), POINTER :: nhc_part  ( : )
-     TYPE ( lnhc_parameters_type ), POINTER :: nhc_baro ( : )
-     TYPE ( lnhc_parameters_type ), POINTER :: nhc_coef (:)
-     TYPE ( lnhc_parameters_type ), POINTER :: nhc_shell (:)
+     TYPE ( lnhc_parameters_type ), POINTER :: nhc_part
+     TYPE ( lnhc_parameters_type ), POINTER :: nhc_baro
+     TYPE ( lnhc_parameters_type ), POINTER :: nhc_coef
+     TYPE ( lnhc_parameters_type ), POINTER :: nhc_shell
   END TYPE nhc_set_type
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'extended_system_types'
@@ -164,49 +164,46 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE lnhc_dealloc ( lnhc, error )
-    TYPE(lnhc_parameters_type), &
-      DIMENSION(:), POINTER                  :: lnhc
+    TYPE(lnhc_parameters_type), POINTER      :: lnhc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'lnhc_dealloc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
 
     IF (ASSOCIATED(lnhc)) THEN
-       DO i = 1, SIZE(lnhc)
-          IF ( ASSOCIATED(lnhc(i)%dt_yosh)) THEN
-             DEALLOCATE (lnhc(i)%dt_yosh, STAT=stat)
-             CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
-          END IF
-          IF (ASSOCIATED (lnhc(i)%nvt)) THEN
-             DEALLOCATE (lnhc(i)%nvt, STAT=stat)
-             CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
-          ENDIF
-          IF (ASSOCIATED (lnhc(i)%p_kin)) THEN
-             DEALLOCATE (lnhc(i)%p_kin, STAT=stat)
-             CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
-          END IF
-          IF (ASSOCIATED (lnhc(i)%p_scale)) THEN
-             DEALLOCATE (lnhc(i)%p_scale, STAT=stat)
-             CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
-          END IF
-          IF (ASSOCIATED (lnhc(i)%v_scale)) THEN
-             DEALLOCATE (lnhc(i)%v_scale, STAT=stat)
-             CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
-          END IF
-          IF (ASSOCIATED (lnhc(i)%s_kin)) THEN
-             DEALLOCATE (lnhc(i)%s_kin, STAT=stat)
-             CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
-          END IF
-          IF (ASSOCIATED (lnhc(i)%index)) THEN
-             DEALLOCATE (lnhc(i)%index, STAT=stat)
-             CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
-          END IF
-       ENDDO
+       IF ( ASSOCIATED(lnhc%dt_yosh)) THEN
+          DEALLOCATE (lnhc%dt_yosh, STAT=stat)
+          CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED (lnhc%nvt)) THEN
+          DEALLOCATE (lnhc%nvt, STAT=stat)
+          CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+       ENDIF
+       IF (ASSOCIATED (lnhc%p_kin)) THEN
+          DEALLOCATE (lnhc%p_kin, STAT=stat)
+          CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED (lnhc%p_scale)) THEN
+          DEALLOCATE (lnhc%p_scale, STAT=stat)
+          CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED (lnhc%v_scale)) THEN
+          DEALLOCATE (lnhc%v_scale, STAT=stat)
+          CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED (lnhc%s_kin)) THEN
+          DEALLOCATE (lnhc%s_kin, STAT=stat)
+          CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED (lnhc%index)) THEN
+          DEALLOCATE (lnhc%index, STAT=stat)
+          CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+       END IF
        DEALLOCATE (lnhc, STAT=stat)
        CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
     ENDIF

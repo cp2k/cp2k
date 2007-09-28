@@ -89,7 +89,6 @@
         MASS 10.0
         SCALE 0.1
         COLVAR 1
-        SUBSYS 1
       &END METAVAR
     &END METADYN
   &END

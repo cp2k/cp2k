@@ -64,7 +64,6 @@
         MASS 10.0
         SCALE 0.07
         COLVAR 1
-        SUBSYS 1
       &END METAVAR
       &PRINT
        &COLVAR

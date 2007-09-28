@@ -30,11 +30,10 @@ MODULE bsse
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_methods,            ONLY: create_small_subsystem
-  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+  USE cp_subsys_methods,               ONLY: create_small_subsys
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_release,&
-                                             cp_subsystem_p_type,&
-                                             cp_subsystem_type
+                                             cp_subsys_type
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_release,&
@@ -267,13 +266,11 @@ CONTAINS
     INTEGER :: i, isize, j, jj, k, method_name_id, my_targ, n_rep, &
       num_of_frag, old_size, present_charge, present_multpl, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_index, atom_list, &
-                                                my_conf, subsys_index, tmplist
+                                                my_conf, tmplist
     LOGICAL                                  :: failure
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
-    TYPE(cp_subsystem_type), POINTER         :: subsys_loc
+    TYPE(cp_subsys_type), POINTER            :: subsys, subsys_loc
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(section_vals_type), POINTER         :: bsse_section, dft_section, &
                                                 force_env_section, &
@@ -295,7 +292,7 @@ CONTAINS
        my_conf = conf
        CALL force_env_get(force_env=force_env, subsys=subsys, para_env=para_env,&
             cell=cell, error=error)
-       CALL cp_subsys_get(subsys(1)%subsys, particles=particles, error=error)
+       CALL cp_subsys_get(subsys, particles=particles, error=error)
        isize = 0
        ALLOCATE(atom_index(isize),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -334,9 +331,6 @@ CONTAINS
        !
        ALLOCATE(atom_type(isize), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(subsys_index(isize), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       subsys_index = 1
        DO j = 1, isize
           my_targ = atom_index(j)
           DO k = 1, SIZE(particles%els)
@@ -361,13 +355,12 @@ CONTAINS
 
        IF (method_name_id == do_qs) THEN
 
-          CALL create_small_subsystem(subsys_loc, big_subsys=subsys,&
+          CALL create_small_subsys(subsys_loc, big_subsys=subsys,&
                small_para_env=para_env, small_cell=cell,sub_atom_index=atom_index,&
-               sub_subsys_index=subsys_index, sub_atom_kind_name=atom_type,&
-               root_section=root_section,para_env=para_env,force_env_section=force_env_section,&
-               subsys_section=subsys_section,error=error)
+               sub_atom_kind_name=atom_type,root_section=root_section,para_env=para_env,&
+               force_env_section=force_env_section,subsys_section=subsys_section,error=error)
 
-          CALL quickstep_create_force_env(force_env_loc,root_section,para_env,globenv,subsystem=subsys_loc,&
+          CALL quickstep_create_force_env(force_env_loc,root_section,para_env,globenv,subsys=subsys_loc,&
                force_env_section=force_env_section, subsys_section=subsys_section, use_motion_section=.FALSE.,&
                error=error)
 
@@ -385,8 +378,6 @@ CONTAINS
        DEALLOCATE(atom_index, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(atom_type, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(subsys_index, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(my_conf, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

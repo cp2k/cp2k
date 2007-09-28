@@ -26,8 +26,8 @@ MODULE qs_resp
   USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -70,26 +70,22 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: explicit, failure, has_resp, &
-                                                itc
-    REAL(KIND=dp)                            :: dr(3), dvol, mycharge, r(3), &
-                                                rmax, rmin, shift(3), &
-                                                strength, TARGET, vec(3), &
-                                                vec_pbc(3), vj
+                                                itc, rheavies
+    REAL(KIND=dp) :: dr(3), dvol, mycharge, r(3), rheavies_strength, rmax, &
+      rmin, shift(3), strength, TARGET, vec(3), vec_pbc(3), vj
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dist, rhs
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: matrix
     REAL(KIND=dp), DIMENSION(:), POINTER     :: atom_coef
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_subsystem_type), POINTER         :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_type), POINTER                   :: v_hartree_pw
     TYPE(section_vals_type), POINTER         :: cons_section, input, &
                                                 resp_section, rest_section
-    LOGICAL :: rheavies
-    REAL(KIND=dp) :: rheavies_strength
 
     CALL timeset(routineN,handle)
 
