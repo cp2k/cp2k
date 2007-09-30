@@ -64,8 +64,7 @@ MODULE md_run
                                              setup_velocities,&
                                              temperature_control
   USE particle_list_types,             ONLY: particle_list_type
-  USE termination,                     ONLY: external_control,&
-                                             stop_memory
+  USE termination,                     ONLY: external_control
   USE thermostat_types,                ONLY: create_thermostat_type,&
                                              release_thermostat_type,&
                                              thermostat_type
@@ -166,8 +165,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, istat, istep, &
-                                                iter_level
+    INTEGER                                  :: handle, i, istep, iter_level, &
+                                                stat
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, save_mem, should_stop
     REAL(KIND=dp)                            :: time_iter_start, &
@@ -201,14 +200,11 @@ CONTAINS
     para_env     => force_env % para_env
 
     motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
-
-    NULLIFY(global_section)
     global_section => section_vals_get_subs_vals(root_section,"GLOBAL",error=error)
     CALL section_vals_val_get(global_section,"SAVE_MEM",l_val=save_mem,error=error)
 
-    ALLOCATE (simpar,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "simpar",0)
+    ALLOCATE (simpar,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     force_env_section => force_env%force_env_section
     subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
     CALL cp_add_iter_level(logger%iter_info,"MD",n_rlevel_new=iter_level,&
@@ -228,7 +224,7 @@ CONTAINS
 
     ! If requested setup Thermostats
     CALL create_thermostat_type(thermostat, motion_section, force_env,&
-         simpar, para_env, globenv, error )
+         simpar, para_env, globenv, global_section, error )
 
     ! If requested setup Barostat
     CALL create_barostat_type(barostat, motion_section, force_env,&
@@ -352,8 +348,8 @@ CONTAINS
     CALL release_thermostat_type(thermostat, error=error)
     CALL release_barostat_type(barostat, error=error)
 
-    DEALLOCATE(simpar,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(simpar,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE qs_mol_dyn_low

@@ -316,7 +316,7 @@ CONTAINS
        CALL set_yoshida_coef ( nhc, simpar % dt )
     ENDIF
 
-     CALL restart_nose(nhc,nose_section,save_mem,restart,error)
+    CALL restart_nose(nhc,nose_section,save_mem,restart,error)
 
     IF(.NOT. restart) THEN
        ! Initializing thermostat forces and velocities for the Nose-Hoover
@@ -601,12 +601,8 @@ END SUBROUTINE set_yoshida_coef
 !!
 !!   SOURCE
 !******************************************************************************
-
-
-
   SUBROUTINE restart_nose(nhc,nose_section,save_mem,restart,error)
 
-  
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
     TYPE(section_vals_type), POINTER         :: nose_section

@@ -44,7 +44,8 @@ MODULE thermostat_types
   USE input_constants,                 ONLY: do_thermo_nose
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
-                                             section_vals_type
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
@@ -104,7 +105,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE create_thermostat_type(thermostat,motion_section, &
-       force_env, simpar, para_env, globenv, error )
+       force_env, simpar, para_env, globenv, global_section, error )
     TYPE(thermostat_type), POINTER           :: thermostat
     TYPE(section_vals_type), POINTER         :: motion_section
     TYPE(force_env_type), POINTER            :: force_env
@@ -112,6 +113,7 @@ CONTAINS
       POINTER                                :: simpar
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: global_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_thermostat_type', &
@@ -141,6 +143,8 @@ CONTAINS
     thermo_kg_section    => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%THERMOSTAT",error=error)
     thermo_shell_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT",error=error)
     thermo_baro_section  => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT",error=error)
+
+    CALL section_vals_val_get(global_section,"SAVE_MEM",l_val=save_mem,error=error)
     CALL section_vals_get(thermo_part_section, explicit=explicit_part, error=error)
     CALL section_vals_get(thermo_kg_section, explicit=explicit_kg, error=error)
     CALL section_vals_get(thermo_shell_section, explicit=explicit_shell, error=error)
