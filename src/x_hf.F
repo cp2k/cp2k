@@ -81,7 +81,7 @@ MODULE x_hf
     REAL(dp)                                 :: eps_box_forces
     LOGICAL                                  :: do_p_screening_forces
     LOGICAL                                  :: do_initial_p_screening
-    LOGICAL                                  :: do_initial_p_screening_correction
+    LOGICAL                                  :: do_init_p_screen_corr
     REAL(dp)                                 :: initial_p_screening_correction
   END TYPE
   
@@ -221,9 +221,9 @@ MODULE x_hf
     x_data%screening_parameter%do_initial_p_screening = logic_val 
     CALL section_vals_val_get(hf_sub_section, "P_SCREEN_CORRECTION_FACTOR", r_val=real_val, error=error)
     IF( real_val == 0.0_dp ) THEN
-      x_data%screening_parameter%do_initial_p_screening_correction = .FALSE. 
+      x_data%screening_parameter%do_init_p_screen_corr = .FALSE. 
     ELSE
-      x_data%screening_parameter%do_initial_p_screening_correction = .TRUE. 
+      x_data%screening_parameter%do_init_p_screen_corr = .TRUE. 
     END IF
     x_data%screening_parameter%initial_p_screening_correction = real_val 
 

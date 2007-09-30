@@ -209,7 +209,7 @@ MODULE four_center_integrals
     eps_schwarz = screening_parameter%eps_schwarz
     eps_box     = screening_parameter%eps_box
     do_p_screening = screening_parameter%do_initial_p_screening
-    do_correct_p_screening = screening_parameter%do_initial_p_screening_correction
+    do_correct_p_screening = screening_parameter%do_init_p_screen_corr
     p_screening_correction_factor = screening_parameter%initial_p_screening_correction
 
     !! If we have a hybrid functional, we may need only a fraction of exact exchange
