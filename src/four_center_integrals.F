@@ -34,8 +34,7 @@ MODULE four_center_integrals
   USE erf_fn,                          ONLY: erfc
   USE input_constants,                 ONLY: do_hf_potential_coulomb,&
                                              do_hf_potential_short
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_val_get
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_8
@@ -72,13 +71,13 @@ MODULE four_center_integrals
   USE x_hf,                            ONLY: x_hf_box_scheme,&
                                              x_hf_cell_type,&
                                              x_hf_distribution,&
-                                             x_hf_potential_type,&
+                                             x_hf_general_type,&
+                                             x_hf_potential_type,& 
+                                             x_hf_screening_type,&
                                              x_hf_set_distr_energy,&
                                              x_hf_set_distr_forces,&
-                                             x_hf_type, &
-                                             x_hf_screening_type, &
-                                             x_hf_potential_type, &
-                                             x_hf_general_type
+                                             x_hf_type,&
+                                             x_hf_load_balance_type
   USE x_hf_distribution_mc,            ONLY: x_hf_optimize_distribution
 #include "cp_common_uses.h"
 
@@ -90,7 +89,7 @@ MODULE four_center_integrals
   TYPE(lib_int), SAVE      :: lib
   TYPE(lib_deriv), SAVE    :: deriv
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'four_center_integrals'
-  REAL(KIND=dp), PARAMETER :: epsilon = 0.00001_dp
+  REAL(dp), PARAMETER      :: epsilon = 0.00001_dp
 
 
 !***
@@ -157,7 +156,7 @@ MODULE four_center_integrals
       pc1, pc2, pd, pd1, pd2, pgf_radius_box, sgfa, sgfb, sgfc, sgfd, stat, &
       total_integrals_to_store
     INTEGER :: total_integrals_to_store_aver, total_integrals_to_store_max
-    INTEGER(KIND=int_8)                      :: my_current_counter
+    INTEGER(int_8)                           :: my_current_counter
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: last_sgf_global
     INTEGER, DIMENSION(:), POINTER :: la_max, la_min, lb_max, lb_min, lc_max, &
       lc_min, ld_max, ld_min, npgfa, npgfb, npgfc, npgfd, nsgfa, nsgfb, &
@@ -167,22 +166,17 @@ MODULE four_center_integrals
                                                 is_assoc_atomic_block
     LOGICAL :: buffer_overflow, do_correct_p_screening, do_p_screening, &
       failure, first_j_loop, first_k_loop, first_l_loop
-    REAL(dp) :: actual_pmax_entry, box_size(3), ene_x_aa, ene_x_bb, &
+    REAL(dp) :: actual_pmax_entry, box_size(3), ene_x_aa, ene_x_bb, eps_box, &
       eps_schwarz, fac, hf_fraction, K, Kbox, max_val1, max_val2, &
       memory_usage, omega_box, p_screening_correction_factor, pmax_entry, &
       ra(3), rb(3), Rbox, rc(3), rd(3), screen_max, symm_fac, tmp
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: primitive_integrals, T1
-    REAL(dp), DIMENSION(:, :), POINTER       :: full_ks, full_ks_beta, &
-                                                screen_atom, sphi_a, sphi_b, &
-                                                sphi_c, sphi_d, zeta, zetb, &
-                                                zetc, zetd
+    REAL(dp), DIMENSION(:, :), POINTER :: full_density, full_density_beta, &
+      full_ks, full_ks_beta, screen_atom, sparse_block, sparse_block_beta, &
+      sphi_a, sphi_b, sphi_c, sphi_d, zeta, zetb, zetc, zetd
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: actual_pmax_set, screen_set
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: full_density, &
-                                                full_density_beta, &
-                                                sparse_block, &
-                                                sparse_block_beta
-    REAL(KIND=dp), &
-      DIMENSION(:, :, :, :, :), POINTER      :: screen_periodic
+    REAL(dp), DIMENSION(:, :, :, :, :), &
+      POINTER                                :: screen_periodic
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atom_kind
@@ -192,18 +186,19 @@ MODULE four_center_integrals
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(real_block_node_type), POINTER      :: block_node, block_node_beta
+    TYPE(x_hf_general_type)                  :: general_parameter
     TYPE(x_hf_potential_type)                :: potential_parameter
     TYPE(x_hf_screening_type)                :: screening_parameter
-    TYPE(x_hf_general_type)                  :: general_parameter
-    REAL(dp)                                 :: eps_box
-
+    TYPE(x_hf_load_balance_type)             :: load_balance_parameter
 
     CALL mp_sync(para_env%group)
     CALL timeset(routineN,"I",'',handle)
 
-    screening_parameter = qs_env%x_data%screening_parameter
-    potential_parameter = qs_env%x_data%potential_parameter
-    general_parameter   = qs_env%x_data%general_parameter
+
+    screening_parameter    = qs_env%x_data%screening_parameter
+    potential_parameter    = qs_env%x_data%potential_parameter
+    general_parameter      = qs_env%x_data%general_parameter
+    load_balance_parameter = qs_env%x_data%load_balance_parameter
 
     !! Get screening paramter
     eps_schwarz = screening_parameter%eps_schwarz
@@ -286,17 +281,19 @@ MODULE four_center_integrals
     !! a changed geometry 
     IF( do_p_screening) THEN
       pmax_entry = 0.0_dp
-      actual_pmax_entry = 0.0_dp
-      ALLOCATE(actual_pmax_set(max_set,max_set,natom,natom), STAT=stat)
-      actual_pmax_set = 0.0_dp
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      CALL update_pmax_matrix(actual_pmax_set, full_density, full_density_beta, &
-                              particle_set,atomic_kind_set,error)
+      IF( do_correct_p_screening) THEN
+        actual_pmax_entry = 0.0_dp
+        ALLOCATE(actual_pmax_set(max_set,max_set,natom,natom), STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        actual_pmax_set = 0.0_dp
+        CALL update_pmax_matrix(actual_pmax_set, full_density, full_density_beta, &
+                                particle_set,atomic_kind_set,error)
+      END IF
       IF(geometry_did_change ) THEN
         qs_env%x_data%initial_p = 0.0_dp
         CALL update_pmax_matrix(qs_env%x_data%initial_p, &
-                    full_density,full_density_beta,&
-                    particle_set,atomic_kind_set,error)
+                                full_density,full_density_beta,&
+                                particle_set,atomic_kind_set,error)
       END IF
     END IF
     
@@ -337,8 +334,8 @@ MODULE four_center_integrals
                                     potential_parameter,.NOT.geometry_did_change,qs_env%x_data%x_screening_buffer, error)
       IF(geometry_did_change) THEN
         CALL screen_farfield(qs_env%x_data%far_field_boxes,&
-                            particle_set, atomic_kind_set, potential_parameter,&
-                            error)
+                             particle_set, atomic_kind_set, potential_parameter,&
+                             error)
       END IF
     END IF
     CALL timeset(routineN//"_main",handle_main)
@@ -373,11 +370,13 @@ MODULE four_center_integrals
       IF( do_p_screening) THEN
         CALL load_balance_energy(qs_env%x_data,eps_schwarz,eps_box,particle_set,atomic_kind_set,para_env,&
                                  potential_parameter,screen_set,screen_atom,screen_max,&
-                                 is_assoc_atomic_block,ks_matrix,do_periodic,pmax_set=qs_env%x_data%initial_p,error=error)
+                                 is_assoc_atomic_block,ks_matrix,do_periodic,load_balance_parameter, &
+                                 pmax_set=qs_env%x_data%initial_p, error=error)
       ELSE
         CALL load_balance_energy(qs_env%x_data,eps_schwarz,eps_box,particle_set,atomic_kind_set,para_env,&
                                  potential_parameter,screen_set,screen_atom,screen_max,&
-                                 is_assoc_atomic_block,ks_matrix,do_periodic,error=error)
+                                 is_assoc_atomic_block,ks_matrix,do_periodic,&
+                                 load_balance_parameter,error=error)
       END IF
     END IF
 
@@ -573,10 +572,12 @@ MODULE four_center_integrals
                                              qs_env%x_data%initial_p(jset,lset,jatom,latom), &
                                              qs_env%x_data%initial_p(iset,lset,iatom,latom), &
                                              qs_env%x_data%initial_p(kset,jset,katom,jatom))
-                            actual_pmax_entry = MAX(actual_pmax_set(iset,kset,iatom,katom), &
-                                                    actual_pmax_set(jset,lset,jatom,latom), &
-                                                    actual_pmax_set(iset,lset,iatom,latom), &
-                                                    actual_pmax_set(kset,jset,katom,jatom))
+                            IF( do_correct_p_screening ) THEN
+                              actual_pmax_entry = MAX(actual_pmax_set(iset,kset,iatom,katom), &
+                                                      actual_pmax_set(jset,lset,jatom,latom), &
+                                                      actual_pmax_set(iset,lset,iatom,latom), &
+                                                      actual_pmax_set(kset,jset,katom,jatom))
+                            END IF
                             max_val2 = max_val2 * pmax_entry
                           END IF
                           !! If wanted, correct the previous screening by recalculating the omitted
@@ -952,8 +953,10 @@ MODULE four_center_integrals
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(do_p_screening) THEN
-      DEALLOCATE(actual_pmax_set,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      IF(do_correct_p_screening) THEN
+        DEALLOCATE(actual_pmax_set,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      END IF
     END IF
     !
     ! this wraps to free_libint, but currently causes a segfault
@@ -1152,17 +1155,16 @@ MODULE four_center_integrals
   SUBROUTINE compute_screening_matrices(screen_set,screen_atom,screen_max,particle_set,&
                                         atomic_kind_set,potential_parameter,read_from_memory,buffer,error)
 
-    REAL(kind=dp), DIMENSION(:, :, :, :), &
-      POINTER                                :: screen_set
-    REAL(kind=dp), DIMENSION(:, :), POINTER  :: screen_atom
-    REAL(KIND=dp)                            :: screen_max
+    REAL(dp), DIMENSION(:, :, :, :), POINTER :: screen_set
+    REAL(dp), DIMENSION(:, :), POINTER       :: screen_atom
+    REAL(dp)                                 :: screen_max
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(x_hf_potential_type)                :: potential_parameter
     LOGICAL                                  :: read_from_memory
-    REAL(KIND=dp), DIMENSION(:, :, :, :), &
+    REAL(dp), DIMENSION(:, :, :, :), &
       OPTIONAL, POINTER                      :: buffer
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1176,10 +1178,10 @@ MODULE four_center_integrals
                                                 lc_min, npgfb, npgfc, nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfb
     LOGICAL                                  :: failure
+    REAL(dp)                                 :: max_val, p2s_b, p2s_c, rb(3), &
+                                                rc(3)
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: contraction_max
     REAL(dp), DIMENSION(:, :), POINTER       :: sphi_b, zetb, zetc
-    REAL(KIND=dp)                            :: max_val, p2s_b, p2s_c, rb(3), &
-                                                rc(3)
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_b, orb_basis_c
 
@@ -1299,11 +1301,10 @@ MODULE four_center_integrals
   SUBROUTINE compute_pmax_matrices(pmax_set,pmax_atom,pmax_max, &
               full_density,full_density_beta,screen_pmat_forces,particle_set,atomic_kind_set,error)
 
-    REAL(kind=dp), DIMENSION(:, :, :, :), &
-      POINTER                                :: pmax_set
-    REAL(kind=dp), DIMENSION(:, :), POINTER  :: pmax_atom
-    REAL(KIND=dp)                            :: pmax_max
-    REAL(kind=dp), DIMENSION(:, :), POINTER  :: full_density, &
+    REAL(dp), DIMENSION(:, :, :, :), POINTER :: pmax_set
+    REAL(dp), DIMENSION(:, :), POINTER       :: pmax_atom
+    REAL(dp)                                 :: pmax_max
+    REAL(dp), DIMENSION(:, :), POINTER       :: full_density, &
                                                 full_density_beta
     LOGICAL, INTENT(IN)                      :: screen_pmat_forces
     TYPE(particle_type), DIMENSION(:), &
@@ -1321,7 +1322,7 @@ MODULE four_center_integrals
     INTEGER, DIMENSION(:), POINTER           :: last_sgf_global, nsgfb, nsgfc
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfb, first_sgfc
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: pmax_tmp
+    REAL(dp)                                 :: pmax_tmp
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_b, orb_basis_c
 
@@ -1454,7 +1455,7 @@ MODULE four_center_integrals
                     lc_min, lc_max, ld_min, ld_max,&
                     npgfa, npgfb, npgfc, npgfd,&
                     ncoa, ncob, ncoc, ncod,&
-                    primitive_forces, work_forces, eps_schwarz,&
+                    primitive_forces, work_forces,&
                     potential_parameter )
   
     REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3)
@@ -1464,7 +1465,6 @@ MODULE four_center_integrals
     REAL(dp), &
       DIMENSION(ncoa, ncob, ncoc, ncod, 12)  :: primitive_forces
     REAL(dp), DIMENSION(:, :), POINTER       :: work_forces
-    REAL(dp), INTENT(IN)                     :: eps_schwarz
     TYPE(x_hf_potential_type)                :: potential_parameter
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'forces4'
@@ -1562,12 +1562,12 @@ MODULE four_center_integrals
       forces_map(4,2), handle, i_atom, iatom, ikind, iset, j_atom, jatom, &
       jkind, jset, k_atom, katom, kkind, kset, l_atom, latom, lkind, lset, &
       ma, max_am, max_k, max_set, maxsgf, mb, mc, md, my_bin_size, my_istart, &
-      my_jstart, my_kstart, my_lstart, natom, nco_max, ncoa, ncob, ncoc, &
-      ncod, nseta, nsetb, nsetc, nsetd, nsgfa_total, nsgfb_total, &
-      nsgfc_total, nsgfd_total, nspins, p_index, pa, pa1, pa2, pb, pb1, pb2, &
-      pc, pc1, pc2, pd, pd1, pd2, pgf_radius_box, sgfa, sgfb, sgfc, sgfd, stat, &
-      my_original_cpu_id
-    INTEGER(KIND=int_8)                      :: my_current_counter
+      my_jstart, my_kstart, my_lstart, my_original_cpu_id, natom, nco_max, &
+      ncoa, ncob, ncoc, ncod, nseta, nsetb, nsetc, nsetd, nsgfa_total, &
+      nsgfb_total, nsgfc_total, nsgfd_total, nspins, p_index, pa, pa1, pa2, &
+      pb, pb1, pb2, pc, pc1, pc2, pd, pd1, pd2, pgf_radius_box, sgfa, sgfb, &
+      sgfc, sgfd, stat
+    INTEGER(int_8)                           :: my_current_counter
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, &
                                                 last_sgf_global
     INTEGER, DIMENSION(:), POINTER :: la_max, la_min, lb_max, lb_min, lc_max, &
@@ -1579,20 +1579,18 @@ MODULE four_center_integrals
     LOGICAL                                  :: failure, first_j_loop, &
                                                 first_k_loop, first_l_loop, &
                                                 screen_pmat_forces
-    REAL(dp)                                 :: Kbox, omega_box, Rbox
-    REAL(KIND=dp) :: box_size(3), eps_schwarz, fac, hf_fraction, max_val1, &
-      max_val2, pmax_max, ra(3), rb(3), rc(3), rd(3), screen_max, symm_fac, &
-      temp1, temp1b, temp2, temp3, temp3b
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:), TARGET                   :: primitive_forces
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: T1, T2
-    REAL(KIND=dp), DIMENSION(:, :), POINTER :: full_density, &
-      full_density_beta, pmax_atom, screen_atom, sparse_block, sphi_a, &
-      sphi_b, sphi_c, sphi_d, work_forces, zeta, zetb, zetc, zetd
-    REAL(KIND=dp), DIMENSION(:, :, :, :), &
-      POINTER                                :: pmax_set, screen_set
-    REAL(KIND=dp), &
-      DIMENSION(:, :, :, :, :), POINTER      :: screen_periodic
+    REAL(dp) :: box_size(3), eps_box, eps_schwarz, fac, hf_fraction, Kbox, &
+      max_val1, max_val2, omega_box, pmax_max, ra(3), rb(3), Rbox, rc(3), &
+      rd(3), screen_max, symm_fac, temp1, temp1b, temp2, temp3, temp3b
+    REAL(dp), ALLOCATABLE, DIMENSION(:), &
+      TARGET                                 :: primitive_forces
+    REAL(dp), DIMENSION(:), POINTER          :: T1, T2
+    REAL(dp), DIMENSION(:, :), POINTER :: full_density, full_density_beta, &
+      pmax_atom, screen_atom, sparse_block, sphi_a, sphi_b, sphi_c, sphi_d, &
+      work_forces, zeta, zetb, zetc, zetd
+    REAL(dp), DIMENSION(:, :, :, :), POINTER :: pmax_set, screen_set
+    REAL(dp), DIMENSION(:, :, :, :, :), &
+      POINTER                                :: screen_periodic
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atom_kind
@@ -1603,20 +1601,19 @@ MODULE four_center_integrals
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(real_block_node_type), POINTER      :: block_node
+    TYPE(x_hf_general_type)                  :: general_parameter
     TYPE(x_hf_potential_type)                :: potential_parameter
     TYPE(x_hf_screening_type)                :: screening_parameter
-    TYPE(x_hf_general_type)                  :: general_parameter
-    REAL(dp)                                 :: eps_box
-
+    TYPE(x_hf_load_balance_type)             :: load_balance_parameter
 
     CALL mp_sync(para_env%group)
     CALL timeset(routineN,"I",'',handle)
 
 
-    screening_parameter = qs_env%x_data%screening_parameter
-    general_parameter = qs_env%x_data%general_parameter
-    potential_parameter = qs_env%x_data%potential_parameter
-
+    screening_parameter    = qs_env%x_data%screening_parameter
+    general_parameter      = qs_env%x_data%general_parameter
+    potential_parameter    = qs_env%x_data%potential_parameter
+    load_balance_parameter = qs_env%x_data%load_balance_parameter
     
     !! initalize force array to zero 
     CALL get_qs_env(qs_env=qs_env, force=force, error=error)
@@ -1746,7 +1743,8 @@ MODULE four_center_integrals
     !! Load balance the work
     CALL load_balance_forces(qs_env%x_data,eps_schwarz,eps_box,particle_set,atomic_kind_set,para_env,&
                              potential_parameter,screen_set,screen_atom,screen_max,&
-                             pmax_set,is_assoc_atomic_block,ks_matrix,do_periodic,error)
+                             pmax_set,is_assoc_atomic_block,ks_matrix,do_periodic,&
+                             load_balance_parameter, error)
 
     !! precompute maximum nco and allocate scratch
     nco_max=0
@@ -2033,7 +2031,6 @@ MODULE four_center_integrals
                                          ncoa, ncob, ncoc, ncod,&
                                          primitive_forces,&
                                          work_forces,&
-                                         eps_schwarz,&
                                          potential_parameter)
                           ELSE
                             CALL forces4_periodic(ra, rb, rc, rd,&
@@ -2336,24 +2333,22 @@ MODULE four_center_integrals
   SUBROUTINE comp_screen_mat_per(screen_set, screen_atom, screen_max,screen_periodic,particle_set,&
                                  atomic_kind_set,potential_parameter, read_from_memory, buffer,&
                                  neighbor_cells, box_size, max_k, error)
-    REAL(kind=dp), DIMENSION(:, :, :, :), &
-      POINTER                                :: screen_set
-    REAL(kind=dp), DIMENSION(:, :), POINTER  :: screen_atom
-    REAL(KIND=dp)                            :: screen_max
-    REAL(kind=dp), &
-      DIMENSION(:, :, :, :, :), POINTER      :: screen_periodic
+    REAL(dp), DIMENSION(:, :, :, :), POINTER :: screen_set
+    REAL(dp), DIMENSION(:, :), POINTER       :: screen_atom
+    REAL(dp)                                 :: screen_max
+    REAL(dp), DIMENSION(:, :, :, :, :), &
+      POINTER                                :: screen_periodic
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(x_hf_potential_type)                :: potential_parameter
     LOGICAL                                  :: read_from_memory
-    REAL(KIND=dp), &
-      DIMENSION(:, :, :, :, :), OPTIONAL, &
-      POINTER                                :: buffer
+    REAL(dp), DIMENSION(:, :, :, :, :), &
+      OPTIONAL, POINTER                      :: buffer
     TYPE(x_hf_cell_type), DIMENSION(:), &
       POINTER                                :: neighbor_cells
-    REAL(KIND=dp)                            :: box_size(3)
+    REAL(dp)                                 :: box_size(3)
     INTEGER, INTENT(IN)                      :: max_k
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -2367,10 +2362,10 @@ MODULE four_center_integrals
                                                 lc_min, npgfb, npgfc, nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfb
     LOGICAL                                  :: failure
+    REAL(dp)                                 :: p2s_b, p2s_c, rb(3), rc(3)
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: max_val
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: contraction_max
     REAL(dp), DIMENSION(:, :), POINTER       :: sphi_b, zetb, zetc
-    REAL(KIND=dp)                            :: p2s_b, p2s_c, rb(3), rc(3)
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_b, orb_basis_c
 
@@ -2518,7 +2513,7 @@ MODULE four_center_integrals
     TYPE(x_hf_potential_type)                :: potential_parameter
     TYPE(x_hf_cell_type), DIMENSION(:), &
       POINTER                                :: neighbor_cells
-    REAL(KIND=dp), INTENT(IN)                :: box_size(3)
+    REAL(dp), INTENT(IN)                     :: box_size(3)
     INTEGER, INTENT(IN)                      :: max_k
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'screen4_periodic'
@@ -2605,7 +2600,7 @@ MODULE four_center_integrals
       DIMENSION(ncoa, ncob, ncoc, ncod, 12)  :: primitive_forces
     REAL(dp), DIMENSION(:, :), POINTER       :: work_forces
     TYPE(x_hf_potential_type)                :: potential_parameter
-    REAL(KIND=dp), INTENT(IN)                :: box_size(3)
+    REAL(dp), INTENT(IN)                     :: box_size(3)
     TYPE(x_hf_cell_type), DIMENSION(:), &
       POINTER                                :: neighbor_cells
     REAL(dp), DIMENSION(:)                   :: screen1, screen2
@@ -2736,14 +2731,12 @@ MODULE four_center_integrals
                                                 lc_min, npgfb, npgfc, nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfb
     LOGICAL                                  :: failure
-    REAL(dp)                                 :: px_max, px_min, py_max, &
-                                                py_min, pz_max, pz_min, rbc2
+    REAL(dp) :: alpha, K_max, Kbc, p2s_b, p2s_c, px_max, px_min, py_max, &
+      py_min, pz_max, pz_min, R_max, rb(3), Rbc, rbc2, rc(3), rp(3), &
+      system_size(3), x_max, x_min, y_max, y_min, z_max, z_min, zet1, zet2
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: contraction_max
     REAL(dp), DIMENSION(:, :), POINTER       :: rpgfb, rpgfc, sphi_b, zetb, &
                                                 zetc
-    REAL(KIND=dp) :: alpha, K_max, Kbc, p2s_b, p2s_c, R_max, rb(3), Rbc, &
-      rc(3), rp(3), system_size(3), x_max, x_min, y_max, y_min, z_max, z_min, &
-      zet1, zet2
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_b, orb_basis_c
 
@@ -2928,7 +2921,7 @@ MODULE four_center_integrals
     TYPE(x_hf_potential_type)                :: potential_parameter
     TYPE(x_hf_cell_type), DIMENSION(:), &
       POINTER                                :: neighbor_cells
-    REAL(KIND=dp), INTENT(IN)                :: box_size(3)
+    REAL(dp), INTENT(IN)                     :: box_size(3)
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'screen_farfield_per', &
@@ -2940,16 +2933,12 @@ MODULE four_center_integrals
                                                 lc_min, npgfb, npgfc, nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfb
     LOGICAL                                  :: failure
-    REAL(dp)                                 :: C11(3), im_C(3), pbc_C(3), &
-                                                px_max, px_min, py_max, &
-                                                py_min, pz_max, pz_min, rbc2, &
-                                                temp(3)
+    REAL(dp) :: alpha, C11(3), im_C(3), K_max, Kbc, p2s_b, p2s_c, pbc_C(3), &
+      px_max, px_min, py_max, py_min, pz_max, pz_min, R_max, rb(3), Rbc, &
+      rbc2, rc(3), rp(3), temp(3), zet1, zet2
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: contraction_max
     REAL(dp), DIMENSION(:, :), POINTER       :: rpgfb, rpgfc, sphi_b, zetb, &
                                                 zetc
-    REAL(KIND=dp)                            :: alpha, K_max, Kbc, p2s_b, &
-                                                p2s_c, R_max, rb(3), Rbc, &
-                                                rc(3), rp(3), zet1, zet2
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_b, orb_basis_c
 
@@ -3118,9 +3107,8 @@ MODULE four_center_integrals
   SUBROUTINE update_pmax_matrix(pmax_set, &
               full_density,full_density_beta,particle_set,atomic_kind_set,error)
 
-    REAL(kind=dp), DIMENSION(:, :, :, :), &
-      POINTER                                :: pmax_set
-    REAL(kind=dp), DIMENSION(:, :), POINTER  :: full_density, &
+    REAL(dp), DIMENSION(:, :, :, :), POINTER :: pmax_set
+    REAL(dp), DIMENSION(:, :), POINTER       :: full_density, &
                                                 full_density_beta
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -3137,7 +3125,7 @@ MODULE four_center_integrals
     INTEGER, DIMENSION(:), POINTER           :: last_sgf_global, nsgfb, nsgfc
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfb, first_sgfc
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: pmax_tmp
+    REAL(dp)                                 :: pmax_tmp
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_b, orb_basis_c
 
@@ -3262,8 +3250,8 @@ MODULE four_center_integrals
     TYPE(x_hf_potential_type)                :: potential_parameter
     REAL(dp)                                 :: box_size(3)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    REAL(KIND=dp), &
-      DIMENSION(:, :, :, :, :), POINTER      :: screen_periodic
+    REAL(dp), DIMENSION(:, :, :, :, :), &
+      POINTER                                :: screen_periodic
     REAL(dp), INTENT(IN)                     :: eps_schwarz
     INTEGER, INTENT(IN)                      :: max_k
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: sphi_a, sphi_b, sphi_c, sphi_d
@@ -3401,23 +3389,24 @@ MODULE four_center_integrals
 
   SUBROUTINE load_balance_energy(x_data, eps_schwarz, eps_box, particle_set,atomic_kind_set,para_env,&
                                  potential_parameter, screen_set, screen_atom, screen_max,&
-                                 is_assoc_atomic_block_global,ks_matrix,do_periodic,error, pmax_set)
+                                 is_assoc_atomic_block_global,ks_matrix,do_periodic,&
+                                 load_balance_parameter, error, pmax_set)
     TYPE(x_hf_type), POINTER                 :: x_data
-    REAL(KIND=dp), INTENT(IN)                :: eps_schwarz, eps_box
+    REAL(dp), INTENT(IN)                     :: eps_schwarz, eps_box
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(x_hf_potential_type), INTENT(IN)    :: potential_parameter
-    REAL(KIND=dp), DIMENSION(:, :, :, :), &
-      POINTER                                :: screen_set
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: screen_atom
-    REAL(KIND=dp), INTENT(IN)                :: screen_max
+    REAL(dp), DIMENSION(:, :, :, :), POINTER :: screen_set
+    REAL(dp), DIMENSION(:, :), POINTER       :: screen_atom
+    REAL(dp), INTENT(IN)                     :: screen_max
     INTEGER, DIMENSION(:, :), POINTER        :: is_assoc_atomic_block_global
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix
     LOGICAL                                  :: do_periodic
+    TYPE(x_hf_load_balance_type)             :: load_balance_parameter
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(dp), DIMENSION(:, :, :, :), &
       OPTIONAL, POINTER                      :: pmax_set
@@ -3429,23 +3418,22 @@ MODULE four_center_integrals
       ibin, icpu, ipos, iset, jatom, jset, katom, kset, latom, lset, max_set, &
       mepos, natom, nbins, ncpu, nseta, nsetb, nsetc, nsetd, pgf_radius_box, &
       stat, steps
-    INTEGER(int_8)                           :: optimal_cost, tmp_counter1
+    INTEGER(int_8) :: current_counter, distribution_counter_end, &
+      distribution_counter_start, int_per_cpu, optimal_cost, restore_counter, &
+      tmp_counter1, total_integrals
     INTEGER(int_8), ALLOCATABLE, &
       DIMENSION(:)                           :: optimal_costs
     INTEGER(int_8), DIMENSION(:), POINTER    :: cost_matrix
-    INTEGER(KIND=int_8) :: current_counter, distribution_counter_end, &
-      distribution_counter_start, int_per_cpu, restore_counter, &
-      total_integrals
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_pos
     INTEGER, DIMENSION(:), POINTER           :: distribution_vector, npgfa, &
                                                 npgfb, npgfc, npgfd, nsgfa, &
                                                 nsgfb, nsgfc, nsgfd
     LOGICAL                                  :: do_p_screening, failure
     REAL(dp)                                 :: initial_temperature, K, Kbox, &
+                                                max_val1, max_val2, &
                                                 omega_box, ra(3), rb(3), &
                                                 Rbox, rc(3), rd(3)
-    REAL(KIND=dp)                            :: max_val1, max_val2
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zeta, zetb, zetc, zetd
+    REAL(dp), DIMENSION(:, :), POINTER       :: zeta, zetb, zetc, zetd
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(x_hf_distribution), DIMENSION(:), &
       POINTER                                :: ptr_to_tmp_dist
@@ -3576,7 +3564,7 @@ MODULE four_center_integrals
       ENDDO
 
       !! Bin the total amount of integrals on each cpu
-      nbins = 16
+      nbins = load_balance_parameter%nbins
       !floor value
       int_per_cpu = (total_integrals + nbins -1 ) / (nbins) 
 
@@ -3743,7 +3731,7 @@ MODULE four_center_integrals
       optimal_cost = 0
       !! Optimize load on each node independently
       CALL x_hf_optimize_distribution(para_env, ncpu*nbins, ncpu, cost_matrix, distribution_vector, &
-                                      steps, initial_temperature, optimal_cost, error)
+                                      load_balance_parameter, optimal_cost, error)
       
       !! Find optimal load balance wrt the cost
       optimal_costs(para_env%mepos+1) = optimal_cost
@@ -3871,58 +3859,52 @@ MODULE four_center_integrals
   SUBROUTINE load_balance_forces(x_data, eps_schwarz, eps_box, particle_set,atomic_kind_set,para_env,&
                                  potential_parameter, screen_set, screen_atom, screen_max,&
                                  pmax_set, is_assoc_atomic_block_global, ks_matrix, do_periodic, &
-                                 error)
+                                 load_balance_parameter, error)
     TYPE(x_hf_type), POINTER                 :: x_data
-    REAL(KIND=dp), INTENT(IN)                :: eps_schwarz, eps_box
+    REAL(dp), INTENT(IN)                     :: eps_schwarz, eps_box
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(x_hf_potential_type), INTENT(IN)    :: potential_parameter
-    REAL(KIND=dp), DIMENSION(:, :, :, :), &
-      POINTER                                :: screen_set
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: screen_atom
-    REAL(KIND=dp), INTENT(IN)                :: screen_max
-    REAL(KIND=dp), DIMENSION(:, :, :, :), &
-      POINTER                                :: pmax_set
+    REAL(dp), DIMENSION(:, :, :, :), POINTER :: screen_set
+    REAL(dp), DIMENSION(:, :), POINTER       :: screen_atom
+    REAL(dp), INTENT(IN)                     :: screen_max
+    REAL(dp), DIMENSION(:, :, :, :), POINTER :: pmax_set
     INTEGER, DIMENSION(:, :), POINTER        :: is_assoc_atomic_block_global
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix
     LOGICAL                                  :: do_periodic
+    TYPE(x_hf_load_balance_type)             :: load_balance_parameter
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'load_balance_forces', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: box_idx1, box_idx2, box_idx3, box_idx4, first_from, first_to, &
-      handle, i, iatom, icpu, ipos, iset, jatom, jset, katom, kset, latom, &
-      lset, max_set, mepos, natom, nseta, nsetb, nsetc, nsetd, &
-      pgf_radius_box, restore_iatom, restore_jatom, restore_katom, &
-      restore_latom, stat, ncpu, ibin, steps, nbins
-    INTEGER(KIND=int_8) :: current_counter, distribution_counter_end, &
-      distribution_counter_start, int_per_cpu, max_dev, min_dev, &
-      opt_max, opt_nbin, restore_counter, total_integrals
-    INTEGER(KIND=int_8), ALLOCATABLE, &
-      DIMENSION(:)                           :: cost_per_cpu
-    INTEGER(KIND=int_8), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: cost_array
+    INTEGER :: box_idx1, box_idx2, box_idx3, box_idx4, handle, i, iatom, &
+      ibin, icpu, ipos, iset, jatom, jset, katom, kset, latom, lset, max_set, &
+      mepos, natom, nbins, ncpu, nseta, nsetb, nsetc, nsetd, pgf_radius_box, &
+      stat, steps
+    INTEGER(int_8) :: current_counter, distribution_counter_end, &
+      distribution_counter_start, int_per_cpu, optimal_cost, restore_counter, &
+      tmp_counter1, total_integrals
+    INTEGER(int_8), ALLOCATABLE, &
+      DIMENSION(:)                           :: optimal_costs
+    INTEGER(int_8), DIMENSION(:), POINTER    :: cost_matrix
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_pos
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: first_dist
-    INTEGER, DIMENSION(:), POINTER           :: nsgfa, nsgfb, nsgfc, nsgfd, distribution_vector
+    INTEGER, DIMENSION(:), POINTER           :: distribution_vector, nsgfa, &
+                                                nsgfb, nsgfc, nsgfd
     LOGICAL                                  :: failure
-    REAL(dp)                                 :: Kbox, omega_box, Rbox
-    REAL(KIND=dp)                            :: max_val1, max_val2
+    REAL(dp)                                 :: initial_temperature, Kbox, &
+                                                max_val1, max_val2, &
+                                                omega_box, Rbox
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(x_hf_distribution), DIMENSION(:), &
       POINTER                                :: ptr_to_tmp_dist
     TYPE(x_hf_distribution), &
-      DIMENSION(:, :), POINTER               :: tmp_dist, binned_dist, full_dist
-    INTEGER(int_8)                           :: optimal_cost, tmp_counter1
-    INTEGER(int_8), ALLOCATABLE, &
-      DIMENSION(:)                           :: optimal_costs
-    INTEGER(int_8), DIMENSION(:), POINTER    :: cost_matrix
-    REAL(dp)                                 :: initial_temperature
+      DIMENSION(:, :), POINTER               :: binned_dist, full_dist, &
+                                                tmp_dist
 
     natom=SIZE(particle_set)
 
@@ -4035,7 +4017,7 @@ MODULE four_center_integrals
        END IF
       ENDDO
       
-      nbins = 16
+      nbins = load_balance_parameter%nbins 
       int_per_cpu = (total_integrals + nbins -1 ) / nbins
       ALLOCATE(binned_dist(1,nbins), STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -4193,7 +4175,7 @@ MODULE four_center_integrals
       optimal_cost = 0
       !! Optimize load on each node independently
       CALL x_hf_optimize_distribution(para_env, ncpu*nbins, ncpu, cost_matrix, distribution_vector, &
-                                      steps, initial_temperature, optimal_cost, error)
+                                      load_balance_parameter, optimal_cost, error)
       
       !! Find optimal load balance wrt the cost
       optimal_costs(para_env%mepos+1) = optimal_cost

@@ -34,6 +34,7 @@ MODULE x_hf_distribution_mc
                                              next_random_number,&
                                              reset_to_next_rng_substream,&
                                              rng_stream_type
+  USE x_hf,                            ONLY: x_hf_load_balance_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -52,7 +53,13 @@ MODULE x_hf_distribution_mc
   INTEGER, ALLOCATABLE, DIMENSION(:)         :: my_best_distribution
   INTEGER(int_8)                             :: my_best_cost
   TYPE(rng_stream_type), POINTER             :: my_rng_stream
-
+  INTEGER                                    :: my_moves
+  INTEGER                                    :: my_cycles
+  INTEGER                                    :: my_reduction_steps
+  REAL(dp)                                   :: my_reduction_factor
+  REAL(dp)                                   :: my_initial_temperature
+  REAL(dp)                                   :: my_tolerance
+  REAL(dp)                                   :: my_swap_probability
  
   CONTAINS
 
@@ -84,25 +91,33 @@ MODULE x_hf_distribution_mc
 !!
 !!****************************************************************************
 
-  SUBROUTINE init(para_env, nbin_in,ncpu_in, bin_costs_in, error)
+  SUBROUTINE init(para_env, nbin_in, ncpu_in, bin_costs_in, load_balance_parameter, error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: nbin_in, ncpu_in
     INTEGER(int_8), DIMENSION(:), POINTER    :: bin_costs_in
+    TYPE(x_hf_load_balance_type)             :: load_balance_parameter
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i
 
-    my_nbin = nbin_in
-    my_ncpu = ncpu_in
-
+    my_nbin                = nbin_in
+    my_ncpu                = ncpu_in
+    
     ALLOCATE(my_cost_cpu(my_ncpu))
     ALLOCATE(my_bin_costs(my_nbin))
     ALLOCATE(my_distribution(my_nbin))
     ALLOCATE(my_best_distribution(my_nbin))
-
-    my_bin_costs = bin_costs_in
-    my_cost_total=SUM(my_bin_costs)
-    my_cost_optimal=(SUM(my_bin_costs)+(my_ncpu)-1)/my_ncpu
+    
+    my_bin_costs           = bin_costs_in
+    my_cost_total          = SUM(my_bin_costs)
+    my_cost_optimal        = (my_cost_optimal + (my_ncpu)-1 )/my_ncpu
+    my_moves               = load_balance_parameter%moves
+    my_cycles              = load_balance_parameter%cycles
+    my_reduction_steps     = load_balance_parameter%reduction_steps
+    my_reduction_factor    = load_balance_parameter%reduction_factor
+    my_initial_temperature = load_balance_parameter%temperature
+    my_tolerance           = load_balance_parameter%tolerance
+    my_swap_probability    = load_balance_parameter%swap_probability
 
     ! initialize the random number generators
     ! each CPU should have a different stream of random numbers
@@ -249,9 +264,7 @@ MODULE x_hf_distribution_mc
 !!
 !!****************************************************************************
 
-  SUBROUTINE distribute_monte_carlo(Ntries,T_in, error)
-    INTEGER                                  :: Ntries
-    REAL(dp)                                 :: T_in
+  SUBROUTINE distribute_monte_carlo(error)
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER :: best_iac, i, iac, iswap, itmp, itries, jswap, &
@@ -266,10 +279,8 @@ MODULE x_hf_distribution_mc
     DO i=1,my_nbin
       my_distribution(i)=MOD(i-1,my_ncpu)+1
     ENDDO
-
     CALL compute_cost_cpu(my_distribution)
     CALL compute_max_cost(max_cost)
-
     best_max_cost = max_cost
     my_best_distribution = my_distribution
     max_cost_old = max_cost
@@ -278,20 +289,20 @@ MODULE x_hf_distribution_mc
     iac=0
     best_iac=0
 
-    DO itries=0,Ntries
+    DO itries=0,my_moves
       !do annealing 
-      IF (MOD(itries,Ntries/10)==0) THEN
-        T=5*T_in
+      IF (MOD(itries,my_moves/my_cycles)==0) THEN
+        T=my_initial_temperature
       ENDIF
-      IF (MOD(itries,Ntries/100)==0) THEN
-        T=T*0.8
+      IF ( MOD(itries,my_moves/(my_cycles*my_reduction_steps))==0 ) THEN
+        T=T*my_reduction_factor
       ENDIF
       ! do some Monte Carlo
       random_move = next_random_number(my_rng_stream,error=error)
       random_move_type = next_random_number(my_rng_stream,error=error)
       ! generate trial configuration
       my_distribution = old_distribution
-      IF (random_move<0.1) THEN
+      IF (random_move<1.0_dp-my_swap_probability) THEN
         IF (random_move_type<0.5) THEN
           iswap = next_random_number(my_rng_stream,low=1,high=my_nbin,error=error)
           jswap = next_random_number(my_rng_stream,low=1,high=my_ncpu,error=error)
@@ -299,8 +310,7 @@ MODULE x_hf_distribution_mc
             my_distribution(iswap)=jswap
           ENDIF
         ELSE
-         ! randomly swap a col/row with 0.9 probability
-         IF (random_move_type<0.5) THEN
+        IF (random_move_type<0.5) THEN
           iswap = next_random_number(my_rng_stream,low=1,high=my_nbin,error=error)
           jswap = next_random_number(my_rng_stream,low=1,high=my_ncpu,error=error)
           IF (iswap>my_nbin .OR. jswap>my_nbin) CYCLE
@@ -330,12 +340,9 @@ MODULE x_hf_distribution_mc
         best_max_cost = max_cost
         my_best_distribution = my_distribution
         best_iac = iac
-        !
-        ! if we are within 0.001 of the optimal cost, stop optimizing, or cost model is certainly not that good
-        !
       ENDIF
 
-      IF (REAL((max_cost-my_cost_optimal),dp)/my_cost_optimal.LE.0.001) EXIT
+      IF (REAL((max_cost-my_cost_optimal),dp)/my_cost_optimal.LE.my_tolerance) EXIT
     ENDDO
     CALL CPU_TIME(t_final)
 
@@ -378,19 +385,17 @@ MODULE x_hf_distribution_mc
 !!****************************************************************************
 
   SUBROUTINE x_hf_optimize_distribution(para_env, nbin_in, ncpu_in, bin_costs_in, distribution_vector, &
-                                steps, initial_temperature, optimal_cost, error)
+                                        load_balance_parameter, optimal_cost, error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: nbin_in, ncpu_in
     INTEGER(int_8), DIMENSION(:), POINTER    :: bin_costs_in
     INTEGER, DIMENSION(:), POINTER           :: distribution_vector
-    INTEGER, INTENT(IN)                      :: steps
-    REAL(dp), INTENT(INOUT)                  :: initial_temperature
+    TYPE(x_hf_load_balance_type)             :: load_balance_parameter
     INTEGER(int_8), INTENT(INOUT)            :: optimal_cost
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CALL init(para_env, nbin_in, ncpu_in, bin_costs_in, error)
-    CALL distribute_monte_carlo(steps, initial_temperature, error)
-    
+    CALL init(para_env, nbin_in, ncpu_in, bin_costs_in, load_balance_parameter, error)
+    CALL distribute_monte_carlo(error)
     optimal_cost = my_best_cost
     distribution_vector = my_best_distribution
     

@@ -65,7 +65,7 @@ CONTAINS
 !!       see module cp_error_handling 
 !!
 !!   AUTHOR
-!!     Manuel/Joost
+!!     Manuel Guidon
 !!
 !!*** **********************************************************************
   SUBROUTINE create_hf_section(section,error)

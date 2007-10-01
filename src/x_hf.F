@@ -116,8 +116,8 @@ MODULE x_hf
 
   TYPE x_hf_distribution
     INTEGER                                  :: istart, jstart, kstart, lstart
-    INTEGER(KIND=int_8)                      :: number_of_integrals
-    INTEGER(KIND=int_8)                      :: cost
+    INTEGER(int_8)                           :: number_of_integrals
+    INTEGER(int_8)                           :: cost
     INTEGER                                  :: original_cpu_id
   END TYPE
   
@@ -140,7 +140,7 @@ MODULE x_hf
     REAL(dp), DIMENSION(:, :, :, :, :), &
               POINTER                        :: x_screening_buffer_periodic
     INTEGER                                  :: number_of_elements
-    INTEGER(KIND=int_8), DIMENSION(:),&
+    INTEGER(int_8), DIMENSION(:),&
                              POINTER         :: integral_distribution_forces
     TYPE(x_hf_cell_type), DIMENSION(:), &
                POINTER                       :: neighbor_cells
@@ -163,20 +163,17 @@ MODULE x_hf
     TYPE(section_vals_type), POINTER         :: hf_section
     INTEGER, INTENT(IN)                      :: natom, max_set
     TYPE(cp_error_type), INTENT(inout)       :: error
+
     CHARACTER(LEN=*), PARAMETER :: routineN = 'x_hf_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: max_memory, nkloops, &
+    INTEGER                                  :: int_val, max_memory, nkloops, &
                                                 number_of_precalc_integrals, &
-                                                pbc_shells, stat, TYPE
-    LOGICAL                                  :: do_p_screening, do_periodic, &
-                                                failure
-    REAL(dp)                                 :: omega
-    TYPE(section_vals_type), POINTER         :: hf_pbc_section
-    INTEGER                                  :: int_val
-    REAL(dp)                                 :: real_val
-    LOGICAL                                  :: logic_val
-    TYPE(section_vals_type), POINTER         :: hf_sub_section
+                                                pbc_shells, stat
+    LOGICAL                                  :: do_periodic, failure, &
+                                                logic_val
+    REAL(dp)                                 :: omega, real_val
+    TYPE(section_vals_type), POINTER         :: hf_pbc_section, hf_sub_section
 
     failure = .FALSE.
 

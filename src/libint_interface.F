@@ -1426,8 +1426,8 @@ MODULE libint_interface
 !!****************************************************************************
 
   SUBROUTINE pbc(x,box_size,retval)
-    REAL(KIND=dp), INTENT(IN)        :: x(3),box_size(3)
-    REAL(KIND=dp), INTENT(OUT)       :: retval(3)
+    REAL(dp), INTENT(IN)             :: x(3),box_size(3)
+    REAL(dp), INTENT(OUT)            :: retval(3)
     
     retval(1)=x(1) - box_size(1)*ANINT(x(1)/box_size(1))
     retval(2)=x(2) - box_size(2)*ANINT(x(2)/box_size(2))
