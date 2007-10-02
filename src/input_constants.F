@@ -276,6 +276,10 @@ MODULE input_constants
 
   INTEGER, PARAMETER, PUBLIC :: do_par_atom=0,&
                                 do_par_grid=1
+  ! Thermostats
+  INTEGER, PARAMETER, PUBLIC :: do_thermo_no_communication=0,&
+                                do_thermo_communication=1,&
+                                do_thermo_only_master=2
   !
   ! pint coordinate transformations
   !

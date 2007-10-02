@@ -37,10 +37,10 @@ MODULE md_conserved_quantities
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE input_constants,                 ONLY: &
-       dyn_coeff_mass_global, isokin_ensemble, langevin_ensemble, &
-       nph_ensemble, nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, &
-       npt_f_ensemble, npt_i_ensemble, nve_ensemble, nvt_ensemble, &
-       reftraj_ensemble
+       do_thermo_no_communication, dyn_coeff_mass_global, isokin_ensemble, &
+       langevin_ensemble, nph_ensemble, nph_uniaxial_damped_ensemble, &
+       nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, nve_ensemble, &
+       nvt_ensemble, reftraj_ensemble
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: zero
   USE md,                              ONLY: simulation_parameters_type
@@ -516,7 +516,7 @@ CONTAINS
                nhc % nvt ( l, n ) % eta
        END DO
     END DO
-    IF (nhc%dis_type=='DIS_REP') THEN
+    IF (nhc%dis_type==do_thermo_no_communication) THEN
        CALL mp_sum(nhc_kin,int_grp)
        CALL mp_sum(nhc_pot,int_grp)
     END IF

@@ -85,12 +85,12 @@ CONTAINS
   SUBROUTINE initialize_npt ( simpar, para_env, globenv, npt_info, box, work_section, error)
 
     TYPE(simulation_parameters_type), &
-      INTENT(INOUT)                          :: simpar
+      POINTER                                :: simpar
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(npt_info_type), DIMENSION(:, :), &
       POINTER                                :: npt_info
-    TYPE(cell_type), INTENT(inout)           :: box
+    TYPE(cell_type), POINTER                 :: box
     TYPE(section_vals_type), POINTER         :: work_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -196,11 +196,10 @@ CONTAINS
   SUBROUTINE initialize_nhc_baro ( simpar, para_env, globenv, nhc, nose_section, save_mem, error )
 
     TYPE(simulation_parameters_type), &
-      INTENT(INOUT)                          :: simpar
+      POINTER                                :: simpar
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(lnhc_parameters_type), &
-      INTENT(INOUT)                          :: nhc
+    TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(section_vals_type), POINTER         :: nose_section
     LOGICAL, INTENT(IN)                      :: save_mem
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -214,7 +213,7 @@ CONTAINS
 
     failure = .FALSE.
     restart = .FALSE.
-    CALL nhc_to_barostat_mapping ( simpar, nhc, para_env)
+    CALL nhc_to_barostat_mapping ( simpar, nhc, para_env, error)
     ! Set up the Yoshida weights
     IF ( nhc % nyosh > 0 ) THEN
        ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = stat )
@@ -261,14 +260,13 @@ CONTAINS
     TYPE(thermostats_info_type), POINTER     :: thermostats_info
     TYPE(cell_type), POINTER                 :: box
     TYPE(simulation_parameters_type), &
-      INTENT(INOUT)                          :: simpar
+      POINTER                                :: simpar
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_type), POINTER             :: molecule( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(lnhc_parameters_type), &
-      INTENT(INOUT)                          :: nhc
+    TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(section_vals_type), POINTER         :: print_section, nose_section
     TYPE(global_constraint_type), POINTER    :: gci
     LOGICAL, INTENT(IN)                      :: save_mem
@@ -285,7 +283,7 @@ CONTAINS
     ! fire up the thermostats, if not NVE
 
     CALL nhc_to_particle_mapping ( thermostats_info, simpar, local_molecules,&
-         molecule, molecule_kind_set, nhc, para_env )
+         molecule, molecule_kind_set, nhc, para_env, error )
 
     ! Set up the Yoshida weights
     IF ( nhc % nyosh > 0 ) THEN
@@ -329,8 +327,7 @@ CONTAINS
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(lnhc_parameters_type), &
-      INTENT(INOUT)                          :: nhc
+    TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(section_vals_type), POINTER         :: coeff_section
     REAL(KIND=dp), INTENT(IN)                :: dt
     LOGICAL, INTENT(IN)                      :: save_mem
@@ -392,11 +389,10 @@ CONTAINS
              local_particles, nose_section, save_mem, error)
  
     TYPE(simulation_parameters_type), &
-      INTENT(INOUT)                          :: simpar
+      POINTER                                :: simpar
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(lnhc_parameters_type), &
-      INTENT(INOUT)                          :: nhc
+    TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(section_vals_type), POINTER         :: nose_section
@@ -410,7 +406,7 @@ CONTAINS
     LOGICAL                                  :: failure, restart
 
     failure = .FALSE.
-    CALL nhc_to_shell_mapping(simpar, nhc, atomic_kind_set, local_particles, para_env)
+    CALL nhc_to_shell_mapping(simpar, nhc, atomic_kind_set, local_particles, para_env, error)
 
     IF(simpar%shell_nose) THEN
        restart = .FALSE.
@@ -457,8 +453,7 @@ CONTAINS
 !******************************************************************************
   SUBROUTINE set_yoshida_coef ( nhc, dt )
 
-    TYPE(lnhc_parameters_type), &
-      INTENT(INOUT)                          :: nhc
+    TYPE(lnhc_parameters_type), POINTER      :: nhc
     REAL(KIND=dp), INTENT(IN)                :: dt
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_yoshida_coef', &
@@ -542,8 +537,7 @@ CONTAINS
 !******************************************************************************
   SUBROUTINE restart_nose(nhc,nose_section,save_mem,restart,error)
 
-    TYPE(lnhc_parameters_type), &
-      INTENT(INOUT)                          :: nhc
+    TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(section_vals_type), POINTER         :: nose_section
     LOGICAL, INTENT(IN)                      :: save_mem
     LOGICAL, INTENT(OUT)                     :: restart

@@ -26,8 +26,7 @@ MODULE thermostat_types
                                              lnhc_parameters_type
   USE input_constants,                 ONLY: do_thermo_nose
   USE input_section_types,             ONLY: section_vals_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
+  USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -87,8 +86,7 @@ MODULE thermostat_types
      INTEGER                              :: sum_of_thermostats
      INTEGER                              :: number_of_thermostats
      LOGICAL                              :: have_global
-     LOGICAL                              :: noneflag
-     CHARACTER(LEN=default_string_length) :: dis_type
+     INTEGER                              :: dis_type
   END TYPE thermostats_info_type
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'thermostat_types'

@@ -33,25 +33,23 @@ MODULE nhc_mapping
   USE init_extended_system_variables,  ONLY: debug_isotropic_limit
   USE input_constants,                 ONLY: &
        do_region_global, do_region_massive, do_region_molecule, &
-       isokin_ensemble, langevin_ensemble, nph_uniaxial_damped_ensemble, &
-       nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, nve_ensemble, &
-       nvt_ensemble, reftraj_ensemble
+       do_thermo_communication, do_thermo_no_communication, &
+       do_thermo_only_master, isokin_ensemble, langevin_ensemble, &
+       nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
+       npt_i_ensemble, nve_ensemble, nvt_ensemble, reftraj_ensemble
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
-  USE memory_utilities,                ONLY: reallocate
-  USE message_passing,                 ONLY: mp_allgather,&
-                                             mp_bcast,&
-                                             mp_sum
-  USE molecule_kind_types,             ONLY: fixd_constraint_type,&
-                                             get_molecule_kind,&
+  USE message_passing,                 ONLY: mp_sum
+  USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                              molecule_kind_type
   USE molecule_types_new,              ONLY: get_molecule,&
                                              molecule_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
+  USE thermostat_mapping,              ONLY: massive_list_generate,&
+                                             thermostat_mapping_region
   USE thermostat_types,                ONLY: thermostats_info_type
 #include "cp_common_uses.h"
 
@@ -66,8 +64,6 @@ MODULE nhc_mapping
   PUBLIC :: nhc_to_particle_mapping, nhc_to_barostat_mapping, &
        nhc_to_coef_mapping, nhc_to_shell_mapping
 
-  !!***
-  !******************************************************************************
 CONTAINS
 !******************************************************************************
 !!****** nhc_mapping/nhc_to_barostat_mapping [1.0] *
@@ -86,80 +82,62 @@ CONTAINS
 !!     JGH (10-Mar-2001) : set nhc variables to zero when not in use
 !!
 !!*** *************************************************************************
-  SUBROUTINE nhc_to_barostat_mapping ( simpar, nhc, para_env )
+  SUBROUTINE nhc_to_barostat_mapping ( simpar, nhc, para_env, error )
     TYPE(simulation_parameters_type), &
-      INTENT(INOUT)                          :: simpar
-    TYPE(lnhc_parameters_type), &
-      INTENT(INOUT)                          :: nhc
+      POINTER                                :: simpar
+    TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nhc_to_barostat_mapping', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, isos, number
+    INTEGER                                  :: i, number, stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     ! begin local definitions
-    nhc % dis_type = 'NONE'
-    IF ( para_env%num_pe > 1 ) nhc % dis_type = 'REP_REP'
+    nhc % dis_type = do_thermo_only_master
     SELECT CASE (simpar%ensemble)
     CASE  DEFAULT
-       ALLOCATE ( nhc % nvt ( 0, 0 ), STAT = isos )
-       IF (isos/=0) CALL stop_program(routineN, 'failed to allocate nhc%nvt' )
-       nhc % nyosh = 0
-       nhc % nc = 0
-       nhc % nhc_len = 0
-       nhc % num_nhc = 0
+       CALL stop_program(routineN, 'Never reach this point!' )
     CASE ( npt_i_ensemble, npt_f_ensemble )
        nhc % nyosh = simpar % nyosh
        nhc % nc = simpar % nc
        nhc % nhc_len = simpar % nhclen
-
-       ! Counting the total number of thermostats ( 1 for both NPT_I and
-       ! NPT_F )
-
+       
+       ! Counting the total number of thermostats ( 1 for both NPT_I and NPT_F )
        nhc % num_nhc = 1
-       ! allocate the index array
-       ALLOCATE ( nhc % index ( 1 ), STAT = isos )
-       IF ( isos /= 0 ) CALL stop_memory ( routineN, 'index', 1 )
-
        IF ( simpar % ensemble == npt_f_ensemble ) THEN
           number = 9
        ELSE
           number = 1
        ENDIF
 
-
        ! Now we can allocate the target array s_kin and p_kin
-
-       ALLOCATE ( nhc % s_kin ( nhc % num_nhc ), STAT = isos)
-       IF ( isos /= 0 ) CALL stop_program ( routineN, &
-            'failed to allocate nhc%s_kin' )
-       ALLOCATE ( nhc % v_scale ( nhc % num_nhc ), STAT = isos )
-       IF (isos/=0) CALL stop_program(routineN, &
-            'failed to allocate nhc%v_scale' )
-       ALLOCATE ( nhc % p_kin ( 1, number ), STAT = isos )
-       IF (isos/=0) CALL stop_program(routineN, &
-            'failed to allocate nhc%p_kin' )
-       ALLOCATE ( nhc % p_scale ( 1, number ), STAT = isos )
-       IF (isos/=0) CALL stop_program(routineN, &
-            'failed to allocate nhc%p_scale')
+       ALLOCATE ( nhc % s_kin ( nhc % num_nhc ), STAT = stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE ( nhc % v_scale ( nhc % num_nhc ), STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE ( nhc % p_kin ( 1, number ), STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE ( nhc % p_scale ( 1, number ), STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ! Allocate the index array
+       ALLOCATE ( nhc%index(1), STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        ! Begin the mapping loop
-
        DO i = 1, number
-          nhc % p_kin ( 1, i ) % point => nhc % s_kin ( 1 )
-          nhc % p_scale ( 1, i ) % point => nhc % v_scale ( 1 )
+          nhc % p_kin(1,i)%point   => nhc%s_kin(1)
+          nhc % p_scale(1,i)%point => nhc%v_scale(1)
        END DO
-       nhc % index ( 1 ) = 1
+       nhc%index(1) = 1
 
-       ALLOCATE ( nhc % nvt ( nhc % nhc_len, nhc % num_nhc ), STAT = isos )
-       IF (isos/=0) CALL stop_program(routineN, 'failed to allocate nhc%nvt' )
-       !
+       ALLOCATE ( nhc%nvt(nhc%nhc_len, nhc%num_nhc), STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ! Now that we know how many there are stick this into nhc % static % nkt
        ! (number of degrees of freedom times k_B T )
-
        DO i = 1, nhc % num_nhc
           nhc % nvt ( 1, i ) % nkt = simpar % temp_ext * number
           IF (debug_isotropic_limit) THEN
@@ -168,15 +146,15 @@ CONTAINS
        END DO
 
        ! getting the number of degrees of freedom times k_B T for the rest of the chain
-
        DO i = 2, nhc % nhc_len
           nhc % nvt ( i, : ) %nkt = simpar % temp_ext
        END DO
     END SELECT
 
   END SUBROUTINE nhc_to_barostat_mapping
+
 !******************************************************************************
-!!****** nhc/nhc_to_particle_mapping [1.0] *
+!!****** nhc_mapping/nhc_to_particle_mapping [1.0] *
 !!
 !!   NAME
 !!     nhc_to_particle_mapping
@@ -192,58 +170,46 @@ CONTAINS
 !!     CJM, 20-Feb-01  : nhc structure allocated to zero when not in use
 !!     JGH (10-Mar-2001) : set nhc variables to zero when not in use
 !!     CJM(10-NOV-2001) : New parallelization with new molecule structures
+!!     Teodoro Laino 09.2007 [tlaino] - University of Zurich - cleaning and updating
 !!
 !!*** *************************************************************************
   SUBROUTINE nhc_to_particle_mapping ( thermostats_info, simpar, local_molecules,&
-       molecule_set, molecule_kind_set, nhc, para_env)
+       molecule_set, molecule_kind_set, nhc, para_env, error)
 
     TYPE(thermostats_info_type), POINTER     :: thermostats_info
     TYPE(simulation_parameters_type), &
-      INTENT(INOUT)                          :: simpar
+      POINTER                                :: simpar
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
-    TYPE(lnhc_parameters_type), &
-      INTENT(INOUT)                          :: nhc
+    TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nhc_to_particle_mapping', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atm_offset, atom_increment, finish, first_atom, i, icount, &
-      ielement, ii, iii, ikind, ilist, imol, imol_local, ipart, isos, j, jj, &
-      katom, kk, last_atom, ll, natom, natoms_local, nc, nfixd, &
-      nfixd_restraint, nkind, nmol_local, nmol_per_kind, nmolecule, number, &
-      number_total, region, start, sum_of_thermostats
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: const_mol, deg_of_freedom, &
-                                                tot_const
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: point
-    INTEGER, DIMENSION(:), POINTER           :: massive_atom_list
-    LOGICAL                                  :: failure, have_global, noneflag
+    INTEGER :: atom_increment, first_atom, i, icount, ielement, ii, iii, &
+      ikind, imol, imol_local, ipart, j, jj, kk, last_atom, natom, &
+      natoms_local, nc, nkind, nmol_local, number, region, stat, &
+      sum_of_thermostats
+    INTEGER, DIMENSION(:), POINTER           :: const_mol, deg_of_freedom, &
+                                                massive_atom_list, tot_const
+    INTEGER, DIMENSION(:, :), POINTER        :: point
+    LOGICAL                                  :: failure, have_global
     REAL(KIND=dp)                            :: fac
-    TYPE(fixd_constraint_type), &
-      DIMENSION(:), POINTER                  :: fixd_list
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
 
     failure = .FALSE.
-    NULLIFY ( massive_atom_list, fixd_list, molecule_kind )
+    NULLIFY (massive_atom_list, molecule_kind, const_mol, deg_of_freedom, tot_const,&
+             point)
     SELECT CASE ( simpar % ensemble )
     CASE DEFAULT
-       CALL stop_program ( routineN, 'unknown ensemble ' )
-    CASE ( nve_ensemble,&
-           isokin_ensemble,&
-           nph_uniaxial_ensemble,&
-           nph_uniaxial_damped_ensemble,&
-           reftraj_ensemble,&
-           langevin_ensemble )
-       ALLOCATE ( nhc % nvt ( 0, 0 ), STAT = isos )
-       IF ( isos /= 0 ) CALL stop_memory ( routineN, 'nhc%nvt', 0 )
-       nhc % nyosh = 0
-       nhc % nc = 0
-       nhc % nhc_len = 0
-       nhc % num_nhc = 0
-       nhc % dis_type = ''
+       CALL stop_program ( routineN, 'Unnknown ensemble!' )
+    CASE ( nve_ensemble, isokin_ensemble, nph_uniaxial_ensemble,&
+           nph_uniaxial_damped_ensemble, reftraj_ensemble, langevin_ensemble )
+       CALL stop_program ( routineN, 'Never reach this point!' )
     CASE ( nvt_ensemble, npt_i_ensemble, npt_f_ensemble )
        nhc%nyosh = simpar%nyosh
        nhc%nc = simpar%nc
@@ -251,105 +217,28 @@ CONTAINS
 
        nkind = SIZE ( molecule_kind_set )
        sum_of_thermostats = thermostats_info%sum_of_thermostats
-       noneflag           = thermostats_info%noneflag
        have_global        = thermostats_info%have_global
        nhc%dis_type       = thermostats_info%dis_type
        number             = thermostats_info%number_of_thermostats
        region             = simpar%part_region
 
-       ! Allocate
-       ALLOCATE ( nhc % index ( number ), STAT = isos )
-       IF ( isos /= 0 ) CALL stop_memory ( routineN, 'index', number )
-
-       ! compute the TOTAL number of molecules and atoms on THIS PROC and
-       ! TOTAL number of molecules of IKIND on THIS PROC
-       natoms_local = 0
-       nmol_local = 0
-       DO ikind = 1, nkind
-          molecule_kind => molecule_kind_set ( ikind )
-          CALL get_molecule_kind ( molecule_kind, natom=natom )
-          natoms_local = natoms_local + natom * local_molecules % n_el ( ikind )
-          nmol_local = nmol_local + local_molecules % n_el ( ikind )
-       END DO
-
-       IF ( nhc % dis_type == 'NONE' .OR. nhc % dis_type == 'DIS_REP' ) THEN
-          ALLOCATE ( const_mol ( nmol_local ), STAT = isos )
-          IF ( isos /= 0 ) CALL stop_memory ( routineN, 'const_mol', nmol_local)
-          ALLOCATE ( tot_const ( nmol_local ), STAT = isos )
-          IF ( isos /= 0 ) CALL stop_memory ( routineN, 'tot_const', nmol_local)
-          ALLOCATE ( point ( 2, nmol_local ), STAT = isos )
-          IF ( isos /= 0 ) CALL stop_memory ( routineN, 'point', nmol_local*2)
-          point ( :, : ) = 0
-          atm_offset = 0
-          icount = 0
-          DO ikind = 1, nkind
-             nmol_per_kind =  local_molecules % n_el ( ikind )
-             molecule_kind => molecule_kind_set ( ikind )
-             CALL get_molecule_kind ( molecule_kind, nconstraint=nc, natom = natom,&
-                  fixd_list=fixd_list)
-             ! nc keeps track of all constraints but not fixed ones..
-             DO imol = 1, nmol_per_kind
-                icount = icount + 1
-                point ( 1, icount )  = atm_offset + 1
-                point ( 2, icount )  = atm_offset + natom
-                ! Let's identify fixed atoms for this molecule
-                nfixd = 0
-                IF (ASSOCIATED(fixd_list)) THEN
-                   DO katom = point ( 1, icount ), point ( 2, icount )
-                      DO ilist = 1, SIZE(fixd_list)
-                         IF ( ( katom == fixd_list(ilist)%fixd        ) .AND. &
-                              (.NOT. fixd_list(ilist)%restraint%active)) nfixd=nfixd+1
-                      END DO
-                   END DO
-                END IF
-                const_mol ( icount ) = nc + 3*nfixd
-                tot_const ( icount ) = const_mol ( icount )
-                atm_offset =  point ( 2, icount )
-             END DO
-
-          END DO
-       ELSE IF ( nhc % dis_type == 'INTER_REP' ) THEN
-          ALLOCATE ( const_mol ( nkind ), STAT = isos )
-          IF ( isos /= 0 ) CALL stop_memory ( routineN, 'const_mol', nkind )
-          ALLOCATE ( tot_const ( nkind ), STAT = isos )
-          IF ( isos /= 0 ) CALL stop_memory ( routineN, 'tot_const', nkind )
-          ALLOCATE ( point ( 2, nkind ), STAT = isos )
-          IF ( isos /= 0 ) CALL stop_memory ( routineN, 'point', nkind*2)
-          point ( :, : ) = 0
-          atm_offset = 0
-          ! nc keeps track of all constraints but not fixed ones..
-          DO ikind = 1, nkind
-             nmol_per_kind =  local_molecules % n_el ( ikind )
-             molecule_kind => molecule_kind_set ( ikind )
-             CALL get_molecule_kind ( molecule_kind, nconstraint=nc, natom = natom,&
-                                      nmolecule=nmolecule, nfixd=nfixd,&
-                                      nfixd_restraint=nfixd_restraint)
-             const_mol ( ikind ) = nc
-             ! Let's consider the fixed atoms only for the total number of constraints
-             ! in case we are in REPLICATED/INTERACTING thermostats
-             tot_const ( ikind ) = const_mol ( ikind ) * nmolecule + 3*(nfixd-nfixd_restraint)
-             point ( 1, ikind ) = atm_offset + 1
-             point ( 2, ikind ) = atm_offset + natom * nmol_per_kind
-             atm_offset =  point ( 2, ikind )
-          END DO
-       ENDIF
-
-       IF ( .NOT. simpar % constraint ) THEN
-          const_mol = 0.0_dp
-          tot_const = 0.0_dp
-       END IF
+       CALL thermostat_mapping_region(nhc%dis_type, natoms_local, nmol_local, const_mol,&
+            tot_const, point, local_molecules, molecule_kind_set, simpar, error)
 
        ! Now we can allocate the target array s_kin and p_kin
-       ALLOCATE (deg_of_freedom(number),STAT=isos)
-       IF ( isos /= 0 ) CALL stop_memory ( routineN,'deg_of_freedom', number )
-       ALLOCATE (nhc%s_kin(number),STAT=isos)
-       IF ( isos /= 0 ) CALL stop_memory ( routineN, 'nhc%s_kin', number )
-       ALLOCATE (nhc%v_scale(number),STAT=isos)
-       IF ( isos /= 0 ) CALL stop_memory ( routineN, 'nhc%v_scale', number )
-       ALLOCATE (nhc%p_kin(3,natoms_local),STAT=isos)
-       IF ( isos /= 0 ) CALL stop_memory ( routineN, 'nhc%p_kin', 3 * natoms_local )
-       ALLOCATE (nhc%p_scale(3,natoms_local),STAT=isos)
-       IF ( isos /= 0 ) CALL stop_memory ( routineN, 'nhc%p_scale', 3 * natoms_local )
+       ALLOCATE (deg_of_freedom(number),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE (nhc%s_kin(number),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE (nhc%v_scale(number),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE (nhc%p_kin(3,natoms_local),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE (nhc%p_scale(3,natoms_local),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ! Allocate index array
+       ALLOCATE ( nhc%index(number), STAT = stat )
+       CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
 
        ! Initialize deg_of_freedom
        deg_of_freedom = 0
@@ -357,16 +246,16 @@ CONTAINS
        IF ( have_global ) number = 1
 
        CALL massive_list_generate ( molecule_set, molecule_kind_set, &
-                                    local_molecules, para_env,&
-                                    massive_atom_list, region )
-       ! DEAL WITH DIS & GLOBAL CASE
-       icount = 0
-       IF ( nhc % dis_type == 'NONE' .OR. nhc % dis_type == 'DIS_REP' ) THEN
-          DO ikind = 1, nkind
-             nmol_local =  local_molecules % n_el ( ikind )
-             molecule_kind => molecule_kind_set ( ikind )
-             DO imol_local = 1, nmol_local
-                IF ( region==do_region_global) THEN
+            local_molecules, para_env, massive_atom_list, region, error )
+
+       IF ( nhc % dis_type == do_thermo_no_communication ) THEN
+          icount = 0
+          IF ( region==do_region_global) THEN
+             ! Global Region
+             DO ikind = 1, nkind
+                nmol_local =  local_molecules % n_el ( ikind )
+                molecule_kind => molecule_kind_set ( ikind )
+                DO imol_local = 1, nmol_local
                    icount = icount + 1
                    DO ii = 1, 3
                       DO jj = point ( 1, icount ), point ( 2, icount )
@@ -375,23 +264,19 @@ CONTAINS
                       END DO
                    END DO
                    deg_of_freedom ( 1 ) = deg_of_freedom ( 1 ) + tot_const ( icount )
-                   nhc % index ( 1 ) = 1
-                END IF
+                   nhc%index(1) = 1
+                END DO
              END DO
-          END DO
-       END IF
-
-       ! DEAL WITH DIS & MOLECULE CASE
-       IF ( nhc % dis_type == 'NONE' .OR. nhc % dis_type == 'DIS_REP' ) THEN
-          DO ikind = 1, nkind
-             nmol_local =  local_molecules % n_el ( ikind )
-             molecule_kind => molecule_kind_set ( ikind )
-             DO imol_local = 1, nmol_local
-                imol = local_molecules % list ( ikind ) % array ( imol_local )
-                IF ( region==do_region_molecule) THEN
+          ELSE IF ( region==do_region_molecule) THEN
+             ! Molecular region
+             DO ikind = 1, nkind
+                nmol_local =  local_molecules % n_el ( ikind )
+                molecule_kind => molecule_kind_set ( ikind )
+                DO imol_local = 1, nmol_local
+                   imol = local_molecules % list ( ikind ) % array ( imol_local )
                    icount = icount + 1
                    number = number + 1
-                   nhc % index ( number ) = imol
+                   nhc%index(number) = imol
                    deg_of_freedom ( number ) = const_mol ( icount )
                    DO jj = 1, 3
                       DO kk = point ( 1, icount ), point ( 2, icount )
@@ -399,29 +284,21 @@ CONTAINS
                          nhc%p_scale(jj,kk) %point => nhc%v_scale(number)
                       END DO
                    END DO
-                END IF
+                END DO
              END DO
-          END DO
-       END IF
-
-       ! Communicate the total_number thermostat
-       number_total = number
-       CALL mp_sum ( number_total, para_env%group )
-
-       ! DEAL WITH DIS & MASSIVE CASE
-       IF ( nhc % dis_type == 'NONE' .OR. nhc % dis_type == 'DIS_REP' ) THEN
-          DO ikind = 1, nkind
-             nmol_local =  local_molecules % n_el ( ikind )
-             molecule_kind => molecule_kind_set ( ikind )
-             DO imol_local = 1, nmol_local
-                imol = local_molecules % list ( ikind ) % array ( imol_local )
-                molecule => molecule_set ( imol )
-                CALL get_molecule ( molecule, first_atom = first_atom, &
-                     last_atom = last_atom )
-                IF ( region==do_region_massive) THEN
+          ELSE IF ( region==do_region_massive) THEN
+             ! Massive Region
+             DO ikind = 1, nkind
+                nmol_local =  local_molecules % n_el ( ikind )
+                molecule_kind => molecule_kind_set ( ikind )
+                DO imol_local = 1, nmol_local
+                   imol = local_molecules % list ( ikind ) % array ( imol_local )
+                   molecule => molecule_set ( imol )
+                   CALL get_molecule ( molecule, first_atom = first_atom, last_atom = last_atom )
                    icount = icount + 1
-                   IF ( tot_const ( icount ) > 0 ) CALL stop_program ( routineN, &
-                        "Massive thermostats with constraints are impossible" )
+                   IF ( tot_const ( icount ) > 0 ) THEN 
+                      CALL stop_program ( routineN, "Massive thermostats with constraints are impossible" )
+                   END IF
                    atom_increment = 0
                    DO ii =  point ( 1, icount ), point ( 2, icount )
                       ipart = first_atom + atom_increment
@@ -434,25 +311,24 @@ CONTAINS
                       atom_increment = atom_increment + 1
                       DO jj = 1, 3
                          number = number + 1
-                         nhc % index ( number ) = number_total + ( ielement - 1 ) * 3 + jj
+                         nhc%index(number) = (ielement - 1)*3 + jj
                          nhc%p_kin(jj,ii) %point => nhc%s_kin(number)
                          nhc%p_scale(jj,ii) %point => nhc%v_scale(number)
                       END DO
                    END DO
-                   IF ( first_atom + atom_increment -1 /= last_atom ) &
-                        CALL stop_program ( routineN, "inconsistent mapping of particles" )
-                END IF
+                   IF ( first_atom + atom_increment -1 /= last_atom ) THEN
+                      CALL stop_program ( routineN, "inconsistent mapping of particles" )
+                   END IF
+                END DO
              END DO
-          END DO
-       END IF
-
-       ! DEAL WITH INTER_REP AND GLOBAL
-       IF ( nhc % dis_type == 'INTER_REP' ) THEN
-          DO ikind = 1, nkind
-             ! doing global thermostat option
-             molecule_kind => molecule_kind_set ( ikind )
-             IF ( region==do_region_global) THEN
-                ! map the thermostat number to the molecule
+          ELSE
+             CALL stop_program ( routineN, "Unknown region!" )
+          END IF
+       ELSE IF ( nhc % dis_type == do_thermo_communication ) THEN
+          IF ( region==do_region_global) THEN
+             ! Global Region
+             DO ikind = 1, nkind
+                molecule_kind => molecule_kind_set ( ikind )
                 DO ii = 1, 3
                    DO jj = point ( 1, ikind ), point ( 2, ikind )
                       nhc%p_kin ( ii, jj ) % point => nhc % s_kin ( 1 )
@@ -460,72 +336,57 @@ CONTAINS
                    END DO
                 END DO
                 deg_of_freedom ( 1 ) = deg_of_freedom ( 1 ) + tot_const ( ikind )
-                nhc % index ( 1 ) = 1
-             END IF
-          END DO
-       ENDIF
-
-       ! DEAL WITH INTER_REP AND MOLECULE
-       IF ( nhc % dis_type == 'INTER_REP' ) THEN
-          DO ikind = 1, nkind
-             ! doing global thermostat option
-             molecule_kind => molecule_kind_set ( ikind )
-             CALL get_molecule_kind ( molecule_kind, natom = natom )
-             ! doing molecular thermostat option
-             IF ( region==do_region_molecule ) THEN
-                ! map the thermostat number to the molecule
+                nhc%index(1) = 1
+             END DO
+          ELSE IF (region==do_region_molecule) THEN
+             ! Molecular Region
+             DO ikind = 1, nkind
+                molecule_kind => molecule_kind_set ( ikind )
+                CALL get_molecule_kind ( molecule_kind, natom = natom )
                 number = number + 1
-                nhc % index ( number ) = number
+                nhc%index(number) = number
                 deg_of_freedom ( number ) = deg_of_freedom ( number ) + tot_const ( ikind )
                 DO jj = 1, 3
-                   DO kk = point ( 1, ikind ), point ( 2, ikind ), natom
-                      start = kk
-                      finish = kk + ( natom - 1 )
-                      DO ll = start, finish
-                         nhc%p_kin ( jj, ll ) % point => nhc % s_kin ( number )
-                         nhc%p_scale ( jj, ll ) % point => nhc % v_scale ( number )
-                      END DO
+                   DO kk = point ( 1, ikind ), point ( 2, ikind )
+                      nhc%p_kin ( jj, kk ) % point => nhc % s_kin ( number )
+                      nhc%p_scale ( jj, kk ) % point => nhc % v_scale ( number )
                    END DO
                 END DO
-             ENDIF
-          END DO
-       END IF
-
-       ! DEAL WITH INTER_REP AND MASSIVE
-       IF ( nhc % dis_type == 'INTER_REP' ) THEN
-          DO ikind = 1, nkind
-             ! doing global thermostat option
-             molecule_kind => molecule_kind_set ( ikind )
-             ! doing  massive thermostat option
-             IF ( region==do_region_massive) THEN
-                IF ( tot_const ( ikind ) > 0 ) CALL stop_program ( routineN, &
-                     "Massive thermostats with constraints are impossible" )
+             END DO
+          ELSE IF (region==do_region_massive) THEN
+             ! Massive Region
+             DO ikind = 1, nkind
+                molecule_kind => molecule_kind_set ( ikind )
+                IF ( tot_const ( ikind ) > 0 ) THEN
+                   CALL stop_program ( routineN, "Massive thermostats with constraints are impossible" )
+                END IF
                 DO ii = point ( 1, ikind ), point ( 2, ikind )
                    DO jj = 1, 3
                       number = number + 1
-                      nhc % index ( number ) = number
+                      nhc%index(number) = number
                       nhc%p_kin ( jj, ii ) % point => nhc % s_kin ( number )
                       nhc%p_scale ( jj, ii ) % point => nhc % v_scale ( number )
                    END DO
                 END DO
-             END IF
-          END DO
-       ENDIF
+             END DO
+          ELSE
+             CALL stop_program ( routineN, "Unknown region!" )
+          ENDIF
+       ELSE
+          CALL stop_program ( routineN, "Unknown thermostat distribution option!" )
+       END IF
 
-
-       DEALLOCATE (const_mol,STAT=isos)
-       IF ( isos /= 0 ) CALL stop_memory ( routineN, 'const_mol' )
-       DEALLOCATE (tot_const,STAT=isos)
-       IF ( isos /= 0 ) CALL stop_memory ( routineN, 'tot_const' )
-       DEALLOCATE ( point, STAT = isos )
-       IF ( isos /= 0 ) CALL stop_memory ( routineN, 'point' )
-
-       ALLOCATE (nhc%nvt(nhc%nhc_len,number),STAT=isos)
-       IF ( isos /= 0 ) CALL stop_memory ( routineN,'nhc%nvt', 0 )
+       DEALLOCATE (const_mol,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE (tot_const,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE (point, STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE (nhc%nvt(nhc%nhc_len,number),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        ! Sum up the number of degrees of freedom on each thermostat.
        ! first: initialize the target
-
        nhc%s_kin = 0.0_dp
        DO i = 1, 3
           DO j = 1, natoms_local
@@ -535,21 +396,20 @@ CONTAINS
 
        ! if thermostats are replicated but molecules distributed, we have to
        ! sum s_kin over all processors
-       IF ( nhc % dis_type == 'INTER_REP' ) CALL mp_sum ( nhc % s_kin, para_env%group )
+       IF ( nhc % dis_type == do_thermo_communication ) CALL mp_sum ( nhc % s_kin, para_env%group )
 
        !
-       ! Now that we know how many there are stick this into nhc%static%nkt
+       ! Now that we know how many there are stick this into nhc%nkt
        ! (number of degrees of freedom times k_B T for the first thermostat
        !  on the chain)
-
        nhc % num_nhc = number
 
        ! We know the total number of system thermostats.
-       IF ( ( sum_of_thermostats == 1 ) .AND. ( .NOT. noneflag ) .AND. &
-            ( nhc % dis_type /= 'DIS_REP' ) ) THEN
+       IF ( ( sum_of_thermostats == 1 ) .AND. ( nhc % dis_type /= do_thermo_no_communication ) ) THEN
           fac = nhc%s_kin(1)-deg_of_freedom(1)-simpar%nfree_rot_transl
-          IF ( fac == 0.0_dp ) CALL stop_memory ( routineN,&
-               'Zero degrees of freedom. Nothing to thermalize!' )
+          IF ( fac == 0.0_dp ) THEN 
+             CALL stop_program ( routineN,'Zero degrees of freedom. Nothing to thermalize!' )
+          END IF
           nhc % nvt ( 1, 1 ) % nkt = simpar%temp_ext*fac
        ELSE
           DO i = 1, number
@@ -557,23 +417,22 @@ CONTAINS
              nhc % nvt ( 1, i ) % nkt = simpar % temp_ext * fac 
           END DO
        END IF
+       
        ! getting the number of degrees of freedom times k_B T for the rest
        ! of the chain
        DO i = 2, nhc % nhc_len
           nhc % nvt ( i, : ) % nkt = simpar % temp_ext
        END DO
-
+       DEALLOCATE (deg_of_freedom,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE ( massive_atom_list, STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END SELECT
-
-    IF ( ASSOCIATED ( massive_atom_list ) ) THEN
-       DEALLOCATE ( massive_atom_list, STAT = isos )
-       IF ( isos /= 0 ) CALL stop_memory ( routineN, 'massive_atom_list' )
-    END IF
 
   END SUBROUTINE nhc_to_particle_mapping
 
 !******************************************************************************
-!!****** nhc/nhc_to_coef_mapping [1.0] *
+!!****** nhc_mapping/nhc_to_coef_mapping [1.0] *
 !!
 !!   NAME
 !!     nhc_to_coef_mapping
@@ -594,16 +453,18 @@ CONTAINS
   SUBROUTINE nhc_to_coef_mapping ( dyn_coeff_set, nhc, kg_coeff_section, para_env, error)
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
-    TYPE(lnhc_parameters_type), &
-      INTENT(INOUT)                          :: nhc
+    TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(section_vals_type), POINTER         :: kg_coeff_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: i, ikind, isos, j, &
-                                                kg_coeff_ens, kg_coeff_nhc, &
-                                                ncoef_local, ncoef_of_kind, &
-                                                nkind, number
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'nhc_to_coef_mapping', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ikind, j, kg_coeff_ens, &
+                                                kg_coeff_nhc, ncoef_local, &
+                                                ncoef_of_kind, nkind, number, &
+                                                stat
     LOGICAL                                  :: failure, nointer
     REAL(KIND=dp)                            :: kg_coeff_temp
     TYPE(section_vals_type), POINTER         :: nose_section
@@ -616,14 +477,7 @@ CONTAINS
 
     SELECT CASE ( kg_coeff_ens )
     CASE  DEFAULT
-       ALLOCATE ( nhc % nvt ( 0, 0 ), STAT = isos )
-       IF (isos/=0) CALL stop_memory('nhc_coef_setup', &
-            'allocate nhc%nvt',0 )
-       nhc % nyosh = 0
-       nhc % nc = 0
-       nhc % nhc_len = 0
-       nhc % num_nhc = 0
-       nhc % dis_type = ''
+       CALL stop_program(routineN, 'Never reach this point!' )
     CASE ( nvt_ensemble )
        CALL section_vals_val_get(kg_coeff_section,"THERMOSTAT%REGION",i_val=kg_coeff_nhc,error=error)
        CALL section_vals_val_get(nose_section,"yoshida",i_val=nhc % nyosh ,error=error)
@@ -642,46 +496,36 @@ CONTAINS
        END DO
 
        ! Counting the global number of thermostats
-
        IF ( kg_coeff_nhc == do_region_global )  THEN
           nointer=.FALSE.
           number=1
        ELSEIF ( kg_coeff_nhc == do_region_massive )  THEN
           number=ncoef_local
+       ELSE
+          CALL stop_program ( routineN, "Unknown region for KG COEFF!" )
        ENDIF
 
-       ! coefficients are local. communications needed only with GLOBAL
-       nhc % dis_type = 'NONE'
-       IF ( para_env%num_pe > 1 ) THEN
-          IF ( nointer ) THEN
-             nhc % dis_type = 'DIS_REP'
-          ELSE
-             nhc % dis_type = 'INTER_REP'
-          END IF
+       ! Coefficients are local. communications needed only with GLOBAL
+       IF ( nointer ) THEN
+          nhc % dis_type = do_thermo_no_communication
+       ELSE
+          nhc % dis_type = do_thermo_communication
        END IF
 
        ! Now we can allocate the target array s_kin and p_kin
+       ALLOCATE ( nhc %index(number), STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE ( nhc % s_kin ( number ), STAT = stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE ( nhc % v_scale ( number  ), STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE ( nhc % p_kin ( 1, ncoef_local ), STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE ( nhc % p_scale ( 1, ncoef_local ), STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       ALLOCATE ( nhc % index ( number ), STAT = isos )
-       IF ( isos /= 0 ) CALL stop_memory ( 'nhc_coef_setup', &
-            'index', number )
-       ALLOCATE ( nhc % s_kin ( number ), STAT = isos)
-       IF ( isos /= 0 ) CALL stop_memory ( 'nhc_coef_setup', &
-            'nhc%s_kin', number  )
-       ALLOCATE ( nhc % v_scale ( number  ), STAT = isos )
-       IF (isos/=0) CALL stop_memory('nhc_coef_setup', &
-            'nhc%v_scale', number )
-       ALLOCATE ( nhc % p_kin ( 1, ncoef_local ), STAT = isos )
-       IF (isos/=0) CALL stop_memory('nhc_coef_setup', &
-            'nhc % p_kin', ncoef_local )
-       ALLOCATE ( nhc % p_scale ( 1, ncoef_local ), STAT = isos )
-       IF (isos/=0) CALL stop_memory('nhc_coef_setup', &
-            'nhc%p_scale', ncoef_local)
        nhc % num_nhc = number
-
-
        ! Begin the mapping loop
-
        i=0
        number = 0
        IF ( kg_coeff_nhc == do_region_global )  THEN
@@ -691,20 +535,20 @@ CONTAINS
                 nhc % p_scale ( j, i ) % point => nhc % v_scale ( 1 )
              END DO
           END DO
-          nhc % index ( 1 ) = 1
+          nhc%index(1) = 1
        ELSEIF (  kg_coeff_nhc == do_region_massive )  THEN
           DO i = 1, ncoef_local
              DO j = 1, SIZE ( nhc % p_kin, 1 )
                 number = number + 1
                 nhc % p_kin ( j, i ) % point => nhc % s_kin ( number )
                 nhc % p_scale ( j, i ) % point => nhc % v_scale ( number )
-                nhc % index ( number ) = number
+                nhc%index(number) = number
              END DO
           END DO
        ENDIF
 
-       ALLOCATE ( nhc % nvt ( nhc % nhc_len, nhc % num_nhc ), STAT = isos )
-       IF (isos/=0) CALL stop_memory('nhc_coef_setup', 'nhc%nvt', nhc%nhc_len*nhc%num_nhc)
+       ALLOCATE ( nhc % nvt ( nhc % nhc_len, nhc % num_nhc ), STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        ! Find the number of degrees of freedom on each thermostat
        nhc % s_kin = 0.0_dp
@@ -716,18 +560,16 @@ CONTAINS
 
        ! if thermostats are replicated but molecules distributed, we have to
        ! sum s_kin over all processors
-       IF ( nhc % dis_type == 'INTER_REP' ) CALL mp_sum ( nhc % s_kin, para_env%group )
+       IF ( nhc % dis_type == do_thermo_communication ) CALL mp_sum ( nhc % s_kin, para_env%group )
 
        !
        ! Now that we know how many there are stick this into nhc % static % nkt
        ! (number of degrees of freedom times k_B T )
-
        DO i = 1, nhc % num_nhc
           nhc % nvt ( 1, i ) % nkt = kg_coeff_temp * nhc % s_kin ( i )
        END DO
 
        ! getting the number of degrees of freedom times k_B T for the rest of the chain
-
        DO i = 2, nhc % nhc_len
           nhc % nvt ( i, : ) % nkt = kg_coeff_temp
        END DO
@@ -736,7 +578,7 @@ CONTAINS
   END SUBROUTINE nhc_to_coef_mapping
 
 !******************************************************************************
-!!****** nhc/nhc_to_shell_mapping [1.0] *
+!!****** nhc_mapping/nhc_to_shell_mapping [1.0] *
 !!
 !!   NAME
 !!     nhc_to_shell_mapping
@@ -752,24 +594,26 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE nhc_to_shell_mapping(simpar, nhc, atomic_kind_set, local_particles, para_env)
+  SUBROUTINE nhc_to_shell_mapping(simpar, nhc, atomic_kind_set, local_particles, para_env,&
+       error)
 
     TYPE(simulation_parameters_type), &
-      INTENT(INOUT)                          :: simpar
-    TYPE(lnhc_parameters_type), &
-      INTENT(INOUT)                          :: nhc
+      POINTER                                :: simpar
+    TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nhc_to_shell_mapping', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: i, iparticle_kind, isos, j, nkind, nparticle_local, &
-      nshell_local, number, sum_of_thermostats
-    LOGICAL                                  :: is_shell, nointer
+    INTEGER :: i, iparticle_kind, j, nkind, nparticle_local, nshell_local, &
+      number, stat, sum_of_thermostats
+    LOGICAL                                  :: failure, is_shell, nointer
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
+    failure = .FALSE.
     IF(simpar%shell_nose) THEN
        nhc%nyosh = simpar%shell_nyosh
        nhc%nc = simpar%shell_nc
@@ -792,40 +636,38 @@ CONTAINS
           END IF
        END DO
 
-       ! 1) global
+
        IF(simpar%shell_region==do_region_global ) THEN
+          ! Global Region
           nointer = .FALSE.
           sum_of_thermostats = 1
-       END IF
-
-       ! 2) massive
-       IF(simpar%shell_region==do_region_massive) THEN
+       ELSE IF (simpar%shell_region==do_region_massive) THEN
+          ! Massive Regione
           sum_of_thermostats = 3 * nshell_local
+       ELSE
+          CALL stop_program ( routineN, "Unknown region for SHELL!" )
        END IF
        number = sum_of_thermostats
 
-       nhc % dis_type = 'NONE'
-       IF ( para_env%num_pe > 1 ) THEN
-          IF(nointer) THEN
-             nhc % dis_type = 'DIS_REP'       
-          ELSE
-             nhc % dis_type = 'INTER_REP' ! REPlicated thermostats, INTERacting via communication
-          END IF
+       IF(nointer) THEN
+          nhc % dis_type = do_thermo_no_communication
+       ELSE
+          nhc % dis_type = do_thermo_communication
        END IF
-       ALLOCATE ( nhc % index ( number ), STAT = isos )
-       IF ( isos /= 0 ) CALL stop_memory ( routineN, 'nhc%index', number )
-       ALLOCATE ( nhc % s_kin ( number ), STAT = isos)
-       IF ( isos /= 0 ) CALL stop_memory ( routineN, 'nhc%s_kin', number  )
-       ALLOCATE ( nhc % v_scale ( number  ), STAT = isos )
-       IF (isos/=0) CALL stop_memory(routineN, 'nhc%v_scale', number )
-       ALLOCATE ( nhc % p_kin ( 3,nshell_local),STAT = isos )
-       IF (isos/=0) CALL stop_memory(routineN, 'nhc%p_kin',nshell_local)
-       ALLOCATE ( nhc % p_scale ( 3,nshell_local),STAT = isos )
-       IF (isos/=0) CALL stop_memory(routineN, 'nhc%p_scale',nshell_local)
+
+       ALLOCATE ( nhc %index(number), STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE ( nhc % s_kin ( number ), STAT = stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE ( nhc % v_scale ( number  ), STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE ( nhc % p_kin ( 3,nshell_local),STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE ( nhc % p_scale ( 3,nshell_local),STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        nhc % num_nhc = number
 
        ! Begin the mapping loop
-
        i=0
        number = 0
        IF(simpar%shell_region==do_region_global ) THEN
@@ -844,16 +686,15 @@ CONTAINS
                 number = number + 1
                 nhc % p_kin ( j, i ) % point => nhc % s_kin ( number )
                 nhc % p_scale ( j, i ) % point => nhc % v_scale ( number )
-                nhc % index ( number ) = number
+                nhc%index(number) = number
              END DO
           END DO
        END IF
-       ALLOCATE ( nhc % nvt ( nhc % nhc_len, nhc % num_nhc ), STAT = isos )
-       IF (isos/=0) CALL stop_memory(routineN,'nhc%nvt', nhc%nhc_len*nhc%num_nhc)
+       ALLOCATE ( nhc % nvt ( nhc % nhc_len, nhc % num_nhc ), STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        ! Sum up the number of degrees of freedom on each thermostat.
        ! first: initialize the target
-
        nhc%s_kin = 0.0_dp
        DO j = 1, nshell_local
           DO i = 1, 3
@@ -863,141 +704,23 @@ CONTAINS
 
        ! if thermostats are replicated but molecules distributed, we have to
        ! sum s_kin over all processors
-       IF ( nhc % dis_type == 'INTER_REP' ) CALL mp_sum ( nhc % s_kin, para_env%group )
+       IF ( nhc % dis_type == do_thermo_communication ) CALL mp_sum ( nhc % s_kin, para_env%group )
        !
-       ! Now that we know how many there are stick this into nhc % static % nkt
+       ! Now that we know how many there are stick this into nhc%nkt
        ! (number of degrees of freedom times k_B T )
-
        DO i = 1, nhc % num_nhc
           nhc % nvt ( 1, i ) % nkt = simpar%temp_sh_ext * nhc % s_kin ( i )
        END DO
 
        ! getting the number of degrees of freedom times k_B T for the rest of the chain
-
        DO i = 2, nhc % nhc_len
           nhc % nvt ( i, : ) % nkt = simpar%temp_sh_ext
        END DO
 
     ELSE
-       ALLOCATE ( nhc % nvt ( 0, 0 ), STAT = isos )
-       IF ( isos /= 0 ) CALL stop_memory ( routineN, 'nhc%nvt', 0 )
-       nhc % nyosh = 0
-       nhc % nc = 0
-       nhc % nhc_len = 0
-       nhc % num_nhc = 0
-       nhc % dis_type = ''
-    END IF  ! simpar%shell_nose
+       CALL stop_program(routineN, 'Never reach this point!' )
+    END IF
 
   END SUBROUTINE nhc_to_shell_mapping
-
-!******************************************************************************
-!!****** nhc/massive_list_generate [1.0] *
-!!
-!!   NAME
-!!    massive_list_generate 
-!!
-!!   FUNCTION
-!!     
-!!
-!!   AUTHOR
-!!  
-!!
-!!   MODIFICATION HISTORY
-!!   
-!!
-!!   SOURCE
-!******************************************************************************
-  SUBROUTINE massive_list_generate ( molecule_set, molecule_kind_set, &
-       local_molecules, para_env, massive_atom_list, region )
-    TYPE(molecule_type), POINTER             :: molecule_set( : )
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
-    TYPE(distribution_1d_type), POINTER      :: local_molecules
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    INTEGER, POINTER                         :: massive_atom_list( : )
-    INTEGER, INTENT(IN)                      :: region
-
-    INTEGER :: first_atom, i, ikind, imol, iproc, isos, j, k, natom, ncount, &
-      nkind, nmol_per_kind, num_massive_atm, num_massive_atm_local, offset
-    INTEGER, DIMENSION(:), POINTER           :: array_num_massive_atm, &
-                                                local_atm_list, work
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    TYPE(molecule_type), POINTER             :: molecule
-
-    num_massive_atm_local = 0
-    NULLIFY(local_atm_list)
-    CALL reallocate(local_atm_list,1,num_massive_atm_local)
-
-    nkind = SIZE ( molecule_kind_set )
-    DO ikind = 1,  nkind
-       nmol_per_kind =  local_molecules%n_el(ikind)
-       DO imol = 1, nmol_per_kind
-          i = local_molecules%list(ikind)%array(imol)
-          molecule => molecule_set ( i )
-          molecule_kind => molecule % molecule_kind
-          CALL get_molecule_kind(molecule_kind,natom=natom)
-          IF(region == do_region_massive) THEN
-             num_massive_atm_local = num_massive_atm_local + natom
-             CALL reallocate(local_atm_list,1,num_massive_atm_local)
-             CALL get_molecule (molecule,first_atom=first_atom)
-             DO j=1,natom
-                local_atm_list(num_massive_atm_local-natom+j) = first_atom -1 + j
-             END DO
-          END IF
-       END DO
-    END DO
-
-    ALLOCATE(array_num_massive_atm(para_env%num_pe), STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', &
-         'array_num_massive_atm', para_env%num_pe )
-    CALL mp_allgather(num_massive_atm_local,array_num_massive_atm,para_env%group)
-
-    num_massive_atm = SUM(array_num_massive_atm)
-    ALLOCATE(massive_atom_list(num_massive_atm), STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', &
-         'massive_atom_list', num_massive_atm )
-
-    offset = 0
-    DO iproc=1,para_env%num_pe
-       ncount = array_num_massive_atm(iproc)
-       ALLOCATE(work(ncount), STAT = isos )
-       IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', &
-            'work', ncount )
-       IF(para_env%mepos == (iproc-1)) THEN
-          DO i=1,ncount
-             work(i) = local_atm_list(i)
-          END DO
-       ELSE
-          work(:) = 0
-       END IF
-       CALL mp_bcast(work,iproc-1,para_env%group)
-       DO i=1,ncount
-          massive_atom_list(offset+i) = work(i)
-       END DO
-       DEALLOCATE(work, STAT = isos)
-       IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', &
-            'work' )
-       offset = offset + array_num_massive_atm(iproc)
-    END DO
-
-    DO i=1,num_massive_atm
-       DO j=1,num_massive_atm
-          IF(massive_atom_list(i)<massive_atom_list(j)) THEN
-             k = massive_atom_list ( i )
-             massive_atom_list ( i )  = massive_atom_list ( j )
-             massive_atom_list ( j ) = k
-          ENDIF
-       END DO
-    END DO
-
-    DEALLOCATE(local_atm_list, STAT = isos)
-    IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', &
-         'local_atm_list' )
-    DEALLOCATE(array_num_massive_atm, STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', &
-         'array_num_massive_atm' )
-
-  END SUBROUTINE massive_list_generate
-
-  !******************************************************************************
 
 END MODULE nhc_mapping

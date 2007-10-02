@@ -22,7 +22,10 @@ MODULE init_extended_system_variables
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              npt_info_type
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: nph_uniaxial_damped_ensemble,&
+  USE input_constants,                 ONLY: do_thermo_communication,&
+                                             do_thermo_no_communication,&
+                                             do_thermo_only_master,&
+                                             nph_uniaxial_damped_ensemble,&
                                              nph_uniaxial_ensemble,&
                                              npt_f_ensemble,&
                                              npt_i_ensemble
@@ -91,7 +94,7 @@ CONTAINS
     nhc % nvt ( :, : ) % f = 0._dp
 
     SELECT CASE ( nhc % dis_type )
-    CASE ( 'REP_REP' )  ! for NPT
+    CASE ( do_thermo_only_master )  ! for NPT
     CASE DEFAULT
        rannumneed = nhc%num_nhc*nhc%nhc_len
        ALLOCATE ( rn_need_per_proc( para_env%num_pe ), STAT = stat )
@@ -100,7 +103,7 @@ CONTAINS
        rn_need_per_proc (:) = 0
        CALL mp_allgather ( rannumneed, rn_need_per_proc, para_env%group )
        
-       IF (nhc % dis_type=='INTER_REP') THEN
+       IF (nhc % dis_type== do_thermo_communication) THEN
           tot_rn = rn_need_per_proc(1)
        ELSE
           tot_rn = SUM ( rn_need_per_proc )
@@ -115,7 +118,7 @@ CONTAINS
     END SELECT
 
     SELECT CASE ( nhc % dis_type )
-    CASE ( 'REP_REP' ) ! for NPT
+    CASE ( do_thermo_only_master ) ! for NPT
        IF ( para_env%ionode ) THEN
           ! Map deterministically determined random number to nhc % v
           DO i = 1, nhc % num_nhc
@@ -189,7 +192,7 @@ CONTAINS
        END DO
        number = nhc % num_nhc
        
-       IF (nhc % dis_type=='DIS_REP') THEN
+       IF (nhc % dis_type==do_thermo_no_communication) THEN
           CALL mp_sum(akin,para_env%group)
           CALL mp_sum(number,para_env%group)
        ENDIF

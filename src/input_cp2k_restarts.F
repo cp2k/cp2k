@@ -51,7 +51,8 @@ MODULE input_cp2k_restarts
                                              force_env_type,&
                                              multiple_fe_list,&
                                              use_qmmm
-  USE input_constants,                 ONLY: mol_dyn_run,&
+  USE input_constants,                 ONLY: do_thermo_communication,&
+                                             mol_dyn_run,&
                                              mon_car_run,&
                                              pint_run,&
                                              use_unit_angstrom,&
@@ -652,7 +653,7 @@ CONTAINS
 
        CALL mp_allgather(numneed,nhc_per_proc,para_env%group)
 
-       IF (nhc_part%dis_type=='INTER_REP') THEN
+       IF (nhc_part%dis_type==do_thermo_communication) THEN
           tot_nhcneed = nhc_per_proc(1)
        ELSE
           tot_nhcneed = SUM ( nhc_per_proc )
@@ -801,7 +802,7 @@ CONTAINS
        DEALLOCATE ( nhc_per_proc, STAT = stat )
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
 
-       IF ( nhc_part%dis_type=='INTER_REP' ) THEN
+       IF ( nhc_part%dis_type==do_thermo_communication ) THEN
           eta  = 0.0_dp
           veta = 0.0_dp
           counter = 0
@@ -1002,7 +1003,7 @@ CONTAINS
 
        CALL mp_allgather(numneed,nhc_per_proc,para_env%group)
 
-       IF (nhc_shell%dis_type=='INTER_REP') THEN
+       IF (nhc_shell%dis_type==do_thermo_communication) THEN
           tot_nhcneed = nhc_per_proc(1)
        ELSE
           tot_nhcneed = SUM ( nhc_per_proc )
@@ -1151,7 +1152,7 @@ CONTAINS
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
 
 
-      IF ( nhc_shell%dis_type=='INTER_REP' ) THEN
+      IF ( nhc_shell%dis_type==do_thermo_communication ) THEN
         eta  = 0.0_dp
         veta = 0.0_dp
         counter = 0

@@ -27,12 +27,12 @@ MODULE thermostat_utils
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE input_constants,                 ONLY: &
        do_region_global, do_region_massive, do_region_molecule, &
-       isokin_ensemble, langevin_ensemble, nph_uniaxial_damped_ensemble, &
+       do_thermo_communication, do_thermo_no_communication, isokin_ensemble, &
+       langevin_ensemble, nph_uniaxial_damped_ensemble, &
        nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, nve_ensemble, &
        nvt_ensemble, reftraj_ensemble
   USE input_section_types,             ONLY: section_vals_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
+  USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                              get_molecule_kind_set,&
@@ -150,7 +150,7 @@ CONTAINS
     TYPE(thermostats_type), POINTER          :: thermostats
     TYPE(simulation_parameters_type), &
       INTENT(INOUT)                          :: simpar
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set(:)
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -158,19 +158,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'thermostats_info', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: dis_type
-    INTEGER                                  :: i, ikind, natom, nkind, &
-                                                nmol_local, nmolecule, &
+    INTEGER                                  :: dis_type, i, ikind, natom, &
+                                                nkind, nmol_local, nmolecule, &
                                                 number, region, &
                                                 sum_of_thermostats
-    LOGICAL                                  :: have_global, nointer, noneflag
+    LOGICAL                                  :: have_global, nointer
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
     NULLIFY(molecule_kind)
     nkind = SIZE ( molecule_kind_set )
     ! Counting the global number of thermostats
     sum_of_thermostats = 0
-    noneflag = .FALSE.
     ! variable to denote  a global thermostat
     have_global = .FALSE.
     ! variable to denote independent thermostats (no communication necessary)
@@ -186,67 +184,64 @@ CONTAINS
        ! Do Nothing
     CASE(nvt_ensemble, npt_i_ensemble, npt_f_ensemble)
 
-       ! 1) count the 'global' to determine distribution scheme
-       DO i = 1, nkind
-          molecule_kind => molecule_kind_set ( i )
-          IF ( ( region == do_region_global ) ) THEN
+       SELECT CASE(region)
+       CASE(do_region_global)
+          ! Global Thermostat
+          DO i = 1, nkind
+             molecule_kind => molecule_kind_set ( i )
              have_global = .TRUE.
              nointer = .FALSE.
              sum_of_thermostats = 1
-          END IF
-       END DO
-
-       ! 2) count the 'molecule'
-       DO i = 1, nkind
-          molecule_kind => molecule_kind_set ( i )
-          CALL get_molecule_kind ( molecule_kind, nmolecule=nmolecule )
-          IF ( ( region == do_region_molecule ) ) THEN
+          END DO
+       CASE(do_region_molecule)
+          ! Molecular Thermostat
+          DO i = 1, nkind
+             molecule_kind => molecule_kind_set ( i )
+             CALL get_molecule_kind ( molecule_kind, nmolecule=nmolecule )
              sum_of_thermostats = sum_of_thermostats + nmolecule
              ! If we have ONE kind and ONE molecule, then effectively we have a GLOBAL thermostat
              ! and the degrees of freedom will be computed correctly for this special case
              IF ( ( nmolecule == 1 ) .AND. ( nkind == 1 ) ) nointer = .FALSE.
-          END IF
-       END DO
-
-       ! 3) count the 'massive'
-       DO i = 1, nkind
-          molecule_kind => molecule_kind_set ( i )
-          CALL get_molecule_kind ( molecule_kind, nmolecule=nmolecule, &
-               natom=natom )
-          IF ( ( region == do_region_massive) ) THEN
+          END DO
+       CASE(do_region_massive)
+          ! Massive Thermostat
+          DO i = 1, nkind
+             molecule_kind => molecule_kind_set ( i )
+             CALL get_molecule_kind ( molecule_kind, nmolecule=nmolecule, &
+                  natom=natom )
              sum_of_thermostats = sum_of_thermostats + 3 * natom * nmolecule
-          END IF
-       END DO
+          END DO
+       END SELECT
        number = sum_of_thermostats
+
        ! Here we decide on what parallel algorithm to use.
        ! if there are only massive and molecule type thermostats we can use
        ! a local scheme, in cases involving any combination with a
        ! global thermostat we assume a coupling of  degrees of freedom
        ! from different processors
-       dis_type = 'NONE'
-       IF ( para_env%num_pe > 1 ) THEN
-          IF ( nointer ) THEN
-             dis_type = 'DIS_REP' ! DIStributed thermostats, no interaction
-             ! we only count thermostats on this processor
-             number = 0
-             DO ikind = 1, nkind
-                nmol_local = local_molecules % n_el ( ikind )
-                molecule_kind => molecule_kind_set ( ikind )
-                CALL get_molecule_kind ( molecule_kind, natom=natom )
-                IF (region==do_region_molecule) THEN
-                   number = number + nmol_local
-                ELSE IF (region==do_region_massive) THEN
-                   number = number + 3*nmol_local*natom
-                ELSE
-                   CALL stop_program (routineP, 'Invalid region setup' )
-                END IF
-             END DO
-          ELSE
-             dis_type = 'INTER_REP' ! REPlicated thermostats, INTERacting via communication
-          END IF
+       IF ( nointer ) THEN
+          ! DIStributed thermostats, no interaction
+          dis_type = do_thermo_no_communication
+          ! we only count thermostats on this processor
+          number = 0
+          DO ikind = 1, nkind
+             nmol_local = local_molecules % n_el ( ikind )
+             molecule_kind => molecule_kind_set ( ikind )
+             CALL get_molecule_kind ( molecule_kind, natom=natom )
+             IF (region==do_region_molecule) THEN
+                number = number + nmol_local
+             ELSE IF (region==do_region_massive) THEN
+                number = number + 3*nmol_local*natom
+             ELSE
+                CALL stop_program (routineP, 'Invalid region setup' )
+             END IF
+          END DO
+       ELSE
+          ! REPlicated thermostats, INTERacting via communication
+          dis_type = do_thermo_communication
        END IF
        
-       IF ((sum_of_thermostats/=1).OR.(noneflag).OR.(dis_type=='DIS_REP')) THEN
+       IF ((sum_of_thermostats/=1).OR.(dis_type==do_thermo_no_communication)) THEN
           ! re-initializing simpar%nfree to zero because of multiple thermostats
           simpar % nfree = 0.0_dp
        END IF
@@ -256,7 +251,6 @@ CONTAINS
     thermostats%thermostats_info%sum_of_thermostats = sum_of_thermostats
     thermostats%thermostats_info%number_of_thermostats = number
     thermostats%thermostats_info%have_global = have_global
-    thermostats%thermostats_info%noneflag = noneflag
     thermostats%thermostats_info%dis_type = dis_type
 
   END SUBROUTINE thermostats_info

@@ -23,6 +23,7 @@
 !******************************************************************************
 
 MODULE extended_system_types
+  USE input_constants,                 ONLY: do_thermo_no_communication
   USE kinds,                           ONLY: dp
 #include "cp_common_uses.h"
 
@@ -71,7 +72,7 @@ MODULE extended_system_types
   END TYPE particle_scale_type
 
   TYPE lnhc_parameters_type
-     CHARACTER ( LEN = 10 )                  :: dis_type
+     INTEGER                                 :: dis_type
      INTEGER                                 :: nyosh, nc, nhc_len, num_nhc
      REAL (KIND=dp), POINTER                 :: dt_yosh(:)
      TYPE ( nhc_info_type ), POINTER         :: nvt (:,:)
@@ -123,7 +124,7 @@ CONTAINS
     NULLIFY(lnhc%v_scale)
     NULLIFY(lnhc%s_kin)
     NULLIFY(lnhc%index)
-    lnhc%dis_type=""
+    lnhc%dis_type=do_thermo_no_communication
     lnhc%nyosh=0 
     lnhc%nc=0 
     lnhc%nhc_len=0 

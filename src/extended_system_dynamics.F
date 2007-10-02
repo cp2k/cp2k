@@ -29,7 +29,8 @@ MODULE extended_system_dynamics
                                              dyn_coeff_type
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              npt_info_type
-  USE input_constants,                 ONLY: dyn_coeff_mass_global
+  USE input_constants,                 ONLY: do_thermo_communication,&
+                                             dyn_coeff_mass_global
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -113,7 +114,7 @@ CONTAINS
         END DO
       END IF
     END DO
-    IF ( nhc % dis_type == 'INTER_REP' )  CALL mp_sum ( nhc % s_kin, group )
+    IF ( nhc % dis_type == do_thermo_communication )  CALL mp_sum ( nhc % s_kin, group )
    
     ! force on the first bead in every thermostat chain (f1=sum(m*v**2)-ncoef*KbT)
     DO n = 1, nhc % num_nhc
@@ -246,7 +247,7 @@ CONTAINS
       END DO
     END DO
    
-    IF ( nhc % dis_type == 'INTER_REP' ) CALL mp_sum ( nhc % s_kin, group )
+    IF ( nhc % dis_type == do_thermo_communication ) CALL mp_sum ( nhc % s_kin, group )
    
     flops = flops + REAL ( ncoef,KIND=dp)
    
@@ -355,7 +356,7 @@ CONTAINS
     END DO
     npart_local=ii
    
-    IF ( nhc % dis_type == 'INTER_REP' )  CALL mp_sum ( nhc % s_kin, group )
+    IF ( nhc % dis_type == do_thermo_communication )  CALL mp_sum ( nhc % s_kin, group )
    
     flops = flops + REAL ( npart_local * 9,KIND=dp)
    
@@ -540,7 +541,7 @@ CONTAINS
     END DO
     npart_local=ii
 
-    IF ( nhc % dis_type == 'INTER_REP' )  CALL mp_sum ( nhc % s_kin, group )
+    IF ( nhc % dis_type == do_thermo_communication )  CALL mp_sum ( nhc % s_kin, group )
 
     flops = flops + REAL ( npart_local * 9,KIND=dp)
 
@@ -727,7 +728,7 @@ CONTAINS
     END DO   ! iparticle_kind
     nshell_local = ii
 
-    IF ( nhc % dis_type == 'INTER_REP' )  CALL mp_sum ( nhc % s_kin, group )
+    IF ( nhc % dis_type == do_thermo_communication )  CALL mp_sum ( nhc % s_kin, group )
     flops = flops + REAL(nshell_local* 9,KIND=dp)
 
     ! force on the first bead in every thermostat chain
@@ -859,7 +860,7 @@ CONTAINS
     END DO   ! iparticle_kind
     nshell_local = ii
 
-    IF ( nhc % dis_type == 'INTER_REP' )  CALL mp_sum ( nhc % s_kin, group )
+    IF ( nhc % dis_type == do_thermo_communication )  CALL mp_sum ( nhc % s_kin, group )
     flops = flops + REAL(nshell_local* 9,KIND=dp)
 
     ! force on the first bead in every thermostat chain
