@@ -2,6 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2007  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
+
 !!****** cp2k/nhc_mapping [1.0] *
 !!
 !!   NAME
@@ -29,6 +30,7 @@ MODULE nhc_mapping
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
                                              get_dyn_coeff
   USE extended_system_types,           ONLY: lnhc_parameters_type
+  USE init_extended_system_variables,  ONLY: debug_isotropic_limit
   USE input_constants,                 ONLY: &
        do_region_global, do_region_massive, do_region_molecule, &
        isokin_ensemble, langevin_ensemble, nph_uniaxial_damped_ensemble, &
@@ -50,6 +52,7 @@ MODULE nhc_mapping
                                              molecule_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+  USE thermostat_types,                ONLY: thermostats_info_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -66,27 +69,24 @@ MODULE nhc_mapping
   !!***
   !******************************************************************************
 CONTAINS
-  !******************************************************************************
-  !!****** nhc_mapping/nhc_to_barostat_mapping [1.0] *
-  !!
-  !!   NAME
-  !!     nhc_to_barostat_mapping
-  !!
-  !!   FUNCTION
-  !!     Creates the thermostatting for the barostat
-  !!
-  !!   AUTHOR
-  !!     CJM
-  !!
-  !!   MODIFICATION HISTORY
-  !!     CJM, 20-Feb-01  : nhc structure allocated to zero when not in use
-  !!     JGH (10-Mar-2001) : set nhc variables to zero when not in use
-  !!
-  !!*** *************************************************************************
-
-  SUBROUTINE nhc_to_barostat_mapping ( simpar, nhc,para_env )
-    ! creates the thermostatting maps use global_mod
-    ! begin global declaratation
+!******************************************************************************
+!!****** nhc_mapping/nhc_to_barostat_mapping [1.0] *
+!!
+!!   NAME
+!!     nhc_to_barostat_mapping
+!!
+!!   FUNCTION
+!!     Creates the thermostatting for the barostat
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     CJM, 20-Feb-01  : nhc structure allocated to zero when not in use
+!!     JGH (10-Mar-2001) : set nhc variables to zero when not in use
+!!
+!!*** *************************************************************************
+  SUBROUTINE nhc_to_barostat_mapping ( simpar, nhc, para_env )
     TYPE(simulation_parameters_type), &
       INTENT(INOUT)                          :: simpar
     TYPE(lnhc_parameters_type), &
@@ -97,10 +97,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, isos, number
+    LOGICAL                                  :: failure
 
-! begin local definitions
-!
-
+    failure = .FALSE.
+    ! begin local definitions
     nhc % dis_type = 'NONE'
     IF ( para_env%num_pe > 1 ) nhc % dis_type = 'REP_REP'
     SELECT CASE (simpar%ensemble)
@@ -162,9 +162,9 @@ CONTAINS
 
        DO i = 1, nhc % num_nhc
           nhc % nvt ( 1, i ) % nkt = simpar % temp_ext * number
-          ! dbg ISOTROPIC LIMIT
-          !      nhc % nvt ( 1, i ) % nkt = simpar % temp_ext
-          ! dbg
+          IF (debug_isotropic_limit) THEN
+             nhc % nvt ( 1, i ) % nkt = simpar % temp_ext
+          END IF
        END DO
 
        ! getting the number of degrees of freedom times k_B T for the rest of the chain
@@ -172,34 +172,32 @@ CONTAINS
        DO i = 2, nhc % nhc_len
           nhc % nvt ( i, : ) %nkt = simpar % temp_ext
        END DO
-
-
     END SELECT
 
   END SUBROUTINE nhc_to_barostat_mapping
-  !******************************************************************************
-  !!****** nhc/nhc_to_particle_mapping [1.0] *
-  !!
-  !!   NAME
-  !!     nhc_to_particle_mapping
-  !!
-  !!   FUNCTION
-  !!     Creates the thermostatting maps
-  !!
-  !!   AUTHOR
-  !!     CJM
-  !!
-  !!   MODIFICATION HISTORY
-  !!     29-Nov-00 (JGH) correct counting of DOF if constraints are off
-  !!     CJM, 20-Feb-01  : nhc structure allocated to zero when not in use
-  !!     JGH (10-Mar-2001) : set nhc variables to zero when not in use
-  !!     CJM(10-NOV-2001) : New parallelization with new molecule structures
-  !!
-  !!*** *************************************************************************
+!******************************************************************************
+!!****** nhc/nhc_to_particle_mapping [1.0] *
+!!
+!!   NAME
+!!     nhc_to_particle_mapping
+!!
+!!   FUNCTION
+!!     Creates the thermostatting maps
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     29-Nov-00 (JGH) correct counting of DOF if constraints are off
+!!     CJM, 20-Feb-01  : nhc structure allocated to zero when not in use
+!!     JGH (10-Mar-2001) : set nhc variables to zero when not in use
+!!     CJM(10-NOV-2001) : New parallelization with new molecule structures
+!!
+!!*** *************************************************************************
+  SUBROUTINE nhc_to_particle_mapping ( thermostats_info, simpar, local_molecules,&
+       molecule_set, molecule_kind_set, nhc, para_env)
 
-  SUBROUTINE nhc_to_particle_mapping ( simpar, local_molecules, molecule_set, &
-       molecule_kind_set, nhc, para_env)
-
+    TYPE(thermostats_info_type), POINTER     :: thermostats_info
     TYPE(simulation_parameters_type), &
       INTENT(INOUT)                          :: simpar
     TYPE(distribution_1d_type), POINTER      :: local_molecules
@@ -215,21 +213,21 @@ CONTAINS
     INTEGER :: atm_offset, atom_increment, finish, first_atom, i, icount, &
       ielement, ii, iii, ikind, ilist, imol, imol_local, ipart, isos, j, jj, &
       katom, kk, last_atom, ll, natom, natoms_local, nc, nfixd, &
-      nfixd_restraint, region, nkind, nmol_local, nmol_per_kind, nmolecule, &
-      number, number_total, start, sum_of_thermostats
+      nfixd_restraint, nkind, nmol_local, nmol_per_kind, nmolecule, number, &
+      number_total, region, start, sum_of_thermostats
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: const_mol, deg_of_freedom, &
                                                 tot_const
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: point
     INTEGER, DIMENSION(:), POINTER           :: massive_atom_list
-    LOGICAL                                  :: have_global, nointer, noneflag
+    LOGICAL                                  :: failure, have_global, noneflag
     REAL(KIND=dp)                            :: fac
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
 
-    NULLIFY ( massive_atom_list, fixd_list )
-
+    failure = .FALSE.
+    NULLIFY ( massive_atom_list, fixd_list, molecule_kind )
     SELECT CASE ( simpar % ensemble )
     CASE DEFAULT
        CALL stop_program ( routineN, 'unknown ensemble ' )
@@ -252,83 +250,19 @@ CONTAINS
        nhc%nhc_len = simpar%nhclen
 
        nkind = SIZE ( molecule_kind_set )
-       ! Counting the global number of thermostats
-       sum_of_thermostats = 0
-       noneflag = .FALSE.
-       ! variable to denote  a global thermostat
-       have_global = .FALSE.
-       ! variable to denote independent thermostats (no communication necessary)
-       nointer = .TRUE.
-       region  = simpar%part_region
+       sum_of_thermostats = thermostats_info%sum_of_thermostats
+       noneflag           = thermostats_info%noneflag
+       have_global        = thermostats_info%have_global
+       nhc%dis_type       = thermostats_info%dis_type
+       number             = thermostats_info%number_of_thermostats
+       region             = simpar%part_region
 
-       ! 1) count the 'global' to determine distribution scheme
-       DO i = 1, nkind
-          molecule_kind => molecule_kind_set ( i )
-          IF ( ( region == do_region_global ) ) THEN
-             have_global = .TRUE.
-             nointer = .FALSE.
-             sum_of_thermostats = 1
-          END IF
-       END DO
-
-       ! 2) count the 'molecule'
-       DO i = 1, nkind
-          molecule_kind => molecule_kind_set ( i )
-          CALL get_molecule_kind ( molecule_kind, nmolecule=nmolecule )
-          IF ( ( region == do_region_molecule ) ) THEN
-             sum_of_thermostats = sum_of_thermostats + nmolecule
-             ! If we have ONE kind and ONE molecule, then effectively we have a GLOBAL thermostat
-             ! and the degrees of freedom will be computed correctly for this special case
-             IF ( ( nmolecule == 1 ) .AND. ( nkind == 1 ) ) nointer = .FALSE.
-          END IF
-       END DO
-
-       ! 3) count the 'massive'
-       DO i = 1, nkind
-          molecule_kind => molecule_kind_set ( i )
-          CALL get_molecule_kind ( molecule_kind, nmolecule=nmolecule, &
-               natom=natom )
-          IF ( ( region == do_region_massive) ) THEN
-             sum_of_thermostats = sum_of_thermostats + 3 * natom * nmolecule
-          END IF
-       END DO
-       number = sum_of_thermostats
-       !
-       ! here we decide on what parallel algorithm to use
-       ! if there are only massive and molecule type thermostats we can use
-       ! a local scheme, in cases involving any combination with a
-       ! global thermostat we assume a coupling of  degrees of freedom
-       ! from different processors
-       !
-       nhc % dis_type = 'NONE'
-       IF ( para_env%num_pe > 1 ) THEN
-          IF ( nointer ) THEN
-             nhc % dis_type = 'DIS_REP' ! DIStributed thermostats, no interaction
-             ! we only count thermostats on this processor
-             number = 0
-             DO ikind = 1, nkind
-                nmol_local = local_molecules % n_el ( ikind )
-                molecule_kind => molecule_kind_set ( ikind )
-                CALL get_molecule_kind ( molecule_kind, natom=natom )
-                IF (region==do_region_molecule) THEN
-                   number = number + nmol_local
-                ELSE IF (region==do_region_massive) THEN
-                   number = number + 3*nmol_local*natom
-                ELSE
-                   CALL stop_program ( 'nhc_', '' )
-                END IF
-             END DO
-          ELSE
-             nhc % dis_type = 'INTER_REP' ! REPlicated thermostats, INTERacting via communication
-          END IF
-       END IF
        ! Allocate
        ALLOCATE ( nhc % index ( number ), STAT = isos )
        IF ( isos /= 0 ) CALL stop_memory ( routineN, 'index', number )
 
        ! compute the TOTAL number of molecules and atoms on THIS PROC and
        ! TOTAL number of molecules of IKIND on THIS PROC
-
        natoms_local = 0
        nmol_local = 0
        DO ikind = 1, nkind
@@ -337,6 +271,7 @@ CONTAINS
           natoms_local = natoms_local + natom * local_molecules % n_el ( ikind )
           nmol_local = nmol_local + local_molecules % n_el ( ikind )
        END DO
+
        IF ( nhc % dis_type == 'NONE' .OR. nhc % dis_type == 'DIS_REP' ) THEN
           ALLOCATE ( const_mol ( nmol_local ), STAT = isos )
           IF ( isos /= 0 ) CALL stop_memory ( routineN, 'const_mol', nmol_local)
@@ -612,14 +547,11 @@ CONTAINS
        ! We know the total number of system thermostats.
        IF ( ( sum_of_thermostats == 1 ) .AND. ( .NOT. noneflag ) .AND. &
             ( nhc % dis_type /= 'DIS_REP' ) ) THEN
-          fac = nhc%s_kin(1)-deg_of_freedom(1)-simpar%nfree
+          fac = nhc%s_kin(1)-deg_of_freedom(1)-simpar%nfree_rot_transl
           IF ( fac == 0.0_dp ) CALL stop_memory ( routineN,&
                'Zero degrees of freedom. Nothing to thermalize!' )
           nhc % nvt ( 1, 1 ) % nkt = simpar%temp_ext*fac
        ELSE
-          ! re-initializing simpar%nfree to zero because of multiple thermostats
-          simpar % nfree = 0.0_dp
-
           DO i = 1, number
              fac = ( nhc % s_kin ( i ) - deg_of_freedom ( i ) )
              nhc % nvt ( 1, i ) % nkt = simpar % temp_ext * fac 
@@ -640,25 +572,25 @@ CONTAINS
 
   END SUBROUTINE nhc_to_particle_mapping
 
-  !******************************************************************************
-  !!****** nhc/nhc_to_coef_mapping [1.0] *
-  !!
-  !!   NAME
-  !!     nhc_to_coef_mapping
-  !!
-  !!   FUNCTION
-  !!     Creates the thermostatting for the
-  !!     polarization  coefficients'  degrees of freedom
-  !!
-  !!   AUTHOR
-  !!     CJM 10-Apr-01
-  !!
-  !!   MODIFICATION HISTORY
-  !!     gt 04-02-04 adapted to new kind of coefficents
-  !!     gt 11-02-05 adapted to new input
-  !!
-  !!   SOURCE
-  !******************************************************************************
+!******************************************************************************
+!!****** nhc/nhc_to_coef_mapping [1.0] *
+!!
+!!   NAME
+!!     nhc_to_coef_mapping
+!!
+!!   FUNCTION
+!!     Creates the thermostatting for the
+!!     polarization  coefficients'  degrees of freedom
+!!
+!!   AUTHOR
+!!     CJM 10-Apr-01
+!!
+!!   MODIFICATION HISTORY
+!!     gt 04-02-04 adapted to new kind of coefficents
+!!     gt 11-02-05 adapted to new input
+!!
+!!   SOURCE
+!******************************************************************************
   SUBROUTINE nhc_to_coef_mapping ( dyn_coeff_set, nhc, kg_coeff_section, para_env, error)
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
@@ -672,12 +604,11 @@ CONTAINS
                                                 kg_coeff_ens, kg_coeff_nhc, &
                                                 ncoef_local, ncoef_of_kind, &
                                                 nkind, number
-    LOGICAL                                  :: nointer
+    LOGICAL                                  :: failure, nointer
     REAL(KIND=dp)                            :: kg_coeff_temp
     TYPE(section_vals_type), POINTER         :: nose_section
 
-!------------------------------------------------------------------------------
-
+    failure = .FALSE.
     nose_section => section_vals_get_subs_vals(kg_coeff_section,"thermostat%nose",error=error)
 
     CALL section_vals_val_get(kg_coeff_section,"ensemble",i_val=kg_coeff_ens,error=error)
@@ -804,9 +735,24 @@ CONTAINS
 
   END SUBROUTINE nhc_to_coef_mapping
 
-  !******************************************************************************
+!******************************************************************************
+!!****** nhc/nhc_to_shell_mapping [1.0] *
+!!
+!!   NAME
+!!     nhc_to_shell_mapping
+!!
+!!   FUNCTION
+!!     
+!!
+!!   AUTHOR
+!!  
+!!
+!!   MODIFICATION HISTORY
+!!   
+!!
+!!   SOURCE
+!******************************************************************************
   SUBROUTINE nhc_to_shell_mapping(simpar, nhc, atomic_kind_set, local_particles, para_env)
-
 
     TYPE(simulation_parameters_type), &
       INTENT(INOUT)                          :: simpar
@@ -823,8 +769,6 @@ CONTAINS
       nshell_local, number, sum_of_thermostats
     LOGICAL                                  :: is_shell, nointer
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-
-! ------------------------------------------------------------------------------
 
     IF(simpar%shell_nose) THEN
        nhc%nyosh = simpar%shell_nyosh
@@ -944,10 +888,25 @@ CONTAINS
        nhc % dis_type = ''
     END IF  ! simpar%shell_nose
 
-
   END SUBROUTINE nhc_to_shell_mapping
 
-  !******************************************************************************
+!******************************************************************************
+!!****** nhc/massive_list_generate [1.0] *
+!!
+!!   NAME
+!!    massive_list_generate 
+!!
+!!   FUNCTION
+!!     
+!!
+!!   AUTHOR
+!!  
+!!
+!!   MODIFICATION HISTORY
+!!   
+!!
+!!   SOURCE
+!******************************************************************************
   SUBROUTINE massive_list_generate ( molecule_set, molecule_kind_set, &
        local_molecules, para_env, massive_atom_list, region )
     TYPE(molecule_type), POINTER             :: molecule_set( : )

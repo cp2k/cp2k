@@ -466,7 +466,9 @@ OBJECTS_GENERIC =\
  structure_factor_types.o\
  structure_factors.o\
  termination.o\
+ thermostat_methods.o\
  thermostat_types.o\
+ thermostat_utils.o\
  timings.o\
  topology.o\
  topology_coordinate_util.o\

@@ -39,9 +39,9 @@ MODULE md_environment_types
   USE input_constants,                 ONLY: do_thermo_nose
   USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
-  USE thermostat_types,                ONLY: release_thermostat_type,&
-                                             retain_thermostat_type,&
-                                             thermostat_type
+  USE thermostat_types,                ONLY: release_thermostats,&
+                                             retain_thermostats,&
+                                             thermostats_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -61,7 +61,7 @@ MODULE md_environment_types
      TYPE (cp_para_env_type), POINTER   :: para_env
      TYPE (cell_type), POINTER          :: cell
      TYPE (force_env_type), POINTER     :: force_env
-     TYPE (thermostat_type), POINTER    :: thermostat
+     TYPE (thermostats_type), POINTER   :: thermostats
      TYPE (barostat_type), POINTER      :: barostat
      TYPE (reftraj_type), POINTER       :: reftraj_info
      TYPE (free_energy_type) , POINTER  :: fe_env
@@ -141,7 +141,7 @@ CONTAINS
     NULLIFY ( md_env % accepted_md )
     NULLIFY ( md_env % cell )
     NULLIFY ( md_env % simpar )
-    NULLIFY ( md_env % thermostat )
+    NULLIFY ( md_env % thermostats )
     NULLIFY ( md_env % barostat )
     NULLIFY ( md_env % force_env )
     NULLIFY ( md_env % fe_env )
@@ -276,7 +276,7 @@ SUBROUTINE md_env_release(md_env, error)
         NULLIFY ( md_env % cell )
         NULLIFY ( md_env % simpar )
         CALL release_barostat_type(md_env%barostat, error)
-        CALL release_thermostat_type(md_env%thermostat, error)
+        CALL release_thermostats(md_env%thermostats, error)
         CALL force_env_release(md_env%force_env, error=error)
         md_env%ref_count=0
         DEALLOCATE(md_env,stat=stat)
@@ -314,7 +314,7 @@ END SUBROUTINE md_env_release
                           simpar, nhc_part, nhc_coef, nhc_baro, nhc_shell, &
                           npt, force_env, para_env, reftraj_info, t,&
                           md_approach_nr, accepted_md, init, first_time,&
-                          fe_env, thermostat, barostat, error)
+                          fe_env, thermostats, barostat, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
     INTEGER, OPTIONAL, POINTER               :: itimes
@@ -335,7 +335,8 @@ END SUBROUTINE md_env_release
     LOGICAL, OPTIONAL                        :: init, first_time
     TYPE(free_energy_type), OPTIONAL, &
       POINTER                                :: fe_env
-    TYPE(thermostat_type), OPTIONAL, POINTER :: thermostat
+    TYPE(thermostats_type), OPTIONAL, &
+      POINTER                                :: thermostats
     TYPE(barostat_type), OPTIONAL, POINTER   :: barostat
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -356,16 +357,37 @@ END SUBROUTINE md_env_release
     IF (PRESENT ( t ) ) t => md_env % t
     IF (PRESENT ( cell ) ) cell => md_env % cell
     IF (PRESENT ( simpar ) ) simpar => md_env % simpar
-    IF (PRESENT ( thermostat ) ) thermostat => md_env % thermostat
+    IF (PRESENT ( thermostats ) ) thermostats => md_env % thermostats
     IF (PRESENT ( barostat ) ) barostat => md_env % barostat
-    IF (PRESENT(nhc_part).OR.PRESENT(nhc_coef).OR.PRESENT(nhc_baro).OR.&
-        PRESENT(nhc_shell)) THEN
-       IF (ASSOCIATED(md_env%thermostat)) THEN
-          IF (md_env%thermostat%type_of_thermostat==do_thermo_nose) THEN
-             IF (PRESENT ( nhc_part ) )  nhc_part => md_env%thermostat%nhc%nhc_part
-             IF (PRESENT ( nhc_coef ) )  nhc_coef => md_env%thermostat%nhc%nhc_coef
-             IF (PRESENT ( nhc_baro ) )  nhc_baro => md_env%thermostat%nhc%nhc_baro
-             IF (PRESENT ( nhc_shell ) ) nhc_shell => md_env%thermostat%nhc%nhc_shell
+    IF (PRESENT(nhc_part).OR.PRESENT(nhc_coef).OR.PRESENT(nhc_baro).OR.PRESENT(nhc_shell)) THEN
+       IF (ASSOCIATED(md_env%thermostats)) THEN
+          IF (PRESENT ( nhc_part ) ) THEN
+             IF (ASSOCIATED(md_env%thermostats%thermostat_part)) THEN
+                IF (md_env%thermostats%thermostat_part%type_of_thermostat==do_thermo_nose) THEN
+                   nhc_part => md_env%thermostats%thermostat_part%nhc
+                END IF
+             END IF
+          END IF
+          IF (PRESENT ( nhc_coef ) ) THEN
+             IF (ASSOCIATED(md_env%thermostats%thermostat_coef)) THEN
+                IF (md_env%thermostats%thermostat_coef%type_of_thermostat==do_thermo_nose) THEN
+                   nhc_coef => md_env%thermostats%thermostat_coef%nhc
+                END IF
+             END IF
+          END IF
+          IF (PRESENT ( nhc_shell ) ) THEN
+             IF (ASSOCIATED(md_env%thermostats%thermostat_shell)) THEN
+                IF (md_env%thermostats%thermostat_shell%type_of_thermostat==do_thermo_nose) THEN
+                   nhc_shell => md_env%thermostats%thermostat_shell%nhc
+                END IF
+             END IF
+          END IF
+          IF (PRESENT ( nhc_baro ) ) THEN
+             IF (ASSOCIATED(md_env%thermostats%thermostat_baro)) THEN
+                IF (md_env%thermostats%thermostat_baro%type_of_thermostat==do_thermo_nose) THEN
+                   nhc_baro => md_env%thermostats%thermostat_baro%nhc
+                END IF
+             END IF
           END IF
        END IF
     END IF
@@ -408,7 +430,7 @@ END SUBROUTINE md_env_release
 !!*** **********************************************************************
   SUBROUTINE set_md_env ( md_env, itimes, constant, cell, simpar, fe_env, force_env,&
                           para_env, accepted_md, md_approach_nr , init, first_time,&
-                          thermostat, barostat, error)
+                          thermostats, barostat, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
     INTEGER, OPTIONAL, POINTER               :: itimes
@@ -423,7 +445,8 @@ END SUBROUTINE md_env_release
       POINTER                                :: para_env
     INTEGER, OPTIONAL, POINTER               :: accepted_md, md_approach_nr
     LOGICAL, OPTIONAL                        :: init, first_time
-    TYPE(thermostat_type), OPTIONAL, POINTER :: thermostat
+    TYPE(thermostats_type), OPTIONAL, &
+      POINTER                                :: thermostats
     TYPE(barostat_type), OPTIONAL, POINTER   :: barostat
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -443,10 +466,10 @@ END SUBROUTINE md_env_release
        CALL retain_barostat_type(barostat, error=error)
        md_env % barostat => barostat
     END IF
-    IF ( PRESENT ( thermostat ) ) THEN
-       CALL release_thermostat_type(md_env % thermostat, error=error)
-       CALL retain_thermostat_type(thermostat, error=error)
-       md_env % thermostat => thermostat
+    IF ( PRESENT ( thermostats ) ) THEN
+       CALL release_thermostats(md_env%thermostats, error=error)
+       CALL retain_thermostats(thermostats, error=error)
+       md_env%thermostats => thermostats
     END IF
     IF ( PRESENT ( simpar ) ) md_env % simpar => simpar
     IF ( PRESENT ( itimes ) ) md_env % itimes => itimes

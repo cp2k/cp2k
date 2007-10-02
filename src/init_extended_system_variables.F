@@ -31,7 +31,6 @@ MODULE init_extended_system_variables
                                              mp_bcast,&
                                              mp_sum
   USE parallel_rng_types,              ONLY: next_random_number
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -39,9 +38,13 @@ MODULE init_extended_system_variables
   IMPLICIT NONE
 
   PRIVATE
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'init_extended_system_variables'
+  LOGICAL, PARAMETER, PUBLIC :: debug_isotropic_limit = .FALSE.
+  LOGICAL, PARAMETER, PUBLIC :: debug_uniaxial_limit  = .FALSE.
   PUBLIC :: init_nhc_variables, init_barostat_variables, init_nhc_forces
 
-  CONTAINS
+CONTAINS
+
 !******************************************************************************
 !!****** init_extended_system_variables/init_nhc_variables [1.0] *
 !!
@@ -61,8 +64,7 @@ MODULE init_extended_system_variables
 !!
 !!   SOURCE
 !******************************************************************************
-
-SUBROUTINE init_nhc_variables ( nhc,tau_nhc,temp_ext, para_env, globenv, error )
+  SUBROUTINE init_nhc_variables ( nhc,tau_nhc,temp_ext, para_env, globenv, error )
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
     REAL(KIND=dp), INTENT(IN)                :: tau_nhc, temp_ext
@@ -70,150 +72,149 @@ SUBROUTINE init_nhc_variables ( nhc,tau_nhc,temp_ext, para_env, globenv, error )
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: i, icount, isos, j, number, &
-                                                rannumneed, tot_rn
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_nhc_variables', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, icount, j, number, &
+                                                rannumneed, stat, tot_rn
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rn_need_per_proc
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: akin, temp, v
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: array_of_rn
 
-! first initializing the mass of the nhc variables
+    failure = .FALSE.
+    ! first initializing the mass of the nhc variables
 
-  nhc % nvt ( :, : ) % mass = nhc % nvt ( :, : ) % nkt * tau_nhc * tau_nhc
-  nhc % nvt ( :, : ) % eta = 0._dp
-  nhc % nvt ( :, : ) % v = 0._dp
-  nhc % nvt ( :, : ) % f = 0._dp
+    nhc % nvt ( :, : ) % mass = nhc % nvt ( :, : ) % nkt * tau_nhc * tau_nhc
+    nhc % nvt ( :, : ) % eta = 0._dp
+    nhc % nvt ( :, : ) % v = 0._dp
+    nhc % nvt ( :, : ) % f = 0._dp
 
-
-  SELECT CASE ( nhc % dis_type )
+    SELECT CASE ( nhc % dis_type )
     CASE ( 'REP_REP' )  ! for NPT
     CASE DEFAULT
-      rannumneed = nhc%num_nhc*nhc%nhc_len
-      ALLOCATE ( rn_need_per_proc( para_env%num_pe ), STAT = isos )
-      IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
-                                    'failed to allocate rn_need_per_proc')
-      rn_need_per_proc ( : ) = 0
+       rannumneed = nhc%num_nhc*nhc%nhc_len
+       ALLOCATE ( rn_need_per_proc( para_env%num_pe ), STAT = stat )
+       CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
 
-      CALL mp_allgather ( rannumneed, rn_need_per_proc, para_env%group )
+       rn_need_per_proc (:) = 0
+       CALL mp_allgather ( rannumneed, rn_need_per_proc, para_env%group )
+       
+       IF (nhc % dis_type=='INTER_REP') THEN
+          tot_rn = rn_need_per_proc(1)
+       ELSE
+          tot_rn = SUM ( rn_need_per_proc )
+       ENDIF
+       
+       DEALLOCATE ( rn_need_per_proc, STAT = stat )
+       CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
 
-      IF (nhc % dis_type=='INTER_REP') THEN
-        tot_rn = rn_need_per_proc(1)
-      ELSE
-        tot_rn = SUM ( rn_need_per_proc )
-      ENDIF
+       ALLOCATE(array_of_rn( tot_rn), STAT = stat)
+       CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+       array_of_rn(:) = 0.0_dp
+    END SELECT
 
-      DEALLOCATE ( rn_need_per_proc, STAT = isos )
-      IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
-                                    'failed to deallocate rn_need_per_proc')
-
-      ALLOCATE(array_of_rn( tot_rn), STAT = isos)
-      IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
-                                    'failed to allocate array_of_rn')
-      array_of_rn(:) = 0.0_dp
-  END SELECT
-
-  SELECT CASE ( nhc % dis_type )
+    SELECT CASE ( nhc % dis_type )
     CASE ( 'REP_REP' ) ! for NPT
-      IF ( para_env%ionode ) THEN
-! Map deterministically determined random number to nhc % v
-        DO i = 1, nhc % num_nhc
-           DO j = 1, nhc % nhc_len
-              nhc%nvt(j,i)%v = next_random_number(globenv%gaussian_rng_stream,error=error)
-           END DO
-        END DO
+       IF ( para_env%ionode ) THEN
+          ! Map deterministically determined random number to nhc % v
+          DO i = 1, nhc % num_nhc
+             DO j = 1, nhc % nhc_len
+                nhc%nvt(j,i)%v = next_random_number(globenv%gaussian_rng_stream,error=error)
+             END DO
+          END DO
+          
+          akin = 0.0_dp
+          DO i = 1, nhc % num_nhc
+             DO j = 1, nhc % nhc_len
+                akin = akin + 0.5_dp * ( nhc % nvt ( j , i ) % mass * &
+                                         nhc % nvt ( j , i ) % v * &
+                                         nhc % nvt ( j , i ) % v )
+             END DO
+          END DO
+          number = nhc % num_nhc
 
-        akin = 0.0_dp
-        DO i = 1, nhc % num_nhc
-           DO j = 1, nhc % nhc_len
-              akin = akin + 0.5_dp * ( nhc % nvt ( j , i ) % mass * &
-                                       nhc % nvt ( j , i ) % v * &
-                                       nhc % nvt ( j , i ) % v )
-           END DO
-        END DO
-        number = nhc % num_nhc
-
-! scale velocities to get the correct initial temperature
-        temp = 2.0_dp*akin/REAL(number)
-        temp = SQRT(temp_ext/temp)
-        DO i = 1, nhc % num_nhc
-           DO j = 1, nhc % nhc_len
-              nhc % nvt(j,i) % v = temp * nhc % nvt(j,i) % v
-              nhc % nvt(j,i) % eta = 0.0_dp
-           END DO
-        END DO
-
-! initializing all of the forces on the thermostats
-        DO i = 1, nhc % num_nhc
-           DO j = 2, nhc % nhc_len
-              nhc % nvt(j,i) % f = nhc % nvt(j-1,i) % mass*nhc % nvt(j-1,i) % v* &
-                   nhc % nvt(j-1,i) % v - nhc % nvt(j,i) % nkt
-              nhc % nvt(j,i) % f = nhc % nvt(j,i) % f/nhc % nvt(j,i) % mass
-           END DO
-        END DO
-      END IF
-! Broadcast
-      DO i = 1, SIZE ( nhc % nvt, 1 )
-        DO j = 1, SIZE ( nhc % nvt, 2 )
-          CALL mp_bcast ( nhc % nvt ( i, j ) % v, para_env%source, para_env%group )
-          CALL mp_bcast ( nhc % nvt ( i, j ) % eta, para_env%source, para_env%group )
-          CALL mp_bcast ( nhc % nvt ( i, j ) % f, para_env%source, para_env%group )
-        END DO
-      END DO
-
+          ! scale velocities to get the correct initial temperature
+          temp = 2.0_dp*akin/REAL(number)
+          temp = SQRT(temp_ext/temp)
+          DO i = 1, nhc % num_nhc
+             DO j = 1, nhc % nhc_len
+                nhc % nvt(j,i) % v = temp * nhc % nvt(j,i) % v
+                nhc % nvt(j,i) % eta = 0.0_dp
+             END DO
+          END DO
+          
+          ! initializing all of the forces on the thermostats
+          DO i = 1, nhc % num_nhc
+             DO j = 2, nhc % nhc_len
+                nhc % nvt(j,i) % f = nhc % nvt(j-1,i) % mass*nhc % nvt(j-1,i) % v* &
+                     nhc % nvt(j-1,i) % v - nhc % nvt(j,i) % nkt
+                nhc % nvt(j,i) % f = nhc % nvt(j,i) % f/nhc % nvt(j,i) % mass
+             END DO
+          END DO
+       END IF
+       ! Broadcast
+       DO i = 1, SIZE ( nhc % nvt, 1 )
+          DO j = 1, SIZE ( nhc % nvt, 2 )
+             CALL mp_bcast ( nhc % nvt ( i, j ) % v, para_env%source, para_env%group )
+             CALL mp_bcast ( nhc % nvt ( i, j ) % eta, para_env%source, para_env%group )
+             CALL mp_bcast ( nhc % nvt ( i, j ) % f, para_env%source, para_env%group )
+          END DO
+       END DO
+       
     CASE DEFAULT
-      DO i=1,tot_rn
-        array_of_rn(i) = next_random_number(globenv%gaussian_rng_stream,error=error)
-      END DO
-! Map deterministically determined random number to nhc % v
-      DO i = 1, nhc % num_nhc
-         icount = nhc % index(i)
-         icount = (icount-1) * nhc % nhc_len
-         DO j = 1, nhc % nhc_len
-            icount = icount + 1
-            nhc % nvt(j,i) % v = array_of_rn ( icount )
-         END DO
-      END DO
+       DO i=1,tot_rn
+          array_of_rn(i) = next_random_number(globenv%gaussian_rng_stream,error=error)
+       END DO
+       ! Map deterministically determined random number to nhc % v
+       DO i = 1, nhc % num_nhc
+          icount = nhc % INDEX(i)
+          icount = (icount-1) * nhc % nhc_len
+          DO j = 1, nhc % nhc_len
+             icount = icount + 1
+             nhc % nvt(j,i) % v = array_of_rn ( icount )
+          END DO
+       END DO
+       
+       DEALLOCATE ( array_of_rn, STAT = stat )
+       CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
 
-      DEALLOCATE ( array_of_rn, STAT = isos )
-      IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
-                                'failed to deallocate array_of_rn')
-
-      akin = 0.0_dp
-      DO i = 1, nhc % num_nhc
-         DO j = 1, nhc % nhc_len
-            akin = akin + 0.5_dp * ( nhc % nvt ( j , i ) % mass * &
+       akin = 0.0_dp
+       DO i = 1, nhc % num_nhc
+          DO j = 1, nhc % nhc_len
+             akin = akin + 0.5_dp * ( nhc % nvt ( j , i ) % mass * &
                                       nhc % nvt ( j , i ) % v * &
                                       nhc % nvt ( j , i ) % v )
-         END DO
-      END DO
-      number = nhc % num_nhc
-
-      IF (nhc % dis_type=='DIS_REP') THEN
+          END DO
+       END DO
+       number = nhc % num_nhc
+       
+       IF (nhc % dis_type=='DIS_REP') THEN
           CALL mp_sum(akin,para_env%group)
           CALL mp_sum(number,para_env%group)
-      ENDIF    
+       ENDIF
+       
+       ! scale velocities to get the correct initial temperature
+       temp = 2.0_dp*akin/REAL(number)
+       temp = SQRT(temp_ext/temp)
+       DO i = 1, nhc % num_nhc
+          DO j = 1, nhc % nhc_len
+             nhc % nvt(j,i) % v = temp * nhc % nvt(j,i) % v
+             nhc % nvt(j,i) % eta = 0.0_dp
+          END DO
+       END DO
+       
+       ! initializing all of the forces on the thermostats
+       DO i = 1, nhc % num_nhc
+          DO j = 2, nhc % nhc_len
+             nhc % nvt(j,i) % f = nhc % nvt(j-1,i) % mass*nhc % nvt(j-1,i) % v* &
+                                  nhc % nvt(j-1,i) % v - nhc % nvt(j,i) % nkt
+             nhc % nvt(j,i) % f = nhc % nvt(j,i) % f/nhc % nvt(j,i) % mass
+          END DO
+       END DO
 
-! scale velocities to get the correct initial temperature
-      temp = 2.0_dp*akin/REAL(number)
-      temp = SQRT(temp_ext/temp)
-      DO i = 1, nhc % num_nhc
-         DO j = 1, nhc % nhc_len
-            nhc % nvt(j,i) % v = temp * nhc % nvt(j,i) % v
-            nhc % nvt(j,i) % eta = 0.0_dp
-         END DO
-      END DO
-
-! initializing all of the forces on the thermostats
-      DO i = 1, nhc % num_nhc
-         DO j = 2, nhc % nhc_len
-            nhc % nvt(j,i) % f = nhc % nvt(j-1,i) % mass*nhc % nvt(j-1,i) % v* &
-                 nhc % nvt(j-1,i) % v - nhc % nvt(j,i) % nkt
-            nhc % nvt(j,i) % f = nhc % nvt(j,i) % f/nhc % nvt(j,i) % mass
-         END DO
-      END DO
-
-  END SELECT
-
-END SUBROUTINE init_nhc_variables
+    END SELECT
+  END SUBROUTINE init_nhc_variables
 
 !!*****
 !******************************************************************************
@@ -235,11 +236,9 @@ END SUBROUTINE init_nhc_variables
 !!
 !!   SOURCE
 !******************************************************************************
-
-SUBROUTINE init_barostat_variables ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
-                                     cmass, para_env, globenv, error )
-
-
+  SUBROUTINE init_barostat_variables ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
+       cmass, para_env, globenv, error )
+    
     TYPE(npt_info_type), DIMENSION(:, :), &
       INTENT(INOUT)                          :: npt
     REAL(KIND=dp), INTENT(IN)                :: tau_cell, temp_ext, deth
@@ -249,81 +248,79 @@ SUBROUTINE init_barostat_variables ( npt, tau_cell, temp_ext, deth, nfree, ensem
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_barostat_variables', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: i, j, number
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: akin, temp, v
 
-!------------------------------------------------------------------------------
-! first initializing the mass of the nhc variables
-
-  SELECT CASE ( ensemble )
-  CASE ( npt_i_ensemble )
-     npt ( :, : ) % mass = REAL ( nfree + 3,KIND=dp) &
-          * temp_ext * tau_cell ** 2
-  CASE ( npt_f_ensemble)
-     npt ( :, : ) % mass = REAL ( nfree + 3,KIND=dp) &
-          * temp_ext * tau_cell ** 2 / 3.0_dp
-  CASE ( nph_uniaxial_ensemble,nph_uniaxial_damped_ensemble )
-     npt ( :, : ) % mass = cmass
-
-!     npt ( :, : ) % mass = REAL ( nfree + 3,KIND=dp) &
-!          * temp_ext * tau_cell ** 2
-  END SELECT
-
-  IF ( para_env%ionode ) THEN
-! initializing velocities
-    DO i = 1, SIZE ( npt,1)
-       DO j = i, SIZE ( npt,2)
-          v = next_random_number(globenv%gaussian_rng_stream,error=error)
-! symmetrizing the initial barostat velocities to ensure
-! no rotation of the cell under NPT_F
-          npt(j,i) % v = v
-          npt(i,j) % v = v
-       END DO
-    END DO
-
-    akin = 0.0_dp
-    DO i = 1, SIZE( npt,1 )
-       DO j = 1, SIZE( npt,2 )
-          akin = akin + 0.5_dp*( npt(j,i) % mass* npt(j,i) % v* npt &
-               (j,i) % v)
-       END DO
-    END DO
-
-    number = SIZE ( npt, 1 ) * SIZE ( npt, 2 )
-
-! scale velocities to get the correct initial temperature
-    IF ( number /= 0 ) THEN
-      temp = 2.0_dp * akin / REAL ( number,KIND=dp)
-      temp = SQRT(temp_ext/temp)
-    ENDIF
-    DO i = 1, SIZE(npt,1)
-       DO j = i, SIZE(npt,2)
-          npt(j,i) % v = temp * npt(j,i) % v
-          npt(i,j) % v = npt(j,i) % v
-! dbg ISOTROPIC LIMIT
-!       npt(j,i) % v = 0.0_dp
-!       npt(i,j) % v = 0.0_dp
-!       write (*, *) 'INTIAL v_eps', npt(j,i) % v
-! dbg
-       END DO
-    END DO
-
-! Zero barostat velocities for nph_uniaxial
+    failure = .FALSE.
+    ! first initializing the mass of the nhc variables
+    
     SELECT CASE ( ensemble )
-    CASE ( nph_uniaxial_ensemble, nph_uniaxial_damped_ensemble )
-       npt(:,:) % v = 0.0_dp
+    CASE ( npt_i_ensemble )
+       npt ( :, : ) % mass = REAL ( nfree + 3,KIND=dp) * temp_ext * tau_cell ** 2
+    CASE ( npt_f_ensemble)
+       npt ( :, : ) % mass = REAL ( nfree + 3,KIND=dp) * temp_ext * tau_cell ** 2 / 3.0_dp
+    CASE ( nph_uniaxial_ensemble,nph_uniaxial_damped_ensemble )
+       npt ( :, : ) % mass = cmass
     END SELECT
-  ENDIF
 
-! Broadcast
-  DO i = 1, SIZE ( npt, 1 )
-    DO j = 1, SIZE ( npt, 2 )
-       CALL mp_bcast ( npt ( i, j ) % v, para_env%source, para_env%group )
+    IF ( para_env%ionode ) THEN
+       ! initializing velocities
+       DO i = 1, SIZE ( npt,1)
+          DO j = i, SIZE ( npt,2)
+             v = next_random_number(globenv%gaussian_rng_stream,error=error)
+             ! Symmetrizing the initial barostat velocities to ensure
+             ! no rotation of the cell under NPT_F
+             npt(j,i) % v = v
+             npt(i,j) % v = v
+          END DO
+       END DO
+       
+       akin = 0.0_dp
+       DO i = 1, SIZE( npt,1 )
+          DO j = 1, SIZE( npt,2 )
+             akin = akin + 0.5_dp*( npt(j,i) % mass* npt(j,i)%v * npt(j,i)%v)
+          END DO
+       END DO
+       
+       number = SIZE ( npt, 1 ) * SIZE ( npt, 2 )
+       
+       ! scale velocities to get the correct initial temperature
+       IF ( number /= 0 ) THEN
+          temp = 2.0_dp * akin / REAL ( number,KIND=dp)
+          temp = SQRT(temp_ext/temp)
+       ENDIF
+       DO i = 1, SIZE(npt,1)
+          DO j = i, SIZE(npt,2)
+             npt(j,i) % v = temp * npt(j,i) % v
+             npt(i,j) % v = npt(j,i) % v
+             IF (debug_isotropic_limit) THEN
+                npt(j,i) % v = 0.0_dp
+                npt(i,j) % v = 0.0_dp
+                WRITE (*, *) 'DEBUG ISOTROPIC LIMIT| INTIAL v_eps', npt(j,i) % v
+             END IF
+          END DO
+       END DO
+
+       ! Zero barostat velocities for nph_uniaxial
+       SELECT CASE ( ensemble )
+       CASE ( nph_uniaxial_ensemble, nph_uniaxial_damped_ensemble )
+          npt(:,:) % v = 0.0_dp
+       END SELECT
+    ENDIF
+    
+    ! Broadcast
+    DO i = 1, SIZE ( npt, 1 )
+       DO j = 1, SIZE ( npt, 2 )
+          CALL mp_bcast ( npt ( i, j ) % v, para_env%source, para_env%group )
+       END DO
     END DO
-  END DO
 
-END SUBROUTINE init_barostat_variables
-!!*****
+  END SUBROUTINE init_barostat_variables
+
 !******************************************************************************
 !!****** init_extended_system_variables/init_nhc_forces [1.0] *
 !!
@@ -340,77 +337,31 @@ END SUBROUTINE init_barostat_variables
 !!
 !!   SOURCE
 !******************************************************************************
-SUBROUTINE init_nhc_forces ( nhc_part, nhc_baro, nhc_coef , nhc_shell, error)
+  SUBROUTINE init_nhc_forces ( nhc, error)
 
-    TYPE(lnhc_parameters_type), &
-      INTENT(INOUT), OPTIONAL                :: nhc_part, nhc_baro, nhc_coef, &
-                                                nhc_shell
+    TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_nhc_forces', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: i, j
+    LOGICAL                                  :: failure
 
-! assign the forces
+    failure = .FALSE.
 
-IF(PRESENT(nhc_part)) THEN
-  DO i = 1, SIZE ( nhc_part % nvt, 2 )
-     DO j = 2, SIZE ( nhc_part % nvt, 1 )
-        nhc_part % nvt ( j, i ) % f = nhc_part % nvt ( j-1, i ) % mass * &
-                                      nhc_part % nvt ( j-1, i ) % v *  &
-                                      nhc_part % nvt ( j-1, i ) % v -  &
-                                      nhc_part % nvt ( j, i ) % nkt
-        nhc_part % nvt ( j, i ) % f = nhc_part % nvt ( j, i ) % f &
-                                     /nhc_part % nvt ( j, i ) % mass
-     END DO
-  END DO
-END IF
+    CPPrecondition(ASSOCIATED(nhc),cp_fatal_level,routineP,error,failure)
+    ! assign the forces
+    DO i = 1, SIZE ( nhc % nvt, 2 )
+       DO j = 2, SIZE ( nhc % nvt, 1 )
+          nhc % nvt ( j, i ) % f = nhc % nvt ( j-1, i ) % mass * &
+                                   nhc % nvt ( j-1, i ) % v **2 -  &
+                                   nhc % nvt ( j, i ) % nkt
+          nhc % nvt ( j, i ) % f = nhc % nvt ( j, i ) % f / nhc % nvt ( j, i ) % mass
+       END DO
+    END DO
 
-! assign the forces
-
-IF(PRESENT(nhc_baro)) THEN
-  DO i = 1, SIZE ( nhc_baro % nvt, 2 )
-     DO j = 2, SIZE ( nhc_baro % nvt, 1 )
-        nhc_baro % nvt ( j, i ) % f = nhc_baro % nvt ( j-1, i ) % mass * &
-                                      nhc_baro % nvt ( j-1, i ) % v *  &
-                                      nhc_baro % nvt ( j-1, i ) % v -  &
-                                      nhc_baro % nvt ( j, i ) % nkt
-        nhc_baro % nvt ( j, i ) % f = nhc_baro % nvt ( j, i ) % f &
-                                     /nhc_baro % nvt ( j, i ) % mass
-     END DO
-  END DO
-END IF
-
-! assign the forces
-
-IF(PRESENT(nhc_coef)) THEN
-  DO i = 1, SIZE ( nhc_coef % nvt, 2 )
-     DO j = 2, SIZE ( nhc_coef % nvt, 1 )
-        nhc_coef % nvt ( j, i ) % f = nhc_coef % nvt ( j-1, i ) % mass * &
-                                      nhc_coef % nvt ( j-1, i ) % v *  &
-                                      nhc_coef % nvt ( j-1, i ) % v -  &
-                                      nhc_coef % nvt ( j, i ) % nkt
-        nhc_coef % nvt ( j, i ) % f = nhc_coef % nvt ( j, i ) % f &
-                                     /nhc_coef % nvt ( j, i ) % mass
-     END DO
-  END DO
-END IF
-
-! assign the forces
-
-IF(PRESENT(nhc_shell)) THEN
-  DO i = 1, SIZE ( nhc_shell % nvt, 2 )
-     DO j = 2, SIZE ( nhc_shell % nvt, 1 )
-        nhc_shell % nvt ( j, i ) % f = nhc_shell % nvt ( j-1, i ) % mass * &
-                                      nhc_shell % nvt ( j-1, i ) % v *  &
-                                      nhc_shell % nvt ( j-1, i ) % v -  &
-                                      nhc_shell % nvt ( j, i ) % nkt
-        nhc_shell % nvt ( j, i ) % f = nhc_shell % nvt ( j, i ) % f &
-                                     /nhc_shell % nvt ( j, i ) % mass
-     END DO
-  END DO
-END IF
-
-
-END SUBROUTINE init_nhc_forces
+  END SUBROUTINE init_nhc_forces
 
 !!*****
 !******************************************************************************

@@ -110,9 +110,16 @@ CONTAINS
        barostat%ref_count  =  1
        NULLIFY(barostat%npt)
        CALL force_env_get( force_env, cell=cell, error=error )
+
        ! Initialize or possibly restart Barostat
        CALL initialize_npt (simpar, para_env, globenv, barostat%npt,&
             cell, work_section=barostat_section, error=error)
+
+       ! If none of the possible barostat has been allocated let's deallocate
+       ! the full structure
+       IF(.NOT.ASSOCIATED(barostat%npt)) THEN
+          CALL  release_barostat_type(barostat, error)
+       END IF
     END IF
     
   END SUBROUTINE create_barostat_type

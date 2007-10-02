@@ -37,8 +37,7 @@ MODULE extended_system_types
        nhc_info_type, &
        particle_kinetic_type,&
        particle_scale_type,&
-       extended_energy_type,&
-       nhc_set_type
+       extended_energy_type
 
 
   TYPE extended_energy_type
@@ -82,14 +81,6 @@ MODULE extended_system_types
      REAL (KIND=dp), POINTER                 :: s_kin (:)
      INTEGER, POINTER                        :: INDEX(:)
   END TYPE lnhc_parameters_type
-
-  TYPE nhc_set_type
-     INTEGER :: id_nr, ref_count, in_use
-     TYPE ( lnhc_parameters_type ), POINTER :: nhc_part
-     TYPE ( lnhc_parameters_type ), POINTER :: nhc_baro
-     TYPE ( lnhc_parameters_type ), POINTER :: nhc_coef
-     TYPE ( lnhc_parameters_type ), POINTER :: nhc_shell
-  END TYPE nhc_set_type
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'extended_system_types'
 

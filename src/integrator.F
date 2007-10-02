@@ -57,6 +57,8 @@ MODULE integrator
                                              force_env_set_cell
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
+  USE init_extended_system_variables,  ONLY: debug_isotropic_limit,&
+                                             debug_uniaxial_limit
   USE input_constants,                 ONLY: &
        dyn_coeff_mass_atom, dyn_coeff_mass_coeff, dyn_coeff_mass_global, &
        dyn_coeff_mass_kind, nph_ensemble, nph_uniaxial_damped_ensemble, &
@@ -1046,13 +1048,13 @@ CONTAINS
 
     ! perform Nose'-Hoover chain dynamimcs
     IF(shell_adiabatic) THEN
-       !!      shell_particle_set%v, core_particle_set%v,  as well as  particle_set%v are modified in lnhc
+       ! Shell_particle_set%v, core_particle_set%v,  as well as  particle_set%v are modified in lnhc
        CALL lnhc ( nhc, molecule_kind_set, molecule_set, &
             atomic_kind_set, particle_set, local_molecules, para_env % group , &
             shell_adiabatic=shell_adiabatic, shell_particle_set=shell_particle_set,&
             core_particle_set=core_particle_set,  vshell_rescale=simpar%vshell_rescale)
 
-       !!      perform Nose'-Hoover chain dynamimcs for the core-shell motion
+       ! Perform Nose'-Hoover chain dynamimcs for the core-shell motion
        CALL lnhc (nhc_shell, atomic_kind_set, particle_set, local_particles, shell_particle_set,&
             core_particle_set, simpar%shell_nose, para_env % group  )
     ELSE
@@ -3719,14 +3721,12 @@ END SUBROUTINE nph_uniaxial_damped
     REAL(KIND=dp), INTENT(IN)                :: infree
 
     INTEGER                                  :: ii
-    REAL(KIND=dp)                            :: fdotr, v, v0, v0i, vi
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: fdotr, trace, v, v0, v0i, vi
     REAL(KIND=dp), DIMENSION(3, 3)           :: unit
 
-! dbg ISOTROPIC LIMIT
-!  REAL (KIND=dp) :: trace
-! dbg
-! initialize unit
-
+    failure = .FALSE.
+    ! initialize unit
     unit = 0.0_dp
     unit(1,1) = 1.0_dp
     unit(2,2) = 1.0_dp
@@ -3747,19 +3747,19 @@ END SUBROUTINE nph_uniaxial_damped
             pv_kin ( :, : ) +  virial % pv_constraint ( :, : ) -  &
             unit ( :, : ) * simpar % p_ext * box % deth +       &
             infree * kin * unit ( :, : )
-       ! dbg ISOTROPIC LIMIT
-       !    trace = npt ( 1, 1 ) % f + npt ( 2, 2 ) % f + npt ( 3, 3 ) % f
-       !    trace = trace / 3.0_dp
-       !    npt ( :, : ) % f = trace * unit ( :, : )
-       ! dbg
+       IF (debug_isotropic_limit) THEN
+          trace = npt ( 1, 1 ) % f + npt ( 2, 2 ) % f + npt ( 3, 3 ) % f
+          trace = trace / 3.0_dp
+          npt ( :, : ) % f = trace * unit ( :, : )
+       END IF
     ELSEIF ( simpar % ensemble == nph_ensemble .OR.&
-         simpar % ensemble == nph_uniaxial_ensemble .OR. &
-         simpar % ensemble == nph_uniaxial_damped_ensemble ) THEN
+             simpar % ensemble == nph_uniaxial_ensemble .OR. &
+             simpar % ensemble == nph_uniaxial_damped_ensemble ) THEN
        v = box % deth
        vi = 1._dp/v
        v0 = simpar % v0
        v0i = 1._dp/v0
-       ! orthorhombic box only  !!!
+       ! orthorhombic box ONLY
        ! Chooses only the compressive solution
        IF ( v < v0 ) THEN
           npt ( 1, 1 ) % f = virial % pv_virial ( 1, 1 ) +            &
@@ -3771,12 +3771,12 @@ END SUBROUTINE nph_uniaxial_damped
                pv_kin ( 1, 1 ) +  virial % pv_constraint ( 1, 1 ) -      &
                simpar % p0 * v + infree * kin
        ENDIF
-       ! dbg UNIAXIAL LIMIT
-       !     npt ( 1, 1 ) % f = virial % pv_virial ( 1, 1 ) +                   &
-       !       pv_kin ( 1, 1 ) +  virial % pv_constraint ( 1, 1 ) -  &
-       !       simpar % p0 * box % deth + infree * kin
-       ! dbg UNIAXIAL LIMIT
-       ! orthorhombic box only  !!!
+       IF (debug_uniaxial_limit) THEN
+          ! orthorhombic box ONLY
+          npt ( 1, 1 ) % f = virial % pv_virial ( 1, 1 ) +                   &
+               pv_kin ( 1, 1 ) +  virial % pv_constraint ( 1, 1 ) -  &
+               simpar % p0 * box % deth + infree * kin
+       END IF
     ENDIF
 
     ! update barostat velocities
@@ -3803,7 +3803,6 @@ END SUBROUTINE nph_uniaxial_damped
 !!
 !!   SOURCE
 !******************************************************************************
-
   SUBROUTINE nve_respa ( md_env, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
@@ -3908,8 +3907,6 @@ END SUBROUTINE nph_uniaxial_damped
                particle_set_respa(iparticle)%f(:))
        END DO
     END DO
-
-
 
     !     *** Velocity Verlet (first part) ***
     DO i_step=1,n_time_steps
@@ -4031,10 +4028,7 @@ END SUBROUTINE nph_uniaxial_damped
              CALL lnhc (nhc_coef,dyn_coeff_set,para_env % group)
           END IF
        END IF
-
-
        !     *** Update virial ***
-
        IF ( simpar % constraint ) CALL pv_constraint ( gci, local_molecules, &
             molecule_set,    &
             molecule_kind_set, &
@@ -4046,9 +4040,7 @@ END SUBROUTINE nph_uniaxial_damped
     END DO
     DEALLOCATE (pos,STAT=istat)
 
-
     !     *** Multiple time step (second part) ***
-
     ! Compute forces for respa force_env
     CALL force_env_calc_energy_force(force_env,error=error)
 

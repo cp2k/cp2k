@@ -23,8 +23,6 @@ MODULE init_extended_system_types
 
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type
@@ -44,16 +42,15 @@ MODULE init_extended_system_types
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
-  USE molecule_kind_types,             ONLY: get_molecule_kind_set,&
-                                             molecule_kind_type
+  USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: global_constraint_type,&
                                              molecule_type
   USE nhc_mapping,                     ONLY: nhc_to_barostat_mapping,&
                                              nhc_to_coef_mapping,&
                                              nhc_to_particle_mapping,&
                                              nhc_to_shell_mapping
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
+  USE thermostat_types,                ONLY: thermostats_info_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -85,9 +82,7 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-
   SUBROUTINE initialize_npt ( simpar, para_env, globenv, npt_info, box, work_section, error)
-
 
     TYPE(simulation_parameters_type), &
       INTENT(INOUT)                          :: simpar
@@ -102,84 +97,82 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_npt', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ind, isos, j
+    INTEGER                                  :: i, ind, j, stat
     LOGICAL                                  :: explicit, failure, restart
     REAL(KIND=dp)                            :: temp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer
     TYPE(section_vals_type), POINTER         :: work_section2
 
-!------------------------------------------------------------------------------
-! first allocating the npt_info_type
-
     NULLIFY(work_section2)
     explicit = .FALSE.
     failure=.FALSE.
     restart = .FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(npt_info),cp_fatal_level,routineP,error,failure)
+    ! first allocating the npt_info_type if requested
     SELECT CASE ( simpar % ensemble )
     CASE ( npt_i_ensemble )
-       ALLOCATE ( npt_info ( 1, 1 ), STAT = isos )
-       IF ( isos /= 0 ) CALL stop_program ( 'initial_npt', &
-            'failed to allocate npt_info')
+       ALLOCATE ( npt_info ( 1, 1 ), STAT = stat )
+       CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
        npt_info  ( :, : ) % eps = LOG ( box % deth ) / 3.0_dp
        temp = simpar % temp_ext
 
     CASE ( npt_f_ensemble )
-       ALLOCATE ( npt_info ( 3, 3 ), STAT = isos )
-       IF ( isos /= 0 ) CALL stop_program ( 'initial_npt', &
-            'failed to allocate npt_info')
+       ALLOCATE ( npt_info ( 3, 3 ), STAT = stat )
+       CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
        temp = simpar % temp_ext
 
     CASE ( nph_uniaxial_ensemble )
-       ALLOCATE ( npt_info ( 1, 1 ), STAT = isos )
-       IF ( isos /= 0 ) CALL stop_program ( 'initial_npt', &
-            'failed to allocate npt_info')
+       ALLOCATE ( npt_info ( 1, 1 ), STAT = stat )
+       CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
        temp = simpar % temp_ext
 
     CASE (  nph_uniaxial_damped_ensemble )
-       ALLOCATE ( npt_info ( 1, 1 ), STAT = isos )
-       IF ( isos /= 0 ) CALL stop_program ( 'initial_npt', &
-            'failed to allocate npt_info')
+       ALLOCATE ( npt_info ( 1, 1 ), STAT = stat )
+       CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
        temp = simpar % temp_ext
 
     CASE  DEFAULT
-       ALLOCATE ( npt_info ( 0, 0 ), STAT = isos )
-       IF ( isos /= 0 ) CALL stop_program ( 'initial_npt', &
-            'failed to allocate npt_info')
+       ! Do nothing..
+       NULLIFY(npt_info)
     END SELECT
 
-    IF (ASSOCIATED(work_section)) THEN
-       work_section2 => section_vals_get_subs_vals(work_section,"VELOCITY",error=error)
-       CALL section_vals_get(work_section2, explicit=explicit, error=error)
-       restart=explicit
-       work_section2 => section_vals_get_subs_vals(work_section,"MASS",error=error)
-       CALL section_vals_get(work_section2, explicit=explicit, error=error)
-       CALL cp_assert(restart.EQV.explicit,cp_failure_level,cp_assertion_failed,routineP,&
-            "You need to define both VELOCITY and MASS section (or none) in the BAROSTAT section",&
-            error=error, failure=failure)
-       restart=explicit.and.restart
-    END IF
+    IF (ASSOCIATED(npt_info)) THEN
+       IF (ASSOCIATED(work_section)) THEN
+          work_section2 => section_vals_get_subs_vals(work_section,"VELOCITY",error=error)
+          CALL section_vals_get(work_section2, explicit=explicit, error=error)
+          restart=explicit
+          work_section2 => section_vals_get_subs_vals(work_section,"MASS",error=error)
+          CALL section_vals_get(work_section2, explicit=explicit, error=error)
+          CALL cp_assert(restart.EQV.explicit,cp_failure_level,cp_assertion_failed,routineP,&
+               "You need to define both VELOCITY and MASS section (or none) in the BAROSTAT section",&
+               error=error, failure=failure)
+          restart=explicit.AND.restart
+       END IF
+       
 
-    IF ( restart ) THEN
-       CALL section_vals_val_get(work_section,"VELOCITY%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
-       ind = 0
-       DO i = 1, SIZE(npt_info,1)
-          DO j = 1, SIZE(npt_info,2)
-             ind = ind + 1
-             npt_info ( i, j ) % v = buffer(ind)
+       IF ( restart ) THEN
+          CALL section_vals_val_get(work_section,"VELOCITY%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
+          ind = 0
+          DO i = 1, SIZE(npt_info,1)
+             DO j = 1, SIZE(npt_info,2)
+                ind = ind + 1
+                npt_info ( i, j ) % v = buffer(ind)
+             ENDDO
           ENDDO
-       ENDDO
-       CALL section_vals_val_get(work_section,"MASS%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
-       ind = 0
-       DO i = 1, SIZE(npt_info,1)
-          DO j = 1, SIZE(npt_info,2)
-             ind = ind + 1
-             npt_info ( i, j ) % mass = buffer(ind)
+          CALL section_vals_val_get(work_section,"MASS%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
+          ind = 0
+          DO i = 1, SIZE(npt_info,1)
+             DO j = 1, SIZE(npt_info,2)
+                ind = ind + 1
+                npt_info ( i, j ) % mass = buffer(ind)
+             ENDDO
           ENDDO
-       ENDDO
-    ELSE
-       CALL init_barostat_variables ( npt_info, simpar % tau_cell, temp,  &
-            box % deth, simpar % nfree, simpar % ensemble, simpar % cmass,&
-            para_env, globenv ,error=error)
+       ELSE
+          CALL init_barostat_variables ( npt_info, simpar % tau_cell, temp,  &
+               box % deth, simpar % nfree, simpar % ensemble, simpar % cmass,&
+               para_env, globenv ,error=error)
+       END IF
+
     END IF
   END SUBROUTINE initialize_npt
 
@@ -190,6 +183,7 @@ CONTAINS
 !!     initialize_nhc_baro
 !!
 !!   FUNCTION
+!!     fire up the thermostats, if NPT
 !!
 !!   AUTHOR
 !!     CJM
@@ -199,9 +193,7 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-
   SUBROUTINE initialize_nhc_baro ( simpar, para_env, globenv, nhc, nose_section, save_mem, error )
-
 
     TYPE(simulation_parameters_type), &
       INTENT(INOUT)                          :: simpar
@@ -216,20 +208,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_baro', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: isos
-    LOGICAL                                  :: restart
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure, restart
     REAL(KIND=dp)                            :: temp
 
-!------------------------------------------------------------------------------
-! fire up the thermostats, if NPT
-
-    CALL nhc_to_barostat_mapping ( simpar, nhc, para_env)
+    failure = .FALSE.
     restart = .FALSE.
+    CALL nhc_to_barostat_mapping ( simpar, nhc, para_env)
     ! Set up the Yoshida weights
     IF ( nhc % nyosh > 0 ) THEN
-       ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = isos )
-       IF ( isos /= 0 ) CALL stop_memory ( 'initialize_nhc_baro', &
-            'nhc%dt_yosh', nhc % nyosh )
+       ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = stat )
+       CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
        CALL set_yoshida_coef ( nhc, simpar % dt )
     ENDIF
 
@@ -265,12 +254,12 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-
-  SUBROUTINE initialize_nhc_part ( box, simpar, local_molecules, molecule, &
-       molecule_kind_set, para_env, globenv, nhc, print_section, nose_section,&
+  SUBROUTINE initialize_nhc_part ( thermostats_info, box, simpar, local_molecules,&
+       molecule, molecule_kind_set, para_env, globenv, nhc, print_section, nose_section,&
        gci, save_mem, error)
 
-    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(thermostats_info_type), POINTER     :: thermostats_info
+    TYPE(cell_type), POINTER                 :: box
     TYPE(simulation_parameters_type), &
       INTENT(INOUT)                          :: simpar
     TYPE(distribution_1d_type), POINTER      :: local_molecules
@@ -288,31 +277,20 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_part', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: isos, iw, natom, &
-                                                nconstraint_ext, &
-                                                nconstraint_int, nfree, &
-                                                nrestraints_int
-    LOGICAL                                  :: restart
-    TYPE(cp_logger_type), POINTER            :: logger
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure, restart
 
-!------------------------------------------------------------------------------
-! Initialize simpar%nfree to dim (because at this point no
-! assumptions have been made about thermostatting options
-! and COM is ALWAYS zeroed in this code.  If there are
-! multiple thermostats etc...simpar % nfree will be set
-! to zero in nhc_particle_setup.f)
-
-    simpar % nfree = 6 - SUM ( box % perd ( 1:3 ) )
+    failure = .FALSE.
     restart = .FALSE.
     ! fire up the thermostats, if not NVE
-    CALL nhc_to_particle_mapping ( simpar, local_molecules, molecule, &
-         molecule_kind_set, nhc, para_env )
+
+    CALL nhc_to_particle_mapping ( thermostats_info, simpar, local_molecules,&
+         molecule, molecule_kind_set, nhc, para_env )
 
     ! Set up the Yoshida weights
     IF ( nhc % nyosh > 0 ) THEN
-       ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = isos )
-       IF ( isos /= 0 ) CALL stop_memory ( 'initialize_nhc_part', &
-            'nhc%dt_yosh', nhc % nyosh )
+       ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = stat )
+       CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
        CALL set_yoshida_coef ( nhc, simpar % dt )
     ENDIF
 
@@ -326,38 +304,6 @@ CONTAINS
             simpar % temp_ext, para_env, globenv ,error=error)
 
     ENDIF
-
-    ! compute the total number of degrees of freedom for temperature
-    CALL get_molecule_kind_set(molecule_kind_set=molecule_kind_set,&
-         natom=natom, nconstraint=nconstraint_int, nrestraints=nrestraints_int)
-    nconstraint_ext = gci%ntot - gci%nrestraint
-    nfree = 3*natom - nconstraint_int - nconstraint_ext - simpar%nfree
-
-    logger => cp_error_get_logger(error)
-    iw=cp_print_key_unit_nr(logger,print_section,"PROGRAM_RUN_INFO",&
-                                         extension=".log",error=error)
-    IF ( iw > 0 ) THEN
-       WRITE ( iw, '( /, A )' ) ' Calculation of degrees of freedom'
-       WRITE ( iw, '( T48, A, T71, I10 )' ) '       Number of atoms:', natom
-       WRITE ( iw, '( T33, A, T71, I10 )' ) &
-            ' Number of Intramolecular constraints:', nconstraint_int
-       WRITE ( iw, '( T33, A, T71, I10 )' ) &
-            ' Number of Intermolecular constraints:', nconstraint_ext
-       WRITE ( iw, '( T34, A, T71, I10 )' ) &
-            ' Invariants(translation + rotations):', simpar % nfree
-       WRITE ( iw, '( T48, A, T71, I10 )' ) '    Degrees of freedom:', nfree
-       WRITE ( iw, '()' )
-       WRITE ( iw, '( /, A )' ) ' Restraints Information'
-       WRITE ( iw, '( T33, A, T71, I10 )' ) &
-            '  Number of Intramolecular restraints:', nrestraints_int
-       WRITE ( iw, '( T33, A, T71, I10 )' ) &
-            '  Number of Intermolecular restraints:', gci%nrestraint
-    END IF
-
-    CALL cp_print_key_finished_output(iw,logger,print_section,&
-               "PROGRAM_RUN_INFO", error=error)
-
-    simpar%nfree = nfree
 
   END SUBROUTINE initialize_nhc_part
 
@@ -377,7 +323,6 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-
   SUBROUTINE initialize_nhc_coef ( dyn_coeff_set, para_env, globenv, nhc, &
              coeff_section, dt, save_mem, nose_section, error )
 
@@ -395,10 +340,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_coef', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: isos
-    LOGICAL                                  :: restart
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure, restart
     REAL(KIND=dp)                            :: kg_coeff_target_temp, tau_nhc
 
+    failure = .FALSE.
     restart = .FALSE.
     CALL section_vals_val_get(nose_section,"timecon",r_val=tau_nhc,error=error)
     CALL section_vals_val_get(coeff_section,"temperature",r_val=kg_coeff_target_temp,error=error)
@@ -415,9 +361,8 @@ CONTAINS
           CALL init_nhc_variables (nhc, tau_nhc, kg_coeff_target_temp, para_env, globenv,error=error)
           ! Set up the Yoshida weights
           IF ( nhc % nyosh > 0 ) THEN
-             ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = isos )
-             IF ( isos /= 0 ) CALL stop_memory ( 'initialize_nhc_coef', &
-                  'nhc%dt_yosh', nhc % nyosh )
+             ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = stat )
+             CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
              CALL set_yoshida_coef ( nhc, dt )
           ENDIF
        END IF
@@ -443,7 +388,6 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-
   SUBROUTINE initialize_nhc_shell(simpar, para_env, globenv, nhc, atomic_kind_set, &
              local_particles, nose_section, save_mem, error)
  
@@ -462,36 +406,32 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_shell', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: isos
-    LOGICAL                                  :: restart
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure, restart
 
-!------------------------------------------------------------------------------
-
+    failure = .FALSE.
     CALL nhc_to_shell_mapping(simpar, nhc, atomic_kind_set, local_particles, para_env)
 
-    IF(.NOT. simpar%shell_nose) RETURN
-
-    restart = .FALSE.
-    
-   ! Set up the Yoshida weights
-    IF ( nhc % nyosh > 0 ) THEN
-       ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = isos )
-       IF ( isos /= 0 ) CALL stop_memory ( routineN, &
-            'nhc%dt_yosh', nhc % nyosh )
-       CALL set_yoshida_coef ( nhc, simpar % dt )
-    ENDIF
-
-     CALL restart_nose(nhc, nose_section, save_mem, restart, error)
-
-    IF(.NOT. restart) THEN
-      ! Initialize thermostat forces and velocities
-      ! Chain variables
-      IF ( nhc % nhc_len /= 0 ) &
-            CALL init_nhc_variables (nhc, simpar%shell_tau_nhc, simpar%temp_sh_ext, &
-                 para_env, globenv, error=error)
-
-    END IF    
-
+    IF(simpar%shell_nose) THEN
+       restart = .FALSE.
+       ! Set up the Yoshida weights
+       IF ( nhc % nyosh > 0 ) THEN
+          ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = stat )
+          CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+          CALL set_yoshida_coef ( nhc, simpar % dt )
+       ENDIF
+       
+       CALL restart_nose(nhc, nose_section, save_mem, restart, error)
+       
+       IF(.NOT. restart) THEN
+          ! Initialize thermostat forces and velocities
+          ! Chain variables
+          IF ( nhc % nhc_len /= 0 ) THEN
+             CALL init_nhc_variables (nhc, simpar%shell_tau_nhc, simpar%temp_sh_ext, &
+                  para_env, globenv, error=error)
+          END IF
+       END IF
+    END IF
   END SUBROUTINE  initialize_nhc_shell
   
 !!*****
@@ -515,73 +455,72 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-
-SUBROUTINE set_yoshida_coef ( nhc, dt )
-
+  SUBROUTINE set_yoshida_coef ( nhc, dt )
 
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
     REAL(KIND=dp), INTENT(IN)                :: dt
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_yoshida_coef', &
+      routineP = moduleN//':'//routineN
+
     REAL(KIND=dp), DIMENSION(nhc%nyosh)      :: yosh_wt
 
-!------------------------------------------------------------------------------
+    SELECT CASE (nhc % nyosh)
+    CASE DEFAULT
+       CALL stop_program ( 'yoshida_coef', 'Value not available' )
+    CASE (1)
+       yosh_wt(1) = 1.0_dp
+    CASE (3)
+       yosh_wt(1) = 1.0_dp/(2.0_dp-(2.0_dp)**(1.0_dp/3.0_dp))
+       yosh_wt(2) = 1.0_dp - 2.0_dp*yosh_wt(1)
+       yosh_wt(3) = yosh_wt(1)
+    CASE (5)
+       yosh_wt(1) = 1.0_dp/(4.0_dp-(4.0_dp)**(1.0_dp/3.0_dp))
+       yosh_wt(2) = yosh_wt(1)
+       yosh_wt(4) = yosh_wt(1)
+       yosh_wt(5) = yosh_wt(1)
+       yosh_wt(3) = 1.0_dp - 4.0_dp*yosh_wt(1)
+    CASE (7)
+       yosh_wt(1) = .78451361047756_dp
+       yosh_wt(2) = .235573213359357_dp
+       yosh_wt(3) = -1.17767998417887_dp
+       yosh_wt(4) = 1.0_dp - 2.0_dp*(yosh_wt(1)+yosh_wt(2)+yosh_wt(3))
+       yosh_wt(5) = yosh_wt(3)
+       yosh_wt(6) = yosh_wt(2)
+       yosh_wt(7) = yosh_wt(1)
+    CASE (9)
+       yosh_wt(1) = 0.192_dp
+       yosh_wt(2) = 0.554910818409783619692725006662999_dp
+       yosh_wt(3) = 0.124659619941888644216504240951585_dp
+       yosh_wt(4) = -0.843182063596933505315033808282941_dp
+       yosh_wt(5) = 1.0_dp - 2.0_dp*(yosh_wt(1)+yosh_wt(2)+&
+            yosh_wt(3)+yosh_wt(4))
+       yosh_wt(6) = yosh_wt(4)
+       yosh_wt(7) = yosh_wt(3)
+       yosh_wt(8) = yosh_wt(2)
+       yosh_wt(9) = yosh_wt(1)
+    CASE (15)
+       yosh_wt(1) = 0.102799849391985_dp
+       yosh_wt(2) = -0.196061023297549e1_dp
+       yosh_wt(3) = 0.193813913762276e1_dp
+       yosh_wt(4) = -0.158240635368243_dp
+       yosh_wt(5) = -0.144485223686048e1_dp
+       yosh_wt(6) = 0.253693336566229_dp
+       yosh_wt(7) = 0.914844246229740_dp
+       yosh_wt(8) = 1.0_dp - 2.0_dp*(yosh_wt(1)+yosh_wt(2)+&
+            yosh_wt(3)+yosh_wt(4)+yosh_wt(5)+yosh_wt(6)+yosh_wt(7))
+       yosh_wt(9) = yosh_wt(7)
+       yosh_wt(10) = yosh_wt(6)
+       yosh_wt(11) = yosh_wt(5)
+       yosh_wt(12) = yosh_wt(4)
+       yosh_wt(13) = yosh_wt(3)
+       yosh_wt(14) = yosh_wt(2)
+       yosh_wt(15) = yosh_wt(1)
+    END SELECT
+    nhc % dt_yosh = dt * yosh_wt / REAL ( nhc % nc,KIND=dp)
 
-  SELECT CASE (nhc % nyosh)
-  CASE DEFAULT
-     CALL stop_program ( 'yoshida_coef', 'Value not available' )
-  CASE (1)
-     yosh_wt(1) = 1.0_dp
-  CASE (3)
-     yosh_wt(1) = 1.0_dp/(2.0_dp-(2.0_dp)**(1.0_dp/3.0_dp))
-     yosh_wt(2) = 1.0_dp - 2.0_dp*yosh_wt(1)
-     yosh_wt(3) = yosh_wt(1)
-  CASE (5)
-     yosh_wt(1) = 1.0_dp/(4.0_dp-(4.0_dp)**(1.0_dp/3.0_dp))
-     yosh_wt(2) = yosh_wt(1)
-     yosh_wt(4) = yosh_wt(1)
-     yosh_wt(5) = yosh_wt(1)
-     yosh_wt(3) = 1.0_dp - 4.0_dp*yosh_wt(1)
-  CASE (7)
-     yosh_wt(1) = .78451361047756_dp
-     yosh_wt(2) = .235573213359357_dp
-     yosh_wt(3) = -1.17767998417887_dp
-     yosh_wt(4) = 1.0_dp - 2.0_dp*(yosh_wt(1)+yosh_wt(2)+yosh_wt(3))
-     yosh_wt(5) = yosh_wt(3)
-     yosh_wt(6) = yosh_wt(2)
-     yosh_wt(7) = yosh_wt(1)
-  CASE (9)
-     yosh_wt(1) = 0.192_dp
-     yosh_wt(2) = 0.554910818409783619692725006662999_dp
-     yosh_wt(3) = 0.124659619941888644216504240951585_dp
-     yosh_wt(4) = -0.843182063596933505315033808282941_dp
-     yosh_wt(5) = 1.0_dp - 2.0_dp*(yosh_wt(1)+yosh_wt(2)+&
-                  yosh_wt(3)+yosh_wt(4))
-     yosh_wt(6) = yosh_wt(4)
-     yosh_wt(7) = yosh_wt(3)
-     yosh_wt(8) = yosh_wt(2)
-     yosh_wt(9) = yosh_wt(1)
-  CASE (15)
-     yosh_wt(1) = 0.102799849391985_dp
-     yosh_wt(2) = -0.196061023297549e1_dp
-     yosh_wt(3) = 0.193813913762276e1_dp
-     yosh_wt(4) = -0.158240635368243_dp
-     yosh_wt(5) = -0.144485223686048e1_dp
-     yosh_wt(6) = 0.253693336566229_dp
-     yosh_wt(7) = 0.914844246229740_dp
-     yosh_wt(8) = 1.0_dp - 2.0_dp*(yosh_wt(1)+yosh_wt(2)+&
-                 yosh_wt(3)+yosh_wt(4)+yosh_wt(5)+yosh_wt(6)+yosh_wt(7))
-     yosh_wt(9) = yosh_wt(7)
-     yosh_wt(10) = yosh_wt(6)
-     yosh_wt(11) = yosh_wt(5)
-     yosh_wt(12) = yosh_wt(4)
-     yosh_wt(13) = yosh_wt(3)
-     yosh_wt(14) = yosh_wt(2)
-     yosh_wt(15) = yosh_wt(1)
-  END SELECT
-  nhc % dt_yosh = dt * yosh_wt / REAL ( nhc % nc,KIND=dp)
-
-END SUBROUTINE set_yoshida_coef
+  END SUBROUTINE set_yoshida_coef
 
 !******************************************************************************
 !!****** initialize_extended_types/restart_nose [1.0] *
@@ -699,10 +638,7 @@ END SUBROUTINE set_yoshida_coef
          CALL section_vals_remove_values(work_section, error)
        END IF
      ENDIF
-
-  
   END SUBROUTINE restart_nose
-
 
 !!*****
 !******************************************************************************

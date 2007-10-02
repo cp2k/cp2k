@@ -100,7 +100,7 @@ MODULE md
      LOGICAL :: constraint
      LOGICAL :: annealing
      LOGICAL :: dump_lm 
-     INTEGER :: nfree
+     INTEGER :: nfree, nfree_rot_transl
      INTEGER :: nc
      INTEGER :: thermostat_type, shell_thermostat_type
      INTEGER :: nyosh
@@ -274,7 +274,7 @@ CONTAINS
        WRITE ( iw, '( A,T20,i10,T31,A50 )' ) ' MD| Coordinates',iprint(SIZE(iprint)), &
             ADJUSTR ( TRIM(filename) )
 
-       IF ( simpar % ensemble == nph_ensemble .OR.&
+       IF (    simpar % ensemble == nph_ensemble .OR.&
                simpar % ensemble == nph_uniaxial_ensemble .OR.&
                simpar % ensemble == nph_uniaxial_damped_ensemble.OR.&
                simpar % ensemble == npt_i_ensemble.OR.&
@@ -471,9 +471,8 @@ CPSourceFileRef,&
                 tmp2_section => section_vals_get_subs_vals(thermostat_section,"NOSE",error=error)
                 CALL section_vals_get(tmp2_section,explicit=simpar%shell_nose,error=error)
                 IF(simpar%vshell_rescale .AND. simpar%shell_nose) THEN
-                   CALL stop_program(routineN,moduleN,&
-__LINE__,&
-                                     "SHELL model: NOSE_PARTICLE and shell_nose are not compatible") 
+                   CALL stop_program(routineN,moduleN,__LINE__,&
+                        "SHELL model: NOSE_PARTICLE and shell_nose are not compatible") 
                 END IF
                 IF (simpar%shell_nose) THEN
                    CALL section_vals_val_get(tmp2_section,"LENGTH",i_val=simpar%shell_nhclen,error=error)

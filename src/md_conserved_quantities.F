@@ -300,7 +300,7 @@ CONTAINS
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
 
-    NULLIFY(dyn_coeff_set, force_env, nhc_part, nhc_coef)
+    NULLIFY(dyn_coeff_set, force_env, nhc_part, nhc_coef, nhc_shell)
     CALL get_md_env (md_env, force_env=force_env, nhc_part=nhc_part,&
          nhc_coef=nhc_coef, nhc_shell=nhc_shell, simpar=simpar, error=error )
     CALL get_nhc_energies ( nhc_part, nhc_part_pot, nhc_part_kin, int_grp, error )

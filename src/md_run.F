@@ -36,6 +36,8 @@ MODULE md_run
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_initialize,&
+                                             dyn_coeff_set_type
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
@@ -65,9 +67,9 @@ MODULE md_run
                                              temperature_control
   USE particle_list_types,             ONLY: particle_list_type
   USE termination,                     ONLY: external_control
-  USE thermostat_types,                ONLY: create_thermostat_type,&
-                                             release_thermostat_type,&
-                                             thermostat_type
+  USE thermostat_methods,              ONLY: create_thermostats
+  USE thermostat_types,                ONLY: release_thermostats,&
+                                             thermostats_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE velocity_verlet_control,         ONLY: velocity_verlet
@@ -179,13 +181,15 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(free_energy_type), POINTER          :: fe_env
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(section_vals_type), POINTER :: force_env_section, global_section, &
-      motion_section, root_section, subsys_section, work_section
+      kg_coeff_section, motion_section, root_section, subsys_section, &
+      work_section
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
-    TYPE(thermostat_type), POINTER           :: thermostat
+    TYPE(thermostats_type), POINTER          :: thermostats
 
     CALL timeset(routineN,"I","",handle)
     CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
@@ -193,8 +197,8 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY (particles, cell, cell_ref, simpar, itimes, used_time, subsys, &
-             motion_section, thermostat, barostat, force_env_section,&
-             work_section, atomic_kinds, local_particles, t, fe_env)
+         motion_section, thermostats, barostat, force_env_section, kg_coeff_section,&
+         work_section, atomic_kinds, local_particles, t, fe_env, dyn_coeff_set)
     logger => cp_error_get_logger(error)
     root_section => force_env % root_section
     para_env     => force_env % para_env
@@ -223,14 +227,22 @@ CONTAINS
          "MOTION%CONSTRAINT%LAGRANGE_MULTIPLIERS",error=error),cp_p_file)
 
     ! If requested setup Thermostats
-    CALL create_thermostat_type(thermostat, motion_section, force_env,&
+    CALL create_thermostats(thermostats, motion_section, force_env,&
          simpar, para_env, globenv, global_section, error )
 
     ! If requested setup Barostat
     CALL create_barostat_type(barostat, motion_section, force_env,&
          simpar, para_env, globenv, error )
 
-    CALL set_md_env(md_env, thermostat=thermostat, barostat=barostat, error=error)
+    CALL set_md_env(md_env, thermostats=thermostats, barostat=barostat, error=error)
+
+    ! Initialize or possibly restart KG coefficients (after thermostats)
+    CALL force_env_get(force_env, dyn_coeff_set=dyn_coeff_set, error=error )
+    IF (ASSOCIATED(dyn_coeff_set)) THEN
+       kg_coeff_section  => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF",error=error)
+       CALL dyn_coeff_set_initialize(dyn_coeff_set, motion_section, para_env,&
+            globenv, coeff_section=kg_coeff_section, error=error)
+    END IF
 
     CALL force_env_get(force_env, subsys=subsys, cell=cell, force_env_section=force_env_section,&
          error=error )
@@ -345,7 +357,7 @@ CONTAINS
          error=error)
 
     ! Deallocate Thermostats and Barostats
-    CALL release_thermostat_type(thermostat, error=error)
+    CALL release_thermostats(thermostats, error=error)
     CALL release_barostat_type(barostat, error=error)
 
     DEALLOCATE(simpar,STAT=stat)
