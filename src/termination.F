@@ -442,12 +442,12 @@ CONTAINS
           CALL open_file(file_name=exit_fname_level,unit_number=unit_number)
           CALL close_file(unit_number=unit_number,file_status="DELETE")
           WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,/)")&
-               "*** "//flag//"  run terminated by external request ***"
+               "*** "//flag//" run terminated by external request ***"
        ELSE
           INQUIRE (FILE=exit_fname,EXIST=should_stop)
           IF(should_stop) THEN
             WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,/)")&
-               "*** "//TRIM(flag)//"  run terminated by external request ***"
+               "*** "//TRIM(flag)//" run terminated by external request ***"
           ENDIF
        END IF
        IF ((.NOT.should_stop).AND.(globenv%cp2k_target_time > 0.0_dp)) THEN
@@ -456,7 +456,7 @@ CONTAINS
           IF (time_check .GT. globenv%cp2k_target_time) THEN
              should_stop = .TRUE.
              WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,f12.3,A)")&
-                  "*** "//TRIM(flag)//"  run terminated - exceeded requested execution time:",&
+                  "*** "//TRIM(flag)//" run terminated - exceeded requested execution time:",&
                   globenv%cp2k_target_time," seconds.",&
                   "*** Execution time now: ",time_check," seconds."
           END IF
