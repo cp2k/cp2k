@@ -42,7 +42,9 @@ MODULE nhc_mapping
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
-  USE message_passing,                 ONLY: mp_sum
+  USE message_passing,                 ONLY: mp_allgather,&
+                                             mp_bcast,&
+                                             mp_sum
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                              molecule_kind_type
   USE molecule_types_new,              ONLY: get_molecule,&
@@ -608,12 +610,16 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nhc_to_shell_mapping', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: i, iparticle_kind, j, nkind, nparticle_local, nshell_local, &
-      number, stat, sum_of_thermostats
+    INTEGER :: i, icount, iii, ielement, iparticle_kind, iproc, isos, j, k, ncount,& 
+      nkind, nparticle_local, nshell, nshell_local, number, offset, stat, sum_of_thermostats
+    INTEGER, DIMENSION(:), POINTER           :: array_nshell_local
+    INTEGER, DIMENSION(:), POINTER           :: massive_shell_list     
+    INTEGER, DIMENSION(:), POINTER           :: part_index, work
     LOGICAL                                  :: failure, is_shell, nointer
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
     failure = .FALSE.
+    NULLIFY(array_nshell_local,atomic_kind,massive_shell_list,part_index,work)
     IF(simpar%shell_nose) THEN
        nhc%nyosh = simpar%shell_nyosh
        nhc%nc = simpar%shell_nc
@@ -641,6 +647,9 @@ CONTAINS
           ! Global Region
           nointer = .FALSE.
           sum_of_thermostats = 1
+       ELSE IF (simpar%shell_region==do_region_molecule) THEN
+          ! Molecule Regione
+          sum_of_thermostats = nshell_local
        ELSE IF (simpar%shell_region==do_region_massive) THEN
           ! Massive Regione
           sum_of_thermostats = 3 * nshell_local
@@ -667,6 +676,58 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        nhc % num_nhc = number
 
+       IF(nhc % dis_type == do_thermo_no_communication) THEN
+         ! Particle mapping
+         ALLOCATE (part_index(nshell_local),STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         icount = 0
+         DO iparticle_kind=1,nkind
+            atomic_kind => atomic_kind_set(iparticle_kind)
+            CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                 shell_active=is_shell)
+            nparticle_local = local_particles%n_el(iparticle_kind)
+            IF(is_shell) THEN
+               DO i = 1,nparticle_local
+                 icount = icount + 1 
+                 part_index (icount) = local_particles%list(iparticle_kind)%array(i)
+               END DO 
+            END IF
+         END DO
+         !!!!!!!
+         ALLOCATE (array_nshell_local(para_env%num_pe), STAT=isos)
+         CALL mp_allgather(nshell_local,array_nshell_local,para_env%group)
+         nshell = SUM(array_nshell_local)
+         ALLOCATE (massive_shell_list(nshell),STAT=isos)
+         offset = 0
+         DO iproc = 1,para_env%num_pe
+           ncount = array_nshell_local(iproc)
+           ALLOCATE (work(ncount), STAT = isos)
+           IF(para_env%mepos == (iproc -1)) THEN
+              DO i =1,ncount
+                work(i) = part_index(i)
+              END DO
+           ELSE
+              work(:) = 0
+           END IF 
+           CALL mp_bcast(work,iproc-1,para_env%group)
+           DO i = 1,ncount
+             massive_shell_list(offset+i) =work(i)
+           END DO
+           DEALLOCATE (work,STAT=isos)
+           offset = offset + array_nshell_local(iproc)
+         ENDDO
+         DO i = 1,nshell
+           DO j = i+1,nshell
+             IF(massive_shell_list(i)>massive_shell_list(j)) THEN
+                k=massive_shell_list(i)
+                massive_shell_list(i) = massive_shell_list(j)
+                massive_shell_list(j) = k
+              END IF
+            END DO
+         END DO
+         !!!!!!!
+       END IF
+       
        ! Begin the mapping loop
        i=0
        number = 0
@@ -679,14 +740,30 @@ CONTAINS
              END DO
           END DO
           nhc%index(1) = 1
-       ELSEIF(simpar%shell_region==do_region_massive) THEN
+       ELSEIF (simpar%shell_region==do_region_molecule) THEN
+          DO i =1,nshell_local
+             number = number + 1
+             DO j = 1, 3
+                nhc % p_kin ( j, i ) % point => nhc % s_kin ( number )
+                nhc % p_scale ( j, i ) % point => nhc % v_scale ( number )
+             END DO
+             nhc % index ( number ) = part_index(i)
+          END DO
+          
+       ELSEIF (simpar%shell_region==do_region_massive ) THEN 
           ! here distribute      
           DO i =1,nshell_local
+             DO iii = 1, SIZE(massive_shell_list)
+               IF ( part_index(i) == massive_shell_list(iii)) THEN
+                  ielement = iii
+                  EXIT
+               END IF
+             END DO
              DO j = 1, 3
                 number = number + 1
                 nhc % p_kin ( j, i ) % point => nhc % s_kin ( number )
                 nhc % p_scale ( j, i ) % point => nhc % v_scale ( number )
-                nhc%index(number) = number
+                nhc % index ( number ) = (ielement -1) * 3 + j 
              END DO
           END DO
        END IF
@@ -716,6 +793,16 @@ CONTAINS
        DO i = 2, nhc % nhc_len
           nhc % nvt ( i, : ) % nkt = simpar%temp_sh_ext
        END DO
+
+       IF(ASSOCIATED(part_index)) THEN
+          DEALLOCATE(part_index, STAT=isos)
+       END IF
+       IF(ASSOCIATED(array_nshell_local)) THEN
+          DEALLOCATE(array_nshell_local, STAT=isos)
+       END IF
+       IF(ASSOCIATED(massive_shell_list)) THEN
+          DEALLOCATE(massive_shell_list, STAT=isos)
+       END IF
 
     ELSE
        CALL stop_program(routineN, 'Never reach this point!' )
