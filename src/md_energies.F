@@ -21,6 +21,8 @@
 
 MODULE md_energies
 
+  USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type, get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell
   USE cp2k_units,                      ONLY: get_cp2k_units,&
@@ -113,14 +115,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'md_energy', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: my_act, my_ext, my_form, &
+    CHARACTER(LEN=default_string_length)     :: fmd, my_act, my_ext, my_form, &
                                                 my_pos, remark1, remark2, &
                                                 title
     INTEGER :: box, cocrd, cofrc, covel, crd, delta_t, ene, ener_mix, frc, &
-      handle, i, iskip, iw, nat, nshell, outformat, shcrd, shene, shfrc, &
-      shvel, str, trsl, vel
+      handle, i, iskip, istat, iw, nat, nkind, nshell, outformat, shcrd, shene, shfrc, &
+      shvel, str, tempkind, tempshellkind, trsl, vel
     INTEGER, POINTER                         :: itimes
-    LOGICAL :: init, init_coforce, init_cotraj, init_covel, init_force, &
+    LOGICAL :: failure, init, init_coforce, init_cotraj, init_covel, init_force, &
       init_shforce, init_shtraj, init_shvel, init_traj, init_vel, is_mixed, &
       qmmm, shell_adiabatic, shell_present
     REAL(dp)                                 :: abc( 3 ), cell_angle( 3 ), &
@@ -129,6 +131,10 @@ CONTAINS
       harm_shell, hugoniot, temp, temp_baro, temp_coefs, temp_qm, temp_shell
     REAL(KIND=dp), POINTER                   :: constant, t, used_time
     REAL(KIND=dp), SAVE                      :: econs_avg, itimes_old, t_old
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: temp_kind, temp_shell_kind
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
     TYPE(average_quantities_type), SAVE      :: averages
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_logger_type), POINTER            :: logger
@@ -144,7 +150,8 @@ CONTAINS
     TYPE(unit_convert_type), POINTER         :: unit
     TYPE(virial_type), POINTER               :: virial
 
-    NULLIFY(logger)
+    failure = .FALSE.
+    NULLIFY(logger,unit)
     logger => cp_error_get_logger(error)
     CALL timeset(routineN,handle)
     CALL get_cp2k_units ( unit )
@@ -153,7 +160,11 @@ CONTAINS
     hugoniot = 0._dp
     shell_adiabatic = .FALSE.
     shell_present   = .FALSE.
-    NULLIFY(dyn_coeff_set,motion_section)
+    NULLIFY(dyn_coeff_set,motion_section, atomic_kinds, atomic_kind_set)
+    NULLIFY(cell, cell_ref,subsys, force_env)
+    NULLIFY(core_particles, particles,shell_particles)
+    NULLIFY(force_env_section,root_section,simpar,virial)
+
     CALL get_md_env(md_env=md_env, itimes=itimes, constant=constant, t=t, used_time = used_time,&
          simpar=simpar, force_env=force_env, init=init, error=error)
 
@@ -168,6 +179,20 @@ CONTAINS
 
     CALL cp_subsys_get(subsys,particles=particles,error=error)
     nat=particles%n_els
+
+    IF(simpar % temperature_per_kind) THEN
+      CALL  cp_subsys_get(subsys,atomic_kinds=atomic_kinds,error=error)
+      atomic_kind_set => atomic_kinds%els
+      nkind = SIZE(atomic_kind_set)
+      ALLOCATE(temp_kind(nkind), STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
+                               shell_adiabatic=shell_adiabatic)
+      IF(shell_adiabatic) THEN
+         ALLOCATE(temp_shell_kind(nkind), STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      END IF
+    END IF
 
     ! Computing the scalar pressure
     IF ( virial % pv_availability ) THEN
@@ -209,6 +234,32 @@ CONTAINS
        temp       = temp*kelvin
        temp_qm    = temp_qm*kelvin
        temp_baro  = temp_baro*kelvin
+    ELSEIF(simpar%temperature_per_kind) THEN
+       CALL compute_conserved_quantity(md_env,&
+            epot,&
+            cons,&
+            ekin=ekin,&
+            temp_part=temp,&
+            ekin_qm=ekin_qm,&
+            temp_qm=temp_qm,&
+            qmmm=qmmm,&
+            temp_baro=temp_baro,&
+            ekin_shell=ekin_shell,&
+            temp_shell=temp_shell,&
+            temp_kind=temp_kind,&
+            temp_shell_kind=temp_shell_kind,&
+            shell_adiabatic=shell_adiabatic,&
+            shell_present=shell_present,&
+            temperature_per_kind=simpar%temperature_per_kind,&
+            error=error)
+       temp      = temp*kelvin
+       temp_qm   = temp_qm*kelvin
+       temp_baro = temp_baro*kelvin
+       temp_shell = temp_shell*kelvin
+       temp_kind(:) = temp_kind(:)*kelvin            
+       IF(shell_adiabatic) THEN
+         temp_shell_kind(:) = temp_shell_kind(:)*kelvin            
+       END IF
     ELSE
        CALL compute_conserved_quantity(md_env,&
             epot,&
@@ -571,6 +622,20 @@ CONTAINS
          shfrc = 0 
          cofrc = 0
        END IF
+       IF(simpar%temperature_per_kind) THEN
+          tempkind=cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%TEMP_KIND",&
+                   extension=".temp",file_position=my_pos, file_action=my_act,error=error)
+          tempshellkind = 0
+          IF(shell_adiabatic) THEN
+             tempshellkind=cp_print_key_unit_nr(logger,motion_section,&
+                           "MD%PRINT%TEMP_SHELL_KIND",extension=".shtemp",&
+                           file_position=my_pos, file_action=my_act,error=error)
+          END IF
+       ELSE
+          tempkind = 0
+          tempshellkind = 0
+       END IF
+       
        !-------------------------------------------
        ! Print QMMM translation vector if requested
        !-------------------------------------------
@@ -913,6 +978,21 @@ CONTAINS
           CALL m_flush(cofrc)
        END IF
 
+       IF( tempkind > 0 ) THEN
+          fmd="(I10,F20.3,"//TRIM(ADJUSTL(cp_to_string(nkind)))//"F20.9)"     
+          fmd=TRIM(fmd)
+          WRITE (tempkind,fmd)&
+               itimes,t*femtoseconds, temp_kind(1:nkind)
+          CALL m_flush(tempkind)
+       END IF   
+       IF( tempshellkind > 0 ) THEN
+          fmd="(I10,F20.3,"//TRIM(ADJUSTL(cp_to_string(nkind)))//"F20.9)"     
+          fmd=TRIM(fmd)
+          WRITE (tempshellkind,fmd)&
+               itimes,t*femtoseconds, temp_shell_kind(1:nkind)
+          CALL m_flush(tempshellkind)
+       END IF
+
        CALL cp_print_key_finished_output(ene,logger,motion_section,&
             "MD%PRINT%ENERGY", error=error)
        CALL cp_print_key_finished_output(crd,logger,motion_section,&
@@ -955,9 +1035,28 @@ CONTAINS
          CALL cp_print_key_finished_output(cofrc,logger,motion_section,&
             "PRINT%CORE_FORCES", error=error)
        END IF
-    END IF
+       IF(simpar%temperature_per_kind) THEN
+         CALL cp_print_key_finished_output(tempkind,logger,motion_section,&
+              "MD%PRINT%TEMP_KIND", error=error) 
+         IF(shell_adiabatic) THEN
+           CALL cp_print_key_finished_output(tempshellkind,logger,motion_section,&
+              "MD%PRINT%TEMP_SHELL_KIND", error=error) 
+         END IF
+       END IF
+    END IF  ! not init
     init = .FALSE.
     CALL set_md_env(md_env,init=init,error=error)
+
+    IF(simpar % temperature_per_kind) THEN
+      DEALLOCATE(temp_kind, STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      IF(shell_adiabatic) THEN
+        DEALLOCATE(temp_shell_kind, STAT=istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      END IF
+    END IF
+
+
     CALL timestop(handle)
 
   END SUBROUTINE md_energy

@@ -1052,7 +1052,7 @@ CONTAINS
        CALL lnhc ( nhc, molecule_kind_set, molecule_set, &
             atomic_kind_set, particle_set, local_molecules, para_env % group , &
             shell_adiabatic=shell_adiabatic, shell_particle_set=shell_particle_set,&
-            core_particle_set=core_particle_set,  vshell_rescale=simpar%vshell_rescale)
+            core_particle_set=core_particle_set)
 
        ! Perform Nose'-Hoover chain dynamimcs for the core-shell motion
        CALL lnhc (nhc_shell, atomic_kind_set, particle_set, local_particles, shell_particle_set,&
@@ -1257,7 +1257,7 @@ CONTAINS
        CALL lnhc ( nhc, molecule_kind_set, molecule_set, &
             atomic_kind_set, particle_set, local_molecules, &
             vel, para_env % group , shell_adiabatic = shell_adiabatic, &
-            shell_vel=shell_vel, core_vel=core_vel, vshell_rescale=simpar%vshell_rescale)
+            shell_vel=shell_vel, core_vel=core_vel)
 
        !!      perform Nose'-Hoover chain dynamimcs for the core-shell motion
        CALL lnhc (nhc_shell, atomic_kind_set, particle_set, local_particles,&
@@ -1512,7 +1512,7 @@ CONTAINS
        CALL lnhc ( nhc_part, molecule_kind_set, molecule_set, &
             atomic_kind_set, particle_set, local_molecules, para_env % group , &
             shell_adiabatic=shell_adiabatic, shell_particle_set=shell_particle_set,&
-            core_particle_set=core_particle_set, vshell_rescale=simpar%vshell_rescale)
+            core_particle_set=core_particle_set)
 
        ! Perform Nose'-Hoover chain dynamimcs for the core-shell motion
        CALL lnhc (nhc_shell, atomic_kind_set, particle_set, local_particles, shell_particle_set,&
@@ -1755,7 +1755,7 @@ CONTAINS
        CALL lnhc ( nhc_part, molecule_kind_set, molecule_set, &
             atomic_kind_set, particle_set, local_molecules, &
             vel, para_env % group , shell_adiabatic = shell_adiabatic, &
-            shell_vel=shell_vel, core_vel=core_vel, vshell_rescale=simpar%vshell_rescale)
+            shell_vel=shell_vel, core_vel=core_vel)
 
        ! Perform Nose'-Hoover chain dynamimcs for the core-shell motion
        CALL lnhc (nhc_shell, atomic_kind_set, particle_set, local_particles,&
@@ -2888,7 +2888,7 @@ END SUBROUTINE nph_uniaxial_damped
        CALL lnhc ( nhc_part, molecule_kind_set, molecule_set, &
             atomic_kind_set, particle_set, local_molecules, para_env % group , &
             shell_adiabatic=shell_adiabatic, shell_particle_set=shell_particle_set,&
-            core_particle_set=core_particle_set, vshell_rescale=simpar%vshell_rescale)
+            core_particle_set=core_particle_set)
 
        ! Perform Nose'-Hoover chain dynamimcs for the core-shell motion
        CALL lnhc (nhc_shell, atomic_kind_set, particle_set, local_particles, shell_particle_set,&
@@ -3196,7 +3196,7 @@ END SUBROUTINE nph_uniaxial_damped
        CALL lnhc ( nhc_part, molecule_kind_set, molecule_set, &
             atomic_kind_set, particle_set, local_molecules, &
             vel, para_env % group , shell_adiabatic = shell_adiabatic, &
-            shell_vel=shell_vel, core_vel=core_vel, vshell_rescale=simpar%vshell_rescale)
+            shell_vel=shell_vel, core_vel=core_vel)
 
        ! Perform Nose'-Hoover chain dynamimcs for the core-shell motion
        CALL lnhc (nhc_shell, atomic_kind_set, particle_set, local_particles,&

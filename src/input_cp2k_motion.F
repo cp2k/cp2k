@@ -2527,10 +2527,24 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="temp_kind",&         
+            description="Compute the temperature per each kind separately",&         
+            usage="temp_kind LOGICAL",&         
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)         
+       CALL section_add_keyword(section,keyword,error=error)         
+       CALL keyword_release(keyword,error=error)   
+
+       CALL keyword_create(keyword, name="scale_temp_kind",&         
+            description="When necessary rescale the temperature per each kind separately",&         
+            usage="scale_temp_kind LOGICAL",&         
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)         
+       CALL section_add_keyword(section,keyword,error=error)         
+       CALL keyword_release(keyword,error=error)   
+
        CALL keyword_create(keyword, name="comvel_tol",&
             description="The maximum accepted velocity of the center of mass"//&
             "If it is 0 no subtraction is performed. "//&
-            "With Shell-Model, comvel may drift if SUBSYS%TOPOLOGY%REGION /= GLOBAL ", &
+            "With Shell-Model, comvel may drift if MD%THERMOSTAT%REGION /= GLOBAL ", &
             usage="comvel_tol 0.0", default_r_val=0.0_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2625,11 +2639,28 @@ CONTAINS
        CALL section_release(print_key,error=error)
               
        CALL cp_print_key_section_create(print_key,"SHELL_ENERGY",&
-            description="Controls the output the shell ener file (only if shell-model)",&
+            description="Controls the output of the shell-energy file (only if shell-model)",&
             print_level=medium_print_level, common_iter_levels=1,&
             filename="",error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"TEMP_KIND",&
+            description="Controls the output of the temperature"//&
+            " computed separately for each kind",&
+            print_level=low_print_level, common_iter_levels=1,&
+            filename="",error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"TEMP_SHELL_KIND",&
+            description="Controls the output of the temperature of the"//&
+            " shell-core motion computed separately for each kind",&
+            print_level=medium_print_level, common_iter_levels=1,&
+            filename="",error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
 
        CALL cp_print_key_section_create(print_key,"COEFFICIENTS",&
             description="Controls the printing of coefficients during an MD run.", &

@@ -296,7 +296,7 @@ CONTAINS
 !******************************************************************************
   SUBROUTINE lnhc_particle_set ( nhc, molecule_kind_set, molecule_set,  &
        atomic_kind_set, particle_set, local_molecules, group, shell_adiabatic,&
-       shell_particle_set, core_particle_set, vshell_rescale)
+       shell_particle_set, core_particle_set)
 
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
@@ -308,12 +308,10 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: shell_adiabatic
     TYPE(particle_type), OPTIONAL, POINTER   :: shell_particle_set( : ), &
                                                 core_particle_set( : )
-    LOGICAL, OPTIONAL                        :: vshell_rescale
 
     INTEGER :: first_atom, handle, i, ii, ikind, imol, imol_local, ipart, jj, &
       last_atom, n, nmol_local, npart_local, shell_index
-    LOGICAL                                  :: my_shell_adiabatic, &
-                                                my_vshell_rescale
+    LOGICAL                                  :: my_shell_adiabatic
     REAL(KIND=dp)                            :: fac_massc, fac_masss, flops, &
                                                 mass, vc(3), vs(3)
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -324,8 +322,6 @@ CONTAINS
     flops = 0.0_dp
     my_shell_adiabatic = .FALSE.
     IF(PRESENT(shell_adiabatic)) my_shell_adiabatic = shell_adiabatic
-    my_vshell_rescale = .FALSE.
-    IF(PRESENT(vshell_rescale)) my_vshell_rescale = vshell_rescale
    
     ! get force on first thermostat for all the chains in the system.
     nhc % v_scale = 1.0_dp
@@ -401,15 +397,6 @@ CONTAINS
                fac_massc = shell%mass_core/mass
                vs(1:3) = shell_particle_set(shell_index)%v(1:3)
                vc(1:3) = core_particle_set(shell_index)%v(1:3)
-               IF(MY_VSHELL_RESCALE) THEN
-                 jj = jj + 2
-                 shell_particle_set(shell_index )%v(1) = vs(1) * nhc % p_scale ( 1, ii ) % point
-                 shell_particle_set(shell_index )%v(2) = vs(2) * nhc % p_scale ( 2, ii ) % point
-                 shell_particle_set(shell_index )%v(3) = vs(3) * nhc % p_scale ( 3, ii ) % point
-                 core_particle_set(shell_index )%v(1) = vc(1) * nhc % p_scale ( 1, ii ) % point
-                 core_particle_set(shell_index) %v(2) = vc(2) * nhc % p_scale ( 2, ii ) % point
-                 core_particle_set(shell_index) %v(3) = vc(3) * nhc % p_scale ( 3, ii ) % point
-               ELSE
                  jj = jj + 6
                  shell_particle_set(shell_index)%v(1) = particle_set(ipart)%v(1) +&
                        fac_massc*(vs(1)-vc(1))
@@ -423,7 +410,6 @@ CONTAINS
                        fac_masss*(vc(2)-vs(2))
                  core_particle_set(shell_index)%v(3) = particle_set(ipart)%v(3) +&
                        fac_masss*(vc(3)-vs(3))
-               END IF
    
             END IF
           END DO  ! ipart
@@ -480,7 +466,7 @@ CONTAINS
 !******************************************************************************
   SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set, atomic_kind_set,&
        particle_set, local_molecules, vel, group,  shell_adiabatic, shell_vel, &
-       core_vel, vshell_rescale)
+       core_vel)
 
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
@@ -492,13 +478,11 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: group
     LOGICAL, INTENT(IN), OPTIONAL            :: shell_adiabatic
     REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: shell_vel(:,:), core_vel(:,:)
-    LOGICAL, OPTIONAL                        :: vshell_rescale
 
     INTEGER :: first_atom, handle, i, ii, ikind, imol, imol_local, ipart, jj, &
       last_atom, n, nmol_local, npart_local, shell_index
     INTEGER, SAVE                            :: iter = 0
-    LOGICAL                                  :: my_shell_adiabatic, &
-                                                my_vshell_rescale
+    LOGICAL                                  :: my_shell_adiabatic
     REAL(KIND=dp)                            :: fac_massc, fac_masss, flops, &
                                                 mass, mtot, vc(3), vcom(3), &
                                                 vs(3)
@@ -510,8 +494,6 @@ CONTAINS
     flops = 0.0_dp
     my_shell_adiabatic = .FALSE.
     IF(PRESENT(shell_adiabatic)) my_shell_adiabatic = shell_adiabatic
-    my_vshell_rescale = .FALSE.
-    IF(PRESENT(vshell_rescale)) my_vshell_rescale = vshell_rescale
 
     ! get force on first thermostat for all the chains in the system.
     nhc % v_scale = 1.0_dp
@@ -535,7 +517,6 @@ CONTAINS
                   + mass * vel ( 2, ipart ) * vel ( 2, ipart )
              nhc % p_kin ( 3, ii ) % point = nhc % p_kin ( 3, ii ) % point &
                   + mass * vel ( 3, ipart ) * vel ( 3, ipart )
-
           END DO
        END DO
     END DO
@@ -588,15 +569,6 @@ CONTAINS
                    fac_massc = shell%mass_core/mass
                    vs(1:3) = shell_vel( 1:3,shell_index )
                    vc(1:3) = core_vel( 1:3,shell_index )
-                   IF(MY_VSHELL_RESCALE) THEN
-                      jj = jj + 2
-                      shell_vel( 1,shell_index ) =  vs(1) * nhc % p_scale ( 1, ii ) % point
-                      shell_vel( 2,shell_index ) =  vs(2) * nhc % p_scale ( 2, ii ) % point
-                      shell_vel( 3,shell_index ) =  vs(3) * nhc % p_scale ( 3, ii ) % point
-                      core_vel( 1,shell_index ) =  vc(1) * nhc % p_scale ( 1, ii ) % point
-                      core_vel( 2,shell_index ) =  vc(2) * nhc % p_scale ( 2, ii ) % point
-                      core_vel( 3,shell_index ) =  vc(3) * nhc % p_scale ( 3, ii ) % point
-                   ELSE
                       jj = jj + 6
                       shell_vel( 1,shell_index ) = vel( 1, ipart ) + fac_massc*(vs(1)-vc(1))
                       shell_vel( 2,shell_index ) = vel( 2, ipart ) + fac_massc*(vs(2)-vc(2))
@@ -604,7 +576,6 @@ CONTAINS
                       core_vel( 1,shell_index ) = vel( 1, ipart ) + fac_masss*(vc(1)-vs(1))
                       core_vel( 2,shell_index ) = vel( 2, ipart ) + fac_masss*(vc(2)-vs(2))
                       core_vel( 3,shell_index ) = vel( 3, ipart ) + fac_masss*(vc(3)-vs(3))
-                   END IF
                 END IF
                 IF(debug_this_module) THEN
                    vcom(1) = vcom(1) + mass * vel ( 1, ipart )

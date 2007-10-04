@@ -124,13 +124,13 @@ MODULE md
      INTEGER :: shell_nhclen
      INTEGER :: shell_region, part_region
      INTEGER :: shell_nyosh
-     LOGICAL :: vshell_rescale
      LOGICAL :: shell_nose
      REAL (KIND=dp) :: shell_tau_nhc
      REAL (KIND=dp) :: temp_sh_ext
      REAL (KIND=dp) :: temp_sh_tol
      REAL (KIND=dp) :: csvr_thermo_energy
-
+     LOGICAL :: temperature_per_kind
+     LOGICAL :: scale_temperature_per_kind
   END TYPE simulation_parameters_type
 
   !!***
@@ -385,6 +385,8 @@ CPSourceFileRef,&
        CALL section_vals_val_get(md_section,"TEMPERATURE",r_val=simpar%temp_ext,error=error)
        CALL section_vals_val_get(md_section,"TEMP_TOL",r_val=simpar%temp_tol,error=error)
        CALL section_vals_val_get(md_section,"COMVEL_TOL",r_val=simpar%comvel_tol,error=error)
+       CALL section_vals_val_get(md_section,"TEMP_KIND",l_val=simpar%temperature_per_kind,error=error)
+       CALL section_vals_val_get(md_section,"SCALE_TEMP_KIND",l_val=simpar%scale_temperature_per_kind,error=error)
 
        IF (simpar%ensemble == langevin_ensemble) THEN
           CALL section_vals_val_get(md_section, "GAMMA", r_val=simpar%gamma, error=error)
@@ -459,7 +461,6 @@ CPSourceFileRef,&
        IF (explicit) THEN
           CALL section_vals_val_get(tmp_section,"TEMPERATURE",r_val=simpar%temp_sh_ext,error=error)
           CALL section_vals_val_get(tmp_section,"TEMP_TOL",r_val=simpar%temp_sh_tol,error=error)
-          CALL section_vals_val_get(tmp_section,"NOSE_PARTICLE",l_val=simpar%vshell_rescale,error=error)
           thermostat_section => section_vals_get_subs_vals(tmp_section,"THERMOSTAT",error=error)
           CALL section_vals_get(thermostat_section, explicit=explicit, error=error)
           IF (explicit) THEN
@@ -470,10 +471,6 @@ CPSourceFileRef,&
                 CALL section_vals_val_get(thermostat_section,"REGION",i_val=simpar%shell_region,error=error)
                 tmp2_section => section_vals_get_subs_vals(thermostat_section,"NOSE",error=error)
                 CALL section_vals_get(tmp2_section,explicit=simpar%shell_nose,error=error)
-                IF(simpar%vshell_rescale .AND. simpar%shell_nose) THEN
-                   CALL stop_program(routineN,moduleN,__LINE__,&
-                        "SHELL model: NOSE_PARTICLE and shell_nose are not compatible") 
-                END IF
                 IF (simpar%shell_nose) THEN
                    CALL section_vals_val_get(tmp2_section,"LENGTH",i_val=simpar%shell_nhclen,error=error)
                    CALL section_vals_val_get(tmp2_section,"YOSHIDA",i_val=simpar%shell_nyosh,error=error)
@@ -545,7 +542,6 @@ CPSourceFileRef,&
     simpar % shell_nose = .FALSE.
     simpar % temp_sh_ext = 0.0_dp
     simpar % temp_sh_tol = 0.0_dp
-    simpar % vshell_rescale=.FALSE.
     simpar % shell_nhclen = 3
     simpar % shell_nc = 2
     simpar % shell_nyosh = 3
