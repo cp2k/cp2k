@@ -178,7 +178,7 @@ CONTAINS
           work_section => section_vals_get_subs_vals(thermo_shell_section,"NOSE",error=error)
           CALL initialize_nhc_shell(thermostats%thermostat_info_shell, simpar, local_molecules,&
             molecules_new%els, molecule_kinds_new%els, para_env, globenv,&
-            thermostats%thermostat_shell%nhc, nose_section=work_section,&
+            thermostats%thermostat_shell%nhc, nose_section=work_section,gci=gci,&
             save_mem=save_mem, error=error) 
           CALL init_nhc_forces( nhc=thermostats%thermostat_shell%nhc,error=error)
        ELSE

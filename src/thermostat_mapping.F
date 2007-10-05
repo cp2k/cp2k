@@ -66,7 +66,8 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE thermostat_mapping_region(dis_type, natoms_local, nmol_local, const_mol,&
-       tot_const, point, local_molecules, molecule_kind_set, simpar, do_shell, error)
+       tot_const, point, local_molecules, molecule_kind_set, simpar, do_shell,&
+       error)
     INTEGER, INTENT(IN)                      :: dis_type
     INTEGER, INTENT(OUT)                     :: natoms_local, nmol_local
     INTEGER, DIMENSION(:), POINTER           :: const_mol, tot_const

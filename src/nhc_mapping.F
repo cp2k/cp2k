@@ -43,6 +43,7 @@ MODULE nhc_mapping
   USE message_passing,                 ONLY: mp_sum
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: get_molecule,&
+                                             global_constraint_type,&
                                              molecule_type
   USE termination,                     ONLY: stop_program
   USE thermostat_mapping,              ONLY: massive_list_generate,&
@@ -171,7 +172,7 @@ CONTAINS
 !!
 !!*** *************************************************************************
   SUBROUTINE nhc_to_particle_mapping ( thermostat_info, simpar, local_molecules,&
-       molecule_set, molecule_kind_set, nhc, para_env, error)
+       molecule_set, molecule_kind_set, nhc, para_env, gci, error)
 
     TYPE(thermostat_info_type), POINTER      :: thermostat_info
     TYPE(simulation_parameters_type), &
@@ -181,6 +182,7 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(global_constraint_type), POINTER    :: gci
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nhc_to_particle_mapping', &
@@ -206,7 +208,7 @@ CONTAINS
        CALL setup_nhc_thermostat(nhc, thermostat_info, simpar%nyosh, simpar%nc,&
             simpar%nhclen, simpar%part_region, deg_of_freedom, massive_atom_list,&
             molecule_kind_set, local_molecules, molecule_set, para_env, natoms_local, &
-            simpar, sum_of_thermostats, error=error)
+            simpar, sum_of_thermostats, gci, error=error)
        
        ! Sum up the number of degrees of freedom on each thermostat.
        ! first: initialize the target
@@ -268,7 +270,7 @@ CONTAINS
   SUBROUTINE setup_nhc_thermostat ( nhc, thermostat_info, nyosh, nc, nhclen,&
        part_region, deg_of_freedom, massive_atom_list, molecule_kind_set,&
        local_molecules, molecule_set, para_env, natoms_local, simpar, sum_of_thermostats,&
-       shell, error)
+       gci, shell, error)
 
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(thermostat_info_type), POINTER      :: thermostat_info
@@ -283,6 +285,7 @@ CONTAINS
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     INTEGER, INTENT(OUT)                     :: sum_of_thermostats
+    TYPE(global_constraint_type), POINTER    :: gci
     LOGICAL, INTENT(IN), OPTIONAL            :: shell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -338,7 +341,7 @@ CONTAINS
     
     CALL nhc_region_mapping (region, nhc, nkind, point, deg_of_freedom,&
          local_molecules, const_mol, massive_atom_list, tot_const,&
-         molecule_set, number_of_thermostats, do_shell, error)
+         molecule_set, number_of_thermostats, do_shell, gci, error)
     
     check = (number==number_of_thermostats)
     CPPrecondition(check,cp_fatal_level,routineP,error,failure)
@@ -376,7 +379,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE nhc_region_mapping (region, nhc, nkind, point, deg_of_freedom, local_molecules,&
-       const_mol, massive_atom_list, tot_const, molecule_set, number, do_shell, error)
+       const_mol, massive_atom_list, tot_const, molecule_set, number, do_shell, gci, error)
 
     INTEGER, INTENT(IN)                      :: region
     TYPE(lnhc_parameters_type), POINTER      :: nhc
@@ -389,20 +392,26 @@ CONTAINS
     TYPE(molecule_type), POINTER             :: molecule_set(:)
     INTEGER, INTENT(OUT)                     :: number
     LOGICAL, INTENT(IN)                      :: do_shell
+    TYPE(global_constraint_type), POINTER    :: gci
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nhc_region_mapping', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: first_atom, first_shell, icount, ielement, ii, iii, ikind, &
-      imol, imol_local, ipart, jj, k, kk, last_atom, last_shell, nmol_local
-    LOGICAL                                  :: check, failure
+      imol, imol_local, ipart, jj, k, kk, last_atom, last_shell, nglob_cns, &
+      nmol_local
+    LOGICAL                                  :: check, failure, &
+                                                global_constraints
     TYPE(molecule_type), POINTER             :: molecule
 
     failure        = .FALSE.
+    global_constraints = ASSOCIATED(gci)
     deg_of_freedom = 0
     icount         = 0
     number         = 0
+    nglob_cns      = 0
+    IF (global_constraints) nglob_cns = gci%ntot-gci%nrestraint
     IF ( region==do_region_global) THEN
        ! Global Region
        check = ( nhc % dis_type == do_thermo_communication )
@@ -410,22 +419,23 @@ CONTAINS
        DO ikind = 1, nkind
           DO jj = point ( 1, ikind ), point ( 2, ikind )
              DO ii = 1, 3
-                nhc%p_kin ( ii, jj ) % point => nhc % s_kin ( 1 )
-                nhc%p_scale ( ii, jj ) % point => nhc % v_scale ( 1 )
+                nhc%p_kin(ii,jj)%point => nhc%s_kin(1)
+                nhc%p_scale(ii,jj)%point => nhc%v_scale(1)
              END DO
           END DO
-          deg_of_freedom ( 1 ) = deg_of_freedom ( 1 ) + tot_const ( ikind )
+          deg_of_freedom(1) = deg_of_freedom(1) + tot_const(ikind)
           nhc%index(1) = 1
           number = 1
        END DO
+       deg_of_freedom(1) = deg_of_freedom(1) + nglob_cns
     ELSE IF ( region==do_region_molecule) THEN
        ! Molecular Region
        IF      ( nhc % dis_type == do_thermo_no_communication ) THEN
           ! This is the standard case.. 
           DO ikind = 1, nkind
-             nmol_local =  local_molecules % n_el ( ikind )
+             nmol_local =  local_molecules % n_el (ikind)
              DO imol_local = 1, nmol_local
-                imol = local_molecules % list ( ikind ) % array ( imol_local )
+                imol = local_molecules%list(ikind)%array(imol_local)
                 icount = icount + 1
                 number = number + 1
                 nhc%index(number) = imol
@@ -455,6 +465,9 @@ CONTAINS
        ELSE
           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END IF
+       IF (nglob_cns/=0) THEN
+          CALL stop_program ( routineN, "Molecular thermostats with global constraints are impossible!" )
+       END IF
     ELSE IF ( region==do_region_massive) THEN
        ! Massive Region
        check = ( nhc % dis_type == do_thermo_no_communication )
@@ -471,8 +484,8 @@ CONTAINS
                 first_atom = first_shell
                 last_atom  = last_shell
              ELSE
-                IF ( tot_const ( icount ) > 0 ) THEN 
-                   CALL stop_program ( routineN, "Massive thermostats with constraints are impossible" )
+                IF ((tot_const(icount)>0).OR.(nglob_cns/=0)) THEN 
+                   CALL stop_program ( routineN, "Massive thermostats with constraints are impossible!" )
                 END IF
              END IF
              k = 0
@@ -667,7 +680,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE nhc_to_shell_mapping( thermostat_info, simpar, local_molecules,&
-       molecule_set, molecule_kind_set, nhc, para_env, error)
+       molecule_set, molecule_kind_set, nhc, para_env, gci, error)
 
     TYPE(thermostat_info_type), POINTER      :: thermostat_info
     TYPE(simulation_parameters_type), &
@@ -677,6 +690,7 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(global_constraint_type), POINTER    :: gci
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nhc_to_shell_mapping', &
@@ -703,7 +717,7 @@ CONTAINS
        CALL setup_nhc_thermostat(nhc, thermostat_info, simpar%shell_nyosh, simpar%shell_nc,&
             simpar%shell_nhclen, simpar%shell_region, deg_of_freedom, massive_shell_list,&
             molecule_kind_set, local_molecules, molecule_set, para_env, nshell_local, &
-            simpar, sum_of_thermostats, shell=.TRUE., error=error)
+            simpar, sum_of_thermostats, gci, shell=.TRUE., error=error)
 
        ! Sum up the number of degrees of freedom on each thermostat.
        ! first: initialize the target

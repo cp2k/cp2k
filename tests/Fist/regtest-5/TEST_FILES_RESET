@@ -94,3 +94,6 @@ H2OFe-5_75-7.inp
 water_3_dist_2_restr.inp
 #  
 interface.inp
+#bug fix: thermostat region MOLECULE not allowed with global constraints
+nh3_4x6_ext.inp
+nh3_r4x6_ext.inp

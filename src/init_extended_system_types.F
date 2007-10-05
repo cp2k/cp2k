@@ -281,7 +281,7 @@ CONTAINS
     ! fire up the thermostats, if not NVE
 
     CALL nhc_to_particle_mapping ( thermostat_info, simpar, local_molecules,&
-         molecule, molecule_kind_set, nhc, para_env, error )
+         molecule, molecule_kind_set, nhc, para_env, gci, error )
 
     ! Set up the Yoshida weights
     IF ( nhc % nyosh > 0 ) THEN
@@ -385,7 +385,7 @@ CONTAINS
 !******************************************************************************
   SUBROUTINE initialize_nhc_shell( thermostat_info, simpar, local_molecules,&
        molecule, molecule_kind_set, para_env, globenv, nhc, nose_section,&
-       save_mem, error)
+       gci, save_mem, error)
  
     TYPE(thermostat_info_type), POINTER      :: thermostat_info
     TYPE(simulation_parameters_type), &
@@ -397,6 +397,7 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(section_vals_type), POINTER         :: nose_section
+    TYPE(global_constraint_type), POINTER    :: gci
     LOGICAL, INTENT(IN)                      :: save_mem
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -408,7 +409,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL nhc_to_shell_mapping(thermostat_info, simpar, local_molecules,&
-       molecule, molecule_kind_set, nhc, para_env, error)
+       molecule, molecule_kind_set, nhc, para_env, gci, error)
 
     IF(simpar%shell_nose) THEN
        restart = .FALSE.
