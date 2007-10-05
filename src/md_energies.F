@@ -22,7 +22,8 @@
 MODULE md_energies
 
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
-  USE atomic_kind_types,               ONLY: atomic_kind_type, get_atomic_kind_set
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell
   USE cp2k_units,                      ONLY: get_cp2k_units,&
@@ -119,19 +120,19 @@ CONTAINS
                                                 my_pos, remark1, remark2, &
                                                 title
     INTEGER :: box, cocrd, cofrc, covel, crd, delta_t, ene, ener_mix, frc, &
-      handle, i, iskip, istat, iw, nat, nkind, nshell, outformat, shcrd, shene, shfrc, &
-      shvel, str, tempkind, tempshellkind, trsl, vel
+      handle, i, iskip, istat, iw, nat, nkind, nshell, outformat, shcrd, &
+      shene, shfrc, shvel, str, tempkind, tempshellkind, trsl, vel
     INTEGER, POINTER                         :: itimes
-    LOGICAL :: failure, init, init_coforce, init_cotraj, init_covel, init_force, &
-      init_shforce, init_shtraj, init_shvel, init_traj, init_vel, is_mixed, &
-      qmmm, shell_adiabatic, shell_present
+    LOGICAL :: failure, init, init_coforce, init_cotraj, init_covel, &
+      init_force, init_shforce, init_shtraj, init_shvel, init_traj, init_vel, &
+      is_mixed, qmmm, shell_adiabatic, shell_present
     REAL(dp)                                 :: abc( 3 ), cell_angle( 3 ), &
                                                 econs, pv_scalar, pv_xx
     REAL(KIND=dp) :: cons, ekin, ekin_coefs, ekin_qm, ekin_shell, epot, &
       harm_shell, hugoniot, temp, temp_baro, temp_coefs, temp_qm, temp_shell
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: temp_kind, temp_shell_kind
     REAL(KIND=dp), POINTER                   :: constant, t, used_time
     REAL(KIND=dp), SAVE                      :: econs_avg, itimes_old, t_old
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: temp_kind, temp_shell_kind
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set

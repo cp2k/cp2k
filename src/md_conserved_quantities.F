@@ -119,31 +119,32 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT), OPTIONAL :: cons_rel, ekin, temp_part, &
       ekin_qm, temp_qm, temp_baro, ekin_coefs, temp_coefs, ekin_shell, &
       temp_shell
-    REAL(KIND=dp), DIMENSION(:), POINTER,&
-       OPTIONAL                              :: temp_kind, temp_shell_kind
-    LOGICAL, INTENT(OUT), OPTIONAL           :: qmmm, &
-                                                shell_present
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: temp_kind, temp_shell_kind
+    LOGICAL, INTENT(OUT), OPTIONAL           :: qmmm
     LOGICAL, INTENT(INOUT), OPTIONAL         :: shell_adiabatic
+    LOGICAL, INTENT(OUT), OPTIONAL           :: shell_present
     LOGICAL, INTENT(IN), OPTIONAL            :: temperature_per_kind
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_conserved_quantity', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ikind, int_grp, istat, nfree_qm, &
-                                                nfree_shell, nkind
+    INTEGER                                  :: ikind, int_grp, istat, &
+                                                nfree_qm, nfree_shell, nkind
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: nfree_kind, nfree_shell_kind
     INTEGER, POINTER                         :: itimes
-    INTEGER, DIMENSION(:), ALLOCATABLE       :: nfree_kind, nfree_shell_kind
     LOGICAL                                  :: failure, my_shell_adiabatic, &
-                                                my_shell_present, myqmmm,&
-                                                my_temperature_per_kind
+                                                my_shell_present, &
+                                                my_temperature_per_kind, &
+                                                myqmmm
     REAL(KIND=dp), POINTER                   :: constant
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(md_ener_type)                       :: md_ener
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
 
-    failure = .False.  
+    failure = .FALSE.  
 
     md_ener%temp_part   = 0.0_dp
     md_ener%temp_baro   = 0.0_dp
@@ -626,17 +627,19 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nfree, int_grp
     LOGICAL, INTENT(OUT)                     :: shell_present
     LOGICAL, INTENT(IN)                      :: temperature_per_kind
-    INTEGER, INTENT(OUT), DIMENSION(:), OPTIONAL :: nfree_kind, nfree_shell_kind
-    REAL(KIND=dp), DIMENSION(:), POINTER,&
-      OPTIONAL                               :: ekin_kind, ekin_shell_kind
+    INTEGER, DIMENSION(:), INTENT(OUT), &
+      OPTIONAL                               :: nfree_kind, nfree_shell_kind
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: ekin_kind, ekin_shell_kind
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_part_ke', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: i, iparticle, iparticle_kind, iparticle_local, istat, nparticle_kind, &
+    INTEGER :: i, iparticle, iparticle_kind, iparticle_local, nparticle_kind, &
       nparticle_local, shell_index
-    LOGICAL                                  :: failure, is_shell, shell_adiabatic
+    LOGICAL                                  :: failure, is_shell, &
+                                                shell_adiabatic
     REAL(KIND=dp)                            :: ekin_c, ekin_com, ekin_s, mass
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &

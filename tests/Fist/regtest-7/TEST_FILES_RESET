@@ -41,3 +41,5 @@ uo2_shell_nvt_shnose_r.inp
 uo2_shell_nvt_shnose_b.inp
 # numerics due to cleaning and reorganization of md_run
 uo2_nvt.inp
+# bug fix the old initialization
+uo2_shell_nvt_shnose_b.inp

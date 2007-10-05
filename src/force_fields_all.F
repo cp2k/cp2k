@@ -2049,8 +2049,9 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: atmname
-    INTEGER                                  :: counter, first, handle2, i, &
-                                                j, last, n, natom, nmol, &
+    INTEGER                                  :: counter, first, first_shell, &
+                                                handle2, i, j, last, &
+                                                last_shell, n, natom, nmol, &
                                                 nshell_tot, stat
     INTEGER, DIMENSION(:), POINTER           :: molecule_list, shell_list_tmp
     LOGICAL :: failure, found_shell, is_a_shell, is_link_atom, null_massfrac, &
@@ -2068,6 +2069,7 @@ CPSourceFileRef,&
     CALL timeset(routineN,'I','',handle2)
     nshell_tot = 0
     n = 0
+    first_shell = 1
     null_massfrac =.FALSE.
 
     NULLIFY(global_section)
@@ -2165,8 +2167,8 @@ CPSourceFileRef,&
        n = 0
        DO i=1,SIZE(molecule_kind_set)
           molecule_kind => molecule_kind_set(i)
-          CALL get_molecule_kind(molecule_kind=molecule_kind,&
-               molecule_list=molecule_list, natom=natom, nmolecule=nmol)
+          CALL get_molecule_kind(molecule_kind=molecule_kind,molecule_list=molecule_list,&
+               natom=natom, nmolecule=nmol)
           molecule=>molecule_set(molecule_list(1))
           CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
           ALLOCATE(shell_list_tmp(natom),STAT=stat)
@@ -2174,40 +2176,46 @@ CPSourceFileRef,&
           counter = 0
           DO j = first, last
              atomic_kind => particle_set(j)%atomic_kind
-             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                  shell_active=is_a_shell)
+             first_shell = MIN(first_shell, MAX(1,particle_set(j)%shell_index))
+             CALL get_atomic_kind(atomic_kind=atomic_kind,shell_active=is_a_shell)
              IF(is_a_shell) THEN
                 counter = counter+1
                 shell_list_tmp(counter) = j - first + 1
              END IF
           END DO  ! j atom in molecule_kind i, molecule 1 of the molecule_list
           IF(counter/=0) THEN
-             CALL get_molecule_kind(molecule_kind=molecule_kind,&
-                  shell_list=shell_list)
+             ! Setup of fist_shell and last_shell for all molecules..
+             DO j = 1, SIZE(molecule_list)
+                last_shell = first_shell + counter -1
+                molecule=>molecule_set(molecule_list(j))
+                molecule%first_shell = first_shell
+                molecule%last_shell  = last_shell
+                first_shell = last_shell + 1
+             END DO
+             ! Setup of shell_list
+             CALL get_molecule_kind(molecule_kind=molecule_kind,shell_list=shell_list)
              IF(ASSOCIATED(shell_list)) THEN
                 DEALLOCATE(shell_list,STAT=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                NULLIFY(shell_list)
              END IF
              ALLOCATE(shell_list(counter), STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              DO j = 1, counter
                 shell_list(j)%a = shell_list_tmp(j)
                 atomic_kind => particle_set(shell_list_tmp(j)+first-1)%atomic_kind
-                CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                     name=atmname, shell=shell)
+                CALL get_atomic_kind(atomic_kind=atomic_kind,name=atmname, shell=shell)
                 CALL uppercase(atmname)
                 shell_list(j)%name = atmname 
                 shell_list(j)%shell_kind => shell
              END DO
-             CALL set_molecule_kind(molecule_kind=molecule_kind,&
-                  nshell=counter, shell_list=shell_list)
+             CALL set_molecule_kind(molecule_kind=molecule_kind, nshell=counter,shell_list=shell_list)
           END IF
           DEALLOCATE(shell_list_tmp,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           n = n + nmol * counter 
        END DO  ! i molecule kind
     END IF  ! nshell_tot>0
+    CPPostcondition(first_shell-1==nshell_tot,cp_failure_level,routineP,error,failure)
     CPPostcondition(n==nshell_tot,cp_failure_level,routineP,error,failure)
     CALL timestop(0.0_dp,handle2)
 

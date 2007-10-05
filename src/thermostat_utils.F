@@ -23,7 +23,6 @@ MODULE thermostat_utils
   USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE input_constants,                 ONLY: &
        do_region_global, do_region_massive, do_region_molecule, &
@@ -39,7 +38,8 @@ MODULE thermostat_utils
                                              molecule_kind_type
   USE molecule_types_new,              ONLY: global_constraint_type
   USE termination,                     ONLY: stop_program
-  USE thermostat_types,                ONLY: thermostats_type
+  USE thermostat_types,                ONLY: thermostat_info_type,&
+                                             thermostats_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -47,7 +47,8 @@ MODULE thermostat_utils
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: compute_degrees_of_freedom     
+  PUBLIC :: compute_degrees_of_freedom,&
+            setup_thermostat_info    
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'thermostat_utils'
 
@@ -69,15 +70,14 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE compute_degrees_of_freedom ( thermostats, cell, simpar, molecule_kind_set,&
-       local_molecules, para_env, print_section, gci, error)
+       local_molecules, print_section, gci, error)
 
     TYPE(thermostats_type), POINTER          :: thermostats
     TYPE(cell_type), POINTER                 :: cell
     TYPE(simulation_parameters_type), &
-      INTENT(INOUT)                          :: simpar
+      POINTER                                :: simpar
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_molecules
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: print_section
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -87,13 +87,14 @@ CONTAINS
 
     INTEGER                                  :: iw, natom, nconstraint_ext, &
                                                 nconstraint_int, nfree, &
-                                                nrestraints_int, number
+                                                nrestraints_int
     TYPE(cp_logger_type), POINTER            :: logger
 
     simpar % nfree = 6 - SUM(cell%perd(1:3))
     ! Collect info about thermostats
-    CALL thermostats_info(thermostats, simpar, molecule_kind_set, local_molecules,&
-         para_env, error)
+    CALL setup_thermostat_info(thermostats%thermostat_info_part, molecule_kind_set,&
+         local_molecules, simpar%part_region, simpar%ensemble, simpar%nfree, &
+         error=error)
 
     ! Saving this value of simpar preliminar to the real count of constraints..
     simpar % nfree_rot_transl = simpar % nfree
@@ -131,10 +132,10 @@ CONTAINS
   END SUBROUTINE compute_degrees_of_freedom
 
 !******************************************************************************
-!!****** thermostat_utils/thermostats_info [1.0] *
+!!****** thermostat_utils/setup_thermostat_info [1.0] *
 !!
 !!   NAME
-!!     thermostats_info
+!!     setup_thermostat_info
 !!
 !!   FUNCTION
 !!
@@ -145,38 +146,37 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE thermostats_info(thermostats, simpar, molecule_kind_set, local_molecules,&
-       para_env, error)
-    TYPE(thermostats_type), POINTER          :: thermostats
-    TYPE(simulation_parameters_type), &
-      INTENT(INOUT)                          :: simpar
+  SUBROUTINE setup_thermostat_info(thermostat_info, molecule_kind_set,&
+       local_molecules, region, ensemble, nfree, shell, error)
+    TYPE(thermostat_info_type), POINTER      :: thermostat_info
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set(:)
     TYPE(distribution_1d_type), POINTER      :: local_molecules
-    TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER, INTENT(IN)                      :: region, ensemble
+    INTEGER, INTENT(INOUT), OPTIONAL         :: nfree
+    LOGICAL, INTENT(IN), OPTIONAL            :: shell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'thermostats_info', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'setup_thermostat_info', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: dis_type, i, ikind, natom, &
                                                 nkind, nmol_local, nmolecule, &
-                                                number, region, &
+                                                nshell, number, &
                                                 sum_of_thermostats
-    LOGICAL                                  :: have_global, nointer
+    LOGICAL                                  :: do_shell, nointer
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
     NULLIFY(molecule_kind)
     nkind = SIZE ( molecule_kind_set )
+    do_shell = .FALSE.
+    IF (PRESENT(shell)) do_shell = shell
     ! Counting the global number of thermostats
     sum_of_thermostats = 0
-    ! variable to denote  a global thermostat
-    have_global = .FALSE.
     ! variable to denote independent thermostats (no communication necessary)
     nointer = .TRUE.
-    region  = simpar%part_region
     number  = 0
 
-    SELECT CASE(simpar%ensemble)
+    SELECT CASE(ensemble)
     CASE DEFAULT
        CALL stop_program (routineN, 'unknown ensemble ')
     CASE(nve_ensemble, isokin_ensemble, nph_uniaxial_ensemble, nph_uniaxial_damped_ensemble,&
@@ -187,28 +187,26 @@ CONTAINS
        SELECT CASE(region)
        CASE(do_region_global)
           ! Global Thermostat
-          DO i = 1, nkind
-             molecule_kind => molecule_kind_set ( i )
-             have_global = .TRUE.
-             nointer = .FALSE.
-             sum_of_thermostats = 1
-          END DO
+          nointer = .FALSE.
+          sum_of_thermostats = 1
        CASE(do_region_molecule)
           ! Molecular Thermostat
           DO i = 1, nkind
              molecule_kind => molecule_kind_set ( i )
-             CALL get_molecule_kind ( molecule_kind, nmolecule=nmolecule )
+             CALL get_molecule_kind ( molecule_kind, nmolecule=nmolecule, nshell=nshell )
+             IF ((do_shell).AND.(nshell==0)) nmolecule=0
              sum_of_thermostats = sum_of_thermostats + nmolecule
-             ! If we have ONE kind and ONE molecule, then effectively we have a GLOBAL thermostat
-             ! and the degrees of freedom will be computed correctly for this special case
-             IF ( ( nmolecule == 1 ) .AND. ( nkind == 1 ) ) nointer = .FALSE.
           END DO
+          ! If we have ONE kind and ONE molecule, then effectively we have a GLOBAL thermostat
+          ! and the degrees of freedom will be computed correctly for this special case
+          IF ( ( nmolecule == 1 ) .AND. ( nkind == 1 ) ) nointer = .FALSE.
        CASE(do_region_massive)
           ! Massive Thermostat
           DO i = 1, nkind
              molecule_kind => molecule_kind_set ( i )
              CALL get_molecule_kind ( molecule_kind, nmolecule=nmolecule, &
-                  natom=natom )
+                  natom=natom, nshell=nshell )
+             IF (do_shell) natom = nshell
              sum_of_thermostats = sum_of_thermostats + 3 * natom * nmolecule
           END DO
        END SELECT
@@ -227,7 +225,11 @@ CONTAINS
           DO ikind = 1, nkind
              nmol_local = local_molecules % n_el ( ikind )
              molecule_kind => molecule_kind_set ( ikind )
-             CALL get_molecule_kind ( molecule_kind, natom=natom )
+             CALL get_molecule_kind ( molecule_kind, natom=natom, nshell=nshell)
+             IF (do_shell) THEN 
+                natom = nshell
+                IF (nshell==0) nmol_local = 0
+             END IF
              IF (region==do_region_molecule) THEN
                 number = number + nmol_local
              ELSE IF (region==do_region_massive) THEN
@@ -241,19 +243,20 @@ CONTAINS
           dis_type = do_thermo_communication
        END IF
        
-       IF ((sum_of_thermostats/=1).OR.(dis_type==do_thermo_no_communication)) THEN
-          ! re-initializing simpar%nfree to zero because of multiple thermostats
-          simpar % nfree = 0.0_dp
+       IF (PRESENT(nfree)) THEN
+          IF ((sum_of_thermostats>1).OR.(dis_type==do_thermo_no_communication)) THEN
+             ! re-initializing simpar%nfree to zero because of multiple thermostats
+             nfree = 0.0_dp
+          END IF
        END IF
     END SELECT
 
     ! Saving information about thermostats
-    thermostats%thermostats_info%sum_of_thermostats = sum_of_thermostats
-    thermostats%thermostats_info%number_of_thermostats = number
-    thermostats%thermostats_info%have_global = have_global
-    thermostats%thermostats_info%dis_type = dis_type
+    thermostat_info%sum_of_thermostats    = sum_of_thermostats
+    thermostat_info%number_of_thermostats = number
+    thermostat_info%dis_type              = dis_type
 
-  END SUBROUTINE thermostats_info
+  END SUBROUTINE setup_thermostat_info
 
 END MODULE thermostat_utils
 !******************************************************************************

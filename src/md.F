@@ -56,8 +56,7 @@ MODULE md
   USE parallel_rng_types,              ONLY: next_random_number
   USE particle_types,                  ONLY: particle_type
   USE shell_potential_types,           ONLY: shell_kind_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -465,10 +464,10 @@ CPSourceFileRef,&
           CALL section_vals_get(thermostat_section, explicit=explicit, error=error)
           IF (explicit) THEN
              CALL section_vals_val_get(thermostat_section,"TYPE",i_val=simpar%shell_thermostat_type,error=error)
+             CALL section_vals_val_get(thermostat_section,"REGION",i_val=simpar%shell_region,error=error)
              SELECT CASE (simpar%shell_thermostat_type)
              CASE (do_thermo_nose)
                 ! Nose-Hoover Thermostat
-                CALL section_vals_val_get(thermostat_section,"REGION",i_val=simpar%shell_region,error=error)
                 tmp2_section => section_vals_get_subs_vals(thermostat_section,"NOSE",error=error)
                 CALL section_vals_get(tmp2_section,explicit=simpar%shell_nose,error=error)
                 IF (simpar%shell_nose) THEN

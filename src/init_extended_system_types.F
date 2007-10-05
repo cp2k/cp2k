@@ -21,7 +21,6 @@
 
 MODULE init_extended_system_types
 
-  USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -50,7 +49,7 @@ MODULE init_extended_system_types
                                              nhc_to_particle_mapping,&
                                              nhc_to_shell_mapping
   USE termination,                     ONLY: stop_program
-  USE thermostat_types,                ONLY: thermostats_info_type
+  USE thermostat_types,                ONLY: thermostat_info_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -82,7 +81,7 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE initialize_npt ( simpar, para_env, globenv, npt_info, box, work_section, error)
+  SUBROUTINE initialize_npt ( simpar, para_env, globenv, npt_info, cell, work_section, error)
 
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
@@ -90,7 +89,7 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(npt_info_type), DIMENSION(:, :), &
       POINTER                                :: npt_info
-    TYPE(cell_type), POINTER                 :: box
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: work_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -113,7 +112,7 @@ CONTAINS
     CASE ( npt_i_ensemble )
        ALLOCATE ( npt_info ( 1, 1 ), STAT = stat )
        CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
-       npt_info  ( :, : ) % eps = LOG ( box % deth ) / 3.0_dp
+       npt_info  ( :, : ) % eps = LOG ( cell % deth ) / 3.0_dp
        temp = simpar % temp_ext
 
     CASE ( npt_f_ensemble )
@@ -169,7 +168,7 @@ CONTAINS
           ENDDO
        ELSE
           CALL init_barostat_variables ( npt_info, simpar % tau_cell, temp,  &
-               box % deth, simpar % nfree, simpar % ensemble, simpar % cmass,&
+               cell % deth, simpar % nfree, simpar % ensemble, simpar % cmass,&
                para_env, globenv ,error=error)
        END IF
 
@@ -253,12 +252,11 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE initialize_nhc_part ( thermostats_info, box, simpar, local_molecules,&
-       molecule, molecule_kind_set, para_env, globenv, nhc, print_section, nose_section,&
+  SUBROUTINE initialize_nhc_part ( thermostat_info, simpar, local_molecules,&
+       molecule, molecule_kind_set, para_env, globenv, nhc, nose_section,&
        gci, save_mem, error)
 
-    TYPE(thermostats_info_type), POINTER     :: thermostats_info
-    TYPE(cell_type), POINTER                 :: box
+    TYPE(thermostat_info_type), POINTER      :: thermostat_info
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(distribution_1d_type), POINTER      :: local_molecules
@@ -267,7 +265,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(lnhc_parameters_type), POINTER      :: nhc
-    TYPE(section_vals_type), POINTER         :: print_section, nose_section
+    TYPE(section_vals_type), POINTER         :: nose_section
     TYPE(global_constraint_type), POINTER    :: gci
     LOGICAL, INTENT(IN)                      :: save_mem
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -282,7 +280,7 @@ CONTAINS
     restart = .FALSE.
     ! fire up the thermostats, if not NVE
 
-    CALL nhc_to_particle_mapping ( thermostats_info, simpar, local_molecules,&
+    CALL nhc_to_particle_mapping ( thermostat_info, simpar, local_molecules,&
          molecule, molecule_kind_set, nhc, para_env, error )
 
     ! Set up the Yoshida weights
@@ -385,16 +383,19 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE initialize_nhc_shell(simpar, para_env, globenv, nhc, atomic_kind_set, &
-             local_particles, nose_section, save_mem, error)
+  SUBROUTINE initialize_nhc_shell( thermostat_info, simpar, local_molecules,&
+       molecule, molecule_kind_set, para_env, globenv, nhc, nose_section,&
+       save_mem, error)
  
+    TYPE(thermostat_info_type), POINTER      :: thermostat_info
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(molecule_type), POINTER             :: molecule( : )
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(lnhc_parameters_type), POINTER      :: nhc
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
-    TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(section_vals_type), POINTER         :: nose_section
     LOGICAL, INTENT(IN)                      :: save_mem
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -406,7 +407,8 @@ CONTAINS
     LOGICAL                                  :: failure, restart
 
     failure = .FALSE.
-    CALL nhc_to_shell_mapping(simpar, nhc, atomic_kind_set, local_particles, para_env, error)
+    CALL nhc_to_shell_mapping(thermostat_info, simpar, local_molecules,&
+       molecule, molecule_kind_set, nhc, para_env, error)
 
     IF(simpar%shell_nose) THEN
        restart = .FALSE.

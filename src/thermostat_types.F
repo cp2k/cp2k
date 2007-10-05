@@ -41,7 +41,8 @@ MODULE thermostat_types
             retain_thermostats,&
             create_thermostat_type,&
             release_thermostat_type,&
-            thermostats_info_type
+            thermostat_info_type,&
+            release_thermostat_info
 
 !!****f* thermostat_types/thermostats_type [1.0] *
 !!
@@ -67,7 +68,8 @@ MODULE thermostat_types
 !!*** **********************************************************************
   TYPE thermostats_type
      INTEGER :: id_nr, ref_count
-     TYPE (thermostats_info_type), POINTER :: thermostats_info
+     TYPE (thermostat_info_type), POINTER :: thermostat_info_part
+     TYPE (thermostat_info_type), POINTER :: thermostat_info_shell
      TYPE(thermostat_type), POINTER :: thermostat_part
      TYPE(thermostat_type), POINTER :: thermostat_coef
      TYPE(thermostat_type), POINTER :: thermostat_shell
@@ -82,12 +84,11 @@ MODULE thermostat_types
   END TYPE thermostat_type
 
   ! Global info type
-  TYPE thermostats_info_type
+  TYPE thermostat_info_type
      INTEGER                              :: sum_of_thermostats
      INTEGER                              :: number_of_thermostats
-     LOGICAL                              :: have_global
      INTEGER                              :: dis_type
-  END TYPE thermostats_info_type
+  END TYPE thermostat_info_type
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'thermostat_types'
   INTEGER, PRIVATE, SAVE :: last_thermostat_id_nr=0,&
@@ -143,7 +144,9 @@ CONTAINS
     thermostats%ref_count =  1
 
     ! Thermostats Info
-    ALLOCATE(thermostats%thermostats_info, stat=stat)
+    ALLOCATE(thermostats%thermostat_info_part, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(thermostats%thermostat_info_shell, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     NULLIFY(thermostats%thermostat_part)
@@ -233,10 +236,8 @@ CONTAINS
        CPPrecondition(check,cp_failure_level,routineP,error,failure)
        thermostats%ref_count=thermostats%ref_count-1
        IF (thermostats%ref_count<1) THEN
-          IF (ASSOCIATED(thermostats%thermostats_info)) THEN
-             DEALLOCATE(thermostats%thermostats_info, stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          END IF
+          CALL release_thermostat_info(thermostats%thermostat_info_part, error)
+          CALL release_thermostat_info(thermostats%thermostat_info_shell, error)
           IF (ASSOCIATED(thermostats%thermostat_part)) THEN
              CALL release_thermostat_type(thermostats%thermostat_part, error)
           END IF
@@ -301,6 +302,46 @@ CONTAINS
     CALL lnhc_init(thermostat%nhc,error=error)
 
   END SUBROUTINE create_thermostat_type
+
+!!****f* thermostat_types/release_thermostat_info [1.0] *
+!!
+!!   NAME
+!!     release_thermostat_info
+!!
+!!   FUNCTION
+!!     -
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     10.2007 created [tlaino]
+!!
+!!*** **********************************************************************
+  SUBROUTINE release_thermostat_info(thermostat_info, error)
+    TYPE(thermostat_info_type), POINTER      :: thermostat_info
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'release_thermostat_info', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure =.FALSE.
+    IF (ASSOCIATED(thermostat_info)) THEN
+       DEALLOCATE(thermostat_info, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+  END SUBROUTINE release_thermostat_info
+!!*****
 
 !!****f* thermostat_types/release_thermostat_type [1.0] *
 !!

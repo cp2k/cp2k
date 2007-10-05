@@ -529,13 +529,11 @@ CONTAINS
                                ub_list,impr_list,onfo_list,colv_list,fixd_list,&
                                g3x3_list,g4x6_list,torsion_list,shell_list,&
                                name,mass,charge,kind_number,natom,nbend,nbond,nub,&
-                               nimpr,nonfo,nconstraint,nfixd,&
-                               ncolv,ng3x3,ng4x6,&
-                               nfixd_restraint, ng3x3_restraint, ng4x6_restraint,&
+                               nimpr,nonfo,nconstraint,nfixd, ncolv,ng3x3,ng4x6,&
+                               nfixd_restraint,ng3x3_restraint, ng4x6_restraint,&
                                nrestraints,nmolecule,nsgf,nshell,ntorsion,&
-                               molecule_list,nelectron,&
-                               bond_kind_set,bend_kind_set,ub_kind_set,&
-                               impr_kind_set,onfo_kind_set,torsion_kind_set,&
+                               molecule_list,nelectron, bond_kind_set,bend_kind_set,&
+                               ub_kind_set,impr_kind_set,onfo_kind_set,torsion_kind_set,&
                                molname_generated)
 
 !   Purpose: Get informations about a molecule kind.

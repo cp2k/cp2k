@@ -21,16 +21,16 @@
 
 MODULE molecule_types_new
 
-  USE colvar_types,                    ONLY: colvar_release,&
-                                             colvar_type,&
-                                             colvar_counters
+  USE colvar_types,                    ONLY: colvar_counters,&
+                                             colvar_release,&
+                                             colvar_type
   USE kinds,                           ONLY: dp,&
                                              int_size
-  USE molecule_kind_types,             ONLY: molecule_kind_type,&
-                                             colvar_constraint_type,&
+  USE molecule_kind_types,             ONLY: colvar_constraint_type,&
+                                             fixd_constraint_type,&
                                              g3x3_constraint_type,&
                                              g4x6_constraint_type,&
-                                             fixd_constraint_type
+                                             molecule_kind_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
 #include "cp_common_uses.h"
@@ -99,11 +99,13 @@ MODULE molecule_types_new
   END TYPE global_constraint_type
 
   TYPE molecule_type
-    TYPE(molecule_kind_type), POINTER  :: molecule_kind ! pointer to molecule kind information
+    TYPE(molecule_kind_type), POINTER    :: molecule_kind ! pointer to molecule kind information
     TYPE(local_molecule_type), POINTER   :: lmi         ! local molecule information
     TYPE(local_constraint_type), POINTER :: lci         ! local molecule constraint info
     INTEGER                              :: first_atom  ! global index of first atom in molecule
     INTEGER                              :: last_atom   ! global index of last atom in molecule
+    INTEGER                              :: first_shell ! global index of first shell atom in molecule
+    INTEGER                              :: last_shell  ! global index of last shell atom in molecule
   END TYPE molecule_type
 
 ! *** Public data types ***
@@ -160,8 +162,10 @@ CONTAINS
       NULLIFY (molecule_set(imolecule)%lmi)
       NULLIFY (molecule_set(imolecule)%lci)
 
-      molecule_set(imolecule)%first_atom = 0
-      molecule_set(imolecule)%last_atom = 0
+      molecule_set(imolecule)%first_atom  = 0
+      molecule_set(imolecule)%last_atom   = 0
+      molecule_set(imolecule)%first_shell = 0
+      molecule_set(imolecule)%last_shell  = 0
     END DO
 
   END SUBROUTINE allocate_molecule_set
@@ -243,7 +247,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE get_molecule(molecule,molecule_kind,lmi,lg3x3,lg4x6,lcolv,&
-                          first_atom,last_atom)
+       first_atom,last_atom,first_shell,last_shell)
 
 !   Purpose: Get components from a molecule data set.
 
@@ -262,7 +266,8 @@ CONTAINS
       OPTIONAL, POINTER                      :: lg4x6( : )
     TYPE(local_colvar_constraint_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: lcolv
-    INTEGER, OPTIONAL                        :: first_atom, last_atom
+    INTEGER, OPTIONAL                        :: first_atom, last_atom, &
+                                                first_shell, last_shell
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_molecule'
 
@@ -272,6 +277,8 @@ CONTAINS
 
       IF (PRESENT(first_atom)) first_atom = molecule%first_atom
       IF (PRESENT(last_atom)) last_atom = molecule%last_atom
+      IF (PRESENT(first_shell)) first_shell = molecule%first_shell
+      IF (PRESENT(last_shell)) last_shell = molecule%last_shell
       IF (PRESENT(molecule_kind)) molecule_kind => molecule%molecule_kind
       IF (PRESENT(lmi))           lmi           => molecule%lmi
       IF ( PRESENT ( lcolv ) ) THEN

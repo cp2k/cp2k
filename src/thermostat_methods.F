@@ -47,14 +47,15 @@ MODULE thermostat_methods
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE molecule_types_new,              ONLY: global_constraint_type
-  USE particle_list_types,             ONLY: particle_list_type
   USE termination,                     ONLY: stop_program
   USE thermostat_types,                ONLY: allocate_thermostats,&
                                              create_thermostat_type,&
+                                             release_thermostat_info,&
                                              release_thermostat_type,&
                                              release_thermostats,&
                                              thermostats_type
-  USE thermostat_utils,                ONLY: compute_degrees_of_freedom
+  USE thermostat_utils,                ONLY: compute_degrees_of_freedom,&
+                                             setup_thermostat_info
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -105,20 +106,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_thermostats', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: nshell
-    LOGICAL :: apply_thermo_baro, explicit_baro, explicit_coef, &
-      explicit_part, explicit_shell, failure, save_mem, shell_adiabatic, &
-      shell_present
+    LOGICAL :: apply_thermo_baro, do_thermo_shell, explicit_baro, &
+      explicit_coef, explicit_part, explicit_shell, failure, save_mem, &
+      shell_adiabatic, shell_present
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(distribution_1d_type), POINTER      :: local_molecules, &
-                                                local_particles
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(mol_new_list_type), POINTER         :: molecules_new
-    TYPE(particle_list_type), POINTER        :: shell_particles
     TYPE(section_vals_type), POINTER :: kg_coeff_section, print_section, &
       thermo_baro_section, thermo_coef_section, thermo_part_section, &
       thermo_shell_section, work_section
@@ -145,7 +143,7 @@ CONTAINS
     CALL cp_subsys_get(subsys, molecule_kinds_new=molecule_kinds_new, local_molecules_new=local_molecules,&
             gci=gci, error=error) 
     CALL compute_degrees_of_freedom(thermostats, cell, simpar, molecule_kinds_new%els,&
-         local_molecules, para_env, print_section, gci, error)
+         local_molecules, print_section, gci, error)
 
     ! Particles
     IF (explicit_part) THEN
@@ -154,11 +152,39 @@ CONTAINS
        
        ! Initialize or possibly restart Nose on Particles
        work_section => section_vals_get_subs_vals(thermo_part_section,"NOSE",error=error)
-       CALL initialize_nhc_part(thermostats%thermostats_info, cell, simpar, local_molecules,&
+       CALL initialize_nhc_part(thermostats%thermostat_info_part, simpar, local_molecules,&
             molecules_new%els, molecule_kinds_new%els, para_env, globenv,&
-            thermostats%thermostat_part%nhc, print_section=print_section, nose_section=work_section,&
+            thermostats%thermostat_part%nhc, nose_section=work_section,&
             gci=gci, save_mem=save_mem, error=error)
        CALL init_nhc_forces ( nhc=thermostats%thermostat_part%nhc,error=error)
+    END IF
+
+    ! Core-Shell Model
+    IF (explicit_shell) THEN
+       CALL create_thermostat_type(thermostats%thermostat_shell, thermo_shell_section, error)
+       CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds, error=error)
+       CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,shell_present=shell_present,&
+            shell_adiabatic=shell_adiabatic)
+       IF(simpar%shell_nose .AND. .NOT.  shell_adiabatic) THEN                            
+          CALL stop_program(routineN,moduleN,__LINE__,&
+               "Nose on the core-shell motion only with adiabatic shell-model ")
+       END IF
+       do_thermo_shell = (shell_present .AND. shell_adiabatic)
+       CALL setup_thermostat_info(thermostats%thermostat_info_shell, molecule_kinds_new%els,&
+            local_molecules, simpar%shell_region, simpar%ensemble, shell=do_thermo_shell,&
+            error=error)
+       IF(do_thermo_shell) THEN
+          ! Initialize SHELL thermostats, possibly restart
+          work_section => section_vals_get_subs_vals(thermo_shell_section,"NOSE",error=error)
+          CALL initialize_nhc_shell(thermostats%thermostat_info_shell, simpar, local_molecules,&
+            molecules_new%els, molecule_kinds_new%els, para_env, globenv,&
+            thermostats%thermostat_shell%nhc, nose_section=work_section,&
+            save_mem=save_mem, error=error) 
+          CALL init_nhc_forces( nhc=thermostats%thermostat_shell%nhc,error=error)
+       ELSE
+          CALL release_thermostat_type(thermostats%thermostat_shell, error)
+          CALL release_thermostat_info(thermostats%thermostat_info_shell, error)
+       END IF
     END IF
 
     ! Coefficients
@@ -175,30 +201,6 @@ CONTAINS
           CALL init_nhc_forces (nhc=thermostats%thermostat_coef%nhc,error=error)
        ELSE
           CALL release_thermostat_type(thermostats%thermostat_coef, error)
-       END IF
-    END IF
-
-    ! Core-Shell Model
-    IF (explicit_shell) THEN
-       CALL create_thermostat_type(thermostats%thermostat_shell, thermo_shell_section, error)
-       CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds,local_particles=local_particles,&
-            shell_particles=shell_particles,error=error)
-       CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,&
-            shell_present=shell_present,shell_adiabatic=shell_adiabatic)
-       IF(simpar%shell_nose .AND. .NOT.  shell_adiabatic) THEN                            
-          CALL stop_program(routineN,moduleN,__LINE__,&
-               "Nose on the core-shell motion only with adiabatic shell-model ")
-       END IF
-       IF(shell_present .AND. shell_adiabatic) THEN
-          ! Initialize SHELL thermostats, possibly restart
-          nshell = SIZE(shell_particles%els)
-          work_section => section_vals_get_subs_vals(thermo_shell_section,"NOSE",error=error)
-          CALL initialize_nhc_shell(simpar, para_env, globenv, thermostats%thermostat_shell%nhc,&
-               atomic_kinds%els, local_particles, work_section, save_mem,&
-               error=error)
-          CALL init_nhc_forces( nhc=thermostats%thermostat_shell%nhc,error=error)
-       ELSE
-          CALL release_thermostat_type(thermostats%thermostat_shell, error)
        END IF
     END IF
 

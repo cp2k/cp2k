@@ -2746,7 +2746,7 @@ END SUBROUTINE create_md_section
           CALL keyword_release(keyword,error=error)
 
           CALL keyword_create(keyword, name="REGION",&
-               description="Determines the number of DOF each NHC is attached to.",&
+               description="Determines the region each thermostat is attached to.",&
                usage="REGION (GLOBAL||MOLECULE||MASSIVE||NONE)", &
                enum_c_vals=s2a( "GLOBAL", "MOLECULE", "MASSIVE", "NONE"),&
                enum_i_vals=(/do_region_global, do_region_molecule,&

@@ -66,7 +66,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE thermostat_mapping_region(dis_type, natoms_local, nmol_local, const_mol,&
-       tot_const, point, local_molecules, molecule_kind_set, simpar, error)
+       tot_const, point, local_molecules, molecule_kind_set, simpar, do_shell, error)
     INTEGER, INTENT(IN)                      :: dis_type
     INTEGER, INTENT(OUT)                     :: natoms_local, nmol_local
     INTEGER, DIMENSION(:), POINTER           :: const_mol, tot_const
@@ -75,28 +75,36 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set(:)
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
+    LOGICAL, INTENT(IN)                      :: do_shell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'thermostat_mapping_region', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: atm_offset, icount, ikind, ilist, imol, katom, natom, nc, &
-      nfixd, nfixd_restraint, nkind, nmol_per_kind, nmolecule, stat
+      nfixd, nfixd_restraint, nkind, nmol_per_kind, nmolecule, nshell, stat
     LOGICAL                                  :: failure
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
     natoms_local = 0
-    nmol_local = 0
+    nmol_local   = 0
     nkind = SIZE ( molecule_kind_set )
     ! Compute the TOTAL number of molecules and atoms on THIS PROC and
     ! TOTAL number of molecules of IKIND on THIS PROC
     DO ikind = 1, nkind
        molecule_kind => molecule_kind_set ( ikind )
-       CALL get_molecule_kind ( molecule_kind, natom=natom )
-       natoms_local = natoms_local + natom * local_molecules % n_el ( ikind )
-       nmol_local   = nmol_local + local_molecules % n_el ( ikind )
+       CALL get_molecule_kind ( molecule_kind, natom=natom, nshell=nshell )
+       IF (do_shell) THEN
+          IF (nshell/=0) THEN
+             natoms_local = natoms_local + nshell * local_molecules % n_el ( ikind )
+             nmol_local   = nmol_local + local_molecules % n_el ( ikind )
+          END IF
+       ELSE
+          natoms_local = natoms_local + natom * local_molecules % n_el ( ikind )
+          nmol_local   = nmol_local + local_molecules % n_el ( ikind )
+       END IF
     END DO
 
     CPPostcondition(.NOT.ASSOCIATED(const_mol),cp_failure_level,routineP,error,failure)
@@ -108,6 +116,7 @@ CONTAINS
        ALLOCATE ( tot_const ( nmol_local ), STAT = stat )
        CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
        ALLOCATE ( point ( 2, nmol_local ), STAT = stat )
+
        CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
        point (:,:)= 0
        atm_offset = 0
@@ -116,24 +125,27 @@ CONTAINS
           nmol_per_kind =  local_molecules % n_el ( ikind )
           molecule_kind => molecule_kind_set ( ikind )
           CALL get_molecule_kind ( molecule_kind, nconstraint=nc, natom = natom,&
-               fixd_list=fixd_list)
-          ! nc keeps track of all constraints but not fixed ones..
+               fixd_list=fixd_list, nshell=nshell)
+          IF (do_shell) natom = nshell
           DO imol = 1, nmol_per_kind
              icount = icount + 1
              point ( 1, icount )  = atm_offset + 1
              point ( 2, icount )  = atm_offset + natom
-             ! Let's identify fixed atoms for this molecule
-             nfixd = 0
-             IF (ASSOCIATED(fixd_list)) THEN
-                DO katom = point ( 1, icount ), point ( 2, icount )
-                   DO ilist = 1, SIZE(fixd_list)
-                      IF ( ( katom == fixd_list(ilist)%fixd        ) .AND. &
-                           (.NOT. fixd_list(ilist)%restraint%active)) nfixd=nfixd+1
+             IF (.NOT.do_shell) THEN
+                ! nc keeps track of all constraints but not fixed ones..
+                ! Let's identify fixed atoms for this molecule
+                nfixd = 0
+                IF (ASSOCIATED(fixd_list)) THEN
+                   DO katom = point ( 1, icount ), point ( 2, icount )
+                      DO ilist = 1, SIZE(fixd_list)
+                         IF ( ( katom == fixd_list(ilist)%fixd        ) .AND. &
+                              (.NOT. fixd_list(ilist)%restraint%active)) nfixd=nfixd+1
+                      END DO
                    END DO
-                END DO
+                END IF
+                const_mol ( icount ) = nc + 3*nfixd
+                tot_const ( icount ) = const_mol ( icount )
              END IF
-             const_mol ( icount ) = nc + 3*nfixd
-             tot_const ( icount ) = const_mol ( icount )
              atm_offset =  point ( 2, icount )
           END DO
        END DO
@@ -151,18 +163,21 @@ CONTAINS
           nmol_per_kind =  local_molecules % n_el ( ikind )
           molecule_kind => molecule_kind_set ( ikind )
           CALL get_molecule_kind ( molecule_kind, nconstraint=nc, natom = natom,&
-               nmolecule=nmolecule, nfixd=nfixd,&
-               nfixd_restraint=nfixd_restraint)
-          const_mol ( ikind ) = nc
-          ! Let's consider the fixed atoms only for the total number of constraints
-          ! in case we are in REPLICATED/INTERACTING thermostats
-          tot_const ( ikind ) = const_mol ( ikind ) * nmolecule + 3*(nfixd-nfixd_restraint)
+               nmolecule=nmolecule, nfixd=nfixd, nfixd_restraint=nfixd_restraint,&
+               nshell=nshell)
+          IF (do_shell) natom = nshell
+          IF (.NOT.do_shell) THEN
+             const_mol ( ikind ) = nc
+             ! Let's consider the fixed atoms only for the total number of constraints
+             ! in case we are in REPLICATED/INTERACTING thermostats
+             tot_const ( ikind ) = const_mol ( ikind ) * nmolecule + 3*(nfixd-nfixd_restraint)
+          END IF
           point ( 1, ikind ) = atm_offset + 1
           point ( 2, ikind ) = atm_offset + natom * nmol_per_kind
           atm_offset =  point ( 2, ikind )
        END DO
     ENDIF
-    IF ( .NOT. simpar % constraint ) THEN
+    IF (( .NOT. simpar % constraint ).OR.do_shell) THEN
        const_mol = 0.0_dp
        tot_const = 0.0_dp
     END IF
@@ -187,20 +202,22 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE massive_list_generate ( molecule_set, molecule_kind_set, &
-       local_molecules, para_env, massive_atom_list, region, error )
+       local_molecules, para_env, massive_atom_list, region, do_shell, error )
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, POINTER                         :: massive_atom_list( : )
     INTEGER, INTENT(IN)                      :: region
+    LOGICAL, INTENT(IN)                      :: do_shell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'massive_list_generate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: first_atom, i, ikind, imol, iproc, j, k, natom, ncount, nkind, &
-      nmol_per_kind, num_massive_atm, num_massive_atm_local, offset, stat
+    INTEGER :: first_atom, first_shell, i, ikind, imol, iproc, j, k, natom, &
+      ncount, nkind, nmol_per_kind, nshell, num_massive_atm, &
+      num_massive_atm_local, offset, stat
     INTEGER, DIMENSION(:), POINTER           :: array_num_massive_atm, &
                                                 local_atm_list, work
     LOGICAL                                  :: failure
@@ -219,11 +236,17 @@ CONTAINS
           i = local_molecules%list(ikind)%array(imol)
           molecule => molecule_set ( i )
           molecule_kind => molecule % molecule_kind
-          CALL get_molecule_kind(molecule_kind,natom=natom)
+          CALL get_molecule_kind(molecule_kind,natom=natom,nshell=nshell)
           IF(region == do_region_massive) THEN
+             IF (do_shell) THEN
+                natom = nshell
+             END IF
              num_massive_atm_local = num_massive_atm_local + natom
              CALL reallocate(local_atm_list,1,num_massive_atm_local)
-             CALL get_molecule (molecule,first_atom=first_atom)
+             CALL get_molecule (molecule,first_atom=first_atom,first_shell=first_shell)
+             IF (do_shell) THEN
+                first_atom = first_shell
+             END IF
              DO j=1,natom
                 local_atm_list(num_massive_atm_local-natom+j) = first_atom -1 + j
              END DO

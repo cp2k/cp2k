@@ -18,6 +18,7 @@ uo2_nvt_4.inp             2
 uo2_shell_nvt_shnose.inp  2
 uo2_shell_nvt_shnose_r.inp  2
 uo2_shell_nvt_shnose_b.inp 2
+uo2_shell_nvt_shnose_c.inp 2
 # Temperature_per kind
 uo2_shell_nvt_tkind.inp 2
 uo2_shell_nvt_tkind_1.inp 2
