@@ -222,15 +222,12 @@ CONTAINS
 
               CALL cp_print_key_finished_output(ires,logger,motion_section,&
                              TRIM(keys(ikey)), error=error)
-
           ENDIF
-
        ENDDO
  
-
        IF(save_mem) THEN
           CALL update_subsys_release(md_env,force_env,root_section,error)
-          CALL update_motion_release(md_env,motion_section,error)
+          CALL update_motion_release(motion_section,error)
        END IF
     ENDIF
 
@@ -300,7 +297,8 @@ CONTAINS
     IF (ASSOCIATED(my_force_env))  THEN
        NULLIFY(subsys_section)
        CALL section_vals_val_get(root_section,"GLOBAL%RUN_TYPE",i_val=myid,error=error)
-       skip_vel_section =((myid /= mol_dyn_run).AND.&
+       skip_vel_section =(&
+            (myid /= mol_dyn_run).AND.&
             (myid /= mon_car_run).AND.&
             (myid /= pint_run))
 
@@ -334,7 +332,7 @@ CONTAINS
              CALL Section_vals_remove_values(work_section, error=error)
              work_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
              IF (.NOT.skip_vel_section) THEN
-                CALL Section_vals_remove_values(work_section, error=error)
+                CALL section_vals_remove_values(work_section, error=error)
              END IF
           END IF
 
@@ -343,7 +341,7 @@ CONTAINS
              CALL Section_vals_remove_values(work_section, error=error)
              work_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY",error=error)
              IF (.NOT.skip_vel_section) THEN
-                CALL Section_vals_remove_values(work_section, error=error)
+                CALL section_vals_remove_values(work_section, error=error)
              END IF
           END IF
        END DO
@@ -353,7 +351,7 @@ CONTAINS
 
   END SUBROUTINE update_subsys_release
 
-!!****f* input_cp2k_restarts/update_subsys_release [1.0] *
+!!****f* input_cp2k_restarts/update_motion_release [1.0] *
 !!
 !!   NAME
 !!    update_motion_release 
@@ -376,9 +374,8 @@ CONTAINS
 !!
 !!*** **********************************************************************
 
-  SUBROUTINE update_motion_release(md_env,motion_section,error)
+  SUBROUTINE update_motion_release(motion_section,error)
 
-    TYPE(md_environment_type), POINTER       :: md_env
     TYPE(section_vals_type), POINTER         :: motion_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -389,8 +386,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: work_section
 
     CALL timeset(routineN,handle)
-
-
     NULLIFY( work_section)
                      
     work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE%COORD",error=error)

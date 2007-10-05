@@ -1,0 +1,123 @@
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &BOND
+        ATOMS Si O
+        KIND HARMONIC
+        K 0.5
+        R0 [angstrom] 1.59
+      &END BOND
+      
+      &BEND
+        ATOMS Si O Si
+        KIND HARMONIC
+        K 0.0
+        THETA0 0.0
+      &END BEND
+      &BEND
+        ATOMS O Si O
+        KIND HARMONIC
+        K 0.0
+        THETA0 0.0
+      &END BEND
+      
+      &CHARGE
+        ATOM Si
+        CHARGE 0.0
+      &END CHARGE
+      &CHARGE
+        ATOM O
+        CHARGE 0.0
+      &END CHARGE
+
+      &SPLINE
+        R0_NB 0.1
+      &END SPLINE
+
+      &NONBONDED
+        &GENPOT
+          ATOMS Si Si 
+          FUNCTION 0.0
+          VARIABLES r
+        &END GENPOT
+        &GENPOT
+          ATOMS Si O
+          FUNCTION 0.0
+          VARIABLES r
+        &END GENPOT
+        &GENPOT
+          ATOMS O O
+          FUNCTION 0.0
+          VARIABLES r
+        &END GENPOT
+      &END NONBONDED
+    &END FORCEFIELD
+    
+    &POISSON
+      &EWALD
+        GMAX 25
+      &END EWALD
+    &END POISSON
+
+    &PRINT
+      &SUBCELL
+          EACH 1
+      &END SUBCELL
+      #&NEIGHBOR_LISTS
+      #    EACH 1
+      #&END NEIGHBOR_LISTS
+      &FF_INFO  DEBUG
+          EACH 1
+      &END FF_INFO
+    &END PRINT
+
+
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 20.413734  19.904612  13.453377
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+        COORDINATE XYZ
+        COORD_FILE_NAME ../sample_xyz/mfi.xyz
+        &GENERATE
+            CREATE_MOLECULES T
+        &END GENERATE
+    &END TOPOLOGY
+
+    &PRINT
+        #&INTERATOMIC_DISTANCES
+        #    EACH 1
+        #&END INTERATOMIC_DISTANCES
+        #&TOPOLOGY_INFO
+        #    EACH 1
+        #    XYZ_INFO T
+        #    GENERATE_INFO F
+        #&END TOPOLOGY_INFO
+        #&KINDS
+        #    EACH 1
+        #&END KINDS
+    &END PRINT
+
+
+  &END SUBSYS
+  &PRINT
+    &FORCES
+        EACH 1
+    &END FORCES
+  &END PRINT
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT mfi
+  RUN_TYPE GEO_OPT
+  SAVE_MEM
+&END GLOBAL
+&MOTION
+  &GEO_OPT
+    MINIMIZER CG
+    MAX_ITER 2
+  &END GEO_OPT
+&END MOTION
