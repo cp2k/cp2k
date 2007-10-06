@@ -562,18 +562,16 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: counter, handle, handle2, i, iatom, icoef, iel, ikind, ioff, &
-      iproc, irep, isec, j, my_itimes, n_el, natom, nhc_len, nkind, nsgf, &
-      nsgf_max, num_nhc, numneed, offset, stat, tot_nhcneed
+      irep, isec, j, my_itimes, n_el, natom, nhc_len, nkind, nsgf, nsgf_max, &
+      offset, stat, tot_nhcneed
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cindex
     INTEGER, POINTER                         :: accepted_md, INDEX(:), &
-                                                itimes, md_approach_nr, &
-                                                nhc_per_proc( : )
+                                                itimes, md_approach_nr
     LOGICAL                                  :: failure, my_save_mem
     REAL(KIND=dp)                            :: my_t
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pbuffer, vbuffer
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer, eta, fnhc, mnhc, &
-                                                veta, work
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer, eta, fnhc, mnhc, veta
     REAL(KIND=dp), POINTER                   :: t
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -638,176 +636,7 @@ CONTAINS
        IF     (thermostat_part%type_of_thermostat==do_thermo_nose) THEN
           ! Restart of Nose-Hoover Thermostat for Particles
           nhc     => thermostat_part%nhc
-          nhc_len = SIZE(nhc%nvt,1)
-          num_nhc = SIZE(nhc%nvt,2)
-          numneed = num_nhc
-          ALLOCATE ( nhc_per_proc( para_env%num_pe ), STAT = stat )
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-          nhc_per_proc ( : ) = 0
-          
-          CALL mp_allgather(numneed,nhc_per_proc,para_env%group)
-          
-          IF (nhc%dis_type==do_thermo_communication) THEN
-             tot_nhcneed = nhc_per_proc(1)
-          ELSE
-             tot_nhcneed = SUM ( nhc_per_proc )
-          ENDIF
-          
-          NULLIFY(work,index)
-          
-          !-----------------------------------------------------------------------------
-          !-----------------------------------------------------------------------------
-          ! nhc%eta  
-          !-----------------------------------------------------------------------------
-          ALLOCATE(eta(tot_nhcneed*nhc_len), STAT = stat )
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-          DO iproc=1,para_env%num_pe
-             CALL reallocate(work,1,nhc_per_proc(iproc)*nhc_len)
-             CALL reallocate(index,1,nhc_per_proc(iproc))
-             IF(para_env%mepos == (iproc-1)) THEN
-                INDEX(:)=0
-                counter=0
-                DO i=1,nhc_len
-                   DO j=1,num_nhc
-                      counter=counter+1
-                      work(counter)=nhc%nvt(i,j)%eta
-                      INDEX(j) = nhc%index(j)
-                   END DO
-                END DO
-             ELSE
-                work(:) = 0.0_dp
-             END IF
-             CALL mp_bcast(work,iproc-1,para_env%group)
-             CALL mp_bcast(index,iproc-1,para_env%group)
-             counter=0
-             DO i=1,nhc_len
-                DO j=1,nhc_per_proc(iproc)
-                   counter = counter+1
-                   eta((INDEX(j)-1)*nhc_len+i) = work(counter)
-                END DO
-             END DO
-          END DO
-          
-          !-----------------------------------------------------------------------------
-          !-----------------------------------------------------------------------------
-          ! nhc % veta   
-          !-----------------------------------------------------------------------------
-          ALLOCATE(veta(tot_nhcneed*nhc_len), STAT = stat )
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-          DO iproc=1,para_env%num_pe
-             CALL reallocate(work,1,nhc_per_proc(iproc)*nhc_len)
-             CALL reallocate(index,1,nhc_per_proc(iproc))
-             IF(para_env%mepos == (iproc-1)) THEN
-                INDEX(:)=0
-                counter=0
-                DO i=1,nhc_len
-                   DO j=1,num_nhc
-                      counter=counter+1
-                      work(counter)=nhc%nvt(i,j)%v
-                      INDEX(j) = nhc%index(j)
-                   END DO
-                END DO
-             ELSE
-                work(:) = 0.0_dp
-             END IF
-             CALL mp_bcast(work,iproc-1,para_env%group)
-             CALL mp_bcast(index,iproc-1,para_env%group)
-             counter=0
-             DO i=1,nhc_len
-                DO j=1,nhc_per_proc(iproc)
-                   counter = counter+1
-                   veta((INDEX(j)-1)*nhc_len+i) = work(counter)
-                END DO
-             END DO
-          END DO
-          
-          !-----------------------------------------------------------------------------
-          !-----------------------------------------------------------------------------
-          ! nhc % force
-          !-----------------------------------------------------------------------------
-          ALLOCATE(fnhc(tot_nhcneed*nhc_len), STAT = stat )
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-          DO iproc=1,para_env%num_pe
-             CALL reallocate(work,1,nhc_per_proc(iproc)*nhc_len)
-             CALL reallocate(index,1,nhc_per_proc(iproc))
-             IF(para_env%mepos == (iproc-1)) THEN
-                INDEX(:)=0
-                counter=0
-                DO i=1,nhc_len
-                   DO j=1,num_nhc
-                      counter=counter+1
-                      work(counter)=nhc%nvt(i,j)%f
-                      INDEX(j) = nhc%index(j)
-                   END DO
-                END DO
-             ELSE
-                work(:) = 0.0_dp
-             END IF
-             CALL mp_bcast(work,iproc-1,para_env%group)
-             CALL mp_bcast(index,iproc-1,para_env%group)
-             counter=0
-             DO i=1,nhc_len
-                DO j=1,nhc_per_proc(iproc)
-                   counter = counter+1
-                   fnhc((INDEX(j)-1)*nhc_len+i) = work(counter)
-                END DO
-             END DO
-          END DO
-          
-          !-----------------------------------------------------------------------------
-          !-----------------------------------------------------------------------------
-          ! nhc % mass
-          !-----------------------------------------------------------------------------
-          ALLOCATE(mnhc(tot_nhcneed*nhc_len), STAT = stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)    
-          DO iproc=1,para_env%num_pe
-             CALL reallocate(work,1,nhc_per_proc(iproc)*nhc_len)
-             CALL reallocate(index,1,nhc_per_proc(iproc))
-             IF(para_env%mepos == (iproc-1)) THEN
-                INDEX(:)=0
-                counter=0
-                DO i=1,nhc_len
-                   DO j=1,num_nhc
-                      counter=counter+1
-                      work(counter)=nhc%nvt(i,j)%mass
-                      INDEX(j) = nhc%index(j)
-                   END DO
-                END DO
-             ELSE
-                work(:) = 0.0_dp
-             END IF
-             CALL mp_bcast(work,iproc-1,para_env%group)
-             CALL mp_bcast(index,iproc-1,para_env%group)
-             counter=0
-             DO i=1,nhc_len
-                DO j=1,nhc_per_proc(iproc)
-                   counter = counter+1
-                   mnhc((INDEX(j)-1)*nhc_len+i) = work(counter)
-                END DO
-             END DO
-          END DO
-          
-          DEALLOCATE ( work, STAT = stat )
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
-          DEALLOCATE ( index, STAT = stat )
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
-          DEALLOCATE ( nhc_per_proc, STAT = stat )
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
-          
-          IF ( nhc%dis_type==do_thermo_communication ) THEN
-             eta  = 0.0_dp
-             veta = 0.0_dp
-             counter = 0
-             DO i=1,SIZE(nhc%nvt,1)
-                DO j=1,SIZE(nhc%nvt,2)
-                   counter = counter + 1
-                   eta (counter)= nhc%nvt(i,j)%eta
-                   veta(counter)= nhc%nvt(i,j)%v
-                   fnhc(counter)= nhc%nvt(i,j)%f
-                   mnhc(counter)= nhc%nvt(i,j)%mass
-                END DO
-             END DO
-          END IF
+          CALL collect_nose_restart_info(nhc, para_env, eta, veta, fnhc, mnhc, error)
           
           work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE",error=error)
           CALL set_template_restart(work_section, eta, veta, fnhc, mnhc, error)
@@ -873,7 +702,6 @@ CONTAINS
        CALL set_template_restart(work_section, veta=veta, mnhc=mnhc, error=error)
     END IF
     CALL timestop(0.0_dp,handle2)
-
     ! COEFFICIENTS 
     CALL timeset(routineN//"_KG","I",'',handle2)
     IF (ASSOCIATED(kg_env)) THEN
@@ -996,185 +824,14 @@ CONTAINS
        END IF
     END IF
     CALL timestop(0.0_dp,handle2)
-    
     ! SHELL THERMOSTAT
     CALL timeset(routineN//"_SHELL","I",'',handle2)
     IF (ASSOCIATED(thermostat_shell)) THEN
        IF     (thermostat_shell%type_of_thermostat==do_thermo_nose) THEN
           ! Restart of Nose-Hoover Thermostat for Shell Particles
           nhc     => thermostat_shell%nhc
-          nhc_len = SIZE(nhc%nvt,1)
-          num_nhc = SIZE(nhc%nvt,2)
-          numneed = num_nhc
-             
-          ALLOCATE ( nhc_per_proc( para_env % num_pe ), STAT = stat )
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-          nhc_per_proc ( : ) = 0
-          
-          CALL mp_allgather(numneed,nhc_per_proc,para_env%group)
-          
-          IF (nhc%dis_type==do_thermo_communication) THEN
-             tot_nhcneed = nhc_per_proc(1)
-          ELSE
-             tot_nhcneed = SUM ( nhc_per_proc )
-          ENDIF
-          
-          NULLIFY(work,index)
-          
-          !-----------------------------------------------------------------------------
-          !-----------------------------------------------------------------------------
-          ! nhc%eta  
-          !-----------------------------------------------------------------------------
-          ALLOCATE(eta(tot_nhcneed*nhc_len), STAT = stat )
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-          DO iproc=1,para_env%num_pe
-             CALL reallocate(work,1,nhc_per_proc(iproc)*nhc_len)
-             CALL reallocate(index,1,nhc_per_proc(iproc))
-             IF(para_env%mepos == (iproc-1)) THEN
-                INDEX(:)=0
-                counter=0
-                DO i=1,nhc_len
-                   DO j=1,num_nhc
-                      counter=counter+1
-                      work(counter)=nhc%nvt(i,j)%eta
-                      INDEX(j) = nhc%index(j)
-                   END DO
-                END DO
-             ELSE
-                work(:) = 0.0_dp
-             END IF
-             CALL mp_bcast(work,iproc-1,para_env%group)
-             CALL mp_bcast(index,iproc-1,para_env%group)
-             counter=0
-             DO i=1,nhc_len
-                DO j=1,nhc_per_proc(iproc)
-                   counter = counter+1
-                   eta((INDEX(j)-1)*nhc_len+i) = work(counter)
-                END DO
-             END DO
-          END DO
-          
-          !-----------------------------------------------------------------------------
-          !-----------------------------------------------------------------------------
-          ! nhc % veta   
-          !-----------------------------------------------------------------------------
-          ALLOCATE(veta(tot_nhcneed*nhc_len), STAT = stat )
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-          DO iproc=1,para_env%num_pe
-             CALL reallocate(work,1,nhc_per_proc(iproc)*nhc_len)
-             CALL reallocate(index,1,nhc_per_proc(iproc))
-             IF(para_env%mepos == (iproc-1)) THEN
-                INDEX(:)=0
-                counter=0
-                DO i=1,nhc_len
-                   DO j=1,num_nhc
-                      counter=counter+1
-                      work(counter)=nhc%nvt(i,j)%v
-                      INDEX(j) = nhc%index(j)
-                   END DO
-                END DO
-             ELSE
-                work(:) = 0.0_dp
-             END IF
-             CALL mp_bcast(work,iproc-1,para_env%group)
-             CALL mp_bcast(index,iproc-1,para_env%group)
-             counter=0
-             DO i=1,nhc_len
-                DO j=1,nhc_per_proc(iproc)
-                   counter = counter+1
-                   veta((INDEX(j)-1)*nhc_len+i) = work(counter)
-                END DO
-             END DO
-          END DO
-          
-          !-----------------------------------------------------------------------------
-          !-----------------------------------------------------------------------------
-          ! nhc % force
-          !-----------------------------------------------------------------------------
-          ALLOCATE(fnhc(tot_nhcneed*nhc_len), STAT = stat )
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-          DO iproc=1,para_env%num_pe
-             CALL reallocate(work,1,nhc_per_proc(iproc)*nhc_len)
-             CALL reallocate(index,1,nhc_per_proc(iproc))
-             IF(para_env%mepos == (iproc-1)) THEN
-                INDEX(:)=0
-                counter=0
-                DO i=1,nhc_len
-                   DO j=1,num_nhc
-                      counter=counter+1
-                      work(counter)=nhc%nvt(i,j)%f
-                      INDEX(j) = nhc%index(j)
-                   END DO
-                END DO
-             ELSE
-                work(:) = 0.0_dp
-             END IF
-             CALL mp_bcast(work,iproc-1,para_env%group)
-             CALL mp_bcast(index,iproc-1,para_env%group)
-             counter=0
-             DO i=1,nhc_len
-                DO j=1,nhc_per_proc(iproc)
-                   counter = counter+1
-                   fnhc((INDEX(j)-1)*nhc_len+i) = work(counter)
-                END DO
-             END DO
-          END DO
-          
-          !-----------------------------------------------------------------------------
-          !-----------------------------------------------------------------------------
-          ! nhc % mass
-          !-----------------------------------------------------------------------------
-          ALLOCATE(mnhc(tot_nhcneed*nhc_len), STAT = stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)    
-          DO iproc=1,para_env%num_pe
-             CALL reallocate(work,1,nhc_per_proc(iproc)*nhc_len)
-             CALL reallocate(index,1,nhc_per_proc(iproc))
-             IF(para_env%mepos == (iproc-1)) THEN
-                INDEX(:)=0
-                counter=0
-                DO i=1,nhc_len
-                   DO j=1,num_nhc
-                      counter=counter+1
-                      work(counter)=nhc%nvt(i,j)%mass
-                      INDEX(j) = nhc%index(j)
-                   END DO
-                END DO
-             ELSE
-                work(:) = 0.0_dp
-             END IF
-             CALL mp_bcast(work,iproc-1,para_env%group)
-             CALL mp_bcast(index,iproc-1,para_env%group)
-             counter=0
-             DO i=1,nhc_len
-                DO j=1,nhc_per_proc(iproc)
-                   counter = counter+1
-                   mnhc((INDEX(j)-1)*nhc_len+i) = work(counter)
-                END DO
-             END DO
-          END DO
-          
-          DEALLOCATE ( work, STAT = stat )
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
-          DEALLOCATE ( index, STAT = stat )
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
-          DEALLOCATE ( nhc_per_proc, STAT = stat )
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
-          
-          IF ( nhc%dis_type==do_thermo_communication ) THEN
-             eta  = 0.0_dp
-             veta = 0.0_dp
-             counter = 0
-             DO i=1,SIZE(nhc%nvt,1)
-                DO j=1,SIZE(nhc%nvt,2)
-                   counter = counter + 1
-                   eta (counter)= nhc%nvt(i,j)%eta
-                   veta(counter)= nhc%nvt(i,j)%v
-                   fnhc(counter)= nhc%nvt(i,j)%f
-                   mnhc(counter)= nhc%nvt(i,j)%mass
-                END DO
-             END DO
-          END IF
-          
+          CALL collect_nose_restart_info(nhc, para_env, eta, veta, fnhc, mnhc, error)
+
           work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE",error=error)
           CALL set_template_restart(work_section, eta, veta, fnhc, mnhc, error)    
        ELSE IF (thermostat_shell%type_of_thermostat==do_thermo_csvr) THEN
@@ -1246,6 +903,215 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE update_motion
+
+!!****f* input_cp2k_restarts/collect_nose_restart_info [1.0] *
+!!
+!!   NAME
+!!     collect_nose_restart_info
+!!
+!!   FUNCTION
+!!     Collect all information needed to dump the restart for Nose-Hoover
+!!     thermostat
+!!
+!!   NOTES
+!!     
+!!
+!!   ARGUMENTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     10.2007 created [tlaino] - University of Zurich
+!!
+!!*** **********************************************************************
+  SUBROUTINE collect_nose_restart_info(nhc, para_env, eta, veta, fnhc, mnhc, error)
+    TYPE(lnhc_parameters_type), POINTER      :: nhc
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: eta, veta, fnhc, mnhc
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'collect_nose_restart_info', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: counter, i, iproc, j, &
+                                                nhc_len, num_nhc, numneed, &
+                                                stat, tot_nhcneed
+    INTEGER, DIMENSION(:), POINTER           :: index, nhc_per_proc
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: work
+
+    nhc_len = SIZE(nhc%nvt,1)
+    num_nhc = SIZE(nhc%nvt,2)
+    numneed = num_nhc
+
+    ALLOCATE ( nhc_per_proc(para_env%num_pe), STAT = stat )
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    nhc_per_proc(:) = 0
+
+    CALL mp_allgather(numneed,nhc_per_proc,para_env%group)
+
+    IF (nhc%dis_type==do_thermo_communication) THEN
+       tot_nhcneed = nhc_per_proc(1)
+    ELSE
+       tot_nhcneed = SUM ( nhc_per_proc )
+    ENDIF
+
+    NULLIFY(work,index)
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! nhc%eta  
+    !-----------------------------------------------------------------------------
+    ALLOCATE(eta(tot_nhcneed*nhc_len), STAT = stat )
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO iproc=1,para_env%num_pe
+       CALL reallocate(work,1,nhc_per_proc(iproc)*nhc_len)
+       CALL reallocate(index,1,nhc_per_proc(iproc))
+       IF(para_env%mepos == (iproc-1)) THEN
+          index(:)=0
+          counter=0
+          DO i=1,nhc_len
+             DO j=1,num_nhc
+                counter=counter+1
+                work(counter)=nhc%nvt(i,j)%eta
+                index(j) = nhc%index(j)
+             END DO
+          END DO
+       ELSE
+          work(:) = 0.0_dp
+       END IF
+       CALL mp_bcast(work,iproc-1,para_env%group)
+       CALL mp_bcast(index,iproc-1,para_env%group)
+       counter=0
+       DO i=1,nhc_len
+          DO j=1,nhc_per_proc(iproc)
+             counter = counter+1
+             eta((index(j)-1)*nhc_len+i) = work(counter)
+          END DO
+       END DO
+    END DO
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! nhc % veta   
+    !-----------------------------------------------------------------------------
+    ALLOCATE(veta(tot_nhcneed*nhc_len), STAT = stat )
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO iproc=1,para_env%num_pe
+       CALL reallocate(work,1,nhc_per_proc(iproc)*nhc_len)
+       CALL reallocate(index,1,nhc_per_proc(iproc))
+       IF(para_env%mepos == (iproc-1)) THEN
+          index(:)=0
+          counter=0
+          DO i=1,nhc_len
+             DO j=1,num_nhc
+                counter=counter+1
+                work(counter)=nhc%nvt(i,j)%v
+                index(j) = nhc%index(j)
+             END DO
+          END DO
+       ELSE
+          work(:) = 0.0_dp
+       END IF
+       CALL mp_bcast(work,iproc-1,para_env%group)
+       CALL mp_bcast(index,iproc-1,para_env%group)
+       counter=0
+       DO i=1,nhc_len
+          DO j=1,nhc_per_proc(iproc)
+             counter = counter+1
+             veta((index(j)-1)*nhc_len+i) = work(counter)
+          END DO
+       END DO
+    END DO
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! nhc % force
+    !-----------------------------------------------------------------------------
+    ALLOCATE(fnhc(tot_nhcneed*nhc_len), STAT = stat )
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO iproc=1,para_env%num_pe
+       CALL reallocate(work,1,nhc_per_proc(iproc)*nhc_len)
+       CALL reallocate(index,1,nhc_per_proc(iproc))
+       IF(para_env%mepos == (iproc-1)) THEN
+          index(:)=0
+          counter=0
+          DO i=1,nhc_len
+             DO j=1,num_nhc
+                counter=counter+1
+                work(counter)=nhc%nvt(i,j)%f
+                index(j) = nhc%index(j)
+             END DO
+          END DO
+       ELSE
+          work(:) = 0.0_dp
+       END IF
+       CALL mp_bcast(work,iproc-1,para_env%group)
+       CALL mp_bcast(index,iproc-1,para_env%group)
+       counter=0
+       DO i=1,nhc_len
+          DO j=1,nhc_per_proc(iproc)
+             counter = counter+1
+             fnhc((index(j)-1)*nhc_len+i) = work(counter)
+          END DO
+       END DO
+    END DO
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! nhc % mass
+    !-----------------------------------------------------------------------------
+    ALLOCATE(mnhc(tot_nhcneed*nhc_len), STAT = stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)    
+    DO iproc=1,para_env%num_pe
+       CALL reallocate(work,1,nhc_per_proc(iproc)*nhc_len)
+       CALL reallocate(index,1,nhc_per_proc(iproc))
+       IF(para_env%mepos == (iproc-1)) THEN
+          index(:)=0
+          counter=0
+          DO i=1,nhc_len
+             DO j=1,num_nhc
+                counter=counter+1
+                work(counter)=nhc%nvt(i,j)%mass
+                index(j) = nhc%index(j)
+             END DO
+          END DO
+       ELSE
+          work(:) = 0.0_dp
+       END IF
+       CALL mp_bcast(work,iproc-1,para_env%group)
+       CALL mp_bcast(index,iproc-1,para_env%group)
+       counter=0
+       DO i=1,nhc_len
+          DO j=1,nhc_per_proc(iproc)
+             counter = counter+1
+             mnhc((index(j)-1)*nhc_len+i) = work(counter)
+          END DO
+       END DO
+    END DO
+
+    DEALLOCATE ( work, STAT = stat )
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
+    DEALLOCATE ( index, STAT = stat )
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
+    DEALLOCATE ( nhc_per_proc, STAT = stat )
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
+
+    IF ( nhc%dis_type==do_thermo_communication ) THEN
+       eta  = 0.0_dp
+       veta = 0.0_dp
+       counter = 0
+       DO i=1,SIZE(nhc%nvt,1)
+          DO j=1,SIZE(nhc%nvt,2)
+             counter = counter + 1
+             eta (counter)= nhc%nvt(i,j)%eta
+             veta(counter)= nhc%nvt(i,j)%v
+             fnhc(counter)= nhc%nvt(i,j)%f
+             mnhc(counter)= nhc%nvt(i,j)%mass
+          END DO
+       END DO
+    END IF
+
+  END SUBROUTINE collect_nose_restart_info
 
 !!****f* input_cp2k_restarts/section_neb_coord_val_set [1.0] *
 !!
