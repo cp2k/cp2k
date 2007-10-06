@@ -37,7 +37,6 @@ MODULE extended_system_dynamics
   USE molecule_types_new,              ONLY: get_molecule,&
                                              molecule_type
   USE particle_types,                  ONLY: particle_type
-  USE pw_types,                        ONLY: pw_type
   USE shell_potential_types,           ONLY: shell_kind_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -46,12 +45,14 @@ MODULE extended_system_dynamics
 
   PRIVATE
   LOGICAL, PARAMETER :: debug_this_module=.FALSE.
-  PUBLIC :: lnhc, shell_scale_comv
+  PUBLIC :: shell_scale_comv,&
+            lnhc_particles,&
+            lnhc_particle_set,&
+            lnhc_barostat,&
+            lnhc_coefs,&
+            lnhc_shell_set,&
+            lnhc_shells
 
-  INTERFACE lnhc
-     MODULE PROCEDURE lnhc_particles, lnhc_particle_set, lnhc_barostat,&
-                      lnhc_coefs, lnhc_pw, lnhc_shell_set, lnhc_shells
-  END INTERFACE
 
 !!*****
 !******************************************************************************
@@ -143,66 +144,6 @@ CONTAINS
   END SUBROUTINE lnhc_coefs
 
 !******************************************************************************
-!!****** extended_system_dynamics/lnhc_pw [1.0] *
-!!
-!!   NAME
-!!     lnhc_pw
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!    CJM
-!!
-!!   CREATION DATE
-!!     11-Apr-2001
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-  SUBROUTINE lnhc_pw ( nhc, pw, group )
-    TYPE(lnhc_parameters_type), POINTER      :: nhc
-    TYPE(pw_type), INTENT(INOUT)             :: pw
-    INTEGER, INTENT(IN)                      :: group
-
-    INTEGER                                  :: handle, i, n, ncoef
-    REAL(KIND=dp)                            :: flops
-
-    CALL timeset('LNHC','I','Mflops',handle)
-    flops = 0.0_dp
-   
-    ! get force on first thermostat for all the chains in the system.
-    nhc % v_scale = 1.0_dp
-    nhc % s_kin = 0.0_dp
-    ncoef  = SIZE ( pw % cc )
-   
-    DO i = 1, ncoef
-      nhc % p_kin ( 1, i ) % point  = nhc % p_kin ( 1, i ) % point + &
-        pw % mass_cc ( i ) * REAL ( pw % cc ( i ),KIND=dp)  * REAL ( pw % cc ( i ),KIND=dp) 
-   
-      nhc % p_kin ( 2 , i ) % point  = nhc % p_kin ( 2, i ) % point + &
-        pw % mass_cc ( i ) * AIMAG ( pw % cc ( i ) )  * AIMAG ( pw % cc ( i ) ) 
-    END DO
-   
-    !   force on the first bead in every thermostat chain (f1=sum(m*v**2)-ncoef*KbT)
-    DO n = 1, nhc % num_nhc
-      nhc % nvt ( 1, n ) % f = ( nhc % s_kin ( n ) - nhc % nvt ( 1, n ) % nkt )/ &
-                                 nhc % nvt ( 1, n ) % mass
-    END DO
-   
-    CALL multiple_step_yoshida(nhc,flops)
-
-   ! now scale the coefficients velocities
-    DO i = 1, ncoef
-       pw % cc ( i ) =  CMPLX ( REAL ( pw % cc ( i ),KIND=dp) * nhc % p_scale ( 1, i ) % point, &
-                      AIMAG ( pw % cc ( i ) ) * nhc % p_scale ( 2, i ) % point,KIND=dp )
-    END DO
-
-    CALL timestop(flops,handle)
-  END SUBROUTINE lnhc_pw
-
-!******************************************************************************
 !!****** extended_system_dynamics/lnhc_barostat [1.0] *
 !!
 !!   NAME
@@ -222,7 +163,6 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE lnhc_barostat ( nhc, npt, group )
-
 
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(npt_info_type), DIMENSION(:, :), &

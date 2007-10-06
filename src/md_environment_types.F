@@ -29,18 +29,17 @@ MODULE md_environment_types
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE extended_system_types,           ONLY: lnhc_parameters_type,&
-                                             npt_info_type
+  USE extended_system_types,           ONLY: npt_info_type
   USE force_env_types,                 ONLY: force_env_release,&
                                              force_env_retain,&
                                              force_env_type
   USE free_energy_types,               ONLY: fe_env_release,&
                                              free_energy_type
-  USE input_constants,                 ONLY: do_thermo_nose
   USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
   USE thermostat_types,                ONLY: release_thermostats,&
                                              retain_thermostats,&
+                                             thermostat_type,&
                                              thermostats_type
 #include "cp_common_uses.h"
 
@@ -311,10 +310,10 @@ END SUBROUTINE md_env_release
 !!
 !!*** **********************************************************************
   SUBROUTINE get_md_env ( md_env, itimes, constant, used_time, cell,  &
-                          simpar, nhc_part, nhc_coef, nhc_baro, nhc_shell, &
-                          npt, force_env, para_env, reftraj_info, t,&
+                          simpar, npt, force_env, para_env, reftraj_info, t,&
                           md_approach_nr, accepted_md, init, first_time,&
-                          fe_env, thermostats, barostat, error)
+                          fe_env, thermostats, barostat, thermostat_coeff, &
+                          thermostat_part, thermostat_shell, thermostat_baro, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
     INTEGER, OPTIONAL, POINTER               :: itimes
@@ -322,9 +321,6 @@ END SUBROUTINE md_env_release
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
     TYPE(simulation_parameters_type), &
       OPTIONAL, POINTER                      :: simpar
-    TYPE(lnhc_parameters_type), OPTIONAL, &
-      POINTER                                :: nhc_part, nhc_coef, nhc_baro, &
-                                                nhc_shell
     TYPE(npt_info_type), OPTIONAL, POINTER   :: npt( :, : )
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
     TYPE(cp_para_env_type), OPTIONAL, &
@@ -338,6 +334,10 @@ END SUBROUTINE md_env_release
     TYPE(thermostats_type), OPTIONAL, &
       POINTER                                :: thermostats
     TYPE(barostat_type), OPTIONAL, POINTER   :: barostat
+    TYPE(thermostat_type), OPTIONAL, POINTER :: thermostat_coeff, &
+                                                thermostat_part, &
+                                                thermostat_shell, &
+                                                thermostat_baro
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_md_env', &
@@ -359,35 +359,20 @@ END SUBROUTINE md_env_release
     IF (PRESENT ( simpar ) ) simpar => md_env % simpar
     IF (PRESENT ( thermostats ) ) thermostats => md_env % thermostats
     IF (PRESENT ( barostat ) ) barostat => md_env % barostat
-    IF (PRESENT(nhc_part).OR.PRESENT(nhc_coef).OR.PRESENT(nhc_baro).OR.PRESENT(nhc_shell)) THEN
+    IF  (PRESENT(thermostat_part).OR.PRESENT(thermostat_coeff).OR.&
+         PRESENT(thermostat_baro).OR.PRESENT(thermostat_shell)) THEN
        IF (ASSOCIATED(md_env%thermostats)) THEN
-          IF (PRESENT ( nhc_part ) ) THEN
-             IF (ASSOCIATED(md_env%thermostats%thermostat_part)) THEN
-                IF (md_env%thermostats%thermostat_part%type_of_thermostat==do_thermo_nose) THEN
-                   nhc_part => md_env%thermostats%thermostat_part%nhc
-                END IF
-             END IF
+          IF (PRESENT ( thermostat_part ) ) THEN
+             thermostat_part => md_env%thermostats%thermostat_part
           END IF
-          IF (PRESENT ( nhc_coef ) ) THEN
-             IF (ASSOCIATED(md_env%thermostats%thermostat_coef)) THEN
-                IF (md_env%thermostats%thermostat_coef%type_of_thermostat==do_thermo_nose) THEN
-                   nhc_coef => md_env%thermostats%thermostat_coef%nhc
-                END IF
-             END IF
+          IF (PRESENT ( thermostat_coeff ) ) THEN
+             thermostat_coeff => md_env%thermostats%thermostat_coef
           END IF
-          IF (PRESENT ( nhc_shell ) ) THEN
-             IF (ASSOCIATED(md_env%thermostats%thermostat_shell)) THEN
-                IF (md_env%thermostats%thermostat_shell%type_of_thermostat==do_thermo_nose) THEN
-                   nhc_shell => md_env%thermostats%thermostat_shell%nhc
-                END IF
-             END IF
+          IF (PRESENT ( thermostat_shell ) ) THEN
+             thermostat_shell => md_env%thermostats%thermostat_shell
           END IF
-          IF (PRESENT ( nhc_baro ) ) THEN
-             IF (ASSOCIATED(md_env%thermostats%thermostat_baro)) THEN
-                IF (md_env%thermostats%thermostat_baro%type_of_thermostat==do_thermo_nose) THEN
-                   nhc_baro => md_env%thermostats%thermostat_baro%nhc
-                END IF
-             END IF
+          IF (PRESENT ( thermostat_baro ) ) THEN
+             thermostat_baro  => md_env%thermostats%thermostat_baro
           END IF
        END IF
     END IF

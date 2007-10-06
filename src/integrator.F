@@ -19,6 +19,8 @@
 !!     Harald Forbert (Apr-2001): added path integral routine nvt_pimd
 !!     CJM (15-Apr-2001) : added coef integrators and energy routines
 !!     Joost VandeVondele (Juli-2003): simple version of isokinetic ensemble
+!!     Teodoro Laino [tlaino] 10.2007 - University of Zurich: Generalization to
+!!                                      different kind of thermostats
 !!
 !!   SOURCE
 !******************************************************************************
@@ -49,10 +51,8 @@ MODULE integrator
                                              dyn_coeff_type,&
                                              get_dyn_coeff_set
   USE eigenvalueproblems,              ONLY: diagonalise
-  USE extended_system_dynamics,        ONLY: lnhc,&
-                                             shell_scale_comv
-  USE extended_system_types,           ONLY: lnhc_parameters_type,&
-                                             npt_info_type
+  USE extended_system_dynamics,        ONLY: shell_scale_comv
+  USE extended_system_types,           ONLY: npt_info_type
   USE force_env_methods,               ONLY: force_env_calc_energy_force,&
                                              force_env_set_cell
   USE force_env_types,                 ONLY: force_env_get,&
@@ -92,6 +92,13 @@ MODULE integrator
   USE shell_potential_types,           ONLY: shell_kind_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+  USE thermostat_methods,              ONLY: apply_thermostat_baro,&
+                                             apply_thermostat_coeff,&
+                                             apply_thermostat_part_begin,&
+                                             apply_thermostat_part_end,&
+                                             apply_thermostat_shell_begin,&
+                                             apply_thermostat_shell_end
+  USE thermostat_types,                ONLY: thermostat_type
   USE virial_methods,                  ONLY: virial_evaluate
   USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
@@ -396,7 +403,6 @@ CONTAINS
     TYPE(dyn_coeff_type), POINTER            :: coeffs
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_constraint_type), POINTER    :: gci
-    TYPE(lnhc_parameters_type), POINTER      :: nhc_coef
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(molecule_kind_type), DIMENSION(:), &
@@ -412,12 +418,13 @@ CONTAINS
     TYPE(shell_kind_type), POINTER           :: shell
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
+    TYPE(thermostat_type), POINTER           :: thermostat_coeff
     TYPE(virial_type), POINTER               :: virial
 
-    NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef,para_env,cell,gci, force_env)
+    NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs, thermostat_coeff,para_env,cell,gci, force_env)
     NULLIFY (shell,shell_particles,shell_particle_set,core_particles, core_particle_set)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,&
-         nhc_coef=nhc_coef, para_env = para_env, error=error)
+         thermostat_coeff=thermostat_coeff, para_env=para_env, error=error)
     dt = simpar%dt
     CALL force_env_get(force_env=force_env,subsys=subsys,&
          dyn_coeff_set=dyn_coeff_set, virial = virial, cell=cell,error=error)
@@ -571,9 +578,7 @@ CONTAINS
        CALL get_dyn_coeff_set(dyn_coeff_set=dyn_coeff_set,&
             coeffs_of_kind=coeffs_of_kind, global_mass=global_mass,&
             mass_storage=mass_storage,error=error)
-       IF(ASSOCIATED(nhc_coef))THEN
-          CALL lnhc (nhc_coef,dyn_coeff_set,para_env % group)
-       END IF
+       CALL apply_thermostat_coeff(thermostat_coeff, dyn_coeff_set, para_env%group, error)
        IF(mass_storage==dyn_coeff_mass_global) dmcoef=0.5_dp*dt/global_mass
        DO iparticle_kind=1,nparticle_kind
           IF (ASSOCIATED(coeffs_of_kind(iparticle_kind)%coeffs)) THEN
@@ -715,9 +720,7 @@ CONTAINS
              END DO
           END IF
        END DO
-       IF(ASSOCIATED(nhc_coef))THEN
-          CALL lnhc (nhc_coef,dyn_coeff_set,para_env % group)
-       END IF
+       CALL apply_thermostat_coeff(thermostat_coeff, dyn_coeff_set, para_env%group, error)
     END IF
 
     !     *** Update virial ***
@@ -922,7 +925,6 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-
   SUBROUTINE nvt ( md_env, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
@@ -957,7 +959,6 @@ CONTAINS
     TYPE(dyn_coeff_type), POINTER            :: coeffs
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_constraint_type), POINTER    :: gci
-    TYPE(lnhc_parameters_type), POINTER      :: nhc, nhc_coef, nhc_shell
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(molecule_kind_type), DIMENSION(:), &
@@ -973,13 +974,17 @@ CONTAINS
     TYPE(shell_kind_type), POINTER           :: shell
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
+    TYPE(thermostat_type), POINTER           :: thermostat_coeff, &
+                                                thermostat_part, &
+                                                thermostat_shell
     TYPE(virial_type), POINTER               :: virial
 
-    NULLIFY(gci,force_env)
-    NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef,nhc_shell,cell)
-    NULLIFY (shell,shell_particles,shell_particle_set,core_particles, core_particle_set)
-    CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,nhc_part=nhc,&
-         nhc_coef=nhc_coef,nhc_shell=nhc_shell,para_env=para_env,error=error)
+    NULLIFY(gci,force_env,dyn_coeff_set,coeffs_of_kind,coeffs, thermostat_coeff, thermostat_part,&
+         thermostat_shell, cell, shell, shell_particles, shell_particle_set, core_particles,&
+         core_particle_set)
+    CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env, thermostat_part=thermostat_part,&
+         thermostat_coeff=thermostat_coeff,thermostat_shell=thermostat_shell,para_env=para_env,&
+         error=error)
     dt = simpar%dt
 
     CALL force_env_get(force_env=force_env, subsys=subsys, dyn_coeff_set=dyn_coeff_set,&
@@ -1046,20 +1051,19 @@ CONTAINS
        shell_adiabatic = .FALSE.
     END IF
 
-    ! perform Nose'-Hoover chain dynamimcs
+    ! Apply Thermostat over the full set of particles
     IF(shell_adiabatic) THEN
-       ! Shell_particle_set%v, core_particle_set%v,  as well as  particle_set%v are modified in lnhc
-       CALL lnhc ( nhc, molecule_kind_set, molecule_set, &
+       CALL apply_thermostat_part_begin(thermostat_part, molecule_kind_set, molecule_set,&
             atomic_kind_set, particle_set, local_molecules, para_env % group , &
             shell_adiabatic=shell_adiabatic, shell_particle_set=shell_particle_set,&
-            core_particle_set=core_particle_set)
+            core_particle_set=core_particle_set, error=error)
 
-       ! Perform Nose'-Hoover chain dynamimcs for the core-shell motion
-       CALL lnhc (nhc_shell, atomic_kind_set, particle_set, local_particles, shell_particle_set,&
-            core_particle_set, simpar%shell_nose, para_env % group  )
+       CALL apply_thermostat_shell_begin(thermostat_shell, atomic_kind_set, particle_set,&
+            local_particles, shell_particle_set, core_particle_set, simpar%shell_nose,&
+            para_env%group, error)
     ELSE
-       CALL lnhc ( nhc, molecule_kind_set, molecule_set, &
-            atomic_kind_set, particle_set, local_molecules, para_env % group )
+       CALL apply_thermostat_part_begin(thermostat_part, molecule_kind_set, molecule_set,&
+            atomic_kind_set, particle_set, local_molecules, para_env%group ,error=error)
     END IF
 
     IF (simpar%constraint) CALL getold(gci, local_molecules, molecule_set,  &
@@ -1151,9 +1155,7 @@ CONTAINS
        CALL get_dyn_coeff_set(dyn_coeff_set=dyn_coeff_set,&
             coeffs_of_kind=coeffs_of_kind, global_mass=global_mass,&
             mass_storage=mass_storage,error=error)
-       IF(ASSOCIATED(nhc_coef))THEN
-          CALL lnhc (nhc_coef,dyn_coeff_set,para_env % group)
-       END IF
+       CALL apply_thermostat_coeff(thermostat_coeff, dyn_coeff_set, para_env%group, error)
        IF(mass_storage==dyn_coeff_mass_global) dmcoef=0.5_dp*dt/global_mass
        DO iparticle_kind=1,nparticle_kind
           IF (ASSOCIATED(coeffs_of_kind(iparticle_kind)%coeffs)) THEN
@@ -1251,21 +1253,20 @@ CONTAINS
          cell,para_env%group,&
          local_particles, error )
 
-    ! perform Nose'-Hoover chain dynamimcs
+    ! Apply Thermostat over the full set of particles
     IF (shell_adiabatic) THEN
-       !!   shell_vel, core_vel,  as well as  vel are modified in lnhc
-       CALL lnhc ( nhc, molecule_kind_set, molecule_set, &
-            atomic_kind_set, particle_set, local_molecules, &
-            vel, para_env % group , shell_adiabatic = shell_adiabatic, &
-            shell_vel=shell_vel, core_vel=core_vel)
+       CALL apply_thermostat_part_end(thermostat_part,molecule_kind_set, molecule_set, &
+            atomic_kind_set, particle_set, local_molecules, vel, para_env%group,&
+            shell_adiabatic=shell_adiabatic, shell_vel=shell_vel, core_vel=core_vel,&
+            error=error)
 
-       !!      perform Nose'-Hoover chain dynamimcs for the core-shell motion
-       CALL lnhc (nhc_shell, atomic_kind_set, particle_set, local_particles,&
-            vel, shell_vel, core_vel, simpar%shell_nose, para_env % group  )
-
+       CALL apply_thermostat_shell_end(thermostat_shell,atomic_kind_set, particle_set,&
+            local_particles, vel, shell_vel, core_vel, simpar%shell_nose, para_env%group,&
+            error)
     ELSE
-       CALL lnhc ( nhc, molecule_kind_set, molecule_set, &
-            atomic_kind_set, particle_set, local_molecules, vel, para_env % group )
+       CALL apply_thermostat_part_end(thermostat_part,molecule_kind_set, molecule_set, &
+            atomic_kind_set, particle_set, local_molecules, vel, para_env%group, &
+            error=error)
     END IF
 
     IF (simpar%annealing) THEN
@@ -1327,9 +1328,7 @@ CONTAINS
              END DO
           END IF
        END DO
-       IF(ASSOCIATED(nhc_coef))THEN
-          CALL lnhc (nhc_coef,dyn_coeff_set,para_env % group)
-       END IF
+       CALL apply_thermostat_coeff(thermostat_coeff, dyn_coeff_set, para_env%group, error)
     END IF
 
     CALL virial_evaluate ( atomic_kind_set, particle_set,  &
@@ -1401,7 +1400,6 @@ CONTAINS
                                                 local_particles
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_constraint_type), POINTER    :: gci
-    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro, nhc_part, nhc_shell
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(molecule_kind_type), DIMENSION(:), &
@@ -1418,13 +1416,16 @@ CONTAINS
     TYPE(shell_kind_type), POINTER           :: shell
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
+    TYPE(thermostat_type), POINTER           :: thermostat_baro, &
+                                                thermostat_part, &
+                                                thermostat_shell
     TYPE(virial_type), POINTER               :: virial
 
-    NULLIFY(gci,nhc_baro,nhc_part,nhc_shell,force_env)
+    NULLIFY(gci,thermostat_baro,thermostat_part,thermostat_shell,force_env)
     NULLIFY (shell,shell_particles,shell_particle_set,core_particles, core_particle_set)
-    CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,nhc_part=nhc_part,&
-         nhc_baro=nhc_baro, nhc_shell=nhc_shell, npt = npt, itimes = itimes,&
-         first_time=first_time, para_env=para_env, error=error)
+    CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,thermostat_part=thermostat_part,&
+         thermostat_baro=thermostat_baro, thermostat_shell=thermostat_shell, npt=npt,&
+         itimes=itimes, first_time=first_time, para_env=para_env, error=error)
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar % nfree,KIND=dp)
 
@@ -1500,27 +1501,25 @@ CONTAINS
        shell_adiabatic = .FALSE.
     END IF
 
-    ! initialize eps_0 the first time through
+    ! Initialize eps_0 the first time through
     IF ( first_time ) eps_0 = npt (1,1) % eps
 
-    ! perform Nose'-Hoover chains for barostat
-    CALL lnhc ( nhc_baro, npt, para_env % group )
+    ! Apply thermostat to  barostat
+    CALL apply_thermostat_baro( thermostat_baro, npt, para_env%group, error)
 
-    ! perform Nose'-Hoover chains for particles
+    ! Apply Thermostat over the full set of particles
     IF(shell_adiabatic) THEN
-       ! Shell_particle_set%v, core_particle_set%v,  as well as  particle_set%v are modified in lnhc
-       CALL lnhc ( nhc_part, molecule_kind_set, molecule_set, &
-            atomic_kind_set, particle_set, local_molecules, para_env % group , &
+       CALL apply_thermostat_part_begin(thermostat_part, molecule_kind_set, molecule_set,&
+            atomic_kind_set, particle_set, local_molecules, para_env%group , &
             shell_adiabatic=shell_adiabatic, shell_particle_set=shell_particle_set,&
-            core_particle_set=core_particle_set)
+            core_particle_set=core_particle_set, error=error)
 
-       ! Perform Nose'-Hoover chain dynamimcs for the core-shell motion
-       CALL lnhc (nhc_shell, atomic_kind_set, particle_set, local_particles, shell_particle_set,&
-            core_particle_set, simpar%shell_nose, para_env % group  )
-
+       CALL apply_thermostat_shell_begin(thermostat_shell, atomic_kind_set, particle_set,&
+            local_particles, shell_particle_set, core_particle_set, simpar%shell_nose,&
+            para_env%group, error)
     ELSE
-       CALL lnhc ( nhc_part, molecule_kind_set, molecule_set, &
-            atomic_kind_set, particle_set, local_molecules, para_env % group )
+       CALL apply_thermostat_part_begin(thermostat_part, molecule_kind_set, molecule_set,&
+            atomic_kind_set, particle_set, local_molecules, para_env%group ,error=error)
     END IF
 
     ! setting up for ROLL: saving old variables
@@ -1749,24 +1748,23 @@ CONTAINS
 
     END DO RR
 
-    ! Nose-Hoover for the Particles
+    ! Apply Thermostat over the full set of particles
     IF (shell_adiabatic) THEN
-       ! Shell_vel, core_vel,  as well as  vel are modified in lnhc
-       CALL lnhc ( nhc_part, molecule_kind_set, molecule_set, &
-            atomic_kind_set, particle_set, local_molecules, &
-            vel, para_env % group , shell_adiabatic = shell_adiabatic, &
-            shell_vel=shell_vel, core_vel=core_vel)
+       CALL apply_thermostat_part_end(thermostat_part,molecule_kind_set, molecule_set, &
+            atomic_kind_set, particle_set, local_molecules, vel, para_env%group,&
+            shell_adiabatic=shell_adiabatic, shell_vel=shell_vel, core_vel=core_vel,&
+            error=error)
 
-       ! Perform Nose'-Hoover chain dynamimcs for the core-shell motion
-       CALL lnhc (nhc_shell, atomic_kind_set, particle_set, local_particles,&
-            vel, shell_vel, core_vel, simpar%shell_nose, para_env % group  )
-
+       CALL apply_thermostat_shell_end(thermostat_shell,atomic_kind_set, particle_set,&
+            local_particles, vel, shell_vel, core_vel, simpar%shell_nose, para_env%group,&
+            error)
     ELSE
-       CALL lnhc ( nhc_part, molecule_kind_set, molecule_set, &
-            atomic_kind_set, particle_set, local_molecules, vel, para_env % group )
+       CALL apply_thermostat_part_end(thermostat_part,molecule_kind_set, molecule_set, &
+            atomic_kind_set, particle_set, local_molecules, vel, para_env%group, error=error)
     END IF
-    ! Nose-Hoover for the Barostat
-    CALL lnhc ( nhc_baro, npt, para_env % group )
+
+    ! Apply Thermostat to Barostat
+    CALL apply_thermostat_baro( thermostat_baro, npt, para_env%group, error)
 
     IF (simpar%annealing) THEN
        vel(:,:)=vel(:,:)*simpar%f_annealing
@@ -2782,7 +2780,6 @@ END SUBROUTINE nph_uniaxial_damped
                                                 local_particles
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_constraint_type), POINTER    :: gci
-    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro, nhc_part, nhc_shell
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(molecule_kind_type), DIMENSION(:), &
@@ -2799,12 +2796,15 @@ END SUBROUTINE nph_uniaxial_damped
     TYPE(shell_kind_type), POINTER           :: shell
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
+    TYPE(thermostat_type), POINTER           :: thermostat_baro, &
+                                                thermostat_part, &
+                                                thermostat_shell
     TYPE(virial_type), POINTER               :: virial
 
-    NULLIFY(gci,nhc_baro,nhc_part,nhc_shell, force_env)
-    NULLIFY (shell,shell_particles,shell_particle_set,core_particles, core_particle_set)
-    CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,nhc_part=nhc_part,&
-         nhc_baro=nhc_baro, nhc_shell=nhc_shell, npt = npt,itimes = itimes,&
+    NULLIFY(gci,thermostat_baro,thermostat_part,thermostat_shell,force_env,&
+         shell,shell_particles,shell_particle_set,core_particles,core_particle_set)
+    CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,thermostat_part=thermostat_part,&
+         thermostat_baro=thermostat_baro, thermostat_shell=thermostat_shell, npt=npt, itimes=itimes,&
          first_time=first_time, para_env=para_env, error=error)
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar % nfree,KIND=dp)
@@ -2879,24 +2879,22 @@ END SUBROUTINE nph_uniaxial_damped
        shell_adiabatic = .FALSE.
     END IF
 
-    ! perform Nose'-Hoover chains for barostat
-    CALL lnhc ( nhc_baro, npt, para_env % group )
+    ! Apply Thermostat to Barostat
+    CALL apply_thermostat_baro( thermostat_baro, npt, para_env%group, error)
 
-    ! perform Nose'-Hoover chains for particles
+    ! Apply Thermostat over the full set of particles
     IF(shell_adiabatic) THEN
-       ! Shell_particle_set%v, core_particle_set%v,  as well as  particle_set%v are modified in lnhc
-       CALL lnhc ( nhc_part, molecule_kind_set, molecule_set, &
-            atomic_kind_set, particle_set, local_molecules, para_env % group , &
+       CALL apply_thermostat_part_begin(thermostat_part, molecule_kind_set, molecule_set,&
+            atomic_kind_set, particle_set, local_molecules, para_env%group , &
             shell_adiabatic=shell_adiabatic, shell_particle_set=shell_particle_set,&
-            core_particle_set=core_particle_set)
+            core_particle_set=core_particle_set, error=error)
 
-       ! Perform Nose'-Hoover chain dynamimcs for the core-shell motion
-       CALL lnhc (nhc_shell, atomic_kind_set, particle_set, local_particles, shell_particle_set,&
-            core_particle_set, simpar%shell_nose, para_env % group  )
-
+       CALL apply_thermostat_shell_begin(thermostat_shell, atomic_kind_set, particle_set,&
+            local_particles, shell_particle_set, core_particle_set, simpar%shell_nose,&
+            para_env%group, error)
     ELSE
-       CALL lnhc ( nhc_part, molecule_kind_set, molecule_set, &
-            atomic_kind_set, particle_set, local_molecules, para_env % group )
+       CALL apply_thermostat_part_begin(thermostat_part, molecule_kind_set, molecule_set,&
+            atomic_kind_set, particle_set, local_molecules, para_env%group ,error=error)
     END IF
 
     ! setting up for ROLL: saving old variables
@@ -3190,25 +3188,23 @@ END SUBROUTINE nph_uniaxial_damped
 
     END DO RR
 
-    ! Nose-Hoover for the Particles
+    ! Apply Thermostat over the full set of particles
     IF (shell_adiabatic) THEN
-       ! Shell_vel, core_vel,  as well as  vel are modified in lnhc
-       CALL lnhc ( nhc_part, molecule_kind_set, molecule_set, &
-            atomic_kind_set, particle_set, local_molecules, &
-            vel, para_env % group , shell_adiabatic = shell_adiabatic, &
-            shell_vel=shell_vel, core_vel=core_vel)
+       CALL apply_thermostat_part_end(thermostat_part,molecule_kind_set, molecule_set, &
+            atomic_kind_set, particle_set, local_molecules, vel, para_env%group,&
+            shell_adiabatic=shell_adiabatic, shell_vel=shell_vel, core_vel=core_vel,&
+            error=error)
 
-       ! Perform Nose'-Hoover chain dynamimcs for the core-shell motion
-       CALL lnhc (nhc_shell, atomic_kind_set, particle_set, local_particles,&
-            vel, shell_vel, core_vel, simpar%shell_nose, para_env % group  )
-
+       CALL apply_thermostat_shell_end(thermostat_shell,atomic_kind_set, particle_set,&
+            local_particles, vel, shell_vel, core_vel, simpar%shell_nose, para_env%group,&
+            error)
     ELSE
-       CALL lnhc ( nhc_part, molecule_kind_set, molecule_set, &
-            atomic_kind_set, particle_set, local_molecules, vel, para_env % group )
+       CALL apply_thermostat_part_end(thermostat_part,molecule_kind_set, molecule_set, &
+            atomic_kind_set, particle_set, local_molecules, vel, para_env%group, error=error)
     END IF
 
-    ! Nose-Hoover for the Barostat
-    CALL lnhc ( nhc_baro, npt, para_env % group )
+    ! Apply Thermostat to Barostat
+    CALL apply_thermostat_baro( thermostat_baro, npt, para_env%group, error)
 
     IF (simpar%annealing) THEN
        vel(:,:)=vel(:,:)*simpar%f_annealing
@@ -3811,11 +3807,10 @@ END SUBROUTINE nph_uniaxial_damped
     CHARACTER(len=*), PARAMETER :: routineN = 'nve_respa', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: i_step, icoef, iparticle, iparticle_kind, iparticle_local, &
-      istat, mass_storage, n_time_steps, nmolecule, nmolecule_kind, &
-      nparticle, nparticle_kind, nparticle_local
-    REAL(KIND=dp)                            :: dm, dmcoef, dt, global_mass, &
-                                                mass
+    INTEGER :: i_step, iparticle, iparticle_kind, iparticle_local, istat, &
+      n_time_steps, nmolecule, nmolecule_kind, nparticle, nparticle_kind, &
+      nparticle_local
+    REAL(KIND=dp)                            :: dm, dt, mass
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pos, vel
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -3827,13 +3822,8 @@ END SUBROUTINE nph_uniaxial_damped
     TYPE(cp_subsys_type), POINTER            :: subsys, subsys_respa
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
-    TYPE(dyn_coeff_p_type), DIMENSION(:), &
-      POINTER                                :: coeffs_of_kind
-    TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
-    TYPE(dyn_coeff_type), POINTER            :: coeffs
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_constraint_type), POINTER    :: gci
-    TYPE(lnhc_parameters_type), POINTER      :: nhc_coef
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(molecule_kind_type), DIMENSION(:), &
@@ -3848,17 +3838,13 @@ END SUBROUTINE nph_uniaxial_damped
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
 
-    NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef,para_env,cell,subsys_respa)
-    NULLIFY (particles_respa, particle_set_respa,gci, force_env)
-    CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,nhc_coef=nhc_coef,&
-         para_env = para_env, error=error)
+    NULLIFY (para_env,cell,subsys_respa,particles_respa, particle_set_respa,gci, force_env)
+    CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env, para_env=para_env, error=error)
     dt = simpar%dt
 
     n_time_steps=simpar%n_time_steps
 
-    CALL force_env_get(force_env,subsys=subsys, dyn_coeff_set=dyn_coeff_set,&
-         virial = virial, cell=cell,error=error)
-
+    CALL force_env_get(force_env,subsys=subsys, virial=virial, cell=cell,error=error)
     CALL force_env_get(force_env%sub_force_env(1)%force_env,subsys=subsys_respa,error=error)
 
     ! Do some checks on coordinates and box
@@ -3923,14 +3909,12 @@ END SUBROUTINE nph_uniaxial_damped
              pos (:,iparticle) = particle_set(iparticle)%r(:) +&
                   (dt/n_time_steps) * vel ( :, iparticle )
           END DO
-
        END DO
-       IF (simpar%constraint) CALL shake_control( gci, local_molecules, molecule_set,   &
-            molecule_kind_set, particle_set, &
-            pos, vel, simpar%dt, simpar%shake_tol, simpar%info_constraint,&
-            simpar%lagrange_multipliers,&
-            simpar%dump_lm,&
-            cell, para_env%group, local_particles, error )
+
+       IF (simpar%constraint) CALL shake_control( gci, local_molecules, molecule_set,&
+            molecule_kind_set, particle_set,pos, vel, simpar%dt, simpar%shake_tol,&
+            simpar%info_constraint, simpar%lagrange_multipliers,simpar%dump_lm, cell,&
+            para_env%group, local_particles, error )
 
        !     *** Broadcast the new particle positions ***
        CALL update_particle_set ( particle_set, para_env % group, pos = pos )
@@ -3938,42 +3922,9 @@ END SUBROUTINE nph_uniaxial_damped
           particle_set_respa(iparticle)%r = particle_set(iparticle)%r
        END DO
 
-
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pos")
 
-       !     *** coefficients
-       IF(ASSOCIATED(dyn_coeff_set)) THEN
-          CALL get_dyn_coeff_set(dyn_coeff_set=dyn_coeff_set,&
-               coeffs_of_kind=coeffs_of_kind, global_mass=global_mass,&
-               mass_storage=mass_storage,error=error)
-          IF(ASSOCIATED(nhc_coef))THEN
-             CALL lnhc (nhc_coef,dyn_coeff_set,para_env % group)
-          END IF
-          IF(mass_storage==dyn_coeff_mass_global) dmcoef=0.5_dp*dt/global_mass
-          DO iparticle_kind=1,nparticle_kind
-             IF (ASSOCIATED(coeffs_of_kind(iparticle_kind)%coeffs)) THEN
-                coeffs=>coeffs_of_kind(iparticle_kind)%coeffs
-                IF(mass_storage==dyn_coeff_mass_kind) dmcoef=0.5_dp*dt/coeffs%masses(1,1)
-                DO iparticle_local=1,coeffs%n_els
-                   DO icoef=1,coeffs%ncoef_atom
-                      SELECT CASE (mass_storage)
-                      CASE(dyn_coeff_mass_global,dyn_coeff_mass_kind)
-                         coeffs%vel(iparticle_local,icoef)=coeffs%vel(iparticle_local,icoef)+&
-                              dmcoef*coeffs%forces(iparticle_local,icoef)
-                      CASE(dyn_coeff_mass_atom,dyn_coeff_mass_coeff)
-                         coeffs%vel(iparticle_local,icoef)=coeffs%vel(iparticle_local,icoef)+0.5_dp*dt/ &
-                              coeffs%masses(iparticle_local,icoef)*coeffs%forces(iparticle_local,icoef)
-                      END SELECT
-                      coeffs%pos(iparticle_local,icoef)=coeffs%pos(iparticle_local,icoef)+ &
-                           dt*coeffs%vel(iparticle_local,icoef)
-                   END DO
-                END DO
-             END IF
-          END DO
-       END IF
-
        !     *** Update forces ***
-
        CALL force_env_calc_energy_force(force_env%sub_force_env(1)%force_env,error=error)
 
        !     *** Velocity Verlet (second part) ***
@@ -3999,35 +3950,6 @@ END SUBROUTINE nph_uniaxial_damped
 
        IF (simpar%annealing)  vel(:,:)=vel(:,:)*simpar%f_annealing
 
-
-       !     *** coefficients
-       IF(ASSOCIATED(dyn_coeff_set)) THEN
-          CALL get_dyn_coeff_set(dyn_coeff_set=dyn_coeff_set,&
-               coeffs_of_kind=coeffs_of_kind, global_mass=global_mass,&
-               mass_storage=mass_storage,error=error)
-          IF(mass_storage==dyn_coeff_mass_global) dmcoef=0.5_dp*dt/global_mass
-          DO iparticle_kind=1,nparticle_kind
-             IF (ASSOCIATED(coeffs_of_kind(iparticle_kind)%coeffs)) THEN
-                coeffs=>coeffs_of_kind(iparticle_kind)%coeffs
-                IF(mass_storage==dyn_coeff_mass_kind) dmcoef=0.5_dp*dt/coeffs%masses(1,1)
-                DO iparticle_local=1,coeffs%n_els
-                   DO icoef=1,coeffs%ncoef_atom
-                      SELECT CASE (mass_storage)
-                      CASE(dyn_coeff_mass_global,dyn_coeff_mass_kind)
-                         coeffs%vel(iparticle_local,icoef)=coeffs%vel(iparticle_local,icoef)+&
-                              dmcoef*coeffs%forces(iparticle_local,icoef)
-                      CASE(dyn_coeff_mass_atom,dyn_coeff_mass_coeff)
-                         coeffs%vel(iparticle_local,icoef)=coeffs%vel(iparticle_local,icoef)+0.5_dp*dt/ &
-                              coeffs%masses(iparticle_local,icoef)*coeffs%forces(iparticle_local,icoef)
-                      END SELECT
-                   END DO
-                END DO
-             END IF
-          END DO
-          IF(ASSOCIATED(nhc_coef))THEN
-             CALL lnhc (nhc_coef,dyn_coeff_set,para_env % group)
-          END IF
-       END IF
        !     *** Update virial ***
        IF ( simpar % constraint ) CALL pv_constraint ( gci, local_molecules, &
             molecule_set,    &

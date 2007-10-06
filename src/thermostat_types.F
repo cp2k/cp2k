@@ -24,8 +24,10 @@ MODULE thermostat_types
   USE extended_system_types,           ONLY: lnhc_dealloc,&
                                              lnhc_init,&
                                              lnhc_parameters_type
-  USE input_constants,                 ONLY: do_thermo_nose
-  USE input_section_types,             ONLY: section_vals_type
+  USE input_constants,                 ONLY: do_thermo_csvr,&
+                                             do_thermo_nose
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -92,11 +94,7 @@ MODULE thermostat_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'thermostat_types'
   INTEGER, PRIVATE, SAVE :: last_thermostat_id_nr=0,&
-                            last_thermostats_id_nr=0,&
-                            do_thermo_part  = 0,&
-                            do_thermo_kg    = 1,&
-                            do_thermo_shell = 2,&
-                            do_thermo_baro  = 3
+                            last_thermostats_id_nr=0
 
 CONTAINS
 
@@ -296,10 +294,14 @@ CONTAINS
 
     NULLIFY(thermostat%nhc)
     NULLIFY(thermostat%csvr)
-    thermostat%type_of_thermostat = do_thermo_nose
-    ALLOCATE(thermostat%nhc, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL lnhc_init(thermostat%nhc,error=error)
+    CALL section_vals_val_get(section,"TYPE",i_val=thermostat%type_of_thermostat,error=error)
+    IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN
+       ALLOCATE(thermostat%nhc, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL lnhc_init(thermostat%nhc,error=error)
+    ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN
+       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    END IF
 
   END SUBROUTINE create_thermostat_type
 

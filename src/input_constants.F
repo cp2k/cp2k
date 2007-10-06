@@ -153,7 +153,9 @@ MODULE input_constants
      "reading frames from a file called reftraj.xyz (e.g. for property calculation)",&
      "langevin dynamics (constant temperature)                                     "/)
 
-  INTEGER, PARAMETER, PUBLIC :: do_thermo_nose=101,do_thermo_csvr=102
+  INTEGER, PARAMETER, PUBLIC :: do_thermo_same_as_part=100,&
+                                do_thermo_nose=101,&
+                                do_thermo_csvr=102
   !
   ! Run Types
   INTEGER, PARAMETER, PUBLIC :: none_run=1,&

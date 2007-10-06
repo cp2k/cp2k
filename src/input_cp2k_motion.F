@@ -2705,15 +2705,15 @@ END SUBROUTINE create_md_section
 !!     teo [tlaino] - University of Zurich - 09.2007
 !!
 !!*** **********************************************************************
-  SUBROUTINE create_thermostat_section(section, just_restart_info, error)
+  SUBROUTINE create_thermostat_section(section, coupled_thermostat, error)
     TYPE(section_type), POINTER              :: section
-    LOGICAL, INTENT(IN), OPTIONAL            :: just_restart_info
+    LOGICAL, INTENT(IN), OPTIONAL            :: coupled_thermostat
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_thermostat_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, my_just_restart_info
+    LOGICAL                                  :: failure, my_coupled_thermostat
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: csvr_section, nose_section
 
@@ -2721,17 +2721,17 @@ END SUBROUTINE create_md_section
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       my_just_restart_info = .FALSE.
-       IF (PRESENT(just_restart_info)) my_just_restart_info = just_restart_info
+       my_coupled_thermostat = .FALSE.
+       IF (PRESENT(coupled_thermostat)) my_coupled_thermostat = coupled_thermostat
        NULLIFY(csvr_section, nose_section)
        
        CALL section_create(section,name="THERMOSTAT",&
             description="Specify thermostat type and parameters controlling the thermostat.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.NOT.my_just_restart_info,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.NOT.my_coupled_thermostat,&
             error=error)
-       NULLIFY(keyword)
-       
-       IF (.NOT.my_just_restart_info) THEN
+       NULLIFY(keyword)       
+
+       IF (.NOT.my_coupled_thermostat) THEN
           CALL keyword_create(keyword, name="TYPE",&
                description="Specify the thermostat used for the constant temperature ensembles.",&
                usage="thermostat NOSE",&
@@ -2754,13 +2754,26 @@ END SUBROUTINE create_md_section
                              default_i_val=do_region_global,error=error)
           CALL section_add_keyword(section,keyword,error=error)
           CALL keyword_release(keyword,error=error)
+       ELSE
+          CALL keyword_create(keyword, name="TYPE",&
+               description="Specify the thermostat used for the constant temperature ensembles.",&
+               usage="thermostat NOSE",&
+               default_i_val=do_thermo_same_as_part,&
+               enum_c_vals=s2a("SAME_AS_PARTICLE","NOSE","CSVR"),&
+               enum_i_vals=(/do_thermo_same_as_part,do_thermo_nose,do_thermo_csvr/),&
+               enum_desc=s2a("Use the same kind of thermostat used for particles.",&
+                             "Uses the Nose-Hoover thermostat.",&
+                             "Uses the canonical sampling through velocity rescaling."),&
+               error=error)
+          CALL section_add_keyword(section,keyword,error=error)
+          CALL keyword_release(keyword,error=error)
        END IF
 
-       CALL create_nose_section(nose_section, my_just_restart_info, error=error)
+       CALL create_nose_section(nose_section, my_coupled_thermostat, error=error)
        CALL section_add_subsection(section, nose_section, error=error)
        CALL section_release(nose_section,error=error)
        
-       CALL create_csvr_section(csvr_section, my_just_restart_info, error=error)
+       CALL create_csvr_section(csvr_section, my_coupled_thermostat, error=error)
        CALL section_add_subsection(section, csvr_section, error=error)
        CALL section_release(csvr_section,error=error)
        
@@ -3045,7 +3058,7 @@ SUBROUTINE create_barostat_section(section, error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
-       CALL create_thermostat_section(thermo_section, just_restart_info=.TRUE., error=error)
+       CALL create_thermostat_section(thermo_section, coupled_thermostat=.TRUE., error=error)
        CALL section_add_subsection(section, thermo_section, error=error)
        CALL section_release(thermo_section,error=error)
 
@@ -3206,9 +3219,9 @@ SUBROUTINE create_coeff_section(coeff_section, error)
 !!
 !!*** **********************************************************************
 
-SUBROUTINE create_nose_section(section, just_restart_info, error)
+SUBROUTINE create_nose_section(section, coupled_thermostat, error)
     TYPE(section_type), POINTER              :: section
-    LOGICAL, INTENT(IN)                      :: just_restart_info
+    LOGICAL, INTENT(IN)                      :: coupled_thermostat
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_nose_section', &
@@ -3224,10 +3237,10 @@ SUBROUTINE create_nose_section(section, just_restart_info, error)
   IF (.NOT. failure) THEN  
        CALL section_create(section,name="nose",&
             description="paramameters of the Nose Hoover thermostat chain",&
-            required=.NOT. just_restart_info,error=error)
+            required=.NOT. coupled_thermostat,error=error)
 
        NULLIFY(keyword,subsection)
-       IF (.NOT. just_restart_info) THEN
+       IF (.NOT. coupled_thermostat) THEN
           CALL keyword_create(keyword, name="length",&
                description="length of the NoseHoover chain", usage="length integer", &
                default_i_val=3,&
@@ -3303,9 +3316,9 @@ END SUBROUTINE create_nose_section
 !!
 !!*** **********************************************************************
 
-SUBROUTINE create_csvr_section(section, just_restart_info, error)
+SUBROUTINE create_csvr_section(section, coupled_thermostat, error)
     TYPE(section_type), POINTER              :: section
-    LOGICAL, INTENT(IN)                      :: just_restart_info
+    LOGICAL, INTENT(IN)                      :: coupled_thermostat
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_csvr_section', &
@@ -3324,7 +3337,7 @@ SUBROUTINE create_csvr_section(section, just_restart_info, error)
 
        NULLIFY(keyword)
 
-       IF (.NOT.just_restart_info) THEN
+       IF (.NOT.coupled_thermostat) THEN
           CALL keyword_create(keyword, name="timecon",&
                description="timeconstant of the thermostat.",&
                usage="timeconstant real", &

@@ -37,10 +37,11 @@ MODULE md_conserved_quantities
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE input_constants,                 ONLY: &
-       do_thermo_no_communication, dyn_coeff_mass_global, isokin_ensemble, &
-       langevin_ensemble, nph_ensemble, nph_uniaxial_damped_ensemble, &
-       nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, nve_ensemble, &
-       nvt_ensemble, reftraj_ensemble
+       do_thermo_csvr, do_thermo_no_communication, do_thermo_nose, &
+       dyn_coeff_mass_global, isokin_ensemble, langevin_ensemble, &
+       nph_ensemble, nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, &
+       npt_f_ensemble, npt_i_ensemble, nve_ensemble, nvt_ensemble, &
+       reftraj_ensemble
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: zero
   USE md,                              ONLY: simulation_parameters_type
@@ -53,6 +54,7 @@ MODULE md_conserved_quantities
   USE qmmm_types,                      ONLY: qmmm_env_qm_type
   USE shell_potential_types,           ONLY: shell_kind_type
   USE termination,                     ONLY: stop_program
+  USE thermostat_types,                ONLY: thermostat_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -322,14 +324,14 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_econs_nve', &
       routineP = moduleN//':'//routineN
 
-    REAL(KIND=dp)                            :: nhc_coef_kin, nhc_coef_pot
+    REAL(KIND=dp)                            :: thermostat_kin, thermostat_pot
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(lnhc_parameters_type), POINTER      :: nhc_coef
+    TYPE(thermostat_type), POINTER           :: thermostat
 
-    NULLIFY(dyn_coeff_set, force_env, nhc_coef)
+    NULLIFY(dyn_coeff_set, force_env, thermostat)
 
-    CALL get_md_env (md_env, force_env=force_env, nhc_coef=nhc_coef, error=error)
+    CALL get_md_env (md_env, force_env=force_env, thermostat_coeff=thermostat, error=error)
     cons = md_ener % ekin + md_ener % epot + md_ener % ekin_shell
 
     ! Correct for KG coeff
@@ -338,10 +340,8 @@ CONTAINS
     IF (ASSOCIATED (dyn_coeff_set)) THEN
        CALL get_coef_ke (dyn_coeff_set, md_ener%ekin_coefs, md_ener%temp_coefs, int_grp, error)
        cons = cons + md_ener%ekin_coefs
-       IF (ASSOCIATED(nhc_coef)) THEN
-          CALL get_nhc_energies ( nhc_coef, nhc_coef_pot, nhc_coef_kin, int_grp, error )
-          cons = cons + nhc_coef_kin + nhc_coef_pot
-       END IF
+       CALL get_thermostat_energies ( thermostat, thermostat_pot, thermostat_kin, int_grp, error )
+       cons = cons + thermostat_kin + thermostat_pot
     END IF
   END SUBROUTINE get_econs_nve
 
@@ -371,34 +371,29 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_econs_nvt', &
       routineP = moduleN//':'//routineN
 
-    REAL(KIND=dp)                            :: nhc_coef_kin, nhc_coef_pot, &
-                                                nhc_part_kin, nhc_part_pot, &
-                                                nhc_shell_kin, nhc_shell_pot
+    REAL(KIND=dp) :: thermo_coef_kin, thermo_coef_pot, thermo_part_kin, &
+      thermo_part_pot, thermo_shell_kin, thermo_shell_pot
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(lnhc_parameters_type), POINTER      :: nhc_coef, nhc_part, nhc_shell
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(thermostat_type), POINTER           :: thermostat_coeff, &
+                                                thermostat_part, &
+                                                thermostat_shell
 
-    NULLIFY(dyn_coeff_set, force_env, nhc_part, nhc_coef, nhc_shell)
-    CALL get_md_env (md_env, force_env=force_env, nhc_part=nhc_part,&
-         nhc_coef=nhc_coef, nhc_shell=nhc_shell, simpar=simpar, error=error )
-    CALL get_nhc_energies ( nhc_part, nhc_part_pot, nhc_part_kin, int_grp, error )
-    cons = md_ener% ekin + md_ener%epot +  md_ener % ekin_shell + nhc_part_kin + nhc_part_pot
+    NULLIFY(dyn_coeff_set, force_env, thermostat_part, thermostat_coeff, thermostat_shell)
+    CALL get_md_env (md_env, force_env=force_env, thermostat_part=thermostat_part,&
+         thermostat_coeff=thermostat_coeff, thermostat_shell=thermostat_shell, error=error )
+    CALL get_thermostat_energies ( thermostat_part, thermo_part_pot, thermo_part_kin, int_grp, error )
+    cons = md_ener% ekin + md_ener%epot +  md_ener % ekin_shell + thermo_part_kin + thermo_part_pot
     CALL force_env_get (force_env=force_env, dyn_coeff_set=dyn_coeff_set,error=error)
     IF (ASSOCIATED (dyn_coeff_set)) THEN
        CALL get_coef_ke (dyn_coeff_set, md_ener%ekin_coefs, md_ener%temp_coefs, int_grp, error)
        cons = cons + md_ener%ekin_coefs
-       IF (ASSOCIATED(nhc_coef)) THEN
-          CALL get_nhc_energies ( nhc_coef, nhc_coef_pot, nhc_coef_kin, int_grp, error )
-          cons = cons + nhc_coef_kin + nhc_coef_pot
-       END IF
+       CALL get_thermostat_energies ( thermostat_coeff, thermo_coef_pot, thermo_coef_kin, int_grp, error )
+       cons = cons + thermo_coef_kin + thermo_coef_pot
     END IF
 
-    IF(simpar%shell_nose .AND. ASSOCIATED(nhc_shell)) THEN
-      CALL get_nhc_energies ( nhc_shell, nhc_shell_pot, nhc_shell_kin, int_grp, error )
-      cons = cons + nhc_shell_kin + nhc_shell_pot
-    END IF        
+    CALL get_thermostat_energies ( thermostat_shell, thermo_shell_pot, thermo_shell_kin, int_grp, error )
+    cons = cons + thermo_shell_kin + thermo_shell_pot
 
   END SUBROUTINE get_econs_nvt
 
@@ -428,30 +423,34 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_econs_npt', &
       routineP = moduleN//':'//routineN
 
-    REAL(KIND=dp) :: baro_kin, baro_pot, nfree, nhc_baro_kin, nhc_baro_pot, &
-      nhc_part_kin, nhc_part_pot, nhc_shell_kin, nhc_shell_pot
+    REAL(KIND=dp) :: baro_kin, baro_pot, nfree, thermo_baro_kin, &
+      thermo_baro_pot, thermo_part_kin, thermo_part_pot, thermo_shell_kin, &
+      thermo_shell_pot
     TYPE(cell_type), POINTER                 :: box
-    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro, nhc_part, nhc_shell
     TYPE(npt_info_type), POINTER             :: npt( :, : )
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
+    TYPE(thermostat_type), POINTER           :: thermostat_baro, &
+                                                thermostat_part, &
+                                                thermostat_shell
 
-    NULLIFY(nhc_baro, nhc_part, nhc_shell, npt)
-    CALL get_md_env ( md_env, nhc_part=nhc_part, nhc_baro=nhc_baro, &
-         simpar = simpar, npt = npt, cell = box,  nhc_shell=nhc_shell, error=error)
-    CALL get_nhc_energies ( nhc_part, nhc_part_pot, nhc_part_kin, int_grp, error=error )
-    CALL get_nhc_energies ( nhc_baro, nhc_baro_pot, nhc_baro_kin, int_grp, error=error )
+    NULLIFY(thermostat_baro, thermostat_part, thermostat_shell, npt)
+    CALL get_md_env ( md_env, thermostat_part=thermostat_part, thermostat_baro=thermostat_baro, &
+         simpar = simpar, npt = npt, cell = box,  thermostat_shell=thermostat_shell, error=error)
+    CALL get_thermostat_energies(thermostat_part, thermo_part_pot, thermo_part_kin, int_grp, error=error )
+    CALL get_thermostat_energies(thermostat_baro, thermo_baro_pot, thermo_baro_kin, int_grp, error)
     CALL get_baro_energies ( box, simpar, npt, baro_kin, baro_pot, int_grp, error=error )
     nfree = SIZE ( npt, 1 ) * SIZE ( npt, 2 )
     md_ener % temp_baro = 2.0_dp * baro_kin / nfree
 
-    cons = md_ener%ekin + md_ener%epot + md_ener % ekin_shell + nhc_part_kin + nhc_part_pot  &
-         + nhc_baro_kin + nhc_baro_pot + baro_kin + baro_pot
+    cons = md_ener%ekin + md_ener%epot + md_ener%ekin_shell &
+         + thermo_part_kin + thermo_part_pot  &
+         + thermo_baro_kin + thermo_baro_pot  &
+         + baro_kin + baro_pot
 
-    IF(simpar%shell_nose .AND. ASSOCIATED(nhc_shell)) THEN
-      CALL get_nhc_energies ( nhc_shell, nhc_shell_pot, nhc_shell_kin, int_grp, error )
-      cons = cons + nhc_shell_kin + nhc_shell_pot
-    END IF
+    CALL get_thermostat_energies ( thermostat_shell, thermo_shell_pot, thermo_shell_kin, int_grp, error )
+    cons = cons + thermo_shell_kin + thermo_shell_pot
+
   END SUBROUTINE get_econs_npt
 
   !******************************************************************************
@@ -601,6 +600,50 @@ CONTAINS
        CALL mp_sum(nhc_pot,int_grp)
     END IF
   END SUBROUTINE get_nhc_energies
+
+  !******************************************************************************
+  !!****** md_conserved_quantity/get_thermostat_energies [1.0] *
+  !!
+  !!   NAME
+  !!     get_thermostat_energies
+  !!
+  !!   FUNCTION
+  !!     Calculates energy associated with a thermostat
+  !!
+  !!   AUTHOR
+  !!     Teodoro Laino [tlaino] - 10.2007 - University of Zurich
+  !!
+  !!   MODIFICATION HISTORY
+  !!     
+  !!
+  !!*****************************************************************************
+  SUBROUTINE get_thermostat_energies ( thermostat, thermostat_pot, thermostat_kin, int_grp, error )
+    TYPE(thermostat_type), POINTER           :: thermostat
+    REAL(KIND=dp), INTENT(OUT)               :: thermostat_pot, thermostat_kin
+    INTEGER, INTENT(IN)                      :: int_grp
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_thermostat_energies', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    
+    thermostat_pot = 0.0_dp
+    thermostat_kin = 0.0_dp
+    IF (ASSOCIATED(thermostat)) THEN
+       IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN
+          ! Energy associated with the Nose-Hoover thermostat
+          CPPostcondition(ASSOCIATED(thermostat%nhc),cp_failure_level,routineP,error,failure)
+          CALL get_nhc_energies (thermostat%nhc, thermostat_pot, thermostat_kin, int_grp, error )
+       ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN
+          ! Energy associated with the CSVR thermostat
+          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       END IF
+    END IF
+
+  END SUBROUTINE get_thermostat_energies
 
   !******************************************************************************
   !!****** md_conserved_quantity/get_part_ke [1.0] *
