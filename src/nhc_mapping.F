@@ -27,8 +27,8 @@ MODULE nhc_mapping
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
                                              get_dyn_coeff
-  USE extended_system_types,           ONLY: lnhc_parameters_type
-  USE init_extended_system_variables,  ONLY: debug_isotropic_limit
+  USE extended_system_types,           ONLY: debug_isotropic_limit,&
+                                             lnhc_parameters_type
   USE input_constants,                 ONLY: &
        do_region_global, do_region_massive, do_region_molecule, &
        do_thermo_communication, do_thermo_no_communication, &
@@ -712,7 +712,6 @@ CONTAINS
            nph_uniaxial_damped_ensemble, reftraj_ensemble, langevin_ensemble )
        CALL stop_program ( routineN, 'Never reach this point!' )
     CASE ( nvt_ensemble, npt_i_ensemble, npt_f_ensemble )
-       CPPostcondition(simpar%shell_nose,cp_failure_level,routineP,error,failure)
 
        CALL setup_nhc_thermostat(nhc, thermostat_info, simpar%shell_nyosh, simpar%shell_nc,&
             simpar%shell_nhclen, simpar%shell_region, deg_of_freedom, massive_shell_list,&

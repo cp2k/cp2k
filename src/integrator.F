@@ -52,13 +52,13 @@ MODULE integrator
                                              get_dyn_coeff_set
   USE eigenvalueproblems,              ONLY: diagonalise
   USE extended_system_dynamics,        ONLY: shell_scale_comv
-  USE extended_system_types,           ONLY: npt_info_type
+  USE extended_system_types,           ONLY: debug_isotropic_limit,&
+                                             debug_uniaxial_limit,&
+                                             npt_info_type
   USE force_env_methods,               ONLY: force_env_calc_energy_force,&
                                              force_env_set_cell
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
-  USE init_extended_system_variables,  ONLY: debug_isotropic_limit,&
-                                             debug_uniaxial_limit
   USE input_constants,                 ONLY: &
        dyn_coeff_mass_atom, dyn_coeff_mass_coeff, dyn_coeff_mass_global, &
        dyn_coeff_mass_kind, nph_ensemble, nph_uniaxial_damped_ensemble, &
@@ -1059,8 +1059,7 @@ CONTAINS
             core_particle_set=core_particle_set, error=error)
 
        CALL apply_thermostat_shell_begin(thermostat_shell, atomic_kind_set, particle_set,&
-            local_particles, shell_particle_set, core_particle_set, simpar%shell_nose,&
-            para_env%group, error)
+            local_particles, shell_particle_set, core_particle_set, para_env%group, error)
     ELSE
        CALL apply_thermostat_part_begin(thermostat_part, molecule_kind_set, molecule_set,&
             atomic_kind_set, particle_set, local_molecules, para_env%group ,error=error)
@@ -1261,8 +1260,7 @@ CONTAINS
             error=error)
 
        CALL apply_thermostat_shell_end(thermostat_shell,atomic_kind_set, particle_set,&
-            local_particles, vel, shell_vel, core_vel, simpar%shell_nose, para_env%group,&
-            error)
+            local_particles, vel, shell_vel, core_vel, para_env%group, error)
     ELSE
        CALL apply_thermostat_part_end(thermostat_part,molecule_kind_set, molecule_set, &
             atomic_kind_set, particle_set, local_molecules, vel, para_env%group, &
@@ -1515,8 +1513,7 @@ CONTAINS
             core_particle_set=core_particle_set, error=error)
 
        CALL apply_thermostat_shell_begin(thermostat_shell, atomic_kind_set, particle_set,&
-            local_particles, shell_particle_set, core_particle_set, simpar%shell_nose,&
-            para_env%group, error)
+            local_particles, shell_particle_set, core_particle_set, para_env%group, error)
     ELSE
        CALL apply_thermostat_part_begin(thermostat_part, molecule_kind_set, molecule_set,&
             atomic_kind_set, particle_set, local_molecules, para_env%group ,error=error)
@@ -1756,8 +1753,7 @@ CONTAINS
             error=error)
 
        CALL apply_thermostat_shell_end(thermostat_shell,atomic_kind_set, particle_set,&
-            local_particles, vel, shell_vel, core_vel, simpar%shell_nose, para_env%group,&
-            error)
+            local_particles, vel, shell_vel, core_vel, para_env%group, error)
     ELSE
        CALL apply_thermostat_part_end(thermostat_part,molecule_kind_set, molecule_set, &
             atomic_kind_set, particle_set, local_molecules, vel, para_env%group, error=error)
@@ -2890,8 +2886,7 @@ END SUBROUTINE nph_uniaxial_damped
             core_particle_set=core_particle_set, error=error)
 
        CALL apply_thermostat_shell_begin(thermostat_shell, atomic_kind_set, particle_set,&
-            local_particles, shell_particle_set, core_particle_set, simpar%shell_nose,&
-            para_env%group, error)
+            local_particles, shell_particle_set, core_particle_set, para_env%group, error)
     ELSE
        CALL apply_thermostat_part_begin(thermostat_part, molecule_kind_set, molecule_set,&
             atomic_kind_set, particle_set, local_molecules, para_env%group ,error=error)
@@ -3196,8 +3191,7 @@ END SUBROUTINE nph_uniaxial_damped
             error=error)
 
        CALL apply_thermostat_shell_end(thermostat_shell,atomic_kind_set, particle_set,&
-            local_particles, vel, shell_vel, core_vel, simpar%shell_nose, para_env%group,&
-            error)
+            local_particles, vel, shell_vel, core_vel, para_env%group, error)
     ELSE
        CALL apply_thermostat_part_end(thermostat_part,molecule_kind_set, molecule_set, &
             atomic_kind_set, particle_set, local_molecules, vel, para_env%group, error=error)

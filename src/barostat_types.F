@@ -22,11 +22,11 @@
 MODULE barostat_types
   USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE extended_system_init,            ONLY: initialize_npt
   USE extended_system_types,           ONLY: npt_info_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE init_extended_system_types,      ONLY: initialize_npt
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type

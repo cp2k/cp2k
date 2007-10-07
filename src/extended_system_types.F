@@ -28,18 +28,19 @@ MODULE extended_system_types
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
-
   PRIVATE
 
   PUBLIC :: lnhc_dealloc,&
-       lnhc_init,&
-       lnhc_parameters_type,&
-       npt_info_type,&
-       nhc_info_type, &
-       particle_kinetic_type,&
-       particle_scale_type,&
-       extended_energy_type
+            lnhc_init,&
+            lnhc_parameters_type,&
+            npt_info_type,&
+            nhc_info_type, &
+            particle_kinetic_type,&
+            particle_scale_type,&
+            extended_energy_type
 
+  LOGICAL, PARAMETER, PUBLIC :: debug_isotropic_limit = .FALSE.
+  LOGICAL, PARAMETER, PUBLIC :: debug_uniaxial_limit  = .FALSE.
 
   TYPE extended_energy_type
      REAL(KIND=dp)   ::  energy_g3x3_restraint,&

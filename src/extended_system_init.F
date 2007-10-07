@@ -2,10 +2,10 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2007  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/init_extended_system_types [1.0] *
+!!****** cp2k/extended_system_init [1.0] *
 !!
 !!   NAME
-!!     init_extended_system_types
+!!     extended_system_init
 !!
 !!   FUNCTION
 !!
@@ -19,18 +19,20 @@
 !!   SOURCE
 !******************************************************************************
 
-MODULE init_extended_system_types
+MODULE extended_system_init
 
   USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type
-  USE extended_system_types,           ONLY: lnhc_parameters_type,&
+  USE extended_system_types,           ONLY: debug_isotropic_limit,&
+                                             lnhc_parameters_type,&
                                              npt_info_type
   USE global_types,                    ONLY: global_environment_type
-  USE init_extended_system_variables,  ONLY: init_barostat_variables,&
-                                             init_nhc_variables
-  USE input_constants,                 ONLY: nph_uniaxial_damped_ensemble,&
+  USE input_constants,                 ONLY: do_thermo_communication,&
+                                             do_thermo_no_communication,&
+                                             do_thermo_only_master,&
+                                             nph_uniaxial_damped_ensemble,&
                                              nph_uniaxial_ensemble,&
                                              npt_f_ensemble,&
                                              npt_i_ensemble
@@ -41,6 +43,9 @@ MODULE init_extended_system_types
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
+  USE message_passing,                 ONLY: mp_allgather,&
+                                             mp_bcast,&
+                                             mp_sum
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: global_constraint_type,&
                                              molecule_type
@@ -48,17 +53,18 @@ MODULE init_extended_system_types
                                              nhc_to_coef_mapping,&
                                              nhc_to_particle_mapping,&
                                              nhc_to_shell_mapping
+  USE parallel_rng_types,              ONLY: next_random_number
   USE termination,                     ONLY: stop_program
   USE thermostat_types,                ONLY: thermostat_info_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
-  IMPLICIT NONE
-
+  PRIVATE
   PUBLIC :: initialize_nhc_part, initialize_nhc_baro, initialize_npt, &
             initialize_nhc_coef, initialize_nhc_shell
-  PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'init_extended_system_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'extended_system_init'
 
 !!*****
 !******************************************************************************
@@ -66,7 +72,7 @@ MODULE init_extended_system_types
 CONTAINS
 
 !******************************************************************************
-!!****** init_extended_system_types/initialize_npt [1.0] *
+!!****** extended_system_init/initialize_npt [1.0] *
 !!
 !!   NAME
 !!     initialize_npt_type
@@ -176,7 +182,7 @@ CONTAINS
   END SUBROUTINE initialize_npt
 
 !******************************************************************************
-!!****** initialize_extended_types/initialize_nhc_baro [1.0] *
+!!****** extended_system_init/initialize_nhc_baro [1.0] *
 !!
 !!   NAME
 !!     initialize_nhc_baro
@@ -220,25 +226,25 @@ CONTAINS
        CALL set_yoshida_coef ( nhc, simpar % dt )
     ENDIF
 
-     CALL restart_nose(nhc,nose_section,save_mem,restart,error)
-
-     IF(.NOT. restart) THEN
+    CALL restart_nose(nhc,nose_section,save_mem,restart,error)
+    
+    IF(.NOT. restart) THEN
        ! Initializing thermostat forces and velocities for the Nose-Hoover
        ! Chain variables
        SELECT CASE (simpar % ensemble )
        CASE DEFAULT
           temp = simpar % temp_ext
        END SELECT
-
+       
        IF ( nhc % nhc_len /= 0 ) &
             CALL init_nhc_variables ( nhc, simpar % tau_nhc,  &
             temp, para_env, globenv ,error=error)
-     END IF
-
+    END IF
+    CALL init_nhc_forces ( nhc, error=error)
   END SUBROUTINE initialize_nhc_baro
 
 !******************************************************************************
-!!****** initialize_extended_types/initialize_nhc_part [1.0] *
+!!****** extended_system_init/initialize_nhc_part [1.0] *
 !!
 !!   NAME
 !!     initialize_nhc_part
@@ -300,11 +306,11 @@ CONTAINS
             simpar % temp_ext, para_env, globenv ,error=error)
 
     ENDIF
-
+    CALL init_nhc_forces ( nhc, error=error)
   END SUBROUTINE initialize_nhc_part
 
 !******************************************************************************
-!!****** initialize_extended_types/initialize_nhc_coef [1.0] *
+!!****** extended_system_init/initialize_nhc_coef [1.0] *
 !!
 !!   NAME
 !!     initialize_nhc_coef
@@ -365,11 +371,11 @@ CONTAINS
        CALL stop_program(routineN,moduleN,__LINE__,&
             "nve for coefs implemented but not tested")
     END IF
-
+    CALL init_nhc_forces ( nhc, error=error)
   END SUBROUTINE initialize_nhc_coef
 
 !******************************************************************************
-!!****** initialize_extended_types/initialize_nhc_shell [1.0] *
+!!****** extended_system_init/initialize_nhc_shell [1.0] *
 !!
 !!   NAME
 !!     initialize_nhc_shell
@@ -411,31 +417,30 @@ CONTAINS
     CALL nhc_to_shell_mapping(thermostat_info, simpar, local_molecules,&
        molecule, molecule_kind_set, nhc, para_env, gci, error)
 
-    IF(simpar%shell_nose) THEN
-       restart = .FALSE.
-       ! Set up the Yoshida weights
-       IF ( nhc % nyosh > 0 ) THEN
-          ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = stat )
-          CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
-          CALL set_yoshida_coef ( nhc, simpar % dt )
-       ENDIF
-       
-       CALL restart_nose(nhc, nose_section, save_mem, restart, error)
-       
-       IF(.NOT. restart) THEN
-          ! Initialize thermostat forces and velocities
-          ! Chain variables
-          IF ( nhc % nhc_len /= 0 ) THEN
-             CALL init_nhc_variables (nhc, simpar%shell_tau_nhc, simpar%temp_sh_ext, &
-                  para_env, globenv, error=error)
-          END IF
+    restart = .FALSE.
+    ! Set up the Yoshida weights
+    IF ( nhc % nyosh > 0 ) THEN
+       ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = stat )
+       CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+       CALL set_yoshida_coef ( nhc, simpar % dt )
+    ENDIF
+    
+    CALL restart_nose(nhc, nose_section, save_mem, restart, error)
+    
+    IF(.NOT. restart) THEN
+       ! Initialize thermostat forces and velocities
+       ! Chain variables
+       IF ( nhc % nhc_len /= 0 ) THEN
+          CALL init_nhc_variables (nhc, simpar%shell_tau_nhc, simpar%temp_sh_ext, &
+               para_env, globenv, error=error)
        END IF
     END IF
+    CALL init_nhc_forces ( nhc, error=error)
   END SUBROUTINE  initialize_nhc_shell
   
 !!*****
 !******************************************************************************
-!!****** extended_system_initialize/set_yoshida_coef [1.0] *
+!!****** extended_system_init/set_yoshida_coef [1.0] *
 !!
 !!   NAME
 !!     set_yoshida_coef
@@ -521,7 +526,7 @@ CONTAINS
   END SUBROUTINE set_yoshida_coef
 
 !******************************************************************************
-!!****** initialize_extended_types/restart_nose [1.0] *
+!!****** extended_system_init/restart_nose [1.0] *
 !!
 !!   NAME
 !!     restart_nose 
@@ -637,9 +642,323 @@ CONTAINS
      ENDIF
   END SUBROUTINE restart_nose
 
+
+!******************************************************************************
+!!****** extended_system_init/init_nhc_variables [1.0] *
+!!
+!!   NAME
+!!     init_nhc_variables
+!!
+!!   FUNCTION
+!!     Initializes the NHC velocities to the Maxwellian distribution
+!!
+!!   AUTHOR
+!!
+!!   CREATION DATE
+!!     14-NOV-2000
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE init_nhc_variables ( nhc,tau_nhc,temp_ext, para_env, globenv, error )
+    TYPE(lnhc_parameters_type), &
+      INTENT(INOUT)                          :: nhc
+    REAL(KIND=dp), INTENT(IN)                :: tau_nhc, temp_ext
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_nhc_variables', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, icount, j, number, &
+                                                rannumneed, stat, tot_rn
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rn_need_per_proc
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: akin, temp, v
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: array_of_rn
+
+    failure = .FALSE.
+    ! first initializing the mass of the nhc variables
+
+    nhc % nvt ( :, : ) % mass = nhc % nvt ( :, : ) % nkt * tau_nhc * tau_nhc
+    nhc % nvt ( :, : ) % eta = 0._dp
+    nhc % nvt ( :, : ) % v = 0._dp
+    nhc % nvt ( :, : ) % f = 0._dp
+
+    SELECT CASE ( nhc % dis_type )
+    CASE ( do_thermo_only_master )  ! for NPT
+    CASE DEFAULT
+       rannumneed = nhc%num_nhc*nhc%nhc_len
+       ALLOCATE ( rn_need_per_proc( para_env%num_pe ), STAT = stat )
+       CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+
+       rn_need_per_proc (:) = 0
+       CALL mp_allgather ( rannumneed, rn_need_per_proc, para_env%group )
+       
+       IF (nhc % dis_type== do_thermo_communication) THEN
+          tot_rn = rn_need_per_proc(1)
+       ELSE
+          tot_rn = SUM ( rn_need_per_proc )
+       ENDIF
+       
+       DEALLOCATE ( rn_need_per_proc, STAT = stat )
+       CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+
+       ALLOCATE(array_of_rn( tot_rn), STAT = stat)
+       CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+       array_of_rn(:) = 0.0_dp
+    END SELECT
+
+    SELECT CASE ( nhc % dis_type )
+    CASE ( do_thermo_only_master ) ! for NPT
+       IF ( para_env%ionode ) THEN
+          ! Map deterministically determined random number to nhc % v
+          DO i = 1, nhc % num_nhc
+             DO j = 1, nhc % nhc_len
+                nhc%nvt(j,i)%v = next_random_number(globenv%gaussian_rng_stream,error=error)
+             END DO
+          END DO
+          
+          akin = 0.0_dp
+          DO i = 1, nhc % num_nhc
+             DO j = 1, nhc % nhc_len
+                akin = akin + 0.5_dp * ( nhc % nvt ( j , i ) % mass * &
+                                         nhc % nvt ( j , i ) % v * &
+                                         nhc % nvt ( j , i ) % v )
+             END DO
+          END DO
+          number = nhc % num_nhc
+
+          ! scale velocities to get the correct initial temperature
+          temp = 2.0_dp*akin/REAL(number)
+          temp = SQRT(temp_ext/temp)
+          DO i = 1, nhc % num_nhc
+             DO j = 1, nhc % nhc_len
+                nhc % nvt(j,i) % v = temp * nhc % nvt(j,i) % v
+                nhc % nvt(j,i) % eta = 0.0_dp
+             END DO
+          END DO
+          
+          ! initializing all of the forces on the thermostats
+          DO i = 1, nhc % num_nhc
+             DO j = 2, nhc % nhc_len
+                nhc % nvt(j,i) % f = nhc % nvt(j-1,i) % mass*nhc % nvt(j-1,i) % v* &
+                     nhc % nvt(j-1,i) % v - nhc % nvt(j,i) % nkt
+                nhc % nvt(j,i) % f = nhc % nvt(j,i) % f/nhc % nvt(j,i) % mass
+             END DO
+          END DO
+       END IF
+       ! Broadcast
+       DO i = 1, SIZE ( nhc % nvt, 1 )
+          DO j = 1, SIZE ( nhc % nvt, 2 )
+             CALL mp_bcast ( nhc % nvt ( i, j ) % v, para_env%source, para_env%group )
+             CALL mp_bcast ( nhc % nvt ( i, j ) % eta, para_env%source, para_env%group )
+             CALL mp_bcast ( nhc % nvt ( i, j ) % f, para_env%source, para_env%group )
+          END DO
+       END DO
+       
+    CASE DEFAULT
+       DO i=1,tot_rn
+          array_of_rn(i) = next_random_number(globenv%gaussian_rng_stream,error=error)
+       END DO
+       ! Map deterministically determined random number to nhc % v
+       DO i = 1, nhc % num_nhc
+          icount = nhc % INDEX(i)
+          icount = (icount-1) * nhc % nhc_len
+          DO j = 1, nhc % nhc_len
+             icount = icount + 1
+             nhc % nvt(j,i) % v = array_of_rn ( icount )
+          END DO
+       END DO
+       
+       DEALLOCATE ( array_of_rn, STAT = stat )
+       CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+
+       akin = 0.0_dp
+       DO i = 1, nhc % num_nhc
+          DO j = 1, nhc % nhc_len
+             akin = akin + 0.5_dp * ( nhc % nvt ( j , i ) % mass * &
+                                      nhc % nvt ( j , i ) % v * &
+                                      nhc % nvt ( j , i ) % v )
+          END DO
+       END DO
+       number = nhc % num_nhc
+       
+       IF (nhc % dis_type==do_thermo_no_communication) THEN
+          CALL mp_sum(akin,para_env%group)
+          CALL mp_sum(number,para_env%group)
+       ENDIF
+       
+       ! scale velocities to get the correct initial temperature
+       temp = 2.0_dp*akin/REAL(number)
+       temp = SQRT(temp_ext/temp)
+       DO i = 1, nhc % num_nhc
+          DO j = 1, nhc % nhc_len
+             nhc % nvt(j,i) % v = temp * nhc % nvt(j,i) % v
+             nhc % nvt(j,i) % eta = 0.0_dp
+          END DO
+       END DO
+       
+       ! initializing all of the forces on the thermostats
+       DO i = 1, nhc % num_nhc
+          DO j = 2, nhc % nhc_len
+             nhc % nvt(j,i) % f = nhc % nvt(j-1,i) % mass*nhc % nvt(j-1,i) % v* &
+                                  nhc % nvt(j-1,i) % v - nhc % nvt(j,i) % nkt
+             nhc % nvt(j,i) % f = nhc % nvt(j,i) % f/nhc % nvt(j,i) % mass
+          END DO
+       END DO
+
+    END SELECT
+  END SUBROUTINE init_nhc_variables
+
 !!*****
 !******************************************************************************
+!!****** extended_system_init/init_barostat_variables [1.0] *
+!!
+!!   NAME
+!!     init_barostat_variables
+!!
+!!   FUNCTION
+!!     Initializes the barostat velocities to the Maxwellian distribution
+!!
+!!   AUTHOR
+!!
+!!   CREATION DATE
+!!     14-NOV-2000
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE init_barostat_variables ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
+       cmass, para_env, globenv, error )
+    
+    TYPE(npt_info_type), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: npt
+    REAL(KIND=dp), INTENT(IN)                :: tau_cell, temp_ext, deth
+    INTEGER, INTENT(IN)                      :: nfree, ensemble
+    REAL(KIND=dp), INTENT(IN)                :: cmass
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-END MODULE init_extended_system_types
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_barostat_variables', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, j, number
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: akin, temp, v
+
+    failure = .FALSE.
+    ! first initializing the mass of the nhc variables
+    
+    SELECT CASE ( ensemble )
+    CASE ( npt_i_ensemble )
+       npt ( :, : ) % mass = REAL ( nfree + 3,KIND=dp) * temp_ext * tau_cell ** 2
+    CASE ( npt_f_ensemble)
+       npt ( :, : ) % mass = REAL ( nfree + 3,KIND=dp) * temp_ext * tau_cell ** 2 / 3.0_dp
+    CASE ( nph_uniaxial_ensemble,nph_uniaxial_damped_ensemble )
+       npt ( :, : ) % mass = cmass
+    END SELECT
+
+    IF ( para_env%ionode ) THEN
+       ! initializing velocities
+       DO i = 1, SIZE ( npt,1)
+          DO j = i, SIZE ( npt,2)
+             v = next_random_number(globenv%gaussian_rng_stream,error=error)
+             ! Symmetrizing the initial barostat velocities to ensure
+             ! no rotation of the cell under NPT_F
+             npt(j,i) % v = v
+             npt(i,j) % v = v
+          END DO
+       END DO
+       
+       akin = 0.0_dp
+       DO i = 1, SIZE( npt,1 )
+          DO j = 1, SIZE( npt,2 )
+             akin = akin + 0.5_dp*( npt(j,i) % mass* npt(j,i)%v * npt(j,i)%v)
+          END DO
+       END DO
+       
+       number = SIZE ( npt, 1 ) * SIZE ( npt, 2 )
+       
+       ! scale velocities to get the correct initial temperature
+       IF ( number /= 0 ) THEN
+          temp = 2.0_dp * akin / REAL ( number,KIND=dp)
+          temp = SQRT(temp_ext/temp)
+       ENDIF
+       DO i = 1, SIZE(npt,1)
+          DO j = i, SIZE(npt,2)
+             npt(j,i) % v = temp * npt(j,i) % v
+             npt(i,j) % v = npt(j,i) % v
+             IF (debug_isotropic_limit) THEN
+                npt(j,i) % v = 0.0_dp
+                npt(i,j) % v = 0.0_dp
+                WRITE (*, *) 'DEBUG ISOTROPIC LIMIT| INTIAL v_eps', npt(j,i) % v
+             END IF
+          END DO
+       END DO
+
+       ! Zero barostat velocities for nph_uniaxial
+       SELECT CASE ( ensemble )
+       CASE ( nph_uniaxial_ensemble, nph_uniaxial_damped_ensemble )
+          npt(:,:) % v = 0.0_dp
+       END SELECT
+    ENDIF
+    
+    ! Broadcast
+    DO i = 1, SIZE ( npt, 1 )
+       DO j = 1, SIZE ( npt, 2 )
+          CALL mp_bcast ( npt ( i, j ) % v, para_env%source, para_env%group )
+       END DO
+    END DO
+
+  END SUBROUTINE init_barostat_variables
 
 !******************************************************************************
+!!****** extended_system_init/init_nhc_forces [1.0] *
+!!
+!!   NAME
+!!     init_nhc_forces
+!!
+!!   FUNCTION
+!!    Assigns extended parameters from the restart file.
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE init_nhc_forces ( nhc, error)
+
+    TYPE(lnhc_parameters_type), POINTER      :: nhc
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_nhc_forces', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, j
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+
+    CPPrecondition(ASSOCIATED(nhc),cp_fatal_level,routineP,error,failure)
+    ! assign the forces
+    DO i = 1, SIZE ( nhc % nvt, 2 )
+       DO j = 2, SIZE ( nhc % nvt, 1 )
+          nhc % nvt ( j, i ) % f = nhc % nvt ( j-1, i ) % mass * &
+                                   nhc % nvt ( j-1, i ) % v **2 -  &
+                                   nhc % nvt ( j, i ) % nkt
+          nhc % nvt ( j, i ) % f = nhc % nvt ( j, i ) % f / nhc % nvt ( j, i ) % mass
+       END DO
+    END DO
+
+  END SUBROUTINE init_nhc_forces
+
+END MODULE extended_system_init

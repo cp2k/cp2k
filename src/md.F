@@ -123,7 +123,6 @@ MODULE md
      INTEGER :: shell_nhclen
      INTEGER :: shell_region, part_region
      INTEGER :: shell_nyosh
-     LOGICAL :: shell_nose
      REAL (KIND=dp) :: shell_tau_nhc
      REAL (KIND=dp) :: temp_sh_ext
      REAL (KIND=dp) :: temp_sh_tol
@@ -273,11 +272,11 @@ CONTAINS
        WRITE ( iw, '( A,T20,i10,T31,A50 )' ) ' MD| Coordinates',iprint(SIZE(iprint)), &
             ADJUSTR ( TRIM(filename) )
 
-       IF (    simpar % ensemble == nph_ensemble .OR.&
-               simpar % ensemble == nph_uniaxial_ensemble .OR.&
-               simpar % ensemble == nph_uniaxial_damped_ensemble.OR.&
-               simpar % ensemble == npt_i_ensemble.OR.&
-               simpar % ensemble == npt_f_ensemble ) THEN
+       IF ( simpar % ensemble == nph_ensemble .OR.&
+            simpar % ensemble == nph_uniaxial_ensemble .OR.&
+            simpar % ensemble == nph_uniaxial_damped_ensemble.OR.&
+            simpar % ensemble == npt_i_ensemble.OR.&
+            simpar % ensemble == npt_f_ensemble ) THEN
 
           print_key => section_vals_get_subs_vals(motion_section,"PRINT%CELL",error=error)
           NULLIFY(iprint)
@@ -469,13 +468,10 @@ CPSourceFileRef,&
              CASE (do_thermo_nose)
                 ! Nose-Hoover Thermostat
                 tmp2_section => section_vals_get_subs_vals(thermostat_section,"NOSE",error=error)
-                CALL section_vals_get(tmp2_section,explicit=simpar%shell_nose,error=error)
-                IF (simpar%shell_nose) THEN
-                   CALL section_vals_val_get(tmp2_section,"LENGTH",i_val=simpar%shell_nhclen,error=error)
-                   CALL section_vals_val_get(tmp2_section,"YOSHIDA",i_val=simpar%shell_nyosh,error=error)
-                   CALL section_vals_val_get(tmp2_section,"TIMECON",r_val=simpar%shell_tau_nhc,error=error)
-                   CALL section_vals_val_get(tmp2_section,"MTS",i_val=simpar%shell_nc,error=error)
-                END IF
+                CALL section_vals_val_get(tmp2_section,"LENGTH",i_val=simpar%shell_nhclen,error=error)
+                CALL section_vals_val_get(tmp2_section,"YOSHIDA",i_val=simpar%shell_nyosh,error=error)
+                CALL section_vals_val_get(tmp2_section,"TIMECON",r_val=simpar%shell_tau_nhc,error=error)
+                CALL section_vals_val_get(tmp2_section,"MTS",i_val=simpar%shell_nc,error=error)
              CASE (do_thermo_csvr)
                 ! Canonical Sampling through velocity rescaling
                 CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -538,7 +534,6 @@ CPSourceFileRef,&
     simpar%shadow_gamma = 0.0_dp
     simpar%var_w = 0.0_dp
     ! SHELL parameters
-    simpar % shell_nose = .FALSE.
     simpar % temp_sh_ext = 0.0_dp
     simpar % temp_sh_tol = 0.0_dp
     simpar % shell_nhclen = 3

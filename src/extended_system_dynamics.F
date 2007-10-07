@@ -581,7 +581,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE lnhc_shell_set(nhc, atomic_kind_set, particle_set, local_particles, &
-       shell_particle_set, core_particle_set, shell_nose, group)
+       shell_particle_set, core_particle_set, group)
 
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
@@ -589,7 +589,6 @@ CONTAINS
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(particle_type), POINTER             :: shell_particle_set(:), &
                                                 core_particle_set(:)
-    LOGICAL, INTENT(IN)                      :: shell_nose
     INTEGER, INTENT(IN)                      :: group
 
     INTEGER :: handle, ii, iparticle, iparticle_kind, iparticle_local, n, &
@@ -602,7 +601,6 @@ CONTAINS
     TYPE(shell_kind_type), POINTER           :: shell
 
     NULLIFY(atomic_kind,shell)
-    IF(.NOT. shell_nose) RETURN
     CALL timeset('LNHC_SHELL','I','Mflops',handle)
     flops = 0.0_dp
 
@@ -713,7 +711,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE lnhc_shells(nhc, atomic_kind_set, particle_set, local_particles, &
-       vel, shell_vel, core_vel, shell_nose, group)
+       vel, shell_vel, core_vel, group)
 
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
@@ -721,7 +719,6 @@ CONTAINS
     TYPE(distribution_1d_type), POINTER      :: local_particles
     REAL(KIND=dp), INTENT(INOUT)             :: vel(:,:), shell_vel(:,:), &
                                                 core_vel(:,:)
-    LOGICAL, INTENT(IN)                      :: shell_nose
     INTEGER, INTENT(IN)                      :: group
 
     INTEGER :: handle, ii, iparticle, iparticle_kind, iparticle_local, n, &
@@ -734,7 +731,6 @@ CONTAINS
     TYPE(shell_kind_type), POINTER           :: shell
 
     NULLIFY(atomic_kind,shell)
-    IF(.NOT. shell_nose) RETURN
     CALL timeset('LNHC_SHELL','I','Mflops',handle)
     flops = 0.0_dp
 
