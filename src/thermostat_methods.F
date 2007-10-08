@@ -48,6 +48,7 @@ MODULE thermostat_methods
                                              do_thermo_same_as_part,&
                                              npt_f_ensemble,&
                                              npt_i_ensemble,&
+                                             nve_ensemble,&
                                              nvt_ensemble
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -127,9 +128,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: thermostat_type
-    LOGICAL :: apply_general_thermo, apply_thermo_baro, do_thermo_shell, &
-      explicit_baro, explicit_coef, explicit_part, explicit_shell, failure, &
-      save_mem, shell_adiabatic, shell_present
+    LOGICAL :: apply_general_thermo, apply_thermo_baro, apply_thermo_coeff, &
+      do_thermo_shell, explicit_baro, explicit_coef, explicit_part, &
+      explicit_shell, failure, save_mem, shell_adiabatic, shell_present
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -160,7 +161,11 @@ CONTAINS
     apply_thermo_baro = (simpar%ensemble == npt_f_ensemble).OR.&
                         (simpar%ensemble == npt_i_ensemble)
 
+    apply_thermo_coeff= (simpar%ensemble == nve_ensemble).OR.&
+                        (simpar%ensemble == nvt_ensemble)
+
     apply_general_thermo = apply_thermo_baro .OR. (simpar%ensemble == nvt_ensemble)
+
     ! Compute Degrees of Freedom
     CALL cp_subsys_get(subsys, molecule_kinds_new=molecule_kinds_new, local_molecules_new=local_molecules,&
             gci=gci, error=error) 
@@ -248,7 +253,7 @@ CPSourceFileRef,&
 
     ! Coefficients
     IF (explicit_coef) THEN
-       IF (apply_general_thermo) THEN
+       IF (apply_thermo_coeff) THEN
           CALL create_thermostat_type(thermostats%thermostat_coef, thermo_coef_section, error)
           CALL force_env_get(force_env, dyn_coeff_set=dyn_coeff_set, error=error )
           IF (ASSOCIATED(dyn_coeff_set)) THEN
@@ -432,13 +437,12 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   SUBROUTINE apply_thermostat_part_begin(thermostat, molecule_kind_set, molecule_set,&
-       atomic_kind_set, particle_set, local_molecules, group, shell_adiabatic,&
-       shell_particle_set, core_particle_set, error)
+       particle_set, local_molecules, group, shell_adiabatic, shell_particle_set,&
+       core_particle_set, error)
 
     TYPE(thermostat_type), POINTER           :: thermostat
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(molecule_type), POINTER             :: molecule_set( : )
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     INTEGER, INTENT(IN)                      :: group
@@ -458,7 +462,7 @@ CPSourceFileRef,&
           ! Apply Nose-Hoover Thermostat
           CPPostcondition(ASSOCIATED(thermostat%nhc),cp_failure_level,routineP,error,failure)
           CALL lnhc_particle_set (thermostat%nhc,molecule_kind_set,molecule_set,&
-               atomic_kind_set,particle_set,local_molecules,group,shell_adiabatic,&
+               particle_set,local_molecules,group,shell_adiabatic,&
                shell_particle_set,core_particle_set)
        ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN  
           ! Apply CSVR Thermostat
@@ -490,13 +494,11 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   SUBROUTINE apply_thermostat_part_end(thermostat, molecule_kind_set, molecule_set,&
-       atomic_kind_set,particle_set, local_molecules, vel, group, shell_adiabatic,&
-       shell_vel, core_vel, error )
+       particle_set, local_molecules, vel, group, shell_adiabatic, shell_vel, core_vel, error )
 
     TYPE(thermostat_type), POINTER           :: thermostat
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(molecule_type), POINTER             :: molecule_set( : )
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
@@ -515,7 +517,7 @@ CPSourceFileRef,&
        IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN
           ! Apply Nose-Hoover Thermostat
           CPPostcondition(ASSOCIATED(thermostat%nhc),cp_failure_level,routineP,error,failure)
-          CALL lnhc_particles(thermostat%nhc, molecule_kind_set,molecule_set,atomic_kind_set,&
+          CALL lnhc_particles(thermostat%nhc, molecule_kind_set,molecule_set,&
                particle_set, local_molecules, vel, group,  shell_adiabatic, shell_vel, &
                core_vel)
        ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN  

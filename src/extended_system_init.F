@@ -27,6 +27,7 @@ MODULE extended_system_init
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type
   USE extended_system_types,           ONLY: debug_isotropic_limit,&
                                              lnhc_parameters_type,&
+                                             map_info_type,&
                                              npt_info_type
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_thermo_communication,&
@@ -557,6 +558,7 @@ CONTAINS
     INTEGER                                  :: i, ind, j
     LOGICAL                                  :: explicit
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer
+    TYPE(map_info_type), POINTER             :: map_info
     TYPE(section_vals_type), POINTER         :: work_section
 
     NULLIFY(buffer, work_section)
@@ -588,9 +590,10 @@ CONTAINS
     END IF
 
     IF (restart) THEN
+       map_info => nhc%map_info
        CALL section_vals_val_get(nose_section,"COORD%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
        DO i = 1, SIZE ( nhc % nvt, 2)
-          ind = nhc % INDEX(i)
+          ind = map_info%index(i)
           ind = (ind-1) * nhc % nhc_len
           DO j = 1, SIZE(nhc % nvt, 1)
              ind = ind + 1
@@ -599,7 +602,7 @@ CONTAINS
        END DO
        CALL section_vals_val_get(nose_section,"VELOCITY%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
        DO i = 1, SIZE ( nhc % nvt, 2)
-          ind = nhc % INDEX(i)
+          ind = map_info%index(i)
           ind = (ind-1) * nhc % nhc_len
           DO j = 1, SIZE(nhc % nvt, 1)
              ind = ind + 1
@@ -608,7 +611,7 @@ CONTAINS
        END DO
        CALL section_vals_val_get(nose_section,"MASS%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
        DO i = 1, SIZE ( nhc % nvt, 2)
-          ind = nhc % INDEX(i)
+          ind = map_info%index(i)
           ind = (ind-1) * nhc % nhc_len
           DO j = 1, SIZE(nhc % nvt, 1)
              ind = ind + 1
@@ -617,7 +620,7 @@ CONTAINS
        END DO
        CALL section_vals_val_get(nose_section,"FORCE%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
        DO i = 1, SIZE ( nhc % nvt, 2)
-          ind = nhc % INDEX(i)
+          ind = map_info%index(i)
           ind = (ind-1) * nhc % nhc_len
           DO j = 1, SIZE(nhc % nvt, 1)
              ind = ind + 1
@@ -679,6 +682,7 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: akin, temp, v
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: array_of_rn
+    TYPE(map_info_type), POINTER             :: map_info
 
     failure = .FALSE.
     ! first initializing the mass of the nhc variables
@@ -688,7 +692,8 @@ CONTAINS
     nhc % nvt ( :, : ) % v = 0._dp
     nhc % nvt ( :, : ) % f = 0._dp
 
-    SELECT CASE ( nhc % dis_type )
+    map_info => nhc%map_info
+    SELECT CASE (map_info%dis_type)
     CASE ( do_thermo_only_master )  ! for NPT
     CASE DEFAULT
        rannumneed = nhc%num_nhc*nhc%nhc_len
@@ -698,7 +703,7 @@ CONTAINS
        rn_need_per_proc (:) = 0
        CALL mp_allgather ( rannumneed, rn_need_per_proc, para_env%group )
        
-       IF (nhc % dis_type== do_thermo_communication) THEN
+       IF (map_info%dis_type== do_thermo_communication) THEN
           tot_rn = rn_need_per_proc(1)
        ELSE
           tot_rn = SUM ( rn_need_per_proc )
@@ -712,7 +717,7 @@ CONTAINS
        array_of_rn(:) = 0.0_dp
     END SELECT
 
-    SELECT CASE ( nhc % dis_type )
+    SELECT CASE (map_info%dis_type )
     CASE ( do_thermo_only_master ) ! for NPT
        IF ( para_env%ionode ) THEN
           ! Map deterministically determined random number to nhc % v
@@ -766,7 +771,7 @@ CONTAINS
        END DO
        ! Map deterministically determined random number to nhc % v
        DO i = 1, nhc % num_nhc
-          icount = nhc % INDEX(i)
+          icount = map_info%index(i)
           icount = (icount-1) * nhc % nhc_len
           DO j = 1, nhc % nhc_len
              icount = icount + 1
@@ -787,7 +792,7 @@ CONTAINS
        END DO
        number = nhc % num_nhc
        
-       IF (nhc % dis_type==do_thermo_no_communication) THEN
+       IF (map_info%dis_type==do_thermo_no_communication) THEN
           CALL mp_sum(akin,para_env%group)
           CALL mp_sum(number,para_env%group)
        ENDIF

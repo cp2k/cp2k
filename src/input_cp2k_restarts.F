@@ -46,6 +46,7 @@ MODULE input_cp2k_restarts
                                              compile_host,&
                                              compile_lastcvs
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
+                                             map_info_type,&
                                              npt_info_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type,&
@@ -942,18 +943,19 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: index, nhc_per_proc
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
+    TYPE(map_info_type), POINTER             :: map_info
 
     nhc_len = SIZE(nhc%nvt,1)
     num_nhc = SIZE(nhc%nvt,2)
     numneed = num_nhc
-
+    map_info=> nhc%map_info
     ALLOCATE ( nhc_per_proc(para_env%num_pe), STAT = stat )
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     nhc_per_proc(:) = 0
 
     CALL mp_allgather(numneed,nhc_per_proc,para_env%group)
 
-    IF (nhc%dis_type==do_thermo_communication) THEN
+    IF (map_info%dis_type==do_thermo_communication) THEN
        tot_nhcneed = nhc_per_proc(1)
     ELSE
        tot_nhcneed = SUM ( nhc_per_proc )
@@ -970,13 +972,13 @@ CONTAINS
        CALL reallocate(work,1,nhc_per_proc(iproc)*nhc_len)
        CALL reallocate(index,1,nhc_per_proc(iproc))
        IF(para_env%mepos == (iproc-1)) THEN
-          index(:)=0
+          INDEX(:)=0
           counter=0
           DO i=1,nhc_len
              DO j=1,num_nhc
                 counter=counter+1
                 work(counter)=nhc%nvt(i,j)%eta
-                index(j) = nhc%index(j)
+                INDEX(j) = map_info%index(j)
              END DO
           END DO
        ELSE
@@ -988,7 +990,7 @@ CONTAINS
        DO i=1,nhc_len
           DO j=1,nhc_per_proc(iproc)
              counter = counter+1
-             eta((index(j)-1)*nhc_len+i) = work(counter)
+             eta((INDEX(j)-1)*nhc_len+i) = work(counter)
           END DO
        END DO
     END DO
@@ -1002,13 +1004,13 @@ CONTAINS
        CALL reallocate(work,1,nhc_per_proc(iproc)*nhc_len)
        CALL reallocate(index,1,nhc_per_proc(iproc))
        IF(para_env%mepos == (iproc-1)) THEN
-          index(:)=0
+          INDEX(:)=0
           counter=0
           DO i=1,nhc_len
              DO j=1,num_nhc
                 counter=counter+1
                 work(counter)=nhc%nvt(i,j)%v
-                index(j) = nhc%index(j)
+                INDEX(j) = map_info%index(j)
              END DO
           END DO
        ELSE
@@ -1020,7 +1022,7 @@ CONTAINS
        DO i=1,nhc_len
           DO j=1,nhc_per_proc(iproc)
              counter = counter+1
-             veta((index(j)-1)*nhc_len+i) = work(counter)
+             veta((INDEX(j)-1)*nhc_len+i) = work(counter)
           END DO
        END DO
     END DO
@@ -1034,13 +1036,13 @@ CONTAINS
        CALL reallocate(work,1,nhc_per_proc(iproc)*nhc_len)
        CALL reallocate(index,1,nhc_per_proc(iproc))
        IF(para_env%mepos == (iproc-1)) THEN
-          index(:)=0
+          INDEX(:)=0
           counter=0
           DO i=1,nhc_len
              DO j=1,num_nhc
                 counter=counter+1
                 work(counter)=nhc%nvt(i,j)%f
-                index(j) = nhc%index(j)
+                INDEX(j) = map_info%index(j)
              END DO
           END DO
        ELSE
@@ -1052,7 +1054,7 @@ CONTAINS
        DO i=1,nhc_len
           DO j=1,nhc_per_proc(iproc)
              counter = counter+1
-             fnhc((index(j)-1)*nhc_len+i) = work(counter)
+             fnhc((INDEX(j)-1)*nhc_len+i) = work(counter)
           END DO
        END DO
     END DO
@@ -1066,13 +1068,13 @@ CONTAINS
        CALL reallocate(work,1,nhc_per_proc(iproc)*nhc_len)
        CALL reallocate(index,1,nhc_per_proc(iproc))
        IF(para_env%mepos == (iproc-1)) THEN
-          index(:)=0
+          INDEX(:)=0
           counter=0
           DO i=1,nhc_len
              DO j=1,num_nhc
                 counter=counter+1
                 work(counter)=nhc%nvt(i,j)%mass
-                index(j) = nhc%index(j)
+                INDEX(j) = map_info%index(j)
              END DO
           END DO
        ELSE
@@ -1084,7 +1086,7 @@ CONTAINS
        DO i=1,nhc_len
           DO j=1,nhc_per_proc(iproc)
              counter = counter+1
-             mnhc((index(j)-1)*nhc_len+i) = work(counter)
+             mnhc((INDEX(j)-1)*nhc_len+i) = work(counter)
           END DO
        END DO
     END DO
@@ -1096,7 +1098,7 @@ CONTAINS
     DEALLOCATE ( nhc_per_proc, STAT = stat )
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
 
-    IF ( nhc%dis_type==do_thermo_communication ) THEN
+    IF (map_info%dis_type==do_thermo_communication ) THEN
        eta  = 0.0_dp
        veta = 0.0_dp
        counter = 0

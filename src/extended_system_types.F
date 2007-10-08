@@ -33,10 +33,10 @@ MODULE extended_system_types
   PUBLIC :: lnhc_dealloc,&
             lnhc_init,&
             lnhc_parameters_type,&
+            map_info_type,&
             npt_info_type,&
-            nhc_info_type, &
-            particle_kinetic_type,&
-            particle_scale_type,&
+            nhc_info_type,&
+            point_info_type,&
             extended_energy_type
 
   LOGICAL, PARAMETER, PUBLIC :: debug_isotropic_limit = .FALSE.
@@ -64,24 +64,24 @@ MODULE extended_system_types
      REAL (KIND=dp) :: mass
   END TYPE nhc_info_type
 
-  TYPE particle_kinetic_type
+  TYPE point_info_type
      REAL (KIND=dp), POINTER :: point
-  END TYPE particle_kinetic_type
+  END TYPE point_info_type
 
-  TYPE particle_scale_type
-     REAL (KIND=dp), POINTER :: point
-  END TYPE particle_scale_type
+  TYPE map_info_type
+     INTEGER                                         :: dis_type
+     INTEGER, POINTER, DIMENSION(:)                  :: index
+     REAL (KIND=dp), POINTER, DIMENSION(:)           :: v_scale
+     REAL (KIND=dp), POINTER, DIMENSION(:)           :: s_kin
+     TYPE (point_info_type), POINTER, DIMENSION(:,:) :: p_scale
+     TYPE (point_info_type), POINTER, DIMENSION(:,:) :: p_kin
+  END TYPE map_info_type
 
   TYPE lnhc_parameters_type
-     INTEGER                                 :: dis_type
      INTEGER                                 :: nyosh, nc, nhc_len, num_nhc
      REAL (KIND=dp), POINTER                 :: dt_yosh(:)
-     TYPE ( nhc_info_type ), POINTER         :: nvt (:,:)
-     TYPE ( particle_kinetic_type ), POINTER :: p_kin (:,:)
-     TYPE ( particle_scale_type ), POINTER   :: p_scale (:,:)
-     REAL (KIND=dp), POINTER                 :: v_scale (:)
-     REAL (KIND=dp), POINTER                 :: s_kin (:)
-     INTEGER, POINTER                        :: INDEX(:)
+     TYPE (nhc_info_type), POINTER           :: nvt (:,:)
+     TYPE(map_info_type), POINTER            :: map_info
   END TYPE lnhc_parameters_type
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'extended_system_types'
@@ -120,18 +120,122 @@ CONTAINS
 
     NULLIFY(lnhc%dt_yosh)
     NULLIFY(lnhc%nvt)
-    NULLIFY(lnhc%p_kin)
-    NULLIFY(lnhc%p_scale)
-    NULLIFY(lnhc%v_scale)
-    NULLIFY(lnhc%s_kin)
-    NULLIFY(lnhc%index)
-    lnhc%dis_type=do_thermo_no_communication
+    NULLIFY(lnhc%map_info)
     lnhc%nyosh=0 
     lnhc%nc=0 
     lnhc%nhc_len=0 
     lnhc%num_nhc=0
+    CALL create_map_info_type(lnhc%map_info, error)
+
   END SUBROUTINE lnhc_init
 
+! *****************************************************************************
+!!****f* extended_system_types/create_map_info_type [1.0] *
+!!
+!!   NAME
+!!     create_map_info_type
+!!
+!!   FUNCTION
+!!     create the map_info type
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     
+!!
+!!   MODIFICATION HISTORY
+!!     
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_map_info_type(map_info, error)
+    TYPE(map_info_type), POINTER             :: map_info
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'create_map_info_type', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    ALLOCATE(map_info, stat=stat)
+    CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+    NULLIFY(map_info%index)
+    NULLIFY(map_info%v_scale)
+    NULLIFY(map_info%p_scale)
+    NULLIFY(map_info%s_kin)
+    NULLIFY(map_info%p_kin)
+    map_info%dis_type=do_thermo_no_communication
+
+  END SUBROUTINE create_map_info_type
+
+! *****************************************************************************
+!!****f* extended_system_types/release_map_info_type [1.0] *
+!!
+!!   NAME
+!!     release_map_info_type
+!!
+!!   FUNCTION
+!!     release the map_info type
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     
+!!
+!!   MODIFICATION HISTORY
+!!     
+!!
+!!*** **********************************************************************
+  SUBROUTINE release_map_info_type(map_info, error)
+    TYPE(map_info_type), POINTER             :: map_info
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'release_map_info_type', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+
+    IF (ASSOCIATED(map_info)) THEN
+       IF (ASSOCIATED (map_info%p_kin)) THEN
+          DEALLOCATE (map_info%p_kin, STAT=stat)
+          CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED (map_info%p_scale)) THEN
+          DEALLOCATE (map_info%p_scale, STAT=stat)
+          CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED (map_info%v_scale)) THEN
+          DEALLOCATE (map_info%v_scale, STAT=stat)
+          CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED (map_info%s_kin)) THEN
+          DEALLOCATE (map_info%s_kin, STAT=stat)
+          CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED (map_info%index)) THEN
+          DEALLOCATE (map_info%index, STAT=stat)
+          CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+       END IF
+       
+       DEALLOCATE (map_info, STAT=stat)
+       CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+    END IF
+    
+  END SUBROUTINE release_map_info_type
 
 ! *****************************************************************************
 !!****f* extended_system_types/lnhc_dealloc [1.0] *
@@ -177,26 +281,7 @@ CONTAINS
           DEALLOCATE (lnhc%nvt, STAT=stat)
           CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
        ENDIF
-       IF (ASSOCIATED (lnhc%p_kin)) THEN
-          DEALLOCATE (lnhc%p_kin, STAT=stat)
-          CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
-       END IF
-       IF (ASSOCIATED (lnhc%p_scale)) THEN
-          DEALLOCATE (lnhc%p_scale, STAT=stat)
-          CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
-       END IF
-       IF (ASSOCIATED (lnhc%v_scale)) THEN
-          DEALLOCATE (lnhc%v_scale, STAT=stat)
-          CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
-       END IF
-       IF (ASSOCIATED (lnhc%s_kin)) THEN
-          DEALLOCATE (lnhc%s_kin, STAT=stat)
-          CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
-       END IF
-       IF (ASSOCIATED (lnhc%index)) THEN
-          DEALLOCATE (lnhc%index, STAT=stat)
-          CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
-       END IF
+       CALL release_map_info_type(lnhc%map_info, error)
        DEALLOCATE (lnhc, STAT=stat)
        CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
     ENDIF

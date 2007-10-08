@@ -595,7 +595,7 @@ CONTAINS
                nhc % nvt ( l, n ) % eta
        END DO
     END DO
-    IF (nhc%dis_type==do_thermo_no_communication) THEN
+    IF (nhc%map_info%dis_type==do_thermo_no_communication) THEN
        CALL mp_sum(nhc_kin,int_grp)
        CALL mp_sum(nhc_pot,int_grp)
     END IF

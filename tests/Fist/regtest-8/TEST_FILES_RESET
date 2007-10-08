@@ -6,3 +6,5 @@ G96.inp
 G96_ei_scale.inp
 #  
 water.inp
+# numerics after refactorization
+water.inp
