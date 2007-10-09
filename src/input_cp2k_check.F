@@ -31,9 +31,10 @@ MODULE input_cp2k_check
                                              cp_unit_set_release,&
                                              cp_unit_set_type
   USE input_constants,                 ONLY: &
-       xc_funct_blyp, xc_funct_bp, xc_funct_hcth120, xc_funct_no_shortcut, &
-       xc_funct_olyp, xc_funct_pade, xc_funct_pbe, xc_funct_tpss, &
-       xc_funct_xwpbe, xc_none
+       do_region_global, do_thermo_csvr, do_thermo_nose, &
+       do_thermo_same_as_part, xc_funct_blyp, xc_funct_bp, xc_funct_hcth120, &
+       xc_funct_no_shortcut, xc_funct_olyp, xc_funct_pade, xc_funct_pbe, &
+       xc_funct_tpss, xc_funct_xwpbe, xc_none
   USE input_cp2k,                      ONLY: create_cp2k_root_section
   USE input_keyword_types,             ONLY: keyword_type
   USE input_parsing,                   ONLY: section_vals_parse
@@ -175,7 +176,7 @@ CONTAINS
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE xc_functionals_expand(functionals,error)
+  SUBROUTINE xc_functionals_expand(functionals,error)
     TYPE(section_vals_type), POINTER         :: functionals
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -185,70 +186,70 @@ SUBROUTINE xc_functionals_expand(functionals,error)
     INTEGER                                  :: shortcut
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
-  
-  IF (.NOT. failure) THEN
-     CALL section_vals_val_get(functionals,"_SECTION_PARAMETERS_",&
-          i_val=shortcut,error=error)
-     SELECT CASE(shortcut)
-     CASE(xc_funct_no_shortcut, xc_none)
-        ! nothing to expand
-     CASE(xc_funct_blyp)
-        CALL section_vals_val_set(functionals,"BECKE88%_SECTION_PARAMETERS_",&
-             l_val=.TRUE.,error=error)
-        CALL section_vals_val_set(functionals,"LYP%_SECTION_PARAMETERS_",&
-             l_val=.TRUE.,error=error)
-        CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
-             i_val=xc_funct_no_shortcut,error=error)
-     CASE(xc_funct_bp)
-        CALL section_vals_val_set(functionals,"BECKE88%_SECTION_PARAMETERS_",&
-             l_val=.TRUE.,error=error)
-        CALL section_vals_val_set(functionals,"P86C%_SECTION_PARAMETERS_",&
-             l_val=.TRUE.,error=error)
-        CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
-             i_val=xc_funct_no_shortcut,error=error)
-     CASE(xc_funct_pade)
-        CALL section_vals_val_set(functionals,"PADE%_SECTION_PARAMETERS_",&
-             l_val=.TRUE.,error=error)
-        CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
-             i_val=xc_funct_no_shortcut,error=error)
-     CASE(xc_funct_pbe)
-        CALL section_vals_val_set(functionals,"PBE%_SECTION_PARAMETERS_",&
-             l_val=.TRUE.,error=error)
-        CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
-             i_val=xc_funct_no_shortcut,error=error)
-     CASE(xc_funct_xwpbe)
-        CALL section_vals_val_set(functionals,"XWPBE%_SECTION_PARAMETERS_",&
-             l_val=.TRUE.,error=error)
-        CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
-             i_val=xc_funct_no_shortcut,error=error)
-     CASE(xc_funct_tpss)
-        CALL section_vals_val_set(functionals,"TPSS%_SECTION_PARAMETERS_",&
-             l_val=.TRUE.,error=error)
-        CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
-             i_val=xc_funct_no_shortcut,error=error)
-     CASE(xc_funct_olyp)
-        CALL section_vals_val_set(functionals,"OPTX%_SECTION_PARAMETERS_",&
-             l_val=.TRUE.,error=error)
-        CALL section_vals_val_set(functionals,"LYP%_SECTION_PARAMETERS_",&
-             l_val=.TRUE.,error=error)
-        CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
-             i_val=xc_funct_no_shortcut,error=error)
-     CASE(xc_funct_hcth120)
-        CALL section_vals_val_set(functionals,"HCTH%_SECTION_PARAMETERS_",&
-             l_val=.TRUE.,error=error)
-        CALL section_vals_val_set(functionals,"HCTH%PARAMETER_SET",&
-             i_val=120,error=error)
-        CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
-             i_val=xc_funct_no_shortcut,error=error)
-        
-     CASE default
-        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-             routineP,"unknown shortcut "//TRIM(ADJUSTL(cp_to_string(shortcut))),&
-             error,failure)
-     END SELECT
-  END IF
-END SUBROUTINE xc_functionals_expand
+    failure=.FALSE.
+    
+    IF (.NOT. failure) THEN
+       CALL section_vals_val_get(functionals,"_SECTION_PARAMETERS_",&
+            i_val=shortcut,error=error)
+       SELECT CASE(shortcut)
+       CASE(xc_funct_no_shortcut, xc_none)
+          ! nothing to expand
+       CASE(xc_funct_blyp)
+          CALL section_vals_val_set(functionals,"BECKE88%_SECTION_PARAMETERS_",&
+               l_val=.TRUE.,error=error)
+          CALL section_vals_val_set(functionals,"LYP%_SECTION_PARAMETERS_",&
+               l_val=.TRUE.,error=error)
+          CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
+               i_val=xc_funct_no_shortcut,error=error)
+       CASE(xc_funct_bp)
+          CALL section_vals_val_set(functionals,"BECKE88%_SECTION_PARAMETERS_",&
+               l_val=.TRUE.,error=error)
+          CALL section_vals_val_set(functionals,"P86C%_SECTION_PARAMETERS_",&
+               l_val=.TRUE.,error=error)
+          CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
+               i_val=xc_funct_no_shortcut,error=error)
+       CASE(xc_funct_pade)
+          CALL section_vals_val_set(functionals,"PADE%_SECTION_PARAMETERS_",&
+               l_val=.TRUE.,error=error)
+          CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
+               i_val=xc_funct_no_shortcut,error=error)
+       CASE(xc_funct_pbe)
+          CALL section_vals_val_set(functionals,"PBE%_SECTION_PARAMETERS_",&
+               l_val=.TRUE.,error=error)
+          CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
+               i_val=xc_funct_no_shortcut,error=error)
+       CASE(xc_funct_xwpbe)
+          CALL section_vals_val_set(functionals,"XWPBE%_SECTION_PARAMETERS_",&
+               l_val=.TRUE.,error=error)
+          CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
+               i_val=xc_funct_no_shortcut,error=error)
+       CASE(xc_funct_tpss)
+          CALL section_vals_val_set(functionals,"TPSS%_SECTION_PARAMETERS_",&
+               l_val=.TRUE.,error=error)
+          CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
+               i_val=xc_funct_no_shortcut,error=error)
+       CASE(xc_funct_olyp)
+          CALL section_vals_val_set(functionals,"OPTX%_SECTION_PARAMETERS_",&
+               l_val=.TRUE.,error=error)
+          CALL section_vals_val_set(functionals,"LYP%_SECTION_PARAMETERS_",&
+               l_val=.TRUE.,error=error)
+          CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
+               i_val=xc_funct_no_shortcut,error=error)
+       CASE(xc_funct_hcth120)
+          CALL section_vals_val_set(functionals,"HCTH%_SECTION_PARAMETERS_",&
+               l_val=.TRUE.,error=error)
+          CALL section_vals_val_set(functionals,"HCTH%PARAMETER_SET",&
+               i_val=120,error=error)
+          CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
+               i_val=xc_funct_no_shortcut,error=error)
+          
+       CASE default
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+               routineP,"unknown shortcut "//TRIM(ADJUSTL(cp_to_string(shortcut))),&
+               error,failure)
+       END SELECT
+    END IF
+  END SUBROUTINE xc_functionals_expand
 !***************************************************************************
 
 !!****f* input_cp2k_check/handle_ext_restart *
@@ -272,7 +273,7 @@ END SUBROUTINE xc_functionals_expand
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE handle_ext_restart(input_file,para_env,error)
+  SUBROUTINE handle_ext_restart(input_file,para_env,error)
     TYPE(section_vals_type), POINTER         :: input_file
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -285,7 +286,7 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
     INTEGER                                  :: handle, i_rep_val, &
                                                 iforce_eval, myi, n_rep_val, &
                                                 nforce_eval1, nforce_eval2
-    LOGICAL                                  :: explicit1, explicit2, &
+    LOGICAL                                  :: check, explicit1, explicit2, &
                                                 failure, flag, flag2, &
                                                 qmmm_check, subsys_check
     REAL(KIND=dp)                            :: myt
@@ -295,310 +296,345 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
     TYPE(cp_unit_set_type), POINTER          :: default_units
     TYPE(section_type), POINTER              :: input_structure
     TYPE(section_vals_type), POINTER         :: r_section, rep_sections, &
-                                                restart_input, section, &
+                                                restart_file, section, &
                                                 section1, section2, &
                                                 sections1, sections2
 
-  CALL timeset(routineN,handle)
+    CALL timeset(routineN,handle)
+   
+    failure=.FALSE. 
+    IF (.NOT. failure) THEN
+       r_section => section_vals_get_subs_vals(input_file, "EXT_RESTART",error=error)
+       CALL section_vals_val_get(r_section,"RESTART_FILE_NAME", c_val=r_file_path, error=error)
+       
+       IF (r_file_path/=" ") THEN
+          CALL cp_error_init(sub_error,template_error=error,stop_level=cp_fatal_level)
+          ! parse the input
+          NULLIFY(input_structure, default_units)
+          CALL create_cp2k_root_section(input_structure,error=sub_error)
+          NULLIFY(restart_file)
+          CALL section_vals_create(restart_file,input_structure, error=sub_error)
+          CALL section_release(input_structure,error=sub_error)
+          NULLIFY(cpparser)
+          CALL parser_create(cpparser,file_name=r_file_path,para_env=para_env,error=sub_error)
+          CALL cp_unit_set_create(default_units, "OUTPUT",error=sub_error)
+          CALL section_vals_parse(restart_file,cpparser,root_section=.FALSE.,&
+               default_units=default_units,error=sub_error)
+          CALL cp_unit_set_release(default_units,error=sub_error)
+          CALL parser_release(cpparser,error=sub_error)
+          CALL cp_error_dealloc_ref(sub_error)
+  
+          ! Restart and input files same number of force_env sections
+          sections1  => section_vals_get_subs_vals(restart_file,"FORCE_EVAL",error=error)
+          CALL section_vals_get(sections1, n_repetition=nforce_eval1, error=error)
+          sections2  => section_vals_get_subs_vals(input_file,"FORCE_EVAL",error=error)
+          CALL section_vals_get(sections2, n_repetition=nforce_eval2, error=error)
+          IF (nforce_eval1/=nforce_eval2) THEN
+             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                  routineP,"Restart and input file MUST have the number of force_env sections",&
+                  error,failure)
+          END IF
+          ! Handle default restarts
+          CALL handle_defaults_restart(r_section, error=error)
+  
+          ! Real restart of force_evals
+          DO iforce_eval = 1, nforce_eval1
+             section1 => section_vals_get_subs_vals3(sections1,"SUBSYS",&
+                  i_rep_section=iforce_eval,error=error)
+             section2 => section_vals_get_subs_vals3(sections2,"SUBSYS",&
+                  i_rep_section=iforce_eval,error=error)
+             ! Some care needs to be handled when treating multiple force_eval
+             ! Both subsys need to be consistently associated or not
+             ! Mixed stuff will be rejected for safety reason..
+             subsys_check = (ASSOCIATED(section1).EQV.ASSOCIATED(section2))
+             IF (subsys_check) THEN
+                IF (ASSOCIATED(section1)) THEN
+                   CALL section_vals_val_get(r_section,"RESTART_CELL",l_val=flag,error=error)
+                   IF (flag) THEN
+                      section  => section_vals_get_subs_vals(section1,"CELL",error=error)
+                      CALL section_vals_set_subs_vals(section2,"CELL",section,error=error)              
+                   END IF
+                   
+                   CALL section_vals_val_get(r_section,"RESTART_POS",l_val=flag,error=error)
+                   IF (flag) THEN
+                      section => section_vals_get_subs_vals(section1,"COORD",error=error)
+                      CALL section_vals_set_subs_vals(section2,"COORD",section,error=error)
+                   END IF
+                   
+                   CALL section_vals_val_get(r_section,"RESTART_RANDOMG",l_val=flag,error=error)
+                   IF (flag) THEN
+                      section => section_vals_get_subs_vals(section1,"RNG_INIT",error=error)
+                      CALL section_vals_set_subs_vals(section2,"RNG_INIT",section,error=error)
+                   END IF
+                   
+                   CALL section_vals_val_get(r_section,"RESTART_VEL",l_val=flag,error=error)
+                   IF (flag) THEN
+                      section => section_vals_get_subs_vals(section1,"VELOCITY",error=error)
+                      CALL section_vals_set_subs_vals(section2,"VELOCITY",section,error=error)
+                   END IF
+                   
+                   CALL section_vals_val_get(r_section,"RESTART_SHELL_POS",l_val=flag,error=error)
+                   IF (flag) THEN
+                      section => section_vals_get_subs_vals(section1,"SHELL_COORD",error=error)
+                      CALL section_vals_set_subs_vals(section2,"SHELL_COORD",section,error=error)
+                   END IF
+  
+                   CALL section_vals_val_get(r_section,"RESTART_CORE_POS",l_val=flag,error=error)
+                   IF (flag) THEN
+                      section => section_vals_get_subs_vals(section1,"CORE_COORD",error=error)
+                      CALL section_vals_set_subs_vals(section2,"CORE_COORD",section,error=error)
+                   END IF
+                   
+                   CALL section_vals_val_get(r_section,"RESTART_SHELL_VELOCITY",l_val=flag,error=error)
+                   IF (flag) THEN
+                      section => section_vals_get_subs_vals(section1,"SHELL_VELOCITY",error=error)
+                      CALL section_vals_set_subs_vals(section2,"SHELL_VELOCITY",section,error=error)
+                   END IF
+  
+                   CALL section_vals_val_get(r_section,"RESTART_CORE_VELOCITY",l_val=flag,error=error)
+                   IF (flag) THEN
+                      section => section_vals_get_subs_vals(section1,"CORE_VELOCITY",error=error)
+                      CALL section_vals_set_subs_vals(section2,"CORE_VELOCITY",section,error=error)
+                   END IF
+                END IF
+             ELSE
+                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                     routineP,"Error while reading the restart file. Two force_eval have incompatible"//&
+                     " subsys.One of them has an allocated subsys while the other has not! Check your"//&
+                     " input file or whether the restart file is compatible with the input!",&
+                     error,failure)    
+             END IF
+             ! QMMM restarts
+             CALL section_vals_val_get(r_section,"RESTART_QMMM",l_val=flag,error=error)
+             section1 => section_vals_get_subs_vals3(sections1,"QMMM",i_rep_section=iforce_eval,error=error)
+             section2 => section_vals_get_subs_vals3(sections2,"QMMM",i_rep_section=iforce_eval,error=error)
+             CALL section_vals_get(section1,explicit=explicit1,error=error)
+             CALL section_vals_get(section2,explicit=explicit2,error=error)
+             qmmm_check = (explicit1.AND.explicit2)
+             IF (flag.AND.qmmm_check) THEN
+                CALL section_vals_val_get(section1,"INITIAL_TRANSLATION_VECTOR",r_vals=vec,error=error)
+                ALLOCATE(work(3))
+                work = vec
+                CALL section_vals_val_set(section2,"INITIAL_TRANSLATION_VECTOR",r_vals_ptr=work,error=error)
+             END IF
+          END DO  ! iforce_eval
 
-  failure=.FALSE. 
-  IF (.NOT. failure) THEN
-     r_section => section_vals_get_subs_vals(input_file, "EXT_RESTART",error=error)
-     CALL section_vals_val_get(r_section,"RESTART_FILE_NAME", c_val=r_file_path, error=error)
+          CALL section_vals_val_get(r_section,"RESTART_COUNTERS",l_val=flag,error=error)
+          IF (flag) THEN
+             IF (check_restart(input_file, restart_file, "MOTION%MD",error)) THEN
+                CALL section_vals_val_get(restart_file,"MOTION%MD%STEP_START_VAL",i_val=myi,error=error)
+                CALL section_vals_val_get(restart_file,"MOTION%MD%TIME_START_VAL",r_val=myt,error=error)
+                CALL section_vals_val_set(input_file,"MOTION%MD%STEP_START_VAL",i_val=myi,error=error)
+                CALL section_vals_val_set(input_file,"MOTION%MD%TIME_START_VAL",r_val=myt,error=error)
+             END IF
+             !
+             CALL section_vals_val_get(r_section,"RESTART_METADYNAMICS",l_val=flag2,error=error)
+             IF (flag2.AND.check_restart(input_file, restart_file, "MOTION%FREE_ENERGY%METADYN",error)) THEN
+                CALL section_vals_val_get(restart_file,&
+                     "MOTION%FREE_ENERGY%METADYN%STEP_START_VAL",i_val=myi,error=error)
+                CALL section_vals_val_set(input_file,&
+                     "MOTION%FREE_ENERGY%METADYN%STEP_START_VAL",i_val=myi,error=error)
+                CALL section_vals_val_get(restart_file,&
+                     "MOTION%FREE_ENERGY%METADYN%NHILLS_START_VAL",i_val=myi,error=error)
+                CALL section_vals_val_set(input_file,&
+                     "MOTION%FREE_ENERGY%METADYN%NHILLS_START_VAL",i_val=myi,error=error)
+             END IF
+          END IF
 
-     IF (r_file_path/=" ") THEN
-        CALL cp_error_init(sub_error,template_error=error,stop_level=cp_fatal_level)
-        ! parse the input
-        NULLIFY(input_structure, default_units)
-        CALL create_cp2k_root_section(input_structure,error=sub_error)
-        NULLIFY(restart_input)
-        CALL section_vals_create(restart_input,input_structure, error=sub_error)
-        CALL section_release(input_structure,error=sub_error)
-        NULLIFY(cpparser)
-        CALL parser_create(cpparser,file_name=r_file_path,para_env=para_env,&
-             error=sub_error)
-        CALL cp_unit_set_create(default_units, "OUTPUT",error=sub_error)
-        CALL section_vals_parse(restart_input,cpparser,root_section=.FALSE.,&
-             default_units=default_units,error=sub_error)
-        CALL cp_unit_set_release(default_units,error=sub_error)
-        CALL parser_release(cpparser,error=sub_error)
-        CALL cp_error_dealloc_ref(sub_error)
+          CALL section_vals_val_get(r_section,"RESTART_BAND",l_val=flag,error=error)
+          IF (flag.AND.check_restart(input_file, restart_file, "MOTION%BAND",error)) THEN
+             rep_sections => section_vals_get_subs_vals(restart_file,"MOTION%BAND%REPLICA",error=error)
+             CALL section_vals_set_subs_vals(input_file,"MOTION%BAND%REPLICA",rep_sections,error=error)
+          END IF
 
-        ! Restart and input files same number of force_env sections
-        sections1  => section_vals_get_subs_vals(restart_input,"FORCE_EVAL",error=error)
-        CALL section_vals_get(sections1, n_repetition=nforce_eval1, error=error)
-        sections2  => section_vals_get_subs_vals(input_file,"FORCE_EVAL",error=error)
-        CALL section_vals_get(sections2, n_repetition=nforce_eval2, error=error)
-        IF (nforce_eval1/=nforce_eval2) THEN
-           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                routineP,"Restart and input file MUST have the number of force_env sections",&
-                error,failure)
-        END IF
-        ! Handle default restarts
-        CALL handle_defaults_restart(r_section, error=error)
+          CALL section_vals_val_get(r_section,"RESTART_BAROSTAT",l_val=flag,error=error)
+          IF (flag.AND.check_restart(input_file, restart_file, "MOTION%MD%BAROSTAT",error)) THEN
+             section => section_vals_get_subs_vals(restart_file,&
+                  "MOTION%MD%BAROSTAT%MASS",error=error)
+             CALL section_vals_set_subs_vals(input_file,"MOTION%MD%BAROSTAT%MASS",&
+                  section,error=error)
+             section => section_vals_get_subs_vals(restart_file,&
+                  "MOTION%MD%BAROSTAT%VELOCITY",error=error)
+             CALL section_vals_set_subs_vals(input_file,"MOTION%MD%BAROSTAT%VELOCITY",&
+                  section,error=error)
+          END IF
 
-        ! Real restart of force_evals
-        DO iforce_eval = 1, nforce_eval1
-           section1 => section_vals_get_subs_vals3(sections1,"SUBSYS",&
-                i_rep_section=iforce_eval,error=error)
-           section2 => section_vals_get_subs_vals3(sections2,"SUBSYS",&
-                i_rep_section=iforce_eval,error=error)
-           ! Some care needs to be handled when treating multiple force_eval
-           ! Both subsys need to be consistently associated or not
-           ! Mixed stuff will be rejected for safety reason..
-           subsys_check = (ASSOCIATED(section1).EQV.ASSOCIATED(section2))
-           IF (subsys_check) THEN
-              IF (ASSOCIATED(section1)) THEN
-                 CALL section_vals_val_get(r_section,"RESTART_CELL",l_val=flag,error=error)
-                 IF (flag) THEN
-                    section  => section_vals_get_subs_vals(section1,"CELL",error=error)
-                    CALL section_vals_set_subs_vals(section2,"CELL",section,error=error)              
-                 END IF
-                 
-                 CALL section_vals_val_get(r_section,"RESTART_POS",l_val=flag,&
-                      error=error)
-                 IF (flag) THEN
-                    section => section_vals_get_subs_vals(section1,"COORD",error=error)
-                    CALL section_vals_set_subs_vals(section2,"COORD",section,error=error)
-                 END IF
-                 
-                 CALL section_vals_val_get(r_section,"RESTART_RANDOMG",l_val=flag,&
-                      error=error)
-                 IF (flag) THEN
-                    section => section_vals_get_subs_vals(section1,"RNG_INIT",error=error)
-                    CALL section_vals_set_subs_vals(section2,"RNG_INIT",section,error=error)
-                 END IF
-                 
-                 CALL section_vals_val_get(r_section,"RESTART_VEL",l_val=flag,&
-                      error=error)
-                 IF (flag) THEN
-                    section => section_vals_get_subs_vals(section1,"VELOCITY",error=error)
-                    CALL section_vals_set_subs_vals(section2,"VELOCITY",section,error=error)
-                 END IF
-                 
-                 CALL section_vals_val_get(r_section,"RESTART_SHELL_POS",l_val=flag,&
-                      error=error)
-                 IF (flag) THEN
-                    section => section_vals_get_subs_vals(section1,"SHELL_COORD",error=error)
-                    CALL section_vals_set_subs_vals(section2,"SHELL_COORD",section,error=error)
-                 END IF
+          CALL section_vals_val_get(r_section,"RESTART_BAROSTAT_THERMOSTAT",l_val=flag,error=error)
+          check = check_restart(input_file, restart_file, "MOTION%MD%BAROSTAT", error)
+          CALL restart_thermostat(flag, input_file, restart_file, "MOTION%MD%BAROSTAT%THERMOSTAT", check, error)
 
-                 CALL section_vals_val_get(r_section,"RESTART_CORE_POS",l_val=flag,&
-                      error=error)
-                 IF (flag) THEN
-                    section => section_vals_get_subs_vals(section1,"CORE_COORD",error=error)
-                    CALL section_vals_set_subs_vals(section2,"CORE_COORD",section,error=error)
-                 END IF
-                 
-                 CALL section_vals_val_get(r_section,"RESTART_SHELL_VELOCITY",l_val=flag,&
-                      error=error)
-                 IF (flag) THEN
-                    section => section_vals_get_subs_vals(section1,"SHELL_VELOCITY",error=error)
-                    CALL section_vals_set_subs_vals(section2,"SHELL_VELOCITY",section,error=error)
-                 END IF
+          CALL section_vals_val_get(r_section,"RESTART_KG_COEFF_POS",l_val=flag,error=error)
+          IF (flag.AND.check_restart(input_file, restart_file, "MOTION%MD%KG_COEFF",error)) THEN
+             section => section_vals_get_subs_vals(restart_file,&
+                  "MOTION%MD%KG_COEFF%RESTART_INDEX",error=error)
+             CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%RESTART_INDEX",&
+                  section,error=error)
+             section => section_vals_get_subs_vals(restart_file,&
+                  "MOTION%MD%KG_COEFF%COORD",error=error)
+             CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%COORD",&
+                  section,error=error)
+          END IF
 
-                 CALL section_vals_val_get(r_section,"RESTART_CORE_VELOCITY",l_val=flag,&
-                      error=error)
-                 IF (flag) THEN
-                    section => section_vals_get_subs_vals(section1,"CORE_VELOCITY",error=error)
-                    CALL section_vals_set_subs_vals(section2,"CORE_VELOCITY",section,error=error)
-                 END IF
-              END IF
-           ELSE
-              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                   routineP,"Error while reading the restart file. Two force_eval have incompatible"//&
-                   " subsys.One of them has an allocated subsys while the other has not! Check your"//&
-                   " input file or whether the restart file is compatible with the input!",&
-                   error,failure)    
-           END IF
-           ! QMMM restarts
-           CALL section_vals_val_get(r_section,"RESTART_QMMM",l_val=flag,error=error)
-           section1 => section_vals_get_subs_vals3(sections1,"QMMM",i_rep_section=iforce_eval,error=error)
-           section2 => section_vals_get_subs_vals3(sections2,"QMMM",i_rep_section=iforce_eval,error=error)
-           CALL section_vals_get(section1,explicit=explicit1,error=error)
-           CALL section_vals_get(section2,explicit=explicit2,error=error)
-           qmmm_check = (explicit1.AND.explicit2)
-           IF (flag.AND.qmmm_check) THEN
-              CALL section_vals_val_get(section1,"INITIAL_TRANSLATION_VECTOR",r_vals=vec,error=error)
-              ALLOCATE(work(3))
-              work = vec
-              CALL section_vals_val_set(section2,"INITIAL_TRANSLATION_VECTOR",r_vals_ptr=work,error=error)
-           END IF
-        END DO  ! iforce_eval
-        CALL section_vals_val_get(r_section,"RESTART_COUNTERS",l_val=flag,&
-             error=error)
-        IF (flag) THEN
-           IF (check_restart(input_file, restart_input, "MOTION%MD",error)) THEN
-              CALL section_vals_val_get(restart_input,"MOTION%MD%STEP_START_VAL",i_val=myi,error=error)
-              CALL section_vals_val_get(restart_input,"MOTION%MD%TIME_START_VAL",r_val=myt,error=error)
-              CALL section_vals_val_set(input_file,"MOTION%MD%STEP_START_VAL",i_val=myi,error=error)
-              CALL section_vals_val_set(input_file,"MOTION%MD%TIME_START_VAL",r_val=myt,error=error)
-           END IF
-           !
-           CALL section_vals_val_get(r_section,"RESTART_METADYNAMICS",l_val=flag2,error=error)
-           IF (flag2.AND.check_restart(input_file, restart_input, "MOTION%FREE_ENERGY%METADYN",error)) THEN
-              CALL section_vals_val_get(restart_input,&
-                   "MOTION%FREE_ENERGY%METADYN%STEP_START_VAL",i_val=myi,error=error)
-              CALL section_vals_val_set(input_file,&
-                   "MOTION%FREE_ENERGY%METADYN%STEP_START_VAL",i_val=myi,error=error)
-              CALL section_vals_val_get(restart_input,&
-                   "MOTION%FREE_ENERGY%METADYN%NHILLS_START_VAL",i_val=myi,error=error)
-              CALL section_vals_val_set(input_file,&
-                   "MOTION%FREE_ENERGY%METADYN%NHILLS_START_VAL",i_val=myi,error=error)
-           END IF
-        END IF
-        CALL section_vals_val_get(r_section,"RESTART_BAND",l_val=flag,error=error)
-        IF (flag.AND.check_restart(input_file, restart_input, "MOTION%BAND",error)) THEN
-           rep_sections => section_vals_get_subs_vals(restart_input,"MOTION%BAND%REPLICA",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%BAND%REPLICA",rep_sections,error=error)
-        END IF
-        CALL section_vals_val_get(r_section,"RESTART_BAROSTAT",l_val=flag,&
-             error=error)
-        IF (flag.AND.check_restart(input_file, restart_input, "MOTION%MD%BAROSTAT",error)) THEN
-           section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%MD%BAROSTAT%MASS",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%BAROSTAT%MASS",&
-                section,error=error)
-           section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%MD%BAROSTAT%VELOCITY",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%BAROSTAT%VELOCITY",&
-                section,error=error)
-        END IF
-        CALL section_vals_val_get(r_section,"RESTART_BAROSTAT_THERMOSTAT",l_val=flag,&
-             error=error)
-        IF (flag.AND.check_restart(input_file, restart_input, "MOTION%MD%BAROSTAT",error)) THEN
-           section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%MD%BAROSTAT%THERMOSTAT%NOSE%COORD",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%BAROSTAT%THERMOSTAT%NOSE%COORD",&
-                section,error=error)
-           section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%MD%BAROSTAT%THERMOSTAT%NOSE%VELOCITY",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%BAROSTAT%THERMOSTAT%NOSE%VELOCITY",&
-                section,error=error)
-           section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%MD%BAROSTAT%THERMOSTAT%NOSE%MASS",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%BAROSTAT%THERMOSTAT%NOSE%MASS",&
-                section,error=error)
-           section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%MD%BAROSTAT%THERMOSTAT%NOSE%FORCE",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%BAROSTAT%THERMOSTAT%NOSE%FORCE",&
-                section,error=error)
-        END IF
-        CALL section_vals_val_get(r_section,"RESTART_KG_COEFF_POS",l_val=flag,&
-             error=error)
-        IF (flag.AND.check_restart(input_file, restart_input, "MOTION%MD%KG_COEFF",error)) THEN
-           section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%MD%KG_COEFF%RESTART_INDEX",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%RESTART_INDEX",&
-                section,error=error)
-           section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%MD%KG_COEFF%COORD",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%COORD",&
-                section,error=error)
-        END IF
-        CALL section_vals_val_get(r_section,"RESTART_KG_COEFF_VEL",l_val=flag,&
-             error=error)
-        IF (flag.AND.check_restart(input_file, restart_input, "MOTION%MD%KG_COEFF",error)) THEN
-           section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%MD%KG_COEFF%RESTART_INDEX",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%RESTART_INDEX",&
-                section,error=error)
-           section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%MD%KG_COEFF%VELOCITY",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%VELOCITY",&
-                section,error=error)
-        END IF
-        CALL section_vals_val_get(r_section,"RESTART_KG_THERMOSTAT",l_val=flag,&
-             error=error)
-        IF (flag.AND.check_restart(input_file, restart_input, "MOTION%MD%KG_COEFF%THERMOSTAT%NOSE",error)) THEN
-           section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%MD%KG_COEFF%THERMOSTAT%NOSE%COORD",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%THERMOSTAT%NOSE%COORD",&
-                section,error=error)
-           section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%MD%KG_COEFF%THERMOSTAT%NOSE%VELOCITY",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%THERMOSTAT%NOSE%VELOCITY",&
-                section,error=error)
-           section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%MD%KG_COEFF%THERMOSTAT%NOSE%MASS",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%THERMOSTAT%NOSE%MASS",&
-                section,error=error)
-           section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%MD%KG_COEFF%THERMOSTAT%NOSE%FORCE",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%THERMOSTAT%NOSE%FORCE",&
-                section,error=error)
-        END IF
-        CALL section_vals_val_get(r_section,"RESTART_THERMOSTAT",l_val=flag,&
-             error=error)
-        IF (flag.AND.check_restart(input_file, restart_input, "MOTION%MD%THERMOSTAT%NOSE",error)) THEN
-           section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%MD%THERMOSTAT%NOSE%COORD",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%THERMOSTAT%NOSE%COORD",&
-                section,error=error)
-           section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%MD%THERMOSTAT%NOSE%VELOCITY",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%THERMOSTAT%NOSE%VELOCITY",&
-                section,error=error)
-           section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%MD%THERMOSTAT%NOSE%MASS",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%THERMOSTAT%NOSE%MASS",&
-                section,error=error)
-           section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%MD%THERMOSTAT%NOSE%FORCE",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%THERMOSTAT%NOSE%FORCE",&
-                section,error=error)
-        END IF
-        CALL section_vals_val_get(r_section,"RESTART_CONSTRAINT",l_val=flag,&
-             error=error)
-        IF (flag.AND.check_restart(input_file, restart_input, "MOTION%CONSTRAINT",error)) THEN
-           section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%CONSTRAINT",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%CONSTRAINT",&
-                section,error=error)
-        END IF
-        CALL section_vals_val_get(r_section,"RESTART_METADYNAMICS",l_val=flag,&
-             error=error)
-        IF (flag.AND.check_restart(input_file, restart_input, "MOTION%FREE_ENERGY%METADYN",error)) THEN
-           section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_POS",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_POS",&
-                section,error=error)
-           section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_AMPL",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_AMPL",&
-                section,error=error)
-           section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_HEIGHT",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_HEIGHT",&
-                section,error=error)
-           ! Extended Lagrangian
-           section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%FREE_ENERGY%METADYN%EXT_LAGRANGE_SS0",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%FREE_ENERGY%METADYN%EXT_LAGRANGE_SS0",&
-                section,error=error)
-           section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%FREE_ENERGY%METADYN%EXT_LAGRANGE_VVP",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%FREE_ENERGY%METADYN%EXT_LAGRANGE_VVP",&
-                section,error=error)
-        END IF
-        CALL section_vals_val_get(r_section,"CUSTOM_PATH",n_rep_val=n_rep_val,&
-             error=error)
-        DO i_rep_val=1,n_rep_val
-           CALL section_vals_val_get(r_section,"CUSTOM_PATH",i_rep_val=i_rep_val,c_val=path,error=error)
-           IF (path/=" ") THEN
-              section => section_vals_get_subs_vals(restart_input,&
-                   path,error=error)
-              CALL section_vals_set_subs_vals(input_file,path,&
-                   section,error=error)
-           END IF
-        END DO
-        CALL section_vals_val_set(r_section,"RESTART_FILE_NAME", c_val=" ",error=error)
-        CALL section_vals_release(restart_input,error=error)
-     END IF
-  END IF
-  CALL timestop(handle)
-END SUBROUTINE handle_ext_restart
-!***************************************************************************
+          CALL section_vals_val_get(r_section,"RESTART_KG_COEFF_VEL",l_val=flag,error=error)
+          IF (flag.AND.check_restart(input_file, restart_file, "MOTION%MD%KG_COEFF",error)) THEN
+             section => section_vals_get_subs_vals(restart_file,&
+                  "MOTION%MD%KG_COEFF%RESTART_INDEX",error=error)
+             CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%RESTART_INDEX",&
+                  section,error=error)
+             section => section_vals_get_subs_vals(restart_file,&
+                  "MOTION%MD%KG_COEFF%VELOCITY",error=error)
+             CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%VELOCITY",&
+                  section,error=error)
+          END IF
+
+          CALL section_vals_val_get(r_section,"RESTART_KG_THERMOSTAT",l_val=flag,error=error)
+          CALL restart_thermostat(flag, input_file, restart_file, "MOTION%MD%KG_COEFF%THERMOSTAT", error=error)
+
+          CALL section_vals_val_get(r_section,"RESTART_THERMOSTAT",l_val=flag,error=error)
+          CALL restart_thermostat(flag,input_file, restart_file, "MOTION%MD%THERMOSTAT", error=error)
+
+          CALL section_vals_val_get(r_section,"RESTART_CONSTRAINT",l_val=flag,error=error)
+          IF (flag.AND.check_restart(input_file, restart_file, "MOTION%CONSTRAINT",error)) THEN
+             section => section_vals_get_subs_vals(restart_file,"MOTION%CONSTRAINT",error=error)
+             CALL section_vals_set_subs_vals(input_file,"MOTION%CONSTRAINT",section,error=error)
+          END IF
+
+          CALL section_vals_val_get(r_section,"RESTART_METADYNAMICS",l_val=flag,error=error)
+          IF (flag.AND.check_restart(input_file, restart_file, "MOTION%FREE_ENERGY%METADYN",error)) THEN
+             section => section_vals_get_subs_vals(restart_file,&
+                  "MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_POS",error=error)
+             CALL section_vals_set_subs_vals(input_file,"MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_POS",&
+                  section,error=error)
+             section => section_vals_get_subs_vals(restart_file,&
+                  "MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_AMPL",error=error)
+             CALL section_vals_set_subs_vals(input_file,"MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_AMPL",&
+                  section,error=error)
+             section => section_vals_get_subs_vals(restart_file,&
+                  "MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_HEIGHT",error=error)
+             CALL section_vals_set_subs_vals(input_file,"MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_HEIGHT",&
+                  section,error=error)
+             ! Extended Lagrangian
+             section => section_vals_get_subs_vals(restart_file,&
+                  "MOTION%FREE_ENERGY%METADYN%EXT_LAGRANGE_SS0",error=error)
+             CALL section_vals_set_subs_vals(input_file,"MOTION%FREE_ENERGY%METADYN%EXT_LAGRANGE_SS0",&
+                  section,error=error)
+             section => section_vals_get_subs_vals(restart_file,&
+                  "MOTION%FREE_ENERGY%METADYN%EXT_LAGRANGE_VVP",error=error)
+             CALL section_vals_set_subs_vals(input_file,"MOTION%FREE_ENERGY%METADYN%EXT_LAGRANGE_VVP",&
+                  section,error=error)
+          END IF
+
+          CALL section_vals_val_get(r_section,"CUSTOM_PATH",n_rep_val=n_rep_val,error=error)
+          DO i_rep_val=1,n_rep_val
+             CALL section_vals_val_get(r_section,"CUSTOM_PATH",i_rep_val=i_rep_val,c_val=path,error=error)
+             IF (path/=" ") THEN
+                section => section_vals_get_subs_vals(restart_file,path,error=error)
+                CALL section_vals_set_subs_vals(input_file,path,section,error=error)
+             END IF
+          END DO
+          CALL section_vals_val_set(r_section,"RESTART_FILE_NAME", c_val=" ",error=error)
+          CALL section_vals_release(restart_file,error=error)
+       END IF
+    END IF
+    CALL timestop(handle)
+  END SUBROUTINE handle_ext_restart
+
+!!****f* input_cp2k_check/restart_thermostat *
+!!
+!!   NAME
+!!     restart_thermostat
+!!
+!!   FUNCTION
+!!     Possibly restart thermostats information
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - input_file: the input file to initialize
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino [tlaino] 10.2007- University of Zurich
+!!
+!!*** **********************************************************************
+  SUBROUTINE restart_thermostat(flag, input_file, restart_file, path, check, error)
+    LOGICAL, INTENT(IN)                      :: flag
+    TYPE(section_vals_type), POINTER         :: input_file, restart_file
+    CHARACTER(LEN=*), INTENT(IN)             :: path
+    LOGICAL, INTENT(IN), OPTIONAL            :: check
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'restart_thermostat', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: input_region, input_type, &
+                                                restart_region, restart_type
+    LOGICAL                                  :: check_loc, failure, &
+                                                skip_other_checks
+    REAL(KIND=dp)                            :: val
+    TYPE(section_vals_type), POINTER         :: section
+
+    failure   = .FALSE.
+    check_loc = check_restart(input_file, restart_file, TRIM(path), error)
+    skip_other_checks = PRESENT(check)
+    IF (skip_other_checks) check_loc = check
+    IF (flag.AND.check_loc) THEN
+       ! Let's check if the thermostat type is different otherwise it does not make any
+       ! sense to do any kind of restart
+       CALL section_vals_val_get(input_file,TRIM(path)//"%TYPE",i_val=input_type,error=error)
+       CALL section_vals_val_get(restart_file,TRIM(path)//"%TYPE",i_val=restart_type,error=error)
+       
+       IF (input_type==do_thermo_same_as_part) THEN
+          CALL section_vals_val_get(input_file,"MOTION%MD%THERMOSTAT%TYPE",i_val=input_type,error=error)
+       END IF
+
+       IF (skip_other_checks) THEN
+          input_region   = do_region_global
+          restart_region = do_region_global
+       ELSE
+          ! Also the regions must be the same..
+          CALL section_vals_val_get(input_file,TRIM(path)//"%REGION",i_val=input_region,error=error)
+          CALL section_vals_val_get(restart_file,TRIM(path)//"%REGION",i_val=restart_region,error=error)
+       END IF
+
+       IF ((input_type==restart_type).AND.(input_region==restart_region)) THEN
+          SELECT CASE(input_type)
+          CASE(do_thermo_nose)
+             section => section_vals_get_subs_vals(restart_file,TRIM(path)//"%NOSE%COORD",error=error)
+             CALL section_vals_set_subs_vals(input_file,TRIM(path)//"%NOSE%COORD",section,error=error)
+             
+             section => section_vals_get_subs_vals(restart_file,TRIM(path)//"%NOSE%VELOCITY",error=error)
+             CALL section_vals_set_subs_vals(input_file,TRIM(path)//"%NOSE%VELOCITY",section,error=error)
+             
+             section => section_vals_get_subs_vals(restart_file,TRIM(path)//"%NOSE%MASS",error=error)
+             CALL section_vals_set_subs_vals(input_file,TRIM(path)//"%NOSE%MASS",section,error=error)
+             
+             section => section_vals_get_subs_vals(restart_file,TRIM(path)//"%NOSE%FORCE",error=error)
+             CALL section_vals_set_subs_vals(input_file,TRIM(path)//"%NOSE%FORCE",section,error=error)
+          CASE(do_thermo_csvr)
+             CALL section_vals_val_get(restart_file,TRIM(path)//"%CSVR%THERMOSTAT_ENERGY",r_val=val,error=error)
+             CALL section_vals_val_set(input_file,TRIM(path)//"%CSVR%THERMOSTAT_ENERGY",r_val=val,error=error)
+          END SELECT
+       ELSE
+          CALL cp_assert((input_type==restart_type),cp_warning_level,cp_assertion_failed,routineP,&
+                        "Requested to restart thermostat: "//TRIM(path)//". The thermostat "//&
+                        "specified in the input file and the information present in the restart "//&
+                        "file do not match the same type of thermostat! Restarting is not possible! "//&
+                        "Thermostat will not be restarted! "//&
+CPSourceFileRef,&
+                        only_ionode=.TRUE.)
+          CALL cp_assert((input_region==restart_region),cp_warning_level,cp_assertion_failed,routineP,&
+                        "Requested to restart thermostat: "//TRIM(path)//". The thermostat "//&
+                        "specified in the input file and the information present in the restart "//&
+                        "file do not match the same type of REGION! Restarting is not possible! "//&
+                        "Thermostat will not be restarted! "//&
+CPSourceFileRef,&
+                        only_ionode=.TRUE.)
+       END IF
+    END IF
+  END SUBROUTINE restart_thermostat
 
 !!****f* input_cp2k_check/check_restart *
 !!
@@ -620,8 +656,8 @@ END SUBROUTINE handle_ext_restart
 !!     teo
 !!
 !!*** **********************************************************************
-FUNCTION check_restart(input_file, restart_input, tag_section, error) RESULT(do_restart)
-    TYPE(section_vals_type), POINTER         :: input_file, restart_input
+  FUNCTION check_restart(input_file, restart_file, tag_section, error) RESULT(do_restart)
+    TYPE(section_vals_type), POINTER         :: input_file, restart_file
     CHARACTER(LEN=*), INTENT(IN)             :: tag_section
     TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: do_restart
@@ -633,20 +669,19 @@ FUNCTION check_restart(input_file, restart_input, tag_section, error) RESULT(do_
     LOGICAL                                  :: explicit1, explicit2, failure
     TYPE(section_vals_type), POINTER         :: work_section
 
-  CALL timeset(routineN,handle)
-
-  failure=.FALSE. 
-  NULLIFY(work_section)
-  IF (.NOT. failure) THEN  
-     work_section => section_vals_get_subs_vals(input_file,TRIM(tag_section),error=error)
-     CALL section_vals_get(work_section,explicit=explicit1,error=error)
-     work_section => section_vals_get_subs_vals(restart_input,TRIM(tag_section),error=error)
-     CALL section_vals_get(work_section,explicit=explicit2,error=error)
-
-     do_restart = explicit1.and.explicit2
-  END IF
-  CALL timestop(handle)
-END FUNCTION check_restart
+    CALL timeset(routineN,handle)
+    failure=.FALSE. 
+    NULLIFY(work_section)
+    IF (.NOT. failure) THEN  
+       work_section => section_vals_get_subs_vals(input_file,TRIM(tag_section),error=error)
+       CALL section_vals_get(work_section,explicit=explicit1,error=error)
+       work_section => section_vals_get_subs_vals(restart_file,TRIM(tag_section),error=error)
+       CALL section_vals_get(work_section,explicit=explicit2,error=error)
+       
+       do_restart = explicit1.AND.explicit2
+    END IF
+    CALL timestop(handle)
+  END FUNCTION check_restart
 
 !!****f* input_cp2k_check/remove_restart_info *
 !!
@@ -669,7 +704,7 @@ END FUNCTION check_restart
 !!     teo
 !!
 !!*** **********************************************************************
-SUBROUTINE remove_restart_info(input_file,error)
+  SUBROUTINE remove_restart_info(input_file,error)
     TYPE(section_vals_type), POINTER         :: input_file
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -682,116 +717,115 @@ SUBROUTINE remove_restart_info(input_file,error)
     TYPE(section_vals_type), POINTER         :: section1, section_to_delete, &
                                                 sections1, work_section
 
-  CALL timeset(routineN,handle)
-
-  failure=.FALSE. 
-  NULLIFY(work_section)
-  IF (.NOT. failure) THEN
-     section_to_delete => section_vals_get_subs_vals(input_file,"EXT_RESTART",error=error)
-     CALL section_vals_remove_values(section_to_delete,error)
-     sections1  => section_vals_get_subs_vals(input_file,"FORCE_EVAL",error=error)
-     CALL section_vals_get(sections1, n_repetition=nforce_eval1, error=error)
-
-     DO iforce_eval = 1, nforce_eval1
-        section1 => section_vals_get_subs_vals3(sections1,"SUBSYS",&
-             i_rep_section=iforce_eval,error=error)
-        section_to_delete => section_vals_get_subs_vals(section1,"COORD",error=error)
-        CALL section_vals_remove_values(section_to_delete,error)
-        section_to_delete => section_vals_get_subs_vals(section1,"VELOCITY",error=error)
-        CALL section_vals_remove_values(section_to_delete,error)
-     END DO
-     work_section => section_vals_get_subs_vals(input_file,"MOTION%MD",error=error)
-     CALL section_vals_get(work_section,explicit=explicit1,error=error)
-     IF (explicit1) THEN
-        CALL section_vals_val_unset(input_file,"MOTION%MD%STEP_START_VAL",error=error)
-        CALL section_vals_val_unset(input_file,"MOTION%MD%TIME_START_VAL",error=error)
-     END IF
-     work_section => section_vals_get_subs_vals(input_file,"MOTION%FREE_ENERGY%METADYN",error=error)
-     CALL section_vals_get(work_section,explicit=explicit1,error=error)
-     IF (explicit1) THEN
-        CALL section_vals_val_unset(input_file,"MOTION%FREE_ENERGY%METADYN%STEP_START_VAL",error=error)
-        CALL section_vals_val_unset(input_file,"MOTION%FREE_ENERGY%METADYN%NHILLS_START_VAL",error=error)
-     END IF
-     section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%BAND%REPLICA",error=error)
-     CALL section_vals_remove_values(section_to_delete,error)
-     section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%BAND%REPLICA",error=error)
-     CALL section_vals_remove_values(section_to_delete,error)
-     section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%MD%BAROSTAT%MASS",error=error)
-     CALL section_vals_remove_values(section_to_delete,error)
-     section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%MD%BAROSTAT%VELOCITY",error=error)
-     CALL section_vals_remove_values(section_to_delete,error)
-     section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%MD%BAROSTAT%THERMOSTAT%NOSE%COORD",error=error)
-     CALL section_vals_remove_values(section_to_delete,error)
-     section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%MD%BAROSTAT%THERMOSTAT%NOSE%VELOCITY",error=error)
-     CALL section_vals_remove_values(section_to_delete,error)
-     section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%MD%BAROSTAT%THERMOSTAT%NOSE%MASS",error=error)
-     CALL section_vals_remove_values(section_to_delete,error)
-     section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%MD%BAROSTAT%THERMOSTAT%NOSE%FORCE",error=error)
-     CALL section_vals_remove_values(section_to_delete,error)
-     section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%MD%KG_COEFF%RESTART_INDEX",error=error)
-     CALL section_vals_remove_values(section_to_delete,error)
-     section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%MD%KG_COEFF%COORD",error=error)
-     CALL section_vals_remove_values(section_to_delete,error)
-     section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%MD%KG_COEFF%RESTART_INDEX",error=error)
-     CALL section_vals_remove_values(section_to_delete,error)
-     section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%MD%KG_COEFF%VELOCITY",error=error)
-     CALL section_vals_remove_values(section_to_delete,error)
-     section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%MD%KG_COEFF%THERMOSTAT%NOSE%COORD",error=error)
-     CALL section_vals_remove_values(section_to_delete,error)
-     section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%MD%KG_COEFF%THERMOSTAT%NOSE%VELOCITY",error=error)
-     CALL section_vals_remove_values(section_to_delete,error)
-     section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%MD%KG_COEFF%THERMOSTAT%NOSE%MASS",error=error)
-     CALL section_vals_remove_values(section_to_delete,error)
-     section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%MD%KG_COEFF%THERMOSTAT%NOSE%FORCE",error=error)
-     CALL section_vals_remove_values(section_to_delete,error)
-     section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%MD%THERMOSTAT%NOSE%COORD",error=error)
-     CALL section_vals_remove_values(section_to_delete,error)
-     section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%MD%THERMOSTAT%NOSE%VELOCITY",error=error)
-     CALL section_vals_remove_values(section_to_delete,error)
-     section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%MD%THERMOSTAT%NOSE%MASS",error=error)
-     CALL section_vals_remove_values(section_to_delete,error)
-     section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%MD%THERMOSTAT%NOSE%FORCE",error=error)
-     CALL section_vals_remove_values(section_to_delete,error)
-     ! Constrained/Restrained section not reset.. to be done externally..
-     section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_POS",error=error)
-     CALL section_vals_remove_values(section_to_delete,error)
-     section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_AMPL",error=error)
-     CALL section_vals_remove_values(section_to_delete,error)
-     section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_HEIGHT",error=error)
-     CALL section_vals_remove_values(section_to_delete,error)
-     section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%FREE_ENERGY%METADYN%EXT_LAGRANGE_SS0",error=error)
-     CALL section_vals_remove_values(section_to_delete,error)
-     section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%FREE_ENERGY%METADYN%EXT_LAGRANGE_VVP",error=error)
-     CALL section_vals_remove_values(section_to_delete,error)
-  END IF
-  CALL timestop(handle)
-END SUBROUTINE remove_restart_info
-!***************************************************************************
+    CALL timeset(routineN,handle)
+    
+    failure=.FALSE. 
+    NULLIFY(work_section)
+    IF (.NOT. failure) THEN
+       section_to_delete => section_vals_get_subs_vals(input_file,"EXT_RESTART",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+       sections1  => section_vals_get_subs_vals(input_file,"FORCE_EVAL",error=error)
+       CALL section_vals_get(sections1, n_repetition=nforce_eval1, error=error)
+       
+       DO iforce_eval = 1, nforce_eval1
+          section1 => section_vals_get_subs_vals3(sections1,"SUBSYS",&
+               i_rep_section=iforce_eval,error=error)
+          section_to_delete => section_vals_get_subs_vals(section1,"COORD",error=error)
+          CALL section_vals_remove_values(section_to_delete,error)
+          section_to_delete => section_vals_get_subs_vals(section1,"VELOCITY",error=error)
+          CALL section_vals_remove_values(section_to_delete,error)
+       END DO
+       work_section => section_vals_get_subs_vals(input_file,"MOTION%MD",error=error)
+       CALL section_vals_get(work_section,explicit=explicit1,error=error)
+       IF (explicit1) THEN
+          CALL section_vals_val_unset(input_file,"MOTION%MD%STEP_START_VAL",error=error)
+          CALL section_vals_val_unset(input_file,"MOTION%MD%TIME_START_VAL",error=error)
+       END IF
+       work_section => section_vals_get_subs_vals(input_file,"MOTION%FREE_ENERGY%METADYN",error=error)
+       CALL section_vals_get(work_section,explicit=explicit1,error=error)
+       IF (explicit1) THEN
+          CALL section_vals_val_unset(input_file,"MOTION%FREE_ENERGY%METADYN%STEP_START_VAL",error=error)
+          CALL section_vals_val_unset(input_file,"MOTION%FREE_ENERGY%METADYN%NHILLS_START_VAL",error=error)
+       END IF
+       section_to_delete => section_vals_get_subs_vals(input_file,&
+            "MOTION%BAND%REPLICA",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+       section_to_delete => section_vals_get_subs_vals(input_file,&
+            "MOTION%BAND%REPLICA",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+       section_to_delete => section_vals_get_subs_vals(input_file,&
+            "MOTION%MD%BAROSTAT%MASS",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+       section_to_delete => section_vals_get_subs_vals(input_file,&
+            "MOTION%MD%BAROSTAT%VELOCITY",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+       section_to_delete => section_vals_get_subs_vals(input_file,&
+            "MOTION%MD%BAROSTAT%THERMOSTAT%NOSE%COORD",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+       section_to_delete => section_vals_get_subs_vals(input_file,&
+            "MOTION%MD%BAROSTAT%THERMOSTAT%NOSE%VELOCITY",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+       section_to_delete => section_vals_get_subs_vals(input_file,&
+            "MOTION%MD%BAROSTAT%THERMOSTAT%NOSE%MASS",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+       section_to_delete => section_vals_get_subs_vals(input_file,&
+            "MOTION%MD%BAROSTAT%THERMOSTAT%NOSE%FORCE",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+       section_to_delete => section_vals_get_subs_vals(input_file,&
+            "MOTION%MD%KG_COEFF%RESTART_INDEX",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+       section_to_delete => section_vals_get_subs_vals(input_file,&
+            "MOTION%MD%KG_COEFF%COORD",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+       section_to_delete => section_vals_get_subs_vals(input_file,&
+            "MOTION%MD%KG_COEFF%RESTART_INDEX",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+       section_to_delete => section_vals_get_subs_vals(input_file,&
+            "MOTION%MD%KG_COEFF%VELOCITY",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+       section_to_delete => section_vals_get_subs_vals(input_file,&
+            "MOTION%MD%KG_COEFF%THERMOSTAT%NOSE%COORD",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+       section_to_delete => section_vals_get_subs_vals(input_file,&
+            "MOTION%MD%KG_COEFF%THERMOSTAT%NOSE%VELOCITY",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+       section_to_delete => section_vals_get_subs_vals(input_file,&
+            "MOTION%MD%KG_COEFF%THERMOSTAT%NOSE%MASS",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+       section_to_delete => section_vals_get_subs_vals(input_file,&
+            "MOTION%MD%KG_COEFF%THERMOSTAT%NOSE%FORCE",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+       section_to_delete => section_vals_get_subs_vals(input_file,&
+            "MOTION%MD%THERMOSTAT%NOSE%COORD",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+       section_to_delete => section_vals_get_subs_vals(input_file,&
+            "MOTION%MD%THERMOSTAT%NOSE%VELOCITY",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+       section_to_delete => section_vals_get_subs_vals(input_file,&
+            "MOTION%MD%THERMOSTAT%NOSE%MASS",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+       section_to_delete => section_vals_get_subs_vals(input_file,&
+            "MOTION%MD%THERMOSTAT%NOSE%FORCE",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+       ! Constrained/Restrained section not reset.. to be done externally..
+       section_to_delete => section_vals_get_subs_vals(input_file,&
+            "MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_POS",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+       section_to_delete => section_vals_get_subs_vals(input_file,&
+            "MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_AMPL",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+       section_to_delete => section_vals_get_subs_vals(input_file,&
+            "MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_HEIGHT",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+       section_to_delete => section_vals_get_subs_vals(input_file,&
+            "MOTION%FREE_ENERGY%METADYN%EXT_LAGRANGE_SS0",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+       section_to_delete => section_vals_get_subs_vals(input_file,&
+            "MOTION%FREE_ENERGY%METADYN%EXT_LAGRANGE_VVP",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+    END IF
+    CALL timestop(handle)
+  END SUBROUTINE remove_restart_info
 
 !!****f* input_cp2k_check/handle_defaults_restart *
 !!

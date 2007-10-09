@@ -20,11 +20,14 @@
 !******************************************************************************
 
 MODULE thermostat_types
-  USE csvr_system_types,               ONLY: csvr_system_type
+  USE csvr_system_types,               ONLY: csvr_dealloc,&
+                                             csvr_init,&
+                                             csvr_system_type
   USE extended_system_types,           ONLY: lnhc_dealloc,&
                                              lnhc_init,&
                                              lnhc_parameters_type
-  USE input_constants,                 ONLY: do_thermo_csvr,&
+  USE input_constants,                 ONLY: do_region_global,&
+                                             do_thermo_csvr,&
                                              do_thermo_nose
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -276,36 +279,45 @@ CONTAINS
 !!     09.2007 created [tlaino]
 !! 
 !!*** **********************************************************************
-  SUBROUTINE create_thermostat_type(thermostat, section, error)  
+  SUBROUTINE create_thermostat_type(thermostat, section, skip_region, error)  
     TYPE(thermostat_type), POINTER           :: thermostat
     TYPE(section_vals_type), POINTER         :: section
+    LOGICAL, INTENT(IN), OPTIONAL            :: skip_region
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_thermostat_type', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
+    INTEGER                                  :: region, stat
+    LOGICAL                                  :: failure, skip_region_loc
     TYPE(section_vals_type), POINTER         :: csvr_section, nose_section
 
+    failure = .FALSE.
+    skip_region_loc = .FALSE.
+    IF (PRESENT(skip_region)) skip_region_loc = skip_region
     ALLOCATE(thermostat, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     last_thermostat_id_nr = last_thermostat_id_nr + 1
     thermostat%id_nr = last_thermostat_id_nr
     thermostat%ref_count =  1
+    region = do_region_global
 
     NULLIFY(thermostat%nhc)
     NULLIFY(thermostat%csvr)
     CALL section_vals_val_get(section,"TYPE",i_val=thermostat%type_of_thermostat,error=error)
+    IF (.NOT.skip_region_loc) CALL section_vals_val_get(section,"REGION",i_val=region,error=error)
     IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN
        nose_section => section_vals_get_subs_vals(section,"NOSE",error=error)
        ALLOCATE(thermostat%nhc, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL lnhc_init(thermostat%nhc, nose_section, error=error)
-       CALL section_vals_val_get(section,"REGION",i_val=thermostat%nhc%region,error=error)
+       thermostat%nhc%region = region
     ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN
        csvr_section => section_vals_get_subs_vals(section,"CSVR",error=error)
-       CALL section_vals_val_get(section,"REGION",i_val=thermostat%csvr%region,error=error)
+       ALLOCATE(thermostat%csvr, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL csvr_init(thermostat%csvr, csvr_section, error=error)
+       thermostat%csvr%region=region
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END IF
 
@@ -394,8 +406,7 @@ CONTAINS
              CALL lnhc_dealloc(thermostat%nhc,error=error)
           END IF
           IF (ASSOCIATED(thermostat%csvr)) THEN
-             DEALLOCATE(thermostat%csvr, stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CALL csvr_dealloc(thermostat%csvr,error=error)
           END IF
           DEALLOCATE(thermostat, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

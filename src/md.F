@@ -67,17 +67,12 @@ MODULE md
 
   ! Public data types
 
-  PUBLIC :: simpar_units_type,&
-            simulation_parameters_type
+  PUBLIC :: simulation_parameters_type
 
   ! Public subroutines
 
   PUBLIC :: initialize_velocities,&
             read_md_section
-
-  TYPE simpar_units_type
-     CHARACTER ( LEN = 8 ) :: time, tau, tau_cell, press
-  END TYPE simpar_units_type
 
   TYPE simulation_parameters_type
      INTEGER        :: nsteps
@@ -103,12 +98,12 @@ MODULE md
      INTEGER :: lagrange_multipliers
      REAL (KIND=dp) :: tau_cell
      REAL (KIND=dp) :: shake_tol
-     TYPE ( simpar_units_type )     :: units
-     !MK Langevin
+     ! Langevin Parameters
      REAL (KIND=dp) :: gamma
      REAL (KIND=dp) :: noisy_gamma
      REAL (KIND=dp) :: shadow_gamma
      REAL (KIND=dp) :: var_w
+     ! RESPA Parameters
      LOGICAL        :: multi_time_switch, do_respa
      INTEGER        :: n_time_steps
      !SHELL parameters
@@ -424,10 +419,6 @@ CPSourceFileRef,&
     TYPE(simulation_parameters_type), &
       INTENT(OUT)                            :: simpar
 
-    simpar % units % time = 'FS'
-    simpar % units % press = 'BAR'
-    simpar % units % tau = 'FS'
-    simpar % units % tau_cell = 'FS'
     simpar % ensemble = nve_ensemble
     simpar % nsteps = 0
     simpar % dt = 0.0_dp

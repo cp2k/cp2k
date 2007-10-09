@@ -21,6 +21,11 @@
 MODULE csvr_system_init
 
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE csvr_system_mapping,             ONLY: csvr_to_barostat_mapping,&
+                                             csvr_to_coef_mapping,&
+                                             csvr_to_particle_mapping,&
+                                             csvr_to_shell_mapping
+  USE csvr_system_types,               ONLY: csvr_system_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type
   USE global_types,                    ONLY: global_environment_type
@@ -74,14 +79,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_csvr_baro', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, restart
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
-    restart = .FALSE.
     CALL csvr_to_barostat_mapping ( simpar, csvr, para_env, error)
+    CALL restart_csvr( csvr, csvr_section, error)
 
-    CALL restart_csvr(csvr,csvr_section,restart,error)
-    
   END SUBROUTINE initialize_csvr_baro
 
 !******************************************************************************
@@ -119,14 +122,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_csvr_part', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, restart
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
-    restart = .FALSE.
     CALL csvr_to_particle_mapping ( thermostat_info, simpar, local_molecules,&
          molecule, molecule_kind_set, csvr, para_env, gci, error )
-
-    CALL restart_csvr(csvr, csvr_section, restart, error)
+    CALL restart_csvr( csvr, csvr_section, error)
 
   END SUBROUTINE initialize_csvr_part
 
@@ -161,18 +162,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_csvr_coef', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, restart
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: kg_coeff_target_temp, tau_csvr
 
     failure = .FALSE.
-    restart = .FALSE.
     CALL section_vals_val_get(csvr_section,"timecon",r_val=tau_csvr,error=error)
     CALL section_vals_val_get(coeff_section,"temperature",r_val=kg_coeff_target_temp,error=error)
 
     CALL csvr_to_coef_mapping ( dyn_coeff_set, csvr, coeff_section, para_env ,error=error)
+    CALL restart_csvr( csvr, csvr_section, error)
 
-    CALL restart_csvr(csvr, csvr_section, restart, error)
-       
   END SUBROUTINE initialize_csvr_coef
 
 !******************************************************************************
@@ -210,14 +209,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_csvr_shell', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, restart
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
-    restart = .FALSE.
     CALL csvr_to_shell_mapping(thermostat_info, simpar, local_molecules,&
        molecule, molecule_kind_set, csvr, para_env, gci, error)
-
-    CALL restart_csvr(csvr, csvr_section, restart, error)
+    CALL restart_csvr( csvr, csvr_section, error)
 
   END SUBROUTINE  initialize_csvr_shell
 
@@ -228,37 +225,27 @@ CONTAINS
 !!     restart_csvr
 !!
 !!   FUNCTION
-!!     read coordinate, velocities, forces and masses of the
-!!     thermostat from restart file
 !!
 !!   AUTHOR
 !!     Teodoro Laino [tlaino] 10.2007- University of Zurich
 !!
 !!   MODIFICATION HISTORY
-!!    
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE restart_csvr(csvr, csvr_section, restart,error)
-
+  SUBROUTINE restart_csvr(csvr, csvr_section, error)
     TYPE(csvr_system_type), POINTER          :: csvr
     TYPE(section_vals_type), POINTER         :: csvr_section
-    LOGICAL, INTENT(OUT)                     :: restart
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'restart_csvr', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: explicit
+    LOGICAL                                  :: failure
 
-    explicit = .FALSE.
-    restart = .FALSE.
-    
-    IF (ASSOCIATED(csvr_section)) THEN
-       ! Read the energy associated to the CSVR thermostat
-       
-    END IF
-
+    failure = .FALSE.
+    CALL section_vals_val_get(csvr_section,"THERMOSTAT_ENERGY",r_val=csvr%thermostat_energy,&
+         error=error)
   END SUBROUTINE restart_csvr
 
 END MODULE csvr_system_init

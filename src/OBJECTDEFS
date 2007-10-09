@@ -92,6 +92,8 @@ OBJECTS_GENERIC =\
  cp_subsys_types.o\
  cp_units.o\
  cpot_types.o\
+ csvr_system_init.o\
+ csvr_system_mapping.o\
  csvr_system_types.o\
  csvr_system_utils.o\
  cube_utils.o\

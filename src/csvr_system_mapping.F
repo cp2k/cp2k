@@ -110,14 +110,14 @@ CONTAINS
 
        CALL init_baro_map_info(map_info, number, csvr%num_csvr, error)
  
-       ALLOCATE ( csvr%nvt(1, csvr%num_csvr),stat=stat)
+       ALLOCATE ( csvr%nvt(csvr%num_csvr),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ! Now that we know how many there are stick this into csvr%nkt
        ! (number of degrees of freedom times k_B T )
-       DO i = 1, csvr % num_csvr
-          csvr % nvt ( 1, i ) % nkt = simpar % temp_ext * number
+       DO i = 1, csvr%num_csvr
+          csvr%nvt(i)%nkt = simpar % temp_ext * number
           IF (debug_isotropic_limit) THEN
-             csvr % nvt ( 1, i ) % nkt = simpar % temp_ext
+             csvr%nvt(i)%nkt = simpar % temp_ext
           END IF
        END DO
     END SELECT
@@ -175,10 +175,9 @@ CONTAINS
        CALL stop_program ( routineN, 'Never reach this point!' )
     CASE ( nvt_ensemble, npt_i_ensemble, npt_f_ensemble )
 
-       CALL setup_csvr_thermostat(csvr, thermostat_info, simpar%part_region,&
-            deg_of_freedom, massive_atom_list, molecule_kind_set, local_molecules,&
-            molecule_set, para_env, natoms_local, simpar, sum_of_thermostats,&
-            gci, error=error)
+       CALL setup_csvr_thermostat(csvr, thermostat_info, deg_of_freedom,&
+            massive_atom_list, molecule_kind_set, local_molecules, molecule_set,&
+            para_env, natoms_local, simpar, sum_of_thermostats, gci, error=error)
 
        ! Sum up the number of degrees of freedom on each thermostat.
        ! first: initialize the target
@@ -200,11 +199,11 @@ CONTAINS
           IF ( fac == 0.0_dp ) THEN 
              CALL stop_program ( routineN,'Zero degrees of freedom. Nothing to thermalize!' )
           END IF
-          csvr%nvt(1,1)%nkt = simpar%temp_ext*fac
+          csvr%nvt(1)%nkt = simpar%temp_ext*fac
        ELSE
           DO i = 1, csvr%num_csvr
              fac = (map_info%s_kin(i) - deg_of_freedom(i) )
-             csvr%nvt(1,i)%nkt = simpar%temp_ext * fac 
+             csvr%nvt(i)%nkt = simpar%temp_ext * fac 
           END DO
        END IF
        
@@ -275,7 +274,7 @@ CONTAINS
        molecule_kind_set, local_molecules, molecule_set, para_env, natoms_local,&
        simpar, number, region, gci, do_shell, error)
 
-    ALLOCATE (csvr%nvt(1,number),STAT=stat)
+    ALLOCATE (csvr%nvt(number),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     ! Now that we know how many there are stick this into csvr%nkt
@@ -364,7 +363,7 @@ CONTAINS
        csvr % num_csvr = number
        CALL init_coeff_map_info(map_info, number, csvr%region, ncoef_local, error)
 
-       ALLOCATE ( csvr%nvt(1,csvr%num_csvr),stat=stat)
+       ALLOCATE ( csvr%nvt(csvr%num_csvr),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        ! Find the number of degrees of freedom on each thermostat
@@ -383,7 +382,7 @@ CONTAINS
        ! Now that we know how many there are stick this into csvr%nkt
        ! (number of degrees of freedom times k_B T )
        DO i = 1, csvr% num_csvr
-          csvr% nvt ( 1, i ) % nkt = kg_coeff_temp * map_info%s_kin ( i )
+          csvr%nvt(i)%nkt = kg_coeff_temp * map_info%s_kin ( i )
        END DO
 
     END SELECT
@@ -463,7 +462,7 @@ CONTAINS
        ! Now that we know how many there are stick this into csvr%nkt
        ! (number of degrees of freedom times k_B T )
        DO i = 1, csvr%num_csvr
-          csvr%nvt ( 1, i ) % nkt = simpar%temp_sh_ext * map_info%s_kin ( i )
+          csvr%nvt(i)%nkt = simpar%temp_sh_ext * map_info%s_kin ( i )
        END DO
 
        DEALLOCATE (deg_of_freedom,STAT=stat)

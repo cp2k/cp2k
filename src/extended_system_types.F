@@ -36,6 +36,8 @@ MODULE extended_system_types
             lnhc_init,&
             lnhc_parameters_type,&
             map_info_type,&
+            create_map_info_type,&
+            release_map_info_type,&
             npt_info_type,&
             nhc_info_type,&
             point_info_type,&
@@ -115,7 +117,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE lnhc_init(lnhc, section, error)
-    TYPE(lnhc_parameters_type), INTENT(OUT)  :: lnhc
+    TYPE(lnhc_parameters_type), POINTER      :: lnhc
     TYPE(section_vals_type), POINTER         :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -126,7 +128,6 @@ CONTAINS
     NULLIFY(lnhc%nvt)
     NULLIFY(lnhc%map_info)
     lnhc%num_nhc=0
-    lnhc%region=0
     CALL section_vals_val_get(section,"LENGTH",i_val=lnhc%nhc_len,error=error)
     CALL section_vals_val_get(section,"YOSHIDA",i_val=lnhc%nyosh,error=error)
     CALL section_vals_val_get(section,"TIMECON",r_val=lnhc%tau_nhc,error=error)
