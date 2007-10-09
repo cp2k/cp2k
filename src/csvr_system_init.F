@@ -1,0 +1,264 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2007  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
+!!****** cp2k/csvr_system_init [1.0] *
+!!
+!!   NAME
+!!     csvr_system_init
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     Teodoro Laino [tlaino] 10.2007- University of Zurich
+!!
+!!   MODIFICATION HISTORY
+!!     
+!!   SOURCE
+!******************************************************************************
+
+MODULE csvr_system_init
+
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type
+  USE global_types,                    ONLY: global_environment_type
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: dp
+  USE md,                              ONLY: simulation_parameters_type
+  USE molecule_kind_types,             ONLY: molecule_kind_type
+  USE molecule_types_new,              ONLY: global_constraint_type,&
+                                             molecule_type
+  USE thermostat_types,                ONLY: thermostat_info_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+#include "cp_common_uses.h"
+
+  PRIVATE
+  PUBLIC :: initialize_csvr_part, initialize_csvr_baro,&
+            initialize_csvr_coef, initialize_csvr_shell
+
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'csvr_system_init'
+
+CONTAINS
+
+!******************************************************************************
+!!****** csvr_system_init/initialize_csvr_baro [1.0] *
+!!
+!!   NAME
+!!     initialize_csvr_baro
+!!
+!!   FUNCTION
+!!     fire up the thermostats, if NPT
+!!
+!!   AUTHOR
+!!     Teodoro Laino [tlaino] 10.2007- University of Zurich
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE initialize_csvr_baro ( simpar, para_env, globenv, csvr, csvr_section, error )
+
+    TYPE(simulation_parameters_type), &
+      POINTER                                :: simpar
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(csvr_system_type), POINTER          :: csvr
+    TYPE(section_vals_type), POINTER         :: csvr_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'initialize_csvr_baro', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure, restart
+
+    failure = .FALSE.
+    restart = .FALSE.
+    CALL csvr_to_barostat_mapping ( simpar, csvr, para_env, error)
+
+    CALL restart_csvr(csvr,csvr_section,restart,error)
+    
+  END SUBROUTINE initialize_csvr_baro
+
+!******************************************************************************
+!!****** csvr_system_init/initialize_csvr_part [1.0] *
+!!
+!!   NAME
+!!     initialize_csvr_part
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     Teodoro Laino [tlaino] 10.2007- University of Zurich
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE initialize_csvr_part ( thermostat_info, simpar, local_molecules,&
+       molecule, molecule_kind_set, para_env, globenv, csvr, csvr_section,&
+       gci, error)
+
+    TYPE(thermostat_info_type), POINTER      :: thermostat_info
+    TYPE(simulation_parameters_type), &
+      POINTER                                :: simpar
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(molecule_type), POINTER             :: molecule( : )
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(csvr_system_type), POINTER          :: csvr
+    TYPE(section_vals_type), POINTER         :: csvr_section
+    TYPE(global_constraint_type), POINTER    :: gci
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'initialize_csvr_part', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure, restart
+
+    failure = .FALSE.
+    restart = .FALSE.
+    CALL csvr_to_particle_mapping ( thermostat_info, simpar, local_molecules,&
+         molecule, molecule_kind_set, csvr, para_env, gci, error )
+
+    CALL restart_csvr(csvr, csvr_section, restart, error)
+
+  END SUBROUTINE initialize_csvr_part
+
+!******************************************************************************
+!!****** csvr_system_init/initialize_csvr_coef [1.0] *
+!!
+!!   NAME
+!!     initialize_csvr_coef
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     Teodoro Laino [tlaino] 10.2007- University of Zurich
+!!
+!!   MODIFICATION HISTORY
+!! 
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE initialize_csvr_coef ( dyn_coeff_set, para_env, globenv, csvr, &
+             coeff_section, dt, csvr_section, error )
+
+    TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(csvr_system_type), POINTER          :: csvr
+    TYPE(section_vals_type), POINTER         :: coeff_section
+    REAL(KIND=dp), INTENT(IN)                :: dt
+    TYPE(section_vals_type), POINTER         :: csvr_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'initialize_csvr_coef', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure, restart
+    REAL(KIND=dp)                            :: kg_coeff_target_temp, tau_csvr
+
+    failure = .FALSE.
+    restart = .FALSE.
+    CALL section_vals_val_get(csvr_section,"timecon",r_val=tau_csvr,error=error)
+    CALL section_vals_val_get(coeff_section,"temperature",r_val=kg_coeff_target_temp,error=error)
+
+    CALL csvr_to_coef_mapping ( dyn_coeff_set, csvr, coeff_section, para_env ,error=error)
+
+    CALL restart_csvr(csvr, csvr_section, restart, error)
+       
+  END SUBROUTINE initialize_csvr_coef
+
+!******************************************************************************
+!!****** csvr_system_init/initialize_csvr_shell [1.0] *
+!!
+!!   NAME
+!!     initialize_csvr_shell
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     Teodoro Laino [tlaino] 10.2007- University of Zurich
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE initialize_csvr_shell( thermostat_info, simpar, local_molecules,&
+       molecule, molecule_kind_set, para_env, globenv, csvr, csvr_section,&
+       gci, error)
+ 
+    TYPE(thermostat_info_type), POINTER      :: thermostat_info
+    TYPE(simulation_parameters_type), &
+      POINTER                                :: simpar
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(molecule_type), POINTER             :: molecule( : )
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(csvr_system_type), POINTER          :: csvr
+    TYPE(section_vals_type), POINTER         :: csvr_section
+    TYPE(global_constraint_type), POINTER    :: gci
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'initialize_csvr_shell', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure, restart
+
+    failure = .FALSE.
+    restart = .FALSE.
+    CALL csvr_to_shell_mapping(thermostat_info, simpar, local_molecules,&
+       molecule, molecule_kind_set, csvr, para_env, gci, error)
+
+    CALL restart_csvr(csvr, csvr_section, restart, error)
+
+  END SUBROUTINE  initialize_csvr_shell
+
+!******************************************************************************
+!!****** csvr_system_init/restart_csvr [1.0] *
+!!
+!!   NAME
+!!     restart_csvr
+!!
+!!   FUNCTION
+!!     read coordinate, velocities, forces and masses of the
+!!     thermostat from restart file
+!!
+!!   AUTHOR
+!!     Teodoro Laino [tlaino] 10.2007- University of Zurich
+!!
+!!   MODIFICATION HISTORY
+!!    
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE restart_csvr(csvr, csvr_section, restart,error)
+
+    TYPE(csvr_system_type), POINTER          :: csvr
+    TYPE(section_vals_type), POINTER         :: csvr_section
+    LOGICAL, INTENT(OUT)                     :: restart
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'restart_csvr', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: explicit
+
+    explicit = .FALSE.
+    restart = .FALSE.
+    
+    IF (ASSOCIATED(csvr_section)) THEN
+       ! Read the energy associated to the CSVR thermostat
+       
+    END IF
+
+  END SUBROUTINE restart_csvr
+
+END MODULE csvr_system_init

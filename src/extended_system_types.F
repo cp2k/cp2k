@@ -24,6 +24,8 @@
 
 MODULE extended_system_types
   USE input_constants,                 ONLY: do_thermo_no_communication
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
 #include "cp_common_uses.h"
 
@@ -78,9 +80,10 @@ MODULE extended_system_types
   END TYPE map_info_type
 
   TYPE lnhc_parameters_type
-     INTEGER                                 :: nyosh, nc, nhc_len, num_nhc
-     REAL (KIND=dp), POINTER                 :: dt_yosh(:)
-     TYPE (nhc_info_type), POINTER           :: nvt (:,:)
+     INTEGER                                 :: nyosh, nc, nhc_len, num_nhc, region
+     REAL(KIND=dp)                           :: tau_nhc
+     REAL(KIND=dp), POINTER                  :: dt_yosh(:)
+     TYPE(nhc_info_type), POINTER            :: nvt(:,:)
      TYPE(map_info_type), POINTER            :: map_info
   END TYPE lnhc_parameters_type
 
@@ -111,8 +114,9 @@ CONTAINS
 !!     
 !!
 !!*** **********************************************************************
-  SUBROUTINE lnhc_init(lnhc, error)
+  SUBROUTINE lnhc_init(lnhc, section, error)
     TYPE(lnhc_parameters_type), INTENT(OUT)  :: lnhc
+    TYPE(section_vals_type), POINTER         :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'lnhc_init', &
@@ -121,10 +125,12 @@ CONTAINS
     NULLIFY(lnhc%dt_yosh)
     NULLIFY(lnhc%nvt)
     NULLIFY(lnhc%map_info)
-    lnhc%nyosh=0 
-    lnhc%nc=0 
-    lnhc%nhc_len=0 
     lnhc%num_nhc=0
+    lnhc%region=0
+    CALL section_vals_val_get(section,"LENGTH",i_val=lnhc%nhc_len,error=error)
+    CALL section_vals_val_get(section,"YOSHIDA",i_val=lnhc%nyosh,error=error)
+    CALL section_vals_val_get(section,"TIMECON",r_val=lnhc%tau_nhc,error=error)
+    CALL section_vals_val_get(section,"MTS",i_val=lnhc%nc,error=error)
     CALL create_map_info_type(lnhc%map_info, error)
 
   END SUBROUTINE lnhc_init

@@ -25,6 +25,10 @@ MODULE extended_system_init
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type
+  USE extended_system_mapping,         ONLY: nhc_to_barostat_mapping,&
+                                             nhc_to_coef_mapping,&
+                                             nhc_to_particle_mapping,&
+                                             nhc_to_shell_mapping
   USE extended_system_types,           ONLY: debug_isotropic_limit,&
                                              lnhc_parameters_type,&
                                              map_info_type,&
@@ -50,10 +54,6 @@ MODULE extended_system_init
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: global_constraint_type,&
                                              molecule_type
-  USE nhc_mapping,                     ONLY: nhc_to_barostat_mapping,&
-                                             nhc_to_coef_mapping,&
-                                             nhc_to_particle_mapping,&
-                                             nhc_to_shell_mapping
   USE parallel_rng_types,              ONLY: next_random_number
   USE termination,                     ONLY: stop_program
   USE thermostat_types,                ONLY: thermostat_info_type
@@ -238,8 +238,7 @@ CONTAINS
        END SELECT
        
        IF ( nhc % nhc_len /= 0 ) &
-            CALL init_nhc_variables ( nhc, simpar % tau_nhc,  &
-            temp, para_env, globenv ,error=error)
+            CALL init_nhc_variables ( nhc, temp, para_env, globenv ,error=error)
     END IF
     CALL init_nhc_forces ( nhc, error=error)
   END SUBROUTINE initialize_nhc_baro
@@ -303,8 +302,7 @@ CONTAINS
        ! Initializing thermostat forces and velocities for the Nose-Hoover
        ! Chain variables
        IF ( nhc % nhc_len /= 0 ) &
-            CALL init_nhc_variables ( nhc, simpar % tau_nhc,  &
-            simpar % temp_ext, para_env, globenv ,error=error)
+            CALL init_nhc_variables ( nhc, simpar % temp_ext, para_env, globenv ,error=error)
 
     ENDIF
     CALL init_nhc_forces ( nhc, error=error)
@@ -344,11 +342,10 @@ CONTAINS
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure, restart
-    REAL(KIND=dp)                            :: kg_coeff_target_temp, tau_nhc
+    REAL(KIND=dp)                            :: kg_coeff_target_temp
 
     failure = .FALSE.
     restart = .FALSE.
-    CALL section_vals_val_get(nose_section,"timecon",r_val=tau_nhc,error=error)
     CALL section_vals_val_get(coeff_section,"temperature",r_val=kg_coeff_target_temp,error=error)
 
     ! fire up the thermostats
@@ -360,7 +357,7 @@ CONTAINS
        IF(.NOT. restart) THEN
           ! Initializing thermostat forces and velocities for the Nose-Hoover
           ! Chain variables
-          CALL init_nhc_variables (nhc, tau_nhc, kg_coeff_target_temp, para_env, globenv,error=error)
+          CALL init_nhc_variables (nhc, kg_coeff_target_temp, para_env, globenv,error=error)
           ! Set up the Yoshida weights
           IF ( nhc % nyosh > 0 ) THEN
              ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = stat )
@@ -432,8 +429,7 @@ CONTAINS
        ! Initialize thermostat forces and velocities
        ! Chain variables
        IF ( nhc % nhc_len /= 0 ) THEN
-          CALL init_nhc_variables (nhc, simpar%shell_tau_nhc, simpar%temp_sh_ext, &
-               para_env, globenv, error=error)
+          CALL init_nhc_variables (nhc, simpar%temp_sh_ext, para_env, globenv, error=error)
        END IF
     END IF
     CALL init_nhc_forces ( nhc, error=error)
@@ -665,10 +661,10 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE init_nhc_variables ( nhc,tau_nhc,temp_ext, para_env, globenv, error )
+  SUBROUTINE init_nhc_variables ( nhc,temp_ext, para_env, globenv, error )
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
-    REAL(KIND=dp), INTENT(IN)                :: tau_nhc, temp_ext
+    REAL(KIND=dp), INTENT(IN)                :: temp_ext
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -687,7 +683,7 @@ CONTAINS
     failure = .FALSE.
     ! first initializing the mass of the nhc variables
 
-    nhc % nvt ( :, : ) % mass = nhc % nvt ( :, : ) % nkt * tau_nhc * tau_nhc
+    nhc % nvt ( :, : ) % mass = nhc % nvt ( :, : ) % nkt * nhc%tau_nhc**2
     nhc % nvt ( :, : ) % eta = 0._dp
     nhc % nvt ( :, : ) % v = 0._dp
     nhc % nvt ( :, : ) % f = 0._dp

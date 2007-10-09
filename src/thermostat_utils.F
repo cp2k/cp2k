@@ -70,7 +70,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE compute_degrees_of_freedom ( thermostats, cell, simpar, molecule_kind_set,&
-       local_molecules, print_section, gci, error)
+       local_molecules, print_section, gci, region, error)
 
     TYPE(thermostats_type), POINTER          :: thermostats
     TYPE(cell_type), POINTER                 :: cell
@@ -80,6 +80,7 @@ CONTAINS
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(section_vals_type), POINTER         :: print_section
     TYPE(global_constraint_type), POINTER    :: gci
+    INTEGER, INTENT(IN)                      :: region
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'compute_degrees_of_freedom', &
@@ -93,7 +94,7 @@ CONTAINS
     simpar % nfree = 6 - SUM(cell%perd(1:3))
     ! Collect info about thermostats
     CALL setup_thermostat_info(thermostats%thermostat_info_part, molecule_kind_set,&
-         local_molecules, simpar%part_region, simpar%ensemble, simpar%nfree, &
+         local_molecules, region, simpar%ensemble, simpar%nfree, &
          error=error)
 
     ! Saving this value of simpar preliminar to the real count of constraints..

@@ -26,7 +26,8 @@ MODULE thermostat_types
                                              lnhc_parameters_type
   USE input_constants,                 ONLY: do_thermo_csvr,&
                                              do_thermo_nose
-  USE input_section_types,             ONLY: section_vals_type,&
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
@@ -285,6 +286,7 @@ CONTAINS
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
+    TYPE(section_vals_type), POINTER         :: csvr_section, nose_section
 
     ALLOCATE(thermostat, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -296,10 +298,14 @@ CONTAINS
     NULLIFY(thermostat%csvr)
     CALL section_vals_val_get(section,"TYPE",i_val=thermostat%type_of_thermostat,error=error)
     IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN
+       nose_section => section_vals_get_subs_vals(section,"NOSE",error=error)
        ALLOCATE(thermostat%nhc, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL lnhc_init(thermostat%nhc,error=error)
+       CALL lnhc_init(thermostat%nhc, nose_section, error=error)
+       CALL section_vals_val_get(section,"REGION",i_val=thermostat%nhc%region,error=error)
     ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN
+       csvr_section => section_vals_get_subs_vals(section,"CSVR",error=error)
+       CALL section_vals_val_get(section,"REGION",i_val=thermostat%csvr%region,error=error)
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END IF
 

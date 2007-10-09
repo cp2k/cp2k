@@ -24,6 +24,10 @@ MODULE thermostat_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
+  USE cp2k_units,                      ONLY: get_cp2k_units,&
+                                             unit_convert_type
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
@@ -49,7 +53,8 @@ MODULE thermostat_methods
                                              npt_f_ensemble,&
                                              npt_i_ensemble,&
                                              nve_ensemble,&
-                                             nvt_ensemble
+                                             nvt_ensemble,&
+                                             do_region_global
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -127,7 +132,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_thermostats', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: thermostat_type
+    INTEGER                                  :: region, thermostat_type
     LOGICAL :: apply_general_thermo, apply_thermo_baro, apply_thermo_coeff, &
       do_thermo_shell, explicit_baro, explicit_coef, explicit_part, &
       explicit_shell, failure, save_mem, shell_adiabatic, shell_present
@@ -167,10 +172,12 @@ CONTAINS
     apply_general_thermo = apply_thermo_baro .OR. (simpar%ensemble == nvt_ensemble)
 
     ! Compute Degrees of Freedom
+    region = do_region_global
+    IF (explicit_part) CALL section_vals_val_get(thermo_part_section,"REGION",i_val=region,error=error)
     CALL cp_subsys_get(subsys, molecule_kinds_new=molecule_kinds_new, local_molecules_new=local_molecules,&
             gci=gci, error=error) 
     CALL compute_degrees_of_freedom(thermostats, cell, simpar, molecule_kinds_new%els,&
-         local_molecules, print_section, gci, error)
+         local_molecules, print_section, gci, region, error)
 
     ! Particles
     IF (explicit_part) THEN
@@ -190,6 +197,7 @@ CONTAINS
              work_section => section_vals_get_subs_vals(thermo_part_section,"CSVR",error=error)
              CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
           END IF
+          CALL thermostat_info(thermostats%thermostat_part, "PARTICLES", thermo_part_section, error)
        ELSE
           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                "Thermostat for Particles has been defined but the ensemble provided "//&
@@ -207,8 +215,9 @@ CPSourceFileRef,&
           CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,shell_present=shell_present,&
                shell_adiabatic=shell_adiabatic)
           do_thermo_shell = (shell_present .AND. shell_adiabatic)
+          CALL section_vals_val_get(thermo_shell_section,"REGION",i_val=region,error=error)
           CALL setup_thermostat_info(thermostats%thermostat_info_shell, molecule_kinds_new%els,&
-               local_molecules, simpar%shell_region, simpar%ensemble, shell=do_thermo_shell,&
+               local_molecules, region, simpar%ensemble, shell=do_thermo_shell,&
                error=error)
           IF(do_thermo_shell) THEN
              ! Initialize thermostat
@@ -224,6 +233,7 @@ CPSourceFileRef,&
                 work_section => section_vals_get_subs_vals(thermo_shell_section,"CSVR",error=error)
                 CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
              END IF
+             CALL thermostat_info(thermostats%thermostat_shell, "CORE-SHELL", thermo_shell_section, error)
           ELSE
              IF (.NOT.shell_adiabatic) THEN
                 CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
@@ -271,6 +281,7 @@ CPSourceFileRef,&
                 work_section      => section_vals_get_subs_vals(kg_coeff_section,"THERMOSTAT%CSVR",error=error)
                 CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
              END IF
+             CALL thermostat_info(thermostats%thermostat_coef, "KG COEFFICIENTS", thermo_coef_section, error)
           ELSE
              CALL release_thermostat_type(thermostats%thermostat_coef, error)
           END IF
@@ -301,6 +312,7 @@ CPSourceFileRef,&
           work_section => section_vals_get_subs_vals(thermo_baro_section,"CSVR",error=error)
           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END IF
+       CALL thermostat_info(thermostats%thermostat_baro, "BAROSTAT", thermo_baro_section, error)
     ELSE
        IF (explicit_baro) THEN
           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
@@ -320,6 +332,73 @@ CPSourceFileRef,&
     END IF
 
   END SUBROUTINE create_thermostats
+
+!!****f* thermostat_methods/thermostat_info [1.0] *
+!!
+!!   NAME
+!!    thermostat_info 
+!!
+!!   FUNCTION
+!!     -
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     10.2007 created [tlaino]
+!!
+!!*** **********************************************************************
+  SUBROUTINE thermostat_info(thermostat, label, section, error)
+    TYPE(thermostat_type), POINTER           :: thermostat
+    CHARACTER(LEN=*), INTENT(IN)             :: label
+    TYPE(section_vals_type), POINTER         :: section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'thermostat_info', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iw
+    LOGICAL                                  :: failure
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(unit_convert_type), POINTER         :: unit
+
+    failure = .FALSE.
+    NULLIFY(logger, unit)
+    CALL get_cp2k_units ( unit )
+    logger => cp_error_get_logger(error)
+    iw=cp_print_key_unit_nr(logger,section,"THERMOSTAT_INFO",extension=".log",error=error)
+    IF (iw>0) THEN
+       WRITE ( iw, '( /,A )' ) ' THERMOSTAT| Thermostat Info for '//TRIM(label)
+       SELECT CASE(thermostat%type_of_thermostat)
+       CASE(do_thermo_nose)
+          WRITE ( iw, '( A,T63,A )' ) ' THERMOSTAT| Type of thermostat','Nose-Hoover-Chains'
+          WRITE ( iw, '( A,T77,I4 )' ) ' THERMOSTAT| Nose-Hoover-Chain length ', thermostat%nhc%nhc_len
+          WRITE ( iw, '( A,A4,A,T71,F10.2 )' ) &
+               ' THERMOSTAT| Nose-Hoover-Chain time constant [', 'fs' ,'] ',&
+               thermostat%nhc%tau_nhc/unit%fs
+          WRITE ( iw, '( A,T77,I4 )' ) ' THERMOSTAT| Order of Yoshida integrator ', &
+               thermostat%nhc%nyosh
+          WRITE ( iw, '( A,T77,I4 )' ) ' THERMOSTAT| Number of multiple time steps', &
+               thermostat%nhc%nc
+       CASE(do_thermo_csvr)
+          WRITE ( iw, '( A,T44,A )' ) ' THERMOSTAT| Type of thermostat','Canonical Sampling/Velocity Rescaling'
+          WRITE ( iw, '( A,A4,A,T71,F10.2 )' ) &
+               ' THERMOSTAT| CSVR time constant [', 'fs' ,'] ',thermostat%csvr%tau_csvr/unit%fs
+          WRITE ( iw, '( A,T71,F10.2 )' ) &
+               ' THERMOSTAT| CSVR Initial Thermostat Energy ',thermostat%csvr%thermostat_energy
+       END SELECT
+       WRITE ( iw, '( A,/ )' ) ' THERMOSTAT| End of Thermostat Info for '//TRIM(label)
+    END IF
+    CALL cp_print_key_finished_output(iw,logger,section,"THERMOSTAT_INFO",error=error)
+
+  END SUBROUTINE thermostat_info
 
 !!****f* thermostat_methods/apply_thermostat_coeff [1.0] *
 !!

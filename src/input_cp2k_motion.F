@@ -2715,7 +2715,8 @@ END SUBROUTINE create_md_section
 
     LOGICAL                                  :: failure, my_coupled_thermostat
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: csvr_section, nose_section
+    TYPE(section_type), POINTER              :: csvr_section, nose_section, &
+                                                print_key
 
     failure=.FALSE.
     
@@ -2723,7 +2724,7 @@ END SUBROUTINE create_md_section
     IF (.NOT. failure) THEN
        my_coupled_thermostat = .FALSE.
        IF (PRESENT(coupled_thermostat)) my_coupled_thermostat = coupled_thermostat
-       NULLIFY(csvr_section, nose_section)
+       NULLIFY(csvr_section, nose_section, print_key)
        
        CALL section_create(section,name="THERMOSTAT",&
             description="Specify thermostat type and parameters controlling the thermostat.",&
@@ -2776,7 +2777,14 @@ END SUBROUTINE create_md_section
        CALL create_csvr_section(csvr_section, my_coupled_thermostat, error=error)
        CALL section_add_subsection(section, csvr_section, error=error)
        CALL section_release(csvr_section,error=error)
-       
+
+       CALL cp_print_key_section_create(print_key,"thermostat_info",&
+            description="Controls output information of the corresponding thermostat.", &
+            print_level=low_print_level, common_iter_levels=1,&
+            filename="__STD_OUT__",error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)               
+
     END IF
   END SUBROUTINE create_thermostat_section
 
@@ -3240,39 +3248,37 @@ SUBROUTINE create_nose_section(section, coupled_thermostat, error)
             required=.NOT. coupled_thermostat,error=error)
 
        NULLIFY(keyword,subsection)
-       IF (.NOT. coupled_thermostat) THEN
-          CALL keyword_create(keyword, name="length",&
-               description="length of the NoseHoover chain", usage="length integer", &
-               default_i_val=3,&
-               error=error)
-          CALL section_add_keyword(section,keyword,error=error)
-          CALL keyword_release(keyword,error=error)
-          
-          CALL keyword_create(keyword, name="Yoshida",&
-               description="order of the yoshida integretor usef for the thermostat",&
-               usage="Yoshida integer", &
-               default_i_val=3,&
-               error=error)
-          CALL section_add_keyword(section,keyword,error=error)
-          CALL keyword_release(keyword,error=error)
-          
-          CALL keyword_create(keyword, name="timecon",&
-               description="timeconstant of the thermostat chain",&
-               usage="timeconstant real", &
-               default_r_val=cp_unit_to_cp2k(1000.0_dp,"fs",error=error),&
-               unit_str="fs",error=error)
-          CALL section_add_keyword(section,keyword,error=error)
-          CALL keyword_release(keyword,error=error)
-          
-          CALL keyword_create(keyword, name="mts", &
-               variants=s2a("multiple_time_steps","mult_t_steps"),&
-               description="number of multiple timesteps to be used for the NoseHoover chain",&
-               usage="mts integer", &
-               default_i_val=2,&
-               error=error)
-          CALL section_add_keyword(section,keyword,error=error)
-          CALL keyword_release(keyword,error=error)
-       END IF
+       CALL keyword_create(keyword, name="length",&
+            description="length of the Nose-Hoover chain", usage="length integer", &
+            default_i_val=3,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       CALL keyword_create(keyword, name="Yoshida",&
+            description="order of the yoshida integretor usef for the thermostat",&
+            usage="Yoshida integer", &
+            default_i_val=3,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       CALL keyword_create(keyword, name="timecon",&
+            description="timeconstant of the thermostat chain",&
+            usage="timeconstant real", &
+            default_r_val=cp_unit_to_cp2k(1000.0_dp,"fs",error=error),&
+            unit_str="fs",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       CALL keyword_create(keyword, name="mts", &
+            variants=s2a("multiple_time_steps","mult_t_steps"),&
+            description="number of multiple timesteps to be used for the NoseHoover chain",&
+            usage="mts integer", &
+            default_i_val=2,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
        CALL create_coord_section(subsection,"NOSE HOOVER",error=error)
        CALL section_add_subsection(section,subsection,error=error)
@@ -3333,19 +3339,17 @@ SUBROUTINE create_csvr_section(section, coupled_thermostat, error)
   IF (.NOT. failure) THEN  
        CALL section_create(section,name="csvr",&
             description="Paramameters of the canonical sampling through velocity rescaling thermostat.",&
-            required=.TRUE.,error=error)
+            required=.NOT.coupled_thermostat,error=error)
 
        NULLIFY(keyword)
 
-       IF (.NOT.coupled_thermostat) THEN
-          CALL keyword_create(keyword, name="timecon",&
-               description="timeconstant of the thermostat.",&
-               usage="timeconstant real", &
-               default_r_val=cp_unit_to_cp2k(1000.0_dp,"fs",error=error),&
-               unit_str="fs",error=error)
-          CALL section_add_keyword(section,keyword,error=error)
-          CALL keyword_release(keyword,error=error)
-       END IF
+       CALL keyword_create(keyword, name="timecon",&
+            description="timeconstant of the thermostat.",&
+            usage="timeconstant real", &
+            default_r_val=cp_unit_to_cp2k(1000.0_dp,"fs",error=error),&
+            unit_str="fs",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="thermostat_energy",&
             description="This keyword is used by the thermostat to accumulate the net energy "//&

@@ -34,10 +34,9 @@ MODULE md
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
-       do_region_global, do_thermo_csvr, do_thermo_nose, ensemble_name_types, &
-       isokin_ensemble, langevin_ensemble, nph_ensemble, &
+       ensemble_name_types, isokin_ensemble, langevin_ensemble, nph_ensemble, &
        nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
-       npt_i_ensemble, nve_ensemble, nvt_ensemble
+       npt_i_ensemble, nve_ensemble
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_list_get,&
@@ -81,7 +80,7 @@ MODULE md
   END TYPE simpar_units_type
 
   TYPE simulation_parameters_type
-     INTEGER :: nsteps
+     INTEGER        :: nsteps
      REAL (KIND=dp) :: dt
      REAL (KIND=dp) :: temp_ext
      REAL (KIND=dp) :: temp_baro
@@ -100,15 +99,9 @@ MODULE md
      LOGICAL :: annealing
      LOGICAL :: dump_lm 
      INTEGER :: nfree, nfree_rot_transl
-     INTEGER :: nc
-     INTEGER :: thermostat_type, shell_thermostat_type
-     INTEGER :: nyosh
-     INTEGER :: nhclen
      INTEGER :: info_constraint
      INTEGER :: lagrange_multipliers
-     REAL (KIND=dp) :: tau_nhc
      REAL (KIND=dp) :: tau_cell
-     REAL (KIND=dp), POINTER, DIMENSION ( : ) :: dt_yosh
      REAL (KIND=dp) :: shake_tol
      TYPE ( simpar_units_type )     :: units
      !MK Langevin
@@ -119,16 +112,10 @@ MODULE md
      LOGICAL        :: multi_time_switch, do_respa
      INTEGER        :: n_time_steps
      !SHELL parameters
-     INTEGER :: shell_nc
-     INTEGER :: shell_nhclen
-     INTEGER :: shell_region, part_region
-     INTEGER :: shell_nyosh
-     REAL (KIND=dp) :: shell_tau_nhc
      REAL (KIND=dp) :: temp_sh_ext
      REAL (KIND=dp) :: temp_sh_tol
-     REAL (KIND=dp) :: csvr_thermo_energy
-     LOGICAL :: temperature_per_kind
-     LOGICAL :: scale_temperature_per_kind
+     LOGICAL        :: temperature_per_kind
+     LOGICAL        :: scale_temperature_per_kind
   END TYPE simulation_parameters_type
 
   !!***
@@ -219,29 +206,6 @@ CONTAINS
        IF ( simpar % annealing ) &
             WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Annealing ion factor      ', &
             simpar % f_annealing
-       IF ( simpar % ensemble == nvt_ensemble .OR. simpar % ensemble == npt_i_ensemble &
-            .OR. simpar % ensemble == npt_f_ensemble ) THEN
-          SELECT CASE(simpar%thermostat_type)
-          CASE(do_thermo_nose)
-             WRITE ( iw, '( A )' ) ' MD| Nose-Hoover-Chain parameters '
-             WRITE ( iw, '( A,T77,I4 )' ) ' MD| Nose-Hoover-Chain length ', &
-                  simpar % nhclen
-             WRITE ( iw, '( A,A4,A,T71,F10.2 )' ) &
-                  ' MD| Nose-Hoover-Chain time constant [', 'fs' ,'] ',&
-                  simpar % tau_nhc/unit%fs
-             WRITE ( iw, '( A,T77,I4 )' ) ' MD| Order of Yoshida integrator ', &
-                  simpar % nyosh
-             WRITE ( iw, '( A,T77,I4 )' ) ' MD| Number of multiple time steps', &
-                  simpar % nc
-          CASE(do_thermo_csvr)
-             WRITE ( iw, '( A,A4,A,T71,F10.2 )' ) &
-                  ' MD| Canonical Sampling through velocity rescaling time constant [', 'fs' ,'] ',&
-                  simpar % tau_nhc/unit%fs
-             WRITE ( iw, '( A,T71,F10.2 )' ) &
-                  ' MD| Canonical Sampling Initial Thermostat Energy ',&
-                  simpar % csvr_thermo_energy
-          END SELECT
-       END    IF
        IF (  simpar % ensemble == npt_i_ensemble .OR. simpar % ensemble == npt_f_ensemble ) THEN
           WRITE ( iw, '( A,A3,A, T71, F10.2 )' ) &
                ' MD| Pressure [','Bar','] ', simpar % p_ext*unit%bar
@@ -369,12 +333,11 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: explicit, failure
-    TYPE(section_vals_type), POINTER         :: thermostat_section, &
-                                                tmp2_section, tmp_section
+    TYPE(section_vals_type), POINTER         :: tmp_section
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       NULLIFY( tmp2_section, tmp_section, thermostat_section )
+       NULLIFY(tmp_section)
        CALL section_vals_val_get(md_section,"ANNEALING",r_val=simpar%f_annealing,error=error)
        IF (simpar%f_annealing /= 1.0_dp) simpar % annealing = .TRUE.
        CALL section_vals_val_get(md_section,"ENSEMBLE",i_val=simpar%ensemble,error=error)
@@ -421,30 +384,6 @@ CPSourceFileRef,&
           CALL section_vals_val_get(tmp_section,"TIMECON",r_val=simpar%tau_cell,error=error)
        END SELECT
 
-       SELECT CASE (simpar%ensemble)
-       CASE(npt_f_ensemble, npt_i_ensemble, nvt_ensemble)
-          thermostat_section => section_vals_get_subs_vals(md_section,"THERMOSTAT",error=error)
-          CALL section_vals_val_get(thermostat_section,"TYPE",i_val=simpar%thermostat_type,error=error)
-          CALL section_vals_val_get(thermostat_section,"REGION",i_val=simpar%part_region,error=error)
-          SELECT CASE (simpar%thermostat_type)
-          CASE (do_thermo_nose)
-             ! Nose-Hoover Thermostat
-             tmp_section => section_vals_get_subs_vals(thermostat_section,"NOSE",error=error)
-             CALL section_vals_val_get(tmp_section,"LENGTH",i_val=simpar%nhclen,error=error)
-             CALL section_vals_val_get(tmp_section,"YOSHIDA",i_val=simpar%nyosh,error=error)
-             CALL section_vals_val_get(tmp_section,"TIMECON",r_val=simpar%tau_nhc,error=error)
-             CALL section_vals_val_get(tmp_section,"MTS",i_val=simpar%nc,error=error)
-          CASE (do_thermo_csvr)
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="CSVR thermostat not implemented yet!", &
-                  error=error, error_level=cp_fatal_level)
-             ! Canonical Sampling through velocity rescaling
-             tmp_section => section_vals_get_subs_vals(thermostat_section,"CSVR",error=error)
-             CALL section_vals_val_get(tmp_section,"TIMECON",r_val=simpar%tau_nhc,error=error)
-             CALL section_vals_val_get(tmp_section,"THERMOSTAT_ENERGY",r_val=simpar%csvr_thermo_energy,error=error)
-          END SELECT
-       END SELECT
-
        ! RESPA
        tmp_section => section_vals_get_subs_vals(md_section,"RESPA",error=error)
        CALL section_vals_get(tmp_section, explicit=simpar%do_respa, error=error)
@@ -459,26 +398,6 @@ CPSourceFileRef,&
        IF (explicit) THEN
           CALL section_vals_val_get(tmp_section,"TEMPERATURE",r_val=simpar%temp_sh_ext,error=error)
           CALL section_vals_val_get(tmp_section,"TEMP_TOL",r_val=simpar%temp_sh_tol,error=error)
-          thermostat_section => section_vals_get_subs_vals(tmp_section,"THERMOSTAT",error=error)
-          CALL section_vals_get(thermostat_section, explicit=explicit, error=error)
-          IF (explicit) THEN
-             CALL section_vals_val_get(thermostat_section,"TYPE",i_val=simpar%shell_thermostat_type,error=error)
-             CALL section_vals_val_get(thermostat_section,"REGION",i_val=simpar%shell_region,error=error)
-             SELECT CASE (simpar%shell_thermostat_type)
-             CASE (do_thermo_nose)
-                ! Nose-Hoover Thermostat
-                tmp2_section => section_vals_get_subs_vals(thermostat_section,"NOSE",error=error)
-                CALL section_vals_val_get(tmp2_section,"LENGTH",i_val=simpar%shell_nhclen,error=error)
-                CALL section_vals_val_get(tmp2_section,"YOSHIDA",i_val=simpar%shell_nyosh,error=error)
-                CALL section_vals_val_get(tmp2_section,"TIMECON",r_val=simpar%shell_tau_nhc,error=error)
-                CALL section_vals_val_get(tmp2_section,"MTS",i_val=simpar%shell_nc,error=error)
-             CASE (do_thermo_csvr)
-                ! Canonical Sampling through velocity rescaling
-                CALL cp_unimplemented_error(fromWhere=routineP, &
-                     message="CSVR thermostat not implemented for SHELL MODEL", &
-                     error=error, error_level=cp_fatal_level)
-             END SELECT
-          END IF
        END IF
     END IF
 
@@ -536,12 +455,6 @@ CPSourceFileRef,&
     ! SHELL parameters
     simpar % temp_sh_ext = 0.0_dp
     simpar % temp_sh_tol = 0.0_dp
-    simpar % shell_nhclen = 3
-    simpar % shell_nc = 2
-    simpar % shell_nyosh = 3
-    simpar % shell_tau_nhc = 1000.0_dp
-    simpar % shell_region = do_region_global
-    simpar % part_region = do_region_global
   END SUBROUTINE set_md_defaults
 
   !******************************************************************************

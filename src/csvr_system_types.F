@@ -27,8 +27,9 @@ MODULE csvr_system_types
   PUBLIC :: csvr_system_type
 
   TYPE csvr_system_type
+     INTEGER       :: region
      REAL(KIND=dp) :: tau_csvr
-     REAL(KIND=dp) :: conserved_qnty
+     REAL(KIND=dp) :: thermostat_energy
   END TYPE csvr_system_type
 
 ! *** Global parameters ***

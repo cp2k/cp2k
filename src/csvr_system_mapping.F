@@ -3,32 +3,30 @@
 !   Copyright (C) 2000 - 2007  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/nhc_mapping [1.0] *
+!!****** cp2k/csvr_system_mapping [1.0] *
 !!
 !!   NAME
-!!     nhc_mapping
+!!     csvr_system_mapping
 !!
 !!   FUNCTION
 !!
 !!   AUTHOR
-!!     CJM
+!!     Teodoro Laino [tlaino] 10.2007- University of Zurich
 !!
 !!   MODIFICATION HISTORY
-!!     CJM, 20-Feb-01
-!!     JGH (10-Mar-2001)
-!!     CJM (10-Apr-2001)
+!!
 !!
 !!   SOURCE
 !******************************************************************************
 
-MODULE nhc_mapping
+MODULE csvr_system_mapping
 
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE csvr_system_types,               ONLY: csvr_system_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
                                              get_dyn_coeff
   USE extended_system_types,           ONLY: debug_isotropic_limit,&
-                                             lnhc_parameters_type,&
                                              map_info_type
   USE input_constants,                 ONLY: &
        do_region_global, do_region_massive, do_thermo_communication, &
@@ -58,37 +56,36 @@ MODULE nhc_mapping
 
   ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'nhc_mapping'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'csvr_system_mapping'
 
-  PUBLIC :: nhc_to_particle_mapping, nhc_to_barostat_mapping, &
-       nhc_to_coef_mapping, nhc_to_shell_mapping
+  PUBLIC :: csvr_to_particle_mapping, csvr_to_barostat_mapping,&
+            csvr_to_coef_mapping, csvr_to_shell_mapping
 
 CONTAINS
 !******************************************************************************
-!!****** nhc_mapping/nhc_to_barostat_mapping [1.0] *
+!!****** csvr_system_mapping/csvr_to_barostat_mapping [1.0] *
 !!
 !!   NAME
-!!     nhc_to_barostat_mapping
+!!     csvr_to_barostat_mapping
 !!
 !!   FUNCTION
 !!     Creates the thermostatting for the barostat
 !!
 !!   AUTHOR
-!!     CJM
+!!     Teodoro Laino [tlaino] 10.2007- University of Zurich
 !!
 !!   MODIFICATION HISTORY
-!!     CJM, 20-Feb-01  : nhc structure allocated to zero when not in use
-!!     JGH (10-Mar-2001) : set nhc variables to zero when not in use
+!!     
 !!
 !!*** *************************************************************************
-  SUBROUTINE nhc_to_barostat_mapping ( simpar, nhc, para_env, error )
+  SUBROUTINE csvr_to_barostat_mapping ( simpar, csvr, para_env, error )
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
-    TYPE(lnhc_parameters_type), POINTER      :: nhc
+    TYPE(csvr_system_type), POINTER          :: csvr
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'nhc_to_barostat_mapping', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'csvr_to_barostat_mapping', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, number, stat
@@ -100,63 +97,51 @@ CONTAINS
     CASE  DEFAULT
        CALL stop_program(routineN, 'Never reach this point!' )
     CASE ( npt_i_ensemble, npt_f_ensemble )
-       nhc % nyosh = simpar % nyosh
-       nhc % nc = simpar % nc
-       nhc % nhc_len = simpar % nhclen
-       map_info => nhc%map_info
+       map_info => csvr%map_info
        map_info%dis_type = do_thermo_only_master
 
        ! Counting the total number of thermostats ( 1 for both NPT_I and NPT_F )
-       nhc % num_nhc = 1
+       csvr%num_csvr = 1
        IF ( simpar % ensemble == npt_f_ensemble ) THEN
           number = 9
        ELSE
           number = 1
        ENDIF
 
-       CALL init_baro_map_info(map_info, number, nhc%num_nhc, error)
+       CALL init_baro_map_info(map_info, number, csvr%num_csvr, error)
  
-       ALLOCATE ( nhc%nvt(nhc%nhc_len, nhc%num_nhc), STAT = stat )
+       ALLOCATE ( csvr%nvt(1, csvr%num_csvr),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ! Now that we know how many there are stick this into nhc % static % nkt
+       ! Now that we know how many there are stick this into csvr%nkt
        ! (number of degrees of freedom times k_B T )
-       DO i = 1, nhc % num_nhc
-          nhc % nvt ( 1, i ) % nkt = simpar % temp_ext * number
+       DO i = 1, csvr % num_csvr
+          csvr % nvt ( 1, i ) % nkt = simpar % temp_ext * number
           IF (debug_isotropic_limit) THEN
-             nhc % nvt ( 1, i ) % nkt = simpar % temp_ext
+             csvr % nvt ( 1, i ) % nkt = simpar % temp_ext
           END IF
        END DO
-
-       ! getting the number of degrees of freedom times k_B T for the rest of the chain
-       DO i = 2, nhc % nhc_len
-          nhc % nvt ( i, : ) %nkt = simpar % temp_ext
-       END DO
     END SELECT
-
-  END SUBROUTINE nhc_to_barostat_mapping
+    
+  END SUBROUTINE csvr_to_barostat_mapping
 
 !******************************************************************************
-!!****** nhc_mapping/nhc_to_particle_mapping [1.0] *
+!!****** csvr_system_mapping/csvr_to_particle_mapping [1.0] *
 !!
 !!   NAME
-!!     nhc_to_particle_mapping
+!!     csvr_to_particle_mapping
 !!
 !!   FUNCTION
 !!     Creates the thermostatting maps
 !!
 !!   AUTHOR
-!!     CJM
+!!     Teodoro Laino [tlaino] 10.2007- University of Zurich
 !!
 !!   MODIFICATION HISTORY
-!!     29-Nov-00 (JGH) correct counting of DOF if constraints are off
-!!     CJM, 20-Feb-01  : nhc structure allocated to zero when not in use
-!!     JGH (10-Mar-2001) : set nhc variables to zero when not in use
-!!     CJM(10-NOV-2001) : New parallelization with new molecule structures
-!!     Teodoro Laino 09.2007 [tlaino] - University of Zurich - cleaning and updating
+!!     
 !!
 !!*** *************************************************************************
-  SUBROUTINE nhc_to_particle_mapping ( thermostat_info, simpar, local_molecules,&
-       molecule_set, molecule_kind_set, nhc, para_env, gci, error)
+  SUBROUTINE csvr_to_particle_mapping ( thermostat_info, simpar, local_molecules,&
+       molecule_set, molecule_kind_set, csvr, para_env, gci, error)
 
     TYPE(thermostat_info_type), POINTER      :: thermostat_info
     TYPE(simulation_parameters_type), &
@@ -164,12 +149,12 @@ CONTAINS
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
-    TYPE(lnhc_parameters_type), POINTER      :: nhc
+    TYPE(csvr_system_type), POINTER          :: csvr
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'nhc_to_particle_mapping', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'csvr_to_particle_mapping', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, natoms_local, stat, &
@@ -190,14 +175,14 @@ CONTAINS
        CALL stop_program ( routineN, 'Never reach this point!' )
     CASE ( nvt_ensemble, npt_i_ensemble, npt_f_ensemble )
 
-       CALL setup_nhc_thermostat(nhc, thermostat_info, simpar%nyosh, simpar%nc,&
-            simpar%nhclen, simpar%part_region, deg_of_freedom, massive_atom_list,&
-            molecule_kind_set, local_molecules, molecule_set, para_env, natoms_local, &
-            simpar, sum_of_thermostats, gci, error=error)
+       CALL setup_csvr_thermostat(csvr, thermostat_info, simpar%part_region,&
+            deg_of_freedom, massive_atom_list, molecule_kind_set, local_molecules,&
+            molecule_set, para_env, natoms_local, simpar, sum_of_thermostats,&
+            gci, error=error)
 
        ! Sum up the number of degrees of freedom on each thermostat.
        ! first: initialize the target
-       map_info => nhc%map_info
+       map_info => csvr%map_info
        map_info%s_kin = 0.0_dp
        DO i = 1, 3
           DO j = 1, natoms_local
@@ -205,42 +190,37 @@ CONTAINS
           END DO
        END DO
        
-       ! if thermostats are replicated but molecules distributed, we have to
+       ! If thermostats are replicated but molecules distributed, we have to
        ! sum s_kin over all processors
        IF (map_info%dis_type == do_thermo_communication ) CALL mp_sum (map_info%s_kin, para_env%group )
 
        ! We know the total number of system thermostats.
-       IF ( ( sum_of_thermostats == 1 ) .AND. ( map_info%dis_type /= do_thermo_no_communication ) ) THEN
+       IF ( (sum_of_thermostats == 1).AND.(map_info%dis_type /= do_thermo_no_communication)) THEN
           fac = map_info%s_kin(1)-deg_of_freedom(1)-simpar%nfree_rot_transl
           IF ( fac == 0.0_dp ) THEN 
              CALL stop_program ( routineN,'Zero degrees of freedom. Nothing to thermalize!' )
           END IF
-          nhc%nvt(1,1)%nkt = simpar%temp_ext*fac
+          csvr%nvt(1,1)%nkt = simpar%temp_ext*fac
        ELSE
-          DO i = 1, nhc%num_nhc
+          DO i = 1, csvr%num_csvr
              fac = (map_info%s_kin(i) - deg_of_freedom(i) )
-             nhc%nvt(1,i)%nkt = simpar%temp_ext * fac 
+             csvr%nvt(1,i)%nkt = simpar%temp_ext * fac 
           END DO
        END IF
        
-       ! Getting the number of degrees of freedom times k_B T for the rest
-       ! of the chain
-       DO i = 2, nhc % nhc_len
-          nhc % nvt ( i, : ) % nkt = simpar % temp_ext
-       END DO
        DEALLOCATE (deg_of_freedom,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE ( massive_atom_list, STAT = stat )
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END SELECT
 
-  END SUBROUTINE nhc_to_particle_mapping
+  END SUBROUTINE csvr_to_particle_mapping
 
 !******************************************************************************
-!!****** nhc_mapping/setup_nhc_thermostat [1.0] *
+!!****** csvr_system_mapping/setup_csvr_thermostat [1.0] *
 !!
 !!   NAME
-!!     setup_nhc_thermostat
+!!     setup_csvr_thermostat
 !!
 !!   FUNCTION
 !!     Main general setup for Nose-Hoover thermostats
@@ -253,14 +233,12 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE setup_nhc_thermostat ( nhc, thermostat_info, nyosh, nc, nhclen,&
-       part_region, deg_of_freedom, massive_atom_list, molecule_kind_set,&
-       local_molecules, molecule_set, para_env, natoms_local, simpar, &
-       sum_of_thermostats, gci, shell, error)
+  SUBROUTINE setup_csvr_thermostat ( csvr, thermostat_info, deg_of_freedom,&
+       massive_atom_list, molecule_kind_set, local_molecules, molecule_set,&
+       para_env, natoms_local, simpar, sum_of_thermostats, gci, shell, error)
 
-    TYPE(lnhc_parameters_type), POINTER      :: nhc
+    TYPE(csvr_system_type), POINTER          :: csvr
     TYPE(thermostat_info_type), POINTER      :: thermostat_info
-    INTEGER, INTENT(IN)                      :: nyosh, nc, nhclen, part_region
     INTEGER, DIMENSION(:), POINTER           :: deg_of_freedom, &
                                                 massive_atom_list
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set(:)
@@ -275,7 +253,7 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: shell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_nhc_thermostat', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_csvr_thermostat', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: nkind, number, region, stat
@@ -285,66 +263,60 @@ CONTAINS
     failure  = .FALSE.
     do_shell = .FALSE.
     IF (PRESENT(shell)) do_shell = shell
-
-    nhc%nyosh   = nyosh
-    nhc%nc      = nc
-    nhc%nhc_len = nhclen
-    map_info    => nhc%map_info
+    map_info    => csvr%map_info
     
     nkind = SIZE(molecule_kind_set)
     sum_of_thermostats = thermostat_info%sum_of_thermostats
     map_info%dis_type  = thermostat_info%dis_type
     number             = thermostat_info%number_of_thermostats
-    region             = part_region
+    region             = csvr%region
 
     CALL thermostat_mapping_region(map_info, deg_of_freedom, massive_atom_list,&
        molecule_kind_set, local_molecules, molecule_set, para_env, natoms_local,&
        simpar, number, region, gci, do_shell, error)
 
-    ALLOCATE (nhc%nvt(nhc%nhc_len,number),STAT=stat)
+    ALLOCATE (csvr%nvt(1,number),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    ! Now that we know how many there are stick this into nhc%nkt
+    ! Now that we know how many there are stick this into csvr%nkt
     ! (number of degrees of freedom times k_B T for the first thermostat
     !  on the chain)
-    nhc % num_nhc = number
+    csvr % num_csvr = number
 
-  END SUBROUTINE setup_nhc_thermostat
+  END SUBROUTINE setup_csvr_thermostat
 
 !******************************************************************************
-!!****** nhc_mapping/nhc_to_coef_mapping [1.0] *
+!!****** csvr_system_mapping/csvr_to_coef_mapping [1.0] *
 !!
 !!   NAME
-!!     nhc_to_coef_mapping
+!!     csvr_to_coef_mapping
 !!
 !!   FUNCTION
 !!     Creates the thermostatting for the
 !!     polarization  coefficients'  degrees of freedom
 !!
 !!   AUTHOR
-!!     CJM 10-Apr-01
+!!     Teodoro Laino [tlaino] - University of Zurich - 10.2007
 !!
 !!   MODIFICATION HISTORY
-!!     gt 04-02-04 adapted to new kind of coefficents
-!!     gt 11-02-05 adapted to new input
+!!     
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE nhc_to_coef_mapping ( dyn_coeff_set, nhc, kg_coeff_section, para_env, error)
+  SUBROUTINE csvr_to_coef_mapping ( dyn_coeff_set, csvr, kg_coeff_section, para_env, error)
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
-    TYPE(lnhc_parameters_type), POINTER      :: nhc
+    TYPE(csvr_system_type), POINTER          :: csvr
     TYPE(section_vals_type), POINTER         :: kg_coeff_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'nhc_to_coef_mapping', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'csvr_to_coef_mapping', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ikind, j, kg_coeff_ens, &
-                                                kg_coeff_nhc, ncoef_local, &
-                                                ncoef_of_kind, nkind, number, &
-                                                stat
+                                                ncoef_local, ncoef_of_kind, &
+                                                nkind, number, stat
     LOGICAL                                  :: failure, nointer
     REAL(KIND=dp)                            :: kg_coeff_temp
     TYPE(map_info_type), POINTER             :: map_info
@@ -360,15 +332,11 @@ CONTAINS
     CASE  DEFAULT
        CALL stop_program(routineN, 'Never reach this point!' )
     CASE ( nvt_ensemble )
-       CALL section_vals_val_get(kg_coeff_section,"THERMOSTAT%REGION",i_val=kg_coeff_nhc,error=error)
-       CALL section_vals_val_get(nose_section,"yoshida",i_val=nhc%nyosh ,error=error)
-       CALL section_vals_val_get(nose_section,"mts",i_val=nhc%nc ,error=error)
-       CALL section_vals_val_get(nose_section,"length",i_val=nhc%nhc_len ,error=error)
        number      = 0
        ncoef_local = 0
        nointer     = .TRUE.
        nkind       = SIZE ( dyn_coeff_set%coeffs_of_kind)
-       map_info    => nhc%map_info
+       map_info    => csvr%map_info
        DO ikind=1,nkind
           IF(ASSOCIATED(dyn_coeff_set%coeffs_of_kind(ikind)%coeffs)) THEN
              CALL get_dyn_coeff(coeffs=dyn_coeff_set%coeffs_of_kind(ikind)%coeffs,&
@@ -378,10 +346,10 @@ CONTAINS
        END DO
        
        ! Counting the global number of thermostats
-       IF ( kg_coeff_nhc == do_region_global )  THEN
+       IF ( csvr%region == do_region_global )  THEN
           nointer=.FALSE.
           number=1
-       ELSEIF ( kg_coeff_nhc == do_region_massive )  THEN
+       ELSEIF ( csvr%region == do_region_massive )  THEN
           number=ncoef_local
        ELSE
           CALL stop_program ( routineN, "Unknown region for KG COEFF!" )
@@ -393,10 +361,10 @@ CONTAINS
        ELSE
           map_info%dis_type = do_thermo_communication
        END IF
-       nhc % num_nhc = number
-       CALL init_coeff_map_info(map_info, number, kg_coeff_nhc, ncoef_local, error)
+       csvr % num_csvr = number
+       CALL init_coeff_map_info(map_info, number, csvr%region, ncoef_local, error)
 
-       ALLOCATE ( nhc % nvt ( nhc % nhc_len, nhc % num_nhc ), STAT = stat )
+       ALLOCATE ( csvr%nvt(1,csvr%num_csvr),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        ! Find the number of degrees of freedom on each thermostat
@@ -412,39 +380,35 @@ CONTAINS
        IF ( map_info%dis_type == do_thermo_communication ) CALL mp_sum (map_info%s_kin, para_env%group )
 
        !
-       ! Now that we know how many there are stick this into nhc % static % nkt
+       ! Now that we know how many there are stick this into csvr%nkt
        ! (number of degrees of freedom times k_B T )
-       DO i = 1, nhc % num_nhc
-          nhc % nvt ( 1, i ) % nkt = kg_coeff_temp * map_info%s_kin ( i )
+       DO i = 1, csvr% num_csvr
+          csvr% nvt ( 1, i ) % nkt = kg_coeff_temp * map_info%s_kin ( i )
        END DO
 
-       ! getting the number of degrees of freedom times k_B T for the rest of the chain
-       DO i = 2, nhc % nhc_len
-          nhc % nvt ( i, : ) % nkt = kg_coeff_temp
-       END DO
     END SELECT
 
-  END SUBROUTINE nhc_to_coef_mapping
+  END SUBROUTINE csvr_to_coef_mapping
 
 !******************************************************************************
-!!****** nhc_mapping/nhc_to_shell_mapping [1.0] *
+!!****** csvr_system_mapping/csvr_to_shell_mapping [1.0] *
 !!
 !!   NAME
-!!     nhc_to_shell_mapping
+!!     csvr_to_shell_mapping
 !!
 !!   FUNCTION
 !!     
 !!
 !!   AUTHOR
-!!  
+!!     Teodoro Laino [tlaino] - University of Zurich - 10.2007
 !!
 !!   MODIFICATION HISTORY
 !!   
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE nhc_to_shell_mapping( thermostat_info, simpar, local_molecules,&
-       molecule_set, molecule_kind_set, nhc, para_env, gci, error)
+  SUBROUTINE csvr_to_shell_mapping( thermostat_info, simpar, local_molecules,&
+       molecule_set, molecule_kind_set, csvr, para_env, gci, error)
 
     TYPE(thermostat_info_type), POINTER      :: thermostat_info
     TYPE(simulation_parameters_type), &
@@ -452,12 +416,12 @@ CONTAINS
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
-    TYPE(lnhc_parameters_type), POINTER      :: nhc
+    TYPE(csvr_system_type), POINTER          :: csvr
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'nhc_to_shell_mapping', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'csvr_to_shell_mapping', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, nshell_local, stat, &
@@ -478,12 +442,11 @@ CONTAINS
        CALL stop_program ( routineN, 'Never reach this point!' )
     CASE ( nvt_ensemble, npt_i_ensemble, npt_f_ensemble )
 
-       CALL setup_nhc_thermostat(nhc, thermostat_info, simpar%shell_nyosh, simpar%shell_nc,&
-            simpar%shell_nhclen, simpar%shell_region, deg_of_freedom, massive_shell_list,&
+       CALL setup_csvr_thermostat(csvr, thermostat_info, deg_of_freedom, massive_shell_list,&
             molecule_kind_set, local_molecules, molecule_set, para_env, nshell_local, &
             simpar, sum_of_thermostats, gci, shell=.TRUE., error=error)
 
-       map_info => nhc%map_info
+       map_info => csvr%map_info
        ! Sum up the number of degrees of freedom on each thermostat.
        ! first: initialize the target
        map_info%s_kin = 0.0_dp
@@ -497,22 +460,18 @@ CONTAINS
        ! sum s_kin over all processors
        IF ( map_info%dis_type == do_thermo_communication ) CALL mp_sum (map_info%s_kin, para_env%group )
 
-       ! Now that we know how many there are stick this into nhc%nkt
+       ! Now that we know how many there are stick this into csvr%nkt
        ! (number of degrees of freedom times k_B T )
-       DO i = 1, nhc % num_nhc
-          nhc % nvt ( 1, i ) % nkt = simpar%temp_sh_ext * map_info%s_kin ( i )
+       DO i = 1, csvr%num_csvr
+          csvr%nvt ( 1, i ) % nkt = simpar%temp_sh_ext * map_info%s_kin ( i )
        END DO
 
-       ! Getting the number of degrees of freedom times k_B T for the rest of the chain
-       DO i = 2, nhc % nhc_len
-          nhc % nvt ( i, : ) % nkt = simpar%temp_sh_ext
-       END DO
        DEALLOCATE (deg_of_freedom,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE ( massive_shell_list, STAT = stat )
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END SELECT
 
-  END SUBROUTINE nhc_to_shell_mapping
+  END SUBROUTINE csvr_to_shell_mapping
 
-END MODULE nhc_mapping
+END MODULE csvr_system_mapping

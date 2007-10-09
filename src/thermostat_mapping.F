@@ -623,10 +623,9 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE  init_coeff_map_info(map_info, number, kg_coeff_nhc, ncoef_local, error)
+  SUBROUTINE  init_coeff_map_info(map_info, number, region, ncoef_local, error)
     TYPE(map_info_type), POINTER             :: map_info
-    INTEGER, INTENT(IN)                      :: number, kg_coeff_nhc, &
-                                                ncoef_local
+    INTEGER, INTENT(IN)                      :: number, region, ncoef_local
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_coeff_map_info', &
@@ -648,7 +647,7 @@ CONTAINS
     ! Begin the mapping loop
     i=0
     loc_number = 0
-    IF ( kg_coeff_nhc == do_region_global )  THEN
+    IF ( region == do_region_global )  THEN
        DO i= 1, ncoef_local
           DO j = 1, SIZE(map_info%p_kin, 1)
              map_info%p_kin(j,i)%point   => map_info%s_kin(1)
@@ -656,7 +655,7 @@ CONTAINS
           END DO
        END DO
        map_info%index(1) = 1
-    ELSEIF (  kg_coeff_nhc == do_region_massive )  THEN
+    ELSEIF ( region == do_region_massive )  THEN
        DO i = 1, ncoef_local
           DO j = 1, SIZE(map_info%p_kin, 1)
              loc_number = loc_number + 1
