@@ -94,10 +94,8 @@ MODULE integrator
                                              stop_program
   USE thermostat_methods,              ONLY: apply_thermostat_baro,&
                                              apply_thermostat_coeff,&
-                                             apply_thermostat_part_begin,&
-                                             apply_thermostat_part_end,&
-                                             apply_thermostat_shell_begin,&
-                                             apply_thermostat_shell_end
+                                             apply_thermostat_particles,&
+                                             apply_thermostat_shells
   USE thermostat_types,                ONLY: thermostat_type
   USE virial_methods,                  ONLY: virial_evaluate
   USE virial_types,                    ONLY: virial_type
@@ -1053,15 +1051,16 @@ CONTAINS
 
     ! Apply Thermostat over the full set of particles
     IF(shell_adiabatic) THEN
-       CALL apply_thermostat_part_begin(thermostat_part, molecule_kind_set, molecule_set,&
+       CALL apply_thermostat_particles(thermostat_part, molecule_kind_set, molecule_set,&
             particle_set, local_molecules, para_env % group, shell_adiabatic=shell_adiabatic,&
             shell_particle_set=shell_particle_set, core_particle_set=core_particle_set,&
             error=error)
 
-       CALL apply_thermostat_shell_begin(thermostat_shell, atomic_kind_set, particle_set,&
-            local_particles, shell_particle_set, core_particle_set, para_env%group, error)
+       CALL apply_thermostat_shells(thermostat_shell, atomic_kind_set, particle_set,&
+            local_particles, para_env%group, shell_particle_set=shell_particle_set,&
+            core_particle_set=core_particle_set, error=error)
     ELSE
-       CALL apply_thermostat_part_begin(thermostat_part, molecule_kind_set, molecule_set,&
+       CALL apply_thermostat_particles(thermostat_part, molecule_kind_set, molecule_set,&
             particle_set, local_molecules, para_env%group ,error=error)
     END IF
 
@@ -1254,15 +1253,16 @@ CONTAINS
 
     ! Apply Thermostat over the full set of particles
     IF (shell_adiabatic) THEN
-       CALL apply_thermostat_part_end(thermostat_part,molecule_kind_set, molecule_set, &
-            particle_set, local_molecules, vel, para_env%group, shell_adiabatic=shell_adiabatic,&
-            shell_vel=shell_vel, core_vel=core_vel, error=error)
+       CALL apply_thermostat_particles(thermostat_part,molecule_kind_set, molecule_set, &
+            particle_set, local_molecules, para_env%group, shell_adiabatic=shell_adiabatic,&
+            vel=vel, shell_vel=shell_vel, core_vel=core_vel, error=error)
 
-       CALL apply_thermostat_shell_end(thermostat_shell,atomic_kind_set, particle_set,&
-            local_particles, vel, shell_vel, core_vel, para_env%group, error)
+       CALL apply_thermostat_shells(thermostat_shell,atomic_kind_set, particle_set,&
+            local_particles, para_env%group, vel=vel, shell_vel=shell_vel, core_vel=core_vel,&
+            error=error)
     ELSE
-       CALL apply_thermostat_part_end(thermostat_part,molecule_kind_set, molecule_set, &
-            particle_set, local_molecules, vel, para_env%group, error=error)
+       CALL apply_thermostat_particles(thermostat_part,molecule_kind_set, molecule_set, &
+            particle_set, local_molecules, para_env%group, vel=vel, error=error)
     END IF
 
     IF (simpar%annealing) THEN
@@ -1505,15 +1505,16 @@ CONTAINS
 
     ! Apply Thermostat over the full set of particles
     IF(shell_adiabatic) THEN
-       CALL apply_thermostat_part_begin(thermostat_part, molecule_kind_set, molecule_set,&
+       CALL apply_thermostat_particles(thermostat_part, molecule_kind_set, molecule_set,&
             particle_set, local_molecules, para_env%group,shell_adiabatic=shell_adiabatic,&
-            shell_particle_set=shell_particle_set,core_particle_set=core_particle_set,&
+            shell_particle_set=shell_particle_set, core_particle_set=core_particle_set,&
             error=error)
 
-       CALL apply_thermostat_shell_begin(thermostat_shell, atomic_kind_set, particle_set,&
-            local_particles, shell_particle_set, core_particle_set, para_env%group, error)
+       CALL apply_thermostat_shells(thermostat_shell, atomic_kind_set, particle_set,&
+            local_particles, para_env%group, shell_particle_set=shell_particle_set,&
+            core_particle_set=core_particle_set, error=error)
     ELSE
-       CALL apply_thermostat_part_begin(thermostat_part, molecule_kind_set, molecule_set,&
+       CALL apply_thermostat_particles(thermostat_part, molecule_kind_set, molecule_set,&
             particle_set, local_molecules, para_env%group ,error=error)
     END IF
 
@@ -1745,15 +1746,16 @@ CONTAINS
 
     ! Apply Thermostat over the full set of particles
     IF (shell_adiabatic) THEN
-       CALL apply_thermostat_part_end(thermostat_part,molecule_kind_set, molecule_set, &
-            particle_set, local_molecules, vel, para_env%group,shell_adiabatic=shell_adiabatic,&
-            shell_vel=shell_vel, core_vel=core_vel,error=error)
+       CALL apply_thermostat_particles(thermostat_part,molecule_kind_set, molecule_set, &
+            particle_set, local_molecules, para_env%group, shell_adiabatic=shell_adiabatic,&
+            vel=vel, shell_vel=shell_vel, core_vel=core_vel, error=error)
 
-       CALL apply_thermostat_shell_end(thermostat_shell,atomic_kind_set, particle_set,&
-            local_particles, vel, shell_vel, core_vel, para_env%group, error)
+       CALL apply_thermostat_shells(thermostat_shell,atomic_kind_set, particle_set,&
+            local_particles, para_env%group, vel=vel, shell_vel=shell_vel, core_vel=core_vel,&
+            error=error)
     ELSE
-       CALL apply_thermostat_part_end(thermostat_part,molecule_kind_set, molecule_set, &
-            particle_set, local_molecules, vel, para_env%group, error=error)
+       CALL apply_thermostat_particles(thermostat_part,molecule_kind_set, molecule_set, &
+            particle_set, local_molecules, para_env%group, vel=vel, error=error)
     END IF
 
     ! Apply Thermostat to Barostat
@@ -2877,15 +2879,16 @@ END SUBROUTINE nph_uniaxial_damped
 
     ! Apply Thermostat over the full set of particles
     IF(shell_adiabatic) THEN
-       CALL apply_thermostat_part_begin(thermostat_part, molecule_kind_set, molecule_set,&
+       CALL apply_thermostat_particles(thermostat_part, molecule_kind_set, molecule_set,&
             particle_set, local_molecules, para_env%group,shell_adiabatic=shell_adiabatic,&
             shell_particle_set=shell_particle_set,core_particle_set=core_particle_set,&
             error=error)
 
-       CALL apply_thermostat_shell_begin(thermostat_shell, atomic_kind_set, particle_set,&
-            local_particles, shell_particle_set, core_particle_set, para_env%group, error)
+       CALL apply_thermostat_shells(thermostat_shell, atomic_kind_set, particle_set,&
+            local_particles, para_env%group, shell_particle_set=shell_particle_set,&
+            core_particle_set=core_particle_set, error=error)
     ELSE
-       CALL apply_thermostat_part_begin(thermostat_part, molecule_kind_set, molecule_set,&
+       CALL apply_thermostat_particles(thermostat_part, molecule_kind_set, molecule_set,&
             particle_set, local_molecules, para_env%group ,error=error)
     END IF
 
@@ -3182,15 +3185,16 @@ END SUBROUTINE nph_uniaxial_damped
 
     ! Apply Thermostat over the full set of particles
     IF (shell_adiabatic) THEN
-       CALL apply_thermostat_part_end(thermostat_part,molecule_kind_set, molecule_set, &
-            particle_set, local_molecules, vel, para_env%group,shell_adiabatic=shell_adiabatic,&
-            shell_vel=shell_vel, core_vel=core_vel,error=error)
+       CALL apply_thermostat_particles(thermostat_part,molecule_kind_set, molecule_set, &
+            particle_set, local_molecules, para_env%group,shell_adiabatic=shell_adiabatic,&
+            vel=vel, shell_vel=shell_vel, core_vel=core_vel, error=error)
 
-       CALL apply_thermostat_shell_end(thermostat_shell,atomic_kind_set, particle_set,&
-            local_particles, vel, shell_vel, core_vel, para_env%group, error)
+       CALL apply_thermostat_shells(thermostat_shell,atomic_kind_set, particle_set,&
+            local_particles, para_env%group, vel=vel, shell_vel=shell_vel, core_vel=core_vel,&
+            error=error)
     ELSE
-       CALL apply_thermostat_part_end(thermostat_part,molecule_kind_set, molecule_set, &
-            particle_set, local_molecules, vel, para_env%group, error=error)
+       CALL apply_thermostat_particles(thermostat_part,molecule_kind_set, molecule_set, &
+            particle_set, local_molecules, para_env%group, vel=vel, error=error)
     END IF
 
     ! Apply Thermostat to Barostat

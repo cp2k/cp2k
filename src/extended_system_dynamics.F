@@ -30,17 +30,22 @@ MODULE extended_system_dynamics
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              map_info_type,&
                                              npt_info_type
-  USE input_constants,                 ONLY: do_thermo_communication,&
-                                             dyn_coeff_mass_global
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_sum
   USE molecule_kind_types,             ONLY: molecule_kind_type
-  USE molecule_types_new,              ONLY: get_molecule,&
-                                             molecule_type
+  USE molecule_types_new,              ONLY: molecule_type
   USE particle_types,                  ONLY: particle_type
   USE shell_potential_types,           ONLY: shell_kind_type
+  USE thermostat_utils,                ONLY: ke_region_baro,&
+                                             ke_region_coeffs,&
+                                             ke_region_particles,&
+                                             ke_region_shells,&
+                                             vel_rescale_baro,&
+                                             vel_rescale_coeffs,&
+                                             vel_rescale_particles,&
+                                             vel_rescale_shells
   USE timings,                         ONLY: timeset,&
                                              timestop
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
@@ -48,22 +53,21 @@ MODULE extended_system_dynamics
   LOGICAL, PARAMETER :: debug_this_module=.FALSE.
   PUBLIC :: shell_scale_comv,&
             lnhc_particles,&
-            lnhc_particle_set,&
             lnhc_barostat,&
-            lnhc_coefs,&
-            lnhc_shell_set,&
+            lnhc_coeffs,&
             lnhc_shells
 
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'extended_system_dynamics'
 
 !!*****
 !******************************************************************************
 CONTAINS
 
 !******************************************************************************
-!!****** extended_system_dynamics/lnhc_coefs [1.0] *
+!!****** extended_system_dynamics/lnhc_coeffs [1.0] *
 !!
 !!   NAME
-!!     lnhc_coefs
+!!     lnhc_coeffs
 !!
 !!   FUNCTION
 !!
@@ -74,77 +78,47 @@ CONTAINS
 !!     11-Apr-2001
 !!
 !!   MODIFICATION HISTORY
-!!     05-02-04 adapted to new coefs type
+!!     05-02-04 adapted to new coeffs type
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE lnhc_coefs ( nhc, dyn_coeff_set, group )
+  SUBROUTINE lnhc_coeffs ( nhc, dyn_coeff_set, group, error )
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     INTEGER, INTENT(IN)                      :: group
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    INTEGER                                  :: handle, i, icoef, iel, ikind, &
-                                                n, nkind
-    LOGICAL                                  :: gmass
+    CHARACTER(len=*), PARAMETER :: routineN = 'lnhc_coeffs', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, n
     REAL(KIND=dp)                            :: flops
     TYPE(dyn_coeff_type), POINTER            :: coeffs
     TYPE(map_info_type), POINTER             :: map_info
 
-    CALL timeset('LNHC','I','Mflops',handle)
+    CALL timeset(routineP,'I','Mflops',handle)
     flops = 0.0_dp
-
-    gmass=(dyn_coeff_set%mass_storage==dyn_coeff_mass_global)
-
-    ! get force on first thermostat for all the chains in the system.
     map_info => nhc%map_info
-    map_info%v_scale = 1.0_dp
-    map_info%s_kin   = 0.0_dp
 
-    i  = 0               
-    nkind = SIZE ( dyn_coeff_set%coeffs_of_kind)
-    DO ikind=1,nkind
-       IF(ASSOCIATED(dyn_coeff_set%coeffs_of_kind(ikind)%coeffs)) THEN
-          coeffs=>dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
-          DO iel = 1, coeffs%n_els
-             DO icoef = 1, coeffs%ncoef_atom
-                i = i + 1
-                IF(gmass) THEN
-                   map_info%p_kin(1,i)%point  = map_info%p_kin(1,i)%point + &
-                        dyn_coeff_set%global_mass*coeffs%vel(iel,icoef)**2
-                ELSE
-                   map_info%p_kin(1,i)%point  = map_info%p_kin(1,i)%point + &
-                        coeffs%masses(iel,icoef)*coeffs%vel(iel,icoef)**2
-                END IF
-             END DO
-          END DO
-       END IF
-    END DO
-    IF ( map_info%dis_type == do_thermo_communication )  CALL mp_sum (map_info%s_kin, group )
+    ! Evaluate the kinetic energy of the region to thermostat
+    CALL ke_region_coeffs(map_info, dyn_coeff_set, coeffs, group, flops, error)
 
     ! force on the first bead in every thermostat chain (f1=sum(m*v**2)-ncoef*KbT)
     DO n = 1, nhc%num_nhc
        nhc%nvt(1,n)%f = (map_info%s_kin(n) - nhc%nvt(1,n)%nkt)/nhc%nvt(1,n)%mass
     END DO
+    flops = flops + REAL ( nhc%num_nhc * 2,KIND=dp)
 
     ! perform multiple time stepping using Yoshida
     CALL multiple_step_yoshida(nhc,flops)
 
-    i=0
-    ! now scale the coefficients velocities
-    DO ikind=1,nkind
-       IF(ASSOCIATED(dyn_coeff_set%coeffs_of_kind(ikind)%coeffs)) THEN
-          coeffs=>dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
-          DO iel = 1, coeffs%n_els
-             DO icoef = 1, coeffs%ncoef_atom
-                i = i + 1
-                coeffs%vel(iel,icoef)=coeffs%vel(iel,icoef)*map_info%p_scale(1,i)%point
-             END DO
-          END DO
-       END IF
-    END DO
+    ! rescale coeffs velocities
+    CALL vel_rescale_coeffs(map_info, dyn_coeff_set, coeffs, flops, error)
 
+    flops = flops * 1.E-6_dp
     CALL timestop(flops,handle)
-  END SUBROUTINE lnhc_coefs
+
+  END SUBROUTINE lnhc_coeffs
 
 !******************************************************************************
 !!****** extended_system_dynamics/lnhc_barostat [1.0] *
@@ -165,35 +139,27 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE lnhc_barostat ( nhc, npt, group )
+  SUBROUTINE lnhc_barostat ( nhc, npt, group, error )
 
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(npt_info_type), DIMENSION(:, :), &
       INTENT(INOUT)                          :: npt
     INTEGER, INTENT(IN)                      :: group
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    INTEGER                                  :: handle, i, j, n, ncoef
+    CHARACTER(len=*), PARAMETER :: routineN = 'lnhc_barostat', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, n
     REAL(KIND=dp)                            :: flops
     TYPE(map_info_type), POINTER             :: map_info
 
     CALL timeset('LNHC','I','Mflops',handle)
     flops = 0.0_dp
     map_info => nhc%map_info
-    ! get force on first thermostat for all the chains in the system.
-    map_info%v_scale = 1.0_dp
-    map_info%s_kin = 0.0_dp
-    ncoef = 0
-    DO i = 1, SIZE ( npt, 1 )
-       DO j = 1, SIZE ( npt, 2 )
-          ncoef = ncoef + 1
-          map_info%p_kin( 1, ncoef ) % point = map_info%p_kin ( 1, ncoef ) % point &
-               + npt ( i, j ) % mass * npt ( i, j )%v**2
-       END DO
-    END DO
 
-    IF (map_info%dis_type == do_thermo_communication ) CALL mp_sum (map_info%s_kin, group )
-
-    flops = flops + REAL ( ncoef,KIND=dp)
+    ! Compute the kinetic energy of the barostat
+    CALL ke_region_baro(map_info, npt, group, flops, error)
 
     !   force on the first bead in every thermostat chain
     DO n = 1, nhc % num_nhc
@@ -205,148 +171,14 @@ CONTAINS
     CALL multiple_step_yoshida(nhc,flops)
 
     ! now scale the particle velocities
-    ncoef = 0
-    DO i = 1,  SIZE ( npt, 1 )
-       DO j = 1,  SIZE ( npt, 2 )
-          ncoef = ncoef + 1
-          npt ( i, j ) % v = npt ( i, j ) % v * map_info%p_scale( 1, ncoef ) % point
-       END DO
-    END DO
-    flops = flops + REAL ( ncoef,KIND=dp)
-
+    CALL vel_rescale_baro(map_info, npt, flops, error)
+    
     flops = flops * 1.E-6_dp
     CALL timestop(flops,handle)
-
   END SUBROUTINE lnhc_barostat
 
 !******************************************************************************
-!!****** extended_system_dynamics/lnhc_particle_set [1.0] *
-!!
-!!   NAME
-!!     lnhc_particle_set
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   CREATION DATE
-!!     14-NOV-2000
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-  SUBROUTINE lnhc_particle_set ( nhc, molecule_kind_set, molecule_set,  &
-       particle_set, local_molecules, group, shell_adiabatic,&
-       shell_particle_set, core_particle_set)
-
-    TYPE(lnhc_parameters_type), POINTER      :: nhc
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
-    TYPE(molecule_type), POINTER             :: molecule_set( : )
-    TYPE(particle_type), POINTER             :: particle_set( : )
-    TYPE(distribution_1d_type), POINTER      :: local_molecules
-    INTEGER, INTENT(IN)                      :: group
-    LOGICAL, INTENT(IN), OPTIONAL            :: shell_adiabatic
-    TYPE(particle_type), OPTIONAL, POINTER   :: shell_particle_set( : ), &
-                                                core_particle_set( : )
-
-    INTEGER :: first_atom, handle, ii, ikind, imol, imol_local, ipart, jj, &
-      last_atom, n, nmol_local, npart_local, shell_index
-    LOGICAL                                  :: my_shell_adiabatic
-    REAL(KIND=dp)                            :: fac_massc, fac_masss, flops, &
-                                                mass, vc(3), vs(3)
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(map_info_type), POINTER             :: map_info
-    TYPE(molecule_type), POINTER             :: molecule
-    TYPE(shell_kind_type), POINTER           :: shell
-
-    CALL timeset('LNHC','I','Mflops',handle)
-    flops = 0.0_dp
-    my_shell_adiabatic = .FALSE.
-    IF(PRESENT(shell_adiabatic)) my_shell_adiabatic = shell_adiabatic
-    map_info => nhc%map_info
-    
-    ! get force on first thermostat for all the chains in the system.
-    map_info%v_scale = 1.0_dp
-    map_info%s_kin   = 0.0_dp
-    ii = 0
-    DO ikind = 1, SIZE ( molecule_kind_set )
-       nmol_local = local_molecules % n_el ( ikind )
-       DO imol_local = 1, nmol_local
-          imol = local_molecules % list ( ikind ) % array ( imol_local )
-          molecule => molecule_set ( imol )
-          CALL get_molecule ( molecule, first_atom=first_atom, last_atom=last_atom ) 
-          DO ipart = first_atom, last_atom
-             ii = ii + 1
-             atomic_kind => particle_set ( ipart ) % atomic_kind
-             CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
-             map_info%p_kin(1,ii)%point=map_info%p_kin(1,ii)%point+mass*particle_set(ipart)%v(1)**2
-             map_info%p_kin(2,ii)%point=map_info%p_kin(2,ii)%point+mass*particle_set(ipart)%v(2)**2
-             map_info%p_kin(3,ii)%point=map_info%p_kin(3,ii)%point+mass*particle_set(ipart)%v(3)**2
-          END DO
-       END DO
-    END DO
-    npart_local=ii
-   
-    IF (map_info%dis_type == do_thermo_communication )  CALL mp_sum (map_info%s_kin, group )
-    
-    flops = flops + REAL ( npart_local * 9,KIND=dp)
-   
-    !   force on the first bead in every thermostat chain
-    DO n = 1, nhc % num_nhc
-       IF (nhc % nvt(1,n) % nkt==0.0_dp) CYCLE
-       nhc % nvt(1,n) % f = (map_info%s_kin(n)-nhc%nvt(1,n)%nkt)/nhc%nvt(1,n)%mass
-    END DO
-    flops = flops + REAL ( nhc % num_nhc * 2,KIND=dp)
-   
-    ! perform multiple time stepping using Yoshida
-    CALL multiple_step_yoshida(nhc,flops)
-   
-    ! now scale the particle velocities
-    ii = 0
-    jj = 0
-    Kind: DO ikind = 1, SIZE ( molecule_kind_set )
-       nmol_local = local_molecules % n_el ( ikind )
-       Mol_local: DO imol_local = 1, nmol_local
-          imol = local_molecules % list ( ikind ) % array ( imol_local )
-          molecule => molecule_set ( imol )
-          CALL get_molecule ( molecule, first_atom=first_atom, last_atom=last_atom ) 
-          Particle: DO ipart = first_atom, last_atom
-             ii = ii + 1
-             particle_set(ipart)%v(1) =  particle_set(ipart)%v(1)*map_info%p_scale(1,ii)%point
-             particle_set(ipart)%v(2) =  particle_set(ipart)%v(2)*map_info%p_scale(2,ii)%point
-             particle_set(ipart)%v(3) =  particle_set(ipart)%v(3)*map_info%p_scale(3,ii)%point
-             ! If Shell Adiabatic then apply the NHC thermostat also to the Shells
-             IF(my_shell_adiabatic) THEN
-                shell_index=particle_set ( ipart ) %shell_index
-                IF(shell_index/=0) THEN
-                   atomic_kind => particle_set ( ipart ) % atomic_kind
-                   CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass,shell=shell)
-                   fac_masss = shell%mass_shell/mass 
-                   fac_massc = shell%mass_core/mass
-                   vs(1:3) = shell_particle_set(shell_index)%v(1:3)
-                   vc(1:3) = core_particle_set(shell_index)%v(1:3)
-                   jj = jj + 2
-                   shell_particle_set(shell_index)%v(1)= particle_set(ipart)%v(1) + fac_massc*(vs(1)-vc(1))
-                   shell_particle_set(shell_index)%v(2)= particle_set(ipart)%v(2) + fac_massc*(vs(2)-vc(2))
-                   shell_particle_set(shell_index)%v(3)= particle_set(ipart)%v(3) + fac_massc*(vs(3)-vc(3))
-                   core_particle_set(shell_index)%v(1) = particle_set(ipart)%v(1) + fac_masss*(vc(1)-vs(1))
-                   core_particle_set(shell_index)%v(2) = particle_set(ipart)%v(2) + fac_masss*(vc(2)-vs(2))
-                   core_particle_set(shell_index)%v(3) = particle_set(ipart)%v(3) + fac_masss*(vc(3)-vs(3))
-                END IF
-             END IF
-          END DO Particle
-       END DO Mol_local
-    END DO Kind
-    flops = flops + REAL ((npart_local+jj)*3,KIND=dp)
-   
-    flops = flops * 1.E-6_dp
-    CALL timestop(flops,handle)
-  END SUBROUTINE lnhc_particle_set
-
-!******************************************************************************
-!!****** extended_system_dynamics/lnhc_particles[1.0] *
+!!****** extended_system_dynamics/lnhc_particles [1.0] *
 !!
 !!   NAME
 !!     lnhc_particles
@@ -363,135 +195,63 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set, particle_set,&
-       local_molecules, vel, group,  shell_adiabatic, shell_vel, core_vel)
+  SUBROUTINE lnhc_particles( nhc, molecule_kind_set, molecule_set,  &
+       particle_set, local_molecules, group, shell_adiabatic,&
+       shell_particle_set, core_particle_set, vel, shell_vel, core_vel,&
+       error)
 
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_molecules
-    REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
     INTEGER, INTENT(IN)                      :: group
     LOGICAL, INTENT(IN), OPTIONAL            :: shell_adiabatic
-    REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: shell_vel(:,:), core_vel(:,:)
+    TYPE(particle_type), OPTIONAL, POINTER   :: shell_particle_set( : ), &
+                                                core_particle_set( : )
+    REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: vel(:,:), shell_vel(:,:), &
+                                                core_vel(:,:)
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    INTEGER :: first_atom, handle, i, ii, ikind, imol, imol_local, ipart, jj, &
-      last_atom, n, nmol_local, npart_local, shell_index
-    INTEGER, SAVE                            :: iter = 0
+    CHARACTER(len=*), PARAMETER :: routineN = 'lnhc_particles', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, n
     LOGICAL                                  :: my_shell_adiabatic
-    REAL(KIND=dp)                            :: fac_massc, fac_masss, flops, &
-                                                mass, mtot, vc(3), vcom(3), &
-                                                vs(3)
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    REAL(KIND=dp)                            :: flops, mass
     TYPE(map_info_type), POINTER             :: map_info
-    TYPE(molecule_type), POINTER             :: molecule
-    TYPE(shell_kind_type), POINTER           :: shell
 
-    CALL timeset('LNHC','I','Mflops',handle)
+    CALL timeset(routineP,'I','Mflops',handle)
     flops = 0.0_dp
     my_shell_adiabatic = .FALSE.
     IF(PRESENT(shell_adiabatic)) my_shell_adiabatic = shell_adiabatic
     map_info => nhc%map_info
-
-    ! get force on first thermostat for all the chains in the system.
-    map_info%v_scale = 1.0_dp
-    map_info%s_kin = 0.0_dp
-    ii = 0
-
-    DO ikind = 1, SIZE ( molecule_kind_set )
-       nmol_local = local_molecules % n_el ( ikind )
-       DO imol_local = 1, nmol_local
-          imol = local_molecules % list ( ikind ) % array ( imol_local )
-          molecule => molecule_set ( imol )
-          CALL get_molecule ( molecule, first_atom=first_atom, last_atom=last_atom ) 
-          DO ipart = first_atom, last_atom
-             ii = ii + 1
-             atomic_kind => particle_set ( ipart ) % atomic_kind
-             CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
-             map_info%p_kin ( 1, ii ) % point = map_info%p_kin ( 1, ii ) % point + mass * vel ( 1, ipart )**2
-             map_info%p_kin ( 2, ii ) % point = map_info%p_kin ( 2, ii ) % point + mass * vel ( 2, ipart )**2
-             map_info%p_kin ( 3, ii ) % point = map_info%p_kin ( 3, ii ) % point + mass * vel ( 3, ipart )**2
-          END DO
-       END DO
-    END DO
-    npart_local=ii
     
-    IF ( map_info%dis_type == do_thermo_communication )  CALL mp_sum (map_info%s_kin, group )
-
-    flops = flops + REAL ( npart_local * 9,KIND=dp)
-
-    ! force on the first bead in every thermostat chain
+    ! Compute the kinetic energy for the region to thermostat
+    CALL ke_region_particles(map_info, particle_set, molecule_kind_set,&
+         local_molecules, molecule_set, group, flops, vel, error)
+    
+    ! Force on the first bead in every thermostat chain
     DO n = 1, nhc % num_nhc
-       IF (nhc%nvt(1,n)%nkt==0.0_dp) CYCLE     
-       nhc % nvt(1,n)%f = (map_info%s_kin(n)-nhc % nvt(1,n) % nkt)/nhc % nvt(1,n) % mass
+       IF (nhc % nvt(1,n) % nkt==0.0_dp) CYCLE
+       nhc % nvt(1,n) % f = (map_info%s_kin(n)-nhc%nvt(1,n)%nkt)/nhc%nvt(1,n)%mass
     END DO
     flops = flops + REAL ( nhc % num_nhc * 2,KIND=dp)
     
     ! perform multiple time stepping using Yoshida
     CALL multiple_step_yoshida(nhc,flops)
-    
+   
     ! now scale the particle velocities
-    ii = 0
-    jj = 0
-    IF(debug_this_module) THEN
-       mtot = 0.0_dp
-       vcom = 0.0_dp
-       iter = iter + 1
-    END IF
-
-    Kind: DO ikind = 1, SIZE ( molecule_kind_set )
-       nmol_local = local_molecules % n_el ( ikind )
-       Mol_local: DO imol_local = 1, nmol_local
-          imol = local_molecules % list ( ikind ) % array ( imol_local )
-          molecule => molecule_set ( imol )
-          CALL get_molecule ( molecule, first_atom = first_atom, last_atom = last_atom ) 
-          Particles: DO ipart = first_atom, last_atom
-             ii = ii + 1
-             vel ( 1, ipart ) =  vel ( 1, ipart ) * map_info%p_scale ( 1, ii ) % point
-             vel ( 2, ipart ) =  vel ( 2, ipart ) * map_info%p_scale ( 2, ii ) % point
-             vel ( 3, ipart ) =  vel ( 3, ipart ) * map_info%p_scale ( 3, ii ) % point
-             IF(my_shell_adiabatic) THEN
-                shell_index = particle_set(ipart)%shell_index
-                IF(shell_index/=0) THEN
-                   atomic_kind => particle_set ( ipart ) % atomic_kind
-                   CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass,shell=shell)
-                   fac_masss = shell%mass_shell/mass 
-                   fac_massc = shell%mass_core/mass
-                   vs(1:3) = shell_vel( 1:3,shell_index )
-                   vc(1:3) = core_vel( 1:3,shell_index )
-                   jj = jj + 2
-                   shell_vel( 1,shell_index ) = vel( 1, ipart ) + fac_massc*(vs(1)-vc(1))
-                   shell_vel( 2,shell_index ) = vel( 2, ipart ) + fac_massc*(vs(2)-vc(2))
-                   shell_vel( 3,shell_index ) = vel( 3, ipart ) + fac_massc*(vs(3)-vc(3))
-                   core_vel( 1,shell_index ) = vel( 1, ipart ) + fac_masss*(vc(1)-vs(1))
-                   core_vel( 2,shell_index ) = vel( 2, ipart ) + fac_masss*(vc(2)-vs(2))
-                   core_vel( 3,shell_index ) = vel( 3, ipart ) + fac_masss*(vc(3)-vs(3))
-                END IF
-             END IF
-             IF(debug_this_module) THEN
-                atomic_kind => particle_set ( ipart ) % atomic_kind
-                CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-                vcom(1) = vcom(1) + mass * vel ( 1, ipart )
-                vcom(2) = vcom(2) + mass * vel ( 2, ipart )
-                vcom(3) = vcom(3) + mass * vel ( 3, ipart )
-                mtot = mtot + mass
-             END IF
-          END DO Particles
-       END DO Mol_local
-    END DO Kind
-    flops = flops + REAL ((npart_local+jj)*3,KIND=dp)
+    CALL vel_rescale_particles(map_info, molecule_kind_set, molecule_set, particle_set,&
+         local_molecules, my_shell_adiabatic, flops, shell_particle_set,core_particle_set,&
+         vel, shell_vel, core_vel, error)
+       
     flops = flops * 1.E-6_dp
-
-    IF(debug_this_module) THEN
-       WRITE(115,'(I10,3f16.10)') iter, vcom(1)/mtot, vcom(2)/mtot, vcom(3)/mtot
-    END IF
     CALL timestop(flops,handle)
-
   END SUBROUTINE lnhc_particles
 
 !******************************************************************************
-!!****** extended_system_dynamicslnhc_shell_set/lnhc_shell_set [1.0] *
+!!****** extended_system_dynamics/lnhc_shell_set [1.0] *
 !!
 !!   NAME
 !!    lnhc_shell_set 
@@ -508,228 +268,58 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE lnhc_shell_set(nhc, atomic_kind_set, particle_set, local_particles, &
-       shell_particle_set, core_particle_set, group)
-
-    TYPE(lnhc_parameters_type), POINTER      :: nhc
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
-    TYPE(particle_type), POINTER             :: particle_set( : )
-    TYPE(distribution_1d_type), POINTER      :: local_particles
-    TYPE(particle_type), POINTER             :: shell_particle_set(:), &
-                                                core_particle_set(:)
-    INTEGER, INTENT(IN)                      :: group
-
-    INTEGER :: handle, ii, iparticle, iparticle_kind, iparticle_local, n, &
-      nparticle_kind, nparticle_local, nshell_local, shell_index
-    LOGICAL                                  :: is_shell
-    REAL(dp)                                 :: flops, mass, massc, masss, &
-                                                mu_mass, umass, v(3), &
-                                                v_sc(3), vc(3), vs(3)
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(map_info_type), POINTER             :: map_info
-    TYPE(shell_kind_type), POINTER           :: shell
-
-    NULLIFY(atomic_kind,shell)
-    CALL timeset('LNHC_SHELL','I','Mflops',handle)
-    flops = 0.0_dp
-    map_info => nhc%map_info
-
-    ! get force on first thermostat for all the chains in the system.
-    map_info%v_scale = 1.0_dp
-    map_info%s_kin = 0.0_dp
-    ii = 0
-    
-    nparticle_kind = SIZE(atomic_kind_set)
-    DO iparticle_kind=1,nparticle_kind
-       atomic_kind => atomic_kind_set(iparticle_kind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass,shell_active=is_shell,shell=shell)
-       IF(is_shell) THEN
-          mu_mass = shell%mass_shell*shell%mass_core/mass 
-          nparticle_local = local_particles%n_el(iparticle_kind)
-          DO iparticle_local=1,nparticle_local
-             iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-             shell_index = particle_set(iparticle)%shell_index
-             ii = ii + 1
-             v_sc(1) = core_particle_set(shell_index)%v(1)-shell_particle_set(shell_index)%v(1)
-             v_sc(2) = core_particle_set(shell_index)%v(2)-shell_particle_set(shell_index)%v(2)
-             v_sc(3) = core_particle_set(shell_index)%v(3)-shell_particle_set(shell_index)%v(3)
-             
-             map_info%p_kin(1,ii)%point = map_info%p_kin(1,ii)%point + mu_mass * v_sc(1)**2
-             map_info%p_kin(2,ii)%point = map_info%p_kin(2,ii)%point + mu_mass * v_sc(2)**2
-             map_info%p_kin(3,ii)%point = map_info%p_kin(3,ii)%point + mu_mass * v_sc(3)**2
-          END DO
-       END IF
-    END DO
-    nshell_local = ii
-
-    IF ( map_info%dis_type == do_thermo_communication )  CALL mp_sum (map_info%s_kin, group )
-    flops = flops + REAL(nshell_local* 9,KIND=dp)
-
-    ! force on the first bead in every thermostat chain
-    DO n = 1, nhc % num_nhc
-       nhc % nvt(1,n) % f = (map_info%s_kin(n)-nhc % nvt(1,n) % nkt)/nhc % nvt(1,n) % mass
-    END DO
-    flops = flops + REAL ( nhc % num_nhc * 2,KIND=dp)
-
-    CALL multiple_step_yoshida(nhc,flops)
-    
-    ii = 0
-    ! now scale the core-shell velocities
-    Kind: DO iparticle_kind=1,nparticle_kind
-       atomic_kind => atomic_kind_set(iparticle_kind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass,shell_active=is_shell,shell=shell)
-       IF(is_shell) THEN
-          umass = 1.0_dp/mass
-          masss = shell%mass_shell*umass
-          massc = shell%mass_core*umass
-          
-          nparticle_local = local_particles%n_el(iparticle_kind)
-          Particles: DO iparticle_local=1,nparticle_local
-             iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-             shell_index = particle_set(iparticle)%shell_index
-             ii = ii + 1
-             vc(1:3) = core_particle_set(shell_index)%v(1:3)
-             vs(1:3) = shell_particle_set(shell_index)%v(1:3)
-             v(1:3)  = particle_set(iparticle)%v(1:3)
-
-             shell_particle_set(shell_index)%v(1) = v(1) + map_info%p_scale(1,ii)%point * massc*(vs(1)-vc(1))
-             shell_particle_set(shell_index)%v(2) = v(2) + map_info%p_scale(2,ii)%point * massc*(vs(2)-vc(2))
-             shell_particle_set(shell_index)%v(3) = v(3) + map_info%p_scale(3,ii)%point * massc*(vs(3)-vc(3))
-             core_particle_set(shell_index)%v(1)  = v(1) + map_info%p_scale(1,ii)%point * masss*(vc(1)-vs(1))
-             core_particle_set(shell_index)%v(2)  = v(2) + map_info%p_scale(2,ii)%point * masss*(vc(2)-vs(2))
-             core_particle_set(shell_index)%v(3)  = v(3) + map_info%p_scale(3,ii)%point * masss*(vc(3)-vs(3))
-          END DO Particles
-       END IF
-    END DO Kind
-    flops = flops + REAL ( nshell_local*24,KIND=dp)
-    flops = flops * 1.E-6_dp
-
-    CALL timestop(flops,handle)
-
-  END SUBROUTINE lnhc_shell_set
-
-!******************************************************************************
-!!****** extended_system_dynamicslnhc_shell_set/lnhc_shells [1.0] *
-!!
-!!   NAME
-!!    lnhc_shells 
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   CREATION DATE
-!!     14-NOV-2000
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
   SUBROUTINE lnhc_shells(nhc, atomic_kind_set, particle_set, local_particles, &
-       vel, shell_vel, core_vel, group)
+       group, shell_particle_set, core_particle_set, vel, shell_vel, core_vel,&
+       error)
 
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_particles
-    REAL(KIND=dp), INTENT(INOUT)             :: vel(:,:), shell_vel(:,:), &
-                                                core_vel(:,:)
     INTEGER, INTENT(IN)                      :: group
+    TYPE(particle_type), OPTIONAL, POINTER   :: shell_particle_set(:), &
+                                                core_particle_set(:)
+    REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: vel(:,:), shell_vel(:,:), &
+                                                core_vel(:,:)
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    INTEGER :: handle, ii, iparticle, iparticle_kind, iparticle_local, n, &
-      nparticle_kind, nparticle_local, nshell_local, shell_index
-    LOGICAL                                  :: is_shell
-    REAL(dp)                                 :: flops, mass, massc, masss, &
-                                                mu_mass, umass, v(3), &
-                                                v_sc(3), vc(3), vs(3)
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    CHARACTER(len=*), PARAMETER :: routineN = 'lnhc_shells', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, n
+    REAL(dp)                                 :: flops, mass
     TYPE(map_info_type), POINTER             :: map_info
-    TYPE(shell_kind_type), POINTER           :: shell
 
-    NULLIFY(atomic_kind,shell)
-    CALL timeset('LNHC_SHELL','I','Mflops',handle)
+    CALL timeset(routineP,'I','Mflops',handle)
     flops = 0.0_dp
     map_info => nhc%map_info
-    ! get force on first thermostat for all the chains in the system.
-    map_info%v_scale = 1.0_dp
-    map_info%s_kin = 0.0_dp
-    ii = 0
 
-    nparticle_kind = SIZE(atomic_kind_set)
-    DO iparticle_kind=1,nparticle_kind
-       atomic_kind => atomic_kind_set(iparticle_kind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass,shell_active=is_shell,shell=shell)
-       IF(is_shell) THEN
-          mu_mass = shell%mass_shell*shell%mass_core/mass 
-          nparticle_local = local_particles%n_el(iparticle_kind)
-          DO iparticle_local=1,nparticle_local
-             iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-             shell_index = particle_set(iparticle)%shell_index
-             ii = ii + 1
-             v_sc(1) = core_vel(1,shell_index)-shell_vel(1,shell_index)
-             v_sc(2) = core_vel(2,shell_index)-shell_vel(2,shell_index)
-             v_sc(3) = core_vel(3,shell_index)-shell_vel(3,shell_index)
-
-             map_info%p_kin(1,ii)%point = map_info%p_kin(1,ii)%point + mu_mass * v_sc(1)**2
-             map_info%p_kin(2,ii)%point = map_info%p_kin(2,ii)%point + mu_mass * v_sc(2)**2
-             map_info%p_kin(3,ii)%point = map_info%p_kin(3,ii)%point + mu_mass * v_sc(3)**2
-          END DO
-       END IF
-    END DO
-    nshell_local = ii
-
-    IF (map_info%dis_type == do_thermo_communication )  CALL mp_sum (map_info%s_kin, group )
-    flops = flops + REAL(nshell_local* 9,KIND=dp)
-
+    ! Compute the kinetic energy of the region to thermostat
+    CALL ke_region_shells(map_info, particle_set, atomic_kind_set, local_particles,&
+    group, flops, core_particle_set, shell_particle_set, core_vel, shell_vel, error)
+    
     ! force on the first bead in every thermostat chain
     DO n = 1, nhc % num_nhc
        nhc % nvt(1,n) % f = (map_info%s_kin(n)-nhc % nvt(1,n) % nkt)/nhc % nvt(1,n) % mass
     END DO
     flops = flops + REAL ( nhc % num_nhc * 2,KIND=dp)
     
+    ! perform multiple time stepping using Yoshida
     CALL multiple_step_yoshida(nhc,flops)
+   
+    ! now scale the particle velocities
+    CALL vel_rescale_shells(map_info, atomic_kind_set, particle_set, local_particles, &
+         flops, shell_particle_set, core_particle_set, shell_vel, core_vel, vel, error)
 
-    ii = 0
-    ! now scale the core-shell velocities
-    Kind: DO iparticle_kind=1,nparticle_kind
-       atomic_kind => atomic_kind_set(iparticle_kind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass,shell_active=is_shell,shell=shell)
-       IF(is_shell) THEN
-          umass = 1.0_dp/mass
-          masss = shell%mass_shell*umass
-          massc = shell%mass_core*umass
-
-          nparticle_local = local_particles%n_el(iparticle_kind)
-          Particles: DO iparticle_local=1,nparticle_local
-             iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-             shell_index = particle_set(iparticle)%shell_index
-             ii = ii + 1
-             vc(1:3) = core_vel(1:3,shell_index)
-             vs(1:3) = shell_vel(1:3,shell_index)
-             v(1:3) =  vel(1:3,iparticle)
-
-             shell_vel(1,shell_index) = v(1) + map_info%p_scale ( 1, ii ) % point * massc*(vs(1)-vc(1))
-             shell_vel(2,shell_index) = v(2) + map_info%p_scale ( 2, ii ) % point * massc*(vs(2)-vc(2))
-             shell_vel(3,shell_index) = v(3) + map_info%p_scale ( 3, ii ) % point * massc*(vs(3)-vc(3))
-             core_vel(1,shell_index)  = v(1) + map_info%p_scale ( 1, ii ) % point * masss*(vc(1)-vs(1))
-             core_vel(2,shell_index)  = v(2) + map_info%p_scale ( 2, ii ) % point * masss*(vc(2)-vs(2))
-             core_vel(3,shell_index)  = v(3) + map_info%p_scale ( 3, ii ) % point * masss*(vc(3)-vs(3))
-          END DO Particles
-       END IF
-    END DO Kind
-    flops = flops + REAL ( nshell_local*24,KIND=dp)
     flops = flops * 1.E-6_dp
-
     CALL timestop(flops,handle)
-
   END SUBROUTINE lnhc_shells
 
 !******************************************************************************
-!!****** extended_system_dynamicslnhc_shell_set/lnhc_shells [1.0] *
+!!****** extended_system_dynamics/shell_scale_comv [1.0] *
 !!
 !!   NAME
-!!    lnhc_shells 
+!!    shell_scale_comv
 !!
 !!   FUNCTION
 !!
@@ -784,13 +374,11 @@ CONTAINS
              core_vel( 3,shell_index ) = com_vel( 3, iparticle ) + fac_masss*(vc(3)-vs(3))
           END DO
        END IF  ! is_shell
-
     END DO  ! iparticle_kind
-
   END SUBROUTINE shell_scale_comv
 
 !******************************************************************************
-!!****** extended_system_dynamicslnhc_shell_set/multiple_step_yoshida [1.0] *
+!!****** extended_system_dynamics/multiple_step_yoshida [1.0] *
 !!
 !!   NAME
 !!    multiple_step_yoshida 
@@ -888,7 +476,6 @@ CONTAINS
           flops = flops + REAL(3*nx2,KIND=dp)
        END DO YOSH
     END DO NCLOOP
-
   END SUBROUTINE multiple_step_yoshida
 
 END MODULE extended_system_dynamics
