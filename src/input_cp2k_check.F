@@ -579,7 +579,6 @@ CONTAINS
                                                 restart_region, restart_type
     LOGICAL                                  :: check_loc, failure, &
                                                 skip_other_checks
-    REAL(KIND=dp)                            :: val
     TYPE(section_vals_type), POINTER         :: section
 
     failure   = .FALSE.
@@ -620,8 +619,8 @@ CONTAINS
              section => section_vals_get_subs_vals(restart_file,TRIM(path)//"%NOSE%FORCE",error=error)
              CALL section_vals_set_subs_vals(input_file,TRIM(path)//"%NOSE%FORCE",section,error=error)
           CASE(do_thermo_csvr)
-             CALL section_vals_val_get(restart_file,TRIM(path)//"%CSVR%THERMOSTAT_ENERGY",r_val=val,error=error)
-             CALL section_vals_val_set(input_file,TRIM(path)//"%CSVR%THERMOSTAT_ENERGY",r_val=val,error=error)
+             section => section_vals_get_subs_vals(restart_file,TRIM(path)//"%CSVR%THERMOSTAT_ENERGY",error=error)
+             CALL section_vals_set_subs_vals(input_file,TRIM(path)//"%CSVR%THERMOSTAT_ENERGY",section,error=error)
           END SELECT
        ELSE
           CALL cp_assert((input_type==restart_type),cp_warning_level,cp_assertion_failed,routineP,&

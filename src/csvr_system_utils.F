@@ -20,7 +20,6 @@
 
 MODULE csvr_system_utils
 
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE parallel_rng_types,              ONLY: next_random_number,&
                                              rng_stream_type
@@ -29,7 +28,7 @@ MODULE csvr_system_utils
   IMPLICIT NONE
 
   LOGICAL, PARAMETER                   :: debug_this_module=.FALSE.
-  PUBLIC                               :: rescaling_factor, sumnoises
+  PUBLIC                               :: rescaling_factor
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'csvr_system_utils'
 
 !!*****
@@ -85,7 +84,7 @@ CONTAINS
 !!      taut  ! relaxation time of the thermostat, in units of 'how often this routine is called'
 !!
 !!   AUTHOR
-!!     Teo (original files from G. Bussi) - University of Zurich
+!!     Giovanni Bussi - ETH Zurich, Lugano 2007
 !!
 !!   CREATION DATE
 !!     09.2007
@@ -103,10 +102,10 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     REAL(KIND=dp)                            :: RESULT
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'resamplekin', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'rescaling_factor', &
       routineP = moduleN//':'//routineN
 
-    REAL(KIND=dp)                            :: factor, rr, resample, reverse
+    REAL(KIND=dp)                            :: factor, resample, reverse, rr
 
     IF(taut>0.1_dp) THEN
        factor=EXP(-1.0_dp/taut)

@@ -31,6 +31,10 @@ MODULE thermostat_methods
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
+  USE csvr_system_dynamics,            ONLY: csvr_barostat,&
+                                             csvr_coeffs,&
+                                             csvr_particles,&
+                                             csvr_shells
   USE csvr_system_init,                ONLY: initialize_csvr_baro,&
                                              initialize_csvr_coef,&
                                              initialize_csvr_part,&
@@ -78,6 +82,7 @@ MODULE thermostat_methods
                                              thermostat_type,&
                                              thermostats_type
   USE thermostat_utils,                ONLY: compute_degrees_of_freedom,&
+                                             get_thermostat_energies,&
                                              setup_thermostat_info
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -183,7 +188,7 @@ CONTAINS
     ! Particles
     IF (explicit_part) THEN
        IF (apply_general_thermo) THEN
-          CALL create_thermostat_type(thermostats%thermostat_part, thermo_part_section, error=error)
+          CALL create_thermostat_type(thermostats%thermostat_part, simpar, thermo_part_section, error=error)
           CALL cp_subsys_get(subsys, molecules_new=molecules_new, error=error)
           ! Initialize thermostat
           IF      (thermostats%thermostat_part%type_of_thermostat==do_thermo_nose) THEN
@@ -201,7 +206,7 @@ CONTAINS
                   thermostats%thermostat_part%csvr, csvr_section=work_section,&
                   gci=gci, error=error)
           END IF
-          CALL thermostat_info(thermostats%thermostat_part, "PARTICLES", thermo_part_section, error)
+          CALL thermostat_info(thermostats%thermostat_part, "PARTICLES", thermo_part_section, para_env, error)
        ELSE
           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                "Thermostat for Particles has been defined but the ensemble provided "//&
@@ -214,7 +219,7 @@ CPSourceFileRef,&
     ! Core-Shell Model
     IF (explicit_shell) THEN
        IF (apply_general_thermo) THEN
-          CALL create_thermostat_type(thermostats%thermostat_shell, thermo_shell_section, error=error)
+          CALL create_thermostat_type(thermostats%thermostat_shell, simpar, thermo_shell_section, error=error)
           CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds, error=error)
           CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,shell_present=shell_present,&
                shell_adiabatic=shell_adiabatic)
@@ -240,7 +245,7 @@ CPSourceFileRef,&
                      thermostats%thermostat_shell%csvr, csvr_section=work_section, gci=gci,&
                      error=error)               
              END IF
-             CALL thermostat_info(thermostats%thermostat_shell, "CORE-SHELL", thermo_shell_section, error)
+             CALL thermostat_info(thermostats%thermostat_shell, "CORE-SHELL", thermo_shell_section, para_env, error)
           ELSE
              IF (.NOT.shell_adiabatic) THEN
                 CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
@@ -271,7 +276,7 @@ CPSourceFileRef,&
     ! Coefficients
     IF (explicit_coef) THEN
        IF (apply_thermo_coeff) THEN
-          CALL create_thermostat_type(thermostats%thermostat_coef, thermo_coef_section, error=error)
+          CALL create_thermostat_type(thermostats%thermostat_coef, simpar, thermo_coef_section, error=error)
           CALL force_env_get(force_env, dyn_coeff_set=dyn_coeff_set, error=error )
           IF (ASSOCIATED(dyn_coeff_set)) THEN
              kg_coeff_section  => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF",error=error)
@@ -290,7 +295,7 @@ CPSourceFileRef,&
                      thermostats%thermostat_coef%csvr, coeff_section=kg_coeff_section,&
                      csvr_section=work_section, dt=simpar%dt, error=error)                
              END IF
-             CALL thermostat_info(thermostats%thermostat_coef, "KG COEFFICIENTS", thermo_coef_section, error)
+             CALL thermostat_info(thermostats%thermostat_coef, "KG COEFFICIENTS", thermo_coef_section, para_env, error)
           ELSE
              CALL release_thermostat_type(thermostats%thermostat_coef, error)
           END IF
@@ -309,7 +314,7 @@ CPSourceFileRef,&
        CALL section_vals_val_get(thermo_baro_section,"TYPE",i_val=thermostat_type,error=error)
        work_section => thermo_baro_section
        IF (thermostat_type==do_thermo_same_as_part) work_section => thermo_part_section
-       CALL create_thermostat_type(thermostats%thermostat_baro, work_section, skip_region=.TRUE.,&
+       CALL create_thermostat_type(thermostats%thermostat_baro, simpar, work_section, skip_region=.TRUE.,&
             error=error)
        ! Initialize thermostat
        IF      (thermostats%thermostat_baro%type_of_thermostat==do_thermo_nose) THEN
@@ -323,7 +328,7 @@ CPSourceFileRef,&
           CALL initialize_csvr_baro(simpar, para_env, globenv, thermostats%thermostat_baro%csvr,&
                csvr_section=work_section, error=error)
        END IF
-       CALL thermostat_info(thermostats%thermostat_baro, "BAROSTAT", thermo_baro_section, error)
+       CALL thermostat_info(thermostats%thermostat_baro, "BAROSTAT", thermo_baro_section, para_env, error)
        ! If thermostat for barostat uses a diffent kind than the one of the particles
        ! let's update infos in the input structure..
        IF (thermostat_type==do_thermo_same_as_part) THEN
@@ -418,10 +423,11 @@ CPSourceFileRef,&
 !!     10.2007 created [tlaino]
 !!
 !!*** **********************************************************************
-  SUBROUTINE thermostat_info(thermostat, label, section, error)
+  SUBROUTINE thermostat_info(thermostat, label, section, para_env, error)
     TYPE(thermostat_type), POINTER           :: thermostat
     CHARACTER(LEN=*), INTENT(IN)             :: label
     TYPE(section_vals_type), POINTER         :: section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'thermostat_info', &
@@ -429,6 +435,7 @@ CPSourceFileRef,&
 
     INTEGER                                  :: iw
     LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: kin_energy, pot_energy
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(unit_convert_type), POINTER         :: unit
 
@@ -437,6 +444,8 @@ CPSourceFileRef,&
     CALL get_cp2k_units ( unit )
     logger => cp_error_get_logger(error)
     iw=cp_print_key_unit_nr(logger,section,"THERMOSTAT_INFO",extension=".log",error=error)
+    ! Total Tehrmostat Energy
+    CALL get_thermostat_energies(thermostat, pot_energy, kin_energy, para_env%group, error)
     IF (iw>0) THEN
        WRITE ( iw, '( /,A )' ) ' THERMOSTAT| Thermostat Info for '//TRIM(label)
        SELECT CASE(thermostat%type_of_thermostat)
@@ -450,12 +459,16 @@ CPSourceFileRef,&
                thermostat%nhc%nyosh
           WRITE ( iw, '( A,T77,I4 )' ) ' THERMOSTAT| Number of multiple time steps', &
                thermostat%nhc%nc
+          WRITE ( iw, '( A,T69,F12.6 )' ) ' THERMOSTAT| Initial Potential Energy', &
+               pot_energy
+          WRITE ( iw, '( A,T69,F12.6 )' ) ' THERMOSTAT| Initial Kinetic Energy', &
+               kin_energy
        CASE(do_thermo_csvr)
           WRITE ( iw, '( A,T44,A )' ) ' THERMOSTAT| Type of thermostat','Canonical Sampling/Velocity Rescaling'
           WRITE ( iw, '( A,A4,A,T71,F10.2 )' ) &
                ' THERMOSTAT| CSVR time constant [', 'fs' ,'] ',thermostat%csvr%tau_csvr/unit%fs
-          WRITE ( iw, '( A,T71,F10.2 )' ) &
-               ' THERMOSTAT| CSVR Initial Thermostat Energy ',thermostat%csvr%thermostat_energy
+          WRITE ( iw, '( A,T69,F12.6 )' ) &
+               ' THERMOSTAT| Initial Kinetic Energy ',kin_energy
        END SELECT
        WRITE ( iw, '( A,/ )' ) ' THERMOSTAT| End of Thermostat Info for '//TRIM(label)
     END IF
@@ -504,7 +517,8 @@ CPSourceFileRef,&
           CALL lnhc_coeffs(thermostat%nhc, dyn_coeff_set, group, error)
        ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN  
           ! Apply CSVR Thermostat
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPPostcondition(ASSOCIATED(thermostat%csvr),cp_failure_level,routineP,error,failure)
+          CALL csvr_coeffs(thermostat%csvr, dyn_coeff_set, group, error)
        END IF
     END IF
   END SUBROUTINE apply_thermostat_coeff
@@ -551,7 +565,8 @@ CPSourceFileRef,&
           CALL lnhc_barostat ( thermostat%nhc, npt, group, error )
        ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN  
           ! Apply CSVR Thermostat
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPPostcondition(ASSOCIATED(thermostat%csvr),cp_failure_level,routineP,error,failure)
+          CALL csvr_barostat ( thermostat%csvr, npt, group, error )
        END IF
     END IF
   END SUBROUTINE apply_thermostat_baro
@@ -610,7 +625,10 @@ CPSourceFileRef,&
                core_particle_set, vel, shell_vel, core_vel, error)
        ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN  
           ! Apply CSVR Thermostat
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPPostcondition(ASSOCIATED(thermostat%csvr),cp_failure_level,routineP,error,failure)
+          CALL csvr_particles(thermostat%csvr,molecule_kind_set,molecule_set,&
+               particle_set,local_molecules,group,shell_adiabatic,shell_particle_set,&
+               core_particle_set, vel, shell_vel, core_vel, error)
        END IF
     END IF
   END SUBROUTINE apply_thermostat_particles
@@ -666,7 +684,9 @@ CPSourceFileRef,&
                group, shell_particle_set, core_particle_set, vel, shell_vel, core_vel, error)
        ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN  
           ! Apply CSVR Thermostat
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPPostcondition(ASSOCIATED(thermostat%csvr),cp_failure_level,routineP,error,failure)
+          CALL csvr_shells(thermostat%csvr, atomic_kind_set, particle_set, local_particles, &
+               group, shell_particle_set, core_particle_set, vel, shell_vel, core_vel, error)
        END IF
     END IF
   END SUBROUTINE apply_thermostat_shells

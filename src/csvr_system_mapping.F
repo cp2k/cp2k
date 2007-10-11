@@ -22,7 +22,8 @@
 MODULE csvr_system_mapping
 
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE csvr_system_types,               ONLY: csvr_system_type
+  USE csvr_system_types,               ONLY: csvr_system_type,&
+                                             csvr_thermo_create
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
                                              get_dyn_coeff
@@ -34,8 +35,7 @@ MODULE csvr_system_mapping
        langevin_ensemble, nph_uniaxial_damped_ensemble, &
        nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, nve_ensemble, &
        nvt_ensemble, reftraj_ensemble
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
+  USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
@@ -88,7 +88,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'csvr_to_barostat_mapping', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, number, stat
+    INTEGER                                  :: i, ndeg
     LOGICAL                                  :: failure
     TYPE(map_info_type), POINTER             :: map_info
 
@@ -101,23 +101,25 @@ CONTAINS
        map_info%dis_type = do_thermo_only_master
 
        ! Counting the total number of thermostats ( 1 for both NPT_I and NPT_F )
-       csvr%num_csvr = 1
+       csvr%loc_num_csvr  = 1
+       csvr%glob_num_csvr = 1
        IF ( simpar % ensemble == npt_f_ensemble ) THEN
-          number = 9
+          ndeg = 9
        ELSE
-          number = 1
+          ndeg = 1
        ENDIF
 
-       CALL init_baro_map_info(map_info, number, csvr%num_csvr, error)
- 
-       ALLOCATE ( csvr%nvt(csvr%num_csvr),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL init_baro_map_info(map_info, ndeg, csvr%loc_num_csvr, error)
+       CALL csvr_thermo_create(csvr, para_env, error)
+
        ! Now that we know how many there are stick this into csvr%nkt
        ! (number of degrees of freedom times k_B T )
-       DO i = 1, csvr%num_csvr
-          csvr%nvt(i)%nkt = simpar % temp_ext * number
+       DO i = 1, csvr%loc_num_csvr
+          csvr%nvt(i)%nkt = simpar % temp_ext * ndeg
+          csvr%nvt(i)%degrees_of_freedom = ndeg
           IF (debug_isotropic_limit) THEN
              csvr%nvt(i)%nkt = simpar % temp_ext
+             csvr%nvt(i)%degrees_of_freedom = 1
           END IF
        END DO
     END SELECT
@@ -200,10 +202,12 @@ CONTAINS
              CALL stop_program ( routineN,'Zero degrees of freedom. Nothing to thermalize!' )
           END IF
           csvr%nvt(1)%nkt = simpar%temp_ext*fac
+          csvr%nvt(1)%degrees_of_freedom = FLOOR(fac)
        ELSE
-          DO i = 1, csvr%num_csvr
+          DO i = 1, csvr%loc_num_csvr
              fac = (map_info%s_kin(i) - deg_of_freedom(i) )
              csvr%nvt(i)%nkt = simpar%temp_ext * fac 
+             csvr%nvt(i)%degrees_of_freedom = FLOOR(fac)
           END DO
        END IF
        
@@ -255,7 +259,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_csvr_thermostat', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: nkind, number, region, stat
+    INTEGER                                  :: nkind, number, region
     LOGICAL                                  :: do_shell, failure
     TYPE(map_info_type), POINTER             :: map_info
 
@@ -274,13 +278,10 @@ CONTAINS
        molecule_kind_set, local_molecules, molecule_set, para_env, natoms_local,&
        simpar, number, region, gci, do_shell, error)
 
-    ALLOCATE (csvr%nvt(number),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    ! Now that we know how many there are stick this into csvr%nkt
-    ! (number of degrees of freedom times k_B T for the first thermostat
-    !  on the chain)
-    csvr % num_csvr = number
+    ! This is the local number of available thermostats
+    csvr%loc_num_csvr  = number
+    csvr%glob_num_csvr = sum_of_thermostats
+    CALL csvr_thermo_create(csvr, para_env, error=error)
 
   END SUBROUTINE setup_csvr_thermostat
 
@@ -315,15 +316,12 @@ CONTAINS
 
     INTEGER                                  :: i, ikind, j, kg_coeff_ens, &
                                                 ncoef_local, ncoef_of_kind, &
-                                                nkind, number, stat
+                                                ncoef_tot, nkind, number
     LOGICAL                                  :: failure, nointer
     REAL(KIND=dp)                            :: kg_coeff_temp
     TYPE(map_info_type), POINTER             :: map_info
-    TYPE(section_vals_type), POINTER         :: nose_section
 
     failure = .FALSE.
-    nose_section => section_vals_get_subs_vals(kg_coeff_section,"thermostat%nose",error=error)
-
     CALL section_vals_val_get(kg_coeff_section,"ensemble",i_val=kg_coeff_ens,error=error)
     CALL section_vals_val_get(kg_coeff_section,"temperature",r_val=kg_coeff_temp,error=error)
 
@@ -336,6 +334,7 @@ CONTAINS
        nointer     = .TRUE.
        nkind       = SIZE ( dyn_coeff_set%coeffs_of_kind)
        map_info    => csvr%map_info
+       ncoef_tot   = dyn_coeff_set%ncoef_tot
        DO ikind=1,nkind
           IF(ASSOCIATED(dyn_coeff_set%coeffs_of_kind(ikind)%coeffs)) THEN
              CALL get_dyn_coeff(coeffs=dyn_coeff_set%coeffs_of_kind(ikind)%coeffs,&
@@ -348,11 +347,16 @@ CONTAINS
        IF ( csvr%region == do_region_global )  THEN
           nointer=.FALSE.
           number=1
+          csvr%glob_num_csvr=1
        ELSEIF ( csvr%region == do_region_massive )  THEN
-          number=ncoef_local
+          number = ncoef_local
+          csvr%glob_num_csvr = ncoef_tot
        ELSE
-          CALL stop_program ( routineN, "Unknown region for KG COEFF!" )
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="Thermostat for KG coeffs implemented only for Global or Massive region! ",&
+               error=error, error_level=cp_failure_level)
        ENDIF
+       csvr%loc_num_csvr = number
 
        ! Coefficients are local. communications needed only with GLOBAL
        IF ( nointer ) THEN
@@ -360,11 +364,9 @@ CONTAINS
        ELSE
           map_info%dis_type = do_thermo_communication
        END IF
-       csvr % num_csvr = number
+       
        CALL init_coeff_map_info(map_info, number, csvr%region, ncoef_local, error)
-
-       ALLOCATE ( csvr%nvt(csvr%num_csvr),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL csvr_thermo_create(csvr, para_env, error)
 
        ! Find the number of degrees of freedom on each thermostat
        map_info%s_kin = 0.0_dp
@@ -374,15 +376,16 @@ CONTAINS
           END DO
        ENDDO
 
-       ! if thermostats are replicated but molecules distributed, we have to
+       ! If thermostats are replicated but molecules distributed, we have to
        ! sum s_kin over all processors
        IF ( map_info%dis_type == do_thermo_communication ) CALL mp_sum (map_info%s_kin, para_env%group )
 
        !
        ! Now that we know how many there are stick this into csvr%nkt
        ! (number of degrees of freedom times k_B T )
-       DO i = 1, csvr% num_csvr
-          csvr%nvt(i)%nkt = kg_coeff_temp * map_info%s_kin ( i )
+       DO i = 1, csvr%loc_num_csvr
+          csvr%nvt(i)%nkt = kg_coeff_temp * map_info%s_kin(i)
+          csvr%nvt(i)%degrees_of_freedom = FLOOR(map_info%s_kin(i))
        END DO
 
     END SELECT
@@ -461,8 +464,9 @@ CONTAINS
 
        ! Now that we know how many there are stick this into csvr%nkt
        ! (number of degrees of freedom times k_B T )
-       DO i = 1, csvr%num_csvr
-          csvr%nvt(i)%nkt = simpar%temp_sh_ext * map_info%s_kin ( i )
+       DO i = 1, csvr%loc_num_csvr
+          csvr%nvt(i)%nkt = simpar%temp_sh_ext * map_info%s_kin(i)
+          csvr%nvt(i)%degrees_of_freedom = FLOOR(map_info%s_kin(i))
        END DO
 
        DEALLOCATE (deg_of_freedom,STAT=stat)

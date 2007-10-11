@@ -25,17 +25,20 @@ MODULE thermostat_utils
   USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE csvr_system_types,               ONLY: csvr_system_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
                                              dyn_coeff_type
-  USE extended_system_types,           ONLY: map_info_type,&
+  USE extended_system_types,           ONLY: lnhc_parameters_type,&
+                                             map_info_type,&
                                              npt_info_type
   USE input_constants,                 ONLY: &
        do_region_global, do_region_massive, do_region_molecule, &
-       do_thermo_communication, do_thermo_no_communication, &
-       dyn_coeff_mass_global, isokin_ensemble, langevin_ensemble, &
-       nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
-       npt_i_ensemble, nve_ensemble, nvt_ensemble, reftraj_ensemble
+       do_thermo_communication, do_thermo_csvr, do_thermo_no_communication, &
+       do_thermo_nose, dyn_coeff_mass_global, isokin_ensemble, &
+       langevin_ensemble, nph_uniaxial_damped_ensemble, &
+       nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, nve_ensemble, &
+       nvt_ensemble, reftraj_ensemble
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
@@ -50,6 +53,7 @@ MODULE thermostat_utils
   USE shell_potential_types,           ONLY: shell_kind_type
   USE termination,                     ONLY: stop_program
   USE thermostat_types,                ONLY: thermostat_info_type,&
+                                             thermostat_type,&
                                              thermostats_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -67,7 +71,8 @@ MODULE thermostat_utils
             vel_rescale_coeffs,&
             vel_rescale_baro,&
             vel_rescale_particles,&
-            vel_rescale_shells
+            vel_rescale_shells,&
+            get_thermostat_energies
 
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'thermostat_utils'
@@ -239,7 +244,7 @@ CONTAINS
        ! global thermostat we assume a coupling of  degrees of freedom
        ! from different processors
        IF ( nointer ) THEN
-          ! DIStributed thermostats, no interaction
+          ! Distributed thermostats, no interaction
           dis_type = do_thermo_no_communication
           ! we only count thermostats on this processor
           number = 0
@@ -691,7 +696,7 @@ CONTAINS
     INTEGER :: ii, iparticle, iparticle_kind, iparticle_local, &
       nparticle_kind, nparticle_local, shell_index
     LOGICAL                                  :: failure, is_shell, present_vel
-    REAL(dp)                                 :: mass, mu_mass, v(3), v_sc(3)
+    REAL(dp)                                 :: mass, mu_mass, v_sc(3)
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(shell_kind_type), POINTER           :: shell
 
@@ -836,6 +841,133 @@ CONTAINS
     flops = flops + REAL (ii*12,KIND=dp)
 
   END SUBROUTINE vel_rescale_shells
+
+  !******************************************************************************
+  !!****** thermostat_utils/get_nhc_energies [1.0] *
+  !!
+  !!   NAME
+  !!     get_nhc_energies
+  !!
+  !!   FUNCTION
+  !!     Calculates kinetic energy and potential energy
+  !!     of the nhc variables
+  !!
+  !!   AUTHOR
+  !!     CJM
+  !!
+  !!   MODIFICATION HISTORY
+  !!     none
+  !!
+  !!***8*************************************************************************
+  SUBROUTINE get_nhc_energies ( nhc, nhc_pot, nhc_kin, int_grp, error )
+    TYPE(lnhc_parameters_type), POINTER      :: nhc
+    REAL(KIND=dp), INTENT(OUT)               :: nhc_pot, nhc_kin
+    INTEGER                                  :: int_grp
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_nhc_energies', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: l, n
+
+    nhc_kin = 0.0_dp
+    nhc_pot = 0.0_dp
+    DO n = 1, nhc%loc_num_nhc
+       DO l = 1, nhc % nhc_len
+          nhc_kin = nhc_kin +  &
+               0.5_dp * nhc % nvt ( l, n ) % mass * &
+               nhc % nvt ( l, n ) % v * nhc % nvt ( l, n ) % v
+
+          nhc_pot = nhc_pot + nhc % nvt ( l, n ) % nkt *  &
+               nhc % nvt ( l, n ) % eta
+       END DO
+    END DO
+    IF (nhc%map_info%dis_type==do_thermo_no_communication) THEN
+       CALL mp_sum(nhc_kin,int_grp)
+       CALL mp_sum(nhc_pot,int_grp)
+    END IF
+  END SUBROUTINE get_nhc_energies
+
+  !******************************************************************************
+  !!****** thermostat_utils/get_csvr_energies [1.0] *
+  !!
+  !!   NAME
+  !!     get_csvr_energies
+  !!
+  !!   FUNCTION
+  !!     Calculates kinetic energy and potential energy
+  !!     of the csvr thermostat
+  !!
+  !!   AUTHOR
+  !!     Teodoro Laino [tlaino] - University of Zurich 10.2007
+  !!
+  !!   MODIFICATION HISTORY
+  !!    
+  !!
+  !!*****************************************************************************
+  SUBROUTINE get_csvr_energies ( csvr, csvr_kin, int_grp, error )
+    TYPE(csvr_system_type), POINTER          :: csvr
+    REAL(KIND=dp), INTENT(OUT)               :: csvr_kin
+    INTEGER                                  :: int_grp
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_csvr_energies', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: n
+
+    csvr_kin = 0.0_dp
+    DO n = 1, csvr%loc_num_csvr
+       csvr_kin = csvr_kin + csvr%nvt(n)%thermostat_energy
+    END DO
+    IF (csvr%map_info%dis_type==do_thermo_no_communication) THEN
+       CALL mp_sum(csvr_kin,int_grp)
+    END IF
+  END SUBROUTINE get_csvr_energies
+
+  !******************************************************************************
+  !!****** thermostat_utils/get_thermostat_energies [1.0] *
+  !!
+  !!   NAME
+  !!     get_thermostat_energies
+  !!
+  !!   FUNCTION
+  !!     Calculates energy associated with a thermostat
+  !!
+  !!   AUTHOR
+  !!     Teodoro Laino [tlaino] - 10.2007 - University of Zurich
+  !!
+  !!   MODIFICATION HISTORY
+  !!     
+  !!
+  !!*****************************************************************************
+  SUBROUTINE get_thermostat_energies ( thermostat, thermostat_pot, thermostat_kin, int_grp, error )
+    TYPE(thermostat_type), POINTER           :: thermostat
+    REAL(KIND=dp), INTENT(OUT)               :: thermostat_pot, thermostat_kin
+    INTEGER, INTENT(IN)                      :: int_grp
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_thermostat_energies', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    
+    thermostat_pot = 0.0_dp
+    thermostat_kin = 0.0_dp
+    IF (ASSOCIATED(thermostat)) THEN
+       IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN
+          ! Energy associated with the Nose-Hoover thermostat
+          CPPostcondition(ASSOCIATED(thermostat%nhc),cp_failure_level,routineP,error,failure)
+          CALL get_nhc_energies (thermostat%nhc, thermostat_pot, thermostat_kin, int_grp, error )
+       ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN
+          ! Energy associated with the CSVR thermostat
+          CALL get_csvr_energies(thermostat%csvr, thermostat_kin, int_grp, error)
+       END IF
+    END IF
+
+  END SUBROUTINE get_thermostat_energies
 
 END MODULE thermostat_utils
 !******************************************************************************

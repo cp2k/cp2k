@@ -32,12 +32,10 @@ MODULE md_conserved_quantities
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
                                              dyn_coeff_type
-  USE extended_system_types,           ONLY: lnhc_parameters_type,&
-                                             npt_info_type
+  USE extended_system_types,           ONLY: npt_info_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE input_constants,                 ONLY: &
-       do_thermo_csvr, do_thermo_no_communication, do_thermo_nose, &
        dyn_coeff_mass_global, isokin_ensemble, langevin_ensemble, &
        nph_ensemble, nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, &
        npt_f_ensemble, npt_i_ensemble, nve_ensemble, nvt_ensemble, &
@@ -55,6 +53,7 @@ MODULE md_conserved_quantities
   USE shell_potential_types,           ONLY: shell_kind_type
   USE termination,                     ONLY: stop_program
   USE thermostat_types,                ONLY: thermostat_type
+  USE thermostat_utils,                ONLY: get_thermostat_energies
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -554,96 +553,6 @@ CONTAINS
     END IF
 
   END SUBROUTINE get_baro_energies
-
-  !******************************************************************************
-  !!****** md_conserved_quantity/get_nhc_energies [1.0] *
-  !!
-  !!   NAME
-  !!     get_nhc_energies
-  !!
-  !!   FUNCTION
-  !!     Calculates kinetic energy and potential energy
-  !!     of the nhc variables
-  !!
-  !!   AUTHOR
-  !!     CJM
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!***8*************************************************************************
-  SUBROUTINE get_nhc_energies ( nhc, nhc_pot, nhc_kin, int_grp, error )
-    TYPE(lnhc_parameters_type), INTENT(IN)   :: nhc
-    REAL(KIND=dp), INTENT(OUT)               :: nhc_pot, nhc_kin
-    INTEGER                                  :: int_grp
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_nhc_energies', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: l, n
-
-    nhc_kin = 0.0_dp
-    nhc_pot = 0.0_dp
-    DO n = 1, nhc % num_nhc
-       DO l = 1, nhc % nhc_len
-          nhc_kin = nhc_kin +  &
-               0.5_dp * nhc % nvt ( l, n ) % mass * &
-               nhc % nvt ( l, n ) % v * nhc % nvt ( l, n ) % v
-
-          nhc_pot = nhc_pot + nhc % nvt ( l, n ) % nkt *  &
-               nhc % nvt ( l, n ) % eta
-       END DO
-    END DO
-    IF (nhc%map_info%dis_type==do_thermo_no_communication) THEN
-       CALL mp_sum(nhc_kin,int_grp)
-       CALL mp_sum(nhc_pot,int_grp)
-    END IF
-  END SUBROUTINE get_nhc_energies
-
-  !******************************************************************************
-  !!****** md_conserved_quantity/get_thermostat_energies [1.0] *
-  !!
-  !!   NAME
-  !!     get_thermostat_energies
-  !!
-  !!   FUNCTION
-  !!     Calculates energy associated with a thermostat
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [tlaino] - 10.2007 - University of Zurich
-  !!
-  !!   MODIFICATION HISTORY
-  !!     
-  !!
-  !!*****************************************************************************
-  SUBROUTINE get_thermostat_energies ( thermostat, thermostat_pot, thermostat_kin, int_grp, error )
-    TYPE(thermostat_type), POINTER           :: thermostat
-    REAL(KIND=dp), INTENT(OUT)               :: thermostat_pot, thermostat_kin
-    INTEGER, INTENT(IN)                      :: int_grp
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_thermostat_energies', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-    
-    thermostat_pot = 0.0_dp
-    thermostat_kin = 0.0_dp
-    IF (ASSOCIATED(thermostat)) THEN
-       IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN
-          ! Energy associated with the Nose-Hoover thermostat
-          CPPostcondition(ASSOCIATED(thermostat%nhc),cp_failure_level,routineP,error,failure)
-          CALL get_nhc_energies (thermostat%nhc, thermostat_pot, thermostat_kin, int_grp, error )
-       ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN
-          ! Energy associated with the CSVR thermostat
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-       END IF
-    END IF
-
-  END SUBROUTINE get_thermostat_energies
 
   !******************************************************************************
   !!****** md_conserved_quantity/get_part_ke [1.0] *

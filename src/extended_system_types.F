@@ -82,7 +82,8 @@ MODULE extended_system_types
   END TYPE map_info_type
 
   TYPE lnhc_parameters_type
-     INTEGER                                 :: nyosh, nc, nhc_len, num_nhc, region
+     INTEGER                                 :: nyosh, nc, nhc_len
+     INTEGER                                 :: glob_num_nhc, loc_num_nhc, region
      REAL(KIND=dp)                           :: tau_nhc
      REAL(KIND=dp), POINTER                  :: dt_yosh(:)
      TYPE(nhc_info_type), POINTER            :: nvt(:,:)
@@ -127,7 +128,8 @@ CONTAINS
     NULLIFY(lnhc%dt_yosh)
     NULLIFY(lnhc%nvt)
     NULLIFY(lnhc%map_info)
-    lnhc%num_nhc=0
+    lnhc%loc_num_nhc=0
+    lnhc%glob_num_nhc=0
     CALL section_vals_val_get(section,"LENGTH",i_val=lnhc%nhc_len,error=error)
     CALL section_vals_val_get(section,"YOSHIDA",i_val=lnhc%nyosh,error=error)
     CALL section_vals_val_get(section,"TIMECON",r_val=lnhc%tau_nhc,error=error)

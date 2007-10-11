@@ -36,8 +36,7 @@ MODULE extended_system_mapping
        langevin_ensemble, nph_uniaxial_damped_ensemble, &
        nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, nve_ensemble, &
        nvt_ensemble, reftraj_ensemble
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
+  USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
@@ -104,20 +103,21 @@ CONTAINS
        map_info%dis_type = do_thermo_only_master
 
        ! Counting the total number of thermostats ( 1 for both NPT_I and NPT_F )
-       nhc % num_nhc = 1
+       nhc%loc_num_nhc  = 1
+       nhc%glob_num_nhc = 1
        IF ( simpar % ensemble == npt_f_ensemble ) THEN
           number = 9
        ELSE
           number = 1
        ENDIF
-
-       CALL init_baro_map_info(map_info, number, nhc%num_nhc, error)
+       
+       CALL init_baro_map_info(map_info, number, nhc%loc_num_nhc, error)
  
-       ALLOCATE ( nhc%nvt(nhc%nhc_len, nhc%num_nhc), STAT = stat )
+       ALLOCATE ( nhc%nvt(nhc%nhc_len, nhc%loc_num_nhc), STAT = stat )
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ! Now that we know how many there are stick this into nhc % nkt
        ! (number of degrees of freedom times k_B T )
-       DO i = 1, nhc % num_nhc
+       DO i = 1, nhc%loc_num_nhc
           nhc % nvt ( 1, i ) % nkt = simpar % temp_ext * number
           IF (debug_isotropic_limit) THEN
              nhc % nvt ( 1, i ) % nkt = simpar % temp_ext
@@ -213,7 +213,7 @@ CONTAINS
           END IF
           nhc%nvt(1,1)%nkt = simpar%temp_ext*fac
        ELSE
-          DO i = 1, nhc%num_nhc
+          DO i = 1, nhc%loc_num_nhc
              fac = (map_info%s_kin(i) - deg_of_freedom(i) )
              nhc%nvt(1,i)%nkt = simpar%temp_ext * fac 
           END DO
@@ -297,8 +297,8 @@ CONTAINS
     ! Now that we know how many there are stick this into nhc%nkt
     ! (number of degrees of freedom times k_B T for the first thermostat
     !  on the chain)
-    nhc % num_nhc = number
-
+    nhc%loc_num_nhc  = number
+    nhc%glob_num_nhc = sum_of_thermostats
   END SUBROUTINE setup_nhc_thermostat
 
 !******************************************************************************
@@ -333,15 +333,12 @@ CONTAINS
 
     INTEGER                                  :: i, ikind, j, kg_coeff_ens, &
                                                 ncoef_local, ncoef_of_kind, &
-                                                nkind, number, stat
+                                                ncoef_tot, nkind, number, stat
     LOGICAL                                  :: failure, nointer
     REAL(KIND=dp)                            :: kg_coeff_temp
     TYPE(map_info_type), POINTER             :: map_info
-    TYPE(section_vals_type), POINTER         :: nose_section
 
     failure = .FALSE.
-    nose_section => section_vals_get_subs_vals(kg_coeff_section,"thermostat%nose",error=error)
-
     CALL section_vals_val_get(kg_coeff_section,"ensemble",i_val=kg_coeff_ens,error=error)
     CALL section_vals_val_get(kg_coeff_section,"temperature",r_val=kg_coeff_temp,error=error)
 
@@ -354,6 +351,7 @@ CONTAINS
        nointer     = .TRUE.
        nkind       = SIZE ( dyn_coeff_set%coeffs_of_kind)
        map_info    => nhc%map_info
+       ncoef_tot   = dyn_coeff_set%ncoef_tot
        DO ikind=1,nkind
           IF(ASSOCIATED(dyn_coeff_set%coeffs_of_kind(ikind)%coeffs)) THEN
              CALL get_dyn_coeff(coeffs=dyn_coeff_set%coeffs_of_kind(ikind)%coeffs,&
@@ -366,11 +364,16 @@ CONTAINS
        IF ( nhc%region == do_region_global )  THEN
           nointer=.FALSE.
           number=1
+          nhc%glob_num_nhc=1
        ELSEIF ( nhc%region == do_region_massive )  THEN
           number=ncoef_local
+          nhc%glob_num_nhc=ncoef_tot
        ELSE
-          CALL stop_program ( routineN, "Unknown region for KG COEFF!" )
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="Thermostat for KG coeffs implemented only for Global or Massive region! ",&
+               error=error, error_level=cp_failure_level)
        ENDIF
+       nhc%loc_num_nhc = number
 
        ! Coefficients are local. communications needed only with GLOBAL
        IF ( nointer ) THEN
@@ -378,10 +381,9 @@ CONTAINS
        ELSE
           map_info%dis_type = do_thermo_communication
        END IF
-       nhc % num_nhc = number
-       CALL init_coeff_map_info(map_info, number, nhc%region, ncoef_local, error)
 
-       ALLOCATE ( nhc % nvt ( nhc % nhc_len, nhc % num_nhc ), STAT = stat )
+       CALL init_coeff_map_info(map_info, number, nhc%region, ncoef_local, error)
+       ALLOCATE ( nhc % nvt ( nhc % nhc_len, nhc%loc_num_nhc ), STAT = stat )
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        ! Find the number of degrees of freedom on each thermostat
@@ -399,7 +401,7 @@ CONTAINS
        !
        ! Now that we know how many there are stick this into nhc % nkt
        ! (number of degrees of freedom times k_B T )
-       DO i = 1, nhc % num_nhc
+       DO i = 1, nhc%loc_num_nhc
           nhc % nvt ( 1, i ) % nkt = kg_coeff_temp * map_info%s_kin ( i )
        END DO
 
@@ -483,7 +485,7 @@ CONTAINS
 
        ! Now that we know how many there are stick this into nhc%nkt
        ! (number of degrees of freedom times k_B T )
-       DO i = 1, nhc % num_nhc
+       DO i = 1, nhc%loc_num_nhc
           nhc % nvt ( 1, i ) % nkt = simpar%temp_sh_ext * map_info%s_kin ( i )
        END DO
 

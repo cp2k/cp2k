@@ -91,7 +91,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'lnhc_coeffs', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, n
+    INTEGER                                  :: handle
     REAL(KIND=dp)                            :: flops
     TYPE(dyn_coeff_type), POINTER            :: coeffs
     TYPE(map_info_type), POINTER             :: map_info
@@ -103,16 +103,10 @@ CONTAINS
     ! Evaluate the kinetic energy of the region to thermostat
     CALL ke_region_coeffs(map_info, dyn_coeff_set, coeffs, group, flops, error)
 
-    ! force on the first bead in every thermostat chain (f1=sum(m*v**2)-ncoef*KbT)
-    DO n = 1, nhc%num_nhc
-       nhc%nvt(1,n)%f = (map_info%s_kin(n) - nhc%nvt(1,n)%nkt)/nhc%nvt(1,n)%mass
-    END DO
-    flops = flops + REAL ( nhc%num_nhc * 2,KIND=dp)
+    ! Calculate forces on the Nose-Hoover Thermostat and apply chains
+    CALL do_nhc(nhc, map_info, flops, error)
 
-    ! perform multiple time stepping using Yoshida
-    CALL multiple_step_yoshida(nhc,flops)
-
-    ! rescale coeffs velocities
+    ! Rescale coeffs velocities
     CALL vel_rescale_coeffs(map_info, dyn_coeff_set, coeffs, flops, error)
 
     flops = flops * 1.E-6_dp
@@ -150,27 +144,21 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'lnhc_barostat', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, n
+    INTEGER                                  :: handle
     REAL(KIND=dp)                            :: flops
     TYPE(map_info_type), POINTER             :: map_info
 
-    CALL timeset('LNHC','I','Mflops',handle)
+    CALL timeset(routineP,'I','Mflops',handle)
     flops = 0.0_dp
     map_info => nhc%map_info
 
     ! Compute the kinetic energy of the barostat
     CALL ke_region_baro(map_info, npt, group, flops, error)
 
-    !   force on the first bead in every thermostat chain
-    DO n = 1, nhc % num_nhc
-       nhc % nvt(1,n) % f = (map_info%s_kin(n)-nhc%nvt(1,n)%nkt)/nhc%nvt(1,n)%mass
-    END DO
-    flops = flops + REAL ( nhc%num_nhc * 2,KIND=dp)
+    ! Calculate forces on the Nose-Hoover Thermostat and apply chains
+    CALL do_nhc(nhc, map_info, flops, error)
 
-    ! perform multiple time stepping using Yoshida
-    CALL multiple_step_yoshida(nhc,flops)
-
-    ! now scale the particle velocities
+    ! Now scale the particle velocities
     CALL vel_rescale_baro(map_info, npt, flops, error)
     
     flops = flops * 1.E-6_dp
@@ -216,9 +204,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'lnhc_particles', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, n
+    INTEGER                                  :: handle
     LOGICAL                                  :: my_shell_adiabatic
-    REAL(KIND=dp)                            :: flops, mass
+    REAL(KIND=dp)                            :: flops
     TYPE(map_info_type), POINTER             :: map_info
 
     CALL timeset(routineP,'I','Mflops',handle)
@@ -231,17 +219,10 @@ CONTAINS
     CALL ke_region_particles(map_info, particle_set, molecule_kind_set,&
          local_molecules, molecule_set, group, flops, vel, error)
     
-    ! Force on the first bead in every thermostat chain
-    DO n = 1, nhc % num_nhc
-       IF (nhc % nvt(1,n) % nkt==0.0_dp) CYCLE
-       nhc % nvt(1,n) % f = (map_info%s_kin(n)-nhc%nvt(1,n)%nkt)/nhc%nvt(1,n)%mass
-    END DO
-    flops = flops + REAL ( nhc % num_nhc * 2,KIND=dp)
-    
-    ! perform multiple time stepping using Yoshida
-    CALL multiple_step_yoshida(nhc,flops)
+    ! Calculate forces on the Nose-Hoover Thermostat and apply chains
+    CALL do_nhc(nhc, map_info, flops, error)
    
-    ! now scale the particle velocities
+    ! Now scale the particle velocities
     CALL vel_rescale_particles(map_info, molecule_kind_set, molecule_set, particle_set,&
          local_molecules, my_shell_adiabatic, flops, shell_particle_set,core_particle_set,&
          vel, shell_vel, core_vel, error)
@@ -286,8 +267,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'lnhc_shells', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, n
-    REAL(dp)                                 :: flops, mass
+    INTEGER                                  :: handle
+    REAL(dp)                                 :: flops
     TYPE(map_info_type), POINTER             :: map_info
 
     CALL timeset(routineP,'I','Mflops',handle)
@@ -298,22 +279,61 @@ CONTAINS
     CALL ke_region_shells(map_info, particle_set, atomic_kind_set, local_particles,&
     group, flops, core_particle_set, shell_particle_set, core_vel, shell_vel, error)
     
-    ! force on the first bead in every thermostat chain
-    DO n = 1, nhc % num_nhc
-       nhc % nvt(1,n) % f = (map_info%s_kin(n)-nhc % nvt(1,n) % nkt)/nhc % nvt(1,n) % mass
-    END DO
-    flops = flops + REAL ( nhc % num_nhc * 2,KIND=dp)
-    
-    ! perform multiple time stepping using Yoshida
-    CALL multiple_step_yoshida(nhc,flops)
+    ! Calculate forces on the Nose-Hoover Thermostat and apply chains
+    CALL do_nhc(nhc, map_info, flops, error)
    
-    ! now scale the particle velocities
+    ! Now scale the particle velocities
     CALL vel_rescale_shells(map_info, atomic_kind_set, particle_set, local_particles, &
          flops, shell_particle_set, core_particle_set, shell_vel, core_vel, vel, error)
 
     flops = flops * 1.E-6_dp
     CALL timestop(flops,handle)
   END SUBROUTINE lnhc_shells
+
+!******************************************************************************
+!!****** extended_system_dynamics/do_nhc [1.0] *
+!!
+!!   NAME
+!!    do_nhc 
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!    10.2007 [tlaino] - Teodoro Laino - University of Zurich
+!!
+!!   CREATION DATE
+!!     
+!!
+!!   MODIFICATION HISTORY
+!!     
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE do_nhc(nhc, map_info, flops, error)
+    TYPE(lnhc_parameters_type), POINTER      :: nhc
+    TYPE(map_info_type), POINTER             :: map_info
+    REAL(KIND=dp), INTENT(INOUT)             :: flops
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'do_nhc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: n
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+
+    ! Force on the first bead in every thermostat chain
+    DO n = 1, nhc%loc_num_nhc
+       IF (nhc % nvt(1,n) % nkt==0.0_dp) CYCLE
+       nhc % nvt(1,n) % f = (map_info%s_kin(n)-nhc%nvt(1,n)%nkt)/nhc%nvt(1,n)%mass
+    END DO
+    flops = flops + REAL ( nhc%loc_num_nhc * 2,KIND=dp)
+    
+    ! Perform multiple time stepping using Yoshida
+    CALL multiple_step_yoshida(nhc,flops,error)
+
+  END SUBROUTINE do_nhc
 
 !******************************************************************************
 !!****** extended_system_dynamics/shell_scale_comv [1.0] *
@@ -342,6 +362,9 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: com_vel( :, : )
     REAL(KIND=dp), INTENT(INOUT)             :: shell_vel( :, : ), &
                                                 core_vel( :, : )
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'shell_scale_comv', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: iparticle, iparticle_kind, iparticle_local, nparticle_kind, &
       nparticle_local, shell_index
@@ -395,10 +418,14 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE multiple_step_yoshida(nhc,flops)
+  SUBROUTINE multiple_step_yoshida(nhc,flops,error)
 
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     REAL(KIND=dp), INTENT(INOUT)             :: flops
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'multiple_step_yoshida', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: inc, inhc, iyosh, n, nx1, nx2
     REAL(KIND=dp)                            :: scale
@@ -417,7 +444,7 @@ CONTAINS
           flops = flops + REAL ( 3 * nx2,KIND=dp)
 
           ! update velocity of other thermostats on chain (from nhc_len-1 to 1)  ! O2
-          DO n = 1, nhc % num_nhc
+          DO n = 1, nhc%loc_num_nhc
              IF (nhc % nvt(1,n) % nkt == 0.0_dp) CYCLE
              DO inhc = nhc % nhc_len - 1, 1, -1
                 scale = EXP(-0.125_dp*nhc % nvt(inhc+1,n) % v*nhc % dt_yosh(iyosh))
@@ -427,7 +454,7 @@ CONTAINS
                 nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v*scale ! scale
              END DO
           END DO
-          flops = flops + REAL( nhc % num_nhc * (nhc % nhc_len - 1) * 8,KIND=dp)
+          flops = flops + REAL( nhc%loc_num_nhc * (nhc % nhc_len - 1) * 8,KIND=dp)
 
           ! the core of the operator ----- START------
           ! update nhc positions
@@ -436,24 +463,24 @@ CONTAINS
           flops = flops + REAL(2*nx1*nx2, KIND=dp)
 
           ! now accumulate the scale factor for particle velocities
-          DO n = 1, nhc % num_nhc
+          DO n = 1, nhc%loc_num_nhc
              IF (nhc % nvt(1,n) % nkt == 0.0_dp) CYCLE
              map_info%v_scale(n) = map_info%v_scale(n)*EXP(-0.5_dp* nhc%dt_yosh(iyosh)*nhc % nvt(1,n)%v)
           END DO
-          flops = flops + REAL(nhc % num_nhc*4, KIND=dp)
+          flops = flops + REAL(nhc%loc_num_nhc*4, KIND=dp)
           ! the core of the operator ------ END ------
 
           ! update the force on first thermostat again (since particle velocities changed)
-          DO n = 1, nhc % num_nhc
+          DO n = 1, nhc%loc_num_nhc
              IF (nhc % nvt(1,n) % nkt == 0.0_dp) CYCLE
              nhc % nvt(1,n) % f = (map_info%s_kin(n)*map_info%v_scale(n)*&
                   map_info%v_scale(n)-nhc % nvt(1,n) % nkt) / nhc % nvt(1,n) % mass
           END DO
-          flops = flops + REAL(nhc % num_nhc*4,KIND=dp)
+          flops = flops + REAL(nhc%loc_num_nhc*4,KIND=dp)
 
           ! update velocity of other thermostats on chain (from 1 to nhc_len-1)  ! O2
           DO inhc = 1, nhc % nhc_len - 1
-             DO n = 1, nhc % num_nhc
+             DO n = 1, nhc%loc_num_nhc
                 IF (nhc % nvt(1,n) % nkt == 0.0_dp) CYCLE
                 scale = EXP(-0.125_dp*nhc % nvt(inhc+1,n) % v*nhc % dt_yosh(iyosh))
                 nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v*scale ! scale
@@ -463,13 +490,13 @@ CONTAINS
              END DO
 
              ! updating the forces on all the thermostats
-             DO n = 1, nhc % num_nhc
+             DO n = 1, nhc%loc_num_nhc
                 IF (nhc % nvt(1,n) % nkt == 0.0_dp) CYCLE
                 nhc % nvt(inhc+1,n) % f = (nhc % nvt(inhc,n) % mass*nhc % nvt(inhc,n) % v &
                      *nhc % nvt(inhc,n) % v-nhc % nvt(inhc+1,n) % nkt)/  nhc % nvt(inhc+1,n) % mass
              END DO
           END DO
-          flops = flops + REAL(nhc % nhc_len-1)*REAL(nhc % num_nhc*12,KIND=dp)
+          flops = flops + REAL(nhc % nhc_len-1)*REAL(nhc%loc_num_nhc*12,KIND=dp)
           ! update velocity on last thermostat                             ! O1
           nhc % nvt(nhc % nhc_len,:) % v = nhc % nvt(nhc % nhc_len,:) % v + &
                nhc % nvt(nhc % nhc_len,:) % f * 0.25_dp*nhc % dt_yosh(iyosh)

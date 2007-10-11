@@ -676,7 +676,7 @@ CONTAINS
                                                 rannumneed, stat, tot_rn
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rn_need_per_proc
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: akin, temp, v
+    REAL(KIND=dp)                            :: akin, temp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: array_of_rn
     TYPE(map_info_type), POINTER             :: map_info
 
@@ -692,7 +692,7 @@ CONTAINS
     SELECT CASE (map_info%dis_type)
     CASE ( do_thermo_only_master )  ! for NPT
     CASE DEFAULT
-       rannumneed = nhc%num_nhc*nhc%nhc_len
+       rannumneed = nhc%loc_num_nhc*nhc%nhc_len
        ALLOCATE ( rn_need_per_proc( para_env%num_pe ), STAT = stat )
        CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
 
@@ -717,26 +717,26 @@ CONTAINS
     CASE ( do_thermo_only_master ) ! for NPT
        IF ( para_env%ionode ) THEN
           ! Map deterministically determined random number to nhc % v
-          DO i = 1, nhc % num_nhc
+          DO i = 1, nhc%loc_num_nhc
              DO j = 1, nhc % nhc_len
                 nhc%nvt(j,i)%v = next_random_number(globenv%gaussian_rng_stream,error=error)
              END DO
           END DO
           
           akin = 0.0_dp
-          DO i = 1, nhc % num_nhc
+          DO i = 1, nhc%loc_num_nhc
              DO j = 1, nhc % nhc_len
                 akin = akin + 0.5_dp * ( nhc % nvt ( j , i ) % mass * &
                                          nhc % nvt ( j , i ) % v * &
                                          nhc % nvt ( j , i ) % v )
              END DO
           END DO
-          number = nhc % num_nhc
+          number = nhc%loc_num_nhc
 
           ! scale velocities to get the correct initial temperature
           temp = 2.0_dp*akin/REAL(number)
           temp = SQRT(temp_ext/temp)
-          DO i = 1, nhc % num_nhc
+          DO i = 1, nhc%loc_num_nhc
              DO j = 1, nhc % nhc_len
                 nhc % nvt(j,i) % v = temp * nhc % nvt(j,i) % v
                 nhc % nvt(j,i) % eta = 0.0_dp
@@ -744,7 +744,7 @@ CONTAINS
           END DO
           
           ! initializing all of the forces on the thermostats
-          DO i = 1, nhc % num_nhc
+          DO i = 1, nhc%loc_num_nhc
              DO j = 2, nhc % nhc_len
                 nhc % nvt(j,i) % f = nhc % nvt(j-1,i) % mass*nhc % nvt(j-1,i) % v* &
                      nhc % nvt(j-1,i) % v - nhc % nvt(j,i) % nkt
@@ -766,7 +766,7 @@ CONTAINS
           array_of_rn(i) = next_random_number(globenv%gaussian_rng_stream,error=error)
        END DO
        ! Map deterministically determined random number to nhc % v
-       DO i = 1, nhc % num_nhc
+       DO i = 1, nhc%loc_num_nhc
           icount = map_info%index(i)
           icount = (icount-1) * nhc % nhc_len
           DO j = 1, nhc % nhc_len
@@ -779,14 +779,14 @@ CONTAINS
        CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
 
        akin = 0.0_dp
-       DO i = 1, nhc % num_nhc
+       DO i = 1, nhc%loc_num_nhc
           DO j = 1, nhc % nhc_len
              akin = akin + 0.5_dp * ( nhc % nvt ( j , i ) % mass * &
                                       nhc % nvt ( j , i ) % v * &
                                       nhc % nvt ( j , i ) % v )
           END DO
        END DO
-       number = nhc % num_nhc
+       number = nhc%loc_num_nhc
        
        IF (map_info%dis_type==do_thermo_no_communication) THEN
           CALL mp_sum(akin,para_env%group)
@@ -796,7 +796,7 @@ CONTAINS
        ! scale velocities to get the correct initial temperature
        temp = 2.0_dp*akin/REAL(number)
        temp = SQRT(temp_ext/temp)
-       DO i = 1, nhc % num_nhc
+       DO i = 1, nhc%loc_num_nhc
           DO j = 1, nhc % nhc_len
              nhc % nvt(j,i) % v = temp * nhc % nvt(j,i) % v
              nhc % nvt(j,i) % eta = 0.0_dp
@@ -804,7 +804,7 @@ CONTAINS
        END DO
        
        ! initializing all of the forces on the thermostats
-       DO i = 1, nhc % num_nhc
+       DO i = 1, nhc%loc_num_nhc
           DO j = 2, nhc % nhc_len
              nhc % nvt(j,i) % f = nhc % nvt(j-1,i) % mass*nhc % nvt(j-1,i) % v* &
                                   nhc % nvt(j-1,i) % v - nhc % nvt(j,i) % nkt

@@ -33,6 +33,7 @@ MODULE thermostat_types
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
+  USE md,                              ONLY: simulation_parameters_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -279,8 +280,10 @@ CONTAINS
 !!     09.2007 created [tlaino]
 !! 
 !!*** **********************************************************************
-  SUBROUTINE create_thermostat_type(thermostat, section, skip_region, error)  
+  SUBROUTINE create_thermostat_type(thermostat, simpar, section, skip_region, error)  
     TYPE(thermostat_type), POINTER           :: thermostat
+    TYPE(simulation_parameters_type), &
+      POINTER                                :: simpar
     TYPE(section_vals_type), POINTER         :: section
     LOGICAL, INTENT(IN), OPTIONAL            :: skip_region
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -316,7 +319,7 @@ CONTAINS
        csvr_section => section_vals_get_subs_vals(section,"CSVR",error=error)
        ALLOCATE(thermostat%csvr, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL csvr_init(thermostat%csvr, csvr_section, error=error)
+       CALL csvr_init(thermostat%csvr, simpar, csvr_section, error=error)
        thermostat%csvr%region=region
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END IF

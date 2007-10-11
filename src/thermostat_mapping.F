@@ -573,9 +573,9 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE  init_baro_map_info(map_info, number, num_thermo, error)
+  SUBROUTINE  init_baro_map_info(map_info, ndeg, num_thermo, error)
     TYPE(map_info_type), POINTER             :: map_info
-    INTEGER, INTENT(IN)                      :: number, num_thermo
+    INTEGER, INTENT(IN)                      :: ndeg, num_thermo
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_baro_map_info', &
@@ -588,16 +588,16 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (map_info%v_scale(num_thermo),stat=stat )
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (map_info%p_kin(1,number),stat=stat )
+    ALLOCATE (map_info%p_kin(1,ndeg),stat=stat )
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (map_info%p_scale(1,number),stat=stat)
+    ALLOCATE (map_info%p_scale(1,ndeg),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ! Allocate the index array
     ALLOCATE (map_info%index(1),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     
     ! Begin the mapping loop
-    DO i = 1, number
+    DO i = 1, ndeg
        map_info%p_kin(1,i)%point   => map_info%s_kin(1)
        map_info%p_scale(1,i)%point => map_info%v_scale(1)
     END DO

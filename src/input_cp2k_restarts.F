@@ -38,6 +38,7 @@ MODULE input_cp2k_restarts
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
+  USE csvr_system_types,               ONLY: csvr_system_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
                                              dyn_coeff_type
@@ -643,7 +644,8 @@ CONTAINS
           CALL set_template_restart(work_section, eta, veta, fnhc, mnhc, error)
        ELSE IF (thermostat_part%type_of_thermostat==do_thermo_csvr) THEN
           ! Restart of CSVR Thermostat for Particles
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%CSVR",error=error)
+          CALL dump_csvr_restart_info(thermostat_part%csvr, para_env, work_section, error)
        END IF
     END IF
     CALL timestop(0.0_dp,handle2)
@@ -679,7 +681,8 @@ CONTAINS
           CALL set_template_restart(work_section, eta, veta, fnhc, mnhc, error)   
        ELSE IF (thermostat_baro%type_of_thermostat==do_thermo_csvr) THEN
           ! Restart of CSVR Thermostat for Barostat
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%CSVR",error=error)
+          CALL dump_csvr_restart_info(thermostat_baro%csvr, para_env, work_section, error)
        END IF
     END IF
     CALL timestop(0.0_dp,handle2)
@@ -819,8 +822,9 @@ CONTAINS
              work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%THERMOSTAT%NOSE",error=error)
              CALL set_template_restart(work_section, eta, veta, fnhc, mnhc, error)    
           ELSE IF (thermostat_coeff%type_of_thermostat==do_thermo_csvr) THEN
+             work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%THERMOSTAT%CSVR",error=error)
              ! Restart of CSVR Thermostat for KG coefficients
-             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+             CALL dump_csvr_restart_info(thermostat_coeff%csvr, para_env, work_section, error)
           END IF
        END IF
     END IF
@@ -836,8 +840,9 @@ CONTAINS
           work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE",error=error)
           CALL set_template_restart(work_section, eta, veta, fnhc, mnhc, error)    
        ELSE IF (thermostat_shell%type_of_thermostat==do_thermo_csvr) THEN
+          work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%CSVR",error=error)
           ! Restart of CSVR Thermostat for Shell Particles
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CALL dump_csvr_restart_info(thermostat_shell%csvr, para_env, work_section, error)
        END IF
     END IF
     CALL timestop(0.0_dp,handle2)
@@ -904,6 +909,191 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE update_motion
+
+!!****f* input_cp2k_restarts/dump_csvr_energy_info [1.0] *
+!!
+!!   NAME
+!!     dump_csvr_energy_info
+!!
+!!   FUNCTION
+!!     routine to dump thermostat CSVR energies 
+!!
+!!   NOTES
+!!
+!!
+!!   ARGUMENTS
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Teodoro Laino - University of Zurich
+!!
+!!   MODIFICATION HISTORY
+!!     10.2007 created [teo]
+!!
+!!*** **********************************************************************
+  SUBROUTINE dump_csvr_energy_info(thermostat_energy, nsize, work_section, error)
+
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: thermostat_energy
+    INTEGER, INTENT(IN)                      :: nsize
+    TYPE(section_vals_type), POINTER         :: work_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dump_csvr_energy_info', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ik, irk, Nlist
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
+    TYPE(section_type), POINTER              :: section
+    TYPE(val_type), POINTER                  :: my_val, old_val
+
+    failure = .FALSE.
+
+    CPPrecondition(ASSOCIATED(work_section),cp_failure_level,routineP,error,failure)
+    CPPrecondition((work_section%ref_count>0),cp_failure_level,routineP,error,failure)
+
+    NULLIFY (my_val,old_val,section,vals)
+
+    section => work_section%section
+
+    ik = section_get_keyword_index(section,"_DEFAULT_KEYWORD_",error=error)
+
+    CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
+                   "section "//TRIM(section%name)//" does not contain keyword "//&
+                   "_DEFAULT_KEYWORD_",error,failure)
+
+    DO
+       IF (SIZE(work_section%values,2)==1) EXIT
+       CALL section_vals_add_values(work_section,error=error)
+    END DO
+
+    vals => work_section%values(ik,1)%list
+    Nlist = 0
+
+    IF (ASSOCIATED(vals)) THEN
+       Nlist = cp_sll_val_get_length(vals,error)
+    END IF
+
+    DO irk=1,nsize
+       CALL val_create(val=my_val,r_val=thermostat_energy(irk),error=error)
+       IF (Nlist /= 0) THEN
+          IF (irk == 1) THEN
+             new_pos => vals
+          ELSE
+             new_pos => new_pos%rest
+          END IF
+          old_val => new_pos%first_el
+          CALL val_release(old_val,error=error)
+          new_pos%first_el => my_val
+       ELSE
+          IF (irk == 1) THEN
+             NULLIFY (new_pos)
+             CALL cp_sll_val_create(new_pos,first_el=my_val,error=error)
+             vals => new_pos
+          ELSE
+             NULLIFY (new_pos%rest)
+             CALL cp_sll_val_create(new_pos%rest,first_el=my_val,error=error)
+             new_pos => new_pos%rest
+          END IF
+       END IF
+       NULLIFY (my_val)
+    END DO
+    work_section%values(ik,1)%list => vals
+
+  END SUBROUTINE dump_csvr_energy_info
+
+!!****f* input_cp2k_restarts/collect_nose_restart_info [1.0] *
+!!
+!!   NAME
+!!     collect_nose_restart_info
+!!
+!!   FUNCTION
+!!     Collect all information needed to dump the restart for CSVR
+!!     thermostat
+!!
+!!   NOTES
+!!     
+!!
+!!   ARGUMENTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     10.2007 created [tlaino] - University of Zurich
+!!
+!!*** **********************************************************************
+  SUBROUTINE dump_csvr_restart_info(csvr, para_env, csvr_section, error)
+    TYPE(csvr_system_type), POINTER          :: csvr
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(section_vals_type), POINTER         :: csvr_section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_csvr_restart_info', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=rng_record_length)         :: rng_record
+    INTEGER                                  :: i, j, my_index, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: ascii
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: max_val, min_val
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: thermostat_energies
+    TYPE(section_vals_type), POINTER         :: work_section
+
+    failure = .FALSE.    
+    ! Thermostat Energies
+    ALLOCATE(thermostat_energies(csvr%glob_num_csvr,para_env%num_pe),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    thermostat_energies = 0.0_dp
+    DO i = 1, csvr%loc_num_csvr
+       my_index = csvr%map_info%index(i)
+       thermostat_energies(my_index,para_env%mepos+1) = csvr%nvt(i)%thermostat_energy
+    END DO
+    CALL mp_sum(thermostat_energies,para_env%group)
+    ! Check that all processors sharing thermostats have the same value..
+    ! Important for consistency..
+    DO i = 1, csvr%glob_num_csvr
+       min_val=MINVAL(thermostat_energies(i,:))
+       max_val=MAXVAL(thermostat_energies(i,:))
+       CPPostcondition(min_val==max_val,cp_failure_level,routineP,error,failure)
+    END DO
+    ! If check passes then let'sdump the info on the restart file
+    work_section => section_vals_get_subs_vals(csvr_section,"THERMOSTAT_ENERGY",error=error)
+    CALL dump_csvr_energy_info(thermostat_energies(:,1), csvr%glob_num_csvr, work_section, error)
+    DEALLOCATE (thermostat_energies,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ! Thermostat Random Number info for restart
+    work_section => section_vals_get_subs_vals(csvr_section,"RNG_INIT",error=error)
+    ALLOCATE (ascii(rng_record_length,csvr%glob_num_csvr,para_env%num_pe),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ascii = 0
+    DO i=1,csvr%loc_num_csvr
+       my_index = csvr%map_info%index(i)
+       CALL dump_rng_stream(rng_stream=csvr%nvt(i)%gaussian_rng_stream,&
+            rng_record=rng_record, error=error)
+       CALL string_to_ascii(rng_record,ascii(:,my_index,para_env%mepos+1))
+    END DO
+    CALL mp_sum(ascii,para_env%group)
+    ! Check that all processors sharing thermostats have the same value..
+    ! Important for consistency..
+    DO i = 1, csvr%glob_num_csvr
+       DO j = 1, rng_record_length
+          min_val=MINVAL(ascii(j,i,:))
+          max_val=MAXVAL(ascii(j,i,:))
+          CPPostcondition(min_val==max_val,cp_failure_level,routineP,error,failure)
+       END DO
+    END DO
+    CALL section_rng_val_set(rng_section=work_section,nsize=csvr%glob_num_csvr,ascii=ascii(:,:,1),&
+         error=error)
+    DEALLOCATE (ascii,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE dump_csvr_restart_info
 
 !!****f* input_cp2k_restarts/collect_nose_restart_info [1.0] *
 !!
@@ -1340,7 +1530,7 @@ CONTAINS
     CALL update_subsys(subsys_section,force_env,skip_vel_section,error)
 
     rng_section    => section_vals_get_subs_vals(subsys_section,"RNG_INIT",error=error)
-    CALL update_rng(rng_section,force_env,error)
+    CALL update_rng_particle(rng_section,force_env,error)
 
     qmmm_section   => section_vals_get_subs_vals3(force_env_sections,"QMMM",&
          i_rep_section=i_force_eval(iforce_eval),error=error)
@@ -1413,10 +1603,10 @@ CONTAINS
 
   END SUBROUTINE update_qmmm
 
-!!****f* input_cp2k_restarts/update_rng [1.0] *
+!!****f* input_cp2k_restarts/update_rng_particle [1.0] *
 !!
 !!   NAME
-!!     update_rng
+!!     update_rng_particle
 !!
 !!   FUNCTION
 !!     Updates the rng section of the input file
@@ -1437,13 +1627,13 @@ CONTAINS
 !!
 !!*** **********************************************************************
 
-  SUBROUTINE update_rng(rng_section,force_env,error)
+  SUBROUTINE update_rng_particle(rng_section,force_env,error)
 
     TYPE(section_vals_type), POINTER         :: rng_section
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'update_rng', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'update_rng_particle', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=rng_record_length)         :: rng_record
@@ -1485,16 +1675,14 @@ CONTAINS
 
        CALL mp_sum(ascii,para_env%group)
 
-       CALL section_rng_val_set(rng_section=rng_section,&
-            particles=particles,&
-            ascii=ascii,&
+       CALL section_rng_val_set(rng_section=rng_section,nsize=nparticle,ascii=ascii,&
             error=error)
 
        DEALLOCATE (ascii,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
 
-  END SUBROUTINE update_rng
+  END SUBROUTINE update_rng_particle
 
 !!****f* input_cp2k_restarts/update_subsys [1.0] *
 !!
@@ -2002,10 +2190,10 @@ CONTAINS
 !!
 !!*** **********************************************************************
 
-  SUBROUTINE section_rng_val_set(rng_section, particles, ascii, error)
+  SUBROUTINE section_rng_val_set(rng_section, nsize, ascii, error)
 
     TYPE(section_vals_type), POINTER         :: rng_section
-    TYPE(particle_list_type), POINTER        :: particles
+    INTEGER, INTENT(IN)                      :: nsize
     INTEGER, DIMENSION(:, :)                 :: ascii
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -2018,8 +2206,6 @@ CONTAINS
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: my_val, old_val
-
-! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -2048,7 +2234,7 @@ CONTAINS
       Nlist = cp_sll_val_get_length(vals,error)
     END IF
 
-    DO irk=1,particles%n_els
+    DO irk=1,nsize
 
       CALL ascii_to_string(ascii(:,irk),rng_record)
       CALL val_create(val=my_val,lc_val=rng_record,error=error)

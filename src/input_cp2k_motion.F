@@ -26,7 +26,8 @@ MODULE input_cp2k_motion
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants
-  USE input_cp2k_subsys,               ONLY: create_structure_data
+  USE input_cp2k_subsys,               ONLY: create_rng_section,&
+                                             create_structure_data
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -3227,7 +3228,7 @@ SUBROUTINE create_coeff_section(coeff_section, error)
 !!
 !!*** **********************************************************************
 
-SUBROUTINE create_nose_section(section, coupled_thermostat, error)
+  SUBROUTINE create_nose_section(section, coupled_thermostat, error)
     TYPE(section_type), POINTER              :: section
     LOGICAL, INTENT(IN)                      :: coupled_thermostat
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -3239,10 +3240,10 @@ SUBROUTINE create_nose_section(section, coupled_thermostat, error)
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
-  failure=.FALSE.
-  
-  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN  
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN  
        CALL section_create(section,name="nose",&
             description="paramameters of the Nose Hoover thermostat chain",&
             required=.NOT. coupled_thermostat,error=error)
@@ -3254,7 +3255,7 @@ SUBROUTINE create_nose_section(section, coupled_thermostat, error)
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        CALL keyword_create(keyword, name="Yoshida",&
             description="order of the yoshida integretor usef for the thermostat",&
             usage="Yoshida integer", &
@@ -3262,7 +3263,7 @@ SUBROUTINE create_nose_section(section, coupled_thermostat, error)
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        CALL keyword_create(keyword, name="timecon",&
             description="timeconstant of the thermostat chain",&
             usage="timeconstant real", &
@@ -3270,7 +3271,7 @@ SUBROUTINE create_nose_section(section, coupled_thermostat, error)
             unit_str="fs",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        CALL keyword_create(keyword, name="mts", &
             variants=s2a("multiple_time_steps","mult_t_steps"),&
             description="number of multiple timesteps to be used for the NoseHoover chain",&
@@ -3283,7 +3284,7 @@ SUBROUTINE create_nose_section(section, coupled_thermostat, error)
        CALL create_coord_section(subsection,"NOSE HOOVER",error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
-       
+
        CALL create_velocity_section(subsection,"NOSE HOOVER",error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
@@ -3296,9 +3297,9 @@ SUBROUTINE create_nose_section(section, coupled_thermostat, error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
-  END IF
+    END IF
 
-END SUBROUTINE create_nose_section
+  END SUBROUTINE create_nose_section
 
 !***************************************************************************
 !!****f* input_cp2k/create_csvr_section *
@@ -3322,7 +3323,7 @@ END SUBROUTINE create_nose_section
 !!
 !!*** **********************************************************************
 
-SUBROUTINE create_csvr_section(section, coupled_thermostat, error)
+  SUBROUTINE create_csvr_section(section, coupled_thermostat, error)
     TYPE(section_type), POINTER              :: section
     LOGICAL, INTENT(IN)                      :: coupled_thermostat
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -3332,16 +3333,17 @@ SUBROUTINE create_csvr_section(section, coupled_thermostat, error)
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
 
-  failure=.FALSE.
-  
-  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN  
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN  
        CALL section_create(section,name="csvr",&
             description="Paramameters of the canonical sampling through velocity rescaling thermostat.",&
             required=.NOT.coupled_thermostat,error=error)
 
-       NULLIFY(keyword)
+       NULLIFY(keyword, subsection)
 
        CALL keyword_create(keyword, name="timecon",&
             description="timeconstant of the thermostat.",&
@@ -3351,20 +3353,68 @@ SUBROUTINE create_csvr_section(section, coupled_thermostat, error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="thermostat_energy",&
-            description="This keyword is used by the thermostat to accumulate the net energy "//&
-            " exchange between the system and the thermostat.",&
-            usage="timeconstant real", &
-            type_of_var=real_t,&
-            default_r_val=0.0_dp,&
-            unit_str="internal_cp2k",error=error)
+       CALL create_thermo_energy_section(subsection,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_rng_section(subsection,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+    END IF
+
+  END SUBROUTINE create_csvr_section
+!***************************************************************************
+
+!***************************************************************************
+!!****f* input_cp2k/create_thermo_energy_section [1.0] *
+!!
+!!   NAME
+!!     create_thermo_energy_section
+!!
+!!   FUNCTION
+!!     Creates the thermostat energy restarting section
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_thermo_energy_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_thermo_energy_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="THERMOSTAT_ENERGY",&
+            description="Information to initialize the CSVR thermostat energy.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="Specify an initial thermostat energy  for CSVR thermostat.",repeats=.TRUE.,&
+            type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-  END IF
-
-END SUBROUTINE create_csvr_section
-
+    END IF
+  END SUBROUTINE create_thermo_energy_section
 !***************************************************************************
 
 !***************************************************************************

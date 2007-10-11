@@ -29,13 +29,18 @@ MODULE csvr_system_init
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type
   USE global_types,                    ONLY: global_environment_type
-  USE input_section_types,             ONLY: section_vals_type,&
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: global_constraint_type,&
                                              molecule_type
+  USE parallel_rng_types,              ONLY: read_rng_stream,&
+                                             rng_record_length
+  USE termination,                     ONLY: stop_program
   USE thermostat_types,                ONLY: thermostat_info_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -241,11 +246,53 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'restart_csvr', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+    CHARACTER(LEN=rng_record_length)         :: rng_record
+    INTEGER                                  :: i, n_rep
+    LOGICAL                                  :: explicit, failure
+    TYPE(section_vals_type), POINTER         :: work_section
 
     failure = .FALSE.
-    CALL section_vals_val_get(csvr_section,"THERMOSTAT_ENERGY",r_val=csvr%thermostat_energy,&
-         error=error)
+
+    ! Possibly restart the initial thermostat energy
+    work_section => section_vals_get_subs_vals(section_vals=csvr_section,&
+         subsection_name="THERMOSTAT_ENERGY", error=error)
+    CALL section_vals_get(work_section,explicit=explicit,error=error)
+    IF (explicit) THEN
+       CALL section_vals_val_get(section_vals=work_section,keyword_name="_DEFAULT_KEYWORD_",&
+            n_rep_val=n_rep,error=error)
+       IF (n_rep==csvr%glob_num_csvr) THEN
+          DO i = 1, csvr%loc_num_csvr
+             my_index = csvr%map_info%index(i)
+             CALL section_vals_val_get(section_vals=work_section,keyword_name="_DEFAULT_KEYWORD_",&
+                  i_rep_val=my_index,r_val=csvr%nvt(i)%thermostat_energy,error=error)
+          END DO
+       ELSE
+          CALL stop_program ( routineP,'Number pf restartable stream not equal to the number of'//&
+               ' total thermostats!')
+       END IF
+    END IF
+
+    ! Possibly restart the random number generators for the different thermostats
+    work_section => section_vals_get_subs_vals(section_vals=csvr_section,&
+         subsection_name="RNG_INIT", error=error)
+    
+    CALL section_vals_get(work_section,explicit=explicit,error=error)
+    IF (explicit) THEN
+       CALL section_vals_val_get(section_vals=work_section,keyword_name="_DEFAULT_KEYWORD_",&
+            n_rep_val=n_rep,error=error)
+       IF (n_rep==csvr%glob_num_csvr) THEN
+          DO i = 1, csvr%loc_num_csvr
+             my_index = csvr%map_info%index(i)
+             CALL section_vals_val_get(section_vals=work_section,keyword_name="_DEFAULT_KEYWORD_",&
+                  i_rep_val=my_index,c_val=rng_record,error=error)
+             CALL read_rng_stream(rng_stream=csvr%nvt(i)%gaussian_rng_stream,&
+                  rng_record=rng_record,error=error)
+          END DO
+       ELSE
+          CALL stop_program ( routineP,'Number pf restartable stream not equal to the number of'//&
+               ' total thermostats!')
+       END IF
+    END IF
   END SUBROUTINE restart_csvr
 
 END MODULE csvr_system_init
