@@ -1,26 +1,30 @@
 # Shell model NVE
-uo2_shell_nve.inp         2
-uo2_shell_nve_r.inp       2
+uo2_shell_nve.inp               2
+uo2_shell_nve_r.inp             2
 # Shell model NVT
-uo2_shell_nvt.inp         2
-uo2_shell_nvt_res.inp     2
-uo2_shell_nvt_res_2.inp     2
+uo2_shell_nvt.inp               2
+uo2_shell_nvt_res.inp           2
+uo2_shell_nvt_res_2.inp         2
 # Shell model NPT
-uo2_shell_npti_b.inp      2
-uo2_shell_npti.inp        2
-uo2_shell_npt300.inp      2
-uo2_nvt.inp               2
-uo2_nvt_0.inp             2
-uo2_nvt_1.inp             2
-uo2_nvt_2.inp             2
-uo2_nvt_3.inp             2
-uo2_nvt_4.inp             2
-uo2_shell_nvt_shnose.inp  2
-uo2_shell_nvt_shnose_r.inp  2
-uo2_shell_nvt_shnose_b.inp 2
-uo2_shell_nvt_shnose_c.inp 2
-uo2_shell_nvt_shnosemass.inp 2
-uo2_shell_nvt_shnosemass_r.inp 2
+uo2_shell_npti_b.inp            2
+uo2_shell_npti.inp              2
+uo2_shell_npt300.inp            2
+uo2_nvt.inp                     2
+uo2_nvt_0.inp                   2
+uo2_nvt_1.inp                   2
+uo2_nvt_2.inp                   2
+uo2_nvt_3.inp                   2
+uo2_nvt_4.inp                   2
+uo2_shell_nvt_shnose.inp        2
+uo2_shell_nvt_shnose_r.inp      2
+uo2_shell_nvt_shnose_b.inp      2
+uo2_shell_nvt_shnose_c.inp      2
+uo2_shell_nvt_shnosemass.inp    2
+uo2_shell_nvt_shnosemass_r.inp  2
 # Temperature_per kind
-uo2_shell_nvt_tkind.inp 2
-uo2_shell_nvt_tkind_1.inp 2
+uo2_shell_nvt_tkind.inp         2
+uo2_shell_nvt_tkind_1.inp       2
+# CSVR Thermostat
+uo2_shell_nvt_shCSVR.inp        2
+uo2_shell_nvt_shCSVR_NOSE.inp   2
+uo2_shell_nvt_shCSVR_R.inp      2

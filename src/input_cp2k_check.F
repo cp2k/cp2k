@@ -621,6 +621,8 @@ CONTAINS
           CASE(do_thermo_csvr)
              section => section_vals_get_subs_vals(restart_file,TRIM(path)//"%CSVR%THERMOSTAT_ENERGY",error=error)
              CALL section_vals_set_subs_vals(input_file,TRIM(path)//"%CSVR%THERMOSTAT_ENERGY",section,error=error)
+             section => section_vals_get_subs_vals(restart_file,TRIM(path)//"%CSVR%RNG_INIT",error=error)
+             CALL section_vals_set_subs_vals(input_file,TRIM(path)//"%CSVR%RNG_INIT",section,error=error)
           END SELECT
        ELSE
           CALL cp_assert((input_type==restart_type),cp_warning_level,cp_assertion_failed,routineP,&

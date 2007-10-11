@@ -1,0 +1,14 @@
+# CSVR thermostat
+H2O-32_NVT_CSVR_globF.inp   2
+H2O-32_NVT_CSVR_glob.inp    2
+H2O-32_NVT_CSVR_globR.inp   2
+H2O-32_NVT_CSVR_massF.inp   2
+H2O-32_NVT_CSVR_mass.inp    2
+H2O-32_NVT_CSVR_massR.inp   2
+H2O-32_NVT_CSVR_molF.inp    2
+H2O-32_NVT_CSVR_mol.inp     2
+H2O-32_NVT_CSVR_molR.inp    2
+H2O-32_NPT_CVSR.inp         2
+H2O-32_NPT_CVSR_R.inp       2
+H2O-32_NPT_CVSR_NOSE.inp    2
+H2O-32_NPT_CVSR_NOSE_R.inp  2

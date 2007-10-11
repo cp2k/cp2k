@@ -3409,7 +3409,7 @@ SUBROUTINE create_coeff_section(coeff_section, error)
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specify an initial thermostat energy  for CSVR thermostat.",repeats=.TRUE.,&
-            type_of_var=real_t, error=error)
+            unit_str="internal_cp2k",type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

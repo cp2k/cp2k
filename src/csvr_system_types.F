@@ -65,7 +65,7 @@ MODULE csvr_system_types
 CONTAINS
 
 ! *****************************************************************************
-!!****f* extended_system_types/csvr_init [1.0] *
+!!****f* csvr_system_types/csvr_init [1.0] *
 !!
 !!   NAME
 !!    csvr_init
@@ -111,7 +111,7 @@ CONTAINS
   END SUBROUTINE csvr_init
 
 ! *****************************************************************************
-!!****f* extended_system_types/csvr_info_create [1.0] *
+!!****f* csvr_system_types/csvr_info_create [1.0] *
 !!
 !!   NAME
 !!    csvr_info_create
@@ -155,6 +155,7 @@ CONTAINS
     ALLOCATE ( csvr%nvt(csvr%loc_num_csvr),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO i = 1, csvr%loc_num_csvr
+       csvr%nvt(i)%thermostat_energy = 0.0_dp
        NULLIFY(csvr%nvt(i)%gaussian_rng_stream)
     END DO
     ! Initialize the gaussian stream random number
@@ -171,7 +172,7 @@ CONTAINS
     DO ithermo = 1, csvr%loc_num_csvr
        my_index = csvr%map_info%index(ithermo)
        my_seed  = seed(:,:,my_index)
-       WRITE (UNIT=name,FMT="(A,I8)") "Wiener process for Thermostat nr. ",ithermo
+       WRITE (UNIT=name,FMT="(A,I8)") "Wiener process for Thermostat #",ithermo
        CALL compress(name)
        CALL create_rng_stream(rng_stream=csvr%nvt(ithermo)%gaussian_rng_stream,&
             name=name,distribution_type=GAUSSIAN, extended_precision=.TRUE.,&
@@ -183,7 +184,7 @@ CONTAINS
   END SUBROUTINE csvr_thermo_create
 
 ! *****************************************************************************
-!!****f* extended_system_types/csvr_dealloc [1.0] *
+!!****f* csvr_system_types/csvr_dealloc [1.0] *
 !!
 !!   NAME
 !!     csvr_dealloc
@@ -226,7 +227,7 @@ CONTAINS
   END SUBROUTINE csvr_dealloc
 
 ! *****************************************************************************
-!!****f* extended_system_types/csvr_info_dealloc [1.0] *
+!!****f* csvr_system_types/csvr_info_dealloc [1.0] *
 !!
 !!   NAME
 !!     csvr_info_dealloc

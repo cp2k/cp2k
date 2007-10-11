@@ -206,7 +206,8 @@ CONTAINS
                   thermostats%thermostat_part%csvr, csvr_section=work_section,&
                   gci=gci, error=error)
           END IF
-          CALL thermostat_info(thermostats%thermostat_part, "PARTICLES", thermo_part_section, para_env, error)
+          CALL thermostat_info(thermostats%thermostat_part, "PARTICLES", thermo_part_section, &
+                               simpar, para_env, error)
        ELSE
           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                "Thermostat for Particles has been defined but the ensemble provided "//&
@@ -245,7 +246,8 @@ CPSourceFileRef,&
                      thermostats%thermostat_shell%csvr, csvr_section=work_section, gci=gci,&
                      error=error)               
              END IF
-             CALL thermostat_info(thermostats%thermostat_shell, "CORE-SHELL", thermo_shell_section, para_env, error)
+             CALL thermostat_info(thermostats%thermostat_shell, "CORE-SHELL", thermo_shell_section, &
+                                  simpar, para_env, error)
           ELSE
              IF (.NOT.shell_adiabatic) THEN
                 CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
@@ -295,7 +297,8 @@ CPSourceFileRef,&
                      thermostats%thermostat_coef%csvr, coeff_section=kg_coeff_section,&
                      csvr_section=work_section, dt=simpar%dt, error=error)                
              END IF
-             CALL thermostat_info(thermostats%thermostat_coef, "KG COEFFICIENTS", thermo_coef_section, para_env, error)
+             CALL thermostat_info(thermostats%thermostat_coef, "KG COEFFICIENTS", thermo_coef_section, &
+                                  simpar, para_env, error)
           ELSE
              CALL release_thermostat_type(thermostats%thermostat_coef, error)
           END IF
@@ -328,7 +331,8 @@ CPSourceFileRef,&
           CALL initialize_csvr_baro(simpar, para_env, globenv, thermostats%thermostat_baro%csvr,&
                csvr_section=work_section, error=error)
        END IF
-       CALL thermostat_info(thermostats%thermostat_baro, "BAROSTAT", thermo_baro_section, para_env, error)
+       CALL thermostat_info(thermostats%thermostat_baro, "BAROSTAT", thermo_baro_section,&
+                            simpar, para_env, error)
        ! If thermostat for barostat uses a diffent kind than the one of the particles
        ! let's update infos in the input structure..
        IF (thermostat_type==do_thermo_same_as_part) THEN
@@ -423,10 +427,12 @@ CPSourceFileRef,&
 !!     10.2007 created [tlaino]
 !!
 !!*** **********************************************************************
-  SUBROUTINE thermostat_info(thermostat, label, section, para_env, error)
+  SUBROUTINE thermostat_info(thermostat, label, section,  simpar, para_env, error)
     TYPE(thermostat_type), POINTER           :: thermostat
     CHARACTER(LEN=*), INTENT(IN)             :: label
     TYPE(section_vals_type), POINTER         :: section
+    TYPE(simulation_parameters_type), &
+      POINTER                                :: simpar
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -435,7 +441,7 @@ CPSourceFileRef,&
 
     INTEGER                                  :: iw
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: kin_energy, pot_energy
+    REAL(KIND=dp)                            :: kin_energy, pot_energy, tmp
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(unit_convert_type), POINTER         :: unit
 
@@ -465,8 +471,9 @@ CPSourceFileRef,&
                kin_energy
        CASE(do_thermo_csvr)
           WRITE ( iw, '( A,T44,A )' ) ' THERMOSTAT| Type of thermostat','Canonical Sampling/Velocity Rescaling'
+          tmp = 0.5_dp*simpar%dt
           WRITE ( iw, '( A,A4,A,T71,F10.2 )' ) &
-               ' THERMOSTAT| CSVR time constant [', 'fs' ,'] ',thermostat%csvr%tau_csvr/unit%fs
+               ' THERMOSTAT| CSVR time constant [', 'fs' ,'] ',thermostat%csvr%tau_csvr/unit%fs*tmp
           WRITE ( iw, '( A,T69,F12.6 )' ) &
                ' THERMOSTAT| Initial Kinetic Energy ',kin_energy
        END SELECT

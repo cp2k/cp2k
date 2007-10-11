@@ -321,7 +321,6 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL csvr_init(thermostat%csvr, simpar, csvr_section, error=error)
        thermostat%csvr%region=region
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END IF
 
   END SUBROUTINE create_thermostat_type

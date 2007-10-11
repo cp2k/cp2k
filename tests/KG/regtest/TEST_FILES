@@ -16,6 +16,8 @@ nai-1.inp 2
 nai-2.inp 2
 nai-3.inp 0
 nai-4.inp 2
+# CSVR thermostat
+nai-5.inp 2
 # KG_GPW
 kg_gpw_1H2O_TF.inp 1
 kg_gpw_2H2O_llp.inp 1

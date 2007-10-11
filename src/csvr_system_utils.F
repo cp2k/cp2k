@@ -84,7 +84,7 @@ CONTAINS
 !!      taut  ! relaxation time of the thermostat, in units of 'how often this routine is called'
 !!
 !!   AUTHOR
-!!     Giovanni Bussi - ETH Zurich, Lugano 2007
+!!     Giovanni Bussi - ETH Zurich, Lugano 10.2007
 !!
 !!   CREATION DATE
 !!     09.2007
@@ -107,23 +107,26 @@ CONTAINS
 
     REAL(KIND=dp)                            :: factor, resample, reverse, rr
 
-    IF(taut>0.1_dp) THEN
-       factor=EXP(-1.0_dp/taut)
-    ELSE
-       factor=0.0_dp
-    END IF
-    rr = next_random_number(rng_stream,error=error)
-    reverse=1.0_dp
-    ! reverse of momentum is implemented to have the correct limit to Langevin dynamics for ndeg=1
-    IF(rr<-SQRT(ndeg*kk*factor/(sigma*(1.0_dp-factor)))) reverse=-1.0_dp
-    ! for ndeg=1, the reverse of momentum is not necessary. in principles, it should be there.
-    ! in practice, it is better to skip it to avoid unnecessary slowing down of the dynamics in the small taut regime
-    ! anyway, this should not affect the final ensemble
-    IF(ndeg==1) reverse=1.0_dp
-    resample = kk + (1.0_dp-factor)* (sigma*(sumnoises(ndeg-1, rng_stream, error)+rr**2)/REAL(ndeg,KIND=dp)-kk) &
-                  +  2.0_dp*rr*SQRT(kk*sigma/ndeg*(1.0_dp-factor)*factor)
+    RESULT=0.0_dp
+    IF (kk/=0.0_dp) THEN
+       IF(taut>0.1_dp) THEN
+          factor=EXP(-1.0_dp/taut)
+       ELSE
+          factor=0.0_dp
+       END IF
+       rr = next_random_number(rng_stream,error=error)
+       reverse=1.0_dp
+       ! reverse of momentum is implemented to have the correct limit to Langevin dynamics for ndeg=1
+       IF(rr<-SQRT(ndeg*kk*factor/(sigma*(1.0_dp-factor)))) reverse=-1.0_dp
+       ! for ndeg=1, the reverse of momentum is not necessary. in principles, it should be there.
+       ! in practice, it is better to skip it to avoid unnecessary slowing down of the dynamics in the small taut regime
+       ! anyway, this should not affect the final ensemble
+       IF(ndeg==1) reverse=1.0_dp
+       resample = kk + (1.0_dp-factor)* (sigma*(sumnoises(ndeg-1, rng_stream, error)+rr**2)/REAL(ndeg,KIND=dp)-kk) &
+                     +  2.0_dp*rr*SQRT(kk*sigma/ndeg*(1.0_dp-factor)*factor)
 
-    RESULT = reverse*SQRT(resample/kk)
+       RESULT = reverse*SQRT(resample/kk)
+    END IF
   END FUNCTION rescaling_factor
 
 !!****** extended_system_util/sumnoises [1.0] *

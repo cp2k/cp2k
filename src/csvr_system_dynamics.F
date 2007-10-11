@@ -341,7 +341,8 @@ CONTAINS
     DO i = 1, csvr%loc_num_csvr
        kin_energy =  map_info%s_kin(i)
        csvr%nvt(i)%region_kin_energy = kin_energy
-       kin_target =  csvr%nvt(i)%nkt
+       kin_energy =  kin_energy * 0.5_dp
+       kin_target =  csvr%nvt(i)%nkt * 0.5_dp
        ndeg       =  csvr%nvt(i)%degrees_of_freedom
        taut       =  csvr%tau_csvr
        rng_stream => csvr%nvt(i)%gaussian_rng_stream
@@ -378,13 +379,14 @@ CONTAINS
 
     INTEGER                                  :: i
     LOGICAL                                  :: failure
-    REAL(KIND=dp) :: kin_energy_br, kin_energy_ar
+    REAL(KIND=dp)                            :: kin_energy_ar, kin_energy_br
 
     failure = .FALSE.
     DO i = 1, csvr%loc_num_csvr
        kin_energy_br = csvr%nvt(i)%region_kin_energy
        kin_energy_ar = map_info%s_kin(i)
-       csvr%nvt(i)%thermostat_energy =  kin_energy_br - kin_energy_ar
+       csvr%nvt(i)%thermostat_energy =  csvr%nvt(i)%thermostat_energy + &
+                                        0.5_dp * (kin_energy_br - kin_energy_ar)
     END DO
 
   END SUBROUTINE do_csvr_eval_energy

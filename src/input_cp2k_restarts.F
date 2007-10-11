@@ -54,9 +54,9 @@ MODULE input_cp2k_restarts
                                              multiple_fe_list,&
                                              use_qmmm
   USE input_constants,                 ONLY: &
-       do_thermo_communication, do_thermo_csvr, do_thermo_nose, mol_dyn_run, &
-       mon_car_run, pint_run, use_unit_angstrom, use_unit_bohr, &
-       use_unit_scaled_angstrom, use_unit_scaled_bohr
+       do_thermo_communication, do_thermo_csvr, do_thermo_no_communication, &
+       do_thermo_nose, mol_dyn_run, mon_car_run, pint_run, use_unit_angstrom, &
+       use_unit_bohr, use_unit_scaled_angstrom, use_unit_scaled_bohr
   USE input_section_types,             ONLY: &
        section_get_keyword_index, section_type, section_vals_add_values, &
        section_vals_get, section_vals_get_subs_vals, &
@@ -1036,10 +1036,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=rng_record_length)         :: rng_record
-    INTEGER                                  :: i, j, my_index, stat
+    INTEGER                                  :: i, my_index, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: dwork
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: ascii
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: max_val, min_val
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: work
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: thermostat_energies
     TYPE(section_vals_type), POINTER         :: work_section
@@ -1048,30 +1050,45 @@ CONTAINS
     ! Thermostat Energies
     ALLOCATE(thermostat_energies(csvr%glob_num_csvr,para_env%num_pe),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(work(csvr%glob_num_csvr),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     thermostat_energies = 0.0_dp
+    work= 0.0_dp
     DO i = 1, csvr%loc_num_csvr
        my_index = csvr%map_info%index(i)
        thermostat_energies(my_index,para_env%mepos+1) = csvr%nvt(i)%thermostat_energy
     END DO
     CALL mp_sum(thermostat_energies,para_env%group)
-    ! Check that all processors sharing thermostats have the same value..
-    ! Important for consistency..
-    DO i = 1, csvr%glob_num_csvr
-       min_val=MINVAL(thermostat_energies(i,:))
-       max_val=MAXVAL(thermostat_energies(i,:))
-       CPPostcondition(min_val==max_val,cp_failure_level,routineP,error,failure)
-    END DO
+    IF (csvr%map_info%dis_type==do_thermo_no_communication) THEN
+       !  Collect data if there was no communication in this thermostat
+       DO i = 1, para_env%num_pe
+          work(:) = work(:) + thermostat_energies(:,i)
+       END DO 
+    ELSE
+       !  Otherwise let's just pick up one value of the array
+       DO i = 1, csvr%glob_num_csvr
+          min_val=MINVAL(thermostat_energies(i,:))
+          max_val=MAXVAL(thermostat_energies(i,:))
+          CPPostcondition(min_val==max_val,cp_failure_level,routineP,error,failure)
+       END DO
+       work = thermostat_energies(:,1)
+    END IF
     ! If check passes then let'sdump the info on the restart file
     work_section => section_vals_get_subs_vals(csvr_section,"THERMOSTAT_ENERGY",error=error)
-    CALL dump_csvr_energy_info(thermostat_energies(:,1), csvr%glob_num_csvr, work_section, error)
+    CALL dump_csvr_energy_info(work, csvr%glob_num_csvr, work_section, error)
     DEALLOCATE (thermostat_energies,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (work,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     ! Thermostat Random Number info for restart
     work_section => section_vals_get_subs_vals(csvr_section,"RNG_INIT",error=error)
     ALLOCATE (ascii(rng_record_length,csvr%glob_num_csvr,para_env%num_pe),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (dwork(rng_record_length,csvr%glob_num_csvr),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ascii = 0
+    dwork = 0
     DO i=1,csvr%loc_num_csvr
        my_index = csvr%map_info%index(i)
        CALL dump_rng_stream(rng_stream=csvr%nvt(i)%gaussian_rng_stream,&
@@ -1079,18 +1096,21 @@ CONTAINS
        CALL string_to_ascii(rng_record,ascii(:,my_index,para_env%mepos+1))
     END DO
     CALL mp_sum(ascii,para_env%group)
-    ! Check that all processors sharing thermostats have the same value..
-    ! Important for consistency..
-    DO i = 1, csvr%glob_num_csvr
-       DO j = 1, rng_record_length
-          min_val=MINVAL(ascii(j,i,:))
-          max_val=MAXVAL(ascii(j,i,:))
-          CPPostcondition(min_val==max_val,cp_failure_level,routineP,error,failure)
-       END DO
-    END DO
-    CALL section_rng_val_set(rng_section=work_section,nsize=csvr%glob_num_csvr,ascii=ascii(:,:,1),&
+    !  Collect data if there was no communication in this thermostat
+    IF (csvr%map_info%dis_type==do_thermo_no_communication) THEN
+       !  Collect data if there was no communication in this thermostat
+       DO i = 1, para_env%num_pe
+          dwork(:,:) = dwork(:,:) + ascii(:,:,i)
+       END DO 
+    ELSE
+       !  Otherwise let's just pick up one value of the array
+       dwork(:,:) = ascii(:,:,1)
+    END IF
+    CALL section_rng_val_set(rng_section=work_section,nsize=csvr%glob_num_csvr,ascii=dwork,&
          error=error)
     DEALLOCATE (ascii,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (dwork,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE dump_csvr_restart_info
