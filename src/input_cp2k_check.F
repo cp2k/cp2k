@@ -490,6 +490,12 @@ CONTAINS
           CALL section_vals_val_get(r_section,"RESTART_KG_THERMOSTAT",l_val=flag,error=error)
           CALL restart_thermostat(flag, input_file, restart_file, "MOTION%MD%KG_COEFF%THERMOSTAT", error=error)
 
+          check = check_restart(input_file, restart_file, "MOTION%MD%SHELL", error)
+          IF(check) THEN
+            CALL section_vals_val_get(r_section,"RESTART_SHELL_THERMOSTAT",l_val=flag,error=error)
+            CALL restart_thermostat(flag, input_file, restart_file, "MOTION%MD%SHELL%THERMOSTAT", error=error)
+          END IF
+          
           CALL section_vals_val_get(r_section,"RESTART_THERMOSTAT",l_val=flag,error=error)
           CALL restart_thermostat(flag,input_file, restart_file, "MOTION%MD%THERMOSTAT", error=error)
 
@@ -794,6 +800,18 @@ CPSourceFileRef,&
        CALL section_vals_remove_values(section_to_delete,error)
        section_to_delete => section_vals_get_subs_vals(input_file,&
             "MOTION%MD%KG_COEFF%THERMOSTAT%NOSE%FORCE",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+       section_to_delete => section_vals_get_subs_vals(input_file,&
+            "MOTION%MD%THERMOSTAT%SHELL%NOSE%COORD",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+       section_to_delete => section_vals_get_subs_vals(input_file,&
+            "MOTION%MD%THERMOSTAT%SHELL%NOSE%VELOCITY",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+       section_to_delete => section_vals_get_subs_vals(input_file,&
+            "MOTION%MD%THERMOSTAT%SHELL%NOSE%MASS",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+       section_to_delete => section_vals_get_subs_vals(input_file,&
+            "MOTION%MD%THERMOSTAT%SHELL%NOSE%FORCE",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
        section_to_delete => section_vals_get_subs_vals(input_file,&
             "MOTION%MD%THERMOSTAT%NOSE%COORD",error=error)

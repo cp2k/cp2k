@@ -1055,6 +1055,11 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
             type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="RESTART_SHELL_THERMOSTAT",&
+            description="Restarts the shell thermostat from the external file",&
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_THERMOSTAT",&
             description="Restarts the nose thermostats of the particles "//&
             "from the EXTERNAL file",&
