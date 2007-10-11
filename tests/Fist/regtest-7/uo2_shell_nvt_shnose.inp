@@ -83,7 +83,7 @@
 &END FORCE_EVAL
 &GLOBAL
   PRINT_LEVEL LOW
-  PROJECT uo2_shell_nvt
+  PROJECT uo2_shell_nvt_shnose
   RUN_TYPE MD
 &END GLOBAL
 &MOTION
@@ -138,7 +138,7 @@
       EACH 5
     &END
     &RESTART_HISTORY
-      EACH 1000
+      EACH 10
     &END
   &END
 &END MOTION
