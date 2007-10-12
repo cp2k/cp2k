@@ -49,7 +49,6 @@ MODULE extended_system_init
   USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
   USE message_passing,                 ONLY: mp_allgather,&
-                                             mp_bcast,&
                                              mp_sum
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: global_constraint_type,&
@@ -715,49 +714,39 @@ CONTAINS
 
     SELECT CASE (map_info%dis_type )
     CASE ( do_thermo_only_master ) ! for NPT
-       IF ( para_env%ionode ) THEN
-          ! Map deterministically determined random number to nhc % v
-          DO i = 1, nhc%loc_num_nhc
-             DO j = 1, nhc % nhc_len
-                nhc%nvt(j,i)%v = next_random_number(globenv%gaussian_rng_stream,error=error)
-             END DO
+       ! Map deterministically determined random number to nhc % v
+       DO i = 1, nhc%loc_num_nhc
+          DO j = 1, nhc % nhc_len
+             nhc%nvt(j,i)%v = next_random_number(globenv%gaussian_rng_stream,error=error)
           END DO
-          
-          akin = 0.0_dp
-          DO i = 1, nhc%loc_num_nhc
-             DO j = 1, nhc % nhc_len
-                akin = akin + 0.5_dp * ( nhc % nvt ( j , i ) % mass * &
-                                         nhc % nvt ( j , i ) % v * &
-                                         nhc % nvt ( j , i ) % v )
-             END DO
+       END DO
+       
+       akin = 0.0_dp
+       DO i = 1, nhc%loc_num_nhc
+          DO j = 1, nhc % nhc_len
+             akin = akin + 0.5_dp * ( nhc % nvt ( j , i ) % mass * &
+                  nhc % nvt ( j , i ) % v * &
+                  nhc % nvt ( j , i ) % v )
           END DO
-          number = nhc%loc_num_nhc
-
-          ! scale velocities to get the correct initial temperature
-          temp = 2.0_dp*akin/REAL(number)
-          temp = SQRT(temp_ext/temp)
-          DO i = 1, nhc%loc_num_nhc
-             DO j = 1, nhc % nhc_len
-                nhc % nvt(j,i) % v = temp * nhc % nvt(j,i) % v
-                nhc % nvt(j,i) % eta = 0.0_dp
-             END DO
+       END DO
+       number = nhc%loc_num_nhc
+       
+       ! scale velocities to get the correct initial temperature
+       temp = 2.0_dp*akin/REAL(number)
+       temp = SQRT(temp_ext/temp)
+       DO i = 1, nhc%loc_num_nhc
+          DO j = 1, nhc % nhc_len
+             nhc % nvt(j,i) % v = temp * nhc % nvt(j,i) % v
+             nhc % nvt(j,i) % eta = 0.0_dp
           END DO
-          
-          ! initializing all of the forces on the thermostats
-          DO i = 1, nhc%loc_num_nhc
-             DO j = 2, nhc % nhc_len
-                nhc % nvt(j,i) % f = nhc % nvt(j-1,i) % mass*nhc % nvt(j-1,i) % v* &
-                     nhc % nvt(j-1,i) % v - nhc % nvt(j,i) % nkt
-                nhc % nvt(j,i) % f = nhc % nvt(j,i) % f/nhc % nvt(j,i) % mass
-             END DO
-          END DO
-       END IF
-       ! Broadcast
-       DO i = 1, SIZE ( nhc % nvt, 1 )
-          DO j = 1, SIZE ( nhc % nvt, 2 )
-             CALL mp_bcast ( nhc % nvt ( i, j ) % v, para_env%source, para_env%group )
-             CALL mp_bcast ( nhc % nvt ( i, j ) % eta, para_env%source, para_env%group )
-             CALL mp_bcast ( nhc % nvt ( i, j ) % f, para_env%source, para_env%group )
+       END DO
+       
+       ! initializing all of the forces on the thermostats
+       DO i = 1, nhc%loc_num_nhc
+          DO j = 2, nhc % nhc_len
+             nhc % nvt(j,i) % f = nhc % nvt(j-1,i) % mass*nhc % nvt(j-1,i) % v* &
+                  nhc % nvt(j-1,i) % v - nhc % nvt(j,i) % nkt
+             nhc % nvt(j,i) % f = nhc % nvt(j,i) % f/nhc % nvt(j,i) % mass
           END DO
        END DO
        
@@ -866,58 +855,49 @@ CONTAINS
        npt ( :, : ) % mass = cmass
     END SELECT
 
-    IF ( para_env%ionode ) THEN
-       ! initializing velocities
-       DO i = 1, SIZE ( npt,1)
-          DO j = i, SIZE ( npt,2)
-             v = next_random_number(globenv%gaussian_rng_stream,error=error)
-             ! Symmetrizing the initial barostat velocities to ensure
-             ! no rotation of the cell under NPT_F
-             npt(j,i) % v = v
-             npt(i,j) % v = v
-          END DO
-       END DO
-       
-       akin = 0.0_dp
-       DO i = 1, SIZE( npt,1 )
-          DO j = 1, SIZE( npt,2 )
-             akin = akin + 0.5_dp*( npt(j,i) % mass* npt(j,i)%v * npt(j,i)%v)
-          END DO
-       END DO
-       
-       number = SIZE ( npt, 1 ) * SIZE ( npt, 2 )
-       
-       ! scale velocities to get the correct initial temperature
-       IF ( number /= 0 ) THEN
-          temp = 2.0_dp * akin / REAL ( number,KIND=dp)
-          temp = SQRT(temp_ext/temp)
-       ENDIF
-       DO i = 1, SIZE(npt,1)
-          DO j = i, SIZE(npt,2)
-             npt(j,i) % v = temp * npt(j,i) % v
-             npt(i,j) % v = npt(j,i) % v
-             IF (debug_isotropic_limit) THEN
-                npt(j,i) % v = 0.0_dp
-                npt(i,j) % v = 0.0_dp
-                WRITE (*, *) 'DEBUG ISOTROPIC LIMIT| INTIAL v_eps', npt(j,i) % v
-             END IF
-          END DO
-       END DO
-
-       ! Zero barostat velocities for nph_uniaxial
-       SELECT CASE ( ensemble )
-       CASE ( nph_uniaxial_ensemble, nph_uniaxial_damped_ensemble )
-          npt(:,:) % v = 0.0_dp
-       END SELECT
-    ENDIF
-    
-    ! Broadcast
-    DO i = 1, SIZE ( npt, 1 )
-       DO j = 1, SIZE ( npt, 2 )
-          CALL mp_bcast ( npt ( i, j ) % v, para_env%source, para_env%group )
+    ! initializing velocities
+    DO i = 1, SIZE ( npt,1)
+       DO j = i, SIZE ( npt,2)
+          v = next_random_number(globenv%gaussian_rng_stream,error=error)
+          ! Symmetrizing the initial barostat velocities to ensure
+          ! no rotation of the cell under NPT_F
+          npt(j,i) % v = v
+          npt(i,j) % v = v
        END DO
     END DO
-
+    
+    akin = 0.0_dp
+    DO i = 1, SIZE( npt,1 )
+       DO j = 1, SIZE( npt,2 )
+          akin = akin + 0.5_dp*( npt(j,i) % mass* npt(j,i)%v * npt(j,i)%v)
+       END DO
+    END DO
+    
+    number = SIZE ( npt, 1 ) * SIZE ( npt, 2 )
+    
+    ! scale velocities to get the correct initial temperature
+    IF ( number /= 0 ) THEN
+       temp = 2.0_dp * akin / REAL ( number,KIND=dp)
+       temp = SQRT(temp_ext/temp)
+    ENDIF
+    DO i = 1, SIZE(npt,1)
+       DO j = i, SIZE(npt,2)
+          npt(j,i) % v = temp * npt(j,i) % v
+          npt(i,j) % v = npt(j,i) % v
+          IF (debug_isotropic_limit) THEN
+             npt(j,i) % v = 0.0_dp
+             npt(i,j) % v = 0.0_dp
+             WRITE (*, *) 'DEBUG ISOTROPIC LIMIT| INTIAL v_eps', npt(j,i) % v
+          END IF
+       END DO
+    END DO
+    
+    ! Zero barostat velocities for nph_uniaxial
+    SELECT CASE ( ensemble )
+    CASE ( nph_uniaxial_ensemble, nph_uniaxial_damped_ensemble )
+       npt(:,:) % v = 0.0_dp
+    END SELECT
+    
   END SUBROUTINE init_barostat_variables
 
 !******************************************************************************

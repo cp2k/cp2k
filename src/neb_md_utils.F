@@ -38,7 +38,6 @@ MODULE neb_md_utils
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_sum
   USE parallel_rng_types,              ONLY: next_random_number
   USE particle_types,                  ONLY: particle_type
   USE timings,                         ONLY: timeset,&
@@ -53,7 +52,6 @@ MODULE neb_md_utils
             control_vels_a,&
             control_vels_b,&
             get_temperatures
-            
 
 CONTAINS
 
@@ -108,15 +106,12 @@ CONTAINS
        mass_tot = 0.0_dp
        vcom     = 0.0_dp
        vels(:,i)= 0.0_dp
-       IF (para_env%mepos==para_env%source) THEN
-          DO k = 1, SIZE(particle_set)
-             kind = (k-1)*3
-             vels(kind+1,i) = next_random_number(globenv%gaussian_rng_stream,error=error)
-             vels(kind+2,i) = next_random_number(globenv%gaussian_rng_stream,error=error)
-             vels(kind+3,i) = next_random_number(globenv%gaussian_rng_stream,error=error)
-          END DO
-       END IF
-       CALL mp_sum(vels(:,i),para_env%group)
+       DO k = 1, SIZE(particle_set)
+          kind = (k-1)*3
+          vels(kind+1,i) = next_random_number(globenv%gaussian_rng_stream,error=error)
+          vels(kind+2,i) = next_random_number(globenv%gaussian_rng_stream,error=error)
+          vels(kind+3,i) = next_random_number(globenv%gaussian_rng_stream,error=error)
+       END DO
        DO k = 1, SIZE(particle_set)
           kind = (k-1)*3
           mass = particle_set(k)%atomic_kind%mass

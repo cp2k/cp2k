@@ -47,7 +47,6 @@ MODULE md
   USE kinds,                           ONLY: default_path_length,&
                                              dp,&
                                              int_size
-  USE message_passing,                 ONLY: mp_bcast
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE molecule_kind_types,             ONLY: fixd_constraint_type,&
                                              get_molecule_kind,&
@@ -693,93 +692,81 @@ CPSourceFileRef,&
           END IF
        END IF
     ELSE
-       ! Initializing velocities
-       IF (para_env%ionode) THEN
-          ! computing the COM velocities
-          DO i = 1, natoms
-             atomic_kind => part ( i ) % atomic_kind
-             CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass)
-             mass_tot = mass_tot + mass
-             IF (is_fixed(i)) THEN
-                part ( i ) % v ( 1 ) = 0.0_dp
-                part ( i ) % v ( 2 ) = 0.0_dp
-                part ( i ) % v ( 3 ) = 0.0_dp
-             ELSE
-                part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
-                part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
-                part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
-                vcom ( 1 ) = vcom ( 1 ) + mass * part ( i ) % v ( 1 )
-                vcom ( 2 ) = vcom ( 2 ) + mass * part ( i ) % v ( 2 )
-                vcom ( 3 ) = vcom ( 3 ) + mass * part ( i ) % v ( 3 )
-                denom = denom + mass
-             END IF
-          END DO
-          vcom = vcom / denom
-          
-          ! Compute the kinetic energy
-          akin = 0.0_dp
-          DO i = 1, natoms
-             atomic_kind => part ( i ) % atomic_kind
-             CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
-             ! first subtract the COM
-             IF (.NOT.is_fixed(i)) THEN
-                part ( i ) % v ( : ) = part ( i ) % v ( : ) - vcom ( : )
-                ! now compute the temp
-                akin = akin + 0.5_dp * ( mass * part ( i ) % v ( 1 ) * part ( i ) % v ( 1 ) )
-                akin = akin + 0.5_dp * ( mass * part ( i ) % v ( 2 ) * part ( i ) % v ( 2 ) )
-                akin = akin + 0.5_dp * ( mass * part ( i ) % v ( 3 ) * part ( i ) % v ( 3 ) )
-             END IF
-          END DO
-
-          ! this rescaling is still wrong, it should take the masses into account
-          ! rescaling is generally not correct, so needs fixing
-          temp = 0.0_dp
-          sc   = 0.0_dp
-          IF (simpar % nfree /= 0) THEN
-             temp = 2.0_dp * akin / REAL ( simpar % nfree,KIND=dp)
-             ! scale velocities to get the correct initial temperature and
-             sc = SQRT ( simpar % temp_ext / temp )
-          END IF
-          DO i = 1, natoms
-             part ( i ) % v ( 1 ) = sc * part ( i ) % v ( 1 )
-             part ( i ) % v ( 2 ) = sc * part ( i ) % v ( 2 )
-             part ( i ) % v ( 3 ) = sc * part ( i ) % v ( 3 )
-          END DO
-          
-          ! Moving the velocities so that the COM velocity is zero
-          akin = 0.0_dp
-          vcom_new = 0.0_dp
-          DO i = 1, natoms
-             atomic_kind => part ( i ) % atomic_kind
-             CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass, shell_active=is_shell )
-             
-             ! Initialize the shell velocity to the same value, 
-             ! so that core-shell the relative velocity is zero
-             IF(is_shell .AND. shell_present) THEN
-                shell_part( part ( i ) % shell_index)%v(1) =  part(i)%v(1)
-                shell_part( part ( i ) % shell_index)%v(2) =  part(i)%v(2)
-                shell_part( part ( i ) % shell_index)%v(3) =  part(i)%v(3)
-                core_part( part ( i ) % shell_index)%v(1)  =  part(i)%v(1)
-                core_part( part ( i ) % shell_index)%v(2)  =  part(i)%v(2)
-                core_part( part ( i ) % shell_index)%v(3)  =  part(i)%v(3)
-             END IF
-             
-             vcom_new ( : ) = vcom_new ( : ) + mass * part ( i ) % v ( : )
-             akin = akin + 0.5_dp *  ( mass * part ( i ) % v ( 1 ) * part ( i ) % v ( 1 ) )
-             akin = akin + 0.5_dp *  ( mass * part ( i ) % v ( 2 ) * part ( i ) % v ( 2 ) )
-             akin = akin + 0.5_dp *  ( mass * part ( i ) % v ( 3 ) * part ( i ) % v ( 3 ) )
-          END DO
-       END IF
-       CALL mp_bcast ( mass_tot, para_env%source, para_env%group )
+       ! Initializing velocities deterministically on all processors
+       ! First compute the COM velocities
        DO i = 1, natoms
-          CALL mp_bcast ( part ( i ) % v, para_env%source, para_env%group )
+          atomic_kind => part ( i ) % atomic_kind
+          CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass)
+          mass_tot = mass_tot + mass
+          IF (is_fixed(i)) THEN
+             part ( i ) % v ( 1 ) = 0.0_dp
+             part ( i ) % v ( 2 ) = 0.0_dp
+             part ( i ) % v ( 3 ) = 0.0_dp
+          ELSE
+             part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+             part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+             part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+             vcom ( 1 ) = vcom ( 1 ) + mass * part ( i ) % v ( 1 )
+             vcom ( 2 ) = vcom ( 2 ) + mass * part ( i ) % v ( 2 )
+             vcom ( 3 ) = vcom ( 3 ) + mass * part ( i ) % v ( 3 )
+             denom = denom + mass
+          END IF
        END DO
-       IF(shell_present) THEN
-          DO i = 1,nshell
-             CALL mp_bcast ( shell_part ( i ) % v, para_env%source, para_env%group )
-             CALL mp_bcast ( core_part ( i ) % v, para_env%source, para_env%group )
-          END DO
+       vcom = vcom / denom
+       
+       ! Compute the kinetic energy
+       akin = 0.0_dp
+       DO i = 1, natoms
+          atomic_kind => part ( i ) % atomic_kind
+          CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
+          ! first subtract the COM
+          IF (.NOT.is_fixed(i)) THEN
+             part ( i ) % v ( : ) = part ( i ) % v ( : ) - vcom ( : )
+             ! now compute the temp
+             akin = akin + 0.5_dp * ( mass * part ( i ) % v ( 1 ) * part ( i ) % v ( 1 ) )
+             akin = akin + 0.5_dp * ( mass * part ( i ) % v ( 2 ) * part ( i ) % v ( 2 ) )
+             akin = akin + 0.5_dp * ( mass * part ( i ) % v ( 3 ) * part ( i ) % v ( 3 ) )
+          END IF
+       END DO
+
+       ! this rescaling is still wrong, it should take the masses into account
+       ! rescaling is generally not correct, so needs fixing
+       temp = 0.0_dp
+       sc   = 0.0_dp
+       IF (simpar % nfree /= 0) THEN
+          temp = 2.0_dp * akin / REAL ( simpar % nfree,KIND=dp)
+          ! scale velocities to get the correct initial temperature and
+          sc = SQRT ( simpar % temp_ext / temp )
        END IF
+       DO i = 1, natoms
+          part ( i ) % v ( 1 ) = sc * part ( i ) % v ( 1 )
+          part ( i ) % v ( 2 ) = sc * part ( i ) % v ( 2 )
+          part ( i ) % v ( 3 ) = sc * part ( i ) % v ( 3 )
+       END DO
+       
+       ! Moving the velocities so that the COM velocity is zero
+       akin = 0.0_dp
+       vcom_new = 0.0_dp
+       DO i = 1, natoms
+          atomic_kind => part ( i ) % atomic_kind
+          CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass, shell_active=is_shell )
+          
+          ! Initialize the shell velocity to the same value, 
+          ! so that core-shell the relative velocity is zero
+          IF(is_shell .AND. shell_present) THEN
+             shell_part( part ( i ) % shell_index)%v(1) =  part(i)%v(1)
+             shell_part( part ( i ) % shell_index)%v(2) =  part(i)%v(2)
+             shell_part( part ( i ) % shell_index)%v(3) =  part(i)%v(3)
+             core_part( part ( i ) % shell_index)%v(1)  =  part(i)%v(1)
+             core_part( part ( i ) % shell_index)%v(2)  =  part(i)%v(2)
+             core_part( part ( i ) % shell_index)%v(3)  =  part(i)%v(3)
+          END IF
+          
+          vcom_new ( : ) = vcom_new ( : ) + mass * part ( i ) % v ( : )
+          akin = akin + 0.5_dp *  ( mass * part ( i ) % v ( 1 ) * part ( i ) % v ( 1 ) )
+          akin = akin + 0.5_dp *  ( mass * part ( i ) % v ( 2 ) * part ( i ) % v ( 2 ) )
+          akin = akin + 0.5_dp *  ( mass * part ( i ) % v ( 3 ) * part ( i ) % v ( 3 ) )
+       END DO
     END IF
     
     IF (iw>0) THEN

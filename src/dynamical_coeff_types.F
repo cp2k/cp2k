@@ -658,8 +658,8 @@ END SUBROUTINE dyn_coeff_set_initialize
     END IF
   END SUBROUTINE dyn_coeff_set_init_masses
 !*************************************************************************
-SUBROUTINE dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set, &
-                                  mbuffer,motion_section,para_env,globenv,error)
+  SUBROUTINE dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set, &
+       mbuffer,motion_section,para_env,globenv,error)
 
     REAL(KIND=dp)                            :: kg_coeff_target_temp
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
@@ -685,128 +685,124 @@ SUBROUTINE dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set, &
     TYPE(dyn_coeff_type), POINTER            :: coeffs
     TYPE(unit_convert_type), POINTER         :: unit
 
-  NULLIFY (coeffs,unit)
-  gmass=(dyn_coeff_set%mass_storage==dyn_coeff_mass_global)
-  group = para_env%group
+    NULLIFY (coeffs,unit)
+    gmass=(dyn_coeff_set%mass_storage==dyn_coeff_mass_global)
+    group = para_env%group
 
-  nkind=SIZE(dyn_coeff_set%coeffs_of_kind)
-  vcom=0._dp
-  denom=0._dp
+    nkind=SIZE(dyn_coeff_set%coeffs_of_kind)
+    vcom=0._dp
+    denom=0._dp
 
-  ALLOCATE (vbuffer(dyn_coeff_set%nel_tot,dyn_coeff_set%ncoef_atom_max),STAT=istat)
-  IF (istat /= 0) CALL stop_memory(routineP,"vbuffer")
-  vbuffer(:,:)=0._dp
+    ALLOCATE (vbuffer(dyn_coeff_set%nel_tot,dyn_coeff_set%ncoef_atom_max),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineP,"vbuffer")
+    vbuffer(:,:)=0._dp
 
-  ALLOCATE (n_els_of_kind(nkind),STAT=istat)
-  IF (istat /= 0) CALL stop_memory(routineP,"n_els_of_kind")
-  n_els_of_kind(:)=0
+    ALLOCATE (n_els_of_kind(nkind),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineP,"n_els_of_kind")
+    n_els_of_kind(:)=0
 
-! calculate com velocities
+    ! calculate com velocities
 
-  IF (para_env%ionode) THEN
     DO iel=1,dyn_coeff_set%nel_tot
-      DO icoef=1,dyn_coeff_set%ncoef_atom_max
-        vbuffer(iel,icoef) = next_random_number(globenv%gaussian_rng_stream,error=error)
-        IF (gmass) THEN
-          vcom=vcom+dyn_coeff_set%global_mass*vbuffer(iel,icoef)
-          denom=denom+dyn_coeff_set%global_mass
-        ELSE
-          vcom=vcom+mbuffer(iel,icoef)*vbuffer(iel,icoef)
-          denom=denom+mbuffer(iel,icoef)
-        END IF
-      END DO
+       DO icoef=1,dyn_coeff_set%ncoef_atom_max
+          vbuffer(iel,icoef) = next_random_number(globenv%gaussian_rng_stream,error=error)
+          IF (gmass) THEN
+             vcom=vcom+dyn_coeff_set%global_mass*vbuffer(iel,icoef)
+             denom=denom+dyn_coeff_set%global_mass
+          ELSE
+             vcom=vcom+mbuffer(iel,icoef)*vbuffer(iel,icoef)
+             denom=denom+mbuffer(iel,icoef)
+          END IF
+       END DO
     END DO
     vcom=vcom/denom
     ekin=0._dp
 
     DO iel=1,dyn_coeff_set%nel_tot
-      DO icoef=1,dyn_coeff_set%ncoef_atom_max
-        vbuffer(iel,icoef)=vbuffer(iel,icoef)-vcom
-        IF (gmass) THEN
-          ekin=ekin+0.5_dp*dyn_coeff_set%global_mass*vbuffer(iel,icoef) &
-               *vbuffer(iel,icoef)
-        ELSE
-          ekin=ekin+0.5_dp*mbuffer(iel,icoef)*vbuffer(iel,icoef)*vbuffer(iel,icoef)
-        END IF
-      END DO
+       DO icoef=1,dyn_coeff_set%ncoef_atom_max
+          vbuffer(iel,icoef)=vbuffer(iel,icoef)-vcom
+          IF (gmass) THEN
+             ekin=ekin+0.5_dp*dyn_coeff_set%global_mass*vbuffer(iel,icoef) &
+                  *vbuffer(iel,icoef)
+          ELSE
+             ekin=ekin+0.5_dp*mbuffer(iel,icoef)*vbuffer(iel,icoef)*vbuffer(iel,icoef)
+          END IF
+       END DO
     END DO
 
-! calculate coeff temperature
+    ! calculate coeff temperature
     temp_coefs = 2.0_dp * ekin / REAL ( dyn_coeff_set%ncoef_tot, dp )
 
-! scale velocties to get the correct initial coefficent temperature
+    ! scale velocties to get the correct initial coefficent temperature
 
     scale= SQRT ( kg_coeff_target_temp / temp_coefs )
     DO iel=1,dyn_coeff_set%nel_tot
-      DO icoef=1,dyn_coeff_set%ncoef_atom_max
-           vbuffer(iel,icoef)=vbuffer(iel,icoef)*scale
-      END DO
+       DO icoef=1,dyn_coeff_set%ncoef_atom_max
+          vbuffer(iel,icoef)=vbuffer(iel,icoef)*scale
+       END DO
     END DO
 
-! get the initial coef temperature
+    ! get the initial coef temperature
     ekin=0._dp
     vcom=0._dp
     DO iel=1,dyn_coeff_set%nel_tot
-      DO icoef=1,dyn_coeff_set%ncoef_atom_max
-        IF (gmass) THEN
-          vcom=vcom+dyn_coeff_set%global_mass*vbuffer(iel,icoef)
-          ekin=ekin+0.5_dp*dyn_coeff_set%global_mass*vbuffer(iel,icoef) &
-               *vbuffer(iel,icoef)
-        ELSE
-          vcom=vcom+mbuffer(iel,icoef)*vbuffer(iel,icoef)
-          ekin=ekin+0.5_dp*mbuffer(iel,icoef)*vbuffer(iel,icoef)*vbuffer(iel,icoef)
-        END IF
-      END DO
+       DO icoef=1,dyn_coeff_set%ncoef_atom_max
+          IF (gmass) THEN
+             vcom=vcom+dyn_coeff_set%global_mass*vbuffer(iel,icoef)
+             ekin=ekin+0.5_dp*dyn_coeff_set%global_mass*vbuffer(iel,icoef) &
+                  *vbuffer(iel,icoef)
+          ELSE
+             vcom=vcom+mbuffer(iel,icoef)*vbuffer(iel,icoef)
+             ekin=ekin+0.5_dp*mbuffer(iel,icoef)*vbuffer(iel,icoef)*vbuffer(iel,icoef)
+          END IF
+       END DO
     END DO
     vcom=vcom/denom
 
-  END IF
-  CALL mp_bcast(vbuffer,para_env%source,group)
+    DO ikind=1, nkind
+       n_els_of_kind(ikind) = dyn_coeff_set%distribution%n_el(ikind)
+    END DO
+    CALL mp_sum(n_els_of_kind,group)
 
-  DO ikind=1, nkind
-    n_els_of_kind(ikind) = dyn_coeff_set%distribution%n_el(ikind)
-  END DO
-  CALL mp_sum(n_els_of_kind,group)
+    offset=0
+    DO ikind=1, nkind
+       coeffs=>dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
+       IF(.NOT.ASSOCIATED(coeffs))THEN
+          offset = offset + n_els_of_kind(ikind)
+       ELSE
+          DO iel= 1,coeffs%n_els
+             iatom=dyn_coeff_set%distribution%list(ikind)%array(iel)
+             ioff=iatom - offset
+             DO icoef=1,coeffs%ncoef_atom
+                coeffs%vel(iel,icoef)=vbuffer(ioff,icoef)
+             END DO
+          END DO
+       END IF
+    END DO
 
-  offset=0
-  DO ikind=1, nkind
-    coeffs=>dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
-    IF(.NOT.ASSOCIATED(coeffs))THEN
-       offset = offset + n_els_of_kind(ikind)
-    ELSE
-      DO iel= 1,coeffs%n_els
-        iatom=dyn_coeff_set%distribution%list(ikind)%array(iel)
-        ioff=iatom - offset
-        DO icoef=1,coeffs%ncoef_atom
-          coeffs%vel(iel,icoef)=vbuffer(ioff,icoef)
-        END DO
-      END DO
+    DEALLOCATE(vbuffer,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineP,"vbuffer")
+    DEALLOCATE(n_els_of_kind,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineP,"n_els_of_kind")
+
+
+    logger => cp_error_get_logger(error)
+    output_unit=cp_print_key_unit_nr(logger, motion_section,"MD%PRINT%PROGRAM_RUN_INFO",&
+         extension=".log",error=error)
+
+    IF ( output_unit>0 ) THEN
+       CALL get_cp2k_units ( unit )
+       temp_coefs = 2.0_dp * ekin / REAL ( dyn_coeff_set%ncoef_tot, dp )
+       WRITE ( output_unit, '( A, T61, F18.2, A2 )' ) &
+            ' Initial Coef Temperature ', temp_coefs / unit % kelvin, " K"
+       WRITE ( output_unit, '( A, T61, F20.12 )' ) &
+            'Coefs Centre of mass velocity ', vcom
     END IF
-  END DO
 
-  DEALLOCATE(vbuffer,STAT=istat)
-  IF (istat /= 0) CALL stop_memory(routineP,"vbuffer")
-  DEALLOCATE(n_els_of_kind,STAT=istat)
-  IF (istat /= 0) CALL stop_memory(routineP,"n_els_of_kind")
+    CALL cp_print_key_finished_output(output_unit,logger,motion_section,&
+         "MD%PRINT%PROGRAM_RUN_INFO", error=error)
 
-
-  logger => cp_error_get_logger(error)
-  output_unit=cp_print_key_unit_nr(logger, motion_section,"MD%PRINT%PROGRAM_RUN_INFO",&
-                                         extension=".log",error=error)
-
-  IF ( output_unit>0 ) THEN
-     CALL get_cp2k_units ( unit )
-     temp_coefs = 2.0_dp * ekin / REAL ( dyn_coeff_set%ncoef_tot, dp )
-     WRITE ( output_unit, '( A, T61, F18.2, A2 )' ) &
-          ' Initial Coef Temperature ', temp_coefs / unit % kelvin, " K"
-     WRITE ( output_unit, '( A, T61, F20.12 )' ) &
-          'Coefs Centre of mass velocity ', vcom
-  END IF
-
-          CALL cp_print_key_finished_output(output_unit,logger,motion_section,&
-               "MD%PRINT%PROGRAM_RUN_INFO", error=error)
-
-END SUBROUTINE dyn_coeff_set_init_vel
+  END SUBROUTINE dyn_coeff_set_init_vel
 !*****************************************************************************
 
 END MODULE dynamical_coeff_types
