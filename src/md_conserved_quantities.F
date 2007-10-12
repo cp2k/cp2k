@@ -284,10 +284,10 @@ CONTAINS
       NULLIFY(md_ener%temp_kind)      
       DEALLOCATE(md_ener%ekin_kind,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      DEALLOCATE(md_ener%ekin_shell_kind,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       IF(my_shell_adiabatic) THEN
         NULLIFY(md_ener%temp_shell_kind)      
+        DEALLOCATE(md_ener%ekin_shell_kind,STAT=istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         DEALLOCATE(nfree_kind,STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         DEALLOCATE(nfree_shell_kind,STAT=istat)
