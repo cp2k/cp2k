@@ -643,7 +643,8 @@ CONTAINS
 !$OMP shared(op_angijt)&
 !$OMP shared(first_sgfa,first_sgfb,sab_orb,lb_min,la_max,op_sm)&
 !$OMP shared(atomic_kind_set,particle_set,cell)&
-!$OMP shared(my_minimum_image,Lxo2,Lyo2,Lzo2)
+!$OMP shared(my_minimum_image,Lxo2,Lyo2,Lzo2)&
+!$OMP shared(wancen)
         ithread = 0
 !$      ithread = omp_get_thread_num()
 

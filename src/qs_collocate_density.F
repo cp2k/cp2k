@@ -445,8 +445,10 @@ CONTAINS
     INTEGER                                  :: atom_a, bo(2), dir, handle, &
                                                 iatom, ierr, ikind, ithread, &
                                                 j, natom, ncurr, npme, &
-                                                omp_get_thread_num
-    INTEGER, DIMENSION(:), POINTER           :: atom_list
+                                                omp_get_thread_num, &
+                                                nthread,i,k,n, &
+                                                omp_get_max_threads
+    INTEGER, DIMENSION(:), POINTER           :: atom_list,ub,lb
     INTEGER, DIMENSION(:, :), POINTER        :: tasks
     REAL(KIND=dp)                            :: alpha, eps_rho_rspace
     REAL(KIND=dp), DIMENSION(3)              :: ra
@@ -465,6 +467,7 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(realspace_grid_type), POINTER       :: rs_rho
+    TYPE(lgrid_type)                         :: lgrid
 
     SAVE pab                ! Temporary addition for Intel 8.0 OpenMP to work
 !   ---------------------------------------------------------------------------
@@ -472,6 +475,7 @@ CONTAINS
     CALL timeset("calculate_rho_core","I"," ",handle)
     NULLIFY(atomic_kind,cell,dft_control,pab,atomic_kind_set,particle_set,&
          atom_list,pw_env,rs_rho,auxbas_rs_pool,auxbas_pw_pool,tasks)
+    NULLIFY(lgrid%r)
     ALLOCATE(pab(1,1),STAT=ierr)
     IF ( ierr /= 0 ) CALL stop_memory ( "calculate_rho_core", "pab", 1 )
 
@@ -516,6 +520,22 @@ CONTAINS
 
       dir = rs_rho%direction
 
+    nthread = 1
+!$  nthread = omp_get_max_threads()
+
+      IF ( nthread > 1 ) THEN
+         lb => rs_rho%lb_local
+         ub => rs_rho%ub_local
+         n = rs_rho%ngpts_local*nthread
+         CALL reallocate(lgrid%r,1,n)
+         lgrid%ldim = rs_rho%ngpts_local
+!$OMP parallel private(ithread,n)
+!$      ithread = omp_get_thread_num()
+         n = ithread*lgrid%ldim + 1
+         CALL dcopy(lgrid%ldim,0._dp,0,lgrid%r(n),1)
+!$OMP end parallel
+      END IF
+
 !$OMP parallel do &
 !$OMP default(none) &
 !$OMP private(iatom,j,atom_a,ra) &
@@ -541,7 +561,7 @@ CONTAINS
 !$OMP default(none) &
 !$OMP private(j,iatom,atom_a,ra,ithread) &
 !$OMP shared(npme,tasks,atom_list,particle_set,cell,pab,rs_rho) &
-!$OMP shared(cube_info,eps_rho_rspace,alpha,error)
+!$OMP shared(cube_info,eps_rho_rspace,alpha,error,lgrid,nthread)
       DO j=1,npme
 
         iatom = tasks(1,j)
@@ -549,12 +569,35 @@ CONTAINS
         ra(:) = pbc(particle_set(atom_a)%r,cell)
 
 !$      ithread=omp_get_thread_num()
-        CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_dp,0,ra,&
-             (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,-1.0_dp,pab,0,0,rs_rho,&
-             cell,cube_info,eps_rho_rspace,ga_gb_function=FUNC_AB,&
-             ithread=ithread,error=error)
+        IF (nthread > 1) then
+           CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_dp,0,ra,&
+           (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,-1.0_dp,pab,0,0,rs_rho,&
+           cell,cube_info,eps_rho_rspace,ga_gb_function=FUNC_AB,&
+           lgrid=lgrid,ithread=ithread,error=error)
+        ELSE
+           CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_dp,0,ra,&
+           (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,-1.0_dp,pab,0,0,rs_rho,&
+           cell,cube_info,eps_rho_rspace,ga_gb_function=FUNC_AB,&
+           ithread=ithread,error=error)
+        ENDIF
 
       END DO
+
+      IF ( nthread > 1 ) THEN
+         n = (ub(1)-lb(1)+1)*(ub(2)-lb(2)+1)
+         DO i=1,nthread
+!$OMP parallel do &
+!$OMP default(none) &
+!$OMP private(j,k) &
+!$OMP shared(i,lb,ub,lgrid,rs_rho,n)
+            DO j=lb(3),ub(3)
+               k = lgrid%ldim*(i-1) + n*(j-lb(3)) + 1
+               CALL daxpy (n,1._dp,lgrid%r(k),1,&
+               rs_rho%r(lb(1),lb(2),j),1)
+            END DO
+         END DO
+      END IF
+
 
     END DO
 
@@ -1070,10 +1113,16 @@ CONTAINS
               brow = jatom
               bcol = iatom
             END IF
+!bgl :
+!    this critical was added because p_block%block_list(block_row)%last_used_block_node
+!    is shared and is both read and written in get_block_node.  This could probably be 
+!    taken care of in a more efficient way by using a local copy of last_used_block_node
+!$OMP critical
             CALL get_block_node(matrix=deltap,&
                                 block_row=brow,&
                                 block_col=bcol,&
                                 BLOCK=p_block)
+!$OMP end critical
             IF (.NOT.ASSOCIATED(p_block)) &
                CALL stop_program(routine,"p_block not associated in deltap")
             DO ijsets = asets(1,ijatoms), asets(2,ijatoms)
@@ -1121,7 +1170,6 @@ CONTAINS
                 ELSE
                   scale = 2.0_dp
                 END IF
-
                 IF ( nthread > 1 ) THEN
                   IF (iatom <= jatom) THEN
                     CALL collocate_pgf_product_rspace(&
@@ -1202,7 +1250,7 @@ CONTAINS
       DEALLOCATE (lgrid%r,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"lgrid%r")
     END IF
-
+ 
     DEALLOCATE (pabt,workt,ntasks,tasks,tasks_local,ival,latom,&
         dist_ab,dab_local,asets,atasks,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"pabt,workt,ntasks,"//&
@@ -1525,9 +1573,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "FUNCTION calculate_total_rho (MODULE qs_collocate_density)"
 
-!   ---------------------------------------------------------------------------
-
-    total_abs_rho = 0.0_dp
     IF (ASSOCIATED(rho%pw%cr3d)) THEN
       total_abs_rho = rho%pw%pw_grid%dvol*accurate_sum(ABS(rho%pw%cr3d))
     ELSE
@@ -1969,12 +2014,8 @@ CONTAINS
 #include "prep.f90"
 
     IF ( PRESENT ( lgrid ) ) THEN
-     STOP " - OMP CURRENTLY NOT SUPPORTED IN THIS ROUTINE - "
-     !  ig = lgrid%ldim * ithread_l + 1
-     !  CALL collocate_core(pzyx(1),polx(1,-cmax),poly(1,-cmax),&
-     !          polz(1,-cmax),lgrid%r(ig),alpha(1,1),lx_max,lxy_max,&
-     !          lxyz_max,coef_max,cmax,ly_max(1),lz_max(1),&
-     !          gridbounds(1,1),map(-cmax,1),sphere_bounds(1))
+       ig = lgrid%ldim * ithread_l + 1
+#include "call_collocate_omp.f90"
     ELSE
 
 #include "call_collocate.f90"
@@ -2180,7 +2221,12 @@ CONTAINS
              res=res*exp2i
 
              i_index=grid_map(i)
-             grid(i_index,j_index,k_index)=grid(i_index,j_index,k_index)+res
+             IF ( PRESENT ( lgrid ) ) THEN
+                ig = lgrid%ldim * ithread_l + (k_index-1) * ng(2) * ng(1) + (j_index-1) * ng(1) + (i_index-1) + 1
+                lgrid%r(ig)=lgrid%r(ig)+res
+             ELSE
+                grid(i_index,j_index,k_index)=grid(i_index,j_index,k_index)+res
+             ENDIF
           ENDDO
         ENDDO
       ENDDO
@@ -2230,7 +2276,12 @@ CONTAINS
          ! point on the grid (including pbc)
          ipoint=MODULO((/i,j,k/),ng)+1
          ! add to grid
-         grid(ipoint(1),ipoint(2),ipoint(3))=grid(ipoint(1),ipoint(2),ipoint(3))+primitive_value(point)
+         IF ( PRESENT ( lgrid ) ) THEN
+            ig = lgrid%ldim * ithread_l + ipoint(3) * ng(2) * ng(1) + ipoint(2) * ng(1) + ipoint(1) + 1
+            lgrid%r(ig)=lgrid%r(ig)+primitive_value(point)
+         ELSE
+            grid(ipoint(1),ipoint(2),ipoint(3))=grid(ipoint(1),ipoint(2),ipoint(3))+primitive_value(point)
+         ENDIF
       ENDDO
       ENDDO
       ENDDO

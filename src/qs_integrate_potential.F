@@ -836,28 +836,41 @@ CONTAINS
               brow = jatom
               bcol = iatom
             END IF
+!bgl: get_block_node must be in a critical section if the matrix is shared
+! this could probably be fixed in a future version 
+!$OMP critical 
             CALL get_block_node(matrix=dh,&
                                 block_row=brow,&
                                 block_col=bcol,&
                                 block=h_block)
+!$OMP end critical
             IF (.NOT.ASSOCIATED(h_block)) &
                CALL add_block_node ( dh, brow, bcol, h_block ,error=error)
             IF (has_dv) THEN
                DO idir=1,3
+!bgl: get_block_node must be in a critical section if the matrix is shared
+! this could probably be fixed in a future version 
+!$OMP critical 
                   CALL get_block_node(matrix=ddv(idir)%matrix,&
                        block_row=brow,&
                        block_col=bcol,&
                        BLOCK=dv_block(idir)%array)
+!$OMP end critical 
                   IF (.NOT.ASSOCIATED(dv_block(idir)%array)) &
                        CALL add_block_node ( ddv(idir)%matrix, brow, bcol, dv_block(idir)%array ,error=error)
                END DO
             END IF
 
             IF (PRESENT(P)) THEN
+!bgl:       this critical was added because p_block%block_list(block_row)%last_used_block_node
+! is shared and is both read and written in get_block_node.  This could probably be taken care
+! of in a more efficient way by using a local copy of last_used_block_node
+!$OMP critical 
               CALL get_block_node(matrix=deltap,&
                                   block_row=brow,&
                                   block_col=bcol,&
                                   BLOCK=p_block)
+!$OMP end critical 
               IF (.NOT.ASSOCIATED(p_block)) &
                  CALL stop_program(routine,"p_block not associated in deltap")
             END IF
