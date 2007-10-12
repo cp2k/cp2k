@@ -19,6 +19,8 @@
 !******************************************************************************
 
 MODULE csvr_system_types
+  USE bibliography,                    ONLY: Bussi2007,&
+                                             cite_reference
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE extended_system_types,           ONLY: create_map_info_type,&
                                              map_info_type,&
@@ -101,6 +103,7 @@ CONTAINS
     NULLIFY(csvr%map_info)
     csvr%loc_num_csvr=0
     csvr%glob_num_csvr=0
+    CALL cite_reference(Bussi2007)
     CALL section_vals_val_get(section,"TIMECON",r_val=csvr%tau_csvr,error=error)
     ! The CSVR library expects the tau_csv to be in unit of integration timestep
     ! if applied once.. divided by two if the process is applied both to the first

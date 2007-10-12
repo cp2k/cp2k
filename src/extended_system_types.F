@@ -23,6 +23,9 @@
 !******************************************************************************
 
 MODULE extended_system_types
+  USE bibliography,                    ONLY: Nose1984a,&
+                                             Nose1984b,&
+                                             cite_reference
   USE input_constants,                 ONLY: do_thermo_no_communication
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
@@ -130,6 +133,8 @@ CONTAINS
     NULLIFY(lnhc%map_info)
     lnhc%loc_num_nhc=0
     lnhc%glob_num_nhc=0
+    CALL cite_reference(Nose1984a)
+    CALL cite_reference(Nose1984b)
     CALL section_vals_val_get(section,"LENGTH",i_val=lnhc%nhc_len,error=error)
     CALL section_vals_val_get(section,"YOSHIDA",i_val=lnhc%nyosh,error=error)
     CALL section_vals_val_get(section,"TIMECON",r_val=lnhc%tau_nhc,error=error)

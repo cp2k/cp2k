@@ -23,6 +23,9 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_cp2k_motion
+  USE bibliography,                    ONLY: Bussi2007,&
+                                             Nose1984a,&
+                                             Nose1984b
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants
@@ -3246,7 +3249,7 @@ SUBROUTINE create_coeff_section(coeff_section, error)
     IF (.NOT. failure) THEN  
        CALL section_create(section,name="nose",&
             description="paramameters of the Nose Hoover thermostat chain",&
-            required=.NOT. coupled_thermostat,error=error)
+            citations=(/Nose1984a,Nose1984b/),required=.NOT. coupled_thermostat,error=error)
 
        NULLIFY(keyword,subsection)
        CALL keyword_create(keyword, name="length",&
@@ -3341,7 +3344,7 @@ SUBROUTINE create_coeff_section(coeff_section, error)
     IF (.NOT. failure) THEN  
        CALL section_create(section,name="csvr",&
             description="Paramameters of the canonical sampling through velocity rescaling thermostat.",&
-            required=.NOT.coupled_thermostat,error=error)
+            citations=(/Bussi2007/),required=.NOT.coupled_thermostat,error=error)
 
        NULLIFY(keyword, subsection)
 
