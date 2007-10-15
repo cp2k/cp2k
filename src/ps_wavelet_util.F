@@ -133,7 +133,7 @@ SUBROUTINE PSolver(geocode,datacode,iproc,nproc,n01,n02,n03,hx,hy,hz,&
   REAL(KIND=dp), DIMENSION(*), INTENT(in) :: karray
   REAL(KIND=dp), INTENT(out) :: eh,exc,vxc
   REAL(KIND=dp), DIMENSION(*), INTENT(inout):: rhopot
-  TYPE(pw_grid_type), POINTER,INTENT(IN)              :: pw_grid
+  TYPE(pw_grid_type), POINTER         :: pw_grid
   TYPE(cp_error_type), INTENT(inout)       :: error
   !local variables
   INTEGER, PARAMETER :: nordgr=4 !the order of the finite-difference gradient (fixed)

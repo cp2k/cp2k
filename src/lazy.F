@@ -59,7 +59,7 @@ CONTAINS
   
   SUBROUTINE lazy_arrays(itype,m,ch,cg,cgt,cht)
     INTEGER,INTENT(in)                          ::   m,itype
-    REAL(KIND=dp), DIMENSION(:) ,POINTER,INTENT(out) :: ch,cg,cgt,cht
+    REAL(KIND=dp), DIMENSION(:) ,POINTER        :: ch,cg,cgt,cht
     INTEGER::i
 
     ALLOCATE(ch(-m:m))

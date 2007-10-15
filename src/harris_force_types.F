@@ -357,7 +357,7 @@ CONTAINS
 !!                                                                f_kinetic, f_gth_pp,
 !!                                                                f_overlap
 !!       REAL(KIND=dp), DIMENSION(:), POINTER, OPTIONAL        :: f_total
-!!       TYPE(cp_error_type), POINTER, OPTIONAL, INTENT(INOUT) :: error
+!!       TYPE(cp_error_type), POINTER, OPTIONAL :: error
 !!     END SUBROUTINE harris_force_get
 !!
 !!   FUNCTION
