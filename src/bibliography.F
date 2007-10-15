@@ -53,7 +53,7 @@ MODULE bibliography
              Goedecker1996, Hartwigsen1998, Krack2005, Lippert1997, Lippert1999, Krack2000,&
              Krack2002, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Toukmaji1996, Martyna1999,&
              VandeVondele2005b, Perdew1981,Avezac2005, Porezag1995, Seifert1996, Elstner1998, Zhechkov2005,&
-             Frigo2005, Nose1984a, Nose1984b, Bussi2007,Genovese2006,Genovese2007
+             Frigo2005, Nose1984a, Nose1984b, Bussi2007,Genovese2006,Genovese2007,Evans1983,Minary2003
 
 CONTAINS
 !!****f* bibliography/add_all_references *
@@ -642,6 +642,44 @@ CONTAINS
             "ER"),&
             DOI="10.1063/1.2754685")
 
+    CALL add_reference(key=Minary2003,ISI_record=s2a(&
+            "PT J",&
+            "AU Minary, P",&
+            "   Martyna, GJ",&
+            "   Tuckerman, ME",&
+            "TI Algorithms and novel applications based on the isokinetic ensemble. I.",&
+            "   Biophysical and path integral molecular dynamics",&
+            "SO JOURNAL OF CHEMICAL PHYSICS",&
+            "SN 0021-9606",&
+            "PD FEB 8",&
+            "PY 2003",&
+            "VL 118",&
+            "IS 6",&
+            "BP 2510",&
+            "EP 2526",&
+            "UT ISI:000180564800009",&
+            "ER"),&
+            DOI="10.1063/1.1534582")
+
+    CALL add_reference(key=Evans1983,ISI_record=s2a(&
+            "PT J",&
+            "AU EVANS, DJ",&
+            "   HOOVER, WG",&
+            "   FAILOR, BH",&
+            "   MORAN, B",&
+            "   LADD, AJC",&
+            "TI NON-EQUILIBRIUM MOLECULAR-DYNAMICS VIA GAUSS PRINCIPLE OF LEAST",&
+            "   CONSTRAINT",&
+            "SO PHYSICAL REVIEW A",&
+            "SN 1050-2947",&
+            "PY 1983",&
+            "VL 28",&
+            "IS 2",&
+            "BP 1016",&
+            "EP 1021",&
+            "UT ISI:A1983RB52800057",&
+            "ER"),&
+            DOI="10.1103/PhysRevA.28.1016")
 
   END SUBROUTINE add_all_references
 

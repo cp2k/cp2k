@@ -23,6 +23,9 @@
 MODULE md
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE bibliography,                    ONLY: cite_reference,&
+                                             Evans1983,&
+                                             Minary2003
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
@@ -208,6 +211,8 @@ CONTAINS
                simpar % tau_cell/unit%fs
        END IF
        IF (  simpar % ensemble == isokin_ensemble ) THEN
+          CALL cite_reference(Evans1983)
+          CALL cite_reference(Minary2003)
           WRITE ( iw, '( A )' ) ' MD| Simulation in the isokinetic ensemble'
        END IF
        IF ( simpar % constraint ) THEN
