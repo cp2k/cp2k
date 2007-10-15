@@ -48,7 +48,8 @@ SUBROUTINE scaling_function(itype,nd,nrange,a,x)
   REAL(KIND=dp),POINTER, DIMENSION(:)         ::   ch,cg,cgt,cht
   INTEGER :: i,nt,ni,i_all,m
   
-
+  a = 0.0_dp
+  x = 0.0_dp
   m=itype+2
   CALL lazy_arrays(itype,m,ch,cg,cgt,cht)
 
@@ -114,6 +115,8 @@ SUBROUTINE wavelet_function(itype,nd,a,x)
   REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: y
   INTEGER :: i,nt,ni,i_all,m
   
+  a = 0.0_dp
+  x = 0.0_dp
   m=itype+2
   ni=2*itype
   CALL lazy_arrays(itype,m,ch,cg,cgt,cht)
@@ -175,6 +178,7 @@ SUBROUTINE scf_recursion(itype,n_iter,n_range,kernel_scf,kern_1_scf)
   REAL(KIND=dp),POINTER, DIMENSION(:)         ::   ch,cg,cgt,cht
   !Local variables
   
+  kern_1_scf = 0.0_dp
   m=itype+2
   CALL lazy_arrays(itype,m,ch,cg,cgt,cht)
   CALL scf_recurs(n_iter,n_range,kernel_scf,kern_1_scf,m,ch,cg,cgt,cht)
@@ -230,7 +234,7 @@ SUBROUTINE for_trans(nd,nt,x,y,m,ch,cg,cgt,cht)
   !Local variables
   INTEGER :: i,j,ind,m
 
-
+  y = 0.0_dp
   do i=0,nt/2-1
      y(     i)=0.d0
      y(nt/2+i)=0.d0
@@ -283,7 +287,7 @@ subroutine back_trans(nd,nt,x,y,m,ch,cg,cgt,cht)
   REAL(KIND=dp),POINTER, DIMENSION(:)         ::   ch,cg,cgt,cht
   INTEGER :: i,j,ind,m
 
-
+  y = 0.0_dp
   
   do i=0,nt/2-1
      y(2*i+0)=0.d0
@@ -395,7 +399,7 @@ SUBROUTINE scf_recurs(n_iter,n_range,kernel_scf,kern_1_scf,m,ch,cg,cgt,cht)
   INTEGER :: i_iter,i,j,ind,m
   REAL(KIND=dp),POINTER, DIMENSION(:)         ::   ch,cg,cgt,cht
 
-
+  kern_1_scf = 0.0_dp
   !Start the iteration to go from p0gauss to pgauss
   loop_iter_scf: do i_iter=1,n_iter
      kern_1_scf(:) = kernel_scf(:)

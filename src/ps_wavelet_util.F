@@ -179,7 +179,6 @@ ixc =0
      PRINT *,"PSolver: Problem of memory allocation"
      STOP
   END IF
- 
 !  CALL timing(iproc,'Exchangecorr  ','ON')
   !dimension for exchange-correlation (different in the global or distributed case)
   !let us calculate the dimension of the portion of the rhopot array to be passed 
@@ -225,31 +224,31 @@ ixc =0
      nlim=n2/2
   end if
 
-!!$  print *,'density must go from',min(istart+1,m2),'to',iend,'with n2/2=',n2/2
-!!$  print *,'        it goes from',i3start+nwbl+nxcl-1,'to',i3start+nxc-1
-
-  IF (istart+1 <= m2) THEN 
-     red_fact=1._dp
-     call xc_energy(geocode,m1,m2,m3,md1,md2,md3,nxc,nwb,nxt,nwbl,nwbr,nxcl,nxcr,&
-          ixc,hx,hy,hz,rhopot,pot_ion,zf,zfionxc,&
-          eexcuLOC,vexcuLOC,iproc,nproc,red_fact)
-  ELSE IF (istart+1 <= nlim) THEN !this condition assures that we have perform good zero padding
-     DO i2=istart+1,MIN(nlim,istart+md2/nproc)
-        j2=i2-istart
-        DO i3=1,md3
-           DO i1=1,md1
-              zf(i1,i3,j2)=0.d0
-              zfionxc(i1,i3,j2)=0.d0 !this is not needed, only if pot is updated in Solver
-           END DO
-        END DO
-     END DO
-     eexcuLOC=0.d0
-     vexcuLOC=0.d0
-  ELSE
-     eexcuLOC=0.d0
-     vexcuLOC=0.d0
-  END IF
-     
+ !!$  print *,'density must go from',min(istart+1,m2),'to',iend,'with n2/2=',n2/2
+ !!$  print *,'        it goes from',i3start+nwbl+nxcl-1,'to',i3start+nxc-1
+ 
+   IF (istart+1 <= m2) THEN 
+      red_fact=1._dp
+      call xc_energy(geocode,m1,m2,m3,md1,md2,md3,nxc,nwb,nxt,nwbl,nwbr,nxcl,nxcr,&
+           ixc,hx,hy,hz,rhopot,pot_ion,zf,zfionxc,&
+           eexcuLOC,vexcuLOC,iproc,nproc,red_fact)
+   ELSE IF (istart+1 <= nlim) THEN !this condition assures that we have perform good zero padding
+      DO i2=istart+1,MIN(nlim,istart+md2/nproc)
+         j2=i2-istart
+         DO i3=1,md3
+            DO i1=1,md1
+               zf(i1,i3,j2)=0.d0
+               zfionxc(i1,i3,j2)=0.d0 !this is not needed, only if pot is updated in Solver
+            END DO
+         END DO
+      END DO
+      eexcuLOC=0.d0
+      vexcuLOC=0.d0
+   ELSE
+      eexcuLOC=0.d0
+      vexcuLOC=0.d0
+   END IF
+      
   !this routine builds the values for each process of the potential (zf), multiplying by scal 
   if(geocode == 'P') then
      !no powers of hgrid because they are incorporated in the plane wave treatment
@@ -869,7 +868,9 @@ SUBROUTINE xc_energy(geocode,m1,m2,m3,md1,md2,md3,nxc,nwb,nxt,nwbl,nwbr,&
 
   !Body
 
-
+  zf = 0.0_dp
+  zfionxc = 0.0_dp
+vlocal=0.0_dp
 potion=0.0
 DO jp2=1,nxc
    j2=offset+jp2+nxcl-2

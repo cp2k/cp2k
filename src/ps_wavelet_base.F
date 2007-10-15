@@ -441,7 +441,7 @@ subroutine P_mpiswitch_upcorn(j3,nfft,Jp2stb,J2stb,lot,n1,md2,nd3,nproc,zmpi1,zw
   integer, intent(in) :: j3,nfft,lot,n1,md2,nd3,nproc
   integer, intent(inout) :: Jp2stb,J2stb
   real(KIND=dp), dimension(2,n1,md2/nproc,nd3/nproc,nproc), intent(in) :: zmpi1
-  real(KIND=dp), dimension(2,lot,n1), intent(out) :: zw
+  real(KIND=dp), dimension(2,lot,n1), intent(inout) :: zw
   !local variables
   integer :: I1,J2,Jp2,mfft
 
@@ -468,7 +468,7 @@ subroutine P_switch_upcorn(nfft,n2,lot,n1,lzt,zt,zw)
   implicit none
   integer, intent(in) :: nfft,n2,lot,n1,lzt
   real(KIND=dp), dimension(2,lzt,n1), intent(in) :: zt
-  real(KIND=dp), dimension(2,lot,n2), intent(out) :: zw
+  real(KIND=dp), dimension(2,lot,n2), intent(inout) :: zw
   !local variables
   integer :: i,j
 
@@ -485,7 +485,7 @@ subroutine P_unswitch_downcorn(nfft,n2,lot,n1,lzt,zw,zt)
   implicit none
   integer, intent(in) :: nfft,n2,lot,n1,lzt
   real(KIND=dp), dimension(2,lot,n2), intent(in) :: zw
-  real(KIND=dp), dimension(2,lzt,n1), intent(out) :: zt
+  real(KIND=dp), dimension(2,lzt,n1), intent(inout) :: zt
   !local variables
   integer :: i,j
 
@@ -503,7 +503,7 @@ subroutine P_unmpiswitch_downcorn(j3,nfft,Jp2stf,J2stf,lot,n1,md2,nd3,nproc,zw,z
   integer, intent(in) :: j3,nfft,lot,n1,md2,nd3,nproc
   integer, intent(inout) :: Jp2stf,J2stf
   real(KIND=dp), dimension(2,lot,n1), intent(in) :: zw
-  real(KIND=dp), dimension(2,n1,md2/nproc,nd3/nproc,nproc), intent(out) :: zmpi1
+  real(KIND=dp), dimension(2,n1,md2/nproc,nd3/nproc,nproc), intent(inout) :: zmpi1
   !local variables
   integer :: I1,J2,Jp2,mfft
 
@@ -586,7 +586,7 @@ subroutine P_fill_upcorn(md1,md3,lot,nfft,n3,zf,zw)
   implicit none
   integer, intent(in) :: md1,md3,lot,nfft,n3
   real(KIND=dp), dimension(md1,md3), intent(in) :: zf
-  real(KIND=dp), dimension(2,lot,n3), intent(out) :: zw
+  real(KIND=dp), dimension(2,lot,n3), intent(inout) :: zw
   !local variables
   integer :: i1,i3
 
@@ -636,7 +636,7 @@ subroutine scramble_P(i1,j2,lot,nfft,n1,n3,md2,nproc,nd3,zw,zmpi2)
   !Arguments
   integer, intent(in) :: i1,j2,lot,nfft,n1,n3,md2,nproc,nd3
   real(KIND=dp), dimension(2,lot,n3), intent(in) :: zw
-  real(KIND=dp), dimension(2,n1,md2/nproc,nd3), intent(out) :: zmpi2
+  real(KIND=dp), dimension(2,n1,md2/nproc,nd3), intent(inout) :: zmpi2
   !Local variables
   integer :: i3,i
 
@@ -685,11 +685,11 @@ subroutine unscramble_P(i1,j2,lot,nfft,n1,n3,md2,nproc,nd3,zmpi2,zw)
   implicit none
   !Arguments
   integer, intent(in) :: i1,j2,lot,nfft,n1,n3,md2,nproc,nd3
-  real(KIND=dp), dimension(2,lot,n3), intent(out) :: zw
+  real(KIND=dp), dimension(2,lot,n3), intent(inout) :: zw
   real(KIND=dp), dimension(2,n1,md2/nproc,nd3), intent(in) :: zmpi2
   !Local variables
   integer :: i3,i,j3
-
+  
   i3=1
   do i=0,nfft-1
      zw(1,i+1,i3)=zmpi2(1,i1+i,j2,i3)
@@ -812,7 +812,6 @@ subroutine multkernel(nd1,nd2,n1,n2,lot,nfft,jS,pot,zw)
   integer :: j,j1,i2,j2,isign
 
   !Body
-  
   !case i2=1
   do j=1,nfft
      j1=j+jS-1
@@ -1000,12 +999,17 @@ real(kind=dp) :: time_b0,time_b1,serial_time,parallel_time
   i_all=i_all+i_stat
   allocate(cosinarr(2,n3/2),stat=i_stat)
   i_all=i_all+i_stat
-  if (nproc.gt.1) allocate(zmpi1(2,n1,md2/nproc,nd3/nproc,nproc),stat=i_stat)
+  if (nproc.gt.1)  then
+      allocate(zmpi1(2,n1,md2/nproc,nd3/nproc,nproc),stat=i_stat)
+      zmpi1= 0.0_dp
+  end if
   if (i_all+i_stat /= 0) then
      write(*,*)' s_poissonsolver: problem of memory allocation'
      stop
   end if
-
+  zmpi2 = 0.0_dp
+  zw = 0.0_dp
+  zt = 0.0_dp
 
   !calculating the FFT work arrays (beware on the HalFFT in n3 dimension)
   call ctrig(n3/2,btrig3,after3,before3,now3,1,ic3)
@@ -1326,7 +1330,7 @@ subroutine S_mpiswitch_upcorn(j3,nfft,Jp2stb,J2stb,lot,n1,md2,nd3,nproc,zmpi1,zw
   integer, intent(in) :: j3,nfft,lot,n1,md2,nd3,nproc
   integer, intent(inout) :: Jp2stb,J2stb
   real(KIND=dp), dimension(2,n1,md2/nproc,nd3/nproc,nproc), intent(in) :: zmpi1
-  real(KIND=dp), dimension(2,lot,n1), intent(out) :: zw
+  real(KIND=dp), dimension(2,lot,n1), intent(inout) :: zw
   !local variables
   integer :: I1,J2,Jp2,mfft
 
@@ -1353,7 +1357,7 @@ subroutine S_switch_upcorn(nfft,n2,lot,n1,lzt,zt,zw)
   implicit none
   integer, intent(in) :: nfft,n2,lot,n1,lzt
   real(KIND=dp), dimension(2,lzt,n1), intent(in) :: zt
-  real(KIND=dp), dimension(2,lot,n2), intent(out) :: zw
+  real(KIND=dp), dimension(2,lot,n2), intent(inout) :: zw
   !local variables
   integer :: i,j
 
@@ -1370,7 +1374,7 @@ subroutine S_unswitch_downcorn(nfft,n2,lot,n1,lzt,zw,zt)
   implicit none
   integer, intent(in) :: nfft,n2,lot,n1,lzt
   real(KIND=dp), dimension(2,lot,n2), intent(in) :: zw
-  real(KIND=dp), dimension(2,lzt,n1), intent(out) :: zt
+  real(KIND=dp), dimension(2,lzt,n1), intent(inout) :: zt
   !local variables
   integer :: i,j
 
@@ -1388,7 +1392,7 @@ subroutine S_unmpiswitch_downcorn(j3,nfft,Jp2stf,J2stf,lot,n1,md2,nd3,nproc,zw,z
   integer, intent(in) :: j3,nfft,lot,n1,md2,nd3,nproc
   integer, intent(inout) :: Jp2stf,J2stf
   real(KIND=dp), dimension(2,lot,n1), intent(in) :: zw
-  real(KIND=dp), dimension(2,n1,md2/nproc,nd3/nproc,nproc), intent(out) :: zmpi1
+  real(KIND=dp), dimension(2,n1,md2/nproc,nd3/nproc,nproc), intent(inout) :: zmpi1
   !local variables
   integer :: I1,J2,Jp2,mfft
 
@@ -1542,13 +1546,11 @@ subroutine scramble_unpack(i1,j2,lot,nfft,n1,n3,md2,nproc,nd3,zw,zmpi2,cosinarr)
   integer, intent(in) :: i1,j2,lot,nfft,n1,n3,md2,nproc,nd3
   real(KIND=dp), dimension(2,lot,n3/2), intent(in) :: zw
   real(KIND=dp), dimension(2,n3/2), intent(in) :: cosinarr
-  real(KIND=dp), dimension(2,n1,md2/nproc,nd3), intent(out) :: zmpi2
+  real(KIND=dp), dimension(2,n1,md2/nproc,nd3), intent(inout) :: zmpi2
   !Local variables
   integer :: i3,i,ind1,ind2
   real(KIND=dp) ::  a,b,c,d,cp,sp,feR,feI,foR,foI,fR,fI
   
-  !Body
-
   !case i3=1 and i3=n3/2+1
   do i=0,nfft-1
      a=zw(1,i+1,1)
@@ -1621,7 +1623,7 @@ subroutine unscramble_pack(i1,j2,lot,nfft,n1,n3,md2,nproc,nd3,zmpi2,zw,cosinarr)
   implicit none
   !Arguments
   integer, intent(in) :: i1,j2,lot,nfft,n1,n3,md2,nproc,nd3
-  real(KIND=dp), dimension(2,lot,n3/2), intent(out) :: zw
+  real(KIND=dp), dimension(2,lot,n3/2), intent(inout) :: zw
   real(KIND=dp), dimension(2,n3/2), intent(in) :: cosinarr
   real(KIND=dp), dimension(2,n1,md2/nproc,nd3), intent(in) :: zmpi2
   !Local variables
@@ -1629,7 +1631,6 @@ subroutine unscramble_pack(i1,j2,lot,nfft,n1,n3,md2,nproc,nd3,zmpi2,zw,cosinarr)
   real(KIND=dp) ::  a,b,c,d,cp,sp,re,ie,ro,io,rh,ih
 
   !Body
-
   do i3=1,n3/2
      indA=i3
      indB=n3/2+2-i3

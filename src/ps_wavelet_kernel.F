@@ -295,6 +295,7 @@ real(kind=dp) :: time_b0,time_b1,serial_time,parallel_time
   !coefficients for the polynomial interpolation
   REAL(KIND=dp), DIMENSION(9,8) :: cpol
   !assign the values of the coefficients  
+  karray = 0.0_dp
   cpol(:,:)=1.d0
 
   cpol(1,2)=.25d0
@@ -631,6 +632,7 @@ SUBROUTINE calculates_green_opt(n,n_scf,itype_scf,intorder,xval,yval,c,mu,hres,g
   REAL(KIND=dp), DIMENSION(:), ALLOCATABLE         :: green,green1
   logical                                          ::failure
 
+  g_mu = 0.0_dp
   !We calculate the number of iterations to go from mu0 to mu0_ref
   IF (mu <= mu_max) THEN
      n_iter = 0
@@ -934,7 +936,7 @@ SUBROUTINE Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
  !Number of integration points : 2*itype_scf*n_points
  n_scf=2*itype_scf*n_points
  !Set karray
-
+ karray = 0.0_dp
  !here we must set the dimensions for the fft part, starting from the nfft
  !remember that actually nfft2 is associated to n03 and viceversa
 
@@ -1106,7 +1108,8 @@ SUBROUTINE inserthalf(n1,n3,lot,nfft,i1,zf,zw)
   REAL(KIND=dp), DIMENSION(2,lot,n3/2), INTENT(out) :: zw
   !local variables
   INTEGER :: l1,l3,i01,i03r,i03i,i3
-  
+ 
+  zw = 0.0_dp 
   i3=0
   DO l3=1,n3,2
      i3=i3+1
@@ -1244,10 +1247,13 @@ real(kind=dp) :: time_b0,time_b1,serial_time,parallel_time
   i_all=i_all+i_stat
   ALLOCATE(cosinarr(2,n3/2),stat=i_stat)
   i_all=i_all+i_stat
-  IF (nproc.GT.1) ALLOCATE(zmpi1(2,n1,nd2/nproc,nd3/nproc,nproc),stat=i_stat)
+  IF (nproc.GT.1) THEN
+     ALLOCATE(zmpi1(2,n1,nd2/nproc,nd3/nproc,nproc),stat=i_stat)
+     zmpi1 = 0.0_dp 
+  END IF
   CPPostcondition(i_all==0,cp_failure_level,routineP,error,failure)
 
-  
+  zmpi2 = 0.0_dp 
   !calculating the FFT work arrays (beware on the HalFFT in n3 dimension)
   call ctrig(n3/2,trig3,after3,before3,now3,1,ic3)
   call ctrig(n1,trig1,after1,before1,now1,1,ic1)
@@ -1418,7 +1424,7 @@ SUBROUTINE realcopy(lot,nfft,n2,nk1,nk2,zin,zout)
   IMPLICIT NONE
   INTEGER, INTENT(in) :: nfft,lot,n2,nk1,nk2
   REAL(KIND=dp), DIMENSION(2,lot,n2), INTENT(in) :: zin
-  REAL(KIND=dp), DIMENSION(nk1,nk2), INTENT(out) :: zout
+  REAL(KIND=dp), DIMENSION(nk1,nk2), INTENT(inout) :: zout
   !local variables
   INTEGER :: i,j
   
