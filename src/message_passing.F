@@ -166,7 +166,8 @@ MODULE message_passing
 
   INTERFACE mp_alltoall
      MODULE PROCEDURE mp_alltoall_c22v, mp_alltoall_i, mp_alltoall_c22v_sgl, &
-                      mp_alltoall_i11v, mp_alltoall_r11v
+                      mp_alltoall_i11v, mp_alltoall_r11v, mp_alltoall_r45,&
+                      mp_alltoall_r34,mp_alltoall_r54
   END INTERFACE
 
   INTERFACE mp_send
@@ -1261,7 +1262,7 @@ SUBROUTINE mp_cart_rank ( group, pos, rank )
   CALL mpi_cart_rank ( group, pos, rank, ierr )
   IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_cart_rank @ mp_cart_rank" )
 #else
-  rank = 1
+  rank = 0
 #endif
 #if defined(__mp_timeset__)
     CALL timestop(handle)
@@ -1463,13 +1464,118 @@ SUBROUTINE mp_alltoall_i ( sb, rb, count, group )
   t_end = m_walltime ( )
   CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*intlen)
 #else
-  rb=sb
+!  rb=sb
 #endif
 #if defined(__mp_timeset__)
     CALL timestop(handle)
 #endif
 
 END SUBROUTINE mp_alltoall_i
+
+SUBROUTINE mp_alltoall_r45 ( sb, rb, count, group )
+
+
+    REAL(kind=dp), DIMENSION(:,:,:,:), INTENT(IN)  :: sb
+    REAL(kind=dp), DIMENSION(:,:,:,:,:), INTENT(OUT) :: rb
+    INTEGER, INTENT(IN)                      :: count, group
+
+    INTEGER                                  :: ierr, msglen, np
+    INTEGER :: handle
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_r', &
+      routineP = moduleN//':'//routineN
+#if defined(__mp_timeset__)
+    CALL timeset(routineN,handle)
+#endif
+
+  ierr = 0
+#if defined(__parallel)
+  t_start = m_walltime ( )
+  CALL mpi_alltoall ( sb, count, MP_STD_REAL, &
+                      rb, count, MP_STD_REAL, group, ierr )
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoall @ mp_alltoall_r" )
+  CALL mpi_comm_size ( group, np, ierr )
+  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ mp_alltoall_r" )
+  msglen = 2 * count * np
+  t_end = m_walltime ( )
+  CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+#else
+!  rb=sb
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop(handle)
+#endif
+
+  END SUBROUTINE mp_alltoall_r45
+
+SUBROUTINE mp_alltoall_r34 ( sb, rb, count, group )
+
+
+    REAL(kind=dp), DIMENSION(:,:,:), INTENT(IN)  :: sb
+    REAL(kind=dp), DIMENSION(:,:,:,:), INTENT(OUT) :: rb
+    INTEGER, INTENT(IN)                      :: count, group
+
+    INTEGER                                  :: ierr, msglen, np
+    INTEGER :: handle
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_r', &
+      routineP = moduleN//':'//routineN
+#if defined(__mp_timeset__)
+    CALL timeset(routineN,handle)
+#endif
+
+  ierr = 0
+#if defined(__parallel)
+  t_start = m_walltime ( )
+  CALL mpi_alltoall ( sb, count, MP_STD_REAL, &
+                      rb, count, MP_STD_REAL, group, ierr )
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoall @ mp_alltoall_r" )
+  CALL mpi_comm_size ( group, np, ierr )
+  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ mp_alltoall_r" )
+  msglen = 2 * count * np
+  t_end = m_walltime ( )
+  CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+#else
+!  rb=sb
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop(handle)
+#endif
+
+  END SUBROUTINE mp_alltoall_r34
+
+SUBROUTINE mp_alltoall_r54 ( sb, rb, count, group )
+
+
+    REAL(kind=dp), DIMENSION(:,:,:,:,:), INTENT(IN)  :: sb
+    REAL(kind=dp), DIMENSION(:,:,:,:), INTENT(OUT) :: rb
+    INTEGER, INTENT(IN)                      :: count, group
+
+    INTEGER                                  :: ierr, msglen, np
+    INTEGER :: handle
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_r', &
+      routineP = moduleN//':'//routineN
+#if defined(__mp_timeset__)
+    CALL timeset(routineN,handle)
+#endif
+
+  ierr = 0
+#if defined(__parallel)
+  t_start = m_walltime ( )
+  CALL mpi_alltoall ( sb, count, MP_STD_REAL, &
+                      rb, count, MP_STD_REAL, group, ierr )
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoall @ mp_alltoall_r" )
+  CALL mpi_comm_size ( group, np, ierr )
+  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ mp_alltoall_r" )
+  msglen = 2 * count * np
+  t_end = m_walltime ( )
+  CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+#else
+!  rb=sb
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop(handle)
+#endif
+
+  END SUBROUTINE mp_alltoall_r54
 
 !******************************************************************************
 

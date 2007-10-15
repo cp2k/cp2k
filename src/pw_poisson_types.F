@@ -44,7 +44,7 @@ MODULE pw_poisson_types
        PERIODIC3D, do_ewald_none, do_ewald_spme, use_analytic, use_mt, &
        use_multipole, use_none, use_perd_none, use_perd_x, use_perd_xy, &
        use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, use_perd_z, &
-       use_periodic
+       use_periodic,use_wavelet
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_release,&
                                              section_vals_type,&
@@ -54,6 +54,8 @@ MODULE pw_poisson_types
                                              pi,&
                                              twopi
   USE mt_util,                         ONLY: MTin_create_screen_fn
+  USE ps_wavelet_types,                ONLY: ps_wavelet_type,&
+                                             ps_wavelet_release
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_release
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -111,8 +113,10 @@ MODULE pw_poisson_types
      INTEGER :: ref_count, id_nr
      INTEGER :: pw_level
      INTEGER :: method
+     INTEGER :: used_grid
      LOGICAL :: rebuild
      TYPE ( greens_fn_type ), POINTER :: green_fft
+     TYPE (ps_wavelet_type ),POINTER  :: wavelet
      TYPE (section_vals_type), POINTER :: parameters
      TYPE (cell_type), POINTER :: cell
      TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools
@@ -352,7 +356,6 @@ CONTAINS
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                "An unknown Poisson solver was specified",error,failure)
        END SELECT
-
        ! allocate influence function,...
        SELECT CASE ( green % method )
        CASE ( PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D, MULTIPOLE0D)
@@ -761,7 +764,7 @@ END SUBROUTINE calc_p3m_charge
        poisson_env%rebuild=.TRUE.
        NULLIFY(poisson_env%parameters,poisson_env%green_fft,poisson_env%cell,&
             poisson_env%pw_pools,poisson_env%green_fft,&
-            poisson_env%mt_super_ref_pw_grid)
+            poisson_env%mt_super_ref_pw_grid,poisson_env%wavelet)
        poisson_env%pw_level=-1
        poisson_env%ref_count=1
     END IF
@@ -847,6 +850,7 @@ END SUBROUTINE calc_p3m_charge
           CALL pw_green_release(poisson_env%green_fft,error=error)
           CALL cell_release(poisson_env%cell,error=error)
           CALL pw_grid_release(poisson_env%mt_super_ref_pw_grid,error=error)
+          CALL ps_wavelet_release(poisson_env%wavelet,error=error)
           DEALLOCATE(poisson_env,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF

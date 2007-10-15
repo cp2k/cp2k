@@ -239,6 +239,7 @@ OBJECTS_GENERIC =\
  kg_scf_types.o\
  kinds.o\
  lapack.o\
+ lazy.o\
  lebedev.o\
  level_shift.o\
  libint_interface.o\
@@ -308,6 +309,12 @@ OBJECTS_GENERIC =\
  pint_types.o\
  pme.o\
  pme_tools.o\
+ ps_wavelet_base.o\
+ ps_wavelet_fft3d.o\
+ ps_wavelet_kernel.o\
+ ps_wavelet_scaling_function.o\
+ ps_wavelet_types.o\
+ ps_wavelet_util.o\
  preconditioner.o\
  pw_env_methods.o\
  pw_env_types.o\

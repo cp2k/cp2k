@@ -23,7 +23,8 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_cp2k_poisson
-  USE bibliography,                    ONLY: Toukmaji1996,Martyna1999
+  USE bibliography,                    ONLY: Toukmaji1996,Martyna1999,&
+                                             Genovese2006,Genovese2007
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants
@@ -101,8 +102,8 @@ CONTAINS
             variants=(/"POISSON", "PSOLVER"/),& 
             description="Specify which kind of solver to use to solve the Poisson equation.",&
             usage="POISSON_SOLVER char",&
-            enum_c_vals=s2a( "PERIODIC", "ANALYTIC", "MT", "MULTIPOLE"),&
-            enum_i_vals=(/ use_periodic, use_analytic, use_mt, use_multipole/),&
+            enum_c_vals=s2a( "PERIODIC", "ANALYTIC", "MT", "MULTIPOLE","WAVELET"),&
+            enum_i_vals=(/ use_periodic, use_analytic, use_mt, use_multipole,use_wavelet/),&
             citations=(/Martyna1999/),&
             default_i_val=use_periodic, error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -123,6 +124,10 @@ CONTAINS
        CALL keyword_release(keyword,error=error)     
 
        CALL create_mt_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_wavelet_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
@@ -599,6 +604,60 @@ END SUBROUTINE create_ewald_section
 
     END IF
   END SUBROUTINE create_gspace_interp_section
+
+!***************************************************************************
+
+!!****f* input_cp2k_poisson/create_wavelet_section [1.0] *
+!!
+!!   NAME
+!!     create_wavelet_section
+!!
+!!   FUNCTION
+!!     Creates the wavelet section
+!!
+!!   NOTES
+!!     this approach is based on the development of T. Deutsch and S. Goedecker
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fschiff
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_wavelet_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_wavelet_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="wavelet",&
+            description="Sets up parameters of  wavelet based poisson solver. ",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            citations=(/Genovese2006,Genovese2007/),&
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="SCF_TYPE",&
+            description="type of screening function used in the wavelet approach",&
+            usage="SCF_TYPE integer",&
+            n_var=1,default_i_val=16,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_wavelet_section
 !**************************************************************************
 
 END MODULE input_cp2k_poisson

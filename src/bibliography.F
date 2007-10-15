@@ -53,7 +53,7 @@ MODULE bibliography
              Goedecker1996, Hartwigsen1998, Krack2005, Lippert1997, Lippert1999, Krack2000,&
              Krack2002, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Toukmaji1996, Martyna1999,&
              VandeVondele2005b, Perdew1981,Avezac2005, Porezag1995, Seifert1996, Elstner1998, Zhechkov2005,&
-             Frigo2005, Nose1984a, Nose1984b, Bussi2007
+             Frigo2005, Nose1984a, Nose1984b, Bussi2007,Genovese2006,Genovese2007
 
 CONTAINS
 !!****f* bibliography/add_all_references *
@@ -594,6 +594,53 @@ CONTAINS
          "UT ISI:000226542300002",&
          "ER"),&
          DOI="10.1109/JPROC.2004.840301")
+
+     CALL add_reference(key=Genovese2006,ISI_record=s2a(&
+            "PT J",&
+            "AU Genovese, L",&
+            "   Deutsch, T",&
+            "   Neelov, A",&
+            "   Goedecker, S",&
+            "   Beylkin, G",&
+            "AF Genovese, Luigi",&
+            "   Deutsch, Thierry",&
+            "   Neelov, Alexey",&
+            "   Goedecker, Stefan",&
+            "   Beylkin, Gregory",&
+            "TI Efficient solution of Poisson's equation with free boundary conditions",&
+            "SO JOURNAL OF CHEMICAL PHYSICS",&
+            "SN 0021-9606",&
+            "PD AUG 21",&
+            "PY 2006",&
+            "VL 125",&
+            "IS 7",&
+            "AR 074105",&
+            "DI ARTN 074105",&
+            "UT ISI:000239914800005",&
+            "ER"),&
+            DOI="10.1063/1.2335442")
+
+     CALL add_reference(key=Genovese2007,ISI_record=s2a(&
+            "PT J",&
+            "AU Genovese, L",&
+            "   Deutsch, T",&
+            "   Goedecker, S",&
+            "AF Genovese, Luigi",&
+            "   Deutsch, Thierry",&
+            "   Goedecker, Stefan",&
+            "TI Efficient and accurate three-dimensional Poisson solver for surface",&
+            "   problems",&
+            "SO JOURNAL OF CHEMICAL PHYSICS",&
+            "SN 0021-9606",&
+            "PD AUG 7",&
+            "PY 2007",&
+            "VL 127",&
+            "IS 5",&
+            "AR 054704",&
+            "DI ARTN 054704",&
+            "UT ISI:000248594200029",&
+            "ER"),&
+            DOI="10.1063/1.2754685")
 
 
   END SUBROUTINE add_all_references

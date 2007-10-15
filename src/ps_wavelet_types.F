@@ -1,0 +1,638 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2007  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
+
+!!****** cp2k/ps_wavelet_types [1.0] *
+!!
+!!   NAME
+!!     ps_wavelet_types
+!!
+!!   FUNCTION
+!!     Definition and initialisation of the ps_wavelet data type.
+!!
+!!   AUTHOR
+!!     Florian Schiffmann (09.2007,fschiff)
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+
+MODULE ps_wavelet_types
+
+
+  USE kinds,                           ONLY: dp
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get,&
+                                             section_vals_get_subs_vals
+  USE input_constants,                 ONLY: &
+       PERIODIC3D, do_ewald_none, do_ewald_spme, use_analytic, use_mt, &
+       use_multipole, use_none, use_perd_none, use_perd_x, use_perd_xy, &
+       use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, use_perd_z, &
+       use_periodic
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_release,&
+                                             section_vals_retain,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE message_passing,                 ONLY: mp_cart_rank,&
+                                             mp_alltoall,&
+                                             mp_sync,&
+                                             mp_world_finalize,&
+                                             mp_bcast
+  USE output_utilities,                ONLY: print_warning
+  USE ps_wavelet_kernel,               ONLY: createKernel
+  USE pw_grid_types,                   ONLY: pw_grid_type,&
+                                             FULLSPACE,&
+                                             HALFSPACE,&
+                                             PW_MODE_DISTRIBUTED,&
+                                             PW_MODE_LOCAL
+
+  USE ps_wavelet_util,                 ONLY: PSolver,&
+                                             PS_dim4allocation,&
+                                             P_FFT_dimensions,&
+                                             S_FFT_dimensions,&
+                                             F_FFT_dimensions
+  USE pw_types,                        ONLY: pw_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  USE util,                            ONLY: get_limit
+
+#include "cp_common_uses.h"
+
+  IMPLICIT NONE
+
+  PRIVATE
+
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ps_wavelet_types'
+
+! *** Public data types ***
+
+  PUBLIC :: ps_wavelet_type,&
+            ps_wavelet_create,&
+            ps_wavelet_release,&
+            RS_z_slice_distribution,&
+            cp2k_distribution_to_z_slices,&
+            z_slices_to_cp2k_distribution,&
+            ps_wavelet_solve
+
+
+
+!***************************************************************************
+!!***** ps_wavelet_types/ps_wavelet_type [1.0] *
+!!
+!!   NAME
+!!     ps_wavelet_type
+!!
+!!   FUNCTION
+!!
+!!   NOTES
+!!     -
+!!
+!!   ATTRIBUTES
+!!
+!!   AUTHOR
+!!     fschiff
+!!
+!!   MODIFICATION HISTORY
+!!     09.2007 created [Florian Schiffmann]
+!!
+!***************************************************************************
+
+  TYPE ps_wavelet_type
+     CHARACTER(LEN=1)                                  :: geocode
+     CHARACTER(LEN=1)                                  :: datacode
+     INTEGER                                           :: itype_scf
+     REAL(kind= dp), POINTER, DIMENSION(:)             :: karray
+     REAL (KIND=dp), DIMENSION ( :, :, : ), POINTER    :: rho_z_sliced
+     INTEGER,DIMENSION(3)                              :: PS_grid
+  END TYPE ps_wavelet_type
+
+!***************************************************************************
+
+CONTAINS  
+
+
+!!****f* ps_wavelet_types/ps_wavelet_create [1.0] *
+!!
+!!   NAME
+!!     ps_wavelet_create
+!!
+!!   FUNCTION
+!!     creates the ps_wavelet_type which is needed for the link to
+!!     the Poisson Solver of Luigi Genovese
+!!     
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - wavlet : wavelet to create  
+!!     - pw_grid: the grid that is used to create the wavelet kernel
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Flroian Schiffmann
+!!
+!!   MODIFICATION HISTORY
+!!!!*** **********************************************************************
+  SUBROUTINE ps_wavelet_create(poisson_section,wavelet,pw_grid, error)
+    TYPE(ps_wavelet_type), POINTER           :: wavelet
+    TYPE(section_vals_type), POINTER         :: poisson_section
+    TYPE(pw_grid_type), POINTER              :: pw_grid
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ps_wavelet_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat,handle
+    LOGICAL                                  :: failure
+    INTEGER                                  :: my_per,nx,ny,nz,hx,hy,hz
+    INTEGER                                  :: iproc,nproc
+    CHARACTER(LEN=1)                         :: geocode
+    CHARACTER(LEN=1)                         :: datacode
+    INTEGER                                  :: itype_scf
+
+    TYPE(section_vals_type), POINTER         :: ps_wavelet_section
+
+    CALL timeset(routineN,"I","",handle)
+    CALL mp_sync(pw_grid % para % rs_group)
+    failure=.FALSE.
+
+    ALLOCATE(wavelet, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    nx = pw_grid % npts ( 1 )
+    ny = pw_grid % npts ( 2 )
+    nz = pw_grid % npts ( 3 )
+
+    hx = pw_grid % dr ( 1 )
+    hy = pw_grid % dr ( 2 )
+    hz = pw_grid % dr ( 3 ) 
+
+    nproc=PRODUCT(pw_grid % para % rs_dims)
+    iproc=pw_grid % para % rs_mpo
+
+    IF (.NOT.failure) THEN
+       ps_wavelet_section => section_vals_get_subs_vals(poisson_section,"WAVELET",error=error)
+       CALL section_vals_val_get(ps_wavelet_section,"SCF_TYPE",i_val=itype_scf,error=error)
+!       IF ( nproc .GT. 1) THEN
+          datacode="D"
+!       ELSE
+!          datacode="G"
+!       END IF
+       NULLIFY(wavelet%karray,wavelet%rho_z_sliced)
+       CALL section_vals_val_get(poisson_section,"PERIODIC",i_val=my_per,error=error)
+  
+       SELECT CASE (my_per)
+       CASE (use_perd_none)
+         wavelet%geocode="F"          
+       CASE (use_perd_xz)
+         wavelet%geocode="S"
+       CASE (use_perd_xyz)
+         wavelet%geocode="P"
+       CASE(use_perd_x,use_perd_y,use_perd_z,use_perd_xy,use_perd_yz)
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                  "Poisson solver for this periodicity not yet implemented",&
+                  error=error,failure=failure)
+       CASE DEFAULT
+          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       END SELECT
+
+       CALL section_vals_val_get(poisson_section,"WAVELET%SCF_TYPE",i_val=itype_scf,error=error)
+       wavelet%itype_scf=itype_scf
+       wavelet%datacode=datacode
+       CALL mp_sync(pw_grid % para % rs_group)
+
+          CALL RS_z_slice_distribution(wavelet,pw_grid, error)
+          
+    END IF
+    CALL timestop(0.0_dp,handle)
+  END SUBROUTINE ps_wavelet_create
+
+  
+  SUBROUTINE ps_wavelet_release(wavelet,error)
+
+    TYPE(ps_wavelet_type), POINTER           :: wavelet
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ps_wavelet_release', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    IF (.NOT.failure) THEN
+       IF (ASSOCIATED(wavelet)) THEN
+          IF (ASSOCIATED(wavelet%karray))&
+               DEALLOCATE(wavelet%karray)
+          IF(ASSOCIATED(wavelet%rho_z_sliced))&
+               DEALLOCATE(wavelet%rho_z_sliced)
+          DEALLOCATE(wavelet)
+       END IF
+    END IF
+  END SUBROUTINE ps_wavelet_release
+
+
+
+  SUBROUTINE RS_z_slice_distribution(wavelet,pw_grid, error)
+    
+    TYPE(ps_wavelet_type), POINTER           :: wavelet
+    TYPE(pw_grid_type), POINTER              :: pw_grid
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    
+    CHARACTER(len=*), PARAMETER :: routineN = 'RS_z_slice_distribution', &
+      routineP = moduleN//':'//routineN    
+
+    CHARACTER(LEN=1)                        :: geocode
+    INTEGER                                  :: nproc,stat,handle
+    INTEGER                                  :: nx,ny,nz,m1,m2,m3,n1,n2,n3,&
+                                                md1,md2,md3,nd1,nd2,nd3,z_dim,&
+                                                iproc
+    REAL(KIND=dp)                            :: hx,hy,hz
+    LOGICAL                                  :: failure
+
+    CALL timeset(routineN,"I","",handle)
+    nproc=PRODUCT(pw_grid % para % rs_dims)
+    iproc= pw_grid % para % rs_mpo
+    geocode=wavelet%geocode
+    nx = pw_grid % npts ( 1 )
+    ny = pw_grid % npts ( 2 )
+    nz = pw_grid % npts ( 3 )
+    hx = pw_grid % dr ( 1 )
+    hy = pw_grid % dr ( 2 )
+    hz = pw_grid % dr ( 3 )
+
+
+    !calculate Dimensions for the z-distributed density and for the kernel
+
+    IF (geocode == 'P') THEN
+       CALL P_FFT_dimensions(nx,ny,nz,m1,m2,m3,n1,n2,n3,md1,md2,md3,nd1,nd2,nd3,nproc)
+    ELSE IF (geocode == 'S') THEN
+       CALL S_FFT_dimensions(nx,ny,nz,m1,m2,m3,n1,n2,n3,md1,md2,md3,nd1,nd2,nd3,nproc)
+    ELSE IF (geocode == 'F') THEN
+       CALL F_FFT_dimensions(nx,ny,nz,m1,m2,m3,n1,n2,n3,md1,md2,md3,nd1,nd2,nd3,nproc)
+    END IF
+
+    wavelet%PS_grid(1)=md1
+    wavelet%PS_grid(2)=md3
+    wavelet%PS_grid(3)=md2
+    z_dim=md2/nproc
+    !!!!!!!!!      indicies y and z are interchanged    !!!!!!!
+    ALLOCATE(wavelet%rho_z_sliced(md1,md3,z_dim),stat=stat)
+
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL createKernel(geocode,nx,ny,nz,hx,hy,hz,wavelet%itype_scf,iproc,nproc,wavelet%karray,&
+                       pw_grid % para % rs_group ,error)
+    
+
+    CALL timestop(0.0_dp,handle)
+  END SUBROUTINE RS_z_slice_distribution
+
+
+
+
+  SUBROUTINE cp2k_distribution_to_z_slices (density , wavelet, pw_grid, error)
+
+    TYPE(pw_type), POINTER                   :: density
+    TYPE(ps_wavelet_type), POINTER           :: wavelet
+    TYPE(pw_grid_type), POINTER              :: pw_grid
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_distribution_to_z_slices', &
+      routineP = moduleN//':'//routineN    
+    
+    INTEGER                                  :: i,j,k,l,m,ii,dest,nproc,iproc,ierr,&
+                                                md2,m2,z_lb,z_ub,loz,local_z_dim,handle 
+    INTEGER,DIMENSION(:),ALLOCATABLE         :: scount,sdispl,rcount,rdispl,tmp
+    INTEGER,DIMENSION(2)                     :: cart_pos,lox,loy
+    INTEGER,DIMENSION(3)                     :: lb,ub
+    TYPE(pw_type), POINTER                   :: rhor
+    REAL(KIND=dp),DIMENSION(:),POINTER       :: sbuf,rbuf
+    real(KIND=dp)                            :: max_val_low,max_val_up
+    LOGICAL                                  :: failure,stop_here
+    TYPE(cp_logger_type), POINTER            :: logger
+    
+    CALL timeset(routineN,"I","",handle)
+    failure=.FALSE.
+    logger => cp_error_get_logger(error)
+
+    CPPrecondition(ASSOCIATED(wavelet),cp_failure_level,routineP,error,failure)
+    IF (.NOT.failure) THEN
+  
+       nproc=PRODUCT(pw_grid % para % rs_dims)
+       iproc=pw_grid % para % rs_mpo
+       md2=wavelet%PS_grid(3)
+       m2= pw_grid % npts ( 3 )
+       lb(:)=pw_grid % bounds_local ( 1, : )
+       ub(:)=pw_grid % bounds_local ( 2, : )
+       z_lb=1+iproc*(md2/nproc)
+       z_ub=1+MIN((iproc+1)*md2/nproc,m2)
+       local_z_dim=(md2/nproc)
+
+       ALLOCATE(sbuf(PRODUCT(pw_grid % npts_local)),stat=ierr)
+       
+       ALLOCATE(rbuf(PRODUCT(wavelet%PS_grid)/nproc))
+       ALLOCATE(scount(nproc),sdispl(nproc),rcount(nproc),rdispl(nproc),tmp(nproc))
+
+
+       rbuf=0.0_dp
+       ii=1
+       DO k=lb(3),ub(3)
+          DO j=lb(2),ub(2)
+             DO i=lb(1),ub(1)
+                sbuf(ii)=density % cr3d(i,j,k)
+                ii=ii+1
+             END DO
+          END DO
+       END DO
+
+       IF(wavelet%geocode=='S'.OR.wavelet%geocode=='F')THEN
+          max_val_low=0._dp
+          max_val_up=0._dp
+          IF(lb(2)==pw_grid%bounds(1,2))max_val_low=MAXVAL(ABS(density % cr3d(:,lb(2),:)))
+          IF(ub(2)==pw_grid%bounds(2,2))max_val_up=MAXVAL(ABS(density % cr3d(:,ub(2),:)))
+          IF(max_val_low.GE.0.0001_dp)CALL print_warning(routineP,&
+               "Density hits the lower boundary of the system in XZ-plane")
+          IF(max_val_up.GE.0.0001_dp)CALL print_warning(routineP,&
+               "Density hits the upper boundary of the system in XZ-plane")          
+          IF(wavelet%geocode=='F')THEN
+             max_val_low=0._dp
+             max_val_up=0._dp
+             IF(lb(1)==pw_grid%bounds(1,1))max_val_low=MAXVAL(ABS(density % cr3d(lb(1),:,:)))
+             IF(ub(1)==pw_grid%bounds(2,1))max_val_up=MAXVAL(ABS(density % cr3d(ub(1),:,:)))
+             IF(max_val_low.GE.0.0001_dp)CALL print_warning(routineP,&
+                  "Density hits the lower boundary of the system in YZ-plane")
+             IF(max_val_up.GE.0.0001_dp)CALL print_warning(routineP,&
+                  "Density hits the upper boundary of the system in YZ-plane") 
+             max_val_low=0._dp
+             max_val_up=0._dp
+             IF(lb(3)==pw_grid%bounds(1,3))max_val_low=MAXVAL(ABS(density % cr3d(:,:,lb(3))))
+             IF(ub(3)==pw_grid%bounds(2,3))max_val_up=MAXVAL(ABS(density % cr3d(:,:,ub(3))))
+             IF(max_val_low.GE.0.0001_dp)CALL print_warning(routineP,&
+                  "Density hits the lower boundary of the system in XY-plane")
+             IF(max_val_up.GE.0.0001_dp)CALL print_warning(routineP,&
+                  "Density hits the upper boundary of the system in XY-plane") 
+          END IF
+       END IF
+
+       DO i = 0,pw_grid % para % rs_dims(1)-1
+          DO j= 0, pw_grid % para % rs_dims(2)-1
+             cart_pos=(/i,j/)
+             CALL mp_cart_rank ( pw_grid % para % rs_group, &
+                                 cart_pos, &
+                                 dest )
+
+             IF((dest+1)*local_z_dim.LE.m2)THEN
+                scount(dest+1)=ABS((ub(1)-lb(1)+1)*(ub(2)-lb(2)+1)*local_z_dim)
+             ELSE
+                scount(dest+1)=ABS((ub(1)-lb(1)+1)*(ub(2)-lb(2)+1)*MOD(m2,local_z_dim))
+             END IF
+             lox = get_limit ( pw_grid % npts ( 1 ), pw_grid % para % rs_dims ( 1 ), i )
+             loy = get_limit ( pw_grid % npts ( 2 ), pw_grid % para % rs_dims ( 2 ), j )
+
+             IF((iproc+1)*local_z_dim.LE.m2)THEN
+                rcount(dest+1)=ABS((lox(2)-lox(1)+1)*(loy(2)-loy(1)+1)*local_z_dim)
+             ELSE
+                rcount(dest+1)=ABS((lox(2)-lox(1)+1)*(loy(2)-loy(1)+1)*MOD(m2,local_z_dim))
+             END IF             
+             
+             
+  
+          END DO
+       END DO
+       
+       sdispl(1)=0
+       rdispl(1)=0
+       DO i = 2,nproc
+          sdispl(i)=sdispl(i-1)+scount(i-1)
+          rdispl(i)=rdispl(i-1)+rcount(i-1)
+       END DO
+       
+
+       call mp_sync(pw_grid%para%rs_group)
+       CALL mp_alltoall(sbuf,scount,sdispl,rbuf,rcount,rdispl,pw_grid%para%rs_group)
+       !!!! and now, how to put the right cubes to the right position!!!!!!
+
+       wavelet%rho_z_sliced=0.0_dp
+
+       DO i = 0,pw_grid % para % rs_dims(1)-1
+          DO j= 0, pw_grid % para % rs_dims(2)-1
+             cart_pos=(/i,j/)            
+             CALL mp_cart_rank ( pw_grid % para % rs_group, &
+                                 cart_pos, &
+                                 dest )
+                                 
+             lox = get_limit ( pw_grid % npts ( 1 ), pw_grid % para % rs_dims ( 1 ), i )
+             loy = get_limit ( pw_grid % npts ( 2 ), pw_grid % para % rs_dims ( 2 ), j )
+             IF((iproc+1)*local_z_dim.LE.m2)THEN
+                loz=local_z_dim
+             ELSE
+                loz=MOD(m2,local_z_dim)
+             END IF
+             ii=1
+             DO k=1,loz
+!                DO l = loy(1)-pw_grid%bounds(1,2)+1,loy(2)-pw_grid%bounds(1,2)+1
+!                   DO m = lox(1)-pw_grid%bounds(1,1)+1,lox(2)-pw_grid%bounds(1,1)+1
+                DO l = loy(1),loy(2)
+                   DO m = lox(1),lox(2)                      
+                      wavelet%rho_z_sliced(m,l,k)=rbuf(ii+rdispl(dest+1))
+                      ii=ii+1
+                   END DO
+ 
+                END DO
+              END DO
+          END DO
+       END DO
+
+       
+       DEALLOCATE(sbuf,rbuf,scount,sdispl,rcount,rdispl,tmp)
+
+    END IF
+    CALL timestop(0.0_dp,handle)
+
+   CALL mp_sync(pw_grid%para%rs_group)
+
+  END SUBROUTINE cp2k_distribution_to_z_slices
+
+  
+
+  SUBROUTINE z_slices_to_cp2k_distribution(density , wavelet, pw_grid, error)
+    
+    TYPE(pw_type), POINTER                   :: density
+    TYPE(ps_wavelet_type), POINTER           :: wavelet
+    TYPE(pw_grid_type), POINTER              :: pw_grid
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'z_slices_to_cp2k_distribution', &
+      routineP = moduleN//':'//routineN    
+    
+    INTEGER                                  :: i,j,k,l,m,ii,dest,nproc,iproc,ierr,&
+                                                md2,m2,z_lb,z_ub,loz,local_z_dim 
+    INTEGER,DIMENSION(:),ALLOCATABLE         :: scount,sdispl,rcount,rdispl,tmp
+    INTEGER,DIMENSION(2)                     :: cart_pos,lox,loy
+    INTEGER,DIMENSION(3)                     :: lb,ub
+    TYPE(pw_type), POINTER                   :: rhor
+    REAL(KIND=dp),DIMENSION(:),POINTER       :: sbuf,rbuf
+    
+    LOGICAL                                  :: failure
+    
+
+    failure=.FALSE.
+    CPPrecondition(ASSOCIATED(wavelet),cp_failure_level,routineP,error,failure)
+
+    IF (.NOT.failure) THEN
+
+       nproc=PRODUCT(pw_grid % para % rs_dims)
+       iproc=pw_grid % para % rs_mpo
+       md2=wavelet%PS_grid(3)
+       m2= pw_grid % npts ( 3 )
+
+       lb(:)=pw_grid % bounds_local ( 1, : )
+       ub(:)=pw_grid % bounds_local ( 2, : )
+       
+       z_lb=iproc*(md2/nproc)
+       z_ub=MIN((iproc+1)*md2/nproc,m2)
+       local_z_dim=(md2/nproc)
+
+       ALLOCATE(rbuf(PRODUCT(pw_grid % npts_local)),stat=ierr)
+       ALLOCATE(sbuf(PRODUCT(wavelet%PS_grid)/nproc))
+       ALLOCATE(scount(nproc),sdispl(nproc),rcount(nproc),rdispl(nproc),tmp(nproc))
+
+       rbuf=0.0_dp
+       ii=1
+
+       IF((iproc+1)*local_z_dim.LE.m2)THEN
+          loz=local_z_dim
+       ELSE
+          loz=MOD(m2,local_z_dim)
+       END IF
+
+
+       DO i=1, pw_grid % npts ( 1 )
+          DO j=1, pw_grid % npts ( 2 )
+             DO k=1,loz
+                sbuf(ii)= wavelet%rho_z_sliced(i,j,k)
+                ii=ii+1
+             END DO
+          END DO
+       END DO
+
+       DO i = 0,pw_grid % para % rs_dims(1)-1
+          DO j= 0, pw_grid % para % rs_dims(2)-1
+             cart_pos=(/i,j/)
+             CALL mp_cart_rank ( pw_grid % para % rs_group, &
+                                 cart_pos, &
+                                 dest )
+             
+             IF((dest+1)*local_z_dim.LE.m2)THEN
+                rcount(dest+1)=ABS((ub(1)-lb(1)+1)*(ub(2)-lb(2)+1)*local_z_dim)
+             ELSE
+                rcount(dest+1)=ABS((ub(1)-lb(1)+1)*(ub(2)-lb(2)+1)*MOD(m2,local_z_dim))
+             END IF
+             lox = get_limit ( pw_grid % npts ( 1 ), pw_grid % para % rs_dims ( 1 ), i )
+             loy = get_limit ( pw_grid % npts ( 2 ) , pw_grid % para % rs_dims ( 2 ), j )
+
+             IF((iproc+1)*local_z_dim.LE.m2)THEN
+                scount(dest+1)=ABS((lox(2)-lox(1)+1)*(loy(2)-loy(1)+1)*local_z_dim)
+             ELSE
+                scount(dest+1)=ABS((lox(2)-lox(1)+1)*(loy(2)-loy(1)+1)*MOD(m2,local_z_dim))
+             END IF             
+             
+          END DO
+       END DO
+       
+       sdispl(1)=0
+       rdispl(1)=0
+       DO i = 2,nproc
+          sdispl(i)=sdispl(i-1)+scount(i-1)
+          rdispl(i)=rdispl(i-1)+rcount(i-1)
+       END DO
+
+       CALL mp_sync(pw_grid % para % rs_group)
+       
+       CALL mp_alltoall(sbuf,scount,sdispl,rbuf,rcount,rdispl,pw_grid % para % rs_group)
+
+       CALL mp_sync(pw_grid % para % rs_group)
+
+       !!!! and now, how to put the right cubes to the right position!!!!!!
+
+       DO i = 0,pw_grid % para % rs_dims(1)-1
+          DO j= 0, pw_grid % para % rs_dims(2)-1
+             cart_pos=(/i,j/)
+             CALL mp_cart_rank ( pw_grid % para % rs_group, &
+                                 cart_pos, &
+                                 dest )
+             IF((dest+1)*local_z_dim.LE.m2)THEN
+                loz=local_z_dim
+             ELSE
+                loz=MOD(m2,local_z_dim)
+             END IF
+             ii=1
+
+             DO m = lb(1),ub(1)
+                DO l = lb(2),ub(2)
+                   DO k= lb(3)+(dest*local_z_dim),lb(3)+(dest*local_z_dim)+loz-1
+                      density%cr3d(m,l,k)=rbuf(ii+rdispl(dest+1))
+
+                      ii=ii+1
+                   END DO
+                END DO
+             END DO
+          END DO
+       END DO
+
+
+       CALL mp_sync(pw_grid % para % rs_group)
+       DEALLOCATE(sbuf,rbuf,scount,sdispl,rcount,rdispl,tmp)
+    END IF
+
+  END SUBROUTINE z_slices_to_cp2k_distribution
+    
+
+
+
+
+    SUBROUTINE ps_wavelet_solve(wavelet,pw_grid,eh,error)
+
+    TYPE(ps_wavelet_type), POINTER           :: wavelet
+    TYPE(pw_grid_type), POINTER              :: pw_grid
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    
+    CHARACTER(len=*), PARAMETER :: routineN = 'ps_wavelet_solve', &
+      routineP = moduleN//':'//routineN    
+
+    CHARACTER(LEN=1)                        :: geocode,datacode
+    INTEGER                                  :: nproc,stat,handle
+    INTEGER                                  :: nx,ny,nz,m1,m2,m3,n1,n2,n3,&
+                                                md1,md2,md3,nd1,nd2,nd3,z_dim,&
+                                                iproc
+    REAL(KIND=dp)                            :: hx,hy,hz,eg,exc,vxc,offset,eh,potion
+    LOGICAL                                  :: failure
+
+    CALL timeset(routineN,"I","",handle)
+    nproc=PRODUCT(pw_grid % para % rs_dims)
+    iproc= pw_grid % para % rs_mpo
+    geocode=wavelet%geocode
+    datacode=wavelet%datacode
+    nx = pw_grid % npts ( 1 )
+    ny = pw_grid % npts ( 2 )
+    nz = pw_grid % npts ( 3 )
+    hx = pw_grid % dr ( 1 )
+    hy = pw_grid % dr ( 2 )
+    hz = pw_grid % dr ( 3 )
+    offset=0.0_dp
+    
+
+    CALL PSolver(geocode,datacode,iproc,nproc,nx,ny,nz,hx,hy,hz,&
+         wavelet%rho_z_sliced,wavelet%karray,eh,exc,vxc,offset,pw_grid,error)
+    CALL timestop(0.0_dp,handle)
+  END SUBROUTINE ps_wavelet_solve
+
+END MODULE ps_wavelet_types
