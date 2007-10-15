@@ -22,7 +22,8 @@
 !******************************************************************************
 
 MODULE qs_scf_post
-
+  USE physcon,                         ONLY: bohr,&
+                                             debye
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
@@ -812,9 +813,7 @@ CONTAINS
           IF (.NOT.ghost) THEN
              CALL get_atomic_kind(particle_set(i)%atomic_kind,core_charge=zeff)
              CPPrecondition(cell%orthorhombic,cp_failure_level,routineP,error,failure)
-             DO idir=1,3
-                r_pbc(idir) = particle_set(i) % r(idir)
-             END DO
+             r_pbc = pbc(particle_set(i)%r, cell)
              dipole=dipole + zeff*r_pbc
           END IF
        END DO
@@ -823,24 +822,24 @@ CONTAINS
        ! Warning, this assumes the same occupation for all states
        zwfc = 3.0_dp-REAL(dft_control%nspins,dp)
        DO ispins=1,dft_control%nspins
-         DO i=1,SIZE(center,1)
-            r_pbc = center(i,1:3,ispins)
-            dipole=dipole - zwfc * r_pbc
-         ENDDO
+          DO i=1,SIZE(center,1)
+             r_pbc = pbc(center(i,1:3,ispins),cell)
+             dipole=dipole - zwfc * r_pbc
+          ENDDO
        ENDDO
-       dipole=pbc(dipole,cell)
-
+       
        unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%LOCALIZATION",&
             extension=".Dipole",log_filename=.FALSE.,on_file=.TRUE.,error=error)
        IF (unit_nr>0) THEN
           IF (first_time) THEN
-             WRITE(unit=unit_nr,fmt="(a)")&
-                  "# iter_level    dipole(x,y,z)[au] delta_dipole(x,y,z)[au]"
+             WRITE(unit=unit_nr,fmt="(A,T31,A,T88,A,T136,A)")&
+                  "# iter_level","dipole(x,y,z)[atomic units]",&
+                                 "dipole(x,y,z)[debye]",&
+                                 "delta_dipole(x,y,z)[atomic units]"
           END IF
           iter=cp_iter_string(logger%iter_info,error=error)
-          WRITE(unit=unit_nr,fmt="(a,6(es18.8))")&
-               iter(1:15),&
-               dipole,pbc(dipole-qs_env%results%dipole,cell)
+          WRITE(unit=unit_nr,fmt="(a,9(es18.8))")&
+               iter(1:15), dipole, dipole*debye, (dipole-qs_env%results%dipole)
        END IF
        CALL cp_print_key_finished_output(unit_nr,logger,input,&
             "DFT%PRINT%LOCALIZATION",on_file=.TRUE.,error=error)
