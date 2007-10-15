@@ -33,3 +33,6 @@ H2O-meta_g.inp     1
 H2O-meta_hydro.inp 1
 #NPT ensemble with QS
 H2O-7.inp          1
+#test wavelet based poisson solver for different boundary conditions
+H2O_wavelet_free.inp  1
+H2O_wavelet_XZ.inp    1
