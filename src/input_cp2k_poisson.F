@@ -650,7 +650,8 @@ END SUBROUTINE create_ewald_section
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="SCF_TYPE",&
-            description="type of screening function used in the wavelet approach",&
+            description="type of screening function used in the wavelet approach "//&
+            "possible values are 8,14,16,20,24,30,40,50,60,100 ",&
             usage="SCF_TYPE integer",&
             n_var=1,default_i_val=16,error=error)
        CALL section_add_keyword(section,keyword,error=error)
