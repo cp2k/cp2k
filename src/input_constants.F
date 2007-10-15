@@ -419,7 +419,11 @@ MODULE input_constants
                                 use_analytic = 2,&
                                 use_mt=3,&
                                 use_hockney=5,&
-                                use_multipole=4
+                                use_multipole=4,&
+                                use_wavelet=6
+
+  INTEGER, PARAMETER, PUBLIC :: use_rs_grid=0,&
+                                use_gs_grid = 1
 
   INTEGER, PARAMETER, PUBLIC :: xgga_b88=101,xgga_b88x=102,&
                                 xgga_pw86=103, xgga_pw91=104,&
