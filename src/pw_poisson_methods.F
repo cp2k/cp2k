@@ -359,9 +359,6 @@ CONTAINS
        CASE(use_gs_grid)
           SELECT CASE ( poisson_env%green_fft % method )
           CASE ( PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D, MULTIPOLE0D )
-          CALL pw_pool_create_pw ( pw_pool,rhor, use_data=REALDATA3D,in_space = REALSPACE,&
-               error=error)
-      
              CALL pw_transfer ( density, rhog )
              IF (PRESENT(ehartree).AND..NOT.PRESENT(vhartree)) THEN
                 CALL pw_pool_create_pw ( pw_pool,tmpg, use_data=COMPLEXDATA1D,&
