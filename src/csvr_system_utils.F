@@ -13,6 +13,7 @@
 !!     Teodoro Laino - 09.2007 - University of Zurich [tlaino]
 !!
 !!   MODIFICATION HISTORY
+!!     15.10.2007 Giovanni Bussi - Implementation validated.
 !!     
 !!
 !!   SOURCE
