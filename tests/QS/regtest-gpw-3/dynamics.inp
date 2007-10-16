@@ -64,8 +64,8 @@
 
   &KIND He
    BASIS_SET	DZVP-GTH-BLYP
+   POTENTIAL   GTH-BP-q2
    GHOST	t
-   GPW_TYPE     t
    MASS 7
   &END KIND
   &PRINT

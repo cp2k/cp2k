@@ -762,7 +762,6 @@ CONTAINS
 
     interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",&
          error=error)
-!    CALL section_vals_val_get(interp_section,"KIND",i_val=interp_kind,error=error)
 
     ! *** set up the pw multi-grids
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routine,error,failure)
@@ -1661,10 +1660,6 @@ CONTAINS
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:) :: pol_x
     REAL(KIND=dp) :: t_exp_1,t_exp_2,t_exp_min_1,t_exp_min_2,t_exp_plus_1,t_exp_plus_2
 
-
-
-!   ---------------------------------------------------------------------------
-
     failure = .FALSE.
 
     IF (PRESENT(ithread)) THEN
@@ -2382,9 +2377,6 @@ CONTAINS
     REAL(dp), DIMENSION(3)                   :: dg, expfactor, fap, fbp, rap, &
                                                 rbp, rp
     REAL(dp), DIMENSION(:), POINTER          :: g
-
-! Local parameter
-! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
 
