@@ -223,14 +223,14 @@ CONTAINS
 !        write(6,12) (now(i),i=1,ic)
 !        write(6,12) (before(i),i=1,ic)
 
-        twopi=6.283185307179586d0
+        twopi=6.283185307179586_dp
         angle=isign*twopi/n
         if (mod(n,2).eq.0) then
         nh=n/2
-        trig(1,1)=1.d0
-        trig(2,1)=0.d0
-        trig(1,nh+1)=-1.d0
-        trig(2,nh+1)=0.d0
+        trig(1,1)=1._dp
+        trig(2,1)=0._dp
+        trig(1,nh+1)=-1._dp
+        trig(2,nh+1)=0._dp
         DO 40,i=1,nh-1
         trigc=cos(i*angle)
         trigs=sin(i*angle)
@@ -241,8 +241,8 @@ CONTAINS
 40      continue
         else
         nh=(n-1)/2
-        trig(1,1)=1.d0
-        trig(2,1)=0.d0
+        trig(1,1)=1._dp
+        trig(2,1)=0._dp
         do 20,i=1,nh
         trigc=cos(i*angle)
         trigs=sin(i*angle)
@@ -272,8 +272,8 @@ CONTAINS
         atn=after*now
         atb=after*before
 
-!         sqrt(.5d0)
-        rt2i=0.7071067811865475d0
+!         sqrt(.5_dp)
+        rt2i=0.7071067811865475_dp
         if (now.eq.2) then
         ia=1
         nin1=ia-after
@@ -1167,8 +1167,8 @@ CONTAINS
 
         endif
         else if (now.eq.3) then 
-!         .5d0*sqrt(3.d0)
-        bb=isign*0.8660254037844387d0
+!         .5_dp*sqrt(3._dp)
+        bb=isign*0.8660254037844387_dp
         ia=1
         nin1=ia-after
         nout1=ia-atn
@@ -1190,8 +1190,8 @@ CONTAINS
         s=s2 + s3
         zout(1,j,nout1) = r + r1
         zout(2,j,nout1) = s + s1
-        r1=r1 - .5d0*r
-        s1=s1 - .5d0*s
+        r1=r1 - .5_dp*r
+        s1=s1 - .5_dp*s
         r2=bb*(r2-r3)
         s2=bb*(s2-s3)
         zout(1,j,nout2) = r1 - s2 
@@ -1223,8 +1223,8 @@ CONTAINS
                 s=s2 - s3
                 zout(1,j,nout1) = r1 - r
                 zout(2,j,nout1) = s + s1
-                r1=r1 + .5d0*r
-                s1=s1 - .5d0*s        
+                r1=r1 + .5_dp*r
+                s1=s1 - .5_dp*s        
                 r2=bb*(r2-r3)        
                 s2=bb*(s2+s3)
                 zout(1,j,nout2) = r1 - s2 
@@ -1253,8 +1253,8 @@ CONTAINS
                 s=s2 + s3
                 zout(1,j,nout1) = r + r1
                 zout(2,j,nout1) = s1 - s
-                r1=r1 - .5d0*r
-                s1=s1 + .5d0*s        
+                r1=r1 - .5_dp*r
+                s1=s1 + .5_dp*s        
                 r2=bb*(r2+r3)        
                 s2=bb*(s2-s3)
                 zout(1,j,nout2) = r1 + s2 
@@ -1287,8 +1287,8 @@ CONTAINS
                 s=s2 + s3
                 zout(1,j,nout1) = r + r1
                 zout(2,j,nout1) = s + s1
-                r1=r1 - .5d0*r
-                s1=s1 - .5d0*s        
+                r1=r1 - .5_dp*r
+                s1=s1 - .5_dp*s        
                 r2=bb*(r2+r3)        
                 s2=bb*(s2-s3)
                 zout(1,j,nout2) = r1 - s2 
@@ -1319,8 +1319,8 @@ CONTAINS
                 s=s2 - s3
                 zout(1,j,nout1) = r + r1
                 zout(2,j,nout1) = s + s1
-                r1=r1 - .5d0*r
-                s1=s1 - .5d0*s        
+                r1=r1 - .5_dp*r
+                s1=s1 - .5_dp*s        
                 r2=bb*(r2-r3)        
                 s2=bb*(s2+s3)
                 zout(1,j,nout2) = r1 - s2 
@@ -1361,8 +1361,8 @@ CONTAINS
         s=s2 + s3
         zout(1,j,nout1) = r + r1
         zout(2,j,nout1) = s + s1
-        r1=r1 - .5d0*r
-        s1=s1 - .5d0*s
+        r1=r1 - .5_dp*r
+        s1=s1 - .5_dp*s
         r2=bb*(r2-r3)
         s2=bb*(s2-s3)
         zout(1,j,nout2) = r1 - s2 
@@ -1373,14 +1373,14 @@ CONTAINS
         endif
 3000        continue
         else if (now.eq.5) then
-!         cos(2.d0*pi/5.d0)
-        cos2=0.3090169943749474d0
-!         cos(4.d0*pi/5.d0)
-        cos4=-0.8090169943749474d0
-!        sin(2.d0*pi/5.d0)
-        sin2=isign*0.9510565162951536d0
-!         sin(4.d0*pi/5.d0)
-        sin4=isign*0.5877852522924731d0
+!         cos(2._dp*pi/5._dp)
+        cos2=0.3090169943749474_dp
+!         cos(4._dp*pi/5._dp)
+        cos4=-0.8090169943749474_dp
+!        sin(2._dp*pi/5._dp)
+        sin2=isign*0.9510565162951536_dp
+!         sin(4._dp*pi/5._dp)
+        sin4=isign*0.5877852522924731_dp
         ia=1
         nin1=ia-after
         nout1=ia-atn
@@ -1626,8 +1626,8 @@ CONTAINS
         endif
 5000        continue
        else if (now.eq.6) then
-!         .5d0*sqrt(3.d0)
-        bb=isign*0.8660254037844387d0
+!         .5_dp*sqrt(3._dp)
+        bb=isign*0.8660254037844387_dp
 
         ia=1
         nin1=ia-after
@@ -1656,8 +1656,8 @@ CONTAINS
         s1=zin(2,j,nin1)
         ur1 = r + r1
         ui1 = s + s1
-        r1=r1 - .5d0*r
-        s1=s1 - .5d0*s
+        r1=r1 - .5_dp*r
+        s1=s1 - .5_dp*s
         r=r2-r3
         s=s2-s3
         ur2 = r1 - s*bb
@@ -1675,8 +1675,8 @@ CONTAINS
         s1=zin(2,j,nin4)
         vr1 = r + r1
         vi1 = s + s1
-        r1=r1 - .5d0*r
-        s1=s1 - .5d0*s
+        r1=r1 - .5_dp*r
+        s1=s1 - .5_dp*s
         r=r2-r3
         s=s2-s3
         vr2 = r1 - s*bb

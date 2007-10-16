@@ -593,7 +593,7 @@ subroutine P_fill_upcorn(md1,md3,lot,nfft,n3,zf,zw)
   do i3=1,n3
      do i1=1,nfft
 	zw(1,i1,i3)=zf(i1,i3)
-	zw(2,i1,i3)=0.d0
+	zw(2,i1,i3)=0._dp
      end do
   end do
 
@@ -748,8 +748,8 @@ subroutine P_multkernel(n1,n2,n3,lot,nfft,jS,i3,zw,hx,hy,hz)
   integer :: i1,j1,i2,j2,j3
   real(KIND=dp) :: ker,pi,fourpi2,mu3,p1,p2
 
-  pi=4.d0*datan(1.d0)
-  fourpi2=4.d0*pi**2
+  pi=4._dp*datan(1._dp)
+  fourpi2=4._dp*pi**2
   j3=i3!n3/2+1-abs(n3/2+2-i3)
   mu3=real(j3-1,KIND=dp)/real(n3,KIND=dp)
   mu3=(mu3/hy)**2 !beware of the exchanged dimension
@@ -763,7 +763,7 @@ subroutine P_multkernel(n1,n2,n3,lot,nfft,jS,i3,zw,hx,hy,hz)
         p1=real(j1-1,KIND=dp)/real(n1,KIND=dp)
         p2=real(j2-1,KIND=dp)/real(n2,KIND=dp)
         ker=-fourpi2*((p1/hx)**2+(p2/hz)**2+mu3)!beware of the exchanged dimension
-        if (ker/=0.d0) ker=1.d0/ker
+        if (ker/=0._dp) ker=1._dp/ker
         zw(1,i1,i2)=zw(1,i1,i2)*ker
         zw(2,i1,i2)=zw(2,i1,i2)*ker
      end do
@@ -1029,14 +1029,14 @@ real(kind=dp) :: time_b0,time_b1,serial_time,parallel_time
   enddo
 
   !Calculating array of phases for HalFFT decoding
-  twopion=8.d0*datan(1.d0)/real(n3,KIND=dp)
+  twopion=8._dp*datan(1._dp)/real(n3,KIND=dp)
   do i3=1,n3/2
      cosinarr(1,i3)=dcos(twopion*(i3-1))
      cosinarr(2,i3)=-dsin(twopion*(i3-1))
   end do
 
   !initializing integral
-  !ehartree=0.d0
+  !ehartree=0._dp
 
   ! transform along z axis
   lot=ncache/(2*n3)
@@ -1272,7 +1272,7 @@ real(kind=dp) :: time_b0,time_b1,serial_time,parallel_time
                 ,scal)!,ehartreetmp)
 
            !integrate local pieces together
-           !ehartree=ehartree+0.5d0*ehartreetmp*hx*hy*hz
+           !ehartree=ehartree+0.5_dp*ehartreetmp*hx*hy*hz
         end do
      endif
   end do
@@ -1467,7 +1467,7 @@ subroutine unfill_downcorn(md1,md3,lot,nfft,n3,zw,zf&
   real(KIND=dp) :: pot1
 
   !Body
-  !ehartreetmp=0.d0
+  !ehartreetmp=0._dp
   do i3=1,n3/4
      do i1=1,nfft
         pot1 = scal*zw(1,i1,i3)
@@ -1490,8 +1490,8 @@ end subroutine unfill_downcorn
 	
         do 90,i3=1,n3/4
 	do i1=1,nfft
-	zw(1,i1,i3)=0.d0
-	zw(2,i1,i3)=0.d0
+	zw(1,i1,i3)=0._dp
+	zw(2,i1,i3)=0._dp
 	enddo
 90      continue
         do 100,i3=n3/4+1,n3/2
@@ -1556,9 +1556,9 @@ subroutine scramble_unpack(i1,j2,lot,nfft,n1,n3,md2,nproc,nd3,zw,zmpi2,cosinarr)
      a=zw(1,i+1,1)
      b=zw(2,i+1,1)
      zmpi2(1,i1+i,j2,1)=a+b
-     zmpi2(2,i1+i,j2,1)=0.d0
+     zmpi2(2,i1+i,j2,1)=0._dp
      zmpi2(1,i1+i,j2,n3/2+1)=a-b
-     zmpi2(2,i1+i,j2,n3/2+1)=0.d0
+     zmpi2(2,i1+i,j2,n3/2+1)=0._dp
   end do
   !case 2<=i3<=n3/2
   do i3=2,n3/2
@@ -1571,10 +1571,10 @@ subroutine scramble_unpack(i1,j2,lot,nfft,n1,n3,md2,nproc,nd3,zw,zmpi2,cosinarr)
         b=zw(2,i+1,ind1)
         c=zw(1,i+1,ind2)
         d=zw(2,i+1,ind2)
-        feR=.5d0*(a+c)
-        feI=.5d0*(b-d)
-        foR=.5d0*(a-c)
-        foI=.5d0*(b+d) 
+        feR=.5_dp*(a+c)
+        feI=.5_dp*(b-d)
+        foR=.5_dp*(a-c)
+        foI=.5_dp*(b+d) 
         fR=feR+cp*foI-sp*foR
         fI=feI-cp*foR-sp*foI
         zmpi2(1,i1+i,j2,ind1)=fR
@@ -1704,8 +1704,6 @@ end subroutine unscramble_pack
 subroutine F_PoissonSolver(n1,n2,n3,nd1,nd2,nd3,md1,md2,md3,nproc,iproc,pot,zf&
              ,scal,hgrid,mpi_group,error)!,ehartree)
   implicit none
-!  include 'mpif.h'
-!  include "perfdata.inc"
 integer, parameter :: ncache_optimal=8*1024
 integer, parameter :: timing_flag=0
 integer :: count_time1,count_time2,count_rate,count_max,number_time,index_time
@@ -1821,14 +1819,14 @@ real(kind=dp) :: time_b0,time_b1,serial_time,parallel_time
   enddo
 
   !Calculating array of phases for HalFFT decoding
-  twopion=8.d0*datan(1.d0)/real(n3,KIND=dp)
+  twopion=8._dp*datan(1._dp)/real(n3,KIND=dp)
   do i3=1,n3/2
      cosinarr(1,i3)=dcos(twopion*(i3-1))
      cosinarr(2,i3)=-dsin(twopion*(i3-1))
   end do
 
   !initializing integrals
-  !ehartree=0.d0
+  !ehartree=0._dp
 
   ! transform along z axis
   lot=ncache/(2*n3)
@@ -2067,7 +2065,7 @@ real(kind=dp) :: time_b0,time_b1,serial_time,parallel_time
                 ,scal)!,ehartreetmp)
 
            !integrate local pieces together
-           !ehartree=ehartree+0.5d0*ehartreetmp*hgrid**3
+           !ehartree=ehartree+0.5_dp*ehartreetmp*hgrid**3
         end do
      endif
   end do
@@ -2135,8 +2133,8 @@ end subroutine F_PoissonSolver
 ! High frequencies 
         do 90,i=1,n2/2
 	do 90,j=1,nfft
-	zw(1,j,i)=0.d0
-	zw(2,j,i)=0.d0
+	zw(1,j,i)=0._dp
+	zw(2,j,i)=0._dp
 90	continue
 
 	return
@@ -2159,8 +2157,8 @@ end subroutine F_PoissonSolver
 	return
 	endif
         do 90,I1=1,n1/2
-	zw(1,mfft,I1)=0.d0
-	zw(2,mfft,I1)=0.d0
+	zw(1,mfft,I1)=0._dp
+	zw(2,mfft,I1)=0._dp
 90	continue
         do 100,I1=n1/2+1,n1
 	zw(1,mfft,I1)=zmpi1(1,I1-n1/2,J2,j3,Jp2)
@@ -2262,7 +2260,7 @@ subroutine F_unfill_downcorn(md1,md3,lot,nfft,n3,zw,zf&
   real(KIND=dp) :: pot1
 
   !Body
-  ehartreetmp=0.d0
+  ehartreetmp=0._dp
   do i3=1,n3/4
      do i1=1,nfft
         pot1 = scal*zw(1,i1,i3)

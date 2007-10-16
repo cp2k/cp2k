@@ -23,43 +23,32 @@
 MODULE ps_wavelet_types
 
 
-  USE kinds,                           ONLY: dp
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_get_subs_vals
-  USE input_constants,                 ONLY: &
-       PERIODIC3D, do_ewald_none, do_ewald_spme, use_analytic, use_mt, &
-       use_multipole, use_none, use_perd_none, use_perd_x, use_perd_xy, &
-       use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, use_perd_z, &
-       use_periodic
+  USE input_constants,                 ONLY: use_perd_none,&
+                                             use_perd_x,&
+                                             use_perd_xy,&
+                                             use_perd_xyz,&
+                                             use_perd_xz,&
+                                             use_perd_y,&
+                                             use_perd_yz,&
+                                             use_perd_z
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_release,&
-                                             section_vals_retain,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE message_passing,                 ONLY: mp_cart_rank,&
-                                             mp_alltoall,&
-                                             mp_sync,&
-                                             mp_world_finalize,&
-                                             mp_bcast
+  USE kinds,                           ONLY: dp
+  USE message_passing,                 ONLY: mp_alltoall,&
+                                             mp_cart_rank,&
+                                             mp_sync
   USE output_utilities,                ONLY: print_warning
   USE ps_wavelet_kernel,               ONLY: createKernel
-  USE pw_grid_types,                   ONLY: pw_grid_type,&
-                                             FULLSPACE,&
-                                             HALFSPACE,&
-                                             PW_MODE_DISTRIBUTED,&
-                                             PW_MODE_LOCAL
-
-  USE ps_wavelet_util,                 ONLY: PSolver,&
-                                             PS_dim4allocation,&
+  USE ps_wavelet_util,                 ONLY: F_FFT_dimensions,&
+                                             PSolver,&
                                              P_FFT_dimensions,&
-                                             S_FFT_dimensions,&
-                                             F_FFT_dimensions
+                                             S_FFT_dimensions
+  USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_types,                        ONLY: pw_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -140,23 +129,19 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!!!*** **********************************************************************
   SUBROUTINE ps_wavelet_create(poisson_section,wavelet,pw_grid, error)
-    TYPE(ps_wavelet_type), POINTER           :: wavelet
     TYPE(section_vals_type), POINTER         :: poisson_section
+    TYPE(ps_wavelet_type), POINTER           :: wavelet
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(cp_error_type), INTENT(inout)       :: error
-    
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ps_wavelet_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat,handle
+    CHARACTER(LEN=1)                         :: datacode, geocode
+    INTEGER                                  :: handle, hx, hy, hz, iproc, &
+                                                itype_scf, my_per, nproc, nx, &
+                                                ny, nz, stat
     LOGICAL                                  :: failure
-    INTEGER                                  :: my_per,nx,ny,nz,hx,hy,hz
-    INTEGER                                  :: iproc,nproc
-    CHARACTER(LEN=1)                         :: geocode
-    CHARACTER(LEN=1)                         :: datacode
-    INTEGER                                  :: itype_scf
-
     TYPE(section_vals_type), POINTER         :: ps_wavelet_section
 
     CALL timeset(routineN,"I","",handle)
@@ -180,11 +165,7 @@ CONTAINS
     IF (.NOT.failure) THEN
        ps_wavelet_section => section_vals_get_subs_vals(poisson_section,"WAVELET",error=error)
        CALL section_vals_val_get(ps_wavelet_section,"SCF_TYPE",i_val=itype_scf,error=error)
-!       IF ( nproc .GT. 1) THEN
           datacode="D"
-!       ELSE
-!          datacode="G"
-!       END IF
        NULLIFY(wavelet%karray,wavelet%rho_z_sliced)
        CALL section_vals_val_get(poisson_section,"PERIODIC",i_val=my_per,error=error)
   
@@ -244,17 +225,17 @@ CONTAINS
     TYPE(ps_wavelet_type), POINTER           :: wavelet
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(cp_error_type), INTENT(inout)       :: error
-    
-    CHARACTER(len=*), PARAMETER :: routineN = 'RS_z_slice_distribution', &
-      routineP = moduleN//':'//routineN    
 
-    CHARACTER(LEN=1)                        :: geocode
-    INTEGER                                  :: nproc,stat,handle
-    INTEGER                                  :: nx,ny,nz,m1,m2,m3,n1,n2,n3,&
-                                                md1,md2,md3,nd1,nd2,nd3,z_dim,&
-                                                iproc
-    REAL(KIND=dp)                            :: hx,hy,hz
+    CHARACTER(len=*), PARAMETER :: routineN = 'RS_z_slice_distribution', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=1)                         :: geocode
+    INTEGER                                  :: handle, iproc, m1, m2, m3, &
+                                                md1, md2, md3, n1, n2, n3, &
+                                                nd1, nd2, nd3, nproc, nx, ny, &
+                                                nz, stat, z_dim
     LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: hx, hy, hz
 
     CALL timeset(routineN,"I","",handle)
     nproc=PRODUCT(pw_grid % para % rs_dims)
@@ -303,21 +284,23 @@ CONTAINS
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'cp2k_distribution_to_z_slices', &
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_distribution_to_z_slices', &
-      routineP = moduleN//':'//routineN    
-    
-    INTEGER                                  :: i,j,k,l,m,ii,dest,nproc,iproc,ierr,&
-                                                md2,m2,z_lb,z_ub,loz,local_z_dim,handle 
-    INTEGER,DIMENSION(:),ALLOCATABLE         :: scount,sdispl,rcount,rdispl,tmp
-    INTEGER,DIMENSION(2)                     :: cart_pos,lox,loy
-    INTEGER,DIMENSION(3)                     :: lb,ub
-    TYPE(pw_type), POINTER                   :: rhor
-    REAL(KIND=dp),DIMENSION(:),POINTER       :: sbuf,rbuf
-    real(KIND=dp)                            :: max_val_low,max_val_up
-    LOGICAL                                  :: failure,stop_here
+    INTEGER                                  :: dest, handle, i, ierr, ii, &
+                                                iproc, j, k, l, local_z_dim, &
+                                                loz, m, m2, md2, nproc, z_lb, &
+                                                z_ub
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, &
+                                                sdispl, tmp
+    INTEGER, DIMENSION(2)                    :: cart_pos, lox, loy
+    INTEGER, DIMENSION(3)                    :: lb, ub
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: max_val_low, max_val_up
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: rbuf, sbuf
     TYPE(cp_logger_type), POINTER            :: logger
-    
+
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
     logger => cp_error_get_logger(error)
@@ -415,7 +398,7 @@ CONTAINS
        END DO
        
 
-       call mp_sync(pw_grid%para%rs_group)
+       CALL mp_sync(pw_grid%para%rs_group)
        CALL mp_alltoall(sbuf,scount,sdispl,rbuf,rcount,rdispl,pw_grid%para%rs_group)
        !!!! and now, how to put the right cubes to the right position!!!!!!
 
@@ -469,20 +452,19 @@ CONTAINS
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'z_slices_to_cp2k_distribution', &
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'z_slices_to_cp2k_distribution', &
-      routineP = moduleN//':'//routineN    
-    
-    INTEGER                                  :: i,j,k,l,m,ii,dest,nproc,iproc,ierr,&
-                                                md2,m2,z_lb,z_ub,loz,local_z_dim 
-    INTEGER,DIMENSION(:),ALLOCATABLE         :: scount,sdispl,rcount,rdispl,tmp
-    INTEGER,DIMENSION(2)                     :: cart_pos,lox,loy
-    INTEGER,DIMENSION(3)                     :: lb,ub
-    TYPE(pw_type), POINTER                   :: rhor
-    REAL(KIND=dp),DIMENSION(:),POINTER       :: sbuf,rbuf
-    
+    INTEGER                                  :: dest, i, ierr, ii, iproc, j, &
+                                                k, l, local_z_dim, loz, m, &
+                                                m2, md2, nproc, z_lb, z_ub
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, &
+                                                sdispl, tmp
+    INTEGER, DIMENSION(2)                    :: cart_pos, lox, loy
+    INTEGER, DIMENSION(3)                    :: lb, ub
     LOGICAL                                  :: failure
-    
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: rbuf, sbuf
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(wavelet),cp_failure_level,routineP,error,failure)
@@ -603,18 +585,16 @@ CONTAINS
 
     TYPE(ps_wavelet_type), POINTER           :: wavelet
     TYPE(pw_grid_type), POINTER              :: pw_grid
+    REAL(KIND=dp)                            :: eh
     TYPE(cp_error_type), INTENT(inout)       :: error
-    
-    CHARACTER(len=*), PARAMETER :: routineN = 'ps_wavelet_solve', &
-      routineP = moduleN//':'//routineN    
 
-    CHARACTER(LEN=1)                        :: geocode,datacode
-    INTEGER                                  :: nproc,stat,handle
-    INTEGER                                  :: nx,ny,nz,m1,m2,m3,n1,n2,n3,&
-                                                md1,md2,md3,nd1,nd2,nd3,z_dim,&
-                                                iproc
-    REAL(KIND=dp)                            :: hx,hy,hz,eg,exc,vxc,offset,eh,potion
-    LOGICAL                                  :: failure
+    CHARACTER(len=*), PARAMETER :: routineN = 'ps_wavelet_solve', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=1)                         :: datacode, geocode
+    INTEGER                                  :: handle, iproc, nproc, nx, ny, &
+                                                nz
+    REAL(KIND=dp)                            :: hx, hy, hz
 
     CALL timeset(routineN,"I","",handle)
     nproc=PRODUCT(pw_grid % para % rs_dims)
@@ -627,11 +607,10 @@ CONTAINS
     hx = pw_grid % dr ( 1 )
     hy = pw_grid % dr ( 2 )
     hz = pw_grid % dr ( 3 )
-    offset=0.0_dp
     
 
     CALL PSolver(geocode,datacode,iproc,nproc,nx,ny,nz,hx,hy,hz,&
-         wavelet%rho_z_sliced,wavelet%karray,eh,exc,vxc,offset,pw_grid,error)
+         wavelet%rho_z_sliced,wavelet%karray,pw_grid,error)
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE ps_wavelet_solve
 

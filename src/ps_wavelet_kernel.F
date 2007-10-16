@@ -24,7 +24,6 @@ MODULE ps_wavelet_kernel
                                              ctrig,&
                                              fftstp
   USE ps_wavelet_util,                 ONLY: PSolver,&
-                                             PS_dim4allocation,&
                                              P_FFT_dimensions,&
                                              S_FFT_dimensions,&
                                              F_FFT_dimensions
@@ -185,7 +184,7 @@ CONTAINS
 !!!              jfd=jproc
 !!!           else if (jproc*md2/nproc <= nlimd) then
 !!!              jhd=jproc
-!!!              npd=nint(real(nlimd-(jproc)*md2/nproc,KIND=dp)/real(md2/nproc,KIND=dp)*100.d0)
+!!!              npd=nint(real(nlimd-(jproc)*md2/nproc,KIND=dp)/real(md2/nproc,KIND=dp)*100._dp)
 !!!           else
 !!!              jzd=jproc
 !!!              exit load_balancing
@@ -206,7 +205,7 @@ CONTAINS
 !!!                 jfk=jproc
 !!!              else if (jproc*nd3/nproc <= nlimk) then
 !!!                 jhk=jproc
-!!!                 npk=nint(real(nlimk-(jproc)*nd3/nproc,KIND=dp)/real(nd3/nproc,KIND=dp)*100.d0)
+!!!                 npk=nint(real(nlimk-(jproc)*nd3/nproc,KIND=dp)/real(nd3/nproc,KIND=dp)*100._dp)
 !!!              else
 !!!                 jzk=jproc
 !!!                 exit load_balancingk
@@ -296,40 +295,40 @@ real(kind=dp) :: time_b0,time_b1,serial_time,parallel_time
   REAL(KIND=dp), DIMENSION(9,8) :: cpol
   !assign the values of the coefficients  
   karray = 0.0_dp
-  cpol(:,:)=1.d0
+  cpol(:,:)=1._dp
 
-  cpol(1,2)=.25d0
+  cpol(1,2)=.25_dp
   
-  cpol(1,3)=1.d0/3.d0
+  cpol(1,3)=1._dp/3._dp
   
-  cpol(1,4)=7.d0/12.d0
-  cpol(2,4)=8.d0/3.d0
+  cpol(1,4)=7._dp/12._dp
+  cpol(2,4)=8._dp/3._dp
   
-  cpol(1,5)=19.d0/50.d0
-  cpol(2,5)=3.d0/2.d0
+  cpol(1,5)=19._dp/50._dp
+  cpol(2,5)=3._dp/2._dp
   
-  cpol(1,6)=41.d0/272.d0
-  cpol(2,6)=27.d0/34.d0
-  cpol(3,6)=27.d0/272.d0
+  cpol(1,6)=41._dp/272._dp
+  cpol(2,6)=27._dp/34._dp
+  cpol(3,6)=27._dp/272._dp
   
-  cpol(1,7)=751.d0/2989.d0
-  cpol(2,7)=73.d0/61.d0
-  cpol(3,7)=27.d0/61.d0
+  cpol(1,7)=751._dp/2989._dp
+  cpol(2,7)=73._dp/61._dp
+  cpol(3,7)=27._dp/61._dp
   
-  cpol(1,8)=-989.d0/4540.d0
-  cpol(2,8)=-1472.d0/1135.d0
-  cpol(3,8)=232.d0/1135.d0
-  cpol(4,8)=-2624.d0/1135.d0
+  cpol(1,8)=-989._dp/4540._dp
+  cpol(2,8)=-1472._dp/1135._dp
+  cpol(3,8)=232._dp/1135._dp
+  cpol(4,8)=-2624._dp/1135._dp
 
   !renormalize values
-  cpol(1,1)=.5d0*cpol(1,1)
-  cpol(1:2,2)=2.d0/3.d0*cpol(1:2,2)
-  cpol(1:2,3)=3.d0/8.d0*cpol(1:2,3)
-  cpol(1:3,4)=2.d0/15.d0*cpol(1:3,4)
-  cpol(1:3,5)=25.d0/144.d0*cpol(1:3,5)
-  cpol(1:4,6)=34.d0/105.d0*cpol(1:4,6)
-  cpol(1:4,7)=2989.d0/17280.d0*cpol(1:4,7)
-  cpol(1:5,8)=-454.d0/2835.d0*cpol(1:5,8)
+  cpol(1,1)=.5_dp*cpol(1,1)
+  cpol(1:2,2)=2._dp/3._dp*cpol(1:2,2)
+  cpol(1:2,3)=3._dp/8._dp*cpol(1:2,3)
+  cpol(1:3,4)=2._dp/15._dp*cpol(1:3,4)
+  cpol(1:3,5)=25._dp/144._dp*cpol(1:3,5)
+  cpol(1:4,6)=34._dp/105._dp*cpol(1:4,6)
+  cpol(1:4,7)=2989._dp/17280._dp*cpol(1:4,7)
+  cpol(1:5,8)=-454._dp/2835._dp*cpol(1:5,8)
   
   !assign the complete values
   cpol(2,1)=cpol(1,1)
@@ -374,7 +373,7 @@ real(kind=dp) :: time_b0,time_b1,serial_time,parallel_time
   CALL scaling_function(itype_scf,n_scf,n_range,x_scf,y_scf)
   !Step grid for the integration
   dx = REAL(n_range,KIND=dp)/REAL(n_scf,KIND=dp)
-  !Extend the range (no more calculations because fill in by 0.d0)
+  !Extend the range (no more calculations because fill in by 0._dp)
   n_cell = m3
   n_range = MAX(n_cell,n_range)
   
@@ -417,27 +416,27 @@ real(kind=dp) :: time_b0,time_b1,serial_time,parallel_time
   
   CPPostcondition(i_all==0,cp_failure_level,routineP,error,failure)
   !constants
-  pi=4.d0*datan(1.d0)
+  pi=4._dp*datan(1._dp)
 
   !arrays for the halFFT
   CALL ctrig(n3/2,btrig,after,before,now,1,ic)
 
  
   !build the phases for the HalFFT reconstruction 
-  pion=2.d0*pi/real(n3,KIND=dp)
+  pion=2._dp*pi/real(n3,KIND=dp)
   DO i3=2,n3/2
      x=real(i3-1,KIND=dp)*pion
      cossinarr(1,i3-1)= dcos(x)
      cossinarr(2,i3-1)=-dsin(x)
   END DO
-  !kernel=0.d0
-  !kernel_mpi=0.d0
+  !kernel=0._dp
+  !kernel_mpi=0._dp
 
   !calculate the limits of the FFT calculations
   !that can be performed in a row remaining inside the cache
   num_of_mus=ncache/(2*n3)
 
-  diff=0.d0
+  diff=0._dp
   !order of the polynomial to be used for integration (must be a power of two)
   ipolyord=8 !this part should be incorporated inside the numerical integration
   !here we have to choice the piece of the x-y grid to cover
@@ -453,7 +452,7 @@ real(kind=dp) :: time_b0,time_b1,serial_time,parallel_time
      shift=0
 
      !initialization of the interesting part of the cache array
-     halfft_cache(:,:,:)=0.d0
+     halfft_cache(:,:,:)=0._dp
 
      if (istart == 1) then
         !i2=1
@@ -463,11 +462,11 @@ real(kind=dp) :: time_b0,time_b1,serial_time,parallel_time
              cpol(1,ipolyord),dx,kernel_scf,error)
 
         !copy of the first zero value
-        halfft_cache(1,1,1)=0.d0
+        halfft_cache(1,1,1)=0._dp
 
         do i3=1,m3
 
-           value=0.5d0*h3*kernel_scf(i3)
+           value=0.5_dp*h3*kernel_scf(i3)
            !index in where to copy the value of the kernel
            call indices(ireim,num_of_mus,n3/2+i3,1,ind1)
            !index in where to copy the symmetric value
@@ -493,7 +492,7 @@ real(kind=dp) :: time_b0,time_b1,serial_time,parallel_time
         ponx=real(i1-1,KIND=dp)/real(n1,KIND=dp)
         pony=real(i2-1,KIND=dp)/real(n2,KIND=dp)
         
-        mu1=2.d0*pi*sqrt((ponx/h1)**2+(pony/h2)**2)*h3
+        mu1=2._dp*pi*sqrt((ponx/h1)**2+(pony/h2)**2)*h3
 
         call calculates_green_opt(n_range,n_scf,itype_scf,ipolyord,x_scf,y_scf,&
              cpol(1,ipolyord),mu1,dx,kernel_scf,error)
@@ -501,9 +500,9 @@ real(kind=dp) :: time_b0,time_b1,serial_time,parallel_time
         !readjust the coefficient and define the final kernel
 
         !copy of the first zero value
-        halfft_cache(1,imu-istart+1,1) = 0.d0
+        halfft_cache(1,imu-istart+1,1) = 0._dp
         do i3=1,m3
-           value=-0.5d0*h3/mu1*kernel_scf(i3)
+           value=-0.5_dp*h3/mu1*kernel_scf(i3)
            !write(80,*)mu1,i3,kernel_scf(i03)
            !index in where to copy the value of the kernel
            call indices(ireim,num_of_mus,n3/2+i3,imu-istart+1,ind1)
@@ -548,10 +547,10 @@ real(kind=dp) :: time_b0,time_b1,serial_time,parallel_time
            b=halfft_cache(2,ind1,inzee)
            c=halfft_cache(1,jnd1,inzee)
            d=halfft_cache(2,jnd1,inzee)
-           feR=.5d0*(a+c)
-           feI=.5d0*(b-d)
-           foR=.5d0*(a-c)
-           foI=.5d0*(b+d) 
+           feR=.5_dp*(a+c)
+           feI=.5_dp*(b-d)
+           foR=.5_dp*(a-c)
+           foI=.5_dp*(b+d) 
            fR=feR+cp*foI-sp*foR
            kernel(i1,j2,i3)=fR
         END DO
@@ -614,7 +613,7 @@ END SUBROUTINE Surfaces_Kernel
 
 SUBROUTINE calculates_green_opt(n,n_scf,itype_scf,intorder,xval,yval,c,mu,hres,g_mu,error)
   IMPLICIT NONE
-  REAL(KIND=dp), PARAMETER                         :: mu_max=0.2d0
+  REAL(KIND=dp), PARAMETER                         :: mu_max=0.2_dp
   INTEGER, INTENT(in)                              :: n,n_scf,intorder,itype_scf
   TYPE(cp_error_type), INTENT(inout)               :: error
   REAL(KIND=dp), INTENT(in)                        :: hres,mu
@@ -663,10 +662,10 @@ SUBROUTINE calculates_green_opt(n,n_scf,itype_scf,intorder,xval,yval,c,mu,hres,g
      if (xval(izero)>=real(ikern,KIND=dp) .or. izero==n_scf) exit initialization
      izero=izero+1
   end do initialization
-  green=0.d0
+  green=0._dp
   !now perform the interpolation in right direction
   ivalue=izero
-  gright=0.d0
+  gright=0._dp
   loop_right: DO
      IF(ivalue >= n_scf-intorder-1) EXIT loop_right
      DO i=1,intorder+1
@@ -695,8 +694,8 @@ SUBROUTINE calculates_green_opt(n,n_scf,itype_scf,intorder,xval,yval,c,mu,hres,g
   
   !now the loop until the last value
   DO ikern=1,nrec
-     gltmp=0.d0
-     grtmp=0.d0
+     gltmp=0._dp
+     grtmp=0._dp
      ivalue=izero
      x0=xval(izero)
      loop_integration: DO
@@ -720,7 +719,7 @@ SUBROUTINE calculates_green_opt(n,n_scf,itype_scf,intorder,xval,yval,c,mu,hres,g
      END DO loop_integration
      gleft=dexp(-mu0)*(gleft+hres*dexp(-mu0*REAL(ikern-1,KIND=dp))*gltmp)
      IF (izero == n_scf) THEN
-        gright=0.d0
+        gright=0._dp
      ELSE
         gright=dexp(mu0)*(gright-hres*dexp(mu0*real(ikern-1,KIND=dp))*grtmp)
      END IF
@@ -743,7 +742,7 @@ SUBROUTINE calculates_green_opt(n,n_scf,itype_scf,intorder,xval,yval,c,mu,hres,g
      g_mu(i)=green(i-1)
   END DO
   DO i=MIN(n,nrec)+1,n
-     g_mu(i)=0.d0
+     g_mu(i)=0._dp
   END DO
   
   
@@ -777,11 +776,11 @@ SUBROUTINE calculates_green_opt_muzero(n,n_scf,intorder,xval,yval,c,hres,green,e
      IF (xval(izero)>=REAL(ikern,KIND=dp) .OR. izero==n_scf) EXIT initialization
      izero=izero+1
   END DO initialization
-  green=0.d0
+  green=0._dp
   !first case, ikern=0
   !now perform the interpolation in right direction
   ivalue=izero
-  gr1=0.d0
+  gr1=0._dp
   loop_right: DO
      IF(ivalue >= n_scf-intorder-1) EXIT loop_right
      DO i=1,intorder+1
@@ -804,15 +803,15 @@ SUBROUTINE calculates_green_opt_muzero(n,n_scf,intorder,xval,yval,c,hres,green,e
   gr1=hres*gr1
   !the scaling function is symmetric
   gl1=-gr1
-  gl0=0.5d0
-  gr0=0.5d0
+  gl0=0.5_dp
+  gr0=0.5_dp
   
-  green(1)=2.d0*gr1
+  green(1)=2._dp*gr1
   
   !now the loop until the last value
   DO ikern=1,n-1
-     c0=0.d0
-     c1=0.d0
+     c0=0._dp
+     c1=0._dp
      ivalue=izero
      loop_integration: DO
         IF (izero==n_scf)  EXIT loop_integration
@@ -919,7 +918,7 @@ SUBROUTINE Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
 
   !Better p_gauss for calculation
   !(the support of the exponential should be inside [-n_range/2,n_range/2])
-  REAL(KIND=dp), PARAMETER                                 :: p0_ref = 1.d0
+  REAL(KIND=dp), PARAMETER                                 :: p0_ref = 1._dp
   REAL(KIND=dp), DIMENSION(n_gauss)                        :: p_gauss,w_gauss
   
   REAL(KIND=dp), DIMENSION(:), ALLOCATABLE                 :: kernel_scf,kern_1_scf,x_scf ,y_scf
@@ -986,7 +985,7 @@ SUBROUTINE Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
  CALL scaling_function(itype_scf,n_scf,n_range,x_scf,y_scf)
  !Step grid for the integration
  dx = REAL(n_range,KIND=dp)/REAL(n_scf,KIND=dp)
- !Extend the range (no more calculations because fill in by 0.d0)
+ !Extend the range (no more calculations because fill in by 0._dp)
  n_cell = MAX(n01,n02,n03)
  n_range = MAX(n_cell,n_range)
  
@@ -1003,7 +1002,7 @@ SUBROUTINE Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
  a3 = hgrid * REAL(n03,KIND=dp)
  
  x_scf(:) = hgrid * x_scf(:)
- y_scf(:) = 1.d0/hgrid * y_scf(:)
+ y_scf(:) = 1._dp/hgrid * y_scf(:)
  dx = hgrid * dx
  !To have a correct integration
  p0_cell = p0_ref/(hgrid*hgrid)
@@ -1014,9 +1013,9 @@ SUBROUTINE Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
  !(biggest length in the cube)
  !We divide the p_gauss by a_range**2 and a_gauss by a_range
  a_range = SQRT(a1*a1+a2*a2+a3*a3)
- factor = 1.d0/a_range
+ factor = 1._dp/a_range
  !factor2 = factor*factor
- factor2 = 1.d0/(a1*a1+a2*a2+a3*a3)
+ factor2 = 1._dp/(a1*a1+a2*a2+a3*a3)
  DO i_gauss=1,n_gauss
     p_gauss(i_gauss) = factor2*p_gauss(i_gauss)
  END DO
@@ -1024,26 +1023,26 @@ SUBROUTINE Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
     w_gauss(i_gauss) = factor*w_gauss(i_gauss)
  END DO
  
- kp(:,:,:)=0.d0
+ kp(:,:,:)=0._dp
  !Use in this order (better for accuracy).
  loop_gauss: DO i_gauss=n_gauss,1,-1
     !Gaussian
     pgauss = p_gauss(i_gauss)
     
     !We calculate the number of iterations to go from pgauss to p0_ref
-    n_iter = NINT((LOG(pgauss) - LOG(p0_cell))/LOG(4.d0))
+    n_iter = NINT((LOG(pgauss) - LOG(p0_cell))/LOG(4._dp))
     IF (n_iter <= 0)THEN
        n_iter = 0
        p0gauss = pgauss
     ELSE
-       p0gauss = pgauss/4.d0**n_iter
+       p0gauss = pgauss/4._dp**n_iter
     END IF
     
     !Stupid integration
     !Do the integration with the exponential centered in i_kern
-    kernel_scf(:) = 0.d0
+    kernel_scf(:) = 0._dp
     DO i_kern=0,n_range
-       kern = 0.d0
+       kern = 0._dp
        DO i=0,n_scf
           absci = x_scf(i) - REAL(i_kern,KIND=dp)*hgrid
           absci = absci*absci
@@ -1260,7 +1259,7 @@ real(kind=dp) :: time_b0,time_b1,serial_time,parallel_time
   call ctrig(n2,trig2,after2,before2,now2,1,ic2)
   
   !Calculating array of phases for HalFFT decoding
-  twopion=8.d0*datan(1.d0)/real(n3,KIND=dp)
+  twopion=8._dp*datan(1._dp)/real(n3,KIND=dp)
   do i3=1,n3/2
      cosinarr(1,i3)=dcos(twopion*(i3-1))
      cosinarr(2,i3)=-dsin(twopion*(i3-1))
@@ -1548,34 +1547,34 @@ SUBROUTINE switch(nfft,n2,lot,n1,lzt,zt,zw)
            p(59)=3.116998193057466d6
            p(60)=1.87560993870024029d6
            p(61)=1.12862197183979562d6
-           p(62)=679132.441326077231d0
-           p(63)=408658.421279877969d0
-           p(64)=245904.473450669789d0
-           p(65)=147969.568088321005d0
-           p(66)=89038.612357311147d0
-           p(67)=53577.7362552358895d0
-           p(68)=32239.6513926914668d0
-           p(69)=19399.7580852362791d0
-           p(70)=11673.5323603058634d0
-           p(71)=7024.38438577707758d0
-           p(72)=4226.82479307685999d0
-           p(73)=2543.43254175354295d0
-           p(74)=1530.47486269122675d0
-           p(75)=920.941785160749482d0
-           p(76)=554.163803906291646d0
-           p(77)=333.46029740785694d0
-           p(78)=200.6550575335041d0
-           p(79)=120.741366914147284d0
-           p(80)=72.6544243200329916d0
-           p(81)=43.7187810415471025d0
-           p(82)=26.3071631447061043d0
-           p(83)=15.8299486353816329d0
-           p(84)=9.52493152341244004d0
-           p(85)=5.72200417067776041d0
-           p(86)=3.36242234070940928d0
-           p(87)=1.75371394604499472d0
-           p(88)=0.64705932650658966d0
-           p(89)=0.072765905943708247d0
+           p(62)=679132.441326077231_dp
+           p(63)=408658.421279877969_dp
+           p(64)=245904.473450669789_dp
+           p(65)=147969.568088321005_dp
+           p(66)=89038.612357311147_dp
+           p(67)=53577.7362552358895_dp
+           p(68)=32239.6513926914668_dp
+           p(69)=19399.7580852362791_dp
+           p(70)=11673.5323603058634_dp
+           p(71)=7024.38438577707758_dp
+           p(72)=4226.82479307685999_dp
+           p(73)=2543.43254175354295_dp
+           p(74)=1530.47486269122675_dp
+           p(75)=920.941785160749482_dp
+           p(76)=554.163803906291646_dp
+           p(77)=333.46029740785694_dp
+           p(78)=200.6550575335041_dp
+           p(79)=120.741366914147284_dp
+           p(80)=72.6544243200329916_dp
+           p(81)=43.7187810415471025_dp
+           p(82)=26.3071631447061043_dp
+           p(83)=15.8299486353816329_dp
+           p(84)=9.52493152341244004_dp
+           p(85)=5.72200417067776041_dp
+           p(86)=3.36242234070940928_dp
+           p(87)=1.75371394604499472_dp
+           p(88)=0.64705932650658966_dp
+           p(89)=0.072765905943708247_dp
            !
            w(1)=47.67445484528304247d10
            w(2)=11.37485774750442175d9
@@ -1606,69 +1605,69 @@ SUBROUTINE switch(nfft,n2,lot,n1,lzt,zt,zw)
            w(27)=1.71256191589205524d6
            w(28)=1.32843556197737076d6
            w(29)=1.0304731275955989d6
-           w(30)=799345.206572271448d0
-           w(31)=620059.354143595343d0
-           w(32)=480986.704107449333d0
-           w(33)=373107.167700228515d0
-           w(34)=289424.08337412132d0
-           w(35)=224510.248231581788d0
-           w(36)=174155.825690028966d0
-           w(37)=135095.256919654065d0
-           w(38)=104795.442776800312d0
-           w(39)=81291.4458222430418d0
-           w(40)=63059.0493649328682d0
-           w(41)=48915.9040455329689d0
-           w(42)=37944.8484018048756d0
-           w(43)=29434.4290473253969d0
-           w(44)=22832.7622054490044d0
-           w(45)=17711.743950151233d0
-           w(46)=13739.287867104177d0
-           w(47)=10657.7895710752585d0
-           w(48)=8267.42141053961834d0
-           w(49)=6413.17397520136448d0
-           w(50)=4974.80402838654277d0
-           w(51)=3859.03698188553047d0
-           w(52)=2993.51824493299154d0
-           w(53)=2322.1211966811754d0
-           w(54)=1801.30750964719641d0
-           w(55)=1397.30379659817038d0
-           w(56)=1083.91149143250697d0
-           w(57)=840.807939169209188d0
-           w(58)=652.228524366749422d0
-           w(59)=505.944376983506128d0
-           w(60)=392.469362317941064d0
-           w(61)=304.444930257324312d0
-           w(62)=236.162932842453601d0
-           w(63)=183.195466078603525d0
-           w(64)=142.107732186551471d0
-           w(65)=110.23530215723992d0
-           w(66)=85.5113346705382257d0
-           w(67)=66.3325469806696621d0
-           w(68)=51.4552463353841373d0
-           w(69)=39.9146798429449273d0
-           w(70)=30.9624728409162095d0
-           w(71)=24.018098812215013d0
-           w(72)=18.6312338024296588d0
-           w(73)=14.4525541233150501d0
-           w(74)=11.2110836519105938d0
-           w(75)=8.69662175848497178d0
-           w(76)=6.74611236165731961d0
-           w(77)=5.23307018057529994d0
-           w(78)=4.05937850501539556d0
-           w(79)=3.14892659076635714d0
-           w(80)=2.44267408211071604d0
-           w(81)=1.89482240522855261d0
-           w(82)=1.46984505907050079d0
-           w(83)=1.14019261330527007d0
-           w(84)=0.884791217422925293d0
-           w(85)=0.692686387080616483d0
-           w(86)=0.585244576897023282d0
-           w(87)=0.576182522545327589d0
-           w(88)=0.596688817388997178d0
-           w(89)=0.607879901151108771d0
+           w(30)=799345.206572271448_dp
+           w(31)=620059.354143595343_dp
+           w(32)=480986.704107449333_dp
+           w(33)=373107.167700228515_dp
+           w(34)=289424.08337412132_dp
+           w(35)=224510.248231581788_dp
+           w(36)=174155.825690028966_dp
+           w(37)=135095.256919654065_dp
+           w(38)=104795.442776800312_dp
+           w(39)=81291.4458222430418_dp
+           w(40)=63059.0493649328682_dp
+           w(41)=48915.9040455329689_dp
+           w(42)=37944.8484018048756_dp
+           w(43)=29434.4290473253969_dp
+           w(44)=22832.7622054490044_dp
+           w(45)=17711.743950151233_dp
+           w(46)=13739.287867104177_dp
+           w(47)=10657.7895710752585_dp
+           w(48)=8267.42141053961834_dp
+           w(49)=6413.17397520136448_dp
+           w(50)=4974.80402838654277_dp
+           w(51)=3859.03698188553047_dp
+           w(52)=2993.51824493299154_dp
+           w(53)=2322.1211966811754_dp
+           w(54)=1801.30750964719641_dp
+           w(55)=1397.30379659817038_dp
+           w(56)=1083.91149143250697_dp
+           w(57)=840.807939169209188_dp
+           w(58)=652.228524366749422_dp
+           w(59)=505.944376983506128_dp
+           w(60)=392.469362317941064_dp
+           w(61)=304.444930257324312_dp
+           w(62)=236.162932842453601_dp
+           w(63)=183.195466078603525_dp
+           w(64)=142.107732186551471_dp
+           w(65)=110.23530215723992_dp
+           w(66)=85.5113346705382257_dp
+           w(67)=66.3325469806696621_dp
+           w(68)=51.4552463353841373_dp
+           w(69)=39.9146798429449273_dp
+           w(70)=30.9624728409162095_dp
+           w(71)=24.018098812215013_dp
+           w(72)=18.6312338024296588_dp
+           w(73)=14.4525541233150501_dp
+           w(74)=11.2110836519105938_dp
+           w(75)=8.69662175848497178_dp
+           w(76)=6.74611236165731961_dp
+           w(77)=5.23307018057529994_dp
+           w(78)=4.05937850501539556_dp
+           w(79)=3.14892659076635714_dp
+           w(80)=2.44267408211071604_dp
+           w(81)=1.89482240522855261_dp
+           w(82)=1.46984505907050079_dp
+           w(83)=1.14019261330527007_dp
+           w(84)=0.884791217422925293_dp
+           w(85)=0.692686387080616483_dp
+           w(86)=0.585244576897023282_dp
+           w(87)=0.576182522545327589_dp
+           w(88)=0.596688817388997178_dp
+           w(89)=0.607879901151108771_dp
            !
            !
-           urange = 1.d0
+           urange = 1._dp
            drange=1d-08
            acc   =1d-08
            !
