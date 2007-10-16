@@ -1524,7 +1524,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type)                         :: wf_r
-    TYPE(coeff_type), POINTER                :: rho_core
+    TYPE(coeff_type), POINTER                :: rho_core, rho0_s_gs
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
@@ -1622,9 +1622,9 @@ CONTAINS
        !   *** total density ***
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
             "DFT%PRINT%TOT_DENSITY_CUBE", error=error),cp_p_file)) THEN
-          NULLIFY(rho_core)
+          NULLIFY(rho_core,rho0_s_gs)
           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,rho_core=rho_core,&
-               error=error)
+               rho0_s_gs=rho0_s_gs,error=error)
           CALL pw_env_get(pw_env, auxbas_rs_pool=auxbas_rs_pool,error=error)
           CALL rs_pool_create_rs(auxbas_rs_pool,rs, error=error)
           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
@@ -1633,7 +1633,11 @@ CONTAINS
           CALL pw_pool_init_coeff(auxbas_pw_pool,wf_r,&
                use_data = REALDATA3D,&
                in_space = REALSPACE, error=error)
-          CALL pw_transfer(rho_core%pw,wf_r%pw)
+          IF (dft_control%qs_control%gapw) THEN
+             CALL pw_transfer(rho0_s_gs%pw,wf_r%pw)
+          ELSE
+             CALL pw_transfer(rho_core%pw,wf_r%pw)
+          END IF
           DO ispin=1,dft_control%nspins
              CALL coeff_sumup(rho%rho_r(ispin),wf_r)
           END DO
