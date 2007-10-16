@@ -416,7 +416,7 @@ real(kind=dp) :: time_b0,time_b1,serial_time,parallel_time
   
   CPPostcondition(i_all==0,cp_failure_level,routineP,error,failure)
   !constants
-  pi=4._dp*datan(1._dp)
+  pi=4._dp*atan(1._dp)
 
   !arrays for the halFFT
   CALL ctrig(n3/2,btrig,after,before,now,1,ic)
@@ -426,8 +426,8 @@ real(kind=dp) :: time_b0,time_b1,serial_time,parallel_time
   pion=2._dp*pi/real(n3,KIND=dp)
   DO i3=2,n3/2
      x=real(i3-1,KIND=dp)*pion
-     cossinarr(1,i3-1)= dcos(x)
-     cossinarr(2,i3-1)=-dsin(x)
+     cossinarr(1,i3-1)= cos(x)
+     cossinarr(2,i3-1)=-sin(x)
   END DO
   !kernel=0._dp
   !kernel_mpi=0._dp
@@ -670,7 +670,7 @@ SUBROUTINE calculates_green_opt(n,n_scf,itype_scf,intorder,xval,yval,c,mu,hres,g
      IF(ivalue >= n_scf-intorder-1) EXIT loop_right
      DO i=1,intorder+1
         x=xval(ivalue)-REAL(ikern,KIND=dp)
-        f=yval(ivalue)*dexp(-mu0*x)
+        f=yval(ivalue)*exp(-mu0*x)
         filter=intorder*c(i)
         gright=gright+filter*f
         ivalue=ivalue+1
@@ -680,7 +680,7 @@ SUBROUTINE calculates_green_opt(n,n_scf,itype_scf,intorder,xval,yval,c,mu,hres,g
   iend=n_scf-ivalue
   DO i=1,iend
      x=xval(ivalue)-REAL(ikern,KIND=dp)
-     f=yval(ivalue)*dexp(-mu0*x)
+     f=yval(ivalue)*exp(-mu0*x)
      filter=intorder*c(i)
      gright=gright+filter*f
      ivalue=ivalue+1
@@ -702,8 +702,8 @@ SUBROUTINE calculates_green_opt(n,n_scf,itype_scf,intorder,xval,yval,c,mu,hres,g
         IF (izero==n_scf)  EXIT loop_integration
         DO i=1,intorder+1
            x=xval(ivalue)
-           fl=yval(ivalue)*dexp(mu0*x)
-           fr=yval(ivalue)*dexp(-mu0*x)
+           fl=yval(ivalue)*exp(mu0*x)
+           fr=yval(ivalue)*exp(-mu0*x)
            filter=intorder*c(i)
            gltmp=gltmp+filter*fl
            grtmp=grtmp+filter*fr
@@ -717,11 +717,11 @@ SUBROUTINE calculates_green_opt(n,n_scf,itype_scf,intorder,xval,yval,c,mu,hres,g
         ivalue=ivalue-1
         izero=izero-1
      END DO loop_integration
-     gleft=dexp(-mu0)*(gleft+hres*dexp(-mu0*REAL(ikern-1,KIND=dp))*gltmp)
+     gleft=exp(-mu0)*(gleft+hres*exp(-mu0*REAL(ikern-1,KIND=dp))*gltmp)
      IF (izero == n_scf) THEN
         gright=0._dp
      ELSE
-        gright=dexp(mu0)*(gright-hres*dexp(mu0*real(ikern-1,KIND=dp))*grtmp)
+        gright=exp(mu0)*(gright-hres*exp(mu0*real(ikern-1,KIND=dp))*grtmp)
      END IF
      green(ikern)=gleft+gright
      green(-ikern)=gleft+gright
@@ -1259,10 +1259,10 @@ real(kind=dp) :: time_b0,time_b1,serial_time,parallel_time
   call ctrig(n2,trig2,after2,before2,now2,1,ic2)
   
   !Calculating array of phases for HalFFT decoding
-  twopion=8._dp*datan(1._dp)/real(n3,KIND=dp)
+  twopion=8._dp*atan(1._dp)/real(n3,KIND=dp)
   do i3=1,n3/2
-     cosinarr(1,i3)=dcos(twopion*(i3-1))
-     cosinarr(2,i3)=-dsin(twopion*(i3-1))
+     cosinarr(1,i3)=cos(twopion*(i3-1))
+     cosinarr(2,i3)=-sin(twopion*(i3-1))
   end do
   
   !transform along z axis
@@ -1439,7 +1439,7 @@ END SUBROUTINE realcopy
 SUBROUTINE switch(nfft,n2,lot,n1,lzt,zt,zw)
   IMPLICIT REAL(KIND=dp)        (a-h,o-z)
   INTEGER ::nfft,n2,lot,n1,lzt,i,j
-  DIMENSION zw(2,lot,n2),zt(2,lzt,n1)
+  REAL(KIND=dp):: zw(2,lot,n2),zt(2,lzt,n1)
 
 
   DO 200,j=1,nfft
@@ -1454,7 +1454,7 @@ SUBROUTINE switch(nfft,n2,lot,n1,lzt,zt,zw)
       SUBROUTINE mpiswitch(j3,nfft,Jp2st,J2st,lot,n1,nd2,nd3,nproc,zmpi1,zw)
         IMPLICIT REAL(KIND=dp)        (a-h,o-z)
         INTEGER ::j3,nfft,Jp2st,J2st,lot,n1,nd2,nd3,nproc,mfft,JP2,J2,I1
-        DIMENSION zmpi1(2,n1,nd2/nproc,nd3/nproc,nproc),zw(2,lot,n1)
+        REAL(KIND=dp):: zmpi1(2,n1,nd2/nproc,nd3/nproc,nproc),zw(2,lot,n1)
 
         mfft=0
         DO 300,Jp2=Jp2st,nproc

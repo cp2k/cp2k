@@ -748,7 +748,7 @@ subroutine P_multkernel(n1,n2,n3,lot,nfft,jS,i3,zw,hx,hy,hz)
   integer :: i1,j1,i2,j2,j3
   real(KIND=dp) :: ker,pi,fourpi2,mu3,p1,p2
 
-  pi=4._dp*datan(1._dp)
+  pi=4._dp*atan(1._dp)
   fourpi2=4._dp*pi**2
   j3=i3!n3/2+1-abs(n3/2+2-i3)
   mu3=real(j3-1,KIND=dp)/real(n3,KIND=dp)
@@ -1029,10 +1029,10 @@ real(kind=dp) :: time_b0,time_b1,serial_time,parallel_time
   enddo
 
   !Calculating array of phases for HalFFT decoding
-  twopion=8._dp*datan(1._dp)/real(n3,KIND=dp)
+  twopion=8._dp*atan(1._dp)/real(n3,KIND=dp)
   do i3=1,n3/2
-     cosinarr(1,i3)=dcos(twopion*(i3-1))
-     cosinarr(2,i3)=-dsin(twopion*(i3-1))
+     cosinarr(1,i3)=cos(twopion*(i3-1))
+     cosinarr(2,i3)=-sin(twopion*(i3-1))
   end do
 
   !initializing integral
@@ -1819,10 +1819,10 @@ real(kind=dp) :: time_b0,time_b1,serial_time,parallel_time
   enddo
 
   !Calculating array of phases for HalFFT decoding
-  twopion=8._dp*datan(1._dp)/real(n3,KIND=dp)
+  twopion=8._dp*atan(1._dp)/real(n3,KIND=dp)
   do i3=1,n3/2
-     cosinarr(1,i3)=dcos(twopion*(i3-1))
-     cosinarr(2,i3)=-dsin(twopion*(i3-1))
+     cosinarr(1,i3)=cos(twopion*(i3-1))
+     cosinarr(2,i3)=-sin(twopion*(i3-1))
   end do
 
   !initializing integrals
