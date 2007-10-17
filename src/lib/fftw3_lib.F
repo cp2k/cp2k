@@ -123,6 +123,9 @@ SUBROUTINE fftw33d ( fft_in_place, fsign, scale, n, zin, zout )
 ! add this to the path to the -I flags of the CPP
 #if defined ( __FFTW3 )
 #include "fftw3.f"
+  INTEGER, PARAMETER                                   :: fftw_plan_type = FFTW_ESTIMATE
+#else
+  INTEGER, PARAMETER                                   :: fftw_plan_type = 1
 #endif
 
 #if defined (__NAG)
@@ -145,25 +148,25 @@ SUBROUTINE fftw33d ( fft_in_place, fsign, scale, n, zin, zout )
 
 #if defined(__SGL) || defined(__FFTSGL)
   IF ( fft_in_place .AND. fsign == +1 ) THEN
-    CALL sfftw_plan_dft_3d(plan,n1,n2,n3,zin,zin,FFTW_FORWARD,FFTW_ESTIMATE)
+    CALL sfftw_plan_dft_3d(plan,n1,n2,n3,zin,zin,FFTW_FORWARD,fftw_plan_type)
   ELSE IF ( fft_in_place .AND. fsign == -1 ) THEN
-    CALL sfftw_plan_dft_3d(plan,n1,n2,n3,zin,zin,FFTW_BACKWARD,FFTW_ESTIMATE)
+    CALL sfftw_plan_dft_3d(plan,n1,n2,n3,zin,zin,FFTW_BACKWARD,fftw_plan_type)
   ELSE IF ( .NOT. fft_in_place .AND. fsign == +1 ) THEN
-    CALL sfftw_plan_dft_3d(plan,n1,n2,n3,zin,zout,FFTW_FORWARD,FFTW_ESTIMATE)
+    CALL sfftw_plan_dft_3d(plan,n1,n2,n3,zin,zout,FFTW_FORWARD,fftw_plan_type)
   ELSE IF ( .NOT. fft_in_place .AND. fsign == -1 ) THEN
-    CALL sfftw_plan_dft_3d(plan,n1,n2,n3,zin,zout,FFTW_BACKWARD,FFTW_ESTIMATE)
+    CALL sfftw_plan_dft_3d(plan,n1,n2,n3,zin,zout,FFTW_BACKWARD,fftw_plan_type)
   END IF
   CALL sfftw_execute(plan)
   CALL sfftw_destroy_plan(plan)
 #else
   IF ( fft_in_place .AND. fsign == +1 ) THEN
-    CALL dfftw_plan_dft_3d(plan,n1,n2,n3,zin,zin,FFTW_FORWARD,FFTW_ESTIMATE)
+    CALL dfftw_plan_dft_3d(plan,n1,n2,n3,zin,zin,FFTW_FORWARD,fftw_plan_type)
   ELSE IF ( fft_in_place .AND. fsign == -1 ) THEN
-    CALL dfftw_plan_dft_3d(plan,n1,n2,n3,zin,zin,FFTW_BACKWARD,FFTW_ESTIMATE)
+    CALL dfftw_plan_dft_3d(plan,n1,n2,n3,zin,zin,FFTW_BACKWARD,fftw_plan_type)
   ELSE IF ( .NOT. fft_in_place .AND. fsign == +1 ) THEN
-    CALL dfftw_plan_dft_3d(plan,n1,n2,n3,zin,zout,FFTW_FORWARD,FFTW_ESTIMATE)
+    CALL dfftw_plan_dft_3d(plan,n1,n2,n3,zin,zout,FFTW_FORWARD,fftw_plan_type)
   ELSE IF ( .NOT. fft_in_place .AND. fsign == -1 ) THEN
-    CALL dfftw_plan_dft_3d(plan,n1,n2,n3,zin,zout,FFTW_BACKWARD,FFTW_ESTIMATE)
+    CALL dfftw_plan_dft_3d(plan,n1,n2,n3,zin,zout,FFTW_BACKWARD,fftw_plan_type)
   END IF
   CALL dfftw_execute(plan)
   CALL dfftw_destroy_plan(plan)
@@ -206,6 +209,9 @@ SUBROUTINE fftw31dm ( fsign, trans, n, m, zin, zout, scale )
 
 #if defined ( __FFTW3 )
 #include "fftw3.f"
+  INTEGER, PARAMETER                                   :: fftw_plan_type = FFTW_ESTIMATE
+#else
+  INTEGER, PARAMETER                                   :: fftw_plan_type = 1
 #endif
 
   INTEGER, INTENT ( INOUT )                          :: fsign
@@ -243,10 +249,10 @@ SUBROUTINE fftw31dm ( fsign, trans, n, m, zin, zout, scale )
 #if defined(__SGL) || defined(__FFTSGL)
   IF ( fsign == +1 ) THEN
     CALL sfftw_plan_many_dft(plan,1,n,m,zin,0,ii,di,&
-              zout,0,io,do,FFTW_FORWARD,FFTW_ESTIMATE)
+              zout,0,io,do,FFTW_FORWARD,fftw_plan_type)
   ELSE
     CALL sfftw_plan_many_dft(plan,1,n,m,zin,0,ii,di,&
-              zout,0,io,do,FFTW_BACKWARD,FFTW_ESTIMATE)
+              zout,0,io,do,FFTW_BACKWARD,fftw_plan_type)
   END IF
   CALL sfftw_execute(plan)
   CALL sfftw_destroy_plan(plan)
@@ -254,10 +260,10 @@ SUBROUTINE fftw31dm ( fsign, trans, n, m, zin, zout, scale )
 #else
   IF ( fsign == +1 ) THEN
     CALL dfftw_plan_many_dft(plan,1,n,m,zin,0,ii,di,&
-              zout,0,io,do,FFTW_FORWARD,FFTW_ESTIMATE)
+              zout,0,io,do,FFTW_FORWARD,fftw_plan_type)
   ELSE
     CALL dfftw_plan_many_dft(plan,1,n,m,zin,0,ii,di,&
-              zout,0,io,do,FFTW_BACKWARD,FFTW_ESTIMATE)
+              zout,0,io,do,FFTW_BACKWARD,fftw_plan_type)
   END IF
   CALL dfftw_execute(plan)
   CALL dfftw_destroy_plan(plan)
@@ -273,3 +279,88 @@ SUBROUTINE fftw31dm ( fsign, trans, n, m, zin, zout, scale )
 END SUBROUTINE fftw31dm
 
 !******************************************************************************
+!     Copyright (c) 2003, 2006 Matteo Frigo
+!     Copyright (c) 2003, 2006 Massachusetts Institute of Technology
+!     
+!     This program is free software; you can redistribute it and/or modify
+!     it under the terms of the GNU General Public License as published by
+!     the Free Software Foundation; either version 2 of the License, or
+!     (at your option) any later version.
+!     
+!     This program is distributed in the hope that it will be useful,
+!     but WITHOUT ANY WARRANTY; without even the implied warranty of
+!     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!     GNU General Public License for more details.
+!     
+!     You should have received a copy of the GNU General Public License
+!     along with this program; if not, write to the Free Software
+!     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!     
+!     This is an example implementation of Fortran wisdom export/import
+!     to/from a Fortran unit (file), exploiting the generic
+!     dfftw_export_wisdom/dfftw_import_wisdom functions.
+!     
+!     We cannot compile this file into the FFTW library itself, lest all
+!     FFTW-calling programs be required to link to the Fortran I/O
+!     libraries.
+!
+!     adapted to become more standard Fortran 90 [2007-10] Joost VandeVondele
+!     and added some namespacing
+!     
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+      subroutine fftw_write_char(c, iunit)
+         character c
+         integer iunit
+         write(iunit,'(a)',ADVANCE="NO") c
+      end      
+
+      subroutine fftw_export_wisdom_to_file(iunit)
+         integer iunit
+         external fftw_write_char
+#if defined ( __FFTW3 )
+         call dfftw_export_wisdom(fftw_write_char, iunit)
+#endif
+      end
+
+!     Fortran 77 does not have any portable way to read an arbitrary
+!     file one character at a time [needs to wait for stream IO of F2003].
+!     The best alternative seems to be to
+!     read a whole line into a buffer, since for fftw-exported wisdom we
+!     can bound the line length.  (If the file contains longer lines,
+!     then the lines will be truncated and the wisdom import should
+!     simply fail.)  Ugh (and not thread safe).
+
+      subroutine fftw_read_char(ic, iunit)
+         integer ic
+         integer iunit
+         character*256 buf
+         save buf
+         integer ibuf
+         data ibuf/257/
+         save ibuf
+         if (ibuf .lt. 257) then
+            ic = ichar(buf(ibuf:ibuf))
+            ibuf = ibuf + 1
+            return
+         endif
+         read(iunit,123,end=666) buf
+         ic = ichar(buf(1:1))
+         ibuf = 2
+         return
+ 666     ic = -1
+         ibuf = 257
+ 123     format(a256)
+      end
+      
+      subroutine fftw_import_wisdom_from_file(isuccess, iunit)
+         integer isuccess
+         integer iunit
+         external fftw_read_char
+         isucces=0
+#if defined ( __FFTW3 )
+         call dfftw_import_wisdom(isuccess, fftw_read_char, iunit)
+#endif
+      end

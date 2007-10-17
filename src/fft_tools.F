@@ -25,18 +25,20 @@ MODULE fft_tools
 
   USE kinds,                           ONLY: dp,&
                                              sp
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE message_passing,                 ONLY: &
        mp_alltoall, mp_cart_coords, mp_cart_rank, mp_cart_sub, &
        mp_comm_compare, mp_comm_free, mp_environ, mp_rank_compare, mp_sum
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+  USE cp_files,                        ONLY: get_unit_number
   USE timings,                         ONLY: timeset,&
                                              timestop
 
   IMPLICIT NONE 
   
   PRIVATE
-  PUBLIC :: init_fft, fft3d
+  PUBLIC :: init_fft, fft3d, finalize_fft
   PUBLIC :: fft_radix_operations
   PUBLIC :: FWFFT, BWFFT
   PUBLIC :: FFT_RADIX_CLOSEST, FFT_RADIX_NEXT, FFT_RADIX_ALLOWED
@@ -80,54 +82,81 @@ CONTAINS
 !!*****
 !******************************************************************************
 
-SUBROUTINE init_fft ( fftlib, fftnum, alltoall, fftsg_sizes )
+SUBROUTINE init_fft ( fftlib, alltoall, fftsg_sizes, wisdom_file, para_env )
 
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: fftlib
-    INTEGER, INTENT(IN), OPTIONAL            :: fftnum
-    LOGICAL, INTENT(IN), OPTIONAL            :: alltoall
-    LOGICAL, INTENT(IN), OPTIONAL            :: fftsg_sizes
+    CHARACTER(LEN=*), INTENT(IN)             :: fftlib
+    LOGICAL, INTENT(IN)                      :: alltoall
+    LOGICAL, INTENT(IN)                      :: fftsg_sizes
+    CHARACTER(LEN=*), INTENT(IN)             :: wisdom_file
+    TYPE(cp_para_env_type), POINTER          :: para_env
+
 
     COMPLEX(KIND=dp)                         :: zz( 4, 4, 4 )
-    INTEGER                                  :: fft_library, i, n(3) = 4, stat
+    INTEGER                                  :: fft_library, i, n(3) = 4, stat, iunit,isuccess,istat
+    LOGICAL                                  :: exist
 
-  IF ( PRESENT ( fftsg_sizes ) ) THEN
-     use_fftsg_sizes = fftsg_sizes
-  ENDIF
-
-  IF ( PRESENT ( alltoall ) ) THEN
-     alltoall_sgl = alltoall
-  ELSE
-     alltoall_sgl = .FALSE.
-  END IF
-
-  IF ( PRESENT ( fftlib ) ) THEN
+    use_fftsg_sizes = fftsg_sizes
+    alltoall_sgl = alltoall
     fft_type = fft_library ( fftlib )
     IF ( fft_type <= 0 ) &
-      CALL stop_program ("init_fft","Unknown FFT library: "//TRIM(fftlib))
-  ELSE IF ( PRESENT ( fftnum ) ) THEN
-    fft_type = fftnum
-    zz = 0.1_dp
-    CALL fft3d ( 1, n, zz, status=stat )
-    IF ( stat /= 0 ) CALL stop_program ("init_fft","FFT library not available")
-  ELSE
-    zz = 0.1_dp
-    DO i = 1, 100
-      fft_type = i
-      CALL fft3d ( 1, n, zz, status=stat )
-      IF ( stat == 0 ) EXIT
-      fft_type = 0
-    END DO
-    IF (fft_type == 0 ) CALL stop_program ("init_fft",&
-                                           "No FFT library available")
-  END IF
+         CALL stop_program ("init_fft","Unknown FFT library: "//TRIM(fftlib))
 
-  IF ( PRESENT ( fftnum ) ) THEN
-    IF ( fft_type /= fftnum ) CALL stop_program ("init_fft",&
-       " Inconsistent Arguments ")
-  END IF
+    ! only do FFTW3 related stuff right now
+    ! note that the library might not actually be available
+    ! all nodes are opening the file here...
+    IF (fft_library ( "FFTW3" ) == fft_type) THEN
+        INQUIRE(FILE=wisdom_file,exist=exist)
+        IF (exist) THEN
+           iunit=get_unit_number()           
+           OPEN(UNIT=iunit,FILE=wisdom_file,STATUS="OLD",FORM="FORMATTED",POSITION="REWIND",ACTION="READ",IOSTAT=istat)
+           IF (istat==0) THEN
+              CALL fftw_import_wisdom_from_file(isuccess,iunit)
+              write(6,*) "FFTW3 import wisdom from file ....",MERGE((/"OK    "/),(/"NOT OK"/),(/isuccess==1/))
+              CLOSE(iunit)
+           ENDIF
+        ENDIF
+    ENDIF
 
 END SUBROUTINE init_fft
 
+!!****f* fft_tools/finalize_fft *
+!!
+!!   NAME
+!!     finalize_fft
+!!
+!!   FUNCTION
+!!     does whatever is needed to finalize the current fft setup
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!     10.2007 created [Joost VandeVondele]
+!!
+!!*** **********************************************************************
+SUBROUTINE finalize_fft( para_env )
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER :: fft_library
+    INTEGER :: iunit
+
+
+    ! we don't want to use this yet, it is only meaningful if we really plan with something else than estimate
+
+    RETURN
+    ! only do FFTW3 related stuff right now
+    ! note that the library might not actually be available
+    IF (fft_library ( "FFTW3" ) == fft_type) THEN
+        ! only the ionode updates the wisdom
+        IF (para_env%ionode) THEN
+           iunit=get_unit_number()           
+           OPEN(UNIT=iunit,FILE="fftw_wisdom.dat",STATUS="UNKNOWN",FORM="FORMATTED",ACTION="WRITE")
+           CALL fftw_export_wisdom_to_file(iunit)
+           CLOSE(iunit)
+        ENDIF
+    ENDIF
+
+END SUBROUTINE finalize_fft
 !******************************************************************************
 !!****** fft_tools/fft_radix_operations [1.0] *
 !!

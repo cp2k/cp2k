@@ -349,6 +349,17 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
+    CALL keyword_create(keyword, name="FFTW_WISDOM_FILE_NAME",&
+         description="The name of the file that contains wisdom (pre-planned FFTs) for use with FFTW3. "//&
+                     "Using wisdom can significantly speed up the FFTs (see the FFTW homepage for details). "//&
+                     "Note that wisdom is not transferable between different computer (architectures). "//&
+                     "Wisdom can be generated using the fftw-wisdom tool that is part of the fftw installation. "//&
+                     "cp2k/tools/cp2k-wisdom is a script that contains some additional info, and can help "//&
+                     "to generate a useful default for /etc/fftw/wisdom or particular values for a given simulation.",&
+         usage="FFTW_WISDOM_FILE_NAME wisdom.dat", default_lc_val="/etc/fftw/wisdom", error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
     CALL keyword_create(keyword, name="EXTENDED_FFT_LENGTHS",&
          description="Use fft library specific values for the allows number of points in FFTs. "//&
                      "Use this to obtain, with certain fft libraries, "//&

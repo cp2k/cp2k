@@ -587,25 +587,25 @@ SUBROUTINE fft_test ( para_env, iw, globenv )
     CASE DEFAULT
       EXIT
     CASE ( 1 )
-      CALL init_fft ( "FFTSG" )
+      CALL init_fft ( "FFTSG", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", para_env=para_env )
       method = "FFTSG  "
     CASE ( 2 )
-      CALL init_fft ( "FFTW2" )
+      CALL init_fft ( "FFTW2", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", para_env=para_env )
       method = "FFTW2  "
     CASE ( 3 )
-      CALL init_fft ( "FFTW3" )
+      CALL init_fft ( "FFTW3", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", para_env=para_env )
       method = "FFTW3  "
     CASE ( 4 )
-      CALL init_fft ( "FFTESSL" )
+      CALL init_fft ( "FFTESSL", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", para_env=para_env )
       method = "FFTESSL"
     CASE ( 5 )
-      CALL init_fft ( "FFTACML" )
+      CALL init_fft ( "FFTACML", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", para_env=para_env )
       method = "FFTACML"
     CASE ( 6 )
-      CALL init_fft ( "FFTMKL" )
+      CALL init_fft ( "FFTMKL", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", para_env=para_env )
       method = "FFTMKL"
     CASE ( 7 )
-      CALL init_fft ( "FFTSCI" )
+      CALL init_fft ( "FFTSCI", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", para_env=para_env )
       method = "FFTSCI"
     END SELECT
     n = 4
@@ -753,7 +753,7 @@ SUBROUTINE pw_fft_test ( para_env, iw, globenv, error )
   CALL get_hinv ( box )
 
 !..set fft lib
-  CALL init_fft ( globenv%default_fft_library )
+  CALL init_fft ( globenv%default_fft_library, alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", para_env=para_env )
 
   ntim = 4
   tim = 1.0_dp

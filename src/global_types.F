@@ -30,6 +30,7 @@ MODULE global_types
 
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: default_string_length,&
+                                             default_path_length,&
                                              dp
   USE machine,                         ONLY: m_walltime
   USE parallel_rng_types,              ONLY: delete_rng_stream,&
@@ -104,6 +105,7 @@ MODULE global_types
      INTEGER :: id_nr, ref_count
      TYPE(rng_stream_type), POINTER          :: gaussian_rng_stream
      CHARACTER(LEN=default_string_length)    :: default_fft_library,project_name
+     CHARACTER(LEN=default_path_length)      :: fftw_wisdom_file_name
 
      INTEGER :: idum         !! random number seed
      INTEGER :: prog_name_id !! index to define the type of program
@@ -157,6 +159,7 @@ CONTAINS
        globenv%ref_count=1
        globenv%run_type_id=0
        globenv%default_fft_library="FFTSG"
+       globenv%fftw_wisdom_file_name="/etc/fftw/wisdom"
        globenv%prog_name_id=0
        globenv%project_name=""
        globenv%idum=0                 !! random number seed

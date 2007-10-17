@@ -32,7 +32,8 @@ MODULE environment
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE fft_tools,                       ONLY: fft3d,&
-                                             init_fft
+                                             init_fft,&
+                                             finalize_fft
   USE force_env_types,                 ONLY: multiple_fe_list
   USE gamma,                           ONLY: deallocate_md_ftable
   USE global_types,                    ONLY: global_environment_type
@@ -512,6 +513,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     CALL section_vals_val_get(global_section,"PRINT_LEVEL",i_val=print_level,error=error)
     CALL section_vals_val_get(global_section,"PROGRAM_NAME",i_val=globenv%prog_name_id,error=error)
     CALL section_vals_val_get(global_section,"PROJECT_NAME",c_val=globenv%project_name,error=error)
+    CALL section_vals_val_get(global_section,"FFTW_WISDOM_FILE_NAME",c_val=globenv%fftw_wisdom_file_name,error=error)
     CALL section_vals_val_get(global_section,"RUN_TYPE",i_val=globenv%run_type_id,error=error)
     CALL section_vals_val_get(global_section,"WALLTIME",r_val=globenv%cp2k_target_time,error=error)
     CALL section_vals_val_get(global_section,"TRACE",l_val=trace,error=error)
@@ -688,6 +690,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     CHARACTER(LEN=10)                        :: fftw_name
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: global_section
+    INTEGER                                  :: iwisdom,isuccess
 
 !   ---------------------------------------------------------------------------
 
@@ -725,7 +728,9 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
 !   *** Initialize FFT library with the user's prefered FFT library ***
     CALL init_fft(fftlib=TRIM(globenv%default_fft_library),&
                   alltoall=section_get_lval(global_section,"ALLTOALL_SGL",error), &
-                  fftsg_sizes=.NOT.section_get_lval(global_section,"EXTENDED_FFT_LENGTHS",error))
+                  fftsg_sizes=.NOT.section_get_lval(global_section,"EXTENDED_FFT_LENGTHS",error), &
+                  wisdom_file=globenv%fftw_wisdom_file_name,&
+                  para_env=para_env)
 
 !   *** Check for FFT library ***
     CALL fft3d(1,n,zz,status=stat)
@@ -740,7 +745,9 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
          globenv%default_fft_library=fftw_name
          CALL init_fft(fftlib=TRIM(globenv%default_fft_library),&
                        alltoall=section_get_lval(global_section,"ALLTOALL_SGL",error), &
-                       fftsg_sizes=.NOT.section_get_lval(global_section,"EXTENDED_FFT_LENGTHS",error))
+                       fftsg_sizes=.NOT.section_get_lval(global_section,"EXTENDED_FFT_LENGTHS",error), &
+                       wisdom_file=globenv%fftw_wisdom_file_name,&
+                       para_env=para_env)
 
          CALL fft3d(1,n,zz,status=stat)
       ENDIF
@@ -756,7 +763,9 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
          globenv%default_fft_library="FFTSG"
          CALL init_fft(fftlib=TRIM(globenv%default_fft_library),&
                        alltoall=section_get_lval(global_section,"ALLTOALL_SGL",error), &
-                       fftsg_sizes=.NOT.section_get_lval(global_section,"EXTENDED_FFT_LENGTHS",error))
+                       fftsg_sizes=.NOT.section_get_lval(global_section,"EXTENDED_FFT_LENGTHS",error), &
+                       wisdom_file=globenv%fftw_wisdom_file_name,&
+                       para_env=para_env)
 
          CALL fft3d(1,n,zz,status=stat)
          IF (stat /= 0) THEN
@@ -811,6 +820,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     TYPE(cp_logger_type), POINTER            :: logger
     REAL(KIND=dp)                            :: r_timings
     TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER                                  :: iwisdom
 #if defined(__HPM)
 #include "f_hpm.h"
 #endif
@@ -830,6 +840,9 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     CALL deallocate_spherical_harmonics()
     CALL deallocate_orbital_pointers()
     CALL deallocate_md_ftable()
+
+    ! finalize the fft (i.e. writes the wisdom)
+    CALL finalize_fft(para_env)
 
     ! Write message passing performance info
 
