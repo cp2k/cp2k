@@ -18,17 +18,21 @@
 !!   SOURCE
 !******************************************************************************
 MODULE cp_files
-  USE machine, ONLY: default_output_unit, &
-                     default_input_unit, &
-                     m_flush
+  USE machine,                         ONLY: default_input_unit,&
+                                             default_output_unit,&
+                                             m_flush
+
   IMPLICIT NONE
   PRIVATE
 
   PUBLIC :: close_file, &
             open_file, &
-            get_unit_number
+            get_unit_number,&
+            get_eof_stat
 
 !!***
+  LOGICAL, SAVE, PRIVATE :: did_init=.FALSE.
+  INTEGER, SAVE, PRIVATE :: eof_stat
   INTEGER, PARAMETER, PRIVATE :: max_message_length=400
   INTEGER, PARAMETER, PRIVATE :: max_unit_number=999
 ! *****************************************************************************
@@ -284,5 +288,42 @@ CONTAINS
 
   END SUBROUTINE open_file
 
+!!****f* cp_files/get_eof_stat *
+!!
+!!   NAME
+!!      get_eof_stat
+!!   FUNCTION
+!!      returns the number returned by iostat on eof
+!!
+!!*** **********************************************************************
+  FUNCTION get_eof_stat() RESULT(res)
+    INTEGER                                  :: res
+
+    CHARACTER(len=5)                         :: rdBuf
+    INTEGER                                  :: stat_n, unit
+
+    IF (.not.did_init) THEN
+       unit=get_unit_number()
+
+       WRITE(unit,fmt=*)'z'
+       REWIND(unit)
+
+       eof_stat=0
+       stat_n=0
+       DO
+          READ (unit,'(a1)', iostat=stat_n)rdBuf
+          IF (stat_n/=0) EXIT
+       END DO
+       READ (unit,'(a1)', iostat=eof_stat)rdBuf
+       IF (eof_stat >= 0) THEN
+          STOP 'ERROR,cp_files:get_eof_stat failed identification of EOF IOSTAT'
+          eof_stat=-1
+       END IF
+       CALL close_file(unit,'delete')
+       did_init=.TRUE.
+    END IF
+    res=eof_stat
+  END FUNCTION get_eof_stat
+    
 END MODULE cp_files
 
