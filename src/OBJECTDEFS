@@ -88,6 +88,7 @@ OBJECTS_GENERIC =\
  cp_sm_fm_interactions.o\
  cp_sm_pool_types.o\
  cp_sm_struct.o\
+ cp_str_cache.o\
  cp_subsys_methods.o\
  cp_subsys_types.o\
  cp_units.o\
