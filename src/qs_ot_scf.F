@@ -223,12 +223,6 @@ CONTAINS
     WRITE(output_unit,'(A)') " "
     WRITE(output_unit,'(A)') "  ----------------------------------- OT --------------------------------------"
     WRITE(output_unit,'(A)') " "
-    WRITE(output_unit,'(A)') "  An efficient orbital transformation method "
-    WRITE(output_unit,'(A)') "  for electronic structure calculations "
-    WRITE(output_unit,'(A)') "  Joost VandeVondele and Juerg Hutter"
-    WRITE(output_unit,'(A)') "  J. Chem. Phys. 118, 4365, 2003"
-    WRITE(output_unit,'(A)') "  http://dx.doi.org/10.1063/1.1543154"
-    WRITE(output_unit,'(A)') " "
     WRITE(output_unit,'(A,L2)') "  Allowing for rotations: ",qs_ot_env(1)%settings%do_rotation
     SELECT CASE (qs_ot_env(1)%settings%OT_METHOD)
     CASE ("SD")

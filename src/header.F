@@ -38,7 +38,7 @@ CONTAINS
 
     IF (.NOT.ionode) RETURN
     WRITE ( iw, '( / )' )
-    WRITE ( iw, '( 28(3x,a,/) )' ) &
+    WRITE ( iw, '( 13(3x,a,/) )' ) &
          "----------------------------------------------------------------------------",&
          "|                                                                          |",&
          "| ,ad8888ba,    88b           d88       88b           d88  88b           d88",&
@@ -51,21 +51,6 @@ CONTAINS
          "| `""Y8888Y""Y8a  88     `8'     88  888  88     `8'     88  88     `8'     88",&
          "|                                                                          |",&
          "|                                                     CALCULATION STARTED..|",&
-         "|--------------------------------------------------------------------------|",&
-         "| Please cite the following reference(s) if you publish or present results |",&
-         "| using the QM/MM module of CP2K.                                          |",&
-         "|--------------------------------------------------------------------------|",&
-         "|                                                                          |",&
-         "|(1) T. Laino, F. Mohamed, A. Laio, M. Parrinello                          |",&
-         "|    An Efficient Real Space Multigrid QM/MM Electrostatic Coupling        |",&
-         "|    J. Chem. Th. Comp.  1(6) (2005) pp.1176-1184                          |",&
-         "|    http://dx.doi.org/10.1021/ct050123f                                   |",&
-         "|                                                                          |",&
-         "|(2) T. Laino, F. Mohamed, A. Laio, M. Parrinello                          |",&
-         "|    An Efficient Linear-Scaling Electrostatic Coupling for treating       |",&
-         "|    Periodic Boundary Conditions in QM/MM Simulations                     |",&
-         "|    J. Chem. Th. Comp.  2(5) (2006) pp.1370-1378                          |",&
-         "|    http://dx.doi.org/10.1021/ct6001169                                   |",&
          "----------------------------------------------------------------------------"
          
 
@@ -125,7 +110,7 @@ CONTAINS
     IF (.NOT.ionode) RETURN
 
     WRITE ( iw, '( / )' )
-    WRITE ( iw, '( 14(12x,a,/) )' ) &
+    WRITE ( iw, '( 11(12x,a,/) )' ) &
          '  #####   #####        # ######  ####### ####### ######   ',&
          ' #     # #     #      #  #     # #          #    #     #  ',&
          ' #     # #           #   #     # #          #    #     #  ',&
@@ -137,29 +122,6 @@ CONTAINS
          '                     Version 0.1                       ', &
          '                J. Hutter and T. Heine                 ', &
          '                                                       '
-    WRITE (UNIT=iw,FMT="(T2,A79)")&
-         "*******************************************************************************",&
-         "** Porezag D., Frauenheim T., Kohler T., Seifert G., Kaschner R.             **",&
-         "** Construction of tight-binding-like potentials on the basis of             **",&
-         "** density-functional theory - Application to carbon                         **",&
-         "** Phys. Rev. B, Vol. 51, Issue 19, 12947-12957 (1995)                       **",&
-         "*******************************************************************************",&
-         "** Seifert G., Porezag D., Frauenheim T.                                     **",&
-         "** Calculations of molecules, clusters, and solids with a simplified         **",&
-         "** LCAO-DFT-LDA scheme                                                       **",&
-         "** Int. J. Quant. Chem., Vol. 58, Issue 2, 185-192 (1996)                    **",&
-         "*******************************************************************************",&
-         "** Elstner M., Porezag D., Jungnickel G., Elsner J., Haugk M.,               **",&
-         "** Frauenheim T., Suhai S., Seifert G.                                       **",&
-         "** Self-consistent-charge density-functional tight-binding method            **",&
-         "** for simulations of complex materials properties                           **",&
-         "** Phys. Rev. B, Vol. 58, Issue 11, 7260-7268 (1998)                         **",&
-         "*******************************************************************************",&
-         "** Zhechkov L., Heine T., Patchkovskii S., Seifert G., Duarte H.A.           **",&
-         "** An efficient a Posteriori treatment for dispersion interaction            **",&
-         "** in density-functional-based tight binding                                 **",&
-         "** J. Chem. Theory Comp. 1, Issue 5, 841-847 (2005)                          **",&
-         "*******************************************************************************"
   END SUBROUTINE dftb_header
 
   SUBROUTINE se_header ( iw, ionode )
@@ -187,15 +149,6 @@ CONTAINS
   END SUBROUTINE se_header
 
   SUBROUTINE qs_header(output_unit, ionode)
-
-    !   Purpose: Write the Quickstep program banner with the copyright and the
-    !            program version information to the output unit.
-    !   JVdV it is also a great place to provide references to QS related papers
-
-    !   History: - Creation (15.06.2000, Matthias Krack)
-
-    !   ***************************************************************************
-
     INTEGER                                  :: output_unit
     LOGICAL                                  :: ionode
 
@@ -219,47 +172,6 @@ CONTAINS
          "**            Copyright (C) by CP2K Developers Group (2000 - 2007)           **",&
          "**                                                                           **",&
          "*******************************************************************************"
-         !
-         ! add QS related method papers here. Also update the webpages.
-         !
-    WRITE (UNIT=output_unit,FMT="(T2,A79)")&
-         "*******************************************************************************",&
-         "** G. Lippert, J. Hutter, and M. Parrinello,                                 **",&
-         "** A hybrid Gaussian and plane wave density functional scheme,               **",&
-         "** Molecular Physics, Vol. 92, Issue 3, 477-487 (1997)                       **",&
-         "** http://dx.doi.org/10.1080/002689797170220                                 **",&
-         "*******************************************************************************",&
-         "** G. Lippert, J. Hutter, and M. Parrinello                                  **",&
-         "** The Gaussian and augmented-plane-wave density functional method for       **",&
-         "** ab initio molecular dynamics simulations                                  **",&
-         "** Theoretical Chemistry Accounts, Vol. 103, Issue 2, 124-140 (1999)         **",&
-         "** http://dx.doi.org/10.1007/s002140050523                                   **",&
-         "*******************************************************************************",&
-         "** M. Krack and M. Parrinello                                                **",&
-         "** All-electron ab-initio molecular dynamics                                 **",&
-         "** Physical Chemistry Chemical Physics, Vol. 2, Issue 10, 2105-2112 (2000)   **",&
-         "** http://dx.doi.org/10.1039/b001167n                                        **",&
-         "*******************************************************************************",&
-         "** J. VandeVondele and J. Hutter                                             **",&
-         "** An efficient orbital transformation method for                            **",&
-         "** electronic structure calculations.                                        **",&
-         "** J. Chem. Phys. 118, 4365 (2003)                                           **",&
-         "** http://dx.doi.org/10.1063/1.1543154                                       **",&
-         "*******************************************************************************",&
-         "** J. VandeVondele, M. Krack, F. Mohamed,                                    **",&
-         "** M. Parrinello, T. Chassaing and J. Hutter                                 **",&
-         "** Quickstep: fast and accurate density functional calculations using        **",&
-         "** a mixed Gaussian and plane waves approach.                                **",&
-         "** Comp. Phys. Comm. 167, 103 (2005).                                        **",&
-         "** http://dx.doi.org/10.1016/j.cpc.2004.12.014                               **",&
-         "*******************************************************************************",&
-         "** M. Iannuzzi,  T. Chassaing,  T. Wallman, and J. Hutter                    **",&
-         "** Ground and Excited State density Functional Calculations with             **",&
-         "** Gaussian and Augmented Plane Waves Method                                 **",&
-         "** Chimia. 167, 499 (2005).                                                  **",&
-         "*******************************************************************************"
-
-
   END SUBROUTINE qs_header
 
 
