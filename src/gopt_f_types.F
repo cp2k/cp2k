@@ -558,24 +558,28 @@ CONTAINS
     failure=.FALSE.
     IF (.NOT.failure) THEN
        CALL section_vals_val_get(gopt_section,"OPTIMIZER",i_val=gopt_param%method_id,error=error)
+
        CALL section_vals_val_get(gopt_section,"MAX_ITER",i_val=gopt_param%max_iter,error=error)
-       CALL section_vals_val_get(gopt_section,"MAX_H_RANK",i_val=gopt_param%max_h_rank,error=error)
-       CALL section_vals_val_get(gopt_section,"MAX_F_PER_ITER",i_val=gopt_param%max_f_per_iter,error=error)
-       CALL section_vals_val_get(gopt_section,"WANTED_PROJ_GRADIENT",r_val=gopt_param%wanted_proj_gradient,error=error)
-       CALL section_vals_val_get(gopt_section,"WANTED_REL_F_ERROR",r_val=gopt_param%wanted_rel_f_error,error=error)
-       CALL section_vals_val_get(gopt_section,"FLETCHER_REEVES",l_val=gopt_param%Fletcher_Reeves_ON,error=error)
-       CALL section_vals_val_get(gopt_section,"USE_FIT_LINE_SEARCH",l_val=gopt_param%use_fit_line_search,error=error)
-       CALL section_vals_val_get(gopt_section,"RESTART",l_val=gopt_param%hesrest,error=error)
-       CALL section_vals_val_get(gopt_section,"MAX_STEEP_STEPS",i_val=gopt_param%max_steep_steps,error=error)
        CALL section_vals_val_get(gopt_section,"MAX_DR",r_val=gopt_param%max_dr,error=error)
        CALL section_vals_val_get(gopt_section,"MAX_FORCE",r_val=gopt_param%max_force,error=error)
        CALL section_vals_val_get(gopt_section,"RMS_DR",r_val=gopt_param%rms_dr,error=error)
        CALL section_vals_val_get(gopt_section,"RMS_FORCE",r_val=gopt_param%rms_force,error=error)
-       CALL section_vals_val_get(gopt_section,"BRENT_TOL",r_val=gopt_param%brent_tol,error=error)
-       CALL section_vals_val_get(gopt_section,"INITIAL_STEP",r_val=gopt_param%initial_step,error=error)
-       CALL section_vals_val_get(gopt_section,"BRENT_MAX_ITER",i_val=gopt_param%brent_max_iter,error=error)
-       CALL section_vals_val_get(gopt_section,"BRACK_LIMIT",r_val=gopt_param%brack_limit,error=error)
-       CALL section_vals_val_get(gopt_section,"CG_RESTART_LIMIT",r_val=gopt_param%restart_limit,error=error)
+
+       CALL section_vals_val_get(gopt_section,"LBFGS%MAX_H_RANK",i_val=gopt_param%max_h_rank,error=error)
+       CALL section_vals_val_get(gopt_section,"LBFGS%MAX_F_PER_ITER",i_val=gopt_param%max_f_per_iter,error=error)
+       CALL section_vals_val_get(gopt_section,"LBFGS%WANTED_PROJ_GRADIENT",r_val=gopt_param%wanted_proj_gradient,error=error)
+       CALL section_vals_val_get(gopt_section,"LBFGS%WANTED_REL_F_ERROR",r_val=gopt_param%wanted_rel_f_error,error=error)
+
+       CALL section_vals_val_get(gopt_section,"BFGS%RESTART",l_val=gopt_param%hesrest,error=error)
+
+       CALL section_vals_val_get(gopt_section,"CG%FLETCHER_REEVES",l_val=gopt_param%Fletcher_Reeves_ON,error=error)
+       CALL section_vals_val_get(gopt_section,"CG%USE_FIT_LINE_SEARCH",l_val=gopt_param%use_fit_line_search,error=error)
+       CALL section_vals_val_get(gopt_section,"CG%MAX_STEEP_STEPS",i_val=gopt_param%max_steep_steps,error=error)
+       CALL section_vals_val_get(gopt_section,"CG%BRENT_TOL",r_val=gopt_param%brent_tol,error=error)
+       CALL section_vals_val_get(gopt_section,"CG%INITIAL_STEP",r_val=gopt_param%initial_step,error=error)
+       CALL section_vals_val_get(gopt_section,"CG%BRENT_MAX_ITER",i_val=gopt_param%brent_max_iter,error=error)
+       CALL section_vals_val_get(gopt_section,"CG%BRACK_LIMIT",r_val=gopt_param%brack_limit,error=error)
+       CALL section_vals_val_get(gopt_section,"CG%RESTART_LIMIT",r_val=gopt_param%restart_limit,error=error)
     END IF
 
   END SUBROUTINE gopt_param_read

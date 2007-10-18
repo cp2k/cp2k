@@ -6,17 +6,16 @@
       parm_file_name sample_pot/aala.pot
       parmtype CHM
     &END FORCEFIELD
-    &POISSON_MM
+    &POISSON
       &EWALD
-        EWALD_TYPE ewald
-        ALPHA .07
-        GMAX 29
+        EWALD_TYPE SPME
+        GMAX 20
       &END EWALD
-    &END POISSON_MM
+    &END POISSON
   &END MM
   &SUBSYS
     &CELL
-      ABC 50.0 50.0 50.0
+      ABC 20 20 20
       UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
@@ -28,7 +27,15 @@
 &END FORCE_EVAL
 &GLOBAL
   PRINT_LEVEL LOW
-
   PROJECT aala
-  RUN_TYPE debug
+  RUN_TYPE GEO_OPT
 &END GLOBAL
+&MOTION
+ &GEO_OPT
+    OPTIMIZER CG
+    MAX_ITER 500
+    &BFGS
+        RESTART
+    &END
+ &END
+&END
