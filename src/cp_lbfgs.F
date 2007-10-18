@@ -26,6 +26,7 @@
 
 !================    L-BFGS-B (version 2.4)   ==========================
 MODULE cp_lbfgs
+  USE bibliography,                    ONLY: Byrd1995, cite_reference
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_cputime
 
@@ -201,7 +202,9 @@ CONTAINS
 ! in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
 ! ************
 
+
     IF (task == 'START') THEN
+       CALL cite_reference(Byrd1995)
        isave(1)  = m*n
        isave(2)  = m**2
        isave(3)  = 4*m**2

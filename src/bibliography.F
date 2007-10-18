@@ -53,7 +53,7 @@ MODULE bibliography
              Goedecker1996, Hartwigsen1998, Krack2005, Lippert1997, Lippert1999, Krack2000,&
              Krack2002, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Toukmaji1996, Martyna1999,&
              VandeVondele2005b, Perdew1981,Avezac2005, Porezag1995, Seifert1996, Elstner1998, Zhechkov2005,&
-             Frigo2005, Nose1984a, Nose1984b, Bussi2007,Genovese2006,Genovese2007,Evans1983,Minary2003
+             Frigo2005, Nose1984a, Nose1984b, Bussi2007,Genovese2006,Genovese2007,Evans1983,Minary2003,Byrd1995
 
 CONTAINS
 !!****f* bibliography/add_all_references *
@@ -680,6 +680,24 @@ CONTAINS
             "UT ISI:A1983RB52800057",&
             "ER"),&
             DOI="10.1103/PhysRevA.28.1016")
+
+    CALL add_reference(key=Byrd1995,ISI_record=s2a(&
+            "PT J",&
+            "TI A LIMITED MEMORY ALGORITHM FOR BOUND CONSTRAINED OPTIMIZATION",&
+            "AU BYRD, RH",&
+            "   LU, PH",&
+            "   NOCEDAL, J",&
+            "   ZHU, CY",&
+            "SO SIAM JOURNAL ON SCIENTIFIC COMPUTING",&
+            "VL 16",&
+            "IS 5",&
+            "BP 1190",&
+            "EP 1208",&
+            "PY 1995",&
+            "TC 214",&
+            "UT WOS:A1995RR54100011",&
+            "ER"),&
+            DOI="10.1137/0916069")
 
   END SUBROUTINE add_all_references
 

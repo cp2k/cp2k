@@ -27,7 +27,8 @@ MODULE input_cp2k_motion
                                              Nose1984a,&
                                              Nose1984b,&
                                              Evans1983,&
-                                             Minary2003
+                                             Minary2003,&
+                                             Byrd1995
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants
@@ -1731,14 +1732,13 @@ CONTAINS
 
        CALL keyword_create(keyword, name="OPTIMIZER",&
             variants=(/"MINIMIZER"/),&
+            citations=(/Byrd1995/),&
             description="Specify which method to use to perform a geometry optimization.",&
             usage="OPTIMIZER {BFGS|LBFGS|CG}",&
             enum_c_vals=s2a( "BFGS","LBFGS","CG"),&
             enum_desc=s2a("Most efficient minimizer, but only for 'small' systems, "//&
                           "as it relies on diagonalization of a full Hessian matrix",&
-                          "Limit memory variant of the above, can also be applied to large systems, not as well fine-tuned"//&
-                          "Note that it currently uses its specific convergence criteria (LBFGS%WANTED_xxx) "//&
-                          "and ignores the generic ones (to be fixed).",&
+                          "Limit memory variant of the above, can also be applied to large systems, not as well fine-tuned",&
                           "conjugate gradients, robust minimizer (depending on the line search) also OK for large systems"),&
             enum_i_vals=(/default_bfgs_method_id,default_lbfgs_method_id,default_cg_method_id/),&
             default_i_val=default_bfgs_method_id,error=error)
@@ -1789,6 +1789,7 @@ CONTAINS
        CALL section_create(subsection,name="LBFGS",&
             description="Provides parameters to tune the limited memory BFGS (LBFGS) optimization",&
             n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
+            citations=(/byrd1995/),&
             error=error)
 
        CALL keyword_create(keyword, name="MAX_H_RANK",&
@@ -1808,18 +1809,20 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="WANTED_PROJ_GRADIENT",&
-            description="Requested norm threshold of the gradient multiplied "// &
-            "by the approximate hessian",&
+            description="Convergence criterium (overrides the general ones):"//&
+                        "Requested norm threshold of the gradient multiplied "// &
+                        "by the approximate Hessian.",&
             usage="WANTED_PROJ_GRADIENT {real}",&
-            default_r_val=1.0E-3_dp,error=error)
+            default_r_val=1.0E-16_dp,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="WANTED_REL_F_ERROR",&
-            description="Requested relative error on the objective function"//&
-            "of the optimizer (the energy)",&
+            description="Convergence criterium (overrides the general ones):"//&
+                        "Requested relative error on the objective function"//&
+                        "of the optimizer (the energy)",&
             usage="WANTED_REL_F_ERROR {real}",&
-            default_r_val=1.0E-5_dp,error=error)
+            default_r_val=1.0E-16_dp,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

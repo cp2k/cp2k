@@ -23,8 +23,6 @@
 
 MODULE cg_optimizer
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
-  USE bfgs_optimizer,                  ONLY: check_converg,&
-                                             write_cycle_infos
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
                                              cp_print_key_finished_output,&
@@ -38,7 +36,9 @@ MODULE cg_optimizer
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_types,                    ONLY: cp_eval_at,&
                                              gopt_f_type,&
-                                             gopt_param_type
+                                             gopt_param_type,&
+                                             check_converg,&
+                                             write_cycle_infos
   USE input_constants,                 ONLY: dump_xmol
   USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&

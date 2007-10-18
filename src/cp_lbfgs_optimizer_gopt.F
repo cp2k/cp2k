@@ -51,8 +51,6 @@
 !!   SOURCE
 !*****************************************************************************
 MODULE cp_lbfgs_optimizer_gopt
-  USE bfgs_optimizer,                  ONLY: check_converg,&
-                                             write_cycle_infos
   USE cell_types,                      ONLY: cell_type
   USE cp_lbfgs,                        ONLY: cp_lbfgs_unit_nr,&
                                              setulb
@@ -66,11 +64,13 @@ MODULE cp_lbfgs_optimizer_gopt
                                              cp_subsys_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
-  USE gopt_f_types,                    ONLY: cp_eval_at,&
+  USE gopt_f_types,                    ONLY: check_converg,&
+                                             cp_eval_at,&
                                              gopt_f_release,&
                                              gopt_f_retain,&
                                              gopt_f_type,&
-                                             gopt_param_type
+                                             gopt_param_type,&
+                                             write_cycle_infos
   USE input_constants,                 ONLY: dump_xmol
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
@@ -809,20 +809,24 @@ CPSourceFileRef,&
              optimizer%eold = optimizer%f
              optimizer%emin = MIN(optimizer%emin,optimizer%eold)
              xold = optimizer%x
+             CALL mp_bcast(conv,optimizer%master,&
+                  optimizer%para_env%group)
              IF (PRESENT(converged)) converged=conv
              EXIT
           CASE (4)
              !op=4 (convergence - normal exit)
-             ! Specific L-BFGS convergence cryteria.. overrides the convergence cryteria on
+             ! Specific L-BFGS convergence criteria.. overrides the convergence criteria on
              ! stepsize and gradients
              dataunit = cp_print_key_unit_nr(logger,input,&
                   "MOTION%GEO_OPT%PRINT%PROGRAM_RUN_INFO",extension=".geoLog",error=error)
              IF (dataunit>0) THEN
-                wildcard = "LBFGS"
-                CALL write_cycle_infos(dataunit,optimizer%isave(30),optimizer%f,wildcard=wildcard)
-                WRITE(dataunit,'(T2,A)')"*****"
-                WRITE(dataunit,'(T2,A)')"* Specific L-BFGS convergence cryteria met.. CONVERGED!"
-                WRITE(dataunit,'(T2,A)')"*****"
+                WRITE(dataunit,'(T2,A)')""
+                WRITE(dataunit,'(T2,A)')"***********************************************"
+                WRITE(dataunit,'(T2,A)')"* Specific L-BFGS convergence criteria         "
+                WRITE(dataunit,'(T2,A)')"* WANTED_PROJ_GRADIENT and WANTED_REL_F_ERROR  "
+                WRITE(dataunit,'(T2,A)')"* satisfied .... run CONVERGED!                "
+                WRITE(dataunit,'(T2,A)')"***********************************************"
+                WRITE(dataunit,'(T2,A)')""
              END IF
              CALL cp_print_key_finished_output(dataunit,logger,input,&
                   "MOTION%GEO_OPT%PRINT%PROGRAM_RUN_INFO", error=error)
@@ -965,7 +969,7 @@ CPSourceFileRef,&
     TYPE(cp_lbfgs_opt_gopt_type), POINTER    :: optimizer
     INTEGER, INTENT(out), OPTIONAL           :: n_iter
     REAL(kind=dp), INTENT(out), OPTIONAL     :: f, last_f, projected_gradient
-    LOGICAL, INTENT(out), OPTIONAL           :: converged
+    LOGICAL, INTENT(out)                     :: converged
     TYPE(section_vals_type), POINTER         :: force_env_section, input
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
@@ -988,7 +992,7 @@ CPSourceFileRef,&
             converged=converged,force_env_section=force_env_section,&
             input=input,force_env=force_env,gopt_param=gopt_param,&
             error=error)
-       res= optimizer%status<4
+       res= (optimizer%status<40) .AND. .NOT. converged
     ELSE
        res=.FALSE.
     END IF

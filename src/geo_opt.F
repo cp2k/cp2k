@@ -173,7 +173,7 @@ MODULE geo_opt
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ihandle
-    LOGICAL                                  :: failure, should_stop
+    LOGICAL                                  :: failure, should_stop, converged
     REAL(KIND=dp)                            :: f
     TYPE(cp_lbfgs_opt_gopt_type), POINTER    :: optimizer
     TYPE(cp_logger_type), POINTER            :: logger
@@ -200,7 +200,7 @@ MODULE geo_opt
 
         DO i=1,gopt_param%max_iter
            IF (.NOT.cp_opt_gopt_next(optimizer,force_env_section=force_env_section,&
-                input=root_section,force_env=force_env,gopt_param=gopt_param,&
+                input=root_section,force_env=force_env,gopt_param=gopt_param, converged=converged, &
                 error=error)) EXIT
            ! check for an external exit command
            CALL external_control(should_stop,"GEO",globenv,error)
@@ -212,14 +212,18 @@ MODULE geo_opt
                 force_env_section=force_env_section,error=error)
         END DO
 
-        ! write out more data for the minimum
-        IF (logger%para_env%mepos==logger%para_env%source) THEN
-           WRITE (unit=cp_logger_get_default_unit_nr(logger),&
-                fmt="(' Reevaluating wf at minimum')")
-        END IF
-        CALL cp_eval_at(gopt_env,optimizer%x,f=f,master=optimizer%master,&
-             para_env=optimizer%para_env,force_env_section=force_env_section,&
-             error=error)
+        IF (converged) THEN
+            CALL write_restart(force_env=force_env,root_section=root_section,&
+                               force_env_section=force_env_section,error=error)
+            ! write out more data for the minimum
+            IF (logger%para_env%mepos==logger%para_env%source) THEN
+               WRITE (unit=cp_logger_get_default_unit_nr(logger),&
+                    fmt="(' Reevaluating energy at the minimum ')")
+            END IF
+            CALL cp_eval_at(gopt_env,optimizer%x,f=f,master=optimizer%master,&
+                 para_env=optimizer%para_env,force_env_section=force_env_section,&
+                 error=error)
+        ENDIF
         CALL cp_opt_gopt_release(optimizer, error=error)
      END IF
      CALL cp_rm_iter_level(logger%iter_info,ihandle,error)

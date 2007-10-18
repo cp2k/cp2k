@@ -39,7 +39,9 @@ MODULE bfgs_optimizer
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_types,                    ONLY: cp_eval_at,&
                                              gopt_f_type,&
-                                             gopt_param_type
+                                             gopt_param_type,&
+                                             write_cycle_infos,&
+                                             check_converg
   USE input_constants,                 ONLY: dump_xmol
   USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_type
@@ -867,72 +869,6 @@ CONTAINS
 
   END SUBROUTINE energy_predict
 
-!!****** bfgs_optimizer/write_cycle_infos [1.0] *
-!!
-!!   NAME
-!!    write_cycle_infos  
-!!
-!!   FUNCTION
-!!    
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!***************************************************************************
- SUBROUTINE write_cycle_infos(output_unit,it,etot,ediff,pred,rat,step,rad,emin,wildcard)
-
-    INTEGER, INTENT(IN)                      :: output_unit, it
-    REAL(KIND=dp), INTENT(IN)                :: etot
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: ediff, pred, rat, step, rad, &
-                                                emin
-    CHARACTER(LEN=5), OPTIONAL               :: wildcard
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_cycle_infos', &
-      routineP = moduleN//':'//routineN
-
-     WRITE(UNIT=output_unit,FMT="(/,T2,8('-'),A,I5,1X,12('-'))")&
-     "  Informations at step = ",it
-     WRITE(UNIT=output_unit,FMT="(T2,A,T47,A)")&
-      " Optimization Method        = ",wildcard
-     WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-      " Total Energy               = ",etot
-     IF (PRESENT(ediff)) THEN
-        WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-             " Real energy change         = ",ediff
-     END IF
-     IF (PRESENT(pred)) THEN
-        WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-             " Predicted change in energy = ",pred
-     END IF
-     IF (PRESENT(rat)) THEN
-        WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-             " Scaling factor             = ",rat
-     END IF
-     IF (PRESENT(step)) THEN
-        WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-             " Step size                  = ",step
-     END IF
-     IF (PRESENT(rad)) THEN
-        WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-             " Trust radius               = ",rad
-     END IF
-     IF (PRESENT(emin)) THEN
-        IF( etot < emin )THEN
-           WRITE(UNIT=output_unit,FMT="(T2,2A)")&
-                " Decrease in energy         =     ",&
-                "             YES"
-        ELSE
-           WRITE(UNIT=output_unit,FMT="(T2,2A)")&
-                " Decrease in energy         =     ",&
-                "              NO"
-        END IF
-     END IF
-     IF (it==0) WRITE(UNIT=output_unit,FMT="(T2,51('-'))")
- END SUBROUTINE write_cycle_infos
-
 !!****** bfgs_optimizer/update_trust_rad [1.0] *
 !!
 !!   NAME
@@ -1020,142 +956,5 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE update_trust_rad
-
-!!****** bfgs_optimizer/check_converg [1.0] *
-!!
-!!   NAME
-!!    check_converg  
-!!
-!!   FUNCTION
-!!    
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!***************************************************************************
-  SUBROUTINE check_converg(ndf,dr,g,ionode,output_unit,conv,gopt_param)
-
-    INTEGER, INTENT(IN)                      :: ndf
-    REAL(KIND=dp), INTENT(IN)                :: dr(ndf), g(ndf)
-    LOGICAL, INTENT(IN)                      :: ionode
-    INTEGER, INTENT(IN)                      :: output_unit
-    LOGICAL, INTENT(OUT)                     :: conv
-    TYPE(gopt_param_type), POINTER           :: gopt_param
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'check_converg', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: indf
-    LOGICAL                                  :: conv_dx, conv_g, conv_rdx, &
-                                                conv_rg
-    REAL(KIND=dp)                            :: dumm, dxcon, gcon, maxdum(4), &
-                                                rmsgcon, rmsxcon
-
-    dxcon = gopt_param%max_dr
-    gcon = gopt_param%max_force
-    rmsgcon = gopt_param%rms_force
-    rmsxcon = gopt_param%rms_dr
-
-    conv     = .FALSE.
-    conv_dx  = .TRUE.
-    conv_rdx = .TRUE.
-    conv_g   = .TRUE.
-    conv_rg  = .TRUE.
-
-    dumm     = 0.0_dp
-    DO indf = 1, ndf
-       IF(indf == 1)maxdum(1) = dr(indf)
-       dumm = dumm + dr(indf)**2
-       IF(ABS(dr(indf)) > dxcon )conv_dx = .FALSE.
-       IF(ABS(dr(indf)) > maxdum(1) )maxdum(1) = ABS(dr(indf))
-    END DO
-    IF( SQRT(dumm/ndf) > rmsxcon )conv_rdx = .FALSE.
-    maxdum(2) = SQRT(dumm/ndf)
-
-    dumm = 0.0_dp
-    DO indf = 1, ndf
-       IF(indf == 1)maxdum(3) = dr(indf)
-       dumm = dumm + g(indf)**2
-       IF(ABS(g(indf)) > gcon )conv_g = .FALSE.
-       IF(ABS(g(indf)) > maxdum(3) )maxdum(3) = ABS(g(indf))
-    END DO
-    IF( SQRT(dumm/ndf) > rmsgcon )conv_rg = .FALSE.
-    maxdum(4) = SQRT(dumm/ndf)
-
-    IF(ionode)THEN
-       WRITE(UNIT=output_unit,FMT="(/,T2,A)")&
-            " Convergence check :"
-       WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-            " Max. step size             = ",maxdum(1)
-       WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-            " Conv. limit for step size  = ",dxcon
-       IF(conv_dx)THEN
-          WRITE(UNIT=output_unit,FMT="(T2,2A)")&
-               " Convergence in step size   =     ",&
-               "             YES"
-       ELSE
-          WRITE(UNIT=output_unit,FMT="(T2,2A)")&
-               " Convergence in step size   =     ",&
-               "              NO"
-       END IF
-       WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-            " RMS step size              = ",maxdum(2)
-       WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-            " Conv. limit for RMS step   = ",rmsxcon
-       IF(conv_rdx)THEN
-          WRITE(UNIT=output_unit,FMT="(T2,2A)")&
-               " Convergence in RMS step    =     ",&
-               "             YES"
-       ELSE
-          WRITE(UNIT=output_unit,FMT="(T2,2A)")&
-               " Convergence in RMS step    =     ",&
-               "              NO"
-       END IF
-       WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-            " Max. gradient              = ",maxdum(3)
-       WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-            " Conv. limit for gradients  = ",gcon
-       IF(conv_g)THEN
-          WRITE(UNIT=output_unit,FMT="(T2,2A)")&
-               " Conv. in gradients         =     ",&
-               "             YES"
-       ELSE
-          WRITE(UNIT=output_unit,FMT="(T2,2A)")&
-               " Conv. for gradients        =     ",&
-               "              NO"
-       END IF
-       WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-            " RMS gradient               = ",maxdum(4)
-       WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-            " Conv. limit for RMS grad.  = ",rmsgcon
-       IF(conv_rg)THEN
-          WRITE(UNIT=output_unit,FMT="(T2,2A)")&
-               " Conv. in RMS gradients     =     ",&
-               "             YES"
-
-       ELSE
-          WRITE(UNIT=output_unit,FMT="(T2,2A)")&
-               " Conv. for gradients        =     ",&
-               "              NO"
-       END IF
-       WRITE(UNIT=output_unit,FMT="(T2,51('-'))")
-
-    END IF
-
-    IF (conv_dx .AND. conv_rdx .AND. conv_g .AND. conv_rg) conv = .TRUE.
-
-    IF (conv) THEN
-      IF (ionode) THEN
-        WRITE (UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
-        WRITE (UNIT=output_unit,FMT="(T2,A,T25,A,T78,A)")&
-          "***","GEOMETRY OPTIMIZATION COMPLETED","***"
-        WRITE (UNIT=output_unit,FMT="(T2,A)") REPEAT("*",79)
-      END IF
-    END IF
-
-  END SUBROUTINE check_converg
 
 END MODULE bfgs_optimizer
