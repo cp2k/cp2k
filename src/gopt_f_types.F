@@ -784,7 +784,7 @@ CONTAINS
 
     dumm     = 0.0_dp
     DO indf = 1, ndf
-       IF(indf == 1)maxdum(1) = dr(indf)
+       IF(indf == 1)maxdum(1) = ABS(dr(indf))
        dumm = dumm + dr(indf)**2
        IF(ABS(dr(indf)) > dxcon )conv_dx = .FALSE.
        IF(ABS(dr(indf)) > maxdum(1) )maxdum(1) = ABS(dr(indf))
@@ -794,7 +794,7 @@ CONTAINS
 
     dumm = 0.0_dp
     DO indf = 1, ndf
-       IF(indf == 1)maxdum(3) = dr(indf)
+       IF(indf == 1)maxdum(3) = ABS(g(indf))
        dumm = dumm + g(indf)**2
        IF(ABS(g(indf)) > gcon )conv_g = .FALSE.
        IF(ABS(g(indf)) > maxdum(3) )maxdum(3) = ABS(g(indf))
