@@ -111,7 +111,7 @@ SUBROUTINE init_fft ( fftlib, alltoall, fftsg_sizes, wisdom_file, para_env )
            OPEN(UNIT=iunit,FILE=wisdom_file,STATUS="OLD",FORM="FORMATTED",POSITION="REWIND",ACTION="READ",IOSTAT=istat)
            IF (istat==0) THEN
               CALL fftw_import_wisdom_from_file(isuccess,iunit)
-              write(6,*) "FFTW3 import wisdom from file ....",MERGE((/"OK    "/),(/"NOT OK"/),(/isuccess==1/))
+              ! write(6,*) "FFTW3 import wisdom from file ....",MERGE((/"OK    "/),(/"NOT OK"/),(/isuccess==1/))
               CLOSE(iunit)
            ENDIF
         ENDIF
