@@ -143,7 +143,6 @@ CONTAINS
           WRITE(output_unit,'(T2,"VIB|",3(A,I5))')"NUMBER OF REPLICAS:",nrep,&
                "NUMBER OF PROCS:",para_env%num_pe,"NUMBER OF PROCS PER REPLICA:",prep
        END IF
-       CPPostconditionNoFail(nrep*prep==para_env%num_pe,cp_warning_level,routineP,error)
        ! Just one force_env allowed
        force_env_section => section_vals_get_subs_vals(input,"FORCE_EVAL",error=error)
        CALL section_vals_get(force_env_section,n_repetition=n_rep,error=error)

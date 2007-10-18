@@ -222,8 +222,8 @@ SUBROUTINE rep_env_create(rep_env, para_env, input, nrep, prep,&
      dims(1)=my_prep
      dims(2)=MIN(para_env%num_pe/my_prep,nrep)
      IF ((dims(1)*dims(2)/=para_env%num_pe).AND.(unit_nr>0)) THEN
-        WRITE(unit_nr,"(/,' WARNING',/,' number of processors not divisible in replica creation,')")
-        WRITE(unit_nr,"(' wasting ',i4,' processors')") para_env%num_pe-dims(1)*dims(2)
+        WRITE(unit_nr,FMT="(T2,A)") "REPLICA| WARNING: number of processors is not divisible by the number of replicas"
+        WRITE(unit_nr,FMT="(T2,A,I0,A)") "REPLICA| ",para_env%num_pe-dims(1)*dims(2)," MPI process(es) will be idle"
      END IF
      CALL mp_cart_create ( comm_old=para_env%group, ndims=2, dims=dims, pos=pos, comm_cart=comm_cart)
      IF (comm_cart/=MPI_COMM_NULL) THEN
