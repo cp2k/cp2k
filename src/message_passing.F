@@ -770,7 +770,7 @@ SUBROUTINE mp_cart_create ( comm_old, ndims, dims, pos, comm_cart )
 #endif
 
   ierr = 0
-  pos ( 1:ndims ) = 1
+  pos ( 1:ndims ) = -1
   comm_cart = comm_old
 #if defined(__parallel)
 
@@ -795,6 +795,7 @@ SUBROUTINE mp_cart_create ( comm_old, ndims, dims, pos, comm_cart )
   CALL add_perf(perf_id=1,count=1)
   CALL add_perf(perf_id=2,time=t_end-t_start)
 #else
+  pos ( 1:ndims ) = 0
   dims = 1
   comm_cart = 0
 #endif

@@ -204,6 +204,7 @@ SUBROUTINE rep_env_create(rep_env, para_env, input, nrep, prep,&
     TYPE(cp_para_cart_type), POINTER         :: cart
     TYPE(cp_para_env_type), POINTER          :: para_env_f, para_env_full, &
                                                 para_env_inter_rep
+    INTEGER, DIMENSION(:,:), ALLOCATABLE     :: gridinfo
 
   failure=.FALSE.
   CPPrecondition(.NOT.ASSOCIATED(rep_env),cp_failure_level,routineP,error,failure)
@@ -242,6 +243,24 @@ SUBROUTINE rep_env_create(rep_env, para_env, input, nrep, prep,&
         CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
      END IF
   END IF
+  IF (.NOT. failure) THEN
+     ALLOCATE(gridinfo(2,0:para_env%num_pe-1))
+     gridinfo=0
+     gridinfo(:,para_env%mepos)=pos
+     CALL mp_sum(gridinfo,para_env%group)
+     IF (unit_nr>0) THEN
+         WRITE(unit_nr,FMT="(T2,A,T71,I10)") "REPLICA| layout of the replica grid, number of groups ",dims(2)
+         WRITE(unit_nr,FMT="(T2,A,T71,I10)") "REPLICA| layout of the replica grid, size of each group",dims(1)
+         WRITE(unit_nr,FMT="(T2,A)",ADVANCE="NO") "REPLICA| MPI process to grid (rank,group) correspondence:"
+         DO i=0,para_env%num_pe-1
+            IF (MODULO(i,4)==0) WRITE(unit_nr,*)
+            WRITE(unit_nr,FMT='(A3,I4,A3,I4,A1,I4,A1)',ADVANCE="NO")&
+                 "  (",i," : ",gridinfo(1,i),",",gridinfo(2,i),")"
+         END DO
+         WRITE(unit_nr,*)
+     ENDIF
+     DEALLOCATE(gridinfo)
+  ENDIF
   IF (.NOT.failure.AND.ASSOCIATED(rep_env)) THEN
      last_rep_env_id=last_rep_env_id+1
      rep_env%id_nr=last_rep_env_id
