@@ -499,9 +499,6 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC :: use_bazant_eip=1, &
                                 use_lenosky_eip=2
 
-! used to prevent over/underflows in MC acceptance rules
-  REAL, PARAMETER, PUBLIC    :: mc_hardcut=500.0_dp
-
   ! ddapc restraint forms
   INTEGER, PARAMETER, PUBLIC :: do_ddapc_restraint=773, do_ddapc_constraint=774
 

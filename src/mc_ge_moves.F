@@ -532,9 +532,8 @@ CONTAINS
                                                 loverlap_ins, loverlap_rem
     REAL(dp), DIMENSION(:), POINTER          :: pmswap_mol
     REAL(dp), DIMENSION(:, :), POINTER       :: insert_coords, remove_coords
-    REAL(KIND=dp)                            :: BETA, del_quickstep_energy, &
-                                                prefactor, rand, rdum, w, &
-                                                weight_new, weight_old
+    REAL(KIND=dp) :: BETA, del_quickstep_energy, exp_max_val, exp_min_val, &
+      max_val, min_val, prefactor, rand, rdum, w, weight_new, weight_old
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: cbmc_energies, r_cbmc, &
                                                 r_insert_mol
@@ -571,7 +570,8 @@ CONTAINS
 
 ! grab some stuff from mc_par
       CALL get_mc_par(mc_par(1)%mc_par,ionode=ionode,BETA=BETA,&
-         nswapmoves=nswapmoves,group=group,source=source,&
+         max_val=max_val, min_val=min_val, exp_max_val=exp_max_val,&
+         exp_min_val=exp_min_val,nswapmoves=nswapmoves,group=group,source=source,&
          lbias=lbias,dat_file=dat_file(1),fft_lib=fft_lib,&
          mc_molecule_info=mc_molecule_info,pmswap_mol=pmswap_mol)
       CALL get_mc_molecule_info(mc_molecule_info,nchains=nchains,&
@@ -934,7 +934,8 @@ CONTAINS
 
       IF(lbias) THEN
          CALL generate_cbmc_swap_config(test_env(insert_box)%force_env,&
-            BETA,nswapmoves,weight_new,start_atom_ins,ins_atoms,nunits(:),&
+            BETA,max_val, min_val, exp_max_val,&
+            exp_min_val,nswapmoves,weight_new,start_atom_ins,ins_atoms,nunits(:),&
             nunits(molecule_type),mass(:,molecule_type),loverlap_ins,bias_energy_new(insert_box),&
             bias_energy_old(insert_box),ionode,.FALSE.,mol_type_test(start_mol:end_mol),&
             nchains_test(:,insert_box),source,group,rng_stream,error)
@@ -947,7 +948,8 @@ CONTAINS
                bias_energy_old(insert_box)
       ELSE
          CALL generate_cbmc_swap_config(test_env(insert_box)%force_env,&
-            BETA,nswapmoves,weight_new,start_atom_ins,ins_atoms,nunits(:),&
+            BETA,max_val, min_val, exp_max_val,&
+            exp_min_val,nswapmoves,weight_new,start_atom_ins,ins_atoms,nunits(:),&
             nunits(molecule_type),mass(:,molecule_type),loverlap_ins,new_energy(insert_box),&
             old_energy(insert_box),ionode,.FALSE.,mol_type_test(start_mol:end_mol),&
             nchains_test(:,insert_box),source,group,rng_stream,error)
@@ -1090,13 +1092,15 @@ CONTAINS
       end_mol=start_mol+SUM(nchains(:,remove_box))-1
       IF(lbias) THEN
           CALL generate_cbmc_swap_config(bias_env(remove_box)%force_env,&
-            BETA,nswapmoves,weight_old,start_atom_rem,nunits_tot(remove_box),&
+            BETA,max_val, min_val, exp_max_val,&
+            exp_min_val,nswapmoves,weight_old,start_atom_rem,nunits_tot(remove_box),&
             nunits(:),nunits(molecule_type),mass(:,molecule_type),loverlap_rem,rdum,&
             bias_energy_new(remove_box),ionode,.TRUE.,mol_type(start_mol:end_mol),&
             nchains(:,remove_box),source,group,rng_stream,error)
       ELSE
          CALL generate_cbmc_swap_config(force_env(remove_box)%force_env,&
-            BETA,nswapmoves,weight_old,start_atom_rem,nunits_tot(remove_box),&
+            BETA,max_val, min_val, exp_max_val,&
+            exp_min_val,nswapmoves,weight_old,start_atom_rem,nunits_tot(remove_box),&
             nunits(:),nunits(molecule_type),mass(:,molecule_type),loverlap_rem,rdum,&
             new_energy(remove_box),ionode,.TRUE.,mol_type(start_mol:end_mol),&
             nchains(:,remove_box),source,group,rng_stream,error)
@@ -1117,24 +1121,13 @@ CONTAINS
          bias_energy_new(remove_box)-bias_energy_old(insert_box)&
          -bias_energy_old(remove_box)))
 
-#if defined (__SGL)
-         IF(del_quickstep_energy .GT. 88.0_dp) THEN
-            del_quickstep_energy=1.6E38_dp
-         ELSEIF(del_quickstep_energy .LT. -103.0_dp) THEN
-            del_quickstep_energy=0.0_dp
+         IF    (del_quickstep_energy .GT. exp_max_val) THEN
+            del_quickstep_energy=max_val
+         ELSEIF(del_quickstep_energy .LT. exp_min_val) THEN
+            del_quickstep_energy=min_val
          ELSE
             del_quickstep_energy=EXP(del_quickstep_energy)
          ENDIF
-#else
-         IF(del_quickstep_energy .GT. 500.0_dp) THEN
-            del_quickstep_energy=1.4E217_dp
-         ELSEIF(del_quickstep_energy .LT. -500.0_dp) THEN
-            del_quickstep_energy=0.0_dp
-         ELSE
-            del_quickstep_energy=EXP(del_quickstep_energy)
-         ENDIF
-#endif
-
          w=prefactor*del_quickstep_energy*weight_new/weight_old
 
       ELSE

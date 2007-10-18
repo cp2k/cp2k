@@ -1227,8 +1227,9 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER          :: BETA, virial_cutoffs, &
                                                 virial_stepsize, virial_temps
     REAL(dp), DIMENSION(:, :), POINTER       :: mass, mayer, r_old
-    REAL(KIND=dp) :: ave_virial, current_value, distance, exponent, integral, &
-      previous_value, square_value, trial_energy, triangle_value
+    REAL(KIND=dp) :: ave_virial, current_value, distance, exp_max_val, &
+      exp_min_val, exponent, integral, previous_value, square_value, &
+      trial_energy, triangle_value
     REAL(KIND=dp), DIMENSION(1:3)            :: abc, center_of_mass
     TYPE(cell_p_type), DIMENSION(:), POINTER :: cell
     TYPE(cp_subsys_p_type), DIMENSION(:), &
@@ -1291,9 +1292,11 @@ CONTAINS
            force_env=force_env(1)%force_env)
 
 ! get some data out of mc_par
-      CALL get_mc_par(mc_par(1)%mc_par,nvirial=nvirial,&
-         ionode=ionode,source=source,group=group,&
-         mc_molecule_info=mc_molecule_info,virial_temps=virial_temps)
+      CALL get_mc_par(mc_par(1)%mc_par,&
+           exp_max_val=exp_max_val,&
+           exp_min_val=exp_min_val,nvirial=nvirial,&
+           ionode=ionode,source=source,group=group,&
+           mc_molecule_info=mc_molecule_info,virial_temps=virial_temps)
 
       IF (ionode) THEN
          WRITE(iw,*)
@@ -1430,19 +1433,11 @@ CONTAINS
 
                   exponent=-BETA(itemp)*trial_energy
 
-#if defined (__SGL)
-                  IF(exponent .GT. 88.0_dp) THEN
-                     exponent=88.0_dp
-                  ELSEIF(exponent .LT. -103.0_dp) THEN
-                     exponent=-103.0_dp
+                  IF    (exponent .GT. exp_max_val) THEN
+                     exponent=exp_max_val
+                  ELSEIF(exponent .LT. exp_min_val) THEN
+                     exponent=exp_min_val
                   ENDIF
-#else
-                  IF(exponent .GT. 500.0_dp) THEN
-                     exponent=500.0_dp
-                  ELSEIF(exponent .LT. -500.0_dp) THEN
-                     exponent=-500.0_dp
-                  ENDIF
-#endif
                   mayer(itemp,ibin)=mayer(itemp,ibin)+dexp(exponent)-1.0_dp
                ENDDO
             ENDIF

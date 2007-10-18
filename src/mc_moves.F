@@ -36,7 +36,6 @@ MODULE mc_moves
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type,&
                                              use_fist_force
-  USE input_constants,                 ONLY: mc_hardcut
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              dp_size
@@ -202,9 +201,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: mol_type, nunits
     INTEGER, DIMENSION(:, :), POINTER        :: nchains
     LOGICAL                                  :: ionode, lbias, loverlap
-    REAL(KIND=dp)                            :: BETA, bias_energy_new, &
-                                                bias_energy_old, dis_length, &
-                                                rand, value, w
+    REAL(KIND=dp) :: BETA, bias_energy_new, bias_energy_old, dis_length, &
+      exp_max_val, exp_min_val, rand, value, w
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r_new, r_old
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -225,7 +223,8 @@ CONTAINS
 
 ! get a bunch of stuff from mc_par
       CALL get_mc_par(mc_par,lbias=lbias,mc_molecule_info=mc_molecule_info,&
-         BETA=BETA,group=group,source=source,ionode=ionode)
+         BETA=BETA,exp_max_val=exp_max_val,&
+         exp_min_val=exp_min_val,group=group,source=source,ionode=ionode)
       CALL get_mc_molecule_info(mc_molecule_info,nchains=nchains,nunits=nunits,&
            mol_type=mol_type,names=names)
 
@@ -390,9 +389,9 @@ CONTAINS
 ! correction factor for the change in phase space...dis_length is
 ! made unitless in change_bond_length
             value=-BETA*(bias_energy_new-bias_energy_old)
-            IF(value .GT. mc_hardcut) THEN
+            IF    (value .GT. exp_max_val) THEN
                w=10.0_dp
-            ELSEIF(value .LT. -mc_hardcut) THEN
+            ELSEIF(value .LT. exp_min_val) THEN
                w=0.0_dp
             ELSE
                w=EXP(value)*dis_length**2
@@ -532,6 +531,7 @@ END SUBROUTINE mc_conformation_change
     REAL(dp), DIMENSION(:), POINTER          :: rmtrans
     REAL(KIND=dp)                            :: BETA, bias_energy_new, &
                                                 bias_energy_old, dis_mol, &
+                                                exp_max_val, exp_min_val, &
                                                 rand, value, w
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r_old
@@ -550,7 +550,8 @@ END SUBROUTINE mc_conformation_change
 
 ! get a bunch of stuff from mc_par
       CALL get_mc_par(mc_par,lbias=lbias,&
-         BETA=BETA,rmtrans=rmtrans,ionode=ionode,source=source,&
+         BETA=BETA,exp_max_val=exp_max_val,&
+         exp_min_val=exp_min_val,rmtrans=rmtrans,ionode=ionode,source=source,&
          group=group,mc_molecule_info=mc_molecule_info)
       CALL get_mc_molecule_info(mc_molecule_info,nunits_tot=nunits_tot,&
            nchains=nchains,nunits=nunits,mol_type=mol_type)
@@ -660,9 +661,9 @@ END SUBROUTINE mc_conformation_change
                potential_energy=bias_energy_new,error=error)
 ! accept or reject the move based on the Metropolis rule
             value=-BETA*(bias_energy_new-bias_energy_old)
-            IF(value .GT. mc_hardcut) THEN
+            IF    (value .GT. exp_max_val) THEN
                w=10.0_dp
-            ELSEIF(value .LT. -mc_hardcut) THEN
+            ELSEIF(value .LT. exp_min_val) THEN
                w=0.0_dp
             ELSE
                w=EXP(value)
@@ -782,8 +783,8 @@ END SUBROUTINE mc_conformation_change
     REAL(dp), DIMENSION(:), POINTER          :: rmrot
     REAL(dp), DIMENSION(:, :), POINTER       :: mass
     REAL(KIND=dp) :: BETA, bias_energy_new, bias_energy_old, cosdg, dgamma, &
-      masstot, nxcm, nycm, nzcm, rand, rx, rxnew, ry, rynew, rz, rznew, &
-      sindg, value, w
+      exp_max_val, exp_min_val, masstot, nxcm, nycm, nzcm, rand, rx, rxnew, &
+      ry, rynew, rz, rznew, sindg, value, w
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r_old
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -799,7 +800,8 @@ END SUBROUTINE mc_conformation_change
 
 ! get a bunch of stuff from mc_par
       CALL get_mc_par(mc_par,lbias=lbias,&
-         BETA=BETA,rmrot=rmrot,mc_molecule_info=mc_molecule_info,&
+         BETA=BETA,exp_max_val=exp_max_val,&
+         exp_min_val=exp_min_val,rmrot=rmrot,mc_molecule_info=mc_molecule_info,&
          ionode=ionode,group=group,source=source)
       CALL get_mc_molecule_info(mc_molecule_info,nunits=nunits,&
            nunits_tot=nunits_tot,nchains=nchains,mass=mass,&
@@ -990,9 +992,9 @@ END SUBROUTINE mc_conformation_change
             potential_energy=bias_energy_new,error=error)
 ! accept or reject the move based on the Metropolis rule
             value=-BETA*(bias_energy_new-bias_energy_old)
-            IF(value .GT. mc_hardcut) THEN
+            IF    (value .GT. exp_max_val) THEN
                w=10.0_dp
-            ELSEIF(value .LT. -mc_hardcut) THEN
+            ELSEIF(value .LT. exp_min_val) THEN
                w=0.0_dp
             ELSE
                w=EXP(value)
@@ -1116,9 +1118,9 @@ END SUBROUTINE mc_conformation_change
     LOGICAL                                  :: ionode, ldiscrete, lincrease, &
                                                 loverlap, ltoo_small
     REAL(dp), DIMENSION(:, :), POINTER       :: mass
-    REAL(KIND=dp) :: BETA, discrete_step, energy_term, new_energy, pressure, &
-      pressure_term, rand, rcut, rmvolume, temp_var, value, vol_dis, &
-      volume_term, w
+    REAL(KIND=dp) :: BETA, discrete_step, energy_term, exp_max_val, &
+      exp_min_val, new_energy, pressure, pressure_term, rand, rcut, rmvolume, &
+      temp_var, value, vol_dis, volume_term, w
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r
     REAL(KIND=dp), DIMENSION(1:3)            :: abc, center_of_mass, &
@@ -1139,7 +1141,8 @@ END SUBROUTINE mc_conformation_change
 
 ! get a bunch of stuff from mc_par
       CALL get_mc_par(mc_par,ionode=ionode,&
-         BETA=BETA,source=source,group=group,&
+         BETA=BETA,exp_max_val=exp_max_val,&
+         exp_min_val=exp_min_val,source=source,group=group,&
          dat_file=dat_file,rmvolume=rmvolume,pressure=pressure,cl=cl,&
          fft_lib=fft_lib,discrete_step=discrete_step,&
          ldiscrete=ldiscrete,mc_molecule_info=mc_molecule_info)
@@ -1363,9 +1366,9 @@ END SUBROUTINE mc_conformation_change
       pressure_term=pressure*vol_dis
 
       value=-BETA*(energy_term+volume_term+pressure_term)
-      IF(value .GT. mc_hardcut) THEN
+      IF    (value .GT. exp_max_val) THEN
          w=10.0_dp
-      ELSEIF(value .LT. -mc_hardcut) THEN
+      ELSEIF(value .LT. exp_min_val) THEN
          w=0.0_dp
       ELSE
          w=EXP(value)
@@ -2263,8 +2266,8 @@ END SUBROUTINE mc_conformation_change
     REAL(dp), DIMENSION(:), POINTER          :: avbmc_rmax, avbmc_rmin, pbias
     REAL(dp), DIMENSION(:, :), POINTER       :: mass
     REAL(KIND=dp) :: BETA, bias_energy_new, del_quickstep_energy, distance, &
-      new_energy, prefactor, rand, rdum, volume_in, volume_out, w, &
-      weight_new, weight_old
+      exp_max_val, exp_min_val, max_val, min_val, new_energy, prefactor, &
+      rand, rdum, volume_in, volume_out, w, weight_new, weight_old
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r_new
     REAL(KIND=dp), DIMENSION(1:3)            :: abc, RIJ
@@ -2284,7 +2287,8 @@ END SUBROUTINE mc_conformation_change
 
 ! get a bunch of stuff from mc_par
       CALL get_mc_par(mc_par,lbias=lbias,&
-         BETA=BETA,avbmc_atom=avbmc_atom,&
+         BETA=BETA,max_val=max_val, min_val=min_val, exp_max_val=exp_max_val,&
+         exp_min_val=exp_min_val,avbmc_atom=avbmc_atom,&
          avbmc_rmin=avbmc_rmin,avbmc_rmax=avbmc_rmax,&
          nswapmoves=nswapmoves,ionode=ionode,source=source,&
          group=group,pbias=pbias,mc_molecule_info=mc_molecule_info)
@@ -2382,38 +2386,41 @@ END SUBROUTINE mc_conformation_change
          IF(move_type == 'in') THEN
 
 ! do CBMC for the old config
-            CALL generate_cbmc_swap_config( bias_env, BETA, nswapmoves,&
-               weight_old,start_atom_swap,nunits_tot(box_number),nunits,nunits(molecule_type),&
-               mass(:,molecule_type),ldum, rdum,&
-               bias_energy_old,ionode,.TRUE.,mol_type(start_mol:end_mol),nchains(:,box_number),&
-               source,group,rng_stream,error,&
-               avbmc_atom=avbmc_atom(molecule_type),&
-               rmin=avbmc_rmin(molecule_type),rmax=avbmc_rmax(molecule_type),move_type='out',&
-               target_atom=target_atom)
+            CALL generate_cbmc_swap_config( bias_env, BETA,  max_val, min_val, exp_max_val,&
+                 exp_min_val,nswapmoves,&
+                 weight_old,start_atom_swap,nunits_tot(box_number),nunits,nunits(molecule_type),&
+                 mass(:,molecule_type),ldum, rdum,&
+                 bias_energy_old,ionode,.TRUE.,mol_type(start_mol:end_mol),nchains(:,box_number),&
+                 source,group,rng_stream,error,&
+                 avbmc_atom=avbmc_atom(molecule_type),&
+                 rmin=avbmc_rmin(molecule_type),rmax=avbmc_rmax(molecule_type),move_type='out',&
+                 target_atom=target_atom)
 
          ELSE
 
 ! do CBMC for the old config
-           CALL generate_cbmc_swap_config( bias_env, BETA, nswapmoves,&
-               weight_old,start_atom_swap,nunits_tot(box_number),nunits,nunits(molecule_type),&
-               mass(:,molecule_type),ldum, rdum,&
-               bias_energy_old,ionode,.TRUE.,mol_type(start_mol:end_mol),nchains(:,box_number),&
-               source,group,rng_stream,error,&
-               avbmc_atom=avbmc_atom(molecule_type),&
-               rmin=avbmc_rmin(molecule_type),rmax=avbmc_rmax(molecule_type),move_type='in',&
-               target_atom=target_atom)
+           CALL generate_cbmc_swap_config( bias_env, BETA,  max_val, min_val, exp_max_val,&
+                exp_min_val,nswapmoves,&
+                weight_old,start_atom_swap,nunits_tot(box_number),nunits,nunits(molecule_type),&
+                mass(:,molecule_type),ldum, rdum,&
+                bias_energy_old,ionode,.TRUE.,mol_type(start_mol:end_mol),nchains(:,box_number),&
+                source,group,rng_stream,error,&
+                avbmc_atom=avbmc_atom(molecule_type),&
+                rmin=avbmc_rmin(molecule_type),rmax=avbmc_rmax(molecule_type),move_type='in',&
+                target_atom=target_atom)
 
          ENDIF
 
 ! generate the new config
-         CALL generate_cbmc_swap_config( bias_env, BETA, nswapmoves,&
-            weight_new,start_atom_swap,nunits_tot(box_number),nunits,nunits(molecule_type),&
-            mass(:,molecule_type),loverlap, bias_energy_new,&
-            bias_energy_old,ionode,.FALSE.,mol_type(start_mol:end_mol),nchains(:,box_number),&
-            source,group,rng_stream,error,&
-            avbmc_atom=avbmc_atom(molecule_type),&
-            rmin=avbmc_rmin(molecule_type),rmax=avbmc_rmax(molecule_type),move_type=move_type,&
-            target_atom=target_atom)
+         CALL generate_cbmc_swap_config( bias_env, BETA, max_val, min_val, exp_max_val,&
+              exp_min_val, nswapmoves,&
+              weight_new,start_atom_swap,nunits_tot(box_number),nunits,nunits(molecule_type),&
+              mass(:,molecule_type),loverlap, bias_energy_new,&
+              bias_energy_old,ionode,.FALSE.,mol_type(start_mol:end_mol),nchains(:,box_number),&
+              source,group,rng_stream,error,&
+              avbmc_atom=avbmc_atom(molecule_type),&
+              rmin=avbmc_rmin(molecule_type),rmax=avbmc_rmax(molecule_type),move_type=move_type,&
+              target_atom=target_atom)
 
 ! the energy that comes out of the above routine is the difference...we want
 ! the real energy for the acceptance rule...we don't do this for the
@@ -2427,35 +2434,38 @@ END SUBROUTINE mc_conformation_change
          IF(move_type == 'in') THEN
 
 ! find the weight of the old config
-            CALL generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
-               weight_old,start_atom_swap,nunits_tot(box_number),nunits,nunits(molecule_type),&
-               mass(:,molecule_type),ldum,rdum,old_energy,&
-               ionode,.TRUE.,mol_type(start_mol:end_mol),nchains(:,box_number),source,group,rng_stream,error,&
-               avbmc_atom=avbmc_atom(molecule_type),&
-               rmin=avbmc_rmin(molecule_type),rmax=avbmc_rmax(molecule_type),move_type='out',&
-               target_atom=target_atom)
+            CALL generate_cbmc_swap_config( force_env, BETA,  max_val, min_val, exp_max_val,&
+                 exp_min_val,nswapmoves,&
+                 weight_old,start_atom_swap,nunits_tot(box_number),nunits,nunits(molecule_type),&
+                 mass(:,molecule_type),ldum,rdum,old_energy,&
+                 ionode,.TRUE.,mol_type(start_mol:end_mol),nchains(:,box_number),source,group,rng_stream,error,&
+                 avbmc_atom=avbmc_atom(molecule_type),&
+                 rmin=avbmc_rmin(molecule_type),rmax=avbmc_rmax(molecule_type),move_type='out',&
+                 target_atom=target_atom)
 
          ELSE
 
 ! find the weight of the old config
-            CALL generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
-               weight_old,start_atom_swap,nunits_tot(box_number),nunits,nunits(molecule_type),&
-               mass(:,molecule_type),ldum,rdum,old_energy,&
-               ionode,.TRUE.,mol_type(start_mol:end_mol),nchains(:,box_number),source,group,rng_stream,error,&
-               avbmc_atom=avbmc_atom(molecule_type),&
-               rmin=avbmc_rmin(molecule_type),rmax=avbmc_rmax(molecule_type),move_type='in',&
-               target_atom=target_atom)
+            CALL generate_cbmc_swap_config( force_env, BETA,  max_val, min_val, exp_max_val,&
+                 exp_min_val,nswapmoves,&
+                 weight_old,start_atom_swap,nunits_tot(box_number),nunits,nunits(molecule_type),&
+                 mass(:,molecule_type),ldum,rdum,old_energy,&
+                 ionode,.TRUE.,mol_type(start_mol:end_mol),nchains(:,box_number),source,group,rng_stream,error,&
+                 avbmc_atom=avbmc_atom(molecule_type),&
+                 rmin=avbmc_rmin(molecule_type),rmax=avbmc_rmax(molecule_type),move_type='in',&
+                 target_atom=target_atom)
 
          ENDIF
 
  ! generate the new config...do this after, because it changes the force_env
-        CALL generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
-            weight_new,start_atom_swap,nunits_tot(box_number),nunits,nunits(molecule_type),&
-            mass(:,molecule_type),loverlap,new_energy,old_energy,&
-            ionode,.FALSE.,mol_type(start_mol:end_mol),nchains(:,box_number),source,group,rng_stream,error,&
-            avbmc_atom=avbmc_atom(molecule_type),&
-            rmin=avbmc_rmin(molecule_type),rmax=avbmc_rmax(molecule_type),move_type=move_type,&
-            target_atom=target_atom)
+        CALL generate_cbmc_swap_config( force_env, BETA,  max_val, min_val, exp_max_val,&
+             exp_min_val,nswapmoves,&
+             weight_new,start_atom_swap,nunits_tot(box_number),nunits,nunits(molecule_type),&
+             mass(:,molecule_type),loverlap,new_energy,old_energy,&
+             ionode,.FALSE.,mol_type(start_mol:end_mol),nchains(:,box_number),source,group,rng_stream,error,&
+             avbmc_atom=avbmc_atom(molecule_type),&
+             rmin=avbmc_rmin(molecule_type),rmax=avbmc_rmax(molecule_type),move_type=move_type,&
+             target_atom=target_atom)
 
       ENDIF
 
@@ -2520,13 +2530,9 @@ END SUBROUTINE mc_conformation_change
          del_quickstep_energy=(-BETA)*(new_energy-old_energy-&
             (bias_energy_new-bias_energy_old))
 
-         IF(del_quickstep_energy .GT. mc_hardcut) THEN
-#if defined (__SGL)
-            del_quickstep_energy=1.6E38_dp
-#else
-            del_quickstep_energy=1.4E217_dp
-#endif
-         ELSEIF(del_quickstep_energy .LT. -mc_hardcut) THEN
+         IF     (del_quickstep_energy .GT. exp_max_val) THEN
+            del_quickstep_energy=max_val
+         ELSEIF (del_quickstep_energy .LT. exp_min_val) THEN
             del_quickstep_energy=0.0_dp
          ELSE
             del_quickstep_energy=EXP(del_quickstep_energy)

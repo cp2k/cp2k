@@ -162,9 +162,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
         END DO
      END DO
      
-#if defined(__parallel)
      CALL mp_max(dr2_max,para_env%group)
-#endif
 
      IF (dr2_max > 0.25_dp*verlet_skin**2.OR.build_from_scratch) THEN
         DO iparticle=1,nparticle

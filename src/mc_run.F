@@ -63,8 +63,8 @@ MODULE mc_run
   USE kinds,                           ONLY: dp
   USE mc_control,                      ONLY: mc_create_force_env,&
                                              read_mc_restart
-  USE mc_ensembles,                    ONLY: mc_run_ensemble,&
-                                             mc_compute_virial
+  USE mc_ensembles,                    ONLY: mc_compute_virial,&
+                                             mc_run_ensemble
   USE mc_environment_types,            ONLY: get_mc_env,&
                                              mc_env_create,&
                                              mc_env_release,&

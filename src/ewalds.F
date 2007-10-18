@@ -42,7 +42,8 @@ MODULE ewalds
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_pool_types,                   ONLY: pw_pool_type
   USE pw_types,                        ONLY: pw_type
-  USE shell_potential_types,           ONLY: get_shell, shell_kind_type
+  USE shell_potential_types,           ONLY: get_shell,&
+                                             shell_kind_type
   USE structure_factor_types,          ONLY: structure_factor_type
   USE structure_factors,               ONLY: structure_factor_allocate,&
                                              structure_factor_deallocate,&
@@ -195,9 +196,7 @@ SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, cell, atomic_kind_set, particle_
        + pw_grid % ngpts_cut * 10.0_dp &
        + pw_grid % ngpts_cut * node * 20.0_dp
 
-#if defined(__parallel)
   CALL mp_sum ( summe, group )
-#endif
 
 ! looping over the positive g-vectors
   DO gpt = 1, pw_grid % ngpts_cut
@@ -309,8 +308,8 @@ SUBROUTINE ewald_self ( ewald_env, atomic_kind_set,  &
                                                 nparticle_kind, &
                                                 nparticle_local
     LOGICAL                                  :: is_shell
-    REAL(KIND=dp)                            :: alpha, eps0, q, q_self, q_sum
-    REAL(KIND=dp)                            :: qcore, qshell
+    REAL(KIND=dp)                            :: alpha, eps0, q, q_self, &
+                                                q_sum, qcore, qshell
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(shell_kind_type), POINTER           :: shell
 
@@ -340,10 +339,8 @@ SUBROUTINE ewald_self ( ewald_env, atomic_kind_set,  &
         END IF
   END DO
 
-#if defined(__parallel)
   CALL mp_sum ( q_self, group )
   CALL mp_sum ( q_sum, group )
-#endif
 
   e_neut = 0.0_dp
   e_self = 0.0_dp

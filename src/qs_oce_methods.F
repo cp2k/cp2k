@@ -69,53 +69,36 @@ CONTAINS
 
   SUBROUTINE build_oce_block(oceh,oces,atom_ka,atom_kb,rab,dab,nder,error)
 
-    TYPE(block_p_type), DIMENSION(:),POINTER   :: oceh, oces
-    TYPE(atomic_kind_type), POINTER            :: atom_ka, atom_kb
-    INTEGER,INTENT(IN)                         :: nder
-    REAL(dp)                                   :: dab
-    REAL(dp), DIMENSION(3)                     :: rab
-    TYPE(cp_error_type), INTENT(inout)  &
-         :: error
+    TYPE(block_p_type), DIMENSION(:), &
+      POINTER                                :: oceh, oces
+    TYPE(atomic_kind_type), POINTER          :: atom_ka, atom_kb
+    REAL(dp), DIMENSION(3)                   :: rab
+    REAL(dp)                                 :: dab
+    INTEGER, INTENT(IN)                      :: nder
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'build_oce_block'
 
-!   *** Local parameters ***
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = "build_oce_block"
-
-!   *** Local variables ***
-
-    TYPE(gto_basis_set_type), POINTER          :: orb_basis_a, orb_basis_b
-
-    TYPE(paw_proj_set_type),  POINTER          :: paw_proj_a, paw_proj_b
-
-    INTEGER, DIMENSION(:), POINTER             :: lb_max, lb_min, nprjla, &
-                                                  nsgfb, npgfb
-    INTEGER, DIMENSION(:), POINTER             :: fp_cara,&
-                                                  fp_spha
-    INTEGER, DIMENSION(:,:), POINTER           :: first_sgfb
-    REAL(dp)                                   :: rcprja
-    REAL(dp), DIMENSION(:), POINTER            :: set_radius_b, zisominb
-    REAL(dp), DIMENSION(:,:), POINTER          :: cprj_s, local_oce_s, local_oce_h, &
-                                                  rpgfb, rzetprja, &
-                                                  sphi_b, zetb, zetprja
-    REAL(dp), DIMENSION(:,:), POINTER          :: spa_sb,spa_tmp,ovc,ovs
-    REAL(dp), DIMENSION(:,:,:), POINTER        :: spa_sbt,spa_tmpt,sdpa_tmp
-    REAL(dp), DIMENSION(:,:,:,:), POINTER      :: sdpa_tmpt
-    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE    :: s
-
-    INTEGER  :: first_col, i, ic, ico, ider, igau, ip, ipgf, iprjc, iprjs, is, iset, &
-                isgfb, iso, isp, istat, jc, jset, lds, lm, lpoint, lprj, lsgfb, lshell, &
-                lx,ly,lz, m, m1, maxcob,maxder, maxlb, maxlprj, maxnprja,maxsoa, &
-                n, ncob, np_car,np_sph, nseta, nsetb, nsoatot, ntotsgfb
-    INTEGER :: ithread,nthread, omp_get_max_threads,omp_get_thread_num
-    LOGICAL :: paw_atom_a,paw_atom_b,calculate_forces,failure
-
-#if defined(__AIX) && defined(__INIT_WITH_NANS)
-    REAL(dp) :: nans_dp
-    nans_dp = z"7FF0000000000001"
-#endif
-
-!   ---------------------------------------------------------------------------
+    INTEGER :: first_col, ic, ico, ider, igau, ip, ipgf, iprjc, iprjs, is, &
+      iset, isgfb, iso, isp, istat, ithread, jc, jset, lds, lm, lpoint, lprj, &
+      lsgfb, lshell, lx, ly, lz, m, m1, maxcob, maxder, maxlb, maxlprj, &
+      maxnprja, maxsoa, n, ncob, np_car, np_sph, nseta, nsetb, nsoatot, &
+      nthread, ntotsgfb, omp_get_max_threads, omp_get_thread_num
+    INTEGER, DIMENSION(:), POINTER           :: fp_cara, fp_spha, lb_max, &
+                                                lb_min, npgfb, nprjla, nsgfb
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfb
+    LOGICAL                                  :: calculate_forces, failure, &
+                                                paw_atom_a, paw_atom_b
+    REAL(dp)                                 :: rcprja
+    REAL(dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: s
+    REAL(dp), DIMENSION(:), POINTER          :: set_radius_b, zisominb
+    REAL(dp), DIMENSION(:, :), POINTER :: cprj_s, local_oce_h, local_oce_s, &
+      ovc, ovs, rpgfb, rzetprja, spa_sb, spa_tmp, sphi_b, zetb, zetprja
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: sdpa_tmp, spa_sbt, spa_tmpt
+    REAL(dp), DIMENSION(:, :, :, :), POINTER :: sdpa_tmpt
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_a, orb_basis_b
+    TYPE(paw_proj_set_type), POINTER         :: paw_proj_a, paw_proj_b
 
    failure = .FALSE.
    NULLIFY(orb_basis_a,paw_proj_a)

@@ -45,8 +45,8 @@ MODULE input_cp2k_dft
                                              section_type
   USE input_val_types,                 ONLY: char_t,&
                                              integer_t,&
-                                             real_t,&
-                                             lchar_t
+                                             lchar_t,&
+                                             real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
   USE timings,                         ONLY: timeset,&
@@ -947,7 +947,7 @@ CONTAINS
             description="If the printkey is activated controls the printing of the hamiltonian matrix",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="density",&
             description="If the printkey is activated controls the printing of the density (P) matrix",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
@@ -978,7 +978,17 @@ CONTAINS
             description="If the printkey is activated controls the printing of the potential energy matrix",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="oce_hard",&
+            description="If the printkey is activated controls the printing of the OCE HARD matrix",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="oce_soft",&
+            description="If the printkey is activated controls the printing of the OCE SOFT matrix",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="w_matrix",&
             description="If the printkey is activated controls the printing of the w matrix",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)

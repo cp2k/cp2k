@@ -147,6 +147,7 @@ MODULE mc_types
            mc_input_file,mc_bias_file
       TYPE(section_vals_type),POINTER :: input_file
       TYPE(mc_molecule_info_type),POINTER :: mc_molecule_info
+      REAL ( dp ) :: exp_min_val, exp_max_val, min_val, max_val
   END TYPE mc_simulation_parameters_type
 
   TYPE mc_input_file_type
@@ -228,12 +229,6 @@ MODULE mc_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_types'
 
 CONTAINS
-!****************************************************************************
-
- SUBROUTINE get_mc_input_file ( mc_input_file,run_type_row,run_type_column,&
-      coord_row_start,coord_row_end,cell_row,cell_column,global_row_end,&
-      mol_set_nmol_row,mol_set_nmol_column,in_use,text,atom_names_empty,&
-      nunits_empty,coordinates_empty)
 
 ! *****************************************************************************
 !!****s* mc_types.F/get_mc_input_file
@@ -253,6 +248,11 @@ CONTAINS
 !!     MJM
 !!
 !!*****************************************************************************
+ SUBROUTINE get_mc_input_file ( mc_input_file,run_type_row,run_type_column,&
+      coord_row_start,coord_row_end,cell_row,cell_column,global_row_end,&
+      mol_set_nmol_row,mol_set_nmol_column,in_use,text,atom_names_empty,&
+      nunits_empty,coordinates_empty)
+
     TYPE(mc_input_file_type), POINTER        :: mc_input_file
     INTEGER, INTENT(OUT), OPTIONAL :: run_type_row, run_type_column, &
       coord_row_start, coord_row_end, cell_row, cell_column, global_row_end
@@ -292,7 +292,8 @@ CONTAINS
        fft_lib,iprint,rcut,ldiscrete,discrete_step,&
        pmavbmc,pbias,avbmc_atom,avbmc_rmin,avbmc_rmax,rmdihedral,&
        input_file,mc_molecule_info,pmswap_mol,pmavbmc_mol,pmtrans_mol,pmrot_mol,&
-       pmtraion_mol,mc_input_file,mc_bias_file,pmvol_box,virial_temps)
+       pmtraion_mol,mc_input_file,mc_bias_file,pmvol_box,virial_temps,&
+       exp_min_val, exp_max_val, min_val, max_val)
 
 ! *****************************************************************************
 !!****s* mc_types.F/get_mc_par
@@ -355,6 +356,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: pmvol_box
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: virial_temps
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: exp_min_val, exp_max_val, &
+                                                min_val, max_val
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mc_par', &
       routineP = moduleN//':'//routineN
@@ -391,6 +394,10 @@ CONTAINS
     IF ( PRESENT ( temperature ) ) temperature = mc_par % temperature
     IF ( PRESENT ( pressure ) ) pressure = mc_par % pressure
     IF ( PRESENT ( BETA ) ) BETA = mc_par % BETA
+    IF ( PRESENT ( exp_max_val ) ) exp_max_val = mc_par % exp_max_val
+    IF ( PRESENT ( exp_min_val ) ) exp_min_val = mc_par % exp_min_val
+    IF ( PRESENT ( max_val ) ) max_val = mc_par % max_val
+    IF ( PRESENT ( min_val ) ) min_val = mc_par % min_val
     IF ( PRESENT ( pmswap ) ) pmswap = mc_par % pmswap
     IF ( PRESENT ( pmvolume) ) pmvolume = mc_par % pmvolume
     IF ( PRESENT ( pmvol_box) ) pmvol_box = mc_par % pmvol_box
@@ -505,7 +512,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
       lrestart,ldiscrete,discrete_step,pmavbmc,mc_molecule_info,&
       pmavbmc_mol,pmtrans_mol,pmrot_mol,pmtraion_mol,pmswap_mol,&
       avbmc_rmin,avbmc_rmax,avbmc_atom,pbias,ensemble,pmvol_box,&
-      mc_input_file,mc_bias_file)
+      mc_input_file,mc_bias_file,exp_max_val,exp_min_val,min_val,max_val)
 
 ! *****************************************************************************
 !!****s* mc_types.F/set_mc_par
@@ -559,6 +566,8 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: pmvol_box
     TYPE(mc_input_file_type), OPTIONAL, &
       POINTER                                :: mc_input_file, mc_bias_file
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: exp_max_val, exp_min_val, &
+                                                min_val, max_val
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mc_par', &
       routineP = moduleN//':'//routineN
@@ -585,6 +594,10 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     IF ( PRESENT ( lbias ) ) mc_par % lbias = lbias
     IF ( PRESENT ( lrestart ) ) mc_par % lrestart = lrestart
 
+    IF ( PRESENT ( exp_max_val ) ) mc_par % exp_max_val= exp_max_val 
+    IF ( PRESENT ( exp_min_val ) ) mc_par % exp_min_val= exp_min_val 
+    IF ( PRESENT ( max_val ) ) mc_par % max_val = max_val
+    IF ( PRESENT ( min_val ) ) mc_par % min_val = min_val
     IF ( PRESENT ( BETA ) ) mc_par % BETA = BETA
     IF ( PRESENT ( temperature ) ) mc_par % temperature = temperature
     IF ( PRESENT ( rcut ) ) mc_par % rcut = rcut
@@ -1549,6 +1562,12 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
 
 ! figure out what beta (1/kT) is in atomic units (1/Hartree)
       mc_par % BETA = 1 / mc_par%temperature / boltzmann * joule
+
+      ! 0.9_dp is to avoid overflow or underflow
+      mc_par % exp_max_val = 0.9_dp*LOG(HUGE(0.0_dp))
+      mc_par % exp_min_val = 0.9_dp*LOG(TINY(0.0_dp))
+      mc_par % max_val     = EXP(mc_par % exp_max_val)
+      mc_par % min_val     = 0.0_dp
 
 ! convert from bar to a.u.
       CALL convert_to_cp2k_units(pressure=mc_par%pressure)

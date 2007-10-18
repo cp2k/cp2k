@@ -390,13 +390,14 @@ END SUBROUTINE mc_coordinate_fold
 !!     MJM
 !!
 !!*****************************************************************************
-SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
-      rosenbluth_weight, start_atom,natoms_tot,nunits,nunits_mol,mass,loverlap, choosen_energy,&
-      old_energy,ionode,lremove,mol_type,nchains,source,group,rng_stream,error,&
-      avbmc_atom,rmin,rmax,move_type,target_atom)
+SUBROUTINE generate_cbmc_swap_config( force_env, BETA, max_val, min_val, exp_max_val,&
+     exp_min_val, nswapmoves, rosenbluth_weight, start_atom,natoms_tot,nunits,nunits_mol,&
+     mass,loverlap, choosen_energy,old_energy,ionode,lremove,mol_type,nchains,source,&
+     group,rng_stream,error,avbmc_atom,rmin,rmax,move_type,target_atom)
 
     TYPE(force_env_type), POINTER            :: force_env
-    REAL(KIND=dp), INTENT(IN)                :: BETA
+    REAL(KIND=dp), INTENT(IN)                :: BETA, max_val, min_val, &
+                                                exp_max_val, exp_min_val
     INTEGER, INTENT(IN)                      :: nswapmoves
     REAL(KIND=dp), INTENT(OUT)               :: rosenbluth_weight
     INTEGER, INTENT(IN)                      :: start_atom, natoms_tot
@@ -479,11 +480,11 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
 ! initialize the arrays that need it
       loverlap_array(:)=.FALSE.
       loverlap=.FALSE.
-      boltz_weights(:) = 0.0E0_dp
-      trial_energy(:) = 0.0E0_dp
-      r(:,:,:)=0.0E0_dp
-      choosen_energy=0.0_dp
-      rosenbluth_weight=0.0_dp
+      boltz_weights(:)  = 0.0_dp
+      trial_energy(:)   = 0.0_dp
+      r(:,:,:)          = 0.0_dp
+      choosen_energy    = 0.0_dp
+      rosenbluth_weight = 0.0_dp
 
 ! save the positions of the molecules
       DO imove=1,nswapmoves
@@ -579,7 +580,7 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
 
          ENDIF
 
-        CALL mp_bcast(r(:,:,imove),source,group)
+         CALL mp_bcast(r(:,:,imove),source,group)
 
 ! calculate the energy and boltzman weight of the config
          DO iatom=start_atom,end_atom
@@ -600,23 +601,15 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
 
          trial_energy(imove)=(bias_energy-old_energy)
          exponent=-BETA*trial_energy(imove)
-#if defined (__SGL)
-         IF(exponent .GT. 88.0_dp) THEN
-            boltz_weights(imove)=1.6E38_dp
-         ELSEIF(exponent .LT. -103.0_dp) THEN
-            boltz_weights(imove)=0.0_dp
+
+         IF    (exponent .GT. exp_max_val) THEN
+            boltz_weights(imove)=max_val
+         ELSEIF(exponent .LT. exp_min_val) THEN
+            boltz_weights(imove)=min_val
          ELSE
             boltz_weights(imove)=EXP(exponent)
          ENDIF
-#else
-         IF(exponent .GT. 500.0_dp) THEN
-            boltz_weights(imove)=1.4E217_dp
-         ELSEIF(exponent .LT. -500.0_dp) THEN
-            boltz_weights(imove)=0.0_dp
-         ELSE
-            boltz_weights(imove)=EXP(exponent)
-         ENDIF
-#endif
+
       ENDDO
 
 ! now we need to pick a configuration based on the Rosenbluth weight,
