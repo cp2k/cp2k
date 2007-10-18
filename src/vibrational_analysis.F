@@ -62,7 +62,6 @@ MODULE vibrational_analysis
   USE replica_types,                   ONLY: rep_env_calc_e_f,&
                                              rep_env_create,&
                                              rep_env_release,&
-                                             rep_env_write,&
                                              replica_env_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -72,6 +71,7 @@ MODULE vibrational_analysis
   PRIVATE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'vibrational_analysis'
   REAL(KIND=dp), PARAMETER, PRIVATE    :: thrs = 100.0_dp*EPSILON(0.0_dp)
+  LOGICAL, PARAMETER                   :: debug_this_module=.FALSE.
 
   PUBLIC :: vb_anal
 
@@ -151,8 +151,6 @@ CONTAINS
        ! Create Replica Environments
        CALL rep_env_create(rep_env, para_env=para_env, input=input,&
             nrep=nrep,prep=prep,error=error)
-       CALL rep_env_write(rep_env,cp_logger_get_default_unit_nr(logger,local=.TRUE.),&	 
-            error=error)
        IF (ASSOCIATED(rep_env)) THEN
           CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
                new_error=new_error, failure=failure)

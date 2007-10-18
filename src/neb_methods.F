@@ -62,7 +62,6 @@ MODULE neb_methods
   USE particle_types,                  ONLY: particle_type
   USE replica_types,                   ONLY: rep_env_create,&
                                              rep_env_release,&
-                                             rep_env_write,&
                                              replica_env_type
   USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
@@ -155,10 +154,6 @@ CONTAINS
        CALL rep_env_create(rep_env, para_env=para_env, input=input,&
             nrep=nrep,prep=prep,error=error)
        CPPostcondition(SIZE(rep_env%local_rep_indices)==1,cp_failure_level,routineP,error,failure)
-       IF (debug_this_module) THEN
-          CALL rep_env_write(rep_env,cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
-               error=error)
-       END IF
        IF (output_unit>0) WRITE(output_unit,'(T2,"NEB|",A)')" Replica_env Setup. END"
        IF (ASSOCIATED(rep_env)) THEN
           CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
