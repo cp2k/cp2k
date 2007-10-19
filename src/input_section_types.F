@@ -946,11 +946,12 @@ SUBROUTINE section_add_keyword(section,keyword,error)
         DO k=1,SIZE(keyword%names)
            DO i=1,section%n_keywords
               DO j=1,SIZE(section%keywords(i)%keyword%names)
-                 CALL cp_assert(keyword%names(k)/=section%keywords(i)%keyword%names(j),&
-                      cp_failure_level,cp_assertion_failed,routineP,&
-                      "trying to add a keyword with a name ("//&
-                      TRIM(keyword%names(k))//") that was already used in section "&
-                      //TRIM(section%name),error,failure)
+                 IF (keyword%names(k)==section%keywords(i)%keyword%names(j)) THEN
+                    CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
+                         "trying to add a keyword with a name ("//&
+                         TRIM(keyword%names(k))//") that was already used in section "&
+                         //TRIM(section%name),error,failure)
+                 ENDIF
               END DO
            END DO
         END DO
