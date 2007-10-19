@@ -1464,7 +1464,7 @@ MODULE four_center_integrals
       ld_min, ld_max, npgfa, npgfb, npgfc, npgfd, ncoa, ncob, ncoc, ncod
     REAL(dp), &
       DIMENSION(ncoa, ncob, ncoc, ncod, 12)  :: primitive_forces
-    REAL(dp), DIMENSION(:, :), POINTER       :: work_forces
+    REAL(dp), DIMENSION(*)                   :: work_forces
     TYPE(x_hf_potential_type)                :: potential_parameter
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'forces4'
@@ -1587,7 +1587,8 @@ MODULE four_center_integrals
     REAL(dp), DIMENSION(:), POINTER          :: T1, T2
     REAL(dp), DIMENSION(:, :), POINTER :: full_density, full_density_beta, &
       pmax_atom, screen_atom, sparse_block, sphi_a, sphi_b, sphi_c, sphi_d, &
-      work_forces, zeta, zetb, zetc, zetd
+      zeta, zetb, zetc, zetd
+    REAL(dp), DIMENSION(:), ALLOCATABLE :: work_forces
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: pmax_set, screen_set
     REAL(dp), DIMENSION(:, :, :, :, :), &
       POINTER                                :: screen_periodic
@@ -1651,7 +1652,7 @@ MODULE four_center_integrals
     !! Get screening parameter
 
     !! Allocate work-space for forces
-    ALLOCATE(work_forces(((max_am+1)*(max_am+2)/2)**4,12),STAT=stat)
+    ALLOCATE(work_forces(((max_am+1)*(max_am+2)/2)**4*12),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     ALLOCATE (atom_of_kind(natom),STAT=stat)
@@ -2598,7 +2599,7 @@ MODULE four_center_integrals
       ld_min, ld_max, npgfa, npgfb, npgfc, npgfd, ncoa, ncob, ncoc, ncod
     REAL(dp), &
       DIMENSION(ncoa, ncob, ncoc, ncod, 12)  :: primitive_forces
-    REAL(dp), DIMENSION(:, :), POINTER       :: work_forces
+    REAL(dp), DIMENSION(*)                   :: work_forces
     TYPE(x_hf_potential_type)                :: potential_parameter
     REAL(dp), INTENT(IN)                     :: box_size(3)
     TYPE(x_hf_cell_type), DIMENSION(:), &

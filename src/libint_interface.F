@@ -913,7 +913,7 @@ MODULE libint_interface
     REAL(dp), INTENT(IN),TARGET             :: A(3), B(3), C(3), D(3)
     REAL(dp), INTENT(IN),TARGET             :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
     INTEGER, INTENT(IN)                     :: n_a, n_b, n_c, n_d
-    REAL(dp), DIMENSION(:,:), POINTER       :: work_forces
+    REAL(dp), DIMENSION(nco(n_a)*nco(n_b)*nco(n_c)*nco(n_d),12) :: work_forces
     INTEGER, INTENT(IN)                     :: ncoa, ncob, ncoc, ncod
     REAL(dp), DIMENSION(ncoa,ncob,ncoc,ncod,12) &
                                             :: primitive_forces
@@ -965,12 +965,16 @@ MODULE libint_interface
           IF(k==4 .OR. k==5 .OR. k==6) CYCLE
           pc_result = deriv%ABCD(k)
           CALL C_F_POINTER(pc_result, tmp_data , a_mysize)
-          work_forces(1:mysize,k) = tmp_data
+          DO i=1,mysize
+             work_forces(i,k) = tmp_data(i)
+          ENDDO
         END DO
         DO k=4,6
-          work_forces(1:mysize,k) = - 1.0_dp* (work_forces(1:mysize,k-3) + &
-                                               work_forces(1:mysize,k+3) + &
-                                               work_forces(1:mysize,k+6) )
+          DO i=1,mysize
+             work_forces(i,k) = - 1.0_dp* (work_forces(i,k-3) + &
+                                                  work_forces(i,k+3) + &
+                                                  work_forces(i,k+6) )
+          ENDDO
         END DO
         DO n=1,12
           DO i = 1,nco(n_a)
@@ -1000,12 +1004,16 @@ MODULE libint_interface
           IF(k==4 .OR. k==5 .OR. k==6) CYCLE
           pc_result = deriv%ABCD(k)
           CALL C_F_POINTER(pc_result, tmp_data , a_mysize)
-          work_forces(1:mysize,k) = tmp_data
+          DO i=1,mysize
+             work_forces(i,k) = tmp_data(i)
+          ENDDO
         END DO
         DO k=4,6
-          work_forces(1:mysize,k) = - 1.0_dp* (work_forces(1:mysize,k-3) + &
-                                               work_forces(1:mysize,k+3) + &
-                                               work_forces(1:mysize,k+6) )
+          DO i=1,mysize
+             work_forces(i,k) = - 1.0_dp* (work_forces(i,k-3) + &
+                                                  work_forces(i,k+3) + &
+                                                  work_forces(i,k+6) )
+          ENDDO
         END DO
         DO n=1,12
           DO j = 1,nco(n_b)
@@ -1035,12 +1043,16 @@ MODULE libint_interface
           IF(k==4 .OR. k==5 .OR. k==6) CYCLE
           pc_result = deriv%ABCD(k)
           CALL C_F_POINTER(pc_result, tmp_data , a_mysize)
-          work_forces(1:mysize,k) = tmp_data
+          DO i=1,mysize
+             work_forces(i,k) = tmp_data(i)
+          ENDDO
         END DO
         DO k=4,6
-          work_forces(1:mysize,k) = - 1.0_dp* (work_forces(1:mysize,k-3) + &
-                                               work_forces(1:mysize,k+3) + &
-                                               work_forces(1:mysize,k+6) )
+           DO i=1,mysize
+              work_forces(i,k) = - 1.0_dp* (work_forces(i,k-3) + &
+                                               work_forces(i,k+3) + &
+                                               work_forces(i,k+6) )
+           ENDDO
         END DO
         DO n=1,12
           DO i = 1,nco(n_a)
@@ -1070,12 +1082,16 @@ MODULE libint_interface
           IF(k==4 .OR. k==5 .OR. k==6) CYCLE
           pc_result = deriv%ABCD(k)
           CALL C_F_POINTER(pc_result, tmp_data , a_mysize)
-          work_forces(1:mysize,k) = tmp_data
+          DO i=1,mysize
+             work_forces(i,k) = tmp_data(i)
+          ENDDO
         END DO
         DO k=4,6
-          work_forces(1:mysize,k) = - 1.0_dp* (work_forces(1:mysize,k-3) + &
-                                               work_forces(1:mysize,k+3) + &
-                                               work_forces(1:mysize,k+6) )
+           DO i=1,mysize
+              work_forces(i,k) = - 1.0_dp* (work_forces(i,k-3) + &
+                                               work_forces(i,k+3) + &
+                                               work_forces(i,k+6) )
+           ENDDO
         END DO
         DO n=1,12
           DO j = 1,nco(n_b)
@@ -1105,12 +1121,16 @@ MODULE libint_interface
           IF(k==4 .OR. k==5 .OR. k==6) CYCLE
           pc_result = deriv%ABCD(k)
           CALL C_F_POINTER(pc_result, tmp_data , a_mysize)
-          work_forces(1:mysize,k) = tmp_data
+          DO i=1,mysize
+             work_forces(i,k) = tmp_data(i)
+          ENDDO
         END DO
         DO k=4,6
-          work_forces(1:mysize,k) = - 1.0_dp* (work_forces(1:mysize,k-3) + &
-                                               work_forces(1:mysize,k+3) + &
-                                               work_forces(1:mysize,k+6) )
+           DO i=1,mysize
+              work_forces(i,k) = - 1.0_dp* (work_forces(i,k-3) + &
+                                               work_forces(i,k+3) + &
+                                               work_forces(i,k+6) )
+           ENDDO
         END DO
         DO n=1,12
           DO k = 1,nco(n_c)
@@ -1140,12 +1160,16 @@ MODULE libint_interface
           IF(k==4 .OR. k==5 .OR. k==6) CYCLE
           pc_result = deriv%ABCD(k)
           CALL C_F_POINTER(pc_result, tmp_data , a_mysize)
-          work_forces(1:mysize,k) = tmp_data
+          DO i=1,mysize
+             work_forces(i,k) = tmp_data(i)
+          ENDDO
         END DO
         DO k=4,6
-          work_forces(1:mysize,k) = - 1.0_dp* (work_forces(1:mysize,k-3) + &
-                                               work_forces(1:mysize,k+3) + &
-                                               work_forces(1:mysize,k+6) )
+          DO i=1,mysize
+             work_forces(i,k) = - 1.0_dp* (work_forces(i,k-3) + &
+                                               work_forces(i,k+3) + &
+                                               work_forces(i,k+6) )
+          ENDDO
         END DO
         DO n=1,12
           DO k = 1,nco(n_c)
@@ -1175,12 +1199,16 @@ MODULE libint_interface
           IF(k==4 .OR. k==5 .OR. k==6) CYCLE
           pc_result = deriv%ABCD(k)
           CALL C_F_POINTER(pc_result, tmp_data , a_mysize)
-          work_forces(1:mysize,k) = tmp_data
+          DO i=1,mysize
+             work_forces(i,k) = tmp_data(i)
+          ENDDO
         END DO
         DO k=4,6
-          work_forces(1:mysize,k) = - 1.0_dp* (work_forces(1:mysize,k-3) + &
-                                               work_forces(1:mysize,k+3) + &
-                                               work_forces(1:mysize,k+6) )
+           DO i=1,mysize
+              work_forces(i,k) = - 1.0_dp* (work_forces(i,k-3) + &
+                                               work_forces(i,k+3) + &
+                                               work_forces(i,k+6) )
+           ENDDO
         END DO
         DO n=1,12
           DO l = 1,nco(n_d)
@@ -1210,12 +1238,16 @@ MODULE libint_interface
           IF(k==4 .OR. k==5 .OR. k==6) CYCLE
           pc_result = deriv%ABCD(k)
           CALL C_F_POINTER(pc_result, tmp_data , a_mysize)
-          work_forces(1:mysize,k) = tmp_data
+          DO i=1,mysize
+             work_forces(i,k) = tmp_data(i)
+          ENDDO
         END DO
         DO k=4,6
-          work_forces(1:mysize,k) = - 1.0_dp* (work_forces(1:mysize,k-3) + &
-                                               work_forces(1:mysize,k+3) + &
-                                               work_forces(1:mysize,k+6) )
+           DO i=1,mysize
+              work_forces(i,k) = - 1.0_dp* (work_forces(i,k-3) + &
+                                               work_forces(i,k+3) + &
+                                               work_forces(i,k+6) )
+           ENDDO
         END DO
         DO n=1,12
           DO l = 1,nco(n_d)
