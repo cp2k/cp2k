@@ -312,12 +312,14 @@ END SUBROUTINE fftw31dm
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
       subroutine fftw_write_char(c, iunit)
+         IMPLICIT NONE
          character c
          integer iunit
          write(iunit,'(a)',ADVANCE="NO") c
       end      
 
       subroutine fftw_export_wisdom_to_file(iunit)
+         IMPLICIT NONE
          integer iunit
          external fftw_write_char
 #if defined ( __FFTW3 )
@@ -334,6 +336,7 @@ END SUBROUTINE fftw31dm
 !     simply fail.)  Ugh (and not thread safe).
 
       subroutine fftw_read_char(ic, iunit)
+         IMPLICIT NONE
          integer ic
          integer iunit
          character*256 buf
@@ -356,10 +359,11 @@ END SUBROUTINE fftw31dm
       end
       
       subroutine fftw_import_wisdom_from_file(isuccess, iunit)
+         IMPLICIT NONE
          integer isuccess
          integer iunit
          external fftw_read_char
-         isucces=0
+         isuccess=0
 #if defined ( __FFTW3 )
          call dfftw_import_wisdom(isuccess, fftw_read_char, iunit)
 #endif
