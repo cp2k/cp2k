@@ -260,6 +260,7 @@ MODULE four_center_integrals
     END DO
  
     !! Get the full density from all the processors
+    CALL mp_sync(para_env%group) ! to clarify timings
     CALL timeset(routineN//"_getP",handle_getP)
     ALLOCATE(full_density(1,1),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -273,6 +274,7 @@ MODULE four_center_integrals
       CALL symmetrize_matrix(full_density_beta,"upper_to_lower")
       CALL mp_sum(full_density_beta,para_env%group)
     END IF
+    CALL mp_sync(para_env%group) ! to clarify timings
     CALL timestop(handle_getP)
 
     
@@ -338,6 +340,7 @@ MODULE four_center_integrals
                              error)
       END IF
     END IF
+
     CALL timeset(routineN//"_main",handle_main)
 
     !! Initialize a prefactor depending on the fraction and the number of spins
@@ -833,15 +836,16 @@ MODULE four_center_integrals
         END IF
       END DO
     END DO
-    
+  
+ 
+    !! Distribute the current KS-matrix to all the processes
+    CALL mp_sync(para_env%group) ! to clarify timings 
+    CALL timeset(routineN//"_dist_KS",handle_dist_ks)
     CALL mp_sum(full_ks,para_env%group)
     IF(nspins==2) CALL mp_sum(full_ks_beta,para_env%group)
     CALL mp_sum(ene_x_aa, para_env%group)
     IF(nspins==2) CALL mp_sum(ene_x_bb,para_env%group)
 
-
-    !! Distribute the current KS-matrix to all the processes
-    CALL timeset(routineN//"_dist_KS",handle_dist_ks)
     DO iatom=1,ks_matrix(1)%matrix%nblock_row
       block_node => first_block_node(ks_matrix(1)%matrix,iatom)
       IF(nspins == 2) block_node_beta => first_block_node(ks_matrix(2)%matrix,iatom)
@@ -894,8 +898,9 @@ MODULE four_center_integrals
         END DO
       END DO
     END DO
-    
+    CALL mp_sync(para_env%group) ! to clarify timings 
     CALL timestop(handle_dist_ks)
+
     !! Update energy type
     energy%ex = 0.5_dp*(ene_x_aa+ene_x_bb)
 
