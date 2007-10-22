@@ -14,7 +14,6 @@
 !!     JGH,MK
 !!
 !!   MODIFICATION HISTORY
-!!     - init_mathcon is now called (27.02.2001,MK)
 !!     - Merged with Quickstep MODULE start_program_run (17.01.2002,MK)
 !!     - Compile information added (16.01.2002,MK)
 !!     - Merged with MODULE cp2k_input, some rearrangements (30.10.2002,MK)

@@ -82,7 +82,6 @@ MODULE f77_interface
                                              section_vals_write
   USE kg_main,                         ONLY: kg_create_force_env
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: init_mathcon
   USE message_passing,                 ONLY: &
        MPI_COMM_WORLD, add_mp_perf_env, get_mp_perf_env, mp_max, &
        mp_perf_env_release, mp_perf_env_retain, mp_perf_env_type, &
@@ -244,10 +243,6 @@ CONTAINS
        ierr=0
 
        !   *** Initialize mathematical constants ***
-
-       CALL init_mathcon()
-
-       !   *** Initialize physical constants ***
 
        CALL init_physcon()
        CALL init_cp2k_units(error=error)

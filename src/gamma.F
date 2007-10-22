@@ -24,7 +24,7 @@ MODULE gamma
 
   USE kinds,                           ONLY: dp,&
                                              dp_size
-  USE mathconstants,                   ONLY: fac,&
+  USE mathconstants,                   ONLY: ifac,&
                                              pi
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -235,7 +235,7 @@ CONTAINS
       tmp = 1.0_dp
       DO k=1,6
         tmp = tmp * (ttab - t)
-        f(nmax) = f(nmax) + ftable(nmax+k,itab)*tmp/fac(k)
+        f(nmax) = f(nmax) + ftable(nmax+k,itab)*tmp*ifac(k)
       END DO
 
       expt = EXP(-t)
@@ -367,7 +367,7 @@ CONTAINS
         tmp = 1.0_dp
         DO k=1,6
           tmp = tmp * (ttab - t(i))
-          f(i,nmax) = f(i,nmax) + ftable(nmax+k,itab)*tmp/fac(k)
+          f(i,nmax) = f(i,nmax) + ftable(nmax+k,itab)*tmp*ifac(k)
         END DO
 
         expt = EXP(-t(i))
