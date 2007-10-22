@@ -22,7 +22,9 @@
 
 MODULE ps_wavelet_types
 
-
+  USE bibliography,                    ONLY: cite_reference,&
+                                             Genovese2006,&
+                                             Genovese2007
   USE input_constants,                 ONLY: use_perd_none,&
                                              use_perd_x,&
                                              use_perd_xy,&
@@ -145,6 +147,10 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: ps_wavelet_section
 
     CALL timeset(routineN,"I","",handle)
+
+    CALL cite_reference(Genovese2006)
+    CALL cite_reference(Genovese2007)
+
     CALL mp_sync(pw_grid % para % rs_group)
     failure=.FALSE.
 
@@ -189,7 +195,7 @@ CONTAINS
        wavelet%datacode=datacode
        CALL mp_sync(pw_grid % para % rs_group)
 
-          CALL RS_z_slice_distribution(wavelet,pw_grid, error)
+       CALL RS_z_slice_distribution(wavelet,pw_grid, error)
           
     END IF
     CALL timestop(0.0_dp,handle)
