@@ -24,8 +24,8 @@ int on=1;
 int indent=0, dind=2, nargbuf=-1, nfunname=-1;
 slist *pub_l=NULL, *pri_l=NULL, *pl;
 slist *use_l=NULL;
-char stack[16 KB], *sp=stack, *spmax=stack;
-char heap[64 KB], *hp=heap, *hpmax=heap;
+char stack[32 KB], *sp=stack, *spmax=stack;
+char heap[128 KB], *hp=heap, *hpmax=heap;
 char line[4 KB], inpline[16 KB], argbuf[3][4 KB], *args;
 char modname[64], typename[64], intername[64]; /*module, type, interface name*/
 char proname[64], buffunname[3][64], *funname; /* program, funct-subroutine */
