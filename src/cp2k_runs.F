@@ -303,7 +303,6 @@ CONTAINS
                   method_name_id /= do_ep .AND.&
                   method_name_id /= do_mixed .AND.&
                   method_name_id /= do_fist )  &
-
                   CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                   "Energy/Force run not available for all methods "//&
                   CPSourceFileRef,&
