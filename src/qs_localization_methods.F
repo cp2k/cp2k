@@ -121,8 +121,7 @@ CONTAINS
     ! printing
     IF(output_unit.GT.0) THEN
        WRITE(output_unit,'(1X)')
-       WRITE(output_unit,'(A)') '  ----------------------------------------------------------------------------\
--'
+       WRITE(output_unit,'(A)') '  -----------------------------------------------------------------------------'
        WRITE(output_unit,'(A,I5)'   ) '      Nbr iterations =',iterations
        WRITE(output_unit,'(A,E10.2)') '     eps convergence =',eps
        WRITE(output_unit,'(A,I5)'   ) '    Max Taylor order =',taylor_order
