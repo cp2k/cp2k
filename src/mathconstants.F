@@ -191,6 +191,6 @@ MODULE mathconstants
   ! == CMPLX ( zero, one, KIND=dp )
   ! but since it is exactly representable also correct
   !
-  COMPLEX (KIND=dp), PARAMETER :: gaussi=CMPLX ( zero, one )
+  COMPLEX (KIND=dp), PARAMETER :: gaussi=(0.0_dp,1.0_dp)
 
 END MODULE mathconstants
