@@ -140,11 +140,28 @@ SUBROUTINE fftmkl3d ( fft_in_place, fsign, scale, n, zin, zout )
 #if defined ( __FFTMKL )
 
   status = DftiCreateDescriptor( desc, dft_prec, DFTI_COMPLEX, 3, n )
-  status = DftiCommitDescriptor( desc )
   IF (fsign == +1) THEN
-    status = DftiComputeForward( desc, zin )
+    IF ( scale /= 1.0_dp ) status = DftiSetValue( desc, DFTI_FORWARD_SCALE, scale )
+    IF ( fft_in_place ) THEN
+      status = DftiSetValue( desc, DFTI_PLACEMENT, DFTI_INPLACE )
+      status = DftiCommitDescriptor( desc )
+      status = DftiComputeForward( desc, zin )
+    ELSE
+      status = DftiSetValue( desc, DFTI_PLACEMENT, DFTI_NOT_INPLACE )
+      status = DftiCommitDescriptor( desc )
+      status = DftiComputeForward( desc, zin, zout )
+    ENDIF
   ELSE
-    status = DftiComputeBackward( desc, zin )
+    IF ( scale /= 1.0_dp ) status = DftiSetValue( desc, DFTI_BACKWARD_SCALE, scale )
+    IF ( fft_in_place ) THEN
+      status = DftiSetValue( desc, DFTI_PLACEMENT, DFTI_INPLACE )
+      status = DftiCommitDescriptor( desc )
+      status = DftiComputeBackward( desc, zin )
+    ELSE
+      status = DftiSetValue( desc, DFTI_PLACEMENT, DFTI_NOT_INPLACE )
+      status = DftiCommitDescriptor( desc )
+      status = DftiComputeBackward( desc, zin, zout )
+    ENDIF
   END IF
   status = DftiFreeDescriptor( desc )
   
@@ -177,12 +194,54 @@ SUBROUTINE fftmkl1dm ( fsign, trans, n, m, zin, zout, scale )
   COMPLEX (KIND=dp), DIMENSION(*), INTENT ( INOUT )  :: zin
   COMPLEX (KIND=dp), DIMENSION(*), INTENT ( OUT )    :: zout
   REAL (KIND=dp), INTENT ( IN )                      :: scale
+#if defined ( __FFTMKL )
+  TYPE(DFTI_DESCRIPTOR), POINTER                       :: desc
+#if defined(__SGL) || defined(__FFTSGL)
+  INTEGER, PARAMETER :: dft_prec = DFTi_SINGLE
+#else
+  INTEGER, PARAMETER :: dft_prec = DFTi_DOUBLE
+#endif
+#endif
+  INTEGER                                              :: status
+  INTEGER                                            :: ii(3),di,io(3),do
 
 !------------------------------------------------------------------------------
 
 #if defined ( __FFTMKL )
 
-  fsign = 0
+  ii(1) = 0
+  ii(2) = 1
+  ii(3) = 0
+  di = n
+  io(1) = 0
+  io(2) = 1
+  io(3) = 0
+  do = n
+  IF ( fsign == +1 .AND. trans ) THEN
+    ii(2) = m
+    di = 1
+  ELSEIF ( fsign == -1 .AND. trans ) THEN
+    io(2) = m
+    do = 1
+  END IF
+
+  status = DftiCreateDescriptor( desc, dft_prec, DFTI_COMPLEX, 1, n )
+  status = DftiSetValue( desc, DFTI_INPUT_STRIDES, ii )
+  status = DftiSetValue( desc, DFTI_OUTPUT_STRIDES, io )
+  status = DftiSetValue( desc, DFTI_NUMBER_OF_TRANSFORMS, m )
+  status = DftiSetValue( desc, DFTI_INPUT_DISTANCE, di )
+  status = DftiSetValue( desc, DFTI_OUTPUT_DISTANCE, do )
+  status = DftiSetValue( desc, DFTI_PLACEMENT, DFTI_NOT_INPLACE )
+  IF (fsign == +1) THEN
+    IF ( scale /= 1.0_dp ) status = DftiSetValue( desc, DFTI_FORWARD_SCALE, scale )
+    status = DftiCommitDescriptor( desc )
+    status = DftiComputeForward( desc, zin, zout )
+  ELSE
+    IF ( scale /= 1.0_dp ) status = DftiSetValue( desc, DFTI_BACKWARD_SCALE, scale )
+    status = DftiCommitDescriptor( desc )
+    status = DftiComputeBackward( desc, zin, zout )
+  END IF
+  status = DftiFreeDescriptor( desc )
 
 #else
 
