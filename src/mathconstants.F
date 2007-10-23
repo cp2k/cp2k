@@ -186,11 +186,6 @@ MODULE mathconstants
 
   REAL (KIND=dp), PARAMETER :: zero = 0.0_dp, one = 1.0_dp, half = 0.5_dp
   REAL (KIND=dp), PARAMETER :: degree = 180.0_dp/pi, radians = one/degree
-  !
-  ! forpar gets confused if we use the 'correct'
-  ! == CMPLX ( zero, one, KIND=dp )
-  ! but since it is exactly representable also correct
-  !
   COMPLEX (KIND=dp), PARAMETER :: gaussi=(0.0_dp,1.0_dp)
 
 END MODULE mathconstants
