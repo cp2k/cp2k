@@ -47,13 +47,14 @@ MODULE machine
        m_cputime, m_datum, m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
-#elif defined ( __PGI )
-  USE machine_pgi, ONLY    : &
+! must be before __PGI because pgf90 defines __PGI
+#elif defined ( __XT3 )
+  USE machine_xt3, ONLY    : &
        m_cputime, m_datum, m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
-#elif defined ( __XT3 )
-  USE machine_xt3, ONLY    : &
+#elif defined ( __PGI )
+  USE machine_pgi, ONLY    : &
        m_cputime, m_datum, m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
