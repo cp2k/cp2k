@@ -129,19 +129,19 @@ test: $(PROG)
 
 depend .depend: lexer.c find_dep.c find_dep.h
 	$(CC) -MM *.c > .depend
-
-lexer.c: lexer.l
-find_dep.h find_dep.c: find_dep.y
-
-configure: configure.in
-	autoconf
-
-Makefile: Makefile.in configure
-	./configure
-
-Makefile.def: Makefile
-	cp Makefile Makefile.def
-
+#
+#lexer.c: lexer.l
+#find_dep.h find_dep.c: find_dep.y
+#
+#configure: configure.in
+#	autoconf
+#
+#Makefile: Makefile.in configure
+#	./configure
+#
+#Makefile.def: Makefile
+#	cp Makefile Makefile.def
+#
 dist: $(DISTFILES)
 	if [ -d makedepf90-$(VERSION) -o -f makedepf90-$(VERSION) ]; then \
 		rm -rf makedepf90-$(VERSION); \
