@@ -1,3 +1,26 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2007  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+!!***** cp2k/x_hf_compression_methods [1.0] *
+!!
+!!   NAME
+!!     x_hf_compression_methods
+!!
+!!   FUNCTION
+!!     Contains routines for data compression. PLEASE DO NOT MODIFY. 
+!!
+!!   NOTES
+!!     -
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     10.2007 created [Manuel Guidon]
+!!
+!****************************************************************************
+
 MODULE x_hf_compression_methods
   
   USE kinds,                           ONLY: dp,&

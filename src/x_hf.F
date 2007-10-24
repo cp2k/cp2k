@@ -334,11 +334,11 @@ MODULE x_hf
       ALLOCATE(x_data%neighbor_cells(1),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       CALL x_hf_create_neighbor_cells(x_data,pbc_shells, error=error)
-      ALLOCATE(x_data%x_screening_buffer_periodic(natom,natom,max_set,max_set,&
-               SIZE(x_data%neighbor_cells)),STAT=stat)
+      ALLOCATE(x_data%x_screening_buffer_periodic(SIZE(x_data%neighbor_cells),&
+               max_set,max_set,natom,natom),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ELSE
-      ALLOCATE(x_data%x_screening_buffer(natom,natom,max_set,max_set),STAT=stat)
+      ALLOCATE(x_data%x_screening_buffer(max_set,max_set,natom,natom),STAT=stat)
     END IF
 
     ALLOCATE(x_data%distribution_forces(1),STAT=stat)
@@ -1226,8 +1226,7 @@ MODULE x_hf
     INTEGER                                  :: end_idx, i, start_idx, &
                                                 tmp_elements
     INTEGER(int_8)                           :: shift
-    REAL(dp)                                 :: eps_schwarz_inv, factor, &
-                                                pmax_entry_inv
+    REAL(dp)                                 :: eps_schwarz_inv, factor
 
 !! ASSUME nints< CACHE_SIZE
 
@@ -1238,27 +1237,20 @@ MODULE x_hf
 
     start_idx = cache%element_counter
     end_idx = start_idx + nints-1
-    pmax_entry_inv = 1.0_dp/pmax_entry
 
     IF(end_idx< CACHE_SIZE) THEN
       DO i=1,nints
-        cache%data(i+start_idx-1) = (cache%data(i+start_idx-1) - shift)
-        values(i) = eps_schwarz*REAL(cache%data(i+start_idx-1),dp)
-        values(i) = values(i) * pmax_entry_inv
+        values(i) = factor*REAL(cache%data(i+start_idx-1) - shift,dp)
       END DO
       cache%element_counter = end_idx + 1
     ELSE
       tmp_elements = CACHE_SIZE - start_idx + 1
       DO i=1,tmp_elements
-        cache%data(i+start_idx-1) = (cache%data(i+start_idx-1) - shift)
-        values(i) = eps_schwarz*REAL(cache%data(i+start_idx-1),dp)
-        values(i) = values(i) * pmax_entry_inv
+        values(i) = factor*REAL(cache%data(i+start_idx-1)-shift,dp)
       END DO
       CALL x_hf_decompress_cache(cache%data(1), container, CACHE_SIZE, nbits)
       DO i=tmp_elements+1,nints
-        cache%data(i-tmp_elements) = (cache%data(i-tmp_elements) - shift)
-        values(i) = eps_schwarz*REAL(cache%data(i-tmp_elements),dp)
-        values(i) = values(i) * pmax_entry_inv
+        values(i) = factor*REAL(cache%data(i-tmp_elements)-shift,dp)
       END DO
       cache%element_counter = nints - tmp_elements + 1
     END IF
