@@ -501,6 +501,7 @@ OBJECTS_GENERIC =\
  whittaker.o\
  wiener_process.o\
  x_hf.o\
+ x_hf_compression_methods.o\
  x_hf_distribution_mc.o\
  xas_control.o\
  xas_env_types.o\

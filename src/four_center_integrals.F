@@ -36,7 +36,6 @@ MODULE four_center_integrals
                                              do_hf_potential_short
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
-                                             dp_size,&
                                              int_8
   USE libint_interface,                ONLY: evaluate_deriv_eri,&
                                              evaluate_eri,&
@@ -49,7 +48,6 @@ MODULE four_center_integrals
   USE mathconstants
   USE mathlib,                         ONLY: symmetrize_matrix
   USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_max,&
                                              mp_sum,&
                                              mp_sum_i8,&
                                              mp_sync
@@ -68,16 +66,16 @@ MODULE four_center_integrals
                                              real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE x_hf,                            ONLY: x_hf_box_scheme,&
-                                             x_hf_cell_type,&
-                                             x_hf_distribution,&
-                                             x_hf_general_type,&
-                                             x_hf_potential_type,& 
-                                             x_hf_screening_type,&
-                                             x_hf_set_distr_energy,&
-                                             x_hf_set_distr_forces,&
-                                             x_hf_type,&
-                                             x_hf_load_balance_type
+  USE x_hf,                            ONLY: &
+       x_hf_add_multiple_cache_elements, x_hf_add_single_cache_element, &
+       x_hf_box_scheme, x_hf_cache_type, x_hf_cell_type, x_hf_container_type, &
+       x_hf_decompress_first_cache, x_hf_distribution, x_hf_flush_last_cache, &
+       x_hf_general_type, x_hf_get_memory_info, &
+       x_hf_get_multiple_cache_elements, x_hf_get_single_cache_element, &
+       x_hf_init_container, x_hf_load_balance_type, x_hf_memory_type, &
+       x_hf_potential_type, x_hf_reset_cache_and_container, &
+       x_hf_screening_type, x_hf_set_distr_energy, x_hf_set_distr_forces, &
+       x_hf_type
   USE x_hf_distribution_mc,            ONLY: x_hf_optimize_distribution
 #include "cp_common_uses.h"
 
@@ -90,7 +88,9 @@ MODULE four_center_integrals
   TYPE(lib_deriv), SAVE    :: deriv
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'four_center_integrals'
   REAL(dp), PARAMETER      :: epsilon = 0.00001_dp
-
+  REAL(dp), PARAMETER      :: erfc_epsilon = 0.99998871620832942100_dp !erfc(epsilon)
+  REAL(dp), PARAMETER      :: log_2 = 0.69314718055994530942_dp !LOG(2.0_dp)
+  REAL(dp), PARAMETER      :: log_2_inv = 1.4426950408889634074_dp !1.0_dp/log_2
 
 !***
 !****************************************************************************
@@ -146,17 +146,18 @@ MODULE four_center_integrals
       routineP = moduleN//':'//routineN
 
     INTEGER :: bin, box_idx1, box_idx2, box_idx3, box_idx4, current_counter, &
-      handle, handle_dist_ks, handle_getP, handle_main, iatom, &
-      integral_counter, iset, iw, jatom, jset, katom, kset, latom, lset, ma, &
-      max_am, max_k, max_set, maxsgf, mb, mc, md, my_bin_size, my_istart, &
-      my_jstart, my_kstart, my_lstart, my_original_cpu_id, natom, nco_max, &
-      ncoa, ncob, ncoc, ncod, nseta, nsetb, nsetc, nsetd, nsgfa_total, &
-      nsgfb_total, nsgfc_total, nsgfd_total, nspins, &
-      number_of_precalc_integrals, p_index, pa, pa1, pa2, pb, pb1, pb2, pc, &
-      pc1, pc2, pd, pd1, pd2, pgf_radius_box, sgfa, sgfb, sgfc, sgfd, stat, &
-      total_integrals_to_store
-    INTEGER :: total_integrals_to_store_aver, total_integrals_to_store_max
-    INTEGER(int_8)                           :: my_current_counter
+      handle, handle_dist_ks, handle_getP, handle_main, i, iatom, iset, iw, &
+      jatom, jset, katom, kset, latom, lset, ma, max_am, max_set, maxsgf, mb, &
+      mc, md, my_bin_size, my_istart, my_jstart, my_kstart, my_lstart, &
+      my_original_cpu_id, natom, nbits, nco_max, ncoa, ncob, ncoc, ncod, &
+      nints, nseta, nsetb, nsetc, nsetd, nsgfa_total, nsgfb_total, &
+      nsgfc_total, nsgfd_total, nspins, p_index, pa, pa1, pa2, pb, pb1, pb2, &
+      pc, pc1, pc2, pd, pd1, pd2, pgf_radius_box, radius1, radius2, sgfa, &
+      sgfb, sgfc, sgfd, stat
+    INTEGER(int_8) :: estimate_to_store_int, mem_compression_counter, &
+      mem_eris, mem_maxvals, my_current_counter, neris_incore, &
+      neris_onthefly, neris_total, storage_counter_integrals, &
+      storage_counter_maxval
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: last_sgf_global
     INTEGER, DIMENSION(:), POINTER :: la_max, la_min, lb_max, lb_min, lc_max, &
       lc_min, ld_max, ld_min, npgfa, npgfb, npgfc, npgfd, nsgfa, nsgfb, &
@@ -166,14 +167,17 @@ MODULE four_center_integrals
                                                 is_assoc_atomic_block
     LOGICAL :: buffer_overflow, do_correct_p_screening, do_p_screening, &
       failure, first_j_loop, first_k_loop, first_l_loop
-    REAL(dp) :: actual_pmax_entry, box_size(3), ene_x_aa, ene_x_bb, eps_box, &
-      eps_schwarz, fac, hf_fraction, K, Kbox, max_val1, max_val2, &
-      memory_usage, omega_box, p_screening_correction_factor, pmax_entry, &
-      ra(3), rb(3), Rbox, rc(3), rd(3), screen_max, symm_fac, tmp
+    REAL(dp) :: actual_pmax_entry, box_size(3), cartesian_estimate, &
+      center1(3), center2(3), compression_factor, ene_x_aa, ene_x_bb, &
+      eps_box, eps_schwarz, estimate_to_store, fac, hf_fraction, K, Kbox, &
+      max_contraction_val, max_val1, max_val2, omega_box, &
+      p_screening_correction_factor, pmax_entry, R1, R2, ra(3), rb(3), Rbox, &
+      rc(3), rd(3), screen_max, spherical_estimate, symm_fac, tmp
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: primitive_integrals, T1
     REAL(dp), DIMENSION(:, :), POINTER :: full_density, full_density_beta, &
-      full_ks, full_ks_beta, screen_atom, sparse_block, sparse_block_beta, &
-      sphi_a, sphi_b, sphi_c, sphi_d, zeta, zetb, zetc, zetd
+      full_ks, full_ks_beta, max_contraction, screen_atom, sparse_block, &
+      sparse_block_beta, sphi_a, sphi_b, sphi_c, sphi_d, zeta, zetb, zetc, &
+      zetd
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: actual_pmax_set, screen_set
     REAL(dp), DIMENSION(:, :, :, :, :), &
       POINTER                                :: screen_periodic
@@ -186,10 +190,17 @@ MODULE four_center_integrals
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(real_block_node_type), POINTER      :: block_node, block_node_beta
+    TYPE(x_hf_cache_type), DIMENSION(:), &
+      POINTER                                :: integral_caches
+    TYPE(x_hf_cache_type), POINTER           :: maxval_cache
+    TYPE(x_hf_container_type), &
+      DIMENSION(:), POINTER                  :: integral_containers
+    TYPE(x_hf_container_type), POINTER       :: maxval_container
     TYPE(x_hf_general_type)                  :: general_parameter
+    TYPE(x_hf_load_balance_type)             :: load_balance_parameter
+    TYPE(x_hf_memory_type)                   :: memory_parameter
     TYPE(x_hf_potential_type)                :: potential_parameter
     TYPE(x_hf_screening_type)                :: screening_parameter
-    TYPE(x_hf_load_balance_type)             :: load_balance_parameter
 
     CALL mp_sync(para_env%group)
     CALL timeset(routineN,"I",'',handle)
@@ -199,6 +210,42 @@ MODULE four_center_integrals
     potential_parameter    = qs_env%x_data%potential_parameter
     general_parameter      = qs_env%x_data%general_parameter
     load_balance_parameter = qs_env%x_data%load_balance_parameter
+    memory_parameter       = qs_env%x_data%memory_parameter
+
+    maxval_container       => qs_env%x_data%maxval_container
+    maxval_cache           => qs_env%x_data%maxval_cache
+
+    integral_containers    => qs_env%x_data%integral_containers
+    integral_caches        => qs_env%x_data%integral_caches
+
+    !! initalize some counters
+    neris_total = 0_int_8
+    neris_incore = 0_int_8
+    neris_onthefly = 0_int_8
+    mem_eris = 0_int_8
+    mem_maxvals = 0_int_8
+    compression_factor = 0.0_dp
+
+   
+    !! We do not need the containers if MAX_MEM = 0
+    IF(.NOT. memory_parameter%do_all_on_the_fly) THEN 
+      !! IF new md step -> reinitialize containers
+      IF(geometry_did_change) THEN
+        CALL x_hf_init_container(maxval_container, error)
+        DO i=1,64
+          CALL x_hf_init_container(integral_containers(i), error)
+        END DO
+      END IF
+
+      !! Decompress the first cache for maxvals and integrals
+      IF( .NOT. geometry_did_change) THEN
+        CALL x_hf_decompress_first_cache(6, maxval_cache, maxval_container)
+        DO i=1,64
+          CALL x_hf_decompress_first_cache(i, integral_caches(i), integral_containers(i))
+        END DO
+      END IF
+    END IF
+
 
     !! Get screening paramter
     eps_schwarz = screening_parameter%eps_schwarz
@@ -211,20 +258,17 @@ MODULE four_center_integrals
     hf_fraction = general_parameter%fraction 
    
     !! The number of integrals that fit into the given MAX_MEMORY
-    number_of_precalc_integrals = qs_env%x_data%number_of_elements
 
     !! Parameters related to the potential 1/r, erf(wr)/r, erfc(wr/r)
     potential_parameter = qs_env%x_data%potential_parameter
     
-    !! Initialize counter for the integrals stored in memory
-    integral_counter = 1
-    !! Initialize memory_usage and total number of integrals to be stored on this process
-    memory_usage = 0.0_dp
-    total_integrals_to_store=0
-
     !! Variable to check if we calculate the integrals in-core or on the fly
     !! If TRUE -> on the fly
-    buffer_overflow = .FALSE.
+    IF(.NOT. memory_parameter%do_all_on_the_fly) THEN
+      buffer_overflow = .FALSE. 
+    ELSE
+      buffer_overflow = .TRUE.
+    END IF
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -297,8 +341,36 @@ MODULE four_center_integrals
                                 full_density,full_density_beta,&
                                 particle_set,atomic_kind_set,error)
       END IF
+    ELSE
+      pmax_entry = 1.0_dp
     END IF
-    
+
+    ALLOCATE(max_contraction(max_set,natom),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    max_contraction=0.0_dp
+    DO jatom=1,natom
+
+      atom_kind => particle_set(jatom)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atom_kind,&
+                           orb_basis_set=orb_basis_b)
+      CALL get_gto_basis_set(gto_basis_set=orb_basis_b,&
+                             lmax=lb_max,&
+                             npgf=npgfb,&
+                             nset=nsetb,&
+                             first_sgf=first_sgfb,&
+                             sphi=sphi_b,&
+                             nsgf_set=nsgfb)
+      DO jset = 1,nsetb
+        ! takes the primitive to contracted transformation into account
+        ncob = npgfb(jset)*ncoset(lb_max(jset))
+        sgfb = first_sgfb(1,jset)
+        ! if the primitives are assumed to be all of max_val2, max_val2*p2s_b becomes
+        ! the maximum value after multiplication with sphi_b
+        max_contraction(jset,jatom) = MAXVAL((/(SUM(ABS(sphi_b(1:ncob,i))),i=sgfb,sgfb+nsgfb(jset)-1)/))
+      ENDDO
+    ENDDO
+ 
     !! Get the full ks_matrix from all processors
     ALLOCATE(full_ks(SIZE(full_density,1),SIZE(full_density,2)),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -312,19 +384,17 @@ MODULE four_center_integrals
     !! Initialize schwarz screening matrices for near field estimates and boxing screening matrices
     !! for far field estimates. The update is only performed if the geomtry of the system changed.
     !! If the system is periodic, then the corresponding routines are called and some variables such as
-    !! box_size are initialized
+    !!! box_size are initialized
 
-    max_k = qs_env%x_data%number_of_k_loops
     IF( do_periodic ) THEN
       box_size(1) = qs_env%cell%hmat(1,1)
       box_size(2) = qs_env%cell%hmat(2,2)
       box_size(3) = qs_env%cell%hmat(3,3)
-      max_k = MIN(max_k, SIZE(qs_env%x_data%neighbor_cells))
       ALLOCATE(screen_periodic(natom,natom,max_set,max_set,SIZE(qs_env%x_data%neighbor_cells)))
       CALL comp_screen_mat_per(screen_set,screen_atom,screen_max,screen_periodic,particle_set,atomic_kind_set,&
                                potential_parameter,.NOT.geometry_did_change,&
                                qs_env%x_data%x_screening_buffer_periodic,&
-                               qs_env%x_data%neighbor_cells,box_size,max_k,error)
+                               qs_env%x_data%neighbor_cells,box_size,error)
       IF(geometry_did_change) THEN
         CALL screen_farfield_per(qs_env%x_data%far_field_boxes, &
                                  particle_set, atomic_kind_set, potential_parameter, &
@@ -443,7 +513,7 @@ MODULE four_center_integrals
     !! lstart only the first time the loop is executed. All subsequent loops have to start with one or
     !! iatom and katom respectively. Therefore, we use flags like first_j_loop etc.
     
-    
+ 
     my_bin_size = SIZE(qs_env%x_data%distribution_energy)
     first_j_loop = .TRUE.
     first_l_loop = .TRUE.
@@ -485,7 +555,7 @@ MODULE four_center_integrals
                                    first_sgf=first_sgfb, sphi=sphi_b, nsgf=nsgfb_total)
             rb=particle_set(jatom)%r(:)
             pb1 = last_sgf_global(jatom) - nsgfb_total
-
+            box_idx1 = (iatom-1)*natom+jatom
         
             IF(first_k_loop) katom=my_kstart-1
             IF(.NOT. first_k_loop) katom = 0
@@ -507,7 +577,7 @@ MODULE four_center_integrals
               END IF
               DO WHILE(latom+1<=natom)
                 latom = latom + 1
-                !! we want to be consisten with the KS matrix. If none of the atomic indices
+                !! we want to be consistent with the KS matrix. If none of the atomic indices
                 !! is associated cycle
                 IF(.NOT. (is_assoc_atomic_block(iatom,latom)>=1 .AND. &
                           is_assoc_atomic_block(iatom,katom)>=1 .AND. &
@@ -548,8 +618,24 @@ MODULE four_center_integrals
                                          first_sgf=first_sgfd, sphi=sphi_d, nsgf=nsgfd_total)
                   rd=particle_set(latom)%r(:)
                   pd1 = last_sgf_global(latom) - nsgfd_total
-             
+                  box_idx3 = (katom-1)*natom+latom
+                  
                   !! Loop over all sets of the current atomic quartet
+    
+                  !! At this stage, check for memory used in compression
+                  IF(.NOT.memory_parameter%do_all_on_the_fly) THEN
+                    mem_compression_counter = x_hf_get_memory_info(maxval_container, error)
+                    DO i=1,64
+                      mem_compression_counter = mem_compression_counter + &
+                           x_hf_get_memory_info(integral_containers(i), error)
+                    END DO
+                    IF(mem_compression_counter > memory_parameter%max_compression_counter) THEN
+                      buffer_overflow = .TRUE.
+                    ELSE
+                      buffer_overflow = .FALSE.
+                    END IF 
+                  END IF
+
                   DO iset = 1, nseta
                     ncoa = npgfa(iset)*ncoset(la_max(iset))
                     sgfa = first_sgfa(1,iset)
@@ -559,6 +645,11 @@ MODULE four_center_integrals
                       max_val1 = screen_set(iatom,jatom,iset,jset)
                       !! Near field screening
                       IF (max_val1 * screen_atom(katom,latom) < eps_schwarz) CYCLE
+                      box_idx2 = (iset-1)*max_set+jset
+                      center1 = qs_env%x_data%far_field_boxes(box_idx1, box_idx2)%center
+                      R1 = qs_env%x_data%far_field_boxes(box_idx1, box_idx2)%R
+                      radius1 = INT(1.0_dp/ &
+                        (SQRT(2.0_dp*qs_env%x_data%far_field_boxes(box_idx1, box_idx2)%alpha)*erfc_epsilon))
                       DO kset = 1,nsetc
                         ncoc = npgfc(kset)*ncoset(lc_max(kset))
                         sgfc = first_sgfc(1,kset)
@@ -568,7 +659,11 @@ MODULE four_center_integrals
                           max_val2 = max_val1 * screen_set(katom,latom,kset,lset)
                           !! Near field screening
                           IF(max_val2<eps_schwarz) CYCLE
-
+                          box_idx4 = (kset-1)*max_set+lset
+                          center2 = qs_env%x_data%far_field_boxes(box_idx3, box_idx4)%center
+                          R2 = qs_env%x_data%far_field_boxes(box_idx3, box_idx4)%R
+                          radius2 = INT(1.0_dp/ &
+                            (SQRT(2.0_dp*qs_env%x_data%far_field_boxes(box_idx3, box_idx4)%alpha)*erfc_epsilon))
                           !! get max_vals if we screen on initial density
                           IF( do_p_screening) THEN
                             pmax_entry = MAX(qs_env%x_data%initial_p(iset,kset,iatom,katom), &
@@ -589,14 +684,19 @@ MODULE four_center_integrals
                             IF(do_p_screening) THEN
                               IF( do_correct_p_screening ) THEN
                                 IF(pmax_entry*p_screening_correction_factor < actual_pmax_entry) THEN
+                                  max_contraction_val =  max_contraction(iset,iatom) * &
+                                                         max_contraction(jset,jatom) * &
+                                                         max_contraction(kset,katom) * &
+                                                         max_contraction(lset,latom) * pmax_entry
                                   CALL on_the_fly(do_periodic, ra, rb, rc, rd, zeta, zetb, zetc, zetd, &
                                                   la_min, la_max, lb_min, lb_max, lc_min, lc_max, ld_min, ld_max, &
                                                   npgfa, npgfb, npgfc, npgfd, ncoa, ncob, ncoc, ncod, &
                                                   nsgfa, nsgfb, nsgfc, nsgfd, sgfa, sgfb, sgfc, sgfd, &
                                                   primitive_integrals, potential_parameter, box_size, qs_env, screen_periodic, &
-                                                  eps_schwarz, max_k, sphi_a, sphi_b, sphi_c, sphi_d, T1, &
+                                                  eps_schwarz, sphi_a, sphi_b, sphi_c, sphi_d, T1, &
                                                   full_ks, full_ks_beta, full_density, full_density_beta, fac, symm_fac, &
-                                                  iset, jset, kset, lset, iatom, jatom, katom, latom, pa1, pb1, pc1, pd1, nspins)
+                                                  iset, jset, kset, lset, iatom, jatom, katom, latom, pa1, pb1, pc1, pd1,&
+                                                  nspins, max_contraction_val, error)
                                 END IF
                               ENDIF
                             END IF
@@ -604,23 +704,11 @@ MODULE four_center_integrals
                           END IF
 
                           !! Far field box screening also taking into account screening on initial density matrix
-                          box_idx1 = (iatom-1)*natom+jatom
-                          box_idx2 = (iset-1)*max_set+jset
-                          box_idx3 = (katom-1)*natom+latom
-                          box_idx4 = (kset-1)*max_set+lset
-                          Rbox = (qs_env%x_data%far_field_boxes(box_idx1, box_idx2)%center(1) - &
-                                  qs_env%x_data%far_field_boxes(box_idx3, box_idx4)%center(1))**2 + &
-                                 (qs_env%x_data%far_field_boxes(box_idx1, box_idx2)%center(2) - &
-                                  qs_env%x_data%far_field_boxes(box_idx3, box_idx4)%center(2))**2 + &
-                                 (qs_env%x_data%far_field_boxes(box_idx1, box_idx2)%center(3) - &
-                                  qs_env%x_data%far_field_boxes(box_idx3, box_idx4)%center(3))**2
-                          Rbox = SQRT(Rbox)
-                          Rbox = Rbox - qs_env%x_data%far_field_boxes(box_idx1, box_idx2)%R - &
-                                        qs_env%x_data%far_field_boxes(box_idx3, box_idx4)%R
-                          pgf_radius_box = INT(1.0_dp/ &
-                                (SQRT(2.0_dp*qs_env%x_data%far_field_boxes(box_idx1, box_idx2)%alpha)*erfc(epsilon)))
-                          pgf_radius_box = pgf_radius_box + INT(1.0_dp/ & 
-                                (SQRT(2.0_dp*qs_env%x_data%far_field_boxes(box_idx3, box_idx4)%alpha)*erfc(epsilon))) + 2
+                          Rbox = (center1(1)-center2(1))**2 + &
+                                 (center1(2)-center2(2))**2 + &
+                                 (center1(3)-center2(3))**2
+                          Rbox = SQRT(Rbox) - R1 - R2 
+                          pgf_radius_box = radius1 + radius2 + 2
                           IF(Rbox>pgf_radius_box) THEN
                             max_val2 = 0.0_dp
                             SELECT CASE(potential_parameter%potential_type)
@@ -649,14 +737,19 @@ MODULE four_center_integrals
                               IF(do_p_screening) THEN
                                 IF( do_correct_p_screening ) THEN
                                   IF(pmax_entry*p_screening_correction_factor < actual_pmax_entry) THEN
+                                    max_contraction_val =  max_contraction(iset,iatom) * &
+                                                           max_contraction(jset,jatom) * &
+                                                           max_contraction(kset,katom) * &
+                                                           max_contraction(lset,latom) * pmax_entry
                                     CALL on_the_fly(do_periodic, ra, rb, rc, rd, zeta, zetb, zetc, zetd, &
                                                     la_min, la_max, lb_min, lb_max, lc_min, lc_max, ld_min, ld_max, &
                                                     npgfa, npgfb, npgfc, npgfd, ncoa, ncob, ncoc, ncod, &
                                                     nsgfa, nsgfb, nsgfc, nsgfd, sgfa, sgfb, sgfc, sgfd, &
                                                     primitive_integrals, potential_parameter, box_size, qs_env, screen_periodic, &
-                                                    eps_schwarz, max_k, sphi_a, sphi_b, sphi_c, sphi_d, T1, &
+                                                    eps_schwarz, sphi_a, sphi_b, sphi_c, sphi_d, T1, &
                                                     full_ks, full_ks_beta, full_density, full_density_beta, fac, symm_fac, &
-                                                    iset, jset, kset, lset, iatom, jatom, katom, latom, pa1, pb1, pc1, pd1, nspins)
+                                                    iset, jset, kset, lset, iatom, jatom, katom, latom, pa1, pb1, pc1, pd1,&
+                                                    nspins, max_contraction_val, error)
                                   END IF 
                                 END IF
                               END IF
@@ -666,12 +759,25 @@ MODULE four_center_integrals
 
                           !! store current number of integrals, update total number and number of integrals in buffer
                           current_counter = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
-                        
-                          total_integrals_to_store=total_integrals_to_store+current_counter
-                          buffer_overflow = integral_counter + current_counter - 1 > number_of_precalc_integrals
+
+                          IF(buffer_overflow) THEN
+                            neris_onthefly = neris_onthefly + current_counter 
+                          END IF
  
                           !! Get integrals from buffer and update Kohn-Sham matrix
                           IF(.NOT.buffer_overflow .AND. .NOT.geometry_did_change) THEN 
+                            nints = current_counter 
+                            CALL x_hf_get_single_cache_element(estimate_to_store_int, 6,&
+                                                               maxval_cache, maxval_container)
+                            spherical_estimate = EXP(log_2*estimate_to_store_int)
+                            IF(spherical_estimate*pmax_entry<eps_schwarz) CYCLE
+                            nbits = CEILING(LOG(spherical_estimate*pmax_entry/eps_schwarz)*log_2_inv) + 1
+                            CALL x_hf_get_multiple_cache_elements(T1(1), &
+                                                                  nints, nbits, &
+                                                                  integral_caches(nbits), &
+                                                                  integral_containers(nbits), &
+                                                                  eps_schwarz, pmax_entry, error)
+                            i=1
                             DO md = 1,nsgfd(lset)
                               pd2 = md+sgfd-1
                               pd = pd1 + pd2
@@ -684,7 +790,8 @@ MODULE four_center_integrals
                                   DO ma = 1,nsgfa(iset)
                                     pa2 = ma+sgfa-1
                                     pa = pa1 + pa2
-                                    tmp = fac*symm_fac*qs_env%x_data%x_buffer(integral_counter)
+                                    tmp = fac*symm_fac*T1(i)
+                                    i=i+1
                                     full_ks(pa,pd) = full_ks(pa,pd)-tmp*full_density(pb,pc)
                                     full_ks(pa,pc) = full_ks(pa,pc)-tmp*full_density(pb,pd)
                                     full_ks(pb,pc) = full_ks(pb,pc)-tmp*full_density(pa,pd)
@@ -695,7 +802,6 @@ MODULE four_center_integrals
                                       full_ks_beta(pb,pc) = full_ks_beta(pb,pc)-tmp*full_density_beta(pa,pd)
                                       full_ks_beta(pb,pd) = full_ks_beta(pb,pd)-tmp*full_density_beta(pa,pc)
                                     END IF
-                                    integral_counter = integral_counter + 1
                                   END DO
                                 END DO
                               END DO
@@ -704,6 +810,11 @@ MODULE four_center_integrals
     
                           !! Calculate integrals if we run out of buffer or the geometry did change
                           IF(geometry_did_change .OR. buffer_overflow) THEN
+                            max_contraction_val =  max_contraction(iset,iatom) * &
+                                                   max_contraction(jset,jatom) * &
+                                                   max_contraction(kset,katom) * &
+                                                   max_contraction(lset,latom) * pmax_entry
+
                             IF( .NOT.do_periodic ) THEN 
                               CALL coulomb4(ra, rb, rc, rd,&
                                             zeta(1:npgfa(iset),iset), zetb(1:npgfb(jset),jset), &
@@ -713,7 +824,8 @@ MODULE four_center_integrals
                                             npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset),&
                                             ncoa,ncob,ncoc,ncod,&
                                             primitive_integrals(1),&
-                                            potential_parameter)
+                                            potential_parameter, eps_schwarz, max_contraction_val, &
+                                            cartesian_estimate, error)
                             ELSE
                               CALL coulomb4_periodic(ra, rb, rc, rd,&
                                                      zeta(1:npgfa(iset),iset), zetb(1:npgfb(jset),jset), &
@@ -725,10 +837,25 @@ MODULE four_center_integrals
                                                      primitive_integrals(1),&
                                                      potential_parameter, box_size, &
                                                      qs_env%x_data%neighbor_cells, screen_periodic(iatom,jatom,iset,jset,:),&
-                                                     screen_periodic(katom,latom,kset,lset,:), eps_schwarz, max_k)
+                                                     screen_periodic(katom,latom,kset,lset,:), eps_schwarz, &
+                                                     max_contraction_val, cartesian_estimate, error)
                             END IF
-  
-                            !! contract primitive cartesian integrals to contracted spherical integrals
+ 
+                            nints = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
+                            neris_total = neris_total + nints 
+                            IF(cartesian_estimate == 0.0_dp) cartesian_estimate = TINY(cartesian_estimate) 
+                            estimate_to_store = LOG(cartesian_estimate)*log_2_inv
+                            estimate_to_store_int = CEILING(estimate_to_store)
+                            estimate_to_store_int = MAX(estimate_to_store_int,-15_int_8)
+                            cartesian_estimate = EXP(log_2*estimate_to_store_int)
+                            IF(.NOT.buffer_overflow .AND. geometry_did_change) THEN
+                              IF(cartesian_estimate < eps_schwarz ) THEN
+                                CALL x_hf_add_single_cache_element(estimate_to_store_int, 6,&
+                                                  maxval_cache, maxval_container, error)
+                              END IF
+                            END IF
+                            IF(cartesian_estimate<eps_schwarz) CYCLE 
+
                             CALL dgemm("T","N",ncob*ncoc*ncod,nsgfa(iset),ncoa,&
                                        1.0_dp, primitive_integrals(1),ncoa,&
                                        sphi_a(1,sgfa), SIZE(sphi_a,1),&
@@ -749,7 +876,42 @@ MODULE four_center_integrals
                                        sphi_d(1,sgfd), SIZE(sphi_d,1),&
                                        0.0_dp, primitive_integrals(1),nsgfa(iset)*nsgfb(jset)*nsgfc(kset))
 
+                            !! Compress the array for storage
+                            spherical_estimate = 0.0_dp
+                            DO i=1,nints
+                              spherical_estimate = MAX(spherical_estimate,ABS(primitive_integrals(i)))
+                            END DO
 
+                            IF(spherical_estimate == 0.0_dp) spherical_estimate = TINY(spherical_estimate) 
+
+                            estimate_to_store = LOG(spherical_estimate)*log_2_inv
+                            estimate_to_store_int = CEILING(estimate_to_store)
+                            estimate_to_store_int = MAX(estimate_to_store_int, -15_int_8)
+                            IF(.NOT. buffer_overflow .AND. geometry_did_change) THEN
+                              CALL x_hf_add_single_cache_element(estimate_to_store_int, 6, &
+                                                                 maxval_cache, maxval_container, error)
+                            END IF
+                            spherical_estimate = EXP(log_2*estimate_to_store_int)
+                            IF(spherical_estimate*pmax_entry<eps_schwarz) CYCLE 
+                            IF(.NOT.buffer_overflow) THEN
+                              neris_incore = neris_incore + nints
+                              nbits = CEILING(LOG(spherical_estimate*pmax_entry/eps_schwarz)*log_2_inv) + 1
+                              CALL x_hf_add_multiple_cache_elements(primitive_integrals(1), &
+                                                                    nints, nbits, &
+                                                                    integral_caches(nbits), &
+                                                                    integral_containers(nbits), &
+                                                                    eps_schwarz, pmax_entry, error)
+                            ELSE
+                             !! In order to be consistent with in-core part, round all the eris wrt. eps_schwarz
+                             DO i=1,nints
+                               primitive_integrals(i) = primitive_integrals(i)*pmax_entry
+                               IF(ABS(primitive_integrals(i)) > eps_schwarz) THEN
+                                 primitive_integrals(i) = ANINT(primitive_integrals(i)/eps_schwarz, dp)*eps_schwarz/pmax_entry
+                               ELSE
+                                 primitive_integrals(i) = 0.0_dp
+                               END IF
+                             END DO
+                            END IF
                             !! Update Kohn-Sham matrix
                             p_index=0 
                             DO md = 1,nsgfd(lset)
@@ -775,11 +937,6 @@ MODULE four_center_integrals
                                       full_ks_beta(pa,pc) = full_ks_beta(pa,pc)-tmp*full_density_beta(pb,pd)
                                       full_ks_beta(pb,pc) = full_ks_beta(pb,pc)-tmp*full_density_beta(pa,pd)
                                       full_ks_beta(pb,pd) = full_ks_beta(pb,pd)-tmp*full_density_beta(pa,pc)
-                                    END IF
-                                    IF(geometry_did_change .AND. (.NOT.buffer_overflow)) THEN
-                                      qs_env%x_data%x_buffer(integral_counter) = &
-                                      primitive_integrals(p_index)
-                                      integral_counter = integral_counter + 1
                                     END IF
                                   END DO
                                 END DO
@@ -811,8 +968,7 @@ MODULE four_center_integrals
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(T1,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    
-
+   
 
     !! Calculate the exchange energies from the Kohn-Sham matrix. Before we can go on, we have to symmetrize.
     ene_x_aa = 0.0_dp
@@ -905,35 +1061,70 @@ MODULE four_center_integrals
     energy%ex = 0.5_dp*(ene_x_aa+ene_x_bb)
 
     CALL timestop(handle_main)
-   
 
-    !! Print some information 
-    iw = cp_print_key_unit_nr(logger,hf_section,"HF_INFO",&
-             extension=".scfLog",error=error)
-    total_integrals_to_store_max=total_integrals_to_store
-    total_integrals_to_store_aver=(total_integrals_to_store+para_env%num_pe-1)/(para_env%num_pe)
-    CALL mp_max(total_integrals_to_store_max,para_env%group)
-    CALL mp_sum(total_integrals_to_store_aver,para_env%group)
 
-    IF (iw>0) THEN
-      IF(memory_usage < integral_counter * dp_size /1024_dp/1024_dp) THEN
-        memory_usage = integral_counter * dp_size /1024_dp/1024_dp
+    
+    !! Print some memeory information if this is the first step
+    IF( geometry_did_change ) THEN
+      IF(.NOT. memory_parameter%do_all_on_the_fly) THEN
+        storage_counter_maxval = x_hf_get_memory_info(maxval_container, error)
+        CALL mp_sum_i8(storage_counter_maxval, para_env%group)
+        mem_maxvals = (storage_counter_maxval+128*1024-1)/128/1024
+        storage_counter_integrals = 0
+        DO i=1,64
+          storage_counter_maxval = x_hf_get_memory_info(integral_containers(i), error)
+          storage_counter_integrals = storage_counter_integrals + storage_counter_maxval
+        END DO
+        CALL mp_sum_i8(storage_counter_integrals, para_env%group)
+        CALL mp_sum_i8(neris_onthefly, para_env%group)
+        CALL mp_sum_i8(neris_incore, para_env%group)
+        CALL mp_sum_i8(neris_total, para_env%group)
+        mem_eris = (storage_counter_integrals+128*1024-1)/1024/128
+        compression_factor = REAL(neris_incore,dp)/REAL(storage_counter_integrals,dp)
       END IF
-      WRITE (UNIT=iw,FMT="(/,(T3,A,T60,F20.10))")&
-               "Memory used for x_buffer [MB]:                 ",memory_usage
-      WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
-               "Number of integrals stored in buffer:          ",integral_counter-1
+      
+      iw = cp_print_key_unit_nr(logger,hf_section,"HF_INFO",&
+           extension=".scfLog",error=error)
+      IF (iw>0) THEN
+        WRITE (UNIT=iw,FMT="(/,(T3,A,T60,I20))")&
+                 "HF_MEM_INFO| Total number of  ERI's calculated:      ",neris_total
 
-      WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
-               "Maximum number of elements to store:          ",total_integrals_to_store_max
+        WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
+                 "HF_MEM_INFO| Number of ERI's stored in-core:        ",neris_incore
+  
+        WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
+                 "HF_MEM_INFO| Number of ERI's calculated on the fly: ",neris_onthefly
+  
+        WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
+                 "HF_MEM_INFO| Total memory consumption ERI's [MB's]            ",mem_eris
+      
+        WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
+                 "HF_MEM_INFO| Total memory consumption maxvals [MB's]:         ",mem_maxvals
 
-      WRITE (UNIT=iw,FMT="((T3,A,T60,I20),/)")&
-               "Average number of elements to store:          ",total_integrals_to_store_aver
+        WRITE (UNIT=iw,FMT="((T3,A,T60,F20.2),/)")&
+                 "HF_MEM_INFO| Total compression factor ERI's:                  ",compression_factor
+      END IF
+  
+      CALL cp_print_key_finished_output(iw,logger,hf_section,&
+                                      "HF_INFO", error=error)
     END IF
 
-    CALL cp_print_key_finished_output(iw,logger,hf_section,&
-                                      "HF_INFO", error=error)
 
+    !! flush caches if the geometry changed 
+    IF(geometry_did_change ) THEN
+      CALL x_hf_flush_last_cache(6, maxval_cache, maxval_container, error)
+      DO i=1,64
+        CALL x_hf_flush_last_cache(i, integral_caches(i), integral_containers(i), error)
+      END DO
+    END IF
+
+    !! reset all caches except we calculate all on the fly
+    IF(.NOT.memory_parameter%do_all_on_the_fly) THEN
+      CALL x_hf_reset_cache_and_container(maxval_cache, maxval_container)
+      DO i=1,64
+        CALL x_hf_reset_cache_and_container(integral_caches(i), integral_containers(i))
+      END DO
+    END IF
 
     !! Clean up
     IF( do_periodic ) THEN
@@ -963,6 +1154,8 @@ MODULE four_center_integrals
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       END IF
     END IF
+    DEALLOCATE(max_contraction,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     !
     ! this wraps to free_libint, but currently causes a segfault
     ! as a result, we don't call it, but some memory remains allocated
@@ -1013,7 +1206,8 @@ MODULE four_center_integrals
                       npgfa, npgfb, npgfc, npgfd,&
                       ncoa,ncob,ncoc,ncod,&
                       primitive_integrals,&
-                      potential_parameter)
+                      potential_parameter, eps_schwarz, max_contraction_val, &
+                      cartesian_estimate, error)
   
     REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3)
     INTEGER, INTENT(IN)                      :: npgfa, ld_max, ld_min, &
@@ -1028,12 +1222,17 @@ MODULE four_center_integrals
     REAL(dp), &
       DIMENSION(ncoa, ncob, ncoc, ncod)      :: primitive_integrals
     TYPE(x_hf_potential_type)                :: potential_parameter
+    REAL(dp), INTENT(IN)                     :: eps_schwarz, &
+                                                max_contraction_val
+    REAL(dp), INTENT(INOUT)                  :: cartesian_estimate
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER :: ipgf, jpgf, kpgf, la, lb, lc, ld, lpgf, offset_a, offset_a1, &
       offset_b, offset_b1, offset_c, offset_c1, offset_d, offset_d1
+    REAL(dp)                                 :: tmp_max
 
     primitive_integrals = 0.0_dp
-
+    cartesian_estimate = 0.0_dp
     DO lpgf = 1,npgfd
       offset_d1 = (lpgf-1)*ncoset(ld_max)
       DO ld = ld_min, ld_max
@@ -1051,13 +1250,16 @@ MODULE four_center_integrals
                   DO la = la_min,la_max
                     offset_a = offset_a1 + ncoset(la-1)
                     !Build primitives
+                    tmp_max = 0.0_dp
                     CALL evaluate_eri(lib, ra, rb, rc, rd,&
                                       zeta(ipgf), zetb(jpgf), zetc(kpgf), zetd(lpgf),&
                                       la, lb, lc ,ld,&
                                       ncoa,ncob,ncoc,ncod,&
                                       offset_a,offset_b,offset_c,offset_d, &
                                       primitive_integrals, &
-                                      potential_parameter)
+                                      potential_parameter, max_contraction_val, tmp_max, eps_schwarz)
+                    cartesian_estimate = MAX(cartesian_estimate, tmp_max)                                     
+
                   END DO !la
                 END DO !ipgf
               END DO !lb
@@ -1461,7 +1663,8 @@ MODULE four_center_integrals
                     npgfa, npgfb, npgfc, npgfd,&
                     ncoa, ncob, ncoc, ncod,&
                     primitive_forces, work_forces,&
-                    potential_parameter )
+                    potential_parameter, eps_schwarz, max_contraction_val, &
+                    cartesian_estimate, error)
   
     REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3)
     REAL(dp), DIMENSION(:), INTENT(IN)       :: zeta, zetb, zetc, zetd
@@ -1471,11 +1674,20 @@ MODULE four_center_integrals
       DIMENSION(ncoa, ncob, ncoc, ncod, 12)  :: primitive_forces
     REAL(dp), DIMENSION(*)                   :: work_forces
     TYPE(x_hf_potential_type)                :: potential_parameter
+    REAL(dp), INTENT(IN)                     :: eps_schwarz, &
+                                                max_contraction_val
+    REAL(dp), INTENT(INOUT)                  :: cartesian_estimate
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'forces4'
 
     INTEGER :: ipgf, jpgf, kpgf, la, lb, lc, ld, lpgf, offset_a, offset_a1, &
       offset_b, offset_b1, offset_c, offset_c1, offset_d, offset_d1
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: tmp_max_all
+
+    failure = .FALSE.
+    cartesian_estimate = 0.0_dp
 
     primitive_forces = 0.0_dp
     DO ipgf = 1,npgfa
@@ -1495,6 +1707,7 @@ MODULE four_center_integrals
                   DO ld = ld_min, ld_max
                     offset_d = offset_d1 + ncoset(ld-1) 
                     !Build primitives
+                    tmp_max_all = 0.0_dp
                     CALL evaluate_deriv_eri(deriv, ra, rb, rc, rd,&
                                            zeta(ipgf), zetb(jpgf), zetc(kpgf), zetd(lpgf),&
                                            la, lb, lc ,ld,&
@@ -1502,8 +1715,8 @@ MODULE four_center_integrals
                                            ncoa, ncob, ncoc, ncod, &
                                            primitive_forces, &
                                            offset_a, offset_b, offset_c, offset_d,&
-                                           potential_parameter)
-
+                                           potential_parameter, max_contraction_val, tmp_max_all, eps_schwarz)
+                    cartesian_estimate = MAX(cartesian_estimate, tmp_max_all)
                   END DO !ld
                 END DO !lc
               END DO !lb
@@ -1564,9 +1777,9 @@ MODULE four_center_integrals
       routineP = moduleN//':'//routineN
 
     INTEGER :: bin, box_idx1, box_idx2, box_idx3, box_idx4, coord, &
-      forces_map(4,2), handle, i_atom, iatom, ikind, iset, j_atom, jatom, &
+      forces_map(4,2), handle, i, i_atom, iatom, ikind, iset, j_atom, jatom, &
       jkind, jset, k_atom, katom, kkind, kset, l_atom, latom, lkind, lset, &
-      ma, max_am, max_k, max_set, maxsgf, mb, mc, md, my_bin_size, my_istart, &
+      ma, max_am, max_set, maxsgf, mb, mc, md, my_bin_size, my_istart, &
       my_jstart, my_kstart, my_lstart, my_original_cpu_id, natom, nco_max, &
       ncoa, ncob, ncoc, ncod, nseta, nsetb, nsetc, nsetd, nsgfa_total, &
       nsgfb_total, nsgfc_total, nsgfd_total, nspins, p_index, pa, pa1, pa2, &
@@ -1584,16 +1797,17 @@ MODULE four_center_integrals
     LOGICAL                                  :: failure, first_j_loop, &
                                                 first_k_loop, first_l_loop, &
                                                 screen_pmat_forces
-    REAL(dp) :: box_size(3), eps_box, eps_schwarz, fac, hf_fraction, Kbox, &
-      max_val1, max_val2, omega_box, pmax_max, ra(3), rb(3), Rbox, rc(3), &
-      rd(3), screen_max, symm_fac, temp1, temp1b, temp2, temp3, temp3b
+    REAL(dp) :: box_size(3), cartesian_estimate, eps_box, eps_schwarz, fac, &
+      hf_fraction, Kbox, max_contraction_val, max_val1, max_val2, omega_box, &
+      pmax_max, ra(3), rb(3), Rbox, rc(3), rd(3), screen_max, symm_fac, &
+      temp1, temp1b, temp2, temp3, temp3b
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: work_forces
     REAL(dp), ALLOCATABLE, DIMENSION(:), &
       TARGET                                 :: primitive_forces
     REAL(dp), DIMENSION(:), POINTER          :: T1, T2
     REAL(dp), DIMENSION(:, :), POINTER :: full_density, full_density_beta, &
-      pmax_atom, screen_atom, sparse_block, sphi_a, sphi_b, sphi_c, sphi_d, &
-      zeta, zetb, zetc, zetd
-    REAL(dp), DIMENSION(:), ALLOCATABLE :: work_forces
+      max_contraction, pmax_atom, screen_atom, sparse_block, sphi_a, sphi_b, &
+      sphi_c, sphi_d, zeta, zetb, zetc, zetd
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: pmax_set, screen_set
     REAL(dp), DIMENSION(:, :, :, :, :), &
       POINTER                                :: screen_periodic
@@ -1608,9 +1822,9 @@ MODULE four_center_integrals
       POINTER                                :: force
     TYPE(real_block_node_type), POINTER      :: block_node
     TYPE(x_hf_general_type)                  :: general_parameter
+    TYPE(x_hf_load_balance_type)             :: load_balance_parameter
     TYPE(x_hf_potential_type)                :: potential_parameter
     TYPE(x_hf_screening_type)                :: screening_parameter
-    TYPE(x_hf_load_balance_type)             :: load_balance_parameter
 
     CALL mp_sync(para_env%group)
     CALL timeset(routineN,"I",'',handle)
@@ -1644,7 +1858,6 @@ MODULE four_center_integrals
       CALL timestop(0.0_dp,handle)
       RETURN
     END IF
-
 
     hf_fraction = general_parameter%fraction
     eps_schwarz = screening_parameter%eps_schwarz_forces
@@ -1684,6 +1897,32 @@ MODULE four_center_integrals
       last_sgf_global(iatom) = last_sgf_global(iatom-1)+nsgfa_total
     END DO
 
+    ALLOCATE(max_contraction(max_set,natom),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    max_contraction=0.0_dp
+    DO jatom=1,natom
+
+      atom_kind => particle_set(jatom)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atom_kind,&
+                           orb_basis_set=orb_basis_b)
+      CALL get_gto_basis_set(gto_basis_set=orb_basis_b,&
+                             lmax=lb_max,&
+                             npgf=npgfb,&
+                             nset=nsetb,&
+                             first_sgf=first_sgfb,&
+                             sphi=sphi_b,&
+                             nsgf_set=nsgfb)
+      DO jset = 1,nsetb
+        ! takes the primitive to contracted transformation into account
+        ncob = npgfb(jset)*ncoset(lb_max(jset))
+        sgfb = first_sgfb(1,jset)
+        ! if the primitives are assumed to be all of max_val2, max_val2*p2s_b becomes
+        ! the maximum value after multiplication with sphi_b
+        max_contraction(jset,jatom) = MAXVAL((/(SUM(ABS(sphi_b(1:ncob,i))),i=sgfb,sgfb+nsgfb(jset)-1)/))
+      ENDDO
+    ENDDO
+
     !! Get full density from all processes  
     ALLOCATE(full_density(1,1),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1708,18 +1947,16 @@ MODULE four_center_integrals
 
     !! Calculatematrices for screening purpose taking into account periodicity. The farfield part is already
     !! in memory
-    max_k = qs_env%x_data%number_of_k_loops
     IF( do_periodic ) THEN
       box_size(1) = qs_env%cell%hmat(1,1)
       box_size(2) = qs_env%cell%hmat(2,2)
       box_size(3) = qs_env%cell%hmat(3,3)
-      max_k = MIN(max_k, SIZE(qs_env%x_data%neighbor_cells))
       ALLOCATE(screen_periodic(natom,natom,max_set,max_set,SIZE(qs_env%x_data%neighbor_cells)))
       CALL comp_screen_mat_per(screen_set,screen_atom,screen_max,screen_periodic,particle_set,atomic_kind_set,&
                                                potential_parameter,.FALSE.,&
                                                neighbor_cells=qs_env%x_data%neighbor_cells,&
                                                box_size=box_size,&
-                                               max_k=max_k,error=error)
+                                               error=error)
       !! Farfield screening matrix already there
     ELSE
       CALL compute_screening_matrices(screen_set,screen_atom,screen_max,particle_set,atomic_kind_set,&
@@ -2003,9 +2240,9 @@ MODULE four_center_integrals
                           Rbox = Rbox - qs_env%x_data%far_field_boxes(box_idx1, box_idx2)%R - &
                                         qs_env%x_data%far_field_boxes(box_idx3, box_idx4)%R
                           pgf_radius_box = INT(1.0_dp/ &
-                                (SQRT(2.0_dp*qs_env%x_data%far_field_boxes(box_idx1, box_idx2)%alpha)*erfc(epsilon)))
+                                (SQRT(2.0_dp*qs_env%x_data%far_field_boxes(box_idx1, box_idx2)%alpha)*erfc_epsilon))
                           pgf_radius_box = pgf_radius_box + INT(1.0_dp/ &
-                                (SQRT(2.0_dp*qs_env%x_data%far_field_boxes(box_idx3, box_idx4)%alpha)*erfc(epsilon))) + 2
+                                (SQRT(2.0_dp*qs_env%x_data%far_field_boxes(box_idx3, box_idx4)%alpha)*erfc_epsilon)) + 2
                           IF(Rbox>pgf_radius_box) THEN
                             max_val2 = 0.0_dp
                             SELECT CASE(potential_parameter%potential_type)
@@ -2029,6 +2266,13 @@ MODULE four_center_integrals
                             IF(max_val2<eps_box) CYCLE
                           END IF
                           IF( .NOT. do_periodic ) THEN
+                            max_contraction_val =  max_contraction(iset,iatom) * &
+                                                   max_contraction(jset,jatom) * &
+                                                   max_contraction(kset,katom) * &
+                                                   max_contraction(lset,latom) * &
+                                                   2.0_dp*MAX(pmax_set(iset,kset,iatom,katom) * pmax_set(jset,lset,jatom,latom),&
+                                                   pmax_set(iset,lset,iatom,latom) * pmax_set(kset,jset,katom,jatom))
+
                             CALL forces4(ra, rb, rc, rd,&
                                          zeta(:,iset), zetb(:,jset), zetc(:,kset), zetd(:,lset),&
                                          la_min(iset), la_max(iset), lb_min(jset), lb_max(jset),&
@@ -2037,8 +2281,15 @@ MODULE four_center_integrals
                                          ncoa, ncob, ncoc, ncod,&
                                          primitive_forces,&
                                          work_forces,&
-                                         potential_parameter)
+                                         potential_parameter, eps_schwarz, max_contraction_val, cartesian_estimate,&
+                                         error)
                           ELSE
+                            max_contraction_val =  max_contraction(iset,iatom) * &
+                                                   max_contraction(jset,jatom) * &
+                                                   max_contraction(kset,katom) * &
+                                                   max_contraction(lset,latom) * &
+                                                   2.0_dp*MAX(pmax_set(iset,kset,iatom,katom) * pmax_set(jset,lset,jatom,latom),&
+                                                   pmax_set(iset,lset,iatom,latom) * pmax_set(kset,jset,katom,jatom))
                             CALL forces4_periodic(ra, rb, rc, rd,&
                                                   zeta(:,iset), zetb(:,jset), zetc(:,kset), zetd(:,lset),&
                                                   la_min(iset), la_max(iset), lb_min(jset), lb_max(jset),&
@@ -2049,9 +2300,11 @@ MODULE four_center_integrals
                                                   work_forces,&
                                                   potential_parameter, box_size, &
                                                   qs_env%x_data%neighbor_cells, screen_periodic(iatom,jatom,iset,jset,:),&
-                                                  screen_periodic(katom,latom,kset,lset,:), eps_schwarz, max_k)
+                                                  screen_periodic(katom,latom,kset,lset,:), eps_schwarz, &
+                                                  max_contraction_val, cartesian_estimate, error)
                           END IF
    
+                          IF(cartesian_estimate<eps_schwarz) CYCLE
                           DO coord = 1,12
                             T2 => primitive_forces((coord-1)*ncoa*ncob*ncoc*ncod+1:coord*ncoa*ncob*ncoc*ncod)
                             CALL dgemm("T","N",ncob*ncoc*ncod,nsgfa(iset),ncoa,&
@@ -2135,7 +2388,8 @@ MODULE four_center_integrals
       first_k_loop = .TRUE.
       first_l_loop = .TRUE.
     END DO outer !bin
-   
+
+    
     IF( do_periodic ) THEN
       DEALLOCATE(screen_periodic, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -2156,7 +2410,9 @@ MODULE four_center_integrals
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(pmax_set,pmax_atom,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    
+    DEALLOCATE(max_contraction,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+ 
     !
     ! this wraps to free_libint, but currently causes a segfault
     ! as a result, we don't call it, but some memory remains allocated
@@ -2210,7 +2466,8 @@ MODULE four_center_integrals
                                ncoa,ncob,ncoc,ncod,&
                                primitive_integrals,&
                                potential_parameter, box_size, neighbor_cells, &
-                               screen1, screen2, eps_schwarz, max_k)
+                               screen1, screen2, eps_schwarz, max_contraction_val, &
+                               cart_estimate, error)
   
     REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3)
     INTEGER, INTENT(IN)                      :: npgfa, ld_max, ld_min, &
@@ -2229,15 +2486,28 @@ MODULE four_center_integrals
     TYPE(x_hf_cell_type), DIMENSION(:), &
       POINTER                                :: neighbor_cells
     REAL(dp), DIMENSION(:)                   :: screen1, screen2
-    REAL(dp), INTENT(IN)                     :: eps_schwarz
-    INTEGER, INTENT(IN)                      :: max_k
+    REAL(dp), INTENT(IN)                     :: eps_schwarz, &
+                                                max_contraction_val
+    REAL(dp), INTENT(INOUT)                  :: cart_estimate
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER :: i, ipgf, j, jpgf, k, kpgf, la, lb, lc, ld, lpgf, offset_a, &
-      offset_a1, offset_b, offset_b1, offset_c, offset_c1, offset_d, offset_d1
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'coulomb4_periodic', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: i, ipgf, j, jpgf, kpgf, la, lb, lc, ld, lpgf, offset_a, &
+      offset_a1, offset_b, offset_b1, offset_c, offset_c1, offset_d, &
+      offset_d1, stat
+    LOGICAL                                  :: failure
     REAL(dp) :: B11(3), C11(3), D11(3), Eta, im_B(3), im_D(3), P(3), &
-      pbc_B(3), pbc_D(3), PQ(3), Q(3), shift(3), shift1(3), temp(3), &
-      tmp_D(3), Zeta1, Zeta_A, Zeta_B, Zeta_C, Zeta_D
+      pbc_B(3), pbc_D(3), PQ(3), Q(3), shift(3), temp(3), tmp_D(3), tmp_max, &
+      Zeta1, Zeta_A, Zeta_B, Zeta_C, Zeta_D
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: tmp_cart_estimate
 
+    failure = .FALSE.
+    cart_estimate = 0.0_dp
+    ALLOCATE(tmp_cart_estimate(SIZE(neighbor_cells), SIZE(neighbor_cells)), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    tmp_cart_estimate = 0.0_dp 
     primitive_integrals = 0.0_dp
     temp = rb -ra
     CALL pbc(temp, box_size, pbc_B)
@@ -2279,24 +2549,21 @@ MODULE four_center_integrals
                       temp = P-Q
                       CALL pbc(temp,box_size,PQ)
                       shift = -PQ + temp
-                      DO k=1,max_k!size(neighbor_cells)
-                        shift1(1) =  neighbor_cells(k)%cell(1) * box_size(1)
-                        shift1(2) =  neighbor_cells(k)%cell(2) * box_size(2)
-                        shift1(3) =  neighbor_cells(k)%cell(3) * box_size(3)
-                        C11 = rc + shift + shift1
-                        tmp_D = im_D + shift + shift1
-                        DO la = la_min,la_max
-                          offset_a = offset_a1 + ncoset(la-1)
-                          !Build primitives
-                          CALL evaluate_eri(lib, ra, im_B, C11, tmp_D,&
-                                            zeta(ipgf), zetb(jpgf), zetc(kpgf), zetd(lpgf),&
-                                            la, lb, lc ,ld,&
-                                            ncoa,ncob,ncoc,ncod,&
-                                            offset_a,offset_b,offset_c,offset_d, &
-                                            primitive_integrals, &
-                                            potential_parameter)
-                        END DO !la
-                      END DO
+                      C11 = rc + shift
+                      tmp_D = im_D + shift
+                      DO la = la_min,la_max
+                        offset_a = offset_a1 + ncoset(la-1)
+                        !Build primitives
+                        tmp_max = 0.0_dp
+                        CALL evaluate_eri(lib, ra, im_B, C11, tmp_D,&
+                                          zeta(ipgf), zetb(jpgf), zetc(kpgf), zetd(lpgf),&
+                                          la, lb, lc ,ld,&
+                                          ncoa,ncob,ncoc,ncod,&
+                                          offset_a,offset_b,offset_c,offset_d, &
+                                          primitive_integrals, &
+                                          potential_parameter, max_contraction_val, tmp_max, eps_schwarz)
+                        tmp_cart_estimate(i,j) = MAX(tmp_cart_estimate(i,j),tmp_max)
+                      END DO !la
                     END DO !ipgf
                   END DO !lb
                 END DO !jpgf
@@ -2306,6 +2573,14 @@ MODULE four_center_integrals
         END DO !lpgf
       END DO
     END DO
+    DO i=1,SIZE(neighbor_cells)
+      DO j=1,SIZE(neighbor_cells)
+        cart_estimate = MAX(cart_estimate, tmp_cart_estimate(i,j))
+      END DO
+    END DO
+
+    DEALLOCATE(tmp_cart_estimate, STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE coulomb4_periodic
 !***************************************************************************
 
@@ -2338,7 +2613,7 @@ MODULE four_center_integrals
 
   SUBROUTINE comp_screen_mat_per(screen_set, screen_atom, screen_max,screen_periodic,particle_set,&
                                  atomic_kind_set,potential_parameter, read_from_memory, buffer,&
-                                 neighbor_cells, box_size, max_k, error)
+                                 neighbor_cells, box_size, error)
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: screen_set
     REAL(dp), DIMENSION(:, :), POINTER       :: screen_atom
     REAL(dp)                                 :: screen_max
@@ -2355,7 +2630,6 @@ MODULE four_center_integrals
     TYPE(x_hf_cell_type), DIMENSION(:), &
       POINTER                                :: neighbor_cells
     REAL(dp)                                 :: box_size(3)
-    INTEGER, INTENT(IN)                      :: max_k
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'comp_screen_mat_per', &
@@ -2454,7 +2728,7 @@ MODULE four_center_integrals
                                     zetb(:,jset), zetc(:,kset), &
                                     lb_min(jset), lb_max(jset), lc_min(kset), lc_max(kset),&
                                     npgfb(jset), npgfc(kset), &
-                                    max_val, potential_parameter, neighbor_cells, box_size, max_k)
+                                    max_val, potential_parameter, neighbor_cells, box_size)
                 screen_periodic(jatom,katom,jset,kset,:) = SQRT(max_val)*p2s_b*p2s_c
                 IF( PRESENT(buffer) ) buffer(jatom,katom,jset,kset,:) = screen_periodic(jatom,katom,jset,kset,:)
               END IF
@@ -2509,7 +2783,7 @@ MODULE four_center_integrals
                              la_min, la_max, lb_min, lb_max,&
                              npgfa, npgfb, &
                              max_val, potential_parameter, neighbor_cells, &
-                             box_size, max_k)
+                             box_size )
 
     REAL(dp), INTENT(IN)                     :: ra(3), rb(3)
     REAL(dp), DIMENSION(:), INTENT(IN)       :: zeta, zetb
@@ -2520,14 +2794,13 @@ MODULE four_center_integrals
     TYPE(x_hf_cell_type), DIMENSION(:), &
       POINTER                                :: neighbor_cells
     REAL(dp), INTENT(IN)                     :: box_size(3)
-    INTEGER, INTENT(IN)                      :: max_k
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'screen4_periodic'
 
-    INTEGER                                  :: i, ipgf, jpgf, k, la, lb
+    INTEGER                                  :: i, ipgf, jpgf, la, lb
     REAL(dp)                                 :: B11(3), im_B(3), &
                                                 max_val_temp, pbc_B(3), &
-                                                shift1(3), temp(3)
+                                                temp(3)
 
     temp = rb -ra
     CALL pbc(temp, box_size, pbc_B)
@@ -2536,26 +2809,21 @@ MODULE four_center_integrals
       im_B(1) = B11(1) + neighbor_cells(i)%cell(1) * box_size(1)
       im_B(2) = B11(2) + neighbor_cells(i)%cell(2) * box_size(2)
       im_B(3) = B11(3) + neighbor_cells(i)%cell(3) * box_size(3)
-      DO k=1,max_k!size(neighbor_cells)
-        shift1(1) =  neighbor_cells(k)%cell(1) * box_size(1)
-        shift1(2) =  neighbor_cells(k)%cell(2) * box_size(2)
-        shift1(3) =  neighbor_cells(k)%cell(3) * box_size(3)
-        DO ipgf = 1,npgfa
-          DO jpgf = 1,npgfb
-            DO la = la_min,la_max
-              DO lb = lb_min, lb_max
-                !Build primitives
-                 max_val_temp = 0.0_dp
-                 CALL evaluate_eri_screen(lib, ra, im_B, ra, im_B,&
-                                          zeta(ipgf), zetb(jpgf), zeta(ipgf), zetb(jpgf),&
-                                          la, lb, la ,lb,&
-                                           max_val_temp, potential_parameter)
-                 max_val(i) = MAX(max_val(i), max_val_temp)
-              END DO !lb
-            END DO !la
-          END DO !jpgf
-        END DO !ipgf
-      END DO
+      DO ipgf = 1,npgfa
+        DO jpgf = 1,npgfb
+          DO la = la_min,la_max
+            DO lb = lb_min, lb_max
+              !Build primitives
+               max_val_temp = 0.0_dp
+               CALL evaluate_eri_screen(lib, ra, im_B, ra, im_B,&
+                                        zeta(ipgf), zetb(jpgf), zeta(ipgf), zetb(jpgf),&
+                                        la, lb, la ,lb,&
+                                         max_val_temp, potential_parameter)
+               max_val(i) = MAX(max_val(i), max_val_temp)
+            END DO !lb
+          END DO !la
+        END DO !jpgf
+      END DO !ipgf
     END DO
   END SUBROUTINE screen4_periodic
 !***************************************************************************
@@ -2596,7 +2864,8 @@ MODULE four_center_integrals
                               npgfa, npgfb, npgfc, npgfd,&
                               ncoa, ncob, ncoc, ncod,&
                               primitive_forces, work_forces,&
-                              potential_parameter, box_size, neighbor_cells, screen1, screen2, eps_schwarz, max_k)
+                              potential_parameter, box_size, neighbor_cells, screen1, screen2,&
+                              eps_schwarz, max_contraction_val, cartesian_estimate, error)
   
     REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3)
     REAL(dp), DIMENSION(:), INTENT(IN)       :: zeta, zetb, zetc, zetd
@@ -2610,16 +2879,28 @@ MODULE four_center_integrals
     TYPE(x_hf_cell_type), DIMENSION(:), &
       POINTER                                :: neighbor_cells
     REAL(dp), DIMENSION(:)                   :: screen1, screen2
-    REAL(dp), INTENT(IN)                     :: eps_schwarz
-    INTEGER, INTENT(IN)                      :: max_k
+    REAL(dp), INTENT(IN)                     :: eps_schwarz, &
+                                                max_contraction_val
+    REAL(dp), INTENT(INOUT)                  :: cartesian_estimate
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'forces4_periodic'
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'forces4_periodic', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: i, ipgf, j, jpgf, k, kpgf, la, lb, lc, ld, lpgf, offset_a, &
-      offset_a1, offset_b, offset_b1, offset_c, offset_c1, offset_d, offset_d1
+    INTEGER :: i, ipgf, j, jpgf, kpgf, la, lb, lc, ld, lpgf, offset_a, &
+      offset_a1, offset_b, offset_b1, offset_c, offset_c1, offset_d, &
+      offset_d1, stat
+    LOGICAL                                  :: failure
     REAL(dp) :: B11(3), C11(3), D11(3), Eta, im_B(3), im_D(3), P(3), &
-      pbc_B(3), pbc_D(3), PQ(3), Q(3), shift(3), shift1(3), temp(3), &
-      tmp_D(3), Zeta1, Zeta_A, Zeta_B, Zeta_C, Zeta_D
+      pbc_B(3), pbc_D(3), PQ(3), Q(3), shift(3), temp(3), tmp_D(3), &
+      tmp_max_all, Zeta1, Zeta_A, Zeta_B, Zeta_C, Zeta_D
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: tmp_cart_estimate
+
+    failure = .FALSE.
+    cartesian_estimate = 0.0_dp
+    ALLOCATE(tmp_cart_estimate(SIZE(neighbor_cells), SIZE(neighbor_cells)), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    tmp_cart_estimate = 0.0_dp 
 
     primitive_forces = 0.0_dp
     temp = rb -ra
@@ -2662,26 +2943,22 @@ MODULE four_center_integrals
                       temp = P-Q
                       CALL pbc(temp,box_size,PQ)
                       shift = -PQ + temp
-                      DO k=1,max_k!size(neighbor_cells)
-                        shift1(1) =  neighbor_cells(k)%cell(1) * box_size(1)
-                        shift1(2) =  neighbor_cells(k)%cell(2) * box_size(2)
-                        shift1(3) =  neighbor_cells(k)%cell(3) * box_size(3)
-                     
-                        C11 = rc + shift + shift1
-                        tmp_D = im_D + shift + shift1
-                        DO la = la_min,la_max
-                          offset_a = offset_a1 + ncoset(la-1)
-                          !Build primitives
-                          CALL evaluate_deriv_eri(deriv, ra, im_B, C11, tmp_D,&
-                                                  zeta(ipgf), zetb(jpgf), zetc(kpgf), zetd(lpgf),&
-                                                  la, lb, lc ,ld,&
-                                                  work_forces,&
-                                                  ncoa, ncob, ncoc, ncod, &
-                                                  primitive_forces, &
-                                                  offset_a, offset_b, offset_c, offset_d,&
-                                                  potential_parameter)
-                        END DO !la
-                      END DO
+                      C11 = rc + shift
+                      tmp_D = im_D + shift
+                      DO la = la_min,la_max
+                        offset_a = offset_a1 + ncoset(la-1)
+                        !Build primitives
+                        tmp_max_all = 0.0_dp
+                        CALL evaluate_deriv_eri(deriv, ra, im_B, C11, tmp_D,&
+                                                zeta(ipgf), zetb(jpgf), zetc(kpgf), zetd(lpgf),&
+                                                la, lb, lc ,ld,&
+                                                work_forces,&
+                                                ncoa, ncob, ncoc, ncod, &
+                                                primitive_forces, &
+                                                offset_a, offset_b, offset_c, offset_d,&
+                                                potential_parameter, max_contraction_val, tmp_max_all, eps_schwarz)
+                        tmp_cart_estimate(i,j) = MAX(tmp_cart_estimate(i,j),tmp_max_all)
+                      END DO !la
                     END DO !ipgf
                   END DO !lb
                 END DO !jpgf
@@ -2691,6 +2968,13 @@ MODULE four_center_integrals
         END DO !lpgf
       END DO
     END DO
+    DO i=1,SIZE(neighbor_cells)
+      DO j=1,SIZE(neighbor_cells)
+        cartesian_estimate = MAX(cartesian_estimate, tmp_cart_estimate(i,j))
+      END DO
+    END DO
+    DEALLOCATE(tmp_cart_estimate, STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE forces4_periodic
 !***************************************************************************
 
@@ -3224,7 +3508,7 @@ MODULE four_center_integrals
 !!
 !!   INPUTS
 !!     -
-
+!!
 !!   AUTHOR
 !!     Manuel Guidon
 !!
@@ -3238,9 +3522,10 @@ MODULE four_center_integrals
                         npgfa, npgfb, npgfc, npgfd, ncoa, ncob, ncoc, ncod, &
                         nsgfa, nsgfb, nsgfc, nsgfd, sgfa, sgfb, sgfc, sgfd, &
                         primitive_integrals, potential_parameter, box_size, qs_env, screen_periodic, &
-                        eps_schwarz, max_k, sphi_a, sphi_b, sphi_c, sphi_d, T1, & 
+                        eps_schwarz, sphi_a, sphi_b, sphi_c, sphi_d, T1, & 
                         full_ks, full_ks_beta, full_density, full_density_beta, fac, symm_fac, &
-                        iset, jset, kset, lset, iatom, jatom, katom, latom, pa1, pb1, pc1, pd1, nspins)
+                        iset, jset, kset, lset, iatom, jatom, katom, latom, pa1, pb1, pc1, pd1, &
+                        nspins, max_contraction_val, error)
 
     LOGICAL, INTENT(IN)                      :: do_periodic
     REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3)
@@ -3259,7 +3544,6 @@ MODULE four_center_integrals
     REAL(dp), DIMENSION(:, :, :, :, :), &
       POINTER                                :: screen_periodic
     REAL(dp), INTENT(IN)                     :: eps_schwarz
-    INTEGER, INTENT(IN)                      :: max_k
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: sphi_a, sphi_b, sphi_c, sphi_d
     REAL(dp), DIMENSION(:)                   :: T1
     REAL(dp), DIMENSION(:, :)                :: full_ks, full_ks_beta, &
@@ -3269,10 +3553,12 @@ MODULE four_center_integrals
     INTEGER, INTENT(IN)                      :: iset, jset, kset, lset, &
                                                 iatom, jatom, katom, latom, &
                                                 pa1, pb1, pc1, pd1, nspins
+    REAL(dp), INTENT(IN)                     :: max_contraction_val
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ma, mb, mc, md, p_index, pa, &
                                                 pa2, pb, pb2, pc, pc2, pd, pd2
-    REAL(dp)                                 :: tmp
+    REAL(dp)                                 :: cartesian_estimate, tmp
 
     IF( .NOT.do_periodic ) THEN 
       CALL coulomb4(ra, rb, rc, rd,&
@@ -3283,7 +3569,8 @@ MODULE four_center_integrals
                     npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset),&
                     ncoa,ncob,ncoc,ncod,&
                     primitive_integrals,&
-                    potential_parameter)
+                    potential_parameter, eps_schwarz, max_contraction_val, &
+                    cartesian_estimate, error)
     ELSE
       CALL coulomb4_periodic(ra, rb, rc, rd,&
                              zeta(1:npgfa(iset),iset), zetb(1:npgfb(jset),jset), &
@@ -3295,8 +3582,11 @@ MODULE four_center_integrals
                              primitive_integrals,&
                              potential_parameter, box_size, &
                              qs_env%x_data%neighbor_cells, screen_periodic(iatom,jatom,iset,jset,:),&
-                             screen_periodic(katom,latom,kset,lset,:), eps_schwarz, max_k)
+                             screen_periodic(katom,latom,kset,lset,:), eps_schwarz, &
+                             max_contraction_val, cartesian_estimate, error)
     END IF
+
+    IF(cartesian_estimate < eps_schwarz) RETURN
 
     CALL dgemm("T","N",ncob*ncoc*ncod,nsgfa(iset),ncoa,&
                1.0_dp, primitive_integrals(1),ncoa,&
@@ -3528,9 +3818,9 @@ MODULE four_center_integrals
                           Rbox = Rbox - x_data%far_field_boxes(box_idx1, box_idx2)%R - &
                                         x_data%far_field_boxes(box_idx3, box_idx4)%R
                           pgf_radius_box = INT(1.0_dp/ &
-                                (SQRT(2.0_dp*x_data%far_field_boxes(box_idx1, box_idx2)%alpha)*erfc(epsilon)))
+                                (SQRT(2.0_dp*x_data%far_field_boxes(box_idx1, box_idx2)%alpha)*erfc_epsilon))
                           pgf_radius_box = pgf_radius_box + INT(1.0_dp/ &
-                                (SQRT(2.0_dp*x_data%far_field_boxes(box_idx3, box_idx4)%alpha)*erfc(epsilon))) + 2
+                                (SQRT(2.0_dp*x_data%far_field_boxes(box_idx3, box_idx4)%alpha)*erfc_epsilon)) + 2
                           IF(Rbox>pgf_radius_box) THEN
                             max_val2 = 0.0_dp
                             SELECT CASE(potential_parameter%potential_type)
@@ -3569,6 +3859,7 @@ MODULE four_center_integrals
         END IF
       ENDDO
 
+      
       !! Bin the total amount of integrals on each cpu
       nbins = load_balance_parameter%nbins
       !floor value
@@ -3653,9 +3944,9 @@ MODULE four_center_integrals
                           Rbox = Rbox - x_data%far_field_boxes(box_idx1, box_idx2)%R - &
                                         x_data%far_field_boxes(box_idx3, box_idx4)%R
                           pgf_radius_box = INT(1.0_dp/ &
-                                (SQRT(2.0_dp*x_data%far_field_boxes(box_idx1, box_idx2)%alpha)*erfc(epsilon)))
+                                (SQRT(2.0_dp*x_data%far_field_boxes(box_idx1, box_idx2)%alpha)*erfc_epsilon))
                           pgf_radius_box = pgf_radius_box + INT(1.0_dp/ &
-                                (SQRT(2.0_dp*x_data%far_field_boxes(box_idx3, box_idx4)%alpha)*erfc(epsilon))) + 2
+                                (SQRT(2.0_dp*x_data%far_field_boxes(box_idx3, box_idx4)%alpha)*erfc_epsilon)) + 2
                           IF(Rbox>pgf_radius_box) THEN
                             max_val2 = 0.0_dp
                             SELECT CASE(potential_parameter%potential_type)
@@ -3819,7 +4110,6 @@ MODULE four_center_integrals
       DEALLOCATE(cost_matrix,binned_dist, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-
     CALL timestop(handle)
   END SUBROUTINE load_balance_energy
 !***************************************************************************
@@ -3985,9 +4275,9 @@ MODULE four_center_integrals
                           Rbox = Rbox - x_data%far_field_boxes(box_idx1, box_idx2)%R - &
                                         x_data%far_field_boxes(box_idx3, box_idx4)%R
                           pgf_radius_box = INT(1.0_dp/ &
-                                (SQRT(2.0_dp*x_data%far_field_boxes(box_idx1, box_idx2)%alpha)*erfc(epsilon)))
+                                (SQRT(2.0_dp*x_data%far_field_boxes(box_idx1, box_idx2)%alpha)*erfc_epsilon))
                           pgf_radius_box = pgf_radius_box + INT(1.0_dp/ &
-                                (SQRT(2.0_dp*x_data%far_field_boxes(box_idx3, box_idx4)%alpha)*erfc(epsilon))) + 2
+                                (SQRT(2.0_dp*x_data%far_field_boxes(box_idx3, box_idx4)%alpha)*erfc_epsilon)) + 2
 
                           IF(Rbox>pgf_radius_box) THEN
                             max_val2 = 0.0_dp
@@ -4100,9 +4390,9 @@ MODULE four_center_integrals
                           Rbox = Rbox - x_data%far_field_boxes(box_idx1, box_idx2)%R - &
                                         x_data%far_field_boxes(box_idx3, box_idx4)%R
                           pgf_radius_box = INT(1.0_dp/ &
-                                (SQRT(2.0_dp*x_data%far_field_boxes(box_idx1, box_idx2)%alpha)*erfc(epsilon)))
+                                (SQRT(2.0_dp*x_data%far_field_boxes(box_idx1, box_idx2)%alpha)*erfc_epsilon))
                           pgf_radius_box = pgf_radius_box + INT(1.0_dp/ &
-                                (SQRT(2.0_dp*x_data%far_field_boxes(box_idx3, box_idx4)%alpha)*erfc(epsilon))) + 2
+                                (SQRT(2.0_dp*x_data%far_field_boxes(box_idx3, box_idx4)%alpha)*erfc_epsilon)) + 2
                           IF(Rbox>pgf_radius_box) THEN
                             max_val2 = 0.0_dp
                             SELECT CASE(potential_parameter%potential_type)

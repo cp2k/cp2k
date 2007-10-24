@@ -26,8 +26,9 @@ MODULE x_hf
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp,&
-                                             dp_size,&
                                              int_8
+  USE x_hf_compression_methods,        ONLY: bits2ints_specific,&
+                                             ints2bits_specific
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -37,66 +38,51 @@ MODULE x_hf
           x_hf_set_distr_forces, x_hf_create_neighbor_cells,&
           x_hf_cell_type, x_hf_distribution, x_hf_box_scheme,&
           x_hf_potential_type, x_hf_screening_type, x_hf_periodic_type,&
-          x_hf_memory_type, x_hf_load_balance_type, x_hf_general_type
+          x_hf_memory_type, x_hf_load_balance_type, x_hf_general_type,&
+          x_hf_compression_type,&
+          x_hf_container_type, x_hf_container_node, x_hf_cache_type, &
+          x_hf_add_single_cache_element, x_hf_get_single_cache_element,&
+          x_hf_reset_cache_and_container, x_hf_decompress_first_cache, &
+          x_hf_flush_last_cache, x_hf_get_memory_info, x_hf_add_multiple_cache_elements,&
+          x_hf_get_multiple_cache_elements, x_hf_init_container
+
+#define CACHE_SIZE 1024 
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'x_hf'
-
+  INTEGER(int_8), PARAMETER, PRIVATE :: one = 1_int_8
 !***
 !****************************************************************************
 
-!!***** x_hf/x_hf_type [1.0] *
-!!
-!!   NAME
-!!     x_hf_type
-!!
-!!   FUNCTION
-!!     stores some data used in construction of Kohn-Sham matrix
-!!     holds a certain amount of precomputed four-center-integrals 
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - x_buffer: stores four-center-integrals
-!!     - number_of_elements: according to memory usage parameter in input file
-!!     - x_hf_screening_type: stores information for screening
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     11.2006 created [Manuel Guidon]
-!!
-!***************************************************************************
 
   TYPE x_hf_potential_type
-    INTEGER                                  :: potential_type
-    REAL(dp)                                 :: omega
+    INTEGER                                  :: potential_type     !! 1/r/ erfc(wr)/r ...
+    REAL(dp)                                 :: omega              !! w 
   END TYPE
 
   TYPE x_hf_screening_type
-    REAL(dp)                                 :: eps_schwarz
-    REAL(dp)                                 :: eps_schwarz_forces
-    REAL(dp)                                 :: eps_box
-    REAL(dp)                                 :: eps_box_forces
-    LOGICAL                                  :: do_p_screening_forces
-    LOGICAL                                  :: do_initial_p_screening
-    LOGICAL                                  :: do_init_p_screen_corr
-    REAL(dp)                                 :: initial_p_screening_correction
+    REAL(dp)                                 :: eps_schwarz         !! threshold
+    REAL(dp)                                 :: eps_schwarz_forces  !! threshold
+    REAL(dp)                                 :: eps_box             !! threshold
+    REAL(dp)                                 :: eps_box_forces      !! threshold
+    LOGICAL                                  :: do_p_screening_forces  !! screen on P^2 ?
+    LOGICAL                                  :: do_initial_p_screening !! screen on inital guess?
+    LOGICAL                                  :: do_init_p_screen_corr  !! correct screen on initial guess?
+    REAL(dp)                                 :: initial_p_screening_correction !! corection factor
   END TYPE
   
   TYPE x_hf_memory_type
-    INTEGER                                  :: max_memory
-    INTEGER(int_8)                           :: number_of_integrals
+    INTEGER                                  :: max_memory              !! user def max memory MB
+    INTEGER(int_8)                           :: max_compression_counter !! corresponding number of reals 
+    LOGICAL                                  :: do_all_on_the_fly       !! max mem == 0 ?
   END TYPE
 
   TYPE x_hf_periodic_type
-    INTEGER                                  :: number_of_shells
-    LOGICAL                                  :: do_periodic
+    INTEGER                                  :: number_of_shells        !! number of periodic image cells 
+    LOGICAL                                  :: do_periodic             !! periodic ?
   END TYPE
 
   TYPE x_hf_load_balance_type
-    INTEGER                                  :: nbins
+    INTEGER                                  :: nbins                   
     INTEGER                                  :: moves
     INTEGER                                  :: cycles
     INTEGER                                  :: reduction_steps
@@ -107,7 +93,7 @@ MODULE x_hf
   END TYPE
 
   TYPE x_hf_general_type
-    REAL(dp)                                 :: fraction
+    REAL(dp)                                 :: fraction                 !! for hybrids
   END TYPE
 
   TYPE x_hf_cell_type
@@ -127,6 +113,69 @@ MODULE x_hf
     REAL(dp)                                 :: R
     REAL(dp)                                 :: alpha
   END TYPE
+  
+  TYPE x_hf_compression_type
+    INTEGER(int_8), DIMENSION(:), POINTER    :: compressed_data
+    INTEGER(int_8)                           :: element_pointer
+    INTEGER                                  :: bit_pointer
+  END TYPE
+ 
+  TYPE x_hf_cache_type
+    INTEGER(int_8), DIMENSION(CACHE_SIZE)    :: DATA
+    INTEGER                                  :: element_counter
+  END TYPE
+
+  TYPE x_hf_container_node
+    TYPE(x_hf_container_node), POINTER       :: next, prev
+    INTEGER(int_8), DIMENSION(CACHE_SIZE)    :: DATA
+  END TYPE
+
+  TYPE x_hf_container_type
+    TYPE(x_hf_container_node), POINTER       :: first, current    
+    INTEGER                                  :: element_counter
+    INTEGER                                  :: list_counter
+  END TYPE
+
+
+!!***** x_hf/x_hf_type [1.0] *
+!!
+!!   NAME
+!!     x_hf_type
+!!
+!!   FUNCTION
+!!     stores some data used in construction of Kohn-Sham matrix
+!!     
+!!
+!!   NOTES
+!!     -
+!!
+!!   ATTRIBUTES
+!!     - potential_parameter: stores information on the potential (1/r, erfc(wr)/r
+!!     - screening_parameter: stores screening infos such as epsilon
+!!     - memory_parameter: stores infos on memory used for in-core calculations
+!!     - periodic_parameter: stores information on how to apply pbc
+!!     - load_balance_parameter: contains infos for Monte Carlo simulated annealing
+!!     - general_paramter: at the moment stores the fraction of HF amount to be included
+!!     - maxval_container: stores the maxvals in compressed form
+!!     - maxval_cache: cache for maxvals in decompressed form
+!!     - integral_containers: 64 containers for compressed integrals
+!!     - integral_caches: 64 caches for decompressed integrals
+!!     - x_screening_buffer: contains screening matrices in non-periodic case
+!!     - x_screening_buffer_periodic: contains screening matrices in periodic case
+!!     - far_field_boxes: contains information on far field screening
+!!     - neighbor_cells: manages handling of periodic cells
+!!     - distribution_energy: stores information on parallelization of energy
+!!     - distribution_forces: stores information on parallelization of forces
+!!     - initial_p: stores the initial guess if requested
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     11.2006 created [Manuel Guidon]
+!!
+!***************************************************************************
+
 
   TYPE x_hf_type
     TYPE(x_hf_potential_type)                :: potential_parameter
@@ -135,28 +184,57 @@ MODULE x_hf
     TYPE(x_hf_periodic_type)                 :: periodic_parameter
     TYPE(x_hf_load_balance_type)             :: load_balance_parameter
     TYPE(x_hf_general_type)                  :: general_parameter
-    REAL(dp), DIMENSION(:), POINTER          :: x_buffer
+    TYPE(x_hf_container_type), POINTER       :: maxval_container
+    TYPE(x_hf_cache_type)                    :: maxval_cache
+    TYPE(x_hf_container_type), POINTER, &
+                               DIMENSION(:)  :: integral_containers
+    TYPE(x_hf_cache_type)                    :: integral_caches(64)
+
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: x_screening_buffer
     REAL(dp), DIMENSION(:, :, :, :, :), &
               POINTER                        :: x_screening_buffer_periodic
-    INTEGER                                  :: number_of_elements
-    INTEGER(int_8), DIMENSION(:),&
-                             POINTER         :: integral_distribution_forces
+    TYPE(x_hf_box_scheme), DIMENSION(:,:),&
+                           POINTER           :: far_field_boxes
     TYPE(x_hf_cell_type), DIMENSION(:), &
                POINTER                       :: neighbor_cells
-    LOGICAL                                  :: do_periodic
-    INTEGER                                  :: number_of_k_loops
     TYPE(x_hf_distribution), DIMENSION(:),&
                              POINTER         :: distribution_energy
     TYPE(x_hf_distribution), DIMENSION(:),&
                              POINTER         :: distribution_forces
-    TYPE(x_hf_box_scheme), DIMENSION(:,:),&
-                           POINTER           :: far_field_boxes
-    REAL(dp), DIMENSION(:,:,:,:), POINTER &
+        REAL(dp), DIMENSION(:,:,:,:), POINTER &
                                              :: initial_p
   END TYPE
 
   CONTAINS
+
+
+
+!!***** x_hf/x_hf_create [1.0] *
+!!
+!!   NAME
+!!     x_hf_create
+!!
+!!   FUNCTION
+!!     - This routine allocates and initializes all types in x_hf_data
+!!
+!!   NOTES
+!!     - All POINTERS and ALLOCATABLES are allocated, even if their size is
+!!       unknown at invocation time
+!!
+!!   INPUTS
+!!     - x_data: contains all relevant data structures for hfx runs
+!!     - hf_section: input section
+!!     - natom, max_set: quantities that define some array sizes
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     09.2007 created [Manuel Guidon]
+!!
+!!****************************************************************************
 
   SUBROUTINE x_hf_create(x_data,hf_section,natom,max_set,error)
     TYPE(x_hf_type), POINTER                 :: x_data
@@ -167,8 +245,7 @@ MODULE x_hf
     CHARACTER(LEN=*), PARAMETER :: routineN = 'x_hf_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: int_val, max_memory, nkloops, &
-                                                number_of_precalc_integrals, &
+    INTEGER                                  :: i, int_val, max_memory, &
                                                 pbc_shells, stat
     LOGICAL                                  :: do_periodic, failure, &
                                                 logic_val
@@ -182,18 +259,19 @@ MODULE x_hf
 
     !! Get data from input file
     !!
-    !! General params
+    !! GENERAL params
     CALL section_vals_val_get(hf_section, "FRACTION", r_val=real_val, error=error)
     x_data%general_parameter%fraction = real_val
 
-    !! Memory section
+    !! MEMORY section
     CALL section_vals_val_get(hf_section, "MAX_MEMORY", i_val=int_val, error=error)
     x_data%memory_parameter%max_memory = int_val
-    number_of_precalc_integrals = int_val * 1024*1024/dp_size
-    ALLOCATE(x_data%x_buffer(number_of_precalc_integrals),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    x_data%number_of_elements = number_of_precalc_integrals
-
+    x_data%memory_parameter%max_compression_counter = int_val*1024*128
+    IF(int_val == 0) THEN
+      x_data%memory_parameter%do_all_on_the_fly = .TRUE.
+    ELSE
+      x_data%memory_parameter%do_all_on_the_fly = .FALSE.
+    END IF
 
     !! PERIODIC section
     hf_sub_section => section_vals_get_subs_vals(hf_section,"PERIODIC",error=error)
@@ -250,11 +328,7 @@ MODULE x_hf
     CALL section_vals_val_get(hf_sub_section, "SWAP_PROBABILITY", r_val=real_val, error=error)
     x_data%load_balance_parameter%swap_probability = real_val
 
-    hf_pbc_section => section_vals_get_subs_vals(hf_section,"PERIODIC",error=error)
-    CALL section_vals_get(hf_pbc_section,explicit=do_periodic,error=error)
-    x_data%do_periodic = do_periodic
-    x_data%number_of_k_loops = 1
-    IF(do_periodic) THEN
+    IF(x_data%periodic_parameter%do_periodic) THEN
       hf_pbc_section => section_vals_get_subs_vals(hf_section,"PERIODIC",error=error)
       CALL section_vals_val_get(hf_pbc_section,"NUMBER_OF_SHELLS",i_val=pbc_shells,error=error)
       ALLOCATE(x_data%neighbor_cells(1),STAT=stat)
@@ -263,15 +337,11 @@ MODULE x_hf
       ALLOCATE(x_data%x_screening_buffer_periodic(natom,natom,max_set,max_set,&
                SIZE(x_data%neighbor_cells)),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      CALL section_vals_val_get(hf_pbc_section,"NUMBER_OF_K_LOOPS",i_val=nkloops,error=error)
-      x_data%number_of_k_loops = nkloops
     ELSE
       ALLOCATE(x_data%x_screening_buffer(natom,natom,max_set,max_set),STAT=stat)
     END IF
 
     ALLOCATE(x_data%distribution_forces(1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(x_data%integral_distribution_forces(1),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(x_data%distribution_energy(1),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -287,7 +357,58 @@ MODULE x_hf
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
+    x_data%maxval_cache%element_counter = 1
+    ALLOCATE(x_data%maxval_container,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(x_data%maxval_container%first,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    x_data%maxval_container%first%prev => NULL()
+    x_data%maxval_container%first%next => NULL()
+    x_data%maxval_container%current => x_data%maxval_container%first
+    x_data%maxval_container%current%data = 0
+    x_data%maxval_container%element_counter = 1
+    x_data%maxval_container%list_counter = 1
+
+    ALLOCATE(x_data%integral_containers(64), STAT=stat)
+    DO i=1,64
+      x_data%integral_caches(i)%element_counter = 1
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(x_data%integral_containers(i)%first,STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      x_data%integral_containers(i)%first%prev => NULL()
+      x_data%integral_containers(i)%first%next => NULL()
+      x_data%integral_containers(i)%current => x_data%integral_containers(i)%first
+      x_data%integral_containers(i)%current%data = 0
+      x_data%integral_containers(i)%element_counter = 1
+      x_data%integral_containers(i)%list_counter = 1
+    END DO
+
   END SUBROUTINE x_hf_create 
+!***************************************************************************
+
+!!***** x_hf/x_hf_release [1.0] *
+!!
+!!   NAME
+!!     x_hf_release
+!!
+!!   FUNCTION
+!!     - This routine deallocates all data structures
+!!
+!!   NOTES
+!!     - 
+!!
+!!   INPUTS
+!!     - x_data: contains all relevant data structures for hfx runs
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     09.2007 created [Manuel Guidon]
+!!
+!!****************************************************************************
 
   SUBROUTINE x_hf_release(x_data,error)
     TYPE(x_hf_type), POINTER                 :: x_data
@@ -296,13 +417,12 @@ MODULE x_hf
     CHARACTER(LEN=*), PARAMETER :: routineN = 'x_hf_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: i, stat
     LOGICAL                                  :: failure
 
-    DEALLOCATE(x_data%x_buffer,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    
-    IF( x_data%do_periodic ) THEN
+    failure = .FALSE.
+
+    IF( x_data%periodic_parameter%do_periodic ) THEN
       DEALLOCATE(x_data%x_screening_buffer_periodic,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       DEALLOCATE(x_data%neighbor_cells,STAT=stat)
@@ -315,8 +435,6 @@ MODULE x_hf
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(x_data%distribution_forces,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(x_data%integral_distribution_forces,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     DEALLOCATE(x_data%far_field_boxes,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -324,9 +442,52 @@ MODULE x_hf
     DEALLOCATE(x_data%initial_p,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
+    !! Deallocate containers
+    CALL x_hf_init_container(x_data%maxval_container, error)
+    DEALLOCATE(x_data%maxval_container%first,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(x_data%maxval_container,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    DO i=1,64   
+      CALL x_hf_init_container(x_data%integral_containers(i), error)
+      DEALLOCATE(x_data%integral_containers(i)%first,STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END DO
+    DEALLOCATE(x_data%integral_containers,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+
     DEALLOCATE(x_data,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE x_hf_release
+!***************************************************************************
+
+!!***** x_hf/x_hf_set_distr_energy [1.0] *
+!!
+!!   NAME
+!!     x_hf_set_distr_energy
+!!
+!!   FUNCTION
+!!     - This routine stores the data obtained from the load balance routine 
+!!       for the energy
+!!
+!!   NOTES
+!!     - 
+!!
+!!   INPUTS
+!!     - ptr_to_distr_energy: contains data to store
+!!     - x_data: contains all relevant data structures for hfx runs
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     09.2007 created [Manuel Guidon]
+!!
+!!****************************************************************************
 
   SUBROUTINE x_hf_set_distr_energy(ptr_to_distr,x_data, error)
     TYPE(x_hf_distribution), DIMENSION(:), &
@@ -347,6 +508,33 @@ MODULE x_hf
     x_data%distribution_energy = ptr_to_distr
 
   END SUBROUTINE x_hf_set_distr_energy
+!***************************************************************************
+
+!!***** x_hf/x_hf_set_distr_forces [1.0] *
+!!
+!!   NAME
+!!     x_hf_set_distr_forces
+!!
+!!   FUNCTION
+!!     - This routine stores the data obtained from the load balance routine 
+!!       for the forces
+!!
+!!   NOTES
+!!     - 
+!!
+!!   INPUTS
+!!     - ptr_to_distr_energy: contains data to store
+!!     - x_data: contains all relevant data structures for hfx runs
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     09.2007 created [Manuel Guidon]
+!!
+!!****************************************************************************
 
   SUBROUTINE x_hf_set_distr_forces(ptr_to_distr, x_data, error)
     TYPE(x_hf_distribution), DIMENSION(:), &
@@ -367,6 +555,33 @@ MODULE x_hf
     x_data%distribution_forces = ptr_to_distr
 
   END SUBROUTINE x_hf_set_distr_forces
+!***************************************************************************
+
+!!***** x_hf/x_hf_create_neighbor_cells [1.0] *
+!!
+!!   NAME
+!!     x_hf_create_neighbor_cells
+!!
+!!   FUNCTION
+!!     - This routine computes the neighbor cells that are taken into account
+!!       in periodic runs 
+!!
+!!   NOTES
+!!     - 
+!!
+!!   INPUTS
+!!     - x_data: contains all relevant data structures for hfx runs
+!!     - pbc_shells: number of shells taken into account
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     09.2007 created [Manuel Guidon]
+!!
+!!****************************************************************************
 
   SUBROUTINE x_hf_create_neighbor_cells(x_data, pbc_shells, error)
     TYPE(x_hf_type), POINTER                 :: x_data
@@ -400,6 +615,29 @@ MODULE x_hf
        i=i+1
     ENDDO
   END SUBROUTINE x_hf_create_neighbor_cells
+!***************************************************************************
+
+!!***** x_hf/count_cells [1.0] *
+!!
+!!   NAME
+!!     count_cells
+!!
+!!   FUNCTION
+!!     - Auxiliary function for creating periodic neighbor cells
+!!
+!!   NOTES
+!!     - 
+!!
+!!   INPUTS
+!!     - shell: number of shells in each coordinate direction
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     09.2007 created [Manuel Guidon]
+!!
+!!****************************************************************************
 
    FUNCTION count_cells(shell)
     INTEGER, INTENT(IN)                      :: shell
@@ -416,6 +654,30 @@ MODULE x_hf
       ENDDO
     ENDDO
   END FUNCTION count_cells
+!***************************************************************************
+
+!!***** x_hf/next_image_cell [1.0] *
+!!
+!!   NAME
+!!     next_image_cell
+!!
+!!   FUNCTION
+!!     - Auxiliary function for creating periodic neighbor cells
+!!
+!!   NOTES
+!!     - 
+!!
+!!   INPUTS
+!!     - shell: shell for which we need the next, stored as number of shifts
+!!              in each direction
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     09.2007 created [Manuel Guidon]
+!!
+!!****************************************************************************
 
   SUBROUTINE next_image_cell(m)
     INTEGER                                  :: m(3)
@@ -441,7 +703,603 @@ MODULE x_hf
            shell=shell+1
            ENDDO outer
   END SUBROUTINE next_image_cell
+!***************************************************************************
 
+!!***** x_hf/x_hf_add_single_cache_element [1.0] *
+!!
+!!   NAME
+!!     x_hf_add_single_cache_element
+!!
+!!   FUNCTION
+!!     - This routine adds an int_8 value to a cache. If the cache is full
+!!       a compression routine is invoked and the cache is cleared
+!!
+!!   NOTES
+!!     - 
+!!
+!!   INPUTS
+!!     - value: value to be added to the cache
+!!     - nbits: number of bits to be stored
+!!     - cache: cache to which we want to add
+!!     - container: container that contains the compressed elements
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     10.2007 created [Manuel Guidon]
+!!
+!!****************************************************************************
+
+  SUBROUTINE x_hf_add_single_cache_element(value, nbits, cache, container, error)
+    INTEGER(int_8)                           :: value
+    INTEGER                                  :: nbits
+    TYPE(x_hf_cache_type)                    :: cache
+    TYPE(x_hf_container_type)                :: container
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    INTEGER(int_8)                           :: int_val
+
+    int_val = value + ISHFT(one,nbits-1)
+    
+    IF(cache%element_counter /= CACHE_SIZE ) THEN
+      cache%data(cache%element_counter) = int_val
+      cache%element_counter = cache%element_counter + 1
+    ELSE
+      cache%data(CACHE_SIZE) = int_val
+      CALL x_hf_compress_cache(cache%data(1), container, CACHE_SIZE, nbits, error)
+      cache%element_counter = 1
+    END IF
+  END SUBROUTINE x_hf_add_single_cache_element
+!***************************************************************************
+
+!!***** x_hf/x_hf_compress_cache [1.0] *
+!!
+!!   NAME
+!!     x_hf_compress_cache
+!!
+!!   FUNCTION
+!!     - This routine compresses a full cache and stores its values
+!!       in a container. If necessary, a new list entry is allocated 
+!!
+!!   NOTES
+!!     - 
+!!
+!!   INPUTS
+!!     - full_array: values from the cache
+!!     - container: linked list, that stores the compressed values
+!!     - nints: number of int_8 values to be compressed
+!!     - nbits: number of bits to be stored
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     10.2007 created [Manuel Guidon]
+!!
+!!****************************************************************************
+
+  SUBROUTINE x_hf_compress_cache(full_array, container, nints, nbits, error)
+    INTEGER(int_8)                           :: full_array(*)
+    TYPE(x_hf_container_type)                :: container
+    INTEGER                                  :: nints, nbits
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'x_hf_compress_cache', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: end_idx, increment_counter, &
+                                                start_idx, stat, &
+                                                tmp_elements, tmp_nints
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+
+    start_idx = container%element_counter
+    increment_counter = (nbits*CACHE_SIZE + 63)/64
+    end_idx = start_idx + increment_counter - 1
+    IF( end_idx<CACHE_SIZE) THEN
+      CALL ints2bits_specific(nbits,CACHE_SIZE,container%current%data(start_idx),full_array(1))
+      container%element_counter = container%element_counter + increment_counter
+    ELSE
+      !! We have to fill the container first with the remaining number of bits
+      tmp_elements = CACHE_SIZE - start_idx + 1
+      tmp_nints = (tmp_elements*64)/nbits
+      CALL ints2bits_specific(nbits,tmp_nints,container%current%data(start_idx),full_array(1))
+      !! Allocate new list entry
+      ALLOCATE(container%current%next, STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      container%list_counter = container%list_counter + 1
+      container%current%next%next => NULL()
+      container%current => container%current%next
+      !! compress remaining ints
+      CALL ints2bits_specific(nbits, CACHE_SIZE-tmp_nints, container%current%data(1), full_array(tmp_nints+1))
+      container%element_counter = 1 + (nbits*(CACHE_SIZE-tmp_nints) + 63)/64 
+   END IF
+  END SUBROUTINE x_hf_compress_cache
+!***************************************************************************
+
+!!***** x_hf/x_hf_get_single_cache_element [1.0] *
+!!
+!!   NAME
+!!     x_hf_get_single_cache_element
+!!
+!!   FUNCTION
+!!     - This routine returns an int_8 value from a cache. If the cache is empty
+!!       a decompression routine is invoked and the cache is refilled with decompressed
+!!       values from a container
+!!
+!!   NOTES
+!!     - 
+!!
+!!   INPUTS
+!!     - value: value to be retained from the cache
+!!     - nbits: number of bits with which the value has been compressed
+!!     - cache: cache from which we get the value
+!!     - container: container that contains the compressed elements
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     10.2007 created [Manuel Guidon]
+!!
+!!****************************************************************************
+
+  SUBROUTINE x_hf_get_single_cache_element(value, nbits, cache, container)
+    INTEGER(int_8)                           :: value
+    INTEGER                                  :: nbits
+    TYPE(x_hf_cache_type)                    :: cache
+    TYPE(x_hf_container_type)                :: container
+
+    IF(cache%element_counter /= CACHE_SIZE ) THEN
+      value = cache%data(cache%element_counter) 
+      cache%element_counter = cache%element_counter + 1
+    ELSE
+      value = cache%data(CACHE_SIZE)
+      CALL x_hf_decompress_cache(cache%data(1), container, CACHE_SIZE, nbits)
+      cache%element_counter = 1 
+    END IF
+
+    value = value - ISHFT(one,nbits-1)
+
+  END SUBROUTINE x_hf_get_single_cache_element
+!***************************************************************************
+
+!!***** x_hf/x_hf_decompress_cache [1.0] *
+!!
+!!   NAME
+!!     x_hf_decompress_cache
+!!
+!!   FUNCTION
+!!     - This routine decompresses data from a container in order to fill
+!!       a cache.
+!!
+!!   NOTES
+!!     - 
+!!
+!!   INPUTS
+!!     - full_array: values to be retained from container
+!!     - container: linked list, that stores the compressed values
+!!     - nints: number of int_8 values to be decompressed
+!!     - nbits: number of bits with which the values have been stored
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     10.2007 created [Manuel Guidon]
+!!
+!!****************************************************************************
+
+  SUBROUTINE x_hf_decompress_cache(full_array, container, nints, nbits)
+    INTEGER(int_8)                           :: full_array(*)
+    TYPE(x_hf_container_type)                :: container
+    INTEGER                                  :: nints, nbits
+
+    INTEGER                                  :: end_idx, increment_counter, &
+                                                start_idx, tmp_elements, &
+                                                tmp_nints
+
+    start_idx = container%element_counter
+    increment_counter = (nbits*CACHE_SIZE + 63)/64
+    end_idx = start_idx + increment_counter - 1
+    IF( end_idx<CACHE_SIZE) THEN
+      CALL bits2ints_specific(nbits,CACHE_SIZE,container%current%data(start_idx),full_array(1))
+      container%element_counter = container%element_counter + increment_counter
+    ELSE
+      !! We have to fill the container first with the remaining number of bits
+      tmp_elements = CACHE_SIZE - start_idx + 1
+      tmp_nints = (tmp_elements*64)/nbits
+      CALL bits2ints_specific(nbits,tmp_nints,container%current%data(start_idx),full_array(1))
+      container%current => container%current%next
+      container%list_counter = container%list_counter + 1
+      !! decompress remaining ints
+      CALL bits2ints_specific(nbits, CACHE_SIZE-tmp_nints, container%current%data(1), full_array(tmp_nints+1))
+      container%element_counter = 1 + (nbits*(CACHE_SIZE-tmp_nints) + 63)/64 
+    END IF
+  END SUBROUTINE x_hf_decompress_cache
+!***************************************************************************
+
+!!***** x_hf/x_hf_reset_cache_and_container[1.0] *
+!!
+!!   NAME
+!!     x_hf_reset_cache_and_container
+!!
+!!   FUNCTION
+!!     - This routine resets the containers list pointer to the first element and
+!!       moves the element counters of container and cache to the beginning
+!!
+!!   NOTES
+!!     - 
+!!
+!!   INPUTS
+!!     - cache: cache from which we get the value
+!!     - container: container that contains the compressed elements
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     10.2007 created [Manuel Guidon]
+!!
+!!****************************************************************************
+
+  SUBROUTINE x_hf_reset_cache_and_container(cache, container)
+    TYPE(x_hf_cache_type)                    :: cache
+    TYPE(x_hf_container_type)                :: container
+
+    cache%element_counter = 1
+    container%current => container%first
+    container%element_counter = 1
+    container%list_counter = 1
+  END SUBROUTINE x_hf_reset_cache_and_container
+!***************************************************************************
+
+!!***** x_hf/x_hf_init_container[1.0] *
+!!
+!!   NAME
+!!     x_hf_reset_init_container
+!!
+!!   FUNCTION
+!!     - This routine deletes all list entries in a container in order to
+!!       deallocate the memory.
+!!
+!!   NOTES
+!!     - 
+!!
+!!   INPUTS
+!!     - container: container that contains the compressed elements
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     10.2007 created [Manuel Guidon]
+!!
+!!****************************************************************************
+
+  SUBROUTINE x_hf_init_container(container, error)
+    TYPE(x_hf_container_type)                :: container
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'x_hf_init_container', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+    TYPE(x_hf_container_node), POINTER       :: current, next
+
+    failure =.FALSE.
+
+    !! DEALLOCATE memory
+
+    current => container%first
+    DO WHILE(ASSOCIATED(current))
+      next => current%next
+      DEALLOCATE(current)
+      current=>next
+    END DO
+
+    !! Allocate first list entry, init members
+    ALLOCATE(container%first,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    container%first%prev => NULL()
+    container%first%next => NULL()
+    container%current => container%first
+    container%current%data = 0
+    container%element_counter = 1
+    container%list_counter = 1
+
+  END SUBROUTINE x_hf_init_container
+!***************************************************************************
+
+!!***** x_hf/x_hf_decompress_first_cache[1.0] *
+!!
+!!   NAME
+!!     x_hf_decompress_first_cache
+!!
+!!   FUNCTION
+!!     - This routine decompresses the first bunch of data in a container and
+!!       copies them into a cache
+!!
+!!   NOTES
+!!     - 
+!!
+!!   INPUTS
+!!     - nbits: number of bits with which the data has been stored
+!!     - cache: array where we want to decompress the data
+!!     - container: container that contains the compressed elements
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     10.2007 created [Manuel Guidon]
+!!
+!!****************************************************************************
+
+  SUBROUTINE x_hf_decompress_first_cache(nbits, cache, container)
+    INTEGER                                  :: nbits
+    TYPE(x_hf_cache_type)                    :: cache
+    TYPE(x_hf_container_type)                :: container
+
+    CALL x_hf_decompress_cache(cache%data(1), container, CACHE_SIZE, nbits)
+    cache%element_counter = 1
+  END SUBROUTINE x_hf_decompress_first_cache
+!***************************************************************************
+
+!!***** x_hf/x_hf_flush_last_cache[1.0] *
+!!
+!!   NAME
+!!     x_hf_flush_last_cache
+!!
+!!   FUNCTION
+!!     - This routine compresses the last probably not yet compressed cache into
+!!       a container
+!!
+!!   NOTES
+!!     - 
+!!
+!!   INPUTS
+!!     - nbits: number of bits with which the data has been stored
+!!     - cache: array where we want to decompress the data
+!!     - container: container that contains the compressed elements
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     10.2007 created [Manuel Guidon]
+!!
+!!****************************************************************************
+
+  SUBROUTINE x_hf_flush_last_cache(nbits, cache, container, error)
+    INTEGER                                  :: nbits
+    TYPE(x_hf_cache_type)                    :: cache
+    TYPE(x_hf_container_type)                :: container
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CALL x_hf_compress_cache(cache%data(1), container, CACHE_SIZE, nbits, error)
+  END SUBROUTINE x_hf_flush_last_cache
+!***************************************************************************
+
+!!***** x_hf/x_hf_add_multiple_cache_elements [1.0] *
+!!
+!!   NAME
+!!     x_hf_add_multiple_cache_elements
+!!
+!!   FUNCTION
+!!     - This routine adds an a few real values to a cache. If the cache is full
+!!       a compression routine is invoked and the cache is cleared
+!!
+!!   NOTES
+!!     - 
+!!
+!!   INPUTS
+!!     - values: values to be added to the cache
+!!     - nbits: number of bits to be stored
+!!     - cache: cache to which we want to add
+!!     - container: container that contains the compressed elements
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     10.2007 created [Manuel Guidon]
+!!
+!!****************************************************************************
+
+  SUBROUTINE x_hf_add_multiple_cache_elements(values, nints, nbits, cache, container, eps_schwarz, pmax_entry, error)
+    REAL(dp)                                 :: values(*)
+    INTEGER, INTENT(IN)                      :: nints, nbits
+    TYPE(x_hf_cache_type)                    :: cache
+    TYPE(x_hf_container_type)                :: container
+    REAL(dp), INTENT(IN)                     :: eps_schwarz, pmax_entry
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    INTEGER                                  :: end_idx, i, start_idx, &
+                                                tmp_elements
+    INTEGER(int_8)                           :: shift
+    REAL(dp)                                 :: eps_schwarz_inv, factor
+
+!! ASSUME nints< CACHE_SIZE
+
+    eps_schwarz_inv = 1.0_dp/eps_schwarz
+    factor = eps_schwarz/pmax_entry
+
+    shift = ISHFT(one,nbits-1)
+
+    start_idx = cache%element_counter
+    end_idx = start_idx + nints-1
+    IF(end_idx< CACHE_SIZE) THEN
+      
+      DO i=1,nints
+        values(i) = values(i)*pmax_entry
+        IF(ABS(values(i)) > eps_schwarz) THEN
+          cache%data(i+start_idx-1)= ANINT(values(i)*eps_schwarz_inv, dp) + shift
+          values(i) = ANINT(values(i)*eps_schwarz_inv, dp)*factor
+        ELSE
+          values(i) = 0.0_dp
+          cache%data(i+start_idx-1) = shift
+        END IF
+      END DO
+      cache%element_counter = end_idx + 1
+    ELSE
+      tmp_elements = CACHE_SIZE - start_idx + 1    
+      DO i=1,tmp_elements
+        values(i) = values(i)*pmax_entry
+        IF(ABS(values(i)) > eps_schwarz) THEN
+          cache%data(i+start_idx-1)= ANINT(values(i)*eps_schwarz_inv,dp) + shift
+          values(i) = ANINT(values(i)*eps_schwarz_inv,dp)*factor
+        ELSE
+          values(i) = 0.0_dp
+          cache%data(i+start_idx-1) = shift
+        END IF
+      END DO
+      CALL x_hf_compress_cache(cache%data(1), container, CACHE_SIZE, nbits, error)
+      DO i=tmp_elements+1, nints
+        values(i) = values(i)*pmax_entry
+        IF(ABS(values(i)) > eps_schwarz) THEN
+          cache%data(i-tmp_elements)= ANINT(values(i)*eps_schwarz_inv,dp) + shift
+          values(i) = ANINT(values(i)*eps_schwarz_inv,dp)*factor
+        ELSE
+          values(i) = 0.0_dp
+          cache%data(i-tmp_elements) = shift
+        END IF
+      END DO
+      cache%element_counter = nints-tmp_elements + 1 
+    END IF
+  END SUBROUTINE x_hf_add_multiple_cache_elements
+!***************************************************************************
+
+!!***** x_hf/x_hf_get_multiple_cache_elements [1.0] *
+!!
+!!   NAME
+!!     x_hf_get_multiple_cache_elements
+!!
+!!   FUNCTION
+!!     - This routine returns a bunch real values from a cache. If the cache is empty
+!!       a decompression routine is invoked and the cache is refilled with decompressed
+!!       values from a container
+!!
+!!   NOTES
+!!     - 
+!!
+!!   INPUTS
+!!     - values: value to be retained from the cache
+!!     - nints: number of values to be retained
+!!     - nbits: number of bits with which the value has been compressed
+!!     - cache: cache from which we get the value
+!!     - container: container that contains the compressed elements
+!!     - eps_schwarz: threshold for storage
+!!     - pmax_entry: multiplication factor for values
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     10.2007 created [Manuel Guidon]
+!!
+!!****************************************************************************
+
+  SUBROUTINE x_hf_get_multiple_cache_elements(values, nints, nbits, cache, container, eps_schwarz, pmax_entry, error)
+    REAL(dp)                                 :: values(*)
+    INTEGER, INTENT(IN)                      :: nints, nbits
+    TYPE(x_hf_cache_type)                    :: cache
+    TYPE(x_hf_container_type)                :: container
+    REAL(dp), INTENT(IN)                     :: eps_schwarz, pmax_entry
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    INTEGER                                  :: end_idx, i, start_idx, &
+                                                tmp_elements
+    INTEGER(int_8)                           :: shift
+    REAL(dp)                                 :: eps_schwarz_inv, factor, &
+                                                pmax_entry_inv
+
+!! ASSUME nints< CACHE_SIZE
+
+    eps_schwarz_inv = 1.0_dp/eps_schwarz
+    factor = eps_schwarz/pmax_entry
+
+    shift = ISHFT(one,nbits-1)
+
+    start_idx = cache%element_counter
+    end_idx = start_idx + nints-1
+    pmax_entry_inv = 1.0_dp/pmax_entry
+
+    IF(end_idx< CACHE_SIZE) THEN
+      DO i=1,nints
+        cache%data(i+start_idx-1) = (cache%data(i+start_idx-1) - shift)
+        values(i) = eps_schwarz*REAL(cache%data(i+start_idx-1),dp)
+        values(i) = values(i) * pmax_entry_inv
+      END DO
+      cache%element_counter = end_idx + 1
+    ELSE
+      tmp_elements = CACHE_SIZE - start_idx + 1
+      DO i=1,tmp_elements
+        cache%data(i+start_idx-1) = (cache%data(i+start_idx-1) - shift)
+        values(i) = eps_schwarz*REAL(cache%data(i+start_idx-1),dp)
+        values(i) = values(i) * pmax_entry_inv
+      END DO
+      CALL x_hf_decompress_cache(cache%data(1), container, CACHE_SIZE, nbits)
+      DO i=tmp_elements+1,nints
+        cache%data(i-tmp_elements) = (cache%data(i-tmp_elements) - shift)
+        values(i) = eps_schwarz*REAL(cache%data(i-tmp_elements),dp)
+        values(i) = values(i) * pmax_entry_inv
+      END DO
+      cache%element_counter = nints - tmp_elements + 1
+    END IF
+  END SUBROUTINE x_hf_get_multiple_cache_elements
+!***************************************************************************
+
+!!***** x_hf/x_hf_get_memory_info [1.0] *
+!!
+!!   NAME
+!!     x_hf_get_memory_info
+!!
+!!   FUNCTION
+!!     - Auxiliary function that returns the memory usage of a container
+!!
+!!   NOTES
+!!     - 
+!!
+!!   INPUTS
+!!     - container: container that contains the compressed elements
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     10.2007 created [Manuel Guidon]
+!!
+!!****************************************************************************
+
+  FUNCTION x_hf_get_memory_info(container, error)
+    TYPE(x_hf_container_type)                :: container
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    INTEGER(int_8)                           :: x_hf_get_memory_info
+
+    INTEGER(int_8)                           :: nlist_entries
+
+    nlist_entries = container%list_counter
+    x_hf_get_memory_info = nlist_entries * CACHE_SIZE
+
+  END FUNCTION x_hf_get_memory_info
 END MODULE x_hf
 
 

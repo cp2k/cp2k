@@ -34,10 +34,9 @@ MODULE libint_interface
   USE mathconstants
   USE orbital_pointers
   USE kinds,                           ONLY: dp
-  USE x_hf,                            ONLY: x_hf_potential_type,&
-                                             x_hf_cell_type
+  USE x_hf,                            ONLY: x_hf_potential_type
 
-#include "cp_common_uses.h"      
+#include "cp_common_uses.h"
  
   IMPLICIT NONE
   PRIVATE
@@ -375,7 +374,7 @@ MODULE libint_interface
                           n_a,n_b,n_c,n_d,&
                           ncoa,ncob,ncoc,ncod,&
                           offset_a,offset_b,offset_c,offset_d,&
-                          primitives,potential_parameter)
+                          primitives,potential_parameter, max_contraction, tmp_max, eps_schwarz)
     
     TYPE(lib_int)                           :: lib
     REAL(dp), INTENT(IN),TARGET             :: A(3), B(3), C(3), D(3)
@@ -384,6 +383,7 @@ MODULE libint_interface
     INTEGER, INTENT(IN)                     :: ncoa,ncob,ncoc,ncod,offset_a,offset_b,offset_c,offset_d
     REAL(dp), DIMENSION(ncoa,ncob,ncoc,ncod):: primitives
     TYPE(x_hf_potential_type)               :: potential_parameter
+    REAL(dp)                                :: max_contraction, tmp_max, eps_schwarz
  
 #if defined(__LIBINT)
     INTEGER                                  :: i,j,k,l, perm_case, p1, p2, p3
@@ -394,6 +394,7 @@ MODULE libint_interface
     PROCEDURE(build), POINTER                :: pbuild
     TYPE(C_PTR)                              :: pc_result 
     REAL(dp), DIMENSION(:), POINTER          :: p_work
+   
 
 
     m_max = n_a+n_b+n_c+n_d
@@ -421,6 +422,11 @@ MODULE libint_interface
           CALL C_F_PROCPOINTER(build_eri(n_d,n_c,n_b,n_a),pbuild)
           pc_result = pbuild(lib,1)
           CALL C_F_POINTER(pc_result, p_work, a_mysize)
+          DO i=1,mysize
+            tmp_max = MAX(tmp_max, ABS(p_work(i)))
+          END DO
+          tmp_max = tmp_max*max_contraction
+          IF(tmp_max<eps_schwarz) RETURN
           DO i = 1,nco(n_a)
             p1 = (i-1) *nco(n_b)
             DO j = 1,nco(n_b)
@@ -449,6 +455,12 @@ MODULE libint_interface
           CALL C_F_PROCPOINTER(build_eri(n_d,n_c,n_a,n_b),pbuild)
           pc_result = pbuild(lib,1)
           CALL C_F_POINTER(pc_result, p_work, a_mysize)
+          DO i=1,mysize
+            tmp_max = MAX(tmp_max, ABS(p_work(i)))
+          END DO
+          tmp_max = tmp_max*max_contraction
+          IF(tmp_max<eps_schwarz) RETURN
+
           DO j = 1,nco(n_b)
             p1 = (j-1)*nco(n_a)
             DO i = 1,nco(n_a)
@@ -477,6 +489,12 @@ MODULE libint_interface
           CALL C_F_PROCPOINTER(build_eri(n_c,n_d,n_b,n_a),pbuild)
           pc_result = pbuild(lib,1)
           CALL C_F_POINTER(pc_result, p_work, a_mysize)
+          DO i=1,mysize
+            tmp_max = MAX(tmp_max, ABS(p_work(i)))
+          END DO
+          tmp_max = tmp_max*max_contraction
+          IF(tmp_max<eps_schwarz) RETURN
+
           DO i = 1,nco(n_a)
             p1 = (i-1)*nco(n_b)
             DO j = 1,nco(n_b)
@@ -505,6 +523,12 @@ MODULE libint_interface
           CALL C_F_PROCPOINTER(build_eri(n_c,n_d,n_a,n_b),pbuild)
           pc_result = pbuild(lib,1)
           CALL C_F_POINTER(pc_result, p_work, a_mysize)
+          DO i=1,mysize
+            tmp_max = MAX(tmp_max, ABS(p_work(i)))
+          END DO
+          tmp_max = tmp_max*max_contraction
+          IF(tmp_max<eps_schwarz) RETURN
+
           DO j = 1,nco(n_b)
             p1 = (j-1)*nco(n_a)
             DO i = 1,nco(n_a)
@@ -533,6 +557,12 @@ MODULE libint_interface
           CALL C_F_PROCPOINTER(build_eri(n_b,n_a,n_d,n_c),pbuild)
           pc_result = pbuild(lib,1)
           CALL C_F_POINTER(pc_result, p_work, a_mysize)
+          DO i=1,mysize
+            tmp_max = MAX(tmp_max, ABS(p_work(i)))
+          END DO
+          tmp_max = tmp_max*max_contraction
+          IF(tmp_max<eps_schwarz) RETURN
+
           DO k = 1,nco(n_c)
             p1 = (k-1)*nco(n_d)
             DO l = 1,nco(n_d)
@@ -561,6 +591,12 @@ MODULE libint_interface
           CALL C_F_PROCPOINTER(build_eri(n_a,n_b,n_d,n_c),pbuild)
           pc_result = pbuild(lib,1)
           CALL C_F_POINTER(pc_result, p_work, a_mysize)
+          DO i=1,mysize
+            tmp_max = MAX(tmp_max, ABS(p_work(i)))
+          END DO
+          tmp_max = tmp_max*max_contraction
+          IF(tmp_max<eps_schwarz) RETURN
+
           DO k = 1,nco(n_c)
             p1 = (k-1)*nco(n_d)
             DO l = 1,nco(n_d)
@@ -589,6 +625,12 @@ MODULE libint_interface
           CALL C_F_PROCPOINTER(build_eri(n_b,n_a,n_c,n_d),pbuild)
           pc_result = pbuild(lib,1)
           CALL C_F_POINTER(pc_result, p_work, a_mysize)
+          DO i=1,mysize
+            tmp_max = MAX(tmp_max, ABS(p_work(i)))
+          END DO
+          tmp_max = tmp_max*max_contraction
+          IF(tmp_max<eps_schwarz) RETURN
+
           DO l = 1,nco(n_d)
             p1 = (l-1)*nco(n_c)
             DO k = 1,nco(n_c)
@@ -617,6 +659,12 @@ MODULE libint_interface
           CALL C_F_PROCPOINTER(build_eri(n_a,n_b,n_c,n_d),pbuild)
           pc_result = pbuild(lib,1)
           CALL C_F_POINTER(pc_result, p_work, a_mysize)
+          DO i=1,mysize
+            tmp_max = MAX(tmp_max, ABS(p_work(i)))
+          END DO
+          tmp_max = tmp_max*max_contraction
+          IF(tmp_max<eps_schwarz) RETURN
+
           DO l = 1,nco(n_d)
             p1 = (l-1)*nco(n_c)
             DO k = 1,nco(n_c)
@@ -642,6 +690,7 @@ MODULE libint_interface
                             potential_parameter, prim)
       primitives(offset_a+1,offset_b+1,offset_c+1,offset_d+1) = &
         primitives(offset_a+1,offset_b+1,offset_c+1,offset_d+1)+prim%F(1)
+      tmp_max = max_contraction*ABS(prim%F(1))
     END IF
 #endif
   END SUBROUTINE evaluate_eri
@@ -677,30 +726,39 @@ MODULE libint_interface
     TYPE(x_hf_potential_type)          :: potential_parameter 
     TYPE(prim_data)                    :: prim
 
-    REAL(KIND=C_DOUBLE)                :: P(3), Q(3), W(3), AB(3), CD(3), PQ(3), C1(3), D1(3)
+    REAL(KIND=C_DOUBLE)                :: P(3), Q(3), W(3), AB(3), CD(3), PQ(3)
     REAL(KIND=C_DOUBLE)                :: Zeta, Eta, Rho
-    REAL(KIND=C_DOUBLE)                :: AB2, CD2, PQ2,factor,shift(3), temp(3)
+    REAL(KIND=C_DOUBLE)                :: AB2, CD2, PQ2,factor
     REAL(KIND=C_DOUBLE)                :: S1234, T, omega_corr2, omega_corr, omega2, tmp
     REAL(KIND=C_DOUBLE), DIMENSION(17) :: Fm
     INTEGER                            :: i
+    REAL(KIND=C_DOUBLE)                :: ZetapEtaInv, ZetaInv, EtaInv, RhoInv
+
 
     Zeta = Zeta_A + Zeta_B
+    ZetaInv = 1.0_dp/Zeta
     Eta  = Zeta_C + Zeta_D
-    Rho  = Zeta*Eta/(Zeta+Eta)
-    
-    P = (Zeta_A*A + Zeta_B*B)/Zeta
-    Q = (Zeta_C*C + Zeta_D*D)/Eta
-    AB = A-B
-    CD = C-D
-    PQ = P-Q
+    EtaInv = 1.0_dp/Eta
+    ZetapEtaInv = Zeta+Eta
+    ZetapEtaInv = 1.0_dp/ZetapEtaInv
+    Rho  = Zeta*Eta*ZetapEtaInv
+    RhoInv = 1.0_dp/Rho
+
+    DO i=1,3
+      P(i) = (Zeta_A*A(i) + Zeta_B*B(i))*ZetaInv
+      Q(i) = (Zeta_C*C(i) + Zeta_D*D(i))*EtaInv
+      AB(i) = A(i)-B(i)
+      CD(i) = C(i)-D(i)
+      PQ(i) = P(i)-Q(i)
+      W(i) = (Zeta*P(i) + Eta*Q(i))*ZetapEtaInv
+    END DO
    
-    W = (Zeta*P + Eta*Q)/(Zeta+Eta)
     AB2 = DOT_PRODUCT(AB,AB)
     CD2 = DOT_PRODUCT(CD,CD)
     PQ2 = DOT_PRODUCT(PQ,PQ)
     
 
-    S1234= EXP((-Zeta_A*Zeta_B/Zeta*AB2)+(-Zeta_C*Zeta_D/Eta*CD2))
+    S1234= EXP((-Zeta_A*Zeta_B*ZetaInv*AB2)+(-Zeta_C*Zeta_D*EtaInv*CD2))
     T = Rho*PQ2
 
     SELECT CASE(potential_parameter%potential_type)
@@ -731,30 +789,30 @@ MODULE libint_interface
         END DO
     END SELECT
 
-    factor = 2.0_dp*Pi/Rho 
-    tmp    = (Pi/(Eta+Zeta))**3
+    factor = 2.0_dp*Pi*RhoInv 
+    tmp    = (Pi*ZetapEtaInv)**3
     factor = factor*S1234*SQRT(tmp)
 
     DO i=1,m_max+1
        prim%F(i)=prim%F(i)*factor
     ENDDO
-    prim%U(:,1) = P-A
-    prim%U(:,2) = P-B                 !Not used in libint
-    prim%U(:,3) = Q-C
-    prim%U(:,4) = Q-D                 !Not used in libint
-    prim%U(:,5) = W-P
-    prim%U(:,6) = W-Q
-    prim%twozeta_a = 0.0_dp                      !Not used in libint
-    prim%twozeta_b = 0.0_dp                      !Not used in libint
-    prim%twozeta_c = 0.0_dp                      !Not used in libint 
-    prim%twozeta_d = 0.0_dp                      !Not used in libint
-    prim%oo2z      = 1.0_dp/(2.0_dp*Zeta)
-    prim%oo2n      = 1.0_dp/(2.0_dp*Eta)
-    prim%oo2zn     = 1.0_dp/(2.0_dp*(Zeta+Eta))
-    prim%poz       = Rho/Zeta
-    prim%pon       = Rho/Eta
-    prim%oo2p      = 1.0_dp/(2.0_dp*Rho)
-    prim%ss_r12_ss = 0.0_dp                      !Not used in libint,libderiv
+    prim%U(1:3,1) = P-A
+!    prim%U(1:3,2) = P-B                 !Not used in libint
+    prim%U(1:3,3) = Q-C
+!    prim%U(1:3,4) = Q-D                 !Not used in libint
+    prim%U(1:3,5) = W-P
+    prim%U(1:3,6) = W-Q
+!    prim%twozeta_a = 0.0_dp                      !Not used in libint
+!    prim%twozeta_b = 0.0_dp                      !Not used in libint
+!    prim%twozeta_c = 0.0_dp                      !Not used in libint 
+!    prim%twozeta_d = 0.0_dp                      !Not used in libint
+    prim%oo2z      = 0.5_dp*ZetaInv
+    prim%oo2n      = 0.5_dp*EtaInv
+    prim%oo2zn     = 0.5_dp*ZetapEtaInv
+    prim%poz       = Rho*ZetaInv
+    prim%pon       = Rho*EtaInv
+    prim%oo2p      = 0.5_dp*RhoInv
+!    prim%ss_r12_ss = 0.0_dp                      !Not used in libint,libderiv
   END SUBROUTINE build_quartet_data
 #endif 
 !***************************************************************************
@@ -780,51 +838,48 @@ MODULE libint_interface
 
 #if defined(__LIBINT)
   SUBROUTINE build_deriv_data(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max,&
-                            potential_parameter, prim, do_periodic, box_size, shift1)
+                            potential_parameter, prim)
      
     REAL(KIND=C_DOUBLE)                :: A(3), B(3), C(3), D(3)
     REAL(KIND=C_DOUBLE), INTENT(IN)    :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
     INTEGER(KIND=C_INT), INTENT(IN)    :: m_max
     TYPE(x_hf_potential_type)          :: potential_parameter
     TYPE(prim_data)                    :: prim
-    LOGICAL, INTENT(IN)                :: do_periodic
-    REAL(dp), INTENT(IN), OPTIONAL     :: box_size(3), shift1(3)
 
 
-    REAL(KIND=C_DOUBLE)                :: P(3), Q(3), W(3), AB(3), CD(3), PQ(3), C1(3), D1(3), shift(3)
+    REAL(KIND=C_DOUBLE)                :: P(3), Q(3), W(3), AB(3), CD(3), PQ(3), C1(3), D1(3)
     REAL(KIND=C_DOUBLE)                :: Zeta, Eta, Rho, tmp
     REAL(KIND=C_DOUBLE)                :: AB2, CD2, PQ2,factor
     REAL(KIND=C_DOUBLE)                :: T, omega_corr2, omega_corr, omega2, S1234
     REAL(KIND=C_DOUBLE), DIMENSION(17) :: Fm
     INTEGER                            :: i
+    REAL(KIND=C_DOUBLE)                :: ZetapEtaInv, ZetaInv, EtaInv, RhoInv
 
     Zeta = Zeta_A + Zeta_B
+    ZetaInv = 1.0_dp/Zeta
     Eta  = Zeta_C + Zeta_D
-    Rho  = Zeta*Eta/(Zeta+Eta)
+    EtaInv = 1.0_dp /Eta
+    ZetapEtaInv = Zeta+Eta
+    ZetapEtaInv = 1.0_dp/ZetapEtaInv
+    Rho  = Zeta*Eta*ZetapEtaInv
+    RhoInv = 1.0_dp/Rho
 
-    C1 = C
-    D1 = D
-    P = (Zeta_A*A + Zeta_B*B)/Zeta
-    Q = (Zeta_C*C + Zeta_D*D)/Eta
-    AB = A-B
-    CD = C-D
-    IF( do_periodic ) THEN
-      CALL pbc(P-Q,box_size,PQ)
-      shift = -PQ + P-Q
-      C = C + shift + shift1
-      D = D + shift + shift1
-      Q = (Zeta_C*C + Zeta_D*D)/Eta
-      PQ = P-Q
-    ELSE
-      PQ = P-Q
-    END IF
+    DO i=1,3
+      C1(i) = C(i) 
+      D1(i) = D(i)
+      P(i) = (Zeta_A*A(i) + Zeta_B*B(i))*ZetaInv
+      Q(i) = (Zeta_C*C(i) + Zeta_D*D(i))*EtaInv
+      AB(i) = A(i)-B(i)
+      CD(i) = C(i)-D(i)
+      PQ(i) = P(i)-Q(i)
+      W(i) = (Zeta*P(i) + Eta*Q(i))*ZetapEtaInv
+    END DO 
 
-    W = (Zeta*P + Eta*Q)/(Zeta+Eta)
     AB2 = DOT_PRODUCT(AB,AB)
     CD2 = DOT_PRODUCT(CD,CD)
     PQ2 = DOT_PRODUCT(PQ,PQ)
 
-    S1234= EXP((-Zeta_A*Zeta_B/Zeta*AB2)+(-Zeta_C*Zeta_D/Eta*CD2))
+    S1234= EXP((-Zeta_A*Zeta_B*ZetaInv*AB2)+(-Zeta_C*Zeta_D*EtaInv*CD2))
     T = Rho*PQ2
 
     SELECT CASE(potential_parameter%potential_type)
@@ -851,8 +906,8 @@ MODULE libint_interface
         END DO
     END SELECT
 
-    factor = 2.0_dp*Pi/Rho
-    tmp = (Pi/(Eta+Zeta))**3
+    factor = 2.0_dp*Pi*RhoInv
+    tmp = (Pi*ZetapEtaInv)**3
     factor = factor*S1234*SQRT(tmp)
 
     DO i=1,m_max+1
@@ -868,13 +923,13 @@ MODULE libint_interface
     prim%twozeta_b = 2.0_dp*Zeta_B
     prim%twozeta_c = 2.0_dp*Zeta_C
     prim%twozeta_d = 2.0_dp*Zeta_D
-    prim%oo2z      = 1.0_dp/(2.0_dp*Zeta)
-    prim%oo2n      = 1.0_dp/(2.0_dp*Eta)
-    prim%oo2zn     = 1.0_dp/(2.0_dp*(Zeta+Eta))
-    prim%poz       = Rho/Zeta
-    prim%pon       = Rho/Eta
-    prim%oo2p      = 1.0_dp/(2.0_dp*Rho)
-    prim%ss_r12_ss = 0.0_dp                      !Not used in libint,libderiv
+    prim%oo2z      = 0.5_dp*ZetaInv
+    prim%oo2n      = 0.5_dp*EtaInv
+    prim%oo2zn     = 0.5_dp*ZetapEtaInv
+    prim%poz       = Rho*ZetaInv
+    prim%pon       = Rho*EtaInv
+    prim%oo2p      = 0.5_dp*RhoInv
+!    prim%ss_r12_ss = 0.0_dp                      !Not used in libint,libderiv
 
     C = C1
     D = D1
@@ -907,7 +962,7 @@ MODULE libint_interface
                                 ncoa, ncob, ncoc, ncod,&
                                 primitive_forces,&
                                 offset_a, offset_b, offset_c, offset_d,&
-                                potential_parameter)
+                                potential_parameter, max_contraction, tmp_max_all, eps_schwarz)
     
     TYPE(lib_deriv)                         :: deriv
     REAL(dp), INTENT(IN),TARGET             :: A(3), B(3), C(3), D(3)
@@ -919,6 +974,7 @@ MODULE libint_interface
                                             :: primitive_forces
     INTEGER, INTENT(IN)                     :: offset_a, offset_b, offset_c, offset_d
     TYPE(x_hf_potential_type)               :: potential_parameter
+    REAL(dp)                                :: max_contraction, tmp_max_all, eps_schwarz
 #if defined(__LIBINT)
     INTEGER                                 :: i,j,k,l
     TYPE(prim_data),TARGET                  :: prim
@@ -931,6 +987,7 @@ MODULE libint_interface
     REAL(C_DOUBLE), DIMENSION(:), POINTER   :: tmp_data
    
     INTEGER                                 :: perm_case, p1, p2, p3,n
+    REAL(dp)                                :: tmp_max
     !permutation of configuration
 
     
@@ -955,7 +1012,7 @@ MODULE libint_interface
     SELECT CASE(perm_case)
       CASE(1)
         CALL build_deriv_data(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max,&
-                          potential_parameter, prim, do_periodic=.FALSE.)
+                          potential_parameter, prim)
         deriv%PrimQuartet = C_LOC(prim)
         deriv%AB=A-B
         deriv%CD=C-D
@@ -977,6 +1034,14 @@ MODULE libint_interface
           ENDDO
         END DO
         DO n=1,12
+          tmp_max = 0.0_dp
+          DO i=1,mysize
+            tmp_max = MAX(tmp_max, ABS(work_forces(i,n)))
+          END DO
+          tmp_max = tmp_max*max_contraction
+          tmp_max_all = MAX(tmp_max_all, tmp_max)
+          IF(tmp_max<eps_schwarz) CYCLE
+
           DO i = 1,nco(n_a)
             p1 = (i-1) *nco(n_b)
             DO j = 1,nco(n_b)
@@ -994,7 +1059,7 @@ MODULE libint_interface
         END DO
       CASE(2)
         CALL build_deriv_data(B,A,C,D,Zeta_B, Zeta_A, Zeta_C, Zeta_D, m_max,&
-                           potential_parameter, prim, do_periodic=.FALSE.)
+                           potential_parameter, prim)
         deriv%PrimQuartet = C_LOC(prim)
         deriv%AB=B-A
         deriv%CD=C-D
@@ -1016,6 +1081,14 @@ MODULE libint_interface
           ENDDO
         END DO
         DO n=1,12
+          tmp_max = 0.0_dp
+          DO i=1,mysize
+            tmp_max = MAX(tmp_max, ABS(work_forces(i,n)))
+          END DO
+          tmp_max = tmp_max*max_contraction
+          tmp_max_all = MAX(tmp_max_all, tmp_max)
+          IF(tmp_max<eps_schwarz) CYCLE
+
           DO j = 1,nco(n_b)
             p1 = (j-1)*nco(n_a)
             DO i = 1,nco(n_a)
@@ -1033,7 +1106,7 @@ MODULE libint_interface
         END DO
      CASE(3)
         CALL build_deriv_data(A,B,D,C,Zeta_A, Zeta_B, Zeta_D, Zeta_C, m_max,&
-                          potential_parameter, prim, do_periodic=.FALSE.)
+                          potential_parameter, prim)
         deriv%PrimQuartet = C_LOC(prim)
         deriv%AB=A-B
         deriv%CD=D-C
@@ -1055,6 +1128,14 @@ MODULE libint_interface
            ENDDO
         END DO
         DO n=1,12
+          tmp_max = 0.0_dp
+          DO i=1,mysize
+            tmp_max = MAX(tmp_max, ABS(work_forces(i,n)))
+          END DO
+          tmp_max = tmp_max*max_contraction
+          tmp_max_all = MAX(tmp_max_all, tmp_max)
+          IF(tmp_max<eps_schwarz) CYCLE
+
           DO i = 1,nco(n_a)
             p1 = (i-1)*nco(n_b)
             DO j = 1,nco(n_b)
@@ -1072,7 +1153,7 @@ MODULE libint_interface
         END DO
       CASE(4)
         CALL build_deriv_data(B,A,D,C,Zeta_B, Zeta_A, Zeta_D, Zeta_C, m_max,&
-                          potential_parameter, prim, do_periodic=.FALSE.)
+                          potential_parameter, prim)
         deriv%PrimQuartet = C_LOC(prim)
         deriv%AB=B-A
         deriv%CD=D-C
@@ -1093,7 +1174,15 @@ MODULE libint_interface
                                                work_forces(i,k+6) )
            ENDDO
         END DO
-        DO n=1,12
+        DO n=1,12          
+          tmp_max = 0.0_dp
+          DO i=1,mysize
+            tmp_max = MAX(tmp_max, ABS(work_forces(i,n)))
+          END DO
+          tmp_max = tmp_max*max_contraction
+          tmp_max_all = MAX(tmp_max_all, tmp_max)
+          IF(tmp_max<eps_schwarz) CYCLE
+
           DO j = 1,nco(n_b)
             p1 = (j-1)*nco(n_a)
             DO i = 1,nco(n_a)
@@ -1111,7 +1200,7 @@ MODULE libint_interface
         END DO
       CASE(5)
         CALL build_deriv_data(C,D,A,B,Zeta_C, Zeta_D, Zeta_A, Zeta_B, m_max,&
-                          potential_parameter, prim, do_periodic=.FALSE.)
+                          potential_parameter, prim)
         deriv%PrimQuartet = C_LOC(prim)
         deriv%AB=C-D
         deriv%CD=A-B
@@ -1133,6 +1222,14 @@ MODULE libint_interface
            ENDDO
         END DO
         DO n=1,12
+          tmp_max = 0.0_dp
+          DO i=1,mysize
+            tmp_max = MAX(tmp_max, ABS(work_forces(i,n)))
+          END DO
+          tmp_max = tmp_max*max_contraction
+          tmp_max_all = MAX(tmp_max_all, tmp_max)
+          IF(tmp_max<eps_schwarz) CYCLE
+
           DO k = 1,nco(n_c)
             p1 = (k-1)*nco(n_d)
             DO l = 1,nco(n_d)
@@ -1150,7 +1247,7 @@ MODULE libint_interface
         END DO
       CASE(6)
         CALL build_deriv_data(C,D,B,A,Zeta_C, Zeta_D, Zeta_B, Zeta_A, m_max,&
-                          potential_parameter, prim, do_periodic=.FALSE.)
+                          potential_parameter, prim)
         deriv%PrimQuartet = C_LOC(prim)
         deriv%AB=C-D
         deriv%CD=B-A
@@ -1172,6 +1269,14 @@ MODULE libint_interface
           ENDDO
         END DO
         DO n=1,12
+          tmp_max = 0.0_dp
+          DO i=1,mysize
+            tmp_max = MAX(tmp_max, ABS(work_forces(i,n)))
+          END DO
+          tmp_max = tmp_max*max_contraction
+          tmp_max_all = MAX(tmp_max_all, tmp_max)
+          IF(tmp_max<eps_schwarz) CYCLE
+
           DO k = 1,nco(n_c)
             p1 = (k-1)*nco(n_d)
             DO l = 1,nco(n_d)
@@ -1189,7 +1294,7 @@ MODULE libint_interface
         END DO
       CASE(7)
         CALL build_deriv_data(D,C,A,B,Zeta_D, Zeta_C, Zeta_A, Zeta_B, m_max,&
-                          potential_parameter, prim, do_periodic=.FALSE.)
+                          potential_parameter, prim)
         deriv%PrimQuartet = C_LOC(prim)
         deriv%AB=D-C
         deriv%CD=A-B
@@ -1211,6 +1316,14 @@ MODULE libint_interface
            ENDDO
         END DO
         DO n=1,12
+          tmp_max = 0.0_dp
+          DO i=1,mysize
+            tmp_max = MAX(tmp_max, ABS(work_forces(i,n)))
+          END DO
+          tmp_max = tmp_max*max_contraction
+          tmp_max_all = MAX(tmp_max_all, tmp_max)
+          IF(tmp_max<eps_schwarz) CYCLE
+
           DO l = 1,nco(n_d)
             p1 = (l-1)*nco(n_c)
             DO k = 1,nco(n_c)
@@ -1228,7 +1341,7 @@ MODULE libint_interface
         END DO
       CASE(8)
         CALL build_deriv_data(D,C,B,A,Zeta_D, Zeta_C, Zeta_B, Zeta_A, m_max,&
-                          potential_parameter, prim, do_periodic=.FALSE.)
+                          potential_parameter, prim)
         deriv%PrimQuartet = C_LOC(prim)
         deriv%AB=D-C
         deriv%CD=B-A
@@ -1250,6 +1363,14 @@ MODULE libint_interface
            ENDDO
         END DO
         DO n=1,12
+          tmp_max = 0.0_dp
+          DO i=1,mysize
+            tmp_max = MAX(tmp_max, ABS(work_forces(i,n)))
+          END DO
+          tmp_max = tmp_max*max_contraction
+          tmp_max_all = MAX(tmp_max_all, tmp_max)
+          IF(tmp_max<eps_schwarz) CYCLE
+
           DO l = 1,nco(n_d)
             p1 = (l-1)*nco(n_c)
             DO k = 1,nco(n_c)
