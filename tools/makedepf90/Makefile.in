@@ -70,19 +70,19 @@ LIBOBJS = @LIBOBJS@
 .c.o:
 	$(CC) -c $(CFLAGS) $(CPPFLAGS) $<
 
-.l.c:
-	$(LEX) $(LFLAGS) -t $< > $@
-
-.y.c:
-	$(YACC) -d $(YFLAGS) $<
-	mv y.tab.c $@
-	mv y.tab.h $*.h
-
-.y.h: 
-	$(YACC) -d $(YFLAGS) $<
-	mv y.tab.h $@
-	mv y.tab.c $*.c
-
+#.l.c:
+#	$(LEX) $(LFLAGS) -t $< > $@
+#
+#.y.c:
+#	$(YACC) -d $(YFLAGS) $<
+#	mv y.tab.c $@
+#	mv y.tab.h $*.h
+#
+#.y.h: 
+#	$(YACC) -d $(YFLAGS) $<
+#	mv y.tab.h $@
+#	mv y.tab.c $*.c
+#
 
 $(PROG): $(OBJ)
 	$(CC) -o $@ $(CPPFLAGS) $(CFLAGS) $(OBJ) $(LIBOBJS) $(LIBS)
