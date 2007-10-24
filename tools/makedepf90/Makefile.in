@@ -58,7 +58,7 @@ SRC = $(SRC_H) $(SRC_C) $(SRC_Y) $(SRC_L)
 EXTRA_SRC = strcasecmp.c
 
 DISTFILES = $(SRC) lexer.c find_dep.h find_dep.c Makefile.in configure.in \
-            configure makedepf90.1 COPYING NEWS README Makefile.def .depend \
+            configure makedepf90.1 COPYING NEWS README Makefile.def depend \
 	    $(EXTRA_SRC) install-sh config.h.in config.h
 
 OBJ = ${SRC_C:.c=.o} $(SRC_Y:.y=.o) $(SRC_L:.l=.o)
@@ -87,7 +87,7 @@ LIBOBJS = @LIBOBJS@
 $(PROG): $(OBJ)
 	$(CC) -o $@ $(CPPFLAGS) $(CFLAGS) $(OBJ) $(LIBOBJS) $(LIBS)
 
-include .depend
+include depend
 
 clean:
 	rm -f *.o $(PROG) gmon.out gmon.sum 
@@ -127,8 +127,8 @@ test: $(PROG)
 	(cd testdir/optI; bash optI.sh)
 	(cd testdir/glurr; bash glurr.sh)
 
-depend .depend: lexer.c find_dep.c find_dep.h
-	$(CC) -MM *.c > .depend
+#depend .depend: lexer.c find_dep.c find_dep.h
+#	$(CC) -MM *.c > .depend
 #
 #lexer.c: lexer.l
 #find_dep.h find_dep.c: find_dep.y
