@@ -73,3 +73,10 @@ CH-hfx-md-2.inp
 CH-hfx-pbc-md.inp
 #
 CH-hfx-pbc-md.inp
+#reset due to compression
+CH-hfx-md-2.inp
+CH-hfx-md.inp
+CH-hfx-pbc-md.inp
+H2O-hfx-1.inp
+H2O-hfx-2.inp
+H2O-hfx-3.inp
