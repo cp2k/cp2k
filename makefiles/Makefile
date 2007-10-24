@@ -1,7 +1,11 @@
-.SUFFIXES: .F .dep .o .f90 .for
+.SUFFIXES: .F .dep .o .f90 
 SHELL = /bin/sh
+#
 # the home dir is taken from the current directory: you must cd to the makefiles
-# directory before executing make
+# directory before executing make.
+# adding a symbolic link from the src directory to the Makefile in makefiles/ 
+# also works fine
+#
 CP2KHOME  := $(PWD)/..
 ARCH      := $(shell $(CP2KHOME)/tools/get_arch_code)
 SMAKE     = $(MAKE) -r
@@ -22,9 +26,7 @@ TOOLDIR      = $(OBJDIR)/tools
 TOOLSRC      = $(CP2KHOME)/tools
 SRCDIR       = $(CP2KHOME)/src
 SRCDIRS      = $(SRCDIR):$(SRCDIR)/lib:$(TOOLSRC)/Fist/topology_converter::$(TOOLSRC)/metadyn
-FORPAR       = $(TOOLDIR)/forpar.x -chkint
 MAKEFILE     = $(CP2KHOME)/makefiles/Makefile
-SFMAKEDEPEND = $(CP2KHOME)/tools/sfmakedepend -m int -s -f
 MACHINEDEFS  = $(ARCHDIR)/$(ARCH).$(VERSION)
 PROG         = $(EXEDIR)/cp2k.$(VERSION)
 LEAP2FIST    = $(EXEDIR)/leap2fist.$(VERSION)
@@ -33,6 +35,7 @@ EXEDIR       = $(MAINEXEDIR)/$(ARCH)
 LIBDIR       = $(MAINLIBDIR)/$(ARCH)
 OBJDIR       = $(MAINOBJDIR)/$(ARCH)
 OBJECTDEFS   = $(SRCDIR)/OBJECTDEFS
+LIBOBJECTDEFS= $(SRCDIR)/lib/OBJECTDEFS
 LIB1_ARCHIVE = $(LIBDIR)/$(VERSION)/lib$(LIB1).a
 LIB2_ARCHIVE = $(LIBDIR)/$(VERSION)/lib$(LIB2).a
 LIB_CP2K_ARCHIVE  = $(LIBDIR)/$(VERSION)/lib$(LIBCP2K).a
@@ -41,7 +44,6 @@ LEAPOBJECTDEFS = $(TOOLSRC)/Fist/topology_converter/OBJECTDEFS
 FESOBJECTDEFS  = $(TOOLSRC)/metadyn/OBJECTDEFS
 
 ### Definition of the multiple targets ###
-
 VERSION_TARGETS = sopt sdbg popt pdbg ssmp psmp
 LIB_TARGETS = sopt/lib sdbg/lib popt/lib pdbg/lib ssmp/lib psmp/lib
 ALL_TARGETS = sopt/all sdbg/all popt/all pdbg/all ssmp/all psmp/all
@@ -49,21 +51,30 @@ CLEAN_TARGETS   = sopt/clean sdbg/clean popt/clean pdbg/clean ssmp/clean psmp/cl
                   sopt/realclean sdbg/realclean popt/realclean pdbg/realclean\
                   ssmp/realclean psmp/realclean
 .PHONY : _all libs _progr _lib build clean realclean distclean $(CLEAN_TARGETS)\
-         $(ALL_TARGETS) $(LIB_TARGETS) $(VERSION_TARGETS) dependencies leap2fist\
-         leapdep fes fesdep
-### Master rules ###
+         $(ALL_TARGETS) $(LIB_TARGETS) $(VERSION_TARGETS) leap2fist fes dirs deptool
 
-build:
+### Master rules ###
+build: dirs deptool
+	$(SMAKE) -C $(SRCDIR) -f $(MAKEFILE) all.dep
+	$(SMAKE) -C $(SRCDIR)/lib -f $(MAKEFILE) lib.dep
+	$(PMAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) $(WHAT)
+
+leap2fist: dirs deptool
+	$(SMAKE) -C $(TOOLSRC)/Fist/topology_converter/ -f $(MAKEFILE) leap2fist.dep
+	$(PMAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) VERSION=$(VERSION) $(LEAP2FIST) 
+
+fes: dirs deptool
+	$(SMAKE) -C $(TOOLSRC)/metadyn/  -f $(MAKEFILE) fes.dep
+	$(PMAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) VERSION=$(VERSION) $(FES) 
+
+dirs:
 	@mkdir -p $(EXEDIR)
 	@mkdir -p $(LIBDIR)/$(VERSION)
 	@mkdir -p $(TOOLDIR)
 	@mkdir -p $(OBJDIR)/$(VERSION)
-	@echo
-	@echo "*** machine file = $(MACHINEDEFS)"
-	@echo
-	$(SMAKE) -C $(TOOLDIR) -f $(TOOLSRC)/Makefile SRCDIR=$(TOOLSRC) CC=$(CC)
-	$(SMAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) dependencies
-	$(PMAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) $(WHAT)
+
+deptool: dirs
+	$(SMAKE) -C $(TOOLDIR) -f $(MAKEFILE) makedepf90
 
 libs:
 	$(SMAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=_lib build
@@ -71,30 +82,6 @@ all:
 	$(SMAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=_all build
 progr:
 	$(SMAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=_progr build
-
-leap2fist:
-	@mkdir -p $(EXEDIR)
-	@mkdir -p $(LIBDIR)/$(VERSION)
-	@mkdir -p $(TOOLDIR)
-	@mkdir -p $(OBJDIR)/$(VERSION)
-	@echo
-	@echo "*** machine file = $(MACHINEDEFS)"
-	@echo
-	$(SMAKE) -C $(TOOLDIR) -f $(TOOLSRC)/Makefile SRCDIR=$(TOOLSRC) CC=$(CC)
-	$(SMAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) leapdep
-	$(PMAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) VERSION=$(VERSION) $(LEAP2FIST) 
-
-fes:
-	@mkdir -p $(EXEDIR)
-	@mkdir -p $(LIBDIR)/$(VERSION)
-	@mkdir -p $(TOOLDIR)
-	@mkdir -p $(OBJDIR)/$(VERSION)
-	@echo
-	@echo "*** machine file = $(MACHINEDEFS)"
-	@echo
-	$(SMAKE) -C $(TOOLDIR) -f $(TOOLSRC)/Makefile SRCDIR=$(TOOLSRC) CC=$(CC)
-	$(SMAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) fesdep
-	$(PMAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) VERSION=$(VERSION) $(FES) 
 
 $(VERSION_TARGETS):
 	$(SMAKE) -f $(MAKEFILE) VERSION=$@ build
@@ -105,143 +92,163 @@ $(CLEAN_TARGETS):
 $(ALL_TARGETS) $(LIB_TARGETS):
 	$(SMAKE) -f $(MAKEFILE) VERSION=$(@D) WHAT=_$(@F) build
 
-include $(OBJECTDEFS)
-include $(LEAPOBJECTDEFS)
-include $(FESOBJECTDEFS)
-
-include $(MACHINEDEFS)
-
+#
+# some practical variables for the build.
+# note that the last cvs entry is not necessarily the most recent
+#
 CPPSHELL := -D__COMPILE_ARCH="\"$(ARCH)\""\
             -D__COMPILE_DATE="\"$(shell date)\""\
             -D__COMPILE_HOST="\"$(shell hostname)\""\
-            -D__COMPILE_LASTCVS="\"$(shell tail -1 $(SRCDIR)/CVS/Entries)\""
+            -D__COMPILE_LASTCVS="\"$(shell tail -n1 $(SRCDIR)/CVS/Entries)\""
 
-CPPFLAGS += $(CPPSHELL)\
-	    -I$(SRCDIR)
+#
+# always add the SRCDIR to the include path (-I here might not be portable)
+#
+CPPFLAGS += $(CPPSHELL) -I$(SRCDIR)
+
+#
+# here we try to include all the objects that might need considering
+#
+
+include $(OBJECTDEFS)
+include $(LIBOBJECTDEFS)
+include $(LEAPOBJECTDEFS)
+include $(FESOBJECTDEFS)
+include $(MACHINEDEFS)
 
 OBJECTS = $(OBJECTS_GENERIC) $(OBJECTS_ARCHITECTURE)
-
-LIB1_OBJECTS = fast.o grid_fast.o
-
-LIB2_OBJECTS = fft_lib.o fftsg_lib.o fftw2_lib.o fftw3_lib.o fftacml_lib.o \
-               fftmkl_lib.o fftsci_lib.o fftessl_lib.o\
-               ctrig.o fftpre.o fftrot.o fftstp.o mltfftsg_tools.o mltfftsg.o 
-
-DEPENDENCIES = $(OBJECTS:.o=.dep) cp2k.dep
-
-LIBRARIES = -L$(LIBDIR)/$(VERSION) -l$(LIB1) -l$(LIB2) $(LIBS)
-
-.SECONDARY: $(OBJECTS:.o=.f90) $(LIB1_OBJECTS:.o=.f90)
+LEAPOBJS = $(LEAPOBJ) $(OBJECTS_ARCHITECTURE)
+FESOBJS = $(FESOBJ) $(OBJECTS_ARCHITECTURE)
 
 ### Slave rules ###
+vpath %.F $(SRCDIRS)
+vpath %.h $(SRCDIRS)
+vpath %.f90 $(SRCDIRS)
+vpath %.dep $(OBJDIR)/$(VERSION)
 
-LEAPOBJS=$(LEAPOBJ) $(OBJECTS_ARCHITECTURE)
-leapdep:$(LEAPOBJS:.o=.dep)
-	@echo $(LEAPOBJS:.o=.dep)
+#
+# generation of the dependencies
+#
+all.dep: $(OBJECTS:.o=.F) cp_common_uses.h cp2k.F
+	$(TOOLDIR)/makedepf90 -m "%m.mod" -free $^ > $(OBJDIR)/$(VERSION)/all.dep
 
-FESOBJS=$(FESOBJ) $(OBJECTS_ARCHITECTURE)
-fesdep:$(FESOBJS:.o=.dep)
-	@echo $(FESOBJS:.o=.dep)
+lib.dep: $(LIB1_OBJECTS:.o=.F) $(LIB2_OBJECTS:.o=.F)
+	$(TOOLDIR)/makedepf90 -m "%m.mod" -free $^ > $(OBJDIR)/$(VERSION)/lib.dep
 
-dependencies: $(DEPENDENCIES) leapdep
-	@echo
-	@echo "** DFLAGS   = $(DFLAGS)"
-	@echo "** CPPFLAGS = $(CPPFLAGS)"
-	@echo "** FCFLAGS  = $(FCFLAGS)"
-	@echo "** LDFLAGS  = $(LDFLAGS)"
-	@echo "** LIBS     = $(LIBS)"
-	@echo
+# this is kind of a hack, fes and leap2fist depend on files in other directories, hence the -I
+fes.dep: $(FESOBJS:.o=.F) 
+	$(TOOLDIR)/makedepf90 -I$(SRCDIR) -m "%m.mod" -free $^ > $(OBJDIR)/$(VERSION)/fes.dep
 
+leap2fist.dep: $(LEAPOBJS:.o=.F) 
+	$(TOOLDIR)/makedepf90 -I$(SRCDIR) -m "%m.mod" -free $^ > $(OBJDIR)/$(VERSION)/leap2fist.dep
+
+#
+# and the rules doing the actual work
+#
 _all: $(LIB1_ARCHIVE) $(LIB2_ARCHIVE) $(LIB_CP2K_ARCHIVE) $(PROG) $(LEAP2FIST) $(FES)
 _progr: $(PROG)
 _lib: $(LIB1_ARCHIVE) $(LIB2_ARCHIVE) $(LIB_CP2K_ARCHIVE)
 
 $(LIB1_ARCHIVE): $(LIB1_OBJECTS)
-	$(AR) $(LIB1_ARCHIVE) $(LIB1_OBJECTS)
+	$(AR) $(LIB1_ARCHIVE) $?
 ifneq ($(RANLIB),)
 	$(RANLIB) $(LIB1_ARCHIVE)
 endif
 
 $(LIB2_ARCHIVE): $(LIB2_OBJECTS)
-	$(AR) $(LIB2_ARCHIVE) $(LIB2_OBJECTS)
+	$(AR) $(LIB2_ARCHIVE) $?
 ifneq ($(RANLIB),)
 	$(RANLIB) $(LIB2_ARCHIVE)
 endif
+
+$(LIB_CP2K_ARCHIVE): $(OBJECTS)
+	$(AR) $(LIB_CP2K_ARCHIVE) $?
+ifneq ($(RANLIB),)
+	$(RANLIB) $(LIB_CP2K_ARCHIVE)
+endif
+
+$(PROG): $(LIB1_ARCHIVE) $(LIB2_ARCHIVE) $(LIB_CP2K_ARCHIVE) cp2k.o
+	$(LD) $(LDFLAGS) -o $(PROG) cp2k.o $(LIB_CP2K_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE) $(LIBS)
+
+#
+# these are tools, but their integration in the build is ugly at least (e.g. see dependencies).
+#
+makedepf90:
+	-test -d $(TOOLDIR)/makedepf90-build || cp -r $(TOOLSRC)/makedepf90 makedepf90-build
+	{ cd makedepf90-build ; ./configure --prefix=$(TOOLDIR) --bindir=$(TOOLDIR) ; $(MAKE) VERSION="2.8.8" ; $(MAKE) install ; }
+
 $(LEAP2FIST): $(LEAPOBJS)
 	$(LD) $(LDFLAGS) -o $(LEAP2FIST) $(LEAPOBJS)
 
 $(FES): $(FESOBJS)
 	$(LD) $(LDFLAGS) -o $(FES) $(FESOBJS)
 
-$(PROG): $(LIB1_ARCHIVE) $(LIB2_ARCHIVE) $(OBJECTS) cp2k.o
-	$(LD) $(LDFLAGS) -o $(PROG) $(OBJECTS) cp2k.o $(LIBRARIES)
 
-
-$(LIB_CP2K_ARCHIVE): $(OBJECTS)
-	$(AR) $(LIB_CP2K_ARCHIVE) $(OBJECTS)
-ifneq ($(RANLIB),)
-	$(RANLIB) $(LIB_CP2K_ARCHIVE)
-endif
-
-vpath %.F $(SRCDIRS)
-
-%.f90: %.F
-ifneq ($(POST_PROC),)
-	$(CPP) $(CPPFLAGS) $< > $*.tmp2
-	$(POST_PROC)  $*.tmp2 > $*.f90
-	rm $*.tmp2
-else
+#
+# the rule how to generate the .o from the .F
+# only if CPP is different from null we do a step over the C preprocessor (which is slower)
+# in the other case the fortran compiler takes care of this directly
+#
+%.o: %.F
+ifneq ($(CPP),)
 	$(CPP) $(CPPFLAGS) $< > $*.f90
-endif
-
-%.o: %.f90
-	$(FC) -c $(FCFLAGS) $<
-
-%.dep: %.F
-ifneq ($(POST_PROC),)
-	$(CPP) $(CPPFLAGS) -P $< > $*.tmp
-	$(POST_PROC)  $*.tmp > $*.for
-	rm $*.tmp
+	$(FC) -c $(FCFLAGS) $*.f90
 else
-	$(CPP) $(CPPFLAGS) -P $< > $*.for
+	$(FC) -c $(FCFLAGS) $<
 endif
-	$(FORPAR) $*.for
-	$(PERL) $(SFMAKEDEPEND) $*.dep $*.for
-	@rm -f $*.dep.old $*.for
 
-# Special hack for parallel_include since $(FORPAR) cannot digest
-# the INCLUDE statement which is active for parallel compilations
+#
+# here we cheat... this tells make that .mod can be generated from .o (this holds in CP2K)
+# by doing nothing
+# it avoids recompilation if .o is more recent than .F, but .mod is older than .F
+# (because it didn't change, as e.g. g95 can do)
+#
+%.mod: %.o
+	@true
 
-parallel_include.dep:
-	touch -a parallel_include.dep parallel_include.int
-parallel_include.int: parallel_include.o
-
+#
+# delete the intermediate files, but not the libraries and executables. 
+# Most useful to save space on the disk
+#
 clean:
 	-test ! -d $(OBJDIR)/$(VERSION) || { cd $(OBJDIR)/$(VERSION) ; rm -f *.mod ; }
 	-test ! -d $(OBJDIR)/$(VERSION) || { cd $(OBJDIR)/$(VERSION) ; rm -f *.o ; } 
-
-realclean: clean
 	-test ! -d $(OBJDIR)/$(VERSION) || { cd $(OBJDIR)/$(VERSION) ; rm -f *.f90 ; }
+
+#
+# delete the intermediate files, the programs and libraries and anything that might be in the objdir directory
+# Use this if you want to rebuild the executable (for a given compiler and or VERSION)
+#
+realclean: clean
 	-test ! -d $(OBJDIR)/$(VERSION) || { cd $(OBJDIR)/$(VERSION) ; rm -f * ; }
 	-rm -f $(PROG)
 	-rm -f $(LIB1_ARCHIVE)
 	-rm -f $(LIB2_ARCHIVE)
-
+#
+# really remove all build files not in CVS
+#
 distclean:
 	rm -rf $(MAINEXEDIR) $(MAINLIBDIR) $(MAINOBJDIR)
-	$(SMAKE) -C $(TOOLSRC) realclean
 
-# lib dependencies
-mltfftsg.o: mltfftsg_tools.o
-f77_int_low.o: f77_interface.o cp2k_runs.o replica_methods.o ep_methods.F
+#
+# so far CP2K does not install, but give a hint to the user
+#
+install:
+	@echo ""
+	@echo "The CP2K executable is $(PROG)"
+	@echo ""
 
-# to recpp environment.F whenever the CVS/Entries file is updated (and exists)
+# 
+# an additional dependency of the CVS entries in the source directory
+# to recpp cp2k_info.F whenever the CVS/Entries file is updated (and exists)
+#
 ifneq ($(strip $(SRCENTRY)),)
-cp2k_info.f90:$(SRCENTRY)
+cp2k_info.o:$(SRCENTRY)
 endif
 
-### Load the automatically generated rules of sfmakedepend ###
-
+#
+# Load the automatically generated rules of makedepf90 
+#
 ifneq ($(strip $(wildcard *.dep)),)
 include $(wildcard *.dep)
 endif

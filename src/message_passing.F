@@ -28,7 +28,6 @@
 !!   SOURCE
 !******************************************************************************
 #ifndef __mp_timeset__
-! if the following is defined a circular dependency is created between timings.F and message_passing.F
 ! #define __mp_timeset__  
 #endif
 
@@ -43,8 +42,11 @@ MODULE message_passing
                                              default_output_unit
   USE parallel_include
 #if defined(__mp_timeset__)
-  USE timings,                         ONLY: timeset,&
-                                             timestop
+  !
+  ! this really is a circular dependency
+  ! if you want to use __mp_timeset__ you'll need to cheat 
+  !
+  ! USE timings,                         ONLY: timeset,&
 #endif
 
   IMPLICIT NONE

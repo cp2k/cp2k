@@ -1,0 +1,5 @@
+LIB1_OBJECTS = fast.o grid_fast.o
+
+LIB2_OBJECTS = fft_lib.o fftsg_lib.o fftw2_lib.o fftw3_lib.o fftacml_lib.o \
+               fftmkl_lib.o fftsci_lib.o fftessl_lib.o\
+               ctrig.o fftpre.o fftrot.o fftstp.o mltfftsg_tools.o mltfftsg.o

@@ -8,13 +8,13 @@ This is the CP2K software & test suite
  * doc: Documentation
  * exe: where the executables will be located
  * lib: library built during compilation
- * makefile: Makefile's for different architectures
+ * makefile: the one and only Makefile
  * obj: Where the object and other compilation-time files
  * src: The source code; please see also the file 'INSTALL'
- * tests: Test inputs and reference outputs
+ * tests: Test inputs 
  * tools: Some small programs/scripts needed to compile the program
 
 --
 for information have a look at :
-http://developer.berlios.de/projects/cp2k
+http://cp2k.berlios.de/
 
