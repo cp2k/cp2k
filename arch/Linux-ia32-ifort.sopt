@@ -1,5 +1,4 @@
 #Tested on Red Hat - Pentium 4 - Intel Fortran & C Compiler 9.1.040 ia32
-PERL     = perl
 CC       = icc
 CPP      = cpp
 FC       = ifort -FR 

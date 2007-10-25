@@ -1,4 +1,3 @@
-PERL     = perl
 CC       = cc
 CPP      = /usr/ccs/lib/cpp -P
 FC       = xlf90 -qsuffix=f=f90 

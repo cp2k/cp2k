@@ -1,4 +1,3 @@
-PERL     = perl
 CC       = cc
 CPP      = cpp
 FC       = mpif90 
@@ -16,9 +15,3 @@ LIBS     = -Wl,--rpath,/users/vondele/GOTOBLAS -lfftw3 /users/vondele/TEST/SCALA
            -lgoto_opteron64p-r1.00 -lpthread              
 
 OBJECTS_ARCHITECTURE = machine_g95.o
-
-# forpar madness
-machine_g95.dep:
-	touch -a machine_g95.dep machine_g95.int
-machine_g95.int: machine_g95.o kinds.o
-

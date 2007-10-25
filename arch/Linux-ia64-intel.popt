@@ -9,7 +9,6 @@
 # but version 7.1 worked for the arguments below.
 # Note: -O2 produces an executable which is slightly faster than -O3
 # and the compilation time was also much shorter.
-PERL     = perl
 CC       = cc
 CPP      = cpp
 FC       = mpif90 -FR
@@ -24,7 +23,3 @@ LIBS     = -lscalapack -lblacsF77init -lblacs\
            -lmkl_lapack -lmkl -lguide
 
 OBJECTS_ARCHITECTURE = machine_intel.o
-
-ifposix.int:
-	touch ifposix.int
-

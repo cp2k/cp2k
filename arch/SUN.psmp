@@ -1,4 +1,3 @@
-PERL     = perl
 CC       = tmcc
 CPP      = cpp
 FC       = tmf90 -free

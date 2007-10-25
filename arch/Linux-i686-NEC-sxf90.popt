@@ -1,4 +1,3 @@
-PERL     = perl
 CC       = gcc
 CPP      = /sx5/usr/lib/sxcpp
 FC       = sxmpif90

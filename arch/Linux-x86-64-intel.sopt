@@ -6,28 +6,18 @@
 # add this to the compilation flags if the other options do not work
 # The following settings worked for:
 # - AMD64 Opteron cluster
-# - SUSE Linux 9.1 (x86_64) including the precompiled FFTW library
 # - Intel(R) Fortran Compiler for Intel(R) EM64T-based applications, Version 8.1
 #   Build 20041123 Package ID: l_fce_pc_8.1.024
 # - Intel(R) Cluster Math Kernel Library v7.2 for Linux
 # - MPICH 1.2.6 compiled with gcc 3.3.3 for ifort
 #
-PERL     = perl
 CC       = cc
 CPP      = cpp
 FC       = ifort -FR
 LD       = ifort
 AR       = ar -r
 DFLAGS   = -D__INTEL -D__FFTSG\
-           -D__FFTW\
-           -Dfftwnd_f77=fftwnd_f77_\
-           -Dfftwnd_f77_one=fftwnd_f77_one_\
-           -Dfftw3d_f77_create_plan=fftw3d_f77_create_plan_\
-           -Dfftw2d_f77_create_plan=fftw2d_f77_create_plan_\
-           -Dfftwnd_f77_destroy_plan=fftwnd_f77_destroy_plan_\
-           -Dfftw_f77_create_plan=fftw_f77_create_plan_\
-           -Dfftw_f77=fftw_f77_\
-           -Dfftw_f77_destroy_plan=fftw_f77_destroy_plan_
+           -D__FFTW3
 CPPFLAGS = -traditional -C $(DFLAGS) -P
 FCFLAGS  = $(DFLAGS) -O2
 MKLPATH  = /apps64/intel/mkl72cluster/lib/em64t
@@ -38,7 +28,3 @@ LIBS     = $(MKLPATH)/libmkl_lapack.a\
            -lpthread -ldfftw
 
 OBJECTS_ARCHITECTURE = machine_intel.o
-
-ifposix.int:
-	touch ifposix.int
-

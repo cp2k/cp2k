@@ -1,4 +1,3 @@
-PERL     = perl
 CC       = xlc
 CPP      = cpp -traditional -E
 FC       = mpxlf95 -qsuffix=f=f90

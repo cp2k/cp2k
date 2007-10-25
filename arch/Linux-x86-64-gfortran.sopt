@@ -2,7 +2,6 @@
 # gfortran arch file, currently for testing gfortran (svn version 4.3)
 # status on http://gcc.gnu.org/bugzilla/show_bug.cgi?id=29975
 #
-PERL     = perl
 CC       = cc
 CPP      = cpp
 

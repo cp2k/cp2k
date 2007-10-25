@@ -1,4 +1,3 @@
-PERL     = perl
 CC       = cc
 CPP      = cpp
 FC       = f95-new
@@ -12,13 +11,3 @@ LIBS     = /users/vondele/lapack_blas.o
 
 
 OBJECTS_ARCHITECTURE = machine_nag.o
-# needed to resolve dependencies to these system modules
-f90_unix_proc.int:
-	touch -a f90_unix_proc.int
-f90_unix.int:
-	touch -a f90_unix.int
-f90_unix_dir.int:
-	touch -a f90_unix_dir.int
-f90_unix_env.int:
-	touch -a f90_unix_env.int
-

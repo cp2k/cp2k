@@ -1,4 +1,3 @@
-PERL     = perl
 CC       = gcc
 CPP      = cpp
 FC       = mpfort -compiler xlf95_r -qsuffix=f=F

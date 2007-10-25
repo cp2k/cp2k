@@ -1,5 +1,4 @@
 # names of the different tools
-PERL     = perl
 CC       = cc
 CPP      = /usr/ccs/lib/cpp
 FC       = xlf95 -qsuffix=f=f90 

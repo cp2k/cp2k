@@ -1,4 +1,3 @@
-PERL     = perl
 CC       = cc
 CPP      = cpp
 
@@ -13,9 +12,3 @@ LDFLAGS  = $(FCFLAGS) -L/scratch/${USER}/lib
 LIBS     = -llapack_x86-64_g95 -lblas_x86-64_g95
 
 OBJECTS_ARCHITECTURE = machine_g95.o
-
-# forpar madness
-machine_g95.dep:
-	touch -a machine_g95.dep machine_g95.int
-machine_g95.int: machine_g95.o kinds.o
-

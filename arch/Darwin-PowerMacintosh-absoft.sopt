@@ -1,4 +1,3 @@
-PERL     = perl
 CC       = cc
 CPP      = cpp -xassembler-with-cpp
 FC       = f90 -ffree

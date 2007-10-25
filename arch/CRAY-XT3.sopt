@@ -1,4 +1,3 @@
-PERL     = perl
 CC       = gcc
 CPP      = cpp
 FC       = ftn -Mfree
@@ -13,22 +12,22 @@ LIBS     = -lacml
 
 OBJECTS_ARCHITECTURE = machine_xt3.o
 
-qs_oce_methods.o: qs_oce_methods.f90
+qs_oce_methods.o: qs_oce_methods.F
 	$(FC) -c $(FCFLAGS2) $<
-qs_oce_types.o: qs_oce_types.f90
+qs_oce_types.o: qs_oce_types.F
 	$(FC) -c $(FCFLAGS2) $<
-hartree_local_2centers.o: hartree_local_2centers.f90
+hartree_local_2centers.o: hartree_local_2centers.F
 	$(FC) -c $(FCFLAGS2) $<
-hartree_local_3centers.o: hartree_local_3centers.f90
+hartree_local_3centers.o: hartree_local_3centers.F
 	$(FC) -c $(FCFLAGS2) $<
-qs_ks_atom.o: qs_ks_atom.f90
+qs_ks_atom.o: qs_ks_atom.F
 	$(FC) -c $(FCFLAGS2) $<
-qmmm_gpw_energy.o: qmmm_gpw_energy.f90
+qmmm_gpw_energy.o: qmmm_gpw_energy.F
 	$(FC) -c $(FCFLAGS2) $<
-nddo_methods.o: nddo_methods.f90
+nddo_methods.o: nddo_methods.F
 	$(FC) -c $(FCFLAGS2) $<
-kg_ppl.o: kg_ppl.f90
+kg_ppl.o: kg_ppl.F
 	$(FC) -c $(FCFLAGS2) $<
-qs_dftb_coulomb.o: qs_dftb_coulomb.f90
+qs_dftb_coulomb.o: qs_dftb_coulomb.F
 	$(FC) -c $(FCFLAGS2) $<
 

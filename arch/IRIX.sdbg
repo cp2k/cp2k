@@ -1,4 +1,3 @@
-PERL     = perl
 CC       = cc
 CPP      = /usr/lib/cpp
 FC       = f90 -freeform

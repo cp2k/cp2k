@@ -1,4 +1,3 @@
-PERL     = /usr/bin/perl
 CC       = cc
 CPP      = /usr/bin/cpp 
 FC       = g95 
@@ -13,14 +12,9 @@ LIBS     = -Wl,-framework -Wl,vecLib -Wl,-Y -Wl,10
 
 OBJECTS_ARCHITECTURE = machine_g95.o
 
-# forpar madness
-machine_g95.dep:
-	touch -a machine_g95.dep machine_g95.int
-machine_g95.int: machine_g95.o kinds.o
-
-particle_types.o: particle_types.f90
+particle_types.o: particle_types.F
 	$(FC) -c $(FCFLAGS2) $<
-fft_tools.o: fft_tools.f90
+fft_tools.o: fft_tools.F
 	$(FC) -c $(FCFLAGS2) $<
-f77_blas_extra.o: f77_blas_extra.f90
+f77_blas_extra.o: f77_blas_extra.F
 	$(FC) -c $(FCFLAGS2) $<

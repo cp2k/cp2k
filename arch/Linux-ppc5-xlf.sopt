@@ -1,4 +1,3 @@
-PERL     = perl
 CC       = gcc
 CPP      = cpp
 FC       = xlf95_r -qsuffix=f=f90
