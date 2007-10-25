@@ -5,7 +5,7 @@ LD       = mpif90
 AR       = ar -r
 DFLAGS   = -D__G95 -D__FFTSG -D__parallel -D__BLACS -D__SCALAPACK -D__FFTW3 -D__LIBINT
 CPPFLAGS = 
-FCFLAGS  = $(DFLAGS) -I$(G95_INC) -ffree-form -O2 -ffast-math -march=opteron -cpp -g
+FCFLAGS  = $(DFLAGS) -I$(G95_INC) -O1 -ffast-math -march=opteron -ffree-form -cpp -fbounds-check -g  -ftrace=full
 LDFLAGS  = $(FCFLAGS)
 LIBS     = $(G95_LIB)/libscalapack.a \
            $(G95_LIB)/libblacs_init.a \

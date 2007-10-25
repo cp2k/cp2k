@@ -1,34 +1,32 @@
 # by default some intel compilers put temporaries on the stack
-# this might lead to segmentation faults if the stack limit is set to low
+# this might lead to segmentation faults is the stack limit is set to low
 # stack limits can be increased by sysadmins or e.g with ulimit -s 256000
-# furthermore new ifort (tested to work fine with 10.0.025) compilers support the option
+# furthermore new ifort (10.0?) compilers support the option
 # -heap-arrays 64
-# add this to the compilation flags if the other options do not work
+# add this to the compilation flags is the other options do not work
 # The following settings worked for:
-# - AMD64 Opteron cluster
-# - Intel(R) Fortran Compiler for Intel(R) EM64T-based applications, Version 8.1
-#   Build 20041123 Package ID: l_fce_pc_8.1.024
-# - Intel(R) Cluster Math Kernel Library v7.2 for Linux
-# - MPICH 1.2.6 compiled with gcc 3.3.3 for ifort
+# - AMD64 Opteron
+# - SUSE Linux Enterprise Server 10.0 (x86_64)
+# - Intel(R) Fortran Compiler for Intel(R) EM64T-based applications, Version 10.0.025
+# - AMD acml library version 3.6.0
+# - MPICH2-1.0.5p4
+# - SCALAPACK library          1.8.0
+#
 #
 CC       = cc
-CPP      = cpp
-FC       = mpif90 -FR
+CPP      = 
+FC       = mpif90 
 LD       = mpif90
 AR       = ar -r
-DFLAGS   = -D__INTEL -D__FFTSG\
-           -D__parallel -D__BLACS -D__SCALAPACK\
-           -D__FFTW3
-CPPFLAGS = -traditional -C $(DFLAGS) -P
-FCFLAGS  = $(DFLAGS) -O2
-MKLPATH  = /apps64/intel/mkl72cluster/lib/em64t
-LDFLAGS  = $(FCFLAGS) -i-static
-LIBS     = $(MKLPATH)/libmkl_scalapack.a\
-           $(MKLPATH)/libmkl_blacsF77init.a\
-           $(MKLPATH)/libmkl_blacs.a\
-           $(MKLPATH)/libmkl_lapack.a\
-           $(MKLPATH)/libmkl_em64t.a\
-           $(MKLPATH)/libguide.a\
-           -lpthread -ldfftw
+DFLAGS   = -D__INTEL -D__FFTSG -D__parallel -D__BLACS -D__SCALAPACK -D__FFTW3
+CPPFLAGS = 
+FCFLAGS  = $(DFLAGS) -I$(INTEL_INC) -O3 -xW -funroll-loops -fpp -free
+LDFLAGS  = $(FCFLAGS) -I$(INTEL_INC)
+LIBS     = $(INTEL_LIB)/libscalapack.a \
+           $(INTEL_LIB)/libblacs_init.a \
+           $(INTEL_LIB)/libblacs.a \
+           $(INTEL_LIB)/libacml.a\
+           $(INTEL_LIB)/libacml_mv.a \
+           $(INTEL_LIB)/libfftw3.a
 
 OBJECTS_ARCHITECTURE = machine_intel.o

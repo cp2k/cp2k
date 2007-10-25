@@ -1,27 +1,19 @@
-# The following settings worked for:
-# - AMD64 Opteron cluster
-# - NAGWare Fortran 95 compiler Release 5.0(363)                                  
-# - Intel(R) Cluster Math Kernel Library v7.2 for Linux
-# - MPICH 1.2.6 compiled with gcc 3.3.3 for NAG f95 using the "--with-nagf95" flag
-#
 CC       = cc
-CPP      = cpp
+CPP      = 
 FC       = mpif90
 LD       = mpif90
 AR       = ar -r
-DFLAGS   = -D__NAG -D__FFTSG\
-           -D__parallel -D__BLACS -D__SCALAPACK\
-           -D__FFTW3
-CPPFLAGS = -traditional -C $(DFLAGS) -P
-FCFLAGS  = -O3 -mismatch_all -w=all
-MKLPATH  = /apps64/intel/mkl72cluster/lib/em64t
+DFLAGS   = -D__NAG -D__FFTSG -D__FFTW3 -D__parallel -D__BLACS -D__SCALAPACK
+CPPFLAGS =
+FCFLAGS  = -O2 -mismatch_all -fpp -free  $(DFLAGS) -I$(NAG_INC)
 LDFLAGS  = $(FCFLAGS)
-LIBS     = $(MKLPATH)/libmkl_scalapack.a\
-           $(MKLPATH)/libmkl_blacsF77init.a\
-           $(MKLPATH)/libmkl_blacs.a\
-           $(MKLPATH)/libmkl_lapack.a\
-           $(MKLPATH)/libmkl_em64t.a\
-           $(MKLPATH)/libguide.a\
-           -lpthread -ldfftw
+LIBS     = $(NAG_LIB)/libscalapack.a \
+           $(NAG_LIB)/libblacs_init.a \
+           $(NAG_LIB)/libblacs.a \
+           $(NAG_LIB)/libacml.a\
+           $(NAG_LIB)/libacml_mv.a\
+           $(NAG_LIB)/libfftw3.a\
+           -lpthread
+
 
 OBJECTS_ARCHITECTURE = machine_nag.o

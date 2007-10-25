@@ -10,6 +10,7 @@
 # - Intel(R) Fortran Compiler for Intel(R) EM64T-based applications, Version 10.0
 # - AMD acml library version 3.6.0
 # - MPICH2-1.0.5p4
+# - FFTW3 Library              3.1.2
 #
 CC       = cc
 CPP      = 

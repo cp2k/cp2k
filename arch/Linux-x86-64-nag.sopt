@@ -1,21 +1,19 @@
 # The following settings worked for:
 # - AMD64 Opteron cluster
-# - NAGWare Fortran 95 compiler Release 5.0(363)
+# - SUSE SLES 10.0 (x86_64)
+# - NAGWare Fortran 95 compiler Release 5.1(327)
 #
 CC       = cc
-CPP      = cpp
+CPP      = 
 FC       = f95
 LD       = f95
 AR       = ar -r
-DFLAGS   = -D__NAG -D__FFTSG\
-           -D__FFTW3
-CPPFLAGS = -traditional -C $(DFLAGS) -P
-FCFLAGS  = -O3 -mismatch_all -w=all
-MKLPATH  = /apps64/intel/mkl72cluster/lib/em64t
+DFLAGS   = -D__NAG -D__FFTSG -D__FFTW3
+CPPFLAGS = 
+FCFLAGS  = -O3 -mismatch_all -w=all -free -fpp $(DFLAGS) -I$(NAG_INC)
 LDFLAGS  = $(FCFLAGS)
-LIBS     = $(MKLPATH)/libmkl_lapack.a\
-           $(MKLPATH)/libmkl_em64t.a\
-           $(MKLPATH)/libguide.a\
-           -lpthread -ldfftw
+LIBS     = $(NAG_LIB)/libacml.a \
+           $(NAG_LIB)/libacml_mv.a \
+           $(NAG_LIB)/libfftw3.a
 
 OBJECTS_ARCHITECTURE = machine_nag.o
