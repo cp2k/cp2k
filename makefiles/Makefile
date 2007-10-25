@@ -91,21 +91,6 @@ $(CLEAN_TARGETS):
 
 $(ALL_TARGETS) $(LIB_TARGETS):
 	$(SMAKE) -f $(MAKEFILE) VERSION=$(@D) WHAT=_$(@F) build
-
-#
-# some practical variables for the build.
-# note that the last cvs entry is not necessarily the most recent
-#
-CPPSHELL := -D__COMPILE_ARCH="\"$(ARCH)\""\
-            -D__COMPILE_DATE="\"$(shell date)\""\
-            -D__COMPILE_HOST="\"$(shell hostname)\""\
-            -D__COMPILE_LASTCVS="\"$(shell tail -n1 $(SRCDIR)/CVS/Entries)\""
-
-#
-# always add the SRCDIR to the include path (-I here might not be portable)
-#
-CPPFLAGS += $(CPPSHELL) -I$(SRCDIR)
-
 #
 # here we try to include all the objects that might need considering
 #
@@ -119,6 +104,25 @@ include $(MACHINEDEFS)
 OBJECTS = $(OBJECTS_GENERIC) $(OBJECTS_ARCHITECTURE)
 LEAPOBJS = $(LEAPOBJ) $(OBJECTS_ARCHITECTURE)
 FESOBJS = $(FESOBJ) $(OBJECTS_ARCHITECTURE)
+
+#
+# some practical variables for the build.
+# note that the last cvs entry is not necessarily the most recent
+#
+CPPSHELL := -D__COMPILE_ARCH="\"$(ARCH)\""\
+            -D__COMPILE_DATE="\"$(shell date)\""\
+            -D__COMPILE_HOST="\"$(shell hostname)\""\
+            -D__COMPILE_LASTCVS="\"$(shell tail -n1 $(SRCDIR)/CVS/Entries)\""
+
+ifneq ($(CPP),)
+#
+# always add the SRCDIR to the include path (-I here might not be portable) 
+#
+CPPFLAGS += $(CPPSHELL) -I$(SRCDIR)
+else
+FCFLAGS += $(CPPSHELL)
+endif
+
 
 ### Slave rules ###
 vpath %.F $(SRCDIRS)
