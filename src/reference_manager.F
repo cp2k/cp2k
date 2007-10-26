@@ -608,7 +608,7 @@ CONTAINS
        res=bp
        IF (ep.NE."") res=TRIM(res)//"-"//ep
     ENDIF
-    IF (res.NE."".AND.ar.NE."") res=ar
+    IF (res.EQ."".AND.ar.NE."") res=ar
   END FUNCTION get_pages
 
 END MODULE reference_manager

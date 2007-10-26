@@ -906,17 +906,21 @@ WRITE(unit_nr,*) ' <label for="site_radio" style="vertical-align:middle;">this S
 WRITE(unit_nr,*) ' </li></ul></form></div>'
 WRITE(unit_nr,*) ' <!-- END CODE --></TD><TD> '
        ! google search (does currently not seem to like our input reference manual)
-       ! WRITE(unit_nr,*) '<FORM method=GET action="http://www.google.com/search">'
-       ! WRITE(unit_nr,*) '<input type=hidden name=ie value=UTF-8><input type=hidden name=oe value=UTF-8>'
-       ! WRITE(unit_nr,*) '<TABLE bgcolor="#FFFFFF"><tr><td><A HREF="http://www.google.com/">'
-       ! WRITE(unit_nr,*) '<IMG SRC="http://www.google.com/logos/Logo_25wht.gif" border="0" ALT="Google"></A>'
-       ! WRITE(unit_nr,*) '</td><td><INPUT TYPE=text name=q size=31 maxlength=255 value="">'
-       ! WRITE(unit_nr,*) '<INPUT type=submit name=btnG VALUE="CP2K Input Search">'
-       ! WRITE(unit_nr,*) '<font size=-2><input type=hidden name=domains value="cp2k.berlios.de">'
-       ! WRITE(unit_nr,*) '<br><input type=radio name=sitesearch value=""> WWW'
-       ! WRITE(unit_nr,*) '<input type=radio name=sitesearch value="cp2k.berlios.de" checked>'
-       ! WRITE(unit_nr,*) 'cp2k.berlios.de<br></font></td></tr></TABLE></FORM>'
+       !WRITE(unit_nr,*) '<FORM method=GET action="http://www.google.com/search">'
+       !WRITE(unit_nr,*) '<input type=hidden name=ie value=UTF-8><input type=hidden name=oe value=UTF-8>'
+       !WRITE(unit_nr,*) '<TABLE bgcolor="#FFFFFF"><tr><td><A HREF="http://www.google.com/">'
+       !WRITE(unit_nr,*) '<IMG SRC="http://www.google.com/logos/Logo_25wht.gif" border="0" ALT="Google"></A>'
+       !WRITE(unit_nr,*) '</td><td><INPUT TYPE=text name=q size=31 maxlength=255 value="">'
+       !WRITE(unit_nr,*) '<INPUT type=submit name=btnG VALUE="CP2K Input Search">'
+       !WRITE(unit_nr,*) '<font size=-2><input type=hidden name=domains value="cp2k.berlios.de">'
+       !WRITE(unit_nr,*) '<br><input type=radio name=sitesearch value=""> WWW'
+       !WRITE(unit_nr,*) '<input type=radio name=sitesearch value="cp2k.berlios.de" checked>'
+       !WRITE(unit_nr,*) 'cp2k.berlios.de<br></font></td></tr></TABLE></FORM>'
        WRITE(unit_nr,*) '</TD></TR></TABLE>'
+
+
+       WRITE(unit_nr,*) '<H2>Journal papers</H2>'
+       WRITE(unit_nr,*) '<A HREF="references.html">List of references</A> cited in the CP2K input manual.'
 
        WRITE(unit_nr,*) "<H2>Input structure</H2>"
        WRITE(unit_nr,*) "All sections that can be part of a cp2k input file are shown with their allowed nestings. "

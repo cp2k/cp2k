@@ -53,7 +53,8 @@ MODULE bibliography
              Goedecker1996, Hartwigsen1998, Krack2005, Lippert1997, Lippert1999, Krack2000,&
              Krack2002, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Toukmaji1996, Martyna1999,&
              VandeVondele2005b, Perdew1981,Avezac2005, Porezag1995, Seifert1996, Elstner1998, Zhechkov2005,&
-             Frigo2005, Nose1984a, Nose1984b, Bussi2007,Genovese2006,Genovese2007,Evans1983,Minary2003,Byrd1995
+             Frigo2005, Nose1984a, Nose1984b, Bussi2007,Genovese2006,Genovese2007,Evans1983,Minary2003,Byrd1995,&
+             VandeVondele2007
 
 CONTAINS
 !!****f* bibliography/add_all_references *
@@ -698,6 +699,26 @@ CONTAINS
             "UT WOS:A1995RR54100011",&
             "ER"),&
             DOI="10.1137/0916069")
+
+    CALL add_reference(key=VandeVondele2007,ISI_record=s2a(&
+            "PT J",&
+            "AU VandeVondele, J",&
+            "   Hutter, J",&
+            "AF VandeVondele, Joost",&
+            "   Hutter, Juerg",&
+            "TI Gaussian basis sets for accurate calculations on molecular systems in",&
+            "   gas and condensed phases",&
+            "SO JOURNAL OF CHEMICAL PHYSICS",&
+            "SN 0021-9606",&
+            "PD SEP 21",&
+            "PY 2007",&
+            "VL 127",&
+            "IS 11",&
+            "AR 114105",&
+            "DI ARTN 114105",&
+            "UT ISI:000249667400011",&
+            "ER"),&
+            DOI="10.1063/1.2770708")
 
   END SUBROUTINE add_all_references
 

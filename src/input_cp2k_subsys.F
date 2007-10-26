@@ -25,7 +25,9 @@
 MODULE input_cp2k_subsys
   USE bibliography,                    ONLY: Goedecker1996,&
                                              Hartwigsen1998,&
-                                             Krack2005
+                                             Krack2005,&
+                                             VandeVondele2005a,&
+                                             VandeVondele2007
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants
@@ -1150,6 +1152,7 @@ CONTAINS
             variants=s2a("ORBITAL_BASIS_SET","ORB_BASIS"),&
             description="The basis set (GTO type)",&
             usage="BASIS_SET DZVP", default_c_val=" ", &
+            citations=(/VandeVondele2005a,VandeVondele2007/),&
             n_var=1, required=.FALSE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

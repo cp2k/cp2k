@@ -21,6 +21,8 @@
 MODULE basis_set_types
 
   USE ai_coulomb,                      ONLY: coulomb2
+  USE bibliography,                    ONLY: VandeVondele2007,&
+                                             cite_reference
   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
                                              cp_sll_val_type
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -835,7 +837,7 @@ CONTAINS
     CHARACTER(LEN=240)                       :: line
     CHARACTER(LEN=242)                       :: line2
     CHARACTER(len=5*default_string_length)   :: line_att
-    CHARACTER(len=default_path_length)       :: basis_set_file_name
+    CHARACTER(len=default_path_length)       :: basis_set_file_name,tmp
     CHARACTER(LEN=LEN(basis_set_name))       :: bsname
     CHARACTER(LEN=LEN(basis_set_name)+2)     :: bsname2
     CHARACTER(LEN=LEN(element_symbol))       :: symbol
@@ -870,6 +872,10 @@ CONTAINS
             c_val=basis_set_file_name,error=error)
        NULLIFY(parser)
        CALL parser_create(parser,basis_set_file_name,para_env=para_env,error=error)
+
+       tmp=basis_set_file_name
+       CALL uppercase(tmp)
+       IF (INDEX(tmp,"MOLOPT").NE.0) CALL cite_reference(VandeVondele2007)
     END IF
 
     ! Search for the requested basis set in the basis set file
@@ -878,6 +884,11 @@ CONTAINS
     bsname = basis_set_name
     symbol = element_symbol
     irep   = 0
+
+    tmp=basis_set_name
+    CALL uppercase(tmp)
+    IF (INDEX(tmp,"MOLOPT").NE.0) CALL cite_reference(VandeVondele2007)
+
     search_loop: DO
 
        IF (read_from_input) THEN
