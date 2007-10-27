@@ -51,11 +51,10 @@ VERSION_TARGETS = sopt sdbg popt pdbg ssmp psmp
 # uses an ugly trick, these are disguised as file names, the directory (@D) part 
 # is used as a version, the file (@F) part is used as the version.
 #
-LIB_TARGETS = sopt/lib sdbg/lib popt/lib pdbg/lib ssmp/lib psmp/lib
-ALL_TARGETS = sopt/all sdbg/all popt/all pdbg/all ssmp/all psmp/all
-CLEAN_TARGETS   = sopt/clean sdbg/clean popt/clean pdbg/clean ssmp/clean psmp/clean\
-                  sopt/realclean sdbg/realclean popt/realclean pdbg/realclean\
-                  ssmp/realclean psmp/realclean
+LIB_TARGETS = $(addsuffix /lib ,$(VERSION_TARGETS)) 
+ALL_TARGETS = $(addsuffix /all ,$(VERSION_TARGETS))
+CLEAN_TARGETS = $(addsuffix /clean ,$(VERSION_TARGETS)) $(addsuffix /realclean ,$(VERSION_TARGETS))
+
 #
 # lists the targets that are not files
 #
@@ -158,7 +157,7 @@ leap2fist.dep: $(LEAPOBJS:.o=.F)
 #
 # and the rules doing the actual work
 #
-_all: $(LIB1_ARCHIVE) $(LIB2_ARCHIVE) $(LIB_CP2K_ARCHIVE) $(PROG) $(LEAP2FIST) $(FES)
+_all: $(LIB1_ARCHIVE) $(LIB2_ARCHIVE) $(LIB_CP2K_ARCHIVE) $(PROG) leap2fist fes
 _progr: $(PROG)
 _lib: $(LIB1_ARCHIVE) $(LIB2_ARCHIVE) $(LIB_CP2K_ARCHIVE)
 
