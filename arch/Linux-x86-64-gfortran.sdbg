@@ -3,16 +3,17 @@
 # status on http://gcc.gnu.org/bugzilla/show_bug.cgi?id=29975
 #
 CC       = cc
-CPP      = cpp
+CPP      = 
 
 FC       = gfortran
 LD       = gfortran
 
 AR       = ar -r
 
-CPPFLAGS = -C -D__GFORTRAN -D__FFTSG -traditional -P
-FCFLAGS  = -O0 -g -fbounds-check
-LDFLAGS  = $(FCFLAGS) 
-LIBS     = /users/vondele/LAPACK/liblapack_gfortran_x86.a /users/vondele/LAPACK/libblas_gfortran_x86.a
+CPPFLAGS = 
+DFLAGS   = -D__GFORTRAN -D__FFTSG -D__FFTW3
+FCFLAGS  = -O0 -ffree-form $(DFLAGS) 
+LDFLAGS  = $(FCFLAGS)
+LIBS     = -llapack -lblas -lfftw3
 
 OBJECTS_ARCHITECTURE = machine_gfortran.o
