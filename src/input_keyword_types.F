@@ -24,7 +24,8 @@
 !****************************************************************************
 MODULE input_keyword_types
   USE reference_manager,               ONLY: print_reference, &
-                                             print_format_journal
+                                             print_format_journal, &
+                                             get_citation_key
   USE cp_units,                        ONLY: cp_unit_create,&
                                              cp_unit_desc,&
                                              cp_unit_release,&
@@ -937,7 +938,7 @@ SUBROUTINE keyword_describe_html(keyword, unit_nr, error)
        DO iref=1,SIZE(keyword%citations,1)
           write(unit_nr,'(A,I0,A)') '<A HREF="references.html#reference_',keyword%citations(iref),'" TITLE="'
           CALL print_reference(keyword%citations(iref),format=print_format_journal,unit=unit_nr)
-          write(unit_nr,'(A,I0,A)') '">',keyword%citations(iref),'</A>'
+          write(179,'(A)') '">[' // TRIM(get_citation_key( keyword%citations(iref) )) // ']</A>'
        ENDDO
     ENDIF
 

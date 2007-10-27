@@ -46,7 +46,8 @@ MODULE input_section_types
                                              dp
   USE output_utilities,                ONLY: print_message
   USE reference_manager,               ONLY: print_reference, &
-                                             print_format_journal
+                                             print_format_journal, &
+                                             get_citation_key
   USE string_utilities,                ONLY: compress,&
                                              substitute_special_xml_tokens,&
                                              typo_match,&
@@ -542,7 +543,7 @@ RECURSIVE SUBROUTINE section_describe_html(section, prefix, depth, unit_nr,  err
        DO iref=1,SIZE(section%citations,1)
           write(179,'(A,I0,A)') '<A HREF="references.html#reference_',section%citations(iref),'" TITLE="'
           CALL print_reference(section%citations(iref),format=print_format_journal,unit=179)
-          write(179,'(A,I0,A)') '">',section%citations(iref),'</A>'
+          write(179,'(A)') '">['//TRIM(get_citation_key(section%citations(iref)))//']</A>'
        ENDDO
      ENDIF
 

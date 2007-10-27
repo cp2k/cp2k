@@ -939,7 +939,7 @@ WRITE(unit_nr,*) ' <!-- END CODE --></TD><TD> '
             file_action="WRITE", file_status="REPLACE")
        WRITE(unit_nr,*) "<HTML><BODY><HEAD><TITLE>The cp2k literature list</TITLE>"
        WRITE(unit_nr,*) "<H1>CP2K references</H1>"
-       CALL print_all_references(sorted=.FALSE.,cited_only=.FALSE., &
+       CALL print_all_references(sorted=.TRUE.,cited_only=.FALSE., &
                           FORMAT=print_format_html,unit=unit_nr)
        WRITE(unit_nr,*) '<BR><hr>Back to the <A HREF="http://cp2k.berlios.de/">CP2K homepage</A>'
        WRITE(unit_nr,*) "</BODY></HTML>"

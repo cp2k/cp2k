@@ -32,6 +32,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE reference_manager
+  USE kinds, ONLY: default_string_length
   USE util, ONLY: sort
   IMPLICIT NONE
 
@@ -59,6 +60,8 @@ MODULE reference_manager
        CHARACTER(LEN=doi_length)                        :: DOI
        ! has this reference been cited in the program run
        LOGICAL                                          :: is_cited
+       ! this is a citation key for output in the reference lists
+       CHARACTER(LEN=ISI_length)                        :: citation_key
   END TYPE reference_type
 
   ! useful to build arrays
@@ -71,7 +74,8 @@ MODULE reference_manager
   TYPE(reference_p_type), DIMENSION(max_reference) :: thebib
 
   PUBLIC :: add_reference, & ! use this one only in bibliography.F
-            remove_all_references ! use only in f77_interface.F
+            remove_all_references, & ! use only in f77_interface.F
+            get_citation_key         ! a string key describing the reference (e.g. Kohn1965b) 
 
 CONTAINS
 !!****f* reference_manager/cite_reference *
@@ -128,7 +132,9 @@ CONTAINS
     CHARACTER(LEN=*), DIMENSION(:)  :: ISI_record
     CHARACTER(LEN=*)                :: DOI
 
-    INTEGER :: nlines
+    INTEGER :: nlines,line,commaloc,mylen,match,i,ires
+    CHARACTER(LEN=ISI_length)                        :: citation_key
+    CHARACTER(LEN=ISI_length)                        :: author,year
 
     IF (nbib+1>max_reference) STOP "increase max_reference" 
     nbib=nbib+1 
@@ -147,6 +153,37 @@ CONTAINS
     nlines=SIZE(ISI_record,1)
     ALLOCATE(thebib(key)%ref%ISI_record(nlines))
     thebib(key)%ref%ISI_record=ISI_record
+
+    ! construct a citation_key
+    line=1 
+    author=get_next_author(thebib(key)%ref%ISI_record,line)
+    commaloc=INDEX(author,',')
+    IF (commaloc.GT.0) author=author(1:commaloc-1)
+    year=get_year(thebib(key)%ref%ISI_record)
+    citation_key=TRIM(author)//TRIM(year)
+    IF (citation_key=="") citation_key="unknown"
+
+    ! avoid special characters in names, just remove them
+    mylen=LEN_TRIM(citation_key)
+    ires=0
+    DO I=1,mylen
+       IF (INDEX("0123456789thequickbrownfoxjumpsoverthelazydogTHEQUICKBROWNFOXJUMPSOVERTHELAZYDOG",citation_key(i:i)).NE.0) THEN
+          ires=ires+1
+          citation_key(ires:ires)=citation_key(i:i)
+       ENDIF
+    ENDDO
+    citation_key(ires+1:)=""
+
+    ! avoid duplicates, search through the list for matches
+    mylen=LEN_TRIM(citation_key)
+    match=0
+    DO I=1,nbib-1
+       IF (thebib(I)%ref%citation_key(1:mylen)==citation_key(1:mylen)) match=match+1
+    ENDDO
+    IF (match>0) citation_key=citation_key(1:mylen)//char(ichar('a')+match)
+
+    ! finally store it 
+    thebib(key)%ref%citation_key=citation_key
 
   END SUBROUTINE add_reference
 
@@ -236,11 +273,7 @@ CONTAINS
 
     IF (sorted) THEN
         DO I=1,nref
-           year=get_year(thebib(indx(I))%ref%ISI_record) 
-           ival(I)=+1
-           read(year,*,ERR=999,END=999) tmp
-           ival(I)=-tmp
-999        continue ! error reading
+           ival(I)=-get_epoch(thebib(indx(I))%ref%ISI_record)
         ENDDO
     ELSE
         DO I=1,nref
@@ -250,7 +283,7 @@ CONTAINS
     CALL sort(ival,nref,irank)
 
     IF (format.EQ.print_format_html) THEN
-       write(unit,'(A)') "<ol>"
+       write(unit,'(A)') '<TABLE border="1">'
     ENDIF
     DO I=1,nref
        irecord=indx(irank(I))
@@ -260,15 +293,26 @@ CONTAINS
           CASE(print_format_journal)
             write(unit,'(A)') ""
           CASE(print_format_html)
-            write(unit,'(A)') "<li>"
+            write(unit,'(A)') "<TR><TD>"//'['//TRIM(thebib(irecord)%ref%citation_key)//']'//"</TD><TD>"
           CASE DEFAULT
             STOP "print_reference: wrong format"
           END SELECT
+
           CALL print_reference(irecord,format,unit)
+
+          SELECT CASE(format)
+          CASE(print_format_isi)
+          CASE(print_format_journal)
+            write(unit,'(A)') ""
+          CASE(print_format_html)
+            write(unit,'(A)') '</TD></TR>'
+          CASE DEFAULT
+            STOP "print_reference: wrong format"
+          END SELECT
        ENDIF
     ENDDO
     IF (format.EQ.print_format_html) THEN
-       write(unit,'(A)') "</ol>"
+       write(unit,'(A)') "</TABLE>"
     ENDIF
 
   END SUBROUTINE print_all_references
@@ -417,11 +461,11 @@ CONTAINS
     INTEGER, INTENT(IN) :: unit
 
     CHARACTER(LEN=ISI_length)                        :: author,title,journal
-    INTEGER :: line, ipos_line, iauthor, ititle
+    INTEGER :: line, iauthor, ititle
 
     ! write the author list
     write(unit,'(T2,A,I0,A)',ADVANCE="NO") '<A NAME="reference_',key,'">'
-    line=1 ; iauthor=0 ; ipos_line=2
+    line=1 ; iauthor=0 
     author=get_next_author(thebib(key)%ref%ISI_record,line)
     DO WHILE (author.NE."")
        iauthor=iauthor+1
@@ -563,6 +607,36 @@ CONTAINS
     ENDDO
   END FUNCTION get_year
 
+  FUNCTION get_month(ISI_record) RESULT(res)
+    CHARACTER(LEN=ISI_length)                        :: res
+    CHARACTER(LEN=ISI_length), DIMENSION(:), POINTER :: ISI_record
+
+    INTEGER :: I,N
+    N=SIZE(ISI_record,1)
+    res=""
+    DO I=1,N
+       IF (ISI_record(I)(1:3)=="PD ") res=ISI_record(I)(4:6)
+    ENDDO
+  END FUNCTION get_month
+
+  FUNCTION get_day(ISI_record) RESULT(res)
+    CHARACTER(LEN=ISI_length)                        :: res
+    CHARACTER(LEN=ISI_length), DIMENSION(:), POINTER :: ISI_record
+
+    INTEGER :: I,N,D
+    N=SIZE(ISI_record,1)
+    res=""
+    DO I=1,N
+       IF (ISI_record(I)(1:3)=="PD ") res=ISI_record(I)(7:)
+    ENDDO
+    ! PD can be e.g. OCT-NOV or OCT or OCT 27
+    ! if res can't be read as an integer, it is not a day, and we bail out
+    READ(res,*,ERR=998,END=998) D
+    RETURN
+998 CONTINUE
+    res=""
+  END FUNCTION get_day
+
   FUNCTION get_volume(ISI_record) RESULT(res)
     CHARACTER(LEN=ISI_length)                        :: res
     CHARACTER(LEN=ISI_length), DIMENSION(:), POINTER :: ISI_record
@@ -610,5 +684,67 @@ CONTAINS
     ENDIF
     IF (res.EQ."".AND.ar.NE."") res=ar
   END FUNCTION get_pages
+
+  FUNCTION get_citation_key(key) RESULT(res)
+    CHARACTER(LEN=default_string_length)    :: res
+    INTEGER :: key
+    res=thebib(key)%ref%citation_key
+  END FUNCTION get_citation_key
+
+!
+! This returns something epoch like, but can only be used to order the records
+! missing years, months, days are implied zero(1900)
+!
+  FUNCTION get_epoch(ISI_record) RESULT(res)
+    INTEGER                                          :: res
+    CHARACTER(LEN=ISI_length), DIMENSION(:), POINTER :: ISI_record
+
+    CHARACTER(LEN=ISI_length)                        :: tmp
+    INTEGER :: year,month,day,istat
+
+    ! read year
+    tmp=get_year(ISI_record)
+    READ(tmp,*,IOSTAT=istat) year
+    IF (istat.NE.0) year=1900
+
+    ! read day
+    tmp=get_day(ISI_record)
+    READ(tmp,*,IOSTAT=istat) day
+    IF (istat.NE.0) day=0
+
+    ! read month
+    tmp=get_month(ISI_record)
+    SELECT CASE(tmp)
+    CASE("JAN")
+      month=1
+    CASE("FEB")
+      month=2
+    CASE("MAR")
+      month=3
+    CASE("APR")
+      month=4
+    CASE("MAY")
+      month=5
+    CASE("JUN")
+      month=6
+    CASE("JUL")
+      month=7
+    CASE("AUG")
+      month=8
+    CASE("SEP")
+      month=9
+    CASE("OCT")
+      month=10
+    CASE("NOV")
+      month=11
+    CASE("DEC")
+      month=12
+    CASE DEFAULT
+      month=0
+    END SELECT
+
+    res=day+31*month+12*31*(year-1900)
+
+  END FUNCTION get_epoch
 
 END MODULE reference_manager
