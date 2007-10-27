@@ -43,13 +43,22 @@ SRCENTRY     = $(wildcard $(SRCDIR)/CVS/Entr*)
 LEAPOBJECTDEFS = $(TOOLSRC)/Fist/topology_converter/OBJECTDEFS
 FESOBJECTDEFS  = $(TOOLSRC)/metadyn/OBJECTDEFS
 
+#
 ### Definition of the multiple targets ###
+#
 VERSION_TARGETS = sopt sdbg popt pdbg ssmp psmp
+#
+# uses an ugly trick, these are disguised as file names, the directory (@D) part 
+# is used as a version, the file (@F) part is used as the version.
+#
 LIB_TARGETS = sopt/lib sdbg/lib popt/lib pdbg/lib ssmp/lib psmp/lib
 ALL_TARGETS = sopt/all sdbg/all popt/all pdbg/all ssmp/all psmp/all
 CLEAN_TARGETS   = sopt/clean sdbg/clean popt/clean pdbg/clean ssmp/clean psmp/clean\
                   sopt/realclean sdbg/realclean popt/realclean pdbg/realclean\
                   ssmp/realclean psmp/realclean
+#
+# lists the targets that are not files
+#
 .PHONY : _all libs _progr _lib build clean realclean distclean $(CLEAN_TARGETS)\
          $(ALL_TARGETS) $(LIB_TARGETS) $(VERSION_TARGETS) leap2fist fes dirs deptool
 
