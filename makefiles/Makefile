@@ -139,12 +139,12 @@ all.dep: $(OBJECTS:.o=.F) cp_common_uses.h cp2k.F
 lib.dep: $(LIB1_OBJECTS:.o=.F) $(LIB2_OBJECTS:.o=.F)
 	$(TOOLDIR)/makedepf90 -m "%m.mod" -free $^ > $(OBJDIR)/$(VERSION)/lib.dep
 
-# this is kind of a hack, fes and leap2fist depend on files in other directories, hence the -I
+# this is kind of a hack, fes and leap2fist depend on files in other directories, hence the -I and the -b.
 fes.dep: $(FESOBJS:.o=.F) 
-	$(TOOLDIR)/makedepf90 -I$(SRCDIR) -m "%m.mod" -free $^ > $(OBJDIR)/$(VERSION)/fes.dep
+	$(TOOLDIR)/makedepf90 -I$(SRCDIR) -b. -m "%m.mod" -free $^ > $(OBJDIR)/$(VERSION)/fes.dep
 
 leap2fist.dep: $(LEAPOBJS:.o=.F) 
-	$(TOOLDIR)/makedepf90 -I$(SRCDIR) -m "%m.mod" -free $^ > $(OBJDIR)/$(VERSION)/leap2fist.dep
+	$(TOOLDIR)/makedepf90 -I$(SRCDIR) -b. -m "%m.mod" -free $^ > $(OBJDIR)/$(VERSION)/leap2fist.dep
 
 #
 # and the rules doing the actual work
