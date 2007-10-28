@@ -54,7 +54,7 @@
 #
 # Command line switches to the do_regtest script (also configurable from within the script)
 #  -nocvs   : do not access the CVS for any updating, makes regtesting fully local
-#  -quick   : rebuild the code if needed, but do not perform a realclean before
+#  -quick   : rebuild the code if needed, but do not perform a realclean before (noquick is not needed anymore)
 #  -noreset : do not reset the reference outputs automatically
 #  -cvsdate string : specify any string to cvs update (most likely used as "-D 2005-02-17")
 #  -skipdir string : this switch can repeat, exclude certain dirs from regtesting, useful to 
@@ -115,7 +115,7 @@ datum_short=`date --iso-8601="seconds"`
 
 # *** default settings for command line switches
 nocvs="cvs"
-quick="noquick"
+quick="quick"
 cvsdate="-D $datum_full"
 noreset="reset"
 ndirstoskip=0
