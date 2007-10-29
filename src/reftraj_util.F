@@ -30,12 +30,8 @@ MODULE reftraj_util
                                              cp_subsys_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_remove_values,&
-                                             section_vals_type,&
-                                             section_vals_val_get
-  USE kinds,                           ONLY: default_path_length,&
-                                             default_string_length,&
+  USE input_section_types,             ONLY: section_vals_type
+  USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE md,                              ONLY: simulation_parameters_type
   USE md_environment_types,            ONLY: get_md_env,&
@@ -44,9 +40,7 @@ MODULE reftraj_util
   USE particle_types,                  ONLY: particle_type
   USE reftraj_types,                   ONLY: reftraj_type
   USE termination,                     ONLY: stop_program
-
 #include "cp_common_uses.h"
-
 
   IMPLICIT NONE
 
@@ -90,21 +84,21 @@ CONTAINS
 
   SUBROUTINE initialize_reftraj(reftraj,reftraj_section,md_env,error)
 
-    TYPE (reftraj_type), POINTER             :: reftraj
-    TYPE (section_vals_type), POINTER        :: reftraj_section
-    TYPE (md_environment_type), POINTER      :: md_env
+    TYPE(reftraj_type), POINTER              :: reftraj
+    TYPE(section_vals_type), POINTER         :: reftraj_section
+    TYPE(md_environment_type), POINTER       :: md_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'initialize_reftraj',&
-                          routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'initialize_reftraj', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=10)                        :: AA
     CHARACTER(LEN=80)                        :: title
-    CHARACTER(LEN=default_path_length)       :: filename
     CHARACTER(LEN=default_string_length)     :: name
-    INTEGER :: cellunit, natom, Natom_read, nskip, iatom, istat, isnapshot, iter, trjunit
+    INTEGER                                  :: cellunit, iatom, iter, natom, &
+                                                Natom_read, nskip, trjunit
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: hx,hy,hz,x,y,z
+    REAL(KIND=dp)                            :: hx, hy, hz, x, y, z
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(force_env_type), POINTER            :: force_env
@@ -112,8 +106,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar  
-      
+      POINTER                                :: simpar
+
     failure = .FALSE.
 
     NULLIFY (subsys, force_env, particles, particle_set, simpar)
@@ -165,11 +159,11 @@ CONTAINS
       simpar%nsteps = (reftraj%info%last_snapshot - reftraj%info%first_snapshot)
     END IF
 
-    IF(reftraj%info%eval_ef) THEn
+    IF(reftraj%info%eval_ef) THEN
       ! set up and printout
     END IF
     
-    IF(reftraj%info%msd) THEn
+    IF(reftraj%info%msd) THEN
       ! set up and printout
       CALL initialize_msd_reftraj(reftraj,reftraj_section,error=error)
     END IF
@@ -214,15 +208,14 @@ CONTAINS
 !!*** **********************************************************************
 
   SUBROUTINE initialize_msd_reftraj(reftraj,reftraj_section,error)
-    TYPE (reftraj_type), POINTER             :: reftraj
-    TYPE (section_vals_type), POINTER        :: reftraj_section
+    TYPE(reftraj_type), POINTER              :: reftraj
+    TYPE(section_vals_type), POINTER         :: reftraj_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'initialize_reftraj',&
-                          routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'initialize_msd_reftraj', &
+      routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
-
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
 

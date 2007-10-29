@@ -66,9 +66,10 @@ MODULE md_run
                                              setup_velocities,&
                                              temperature_control
   USE particle_list_types,             ONLY: particle_list_type
-  USE reftraj_util,                    ONLY: initialize_reftraj
   USE reftraj_types,                   ONLY: create_reftraj,&
-                                             reftraj_type
+                                             reftraj_type,&
+                                             release_reftraj
+  USE reftraj_util,                    ONLY: initialize_reftraj
   USE termination,                     ONLY: external_control
   USE thermostat_methods,              ONLY: create_thermostats
   USE thermostat_types,                ONLY: release_thermostats,&
@@ -189,7 +190,7 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(reftraj_type), POINTER              :: reftraj
     TYPE(section_vals_type), POINTER :: force_env_section, global_section, &
-      kg_coeff_section, motion_section, reftraj_section, root_section,  &
+      kg_coeff_section, motion_section, reftraj_section, root_section, &
       subsys_section, work_section
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
@@ -256,7 +257,6 @@ CONTAINS
         CALL set_md_env(md_env, reftraj=reftraj, error=error)
     END IF
 
-    
     CALL force_env_get(force_env, subsys=subsys, cell=cell, force_env_section=force_env_section,&
          error=error )
 
@@ -314,7 +314,6 @@ CONTAINS
        CALL get_md_env(md_env, reftraj=reftraj, error=error)
        CALL initialize_reftraj(reftraj, reftraj_section, md_env, error=error)
        itimes = reftraj%info%first_snapshot -1
-!       itimes = -1
     END IF
     
     CALL cp_print_key_finished_output(simpar%info_constraint, logger,&
@@ -375,6 +374,11 @@ CONTAINS
     ! Deallocate Thermostats and Barostats
     CALL release_thermostats(thermostats, error=error)
     CALL release_barostat_type(barostat, error=error)
+
+    ! RefTraj structure
+    IF(simpar%ensemble == reftraj_ensemble) THEN
+        CALL release_reftraj(reftraj, error)
+    END IF
 
     DEALLOCATE(simpar,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
