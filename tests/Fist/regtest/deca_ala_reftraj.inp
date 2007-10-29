@@ -37,7 +37,8 @@
     ENSEMBLE REFTRAJ
     STEPS 11
     &REFTRAJ
-     FILENAME deca_ala-pos-1.xyz
+      TRJFILENAME deca_ala-pos-1.xyz
+      EVAL_ENERGY_FORCES T
     &END
   &END MD
 &END MOTION
