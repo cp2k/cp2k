@@ -119,8 +119,7 @@ CONTAINS
     simpar % nfree = 6 - SUM(cell%perd(1:3))
     ! Collect info about thermostats
     CALL setup_thermostat_info(thermostats%thermostat_info_part, molecule_kind_set,&
-         local_molecules, region, simpar%ensemble, simpar%nfree, &
-         error=error)
+         local_molecules, region, simpar%ensemble, simpar%nfree, error=error)
 
     ! Saving this value of simpar preliminar to the real count of constraints..
     simpar % nfree_rot_transl = simpar % nfree
@@ -189,9 +188,11 @@ CONTAINS
                                                 nkind, nmol_local, nmolecule, &
                                                 nshell, number, &
                                                 sum_of_thermostats
-    LOGICAL                                  :: do_shell, nointer
+    LOGICAL                                  :: check, do_shell, failure, &
+                                                nointer
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
+    failure = .FALSE.
     NULLIFY(molecule_kind)
     nkind = SIZE ( molecule_kind_set )
     do_shell = .FALSE.
@@ -199,8 +200,10 @@ CONTAINS
     ! Counting the global number of thermostats
     sum_of_thermostats = 0
     ! variable to denote independent thermostats (no communication necessary)
-    nointer = .TRUE.
-    number  = 0
+    nointer  = .TRUE.
+    check    = .TRUE.
+    number   = 0
+    dis_type = do_thermo_no_communication
 
     SELECT CASE(ensemble)
     CASE DEFAULT
@@ -208,109 +211,76 @@ CONTAINS
     CASE(isokin_ensemble, nph_uniaxial_ensemble, nph_uniaxial_damped_ensemble,&
          reftraj_ensemble, langevin_ensemble)
        ! Do Nothing
-    CASE(nve_ensemble)
-      IF(do_shell) THEN
-         SELECT CASE(region)
-         CASE(do_region_global)
-            ! Global Thermostat
-            nointer = .FALSE.
-            sum_of_thermostats = 1
-         CASE(do_region_molecule)
-            ! Molecular Thermostat
-            DO i = 1, nkind
-               molecule_kind => molecule_kind_set ( i )
-               CALL get_molecule_kind ( molecule_kind, nmolecule=nmolecule, nshell=nshell )
-               IF ((nshell==0)) nmolecule=0
-               sum_of_thermostats = sum_of_thermostats + nmolecule
-            END DO
-            ! If we have ONE kind and ONE molecule, then effectively we have a GLOBAL thermostat
-            ! and the degrees of freedom will be computed correctly for this special case
-            IF ( ( nmolecule == 1 ) .AND. ( nkind == 1 ) ) nointer = .FALSE.
-         CASE(do_region_massive)
-            ! Massive Thermostat
-            DO i = 1, nkind
-               molecule_kind => molecule_kind_set ( i )
-               CALL get_molecule_kind ( molecule_kind, nmolecule=nmolecule, &
-                    natom=natom, nshell=nshell )
-               natom = nshell
-               sum_of_thermostats = sum_of_thermostats + 3 * natom * nmolecule
-            END DO
-         END SELECT
-         number = sum_of_thermostats
-      ELSE
-       ! Do Nothing
-      END IF
-    CASE(nvt_ensemble, npt_i_ensemble, npt_f_ensemble)
+    CASE(nve_ensemble, nvt_ensemble, npt_i_ensemble, npt_f_ensemble)
+       IF (ensemble==nve_ensemble) check = do_shell
+       IF (check) THEN
+          SELECT CASE(region)
+          CASE(do_region_global)
+             ! Global Thermostat
+             nointer = .FALSE.
+             sum_of_thermostats = 1
+          CASE(do_region_molecule)
+             ! Molecular Thermostat
+             DO i = 1, nkind
+                molecule_kind => molecule_kind_set ( i )
+                CALL get_molecule_kind ( molecule_kind, nmolecule=nmolecule, nshell=nshell )
+                IF ((do_shell).AND.(nshell==0)) nmolecule=0
+                sum_of_thermostats = sum_of_thermostats + nmolecule
+             END DO
+             ! If we have ONE kind and ONE molecule, then effectively we have a GLOBAL thermostat
+             ! and the degrees of freedom will be computed correctly for this special case
+             IF ( ( nmolecule == 1 ) .AND. ( nkind == 1 ) ) nointer = .FALSE.
+          CASE(do_region_massive)
+             ! Massive Thermostat
+             DO i = 1, nkind
+                molecule_kind => molecule_kind_set ( i )
+                CALL get_molecule_kind ( molecule_kind, nmolecule=nmolecule, &
+                     natom=natom, nshell=nshell )
+                IF (do_shell) natom = nshell
+                sum_of_thermostats = sum_of_thermostats + 3 * natom * nmolecule
+             END DO
+          END SELECT
+          number = sum_of_thermostats
 
-       SELECT CASE(region)
-       CASE(do_region_global)
-          ! Global Thermostat
-          nointer = .FALSE.
-          sum_of_thermostats = 1
-       CASE(do_region_molecule)
-          ! Molecular Thermostat
-          DO i = 1, nkind
-             molecule_kind => molecule_kind_set ( i )
-             CALL get_molecule_kind ( molecule_kind, nmolecule=nmolecule, nshell=nshell )
-             IF ((do_shell).AND.(nshell==0)) nmolecule=0
-             sum_of_thermostats = sum_of_thermostats + nmolecule
-          END DO
-          ! If we have ONE kind and ONE molecule, then effectively we have a GLOBAL thermostat
-          ! and the degrees of freedom will be computed correctly for this special case
-          IF ( ( nmolecule == 1 ) .AND. ( nkind == 1 ) ) nointer = .FALSE.
-       CASE(do_region_massive)
-          ! Massive Thermostat
-          DO i = 1, nkind
-             molecule_kind => molecule_kind_set ( i )
-             CALL get_molecule_kind ( molecule_kind, nmolecule=nmolecule, &
-                  natom=natom, nshell=nshell )
-             IF (do_shell) natom = nshell
-             sum_of_thermostats = sum_of_thermostats + 3 * natom * nmolecule
-          END DO
-       END SELECT
-       number = sum_of_thermostats
-    END SELECT
-
-    IF(number/=0) THEN
-       ! Here we decide on what parallel algorithm to use.
-       ! if there are only massive and molecule type thermostats we can use
-       ! a local scheme, in cases involving any combination with a
-       ! global thermostat we assume a coupling of  degrees of freedom
-       ! from different processors
-       IF ( nointer ) THEN
-          ! Distributed thermostats, no interaction
-          dis_type = do_thermo_no_communication
-          ! we only count thermostats on this processor
-          number = 0
-          DO ikind = 1, nkind
-             nmol_local = local_molecules % n_el ( ikind )
-             molecule_kind => molecule_kind_set ( ikind )
-             CALL get_molecule_kind ( molecule_kind, natom=natom, nshell=nshell)
-             IF (do_shell) THEN 
-                natom = nshell
-                IF (nshell==0) nmol_local = 0
+          ! Here we decide on what parallel algorithm to use.
+          ! if there are only massive and molecule type thermostats we can use
+          ! a local scheme, in cases involving any combination with a
+          ! global thermostat we assume a coupling of  degrees of freedom
+          ! from different processors
+          IF ( nointer ) THEN
+             ! Distributed thermostats, no interaction
+             dis_type = do_thermo_no_communication
+             ! we only count thermostats on this processor
+             number = 0
+             DO ikind = 1, nkind
+                nmol_local = local_molecules % n_el ( ikind )
+                molecule_kind => molecule_kind_set ( ikind )
+                CALL get_molecule_kind ( molecule_kind, natom=natom, nshell=nshell)
+                IF (do_shell) THEN 
+                   natom = nshell
+                   IF (nshell==0) nmol_local = 0
+                END IF
+                IF (region==do_region_molecule) THEN
+                   number = number + nmol_local
+                ELSE IF (region==do_region_massive) THEN
+                   number = number + 3*nmol_local*natom
+                ELSE
+                   CALL stop_program (routineP, 'Invalid region setup' )
+                END IF
+             END DO
+          ELSE
+             ! REPlicated thermostats, INTERacting via communication
+             dis_type = do_thermo_communication
+          END IF
+          
+          IF (PRESENT(nfree)) THEN
+             IF ((sum_of_thermostats>1).OR.(dis_type==do_thermo_no_communication)) THEN
+                ! re-initializing simpar%nfree to zero because of multiple thermostats
+                nfree = 0.0_dp
              END IF
-             IF (region==do_region_molecule) THEN
-                number = number + nmol_local
-             ELSE IF (region==do_region_massive) THEN
-                number = number + 3*nmol_local*natom
-             ELSE
-                CALL stop_program (routineP, 'Invalid region setup' )
-             END IF
-          END DO
-       ELSE
-          ! REPlicated thermostats, INTERacting via communication
-          dis_type = do_thermo_communication
-       END IF
-       
-       IF (PRESENT(nfree)) THEN
-          IF ((sum_of_thermostats>1).OR.(dis_type==do_thermo_no_communication)) THEN
-             ! re-initializing simpar%nfree to zero because of multiple thermostats
-             nfree = 0.0_dp
           END IF
        END IF
-
-    END IF
+    END SELECT
 
     ! Saving information about thermostats
     thermostat_info%sum_of_thermostats    = sum_of_thermostats

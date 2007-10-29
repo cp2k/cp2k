@@ -140,7 +140,7 @@ CONTAINS
 
     INTEGER                                  :: region, thermostat_type
     LOGICAL :: apply_general_thermo, apply_thermo_baro, apply_thermo_coeff, &
-      apply_thermo_shell, do_thermo_shell, explicit_baro, explicit_coef,&
+      apply_thermo_shell, do_thermo_shell, explicit_baro, explicit_coef, &
       explicit_part, explicit_shell, failure, save_mem, shell_adiabatic, &
       shell_present
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -179,9 +179,9 @@ CONTAINS
     apply_general_thermo = apply_thermo_baro .OR. (simpar%ensemble == nvt_ensemble)
 
     apply_thermo_shell = (simpar%ensemble == nve_ensemble).OR.&
-                        (simpar%ensemble == nvt_ensemble) .OR.&
-                        (simpar%ensemble == npt_f_ensemble).OR.&
-                        (simpar%ensemble == npt_i_ensemble)
+                         (simpar%ensemble == nvt_ensemble) .OR.&
+                         (simpar%ensemble == npt_f_ensemble).OR.&
+                         (simpar%ensemble == npt_i_ensemble)
 
     ! Compute Degrees of Freedom
     region = do_region_global
