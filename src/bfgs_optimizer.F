@@ -52,7 +52,8 @@ MODULE bfgs_optimizer
   USE message_passing,                 ONLY: mp_bcast
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type,&
-                                             write_particle_coordinates
+                                             write_particle_coordinates,&
+                                             write_structure_data
   USE termination,                     ONLY: external_control,&
                                              stop_memory
   USE timings,                         ONLY: timeset,&
@@ -161,7 +162,9 @@ CONTAINS
 
     ! Initialize hessian (hes = unitary matrix )
 
-    ALLOCATE(hes(ndf*(ndf+1)/2))
+    ALLOCATE (hes(ndf*(ndf+1)/2),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "hes",ndf*(ndf+1)/2*dp_size)
 
     DO indf=1,ndf
       DO j=1,indf
@@ -387,8 +390,10 @@ CONTAINS
     ! Write final particle information, if converged
 
     IF (conv) THEN
+      it = it + 1
+      CALL write_structure_data(particle_set,cell,gopt_env%motion_section,error)
       CALL write_restart(force_env=force_env,root_section=root_section,&
-                          force_env_section=force_env_section,error=error)
+                         force_env_section=force_env_section,error=error)
       IF (ionode) THEN
         traj_unit = cp_print_key_unit_nr(logger,root_section,&
                                          "MOTION%PRINT%TRAJECTORY",&
