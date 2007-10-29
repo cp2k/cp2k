@@ -66,6 +66,9 @@ MODULE md_run
                                              setup_velocities,&
                                              temperature_control
   USE particle_list_types,             ONLY: particle_list_type
+  USE reftraj_util,                    ONLY: initialize_reftraj
+  USE reftraj_types,                   ONLY: create_reftraj,&
+                                             reftraj_type
   USE termination,                     ONLY: external_control
   USE thermostat_methods,              ONLY: create_thermostats
   USE thermostat_types,                ONLY: release_thermostats,&
@@ -184,9 +187,10 @@ CONTAINS
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(free_energy_type), POINTER          :: fe_env
     TYPE(particle_list_type), POINTER        :: particles
+    TYPE(reftraj_type), POINTER              :: reftraj
     TYPE(section_vals_type), POINTER :: force_env_section, global_section, &
-      kg_coeff_section, motion_section, root_section, subsys_section, &
-      work_section
+      kg_coeff_section, motion_section, reftraj_section, root_section,  &
+      subsys_section, work_section
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(thermostats_type), POINTER          :: thermostats
@@ -197,8 +201,9 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY (particles, cell, cell_ref, simpar, itimes, used_time, subsys, &
-         motion_section, thermostats, barostat, force_env_section, kg_coeff_section,&
-         work_section, atomic_kinds, local_particles, t, fe_env, dyn_coeff_set)
+         motion_section, thermostats, barostat, reftraj, force_env_section,&
+         kg_coeff_section, reftraj_section, work_section, atomic_kinds, &
+         local_particles, t, fe_env, dyn_coeff_set)
     logger => cp_error_get_logger(error)
     root_section => force_env % root_section
     para_env     => force_env % para_env
@@ -244,6 +249,14 @@ CONTAINS
             globenv, coeff_section=kg_coeff_section, error=error)
     END IF
 
+    !If requested set up the REFTRAJ run
+    IF(simpar%ensemble == reftraj_ensemble) THEN
+        reftraj_section => section_vals_get_subs_vals(motion_section,"MD%REFTRAJ",error=error)
+        CALL create_reftraj(reftraj, reftraj_section, error)
+        CALL set_md_env(md_env, reftraj=reftraj, error=error)
+    END IF
+
+    
     CALL force_env_get(force_env, subsys=subsys, cell=cell, force_env_section=force_env_section,&
          error=error )
 
@@ -298,7 +311,10 @@ CONTAINS
        CALL section_vals_val_get(motion_section,"MD%TIME_START_VAL",r_val=t,error=error)
        CALL md_energy ( md_env, error ) ! inits the print env at itimes == 0
     ELSE
-       itimes = -1
+       CALL get_md_env(md_env, reftraj=reftraj, error=error)
+       CALL initialize_reftraj(reftraj, reftraj_section, md_env, error=error)
+       itimes = reftraj%info%first_snapshot -1
+!       itimes = -1
     END IF
     
     CALL cp_print_key_finished_output(simpar%info_constraint, logger,&

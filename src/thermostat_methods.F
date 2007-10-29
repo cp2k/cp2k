@@ -140,8 +140,9 @@ CONTAINS
 
     INTEGER                                  :: region, thermostat_type
     LOGICAL :: apply_general_thermo, apply_thermo_baro, apply_thermo_coeff, &
-      do_thermo_shell, explicit_baro, explicit_coef, explicit_part, &
-      explicit_shell, failure, save_mem, shell_adiabatic, shell_present
+      apply_thermo_shell, do_thermo_shell, explicit_baro, explicit_coef,&
+      explicit_part, explicit_shell, failure, save_mem, shell_adiabatic, &
+      shell_present
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -176,6 +177,11 @@ CONTAINS
                         (simpar%ensemble == nvt_ensemble)
 
     apply_general_thermo = apply_thermo_baro .OR. (simpar%ensemble == nvt_ensemble)
+
+    apply_thermo_shell = (simpar%ensemble == nve_ensemble).OR.&
+                        (simpar%ensemble == nvt_ensemble) .OR.&
+                        (simpar%ensemble == npt_f_ensemble).OR.&
+                        (simpar%ensemble == npt_i_ensemble)
 
     ! Compute Degrees of Freedom
     region = do_region_global
@@ -219,9 +225,9 @@ CPSourceFileRef,&
 
     ! Core-Shell Model
     IF (explicit_shell) THEN
-       IF (apply_general_thermo) THEN
+       IF (apply_thermo_shell) THEN
           CALL create_thermostat_type(thermostats%thermostat_shell, simpar, thermo_shell_section, error=error)
-          CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds, error=error)
+          CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds,  molecules_new=molecules_new, error=error)
           CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,shell_present=shell_present,&
                shell_adiabatic=shell_adiabatic)
           do_thermo_shell = (shell_present .AND. shell_adiabatic)
@@ -268,8 +274,8 @@ CPSourceFileRef,&
           END IF
        ELSE
           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-               "Thermostat for Shells has been defined but the ensemble provided "//&
-               "does not support thermostat for Shells! Ignoring thermostat input."//&
+          "Thermostat for Shells has been defined but for the selected ensemble the adiabatic  "//&
+               " shell model has not be implemented! Ignoring thermostat input."//&
 CPSourceFileRef,&
                only_ionode=.TRUE.)          
        END IF

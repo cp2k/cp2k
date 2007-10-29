@@ -74,9 +74,8 @@ MODULE integrator
   USE md,                              ONLY: simulation_parameters_type
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type,&
-                                             reftraj_type,&
                                              set_md_env
-  USE message_passing,                 ONLY: mp_sum
+  USE message_passing,                 ONLY: mp_bcast, mp_sum
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -89,9 +88,9 @@ MODULE integrator
   USE particle_types,                  ONLY: particle_type,&
                                              update_particle_set
   USE qmmm_util,                       ONLY: apply_qmmm_walls
+  USE reftraj_types,                   ONLY: reftraj_type
   USE shell_potential_types,           ONLY: shell_kind_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
   USE thermostat_methods,              ONLY: apply_thermostat_baro,&
                                              apply_thermostat_coeff,&
                                              apply_thermostat_particles,&
@@ -117,7 +116,7 @@ MODULE integrator
 
   TYPE ( old_variables_type ) :: old
 
-  PUBLIC :: nve, nvt, isokin, npt_i, npt_f, nph_uniaxial,nve_respa
+  PUBLIC :: nve, nvt, isokin, npt_i, npt_f, nph_uniaxial, nve_respa
   PUBLIC :: nph_uniaxial_damped, reftraj, langevin
 
   INTERFACE set
@@ -168,6 +167,7 @@ CONTAINS
 
     INTEGER :: iparticle, iparticle_kind, iparticle_local, istat, nmolecule, &
       nmolecule_kind, nparticle, nparticle_kind, nparticle_local
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: c, c1, c2, c3, c4, dm, dt, &
                                                 gam, mass, sigma
     REAL(KIND=dp), ALLOCATABLE, &
@@ -197,6 +197,7 @@ CONTAINS
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
 
+    failure = .FALSE.
     NULLIFY (cell, para_env, gci, force_env)
     CALL get_md_env(md_env=md_env, simpar=simpar, force_env=force_env,&
          para_env=para_env, error=error)
@@ -227,18 +228,15 @@ CONTAINS
 
     ! Allocate work storage
     ALLOCATE (pos(3,nparticle),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "pos",3*nparticle*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     pos(:,:) = 0.0_dp
 
     ALLOCATE (vel(3,nparticle),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "vel",3*nparticle*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     vel(:,:) = 0.0_dp
 
     ALLOCATE (w(3,nparticle),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "w",3*nparticle*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     w(:,:) = 0.0_dp
 
     IF (simpar%constraint) THEN
@@ -299,7 +297,7 @@ CONTAINS
     CALL update_particle_set(particle_set,para_env%group,pos=pos)
 
     DEALLOCATE (pos,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pos")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     ! Update forces
     CALL force_env_calc_energy_force(force_env,error=error)
@@ -333,10 +331,10 @@ CONTAINS
     CALL update_particle_set(particle_set,para_env%group,vel=vel)
 
     DEALLOCATE (vel,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"vel")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     DEALLOCATE (w,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"w")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     ! Update virial
     IF (simpar%constraint) THEN
@@ -378,7 +376,7 @@ CONTAINS
     INTEGER :: icoef, iparticle, iparticle_kind, iparticle_local, istat, &
       mass_storage, nmolecule, nmolecule_kind, nparticle, nparticle_kind, &
       nparticle_local, nshell, shell_index
-    LOGICAL                                  :: is_shell, shell_adiabatic, &
+    LOGICAL                                  :: failure, is_shell, shell_adiabatic, &
                                                 shell_present
     REAL(KIND=dp)                            :: dm, dmc, dmcoef, dms, dt, &
                                                 fac_massc, fac_masss, &
@@ -416,16 +414,23 @@ CONTAINS
     TYPE(shell_kind_type), POINTER           :: shell
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
-    TYPE(thermostat_type), POINTER           :: thermostat_coeff
+    TYPE(thermostat_type), POINTER           :: thermostat_coeff, thermostat_shell
     TYPE(virial_type), POINTER               :: virial
 
-    NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs, thermostat_coeff,para_env,cell,gci, force_env)
-    NULLIFY (shell,shell_particles,shell_particle_set,core_particles, core_particle_set)
+
+    failure = .FALSE. 
+
+    NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs, thermostat_coeff)
+    NULLIFY (subsys, simpar, para_env, cell, gci, force_env, virial)
+    NULLIFY (atomic_kinds, local_particles, molecules, molecule_kind_set, molecule_set, particle_set)
+    NULLIFY (shell, shell_particles, shell_particle_set, core_particles, &
+            core_particle_set, thermostat_shell)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,&
-         thermostat_coeff=thermostat_coeff, para_env=para_env, error=error)
+         thermostat_coeff=thermostat_coeff,thermostat_shell=thermostat_shell,&
+         para_env=para_env, error=error)
     dt = simpar%dt
-    CALL force_env_get(force_env=force_env,subsys=subsys,&
-         dyn_coeff_set=dyn_coeff_set, virial = virial, cell=cell,error=error)
+    CALL force_env_get(force_env=force_env, subsys=subsys,&
+         dyn_coeff_set=dyn_coeff_set, virial=virial, cell=cell, error=error)
 
     ! Do some checks on coordinates and box
     CALL apply_qmmm_walls(force_env, error=error)
@@ -449,11 +454,11 @@ CONTAINS
 
     !     *** Allocate work storage for positions and velocities ***
     ALLOCATE (pos(3,nparticle),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "pos",3*nparticle*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
     ALLOCATE (vel(3,nparticle),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "vel",3*nparticle*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
     pos(:,:) = 0.0_dp
     vel(:,:) = 0.0_dp
 
@@ -467,17 +472,17 @@ CONTAINS
           core_particle_set =>  core_particles%els
           !     *** Allocate work storage for positions and velocities ***
           ALLOCATE (shell_pos(3,nshell),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-               "shellpos",3*nshell*dp_size)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
           ALLOCATE (core_pos(3,nshell),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-               "corepos",3*nshell*dp_size)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
           ALLOCATE (shell_vel(3,nshell),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-               "shellvel",3*nshell*dp_size)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
           ALLOCATE (core_vel(3,nshell),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-               "corevel",3*nshell*dp_size)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
           shell_pos(:,:) = 0.0_dp
           shell_vel(:,:) = 0.0_dp
           core_pos(:,:) = 0.0_dp
@@ -487,6 +492,13 @@ CONTAINS
        shell_adiabatic = .FALSE.
     END IF
 
+    !Apply thermostat over the full set of shells if required
+    IF(shell_adiabatic) THEN
+       CALL apply_thermostat_shells(thermostat_shell, atomic_kind_set, particle_set,&
+            local_particles, para_env%group, shell_particle_set=shell_particle_set,&
+            core_particle_set=core_particle_set, error=error)
+    END IF
+    
     IF (simpar%constraint) CALL getold(gci,local_molecules, molecule_set,  &
          molecule_kind_set, particle_set, cell, error)
 
@@ -559,15 +571,17 @@ CONTAINS
     !     *** Broadcast the new particle positions ***
     CALL update_particle_set ( particle_set, para_env % group, pos = pos )
     DEALLOCATE (pos,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pos")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     IF(shell_adiabatic)THEN
        CALL update_particle_set ( shell_particle_set, para_env % group, pos = shell_pos )
        CALL update_particle_set ( core_particle_set, para_env % group, pos = core_pos )
        DEALLOCATE (shell_pos,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"shell_pos")
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
        DEALLOCATE (core_pos,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"core_pos")
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
     END IF
 
     !     *** coefficients
@@ -669,6 +683,14 @@ CONTAINS
          cell,para_env%group,&
          local_particles, error )
 
+    !Apply thermostat over the full set of shell if required
+    IF (shell_adiabatic) THEN
+       CALL apply_thermostat_shells(thermostat_shell,atomic_kind_set, particle_set,&
+            local_particles, para_env%group, vel=vel, shell_vel=shell_vel, core_vel=core_vel,&
+            error=error)
+    END IF
+
+
     IF (simpar%annealing) THEN
        vel(:,:)=vel(:,:)*simpar%f_annealing
        IF (shell_adiabatic) THEN
@@ -685,12 +707,15 @@ CONTAINS
     END IF
 
     DEALLOCATE (vel,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"vel")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
     IF (shell_adiabatic) THEN
        DEALLOCATE (shell_vel,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"shell_vel")
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
        DEALLOCATE (core_vel,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"core_vel")
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
     END IF
 
     !     *** coefficients
@@ -769,6 +794,7 @@ CONTAINS
 
     INTEGER :: iparticle, iparticle_kind, iparticle_local, istat, nparticle, &
       nparticle_kind, nparticle_local
+    LOGICAL  :: failure
     REAL(KIND=dp)                            :: a, b, dm, ds, dt, K, mass, &
                                                 rb, s
     REAL(KIND=dp), ALLOCATABLE, &
@@ -786,6 +812,8 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
+
+    failure = .FALSE.
 
     NULLIFY(force_env)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,&
@@ -813,8 +841,8 @@ CONTAINS
 
     !     *** Allocate work storage for positions and velocities ***
     ALLOCATE (work(3,nparticle),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "work",3*nparticle*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
     work(:,:) = 0.0_dp
 
     ! compute K,a,b,s,ds
@@ -874,7 +902,7 @@ CONTAINS
     END DO
 
     DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
   CONTAINS
 
@@ -934,7 +962,7 @@ CONTAINS
     INTEGER :: icoef, iparticle, iparticle_kind, iparticle_local, istat, &
       mass_storage, nmolecule, nmolecule_kind, nparticle, nparticle_kind, &
       nparticle_local, nshell, shell_index
-    LOGICAL                                  :: is_shell, shell_adiabatic, &
+    LOGICAL                                  :: failure, is_shell, shell_adiabatic, &
                                                 shell_present
     REAL(KIND=dp)                            :: dm, dmc, dmcoef, dms, dt, &
                                                 fac_massc, fac_masss, &
@@ -977,6 +1005,8 @@ CONTAINS
                                                 thermostat_shell
     TYPE(virial_type), POINTER               :: virial
 
+    failure = .FALSE.
+
     NULLIFY(gci,force_env,dyn_coeff_set,coeffs_of_kind,coeffs, thermostat_coeff, thermostat_part,&
          thermostat_shell, cell, shell, shell_particles, shell_particle_set, core_particles,&
          core_particle_set)
@@ -1011,11 +1041,9 @@ CONTAINS
     !     *** Allocate work storage for positions and velocities ***
 
     ALLOCATE (pos(3,nparticle),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "pos",3*nparticle*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (vel(3,nparticle),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "vel",3*nparticle*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     pos(:,:) = 0.0_dp
     vel(:,:) = 0.0_dp
 
@@ -1029,17 +1057,13 @@ CONTAINS
           core_particle_set =>  core_particles%els
           !     *** Allocate work storage for positions and velocities ***
           ALLOCATE (shell_pos(3,nshell),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-               "shellpos",3*nshell*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE (core_pos(3,nshell),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-               "corepos",3*nshell*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE (shell_vel(3,nshell),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-               "shellvel",3*nshell*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE (core_vel(3,nshell),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-               "corevel",3*nshell*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           shell_pos(:,:) = 0.0_dp
           shell_vel(:,:) = 0.0_dp
           core_pos(:,:) = 0.0_dp
@@ -1135,15 +1159,15 @@ CONTAINS
     !     *** Broadcast the new particle positions ***
     CALL update_particle_set ( particle_set, para_env % group, pos = pos )
     DEALLOCATE (pos,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     IF(shell_adiabatic)THEN
        CALL update_particle_set ( shell_particle_set, para_env % group, pos = shell_pos )
        CALL update_particle_set ( core_particle_set, para_env % group, pos = core_pos )
        DEALLOCATE (shell_pos,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"shell_pos")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE (core_pos,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"core_pos")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
 
 
@@ -1291,12 +1315,12 @@ CONTAINS
          para_env % group )
 
     DEALLOCATE (vel,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"vel")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     IF (shell_adiabatic) THEN
        DEALLOCATE (shell_vel,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"shell_vel")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE (core_vel,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"core_vel")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     !     *** coefficients
@@ -1374,7 +1398,7 @@ CONTAINS
       nmolecule, nmolecule_kind, nparticle, nparticle_kind, nparticle_local, &
       nshell, shell_index
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: first, first_time, is_shell, &
+    LOGICAL                                  :: failure, first, first_time, is_shell, &
                                                 shell_adiabatic, shell_present
     REAL(dp)                                 :: kin
     REAL(dp), DIMENSION(3, 3)                :: pv_kin
@@ -1417,6 +1441,8 @@ CONTAINS
                                                 thermostat_shell
     TYPE(virial_type), POINTER               :: virial
 
+    failure = .FALSE. 
+
     NULLIFY(gci,thermostat_baro,thermostat_part,thermostat_shell,force_env)
     NULLIFY (shell,shell_particles,shell_particle_set,core_particles, core_particle_set)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,thermostat_part=thermostat_part,&
@@ -1455,14 +1481,12 @@ CONTAINS
 
 
     !     *** Allocate work storage for positions and velocities ***
-    CALL allocate_old ( particle_set, npt )
+    CALL allocate_old ( particle_set, npt, error=error )
 
     ALLOCATE (pos(3,nparticle),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "pos",3*nparticle*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (vel(3,nparticle),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "vel",3*nparticle*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     pos(:,:) = 0.0_dp
     vel(:,:) = 0.0_dp
 
@@ -1477,17 +1501,13 @@ CONTAINS
           core_particle_set =>  core_particles%els
           !     *** Allocate work storage for positions and velocities ***
           ALLOCATE (shell_pos(3,nshell),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-               "shellpos",3*nshell*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE (core_pos(3,nshell),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-               "corepos",3*nshell*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE (shell_vel(3,nshell),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-               "shellvel",3*nshell*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE (core_vel(3,nshell),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-               "corevel",3*nshell*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           shell_pos(:,:) = 0.0_dp
           shell_vel(:,:) = 0.0_dp
           core_pos(:,:) = 0.0_dp
@@ -1642,15 +1662,15 @@ CONTAINS
     CALL update_particle_set ( particle_set, para_env % group, pos = pos )
 
     DEALLOCATE (pos,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     IF(shell_adiabatic)THEN
        CALL update_particle_set ( shell_particle_set, para_env % group, pos = shell_pos )
        CALL update_particle_set ( core_particle_set, para_env % group, pos = core_pos )
        DEALLOCATE (shell_pos,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"shell_pos")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE (core_pos,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"core_pos")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     !     *** Update forces ***
@@ -1786,19 +1806,19 @@ CONTAINS
          para_env % group )
 
     DEALLOCATE (vel,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"vel")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     IF (shell_adiabatic) THEN
        DEALLOCATE (shell_vel,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"shell_vel")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE (core_vel,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"core_vel")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     CALL virial_evaluate ( atomic_kind_set, particle_set,  &
          local_particles, virial, para_env % group , error=error)
 
     ! Deallocate old variables
-    CALL deallocate_old ( )
+    CALL deallocate_old (error=error )
 
     IF (first_time) THEN
        first_time = .FALSE.
@@ -1837,60 +1857,108 @@ CONTAINS
     CHARACTER(LEN=80)                        :: title
     CHARACTER(LEN=default_path_length)       :: filename
     INTEGER                                  :: I, istat, nparticle, Nread
-    LOGICAL                                  :: eval_EF
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: h(3,3)
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pos
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(reftraj_type), POINTER              :: reftraj_info
+    TYPE(reftraj_type), POINTER              :: reftraj_env
     TYPE(section_vals_type), POINTER         :: root_section
 
-    NULLIFY(root_section, reftraj_info, particle_set, particles, force_env,&
-         subsys, para_env)
-    CALL get_md_env(md_env=md_env, reftraj_info=reftraj_info,force_env=force_env,&
-         para_env = para_env, error=error)
 
-    CALL force_env_get(force_env=force_env, subsys=subsys, root_section=root_section,error=error)
+    failure = .FALSE.
+
+    NULLIFY(root_section, reftraj_env, particle_set, particles, force_env,&
+         subsys, para_env, cell)
+    CALL get_md_env(md_env=md_env, reftraj=reftraj_env, force_env=force_env,&
+         para_env=para_env, error=error)
+
+    CALL force_env_get(force_env=force_env, cell=cell, subsys=subsys, &
+         root_section=root_section,error=error)
 
     ! Do some checks on coordinates and box
     CALL apply_qmmm_walls(force_env, error=error)
-    CALL cp_subsys_get(subsys=subsys, particles=particles,error=error)
+    CALL cp_subsys_get(subsys=subsys, particles=particles, error=error)
     nparticle    = particles%n_els
     particle_set => particles%els
     ALLOCATE (pos(3,nparticle),STAT=istat)
-    IF (istat /= 0) CALL stop_memory("reftraj",moduleN,&
-         __LINE__,&
-         "pos",3*nparticle*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     ! SnapShots read from an external file
     IF (para_env%mepos==para_env%source) THEN
        ! open only the first time, retain the file open for reading the next frame in the file
-       IF (reftraj_info%unit<0) THEN
-          CALL section_vals_val_get(root_section,"MOTION%MD%REFTRAJ%FILENAME",c_val=filename,error=error)
-          CALL open_file(TRIM(filename),unit_number=reftraj_info%unit)
-       ENDIF
-       READ(reftraj_info%unit,*,ERR=999,END=998) Nread
-       READ(reftraj_info%unit,'(A)',ERR=999,END=998) title
+      ! IF (reftraj_info%unit<0) THEN
+      !    CALL section_vals_val_get(root_section,"MOTION%MD%REFTRAJ%FILENAME",c_val=filename,error=error)
+      !    CALL open_file(TRIM(filename),unit_number=reftraj_info%unit)
+      ! ENDIF
+       READ(reftraj_env%info%trjfile_unit,*,ERR=999,END=998) Nread
+       READ(reftraj_env%info%trjfile_unit,'(A)',ERR=999,END=998) title
        DO I=1,Nread
-          READ(reftraj_info%unit,*,ERR=999,END=998) AA,pos(:,I)
+          READ(reftraj_env%info%trjfile_unit,*,ERR=999,END=998) AA,pos(:,I)
           CALL convert_to_cp2k_units("ANGSTROM",length=pos(1,I))
           CALL convert_to_cp2k_units("ANGSTROM",length=pos(2,I))
           CALL convert_to_cp2k_units("ANGSTROM",length=pos(3,I))
        ENDDO
+
+       IF(reftraj_env%info%variable_volume)THEN
+          READ(reftraj_env%info%cellfile_unit ,'(A)',ERR=997,END=996) title    
+          READ(reftraj_env%info%cellfile_unit,*,ERR=997,END=996)  h(1,1),h(2,1),h(3,1)
+          CALL convert_to_cp2k_units("ANGSTROM",length=h(1,1))
+          CALL convert_to_cp2k_units("ANGSTROM",length=h(2,1))
+          CALL convert_to_cp2k_units("ANGSTROM",length=h(3,1))
+          READ(reftraj_env%info%cellfile_unit,*,ERR=997,END=996)  h(1,2),h(2,2),h(3,2)
+          CALL convert_to_cp2k_units("ANGSTROM",length=h(1,2))
+          CALL convert_to_cp2k_units("ANGSTROM",length=h(2,2))
+          CALL convert_to_cp2k_units("ANGSTROM",length=h(3,2))
+          READ(reftraj_env%info%cellfile_unit,*,ERR=997,END=996)  h(1,3),h(2,3),h(3,3)
+          CALL convert_to_cp2k_units("ANGSTROM",length=h(1,3))
+          CALL convert_to_cp2k_units("ANGSTROM",length=h(2,3))
+          CALL convert_to_cp2k_units("ANGSTROM",length=h(3,3))
+       END IF
     ELSE
        pos=0.0_dp
+       h=0.0_dp
     ENDIF
     CALL update_particle_set ( particle_set, para_env % group, pos = pos )
-    DEALLOCATE(pos)
-    ! Task to perform on the reference trajectory
-    CALL section_vals_val_get(root_section,"MOTION%MD%REFTRAJ%EVAL_ENERGY_FORCES",l_val=eval_EF,error=error)
-    CALL force_env_calc_energy_force(force_env,eval_energy_forces=eval_EF,error=error)
+    IF(reftraj_env%info%variable_volume)THEN
+       CALL mp_bcast(h,para_env%source,para_env%group)
+       cell%hmat(1:3,1) = h(1:3,1)
+       cell%hmat(1:3,2) = h(1:3,2)
+       cell%hmat(1:3,3) = h(1:3,3)
+    END IF
+    
+    
+    DEALLOCATE(pos ,stat=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
+
+    ! Task to perform on the reference trajectory
+    !CALL section_vals_val_get(root_section,"MOTION%MD%REFTRAJ%EVAL_ENERGY_FORCES",l_val=eval_EF,error=error)
+    ! Compute energy and forces
+    CALL force_env_calc_energy_force(force_env,eval_energy_forces=reftraj_env%info%eval_EF,error=error)
+
+    ! Compute MSD with respect to a reference configuration
+    IF(reftraj_env%info%msd) THEN
+    ! CALL reftraj_msd(reftraj_env,md_env,error=error)
+      CALL stop_program(routineN,moduleN,__LINE__,&
+         "MSD from REFTRAJ NYI")
+    END IF
+    
     RETURN
+
+996 CONTINUE ! end of file
+    CALL stop_program(routineN,moduleN,__LINE__,&
+         "End of reference cell file reached")
+997 CONTINUE ! error
+    CALL stop_program(routineN,moduleN,__LINE__,&
+         "Error reading reference cell file")
+
 998 CONTINUE ! end of file
     CALL stop_program(routineN,moduleN,__LINE__,&
          "End of reference trajectory file reached")
@@ -1941,7 +2009,7 @@ CONTAINS
 
     INTEGER :: iparticle, iparticle_kind, iparticle_local, iroll, istat, &
       nmolecule, nmolecule_kind, nparticle, nparticle_kind, nparticle_local
-    LOGICAL                                  :: first, first_time
+    LOGICAL                                  :: failure, first, first_time
     REAL(dp)                                 :: arg_r, arg_v, arg_vx, infree, &
                                                 kin, poly_r, poly_v, poly_vx, &
                                                 roll_tol, scale_r, scale_v, &
@@ -1976,6 +2044,8 @@ CONTAINS
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
 
+    failure = .FALSE.
+
     NULLIFY(gci, force_env)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,npt = npt,&
          first_time=first_time, para_env=para_env, error=error)
@@ -2008,14 +2078,12 @@ CONTAINS
 
     !     *** Allocate work storage for positions and velocities ***
 
-    CALL allocate_old ( particle_set, npt )
+    CALL allocate_old ( particle_set, npt, error=error )
 
     ALLOCATE (pos(3,nparticle),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "pos",3*nparticle*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (vel(3,nparticle),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "vel",3*nparticle*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     pos(:,:) = 0.0_dp
     vel(:,:) = 0.0_dp
 
@@ -2102,7 +2170,7 @@ CONTAINS
     CALL update_particle_set ( particle_set, para_env % group, pos = pos )
 
     DEALLOCATE (pos,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
 
     !     *** Update forces (and stress)***
@@ -2166,13 +2234,13 @@ CONTAINS
          para_env % group )
 
     DEALLOCATE (vel,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"vel")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL virial_evaluate ( atomic_kind_set, particle_set,  &
          local_particles, virial, para_env % group, error=error)
 
     ! Deallocate old variables
-    CALL deallocate_old ( )
+    CALL deallocate_old (error=error )
 
     IF (first_time) THEN
        first_time = .FALSE.
@@ -2223,7 +2291,7 @@ CONTAINS
 
     INTEGER :: iparticle, iparticle_kind, iparticle_local, iroll, istat, &
       nmolecule, nmolecule_kind, nparticle, nparticle_kind, nparticle_local
-    LOGICAL                                  :: first, first_time
+    LOGICAL                                  :: failure, first, first_time
     REAL(dp) :: aa, aax, arg_r, arg_v, arg_vx, gamma1, infree, kin, poly_r, &
       poly_v, poly_vx, roll_tol, scale_r, scale_v, scale_vx
     REAL(dp), DIMENSION(3)                   :: vector_r, vector_v
@@ -2256,6 +2324,8 @@ CONTAINS
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
 
+    failure = .FALSE.
+
     NULLIFY(gci, force_env)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,npt = npt,&
          first_time=first_time, para_env=para_env, error=error)
@@ -2285,14 +2355,12 @@ CONTAINS
     END IF
 
     !     *** Allocate work storage for positions and velocities ***
-    CALL allocate_old ( particle_set, npt )
+    CALL allocate_old ( particle_set, npt, error=error )
 
     ALLOCATE (pos(3,nparticle),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "pos",3*nparticle*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (vel(3,nparticle),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "vel",3*nparticle*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     pos(:,:) = 0.0_dp
     vel(:,:) = 0.0_dp
 
@@ -2391,7 +2459,7 @@ CONTAINS
     CALL update_particle_set ( particle_set, para_env % group, pos = pos )
 
     DEALLOCATE (pos,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
 
     !     *** Update forces ***
@@ -2464,13 +2532,13 @@ CONTAINS
          para_env % group )
 
     DEALLOCATE (vel,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"vel")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL virial_evaluate ( atomic_kind_set, particle_set,  &
          local_particles, virial, para_env % group, error=error)
 
     ! Deallocate old variables
-    CALL deallocate_old ( )
+    CALL deallocate_old (error=error)
 
     IF (first_time) THEN
        first_time = .FALSE.
@@ -2636,13 +2704,19 @@ END SUBROUTINE nph_uniaxial_damped
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE allocate_old ( particle_set, npt )
+  SUBROUTINE allocate_old ( particle_set, npt, error )
 
     TYPE(particle_type), POINTER             :: particle_set(:)
     TYPE(npt_info_type), POINTER             :: npt(:,:)
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_old', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: idim, isos, jdim, natoms
+    LOGICAL                                  :: failure
 
+    failure = .FALSE.
     natoms = SIZE ( particle_set)
     idim = SIZE ( npt, 1)
     jdim = SIZE ( npt, 2)
@@ -2650,23 +2724,23 @@ END SUBROUTINE nph_uniaxial_damped
     isos = 0
     IF ( .NOT. ASSOCIATED ( old % v ) ) &
          ALLOCATE ( old % v ( natoms, 3 ), STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%v', 0 )
+    CPPostcondition(isos==0,cp_failure_level,routineP,error,failure)
     old % v = 0.0_dp
     IF ( .NOT. ASSOCIATED ( old % r ) ) &
          ALLOCATE ( old % r ( natoms, 3 ), STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%r', 0 )
+    CPPostcondition(isos==0,cp_failure_level,routineP,error,failure)
     old % r = 0.0_dp
     IF ( .NOT. ASSOCIATED ( old % eps ) )  &
          ALLOCATE ( old % eps ( idim, jdim ),STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%eps', 0 )
+    CPPostcondition(isos==0,cp_failure_level,routineP,error,failure)
     old % eps = 0.0_dp
     IF ( .NOT. ASSOCIATED ( old % veps ) ) &
          ALLOCATE ( old % veps ( idim, jdim ),STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%veps', 0 )
+    CPPostcondition(isos==0,cp_failure_level,routineP,error,failure)
     old % veps = 0.0_dp
     IF ( .NOT. ASSOCIATED ( old % h ) ) &
          ALLOCATE ( old%h(3, 3),STAT=isos)
-    IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%h', 0 )
+    CPPostcondition(isos==0,cp_failure_level,routineP,error,failure)
     old % h = 0.0_dp
 
   END SUBROUTINE allocate_old
@@ -2687,20 +2761,27 @@ END SUBROUTINE nph_uniaxial_damped
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE deallocate_old
-    INTEGER                                  :: isos
+  SUBROUTINE deallocate_old (error)
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_old', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: isos
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
     isos = 0
     DEALLOCATE ( old % v, STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%v', 0 )
+    CPPostcondition(isos==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE ( old % r, STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%r', 0 )
+    CPPostcondition(isos==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE ( old % eps, STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%eps', 0 )
+    CPPostcondition(isos==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE ( old % veps, STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%veps', 0 )
+    CPPostcondition(isos==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE ( old % h, STAT=isos)
-    IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%h', 0 )
+    CPPostcondition(isos==0,cp_failure_level,routineP,error,failure)
     NULLIFY ( old % v )
     NULLIFY ( old % r )
     NULLIFY ( old % eps )
@@ -2750,7 +2831,7 @@ END SUBROUTINE nph_uniaxial_damped
       j, nmolecule, nmolecule_kind, nparticle, nparticle_kind, &
       nparticle_local, nshell, shell_index
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: first, first_time, is_shell, &
+    LOGICAL                                  :: failure, first, first_time, is_shell, &
                                                 shell_adiabatic, shell_present
     REAL(dp)                                 :: kin
     REAL(dp), DIMENSION(3, 3)                :: pv_kin
@@ -2796,6 +2877,8 @@ END SUBROUTINE nph_uniaxial_damped
                                                 thermostat_shell
     TYPE(virial_type), POINTER               :: virial
 
+    failure = .FALSE.
+
     NULLIFY(gci,thermostat_baro,thermostat_part,thermostat_shell,force_env,&
          shell,shell_particles,shell_particle_set,core_particles,core_particle_set)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,thermostat_part=thermostat_part,&
@@ -2833,14 +2916,12 @@ END SUBROUTINE nph_uniaxial_damped
 
     !     *** Allocate work storage for positions and velocities ***
 
-    CALL allocate_old ( particle_set, npt )
+    CALL allocate_old ( particle_set, npt, error=error )
 
     ALLOCATE (pos(3,nparticle),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "pos",3*nparticle*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (vel(3,nparticle),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "vel",3*nparticle*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     pos(:,:) = 0.0_dp
     vel(:,:) = 0.0_dp
 
@@ -2854,17 +2935,13 @@ END SUBROUTINE nph_uniaxial_damped
           core_particle_set =>  core_particles%els
           !     *** Allocate work storage for positions and velocities ***
           ALLOCATE (shell_pos(3,nshell),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-               "shellpos",3*nshell*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE (core_pos(3,nshell),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-               "corepos",3*nshell*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE (shell_vel(3,nshell),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-               "shellvel",3*nshell*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE (core_vel(3,nshell),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-               "corevel",3*nshell*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           shell_pos(:,:) = 0.0_dp
           shell_vel(:,:) = 0.0_dp
           core_pos(:,:) = 0.0_dp
@@ -3075,15 +3152,15 @@ END SUBROUTINE nph_uniaxial_damped
     CALL update_particle_set ( particle_set, para_env % group, pos = pos )
 
     DEALLOCATE (pos,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     IF(shell_adiabatic)THEN
        CALL update_particle_set ( shell_particle_set, para_env % group, pos = shell_pos )
        CALL update_particle_set ( core_particle_set, para_env % group, pos = core_pos )
        DEALLOCATE (shell_pos,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"shell_pos")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE (core_pos,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"core_pos")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     !     *** Update forces ***
@@ -3220,19 +3297,19 @@ END SUBROUTINE nph_uniaxial_damped
          CALL pv_constraint ( gci, local_molecules, molecule_set, &
          molecule_kind_set, particle_set, virial, para_env % group )
     DEALLOCATE (vel,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"vel")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     IF (shell_adiabatic) THEN
        DEALLOCATE (shell_vel,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"shell_vel")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE (core_vel,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"core_vel")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     CALL virial_evaluate ( atomic_kind_set, particle_set,  &
          local_particles, virial, para_env % group, error=error  )
 
     ! Deallocate old variables
-    CALL deallocate_old ( )
+    CALL deallocate_old (error=error )
 
     IF (first_time) THEN
        first_time = .FALSE.
@@ -3804,6 +3881,7 @@ END SUBROUTINE nph_uniaxial_damped
     INTEGER :: i_step, iparticle, iparticle_kind, iparticle_local, istat, &
       n_time_steps, nmolecule, nmolecule_kind, nparticle, nparticle_kind, &
       nparticle_local
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dm, dt, mass
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pos, vel
@@ -3831,6 +3909,8 @@ END SUBROUTINE nph_uniaxial_damped
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
+
+    failure = .FALSE.
 
     NULLIFY (para_env,cell,subsys_respa,particles_respa, particle_set_respa,gci, force_env)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env, para_env=para_env, error=error)
@@ -3865,11 +3945,9 @@ END SUBROUTINE nph_uniaxial_damped
     !     *** Allocate work storage for positions and velocities ***
 
     ALLOCATE (pos(3,nparticle),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "pos",3*nparticle*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (vel(3,nparticle),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "vel",3*nparticle*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     vel(:,:) = 0.0_dp
 
     IF (simpar%constraint) CALL getold(gci, local_molecules, molecule_set,  &
@@ -3916,7 +3994,6 @@ END SUBROUTINE nph_uniaxial_damped
           particle_set_respa(iparticle)%r = particle_set(iparticle)%r
        END DO
 
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pos")
 
        !     *** Update forces ***
        CALL force_env_calc_energy_force(force_env%sub_force_env(1)%force_env,error=error)
@@ -3955,6 +4032,7 @@ END SUBROUTINE nph_uniaxial_damped
             local_particles, virial, para_env % group , error=error )
     END DO
     DEALLOCATE (pos,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     !     *** Multiple time step (second part) ***
     ! Compute forces for respa force_env
@@ -3977,7 +4055,7 @@ END SUBROUTINE nph_uniaxial_damped
     CALL update_particle_set ( particle_set, para_env % group, vel = vel )
 
     DEALLOCATE (vel,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"vel")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE nve_respa
 !!****

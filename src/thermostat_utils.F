@@ -205,9 +205,41 @@ CONTAINS
     SELECT CASE(ensemble)
     CASE DEFAULT
        CALL stop_program (routineN, 'unknown ensemble ')
-    CASE(nve_ensemble, isokin_ensemble, nph_uniaxial_ensemble, nph_uniaxial_damped_ensemble,&
+    CASE(isokin_ensemble, nph_uniaxial_ensemble, nph_uniaxial_damped_ensemble,&
          reftraj_ensemble, langevin_ensemble)
        ! Do Nothing
+    CASE(nve_ensemble)
+      IF(do_shell) THEN
+         SELECT CASE(region)
+         CASE(do_region_global)
+            ! Global Thermostat
+            nointer = .FALSE.
+            sum_of_thermostats = 1
+         CASE(do_region_molecule)
+            ! Molecular Thermostat
+            DO i = 1, nkind
+               molecule_kind => molecule_kind_set ( i )
+               CALL get_molecule_kind ( molecule_kind, nmolecule=nmolecule, nshell=nshell )
+               IF ((nshell==0)) nmolecule=0
+               sum_of_thermostats = sum_of_thermostats + nmolecule
+            END DO
+            ! If we have ONE kind and ONE molecule, then effectively we have a GLOBAL thermostat
+            ! and the degrees of freedom will be computed correctly for this special case
+            IF ( ( nmolecule == 1 ) .AND. ( nkind == 1 ) ) nointer = .FALSE.
+         CASE(do_region_massive)
+            ! Massive Thermostat
+            DO i = 1, nkind
+               molecule_kind => molecule_kind_set ( i )
+               CALL get_molecule_kind ( molecule_kind, nmolecule=nmolecule, &
+                    natom=natom, nshell=nshell )
+               natom = nshell
+               sum_of_thermostats = sum_of_thermostats + 3 * natom * nmolecule
+            END DO
+         END SELECT
+         number = sum_of_thermostats
+      ELSE
+       ! Do Nothing
+      END IF
     CASE(nvt_ensemble, npt_i_ensemble, npt_f_ensemble)
 
        SELECT CASE(region)
@@ -237,7 +269,9 @@ CONTAINS
           END DO
        END SELECT
        number = sum_of_thermostats
+    END SELECT
 
+    IF(number/=0) THEN
        ! Here we decide on what parallel algorithm to use.
        ! if there are only massive and molecule type thermostats we can use
        ! a local scheme, in cases involving any combination with a
@@ -275,7 +309,8 @@ CONTAINS
              nfree = 0.0_dp
           END IF
        END IF
-    END SELECT
+
+    END IF
 
     ! Saving information about thermostats
     thermostat_info%sum_of_thermostats    = sum_of_thermostats

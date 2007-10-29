@@ -478,6 +478,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
      thermo % pot = thermo % pot + thermo % e_self + thermo % e_neut/cell % deth
      thermo % pot = thermo % pot + vg_coulomb + thermo % e_bonded
   END IF
+
   ! add up all the forces
   !
   ! nonbonded forces might be claculated for atoms not on this node

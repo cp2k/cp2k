@@ -37,6 +37,10 @@ MODULE md_environment_types
                                              free_energy_type
   USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
+  USE reftraj_types,                   ONLY: create_reftraj,&
+                                             reftraj_type,&
+                                             release_reftraj,&
+                                             retain_reftraj
   USE thermostat_types,                ONLY: release_thermostats,&
                                              retain_thermostats,&
                                              thermostat_type,&
@@ -62,18 +66,14 @@ MODULE md_environment_types
      TYPE (force_env_type), POINTER     :: force_env
      TYPE (thermostats_type), POINTER   :: thermostats
      TYPE (barostat_type), POINTER      :: barostat
-     TYPE (reftraj_type), POINTER       :: reftraj_info
+     TYPE (reftraj_type), POINTER       :: reftraj
      TYPE (free_energy_type) , POINTER  :: fe_env
      TYPE (simulation_parameters_type), POINTER :: simpar
   END TYPE md_environment_type
 
-  TYPE reftraj_type
-     INTEGER :: unit
-  END TYPE reftraj_type
 
 ! *** Public subroutines and data types ***
   PUBLIC :: md_environment_type,&
-            reftraj_type,&
             set_md_env,&
             get_md_env,&
             md_env_create,&
@@ -144,6 +144,7 @@ CONTAINS
     NULLIFY ( md_env % barostat )
     NULLIFY ( md_env % force_env )
     NULLIFY ( md_env % fe_env )
+    NULLIFY ( md_env % reftraj )
     md_env % para_env => para_env
     CALL cp_para_env_retain ( md_env % para_env ,error=error)
     ALLOCATE( md_env % itimes , stat=istat )
@@ -164,8 +165,6 @@ CONTAINS
     md_env % constant  = 0.0_dp
     md_env % used_time = 0.0_dp
     md_env % t         = 0.0_dp
-    ALLOCATE ( md_env % reftraj_info )
-    md_env % reftraj_info % unit =-1
     md_env%init = .TRUE.
     md_env%first_time = .TRUE.
 
@@ -267,15 +266,11 @@ SUBROUTINE md_env_release(md_env, error)
         CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
         DEALLOCATE( md_env % t , stat=istat )
         CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
-        IF ( md_env%reftraj_info%unit /= -1 ) THEN 
-           CALL close_file(unit_number=md_env%reftraj_info%unit)
-        END IF
-        DEALLOCATE( md_env % reftraj_info , stat=istat )
-        CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
         NULLIFY ( md_env % cell )
         NULLIFY ( md_env % simpar )
         CALL release_barostat_type(md_env%barostat, error)
         CALL release_thermostats(md_env%thermostats, error)
+        CALL release_reftraj(md_env%reftraj, error)
         CALL force_env_release(md_env%force_env, error=error)
         md_env%ref_count=0
         DEALLOCATE(md_env,stat=stat)
@@ -310,7 +305,7 @@ END SUBROUTINE md_env_release
 !!
 !!*** **********************************************************************
   SUBROUTINE get_md_env ( md_env, itimes, constant, used_time, cell,  &
-                          simpar, npt, force_env, para_env, reftraj_info, t,&
+                          simpar, npt, force_env, para_env, reftraj, t,&
                           md_approach_nr, accepted_md, init, first_time,&
                           fe_env, thermostats, barostat, thermostat_coeff, &
                           thermostat_part, thermostat_shell, thermostat_baro, error)
@@ -325,7 +320,7 @@ END SUBROUTINE md_env_release
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
-    TYPE(reftraj_type), OPTIONAL, POINTER    :: reftraj_info
+    TYPE(reftraj_type), OPTIONAL, POINTER    :: reftraj
     REAL(KIND=dp), OPTIONAL, POINTER         :: t
     INTEGER, OPTIONAL, POINTER               :: md_approach_nr, accepted_md
     LOGICAL, OPTIONAL                        :: init, first_time
@@ -383,7 +378,7 @@ END SUBROUTINE md_env_release
     END IF
     IF (PRESENT ( force_env) ) force_env => md_env % force_env
     IF (PRESENT ( para_env ) ) para_env => md_env % para_env
-    IF (PRESENT ( reftraj_info ) ) reftraj_info => md_env % reftraj_info
+    IF (PRESENT ( reftraj ) ) reftraj => md_env % reftraj
     IF (PRESENT (init)) init=md_env%init 
     IF (PRESENT (first_time)) first_time=md_env%first_time 
 
@@ -415,7 +410,7 @@ END SUBROUTINE md_env_release
 !!*** **********************************************************************
   SUBROUTINE set_md_env ( md_env, itimes, constant, cell, simpar, fe_env, force_env,&
                           para_env, accepted_md, md_approach_nr , init, first_time,&
-                          thermostats, barostat, error)
+                          thermostats, barostat, reftraj, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
     INTEGER, OPTIONAL, POINTER               :: itimes
@@ -433,6 +428,7 @@ END SUBROUTINE md_env_release
     TYPE(thermostats_type), OPTIONAL, &
       POINTER                                :: thermostats
     TYPE(barostat_type), OPTIONAL, POINTER   :: barostat
+    TYPE(reftraj_type), OPTIONAL, POINTER    :: reftraj
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_md_env', &
@@ -470,6 +466,11 @@ END SUBROUTINE md_env_release
           CALL force_env_release (md_env%force_env, error=error)
        END IF
        md_env%force_env => force_env
+    END IF
+    IF ( PRESENT ( reftraj ) ) THEN
+       CALL release_reftraj(md_env%reftraj, error=error)
+       CALL retain_reftraj(reftraj, error=error)
+       md_env%reftraj => reftraj
     END IF
 
   END SUBROUTINE set_md_env

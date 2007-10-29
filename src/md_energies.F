@@ -670,8 +670,8 @@ CONTAINS
              ENDIF
           ELSEIF(outformat==dump_xmol) THEN
              !         *** This information can be digested by Molden ***
-             WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
-                  " i = ",itimes," , E =",epot
+             WRITE (UNIT=title,FMT="(A,I8,A,F20.10,A,F12.3)")&
+                  " i = ",itimes," , E =",epot,", Time (fs)=",t*femtoseconds
           ELSE
              title = ""
           END IF
