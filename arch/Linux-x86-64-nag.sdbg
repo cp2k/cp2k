@@ -10,7 +10,7 @@ LD       = f95
 AR       = ar -r
 DFLAGS   = -D__NAG -D__FFTSG -D__FFTW3
 CPPFLAGS = 
-FCFLAGS  = -$-O0 -g -C=all -mismatch_all -nan -gline -free -fpp $(DFLAGS) -I$(NAG_INC)
+FCFLAGS  = -O0 -g -C=all -mismatch_all -nan -gline -free -fpp $(DFLAGS) -I$(NAG_INC)
 LDFLAGS  = $(FCFLAGS)
 LIBS     = $(NAG_LIB)/libacml.a \
            $(NAG_LIB)/libacml_mv.a \
