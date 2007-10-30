@@ -235,6 +235,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'md_energy', &
       routineP = moduleN//':'//routineN
 
+    INTEGER :: natom
     LOGICAL :: init, failure, shell_adiabatic, tcoeff, tkind, tshell
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -243,6 +244,7 @@ CONTAINS
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(force_env_type), POINTER            :: force_env
+    TYPE(particle_list_type), POINTER        :: particles
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
 
@@ -263,6 +265,9 @@ CONTAINS
     tkind = simpar%temperature_per_kind
     tshell = shell_adiabatic
 
+    CALL cp_subsys_get(subsys,particles=particles,error=error)
+    natom=particles%n_els
+
     !---------------------------------------------
     ! Initialize V0 properly for nph calculations
     !---------------------------------------------
@@ -276,7 +281,7 @@ CONTAINS
 
     
     CALL compute_conserved_quantity(md_env, md_ener, tkind=tkind,&
-         tcoeff=tcoeff, tshell=tshell, error=error)
+         tcoeff=tcoeff, tshell=tshell, natom=natom, error=error)
     
   END SUBROUTINE md_energy
   
@@ -419,9 +424,9 @@ CONTAINS
                .5_dp * ( pv_xx/unit%bar + simpar % p0 ) * &
                ( simpar % v0 - cell % deth )
        ENDIF
-       ! Assigning the conserved quantity
-       constant = md_ener%constant
-       CALL set_md_env(md_env=md_env,constant=constant,error=error)
+!       ! Assigning the conserved quantity
+!       constant = md_ener%constant
+!       CALL set_md_env(md_env=md_env,constant=constant,error=error)
        ! Assigning the initial time-step and time
        itimes_old = itimes
        t_old      = t
@@ -493,7 +498,7 @@ CONTAINS
             .5_dp * ( pv_xx/unit%bar + simpar % p0 ) * &
             ( simpar % v0 - cell % deth )
        t = t_old + REAL(itimes-itimes_old,dp)*simpar%dt
-       econs = (md_ener%constant-constant)/nat*kelvin
+       econs = md_ener%delta_cons!(md_ener%constant-constant)/nat*kelvin
 
        ! average quantities:
        delta_t = itimes - itimes_old
@@ -551,7 +556,7 @@ CONTAINS
                REAL(delta_t,dp)
           averages%avega = (averages%avega*REAL(delta_t-1,dp)+cell_angle(1))/ &
                REAL(delta_t,dp)
-          econs_avg = econs_avg + (md_ener%constant-constant)/nat*kelvin
+          econs_avg = econs_avg + md_ener%delta_cons!(md_ener%constant-constant)/nat*kelvin
        END SELECT
 
        ! Print to the screen

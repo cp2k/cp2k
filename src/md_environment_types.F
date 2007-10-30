@@ -66,6 +66,7 @@ MODULE md_environment_types
      REAL(KIND=dp) :: thermostat_coef_kin, thermostat_coef_pot
      REAL(KIND=dp) :: thermostat_shell_kin, thermostat_shell_pot
      REAL(KIND=dp) :: baro_kin, baro_pot
+     REAL(KIND=dp) :: vcom(3), total_mass
      REAL(KIND=dp), DIMENSION(:), POINTER :: ekin_kind
      REAL(KIND=dp), DIMENSION(:), POINTER :: temp_kind
      INTEGER, DIMENSION(:), POINTER :: nfree_kind

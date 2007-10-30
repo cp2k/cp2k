@@ -377,8 +377,8 @@ CONTAINS
       IF (should_stop) EXIT
 
       CALL md_energy(md_env,md_ener,error) 
-      CALL temperature_control(simpar,force_env,logger,error)
-      CALL comvel_control(simpar,force_env,logger,error)
+      CALL temperature_control(simpar,md_ener,force_env,logger,error)
+      CALL comvel_control(simpar,md_ener,force_env,logger,error)
 
       time_iter_stop=m_walltime()
       used_time = time_iter_stop - time_iter_start
