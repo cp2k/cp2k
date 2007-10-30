@@ -41,7 +41,6 @@ MODULE integrator
   USE constraint_util,                 ONLY: getold,&
                                              pv_constraint
   USE convert_units,                   ONLY: convert_to_cp2k_units
-  USE cp_files,                        ONLY: open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
@@ -63,11 +62,8 @@ MODULE integrator
        dyn_coeff_mass_atom, dyn_coeff_mass_coeff, dyn_coeff_mass_global, &
        dyn_coeff_mass_kind, nph_ensemble, nph_uniaxial_damped_ensemble, &
        nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_val_get
-  USE kinds,                           ONLY: default_path_length,&
-                                             dp,&
-                                             dp_size
+  USE input_section_types,             ONLY: section_vals_type
+  USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: matmul_3x3,&
                                              matvec_3x3,&
                                              transpose_3d
@@ -1855,7 +1851,6 @@ CONTAINS
 
     CHARACTER(LEN=10)                        :: AA
     CHARACTER(LEN=80)                        :: title
-    CHARACTER(LEN=default_path_length)       :: filename
     INTEGER                                  :: I, istat, nparticle, Nread
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: h(3,3)
@@ -1892,11 +1887,6 @@ CONTAINS
 
     ! SnapShots read from an external file
     IF (para_env%mepos==para_env%source) THEN
-       ! open only the first time, retain the file open for reading the next frame in the file
-      ! IF (reftraj_info%unit<0) THEN
-      !    CALL section_vals_val_get(root_section,"MOTION%MD%REFTRAJ%FILENAME",c_val=filename,error=error)
-      !    CALL open_file(TRIM(filename),unit_number=reftraj_info%unit)
-      ! ENDIF
        READ(reftraj_env%info%trjfile_unit,*,ERR=999,END=998) Nread
        READ(reftraj_env%info%trjfile_unit,'(A)',ERR=999,END=998) title
        DO I=1,Nread
@@ -1939,7 +1929,6 @@ CONTAINS
 
 
     ! Task to perform on the reference trajectory
-    !CALL section_vals_val_get(root_section,"MOTION%MD%REFTRAJ%EVAL_ENERGY_FORCES",l_val=eval_EF,error=error)
     ! Compute energy and forces
     CALL force_env_calc_energy_force(force_env,eval_energy_forces=reftraj_env%info%eval_EF,error=error)
 

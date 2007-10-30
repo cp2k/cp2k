@@ -25,7 +25,6 @@ MODULE md_environment_types
                                              release_barostat_type,&
                                              retain_barostat_type
   USE cell_types,                      ONLY: cell_type
-  USE cp_files,                        ONLY: close_file
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -37,8 +36,7 @@ MODULE md_environment_types
                                              free_energy_type
   USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
-  USE reftraj_types,                   ONLY: create_reftraj,&
-                                             reftraj_type,&
+  USE reftraj_types,                   ONLY: reftraj_type,&
                                              release_reftraj,&
                                              retain_reftraj
   USE thermostat_types,                ONLY: release_thermostats,&
@@ -51,6 +49,32 @@ MODULE md_environment_types
 
   PRIVATE
 
+  TYPE md_ener_type
+     INTEGER       :: ref_count
+     INTEGER       :: nfree, nfree_qm, nfree_shell
+     REAL(KIND=dp) :: constant
+     REAL(KIND=dp) :: delta_cons
+     REAL(KIND=dp) :: epot
+     REAL(KIND=dp) :: ekin, ekin_qm
+     REAL(KIND=dp) :: temp_part, temp_qm
+     REAL(KIND=dp) :: temp_baro
+     REAL(KIND=dp) :: ekin_coefs
+     REAL(KIND=dp) :: temp_coefs
+     REAL(KIND=dp) :: ekin_shell, temp_shell
+     REAL(KIND=dp) :: thermostat_part_kin, thermostat_part_pot
+     REAL(KIND=dp) :: thermostat_baro_kin, thermostat_baro_pot
+     REAL(KIND=dp) :: thermostat_coef_kin, thermostat_coef_pot
+     REAL(KIND=dp) :: thermostat_shell_kin, thermostat_shell_pot
+     REAL(KIND=dp) :: baro_kin, baro_pot
+     REAL(KIND=dp), DIMENSION(:), POINTER :: ekin_kind
+     REAL(KIND=dp), DIMENSION(:), POINTER :: temp_kind
+     INTEGER, DIMENSION(:), POINTER :: nfree_kind
+     REAL(KIND=dp), DIMENSION(:), POINTER :: ekin_shell_kind
+     REAL(KIND=dp), DIMENSION(:), POINTER :: temp_shell_kind
+     INTEGER, DIMENSION(:), POINTER :: nfree_shell_kind
+  END TYPE md_ener_type
+
+  
   TYPE md_environment_type
      ! para_env is the parallel enviroment of the MD,  i.e. the systems 
      ! that are dealt with by the integrator e.g in the PIMD this could 
@@ -64,6 +88,7 @@ MODULE md_environment_types
      TYPE (cp_para_env_type), POINTER   :: para_env
      TYPE (cell_type), POINTER          :: cell
      TYPE (force_env_type), POINTER     :: force_env
+     TYPE (md_ener_type), POINTER       :: md_ener
      TYPE (thermostats_type), POINTER   :: thermostats
      TYPE (barostat_type), POINTER      :: barostat
      TYPE (reftraj_type), POINTER       :: reftraj
@@ -73,12 +98,16 @@ MODULE md_environment_types
 
 
 ! *** Public subroutines and data types ***
-  PUBLIC :: md_environment_type,&
+  PUBLIC :: create_md_ener,&
+            md_ener_type,&
+            md_environment_type,&
             set_md_env,&
             get_md_env,&
             md_env_create,&
             md_env_release,&
-            md_env_retain
+            md_env_retain,&
+            release_md_ener,&
+            retain_md_ener
 
 ! *** Global parameters ***
 
@@ -144,6 +173,7 @@ CONTAINS
     NULLIFY ( md_env % barostat )
     NULLIFY ( md_env % force_env )
     NULLIFY ( md_env % fe_env )
+    NULLIFY ( md_env % md_ener )
     NULLIFY ( md_env % reftraj )
     md_env % para_env => para_env
     CALL cp_para_env_retain ( md_env % para_env ,error=error)
@@ -271,6 +301,7 @@ SUBROUTINE md_env_release(md_env, error)
         CALL release_barostat_type(md_env%barostat, error)
         CALL release_thermostats(md_env%thermostats, error)
         CALL release_reftraj(md_env%reftraj, error)
+        CALL release_md_ener(md_env%md_ener, error)
         CALL force_env_release(md_env%force_env, error=error)
         md_env%ref_count=0
         DEALLOCATE(md_env,stat=stat)
@@ -308,7 +339,8 @@ END SUBROUTINE md_env_release
                           simpar, npt, force_env, para_env, reftraj, t,&
                           md_approach_nr, accepted_md, init, first_time,&
                           fe_env, thermostats, barostat, thermostat_coeff, &
-                          thermostat_part, thermostat_shell, thermostat_baro, error)
+                          thermostat_part, thermostat_shell, thermostat_baro,&
+                          md_ener, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
     INTEGER, OPTIONAL, POINTER               :: itimes
@@ -333,6 +365,7 @@ END SUBROUTINE md_env_release
                                                 thermostat_part, &
                                                 thermostat_shell, &
                                                 thermostat_baro
+    TYPE(md_ener_type), OPTIONAL, POINTER    :: md_ener
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_md_env', &
@@ -379,6 +412,7 @@ END SUBROUTINE md_env_release
     IF (PRESENT ( force_env) ) force_env => md_env % force_env
     IF (PRESENT ( para_env ) ) para_env => md_env % para_env
     IF (PRESENT ( reftraj ) ) reftraj => md_env % reftraj
+    IF (PRESENT ( md_ener ) ) md_ener => md_env % md_ener
     IF (PRESENT (init)) init=md_env%init 
     IF (PRESENT (first_time)) first_time=md_env%first_time 
 
@@ -410,7 +444,7 @@ END SUBROUTINE md_env_release
 !!*** **********************************************************************
   SUBROUTINE set_md_env ( md_env, itimes, constant, cell, simpar, fe_env, force_env,&
                           para_env, accepted_md, md_approach_nr , init, first_time,&
-                          thermostats, barostat, reftraj, error)
+                          thermostats, barostat, reftraj, md_ener, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
     INTEGER, OPTIONAL, POINTER               :: itimes
@@ -429,6 +463,7 @@ END SUBROUTINE md_env_release
       POINTER                                :: thermostats
     TYPE(barostat_type), OPTIONAL, POINTER   :: barostat
     TYPE(reftraj_type), OPTIONAL, POINTER    :: reftraj
+    TYPE(md_ener_type), OPTIONAL, POINTER    :: md_ener
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_md_env', &
@@ -472,8 +507,173 @@ END SUBROUTINE md_env_release
        CALL retain_reftraj(reftraj, error=error)
        md_env%reftraj => reftraj
     END IF
+    IF ( PRESENT ( md_ener ) ) THEN
+       CALL release_md_ener(md_env%md_ener, error=error)
+       CALL retain_md_ener(md_ener, error=error)
+       md_env%md_ener => md_ener
+    END IF
 
   END SUBROUTINE set_md_env
+
+!!****f* md_environment_types/create_md_ener [1.0] *
+!!
+!!   NAME
+!!     create_md_ener
+!!
+!!   FUNCTION
+!!     retains the given md_ener structure
+!!
+!!   NOTES
+!!
+!!   ARGUMENTS
+!!     - md_ener:
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!   MODIFICATION HISTORY
+!!     10.2007 created [MI]
+!!
+!!*** **********************************************************************
+SUBROUTINE create_md_ener(md_ener, error)
+    TYPE(md_ener_type), POINTER              :: md_ener
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_md_ener', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: istat
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
+
+  CPPrecondition(.NOT.ASSOCIATED(md_ener),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     ALLOCATE(md_ener,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    md_ener%ref_count = 1
+
+    NULLIFY(md_ener%ekin_kind)
+    NULLIFY(md_ener%temp_kind)
+    NULLIFY(md_ener%nfree_kind)
+    NULLIFY(md_ener%ekin_shell_kind)
+    NULLIFY(md_ener%temp_shell_kind)
+    NULLIFY(md_ener%nfree_shell_kind)
+
+  END IF
+END SUBROUTINE create_md_ener
+  
+!!****f* md_environment_types/retain_md_ener [1.0] *
+!!
+!!   NAME
+!!     retain_md_ener
+!!
+!!   FUNCTION
+!!     retains the given md_ener structure
+!!
+!!   NOTES
+!!
+!!   ARGUMENTS
+!!     - md_ener:
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!   MODIFICATION HISTORY
+!!     10.2007 created [MI]
+!!
+!!*** **********************************************************************
+SUBROUTINE retain_md_ener(md_ener, error)
+    TYPE(md_ener_type), POINTER              :: md_ener
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'md_ener_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
+
+  CPPrecondition(ASSOCIATED(md_ener),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CPPreconditionNoFail(md_ener%ref_count>0,cp_failure_level,routineP,error)
+     md_ener%ref_count=md_ener%ref_count+1
+  END IF
+END SUBROUTINE retain_md_ener
+
+!!****f* md_environment_types/md_ener_release [1.0] *
+!!
+!!   NAME
+!!     md_ener_release
+!!
+!!   FUNCTION
+!!     releases the given md_ener structure
+!!
+!!   NOTES
+!!
+!!   ARGUMENTS
+!!     - md_ener:
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!   MODIFICATION HISTORY
+!!     10.2007 created [MI]
+!!
+!!*** **********************************************************************
+SUBROUTINE release_md_ener(md_ener, error)
+    TYPE(md_ener_type), POINTER       :: md_ener
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'md_ener_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: istat
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
+
+  IF (ASSOCIATED(md_ener)) THEN
+     CPPreconditionNoFail(md_ener%ref_count>0,cp_failure_level,routineP,error)
+     md_ener%ref_count=md_ener%ref_count-1
+     IF (md_ener%ref_count==0) THEN
+        IF(ASSOCIATED(md_ener%temp_kind))THEN
+          DEALLOCATE(md_ener%temp_kind,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        END IF
+        IF(ASSOCIATED(md_ener%ekin_kind))THEN
+          DEALLOCATE(md_ener%ekin_kind,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        END IF
+        IF(ASSOCIATED(md_ener%nfree_kind))THEN
+          DEALLOCATE(md_ener%nfree_kind,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        END IF
+        IF(ASSOCIATED(md_ener%temp_shell_kind))THEN
+          DEALLOCATE(md_ener%temp_shell_kind,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        END IF
+        IF(ASSOCIATED(md_ener%ekin_shell_kind))THEN
+          DEALLOCATE(md_ener%ekin_shell_kind,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        END IF
+        IF(ASSOCIATED(md_ener%nfree_shell_kind))THEN
+          DEALLOCATE(md_ener%nfree_shell_kind,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        END IF
+  
+        DEALLOCATE(md_ener,stat=istat)
+        CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+     END IF
+  END IF
+END SUBROUTINE release_md_ener
+ 
 
 ! *****************************************************************************
 

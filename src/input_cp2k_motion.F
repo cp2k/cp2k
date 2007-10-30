@@ -2942,15 +2942,15 @@ SUBROUTINE create_reftraj_section(section, error)
 
      CALL keyword_create(keyword, name="TRJFILENAME",&
           description="Specify the filename where the trajectory is stored.",repeats=.FALSE.,&
-          usage="FILENAME <CHARACTER>", default_lc_val="reftraj.xyz", &
+          usage="TRJFILENAME <CHARACTER>", default_lc_val="reftraj.xyz", &
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="CELLFILENAME",&
           description="Specify the filename where the cell is stored "//&
-          "(for trajectories generate within variable cell ensembles).",repeats=.FALSE.,&
-          usage="FILENAME <CHARACTER>", default_lc_val="", &
+          "(for trajectories generated within variable cell ensembles).",repeats=.FALSE.,&
+          usage="CELLFILENAME <CHARACTER>", default_lc_val="reftraj.cell", &
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
@@ -2965,18 +2965,18 @@ SUBROUTINE create_reftraj_section(section, error)
      CALL keyword_create(keyword, name="FIRST_SNAPSHOT",&
           description="Index of the snapshot stored in the trajectory file "//&
           "from which to start a REFTRAJ run",&
-          repeats=.FALSE., default_i_val=0, error=error)
+          repeats=.FALSE., usage="FIRST_SNAPSHOT <INTEGER>", default_i_val=0, error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
      
      CALL keyword_create(keyword, name="LAST_SNAPSHOT",&
-          description="Index of the last snapshot stored to be read in the trajectory file ",&
-          repeats=.FALSE., default_i_val=0, error=error)
+          description="Index of the last snapshot stored in the trajectory file that is read along a REFTRAJ run",&
+          repeats=.FALSE., usage="LAST_SNAPSHOT", default_i_val=0, error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
      
      CALL keyword_create(keyword, name="eval_energy_forces",&
-          description="Eval energy and forces during a REFTRAJ run",&
+          description="Evaluate energy and forces for each retrieved snapshot during a REFTRAJ run",&
           repeats=.FALSE., default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)

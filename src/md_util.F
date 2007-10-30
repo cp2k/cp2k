@@ -45,7 +45,7 @@ MODULE md_util
   USE kinds,                           ONLY: dp
   USE md,                              ONLY: initialize_velocities,&
                                              simulation_parameters_type
-  USE md_energies,                     ONLY: md_energy
+  USE md_energies,                     ONLY: md_write_output
   USE md_environment_types,            ONLY: md_environment_type
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE particle_list_types,             ONLY: particle_list_type
@@ -100,8 +100,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-
-    CALL md_energy ( md_env, error ) ! also writes trajectories
+    CALL md_write_output ( md_env, error ) ! also writes trajectories
 
     CALL write_restart(md_env=md_env,root_section=root_section,&
          force_env_section=force_env_section,error=error)

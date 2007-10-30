@@ -40,7 +40,9 @@ MODULE reftraj_util
   USE particle_types,                  ONLY: particle_type
   USE reftraj_types,                   ONLY: reftraj_type
   USE termination,                     ONLY: stop_program
+
 #include "cp_common_uses.h"
+
 
   IMPLICIT NONE
 
@@ -84,21 +86,20 @@ CONTAINS
 
   SUBROUTINE initialize_reftraj(reftraj,reftraj_section,md_env,error)
 
-    TYPE(reftraj_type), POINTER              :: reftraj
-    TYPE(section_vals_type), POINTER         :: reftraj_section
-    TYPE(md_environment_type), POINTER       :: md_env
+    TYPE (reftraj_type), POINTER             :: reftraj
+    TYPE (section_vals_type), POINTER        :: reftraj_section
+    TYPE (md_environment_type), POINTER      :: md_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'initialize_reftraj', &
-      routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'initialize_reftraj',&
+                          routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=10)                        :: AA
     CHARACTER(LEN=80)                        :: title
     CHARACTER(LEN=default_string_length)     :: name
-    INTEGER                                  :: cellunit, iatom, iter, natom, &
-                                                Natom_read, nskip, trjunit
+    INTEGER :: cellunit, natom, Natom_read, nskip, iatom, iter, trjunit
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: hx, hy, hz, x, y, z
+    REAL(KIND=dp)                            :: hx,hy,hz,x,y,z
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(force_env_type), POINTER            :: force_env
@@ -106,8 +107,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
-
+      POINTER                                :: simpar  
+      
     failure = .FALSE.
 
     NULLIFY (subsys, force_env, particles, particle_set, simpar)
@@ -159,11 +160,11 @@ CONTAINS
       simpar%nsteps = (reftraj%info%last_snapshot - reftraj%info%first_snapshot)
     END IF
 
-    IF(reftraj%info%eval_ef) THEN
+    IF(reftraj%info%eval_ef) THEn
       ! set up and printout
     END IF
     
-    IF(reftraj%info%msd) THEN
+    IF(reftraj%info%msd) THEn
       ! set up and printout
       CALL initialize_msd_reftraj(reftraj,reftraj_section,error=error)
     END IF
@@ -208,14 +209,15 @@ CONTAINS
 !!*** **********************************************************************
 
   SUBROUTINE initialize_msd_reftraj(reftraj,reftraj_section,error)
-    TYPE(reftraj_type), POINTER              :: reftraj
-    TYPE(section_vals_type), POINTER         :: reftraj_section
+    TYPE (reftraj_type), POINTER             :: reftraj
+    TYPE (section_vals_type), POINTER        :: reftraj_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'initialize_msd_reftraj', &
-      routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'initialize_reftraj',&
+                          routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
+
 
     failure = .FALSE.
 

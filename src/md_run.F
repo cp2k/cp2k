@@ -55,21 +55,26 @@ MODULE md_run
   USE machine,                         ONLY: m_walltime
   USE md,                              ONLY: read_md_section,&
                                              simulation_parameters_type
-  USE md_energies,                     ONLY: md_energy
-  USE md_environment_types,            ONLY: get_md_env,&
+  USE md_energies,                     ONLY: initialize_md_ener,&
+                                             md_energy,&
+                                             md_write_output
+  USE md_environment_types,            ONLY: create_md_ener,&
+                                             get_md_env,&
                                              md_env_create,&
                                              md_env_release,&
+                                             md_ener_type,&
                                              md_environment_type,&
+                                             release_md_ener,&
                                              set_md_env
   USE md_util,                         ONLY: comvel_control,&
                                              md_output,&
                                              setup_velocities,&
                                              temperature_control
   USE particle_list_types,             ONLY: particle_list_type
-  USE reftraj_types,                   ONLY: create_reftraj,&
-                                             reftraj_type,&
-                                             release_reftraj
   USE reftraj_util,                    ONLY: initialize_reftraj
+  USE reftraj_types,                   ONLY: create_reftraj,&
+                                             release_reftraj,&
+                                             reftraj_type
   USE termination,                     ONLY: external_control
   USE thermostat_methods,              ONLY: create_thermostats
   USE thermostat_types,                ONLY: release_thermostats,&
@@ -187,10 +192,11 @@ CONTAINS
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(free_energy_type), POINTER          :: fe_env
+    TYPE(md_ener_type), POINTER              :: md_ener
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(reftraj_type), POINTER              :: reftraj
     TYPE(section_vals_type), POINTER :: force_env_section, global_section, &
-      kg_coeff_section, motion_section, reftraj_section, root_section, &
+      kg_coeff_section, motion_section, reftraj_section, root_section,  &
       subsys_section, work_section
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
@@ -202,7 +208,7 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY (particles, cell, cell_ref, simpar, itimes, used_time, subsys, &
-         motion_section, thermostats, barostat, reftraj, force_env_section,&
+         md_ener, motion_section, thermostats, barostat, reftraj, force_env_section,&
          kg_coeff_section, reftraj_section, work_section, atomic_kinds, &
          local_particles, t, fe_env, dyn_coeff_set)
     logger => cp_error_get_logger(error)
@@ -232,6 +238,12 @@ CONTAINS
     simpar%dump_lm = BTEST(cp_print_key_should_output(logger%iter_info,root_section,&
          "MOTION%CONSTRAINT%LAGRANGE_MULTIPLIERS",error=error),cp_p_file)
 
+
+    ! Create the structure for the md energies
+    CALL create_md_ener(md_ener, error=error)
+    CALL set_md_env(md_env, md_ener=md_ener, error=error)
+    CALL release_md_ener(md_ener, error=error)
+
     ! If requested setup Thermostats
     CALL create_thermostats(thermostats, motion_section, force_env,&
          simpar, para_env, globenv, global_section, error )
@@ -253,10 +265,12 @@ CONTAINS
     !If requested set up the REFTRAJ run
     IF(simpar%ensemble == reftraj_ensemble) THEN
         reftraj_section => section_vals_get_subs_vals(motion_section,"MD%REFTRAJ",error=error)
-        CALL create_reftraj(reftraj, reftraj_section, error)
+        CALL create_reftraj(reftraj, reftraj_section, error=error)
         CALL set_md_env(md_env, reftraj=reftraj, error=error)
+        CALL release_reftraj(reftraj,error=error)
     END IF
 
+    
     CALL force_env_get(force_env, subsys=subsys, cell=cell, force_env_section=force_env_section,&
          error=error )
 
@@ -279,7 +293,10 @@ CONTAINS
     time_iter_start=m_walltime()
 
     CALL get_md_env ( md_env, force_env=force_env, itimes = itimes, &
-                      t = t, used_time = used_time, error=error )
+                     md_ener=md_ener, t = t, used_time = used_time, error=error )
+
+    ! Initialize the md_ener structure
+    CALL initialize_md_ener(md_ener, force_env, simpar, error=error)
 
     ! Computing Forces at zero MD step
     IF (simpar%ensemble /= reftraj_ensemble) THEN
@@ -309,7 +326,8 @@ CONTAINS
 
        CALL section_vals_val_get(motion_section,"MD%STEP_START_VAL",i_val=itimes,error=error)
        CALL section_vals_val_get(motion_section,"MD%TIME_START_VAL",r_val=t,error=error)
-       CALL md_energy ( md_env, error ) ! inits the print env at itimes == 0
+       CALL md_energy(md_env,md_ener,error) 
+       CALL md_write_output ( md_env, error ) !inits the print env at itimes == 0 also writes trajectories
     ELSE
        CALL get_md_env(md_env, reftraj=reftraj, error=error)
        CALL initialize_reftraj(reftraj, reftraj_section, md_env, error=error)
@@ -358,6 +376,7 @@ CONTAINS
       CALL external_control(should_stop,"MD",globenv,error=error)
       IF (should_stop) EXIT
 
+      CALL md_energy(md_env,md_ener,error) 
       CALL temperature_control(simpar,force_env,logger,error)
       CALL comvel_control(simpar,force_env,logger,error)
 
@@ -374,11 +393,6 @@ CONTAINS
     ! Deallocate Thermostats and Barostats
     CALL release_thermostats(thermostats, error=error)
     CALL release_barostat_type(barostat, error=error)
-
-    ! RefTraj structure
-    IF(simpar%ensemble == reftraj_ensemble) THEN
-        CALL release_reftraj(reftraj, error)
-    END IF
 
     DEALLOCATE(simpar,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

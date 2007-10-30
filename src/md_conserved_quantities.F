@@ -23,8 +23,7 @@ MODULE md_conserved_quantities
 
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set
+                                             get_atomic_kind
   USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
@@ -44,11 +43,13 @@ MODULE md_conserved_quantities
   USE mathconstants,                   ONLY: zero
   USE md,                              ONLY: simulation_parameters_type
   USE md_environment_types,            ONLY: get_md_env,&
+                                             md_ener_type,&
                                              md_environment_type,&
                                              set_md_env
   USE message_passing,                 ONLY: mp_sum
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
+  USE physcon,                         ONLY: kelvin
   USE qmmm_types,                      ONLY: qmmm_env_qm_type
   USE shell_potential_types,           ONLY: shell_kind_type
   USE termination,                     ONLY: stop_program
@@ -59,21 +60,6 @@ MODULE md_conserved_quantities
   IMPLICIT NONE
 
   PRIVATE
-
-  TYPE md_ener_type
-     REAL(KIND=dp) :: epot
-     REAL(KIND=dp) :: ekin, ekin_qm
-     REAL(KIND=dp) :: temp_part, temp_qm
-     REAL(KIND=dp) :: temp_baro
-     REAL(KIND=dp) :: ekin_coefs
-     REAL(KIND=dp) :: temp_coefs
-     REAL(KIND=dp) :: ekin_shell, temp_shell
-     REAL(KIND=dp), DIMENSION(:), POINTER :: ekin_kind
-     REAL(KIND=dp), DIMENSION(:), POINTER :: temp_kind
-     REAL(KIND=dp), DIMENSION(:), POINTER :: ekin_shell_kind
-     REAL(KIND=dp), DIMENSION(:), POINTER :: temp_shell_kind
-  END TYPE md_ener_type
-
 
   PUBLIC :: compute_conserved_quantity
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md_conserved_quantities'
@@ -110,83 +96,58 @@ CONTAINS
   !!     none
   !!
   !!*** *************************************************************************
-  SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
-       temp_part, ekin_qm, temp_qm, temp_baro, ekin_coefs, temp_coefs,  &
-       ekin_shell, temp_shell, temp_kind, temp_shell_kind, qmmm, &
-       shell_adiabatic, shell_present, temperature_per_kind, error )
+  SUBROUTINE compute_conserved_quantity (md_env, md_ener, tkind, tcoeff, tshell, error)
     TYPE(md_environment_type), POINTER       :: md_env
-    REAL(KIND=dp), INTENT(IN)                :: epot
-    REAL(KIND=dp), INTENT(OUT)               :: cons
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL :: cons_rel, ekin, temp_part, &
-      ekin_qm, temp_qm, temp_baro, ekin_coefs, temp_coefs, ekin_shell, &
-      temp_shell
-    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
-      POINTER                                :: temp_kind, temp_shell_kind
-    LOGICAL, INTENT(OUT), OPTIONAL           :: qmmm
-    LOGICAL, INTENT(INOUT), OPTIONAL         :: shell_adiabatic
-    LOGICAL, INTENT(OUT), OPTIONAL           :: shell_present
-    LOGICAL, INTENT(IN), OPTIONAL            :: temperature_per_kind
+    TYPE(md_ener_type), POINTER       :: md_ener
+    LOGICAL, INTENT(IN) :: tkind, tcoeff, tshell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_conserved_quantity', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ikind, int_grp, istat, &
-                                                nfree_qm, nfree_shell, nkind
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: nfree_kind, nfree_shell_kind
+    INTEGER                                  :: ikind, int_grp, &
+                                                nkind
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: failure, my_shell_adiabatic, &
-                                                my_shell_present, &
-                                                my_temperature_per_kind, &
+    LOGICAL                                  :: failure, &
                                                 myqmmm
     REAL(KIND=dp), POINTER                   :: constant
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(md_ener_type)                       :: md_ener
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
 
     failure = .FALSE.  
 
+    NULLIFY(itimes, para_env, simpar)
+    
+    md_ener%ekin   = 0.0_dp
     md_ener%temp_part   = 0.0_dp
-    md_ener%temp_baro   = 0.0_dp
     md_ener%ekin_coefs  = 0.0_dp
     md_ener%temp_coefs  = 0.0_dp
+    md_ener%ekin_qm     = 0.0_dp
     md_ener%temp_qm     = 0.0_dp
     md_ener%ekin_shell  = 0.0_dp
     md_ener%temp_shell  = 0.0_dp
-    md_ener%epot=epot
-    myqmmm = .FALSE.
-    my_shell_adiabatic =.FALSE.
-    IF(PRESENT(shell_adiabatic)) my_shell_adiabatic = shell_adiabatic
-    my_shell_present = .FALSE.
-    my_temperature_per_kind = .FALSE.
-    IF(PRESENT(temperature_per_kind)) my_temperature_per_kind = temperature_per_kind
-    
-    NULLIFY(md_ener%ekin_kind,md_ener%ekin_shell_kind)
-    NULLIFY(md_ener%temp_kind,md_ener%temp_shell_kind)
-    IF(my_temperature_per_kind) THEN
-      CPPostcondition(ASSOCIATED(temp_kind),cp_failure_level,routineP,error,failure)
-      nkind = SIZE(temp_kind,1)
-      temp_kind = 0.0_dp
-      md_ener%temp_kind => temp_kind
-      ALLOCATE(md_ener%ekin_kind(nkind),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      md_ener%ekin_kind = 0.0_dp
-      ALLOCATE(nfree_kind(nkind),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      nfree_kind = 0
-      IF(my_shell_adiabatic) THEN 
-        CPPostcondition(ASSOCIATED(temp_shell_kind),cp_failure_level,routineP,error,failure)
-        temp_shell_kind = 0.0_dp
-        md_ener%temp_shell_kind => temp_shell_kind
-        ALLOCATE(md_ener%ekin_shell_kind(nkind),STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-        md_ener%ekin_shell_kind = 0.0_dp
-        ALLOCATE(nfree_shell_kind(nkind),STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-        nfree_shell_kind = 0
-      ENDIF  
+    IF(tkind) THEN
+      md_ener%temp_kind  = 0.0_dp
+      md_ener%ekin_kind  = 0.0_dp
+      nkind = SIZE(md_ener%temp_kind)
+      IF(tshell) THEN
+        md_ener%temp_shell_kind  = 0.0_dp
+        md_ener%ekin_shell_kind  = 0.0_dp
+      END IF
     END IF
+    md_ener%thermostat_part_kin = 0.0_dp
+    md_ener%thermostat_part_pot = 0.0_dp
+    md_ener%thermostat_baro_kin = 0.0_dp
+    md_ener%thermostat_baro_pot = 0.0_dp
+    md_ener%thermostat_coef_kin = 0.0_dp
+    md_ener%thermostat_coef_pot = 0.0_dp
+    md_ener%thermostat_shell_kin = 0.0_dp
+    md_ener%thermostat_shell_pot = 0.0_dp
+    md_ener%baro_kin    =0.0_dp
+    md_ener%baro_pot    =0.0_dp
+    md_ener%temp_baro   = 0.0_dp
+    myqmmm = .FALSE.
     
     CALL get_md_env (md_env=md_env,&
                      constant=constant,&
@@ -197,44 +158,41 @@ CONTAINS
 
     int_grp =  para_env % group
 
-    IF(my_temperature_per_kind) THEN
-      CALL get_part_ke ( md_env, md_ener%ekin, md_ener%ekin_qm, md_ener%ekin_shell,&
-           nfree_qm, nfree_shell, simpar%nfree, int_grp , my_shell_present,&
-           temperature_per_kind=my_temperature_per_kind, ekin_kind=md_ener%ekin_kind,&
-           ekin_shell_kind=md_ener%ekin_shell_kind, nfree_kind=nfree_kind, &
-           nfree_shell_kind=nfree_shell_kind, error=error)
-    ELSE        
-      CALL get_part_ke ( md_env, md_ener%ekin, md_ener%ekin_qm, md_ener%ekin_shell,&
-           nfree_qm, nfree_shell, simpar%nfree, int_grp , my_shell_present, &
-           temperature_per_kind=my_temperature_per_kind, error=error)
-    END IF
+    CALL get_part_ke ( md_env, md_ener, tkind, tshell, int_grp,  error=error)
            
-    IF (simpar%nfree /= 0) &
+    IF (md_ener%nfree /= 0) THEN
          md_ener % temp_part = 2.0_dp * md_ener % ekin / REAL ( simpar%nfree,KIND=dp)
+         md_ener % temp_part = md_ener % temp_part*kelvin
+    END IF
 
-    IF ( nfree_qm > 0) THEN
+    IF ( md_ener%nfree_qm > 0) THEN
        myqmmm = .TRUE.
-       md_ener % temp_qm   = 2.0_dp * md_ener % ekin_qm / REAL ( nfree_qm,KIND=dp)
+       md_ener % temp_qm   = 2.0_dp * md_ener % ekin_qm / REAL ( md_ener%nfree_qm,KIND=dp)
+       md_ener % temp_qm = md_ener % temp_qm*kelvin
     END IF
 
-    IF ( nfree_shell > 0) THEN
-       my_shell_adiabatic = .TRUE.
-       md_ener % temp_shell   = 2.0_dp * md_ener % ekin_shell / REAL ( nfree_shell,KIND=dp)
-    ELSEIF(my_shell_present) THEN
-        md_ener % temp_shell  = 0.0_dp
+    IF ( md_ener%nfree_shell > 0) THEN
+       md_ener % temp_shell   = 2.0_dp * md_ener % ekin_shell / REAL ( md_ener%nfree_shell,KIND=dp)
+       md_ener % temp_shell =md_ener % temp_shell *kelvin
     END IF
 
-    IF(my_temperature_per_kind) THEN
+    IF(tkind) THEN
        DO ikind = 1,nkind
-         temp_kind(ikind) = 2.0_dp * &
-                md_ener%ekin_kind(ikind)/REAL(nfree_kind(ikind),KIND=dp)
+         md_ener%temp_kind(ikind) = 2.0_dp * &
+                md_ener%ekin_kind(ikind)/REAL(md_ener%nfree_kind(ikind),KIND=dp)
+         md_ener%temp_kind(ikind) =md_ener%temp_kind(ikind)*kelvin
        END DO
-       IF(my_shell_adiabatic) THEN
+       IF(tshell) THEN
          DO ikind = 1,nkind
-            temp_shell_kind(ikind) = 2.0_dp * &
-                    md_ener%ekin_shell_kind(ikind)/REAL(nfree_shell_kind(ikind),KIND=dp)
+            md_ener%temp_shell_kind(ikind) = 2.0_dp * &
+                    md_ener%ekin_shell_kind(ikind)/REAL(md_ener%nfree_shell_kind(ikind),KIND=dp)
+            md_ener%temp_shell_kind(ikind)=md_ener%temp_shell_kind(ikind)*kelvin
          END DO
        END IF
+    END IF
+
+    IF(tcoeff) THEN
+        md_ener%temp_coefs = md_ener%temp_coefs*kelvin
     END IF
 
     SELECT CASE ( simpar % ensemble  )
@@ -242,58 +200,35 @@ CONTAINS
        ! hence, should be implemented
        CALL stop_program( RoutineN, 'Unknown Ensemble')
     CASE ( isokin_ensemble )
-       cons = md_ener % ekin
+       md_ener%constant = md_ener % ekin
     CASE ( reftraj_ensemble ) ! no constant of motion available
-       cons = md_ener % epot
+       md_ener%constant = md_ener % epot
     CASE ( nve_ensemble)
-       CALL get_econs_nve (md_env, md_ener, cons, int_grp,error=error)
+       CALL get_econs_nve (md_env, md_ener,  int_grp,error=error)
     CASE ( nvt_ensemble)
-       CALL get_econs_nvt (md_env, md_ener, cons, int_grp,error=error)
+       CALL get_econs_nvt (md_env, md_ener,  int_grp,error=error)
     CASE (  npt_i_ensemble,  npt_f_ensemble )
-       CALL get_econs_npt (md_env, md_ener, cons, int_grp, error=error)
+       CALL get_econs_npt (md_env, md_ener,  int_grp, error=error)
+       md_ener%temp_baro = md_ener%temp_baro*kelvin
     CASE (  nph_uniaxial_ensemble )
-       CALL get_econs_nph_uniaxial (md_env, md_ener, cons, int_grp, error=error)
+       CALL get_econs_nph_uniaxial (md_env, md_ener,  error=error)
+       md_ener%temp_baro = md_ener%temp_baro*kelvin
     CASE ( nph_uniaxial_damped_ensemble )
-       CALL get_econs_nph_uniaxial (md_env, md_ener, cons, int_grp, error=error)
+       CALL get_econs_nph_uniaxial (md_env, md_ener,  error=error)
+       md_ener%temp_baro = md_ener%temp_baro*kelvin
     CASE ( langevin_ensemble )
-       cons = md_ener%ekin + md_ener%epot
+       md_ener%constant = md_ener%ekin + md_ener%epot
     END SELECT
 
     IF (itimes==1) THEN
-       constant = cons
-       CALL set_md_env (md_env=md_env, constant=constant,error=error)
+       constant = md_ener%constant
+       CALL set_md_env (md_env=md_env, constant=constant, error=error)
     END IF
 
-    IF ((PRESENT(cons_rel)).AND.(itimes /= 0 )) THEN
-       cons_rel = ABS((cons-constant)/constant)
-    END IF
-    IF (PRESENT(ekin))            ekin       = md_ener%ekin
-    IF (PRESENT(ekin_qm))         ekin_qm    = md_ener%ekin_qm
-    IF (PRESENT(temp_part))       temp_part  = md_ener%temp_part
-    IF (PRESENT(temp_qm))         temp_qm    = md_ener%temp_qm
-    IF (PRESENT(temp_baro))       temp_baro  = md_ener%temp_baro
-    IF (PRESENT(ekin_coefs))      ekin_coefs = md_ener%ekin_coefs
-    IF (PRESENT(temp_coefs))      temp_coefs = md_ener%temp_coefs
-    IF (PRESENT(qmmm))            qmmm       = myqmmm
-    IF (PRESENT(ekin_shell))      ekin_shell = md_ener%ekin_shell
-    IF (PRESENT(temp_shell))      temp_shell = md_ener%temp_shell
-    IF (PRESENT(shell_adiabatic)) shell_adiabatic = my_shell_adiabatic
-    IF (PRESENT(shell_present))   shell_present   = my_shell_present
+!    IF ((itimes /= 0 )) THEN
+!       md_ener%delta_cons = ABS((md_ener%constant-constant)/constant)
+!    END IF
 
-    IF(my_temperature_per_kind) THEN
-      NULLIFY(md_ener%temp_kind)      
-      DEALLOCATE(md_ener%ekin_kind,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      IF(my_shell_adiabatic) THEN
-        NULLIFY(md_ener%temp_shell_kind)      
-        DEALLOCATE(md_ener%ekin_shell_kind,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-        DEALLOCATE(nfree_kind,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-        DEALLOCATE(nfree_shell_kind,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      END IF
-    END IF
     
   END SUBROUTINE compute_conserved_quantity
 
@@ -313,35 +248,44 @@ CONTAINS
   !!     none
   !!
   !!*** *************************************************************************
-  SUBROUTINE get_econs_nve ( md_env, md_ener, cons, int_grp, error )
+  SUBROUTINE get_econs_nve ( md_env, md_ener, int_grp, error )
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(md_ener_type), INTENT(inout)        :: md_ener
-    REAL(KIND=dp), INTENT(OUT)               :: cons
     INTEGER, INTENT(IN)                      :: int_grp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_econs_nve', &
       routineP = moduleN//':'//routineN
 
-    REAL(KIND=dp)                            :: thermostat_kin, thermostat_pot
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(thermostat_type), POINTER           :: thermostat
+    TYPE(thermostat_type), POINTER           :: thermostat_coeff,&
+                                                thermostat_shell
 
-    NULLIFY(dyn_coeff_set, force_env, thermostat)
+    NULLIFY(dyn_coeff_set, force_env, thermostat_coeff,thermostat_shell)
 
-    CALL get_md_env (md_env, force_env=force_env, thermostat_coeff=thermostat, error=error)
-    cons = md_ener % ekin + md_ener % epot + md_ener % ekin_shell
+    CALL get_md_env (md_env, force_env=force_env, thermostat_coeff=thermostat_coeff,&
+                     thermostat_shell=thermostat_shell, error=error)
+    md_ener%constant = md_ener % ekin + md_ener % epot + md_ener % ekin_shell
 
     ! Correct for KG coeff
     CALL force_env_get (force_env = force_env, dyn_coeff_set=dyn_coeff_set,error=error)
 
     IF (ASSOCIATED (dyn_coeff_set)) THEN
-       CALL get_coef_ke (dyn_coeff_set, md_ener%ekin_coefs, md_ener%temp_coefs, int_grp, error)
-       cons = cons + md_ener%ekin_coefs
-       CALL get_thermostat_energies ( thermostat, thermostat_pot, thermostat_kin, int_grp, error )
-       cons = cons + thermostat_kin + thermostat_pot
+       CALL get_coef_ke (dyn_coeff_set, md_ener%ekin_coefs, md_ener%temp_coefs, &
+            int_grp, error)
+       md_ener%constant = md_ener%constant + md_ener%ekin_coefs
+       CALL get_thermostat_energies ( thermostat_coeff, md_ener%thermostat_coef_pot, &
+            md_ener%thermostat_coef_kin, int_grp, error=error )
+       md_ener%constant = md_ener%constant + md_ener%thermostat_coef_kin +&
+                          md_ener%thermostat_coef_pot
     END IF
+
+    CALL get_thermostat_energies ( thermostat_shell, md_ener%thermostat_shell_pot,&
+         md_ener%thermostat_shell_kin, int_grp, error=error )
+    md_ener%constant = md_ener%constant + md_ener%thermostat_shell_kin + md_ener%thermostat_shell_pot
+
+
   END SUBROUTINE get_econs_nve
 
   !******************************************************************************
@@ -360,18 +304,15 @@ CONTAINS
   !!     none
   !!
   !!*** *************************************************************************
-  SUBROUTINE get_econs_nvt ( md_env, md_ener, cons, int_grp, error)
+  SUBROUTINE get_econs_nvt ( md_env, md_ener,  int_grp, error)
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(md_ener_type), INTENT(inout)        :: md_ener
-    REAL(KIND=dp), INTENT(OUT)               :: cons
     INTEGER, INTENT(IN)                      :: int_grp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_econs_nvt', &
       routineP = moduleN//':'//routineN
 
-    REAL(KIND=dp) :: thermo_coef_kin, thermo_coef_pot, thermo_part_kin, &
-      thermo_part_pot, thermo_shell_kin, thermo_shell_pot
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(thermostat_type), POINTER           :: thermostat_coeff, &
@@ -381,18 +322,22 @@ CONTAINS
     NULLIFY(dyn_coeff_set, force_env, thermostat_part, thermostat_coeff, thermostat_shell)
     CALL get_md_env (md_env, force_env=force_env, thermostat_part=thermostat_part,&
          thermostat_coeff=thermostat_coeff, thermostat_shell=thermostat_shell, error=error )
-    CALL get_thermostat_energies ( thermostat_part, thermo_part_pot, thermo_part_kin, int_grp, error )
-    cons = md_ener% ekin + md_ener%epot +  md_ener % ekin_shell + thermo_part_kin + thermo_part_pot
+    CALL get_thermostat_energies ( thermostat_part, md_ener%thermostat_part_pot, &
+         md_ener%thermostat_part_kin, int_grp, error=error )
+    md_ener%constant = md_ener% ekin + md_ener%epot +  md_ener%ekin_shell +&
+                       md_ener%thermostat_part_kin + md_ener%thermostat_part_pot
     CALL force_env_get (force_env=force_env, dyn_coeff_set=dyn_coeff_set,error=error)
     IF (ASSOCIATED (dyn_coeff_set)) THEN
        CALL get_coef_ke (dyn_coeff_set, md_ener%ekin_coefs, md_ener%temp_coefs, int_grp, error)
-       cons = cons + md_ener%ekin_coefs
-       CALL get_thermostat_energies ( thermostat_coeff, thermo_coef_pot, thermo_coef_kin, int_grp, error )
-       cons = cons + thermo_coef_kin + thermo_coef_pot
+       md_ener%constant = md_ener%constant + md_ener%ekin_coefs
+       CALL get_thermostat_energies ( thermostat_coeff, md_ener%thermostat_coef_pot,&
+            md_ener%thermostat_coef_kin, int_grp, error=error )
+       md_ener%constant = md_ener%constant + md_ener%thermostat_coef_kin + md_ener%thermostat_coef_pot
     END IF
 
-    CALL get_thermostat_energies ( thermostat_shell, thermo_shell_pot, thermo_shell_kin, int_grp, error )
-    cons = cons + thermo_shell_kin + thermo_shell_pot
+    CALL get_thermostat_energies ( thermostat_shell, md_ener%thermostat_shell_pot,&
+         md_ener%thermostat_shell_kin, int_grp, error=error )
+    md_ener%constant = md_ener%constant + md_ener%thermostat_shell_kin + md_ener%thermostat_shell_pot
 
   END SUBROUTINE get_econs_nvt
 
@@ -412,19 +357,16 @@ CONTAINS
   !!     none
   !!
   !!*****************************************************************************
-  SUBROUTINE get_econs_npt ( md_env, md_ener, cons, int_grp, error)
+  SUBROUTINE get_econs_npt ( md_env, md_ener, int_grp, error)
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(md_ener_type), INTENT(inout)        :: md_ener
-    REAL(KIND=dp), INTENT(OUT)               :: cons
     INTEGER, INTENT(IN)                      :: int_grp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_econs_npt', &
       routineP = moduleN//':'//routineN
 
-    REAL(KIND=dp) :: baro_kin, baro_pot, nfree, thermo_baro_kin, &
-      thermo_baro_pot, thermo_part_kin, thermo_part_pot, thermo_shell_kin, &
-      thermo_shell_pot
+    INTEGER                                  :: nfree
     TYPE(cell_type), POINTER                 :: box
     TYPE(npt_info_type), POINTER             :: npt( :, : )
     TYPE(simulation_parameters_type), &
@@ -436,19 +378,22 @@ CONTAINS
     NULLIFY(thermostat_baro, thermostat_part, thermostat_shell, npt)
     CALL get_md_env ( md_env, thermostat_part=thermostat_part, thermostat_baro=thermostat_baro, &
          simpar = simpar, npt = npt, cell = box,  thermostat_shell=thermostat_shell, error=error)
-    CALL get_thermostat_energies(thermostat_part, thermo_part_pot, thermo_part_kin, int_grp, error=error )
-    CALL get_thermostat_energies(thermostat_baro, thermo_baro_pot, thermo_baro_kin, int_grp, error)
-    CALL get_baro_energies ( box, simpar, npt, baro_kin, baro_pot, int_grp, error=error )
+    CALL get_thermostat_energies(thermostat_part, md_ener%thermostat_part_pot, &
+         md_ener%thermostat_part_kin, int_grp, error=error )
+    CALL get_thermostat_energies(thermostat_baro, md_ener%thermostat_baro_pot,&
+         md_ener%thermostat_baro_kin, int_grp, error)
+    CALL get_baro_energies ( box, simpar, npt, md_ener%baro_kin, md_ener%baro_pot, error=error )
     nfree = SIZE ( npt, 1 ) * SIZE ( npt, 2 )
-    md_ener % temp_baro = 2.0_dp * baro_kin / nfree
+    md_ener%temp_baro = 2.0_dp * md_ener%baro_kin / nfree
 
-    cons = md_ener%ekin + md_ener%epot + md_ener%ekin_shell &
-         + thermo_part_kin + thermo_part_pot  &
-         + thermo_baro_kin + thermo_baro_pot  &
-         + baro_kin + baro_pot
+    md_ener%constant = md_ener%ekin + md_ener%epot + md_ener%ekin_shell &
+         + md_ener%thermostat_part_kin + md_ener%thermostat_part_pot  &
+         + md_ener%thermostat_baro_kin + md_ener%thermostat_baro_pot  &
+         + md_ener%baro_kin + md_ener%baro_pot
 
-    CALL get_thermostat_energies ( thermostat_shell, thermo_shell_pot, thermo_shell_kin, int_grp, error )
-    cons = cons + thermo_shell_kin + thermo_shell_pot
+    CALL get_thermostat_energies ( thermostat_shell, md_ener%thermostat_shell_pot, &
+         md_ener%thermostat_shell_kin, int_grp, error )
+    md_ener%constant = md_ener%constant + md_ener%thermostat_shell_kin + md_ener%thermostat_shell_pot
 
   END SUBROUTINE get_econs_npt
 
@@ -468,17 +413,14 @@ CONTAINS
   !!     none
   !!
   !!*****************************************************************************
-  SUBROUTINE get_econs_nph_uniaxial ( md_env, md_ener, cons, int_grp, error)
+  SUBROUTINE get_econs_nph_uniaxial ( md_env, md_ener,  error)
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(md_ener_type), INTENT(inout)        :: md_ener
-    REAL(KIND=dp), INTENT(OUT)               :: cons
-    INTEGER, INTENT(IN)                      :: int_grp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_econs_nph_uniaxial', &
       routineP = moduleN//':'//routineN
 
-    REAL(KIND=dp)                            :: baro_kin, baro_pot
     TYPE(cell_type), POINTER                 :: box
     TYPE(npt_info_type), POINTER             :: npt( :, : )
     TYPE(simulation_parameters_type), &
@@ -486,9 +428,9 @@ CONTAINS
 
     CALL get_md_env ( md_env, simpar = simpar, npt = npt, cell = box, error=error )
 
-    CALL get_baro_energies ( box, simpar, npt, baro_kin, baro_pot, int_grp, error=error )
-    md_ener % temp_baro = 2.0_dp * baro_kin
-    cons = md_ener%ekin + md_ener%epot + baro_kin + baro_pot
+    CALL get_baro_energies ( box, simpar, npt, md_ener%baro_kin, md_ener%baro_pot, error=error )
+    md_ener % temp_baro = 2.0_dp * md_ener%baro_kin
+    md_ener%constant = md_ener%ekin + md_ener%epot + md_ener%baro_kin + md_ener%baro_pot
   END SUBROUTINE get_econs_nph_uniaxial
 
   !******************************************************************************
@@ -507,7 +449,7 @@ CONTAINS
   !!     none
   !!
   !!*** *************************************************************************
-  SUBROUTINE get_baro_energies ( box, simpar, npt, baro_kin, baro_pot, int_grp, error )
+  SUBROUTINE get_baro_energies ( box, simpar, npt, baro_kin, baro_pot, error )
 
     TYPE(cell_type), INTENT(IN)              :: box
     TYPE(simulation_parameters_type), &
@@ -515,7 +457,6 @@ CONTAINS
     TYPE(npt_info_type), DIMENSION(:, :), &
       INTENT(IN)                             :: npt
     REAL(KIND=dp), INTENT(OUT)               :: baro_kin, baro_pot
-    INTEGER, INTENT(IN)                      :: int_grp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_baro_energies', &
@@ -570,19 +511,11 @@ CONTAINS
   !!     none
   !!
   !!*** *************************************************************************
-  SUBROUTINE get_part_ke ( md_env, ekin, ekin_qm, ekin_shell, nfree_qm, &
-             nfree_shell, nfree, int_grp, shell_present, temperature_per_kind, &
-             nfree_kind, nfree_shell_kind, ekin_kind, ekin_shell_kind, error )
+  SUBROUTINE get_part_ke ( md_env, md_ener, tkind, tshell, int_grp, error) 
     TYPE(md_environment_type), POINTER       :: md_env
-    REAL(KIND=dp), INTENT(OUT)               :: ekin, ekin_qm, ekin_shell
-    INTEGER, INTENT(OUT)                     :: nfree_qm, nfree_shell
-    INTEGER, INTENT(IN)                      :: nfree, int_grp
-    LOGICAL, INTENT(OUT)                     :: shell_present
-    LOGICAL, INTENT(IN)                      :: temperature_per_kind
-    INTEGER, DIMENSION(:), INTENT(OUT), &
-      OPTIONAL                               :: nfree_kind, nfree_shell_kind
-    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
-      POINTER                                :: ekin_kind, ekin_shell_kind
+    TYPE(md_ener_type), POINTER       :: md_ener
+    LOGICAL, INTENT(IN) :: tkind, tshell
+    INTEGER, INTENT(IN)    :: int_grp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_part_ke', &
@@ -590,8 +523,7 @@ CONTAINS
 
     INTEGER :: i, iparticle, iparticle_kind, iparticle_local, nparticle_kind, &
       nparticle_local, shell_index
-    LOGICAL                                  :: failure, is_shell, &
-                                                shell_adiabatic
+    LOGICAL                                  :: failure, is_shell
     REAL(KIND=dp)                            :: ekin_c, ekin_com, ekin_s, mass
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -623,33 +555,21 @@ CONTAINS
     nparticle_kind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
-                             shell_present=shell_present, &
-                             shell_adiabatic=shell_adiabatic)
-
-    nfree_qm = -HUGE(0)
-    ekin     = zero
-    ekin_qm  = zero
-    ekin_shell  = zero
     ekin_s  = zero
     ekin_c  = zero
     ekin_com  = zero
-    nfree_shell = -HUGE(0)
-    IF(temperature_per_kind) THEN
-      ekin_kind = zero
-      nfree_kind = 0
-      IF(shell_adiabatic) THEN
-         ekin_shell_kind = zero
-         nfree_shell_kind = 0
+    IF(tkind) THEN
+     md_ener%nfree_kind = 0
+      IF(tshell) THEN
+         md_ener%nfree_shell_kind = 0
       END IF
     END IF
     
     particle_set => particles%els
-    IF(shell_adiabatic) THEN
+    IF(tshell) THEN
       shell_particle_set => shell_particles%els
       core_particle_set => core_particles%els
-      nfree_shell = 3*SIZE(shell_particle_set)
-      IF(temperature_per_kind) THEN
+      IF(tkind) THEN
         DO iparticle_kind=1,nparticle_kind
            atomic_kind => atomic_kind_set(iparticle_kind)
            CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass, &
@@ -663,9 +583,9 @@ CONTAINS
                      ( particle_set(iparticle)%v(1)* particle_set(iparticle)%v(1) &
                      + particle_set(iparticle)%v(2)* particle_set(iparticle)%v(2) &
                      + particle_set(iparticle)%v(3)* particle_set(iparticle)%v(3) )
-                ekin = ekin +  ekin_com
-                ekin_kind(iparticle_kind) = ekin_kind(iparticle_kind) + ekin_com
-                nfree_kind(iparticle_kind) = nfree_kind(iparticle_kind) + 3
+                md_ener%ekin = md_ener%ekin +  ekin_com
+                md_ener%ekin_kind(iparticle_kind) = md_ener%ekin_kind(iparticle_kind) + ekin_com
+                md_ener%nfree_kind(iparticle_kind) = md_ener%nfree_kind(iparticle_kind) + 3
                 ekin_c =  0.5_dp * shell%mass_core *  &
                    ( core_particle_set(shell_index)%v(1)* core_particle_set(shell_index)%v(1) &
                    + core_particle_set(shell_index)%v(2)* core_particle_set(shell_index)%v(2) &
@@ -674,10 +594,10 @@ CONTAINS
                    ( shell_particle_set(shell_index)%v(1)* shell_particle_set(shell_index)%v(1) &
                    + shell_particle_set(shell_index)%v(2)* shell_particle_set(shell_index)%v(2) &
                    + shell_particle_set(shell_index)%v(3)* shell_particle_set(shell_index)%v(3) )
-                ekin_shell = ekin_shell + ekin_c + ekin_s - ekin_com
-                ekin_shell_kind(iparticle_kind) = ekin_shell_kind(iparticle_kind) +&
+                md_ener%ekin_shell = md_ener%ekin_shell + ekin_c + ekin_s - ekin_com
+                md_ener%ekin_shell_kind(iparticle_kind) = md_ener%ekin_shell_kind(iparticle_kind) +&
                              ekin_c + ekin_s - ekin_com
-                nfree_shell_kind(iparticle_kind) = nfree_shell_kind(iparticle_kind) + 3
+                md_ener%nfree_shell_kind(iparticle_kind) = md_ener%nfree_shell_kind(iparticle_kind) + 3
              END DO  ! iparticle_local
            ELSE
              DO iparticle_local=1,nparticle_local
@@ -686,16 +606,16 @@ CONTAINS
                      ( particle_set(iparticle)%v(1)* particle_set(iparticle)%v(1) &
                      + particle_set(iparticle)%v(2)* particle_set(iparticle)%v(2) &
                      + particle_set(iparticle)%v(3)* particle_set(iparticle)%v(3) )
-                ekin = ekin +  ekin_com
-                ekin_kind(iparticle_kind) = ekin_kind(iparticle_kind) + ekin_com
-                nfree_kind(iparticle_kind) = nfree_kind(iparticle_kind) + 3
+                md_ener%ekin = md_ener%ekin +  ekin_com
+                md_ener%ekin_kind(iparticle_kind) = md_ener%ekin_kind(iparticle_kind) + ekin_com
+                md_ener%nfree_kind(iparticle_kind) = md_ener%nfree_kind(iparticle_kind) + 3
               END DO  ! iparticle_local
            END IF
          END DO  ! iparticle_kind
-         CALL mp_sum(ekin_kind, int_grp )
-         CALL mp_sum(nfree_kind, int_grp )
-         CALL mp_sum(ekin_shell_kind, int_grp )
-         CALL mp_sum(nfree_shell_kind, int_grp )
+         CALL mp_sum(md_ener%ekin_kind, int_grp )
+         CALL mp_sum(md_ener%nfree_kind, int_grp )
+         CALL mp_sum(md_ener%ekin_shell_kind, int_grp )
+         CALL mp_sum(md_ener%nfree_shell_kind, int_grp )
       ELSE
         DO iparticle_kind=1,nparticle_kind
            atomic_kind => atomic_kind_set(iparticle_kind)
@@ -710,7 +630,7 @@ CONTAINS
                      ( particle_set(iparticle)%v(1)* particle_set(iparticle)%v(1) &
                      + particle_set(iparticle)%v(2)* particle_set(iparticle)%v(2) &
                      + particle_set(iparticle)%v(3)* particle_set(iparticle)%v(3) )
-                ekin = ekin +  ekin_com
+                md_ener%ekin = md_ener%ekin +  ekin_com
                 ekin_c =  0.5_dp * shell%mass_core *  &
                    ( core_particle_set(shell_index)%v(1)* core_particle_set(shell_index)%v(1) &
                    + core_particle_set(shell_index)%v(2)* core_particle_set(shell_index)%v(2) &
@@ -719,7 +639,7 @@ CONTAINS
                    ( shell_particle_set(shell_index)%v(1)* shell_particle_set(shell_index)%v(1) &
                    + shell_particle_set(shell_index)%v(2)* shell_particle_set(shell_index)%v(2) &
                    + shell_particle_set(shell_index)%v(3)* shell_particle_set(shell_index)%v(3) )
-                ekin_shell = ekin_shell + ekin_c + ekin_s - ekin_com
+                md_ener%ekin_shell = md_ener%ekin_shell + ekin_c + ekin_s - ekin_com
              END DO  ! iparticle_local
            ELSE
              DO iparticle_local=1,nparticle_local
@@ -728,15 +648,15 @@ CONTAINS
                      ( particle_set(iparticle)%v(1)* particle_set(iparticle)%v(1) &
                      + particle_set(iparticle)%v(2)* particle_set(iparticle)%v(2) &
                      + particle_set(iparticle)%v(3)* particle_set(iparticle)%v(3) )
-                ekin = ekin +  ekin_com
+                md_ener%ekin = md_ener%ekin +  ekin_com
               END DO  ! iparticle_local
            END IF
          END DO  ! iparticle_kind
       END IF   
       ! sum all contributions to energy over calculated parts on all processors
-      CALL mp_sum ( ekin_shell, int_grp )
+      CALL mp_sum ( md_ener%ekin_shell, int_grp )
     ELSE
-      IF(temperature_per_kind) THEN
+      IF(tkind) THEN
         DO iparticle_kind=1,nparticle_kind
            atomic_kind => atomic_kind_set(iparticle_kind)
            CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
@@ -747,13 +667,13 @@ CONTAINS
                    ( particle_set(iparticle)%v(1)* particle_set(iparticle)%v(1) &
                    + particle_set(iparticle)%v(2)* particle_set(iparticle)%v(2) &
                    + particle_set(iparticle)%v(3)* particle_set(iparticle)%v(3) )
-              ekin = ekin +  ekin_com
-              ekin_kind(iparticle_kind) = ekin_kind(iparticle_kind) + ekin_com
-              nfree_kind(iparticle_kind) = nfree_kind(iparticle_kind) + 3
+              md_ener%ekin = md_ener%ekin +  ekin_com
+              md_ener%ekin_kind(iparticle_kind) = md_ener%ekin_kind(iparticle_kind) + ekin_com
+              md_ener%nfree_kind(iparticle_kind) = md_ener%nfree_kind(iparticle_kind) + 3
            END DO
         END DO  ! iparticle_kind
-        CALL mp_sum(ekin_kind, int_grp )
-        CALL mp_sum(nfree_kind, int_grp )
+        CALL mp_sum(md_ener%ekin_kind, int_grp )
+        CALL mp_sum(md_ener%nfree_kind, int_grp )
       ELSE
         DO iparticle_kind=1,nparticle_kind
            atomic_kind => atomic_kind_set(iparticle_kind)
@@ -761,7 +681,7 @@ CONTAINS
            nparticle_local = local_particles%n_el(iparticle_kind)
            DO iparticle_local=1,nparticle_local
               iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-              ekin = ekin +  0.5_dp * mass *  &
+              md_ener%ekin = md_ener%ekin +  0.5_dp * mass *  &
                    ( particle_set(iparticle)%v(1)* particle_set(iparticle)%v(1) &
                    + particle_set(iparticle)%v(2)* particle_set(iparticle)%v(2) &
                    + particle_set(iparticle)%v(3)* particle_set(iparticle)%v(3) )
@@ -771,7 +691,7 @@ CONTAINS
     END IF
 
     ! sum all contributions to energy over calculated parts on all processors
-    CALL mp_sum ( ekin, int_grp )
+    CALL mp_sum ( md_ener%ekin, int_grp )
     !
     ! Compute the QM/MM kinetic energy
     IF (ASSOCIATED(qmmm_env)) THEN
@@ -780,12 +700,10 @@ CONTAINS
        ! system is treated at QM level (not really QM/MM, just for consistency).
        ! The degree of freedom will not be correct if 1-3 atoms are treated only
        ! MM. In this case we should take care of rotations
-       nfree_qm = 3*SIZE(qmmm_env%qm_atom_index)
-       IF (nfree_qm == 3*SIZE(particle_set)) nfree_qm = nfree
        DO i = 1, SIZE(qmmm_env%qm_atom_index)
           iparticle = qmmm_env%qm_atom_index(i)
           mass = particle_set(iparticle)%atomic_kind%mass
-          ekin_qm = ekin_qm +  0.5_dp * mass *  &
+          md_ener%ekin_qm = md_ener%ekin_qm +  0.5_dp * mass *  &
                ( particle_set(iparticle)%v(1)* particle_set(iparticle)%v(1) &
                + particle_set(iparticle)%v(2)* particle_set(iparticle)%v(2) &
                + particle_set(iparticle)%v(3)* particle_set(iparticle)%v(3) )
