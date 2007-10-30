@@ -45,3 +45,5 @@ uo2_nvt.inp
 uo2_shell_nvt_shnose_b.inp
 # restart shell nose thermostat
 uo2_shell_nvt_shnose_r.inp
+# nve and shell Thermostat
+uo2_shell_nve_shnose.inp
