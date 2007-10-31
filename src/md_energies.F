@@ -222,8 +222,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: natom
-    LOGICAL                                  :: init, &
-                                                shell_adiabatic, &
+    LOGICAL                                  :: init, shell_adiabatic, &
                                                 tcoeff, tkind, tshell
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -236,7 +235,6 @@ CONTAINS
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
 
-  
     NULLIFY(atomic_kinds, atomic_kind_set, cell_ref, dyn_coeff_set, force_env,&
             particles, subsys, simpar)
     CALL get_md_env(md_env=md_env, init=init, force_env=force_env, &
@@ -306,8 +304,7 @@ SUBROUTINE md_ener_reftraj(md_env,md_ener,error)
       routineP = moduleN//':'//routineN
 
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE (reftraj_type), POINTER             :: reftraj
-
+    TYPE(reftraj_type), POINTER              :: reftraj
 
     CALL zero_md_ener(md_ener, tkind=.FALSE., tshell=.FALSE., error=error)
 
@@ -349,8 +346,8 @@ END SUBROUTINE  md_ener_reftraj
                                                 my_pos, remark1, remark2, &
                                                 title
     INTEGER :: box, cocrd, cofrc, covel, crd, delta_t, ene, ener_mix, frc, &
-      handle, i, iskip, iw, nat, nkind, nshell, outformat, shcrd, &
-      shene, shfrc, shvel, str, tempkind, tempshellkind, trsl, vel
+      handle, i, iskip, iw, nat, nkind, nshell, outformat, shcrd, shene, &
+      shfrc, shvel, str, tempkind, tempshellkind, trsl, vel
     INTEGER, POINTER                         :: itimes
     LOGICAL :: failure, init, init_coforce, init_cotraj, init_covel, &
       init_force, init_shforce, init_shtraj, init_shvel, init_traj, init_vel, &

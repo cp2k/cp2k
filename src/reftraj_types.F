@@ -30,11 +30,7 @@ MODULE reftraj_types
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
                                              dp
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
-
 #include "cp_common_uses.h"
-
 
   IMPLICIT NONE
 
@@ -96,9 +92,9 @@ CONTAINS
 
   SUBROUTINE create_reftraj(reftraj,reftraj_section,error)
   
-    TYPE (reftraj_type), POINTER              :: reftraj
-    TYPE (section_vals_type), POINTER         :: reftraj_section
-    TYPE (cp_error_type), INTENT(inout)       :: error
+    TYPE(reftraj_type), POINTER              :: reftraj
+    TYPE(section_vals_type), POINTER         :: reftraj_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_reftraj', &
       routineP = moduleN//':'//routineN
@@ -106,7 +102,7 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: filename
     INTEGER                                  :: istat
     LOGICAL                                  :: failure
-    
+
     failure = .FALSE.
 
     CPPrecondition(.NOT. ASSOCIATED(reftraj),cp_failure_level,routineP,error,failure)

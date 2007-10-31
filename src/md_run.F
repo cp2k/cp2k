@@ -56,8 +56,8 @@ MODULE md_run
   USE md,                              ONLY: read_md_section,&
                                              simulation_parameters_type
   USE md_energies,                     ONLY: initialize_md_ener,&
-                                             md_energy,&
                                              md_ener_reftraj,&
+                                             md_energy,&
                                              md_write_output
   USE md_environment_types,            ONLY: create_md_ener,&
                                              get_md_env,&
@@ -73,8 +73,8 @@ MODULE md_run
                                              temperature_control
   USE particle_list_types,             ONLY: particle_list_type
   USE reftraj_types,                   ONLY: create_reftraj,&
-                                             release_reftraj,&
-                                             reftraj_type
+                                             reftraj_type,&
+                                             release_reftraj
   USE reftraj_util,                    ONLY: initialize_reftraj
   USE termination,                     ONLY: external_control
   USE thermostat_methods,              ONLY: create_thermostats

@@ -2925,7 +2925,7 @@ SUBROUTINE create_reftraj_section(section, error)
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: subsection, print_key
+    TYPE(section_type), POINTER              :: subsection
 
   failure=.FALSE.
   
@@ -2938,7 +2938,7 @@ SUBROUTINE create_reftraj_section(section, error)
           n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
           error=error)
        
-     NULLIFY(keyword, print_key, subsection)
+     NULLIFY(keyword, subsection)
 
      CALL keyword_create(keyword, name="TRJFILENAME",&
           description="Specify the filename where the trajectory is stored.",repeats=.FALSE.,&
@@ -3022,7 +3022,6 @@ SUBROUTINE create_msd_section(section, error)
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER :: subsection, print_key
 
   failure=.FALSE.
   
@@ -3035,7 +3034,7 @@ SUBROUTINE create_msd_section(section, error)
           n_keywords=1, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
           error=error)
        
-     NULLIFY(keyword, print_key, subsection)
+     NULLIFY(keyword)
 
      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
           description="controls the activation of core-level spectroscopy simulations",&

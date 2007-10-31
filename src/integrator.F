@@ -71,7 +71,8 @@ MODULE integrator
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type,&
                                              set_md_env
-  USE message_passing,                 ONLY: mp_bcast, mp_sum
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_sum
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -374,8 +375,7 @@ CONTAINS
       mass_storage, nmolecule, nmolecule_kind, nparticle, nparticle_kind, &
       nparticle_local, nshell, shell_index
     LOGICAL                                  :: failure, is_shell, &
-                                                shell_adiabatic, &
-                                                shell_present
+                                                shell_adiabatic, shell_present
     REAL(KIND=dp)                            :: dm, dmc, dmcoef, dms, dt, &
                                                 fac_massc, fac_masss, &
                                                 global_mass, mass
@@ -415,7 +415,6 @@ CONTAINS
     TYPE(thermostat_type), POINTER           :: thermostat_coeff, &
                                                 thermostat_shell
     TYPE(virial_type), POINTER               :: virial
-
 
     failure = .FALSE. 
 
@@ -961,8 +960,8 @@ CONTAINS
     INTEGER :: icoef, iparticle, iparticle_kind, iparticle_local, istat, &
       mass_storage, nmolecule, nmolecule_kind, nparticle, nparticle_kind, &
       nparticle_local, nshell, shell_index
-    LOGICAL                                  :: failure, is_shell, shell_adiabatic, &
-                                                shell_present
+    LOGICAL                                  :: failure, is_shell, &
+                                                shell_adiabatic, shell_present
     REAL(KIND=dp)                            :: dm, dmc, dmcoef, dms, dt, &
                                                 fac_massc, fac_masss, &
                                                 global_mass, mass
@@ -1397,8 +1396,9 @@ CONTAINS
       nmolecule, nmolecule_kind, nparticle, nparticle_kind, nparticle_local, &
       nshell, shell_index
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: failure, first, first_time, is_shell, &
-                                                shell_adiabatic, shell_present
+    LOGICAL                                  :: failure, first, first_time, &
+                                                is_shell, shell_adiabatic, &
+                                                shell_present
     REAL(dp)                                 :: kin
     REAL(dp), DIMENSION(3, 3)                :: pv_kin
     REAL(KIND=dp) :: arg_r, arg_v, dm, dmc, dms, dt, fac_massc, fac_masss, &
@@ -1854,12 +1854,10 @@ CONTAINS
 
     CHARACTER(LEN=10)                        :: AA
     CHARACTER(LEN=80)                        :: title
-    INTEGER                                  :: cell_itimes, I, &
-                                                istat, nparticle, &
-                                                Nread, trj_itimes
+    INTEGER                                  :: cell_itimes, I, istat, &
+                                                nparticle, Nread, trj_itimes
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: h(3,3), cell_epot, &
-                                                cell_time,&
+    REAL(KIND=dp)                            :: cell_epot, cell_time, h(3,3), &
                                                 trj_epot, trj_time
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pos
@@ -1872,7 +1870,6 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(reftraj_type), POINTER              :: reftraj_env
     TYPE(section_vals_type), POINTER         :: root_section
-
 
     failure = .FALSE.
 
@@ -2836,8 +2833,9 @@ END SUBROUTINE nph_uniaxial_damped
       j, nmolecule, nmolecule_kind, nparticle, nparticle_kind, &
       nparticle_local, nshell, shell_index
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: failure, first, first_time, is_shell, &
-                                                shell_adiabatic, shell_present
+    LOGICAL                                  :: failure, first, first_time, &
+                                                is_shell, shell_adiabatic, &
+                                                shell_present
     REAL(dp)                                 :: kin
     REAL(dp), DIMENSION(3, 3)                :: pv_kin
     REAL(KIND=dp)                            :: dm, dmc, dms, dt, fac_massc, &

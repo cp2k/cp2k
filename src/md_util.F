@@ -130,20 +130,18 @@ CONTAINS
       POINTER                                :: simpar
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(md_ener_type), POINTER              :: md_ener
-    REAL(KIND=dp), DIMENSION(3), &
-      INTENT(IN)                             :: vsubtract
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: vsubtract
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_ekin_temp_part', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'reset_vcom', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: atom, handle, iatom, ikind, &
                                                 natom, shell_index
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: is_shell
-    REAL(KIND=dp)                            :: ekin_old, mass, &
-                                                v2
-    REAL(KIND=dp), DIMENSION(3)              :: v, vc, vs
+    REAL(KIND=dp)                            :: ekin_old, mass, v2
+    REAL(KIND=dp), DIMENSION(3)              :: v
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
@@ -240,8 +238,7 @@ CONTAINS
   SUBROUTINE scale_velocity(subsys, md_ener, temp_expected, temp_tol, iw, error)
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(md_ener_type), POINTER              :: md_ener
-    REAL(KIND=dp), INTENT(IN)                :: temp_expected, &
-                                                temp_tol
+    REAL(KIND=dp), INTENT(IN)                :: temp_expected, temp_tol
     INTEGER, INTENT(IN)                      :: iw
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -252,9 +249,10 @@ CONTAINS
                                                 shell_index
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: is_shell
-    REAL(KIND=dp)                            :: ekin_old, fac_massc, fac_masss, mass, &
-                                                scale, temp_old, v2
-    REAL(KIND=dp), DIMENSION(3)              :: v,  vc, vs
+    REAL(KIND=dp)                            :: ekin_old, fac_massc, &
+                                                fac_masss, mass, scale, &
+                                                temp_old, v2
+    REAL(KIND=dp), DIMENSION(3)              :: v, vc, vs
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
@@ -372,8 +370,7 @@ CONTAINS
   SUBROUTINE scale_velocity_internal(subsys, md_ener,  temp_expected, temp_tol, iw, error)
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(md_ener_type), POINTER              :: md_ener
-    REAL(KIND=dp), INTENT(IN)                :: temp_expected, &
-                                                temp_tol
+    REAL(KIND=dp), INTENT(IN)                :: temp_expected, temp_tol
     INTEGER, INTENT(IN)                      :: iw
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -385,7 +382,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: is_shell
     REAL(KIND=dp)                            :: ekin_shell_old, fac_mass, &
-                                                mass, scale, temp_shell_old, v2
+                                                mass, scale, temp_shell_old, &
+                                                v2
     REAL(KIND=dp), DIMENSION(3)              :: v, vc, vs
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind

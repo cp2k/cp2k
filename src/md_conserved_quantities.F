@@ -107,11 +107,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_conserved_quantity', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ikind, int_grp, &
-                                                nkind
+    INTEGER                                  :: ikind, int_grp, nkind
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: init, failure, &
-                                                myqmmm
+    LOGICAL                                  :: failure, init, myqmmm
     REAL(KIND=dp), POINTER                   :: constant
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(simulation_parameters_type), &
@@ -235,7 +233,7 @@ CONTAINS
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(thermostat_type), POINTER           :: thermostat_coeff,&
+    TYPE(thermostat_type), POINTER           :: thermostat_coeff, &
                                                 thermostat_shell
 
     NULLIFY(dyn_coeff_set, force_env, thermostat_coeff,thermostat_shell)

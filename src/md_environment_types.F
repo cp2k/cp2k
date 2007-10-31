@@ -703,7 +703,6 @@ SUBROUTINE zero_md_ener(md_ener, tkind, tshell, error)
     LOGICAL, INTENT(IN)                      :: tkind, tshell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    
     md_ener%ekin        = 0.0_dp
     md_ener%temp_part   = 0.0_dp
     md_ener%temp_baro   = 0.0_dp
