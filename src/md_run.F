@@ -57,6 +57,7 @@ MODULE md_run
                                              simulation_parameters_type
   USE md_energies,                     ONLY: initialize_md_ener,&
                                              md_energy,&
+                                             md_ener_reftraj,&
                                              md_write_output
   USE md_environment_types,            ONLY: create_md_ener,&
                                              get_md_env,&
@@ -72,8 +73,8 @@ MODULE md_run
                                              temperature_control
   USE particle_list_types,             ONLY: particle_list_type
   USE reftraj_types,                   ONLY: create_reftraj,&
-                                             reftraj_type,&
-                                             release_reftraj
+                                             release_reftraj,&
+                                             reftraj_type
   USE reftraj_util,                    ONLY: initialize_reftraj
   USE termination,                     ONLY: external_control
   USE thermostat_methods,              ONLY: create_thermostats
@@ -376,9 +377,13 @@ CONTAINS
       CALL external_control(should_stop,"MD",globenv,error=error)
       IF (should_stop) EXIT
 
-      CALL md_energy(md_env,md_ener,error) 
-      CALL temperature_control(simpar,md_ener,force_env,logger,error)
-      CALL comvel_control(simpar,md_ener,force_env,logger,error)
+      IF(simpar%ensemble /= reftraj_ensemble) THEN
+        CALL md_energy(md_env, md_ener, error) 
+        CALL temperature_control(simpar, md_ener, force_env, logger, error)
+        CALL comvel_control(simpar, md_ener, force_env, logger, error)
+      ELSE
+        CALL md_ener_reftraj(md_env, md_ener, error)
+      END IF
 
       time_iter_stop=m_walltime()
       used_time = time_iter_stop - time_iter_start

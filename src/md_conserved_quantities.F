@@ -45,7 +45,8 @@ MODULE md_conserved_quantities
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_ener_type,&
                                              md_environment_type,&
-                                             set_md_env
+                                             set_md_env,&
+                                             zero_md_ener
   USE message_passing,                 ONLY: mp_sum
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
@@ -106,9 +107,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_conserved_quantity', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ikind, int_grp, nkind
+    INTEGER                                  :: ikind, int_grp, &
+                                                nkind
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: failure, init, myqmmm
+    LOGICAL                                  :: init, failure, &
+                                                myqmmm
     REAL(KIND=dp), POINTER                   :: constant
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(simulation_parameters_type), &
@@ -118,36 +121,8 @@ CONTAINS
 
     NULLIFY(itimes, para_env, simpar)
     
-    md_ener%ekin   = 0.0_dp
-    md_ener%temp_part   = 0.0_dp
-    md_ener%ekin_coefs  = 0.0_dp
-    md_ener%temp_coefs  = 0.0_dp
-    md_ener%ekin_qm     = 0.0_dp
-    md_ener%temp_qm     = 0.0_dp
-    md_ener%ekin_shell  = 0.0_dp
-    md_ener%temp_shell  = 0.0_dp
-    IF(tkind) THEN
-      md_ener%temp_kind  = 0.0_dp
-      md_ener%ekin_kind  = 0.0_dp
-      nkind = SIZE(md_ener%temp_kind)
-      IF(tshell) THEN
-        md_ener%temp_shell_kind  = 0.0_dp
-        md_ener%ekin_shell_kind  = 0.0_dp
-      END IF
-    END IF
-    md_ener%thermostat_part_kin = 0.0_dp
-    md_ener%thermostat_part_pot = 0.0_dp
-    md_ener%thermostat_baro_kin = 0.0_dp
-    md_ener%thermostat_baro_pot = 0.0_dp
-    md_ener%thermostat_coef_kin = 0.0_dp
-    md_ener%thermostat_coef_pot = 0.0_dp
-    md_ener%thermostat_shell_kin = 0.0_dp
-    md_ener%thermostat_shell_pot = 0.0_dp
-    md_ener%baro_kin    =0.0_dp
-    md_ener%baro_pot    =0.0_dp
-    md_ener%temp_baro   = 0.0_dp
-    md_ener%vcom(:) = 0.0_dp
-    md_ener%total_mass = 0.0_dp
+
+    CALL zero_md_ener(md_ener, tkind, tshell, error=error)
 
     myqmmm = .FALSE.
     
@@ -180,6 +155,7 @@ CONTAINS
     END IF
 
     IF(tkind) THEN
+       nkind = SIZE(md_ener%temp_kind)
        DO ikind = 1,nkind
          md_ener%temp_kind(ikind) = 2.0_dp * &
                 md_ener%ekin_kind(ikind)/REAL(md_ener%nfree_kind(ikind),KIND=dp)
@@ -203,7 +179,7 @@ CONTAINS
        CALL stop_program( RoutineN, 'Unknown Ensemble')
     CASE ( isokin_ensemble )
        md_ener%constant = md_ener % ekin
-    CASE ( reftraj_ensemble ) 
+    CASE ( reftraj_ensemble ) ! no constant of motion available
        md_ener%constant = md_ener % epot
     CASE ( nve_ensemble)
        CALL get_econs_nve (md_env, md_ener,  int_grp,error=error)
@@ -259,7 +235,7 @@ CONTAINS
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(thermostat_type), POINTER           :: thermostat_coeff, &
+    TYPE(thermostat_type), POINTER           :: thermostat_coeff,&
                                                 thermostat_shell
 
     NULLIFY(dyn_coeff_set, force_env, thermostat_coeff,thermostat_shell)

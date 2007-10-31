@@ -108,7 +108,8 @@ MODULE md_environment_types
             md_env_release,&
             md_env_retain,&
             release_md_ener,&
-            retain_md_ener
+            retain_md_ener,&
+            zero_md_ener
 
 ! *** Global parameters ***
 
@@ -606,10 +607,10 @@ SUBROUTINE retain_md_ener(md_ener, error)
   END IF
 END SUBROUTINE retain_md_ener
 
-!!****f* md_environment_types/md_ener_release [1.0] *
+!!****f* md_environment_types/release_md_ener [1.0] *
 !!
 !!   NAME
-!!     md_ener_release
+!!     release_md_ener
 !!
 !!   FUNCTION
 !!     releases the given md_ener structure
@@ -674,7 +675,71 @@ SUBROUTINE release_md_ener(md_ener, error)
      END IF
   END IF
 END SUBROUTINE release_md_ener
- 
+
+!!****f* md_environment_types/zero_md_ener [1.0] *
+!!
+!!   NAME
+!!     zero_md_ener
+!!
+!!   FUNCTION
+!!    initialize to zero energies and temperatures  
+!!
+!!   NOTES
+!!
+!!   ARGUMENTS
+!!     - md_ener:
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!   MODIFICATION HISTORY
+!!     10.2007 created [MI]
+!!
+!!*** **********************************************************************
+SUBROUTINE zero_md_ener(md_ener, tkind, tshell, error)
+    TYPE(md_ener_type), POINTER              :: md_ener
+    LOGICAL, INTENT(IN)                      :: tkind, tshell
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    
+    md_ener%ekin        = 0.0_dp
+    md_ener%temp_part   = 0.0_dp
+    md_ener%temp_baro   = 0.0_dp
+    md_ener%ekin_coefs  = 0.0_dp
+    md_ener%temp_coefs  = 0.0_dp
+    md_ener%ekin_qm     = 0.0_dp
+    md_ener%temp_qm     = 0.0_dp
+    md_ener%ekin_shell  = 0.0_dp
+    md_ener%temp_shell  = 0.0_dp    
+    md_ener%constant    = 0.0_dp
+    md_ener%delta_cons  = 0.0_dp
+    md_ener%thermostat_part_kin  = 0.0_dp
+    md_ener%thermostat_part_pot  = 0.0_dp
+    md_ener%thermostat_coef_kin  = 0.0_dp
+    md_ener%thermostat_coef_pot  = 0.0_dp
+    md_ener%thermostat_baro_kin  = 0.0_dp
+    md_ener%thermostat_baro_pot  = 0.0_dp
+    md_ener%thermostat_shell_kin  = 0.0_dp
+    md_ener%thermostat_shell_pot  = 0.0_dp
+    md_ener%baro_kin = 0.0_dp
+    md_ener%baro_pot = 0.0_dp
+    IF(tkind) THEN
+       md_ener%temp_kind  = 0.0_dp
+       md_ener%ekin_kind  = 0.0_dp
+
+       IF(tshell) THEN
+          md_ener%temp_shell_kind  = 0.0_dp
+          md_ener%ekin_shell_kind  = 0.0_dp 
+       END IF
+    END IF        
+    md_ener%vcom(:) = 0.0_dp
+    md_ener%total_mass = 0.0_dp
+    
+
+
+END SUBROUTINE zero_md_ener
 
 ! *****************************************************************************
 

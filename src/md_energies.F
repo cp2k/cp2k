@@ -57,7 +57,8 @@ MODULE md_energies
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_ener_type,&
                                              md_environment_type,&
-                                             set_md_env
+                                             set_md_env,&
+                                             zero_md_ener
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: write_particle_coordinates,&
                                              write_structure_data
@@ -65,6 +66,7 @@ MODULE md_energies
                                              femtoseconds,&
                                              kelvin
   USE qmmm_types,                      ONLY: qmmm_env_qm_type
+  USE reftraj_types,                   ONLY: reftraj_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
@@ -86,6 +88,7 @@ MODULE md_energies
 
   PUBLIC :: initialize_md_ener,&
             md_energy,&
+            md_ener_reftraj,&
             md_write_output,&
             get_output_format
 
@@ -147,29 +150,11 @@ CONTAINS
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
                                shell_adiabatic=shell_adiabatic)
 
+
+
     md_ener%nfree       = simpar%nfree
     md_ener%nfree_qm    = -HUGE(0)
     md_ener%nfree_shell = -HUGE(0)
-    md_ener%temp_part   = 0.0_dp
-    md_ener%temp_baro   = 0.0_dp
-    md_ener%ekin_coefs  = 0.0_dp
-    md_ener%temp_coefs  = 0.0_dp
-    md_ener%temp_qm     = 0.0_dp
-    md_ener%ekin_shell  = 0.0_dp
-    md_ener%temp_shell  = 0.0_dp    
-    md_ener%epot        = 0.0_dp
-    md_ener%constant    = 0.0_dp
-    md_ener%delta_cons  = 0.0_dp
-    md_ener%thermostat_part_kin  = 0.0_dp
-    md_ener%thermostat_part_pot  = 0.0_dp
-    md_ener%thermostat_coef_kin  = 0.0_dp
-    md_ener%thermostat_coef_pot  = 0.0_dp
-    md_ener%thermostat_baro_kin  = 0.0_dp
-    md_ener%thermostat_baro_pot  = 0.0_dp
-    md_ener%thermostat_shell_kin  = 0.0_dp
-    md_ener%thermostat_shell_pot  = 0.0_dp
-    md_ener%baro_kin = 0.0_dp
-    md_ener%baro_pot = 0.0_dp
 
     IF(shell_adiabatic) THEN
       md_ener%nfree_shell = 3*(shell_particles%n_els)
@@ -187,10 +172,8 @@ CONTAINS
     IF(simpar%temperature_per_kind) THEN
       ALLOCATE(md_ener%temp_kind(nkind), STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      md_ener%temp_kind = 0.0_dp
       ALLOCATE(md_ener%ekin_kind(nkind), STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      md_ener%ekin_kind = 0.0_dp
       ALLOCATE(md_ener%nfree_kind(nkind),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       md_ener%nfree_kind = 0
@@ -198,15 +181,18 @@ CONTAINS
       IF(shell_adiabatic) THEN 
         ALLOCATE(md_ener%temp_shell_kind(nkind), STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-        md_ener%temp_shell_kind = 0.0_dp
         ALLOCATE(md_ener%ekin_shell_kind(nkind), STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-        md_ener%ekin_shell_kind = 0.0_dp
         ALLOCATE(md_ener%nfree_shell_kind(nkind), STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         md_ener%nfree_shell_kind = 0
       END IF
+
     END IF   
+    CALL zero_md_ener(md_ener, tkind=simpar%temperature_per_kind, &
+         tshell=shell_adiabatic, error=error)
+    md_ener%epot = 0.0_dp
+ 
 
   END SUBROUTINE initialize_md_ener
 
@@ -236,9 +222,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: natom
-    LOGICAL                                  :: failure, init, &
-                                                shell_adiabatic, tcoeff, &
-                                                tkind, tshell
+    LOGICAL                                  :: init, &
+                                                shell_adiabatic, &
+                                                tcoeff, tkind, tshell
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -250,10 +236,11 @@ CONTAINS
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
 
-    failure = .FALSE.
   
-    NULLIFY(atomic_kinds, atomic_kind_set, cell_ref, dyn_coeff_set, force_env, subsys, simpar)
-    CALL get_md_env(md_env=md_env, init=init, force_env=force_env, simpar=simpar, error=error)
+    NULLIFY(atomic_kinds, atomic_kind_set, cell_ref, dyn_coeff_set, force_env,&
+            particles, subsys, simpar)
+    CALL get_md_env(md_env=md_env, init=init, force_env=force_env, &
+         simpar=simpar, error=error)
 
     CALL force_env_get(force_env, cell_ref=cell_ref, dyn_coeff_set=dyn_coeff_set, &
          potential_energy=md_ener%epot, subsys=subsys,  error=error)
@@ -286,7 +273,52 @@ CONTAINS
          tcoeff=tcoeff, tshell=tshell, natom=natom, error=error)
     
   END SUBROUTINE md_energy
-  
+
+!!****f* md_energies/md_ener_reftraj [1.0] *
+!!
+!!   NAME
+!!     md_ener_reftraj
+!!
+!!   FUNCTION
+!!     -
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!   MODIFICATION HISTORY
+!!     10.2007 created 
+!!
+!!*** **********************************************************************
+
+SUBROUTINE md_ener_reftraj(md_env,md_ener,error)
+    TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(md_ener_type), POINTER              :: md_ener
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'md_ener_reftraj', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE (reftraj_type), POINTER             :: reftraj
+
+
+    CALL zero_md_ener(md_ener, tkind=.FALSE., tshell=.FALSE., error=error)
+
+    CALL get_md_env(md_env=md_env,  force_env=force_env, reftraj=reftraj, error=error)
+    
+    IF(reftraj%info%eval_ef) THEN
+      CALL force_env_get(force_env, potential_energy=md_ener%epot, error=error)
+    END IF
+    
+END SUBROUTINE  md_ener_reftraj
+
 !******************************************************************************
 !!****** md_energies/md_write_output [1.0] *
 !!
@@ -317,8 +349,8 @@ CONTAINS
                                                 my_pos, remark1, remark2, &
                                                 title
     INTEGER :: box, cocrd, cofrc, covel, crd, delta_t, ene, ener_mix, frc, &
-      handle, i, iskip, iw, nat, nkind, nshell, outformat, shcrd, shene, &
-      shfrc, shvel, str, tempkind, tempshellkind, trsl, vel
+      handle, i, iskip, iw, nat, nkind, nshell, outformat, shcrd, &
+      shene, shfrc, shvel, str, tempkind, tempshellkind, trsl, vel
     INTEGER, POINTER                         :: itimes
     LOGICAL :: failure, init, init_coforce, init_cotraj, init_covel, &
       init_force, init_shforce, init_shtraj, init_shvel, init_traj, init_vel, &
@@ -332,7 +364,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(average_quantities_type), SAVE      :: averages
-    TYPE(cell_type), POINTER                 :: cell, cell_ref
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
@@ -358,7 +390,7 @@ CONTAINS
     shell_adiabatic = .FALSE.
     shell_present   = .FALSE.
     NULLIFY(dyn_coeff_set,motion_section, atomic_kinds, atomic_kind_set)
-    NULLIFY(cell, cell_ref,subsys, force_env, md_ener, qmmm_env)
+    NULLIFY(cell, subsys, force_env, md_ener, qmmm_env)
     NULLIFY(core_particles, particles,shell_particles)
     NULLIFY(root_section,simpar,virial)
 
@@ -369,7 +401,7 @@ CONTAINS
     root_section   => force_env%root_section
     motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
 
-    CALL force_env_get(force_env, cell=cell, cell_ref=cell_ref, subsys=subsys,&
+    CALL force_env_get(force_env, cell=cell, subsys=subsys,&
          dyn_coeff_set=dyn_coeff_set, qmmm_env=qmmm_env, virial=virial, &
          error=error)
     qmmm = .FALSE.
@@ -391,7 +423,7 @@ CONTAINS
        pv_xx = virial%pv_total(1,1)/cell%deth*unit%bar
     ENDIF
 
-    CALL force_env_get(force_env, qmmm_env=qmmm_env, error=error)
+    CALL force_env_get(force_env,  qmmm_env=qmmm_env, error=error)
 
     CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds, error=error)
     atomic_kind_set => atomic_kinds%els

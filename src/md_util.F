@@ -67,7 +67,6 @@ MODULE md_util
   PUBLIC :: md_output,&
             temperature_control,&
             comvel_control,&
-            compute_ekin_temp_part,&
             setup_velocities
 
 CONTAINS
@@ -126,29 +125,24 @@ CONTAINS
 !!    Teodoro Laino - University of Zurich - 09.2007 [tlaino]
 !!
 !!*** **********************************************************************
-  SUBROUTINE compute_ekin_temp_part(simpar, subsys, vcom, e_kinetic, temperature, do_shell,&
-       vsubtract, error)
+  SUBROUTINE reset_vcom(simpar, subsys, md_ener, vsubtract, error)
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(cp_subsys_type), POINTER            :: subsys
-    REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: vcom
-    REAL(KIND=dp), INTENT(OUT)               :: e_kinetic, temperature
-    LOGICAL, INTENT(IN), OPTIONAL            :: do_shell
+    TYPE(md_ener_type), POINTER              :: md_ener
     REAL(KIND=dp), DIMENSION(3), &
-      INTENT(IN), OPTIONAL                   :: vsubtract
+      INTENT(IN)                             :: vsubtract
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_ekin_temp_part', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: atom, handle, iatom, ikind, &
-                                                natom, nfree, shell_index
+                                                natom, shell_index
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: do_shell_loc, is_shell, &
-                                                shell_adiabatic
-    REAL(KIND=dp)                            :: ekin_c, ekin_com, ekin_s, &
-                                                fac_massc, fac_masss, mass, &
-                                                total_mass, v2
+    LOGICAL                                  :: is_shell
+    REAL(KIND=dp)                            :: ekin_old, mass, &
+                                                v2
     REAL(KIND=dp), DIMENSION(3)              :: v, vc, vs
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -158,79 +152,51 @@ CONTAINS
 
     NULLIFY(particles, atomic_kind, atomic_kinds, atom_list, shell)
     CALL timeset(routineN,"I","",handle)
-    do_shell_loc = .FALSE.
-    nfree        = 0
-    IF (PRESENT(do_shell))  do_shell_loc = do_shell
-    IF (do_shell_loc) THEN
-       CALL cp_subsys_get(subsys,&
-                          atomic_kinds=atomic_kinds,&
-                          particles=particles,&
-                          shell_particles=shell_particles,&
-                          core_particles=core_particles,&
-                          error=error)
 
-       CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,&
-                                shell_adiabatic=shell_adiabatic)
-       IF (shell_adiabatic) nfree = 3*SIZE(shell_particles%els)
-    ELSE
-       CALL cp_subsys_get(subsys,&
-                          atomic_kinds=atomic_kinds,&
-                          particles=particles,&
-                          error=error)
-       nfree = simpar%nfree
-    END IF
+    CALL cp_subsys_get(subsys,&
+                       atomic_kinds=atomic_kinds,&
+                       particles=particles,&
+                       shell_particles=shell_particles,&
+                       core_particles=core_particles,&
+                       error=error)
+
+    ekin_old = md_ener%ekin
     ! Possibly subtract a quantity from all velocities
-    IF (PRESENT(vsubtract)) THEN
        DO ikind=1,atomic_kinds%n_els
           atomic_kind => atomic_kinds%els(ikind)
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                atom_list=atom_list,&
                                natom=natom,&
-                               shell_active=is_shell)
-          IF (do_shell_loc.AND.is_shell) THEN
+                               mass=mass,&
+                               shell_active=is_shell,&
+                               shell=shell)
+          IF (is_shell) THEN
              DO iatom = 1, natom
                 atom = atom_list(iatom)
                 shell_index = particles%els(atom)%shell_index
-                shell_particles%els(shell_index)%v = shell_particles%els(shell_index)%v - vsubtract
-                core_particles%els(shell_index)%v  = core_particles%els(shell_index)%v - vsubtract
-                particles%els(atom)%v              = particles%els(atom)%v - vsubtract
+                shell_particles%els(shell_index)%v = shell_particles%els(shell_index)%v &
+                      - 0.5_dp*vsubtract*mass/shell%mass_shell
+                core_particles%els(shell_index)%v  = core_particles%els(shell_index)%v &
+                      - 0.5_dp*vsubtract*mass/shell%mass_core
+                particles%els(atom)%v = particles%els(atom)%v - vsubtract
              END DO
           ELSE
              DO iatom = 1, natom
                 atom = atom_list(iatom)
-                particles%els(atom)%v              = particles%els(atom)%v - vsubtract
+                particles%els(atom)%v = particles%els(atom)%v - vsubtract
              END DO
           END IF
        END DO
-    END IF
     ! Compute Kinetic Energy and COM Velocity
-    vcom       = 0.0_dp
-    total_mass = 0.0_dp
-    e_kinetic  = 0.0_dp
+    md_ener%vcom       = 0.0_dp
+    md_ener%total_mass = 0.0_dp
+    md_ener%ekin       = 0.0_dp
     DO ikind=1,atomic_kinds%n_els
        atomic_kind => atomic_kinds%els(ikind)
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
                             atom_list=atom_list,&
                             mass=mass,&
-                            natom=natom,&
-                            shell_active=is_shell,&
-                            shell=shell)
-       IF (do_shell_loc.AND.is_shell) THEN
-          fac_masss = shell%mass_shell/mass 
-          fac_massc = shell%mass_core/mass
-          DO iatom = 1, natom
-             atom = atom_list(iatom)
-             shell_index = particles%els(atom)%shell_index
-             vs     = shell_particles%els(shell_index)%v
-             vc     =  core_particles%els(shell_index)%v
-             ekin_c = 0.5_dp * shell%mass_core  * (vc(1)**2 + vc(2)**2 + vc(3)**2)
-             ekin_s = 0.5_dp * shell%mass_shell * (vs(1)**2 + vs(2)**2 + vs(3)**2)
-              
-             v =  particles%els(atom)%v
-             ekin_com = 0.5_dp*mass * (v(1)**2 + v(2)**2 + v(3)**2)
-             e_kinetic = e_kinetic + ekin_c + ekin_s - ekin_com             
-          END DO
-       ELSE
+                            natom=natom)
           v2   = 0.0_dp
           v    = 0.0_dp
           DO iatom = 1, natom
@@ -242,17 +208,18 @@ CONTAINS
              v(2) = v(2) + particles%els(atom)%v(2)
              v(3) = v(3) + particles%els(atom)%v(3)
           END DO
-          e_kinetic  = e_kinetic + 0.5_dp*mass*v2
-       END IF
-       vcom(:)    = vcom(:) + mass*v(:)
-       total_mass = total_mass + REAL(natom,KIND=dp)*mass
+          md_ener%ekin  = md_ener%ekin + 0.5_dp*mass*v2
+          md_ener%vcom(:)    = md_ener%vcom(:) + mass*v(:)
+          md_ener%total_mass = md_ener%total_mass + REAL(natom,KIND=dp)*mass
     END DO
-    vcom = vcom / total_mass
-    temperature = 0.0_dp
-    IF (nfree /=0) temperature = 2.0_dp*e_kinetic/REAL(nfree,KIND=dp)
+    md_ener%vcom = md_ener%vcom / md_ener%total_mass
+    md_ener%constant = md_ener%constant - ekin_old + md_ener%ekin
+    IF (md_ener%nfree /=0) THEN
+         md_ener%temp_part = 2.0_dp*md_ener%ekin/REAL(md_ener%nfree,KIND=dp)*kelvin
+    END IF
     CALL timestop(0.0_dp,handle)
 
-  END SUBROUTINE compute_ekin_temp_part
+  END SUBROUTINE reset_vcom
 
 !!****f* md_util/scale_velocity *
 !!
@@ -273,7 +240,8 @@ CONTAINS
   SUBROUTINE scale_velocity(subsys, md_ener, temp_expected, temp_tol, iw, error)
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(md_ener_type), POINTER              :: md_ener
-    REAL(KIND=dp), INTENT(IN)                :: temp_expected, temp_tol
+    REAL(KIND=dp), INTENT(IN)                :: temp_expected, &
+                                                temp_tol
     INTEGER, INTENT(IN)                      :: iw
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -284,20 +252,18 @@ CONTAINS
                                                 shell_index
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: is_shell
-    REAL(KIND=dp)                            :: ekin_old, fac_massc, &
-                                                fac_masss, mass, scale, &
-                                                temp_old, temperature, v2
-    REAL(KIND=dp), DIMENSION(3)              :: v, vc, vs
+    REAL(KIND=dp)                            :: ekin_old, fac_massc, fac_masss, mass, &
+                                                scale, temp_old, v2
+    REAL(KIND=dp), DIMENSION(3)              :: v,  vc, vs
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
     TYPE(shell_kind_type), POINTER           :: shell
 
-    temperature = md_ener%temp_part/kelvin
-    IF (ABS(temp_expected - temperature) > temp_tol) THEN
+    IF (ABS(temp_expected - md_ener%temp_part/kelvin) > temp_tol) THEN
        scale = 0.0_dp
-       IF (md_ener%temp_part>0.0_dp) scale = SQRT(temp_expected/temperature)
+       IF (md_ener%temp_part>0.0_dp) scale = SQRT(temp_expected/(md_ener%temp_part/kelvin))
        ekin_old = md_ener%ekin
        temp_old = md_ener%temp_part
        md_ener%ekin = 0.0_dp
@@ -406,7 +372,8 @@ CONTAINS
   SUBROUTINE scale_velocity_internal(subsys, md_ener,  temp_expected, temp_tol, iw, error)
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(md_ener_type), POINTER              :: md_ener
-    REAL(KIND=dp), INTENT(IN)                :: temp_expected, temp_tol
+    REAL(KIND=dp), INTENT(IN)                :: temp_expected, &
+                                                temp_tol
     INTEGER, INTENT(IN)                      :: iw
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -418,8 +385,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: is_shell
     REAL(KIND=dp)                            :: ekin_shell_old, fac_mass, &
-                                                mass, scale, temp_shell_old, &
-                                                temperature, v2
+                                                mass, scale, temp_shell_old, v2
     REAL(KIND=dp), DIMENSION(3)              :: v, vc, vs
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -427,10 +393,9 @@ CONTAINS
                                                 shell_particles
     TYPE(shell_kind_type), POINTER           :: shell
 
-    temperature = md_ener%temp_shell/kelvin
-    IF (ABS(temp_expected - temperature) > temp_tol) THEN
+    IF (ABS(temp_expected - md_ener%temp_shell/kelvin) > temp_tol) THEN
        scale = 0.0_dp
-       IF (md_ener%temp_shell>EPSILON(0.0_dp)) scale = SQRT(temp_expected/temperature)
+       IF (md_ener%temp_shell>EPSILON(0.0_dp)) scale = SQRT(temp_expected/(md_ener%temp_shell/kelvin))
        ekin_shell_old = md_ener%ekin_shell
        temp_shell_old = md_ener%temp_shell
        md_ener%ekin_shell = 0.0_dp
@@ -597,9 +562,8 @@ CONTAINS
 
     INTEGER                                  :: handle, iw
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: e_kinetic, temp_new, &
-                                                temp_old, vel_com
-    REAL(KIND=dp), DIMENSION(3)              :: vcom_new, vcom_old
+    REAL(KIND=dp)                            :: temp_old, vel_com
+    REAL(KIND=dp), DIMENSION(3)              :: vcom_old
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
 
@@ -618,15 +582,17 @@ CONTAINS
 
       ! Subtract the velocity of the COM, if requested
       IF (vel_com > simpar%comvel_tol) THEN
-         CALL compute_ekin_temp_part(simpar, subsys, vcom_new, e_kinetic, temp_new, vsubtract= md_ener%vcom, error=error)
          temp_old = md_ener%temp_part/kelvin
-         md_ener%temp_part = temp_new*kelvin
          vcom_old = md_ener%vcom
+
+         CALL reset_vcom(simpar, subsys, md_ener, vsubtract=vcom_old, error=error)
+
          CALL scale_velocity(subsys, md_ener, temp_old, 0.0_dp, iw, error)
+
          IF (iw>0) THEN
             WRITE (UNIT=iw,FMT="(T2,'MD| ',A,3F16.10,A)") &
                  "Old VCOM = ",vcom_old(1:3)," a.u.",&
-                 "New VCOM =", vcom_new(1:3)," a.u"
+                 "New VCOM =", md_ener%vcom(1:3)," a.u"
          END IF
       END IF
       CALL cp_print_key_finished_output(iw,logger,force_env%root_section,&
