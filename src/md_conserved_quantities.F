@@ -98,19 +98,17 @@ CONTAINS
   !!*** *************************************************************************
   SUBROUTINE compute_conserved_quantity (md_env, md_ener, tkind, tcoeff, tshell, natom, error)
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(md_ener_type), POINTER       :: md_ener
-    LOGICAL, INTENT(IN) :: tkind, tcoeff, tshell
-    INTEGER, INTENT(IN) :: natom
+    TYPE(md_ener_type), POINTER              :: md_ener
+    LOGICAL, INTENT(IN)                      :: tkind, tcoeff, tshell
+    INTEGER, INTENT(IN)                      :: natom
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_conserved_quantity', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ikind, int_grp, &
-                                                nkind
+    INTEGER                                  :: ikind, int_grp, nkind
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: init, failure, &
-                                                myqmmm
+    LOGICAL                                  :: failure, init, myqmmm
     REAL(KIND=dp), POINTER                   :: constant
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(simulation_parameters_type), &
@@ -202,11 +200,10 @@ CONTAINS
 
     SELECT CASE ( simpar % ensemble  )
     CASE DEFAULT
-       ! hence, should be implemented
        CALL stop_program( RoutineN, 'Unknown Ensemble')
     CASE ( isokin_ensemble )
        md_ener%constant = md_ener % ekin
-    CASE ( reftraj_ensemble ) ! no constant of motion available
+    CASE ( reftraj_ensemble ) 
        md_ener%constant = md_ener % epot
     CASE ( nve_ensemble)
        CALL get_econs_nve (md_env, md_ener,  int_grp,error=error)
@@ -225,7 +222,7 @@ CONTAINS
        md_ener%constant = md_ener%ekin + md_ener%epot
     END SELECT
 
-    IF (init) THEN ! (itimes==1) THEN
+    IF (init) THEN 
        constant = md_ener%constant
        CALL set_md_env (md_env=md_env, constant=constant, error=error)
     ELSE
@@ -233,11 +230,6 @@ CONTAINS
        md_ener%delta_cons =  (md_ener%constant-constant)/REAL(natom, KIND=dp)*kelvin
     END IF
 
-!    IF ((itimes /= 0 )) THEN
-!       md_ener%delta_cons = ABS((md_ener%constant-constant)/constant)
-!    END IF
-
-    
   END SUBROUTINE compute_conserved_quantity
 
   !******************************************************************************
@@ -267,7 +259,7 @@ CONTAINS
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(thermostat_type), POINTER           :: thermostat_coeff,&
+    TYPE(thermostat_type), POINTER           :: thermostat_coeff, &
                                                 thermostat_shell
 
     NULLIFY(dyn_coeff_set, force_env, thermostat_coeff,thermostat_shell)
@@ -521,9 +513,9 @@ CONTAINS
   !!*** *************************************************************************
   SUBROUTINE get_part_ke ( md_env, md_ener, tkind, tshell, int_grp, error) 
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(md_ener_type), POINTER       :: md_ener
-    LOGICAL, INTENT(IN) :: tkind, tshell
-    INTEGER, INTENT(IN)    :: int_grp
+    TYPE(md_ener_type), POINTER              :: md_ener
+    LOGICAL, INTENT(IN)                      :: tkind, tshell
+    INTEGER, INTENT(IN)                      :: int_grp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_part_ke', &
@@ -687,11 +679,6 @@ CONTAINS
     !
     ! Compute the QM/MM kinetic energy
     IF (ASSOCIATED(qmmm_env)) THEN
-       ! The degrees of freedom for the quantum part of the system
-       ! are set to 3*Number of QM atoms and to simpar%nfree in case all the MM
-       ! system is treated at QM level (not really QM/MM, just for consistency).
-       ! The degree of freedom will not be correct if 1-3 atoms are treated only
-       ! MM. In this case we should take care of rotations
        DO i = 1, SIZE(qmmm_env%qm_atom_index)
           iparticle = qmmm_env%qm_atom_index(i)
           mass = particle_set(iparticle)%atomic_kind%mass

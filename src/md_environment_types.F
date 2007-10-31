@@ -592,7 +592,7 @@ SUBROUTINE retain_md_ener(md_ener, error)
     TYPE(md_ener_type), POINTER              :: md_ener
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'md_ener_retain', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'retain_md_ener', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -629,10 +629,10 @@ END SUBROUTINE retain_md_ener
 !!
 !!*** **********************************************************************
 SUBROUTINE release_md_ener(md_ener, error)
-    TYPE(md_ener_type), POINTER       :: md_ener
+    TYPE(md_ener_type), POINTER              :: md_ener
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'md_ener_release', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'release_md_ener', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat

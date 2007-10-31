@@ -30,11 +30,7 @@ MODULE reftraj_types
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
                                              dp
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
-
 #include "cp_common_uses.h"
-
 
   IMPLICIT NONE
 
@@ -74,7 +70,6 @@ MODULE reftraj_types
      REAL(KIND=dp), POINTER, DIMENSION(:,:,:) :: ref0_com_molecule 
      REAL(KIND=dp), POINTER, DIMENSION(:,:) :: val_msd_kind
      REAL(KIND=dp), POINTER, DIMENSION(:,:) :: val_msd_molecule
-!     REAL(KIND=dp), POINTER, DIMENSION(:,:) :: ref0_h
   END TYPE reftraj_msd_type
 
  
@@ -94,9 +89,9 @@ CONTAINS
 
   SUBROUTINE create_reftraj(reftraj,reftraj_section,error)
   
-    TYPE (reftraj_type), POINTER              :: reftraj
-    TYPE (section_vals_type), POINTER         :: reftraj_section
-    TYPE (cp_error_type), INTENT(inout)       :: error
+    TYPE(reftraj_type), POINTER              :: reftraj
+    TYPE(section_vals_type), POINTER         :: reftraj_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_reftraj', &
       routineP = moduleN//':'//routineN
@@ -104,7 +99,7 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: filename
     INTEGER                                  :: istat
     LOGICAL                                  :: failure
-    
+
     failure = .FALSE.
 
     CPPrecondition(.NOT. ASSOCIATED(reftraj),cp_failure_level,routineP,error,failure)
@@ -126,7 +121,6 @@ CONTAINS
     !MI: It would be good to check the topology to be sure that it is the same of
     ! the input
 
-    
     CALL section_vals_val_get(reftraj_section,"VARIABLE_VOLUME",l_val=reftraj%info%variable_volume,error=error)
 
     reftraj%info%cellfile_unit = -1
@@ -169,8 +163,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE retain_reftraj(reftraj, error)
 
-    TYPE (reftraj_type), POINTER             :: reftraj
-    TYPE (cp_error_type), INTENT(inout)       :: error
+    TYPE(reftraj_type), POINTER              :: reftraj
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'retain_reftraj', &
       routineP = moduleN//':'//routineN
@@ -211,8 +205,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE release_reftraj(reftraj, error)
 
-    TYPE (reftraj_type), POINTER             :: reftraj
-    TYPE (cp_error_type), INTENT(inout)       :: error
+    TYPE(reftraj_type), POINTER              :: reftraj
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'release_reftraj', &
       routineP = moduleN//':'//routineN

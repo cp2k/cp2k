@@ -60,9 +60,9 @@ MODULE md_run
                                              md_write_output
   USE md_environment_types,            ONLY: create_md_ener,&
                                              get_md_env,&
+                                             md_ener_type,&
                                              md_env_create,&
                                              md_env_release,&
-                                             md_ener_type,&
                                              md_environment_type,&
                                              release_md_ener,&
                                              set_md_env
@@ -71,10 +71,10 @@ MODULE md_run
                                              setup_velocities,&
                                              temperature_control
   USE particle_list_types,             ONLY: particle_list_type
-  USE reftraj_util,                    ONLY: initialize_reftraj
   USE reftraj_types,                   ONLY: create_reftraj,&
-                                             release_reftraj,&
-                                             reftraj_type
+                                             reftraj_type,&
+                                             release_reftraj
+  USE reftraj_util,                    ONLY: initialize_reftraj
   USE termination,                     ONLY: external_control
   USE thermostat_methods,              ONLY: create_thermostats
   USE thermostat_types,                ONLY: release_thermostats,&
@@ -196,7 +196,7 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(reftraj_type), POINTER              :: reftraj
     TYPE(section_vals_type), POINTER :: force_env_section, global_section, &
-      kg_coeff_section, motion_section, reftraj_section, root_section,  &
+      kg_coeff_section, motion_section, reftraj_section, root_section, &
       subsys_section, work_section
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar

@@ -273,8 +273,7 @@ CONTAINS
   SUBROUTINE scale_velocity(subsys, md_ener, temp_expected, temp_tol, iw, error)
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(md_ener_type), POINTER              :: md_ener
-    REAL(KIND=dp), INTENT(IN)                :: temp_expected, &
-                                                temp_tol
+    REAL(KIND=dp), INTENT(IN)                :: temp_expected, temp_tol
     INTEGER, INTENT(IN)                      :: iw
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -285,18 +284,20 @@ CONTAINS
                                                 shell_index
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: is_shell
-    REAL(KIND=dp)                            :: ekin_old, fac_massc, fac_masss, mass, &
-                                                scale, temp_old, v2
-    REAL(KIND=dp), DIMENSION(3)              :: v,  vc, vs
+    REAL(KIND=dp)                            :: ekin_old, fac_massc, &
+                                                fac_masss, mass, scale, &
+                                                temp_old, temperature, v2
+    REAL(KIND=dp), DIMENSION(3)              :: v, vc, vs
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
     TYPE(shell_kind_type), POINTER           :: shell
 
-    IF (ABS(temp_expected - md_ener%temp_part/kelvin) > temp_tol) THEN
+    temperature = md_ener%temp_part/kelvin
+    IF (ABS(temp_expected - temperature) > temp_tol) THEN
        scale = 0.0_dp
-       IF (md_ener%temp_part>0.0_dp) scale = SQRT(temp_expected/(md_ener%temp_part/kelvin))
+       IF (md_ener%temp_part>0.0_dp) scale = SQRT(temp_expected/temperature)
        ekin_old = md_ener%ekin
        temp_old = md_ener%temp_part
        md_ener%ekin = 0.0_dp
@@ -405,8 +406,7 @@ CONTAINS
   SUBROUTINE scale_velocity_internal(subsys, md_ener,  temp_expected, temp_tol, iw, error)
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(md_ener_type), POINTER              :: md_ener
-    REAL(KIND=dp), INTENT(IN)                :: temp_expected, &
-                                                temp_tol
+    REAL(KIND=dp), INTENT(IN)                :: temp_expected, temp_tol
     INTEGER, INTENT(IN)                      :: iw
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -418,7 +418,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: is_shell
     REAL(KIND=dp)                            :: ekin_shell_old, fac_mass, &
-                                                mass, scale, temp_shell_old, v2
+                                                mass, scale, temp_shell_old, &
+                                                temperature, v2
     REAL(KIND=dp), DIMENSION(3)              :: v, vc, vs
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -426,9 +427,10 @@ CONTAINS
                                                 shell_particles
     TYPE(shell_kind_type), POINTER           :: shell
 
-    IF (ABS(temp_expected - md_ener%temp_shell/kelvin) > temp_tol) THEN
+    temperature = md_ener%temp_shell/kelvin
+    IF (ABS(temp_expected - temperature) > temp_tol) THEN
        scale = 0.0_dp
-       IF (md_ener%temp_shell>EPSILON(0.0_dp)) scale = SQRT(temp_expected/(md_ener%temp_shell/kelvin))
+       IF (md_ener%temp_shell>EPSILON(0.0_dp)) scale = SQRT(temp_expected/temperature)
        ekin_shell_old = md_ener%ekin_shell
        temp_shell_old = md_ener%temp_shell
        md_ener%ekin_shell = 0.0_dp
@@ -530,7 +532,6 @@ CONTAINS
 
     INTEGER                                  :: handle, iw
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: e_kinetic, temperature
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
 
@@ -597,7 +598,7 @@ CONTAINS
     INTEGER                                  :: handle, iw
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: e_kinetic, temp_new, &
-                                                temp_old, temperature, vel_com
+                                                temp_old, vel_com
     REAL(KIND=dp), DIMENSION(3)              :: vcom_new, vcom_old
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -613,7 +614,6 @@ CONTAINS
       iw = cp_print_key_unit_nr(logger,force_env%root_section,&
            "MOTION%MD%PRINT%PROGRAM_RUN_INFO",&
            extension=".mdLog",error=error)
-!      CALL compute_ekin_temp_part(simpar, subsys, vcom, e_kinetic, temperature, error=error)
       vel_com = SQRT(md_ener%vcom(1)**2+md_ener%vcom(2)**2+md_ener%vcom(3)**2)
 
       ! Subtract the velocity of the COM, if requested

@@ -112,7 +112,7 @@ CONTAINS
 
   SUBROUTINE initialize_md_ener(md_ener,force_env,simpar,error)
 
-    TYPE(md_ener_type), POINTER              :: md_ener 
+    TYPE(md_ener_type), POINTER              :: md_ener
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
@@ -121,8 +121,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_md_ener', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: istat, nkind
-    LOGICAL :: failure, shell_adiabatic
+    INTEGER                                  :: istat, nkind
+    LOGICAL                                  :: failure, shell_adiabatic
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -146,8 +146,6 @@ CONTAINS
     nkind =  SIZE(atomic_kind_set)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
                                shell_adiabatic=shell_adiabatic)
-
-
 
     md_ener%nfree       = simpar%nfree
     md_ener%nfree_qm    = -HUGE(0)
@@ -177,6 +175,11 @@ CONTAINS
       md_ener%nfree_shell = 3*(shell_particles%n_els)
     END IF
     IF(ASSOCIATED(qmmm_env)) THEN
+      ! The degrees of freedom for the quantum part of the system
+      ! are set to 3*Number of QM atoms and to simpar%nfree in case all the MM
+      ! system is treated at QM level (not really QM/MM, just for consistency).
+      ! The degree of freedom will not be correct if 1-3 atoms are treated only
+      ! MM. In this case we should take care of rotations
       md_ener%nfree_qm = 3*SIZE(qmmm_env%qm_atom_index)
       IF (md_ener%nfree_qm == 3*(particles%n_els)) md_ener%nfree_qm = md_ener%nfree
     END IF
@@ -191,7 +194,6 @@ CONTAINS
       ALLOCATE(md_ener%nfree_kind(nkind),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       md_ener%nfree_kind = 0
-
       
       IF(shell_adiabatic) THEN 
         ALLOCATE(md_ener%temp_shell_kind(nkind), STAT=istat)
@@ -204,9 +206,7 @@ CONTAINS
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         md_ener%nfree_shell_kind = 0
       END IF
-
     END IF   
- 
 
   END SUBROUTINE initialize_md_ener
 
@@ -235,8 +235,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'md_energy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: natom
-    LOGICAL :: init, failure, shell_adiabatic, tcoeff, tkind, tshell
+    INTEGER                                  :: natom
+    LOGICAL                                  :: failure, init, &
+                                                shell_adiabatic, tcoeff, &
+                                                tkind, tshell
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -315,15 +317,15 @@ CONTAINS
                                                 my_pos, remark1, remark2, &
                                                 title
     INTEGER :: box, cocrd, cofrc, covel, crd, delta_t, ene, ener_mix, frc, &
-      handle, i, iskip, iw, nat, nkind, nshell, outformat, shcrd, &
-      shene, shfrc, shvel, str, tempkind, tempshellkind, trsl, vel
+      handle, i, iskip, iw, nat, nkind, nshell, outformat, shcrd, shene, &
+      shfrc, shvel, str, tempkind, tempshellkind, trsl, vel
     INTEGER, POINTER                         :: itimes
     LOGICAL :: failure, init, init_coforce, init_cotraj, init_covel, &
       init_force, init_shforce, init_shtraj, init_shvel, init_traj, init_vel, &
       is_mixed, qmmm, shell_adiabatic, shell_present
     REAL(dp)                                 :: abc( 3 ), cell_angle( 3 ), &
                                                 econs, pv_scalar, pv_xx
-    REAL(KIND=dp) ::  harm_shell, hugoniot
+    REAL(KIND=dp)                            :: harm_shell, hugoniot
     REAL(KIND=dp), POINTER                   :: constant, t, used_time
     REAL(KIND=dp), SAVE                      :: econs_avg, itimes_old, t_old
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -370,7 +372,8 @@ CONTAINS
     CALL force_env_get(force_env, cell=cell, cell_ref=cell_ref, subsys=subsys,&
          dyn_coeff_set=dyn_coeff_set, qmmm_env=qmmm_env, virial=virial, &
          error=error)
-    qmmm = ASSOCIATED(qmmm_env)
+    qmmm = .FALSE.
+    IF (md_ener%nfree_qm>0) qmmm = .TRUE.
 
     is_mixed= (force_env%in_use == use_mixed_force)
 
@@ -388,7 +391,7 @@ CONTAINS
        pv_xx = virial%pv_total(1,1)/cell%deth*unit%bar
     ENDIF
 
-    CALL force_env_get(force_env,  qmmm_env=qmmm_env, error=error)
+    CALL force_env_get(force_env, qmmm_env=qmmm_env, error=error)
 
     CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds, error=error)
     atomic_kind_set => atomic_kinds%els
@@ -398,7 +401,7 @@ CONTAINS
 
     CALL get_cell ( cell, abc = abc,  &
          alpha = cell_angle ( 3 ), &
-         beta = cell_angle ( 2 ), &
+         beta  = cell_angle ( 2 ), &
          gamma = cell_angle ( 1 ) )
 
     my_pos = "APPEND"
@@ -424,9 +427,6 @@ CONTAINS
                .5_dp * ( pv_xx/unit%bar + simpar % p0 ) * &
                ( simpar % v0 - cell % deth )
        ENDIF
-!       ! Assigning the conserved quantity
-!       constant = md_ener%constant
-!       CALL set_md_env(md_env=md_env,constant=constant,error=error)
        ! Assigning the initial time-step and time
        itimes_old = itimes
        t_old      = t
