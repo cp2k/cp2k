@@ -24,8 +24,7 @@
 !****************************************************************************
 MODULE pint_methods
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE input_constants,                 ONLY: do_qs,&
-                                             mol_dyn_run
+  USE input_constants,                 ONLY: mol_dyn_run
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_set
   USE kinds,                           ONLY: dp
@@ -177,11 +176,6 @@ SUBROUTINE do_pint_run(para_env,input,error)
   IF (.NOT. failure) THEN
      CALL section_vals_val_set(input,"GLOBAL%RUN_TYPE",i_val=mol_dyn_run,&
           error=error)
-     CALL section_vals_val_set(input,"FORCE_EVAL%METHOD",i_val=do_qs,&
-          error=error)
-!x     CALL rep_env_test(para_env,input,error=error)
-!x     CALL pint_env_test(para_env,input,error=error)
-!x
 
      NULLIFY(pint_env)
      CALL pint_env_create(pint_env,input,para_env,error=error)

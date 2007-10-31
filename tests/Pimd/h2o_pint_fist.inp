@@ -1,0 +1,85 @@
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      parm_file_name ../Fist/sample_pot/water.pot
+      parmtype CHM
+      &CHARGE
+        ATOM OT
+        CHARGE -0.8476
+      &END CHARGE
+      &CHARGE
+        ATOM HT
+        CHARGE 0.4238
+      &END CHARGE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 24
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 24.955 24.955 24.955
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE_NAME ../Fist/sample_pdb/water_1.pdb
+      COORDINATE pdb
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT H2O
+  RUN_TYPE PINT
+  PRINT_LEVEL LOW
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 5
+    TIMESTEP 0.1
+    TEMPERATURE 300.0
+  &END MD
+   &PINT
+     P               4
+     PROC_PER_REPLICA               1
+     NUM_STEPS               4
+     ITERATION               0
+     TEMP     50.0
+     T_TOL    0.0
+     DT       0.5
+     NRESPA               2
+     TRANSFORMATION NORMAL
+     &NORMALMODE
+       MODEFACTOR 1.0
+       Q_BEAD -1.0
+       Q_CENTROID -1.0
+     &END NORMALMODE
+     &NOSE
+       NNOS               3
+     &END NOSE
+     &INIT
+       RANDOMIZE_POS  F
+       CENTROID_SPEED  F
+     &END INIT
+     &PRINT
+       &RESTART  LOW
+         EACH              2
+         COMMON_ITERATION_LEVELS               2
+       &END RESTART
+       &ENER_INFO  LOW
+         EACH 1
+         COMMON_ITERATION_LEVELS               2
+       &END ENER_INFO
+       &CENTROIDS  LOW
+         COMMON_ITERATION_LEVELS               2
+       &END CENTROIDS
+     &END PRINT
+   &END PINT
+&END MOTION

@@ -2,3 +2,4 @@
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
 h2o_pint.inp         9
+h2o_pint_fist.inp    9

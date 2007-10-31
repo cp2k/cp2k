@@ -268,3 +268,5 @@ H2O-ata.inp
 H2O-solv.inp
 #  
 dynamics.inp
+# numerics after change in the md_ener structure
+dynamics.inp
