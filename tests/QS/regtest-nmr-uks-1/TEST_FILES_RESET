@@ -23,3 +23,7 @@ O2-UKS-NMR-10.inp
 O2-UKS-NMR-11.inp
 #  
 O2-UKS-NMR-12.inp
+# numerics after the bug fix for the distributed non-orthorombic grids
+O2-UKS-NMR-12.inp
+O2-UKS-NMR-3.inp
+O2-UKS-NMR-6.inp

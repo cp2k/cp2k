@@ -286,3 +286,5 @@ H-ROKS.inp
 H+solv1.inp
 #  
 H2O-solv.inp
+# numerics after the bug fix for the distributed non-orthorombic grids
+dynamics.inp

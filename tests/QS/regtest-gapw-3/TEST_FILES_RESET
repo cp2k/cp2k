@@ -7,3 +7,5 @@ CO.inp
 CO_xastpxhh.inp
 #  
 CO_xastpval.inp
+# numerics after the bug fix for the distributed non-orthorombic grids
+CO_xastpxhh.inp

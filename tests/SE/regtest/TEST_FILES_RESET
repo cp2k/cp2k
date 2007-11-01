@@ -78,3 +78,5 @@ nh4.inp
 st.inp
 #  
 O2-ROKS.inp
+# numerics after the bug fix for the distributed non-orthorombic grids
+st.inp
