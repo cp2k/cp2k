@@ -233,7 +233,10 @@ MODULE qs_rho0_ggrid
         IF ( dir /= 0) THEN
           iatom = atom_list(iat)
           ra(:) = pbc(particle_set(iatom)%r,cell)
-          tasks ( 2, j ) = FLOOR(ra(dir)/rs_grid%dr(dir))
+
+!          tasks ( 2, j ) = FLOOR(ra(dir)/rs_grid%dr(dir))
+
+          tasks ( 2, j ) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_grid%npts(dir))
           tasks ( 2, j ) = MODULO ( tasks ( 2, j ), rs_grid%npts(dir) )
           tasks ( 2, j ) = tasks ( 2, j ) + rs_grid%lb(dir)
         END IF
@@ -626,7 +629,10 @@ MODULE qs_rho0_ggrid
         IF ( dir /= 0) THEN
           iatom = atom_list(iat)
           ra(:) = pbc(particle_set(iatom)%r,cell)
-          tasks ( 2, j ) = FLOOR(ra(dir)/rs_v%dr(dir))
+
+!          tasks ( 2, j ) = FLOOR(ra(dir)/rs_v%dr(dir))
+
+          tasks ( 2, j ) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_v%npts(dir))
           tasks ( 2, j ) = MODULO ( tasks ( 2, j ), rs_v%npts(dir) )
           tasks ( 2, j ) = tasks ( 2, j ) + rs_v%lb(dir)
         END IF

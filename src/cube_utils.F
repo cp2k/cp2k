@@ -47,7 +47,7 @@ MODULE cube_utils
 
   TYPE :: cube_info_type
      INTEGER                      :: max_radius, cmax
-     REAL(KIND = dp)              :: dr(3),drmin,drsafe
+     REAL(KIND = dp)              :: dr(3),drmin
      REAL(KIND = dp)              :: dh(3,3)
      LOGICAL                      :: orthorhombic
      INTEGER, POINTER             :: lb_cube(:,:)
@@ -71,10 +71,8 @@ CONTAINS
 
     INTEGER                                  :: imr
 
-    imr=MAX(1,CEILING((radius+info%drsafe)/info%drmin))
+    imr=MAX(1,CEILING(radius/info%drmin))
     IF (imr.gt.info%max_radius) THEN
-        ! write(6,*) "XXXXXXX",imr,info%max_radius
-        ! imr=info%max_radius 
         CALL stop_program("return_cube","called with radius too large")
     ENDIF
     lb_cube(:)       = info%lb_cube(:,imr)
@@ -82,7 +80,6 @@ CONTAINS
     sphere_bounds => info%sphere_bounds(imr)%p
     cmax             = info%cmax
 
-  RETURN
   END SUBROUTINE return_cube
 
 !------------------------------------------------------------------------------
@@ -128,34 +125,39 @@ CONTAINS
     INTEGER                                  :: check_1, check_2, handle, i, &
                                                 igmin, imr, istat, jg, jg2, &
                                                 jgmin, k, kg, kg2, kgmin
-    REAL(KIND=dp)                            :: drmin, drsafe, dxi, dy2, dyi, &
+    REAL(KIND=dp)                            :: drmin, dxi, dy2, dyi, &
                                                 dz2, dzi, radius, radius2
 
     CALL timeset("init_cube_info","I","",handle) 
     info%dr = dr
     info%dh = dh
     info%orthorhombic = ortho
-    drmin = MINVAL(dr)
-    info%drmin=drmin
-    drsafe=0
-    info%drsafe=drsafe
-    imr=CEILING((max_radius+drsafe)/drmin)
-    info%max_radius=imr
-    dzi=1.0_dp/dr(3)
-    dyi=1.0_dp/dr(2)
-    dxi=1.0_dp/dr(1)
-    dz2=(dr(3))**2
-    dy2=(dr(2))**2
-
 
     NULLIFY(info%lb_cube,info%ub_cube,&
             info%sphere_bounds_count,info%sphere_bounds)
 
     IF ( .NOT. info%orthorhombic ) THEN
 
-        ! this info is specialized to orthogonal grids, so won't be computed in the general case 
+        !
+        ! this is wrong for non-orthorhombic grids
+        !
+        drmin = MINVAL(dr)
+        info%drmin=drmin
+        imr=CEILING((max_radius)/drmin)
+        info%max_radius=imr
 
     ELSE
+
+        ! this info is specialized to orthogonal grids
+        drmin = MINVAL(dr)
+        info%drmin=drmin
+        imr=CEILING((max_radius)/drmin)
+        info%max_radius=imr
+        dzi=1.0_dp/dr(3)
+        dyi=1.0_dp/dr(2)
+        dxi=1.0_dp/dr(1)
+        dz2=(dr(3))**2
+        dy2=(dr(2))**2
 
         ALLOCATE(info%lb_cube(3,imr),info%ub_cube(3,imr), &
                  info%sphere_bounds_count(imr),info%sphere_bounds(imr))

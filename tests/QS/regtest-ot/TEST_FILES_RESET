@@ -133,3 +133,13 @@ sic_ddapc_rt.inp
 He2_ddapc_constraint-4.inp
 # numerics after change in the md_ener structure
 sic_ddapc_rt.inp
+#  
+He2_ddapc_constraint.inp
+#  
+He2_ddapc_constraint-2.inp
+#  
+He2_none_full_inverse.inp
+#  
+sic_ddapc_rt.inp
+#  
+He2_ddapc_constraint-4.inp

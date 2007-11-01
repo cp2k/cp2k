@@ -865,7 +865,6 @@ CONTAINS
       pw_mol%cube_info(1)%max_radius =cube_info_g(1)%max_radius
       pw_mol%cube_info(1)%drmin =cube_info_g(1)%drmin
       pw_mol%cube_info(1)%max_rad_ga =cube_info_g(1)%max_rad_ga
-      pw_mol%cube_info(1)%drsafe =cube_info_g(1)%drsafe
       pw_mol%cube_info(1)%dr(1:3) =cube_info_g(1)%dr(1:3)
       pw_mol%cube_info(1)%orthorhombic=cube_info_g(1)%orthorhombic
 

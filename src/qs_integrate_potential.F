@@ -228,6 +228,8 @@ CONTAINS
       npme = bo(2) - bo(1) + 1
       CALL reallocate(tasks,1,2,1,npme)
 
+      ! should be generalised for all possible nonperiodic directions
+
       dir = rs_v%direction
 
       DO iatom=bo(1),bo(2)
@@ -237,7 +239,7 @@ CONTAINS
         IF ( dir /= 0) THEN
           atom_a = atom_list(iatom)
           ra(:) = pbc(particle_set(atom_a)%r,cell)
-          tasks ( 2, j ) = FLOOR(ra(dir)/rs_v%dr(dir))
+          tasks ( 2, j ) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_v%npts(dir))
           tasks ( 2, j ) = MODULO ( tasks ( 2, j ), rs_v%npts(dir) )
           tasks ( 2, j ) = tasks ( 2, j ) + rs_v%lb(dir)
         END IF
@@ -718,12 +720,16 @@ CONTAINS
                        CALL reallocate ( dist_ab, 1, 3, 1, curr_tasks, &
                                          1, gridlevel_info%ngrid_levels )
                      END IF
+
+                     ! should be generalised for abritary nonperiodic directions
+
                      dir = rs_v(igrid_level)%rs_grid%direction
                      tasks (1,n,igrid_level) = n
+
                      IF ( dir /= 0) THEN
                        rp(:) = ra(:) + zetb(jpgf,jset)/zetp*rab(:)
                        rp(:) = pbc(rp,cell)
-                       tp = FLOOR(rp(dir)/rs_v(igrid_level)%rs_grid%dr(dir))
+                       tp = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),rp)*rs_v(igrid_level)%rs_grid%npts(dir))
                        tp = MODULO ( tp, rs_v(igrid_level)%rs_grid%npts(dir) )
                        tasks (2,n,igrid_level) = tp + &
                           rs_v(igrid_level)%rs_grid%lb(dir)
@@ -1569,8 +1575,11 @@ CONTAINS
 
    SUBROUTINE integrate_ortho()
 
-    CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds,cmax)
-    dr(:) = rsgrid%dr(:)
+    CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds,cmax)    
+
+    dr(1) = rsgrid%dh(1,1)
+    dr(2) = rsgrid%dh(2,2)
+    dr(3) = rsgrid%dh(3,3)
 
     gridbounds(1,1)=LBOUND(GRID,1)
     gridbounds(2,1)=UBOUND(GRID,1)
@@ -1789,6 +1798,9 @@ CONTAINS
       ! center in grid coords
       gp=MATMUL(cell%h_inv,rp)*ng
 
+      ! added bt matt
+      cubecenter(:) = FLOOR(gp)
+
       !t2=nanotime_ia32()
       !write(6,*) t2-t1
       !t1=nanotime_ia32()
@@ -1815,13 +1827,23 @@ CONTAINS
              grid_map(i)=MODULO(i,ng(1))+1
       ENDDO
 
+      offset=MODULO(cubecenter(3),ng(3))+rsgrid%lb(3)
+      offset=offset-rsgrid%lb_local(3)+1
+
       coef_ijk=0.0_dp
 
       ! go over the grid, but cycle if the point is not within the radius
       DO k=index_min(3),index_max(3)
         dk=k-gp(3)
         pointk=hmatgrid(:,3)*dk
-        k_index=MODULO(k,ng(3))+1
+
+        ! should be generalised for abritary non periodic direction
+
+        IF (rsgrid % perd ( 3 )==1) THEN
+           k_index=MODULO(k,ng(3))+1
+        ELSE
+           k_index=k-cubecenter(3)+offset
+        ENDIF
 
         coef_xyt=0.0_dp
 

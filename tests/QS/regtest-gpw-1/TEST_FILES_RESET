@@ -202,3 +202,9 @@ H2O-MD-harris.inp
 H2O-MD-harris.inp
 #  
 H2O-MD-harris.inp
+#  
+H2O-Harris-Debug-SCF.inp
+#  
+pyridine.inp
+#  
+K2.inp

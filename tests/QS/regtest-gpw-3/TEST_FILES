@@ -45,3 +45,5 @@ H2O-xc_none.inp    1
 dynamics.inp       1
 # RESP charges
 CH3OH.inp          0
+# distributed non-ortho grids
+rsgrid-dist-2.inp  1

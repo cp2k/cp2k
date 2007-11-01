@@ -533,7 +533,10 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      DO igrid_level=1,ngrid_level
         pw_grid => pw_pools(igrid_level)%pool%pw_grid
         drmin = MINVAL ( pw_grid%dr )
-
+         
+        !
+        ! this is wrong for non-orthorhombic grids
+        !
         IF ( dft_control % qs_control % rs_distributed_id .EQ. do_rsgrid_distributed ) THEN
            nsmax = 2*MAX(1,CEILING((radius(igrid_level))/drmin))+1
         ELSE

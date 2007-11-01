@@ -1078,7 +1078,10 @@ CONTAINS
                      IF ( dir /= 0) THEN
                        rp(:) = ra(:) + zetb(jpgf,jset)/zetp*rab(:)
                        rp(:) = pbc(rp,cell)
-                       tp = FLOOR(rp(dir)/rs_rho(igrid_level)%rs_grid%dr(dir))
+
+                       !tp = FLOOR(rp(dir)/rs_rho(igrid_level)%rs_grid%dr(dir))
+        
+                       tp = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),rp)*rs_rho(igrid_level)%rs_grid%npts(dir))
                        tp = MODULO ( tp, rs_rho(igrid_level)%rs_grid%npts(dir) )
                        tasks (2,n,igrid_level) = tp + rs_rho(igrid_level)%rs_grid%lb(dir)
                      END IF

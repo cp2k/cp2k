@@ -76,6 +76,8 @@ SUBROUTINE rs_grid_to_cube ( rs, iunit, ionode, title, particles, stride, error 
    my_stride=1
    IF (PRESENT(stride)) my_stride=stride
    CPPrecondition(my_stride>0,cp_failure_level,routineP,error,failure)
+
+   ! only dh diagonal is being used
    CPPrecondition(rs%orthorhombic,cp_failure_level,routineP,error,failure)
    CPPrecondition(rs%ngpts == rs%ngpts_local,cp_failure_level,routineP,error,failure)
    IF (ionode) THEN
@@ -95,11 +97,11 @@ SUBROUTINE rs_grid_to_cube ( rs, iunit, ionode, title, particles, stride, error 
      WRITE(iunit,'(I5,3f12.6)') np,0.0_dp,0._dp,0._dp !start of cube
 
      WRITE(iunit,'(I5,3f12.6)') (rs%npts(1)+my_stride-1)/my_stride,&
-          rs%dr(1)*REAL(my_stride,dp),0.0_dp,0.0_dp
+          rs%dh(1,1)*REAL(my_stride,dp),0.0_dp,0.0_dp
      WRITE(iunit,'(I5,3f12.6)') (rs%npts(2)+my_stride-1)/my_stride,&
-          0.0_dp,rs%dr(2)*REAL(my_stride,dp),0.0_dp
+          0.0_dp,rs%dh(2,2)*REAL(my_stride,dp),0.0_dp
      WRITE(iunit,'(I5,3f12.6)') (rs%npts(3)+my_stride-1)/my_stride,&
-          0.0_dp,0.0_dp,rs%dr(3)*REAL(my_stride,dp)
+          0.0_dp,0.0_dp,rs%dh(3,3)*REAL(my_stride,dp)
 
      IF (ASSOCIATED(my_particles)) THEN
         DO iat=1,np

@@ -81,7 +81,6 @@ MODULE realspace_grid_types
      INTEGER, DIMENSION (3) :: npts_local
      INTEGER, DIMENSION (3) :: lb_local
      INTEGER, DIMENSION (3) :: ub_local
-     REAL(KIND=dp), DIMENSION(3) :: dr                   ! grid spacing
      REAL(KIND=dp), DIMENSION(3,3) :: dh                 ! grid matrix
      LOGICAL :: orthorhombic                             ! grid symmetry
      LOGICAL :: parallel
@@ -266,7 +265,6 @@ CONTAINS
 
     failure = .FALSE.
 
-    rs % dr = pw_grid%dr
     rs % dh = pw_grid%dh
     rs % orthorhombic = pw_grid%orthorhombic
     rs % grid_id = pw_grid % id_nr
@@ -1008,7 +1006,6 @@ SUBROUTINE rs_grid_set_box ( pw_grid, rs, rs_p, error )
     CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(rs),cp_failure_level,routineP,error,failure)
     CPPrecondition(rs%grid_id==pw_grid%id_nr,cp_failure_level,routineP,error,failure)
-    rs % dr = pw_grid%dr
     rs % dh = pw_grid%dh
   END IF
   IF ( PRESENT(rs_p) ) THEN
@@ -1017,7 +1014,6 @@ SUBROUTINE rs_grid_set_box ( pw_grid, rs, rs_p, error )
     id = rs_p(1)%rs_grid%grid_id
     CPPrecondition(id==pw_grid%id_nr,cp_failure_level,routineP,error,failure)
     DO i = 1, n
-      rs_p(i)%rs_grid % dr = pw_grid%dr
       rs_p(i)%rs_grid % dh = pw_grid%dh
     END DO
   END IF

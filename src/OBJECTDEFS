@@ -242,7 +242,6 @@ OBJECTS_GENERIC =\
  lapack.o\
  lazy.o\
  lebedev.o\
- level_shift.o\
  libint_interface.o\
  library_tests.o\
  linear_systems.o\

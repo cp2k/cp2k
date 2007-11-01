@@ -544,12 +544,16 @@ CONTAINS
 
         j = iatom - bo(1) + 1
         tasks ( 1, j ) = iatom
+
+        ! should be generalised to arbritary non-periodic
         IF ( dir /= 0) THEN
           atom_a = atom_list(iatom)
           ra(:) = pbc(particle_set(atom_a)%r,cell)
-          tasks ( 2, j ) = FLOOR(ra(dir)/rs_rho%dr(dir))
+
+          tasks ( 2, j ) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_rho%npts(dir))
           tasks ( 2, j ) = MODULO ( tasks ( 2, j ), rs_rho%npts(dir) )
           tasks ( 2, j ) = tasks ( 2, j ) + rs_rho%lb(dir)
+
         END IF
 
       END DO
@@ -1003,13 +1007,16 @@ CONTAINS
                      END IF
                      dir = rs_rho(igrid_level)%rs_grid%direction
                      tasks (1,n,igrid_level) = n
+
+                     ! should be generalised to arbritary non-periodic
                      IF ( dir /= 0) THEN
                        rp(:) = ra(:) + zetb(jpgf,jset)/zetp*rab(:)
                        rp(:) = pbc(rp,cell)
-                       tp = FLOOR(rp(dir)/rs_rho(igrid_level)%rs_grid%dr(dir))
+                       tp = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),rp)*rs_rho(igrid_level)%rs_grid%npts(dir))
                        tp = MODULO ( tp, rs_rho(igrid_level)%rs_grid%npts(dir) )
                        tasks (2,n,igrid_level) = tp + rs_rho(igrid_level)%rs_grid%lb(dir)
                      END IF
+
                      tasks (3,n,igrid_level) = iatom
                      tasks (4,n,igrid_level) = jatom
                      tasks (5,n,igrid_level) = iset
@@ -1964,7 +1971,11 @@ CONTAINS
     SUBROUTINE collocate_ortho()
 
 !   *** properties of the grid ***
-    dr(:) = rsgrid%dr(:)
+
+    ! notice we're in the ortho case
+    dr(1) = rsgrid%dh(1,1)
+    dr(2) = rsgrid%dh(2,2)
+    dr(3) = rsgrid%dh(3,3)
 
 !   *** get the sub grid properties for the given radius ***
     CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds,cmax)
@@ -1980,7 +1991,7 @@ CONTAINS
     ALLOCATE(map(-cmax:cmax,3))
     cubecenter(:) = FLOOR(rp(:)/dr(:))
     roffset(:)    = rp(:) - REAL(cubecenter(:),dp)*dr(:)
-!   *** a mapping so that the ig corresponds to the right grid point
+!   *** a mapping so that the ig corresponds to the right grid point 
     DO i=1,3
       IF ( rsgrid % perd ( i ) == 1 ) THEN
         start=lb_cube(i)
@@ -1995,8 +2006,7 @@ CONTAINS
         END DO
       ELSE
         ! this takes partial grid + border regions into account
-        offset=MODULO(cubecenter(i),ng(i))+rsgrid%lb(i)
-        offset=offset-rsgrid%lb_local(i)+1
+        offset=MODULO(cubecenter(i),ng(i))+1+rsgrid%lb(i)-rsgrid%lb_local(i)
         DO ig=lb_cube(i),ub_cube(i)
            map(ig,i) = ig+offset
         END DO
@@ -2067,6 +2077,7 @@ CONTAINS
 
       ! center in grid coords
       gp=MATMUL(cell%h_inv,rp)*ng
+      cubecenter(:) = FLOOR(gp)
 
       ! transform using multinomials
       ALLOCATE(hmatgridp(3,3,0:lp))
@@ -2133,11 +2144,21 @@ CONTAINS
              grid_map(i)=MODULO(i,ng(1))+1
       ENDDO
 
+      offset=MODULO(cubecenter(3),ng(3))+rsgrid%lb(3)
+      offset=offset-rsgrid%lb_local(3)+1
+
       ! go over the grid, but cycle if the point is not within the radius
       DO k=index_min(3),index_max(3)
         dk=k-gp(3)
         pointk=hmatgrid(:,3)*dk
-        k_index=MODULO(k,ng(3))+1
+
+        ! should be generalised for abritary non periodic direction
+
+        IF (rsgrid % perd ( 3 )==1) THEN
+           k_index=MODULO(k,ng(3))+1
+        ELSE
+           k_index=k-cubecenter(3)+offset
+        ENDIF
 
         coef_xyt=0.0_dp
         lxyz = 0
@@ -2242,6 +2263,9 @@ CONTAINS
  
       INTEGER :: index_min(3),index_max(3),i,j,k,ipoint(3)
       REAL(KIND=dp) :: point(3),radius2,fval
+
+      ! still hard-wired (see MODULO)
+      CPPostcondition(ALL(rsgrid % perd==1),cp_failure_level,routineP,error,failure)
 
       ! get the min max indices that contain at least the cube that contains a sphere around rp of radius radius
       ! if the cell is very non-orthogonal this implies that many useless points are included
