@@ -5,10 +5,10 @@ LD       = g95
 AR       = ar -r
 DFLAGS   = -D__G95 -D__FFTSG -D__FFTW3 -D__LIBINT
 CPPFLAGS = 
-FCFLAGS  = $(DFLAGS) -I$(G95_INC) -ffree-form -cpp -O1 -fbounds-check -ftrace=full -g
+FCFLAGS  = $(DFLAGS) -I$(G95_INC) -ffree-form -cpp -O0 -fbounds-check -ftrace=full -g
 LDFLAGS  = $(FCFLAGS)
 LIBS     = $(G95_LIB)/liblapack.a \
-           $(G95_LIB)/libgoto.a \
+           $(G95_LIB)/libblas.a \
            $(G95_LIB)/libderiv.a \
            $(G95_LIB)/libint.a \
            $(G95_LIB)/libfftw3.a \
