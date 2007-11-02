@@ -67,11 +67,11 @@ MODULE four_center_integrals
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE x_hf,                            ONLY: &
-       x_hf_add_multiple_cache_elements, x_hf_add_single_cache_element, &
+       x_hf_add_mult_cache_elements, x_hf_add_single_cache_element, &
        x_hf_box_scheme, x_hf_cache_type, x_hf_cell_type, x_hf_container_type, &
        x_hf_decompress_first_cache, x_hf_distribution, x_hf_flush_last_cache, &
        x_hf_general_type, x_hf_get_memory_info, &
-       x_hf_get_multiple_cache_elements, x_hf_get_single_cache_element, &
+       x_hf_get_mult_cache_elements, x_hf_get_single_cache_element, &
        x_hf_init_container, x_hf_load_balance_type, x_hf_memory_type, &
        x_hf_potential_type, x_hf_reset_cache_and_container, &
        x_hf_screening_type, x_hf_set_distr_energy, x_hf_set_distr_forces, &
@@ -168,12 +168,13 @@ MODULE four_center_integrals
     LOGICAL :: buffer_overflow, do_correct_p_screening, do_p_screening, &
       failure, first_j_loop, first_k_loop, first_l_loop
     REAL(dp) :: actual_pmax_entry, box_size(3), cartesian_estimate, &
-      center1(3), center2(3), compression_factor, ene_x_aa, ene_x_bb, &
-      eps_box, eps_schwarz, estimate_to_store, fac, hf_fraction, K, Kbox, &
-      ks_bc, ks_bd, ks_beta_bc, ks_beta_bd, max_contraction_val, max_val1, &
-      max_val2, omega_box, p_bc, p_bd, p_beta_bc, p_beta_bd, &
-      p_screening_correction_factor, pmax_entry, R1, R2, ra(3), rb(3), Rbox, &
-      rc(3), rd(3), screen_max, spherical_estimate, symm_fac, tmp
+      center1(3), center2(3), center2_folded(3), compression_factor, &
+      current_max_error, ene_x_aa, ene_x_bb, eps_box, eps_schwarz, &
+      estimate_to_store, fac, hf_fraction, K, Kbox, ks_bc, ks_bd, ks_beta_bc, &
+      ks_beta_bd, max_contraction_val, max_val1, max_val2, omega_box, p_bc, &
+      p_bd, p_beta_bc, p_beta_bd, p_screening_correction_factor, &
+      pbc_center(3), pmax_entry, R1, R2, ra(3), rb(3), Rbox, rc(3), rd(3), &
+      screen_max, spherical_estimate, symm_fac, temp(3), tmp
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: primitive_integrals, T1
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: full_ks, full_ks_beta
     REAL(dp), DIMENSION(:, :), POINTER :: full_density, full_density_beta, &
@@ -202,6 +203,8 @@ MODULE four_center_integrals
     TYPE(x_hf_memory_type)                   :: memory_parameter
     TYPE(x_hf_potential_type)                :: potential_parameter
     TYPE(x_hf_screening_type)                :: screening_parameter
+
+    current_max_error = 0.0_dp
 
     CALL mp_sync(para_env%group)
     CALL timeset(routineN,"I",'',handle)
@@ -322,7 +325,6 @@ MODULE four_center_integrals
     CALL mp_sync(para_env%group) ! to clarify timings
     CALL timestop(handle_getP)
 
-    
     !! Calculate the max values of the density matrix actual_pmax stores the data from the actual density matrix
     !! and x_data%initial_p stores the same for the initial guess. The initial guess is updated only in the case of
     !! a changed geometry 
@@ -444,13 +446,13 @@ MODULE four_center_integrals
       IF( do_p_screening) THEN
         CALL load_balance_energy(qs_env%x_data,eps_schwarz,eps_box,particle_set,atomic_kind_set,para_env,&
                                  potential_parameter,screen_set,screen_atom,screen_max,&
-                                 is_assoc_atomic_block,ks_matrix,do_periodic,load_balance_parameter, &
+                                 is_assoc_atomic_block,ks_matrix,do_periodic,load_balance_parameter, box_size, &
                                  pmax_set=qs_env%x_data%initial_p, error=error)
       ELSE
         CALL load_balance_energy(qs_env%x_data,eps_schwarz,eps_box,particle_set,atomic_kind_set,para_env,&
                                  potential_parameter,screen_set,screen_atom,screen_max,&
                                  is_assoc_atomic_block,ks_matrix,do_periodic,&
-                                 load_balance_parameter,error=error)
+                                 load_balance_parameter,box_size, error=error)
       END IF
     END IF
 
@@ -651,6 +653,7 @@ MODULE four_center_integrals
                       R1 = qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%R
                       radius1 = INT(1.0_dp/ &
                         (SQRT(2.0_dp*qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%alpha)*erfc_epsilon))
+!                      radius1 = INT(exp_radius(2,qs_env%x_data%far_field_boxes(box_idx2,box_idx1)%alpha,eps_box,1.0_dp))
                       DO kset = 1,nsetc
                         ncoc = npgfc(kset)*ncoset(lc_max(kset))
                         sgfc = first_sgfc(1,kset)
@@ -661,7 +664,15 @@ MODULE four_center_integrals
                           !! Near field screening
                           IF(max_val2<eps_schwarz) CYCLE
                           box_idx4 = (kset-1)*max_set+lset
-                          center2 = qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%center
+                          IF(.NOT. do_periodic) THEN
+                            center2_folded = qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%center
+                          ELSE
+                            center2 = qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%center
+                            temp = center2-center1
+                            CALL pbc(temp, box_size, pbc_center)
+                            center2_folded = center1 + pbc_center
+                          END IF
+
                           R2 = qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%R
                           radius2 = INT(1.0_dp/ &
                             (SQRT(2.0_dp*qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%alpha)*erfc_epsilon))
@@ -705,9 +716,9 @@ MODULE four_center_integrals
                           END IF
 
                           !! Far field box screening also taking into account screening on initial density matrix
-                          Rbox = (center1(1)-center2(1))**2 + &
-                                 (center1(2)-center2(2))**2 + &
-                                 (center1(3)-center2(3))**2
+                          Rbox = (center1(1)-center2_folded(1))**2 + &
+                                 (center1(2)-center2_folded(2))**2 + &
+                                 (center1(3)-center2_folded(3))**2
                           Rbox = SQRT(Rbox) - R1 - R2 
                           pgf_radius_box = radius1 + radius2 + 2
                           IF(Rbox>pgf_radius_box) THEN
@@ -773,11 +784,11 @@ MODULE four_center_integrals
                             spherical_estimate = EXP(log_2*estimate_to_store_int)
                             IF(spherical_estimate*pmax_entry<eps_schwarz) CYCLE
                             nbits = CEILING(LOG(spherical_estimate*pmax_entry/eps_schwarz)*log_2_inv) + 1
-                            CALL x_hf_get_multiple_cache_elements(T1(1), &
-                                                                  nints, nbits, &
-                                                                  integral_caches(nbits), &
-                                                                  integral_containers(nbits), &
-                                                                  eps_schwarz, pmax_entry, error)
+                            CALL x_hf_get_mult_cache_elements(T1(1), &
+                                                              nints, nbits, &
+                                                              integral_caches(nbits), &
+                                                              integral_containers(nbits), &
+                                                              eps_schwarz, pmax_entry, error)
                             i=1
                             IF(nspins == 1) THEN
                               DO md = 1,nsgfd(lset)
@@ -882,7 +893,7 @@ MODULE four_center_integrals
                                                      screen_periodic(:,kset,lset,katom,latom), eps_schwarz, &
                                                      max_contraction_val, cartesian_estimate, error)
                             END IF
- 
+                            
                             nints = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
                             neris_total = neris_total + nints 
                             IF(cartesian_estimate == 0.0_dp) cartesian_estimate = TINY(cartesian_estimate) 
@@ -923,9 +934,6 @@ MODULE four_center_integrals
                             DO i=1,nints
                               spherical_estimate = MAX(spherical_estimate,ABS(primitive_integrals(i)))
                             END DO
-
-                            IF(spherical_estimate == 0.0_dp) spherical_estimate = TINY(spherical_estimate) 
-
                             estimate_to_store = LOG(spherical_estimate)*log_2_inv
                             estimate_to_store_int = CEILING(estimate_to_store)
                             estimate_to_store_int = MAX(estimate_to_store_int, -15_int_8)
@@ -938,11 +946,11 @@ MODULE four_center_integrals
                             IF(.NOT.buffer_overflow) THEN
                               neris_incore = neris_incore + nints
                               nbits = CEILING(LOG(spherical_estimate*pmax_entry/eps_schwarz)*log_2_inv) + 1
-                              CALL x_hf_add_multiple_cache_elements(primitive_integrals(1), &
-                                                                    nints, nbits, &
-                                                                    integral_caches(nbits), &
-                                                                    integral_containers(nbits), &
-                                                                    eps_schwarz, pmax_entry, error)
+                              CALL x_hf_add_mult_cache_elements(primitive_integrals(1), &
+                                                                nints, nbits, &
+                                                                integral_caches(nbits), &
+                                                                integral_containers(nbits), &
+                                                                eps_schwarz, pmax_entry, error)
                             ELSE
                              !! In order to be consistent with in-core part, round all the eris wrt. eps_schwarz
                              DO i=1,nints
@@ -1881,9 +1889,10 @@ MODULE four_center_integrals
                                                 first_k_loop, first_l_loop, &
                                                 screen_pmat_forces
     REAL(dp) :: box_size(3), cartesian_estimate, center1(3), center2(3), &
-      eps_box, eps_schwarz, fac, hf_fraction, Kbox, max_contraction_val, &
-      max_val1, max_val2, omega_box, pmax_max, R1, R2, ra(3), rb(3), Rbox, &
-      rc(3), rd(3), screen_max, symm_fac, temp1, temp1b, temp2, temp3, temp3b
+      center2_folded(3), eps_box, eps_schwarz, fac, hf_fraction, Kbox, &
+      max_contraction_val, max_val1, max_val2, omega_box, pbc_center(3), &
+      pmax_max, R1, R2, ra(3), rb(3), Rbox, rc(3), rd(3), screen_max, &
+      symm_fac, temp(3), temp1, temp1b, temp2, temp3, temp3b
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: work_forces
     REAL(dp), ALLOCATABLE, DIMENSION(:), &
       TARGET                                 :: primitive_forces
@@ -2070,7 +2079,7 @@ MODULE four_center_integrals
     CALL load_balance_forces(qs_env%x_data,eps_schwarz,eps_box,particle_set,atomic_kind_set,para_env,&
                              potential_parameter,screen_set,screen_atom,screen_max,&
                              pmax_set,is_assoc_atomic_block,ks_matrix,do_periodic,&
-                             load_balance_parameter, error)
+                             load_balance_parameter, box_size, error)
 
     !! precompute maximum nco and allocate scratch
     nco_max=0
@@ -2317,13 +2326,20 @@ MODULE four_center_integrals
                                                 pmax_set(iset,lset,iatom,latom) * pmax_set(kset,jset,katom,jatom))
                           IF(max_val2<eps_schwarz)  CYCLE
                           box_idx4 = (kset-1)*max_set+lset
-                          center2 = qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%center
+                          IF(.NOT. do_periodic) THEN
+                            center2_folded = qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%center
+                          ELSE
+                            center2 = qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%center
+                            temp = center2-center1
+                            CALL pbc(temp, box_size, pbc_center)
+                            center2_folded = center1 + pbc_center
+                          END IF
                           R2 = qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%R
                           radius2 = INT(1.0_dp/ &
                             (SQRT(2.0_dp*qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%alpha)*erfc_epsilon))
-                          Rbox = (center1(1)-center2(1))**2 + &
-                                 (center1(2)-center2(2))**2 + &
-                                 (center1(3)-center2(3))**2
+                          Rbox = (center1(1)-center2_folded(1))**2 + &
+                                 (center1(2)-center2_folded(2))**2 + &
+                                 (center1(3)-center2_folded(3))**2
                           Rbox = SQRT(Rbox) - R1 - R2
                           pgf_radius_box = radius1 + radius2 + 2
 
@@ -3769,7 +3785,7 @@ MODULE four_center_integrals
   SUBROUTINE load_balance_energy(x_data, eps_schwarz, eps_box, particle_set,atomic_kind_set,para_env,&
                                  potential_parameter, screen_set, screen_atom, screen_max,&
                                  is_assoc_atomic_block_global,ks_matrix,do_periodic,&
-                                 load_balance_parameter, error, pmax_set)
+                                 load_balance_parameter, box_size, error, pmax_set)
     TYPE(x_hf_type), POINTER                 :: x_data
     REAL(dp), INTENT(IN)                     :: eps_schwarz, eps_box
     TYPE(particle_type), DIMENSION(:), &
@@ -3786,6 +3802,7 @@ MODULE four_center_integrals
       POINTER                                :: ks_matrix
     LOGICAL                                  :: do_periodic
     TYPE(x_hf_load_balance_type)             :: load_balance_parameter
+    REAL(dp), INTENT(IN)                     :: box_size(3)
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(dp), DIMENSION(:, :, :, :), &
       OPTIONAL, POINTER                      :: pmax_set
@@ -3808,8 +3825,9 @@ MODULE four_center_integrals
                                                 npgfb, npgfc, npgfd, nsgfa, &
                                                 nsgfb, nsgfc, nsgfd
     LOGICAL                                  :: do_p_screening, failure
-    REAL(dp) :: center1(3), center2(3), initial_temperature, K, Kbox, &
-      max_val1, max_val2, omega_box, R1, R2, ra(3), rb(3), Rbox, rc(3), rd(3)
+    REAL(dp) :: center1(3), center2(3), center2_folded(3), &
+      initial_temperature, K, Kbox, max_val1, max_val2, omega_box, &
+      pbc_center(3), R1, R2, ra(3), rb(3), Rbox, rc(3), rd(3), temp(3)
     REAL(dp), DIMENSION(:, :), POINTER       :: zeta, zetb, zetc, zetd
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(x_hf_distribution), DIMENSION(:), &
@@ -3894,13 +3912,21 @@ MODULE four_center_integrals
                           END IF
                           IF(max_val2<eps_schwarz) CYCLE
                           box_idx4 = (kset-1)*max_set+lset
-                          center2 = x_data%far_field_boxes(box_idx4, box_idx3)%center
+                          IF(.NOT. do_periodic) THEN
+                            center2_folded = x_data%far_field_boxes(box_idx4, box_idx3)%center
+                          ELSE
+                            center2 = x_data%far_field_boxes(box_idx4, box_idx3)%center
+                            temp = center2-center1
+                            CALL pbc(temp, box_size, pbc_center)
+                            center2_folded = center1 + pbc_center
+                          END IF
+
                           R2 = x_data%far_field_boxes(box_idx4, box_idx3)%R
                           radius2 = INT(1.0_dp/ &
                             (SQRT(2.0_dp*x_data%far_field_boxes(box_idx4, box_idx3)%alpha)*erfc_epsilon))
-                          Rbox = (center1(1)-center2(1))**2 + &
-                                 (center1(2)-center2(2))**2 + &
-                                 (center1(3)-center2(3))**2
+                          Rbox = (center1(1)-center2_folded(1))**2 + &
+                                 (center1(2)-center2_folded(2))**2 + &
+                                 (center1(3)-center2_folded(3))**2
                           Rbox = SQRT(Rbox) - R1 - R2
                           pgf_radius_box = radius1 + radius2 + 2
 
@@ -4022,13 +4048,21 @@ MODULE four_center_integrals
                           END IF
                           IF(max_val2<eps_schwarz) CYCLE
                           box_idx4 = (kset-1)*max_set+lset
-                          center2 = x_data%far_field_boxes(box_idx4, box_idx3)%center
+                          IF(.NOT. do_periodic) THEN
+                            center2_folded = x_data%far_field_boxes(box_idx4, box_idx3)%center
+                          ELSE
+                            center2 = x_data%far_field_boxes(box_idx4, box_idx3)%center
+                            temp = center2-center1
+                            CALL pbc(temp, box_size, pbc_center)
+                            center2_folded = center1 + pbc_center
+                          END IF
+
                           R2 = x_data%far_field_boxes(box_idx4, box_idx3)%R
                           radius2 = INT(1.0_dp/ &
                             (SQRT(2.0_dp*x_data%far_field_boxes(box_idx4, box_idx3)%alpha)*erfc_epsilon))
-                          Rbox = (center1(1)-center2(1))**2 + &
-                                 (center1(2)-center2(2))**2 + &
-                                 (center1(3)-center2(3))**2
+                          Rbox = (center1(1)-center2_folded(1))**2 + &
+                                 (center1(2)-center2_folded(2))**2 + &
+                                 (center1(3)-center2_folded(3))**2
                           Rbox = SQRT(Rbox) - R1 - R2
                           pgf_radius_box = radius1 + radius2 + 2
 
@@ -4240,7 +4274,7 @@ MODULE four_center_integrals
   SUBROUTINE load_balance_forces(x_data, eps_schwarz, eps_box, particle_set,atomic_kind_set,para_env,&
                                  potential_parameter, screen_set, screen_atom, screen_max,&
                                  pmax_set, is_assoc_atomic_block_global, ks_matrix, do_periodic, &
-                                 load_balance_parameter, error)
+                                 load_balance_parameter, box_size, error)
     TYPE(x_hf_type), POINTER                 :: x_data
     REAL(dp), INTENT(IN)                     :: eps_schwarz, eps_box
     TYPE(particle_type), DIMENSION(:), &
@@ -4258,6 +4292,7 @@ MODULE four_center_integrals
       POINTER                                :: ks_matrix
     LOGICAL                                  :: do_periodic
     TYPE(x_hf_load_balance_type)             :: load_balance_parameter
+    REAL(dp), INTENT(IN)                     :: box_size(3)
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'load_balance_forces', &
@@ -4277,8 +4312,9 @@ MODULE four_center_integrals
     INTEGER, DIMENSION(:), POINTER           :: distribution_vector, nsgfa, &
                                                 nsgfb, nsgfc, nsgfd
     LOGICAL                                  :: failure
-    REAL(dp) :: center1(3), center2(3), initial_temperature, Kbox, max_val1, &
-      max_val2, omega_box, R1, R2, Rbox
+    REAL(dp) :: center1(3), center2(3), center2_folded(3), &
+      initial_temperature, Kbox, max_val1, max_val2, omega_box, &
+      pbc_center(3), R1, R2, Rbox, temp(3)
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(x_hf_distribution), DIMENSION(:), &
       POINTER                                :: ptr_to_tmp_dist
@@ -4352,13 +4388,20 @@ MODULE four_center_integrals
                                                 pmax_set(iset,lset,iatom,latom) * pmax_set(kset,jset,katom,jatom))
                           IF(max_val2<eps_schwarz) CYCLE
                           box_idx4 = (kset-1)*max_set+lset
-                          center2 = x_data%far_field_boxes(box_idx4, box_idx3)%center
+                          IF(.NOT. do_periodic) THEN
+                            center2_folded = x_data%far_field_boxes(box_idx4, box_idx3)%center
+                          ELSE
+                            center2 = x_data%far_field_boxes(box_idx4, box_idx3)%center
+                            temp = center2-center1
+                            CALL pbc(temp, box_size, pbc_center)
+                            center2_folded = center1 + pbc_center
+                          END IF
                           R2 = x_data%far_field_boxes(box_idx4, box_idx3)%R
                           radius2 = INT(1.0_dp/ &
                             (SQRT(2.0_dp*x_data%far_field_boxes(box_idx4, box_idx3)%alpha)*erfc_epsilon))
-                          Rbox = (center1(1)-center2(1))**2 + &
-                                 (center1(2)-center2(2))**2 + &
-                                 (center1(3)-center2(3))**2
+                          Rbox = (center1(1)-center2_folded(1))**2 + &
+                                 (center1(2)-center2_folded(2))**2 + &
+                                 (center1(3)-center2_folded(3))**2
                           Rbox = SQRT(Rbox) - R1 - R2
                           pgf_radius_box = radius1 + radius2 + 2
 
@@ -4467,13 +4510,20 @@ MODULE four_center_integrals
                                                 pmax_set(iset,lset,iatom,latom) * pmax_set(kset,jset,katom,jatom))
                           IF(max_val2<eps_schwarz) CYCLE
                           box_idx4 = (kset-1)*max_set+lset
-                          center2 = x_data%far_field_boxes(box_idx4, box_idx3)%center
+                          IF(.NOT. do_periodic) THEN
+                            center2_folded = x_data%far_field_boxes(box_idx4, box_idx3)%center
+                          ELSE
+                            center2 = x_data%far_field_boxes(box_idx4, box_idx3)%center
+                            temp = center2-center1
+                            CALL pbc(temp, box_size, pbc_center)
+                            center2_folded = center1 + pbc_center
+                          END IF
                           R2 = x_data%far_field_boxes(box_idx4, box_idx3)%R
                           radius2 = INT(1.0_dp/ &
                             (SQRT(2.0_dp*x_data%far_field_boxes(box_idx4, box_idx3)%alpha)*erfc_epsilon))
-                          Rbox = (center1(1)-center2(1))**2 + &
-                                 (center1(2)-center2(2))**2 + &
-                                 (center1(3)-center2(3))**2
+                          Rbox = (center1(1)-center2_folded(1))**2 + &
+                                 (center1(2)-center2_folded(2))**2 + &
+                                 (center1(3)-center2_folded(3))**2
                           Rbox = SQRT(Rbox) - R1 - R2
                           pgf_radius_box = radius1 + radius2 + 2
 

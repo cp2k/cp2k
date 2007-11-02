@@ -43,10 +43,10 @@ MODULE x_hf
           x_hf_container_type, x_hf_container_node, x_hf_cache_type, &
           x_hf_add_single_cache_element, x_hf_get_single_cache_element,&
           x_hf_reset_cache_and_container, x_hf_decompress_first_cache, &
-          x_hf_flush_last_cache, x_hf_get_memory_info, x_hf_add_multiple_cache_elements,&
-          x_hf_get_multiple_cache_elements, x_hf_init_container
+          x_hf_flush_last_cache, x_hf_get_memory_info, x_hf_add_mult_cache_elements,&
+          x_hf_get_mult_cache_elements, x_hf_init_container
 
-#define CACHE_SIZE 1024 
+#define CACHE_SIZE 65536 
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'x_hf'
   INTEGER(int_8), PARAMETER, PRIVATE :: one = 1_int_8
@@ -1092,10 +1092,10 @@ MODULE x_hf
   END SUBROUTINE x_hf_flush_last_cache
 !***************************************************************************
 
-!!***** x_hf/x_hf_add_multiple_cache_elements [1.0] *
+!!***** x_hf/x_hf_add_mult_cache_elements [1.0] *
 !!
 !!   NAME
-!!     x_hf_add_multiple_cache_elements
+!!     x_hf_add_mult_cache_elements
 !!
 !!   FUNCTION
 !!     - This routine adds an a few real values to a cache. If the cache is full
@@ -1120,7 +1120,7 @@ MODULE x_hf
 !!
 !!****************************************************************************
 
-  SUBROUTINE x_hf_add_multiple_cache_elements(values, nints, nbits, cache, container, eps_schwarz, pmax_entry, error)
+  SUBROUTINE x_hf_add_mult_cache_elements(values, nints, nbits, cache, container, eps_schwarz, pmax_entry, error)
     REAL(dp)                                 :: values(*)
     INTEGER, INTENT(IN)                      :: nints, nbits
     TYPE(x_hf_cache_type)                    :: cache
@@ -1180,13 +1180,13 @@ MODULE x_hf
       END DO
       cache%element_counter = nints-tmp_elements + 1 
     END IF
-  END SUBROUTINE x_hf_add_multiple_cache_elements
+  END SUBROUTINE x_hf_add_mult_cache_elements
 !***************************************************************************
 
-!!***** x_hf/x_hf_get_multiple_cache_elements [1.0] *
+!!***** x_hf/x_hf_get_mult_cache_elements [1.0] *
 !!
 !!   NAME
-!!     x_hf_get_multiple_cache_elements
+!!     x_hf_get_mult_cache_elements
 !!
 !!   FUNCTION
 !!     - This routine returns a bunch real values from a cache. If the cache is empty
@@ -1215,7 +1215,7 @@ MODULE x_hf
 !!
 !!****************************************************************************
 
-  SUBROUTINE x_hf_get_multiple_cache_elements(values, nints, nbits, cache, container, eps_schwarz, pmax_entry, error)
+  SUBROUTINE x_hf_get_mult_cache_elements(values, nints, nbits, cache, container, eps_schwarz, pmax_entry, error)
     REAL(dp)                                 :: values(*)
     INTEGER, INTENT(IN)                      :: nints, nbits
     TYPE(x_hf_cache_type)                    :: cache
@@ -1254,7 +1254,7 @@ MODULE x_hf
       END DO
       cache%element_counter = nints - tmp_elements + 1
     END IF
-  END SUBROUTINE x_hf_get_multiple_cache_elements
+  END SUBROUTINE x_hf_get_mult_cache_elements
 !***************************************************************************
 
 !!***** x_hf/x_hf_get_memory_info [1.0] *
