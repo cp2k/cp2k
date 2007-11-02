@@ -1423,6 +1423,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
  
+       CALL keyword_create(keyword, name="CENTER_COORDINATES",&
+            description="Center the molecules in the computational box.",&
+            usage="CENTER_COORDINATES logical",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        NULLIFY(subsection, subsubsection)
        CALL section_create(subsection,name="GENERATE",&
             description="Setup of keywords controlling the generation of the connectivity",&

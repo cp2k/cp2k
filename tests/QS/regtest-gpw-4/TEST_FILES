@@ -35,4 +35,5 @@ H2O-meta_hydro.inp 1
 H2O-7.inp          1
 #test wavelet based poisson solver for different boundary conditions
 H2O_wavelet_free.inp  1
+H2O_wavelet_free2.inp 1
 H2O_wavelet_XZ.inp    1

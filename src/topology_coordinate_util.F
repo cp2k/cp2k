@@ -135,8 +135,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: iatomlist, kind_of, list, &
                                                 list2, molecule_list, &
                                                 natom_of_kind, wlist
-    LOGICAL                                  :: failure, found, my_qmmm
-    REAL(KIND=dp)                            :: alpha_core_charge, qeff
+    LOGICAL                                  :: failure, found, my_qmmm, do_center
+    REAL(KIND=dp)                            :: alpha_core_charge, qeff, bounds(2,3), dims(3), cdims(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charge, mass
     TYPE(array1_list_type), DIMENSION(:), &
       POINTER                                :: ex_bend_list, ex_bond_list, &
@@ -238,7 +238,6 @@ CONTAINS
     CALL allocate_atomic_kind_set(atomic_kind_set,topology%natom_type,error)
     CALL timestop(0.0_dp,handle2)
 
-
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 3.  Allocate the data structure for the atomic information
@@ -247,7 +246,6 @@ CONTAINS
     NULLIFY(particle_set)
     CALL allocate_particle_set(particle_set,topology%natoms,error)
     CALL timestop(0.0_dp,handle2)
-
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -271,7 +269,6 @@ CONTAINS
     DEALLOCATE(element,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(0.0_dp,handle2)
-
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -341,25 +338,49 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(0.0_dp,handle2)
 
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 7. Possibly center the coordinates and fill in coordinates in particle_set
+    !-----------------------------------------------------------------------------
+    CALL section_vals_val_get(subsys_section,"TOPOLOGY%CENTER_COORDINATES",l_val=do_center,&
+         error=error)
+    CALL timeset(routineN//'_7a',handle2)
+    dims = 0.0_dp
+    IF (do_center) THEN
+       bounds(1,1) = MINVAL(atom_info%r(1,:))
+       bounds(2,1) = MAXVAL(atom_info%r(1,:))
 
-    !-----------------------------------------------------------------------------
-    !-----------------------------------------------------------------------------
-    ! 7. Fill in some more infor for particle_set and lpi (local part info)
-    !-----------------------------------------------------------------------------
-    CALL timeset(routineN//'_7',handle2)
+       bounds(1,2) = MINVAL(atom_info%r(2,:))
+       bounds(2,2) = MAXVAL(atom_info%r(2,:))
+
+       bounds(1,3) = MINVAL(atom_info%r(3,:))
+       bounds(2,3) = MAXVAL(atom_info%r(3,:))
+       
+       dims     = bounds(2,:)-bounds(1,:)
+       cdims(1) = topology%cell%hmat(1,1)
+       cdims(2) = topology%cell%hmat(2,2)
+       cdims(3) = topology%cell%hmat(3,3)
+       IF (iw>0) THEN
+          WRITE(iw,'(A,3F12.6)')"System sizes: ",dims,"Cell sizes (diagonal): ",cdims
+       END IF
+       CPPostcondition(ALL(dims<cdims),cp_failure_level,routineP,error,failure)
+       dims = (bounds(2,:)+bounds(1,:))/2.0_dp - cdims/2.0_dp
+    END IF
+    CALL timestop(0.0_dp,handle2)
+    CALL timeset(routineN//'_7b',handle2)
     DO i=1,topology%natoms
        ikind = kind_of(i)
        IF (iw>0) THEN
           WRITE(iw,*)"atom number :: ",i,"kind number ::",ikind
        END IF
        particle_set(i)%atomic_kind => atomic_kind_set(ikind)
-       particle_set(i)%r(:) = atom_info%r(:,i)
+       particle_set(i)%r(:) = atom_info%r(:,i) - dims
        NULLIFY(particle_set(i)%list_exclude_vdw)
        NULLIFY(particle_set(i)%list_exclude_ei)
     END DO
+    CALL timestop(0.0_dp,handle2)
     DEALLOCATE(kind_of,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL timestop(0.0_dp,handle2)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
