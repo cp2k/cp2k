@@ -94,7 +94,7 @@ MODULE qs_loc_methods
                                              mo_set_p_type
 !  USE qs_rho_methods,                  ONLY: qs_rho_update_rho
 !  USE qs_rho_types,                    ONLY: qs_rho_type
-  USE realspace_grid_cube,             ONLY: rs_pw_to_cube
+  USE realspace_grid_cube,             ONLY: pw_to_cube
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE string_utilities,                ONLY: xstring
   USE termination,                     ONLY: stop_program
@@ -988,7 +988,7 @@ CONTAINS
         WRITE(title,'(A7,I5.5,A1,I1.1,A1,3G10.4)') "WFN ",ivector,"_s",my_ispin," ",&
               centers(1:3,istate)*angstrom
       END IF
-      CALL rs_pw_to_cube(wf_r%pw,21,ionode,title,stride=my_stride,error=error)
+      CALL pw_to_cube(wf_r%pw,21,ionode,title,stride=my_stride,error=error)
       IF (ionode) CLOSE(21)
     END DO
 

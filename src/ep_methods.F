@@ -159,7 +159,7 @@ MODULE ep_methods
                                              wfi_release,&
                                              wfi_use_prev_wf_method_nr,&
                                              wfs_release
-  USE realspace_grid_cube,             ONLY: rs_pw_to_cube
+  USE realspace_grid_cube,             ONLY: pw_to_cube
   USE replica_types,                   ONLY: rep_env_calc_e_f,&
                                              rep_env_create,&
                                              rep_env_local_index,&
@@ -2053,7 +2053,7 @@ CONTAINS
                 unit_nr=cp_print_key_unit_nr(logger,ep_env%input,"PRINT%EP_RHO_CUBE/RHO1",&
                      extension=".cube",middle_name="rho1_"//TRIM(ADJUSTL(cp_to_string(ispin))),&
                      log_filename=.FALSE.,error=error)
-                CALL rs_pw_to_cube ( ep_env%main_p_env%rho1%rho_r(1)%pw, iunit=unit_nr,&
+                CALL pw_to_cube ( ep_env%main_p_env%rho1%rho_r(1)%pw, iunit=unit_nr,&
                      ionode=logger%para_env%mepos==logger%para_env%source,&
                      title="rho1_"//TRIM(ADJUSTL(cp_to_string(ispin))),&
                      stride=section_get_ival(ep_env%input,"PRINT%EP_RHO_CUBE%STRIDE",error=error),&
@@ -2072,7 +2072,7 @@ CONTAINS
           unit_nr=cp_print_key_unit_nr(logger,ep_env%input,"PRINT%EP_RHO_CUBE/RHO0",&
                extension=".cube",middle_name="rho0_"//TRIM(ADJUSTL(cp_to_string(ispin))),&
                log_filename=.FALSE.,error=error)
-          CALL rs_pw_to_cube ( ep_env%main_qs_env%rho%rho_r(1)%pw, iunit=unit_nr,&
+          CALL pw_to_cube ( ep_env%main_qs_env%rho%rho_r(1)%pw, iunit=unit_nr,&
                ionode=logger%para_env%mepos==logger%para_env%source,&
                title="rho0_"//TRIM(ADJUSTL(cp_to_string(ispin))),&
                stride=section_get_ival(ep_env%input,"PRINT%EP_RHO_CUBE%STRIDE",error=error),&

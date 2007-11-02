@@ -80,7 +80,7 @@ MODULE qs_linres_epr_nablavks
                                              get_epr_env
   USE qs_rho_types,                    ONLY: qs_rho_p_type,&
                                              qs_rho_type
-  USE realspace_grid_cube,             ONLY: rs_pw_to_cube
+  USE realspace_grid_cube,             ONLY: pw_to_cube
   USE termination,                     ONLY: stop_memory
 #include "cp_common_uses.h"
 
@@ -683,7 +683,7 @@ CONTAINS
           unit_nr=cp_print_key_unit_nr(logger,epr_section,"PRINT%NABLAVKS_CUBES",&
                   extension=TRIM(ext),middle_name=TRIM(filename),&
                   log_filename=.FALSE.,file_position="REWIND",error=error)
-          CALL rs_pw_to_cube(wf_r%pw,unit_nr,ionode,"NABLA V_KS ",&
+          CALL pw_to_cube(wf_r%pw,unit_nr,ionode,"NABLA V_KS ",&
                   particles=particles,&
                   stride=1,&
                   error=error)

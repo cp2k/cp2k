@@ -36,7 +36,7 @@ MODULE qs_kpp1_env_types
                                              default_path_length,&
                                              dp
   USE pw_types,                        ONLY: pw_p_type
-  USE realspace_grid_cube,             ONLY: rs_pw_to_cube
+  USE realspace_grid_cube,             ONLY: pw_to_cube
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&
                                              real_matrix_p_type
   USE string_utilities,                ONLY: compress
@@ -365,7 +365,7 @@ CONTAINS
                         local=my_local)
                    CALL open_file(file_name=TRIM(filename),file_status="UNKNOWN",&
                         file_action="WRITE",unit_number=file_unit)
-                   CALL rs_pw_to_cube ( kpp1_env%v_rspace(ispin)%pw,&
+                   CALL pw_to_cube ( kpp1_env%v_rspace(ispin)%pw,&
                         iunit=file_unit,&
                         ionode=logger%para_env%mepos==logger%para_env%source,&
                         title="v_rspace",error=error)
@@ -414,7 +414,7 @@ CONTAINS
                       CALL open_file(file_name=TRIM(filename),&
                            file_status="UNKNOWN",&
                            file_action="WRITE",unit_number=file_unit)
-                      CALL rs_pw_to_cube ( kpp1_env%v_rspace(ispin)%pw,&
+                      CALL pw_to_cube ( kpp1_env%v_rspace(ispin)%pw,&
                            iunit=file_unit,&
                            ionode=logger%para_env%mepos==logger%para_env%source,&
                            title="drho_r",error=error)

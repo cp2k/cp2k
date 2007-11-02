@@ -56,7 +56,7 @@ MODULE molecular_states
   USE qs_collocate_density,            ONLY: calculate_wavefunction
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE realspace_grid_cube,             ONLY: rs_pw_to_cube
+  USE realspace_grid_cube,             ONLY: pw_to_cube
   USE sparse_matrix_types,             ONLY: real_matrix_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
@@ -282,7 +282,7 @@ CONTAINS
              unit_nr=cp_print_key_unit_nr(logger,force_env_section,&
                   "DFT%PRINT%MOLECULAR_STATES%CUBES",&
                   extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
-             CALL rs_pw_to_cube(wf_r%pw,unit_nr,para_env%ionode,filename,&
+             CALL pw_to_cube(wf_r%pw,unit_nr,para_env%ionode,filename,&
                   stride=section_get_ival(force_env_section,&
                   "DFT%PRINT%MOLECULAR_STATES%CUBES%STRIDE",error=error), error=error)
              CALL cp_print_key_finished_output(unit_nr,logger,force_env_section,&

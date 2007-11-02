@@ -72,7 +72,7 @@ MODULE qmmm_gpw_energy
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
-  USE realspace_grid_cube,             ONLY: rs_pw_to_cube
+  USE realspace_grid_cube,             ONLY: pw_to_cube
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -215,7 +215,7 @@ CONTAINS
                "POTENTIAL",error=error),cp_p_file)) THEN
              iw2 = cp_print_key_unit_nr(logger,print_section,"POTENTIAL",&
                   extension=".qmmmLog",error=error)
-             CALL rs_pw_to_cube(ks_qmmm_env_loc%v_qmmm_rspace%pw,iw2,iw2>0,&
+             CALL pw_to_cube(ks_qmmm_env_loc%v_qmmm_rspace%pw,iw2,iw2>0,&
                   "QM/MM: MM ELECTROSTATIC POTENTIAL ", error=error)
              CALL cp_print_key_finished_output(iw2,logger,print_section,&
                   "POTENTIAL", error=error)

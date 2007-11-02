@@ -47,3 +47,5 @@ dynamics.inp       1
 CH3OH.inp          0
 # distributed non-ortho grids
 rsgrid-dist-2.inp  1
+# also write wavefunctions
+rsgrid-dist-3.inp  1

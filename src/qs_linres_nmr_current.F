@@ -128,7 +128,7 @@ MODULE qs_linres_nmr_current
   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
                                              realspace_grid_type,&
                                              rs_grid_zero
-  USE realspace_grid_cube,             ONLY: rs_pw_to_cube
+  USE realspace_grid_cube,             ONLY: pw_to_cube
   USE realspace_task_selection,        ONLY: rs_get_loop_vars,&
                                              rs_get_my_tasks
   USE sparse_matrix_types,             ONLY: &
@@ -589,8 +589,7 @@ CONTAINS
                      &                       log_filename=.FALSE.,file_position="REWIND",&
                      &                       error=error)
                 
-                CALL rs_pw_to_cube(wf_r%pw,unit_nr,ionode,"RESPONSE CURRENT DENSITY ",&
-                     !rs,stride=section_get_ival(nmr_section,"PRINT%CURRENT_CUBES%STRIDE"),&
+                CALL pw_to_cube(wf_r%pw,unit_nr,ionode,"RESPONSE CURRENT DENSITY ",&
                      &             stride=section_get_ival(nmr_section,"PRINT%CURRENT_CUBES%STRIDE",&
                      &             error=error),error=error)
                 CALL cp_print_key_finished_output(unit_nr,logger,nmr_section,&

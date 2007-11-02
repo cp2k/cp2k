@@ -2,8 +2,6 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2007  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-
-
 !!****s* cp2k/realspace_grid_cube [1.0] *
 !!
 !!   NAME
@@ -23,159 +21,146 @@
 MODULE realspace_grid_cube
   USE atomic_kind_types,               ONLY: get_atomic_kind
   USE kinds,                           ONLY: dp
+  USE message_passing,                 ONLY: mp_recv,&
+                                             mp_send
   USE particle_list_types,             ONLY: particle_list_type
-  USE pw_types,                        ONLY: COMPLEXDATA3D,&
-                                             REALDATA3D,&
-                                             pw_type
-  USE realspace_grid_types,            ONLY: realspace_grid_type,&
-                                             rs_grid_create,&
-                                             rs_grid_release,&
-                                             rs_pw_transfer,&
-                                             pw2rs
+  USE pw_types,                        ONLY: pw_type
+  USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
   USE timings,                         ONLY: timeset,&
                                              timestop
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PRIVATE
 
-  PUBLIC :: rs_grid_to_cube, &
-            rs_pw_to_cube
+  PUBLIC :: pw_to_cube
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'realspace_grid_cube'
 
-!-----------------------------------------------------------------------------!
-
 CONTAINS
 
-!-----------------------------------------------------------------------------!
-SUBROUTINE rs_grid_to_cube ( rs, iunit, ionode, title, particles, stride, error )
-    TYPE(realspace_grid_type), POINTER       :: rs
-    INTEGER, INTENT(IN)                      :: iunit
-    LOGICAL, INTENT(IN)                      :: ionode
-    CHARACTER(*), OPTIONAL                   :: title
-    TYPE(particle_list_type), OPTIONAL, &
-      POINTER                                :: particles
-    INTEGER, INTENT(in), OPTIONAL            :: stride
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_to_cube', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: I1, I2, I3, iat, L1, L2, L3, &
-                                                my_stride, np, U1, U2, U3, z
-    LOGICAL                                  :: failure
-    TYPE(particle_list_type), POINTER        :: my_particles
-
-!-----------------------------------------------------------------------------!
-! not working for distributed grids !
-
-   failure=.FALSE.
-   my_stride=1
-   IF (PRESENT(stride)) my_stride=stride
-   CPPrecondition(my_stride>0,cp_failure_level,routineP,error,failure)
-
-   ! only dh diagonal is being used
-   CPPrecondition(rs%orthorhombic,cp_failure_level,routineP,error,failure)
-   CPPrecondition(rs%ngpts == rs%ngpts_local,cp_failure_level,routineP,error,failure)
-   IF (ionode) THEN
-     ! this format seems to work for e.g. molekel and gOpenmol
-     WRITE(iunit,'(a11)') "-Quickstep-"
-     IF (PRESENT(title)) THEN
-        WRITE(iunit,*) TRIM(title)
-     ELSE
-        WRITE(iunit,*) "No Title"
-     ENDIF
-
-     np=0
-     NULLIFY(my_particles)
-     IF (PRESENT(particles)) my_particles=>particles
-     IF (ASSOCIATED(my_particles)) np=my_particles%n_els
-
-     WRITE(iunit,'(I5,3f12.6)') np,0.0_dp,0._dp,0._dp !start of cube
-
-     WRITE(iunit,'(I5,3f12.6)') (rs%npts(1)+my_stride-1)/my_stride,&
-          rs%dh(1,1)*REAL(my_stride,dp),0.0_dp,0.0_dp
-     WRITE(iunit,'(I5,3f12.6)') (rs%npts(2)+my_stride-1)/my_stride,&
-          0.0_dp,rs%dh(2,2)*REAL(my_stride,dp),0.0_dp
-     WRITE(iunit,'(I5,3f12.6)') (rs%npts(3)+my_stride-1)/my_stride,&
-          0.0_dp,0.0_dp,rs%dh(3,3)*REAL(my_stride,dp)
-
-     IF (ASSOCIATED(my_particles)) THEN
-        DO iat=1,np
-           CALL get_atomic_kind(my_particles%els(iat)%atomic_kind,z=z)
-
-           WRITE(iunit,'(I5,4f12.6)') z,0._dp,my_particles%els(iat)%r
-        END DO
-     END IF
-
-     ! write(iunit,'(I5,4f12.6)') 1, 0.0,0.0,0.0,0.0
-     L1=LBOUND(rs%r,1)
-     L2=LBOUND(rs%r,2)
-     L3=LBOUND(rs%r,3)
-     U1=UBOUND(rs%r,1)
-     U2=UBOUND(rs%r,2)
-     U3=UBOUND(rs%r,3)
-     DO I1=L1,U1,my_stride
-       DO I2=L2,U2,my_stride
-        WRITE(iunit,'(6E13.5)') (rs%r(MODULO(I1-L1,U1-L1+1)+L1,MODULO(I2-L2,U2-L2+1)+L2, &
-                                      MODULO(I3-L3,U3-L3+1)+L3),I3=L3,U3,my_stride)
-       ENDDO
-     ENDDO
-   ENDIF
-END SUBROUTINE rs_grid_to_cube
-!******************************************************************************
-
-!******************************************************************************
-! optionally pass a preallocated rs grid
-!******************************************************************************
-SUBROUTINE rs_pw_to_cube ( pw, iunit, ionode, title, rs, particles, stride,&
-     error )
+  SUBROUTINE pw_to_cube ( pw, iunit, ionode, title, particles, stride, error )
     TYPE(pw_type), POINTER                   :: pw
     INTEGER, INTENT(IN)                      :: iunit
     LOGICAL, INTENT(IN)                      :: ionode
     CHARACTER(*), INTENT(IN), OPTIONAL       :: title
-    TYPE(realspace_grid_type), OPTIONAL, &
-      POINTER                                :: rs
     TYPE(particle_list_type), OPTIONAL, &
       POINTER                                :: particles
     INTEGER, INTENT(in), OPTIONAL            :: stride
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: handle, nsmax
-    TYPE(realspace_grid_type), POINTER       :: rs_local
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_to_cube', &
+      routineP = moduleN//':'//routineN
 
-!-----------------------------------------------------------------------------!
-!-----------------------------------------------------------------------------!
+    INTEGER :: dest, gid, handle, I1, I2, I3, iat, ionode_rank, ip, L1, L2, &
+      L3, my_rank, my_stride, np, num_pe, source, stat, tag, U1, U2, U3, z
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: buf
+    TYPE(particle_list_type), POINTER        :: my_particles
 
-   CALL timeset("rs_pw_to_cube",handle)
-   IF (PRESENT(rs)) THEN
-     rs_local=>rs
-   ELSE
-     nsmax=-1
-     NULLIFY(rs_local)
-     CALL rs_grid_create(rs_local,pw%pw_grid,nsmax,error=error)
-   ENDIF
+    CALL timeset(routineN,handle)
 
-   CALL rs_pw_transfer(rs_local,pw,pw2rs)
-   IF (PRESENT(particles)) THEN
-      CALL rs_grid_to_cube(rs_local,iunit,ionode,title,particles=particles,&
-           stride=stride,error=error)
-   ELSE
-      CALL rs_grid_to_cube(rs_local,iunit,ionode,title,stride=stride, error=error)
-   END IF
+    failure=.FALSE.
+    my_stride=1
+    IF (PRESENT(stride)) my_stride=stride
+    CPPrecondition(my_stride>0,cp_failure_level,routineP,error,failure)
 
-   IF (.NOT. PRESENT(rs)) THEN
-       CALL rs_grid_release(rs_local,error=error)
-   ENDIF
-   CALL timestop(handle)
+    IF (ionode) THEN
+      ! this format seems to work for e.g. molekel and gOpenmol
+      ! latest version of VMD can read non orthorhombic cells
+      WRITE(iunit,'(a11)') "-Quickstep-"
+      IF (PRESENT(title)) THEN
+         WRITE(iunit,*) TRIM(title)
+      ELSE
+         WRITE(iunit,*) "No Title"
+      ENDIF
 
-END SUBROUTINE rs_pw_to_cube
+      np=0
+      NULLIFY(my_particles)
+      IF (PRESENT(particles)) my_particles=>particles
+      IF (ASSOCIATED(my_particles)) np=my_particles%n_els
 
-!******************************************************************************
+      WRITE(iunit,'(I5,3f12.6)') np,0.0_dp,0._dp,0._dp !start of cube
+
+      WRITE(iunit,'(I5,3f12.6)') (pw%pw_grid%npts(1)+my_stride-1)/my_stride,&
+           pw%pw_grid%dh(1,1)*REAL(my_stride,dp),pw%pw_grid%dh(2,1)*REAL(my_stride,dp),pw%pw_grid%dh(3,1)*REAL(my_stride,dp)
+      WRITE(iunit,'(I5,3f12.6)') (pw%pw_grid%npts(2)+my_stride-1)/my_stride,&
+           pw%pw_grid%dh(1,2)*REAL(my_stride,dp),pw%pw_grid%dh(2,2)*REAL(my_stride,dp),pw%pw_grid%dh(3,2)*REAL(my_stride,dp)
+      WRITE(iunit,'(I5,3f12.6)') (pw%pw_grid%npts(3)+my_stride-1)/my_stride,&
+           pw%pw_grid%dh(1,3)*REAL(my_stride,dp),pw%pw_grid%dh(2,3)*REAL(my_stride,dp),pw%pw_grid%dh(3,3)*REAL(my_stride,dp)
+
+      IF (ASSOCIATED(my_particles)) THEN
+         DO iat=1,np
+            CALL get_atomic_kind(my_particles%els(iat)%atomic_kind,z=z)
+
+            WRITE(iunit,'(I5,4f12.6)') z,0._dp,my_particles%els(iat)%r
+         END DO
+      END IF
+    ENDIF
+
+    ! shortcut
+    L1=pw%pw_grid%bounds(1,1)
+    L2=pw%pw_grid%bounds(1,2)
+    L3=pw%pw_grid%bounds(1,3)
+    U1=pw%pw_grid%bounds(2,1)
+    U2=pw%pw_grid%bounds(2,2)
+    U3=pw%pw_grid%bounds(2,3)
+
+    ALLOCATE(buf(L3:U3),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    my_rank     = pw%pw_grid%para%my_pos
+    gid         = pw%pw_grid%para%group
+    num_pe      = pw%pw_grid%para%group_size
+    tag         = 1
+
+    ! who is ionode, might need fixing
+    ionode_rank = 0
+    CPPostcondition(ionode .OR. (ionode_rank.NE.my_rank),cp_failure_level,routineP,error,failure)
+
+    dest        = ionode_rank
+
+    DO I1=L1,U1,my_stride
+      DO I2=L2,U2,my_stride
+
+       ! cycling through the CPUs, check if the current ray (I1,I2) is local to that CPU
+       IF (pw % pw_grid % para % mode .NE. PW_MODE_LOCAL ) THEN
+         DO ip=0,num_pe-1
+            IF (pw % pw_grid % para % bo (1,1,ip,1)<=I1-L1+1 .AND. pw % pw_grid % para % bo (2,1,ip,1)>=I1-L1+1 .AND. &
+                pw % pw_grid % para % bo (1,2,ip,1)<=I2-L2+1 .AND. pw % pw_grid % para % bo (2,2,ip,1)>=I2-L2+1 ) THEN
+                source = ip
+            ENDIF
+         ENDDO
+       ELSE
+         source = dest
+       ENDIF
+
+       IF (source==dest) THEN
+          IF (my_rank==source) THEN
+             buf(:)=pw%cr3d(I1,I2,:)
+          ENDIF
+       ELSE
+          IF(my_rank==source) THEN
+             buf(:)=pw%cr3d(I1,I2,:) 
+             CALL mp_send(buf,dest,tag,gid)
+          ENDIF
+          IF(my_rank==dest) THEN
+             CALL mp_recv(buf,source,tag,gid)
+          ENDIF
+       ENDIF
+
+       IF (ionode) THEN
+         WRITE(iunit,'(6E13.5)') (buf(I3),I3=L3,U3,my_stride)
+       ENDIF
+
+      ENDDO
+    ENDDO
+
+    DEALLOCATE(buf)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE pw_to_cube
 
 END MODULE realspace_grid_cube
-
-!******************************************************************************

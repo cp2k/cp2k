@@ -173,11 +173,11 @@ MODULE message_passing
   END INTERFACE
 
   INTERFACE mp_send
-     MODULE PROCEDURE mp_send_i,mp_send_iv
+     MODULE PROCEDURE mp_send_i,mp_send_iv,mp_send_rv
   END INTERFACE
 
   INTERFACE mp_recv
-     MODULE PROCEDURE mp_recv_i,mp_recv_iv
+     MODULE PROCEDURE mp_recv_i,mp_recv_iv,mp_recv_rv
   END INTERFACE
 
   INTERFACE mp_sendrecv
@@ -1608,6 +1608,32 @@ SUBROUTINE mp_send_iv(msg,dest,tag,gid)
 #endif
 END SUBROUTINE mp_send_iv
 
+SUBROUTINE mp_send_rv(msg,dest,tag,gid)
+    INTEGER                                  :: dest, gid,tag
+    REAL(KIND=dp)                            :: msg( : )
+
+    INTEGER                                  :: ierr, msglen
+    INTEGER :: handle
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_send_rv', &
+      routineP = moduleN//':'//routineN
+#if defined(__mp_timeset__)
+    CALL timeset(routineN,handle)
+#endif
+
+  ierr = 0
+  msglen = SIZE(msg)
+#if defined(__parallel)
+  t_start = m_walltime ( )
+  CALL mpi_send(msg,msglen,MP_STD_REAL,dest,tag,gid,ierr)
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_send @ mp_send_rv" )
+  t_end = m_walltime ( )
+  CALL add_perf(perf_id=13,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop(handle)
+#endif
+END SUBROUTINE mp_send_rv
+
 SUBROUTINE mp_send_i(msg,dest,tag,gid)
     INTEGER                                  :: msg, dest, gid,tag
 
@@ -1665,6 +1691,38 @@ SUBROUTINE mp_recv_iv(msg,source,tag,gid)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_recv_iv
+
+SUBROUTINE mp_recv_rv(msg,source,tag,gid)
+    INTEGER, INTENT(INOUT)                   :: source, tag
+    REAL(KIND=dp), INTENT(INOUT)             :: msg( : )
+    INTEGER, INTENT(IN)                      :: gid
+
+    INTEGER                                  :: ierr, msglen
+    INTEGER :: handle
+    INTEGER, DIMENSION(:), ALLOCATABLE ::  status
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_recv_rv', &
+      routineP = moduleN//':'//routineN
+#if defined(__mp_timeset__)
+    CALL timeset(routineN,handle)
+#endif
+
+  ierr = 0
+  msglen = SIZE(msg)
+#if defined(__parallel)
+  ALLOCATE(status(MPI_STATUS_SIZE))
+  t_start = m_walltime ( )
+  CALL mpi_recv(msg,msglen,MP_STD_REAL,source,tag,gid,status,ierr)
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_recv @ mp_recv_rv" )
+  t_end = m_walltime ( )
+  CALL add_perf(perf_id=14,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+  source = status(MPI_SOURCE)
+  tag = status(MPI_TAG)
+  DEALLOCATE(status)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop(handle)
+#endif
+END SUBROUTINE mp_recv_rv
 
 SUBROUTINE mp_recv_i(msg,source,tag,gid)
     INTEGER, INTENT(INOUT)                   :: msg, source, tag

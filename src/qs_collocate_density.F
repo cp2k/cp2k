@@ -1334,7 +1334,7 @@ CONTAINS
 
     INTEGER :: handle, i, iatom, igrid_level, ipgf, iset, istat, maxco, &
       maxsgf_set, na1, na2, nao, natom, ncoa, ncol_global, nseta, offset, &
-      sgfa, stat
+      sgfa, stat, group, my_pos, group_size, location, lb, ub, dir, tp
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
     LOGICAL                                  :: failure, local
@@ -1354,6 +1354,8 @@ CONTAINS
       POINTER                                :: pw_pools
     TYPE(REALSPACE_GRID_P_TYPE), &
       DIMENSION(:), POINTER                  :: rs_rho
+    LOGICAL                                  :: map_it_here
+    INTEGER, DIMENSION(:), ALLOCATABLE       :: where_is_the_point
 
     failure=.FALSE.
 
@@ -1369,15 +1371,6 @@ CONTAINS
 
     ALLOCATE(eigenvector(nao), stat=istat)
     IF (istat.NE.0) CALL stop_program("calculate_wavefunction","eigenvector")
-
-    ! only some processors have non-zero elements. The sum of eigenvectors on
-    ! all cpus is the real eigenvector. combined with the rs->pw this will give the
-    ! real density
-    DO i=1,nao
-       CALL cp_fm_get_element(mo_vectors,i,ivector,eigenvector(i),local)
-       IF (.NOT. local) eigenvector(i)=0.0_dp ! some more intelligent scheme is needed
-    ENDDO
-
 
     ! *** set up the pw multi-grids
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineN,error,failure)
@@ -1400,6 +1393,10 @@ CONTAINS
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
     END DO
 
+    DO i=1,nao
+       CALL cp_fm_get_element(mo_vectors,i,ivector,eigenvector(i),local)
+    ENDDO
+
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
 !   *** Allocate work storage ***
@@ -1414,6 +1411,10 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,"work",maxco*1*dp_size)
 
     offset=0
+    group=mgrid_rspace(1)%pw%pw_grid%para%group
+    my_pos=mgrid_rspace(1)%pw%pw_grid%para%my_pos
+    group_size=mgrid_rspace(1)%pw%pw_grid%para%group_size
+    ALLOCATE(where_is_the_point(0:group_size-1))
 
     DO iatom=1,natom
 
@@ -1456,13 +1457,36 @@ CONTAINS
             scale = 1.0_dp
             zetp = zeta(ipgf,iset)
             igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
+            dir = rs_rho(igrid_level)%rs_grid%direction
 
-            CALL collocate_pgf_product_rspace(&
+            map_it_here=.FALSE.
+
+            IF (dir.NE.0) THEN
+              ! bounds of local grid (i.e. removing the 'wings')
+              tp = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_rho(igrid_level)%rs_grid%npts(dir))
+              tp = MODULO ( tp, rs_rho(igrid_level)%rs_grid%npts(dir) )
+              lb = rs_rho(igrid_level)%rs_grid%lb_local ( dir ) + rs_rho(igrid_level)%rs_grid%border
+              ub = rs_rho(igrid_level)%rs_grid%ub_local ( dir ) - rs_rho(igrid_level)%rs_grid%border
+              ! distributed grid, only map if it is local to the grid
+              location=tp+rs_rho(igrid_level)%rs_grid%lb(dir)
+              IF (lb<=location .AND. location<=ub) THEN
+                 ! this slice can still be on many CPUs. only one should do the point.
+                 IF (MODULO(offset,rs_rho(igrid_level)%rs_grid%group_dim ( 2 )) == &
+                            rs_rho(igrid_level)%rs_grid%group_coor (2 )) map_it_here=.TRUE.
+              ENDIF
+            ELSE
+              ! not distributed, just a round-robin distribution over the full set of CPUs
+              IF (MODULO(offset,group_size)==my_pos) map_it_here=.TRUE.
+            ENDIF
+
+            IF (map_it_here) CALL collocate_pgf_product_rspace(&
                         la_max(iset),zeta(ipgf,iset),la_min(iset),&
                         0,0.0_dp,0,&
                         ra,rab,rab2,scale,pab,na1-1,0,&
                         rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                         eps_rho_rspace,ga_gb_function=FUNC_AB,error=error)
+
+
          END DO
 
          offset=offset+nsgfa(iset)
