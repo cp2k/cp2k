@@ -169,6 +169,7 @@ CONTAINS
 
        CALL mp_maxloc(nstates,para_env%group)
 
+       IF (nstates(1)==0) CYCLE
        NULLIFY(states)
        ALLOCATE(states(nstates(1)),STAT=isos)
        IF(isos/=0) CALL stop_memory('construct_molecular_states','states')
