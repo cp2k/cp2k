@@ -180,6 +180,7 @@ CONTAINS
                      new_pairs(i)%grp_kind_start,&
                      new_pairs(i)%grp_kind_end)
              DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%ij_kind,&
+                        fist_neighbor%neighbor_kind_pairs(i)%id_kind,&
                         fist_neighbor%neighbor_kind_pairs(i)%grp_kind_start,&
                         fist_neighbor%neighbor_kind_pairs(i)%grp_kind_end, stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
