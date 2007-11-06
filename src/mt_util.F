@@ -4,8 +4,8 @@
 !-----------------------------------------------------------------------------!
 
 MODULE mt_util
-  USE bibliography,                    ONLY: cite_reference,&
-                                             Martyna1999
+  USE bibliography,                    ONLY: Martyna1999,&
+                                             cite_reference
   USE cell_types,                      ONLY: cell_type
   USE erf_fn,                          ONLY: erf
   USE input_constants,                 ONLY: MT0D,&

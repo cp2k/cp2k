@@ -22,8 +22,6 @@
 !******************************************************************************
 
 MODULE qs_scf_post
-  USE physcon,                         ONLY: bohr,&
-                                             debye
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
@@ -76,7 +74,8 @@ MODULE qs_scf_post
   USE mulliken,                        ONLY: mulliken_charges
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
-  USE physcon,                         ONLY: angstrom
+  USE physcon,                         ONLY: angstrom,&
+                                             debye
   USE preconditioner,                  ONLY: preconditioner_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
@@ -777,7 +776,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: iter
-    INTEGER                                  :: i, idir, ispins, unit_nr
+    INTEGER                                  :: i, ispins, unit_nr
     LOGICAL                                  :: failure, first_time, ghost
     REAL(KIND=dp)                            :: zeff, zwfc
     REAL(KIND=dp), DIMENSION(3)              :: dipole, r_pbc
@@ -1513,7 +1512,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type)                         :: wf_r
-    TYPE(coeff_type), POINTER                :: rho_core, rho0_s_gs
+    TYPE(coeff_type), POINTER                :: rho0_s_gs, rho_core
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys

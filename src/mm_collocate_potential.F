@@ -82,8 +82,8 @@ CONTAINS
     INTEGER, DIMENSION(3), INTENT(IN)        :: n_rep_real
     TYPE(cell_type), POINTER                 :: mm_cell
 
-    INTEGER                                  :: ig, ix, iy, iz, xlb, xub, &
-                                                ylb, yub, zlb, zub, cmax
+    INTEGER                                  :: cmax, ig, ix, iy, iz, xlb, &
+                                                xub, ylb, yub, zlb, zub
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     INTEGER, DIMENSION(3)                    :: cubecenter, lb_cube, ub_cube
     INTEGER, DIMENSION(:), POINTER           :: sphere_bounds
@@ -214,8 +214,8 @@ CONTAINS
     INTEGER, DIMENSION(3), INTENT(IN)        :: n_rep_real
     TYPE(cell_type), POINTER                 :: mm_cell
 
-    INTEGER                                  :: ig, ix, iy, iz, xlb, xub, &
-                                                ylb, yub, zlb, zub, cmax
+    INTEGER                                  :: cmax, ig, ix, iy, iz, xlb, &
+                                                xub, ylb, yub, zlb, zub
     INTEGER, DIMENSION(2, 3)                 :: gbo
     INTEGER, DIMENSION(3)                    :: cubecenter, lb_cube, ub_cube
     INTEGER, DIMENSION(:), POINTER           :: sphere_bounds

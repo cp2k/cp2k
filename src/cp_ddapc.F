@@ -38,8 +38,7 @@ MODULE cp_ddapc
   USE input_constants,                 ONLY: do_spin_density
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_get
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
   USE pw_types,                        ONLY: pw_integral_ab
@@ -312,7 +311,7 @@ CONTAINS
 
     INTEGER                                  :: handle, iw, my_id, stat
     LOGICAL                                  :: apply_restrain, failure, &
-                                                need_f, do_et
+                                                need_f
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charges, radii
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: dq

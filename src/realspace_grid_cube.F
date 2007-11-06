@@ -24,8 +24,8 @@ MODULE realspace_grid_cube
   USE message_passing,                 ONLY: mp_recv,&
                                              mp_send
   USE particle_list_types,             ONLY: particle_list_type
-  USE pw_types,                        ONLY: pw_type
   USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
+  USE pw_types,                        ONLY: pw_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"

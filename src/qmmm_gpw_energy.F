@@ -34,8 +34,8 @@ MODULE qmmm_gpw_energy
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: cube_info_type
   USE input_constants,                 ONLY: do_par_atom,&
-                                             do_qmmm_gauss,&
                                              do_qmmm_coulomb,&
+                                             do_qmmm_gauss,&
                                              do_qmmm_none,&
                                              do_qmmm_swave,&
                                              linear_interp,&

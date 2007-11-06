@@ -23,8 +23,7 @@
 !!****
 
 MODULE qs_linres_epr_ownutils
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
+  USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -32,25 +31,18 @@ MODULE qs_linres_epr_ownutils
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
-  USE memory_utilities,                ONLY: reallocate
-  USE message_passing,                 ONLY: mp_sum
   USE pw_types,                        ONLY: pw_integral_ab
   USE qs_core_energies,                ONLY: calculate_ecore
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_grid_atom,                    ONLY: grid_atom_type
-  USE qs_harmonics_atom,               ONLY: harmonics_atom_type
-  USE qs_linres_epr_atom_current,      ONLY: calculate_jrho_atom_ang
   USE qs_linres_epr_op,                ONLY: set_vecp
   USE qs_linres_types,                 ONLY: epr_env_type,&
                                              get_epr_env,&
                                              jrho_atom_type,&
                                              nablavks_atom_type
-  USE qs_rho_types,                    ONLY: qs_rho_type,&
-                                             qs_rho_p_type
+  USE qs_rho_types,                    ONLY: qs_rho_p_type,&
+                                             qs_rho_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
-  USE util,                            ONLY: get_limit
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -91,9 +83,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_g_print', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: output_unit
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: lr_section
-    INTEGER                                  :: output_unit
 
     NULLIFY(logger, lr_section)
 
@@ -164,15 +156,15 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_g_zke', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: i1, ispin, output_unit
+    REAL(KIND=dp)                            :: epr_g_zke_temp(2)
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(section_vals_type), POINTER         :: lr_section
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: kinetic
-    INTEGER                                  :: output_unit, ispin, i1
-    REAL(KIND=dp)                            :: epr_g_zke_temp(2)
+    TYPE(section_vals_type), POINTER         :: lr_section
 
     NULLIFY(dft_control, logger, lr_section, rho, kinetic, para_env)
 
@@ -237,41 +229,32 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_so', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_g_so', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: output_unit, ispin, iB, idir1, idir2, idir3,&
-                                                nkind, ikind, nr, na, natom, iat, iatom,&
-                                                num_pe, mepos, ir, ia, nspins
-    INTEGER, DIMENSION(2)                    :: bo
-    INTEGER, DIMENSION(:), POINTER           :: atom_list
-    REAL(dp)                                 :: temp_so_soft, hard_radius
-    REAL(dp), DIMENSION(3,3)                 :: temp_so_gapw
-    REAL(dp), DIMENSION(:,:), POINTER        :: g_total, g_so
-    LOGICAL                                  :: gapw, paw_atom
+    INTEGER                                  :: iB, idir1, idir2, idir3, &
+                                                ispin, nkind, nspins, &
+                                                output_unit
+    LOGICAL                                  :: gapw
+    REAL(dp)                                 :: temp_so_soft
+    REAL(dp), DIMENSION(:, :), POINTER       :: g_so, g_total
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(grid_atom_type), POINTER            :: grid_atom
-    TYPE(harmonics_atom_type), POINTER       :: harmonics
-    TYPE(jrho_atom_type),DIMENSION(:),&
+    TYPE(jrho_atom_type), DIMENSION(:), &
       POINTER                                :: jrho1_atom_set
-    TYPE(jrho_atom_type), POINTER            :: jrho1_atom
-    TYPE(qs_rho_p_type),DIMENSION(:,:),&
-      POINTER                                :: jrho1_set
-    TYPE(qs_rho_p_type),DIMENSION(:,:),&
-      POINTER                                :: nablavks_set 
-    TYPE(nablavks_atom_type),DIMENSION(:),&
-      POINTER                                :: nablavks_atom_set 
-    TYPE(nablavks_atom_type), POINTER        :: nablavks_atom
+    TYPE(nablavks_atom_type), DIMENSION(:), &
+      POINTER                                :: nablavks_atom_set
+    TYPE(qs_rho_p_type), DIMENSION(:, :), &
+      POINTER                                :: jrho1_set, nablavks_set
     TYPE(section_vals_type), POINTER         :: lr_section
 
     NULLIFY(logger, lr_section, para_env, dft_control)
-    NULLIFY(jrho1_atom_set, jrho1_set, nablavks_set, nablavks_atom_set, nablavks_atom, g_total, g_so)
-    NULLIFY(atomic_kind_set, grid_atom, harmonics, atom_kind, atom_list)
+    NULLIFY(jrho1_atom_set, jrho1_set, nablavks_set, nablavks_atom_set, &
+         g_total, g_so)
+    NULLIFY(atomic_kind_set)
 
     logger => cp_error_get_logger(error)
     lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
@@ -307,7 +290,7 @@ CONTAINS
                                 )
           END DO
           temp_so_soft = epr_env%g_so_factor * temp_so_soft
-	  IF (output_unit>0) THEN
+          IF (output_unit>0) THEN
                WRITE (UNIT=output_unit,FMT="(T2,A,T25,I1,I1,T60,F20.10)")&
                "epr(debug)|SO:soft",iB,idir1,temp_so_soft
           END IF
@@ -445,19 +428,19 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_soo', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_g_soo', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: output_unit, ispin, iB, idir1, &
-                                                nspins
-    REAL(dp), DIMENSION(:,:), POINTER        :: g_total, g_soo, bind0
+    INTEGER                                  :: iB, idir1, ispin, nspins, &
+                                                output_unit
+    REAL(dp), DIMENSION(:, :), POINTER       :: bind0, g_soo, g_total
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(qs_rho_p_type), DIMENSION(:, :), &
+      POINTER                                :: bind_set
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(section_vals_type), POINTER         :: lr_section
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(qs_rho_p_type), DIMENSION(:,:), &
-      POINTER                                :: bind_set
 
     NULLIFY(logger, lr_section, para_env, dft_control, rho,&
             bind_set, g_soo, g_total, bind0)
@@ -493,7 +476,7 @@ CONTAINS
 
     DO iB=1,3
        DO idir1=1,3
-       Write(6,*) iB, idir1, bind0(idir1,iB)
+       WRITE(6,*) iB, idir1, bind0(idir1,iB)
           g_soo(iB,idir1) = g_soo(iB,idir1) + epr_env%g_soo_chicorr_factor * bind0(idir1,iB)
           g_total(iB,idir1) = g_total(iB,idir1) + g_soo(iB,idir1)
           IF (output_unit>0) THEN

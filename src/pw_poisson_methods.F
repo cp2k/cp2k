@@ -28,9 +28,8 @@ MODULE pw_poisson_methods
                                              cell_type
   USE input_constants,                 ONLY: &
        ANALYTIC0D, ANALYTIC1D, ANALYTIC2D, MT0D, MT1D, MT2D, MULTIPOLE0D, &
-       PERIODIC3D, do_ewald_spme, use_analytic, use_mt, use_multipole, &
-       use_none, use_periodic, use_wavelet, use_rs_grid, use_gs_grid
-
+       PERIODIC3D, do_ewald_spme, use_analytic, use_gs_grid, use_mt, &
+       use_multipole, use_none, use_periodic, use_rs_grid, use_wavelet
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_release,&
                                              section_vals_retain,&
@@ -38,11 +37,11 @@ MODULE pw_poisson_methods
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi
-  USE ps_wavelet_types,                ONLY: ps_wavelet_type,&
+  USE ps_wavelet_types,                ONLY: cp2k_distribution_to_z_slices,&
                                              ps_wavelet_create,&
-                                             cp2k_distribution_to_z_slices,&
-                                             z_slices_to_cp2k_distribution,&
-                                             ps_wavelet_solve
+                                             ps_wavelet_solve,&
+                                             ps_wavelet_type,&
+                                             z_slices_to_cp2k_distribution
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_release,&
                                              pw_grid_retain
@@ -56,16 +55,9 @@ MODULE pw_poisson_methods
                                              pw_pool_type,&
                                              pw_pools_copy,&
                                              pw_pools_dealloc
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             REALDATA3D,&
-                                             RECIPROCALSPACE,&
-                                             REALSPACE,&
-                                             pw_copy,&
-                                             pw_derive,&
-                                             pw_integral_ab,&
-                                             pw_p_type,&
-                                             pw_transfer,&
-                                             pw_type
+  USE pw_types,                        ONLY: &
+       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_copy, &
+       pw_derive, pw_integral_ab, pw_p_type, pw_transfer, pw_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -149,7 +141,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_check', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ewald_kind, i_val, s_order,itype_scf
+    INTEGER                                  :: ewald_kind, i_val, itype_scf, &
+                                                s_order
     LOGICAL                                  :: failure, rebuild
     REAL(kind=dp)                            :: alpha
     TYPE(greens_fn_type), POINTER            :: green
@@ -247,10 +240,12 @@ CONTAINS
   !!*** **********************************************************************
   SUBROUTINE pw_poisson_rebuild(poisson_env,density,error)
     TYPE(pw_poisson_type), POINTER           :: poisson_env
+    TYPE(pw_type), OPTIONAL, POINTER         :: density
     TYPE(cp_error_type), INTENT(inout)       :: error
-    TYPE(pw_type), POINTER,OPTIONAL          :: density
+
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_rebuild', &
       routineP = moduleN//':'//routineN
+
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -320,14 +315,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_solve', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: alpha, beta, i, ng, ig
+    INTEGER                                  :: alpha, beta, i, ig, ng
     INTEGER, DIMENSION(3)                    :: n
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ffa
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(pw_p_type)                          :: dvg( 3 )
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(pw_type), POINTER                   :: rhog, tmpg,rhor
+    TYPE(pw_type), POINTER                   :: rhog, rhor, tmpg
 
 !------------------------------------------------------------------------------
 
@@ -339,7 +334,7 @@ CONTAINS
        CALL cp_error_check(error,failure)
     END IF
     IF (.NOT.failure) THEN
-	
+        
           NULLIFY (pw_grid,rhog)
           ! point pw
           pw_pool => poisson_env%pw_pools(poisson_env%pw_level)%pool

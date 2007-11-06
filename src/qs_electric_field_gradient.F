@@ -100,16 +100,16 @@ CONTAINS
     INTEGER :: aint_precond, i, iat, iatom, ij, ikind, istat, j, m, max_iter, &
       natom, natomkind, nkind, nspins, precond_kind, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: efg_interpolation, failure, &
-                                                gapw, paw_atom, smoothing, &
-                                                efg_debug, success
+    LOGICAL                                  :: efg_debug, efg_interpolation, &
+                                                failure, gapw, paw_atom, &
+                                                smoothing, success
     REAL(KIND=dp)                            :: ecut, efg_units, efg_val, &
                                                 ehartree, eps_r, eps_x, f1, &
                                                 f2, sigma
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: efg_diagval, vh0
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: efg_tensor, efg_pw
+      DIMENSION(:, :, :)                     :: efg_pw, efg_tensor
     REAL(KIND=dp), DIMENSION(3)              :: eigenvalues, ra
     REAL(KIND=dp), DIMENSION(3, 3)           :: eigenvectors
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rvals

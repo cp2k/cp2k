@@ -25,10 +25,7 @@
 
 MODULE qs_linres_epr_bind0
 
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
-  USE cell_types,                      ONLY: cell_type,&
-                                             pbc
+  USE cell_types,                      ONLY: cell_type
   USE coefficient_types,               ONLY: coeff_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
@@ -42,40 +39,15 @@ MODULE qs_linres_epr_bind0
                                              cp_fm_release,&
                                              cp_fm_set_submatrix,&
                                              cp_fm_type
-  USE cp_output_handling,              ONLY: cp_p_file,&
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
-  USE mathconstants,                   ONLY: gaussi, twopi
-  USE mathlib,                         ONLY: diamat_all
-  USE message_passing,                 ONLY: mp_sum
-  USE particle_types,                  ONLY: particle_type
-  USE pw_env_types,                    ONLY: pw_env_get,&
-                                             pw_env_type
+  USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: gaussi
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                             pw_pool_give_back_coeff,&
                                              pw_pool_give_back_pw,&
-                                             pw_pool_init_coeff,&
                                              pw_pool_type
-  USE pw_spline_utils,                 ONLY: Eval_Interp_Spl3_pbc,&
-                                             find_coeffs,&
-                                             pw_spline_do_precond,&
-                                             pw_spline_precond_create,&
-                                             pw_spline_precond_release,&
-                                             pw_spline_precond_set_kind,&
-                                             pw_spline_precond_type,&
-                                             spl3_pbc
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_transfer,&
                                              pw_type
@@ -83,8 +55,8 @@ MODULE qs_linres_epr_bind0
                                              qs_environment_type
   USE qs_linres_epr_op,                ONLY: ind_m2,&
                                              set_vecp
-  USE qs_linres_types,                 ONLY: get_epr_env,&
-                                             epr_env_type
+  USE qs_linres_types,                 ONLY: epr_env_type,&
+                                             get_epr_env
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_operators_ao,                 ONLY: rRc_xyz_der_ao,&
@@ -94,7 +66,6 @@ MODULE qs_linres_epr_bind0
                                              real_matrix_p_type,&
                                              replicate_matrix_structure,&
                                              set_matrix
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -106,7 +77,7 @@ MODULE qs_linres_epr_bind0
   ! *** Public subroutines ***
   PUBLIC :: chicorr_analytic, mult_G_ov_G2_grid !R
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_epr_shift'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_epr_bind0'
 
 !!***
 ! **************
@@ -120,13 +91,13 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: ispin, iB
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'chi_analytic', &
-         routineP = moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'chicorr_analytic', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, idir, idir2, ii, &
                                                 iiB, iii, iiiB, istat, &
                                                 istate, nao, nstates(2), &
-						output_unit
+                                                output_unit
     LOGICAL                                  :: failure, gapw, ionode
     REAL(dp)                                 :: chi(3), contrib, contrib2, &
                                                 dk(3)
@@ -146,11 +117,11 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
-         POINTER                             :: mos
+      POINTER                                :: mos
     TYPE(real_matrix_p_type), DIMENSION(:), &
-         POINTER                             :: matrix_s, op_mom_ao, op_p_ao
+      POINTER                                :: matrix_s, op_mom_ao, op_p_ao
     TYPE(real_matrix_p_type), &
-         DIMENSION(:, :), POINTER            :: op_mom_der_ao
+      DIMENSION(:, :), POINTER               :: op_mom_der_ao
 
 !
 

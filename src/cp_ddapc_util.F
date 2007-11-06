@@ -108,7 +108,8 @@ CONTAINS
 
     INTEGER                                  :: handle, i, iw, iw2, &
                                                 n_rep_val, num_gauss, stat
-    LOGICAL                                  :: allocate_ddapc_env, failure, unimplemented
+    LOGICAL                                  :: allocate_ddapc_env, failure, &
+                                                unimplemented
     REAL(KIND=dp)                            :: gcut, pfact, rcmin, Vol
     REAL(KIND=dp), DIMENSION(:), POINTER     :: inp_radii, radii
     TYPE(cell_type), POINTER                 :: cell, super_cell

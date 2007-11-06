@@ -38,18 +38,18 @@ MODULE qs_loc_methods
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              fm_pool_create_fm
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type
   USE cp_fm_types,                     ONLY: &
        cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, &
        cp_fm_p_type, cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, &
        cp_fm_to_fm, cp_fm_type
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                             cp_fm_struct_release,&
-                                             cp_fm_struct_type
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
   USE input_constants,                 ONLY: do_loc_crazy,&
@@ -100,7 +100,6 @@ MODULE qs_loc_methods
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -695,8 +694,10 @@ CONTAINS
       POINTER                                :: moloc_coeff
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: op_fm_set
+    TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(localized_wfn_control_type), &
       POINTER                                :: localized_wfn_control
@@ -704,10 +705,10 @@ CONTAINS
       POINTER                                :: mos
     TYPE(real_matrix_p_type), &
       DIMENSION(:, :), POINTER               :: op_sm_set
-    !
-    TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    !
+
+!
+!
+
     failure = .FALSE.
     my_one_spin = .FALSE.
     IF(PRESENT(onlyspin1)) my_one_spin = onlyspin1

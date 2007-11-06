@@ -23,19 +23,16 @@
 
 MODULE qs_epr_hyp
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind_set,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE coefficient_types,               ONLY: coeff_reduce,&
-                                             coeff_scale,&
                                              coeff_sumup,&
-                                             coeff_transform_space,&
                                              coeff_type,&
                                              coeff_zero
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_output_handling,              ONLY: cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -45,13 +42,13 @@ MODULE qs_epr_hyp
                                              mp_sync
   USE particle_types,                  ONLY: particle_type
   USE periodic_table,                  ONLY: ptable
-  USE physcon,                         ONLY: a_fine,&
-                                             a_bohr,&
-                                             mu_perm,&
+  USE physcon,                         ONLY: a_bohr,&
+                                             a_fine,&
                                              e_charge,&
-                                             e_mass,&
                                              e_gfactor,&
-                                             h_bar 
+                                             e_mass,&
+                                             h_bar,&
+                                             mu_perm
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_grid_types,                   ONLY: pw_grid_type
@@ -65,11 +62,10 @@ MODULE qs_epr_hyp
                                              qs_environment_type
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: harmonics_atom_type
-  USE qs_linres_types,                 ONLY: linres_control_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                              rho_atom_coeff,&
                                              rho_atom_type
+  USE qs_rho_types,                    ONLY: qs_rho_type
   USE util,                            ONLY: get_limit
 #include "cp_common_uses.h"
 
@@ -78,7 +74,7 @@ MODULE qs_epr_hyp
   PRIVATE
   PUBLIC :: qs_epr_hyp_calc
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_epr_hyp'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_epr_hyp'
 
 !*******************************************************************************
 
@@ -91,14 +87,29 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_epr_hyp_calc',&
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_epr_hyp_calc', &
       routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=2)                         :: element_symbol
+    INTEGER :: bo(2), group, ia, iat, iatom, idir1, idir2, ig, ikind, ir, &
+      iso, istat, jatom, mepos, natom, natomkind, nkind, num_pe, output_unit, &
+      z
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    LOGICAL                                  :: failure, lsd, paw_atom
+    REAL(dp)                                 :: arg, hard_radius, &
+                                                hypanisotemp, hypfactor, &
+                                                int_radius, rab2, rtemp, sum
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: hypiso, hypiso_one
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: hypaniso
+    REAL(KIND=dp), DIMENSION(3)              :: ra, rab
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type), POINTER                :: rhototspin_elec_gspace,&
-                                                hypaniso_gspace
+    TYPE(coeff_type), POINTER                :: hypaniso_gspace, &
+                                                rhototspin_elec_gspace
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -115,39 +126,11 @@ CONTAINS
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
     TYPE(rho_atom_type), POINTER             :: rho_atom
-    TYPE(section_vals_type), POINTER         :: dft_section, epr_section
-    CHARACTER(LEN=2)                         :: element_symbol
-    INTEGER                                  :: output_unit, natom, natomkind, &
-                                                ikind, nkind, ir, ia, iat, &
-                                                iso, iatom, jatom, z, istat, &
-                                                idir1, idir2, ig, group, &
-                                                bo(2), num_pe, mepos
-    INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: all_potential_present, paw_atom, &
-                                                lsd, failure
-    REAL(dp)                                 :: hypanisotemp, sum, hard_radius, arg, &
-                                                rab2, rtemp, int_radius, hypfactor
-    REAL(KIND=dp), DIMENSION(3)              :: ra, rab
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:)                           :: hypiso, hypiso_one
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: hypaniso
+    TYPE(section_vals_type), POINTER         :: dft_section
 
-    NULLIFY(pw_env,&
-            cell,&
-            atomic_kind_set,&
-            auxbas_pw_pool,&
-            dft_control,&
-            epr_section,&
-            logger,&
-            dft_section,&
-            para_env,&
-            particle_set,&
-            rho,&
-            rho_atom,&
-            rho_atom_set,&
-            rhototspin_elec_gspace,&
-            hypaniso_gspace)
+    NULLIFY(pw_env, cell, atomic_kind_set, auxbas_pw_pool, dft_control, &
+         logger, dft_section, para_env, particle_set, rho, rho_atom, &
+         rho_atom_set, rhototspin_elec_gspace, hypaniso_gspace)
 
     logger => cp_error_get_logger(error)
     dft_section => section_vals_get_subs_vals(qs_env%input,"DFT",error=error)

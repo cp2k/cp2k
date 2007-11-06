@@ -44,7 +44,7 @@ MODULE pw_poisson_types
        PERIODIC3D, do_ewald_none, do_ewald_spme, use_analytic, use_mt, &
        use_multipole, use_none, use_perd_none, use_perd_x, use_perd_xy, &
        use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, use_perd_z, &
-       use_periodic,use_wavelet
+       use_periodic
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_release,&
                                              section_vals_type,&
@@ -54,8 +54,8 @@ MODULE pw_poisson_types
                                              pi,&
                                              twopi
   USE mt_util,                         ONLY: MTin_create_screen_fn
-  USE ps_wavelet_types,                ONLY: ps_wavelet_type,&
-                                             ps_wavelet_release
+  USE ps_wavelet_types,                ONLY: ps_wavelet_release,&
+                                             ps_wavelet_type
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_release
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&

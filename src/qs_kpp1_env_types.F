@@ -32,8 +32,7 @@ MODULE qs_kpp1_env_types
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             default_path_length,&
+  USE kinds,                           ONLY: default_path_length,&
                                              dp
   USE pw_types,                        ONLY: pw_p_type
   USE realspace_grid_cube,             ONLY: pw_to_cube

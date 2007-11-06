@@ -44,7 +44,6 @@ MODULE qs_linres_epr_current
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                             cp_fm_gemm,&
                                              cp_fm_scale_and_add
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -67,77 +66,73 @@ MODULE qs_linres_epr_current
                                              rs_pool_create_rs,&
                                              rs_pool_give_back_rs,&
                                              rs_pools_create_rs_vect
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
-                                             cp_sm_plus_fm_fm_t
-  USE cube_utils,                      ONLY: cube_info_type,&
-                                             return_cube
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_plus_fm_fm_t
+  USE cube_utils,                      ONLY: cube_info_type
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type
-  USE kinds,                           ONLY: dp,&
-                                             default_path_length
+  USE kinds,                           ONLY: default_path_length,&
+                                             dp
   USE mathconstants,                   ONLY: twopi
   USE memory_utilities,                ONLY: reallocate
-  USE orbital_pointers,                ONLY: coset,&
-                                             ncoset
+  USE orbital_pointers,                ONLY: ncoset
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
                                              pw_pool_init_coeff,&
                                              pw_pool_p_type,&
-                                             pw_pool_type,&
-                                             pw_pools_init_coeffs
+                                             pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE
-  USE qs_collocate_density,            ONLY: calculate_wavefunction,&
+  USE qs_collocate_density,            ONLY: calculate_total_rho,&
                                              collocate_pgf_product_rspace,&
                                              density_rs2pw,&
-                                             lgrid_type,&
-                                             calculate_total_rho
+                                             lgrid_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_interactions,                 ONLY: exp_radius_very_extended
   USE qs_linres_epr_atom_current,      ONLY: calculate_jrho_atom_coeff,&
-                                             calculate_jrho_atom_rad !R ,&
+                                             calculate_jrho_atom_rad
+!R ,&
 !R                                           shift_atom
-  USE qs_linres_epr_op,                ONLY: fac_vecp,&
-                                             set_vecp,&
-                                             set_vecp_rev
-  USE qs_linres_epr_bind0,             ONLY: chicorr_analytic,& !R
-                                             mult_G_ov_G2_grid !R					       
+  USE qs_linres_epr_bind0,             ONLY: chicorr_analytic,&
+                                             mult_G_ov_G2_grid
+!R
+!R                                               
 !R  USE qs_linres_epr_shift,             ONLY: chi_analytic,&
 !R                                             interpolate_shift_pwgrid,&
 !R                                             gsum_shift_pwgrid,&
 !R                                             mult_G_ov_G2_grid
+  USE qs_linres_epr_op,                ONLY: fac_vecp,&
+                                             set_vecp,&
+                                             set_vecp_rev
   USE qs_linres_types,                 ONLY: epr_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE qs_modify_pab_block,             ONLY: FUNC_AB,&
-                                             FUNC_ADBmDAB,&
+  USE qs_modify_pab_block,             ONLY: FUNC_ADBmDAB,&
                                              FUNC_ARDBmDARB
   USE qs_neighbor_list_types,          ONLY: &
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
        neighbor_node_type, next
-  USE qs_operators_ao,                 ONLY: rRc_xyz_ao
   USE qs_rho_types,                    ONLY: qs_rho_type
+  USE realspace_grid_cube,             ONLY: pw_to_cube
   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
                                              realspace_grid_type,&
                                              rs_grid_zero
-  USE realspace_grid_cube,             ONLY: pw_to_cube
   USE realspace_task_selection,        ONLY: rs_get_loop_vars,&
                                              rs_get_my_tasks
-  USE sparse_matrix_types,             ONLY: &
-       add_block_node, allocate_matrix, allocate_matrix_set, &
-       deallocate_matrix, deallocate_matrix_set, get_block_node, &
-       real_matrix_p_type, real_matrix_type, replicate_matrix_structure, &
-       set_matrix
+  USE sparse_matrix_types,             ONLY: add_block_node,&
+                                             allocate_matrix,&
+                                             deallocate_matrix,&
+                                             get_block_node,&
+                                             real_matrix_p_type,&
+                                             real_matrix_type,&
+                                             set_matrix
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -202,33 +197,34 @@ CONTAINS
     TYPE(epr_env_type)                       :: epr_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
-         POINTER                             :: psi1, p_psi1
+      POINTER                                :: psi1, p_psi1
     TYPE(cp_error_type), INTENT(INOUT)       :: error
-    !
+
     CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_response_current', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: ext, filename
     INTEGER :: handle, homo, i_B, iao, iatom, idir, idir2, idir3, ii_B, &
-         iii_B, ispin, istat, istate, nao, natom, nmo, nspins, unit_nr, output_unit
+      iii_B, ispin, istat, istate, nao, natom, nmo, nspins, output_unit, &
+      unit_nr
     LOGICAL                                  :: failure, gapw, ionode, uni_occ
-    REAL(dp)                                 :: alpha, dk(3), jrho_tot, &
-                                                maxocc,& !R my_chi,&
-                                                rmu(3), rmu_dk(3), &
-                                                scale_fac, &
-                                                jrho_tot_G(3,3), jrho_tot_R(3,3)
+    REAL(dp)                                 :: alpha, dk(3), &
+                                                jrho_tot_G(3,3), &
+                                                jrho_tot_R(3,3), maxocc, &
+                                                rmu(3), rmu_dk(3), scale_fac
     REAL(dp), DIMENSION(:), POINTER          :: occupation
     REAL(dp), DIMENSION(:, :), POINTER       :: vecbuf_psi1
+    REAL(dp), EXTERNAL                       :: DDOT
     TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type)                         :: pw_gspace_work, &
-                                                shift_pw_rspace
-    TYPE(coeff_type), DIMENSION(:,:), POINTER:: shift_pw_gspace
+                                                shift_pw_rspace, wf_r
+    TYPE(coeff_type), DIMENSION(:, :), &
+      POINTER                                :: shift_pw_gspace
     TYPE(coeff_type), POINTER                :: rho_gspace, rho_rspace
-    TYPE(coeff_type)                         :: wf_r
     TYPE(cp_2d_r_p_type), DIMENSION(3)       :: vecbuf
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
-    TYPE(cp_fm_type), POINTER                :: fm_work1, mo_coeff, &
-                                                psi0_fk, psi_a_iB
+    TYPE(cp_fm_type), POINTER                :: fm_work1, mo_coeff, psi0_fk, &
+                                                psi_a_iB
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
@@ -242,14 +238,17 @@ CONTAINS
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho_struct
-    TYPE(real_matrix_p_type), DIMENSION(:),&
+    TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: density_matrix, &
                                                 density_matrix_ii, &
                                                 density_matrix_iii
     TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(section_vals_type), POINTER         :: epr_section
-    REAL(dp), EXTERNAL                       :: DDOT
-    !
+
+!
+!R my_chi,&
+!
+
     failure = .FALSE.
     CALL timeset("epr_response_current","I"," ",handle)
     !
@@ -366,9 +365,9 @@ CONTAINS
              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
              !
              ! First compute the contribution to the CHI tensor coming from the soft density
-	     IF (ispin == 2) THEN
+             IF (ispin == 2) THEN
                 CALL chicorr_analytic(epr_env,qs_env,ispin,i_B,error=error)
-	     END IF
+             END IF
              !
              ! Construct the 3 density matrices for the field in direction i_B
              !
@@ -522,9 +521,9 @@ CONTAINS
           IF (dft_control%nspins == 2) THEN !R
              DO idir = 1,3 !R
                 ! CALL coeff_copy(shift_pw_gspace(idir,2), epr_env%bind_set(idir,i_B)%rho%rho_g(1)) !R
-		CALL coeff_transform_space(shift_pw_gspace(idir,2),epr_env%bind_set(idir,i_B)%rho%rho_r(1)) !R
+                CALL coeff_transform_space(shift_pw_gspace(idir,2),epr_env%bind_set(idir,i_B)%rho%rho_r(1)) !R
              ENDDO !R
-	  END IF !R
+          END IF !R
 
           IF(gapw) THEN
              DO idir = 1,3
@@ -572,9 +571,9 @@ CONTAINS
           IF (BTEST(cp_print_key_should_output(logger%iter_info,epr_section,&
                &    "PRINT%CURRENT_CUBES",error=error),cp_p_file)) THEN
              IF(output_unit>0) THEN
-                write(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
-                write(output_unit,*) 'Are you sure you want to punch current density cube files?'
-                write(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
+                WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
+                WRITE(output_unit,*) 'Are you sure you want to punch current density cube files?'
+                WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
              ENDIF
              DO idir = 1,3
                 CALL coeff_zero(wf_r)

@@ -76,8 +76,7 @@ MODULE qs_rho0_ggrid
                                              rs2pw,&
                                              rs_grid_zero,&
                                              rs_pw_transfer
-  USE realspace_task_selection,        ONLY: rs_get_loop_vars,&
-                                             rs_get_my_tasks
+  USE realspace_task_selection,        ONLY: rs_get_my_tasks
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -116,7 +115,7 @@ MODULE qs_rho0_ggrid
 
     INTEGER :: auxbas_grid, bo(2), dir, handle, iat, iatom, igrid, ikind, &
       istat, ithread, j, l0_ikind, lmax0, nat, nch_ik, nch_max, ncurr, nkind, &
-      npme, omp_get_thread_num
+      npme
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     INTEGER, DIMENSION(:, :), POINTER        :: tasks
     LOGICAL                                  :: failure
@@ -406,7 +405,7 @@ MODULE qs_rho0_ggrid
       ig1, ig2, igrid, ikind, ipgf1, ipgf2, is, iset1, iset2, iso, iso1, &
       iso2, ispin, istat, ithread, j, l0_ikind, lmax0, lshell, lx, ly, lz, &
       m1, m2, maxso, n1, n2, nat, nch_ik, nch_max, ncurr, npme, nset, nspins, &
-      nthread, omp_get_max_threads, omp_get_thread_num
+      nthread, omp_get_thread_num
     INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, npgf
     INTEGER, DIMENSION(:, :), POINTER        :: tasks
     LOGICAL                                  :: failure, my_tddft, paw_atom

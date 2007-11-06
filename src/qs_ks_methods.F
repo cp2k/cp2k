@@ -36,8 +36,8 @@ MODULE qs_ks_methods
   USE coefficient_types,               ONLY: &
        coeff_add, coeff_copy, coeff_init, coeff_scale, coeff_subtract, &
        coeff_sumup, coeff_transform_space, coeff_type, coeff_zero
-  USE cp_control_types,                ONLY: dft_control_type,&
-                                             becke_constraint_type
+  USE cp_control_types,                ONLY: becke_constraint_type,&
+                                             dft_control_type
   USE cp_ddapc,                        ONLY: cp_ddapc_apply,&
                                              cp_ddapc_apply_CD
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
@@ -66,7 +66,6 @@ MODULE qs_ks_methods
                                              copy_sm_to_fm,&
                                              cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
-
   USE ep_qs_types,                     ONLY: ep_qs_type
   USE et_coupling,                     ONLY: becke_constraint
   USE four_center_integrals,           ONLY: derivatives_four_center,&
@@ -75,15 +74,9 @@ MODULE qs_ks_methods
   USE hartree_local_2centers,          ONLY: integrate_vhg0_g0
   USE hartree_local_3centers,          ONLY: integrate_a_vhg0_b
   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
-  USE input_constants,                 ONLY: do_spin_density,&
-                                             sic_ad,&
-                                             sic_mauri_spz,&
-                                             sic_mauri_us,&
-                                             sic_none,&
-                                             sic_eo,&
-                                             sic_list_all,&
-                                             sic_list_unpaired,&
-                                             xc_none
+  USE input_constants,                 ONLY: &
+       do_spin_density, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, &
+       sic_mauri_spz, sic_mauri_us, sic_none, xc_none
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -140,10 +133,10 @@ MODULE qs_ks_methods
   USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
   USE s_square_methods,                ONLY: s2_restraint
   USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
+                                             deallocate_matrix,&
                                              real_matrix_p_type,&
                                              real_matrix_type,&
                                              replicate_matrix_structure,&
-                                             deallocate_matrix,&
                                              set_matrix,&
                                              transfer_matrix
   USE timings,                         ONLY: timeset,&
@@ -324,26 +317,25 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: cc_new, cc_old
-    INTEGER                                  :: dir, handle, ig, ispin, k, &
-                                                k2, my_id, n, nspins, &
+    INTEGER                                  :: handle, ig, ispin, k, k2, &
+                                                my_id, n, nspins, &
                                                 output_unit, stat
-    LOGICAL :: ddapc_restraint_is_spin, do_ep, do_hf, et_coupling_calc, &
-      explicit_potential, failure, gapw, gapw_xc, ionode, my_diis_step, &
-      my_kg_gpw, use_virial, use_eri_symmetry, do_hf_periodic
+    LOGICAL :: ddapc_restraint_is_spin, do_ep, do_hf, do_hf_periodic, &
+      et_coupling_calc, explicit_potential, failure, gapw, gapw_xc, ionode, &
+      my_diis_step, my_kg_gpw, use_virial
     REAL(KIND=dp)                            :: a_mix, b_mix, ddapc_order_p, &
-                                                f_mix, mulliken_order_p, &
-                                                s2_order_p,inv_vol
+                                                f_mix, inv_vol, &
+                                                mulliken_order_p, s2_order_p
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_stress
     REAL(KIND=dp), DIMENSION(:), POINTER     :: g2, occupation_numbers, &
                                                 scaling_factor
+    TYPE(becke_constraint_type), POINTER     :: becke
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type) :: ep_pot_r_coeff, ep_rho_g, ep_rho_r, &
-      rho_tot_gspace, v_hartree_gspace, v_sic_rspace, v_spin_ddapc_rest_g, &
-      v_spin_ddapc_rest_r
+    TYPE(coeff_type) :: ep_pot_r_coeff, ep_rho_g, ep_rho_r, rho_tot_gspace, &
+      v_hartree_gspace, v_sic_rspace, v_spin_ddapc_rest_g, v_spin_ddapc_rest_r
     TYPE(coeff_type), DIMENSION(:), POINTER  :: v_rspace_new, v_tau_rspace
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs
-    TYPE(becke_constraint_type),POINTER      :: becke
     TYPE(cp_fm_type), POINTER                :: hc_tmp, mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -361,7 +353,8 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_dv, matrix_h, &
                                                 matrix_s, my_rho, rest_mat
-    TYPE(section_vals_type), POINTER         :: hf_section, input, scf_section, hf_pbc_section
+    TYPE(section_vals_type), POINTER         :: hf_pbc_section, hf_section, &
+                                                input, scf_section
     TYPE(virial_type), POINTER               :: virial
 
     failure=.FALSE.
@@ -1162,33 +1155,30 @@ CONTAINS
     CHARACTER(*), PARAMETER :: routineN = 'sic_explicit_orbitals', &
       routineP = moduleN//':'//routineN
 
-    INTEGER, ALLOCATABLE, DIMENSION(:,:)     :: sic_orbital_list
+    INTEGER                                  :: handle, i, Iorb, k_alpha, &
+                                                k_beta, Norb, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: sic_orbital_list
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: ener, exc, total_rho
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: scaling_factor
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(coeff_type)                         :: orb_rho_g, orb_rho_r, tmp_g, &
+                                                tmp_r, work_v_gspace, &
+                                                work_v_rspace
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: mo_derivs
-    TYPE(becke_constraint_type),POINTER      :: becke
+      POINTER                                :: mo_derivs, mo_derivs_local
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(cp_fm_type), POINTER                :: matrix_hv, matrix_v, mo_coeff
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
-    TYPE(cp_fm_type), POINTER                :: mo_coeff
-    TYPE(coeff_type)                         :: orb_rho_r, orb_rho_g, &
-                                                work_v_gspace, &
-                                                work_v_rspace, tmp_g, tmp_r
-    TYPE(real_matrix_type), POINTER          :: orb_density_matrix,orb_h
-    TYPE(real_matrix_p_type)                 :: orb_density_matrix_p,orb_h_p
-    TYPE(cp_fm_type), POINTER                :: matrix_v, matrix_hv
-    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: mo_derivs_local
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r, tau, vxc, &
+                                                vxc_tau
     TYPE(pw_pool_type), POINTER              :: xc_pw_pool
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(real_matrix_p_type)                 :: orb_density_matrix_p, orb_h_p
+    TYPE(real_matrix_type), POINTER          :: orb_density_matrix, orb_h
     TYPE(section_vals_type), POINTER         :: input, xc_section
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc, rho_g, rho_r, tau, vxc_tau
-    TYPE(cell_type), POINTER                 :: cell
-
-    INTEGER :: Norb,Iorb,stat,handle,i,k_alpha,k_beta,n
-    LOGICAL :: failure
-    REAL(KIND=dp) :: total_rho, ener, exc
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: scaling_factor
 
     IF (dft_control%sic_method_id .NE. sic_eo) RETURN
 

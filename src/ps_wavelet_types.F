@@ -22,9 +22,9 @@
 
 MODULE ps_wavelet_types
 
-  USE bibliography,                    ONLY: cite_reference,&
-                                             Genovese2006,&
-                                             Genovese2007
+  USE bibliography,                    ONLY: Genovese2006,&
+                                             Genovese2007,&
+                                             cite_reference
   USE input_constants,                 ONLY: use_perd_none,&
                                              use_perd_x,&
                                              use_perd_xy,&

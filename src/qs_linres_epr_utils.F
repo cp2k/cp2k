@@ -35,7 +35,6 @@ MODULE qs_linres_epr_utils
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE coefficient_types,               ONLY: coeff_zero
-  USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
@@ -61,28 +60,28 @@ MODULE qs_linres_epr_utils
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_parser,                       ONLY: cp_parser_type,&
-                                             parser_create,&
-                                             parser_get_next_line,&
-                                             parser_get_object,&
-                                             parser_release
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE input_constants,                 ONLY: restart_guess
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: default_string_length,&
-                                             default_path_length,&
+  USE kinds,                           ONLY: default_path_length,&
                                              dp
-  USE mathconstants,                   ONLY: twopi,& !R
-                                             fourpi !R
+  USE mathconstants,                   ONLY: fourpi,&
+                                             twopi
+!R
+!R
   USE memory_utilities,                ONLY: reallocate
   USE particle_types,                  ONLY: particle_type
-  USE physcon,                         ONLY: e_mass,& !R
-                                             e_charge,& !R
-                                             mu_perm,& !R
-                                             a_bohr !R
+  USE physcon,                         ONLY: a_bohr,&
+                                             e_charge,&
+                                             e_mass,&
+                                             mu_perm
+!R
+!R
+!R
+!R
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_init_coeff,&
@@ -93,22 +92,19 @@ MODULE qs_linres_epr_utils
                                              RECIPROCALSPACE
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_linres_methods,               ONLY: linres_scf
   USE qs_linres_epr_atom_current,      ONLY: list_3c_jrho_atom
   USE qs_linres_epr_current,           ONLY: epr_response_current
   USE qs_linres_epr_op,                ONLY: set_vecp
 !RUSE qs_linres_epr_shift,             ONLY: epr_print_shift
-  USE qs_linres_types,                 ONLY: deallocate_jrho_atom_set,&
-                                             deallocate_nablavks_atom_set,& !R
-                                             get_epr_env,&
-                                             init_jrho_atom_set,&
-					     init_nablavks_atom_set,& !R
-                                             jrho_atom_type,&
-					     nablavks_atom_type,& !R
-                                             linres_control_type,&
-                                             epr_env_create,&
-                                             epr_env_type,&
-                                             set_epr_env
+  USE qs_linres_methods,               ONLY: linres_scf
+  USE qs_linres_types,                 ONLY: &
+       deallocate_jrho_atom_set, deallocate_nablavks_atom_set, &
+       epr_env_create, epr_env_type, get_epr_env, init_jrho_atom_set, &
+       init_nablavks_atom_set, jrho_atom_type, linres_control_type, &
+       nablavks_atom_type, set_epr_env
+!R
+!R
+!R
   USE qs_loc_methods,                  ONLY: qs_print_cubes
   USE qs_matrix_pools,                 ONLY: mpools_get,&
                                              qs_matrix_pools_type
@@ -117,11 +113,14 @@ MODULE qs_linres_epr_utils
   USE qs_operators_ao,                 ONLY: set_up_op_sm
   USE qs_p_env_types,                  ONLY: p_env_release,&
                                              qs_p_env_type
+  USE qs_rho_atom_methods,             ONLY: allocate_rho_atom_internals
+!R
+  USE qs_rho_atom_types,               ONLY: deallocate_rho_atom_set,&
+                                             rho_atom_type
+!R
+!R
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_retain
-  USE qs_rho_atom_methods,             ONLY: allocate_rho_atom_internals !R
-  USE qs_rho_atom_types,               ONLY: rho_atom_type,& !R
-                                             deallocate_rho_atom_set !R
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              deallocate_matrix,&
@@ -181,7 +180,7 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
-    TYPE(section_vals_type), POINTER         :: lr_section, epr_section
+    TYPE(section_vals_type), POINTER         :: epr_section, lr_section
 
 !
 
@@ -583,13 +582,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_env_init', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=2)                         :: label
-!R  CHARACTER(LEN=default_path_length)     :: nics_file_name
-    INTEGER :: handle, homo, i_B, icount, idir, ini, i1, ir, ispin, istat, & !R
-      istate, istate2, istate_next, j, k, n_mo(2), n_rep, nao, nat_print, &
-      natom, ncubes, nmo, nmoloc, nspins, nstates, output_unit
+    INTEGER :: handle, homo, i1, i_B, icount, idir, ini, ir, ispin, istat, &
+      istate, istate2, istate_next, j, k, n_mo(2), n_rep, nao, natom, ncubes, &
+      nmo, nmoloc, nspins, nstates, output_unit
     INTEGER, DIMENSION(:), POINTER           :: bounds, list
-    LOGICAL                                  :: failure, gapw, my_end
+    LOGICAL                                  :: failure, gapw
     LOGICAL, ALLOCATABLE, DIMENSION(:, :)    :: state_done
     REAL(dp)                                 :: center(3), center2(3), dist, &
                                                 mdist, rab(3)
@@ -597,17 +594,14 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_parser_type), POINTER            :: parser
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(jrho_atom_type), DIMENSION(:), &
       POINTER                                :: jrho1_atom_set
-    TYPE(rho_atom_type), DIMENSION(:), & !R
-      POINTER                                :: vks_atom_set !R
-    TYPE(nablavks_atom_type), DIMENSION(:), & !R
-      POINTER                                :: nablavks_atom_set !R
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
+    TYPE(nablavks_atom_type), DIMENSION(:), &
+      POINTER                                :: nablavks_atom_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -615,9 +609,17 @@ CONTAINS
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
+    TYPE(rho_atom_type), DIMENSION(:), &
+      POINTER                                :: vks_atom_set
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: lr_section, epr_section
+    TYPE(section_vals_type), POINTER         :: epr_section, lr_section
 
+!R  CHARACTER(LEN=default_path_length)     :: nics_file_name
+!R
+!R
+!R
+!R
+!R
 !
 
     CALL timeset("epr_env_init","I"," ",handle)
@@ -626,7 +628,7 @@ CONTAINS
 
     NULLIFY(atomic_kind_set, cell, dft_control, linres_control, scf_control)
     NULLIFY(logger, matrix_s, mos, mpools, epr_section, particle_set)
-    NULLIFY(auxbas_pw_pool,pw_env,parser)
+    NULLIFY(auxbas_pw_pool, pw_env)
     NULLIFY(jrho1_atom_set)
 
     n_mo(1:2) = 0
@@ -1228,7 +1230,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_env_cleanup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i_B, idir, ispin, istat, i, j
+    INTEGER                                  :: i, i_B, idir, ispin, istat, j
     LOGICAL                                  :: failure
 
     failure=.FALSE.

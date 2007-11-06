@@ -21,22 +21,13 @@
 
 MODULE qs_energy
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_control_utils,                ONLY: read_ddapc_section,&
-                                             read_becke_section
-  USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_p_type,&
-                                             cp_fm_to_fm
+  USE cp_control_utils,                ONLY: read_becke_section,&
+                                             read_ddapc_section
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE et_coupling,                     ONLY: calc_et_coupling
   USE global_types,                    ONLY: global_environment_type
-  USE input_section_types,             ONLY: section_vals_type
-  USE input_section_types,             ONLY: section_get_ival,&
-                                             section_get_lval,&
-                                             section_get_rval,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_get
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
@@ -44,8 +35,8 @@ MODULE qs_energy
   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
-  USE qs_dftb_matrices,                ONLY: build_dftb_matrices
   USE qs_dftb_dispersion,              ONLY: calculate_dftb_dispersion
+  USE qs_dftb_matrices,                ONLY: build_dftb_matrices
   USE qs_environment_methods,          ONLY: qs_env_update_s_mstruct
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -93,13 +84,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_energies', &
       routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
 
-    INTEGER                                  :: handle,ispin,istat
-    LOGICAL                                  :: right_iteration_level,do_et
+    INTEGER                                  :: handle
+    LOGICAL                                  :: do_et, right_iteration_level
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(section_vals_type), POINTER         :: input
-    TYPE(section_vals_type), POINTER         :: rest_b_section
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(section_vals_type), POINTER         :: input, rest_b_section
 
 !   ---------------------------------------------------------------------------
 

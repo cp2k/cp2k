@@ -72,8 +72,7 @@ MODULE qs_linres_nmr_utils
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: default_string_length,&
-                                             default_path_length,&
+  USE kinds,                           ONLY: default_path_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
   USE particle_types,                  ONLY: particle_type
@@ -572,7 +571,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2)                         :: label
-    CHARACTER(LEN=default_path_length)     :: nics_file_name
+    CHARACTER(LEN=default_path_length)       :: nics_file_name
     INTEGER :: handle, homo, i_B, icount, idir, ini, ir, ispin, istat, &
       istate, istate2, istate_next, j, k, n_mo(2), n_rep, nao, nat_print, &
       natom, ncubes, nmo, nmoloc, nspins, nstates, output_unit
@@ -1128,7 +1127,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_env_cleanup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i_B, idir, ispin, istat,i ,j
+    INTEGER                                  :: i, i_B, idir, ispin, istat, j
     LOGICAL                                  :: failure
 
     failure=.FALSE.
