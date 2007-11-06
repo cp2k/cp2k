@@ -97,13 +97,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="MAX_MEMORY",&
-            description="Defines the maximum amount of memory [MB] used to store precomputed "//&
-                         "four-center integrals",&
-            usage="MAX_MEMORY 512", default_i_val=512,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL cp_print_key_section_create(print_key,"HF_INFO",&
             description="Controls the printing basic info about hf method", &
             print_level=medium_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
@@ -124,6 +117,10 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
        CALL create_hf_load_balance_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+      
+       CALL create_hf_memory_section(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
@@ -438,7 +435,6 @@ CONTAINS
     END IF
  
   END SUBROUTINE create_hf_screening_section
-
 !***************************************************************************
 
 !!****f* input_cp2k_dft/create_hf_pbc_section [1.0] *
@@ -501,5 +497,69 @@ CONTAINS
     END IF
  
   END SUBROUTINE create_hf_pbc_section
+!***************************************************************************
+
+!!****f* input_cp2k_dft/create_hf_memory_section [1.0] *
+!!
+!!   NAME
+!!     create_hf_memory_section
+!!
+!!   FUNCTION
+!!     creates the input section for the hf-memory part
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_hf_memory_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_hf_memory_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"MEMORY",&
+            description="Sets up memory parameters if requested ",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+       NULLIFY(keyword)
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="EPS_STORAGE_SCALING",&
+            description="Scaling factor to scale eps_schwarz. Storage threshold for compression "//&
+                        "will be EPS_SCHWARZ*EPS_STORAGE_SCALING.",&
+            usage="EPS_STORAGE 1.0E-2",&
+            default_r_val=1.0E0_dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="MAX_MEMORY",&
+            description="Defines the maximum amount of memory [MB] used to store precomputed "//&
+                         "compressed four-center integrals",&
+            usage="MAX_MEMORY 256",&
+            default_i_val=512,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    END IF
+ 
+  END SUBROUTINE create_hf_memory_section
 
 END MODULE input_cp2k_hfx

@@ -74,6 +74,7 @@ MODULE x_hf
     INTEGER                                  :: max_memory              !! user def max memory MB
     INTEGER(int_8)                           :: max_compression_counter !! corresponding number of reals 
     LOGICAL                                  :: do_all_on_the_fly       !! max mem == 0 ?
+    REAL(dp)                                 :: eps_storage_scaling
   END TYPE
 
   TYPE x_hf_periodic_type
@@ -264,9 +265,12 @@ MODULE x_hf
     x_data%general_parameter%fraction = real_val
 
     !! MEMORY section
-    CALL section_vals_val_get(hf_section, "MAX_MEMORY", i_val=int_val, error=error)
+    hf_sub_section => section_vals_get_subs_vals(hf_section,"MEMORY",error=error)
+    CALL section_vals_val_get(hf_sub_section, "MAX_MEMORY", i_val=int_val, error=error)
     x_data%memory_parameter%max_memory = int_val
     x_data%memory_parameter%max_compression_counter = int_val*1024*128
+    CALL section_vals_val_get(hf_sub_section, "EPS_STORAGE_SCALING", r_val=real_val, error=error)
+    x_data%memory_parameter%eps_storage_scaling = real_val
     IF(int_val == 0) THEN
       x_data%memory_parameter%do_all_on_the_fly = .TRUE.
     ELSE

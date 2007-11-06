@@ -203,6 +203,7 @@ MODULE four_center_integrals
     TYPE(x_hf_memory_type)                   :: memory_parameter
     TYPE(x_hf_potential_type)                :: potential_parameter
     TYPE(x_hf_screening_type)                :: screening_parameter
+    REAL(dp)                                 :: eps_storage
 
     current_max_error = 0.0_dp
 
@@ -230,7 +231,7 @@ MODULE four_center_integrals
     mem_maxvals = 0_int_8
     compression_factor = 0.0_dp
 
-   
+ 
     !! We do not need the containers if MAX_MEM = 0
     IF(.NOT. memory_parameter%do_all_on_the_fly) THEN 
       !! IF new md step -> reinitialize containers
@@ -254,6 +255,9 @@ MODULE four_center_integrals
     !! Get screening paramter
     eps_schwarz = screening_parameter%eps_schwarz
     eps_box     = screening_parameter%eps_box
+    !! get storage epsilon
+    eps_storage = eps_schwarz*memory_parameter%eps_storage_scaling
+
     do_p_screening = screening_parameter%do_initial_p_screening
     do_correct_p_screening = screening_parameter%do_init_p_screen_corr
     p_screening_correction_factor = screening_parameter%initial_p_screening_correction
@@ -783,12 +787,12 @@ MODULE four_center_integrals
                                                                maxval_cache, maxval_container)
                             spherical_estimate = EXP(log_2*estimate_to_store_int)
                             IF(spherical_estimate*pmax_entry<eps_schwarz) CYCLE
-                            nbits = CEILING(LOG(spherical_estimate*pmax_entry/eps_schwarz)*log_2_inv) + 1
+                            nbits = CEILING(LOG(spherical_estimate*pmax_entry/eps_storage)*log_2_inv) + 1
                             CALL x_hf_get_mult_cache_elements(T1(1), &
                                                               nints, nbits, &
                                                               integral_caches(nbits), &
                                                               integral_containers(nbits), &
-                                                              eps_schwarz, pmax_entry, error)
+                                                              eps_storage, pmax_entry, error)
                             i=1
                             IF(nspins == 1) THEN
                               DO md = 1,nsgfd(lset)
@@ -945,18 +949,18 @@ MODULE four_center_integrals
                             IF(spherical_estimate*pmax_entry<eps_schwarz) CYCLE 
                             IF(.NOT.buffer_overflow) THEN
                               neris_incore = neris_incore + nints
-                              nbits = CEILING(LOG(spherical_estimate*pmax_entry/eps_schwarz)*log_2_inv) + 1
+                              nbits = CEILING(LOG(spherical_estimate*pmax_entry/eps_storage)*log_2_inv) + 1
                               CALL x_hf_add_mult_cache_elements(primitive_integrals(1), &
                                                                 nints, nbits, &
                                                                 integral_caches(nbits), &
                                                                 integral_containers(nbits), &
-                                                                eps_schwarz, pmax_entry, error)
+                                                                eps_storage, pmax_entry, error)
                             ELSE
                              !! In order to be consistent with in-core part, round all the eris wrt. eps_schwarz
                              DO i=1,nints
                                primitive_integrals(i) = primitive_integrals(i)*pmax_entry
                                IF(ABS(primitive_integrals(i)) > eps_schwarz) THEN
-                                 primitive_integrals(i) = ANINT(primitive_integrals(i)/eps_schwarz, dp)*eps_schwarz/pmax_entry
+                                 primitive_integrals(i) = ANINT(primitive_integrals(i)/eps_storage, dp)*eps_storage/pmax_entry
                                ELSE
                                  primitive_integrals(i) = 0.0_dp
                                END IF
