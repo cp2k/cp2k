@@ -42,7 +42,9 @@
           EPS_SCHWARZ 1.0E-10 
           EPS_BOX 1.0E-10
         &END
-        MAX_MEMORY  5 
+        &MEMORY
+          MAX_MEMORY  5 
+        &END
         FRACTION 0.20
       &END
     &END XC

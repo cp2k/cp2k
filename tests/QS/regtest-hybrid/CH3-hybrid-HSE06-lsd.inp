@@ -46,7 +46,9 @@
         &INTERACTION_POTENTIAL
           POTENTIAL_TYPE SHORTRANGE
         &END
-        MAX_MEMORY  100
+        &MEMORY
+          MAX_MEMORY  100
+        &END
         FRACTION 0.11
       &END
     &END XC

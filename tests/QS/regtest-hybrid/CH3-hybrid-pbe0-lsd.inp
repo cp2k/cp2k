@@ -33,7 +33,9 @@
           EPS_SCHWARZ 1.0E-16 
           EPS_BOX 1.0E-16
         &END
-        MAX_MEMORY  10 
+        &MEMORY
+          MAX_MEMORY  10 
+        &END
         FRACTION 0.25
       &END
     &END XC
