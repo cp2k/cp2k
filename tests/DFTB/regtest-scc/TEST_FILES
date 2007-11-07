@@ -25,3 +25,5 @@ ch2o-ot6.inp        1
 h2o-5.inp           1
 # first check for LSD
 test-lsd.inp        1
+# isolated system
+H+.inp              11

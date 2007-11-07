@@ -1,0 +1,45 @@
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM H
+        CHARGE 1.0
+      &END CHARGE
+      &NONBONDED
+        &LENNARD-JONES
+          ATOMS       H H
+          EPSILON  [kjmol] 0.0
+          SIGMA    [angstrom]   5.0
+          RCUT           10.0
+        &END LENNARD-JONES
+      &END
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 100
+        O_SPLINE 6
+      &END EWALD
+      PERIODIC NONE
+      POISSON_SOLVER ANALYTIC
+   &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 25.0 25.0 25.0
+      UNIT ANGSTROM
+      PERIODIC NONE
+    &END CELL
+    &COORD
+H 0.0 0.0 0.0
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT proton
+  RUN_TYPE energy
+  PRINT_LEVEL HIGH
+&END GLOBAL
