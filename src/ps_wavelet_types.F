@@ -151,7 +151,6 @@ CONTAINS
     CALL cite_reference(Genovese2006)
     CALL cite_reference(Genovese2007)
 
-    CALL mp_sync(pw_grid % para % rs_group)
     failure=.FALSE.
 
     ALLOCATE(wavelet, stat=stat)
@@ -193,7 +192,6 @@ CONTAINS
        CALL section_vals_val_get(poisson_section,"WAVELET%SCF_TYPE",i_val=itype_scf,error=error)
        wavelet%itype_scf=itype_scf
        wavelet%datacode=datacode
-       CALL mp_sync(pw_grid % para % rs_group)
 
        CALL RS_z_slice_distribution(wavelet,pw_grid, error)
           
@@ -322,10 +320,9 @@ CONTAINS
        ub(:)=pw_grid % bounds_local ( 2, : )
        z_lb=1+iproc*(md2/nproc)
        z_ub=1+MIN((iproc+1)*md2/nproc,m2)
-       local_z_dim=(md2/nproc)
+        local_z_dim=(md2/nproc)
 
        ALLOCATE(sbuf(PRODUCT(pw_grid % npts_local)),stat=ierr)
-       
        ALLOCATE(rbuf(PRODUCT(wavelet%PS_grid)/nproc))
        ALLOCATE(scount(nproc),sdispl(nproc),rcount(nproc),rdispl(nproc),tmp(nproc))
 
@@ -376,26 +373,29 @@ CONTAINS
              CALL mp_cart_rank ( pw_grid % para % rs_group, &
                                  cart_pos, &
                                  dest )
-
-             IF((dest+1)*local_z_dim.LE.m2)THEN
-                scount(dest+1)=ABS((ub(1)-lb(1)+1)*(ub(2)-lb(2)+1)*local_z_dim)
+             IF((ub(1).GE.lb(1)).AND.(ub(2).GE.lb(2)))THEN
+                IF((dest+1)*local_z_dim.LE.m2)THEN
+                   scount(dest+1)=ABS((ub(1)-lb(1)+1)*(ub(2)-lb(2)+1)*local_z_dim)
+                ELSE
+                   scount(dest+1)=ABS((ub(1)-lb(1)+1)*(ub(2)-lb(2)+1)*MOD(m2,local_z_dim))
+               END IF
              ELSE
-                scount(dest+1)=ABS((ub(1)-lb(1)+1)*(ub(2)-lb(2)+1)*MOD(m2,local_z_dim))
+                scount(dest+1)=0
              END IF
              lox = get_limit ( pw_grid % npts ( 1 ), pw_grid % para % rs_dims ( 1 ), i )
              loy = get_limit ( pw_grid % npts ( 2 ), pw_grid % para % rs_dims ( 2 ), j )
-
-             IF((iproc+1)*local_z_dim.LE.m2)THEN
-                rcount(dest+1)=ABS((lox(2)-lox(1)+1)*(loy(2)-loy(1)+1)*local_z_dim)
-             ELSE
-                rcount(dest+1)=ABS((lox(2)-lox(1)+1)*(loy(2)-loy(1)+1)*MOD(m2,local_z_dim))
-             END IF             
-             
-             
+             IF((lox(2).GE.lox(1)).AND.(loy(2).GE.loy(1)))THEN
+                IF((iproc+1)*local_z_dim.LE.m2)THEN
+                   rcount(dest+1)=ABS((lox(2)-lox(1)+1)*(loy(2)-loy(1)+1)*local_z_dim)
+                ELSE
+                   rcount(dest+1)=ABS((lox(2)-lox(1)+1)*(loy(2)-loy(1)+1)*MOD(m2,local_z_dim))
+                END IF
+             ELSE           
+                rcount(dest+1)=0
+             END IF
   
           END DO
        END DO
-       
        sdispl(1)=0
        rdispl(1)=0
        DO i = 2,nproc
@@ -404,7 +404,6 @@ CONTAINS
        END DO
        
 
-       CALL mp_sync(pw_grid%para%rs_group)
        CALL mp_alltoall(sbuf,scount,sdispl,rbuf,rcount,rdispl,pw_grid%para%rs_group)
        !!!! and now, how to put the right cubes to the right position!!!!!!
 
@@ -419,6 +418,7 @@ CONTAINS
                                  
              lox = get_limit ( pw_grid % npts ( 1 ), pw_grid % para % rs_dims ( 1 ), i )
              loy = get_limit ( pw_grid % npts ( 2 ), pw_grid % para % rs_dims ( 2 ), j )
+	     IF(iproc*local_z_dim.LT.m2)THEN
              IF((iproc+1)*local_z_dim.LE.m2)THEN
                 loz=local_z_dim
              ELSE
@@ -426,8 +426,6 @@ CONTAINS
              END IF
              ii=1
              DO k=1,loz
-!                DO l = loy(1)-pw_grid%bounds(1,2)+1,loy(2)-pw_grid%bounds(1,2)+1
-!                   DO m = lox(1)-pw_grid%bounds(1,1)+1,lox(2)-pw_grid%bounds(1,1)+1
                 DO l = loy(1),loy(2)
                    DO m = lox(1),lox(2)                      
                       wavelet%rho_z_sliced(m,l,k)=rbuf(ii+rdispl(dest+1))
@@ -436,6 +434,7 @@ CONTAINS
  
                 END DO
               END DO
+              END IF
           END DO
        END DO
 
@@ -444,8 +443,6 @@ CONTAINS
 
     END IF
     CALL timestop(0.0_dp,handle)
-
-   CALL mp_sync(pw_grid%para%rs_group)
 
   END SUBROUTINE cp2k_distribution_to_z_slices
 
@@ -476,7 +473,6 @@ CONTAINS
     CPPrecondition(ASSOCIATED(wavelet),cp_failure_level,routineP,error,failure)
 
     IF (.NOT.failure) THEN
-
        nproc=PRODUCT(pw_grid % para % rs_dims)
        iproc=pw_grid % para % rs_mpo
        md2=wavelet%PS_grid(3)
@@ -489,7 +485,7 @@ CONTAINS
        z_ub=MIN((iproc+1)*md2/nproc,m2)
        local_z_dim=(md2/nproc)
 
-       ALLOCATE(rbuf(PRODUCT(pw_grid % npts_local)),stat=ierr)
+          ALLOCATE(rbuf(PRODUCT(pw_grid % npts_local)),stat=ierr)
        ALLOCATE(sbuf(PRODUCT(wavelet%PS_grid)/nproc))
        ALLOCATE(scount(nproc),sdispl(nproc),rcount(nproc),rdispl(nproc),tmp(nproc))
 
@@ -518,24 +514,29 @@ CONTAINS
              CALL mp_cart_rank ( pw_grid % para % rs_group, &
                                  cart_pos, &
                                  dest )
-             
-             IF((dest+1)*local_z_dim.LE.m2)THEN
-                rcount(dest+1)=ABS((ub(1)-lb(1)+1)*(ub(2)-lb(2)+1)*local_z_dim)
+             IF((ub(1).GE.lb(1)).AND.(ub(2).GE.lb(2)))THEN
+                IF((dest+1)*local_z_dim.LE.m2)THEN
+                   rcount(dest+1)=ABS((ub(1)-lb(1)+1)*(ub(2)-lb(2)+1)*local_z_dim)
+                ELSE
+                   rcount(dest+1)=ABS((ub(1)-lb(1)+1)*(ub(2)-lb(2)+1)*MOD(m2,local_z_dim))
+                END IF
              ELSE
-                rcount(dest+1)=ABS((ub(1)-lb(1)+1)*(ub(2)-lb(2)+1)*MOD(m2,local_z_dim))
+                rcount(dest+1)=0
              END IF
              lox = get_limit ( pw_grid % npts ( 1 ), pw_grid % para % rs_dims ( 1 ), i )
              loy = get_limit ( pw_grid % npts ( 2 ) , pw_grid % para % rs_dims ( 2 ), j )
-
-             IF((iproc+1)*local_z_dim.LE.m2)THEN
-                scount(dest+1)=ABS((lox(2)-lox(1)+1)*(loy(2)-loy(1)+1)*local_z_dim)
-             ELSE
-                scount(dest+1)=ABS((lox(2)-lox(1)+1)*(loy(2)-loy(1)+1)*MOD(m2,local_z_dim))
-             END IF             
-             
+             IF((lox(2).GE.lox(1)).AND.(loy(2).GE.loy(1)))THEN             
+                IF((iproc+1)*local_z_dim.LE.m2)THEN
+                   scount(dest+1)=ABS((lox(2)-lox(1)+1)*(loy(2)-loy(1)+1)*local_z_dim)
+                ELSE
+                   scount(dest+1)=ABS((lox(2)-lox(1)+1)*(loy(2)-loy(1)+1)*MOD(m2,local_z_dim))
+                END IF
+             ELSE           
+                scount(dest+1)=0
+             END IF 
           END DO
        END DO
-       
+
        sdispl(1)=0
        rdispl(1)=0
        DO i = 2,nproc
@@ -543,11 +544,9 @@ CONTAINS
           rdispl(i)=rdispl(i-1)+rcount(i-1)
        END DO
 
-       CALL mp_sync(pw_grid % para % rs_group)
-       
+
        CALL mp_alltoall(sbuf,scount,sdispl,rbuf,rcount,rdispl,pw_grid % para % rs_group)
 
-       CALL mp_sync(pw_grid % para % rs_group)
 
        !!!! and now, how to put the right cubes to the right position!!!!!!
 
@@ -563,21 +562,18 @@ CONTAINS
                 loz=MOD(m2,local_z_dim)
              END IF
              ii=1
-
-             DO m = lb(1),ub(1)
-                DO l = lb(2),ub(2)
-                   DO k= lb(3)+(dest*local_z_dim),lb(3)+(dest*local_z_dim)+loz-1
-                      density%cr3d(m,l,k)=rbuf(ii+rdispl(dest+1))
-
-                      ii=ii+1
+             IF(lb(3)+(dest*local_z_dim).LT.ub(3))THEN
+                DO m = lb(1),ub(1)
+                   DO l = lb(2),ub(2)
+                      DO k= lb(3)+(dest*local_z_dim),lb(3)+(dest*local_z_dim)+loz-1
+                         density%cr3d(m,l,k)=rbuf(ii+rdispl(dest+1))
+                         ii=ii+1
+                      END DO
                    END DO
                 END DO
-             END DO
+             END IF
           END DO
        END DO
-
-
-       CALL mp_sync(pw_grid % para % rs_group)
        DEALLOCATE(sbuf,rbuf,scount,sdispl,rcount,rdispl,tmp)
     END IF
 

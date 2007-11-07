@@ -127,7 +127,6 @@ CONTAINS
 
 !the order of the finite-difference gradient (fixed)
 !calculate the dimensions wrt the geocode
-
     IF (geocode == 'P') THEN
        CALL P_FFT_dimensions(n01,n02,n03,m1,m2,m3,n1,n2,n3,md1,md2,md3,nd1,nd2,nd3,nproc)
     ELSE IF (geocode == 'S') THEN
@@ -163,6 +162,7 @@ CONTAINS
     !      nwb+nwbl+nwbr = nxt
     istart=iproc*(md2/nproc)
     iend=MIN((iproc+1)*md2/nproc,m2)
+
     nxc=iend-istart
     nwbl=0
     nwbr=0
@@ -236,8 +236,6 @@ CONTAINS
        WRITE(*,*)' psolver: problem of memory deallocation'
        STOP
     END IF
-
-
 
   END SUBROUTINE PSolver
 
@@ -572,39 +570,46 @@ CONTAINS
                                                 nxcl, nxcr
     REAL(KIND=dp), INTENT(in)                :: hx, hy, hz
     INTEGER, INTENT(in)                      :: nproc, iproc
+
+    CHARACTER(len=*), PARAMETER              :: routineN = 'scale_and_distribute'
+
     REAL(KIND=dp), &
       DIMENSION(md1, md3, md2/nproc), &
       INTENT(inout)                          :: zf, rhopot
     REAL(KIND=dp), INTENT(in)                :: factor
 
-    INTEGER                                  :: j1, j2, j3, jp2, jpp2, jppp2, &
-                                                offset
+    INTEGER                                  :: j1, j3, jp2, jpp2, jppp2, &
+                                                offset,handle
 
-    DO jp2=1,nxc
-       j2=offset+jp2+nxcl-2
-       jpp2=jp2     
-       jppp2=jp2+nxcl-1
-       DO j3=1,m3
-          DO j1=1,m1
-             zf(j1,j3,jp2)=factor*rhopot(j1,j3,jp2)
+    CALL timeset(routineN,"I","",handle)
+
+    IF(nxc.GE.1)THEN
+       DO jp2=1,nxc
+          DO j3=1,m3
+             DO j1=1,m1
+                zf(j1,j3,jp2)=factor*rhopot(j1,j3,jp2)
+             END DO
+             DO j1=m1+1,md1
+                zf(j1,j3,jp2)=0._dp
+             END DO
           END DO
-          DO j1=m1+1,md1
-             zf(j1,j3,jp2)=0._dp
-          END DO
-       END DO
-       DO j3=m3+1,md3
-          DO j1=1,md1
-             zf(j1,j3,jp2)=0._dp
-          END DO
-       END DO
-    END DO
-    DO jp2=nxc+1,md2/nproc
-       DO j3=1,md3
-          DO j1=1,md1
-             zf(j1,j3,jp2)=0._dp
+          DO j3=m3+1,md3
+             DO j1=1,md1
+                zf(j1,j3,jp2)=0._dp
+             END DO
           END DO
        END DO
-    END DO
+       DO jp2=nxc+1,md2/nproc
+          DO j3=1,md3
+             DO j1=1,md1
+                zf(j1,j3,jp2)=0._dp
+             END DO
+          END DO
+       END DO
+    ELSE
+       zf=0._dp
+    ENDIF
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE scale_and_distribute
 END MODULE ps_wavelet_util
