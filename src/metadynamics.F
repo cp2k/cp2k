@@ -26,7 +26,8 @@
 !****************************************************************************
 MODULE metadynamics
   USE colvar_methods,                  ONLY: colvar_eval_glob_f
-  USE colvar_types,                    ONLY: colvar_p_type
+  USE colvar_types,                    ONLY: colvar_p_type,&
+                                             torsion_colvar_id
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
                                              cp_print_key_finished_output,&
@@ -156,6 +157,7 @@ CONTAINS
           meta_env%metavar(i)%ff_hills=0.0_dp
           meta_env%metavar(i)%do_wall_p=.FALSE.
           meta_env%metavar(i)%do_wall_m=.FALSE.
+          meta_env%metavar(i)%periodic=.TRUE.
           meta_env%metavar(i)%wall_p=0.0_dp
           meta_env%metavar(i)%wall_m=0.0_dp
           meta_env%metavar(i)%icolvar=0
@@ -420,7 +422,9 @@ CONTAINS
        cv => meta_env%metavar(i_c)
        icolvar = cv%icolvar
        CALL colvar_eval_glob_f(icolvar,force_env,error=error)
-       cv%ss = subsys%colvar_p(icolvar)%colvar%ss
+       cv%ss       = subsys%colvar_p(icolvar)%colvar%ss
+       ! Setup the periodic flag if the COLVAR is (-pi,pi] periodic
+       cv%periodic = (subsys%colvar_p(icolvar)%colvar%type_id==torsion_colvar_id)
        !
        ! Restart for Extended Lagrangian Metadynamics
        !
@@ -598,7 +602,8 @@ CONTAINS
     INTEGER, POINTER                         :: n_hills
     LOGICAL                                  :: explicit, failure, &
                                                 skip_this_point
-    REAL(dp)                                 :: dfunc, dp2, rval
+    REAL(dp)                                 :: dfunc, diff_ss, dp2, rval, &
+                                                tmp_ss
     REAL(dp), DIMENSION(:), POINTER          :: ddp
     REAL(dp), DIMENSION(:, :), POINTER       :: delta_s_history, ss_history, &
                                                 tmp
@@ -786,7 +791,13 @@ CONTAINS
     DO ih=1,n_hills
        dp2=0._dp
        DO i=1,n_colvar
-          ddp(i)=(colvars(i)%ss0-ss_history(i,ih))/delta_s_history(i,ih)
+          diff_ss = colvars(i)%ss0-ss_history(i,ih)
+          IF (colvars(i)%periodic) THEN
+             ! The difference of a periodic COLVAR is always within [0,pi]
+             tmp_ss  = COS(diff_ss)
+             diff_ss = ACOS(tmp_ss)
+          END IF
+          ddp(i)=(diff_ss)/delta_s_history(i,ih)
           dp2=dp2+ddp(i)**2
        ENDDO
        dfunc=-ww_history(ih)*EXP(-0.5*dp2)

@@ -52,7 +52,7 @@ MODULE metadynamics_types
   TYPE metavar_type
      REAL(KIND=dp) :: mass, lambda, ss, ss0, ff_s, vvp, &
                       cv_energy, delta_s, ff_hills
-     LOGICAL       :: do_wall_p,do_wall_m
+     LOGICAL       :: do_wall_p,do_wall_m,periodic
      REAL(KIND=dp) :: wall_p, wall_m
      REAL(KIND=dp) :: TARGET
      INTEGER       :: icolvar
