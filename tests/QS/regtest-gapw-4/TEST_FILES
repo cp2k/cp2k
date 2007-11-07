@@ -9,3 +9,5 @@ CO.inp             1
 CO_xastpxfh.inp    1
 #bug fix gpw_type
 H2O_gpw.inp        1
+#bug fix perdew_zunger
+Ne-BP.inp          1

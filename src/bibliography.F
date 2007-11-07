@@ -54,7 +54,7 @@ MODULE bibliography
              Krack2002, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Toukmaji1996, Martyna1999,&
              VandeVondele2005b, Perdew1981,Avezac2005, Porezag1995, Seifert1996, Elstner1998, Zhechkov2005,&
              Frigo2005, Nose1984a, Nose1984b, Bussi2007,Genovese2006,Genovese2007,Evans1983,Minary2003,Byrd1995,&
-             VandeVondele2007
+             VandeVondele2007,Ortiz1994
 
 CONTAINS
 !!****f* bibliography/add_all_references *
@@ -719,6 +719,24 @@ CONTAINS
             "UT ISI:000249667400011",&
             "ER"),&
             DOI="10.1063/1.2770708")
+
+    CALL add_reference(key=Ortiz1994,ISI_record=s2a(&
+            "PT J",&
+            "AU ORTIZ, G",&
+            "   BALLONE, P",&
+            "TI CORRELATION-ENERGY, STRUCTURE FACTOR, RADIAL-DISTRIBUTION FUNCTION, AND",&
+            "   MOMENTUM DISTRIBUTION OF THE SPIN-POLARIZED UNIFORM ELECTRON-GAS",&
+            "SO PHYSICAL REVIEW B",&
+            "SN 0163-1829",&
+            "PD JUL 15",&
+            "PY 1994",&
+            "VL 50",&
+            "IS 3",&
+            "BP 1391",&
+            "EP 1405",&
+            "UT ISI:A1994NZ15300007",&
+            "ER"),&
+            DOI="10.1103/PhysRevB.50.1391")
 
   END SUBROUTINE add_all_references
 

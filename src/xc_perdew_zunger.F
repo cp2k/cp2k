@@ -30,6 +30,7 @@
 !!****
 
 MODULE xc_perdew_zunger
+  USE bibliography,                    ONLY: cite_reference, Ortiz1994,Perdew1981
   USE input_constants,                 ONLY: pz_dmc,&
                                              pz_orig,&
                                              pz_vmc
@@ -536,15 +537,17 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
        CALL stop_program("xc_perdew_zunger/pz_init", "unknown method")
        
     CASE (pz_orig)
+       CALL cite_reference(Perdew1981)
        ga(0)  = -0.1423_dp;  ga(1)  = -0.0843_dp
        b1(0) = 1.0529_dp;    b1(1) = 1.3981_dp
        b2(0) = 0.3334_dp;    b2(1) = 0.2611_dp
        A(0)  = 0.0311_dp;    A(1)  = 0.01555_dp
        B(0)  = -0.048_dp;    B(1)  = -0.0269_dp
-       C(0)  = -0.0020_dp;   C(1)  = -0.0007_dp
+       C(0)  = +0.0020_dp;   C(1)  = +0.0007_dp
        D(0)  = -0.0116_dp;   D(1)  = -0.0048_dp
 
     CASE (pz_dmc)
+       CALL cite_reference(Ortiz1994)
        ga(0)  = -0.103756_dp; ga(1)  = -0.065951_dp
        b1(0) = 0.56371_dp;   b1(1) = 1.11846_dp
        b2(0) = 0.27358_dp;   b2(1) = 0.18797_dp
@@ -554,6 +557,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
        D(0)  = -0.00983_dp;  D(1)  = -0.00300_dp
        
     CASE (pz_vmc) 
+       CALL cite_reference(Ortiz1994)
        ga(0)  = -0.093662_dp; ga(1)  = -0.055331_dp
        b1(0) = 0.49453_dp;   b1(1) = 0.93766_dp
        b2(0) = 0.25534_dp;   b2(1) = 0.14829_dp
