@@ -512,7 +512,8 @@ CONTAINS
   !!     evaluates the force (dsdr) given and due to the given colvar
   !!
   !!   NOTES
-  !!     -
+  !!     The torsion that generally is defined without the continuity problem 
+  !!     here (for free energy calculations) is defined only for (-pi,pi]
   !!
   !!   ARGUMENTS
   !!     - colvar: the collective variable to evaluate
@@ -550,7 +551,7 @@ CONTAINS
        CASE (coord_colvar_id)
           CALL coord_colvar(colvar,cell,subsys=subsys, error=error)
        CASE (torsion_colvar_id)
-          CALL torsion_colvar(colvar,cell,subsys=subsys, error=error)
+          CALL torsion_colvar(colvar,cell,subsys=subsys, no_riemann_sheet_op=.TRUE.,error=error)
        CASE (angle_colvar_id)
           CALL angle_colvar(colvar,cell,subsys=subsys, error=error)
        CASE (ddiff_colvar_id)
@@ -1201,20 +1202,21 @@ CONTAINS
   !!     Alessandro Laio, Fawzi Mohamed
   !!
   !!*** **********************************************************************
-  SUBROUTINE torsion_colvar(colvar,cell,subsys,particles,error)
+  SUBROUTINE torsion_colvar(colvar,cell,subsys,particles,no_riemann_sheet_op,error)
 
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particles
+    LOGICAL, INTENT(IN), OPTIONAL            :: no_riemann_sheet_op
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'torsion_colvar', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ii
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, no_riemann_sheet
     REAL(dp) :: angle, cosine, dedphi, dedxia, dedxib, dedxic, dedxid, dedxt, &
       dedxu, dedyia, dedyib, dedyic, dedyid, dedyt, dedyu, dedzia, dedzib, &
       dedzic, dedzid, dedzt, dedzu, dt, e, ftmp(3), o0, rcb, rt2, rtmp(3), &
@@ -1235,6 +1237,8 @@ CONTAINS
        CALL cp_subsys_get(subsys,particles=particles_i,error=error)
        my_particles => particles_i%els
     END IF
+    no_riemann_sheet = .FALSE.
+    IF (PRESENT(no_riemann_sheet_op)) no_riemann_sheet = no_riemann_sheet_op
     colvar%dsdr=0.0_dp
     DO ii=1,4
        i=colvar%torsion_param%i_at_tors(ii)
@@ -1337,6 +1341,7 @@ CONTAINS
     ENDIF
     !
     colvar%ss=e
+    IF (no_riemann_sheet) colvar%ss = ATAN2(SIN(e),COS(e))
     ftmp(1)=dedxia
     ftmp(2)=dedyia
     ftmp(3)=dedzia
