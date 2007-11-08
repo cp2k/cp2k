@@ -27,7 +27,7 @@ MODULE input_cp2k_dft
        Avezac2005, Elstner1998, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, &
        Krack2002, Lippert1997, Lippert1999, Perdew1981, Porezag1995, &
        Seifert1996, VandeVondele2003, VandeVondele2005a, VandeVondele2005b, &
-       Zhechkov2005
+       Zhechkov2005, Ortiz1994
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants
@@ -2528,7 +2528,7 @@ CONTAINS
        CALL section_create(subsection,name="PZ81",&
             description="Uses the PZ functional.",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-            error=error)
+            citations=(/Perdew1981,Ortiz1994/), error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
             description="activates the functional",&
             lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
