@@ -84,3 +84,5 @@ H2O-hfx-3.inp
 CH-hfx-pbc-md.inp
 #  
 CH-hfx-pbc-md.inp
+# numerics after cleaning md and md_util
+CH-hfx-pbc-md.inp

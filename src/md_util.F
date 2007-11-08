@@ -50,6 +50,7 @@ MODULE md_util
                                              md_environment_type
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE particle_list_types,             ONLY: particle_list_type
+  USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: kelvin
   USE shell_potential_types,           ONLY: shell_kind_type
   USE timings,                         ONLY: timeset,&
@@ -140,8 +141,8 @@ CONTAINS
                                                 natom, shell_index
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: is_shell
-    REAL(KIND=dp)                            :: ekin_old, mass, v2
-    REAL(KIND=dp), DIMENSION(3)              :: v
+    REAL(KIND=dp)                            :: ekin_old, mass, v2, imass_s, imass_c
+    REAL(KIND=dp), DIMENSION(3)              :: v, tmp
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
@@ -162,20 +163,17 @@ CONTAINS
     ! Possibly subtract a quantity from all velocities
        DO ikind=1,atomic_kinds%n_els
           atomic_kind => atomic_kinds%els(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                               atom_list=atom_list,&
-                               natom=natom,&
-                               mass=mass,&
-                               shell_active=is_shell,&
-                               shell=shell)
+          CALL get_atomic_kind(atomic_kind=atomic_kind, atom_list=atom_list,&
+             natom=natom, mass=mass, shell_active=is_shell, shell=shell)
           IF (is_shell) THEN
+             tmp = 0.5_dp*vsubtract*mass
+             imass_s = 1.0_dp/shell%mass_shell
+             imass_c = 1.0_dp/shell%mass_core
              DO iatom = 1, natom
                 atom = atom_list(iatom)
                 shell_index = particles%els(atom)%shell_index
-                shell_particles%els(shell_index)%v = shell_particles%els(shell_index)%v &
-                      - 0.5_dp*vsubtract*mass/shell%mass_shell
-                core_particles%els(shell_index)%v  = core_particles%els(shell_index)%v &
-                      - 0.5_dp*vsubtract*mass/shell%mass_core
+                shell_particles%els(shell_index)%v = shell_particles%els(shell_index)%v - tmp*imass_s
+                core_particles%els(shell_index)%v  = core_particles%els(shell_index)%v  - tmp*imass_c
                 particles%els(atom)%v = particles%els(atom)%v - vsubtract
              END DO
           ELSE
@@ -191,23 +189,20 @@ CONTAINS
     md_ener%ekin       = 0.0_dp
     DO ikind=1,atomic_kinds%n_els
        atomic_kind => atomic_kinds%els(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                            atom_list=atom_list,&
-                            mass=mass,&
-                            natom=natom)
+       CALL get_atomic_kind(atomic_kind=atomic_kind, atom_list=atom_list, mass=mass, natom=natom)
           v2   = 0.0_dp
           v    = 0.0_dp
           DO iatom = 1, natom
              atom = atom_list(iatom)
-             v2 = v2 + particles%els(atom)%v(1)**2 +&
-                       particles%els(atom)%v(2)**2 +&
-                       particles%els(atom)%v(3)**2
+             v2 = v2 + SUM(particles%els(atom)%v**2)
              v(1) = v(1) + particles%els(atom)%v(1)
              v(2) = v(2) + particles%els(atom)%v(2)
              v(3) = v(3) + particles%els(atom)%v(3)
           END DO
           md_ener%ekin  = md_ener%ekin + 0.5_dp*mass*v2
-          md_ener%vcom(:)    = md_ener%vcom(:) + mass*v(:)
+          md_ener%vcom(1)    = md_ener%vcom(1) + mass*v(1)
+          md_ener%vcom(2)    = md_ener%vcom(2) + mass*v(2)
+          md_ener%vcom(3)    = md_ener%vcom(3) + mass*v(3)
           md_ener%total_mass = md_ener%total_mass + REAL(natom,KIND=dp)*mass
     END DO
     md_ener%vcom = md_ener%vcom / md_ener%total_mass
@@ -249,10 +244,9 @@ CONTAINS
                                                 shell_index
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: is_shell
-    REAL(KIND=dp)                            :: ekin_old, fac_massc, &
-                                                fac_masss, mass, scale, &
+    REAL(KIND=dp)                            :: ekin_old, imass, mass, scale, &
                                                 temp_old, v2
-    REAL(KIND=dp), DIMENSION(3)              :: v, vc, vs
+    REAL(KIND=dp), DIMENSION(3)              :: tmp, v, vc, vs
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
@@ -261,59 +255,45 @@ CONTAINS
 
     IF (ABS(temp_expected - md_ener%temp_part/kelvin) > temp_tol) THEN
        scale = 0.0_dp
-       IF (md_ener%temp_part>0.0_dp) scale = SQRT(temp_expected/(md_ener%temp_part/kelvin))
+       IF (md_ener%temp_part>0.0_dp) scale = SQRT((temp_expected/md_ener%temp_part)*kelvin)
        ekin_old = md_ener%ekin
        temp_old = md_ener%temp_part
-       md_ener%ekin = 0.0_dp
-       md_ener%temp_part = 0.0_dp
+       md_ener%ekin       = 0.0_dp
+       md_ener%temp_part  = 0.0_dp
        md_ener%vcom       = 0.0_dp
        md_ener%total_mass = 0.0_dp
 
-       CALL cp_subsys_get(subsys,&
-                          atomic_kinds=atomic_kinds,&
-                          particles=particles,&
-                          shell_particles=shell_particles,&
-                          core_particles=core_particles,&
-                          error=error)
+       CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds, particles=particles,&
+          shell_particles=shell_particles, core_particles=core_particles, error=error)
 
        DO ikind=1,atomic_kinds%n_els
           atomic_kind => atomic_kinds%els(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                               atom_list=atom_list,&
-                               mass=mass,&
-                               natom=natom,&
-                               shell_active=is_shell,&
-                               shell=shell)
+          CALL get_atomic_kind(atomic_kind=atomic_kind, atom_list=atom_list, mass=mass,&
+             natom=natom, shell_active=is_shell, shell=shell)
           IF(is_shell) THEN
-             fac_masss = shell%mass_shell/mass 
-             fac_massc = shell%mass_core/mass 
+             imass = 1.0_dp / mass
              v2 = 0.0_dp
-             v = 0.0_dp
+             v  = 0.0_dp
              DO iatom=1,natom
                 atom = atom_list(iatom)
                 particles%els(atom)%v(:) = scale*particles%els(atom)%v
                 shell_index = particles%els(atom)%shell_index
                 vs = shell_particles%els(shell_index)%v
                 vc = core_particles %els(shell_index)%v
+                tmp(1) = imass*(vs(1)-vc(1))
+                tmp(2) = imass*(vs(2)-vc(2))
+                tmp(3) = imass*(vs(3)-vc(3))
 
-                shell_particles%els(shell_index)%v(1) = &
-                     particles%els(atom)%v(1) + fac_massc*(vs(1)-vc(1))
-                shell_particles%els(shell_index)%v(2) = &
-                     particles%els(atom)%v(2) + fac_massc*(vs(2)-vc(2))
-                shell_particles%els(shell_index)%v(3) = &
-                     particles%els(atom)%v(3) + fac_massc*(vs(3)-vc(3))
+                shell_particles%els(shell_index)%v(1) = particles%els(atom)%v(1) + tmp(1)*shell%mass_core 
+                shell_particles%els(shell_index)%v(2) = particles%els(atom)%v(2) + tmp(2)*shell%mass_core
+                shell_particles%els(shell_index)%v(3) = particles%els(atom)%v(3) + tmp(3)*shell%mass_core
 
-                core_particles%els(shell_index)%v(1) = &
-                     particles%els(atom)%v(1) + fac_masss*(vc(1)-vs(1))
-                core_particles%els(shell_index)%v(2) = &
-                     particles%els(atom)%v(2) + fac_masss*(vc(2)-vs(2))
-                core_particles%els(shell_index)%v(3) = &
-                     particles%els(atom)%v(3) + fac_masss*(vc(3)-vs(3))
+                core_particles%els(shell_index)%v(1) =  particles%els(atom)%v(1) - tmp(1)*shell%mass_shell
+                core_particles%els(shell_index)%v(2) =  particles%els(atom)%v(2) - tmp(2)*shell%mass_shell
+                core_particles%els(shell_index)%v(3) =  particles%els(atom)%v(3) - tmp(3)*shell%mass_shell
 
                ! kinetic energy and velocity of COM
-                v2 = v2 + particles%els(atom)%v(1)**2 +&
-                       particles%els(atom)%v(2)**2 +&
-                       particles%els(atom)%v(3)**2
+                v2 = v2 + SUM(particles%els(atom)%v**2)
                 v(1) = v(1) + particles%els(atom)%v(1)
                 v(2) = v(2) + particles%els(atom)%v(2)
                 v(3) = v(3) + particles%els(atom)%v(3)     
@@ -323,19 +303,21 @@ CONTAINS
              v = 0.0_dp
              DO iatom=1,natom
                 atom = atom_list(iatom)
-                particles%els(atom)%v(:) = scale*particles%els(atom)%v(:)
+                particles%els(atom)%v(1) = scale*particles%els(atom)%v(1)
+                particles%els(atom)%v(2) = scale*particles%els(atom)%v(2)
+                particles%els(atom)%v(3) = scale*particles%els(atom)%v(3)
                ! kinetic energy and velocity of COM
-                v2 = v2 + particles%els(atom)%v(1)**2 +&
-                       particles%els(atom)%v(2)**2 +&
-                       particles%els(atom)%v(3)**2
+                v2 = v2 + SUM(particles%els(atom)%v**2)
                 v(1) = v(1) + particles%els(atom)%v(1)
                 v(2) = v(2) + particles%els(atom)%v(2)
                 v(3) = v(3) + particles%els(atom)%v(3)     
              END DO 
           END IF
           md_ener%ekin  = md_ener%ekin + 0.5_dp*mass*v2
-          md_ener%vcom(:)    = md_ener%vcom(:) + mass*v(:)
-          md_ener%total_mass =md_ener% total_mass + REAL(natom,KIND=dp)*mass
+          md_ener%vcom(1)    = md_ener%vcom(1) + mass*v(1)
+          md_ener%vcom(2)    = md_ener%vcom(2) + mass*v(2)
+          md_ener%vcom(3)    = md_ener%vcom(3) + mass*v(3)
+          md_ener%total_mass = md_ener%total_mass + REAL(natom,KIND=dp)*mass
        END DO 
        md_ener%vcom = md_ener%vcom / md_ener%total_mass
        IF(md_ener%nfree /=0) THEN
@@ -344,9 +326,8 @@ CONTAINS
        md_ener%constant = md_ener%constant - ekin_old + md_ener%ekin
        
        IF (iw>0) THEN
-          WRITE (UNIT=iw,FMT="(/,T2,A,F10.2,A,F10.2,A)")&
-               "Temperature scaled to requested temperature:",&
-               temp_old," K  ->",md_ener%temp_part," K"
+          WRITE (UNIT=iw,FMT="(/,T2,A,F10.2,A,F10.2,A)")"Temperature scaled to requested temperature:",&
+             temp_old," K  ->",md_ener%temp_part," K"
        END IF
     END IF
   END SUBROUTINE scale_velocity
@@ -384,7 +365,7 @@ CONTAINS
     REAL(KIND=dp)                            :: ekin_shell_old, fac_mass, &
                                                 mass, scale, temp_shell_old, &
                                                 v2
-    REAL(KIND=dp), DIMENSION(3)              :: v, vc, vs
+    REAL(KIND=dp), DIMENSION(3)              :: tmp, v, vc, vs
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
@@ -393,27 +374,19 @@ CONTAINS
 
     IF (ABS(temp_expected - md_ener%temp_shell/kelvin) > temp_tol) THEN
        scale = 0.0_dp
-       IF (md_ener%temp_shell>EPSILON(0.0_dp)) scale = SQRT(temp_expected/(md_ener%temp_shell/kelvin))
+       IF (md_ener%temp_shell>EPSILON(0.0_dp)) scale = SQRT((temp_expected/md_ener%temp_shell)*kelvin)
        ekin_shell_old = md_ener%ekin_shell
        temp_shell_old = md_ener%temp_shell
        md_ener%ekin_shell = 0.0_dp
        md_ener%temp_shell = 0.0_dp
 
-       CALL cp_subsys_get(subsys,&
-                          atomic_kinds=atomic_kinds,&
-                          particles=particles,&
-                          shell_particles=shell_particles,&
-                          core_particles=core_particles,&
-                          error=error)
+       CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds, particles=particles, shell_particles=shell_particles,&
+          core_particles=core_particles, error=error)
 
        DO ikind=1,atomic_kinds%n_els
           atomic_kind => atomic_kinds%els(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                               atom_list=atom_list,&
-                               mass=mass,&
-                               natom=natom,&
-                               shell_active=is_shell,&
-                               shell=shell)
+          CALL get_atomic_kind(atomic_kind=atomic_kind, atom_list=atom_list, mass=mass, natom=natom,&
+             shell_active=is_shell, shell=shell)
           IF(is_shell) THEN
              fac_mass = 1.0_dp/mass 
              v2 = 0.0_dp
@@ -423,30 +396,26 @@ CONTAINS
                 vs  = shell_particles%els(shell_index)%v
                 vc  = core_particles%els(shell_index)%v
                 v   = particles%els(atom)%v
-                    
-                shell_particles%els(shell_index)%v(1) = v(1) -&
-                     shell%mass_core*scale*fac_mass*(vc(1)-vs(1))  
-                shell_particles%els(shell_index)%v(2) = v(2) -&
-                     shell%mass_core*scale*fac_mass*(vc(2)-vs(2))  
-                shell_particles%els(shell_index)%v(3) = v(3) -&
-                     shell%mass_core*scale*fac_mass*(vc(3)-vs(3))  
+                tmp(1) = fac_mass*(vc(1)-vs(1))
+                tmp(2) = fac_mass*(vc(2)-vs(2))
+                tmp(3) = fac_mass*(vc(3)-vs(3))
+ 
+                shell_particles%els(shell_index)%v(1) = v(1) - shell%mass_core*scale*tmp(1)
+                shell_particles%els(shell_index)%v(2) = v(2) - shell%mass_core*scale*tmp(2)
+                shell_particles%els(shell_index)%v(3) = v(3) - shell%mass_core*scale*tmp(3)
 
-                core_particles%els(shell_index)%v(1) =  v(1) + &
-                     shell%mass_shell*scale*fac_mass*(vc(1)-vs(1))
-                core_particles%els(shell_index)%v(2) =  v(2) + &
-                     shell%mass_shell*scale*fac_mass*(vc(2)-vs(2))
-                core_particles%els(shell_index)%v(3) =  v(3) + &
-                     shell%mass_shell*scale*fac_mass*(vc(3)-vs(3))
+                core_particles%els(shell_index)%v(1) =  v(1) + shell%mass_shell*scale*tmp(1)
+                core_particles%els(shell_index)%v(2) =  v(2) + shell%mass_shell*scale*tmp(2)
+                core_particles%els(shell_index)%v(3) =  v(3) + shell%mass_shell*scale*tmp(3)
 
                 vs  = shell_particles%els(shell_index)%v
                 vc  = core_particles%els(shell_index)%v
-                v2 = v2 + (vc(1)-vs(1))*(vc(1)-vs(1))+&
-                     (vc(2)-vs(2))*(vc(2)-vs(2))+&
-                     (vc(3)-vs(3))*(vc(3)-vs(3))
-
+                tmp(1) = vc(1) - vs(1)
+                tmp(2) = vc(2) - vs(2)
+                tmp(3) = vc(3) - vs(3)
+                v2 = v2 + SUM(tmp**2)
              END DO
-             md_ener%ekin_shell = md_ener%ekin_shell + &
-                 0.5_dp*shell%mass_core*shell%mass_shell*fac_mass*v2
+             md_ener%ekin_shell = md_ener%ekin_shell + 0.5_dp*shell%mass_core*shell%mass_shell*fac_mass*v2
           END IF
        END DO
        IF(md_ener%nfree_shell>0)THEN
@@ -638,8 +607,12 @@ CONTAINS
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
-    TYPE(section_vals_type), POINTER :: force_env_section, print_section, &
-      subsys_section, work2_section, work3_section, work_section
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: core_particle_set, &
+                                                particle_set, &
+                                                shell_particle_set
+    TYPE(section_vals_type), POINTER         :: force_env_section, &
+                                                print_section, subsys_section
 
     failure = .FALSE.
     CALL timeset(routineN,"I","",handle)
@@ -659,34 +632,22 @@ CONTAINS
     
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,shell_present=shell_present,&
          shell_adiabatic=shell_adiabatic)
-    NULLIFY (work_section,work2_section, work3_section)
-    work_section  => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
 
+    NULLIFY(particle_set, shell_particle_set, core_particle_set)
+    particle_set => particles%els
     IF(shell_present .AND. shell_adiabatic) THEN
        ! shell-model with constraint NYI
        CPPostcondition(.NOT.simpar%constraint,cp_failure_level,routineP,error,failure)
-       work2_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
-       work3_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY",error=error)
-       CALL initialize_velocities(simpar,particles%els,&
-                                  molecule_kinds=molecule_kinds_new,&
-                                  para_env=para_env,&
-                                  globenv=globenv,&
-                                  print_section=print_section,&
-                                  work_section=work_section,&
-                                  work2_section=work2_section,&
-                                  work3_section=work3_section,&
-                                  shell_part=shell_particles%els,&
-                                  core_part=core_particles%els,&
-                                  error=error)
-    ELSE
-       CALL initialize_velocities(simpar,particles%els,&
-                                  molecule_kinds=molecule_kinds_new,&
-                                  para_env=para_env,&
-                                  globenv=globenv,&
-                                  print_section=print_section,&
-                                  work_section=work_section,&
-                                  error=error)
+       CPPostcondition(ASSOCIATED(shell_particles),cp_failure_level,routineP,error,failure)
+       CPPostcondition(ASSOCIATED(core_particles),cp_failure_level,routineP,error,failure)
+       shell_particle_set => shell_particles%els
+       core_particle_set  =>  core_particles%els
     END IF
+
+    CALL initialize_velocities(simpar,particle_set, molecule_kinds=molecule_kinds_new,&
+       para_env=para_env, globenv=globenv, print_section=print_section, subsys_section=subsys_section,&
+       shell_present=(shell_present.AND.shell_adiabatic), shell_part=shell_particle_set,&
+       core_part=core_particle_set, force_rescaling=.FALSE., error=error)
     
     ! Apply constraints if required and rescale velocities..
     IF (simpar%ensemble /= reftraj_ensemble) THEN
@@ -711,18 +672,11 @@ CONTAINS
           ! Reinitialize velocities rescaling properly after rattle
           subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
           CALL update_subsys(subsys_section,force_env,.FALSE.,error)
-          CALL cp_subsys_get(subsys,molecule_kinds_new=molecule_kinds_new,&
-               particles=particles,error=error)
-          NULLIFY (work_section)
-          work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
-          CALL initialize_velocities(simpar,particles%els,&
-                                     molecule_kinds=molecule_kinds_new,&
-                                     para_env=para_env,&
-                                     globenv=globenv,&
-                                     print_section=print_section,&
-                                     work_section=work_section,&
-                                     force_rescaling=.TRUE.,&
-                                     error=error)
+
+          CALL initialize_velocities(simpar,particle_set, molecule_kinds=molecule_kinds_new,&
+             para_env=para_env, globenv=globenv, print_section=print_section, subsys_section=subsys_section,&
+             shell_present=(shell_present.AND.shell_adiabatic), shell_part=shell_particle_set,&
+             core_part=core_particle_set, force_rescaling=.TRUE., error=error)
        END IF
     END IF
     CALL timestop(0.0_dp,handle)

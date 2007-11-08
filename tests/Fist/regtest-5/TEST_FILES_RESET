@@ -97,3 +97,5 @@ interface.inp
 #bug fix: thermostat region MOLECULE not allowed with global constraints
 nh3_4x6_ext.inp
 nh3_r4x6_ext.inp
+# numerics after cleaning md and md_util
+H2O-constr_1_ext.inp
