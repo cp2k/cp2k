@@ -907,7 +907,8 @@ CONTAINS
             "EP 1211",&
             "UT ISI:A1980KE76300015",&
             "ER"),&
-            DOI="10.1139/cjp-58-8-1200") ! this doi is on the publishers web site but does not resolve
+            DOI="10.1139/P80-159")       ! this doi should be correct later this week, but does not yet resolve
+           !DOI="10.1139/cjp-58-8-1200") ! this doi is on the publishers web site but does not resolve
 
   END SUBROUTINE add_all_references
 
