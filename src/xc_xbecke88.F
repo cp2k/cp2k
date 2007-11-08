@@ -24,6 +24,8 @@
 !!   SOURCE
 !****************************************************************************
 MODULE xc_xbecke88
+  USE bibliography,                    ONLY: cite_reference,&
+                                             Becke1988
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
@@ -215,6 +217,8 @@ CONTAINS
     NULLIFY(bo)
 
     CALL section_vals_val_get(xb88_params,"scale_x",r_val=sx,error=error)
+
+    CALL cite_reference(Becke1988)
 
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -794,6 +798,9 @@ CONTAINS
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,"I","",handle)
+
+    CALL cite_reference(Becke1988)
+
     failure=.FALSE.
     NULLIFY(deriv, bo)
     DO i=1,2

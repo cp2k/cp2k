@@ -22,7 +22,8 @@
 MODULE xc_xwpbe
 
 ! *****************************************************************************
-
+  USE bibliography,                    ONLY: cite_reference,&
+                                             Heyd2004
   USE erf_fn,                          ONLY: erfc
   USE input_constants,                 ONLY: pz_orig
   USE input_section_types,             ONLY: section_vals_type,&
@@ -214,6 +215,7 @@ MODULE xc_xwpbe
     failure=.FALSE.
 
     NULLIFY(bo)
+    CALL cite_reference(Heyd2004)
 
     CALL section_vals_val_get(xwpbe_params,"SCALE_X",r_val=sx,error=error)
     CALL section_vals_val_get(xwpbe_params,"SCALE_X0",r_val=sx0,error=error)
@@ -5447,6 +5449,8 @@ MODULE xc_xwpbe
     failure=.FALSE.
 
     NULLIFY(bo)
+
+    CALL cite_reference(Heyd2004)
 
     CALL section_vals_val_get(xwpbe_params,"SCALE_X",r_val=sx,error=error)
     CALL section_vals_val_get(xwpbe_params,"SCALE_X0",r_val=sx0,error=error)

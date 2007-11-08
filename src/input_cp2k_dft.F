@@ -27,7 +27,8 @@ MODULE input_cp2k_dft
        Avezac2005, Elstner1998, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, &
        Krack2002, Lippert1997, Lippert1999, Perdew1981, Porezag1995, &
        Seifert1996, VandeVondele2003, VandeVondele2005a, VandeVondele2005b, &
-       Zhechkov2005, Ortiz1994
+       Zhechkov2005, Ortiz1994,Becke1988,Perdew1996,Zhang1998,Lee1988, &
+             Heyd2006,Vydrov2006,Heyd2003,Heyd2004,Vosko1980, Goedecker1996
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants
@@ -2322,6 +2323,8 @@ CONTAINS
        CALL section_create(section,name="xc_functional",&
             description="The xc functional to use",&
             n_keywords=0, n_subsections=4, repeats=.FALSE., required=.FALSE.,&
+            citations=(/Ortiz1994,Becke1988,Perdew1996,Zhang1998,Lee1988, &
+                        Heyd2004,Vosko1980, Goedecker1996,Perdew1981/),&
             error=error)
 
        NULLIFY(subsection,keyword)
@@ -2339,6 +2342,7 @@ CONTAINS
        CALL section_create(subsection,name="BECKE88",&
             description="Uses the Becke 88 exchange functional",&
             n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            citations=(/Becke1988/),&
             error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
             description="activates the functional",&
@@ -2357,6 +2361,7 @@ CONTAINS
        CALL section_create(subsection,name="LYP",&
             description="Uses the LYP functional",&
             n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            citations=(/Lee1988/),&
             error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
             description="activates the functional",&
@@ -2374,6 +2379,7 @@ CONTAINS
        CALL section_create(subsection,name="PADE",&
             description="Uses the PADE functional",&
             n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            citations=(/Goedecker1996/),&
             error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
             description="activates the functional",&
@@ -2580,6 +2586,7 @@ CONTAINS
        CALL section_create(subsection,name="VWN",&
             description="Uses the VWN functional",&
             n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            citations=(/Vosko1980/),&
             error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
             description="activates the functional",&
@@ -2655,6 +2662,7 @@ CONTAINS
        CALL section_create(subsection,name="PBE",&
             description="Uses the PBE functional",&
             n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            citations=(/Perdew1996,Zhang1998/),&
             error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
             description="activates the functional",&
@@ -2662,7 +2670,7 @@ CONTAINS
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,"parametrization",&
-            description="switches between the original pbe and the revised pbe "//&
+            description="switches between the original PBE and the revised PBE "//&
             "proposed ba Yingkai Zhang and Weitao Yang",&
             enum_i_vals=(/xc_pbe_orig,xc_rev_pbe/),enum_c_vals=(/"ORIG  ","revPBE"/),&
             default_i_val=xc_pbe_orig,error=error)
@@ -2684,6 +2692,7 @@ CONTAINS
        CALL section_create(subsection,name="XWPBE",&
             description="Uses the short range PBE functional",&
             n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            citations=(/Heyd2004/),&
             error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
             description="activates the functional",&

@@ -28,6 +28,9 @@
 !!   SOURCE
 !****************************************************************************
 MODULE xc_pbe
+  USE bibliography,                    ONLY: cite_reference,&
+                                             Perdew1996,&
+                                             Zhang1998
   USE input_constants,                 ONLY: xc_pbe_orig,&
                                              xc_rev_pbe
   USE input_section_types,             ONLY: section_vals_type,&
@@ -114,6 +117,7 @@ CONTAINS
 
     SELECT CASE(param)
     CASE(xc_pbe_orig)
+       CALL cite_reference(Perdew1996)
        IF (sx==1._dp .AND.sc==1._dp) THEN
           IF ( PRESENT ( reference ) ) THEN
              reference = "J.P.Perdew, K.Burke, M.Ernzerhof, "//&
@@ -136,6 +140,8 @@ CONTAINS
           END IF
        END IF
     CASE(xc_rev_pbe)
+       CALL cite_reference(Perdew1996)
+       CALL cite_reference(Zhang1998)
        IF (sx==1._dp .AND.sc==1._dp) THEN
           IF ( PRESENT ( reference ) ) THEN
           reference = "revPBE, Yingkay Zhang and Weitao Yang,"//&

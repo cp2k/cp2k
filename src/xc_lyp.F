@@ -24,6 +24,8 @@
 !!   SOURCE
 !****************************************************************************
 MODULE xc_lyp
+  USE bibliography,                    ONLY: cite_reference,&
+                                             Lee1988
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -237,6 +239,7 @@ SUBROUTINE lyp_lda_eval(rho_set,deriv_set,grad_deriv,lyp_params,error)
   NULLIFY(bo)
 
   CALL section_vals_val_get(lyp_params,"scale_c",r_val=sc,error=error)
+  CALL cite_reference(Lee1988)
 
   CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
   CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -893,6 +896,7 @@ SUBROUTINE lyp_lsd_eval(rho_set,deriv_set,grad_deriv,lyp_params,error)
   NULLIFY(deriv, bo)
 
   CALL section_vals_val_get(lyp_params,"scale_c",r_val=sc,error=error)
+  CALL cite_reference(Lee1988)
 
   CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
   CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)

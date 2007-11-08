@@ -28,6 +28,8 @@
 
 MODULE xc_pade
 ! *****************************************************************************
+  USE bibliography,                    ONLY: cite_reference,&
+                                             Goedecker1996
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -99,6 +101,8 @@ CONTAINS
 
     eps_rho = cutoff
     CALL set_util ( cutoff )
+
+    CALL cite_reference(Goedecker1996)
 
     IF ( PRESENT ( debug ) ) THEN
        debug_flag = debug

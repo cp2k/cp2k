@@ -52,9 +52,12 @@ MODULE bibliography
   INTEGER, PUBLIC, SAVE ::  VandeVondele2005a, VandeVondele2003, Laino2005, Laino2006, &
              Goedecker1996, Hartwigsen1998, Krack2005, Lippert1997, Lippert1999, Krack2000,&
              Krack2002, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Toukmaji1996, Martyna1999,&
-             VandeVondele2005b, Perdew1981,Avezac2005, Porezag1995, Seifert1996, Elstner1998, Zhechkov2005,&
-             Frigo2005, Nose1984a, Nose1984b, Bussi2007,Genovese2006,Genovese2007,Evans1983,Minary2003,Byrd1995,&
-             VandeVondele2007,Ortiz1994
+             VandeVondele2005b, Perdew1981,Avezac2005, Porezag1995, &
+             Seifert1996, Elstner1998, Zhechkov2005,&
+             Frigo2005, Nose1984a, Nose1984b, Bussi2007,Genovese2006,&
+             Genovese2007,Evans1983,Minary2003,Byrd1995,&
+             VandeVondele2007,Ortiz1994,Becke1988,Perdew1996,Zhang1998,Lee1988, &
+             Heyd2006,Vydrov2006,Heyd2003,Heyd2004,Vosko1980
 
 CONTAINS
 !!****f* bibliography/add_all_references *
@@ -737,6 +740,174 @@ CONTAINS
             "UT ISI:A1994NZ15300007",&
             "ER"),&
             DOI="10.1103/PhysRevB.50.1391")
+
+    CALL add_reference(key=Becke1988,ISI_record=s2a(&
+            "PT J",&
+            "AU BECKE, AD",&
+            "TI DENSITY-FUNCTIONAL EXCHANGE-ENERGY APPROXIMATION WITH CORRECT",&
+            "   ASYMPTOTIC-BEHAVIOR",&
+            "SO PHYSICAL REVIEW A",&
+            "SN 1050-2947",&
+            "PD SEP 15",&
+            "PY 1988",&
+            "VL 38",&
+            "IS 6",&
+            "BP 3098",&
+            "EP 3100",&
+            "UT ISI:A1988Q146900044",&
+            "ER"),&
+            DOI="10.1103/PhysRevA.38.3098")
+
+    CALL add_reference(key=Perdew1996,ISI_record=s2a(&
+            "PT J",&
+            "AU Perdew, JP",&
+            "   Burke, K",&
+            "   Ernzerhof, M",&
+            "TI Generalized gradient approximation made simple",&
+            "SO PHYSICAL REVIEW LETTERS",&
+            "SN 0031-9007",&
+            "PD OCT 28",&
+            "PY 1996",&
+            "VL 77",&
+            "IS 18",&
+            "BP 3865",&
+            "EP 3868",&
+            "UT ISI:A1996VP22500044",&
+            "ER"),&
+            DOI="10.1103/PhysRevLett.77.3865")
+
+    CALL add_reference(key=Zhang1998,ISI_record=s2a(&
+            "PT J",&
+            "AU Zhang, YK",&
+            "   Yang, WT",&
+            "TI Comment on Generalized gradient approximation made simple",&
+            "SO PHYSICAL REVIEW LETTERS",&
+            "SN 0031-9007",&
+            "PD JAN 26",&
+            "PY 1998",&
+            "VL 80",&
+            "IS 4",&
+            "BP 890",&
+            "EP 890",&
+            "UT ISI:000071717100066",&
+            "ER"),&
+            DOI="10.1103/PhysRevLett.80.890")
+
+    CALL add_reference(key=Lee1988,ISI_record=s2a(&
+            "PT J",&
+            "AU LEE, CT",&
+            "   YANG, WT",&
+            "   PARR, RG",&
+            "TI DEVELOPMENT OF THE COLLE-SALVETTI CORRELATION-ENERGY FORMULA INTO A",&
+            "   FUNCTIONAL OF THE ELECTRON-DENSITY",&
+            "SO PHYSICAL REVIEW B",&
+            "SN 0163-1829",&
+            "PD JAN 15",&
+            "PY 1988",&
+            "VL 37",&
+            "IS 2",&
+            "BP 785",&
+            "EP 789",&
+            "UT ISI:A1988L976200011",&
+            "ER"),&
+            DOI="10.1103/PhysRevB.37.785")
+
+    CALL add_reference(key=Heyd2004,ISI_record=s2a(&
+            "PT J",&
+            "AU Heyd, J",&
+            "   Scuseria, GE",&
+            "TI Assessment and validation of a screened Coulomb hybrid density",&
+            "   functional",&
+            "SO JOURNAL OF CHEMICAL PHYSICS",&
+            "SN 0021-9606",&
+            "PD APR 22",&
+            "PY 2004",&
+            "VL 120",&
+            "IS 16",&
+            "BP 7274",&
+            "EP 7280",&
+            "UT ISI:000220676000005",&
+            "ER"),&
+            DOI="10.1063/1.1668634")
+
+    CALL add_reference(key=Heyd2003,ISI_record=s2a(&
+            "PT J",&
+            "AU Heyd, J",&
+            "   Scuseria, GE",&
+            "   Ernzerhof, M",&
+            "TI Hybrid functionals based on a screened Coulomb potential",&
+            "SO JOURNAL OF CHEMICAL PHYSICS",&
+            "SN 0021-9606",&
+            "PD MAY 8",&
+            "PY 2003",&
+            "VL 118",&
+            "IS 18",&
+            "BP 8207",&
+            "EP 8215",&
+            "UT ISI:000182454100010",&
+            "ER"),&
+            DOI="10.1063/1.1564060")
+
+    CALL add_reference(key=Heyd2006,ISI_record=s2a(&
+            "PT J",&
+            "AU Heyd, J",&
+            "   Scuseria, GE",&
+            "   Ernzerhof, M",&
+            "TI Hybrid functionals based on a screened Coulomb potential (vol 118, pg",&
+            "   8207, 2003)",&
+            "SO JOURNAL OF CHEMICAL PHYSICS",&
+            "SN 0021-9606",&
+            "PD JUN 7",&
+            "PY 2006",&
+            "VL 124",&
+            "IS 21",&
+            "AR 219906",&
+            "DI ARTN 219906",&
+            "UT ISI:000238758700058",&
+            "ER"),&
+            DOI="10.1063/1.2204597")
+
+    CALL add_reference(key=Vydrov2006,ISI_record=s2a(&
+            "PT J",&
+            "AU Vydrov, OA",&
+            "   Heyd, J",&
+            "   Krukau, AV",&
+            "   Scuseria, GE",&
+            "AF Vydrov, Oleg A.",&
+            "   Heyd, Jochen",&
+            "   Krukau, Aliaksandr V.",&
+            "   Scuseria, Gustavo E.",&
+            "TI Importance of short-range versus long-range Hartree-Fock exchange for",&
+            "   the performance of hybrid density functionals",&
+            "SO JOURNAL OF CHEMICAL PHYSICS",&
+            "SN 0021-9606",&
+            "PD AUG 21",&
+            "PY 2006",&
+            "VL 125",&
+            "IS 7",&
+            "AR 074106",&
+            "DI ARTN 074106",&
+            "UT ISI:000239914800006",&
+            "ER"),&
+            DOI="10.1063/1.2244560")
+
+    CALL add_reference(key=Vosko1980,ISI_record=s2a(&
+            "PT J",&
+            "AU VOSKO, SH",&
+            "   WILK, L",&
+            "   NUSAIR, M",&
+            "TI ACCURATE SPIN-DEPENDENT ELECTRON LIQUID CORRELATION ENERGIES FOR LOCAL",&
+            "   SPIN-DENSITY CALCULATIONS - A CRITICAL ANALYSIS",&
+            "SO CANADIAN JOURNAL OF PHYSICS",&
+            "SN 0008-4204",&
+            "PY 1980",&
+            "VL 58",&
+            "IS 8",&
+            "BP 1200",&
+            "EP 1211",&
+            "UT ISI:A1980KE76300015",&
+            "ER"),&
+            DOI="10.1139/cjp-58-8-1200") ! this doi is on the publishers web site but does not resolve
 
   END SUBROUTINE add_all_references
 

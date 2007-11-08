@@ -28,6 +28,8 @@
 
 MODULE xc_vwn
 ! *****************************************************************************
+  USE bibliography,                    ONLY: cite_reference,&
+                                             Vosko1980
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -84,6 +86,8 @@ CONTAINS
     CALL section_vals_val_get(vwn_params,"functional_type",i_val=type,error=error)
     eps_rho = cutoff
     CALL set_util ( cutoff )
+
+    CALL cite_reference(Vosko1980)
 
     SELECT CASE(type)
        CASE(do_vwn5)
