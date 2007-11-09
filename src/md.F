@@ -539,7 +539,9 @@ CPSourceFileRef,&
        atomic_kind => part(i)%atomic_kind
        CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
        IF (.NOT.is_fixed(i)) THEN
-          vcom = vcom + part(i)%v(:) * mass
+          vcom(1) = vcom(1) + part(i)%v(1) * mass
+          vcom(2) = vcom(2) + part(i)%v(2) * mass
+          vcom(3) = vcom(3) + part(i)%v(3) * mass
           denom = denom + mass
        END IF
     END DO
@@ -596,7 +598,8 @@ CPSourceFileRef,&
 !!     compute_ekin
 !!
 !!   FUNCTION
-!!     Compute the kinetic energy.
+!!     Compute the kinetic energy. Does not subtract the center of mass kinetic
+!!     energy.
 !!     *** is only used by initialize_velocities below ***
 !!
 !!   AUTHOR
@@ -659,16 +662,14 @@ CPSourceFileRef,&
 
     INTEGER                                  :: i
     REAL(KIND=dp)                            :: factor
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
-    factor = simpar%temp_ext / (2.0_dp * ekin ) * REAL(simpar%nfree,KIND=dp)
+    factor = simpar%temp_ext / ( 2.0_dp * ekin ) * REAL(simpar%nfree,KIND=dp)
     ! Note:
     ! this rescaling is still wrong, it should take the masses into account
     ! rescaling is generally not correct, so needs fixing
     ekin = ekin * factor
     factor = SQRT(factor)
     DO i = 1, SIZE(part)
-       atomic_kind => part(i)%atomic_kind
        part(i)%v(:) = factor*part(i)%v(:)
     END DO
     IF (PRESENT(vcom)) THEN
@@ -885,7 +886,7 @@ CPSourceFileRef,&
     REAL(KIND=dp)                            :: ecom, ekin, fac_massc, &
                                                 fac_masss, mass, mass_tot, &
                                                 temp
-    REAL(KIND=dp), DIMENSION(3)              :: rcom, v, vang, vc, vcom, vs
+    REAL(KIND=dp), DIMENSION(3)              :: rcom, vang, vc, vcom, vs
     REAL(KIND=dp), DIMENSION(:), POINTER     :: vel
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
@@ -1063,33 +1064,26 @@ CPSourceFileRef,&
        ENDIF 
     END IF
 
-    ! Recompute vcom, ecom and ekin for IO
-    CALL compute_vcom(part,is_fixed,vcom,ecom)
-    ekin = compute_ekin(part)
-
     IF (iw>0) THEN
+       ! Recompute vcom, ecom and ekin for IO
+       CALL compute_vcom(part,is_fixed,vcom,ecom)
+       ekin = compute_ekin(part) - ecom
        IF (simpar % nfree == 0) THEN
           CPPostcondition(ekin==0.0_dp,cp_failure_level,routineP,error,failure)
           temp = 0.0_dp
        ELSE
           temp = 2.0_dp * ekin / REAL ( simpar % nfree,KIND=dp)
        END IF
-       WRITE ( iw, '( A, T61, F18.2, A2 )' ) ' Initial Temperature ', temp / unit%kelvin, " K"
-       WRITE ( iw, '( A, T61, F20.12 )' ) ' Centre of mass velocity in direction x:', vcom ( 1 )
-       WRITE ( iw, '( A, T61, F20.12 )' ) ' Centre of mass velocity in direction y:', vcom ( 2 )
-       WRITE ( iw, '( A, T61, F20.12 )' ) ' Centre of mass velocity in direction z:', vcom ( 3 )
+       WRITE (iw, '( A, T61, F18.2, A2 )' ) ' Initial Temperature ', temp / unit%kelvin, " K"
+       WRITE (iw, '( A, T21, F20.12 , F20.12 , F20.12 )' ) ' COM velocity:', vcom ( 1 ), vcom ( 2 ), vcom ( 3 )
 
        ! compute and log rcom and vang if not periodic
        CALL force_env_get(force_env, cell=cell, error=error)
        IF (SUM(cell%perd(1:3)) == 0) THEN
           CALL compute_rcom(part,is_fixed,rcom)
           CALL compute_vang(part,is_fixed,rcom,vang)
-          WRITE (iw, '( A, T61, F20.12 )' ) ' Center of mass position (x component):', rcom(1)
-          WRITE (iw, '( A, T61, F20.12 )' ) ' Center of mass position (y component):', rcom(2)
-          WRITE (iw, '( A, T61, F20.12 )' ) ' Center of mass position (z component):', rcom(3)
-          WRITE (iw, '( A, T61, F20.12 )' ) ' Angular velocity, x component:', vang(1)
-          WRITE (iw, '( A, T61, F20.12 )' ) ' Angular velocity, y component:', vang(2)
-          WRITE (iw, '( A, T61, F20.12 )' ) ' Angular velocity, z component:', vang(3)
+          WRITE (iw, '( A, T21, F20.12 , F20.12 , F20.12 )' ) ' COM position:', rcom ( 1 ), rcom ( 2 ), rcom ( 3 )
+          WRITE (iw, '( A, T21, F20.12 , F20.12 , F20.12 )' ) ' Angular velocity:', vang ( 1 ), vang ( 2 ), vang ( 3 )
        END IF
        WRITE ( iw, '( A, A, A, / )' ) ' ***********************', ' end of velocity initialization ', '************************'
     END IF
