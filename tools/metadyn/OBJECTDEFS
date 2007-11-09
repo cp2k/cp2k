@@ -1,3 +1,4 @@
 FESOBJ=machine.o\
  kinds.o\
- graph.o
+ graph.o\
+ mathconstants.o

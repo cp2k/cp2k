@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2002,2003,2004  CP2K developers group                       !
+!   Copyright (C) 2002,2003,2004,2005,2006,2007  CP2K developers group        !
 !-----------------------------------------------------------------------------!
 
 
@@ -21,21 +21,22 @@
 !!   MODIFICATION HISTORY
 !!     03.2006 created [tlaino]
 !!     teodoro.laino .at. gmail.com 
-!!
+!!     11.2007 - tlaino (University of Zurich): Periodic COLVAR - cleaning.
 !!
 !!   SOURCE
 !!     Please report any bug to the author
 !!
 !****************************************************************************
-
 PROGRAM fes_compute
 
   USE kinds,                           ONLY: dp,&
-                                             sp
+                                             sp,&
+                                             default_string_length
   USE machine,                         ONLY: m_getlog,&
                                              m_hostnm,&
                                              m_getarg,&
                                              m_iargc
+  USE mathconstants,                   ONLY: pi
   
   IMPLICIT NONE
   
@@ -49,12 +50,12 @@ PROGRAM fes_compute
        INTEGER, OPTIONAL, INTENT(OUT) :: i_val
      END SUBROUTINE get_val_res
 
-     RECURSIVE SUBROUTINE fes_compute_low(idim, nn, fes, gauss, ind, ind0, nfes, ndim, ngauss, ngrid)
+     RECURSIVE SUBROUTINE fes_compute_low(idim, nn, fes, gauss, ind, ind0, nfes, ndim, ngauss, ngrid, iperd)
        USE kinds,                           ONLY: dp,&
                                                   sp       
        IMPLICIT NONE
        INTEGER, INTENT(in) :: idim, nfes, ngauss, ndim
-       INTEGER, DIMENSION(:) :: nn, ind, ind0
+       INTEGER, DIMENSION(:) :: nn, ind, ind0, iperd
        INTEGER, DIMENSION(:), POINTER :: ngrid
        REAL(KIND=dp), DIMENSION(:), POINTER   :: fes
        REAL(KIND=dp), DIMENSION(:,:), POINTER :: gauss
@@ -83,15 +84,15 @@ PROGRAM fes_compute
      END SUBROUTINE fes_only_write
   END INTERFACE
 
-  INTEGER :: i, ix ,id, it, ip, stat
-  INTEGER :: ndim, ndw, nt_p, nt, nh, nf, nwr, ncount
+  INTEGER :: i, ix ,id, it, ip, stat, itmp, iw
+  INTEGER :: ndim, ndw, nt_p, nt, nh, nf, nwr, ncount, nprd
   INTEGER :: argcount, ngauss, nfes, coor
-  INTEGER, POINTER :: idw(:)
+  INTEGER, POINTER :: idw(:), iperd(:), iprd(:)
   INTEGER, POINTER :: i_map(:)
   INTEGER, POINTER :: ngrid(:), tmp(:)
   INTEGER, POINTER :: ind(:), inds(:), nn(:,:), nn_max(:)
 
-  REAL(KIND=dp) :: dum, ss
+  REAL(KIND=dp) :: dum, ss, diff
   REAL(KIND=dp) :: x0w(3),xfw(3)
   REAL(KIND=dp), POINTER ::dp_cut(:)
   REAL(KIND=dp), POINTER :: ss0(:,:)
@@ -104,13 +105,13 @@ PROGRAM fes_compute
   CHARACTER(LEN=80) :: wq_char, file, out
 
   LOGICAL :: fix, lstride
-  LOGICAL :: l_grid, l_dp, l_orac, l_cp2k
+  LOGICAL :: l_grid, l_dp, l_orac, l_cp2k, l_math
+  CHARACTER(LEN=default_string_length) :: per_label
 
-  !
   ! Initialize variables
-  !
-  NDIM    = 2
-  NDW     = 2
+  nprd    = 0
+  ndim    = 1
+  ndw     = 1
   nt_p    = 9999999
   eps_cut = 1e-6
   file    = 'HILLS'
@@ -120,27 +121,30 @@ PROGRAM fes_compute
   l_grid  = .FALSE.
   l_dp    = .FALSE.
   l_orac  = .FALSE.
-  l_cp2k  = .FALSE. 
-
+  l_cp2k  = .FALSE.
+  l_math  = .FALSE.
+  iw      = 6
 
   argcount = m_iargc()
   IF(argcount==0)THEN
-     WRITE(6,*)'USAGE:'
-     WRITE(6,*)'graf  '
-     WRITE(6,*)'[-ngrid 50   ]   (mesh dimension. DEFAULT :: 100)'
-     WRITE(6,*)'[-ndim 3     ]   (number of collective variables NCV)'
-     WRITE(6,*)'[-ndw 1 3    ]   (CVs for the free energy surface)'
-     WRITE(6,*)'[-stride 10  ]   (how often the FES is written)'
-     WRITE(6,*)'[-fix 1.1 ...]   (define the region for the FES)'
-     WRITE(6,*)'                 (if omitted this is automatically calculated)'
-     WRITE(6,*)'[-cutoff 2.]     (the hills are cutoffed at 2)'
-     WRITE(6,*)'[-file filename]'
-     WRITE(6,*)'[-out  filename]'
-     WRITE(6,*)'[-orac ]         (if energies are written in orac intern units)'
-     WRITE(6,*)'[-cp2k ]         (if CP2K restart file is provided)'
-     WRITE(6,*)''
-     WRITE(6,*)'DEFAULT OUTPUT: fes.dat'
-     WRITE(6,*)''
+     WRITE(iw,*)'USAGE:'
+     WRITE(iw,*)'graf  '
+     WRITE(iw,*)'[-ngrid 50     ]   (mesh dimension. DEFAULT :: 100)'
+     WRITE(iw,*)'[-ndim 3       ]   (number of collective variables NCV)'
+     WRITE(iw,*)'[-ndw 1 3      ]   (CVs for the free energy surface)'
+     WRITE(iw,*)'[-periodic 2 3 ]   (CVs with periodic boundary conditions (-pi,pi] )'
+     WRITE(iw,*)'[-stride 10    ]   (how often the FES is written)'
+     WRITE(iw,*)'[-fix 1.1 ...  ]   (define the region for the FES)'
+     WRITE(iw,*)'                   (if omitted this is automatically calculated)'
+     WRITE(iw,*)'[-cutoff 2.]       (the hills are cutoffed at 2)'
+     WRITE(iw,*)'[-file filename]'
+     WRITE(iw,*)'[-out  filename]'
+     WRITE(iw,*)'[-orac ]           (if energies are written in orac intern units)'
+     WRITE(iw,*)'[-cp2k ]           (if CP2K restart file is provided)'
+     WRITE(iw,*)'[-mathlab ]        (file storing FES in Mathlab format. Default format Gnuplot.'
+     WRITE(iw,*)''
+     WRITE(iw,*)'DEFAULT OUTPUT: fes.dat'
+     WRITE(iw,*)''
      STOP  "Please provide arguments to run FES!"
   ENDIF
   
@@ -159,12 +163,12 @@ PROGRAM fes_compute
 
      IF (INDEX(wq_char,'-ndim').NE.0)THEN
         CALL M_GETARG(i+1,wq_char)
-        READ(wq_char,*)NDIM
+        READ(wq_char,*)ndim
      ENDIF
 
      IF (INDEX(wq_char,'-stride').NE.0)THEN
         CALL M_GETARG(i+1,wq_char)
-        READ(wq_char,*)NT_P
+        READ(wq_char,*)nt_p
         lstride=.TRUE.
      ENDIF
 
@@ -180,45 +184,78 @@ PROGRAM fes_compute
      IF (INDEX(wq_char,'-cp2k').NE.0)THEN
         l_cp2k=.TRUE.
      ENDIF
+
+     IF (INDEX(wq_char,'-mathlab').NE.0)THEN
+        l_math=.TRUE.
+     ENDIF
   END DO
   IF (l_cp2k) l_orac = .FALSE.
-  !
+
   ! Basic Allocation
-  !
+  ndw = ndim
   ALLOCATE(ngrid(ndim),stat=stat)
   IF (stat/=0) STOP "Allocation Error"
   ALLOCATE(dp_grid(ndim),stat=stat)
   IF (stat/=0) STOP "Allocation Error"
   ALLOCATE(idw(ndw),stat=stat)
   IF (stat/=0) STOP "Allocation Error"
-
-  DO i=1,ndw
-     idw(i)=i
+  ALLOCATE(iperd(ndim),stat=stat)
+  IF (stat/=0) STOP "Allocation Error"
+  DO i = 1, ndim
+     idw(i)   = i
+     iperd(i) = 0
   END DO
 
   DO i=1,argcount
      CALL M_GETARG(i,wq_char)
 
      IF (INDEX(wq_char,'-ndw').NE.0)THEN
-        NDW=0
+        DEALLOCATE(idw,stat=stat)
+        IF (stat/=0) STOP "Allocation Error"
+
+        ndw=0
         ndw_loop: DO ix=i+1,argcount
            CALL M_GETARG(ix,wq_char)
            IF(INDEX(wq_char,'-').EQ.0)THEN
-              NDW=NDW+1
+              ndw=ndw+1
            ELSE
               EXIT ndw_loop
            ENDIF
         ENDDO ndw_loop
-        DO id=1,NDW
+
+        ALLOCATE(idw(ndw),stat=stat)
+        IF (stat/=0) STOP "Allocation Error"
+
+        DO id=1,ndw
            CALL M_GETARG(i+id,wq_char)
            READ(wq_char,*)idw(id)
+        ENDDO
+     ENDIF
+
+     IF (INDEX(wq_char,'-periodic').NE.0)THEN
+        nprd=0
+        nprd_loop: DO ix=i+1,argcount
+           CALL M_GETARG(ix,wq_char)
+           IF(INDEX(wq_char,'-').EQ.0)THEN
+              nprd=nprd+1
+           ELSE
+              EXIT nprd_loop
+           ENDIF
+        ENDDO nprd_loop
+
+        ALLOCATE(iprd(nprd),stat=stat)
+        IF (stat/=0) STOP "Allocation Error"
+
+        DO id=1,nprd
+           CALL M_GETARG(i+id,wq_char)
+           READ(wq_char,*)iprd(id)
         ENDDO
      ENDIF
 
      IF (INDEX(wq_char,'-ngrid').NE.0)THEN
         DO ix=1,ndim
            CALL M_GETARG(i+ix,wq_char)
-           READ(wq_char,*)NGRID(ix)
+           READ(wq_char,*)ngrid(ix)
            l_grid=.TRUE.
         END DO
      ENDIF
@@ -234,7 +271,7 @@ PROGRAM fes_compute
      
      IF (INDEX(wq_char,'-fix').NE.0)THEN
         fix=.TRUE.
-        DO id=1,NDW
+        DO id=1,ndw
            CALL M_GETARG(i+2*(id-1)+1,wq_char)
            READ(wq_char,*)x0w(id)
            CALL M_GETARG(i+2*(id-1)+2,wq_char)
@@ -242,18 +279,17 @@ PROGRAM fes_compute
         ENDDO
      ENDIF
   ENDDO
-  !
-  !  defines the order of the collectiv var.: 
-  !  first the "wanted" ones, then the others
-  !  
+
+  !  Defines the order of the collectiv var.: first the "wanted" ones, then the others
   ALLOCATE(i_map(ndim),stat=stat)
   IF (stat/=0) STOP "Allocation Error" 
+  i_map = 0
 
-  DO id=1,NDW
+  DO id=1,ndw
      i_map(idw(id))=id
   ENDDO
-  ix=NDW
-  DO id=1,NDIM
+  ix=ndw
+  DO id=1,ndim
      IF(i_map(id)==0)THEN
         ix=ix+1
         i_map(id)=ix
@@ -261,6 +297,16 @@ PROGRAM fes_compute
   ENDDO
   i_map=ndim-i_map+1
 
+  ! Tag the periodic COLVAR according the new internal order
+  DO id=1,nprd
+     DO i = 1, ndim
+        IF (i_map(i)==iprd(id)) EXIT
+     END DO
+     IF (i==ndim+1) STOP "Error assigning the periodicity of COLVAR" 
+     iperd(i)=1
+  END DO
+
+  ! Grid size
   IF(l_grid) THEN
      ALLOCATE(tmp(ndim),stat=stat)
      IF (stat/=0) STOP "Allocation Error"
@@ -286,36 +332,36 @@ PROGRAM fes_compute
      END DO
 100  REWIND(10)
   END IF
-
-  ALLOCATE( x0(NDIM)         , stat=stat )
+  
+  ALLOCATE( x0(ndim)         , stat=stat )
   IF (stat/=0) STOP "Allocation Error"
-  ALLOCATE( xf(NDIM)         , stat=stat )
+  ALLOCATE( xf(ndim)         , stat=stat )
   IF (stat/=0) STOP "Allocation Error"
-  ALLOCATE( ss0(NDIM,NT)     , stat=stat )
+  ALLOCATE( ss0(ndim,nt)     , stat=stat )
   IF (stat/=0) STOP "Allocation Error"
-  ALLOCATE( delta_s(NDIM,NT) , stat=stat )
+  ALLOCATE( delta_s(ndim,nt) , stat=stat )
   IF (stat/=0) STOP "Allocation Error"
-  ALLOCATE( ww(NT)           , stat=stat )
+  ALLOCATE( ww(nt)           , stat=stat )
   IF (stat/=0) STOP "Allocation Error"
-  ALLOCATE( ind(NDIM)        , stat=stat )
+  ALLOCATE( ind(ndim)        , stat=stat )
   IF (stat/=0) STOP "Allocation Error"
-  ALLOCATE( inds(NDIM)       , stat=stat )
+  ALLOCATE( inds(ndim)       , stat=stat )
   IF (stat/=0) STOP "Allocation Error"
-  ALLOCATE( nn(NDIM,nt)      , stat=stat )
+  ALLOCATE( nn(ndim,nt)      , stat=stat )
   IF (stat/=0) STOP "Allocation Error"
-  ALLOCATE( nn_max(NDIM)     , stat=stat )
+  ALLOCATE( nn_max(ndim)     , stat=stat )
   IF (stat/=0) STOP "Allocation Error"
-  ALLOCATE( dp_cut(NDIM)     , stat=stat )
+  ALLOCATE( dp_cut(ndim)     , stat=stat )
   IF (stat/=0) STOP "Allocation Error"
 
   IF (l_cp2k) THEN
      CALL get_val_res(unit=10,section="&METADYN",subsection="&SPAWNED_HILLS_POS")
      DO i = 1, nt
-        READ(10,*)(ss0(i_map(id),i),id=1,NDIM)
+        READ(10,*)(ss0(i_map(id),i),id=1,ndim)
      END DO
      CALL get_val_res(unit=10,section="&METADYN",subsection="&SPAWNED_HILLS_AMPL")
      DO i = 1, nt
-        READ(10,*)(delta_s(i_map(id),i),id=1,NDIM)
+        READ(10,*)(delta_s(i_map(id),i),id=1,ndim)
      END DO
      CALL get_val_res(unit=10,section="&METADYN",subsection="&SPAWNED_HILLS_HEIGHT")
      DO i = 1, nt
@@ -323,41 +369,48 @@ PROGRAM fes_compute
      END DO
   ELSE
      DO i = 1, nt
-        READ(10,*)dum,(ss0(i_map(id),i),id=1,NDIM),&
-                      (delta_s(i_map(id),i),id=1,NDIM),ww(i)
+        READ(10,*)dum,(ss0(i_map(id),i),id=1,ndim),(delta_s(i_map(id),i),id=1,ndim),ww(i)
      END DO
   END IF
   CLOSE(10)
 
-  IF(l_orac) ww = ww * 10000. / 4.187
+  ! ORAC conversion factor
+  IF(l_orac) ww = ww * 10000._dp / 4.187_dp
 
-  DO id=1,NDIM
-     x0(id)=1000000
-     xf(id)=-1000000
+  ! Setting up the limit of definitions for the several colvars
+  DO id=1,ndim
+     x0(id) = HUGE(1.0_dp)
+     xf(id) =-HUGE(1.0_dp)
   ENDDO
-
   IF(fix) THEN
-     DO it=1,NT
-        DO id=1,NDIM-NDW
+     DO it=1,nt
+        DO id=1,ndim-ndw
            x0(id)=MIN(x0(id),ss0(id,it)-3.*delta_s(id,it))
            xf(id)=MAX(xf(id),ss0(id,it)+3.*delta_s(id,it))
         ENDDO
      ENDDO
      it=0
-     DO id=NDIM,NDIM-NDW+1,-1
+     DO id=ndim,ndim-ndw+1,-1
         it=it+1
         x0(id)=x0w(it)
         xf(id)=xfw(it)
      ENDDO
   ELSE
-     DO it=1,NT
+     DO it=1,nt
         DO id=ndim,1,-1
            x0(id)=MIN(x0(id),ss0(id,it)-3.*delta_s(id,it))
            xf(id)=MAX(xf(id),ss0(id,it)+3.*delta_s(id,it))
         ENDDO
      ENDDO
   ENDIF
-  
+
+  DO id=ndim,1,-1
+     IF (iperd(id)==1) THEN
+        x0(id)=-pi
+        xf(id)= pi
+     END IF
+  END DO
+
   IF(l_dp)THEN
      ALLOCATE(tmpr(ndim))
      tmpr=dp_grid
@@ -367,35 +420,37 @@ PROGRAM fes_compute
      DEALLOCATE(tmpr)
      ngrid=INT((xf-x0)/dp_grid)+1
   ELSE
-     dp_grid=(xf-x0)/DBLE(NGRID-1)
+     dp_grid=(xf-x0)/DBLE(ngrid-1)
   END IF
   
-  WRITE(*,'(a15,5x,i7)'     )"NDIM         ::",NDIM
-  WRITE(*,'(a15,5x,i7)'     )"NWD          ::",NDW
-  WRITE(*,'(a15,5x,i7)'     )"HILLS        ::",NT
+  WRITE(iw,'(/,70("*"))')
+  WRITE(iw,'("FES|",T7,A,/)')"Parameters for FES:"
+  WRITE(iw,'("FES|",T7,A15,5x,i7)')"NDIM         ::",ndim
+  WRITE(iw,'("FES|",T7,A15,5x,i7)')"NWD          ::",ndw
+  WRITE(iw,'("FES|",T7,A15,5x,i7)')"HILLS        ::",nt
   it=ndim
-  ip=1
-  DO i=ndim-ndw+1,ndim
-     WRITE(*,'(a9,i3,a3,5x,2f7.3)')"RANGE VAR",ip," ::",x0(it),xf(it)
-     it=it-1
-     ip=ip+1
+  DO i=1,ndim
+     per_label = ""
+     IF (iperd(i)/=0) per_label = "(PERIODIC COLVAR)"
+     WRITE(iw,'("FES|",T7,"COLVAR # ",i3," ::",5x,"(",f7.3," ,",f7.3,")",5X,A)')i_map(i),x0(i),xf(i),TRIM(per_label)
   END DO
-  WRITE(*,'(a15,5x,7i7)')     "NGRID        ::",(NGRID(id),id=ndim,ndim-ndw+1,-1)
-  WRITE(*,'(a15,5x,5f7.3)')   "DX           ::",(dp_grid(id),id=ndim,ndim-ndw+1,-1)
-  WRITE(*,'(a15,5x,10g10.5)' )"CUTOFF       ::",eps_cut
+  WRITE(iw,'("FES|",T7,a15,5x,7i7)'   )"NGRID        ::",(ngrid(id),id=ndim,ndim-ndw+1,-1)
+  WRITE(iw,'("FES|",T7,a15,5x,5f7.3)' )"DX           ::",(dp_grid(id),id=ndim,ndim-ndw+1,-1)
+  WRITE(iw,'("FES|",T7,a15,5x,g10.5)' )"CUTOFF       ::",eps_cut
+  WRITE(iw,'(70("*"),/)')
 
   nn_max = 0
   DO i = 1, nt
      dp_cut  = SQRT(LOG(ABS(ww(i))/eps_cut))*2.0_dp*delta_s(:,i) 
      nn(:,i) = INT(dp_cut/dp_grid)
-     ww(i)   = ww(i)**(1.0_dp/DBLE(NDIM))
+     ww(i)   = ww(i)**(1.0_dp/DBLE(ndim))
   END DO
 
   nn_max = MAXVAL(nn,DIM=2)
   ngauss = MAXVAL(nn_max) * 2 + 1
   nfes   = PRODUCT(ngrid)
 
-  ALLOCATE(gauss(-MAXVAL(nn_max):MAXVAL(nn_max),NDIM))
+  ALLOCATE(gauss(-MAXVAL(nn_max):MAXVAL(nn_max),ndim))
   ALLOCATE(fes(nfes))
   fes=0.0_dp
 
@@ -409,12 +464,9 @@ PROGRAM fes_compute
   END IF
 
   ncount = 0
-
-  WRITE(*,'(a22)') "==>  Adding Hills  <=="
-  stride : DO WHILE (nh <= nt)
-
-     hills : DO it=nh,nf
-        
+  WRITE(iw,'(/,"FES|",T7,A)') "Computing Free Energy Surface"
+  Stride : DO WHILE (nh <= nt)
+     Hills : DO it=nh,nf
         ind=INT((ss0(:,it)-x0)/dp_grid) + 1
         gauss=0.0_dp
         
@@ -424,27 +476,28 @@ PROGRAM fes_compute
            DO ip=-nn(i,it),nn(i,it)
               coor = coor + 1
               ss = ss + dp_grid(i)
-              IF (coor .GT. ngrid(i)) CYCLE
-              IF (coor .LT. 1) CYCLE
-              dp2=((ss-ss0(i,it))/delta_s(i,it))**2
+              IF (iperd(i)==0) THEN
+                 IF (coor .GT. ngrid(i)) CYCLE
+                 IF (coor .LT. 1) CYCLE
+              END IF
+              diff = ss-ss0(i,it)
+              dp2=(diff/delta_s(i,it))**2
               gauss(ip,i)=ww(it)*EXP(-0.5_dp*dp2)
-!              WRITE(*,*)i,ip, gauss(ip,i), ind, coor, ss, x0, ss0(i,it)
            END DO
         END DO
         inds = ind
-        CALL fes_compute_low(NDIM,nn(:,it),fes,gauss,ind,inds,nfes,ndim,ngauss,ngrid)
+        CALL fes_compute_low(ndim,nn(:,it),fes,gauss,ind,inds,nfes,ndim,ngauss,ngrid,iperd)
         
         IF(.NOT. lstride .AND. MOD(it,nwr)==0)THEN
-           WRITE(6,'(a13,i4,a2)') "Hills done ::",INT(10*ANINT(10.*it/nt))," %"
+           WRITE(iw,'("FES|",T7,a,i4,a2)') "Mapping Gaussians ::",INT(10*ANINT(10.*it/nt))," %"
         ELSEIF(.NOT. lstride .AND. it==nt)THEN
-           WRITE(6,'(a13,i4,a2)') "Hills done ::",INT(10*ANINT(10.*it/nt))," %"
+           WRITE(iw,'("FES|",T7,a,i4,a2)') "Mapping Gaussians ::",INT(10*ANINT(10.*it/nt))," %"
         END IF
-
-     END DO hills
+     END DO Hills
 
      IF (lstride) THEN
         ncount = ncount+1
-        WRITE(*,'(a13,i5," |-| Hills from ",i6," to",i6)') "Done frame ::",ncount,nh,nf
+        WRITE(iw,'("FES|",T7,a13,i5," |-| Gaussians from ",i6," to",i6)') "Done frame ::",ncount,nh,nf
         IF(ncount<10) THEN
            WRITE(file,'("fes.dat.",i1)')ncount
         ELSEIF(ncount<100) THEN
@@ -456,26 +509,170 @@ PROGRAM fes_compute
         ind   = 1
         CALL fes_only_write(ndim, fes,  ind,  ndim, ngrid, ndw)
         CLOSE(123)
-
      END IF
 
      nh=nh+nt_p
      nf=MIN(nh+nt_p-1,nt)
-     
-  END DO stride
+  END DO Stride
   DEALLOCATE(gauss)
 
-  WRITE(*,'(a22)') "==> Writing output <=="
+  WRITE(iw,'("FES|",T7,A)') "Dumping FES structure in file: < "//TRIM(out)//" >"
   OPEN(123,file=out)
   ix=0
-  WRITE(123,'(10g12.5)')(NGRID(id),id=ndim,ndim-ndw+1,-1),ix
+  IF (l_math) WRITE(123,'(10g12.5)')(ngrid(id),id=ndim,ndim-ndw+1,-1),ix
   ind   = 1   
   CALL fes_write(ndim, fes,  ind, ndim, ngrid, dp_grid, x0, ndw)
   CLOSE(123)
-  STOP "NORMAL END"
-    
+  
+  ! Free memory
+  DEALLOCATE(ngrid,stat=stat)
+  IF (stat/=0) STOP "Deallocation Error"
+  DEALLOCATE(dp_grid,stat=stat)
+  IF (stat/=0) STOP "Deallocation Error"
+  DEALLOCATE(idw,stat=stat)
+  IF (stat/=0) STOP "Deallocation Error"
+  DEALLOCATE(iperd,stat=stat)
+  IF (stat/=0) STOP "Deallocation Error"
+  DEALLOCATE(x0,stat=stat )
+  IF (stat/=0) STOP "Deallocation Error"
+  DEALLOCATE(xf,stat=stat )
+  IF (stat/=0) STOP "Deallocation Error"
+  DEALLOCATE(ss0,stat=stat )
+  IF (stat/=0) STOP "Deallocation Error"
+  DEALLOCATE(delta_s,stat=stat )
+  IF (stat/=0) STOP "Deallocation Error"
+  DEALLOCATE(ww,stat=stat )
+  IF (stat/=0) STOP "Deallocation Error"
+  DEALLOCATE(ind,stat=stat )
+  IF (stat/=0) STOP "Deallocation Error"
+  DEALLOCATE(inds,stat=stat )
+  IF (stat/=0) STOP "Deallocation Error"
+  DEALLOCATE(nn,stat=stat )
+  IF (stat/=0) STOP "Deallocation Error"
+  DEALLOCATE(nn_max,stat=stat )
+  IF (stat/=0) STOP "Deallocation Error"
+  DEALLOCATE(dp_cut,stat=stat )
+  IF (stat/=0) STOP "Deallocation Error"
+  DEALLOCATE(iprd,stat=stat )
+  IF (stat/=0) STOP "Deallocation Error"
+  DEALLOCATE(i_map,stat=stat )
+  IF (stat/=0) STOP "Deallocation Error"
+  DEALLOCATE(fes,stat=stat )
+  IF (stat/=0) STOP "Deallocation Error"
+
+  ! Terminate FES
+  WRITE(iw,'(/,A,/)') "FES| NORMAL FES TERMINATION."
 END PROGRAM fes_compute
 
+!!****h* fes/fes_compute_low [1.0] *
+!!
+!!   NAME
+!!     fes_compute_low
+!!
+!!   FUNCTION
+!!     Efficiently map the gaussians on the grid
+!!
+!!   NOTES
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     03.2006 created [tlaino]
+!!     teodoro.laino .at. gmail.com 
+!!
+!!
+!!   SOURCE
+!!     Please report any bug to the author
+!!
+!****************************************************************************
+RECURSIVE SUBROUTINE fes_compute_low(idim, nn, fes, gauss, ind, ind0, nfes, ndim, ngauss, ngrid, iperd)
+  USE kinds,                           ONLY: dp,&
+                                             sp       
+  IMPLICIT NONE
+  INTEGER :: i,pnt,j,k
+  INTEGER, INTENT(in) :: idim, nfes, ngauss, ndim
+  INTEGER, DIMENSION(:) :: nn, ind, ind0, iperd
+  INTEGER, DIMENSION(:), POINTER :: pos , ll, ngrid
+  
+  REAL(KIND=dp), DIMENSION(:), POINTER   :: fes
+  REAL(KIND=dp), DIMENSION(:,:), POINTER :: gauss
+  REAL(KIND=dp) :: prod
+
+  ALLOCATE(pos(ndim),ll(ndim))
+  pos=ind
+  k=nn(idim)
+
+  DO i = -k, k
+     pos(idim) = ind(idim)+i
+     IF (iperd(idim) == 0 ) THEN
+        IF (pos(idim) .GT. ngrid(idim)) CYCLE
+        IF (pos(idim) .LT. 1) CYCLE
+     END IF
+     IF(idim/=1) THEN 
+        CALL fes_compute_low(idim-1, nn, fes, gauss, pos, ind0, nfes, ndim, ngauss, ngrid, iperd)
+     ELSE
+        pnt  = point(pos,iperd)
+        prod = 1.0_dp
+        DO j=1,ndim
+           ll(j) = pos(j) - ind0(j)
+           prod  = prod*gauss(ll(j),j)
+        END DO
+        fes(pnt)=fes(pnt)+prod
+     END IF
+  END DO
+  DEALLOCATE(pos,ll)
+  
+CONTAINS
+  
+  INTEGER FUNCTION point (pos,iperd) RESULT(pnt)
+    INTEGER, DIMENSION (:) :: pos, iperd
+    INTEGER :: idim, lpnt
+    
+    idim=1
+    pnt=pos(idim)
+    IF (iperd(idim) == 1) THEN
+       lpnt = pos(idim)
+       lpnt = 1000*ngrid(idim)+lpnt
+       lpnt = MOD(lpnt,ngrid(idim))
+       IF (lpnt==0) lpnt=ngrid(idim)
+       pnt = lpnt
+    END IF
+    DO idim=2,ndim
+       lpnt = pos(idim)
+       IF (iperd(idim) == 1) THEN
+          lpnt = 1000*ngrid(idim)+lpnt
+          lpnt = MOD(lpnt,ngrid(idim))
+          IF (lpnt==0) lpnt=ngrid(idim)
+       END IF
+       pnt=pnt+(lpnt-1) * PRODUCT(ngrid(1:idim-1))
+    END DO
+  END FUNCTION point
+  
+END SUBROUTINE fes_compute_low
+
+!!****h* fes/get_val_res [1.0] *
+!!
+!!   NAME
+!!     get_val_res
+!!
+!!   FUNCTION
+!!     Parser informations from the cp2k input/restart
+!!
+!!   NOTES
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     03.2006 created [tlaino]
+!!     teodoro.laino .at. gmail.com 
+!!
+!!
+!!   SOURCE
+!!     Please report any bug to the author
+!!
+!****************************************************************************
 SUBROUTINE get_val_res(unit, section, keyword, subsection, i_val)
   IMPLICIT NONE
   INTEGER, INTENT(IN)            :: unit
@@ -527,58 +724,28 @@ CONTAINS
 
 END SUBROUTINE get_val_res
 
-RECURSIVE SUBROUTINE fes_compute_low(idim, nn, fes, gauss, ind, ind0, nfes, ndim, ngauss, ngrid)
-  USE kinds,                           ONLY: dp,&
-                                             sp       
-  IMPLICIT NONE
-  INTEGER :: i,pnt,j,k
-  INTEGER, INTENT(in) :: idim, nfes, ngauss, ndim
-  INTEGER, DIMENSION(:) :: nn, ind, ind0
-  INTEGER, DIMENSION(:), POINTER :: pos , ll, ngrid
-  
-  REAL(KIND=dp), DIMENSION(:), POINTER   :: fes
-  REAL(KIND=dp), DIMENSION(:,:), POINTER :: gauss
-  REAL(KIND=dp) :: prod
-
-  ALLOCATE(pos(ndim),ll(ndim))
-  pos=ind
-  k=nn(idim)
-
-  DO i = -k, k
-     pos(idim)=ind(idim)+i
-     IF (pos(idim) .GT. ngrid(idim)) CYCLE
-     IF (pos(idim) .LT. 1) CYCLE
-     IF(idim/=1) THEN 
-        CALL fes_compute_low(idim-1, nn, fes, gauss, pos, ind0, nfes, ndim, ngauss, ngrid)
-     ELSE
-        pnt=point(pos)
-        prod=1.
-        ll=pos-ind0
-        DO j=1,ndim
-           prod=prod*gauss(ll(j),j)
-        END DO
-        fes(pnt)=fes(pnt)+prod
-     END IF
-  END DO
-  DEALLOCATE(pos)
-
-  RETURN
-  
-CONTAINS
-  
-  INTEGER FUNCTION point (pos) RESULT(pnt)
-    
-    INTEGER, DIMENSION (:) :: pos
-    INTEGER :: i
-    pnt=pos(1)
-    DO i=2,ndim
-       pnt=pnt+(pos(i)-1) * PRODUCT(ngrid(1:i-1))
-    END DO
-    
-  END FUNCTION point
-  
-END SUBROUTINE fes_compute_low
-
+!!****h* fes/fes_write [1.0] *
+!!
+!!   NAME
+!!     fes_write
+!!
+!!   FUNCTION
+!!     Writes the FES on the file
+!!
+!!   NOTES
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     03.2006 created [tlaino]
+!!     teodoro.laino .at. gmail.com 
+!!
+!!
+!!   SOURCE
+!!     Please report any bug to the author
+!!
+!****************************************************************************
 RECURSIVE SUBROUTINE fes_write(idim, fes,  pos,  ndim, ngrid, dp_grid, x0, ndw)
   USE kinds,                           ONLY: dp,&
                                              sp
@@ -600,12 +767,11 @@ RECURSIVE SUBROUTINE fes_write(idim, fes,  pos,  ndim, ngrid, dp_grid, x0, ndw)
      ELSE        
         pnt=point(pos)
         xx = x0 + dp_grid * ( pos - 1 )
-        dimval = PRODUCT(NGRID(1:NDIM-NDW)) 
+        dimval = PRODUCT(ngrid(1:ndim-ndw)) 
         WRITE(123,'(10f20.10)')(xx(id),id=ndim,ndim-ndw+1,-1),MINVAL(-fes(pnt:pnt+dimval-1))
      END IF     
   END DO
   DEALLOCATE(xx)
-  RETURN
   
 CONTAINS
   
@@ -622,6 +788,28 @@ CONTAINS
   
 END SUBROUTINE FES_WRITE
 
+!!****h* fes/fes_only_write [1.0] *
+!!
+!!   NAME
+!!     fes_only_write
+!!
+!!   FUNCTION
+!!     Writes the FES on the file when stride is requested
+!!
+!!   NOTES
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     03.2006 created [tlaino]
+!!     teodoro.laino .at. gmail.com 
+!!
+!!
+!!   SOURCE
+!!     Please report any bug to the author
+!!
+!****************************************************************************
 RECURSIVE SUBROUTINE fes_only_write(idim, fes,  pos,  ndim, ngrid, ndw)
   USE kinds,                           ONLY: dp,&
                                              sp
@@ -639,13 +827,11 @@ RECURSIVE SUBROUTINE fes_only_write(idim, fes,  pos,  ndim, ngrid, ndw)
         CALL fes_only_write(idim-1, fes,  pos,  ndim, ngrid, ndw)
      ELSE        
         pnt=point(pos)
-        dimval = PRODUCT(NGRID(1:NDIM-NDW)) !NGRID**(NDIM-NDW)
+        dimval = PRODUCT(ngrid(1:ndim-ndw))
         WRITE(123,'(1f12.5)')MINVAL(-fes(pnt:pnt+dimval-1))
      END IF
-     
   END DO
-  RETURN
-  
+
 CONTAINS
   
   INTEGER FUNCTION point (pos) RESULT(pnt)
