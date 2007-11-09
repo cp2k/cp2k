@@ -26,6 +26,7 @@ MODULE md
   USE bibliography,                    ONLY: Evans1983,&
                                              Minary2003,&
                                              cite_reference
+  USE cell_types,                      ONLY: cell_type
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
@@ -35,6 +36,8 @@ MODULE md
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
+  USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        ensemble_name_types, isokin_ensemble, langevin_ensemble, nph_ensemble, &
@@ -49,6 +52,7 @@ MODULE md
                                              val_type
   USE kinds,                           ONLY: default_path_length,&
                                              dp
+  USE mathlib,                         ONLY: diamat_all
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE molecule_kind_types,             ONLY: fixd_constraint_type,&
                                              get_molecule_kind,&
@@ -93,6 +97,7 @@ MODULE md
      LOGICAL :: constraint
      LOGICAL :: annealing
      LOGICAL :: dump_lm 
+     LOGICAL :: angvel_zero 
      INTEGER :: nfree, nfree_rot_transl
      INTEGER :: info_constraint
      INTEGER :: lagrange_multipliers
@@ -342,6 +347,7 @@ CPSourceFileRef,&
        CALL section_vals_val_get(md_section,"TEMPERATURE",r_val=simpar%temp_ext,error=error)
        CALL section_vals_val_get(md_section,"TEMP_TOL",r_val=simpar%temp_tol,error=error)
        CALL section_vals_val_get(md_section,"COMVEL_TOL",r_val=simpar%comvel_tol,error=error)
+       CALL section_vals_val_get(md_section,"ANGVEL_ZERO",l_val=simpar%angvel_zero,error=error)
        CALL section_vals_val_get(md_section,"TEMP_KIND",l_val=simpar%temperature_per_kind,error=error)
        CALL section_vals_val_get(md_section,"SCALE_TEMP_KIND",l_val=simpar%scale_temperature_per_kind,error=error)
 
@@ -431,6 +437,7 @@ CPSourceFileRef,&
     simpar % f_annealing = 1.0_dp
     simpar % constraint = .FALSE.
     simpar % annealing = .FALSE.
+    simpar % angvel_zero = .FALSE.
     simpar % shake_tol = 1.0E-6_dp
     simpar % tau_cell = 1000.0_dp
     simpar % p0 = 0._dp
@@ -448,6 +455,52 @@ CPSourceFileRef,&
     simpar % temp_sh_ext = 0.0_dp
     simpar % temp_sh_tol = 0.0_dp
   END SUBROUTINE set_md_defaults
+
+!******************************************************************************
+!!****** md/compute_rcom [1.0] *
+!!
+!!   NAME
+!!     compute_rcom
+!!
+!!   FUNCTION
+!!     compute center of mass position
+!!     *** is only used by initialize_velocities below ***
+!!
+!!   AUTHOR
+!!     Toon Verstraelen <Toon.Verstraelen@gmail.com>
+!!
+!!   MODIFICATION HISTORY
+!!     2007-11-6: created
+!!
+!!*** *************************************************************************
+  SUBROUTINE compute_rcom(part,is_fixed,rcom)
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: part
+    LOGICAL, DIMENSION(:), INTENT(IN)        :: is_fixed
+    REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: rcom
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'compute_rcom', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    REAL(KIND=dp)                            :: denom, mass
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+
+    rcom(:)  = 0.0_dp
+    denom = 0.0_dp
+    DO i = 1, SIZE(part)
+       atomic_kind => part(i)%atomic_kind
+       CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
+       IF (.NOT.is_fixed(i)) THEN
+          rcom(1) = rcom(1) + part(i)%r(1) * mass
+          rcom(2) = rcom(2) + part(i)%r(2) * mass
+          rcom(3) = rcom(3) + part(i)%r(3) * mass
+          denom = denom + mass
+       END IF
+    END DO
+    rcom = rcom/denom
+
+  END SUBROUTINE compute_rcom
 
 !******************************************************************************
 !!****** md/compute_vcom [1.0] *
@@ -660,6 +713,121 @@ CPSourceFileRef,&
   END SUBROUTINE subtract_vcom
 
 !******************************************************************************
+!!****** md/compute_vang [1.0] *
+!!
+!!   NAME
+!!     compute_vang
+!!
+!!   FUNCTION
+!!     compute the angular velocity
+!!     *** is only used by initialize_velocities below ***
+!!
+!!   AUTHOR
+!!     Toon Verstraelen <Toon.Verstraelen@gmail.com>
+!!
+!!   MODIFICATION HISTORY
+!!     2007-11-9: created
+!!
+!!*** *************************************************************************
+  SUBROUTINE compute_vang(part,is_fixed,rcom,vang)
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: part
+    LOGICAL, DIMENSION(:), INTENT(IN)        :: is_fixed
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rcom
+    REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: vang
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'compute_vang', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    REAL(KIND=dp)                            :: mass, proj
+    REAL(KIND=dp), DIMENSION(3)              :: evals, mang, r
+    REAL(KIND=dp), DIMENSION(3, 3)           :: iner
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+
+    mang(:)   = 0.0_dp
+    iner(:,:) = 0.0_dp
+    DO i=1,SIZE(part)
+       ! compute angular momentum and inertia tensor
+       IF (.NOT.is_fixed(i)) THEN
+          r(:) = part(i)%r(:) - rcom(:)
+          atomic_kind => part(i)%atomic_kind
+          CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
+          mang(1) = mang(1) + mass*(r(2)*part(i)%v(3) - r(3)*part(i)%v(2))
+          mang(2) = mang(2) + mass*(r(3)*part(i)%v(1) - r(1)*part(i)%v(3))
+          mang(3) = mang(3) + mass*(r(1)*part(i)%v(2) - r(2)*part(i)%v(1))
+
+          iner(1,1) = iner(1,1) + mass*(r(2)*r(2) + r(3)*r(3))
+          iner(2,2) = iner(2,2) + mass*(r(3)*r(3) + r(1)*r(1))
+          iner(3,3) = iner(3,3) + mass*(r(1)*r(1) + r(2)*r(2))
+
+          iner(1,2) = iner(1,2) - mass*r(1)*r(2)
+          iner(2,3) = iner(2,3) - mass*r(2)*r(3)
+          iner(3,1) = iner(3,1) - mass*r(3)*r(1)
+       END IF
+    END DO
+    iner(2,1) = iner(1,2)
+    iner(3,2) = iner(2,3)
+    iner(1,3) = iner(3,1)
+
+    ! Take the safest route, i.e. diagonalize the inertia tensor and solve
+    ! the angular velocity only with the non-zero eigenvalues. A plain inversion
+    ! would fail for linear molecules.
+    CALL diamat_all(iner, evals)
+
+    vang(:) = 0.0_dp
+    DO i=1,3
+       IF (evals(i) > 0.0_dp) THEN
+         proj = SUM(iner(:,i)*mang)/evals(i)
+         vang(1) = vang(1) + proj*iner(1,i)
+         vang(2) = vang(2) + proj*iner(2,i)
+         vang(3) = vang(3) + proj*iner(3,i)
+       END IF
+    END DO
+
+  END SUBROUTINE compute_vang
+
+!******************************************************************************
+!!****** md/subtract_vang [1.0] *
+!!
+!!   NAME
+!!     subtract_vang
+!!
+!!   FUNCTION
+!!     subtract the angular velocity
+!!     *** is only used by initialize_velocities below ***
+!!
+!!   AUTHOR
+!!     Toon Verstraelen <Toon.Verstraelen@gmail.com>
+!!
+!!   MODIFICATION HISTORY
+!!     2007-11-9: created
+!!
+!!*** *************************************************************************
+  SUBROUTINE subtract_vang(part,is_fixed,rcom,vang)
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: part
+    LOGICAL, DIMENSION(:), INTENT(IN)        :: is_fixed
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rcom, vang
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'subtract_vang', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    REAL(KIND=dp), DIMENSION(3)              :: r
+
+    DO i=1,SIZE(part)
+       IF (.NOT.is_fixed(i)) THEN
+          r(:) = part(i)%r(:) - rcom(:)
+          part(i)%v(1) = part(i)%v(1) - (vang(2)*r(3) - vang(3)*r(2))
+          part(i)%v(2) = part(i)%v(2) - (vang(3)*r(1) - vang(1)*r(3))
+          part(i)%v(3) = part(i)%v(3) - (vang(1)*r(2) - vang(2)*r(1))
+       END IF
+    END DO
+
+  END SUBROUTINE subtract_vang
+
+!******************************************************************************
 !!****** md/initialize_velocities [1.0] *
 !!
 !!   NAME
@@ -681,16 +849,18 @@ CPSourceFileRef,&
 !!   MODIFICATION HISTORY
 !!     - is_fixed removed from particle_type
 !!     - 2007-11-07: Cleanup (TV)
+!!     - 2007-11-09: Added angvel_zero feature
 !!
 !!*** *************************************************************************
-  SUBROUTINE initialize_velocities(simpar,part,para_env,globenv,molecule_kinds,&
-       print_section, subsys_section, shell_present, shell_part, core_part, &
-       force_rescaling, error)
+  SUBROUTINE initialize_velocities(simpar, part, force_env, para_env, globenv, &
+       molecule_kinds, print_section, subsys_section, shell_present, shell_part, &
+       core_part, force_rescaling, error)
 
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: part
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
@@ -715,9 +885,10 @@ CPSourceFileRef,&
     REAL(KIND=dp)                            :: ecom, ekin, fac_massc, &
                                                 fac_masss, mass, mass_tot, &
                                                 temp
-    REAL(KIND=dp), DIMENSION(3)              :: v, vc, vcom, vs
+    REAL(KIND=dp), DIMENSION(3)              :: rcom, v, vang, vc, vcom, vs
     REAL(KIND=dp), DIMENSION(:), POINTER     :: vel
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_sll_val_type), POINTER           :: atom_list, core_list, &
                                                 shell_list
@@ -745,7 +916,7 @@ CPSourceFileRef,&
     shellvel_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
     corevel_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY",error=error)
     
-    ! logging
+    ! Logging
     logger => cp_error_get_logger(error)
     iw=cp_print_key_unit_nr(logger,print_section,"PROGRAM_RUN_INFO",extension=".log",error=error)
     IF (iw>0) THEN
@@ -830,7 +1001,7 @@ CPSourceFileRef,&
        ! compute vcom, ecom and ekin
        CALL compute_vcom(part,is_fixed,vcom,ecom)
        ekin = compute_ekin(part) - ecom
-       
+
        IF (simpar % nfree /= 0 .AND. force_rescaling) THEN
           CALL rescale_vel(part,simpar,ekin,vcom)
           ! After rescaling, the core and shell velocities must also adapt.
@@ -869,12 +1040,20 @@ CPSourceFileRef,&
           END IF
        END DO
        
-       ! subtract the vcom and compute ekin
+       ! Subtract the vcom
        CALL compute_vcom(part,is_fixed,vcom)
        CALL subtract_vcom(part,is_fixed,vcom)
-       ekin = compute_ekin(part)
+       
+       ! If requested and the system is not periodic, subtract the angular velocity
+       CALL force_env_get(force_env, cell=cell, error=error)
+       IF (SUM(cell%perd(1:3)) == 0 .AND. simpar%angvel_zero) THEN
+          CALL compute_rcom(part,is_fixed,rcom)
+          CALL compute_vang(part,is_fixed,rcom,vang)
+          CALL subtract_vang(part,is_fixed,rcom,vang)
+       END IF
 
-       ! rescale the velocities
+       ! Rescale the velocities
+       ekin = compute_ekin(part)
        CALL rescale_vel(part,simpar,ekin)
        
        ! Initialize the core and the shell velocity. Atom velocities are just
@@ -883,7 +1062,7 @@ CPSourceFileRef,&
          CALL clone_core_shell_vel(part, shell_part, core_part)
        ENDIF 
     END IF
-    
+
     ! Recompute vcom, ecom and ekin for IO
     CALL compute_vcom(part,is_fixed,vcom,ecom)
     ekin = compute_ekin(part)
@@ -899,6 +1078,19 @@ CPSourceFileRef,&
        WRITE ( iw, '( A, T61, F20.12 )' ) ' Centre of mass velocity in direction x:', vcom ( 1 )
        WRITE ( iw, '( A, T61, F20.12 )' ) ' Centre of mass velocity in direction y:', vcom ( 2 )
        WRITE ( iw, '( A, T61, F20.12 )' ) ' Centre of mass velocity in direction z:', vcom ( 3 )
+
+       ! compute and log rcom and vang if not periodic
+       CALL force_env_get(force_env, cell=cell, error=error)
+       IF (SUM(cell%perd(1:3)) == 0) THEN
+          CALL compute_rcom(part,is_fixed,rcom)
+          CALL compute_vang(part,is_fixed,rcom,vang)
+          WRITE (iw, '( A, T61, F20.12 )' ) ' Center of mass position (x component):', rcom(1)
+          WRITE (iw, '( A, T61, F20.12 )' ) ' Center of mass position (y component):', rcom(2)
+          WRITE (iw, '( A, T61, F20.12 )' ) ' Center of mass position (z component):', rcom(3)
+          WRITE (iw, '( A, T61, F20.12 )' ) ' Angular velocity, x component:', vang(1)
+          WRITE (iw, '( A, T61, F20.12 )' ) ' Angular velocity, y component:', vang(2)
+          WRITE (iw, '( A, T61, F20.12 )' ) ' Angular velocity, z component:', vang(3)
+       END IF
        WRITE ( iw, '( A, A, A, / )' ) ' ***********************', ' end of velocity initialization ', '************************'
     END IF
     
@@ -906,7 +1098,6 @@ CPSourceFileRef,&
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     
     CALL cp_print_key_finished_output(iw,logger,print_section,"PROGRAM_RUN_INFO", error=error)
-    
     CALL timestop(0.0_dp,handle)
     
   END SUBROUTINE initialize_velocities

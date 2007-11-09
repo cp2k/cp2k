@@ -141,8 +141,9 @@ CONTAINS
                                                 natom, shell_index
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: is_shell
-    REAL(KIND=dp)                            :: ekin_old, mass, v2, imass_s, imass_c
-    REAL(KIND=dp), DIMENSION(3)              :: v, tmp
+    REAL(KIND=dp)                            :: ekin_old, imass_c, imass_s, &
+                                                mass, v2
+    REAL(KIND=dp), DIMENSION(3)              :: tmp, v
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
@@ -645,9 +646,10 @@ CONTAINS
     END IF
 
     CALL initialize_velocities(simpar,particle_set, molecule_kinds=molecule_kinds_new,&
-       para_env=para_env, globenv=globenv, print_section=print_section, subsys_section=subsys_section,&
-       shell_present=(shell_present.AND.shell_adiabatic), shell_part=shell_particle_set,&
-       core_part=core_particle_set, force_rescaling=.FALSE., error=error)
+       force_env=force_env, para_env=para_env, globenv=globenv, print_section=print_section,&
+       subsys_section=subsys_section, shell_present=(shell_present.AND.shell_adiabatic), &
+       shell_part=shell_particle_set, core_part=core_particle_set, force_rescaling=.FALSE., &
+       error=error)
     
     ! Apply constraints if required and rescale velocities..
     IF (simpar%ensemble /= reftraj_ensemble) THEN
@@ -674,9 +676,10 @@ CONTAINS
           CALL update_subsys(subsys_section,force_env,.FALSE.,error)
 
           CALL initialize_velocities(simpar,particle_set, molecule_kinds=molecule_kinds_new,&
-             para_env=para_env, globenv=globenv, print_section=print_section, subsys_section=subsys_section,&
-             shell_present=(shell_present.AND.shell_adiabatic), shell_part=shell_particle_set,&
-             core_part=core_particle_set, force_rescaling=.TRUE., error=error)
+             force_env=force_env, para_env=para_env, globenv=globenv, print_section=print_section, &
+             subsys_section=subsys_section, shell_present=(shell_present.AND.shell_adiabatic), &
+             shell_part=shell_particle_set, core_part=core_particle_set, force_rescaling=.TRUE., &
+             error=error)
        END IF
     END IF
     CALL timestop(0.0_dp,handle)

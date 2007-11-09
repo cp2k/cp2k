@@ -1,0 +1,58 @@
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      # PARAMETERS BELOW ARE CRAP! THIS IS ONLY USEFUL FOR A QUICK TEST!
+      &CHARGE
+        ATOM Ar
+        CHARGE 0.0
+      &END
+      &SHELL Ob
+        CORE_CHARGE 0.1
+        SHELL_CHARGE -0.1
+        MASS_FRACTION 0.1
+        SPRING [eV*angstrom^-2] 70
+        MAX_DISTANCE [angstrom] 1.0 
+      &END SHELL
+      &NONBONDED
+        &LENNARD-JONES
+          atoms Ar Ar
+          EPSILON 119.8
+          SIGMA 3.405
+          RCUT 8.4
+        &END LENNARD-JONES
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE none
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 10.0 10.0 10.0
+      UNIT ANGSTROM
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      Ar      6.771300     4.342850     5.545924
+      Ar      4.592584     7.352355     9.318515
+      Ar      9.206346     8.241361     2.955620
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT ar3_angvel_zero_000
+  RUN_TYPE md
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 20
+    TIMESTEP 0.5
+    TEMPERATURE 300
+    ANGVEL_ZERO T
+  &END MD
+&END MOTION

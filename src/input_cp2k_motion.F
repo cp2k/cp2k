@@ -2597,6 +2597,16 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="angvel_zero",&
+            description="Set the initial angular velocity to zero. This option is ignored "//&
+            "when the system is periodic or when initial velocities are defined. Technically, "//&
+            "the part of the random initial velocities that projects on the external "//&
+            "rotational degrees of freedom is subtracted.",&
+            usage="angvel_zero LOGICAL",&         
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="annealing",&
             description="Specifies the rescaling factor for velocities after the integration"//&
             "scheme used. Automatically enables the annealing procedure.", &
