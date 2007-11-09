@@ -24,7 +24,8 @@
 !****************************************************************************
 MODULE input_cp2k_poisson
   USE bibliography,                    ONLY: Toukmaji1996,Martyna1999,&
-                                             Genovese2006,Genovese2007
+                                             Genovese2006,Genovese2007,&
+                                             Essmann1995,Ewald1921,Darden1993
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants
@@ -430,6 +431,7 @@ SUBROUTINE create_ewald_section(section,error)
          " EWALD is the standard non-fft based ewald."//&
          " SPME is the smooth particle mesh using beta-Euler splines (recommended)."//&
          " PME is the particle mesh using fft interpolation.",&
+         citations=(/Ewald1921,Essmann1995,Darden1993/),&
          usage="EWALD_TYPE {EWALD|SPME|PME|NONE}",&
          default_i_val=do_ewald_ewald,&
          enum_c_vals=(/"none     ",&

@@ -24,6 +24,8 @@ MODULE pme
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE bibliography,                    ONLY: cite_reference,&
+                                             darden1993
   USE cell_types,                      ONLY: cell_type
   USE coefficient_types,               ONLY: coeff_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_type,&
@@ -159,9 +161,10 @@ CONTAINS
 
 !------------------------------------------------------------------------------
 
+    CALL timeset ( 'PME', 'I', ' ', handle )
     NULLIFY( poisson_env, rden, drpot)
     failure = .FALSE.
-    CALL timeset ( 'PME', 'I', ' ', handle )
+    CALL cite_reference(Darden1993)
     CALL ewald_env_get (ewald_env, alpha=alpha, eps0 = eps0, &
          rs_distributed_id = rs_distributed_id, group = group ,error=error)
     CALL ewald_pw_get (ewald_pw, pw_big_pool=pw_big_pool, &

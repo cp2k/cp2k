@@ -22,6 +22,8 @@
 MODULE spme
 
   USE atomic_kind_types,               ONLY: get_atomic_kind
+  USE bibliography,                    ONLY: Essmann1995,&
+                                             cite_reference
   USE cell_types,                      ONLY: cell_type,&
                                              real_to_scaled
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_type,&
@@ -151,6 +153,8 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(drpot, grid_spme, green, poisson_env, phi_g, rhob_g, rhob_r, pw_pool, rden)
     CALL timeset ( 'SPME', 'I', ' ', handle )
+    CALL cite_reference(Essmann1995)
+
     !-------------- INITIALISATION ---------------------
     CALL ewald_env_get ( ewald_env, alpha=alpha, eps0 = eps0, &
                          o_spline = o_spline, group = group, &

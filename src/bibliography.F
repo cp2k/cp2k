@@ -57,7 +57,8 @@ MODULE bibliography
              Frigo2005, Nose1984a, Nose1984b, Bussi2007,Genovese2006,&
              Genovese2007,Evans1983,Minary2003,Byrd1995,&
              VandeVondele2007,Ortiz1994,Becke1988,Perdew1996,Zhang1998,Lee1988, &
-             Heyd2006,Vydrov2006,Heyd2003,Heyd2004,Vosko1980
+             Heyd2006,Vydrov2006,Heyd2003,Heyd2004,Vosko1980, &
+             Essmann1995,Ewald1921,Darden1993
 
 CONTAINS
 !!****f* bibliography/add_all_references *
@@ -909,6 +910,61 @@ CONTAINS
             "ER"),&
             DOI="10.1139/P80-159")       ! this doi should be correct later this week, but does not yet resolve
            !DOI="10.1139/cjp-58-8-1200") ! this doi is on the publishers web site but does not resolve
+
+    CALL add_reference(key=Essmann1995,ISI_record=s2a(&
+            "PT J",&
+            "AU ESSMANN, U",&
+            "   PERERA, L",&
+            "   BERKOWITZ, ML",&
+            "   DARDEN, T",&
+            "   LEE, H",&
+            "   PEDERSEN, LG",&
+            "TI A SMOOTH PARTICLE MESH EWALD METHOD",&
+            "SO JOURNAL OF CHEMICAL PHYSICS",&
+            "SN 0021-9606",&
+            "PD NOV 15",&
+            "PY 1995",&
+            "VL 103",&
+            "IS 19",&
+            "BP 8577",&
+            "EP 8593",&
+            "UT ISI:A1995TE36400026",&
+            "ER"),&
+            DOI="10.1063/1.470117")
+
+    CALL add_reference(key=Ewald1921,ISI_record=s2a(&
+            "PT J",&
+            "AU Ewald, PP",&
+            "TI Die Berechnung optischer und elektrostatischer Gitterpotentiale",&
+            "SO ANNALEN DER PHYSIK",&
+            "SN 0003-3804",&
+            "PD FEB",&
+            "PY 1921",&
+            "VL 369",&
+            "IS 3",&
+            "BP 253",&
+            "EP 287",&
+            "UT ISI:000201909400003",&
+            "ER"),&
+            DOI="10.1002/andp.19213690304")
+
+    CALL add_reference(key=Darden1993,ISI_record=s2a(&
+            "PT J",&
+            "AU DARDEN, T",&
+            "   YORK, D",&
+            "   PEDERSEN, L",&
+            "TI PARTICLE MESH EWALD - AN N.LOG(N) METHOD FOR EWALD SUMS IN LARGE SYSTEMS",&
+            "SO JOURNAL OF CHEMICAL PHYSICS",&
+            "SN 0021-9606",&
+            "PD JUN 15",&
+            "PY 1993",&
+            "VL 98",&
+            "IS 12",&
+            "BP 10089",&
+            "EP 10092",&
+            "UT ISI:A1993LG10100091",&
+            "ER"),&
+            DOI="10.1063/1.464397")
 
   END SUBROUTINE add_all_references
 

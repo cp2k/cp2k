@@ -22,6 +22,8 @@ MODULE ewalds
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE bibliography,                    ONLY: cite_reference,&
+                                             Ewald1921
   USE cell_types,                      ONLY: cell_type
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
@@ -125,6 +127,8 @@ SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, cell, atomic_kind_set, particle_
 !------------------------------------------------------------------------------
 
   CALL timeset ( 'EWALD', 'E', 'Mflops', handle )
+
+  CALL cite_reference(Ewald1921)
   flops = 0.0_dp
 
 ! pointing
