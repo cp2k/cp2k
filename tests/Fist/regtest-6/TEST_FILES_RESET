@@ -42,3 +42,5 @@ water_3_dist_centers3.inp
 uo2_buckmorse_nve.inp
 #  
 water_3_dist_xyz.inp
+# metadynamics decoupled from force calculation.. dependent only on MD
+nh3-meta-1_g.inp

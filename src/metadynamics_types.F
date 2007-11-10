@@ -38,7 +38,7 @@ MODULE metadynamics_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'metadynamics_types'
 
   PUBLIC :: hills_env_type, meta_env_type, meta_env_retain, &
-            meta_env_release, metavar_type
+            meta_env_release, metavar_type, wall_type
 
   TYPE hills_env_type
      LOGICAL                                :: restart
@@ -49,13 +49,18 @@ MODULE metadynamics_types
      REAL(KIND=dp), DIMENSION(:),   POINTER :: ww_history
   END TYPE hills_env_type
 
+  TYPE wall_type
+     INTEGER       :: id_type, id_direction
+     REAL(KIND=dp) :: pos
+     REAL(KINd=dp) :: k_quadratic, ww_gauss, sigma_gauss
+  END TYPE wall_type
+
   TYPE metavar_type
-     REAL(KIND=dp) :: mass, lambda, ss, ss0, ff_s, vvp, &
-                      cv_energy, delta_s, ff_hills
-     LOGICAL       :: do_wall_p,do_wall_m,periodic
-     REAL(KIND=dp) :: wall_p, wall_m
-     REAL(KIND=dp) :: TARGET
      INTEGER       :: icolvar
+     LOGICAL       :: do_wall, periodic
+     REAL(KIND=dp) :: mass, lambda, vvp
+     REAL(KIND=dp) :: cv_energy, delta_s, ff_hills, ss, ss0, ff_s
+     TYPE(wall_type), DIMENSION(:), POINTER :: walls
   END TYPE metavar_type
 
   TYPE meta_env_type
@@ -137,7 +142,7 @@ SUBROUTINE meta_env_release(meta_env,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'meta_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: i, stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -148,6 +153,12 @@ SUBROUTINE meta_env_release(meta_env,error)
      IF (meta_env%ref_count==0) THEN
         CALL cp_para_env_release(meta_env%para_env,error=error)
         IF (ASSOCIATED(meta_env%metavar)) THEN
+           DO i = 1, SIZE(meta_env%metavar)
+              IF (ASSOCIATED(meta_env%metavar(i)%walls)) THEN
+                 DEALLOCATE(meta_env%metavar(i)%walls,stat=stat)
+                 CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)  
+              END IF
+           END DO
            DEALLOCATE(meta_env%metavar,stat=stat)
            CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
         END IF

@@ -298,3 +298,13 @@ H2O-meta_coord.inp
 H2O-meta_coord_1.inp
 #  
 H2O-meta_coord_2.inp
+# metadynamics decoupled from force calculation.. dependent only on MD
+H2O-meta_coord_1.inp
+H2O-meta_coord_2.inp
+H2O-meta_coord.inp
+H2O-meta.inp
+H2O-meta_kinds.inp
+H2O-meta_res0.inp
+H2O-meta_res1.inp
+H2O-meta_res2.inp
+H2O-meta_res3.inp

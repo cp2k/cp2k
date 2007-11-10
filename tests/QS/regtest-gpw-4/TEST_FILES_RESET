@@ -280,3 +280,7 @@ H2-geo-4.inp
 #  
 spin_restraint.inp
 spin_restraint.inp
+# metadynamics decoupled from force calculation.. dependent only on MD
+C2H4-meta.inp
+H2O-meta_g.inp
+H2O-meta_hydro.inp

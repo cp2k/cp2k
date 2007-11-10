@@ -21,6 +21,7 @@
 !!     Joost VandeVondele (Juli-2003): simple version of isokinetic ensemble
 !!     Teodoro Laino [tlaino] 10.2007 - University of Zurich: Generalization to
 !!                                      different kind of thermostats
+!!     Teodoro Laino [tlaino] 11.2007 - Metadynamics: now part of the MD modules
 !!
 !!   SOURCE
 !******************************************************************************
@@ -73,6 +74,7 @@ MODULE integrator
                                              set_md_env
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sum
+  USE metadynamics,                    ONLY: metadyn_forces
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -299,6 +301,7 @@ CONTAINS
 
     ! Update forces
     CALL force_env_calc_energy_force(force_env,error=error)
+    CALL metadyn_forces(force_env, vel, error=error)
 
     ! Update Verlet (second part)
     DO iparticle_kind=1,nparticle_kind
@@ -459,7 +462,6 @@ CONTAINS
 
     pos(:,:) = 0.0_dp
     vel(:,:) = 0.0_dp
-
     IF(shell_present) THEN
        CALL cp_subsys_get(subsys=subsys,shell_particles=shell_particles,&
             core_particles=core_particles, error=error)
@@ -490,7 +492,7 @@ CONTAINS
        shell_adiabatic = .FALSE.
     END IF
 
-    !Apply thermostat over the full set of shells if required
+    ! Apply thermostat over the full set of shells if required
     IF(shell_adiabatic) THEN
        CALL apply_thermostat_shells(thermostat_shell, atomic_kind_set, particle_set,&
             local_particles, para_env%group, shell_particle_set=shell_particle_set,&
@@ -557,14 +559,9 @@ CONTAINS
     END IF
 
     IF (simpar%constraint) CALL shake_control(gci,local_molecules, molecule_set,   &
-         molecule_kind_set, particle_set, &
-         pos, vel, simpar%dt,&
-         simpar%shake_tol, &
-         simpar%info_constraint,&
-         simpar%lagrange_multipliers,&
-         simpar%dump_lm,&
-         cell,para_env%group,&
-         local_particles, error )
+         molecule_kind_set, particle_set, pos, vel, simpar%dt,simpar%shake_tol, &
+         simpar%info_constraint,simpar%lagrange_multipliers,simpar%dump_lm,&
+         cell,para_env%group,local_particles, error )
 
     !     *** Broadcast the new particle positions ***
     CALL update_particle_set ( particle_set, para_env % group, pos = pos )
@@ -576,14 +573,11 @@ CONTAINS
        CALL update_particle_set ( core_particle_set, para_env % group, pos = core_pos )
        DEALLOCATE (shell_pos,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
        DEALLOCATE (core_pos,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
     END IF
 
     !     *** coefficients
-
     IF(ASSOCIATED(dyn_coeff_set)) THEN
        CALL get_dyn_coeff_set(dyn_coeff_set=dyn_coeff_set,&
             coeffs_of_kind=coeffs_of_kind, global_mass=global_mass,&
@@ -614,6 +608,7 @@ CONTAINS
 
     !     *** Update forces ***
     CALL force_env_calc_energy_force(force_env,error=error)
+    CALL metadyn_forces(force_env, vel, error=error)
 
     !     *** Velocity Verlet (second part) ***
     IF(shell_adiabatic) THEN
@@ -673,15 +668,11 @@ CONTAINS
     END IF
 
     IF (simpar%constraint) CALL rattle_control(gci,local_molecules, molecule_set, &
-         molecule_kind_set, particle_set, &
-         vel, simpar%dt,simpar%shake_tol,&
-         simpar%info_constraint,&
-         simpar%lagrange_multipliers,&
-         simpar%dump_lm,&
-         cell,para_env%group,&
-         local_particles, error )
+         molecule_kind_set, particle_set, vel, simpar%dt,simpar%shake_tol,&
+         simpar%info_constraint,simpar%lagrange_multipliers,simpar%dump_lm,&
+         cell,para_env%group,local_particles, error )
 
-    !Apply thermostat over the full set of shell if required
+    ! Apply thermostat over the full set of shell if required
     IF (shell_adiabatic) THEN
        CALL apply_thermostat_shells(thermostat_shell,atomic_kind_set, particle_set,&
             local_particles, para_env%group, vel=vel, shell_vel=shell_vel, core_vel=core_vel,&
@@ -706,18 +697,14 @@ CONTAINS
 
     DEALLOCATE (vel,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
     IF (shell_adiabatic) THEN
        DEALLOCATE (shell_vel,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
        DEALLOCATE (core_vel,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
     END IF
 
     !     *** coefficients
-
     IF(ASSOCIATED(dyn_coeff_set)) THEN
        CALL get_dyn_coeff_set(dyn_coeff_set=dyn_coeff_set,&
             coeffs_of_kind=coeffs_of_kind, global_mass=global_mass,&
@@ -745,12 +732,8 @@ CONTAINS
     END IF
 
     !     *** Update virial ***
-    IF ( simpar % constraint ) CALL pv_constraint ( gci,&
-         local_molecules, &
-         molecule_set,    &
-         molecule_kind_set, &
-         particle_set, virial, &
-         para_env % group )
+    IF ( simpar % constraint ) CALL pv_constraint ( gci, local_molecules, &
+         molecule_set,molecule_kind_set,particle_set, virial,para_env % group )
 
     CALL virial_evaluate ( atomic_kind_set, particle_set,  &
          local_particles, virial, para_env % group  ,error=error)
@@ -862,7 +845,6 @@ CONTAINS
     END DO
 
     !     *** Broadcast the new particle positions ***
-
     CALL mp_sum(work,para_env % group)
 
     DO iparticle=1,nparticle
@@ -871,6 +853,7 @@ CONTAINS
     END DO
 
     CALL force_env_calc_energy_force(force_env,error=error)
+    CALL metadyn_forces(force_env, error=error)
 
     ! compute K,a,b,s,ds
     CALL get_s_ds()
@@ -1146,13 +1129,9 @@ CONTAINS
 
 
     IF (simpar%constraint) CALL shake_control( gci, local_molecules, molecule_set,   &
-         molecule_kind_set, particle_set, &
-         pos, vel, simpar%dt,simpar%shake_tol,&
-         simpar%info_constraint,&
-         simpar%lagrange_multipliers,&
-         simpar%dump_lm,&
-         cell, para_env%group,&
-         local_particles,error )
+         molecule_kind_set, particle_set, pos, vel, simpar%dt,simpar%shake_tol,&
+         simpar%info_constraint,simpar%lagrange_multipliers,simpar%dump_lm,&
+         cell, para_env%group,local_particles,error )
 
     !     *** Broadcast the new particle positions ***
     CALL update_particle_set ( particle_set, para_env % group, pos = pos )
@@ -1200,11 +1179,10 @@ CONTAINS
     END IF
 
     !     *** Update forces ***
-
     CALL force_env_calc_energy_force(force_env,error=error)
+    CALL metadyn_forces(force_env, vel, error=error)
 
     !     *** Velocity Verlet (second part) ***
-
     IF(shell_adiabatic) THEN
        DO iparticle_kind=1,nparticle_kind
           atomic_kind => atomic_kind_set(iparticle_kind)
@@ -1265,13 +1243,9 @@ CONTAINS
     END IF
 
     IF (simpar%constraint) CALL rattle_control( gci, local_molecules, molecule_set, &
-         molecule_kind_set, particle_set, &
-         vel, simpar%dt,simpar%shake_tol,&
-         simpar%info_constraint,&
-         simpar%lagrange_multipliers,&
-         simpar%dump_lm,&
-         cell,para_env%group,&
-         local_particles, error )
+         molecule_kind_set, particle_set,vel, simpar%dt,simpar%shake_tol,&
+         simpar%info_constraint,simpar%lagrange_multipliers,simpar%dump_lm,&
+         cell,para_env%group,local_particles, error )
 
     ! Apply Thermostat over the full set of particles
     IF (shell_adiabatic) THEN
@@ -1305,12 +1279,8 @@ CONTAINS
 
 
     !     *** Update constraint virial ***
-    IF ( simpar % constraint ) CALL pv_constraint ( gci,&
-         local_molecules, &
-         molecule_set,    &
-         molecule_kind_set, &
-         particle_set, virial, &
-         para_env % group )
+    IF ( simpar % constraint ) CALL pv_constraint ( gci, local_molecules, &
+         molecule_set,molecule_kind_set,particle_set, virial,para_env % group )
 
     DEALLOCATE (vel,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -1322,7 +1292,6 @@ CONTAINS
     END IF
 
     !     *** coefficients
-
     IF(ASSOCIATED(dyn_coeff_set)) THEN
        CALL get_dyn_coeff_set(dyn_coeff_set=dyn_coeff_set,&
             coeffs_of_kind=coeffs_of_kind, global_mass=global_mass,&
@@ -1637,10 +1606,8 @@ CONTAINS
        vector_v ( : ) = scale_v * poly_v
 
        IF ( simpar % constraint ) CALL shake_roll_control( gci, local_molecules, &
-            molecule_set, molecule_kind_set, &
-            particle_set, pos, vel, simpar,  &
-            roll_tol, iroll, vector_r, vector_v,  &
-            para_env % group, cell=cell, &
+            molecule_set, molecule_kind_set, particle_set, pos, vel, simpar,  &
+            roll_tol, iroll, vector_r, vector_v, para_env % group, cell=cell, &
             local_particles=local_particles, error=error )
     END DO SR
 
@@ -1673,12 +1640,11 @@ CONTAINS
     END IF
 
     !     *** Update forces ***
-
     CALL force_env_set_cell(force_env, cell, .TRUE.,error)
     CALL force_env_calc_energy_force(force_env,error=error)
+    CALL metadyn_forces(force_env, vel, error=error)
 
     !     *** Velocity Verlet (second part) ***
-
     IF(shell_adiabatic) THEN
        DO iparticle_kind=1,nparticle_kind
           atomic_kind => atomic_kind_set(iparticle_kind)
@@ -1749,12 +1715,9 @@ CONTAINS
     RR: DO WHILE (ABS(roll_tol)>=1.E-10_dp) ! RATTLE-ROLL LOOP
        roll_tol = 0.0_dp
        IF ( simpar % constraint ) CALL rattle_roll_setup ( gci, atomic_kind_set, &
-            particle_set, local_particles, &
-            molecule_kind_set, molecule_set,  &
-            local_molecules, vel,  &
-            cell, npt, simpar, virial, vector_v,  &
-            roll_tol, iroll, infree, first, para_env,&
-            error=error)
+            particle_set, local_particles, molecule_kind_set, molecule_set,  &
+            local_molecules, vel, cell, npt, simpar, virial, vector_v,  &
+            roll_tol, iroll, infree, first, para_env,error=error)
 
        CALL update_pv ( gci, simpar, atomic_kind_set, vel, particle_set, &
             local_molecules, molecule_set, molecule_kind_set, &
@@ -1788,7 +1751,6 @@ CONTAINS
        END IF
     END IF
 
-
     !     *** Broadcast the new particle velocities ***
     CALL update_particle_set ( particle_set, para_env % group, vel = vel )
     IF (shell_adiabatic) THEN
@@ -1796,13 +1758,9 @@ CONTAINS
        CALL update_particle_set ( core_particle_set, para_env % group, vel = core_vel )
     END IF
 
-
     !     *** Update constraint virial ***
     IF ( simpar % constraint ) CALL pv_constraint ( gci, local_molecules, &
-         molecule_set,    &
-         molecule_kind_set, &
-         particle_set, virial, &
-         para_env % group )
+         molecule_set, molecule_kind_set, particle_set, virial, para_env % group )
 
     DEALLOCATE (vel,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -1944,6 +1902,7 @@ CONTAINS
     ! Task to perform on the reference trajectory
     ! Compute energy and forces
     CALL force_env_calc_energy_force(force_env,eval_energy_forces=reftraj_env%info%eval_EF,error=error)
+    CALL metadyn_forces(force_env, error=error)
 
     ! Compute MSD with respect to a reference configuration
     IF(reftraj_env%info%msd) THEN
@@ -2155,10 +2114,8 @@ CONTAINS
        vector_v ( 1 ) = scale_vx* poly_vx
 
        IF ( simpar % constraint ) CALL shake_roll_control( gci, local_molecules, &
-            molecule_set, molecule_kind_set, &
-            particle_set, pos, vel, simpar,  &
-            roll_tol, iroll, vector_r, vector_v,  &
-            para_env % group, cell=cell, &
+            molecule_set, molecule_kind_set, particle_set, pos, vel, simpar,&
+            roll_tol, iroll, vector_r, vector_v, para_env % group, cell=cell, &
             local_particles=local_particles, error=error )
     END DO SR
 
@@ -2174,14 +2131,12 @@ CONTAINS
     DEALLOCATE (pos,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-
     !     *** Update forces (and stress)***
-
     CALL force_env_set_cell(force_env, cell, .TRUE.,error)
     CALL force_env_calc_energy_force(force_env, error=error)
+    CALL metadyn_forces(force_env, vel, error=error)
 
     !     *** Velocity Verlet (second part) ***
-
     DO iparticle_kind=1,nparticle_kind
        atomic_kind => atomic_kind_set(iparticle_kind)
        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
@@ -2219,8 +2174,6 @@ CONTAINS
             local_molecules, molecule_set, molecule_kind_set, &
             local_particles, kin, pv_kin, virial, para_env % group )
        CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree )
-
-
     END DO RR
 
     IF (simpar%annealing)  vel(:,:)=vel(:,:)*simpar%f_annealing
@@ -2230,10 +2183,7 @@ CONTAINS
 
     !     *** Update constraint virial ***
     IF ( simpar % constraint ) CALL pv_constraint ( gci, local_molecules, &
-         molecule_set,    &
-         molecule_kind_set, &
-         particle_set, virial, &
-         para_env % group )
+         molecule_set,molecule_kind_set,particle_set, virial, para_env % group )
 
     DEALLOCATE (vel,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -2443,10 +2393,8 @@ CONTAINS
        vector_v ( 1 ) = scale_vx * poly_vx
 
        IF ( simpar % constraint ) CALL shake_roll_control( gci, local_molecules, &
-            molecule_set, molecule_kind_set, &
-            particle_set, pos, vel, simpar,  &
-            roll_tol, iroll, vector_r, vector_v,  &
-            para_env % group, cell=cell,&
+            molecule_set, molecule_kind_set, particle_set, pos, vel, simpar,&
+            roll_tol, iroll, vector_r, vector_v, para_env % group, cell=cell,&
             local_particles=local_particles, error=error )
     END DO SR
 
@@ -2465,12 +2413,11 @@ CONTAINS
 
 
     !     *** Update forces ***
-
     CALL force_env_set_cell(force_env, cell, .TRUE.,error)
     CALL force_env_calc_energy_force(force_env, error=error)
+    CALL metadyn_forces(force_env, vel, error=error)
 
     !     *** Velocity Verlet (second part) ***
-
     DO iparticle_kind=1,nparticle_kind
        atomic_kind => atomic_kind_set(iparticle_kind)
        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
@@ -2528,10 +2475,7 @@ CONTAINS
 
     !     *** Update constraint virial ***
     IF ( simpar % constraint ) CALL pv_constraint ( gci, local_molecules, &
-         molecule_set,    &
-         molecule_kind_set, &
-         particle_set, virial, &
-         para_env % group )
+         molecule_set, molecule_kind_set, particle_set, virial, para_env % group )
 
     DEALLOCATE (vel,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -3130,10 +3074,8 @@ END SUBROUTINE nph_uniaxial_damped
 
        roll_tol = 0.0_dp
        IF ( simpar % constraint ) CALL shake_roll_control( gci, local_molecules, &
-            molecule_set, molecule_kind_set, &
-            particle_set, pos, vel, simpar,  &
-            roll_tol, iroll, scale_r*poly_r, &
-            scale_v*poly_v, para_env % group, u, cell,&
+            molecule_set, molecule_kind_set, particle_set, pos, vel, simpar,  &
+            roll_tol, iroll, scale_r*poly_r, scale_v*poly_v, para_env % group, u, cell,&
             local_particles=local_particles, error=error )
     END DO SR
 
@@ -3167,9 +3109,9 @@ END SUBROUTINE nph_uniaxial_damped
     END IF
 
     !     *** Update forces ***
-
     CALL force_env_set_cell(force_env, cell, .TRUE.,error)
     CALL force_env_calc_energy_force(force_env,error=error)
+    CALL metadyn_forces(force_env, vel, error=error)
 
     !     *** Velocity Verlet (second part) ***
     IF(shell_adiabatic) THEN
@@ -3249,12 +3191,9 @@ END SUBROUTINE nph_uniaxial_damped
     RR: DO WHILE (ABS(roll_tol)>=1.E-10_dp) ! RATTLE-ROLL LOOP
        roll_tol = 0.0_dp
        IF ( simpar % constraint ) CALL rattle_roll_setup ( gci, atomic_kind_set, &
-            particle_set, local_particles, &
-            molecule_kind_set, molecule_set,  &
-            local_molecules, vel, &
-            cell, npt, simpar, virial, vector_v,  &
-            roll_tol, iroll, infree, first, para_env, u,&
-            error=error)
+            particle_set, local_particles, molecule_kind_set, molecule_set,  &
+            local_molecules, vel, cell, npt, simpar, virial, vector_v,  &
+            roll_tol, iroll, infree, first, para_env, u, error=error)
 
        CALL update_pv ( gci, simpar, atomic_kind_set, vel, particle_set, &
             local_molecules, molecule_set, molecule_kind_set, &
@@ -3524,6 +3463,7 @@ END SUBROUTINE nph_uniaxial_damped
 !!     rattle_roll_setup
 !!
 !!   FUNCTION
+!!     update veps using multiplier obtained from SHAKE
 !!
 !!   AUTHOR
 !!     CJM
@@ -3566,8 +3506,6 @@ END SUBROUTINE nph_uniaxial_damped
     REAL(KIND=dp)                            :: kin
     REAL(KIND=dp), DIMENSION(3, 3)           :: pv_kin
     TYPE(npt_info_type), DIMENSION(3, 3)     :: npt_loc
-
-! update veps using multiplier obtained from SHAKE
 
     IF ( first ) THEN
        CALL update_pv ( gci, simpar, atomic_kind_set, vel, particle_set, &
@@ -3646,10 +3584,7 @@ END SUBROUTINE nph_uniaxial_damped
     REAL(KIND=dp)                            :: mass
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
-! initializing locals
-
     pv_kin = 0.0_dp
-
     kin = 0.0_dp
     DO iparticle_kind = 1, SIZE ( atomic_kind_set )
        atomic_kind => atomic_kind_set ( iparticle_kind )
@@ -3726,10 +3661,7 @@ END SUBROUTINE nph_uniaxial_damped
     REAL(KIND=dp)                            :: mass
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
-! initializing locals
-
     pv_kin = 0.0_dp
-
     kin = 0._dp
     DO iparticle_kind = 1, SIZE ( atomic_kind_set )
        atomic_kind => atomic_kind_set ( iparticle_kind )
@@ -4000,9 +3932,9 @@ END SUBROUTINE nph_uniaxial_damped
 
        !     *** Update forces ***
        CALL force_env_calc_energy_force(force_env%sub_force_env(1)%force_env,error=error)
+       CALL metadyn_forces(force_env, vel, error=error)
 
        !     *** Velocity Verlet (second part) ***
-
        DO iparticle_kind=1,nparticle_kind
           atomic_kind => atomic_kind_set(iparticle_kind)
           CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
@@ -4040,6 +3972,7 @@ END SUBROUTINE nph_uniaxial_damped
     !     *** Multiple time step (second part) ***
     ! Compute forces for respa force_env
     CALL force_env_calc_energy_force(force_env,error=error)
+    CALL metadyn_forces(force_env, vel, error=error)
 
     DO iparticle_kind=1,nparticle_kind
        atomic_kind => atomic_kind_set(iparticle_kind)

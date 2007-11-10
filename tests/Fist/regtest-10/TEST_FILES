@@ -5,3 +5,9 @@ ar3_angvel_zero_002.inp     2
 water_2_angvel_zero_000.inp 2
 water_2_angvel_zero_001.inp 2
 water_2_angvel_zero_002.inp 2
+#walls for metadynamics
+nh3-meta-0.inp              2
+nh3-meta-1.inp              2
+nh3-meta-2.inp              2
+nh3-meta-3.inp              2
+nh3-meta-4.inp              2

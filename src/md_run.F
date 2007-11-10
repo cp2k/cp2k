@@ -71,6 +71,7 @@ MODULE md_run
                                              md_output,&
                                              setup_velocities,&
                                              temperature_control
+  USE metadynamics,                    ONLY: metadyn_forces
   USE particle_list_types,             ONLY: particle_list_type
   USE reftraj_types,                   ONLY: create_reftraj,&
                                              reftraj_type,&
@@ -310,10 +311,11 @@ CONTAINS
           CALL section_vals_remove_values(work_section, error)
        END IF
        
-       CALL force_env_calc_energy_force ( force_env, calc_force=.TRUE.,error=error)
-       
+       CALL force_env_calc_energy_force (force_env, calc_force=.TRUE.,error=error)
+       CALL metadyn_forces(force_env, error=error)
+
        IF (simpar%do_respa)THEN
-          CALL force_env_calc_energy_force ( force_env%sub_force_env(1)%force_env,&
+          CALL force_env_calc_energy_force (force_env%sub_force_env(1)%force_env,&
                calc_force=.TRUE.,error=error)
        END IF
        

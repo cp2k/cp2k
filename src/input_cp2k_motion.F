@@ -58,7 +58,9 @@ MODULE input_cp2k_motion
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_motion'
 
 PUBLIC :: create_motion_section,&
-          create_band_section
+          create_band_section,&
+          create_metadyn_section,&
+          create_metavar_section
 
 !***
 !****************************************************************************
@@ -2063,7 +2065,7 @@ CONTAINS
             " metadynamics. The files contains: colvar value of the extended lagrangian, "//&
             " instantaneous colvar value, force due to the armonic term of the extended "//&
             " lagrangian and the force due to the previously spawned hills.", &
-            print_level=high_print_level,each=(/1/),add_last=(/1/),filename="COLVAR",&
+            print_level=low_print_level,each=(/1/),add_last=(/1/),filename="COLVAR",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -2346,6 +2348,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection, wall_section
 
     failure=.FALSE.
     
@@ -2380,25 +2383,108 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="WALL_PLUS",&
-            variants=(/"WALLP"/),&
-            description="Activates the reflective wall on the upper limit of the collective variable.",&
-            usage="WALL_PLUS {real}",type_of_var=real_t,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="WALL_MINUS",&
-            variants=(/"WALLM"/),&
-            description="Activates the reflective wall on the lower limit of the collective variable.",&
-            usage="WALL_MINUS {real}",type_of_var=real_t,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword, name="COLVAR",&
             description="Specifies the colvar on which to apply metadynamics.",&
             usage="COLVAR {integer}", type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       ! Wall section
+       NULLIFY(wall_section, subsection)
+       CALL section_create(wall_section,name="WALL",&
+            description="Controls the activation of walls on COLVAR during a metadynamic run.",&
+            n_keywords=0, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+       
+       CALL keyword_create(keyword, name="TYPE",&
+            description="Specify the type of wall",&
+            usage=" TYPE (REFLECTIVE|QUADRATIC|GAUSSIAN|NONE)",&
+            enum_c_vals=s2a( "REFLECTIVE","QUADRATIC","GAUSSIAN","NONE"),&
+            enum_desc=s2a("Reflective wall. Colvar velocity is inverted when the colvar is beyond the wall position.",&
+                          "Applies a quadratic potential at the wall position.",&
+                          "Applies a gaussian potential at the wall position.",&
+                          "No walls are applied."),&
+            enum_i_vals=(/do_wall_reflective,do_wall_quadratic,do_wall_gaussian,do_wall_none/),&
+            default_i_val=do_wall_none,error=error)
+       CALL section_add_keyword(wall_section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+
+       CALL keyword_create(keyword, name="POSITION",&
+            description="Specify the value of the colvar for the wall position",&
+            usage="POSITION {real}",unit_str='internal_cp2k',&
+            type_of_var=real_t,error=error)
+       CALL section_add_keyword(wall_section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       ! Reflective wall
+       CALL section_create(subsection,name="REFLECTIVE",&
+            description="Parameters controlling the reflective wall",&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="DIRECTION",&
+            description="Specify the direction of the wall.",&
+            usage=" TYPE (WALL_PLUS|WALL_MINUS)",&
+            enum_c_vals=s2a( "WALL_PLUS","WALL_MINUS"),&
+            enum_desc=s2a("Wall extends from the position towards larger values of COLVAR",&
+                          "Wall extends from the position towards smaller values of COLVAR"),&
+            enum_i_vals=(/do_wall_p,do_wall_m/),default_i_val=do_wall_p,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error) 
+       CALL section_add_subsection(wall_section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       ! Quadratic wall
+       CALL section_create(subsection,name="QUADRATIC",&
+            description="Parameters controlling the quadratic wall",&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="DIRECTION",&
+            description="Specify the direction of the wall.",&
+            usage=" TYPE (WALL_PLUS|WALL_MINUS)",&
+            enum_c_vals=s2a( "WALL_PLUS","WALL_MINUS"),&
+            enum_desc=s2a("Wall extends from the position towards larger values of COLVAR",&
+                          "Wall extends from the position towards smaller values of COLVAR"),&
+            enum_i_vals=(/do_wall_p,do_wall_m/),default_i_val=do_wall_p,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="K",&
+            description="Specify the value of the quadratic potential constan: K*(CV-POS)^2",&
+            usage="K {real}",unit_str='internal_cp2k',&
+            type_of_var=real_t,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(wall_section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       ! Gaussian wall
+       CALL section_create(subsection,name="GAUSSIAN",&
+            description="Parameters controlling the gaussian wall.",&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="WW",&
+            description="Specify the height of the gaussian: WW*e^(-((CV-POS)/sigma)^2)",&
+            usage="K {real}",unit_str='internal_cp2k',&
+            type_of_var=real_t,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="SIGMA",&
+            description="Specify the width of the gaussian: WW*e^(-((CV-POS)/sigma)^2)",&
+            usage="SIGMA {real}",unit_str='internal_cp2k',&
+            type_of_var=real_t,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       CALL section_add_subsection(wall_section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL section_add_subsection(section, wall_section, error=error)
+       CALL section_release(wall_section,error=error)       
 
     END IF
 

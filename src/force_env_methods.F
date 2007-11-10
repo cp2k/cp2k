@@ -97,7 +97,6 @@ MODULE force_env_methods
                                              dp
   USE message_passing,                 ONLY: mp_sum,&
                                              mp_sync
-  USE metadynamics,                    ONLY: metadyn_add_forces
   USE metadynamics_types,              ONLY: meta_env_retain,&
                                              meta_env_type
   USE mixed_energy_types,              ONLY: mixed_energy_type,&
@@ -192,7 +191,6 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-
   RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
        calc_force, consistent_energies, skip_external_control, eval_energy_forces,&
        error)
@@ -293,11 +291,6 @@ CONTAINS
          END SELECT
        END IF
        IF (.NOT.my_skip) THEN
-          ! warning: shell-model not yet implemented for these options
-          ! Metadynamics
-          IF (ASSOCIATED(force_env%meta_env)) THEN
-             CALL metadyn_add_forces(force_env%meta_env,force_env, error=error)
-          END IF
           ! Flexible Partitioning
           IF (ASSOCIATED(force_env%fp_env)) THEN
              IF (force_env%fp_env%use_fp) THEN

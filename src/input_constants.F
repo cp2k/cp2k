@@ -295,6 +295,14 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC :: do_fe_meta=0,&
                                 do_fe_ui=1,&
                                 do_fe_ac=2
+
+  INTEGER, PARAMETER, PUBLIC :: do_wall_none=0,&
+                                do_wall_reflective=1,&
+                                do_wall_quadratic=2,&
+                                do_wall_gaussian=3
+
+  INTEGER, PARAMETER, PUBLIC :: do_wall_p=0,&
+                                do_wall_m=1
   !
   ! Output format files
   !

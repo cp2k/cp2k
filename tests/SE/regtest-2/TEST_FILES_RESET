@@ -35,3 +35,5 @@ h2o_meta.inp
 h2o_meta.inp
 # numerics
 h2o_meta.inp
+# metadynamics decoupled from force calculation.. dependent only on MD
+h2o_meta.inp

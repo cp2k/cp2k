@@ -55,3 +55,6 @@ H2O-2-multi.inp
 H2O-2-multi-pw.inp
 #  
 acn_respa.inp
+# metadynamics decoupled from force calculation.. dependent only on MD
+nh3-meta-1.inp
+nh3-meta-2.inp
