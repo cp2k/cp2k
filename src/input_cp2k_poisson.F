@@ -420,7 +420,7 @@ SUBROUTINE create_ewald_section(section,error)
     CALL section_create(section,name="ewald",&
          description="Ewald parameters controlling electrostatic only for CLASSICAL MM.",&
          n_keywords=7, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-         citations=(/Toukmaji1996/),&
+         citations=(/Ewald1921,Darden1993,Essmann1995,Toukmaji1996/),&
          error=error)
 
     NULLIFY(keyword,print_key,subsection)
