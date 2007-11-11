@@ -28,46 +28,45 @@ MODULE mathlib
                                              int_size
   USE mathconstants,                   ONLY: euler,&
                                              fac
-  USE output_utilities,                ONLY: print_message
   USE termination,                     ONLY: get_error_unit,&
                                              stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
-
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mathlib'
-  REAL(KIND = dp), PARAMETER  :: eps_geo = 1.0E-6_dp
+  REAL(KIND = dp), PARAMETER           :: eps_geo = 1.0E-6_dp
 
   ! *** Public subroutines ***
 
   PUBLIC :: build_rotmat,&
-       diamat_all,&
-       invert_matrix,&
-       power_matrix,&
-       set_diag,&
-       symmetrize_matrix,&
-       unit_matrix
+            diamat_all,&
+            invert_matrix,&
+            power_matrix,&
+            set_diag,&
+            symmetrize_matrix,&
+            unit_matrix
 
   ! *** Public functions ***
 
   PUBLIC :: angle,&
-       binomial,&
-       det_3x3,&
-       dihedral_angle,&
-       gcd,&
-       inv_3x3,&
-       lcm,&
-       ei,&
-       vector_product,&
-       matmul_3x3,&
-       matvec_3x3,&
-       dotprod_3d,&
-       transpose_3d,&
-       expint
+            binomial,&
+            det_3x3,&
+            dihedral_angle,&
+            gcd,&
+            inv_3x3,&
+            lcm,&
+            ei,&
+            vector_product,&
+            matmul_3x3,&
+            matvec_3x3,&
+            dotprod_3d,&
+            transpose_3d,&
+            expint
 
   ! *****************************************************************************
 
@@ -1272,24 +1271,23 @@ CONTAINS
   !!
   !!*** *********************************************************************
   FUNCTION expint(n,x)
-    REAL(dp)                                 :: expint
     INTEGER                                  :: n
-    REAL(dp)                                 :: x
+    REAL(dp)                                 :: x, expint
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'expint'
     INTEGER, PARAMETER                       :: maxit = 100
-    REAL(dp), PARAMETER                      :: eps = 6.e-14_dp, &
-                                                fpmin = 1.e-100_dp,&
-                                                euler = 0.5772156649015328606065120_dp
-    INTEGER                                  :: i,ii,nm1
-    REAL(dp)                                 :: a,b,c,d,del,fact,h,psi
+    REAL(dp), PARAMETER :: eps = 6.e-14_dp, &
+      euler = 0.5772156649015328606065120_dp, fpmin = 1.e-100_dp
+
+    INTEGER                                  :: i, ii, nm1
+    REAL(dp)                                 :: a, b, c, d, del, fact, h, psi
 
     nm1=n-1
 
     IF(n.lt.0.OR.x.lt.0.0_dp.OR.(x.eq.0.0_dp.AND.(n.EQ.0.or.n.EQ.1))) THEN
       CALL stop_program(moduleN,routineN,__LINE__,"Invalid argument")
     ELSE IF(n.EQ.0) THEN       !Special case.
-      expint=exp(-x)/x
+      expint=EXP(-x)/x
     ELSE IF(x.EQ.0.0_dp) THEN  !Another special case.
       expint=1.0_dp/nm1
     ELSE IF(x.GT.1.0_dp) THEN  !Lentz’s algorithm (§5.2).

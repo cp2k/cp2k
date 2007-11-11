@@ -48,21 +48,18 @@ MODULE qs_mo_types
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
                                              cp_print_key_generate_filename,&
+                                             cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE input_section_types,             ONLY: section_vals_type,&
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp,&
                                              dp_size,&
                                              int_size
-  USE input_section_types,             ONLY: section_vals_get,&
-                                             section_vals_val_get,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_type
   USE message_passing,                 ONLY: mp_bcast
   USE orbital_pointers,                ONLY: indco,&
                                              nco,&
@@ -70,7 +67,6 @@ MODULE qs_mo_types
   USE orbital_symbols,                 ONLY: cgf_symbol,&
                                              sgf_symbol
   USE orbital_transformation_matrices, ONLY: orbtramat
-  USE output_utilities,                ONLY: print_warning
   USE particle_types,                  ONLY: particle_type
   USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
   USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
@@ -199,18 +195,16 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: maxocc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE allocate_mo_set (MODULE qs_mo_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_mo_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
-!   ---------------------------------------------------------------------------
-
     failure=.FALSE.
 
     ALLOCATE (mo_set,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"mo_set",0)
+    IF (istat /= 0) CALL stop_memory(routineP,"mo_set",0)
 
     mo_set%maxocc = maxocc
     mo_set%nelectron = nelectron
@@ -326,7 +320,8 @@ CONTAINS
       POINTER                                :: mo_array
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'mo_set_restrict'
+    CHARACTER(len=*), PARAMETER :: routineN = 'mo_set_restrict', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
@@ -360,12 +355,10 @@ CONTAINS
     TYPE(mo_set_type), POINTER               :: mo_set
     REAL(KIND=dp), INTENT(IN)                :: level_shift
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'correct_mo_eigenvalues', &
-      routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
+    CHARACTER(len=*), PARAMETER :: routineN = 'correct_mo_eigenvalues', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imo
-
-!   ---------------------------------------------------------------------------
 
     IF (level_shift == 0.0_dp) RETURN
 
@@ -388,8 +381,8 @@ CONTAINS
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_mo_set', &
-      routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_mo_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
 
@@ -398,18 +391,18 @@ CONTAINS
     IF (ASSOCIATED(mo_set)) THEN
        IF (ASSOCIATED(mo_set%eigenvalues)) THEN
           DEALLOCATE (mo_set%eigenvalues,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine,"mo_set%eigenvalues")
+          IF (istat /= 0) CALL stop_memory(routineP,"mo_set%eigenvalues")
        END IF
 
        IF (ASSOCIATED(mo_set%occupation_numbers)) THEN
           DEALLOCATE (mo_set%occupation_numbers,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine,"mo_set%occupation_numbers")
+          IF (istat /= 0) CALL stop_memory(routineP,"mo_set%occupation_numbers")
        END IF
 
        CALL cp_fm_release(mo_set%mo_coeff,error=error)
 
        DEALLOCATE (mo_set,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routine,"mo_set")
+       IF (istat /= 0) CALL stop_memory(routineP,"mo_set")
     END IF
 
   END SUBROUTINE deallocate_mo_set
@@ -471,8 +464,8 @@ CONTAINS
     LOGICAL, INTENT(INOUT)                   :: uocc
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: smear
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_occupation', &
-      routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_mo_occupation', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imo, nmo, nomo
     REAL(KIND=dp)                            :: e1, e2, edelta, edist, &
@@ -572,8 +565,8 @@ CONTAINS
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: mo_coeff
     LOGICAL, INTENT(IN), OPTIONAL            :: uniform_occupation
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_set', &
-      routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_mo_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
 
@@ -587,13 +580,13 @@ CONTAINS
     IF (PRESENT(nmo)) mo_set%nmo = nmo
     IF (PRESENT(eigenvalues)) THEN
       IF(ASSOCIATED(mo_set%eigenvalues)) DEALLOCATE(mo_set%eigenvalues,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"mo_set%eigenvalues")
+      IF (istat /= 0) CALL stop_memory(routineP,"mo_set%eigenvalues")
       mo_set%eigenvalues => eigenvalues
     END IF
     IF (PRESENT(occupation_numbers)) THEN
       IF(ASSOCIATED(mo_set%occupation_numbers)) &
                     DEALLOCATE(mo_set%occupation_numbers,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"mo_set%occupation_numbers")
+      IF (istat /= 0) CALL stop_memory(routineP,"mo_set%occupation_numbers")
       mo_set%occupation_numbers => occupation_numbers
     END IF
     IF(PRESENT(uniform_occupation)) mo_set%uniform_occupation=uniform_occupation
@@ -611,8 +604,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_set_to_restart', &
-      routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
+    CHARACTER(len=*), PARAMETER :: routineN = 'write_mo_set_to_restart', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=30), DIMENSION(2) :: &
       keys = (/"SCF%PRINT%RESTART_HISTORY","SCF%PRINT%RESTART        "/)
@@ -661,8 +654,8 @@ CONTAINS
     INTEGER                                  :: ires
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_set_low', &
-      routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
+    CHARACTER(len=*), PARAMETER :: routineN = 'write_mo_set_low', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, i_block, iatom, iset, ishell, ispin, istat, j, &
       lmax, lshell, max_block, nao, natom, nmo, nset, nset_max, nshell_max, &
@@ -706,22 +699,22 @@ CONTAINS
              nset_max = MAX(nset_max,1)
              nshell_max = MAX(nshell_max,lmax+1)
           ELSE
-             CALL stop_program(routine,"unknown basis type")
+             CALL stop_program(routineP,"unknown basis type")
           END IF
        END DO
        
        ALLOCATE (nso_info(nshell_max,nset_max,natom),STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routine,"nso_info",&
+       IF (istat /= 0) CALL stop_memory(routineP,"nso_info",&
             nshell_max*nset_max*natom*int_size)
        nso_info(:,:,:) = 0
        
        ALLOCATE (nshell_info(nset_max,natom),STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routine,"nshell_info",&
+       IF (istat /= 0) CALL stop_memory(routineP,"nshell_info",&
             nset_max*natom*int_size)
        nshell_info(:,:) = 0
        
        ALLOCATE (nset_info(natom),STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routine,"nset_info",natom*int_size)
+       IF (istat /= 0) CALL stop_memory(routineP,"nset_info",natom*int_size)
        nset_info(:) = 0
        
        DO iatom=1,natom
@@ -750,7 +743,7 @@ CONTAINS
                 nso_info(ishell,1,iatom) = nso(lshell)
              END DO
           ELSE
-             CALL stop_program(routine,"unknown basis type")
+             CALL stop_program(routineP,"unknown basis type")
           END IF
        END DO
        
@@ -760,20 +753,20 @@ CONTAINS
        WRITE (ires) nso_info
        
        DEALLOCATE (nset_info,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routine,"nset_info")
+       IF (istat /= 0) CALL stop_memory(routineP,"nset_info")
        
        DEALLOCATE (nshell_info,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routine,"nshell_info")
+       IF (istat /= 0) CALL stop_memory(routineP,"nshell_info")
        
        DEALLOCATE (nso_info,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routine,"nso_info")
+       IF (istat /= 0) CALL stop_memory(routineP,"nso_info")
        
     END IF
     
     ! use the scalapack block size as a default for buffering columns
     CALL cp_fm_get_info(mo_array(1)%mo_set%mo_coeff,ncol_block=max_block,error=error)
     ALLOCATE(vecbuffer(nao,max_block),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"vecbuffer",nao*max_block*dp_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"vecbuffer",nao*max_block*dp_size)
     
     DO ispin=1,nspin
        nmo=mo_array(ispin)%mo_set%nmo
@@ -799,7 +792,7 @@ CONTAINS
     END DO
     
     DEALLOCATE (vecbuffer,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"vecbuffer")
+    IF (istat /= 0) CALL stop_memory(routineP,"vecbuffer")
     
     CALL timestop(0.0_dp,handle)
 
@@ -807,13 +800,15 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE wfn_restart_file_name(filename,exist,dft_section,logger,error)
-    CHARACTER(LEN=default_path_length),INTENT(OUT)       :: filename
-    LOGICAL                           ,INTENT(OUT)       :: exist
-    TYPE(section_vals_type), POINTER                     :: dft_section
-    TYPE(cp_logger_type), POINTER                        :: logger
-    TYPE(cp_error_type), INTENT(inout)                   :: error
-    TYPE(section_vals_type), POINTER                     :: print_key
-    INTEGER :: n_rep_val
+    CHARACTER(LEN=default_path_length), &
+      INTENT(OUT)                            :: filename
+    LOGICAL, INTENT(OUT)                     :: exist
+    TYPE(section_vals_type), POINTER         :: dft_section
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    INTEGER                                  :: n_rep_val
+    TYPE(section_vals_type), POINTER         :: print_key
 
     CALL section_vals_val_get(dft_section,"WFN_RESTART_FILE_NAME",n_rep_val=n_rep_val,error=error)
     IF (n_rep_val>0) THEN
@@ -842,8 +837,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mo_set_from_restart', &
-      routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_mo_set_from_restart', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: file_name
     INTEGER :: group, handle, i, iatom, irow, iset, iset_read, ishell, &
@@ -853,12 +848,12 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: nset_info, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, nshell_info
     INTEGER, DIMENSION(:, :, :), POINTER     :: nso_info, offset_info
-    LOGICAL                                  :: did_change, minbas, use_this
+    LOGICAL                                  :: did_change, exist, minbas, &
+                                                use_this
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer, vecbuffer_read
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
-    LOGICAL                                  :: exist
 
 !   ---------------------------------------------------------------------------
 
@@ -894,23 +889,23 @@ CONTAINS
       END IF
 
       IF (natom_read /= natom) THEN
-        CALL stop_program(routine,"incorrect natom")
+        CALL stop_program(routineP,"incorrect natom")
       END IF
 
       ALLOCATE (nso_info(nshell_max,nset_max,natom_read),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"nso_info",&
+      IF (istat /= 0) CALL stop_memory(routineP,"nso_info",&
                                        nshell_max*nset_max*natom_read*int_size)
 
       ALLOCATE (nshell_info(nset_max,natom_read),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"nshell_info",&
+      IF (istat /= 0) CALL stop_memory(routineP,"nshell_info",&
                                        nset_max*natom_read*int_size)
 
       ALLOCATE (nset_info(natom_read),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"nset_info",natom_read*int_size)
+      IF (istat /= 0) CALL stop_memory(routineP,"nset_info",natom_read*int_size)
 
 
       ALLOCATE (offset_info(nshell_max,nset_max,natom_read),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"nso_info",&
+      IF (istat /= 0) CALL stop_memory(routineP,"nso_info",&
                                        nshell_max*nset_max*natom_read*int_size)
 
       IF (nao_read /= nao) THEN
@@ -934,7 +929,7 @@ CONTAINS
       END DO
 
       ALLOCATE(vecbuffer_read(1,nao_read),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"vecbuffer_read",&
+      IF (istat /= 0) CALL stop_memory(routineP,"vecbuffer_read",&
                                        nao_read*dp_size)
 
     END IF
@@ -942,7 +937,7 @@ CONTAINS
     CALL mp_bcast(nspin_read,source,group)
 
     ALLOCATE (vecbuffer(1,nao),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"vecbuffer",nao*dp_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"vecbuffer",nao*dp_size)
 
     DO ispin=1,nspin
 
@@ -957,24 +952,23 @@ CONTAINS
                             mo_array(ispin)%mo_set%homo,&
                             mo_array(ispin)%mo_set%lfomo,&
                             mo_array(ispin)%mo_set%nelectron
-        IF (nmo_read < nmo) THEN
-          nmo = nmo_read
-          CALL print_warning(routine,"The number of MOs on the restart "//&
-                                     "unit is smaller than the number of "//&
-                                     "the allocated MOs. The MO set will "//&
-                                     "be padded with zeros!")
-        ELSE IF (nmo_read > nmo) THEN
-          CALL print_warning(routine,"The number of MOs on the restart "//&
-                                     "unit is greater than the number of "//&
-                                     "the allocated MOs. The read MO set "//&
-                                     "will be truncated!")
-        END IF
+        nmo = MIN(nmo,nmo_read)
+        CALL cp_assert((nmo_read >= nmo),cp_warning_level,cp_assertion_failed,routineP,&
+             "The number of MOs on the restart unit is smaller than the number of "//&
+             "the allocated MOs. The MO set will be padded with zeros!"//&
+CPSourceFileRef,&
+             only_ionode=.TRUE.)
+        CALL cp_assert((nmo_read<=nmo),cp_warning_level,cp_assertion_failed,routineP,&
+             "The number of MOs on the restart unit is greater than the number of "//&
+             "the allocated MOs. The read MO set will be truncated!"//&
+CPSourceFileRef,&
+             only_ionode=.TRUE.)
         READ (restart_unit) mo_array(ispin)%mo_set%eigenvalues(1:nmo),&
                             mo_array(ispin)%mo_set%occupation_numbers(1:nmo)
         IF (mo_array(ispin)%mo_set%homo > nmo) THEN
           ! can not make this a warning i.e. homo must be smaller than nmo
           ! otherwise e.g. set_mo_occupation will go out of bounds
-          CALL stop_program(routine,"The number of the occupied MOs on the "//&
+          CALL stop_program(routineP,"The number of the occupied MOs on the "//&
                                      "restart unit is greater than the "//&
                                      "number of the allocated MOs.")
         END IF
@@ -1008,7 +1002,7 @@ CONTAINS
               nset = 1
               minbas=.TRUE.
             ELSE
-              CALL stop_program(routine,"unknown basis set type")
+              CALL stop_program(routineP,"unknown basis set type")
             END IF
 
             use_this = .TRUE.
@@ -1105,19 +1099,19 @@ CONTAINS
     END DO   ! ispin
 
     DEALLOCATE(vecbuffer,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"vecbuffer")
+    IF (istat /= 0) CALL stop_memory(routineP,"vecbuffer")
 
     IF (para_env%ionode) THEN
       DEALLOCATE(vecbuffer_read,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"vecbuffer_read")
+      IF (istat /= 0) CALL stop_memory(routineP,"vecbuffer_read")
       DEALLOCATE(offset_info,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"offset_info")
+      IF (istat /= 0) CALL stop_memory(routineP,"offset_info")
       DEALLOCATE(nso_info,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"nso_info")
+      IF (istat /= 0) CALL stop_memory(routineP,"nso_info")
       DEALLOCATE(nshell_info,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"nshell_info")
+      IF (istat /= 0) CALL stop_memory(routineP,"nshell_info")
       DEALLOCATE(nset_info,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"nset_info")
+      IF (istat /= 0) CALL stop_memory(routineP,"nset_info")
       CALL close_file(unit_number=restart_unit)
     END IF
 
@@ -1157,7 +1151,8 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: last
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_set_to_output_unit'
+    CHARACTER(len=*), PARAMETER :: routineN = 'write_mo_set_to_output_unit', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=12)                        :: symbol
     CHARACTER(LEN=12), DIMENSION(:), POINTER :: bcgf_symbol

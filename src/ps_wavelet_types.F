@@ -38,9 +38,7 @@ MODULE ps_wavelet_types
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_alltoall,&
-                                             mp_cart_rank,&
-                                             mp_sync
-  USE output_utilities,                ONLY: print_warning
+                                             mp_cart_rank
   USE ps_wavelet_kernel,               ONLY: createKernel
   USE ps_wavelet_util,                 ONLY: F_FFT_dimensions,&
                                              PSolver,&
@@ -343,27 +341,39 @@ CONTAINS
           max_val_up=0._dp
           IF(lb(2)==pw_grid%bounds(1,2))max_val_low=MAXVAL(ABS(density % cr3d(:,lb(2),:)))
           IF(ub(2)==pw_grid%bounds(2,2))max_val_up=MAXVAL(ABS(density % cr3d(:,ub(2),:)))
-          IF(max_val_low.GE.0.0001_dp)CALL print_warning(routineP,&
-               "Density hits the lower boundary of the system in XZ-plane")
-          IF(max_val_up.GE.0.0001_dp)CALL print_warning(routineP,&
-               "Density hits the upper boundary of the system in XZ-plane")          
+          CALL cp_assert((max_val_low.LT.0.0001_dp),cp_warning_level,cp_assertion_failed,routineP,&
+               "Density hits the lower boundary of the system in XZ-plane"//&
+CPSourceFileRef,&
+               only_ionode=.TRUE.)
+          CALL cp_assert((max_val_up.LT.0.0001_dp),cp_warning_level,cp_assertion_failed,routineP,&
+               "Density hits the upper boundary of the system in XZ-plane"//&
+CPSourceFileRef,&
+               only_ionode=.TRUE.)
           IF(wavelet%geocode=='F')THEN
              max_val_low=0._dp
              max_val_up=0._dp
              IF(lb(1)==pw_grid%bounds(1,1))max_val_low=MAXVAL(ABS(density % cr3d(lb(1),:,:)))
              IF(ub(1)==pw_grid%bounds(2,1))max_val_up=MAXVAL(ABS(density % cr3d(ub(1),:,:)))
-             IF(max_val_low.GE.0.0001_dp)CALL print_warning(routineP,&
-                  "Density hits the lower boundary of the system in YZ-plane")
-             IF(max_val_up.GE.0.0001_dp)CALL print_warning(routineP,&
-                  "Density hits the upper boundary of the system in YZ-plane") 
+             CALL cp_assert((max_val_low.LT.0.0001_dp),cp_warning_level,cp_assertion_failed,routineP,&
+                  "Density hits the lower boundary of the system in YZ-plane"//&
+CPSourceFileRef,&
+                  only_ionode=.TRUE.)
+             CALL cp_assert((max_val_up.LT.0.0001_dp),cp_warning_level,cp_assertion_failed,routineP,&
+                  "Density hits the upper boundary of the system in YZ-plane"//&
+CPSourceFileRef,&
+                  only_ionode=.TRUE.)
              max_val_low=0._dp
              max_val_up=0._dp
              IF(lb(3)==pw_grid%bounds(1,3))max_val_low=MAXVAL(ABS(density % cr3d(:,:,lb(3))))
              IF(ub(3)==pw_grid%bounds(2,3))max_val_up=MAXVAL(ABS(density % cr3d(:,:,ub(3))))
-             IF(max_val_low.GE.0.0001_dp)CALL print_warning(routineP,&
-                  "Density hits the lower boundary of the system in XY-plane")
-             IF(max_val_up.GE.0.0001_dp)CALL print_warning(routineP,&
-                  "Density hits the upper boundary of the system in XY-plane") 
+             CALL cp_assert((max_val_low.LT.0.0001_dp),cp_warning_level,cp_assertion_failed,routineP,&
+                  "Density hits the lower boundary of the system in XY-plane"//&
+CPSourceFileRef,&
+                  only_ionode=.TRUE.)
+             CALL cp_assert((max_val_up.LT.0.0001_dp),cp_warning_level,cp_assertion_failed,routineP,&
+                  "Density hits the upper boundary of the system in XY-plane"//&
+CPSourceFileRef,&
+                  only_ionode=.TRUE.)
           END IF
        END IF
 
@@ -418,7 +428,7 @@ CONTAINS
                                  
              lox = get_limit ( pw_grid % npts ( 1 ), pw_grid % para % rs_dims ( 1 ), i )
              loy = get_limit ( pw_grid % npts ( 2 ), pw_grid % para % rs_dims ( 2 ), j )
-	     IF(iproc*local_z_dim.LT.m2)THEN
+             IF(iproc*local_z_dim.LT.m2)THEN
              IF((iproc+1)*local_z_dim.LE.m2)THEN
                 loz=local_z_dim
              ELSE

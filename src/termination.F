@@ -33,12 +33,11 @@ MODULE termination
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
-  USE machine,                         ONLY: m_walltime, &
-                                             m_flush, &
-                                             default_output_unit
+  USE machine,                         ONLY: default_output_unit,&
+                                             m_flush,&
+                                             m_walltime
   USE message_passing,                 ONLY: mp_abort,&
                                              mp_bcast
-  USE output_utilities,                ONLY: print_message
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: print_stack
 #include "cp_common_uses.h"

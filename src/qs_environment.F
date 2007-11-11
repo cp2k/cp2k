@@ -122,7 +122,6 @@ MODULE qs_environment
   USE molecule_types_new,              ONLY: molecule_type
   USE orbital_pointers,                ONLY: init_orbital_pointers
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
-  USE output_utilities,                ONLY: print_message
   USE particle_list_types,             ONLY: particle_list_create,&
                                              particle_list_release,&
                                              particle_list_type

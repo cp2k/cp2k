@@ -23,9 +23,6 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_keyword_types
-  USE reference_manager,               ONLY: print_reference, &
-                                             print_format_journal, &
-                                             get_citation_key
   USE cp_units,                        ONLY: cp_unit_create,&
                                              cp_unit_desc,&
                                              cp_unit_release,&
@@ -40,7 +37,9 @@ MODULE input_keyword_types
        val_write_internal
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE output_utilities,                ONLY: print_message
+  USE reference_manager,               ONLY: get_citation_key,&
+                                             print_format_journal,&
+                                             print_reference
   USE string_utilities,                ONLY: compress,&
                                              substitute_special_xml_tokens,&
                                              typo_match,&
@@ -222,9 +221,9 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
     CHARACTER(len=*), DIMENSION(:), &
       INTENT(in), OPTIONAL                   :: enum_desc
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: unit_str
-    INTEGER, DIMENSION(:), OPTIONAL, INTENT(IN) :: citations
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    INTEGER, DIMENSION(:), INTENT(in), &
+      OPTIONAL                               :: citations
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'keyword_create', &
       routineP = moduleN//':'//routineN
@@ -477,8 +476,7 @@ END SUBROUTINE keyword_create
 !!*** **********************************************************************
 SUBROUTINE keyword_retain(keyword, error)
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'keyword_retain', &
       routineP = moduleN//':'//routineN
@@ -516,8 +514,7 @@ END SUBROUTINE keyword_retain
 !!*** **********************************************************************
 SUBROUTINE keyword_release(keyword, error)
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'keyword_release', &
       routineP = moduleN//':'//routineN
@@ -579,9 +576,8 @@ SUBROUTINE keyword_get(keyword,names,usage,description,type_of_var,n_var,&
     LOGICAL, INTENT(out), OPTIONAL           :: required, repeats
     TYPE(enumeration_type), OPTIONAL, &
       POINTER                                :: enum
-    INTEGER, DIMENSION(:), POINTER, OPTIONAL :: citations
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: citations
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'keyword_get', &
       routineP = moduleN//':'//routineN
@@ -635,8 +631,7 @@ END SUBROUTINE keyword_get
 SUBROUTINE keyword_describe(keyword, unit_nr, level,error)
     TYPE(keyword_type), POINTER              :: keyword
     INTEGER, INTENT(in)                      :: unit_nr, level
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'keyword_describe', &
       routineP = moduleN//':'//routineN
@@ -798,14 +793,13 @@ END SUBROUTINE keyword_describe
 SUBROUTINE keyword_describe_html(keyword, unit_nr, error)
     TYPE(keyword_type), POINTER              :: keyword
     INTEGER, INTENT(in)                      :: unit_nr
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'keyword_describe_html', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length)     :: c_string, my_unit
-    INTEGER                                  :: i,iref
+    INTEGER                                  :: i, iref
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -936,9 +930,9 @@ SUBROUTINE keyword_describe_html(keyword, unit_nr, error)
           WRITE(unit_nr,*) '<BR> This keyword cites following reference: '
        ENDIF
        DO iref=1,SIZE(keyword%citations,1)
-          write(unit_nr,'(A,I0,A)') '<A HREF="references.html#reference_',keyword%citations(iref),'" TITLE="'
-          CALL print_reference(keyword%citations(iref),format=print_format_journal,unit=unit_nr)
-          write(179,'(A)') '">[' // TRIM(get_citation_key( keyword%citations(iref) )) // ']</A>'
+          WRITE(unit_nr,'(A,I0,A)') '<A HREF="references.html#reference_',keyword%citations(iref),'" TITLE="'
+          CALL print_reference(keyword%citations(iref),FORMAT=print_format_journal,unit=unit_nr)
+          WRITE(179,'(A)') '">[' // TRIM(get_citation_key( keyword%citations(iref) )) // ']</A>'
        ENDDO
     ENDIF
 
@@ -952,8 +946,7 @@ END SUBROUTINE keyword_describe_html
 
     TYPE(keyword_type), POINTER              :: keyword
     INTEGER, INTENT(IN)                      :: level, unit_number
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_keyword_xml', &
       routineP = moduleN//':'//routineN
@@ -1136,22 +1129,18 @@ END SUBROUTINE keyword_describe_html
     CHARACTER(LEN=*)                         :: unknown_string, &
                                                 location_string
     INTEGER, DIMENSION(:), INTENT(INOUT)     :: matching_rank
-    CHARACTER(LEN=*), DIMENSION(:), INTENT(INOUT) :: matching_string
-
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    CHARACTER(LEN=*), DIMENSION(:), &
+      INTENT(INOUT)                          :: matching_string
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'keyword_typo_match', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, imatch,irank,imax,k
-    LOGICAL                                  :: failure
     CHARACTER(LEN=LEN(matching_string(1)))   :: line
-
-!   ---------------------------------------------------------------------------
+    INTEGER                                  :: i, imatch, imax, irank, j, k
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
-
     CPPrecondition(ASSOCIATED(keyword),cp_failure_level,routineP,error,failure)
     CPPrecondition(keyword%ref_count>0,cp_failure_level,routineP,error,failure)
 

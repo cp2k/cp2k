@@ -47,7 +47,6 @@ MODULE xas_restart
                                              dp
   USE message_passing,                 ONLY: mp_bcast
   USE orbital_pointers,                ONLY: nso
-  USE output_utilities,                ONLY: print_warning
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -210,23 +209,21 @@ CONTAINS
                             mos(ispin)%mo_set%homo,&
                             mos(ispin)%mo_set%lfomo,&
                             mos(ispin)%mo_set%nelectron
-        IF (nmo_read < nmo) THEN
-          nmo = nmo_read
-          CALL print_warning(routineP,"The number of MOs on the restart "//&
-                                     "unit is smaller than the number of "//&
-                                     "the allocated MOs. The MO set will "//&
-                                     "be padded with zeros!")
-        ELSE IF (nmo_read > nmo) THEN
-          CALL print_warning(routineP,"The number of MOs on the restart "//&
-                                     "unit is greater than the number of "//&
-                                     "the allocated MOs. The read MO set "//&
-                                     "will be truncated!")
-        END IF
-        IF(homo/=mos(ispin)%mo_set%homo) THEN
-          CALL print_warning(routineP,"The homo has changed,  you are"//&
-               "probably using a different core-hole potential")
-        END IF
-
+        nmo = MIN(nmo,nmo_read)
+        CALL cp_assert((nmo_read >= nmo),cp_warning_level,cp_assertion_failed,routineP,&
+             "The number of MOs on the restart unit is smaller than the number of "//&
+             "the allocated MOs. The MO set will be padded with zeros!"//&
+CPSourceFileRef,&
+             only_ionode=.TRUE.)
+        CALL cp_assert((nmo_read<=nmo),cp_warning_level,cp_assertion_failed,routineP,&
+             "The number of MOs on the restart unit is greater than the number of "//&
+             "the allocated MOs. The read MO set will be truncated!"//&
+CPSourceFileRef,&
+             only_ionode=.TRUE.)
+        CALL cp_assert((homo==mos(ispin)%mo_set%homo),cp_warning_level,cp_assertion_failed,routineP,&
+             "The homo has changed,  you are probably using a different core-hole potential."//&
+CPSourceFileRef,&
+             only_ionode=.TRUE.)
         READ (rst_unit) mos(ispin)%mo_set%eigenvalues(1:nmo),&
                             mos(ispin)%mo_set%occupation_numbers(1:nmo)
         IF (mos(ispin)%mo_set%homo > nmo) THEN

@@ -61,7 +61,6 @@ MODULE cp_log_handling
                                              m_hostnm
   USE message_passing,                 ONLY: mp_comm_free,&
                                              mp_stop
-  USE output_utilities,                ONLY: print_message
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: print_stack
 
@@ -84,12 +83,10 @@ MODULE cp_log_handling
   PUBLIC :: cp_to_string, cp_log
 ! iteration_info
   PUBLIC :: cp_iteration_info_create, cp_iteration_info_retain, &
-       cp_iteration_info_release
-! underlying routines
-!!FM  public :: cp_int_to_string, cp_real_dp_to_string
+       cp_iteration_info_release, print_message
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_log_handling'
-  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
 
 !! level of an error
   INTEGER, PARAMETER  :: cp_fatal_level=3
@@ -1468,6 +1465,187 @@ END SUBROUTINE cp_iteration_info_release
        res='F'
     END IF
   END FUNCTION cp_logical_to_string
+
+!******************************************************************************
+!!****** cp_log_handling/print_message [1.0] *
+!!
+!!   NAME
+!!     print_message
+!!
+!!   SYNOPSIS
+!!     Subroutine print_message(message, output_unit, declev, before,&
+!!         after)
+!!       Character(Len=*), Intent (IN):: message
+!!       Integer, Intent (IN):: output_unit
+!!       Integer, Optional, Intent (IN):: after, before, declev
+!!     End Subroutine print_message
+!!
+!!   AUTHOR
+!!     Matthias Krack
+!!
+!!   CREATION DATE
+!!     28.08.1996
+!!
+!!   MODIFICATION HISTORY
+!!     - Translated to Fortran 90/95 (07.10.1999, Matthias Krack)
+!!     - CP2K by JH 21.08.2000
+!!     - Bugs in the dynamic format generation removed (09.02.2001, MK)
+!!
+!!    NOTES
+!!      after      : Number of empty lines after the message.
+!!      before     : Number of empty lines before the message.
+!!      declev     : Decoration level (0,1,2, ... star lines).
+!!      message    : String with the message text.
+!!      output_unit: Logical unit number of output unit.
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE print_message(message,output_unit,declev,before,after)
+
+    CHARACTER(LEN=*), INTENT(IN)             :: message
+    INTEGER, INTENT(IN)                      :: output_unit
+    INTEGER, INTENT(IN), OPTIONAL            :: declev, before, after
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'print_message', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=12)                        :: fmtstr1
+    CHARACTER(LEN=23)                        :: fmtstr2
+    INTEGER :: blank_lines_after, blank_lines_before, decoration_level, i, &
+      ibreak, ipos1, ipos2, maxrowlen, msglen, nrow, rowlen
+
+    IF (PRESENT(after)) THEN
+      blank_lines_after = MAX(after,0)
+    ELSE
+      blank_lines_after = 1
+    END IF
+
+    IF (PRESENT(before)) THEN
+      blank_lines_before = MAX(before,0)
+    ELSE
+      blank_lines_before = 1
+    END IF
+
+    IF (PRESENT(declev)) THEN
+      decoration_level = MAX(declev,0)
+    ELSE
+      decoration_level = 0
+    END IF
+
+    IF (decoration_level == 0) THEN
+      rowlen = 78
+    ELSE
+      rowlen = 70
+    END IF
+
+    msglen = LEN_TRIM(message)
+
+!   *** Calculate number of rows ***
+
+    nrow = msglen/(rowlen + 1) + 1
+
+!   *** Calculate appropriate row length ***
+
+    rowlen = MIN(msglen,rowlen)
+
+!   *** Generate the blank lines before the message ***
+
+    DO i=1,blank_lines_before
+      WRITE (UNIT=output_unit,FMT="(A)") ""
+    END DO
+
+!   *** Scan for the longest row ***
+
+    ipos1 = 1
+    ipos2 = rowlen
+    maxrowlen = 0
+
+    DO
+      IF (ipos2 < msglen) THEN
+         i=INDEX(message(ipos1:ipos2)," ",BACK=.TRUE.)
+         IF (i == 0) THEN
+            ibreak = ipos2
+         ELSE
+            ibreak = ipos1 + i - 2
+         END IF
+      ELSE
+        ibreak = ipos2
+      END IF
+
+      maxrowlen = MAX(maxrowlen,ibreak - ipos1 + 1)
+
+      ipos1 = ibreak + 2
+      ipos2 = MIN(msglen,ipos1 + rowlen - 1)
+
+!     *** When the last row is processed, exit loop ***
+
+      IF (ipos1 > msglen) EXIT
+
+    END DO
+
+!   *** Generate the first set of star rows ***
+
+    IF (decoration_level > 1) THEN
+      fmtstr1 = "(T2,  (""*""))"
+      WRITE (UNIT=fmtstr1(5:6),FMT="(I2)") maxrowlen + 8
+      DO i=1,decoration_level-1
+        WRITE (UNIT=output_unit,FMT=fmtstr1)
+      END DO
+    END IF
+
+!   *** Break long messages ***
+
+    ipos1 = 1
+    ipos2 = rowlen
+
+    DO
+
+      IF (ipos2 < msglen) THEN
+         i=INDEX(message(ipos1:ipos2)," ",BACK=.TRUE.)
+         IF (i == 0) THEN
+            ibreak = ipos2
+         ELSE
+            ibreak = ipos1 + i - 2
+         END IF
+      ELSE
+        ibreak = ipos2
+      END IF
+
+      IF (decoration_level == 0) THEN
+        WRITE (UNIT=output_unit,FMT="(T2,A)") message(ipos1:ibreak)
+      ELSE IF (decoration_level > 0) THEN
+        fmtstr2 = "(T2,""*** "",A,  X,""***"")"
+        WRITE (UNIT=fmtstr2(14:15),FMT="(I2)") ipos1 + maxrowlen - ibreak
+        WRITE (UNIT=output_unit,FMT=fmtstr2) message(ipos1:ibreak)
+      END IF
+
+      ipos1 = ibreak + 2
+      ipos2 = MIN(msglen,ipos1 + rowlen - 1)
+
+!     *** When the last row is processed, exit loop ***
+
+      IF (ipos1 > msglen) EXIT
+
+    END DO
+
+!   *** Generate the second set star rows ***
+
+    IF (decoration_level > 1) THEN
+      DO i=1,decoration_level-1
+        WRITE (UNIT=output_unit,FMT=fmtstr1)
+      END DO
+    END IF
+
+!   *** Generate the blank lines after the message ***
+
+    DO i=1,blank_lines_after
+      WRITE (UNIT=output_unit,FMT="(A)") ""
+    END DO
+
+    CALL m_flush(output_unit)
+
+  END SUBROUTINE print_message
+
 
 END MODULE cp_log_handling
 

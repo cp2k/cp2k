@@ -44,10 +44,9 @@ MODULE input_section_types
                                              val_write
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE output_utilities,                ONLY: print_message
-  USE reference_manager,               ONLY: print_reference, &
-                                             print_format_journal, &
-                                             get_citation_key
+  USE reference_manager,               ONLY: get_citation_key,&
+                                             print_format_journal,&
+                                             print_reference
   USE string_utilities,                ONLY: compress,&
                                              substitute_special_xml_tokens,&
                                              typo_match,&
@@ -241,9 +240,9 @@ SUBROUTINE section_create(section,name,description,n_keywords,&
     CHARACTER(len=*), INTENT(in)             :: name, description
     INTEGER, INTENT(in), OPTIONAL            :: n_keywords, n_subsections
     LOGICAL, INTENT(in), OPTIONAL            :: repeats, required
-    INTEGER, INTENT(IN), DIMENSION(:), OPTIONAL :: citations
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      OPTIONAL                               :: citations
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_create', &
       routineP = moduleN//':'//routineN
@@ -327,8 +326,7 @@ END SUBROUTINE section_create
 !!*** **********************************************************************
 SUBROUTINE section_retain(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_retain', &
       routineP = moduleN//':'//routineN
@@ -367,8 +365,7 @@ END SUBROUTINE section_retain
 !!*** **********************************************************************
 RECURSIVE SUBROUTINE section_release(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_release', &
       routineP = moduleN//':'//routineN
@@ -439,8 +436,7 @@ RECURSIVE SUBROUTINE section_describe(section, unit_nr, level, hide_root, recurs
     INTEGER, INTENT(in)                      :: unit_nr, level
     LOGICAL, INTENT(in), OPTIONAL            :: hide_root
     INTEGER, INTENT(in), OPTIONAL            :: recurse
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_describe', &
       routineP = moduleN//':'//routineN
@@ -500,15 +496,14 @@ RECURSIVE SUBROUTINE section_describe_html(section, prefix, depth, unit_nr,  err
     TYPE(section_type), POINTER              :: section
     CHARACTER(LEN=*), INTENT(IN)             :: prefix
     INTEGER, INTENT(in)                      :: depth, unit_nr
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_describe_html', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=1000)                      :: local_prefix
     CHARACTER(LEN=256), DIMENSION(50), SAVE  :: location, name
-    INTEGER                                  :: idepth, ikeyword, isub, iref
+    INTEGER                                  :: idepth, ikeyword, iref, isub
     LOGICAL                                  :: failure, has_keywords
 
 ! a local stack of info
@@ -541,9 +536,9 @@ RECURSIVE SUBROUTINE section_describe_html(section, prefix, depth, unit_nr,  err
           WRITE(179,*) '<BR><BR> This section cites following reference: ' 
        ENDIF
        DO iref=1,SIZE(section%citations,1)
-          write(179,'(A,I0,A)') '<A HREF="references.html#reference_',section%citations(iref),'" TITLE="'
-          CALL print_reference(section%citations(iref),format=print_format_journal,unit=179)
-          write(179,'(A)') '">['//TRIM(get_citation_key(section%citations(iref)))//']</A>'
+          WRITE(179,'(A,I0,A)') '<A HREF="references.html#reference_',section%citations(iref),'" TITLE="'
+          CALL print_reference(section%citations(iref),FORMAT=print_format_journal,unit=179)
+          WRITE(179,'(A)') '">['//TRIM(get_citation_key(section%citations(iref)))//']</A>'
        ENDDO
      ENDIF
 
@@ -608,8 +603,7 @@ RECURSIVE SUBROUTINE section_describe_index_html(section,prefix, unit_nr, error)
     TYPE(section_type), POINTER              :: section
     CHARACTER(LEN=*), INTENT(IN)             :: prefix
     INTEGER, INTENT(in)                      :: unit_nr
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_describe_index_html', &
       routineP = moduleN//':'//routineN
@@ -659,8 +653,7 @@ END SUBROUTINE section_describe_index_html
 FUNCTION section_get_subsection_index(section,subsection_name,error) RESULT(res)
     TYPE(section_type), POINTER              :: section
     CHARACTER(len=*), INTENT(in)             :: subsection_name
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_get_subsection_index', &
@@ -713,8 +706,7 @@ END FUNCTION section_get_subsection_index
 FUNCTION section_get_subsection(section,subsection_name,error) RESULT(res)
     TYPE(section_type), POINTER              :: section
     CHARACTER(len=*), INTENT(in)             :: subsection_name
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(section_type), POINTER              :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_get_subsection', &
@@ -755,8 +747,7 @@ END FUNCTION section_get_subsection
 FUNCTION section_get_keyword_index(section,keyword_name,error) RESULT(res)
     TYPE(section_type), POINTER              :: section
     CHARACTER(len=*), INTENT(in)             :: keyword_name
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_get_keyword_index', &
@@ -820,8 +811,7 @@ END FUNCTION section_get_keyword_index
 FUNCTION section_get_keyword(section,keyword_name,error) RESULT(res)
     TYPE(section_type), POINTER              :: section
     CHARACTER(len=*), INTENT(in)             :: keyword_name
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(keyword_type), POINTER              :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_get_keyword', &
@@ -866,9 +856,8 @@ SUBROUTINE section_get(section,frozen, required, repeats,id_nr,ref_count, &
     LOGICAL, INTENT(out), OPTIONAL           :: frozen, required, repeats
     INTEGER, INTENT(out), OPTIONAL           :: id_nr, ref_count
     CHARACTER(len=*), INTENT(out), OPTIONAL  :: name, description
-    INTEGER, POINTER, DIMENSION(:), OPTIONAL :: citations
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: citations
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_get', &
       routineP = moduleN//':'//routineN
@@ -917,8 +906,7 @@ END SUBROUTINE section_get
 SUBROUTINE section_add_keyword(section,keyword,error)
     TYPE(section_type), POINTER              :: section
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_add_keyword', &
       routineP = moduleN//':'//routineN
@@ -1000,8 +988,7 @@ END SUBROUTINE section_add_keyword
 !!*** **********************************************************************
 SUBROUTINE section_add_subsection(section,subsection,error)
     TYPE(section_type), POINTER              :: section, subsection
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_add_subsection', &
       routineP = moduleN//':'//routineN
@@ -1069,8 +1056,7 @@ END SUBROUTINE section_add_subsection
 RECURSIVE SUBROUTINE section_vals_create(section_vals,section,error)
     TYPE(section_vals_type), POINTER         :: section_vals
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_create', &
       routineP = moduleN//':'//routineN
@@ -1126,8 +1112,7 @@ END SUBROUTINE section_vals_create
 !!*** **********************************************************************
 SUBROUTINE section_vals_retain(section_vals,error)
     TYPE(section_vals_type), POINTER         :: section_vals
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_retain', &
       routineP = moduleN//':'//routineN
@@ -1165,8 +1150,7 @@ END SUBROUTINE section_vals_retain
 !!*** **********************************************************************
 RECURSIVE SUBROUTINE section_vals_release(section_vals, error)
     TYPE(section_vals_type), POINTER         :: section_vals
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_release', &
       routineP = moduleN//':'//routineN
@@ -1242,8 +1226,7 @@ SUBROUTINE section_vals_get(section_vals, ref_count, id_nr, n_repetition,&
                                                 n_repetition, n_subs_vals_rep
     TYPE(section_type), OPTIONAL, POINTER    :: section
     LOGICAL, INTENT(out), OPTIONAL           :: explicit
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_get', &
       routineP = moduleN//':'//routineN
@@ -1298,8 +1281,7 @@ RECURSIVE FUNCTION section_vals_get_subs_vals(section_vals,subsection_name,&
     CHARACTER(len=*), INTENT(in)             :: subsection_name
     INTEGER, INTENT(in), OPTIONAL            :: i_rep_section
     LOGICAL, INTENT(in), OPTIONAL            :: can_return_null
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(section_vals_type), POINTER         :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_get_subs_vals', &
@@ -1382,10 +1364,9 @@ END FUNCTION section_vals_get_subs_vals
 FUNCTION section_vals_get_subs_vals2(section_vals,i_section,&
      i_rep_section,error) RESULT(res)
     TYPE(section_vals_type), POINTER         :: section_vals
-    INTEGER, INTENT(in), OPTIONAL            :: i_rep_section
     INTEGER, INTENT(in)                      :: i_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    INTEGER, INTENT(in), OPTIONAL            :: i_rep_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(section_vals_type), POINTER         :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_get_subs_vals2', &
@@ -1446,16 +1427,15 @@ END FUNCTION section_vals_get_subs_vals2
 FUNCTION section_vals_get_subs_vals3(section_vals,subsection_name,&
      i_rep_section,error) RESULT(res)
     TYPE(section_vals_type), POINTER         :: section_vals
-    INTEGER, INTENT(in), OPTIONAL            :: i_rep_section
     CHARACTER(LEN=*), INTENT(IN)             :: subsection_name
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    INTEGER, INTENT(in), OPTIONAL            :: i_rep_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(section_vals_type), POINTER         :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_get_subs_vals3', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, irep, isect_att, i_section
+    INTEGER                                  :: i_section, irep
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -1496,8 +1476,7 @@ END FUNCTION section_vals_get_subs_vals3
 !!*** **********************************************************************
 SUBROUTINE section_vals_add_values(section_vals,error)
     TYPE(section_vals_type), POINTER         :: section_vals
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_add_values', &
       routineP = moduleN//':'//routineN
@@ -1573,21 +1552,18 @@ END SUBROUTINE section_vals_add_values
 !!
 !!*** **********************************************************************
 SUBROUTINE section_vals_remove_values(section_vals,error)
-  TYPE(section_vals_type), POINTER         :: section_vals
-  TYPE(cp_error_type), INTENT(inout)  &
-                                              :: error
+    TYPE(section_vals_type), POINTER         :: section_vals
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-  CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_remove_values', &
-       routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_remove_values', &
+      routineP = moduleN//':'//routineN
 
-  INTEGER                                  :: i, j, stat
-  LOGICAL                                  :: failure
-  TYPE(cp_sll_val_p_type), &
-       DIMENSION(:, :), POINTER               :: new_values
-  TYPE(section_vals_p_type), &
-       DIMENSION(:, :), POINTER               :: new_sps
-  TYPE(val_type), POINTER                  :: el
-  TYPE(cp_sll_val_type), POINTER           :: vals
+    INTEGER                                  :: i, j, stat
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_val_p_type), &
+      DIMENSION(:, :), POINTER               :: new_values
+    TYPE(cp_sll_val_type), POINTER           :: vals
+    TYPE(val_type), POINTER                  :: el
 
   failure=.FALSE.
 
@@ -1625,8 +1601,7 @@ FUNCTION section_get_cval(section_vals,keyword_name,error) RESULT(res)
 
     TYPE(section_vals_type), POINTER         :: section_vals
     CHARACTER(len=*), INTENT(in)             :: keyword_name
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     CHARACTER(LEN=DEFAULT_STRING_LENGTH)     :: res
 
   CALL section_vals_val_get(section_vals, keyword_name, c_val=res, error=error)
@@ -1637,8 +1612,7 @@ FUNCTION section_get_rval(section_vals,keyword_name,error) RESULT(res)
 
     TYPE(section_vals_type), POINTER         :: section_vals
     CHARACTER(len=*), INTENT(in)             :: keyword_name
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(kind=dp)                            :: res
 
   CALL section_vals_val_get(section_vals, keyword_name, r_val=res, error=error)
@@ -1649,8 +1623,7 @@ FUNCTION section_get_ival(section_vals,keyword_name,error) RESULT(res)
 
     TYPE(section_vals_type), POINTER         :: section_vals
     CHARACTER(len=*), INTENT(in)             :: keyword_name
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER                                  :: res
 
   CALL section_vals_val_get(section_vals, keyword_name, i_val=res, error=error)
@@ -1661,8 +1634,7 @@ FUNCTION section_get_lval(section_vals,keyword_name,error) RESULT(res)
 
     TYPE(section_vals_type), POINTER         :: section_vals
     CHARACTER(len=*), INTENT(in)             :: keyword_name
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: res
 
   CALL section_vals_val_get(section_vals, keyword_name, l_val=res, error=error)
@@ -1723,8 +1695,7 @@ SUBROUTINE section_vals_val_get(section_vals,keyword_name,i_rep_section,&
     CHARACTER(LEN=DEFAULT_STRING_LENGTH), &
       DIMENSION(:), OPTIONAL, POINTER        :: c_vals
     LOGICAL, INTENT(in), OPTIONAL            :: ignore_required
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_val_get', &
       routineP = moduleN//':'//routineN
@@ -1863,17 +1834,16 @@ SUBROUTINE section_vals_list_get(section_vals,keyword_name,i_rep_section,&
     CHARACTER(len=*), INTENT(in)             :: keyword_name
     INTEGER, OPTIONAL                        :: i_rep_section
     TYPE(cp_sll_val_type), POINTER           :: list
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_list_get', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ik, irk, irs, len_key, &
-                                                my_index, tmp_index
-    TYPE(section_vals_type), POINTER         :: s_vals
-    TYPE(section_type), POINTER              :: section
+    INTEGER                                  :: ik, irs, len_key, my_index, &
+                                                tmp_index
     LOGICAL                                  :: failure
+    TYPE(section_type), POINTER              :: section
+    TYPE(section_vals_type), POINTER         :: s_vals
 
   failure=.FALSE.
   
@@ -1966,8 +1936,7 @@ SUBROUTINE section_vals_val_set(section_vals,keyword_name,i_rep_section,&
     CHARACTER(LEN=DEFAULT_STRING_LENGTH), &
       DIMENSION(:), OPTIONAL, POINTER        :: c_vals_ptr
     LOGICAL, INTENT(in), OPTIONAL            :: ignore_required
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_val_set', &
       routineP = moduleN//':'//routineN
@@ -2127,8 +2096,7 @@ SUBROUTINE section_vals_val_unset(section_vals,keyword_name,i_rep_section,&
     TYPE(section_vals_type), POINTER         :: section_vals
     CHARACTER(len=*), INTENT(in)             :: keyword_name
     INTEGER, INTENT(in), OPTIONAL            :: i_rep_section, i_rep_val
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_val_unset', &
       routineP = moduleN//':'//routineN
@@ -2223,15 +2191,14 @@ RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,error)
     TYPE(section_vals_type), POINTER         :: section_vals
     INTEGER, INTENT(in)                      :: unit_nr
     LOGICAL, INTENT(in), OPTIONAL            :: hide_root
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_write', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length)     :: myfmt
-    INTEGER                                  :: handle, i_rep_s, ik, isec, &
-                                                ival, nr, nval
+    INTEGER                                  :: i_rep_s, ik, isec, ival, nr, &
+                                                nval
     INTEGER, SAVE                            :: indent = 1
     LOGICAL                                  :: defaultSection, failure, &
                                                 my_hide_root
@@ -2359,8 +2326,7 @@ END SUBROUTINE section_vals_write
 
     TYPE(section_type), POINTER              :: section
     INTEGER, INTENT(IN)                      :: level, unit_number
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_section_xml', &
       routineP = moduleN//':'//routineN
@@ -2429,18 +2395,16 @@ END SUBROUTINE section_vals_write
     CHARACTER(LEN=*)                         :: unknown_string, &
                                                 location_string
     INTEGER, DIMENSION(:), INTENT(INOUT)     :: matching_rank
-    CHARACTER(LEN=*), DIMENSION(:), INTENT(INOUT) :: matching_string
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    CHARACTER(LEN=*), DIMENSION(:), &
+      INTENT(INOUT)                          :: matching_string
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'section_typo_match', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i,imatch,irank,imax
-    LOGICAL                                  :: failure
     CHARACTER(LEN=LEN(matching_string(1)))   :: line
-
-!   ---------------------------------------------------------------------------
+    INTEGER                                  :: i, imatch, imax, irank
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(section)) THEN
@@ -2510,8 +2474,7 @@ END SUBROUTINE section_vals_write
     CHARACTER(len=*), INTENT(in)             :: subsection_name
     TYPE(section_vals_type), POINTER         :: new_section_vals
     INTEGER, INTENT(in), OPTIONAL            :: i_rep_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_set_subs_vals', &
       routineP = moduleN//':'//routineN
@@ -2593,9 +2556,8 @@ SUBROUTINE section_vals_duplicate(section_vals_in,section_vals_out,&
      i_rep_start, i_rep_end, error)
     TYPE(section_vals_type), POINTER         :: section_vals_in, &
                                                 section_vals_out
-    INTEGER, INTENT(IN), OPTIONAL :: i_rep_start, i_rep_end
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    INTEGER, INTENT(IN), OPTIONAL            :: i_rep_start, i_rep_end
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_duplicate', &
       routineP = moduleN//':'//routineN
@@ -2639,15 +2601,14 @@ RECURSIVE SUBROUTINE section_vals_copy(section_vals_in,section_vals_out,&
      i_rep_low,i_rep_high,error)
     TYPE(section_vals_type), POINTER         :: section_vals_in, &
                                                 section_vals_out
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
     INTEGER, INTENT(IN), OPTIONAL            :: i_rep_low, i_rep_high
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_copy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: irep, isec, ival, istart, iend
-    LOGICAL                                  :: failure, check
+    INTEGER                                  :: iend, irep, isec, istart, ival
+    LOGICAL                                  :: failure
     TYPE(cp_sll_val_type), POINTER           :: v1, v2
     TYPE(val_type), POINTER                  :: el
 

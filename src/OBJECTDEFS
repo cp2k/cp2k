@@ -294,7 +294,6 @@ OBJECTS_GENERIC =\
  orbital_pointers.o\
  orbital_symbols.o\
  orbital_transformation_matrices.o\
- output_utilities.o\
  pair_potential.o\
  pair_potential_types.o\
  pair_potential_util.o\

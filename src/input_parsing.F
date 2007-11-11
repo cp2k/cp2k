@@ -70,7 +70,6 @@ MODULE input_parsing
        val_create, val_type, val_write
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE output_utilities,                ONLY: print_message
   USE string_utilities,                ONLY: uppercase
   USE timings,                         ONLY: timeset,&
                                              timestop
