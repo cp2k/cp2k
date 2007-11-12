@@ -92,3 +92,5 @@ h2o-3.inp
 h2o-4.inp
 #  
 h2o-5.inp
+# Merging behavior of all optimizer. one more step of energy evaluation after convergence.
+ch2o-5.inp

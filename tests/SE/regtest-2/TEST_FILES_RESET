@@ -37,3 +37,11 @@ h2o_meta.inp
 h2o_meta.inp
 # metadynamics decoupled from force calculation.. dependent only on MD
 h2o_meta.inp
+# Merging behavior of all optimizer. one more step of energy evaluation after convergence.
+ch2o.inp
+h2o_lsd.inp
+h2o_lsd-ot.inp
+nh4.inp
+NO2-ROKS.inp
+O2-ROKS.inp
+st.inp

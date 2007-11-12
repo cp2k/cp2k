@@ -51,7 +51,6 @@
 !!   SOURCE
 !*****************************************************************************
 MODULE cp_lbfgs_optimizer_gopt
-  USE cell_types,                      ONLY: cell_type
   USE cp_lbfgs,                        ONLY: cp_lbfgs_unit_nr,&
                                              setulb
   USE cp_output_handling,              ONLY: cp_iterate,&
@@ -60,25 +59,18 @@ MODULE cp_lbfgs_optimizer_gopt
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                             cp_subsys_type
-  USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_type
+  USE force_env_types,                 ONLY: force_env_type
   USE gopt_f_types,                    ONLY: check_converg,&
                                              cp_eval_at,&
                                              gopt_f_release,&
                                              gopt_f_retain,&
                                              gopt_f_type,&
                                              gopt_param_type,&
-                                             write_cycle_infos
-  USE input_constants,                 ONLY: dump_xmol
+                                             write_cycle_infos,&
+                                             write_geo_traj
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
-  USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_bcast
-  USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: particle_type,&
-                                             write_particle_coordinates
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -639,17 +631,11 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=5)                         :: wildcard
-    CHARACTER(LEN=80)                        :: title
     INTEGER                                  :: dataunit, handle, stat
     LOGICAL                                  :: conv, failure, is_master, &
                                                 justEntred
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xold
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(particle_list_type), POINTER        :: particles
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
 
     NULLIFY(logger,xold)
     logger => cp_error_get_logger(error)
@@ -750,21 +736,8 @@ CPSourceFileRef,&
                optimizer%para_env%group)
           ! Dump info
           IF (optimizer%status == 3) THEN
-             IF (is_master) &
-             CALL cp_iterate(logger%iter_info,iter_nr=optimizer%isave(30),error=error)
-             dataunit = cp_print_key_unit_nr(logger,input,&
-                  "MOTION%PRINT%TRAJECTORY",extension=".xyz",error=error)
-             IF (dataunit>0) THEN
-                CALL force_env_get(force_env,cell=cell,subsys=subsys,error=error)           
-                CALL cp_subsys_get(subsys=subsys,particles=particles,error=error)
-                particle_set => particles%els              
-                WRITE (UNIT=title,FMT="(A,I8,A,F20.10)") " i =",optimizer%isave(30),", E =",optimizer%f
-                CALL write_particle_coordinates(particle_set,dataunit,&
-                     dump_xmol,"POS",TRIM(title))                
-                CALL m_flush(dataunit)
-             END IF
-             CALL cp_print_key_finished_output(dataunit,logger,input,&
-                  "MOTION%PRINT%TRAJECTORY", error=error)
+             IF (is_master) CALL cp_iterate(logger%iter_info,iter_nr=optimizer%isave(30),error=error)
+             CALL write_geo_traj(force_env, input, optimizer%isave(30), optimizer%f, error)
           END IF
           !
           SELECT CASE (optimizer%status)

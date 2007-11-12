@@ -79,3 +79,4 @@ interface.inp             2
 interface-2.inp           0
 # geo_opt with save_mem.. bug fix
 mfi_geo.inp               7
+mfi_geo2.inp              7

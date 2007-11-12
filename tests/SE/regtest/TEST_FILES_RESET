@@ -80,3 +80,11 @@ st.inp
 O2-ROKS.inp
 # numerics after the bug fix for the distributed non-orthorombic grids
 st.inp
+# Merging behavior of all optimizer. one more step of energy evaluation after convergence.
+ch2o.inp
+h2o_lsd.inp
+h2o_lsd-ot.inp
+nh4.inp
+NO2-ROKS.inp
+O2-ROKS.inp
+st.inp

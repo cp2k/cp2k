@@ -41,3 +41,5 @@ h2o-32_2.inp
 h2o-32_3.inp
 #  
 h2o-32_4.inp
+# Merging behavior of all optimizer. one more step of energy evaluation after convergence.
+n2.inp

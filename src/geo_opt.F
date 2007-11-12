@@ -32,19 +32,20 @@ MODULE geo_opt
                                              cp_opt_gopt_release,&
                                              cp_opt_gopt_stop
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
+                                             cp_iterate,&
                                              cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE gopt_f_types,                    ONLY: cp_eval_at,&
-                                             gopt_f_create,&
+  USE gopt_f_types,                    ONLY: gopt_f_create,&
                                              gopt_f_create_x0,&
                                              gopt_f_release,&
                                              gopt_f_type,&
                                              gopt_param_read,&
                                              gopt_param_release,&
-                                             gopt_param_type
+                                             gopt_param_type,&
+                                             write_final_info
   USE input_constants,                 ONLY: default_bfgs_method_id,&
                                              default_cg_method_id,&
                                              default_lbfgs_method_id
@@ -173,8 +174,8 @@ MODULE geo_opt
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ihandle
-    LOGICAL                                  :: failure, should_stop, converged
-    REAL(KIND=dp)                            :: f
+    LOGICAL                                  :: converged, failure, &
+                                                should_stop
     TYPE(cp_lbfgs_opt_gopt_type), POINTER    :: optimizer
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -190,7 +191,6 @@ MODULE geo_opt
      CPPrecondition(ASSOCIATED(gopt_param),cp_failure_level,routineP,error,failure)
      CPPrecondition(gopt_param%ref_count>0,cp_failure_level,routineP,error,failure)
      IF (.NOT. failure) THEN
-
         CALL force_env_get(force_env, para_env=para_env, error=error)
 
         CALL cp_opt_gopt_create(optimizer, para_env=para_env, &
@@ -212,18 +212,12 @@ MODULE geo_opt
                 force_env_section=force_env_section,error=error)
         END DO
 
-        IF (converged) THEN
-            CALL write_restart(force_env=force_env,root_section=root_section,&
-                               force_env_section=force_env_section,error=error)
-            ! write out more data for the minimum
-            IF (logger%para_env%mepos==logger%para_env%source) THEN
-               WRITE (unit=cp_logger_get_default_unit_nr(logger),&
-                    fmt="(' Reevaluating energy at the minimum ')")
-            END IF
-            CALL cp_eval_at(gopt_env,optimizer%x,f=f,master=optimizer%master,&
-                 para_env=optimizer%para_env,force_env_section=force_env_section,&
-                 error=error)
-        ENDIF
+        ! Write final particle information, if converged
+        CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=i,error=error)
+        CALL write_final_info(converged, i, gopt_env, optimizer%x, optimizer%master,&
+           optimizer%para_env, force_env, gopt_env%motion_section, root_section,&
+           force_env_section, error)
+
         CALL cp_opt_gopt_release(optimizer, error=error)
      END IF
      CALL cp_rm_iter_level(logger%iter_info,ihandle,error)

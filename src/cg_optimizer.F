@@ -34,12 +34,13 @@ MODULE cg_optimizer
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE gopt_f_types,                    ONLY: cp_eval_at,&
+  USE gopt_f_types,                    ONLY: check_converg,&
+                                             cp_eval_at,&
                                              gopt_f_type,&
                                              gopt_param_type,&
-                                             check_converg,&
-                                             write_cycle_infos
-  USE input_constants,                 ONLY: dump_xmol
+                                             write_cycle_infos,&
+                                             write_final_info,&
+                                             write_geo_traj
   USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
@@ -47,8 +48,7 @@ MODULE cg_optimizer
   USE machine,                         ONLY: m_flush
   USE memory_utilities,                ONLY: reallocate
   USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: particle_type,&
-                                             write_particle_coordinates
+  USE particle_types,                  ONLY: particle_type
   USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -186,10 +186,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=5)                         :: wildcard
-    CHARACTER(LEN=80)                        :: title
-    INTEGER                                  :: brent_max_iter, dataunit, &
-                                                handle, its, max_steep_steps, &
-                                                maxiter, stat
+    INTEGER                                  :: brent_max_iter, handle, its, &
+                                                max_steep_steps, maxiter, stat
     LOGICAL                                  :: conv, failure, &
                                                 Fletcher_Reeves_ON, &
                                                 should_stop, use_fit
@@ -200,10 +198,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: g, h, xi
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(particle_list_type), POINTER        :: particles
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: root_section
 
     CALL timeset(routineN,handle)
@@ -269,22 +263,8 @@ CONTAINS
                wildcard=wildcard)
           CALL check_converg(SIZE(x0),x0-xold,xi,ionode,output_unit,conv,gopt_param)
           wildcard = "   CG"
-          IF (para_env%ionode) THEN
-             dataunit = cp_print_key_unit_nr(logger,root_section,&
-                  "MOTION%PRINT%TRAJECTORY",extension=".xyz",error=error)
-             IF (dataunit>0) THEN
-                CALL force_env_get(force_env,subsys=subsys,error=error)
-                CALL cp_subsys_get(subsys=subsys,particles=particles,error=error)
-                particle_set => particles%els
+          CALL write_geo_traj(force_env,  root_section, its, opt_energy, error)
 
-                WRITE (UNIT=title,FMT="(A,I8,A,F20.10)") " i =",its,", E =",opt_energy
-                CALL write_particle_coordinates(particle_set,dataunit,&
-                     dump_xmol,"POS",TRIM(title))
-                CALL m_flush(dataunit)
-             END IF
-             CALL cp_print_key_finished_output(dataunit,logger,root_section,&
-                  "MOTION%PRINT%TRAJECTORY", error=error)
-          END IF
           IF (conv.OR.(its==maxiter))  EXIT
           CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos,&
                gopt_env%force_env%para_env, force_env_section, error)
@@ -317,6 +297,12 @@ CONTAINS
              CALL m_flush(output_unit)
           END IF
        END IF
+       ! Write final particle information, if converged
+       CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=its,error=error)
+       CALL write_final_info(conv, its, gopt_env, x0, gopt_env%force_env%para_env%mepos,&
+          gopt_env%force_env%para_env, force_env, gopt_env%motion_section, root_section,&
+          force_env_section, error)
+
        DEALLOCATE(xold, stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(g, stat=stat)

@@ -26,6 +26,8 @@
 !*****************************************************************************
 MODULE gopt_f_types
   USE cell_types,                      ONLY: cell_type
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
@@ -35,13 +37,23 @@ MODULE gopt_f_types
                                              force_env_retain,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: default_bfgs_method_id
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE input_constants,                 ONLY: default_bfgs_method_id,&
+                                             dump_dcd,&
+                                             dump_xmol
+  USE input_cp2k_restarts,             ONLY: write_restart
+  USE input_section_types,             ONLY: section_get_ival,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp,&
+                                             sp
+  USE machine,                         ONLY: m_flush
+  USE md_energies,                     ONLY: get_output_format
   USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: write_structure_data
+  USE particle_types,                  ONLY: particle_type,&
+                                             write_particle_coordinates,&
+                                             write_structure_data
   USE qmmm_util,                       ONLY: apply_qmmm_translate
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -61,7 +73,7 @@ MODULE gopt_f_types
   PUBLIC :: gopt_param_type
   PUBLIC :: gopt_param_create, gopt_param_read, gopt_param_retain, &
             gopt_param_release
-  PUBLIC :: write_cycle_infos, check_converg
+  PUBLIC :: write_cycle_infos, check_converg, write_final_info, write_geo_traj
 
 !!***
 !****************************************************************************
@@ -738,7 +750,7 @@ CONTAINS
      IF (it==0) WRITE(UNIT=output_unit,FMT="(T2,51('-'))")
  END SUBROUTINE write_cycle_infos
 
-!!****** bfgs_optimizer/check_converg [1.0] *
+!!****** gopt_f_types/check_converg [1.0] *
 !!
 !!   NAME
 !!    check_converg  
@@ -874,5 +886,147 @@ CONTAINS
     END IF
 
   END SUBROUTINE check_converg
+
+!!****** gopt_f_types/write_final_info [1.0] *
+!!
+!!   NAME
+!!    write_final_info
+!!
+!!   FUNCTION
+!!    
+!!
+!!   AUTHOR
+!!    Teodoro Laino [tlaino] - University of Zurich - 11.2007
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!***************************************************************************
+  SUBROUTINE write_final_info(conv, it, gopt_env, x0, master, para_env, force_env,&
+    motion_section, root_section, force_env_section, error)
+    LOGICAL, INTENT(IN)                      :: conv
+    INTEGER, INTENT(INOUT)                   :: it
+    TYPE(gopt_f_type), POINTER               :: gopt_env
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
+    INTEGER, INTENT(IN)                      :: master
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(section_vals_type), POINTER         :: motion_section, root_section, &
+                                                force_env_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_final_info', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: etot
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+
+    failure = .FALSE.
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+
+    CALL force_env_get(force_env, cell=cell, subsys=subsys, error=error)
+    CALL cp_subsys_get(subsys=subsys, particles=particles,error=error)
+    particle_set => particles%els
+    IF (conv) THEN
+      it = it + 1
+      CALL write_structure_data(particle_set,cell,motion_section,error)
+      CALL write_restart(force_env=force_env,root_section=root_section,&
+                         force_env_section=force_env_section,error=error)
+
+      ! Write out more data for the minimum
+      IF (logger%para_env%mepos==logger%para_env%source) THEN
+        WRITE (unit=cp_logger_get_default_unit_nr(logger), fmt="(/,T20,' Reevaluating energy at the minimum ')")
+      END IF
+      CALL cp_eval_at(gopt_env,x0,f=etot,master=master,para_env=para_env,&
+        force_env_section=force_env_section,error=error)
+      CALL write_geo_traj(force_env,  root_section, it, etot, error)
+    END IF
+
+  END SUBROUTINE write_final_info
+
+!!****** gopt_f_types/write_geo_traj [1.0] *
+!!
+!!   NAME
+!!    write_geo_traj
+!!
+!!   FUNCTION
+!!    
+!!
+!!   AUTHOR
+!!    Teodoro Laino [tlaino] - University of Zurich - 11.2007
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!***************************************************************************
+  SUBROUTINE write_geo_traj(force_env,  root_section, it, etot, error)
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(section_vals_type), POINTER         :: root_section
+    INTEGER, INTENT(IN)                      :: it
+    REAL(KIND=dp), INTENT(IN)                :: etot
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_geo_traj', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: my_act, my_ext, my_form, &
+                                                my_pos, remark1, remark2, &
+                                                title
+    INTEGER                                  :: iskip, nat, outformat, &
+                                                traj_unit
+    LOGICAL                                  :: failure, init_traj
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+
+    failure = .FALSE.
+    NULLIFY(logger, cell, subsys, particles, particle_set)
+    logger => cp_error_get_logger(error)
+    my_pos = "APPEND"
+    my_act = "WRITE"
+
+    CALL force_env_get(force_env, cell=cell, subsys=subsys, error=error)
+    CALL cp_subsys_get(subsys=subsys, particles=particles,error=error)
+    particle_set => particles%els
+    nat=particles%n_els
+
+    CALL get_output_format(root_section,"MOTION%PRINT%TRAJECTORY",my_form,my_ext,error)
+    traj_unit = cp_print_key_unit_nr(logger,root_section,"MOTION%PRINT%TRAJECTORY",&
+            extension=my_ext, file_position=my_pos, file_action=my_act,&
+            file_form=my_form, middle_name="pos", is_new_file=init_traj,&
+            error=error)
+    IF (traj_unit > 0) THEN
+       CALL section_vals_val_get(root_section,"MOTION%PRINT%TRAJECTORY%FORMAT",i_val=outformat,error=error)
+       IF(outformat==dump_dcd) THEN
+          IF ( init_traj ) THEN
+             !Lets write the header for the coordinate dcd
+             iskip = section_get_ival(root_section,"MOTION%PRINT%TRAJECTORY%EACH",error=error)
+             WRITE(traj_unit) "CORD",0,it,iskip,0,0,0,0,0,0,REAL(it,KIND=sp),1,0,0,0,0,0,0,0,0,24
+             remark1= "REMARK FILETYPE CORD DCD GENERATED BY CP2K"
+             remark2= "REMARK Support new DCD format with cell information"
+             WRITE(traj_unit) 2,remark1,remark2
+             WRITE(traj_unit) nat
+             CALL m_flush(traj_unit)
+          ENDIF
+       ELSEIF(outformat==dump_xmol) THEN
+          !         *** This information can be digested by Molden ***
+          WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")" i = ",it," , E =",etot
+       ELSE
+          title = ""
+       END IF
+       CALL write_particle_coordinates(particle_set,traj_unit,outformat,"POS",TRIM(title),cell)
+    END IF
+    CALL cp_print_key_finished_output(traj_unit,logger,root_section,"MOTION%PRINT%TRAJECTORY",error=error)
+  END SUBROUTINE write_geo_traj
 
 END MODULE gopt_f_types

@@ -37,25 +37,22 @@ MODULE bfgs_optimizer
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE gopt_f_types,                    ONLY: cp_eval_at,&
+  USE gopt_f_types,                    ONLY: check_converg,&
+                                             cp_eval_at,&
                                              gopt_f_type,&
                                              gopt_param_type,&
                                              write_cycle_infos,&
-                                             check_converg
-  USE input_constants,                 ONLY: dump_xmol
+                                             write_final_info,&
+                                             write_geo_traj
   USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_type
-  USE kinds,                           ONLY: dp,&
-                                             dp_size
+  USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE mathlib,                         ONLY: diamat_all
   USE message_passing,                 ONLY: mp_bcast
   USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: particle_type,&
-                                             write_particle_coordinates,&
-                                             write_structure_data
-  USE termination,                     ONLY: external_control,&
-                                             stop_memory
+  USE particle_types,                  ONLY: particle_type
+  USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -64,8 +61,8 @@ MODULE bfgs_optimizer
 
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = 'bfgs_optimizer'
-  LOGICAL, PARAMETER          :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bfgs_optimizer'
+  LOGICAL, PARAMETER                       :: debug_this_module=.TRUE.
 
   PUBLIC :: geoopt_bfgs,&
             write_cycle_infos,&
@@ -100,14 +97,14 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'geoopt_bfgs'
+    CHARACTER(len=*), PARAMETER :: routineN = 'geoopt_bfgs', &
+      routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
 
-    CHARACTER(LEN=80)                        :: title
     INTEGER :: handle, handle2, hesunit, i, ihandle, indf, istat, it, j, &
-      maxiter, natom, ndf, nfree, nkind, output_unit, traj_unit
-    LOGICAL                                  :: conv, hesrest, ionode, &
-                                                should_stop
+      maxiter, natom, ndf, nfree, nkind, output_unit
+    LOGICAL                                  :: conv, failure, hesrest, &
+                                                ionode, should_stop
     REAL(KIND=dp)                            :: ediff, emin, eold, etot, &
                                                 pred, rad, rat, step
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dg, dr, dx, eigval, gold, &
@@ -124,8 +121,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
-    ! -------------------------------------------------------------------------
-
+    failure = .FALSE.
     NULLIFY(logger, g)
     logger => cp_error_get_logger(error)
     para_env=>force_env%para_env
@@ -140,32 +136,21 @@ CONTAINS
     rad         = 0.10_dp
     rat         = 0.0_dp
 
-    output_unit = cp_print_key_unit_nr(logger,root_section,&
-         "MOTION%GEO_OPT%PRINT%PROGRAM_RUN_INFO",&
+    output_unit = cp_print_key_unit_nr(logger,root_section,"MOTION%GEO_OPT%PRINT%PROGRAM_RUN_INFO",&
          extension=".geoLog",error=error)
 
-    CALL force_env_get(force_env,&
-         cell=cell,&
-         subsys=subsys,error=error)
-
-    CALL cp_subsys_get(subsys=subsys,&
-         atomic_kinds=atomic_kinds,&
-         particles=particles,error=error)
+    CALL force_env_get(force_env, cell=cell, subsys=subsys,error=error)
+    CALL cp_subsys_get(subsys=subsys, atomic_kinds=atomic_kinds, particles=particles,error=error)
 
     nkind = atomic_kinds%n_els
-
     natom = particles%n_els
     particle_set => particles%els
-
     ndf = SIZE(x0)
     nfree = SIZE(particle_set)
 
     ! Initialize hessian (hes = unitary matrix )
-
     ALLOCATE (hes(ndf*(ndf+1)/2),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "hes",ndf*(ndf+1)/2*dp_size)
-
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO indf=1,ndf
       DO j=1,indf
         i = indf*(indf - 1)/2 + j
@@ -176,57 +161,46 @@ CONTAINS
     END DO
 
     ALLOCATE (xold(ndf),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "xold",ndf*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     xold(:) = x0(:)
 
     ALLOCATE (g(ndf),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "g",ndf*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     g(:) = 0.0_dp
 
     ALLOCATE (gold(ndf),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "gold",ndf*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     gold(:) = 0.0_dp
 
     ALLOCATE (dx(ndf),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "dx",ndf*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     dx(:) = 0.0_dp
 
     ALLOCATE (hes_mat(ndf,ndf),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "hes_mat",ndf*ndf*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     hes_mat(:,:) = 0.0_dp
 
     ALLOCATE (dg(ndf),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "dg",ndf*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     dg(:) = 0.0_dp
 
     ALLOCATE (eigval(ndf),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "eigval",ndf*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     eigval(:) = 0.0_dp
 
     ALLOCATE (eigvec(ndf,ndf),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "eigvec",ndf*ndf*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     eigvec(:,:) = 0.0_dp
 
     ALLOCATE (work(ndf),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "work",ndf*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     work(:) = 0.0_dp
 
     ALLOCATE (dr(ndf),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "dr",ndf*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     dr(:) = 0.0_dp
 
     ! Geometry optimization starts now
-
     IF (output_unit > 0) THEN
       WRITE (UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
       WRITE (UNIT=output_unit,FMT="(T2,A,T28,A,T78,A)")&
@@ -256,9 +230,7 @@ CONTAINS
          (output_unit,it,etot,wildcard=" BFGS")
 
     DO
-
        it = it + 1
-
        CALL cp_iterate(logger%iter_info,iter_nr=it,error=error)
 
        IF (it > maxiter ) THEN
@@ -279,32 +251,11 @@ CONTAINS
        IF(should_stop) EXIT
        CALL write_restart(force_env=force_env,root_section=root_section,&
             force_env_section=force_env_section,error=error)
-
-       IF (ionode) THEN
-         traj_unit = cp_print_key_unit_nr(logger,root_section,&
-                                          "MOTION%PRINT%TRAJECTORY",&
-                                          extension=".xyz",&
-                                          error=error)
-         IF (traj_unit > 0) THEN
-           CALL force_env_get(force_env,&
-                              cell=cell,&
-                              subsys=subsys,error=error)
-           CALL cp_subsys_get(subsys=subsys,&
-                              particles=particles,error=error)
-           particle_set => particles%els
-           WRITE (UNIT=title,FMT="(A,I8,A,F20.10)") " i =",it,", E =",etot
-           CALL write_particle_coordinates(particle_set,traj_unit,&
-                                           dump_xmol,"POS",TRIM(title))
-           CALL m_flush(traj_unit)
-         END IF
-         CALL cp_print_key_finished_output(traj_unit,logger,root_section,&
-                                           "MOTION%PRINT%TRAJECTORY",error=error)
-       END IF
-
+       CALL write_geo_traj(force_env,  root_section, it, etot, error)
+          
        IF ( output_unit > 0) THEN
           WRITE(UNIT=output_unit,FMT="(/,T2,26('-'))")
-          WRITE(UNIT=output_unit,FMT="(T2,A,I6)")&
-               "OPTIMIZATION STEP: ",it
+          WRITE(UNIT=output_unit,FMT="(T2,A,I6)")"OPTIMIZATION STEP: ",it
           WRITE(UNIT=output_unit,FMT="(T2,26('-'))")
           CALL m_flush(output_unit)
        END IF
@@ -315,14 +266,12 @@ CONTAINS
              READ(UNIT=hesunit,IOSTAT=istat) hes
              REWIND(hesunit)
              IF (istat /= 0) THEN
-                WRITE(UNIT=output_unit,FMT="(/,T2,A)")&
-                     "**  Error while reading HESSIAN **"
+                WRITE(UNIT=output_unit,FMT="(/,T2,A)")"**  Error while reading HESSIAN **"
                 conv = .TRUE.
              ELSE
                 WRITE(UNIT=output_unit,FMT="(/,T2,A)")&
                      "*** Initial Hessian has been restarted successfully ***"
              END IF
-
           END IF
           CALL mp_bcast(hes,para_env%source,para_env%group)
        ELSE IF( it > 1 ) THEN
@@ -372,8 +321,6 @@ CONTAINS
        ! Energy & Gradients at new step
        CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos,&
             gopt_env%force_env%para_env, force_env_section, error)
-       !MK Hm, it seems that here only the root process has the correct gradient for all atoms
-       CALL mp_bcast(g,para_env%source,para_env%group)
        ediff = etot - eold
 
        IF (output_unit > 0) THEN
@@ -384,60 +331,36 @@ CONTAINS
        CALL update_trust_rad(rat,rad,step,ediff)
        CALL check_converg(ndf,dr,g,output_unit>0,output_unit,conv,gopt_param)
        IF (conv) EXIT
-
     END DO
 
     ! Write final particle information, if converged
-
-    IF (conv) THEN
-      it = it + 1
-      CALL write_structure_data(particle_set,cell,gopt_env%motion_section,error)
-      CALL write_restart(force_env=force_env,root_section=root_section,&
-                         force_env_section=force_env_section,error=error)
-      IF (ionode) THEN
-        traj_unit = cp_print_key_unit_nr(logger,root_section,&
-                                         "MOTION%PRINT%TRAJECTORY",&
-                                         extension=".xyz",&
-                                         error=error)
-        IF (traj_unit > 0) THEN
-          CALL force_env_get(force_env,&
-                             cell=cell,&
-                             subsys=subsys,error=error)
-          CALL cp_subsys_get(subsys=subsys,&
-                             particles=particles,error=error)
-          particle_set => particles%els
-          WRITE (UNIT=title,FMT="(A,I8,A,F20.10)") " i =",it,", E =",etot
-          CALL write_particle_coordinates(particle_set,traj_unit,&
-                                          dump_xmol,"POS",TRIM(title))
-          CALL m_flush(traj_unit)
-        END IF
-        CALL cp_print_key_finished_output(traj_unit,logger,root_section,&
-                                          "MOTION%PRINT%TRAJECTORY",error=error)
-      END IF
-    END IF
+    CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=it,error=error)
+    CALL write_final_info(conv, it, gopt_env, x0, gopt_env%force_env%para_env%mepos,&
+       gopt_env%force_env%para_env, force_env, gopt_env%motion_section, root_section,&
+       force_env_section, error)
 
     DEALLOCATE (hes,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"hes")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (xold,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"xold")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (g,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"g")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (gold,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"gold")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (dx,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"dx")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (hes_mat,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"hes_mat")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (dg,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"dg")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (eigval,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"eigval")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (eigvec,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"eigvec")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (dr,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"dr")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     IF (ionode) THEN
       CALL close_file(unit_number=hesunit)
@@ -445,9 +368,7 @@ CONTAINS
 
     CALL cp_print_key_finished_output(output_unit,logger,root_section,&
          "MOTION%GEO_OPT%PRINT%PROGRAM_RUN_INFO", error=error)
-
     CALL cp_rm_iter_level(logger%iter_info,ihandle,error)
-
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE geoopt_bfgs
