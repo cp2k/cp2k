@@ -60,4 +60,4 @@ h2_parse.inp              7
 # complex torsion potential
 TNF2.inp                  7
 # isolated system ! needs to be solved one day
- H+.inp                   11
+ #H+.inp                   11

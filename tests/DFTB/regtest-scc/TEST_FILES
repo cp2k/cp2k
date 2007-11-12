@@ -4,9 +4,9 @@
 ch2o-1.inp          1
 # not yet implemented
 # isolated system.. ! needs to be fixed one day
-ch2o-2.inp          1
-ch2o-3.inp          1
-H+.inp              1
+#ch2o-2.inp          1
+#ch2o-3.inp          1
+#H+.inp              1
 ch2o-4.inp          1
 ch2o-5.inp          1
 ch2o.inp            1
