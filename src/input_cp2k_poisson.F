@@ -644,7 +644,10 @@ END SUBROUTINE create_ewald_section
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="wavelet",&
-            description="Sets up parameters of  wavelet based poisson solver. ",&
+            description="Sets up parameters of  wavelet based poisson solver."//&
+                  "This solver allows for non-periodic (PERIODIC NONE) boundary conditions and slab-boundary conditions "//&
+                  "(but only PERIODIC XZ)."//&
+                  "It does not require very large unit cells, only that the density goes to zero on the faces of the cell.",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             citations=(/Genovese2006,Genovese2007/),&
             error=error)
@@ -652,10 +655,11 @@ END SUBROUTINE create_ewald_section
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="SCF_TYPE",&
-            description="type of screening function used in the wavelet approach "//&
-            "possible values are 8,14,16,20,24,30,40,50,60,100 ",&
+            description="Type of scaling function used in the wavelet approach, the total energy depends on this choice,"//&
+                        "and the convergence with respect to cutoff depends on the selected scaling functions."//&
+                        "Possible values are 8,14,16,20,24,30,40,50,60,100 ",&
             usage="SCF_TYPE integer",&
-            n_var=1,default_i_val=16,error=error)
+            n_var=1,default_i_val=40,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
