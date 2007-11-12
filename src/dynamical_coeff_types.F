@@ -604,6 +604,7 @@ END SUBROUTINE dyn_coeff_set_initialize
                 END IF
              END DO
           END IF
+          CALL mp_bcast(mbuffer,source,group)
           DEALLOCATE(ckind,STAT=stat)
           IF (stat /= 0) CALL stop_memory(routineP,"ckind")
           DEALLOCATE(nel_kind,STAT=stat)

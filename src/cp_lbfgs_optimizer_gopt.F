@@ -284,6 +284,17 @@ CONTAINS
     ALLOCATE(optimizer,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
+       NULLIFY(optimizer%kind_of_bound,&
+               optimizer%i_work_array,&
+               optimizer%isave,&
+               optimizer%x,&
+               optimizer%lower_bound,&
+               optimizer%upper_bound,&
+               optimizer%gradient,&
+               optimizer%dsave,&
+               optimizer%work_array,&
+               optimizer%para_env,&
+               optimizer%obj_funct)
        optimizer%ref_count=0
        last_lbfgs_optimizer_id=last_lbfgs_optimizer_id+1
        optimizer%id_nr=last_lbfgs_optimizer_id
@@ -631,7 +642,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=5)                         :: wildcard
-    INTEGER                                  :: dataunit, handle, stat
+    INTEGER                                  :: dataunit, handle, its, stat
     LOGICAL                                  :: conv, failure, is_master, &
                                                 justEntred
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xold
@@ -736,8 +747,12 @@ CPSourceFileRef,&
                optimizer%para_env%group)
           ! Dump info
           IF (optimizer%status == 3) THEN
-             IF (is_master) CALL cp_iterate(logger%iter_info,iter_nr=optimizer%isave(30),error=error)
-             CALL write_geo_traj(force_env, input, optimizer%isave(30), optimizer%f, error)
+             its = 0
+             IF (is_master) THEN 
+                CALL cp_iterate(logger%iter_info,iter_nr=optimizer%isave(30),error=error)
+                its = optimizer%isave(30)
+             END IF
+             CALL write_geo_traj(force_env, input, its, optimizer%f, error)
           END IF
           !
           SELECT CASE (optimizer%status)
