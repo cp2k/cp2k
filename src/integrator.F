@@ -1884,6 +1884,17 @@ CONTAINS
        h=0.0_dp
     ENDIF
     CALL update_particle_set ( particle_set, para_env % group, pos = pos )
+
+    CALL mp_bcast(trj_epot,para_env%source,para_env%group)
+    CALL mp_bcast(trj_itimes,para_env%source,para_env%group)
+    CALL mp_bcast(trj_time,para_env%source,para_env%group)
+
+    IF (reftraj_env%info%variable_volume)THEN
+        CALL mp_bcast(cell_itimes,para_env%source,para_env%group)
+        CALL mp_bcast(cell_epot,para_env%source,para_env%group)
+        CALL mp_bcast(cell_time,para_env%source,para_env%group)
+    ENDIF
+
     reftraj_env%epot = trj_epot
     reftraj_env%itimes = trj_itimes
     reftraj_env%time = trj_time/femtoseconds
