@@ -82,7 +82,7 @@ CONTAINS
     INTEGER, DIMENSION(3), INTENT(IN)        :: n_rep_real
     TYPE(cell_type), POINTER                 :: mm_cell
 
-    INTEGER                                  :: cmax, ig, ix, iy, iz, xlb, &
+    INTEGER                                  :: ig, ix, iy, iz, xlb, &
                                                 xub, ylb, yub, zlb, zub
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     INTEGER, DIMENSION(3)                    :: cubecenter, lb_cube, ub_cube
@@ -105,7 +105,7 @@ CONTAINS
     gbo   =  pwgrid%pw_grid%bounds
 
 !   *** get the sub grid properties for the given radius ***
-    CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds,cmax)
+    CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
 
     IF (ALL(n_rep_real ==0)) THEN
        cubecenter(:) = FLOOR(rpl(:)/dr(:))+gbo(1,:)
@@ -214,7 +214,7 @@ CONTAINS
     INTEGER, DIMENSION(3), INTENT(IN)        :: n_rep_real
     TYPE(cell_type), POINTER                 :: mm_cell
 
-    INTEGER                                  :: cmax, ig, ix, iy, iz, xlb, &
+    INTEGER                                  :: ig, ix, iy, iz, xlb, &
                                                 xub, ylb, yub, zlb, zub
     INTEGER, DIMENSION(2, 3)                 :: gbo
     INTEGER, DIMENSION(3)                    :: cubecenter, lb_cube, ub_cube
@@ -235,7 +235,7 @@ CONTAINS
     gbo   =  pwgrid%pw_grid%bounds    
 
 !   *** get the sub grid properties for the given radius ***
-    CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds,cmax)
+    CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
 
     IF (ALL(n_rep_real ==0)) THEN
        cubecenter(:) = FLOOR(rpl(:)/dr(:))+gbo(1,:)

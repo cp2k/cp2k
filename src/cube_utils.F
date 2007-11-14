@@ -30,25 +30,27 @@ MODULE cube_utils
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+  USE mathlib,                         ONLY: matvec_3x3
   USE timings,                         ONLY: timeset,&
                                              timestop
 
   IMPLICIT NONE
+  PRIVATE
 
-  PUBLIC :: cube_info_type
-  PUBLIC :: cube_ptr
-  PUBLIC :: init_cube_info
-  PUBLIC :: destroy_cube_info
-  PUBLIC :: return_cube
+  PUBLIC :: cube_info_type,cube_ptr
+
+  PUBLIC :: init_cube_info, destroy_cube_info, &
+            return_cube,return_cube_max_iradius, return_cube_nonortho
 
   TYPE :: cube_ptr
        INTEGER, POINTER, DIMENSION(:) :: p
   END TYPE cube_ptr
 
   TYPE :: cube_info_type
-     INTEGER                      :: max_radius, cmax
+     INTEGER                      :: max_radius
      REAL(KIND = dp)              :: dr(3),drmin
      REAL(KIND = dp)              :: dh(3,3)
+     REAL(KIND = dp)              :: dh_inv(3,3)
      LOGICAL                      :: orthorhombic
      INTEGER, POINTER             :: lb_cube(:,:)
      INTEGER, POINTER             :: ub_cube(:,:)
@@ -60,27 +62,81 @@ MODULE cube_utils
 !------------------------------------------------------------------------------
 
 CONTAINS
+ 
+  SUBROUTINE return_cube_nonortho(info,radius,lb,ub,rp)
+
+    TYPE(cube_info_type)                     :: info
+    REAL(KIND=dp)                            :: radius,rp(3)
+    INTEGER                                  :: lb(3), ub(3)
+
+    REAL(KIND=dp)                            :: point(3),res(3)
+    INTEGER                                  :: i,j,k
+
+    IF (radius>info%max_rad_ga) THEN
+            !
+            ! This is an important check. If the required radius for mapping the density is different
+            ! from the actual computed one, (significant) errors can occur.
+            ! This error can invariably be fixed by improving the computation of maxradius
+            ! in the call to init_cube_info
+            !
+            write(6,*) info%max_rad_ga,radius
+            CALL stop_program("return_cube_nonortho","called with radius too large")
+    ENDIF
+
+    ! get the min max indices that contain at least the cube that contains a sphere around rp of radius radius
+    ! if the cell is very non-orthogonal this implies that many useless points are included
+    ! this estimate can be improved (i.e. not box but sphere should be used)
+    lb= HUGE(lb)
+    ub=-HUGE(ub)
+    DO i=-1,1
+    DO j=-1,1
+    DO k=-1,1
+       point(1)=rp(1)+i*radius
+       point(2)=rp(2)+j*radius
+       point(3)=rp(3)+k*radius
+       CALL matvec_3x3(res,info%dh_inv,point) 
+       lb=MIN(lb,FLOOR(res))
+       ub=MAX(ub,CEILING(res))
+    ENDDO
+    ENDDO
+    ENDDO
+
+  END SUBROUTINE return_cube_nonortho
 
 !------------------------------------------------------------------------------
-  SUBROUTINE return_cube(info,radius,lb_cube,ub_cube,sphere_bounds,cmax)
+  SUBROUTINE return_cube(info,radius,lb_cube,ub_cube,sphere_bounds)
     TYPE(cube_info_type)                     :: info
     REAL(KIND=dp)                            :: radius
     INTEGER                                  :: lb_cube(3), ub_cube(3)
     INTEGER, DIMENSION(:), POINTER           :: sphere_bounds
-    INTEGER                                  :: cmax
 
     INTEGER                                  :: imr
 
-    imr=MAX(1,CEILING(radius/info%drmin))
-    IF (imr.gt.info%max_radius) THEN
-        CALL stop_program("return_cube","called with radius too large")
+    IF (info%orthorhombic) THEN
+        imr=MAX(1,CEILING(radius/info%drmin))
+        IF (imr.gt.info%max_radius) THEN
+            !
+            ! This is an important check. If the required radius for mapping the density is different
+            ! from the actual computed one, (significant) errors can occur.
+            ! This error can invariably be fixed by improving the computation of maxradius
+            ! in the call to init_cube_info
+            !
+            CALL stop_program("return_cube","called with radius too large")
+        ENDIF
+        lb_cube(:)       = info%lb_cube(:,imr)
+        ub_cube(:)       = info%ub_cube(:,imr)
+        sphere_bounds => info%sphere_bounds(imr)%p
+    ELSE
+        ! nothing yet, we should check the radius
     ENDIF
-    lb_cube(:)       = info%lb_cube(:,imr)
-    ub_cube(:)       = info%ub_cube(:,imr)
-    sphere_bounds => info%sphere_bounds(imr)%p
-    cmax             = info%cmax
 
   END SUBROUTINE return_cube
+
+  ! this is the integer max radius of the cube
+  INTEGER FUNCTION return_cube_max_iradius(info)
+    TYPE(cube_info_type)                     :: info
+    return_cube_max_iradius=info%max_radius
+  END FUNCTION return_cube_max_iradius
 
 !------------------------------------------------------------------------------
 
@@ -112,45 +168,45 @@ CONTAINS
 
 !------------------------------------------------------------------------------
 
-  SUBROUTINE init_cube_info(info,dr,dh,ortho,max_radius,cmax)
-    TYPE(cube_info_type)                     :: info
-    REAL(KIND=dp)                            :: dr(3), dh(3,3)
-    LOGICAL                                  :: ortho
-    REAL(KIND=dp)                            :: max_radius
-    INTEGER, INTENT(OUT)                     :: cmax
+  SUBROUTINE init_cube_info(info,dr,dh,dh_inv,ortho,max_radius)
+    TYPE(cube_info_type), INTENT(OUT)        :: info
+    REAL(KIND=dp),        INTENT(IN)         :: dr(3), dh(3,3),dh_inv(3,3)
+    LOGICAL,              INTENT(IN)         :: ortho
+    REAL(KIND=dp),        INTENT(IN)         :: max_radius
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE init_cube_info (MODULE cube_utils)"
 
     INTEGER                                  :: check_1, check_2, handle, i, &
                                                 igmin, imr, istat, jg, jg2, &
-                                                jgmin, k, kg, kg2, kgmin
+                                                jgmin, k, kg, kg2, kgmin, lb(3), ub(3)
     REAL(KIND=dp)                            :: drmin, dxi, dy2, dyi, &
-                                                dz2, dzi, radius, radius2
+                                                dz2, dzi, radius, radius2, rp(3)
 
     CALL timeset("init_cube_info","I","",handle) 
     info%dr = dr
     info%dh = dh
+    info%dh_inv = dh_inv
     info%orthorhombic = ortho
+    info%max_rad_ga = max_radius
+    drmin = MINVAL(dr)
+    info%drmin=drmin
 
     NULLIFY(info%lb_cube,info%ub_cube,&
             info%sphere_bounds_count,info%sphere_bounds)
 
     IF ( .NOT. info%orthorhombic ) THEN
 
+        rp=0.0_dp
         !
-        ! this is wrong for non-orthorhombic grids
+        ! could still be wrong (maybe needs an additional +1 to account for off-gridpoint rp's)
         !
-        drmin = MINVAL(dr)
-        info%drmin=drmin
-        imr=CEILING((max_radius)/drmin)
-        info%max_radius=imr
+        CALL return_cube_nonortho(info,max_radius,lb,ub,rp)
+        info%max_radius=MAX(MAXVAL(ABS(lb)),MAXVAL(ABS(ub)))
 
     ELSE
 
         ! this info is specialized to orthogonal grids
-        drmin = MINVAL(dr)
-        info%drmin=drmin
         imr=CEILING((max_radius)/drmin)
         info%max_radius=imr
         dzi=1.0_dp/dr(3)
@@ -215,8 +271,6 @@ CONTAINS
           ENDDO
           info%ub_cube(:,i)=1-info%lb_cube(:,i)
         ENDDO
-        info%cmax=MAXVAL(info%ub_cube)
-        cmax = info%cmax
         IF (check_1.NE.check_2) THEN 
             CALL stop_program("init_cube_info",&
                               " :-/ irreproducible fp math caused memory corruption")

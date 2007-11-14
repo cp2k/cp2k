@@ -69,6 +69,7 @@ MODULE pw_grid_types
      INTEGER, DIMENSION ( 3 ) :: npts_local       ! local version of npts
      REAL (KIND=dp), DIMENSION ( 3 ) :: dr        ! grid spacing
      REAL (KIND=dp), DIMENSION ( 3, 3 ) :: dh     ! incremental cell matrix
+     REAL (KIND=dp), DIMENSION ( 3, 3 ) :: dh_inv ! inverse incremental cell matrix
      LOGICAL :: orthorhombic                      ! cell symmetry
      REAL (KIND=dp) :: dvol, vol                  ! volume element, volume
      REAL (KIND=dp) :: cutoff                     ! cutoff in a.u.

@@ -133,7 +133,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_qmmm_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: cmax, handle, igrid, stat
+    INTEGER                                  :: handle, igrid, stat
     LOGICAL                                  :: failure
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
@@ -173,8 +173,9 @@ CONTAINS
              CALL init_cube_info(cube_info(igrid),&
                pools(igrid)%pool%pw_grid%dr(:),&
                pools(igrid)%pool%pw_grid%dh(:,:),&
+               pools(igrid)%pool%pw_grid%dh_inv(:,:),&
                pools(igrid)%pool%pw_grid%orthorhombic,&
-               qmmm_env%maxRadius(igrid),cmax)
+               qmmm_env%maxRadius(igrid))
           END DO
           ks_qmmm_env%cube_info => cube_info
        END IF

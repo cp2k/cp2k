@@ -885,6 +885,9 @@ SUBROUTINE pw_grid_setup1 ( cell, pw_grid, bounds, grid_span, &
   pw_grid % dh ( :,1 ) = cell % hmat ( :, 1 ) / REAL ( pw_grid % npts ( 1 ),KIND=dp)
   pw_grid % dh ( :,2 ) = cell % hmat ( :, 2 ) / REAL ( pw_grid % npts ( 2 ),KIND=dp)
   pw_grid % dh ( :,3 ) = cell % hmat ( :, 3 ) / REAL ( pw_grid % npts ( 3 ),KIND=dp)
+  pw_grid % dh_inv ( 1,: ) = cell % h_inv ( 1,: ) * REAL ( pw_grid % npts ( 1 ),KIND=dp)
+  pw_grid % dh_inv ( 2,: ) = cell % h_inv ( 2,: ) * REAL ( pw_grid % npts ( 2 ),KIND=dp)
+  pw_grid % dh_inv ( 3,: ) = cell % h_inv ( 3,: ) * REAL ( pw_grid % npts ( 3 ),KIND=dp)
   pw_grid % orthorhombic = cell % orthorhombic
 
 !
@@ -2353,6 +2356,9 @@ SUBROUTINE pw_grid_change ( cell, pw_grid )
   pw_grid % dh ( :,1 ) = cell % hmat ( :, 1 ) / REAL ( pw_grid % npts ( 1 ),KIND=dp)
   pw_grid % dh ( :,2 ) = cell % hmat ( :, 2 ) / REAL ( pw_grid % npts ( 2 ),KIND=dp)
   pw_grid % dh ( :,3 ) = cell % hmat ( :, 3 ) / REAL ( pw_grid % npts ( 3 ),KIND=dp)
+  pw_grid % dh_inv ( 1,: ) = cell % h_inv ( 1,: ) * REAL ( pw_grid % npts ( 1 ),KIND=dp)
+  pw_grid % dh_inv ( 2,: ) = cell % h_inv ( 2,: ) * REAL ( pw_grid % npts ( 2 ),KIND=dp)
+  pw_grid % dh_inv ( 3,: ) = cell % h_inv ( 3,: ) * REAL ( pw_grid % npts ( 3 ),KIND=dp)
   pw_grid % orthorhombic = cell % orthorhombic
 
   DO gpt = 1, SIZE ( g ,2 )

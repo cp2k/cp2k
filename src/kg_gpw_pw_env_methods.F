@@ -386,7 +386,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_mol_rebuild', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: auxbas_grid, cmax, cmaxl, i, igrid_level, iounit, istat, &
+    INTEGER :: auxbas_grid, i, igrid_level, iounit, istat, &
       my_icommensurate, my_ncommensurate, ncommensurate, ngrid_level, &
       nlowest, nlowest_new, npts_out(3), npts_tmp(3), nsmax
     LOGICAL                                  :: blocking, failure, fft, &
@@ -809,6 +809,10 @@ CONTAINS
            pw_grid_mol%dh ( :,1 ) = cell_mol% hmat ( :, 1 ) / REAL ( pw_grid_mol% npts ( 1 ),KIND=dp)
            pw_grid_mol%dh ( :,2 ) = cell_mol% hmat ( :, 2 ) / REAL ( pw_grid_mol% npts ( 2 ),KIND=dp)
            pw_grid_mol%dh ( :,3 ) = cell_mol% hmat ( :, 3 ) / REAL ( pw_grid_mol% npts ( 3 ),KIND=dp)
+  pw_grid_mol % dh_inv ( 1,: ) = cell_mol % h_inv ( 1,: ) * REAL ( pw_grid_mol % npts ( 1 ),KIND=dp)
+  pw_grid_mol % dh_inv ( 2,: ) = cell_mol % h_inv ( 2,: ) * REAL ( pw_grid_mol % npts ( 2 ),KIND=dp)
+  pw_grid_mol % dh_inv ( 3,: ) = cell_mol % h_inv ( 3,: ) * REAL ( pw_grid_mol % npts ( 3 ),KIND=dp)
+
            pw_grid_mol%orthorhombic = cell_mol%orthorhombic
 
 
@@ -817,7 +821,7 @@ CONTAINS
            NULLIFY(pw_pools_mol(igrid_level)%pool)
            CALL pw_pool_create(pw_pools_mol(igrid_level)%pool,pw_grid=pw_grid_mol,error=error)
 
-        ! init rs_pools
+        ! init rs_pools, kg_gpw is really only a serial code
            drmin = MINVAL ( pw_grid_mol%dr )
 !      IF ( dft_control % qs_control % rs_distributed ) THEN
 !        nsmax = 2*MAX(1,CEILING((radius(1)/drmin))+1
@@ -860,12 +864,12 @@ CONTAINS
       ALLOCATE (pw_mol%cube_info(ngrid_level),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineP,"cube_info",0)
 
-      cmax = 0
-
       pw_mol%cube_info(1)%max_radius =cube_info_g(1)%max_radius
       pw_mol%cube_info(1)%drmin =cube_info_g(1)%drmin
       pw_mol%cube_info(1)%max_rad_ga =cube_info_g(1)%max_rad_ga
       pw_mol%cube_info(1)%dr(1:3) =cube_info_g(1)%dr(1:3)
+      pw_mol%cube_info(1)%dh =cube_info_g(1)%dh
+      pw_mol%cube_info(1)%dh_inv =cube_info_g(1)%dh_inv
       pw_mol%cube_info(1)%orthorhombic=cube_info_g(1)%orthorhombic
 
       pw_mol%cube_info(1)%ub_cube => cube_info_g(1)%ub_cube
@@ -873,21 +877,15 @@ CONTAINS
       pw_mol%cube_info(1)%sphere_bounds_count => cube_info_g(1)%sphere_bounds_count
       nsmax = SIZE(cube_info_g(1)%sphere_bounds,1)
       pw_mol%cube_info(1)%sphere_bounds =>  cube_info_g(1)%sphere_bounds
-      pw_mol%cube_info(1)%cmax =  cube_info_g(1)%cmax
-      cmax=MAXVAL(cube_info_g(1)%ub_cube)
 
       DO igrid_level = 2,ngrid_level
-
-        maxradius = cube_info_g(igrid_level)%max_rad_ga
-        pw_mol%cube_info(igrid_level)%max_rad_ga=maxradius
 
         CALL init_cube_info(pw_mol%cube_info(igrid_level),&
              pw_pools_mol(igrid_level)%pool%pw_grid%dr(:),&
              pw_pools_mol(igrid_level)%pool%pw_grid%dh(:,:),&
+             pw_pools_mol(igrid_level)%pool%pw_grid%dh_inv(:,:),&
              pw_pools_mol(igrid_level)%pool%pw_grid%orthorhombic,&
-             maxradius,cmaxl)
-        cmax = MAX(cmax,cmaxl)
-
+             cube_info_g(igrid_level)%max_rad_ga)
       END DO
 
 

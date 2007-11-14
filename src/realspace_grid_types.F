@@ -81,7 +81,8 @@ MODULE realspace_grid_types
      INTEGER, DIMENSION (3) :: npts_local
      INTEGER, DIMENSION (3) :: lb_local
      INTEGER, DIMENSION (3) :: ub_local
-     REAL(KIND=dp), DIMENSION(3,3) :: dh                 ! grid matrix
+     REAL(KIND=dp), DIMENSION(3,3) :: dh                 ! incremental grid matrix
+     REAL(KIND=dp), DIMENSION(3,3) :: dh_inv             ! inverse incremental grid matrix
      LOGICAL :: orthorhombic                             ! grid symmetry
      LOGICAL :: parallel
      INTEGER :: group
@@ -266,6 +267,7 @@ CONTAINS
     failure = .FALSE.
 
     rs % dh = pw_grid%dh
+    rs % dh_inv = pw_grid%dh_inv
     rs % orthorhombic = pw_grid%orthorhombic
     rs % grid_id = pw_grid % id_nr
     last_rs_id = last_rs_id+1
@@ -1007,6 +1009,7 @@ SUBROUTINE rs_grid_set_box ( pw_grid, rs, rs_p, error )
     CPPrecondition(ASSOCIATED(rs),cp_failure_level,routineP,error,failure)
     CPPrecondition(rs%grid_id==pw_grid%id_nr,cp_failure_level,routineP,error,failure)
     rs % dh = pw_grid%dh
+    rs % dh_inv = pw_grid%dh_inv
   END IF
   IF ( PRESENT(rs_p) ) THEN
     CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
@@ -1015,6 +1018,7 @@ SUBROUTINE rs_grid_set_box ( pw_grid, rs, rs_p, error )
     CPPrecondition(id==pw_grid%id_nr,cp_failure_level,routineP,error,failure)
     DO i = 1, n
       rs_p(i)%rs_grid % dh = pw_grid%dh
+      rs_p(i)%rs_grid % dh_inv = pw_grid%dh_inv
     END DO
   END IF
 

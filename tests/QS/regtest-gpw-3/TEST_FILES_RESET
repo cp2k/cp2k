@@ -289,3 +289,7 @@ H2O-solv.inp
 # numerics after the bug fix for the distributed non-orthorombic grids
 dynamics.inp
 H2O-ata.inp
+#  
+rsgrid-dist-3.inp
+#  
+rsgrid-dist-2.inp

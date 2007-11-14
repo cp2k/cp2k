@@ -44,7 +44,8 @@ MODULE pw_env_methods
                                              rs_pools_dealloc,&
                                              rs_pools_give_back_rs_vect
   USE cube_utils,                      ONLY: destroy_cube_info,&
-                                             init_cube_info
+                                             init_cube_info,&
+                                             return_cube_max_iradius
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gaussian_gridlevel,&
                                              init_gaussian_gridlevel
@@ -177,13 +178,16 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_rebuild', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: safety_factor = 1.2
+    ! a very small safety factor might be needed for roundoff issues
+    ! e.g. radius being computed here as 12.998 (13) and 13.002 (14) during the collocation
+    ! te latter can happen due to the lower precision in the computation of the radius in collocate
+    ! parallel cost of rs_pw_transfer goes as safety_factor**3 so it is worthwhile keeping it tight
+    REAL(KIND=dp), PARAMETER                 :: safety_factor = 1.01
 
     INTEGER :: grid_span, handle, i, igrid_level, igrid_zet0_s, ikind, &
       iounit, ipgf, iset, ishell, jkind, jpgf, jset, jshell, la, lb, &
       lgrid_level, ncommensurate, ngrid_level, nkind, nseta, nsetb, nsmax, &
       stat
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: cmaxl
     INTEGER, DIMENSION(:), POINTER           :: npgfa, npgfb, nshella, nshellb
     INTEGER, DIMENSION(:, :), POINTER        :: lshella, lshellb
     LOGICAL                                  :: failure, should_output, &
@@ -191,7 +195,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     REAL(KIND=dp)                            :: alpha, cutilev, drmin, &
                                                 max_rpgf0_s, maxradius, &
                                                 my_cut, rel_cutoff, zet0_s, &
-                                                zetp
+                                                zetp, core_charge
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: radius
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cutoff, my_cutoff
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zeta, zetb
@@ -464,14 +468,18 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
 
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                orb_basis_set=orb_basis_set,&
-                               alpha_core_charge=alpha)
+                               alpha_core_charge=alpha,ccore_charge=core_charge)
            ! this is to be sure that the core charge is mapped ok
            ! right now, the core is mapped on the auxiliary basis,
            ! this should, at a give point be changed
            ! so that also for the core a multigrid is used
-           IF (alpha > 0.0_dp)&
+           IF (alpha > 0.0_dp) THEN
              maxradius=MAX(maxradius,exp_radius( 0, alpha, &
-                           dft_control%qs_control%eps_rho_rspace, 10.0_dp))
+                           dft_control%qs_control%eps_rho_rspace, core_charge))
+             ! forces
+             maxradius=MAX(maxradius,exp_radius( 1, alpha, &
+                           dft_control%qs_control%eps_rho_rspace, core_charge))
+           ENDIF
            CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
                                   npgf=npgfa, nset=nseta, zet=zeta,l=lshella,nshell=nshella)
 
@@ -502,12 +510,20 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
                     lb = lshellb(jshell,jset)+la
                     lgrid_level = gaussian_gridlevel(pw_env%gridlevel_info,zetp)
                     IF (lgrid_level .EQ. igrid_level) THEN
-                       ! density
+                       ! density (scale is at most 2)
                        maxradius=MAX(maxradius,exp_radius( lb, zetp, &
-                                     dft_control%qs_control%eps_rho_rspace, 1.0_dp))
+                                     dft_control%qs_control%eps_rho_rspace, 2.0_dp))
+
+                       ! should do tau (if tau will be used)
+
                        ! potential
                        maxradius=MAX(maxradius,exp_radius( lb, zetp, &
-                                     dft_control%qs_control%eps_gvg_rspace, 1.0_dp))
+                                     dft_control%qs_control%eps_gvg_rspace, 2.0_dp))
+                       ! forces
+                       maxradius=MAX(maxradius,exp_radius( lb+1, zetp, &
+                                     dft_control%qs_control%eps_gvg_rspace, 2.0_dp))
+
+                       ! should do stresses (if stresses will be used)
                     ENDIF
                  ENDDO
                  ENDDO
@@ -517,28 +533,31 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
               ENDDO
          ENDDO
         ENDDO
-        ! safety first, not very efficient, nor general
-        ! one could possibly decide that this *is* the maximum allowed radius
+        ! this is a bit of hack, but takes into account numerics and rounding
         maxradius = maxradius * safety_factor
         radius(igrid_level)=maxradius
      END DO
 
 !
 !
-!    set up the rs_grids, requires 'radius' to be set up correctly
+!    set up the rs_grids and the cubes, requires 'radius' to be set up correctly
 !
 !
      ALLOCATE(rs_pools(ngrid_level),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+     ALLOCATE (pw_env%cube_info(ngrid_level),STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
      DO igrid_level=1,ngrid_level
         pw_grid => pw_pools(igrid_level)%pool%pw_grid
-        drmin = MINVAL ( pw_grid%dr )
          
-        !
-        ! this is wrong for non-orthorhombic grids
-        !
+        CALL init_cube_info(pw_env%cube_info(igrid_level),&
+             pw_grid%dr(:), pw_grid%dh(:,:), pw_grid%dh_inv(:,:), pw_grid%orthorhombic,&
+             radius(igrid_level))
+
         IF ( dft_control % qs_control % rs_distributed_id .EQ. do_rsgrid_distributed ) THEN
-           nsmax = 2*MAX(1,CEILING((radius(igrid_level))/drmin))+1
+           nsmax = 2*MAX(1,return_cube_max_iradius(pw_env%cube_info(igrid_level)))+1
         ELSE
            nsmax = -1
         ENDIF
@@ -548,6 +567,9 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
              el_struct=pw_grid,nsmax=nsmax,error=error)
      END DO
      pw_env%rs_pools => rs_pools
+
+     DEALLOCATE(radius,stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
 !
 !    Print grid information
@@ -567,35 +589,6 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      END IF
      CALL cp_print_key_finished_output(iounit,logger,print_section,&
          "",error=error)
-!
-!
-! set up the cube info and the cmaxl array
-!
-!
-     ALLOCATE(cmaxl(ngrid_level),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     ALLOCATE (pw_env%cube_info(ngrid_level),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-     DO igrid_level=1,ngrid_level
-        pw_env%cube_info%max_rad_ga = maxradius
-        CALL init_cube_info(pw_env%cube_info(igrid_level),&
-             pw_pools(igrid_level)%pool%pw_grid%dr(:),&
-             pw_pools(igrid_level)%pool%pw_grid%dh(:,:),&
-             pw_pools(igrid_level)%pool%pw_grid%orthorhombic,&
-             radius(igrid_level),cmaxl(igrid_level))
-     END DO
-
-!
-!
-!  remove radius and cmaxl
-!
-!
-
-     DEALLOCATE(radius,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     DEALLOCATE(cmaxl,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
   END IF
 

@@ -66,7 +66,8 @@ MODULE qs_collocate_density
                                              rs_pools_create_rs_vect,&
                                              rs_pools_give_back_rs_vect
   USE cube_utils,                      ONLY: cube_info_type,&
-                                             return_cube
+                                             return_cube,&
+                                             return_cube_nonortho
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
   USE input_constants,                 ONLY: linear_interp,&
@@ -2002,7 +2003,8 @@ CONTAINS
     dr(3) = rsgrid%dh(3,3)
 
 !   *** get the sub grid properties for the given radius ***
-    CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds,cmax)
+    CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
+    cmax=MAXVAL(ub_cube)
 
 !   *** position of the gaussian product
 !
@@ -2095,12 +2097,10 @@ CONTAINS
       ENDDO
 
       ! cell hmat in grid points
-      hmatgrid(:,1)=cell%hmat(:,1)/ng(1)
-      hmatgrid(:,2)=cell%hmat(:,2)/ng(2)
-      hmatgrid(:,3)=cell%hmat(:,3)/ng(3)
+      hmatgrid=rsgrid%dh
 
       ! center in grid coords
-      gp=MATMUL(cell%h_inv,rp)*ng
+      gp=MATMUL(rsgrid%dh_inv,rp)
       cubecenter(:) = FLOOR(gp)
 
       ! transform using multinomials
@@ -2145,23 +2145,7 @@ CONTAINS
       ENDDO
       ENDDO
 
-      ! get the min max indices that contain at least the cube that contains a sphere around rp of radius radius
-      ! if the cell is very non-orthogonal this implies that many useless points are included
-      ! this estimate can be improved (i.e. not box but sphere should be used)
-      index_min= HUGE(index_min)
-      index_max=-HUGE(index_max)
-      DO i=-1,1
-      DO j=-1,1
-      DO k=-1,1
-         point(1)=rp(1)+i*radius
-         point(2)=rp(2)+j*radius
-         point(3)=rp(3)+k*radius
-         point=MATMUL(cell%h_inv,point)*ng
-         index_min=MIN(index_min,FLOOR(point))
-         index_max=MAX(index_max,CEILING(point))
-      ENDDO
-      ENDDO
-      ENDDO
+      CALL return_cube_nonortho(cube_info,radius,index_min,index_max,rp)
 
       ALLOCATE(grid_map(index_min(1):index_max(1)))
       DO i=index_min(1),index_max(1)
@@ -2291,22 +2275,7 @@ CONTAINS
       ! still hard-wired (see MODULO)
       CPPostcondition(ALL(rsgrid % perd==1),cp_failure_level,routineP,error,failure)
 
-      ! get the min max indices that contain at least the cube that contains a sphere around rp of radius radius
-      ! if the cell is very non-orthogonal this implies that many useless points are included
-      index_min= HUGE(index_min)
-      index_max=-HUGE(index_max)
-      DO i=-1,1
-      DO j=-1,1
-      DO k=-1,1
-         point(1)=rp(1)+i*radius
-         point(2)=rp(2)+j*radius
-         point(3)=rp(3)+k*radius
-         point=MATMUL(cell%h_inv,point)*ng
-         index_min=MIN(index_min,FLOOR(point))
-         index_max=MAX(index_max,CEILING(point))
-      ENDDO
-      ENDDO
-      ENDDO
+      CALL return_cube_nonortho(cube_info,radius,index_min,index_max,rp)
 
       ! go over the grid, but cycle if the point is not within the radius
       DO k=index_min(3),index_max(3)

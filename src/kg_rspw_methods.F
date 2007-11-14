@@ -37,7 +37,8 @@ MODULE kg_rspw_methods
                                              rs_pools_dealloc,&
                                              rs_pools_give_back_rs_vect
   USE cube_utils,                      ONLY: destroy_cube_info,&
-                                             init_cube_info
+                                             init_cube_info,&
+                                             return_cube_max_iradius
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gaussian_gridlevel,&
                                              init_gaussian_gridlevel
@@ -136,11 +137,12 @@ END SUBROUTINE kg_rspw_create
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_rspw_rebuild', &
       routineP = moduleN//':'//routineN
+    ! KG doesn't setup the radius correctly. It appears that not all primitives that are actually mapped
+    ! are being tested in the radius calculation. This safety_factor will lead to poorer parallel performance
     REAL(KIND=dp), PARAMETER                 :: safety_factor = 1.2
 
     INTEGER :: handle, i, igrid_level, ikind, iounit, ipgf, iset, ishell, la, &
       lgrid_level, ncommensurate, ngrid_level, nkind, nseta, nsmax, stat
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: cmaxl
     INTEGER, DIMENSION(:), POINTER           :: npgfa, nshella
     INTEGER, DIMENSION(:, :), POINTER        :: lshella
     LOGICAL                                  :: failure, should_output, &
@@ -369,9 +371,13 @@ END SUBROUTINE kg_rspw_create
            ! right now, the core is mapped on the auxiliary basis,
            ! this should, at a give point be changed
            ! so that also for the core a multigrid is used
-           IF (alpha > 0.0_dp)&
+           IF (alpha > 0.0_dp) THEN
              maxradius=MAX(maxradius,exp_radius( 0, alpha, &
                            dft_control%qs_control%eps_rho_rspace, 10.0_dp))
+             ! forces
+             maxradius=MAX(maxradius,exp_radius( 1, alpha, &
+                           dft_control%qs_control%eps_rho_rspace, 10.0_dp))
+           ENDIF
            CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
                                 npgf=npgfa, nset=nseta, zet=zeta,l=lshella,nshell=nshella)
            DO iset=1,nseta
@@ -391,6 +397,10 @@ END SUBROUTINE kg_rspw_create
                      !potential
                      maxradius=MAX(maxradius,exp_radius( la, zetp, &
                                   dft_control%qs_control%eps_gvg_rspace, 1.0_dp))
+
+                     !forces
+                     maxradius=MAX(maxradius,exp_radius( la+1, zetp, &
+                                  dft_control%qs_control%eps_gvg_rspace, 1.0_dp))
                    ENDIF
                  END DO
               END DO
@@ -408,20 +418,29 @@ END SUBROUTINE kg_rspw_create
 !
       ALLOCATE(rs_pools(ngrid_level),stat=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
       DO igrid_level=1,ngrid_level
         pw_grid => pw_pools(igrid_level)%pool%pw_grid
-! init rs_pools
-        drmin = MINVAL ( pw_grid%dr )
+        NULLIFY(rs_pools(igrid_level)%pool)
+
+        CALL init_cube_info(kg_rspw%cube_info(igrid_level),&
+               pw_grid%dr(:), pw_grid%dh(:,:), pw_grid%dh_inv(:,:), pw_grid%orthorhombic,&
+               radius(igrid_level))
+
+        ! nsmax is used as a flag to create rs grids either replicated or distributed
         IF ( dft_control % qs_control % rs_distributed_id .EQ. do_rsgrid_distributed ) THEN
-           nsmax = 2*MAX(1,CEILING((radius(igrid_level))/drmin))+1
+           nsmax = 2*MAX(1,return_cube_max_iradius(kg_rspw%cube_info(igrid_level)))+1
         ELSE
             nsmax = -1
         ENDIF
-        NULLIFY(rs_pools(igrid_level)%pool)
+
         CALL rs_pool_create(rs_pools(igrid_level)%pool,&
             el_struct=pw_grid,nsmax=nsmax,error=error)
       ENDDO
       kg_rspw%rs_pools => rs_pools
+
+      DEALLOCATE(radius,stat=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
 !
 !    Print grid information
@@ -442,27 +461,6 @@ END SUBROUTINE kg_rspw_create
      CALL cp_print_key_finished_output(iounit,logger,print_section,&
          "",error=error)
 
-!
-!
-! set up the cube info and the cmaxl array
-!
-!
-     ALLOCATE(cmaxl(ngrid_level),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-      DO igrid_level=1,ngrid_level
-         kg_rspw%cube_info%max_rad_ga = maxradius
-         CALL init_cube_info(kg_rspw%cube_info(igrid_level),&
-               pw_pools(igrid_level)%pool%pw_grid%dr(:),&
-               pw_pools(igrid_level)%pool%pw_grid%dh(:,:),&
-               pw_pools(igrid_level)%pool%pw_grid%orthorhombic,&
-               radius(igrid_level),cmaxl(igrid_level))
-      END DO
-
-     DEALLOCATE(radius,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     DEALLOCATE(cmaxl,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
    END IF
 

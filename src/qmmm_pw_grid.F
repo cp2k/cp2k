@@ -214,6 +214,7 @@ CONTAINS
        pw_grid_out%ngpts_cut_local=0
        pw_grid_out%dr              =  pw_grid_in%dr
        pw_grid_out%dh              =  pw_grid_in%dh
+       pw_grid_out%dh_inv          =  pw_grid_in%dh_inv
        pw_grid_out%orthorhombic    =  pw_grid_in%orthorhombic
        pw_grid_out%dvol            =  pw_grid_in%dvol
        pw_grid_out%vol             =  pw_grid_in%vol*REAL(pw_grid_out%ngpts,dp)&
