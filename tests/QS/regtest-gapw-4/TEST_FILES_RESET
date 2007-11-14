@@ -14,5 +14,6 @@ CO_xastpxfh.inp
 H2O_gpw.inp
 # Merging behavior of all optimizer. one more step of energy evaluation after convergence.
 H2O_gpw.inp
-#  
+# again
+H2O_gpw.inp
 CO_xastpxfh.inp

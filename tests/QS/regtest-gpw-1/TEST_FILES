@@ -33,3 +33,5 @@ H2.inp             1
 # printing of structure data
 H2O-geoopt.inp     1
 H2O-fixed.inp      1
+h2o_dip_berry.inp  17
+h2o_dip_iso.inp    17

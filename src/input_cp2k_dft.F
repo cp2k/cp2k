@@ -1263,6 +1263,38 @@ CONTAINS
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword=keyword, name="REFERENCE",&
+            variants=s2a("REF"),&
+            description="Define the reference point for electrical moment calculations.",&
+            usage="REFERENCE COM",&
+            enum_c_vals=s2a("COM","COAC","USER_DEFINED","ZERO","DEFAULT"),&
+            enum_desc=s2a("Use Center of Mass",&
+            "Use Center of Atomic Charges",&
+            "Use User Defined Point (Keyword:REF_POINT)",&
+            "Use Origin of Coordinate System",&
+            "Use Default (depends on method: periodic or localized)"),&
+            enum_i_vals=(/ use_mom_ref_com,&
+            use_mom_ref_coac,&
+            use_mom_ref_user,&
+            use_mom_ref_zero,&
+            use_mom_ref_nondef /),&
+            default_i_val=use_mom_ref_nondef, error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword=keyword, name="REFERENCE_POINT",&
+            variants=s2a("REF_POINT"),&
+            description="Fixed reference point for electrical moment calculations.",&
+            usage="REFERENCE_POINT x y z", &
+            repeats=.FALSE.,&
+            required=.FALSE.,&
+            n_var=3,default_r_vals=(/0._dp,0._dp,0._dp/),&
+            type_of_var=real_t, &
+            unit_str='bohr',&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
        !End of Printing of Moments

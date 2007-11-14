@@ -51,8 +51,10 @@ MODULE qs_moments
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE input_constants,                 ONLY: use_mom_ref_com,&
+       use_mom_ref_coac, use_mom_ref_user, use_mom_ref_zero, use_mom_ref_nondef
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: twopi
+  USE mathconstants,                   ONLY: twopi, pi, pio2
   USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: current_maxl,&
                                              indco,&
@@ -100,14 +102,16 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE build_local_moment_matrix(qs_env,moments,nmoments,ref_point,error)
+  SUBROUTINE build_local_moment_matrix(qs_env,moments,nmoments,ref_point,ref_points,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: moments
     INTEGER, INTENT(IN)                      :: nmoments
-    REAL(KIND=dp), DIMENSION(:, :), &
+    REAL(KIND=dp), DIMENSION(:), &
       INTENT(IN), OPTIONAL                   :: ref_point
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN), OPTIONAL                   :: ref_points
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_local_moment_matrix', &
@@ -292,19 +296,20 @@ CONTAINS
               mint(i)%block = 0._dp
             END DO
 
+            ! fold atomic position back into unit cell
             ra(:) = pbc(particle_set(iatom)%r(:),cell)
             rb(:) = pbc(particle_set(jatom)%r(:),cell)
-            IF ( PRESENT (ref_point) ) THEN
-               rc(:) = 0.5_dp * (ref_point(:,iatom) + ref_point(:,jatom))
+            IF ( PRESENT (ref_points) ) THEN
+               rc(:) = 0.5_dp * (ref_points(:,iatom) + ref_points(:,jatom))
+            ELSE IF ( PRESENT (ref_point) ) THEN
+               rc(:) = ref_point(:)
             ELSE
                rc(:) = 0._dp
             END IF
+            ! we dont use PBC at this point
             rab(:) = ra(:) - rb(:)
-            rab(:) = pbc(rab,cell)
             rac(:) = ra(:) - rc(:)
-            rac(:) = pbc(rac,cell)
             rbc(:) = rb(:) - rc(:)
-            rbc(:) = pbc(rbc,cell)
             rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
             dab = SQRT(rab2)
 
@@ -606,10 +611,11 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE qs_moment_berry_phase (qs_env,nmoments,unit_number,error)
+  SUBROUTINE qs_moment_berry_phase (qs_env,nmoments,reference,ref_point,unit_number,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    INTEGER, INTENT(IN)                      :: nmoments, unit_number
+    INTEGER, INTENT(IN)                      :: nmoments, reference, unit_number
+    REAL(dp), DIMENSION(:), POINTER          :: ref_point
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_moment_berry_phase', &
@@ -618,10 +624,10 @@ CONTAINS
     CHARACTER(LEN=8), ALLOCATABLE, &
       DIMENSION(:)                           :: rlab
     INTEGER                                  :: handle, ia, iatom, ikind, &
-      istat, ix, iy, iz, l, nm, nmom, ispin, i, nmo, nao, nmotot
+      istat, ix, iy, iz, l, nm, nmom, ispin, i, nmo, nao, nmotot, j, k
     LOGICAL                                  :: failure, uniform
     REAL(dp)                                 :: charge, dd, ztot, trace, occ
-    COMPLEX(dp)                              :: zdet, zdeta, xphase(3)
+    COMPLEX(dp)                              :: zdet, zdeta, xphase(3), zphase(3)
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: rmom
     REAL(dp), DIMENSION(3)                   :: rcc, ria, kvec
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -644,7 +650,7 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_cfm_type), POINTER               :: eigrmat
-    COMPLEX(dp) :: zi(3), zij(3,3), zijk(3,3,3), zijkl(3,3,3,3)
+    COMPLEX(dp) :: zz, zi(3), zij(3,3), zijk(3,3,3), zijkl(3,3,3,3)
     REAL(dp) :: ci(3), cij(3,3), cijk(3,3,3), cijkl(3,3,3,3)
 
 ! -------------------------------------------------------------------------
@@ -657,7 +663,7 @@ CONTAINS
        CALL timeset(routineN,"I","",handle)
 
        ! restrict maximum moment available
-       nmom = MIN(nmoments,1)
+       nmom = MIN(nmoments,2)
 
        nm = (6 + 11*nmom + 6*nmom**2 + nmom**3)/6 - 1
        ALLOCATE (rmom(nm+1,3),STAT=istat)
@@ -709,51 +715,117 @@ CONTAINS
          CPPostcondition(uniform,cp_failure_level,routineP,error,failure)
        END DO
 
-       ! nuclear contribution
-       ! center of charge
-       rcc = 0._dp
-       ztot = 0._dp
-       DO ikind = 1,SIZE(local_particles%n_el)
-          DO ia = 1,local_particles%n_el(ikind)
-            iatom = local_particles%list(ikind)%array(ia)
-            ria = particle_set(iatom)%r
-            ria = pbc(ria,cell)
-            atomic_kind => particle_set(iatom)%atomic_kind
-            CALL get_atomic_kind(atomic_kind=atomic_kind,core_charge=charge)
-            rcc(:) = rcc(:) + charge*ria(:)
-            ztot = ztot + charge
-          END DO
-       END DO
-       CALL mp_sum(rcc,para_env%group)
-       CALL mp_sum(ztot,para_env%group)
-       IF (ABS(ztot) > 0._dp) rcc(:) = rcc(:)/ztot
-       ria = twopi * REAL(nmotot,dp) * matmul ( cell%h_inv, rcc )
-       xphase = CMPLX ( COS(ria), SIN(ria), dp )
+       ! reference point
+       CALL get_reference_point(rcc,qs_env,reference,ref_point,error)
+       rcc = pbc(rcc,cell)
 
-       DO ikind = 1,SIZE(local_particles%n_el)
-          DO ia = 1,local_particles%n_el(ikind)
-            iatom = local_particles%list(ikind)%array(ia)
-            ria = particle_set(iatom)%r - rcc
-            ria = pbc(ria,cell)
-            atomic_kind => particle_set(iatom)%atomic_kind
-            CALL get_atomic_kind(atomic_kind=atomic_kind,core_charge=charge)
-            rmom(1,2) = rmom(1,2) - charge
-            DO l = 1, nm
-              ix = indco(1,l+1)
-              iy = indco(2,l+1)
-              iz = indco(3,l+1)
-              dd = 1._dp
-              IF (ix > 0) dd = dd * ria(1)**ix
-              IF (iy > 0) dd = dd * ria(2)**iy
-              IF (iz > 0) dd = dd * ria(3)**iz
-              rmom(l+1,2) = rmom(l+1,2) - charge * dd
-              CALL set_label (rlab(l+1),ix,iy,iz)
-            END DO
-          END DO
+       ! label
+       DO l = 1, nm
+          ix = indco(1,l+1)
+          iy = indco(2,l+1)
+          iz = indco(3,l+1)
+          CALL set_label (rlab(l+1),ix,iy,iz)
        END DO
-       CALL mp_sum(rmom(:,2),para_env%group)
+
+       ! nuclear contribution
+
+       rmom(1,2) = 0._dp
+       DO ia = 1,SIZE(particle_set)
+         atomic_kind => particle_set(ia)%atomic_kind
+         CALL get_atomic_kind(atomic_kind=atomic_kind,core_charge=charge)
+         rmom(1,2) = rmom(1,2) - charge
+       END DO
+       ria = twopi * matmul ( cell%h_inv, rcc )
+       zphase = CMPLX ( COS(ria), SIN(ria), dp )**rmom(1,2)
+
+       zi = 0._dp
+       zij = 0._dp
+       zijk = 0._dp
+       zijkl = 0._dp
+
+       DO l = 1, nmom
+         SELECT CASE (l)
+           CASE (1)
+             ! Dipole
+             zi(:) = CMPLX ( 1._dp, 0._dp, dp )
+             DO ia = 1,SIZE(particle_set)
+               atomic_kind => particle_set(ia)%atomic_kind
+               CALL get_atomic_kind(atomic_kind=atomic_kind,core_charge=charge)
+               ria = particle_set(ia)%r
+               ria = pbc(ria,cell)
+               DO i = 1, 3
+                 kvec(:) = twopi*cell%h_inv(i,:)
+                 dd = SUM ( kvec(:) * ria(:) )
+                 zdeta = CMPLX(COS(dd),SIN(dd),KIND=dp)**charge
+                 zi(i) = zi(i) * zdeta
+               END DO
+             END DO
+             zi = zi * zphase
+             ci = ATAN(AIMAG(zi)/REAL(zi,dp)) 
+             rmom(2:4,2) = MATMUL ( cell%hmat, ci )/twopi
+           CASE (2)
+             ! Quadrupole
+             CALL cp_unimplemented_error(fromWhere=routineP, &
+                  message="Berry phase moments bigger than 1 not implemented", &
+                  error=error, error_level=cp_failure_level)
+             zij(:,:) = CMPLX ( 1._dp, 0._dp, dp )
+             DO ia = 1,SIZE(particle_set)
+               atomic_kind => particle_set(ia)%atomic_kind
+               CALL get_atomic_kind(atomic_kind=atomic_kind,core_charge=charge)
+               ria = particle_set(ia)%r
+               ria = pbc(ria,cell)
+               DO i = 1, 3
+                 DO j = i, 3
+                   kvec(:) = twopi*(cell%h_inv(i,:)+cell%h_inv(j,:))
+                   dd = SUM ( kvec(:) * ria(:) )
+                   zdeta = CMPLX(COS(dd),SIN(dd),KIND=dp)**charge
+                   zij(i,j) = zij(i,j) * zdeta
+                 END DO
+                 zij(j,i) = zij(i,j)
+               END DO
+             END DO
+             DO i=1,3
+               DO j=1,3
+                 zij(i,j) = zij(i,j)*zphase(i)*zphase(j)
+                 zz = zij(i,j)/zi(i)/zi(j)
+                 cij(i,j) = ATAN(AIMAG(zz)/REAL(zz,dp))
+               END DO
+             END DO
+             cij = 0.5_dp*cij/twopi/twopi
+             cij = MATMUL ( MATMUL ( cell%hmat, cij ), TRANSPOSE(cell%hmat) )
+             DO k = 4, 9
+               ix = indco(1,k+1)
+               iy = indco(2,k+1)
+               iz = indco(3,k+1)
+               IF ( ix == 0 ) THEN
+                 rmom(k+1,2) = cij(iy,iz)
+               ELSE IF ( iy == 0 ) THEN
+                 rmom(k+1,2) = cij(ix,iz)
+               ELSE IF ( iz == 0 ) THEN
+                 rmom(k+1,2) = cij(ix,iy)
+               END IF
+             END DO
+           CASE (3)
+             ! Octapole
+             CALL cp_unimplemented_error(fromWhere=routineP, &
+                  message="Berry phase moments bigger than 2 not implemented", &
+                  error=error, error_level=cp_failure_level)
+           CASE (4)
+             ! Hexadecapole
+             CALL cp_unimplemented_error(fromWhere=routineP, &
+                  message="Berry phase moments bigger than 3 not implemented", &
+                  error=error, error_level=cp_failure_level)
+           CASE DEFAULT
+             CALL cp_unimplemented_error(fromWhere=routineP, &
+                  message="Berry phase moments bigger than 4 not implemented", &
+                  error=error, error_level=cp_failure_level)
+         END SELECT
+       END DO
 
        ! electronic contribution
+
+       ria = twopi * REAL(nmotot,dp) * matmul ( cell%h_inv, rcc )
+       xphase = CMPLX ( COS(ria), SIN(ria), dp )
 
        ! charge
        DO ispin=1,dft_control%nspins
@@ -788,10 +860,36 @@ CONTAINS
              zi = zi * xphase
            CASE (2)
              ! Quadrupole
+             CALL cp_unimplemented_error(fromWhere=routineP, &
+                message="Berry phase moments bigger than 1 not implemented", &
+                error=error, error_level=cp_failure_level)
+             DO i = 1, 3
+               DO j = i, 3
+                  kvec(:) = twopi*(cell%h_inv(i,:)+cell%h_inv(j,:))
+                  CALL build_berry_moment_matrix(qs_env,cosmat,sinmat,kvec,error)
+                  CALL op_orbbas (cosmat,sinmat,mos,op_fm_set,opvec,error)
+                  zdet = CMPLX ( 1._dp, 0._dp, dp )
+                  DO ispin = 1, dft_control%nspins
+                    eigrmat%local_data(:,:) = &
+                          CMPLX (op_fm_set(1,ispin)%matrix%local_data(:,:), &
+                                 -op_fm_set(2,ispin)%matrix%local_data(:,:),dp)
+                    CALL cp_cfm_lu_decompose ( eigrmat, zdeta )
+                    zdet = zdet * zdeta
+                  END DO
+                  zij(i,j) = zdet*xphase(i)*xphase(j)
+                  zij(j,i) = zdet*xphase(i)*xphase(j)
+               END DO
+             END DO
            CASE (3)
              ! Octapole
+             CALL cp_unimplemented_error(fromWhere=routineP, &
+                  message="Berry phase moments bigger than 2 not implemented", &
+                  error=error, error_level=cp_failure_level)
            CASE (4)
              ! Hexadecapole
+             CALL cp_unimplemented_error(fromWhere=routineP, &
+                  message="Berry phase moments bigger than 3 not implemented", &
+                  error=error, error_level=cp_failure_level)
            CASE DEFAULT
              CALL cp_unimplemented_error(fromWhere=routineP, &
                   message="Berry phase moments bigger than 4 not implemented", &
@@ -801,22 +899,43 @@ CONTAINS
        DO l = 1, nmom
          SELECT CASE (l)
            CASE (1)
+             ! Dipole
              ci = ATAN(AIMAG(zi)/REAL(zi,dp))
              rmom(2:4,1) = occ * MATMUL ( cell%hmat, ci )/twopi
            CASE (2)
              ! Quadrupole
              CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="Berry phase moments bigger than 4 not implemented", &
-                  error=error, error_level=cp_failure_level)
+                message="Berry phase moments bigger than 1 not implemented", &
+                error=error, error_level=cp_failure_level)
+             DO i=1,3
+               DO j=1,3
+                 zz = zij(i,j)/zi(i)/zi(j)
+                 cij(i,j) = ATAN(AIMAG(zz)/REAL(zz,dp))
+               END DO
+             END DO
+             cij = occ*0.5_dp*cij/twopi/twopi
+             cij = MATMUL ( MATMUL ( cell%hmat, cij ), TRANSPOSE(cell%hmat) )
+             DO k = 4, 9
+               ix = indco(1,k+1)
+               iy = indco(2,k+1)
+               iz = indco(3,k+1)
+               IF ( ix == 0 ) THEN
+                 rmom(k+1,1) = cij(iy,iz)
+               ELSE IF ( iy == 0 ) THEN
+                 rmom(k+1,1) = cij(ix,iz)
+               ELSE IF ( iz == 0 ) THEN
+                 rmom(k+1,1) = cij(ix,iy)
+               END IF
+             END DO
            CASE (3)
              ! Octapole
              CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="Berry phase moments bigger than 4 not implemented", &
+                  message="Berry phase moments bigger than 2 not implemented", &
                   error=error, error_level=cp_failure_level)
            CASE (4)
              ! Hexadecapole
              CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="Berry phase moments bigger than 4 not implemented", &
+                  message="Berry phase moments bigger than 3 not implemented", &
                   error=error, error_level=cp_failure_level)
            CASE DEFAULT
              CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -826,8 +945,8 @@ CONTAINS
        END DO
 
        rmom(:,3) = rmom(:,1) + rmom(:,2)
-       rmom(:,:) = -rmom(:,:)
-       CALL print_moments(unit_number,nmom,rmom,rlab)
+
+       CALL print_moments(unit_number,nmom,rmom,rlab,rcc)
 
        DEALLOCATE (rmom,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -854,6 +973,80 @@ CONTAINS
      END IF
 
   END SUBROUTINE qs_moment_berry_phase
+
+  SUBROUTINE get_reference_point(rpoint,qs_env,reference,ref_point,error)
+    REAL(dp), DIMENSION(3), INTENT(OUT)      :: rpoint
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    INTEGER, INTENT(IN)                      :: reference
+    REAL(dp), DIMENSION(:), POINTER          :: ref_point
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_reference_point', &
+      routineP = moduleN//':'//routineN
+
+    REAL(dp)                                 :: ztot, mtot, charge, mass
+    REAL(dp), DIMENSION(3)                   :: ria
+    INTEGER                                  :: ikind, ia, iatom
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+
+    para_env => qs_env%para_env
+    NULLIFY ( cell, particle_set, local_particles )
+    CALL get_qs_env ( qs_env, cell=cell, particle_set=particle_set, &
+                      local_particles=local_particles, error=error)
+
+    SELECT CASE (reference)
+      CASE DEFAULT
+        CALL cp_unimplemented_error(fromWhere=routineP, &
+                  message="Type of reference point not implemented", &
+                  error=error, error_level=cp_failure_level)
+      CASE (use_mom_ref_com)
+        rpoint = 0._dp
+        mtot = 0._dp
+        DO ikind = 1,SIZE(local_particles%n_el)
+          DO ia = 1,local_particles%n_el(ikind)
+            iatom = local_particles%list(ikind)%array(ia)
+            ria = particle_set(iatom)%r
+            ria = pbc(ria,cell)
+            atomic_kind => particle_set(iatom)%atomic_kind
+            CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+            rpoint(:) = rpoint(:) + mass*ria(:)
+            mtot = mtot + mass
+          END DO
+        END DO
+        CALL mp_sum(rpoint,para_env%group)
+        CALL mp_sum(mtot,para_env%group)
+        IF (ABS(mtot) > 0._dp) rpoint(:) = rpoint(:)/mtot
+      CASE (use_mom_ref_coac)
+        rpoint = 0._dp
+        ztot = 0._dp
+        DO ikind = 1,SIZE(local_particles%n_el)
+          DO ia = 1,local_particles%n_el(ikind)
+            iatom = local_particles%list(ikind)%array(ia)
+            ria = particle_set(iatom)%r
+            ria = pbc(ria,cell)
+            atomic_kind => particle_set(iatom)%atomic_kind
+            CALL get_atomic_kind(atomic_kind=atomic_kind,core_charge=charge)
+            rpoint(:) = rpoint(:) + charge*ria(:)
+            ztot = ztot + charge
+          END DO
+        END DO
+        CALL mp_sum(rpoint,para_env%group)
+        CALL mp_sum(ztot,para_env%group)
+        IF (ABS(ztot) > 0._dp) rpoint(:) = rpoint(:)/ztot
+      CASE (use_mom_ref_user)
+        rpoint = ref_point
+      CASE (use_mom_ref_zero)
+        rpoint = 0._dp
+      CASE (use_mom_ref_nondef)
+        rpoint = 0._dp
+    END SELECT
+
+  END SUBROUTINE get_reference_point
 
   SUBROUTINE op_orbbas (cosmat,sinmat,mos,op_fm_set,opvec,error)
 
@@ -883,10 +1076,11 @@ CONTAINS
 
 ! ***************************************************************************
 
-  SUBROUTINE qs_moment_locop (qs_env,nmoments,unit_number,error)
+  SUBROUTINE qs_moment_locop (qs_env,nmoments,reference,ref_point,unit_number,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    INTEGER, INTENT(IN)                      :: nmoments, unit_number
+    INTEGER, INTENT(IN)                      :: nmoments, reference, unit_number
+    REAL(dp), DIMENSION(:), POINTER          :: ref_point
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_moment_locop', &
@@ -900,7 +1094,7 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(dp)                                 :: charge, dd, strace, trace
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: rmom
-    REAL(dp), DIMENSION(3)                   :: ria
+    REAL(dp), DIMENSION(3)                   :: ria, rcc
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -921,11 +1115,14 @@ CONTAINS
 
        CALL timeset(routineN,"I","",handle)
 
+       ! reference point
+       CALL get_reference_point(rcc,qs_env,reference,ref_point,error)
+
        ! only allow for moments up to maxl set by basis
        nmom = MIN (nmoments,current_maxl)
        ! electronic contribution
        NULLIFY ( moments )
-       CALL build_local_moment_matrix(qs_env,moments,nmom,error=error)
+       CALL build_local_moment_matrix(qs_env,moments,nmom,ref_point=rcc,error=error)
        NULLIFY ( dft_control, rho, cell, particle_set )
        CALL get_qs_env ( qs_env, dft_control=dft_control, rho=rho, cell=cell,&
                          particle_set=particle_set, error=error)
@@ -965,8 +1162,9 @@ CONTAINS
        DO ikind = 1,SIZE(local_particles%n_el)
           DO ia = 1,local_particles%n_el(ikind)
             iatom = local_particles%list(ikind)%array(ia)
-            ria = particle_set(iatom)%r
-            ria = pbc(ria,cell)
+            ! fold atomic positions back into unit cell
+            ria = pbc(particle_set(iatom)%r,cell)
+            ria = ria - rcc
             atomic_kind => particle_set(iatom)%atomic_kind
             CALL get_atomic_kind(atomic_kind=atomic_kind,core_charge=charge)
             rmom(1,2) = rmom(1,2) - charge
@@ -987,7 +1185,7 @@ CONTAINS
        rmom(:,:) = -rmom(:,:)
        rmom(:,3) = rmom(:,1) + rmom(:,2)
 
-       CALL print_moments(unit_number,nmom,rmom,rlab)
+       CALL print_moments(unit_number,nmom,rmom,rlab,rcc)
 
        DEALLOCATE (rmom,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -1019,10 +1217,11 @@ CONTAINS
     
   END SUBROUTINE set_label
 
-  SUBROUTINE print_moments(unit_number,nmom,rmom,rlab)
+  SUBROUTINE print_moments(unit_number,nmom,rmom,rlab,rcc)
     INTEGER, INTENT(IN)                      :: unit_number, nmom
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: rmom
     CHARACTER(LEN=8), DIMENSION(:)           :: rlab
+    REAL(dp), DIMENSION(3), INTENT(IN)       :: rcc
 
     INTEGER                                  :: i, i0, i1, j, l
     REAL(dp)                                 :: dd
@@ -1031,6 +1230,7 @@ CONTAINS
       DO l=0,nmom
         SELECT CASE (l)
           CASE (0)
+            WRITE(unit_number,"(T3,A,T32,3F16.8)") "Reference Point [Bohr]",rcc
             WRITE(unit_number,"(T3,A)") "Charges"
             WRITE(unit_number,"(T5,A,T18,F12.4,T36,A,T42,F12.4,T60,A,T68,F12.4)") &
              "Electronic=",rmom(1,1),"Core=",rmom(1,2),"Total=",rmom(1,3)

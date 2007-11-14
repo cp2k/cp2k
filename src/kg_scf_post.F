@@ -227,7 +227,7 @@ CONTAINS
 
         NULLIFY ( moments )
         CALL build_local_moment_matrix(qs_env,moments,nmoments,&
-                                 ref_point=ref_point,error=error)
+                                 ref_points=ref_point,error=error)
   
         nm = SIZE(moments,1)
         ALLOCATE ( mmol(1:nm,1:num_mol), STAT=istat )

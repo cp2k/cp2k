@@ -1,0 +1,63 @@
+&GLOBAL
+  PROJECT H2O
+  RUN_TYPE ENERGY
+  PRINT_LEVEL LOW
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD QS
+  &DFT
+     BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    &MGRID
+      CUTOFF 100
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-8
+      MAP_CONSISTENT
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-2
+      MAX_SCF 2
+      &OT
+        MINIMIZER DIIS
+        PRECONDITIONER FULL_ALL
+      &END
+      &PRINT
+        &RESTART
+           FILENAME =RESTART
+        &END
+      &END
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL Pade
+      &END XC_FUNCTIONAL
+    &END XC
+    &PRINT
+      &MOMENTS
+        MAX_MOMENT 1
+        PERIODIC   T
+        REFERENCE  COAC
+        REF_POINT  [angstrom] 2. 0. 0.  
+      &END MOMENTS
+    &END PRINT
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 10.58 10.58 10.58
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+    O         0.000000    0.000000    0.119040
+    H         0.000000    0.768000   -0.476160
+    H         0.000000   -0.768000   -0.476160
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-PADE-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

@@ -1163,7 +1163,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: filename
-    INTEGER                                  :: maxmom, unit_nr
+    INTEGER                                  :: maxmom, unit_nr, reference
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: ref_point
     LOGICAL                                  :: periodic
     TYPE(section_vals_type), POINTER         :: print_key
 
@@ -1176,6 +1177,10 @@ CONTAINS
              keyword_name="DFT%PRINT%MOMENTS%MAX_MOMENT",error=error)
        periodic = section_get_lval(section_vals=input,&
              keyword_name="DFT%PRINT%MOMENTS%PERIODIC",error=error)
+       reference = section_get_ival(section_vals=input,&
+             keyword_name="DFT%PRINT%MOMENTS%REFERENCE",error=error)
+       NULLIFY ( ref_point )
+       CALL section_vals_val_get(input,"DFT%PRINT%MOMENTS%REF_POINT",r_vals=ref_point,error=error)
        unit_nr = cp_print_key_unit_nr(logger=logger,basis_section=input,&
              print_key_path="DFT%PRINT%MOMENTS",extension=".dat",&
              middle_name="moments",log_filename=.FALSE.,error=error)
@@ -1192,9 +1197,9 @@ CONTAINS
        END IF
 
        IF (periodic) THEN
-          CALL qs_moment_berry_phase(qs_env,maxmom,unit_nr,error)
+          CALL qs_moment_berry_phase(qs_env,maxmom,reference,ref_point,unit_nr,error)
        ELSE
-          CALL qs_moment_locop(qs_env,maxmom,unit_nr,error)
+          CALL qs_moment_locop(qs_env,maxmom,reference,ref_point,unit_nr,error)
        END IF
 
        CALL cp_print_key_finished_output(unit_nr=unit_nr,logger=logger,&
