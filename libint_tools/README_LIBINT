@@ -1,0 +1,121 @@
+How to use LIBINT with different compilers
+==========================================
+
+Currently only G95 allows to compile cp2k without any hacks. 
+The following list describes how to proceed if you want to use another compiler.
+
+1. Compilers that fully support the ISO_C_BINDING Fortran 2003 standard
+
+   a) G95 (testet with G95 Compiler 0.91 May 11 2007 on Opteron machine)
+     - Compile the libint library. Usually it is enough to execute the following commands:
+       ./configure --prefix='your_install_directory'
+       make
+       make install
+     - Add -D__LIBINT to the DFLAGS in the architecture file
+       Example:
+           DFLAGS = -D__G95 -D__FFTSG -D__FFTW3 -D__LIBINT
+     - Add the libraries to the LIBS in the architecture file
+       Example:
+           LIBS     = $(G95_LIB)/liblapack.a \
+                      $(G95_LIB)/libgoto.a \
+                      $(G95_LIB)/libfftw3.a \
+                      'path_to_libint_libs'/lib/libderiv.a \
+                      'path_to_libint_libs'/lib/libint.a \
+                      -lstdc++ -lpthread
+
+       lstdc++ is needed because libint is written in C++
+       NOTE: Take care that you link in the correct order
+     - Compile cp2k in the usual way
+
+2. Compilers that partially support the ISO_C_BINDING Fortran 2003 standard
+
+   a) NAG (tested with NAGWare Fortran 95 compiler Release 5.1(327) on Opteron machine)
+     - Compile the libint library. Usually it is enough to execute the following commands:
+       ./configure --prefix='your_install_directory'
+       make
+       make install
+     - Add -D__LIBINT to the DFLAGS in the architecture file
+       Example:
+           DFLAGS = -D__NAG -D__FFTSG -D__FFTW3 -D__LIBINT
+     - Since NAG only partially supports ISO_C_BINDING you need to compile a C++ wrapper:
+         1. Move into the cp2k/libint_tools 
+         2. The source file is called libint_cpp_wrapper.cpp
+         3. Compile 
+               g++ -O3 -c libint_cpp_wrapper.cpp -I/'path_to_libint.h_and_libderiv.h'
+            to get libint_cpp_wrapper.o
+         4. Add the libint libraries and the libint_cpp_wrapper.o to the architecture file
+            Example:
+                LIBS     = $(NAG_LIB)/libacml.a \
+                           $(NAG_LIB)/libacml_mv.a \
+                           $(NAG_LIB)/libfftw3.a\
+                            cp2k/libint_tools/libint_cpp_wrapper.o\
+                           'path_to_libint_libs'/lib/libderiv.a\
+                           'path_to_libint_libs'/lib/libint.a\
+                           -lstdc++
+
+            lstdc++ is needed because libint is written in C++
+            NOTE: Take care that you link in the correct order
+     - Compile cp2k in the usual way
+
+   b) INTEL (tested with Fortran Compiler Version 10.0 (l_fc_c_10.0.025 on Opteron machine)
+     - Compile the libint library. Usually it is enough to execute the following commands:
+       ./configure --prefix='your_install_directory'
+       make
+       make install
+     - Add -D__LIBINT to the DFLAGS in the architecture file
+       Example:
+           DFLAGS = -D__INTEL -D__FFTSG -D__FFTW3 -D__LIBINT
+     - Since NAG only partially supports ISO_C_BINDING you need to compile a C++ wrapper:
+         1. Move into the cp2k/libint_tools directory
+         2. The source file is called libint_cpp_wrapper.cpp
+         3. Compile
+               g++ -O3 -c libint_cpp_wrapper.cpp -I/'path_to_libint.h_and_libderiv.h'
+            to get libint_cpp_wrapper.o
+         4. Add the libint libraries and the libint_cpp_wrapper.o to the architecture file
+            Example:
+                LIBS     = $(INTEL_LIB)/libacml.a \
+                           $(INTEL_LIB)/libacml_mv.a \
+                           $(INTEL_LIB)/libfftw3.a\
+                           cp2k/libint_tools/libint_cpp_wrapper.o\
+                           'path_to_libint_libs'/lib/libderiv.a\
+                           'path_to_libint_libs'/lib/libint.a\
+                           -lstdc++
+
+            lstdc++ is needed because libint is written in C++
+            NOTE: Take care that you link in the correct order
+     - Compile cp2k in the usual way
+
+3. Compilers that do not support the ISO_C_BINDING Fortran 2003 standard
+
+   a) PGI on a CRAY XT3 (tested with pgf90 7.0-7 64-bit on catamount target)
+     - Compile the libint library. Take care if host and target are not identical
+       ./configure --prefix='your_install_directory' --with-cxx=CC --target=cray --host=x86_64-unknown-linux-gnu
+       make
+       make install
+     - Add -D__LIBINT to the DFLAGS in the architecture file
+       Example:
+           DFLAGS = -D__XT3 -D__FFTSG -D__FFTW3 -D__LIBINT
+     - If your Compiler supports CRAY POINTERS you can additionally add
+           DFLAGS = -D__XT3 -D__FFTSG -D__FFTW3 -D__LIBINT -D__UGLY_BUT_FAST
+       to make the execution of cp2k faster
+     - Since PGI does not support ISO_C_BINDING you need to compile a C++ wrapper:
+         1. Move into the cp2k/libint_tools directory
+         2. The source file is called libint_cpp_wrapper.cpp
+         3. Compile
+               CC -c -target=catamount libint_cpp_wrapper.cpp -I/'path_to_libint.h_and_libderiv.h'
+            to get libint_cpp_wrapper.o
+         4. Add the libint libraries and the libint_cpp_wrapper.o to the architecture file
+            Example:
+                LIBS     = $(PGI_LIB)/libacml.a \
+                           $(PGI_LIB)/libacml_mv.a \
+                           $(PGI_LIB)/libfftw3.a\
+                           cp2k/libint_tools/libint_cpp_wrapper.o\
+                           'path_to_libint_libs'/lib/libderiv.a\
+                           'path_to_libint_libs'/lib/libint.a\
+            NOTE: Take care that you link in the correct order
+     - Compile cp2k in the usual way
+
+4. Other compilers 
+   
+   We will try to test other compilers in the future. If you want to play around yourself, have a look at
+   /cp2k/src/libint_wrapper.F
