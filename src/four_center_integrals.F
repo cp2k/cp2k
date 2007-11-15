@@ -40,11 +40,11 @@ MODULE four_center_integrals
   USE libint_interface,                ONLY: evaluate_deriv_eri,&
                                              evaluate_eri,&
                                              evaluate_eri_screen,&
-                                             initialize_libderiv,&
+                                             pbc
+  USE libint_wrapper,                  ONLY: initialize_libderiv,&
                                              initialize_libint,&
                                              lib_deriv,&
-                                             lib_int,&
-                                             pbc
+                                             lib_int
   USE mathconstants
   USE mathlib,                         ONLY: symmetrize_matrix
   USE message_passing,                 ONLY: mp_bcast,&
@@ -70,12 +70,11 @@ MODULE four_center_integrals
        x_hf_add_mult_cache_elements, x_hf_add_single_cache_element, &
        x_hf_box_scheme, x_hf_cache_type, x_hf_cell_type, x_hf_container_type, &
        x_hf_decompress_first_cache, x_hf_distribution, x_hf_flush_last_cache, &
-       x_hf_general_type, x_hf_get_memory_info, &
-       x_hf_get_mult_cache_elements, x_hf_get_single_cache_element, &
-       x_hf_init_container, x_hf_load_balance_type, x_hf_memory_type, &
-       x_hf_potential_type, x_hf_reset_cache_and_container, &
-       x_hf_screening_type, x_hf_set_distr_energy, x_hf_set_distr_forces, &
-       x_hf_type
+       x_hf_general_type, x_hf_get_memory_info, x_hf_get_mult_cache_elements, &
+       x_hf_get_single_cache_element, x_hf_init_container, &
+       x_hf_load_balance_type, x_hf_memory_type, x_hf_potential_type, &
+       x_hf_reset_cache_and_container, x_hf_screening_type, &
+       x_hf_set_distr_energy, x_hf_set_distr_forces, x_hf_type
   USE x_hf_distribution_mc,            ONLY: x_hf_optimize_distribution
 #include "cp_common_uses.h"
 
@@ -170,11 +169,12 @@ MODULE four_center_integrals
     REAL(dp) :: actual_pmax_entry, box_size(3), cartesian_estimate, &
       center1(3), center2(3), center2_folded(3), compression_factor, &
       current_max_error, ene_x_aa, ene_x_bb, eps_box, eps_schwarz, &
-      estimate_to_store, fac, hf_fraction, K, Kbox, ks_bc, ks_bd, ks_beta_bc, &
-      ks_beta_bd, max_contraction_val, max_val1, max_val2, omega_box, p_bc, &
-      p_bd, p_beta_bc, p_beta_bd, p_screening_correction_factor, &
-      pbc_center(3), pmax_entry, R1, R2, ra(3), rb(3), Rbox, rc(3), rd(3), &
-      screen_max, spherical_estimate, symm_fac, temp(3), tmp
+      eps_storage, estimate_to_store, fac, hf_fraction, K, Kbox, ks_bc, &
+      ks_bd, ks_beta_bc, ks_beta_bd, max_contraction_val, max_val1, max_val2, &
+      omega_box, p_bc, p_bd, p_beta_bc, p_beta_bd, &
+      p_screening_correction_factor, pbc_center(3), pmax_entry, R1, R2, &
+      ra(3), rb(3), Rbox, rc(3), rd(3), screen_max, spherical_estimate, &
+      symm_fac, temp(3), tmp
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: primitive_integrals, T1
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: full_ks, full_ks_beta
     REAL(dp), DIMENSION(:, :), POINTER :: full_density, full_density_beta, &
@@ -203,7 +203,6 @@ MODULE four_center_integrals
     TYPE(x_hf_memory_type)                   :: memory_parameter
     TYPE(x_hf_potential_type)                :: potential_parameter
     TYPE(x_hf_screening_type)                :: screening_parameter
-    REAL(dp)                                 :: eps_storage
 
     current_max_error = 0.0_dp
 
@@ -417,7 +416,6 @@ MODULE four_center_integrals
                              error)
       END IF
     END IF
-
     CALL timeset(routineN//"_main",handle_main)
 
     !! Initialize a prefactor depending on the fraction and the number of spins
@@ -657,7 +655,6 @@ MODULE four_center_integrals
                       R1 = qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%R
                       radius1 = INT(1.0_dp/ &
                         (SQRT(2.0_dp*qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%alpha)*erfc_epsilon))
-!                      radius1 = INT(exp_radius(2,qs_env%x_data%far_field_boxes(box_idx2,box_idx1)%alpha,eps_box,1.0_dp))
                       DO kset = 1,nsetc
                         ncoc = npgfc(kset)*ncoset(lc_max(kset))
                         sgfc = first_sgfc(1,kset)
@@ -938,6 +935,8 @@ MODULE four_center_integrals
                             DO i=1,nints
                               spherical_estimate = MAX(spherical_estimate,ABS(primitive_integrals(i)))
                             END DO
+                            !! Otherwise NAG is going crazy
+                            IF(spherical_estimate == 0.0_dp) spherical_estimate = TINY(spherical_estimate)
                             estimate_to_store = LOG(spherical_estimate)*log_2_inv
                             estimate_to_store_int = CEILING(estimate_to_store)
                             estimate_to_store_int = MAX(estimate_to_store_int, -15_int_8)

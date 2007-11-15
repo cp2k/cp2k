@@ -243,6 +243,7 @@ OBJECTS_GENERIC =\
  lazy.o\
  lebedev.o\
  libint_interface.o\
+ libint_wrapper.o\
  library_tests.o\
  linear_systems.o\
  lowdin.o\
