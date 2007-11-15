@@ -182,10 +182,10 @@ CONTAINS
     gapw = dft_control%qs_control%gapw
     IF (output_unit>0) THEN
        WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
-       WRITE(output_unit,*) 'chi_analytic: gapw=',gapw,' reset to .false.'
+       WRITE(output_unit,*) 'chi_analytic: gapw=',gapw!,' reset to .false.'
        WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
     END IF
-    gapw=.FALSE.
+    !gapw=.FALSE.
 
 
     CALL get_nmr_env(nmr_env=nmr_env,&
@@ -860,11 +860,11 @@ CONTAINS
        DO i = 1,3
           DO j = 1,3
              chi_sym(i,j) = (chi_tensor(i,j)+chi_tensor(j,i))/2.0_dp
-             chi_sym_tot(i,j) = (chi_tensor(i,j)+chi_tensor(j,i)+&
-                                 chi_tensor_loc(i,j)+chi_tensor_loc(j,i))/2.0_dp
+             chi_sym_tot(i,j) = (chi_tensor(i,j)+chi_tensor(j,i))/2.0_dp
+             !chi_sym_tot(i,j) = (chi_tensor(i,j)+chi_tensor(j,i)+&
+             !                    chi_tensor_loc(i,j)+chi_tensor_loc(j,i))/2.0_dp
           END DO
        END DO
-
     ELSE
        ! Symmetrize
        DO i = 1,3
@@ -897,44 +897,64 @@ CONTAINS
           IF(gapw) THEN
              WRITE(unit_atoms,'(T30,A)') " CHI from SOFT J in 10^-30 J/T^2 units"
              WRITE(unit_atoms,'(3(A,f15.6))') ' XX=',chi_tensor(1,1),&
-                  ' XY=',chi_tensor(1,2),' XZ=',chi_tensor(1,3)
+                  &                           ' XY=',chi_tensor(1,2),&
+                  &                           ' XZ=',chi_tensor(1,3)
              WRITE(unit_atoms,'(3(A,f15.6))') ' YX=',chi_tensor(2,1),&
-                  ' YY=',chi_tensor(2,2),' YZ=',chi_tensor(2,3)
+                  &                           ' YY=',chi_tensor(2,2),&
+                  &                           ' YZ=',chi_tensor(2,3)
              WRITE(unit_atoms,'(3(A,f15.6))') ' ZX=',chi_tensor(3,1),&
-                  ' ZY=',chi_tensor(3,2),' ZZ=',chi_tensor(3,3)
-             WRITE(unit_atoms,'(T30,A)') " CHI from LOCAL J in 10^-30 J/T^2 units"
-             WRITE(unit_atoms,'(3(A,f15.6))') ' XX=',chi_tensor_loc(1,1),&
-                  ' XY=',chi_tensor_loc(1,2),' XZ=',chi_tensor_loc(1,3)
-             WRITE(unit_atoms,'(3(A,f15.6))') ' YX=',chi_tensor_loc(2,1),&
-                  ' YY=',chi_tensor_loc(2,2),' YZ=',chi_tensor_loc(2,3)
-             WRITE(unit_atoms,'(3(A,f15.6))') ' ZX=',chi_tensor_loc(3,1),&
-                 ' ZY=',chi_tensor_loc(3,2),' ZZ=',chi_tensor_loc(3,3)
+                  &                           ' ZY=',chi_tensor(3,2),&
+                  &                           ' ZZ=',chi_tensor(3,3)
+             !WRITE(unit_atoms,'(T30,A)') " CHI from LOCAL J in 10^-30 J/T^2 units"
+             !WRITE(unit_atoms,'(3(A,f15.6))') ' XX=',chi_tensor_loc(1,1),&
+             !     ' XY=',chi_tensor_loc(1,2),' XZ=',chi_tensor_loc(1,3)
+             !WRITE(unit_atoms,'(3(A,f15.6))') ' YX=',chi_tensor_loc(2,1),&
+             !     ' YY=',chi_tensor_loc(2,2),' YZ=',chi_tensor_loc(2,3)
+             !WRITE(unit_atoms,'(3(A,f15.6))') ' ZX=',chi_tensor_loc(3,1),&
+             !    ' ZY=',chi_tensor_loc(3,2),' ZZ=',chi_tensor_loc(3,3)
           ELSE
              WRITE(unit_atoms,'(T30,A)') " CHI from J in atomic units"
              WRITE(unit_atoms,'(3(A,f15.6))')' XX=',chi_tensor(1,1),&
-                  ' XY=',chi_tensor(1,2),' XZ=',chi_tensor(1,3)
+                  &                          ' XY=',chi_tensor(1,2),&
+                  &                          ' XZ=',chi_tensor(1,3)
              WRITE(unit_atoms,'(3(A,f15.6))')' YX=',chi_tensor(2,1),&
-                  ' YY=',chi_tensor(2,2),' YZ=',chi_tensor(2,3)
+                  &                          ' YY=',chi_tensor(2,2),&
+                  &                          ' YZ=',chi_tensor(2,3)
              WRITE(unit_atoms,'(3(A,f15.6))')' ZX=',chi_tensor(3,1),&
-                  ' ZY=',chi_tensor(3,2),' ZZ=',chi_tensor(3,3)
+                  &                          ' ZY=',chi_tensor(3,2),&
+                  &                          ' ZZ=',chi_tensor(3,3)
           ENDIF
-          WRITE (unit_atoms,'(/T2,3(A,F15.5))')' PV1=',eigenv(1),&
-               ' PV2=',eigenv(2),' PV3=',eigenv(3)
+          WRITE(unit_atoms,'(/T2,3(A,F15.5))')' PV1=',eigenv(1),&
+               &                              ' PV2=',eigenv(2),&
+               &                              ' PV3=',eigenv(3)
           WRITE (unit_atoms,'(T2,A,F15.5,10X,A,F15.5)')&
                '  iso=',chi_iso,  'aniso=',chi_aniso
+          WRITE(unit_atoms,'(T30,A)') " Total CHI in atomic units"
+          WRITE(unit_atoms,'(3(A,f15.6))')' XX=',chi_sym_tot(1,1),&
+               &                          ' XY=',chi_sym_tot(1,2),&
+               &                          ' XZ=',chi_sym_tot(1,3)
+          WRITE(unit_atoms,'(3(A,f15.6))')' YX=',chi_sym_tot(2,1),&
+               &                          ' YY=',chi_sym_tot(2,2),&
+               &                          ' YZ=',chi_sym_tot(2,3)
+          WRITE(unit_atoms,'(3(A,f15.6))')' ZX=',chi_sym_tot(3,1),&
+               &                          ' ZY=',chi_sym_tot(3,2),&
+               &                          ' ZZ=',chi_sym_tot(3,3)
           CALL dscal(3*3,nmr_env%chi_SI2ppmcgs,chi_sym_tot,1)
           WRITE(unit_atoms,'(T30,A)') " Total CHI in ppm-cgs units"
           WRITE(unit_atoms,'(3(A,f15.6))')' XX=',chi_sym_tot(1,1),&
-               ' XY=',chi_sym_tot(1,2),' XZ=',chi_sym_tot(1,3)
+               &                          ' XY=',chi_sym_tot(1,2),&
+               &                          ' XZ=',chi_sym_tot(1,3)
           WRITE(unit_atoms,'(3(A,f15.6))')' YX=',chi_sym_tot(2,1),&
-               ' YY=',chi_sym_tot(2,2),' YZ=',chi_sym_tot(2,3)
+               &                          ' YY=',chi_sym_tot(2,2),&
+               &                          ' YZ=',chi_sym_tot(2,3)
           WRITE(unit_atoms,'(3(A,f15.6))')' ZX=',chi_sym_tot(3,1),&
-               ' ZY=',chi_sym_tot(3,2),' ZZ=',chi_sym_tot(3,3)
-          WRITE (unit_atoms, '(/T2,3(A,F15.5))') &
+               &                          ' ZY=',chi_sym_tot(3,2),&
+               &                          ' ZZ=',chi_sym_tot(3,3)
+          WRITE(unit_atoms, '(/T2,3(A,F15.5))') &
                ' PV1=',nmr_env%chi_SI2ppmcgs*eigenv(1),&
                ' PV2=',nmr_env%chi_SI2ppmcgs*eigenv(2),&
                ' PV3=',nmr_env%chi_SI2ppmcgs*eigenv(3)
-          WRITE (unit_atoms,'(T2,A,F15.5,10X,A,F15.5)')&
+          WRITE(unit_atoms,'(T2,A,F15.5,10X,A,F15.5)')&
                '  iso=',nmr_env%chi_SI2ppmcgs*chi_iso, &
                'aniso=',nmr_env%chi_SI2ppmcgs*chi_aniso
        ENDIF
@@ -957,11 +977,8 @@ CONTAINS
                   & + chemical_shift(i,j,iatom) * twopi**2
              IF(gapw) THEN
                 !vw there is a sign problem here wv!
-                chemical_shift_tot(i,j,ir) = chemical_shift_tot(i,j,ir)-chemical_shift_loc(i,j,iatom)
+                chemical_shift_tot(i,j,ir) = chemical_shift_tot(i,j,ir)-chemical_shift_loc(i,j,iatom) * 0.5_dp
              ENDIF
-!write(*,*) 'soft',chi_tensor(i,j) * nmr_env%chi_SI2shiftppm &
-!                  & + chemical_shift(i,j,iatom) * twopi**2,&
-!           'locl',chemical_shift_loc(i,j,iatom)
           ENDDO
        ENDDO
     END DO  ! ir
@@ -999,20 +1016,35 @@ CONTAINS
                         &                         chemical_shift(j,i,iatom))/2.0_dp
                    IF(gapw) THEN
                       !vw there is a sign problem here wv!
-                      shift_nosym(i,j) = shift_nosym(i,j)-chemical_shift_loc(i,j,iatom)
+                      shift_nosym(i,j) = shift_nosym(i,j)-chemical_shift_loc(i,j,iatom) / 2.0_dp
                       shift_sym(i,j) = shift_sym(i,j)-(chemical_shift_loc(i,j,iatom)+&
-                                       chemical_shift_loc(j,i,iatom))/2.0_dp
+                                       chemical_shift_loc(j,i,iatom)) / 4.0_dp
                    ENDIF
                 ENDDO
              ENDDO
              CALL  dcopy(9,shift_sym,1,shift_tmp,1)
              CALL  diamat_all(shift_tmp,eigenv_tmp)
              eigenv_chi(1:3, iatom) = eigenv_tmp(1:3)
-             WRITE(unit_atoms,'(T2,I5,A,2X,A2,2X,3f15.6)') iatom,name,element_symbol,rpos(1:3)
-             ! here we set eigenv_tmp to huge... need to be consistent with the units used above.
-             WRITE(unit_atoms,'(A,3f15.6,5x,f15.6)') 'S_x = ',shift_nosym(1, 1:3), HUGE(0.0_dp)!eigenv_tmp(1)
-             WRITE(unit_atoms,'(A,3f15.6,5x,f15.6)') 'S_y = ',shift_nosym(2, 1:3), HUGE(0.0_dp)!eigenv_tmp(2)
-             WRITE(unit_atoms,'(A,3f15.6,5x,f15.6)') 'S_z = ',shift_nosym(3, 1:3), HUGE(0.0_dp)!eigenv_tmp(3)
+             WRITE(unit_atoms,'(T2,I5,A,2X,A2,2X,3f15.6)') iatom,TRIM(name),element_symbol,rpos(1:3)
+             !
+             IF(gapw) THEN
+                WRITE(unit_atoms,'(T1,A)') " SIGMA from SOFT J"
+                WRITE(unit_atoms,'(A,3f15.6)') 'S_x = ',chemical_shift(1,:,iatom) * twopi**2
+                WRITE(unit_atoms,'(A,3f15.6)') 'S_y = ',chemical_shift(2,:,iatom) * twopi**2
+                WRITE(unit_atoms,'(A,3f15.6)') 'S_z = ',chemical_shift(3,:,iatom) * twopi**2
+                WRITE(unit_atoms,'(T1,A)') " SIGMA from LOCAL J"
+                WRITE(unit_atoms,'(A,3f15.6)') 'S_x = ',-chemical_shift_loc(1,:,iatom) / 2.0_dp
+                WRITE(unit_atoms,'(A,3f15.6)') 'S_y = ',-chemical_shift_loc(2,:,iatom) / 2.0_dp
+                WRITE(unit_atoms,'(A,3f15.6)') 'S_z = ',-chemical_shift_loc(3,:,iatom) / 2.0_dp
+                WRITE(unit_atoms,'(T1,A)') " SIGMA TOTAL"
+                WRITE(unit_atoms,'(A,3f15.6)') 'S_x = ',shift_nosym(1, 1:3)!eigenv_tmp(1)
+                WRITE(unit_atoms,'(A,3f15.6)') 'S_y = ',shift_nosym(2, 1:3)!eigenv_tmp(2)
+                WRITE(unit_atoms,'(A,3f15.6)') 'S_z = ',shift_nosym(3, 1:3)!eigenv_tmp(3)
+             ELSE
+                WRITE(unit_atoms,'(A,3f15.6)') 'S_x = ',shift_nosym(1, 1:3)!eigenv_tmp(1)
+                WRITE(unit_atoms,'(A,3f15.6)') 'S_y = ',shift_nosym(2, 1:3)!eigenv_tmp(2)
+                WRITE(unit_atoms,'(A,3f15.6)') 'S_z = ',shift_nosym(3, 1:3)!eigenv_tmp(3)
+             ENDIF
           ENDDO  ! ir
        ENDIF
        CALL cp_print_key_finished_output(unit_atoms,logger,nmr_section,&

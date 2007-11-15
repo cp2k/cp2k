@@ -1147,7 +1147,19 @@ CONTAINS
                    jrho1_tot = (jrho_h_grid(ir,ia)-jrho_s_grid(ir,ia)) * grid_atom%weight(ia,ir)
 
                    itegrated_jrho = itegrated_jrho+jrho1_tot
-
+                   !
+                   ! local contribution to chi (NEEDS SOME MODIFICATIONS FOR PBC)
+                   DO idir2 = 1,3
+                      IF(idir2/=idir) THEN
+                         CALL set_vecp_rev(idir,idir2,idir3)
+                         scale_fac=fac_vecp(idir3,idir2,idir)
+                         nmr_env%chi_tensor_loc(idir3,iB)=nmr_env%chi_tensor_loc(idir3,iB)+&
+                              & scale_fac*(jrho1_tot)*nmr_env%chi_factor*&
+                              & (rvec(idir2)+particle_set(iatom)%r(idir2))
+                      ENDIF
+                   ENDDO
+                   !
+                   !
                    DO jatom = 1,natom_tot
                       ! be sure you take the minimum image
                       rij(1:3) = pbc(particle_set(iatom)%r,particle_set(jatom)%r,cell)
