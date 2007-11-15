@@ -241,6 +241,9 @@ CONTAINS
        CASE("hartree")
           unit_id(i_unit)=cp_units_hartree
           kind_id(i_unit)=cp_ukind_energy
+       CASE("au_e")
+          unit_id(i_unit)=cp_units_au
+          kind_id(i_unit)=cp_ukind_energy
        CASE("wavenumber_e")
           unit_id(i_unit)=cp_units_wavenum
           kind_id(i_unit)=cp_ukind_energy
@@ -340,7 +343,7 @@ CONTAINS
        CASE("au")
           CALL cp_assert(.FALSE.,cp_failure_level,&
                cp_assertion_failed,routineP,&
-               "au unit without specifing its kind not accepted, use (au_e, au_t, au_temp, au_l)",&
+               "au unit without specifing its kind not accepted, use (au_e, au_t, au_temp, au_l, au_m, au_p)",&
                error,failure)
        CASE default
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
