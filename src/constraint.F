@@ -617,8 +617,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: label
     INTEGER                                  :: handle, i, ikind, imol, j, &
                                                 my_index, n3x3con, n4x6con, &
-                                                nconstraint, nkind, &
-                                                nmol_per_kind, stat
+                                                nconstraint, nkind, stat
     LOGICAL                                  :: do_ext_constraint, &
                                                 do_int_constraint, failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: lagr
@@ -643,7 +642,6 @@ CONTAINS
        IF (do_int_constraint) THEN
           MOL:  DO ikind = 1, nkind
              molecule_kind => molecule_kind_set(ikind)
-             nmol_per_kind = local_molecules % n_el ( ikind )
              CALL get_molecule_kind ( molecule_kind,&
                                       ncolv = ncolv,&
                                       ng3x3 = n3x3con,&
