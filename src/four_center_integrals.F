@@ -203,6 +203,7 @@ MODULE four_center_integrals
     TYPE(x_hf_memory_type)                   :: memory_parameter
     TYPE(x_hf_potential_type)                :: potential_parameter
     TYPE(x_hf_screening_type)                :: screening_parameter
+    INTEGER                                  :: cache_size, buffer_start, buffer_left, buffer_size
 
     current_max_error = 0.0_dp
 
@@ -256,6 +257,7 @@ MODULE four_center_integrals
     eps_box     = screening_parameter%eps_box
     !! get storage epsilon
     eps_storage = eps_schwarz*memory_parameter%eps_storage_scaling
+    cache_size = memory_parameter%cache_size
 
     do_p_screening = screening_parameter%do_initial_p_screening
     do_correct_p_screening = screening_parameter%do_init_p_screen_corr
@@ -785,11 +787,19 @@ MODULE four_center_integrals
                             spherical_estimate = EXP(log_2*estimate_to_store_int)
                             IF(spherical_estimate*pmax_entry<eps_schwarz) CYCLE
                             nbits = CEILING(LOG(spherical_estimate*pmax_entry/eps_storage)*log_2_inv) + 1
-                            CALL x_hf_get_mult_cache_elements(T1(1), &
-                                                              nints, nbits, &
-                                                              integral_caches(nbits), &
-                                                              integral_containers(nbits), &
-                                                              eps_storage, pmax_entry, error)
+                            
+                            buffer_left = nints
+                            buffer_start = 1
+                            DO WHILE (buffer_left > 0 )
+                              buffer_size = MIN(buffer_left, cache_size)
+                              CALL x_hf_get_mult_cache_elements(T1(buffer_start), &
+                                                                buffer_size, nbits, &
+                                                                integral_caches(nbits), &
+                                                                integral_containers(nbits), &
+                                                                eps_storage, pmax_entry, error)
+                              buffer_left = buffer_left - buffer_size
+                              buffer_start = buffer_start + buffer_size
+                            END DO 
                             i=1
                             IF(nspins == 1) THEN
                               DO md = 1,nsgfd(lset)
@@ -949,11 +959,18 @@ MODULE four_center_integrals
                             IF(.NOT.buffer_overflow) THEN
                               neris_incore = neris_incore + nints
                               nbits = CEILING(LOG(spherical_estimate*pmax_entry/eps_storage)*log_2_inv) + 1
-                              CALL x_hf_add_mult_cache_elements(primitive_integrals(1), &
-                                                                nints, nbits, &
-                                                                integral_caches(nbits), &
-                                                                integral_containers(nbits), &
-                                                                eps_storage, pmax_entry, error)
+                              buffer_left = nints
+                              buffer_start = 1
+                              DO WHILE (buffer_left > 0 )
+                                buffer_size = MIN(buffer_left, CACHE_SIZE)
+                                CALL x_hf_add_mult_cache_elements(primitive_integrals(buffer_start),&
+                                                                  buffer_size, nbits, &
+                                                                  integral_caches(nbits), &
+                                                                  integral_containers(nbits), &
+                                                                  eps_storage, pmax_entry, error)
+                                buffer_left = buffer_left - buffer_size
+                                buffer_start = buffer_start + buffer_size
+                              END DO
                             ELSE
                              !! In order to be consistent with in-core part, round all the eris wrt. eps_schwarz
                              DO i=1,nints

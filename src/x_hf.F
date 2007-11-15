@@ -46,7 +46,7 @@ MODULE x_hf
           x_hf_flush_last_cache, x_hf_get_memory_info, x_hf_add_mult_cache_elements,&
           x_hf_get_mult_cache_elements, x_hf_init_container
 
-#define CACHE_SIZE 65536 
+#define CACHE_SIZE 1024
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'x_hf'
   INTEGER(int_8), PARAMETER, PRIVATE :: one = 1_int_8
@@ -75,6 +75,7 @@ MODULE x_hf
     INTEGER(int_8)                           :: max_compression_counter !! corresponding number of reals 
     LOGICAL                                  :: do_all_on_the_fly       !! max mem == 0 ?
     REAL(dp)                                 :: eps_storage_scaling
+    INTEGER                                  :: cache_size
   END TYPE
 
   TYPE x_hf_periodic_type
@@ -276,6 +277,7 @@ MODULE x_hf
     ELSE
       x_data%memory_parameter%do_all_on_the_fly = .FALSE.
     END IF
+    x_data%memory_parameter%cache_size = CACHE_SIZE
 
     !! PERIODIC section
     hf_sub_section => section_vals_get_subs_vals(hf_section,"PERIODIC",error=error)
