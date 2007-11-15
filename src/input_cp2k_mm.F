@@ -584,7 +584,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="BEND",&
             description="specifies the bend potential of the MM system."//&
-            "Functional Form (G96): K*(COS(THETA)-THETA0)^2"//&
+            "Functional Form (G96): 1/2*K*(COS(THETA)-THETA0)^2"//&
             "Functional Form (HARMONIC/CHARMM/G87): 1/2*K*(THETA-THETA0)^2",&
             n_keywords=1, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
             error=error)
