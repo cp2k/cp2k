@@ -534,19 +534,21 @@ CONTAINS
 
     n = SIZE(gto_basis_set%cphi,1)
 
-    DO iset=1,gto_basis_set%nset
-      DO ishell=1,gto_basis_set%nshell(iset)
-        l = gto_basis_set%l(ishell,iset)
-        first_cgf = gto_basis_set%first_cgf(ishell,iset)
-        first_sgf = gto_basis_set%first_sgf(ishell,iset)
-        ncgf = nco(l)
-        nsgf = nso(l)
-        CALL dgemm("N","T",n,nsgf,ncgf,&
+    IF(n.GT.0) THEN
+       DO iset=1,gto_basis_set%nset
+          DO ishell=1,gto_basis_set%nshell(iset)
+             l = gto_basis_set%l(ishell,iset)
+             first_cgf = gto_basis_set%first_cgf(ishell,iset)
+             first_sgf = gto_basis_set%first_sgf(ishell,iset)
+             ncgf = nco(l)
+             nsgf = nso(l)
+             CALL dgemm("N","T",n,nsgf,ncgf,&
                    1.0_dp,gto_basis_set%cphi(1,first_cgf),n,&
                    orbtramat(l)%c2s(1,1),nsgf,&
                    0.0_dp,gto_basis_set%sphi(1,first_sgf),n)
-      END DO
-    END DO
+          END DO
+       END DO
+    ENDIF
 
   END SUBROUTINE init_cphi_and_sphi
 
