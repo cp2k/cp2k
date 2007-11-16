@@ -656,7 +656,7 @@ CONTAINS
           ! Restart of Nose-Hoover Thermostat for Barostat
           nhc         => thermostat_baro%nhc
           nhc_len     = SIZE(nhc%nvt,1)
-          tot_nhcneed = SIZE(nhc%nvt,2)
+          tot_nhcneed = nhc%glob_num_nhc
           ALLOCATE(eta(tot_nhcneed*nhc_len), STAT = stat )
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(veta(tot_nhcneed*nhc_len), STAT = stat )
@@ -797,28 +797,8 @@ CONTAINS
           IF     (thermostat_coeff%type_of_thermostat==do_thermo_nose) THEN
              ! Restart of Nose-Hoover Thermostat for KG coefficients
              nhc         => thermostat_coeff%nhc
-             nhc_len     = SIZE(nhc%nvt,1)
-             tot_nhcneed = SIZE(nhc%nvt,2)
-             ALLOCATE(eta(tot_nhcneed*nhc_len), STAT = stat )
-             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-             ALLOCATE(veta(tot_nhcneed*nhc_len), STAT = stat )
-             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-             ALLOCATE(fnhc(tot_nhcneed*nhc_len), STAT = stat )
-             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-             ALLOCATE(mnhc(tot_nhcneed*nhc_len), STAT = stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
-             
-             counter = 0
-             DO i=1,SIZE(nhc%nvt,1)
-                DO j=1,SIZE(nhc%nvt,2)
-                   counter = counter + 1
-                   eta (counter)= nhc%nvt(i,j)%eta
-                   veta(counter)= nhc%nvt(i,j)%v
-                   fnhc(counter)= nhc%nvt(i,j)%f
-                   mnhc(counter)= nhc%nvt(i,j)%mass
-                END DO
-             END DO
-             
+             CALL collect_nose_restart_info(nhc, para_env, eta, veta, fnhc, mnhc, error)
+
              work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%THERMOSTAT%NOSE",error=error)
              CALL set_template_restart(work_section, eta, veta, fnhc, mnhc, error)    
           ELSE IF (thermostat_coeff%type_of_thermostat==do_thermo_csvr) THEN
@@ -1156,7 +1136,7 @@ CONTAINS
     TYPE(map_info_type), POINTER             :: map_info
 
     nhc_len = SIZE(nhc%nvt,1)
-    num_nhc = SIZE(nhc%nvt,2)
+    num_nhc = nhc%loc_num_nhc
     numneed = num_nhc
     map_info=> nhc%map_info
     ALLOCATE ( nhc_per_proc(para_env%num_pe), STAT = stat )
@@ -1164,12 +1144,7 @@ CONTAINS
     nhc_per_proc(:) = 0
 
     CALL mp_allgather(numneed,nhc_per_proc,para_env%group)
-
-    IF (map_info%dis_type==do_thermo_communication) THEN
-       tot_nhcneed = nhc_per_proc(1)
-    ELSE
-       tot_nhcneed = SUM ( nhc_per_proc )
-    ENDIF
+    tot_nhcneed = nhc%glob_num_nhc
 
     NULLIFY(work,index)
     !-----------------------------------------------------------------------------
@@ -1206,7 +1181,7 @@ CONTAINS
     END DO
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! nhc % veta   
+    ! nhc%veta   
     !-----------------------------------------------------------------------------
     ALLOCATE(veta(tot_nhcneed*nhc_len), STAT = stat )
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1238,7 +1213,7 @@ CONTAINS
     END DO
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! nhc % force
+    ! nhc%force
     !-----------------------------------------------------------------------------
     ALLOCATE(fnhc(tot_nhcneed*nhc_len), STAT = stat )
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1270,7 +1245,7 @@ CONTAINS
     END DO
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! nhc % mass
+    ! nhc%mass
     !-----------------------------------------------------------------------------
     ALLOCATE(mnhc(tot_nhcneed*nhc_len), STAT = stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)    
@@ -1307,21 +1282,6 @@ CONTAINS
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
     DEALLOCATE ( nhc_per_proc, STAT = stat )
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
-
-    IF (map_info%dis_type==do_thermo_communication ) THEN
-       eta  = 0.0_dp
-       veta = 0.0_dp
-       counter = 0
-       DO i=1,SIZE(nhc%nvt,1)
-          DO j=1,SIZE(nhc%nvt,2)
-             counter = counter + 1
-             eta (counter)= nhc%nvt(i,j)%eta
-             veta(counter)= nhc%nvt(i,j)%v
-             fnhc(counter)= nhc%nvt(i,j)%f
-             mnhc(counter)= nhc%nvt(i,j)%mass
-          END DO
-       END DO
-    END IF
 
   END SUBROUTINE collect_nose_restart_info
 
