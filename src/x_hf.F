@@ -205,7 +205,7 @@ MODULE x_hf
                              POINTER         :: distribution_forces
         REAL(dp), DIMENSION(:,:,:,:), POINTER &
                                              :: initial_p
-    INTEGER, DIMENSION(:,:), ALLOCATABLE     :: is_assoc_atomic_block
+    INTEGER, DIMENSION(:,:), POINTER         :: is_assoc_atomic_block
   END TYPE
 
   CONTAINS
