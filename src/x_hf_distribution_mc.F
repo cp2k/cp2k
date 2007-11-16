@@ -93,7 +93,7 @@ MODULE x_hf_distribution_mc
 
   SUBROUTINE init(para_env, nbin_in, ncpu_in, bin_costs_in, load_balance_parameter, error)
     TYPE(cp_para_env_type), POINTER          :: para_env
-    INTEGER                                  :: nbin_in, ncpu_in
+    INTEGER(int_8)                           :: nbin_in, ncpu_in
     INTEGER(int_8), DIMENSION(:), POINTER    :: bin_costs_in
     TYPE(x_hf_load_balance_type)             :: load_balance_parameter
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -387,7 +387,7 @@ MODULE x_hf_distribution_mc
   SUBROUTINE x_hf_optimize_distribution(para_env, nbin_in, ncpu_in, bin_costs_in, distribution_vector, &
                                         load_balance_parameter, optimal_cost, error)
     TYPE(cp_para_env_type), POINTER          :: para_env
-    INTEGER                                  :: nbin_in, ncpu_in
+    INTEGER(int_8)                           :: nbin_in, ncpu_in
     INTEGER(int_8), DIMENSION(:), POINTER    :: bin_costs_in
     INTEGER, DIMENSION(:), POINTER           :: distribution_vector
     TYPE(x_hf_load_balance_type)             :: load_balance_parameter

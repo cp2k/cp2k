@@ -106,7 +106,7 @@ MODULE x_hf
     INTEGER                                  :: istart, jstart, kstart, lstart
     INTEGER(int_8)                           :: number_of_integrals
     INTEGER(int_8)                           :: cost
-    INTEGER                                  :: original_cpu_id
+    INTEGER(int_8)                           :: original_cpu_id
   END TYPE
   
   TYPE x_hf_box_scheme
@@ -205,6 +205,7 @@ MODULE x_hf
                              POINTER         :: distribution_forces
         REAL(dp), DIMENSION(:,:,:,:), POINTER &
                                              :: initial_p
+    INTEGER, DIMENSION(:,:), ALLOCATABLE     :: is_assoc_atomic_block
   END TYPE
 
   CONTAINS
@@ -346,6 +347,9 @@ MODULE x_hf
     ELSE
       ALLOCATE(x_data%x_screening_buffer(max_set,max_set,natom,natom),STAT=stat)
     END IF
+    
+    ALLOCATE(x_data%is_assoc_atomic_block(natom,natom),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     ALLOCATE(x_data%distribution_forces(1),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -447,6 +451,10 @@ MODULE x_hf
 
     DEALLOCATE(x_data%initial_p,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    DEALLOCATE(x_data%is_assoc_atomic_block,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
 
     !! Deallocate containers
     CALL x_hf_init_container(x_data%maxval_container, error)
