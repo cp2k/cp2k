@@ -17,3 +17,7 @@ water_3_full.inp     7
 water_3_NOwalls.inp  2
 water_3_walls.inp    2
 zwitt.inp            2
+#QMMM thermostat regions
+mol_CSVR_gen1.inp    2
+mol_CSVR_gen2.inp    2
+mol_CSVR_gen3.inp    2

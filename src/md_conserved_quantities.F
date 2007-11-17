@@ -107,7 +107,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_conserved_quantity', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ikind, int_grp, nkind
+    INTEGER                                  :: ikind, nkind
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, init, myqmmm
     REAL(KIND=dp), POINTER                   :: constant
@@ -132,9 +132,7 @@ CONTAINS
                      para_env = para_env, &
                      error=error)
 
-    int_grp =  para_env % group
-
-    CALL get_part_ke ( md_env, md_ener, tkind, tshell, int_grp,  error=error)
+    CALL get_part_ke ( md_env, md_ener, tkind, tshell, para_env%group,  error=error)
            
     IF (md_ener%nfree /= 0) THEN
          md_ener % temp_part = 2.0_dp * md_ener % ekin / REAL ( simpar%nfree,KIND=dp)
@@ -180,11 +178,11 @@ CONTAINS
     CASE ( reftraj_ensemble ) ! no constant of motion available
        md_ener%constant = md_ener % epot
     CASE ( nve_ensemble)
-       CALL get_econs_nve (md_env, md_ener,  int_grp,error=error)
+       CALL get_econs_nve (md_env, md_ener,  para_env,error=error)
     CASE ( nvt_ensemble)
-       CALL get_econs_nvt (md_env, md_ener,  int_grp,error=error)
+       CALL get_econs_nvt (md_env, md_ener,  para_env,error=error)
     CASE (  npt_i_ensemble,  npt_f_ensemble )
-       CALL get_econs_npt (md_env, md_ener,  int_grp, error=error)
+       CALL get_econs_npt (md_env, md_ener,  para_env, error=error)
        md_ener%temp_baro = md_ener%temp_baro*kelvin
     CASE (  nph_uniaxial_ensemble )
        CALL get_econs_nph_uniaxial (md_env, md_ener,  error=error)
@@ -222,10 +220,10 @@ CONTAINS
   !!     none
   !!
   !!*** *************************************************************************
-  SUBROUTINE get_econs_nve ( md_env, md_ener, int_grp, error )
+  SUBROUTINE get_econs_nve ( md_env, md_ener, para_env, error )
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(md_ener_type), INTENT(inout)        :: md_ener
-    INTEGER, INTENT(IN)                      :: int_grp
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_econs_nve', &
@@ -247,16 +245,16 @@ CONTAINS
 
     IF (ASSOCIATED (dyn_coeff_set)) THEN
        CALL get_coef_ke (dyn_coeff_set, md_ener%ekin_coefs, md_ener%temp_coefs, &
-            int_grp, error)
+            para_env%group, error)
        md_ener%constant = md_ener%constant + md_ener%ekin_coefs
        CALL get_thermostat_energies ( thermostat_coeff, md_ener%thermostat_coef_pot, &
-            md_ener%thermostat_coef_kin, int_grp, error=error )
+            md_ener%thermostat_coef_kin, para_env, error=error )
        md_ener%constant = md_ener%constant + md_ener%thermostat_coef_kin +&
                           md_ener%thermostat_coef_pot
     END IF
 
     CALL get_thermostat_energies ( thermostat_shell, md_ener%thermostat_shell_pot,&
-         md_ener%thermostat_shell_kin, int_grp, error=error )
+         md_ener%thermostat_shell_kin, para_env, error=error )
     md_ener%constant = md_ener%constant + md_ener%thermostat_shell_kin + md_ener%thermostat_shell_pot
 
 
@@ -278,10 +276,10 @@ CONTAINS
   !!     none
   !!
   !!*** *************************************************************************
-  SUBROUTINE get_econs_nvt ( md_env, md_ener,  int_grp, error)
+  SUBROUTINE get_econs_nvt ( md_env, md_ener,  para_env, error)
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(md_ener_type), INTENT(inout)        :: md_ener
-    INTEGER, INTENT(IN)                      :: int_grp
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_econs_nvt', &
@@ -297,20 +295,20 @@ CONTAINS
     CALL get_md_env (md_env, force_env=force_env, thermostat_part=thermostat_part,&
          thermostat_coeff=thermostat_coeff, thermostat_shell=thermostat_shell, error=error )
     CALL get_thermostat_energies ( thermostat_part, md_ener%thermostat_part_pot, &
-         md_ener%thermostat_part_kin, int_grp, error=error )
+         md_ener%thermostat_part_kin, para_env, error=error )
     md_ener%constant = md_ener% ekin + md_ener%epot +  md_ener%ekin_shell +&
                        md_ener%thermostat_part_kin + md_ener%thermostat_part_pot
     CALL force_env_get (force_env=force_env, dyn_coeff_set=dyn_coeff_set,error=error)
     IF (ASSOCIATED (dyn_coeff_set)) THEN
-       CALL get_coef_ke (dyn_coeff_set, md_ener%ekin_coefs, md_ener%temp_coefs, int_grp, error)
+       CALL get_coef_ke (dyn_coeff_set, md_ener%ekin_coefs, md_ener%temp_coefs, para_env%group, error)
        md_ener%constant = md_ener%constant + md_ener%ekin_coefs
        CALL get_thermostat_energies ( thermostat_coeff, md_ener%thermostat_coef_pot,&
-            md_ener%thermostat_coef_kin, int_grp, error=error )
+            md_ener%thermostat_coef_kin, para_env, error=error )
        md_ener%constant = md_ener%constant + md_ener%thermostat_coef_kin + md_ener%thermostat_coef_pot
     END IF
 
     CALL get_thermostat_energies ( thermostat_shell, md_ener%thermostat_shell_pot,&
-         md_ener%thermostat_shell_kin, int_grp, error=error )
+         md_ener%thermostat_shell_kin, para_env, error=error )
     md_ener%constant = md_ener%constant + md_ener%thermostat_shell_kin + md_ener%thermostat_shell_pot
 
   END SUBROUTINE get_econs_nvt
@@ -331,10 +329,10 @@ CONTAINS
   !!     none
   !!
   !!*****************************************************************************
-  SUBROUTINE get_econs_npt ( md_env, md_ener, int_grp, error)
+  SUBROUTINE get_econs_npt ( md_env, md_ener, para_env, error)
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(md_ener_type), INTENT(inout)        :: md_ener
-    INTEGER, INTENT(IN)                      :: int_grp
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_econs_npt', &
@@ -353,9 +351,9 @@ CONTAINS
     CALL get_md_env ( md_env, thermostat_part=thermostat_part, thermostat_baro=thermostat_baro, &
          simpar = simpar, npt = npt, cell = box,  thermostat_shell=thermostat_shell, error=error)
     CALL get_thermostat_energies(thermostat_part, md_ener%thermostat_part_pot, &
-         md_ener%thermostat_part_kin, int_grp, error=error )
+         md_ener%thermostat_part_kin, para_env, error=error )
     CALL get_thermostat_energies(thermostat_baro, md_ener%thermostat_baro_pot,&
-         md_ener%thermostat_baro_kin, int_grp, error)
+         md_ener%thermostat_baro_kin, para_env, error)
     CALL get_baro_energies ( box, simpar, npt, md_ener%baro_kin, md_ener%baro_pot, error=error )
     nfree = SIZE ( npt, 1 ) * SIZE ( npt, 2 )
     md_ener%temp_baro = 2.0_dp * md_ener%baro_kin / nfree
@@ -366,7 +364,7 @@ CONTAINS
          + md_ener%baro_kin + md_ener%baro_pot
 
     CALL get_thermostat_energies ( thermostat_shell, md_ener%thermostat_shell_pot, &
-         md_ener%thermostat_shell_kin, int_grp, error )
+         md_ener%thermostat_shell_kin, para_env, error )
     md_ener%constant = md_ener%constant + md_ener%thermostat_shell_kin + md_ener%thermostat_shell_pot
 
   END SUBROUTINE get_econs_npt
@@ -485,11 +483,11 @@ CONTAINS
   !!     none
   !!
   !!*** *************************************************************************
-  SUBROUTINE get_part_ke ( md_env, md_ener, tkind, tshell, int_grp, error) 
+  SUBROUTINE get_part_ke ( md_env, md_ener, tkind, tshell, group, error) 
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(md_ener_type), POINTER              :: md_ener
     LOGICAL, INTENT(IN)                      :: tkind, tshell
-    INTEGER, INTENT(IN)                      :: int_grp
+    INTEGER, INTENT(IN)                      :: group
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_part_ke', &
@@ -606,13 +604,13 @@ CONTAINS
            END IF
          END DO  ! iparticle_kind
       IF(tkind) THEN
-         CALL mp_sum(md_ener%ekin_kind, int_grp )
-         CALL mp_sum(md_ener%nfree_kind, int_grp )
-         CALL mp_sum(md_ener%ekin_shell_kind, int_grp )
-         CALL mp_sum(md_ener%nfree_shell_kind, int_grp )
+         CALL mp_sum(md_ener%ekin_kind, group )
+         CALL mp_sum(md_ener%nfree_kind, group )
+         CALL mp_sum(md_ener%ekin_shell_kind, group )
+         CALL mp_sum(md_ener%nfree_shell_kind, group )
       END IF
       ! sum all contributions to energy over calculated parts on all processors
-      CALL mp_sum ( md_ener%ekin_shell, int_grp )
+      CALL mp_sum ( md_ener%ekin_shell, group )
     ELSE
         DO iparticle_kind=1,nparticle_kind
            atomic_kind => atomic_kind_set(iparticle_kind)
@@ -640,15 +638,15 @@ CONTAINS
            END DO
         END DO  ! iparticle_kind
       IF(tkind) THEN
-        CALL mp_sum(md_ener%ekin_kind, int_grp )
-        CALL mp_sum(md_ener%nfree_kind, int_grp )
+        CALL mp_sum(md_ener%ekin_kind, group )
+        CALL mp_sum(md_ener%nfree_kind, group )
       END IF
     END IF
 
     ! sum all contributions to energy over calculated parts on all processors
-    CALL mp_sum ( md_ener%ekin, int_grp )
-    CALL mp_sum ( md_ener%vcom, int_grp )
-    CALL mp_sum ( md_ener%total_mass, int_grp )
+    CALL mp_sum ( md_ener%ekin, group )
+    CALL mp_sum ( md_ener%vcom, group )
+    CALL mp_sum ( md_ener%total_mass, group )
     md_ener%vcom = md_ener%vcom / md_ener%total_mass
     !
     ! Compute the QM/MM kinetic energy
@@ -680,11 +678,11 @@ CONTAINS
   !!     gt 06-02-04 adapted to new dynamical coeffs type
   !!
   !!*****************************************************************************
-  SUBROUTINE get_coef_ke ( dyn_coeff_set, ekinc, ctemp, int_group, error )
+  SUBROUTINE get_coef_ke ( dyn_coeff_set, ekinc, ctemp, group, error )
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     REAL(KIND=dp), INTENT(out)               :: ekinc, ctemp
-    INTEGER                                  :: int_group
+    INTEGER                                  :: group
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_coef_ke', &
@@ -718,8 +716,8 @@ CONTAINS
     END DO
 
     ! sum all contributions to energy over calculated parts on all processors
-    CALL mp_sum ( ekinc, int_group )
-    CALL mp_sum ( ncoefs, int_group )
+    CALL mp_sum ( ekinc, group )
+    CALL mp_sum ( ncoefs, group )
 
     ! get coefficient temperature
 

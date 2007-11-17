@@ -318,15 +318,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'do_nhc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: n
+    INTEGER                                  :: imap, n
     LOGICAL                                  :: failure
 
     failure = .FALSE.
 
     ! Force on the first bead in every thermostat chain
     DO n = 1, nhc%loc_num_nhc
-       IF (nhc % nvt(1,n) % nkt==0.0_dp) CYCLE
-       nhc % nvt(1,n) % f = (map_info%s_kin(n)-nhc%nvt(1,n)%nkt)/nhc%nvt(1,n)%mass
+       imap = nhc%map_info%map_index(n)
+       IF (nhc%nvt(1,n)%nkt==0.0_dp) CYCLE
+       nhc%nvt(1,n)%f = (map_info%s_kin(imap)-nhc%nvt(1,n)%nkt)/nhc%nvt(1,n)%mass
     END DO
     flops = flops + REAL ( nhc%loc_num_nhc * 2,KIND=dp)
     
@@ -427,7 +428,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'multiple_step_yoshida', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: inc, inhc, iyosh, n, nx1, nx2
+    INTEGER                                  :: imap, inc, inhc, iyosh, n, &
+                                                nx1, nx2
     REAL(KIND=dp)                            :: scale
     TYPE(map_info_type), POINTER             :: map_info
 
@@ -464,17 +466,19 @@ CONTAINS
 
           ! now accumulate the scale factor for particle velocities
           DO n = 1, nhc%loc_num_nhc
+             imap = nhc%map_info%map_index(n)
              IF (nhc % nvt(1,n) % nkt == 0.0_dp) CYCLE
-             map_info%v_scale(n) = map_info%v_scale(n)*EXP(-0.5_dp* nhc%dt_yosh(iyosh)*nhc % nvt(1,n)%v)
+             map_info%v_scale(imap) = map_info%v_scale(imap)*EXP(-0.5_dp* nhc%dt_yosh(iyosh)*nhc % nvt(1,n)%v)
           END DO
           flops = flops + REAL(nhc%loc_num_nhc*4, KIND=dp)
           ! the core of the operator ------ END ------
 
           ! update the force on first thermostat again (since particle velocities changed)
           DO n = 1, nhc%loc_num_nhc
+             imap = nhc%map_info%map_index(n)
              IF (nhc % nvt(1,n) % nkt == 0.0_dp) CYCLE
-             nhc % nvt(1,n) % f = (map_info%s_kin(n)*map_info%v_scale(n)*&
-                  map_info%v_scale(n)-nhc % nvt(1,n) % nkt) / nhc % nvt(1,n) % mass
+             nhc % nvt(1,n) % f = (map_info%s_kin(imap)*map_info%v_scale(imap)*&
+                  map_info%v_scale(imap)-nhc % nvt(1,n) % nkt) / nhc % nvt(1,n) % mass
           END DO
           flops = flops + REAL(nhc%loc_num_nhc*4,KIND=dp)
 

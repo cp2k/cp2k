@@ -332,21 +332,22 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'do_csvr', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ndeg
+    INTEGER                                  :: i, imap, ndeg
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: kin_energy, kin_target, taut
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
     failure = .FALSE.
     DO i = 1, csvr%loc_num_csvr
-       kin_energy =  map_info%s_kin(i)
+       imap = map_info%map_index(i)
+       kin_energy =  map_info%s_kin(imap)
        csvr%nvt(i)%region_kin_energy = kin_energy
        kin_energy =  kin_energy * 0.5_dp
        kin_target =  csvr%nvt(i)%nkt * 0.5_dp
        ndeg       =  csvr%nvt(i)%degrees_of_freedom
        taut       =  csvr%tau_csvr
        rng_stream => csvr%nvt(i)%gaussian_rng_stream
-       map_info%v_scale(i) = rescaling_factor(kin_energy, kin_target, ndeg, taut,&
+       map_info%v_scale(imap) = rescaling_factor(kin_energy, kin_target, ndeg, taut,&
             rng_stream, error)
     END DO
 
@@ -377,14 +378,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'do_csvr_eval_energy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i
+    INTEGER                                  :: i, imap
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: kin_energy_ar, kin_energy_br
 
     failure = .FALSE.
     DO i = 1, csvr%loc_num_csvr
+       imap = map_info%map_index(i)
        kin_energy_br = csvr%nvt(i)%region_kin_energy
-       kin_energy_ar = map_info%s_kin(i)
+       kin_energy_ar = map_info%s_kin(imap)
        csvr%nvt(i)%thermostat_energy =  csvr%nvt(i)%thermostat_energy + &
                                         0.5_dp * (kin_energy_br - kin_energy_ar)
     END DO

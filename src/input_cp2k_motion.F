@@ -999,7 +999,7 @@ CONTAINS
             enum_i_vals=(/do_constr_none,do_constr_atomic,do_constr_molec/),&
             enum_desc=s2a("fix nothing",&
                           "only the MM atoms itself",&
-                          "the full molecule/residue that contains a MM atom (i.e. some QM atoms might move)"),&
+                          "the full molecule/residue that contains a MM atom (i.e. some QM atoms might be fixed as well)"),&
             default_i_val=do_constr_none,repeats=.FALSE.,required=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1010,7 +1010,7 @@ CONTAINS
             enum_c_vals=s2a( "NONE","ATOMIC","MOLECULAR"),&
             enum_desc=s2a("fix nothing",&
                           "only the QM atoms itself",&
-                          "the full molecule/residue that contains a QM atom (i.e. some MM atoms might move)"),&
+                          "the full molecule/residue that contains a QM atom (i.e. some MM atoms might be fixed as well)"),&
             enum_i_vals=(/do_constr_none,do_constr_atomic,do_constr_molec/),&
             default_i_val=do_constr_none,repeats=.FALSE.,required=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -2826,7 +2826,7 @@ CONTAINS
        CALL section_release(subsection, error=error)
 
     END IF
-END SUBROUTINE create_md_section
+  END SUBROUTINE create_md_section
 
 !***************************************************************************
 !!****f* input_cp2k/create_thermostat_section *
@@ -2860,7 +2860,7 @@ END SUBROUTINE create_md_section
     LOGICAL                                  :: failure, my_coupled_thermostat
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: csvr_section, nose_section, &
-                                                print_key
+                                                print_key, region_section
 
     failure=.FALSE.
     
@@ -2868,7 +2868,7 @@ END SUBROUTINE create_md_section
     IF (.NOT. failure) THEN
        my_coupled_thermostat = .FALSE.
        IF (PRESENT(coupled_thermostat)) my_coupled_thermostat = coupled_thermostat
-       NULLIFY(csvr_section, nose_section, print_key)
+       NULLIFY(csvr_section, nose_section, print_key, region_section)
        
        CALL section_create(section,name="THERMOSTAT",&
             description="Specify thermostat type and parameters controlling the thermostat.",&
@@ -2892,13 +2892,17 @@ END SUBROUTINE create_md_section
 
           CALL keyword_create(keyword, name="REGION",&
                description="Determines the region each thermostat is attached to.",&
-               usage="REGION (GLOBAL||MOLECULE||MASSIVE||NONE)", &
-               enum_c_vals=s2a( "GLOBAL", "MOLECULE", "MASSIVE", "NONE"),&
+               usage="REGION (GLOBAL||MOLECULE||MASSIVE||DEFINED||NONE)", &
+               enum_c_vals=s2a( "GLOBAL", "MOLECULE", "MASSIVE", "DEFINED", "NONE"),&
                enum_i_vals=(/do_region_global, do_region_molecule,&
-                             do_region_massive, do_region_none/),&
+                             do_region_massive, do_region_defined, do_region_none/),&
                              default_i_val=do_region_global,error=error)
           CALL section_add_keyword(section,keyword,error=error)
           CALL keyword_release(keyword,error=error)
+
+          CALL create_region_section(region_section,error=error)
+          CALL section_add_subsection(section, region_section, error=error)
+          CALL section_release(region_section,error=error)
        ELSE
           CALL keyword_create(keyword, name="TYPE",&
                description="Specify the thermostat used for the constant temperature ensembles.",&
@@ -2933,6 +2937,98 @@ END SUBROUTINE create_md_section
   END SUBROUTINE create_thermostat_section
 
 !***************************************************************************
+!!****f* input_cp2k/create_region_section *
+!!
+!!   NAME
+!!     create_region_section
+!!
+!!   FUNCTION
+!!     Creates a section to arbitrary define a region to thermostat
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: will contain the coeff section 
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_region_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_region_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+    
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN  
+
+       CALL section_create(section,name="DEFINE_REGION",&
+            description="This section provides the possibility to define arbitrary region "//&
+            " on which applying the thermostats.",&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+       
+       NULLIFY(keyword)
+       CALL keyword_create(keyword, name="LIST",&
+            description="Specifies a list of atoms to thermostat.",&
+            usage="LIST {integer} {integer} .. {integer}", required=.TRUE.,repeats=.TRUE.,&
+            n_var=-1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RANGE",&
+            description="Specifies the starting and the ending index of atoms range you wish to thermostat.",&
+            usage="RANGE {integer} {integer}", required=.TRUE.,repeats=.TRUE.,&
+            n_var=2, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MOLNAME",&
+            description="Specifies the name of the molecules to thermostat",&
+            usage="MOLNAME WAT MEOH", required=.TRUE., repeats=.TRUE.,&
+            n_var=-1,type_of_var=char_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MM_SUBSYS",&
+            variants=(/"PROTEIN"/),&
+            description="In a QM/MM run all  MM atoms are specified as a whole ensemble to be thermostated",&
+            usage="MM_SUBSYS (NONE|ATOMIC|MOLECULAR)",&
+            enum_c_vals=s2a( "NONE","ATOMIC","MOLECULAR"),&
+            enum_i_vals=(/do_constr_none,do_constr_atomic,do_constr_molec/),&
+            enum_desc=s2a("Thermostat nothing",&
+                          "Only the MM atoms itself",&
+                          "The full molecule/residue that contains a MM atom"),&
+            default_i_val=do_constr_none,repeats=.FALSE.,required=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="QM_SUBSYS",&
+            description="In a QM/MM run all QM atoms are specified as a whole ensemble to be thermostated",&
+            usage="QM_SUBSYS (NONE|ATOMIC|MOLECULAR)",&
+            enum_c_vals=s2a( "NONE","ATOMIC","MOLECULAR"),&
+            enum_desc=s2a("Thermostat nothing",&
+                          "Only the QM atoms itself",&
+                          "The full molecule/residue that contains a QM atom"),&
+            enum_i_vals=(/do_constr_none,do_constr_atomic,do_constr_molec/),&
+            default_i_val=do_constr_none,repeats=.FALSE.,required=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+    END IF
+  END SUBROUTINE create_region_section
+
+!***************************************************************************
 !!****f* input_cp2k/create_respa_section *
 !!
 !!   NAME
@@ -2953,8 +3049,7 @@ END SUBROUTINE create_md_section
 !!     teo
 !!
 !!*** **********************************************************************
-
-SUBROUTINE create_respa_section(section, error)
+  SUBROUTINE create_respa_section(section, error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -2964,31 +3059,31 @@ SUBROUTINE create_respa_section(section, error)
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-  failure=.FALSE.
-  
-  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN  
+    failure=.FALSE.
+    
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN  
 
-     CALL section_create(section,name="RESPA",&
-          description="Multiple timestep integration based on RESPA (implemented for NVE only)."//&
-          " RESPA exploits multiple force_eval."//&
-          " In this case the order of the force_eval maps "//&
-          " the order of the respa shells from the slowest to the fastest force evaluation."//&
-          " If force_evals share the same subsys, it's enough then to specify the "//&
-          " subsys in the force_eval corresponding at the first index in the multiple_force_eval list",&
-          n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-          error=error)
+       CALL section_create(section,name="RESPA",&
+            description="Multiple timestep integration based on RESPA (implemented for NVE only)."//&
+            " RESPA exploits multiple force_eval."//&
+            " In this case the order of the force_eval maps "//&
+            " the order of the respa shells from the slowest to the fastest force evaluation."//&
+            " If force_evals share the same subsys, it's enough then to specify the "//&
+            " subsys in the force_eval corresponding at the first index in the multiple_force_eval list",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
        
-     NULLIFY(keyword)
-
-     CALL keyword_create(keyword, name="FREQUENCY",&
-          description="The number of reference MD steps between two RESPA corrections.",&
-          usage="FREQUENCY <INTEGER>", default_i_val=5,error=error)
-     CALL section_add_keyword(section,keyword,error=error)
-     CALL keyword_release(keyword,error=error)    
-
-  END IF
-END SUBROUTINE create_respa_section
+       NULLIFY(keyword)
+       
+       CALL keyword_create(keyword, name="FREQUENCY",&
+            description="The number of reference MD steps between two RESPA corrections.",&
+            usage="FREQUENCY <INTEGER>", default_i_val=5,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       
+    END IF
+  END SUBROUTINE create_respa_section
 
 !***************************************************************************
 !!****f* input_cp2k/create_reftraj_section *
@@ -3011,8 +3106,7 @@ END SUBROUTINE create_respa_section
 !!     teo
 !!
 !!*** **********************************************************************
-
-SUBROUTINE create_reftraj_section(section, error)
+  SUBROUTINE create_reftraj_section(section, error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -3023,69 +3117,67 @@ SUBROUTINE create_reftraj_section(section, error)
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
-  failure=.FALSE.
-  
-  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN  
-
-     CALL section_create(section,name="REFTRAJ",&
-          description="Loads an external trajectory file and performs analysis on the"//&
-          " loaded snapshots.",&
-          n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
-          error=error)
+    failure=.FALSE.
+    
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN  
        
-     NULLIFY(keyword, subsection)
-
-     CALL keyword_create(keyword, name="TRJFILENAME",&
-          description="Specify the filename where the trajectory is stored.",repeats=.FALSE.,&
-          usage="TRJFILENAME <CHARACTER>", default_lc_val="reftraj.xyz", &
-          error=error)
-     CALL section_add_keyword(section,keyword,error=error)
-     CALL keyword_release(keyword,error=error)
-
-     CALL keyword_create(keyword, name="CELLFILENAME",&
-          description="Specify the filename where the cell is stored "//&
-          "(for trajectories generated within variable cell ensembles).",repeats=.FALSE.,&
-          usage="CELLFILENAME <CHARACTER>", default_lc_val="reftraj.cell", &
-          error=error)
-     CALL section_add_keyword(section,keyword,error=error)
-     CALL keyword_release(keyword,error=error)
-
-     CALL keyword_create(keyword, name="Variable_volume",&
-          description="Indicates that the reference trajectory has been"//&
-          "generated by MD itwh variable volume (e.g. npt)",&
-          repeats=.FALSE., default_l_val=.FALSE.,lone_keyword_l_val=.TRUE., error=error)
-     CALL section_add_keyword(section,keyword,error=error)
-     CALL keyword_release(keyword,error=error)
-     
-     CALL keyword_create(keyword, name="FIRST_SNAPSHOT",&
-          description="Index of the snapshot stored in the trajectory file "//&
-          "from which to start a REFTRAJ run",&
-          repeats=.FALSE., usage="FIRST_SNAPSHOT <INTEGER>", default_i_val=0, error=error)
-     CALL section_add_keyword(section,keyword,error=error)
-     CALL keyword_release(keyword,error=error)
-     
-     CALL keyword_create(keyword, name="LAST_SNAPSHOT",&
-          description="Index of the last snapshot stored in the trajectory file that is read along a REFTRAJ run",&
-          repeats=.FALSE., usage="LAST_SNAPSHOT", default_i_val=0, error=error)
-     CALL section_add_keyword(section,keyword,error=error)
-     CALL keyword_release(keyword,error=error)
-     
-     CALL keyword_create(keyword, name="eval_energy_forces",&
-          description="Evaluate energy and forces for each retrieved snapshot during a REFTRAJ run",&
-          repeats=.FALSE., default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
-          error=error)
-     CALL section_add_keyword(section,keyword,error=error)
-     CALL keyword_release(keyword,error=error)
-
-     CALL create_msd_section(subsection, error=error)
-     CALL section_add_subsection(section, subsection, error=error)
-     CALL section_release(subsection,error=error)
-
-     
-  END IF
-END SUBROUTINE create_reftraj_section
-
+       CALL section_create(section,name="REFTRAJ",&
+            description="Loads an external trajectory file and performs analysis on the"//&
+            " loaded snapshots.",&
+            n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       
+       NULLIFY(keyword, subsection)
+       
+       CALL keyword_create(keyword, name="TRJFILENAME",&
+            description="Specify the filename where the trajectory is stored.",repeats=.FALSE.,&
+            usage="TRJFILENAME <CHARACTER>", default_lc_val="reftraj.xyz", &
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       CALL keyword_create(keyword, name="CELLFILENAME",&
+            description="Specify the filename where the cell is stored "//&
+            "(for trajectories generated within variable cell ensembles).",repeats=.FALSE.,&
+            usage="CELLFILENAME <CHARACTER>", default_lc_val="reftraj.cell", &
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       CALL keyword_create(keyword, name="Variable_volume",&
+            description="Indicates that the reference trajectory has been"//&
+            "generated by MD itwh variable volume (e.g. npt)",&
+            repeats=.FALSE., default_l_val=.FALSE.,lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       CALL keyword_create(keyword, name="FIRST_SNAPSHOT",&
+            description="Index of the snapshot stored in the trajectory file "//&
+            "from which to start a REFTRAJ run",&
+            repeats=.FALSE., usage="FIRST_SNAPSHOT <INTEGER>", default_i_val=0, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       CALL keyword_create(keyword, name="LAST_SNAPSHOT",&
+            description="Index of the last snapshot stored in the trajectory file that is read along a REFTRAJ run",&
+            repeats=.FALSE., usage="LAST_SNAPSHOT", default_i_val=0, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       CALL keyword_create(keyword, name="eval_energy_forces",&
+            description="Evaluate energy and forces for each retrieved snapshot during a REFTRAJ run",&
+            repeats=.FALSE., default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       CALL create_msd_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+        END IF
+  END SUBROUTINE create_reftraj_section
+  
 !***************************************************************************
 !!****f* input_cp2k/create_MSD_section *
 !!
@@ -3107,9 +3199,7 @@ END SUBROUTINE create_reftraj_section
 !!     MI
 !!
 !!*** **********************************************************************
-
-
-SUBROUTINE create_msd_section(section, error)
+  SUBROUTINE create_msd_section(section, error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -3119,63 +3209,53 @@ SUBROUTINE create_msd_section(section, error)
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-  failure=.FALSE.
+    failure=.FALSE.
   
-  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN  
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN  
 
-     CALL section_create(section,name="MSD",&
-          description="Loads an external trajectory file and performs analysis on the"//&
-          " loaded snapshots.",&
-          n_keywords=1, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
-          error=error)
+       CALL section_create(section,name="MSD",&
+            description="Loads an external trajectory file and performs analysis on the"//&
+            " loaded snapshots.",&
+            n_keywords=1, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            error=error)
        
-     NULLIFY(keyword)
-
-     CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
-          description="controls the activation of core-level spectroscopy simulations",&
-          usage="&MSD T",&
-          default_l_val=.FALSE.,&
-          lone_keyword_l_val=.TRUE.,&
-          error=error)
-     CALL section_add_keyword(section,keyword,error=error)
-     CALL keyword_release(keyword,error=error)
-
-
-     CALL keyword_create(keyword, name="REF0_FILENAME",&
-          description="Specify the filename where the initial reference configuration is stored.",&
-          repeats=.FALSE., usage="REF0_FILENAME <CHARACTER>", default_lc_val="", &
-          error=error)
-     CALL section_add_keyword(section,keyword,error=error)
-     CALL keyword_release(keyword,error=error)
-
-!     CALL keyword_create(keyword, name="REF0_CELL_FILENAME",&
-!          description="Specify the filename the initial reference cell is stored "//&
-!          "(for trajectories generated within variable cell ensembles).",//&
-!          repeats=.FALSE.,&
-!          usage="REF0_CELL_FILENAME <CHARACTER>", default_lc_val="", &
-!          error=error)
-!     CALL section_add_keyword(section,keyword,error=error)
-!     CALL keyword_release(keyword,error=error)
-
-     CALL keyword_create(keyword,name="MSD_PER_KIND",&
-          description="Set up the calculation of the MSD for each atomic kind",&
-          usage="MSD_PER_KIND <LOGICAL>",repeats=.FALSE.,&
-          default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
-     CALL section_add_keyword(section,keyword,error=error)
-     CALL keyword_release(keyword,error=error)
-     
-     CALL keyword_create(keyword,name="MSD_PER_MOLKIND",&
-          description="Set up the calculation of the MSD for each molecule kind."//&
-          "The position of the center of mass of the molecule is considered.",&
-          usage="MSD_PER_MOLKIND <LOGICAL>",repeats=.FALSE.,&
-          default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
-     CALL section_add_keyword(section,keyword,error=error)
-     CALL keyword_release(keyword,error=error)
-     
-  END IF
-
-END SUBROUTINE create_msd_section
+       NULLIFY(keyword)
+       
+       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+            description="controls the activation of core-level spectroscopy simulations",&
+            usage="&MSD T",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       
+       CALL keyword_create(keyword, name="REF0_FILENAME",&
+            description="Specify the filename where the initial reference configuration is stored.",&
+            repeats=.FALSE., usage="REF0_FILENAME <CHARACTER>", default_lc_val="", &
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       CALL keyword_create(keyword,name="MSD_PER_KIND",&
+            description="Set up the calculation of the MSD for each atomic kind",&
+            usage="MSD_PER_KIND <LOGICAL>",repeats=.FALSE.,&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       CALL keyword_create(keyword,name="MSD_PER_MOLKIND",&
+            description="Set up the calculation of the MSD for each molecule kind."//&
+            "The position of the center of mass of the molecule is considered.",&
+            usage="MSD_PER_MOLKIND <LOGICAL>",repeats=.FALSE.,&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+    END IF
+  END SUBROUTINE create_msd_section
 
      
 !***************************************************************************
@@ -3199,8 +3279,7 @@ END SUBROUTINE create_msd_section
 !!     teo
 !!
 !!*** **********************************************************************
-
-SUBROUTINE create_msst_section(section, error)
+  SUBROUTINE create_msst_section(section, error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -3210,14 +3289,14 @@ SUBROUTINE create_msst_section(section, error)
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-  failure=.FALSE.
-  
-  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN  
-
+    failure=.FALSE.
+    
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN  
+       
        CALL section_create(section,name="msst",&
             description="Parameters for Multi-Scale Shock Technique (MSST) "//&
-                        "which simulate the effect of a steady planar shock on a unit cell. "//&
+            "which simulate the effect of a steady planar shock on a unit cell. "//&
                         "Reed et. al. Physical Review Letters 90, 235503 (2003).",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
@@ -3291,7 +3370,7 @@ SUBROUTINE create_msst_section(section, error)
 !!
 !!*** **********************************************************************
 
-SUBROUTINE create_barostat_section(section, error)
+  SUBROUTINE create_barostat_section(section, error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -3302,11 +3381,10 @@ SUBROUTINE create_barostat_section(section, error)
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection, thermo_section
 
-  failure=.FALSE.
+    failure=.FALSE.
   
-  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN  
-
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN  
        CALL section_create(section,name="barostat",&
             description="Parameters of barostat.",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
@@ -3364,8 +3442,7 @@ SUBROUTINE create_barostat_section(section, error)
 !!     teo
 !!
 !!*** **********************************************************************
-
-SUBROUTINE create_coeff_section(coeff_section, error)
+  SUBROUTINE create_coeff_section(coeff_section, error)
     TYPE(section_type), POINTER              :: coeff_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -3376,11 +3453,10 @@ SUBROUTINE create_coeff_section(coeff_section, error)
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection, thermo_section
 
-  failure=.FALSE.
+    failure=.FALSE.
   
-  CPPrecondition(.NOT.ASSOCIATED(coeff_section),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN  
-
+    CPPrecondition(.NOT.ASSOCIATED(coeff_section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN  
        CALL section_create(coeff_section,name="kg_coeff",&
             description="coefficent parameters needed to perform a kg-pol md run",&
             n_keywords=5, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
@@ -3496,7 +3572,6 @@ SUBROUTINE create_coeff_section(coeff_section, error)
 !!     gloria
 !!
 !!*** **********************************************************************
-
   SUBROUTINE create_nose_section(section, coupled_thermostat, error)
     TYPE(section_type), POINTER              :: section
     LOGICAL, INTENT(IN)                      :: coupled_thermostat

@@ -54,9 +54,9 @@ MODULE input_cp2k_restarts
                                              multiple_fe_list,&
                                              use_qmmm
   USE input_constants,                 ONLY: &
-       do_thermo_communication, do_thermo_csvr, do_thermo_no_communication, &
-       do_thermo_nose, mol_dyn_run, mon_car_run, pint_run, use_unit_angstrom, &
-       use_unit_bohr, use_unit_scaled_angstrom, use_unit_scaled_bohr
+       do_thermo_csvr, do_thermo_no_communication, do_thermo_nose, &
+       mol_dyn_run, mon_car_run, pint_run, use_unit_angstrom, use_unit_bohr, &
+       use_unit_scaled_angstrom, use_unit_scaled_bohr
   USE input_section_types,             ONLY: &
        section_get_keyword_index, section_type, section_vals_add_values, &
        section_vals_get, section_vals_get_subs_vals, &
@@ -91,6 +91,8 @@ MODULE input_cp2k_restarts
   USE string_utilities,                ONLY: ascii_to_string,&
                                              string_to_ascii
   USE thermostat_types,                ONLY: thermostat_type
+  USE thermostat_utils,                ONLY: communication_thermo_low2,&
+                                             get_csvr_energies
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
@@ -633,7 +635,7 @@ CONTAINS
     END IF
     CALL timestop(0.0_dp,handle2)
     ! PARTICLE THERMOSTAT
-    CALL timeset(routineN//"_NHC","I",'',handle2)
+    CALL timeset(routineN//"_THERMOSTAT_PARTICLES","I",'',handle2)
     IF (ASSOCIATED(thermostat_part)) THEN
        IF     (thermostat_part%type_of_thermostat==do_thermo_nose) THEN
           ! Restart of Nose-Hoover Thermostat for Particles
@@ -810,7 +812,7 @@ CONTAINS
     END IF
     CALL timestop(0.0_dp,handle2)
     ! SHELL THERMOSTAT
-    CALL timeset(routineN//"_SHELL","I",'',handle2)
+    CALL timeset(routineN//"_THERMOSTAT_SHELL","I",'',handle2)
     IF (ASSOCIATED(thermostat_shell)) THEN
        IF     (thermostat_shell%type_of_thermostat==do_thermo_nose) THEN
           ! Restart of Nose-Hoover Thermostat for Shell Particles
@@ -1020,76 +1022,44 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: dwork
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: ascii
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: max_val, min_val
+    REAL(KIND=dp)                            :: dum
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: work
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: thermostat_energies
     TYPE(section_vals_type), POINTER         :: work_section
 
     failure = .FALSE.    
     ! Thermostat Energies
-    ALLOCATE(thermostat_energies(csvr%glob_num_csvr,para_env%num_pe),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(work(csvr%glob_num_csvr),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    thermostat_energies = 0.0_dp
-    work= 0.0_dp
-    DO i = 1, csvr%loc_num_csvr
-       my_index = csvr%map_info%index(i)
-       thermostat_energies(my_index,para_env%mepos+1) = csvr%nvt(i)%thermostat_energy
-    END DO
-    CALL mp_sum(thermostat_energies,para_env%group)
-    IF (csvr%map_info%dis_type==do_thermo_no_communication) THEN
-       !  Collect data if there was no communication in this thermostat
-       DO i = 1, para_env%num_pe
-          work(:) = work(:) + thermostat_energies(:,i)
-       END DO 
-    ELSE
-       !  Otherwise let's just pick up one value of the array
-       DO i = 1, csvr%glob_num_csvr
-          min_val=MINVAL(thermostat_energies(i,:))
-          max_val=MAXVAL(thermostat_energies(i,:))
-          CPPostcondition(min_val==max_val,cp_failure_level,routineP,error,failure)
-       END DO
-       work = thermostat_energies(:,1)
-    END IF
-    ! If check passes then let'sdump the info on the restart file
+    CALL get_csvr_energies ( csvr, dum, para_env, work, error )
+
+    ! If check passes then let's dump the info on the restart file
     work_section => section_vals_get_subs_vals(csvr_section,"THERMOSTAT_ENERGY",error=error)
     CALL dump_csvr_energy_info(work, csvr%glob_num_csvr, work_section, error)
-    DEALLOCATE (thermostat_energies,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (work,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     ! Thermostat Random Number info for restart
     work_section => section_vals_get_subs_vals(csvr_section,"RNG_INIT",error=error)
-    ALLOCATE (ascii(rng_record_length,csvr%glob_num_csvr,para_env%num_pe),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (dwork(rng_record_length,csvr%glob_num_csvr),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ascii = 0
     dwork = 0
     DO i=1,csvr%loc_num_csvr
        my_index = csvr%map_info%index(i)
        CALL dump_rng_stream(rng_stream=csvr%nvt(i)%gaussian_rng_stream,&
             rng_record=rng_record, error=error)
-       CALL string_to_ascii(rng_record,ascii(:,my_index,para_env%mepos+1))
+       CALL string_to_ascii(rng_record,dwork(:,my_index))
     END DO
-    CALL mp_sum(ascii,para_env%group)
+
     !  Collect data if there was no communication in this thermostat
     IF (csvr%map_info%dis_type==do_thermo_no_communication) THEN
-       !  Collect data if there was no communication in this thermostat
-       DO i = 1, para_env%num_pe
-          dwork(:,:) = dwork(:,:) + ascii(:,:,i)
-       END DO 
+       ! Collect data if there was no communication in this thermostat
+       CALL mp_sum(dwork,para_env%group)
     ELSE
-       !  Otherwise let's just pick up one value of the array
-       dwork(:,:) = ascii(:,:,1)
+       ! Perform some check and collect data in case of communicating thermostats 
+       CALL communication_thermo_low2(dwork, rng_record_length, csvr%glob_num_csvr, para_env, error)
     END IF
     CALL section_rng_val_set(rng_section=work_section,nsize=csvr%glob_num_csvr,ascii=dwork,&
          error=error)
-    DEALLOCATE (ascii,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (dwork,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 

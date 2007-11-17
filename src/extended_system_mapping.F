@@ -169,8 +169,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nhc_to_particle_mapping', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, natoms_local, stat, &
-                                                sum_of_thermostats
+    INTEGER                                  :: i, imap, j, natoms_local, &
+                                                stat, sum_of_thermostats
     INTEGER, DIMENSION(:), POINTER           :: deg_of_freedom, &
                                                 massive_atom_list
     LOGICAL                                  :: failure
@@ -214,7 +214,8 @@ CONTAINS
           nhc%nvt(1,1)%nkt = simpar%temp_ext*fac
        ELSE
           DO i = 1, nhc%loc_num_nhc
-             fac = (map_info%s_kin(i) - deg_of_freedom(i) )
+             imap = map_info%map_index(i)
+             fac = (map_info%s_kin(imap) - deg_of_freedom(i) )
              nhc%nvt(1,i)%nkt = simpar%temp_ext * fac 
           END DO
        END IF
@@ -289,7 +290,8 @@ CONTAINS
 
     CALL thermostat_mapping_region(map_info, deg_of_freedom, massive_atom_list,&
        molecule_kind_set, local_molecules, molecule_set, para_env, natoms_local,&
-       simpar, number, region, gci, do_shell, error)
+       simpar, number, region, gci, do_shell, thermostat_info%map_loc_thermo_gen,&
+       sum_of_thermostats, error)
 
     ALLOCATE (nhc%nvt(nhc%nhc_len,number),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -331,9 +333,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nhc_to_coef_mapping', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ikind, j, kg_coeff_ens, &
-                                                ncoef_local, ncoef_of_kind, &
-                                                ncoef_tot, nkind, number, stat
+    INTEGER                                  :: i, ikind, imap, j, &
+                                                kg_coeff_ens, ncoef_local, &
+                                                ncoef_of_kind, ncoef_tot, &
+                                                nkind, number, stat
     LOGICAL                                  :: failure, nointer
     REAL(KIND=dp)                            :: kg_coeff_temp
     TYPE(map_info_type), POINTER             :: map_info
@@ -402,7 +405,8 @@ CONTAINS
        ! Now that we know how many there are stick this into nhc % nkt
        ! (number of degrees of freedom times k_B T )
        DO i = 1, nhc%loc_num_nhc
-          nhc % nvt ( 1, i ) % nkt = kg_coeff_temp * map_info%s_kin ( i )
+          imap = map_info%map_index(i)
+          nhc % nvt ( 1, i ) % nkt = kg_coeff_temp * map_info%s_kin (imap)
        END DO
 
        ! getting the number of degrees of freedom times k_B T for the rest of the chain
@@ -447,8 +451,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nhc_to_shell_mapping', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, nshell_local, stat, &
-                                                sum_of_thermostats
+    INTEGER                                  :: i, imap, j, nshell_local, &
+                                                stat, sum_of_thermostats
     INTEGER, DIMENSION(:), POINTER           :: deg_of_freedom, &
                                                 massive_shell_list
     LOGICAL                                  :: failure
@@ -486,7 +490,8 @@ CONTAINS
        ! Now that we know how many there are stick this into nhc%nkt
        ! (number of degrees of freedom times k_B T )
        DO i = 1, nhc%loc_num_nhc
-          nhc % nvt ( 1, i ) % nkt = simpar%temp_sh_ext * map_info%s_kin ( i )
+          imap = map_info%map_index(i)
+          nhc % nvt ( 1, i ) % nkt = simpar%temp_sh_ext * map_info%s_kin(imap)
        END DO
 
        ! Getting the number of degrees of freedom times k_B T for the rest of the chain

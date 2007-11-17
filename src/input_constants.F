@@ -330,6 +330,7 @@ MODULE input_constants
                                 do_region_molecule=1,&
                                 do_region_massive=2,&
                                 do_region_none=3,&
+                                do_region_defined=4,&
                                 do_bondparm_covalent=0,&
                                 do_bondparm_vdw=1,&
                                 do_skip_12=0,&

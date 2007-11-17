@@ -34,9 +34,7 @@ MODULE extended_system_init
                                              map_info_type,&
                                              npt_info_type
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: do_thermo_communication,&
-                                             do_thermo_no_communication,&
-                                             do_thermo_only_master,&
+  USE input_constants,                 ONLY: do_thermo_only_master,&
                                              nph_uniaxial_damped_ensemble,&
                                              nph_uniaxial_ensemble,&
                                              npt_f_ensemble,&
@@ -48,14 +46,13 @@ MODULE extended_system_init
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
-  USE message_passing,                 ONLY: mp_allgather,&
-                                             mp_sum
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: global_constraint_type,&
                                              molecule_type
   USE parallel_rng_types,              ONLY: next_random_number
   USE termination,                     ONLY: stop_program
   USE thermostat_types,                ONLY: thermostat_info_type
+  USE thermostat_utils,                ONLY: get_nhc_energies
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -661,8 +658,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE init_nhc_variables ( nhc,temp_ext, para_env, globenv, error )
-    TYPE(lnhc_parameters_type), &
-      INTENT(INOUT)                          :: nhc
+    TYPE(lnhc_parameters_type), POINTER      :: nhc
     REAL(KIND=dp), INTENT(IN)                :: temp_ext
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
@@ -671,17 +667,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_nhc_variables', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, icount, j, number, &
-                                                rannumneed, stat, tot_rn
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rn_need_per_proc
+    INTEGER                                  :: i, icount, j, number, stat, &
+                                                tot_rn
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: akin, temp
+    REAL(KIND=dp)                            :: akin, dum, temp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: array_of_rn
     TYPE(map_info_type), POINTER             :: map_info
 
     failure = .FALSE.
-    ! first initializing the mass of the nhc variables
 
+    ! first initializing the mass of the nhc variables
     nhc % nvt ( :, : ) % mass = nhc % nvt ( :, : ) % nkt * nhc%tau_nhc**2
     nhc % nvt ( :, : ) % eta = 0._dp
     nhc % nvt ( :, : ) % v = 0._dp
@@ -691,21 +686,7 @@ CONTAINS
     SELECT CASE (map_info%dis_type)
     CASE ( do_thermo_only_master )  ! for NPT
     CASE DEFAULT
-       rannumneed = nhc%loc_num_nhc*nhc%nhc_len
-       ALLOCATE ( rn_need_per_proc( para_env%num_pe ), STAT = stat )
-       CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
-
-       rn_need_per_proc (:) = 0
-       CALL mp_allgather ( rannumneed, rn_need_per_proc, para_env%group )
-       
-       IF (map_info%dis_type== do_thermo_communication) THEN
-          tot_rn = rn_need_per_proc(1)
-       ELSE
-          tot_rn = SUM ( rn_need_per_proc )
-       ENDIF
-       
-       DEALLOCATE ( rn_need_per_proc, STAT = stat )
-       CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+       tot_rn = nhc%glob_num_nhc*nhc%nhc_len
 
        ALLOCATE(array_of_rn( tot_rn), STAT = stat)
        CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
@@ -760,35 +741,22 @@ CONTAINS
           icount = (icount-1) * nhc % nhc_len
           DO j = 1, nhc % nhc_len
              icount = icount + 1
-             nhc % nvt(j,i) % v = array_of_rn ( icount )
+             nhc % nvt(j,i) % v   = array_of_rn ( icount )
+             nhc % nvt(j,i) % eta = 0.0_dp
           END DO
        END DO
-       
        DEALLOCATE ( array_of_rn, STAT = stat )
        CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
 
-       akin = 0.0_dp
-       DO i = 1, nhc%loc_num_nhc
-          DO j = 1, nhc % nhc_len
-             akin = akin + 0.5_dp * ( nhc % nvt ( j , i ) % mass * &
-                                      nhc % nvt ( j , i ) % v * &
-                                      nhc % nvt ( j , i ) % v )
-          END DO
-       END DO
-       number = nhc%loc_num_nhc
-       
-       IF (map_info%dis_type==do_thermo_no_communication) THEN
-          CALL mp_sum(akin,para_env%group)
-          CALL mp_sum(number,para_env%group)
-       ENDIF
-       
+       number = nhc%glob_num_nhc
+       CALL get_nhc_energies(nhc, dum, akin, para_env, error)
+
        ! scale velocities to get the correct initial temperature
        temp = 2.0_dp*akin/REAL(number)
        temp = SQRT(temp_ext/temp)
        DO i = 1, nhc%loc_num_nhc
           DO j = 1, nhc % nhc_len
              nhc % nvt(j,i) % v = temp * nhc % nvt(j,i) % v
-             nhc % nvt(j,i) % eta = 0.0_dp
           END DO
        END DO
        

@@ -73,7 +73,9 @@ MODULE thermostat_methods
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: global_constraint_type,&
                                              molecule_type
+  USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
+  USE qmmm_types,                      ONLY: qmmm_env_qm_type
   USE thermostat_types,                ONLY: allocate_thermostats,&
                                              create_thermostat_type,&
                                              release_thermostat_info,&
@@ -151,10 +153,13 @@ CONTAINS
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(mol_new_list_type), POINTER         :: molecules_new
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(section_vals_type), POINTER :: kg_coeff_section, print_section, &
-      thermo_baro_section, thermo_coef_section, thermo_part_section, &
-      thermo_shell_section, work_section
+      region_sections, thermo_baro_section, thermo_coef_section, &
+      thermo_part_section, thermo_shell_section, work_section
 
+    NULLIFY(qmmm_env)
     failure =.FALSE.
     CALL allocate_thermostats(thermostats, error)
     thermo_part_section  => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT",error=error)
@@ -163,7 +168,7 @@ CONTAINS
     thermo_baro_section  => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT",error=error)
     print_section => section_vals_get_subs_vals(motion_section,"MD%PRINT",error=error)
 
-    CALL force_env_get(force_env, subsys=subsys, cell=cell, error=error )
+    CALL force_env_get(force_env, qmmm_env=qmmm_env, subsys=subsys, cell=cell, error=error )
     CALL section_vals_val_get(global_section,"SAVE_MEM",l_val=save_mem,  error=error)
     CALL section_vals_get(thermo_part_section,  explicit=explicit_part,  error=error)
     CALL section_vals_get(thermo_coef_section,  explicit=explicit_coef,    error=error)
@@ -185,17 +190,18 @@ CONTAINS
 
     ! Compute Degrees of Freedom
     region = do_region_global
+    region_sections => section_vals_get_subs_vals(thermo_part_section,"DEFINE_REGION",error=error)
     IF (explicit_part) CALL section_vals_val_get(thermo_part_section,"REGION",i_val=region,error=error)
     CALL cp_subsys_get(subsys, molecule_kinds_new=molecule_kinds_new, local_molecules_new=local_molecules,&
-            gci=gci, error=error) 
+            molecules_new=molecules_new, gci=gci, particles=particles, error=error)
     CALL compute_degrees_of_freedom(thermostats, cell, simpar, molecule_kinds_new%els,&
-         local_molecules, print_section, gci, region, error)
+         local_molecules, molecules_new, particles, print_section, region_sections, gci,&
+         region, qmmm_env, error)
 
     ! Particles
     IF (explicit_part) THEN
        IF (apply_general_thermo) THEN
           CALL create_thermostat_type(thermostats%thermostat_part, simpar, thermo_part_section, error=error)
-          CALL cp_subsys_get(subsys, molecules_new=molecules_new, error=error)
           ! Initialize thermostat
           IF      (thermostats%thermostat_part%type_of_thermostat==do_thermo_nose) THEN
              ! Initialize or possibly restart Nose on Particles
@@ -227,14 +233,15 @@ CPSourceFileRef,&
     IF (explicit_shell) THEN
        IF (apply_thermo_shell) THEN
           CALL create_thermostat_type(thermostats%thermostat_shell, simpar, thermo_shell_section, error=error)
-          CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds,  molecules_new=molecules_new, error=error)
+          CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds, error=error)
           CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,shell_present=shell_present,&
                shell_adiabatic=shell_adiabatic)
           do_thermo_shell = (shell_present .AND. shell_adiabatic)
+          region_sections => section_vals_get_subs_vals(thermo_shell_section,"DEFINE_REGION",error=error)
           CALL section_vals_val_get(thermo_shell_section,"REGION",i_val=region,error=error)
           CALL setup_thermostat_info(thermostats%thermostat_info_shell, molecule_kinds_new%els,&
-               local_molecules, region, simpar%ensemble, shell=do_thermo_shell,&
-               error=error)
+               local_molecules, molecules_new, particles, region, simpar%ensemble, shell=do_thermo_shell,&
+               region_sections=region_sections, qmmm_env=qmmm_env, error=error)
           IF(do_thermo_shell) THEN
              ! Initialize thermostat
              IF      (thermostats%thermostat_shell%type_of_thermostat==do_thermo_nose) THEN
@@ -354,6 +361,10 @@ CPSourceFileRef,&
        END IF
     END IF
 
+    ! Release the thermostats info..
+    CALL release_thermostat_info(thermostats%thermostat_info_part, error)
+    CALL release_thermostat_info(thermostats%thermostat_info_shell, error)
+
     ! If no thermostats have been allocated deallocate the full structure
     IF(  (.NOT.ASSOCIATED(thermostats%thermostat_part)).AND.&
          (.NOT.ASSOCIATED(thermostats%thermostat_shell)).AND.&
@@ -457,7 +468,7 @@ CPSourceFileRef,&
     logger => cp_error_get_logger(error)
     iw=cp_print_key_unit_nr(logger,section,"THERMOSTAT_INFO",extension=".log",error=error)
     ! Total Tehrmostat Energy
-    CALL get_thermostat_energies(thermostat, pot_energy, kin_energy, para_env%group, error)
+    CALL get_thermostat_energies(thermostat, pot_energy, kin_energy, para_env, error)
     IF (iw>0) THEN
        WRITE ( iw, '( /,A )' ) ' THERMOSTAT| Thermostat Info for '//TRIM(label)
        SELECT CASE(thermostat%type_of_thermostat)

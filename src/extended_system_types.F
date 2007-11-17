@@ -77,7 +77,7 @@ MODULE extended_system_types
 
   TYPE map_info_type
      INTEGER                                         :: dis_type
-     INTEGER, POINTER, DIMENSION(:)                  :: index
+     INTEGER, POINTER, DIMENSION(:)                  :: index, map_index
      REAL (KIND=dp), POINTER, DIMENSION(:)           :: v_scale
      REAL (KIND=dp), POINTER, DIMENSION(:)           :: s_kin
      TYPE (point_info_type), POINTER, DIMENSION(:,:) :: p_scale
@@ -179,7 +179,7 @@ CONTAINS
     failure = .FALSE.
     ALLOCATE(map_info, stat=stat)
     CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
-    NULLIFY(map_info%index)
+    NULLIFY(map_info%index, map_info%map_index)
     NULLIFY(map_info%v_scale)
     NULLIFY(map_info%p_scale)
     NULLIFY(map_info%s_kin)
@@ -242,6 +242,10 @@ CONTAINS
        END IF
        IF (ASSOCIATED (map_info%index)) THEN
           DEALLOCATE (map_info%index, STAT=stat)
+          CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED (map_info%map_index)) THEN
+          DEALLOCATE (map_info%map_index, STAT=stat)
           CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
        END IF
        

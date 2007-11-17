@@ -95,6 +95,7 @@ MODULE thermostat_types
      INTEGER                              :: sum_of_thermostats
      INTEGER                              :: number_of_thermostats
      INTEGER                              :: dis_type
+     INTEGER, POINTER, DIMENSION(:)       :: map_loc_thermo_gen
   END TYPE thermostat_info_type
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'thermostat_types'
@@ -152,6 +153,8 @@ CONTAINS
     ALLOCATE(thermostats%thermostat_info_shell, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
+    NULLIFY(thermostats%thermostat_info_part%map_loc_thermo_gen)
+    NULLIFY(thermostats%thermostat_info_shell%map_loc_thermo_gen)
     NULLIFY(thermostats%thermostat_part)
     NULLIFY(thermostats%thermostat_shell)
     NULLIFY(thermostats%thermostat_coef)
@@ -359,6 +362,10 @@ CONTAINS
 
     failure =.FALSE.
     IF (ASSOCIATED(thermostat_info)) THEN
+       IF (ASSOCIATED(thermostat_info%map_loc_thermo_gen)) THEN
+          DEALLOCATE(thermostat_info%map_loc_thermo_gen, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
        DEALLOCATE(thermostat_info, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF

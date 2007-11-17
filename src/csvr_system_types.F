@@ -175,7 +175,7 @@ CONTAINS
     DO ithermo = 1, csvr%loc_num_csvr
        my_index = csvr%map_info%index(ithermo)
        my_seed  = seed(:,:,my_index)
-       WRITE (UNIT=name,FMT="(A,I8)") "Wiener process for Thermostat #",ithermo
+       WRITE (UNIT=name,FMT="(A,I8)") "Wiener process for Thermostat #",my_index
        CALL compress(name)
        CALL create_rng_stream(rng_stream=csvr%nvt(ithermo)%gaussian_rng_stream,&
             name=name,distribution_type=GAUSSIAN, extended_precision=.TRUE.,&

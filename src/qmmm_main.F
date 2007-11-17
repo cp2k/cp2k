@@ -231,7 +231,6 @@ CPSourceFileRef,&
        END IF
 
        ! First Initialize Fist...
-
        CALL section_vals_val_set(force_env_section,"METHOD",i_val=do_fist,error=error)
        CALL fist_create_force_env(sub_force_env(1)%force_env, &
             root_section, para_env, globenv, qmmm=.TRUE., qmmm_env=qmmm_env_mm,&
@@ -261,6 +260,14 @@ CPSourceFileRef,&
        qmmm_env_qm%qmmm_link       = qmmm_link
        qmmm_env_qm%num_qm_atoms = SIZE(qm_atom_index)
        qmmm_env_qm%num_mm_atoms = SIZE(mm_atom_index)
+       ! Duplicate structure for link atoms
+       IF (qmmm_link) THEN
+          IF (ASSOCIATED(mm_link_atoms)) THEN
+             ALLOCATE(qmmm_env_qm%mm_link_atoms(SIZE(mm_link_atoms)),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             qmmm_env_qm%mm_link_atoms = mm_link_atoms
+          END IF
+       END IF
        IF ( iw > 0 ) THEN
           WRITE(iw,'(A,I8)')" Number of QM atoms: ",qmmm_env_qm%num_qm_atoms
           WRITE(iw,'(A,I8)')" Number of MM atoms: ",qmmm_env_qm%num_mm_atoms
