@@ -39,7 +39,8 @@ MODULE gopt_f_types
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: default_bfgs_method_id,&
                                              dump_dcd,&
-                                             dump_xmol
+                                             dump_xmol,&
+                                             dump_atomic
   USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_vals_get_subs_vals,&
@@ -1022,7 +1023,7 @@ CONTAINS
        ELSE IF(outformat==dump_xmol) THEN
           !         *** This information can be digested by Molden ***
           WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")" i = ",it," , E =",etot
-       ELSE IF(outformat==dump_xmol) THEN
+       ELSE IF(outformat==dump_atomic) THEN
           ! Do Nothing..
        ELSE
           CPPostcondition(.FALSE.,cp_fatal_level,routineP,error,failure)
