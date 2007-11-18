@@ -1326,7 +1326,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="lennard-jones",&
             description="This section specifies the input parameters for LENNARD-JONES potential type."//&
-            "Functional form: V(r) = EPSILON * [(SIGMA/r)^12-(SIGMA/r)^6].",&
+            "Functional form: V(r) = 4.0 * EPSILON * [(SIGMA/r)^12-(SIGMA/r)^6].",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
