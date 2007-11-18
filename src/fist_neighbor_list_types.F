@@ -179,11 +179,22 @@ CONTAINS
              NULLIFY(new_pairs(i)%ij_kind,&
                      new_pairs(i)%grp_kind_start,&
                      new_pairs(i)%grp_kind_end)
-             DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%ij_kind,&
-                        fist_neighbor%neighbor_kind_pairs(i)%id_kind,&
-                        fist_neighbor%neighbor_kind_pairs(i)%grp_kind_start,&
-                        fist_neighbor%neighbor_kind_pairs(i)%grp_kind_end, stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%ij_kind)) THEN
+                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%ij_kind, stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             END IF
+             IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%id_kind)) THEN
+                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%id_kind, stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             END IF
+             IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%grp_kind_start)) THEN
+                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%grp_kind_start, stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             END IF
+             IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%grp_kind_end)) THEN
+                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%grp_kind_end, stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             END IF
           ENDDO
           DO i=SIZE(fist_neighbor%neighbor_kind_pairs)+1,nlistmin
              ALLOCATE(new_pairs(i)%list(2,0),stat=stat)
