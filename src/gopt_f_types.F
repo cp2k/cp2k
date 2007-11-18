@@ -1007,7 +1007,8 @@ CONTAINS
             error=error)
     IF (traj_unit > 0) THEN
        CALL section_vals_val_get(root_section,"MOTION%PRINT%TRAJECTORY%FORMAT",i_val=outformat,error=error)
-       IF(outformat==dump_dcd) THEN
+       title = ""
+       IF     (outformat==dump_dcd) THEN
           IF ( init_traj ) THEN
              !Lets write the header for the coordinate dcd
              iskip = section_get_ival(root_section,"MOTION%PRINT%TRAJECTORY%EACH",error=error)
@@ -1018,11 +1019,13 @@ CONTAINS
              WRITE(traj_unit) nat
              CALL m_flush(traj_unit)
           ENDIF
-       ELSEIF(outformat==dump_xmol) THEN
+       ELSE IF(outformat==dump_xmol) THEN
           !         *** This information can be digested by Molden ***
           WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")" i = ",it," , E =",etot
+       ELSE IF(outformat==dump_xmol) THEN
+          ! Do Nothing..
        ELSE
-          title = ""
+          CPPostcondition(.FALSE.,cp_fatal_level,routineP,error,failure)
        END IF
        CALL write_particle_coordinates(particle_set,traj_unit,outformat,"POS",TRIM(title),cell)
     END IF
