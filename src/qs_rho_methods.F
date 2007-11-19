@@ -503,9 +503,6 @@ END SUBROUTINE qs_rho_update_rho
                                     use_data=REALDATA3D, in_space=REALSPACE, &
                                     error=error)
             rho_output%rho_r(i)%pw%cr3d(:,:,:) = rho_input%rho_r(i)%pw%cr3d(:,:,:)
-            IF (ASSOCIATED(rho_input%rho_r(i)%pw%mass_cr)) THEN
-              rho_output%rho_r(i)%pw%mass_cr(:) = rho_input%rho_r(i)%pw%mass_cr(:)
-            END IF
           END DO
         END IF
       END IF
@@ -522,9 +519,6 @@ END SUBROUTINE qs_rho_update_rho
                                     use_data=COMPLEXDATA1D, &
                                     in_space=RECIPROCALSPACE, error=error)
             rho_output%rho_g(i)%pw%cc(:)      = rho_input%rho_g(i)%pw%cc(:)
-            IF (ASSOCIATED(rho_input%rho_g(i)%pw%mass_cc)) THEN
-              rho_output%rho_g(i)%pw%mass_cc(:) = rho_input%rho_g(i)%pw%mass_cc(:)
-            END IF
           END DO
         END IF
       END IF
@@ -546,9 +540,6 @@ END SUBROUTINE qs_rho_update_rho
                                       use_data=REALDATA3D, in_space=REALSPACE, &
                                       error=error)
               rho_output%tau_r(i)%pw%cr3d(:,:,:) = rho_input%tau_r(i)%pw%cr3d(:,:,:)
-              IF (ASSOCIATED(rho_input%tau_r(i)%pw%mass_cr)) THEN
-                rho_output%tau_r(i)%pw%mass_cr(:) = rho_input%tau_r(i)%pw%mass_cr(:)
-              END IF
             END DO
           END IF
         END IF
@@ -563,9 +554,6 @@ END SUBROUTINE qs_rho_update_rho
                                       use_data=COMPLEXDATA1D, &
                                       in_space=RECIPROCALSPACE, error=error)
               rho_output%tau_g(i)%pw%cc(:) = rho_input%tau_g(i)%pw%cc(:)
-              IF (ASSOCIATED(rho_input%tau_g(i)%pw%mass_cc)) THEN
-                rho_output%tau_g(i)%pw%mass_cc(:) = rho_input%tau_g(i)%pw%mass_cc(:)
-              END IF
             END DO
           END IF
         END IF
@@ -733,11 +721,6 @@ END SUBROUTINE qs_rho_update_rho
                                     error=error)
             rho_output%rho_r(i)%pw%cr3d(:,:,:) = a*rho_input1%rho_r(i)%pw%cr3d(:,:,:) - &
                                                  b*rho_input2%rho_r(i)%pw%cr3d(:,:,:)
-            IF (ASSOCIATED(rho_input1%rho_r(i)%pw%mass_cr) .AND. &
-                ASSOCIATED(rho_input2%rho_r(i)%pw%mass_cr)) THEN
-              rho_output%rho_r(i)%pw%mass_cr(:) = a*rho_input1%rho_r(i)%pw%mass_cr(:) - &
-                                                  b*rho_input2%rho_r(i)%pw%mass_cr(:)
-            END IF
           END DO
         END IF
       END IF
@@ -755,11 +738,6 @@ END SUBROUTINE qs_rho_update_rho
                                     in_space=RECIPROCALSPACE, error=error)
             rho_output%rho_g(i)%pw%cc(:)      = a*rho_input1%rho_g(i)%pw%cc(:) - &
                                                 b*rho_input2%rho_g(i)%pw%cc(:)
-            IF (ASSOCIATED(rho_input1%rho_g(i)%pw%mass_cc) .AND. &
-                ASSOCIATED(rho_input2%rho_g(i)%pw%mass_cc)) THEN
-              rho_output%rho_g(i)%pw%mass_cc(:) = a*rho_input1%rho_g(i)%pw%mass_cc(:) - &
-                                                  b*rho_input2%rho_g(i)%pw%mass_cc(:)
-            END IF
           END DO
         END IF
       END IF
@@ -782,11 +760,6 @@ END SUBROUTINE qs_rho_update_rho
                                       error=error)
               rho_output%tau_r(i)%pw%cr3d(:,:,:) = a*rho_input1%tau_r(i)%pw%cr3d(:,:,:) - &
                                                    b*rho_input2%tau_r(i)%pw%cr3d(:,:,:)
-              IF (ASSOCIATED(rho_input1%tau_r(i)%pw%mass_cr) .AND. &
-                  ASSOCIATED(rho_input2%tau_r(i)%pw%mass_cr)) THEN
-                rho_output%tau_r(i)%pw%mass_cr(:) = a*rho_input1%tau_r(i)%pw%mass_cr(:) - &
-                                                    b*rho_input2%tau_r(i)%pw%mass_cr(:)
-              END IF
             END DO
           END IF
         END IF
@@ -802,11 +775,6 @@ END SUBROUTINE qs_rho_update_rho
                                       in_space=RECIPROCALSPACE, error=error)
               rho_output%tau_g(i)%pw%cc(:) = a*rho_input1%tau_g(i)%pw%cc(:) - &
                                              b*rho_input2%tau_g(i)%pw%cc(:)
-              IF (ASSOCIATED(rho_input1%tau_g(i)%pw%mass_cc) .AND. &
-                  ASSOCIATED(rho_input2%tau_g(i)%pw%mass_cc)) THEN
-                rho_output%tau_g(i)%pw%mass_cc(:) = a*rho_input1%tau_g(i)%pw%mass_cc(:) - &
-                                                    b*rho_input2%tau_g(i)%pw%mass_cc(:)
-              END IF
             END DO
           END IF
         END IF
@@ -956,17 +924,11 @@ END SUBROUTINE qs_rho_update_rho
                                       use_data=REALDATA3D, in_space=REALSPACE, &
                                       error=error)
               rho_output%rho_r(i)%pw%cr3d(:,:,:) = rho_input%rho_r(i)%pw%cr3d(:,:,:)
-              IF (ASSOCIATED(rho_input%rho_r(i)%pw%mass_cr)) THEN
-                rho_output%rho_r(i)%pw%mass_cr(:) = rho_input%rho_r(i)%pw%mass_cr(:)
-              END IF
             END DO
           END IF
         ELSE
           DO i = 1,nspins
             rho_output%rho_r(i)%pw%cr3d(:,:,:) = rho_input%rho_r(i)%pw%cr3d(:,:,:)
-            IF (ASSOCIATED(rho_input%rho_r(i)%pw%mass_cr)) THEN
-              rho_output%rho_r(i)%pw%mass_cr(:) = rho_input%rho_r(i)%pw%mass_cr(:)
-            END IF
           END DO
         END IF
       END IF
@@ -984,16 +946,10 @@ END SUBROUTINE qs_rho_update_rho
                                       use_data=COMPLEXDATA1D, &
                                       in_space=RECIPROCALSPACE, error=error)
               rho_output%rho_g(i)%pw%cc(:)      = rho_input%rho_g(i)%pw%cc(:)
-              IF (ASSOCIATED(rho_input%rho_g(i)%pw%mass_cc)) THEN
-                rho_output%rho_g(i)%pw%mass_cc(:) = rho_input%rho_g(i)%pw%mass_cc(:)
-              END IF
             END DO
           ELSE
             DO i = 1,nspins
               rho_output%rho_g(i)%pw%cc(:)      = rho_input%rho_g(i)%pw%cc(:)
-              IF (ASSOCIATED(rho_input%rho_g(i)%pw%mass_cc)) THEN
-                rho_output%rho_g(i)%pw%mass_cc(:) = rho_input%rho_g(i)%pw%mass_cc(:)
-              END IF
             END DO
           END IF
         END IF
@@ -1017,16 +973,10 @@ END SUBROUTINE qs_rho_update_rho
                                         use_data=REALDATA3D, in_space=REALSPACE, &
                                         error=error)
                 rho_output%tau_r(i)%pw%cr3d(:,:,:) = rho_input%tau_r(i)%pw%cr3d(:,:,:)
-                IF (ASSOCIATED(rho_input%tau_r(i)%pw%mass_cr)) THEN
-                  rho_output%tau_r(i)%pw%mass_cr(:) = rho_input%tau_r(i)%pw%mass_cr(:)
-                END IF
               END DO
             ELSE
               DO i = 1,nspins
                 rho_output%rho_g(i)%pw%cc(:)      = rho_input%rho_g(i)%pw%cc(:)
-                IF (ASSOCIATED(rho_input%rho_g(i)%pw%mass_cc)) THEN
-                  rho_output%rho_g(i)%pw%mass_cc(:) = rho_input%rho_g(i)%pw%mass_cc(:)
-                END IF
               END DO
             END IF
           END IF
@@ -1043,16 +993,10 @@ END SUBROUTINE qs_rho_update_rho
                                         use_data=COMPLEXDATA1D, &
                                         in_space=RECIPROCALSPACE, error=error)
                 rho_output%tau_g(i)%pw%cc(:) = rho_input%tau_g(i)%pw%cc(:)
-                IF (ASSOCIATED(rho_input%tau_g(i)%pw%mass_cc)) THEN
-                  rho_output%tau_g(i)%pw%mass_cc(:) = rho_input%tau_g(i)%pw%mass_cc(:)
-                END IF
               END DO
             ELSE
               DO i = 1,nspins
                 rho_output%rho_g(i)%pw%cc(:)      = rho_input%rho_g(i)%pw%cc(:)
-                IF (ASSOCIATED(rho_input%rho_g(i)%pw%mass_cc)) THEN
-                  rho_output%rho_g(i)%pw%mass_cc(:) = rho_input%rho_g(i)%pw%mass_cc(:)
-                END IF
               END DO
             END IF
           END IF

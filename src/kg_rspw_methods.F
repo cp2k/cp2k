@@ -49,11 +49,11 @@ MODULE kg_rspw_methods
                                              kg_environment_type
   USE kg_rspw_types,                   ONLY: kg_rspw_type
   USE kinds,                           ONLY: dp
+  USE pw_grid_info,                    ONLY: pw_find_cutoff
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
                                              pw_grid_type
-  USE pw_grids,                        ONLY: pw_find_cutoff,&
-                                             pw_grid_change,&
+  USE pw_grids,                        ONLY: pw_grid_change,&
                                              pw_grid_create,&
                                              pw_grid_release,&
                                              pw_grid_setup
@@ -137,8 +137,6 @@ END SUBROUTINE kg_rspw_create
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_rspw_rebuild', &
       routineP = moduleN//':'//routineN
-    ! KG doesn't setup the radius correctly. It appears that not all primitives that are actually mapped
-    ! are being tested in the radius calculation. This safety_factor will lead to poorer parallel performance
     REAL(KIND=dp), PARAMETER                 :: safety_factor = 1.2
 
     INTEGER :: handle, i, igrid_level, ikind, iounit, ipgf, iset, ishell, la, &
@@ -147,9 +145,8 @@ END SUBROUTINE kg_rspw_create
     INTEGER, DIMENSION(:, :), POINTER        :: lshella
     LOGICAL                                  :: failure, should_output, &
                                                 use_ref_cell
-    REAL(dp)                                 :: alpha, cutilev, drmin, &
-                                                maxradius, my_cut, &
-                                                rel_cutoff, zetp
+    REAL(dp)                                 :: alpha, cutilev, maxradius, &
+                                                my_cut, rel_cutoff, zetp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: radius
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cutoff, my_cutoff
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zeta
@@ -170,6 +167,8 @@ END SUBROUTINE kg_rspw_create
       DIMENSION(:), POINTER                  :: rs
     TYPE(section_vals_type), POINTER         :: poisson_section, print_section
 
+! KG doesn't setup the radius correctly. It appears that not all primitives that are actually mapped
+! are being tested in the radius calculation. This safety_factor will lead to poorer parallel performance
 !   INTEGER, PARAMETER                       :: maxgridpoints = 100
 !   ---------------------------------------------------------------------------
 

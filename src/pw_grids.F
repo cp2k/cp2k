@@ -44,26 +44,24 @@
 
 MODULE pw_grids
   USE cell_types,                      ONLY: cell_type
-  USE fft_tools,                       ONLY: FFT_RADIX_NEXT,&
-                                             FFT_RADIX_NEXT_ODD,&
-                                             fft_radix_operations
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
-  USE mathlib,                         ONLY: dotprod_3d,&
-                                             inv_3x3,&
-                                             matvec_3x3
+  USE mathlib,                         ONLY: matvec_3x3
   USE message_passing,                 ONLY: &
        MPI_COMM_SELF, mp_cart_coords, mp_cart_create, mp_cart_rank, &
        mp_comm_compare, mp_comm_dup, mp_comm_free, mp_dims_create, &
        mp_environ, mp_max, mp_min, mp_sum
+  USE pw_grid_info,                    ONLY: pw_cutoff_from_n,&
+                                             pw_grid_bounds_from_n,&
+                                             pw_grid_find_n,&
+                                             pw_grid_n_for_fft
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
                                              PW_MODE_DISTRIBUTED,&
                                              PW_MODE_LOCAL,&
                                              map_pn,&
                                              pw_grid_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit,&
@@ -73,18 +71,14 @@ MODULE pw_grids
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: pw_grid_create, pw_grid_compare
-  PUBLIC :: pw_grid_setup, pw_grid_change, pw_find_cutoff
-  PUBLIC :: pw_grid_retain, pw_grid_release
-  PUBLIC :: create_gvectors, pw_grid_find_n, pw_grid_n_from_cutoff,&
-       pw_grid_n_for_fft, pw_grid_bounds_from_n, pw_grid_setup1,pw_cutoff_from_n
+  PUBLIC :: pw_grid_create, pw_grid_retain, pw_grid_release
+  PUBLIC :: get_pw_grid_info, pw_grid_compare
+  PUBLIC :: pw_grid_setup, pw_grid_setup1
+  PUBLIC :: pw_grid_change, create_gvectors
 
   INTEGER :: grid_tag = 0
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_grids'
 
-  INTERFACE pw_find_cutoff
-     MODULE PROCEDURE pw_find_cutoff_qs, pw_find_cutoff_fist
-  END INTERFACE
 !!***
 !******************************************************************************
 
@@ -209,387 +203,47 @@ FUNCTION pw_grid_compare ( grida, gridb ) RESULT ( equal )
 END FUNCTION pw_grid_compare
 
 !******************************************************************************
-
-  !!****f* pw_grids/pw_grid_find_n *
-  !!
-  !!   NAME
-  !!     pw_grid_find_n
-  !!
-  !!   FUNCTION
-  !!     returns the n needed for the grid with all the given constraints
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** *********************************************************************
-FUNCTION pw_grid_find_n ( cell, cutoff, fft_usage, grid_span,&
-     symm_usage, spherical, ncommensurate, error) RESULT(n)
-
-    TYPE(cell_type), INTENT(IN)              :: cell
-    REAL(KIND=dp), INTENT(IN)                :: cutoff
-    LOGICAL, INTENT(IN), OPTIONAL            :: fft_usage
-    INTEGER, INTENT(IN), OPTIONAL            :: grid_span
-    LOGICAL, INTENT(IN), OPTIONAL            :: symm_usage, spherical
-    INTEGER, INTENT(IN), OPTIONAL            :: ncommensurate
-    TYPE(cp_error_type), INTENT(inout)       :: error
-    INTEGER, DIMENSION(3)                    :: n
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_find_n', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER :: handle, i, idir, my_grid_span, my_icommensurate, &
-      my_ncommensurate, nlowest, nlowest_new, ntest(3)
-    LOGICAL                                  :: failure, fft, my_spherical, &
-                                                symmetry
-
-! cutoff could be inout, and set to the effective cutoff of the given grid
-! in atomic units
-! parent group for this grid
-! output unit for information on grid
-! has the grid size to be
-! compatible with the FFT
-! has the grid size to be
-! symmetric (g <-> -g)
-! block or ray-distribution
-!------------------------------------------------------------------------------
-
-  CALL timeset("pw_grid_find_n","I","",handle)
-  failure=.FALSE.
-
-  my_grid_span=FULLSPACE
-  IF (PRESENT(grid_span)) my_grid_span=grid_span
-  ! default is to use only fft compatible grids
-  IF ( PRESENT ( fft_usage ) ) THEN
-    fft = fft_usage
-  ELSE
-    fft = .TRUE.
-  END IF
-
-  ! default is to use only symmetric grids
-  IF ( PRESENT ( symm_usage ) ) THEN
-    symmetry = symm_usage
-  ELSE
-    symmetry = .TRUE.
-  END IF
-
-  ! ncommensurate is the number of commensurate grids
-  ! in order to have non-commensurate grids ncommensurate must be 0
-  ! icommensurte  is the level number of communensurate grids
-  ! this implies that the number of grid points in each direction
-  ! is k*2**(ncommensurate-icommensurate)
-  IF ( PRESENT ( ncommensurate ) ) THEN
-     my_ncommensurate=ncommensurate
-     IF (my_ncommensurate .GT. 0 ) THEN
-         my_icommensurate=1
-     ELSE
-         my_icommensurate=0
-     ENDIF
-     IF (my_icommensurate > my_ncommensurate ) THEN
-        CALL stop_program ( "grid_setup", &
-                            "my_icommensurate > my_ncommensurate" )
-     ENDIF
-     IF (my_icommensurate<=0 .AND. my_ncommensurate > 1) THEN
-        CALL stop_program ( "grid_setup", &
-                            " my_incommensurate<=0 .AND. my_ncommensurate > 1 " )
-     ENDIF
-     IF (my_ncommensurate < 0 ) THEN
-        CALL stop_program ( "grid_setup", &
-                            "my_ncommensurate < 0 " )
-     ENDIF
-  ELSE
-     my_ncommensurate=0
-     my_icommensurate=0
-  ENDIF
-
-  CPPrecondition(cutoff>0.0_dp,cp_failure_level,routineP,error,failure)
-  n= pw_grid_n_from_cutoff ( cell % hmat, cutoff,error=error)
-  my_spherical = .FALSE.
-  IF (PRESENT(spherical)) my_spherical=spherical
-
-  IF (fft) THEN
-     n=pw_grid_n_for_fft(n,odd=(my_grid_span == HALFSPACE .AND. symmetry),error=error)
-
-     IF (.NOT.spherical) THEN
-        ntest = n
-
-        IF ( my_ncommensurate>0 ) THEN
-           DO idir=1,3
-              DO
-                 CALL fft_radix_operations ( ntest(idir), n(idir), FFT_RADIX_NEXT )
-                 ! is also the lowest grid allowed (e.g could be 17, which is too large, but might be 5)
-                 nlowest=n(idir)/2**(my_ncommensurate-my_icommensurate)
-                 CALL fft_radix_operations ( nlowest,nlowest_new, FFT_RADIX_NEXT )
-                 IF (nlowest==nlowest_new .AND. MODULO(n(idir),2**(my_ncommensurate-my_icommensurate)).EQ.0) THEN
-                    EXIT
-                 ELSE
-                    ntest(idir)=n(idir)+1
-                 ENDIF
-              END DO
-           END DO
-        END IF
-     END IF
-  ELSE
-     ! without a cutoff and HALFSPACE we have to be sure that there is
-     ! a negative counterpart to every g vector (-> odd number of grid points)
-     IF ( my_grid_span == HALFSPACE .AND. symmetry ) &
-          n = n + MOD ( n + 1, 2 )
-
-  END IF
-
-  ! final check if all went fine ...
-  IF (my_ncommensurate>0) THEN
-     DO my_icommensurate=1,my_ncommensurate
-        IF ( ANY( MODULO(n,2**(my_ncommensurate-my_icommensurate)).NE.0 ) ) THEN ! nope, sorry
-           CALL stop_program ( "grid_setup", &
-                "commensurate option failed (I) ... maybe not yet programmed for this combination of options ?" )
-        END IF
-     END DO
-  ENDIF
-
-  CALL timestop(0.0_dp,handle)
-
-END FUNCTION pw_grid_find_n
-!****************************************************************************
-
-!!****f* pw_grids/pw_grid_n_for_fft *
+!!****** pw_grids/get_pw_grid_info [1.0] *
 !!
 !!   NAME
-!!     pw_grid_n_for_fft
+!!     get_pw_grid_info
 !!
 !!   FUNCTION
-!!     returns the closest number of points >= n, on which you can perform
-!!     ffts
-!!
-!!   NOTES
-!!     result<=n
-!!
-!!   ARGUMENTS
-!!     - n: the minimum number of points you want
-!!     - odd: if the number has to be odd
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
+!!     Access to information stored in the pw_grid_type
 !!
 !!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
-FUNCTION pw_grid_n_for_fft(n,odd,error) RESULT(nout)
-    INTEGER, DIMENSION(3), INTENT(in)        :: n
-    LOGICAL, INTENT(in), OPTIONAL            :: odd
-    TYPE(cp_error_type), INTENT(inout)       :: error
-    INTEGER, DIMENSION(3)                    :: nout
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_n_for_fft', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure, my_odd
-
-  failure=.FALSE.
-  my_odd=.FALSE.
-  IF (PRESENT(odd)) my_odd=odd
-  CPPrecondition(ALL(n>=0),cp_failure_level,routineP,error,failure)
-  IF (.NOT.failure) THEN
-     IF (my_odd) THEN
-        CALL fft_radix_operations ( n(1), nout(1), FFT_RADIX_NEXT_ODD )
-        CALL fft_radix_operations ( n(2), nout(2), FFT_RADIX_NEXT_ODD )
-        CALL fft_radix_operations ( n(3), nout(3), FFT_RADIX_NEXT_ODD )
-     ELSE
-        CALL fft_radix_operations ( n(1), nout(1), FFT_RADIX_NEXT )
-        CALL fft_radix_operations ( n(2), nout(2), FFT_RADIX_NEXT )
-        CALL fft_radix_operations ( n(3), nout(3), FFT_RADIX_NEXT )
-     END IF
-  END IF
-
-END FUNCTION pw_grid_n_for_fft
-!***************************************************************************
-
-!!****** pw_grids/pw_grid_n_from_cutoff [1.1] *
-!!
-!!   NAME
-!!     pw_grid_n_from_cutoff
-!!
-!!   FUNCTION
-!!     Find the number of points that give at least the requested cutoff
-!!
-!!   AUTHOR
-!!     apsi
-!!     Christopher Mundy
+!!     JGH (17-Nov-2007)
 !!
 !!   MODIFICATION HISTORY
-!!     JGH (21-12-2000) : Simplify parameter list, bounds will be global
-!!     JGH ( 8-01-2001) : Add check to FFT allowd grids (this now depends
-!!                        on the FFT library.
-!!                        Should the pw_grid_type have a reference to the FFT
-!!                        library ?
-!!     JGH (28-02-2001) : Only do conditional check for FFT
-!!     JGH (21-05-2002) : Optimise code, remove orthorhombic special case
+!!     none
 !!
 !!*** *************************************************************************
-FUNCTION pw_grid_n_from_cutoff ( hmat, cutoff, error ) RESULT(n)
 
-    REAL(KIND=dp), DIMENSION(3, 3), &
-      INTENT(IN)                             :: hmat
-    REAL(KIND=dp), INTENT(IN)                :: cutoff
-    TYPE(cp_error_type), INTENT(inout)       :: error
-    INTEGER, DIMENSION(3)                    :: n
+ SUBROUTINE get_pw_grid_info(pw_grid, id_nr, mode, &
+                             error)
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_n_from_cutoff', &
+    TYPE(pw_grid_type), POINTER              :: pw_grid
+    INTEGER, INTENT(OUT), OPTIONAL           :: id_nr, mode
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_pw_grid_info', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: alat( 3 )
 
-!------------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
     failure=.FALSE.
+    CPPrecondition(pw_grid%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    DO i=1,3
-      alat(i) = SUM ( hmat(:,i)**2 )
-    ENDDO
-    CPPostcondition(ALL(alat/=0._dp),cp_failure_level,routineP,error,failure)
-    IF ( failure ) THEN
-      n = -HUGE(0)
-    ELSE
-      n = 2*FLOOR ( SQRT ( 2.0_dp * cutoff * alat ) / twopi ) + 1
+    IF ( .NOT. failure ) THEN
+      IF ( PRESENT(id_nr) ) id_nr = pw_grid%id_nr
+      IF ( PRESENT(mode) ) mode = pw_grid%para%mode
     END IF
 
-END FUNCTION pw_grid_n_from_cutoff
-!****************************************************************************
-
-!!****** pw_grids/pw_cutoff_from_n [1.1] *
-!!
-!!   NAME
-!!     pw_cutoff_from_n
-!!
-!!   FUNCTION
-!!     Given a n and a box, calculate the corresponding maximum cutoff in a.u.
-!!     If npts is odd returns the energy of the next biggest g vector, because
-!!     if you take the points with energy smaller than that they are still
-!!     representable with that cutoff. Whereas if npts is even the energy of
-!!     the last (unpaired) g vector is returned. This implies that you always
-!!     have that 2*i+1, and 2*i+2 have the same cutoff.
-!!
-!!   AUTHOR
-!!     fawzi (taken from pw_find_cutoff)
-!!
-!!*** *************************************************************************
-
-FUNCTION pw_cutoff_from_n ( npts, box, error ) RESULT(cutoff)
-    INTEGER, DIMENSION(:), INTENT(IN)        :: npts
-    TYPE(cell_type), INTENT(IN)              :: box
-    TYPE(cp_error_type), INTENT(inout)       :: error
-    REAL(KIND=dp)                            :: cutoff
-
-    INTEGER                                  :: idir
-    REAL(KIND=dp)                            :: cut_att, gdum( 3 )
-
-  cutoff=0._dp
-  DO idir=1,3
-     gdum ( : ) = twopi * box % h_inv ( idir, : ) &
-          * REAL ( ( npts ( idir ) + 1 )/2,KIND=dp)
-     cut_att = dotprod_3d ( gdum, gdum )/2._dp
-     IF (idir==1) cutoff=cut_att
-     cutoff = MIN ( cutoff, cut_att )
-  END DO
-
-END FUNCTION pw_cutoff_from_n
+  END SUBROUTINE get_pw_grid_info
 
 !******************************************************************************
-
-!!****f* pw_grids/pw_grid_bounds_from_n *
-!!
-!!   NAME
-!!     pw_grid_bounds_from_n
-!!
-!!   FUNCTION
-!!     returns the bounds that distribute n points evenly around 0
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - npts: the number of points in each direction
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
-FUNCTION pw_grid_bounds_from_n(npts,error) RESULT(bounds)
-    INTEGER, DIMENSION(3), INTENT(in)        :: npts
-    TYPE(cp_error_type), INTENT(inout)       :: error
-    INTEGER, DIMENSION(2, 3)                 :: bounds
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_bounds_from_n', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-
-  bounds(1,:)=-npts/2
-  bounds(2,:)=bounds(1,:)+npts-1
-END FUNCTION pw_grid_bounds_from_n
-!***************************************************************************
-
-!!****** pw_grids/pw_grid_find_bounds [1.1] *
-!!
-!!   NAME
-!!     pw_grid_find_bounds
-!!
-!!   FUNCTION
-!!     Find bounds of grid array
-!!
-!!   AUTHOR
-!!     apsi
-!!     Christopher Mundy
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (21-12-2000) : Simplify parameter list, bounds will be global
-!!     JGH ( 8-01-2001) : Add check to FFT allowd grids (this now depends
-!!                        on the FFT library.
-!!                        Should the pw_grid_type have a reference to the FFT
-!!                        library ?
-!!     JGH (28-02-2001) : Only do conditional check for FFT
-!!     JGH (21-05-2002) : Optimise code, remove orthorhombic special case
-!!
-!!*** *************************************************************************
-
-SUBROUTINE pw_grid_find_bounds ( bounds, hmat, cutoff, fft, error)
-
-
-    INTEGER, DIMENSION(2, 3), INTENT(OUT)    :: bounds
-    REAL(KIND=dp), DIMENSION(3, 3), &
-      INTENT(IN)                             :: hmat
-    REAL(KIND=dp), INTENT(IN)                :: cutoff
-    LOGICAL, INTENT(IN)                      :: fft
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    INTEGER, PARAMETER                       :: lwork = 20
-
-    INTEGER                                  :: handle, n(3)
-
-!------------------------------------------------------------------------------
-
-  CALL timeset("pw_grid_find_bounds","I","",handle)
-
-  n=pw_grid_n_from_cutoff(hmat,cutoff,error=error)
-  IF (fft) n=pw_grid_n_for_fft(n,error=error)
-  bounds = pw_grid_bounds_from_n(n,error=error)
-
-  CALL timestop(0.0_dp,handle)
-
-END SUBROUTINE pw_grid_find_bounds
-!****************************************************************************
 
 !!****** pw_grids/pw_grid_setup [1.1] *
 !!
@@ -834,25 +488,18 @@ SUBROUTINE pw_grid_setup1 ( cell, pw_grid, bounds, grid_span, &
   ! the indices in yz_mask are from -n/2 .. n/2 shifted by n/2 + 1
   ! these are not mapped indices !
   ALLOCATE ( yz_mask ( n(2), n(3) ), STAT = allocstat )
-  IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_setup", "yz_mask", 0 )
+  CPPrecondition(allocstat==0,cp_failure_level,routineP,error,failure)
   CALL pw_grid_count ( cell % h_inv, pw_grid, ecut, yz_mask )
 
   ! Check if reference grid is compatible
   IF ( PRESENT ( ref_grid ) ) THEN
-    IF ( pw_grid % para % mode /= ref_grid % para % mode ) THEN
-      CALL stop_program ( "pw_grid_setup", "Incompatible parallelisation scheme" )
-    END IF
+    CPPrecondition(pw_grid % para % mode == ref_grid % para % mode,cp_failure_level,routineP,error,failure)
     IF ( pw_grid % para % mode == PW_MODE_DISTRIBUTED ) THEN
       CALL mp_comm_compare(pw_grid % para % group, ref_grid % para % group, ires )
-      IF ( ires >2 ) & !FM make it >3 ?
-        CALL stop_program ( "pw_grid_setup", "Incompatible MPI groups" )
+      CPPrecondition(ires <= 3,cp_failure_level,routineP,error,failure) !FM make it >3 ?
     END IF
-    IF ( pw_grid % grid_span /= ref_grid % grid_span ) THEN
-      CALL stop_program ( "pw_grid_setup", "Incompatible grid types" )
-    END IF
-    IF ( pw_grid % spherical .NEQV. ref_grid % spherical ) THEN
-      CALL stop_program ( "pw_grid_setup", "Incompatible cutoff schemes" )
-    END IF
+    CPPrecondition(pw_grid % grid_span == ref_grid % grid_span,cp_failure_level,routineP,error,failure)
+    CPPrecondition(pw_grid % spherical .EQV. ref_grid % spherical,cp_failure_level,routineP,error,failure)
   END IF
 
   ! Distribute grid
@@ -861,18 +508,18 @@ SUBROUTINE pw_grid_setup1 ( cell, pw_grid, bounds, grid_span, &
 
   ! Allocate the grid fields
   CALL pw_grid_allocate ( pw_grid, pw_grid % ngpts_cut_local, &
-                          pw_grid % bounds )
+                          pw_grid % bounds, error )
 
   ! Fill in the grid structure
-  CALL pw_grid_assign ( cell % h_inv, pw_grid, ecut )
+  CALL pw_grid_assign ( cell % h_inv, pw_grid, ecut, error )
 
   ! Sort g vector wrt length (only local for each processor)
-  CALL pw_grid_sort ( pw_grid, ref_grid )
+  CALL pw_grid_sort ( pw_grid, ref_grid, error )
 
-  CALL pw_grid_remap ( pw_grid, yz_mask )
+  CALL pw_grid_remap ( pw_grid, yz_mask, error )
 
-  DEALLOCATE ( yz_mask )
-  IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_setup", "yz_mask" )
+  DEALLOCATE ( yz_mask , STAT=allocstat )
+  CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
 
   pw_grid % vol = ABS ( cell % deth )
   pw_grid % dvol = pw_grid % vol / REAL ( pw_grid % ngpts,KIND=dp)
@@ -917,13 +564,19 @@ END SUBROUTINE pw_grid_setup1
     TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: ref_grid
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_gvectors', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: istat, n(3)
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_mask
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
 
     n ( : )  = pw_grid % npts ( : )
 
     ALLOCATE ( yz_mask ( n(2), n(3) ), STAT = istat )
-    IF ( istat /= 0 ) CALL stop_memory ( "create_gvectors", "yz_mask", 0 )
+    CPPrecondition(istat == 0,cp_failure_level,routineP,error,failure)
     CALL pw_grid_count ( cell % h_inv, pw_grid, ecut, yz_mask )
 
     ! Distribute grid
@@ -931,18 +584,18 @@ END SUBROUTINE pw_grid_setup1
 
     ! Allocate the grid fields
     CALL pw_grid_allocate ( pw_grid, pw_grid % ngpts_cut_local, &
-                            pw_grid % bounds )
+                            pw_grid % bounds, error )
 
     ! Fill in the grid structure
-    CALL pw_grid_assign ( cell % h_inv, pw_grid, ecut )
+    CALL pw_grid_assign ( cell % h_inv, pw_grid, ecut, error )
 
     ! Sort g vector wrt length (only local for each processor)
-    CALL pw_grid_sort ( pw_grid, ref_grid )
+    CALL pw_grid_sort ( pw_grid, ref_grid, error )
 
-    CALL pw_grid_remap ( pw_grid, yz_mask )
+    CALL pw_grid_remap ( pw_grid, yz_mask, error )
 
     DEALLOCATE ( yz_mask, STAT=istat )
-    IF ( istat /= 0 ) CALL stop_memory ( "create_gvectors", "yz_mask" )
+    CPPrecondition(istat == 0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE create_gvectors
 
@@ -1203,8 +856,7 @@ SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking, rs_dims,&
 
 !..the third distribution is needed for the second step in the FFT
     ALLOCATE ( pw_grid % para % bo ( 2, 3, 0:np-1, 3 ), STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_distribute", &
-       "pw_grid % para % bo", 2*np )
+    CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
     rsd = pw_grid % para % rs_dims
     DO ip = 0, np - 1
       CALL mp_cart_coords ( pw_grid % para % rs_group, ip, coor )
@@ -1229,12 +881,10 @@ SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking, rs_dims,&
     pw_grid % ngpts_cut_local = 0
 
     ALLOCATE ( pw_grid % para % nyzray ( 0: np-1 ), STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_distribute", &
-          "pw_grid % para % nyzray", np )
+    CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
 
     ALLOCATE ( pw_grid % para % yzq ( ny, nz ), STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_distribute", &
-       "pw_grid % para % yzq", ny*nz )
+    CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
 
     IF ( pw_grid % spherical .OR. pw_grid % grid_span == HALFSPACE &
          .OR. .NOT. blocking ) THEN
@@ -1254,9 +904,8 @@ SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking, rs_dims,&
       i1 = SIZE ( yz_mask, 1 )
       i2 = SIZE ( yz_mask, 2 )
       ALLOCATE ( yz_index(2,i1*i2), STAT = ierr )
-      IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_distribute", &
-                                          "yz_index", 2*i1*i2 )
-      CALL order_mask ( yz_mask, yz_index )
+      CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
+      CALL order_mask ( yz_mask, yz_index, error )
       DO i = 1, i1*i2
         lo(1) = yz_index(1,i)
         lo(2) = yz_index(2,i)
@@ -1278,7 +927,7 @@ SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking, rs_dims,&
         END IF
       END DO
       DEALLOCATE ( yz_index, STAT = ierr )
-      IF ( ierr /= 0 ) CALL stop_memory ( "", "yz_index" )
+      CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
 
       ! Count the total number of rays on each processor
       pw_grid % para % nyzray = 0
@@ -1293,8 +942,7 @@ SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking, rs_dims,&
       ! Allocate mapping array (y:z, nray, nproc)
       ns = MAXVAL ( pw_grid % para % nyzray ( 0: np-1 ) )
       ALLOCATE ( pw_grid % para % yzp ( 2, ns, 0: np-1 ), STAT = ierr )
-      IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_distribute", &
-            "pw_grid % para % yzp", 2*ns*np )
+      CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
 
       ! Fill mapping array, recalculate nyzray for convenience
       pw_grid % para % nyzray = 0
@@ -1446,24 +1094,31 @@ END SUBROUTINE pre_tag
 
 !------------------------------------------------------------------------------
 
-SUBROUTINE order_mask ( yz_mask, yz_index )
+SUBROUTINE order_mask ( yz_mask, yz_index, error )
 
 
     INTEGER, DIMENSION(:, :), INTENT(IN)     :: yz_mask
     INTEGER, DIMENSION(:, :), INTENT(OUT)    :: yz_index
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'order_mask', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, i1, i2, icount, ierr, j, &
                                                 j1, j2
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cindex, icol, irow, rindex
+    LOGICAL                                  :: failure
 
 !------------------------------------------------------------------------------
+
+  failure = .FALSE.
 
   i1 = SIZE ( yz_mask, 1 )
   i2 = SIZE ( yz_mask, 2 )
   ALLOCATE ( irow(i1), rindex(i1), STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "order_mask", "irow", 2*i1 )
+  CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
   ALLOCATE ( icol(i2), cindex(i2), STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "order_mask", "icol", 2*i2 )
+  CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
 
   yz_index = 0
   DO i = 1, i1
@@ -1494,7 +1149,7 @@ SUBROUTINE order_mask ( yz_mask, yz_index )
   ENDDO
 
   DEALLOCATE ( irow, rindex, icol, cindex, STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "order_mask", "irow" )
+  CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
 
 END SUBROUTINE order_mask
 
@@ -1607,23 +1262,30 @@ END SUBROUTINE pw_grid_count
 !!
 !!*** *************************************************************************
 
-SUBROUTINE pw_grid_assign ( h_inv, pw_grid, cutoff )
+SUBROUTINE pw_grid_assign ( h_inv, pw_grid, cutoff, error )
 
 
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_inv
     TYPE(pw_grid_type), POINTER              :: pw_grid
     REAL(KIND=dp), INTENT(IN)                :: cutoff
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_assign', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: gpt, handle, i, ip, l, lby, &
                                                 lbz, ll, m, mm, n, &
                                                 n_upperlimit, nn
     INTEGER, DIMENSION(2, 3)                 :: bol, bounds
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: length, length_x, length_y, &
                                                 length_z
 
 !------------------------------------------------------------------------------
 
   CALL timeset("pw_grid_assign","I","",handle)
+
+  failure = .FALSE.
 
   bounds = pw_grid % bounds
   lby = pw_grid % bounds ( 1, 2 )
@@ -1783,14 +1445,10 @@ SUBROUTINE pw_grid_assign ( h_inv, pw_grid, cutoff )
   END IF
 
 ! Check the number of g-vectors for grid
-  IF ( pw_grid % ngpts_cut_local /= gpt ) THEN
-     CALL stop_program ( "pw_grid_assign", "error re-counting the vectors" )
-  END IF
+  CPPrecondition(pw_grid % ngpts_cut_local == gpt,cp_failure_level,routineP,error,failure)
   IF ( pw_grid % para % mode == PW_MODE_DISTRIBUTED ) THEN
      CALL mp_sum ( gpt, pw_grid % para % group )
-     IF ( pw_grid % ngpts_cut /= gpt ) &
-     CALL stop_program ( "pw_grid_assign", " sum on all processors"//&
-                         "error re-counting the vectors" )
+     CPPrecondition(pw_grid % ngpts_cut == gpt,cp_failure_level,routineP,error,failure)
   ENDIF
 
   pw_grid % have_g0 = .FALSE.
@@ -1912,50 +1570,51 @@ END SUBROUTINE pw_grid_set_maps
 !!
 !!*** *************************************************************************
 
-SUBROUTINE pw_grid_allocate ( pw_grid, ng, bounds )
+SUBROUTINE pw_grid_allocate ( pw_grid, ng, bounds, error )
 
 ! Argument
     TYPE(pw_grid_type), INTENT(INOUT)        :: pw_grid
     INTEGER, INTENT(IN)                      :: ng
     INTEGER, DIMENSION(:, :), INTENT(IN)     :: bounds
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_allocate', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: allocstat
+    LOGICAL                                  :: failure
 
 !------------------------------------------------------------------------------
 
+  failure = .FALSE.
+
   ALLOCATE ( pw_grid % g ( 3, ng ), STAT = allocstat )
-  IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_allocate", "g", 3*ng )
+  CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
   ALLOCATE ( pw_grid % gsq ( ng ), STAT = allocstat )
-  IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_allocate", "gsq", ng )
+  CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
   ALLOCATE ( pw_grid % g_hat ( 3, ng ), STAT = allocstat )
-  IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_allocate", "g_hat", 3*ng )
+  CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
 
   ALLOCATE ( pw_grid % mapl % pos ( bounds ( 1, 1 ):bounds ( 2, 1 ) ), &
              STAT = allocstat )
-  IF ( allocstat /= 0 ) &
-       CALL stop_memory ( "pw_grid_allocate", "mapl % pos", 0 )
+  CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
   ALLOCATE ( pw_grid % mapl % neg ( bounds ( 1, 1 ):bounds ( 2, 1 ) ), &
              STAT = allocstat )
-  IF ( allocstat /= 0 ) &
-       CALL stop_memory ( "pw_grid_allocate", "mapl % neg", 0 )
+  CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
 
   ALLOCATE ( pw_grid % mapm % pos ( bounds ( 1, 2 ):bounds ( 2, 2 ) ), &
              STAT = allocstat )
-  IF ( allocstat /= 0 ) &
-       CALL stop_memory ( "pw_grid_allocate", "mapm % pos", 0 )
+  CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
   ALLOCATE ( pw_grid % mapm % neg ( bounds ( 1, 2 ):bounds ( 2, 2 ) ), &
              STAT = allocstat )
-  IF ( allocstat /= 0 ) &
-       CALL stop_memory ( "pw_grid_allocate", "mapm % neg", 0 )
+  CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
 
   ALLOCATE ( pw_grid % mapn % pos ( bounds ( 1, 3 ):bounds ( 2, 3 ) ), &
              STAT = allocstat )
-  IF ( allocstat /= 0 ) &
-       CALL stop_memory ( "pw_grid_allocate", "mapn % pos", 0 )
+  CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
   ALLOCATE ( pw_grid % mapn % neg ( bounds ( 1, 3 ):bounds ( 2, 3 ) ), &
              STAT = allocstat )
-  IF ( allocstat /= 0 ) &
-       CALL stop_memory ( "pw_grid_allocate", "mapn % neg", 0 )
+  CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
 
 END SUBROUTINE pw_grid_allocate
 
@@ -1987,35 +1646,41 @@ END SUBROUTINE pw_grid_allocate
 !!
 !!*** *************************************************************************
 
-SUBROUTINE pw_grid_sort ( pw_grid, ref_grid )
+SUBROUTINE pw_grid_sort ( pw_grid, ref_grid, error )
 
 
 ! Argument
     TYPE(pw_grid_type), INTENT(INOUT)        :: pw_grid
     TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: ref_grid
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_sort', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: allocstat, handle, ig, ih, &
                                                 ip, is, it, ng, ngr
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: idx, int_tmp
-    LOGICAL                                  :: g_found
+    LOGICAL                                  :: failure, g_found
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: real_tmp
 
 !------------------------------------------------------------------------------
 
   CALL timeset("pw_grid_sort","I","",handle)
 
+  failure = .FALSE.
+
   ng = SIZE ( pw_grid % gsq  )
   ALLOCATE ( idx ( ng ), STAT = allocstat )
-  IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_sort", "idx", ng )
+  CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
   ALLOCATE ( int_tmp ( ng ), STAT = allocstat )
-  IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_sort", "int_tmp", ng )
+  CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
   ALLOCATE ( real_tmp ( ng ), STAT = allocstat )
-  IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_sort", "real_tmp", ng )
+  CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
 
   ! grids are (locally) ordered by length of G-vectors
   CALL sort ( pw_grid % gsq, ng, idx )
   ! within shells order wrt x,y,z
-  CALL sort_shells ( pw_grid % gsq, pw_grid % g_hat, idx )
+  CALL sort_shells ( pw_grid % gsq, pw_grid % g_hat, idx, error )
 
   real_tmp ( 1:ng ) = pw_grid % g ( 1, 1:ng )
   pw_grid % g ( 1, 1:ng ) = real_tmp ( idx ( 1:ng ) )
@@ -2031,11 +1696,11 @@ SUBROUTINE pw_grid_sort ( pw_grid, ref_grid )
   pw_grid % g_hat ( 3, 1:ng ) = int_tmp ( idx ( 1:ng ) )
 
   DEALLOCATE ( idx, STAT = allocstat )
-  IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_sort", "idx" )
+  CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
   DEALLOCATE ( int_tmp, STAT = allocstat )
-  IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_sort", "int_tmp" )
+  CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
   DEALLOCATE ( real_tmp, STAT = allocstat )
-  IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_sort", "real_tmp" )
+  CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
 
   ! check if ordering is compatible to reference grid
   IF ( PRESENT ( ref_grid ) ) THEN
@@ -2048,7 +1713,7 @@ SUBROUTINE pw_grid_sort ( pw_grid, ref_grid )
       END IF
     ELSE
       ALLOCATE ( pw_grid%gidx(1:ngr), STAT = allocstat )
-      IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_sort", "pw_grid%gidx", ngr )
+      CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
       pw_grid%gidx = 0
       ! first try as many trivial associations as possible
       it = 0
@@ -2154,21 +1819,27 @@ SUBROUTINE pw_grid_sort ( pw_grid, ref_grid )
 
 END SUBROUTINE pw_grid_sort
 
-SUBROUTINE sort_shells ( gsq, g_hat, idx )
+SUBROUTINE sort_shells ( gsq, g_hat, idx, error )
 
 
 ! Argument
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: gsq
     INTEGER, DIMENSION(:, :), INTENT(IN)     :: g_hat
     INTEGER, DIMENSION(:), INTENT(INOUT)     :: idx
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'sort_shells', &
+      routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: small = 5.e-16_dp
 
     INTEGER                                  :: ig, ng, s1, s2
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: s_begin
 
 ! Juergs temporary hack to get the grids sorted for large (4000Ry) cutoffs.
 ! might need to call lapack for machine precision.
+
+  failure = .FALSE.
 
   ng = SIZE ( gsq )
   s_begin = -1.0_dp
@@ -2179,34 +1850,41 @@ SUBROUTINE sort_shells ( gsq, g_hat, idx )
     IF ( ABS ( gsq ( ig ) - s_begin ) < small ) THEN
       s2 = ig
     ELSE
-      CALL redist ( g_hat, idx, s1, s2)
+      CALL redist ( g_hat, idx, s1, s2, error)
       s_begin = gsq ( ig )
       s1 = ig
       s2 = ig
     END IF
   END DO
-  CALL redist ( g_hat, idx, s1, s2 )
+  CALL redist ( g_hat, idx, s1, s2, error )
 
 END SUBROUTINE sort_shells
 
-SUBROUTINE redist ( g_hat, idx, s1, s2 )
+SUBROUTINE redist ( g_hat, idx, s1, s2, error )
 
 
 ! Argument
     INTEGER, DIMENSION(:, :), INTENT(IN)     :: g_hat
     INTEGER, DIMENSION(:), INTENT(INOUT)     :: idx
     INTEGER, INTENT(IN)                      :: s1, s2
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'redist', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ii, info, n1, n2, n3, ns
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: indl
+    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: slen
+
+  failure = .FALSE.
 
   IF ( s2 <= s1 ) RETURN
   ns = s2 - s1 + 1
   ALLOCATE ( indl ( ns ), STAT = info )
-  IF ( info /= 0 ) CALL stop_memory ( "redist", "indl", ns )
+  CPPrecondition(info == 0,cp_failure_level,routineP,error,failure)
   ALLOCATE ( slen ( ns ), STAT = info )
-  IF ( info /= 0 ) CALL stop_memory ( "redist", "slen", ns )
+  CPPrecondition(info == 0,cp_failure_level,routineP,error,failure)
 
   DO i = s1, s2
     ii = idx ( i )
@@ -2224,9 +1902,9 @@ SUBROUTINE redist ( g_hat, idx, s1, s2 )
   idx ( s1:s2 ) = indl ( 1:ns )
 
   DEALLOCATE ( indl, STAT = info )
-  IF ( info /= 0 ) CALL stop_memory ( "redist", "indl" )
+  CPPrecondition(info == 0,cp_failure_level,routineP,error,failure)
   DEALLOCATE ( slen, STAT = info )
-  IF ( info /= 0 ) CALL stop_memory ( "redist", "slen" )
+  CPPrecondition(info == 0,cp_failure_level,routineP,error,failure)
 
 END SUBROUTINE redist
 
@@ -2247,17 +1925,24 @@ END SUBROUTINE redist
 !!
 !!*** *************************************************************************
 
-SUBROUTINE pw_grid_remap ( pw_grid, yz )
+SUBROUTINE pw_grid_remap ( pw_grid, yz, error )
 
 ! Argument
     TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, DIMENSION(:, :), INTENT(OUT)    :: yz
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_remap', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: gpt, handle, i, ip, is, j, m, &
                                                 n, ny, nz
     INTEGER, DIMENSION(:), POINTER           :: mapm, mapn
+    LOGICAL                                  :: failure
 
 !------------------------------------------------------------------------------
+
+  failure = .FALSE.
 
   IF ( pw_grid % para % mode == PW_MODE_LOCAL ) RETURN
   IF ( .NOT. pw_grid % para % ray_distribution ) RETURN
@@ -2302,9 +1987,7 @@ SUBROUTINE pw_grid_remap ( pw_grid, yz )
     END DO
   END DO
 
-  IF ( is /= pw_grid % para % nyzray ( ip ) ) THEN
-    CALL stop_program ( "pw_grid_remap", "recount of yz ray failed" )
-  END IF
+  CPPrecondition(is == pw_grid % para % nyzray ( ip ),cp_failure_level,routineP,error,failure)
   CALL mp_sum ( pw_grid % para % yzp, pw_grid % para % group )
 
   CALL timestop(0.0_dp,handle)
@@ -2378,124 +2061,6 @@ SUBROUTINE pw_grid_change ( cell, pw_grid )
   END DO
 
 END SUBROUTINE pw_grid_change
-
-!****************************************************************************
-!!****** pw_grids/pw_find_cutoff_qs [1.1] *
-!!
-!!   NAME
-!!     pw_find_cutoff
-!!
-!!   FUNCTION
-!!     Given a grid and a box, calculate the corresponding cutoff
-!!     *** This routine calculates the cutoff in MOMENTUM UNITS! ***
-!!
-!!   AUTHOR
-!!     apsi
-!!     Christopher Mundy
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (20-12-2000) : Deleted some strange comments
-!!
-!!   NOTES
-!!     This routine is local. It works independent from the distribution
-!!     of PW on processors.
-!!     npts is the grid size for the full box.
-!!
-!!*** *************************************************************************
-
-SUBROUTINE pw_find_cutoff_qs ( bounds, h_inv, cutoff, error )
-
-
-    INTEGER, DIMENSION(:, :), INTENT(IN)     :: bounds
-    REAL(KIND=dp), DIMENSION(:, :)           :: h_inv
-    REAL(KIND=dp), INTENT(OUT)               :: cutoff
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    INTEGER, PARAMETER                       :: lwork = 20
-
-    INTEGER                                  :: info
-    REAL(KIND=dp)                            :: eig( 3 ), gcut, length, &
-                                                vec(3), vec1(3), work( lwork )
-    REAL(KIND=dp), DIMENSION(3, 3)           :: gmat, gmat_inv
-
-!------------------------------------------------------------------------------
-
-   gmat = MATMUL ( h_inv, TRANSPOSE ( h_inv ) )
-   CALL dsyev("V","U",3,gmat,3,eig,work,lwork,info)
-   IF ( info /= 0 ) CALL stop_program ( "pw_find_cutoff", "dsyev:info" )
-   eig = twopi * SQRT ( eig )
-   gmat_inv = inv_3x3 ( gmat )
-   vec1(:)=REAL ( bounds(2,:), dp )
-   CALL MATVEC_3x3 (vec, gmat_inv (:,:), vec1( : ) )
-   length = vec ( 1 ) * eig ( 1 )
-   length = CEILING ( length * length * 0.5_dp )
-   gcut = length
-   length =  vec ( 2 ) * eig ( 2 )
-   length = CEILING ( length * length * 0.5_dp )
-   gcut = MIN ( gcut, length )
-   length =  vec ( 3 ) * eig ( 3 )
-   length = CEILING ( length * length * 0.5_dp )
-   gcut = MIN ( gcut, length )
-   cutoff = gcut
-
-END SUBROUTINE pw_find_cutoff_qs
-
-!****************************************************************************
-!!****** pw_grids/pw_find_cutoff_fist [1.1] *
-!!
-!!   NAME
-!!     pw_find_cutoff
-!!
-!!   FUNCTION
-!!     Given a grid and a box, calculate the corresponding cutoff
-!!     *** This routine calculates the cutoff in MOMENTUM UNITS! ***
-!!
-!!   AUTHOR
-!!     apsi
-!!     Christopher Mundy
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (20-12-2000) : Deleted some strange comments
-!!
-!!   NOTES
-!!     This routine is local. It works independent from the distribution
-!!     of PW on processors.
-!!     npts is the grid size for the full box.
-!!
-!!*** *************************************************************************
-
-SUBROUTINE pw_find_cutoff_fist ( npts, box, cutoff, error )
-
-
-    INTEGER, DIMENSION(:), INTENT(IN)        :: npts
-    TYPE(cell_type), INTENT(IN)              :: box
-    REAL(KIND=dp), INTENT(OUT)               :: cutoff
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    REAL(KIND=dp)                            :: gcut, gdum( 3 ), length
-
-!------------------------------------------------------------------------------
-! compute 2*pi*h_inv^t*g  where g = (bounds[1],0,0)
-
-  gdum ( : ) = twopi *  box % h_inv ( 1, : ) &
-       * REAL ( ( npts ( 1 ) - 1 ) / 2 ,KIND=dp )
-  length = SQRT ( DOTPROD_3D ( gdum, gdum ) )
-  gcut = length
-
-! compute 2*pi*h_inv^t*g  where g = (0,bounds[2],0)
-  gdum ( : ) = twopi *  box % h_inv ( 2, : ) &
-       * REAL ( ( npts ( 2 ) - 1 ) / 2 ,KIND=dp )
-  length = SQRT ( DOTPROD_3D ( gdum, gdum ) )
-  gcut = MIN ( gcut, length )
-
-! compute 2*pi*h_inv^t*g  where g = (0,0,bounds[3])
-  gdum ( : ) = twopi *  box % h_inv ( 3, : ) &
-       * REAL ( ( npts ( 3 ) - 1 ) / 2 ,KIND=dp )
-  length = SQRT ( DOTPROD_3D ( gdum, gdum ) )
-  gcut = MIN ( gcut, length )
-  cutoff = gcut - 1.e-5_dp
-
-END SUBROUTINE pw_find_cutoff_fist
 
 !******************************************************************************
 

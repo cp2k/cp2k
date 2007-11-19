@@ -271,9 +271,6 @@ END SUBROUTINE wfs_create
                                    use_data=REALDATA3D, in_space=REALSPACE, &
                                    error=error)
             output_snapshot%rho_r(i)%pw%cr3d(:,:,:) = input_snapshot%rho_r(i)%pw%cr3d(:,:,:)
-            IF (ASSOCIATED(input_snapshot%rho_r(i)%pw%mass_cr)) THEN
-              output_snapshot%rho_r(i)%pw%mass_cr(:) = input_snapshot%rho_r(i)%pw%mass_cr(:)
-            END IF
           END IF
         END DO
       END IF
@@ -288,9 +285,6 @@ END SUBROUTINE wfs_create
                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
                                    error=error)
             output_snapshot%rho_g(i)%pw%cc(:) = input_snapshot%rho_g(i)%pw%cc(:)
-            IF (ASSOCIATED(input_snapshot%rho_g(i)%pw%mass_cc)) THEN
-              output_snapshot%rho_g(i)%pw%mass_cc(:) = input_snapshot%rho_g(i)%pw%mass_cc(:)
-            END IF
           END IF
         END DO
       END IF
@@ -413,9 +407,6 @@ END SUBROUTINE wfs_create
             !                       use_data=REALDATA3D, in_space=REALSPACE, &
             !                       error=error)
             output_snapshot%rho_r(i)%pw%cr3d(:,:,:) = input_snapshot%rho_r(i)%pw%cr3d(:,:,:)
-            IF (ASSOCIATED(input_snapshot%rho_r(i)%pw%mass_cr)) THEN
-              output_snapshot%rho_r(i)%pw%mass_cr(:) = input_snapshot%rho_r(i)%pw%mass_cr(:)
-            END IF
           END IF
         END DO
       END IF
@@ -428,9 +419,6 @@ END SUBROUTINE wfs_create
             !                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
             !                       error=error)
             output_snapshot%rho_g(i)%pw%cc(:) = input_snapshot%rho_g(i)%pw%cc(:)
-            IF (ASSOCIATED(input_snapshot%rho_g(i)%pw%mass_cc)) THEN
-              output_snapshot%rho_g(i)%pw%mass_cc(:) = input_snapshot%rho_g(i)%pw%mass_cc(:)
-            END IF
           END IF
         END DO
       END IF

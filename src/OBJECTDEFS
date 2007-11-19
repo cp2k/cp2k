@@ -10,7 +10,6 @@ OBJECTS_GENERIC =\
  ai_overlap_new.o\
  ai_overlap_ppl.o\
  ai_verfc.o\
- ao_types.o\
  atomic_charges.o\
  atomic_kind_list_types.o\
  atomic_kind_types.o\
@@ -318,6 +317,7 @@ OBJECTS_GENERIC =\
  preconditioner.o\
  pw_env_methods.o\
  pw_env_types.o\
+ pw_grid_info.o\
  pw_grid_types.o\
  pw_grids.o\
  pw_poisson_methods.o\

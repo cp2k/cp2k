@@ -16,6 +16,7 @@
 !!     JGH (29-Dec-2000) : Changes for parallel use
 !!     JGH (13-Mar-2001) : added timing calls
 !!     JGH (26-feb-2003) : OpenMP enabled
+!!     JGH (17-nov-2007) : Removed mass arrays
 !!
 !!   NOTES
 !!     If parallel mode is distributed certain combination of
@@ -42,8 +43,7 @@ MODULE pw_types
                                              PW_MODE_DISTRIBUTED,&
                                              PW_MODE_LOCAL,&
                                              pw_grid_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: print_stack,&
                                              timeset,&
                                              timestop
@@ -65,9 +65,9 @@ MODULE pw_types
   PUBLIC :: pw_dr2_gg
 
   TYPE pw_type
-     REAL (KIND=dp), DIMENSION ( : ), POINTER :: cr, mass_cr
+     REAL (KIND=dp), DIMENSION ( : ), POINTER :: cr
      REAL (KIND=dp), DIMENSION ( :, :, : ), POINTER :: cr3d
-     COMPLEX (KIND=dp), DIMENSION ( : ), POINTER :: cc, mass_cc
+     COMPLEX (KIND=dp), DIMENSION ( : ), POINTER :: cc
      COMPLEX (KIND=dp), DIMENSION ( :, :, : ), POINTER :: cc3d
 
      INTEGER :: in_use              ! Which data is used [r1d/c1d/r3d/c3d]
@@ -2608,20 +2608,18 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
         c_in => pw1 % cc3d
         IF (.NOT. ASSOCIATED (c_out)) &
             ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
-        IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out", &
-            pw1 % pw_grid % ngpts )
+        CPPreconditionNoErr(ierr == 0,cp_failure_level,"pw_zero")
         ! transform
         CALL fft3d ( dir, n, c_in, c_out, scale = norm, debug=test )
         ! gather results
         IF ( test ) WRITE ( *,'(A)') "  PW_GATHER : 3d -> 1d "
         CALL pw_gather ( pw2, c_out )
         DEALLOCATE ( c_out, STAT = ierr )
-        IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out" )
+        CPPreconditionNoErr(ierr == 0,cp_failure_level,"pw_zero")
       CASE ( "FW_R3DC1D" )
         IF (.NOT. ASSOCIATED (c_out)) &
             ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
-        IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out", &
-            pw1 % pw_grid % ngpts )
+        CPPreconditionNoErr(ierr == 0,cp_failure_level,"pw_zero")
         nsize=SIZE(pw1 % cr3d,1)*SIZE(pw1 % cr3d,2)*SIZE(pw1 % cr3d,3)
         l1 = LBOUND(pw1%cr3d,1)
         l2 = LBOUND(pw1%cr3d,2)
@@ -2631,7 +2629,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
         IF ( test ) WRITE ( *,'(A)') "  PW_GATHER : 3d -> 1d "
         CALL pw_gather ( pw2, c_out, scale = norm )
         DEALLOCATE ( c_out, STAT = ierr )
-        IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out" )
+        CPPreconditionNoErr(ierr == 0,cp_failure_level,"pw_zero")
       CASE ( "BW_C3DC3D" )
         c_in => pw1 % cc3d
         c_out => pw2 % cc3d
@@ -2640,14 +2638,13 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
         c_in => pw1 % cc3d
         IF (.NOT. ASSOCIATED (c_out)) &
             ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
-        IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out", &
-            pw1 % pw_grid % ngpts )
+        CPPreconditionNoErr(ierr == 0,cp_failure_level,"pw_zero")
         CALL fft3d ( dir, n, c_in, c_out, scale = norm, debug=test )
         ! use real part only
         IF ( test ) WRITE ( *,'(A)') "  REAL part "
         pw2 % cr3d = REAL ( c_out,KIND=dp)
         DEALLOCATE ( c_out, STAT = ierr )
-        IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out" )
+        CPPreconditionNoErr(ierr == 0,cp_failure_level,"pw_zero")
       CASE ( "BW_C1DC3D" )
         c_out => pw2 % cc3d
         IF ( test ) WRITE ( *,'(A)') "  PW_SCATTER : 3d -> 1d "
@@ -2656,8 +2653,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
       CASE ( "BW_C1DR3D" )
         IF (.NOT. ASSOCIATED (c_out)) &
             ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
-        IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out", &
-            pw1 % pw_grid % ngpts )
+        CPPreconditionNoErr(ierr == 0,cp_failure_level,"pw_zero")
         IF ( test ) WRITE ( *,'(A)') "  PW_SCATTER : 3d -> 1d "
         CALL pw_scatter ( pw1, c_out )
         ! transform
@@ -2671,7 +2667,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
         l3 = LBOUND(pw2%cr3d,3)
         CALL copy_cr(nsize,c_out(1,1,1),pw2%cr3d(l1,l2,l3))
         DEALLOCATE ( c_out, STAT = ierr )
-        IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out" )
+        CPPreconditionNoErr(ierr == 0,cp_failure_level,"pw_zero")
     END SELECT
 
     IF ( test ) WRITE ( *,'(A)') " End of FFT Protocol "
@@ -2699,8 +2695,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
     my_pos = pw1 % pw_grid % para % my_pos
     nrays = pw1 % pw_grid % para % nyzray ( my_pos )
     ALLOCATE ( grays ( n(1), nrays ), STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", &
-      "grays", n(1) * nrays )
+    CPPreconditionNoErr(ierr == 0,cp_failure_level,"pw_zero")
     grays = 0.0_dp
 
     SELECT CASE ( mode )
@@ -2713,8 +2708,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
       CASE ( "FW_R3DC1D" )
         nloc = pw1 % pw_grid % npts_local
         ALLOCATE ( c_in( nloc(1), nloc(2), nloc(3) ), STAT = ierr )
-        IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_in", &
-            PRODUCT ( nloc ) )
+        CPPreconditionNoErr(ierr == 0,cp_failure_level,"pw_zero")
         c_in = CMPLX ( pw1 % cr3d, 0.0_dp,KIND=dp)
       CASE ( "BW_C1DC3D" )
         IF ( test .AND. pw1%pw_grid%para%group_head ) &
@@ -2727,8 +2721,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
         CALL pw_scatter ( pw1, grays )
         nloc = pw2 % pw_grid % npts_local
         ALLOCATE ( c_in( nloc(1), nloc(2), nloc(3) ), STAT = ierr )
-        IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_in", &
-            PRODUCT ( nloc ) )
+        CPPreconditionNoErr(ierr == 0,cp_failure_level,"pw_zero")
     END SELECT
 
 !..transform
@@ -2757,7 +2750,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
             WRITE ( *,'(A)') "  PW_GATHER : 2d -> 1d "
         CALL pw_gather ( pw2, grays )
         DEALLOCATE ( c_in, STAT = ierr )
-        IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_in" )
+        CPPreconditionNoErr(ierr == 0,cp_failure_level,"pw_zero")
       CASE ( "BW_C1DC3D" )
         ! nothing to do
       CASE ( "BW_C1DR3D" )
@@ -2765,11 +2758,11 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
             WRITE ( *,'(A)') "  Real part "
         pw2 % cr3d = REAL ( c_in,KIND=dp)
         DEALLOCATE ( c_in, STAT = ierr )
-        IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_in" )
+        CPPreconditionNoErr(ierr == 0,cp_failure_level,"pw_zero")
     END SELECT
 
     DEALLOCATE ( grays, STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "grays" )
+    CPPreconditionNoErr(ierr == 0,cp_failure_level,"pw_zero")
 
   END IF
 
@@ -3091,13 +3084,12 @@ END SUBROUTINE pw_release
 !!     pw_create
 !!
 !!   SYNOPSIS
-!!     Subroutine pw_create(pw, pw_grid, use_data, in_space, mass_flag,&
+!!     Subroutine pw_create(pw, pw_grid, use_data, in_space,&
 !!         cr3d_ptr, error)
 !!       Type(pw_type), Pointer:: pw
 !!       Type(pw_grid_type), Pointer:: pw_grid
 !!       Integer, Intent (IN):: use_data
 !!       Integer, Intent (IN), Optional:: in_space
-!!       Logical, Intent (IN), Optional:: mass_flag
 !!       REAL(KIND=dp), Dimension(:,:,:), Optional, Pointer:: cr3d_ptr
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine pw_create
@@ -3112,7 +3104,6 @@ END SUBROUTINE pw_release
 !!     - pw: the type that will bw allocated and initialized
 !!     - use_data: which kind of data will be used
 !!     - in_space: in which space the pw is (real or reciprocal)
-!!     - mass_flag: if mass should be allocated
 !!     - cr3d_ptr: pointer with the cr3d data (make sense only if 
 !!       use_data==REALDATA3D)
 !!     - error: variable to control error logging, stopping,... 
@@ -3125,12 +3116,11 @@ END SUBROUTINE pw_release
 !!     11.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, mass_flag, cr3d_ptr, error)
+SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, cr3d_ptr, error)
     TYPE(pw_type), POINTER                   :: pw
     TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, INTENT(in)                      :: use_data
     INTEGER, INTENT(in), OPTIONAL            :: in_space
-    LOGICAL, INTENT(in), OPTIONAL            :: mass_flag
     REAL(KIND=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: cr3d_ptr
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -3140,7 +3130,7 @@ SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, mass_flag, cr3d_ptr, error
 
     INTEGER                                  :: handle, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bounds
-    LOGICAL                                  :: failure, mass_flag_local
+    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
   failure=.FALSE.
@@ -3160,8 +3150,6 @@ SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, mass_flag, cr3d_ptr, error
      END IF
      CALL print_stack(cp_logger_get_default_unit_nr(logger))
   END IF
-  mass_flag_local = .FALSE.
-  IF ( PRESENT ( mass_flag ) ) mass_flag_local = mass_flag
 
   IF (PRESENT(cr3d_ptr)) THEN
      IF (ASSOCIATED(cr3d_ptr)) THEN
@@ -3181,25 +3169,16 @@ SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, mass_flag, cr3d_ptr, error
   allocated_pw_count = allocated_pw_count + 1
   ! write(6,*) "allocated_pw_count ",allocated_pw_count
 
-  NULLIFY ( pw % cr, pw % cc, pw % cr3d, pw % cc3d ,&
-       pw % mass_cr, pw % mass_cc)
+  NULLIFY ( pw % cr, pw % cc, pw % cr3d, pw % cc3d )
 
   SELECT CASE(use_data)
   CASE(REALDATA1D)
      ALLOCATE ( pw % cr ( pw % pw_grid % ngpts_cut_local ), STAT = stat )
      CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-     IF ( mass_flag_local ) THEN
-       ALLOCATE ( pw % mass_cr ( pw % pw_grid % ngpts_cut_local ), STAT = stat )
-       CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-     ENDIF
 
   CASE(COMPLEXDATA1D)
      ALLOCATE ( pw % cc ( pw % pw_grid % ngpts_cut_local ), STAT = stat )
      CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-     IF ( mass_flag_local ) THEN
-       ALLOCATE ( pw % mass_cc ( pw % pw_grid % ngpts_cut_local ), STAT = stat )
-       CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-     ENDIF
 
   CASE (REALDATA3D)
      IF (PRESENT(cr3d_ptr)) THEN

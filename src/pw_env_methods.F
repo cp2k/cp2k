@@ -56,13 +56,20 @@ MODULE pw_env_methods
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_type
+  USE pw_grid_info,                    ONLY: pw_cutoff_from_n,&
+                                             pw_find_cutoff,&
+                                             pw_grid_bounds_from_n,&
+                                             pw_grid_find_n,&
+                                             pw_grid_n_for_fft,&
+                                             pw_grid_n_from_cutoff
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
                                              pw_grid_type
-  USE pw_grids,                        ONLY: &
-       pw_cutoff_from_n, pw_find_cutoff, pw_grid_bounds_from_n, &
-       pw_grid_change, pw_grid_create, pw_grid_find_n, pw_grid_n_for_fft, &
-       pw_grid_n_from_cutoff, pw_grid_release, pw_grid_setup, pw_grid_setup1
+  USE pw_grids,                        ONLY: pw_grid_change,&
+                                             pw_grid_create,&
+                                             pw_grid_release,&
+                                             pw_grid_setup,&
+                                             pw_grid_setup1
   USE pw_poisson_methods,              ONLY: pw_poisson_set
   USE pw_poisson_types,                ONLY: pw_poisson_create
   USE pw_pool_types,                   ONLY: pw_pool_create,&
@@ -178,10 +185,6 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_rebuild', &
       routineP = moduleN//':'//routineN
-    ! a very small safety factor might be needed for roundoff issues
-    ! e.g. radius being computed here as 12.998 (13) and 13.002 (14) during the collocation
-    ! te latter can happen due to the lower precision in the computation of the radius in collocate
-    ! parallel cost of rs_pw_transfer goes as safety_factor**3 so it is worthwhile keeping it tight
     REAL(KIND=dp), PARAMETER                 :: safety_factor = 1.01
 
     INTEGER :: grid_span, handle, i, igrid_level, igrid_zet0_s, ikind, &
@@ -192,10 +195,10 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     INTEGER, DIMENSION(:, :), POINTER        :: lshella, lshellb
     LOGICAL                                  :: failure, should_output, &
                                                 uf_grid, use_ref_cell
-    REAL(KIND=dp)                            :: alpha, cutilev, drmin, &
+    REAL(KIND=dp)                            :: alpha, core_charge, cutilev, &
                                                 max_rpgf0_s, maxradius, &
                                                 my_cut, rel_cutoff, zet0_s, &
-                                                zetp, core_charge
+                                                zetp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: radius
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cutoff, my_cutoff
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zeta, zetb
@@ -220,6 +223,11 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(section_vals_type), POINTER         :: input, poisson_section, &
                                                 print_section
+
+! a very small safety factor might be needed for roundoff issues
+! e.g. radius being computed here as 12.998 (13) and 13.002 (14) during the collocation
+! te latter can happen due to the lower precision in the computation of the radius in collocate
+! parallel cost of rs_pw_transfer goes as safety_factor**3 so it is worthwhile keeping it tight
 
   CALL timeset(routineN,"I","",handle)
 

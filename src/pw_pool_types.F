@@ -53,7 +53,8 @@ MODULE pw_pool_types
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_loc_r
   USE pw_grid_types,                   ONLY: pw_grid_type
-  USE pw_grids,                        ONLY: pw_grid_release,&
+  USE pw_grids,                        ONLY: pw_grid_compare,&
+                                             pw_grid_release,&
                                              pw_grid_retain
   USE pw_types,                        ONLY: &
        COMPLEXDATA1D, COMPLEXDATA3D, REALDATA1D, REALDATA3D, pw_create, &
@@ -482,8 +483,6 @@ CONTAINS
 !!     - use_data: which data it uses: REALDATA1D, COMPLEXDATA1D,
 !!       REALDATA3D, COMPLEXDATA3D
 !!     - in_space: in which space it is: REALSPACE, RECIPROCALSPACE
-!!     - mass_flag: whether to allocate mass coeff (mass_cr or mass_cc)
-!!       defaults to false
 !!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
@@ -494,18 +493,17 @@ CONTAINS
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE pw_pool_create_pw(pool, pw, use_data, in_space, mass_flag, error)
+  SUBROUTINE pw_pool_create_pw(pool, pw, use_data, in_space, error)
     TYPE(pw_pool_type), POINTER              :: pool
     TYPE(pw_type), POINTER                   :: pw
     INTEGER, INTENT(in)                      :: use_data
     INTEGER, INTENT(in), OPTIONAL            :: in_space
-    LOGICAL, INTENT(in), OPTIONAL            :: mass_flag
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_create_pw', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: cr3d_ptr
@@ -542,7 +540,7 @@ CONTAINS
 
     IF (.NOT.ASSOCIATED(pw)) THEN
        CALL pw_create(pw, pool%pw_grid, use_data=use_data, &
-            mass_flag=mass_flag, cr3d_ptr=cr3d_ptr,error=error)
+            cr3d_ptr=cr3d_ptr,error=error)
        IF (debug_this_module) THEN
           IF (ASSOCIATED(cr3d_ptr)) THEN
              WRITE(unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
@@ -569,29 +567,6 @@ CONTAINS
                unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
                pw=pw, error=error)
           CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
-       END IF
-    END IF
-
-    IF (PRESENT(mass_flag)) THEN
-       IF (mass_flag) THEN
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
-               routineP,"mass not cached in pool"//&
-CPSourceFileRef,&
-               error=error)
-
-          IF (use_data==REALDATA1D) THEN
-             IF (.NOT.ASSOCIATED(pw%mass_cr)) THEN
-                ALLOCATE(pw%mass_cr(pw % pw_grid % ngpts_cut_local),&
-                     stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             END IF
-          ELSE IF (use_data==COMPLEXDATA1D) THEN
-             IF (.NOT.ASSOCIATED(pw%mass_cc)) THEN
-                ALLOCATE(pw%mass_cc(pw % pw_grid % ngpts_cut_local),&
-                     stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             END IF
-          END IF
        END IF
     END IF
 
@@ -639,7 +614,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_give_back_pw', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: did_insert, failure, &
                                                 my_accept_non_compatible
     TYPE(cp_logger_type), POINTER            :: logger
@@ -658,7 +633,7 @@ CPSourceFileRef,&
     END IF
     IF (.NOT. failure) THEN
        CPPrecondition(pw%ref_count==1,cp_failure_level,routineP,error,failure)
-       IF (pw%pw_grid%id_nr/=pool%pw_grid%id_nr) THEN
+       IF (.NOT.pw_grid_compare(pw%pw_grid,pool%pw_grid)) THEN
           IF (debug_this_module) THEN
              WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
                   fmt="(' *** pw_pool ',i4,' giving back incompatible pw ',i4)")&
@@ -679,16 +654,6 @@ CPSourceFileRef,&
     END IF
 
     IF (.NOT. failure) THEN
-       IF (ASSOCIATED(pw%mass_cr)) THEN
-          DEALLOCATE(pw%mass_cr,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-          NULLIFY(pw%mass_cr)
-       END IF
-       IF (ASSOCIATED(pw%mass_cc)) THEN
-          DEALLOCATE(pw%mass_cc,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-          NULLIFY(pw%mass_cc)
-       END IF
 
        IF (debug_this_module) THEN
           WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
@@ -982,8 +947,6 @@ END SUBROUTINE pw_pool_give_back_cr3d
 !!     - coeff: the coefficent you want to initialize
 !!     - use_data: which data it uses: REALDATA1D, COMPLEXDATA1D,
 !!       REALDATA3D, COMPLEXDATA3D
-!!     - mass_flag: whether to allocate mass coeff (mass_cr or mass_cc)
-!!       defaults to false
 !!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
@@ -994,12 +957,11 @@ END SUBROUTINE pw_pool_give_back_cr3d
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE pw_pool_init_coeff(pool, coeff, use_data, in_space, mass_flag,error)
+SUBROUTINE pw_pool_init_coeff(pool, coeff, use_data, in_space, error)
     TYPE(pw_pool_type), POINTER              :: pool
     TYPE(coeff_type), INTENT(inout)          :: coeff
     INTEGER, INTENT(in)                      :: use_data
     INTEGER, INTENT(in), OPTIONAL            :: in_space
-    LOGICAL, INTENT(in), OPTIONAL            :: mass_flag
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_init_coeff', &
@@ -1014,7 +976,7 @@ SUBROUTINE pw_pool_init_coeff(pool, coeff, use_data, in_space, mass_flag,error)
 
   IF (.NOT. failure) THEN
      NULLIFY(coeff%pw)
-     CALL pw_pool_create_pw(pool,coeff%pw,use_data,mass_flag=mass_flag,&
+     CALL pw_pool_create_pw(pool,coeff%pw,use_data,&
           in_space=in_space, error=error)
      coeff%in_use=PLANEWAVES
   END IF
@@ -1082,8 +1044,6 @@ END SUBROUTINE pw_pool_give_back_coeff
 !!     - pws: the multigrid of coefficent you want to initialize
 !!     - use_data: which data it uses: REALDATA1D, COMPLEXDATA1D,
 !!       REALDATA3D, COMPLEXDATA3D
-!!     - mass_flag: whether to allocate mass coeff (mass_cr or mass_cc)
-!!       defaults to false
 !!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
@@ -1094,13 +1054,11 @@ END SUBROUTINE pw_pool_give_back_coeff
 !!     07.2004 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE pw_pools_create_pws(pools, pws, use_data,&
-     mass_flag, in_space, error)
+SUBROUTINE pw_pools_create_pws(pools, pws, use_data, in_space, error)
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: pws
     INTEGER, INTENT(in)                      :: use_data
-    LOGICAL, INTENT(in), OPTIONAL            :: mass_flag
     INTEGER, INTENT(in), OPTIONAL            :: in_space
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1119,7 +1077,7 @@ SUBROUTINE pw_pools_create_pws(pools, pws, use_data,&
      DO i=1,SIZE(pools)
         NULLIFY(pws(i)%pw)
         CALL pw_pool_create_pw(pools(i)%pool,pws(i)%pw,use_data,&
-             mass_flag=mass_flag,in_space=in_space,error=error)
+             in_space=in_space,error=error)
      END DO
   END IF
 END SUBROUTINE pw_pools_create_pws
@@ -1192,8 +1150,6 @@ END SUBROUTINE pw_pools_give_back_pws
 !!     - coeffs: the multigrid of coefficent you want to initialize
 !!     - use_data: which data it uses: REALDATA1D, COMPLEXDATA1D,
 !!       REALDATA3D, COMPLEXDATA3D
-!!     - mass_flag: whether to allocate mass coeff (mass_cr or mass_cc)
-!!       defaults to false
 !!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
@@ -1204,14 +1160,12 @@ END SUBROUTINE pw_pools_give_back_pws
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE pw_pools_init_coeffs(pools, coeffs, use_data,&
-     mass_flag, in_space, error)
+SUBROUTINE pw_pools_init_coeffs(pools, coeffs, use_data, in_space, error)
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
     TYPE(coeff_type), DIMENSION(:), &
       INTENT(inout)                          :: coeffs
     INTEGER, INTENT(in)                      :: use_data
-    LOGICAL, INTENT(in), OPTIONAL            :: mass_flag
     INTEGER, INTENT(in), OPTIONAL            :: in_space
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1228,7 +1182,7 @@ SUBROUTINE pw_pools_init_coeffs(pools, coeffs, use_data,&
   IF (.NOT. failure) THEN
      DO i=1,SIZE(pools)
         CALL pw_pool_init_coeff(pools(i)%pool,coeffs(i),use_data,&
-             mass_flag=mass_flag,in_space=in_space,error=error)
+             in_space=in_space,error=error)
      END DO
   END IF
 END SUBROUTINE pw_pools_init_coeffs

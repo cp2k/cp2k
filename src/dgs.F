@@ -34,10 +34,10 @@ MODULE dgs
                                              fft3d,&
                                              fft_radix_operations
   USE kinds,                           ONLY: dp
+  USE pw_grid_info,                    ONLY: pw_find_cutoff
   USE pw_grid_types,                   ONLY: HALFSPACE,&
                                              pw_grid_type
-  USE pw_grids,                        ONLY: pw_find_cutoff,&
-                                             pw_grid_change,&
+  USE pw_grids,                        ONLY: pw_grid_change,&
                                              pw_grid_setup
   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
                                              realspace_grid_type
@@ -181,7 +181,6 @@ SUBROUTINE dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s,  &
   grid_s % npts = nout
 
   CALL pw_find_cutoff ( grid_b % npts, box_b, cutoff ,error=error)
-  !CALL pw_find_cutoff ( grid_b % bounds, box_b % h_inv, cutoff )
 
 END SUBROUTINE  dg_find_cutoff
 !******************************************************************************

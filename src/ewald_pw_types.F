@@ -48,10 +48,10 @@ MODULE ewald_pw_types
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: MPI_COMM_SELF
+  USE pw_grid_info,                    ONLY: pw_find_cutoff
   USE pw_grid_types,                   ONLY: HALFSPACE,&
                                              pw_grid_type
-  USE pw_grids,                        ONLY: pw_find_cutoff,&
-                                             pw_grid_create,&
+  USE pw_grids,                        ONLY: pw_grid_create,&
                                              pw_grid_release,&
                                              pw_grid_setup
   USE pw_poisson_methods,              ONLY: pw_poisson_set

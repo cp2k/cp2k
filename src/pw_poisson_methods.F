@@ -43,7 +43,8 @@ MODULE pw_poisson_methods
                                              ps_wavelet_type,&
                                              z_slices_to_cp2k_distribution
   USE pw_grid_types,                   ONLY: pw_grid_type
-  USE pw_grids,                        ONLY: pw_grid_release,&
+  USE pw_grids,                        ONLY: pw_grid_compare,&
+                                             pw_grid_release,&
                                              pw_grid_retain
   USE pw_poisson_types,                ONLY: greens_fn_type,&
                                              pw_green_create,&
@@ -341,7 +342,7 @@ CONTAINS
           pw_grid => pw_pool % pw_grid
           IF ( PRESENT ( vhartree ) ) THEN
              CPPrecondition(ASSOCIATED(vhartree),cp_failure_level,routineP,error,failure)
-             CALL cp_assert(pw_pool%pw_grid%id_nr==vhartree%pw_grid%id_nr,cp_assertion_failed,&
+             CALL cp_assert(pw_grid_compare(pw_pool%pw_grid,vhartree%pw_grid),cp_assertion_failed,&
                   cp_failure_level,routineP,&
                   "vhartree has a different grid than the poisson solver",error,failure)
           END IF
@@ -386,7 +387,7 @@ CONTAINS
           pw_grid => pw_pool % pw_grid
           IF ( PRESENT ( vhartree ) ) THEN
              CPPrecondition(ASSOCIATED(vhartree),cp_failure_level,routineP,error,failure)
-             CALL cp_assert(pw_pool%pw_grid%id_nr==vhartree%pw_grid%id_nr,cp_assertion_failed,&
+             CALL cp_assert(pw_grid_compare(pw_pool%pw_grid,vhartree%pw_grid),cp_assertion_failed,&
                   cp_failure_level,routineP,&
                   "vhartree has a different grid than the poisson solver",error,failure)
           END IF

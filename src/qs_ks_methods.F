@@ -91,6 +91,7 @@ MODULE qs_ks_methods
   USE mulliken,                        ONLY: mulliken_restraint
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
+  USE pw_grids,                        ONLY: pw_grid_compare
   USE pw_poisson_methods,              ONLY: pw_poisson_solve
   USE pw_poisson_types,                ONLY: pw_poisson_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -2083,7 +2084,7 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
      IF ( .NOT. failure ) THEN
         CALL pw_env_get(pw_env,xc_pw_pool=xc_pw_pool,auxbas_pw_pool=auxbas_pw_pool,&
              error=error)
-        uf_grid=(auxbas_pw_pool%pw_grid%id_nr/=xc_pw_pool%pw_grid%id_nr)
+        uf_grid = .NOT. pw_grid_compare(auxbas_pw_pool%pw_grid,xc_pw_pool%pw_grid)
 
         ALLOCATE(rho_r(dft_control%nspins),stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

@@ -33,10 +33,10 @@ MODULE ewald_spline_util
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
+  USE pw_grid_info,                    ONLY: pw_find_cutoff
   USE pw_grid_types,                   ONLY: HALFSPACE,&
                                              pw_grid_type
-  USE pw_grids,                        ONLY: pw_find_cutoff,&
-                                             pw_grid_create,&
+  USE pw_grids,                        ONLY: pw_grid_create,&
                                              pw_grid_setup
   USE pw_pool_types,                   ONLY: pw_pool_create,&
                                              pw_pool_create_pw,&

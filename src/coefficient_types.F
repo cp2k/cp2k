@@ -19,7 +19,6 @@
 !******************************************************************************
 
 MODULE coefficient_types
-  USE ao_types,                        ONLY: ao_type
   USE kinds,                           ONLY: dp
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_types,                        ONLY: &
@@ -48,7 +47,6 @@ MODULE coefficient_types
   TYPE coeff_type
      INTEGER :: in_use
      TYPE ( pw_type ), POINTER :: pw
-     TYPE ( ao_type ) :: ao
   END TYPE coeff_type
 
   TYPE coeff_array_type
