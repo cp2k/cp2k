@@ -25,14 +25,10 @@ MODULE ps_wavelet_types
   USE bibliography,                    ONLY: Genovese2006,&
                                              Genovese2007,&
                                              cite_reference
-  USE input_constants,                 ONLY: use_perd_none,&
-                                             use_perd_x,&
-                                             use_perd_xy,&
-                                             use_perd_xyz,&
-                                             use_perd_xz,&
-                                             use_perd_y,&
-                                             use_perd_yz,&
-                                             use_perd_z
+  USE input_constants,                 ONLY: &
+       WAVELET0D, WAVELET2D, WAVELET3D, use_perd_none, use_perd_x, &
+       use_perd_xy, use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, &
+       use_perd_z
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -94,6 +90,7 @@ MODULE ps_wavelet_types
      CHARACTER(LEN=1)                                  :: geocode
      CHARACTER(LEN=1)                                  :: datacode
      INTEGER                                           :: itype_scf
+     INTEGER                                           :: method, special_dimension
      REAL(kind= dp), POINTER, DIMENSION(:)             :: karray
      REAL (KIND=dp), DIMENSION ( :, :, : ), POINTER    :: rho_z_sliced
      INTEGER,DIMENSION(3)                              :: PS_grid
@@ -102,7 +99,6 @@ MODULE ps_wavelet_types
 !***************************************************************************
 
 CONTAINS  
-
 
 !!****f* ps_wavelet_types/ps_wavelet_create [1.0] *
 !!
@@ -171,18 +167,22 @@ CONTAINS
           datacode="D"
        NULLIFY(wavelet%karray,wavelet%rho_z_sliced)
        CALL section_vals_val_get(poisson_section,"PERIODIC",i_val=my_per,error=error)
-  
+       wavelet%special_dimension=0
        SELECT CASE (my_per)
        CASE (use_perd_none)
-         wavelet%geocode="F"          
+          wavelet%geocode="F"
+          wavelet%method=WAVELET0D
        CASE (use_perd_xz)
-         wavelet%geocode="S"
+          wavelet%geocode="S"
+          wavelet%method=WAVELET2D
+          wavelet%special_dimension=2
        CASE (use_perd_xyz)
-         wavelet%geocode="P"
+          wavelet%geocode="P"
+          wavelet%method=WAVELET3D
        CASE(use_perd_x,use_perd_y,use_perd_z,use_perd_xy,use_perd_yz)
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                  "Poisson solver for this periodicity not yet implemented",&
-                  error=error,failure=failure)
+               "Poisson solver for this periodicity not yet implemented",&
+               error=error,failure=failure)
        CASE DEFAULT
           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT

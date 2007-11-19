@@ -23,9 +23,13 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_cp2k_poisson
-  USE bibliography,                    ONLY: Toukmaji1996,Martyna1999,&
-                                             Genovese2006,Genovese2007,&
-                                             Essmann1995,Ewald1921,Darden1993
+  USE bibliography,                    ONLY: Darden1993,&
+                                             Essmann1995,&
+                                             Ewald1921,&
+                                             Genovese2006,&
+                                             Genovese2007,&
+                                             Martyna1999,&
+                                             Toukmaji1996
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants
@@ -37,7 +41,8 @@ MODULE input_cp2k_poisson
                                              section_create,&
                                              section_release,&
                                              section_type
-  USE input_val_types,                 ONLY: real_t, integer_t
+  USE input_val_types,                 ONLY: integer_t,&
+                                             real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
   USE timings,                         ONLY: timeset,&
@@ -133,10 +138,6 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
        CALL create_multipole_section(subsection,error)
-       CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)
-
-       CALL create_screening_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
@@ -242,79 +243,6 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_multipole_section
-
-!***************************************************************************
-!!****f* input_cp2k_poisson/create_screening_section [1.0] *
-!!
-!!   NAME
-!!     create_screening_section
-!!
-!!   FUNCTION
-!!     Section to set-up parameters for screening of short range Green
-!!     function
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     jgh
-!!
-!!*** **********************************************************************
-  SUBROUTINE create_screening_section(section,error)
-    TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_screening_section', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
-
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-
-       CALL section_create(section,name="SCREENING",&
-            description="This section is used to set up a screening function for the short "//&
-            "range part of the Coulomb interaction potential. Affects only semiempirical "//&
-            " calculations.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-            error=error)
-
-       NULLIFY(keyword)
-
-       CALL keyword_create(keyword, name="SR_SCREENING",&
-            description="Use a short range screening function.",&
-            usage="SR_SCREENING", required=.FALSE.,&
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="RC_INTERACTION",&
-            description="The range of the excluded interaction.",&
-            usage="RC_INTERACTION {real}", required=.FALSE.,&
-            n_var=1, type_of_var=real_t, default_r_val=0._dp,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="RC_RANGE",&
-            description="The range of the switching function.",&
-            usage="RC_INTERACTION {real}", required=.FALSE.,&
-            n_var=1, type_of_var=real_t, default_r_val=8._dp,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-    END IF
-
-  END SUBROUTINE create_screening_section
-
-!***************************************************************************
 
 !!****f* input_cp2k_dft/create_mt_section [1.0] *
 !!

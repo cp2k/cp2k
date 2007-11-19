@@ -40,11 +40,8 @@ MODULE ewald_pw_types
                                              do_ewald_none,&
                                              do_ewald_pme,&
                                              do_ewald_spme,&
-                                             do_rsgrid_distributed,&
-                                             use_perd_xyz,&
-                                             use_periodic
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_val_get
+                                             do_rsgrid_distributed
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: MPI_COMM_SELF
@@ -233,8 +230,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: ewald_type, gmax(3), handle, my_per, my_val, npts_s( 3 ), &
-      ns_max, nsmax, o_spline, output_unit, rs_distributed_id, stat
+    INTEGER :: ewald_type, gmax(3), handle, npts_s( 3 ), ns_max, nsmax, &
+      o_spline, output_unit, rs_distributed_id, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, alphasq, cutoff, &
                                                 cutoff_radius, ecut, epsilon, &
@@ -409,26 +406,6 @@ CONTAINS
           ! No EWALD sums..
        CASE default
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-       END SELECT
-       ! Handling Periodic NONE for Classical Module..
-       ! teo 11.2007
-       ! At the moment this features have not been tested. a check I did using FIST alone
-       ! does not give the proper number (i.e. PERIODIC NONE is not working with FIST).. 
-       ! so it's better stop the calculation.
-       SELECT CASE(ewald_type )
-       CASE (do_ewald_ewald, do_ewald_pme, do_ewald_spme)
-          CALL section_vals_val_get(poisson_section,"PERIODIC",i_val=my_per,error=error)
-          IF (my_per/=use_perd_xyz) THEN
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="MM calculations allowed only with full periodicity.", &
-                  error=error, error_level=cp_failure_level)
-          END IF
-          CALL section_vals_val_get(poisson_section,"POISSON_SOLVER",i_val=my_val,error=error)
-          IF (my_val/=use_periodic) THEN
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="MM calculations allowed only with fully periodic poisson solver.", &
-                  error=error, error_level=cp_failure_level)
-          END IF
        END SELECT
        ! Poisson Environment
        IF (ASSOCIATED(ewald_pw%poisson_env)) THEN

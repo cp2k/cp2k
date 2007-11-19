@@ -28,8 +28,9 @@ MODULE pw_poisson_methods
                                              cell_type
   USE input_constants,                 ONLY: &
        ANALYTIC0D, ANALYTIC1D, ANALYTIC2D, MT0D, MT1D, MT2D, MULTIPOLE0D, &
-       PERIODIC3D, do_ewald_spme, use_analytic, use_gs_grid, use_mt, &
-       use_multipole, use_none, use_periodic, use_rs_grid, use_wavelet
+       PERIODIC3D, WAVELET0D, WAVELET1D, WAVELET2D, WAVELET3D, do_ewald_spme, &
+       use_analytic, use_gs_grid, use_mt, use_multipole, use_none, &
+       use_periodic, use_rs_grid, use_wavelet
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_release,&
                                              section_vals_retain,&
@@ -69,8 +70,8 @@ MODULE pw_poisson_methods
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_poisson_methods'
 
-PUBLIC :: pw_poisson_cleanup, pw_poisson_rebuild, pw_poisson_check, &
-     pw_poisson_solve, pw_poisson_set
+  PUBLIC :: pw_poisson_cleanup, pw_poisson_rebuild, pw_poisson_check, &
+       pw_poisson_solve, pw_poisson_set
   !!***
   !****************************************************************************
 CONTAINS
@@ -201,12 +202,11 @@ CONTAINS
              CASE default
                 rebuild=.TRUE.
              END SELECT
-             CALL section_vals_val_get(poisson_env%parameters,&
-                  "MT%ALPHA",r_val=alpha,error=error)
+             CALL section_vals_val_get(poisson_env%parameters,"MT%ALPHA",r_val=alpha,error=error)
              rebuild=(alpha/=green%mt_alpha).OR.rebuild
           CASE(use_wavelet)
              CALL section_vals_val_get(poisson_env%parameters,"WAVELET%SCF_TYPE",i_val=itype_scf,error=error)
-                       rebuild=(itype_scf/=wavelet%itype_scf).OR.rebuild
+             rebuild=(itype_scf/=wavelet%itype_scf).OR.rebuild
           CASE default
              CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
           END SELECT
@@ -262,8 +262,7 @@ CONTAINS
           CALL section_vals_val_get(poisson_env%parameters,"POISSON_SOLVER",&
                i_val=poisson_env%method,error=error)
            SELECT CASE (poisson_env%method)
-           CASE(use_periodic,use_analytic,use_mt,&
-                use_multipole)
+           CASE(use_periodic,use_analytic,use_mt,use_multipole)
               CALL pw_green_create(poisson_env%green_fft,cell=poisson_env%cell,&
                    pw_pool=poisson_env%pw_pools(poisson_env%pw_level)%pool,&
                    poisson_section=poisson_env%parameters,&
@@ -325,8 +324,6 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(pw_type), POINTER                   :: rhog, rhor, tmpg
 
-!------------------------------------------------------------------------------
-
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(poisson_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(poisson_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -335,26 +332,25 @@ CONTAINS
        CALL cp_error_check(error,failure)
     END IF
     IF (.NOT.failure) THEN
-        
-          NULLIFY (pw_grid,rhog)
-          ! point pw
-          pw_pool => poisson_env%pw_pools(poisson_env%pw_level)%pool
-          pw_grid => pw_pool % pw_grid
-          IF ( PRESENT ( vhartree ) ) THEN
-             CPPrecondition(ASSOCIATED(vhartree),cp_failure_level,routineP,error,failure)
-             CALL cp_assert(pw_grid_compare(pw_pool%pw_grid,vhartree%pw_grid),cp_assertion_failed,&
-                  cp_failure_level,routineP,&
-                  "vhartree has a different grid than the poisson solver",error,failure)
-          END IF
-          ! density in G space
-          CALL pw_pool_create_pw ( pw_pool,rhog, use_data=COMPLEXDATA1D,in_space = RECIPROCALSPACE,&
-               error=error)
-          ! apply the greens function
-          ng = SIZE ( pw_grid % gsq )
+       NULLIFY (pw_grid,rhog)
+       ! point pw
+       pw_pool => poisson_env%pw_pools(poisson_env%pw_level)%pool
+       pw_grid => pw_pool % pw_grid
+       IF ( PRESENT ( vhartree ) ) THEN
+          CPPrecondition(ASSOCIATED(vhartree),cp_failure_level,routineP,error,failure)
+          CALL cp_assert(pw_grid_compare(pw_pool%pw_grid,vhartree%pw_grid),cp_assertion_failed,&
+               cp_failure_level,routineP,&
+               "vhartree has a different grid than the poisson solver",error,failure)
+       END IF
+       ! density in G space
+       CALL pw_pool_create_pw ( pw_pool,rhog, use_data=COMPLEXDATA1D,in_space = RECIPROCALSPACE,&
+            error=error)
+       ! apply the greens function
+       ng = SIZE ( pw_grid % gsq )
        SELECT CASE(poisson_env%used_grid)
        CASE(use_gs_grid)
-          SELECT CASE ( poisson_env%green_fft % method )
-          CASE ( PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D, MULTIPOLE0D )
+          SELECT CASE ( poisson_env%green_fft%method )
+          CASE (PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D, MULTIPOLE0D)
              CALL pw_transfer ( density, rhog )
              IF (PRESENT(ehartree).AND..NOT.PRESENT(vhartree)) THEN
                 CALL pw_pool_create_pw ( pw_pool,tmpg, use_data=COMPLEXDATA1D,&
@@ -363,8 +359,7 @@ CONTAINS
              END IF
              
              DO ig=1,ng
-                rhog % cc ( ig )  = rhog % cc ( ig ) *  &
-                     poisson_env%green_fft % influence_fn % cc  ( ig )
+                rhog%cc(ig) = rhog%cc(ig) *  poisson_env%green_fft%influence_fn%cc(ig)
              ENDDO             
              IF ( PRESENT ( vhartree ) ) THEN
                 CALL pw_transfer ( rhog, vhartree )
@@ -379,7 +374,6 @@ CONTAINS
              CALL cp_unimplemented_error(routineP,"unknown poisson method"//&
                   cp_to_string(poisson_env%green_fft%method),error)
           END SELECT
-
        CASE(use_rs_grid)
           CALL pw_transfer ( density, rhog )
           ! point pw
@@ -402,7 +396,7 @@ CONTAINS
           CALL pw_pool_create_pw ( pw_pool,rhor, use_data=REALDATA3D,in_space = REALSPACE,&
                error=error)
           CALL pw_transfer(density,rhor)
-          CALL cp2k_distribution_to_z_slices(rhor ,poisson_env%wavelet,rhor%pw_grid,error)
+          CALL cp2k_distribution_to_z_slices(rhor ,poisson_env%wavelet, rhor%pw_grid, error)
           CALL ps_wavelet_solve(poisson_env%wavelet,rhor%pw_grid,ehartree,error)
 
           CALL z_slices_to_cp2k_distribution(rhor ,poisson_env% wavelet,rhor% pw_grid, error)
@@ -413,64 +407,103 @@ CONTAINS
              END IF
           ELSE IF (PRESENT(ehartree)) THEN
              ehartree=0.5_dp*pw_integral_ab(rhog,tmpg)
-             CALL pw_pool_give_back_pw(pw_pool,tmpg,error=error)
+             CALL pw_pool_give_back_pw(pw_pool, tmpg, error=error)
           END IF
-          CALL pw_pool_give_back_pw (pw_pool,&
-               rhor, error=error )
-
+          CALL pw_pool_give_back_pw (pw_pool, rhor, error=error )
        END SELECT 
 
-          ! do we need to calculate the derivative of the potential?
-          IF ( PRESENT ( h_stress ) .OR. PRESENT ( dvhartree ) ) THEN
+       ! do we need to calculate the derivative of the potential?
+       IF ( PRESENT ( h_stress ) .OR. PRESENT ( dvhartree ) ) THEN
+          DO i = 1, 3
+             NULLIFY(dvg(i)%pw)
+             CALL pw_pool_create_pw (pw_pool, dvg ( i )%pw, use_data=COMPLEXDATA1D,&
+                  in_space= RECIPROCALSPACE,error=error)
+             n = 0
+             n ( i ) = 1
+             CALL pw_copy ( rhog, dvg ( i )%pw )
+             CALL pw_derive ( dvg ( i )%pw, n )
+          END DO
+          ! save the derivatives
+          IF ( PRESENT ( dvhartree ) ) THEN
              DO i = 1, 3
-                NULLIFY(dvg(i)%pw)
-                CALL pw_pool_create_pw (pw_pool, dvg ( i )%pw, use_data=COMPLEXDATA1D,&
-                     in_space= RECIPROCALSPACE,error=error)
-                n = 0
-                n ( i ) = 1
-                CALL pw_copy ( rhog, dvg ( i )%pw )
-                CALL pw_derive ( dvg ( i )%pw, n )
-             END DO
-             ! save the derivatives
-             IF ( PRESENT ( dvhartree ) ) THEN
-                DO i = 1, 3
-                   CALL pw_transfer ( dvg ( i )%pw, dvhartree ( i ) % pw )
-                END DO
-             END IF
-             ! calculate the contribution to the stress tensor
-             ! this is only the contribution from the Greens function
-             ! and the volume factor of the plane waves
-             IF ( PRESENT ( h_stress ) ) THEN
-                IF ( poisson_env%green_fft % method /= PERIODIC3D ) THEN
-                   CALL cp_unimplemented_error(routineP,&
-                        "Pressure calculation works ONLY for fully priodic systems",error)
-                END IF
-                
-                ffa = -1.0_dp / fourpi
-                h_stress = 0.0_dp
-                DO alpha = 1, 3
-                   h_stress ( alpha, alpha ) = ehartree
-                   DO beta = alpha, 3
-                      h_stress ( alpha, beta ) = h_stress ( alpha, beta ) &
-                           + ffa * pw_integral_ab ( dvg ( alpha )%pw, dvg ( beta )%pw )
-                      h_stress ( beta, alpha ) = h_stress ( alpha, beta )
-                   END DO
-                END DO
-                
-             END IF
-             DO i = 1, 3
-                CALL pw_pool_give_back_pw ( pw_pool,&
-                     dvg ( i )%pw, error=error )
+                CALL pw_transfer ( dvg ( i )%pw, dvhartree ( i ) % pw )
              END DO
           END IF
-          
-          CALL pw_pool_give_back_pw (pw_pool,&
-               rhog, error=error )
+          ! Calculate the contribution to the stress tensor this is only the contribution from 
+          ! the Greens FUNCTION and the volume factor of the plane waves
+          IF ( PRESENT ( h_stress ) ) THEN
+             ffa = -1.0_dp / fourpi
+             h_stress = 0.0_dp
+             DO alpha = 1, 3
+                h_stress ( alpha, alpha ) = ehartree
+                DO beta = alpha, 3
+                   h_stress ( alpha, beta ) = h_stress ( alpha, beta ) &
+                        + ffa * pw_integral_ab ( dvg ( alpha )%pw, dvg ( beta )%pw )
+                   h_stress ( beta, alpha ) = h_stress ( alpha, beta )
+                END DO
+             END DO
+             ! Handle the periodicity cases for the Stress Tensor
+             SELECT CASE(poisson_env%used_grid)
+             CASE(use_gs_grid)
+                ! FFT based Poisson-Solver
+                SELECT CASE(poisson_env%green_fft%method)  
+                CASE(PERIODIC3D)
+                   ! Do Nothing
+                CASE(ANALYTIC2D, MT2D)
+                   ! Zero the 1 non-periodic component
+                   alpha = poisson_env%green_fft%special_dimension
+                   h_stress(:,alpha) = 0.0_dp
+                   h_stress(alpha,:) = 0.0_dp
+                   CALL cp_unimplemented_error(routineP,"Stress Tensor not tested for 2D systems.",error)
+                CASE(ANALYTIC1D, MT1D)
+                   ! Zero the 2 non-periodic components
+                   DO alpha = 1, 3
+                      DO beta = alpha, 3
+                         IF  ((alpha/=poisson_env%green_fft%special_dimension).OR.&
+                              ( beta/=poisson_env%green_fft%special_dimension)) THEN
+                            h_stress(alpha,beta) = 0.0_dp
+                            h_stress(beta,alpha) = 0.0_dp
+                         END IF
+                      END DO
+                   END DO
+                   CALL cp_unimplemented_error(routineP,"Stress Tensor not tested for 1D systems.",error)
+                CASE(ANALYTIC0D, MT0D, MULTIPOLE0D)
+                   ! Zero the full stress tensor
+                   h_stress = 0.0_dp
+                CASE DEFAULT
+                   CALL cp_unimplemented_error(routineP,"unknown poisson method"//&
+                        cp_to_string(poisson_env%green_fft%method),error)
+                END SELECT
+             CASE(use_rs_grid)
+                ! Wavelet based Poisson-Solver
+                SELECT CASE(poisson_env%wavelet%method)
+                CASE(WAVELET3D)
+                   ! Do Nothing
+                CASE(WAVELET2D)
+                   ! Zero the 1 non-periodic component
+                   alpha = poisson_env%wavelet%special_dimension
+                   h_stress(:,alpha) = 0.0_dp
+                   h_stress(alpha,:) = 0.0_dp
+                   CALL cp_unimplemented_error(routineP,"Stress Tensor not tested for 2D systems.",error)
+                CASE(WAVELET1D)
+                   ! Zero the 2 non-periodic components
+                   CALL cp_unimplemented_error(routineP,"WAVELET 1D not implemented!", error)
+                CASE(WAVELET0D)
+                   ! Zero the full stress tensor
+                   h_stress = 0.0_dp
+                END SELECT
+             END SELECT
+          END IF
+          DO i = 1, 3
+             CALL pw_pool_give_back_pw ( pw_pool, dvg ( i )%pw, error=error )
+          END DO
+       END IF
+       
+       CALL pw_pool_give_back_pw (pw_pool, rhog, error=error )
     END IF
 
   END SUBROUTINE pw_poisson_solve
   !****************************************************************************
-
   !!****** pw_poisson_methods/pw_poisson_set [1.0] *
   !!
   !!   NAME

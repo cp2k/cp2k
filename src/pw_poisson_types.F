@@ -32,8 +32,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE pw_poisson_types
-  USE bessel_lib,                      ONLY: bessel_transform,&
-                                             bessj0,&
+  USE bessel_lib,                      ONLY: bessj0,&
                                              bessj1,&
                                              bessk0,&
                                              bessk1
@@ -51,7 +50,6 @@ MODULE pw_poisson_types
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi,&
-                                             pi,&
                                              twopi
   USE mt_util,                         ONLY: MTin_create_screen_fn
   USE ps_wavelet_types,                ONLY: ps_wavelet_release,&
@@ -205,12 +203,10 @@ CONTAINS
     INTEGER                                  :: dim, ewald_kind, i, ig, iz, &
                                                 my_per, my_val, n, nz, stat
     INTEGER, DIMENSION(3)                    :: perd
-    LOGICAL                                  :: failure, screen
-    REAL(KIND=dp)                            :: alpha, cost, ep, f, g2, g3d, &
-                                                gg, gxy, j0g, j1g, k0g, k1g, &
-                                                rc, ri, rlength, sint, sint2, &
-                                                t, w, x, zlength
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: fun, gval, rval, sfg, wr
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: alpha, g2, g3d, gg, gxy, j0g, &
+                                                j1g, k0g, k1g, rlength, &
+                                                zlength
     REAL(KIND=dp), DIMENSION(3)              :: abc
     TYPE(pw_grid_type), POINTER              :: grid
     TYPE(pw_type), POINTER                   :: gf
@@ -456,54 +452,6 @@ CONTAINS
        CASE DEFAULT
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
-
-       ! Screening function
-       CALL section_vals_val_get(poisson_section,"SCREENING%SR_SCREENING",&
-            l_val=screen,error=error)
-       IF ( screen ) THEN
-
-         CALL section_vals_val_get(poisson_section,"SCREENING%RC_INTERACTION",&
-            r_val=ri,error=error)
-         CALL section_vals_val_get(poisson_section,"SCREENING%RC_RANGE",&
-            r_val=rc,error=error)
-
-         nz = SIZE(grid%gsq)
-         ALLOCATE ( sfg(1:nz),gval(1:nz),rval(1:nr),fun(1:nr),wr(1:nr), stat = stat )
-         CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-
-         ! Transformed Gauss-Chebyshev quadrature formula of the second kind
-         ! u [-1,+1] -> r [0,infinity] => r = ln(2/(1 - u))/ln(2)
-         f = pi/REAL(nr + 1,dp)
-         DO i=1,nr
-            t = REAL(i,dp)*f
-            cost = COS(t)
-            sint = SIN(t)
-            sint2 = sint**2
-            x = REAL(2*i - nr - 1,dp)/REAL(nr + 1,dp) -&
-                2.0_dp*(1.0_dp + 2.0_dp*sint2/3.0_dp)*cost*sint/pi
-            w = 16.0_dp*sint2**2/REAL(3*(nr + 1),dp)
-            rval(nr+1-i) = LOG(2.0_dp/(1.0_dp - x))/LOG(2.0_dp)
-            wr(nr+1-i) = w*rval(nr+1-i)**2/(LOG(2.0_dp)*(1.0_dp - x))
-         END DO
-         CALL section_vals_val_get(poisson_section,"SCREENING%RC_INTERACTION",&
-            r_val=ri,error=error)
-         CALL section_vals_val_get(poisson_section,"SCREENING%RC_RANGE",&
-            r_val=rc,error=error)
-         ri = ri - 0.5_dp*rc
-         rc = 24._dp/rc
-         DO i=1,nr
-           ep = EXP(-rc*(rval(i)-ri))
-           fun(i) = ep / ((1._dp + ep)*rval(i))
-         END DO
-
-         gval(:) = SQRT(grid%gsq(:))
-         CALL bessel_transform (sfg,gval,0,rval,fun,wr,nr)
-         gf%cc(:) = gf%cc(:) - sfg(:)
-
-         DEALLOCATE ( sfg,gval,rval,fun,wr, stat = stat )
-         CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-
-       END IF
 
     END IF
   END SUBROUTINE pw_green_create

@@ -423,11 +423,12 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC :: no_precond=0,precond_spl3_aint=1, precond_spl3_1=2,&
        precond_spl3_aint2=3, precond_spl3_2=4, precond_spl3_3=5
 
-  INTEGER, PARAMETER, PUBLIC :: PERIODIC3D = 1000, ANALYTIC2D = 1001,  &
-                        HOCKNEY2D = 1201, HOCKNEY1D = 1202, HOCKNEY0D = 1203,&
-                        ANALYTIC1D = 1002, ANALYTIC0D = 1003,  &
-                        MT2D = 1101, MT1D = 1102, MT0D = 1103,&
-                        MULTIPOLE2D = 1301, MULTIPOLE1D = 1302, MULTIPOLE0D = 1303
+  INTEGER, PARAMETER, PUBLIC :: PERIODIC3D = 1000, WAVELET3D = 1001,&
+       ANALYTIC2D = 1001,  ANALYTIC1D = 1002,  ANALYTIC0D = 1003,&
+       MT2D = 1101,        MT1D = 1102,        MT0D = 1103,&
+       HOCKNEY2D = 1201,   HOCKNEY1D = 1202,   HOCKNEY0D = 1203,&
+       MULTIPOLE2D = 1301, MULTIPOLE1D = 1302, MULTIPOLE0D = 1303,&
+       WAVELET2D = 1401,   WAVELET1D = 1402,   WAVELET0D = 1303
 
   INTEGER, PARAMETER, PUBLIC :: use_none=0,&
                                 use_periodic = 1,&
