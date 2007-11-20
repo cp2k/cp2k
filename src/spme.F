@@ -128,7 +128,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'spme_evaluate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: group, handle, i, ierr, ipart, j, jpart, n, ncore, npart, &
+    INTEGER :: group, handle, i, ierr, ipart, j, n, ncore, npart, &
       nshell, o_spline, p1, p1_shell, rs_distributed_id
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center, core_center, &
                                                 shell_center
@@ -195,10 +195,9 @@ CONTAINS
 
     !-------------- DENSITY CALCULATION ----------------
     ipart = 0
-    jpart = 0
     ! Particles
     DO
-       CALL set_list ( particle_set, npart, center, p1, rden, ipart, jpart )
+       CALL set_list ( particle_set, npart, center, p1, rden, ipart )
        IF (p1 == 0) EXIT
 
        do_shell  = (particle_set(p1)%shell_index/=0)
@@ -212,11 +211,10 @@ CONTAINS
     ! Shell-Model
     IF(PRESENT(shell_particle_set).AND.PRESENT(core_particle_set)) THEN
        ipart = 0
-       jpart = 0
        DO
           ! calculate function on small boxes
           CALL set_list ( shell_particle_set, nshell, shell_center, p1_shell,&
-                          rden, ipart, jpart )
+                          rden, ipart )
           IF (p1_shell == 0) EXIT
           CALL get_patch(shell_particle_set, box, green, grid_spme % npts, &
                           p1_shell, rhos, is_shell=.TRUE.)
@@ -225,11 +223,10 @@ CONTAINS
           CALL dg_sum_patch ( rden, rhos, shell_center(:,p1_shell) )
        END DO
        ipart = 0
-       jpart = 0
        DO
           ! calculate function on small boxes
           CALL set_list ( core_particle_set, nshell, core_center, p1_shell,&
-                          rden, ipart, jpart )
+                          rden, ipart )
           IF ( p1_shell == 0 ) EXIT
           CALL get_patch ( core_particle_set, box, green, grid_spme % npts, &
                            p1_shell, rhos, is_core=.TRUE. )
@@ -305,9 +302,8 @@ CONTAINS
     dvols = grid_spme % dvol * inv_fourpi_eps0
     ! Particles
     ipart = 0
-    jpart = 0
     DO
-       CALL set_list ( particle_set, npart, center, p1, rden, ipart, jpart )
+       CALL set_list ( particle_set, npart, center, p1, rden, ipart )
        IF ( p1 == 0 ) EXIT
 
        do_shell = (particle_set(p1)%shell_index/=0)
@@ -325,12 +321,11 @@ CONTAINS
     IF(PRESENT(shell_particle_set).AND.(PRESENT(core_particle_set))) THEN
        IF(PRESENT(fgshell_coulomb)) THEN
           ipart = 0
-          jpart = 0
           fgshell_coulomb = 0.0_dp
           DO
              ! calculate function on small boxes
              CALL set_list ( shell_particle_set, nshell, shell_center, p1_shell,&
-                             rden, ipart, jpart )
+                             rden, ipart )
              IF ( p1_shell == 0 ) EXIT
 
              CALL get_patch ( shell_particle_set, box, green, grid_spme % npts, &
@@ -346,12 +341,11 @@ CONTAINS
        END IF
        IF(PRESENT(fgcore_coulomb)) THEN
           ipart = 0
-          jpart = 0
           fgcore_coulomb = 0.0_dp
           DO
              ! calculate function on small boxes
              CALL set_list ( core_particle_set, nshell, core_center, p1_shell,&
-                             rden, ipart, jpart )
+                             rden, ipart )
              IF ( p1_shell == 0 ) EXIT
 
              CALL get_patch ( core_particle_set, box, green, grid_spme % npts, &

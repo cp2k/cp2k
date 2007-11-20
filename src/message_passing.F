@@ -3173,26 +3173,28 @@ SUBROUTINE mp_sendrecv_rm3(msgin,dest,msgout,source,comm)
   REAL (KIND=dp), INTENT ( IN ) :: msgin ( :, :, : )
   REAL (KIND=dp), INTENT ( OUT ) :: msgout ( :, :, : )
   INTEGER, INTENT ( IN ) :: dest, source, comm
-  INTEGER :: msglen, ierr, send_tag, recv_tag
+  INTEGER :: msglen_in, msglen_out, ierr, send_tag, recv_tag
   INTEGER, DIMENSION(:), ALLOCATABLE ::  status
     INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_sendrecv_rm3', &
       routineP = moduleN//':'//routineN
+  
 #if defined(__mp_timeset__)
     CALL timeset(routineN,handle)
 #endif
 #if defined(__parallel)
   ALLOCATE(status(MPI_STATUS_SIZE))
   t_start = m_walltime ( )
-  msglen = SIZE(msgin)
+  msglen_in = SIZE(msgin)
+  msglen_out = SIZE(msgout)
   send_tag = 0 ! cannot think of something better here, this might be dangerous
   recv_tag = 0 ! cannot think of something better here, this might be dangerous
-  CALL mpi_sendrecv(msgin,msglen,MP_STD_REAL,dest,send_tag,msgout,&
-       msglen,MP_STD_REAL,source,recv_tag,comm,status(1),ierr)
+  CALL mpi_sendrecv(msgin,msglen_in,MP_STD_REAL,dest,send_tag,msgout,&
+       msglen_out,MP_STD_REAL,source,recv_tag,comm,status(1),ierr)
   ! we do not check the status
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_sendrecv @ mp_send_recv_rm3" )
   t_end = m_walltime ( )
-  CALL add_perf(perf_id=7,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+  CALL add_perf(perf_id=7,count=1,time=t_end-t_start,msg_size=msglen_in*reallen)
   DEALLOCATE(status)
 #else
   msgout = msgin

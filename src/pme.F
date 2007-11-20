@@ -136,7 +136,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: group, handle, i, ierr, &
-                                                ipart, j, jpart, npart, &
+                                                ipart, j, npart, &
                                                 nshell, p1, p2, &
                                                 rs_distributed_id
     LOGICAL                                  :: failure, is1_core, is1_shell, &
@@ -213,11 +213,10 @@ CONTAINS
     !-------------- DENSITY CALCULATION ----------------
 
     ipart = 0
-    jpart = 0
     DO
 
-       CALL set_list ( particle_set, npart, exp_igr % centre, p1, rden, ipart, jpart, exp_igr %core_centre)
-       CALL set_list ( particle_set, npart, exp_igr % centre, p2, rden, ipart, jpart, exp_igr %core_centre)
+       CALL set_list ( particle_set, npart, exp_igr % centre, p1, rden, ipart, exp_igr %core_centre)
+       CALL set_list ( particle_set, npart, exp_igr % centre, p2, rden, ipart, exp_igr %core_centre)
        IF ( p1 == 0 .AND. p2 == 0 ) EXIT
 
        is1_core  = (particle_set(p1)%shell_index/=0)
@@ -256,10 +255,9 @@ CONTAINS
     END DO
     IF(PRESENT(shell_particle_set)) THEN
       ipart = 0
-      jpart = 0
       DO
-        CALL set_list ( shell_particle_set, nshell, exp_igr % shell_centre, p1, rden, ipart, jpart )
-        CALL set_list ( shell_particle_set, nshell, exp_igr % shell_centre, p2, rden, ipart, jpart )
+        CALL set_list ( shell_particle_set, nshell, exp_igr % shell_centre, p1, rden, ipart )
+        CALL set_list ( shell_particle_set, nshell, exp_igr % shell_centre, p2, rden, ipart )
         IF ( p1 == 0 .AND. p2 == 0 ) EXIT
         ! calculate function on small boxes (we use double packing in FFT)
         CALL get_patch ( dg, shell_particle_set, exp_igr, box, p1, p2, grid_b, grid_s, &
@@ -330,11 +328,10 @@ CONTAINS
        dvols = rhos1 % pw % pw_grid % dvol * inv_fourpi_eps0
 
        ipart = 0
-       jpart = 0
        DO
 
-          CALL set_list ( particle_set, npart, exp_igr % centre, p1, rden, ipart, jpart, exp_igr % core_centre )
-          CALL set_list ( particle_set, npart, exp_igr % centre, p2, rden, ipart, jpart,exp_igr % core_centre )
+          CALL set_list ( particle_set, npart, exp_igr % centre, p1, rden, ipart, exp_igr % core_centre )
+          CALL set_list ( particle_set, npart, exp_igr % centre, p2, rden, ipart, exp_igr % core_centre )
           IF ( p1 == 0 .AND. p2 == 0 ) EXIT
 
          is1_core  = (particle_set(p1)%shell_index/=0)
@@ -388,10 +385,9 @@ CONTAINS
       dvols = rhos1 % pw % pw_grid % dvol * inv_fourpi_eps0
 
       ipart = 0
-      jpart = 0
       DO
-         CALL set_list ( shell_particle_set, nshell, exp_igr % shell_centre, p1, rden, ipart, jpart )
-         CALL set_list ( shell_particle_set, nshell, exp_igr % shell_centre, p2, rden, ipart, jpart )
+         CALL set_list ( shell_particle_set, nshell, exp_igr % shell_centre, p1, rden, ipart )
+         CALL set_list ( shell_particle_set, nshell, exp_igr % shell_centre, p2, rden, ipart )
          IF ( p1 == 0 .AND. p2 == 0 ) EXIT
 
          ! calculate function on small boxes (we use double packing in FFT)

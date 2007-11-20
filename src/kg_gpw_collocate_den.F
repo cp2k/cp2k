@@ -35,7 +35,8 @@ MODULE kg_gpw_collocate_den
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cell_types,                      ONLY: cell_type
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc
   USE coefficient_types,               ONLY: coeff_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
@@ -143,12 +144,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_rho_mol', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: bcol, brow, curr_tasks, first_pgfb, first_setb, &
+    INTEGER :: bcol, brow, curr_tasks, dir, first_pgfb, first_setb, &
       ga_gb_function, handle, i, iat, iatom, igrid_level, ikind, ikind_old, &
       ipgf, iset, istat, itask, ithread, j, jat, jatom, jkind, jkind_old, &
       jpgf, jset, k, maxco, maxsgf, maxsgf_set, n, na1, na2, nat_mol, nb1, &
       nb2, ncoa, ncob, nseta, nsetb, nthread, num_tasks, omp_get_max_threads, &
-      omp_get_thread_num, sgfa, sgfb
+      omp_get_thread_num, sgfa, sgfb, tp, npme
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb, ntasks, ub
@@ -161,7 +162,7 @@ CONTAINS
     REAL(KIND=dp)                            :: dab, eps_rho_rspace, &
                                                 kind_radius_b, rab2, scale, &
                                                 zetp
-    REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb
+    REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb, rp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block, pab, rpgfa, rpgfb, &
                                                 sphi_a, sphi_b, work, zeta, &
@@ -259,8 +260,8 @@ CONTAINS
     CALL reallocate(pabt,1,maxco,1,maxco,0,nthread-1)
     CALL reallocate(workt,1,maxco,1,maxsgf_set,0,nthread-1)
     CALL reallocate(ntasks,1,gridlevel_info%ngrid_levels)
-    CALL reallocate(tasks,1,8,1,max_tasks,1,gridlevel_info%ngrid_levels)
-    CALL reallocate(tasks_local,1,2,1,max_tasks)
+    CALL reallocate(tasks,1,11,1,max_tasks,1,gridlevel_info%ngrid_levels)
+    CALL reallocate(tasks_local,1,4,1,max_tasks)
     CALL reallocate(ival,1,6,1,max_tasks)
     CALL reallocate(latom,1,2,1,max_tasks)
     curr_tasks = max_tasks
@@ -400,11 +401,20 @@ CONTAINS
                   n = ntasks(igrid_level)
                   IF ( n > curr_tasks ) THEN
                     curr_tasks = curr_tasks*mult_tasks
-                    CALL reallocate(tasks,1,8,1,curr_tasks,&
+                    CALL reallocate(tasks,1,11,1,curr_tasks,&
                                     1,gridlevel_info%ngrid_levels)
                   END IF
 
                   tasks (1,n,igrid_level) = n
+
+                  DO dir = 1,3
+                     rp(:) = ra(:) + zetb(jpgf,jset)/zetp*rab(:)
+                     rp(:) = pbc(rp,cell)
+                     tp = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),rp)*rs_rho(igrid_level)%rs_grid%npts(dir))
+                     tp = MODULO ( tp, rs_rho(igrid_level)%rs_grid%npts(dir) )
+                     tasks (8+dir,n,igrid_level) = tp + rs_rho(igrid_level)%rs_grid%lb(dir)
+                  END DO
+
                   tasks (3,n,igrid_level) = iatom
                   tasks (4,n,igrid_level) = jatom
                   tasks (5,n,igrid_level) = iset
@@ -420,7 +430,7 @@ CONTAINS
           DO igrid_level = 1, gridlevel_info%ngrid_levels
             num_tasks = ntasks ( igrid_level )
             IF ( num_tasks  > SIZE ( tasks_local, 2 ) ) &
-              CALL reallocate(tasks_local,1,2,1,num_tasks )
+              CALL reallocate(tasks_local,1,4,1,num_tasks )
             IF ( num_tasks  > SIZE ( ival, 2 ) ) &
               CALL reallocate(ival,1,6,1,num_tasks )
             IF ( num_tasks  > SIZE ( latom, 2 ) ) &
@@ -429,7 +439,9 @@ CONTAINS
 !$OMP parallel do private(i)
             DO i=1,num_tasks
               tasks_local(1,i) = tasks(1,i,igrid_level)
-              tasks_local(2,i) = tasks(2,i,igrid_level)
+              tasks_local(2,i) = tasks(9,i,igrid_level)
+              tasks_local(3,i) = tasks(10,i,igrid_level)
+              tasks_local(4,i) = tasks(11,i,igrid_level)
               latom(1,i) = tasks(3,i,igrid_level)
               latom(2,i) = tasks(4,i,igrid_level)
               ival(1,i) = tasks(3,i,igrid_level)
@@ -444,7 +456,10 @@ CONTAINS
             DO i=num_tasks+1,SIZE(tasks_local,2)
               tasks_local(1,i) = 0
               tasks_local(2,i) = 0
+              tasks_local(3,i) = 0
+              tasks_local(4,i) = 0
             END DO
+            npme = 0
 
             IF ( nthread > 1 ) THEN
               lb => rs_rho(igrid_level)%rs_grid%lb_local

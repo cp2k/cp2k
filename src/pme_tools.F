@@ -47,7 +47,7 @@ MODULE pme_tools
 
 CONTAINS
 
-  SUBROUTINE set_list ( part, npart, center, p1, rs, ipart, jpart, core_center )
+  SUBROUTINE set_list ( part, npart, center, p1, rs, ipart, core_center )
 
     TYPE(particle_type), DIMENSION(:), &
       INTENT(IN)                             :: part
@@ -55,24 +55,18 @@ CONTAINS
     INTEGER, DIMENSION(:, :), INTENT(IN)     :: center
     INTEGER, INTENT(OUT)                     :: p1
     TYPE(realspace_grid_type), POINTER       :: rs
-    INTEGER, INTENT(INOUT)                   :: ipart, jpart
+    INTEGER, INTENT(INOUT)                   :: ipart
     INTEGER, DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: core_center
 
-    INTEGER                                  :: dir, lb, ndim, npos, ub
+    INTEGER, DIMENSION(3)                    :: lb, ub
+    INTEGER                                  :: ndim, npos
     REAL(KIND=dp)                            :: charge
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
     p1 = 0
-    IF ( rs % parallel .AND. rs % group_dim ( 1 ) /= 1 ) THEN
-       dir = rs % direction
-       lb = rs % lb_local ( dir ) + rs % border
-       ub = rs % ub_local ( dir ) - rs % border
-    END IF
-    IF ( rs % parallel ) THEN
-       ndim = rs % group_dim ( 2 )
-       npos = rs % group_coor ( 2 )
-    END IF
+    lb = rs % lb_real
+    ub = rs % ub_real
 
     DO
        ipart = ipart + 1
@@ -81,8 +75,11 @@ CONTAINS
        CALL get_atomic_kind (atomic_kind=atomic_kind,qeff=charge)
        IF (charge == 0.0_dp.AND.part(ipart)%shell_index==0) CYCLE
        IF (rs % parallel) THEN
-          IF ( rs % group_dim ( 1 ) == 1 ) THEN
-             ! All processor work on the same grid
+          ! check if the rs grid is distributed or not
+          IF ( ALL ( rs % group_dim == 1 ) ) THEN
+             ndim = rs % group_size
+             npos = rs % group_coor ( 3 )
+             ! All processors work on the same grid
              IF ( MOD ( ipart, ndim ) == npos ) THEN
                 p1 = ipart
                 EXIT
@@ -90,23 +87,16 @@ CONTAINS
           ELSE
              ! First check if this atom is on my grid
              IF(part(ipart)%shell_index/=0 .AND. PRESENT(core_center))THEN
-                IF ( in_slice(core_center(dir, part(ipart)%shell_index ), lb, ub)) THEN
-                   jpart = jpart + 1
-                   IF ( MOD ( jpart, ndim ) == npos ) THEN
-                      p1 = ipart
-                      EXIT
-                   END IF
-                END IF
+                IF ( in_slice(core_center( : , part(ipart)%shell_index ), lb, ub)) THEN
+                   p1 = ipart
+                ENDIF
              ELSE
-                IF ( in_slice ( center ( dir, ipart ), lb, ub ) ) THEN
-                   jpart = jpart + 1
-                   IF ( MOD ( jpart, ndim ) == npos ) THEN
-                      p1 = ipart
-                      EXIT
-                   END IF
+                IF ( in_slice ( center ( : , ipart ), lb, ub ) ) THEN
+                   p1 = ipart
+                   EXIT
                 END IF
              END IF
-          END IF
+          ENDIF
        ELSE
           p1 = ipart
           EXIT
@@ -119,10 +109,10 @@ CONTAINS
 
   FUNCTION in_slice ( pos, lb, ub ) RESULT ( internal )
 
-    INTEGER, INTENT(IN)                      :: pos, lb, ub
-    LOGICAL                                  :: internal
+    INTEGER, DIMENSION(3), INTENT(IN)                      :: pos, lb, ub
+    LOGICAL                                                :: internal
 
-    IF ( pos >= lb .AND. pos <= ub ) THEN
+    IF ( ALL ( pos >= lb ) .AND. ALL ( pos <= ub ) ) THEN
        internal = .TRUE.
     ELSE
        internal = .FALSE.

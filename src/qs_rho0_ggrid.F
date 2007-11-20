@@ -213,33 +213,27 @@ MODULE qs_rho0_ggrid
 
       npme = bo(2) - bo(1) + 1
       IF ( ncurr < npme ) THEN
-        CALL reallocate ( tasks, 1, 2, 1, npme )
+        CALL reallocate ( tasks, 1, 4, 1, npme )
         ncurr = npme
       ELSE
         tasks = 0
       END IF
 
-      dir = rs_grid%direction
-
+      DO dir = 1,3
+                  
 ! !$OMP parallel do &
 ! !$OMP default(none) &
 ! !$OMP private(iat,j,iatom,ra) &
 ! !$OMP shared(bo,tasks,dir,rs_grid,atom_list,particle_set,cell)
-      DO iat=bo(1),bo(2)
-
-        j = iat - bo(1) + 1
-        tasks ( 1, j ) = iat
-        IF ( dir /= 0) THEN
-          iatom = atom_list(iat)
-          ra(:) = pbc(particle_set(iatom)%r,cell)
-
-!          tasks ( 2, j ) = FLOOR(ra(dir)/rs_grid%dr(dir))
-
-          tasks ( 2, j ) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_grid%npts(dir))
-          tasks ( 2, j ) = MODULO ( tasks ( 2, j ), rs_grid%npts(dir) )
-          tasks ( 2, j ) = tasks ( 2, j ) + rs_grid%lb(dir)
-        END IF
-
+         DO iat=bo(1),bo(2)
+            j = iat - bo(1) + 1
+            tasks ( 1, j ) = iat
+            iatom = atom_list(iat)
+            ra(:) = pbc(particle_set(iatom)%r,cell)
+            tasks ( 1+dir, j ) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_grid%npts(dir))
+            tasks ( 1+dir, j ) = MODULO ( tasks ( 1+dir, j ), rs_grid%npts(dir) )
+            tasks ( 1+dir, j ) = tasks ( 1+dir, j ) + rs_grid%lb(dir)
+         END DO
       END DO
 
       CALL rs_get_my_tasks ( rs_grid, tasks, npme ,error=error)
@@ -609,35 +603,30 @@ MODULE qs_rho0_ggrid
 
       npme = bo(2) - bo(1) + 1
       IF ( ncurr < npme ) THEN
-        CALL reallocate ( tasks, 1, 2, 1, npme )
+        CALL reallocate ( tasks, 1, 4, 1, npme )
         ncurr = npme
       ELSE
         tasks = 0
       END IF
 
-      dir = rs_v%direction
+      DO dir = 1,3
 
 ! !$OMP parallel do &
 ! !$OMP default(none) &
 ! !$OMP private(iat,j,iatom,ra) &
 ! !$OMP shared(bo,tasks,dir,rs_v,atom_list,particle_set,cell)
-      DO iat=bo(1),bo(2)
+         DO iat=bo(1),bo(2)
 
-        j = iat - bo(1) + 1
-        tasks ( 1, j ) = iat
-        IF ( dir /= 0) THEN
-          iatom = atom_list(iat)
-          ra(:) = pbc(particle_set(iatom)%r,cell)
-
-!          tasks ( 2, j ) = FLOOR(ra(dir)/rs_v%dr(dir))
-
-          tasks ( 2, j ) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_v%npts(dir))
-          tasks ( 2, j ) = MODULO ( tasks ( 2, j ), rs_v%npts(dir) )
-          tasks ( 2, j ) = tasks ( 2, j ) + rs_v%lb(dir)
-        END IF
-
+            j = iat - bo(1) + 1
+            tasks ( 1, j ) = iat
+            iatom = atom_list(iat)
+            ra(:) = pbc(particle_set(iatom)%r,cell)
+            tasks ( 1+dir, j ) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_v%npts(dir))
+            tasks ( 1+dir, j ) = MODULO ( tasks ( 1+dir, j ), rs_v%npts(dir) )
+            tasks ( 1+dir, j ) = tasks ( 1+dir, j ) + rs_v%lb(dir)
+         END DO
       END DO
-
+      
       CALL rs_get_my_tasks ( rs_v, tasks, npme ,error=error)
 
       ithread=0

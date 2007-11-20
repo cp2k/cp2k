@@ -513,13 +513,11 @@ CONTAINS
 
       npme = bo(2) - bo(1) + 1
       IF ( ncurr < npme ) THEN
-        CALL reallocate ( tasks, 1, 2, 1, npme )
+        CALL reallocate ( tasks, 1, 4, 1, npme )
         ncurr = npme
       ELSE
         tasks = 0
       END IF
-
-      dir = rs_rho%direction
 
     nthread = 1
 !$  nthread = omp_get_max_threads()
@@ -542,21 +540,15 @@ CONTAINS
 !$OMP private(iatom,j,atom_a,ra) &
 !$OMP shared(bo,tasks,dir,rs_rho,atom_list,particle_set,cell)
       DO iatom=bo(1),bo(2)
-
         j = iatom - bo(1) + 1
         tasks ( 1, j ) = iatom
-
-        ! should be generalised to arbritary non-periodic
-        IF ( dir /= 0) THEN
-          atom_a = atom_list(iatom)
-          ra(:) = pbc(particle_set(atom_a)%r,cell)
-
-          tasks ( 2, j ) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_rho%npts(dir))
-          tasks ( 2, j ) = MODULO ( tasks ( 2, j ), rs_rho%npts(dir) )
-          tasks ( 2, j ) = tasks ( 2, j ) + rs_rho%lb(dir)
-
-        END IF
-
+        atom_a = atom_list(iatom)
+        ra(:) = pbc(particle_set(atom_a)%r,cell)
+        DO dir = 1,3 
+            tasks ( 1+dir, j ) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_rho%npts(dir))
+            tasks ( 1+dir, j ) = MODULO ( tasks ( 1+dir, j ), rs_rho%npts(dir) )
+            tasks ( 1+dir, j ) = tasks ( 1+dir, j ) + rs_rho%lb(dir)
+        END DO
       END DO
 
       CALL rs_get_my_tasks ( rs_rho, tasks, npme ,error=error)
@@ -777,7 +769,7 @@ CONTAINS
     CALL rs_pools_create_rs_vect(rs_pools, rs_rho, error=error)
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
-       IF ( rs_rho(igrid_level)%rs_grid%direction /= 0 ) THEN
+       IF ( .NOT. ALL (rs_rho(igrid_level)%rs_grid%perd == 0 ) ) THEN
           distributed_rs_grids=.TRUE.
        ENDIF
     END DO
@@ -812,9 +804,9 @@ CONTAINS
     CALL reallocate(pabt,1,maxco,1,maxco,0,nthread-1)
     CALL reallocate(workt,1,maxco,1,maxsgf_set,0,nthread-1)
     CALL reallocate(ntasks,1,gridlevel_info%ngrid_levels)
-    CALL reallocate(tasks,1,8,1,max_tasks,1,gridlevel_info%ngrid_levels)
+    CALL reallocate(tasks,1,11,1,max_tasks,1,gridlevel_info%ngrid_levels)
     CALL reallocate(dist_ab,1,3,1,max_tasks,1,gridlevel_info%ngrid_levels)
-    CALL reallocate(tasks_local,1,2,1,max_tasks)
+    CALL reallocate(tasks_local,1,4,1,max_tasks)
     CALL reallocate(ival,1,6,1,max_tasks)
     CALL reallocate(latom,1,2,1,max_tasks)
     CALL reallocate(dab_local,1,3,1,max_tasks)
@@ -1001,22 +993,20 @@ CONTAINS
                      IF ( n > curr_tasks ) THEN
 !                       curr_tasks = curr_tasks + add_tasks
                        curr_tasks = curr_tasks*mult_tasks
-                       CALL reallocate(tasks,1,8,1,curr_tasks,&
+                       CALL reallocate(tasks,1,11,1,curr_tasks,&
                                        1,gridlevel_info%ngrid_levels)
                        CALL reallocate(dist_ab,1,3,1,curr_tasks,&
                                        1,gridlevel_info%ngrid_levels)
                      END IF
-                     dir = rs_rho(igrid_level)%rs_grid%direction
                      tasks (1,n,igrid_level) = n
 
-                     ! should be generalised to arbritary non-periodic
-                     IF ( dir /= 0) THEN
-                       rp(:) = ra(:) + zetb(jpgf,jset)/zetp*rab(:)
-                       rp(:) = pbc(rp,cell)
-                       tp = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),rp)*rs_rho(igrid_level)%rs_grid%npts(dir))
-                       tp = MODULO ( tp, rs_rho(igrid_level)%rs_grid%npts(dir) )
-                       tasks (2,n,igrid_level) = tp + rs_rho(igrid_level)%rs_grid%lb(dir)
-                     END IF
+                     DO dir = 1,3
+                        rp(:) = ra(:) + zetb(jpgf,jset)/zetp*rab(:)
+                        rp(:) = pbc(rp,cell)
+                        tp = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),rp)*rs_rho(igrid_level)%rs_grid%npts(dir))
+                        tp = MODULO ( tp, rs_rho(igrid_level)%rs_grid%npts(dir) )
+                        tasks (8+dir,n,igrid_level) = tp + rs_rho(igrid_level)%rs_grid%lb(dir)
+                     END DO
 
                      tasks (3,n,igrid_level) = iatom
                      tasks (4,n,igrid_level) = jatom
@@ -1047,7 +1037,7 @@ CONTAINS
         DO igrid_level = 1, gridlevel_info%ngrid_levels
           n = ntasks ( igrid_level )
           IF ( n > SIZE ( tasks_local, 2 ) ) &
-            CALL reallocate(tasks_local,1,2,1,n)
+            CALL reallocate(tasks_local,1,4,1,n)
           IF ( n > SIZE ( ival, 2 ) ) &
             CALL reallocate(ival,1,6,1,n)
           IF ( n > SIZE ( latom, 2 ) ) &
@@ -1058,7 +1048,9 @@ CONTAINS
 !$OMP parallel do private(i)
           DO i=1,n
             tasks_local(1,i) = tasks(1,i,igrid_level)
-            tasks_local(2,i) = tasks(2,i,igrid_level)
+            tasks_local(2,i) = tasks(9,i,igrid_level)
+            tasks_local(3,i) = tasks(10,i,igrid_level)
+            tasks_local(4,i) = tasks(11,i,igrid_level)
             latom(1,i) = tasks(3,i,igrid_level)
             latom(2,i) = tasks(4,i,igrid_level)
             ival(1,i) = tasks(3,i,igrid_level)
@@ -1075,6 +1067,8 @@ CONTAINS
           DO i=n+1,SIZE(tasks_local,2)
             tasks_local(1,i) = 0
             tasks_local(2,i) = 0
+            tasks_local(3,i) = 0
+            tasks_local(4,i) = 0
           END DO
           npme = 0
           ! modifies deltap if distributed_rs_grids
@@ -1335,7 +1329,7 @@ CONTAINS
 
     INTEGER :: handle, i, iatom, igrid_level, ipgf, iset, istat, maxco, &
       maxsgf_set, na1, na2, nao, natom, ncoa, ncol_global, nseta, offset, &
-      sgfa, stat, group, my_pos, group_size, location, lb, ub, dir, tp
+      sgfa, stat, group, my_pos, group_size, dir
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
     LOGICAL                                  :: failure, local
@@ -1357,6 +1351,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: rs_rho
     LOGICAL                                  :: map_it_here
     INTEGER, DIMENSION(:), ALLOCATABLE       :: where_is_the_point
+    INTEGER, DIMENSION(3)                    :: location, lb, ub, tp
 
     failure=.FALSE.
 
@@ -1458,35 +1453,40 @@ CONTAINS
             scale = 1.0_dp
             zetp = zeta(ipgf,iset)
             igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
-            dir = rs_rho(igrid_level)%rs_grid%direction
 
             map_it_here=.FALSE.
 
-            IF (dir.NE.0) THEN
-              ! bounds of local grid (i.e. removing the 'wings')
-              tp = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_rho(igrid_level)%rs_grid%npts(dir))
-              tp = MODULO ( tp, rs_rho(igrid_level)%rs_grid%npts(dir) )
-              lb = rs_rho(igrid_level)%rs_grid%lb_local ( dir ) + rs_rho(igrid_level)%rs_grid%border
-              ub = rs_rho(igrid_level)%rs_grid%ub_local ( dir ) - rs_rho(igrid_level)%rs_grid%border
-              ! distributed grid, only map if it is local to the grid
-              location=tp+rs_rho(igrid_level)%rs_grid%lb(dir)
-              IF (lb<=location .AND. location<=ub) THEN
-                 ! this slice can still be on many CPUs. only one should do the point.
-                 IF (MODULO(offset,rs_rho(igrid_level)%rs_grid%group_dim ( 2 )) == &
-                            rs_rho(igrid_level)%rs_grid%group_coor (2 )) map_it_here=.TRUE.
-              ENDIF
+            IF (.NOT. ALL (rs_rho(igrid_level)%rs_grid%perd == 1)) THEN
+               DO dir = 1,3
+                     ! bounds of local grid (i.e. removing the 'wings')
+                     tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_rho(igrid_level)%rs_grid%npts(dir))
+                     tp(dir) = MODULO ( tp(dir), rs_rho(igrid_level)%rs_grid%npts(dir) )
+                     lb(dir) = rs_rho(igrid_level)%rs_grid%lb_local ( dir ) + rs_rho(igrid_level)%rs_grid%border
+                     ub(dir) = rs_rho(igrid_level)%rs_grid%ub_local ( dir ) - rs_rho(igrid_level)%rs_grid%border
+                     ! distributed grid, only map if it is local to the grid
+                     location(dir)=tp(dir)+rs_rho(igrid_level)%rs_grid%lb(dir)
+               ENDDO
+               IF  (lb(1)<=location(1) .AND. location(1)<=ub(1) .AND. &
+                    lb(2)<=location(2) .AND. location(2)<=ub(2) .AND. &
+                    lb(3)<=location(3) .AND. location(3)<=ub(3)) THEN
+                  map_it_here=.TRUE.
+                  ! this slice can still be on many CPUs. only one should do the point.
+                  ! this should be changed as group_dim is going to!
+                  !IF (MODULO(offset,rs_rho(igrid_level)%rs_grid%group_dim ( 2 )) == &
+                  !     rs_rho(igrid_level)%rs_grid%group_coor (2 )) map_it_here=.TRUE.
+               ENDIF
             ELSE
-              ! not distributed, just a round-robin distribution over the full set of CPUs
-              IF (MODULO(offset,group_size)==my_pos) map_it_here=.TRUE.
+               ! not distributed, just a round-robin distribution over the full set of CPUs
+               IF (MODULO(offset,group_size)==my_pos) map_it_here=.TRUE.
             ENDIF
-
+            
+            
             IF (map_it_here) CALL collocate_pgf_product_rspace(&
-                        la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                        0,0.0_dp,0,&
-                        ra,rab,rab2,scale,pab,na1-1,0,&
-                        rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
-                        eps_rho_rspace,ga_gb_function=FUNC_AB,error=error)
-
+                 la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                 0,0.0_dp,0,&
+                 ra,rab,rab2,scale,pab,na1-1,0,&
+                 rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
+                 eps_rho_rspace,ga_gb_function=FUNC_AB,error=error)
 
          END DO
 
@@ -2071,7 +2071,8 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:,:) :: hmatgridp
       INTEGER, ALLOCATABLE, DIMENSION(:,:,:) :: coef_map
       INTEGER, ALLOCATABLE, DIMENSION(:) :: grid_map
-      INTEGER :: ilx,jlx,klx,ily,jly,kly,ilz,jlz,klz,lpx,lpy,lpz,lx,ly,lz,il,jl,kl,ismin,ismax
+      INTEGER :: ilx,jlx,klx,ily,jly,kly,ilz,jlz,klz,lpx,lpy,lpz,lx,ly,lz,il,jl,kl,ismin,ismax,dir
+      INTEGER :: offset(3)
       REAL(KIND=dp) :: res,pointk(3),pointj(3),pointi(3), &
                        rsq,a,b,c,v(3),d,exp2i,exp1i,exp0i,&
                        dk,dj,di,dkp,djp,dip,gp(3)
@@ -2147,25 +2148,31 @@ CONTAINS
 
       CALL return_cube_nonortho(cube_info,radius,index_min,index_max,rp)
 
-      ALLOCATE(grid_map(index_min(1):index_max(1)))
-      DO i=index_min(1),index_max(1)
-             grid_map(i)=MODULO(i,ng(1))+1
+      DO dir=1,3
+         offset(dir)=MODULO(cubecenter(dir),ng(dir))+rsgrid%lb(dir)
+         offset(dir)=offset(dir)-rsgrid%lb_local(dir)+1
       ENDDO
 
-      offset=MODULO(cubecenter(3),ng(3))+rsgrid%lb(3)
-      offset=offset-rsgrid%lb_local(3)+1
+      ALLOCATE(grid_map(index_min(1):index_max(1)))
+      DO i=index_min(1),index_max(1)
+        grid_map(i)=MODULO(i,ng(1))+1
+        IF (rsgrid % perd ( 1 )==1) THEN
+           grid_map(i)=MODULO(i,ng(1))+1
+        ELSE
+           grid_map(i)=i-cubecenter(1)+offset(1)
+        ENDIF
+      ENDDO
+
 
       ! go over the grid, but cycle if the point is not within the radius
       DO k=index_min(3),index_max(3)
         dk=k-gp(3)
         pointk=hmatgrid(:,3)*dk
 
-        ! should be generalised for abritary non periodic direction
-
         IF (rsgrid % perd ( 3 )==1) THEN
            k_index=MODULO(k,ng(3))+1
         ELSE
-           k_index=k-cubecenter(3)+offset
+           k_index=k-cubecenter(3)+offset(3)
         ENDIF
 
         coef_xyt=0.0_dp
@@ -2186,7 +2193,11 @@ CONTAINS
         DO j=index_min(2),index_max(2)
           dj=j-gp(2)
           pointj=pointk+hmatgrid(:,2)*dj
-          j_index=MODULO(j,ng(2))+1
+          IF (rsgrid % perd ( 2 )==1) THEN
+             j_index=MODULO(j,ng(2))+1
+          ELSE
+             j_index=j-cubecenter(2)+offset(2)
+          ENDIF
 
           coef_xtt=0.0_dp
           lxy=0

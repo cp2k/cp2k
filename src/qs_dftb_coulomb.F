@@ -395,7 +395,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: group, handle, i, ierr, &
-                                                ipart, j, jpart, n, npart, &
+                                                ipart, j, n, npart, &
                                                 o_spline, p1, &
                                                 rs_distributed_id
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center
@@ -450,11 +450,10 @@ CONTAINS
 !-------------- DENSITY CALCULATION ----------------
 
   ipart = 0
-  jpart = 0
 
   DO
 
-     CALL set_list ( particle_set, npart, center, p1, rden, ipart, jpart )
+     CALL set_list ( particle_set, npart, center, p1, rden, ipart)
      IF ( p1 == 0 ) EXIT
 
      ! calculate function on small boxes
@@ -553,10 +552,9 @@ CONTAINS
   dvols = grid_spme % dvol
 
   ipart = 0
-  jpart = 0
   DO
 
-     CALL set_list ( particle_set, npart, center, p1, rden, ipart, jpart )
+     CALL set_list ( particle_set, npart, center, p1, rden, ipart )
      IF ( p1 == 0 ) EXIT
 
      ! calculate function on small boxes

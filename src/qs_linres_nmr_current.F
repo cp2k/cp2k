@@ -789,7 +789,7 @@ CONTAINS
     CALL rs_pools_create_rs_vect(rs_pools, rs_rho, error=error)
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
-       IF ( rs_rho(igrid_level)%rs_grid%direction /= 0 ) THEN
+       IF ( .NOT. ALL (rs_rho(igrid_level)%rs_grid%perd == 1 ) ) THEN
           distributed_rs_grids=.TRUE.
        ENDIF
     END DO
@@ -832,9 +832,9 @@ CONTAINS
     CALL reallocate(jpabt_iii,1,maxco,1,maxco,0,nthread-1)
     CALL reallocate(workt,1,maxco,1,maxsgf_set,0,nthread-1)
     CALL reallocate(ntasks,1,gridlevel_info%ngrid_levels)
-    CALL reallocate(tasks,1,8,1,max_tasks,1,gridlevel_info%ngrid_levels)
+    CALL reallocate(tasks,1,11,1,max_tasks,1,gridlevel_info%ngrid_levels)
     CALL reallocate(dist_ab,1,3,1,max_tasks,1,gridlevel_info%ngrid_levels)
-    CALL reallocate(tasks_local,1,2,1,max_tasks)
+    CALL reallocate(tasks_local,1,4,1,max_tasks)
     CALL reallocate(ival,1,6,1,max_tasks)
     CALL reallocate(latom,1,2,1,max_tasks)
     CALL reallocate(dab_local,1,3,1,max_tasks)
@@ -1046,23 +1046,22 @@ CONTAINS
                      n = ntasks(igrid_level)
                      IF ( n > curr_tasks ) THEN
                        curr_tasks = curr_tasks*mult_tasks
-                       CALL reallocate(tasks,1,8,1,curr_tasks,&
+                       CALL reallocate(tasks,1,11,1,curr_tasks,&
                                        1,gridlevel_info%ngrid_levels)
                        CALL reallocate(dist_ab,1,3,1,curr_tasks,&
                                        1,gridlevel_info%ngrid_levels)
                      END IF
-                     dir = rs_rho(igrid_level)%rs_grid%direction
+
                      tasks (1,n,igrid_level) = n
-                     IF ( dir /= 0) THEN
-                       rp(:) = ra(:) + zetb(jpgf,jset)/zetp*rab(:)
-                       rp(:) = pbc(rp,cell)
+                     rp(:) = ra(:) + zetb(jpgf,jset)/zetp*rab(:)
+                     rp(:) = pbc(rp,cell)
 
-                       !tp = FLOOR(rp(dir)/rs_rho(igrid_level)%rs_grid%dr(dir))
+                     DO dir = 1,3
+                        tp = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),rp)*rs_rho(igrid_level)%rs_grid%npts(dir))
+                        tp = MODULO ( tp, rs_rho(igrid_level)%rs_grid%npts(dir) )
+                        tasks (8+dir,n,igrid_level) = tp + rs_rho(igrid_level)%rs_grid%lb(dir)
+                     END DO
 
-                       tp = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),rp)*rs_rho(igrid_level)%rs_grid%npts(dir))
-                       tp = MODULO ( tp, rs_rho(igrid_level)%rs_grid%npts(dir) )
-                       tasks (2,n,igrid_level) = tp + rs_rho(igrid_level)%rs_grid%lb(dir)
-                     END IF
                      tasks (3,n,igrid_level) = iatom
                      tasks (4,n,igrid_level) = jatom
                      tasks (5,n,igrid_level) = iset
@@ -1092,7 +1091,7 @@ CONTAINS
         DO igrid_level = 1, gridlevel_info%ngrid_levels
           n = ntasks ( igrid_level )
           IF ( n > SIZE ( tasks_local, 2 ) ) &
-            CALL reallocate(tasks_local,1,2,1,n)
+            CALL reallocate(tasks_local,1,4,1,n)
           IF ( n > SIZE ( ival, 2 ) ) &
             CALL reallocate(ival,1,6,1,n)
           IF ( n > SIZE ( latom, 2 ) ) &
@@ -1104,7 +1103,9 @@ CONTAINS
 
           DO i=1,n
             tasks_local(1,i) = tasks(1,i,igrid_level)
-            tasks_local(2,i) = tasks(2,i,igrid_level)
+            tasks_local(2,i) = tasks(9,i,igrid_level)
+            tasks_local(3,i) = tasks(10,i,igrid_level)
+            tasks_local(4,i) = tasks(11,i,igrid_level)
             latom(1,i) = tasks(3,i,igrid_level)
             latom(2,i) = tasks(4,i,igrid_level)
             ival(1,i) = tasks(3,i,igrid_level)
@@ -1121,6 +1122,8 @@ CONTAINS
           DO i=n+1,SIZE(tasks_local,2)
             tasks_local(1,i) = 0
             tasks_local(2,i) = 0
+            tasks_local(3,i) = 0
+            tasks_local(4,i) = 0
           END DO
           npme = 0
           ! modifies deltap if distributed_rs_grids

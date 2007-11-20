@@ -157,36 +157,36 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine = &
-      "SUBROUTINE integrate_v_core_rspace (MODULE qs_integrate_potential)"
+         "SUBROUTINE integrate_v_core_rspace (MODULE qs_integrate_potential)"
 
     INTEGER                                  :: atom_a, dir, handle, iatom, &
-                                                idir, ierr, ikind, j, &
-                                                natom_of_kind, npme
+         idir, ierr, ikind, j, &
+         natom_of_kind, npme
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     INTEGER, DIMENSION(:, :), POINTER        :: tasks
     LOGICAL                                  :: use_virial
     REAL(KIND=dp)                            :: alpha_core_charge, &
-                                                ccore_charge, eps_rho_rspace
+         ccore_charge, eps_rho_rspace
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra
     REAL(KIND=dp), DIMENSION(3,3)            :: my_virial_a, my_virial_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hab, pab
     TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
+         POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
+         POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(qs_force_type), DIMENSION(:), &
-      POINTER                                :: force
+         POINTER                                :: force
     TYPE(realspace_grid_type), POINTER       :: rs_v
     TYPE(virial_type), POINTER               :: virial
 
-!   --------------------------------------------------------------------
+    !   --------------------------------------------------------------------
 
     CALL timeset("integrate_v_core_rspace","I","",handle)
 
@@ -201,12 +201,12 @@ CONTAINS
     CALL rs_pw_transfer(rs_v,v_rspace%pw,pw2rs)
 
     CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
-                    cell=cell,&
-                    dft_control=dft_control,&
-                    particle_set=particle_set,&
-                    para_env=para_env,pw_env=pw_env,&
-                    force=force,virial=virial,error=error)
+         atomic_kind_set=atomic_kind_set,&
+         cell=cell,&
+         dft_control=dft_control,&
+         particle_set=particle_set,&
+         para_env=para_env,pw_env=pw_env,&
+         force=force,virial=virial,error=error)
 
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
@@ -214,37 +214,33 @@ CONTAINS
 
     DO ikind=1,SIZE(atomic_kind_set)
 
-      atomic_kind => atomic_kind_set(ikind)
+       atomic_kind => atomic_kind_set(ikind)
 
-      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           natom=natom_of_kind,&
-                           atom_list=atom_list,&
-                           alpha_core_charge=alpha_core_charge,&
-                           ccore_charge=ccore_charge)
+       CALL get_atomic_kind(atomic_kind=atomic_kind,&
+            natom=natom_of_kind,&
+            atom_list=atom_list,&
+            alpha_core_charge=alpha_core_charge,&
+            ccore_charge=ccore_charge)
 
-      pab(1,1) = -ccore_charge
+       pab(1,1) = -ccore_charge
 
-      bo = get_limit ( natom_of_kind, para_env%num_pe, para_env%mepos )
+       bo = get_limit ( natom_of_kind, para_env%num_pe, para_env%mepos )
 
-      npme = bo(2) - bo(1) + 1
-      CALL reallocate(tasks,1,2,1,npme)
+       npme = bo(2) - bo(1) + 1
+       CALL reallocate(tasks,1,4,1,npme)
 
-      ! should be generalised for all possible nonperiodic directions
+       DO iatom=bo(1),bo(2)
 
-      dir = rs_v%direction
-
-      DO iatom=bo(1),bo(2)
-
-        j = iatom - bo(1) + 1
-        tasks ( 1, j ) = iatom
-        IF ( dir /= 0) THEN
-          atom_a = atom_list(iatom)
-          ra(:) = pbc(particle_set(atom_a)%r,cell)
-          tasks ( 2, j ) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_v%npts(dir))
-          tasks ( 2, j ) = MODULO ( tasks ( 2, j ), rs_v%npts(dir) )
-          tasks ( 2, j ) = tasks ( 2, j ) + rs_v%lb(dir)
-        END IF
-
+          j = iatom - bo(1) + 1
+          tasks ( 1, j ) = iatom
+          ! allow generalised rs grids
+          DO dir =1,3
+             atom_a = atom_list(iatom)
+             ra(:) = pbc(particle_set(atom_a)%r,cell)
+             tasks ( 1+dir, j ) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_v%npts(dir))
+             tasks ( 1+dir, j ) = MODULO ( tasks ( 1+dir, j ), rs_v%npts(dir) )
+             tasks ( 1+dir, j ) = tasks ( 1+dir, j ) + rs_v%lb(dir)
+          END DO
       END DO
 
       CALL rs_get_my_tasks ( rs_v, tasks, npme ,error=error)
@@ -466,7 +462,8 @@ CONTAINS
     h_duplicated = .FALSE.
     dh => h%matrix
     DO igrid_level = 1, gridlevel_info%ngrid_levels
-      IF ( rs_v(igrid_level)%rs_grid%direction /= 0 ) THEN
+       ! allow for general distributed rs grids
+      IF ( .NOT. ALL (rs_v(igrid_level)%rs_grid%perd == 1 ) ) THEN
         NULLIFY ( dh )
         CALL allocate_matrix(matrix=dh,&
                          nrow=h%matrix%nrow,&
@@ -506,7 +503,7 @@ CONTAINS
     IF ( PRESENT ( p ) ) THEN
        deltap => p%matrix
        DO igrid_level = 1, gridlevel_info%ngrid_levels
-         IF ( rs_v(igrid_level)%rs_grid%direction /= 0 ) THEN
+         IF ( .NOT. ALL (rs_v(igrid_level)%rs_grid%perd == 1 ) ) THEN
            NULLIFY ( deltap )
            CALL allocate_matrix(matrix=deltap,&
                          nrow=p%matrix%nrow,&
@@ -543,9 +540,9 @@ CONTAINS
 
     NULLIFY(hdabt,hadbt,hdab,hadb)
     CALL reallocate(ntasks,1,gridlevel_info%ngrid_levels)
-    CALL reallocate(tasks,1,8,1,max_tasks,1,gridlevel_info%ngrid_levels)
+    CALL reallocate(tasks,1,11,1,max_tasks,1,gridlevel_info%ngrid_levels)
     CALL reallocate(dist_ab,1,3,1,max_tasks,1,gridlevel_info%ngrid_levels)
-    CALL reallocate(tasks_local,1,2,1,max_tasks)
+    CALL reallocate(tasks_local,1,4,1,max_tasks)
     CALL reallocate(ival,1,6,1,max_tasks)
     CALL reallocate(latom,1,2,1,max_tasks)
     CALL reallocate(dab_local,1,3,1,max_tasks)
@@ -716,25 +713,23 @@ CONTAINS
                      IF ( n > curr_tasks ) THEN
                        ! curr_tasks = curr_tasks + add_tasks
                        curr_tasks = curr_tasks*mult_tasks
-                       CALL reallocate ( tasks, 1, 8, 1, curr_tasks, &
+                       CALL reallocate ( tasks, 1, 11, 1, curr_tasks, &
                                          1, gridlevel_info%ngrid_levels )
                        CALL reallocate ( dist_ab, 1, 3, 1, curr_tasks, &
                                          1, gridlevel_info%ngrid_levels )
                      END IF
 
-                     ! should be generalised for abritary nonperiodic directions
-
-                     dir = rs_v(igrid_level)%rs_grid%direction
                      tasks (1,n,igrid_level) = n
 
-                     IF ( dir /= 0) THEN
-                       rp(:) = ra(:) + zetb(jpgf,jset)/zetp*rab(:)
-                       rp(:) = pbc(rp,cell)
-                       tp = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),rp)*rs_v(igrid_level)%rs_grid%npts(dir))
-                       tp = MODULO ( tp, rs_v(igrid_level)%rs_grid%npts(dir) )
-                       tasks (2,n,igrid_level) = tp + &
-                          rs_v(igrid_level)%rs_grid%lb(dir)
-                     END IF
+                     ! allow for generalised rs grids
+                     DO dir =1,3
+                        rp(:) = ra(:) + zetb(jpgf,jset)/zetp*rab(:)
+                        rp(:) = pbc(rp,cell)
+                        tp = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),rp)*rs_v(igrid_level)%rs_grid%npts(dir))
+                        tp = MODULO ( tp, rs_v(igrid_level)%rs_grid%npts(dir) )
+                        tasks (8+dir,n,igrid_level) = tp + &
+                             rs_v(igrid_level)%rs_grid%lb(dir)
+                     END DO
                      tasks (3,n,igrid_level) = iatom
                      tasks (4,n,igrid_level) = jatom
                      tasks (5,n,igrid_level) = iset
@@ -759,7 +754,7 @@ CONTAINS
         DO igrid_level = 1, gridlevel_info%ngrid_levels
           n = ntasks ( igrid_level )
           IF ( n > SIZE ( tasks_local, 2 ) ) &
-            CALL reallocate(tasks_local,1,2,1,n)
+            CALL reallocate(tasks_local,1,4,1,n)
           IF ( n > SIZE ( ival, 2 ) ) &
             CALL reallocate(ival,1,6,1,n)
           IF ( n > SIZE ( dab_local, 2 ) ) &
@@ -767,7 +762,9 @@ CONTAINS
 !$OMP parallel do private(i)
           DO i=1,n
             tasks_local(1,i) = tasks(1,i,igrid_level)
-            tasks_local(2,i) = tasks(2,i,igrid_level)
+            tasks_local(2,i) = tasks(9,i,igrid_level)
+            tasks_local(3,i) = tasks(10,i,igrid_level)
+            tasks_local(4,i) = tasks(11,i,igrid_level)
             ival(1,i) = tasks(3,i,igrid_level)
             ival(2,i) = tasks(4,i,igrid_level)
             ival(3,i) = tasks(5,i,igrid_level)
@@ -782,6 +779,8 @@ CONTAINS
           DO i=n+1,SIZE(tasks_local,2)
             tasks_local(1,i)=0
             tasks_local(2,i)=0
+            tasks_local(3,i)=0
+            tasks_local(4,i)=0
           END DO
 
           npme = 0
@@ -1762,7 +1761,9 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:,:) :: hmatgridp
       INTEGER, ALLOCATABLE, DIMENSION(:,:,:) :: coef_map
       INTEGER, ALLOCATABLE, DIMENSION(:) :: grid_map
+      INTEGER :: offset(3),dir
       INTEGER :: ilx,jlx,klx,ily,jly,kly,ilz,jlz,klz,lpx,lpy,lpz,lx,ly,lz,il,jl,kl,ismin,ismax
+      
       REAL(KIND=dp) :: res,pointk(3),pointj(3),pointi(3), &
                        rsq,a,b,c,v(3),d,exp2i,exp1i,exp0i,&
                        dk,dj,di,dkp,djp,dip,gp(3), gridval
@@ -1811,11 +1812,18 @@ CONTAINS
 
       ALLOCATE(grid_map(index_min(1):index_max(1)))
       DO i=index_min(1),index_max(1)
-             grid_map(i)=MODULO(i,ng(1))+1
+         grid_map(i)=MODULO(i,ng(1))+1
+         IF (rsgrid % perd ( 1 )==1) THEN
+            grid_map(i)=MODULO(i,ng(1))+1
+         ELSE
+            grid_map(i)=i-cubecenter(1)+offset(1)
+         ENDIF
       ENDDO
 
-      offset=MODULO(cubecenter(3),ng(3))+rsgrid%lb(3)
-      offset=offset-rsgrid%lb_local(3)+1
+      DO dir=1,3
+         offset(dir)=MODULO(cubecenter(dir),ng(dir))+rsgrid%lb(dir)
+         offset(dir)=offset(dir)-rsgrid%lb_local(dir)+1
+      ENDDO
 
       coef_ijk=0.0_dp
 
@@ -1824,12 +1832,11 @@ CONTAINS
         dk=k-gp(3)
         pointk=hmatgrid(:,3)*dk
 
-        ! should be generalised for abritary non periodic direction
-
+        ! allow for generalised rs grids
         IF (rsgrid % perd ( 3 )==1) THEN
            k_index=MODULO(k,ng(3))+1
         ELSE
-           k_index=k-cubecenter(3)+offset
+           k_index=k-cubecenter(3)+offset(3)
         ENDIF
 
         coef_xyt=0.0_dp
@@ -1837,7 +1844,11 @@ CONTAINS
         DO j=index_min(2),index_max(2)
           dj=j-gp(2)
           pointj=pointk+hmatgrid(:,2)*dj
-          j_index=MODULO(j,ng(2))+1
+          IF (rsgrid % perd ( 2 )==1) THEN
+             j_index=MODULO(j,ng(2))+1
+          ELSE
+             j_index=j-cubecenter(2)+offset(2)
+          ENDIF
 
           coef_xtt=0.0_dp
 

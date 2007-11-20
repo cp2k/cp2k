@@ -23,38 +23,38 @@
 
 MODULE real_space_test
 
-! *****************************************************************************
+  ! *****************************************************************************
 
   USE cell_types,                      ONLY: cell_create,&
-                                             cell_release,&
-                                             cell_type,&
-                                             get_hinv
+       cell_release,&
+       cell_type,&
+       get_hinv
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_cputime
   USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_environ,&
-                                             mp_sum
+       mp_environ,&
+       mp_sum
   USE pw_grid_types,                   ONLY: FULLSPACE,&
-                                             PW_MODE_LOCAL,&
-                                             pw_grid_type
+       PW_MODE_LOCAL,&
+       pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_create,&
-                                             pw_grid_setup
+       pw_grid_setup
   USE pw_types,                        ONLY: REALDATA3D,&
-                                             pw_create,&
-                                             pw_release,&
-                                             pw_type
+       pw_create,&
+       pw_release,&
+       pw_type
   USE realspace_grid_types,            ONLY: pw2rs,&
-                                             realspace_grid_type,&
-                                             rs2pw,&
-                                             rs_grid_create,&
-                                             rs_grid_print,&
-                                             rs_grid_release,&
-                                             rs_grid_zero,&
-                                             rs_pw_transfer
+       realspace_grid_type,&
+       rs2pw,&
+       rs_grid_create,&
+       rs_grid_print,&
+       rs_grid_release,&
+       rs_grid_zero,&
+       rs_pw_transfer
   USE realspace_task_selection,        ONLY: rs_get_my_tasks
   USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+       stop_program
   USE util,                            ONLY: get_limit
 #include "cp_common_uses.h"
 
@@ -65,28 +65,28 @@ MODULE real_space_test
 
 CONTAINS
 
-!******************************************************************************
-SUBROUTINE rs_test ( para_env, iw, error )
+  !******************************************************************************
+  SUBROUTINE rs_test ( para_env, iw, error )
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: iw
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_test', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: nparticle = 5000
 
     INTEGER                                  :: dir, i, ierr, iounit, j, me, &
-                                                memory1, memory2, memory3, n, &
-                                                npme
+         memory1, memory2, memory3, n, &
+         npme
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(3)                    :: no, np, pt
     INTEGER, DIMENSION(3, nparticle)         :: refco, refpt
     INTEGER, DIMENSION(:, :), POINTER        :: tasks
     INTEGER, DIMENSION(nparticle)            :: bsize
     REAL(KIND=dp)                            :: energy1, energy2, energy3, &
-                                                integral, t1, t2, t3, tend, &
-                                                tstart
+         integral, t1, t2, t3, tend, &
+         tstart
     REAL(KIND=dp), DIMENSION(3)              :: s
     REAL(KIND=dp), DIMENSION(3, nparticle)   :: coord
     REAL(KIND=dp), DIMENSION(nparticle)      :: bval
@@ -95,219 +95,227 @@ SUBROUTINE rs_test ( para_env, iw, error )
     TYPE(pw_type), POINTER                   :: pw_a, pw_b, pw_c
     TYPE(realspace_grid_type), POINTER       :: rden
 
-  NULLIFY(pw_a,pw_b,pw_c)
-  NULLIFY(box)
-  CALL cell_create(box,error=error)
-  IF ( iw > 0 ) &
-       WRITE(iw,'(/,A,/)') " Test of Real Space Grid Routines"
-  NULLIFY(grid)
+    NULLIFY(pw_a,pw_b,pw_c)
+    NULLIFY(box)
+    CALL cell_create(box,error=error)
+    IF ( iw > 0 ) &
+         WRITE(iw,'(/,A,/)') " Test of Real Space Grid Routines"
+    NULLIFY(grid)
 
-!..the unit cell
-! box % hmat = RESHAPE ( (/10.0_dp,0.0_dp,0.0_dp,0.0_dp,10.0_dp,0.0_dp,&
-!                          0.0_dp,0.0_dp,10.0_dp/), (/3,3/) )
-  box % hmat(1,1) = 10.0_dp
-  box % hmat(1,2) =  0.0_dp
-  box % hmat(1,3) =  0.0_dp
-  box % hmat(2,1) =  0.0_dp
-  box % hmat(2,2) = 10.0_dp
-  box % hmat(2,3) =  0.0_dp
-  box % hmat(3,1) =  0.0_dp
-  box % hmat(3,2) =  0.0_dp
-  box % hmat(3,3) = 10.0_dp
+    !..the unit cell
+    ! box % hmat = RESHAPE ( (/10.0_dp,0.0_dp,0.0_dp,0.0_dp,10.0_dp,0.0_dp,&
+    !                          0.0_dp,0.0_dp,10.0_dp/), (/3,3/) )
+    box % hmat(1,1) = 10.0_dp
+    box % hmat(1,2) =  0.0_dp
+    box % hmat(1,3) =  0.0_dp
+    box % hmat(2,1) =  0.0_dp
+    box % hmat(2,2) = 10.0_dp
+    box % hmat(2,3) =  0.0_dp
+    box % hmat(3,1) =  0.0_dp
+    box % hmat(3,2) =  0.0_dp
+    box % hmat(3,3) = 10.0_dp
 
-  CALL get_hinv ( box )
+    CALL get_hinv ( box )
 
-  np ( : ) =  128
+    np ( : ) =  128
 
-  IF ( para_env%ionode ) THEN
-    CALL RANDOM_NUMBER ( coord )
-    coord = MATMUL ( box % hmat, coord )
-    CALL RANDOM_NUMBER ( bval )
-    bsize = MAX ( NINT ( 32.0_dp*bval ), 1 )
-    CALL RANDOM_NUMBER ( bval )
-    bval = bval * 0.001_dp
-  END IF
-  CALL mp_bcast ( coord, para_env%source, para_env%group )
-  CALL mp_bcast ( bsize, para_env%source, para_env%group )
-  CALL mp_bcast ( bval , para_env%source, para_env%group )
+    IF ( para_env%ionode ) THEN
+       CALL RANDOM_NUMBER ( coord )
+       coord = MATMUL ( box % hmat, coord )
+       CALL RANDOM_NUMBER ( bval )
+       bsize = MAX ( NINT ( 32.0_dp*bval ), 1 )
+       CALL RANDOM_NUMBER ( bval )
+       bval = bval * 0.001_dp
+    END IF
+    CALL mp_bcast ( coord, para_env%source, para_env%group )
+    CALL mp_bcast ( bsize, para_env%source, para_env%group )
+    CALL mp_bcast ( bval , para_env%source, para_env%group )
 
-  DO i = 1, nparticle
-    s = MATMUL ( box % h_inv, coord ( :, i ) )
-    s = s - NINT ( s )
-    refpt ( :, i ) = NINT ( REAL ( np ( : ),KIND=dp) * s ( : ) )
-    IF ( refpt ( 1, i ) <= 0 ) refpt ( 1, i ) = refpt ( 1, i ) + np ( 1 )
-    IF ( refpt ( 2, i ) <= 0 ) refpt ( 2, i ) = refpt ( 2, i ) + np ( 2 )
-    IF ( refpt ( 3, i ) <= 0 ) refpt ( 3, i ) = refpt ( 3, i ) + np ( 3 )
-    IF ( refpt ( 1, i ) > np(1) ) refpt ( 1, i ) = refpt ( 1, i ) - np ( 1 )
-    IF ( refpt ( 2, i ) > np(2) ) refpt ( 2, i ) = refpt ( 2, i ) - np ( 2 )
-    IF ( refpt ( 3, i ) > np(3) ) refpt ( 3, i ) = refpt ( 3, i ) - np ( 3 )
-  END DO
+    DO i = 1, nparticle
+       s = MATMUL ( box % h_inv, coord ( :, i ) )
+       s = s - NINT ( s )
+       refpt ( :, i ) = NINT ( REAL ( np ( : ),KIND=dp) * s ( : ) )
+       IF ( refpt ( 1, i ) <= 0 ) refpt ( 1, i ) = refpt ( 1, i ) + np ( 1 )
+       IF ( refpt ( 2, i ) <= 0 ) refpt ( 2, i ) = refpt ( 2, i ) + np ( 2 )
+       IF ( refpt ( 3, i ) <= 0 ) refpt ( 3, i ) = refpt ( 3, i ) + np ( 3 )
+       IF ( refpt ( 1, i ) > np(1) ) refpt ( 1, i ) = refpt ( 1, i ) - np ( 1 )
+       IF ( refpt ( 2, i ) > np(2) ) refpt ( 2, i ) = refpt ( 2, i ) - np ( 2 )
+       IF ( refpt ( 3, i ) > np(3) ) refpt ( 3, i ) = refpt ( 3, i ) - np ( 3 )
+    END DO
 
-  CALL pw_grid_create ( grid, para_env%group ,error=error)
-  grid % grid_span = FULLSPACE
-  grid % bounds ( 1, : ) = -np / 2
-  grid % bounds ( 2, : ) = ( np - 1 ) / 2
+    CALL pw_grid_create ( grid, para_env%group ,error=error)
+    grid % grid_span = FULLSPACE
+    grid % bounds ( 1, : ) = -np / 2
+    grid % bounds ( 2, : ) = ( np - 1 ) / 2
 
-  iounit = -1
-  IF ( para_env%ionode ) iounit = iw
+    iounit = -1
+    IF ( para_env%ionode ) iounit = iw
 
-  CALL pw_grid_setup ( box, grid, rs_dims=(/para_env%num_pe,1/), &
-     iounit=iounit, error=error)
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! TEST 1, replicated calculation
-
-  IF ( para_env%ionode ) &
-    WRITE(iw,'(///,A,/)') " Start Test 1: Replicated grid, replicated calculation"
-  tstart = m_cputime ( )
-  CALL rs_grid_create ( rden, grid, -1, error=error)
-  CALL rs_grid_print ( rden, iounit, error=error)
-  CALL rs_grid_zero ( rden )
-  DO i = 1, nparticle
-     refco(:,i) = refpt(:,i) + rden%lb(:) - 1
-  END DO
-  DO i = 1, nparticle
-    no ( : ) = bsize ( i )
-    pt = refco(:,i) - rden%lb(:) + 1
-    CALL put_on_grid ( rden%r, pt, no, bval(i), 0 )
-  END DO
-  CALL pw_create ( pw_a, grid, REALDATA3D ,error=error)
-  CALL rs_pw_get ( rden, pw_a )
-  pw_a%cr3d = pw_a%cr3d**(1.0_dp/3.0_dp)
-  CALL rs_pw_transfer ( rden, pw_a, pw2rs )
-  energy1 = 0.0_dp
-  DO i = 1, nparticle
-    pt = refco(:,i) - rden%lb(:) + 1
-    no ( : ) = bsize ( i )
-    CALL int_on_grid ( rden%r, pt, no, bval(i), 0, integral )
-    energy1 = energy1 + integral
-  END DO
-  memory1 = SIZE ( rden%r ) + SIZE ( pw_a%cr3d )
-  CALL rs_grid_release ( rden ,error=error)
-  tend  = m_cputime ( )
-  t1 = tend - tstart
+    CALL pw_grid_setup ( box, grid, rs_dims=(/para_env%num_pe,1/), &
+         iounit=iounit, error=error)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! TEST 2, replicated grid, parallel calculation
+    ! TEST 1, replicated calculation
 
-  IF ( para_env%ionode ) &
-    WRITE(iw,'(/,A,/)') " Start Test 2: Replicated grid, parallel calculation"
-  tstart = m_cputime ( )
-  CALL rs_grid_create ( rden, grid, -1,  error=error)
-  CALL rs_grid_print ( rden, iounit, error=error)
-  CALL rs_grid_zero ( rden )
-  DO i = 1, nparticle
-     refco(:,i) = refpt(:,i) + rden%lb(:) - 1
-  END DO
-  IF ( rden%parallel ) THEN
-    CALL mp_environ ( n, me, rden%group )
-  ELSE
-    n  = 1
-    me = 0
-  END IF
-  bo = get_limit ( nparticle, n, me )
-  DO i = bo(1), bo(2)
-    pt = refco(:,i) - rden%lb(:) + 1
-    no ( : ) = bsize ( i )
-    CALL put_on_grid ( rden%r, pt, no, bval(i), 0 )
-  END DO
-  CALL pw_create ( pw_b, grid, REALDATA3D ,error=error)
-  CALL rs_pw_transfer ( rden, pw_b, rs2pw )
-  pw_b%cr3d = pw_b%cr3d**(1.0_dp/3.0_dp)
-  CALL rs_grid_zero ( rden )
-  CALL rs_pw_transfer ( rden, pw_b, pw2rs )
-  energy2 = 0.0_dp
-  DO i = bo(1), bo(2)
-    pt = refco(:,i) - rden%lb(:) + 1
-    no ( : ) = bsize ( i )
-    CALL int_on_grid ( rden%r, pt, no, bval(i), 0, integral )
-    energy2 = energy2 + integral
-  END DO
-  IF ( rden%parallel ) CALL mp_sum ( energy2, rden%group )
-  memory2 = SIZE ( rden%r ) + SIZE ( pw_b%cr3d )
-  CALL rs_grid_release ( rden ,error=error)
-  tend  = m_cputime ( )
-  t2 = tend - tstart
+    IF ( para_env%ionode ) &
+         WRITE(iw,'(///,A,/)') " Start Test 1: Replicated grid, replicated calculation"
+    tstart = m_cputime ( )
+    CALL rs_grid_create ( rden, grid, -1, error=error)
+    CALL rs_grid_print ( rden, iounit, error=error)
+    CALL rs_grid_zero ( rden )
+    DO i = 1, nparticle
+       refco(:,i) = refpt(:,i) + rden%lb(:) - 1
+    END DO
+    DO i = 1, nparticle
+       no ( : ) = bsize ( i )
+       pt = refco(:,i) - rden%lb(:) + 1
+       CALL put_on_grid ( rden%r, pt, no, bval(i), 0 )
+    END DO
+    CALL pw_create ( pw_a, grid, REALDATA3D ,error=error)
+    CALL rs_pw_get ( rden, pw_a )
+    pw_a%cr3d = pw_a%cr3d**(1.0_dp/3.0_dp)
+    CALL rs_pw_transfer ( rden, pw_a, pw2rs )
+    energy1 = 0.0_dp
+    DO i = 1, nparticle
+       pt = refco(:,i) - rden%lb(:) + 1
+       no ( : ) = bsize ( i )
+       CALL int_on_grid ( rden%r, pt, no, bval(i), 0, integral )
+       energy1 = energy1 + integral
+    END DO
+    memory1 = SIZE ( rden%r ) + SIZE ( pw_a%cr3d )
+    CALL rs_grid_release ( rden ,error=error)
+    tend  = m_cputime ( )
+    t1 = tend - tstart
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! TEST 3, distributed grid, parallel calculation
+    ! TEST 2, replicated grid, parallel calculation
 
-  tstart = m_cputime ( )
-  CALL rs_grid_create ( rden, grid, MAXVAL ( bsize(1:nparticle) ), &
-       error=error)
-  CALL rs_grid_print ( rden, iounit, error=error)
-  CALL rs_grid_zero ( rden )
-  dir = rden%direction
-  IF (dir /= 0) THEN
-     IF ( para_env%ionode ) &
-          WRITE(iw,'(/,A,/)') " Start Test 3: Distributed grid, parallel calculation"
-     DO i = 1, nparticle
-        refco(:,i) = refpt(:,i) + rden%lb(:) - 1
-     END DO
-     IF ( rden%parallel ) THEN
-        CALL mp_environ ( n, me, rden%group )
-     ELSE
-        n  = 1
-        me = 0
-     END IF
-     bo = get_limit ( nparticle, n, me )
-     npme = bo(2) - bo(1) + 1
-     ALLOCATE ( tasks ( 2, npme ), STAT=ierr )
-     IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks", 2*npme )
-     DO i = bo(1), bo(2)
-        j = i - bo(1) + 1
-        tasks ( 1, j ) = i
-        tasks ( 2, j ) = refco(dir,i)
-     END DO
-     CALL rs_get_my_tasks ( rden, tasks, npme ,error=error)
-     DO i = 1, npme
-        j = tasks ( 1, i )
-        pt = refco(:,j) - rden%lb_local(:) + 1
-        no = bsize ( j )
-        CALL put_on_grid ( rden%r, pt, no, bval(j), dir )
-     END DO
-     DEALLOCATE ( tasks, STAT=ierr )
-     IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks" )
-     CALL pw_create ( pw_c, grid, REALDATA3D ,error=error)
-     CALL rs_pw_transfer ( rden, pw_c, rs2pw )
-     pw_c%cr3d = pw_c%cr3d**(1.0_dp/3.0_dp)
-     CALL rs_grid_zero ( rden )
-     CALL rs_pw_transfer ( rden, pw_c, pw2rs )
-     IF ( rden%parallel ) THEN
-        CALL mp_environ ( n, me, rden%group )
-     ELSE
-        n  = 1
-        me = 0
-     END IF
-     bo = get_limit ( nparticle, n, me )
-     npme = bo(2) - bo(1) + 1
-     ALLOCATE ( tasks ( 2, npme ), STAT=ierr )
-     IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks", 3*npme )
-     DO i = bo(1), bo(2)
-        j = i - bo(1) + 1
-        tasks ( 1, j ) = i
-        tasks ( 2, j ) = refco(dir,i)
-     END DO
-     CALL rs_get_my_tasks ( rden, tasks, npme ,error=error)
-     energy3 = 0.0_dp
-     DO i = 1, npme
-        j = tasks ( 1, i )
-        pt = refco(:,j) - rden%lb_local(:) + 1
-        no = bsize ( j )
-        CALL int_on_grid ( rden%r, pt, no, bval(j), dir, integral )
-        energy3 = energy3 + integral
-     END DO
-     DEALLOCATE ( tasks, STAT=ierr )
-     IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks" )
-     IF ( rden%parallel ) CALL mp_sum ( energy3, rden%group )
-     memory3 = SIZE ( rden%r ) + SIZE ( pw_c%cr3d )
-  END IF
-  CALL rs_grid_release ( rden ,error=error)
-  tend  = m_cputime ( )
-  t3 = tend - tstart
+    IF ( para_env%ionode ) &
+         WRITE(iw,'(/,A,/)') " Start Test 2: Replicated grid, parallel calculation"
+    tstart = m_cputime ( )
+    CALL rs_grid_create ( rden, grid, -1,  error=error)
+    CALL rs_grid_print ( rden, iounit, error=error)
+    CALL rs_grid_zero ( rden )
+    DO i = 1, nparticle
+       refco(:,i) = refpt(:,i) + rden%lb(:) - 1
+    END DO
+    IF ( rden%parallel ) THEN
+       CALL mp_environ ( n, me, rden%group )
+    ELSE
+       n  = 1
+       me = 0
+    END IF
+    bo = get_limit ( nparticle, n, me )
+    DO i = bo(1), bo(2)
+       pt = refco(:,i) - rden%lb(:) + 1
+       no ( : ) = bsize ( i )
+       CALL put_on_grid ( rden%r, pt, no, bval(i), 0 )
+    END DO
+    CALL pw_create ( pw_b, grid, REALDATA3D ,error=error)
+    CALL rs_pw_transfer ( rden, pw_b, rs2pw )
+    pw_b%cr3d = pw_b%cr3d**(1.0_dp/3.0_dp)
+    CALL rs_grid_zero ( rden )
+    CALL rs_pw_transfer ( rden, pw_b, pw2rs )
+    energy2 = 0.0_dp
+    DO i = bo(1), bo(2)
+       pt = refco(:,i) - rden%lb(:) + 1
+       no ( : ) = bsize ( i )
+       CALL int_on_grid ( rden%r, pt, no, bval(i), 0, integral )
+       energy2 = energy2 + integral
+    END DO
+    IF ( rden%parallel ) CALL mp_sum ( energy2, rden%group )
+    memory2 = SIZE ( rden%r ) + SIZE ( pw_b%cr3d )
+    CALL rs_grid_release ( rden ,error=error)
+    tend  = m_cputime ( )
+    t2 = tend - tstart
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  IF ( para_env%ionode ) THEN
+    ! TEST 3, distributed grid, parallel calculation
+
+    tstart = m_cputime ( )
+    CALL rs_grid_create ( rden, grid, MAXVAL ( bsize(1:nparticle) ), &
+         error=error)
+    CALL rs_grid_print ( rden, iounit, error=error)
+    CALL rs_grid_zero ( rden )
+
+    DO dir = 1 , 3
+       IF (rden % perd (dir) /= 1 ) THEN
+          IF ( para_env%ionode ) &
+               WRITE(iw,'(/,A,/)') " Start Test 3: Distributed grid, parallel calculation"
+          DO i = 1, nparticle
+             refco(:,i) = refpt(:,i) + rden%lb(:) - 1
+          END DO
+          IF ( rden%parallel ) THEN
+             CALL mp_environ ( n, me, rden%group )
+          ELSE
+             n  = 1
+             me = 0
+          END IF
+          bo = get_limit ( nparticle, n, me )
+          npme = bo(2) - bo(1) + 1
+          ALLOCATE ( tasks ( 4, npme ), STAT=ierr )
+          IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks", 2*npme )
+          DO i = bo(1), bo(2)
+             j = i - bo(1) + 1
+             tasks ( 1, j ) = i
+             tasks ( 2, j ) = refco(1,i)
+             tasks ( 3, j ) = refco(2,i)
+             tasks ( 4, j ) = refco(3,i)
+          END DO
+          CALL rs_get_my_tasks ( rden, tasks, npme ,error=error)
+          DO i = 1, npme
+             j = tasks ( 1, i )
+             pt = refco(:,j) - rden%lb_local(:) + 1
+             no = bsize ( j )
+             CALL put_on_grid ( rden%r, pt, no, bval(j), dir )
+          END DO
+          DEALLOCATE ( tasks, STAT=ierr )
+          IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks" )
+          CALL pw_create ( pw_c, grid, REALDATA3D ,error=error)
+          CALL rs_pw_transfer ( rden, pw_c, rs2pw )
+          pw_c%cr3d = pw_c%cr3d**(1.0_dp/3.0_dp)
+          CALL rs_grid_zero ( rden )
+          CALL rs_pw_transfer ( rden, pw_c, pw2rs )
+          IF ( rden%parallel ) THEN
+             CALL mp_environ ( n, me, rden%group )
+          ELSE
+             n  = 1
+             me = 0
+          END IF
+          bo = get_limit ( nparticle, n, me )
+          npme = bo(2) - bo(1) + 1
+          ALLOCATE ( tasks ( 2, npme ), STAT=ierr )
+          IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks", 3*npme )
+          DO i = bo(1), bo(2)
+             j = i - bo(1) + 1
+             tasks ( 1, j ) = i
+             tasks ( 2, j ) = refco(1,i)
+             tasks ( 3, j ) = refco(2,i)
+             tasks ( 4, j ) = refco(3,i)
+          END DO
+          CALL rs_get_my_tasks ( rden, tasks, npme ,error=error)
+          energy3 = 0.0_dp
+          DO i = 1, npme
+             j = tasks ( 1, i )
+             pt = refco(:,j) - rden%lb_local(:) + 1
+             no = bsize ( j )
+             CALL int_on_grid ( rden%r, pt, no, bval(j), dir, integral )
+             energy3 = energy3 + integral
+          END DO
+          DEALLOCATE ( tasks, STAT=ierr )
+          IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks" )
+          IF ( rden%parallel ) CALL mp_sum ( energy3, rden%group )
+          memory3 = SIZE ( rden%r ) + SIZE ( pw_c%cr3d )
+          CALL rs_grid_release ( rden ,error=error)
+          tend  = m_cputime ( )
+          t3 = tend - tstart
+
+       END IF
+
+    END DO
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ IF ( para_env%ionode ) THEN
     WRITE(iw,'(///,A,/)') " Results of Tests"
     WRITE(iw,'(A,T61,F20.4)') " Timing Test 1 [seconds] ",t1
     WRITE(iw,'(A,T61,F20.4)') " Timing Test 2 [seconds] ",t2
@@ -318,51 +326,51 @@ SUBROUTINE rs_test ( para_env, iw, error )
     WRITE(iw,'(/,A,T61,F20.12)') " Integral Test 1 ",energy1*grid%dvol
     WRITE(iw,'(A,T61,F20.12)') " Integral Test 2 ",energy2*grid%dvol
     IF (dir /= 0) WRITE(iw,'(A,T61,F20.12)') " Integral Test 3 ",energy3*grid%dvol
-  END IF
+ END IF
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  CALL pw_release ( pw_a ,error=error)
-  CALL pw_release ( pw_b ,error=error)
-  CALL pw_release ( pw_c ,error=error)
-  CALL cell_release(box,error=error)
+ CALL pw_release ( pw_a ,error=error)
+ CALL pw_release ( pw_b ,error=error)
+ CALL pw_release ( pw_c ,error=error)
+ CALL cell_release(box,error=error)
 END SUBROUTINE rs_test
 
 ! *****************************************************************************
 
 SUBROUTINE put_on_grid ( r, nc, np, val, dir )
 
-    REAL(KIND=dp), DIMENSION(:, :, :)        :: r
-    INTEGER, DIMENSION(3)                    :: nc, np
-    REAL(KIND=dp)                            :: val
-    INTEGER                                  :: dir
+ REAL(KIND=dp), DIMENSION(:, :, :)        :: r
+ INTEGER, DIMENSION(3)                    :: nc, np
+ REAL(KIND=dp)                            :: val
+ INTEGER                                  :: dir
 
-    INTEGER                                  :: i, ii, j, jj, k, kk, ns, nx, &
-                                                ny, nz
-    INTEGER, DIMENSION(3)                    :: nl, nu
+ INTEGER                                  :: i, ii, j, jj, k, kk, ns, nx, &
+      ny, nz
+ INTEGER, DIMENSION(3)                    :: nl, nu
 
-  nx = SIZE ( r, 1 )
-  ny = SIZE ( r, 2 )
-  nz = SIZE ( r, 3 )
-  nl = -np/2
-  nu = np + nl - 1
-  IF ( dir > 0 ) THEN
+ nx = SIZE ( r, 1 )
+ ny = SIZE ( r, 2 )
+ nz = SIZE ( r, 3 )
+ nl = -np/2
+ nu = np + nl - 1
+ IF ( dir > 0 ) THEN
     ns = SIZE ( r, dir )
     IF ( nc(dir) + nl(dir) <= 0 .OR. nc(dir) + nu(dir) > ns ) STOP "out of bounds"
-  END IF
+ END IF
 
-  DO i = nl(3), nu(3)
+ DO i = nl(3), nu(3)
     ii = nc(3) + i
     IF (dir/=3) ii = MODULO ( nz + nc(3) + i - 1, nz ) + 1
     DO j = nu(2), nu(2)
-      jj = nc(2) + j
-      IF (dir/=2) jj = MODULO ( ny + nc(2) + j - 1, ny ) + 1
-      DO k = nl(1), nu(1)
-        kk = nc(1) + k
-        IF (dir/=1) kk = MODULO ( nx + nc(1) + k - 1, nx ) + 1
-        r ( kk, jj, ii ) = r ( kk, jj, ii ) + val
-      END DO
+       jj = nc(2) + j
+       IF (dir/=2) jj = MODULO ( ny + nc(2) + j - 1, ny ) + 1
+       DO k = nl(1), nu(1)
+          kk = nc(1) + k
+          IF (dir/=1) kk = MODULO ( nx + nc(1) + k - 1, nx ) + 1
+          r ( kk, jj, ii ) = r ( kk, jj, ii ) + val
+       END DO
     END DO
-  END DO
+ END DO
 
 END SUBROUTINE put_on_grid
 
@@ -370,40 +378,40 @@ END SUBROUTINE put_on_grid
 
 SUBROUTINE int_on_grid ( r, nc, np, val, dir, integral )
 
-    REAL(KIND=dp), DIMENSION(:, :, :)        :: r
-    INTEGER, DIMENSION(3)                    :: nc, np
-    REAL(KIND=dp)                            :: val
-    INTEGER                                  :: dir
-    REAL(KIND=dp)                            :: integral
+ REAL(KIND=dp), DIMENSION(:, :, :)        :: r
+ INTEGER, DIMENSION(3)                    :: nc, np
+ REAL(KIND=dp)                            :: val
+ INTEGER                                  :: dir
+ REAL(KIND=dp)                            :: integral
 
-    INTEGER                                  :: i, ii, j, jj, k, kk, ns, nx, &
-                                                ny, nz
-    INTEGER, DIMENSION(3)                    :: nl, nu
+ INTEGER                                  :: i, ii, j, jj, k, kk, ns, nx, &
+      ny, nz
+ INTEGER, DIMENSION(3)                    :: nl, nu
 
-  integral = 0.0_dp
-  nx = SIZE ( r, 1 )
-  ny = SIZE ( r, 2 )
-  nz = SIZE ( r, 3 )
-  nl = -np/2
-  nu = np + nl - 1
-  IF ( dir > 0 ) THEN
+ integral = 0.0_dp
+ nx = SIZE ( r, 1 )
+ ny = SIZE ( r, 2 )
+ nz = SIZE ( r, 3 )
+ nl = -np/2
+ nu = np + nl - 1
+ IF ( dir > 0 ) THEN
     ns = SIZE ( r, dir )
     IF ( nc(dir) + nl(dir) <= 0 .OR. nc(dir) + nu(dir) > ns ) STOP "out of bounds"
-  END IF
+ END IF
 
-  DO i = nl(3), nu(3)
+ DO i = nl(3), nu(3)
     ii = nc(3) + i
     IF (dir/=3) ii = MODULO ( nz + nc(3) + i - 1, nz ) + 1
     DO j = nl(2), nu(2)
-      jj = nc(2) + j
-      IF (dir/=2) jj = MODULO ( ny + nc(2) + j - 1, ny ) + 1
-      DO k = nl(1), nu(1)
-        kk = nc(1) + k
-        IF (dir/=1) kk = MODULO ( nx + nc(1) + k - 1, nx ) + 1
-        integral = integral + r ( kk, jj, ii ) * val
-      END DO
+       jj = nc(2) + j
+       IF (dir/=2) jj = MODULO ( ny + nc(2) + j - 1, ny ) + 1
+       DO k = nl(1), nu(1)
+          kk = nc(1) + k
+          IF (dir/=1) kk = MODULO ( nx + nc(1) + k - 1, nx ) + 1
+          integral = integral + r ( kk, jj, ii ) * val
+       END DO
     END DO
-  END DO
+ END DO
 
 END SUBROUTINE int_on_grid
 
@@ -411,57 +419,57 @@ END SUBROUTINE int_on_grid
 
 SUBROUTINE rs_pw_get ( rs, pw )
 
-    TYPE(realspace_grid_type), POINTER       :: rs
-    TYPE(pw_type), POINTER                   :: pw
+ TYPE(realspace_grid_type), POINTER       :: rs
+ TYPE(pw_type), POINTER                   :: pw
 
-    INTEGER                                  :: group, ierr, ii, ip, ix, iy, &
-                                                iz, mepos, nn, np
-    INTEGER, DIMENSION(3)                    :: lb, ub
-    INTEGER, DIMENSION(:, :), POINTER        :: pbo
-    INTEGER, DIMENSION(:, :, :), POINTER     :: bo
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rlocal
+ INTEGER                                  :: group, ierr, ii, ip, ix, iy, &
+      iz, mepos, nn, np
+ INTEGER, DIMENSION(3)                    :: lb, ub
+ INTEGER, DIMENSION(:, :), POINTER        :: pbo
+ INTEGER, DIMENSION(:, :, :), POINTER     :: bo
+ REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rlocal
 
-!-----------------------------------------------------------------------------!
+ !-----------------------------------------------------------------------------!
 
-   IF ( rs % group_dim ( 1 ) /= 1 ) &
-       CALL stop_program ( "rs_pw_get", "rs grid has to be replicated" )
-   IF ( pw % in_use /= REALDATA3D ) &
-       CALL stop_program ( "rs_pw_get", "rs grid has to be REALDATA3D" )
+ IF ( rs % group_dim ( 1 ) /= 1 ) &
+      CALL stop_program ( "rs_pw_get", "rs grid has to be replicated" )
+ IF ( pw % in_use /= REALDATA3D ) &
+      CALL stop_program ( "rs_pw_get", "rs grid has to be REALDATA3D" )
 
-   IF ( pw % pw_grid % para % mode == PW_MODE_LOCAL ) THEN
+ IF ( pw % pw_grid % para % mode == PW_MODE_LOCAL ) THEN
 
-     nn = SIZE ( rs%r )
-     CALL dcopy ( nn, rs%r, 1, pw % cr3d, 1 )
+    nn = SIZE ( rs%r )
+    CALL dcopy ( nn, rs%r, 1, pw % cr3d, 1 )
 
-   ELSE
+ ELSE
 
-     np = pw % pw_grid % para % group_size
-     bo => pw % pw_grid % para % bo (1:2,1:3,0:np-1,1)
-     pbo => pw % pw_grid % bounds
-     group = pw % pw_grid % para % rs_group
-     mepos = pw % pw_grid % para % rs_mpo
-     ip = mepos + 1
-     nn = PRODUCT ( bo(2,:,ip) - bo(1,:,ip) + 1 )
-     ALLOCATE ( rlocal ( nn ), STAT = ierr )
-     IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_get", "rlocal", nn )
+    np = pw % pw_grid % para % group_size
+    bo => pw % pw_grid % para % bo (1:2,1:3,0:np-1,1)
+    pbo => pw % pw_grid % bounds
+    group = pw % pw_grid % para % rs_group
+    mepos = pw % pw_grid % para % rs_mpo
+    ip = mepos + 1
+    nn = PRODUCT ( bo(2,:,ip) - bo(1,:,ip) + 1 )
+    ALLOCATE ( rlocal ( nn ), STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_get", "rlocal", nn )
 
-     ii = 0
-     lb = pbo(1,:)+bo(1,:,ip)-1
-     ub = pbo(1,:)+bo(2,:,ip)-1
-     DO iz = lb(3), ub(3)
+    ii = 0
+    lb = pbo(1,:)+bo(1,:,ip)-1
+    ub = pbo(1,:)+bo(2,:,ip)-1
+    DO iz = lb(3), ub(3)
        DO iy = lb(2), ub(2)
-         DO ix = lb(1), ub(1)
-            ii=ii+1
-            rlocal(ii) = rs%r(ix,iy,iz)
-         END DO
+          DO ix = lb(1), ub(1)
+             ii=ii+1
+             rlocal(ii) = rs%r(ix,iy,iz)
+          END DO
        END DO
-     END DO
-     CALL dcopy ( nn, rlocal, 1, pw % cr3d, 1 )
+    END DO
+    CALL dcopy ( nn, rlocal, 1, pw % cr3d, 1 )
 
-     DEALLOCATE ( rlocal, STAT = ierr )
-     IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer", "rlocal" )
+    DEALLOCATE ( rlocal, STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer", "rlocal" )
 
-   END IF
+ END IF
 
 END SUBROUTINE rs_pw_get
 
