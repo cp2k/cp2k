@@ -113,7 +113,8 @@ MODULE x_hf
     REAL(dp)                                 :: center(3)
     REAL(dp)                                 :: K
     REAL(dp)                                 :: R
-    REAL(dp)                                 :: alpha
+    REAL(dp)                                 :: alphaInv
+    INTEGER                                  :: radius                                 
   END TYPE
   
   TYPE x_hf_compression_type

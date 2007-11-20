@@ -206,6 +206,7 @@ MODULE four_center_integrals
     TYPE(x_hf_memory_type)                   :: memory_parameter
     TYPE(x_hf_potential_type)                :: potential_parameter
     TYPE(x_hf_screening_type)                :: screening_parameter
+    REAL(dp)                                 :: omega2Inv
 
     current_max_error = 0.0_dp
 
@@ -215,6 +216,12 @@ MODULE four_center_integrals
 
     screening_parameter    = qs_env%x_data%screening_parameter
     potential_parameter    = qs_env%x_data%potential_parameter
+    IF(potential_parameter%omega /= 0.0_dp) THEN
+      omega2Inv = 1.0_dp/(potential_parameter%omega**2)
+    ELSE
+      omega2Inv = 0.0_dp
+    END IF
+
     general_parameter      = qs_env%x_data%general_parameter
     load_balance_parameter = qs_env%x_data%load_balance_parameter
     memory_parameter       = qs_env%x_data%memory_parameter
@@ -254,7 +261,7 @@ MODULE four_center_integrals
     END IF
 
 
-    !! Get screening paramter
+    !! Get screening parameter
     eps_schwarz = screening_parameter%eps_schwarz
     eps_box     = screening_parameter%eps_box
     !! get storage epsilon
@@ -666,8 +673,7 @@ MODULE four_center_integrals
                     box_idx2 = (iset-1)*max_set+jset
                     center1 = qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%center
                     R1 = qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%R
-                    radius1 = INT(1.0_dp/ &
-                      (SQRT(2.0_dp*qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%alpha)*erfc_epsilon))
+                    radius1 = qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%radius
                     DO kset = 1,nsetc
                       ncoc = npgfc(kset)*ncoset(lc_max(kset))
                       sgfc = first_sgfc(1,kset)
@@ -688,8 +694,7 @@ MODULE four_center_integrals
                         END IF
 
                         R2 = qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%R
-                        radius2 = INT(1.0_dp/ &
-                          (SQRT(2.0_dp*qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%alpha)*erfc_epsilon))
+                        radius2 = qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%radius
                         !! get max_vals if we screen on initial density
                         IF( do_p_screening) THEN
                           pmax_entry = MAX(qs_env%x_data%initial_p(iset,kset,iatom,katom), &
@@ -747,9 +752,9 @@ MODULE four_center_integrals
                                 max_val2 = max_val2 * pmax_entry
                               END IF
                             CASE(do_hf_potential_short)
-                              omega_box = 1.0_dp/qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%alpha + &
-                                          1.0_dp/qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%alpha + &
-                                          1.0_dp/(potential_parameter%omega**2)
+                              omega_box = qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%alphaInv + &
+                                          qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%alphaInv + &
+                                          omega2Inv 
                               omega_box = 1.0_dp/omega_box
                               Kbox = qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%K * &
                                      qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%K
@@ -1909,6 +1914,7 @@ MODULE four_center_integrals
     TYPE(x_hf_load_balance_type)             :: load_balance_parameter
     TYPE(x_hf_potential_type)                :: potential_parameter
     TYPE(x_hf_screening_type)                :: screening_parameter
+    REAL(dp)                                 :: omega2Inv
 
     CALL mp_sync(para_env%group)
     CALL timeset(routineN,"I",'',handle)
@@ -1917,6 +1923,12 @@ MODULE four_center_integrals
     screening_parameter    = qs_env%x_data%screening_parameter
     general_parameter      = qs_env%x_data%general_parameter
     potential_parameter    = qs_env%x_data%potential_parameter
+    IF(potential_parameter%omega /= 0.0_dp) THEN
+      omega2Inv = 1.0_dp/(potential_parameter%omega**2)
+    ELSE
+      omega2Inv = 0.0_dp
+    END IF
+
     load_balance_parameter = qs_env%x_data%load_balance_parameter
     
     !! initalize force array to zero 
@@ -2277,8 +2289,7 @@ MODULE four_center_integrals
                     box_idx2 = (iset-1)*max_set+jset
                     center1 = qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%center
                     R1 = qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%R
-                    radius1 = INT(1.0_dp/ &
-                      (SQRT(2.0_dp*qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%alpha)*erfc_epsilon))
+                    radius1 = qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%radius
                     DO kset = 1,nsetc
                       ncoc = npgfc(kset)*ncoset(lc_max(kset))
                       sgfc = first_sgfc(1,kset)
@@ -2300,8 +2311,7 @@ MODULE four_center_integrals
                           center2_folded = center1 + pbc_center
                         END IF
                         R2 = qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%R
-                        radius2 = INT(1.0_dp/ &
-                          (SQRT(2.0_dp*qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%alpha)*erfc_epsilon))
+                        radius2 = qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%radius
                         Rbox = (center1(1)-center2_folded(1))**2 + &
                                (center1(2)-center2_folded(2))**2 + &
                                (center1(3)-center2_folded(3))**2
@@ -2318,9 +2328,9 @@ MODULE four_center_integrals
                                          2.0_dp*MAX(pmax_set(iset,kset,iatom,katom) * pmax_set(jset,lset,jatom,latom),&
                                          pmax_set(iset,lset,iatom,latom) * pmax_set(kset,jset,katom,jatom))
                            CASE(do_hf_potential_short)
-                              omega_box = 1.0_dp/qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%alpha + &
-                                          1.0_dp/qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%alpha + &
-                                          1.0_dp/(potential_parameter%omega**2)
+                              omega_box = qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%alphaInv + &
+                                          qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%alphaInv + &
+                                          omega2Inv 
                               omega_box = 1.0_dp/omega_box
                               Kbox = qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%K * &
                                      qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%K
@@ -3146,7 +3156,7 @@ MODULE four_center_integrals
     boxes(:,:)%center(3) = 0.0_dp
     boxes(:,:)%K = -HUGE(Kbc)
     boxes(:,:)%R = -HUGE(Rbc)
-    boxes(:,:)%alpha = HUGE(alpha)
+    boxes(:,:)%alphaInv = HUGE(alpha)
     DO jatom=1,natom
       atom_kind => particle_set(jatom)%atomic_kind
       CALL get_atomic_kind(atomic_kind=atom_kind,&
@@ -3220,11 +3230,17 @@ MODULE four_center_integrals
                 IF(rp(2)>py_max) py_max = rp(2)
                 IF(rp(3)>pz_max) pz_max = rp(3)
                 Kbc = 1.0_dp/alpha*EXP(-zet1*zet2/alpha*(rbc2))
-                IF( alpha < boxes(box_idx2, box_idx1)%alpha ) boxes(box_idx2, box_idx1)%alpha = alpha
+                IF( alpha < boxes(box_idx2, box_idx1)%alphaInv ) boxes(box_idx2, box_idx1)%alphaInv = alpha
                 IF( Kbc > boxes(box_idx2, box_idx1)%K ) boxes(box_idx2, box_idx1)%K = Kbc*p2s_b*p2s_c*&
                     pi**1.25_dp*SQRT(2.0_dp)
               END DO
             END DO
+            !! Store the inverse alpha
+            boxes(box_idx2, box_idx1)%alphaInv = 1.0_dp/alpha
+            !! Store the radius
+            boxes(box_idx2, box_idx1)%radius = INT(1.0_dp/ &
+                      (SQRT(2.0_dp*alpha)*erfc_epsilon))
+
             boxes(box_idx2, box_idx1)%center(1) = (px_max + px_min) / 2.0_dp
             boxes(box_idx2, box_idx1)%center(2) = (py_max + py_min) / 2.0_dp
             boxes(box_idx2, box_idx1)%center(3) = (pz_max + pz_min) / 2.0_dp
@@ -3332,7 +3348,7 @@ MODULE four_center_integrals
     boxes(:,:)%center(3) = 0.0_dp
     boxes(:,:)%K = -HUGE(Kbc)
     boxes(:,:)%R = -HUGE(Rbc)
-    boxes(:,:)%alpha = HUGE(alpha)
+    boxes(:,:)%alphaInv = HUGE(alpha)
     DO jatom=1,natom
       atom_kind => particle_set(jatom)%atomic_kind
       CALL get_atomic_kind(atomic_kind=atom_kind,&
@@ -3413,12 +3429,17 @@ MODULE four_center_integrals
                   IF(rp(2)>py_max) py_max = rp(2)
                   IF(rp(3)>pz_max) pz_max = rp(3)
                   Kbc = 1.0_dp/alpha*EXP(-zet1*zet2/alpha*(rbc2))
-                  IF( alpha < boxes(box_idx2, box_idx1)%alpha ) boxes(box_idx2, box_idx1)%alpha = alpha
+                  IF( alpha < boxes(box_idx2, box_idx1)%alphaInv ) boxes(box_idx2, box_idx1)%alphaInv = alpha
                   IF( Kbc > boxes(box_idx2, box_idx1)%K ) boxes(box_idx2, box_idx1)%K = Kbc*p2s_b*p2s_c*&
                     pi**1.25_dp*SQRT(2.0_dp)
                 END DO
               END DO
             END DO
+            !! Store inverse alpha
+            boxes(box_idx2, box_idx1)%alphaInv = 1.0_dp/alpha
+            !! Store the radius
+            boxes(box_idx2, box_idx1)%radius = INT(1.0_dp/ &
+                      (SQRT(2.0_dp*alpha)*erfc_epsilon))
             boxes(box_idx2, box_idx1)%center(1) = (px_max + px_min) / 2.0_dp
             boxes(box_idx2, box_idx1)%center(2) = (py_max + py_min) / 2.0_dp
             boxes(box_idx2, box_idx1)%center(3) = (pz_max + pz_min) / 2.0_dp
@@ -3816,10 +3837,17 @@ MODULE four_center_integrals
     TYPE(x_hf_distribution), &
       DIMENSION(:, :), POINTER               :: binned_dist, full_dist, &
                                                 tmp_dist
+    REAL(dp)                                 :: omega2Inv
 
     do_p_screening = .FALSE.
     IF(PRESENT(pmax_set)) do_p_screening = .TRUE.
-    
+   
+    IF(potential_parameter%omega /= 0.0_dp) THEN
+      omega2Inv = 1.0_dp/(potential_parameter%omega**2)
+    ELSE
+      omega2Inv = 0.0_dp
+    END IF
+ 
     natom=SIZE(particle_set)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, maxnset=max_set) 
     CALL timeset(routineN,handle)
@@ -3881,9 +3909,7 @@ MODULE four_center_integrals
                     box_idx2 = (iset-1)*max_set+jset
                     center1 = x_data%far_field_boxes(box_idx2, box_idx1)%center
                     R1 = x_data%far_field_boxes(box_idx2, box_idx1)%R
-                    radius1 = INT(1.0_dp/ &
-                      (SQRT(2.0_dp*x_data%far_field_boxes(box_idx2, box_idx1)%alpha)*erfc_epsilon))
-
+                    radius1 =  x_data%far_field_boxes(box_idx2, box_idx1)%radius
                     DO kset = 1,nsetc
                       DO lset = 1,nsetd
                         max_val2 = max_val1 * screen_set(kset,lset,katom,latom)
@@ -3903,8 +3929,7 @@ MODULE four_center_integrals
                         END IF
 
                         R2 = x_data%far_field_boxes(box_idx4, box_idx3)%R
-                        radius2 = INT(1.0_dp/ &
-                          (SQRT(2.0_dp*x_data%far_field_boxes(box_idx4, box_idx3)%alpha)*erfc_epsilon))
+                        radius2 = x_data%far_field_boxes(box_idx4, box_idx3)%radius
                         Rbox = (center1(1)-center2_folded(1))**2 + &
                                (center1(2)-center2_folded(2))**2 + &
                                (center1(3)-center2_folded(3))**2
@@ -3923,9 +3948,9 @@ MODULE four_center_integrals
                                            pmax_set(iset,lset,iatom,latom) , pmax_set(kset,jset,katom,jatom))
                               END IF
                             CASE(do_hf_potential_short)
-                              omega_box = 1.0_dp/x_data%far_field_boxes(box_idx2, box_idx1)%alpha + &
-                                          1.0_dp/x_data%far_field_boxes(box_idx4, box_idx3)%alpha + &
-                                          1.0_dp/(potential_parameter%omega**2)
+                              omega_box = x_data%far_field_boxes(box_idx2, box_idx1)%alphaInv + &
+                                          x_data%far_field_boxes(box_idx4, box_idx3)%alphaInv + &
+                                          omega2Inv 
                               omega_box = 1.0_dp/omega_box
                               Kbox = x_data%far_field_boxes(box_idx2, box_idx1)%K * &
                                      x_data%far_field_boxes(box_idx4, box_idx3)%K
@@ -4016,9 +4041,7 @@ MODULE four_center_integrals
                     box_idx2 = (iset-1)*max_set+jset
                     center1 = x_data%far_field_boxes(box_idx2, box_idx1)%center
                     R1 = x_data%far_field_boxes(box_idx2, box_idx1)%R
-                    radius1 = INT(1.0_dp/ &
-                      (SQRT(2.0_dp*x_data%far_field_boxes(box_idx2, box_idx1)%alpha)*erfc_epsilon))
-
+                    radius1 = x_data%far_field_boxes(box_idx2, box_idx1)%radius
                     DO kset = 1,nsetc
                       DO lset = 1,nsetd
                         max_val2 = max_val1 * screen_set(kset,lset,katom,latom)
@@ -4038,8 +4061,7 @@ MODULE four_center_integrals
                         END IF
 
                         R2 = x_data%far_field_boxes(box_idx4, box_idx3)%R
-                        radius2 = INT(1.0_dp/ &
-                          (SQRT(2.0_dp*x_data%far_field_boxes(box_idx4, box_idx3)%alpha)*erfc_epsilon))
+                        radius2 = x_data%far_field_boxes(box_idx4, box_idx3)%radius
                         Rbox = (center1(1)-center2_folded(1))**2 + &
                                (center1(2)-center2_folded(2))**2 + &
                                (center1(3)-center2_folded(3))**2
@@ -4058,9 +4080,9 @@ MODULE four_center_integrals
                                            pmax_set(iset,lset,iatom,latom) , pmax_set(kset,jset,katom,jatom))
                               END IF
                             CASE(do_hf_potential_short)
-                              omega_box = 1.0_dp/x_data%far_field_boxes(box_idx2, box_idx1)%alpha + &
-                                          1.0_dp/x_data%far_field_boxes(box_idx4, box_idx3)%alpha + &
-                                          1.0_dp/(potential_parameter%omega**2)
+                              omega_box = x_data%far_field_boxes(box_idx2, box_idx1)%alphaInv + &
+                                          x_data%far_field_boxes(box_idx4, box_idx3)%alphaInv + &
+                                          omega2Inv 
                               omega_box = 1.0_dp/omega_box
                               Kbox = x_data%far_field_boxes(box_idx2, box_idx1)%K * &
                                      x_data%far_field_boxes(box_idx4, box_idx3)%K
@@ -4301,6 +4323,14 @@ MODULE four_center_integrals
     TYPE(x_hf_distribution), &
       DIMENSION(:, :), POINTER               :: binned_dist, full_dist, &
                                                 tmp_dist
+    REAL(dp)                                 :: omega2Inv
+
+
+    IF(potential_parameter%omega /= 0.0_dp) THEN
+      omega2Inv = 1.0_dp/(potential_parameter%omega**2)
+    ELSE
+      omega2Inv = 0.0_dp
+    END IF
 
     natom=SIZE(particle_set)
 
@@ -4360,8 +4390,7 @@ MODULE four_center_integrals
                     box_idx2 = (iset-1)*max_set+jset
                     center1 = x_data%far_field_boxes(box_idx2, box_idx1)%center
                     R1 = x_data%far_field_boxes(box_idx2, box_idx1)%R
-                    radius1 = INT(1.0_dp/ &
-                      (SQRT(2.0_dp*x_data%far_field_boxes(box_idx2, box_idx1)%alpha)*erfc_epsilon))
+                    radius1 = x_data%far_field_boxes(box_idx2, box_idx1)%radius
                     DO kset = 1,nsetc
                       DO lset = 1,nsetd
                         max_val2 = max_val1 * screen_set(kset,lset,katom,latom) * &
@@ -4378,8 +4407,7 @@ MODULE four_center_integrals
                           center2_folded = center1 + pbc_center
                         END IF
                         R2 = x_data%far_field_boxes(box_idx4, box_idx3)%R
-                        radius2 = INT(1.0_dp/ &
-                          (SQRT(2.0_dp*x_data%far_field_boxes(box_idx4, box_idx3)%alpha)*erfc_epsilon))
+                        radius2 = x_data%far_field_boxes(box_idx4, box_idx3)%radius
                         Rbox = (center1(1)-center2_folded(1))**2 + &
                                (center1(2)-center2_folded(2))**2 + &
                                (center1(3)-center2_folded(3))**2
@@ -4396,9 +4424,9 @@ MODULE four_center_integrals
                                          2.0_dp*MAX(pmax_set(iset,kset,iatom,katom) * pmax_set(jset,lset,jatom,latom),&
                                          pmax_set(iset,lset,iatom,latom) * pmax_set(kset,jset,katom,jatom))
                             CASE(do_hf_potential_short)
-                              omega_box = 1.0_dp/x_data%far_field_boxes(box_idx2, box_idx1)%alpha + &
-                                          1.0_dp/x_data%far_field_boxes(box_idx4, box_idx3)%alpha + &
-                                          1.0_dp/(potential_parameter%omega**2)
+                              omega_box = x_data%far_field_boxes(box_idx2, box_idx1)%alphaInv + &
+                                          x_data%far_field_boxes(box_idx4, box_idx3)%alphaInv + &
+                                          omega2Inv 
                               omega_box = 1.0_dp/omega_box
                               Kbox = x_data%far_field_boxes(box_idx2, box_idx1)%K * &
                                      x_data%far_field_boxes(box_idx4, box_idx3)%K
@@ -4482,8 +4510,7 @@ MODULE four_center_integrals
                     box_idx2 = (iset-1)*max_set+jset
                     center1 = x_data%far_field_boxes(box_idx2, box_idx1)%center
                     R1 = x_data%far_field_boxes(box_idx2, box_idx1)%R
-                    radius1 = INT(1.0_dp/ &
-                      (SQRT(2.0_dp*x_data%far_field_boxes(box_idx2, box_idx1)%alpha)*erfc_epsilon))
+                    radius1 = x_data%far_field_boxes(box_idx2, box_idx1)%radius
                     DO kset = 1,nsetc
                      DO lset = 1,nsetd
                         max_val2 = max_val1 * screen_set(kset,lset,katom,latom) * &
@@ -4500,8 +4527,7 @@ MODULE four_center_integrals
                           center2_folded = center1 + pbc_center
                         END IF
                         R2 = x_data%far_field_boxes(box_idx4, box_idx3)%R
-                        radius2 = INT(1.0_dp/ &
-                          (SQRT(2.0_dp*x_data%far_field_boxes(box_idx4, box_idx3)%alpha)*erfc_epsilon))
+                        radius2 = x_data%far_field_boxes(box_idx4, box_idx3)%radius
                         Rbox = (center1(1)-center2_folded(1))**2 + &
                                (center1(2)-center2_folded(2))**2 + &
                                (center1(3)-center2_folded(3))**2
@@ -4518,9 +4544,9 @@ MODULE four_center_integrals
                                          2.0_dp*MAX(pmax_set(iset,kset,iatom,katom) * pmax_set(jset,lset,jatom,latom),&
                                          pmax_set(iset,lset,iatom,latom) * pmax_set(kset,jset,katom,jatom))
                             CASE(do_hf_potential_short)
-                              omega_box = 1.0_dp/x_data%far_field_boxes(box_idx2, box_idx1)%alpha + &
-                                          1.0_dp/x_data%far_field_boxes(box_idx4, box_idx3)%alpha + &
-                                          1.0_dp/(potential_parameter%omega**2)
+                              omega_box = x_data%far_field_boxes(box_idx2, box_idx1)%alphaInv + &
+                                          x_data%far_field_boxes(box_idx4, box_idx3)%alphaInv + &
+                                          omega2Inv
                               omega_box = 1.0_dp/omega_box
                               Kbox = x_data%far_field_boxes(box_idx2, box_idx1)%K * &
                                      x_data%far_field_boxes(box_idx4, box_idx3)%K
