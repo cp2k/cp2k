@@ -48,9 +48,12 @@ MODULE four_center_integrals
   USE mathconstants
   USE mathlib,                         ONLY: symmetrize_matrix
   USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_isendrecv,&
+                                             mp_max,&
                                              mp_sum,&
                                              mp_sum_i8,&
-                                             mp_sync
+                                             mp_sync,&
+                                             mp_waitall
   USE orbital_pointers
   USE particle_types,                  ONLY: particle_type
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -58,12 +61,12 @@ MODULE four_center_integrals
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE sparse_matrix_types,             ONLY: copy_local_sm_to_replicated_fm,&
-                                             first_block_node,&
+  USE sparse_matrix_types,             ONLY: first_block_node,&
                                              get_block_node,&
                                              next_block_node,&
                                              real_block_node_type,&
-                                             real_matrix_p_type
+                                             real_matrix_p_type,&
+                                             real_matrix_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE x_hf,                            ONLY: &
@@ -178,8 +181,8 @@ MODULE four_center_integrals
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: primitive_integrals, T1
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: full_ks, full_ks_beta
     REAL(dp), DIMENSION(:, :), POINTER :: full_density, full_density_beta, &
-      max_contraction, screen_atom, sparse_block, sparse_block_beta, sphi_a, &
-      sphi_b, sphi_c, sphi_d, zeta, zetb, zetc, zetd
+      max_contraction, screen_atom, sparse_block, sphi_a, sphi_b, sphi_c, &
+      sphi_d, zeta, zetb, zetc, zetd
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: actual_pmax_set, screen_set
     REAL(dp), DIMENSION(:, :, :, :, :), &
       POINTER                                :: screen_periodic
@@ -191,7 +194,7 @@ MODULE four_center_integrals
                                                 orb_basis_c, orb_basis_d
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(real_block_node_type), POINTER      :: block_node, block_node_beta
+    TYPE(real_block_node_type), POINTER      :: block_node
     TYPE(x_hf_cache_type), DIMENSION(:), &
       POINTER                                :: integral_caches
     TYPE(x_hf_cache_type), POINTER           :: maxval_cache
@@ -310,25 +313,51 @@ MODULE four_center_integrals
                              nsgf=nsgfa_total)
       last_sgf_global(iatom) = last_sgf_global(iatom-1)+nsgfa_total
     END DO
- 
+
+    !! Calculate helper array that stores if a certain atomic pair is associated in the KS matrix
+    IF( geometry_did_change ) THEN
+      qs_env%x_data%is_assoc_atomic_block = 0
+      qs_env%x_data%number_of_p_entries = 0
+      DO iatom=1,ks_matrix(1)%matrix%nblock_row
+        block_node => first_block_node(ks_matrix(1)%matrix,iatom)
+        atom_kind => particle_set(iatom)%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atom_kind,&
+                             orb_basis_set=orb_basis_a)
+        CALL get_gto_basis_set(gto_basis_set=orb_basis_a,&
+                               nsgf=nsgfa_total)
+        DO WHILE (ASSOCIATED(block_node))
+          CALL get_block_node(block_node=block_node,&
+                              block_col=jatom,&
+                              BLOCK=sparse_block)
+
+          atom_kind => particle_set(jatom)%atomic_kind
+          CALL get_atomic_kind(atomic_kind=atom_kind,&
+                               orb_basis_set=orb_basis_b)
+          CALL get_gto_basis_set(gto_basis_set=orb_basis_b,&
+                                 nsgf=nsgfb_total)
+          qs_env%x_data%is_assoc_atomic_block(iatom,jatom) = para_env%mepos + 1
+          qs_env%x_data%is_assoc_atomic_block(jatom,iatom) = para_env%mepos + 1
+          qs_env%x_data%number_of_p_entries =  qs_env%x_data%number_of_p_entries + nsgfa_total*nsgfb_total
+          block_node => next_block_node(block_node)
+        END DO
+      END DO
+      CALL mp_sum(qs_env%x_data%is_assoc_atomic_block,para_env%group)
+      CALL mp_max(qs_env%x_data%number_of_p_entries, para_env%group)
+    END IF
+
     !! Get the full density from all the processors
     CALL mp_sync(para_env%group) ! to clarify timings
     CALL timeset(routineN//"_getP",handle_getP)
-    ALLOCATE(full_density(1,1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL copy_local_sm_to_replicated_fm(rho%rho_ao(1)%matrix,full_density)
-    CALL symmetrize_matrix(full_density,"upper_to_lower")
-    CALL mp_sum(full_density,para_env%group)
+    CALL get_full_density(para_env, full_density, rho%rho_ao(1)%matrix, qs_env%x_data%number_of_p_entries,&
+                          qs_env%x_data%is_assoc_atomic_block, particle_set, natom, last_sgf_global, error)   
     IF(nspins == 2) THEN
-      ALLOCATE(full_density_beta(1,1),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      CALL copy_local_sm_to_replicated_fm(rho%rho_ao(2)%matrix,full_density_beta)
-      CALL symmetrize_matrix(full_density_beta,"upper_to_lower")
-      CALL mp_sum(full_density_beta,para_env%group)
+      CALL get_full_density(para_env, full_density_beta, rho%rho_ao(2)%matrix, qs_env%x_data%number_of_p_entries,&
+                          qs_env%x_data%is_assoc_atomic_block, particle_set, natom, last_sgf_global, error)
+
     END IF
     CALL mp_sync(para_env%group) ! to clarify timings
     CALL timestop(handle_getP)
-
+    
     !! Calculate the max values of the density matrix actual_pmax stores the data from the actual density matrix
     !! and x_data%initial_p stores the same for the initial guess. The initial guess is updated only in the case of
     !! a changed geometry 
@@ -426,23 +455,6 @@ MODULE four_center_integrals
       fac = 1.0_dp * hf_fraction
     END IF
     
-    !! Calculate helper array that stores if a certain atomic pair is associated in the KS matrix
-    IF( geometry_did_change ) THEN
-      qs_env%x_data%is_assoc_atomic_block = 0
-      DO iatom=1,ks_matrix(1)%matrix%nblock_row
-        block_node => first_block_node(ks_matrix(1)%matrix,iatom)
-        DO WHILE (ASSOCIATED(block_node))
-          CALL get_block_node(block_node=block_node,&
-                              block_col=jatom,&
-                              BLOCK=sparse_block)
-
-          qs_env%x_data%is_assoc_atomic_block(iatom,jatom) = 1
-          qs_env%x_data%is_assoc_atomic_block(jatom,iatom) = 1
-          block_node => next_block_node(block_node)
-        END DO
-      END DO
-      CALL mp_sum(qs_env%x_data%is_assoc_atomic_block,para_env%group)
-    END IF
 
     !! Call routines that distribute the load on all processes. If we want to screen on a initial density matrix, there is
     !! an optional parameter. Of course, this is only done if the geometry did change
@@ -1101,78 +1113,30 @@ MODULE four_center_integrals
         END IF
       END DO
     END DO
-  
  
     !! Distribute the current KS-matrix to all the processes
     CALL mp_sync(para_env%group) ! to clarify timings 
     CALL timeset(routineN//"_dist_KS",handle_dist_ks)
-    CALL mp_sum(full_ks,para_env%group)
-    IF(nspins==2) CALL mp_sum(full_ks_beta,para_env%group)
+    CALL distribute_ks_matrix(para_env, full_ks, ks_matrix(1)%matrix, qs_env%x_data%number_of_p_entries, &
+                              qs_env%x_data%is_assoc_atomic_block,&
+                              particle_set, natom, last_sgf_global, error)
+    IF(nspins == 2) THEN
+      CALL distribute_ks_matrix(para_env, full_ks_beta, ks_matrix(2)%matrix, qs_env%x_data%number_of_p_entries, &
+                              qs_env%x_data%is_assoc_atomic_block,&
+                              particle_set, natom, last_sgf_global, error)
+    END IF
+ 
+    CALL mp_sync(para_env%group) ! to clarify timings 
+    CALL timestop(handle_dist_ks)
     CALL mp_sum(ene_x_aa, para_env%group)
     IF(nspins==2) CALL mp_sum(ene_x_bb,para_env%group)
 
-    DO iatom=1,ks_matrix(1)%matrix%nblock_row
-      block_node => first_block_node(ks_matrix(1)%matrix,iatom)
-      IF(nspins == 2) block_node_beta => first_block_node(ks_matrix(2)%matrix,iatom)
-      ! parallel distribution might mean that there won't be an associated latom
-      IF (.NOT. ASSOCIATED(block_node)) CYCLE
-      atom_kind => particle_set(iatom)%atomic_kind
-      CALL get_atomic_kind(atomic_kind=atom_kind,&
-                           orb_basis_set=orb_basis_a)
-      CALL get_gto_basis_set(gto_basis_set=orb_basis_a,&
-                             nsgf=nsgfa_total,nset=nseta,&
-                             first_sgf=first_sgfa,&
-                             nsgf_set=nsgfa)
-      pa1 = last_sgf_global(iatom) - nsgfa_total
-      block_node => first_block_node(ks_matrix(1)%matrix,iatom)
-      IF(nspins == 2) block_node_beta => first_block_node(ks_matrix(2)%matrix,iatom)
-      DO WHILE (ASSOCIATED(block_node))
-        CALL get_block_node(block_node=block_node,&
-                            block_col=latom,&
-                            BLOCK=sparse_block)
-        block_node => next_block_node(block_node)
-        IF(nspins == 2) THEN
-          CALL get_block_node(block_node=block_node_beta,&
-                              block_col=latom,&
-                              BLOCK=sparse_block_beta)
-          block_node_beta => next_block_node(block_node_beta)
-        END IF
-        atom_kind => particle_set(latom)%atomic_kind
-        CALL get_atomic_kind(atomic_kind=atom_kind,&
-                             orb_basis_set=orb_basis_d)
-        CALL get_gto_basis_set(gto_basis_set=orb_basis_d,&
-                               nsgf=nsgfd_total,nset=nsetd,&
-                               first_sgf=first_sgfd,&
-                               nsgf_set=nsgfd)
-        pd1 = last_sgf_global(latom) - nsgfd_total
-        DO lset=1,nsetd
-          sgfd = first_sgfd(1,lset)
-          DO iset=1,nseta
-            sgfa = first_sgfa(1,iset)
-            DO md = 1,nsgfd(lset)
-              pd2 = md+sgfd-1
-              pd = pd1 + pd2
-              DO ma = 1,nsgfa(iset)
-                pa2 = ma+sgfa-1
-                pa = pa1 + pa2
-                sparse_block(pa2,pd2) = full_ks(pa,pd)
-                IF(nspins==2) sparse_block_beta(pa2,pd2) = full_ks_beta(pa,pd)
-              END DO 
-            END DO
-          END DO    
-        END DO
-      END DO
-    END DO
-    CALL mp_sync(para_env%group) ! to clarify timings 
-    CALL timestop(handle_dist_ks)
 
     !! Update energy type
     energy%ex = 0.5_dp*(ene_x_aa+ene_x_bb)
 
     CALL timestop(handle_main)
 
-
-    
     !! Print some memeory information if this is the first step
     IF( geometry_did_change ) THEN
       IF(.NOT. memory_parameter%do_all_on_the_fly) THEN
@@ -2043,20 +2007,13 @@ MODULE four_center_integrals
       ENDDO
     ENDDO
 
-    !! Get full density from all processes  
-    ALLOCATE(full_density(1,1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL copy_local_sm_to_replicated_fm(rho%rho_ao(1)%matrix,full_density)
-    CALL symmetrize_matrix(full_density,"upper_to_lower")
-    CALL mp_sum(full_density,para_env%group)
+    !! Get the full density from all the processors
+    CALL get_full_density(para_env, full_density, rho%rho_ao(1)%matrix, qs_env%x_data%number_of_p_entries,&
+                          qs_env%x_data%is_assoc_atomic_block, particle_set, natom, last_sgf_global, error)   
     IF(nspins == 2) THEN
-      ALLOCATE(full_density_beta(1,1),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      CALL copy_local_sm_to_replicated_fm(rho%rho_ao(2)%matrix,full_density_beta)
-      CALL symmetrize_matrix(full_density_beta,"upper_to_lower")
-      CALL mp_sum(full_density_beta,para_env%group)
-    ELSE
-      NULLIFY(full_density_beta)
+      CALL get_full_density(para_env, full_density_beta, rho%rho_ao(2)%matrix, qs_env%x_data%number_of_p_entries,&
+                          qs_env%x_data%is_assoc_atomic_block, particle_set, natom, last_sgf_global, error)
+
     END IF
 
     !! Calculate max entries for screening on actual density. If screen_p_mat_forces = FALSE, the
@@ -4713,6 +4670,288 @@ MODULE four_center_integrals
     END IF
     CALL timestop(handle)
   END SUBROUTINE load_balance_forces
+!***************************************************************************
+
+!!***** four_center_integrals/get_full_density [1.0] *
+!!
+!!   NAME
+!!     get_full_density
+!!
+!!   FUNCTION
+!!     - Collects full density matrix from all CPUs
+!!
+!!   NOTES
+!!     - Communication with left/right node only
+!!
+!!   INPUTS
+!!     - para_env
+!!     - full_density : The full Density matrix
+!!     - rho: Distributed density
+!!     - number_of_p_entries: Maximal buffer size
+!!     - is_assoc_atomic_block: tells us which node owns which atomic pairs
+!!     - particle_set
+!!     - natom
+!!     - last_sgf_global: helper array for mapping local to global indices
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     11.2007 created [Manuel Guidon]
+!!
+!!****************************************************************************
+
+  SUBROUTINE get_full_density(para_env, full_density, rho, number_of_p_entries, is_assoc_atomic_block,&
+                              particle_set, natom, last_sgf_global, error)
+
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    REAL(dp), DIMENSION(:, :), POINTER       :: full_density
+    TYPE(real_matrix_type), POINTER          :: rho
+    INTEGER, INTENT(IN)                      :: number_of_p_entries
+    INTEGER, DIMENSION(:, :)                 :: is_assoc_atomic_block
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    INTEGER, INTENT(IN)                      :: natom
+    INTEGER                                  :: last_sgf_global(0:natom)
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_full_density', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: data_from, dest, i, iatom, icpu, istat, jatom, mepos, ncol, &
+      ncpu, nrow, nsgfa_total, nsgfb_total, pa, pa1, pb, pb1, req(2), source
+    LOGICAL                                  :: failure
+    REAL(dp), DIMENSION(:), POINTER          :: recbuffer, sendbuffer, &
+                                                swapbuffer
+    REAL(dp), DIMENSION(:, :), POINTER       :: sparse_block
+    TYPE(atomic_kind_type), POINTER          :: atom_kind
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_a, orb_basis_b
+    TYPE(real_block_node_type), POINTER      :: block_node
+
+    failure = .FALSE.
+
+    nrow = rho%nrow
+    ncol = rho%ncol
+
+    ALLOCATE (full_density(nrow,ncol),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    full_density = 0.0_dp
+    ALLOCATE(sendbuffer(number_of_p_entries),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(recbuffer(number_of_p_entries),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    i=1
+    DO iatom=1,rho%nblock_row
+      block_node => first_block_node(rho,iatom)
+      DO WHILE (ASSOCIATED(block_node))
+        CALL get_block_node(block_node=block_node,&
+                            block_col=jatom,&
+                            BLOCK=sparse_block)
+        DO pb=1,SIZE(sparse_block,2)
+          DO pa=1,SIZE(sparse_block,1)
+            sendbuffer(i)= sparse_block(pa,pb)
+            i=i+1
+          END DO
+        END DO
+        block_node => next_block_node(block_node)
+      END DO
+    END DO
+
+    ncpu = para_env%num_pe
+    mepos = para_env%mepos
+    dest  =MODULO(mepos+1,ncpu)
+    source=MODULO(mepos-1,ncpu)
+    DO icpu = 0, ncpu-1
+      IF (icpu .NE. ncpu-1) THEN
+        CALL mp_isendrecv(sendbuffer,dest,recbuffer,source, &
+                          para_env%group,req(1),req(2),13)
+      ENDIF
+      i = 1
+      data_from = MODULO(mepos - icpu,ncpu)
+      DO iatom=1,natom
+        atom_kind => particle_set(iatom)%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atom_kind,&
+                             orb_basis_set=orb_basis_a)
+        CALL get_gto_basis_set(gto_basis_set=orb_basis_a,&
+                               nsgf=nsgfa_total)
+        pa1 = last_sgf_global(iatom) - nsgfa_total
+        DO jatom=iatom,natom
+          atom_kind => particle_set(jatom)%atomic_kind
+          CALL get_atomic_kind(atomic_kind=atom_kind,&
+                               orb_basis_set=orb_basis_b)
+          CALL get_gto_basis_set(gto_basis_set=orb_basis_b,&
+                                 nsgf=nsgfb_total)
+          pb1 = last_sgf_global(jatom) - nsgfb_total
+          IF(is_assoc_atomic_block(iatom,jatom)-1 == MODULO(data_from,ncpu)) THEN
+            DO pb = pb1+1, pb1+nsgfb_total
+              DO pa = pa1+1,pa1+nsgfa_total
+                full_density(pa,pb) = sendbuffer(i)
+                i = i + 1
+              END DO
+            END DO
+          END IF
+        END DO
+      END DO
+      IF (icpu .NE. ncpu -1) THEN
+        CALL mp_waitall(req)
+      ENDIF
+      swapbuffer=>sendbuffer
+      sendbuffer=>recbuffer
+      recbuffer=>swapbuffer
+    ENDDO
+    CALL symmetrize_matrix(full_density,"upper_to_lower")
+    DEALLOCATE(sendbuffer, recbuffer,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE get_full_density
+!***************************************************************************
+
+!!***** four_center_integrals/distribute_ks_matrix [1.0] *
+!!
+!!   NAME
+!!     distribute_ks_matrix
+!!
+!!   FUNCTION
+!!     - Distributes the local full Kohn-Sham matrix to all CPUS
+!!
+!!   NOTES
+!!     - Communication with left/right node only
+!!
+!!   INPUTS
+!!     - para_env
+!!     - full_ks : The full Kohn-Sham matrix
+!!     - ks_matrix: Distributed Kohn-Sham matrix
+!!     - number_of_p_entries: Maximal buffer size
+!!     - is_assoc_atomic_block: tells us which node owns which atomic pairs 
+!!     - particle_set
+!!     - natom
+!!     - last_sgf_global: helper array for mapping local to global indices
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     11.2007 created [Manuel Guidon]
+!!
+!!****************************************************************************
+
+  SUBROUTINE distribute_ks_matrix(para_env, full_ks, ks_matrix, number_of_p_entries, is_assoc_atomic_block,&
+                                  particle_set, natom, last_sgf_global, error)
+
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    REAL(dp), DIMENSION(:, :)                :: full_ks
+    TYPE(real_matrix_type), POINTER          :: ks_matrix
+    INTEGER, INTENT(IN)                      :: number_of_p_entries
+    INTEGER, DIMENSION(:, :)                 :: is_assoc_atomic_block
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    INTEGER, INTENT(IN)                      :: natom
+    INTEGER                                  :: last_sgf_global(0:natom)
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'distribute_ks_matrix', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: data_to, dest, i, iatom, icpu, istat, jatom, mepos, ncpu, &
+      nsgfa_total, nsgfb_total, pa, pa1, pb, pb1, req(2), source
+    LOGICAL                                  :: failure
+    REAL(dp), DIMENSION(:), POINTER          :: recbuffer, sendbuffer, &
+                                                swapbuffer
+    REAL(dp), DIMENSION(:, :), POINTER       :: sparse_block
+    TYPE(atomic_kind_type), POINTER          :: atom_kind
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_a, orb_basis_b
+    TYPE(real_block_node_type), POINTER      :: block_node
+
+    ALLOCATE(sendbuffer(number_of_p_entries), STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    sendbuffer =0.0_dp
+    ALLOCATE(recbuffer(number_of_p_entries), STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    recbuffer =0.0_dp
+
+    ncpu = para_env%num_pe
+    mepos = para_env%mepos
+    dest  =MODULO(mepos+1,ncpu)
+    source=MODULO(mepos-1,ncpu)
+
+    DO icpu = 1,ncpu
+      i = 1
+      data_to = mepos-icpu
+      DO iatom=1,natom
+        atom_kind => particle_set(iatom)%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atom_kind,&
+                             orb_basis_set=orb_basis_a)
+        CALL get_gto_basis_set(gto_basis_set=orb_basis_a,&
+                             nsgf=nsgfa_total)
+        pa1 = last_sgf_global(iatom) - nsgfa_total
+        DO jatom=iatom,natom
+          atom_kind => particle_set(jatom)%atomic_kind
+          CALL get_atomic_kind(atomic_kind=atom_kind,&
+                               orb_basis_set=orb_basis_b)
+          CALL get_gto_basis_set(gto_basis_set=orb_basis_b,&
+                                 nsgf=nsgfb_total)
+
+          pb1 = last_sgf_global(jatom) - nsgfb_total
+          IF(is_assoc_atomic_block(iatom,jatom)-1 == MODULO(data_to,ncpu)) THEN
+            DO pb=pb1+1,pb1+nsgfb_total
+              DO pa=pa1+1,pa1+nsgfa_total
+                sendbuffer(i) = sendbuffer(i) + full_ks(pa,pb)
+                i = i+1
+              END DO
+            END DO  
+          END IF
+        END DO
+      END DO
+
+      IF ( icpu .EQ. ncpu ) EXIT
+      CALL mp_isendrecv(sendbuffer,dest,recbuffer,source, &
+                        para_env%group,req(1),req(2),13)
+      CALL mp_waitall(req)
+      swapbuffer=>sendbuffer
+      sendbuffer=>recbuffer
+      recbuffer=>swapbuffer
+    ENDDO
+
+    i = 1
+    DO iatom=1,ks_matrix%nblock_row
+      block_node => first_block_node(ks_matrix,iatom)
+      IF (.NOT. ASSOCIATED(block_node)) CYCLE
+      atom_kind => particle_set(iatom)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atom_kind,&
+                           orb_basis_set=orb_basis_a)
+      CALL get_gto_basis_set(gto_basis_set=orb_basis_a,&
+                             nsgf=nsgfa_total)
+      pa1 = last_sgf_global(iatom) - nsgfa_total
+      block_node => first_block_node(ks_matrix,iatom)
+      DO WHILE (ASSOCIATED(block_node))
+        CALL get_block_node(block_node=block_node,&
+                            block_col=jatom,&
+                            BLOCK=sparse_block)
+        block_node => next_block_node(block_node)
+        atom_kind => particle_set(jatom)%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atom_kind,&
+                             orb_basis_set=orb_basis_b)
+        CALL get_gto_basis_set(gto_basis_set=orb_basis_b,&
+                               nsgf=nsgfb_total)
+        pb1 = last_sgf_global(jatom) - nsgfb_total
+        DO pb = 1,SIZE(sparse_block,2)
+          DO pa = 1,SIZE(sparse_block,1)
+            sparse_block(pa,pb) = sendbuffer(i)
+            i = i + 1
+          END DO
+        END DO 
+      END DO
+    END DO
+    
+    DEALLOCATE(sendbuffer, recbuffer,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            
+  END SUBROUTINE distribute_ks_matrix
 !***************************************************************************
 
 !!***** four_center_integrals/FNV64 [1.0] *

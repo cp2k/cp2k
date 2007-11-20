@@ -206,6 +206,7 @@ MODULE x_hf
         REAL(dp), DIMENSION(:,:,:,:), POINTER &
                                              :: initial_p
     INTEGER, DIMENSION(:,:), POINTER         :: is_assoc_atomic_block
+    INTEGER                                  :: number_of_p_entries
   END TYPE
 
   CONTAINS
