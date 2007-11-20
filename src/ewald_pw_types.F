@@ -340,7 +340,7 @@ CONTAINS
           
           NULLIFY ( rs_pool )
           IF ( rs_distributed_id == do_rsgrid_distributed ) THEN
-             nsmax = MAXVAL ( pw_big_grid % npts(1:3) )
+             nsmax = MAXVAL ( pw_small_grid % npts(1:3) )
           ELSE
              nsmax = -1
           END IF
@@ -386,9 +386,7 @@ CONTAINS
           
           NULLIFY ( rs_pool )
           IF ( rs_distributed_id == do_rsgrid_distributed ) THEN
-             ! nsmax = MAXVAL ( pw_big_grid % npts(1:3) )
-             ! XXXXXXXXXXXXXXX the border size could be wrong, this is a guess based on the maximum order of the SPME splines
-             nsmax = 6
+             nsmax = o_spline
           ELSE
              nsmax = -1
           END IF
