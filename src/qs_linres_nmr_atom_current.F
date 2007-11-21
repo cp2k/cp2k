@@ -1605,6 +1605,12 @@ CONTAINS
     ! put the oce back to the env
     CALL set_qs_env(qs_env=qs_env,oce=oce,error=error)
     !
+    DO i=1,natom
+       IF(ASSOCIATED(dist_list(i)%rdist)) THEN
+          DEALLOCATE(dist_list(i)%rdist,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
+       ENDIF
+    ENDDO
     DEALLOCATE(first_sgf,last_sgf,dist_list,oceh,oces,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
     !
