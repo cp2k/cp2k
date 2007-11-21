@@ -13,3 +13,7 @@ H2O-32_NVT_CSVR_massR.inp
 H2O-32_NVT_CSVR_molF.inp
 H2O-32_NVT_CSVR_mol.inp
 H2O-32_NVT_CSVR_molR.inp
+# bug fix
+H2O-32_NVT_CSVR_massF.inp
+H2O-32_NVT_CSVR_mass.inp
+H2O-32_NVT_CSVR_massR.inp

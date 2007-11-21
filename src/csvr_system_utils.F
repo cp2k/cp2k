@@ -119,10 +119,10 @@ CONTAINS
        reverse=1.0_dp
        ! reverse of momentum is implemented to have the correct limit to Langevin dynamics for ndeg=1
        IF(rr<-SQRT(ndeg*kk*factor/(sigma*(1.0_dp-factor)))) reverse=-1.0_dp
-       ! for ndeg=1, the reverse of momentum is not necessary. in principles, it should be there.
+       ! for ndeg/=1, the reverse of momentum is not necessary. in principles, it should be there.
        ! in practice, it is better to skip it to avoid unnecessary slowing down of the dynamics in the small taut regime
        ! anyway, this should not affect the final ensemble
-       IF(ndeg==1) reverse=1.0_dp
+       IF(ndeg/=1) reverse=1.0_dp
        resample = kk + (1.0_dp-factor)* (sigma*(sumnoises(ndeg-1, rng_stream, error)+rr**2)/REAL(ndeg,KIND=dp)-kk) &
                      +  2.0_dp*rr*SQRT(kk*sigma/ndeg*(1.0_dp-factor)*factor)
 
