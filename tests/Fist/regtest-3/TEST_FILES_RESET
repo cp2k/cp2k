@@ -29,3 +29,5 @@ nh3_dist_npt.inp
 NaCl.inp
 #  
 NaCl-H2O.inp
+# more efficient NL. numerics due to the different order of the NP
+al2o3-res.inp

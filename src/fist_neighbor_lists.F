@@ -335,7 +335,7 @@ CONTAINS
                                                 rab_max, unit_of_length
     REAL(dp), DIMENSION(3)                   :: abc, cell_v, cv_b, r, rab, &
                                                 rb, sab_max
-    REAL(KIND=dp)                            :: ic(3), icx(3), vv
+    REAL(KIND=dp)                            :: ic(3), icx(3), radius, vv
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: coord
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
@@ -379,8 +379,8 @@ CONTAINS
           sab_max(1) = rab_max/plane_distance(1,0,0,cell)
           sab_max(2) = rab_max/plane_distance(0,1,0,cell)
           sab_max(3) = rab_max/plane_distance(0,0,1,cell)
-          ncell= MAX(ncell(:),(INT(sab_max(:)+0.5_dp)+1)*periodic(:))
-          isubcell=MAX(isubcell(:),(INT(sab_max(:)*REAL(nsubcell(:),KIND=dp)+0.5_dp)+1))
+          ncell= MAX(ncell(:),CEILING(sab_max(:)*periodic(:)))
+          isubcell=MAX(isubcell(:),CEILING(sab_max(:)*REAL(nsubcell(:),KIND=dp)))
        END DO
     END DO
     CALL fist_neighbor_init(nonbonded, ncell, error)
@@ -428,6 +428,8 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     sphcub = .FALSE.
     IF (ALL(isubcell/=0)) THEN
+       radius = REAL(isubcell(1),KIND=dp)**2+ REAL(isubcell(2),KIND=dp)**2+&
+                REAL(isubcell(3),KIND=dp)**2
        loop1: DO k = -isubcell(3),isubcell(3)
           loop2: DO j = -isubcell(2),isubcell(2)
              loop3: DO i = -isubcell(1),isubcell(1)
@@ -439,9 +441,8 @@ CONTAINS
                       icx(2) = ic(2) + SIGN(0.5_dp,REAL(jx,KIND=dp))
                       DO ix = -1,1
                          icx(1) = ic(1) + SIGN(0.5_dp,REAL(ix,KIND=dp))
-                         vv=icx(1)*icx(1)/REAL(isubcell(1),KIND=dp)**2+&
-                            icx(2)*icx(2)/REAL(isubcell(2),KIND=dp)**2+&
-                            icx(3)*icx(3)/REAL(isubcell(3),KIND=dp)**2
+                         vv=icx(1)*icx(1)+icx(2)*icx(2)+icx(3)*icx(3)
+                         vv=vv/radius
                          IF (vv <= 1.0_dp) THEN
                             sphcub(i,j,k) = .TRUE.
                             CYCLE loop3
