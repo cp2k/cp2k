@@ -596,8 +596,10 @@ MODULE libint_interface
         omega_corr = SQRT(omega_corr2)
         T = T*omega_corr2
         CALL fgamma(m_max,T,Fm)
+        tmp = - omega_corr
         DO i=1,m_max+1
-          prim%F(i)=prim%F(i) - omega_corr*Fm(i)*omega_corr2**(i-1)
+          prim%F(i)=prim%F(i) + Fm(i)*tmp
+          tmp = tmp * omega_corr2 
         END DO
       CASE(do_hf_potential_long)
         omega2 = potential_parameter%omega**2
@@ -605,8 +607,10 @@ MODULE libint_interface
         omega_corr = SQRT(omega_corr2)
         T = T*omega_corr2
         CALL fgamma(m_max,T,prim%F)
+        tmp = omega_corr
         DO i=1,m_max+1
-          prim%F(i)= omega_corr*prim%F(i)*omega_corr2**(i-1)
+          prim%F(i)= prim%F(i)*tmp
+          tmp = tmp * omega_corr2
         END DO
     END SELECT
 
@@ -668,7 +672,7 @@ MODULE libint_interface
                                 potential_parameter, max_contraction, tmp_max_all, eps_schwarz)
     
     TYPE(lib_deriv)                          :: deriv
-    REAL(dp), INTENT(IN), TARGET             :: A(3), B(3), C(3), D(3), &
+    REAL(dp), INTENT(IN)                     :: A(3), B(3), C(3), D(3), &
                                                 Zeta_A, Zeta_B, Zeta_C, Zeta_D
     INTEGER, INTENT(IN)                      :: n_a, n_b, n_c, n_d
     REAL(dp), DIMENSION(nco(n_a)*nco(n_b)*&
