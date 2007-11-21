@@ -51,3 +51,5 @@ uo2_shell_nve_shnose.inp
 uo2_nvt.inp
 uo2_shell_nvt_shCSVR.inp
 uo2_shell_nvt_shCSVR_R.inp
+# bug fix when interaction radius is larger than cell size
+uo2_nvt.inp

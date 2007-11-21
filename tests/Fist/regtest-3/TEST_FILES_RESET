@@ -31,3 +31,11 @@ NaCl.inp
 NaCl-H2O.inp
 # more efficient NL. numerics due to the different order of the NP
 al2o3-res.inp
+# bug fix when interaction radius is larger than cell size
+NaCl-H2O.inp
+silicon_cluster_2.inp
+silicon_cluster_3.inp
+silicon_cluster_4.inp
+silicon_cluster_5.inp
+silicon_cluster_6.inp
+silicon_cluster.inp

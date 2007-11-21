@@ -41,3 +41,21 @@ sod2.inp
 H2O-32_SPME_fixed.inp
 #  
 H2O-32_SPME_fixed_mol.inp
+# bug fix when interaction radius is larger than cell size
+H2O-32_ewald.inp
+H2O-32_NPT.inp
+H2O-32_NPT_res_1.inp
+H2O-32_NPT_res_2.inp
+H2O-32_NPT_res_3.inp
+H2O-32_NPT_res_4.inp
+H2O-32_NPT_res_5.inp
+H2O-32_PME.inp
+H2O-32_SPME_fixed.inp
+H2O-32_SPME_fixed_mol.inp
+H2O-32_SPME.inp
+H2O-32_SPME_res_1.inp
+H2O-32_SPME_res_2.inp
+H2O-32_SPME_res_3.inp
+H2O-32_SPME_res_4.inp
+sod2.inp
+sod.inp

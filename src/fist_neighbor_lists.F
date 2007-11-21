@@ -318,9 +318,9 @@ CONTAINS
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER :: a_i, a_j, a_k, atom_a, atom_b, b_i, b_j, b_k, b_pi, b_pj, &
-      b_pk, bg_i, bg_j, bg_k, handle, i, i1, iab, iatom_local, icell, &
-      icellmap, id_kind, ii, ii_start, ij, ij_start, ik, ik_start, ikind, &
-      imap, imax_cell, iw, ix, j, j1, jatom_local, jcell, jkind, jx, k, &
+      b_pk, bg_i, bg_j, bg_k, handle, i, i1, iatom_local, icell, icellmap, &
+      id_kind, ii, ii_start, ij, ij_start, ik, ik_start, ikind, imap, &
+      imax_cell, invcellmap, iw, ix, j, j1, jatom_local, jcell, jkind, jx, k, &
       kcell, kx, natom_local_a, ncellmax, nkind, nkind00, stat, tmpdim, xdim, &
       ydim, zdim
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: work
@@ -338,7 +338,8 @@ CONTAINS
     REAL(KIND=dp)                            :: ic(3), icx(3), radius, vv
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: coord
-    TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
+    TYPE(neighbor_kind_pairs_type), POINTER  :: inv_neighbor_kind_pair, &
+                                                neighbor_kind_pair
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell_a, subcell_b
 
@@ -400,7 +401,7 @@ CONTAINS
     ALLOCATE(cellmap(-ncellmax:ncellmax,-ncellmax:ncellmax,-ncellmax:ncellmax),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     cellmap=-1
-    imap=-1
+    imap=0
     nkind00 = nkind*(nkind+1)/2
     DO imax_cell=0,ncellmax
        DO kcell=-imax_cell,imax_cell
@@ -409,9 +410,8 @@ CONTAINS
                 IF (cellmap(icell,jcell,kcell)==-1) THEN
                    imap=imap+1
                    cellmap(icell,jcell,kcell)=imap
-                   iab = imap+1
-                   CPPostcondition(iab<=nonbonded%nlists,cp_failure_level,routineP,error,failure)
-                   neighbor_kind_pair => nonbonded%neighbor_kind_pairs(iab)
+                   CPPostcondition(imap<=nonbonded%nlists,cp_failure_level,routineP,error,failure)
+                   neighbor_kind_pair => nonbonded%neighbor_kind_pairs(imap)
 
                    neighbor_kind_pair%cell_vector(1) = icell
                    neighbor_kind_pair%cell_vector(2) = jcell
@@ -547,7 +547,7 @@ CONTAINS
           IF ((periodic(3)==0).AND.(ABS(b_pk)>0)) CYCLE
           ! Setup the starting point.. this prescreens the order of the subcells
           ij_start = -isubcell(2)
-          IF ((ik==0).AND.(.NOT.any_tersoff_pot)) ij_start = 0
+          IF ((ik==0).AND.(ik_start==0)) ij_start = 0
        loop_b_j: DO ij=ij_start,isubcell(2)
           bg_j = a_j+ij
           b_j  = MOD(bg_j,ydim)
@@ -559,7 +559,7 @@ CONTAINS
           IF ((periodic(2)==0).AND.(ABS(b_pj)>0)) CYCLE
           ! Setup the starting point.. this prescreens the order of the subcells
           ii_start = -isubcell(1)
-          IF ((ik==0).AND.(ij==0).AND.(.NOT.any_tersoff_pot)) ii_start = 0
+          IF ((ij==0).AND.(ij_start==0)) ii_start = 0
        loop_b_i: DO ii=ii_start,isubcell(1)
           ! Ellipsoidal screening of subcells
           IF (.NOT.sphcub(ii,ij,ik)) CYCLE
@@ -572,8 +572,10 @@ CONTAINS
           END IF
           IF ((periodic(1)==0).AND.(ABS(b_pi)>0)) CYCLE
           IF ( subcell_b(b_i,b_j,b_k)%natom == 0) CYCLE
-          ! Find the replica vector
+          ! Find the proper neighbor kind pair
           icellmap = cellmap(b_pi,b_pj,b_pk)
+          neighbor_kind_pair => nonbonded%neighbor_kind_pairs(icellmap)
+          ! Find the replica vector
           cell_v = 0.0_dp
           IF ((b_pi/=0).OR.(b_pj/=0).OR.(b_pk/=0)) THEN
              cv_b(1)=b_pi ; cv_b(2)=b_pj ; cv_b(3)=b_pk
@@ -613,13 +615,21 @@ CONTAINS
                    i1  = MAX(ikind,jkind)-j1+1
                    j1  = nkind - j1 + 1
                    id_kind = nkind00-(j1*(j1+1)/2)+i1
-                   iab     = icellmap+1
-                   neighbor_kind_pair => nonbonded%neighbor_kind_pairs(iab)
                    ! Store the pair
                    CALL fist_neighbor_add(neighbor_kind_pair, atom_a, atom_b,&
                         exclusion_list = particle_set(atom_a)%list_exclude_vdw,&
                         particle_set=particle_set, rab=rab, added=added, id_kind=id_kind,&
                         is_tersoff_pot=is_tersoff_pot,cell=cell,error=error)
+                   ! This is to handle properly when interaction radius is larger than cell size
+                   IF ((atom_a==atom_b).AND.(ik_start==0)) THEN
+                      invcellmap = cellmap(-b_pi,-b_pj,-b_pk)
+                      inv_neighbor_kind_pair => nonbonded%neighbor_kind_pairs(invcellmap)
+                      rab = rab - 2.0_dp * cell_v
+                      CALL fist_neighbor_add(inv_neighbor_kind_pair, atom_a, atom_b,&
+                           exclusion_list = particle_set(atom_a)%list_exclude_vdw,&
+                           particle_set=particle_set, rab=rab, added=added, id_kind=id_kind,&
+                           is_tersoff_pot=is_tersoff_pot,cell=cell,error=error) 
+                   END IF
                    ! Check for too close hits
                    IF (added) THEN
                       rab2_min = r_minsq(ikind,jkind)

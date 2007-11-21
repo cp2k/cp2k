@@ -340,3 +340,6 @@ multi_frag_check.inp
 deca_ala_intern.inp
 #  
 water_intern.inp
+# bug fix when interaction radius is larger than cell size
+gmax.inp
+water32_hbonds_2.inp

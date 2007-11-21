@@ -3,7 +3,7 @@
 # see regtest/TEST_FILES
 ch2o-1.inp          1
 # not yet implemented
-# isolated system.. ! needs to be fixed one day
+# isolated system..
 ch2o-2.inp          1
 ch2o-3.inp          1
 H+.inp              1 

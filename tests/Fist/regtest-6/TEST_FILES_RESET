@@ -44,3 +44,5 @@ uo2_buckmorse_nve.inp
 water_3_dist_xyz.inp
 # metadynamics decoupled from force calculation.. dependent only on MD
 nh3-meta-1_g.inp
+# bug fix when interaction radius is larger than cell size
+H2O-32_PME_distr.inp

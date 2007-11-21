@@ -101,3 +101,8 @@ nh3_r4x6_ext.inp
 H2O-constr_1_ext.inp
 # metadynamics decoupled from force calculation.. dependent only on MD
 argon_GENPOT_fcc-ql.inp
+# bug fix when interaction radius is larger than cell size
+H2O-1-GENPOT-2.inp
+H2O-1-GENPOT.inp
+water32_hbonds_3.inp
+water32_hbonds_4.inp
