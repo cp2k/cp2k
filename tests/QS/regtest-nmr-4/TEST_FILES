@@ -4,6 +4,6 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 he-gapw-1.inp     14
-#h2o-gapw-1.inp    14
-#o2-gapw-uks-1.inp 14
-#ch4-gapw-1.inp    14
+h2o-gapw-1.inp    14
+ch4-gapw-1.inp    14
+o2-gapw-uks-1.inp 14

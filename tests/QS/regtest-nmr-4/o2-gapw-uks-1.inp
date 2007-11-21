@@ -39,6 +39,9 @@
             &END CHI_TENSOR
           &END PRINT
        &END
+       &LOCALIZE
+         MAX_ITER 10
+       &END LOCALIZE
     &END
   &END
   &SUBSYS
