@@ -30,7 +30,8 @@ MODULE qs_loc_control
        state_loc_fromitoj, state_loc_list, state_loc_none, state_loc_upton
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: default_path_length
+  USE kinds,                           ONLY: default_path_length,&
+                                             dp
   USE memory_utilities,                ONLY: reallocate
   USE string_utilities,                ONLY: xstring
 #include "cp_common_uses.h"
@@ -80,6 +81,8 @@ MODULE qs_loc_control
     INTEGER, DIMENSION(2)           :: nloc_states
     INTEGER                         :: set_of_states
     INTEGER, DIMENSION(2,2)         :: lu_bound_states
+    INTEGER                         :: max_iter
+    REAL(KIND=dp)                   :: eps_localization
     LOGICAL                         :: print_cubes
     LOGICAL                         :: print_centers
     LOGICAL                         :: print_spreads
@@ -152,6 +155,8 @@ CONTAINS
    localized_wfn_control%set_of_states = state_loc_all
    localized_wfn_control%nloc_states=0
    localized_wfn_control%lu_bound_states=0
+   localized_wfn_control%max_iter=10000
+   localized_wfn_control%eps_localization=1.0E-4_dp
    localized_wfn_control%print_cubes = .FALSE.
    localized_wfn_control%print_centers = .FALSE.
    localized_wfn_control%print_spreads = .FALSE.
@@ -253,6 +258,12 @@ CONTAINS
     IF(.NOT. failure)  THEN
 
       NULLIFY (bounds, list ) 
+
+      CALL section_vals_val_get(loc_section,"MAX_ITER",&
+           i_val=localized_wfn_control%max_iter,error=error)
+
+      CALL section_vals_val_get(loc_section,"EPS_LOCALIZATION",&
+           r_val=localized_wfn_control%eps_localization,error=error)
 
       CALL section_vals_val_get(loc_section,"EACH_STEP",&
            i_val=localized_wfn_control%each_step,error=error)

@@ -619,6 +619,18 @@ CONTAINS
             n_keywords=8, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
             error=error)
 
+       CALL keyword_create(keyword, name="MAX_ITER",&
+            description="Maximum number of iterations used for localization methods",&
+            usage="MAX_ITER 2000", default_i_val=10000, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EPS_LOCALIZATION",&
+            description="Tolerance used in the convergence criterium of the localization methods.",&
+            usage="EPS_LOCALIZATION 1.0E-2", default_r_val=1.0E-4_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword,name="MIN_OR_MAX",&
             description="Requires the maximization of the spread of the wfn",&
             usage="MIN_OR_MAX (SPREADMIN|SPREADMAX)",&

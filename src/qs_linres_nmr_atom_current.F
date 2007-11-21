@@ -36,12 +36,15 @@ MODULE qs_linres_nmr_atom_current
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: indso,&
                                              nsoset
-  USE particle_types,                  ONLY: particle_type
+  USE particle_types,                  ONLY: particle_type,&
+                                             get_particle_set
   USE qs_environment_types,            ONLY: get_qs_env,&
+                                             set_qs_env,&
                                              qs_environment_type
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: harmonics_atom_type
@@ -60,13 +63,20 @@ MODULE qs_linres_nmr_atom_current
   USE qs_oce_types,                    ONLY: allocate_vtriple,&
                                              build_reduced_3c_lists,&
                                              oce_matrix_type,&
-                                             retrieve_sac_list
+                                             retrieve_sac_list,&
+                                             dist_list_4oce_type,&
+                                             create_oce_set,&
+                                             allocate_oce_set,&
+                                             prepare_oce_coeff
+  USE qs_oce_methods,                  ONLY: set_up_oce
+  USE block_p_types,                   ONLY: block_p_type
   USE qs_rho_atom_types,               ONLY: rho_atom_coeff
   USE sparse_matrix_types,             ONLY: get_block_node,&
                                              real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
+  USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -148,10 +158,8 @@ CONTAINS
     TYPE(rho_atom_coeff), DIMENSION(:), &
       POINTER                                :: jp_block, jp_ii_block, &
                                                 jp_iii_block, jp_RARnu
-
-!
-!
-
+    !
+    !
     CALL timeset("calculate_jrho_atom_coeff","I"," ",handle)
     !
     failure =.FALSE.
@@ -354,12 +362,14 @@ CONTAINS
                            &              block_row=katom,&
                            &              block_col=iatom,&
                            &              BLOCK=C_coeff_hh_a)
+                      CPPrecondition(ASSOCIATED(C_coeff_hh_a),cp_failure_level,routineP,error,failure)
                       !
                       NULLIFY(C_coeff_ss_a)
                       CALL get_block_node(matrix=oce%softo(1)%matrix,&
                            &              block_row=katom,&
                            &              block_col=iatom,&
                            &              BLOCK=C_coeff_ss_a)
+                      CPPrecondition(ASSOCIATED(C_coeff_ss_a),cp_failure_level,routineP,error,failure)
                       !
                       ! De-contract and copy into the final matrix.
                       ! The hard and soft density matrix-like terms are computed here.
@@ -440,12 +450,14 @@ CONTAINS
                               &              block_row=katom,&
                               &              block_col=jatom,&
                               &              BLOCK=C_coeff_hh_b)
+                         CPPrecondition(ASSOCIATED(C_coeff_hh_b),cp_failure_level,routineP,error,failure)
                          !
                          NULLIFY(C_coeff_ss_b)
                          CALL get_block_node(matrix=oce%softo(1)%matrix,&
                               &              block_row=katom,&
                               &              block_col=jatom,&
                               &              BLOCK=C_coeff_ss_b)
+                         CPPrecondition(ASSOCIATED(C_coeff_ss_b),cp_failure_level,routineP,error,failure)
                          !
                          DO ispin = 1,nspins
                             !------------------------------------------------------------------
@@ -592,10 +604,8 @@ CONTAINS
     TYPE(jrho_atom_type), DIMENSION(:), &
       POINTER                                :: jrho1_atom_set
     TYPE(jrho_atom_type), POINTER            :: jrho1_atom
-
-!
-!
-
+    !
+    !
     CALL timeset("calculate_jrho_atom_rad","I"," ",handle)
     !
     failure =.FALSE.
@@ -716,18 +726,8 @@ CONTAINS
                       DO l=lmin12+1,lmax12
                          gg(1:nr,l) = grid_atom%rad(1:nr)*gg(1:nr,l-1)
                          gg_lm1(1:nr,l) = gg(1:nr,l-1)
-                         !dgg_1(1:nr,l-1) = 2.0_dp*(zet(ipgf1,iset1)-zet(ipgf2,iset2))*gg(1:nr,l)
-                         !IF(l-2>=lmin12) dgg_2(1:nr,l-2) = 2.0_dp*(zet(ipgf1,iset1)-zet(ipgf2,iset2))&
-                         !     &                                  *gg(1:nr,l)
                       ENDDO
-                      !dgg_1(1:nr,lmax12) = 2.0_dp*(zet(ipgf1,iset1)-zet(ipgf2,iset2))&
-                      !     &                     *grid_atom%rad(1:nr)*gg(1:nr,lmax12)
-                      !IF(lmax12-1.GE.0) THEN
-                      !   dgg_2(1:nr,lmax12-1) = 2.0_dp*(zet(ipgf1,iset1)-zet(ipgf2,iset2))&
-                      !        &                       *grid_atom%rad(1:nr)*gg(1:nr,lmax12)
-                      !   dgg_2(1:nr,lmax12)   = dgg_2(1:nr,lmax12-1)*grid_atom%rad(1:nr)
-                      !ENDIF
-                      !vw the following is naive but safe wv!
+                      !
                       DO l=lmin12,lmax12
                          dgg_1(1:nr,l)=2.0_dp*(zet(ipgf1,iset1)-zet(ipgf2,iset2))&
                               &              *gg(1:nr,l)*grid_atom%rad(1:nr)
@@ -977,11 +977,6 @@ CONTAINS
                             ENDDO ! icg
                          ENDDO  ! iso
                          !
-                         NULLIFY(Fr_c_h_ii,Fr_c_s_ii,Fr_c_h_iii,Fr_c_s_iii,&
-                              &  Fr_a_h,Fr_a_s,Fr_a_h_ii,Fr_a_s_ii,Fr_a_h_iii,&
-                              &  Fr_a_s_iii,Fr_b_h,Fr_b_s,Fr_b_h_ii,Fr_b_s_ii,&
-                              &  Fr_b_h_iii,Fr_b_s_iii)
-                         !
                       ENDDO ! ispin
                    ENDDO ! iat
                    !
@@ -1022,7 +1017,7 @@ CONTAINS
 
     INTEGER :: handle, ia, iat, iatom, idir2, idir3, ikind, ir, ispin, jatom, &
       mepos, n_nics, na, natom, natom_tot, nkind, nr, nspins, num_pe, &
-      output_unit
+      output_unit, istat
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, jatomisneighbor, &
@@ -1047,10 +1042,9 @@ CONTAINS
     TYPE(jrho_atom_type), POINTER            :: jrho1_atom
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-
+    REAL(dp), DIMENSION(:,:), ALLOCATABLE    :: chemical_shift_loc_tmp
 !
 !
-
     CALL timeset("shift_atom","I"," ",handle)
     !
     failure =.FALSE.
@@ -1083,6 +1077,10 @@ CONTAINS
     nspins = dft_control%nspins
     store_current = nmr_env%store_current
     itegrated_jrho = 0.0_dp
+    !
+    ALLOCATE(chemical_shift_loc_tmp(3,natom_tot),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    chemical_shift_loc_tmp = 0.0_dp
     !
     ! Loop over atoms to collocate the current on each atomic grid, JA
     ! Per each JA, loop over the points where the shift needs to be computed
@@ -1167,19 +1165,19 @@ CONTAINS
                       ! the right thing to do is to build a list of neighbors, but for the time being
                       ! let's simply use a cutoff here
 
-!!$    my_minimum_image = .FALSE.
-!!$    IF(PRESENT(minimum_image)) THEN
-!!$       my_minimum_image=minimum_image
-!!$       Lxo2 = SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) )/2.0_dp
-!!$       Lyo2 = SQRT ( SUM ( cell % hmat ( :, 2 ) ** 2 ) )/2.0_dp
-!!$       Lzo2 = SQRT ( SUM ( cell % hmat ( :, 3 ) ** 2 ) )/2.0_dp
-!!$    END IF
-!!$            IF(my_minimum_image) THEN
-!!$              IF(ABS(rab(1)) > Lxo2 .OR. ABS(rab(2)) > Lyo2 .OR. ABS(rab(3)) > Lzo2) THEN
-!!$                sab_orb_neighbor_node => next(sab_orb_neighbor_node)
-!!$                CYCLE
-!!$              END IF
-!!$            END IF
+! my_minimum_image = .FALSE.
+! IF(PRESENT(minimum_image)) THEN
+!    my_minimum_image=minimum_image
+!    Lxo2 = SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) )/2.0_dp
+!    Lyo2 = SQRT ( SUM ( cell % hmat ( :, 2 ) ** 2 ) )/2.0_dp
+!    Lzo2 = SQRT ( SUM ( cell % hmat ( :, 3 ) ** 2 ) )/2.0_dp
+! END IF
+!         IF(my_minimum_image) THEN
+!           IF(ABS(rab(1)) > Lxo2 .OR. ABS(rab(2)) > Lyo2 .OR. ABS(rab(3)) > Lzo2) THEN
+!             sab_orb_neighbor_node => next(sab_orb_neighbor_node)
+!             CYCLE
+!           END IF
+!         END IF
 
                       threshold = 60.0_dp
                       jatomisneighbor = (distance .LE. threshold)
@@ -1198,8 +1196,8 @@ CONTAINS
 
                                !IF(ddiff .GT. EPSILON(0.0_dp)) THEN
                                IF(ddiff.GT.1.0E-12_dp) THEN
-                                  chemical_shift_loc(idir3,iB,jatom) = &
-                                       chemical_shift_loc(idir3,iB,jatom) + &
+                                  chemical_shift_loc_tmp(idir3,jatom) = &
+                                       chemical_shift_loc_tmp(idir3,jatom) + &
                                        nmr_env%shift_factor_gapw*scale_fac*rdiff(idir2)&
                                        & * jrho1_tot/(ddiff*ddiff*ddiff)
                                ENDIF
@@ -1258,10 +1256,16 @@ CONTAINS
             &//ACHAR(idir+119)//ACHAR(iB+119)//'(r)=',itegrated_jrho
     ENDIF
     !
-    CALL mp_sum(chemical_shift_loc,para_env%group)
+    CALL mp_sum(chemical_shift_loc_tmp,para_env%group)
+    chemical_shift_loc(:,iB,:) = chemical_shift_loc(:,iB,:) + chemical_shift_loc_tmp(:,:)
     IF(nmr_env%do_nics) THEN
+       !here need a chemical_shift_loc_nics_tmp... also for chi_loc
+       CALL stop_program(routineP,"local nics needs some more work")
        CALL mp_sum(chemical_shift_loc_nics,para_env%group)
     ENDIF
+    !
+    DEALLOCATE(chemical_shift_loc_tmp,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     !
     CALL timestop(0.0_dp,handle)
     !
@@ -1429,7 +1433,7 @@ CONTAINS
     INTEGER                                  :: iab, iat, iatom, ikind, &
                                                 ilist, inode, jatom, jkind, &
                                                 last_jatom, nat, natom, &
-                                                nkind, nlist, nnode
+                                                nkind, nlist, nnode, nsgf, istat, i
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, new_atom_b
     REAL(dp)                                 :: rab(3)
@@ -1446,15 +1450,21 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(reduced_3c_list_type), &
       DIMENSION(:), POINTER                  :: reduced_3c_oce
-
-! *****************************************************************************
-
-    NULLIFY (sac_oce, sbc_oce, oce)
-    NULLIFY (atomic_kind,atomic_kind_set)
-    NULLIFY (sab_orb_neighbor_list,sab_orb_neighbor_list_local)
-    NULLIFY (sab_orb_neighbor_node,reduced_3c_oce)
-    NULLIFY (particle_set)
-
+    TYPE(dist_list_4oce_type), &
+         DIMENSION(:), POINTER               :: dist_list
+    TYPE(block_p_type), DIMENSION(:), &
+         POINTER                             :: oceh, oces
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf,last_sgf
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    REAL(dp), POINTER, DIMENSION(:,:)        :: C_coeff_hh,C_coeff_ss
+    !
+    !
+    NULLIFY(sac_oce, sbc_oce, oce, &
+         &  atomic_kind,atomic_kind_set,&
+         &  sab_orb_neighbor_list,sab_orb_neighbor_list_local,&
+         &  sab_orb_neighbor_node,reduced_3c_oce,particle_set,&
+         &  dist_list,distribution_2d)
+    !
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     sab_all=sab_orb,&
@@ -1464,25 +1474,44 @@ CONTAINS
                     oce=oce,&
                     &error=error)
 
-    nkind = SIZE(atomic_kind_set,1)
-    natom = SIZE(particle_set,1)
-
     CPPrecondition(ASSOCIATED(sab_orb),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(sac_oce),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(sbc_oce),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(oce),cp_failure_level,routineP,error,failure)
 
-    !vw that should be done before the call to list_3c_jrho_atom wv!
+    nkind = SIZE(atomic_kind_set,1)
+    natom = SIZE(particle_set,1)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+         &                   nsgf=nsgf)
+
+    ALLOCATE(first_sgf(natom),last_sgf(natom),dist_list(natom),oceh(1),oces(1),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
+
+    DO i = 1,natom
+       dist_list(i)%ndist = 0
+       NULLIFY(dist_list(i)%rdist)
+    ENDDO
+    NULLIFY (oceh(1)%block,oces(1)%block)
+
+    CALL get_particle_set(particle_set=particle_set,&
+         &                first_sgf=first_sgf,&
+         &                last_sgf=last_sgf)
+    !
+    ! Create a new list
+    CALL create_oce_set(oce,error=error)
+    CALL allocate_oce_set(oce,natom,nkind,1,error=error)
+    CALL prepare_oce_coeff(particle_set,oce,natom,nsgf,&
+         &                 first_sgf,last_sgf,distribution_2d,&
+         &                 error=error)
     CALL allocate_vtriple(oce%voce,nkind,natom,error)
     CPPrecondition(ASSOCIATED(oce%voce),cp_failure_level,routineP,error,failure)
-
-
-!   *** Retrieve data of SAC_OCE and of SAC_3C neighbors of atom "iatom" ***
-
+    !
+    !   *** Retrieve data of SAC_OCE and of SAC_3C neighbors of atom "iatom" ***
     DO ikind = 1,nkind
        atomic_kind => atomic_kind_set(ikind)
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                            natom=nat,atom_list=atom_list)
+            &               natom=nat,&
+            &               atom_list=atom_list)
        DO iat = 1,nat
           iatom = atom_list(iat)
           CALL retrieve_sac_list(oce%voce,sac_oce,iatom,ikind,nkind,error=error)
@@ -1538,13 +1567,11 @@ CONTAINS
                 CALL build_reduced_3c_lists(atomic_kind_set, iatom, jatom,&
                      ikind, jkind, sbc_oce, oce%voce, reduced_3c_oce,&
                      .TRUE.,qs_env%dft_control%qs_control%eps_rho_rspace,error)
-
-! This should not be necessary
-!            *** Calculate the coefficients of the one center expansions ***
-!                CALL set_up_oce(atomic_kind_set,reduced_3c_oce,oce,&
-!                              ikind,iatom,jkind,jatom,rab,&
-!                              oceh,oces,nder,dist_list,error=error)
 !
+!            *** Calculate the coefficients of the one center expansions ***
+                CALL set_up_oce(atomic_kind_set,reduced_3c_oce,oce,&
+                              ikind,iatom,jkind,jatom,rab,&
+                              oceh,oces,0,dist_list,error=error)
 
                 sab_orb_neighbor_node => next(sab_orb_neighbor_node)
              ENDDO  ! inode
@@ -1554,7 +1581,33 @@ CONTAINS
        ENDDO  ! jkind
 
     ENDDO  ! ikind
-
+    !
+    ! Scale the off diagonal projector by two. 
+    ! This leads to the factor half in nmr_print_shift... NEED TO FIX THAT
+    DO iatom=1,natom
+       DO jatom=1,natom
+          NULLIFY(C_coeff_hh,C_coeff_ss)
+          CALL get_block_node(matrix=oce%hardo(1)%matrix,&
+               &              block_row=iatom,&
+               &              block_col=jatom,&
+               &              BLOCK=C_coeff_hh)
+          CALL get_block_node(matrix=oce%softo(1)%matrix,&
+               &              block_row=iatom,&
+               &              block_col=jatom,&
+               &              BLOCK=C_coeff_ss)
+          IF(iatom.NE.jatom) THEN
+             IF(ASSOCIATED(C_coeff_hh))C_coeff_hh=2.0_dp*C_coeff_hh
+             IF(ASSOCIATED(C_coeff_ss))C_coeff_ss=2.0_dp*C_coeff_ss
+          ENDIF
+       ENDDO
+    ENDDO
+    !
+    ! put the oce back to the env
+    CALL set_qs_env(qs_env=qs_env,oce=oce,error=error)
+    !
+    DEALLOCATE(first_sgf,last_sgf,dist_list,oceh,oces,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
+    !
   END SUBROUTINE list_3c_jrho_atom
 
 ! *****************************************************************************

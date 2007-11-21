@@ -299,7 +299,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, j, nao, nmoloc, &
-                                                output_unit, sweeps
+                                                output_unit, sweeps, max_iter
+    REAL(dp)                                 :: eps_localization
     LOGICAL                                  :: ionode
     TYPE(cp_fm_type), POINTER                :: opvec
     TYPE(cp_logger_type), POINTER            :: logger
@@ -332,16 +333,19 @@ CONTAINS
       ENDDO
     ENDDO
 
+    max_iter = localized_wfn_control%max_iter
+    eps_localization = localized_wfn_control%eps_localization
+
 !      CALL centers_spreads_berry( localized_wfn_control, zij_fm_set, nmoloc, &
 !           cell, weights, ispin, ionode, error=error )
 
     SELECT CASE ( method )
     CASE ( do_loc_jacobi )
-       CALL jacobi_rotations ( weights, zij_fm_set, vectors, max_iter=100000,&
-            eps_localization=1.0E-4_dp, sweeps=sweeps )
+       CALL jacobi_rotations ( weights, zij_fm_set, vectors, max_iter=max_iter,&
+            eps_localization=eps_localization, sweeps=sweeps )
     CASE ( do_loc_crazy )
-       CALL crazy_rotations( weights, zij_fm_set, vectors, max_iter=200, &
-            eps_localization=1.0E-4_dp, iterations= sweeps ,error=error)
+       CALL crazy_rotations( weights, zij_fm_set, vectors, max_iter=max_iter, &
+            eps_localization=eps_localization, iterations= sweeps ,error=error)
     CASE ( do_loc_direct )
        CALL direct_mini( weights, zij_fm_set, vectors, sweeps )
     CASE ( do_loc_none )
