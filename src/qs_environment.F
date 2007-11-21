@@ -327,7 +327,8 @@ CONTAINS
       natom=SIZE(particle_set)
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, maxnset=max_set)
 
-      CALL x_hf_create(qs_env%x_data,hf_section,natom,max_set,error=error)
+      CALL x_hf_create(qs_env%x_data,hf_section,natom,max_set,atomic_kind_set, &
+                       particle_set, error=error)
     END IF
     et_coupling_section => section_vals_get_subs_vals(qs_env%input,&
                            "PROPERTIES%ET_COUPLING",error=error)

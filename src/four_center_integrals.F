@@ -24,10 +24,7 @@
 MODULE four_center_integrals
   
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
                                              get_atomic_kind_set
-  USE basis_set_types,                 ONLY: get_gto_basis_set,&
-                                             gto_basis_set_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -71,13 +68,14 @@ MODULE four_center_integrals
                                              timestop
   USE x_hf,                            ONLY: &
        x_hf_add_mult_cache_elements, x_hf_add_single_cache_element, &
-       x_hf_box_scheme, x_hf_cache_type, x_hf_cell_type, x_hf_container_type, &
-       x_hf_decompress_first_cache, x_hf_distribution, x_hf_flush_last_cache, &
-       x_hf_general_type, x_hf_get_memory_info, x_hf_get_mult_cache_elements, &
-       x_hf_get_single_cache_element, x_hf_init_container, &
-       x_hf_load_balance_type, x_hf_memory_type, x_hf_potential_type, &
-       x_hf_reset_cache_and_container, x_hf_screening_type, &
-       x_hf_set_distr_energy, x_hf_set_distr_forces, x_hf_type
+       x_hf_basis_type, x_hf_box_scheme, x_hf_cache_type, x_hf_cell_type, &
+       x_hf_container_type, x_hf_decompress_first_cache, x_hf_distribution, &
+       x_hf_flush_last_cache, x_hf_general_type, x_hf_get_memory_info, &
+       x_hf_get_mult_cache_elements, x_hf_get_single_cache_element, &
+       x_hf_init_container, x_hf_load_balance_type, x_hf_memory_type, &
+       x_hf_potential_type, x_hf_reset_cache_and_container, &
+       x_hf_screening_type, x_hf_set_distr_energy, x_hf_set_distr_forces, &
+       x_hf_type
   USE x_hf_distribution_mc,            ONLY: x_hf_optimize_distribution
 #include "cp_common_uses.h"
 
@@ -149,19 +147,19 @@ MODULE four_center_integrals
 
     INTEGER :: bin, buffer_left, buffer_size, buffer_start, cache_size, &
       current_counter, handle, handle_dist_ks, handle_getP, handle_main, i, &
-      iatom, iset, iw, jatom, jset, katom, kset, latom, lset, ma, max_am, &
-      max_set, maxsgf, mb, mc, md, my_bin_size, my_istart, my_jstart, &
-      my_kstart, my_lstart, natom, nbits, nco_max, ncoa, ncob, ncoc, ncod, &
-      nints, nseta, nsetb, nsetc, nsetd, nsgfa_total, nsgfb_total, &
-      nsgfc_total, nsgfd_total, nspins, p_index, pa, pa1, pa2, pb, pb1, pb2, &
-      pc, pc1, pc2, pd, pd1, pd2, pgf_radius_box, radius1, radius2, sgfa, &
-      sgfb, sgfc, sgfd, stat
+      iatom, ikind, iset, iw, jatom, jkind, jset, katom, kkind, kset, latom, &
+      lkind, lset, ma, max_am, max_set, maxsgf, mb, mc, md, my_bin_size, &
+      my_istart, my_jstart, my_kstart, my_lstart, natom, nbits, nco_max, &
+      ncoa, ncob, ncoc, ncod, nints, nseta, nsetb, nsetc, nsetd, nsgfa_total, &
+      nsgfb_total, nsgfc_total, nsgfd_total, nspins, p_index, pa, pa1, pa2, &
+      pb, pb1, pb2, pc, pc1, pc2, pd, pd1, pd2, pgf_radius_box, radius1, &
+      radius2, sgfa, sgfb, sgfc, sgfd, stat
     INTEGER(int_8) :: box_idx1, box_idx2, box_idx3, box_idx4, &
       estimate_to_store_int, mem_compression_counter, mem_eris, mem_maxvals, &
       my_current_counter, my_original_cpu_id, ncpu, neris_incore, &
       neris_onthefly, neris_total, storage_counter_integrals, &
       storage_counter_maxval
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: last_sgf_global
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of, last_sgf_global
     INTEGER, DIMENSION(:), POINTER :: la_max, la_min, lb_max, lb_min, lc_max, &
       lc_min, ld_max, ld_min, npgfa, npgfb, npgfc, npgfd, nsgfa, nsgfb, &
       nsgfc, nsgfd
@@ -174,7 +172,7 @@ MODULE four_center_integrals
       current_max_error, ene_x_aa, ene_x_bb, eps_box, eps_schwarz, &
       eps_storage, estimate_to_store, fac, hf_fraction, K, Kbox, ks_bc, &
       ks_bd, ks_beta_bc, ks_beta_bd, max_contraction_val, max_val1, max_val2, &
-      omega_box, p_bc, p_bd, p_beta_bc, p_beta_bd, &
+      omega2Inv, omega_box, p_bc, p_bd, p_beta_bc, p_beta_bd, &
       p_screening_correction_factor, pbc_center(3), pmax_entry, R1, R2, &
       ra(3), rb(3), Rbox, rc(3), rd(3), screen_max, spherical_estimate, &
       symm_fac, temp(3), tmp
@@ -188,13 +186,12 @@ MODULE four_center_integrals
       POINTER                                :: screen_periodic
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_a, orb_basis_b, &
-                                                orb_basis_c, orb_basis_d
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(real_block_node_type), POINTER      :: block_node
+    TYPE(x_hf_basis_type), DIMENSION(:), &
+      POINTER                                :: basis_parameter
     TYPE(x_hf_cache_type), DIMENSION(:), &
       POINTER                                :: integral_caches
     TYPE(x_hf_cache_type), POINTER           :: maxval_cache
@@ -206,7 +203,6 @@ MODULE four_center_integrals
     TYPE(x_hf_memory_type)                   :: memory_parameter
     TYPE(x_hf_potential_type)                :: potential_parameter
     TYPE(x_hf_screening_type)                :: screening_parameter
-    REAL(dp)                                 :: omega2Inv
 
     current_max_error = 0.0_dp
 
@@ -231,6 +227,8 @@ MODULE four_center_integrals
 
     integral_containers    => qs_env%x_data%integral_containers
     integral_caches        => qs_env%x_data%integral_caches
+
+    basis_parameter        => qs_env%x_data%basis_parameter
 
     !! initalize some counters
     neris_total = 0_int_8
@@ -297,10 +295,14 @@ MODULE four_center_integrals
                     error=error)
  
     natom = SIZE(particle_set,1)
+    ALLOCATE(kind_of(natom),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              maxsgf=maxsgf,&
                              maxnset=max_set,&
-                             maxlgto=max_am)
+                             maxlgto=max_am, &
+                             kind_of=kind_of)
 
     !! Initialize memory used by libint
     CALL initialize_libint(lib, max_am, error)
@@ -312,13 +314,8 @@ MODULE four_center_integrals
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     last_sgf_global(0)=0
     DO iatom=1,natom
-      atom_kind => particle_set(iatom)%atomic_kind
- 
-      CALL get_atomic_kind(atomic_kind=atom_kind,&
-                           orb_basis_set=orb_basis_a)
-      CALL get_gto_basis_set(gto_basis_set=orb_basis_a,&
-                             nsgf=nsgfa_total)
-      last_sgf_global(iatom) = last_sgf_global(iatom-1)+nsgfa_total
+      ikind = kind_of(iatom)
+      last_sgf_global(iatom) = last_sgf_global(iatom-1)+ basis_parameter(ikind)%nsgf_total
     END DO
 
     !! Calculate helper array that stores if a certain atomic pair is associated in the KS matrix
@@ -327,24 +324,16 @@ MODULE four_center_integrals
       qs_env%x_data%number_of_p_entries = 0
       DO iatom=1,ks_matrix(1)%matrix%nblock_row
         block_node => first_block_node(ks_matrix(1)%matrix,iatom)
-        atom_kind => particle_set(iatom)%atomic_kind
-        CALL get_atomic_kind(atomic_kind=atom_kind,&
-                             orb_basis_set=orb_basis_a)
-        CALL get_gto_basis_set(gto_basis_set=orb_basis_a,&
-                               nsgf=nsgfa_total)
+        ikind = kind_of(iatom)
         DO WHILE (ASSOCIATED(block_node))
           CALL get_block_node(block_node=block_node,&
                               block_col=jatom,&
                               BLOCK=sparse_block)
-
-          atom_kind => particle_set(jatom)%atomic_kind
-          CALL get_atomic_kind(atomic_kind=atom_kind,&
-                               orb_basis_set=orb_basis_b)
-          CALL get_gto_basis_set(gto_basis_set=orb_basis_b,&
-                                 nsgf=nsgfb_total)
+          jkind = kind_of(jatom)
           qs_env%x_data%is_assoc_atomic_block(iatom,jatom) = para_env%mepos + 1
           qs_env%x_data%is_assoc_atomic_block(jatom,iatom) = para_env%mepos + 1
-          qs_env%x_data%number_of_p_entries =  qs_env%x_data%number_of_p_entries + nsgfa_total*nsgfb_total
+          qs_env%x_data%number_of_p_entries =  qs_env%x_data%number_of_p_entries + &
+                       basis_parameter(ikind)%nsgf_total*basis_parameter(jkind)%nsgf_total
           block_node => next_block_node(block_node)
         END DO
       END DO
@@ -353,13 +342,17 @@ MODULE four_center_integrals
     END IF
 
     !! Get the full density from all the processors
+    NULLIFY(full_density)
+    NULLIFY(full_density_beta)
     CALL mp_sync(para_env%group) ! to clarify timings
     CALL timeset(routineN//"_getP",handle_getP)
     CALL get_full_density(para_env, full_density, rho%rho_ao(1)%matrix, qs_env%x_data%number_of_p_entries,&
-                          qs_env%x_data%is_assoc_atomic_block, particle_set, natom, last_sgf_global, error)   
+                          qs_env%x_data%is_assoc_atomic_block, particle_set, natom, last_sgf_global, &
+                          kind_of, basis_parameter, error)   
     IF(nspins == 2) THEN
       CALL get_full_density(para_env, full_density_beta, rho%rho_ao(2)%matrix, qs_env%x_data%number_of_p_entries,&
-                          qs_env%x_data%is_assoc_atomic_block, particle_set, natom, last_sgf_global, error)
+                          qs_env%x_data%is_assoc_atomic_block, particle_set, natom, last_sgf_global, &
+                          kind_of, basis_parameter, error)
 
     END IF
     CALL mp_sync(para_env%group) ! to clarify timings
@@ -376,13 +369,13 @@ MODULE four_center_integrals
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         actual_pmax_set = 0.0_dp
         CALL update_pmax_matrix(actual_pmax_set, full_density, full_density_beta, &
-                                particle_set,atomic_kind_set,error)
+                                particle_set,atomic_kind_set, kind_of, basis_parameter, error)
       END IF
       IF(geometry_did_change ) THEN
         qs_env%x_data%initial_p = 0.0_dp
         CALL update_pmax_matrix(qs_env%x_data%initial_p, &
                                 full_density,full_density_beta,&
-                                particle_set,atomic_kind_set,error)
+                                particle_set,atomic_kind_set, kind_of, basis_parameter, error)
       END IF
     ELSE
       pmax_entry = 1.0_dp
@@ -393,17 +386,13 @@ MODULE four_center_integrals
 
     max_contraction=0.0_dp
     DO jatom=1,natom
-
-      atom_kind => particle_set(jatom)%atomic_kind
-      CALL get_atomic_kind(atomic_kind=atom_kind,&
-                           orb_basis_set=orb_basis_b)
-      CALL get_gto_basis_set(gto_basis_set=orb_basis_b,&
-                             lmax=lb_max,&
-                             npgf=npgfb,&
-                             nset=nsetb,&
-                             first_sgf=first_sgfb,&
-                             sphi=sphi_b,&
-                             nsgf_set=nsgfb)
+      jkind = kind_of(jatom)
+      lb_max => basis_parameter(jkind)%lmax
+      nsetb = basis_parameter(jkind)%nset
+      npgfb => basis_parameter(jkind)%npgf
+      first_sgfb => basis_parameter(jkind)%first_sgf
+      sphi_b => basis_parameter(jkind)%sphi
+      nsgfb => basis_parameter(jkind)%nsgf
       DO jset = 1,nsetb
         ! takes the primitive to contracted transformation into account
         ncob = npgfb(jset)*ncoset(lb_max(jset))
@@ -436,21 +425,23 @@ MODULE four_center_integrals
       ALLOCATE(screen_periodic(SIZE(qs_env%x_data%neighbor_cells),max_set,max_set,natom,natom))
       CALL comp_screen_mat_per(screen_set,screen_atom,screen_max,screen_periodic,particle_set,atomic_kind_set,&
                                potential_parameter,.NOT.geometry_did_change,&
+                               kind_of, basis_parameter,&
                                qs_env%x_data%x_screening_buffer_periodic,&
                                qs_env%x_data%neighbor_cells,box_size,error)
       IF(geometry_did_change) THEN
         CALL screen_farfield_per(qs_env%x_data%far_field_boxes, &
                                  particle_set, atomic_kind_set, potential_parameter, &
-                                 qs_env%x_data%neighbor_cells, box_size, error)
+                                 qs_env%x_data%neighbor_cells, box_size, kind_of, basis_parameter, error)
        END IF
 
     ELSE
       CALL compute_screening_matrices(screen_set,screen_atom,screen_max,particle_set,atomic_kind_set,&
-                                    potential_parameter,.NOT.geometry_did_change,qs_env%x_data%x_screening_buffer, error)
+                                    potential_parameter,.NOT.geometry_did_change,kind_of, basis_parameter,&
+                                    qs_env%x_data%x_screening_buffer, error)
       IF(geometry_did_change) THEN
         CALL screen_farfield(qs_env%x_data%far_field_boxes,&
                              particle_set, atomic_kind_set, potential_parameter,&
-                             error)
+                             kind_of, basis_parameter, error)
       END IF
     END IF
     CALL timeset(routineN//"_main",handle_main)
@@ -470,24 +461,22 @@ MODULE four_center_integrals
         CALL load_balance_energy(qs_env%x_data,eps_schwarz,eps_box,particle_set,atomic_kind_set,para_env,&
                                  potential_parameter,screen_set,screen_atom,screen_max,&
                                  qs_env%x_data%is_assoc_atomic_block,ks_matrix,do_periodic,load_balance_parameter, box_size, &
-                                 pmax_set=qs_env%x_data%initial_p, error=error)
+                                 kind_of, basis_parameter, error=error, pmax_set=qs_env%x_data%initial_p)
       ELSE
         CALL load_balance_energy(qs_env%x_data,eps_schwarz,eps_box,particle_set,atomic_kind_set,para_env,&
                                  potential_parameter,screen_set,screen_atom,screen_max,&
                                  qs_env%x_data%is_assoc_atomic_block,ks_matrix,do_periodic,&
-                                 load_balance_parameter,box_size, error=error)
+                                 load_balance_parameter,box_size, kind_of, basis_parameter, error=error)
       END IF
     END IF
 
     !! precompute maximum nco and allocate scratch
     nco_max=0
     DO iatom=1,natom
-      atom_kind => particle_set(iatom)%atomic_kind
-      CALL get_atomic_kind(atomic_kind=atom_kind,&
-                           orb_basis_set=orb_basis_a)
-      CALL get_gto_basis_set(gto_basis_set=orb_basis_a, lmax=la_max, lmin=la_min,&
-                             npgf=npgfa, nset=nseta, zet=zeta, nsgf_set=nsgfa,&
-                             first_sgf=first_sgfa, sphi=sphi_a, nsgf=nsgfa_total)
+      ikind = kind_of(iatom)
+      nseta = basis_parameter(ikind)%nset
+      npgfa => basis_parameter(ikind)%npgf
+      la_max => basis_parameter(ikind)%lmax
       DO iset = 1, nseta
          nco_max = MAX(nco_max,npgfa(iset)*ncoset(la_max(iset)))
       ENDDO
@@ -557,12 +546,16 @@ MODULE four_center_integrals
       IF(my_istart == 0 .OR. my_jstart == 0 .OR. my_kstart == 0 .OR. my_lstart == 0 .OR. &
          qs_env%x_data%distribution_energy(bin)%number_of_integrals == 0) CYCLE
       DO iatom=my_istart,natom
-        atom_kind => particle_set(iatom)%atomic_kind
-        CALL get_atomic_kind(atomic_kind=atom_kind,&
-                             orb_basis_set=orb_basis_a)
-        CALL get_gto_basis_set(gto_basis_set=orb_basis_a, lmax=la_max, lmin=la_min,&
-                               npgf=npgfa, nset=nseta, zet=zeta, nsgf_set=nsgfa,&
-                               first_sgf=first_sgfa, sphi=sphi_a, nsgf=nsgfa_total)
+        ikind = kind_of(iatom)
+        la_max => basis_parameter(ikind)%lmax
+        la_min => basis_parameter(ikind)%lmin
+        npgfa => basis_parameter(ikind)%npgf
+        nseta = basis_parameter(ikind)%nset
+        zeta => basis_parameter(ikind)%zet
+        nsgfa => basis_parameter(ikind)%nsgf
+        first_sgfa => basis_parameter(ikind)%first_sgf
+        sphi_a => basis_parameter(ikind)%sphi
+        nsgfa_total = basis_parameter(ikind)%nsgf_total
         ra=particle_set(iatom)%r(:)
         pa1 = last_sgf_global(iatom) - nsgfa_total
  
@@ -574,24 +567,34 @@ MODULE four_center_integrals
           box_idx1 = (iatom-1)*natom+jatom
           IF(MODULO(FNV64(box_idx1),ncpu)/=my_original_cpu_id-1) CYCLE
           IF (screen_atom(iatom,jatom) * screen_max < eps_schwarz) CYCLE
-          atom_kind => particle_set(jatom)%atomic_kind
-          CALL get_atomic_kind(atomic_kind=atom_kind,&
-                               orb_basis_set=orb_basis_b)
-          CALL get_gto_basis_set(gto_basis_set=orb_basis_b, lmax=lb_max, lmin=lb_min,&
-                                 npgf=npgfb, nset=nsetb, zet=zetb, nsgf_set=nsgfb,&
-                                 first_sgf=first_sgfb, sphi=sphi_b, nsgf=nsgfb_total)
+          jkind = kind_of(jatom)
+          lb_max => basis_parameter(jkind)%lmax
+          lb_min => basis_parameter(jkind)%lmin
+          npgfb => basis_parameter(jkind)%npgf
+          nsetb = basis_parameter(jkind)%nset
+          zetb => basis_parameter(jkind)%zet
+          nsgfb => basis_parameter(jkind)%nsgf
+          first_sgfb => basis_parameter(jkind)%first_sgf
+          sphi_b => basis_parameter(jkind)%sphi
+          nsgfb_total = basis_parameter(jkind)%nsgf_total
+
           rb=particle_set(jatom)%r(:)
           pb1 = last_sgf_global(jatom) - nsgfb_total
           IF(first_k_loop) katom=my_kstart-1
           IF(.NOT. first_k_loop) katom = 0
           DO WHILE(katom+1<=natom)
             katom = katom + 1
-            atom_kind => particle_set(katom)%atomic_kind
-            CALL get_atomic_kind(atomic_kind=atom_kind,&
-                                 orb_basis_set=orb_basis_c)
-            CALL get_gto_basis_set(gto_basis_set=orb_basis_c, lmax=lc_max, lmin=lc_min,&
-                                   npgf=npgfc, nset=nsetc, zet=zetc, nsgf_set=nsgfc,&
-                                 first_sgf=first_sgfc, sphi=sphi_c, nsgf=nsgfc_total)
+            kkind = kind_of(katom)
+            lc_max => basis_parameter(kkind)%lmax
+            lc_min => basis_parameter(kkind)%lmin
+            npgfc => basis_parameter(kkind)%npgf
+            nsetc = basis_parameter(kkind)%nset
+            zetc => basis_parameter(kkind)%zet
+            nsgfc => basis_parameter(kkind)%nsgf
+            first_sgfc => basis_parameter(kkind)%first_sgf
+            sphi_c => basis_parameter(kkind)%sphi
+            nsgfc_total = basis_parameter(kkind)%nsgf_total
+
             rc=particle_set(katom)%r(:)
             pc1 = last_sgf_global(katom) - nsgfc_total
 
@@ -635,12 +638,17 @@ MODULE four_center_integrals
                 IF(iatom==katom .AND. iatom==jatom .AND. katom==latom) symm_fac = symm_fac*2.0_dp
                 symm_fac = 1.0_dp / symm_fac
 
-                atom_kind => particle_set(latom)%atomic_kind
-                CALL get_atomic_kind(atomic_kind=atom_kind,&
-                                     orb_basis_set=orb_basis_d)
-                CALL get_gto_basis_set(gto_basis_set=orb_basis_d, lmax=ld_max, lmin=ld_min,&
-                                       npgf=npgfd, nset=nsetd, zet=zetd, nsgf_set=nsgfd,&
-                                       first_sgf=first_sgfd, sphi=sphi_d, nsgf=nsgfd_total)
+                lkind = kind_of(latom)
+                ld_max => basis_parameter(lkind)%lmax
+                ld_min => basis_parameter(lkind)%lmin
+                npgfd => basis_parameter(lkind)%npgf
+                nsetd = basis_parameter(lkind)%nset
+                zetd => basis_parameter(lkind)%zet
+                nsgfd => basis_parameter(lkind)%nsgf
+                first_sgfd => basis_parameter(lkind)%first_sgf
+                sphi_d => basis_parameter(lkind)%sphi
+                nsgfd_total = basis_parameter(lkind)%nsgf_total
+
                 rd=particle_set(latom)%r(:)
                 pd1 = last_sgf_global(latom) - nsgfd_total
                 box_idx3 = (katom-1)*natom+latom
@@ -1124,11 +1132,11 @@ MODULE four_center_integrals
     CALL timeset(routineN//"_dist_KS",handle_dist_ks)
     CALL distribute_ks_matrix(para_env, full_ks, ks_matrix(1)%matrix, qs_env%x_data%number_of_p_entries, &
                               qs_env%x_data%is_assoc_atomic_block,&
-                              particle_set, natom, last_sgf_global, error)
+                              particle_set, natom, last_sgf_global, kind_of, basis_parameter, error)
     IF(nspins == 2) THEN
       CALL distribute_ks_matrix(para_env, full_ks_beta, ks_matrix(2)%matrix, qs_env%x_data%number_of_p_entries, &
                               qs_env%x_data%is_assoc_atomic_block,&
-                              particle_set, natom, last_sgf_global, error)
+                              particle_set, natom, last_sgf_global, kind_of, basis_parameter, error)
     END IF
  
     CALL mp_sync(para_env%group) ! to clarify timings 
@@ -1230,7 +1238,7 @@ MODULE four_center_integrals
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       END IF
     END IF
-    DEALLOCATE(max_contraction,STAT=stat)
+    DEALLOCATE(max_contraction, kind_of, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     !
     ! this wraps to free_libint, but currently causes a segfault
@@ -1436,7 +1444,8 @@ MODULE four_center_integrals
 !!****************************************************************************
 
   SUBROUTINE compute_screening_matrices(screen_set,screen_atom,screen_max,particle_set,&
-                                        atomic_kind_set,potential_parameter,read_from_memory,buffer,error)
+                                        atomic_kind_set,potential_parameter,read_from_memory,&
+                                        kind_of, basis_parameter, buffer, error)
 
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: screen_set
     REAL(dp), DIMENSION(:, :), POINTER       :: screen_atom
@@ -1447,6 +1456,9 @@ MODULE four_center_integrals
       POINTER                                :: atomic_kind_set
     TYPE(x_hf_potential_type)                :: potential_parameter
     LOGICAL                                  :: read_from_memory
+    INTEGER                                  :: kind_of(*)
+    TYPE(x_hf_basis_type), DIMENSION(:), &
+      POINTER                                :: basis_parameter
     REAL(dp), DIMENSION(:, :, :, :), &
       OPTIONAL, POINTER                      :: buffer
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1454,9 +1466,10 @@ MODULE four_center_integrals
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_screening_matrices', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, jatom, jset, k, &
-                                                katom, kset, max_set, natom, &
-                                                ncob, nsetb, nsetc, sgfb, stat
+    INTEGER                                  :: handle, jatom, jkind, jset, &
+                                                k, katom, kkind, kset, &
+                                                max_set, natom, ncob, nsetb, &
+                                                nsetc, sgfb, stat
     INTEGER, DIMENSION(:), POINTER           :: lb_max, lb_min, lc_max, &
                                                 lc_min, npgfb, npgfc, nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfb
@@ -1465,8 +1478,6 @@ MODULE four_center_integrals
                                                 rc(3)
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: contraction_max
     REAL(dp), DIMENSION(:, :), POINTER       :: sphi_b, zetb, zetc
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_b, orb_basis_c
 
     CALL timeset(routineN,handle)
 
@@ -1488,17 +1499,13 @@ MODULE four_center_integrals
     contraction_max=0.0_dp
 
     DO jatom=1,natom
-
-      atom_kind => particle_set(jatom)%atomic_kind
-      CALL get_atomic_kind(atomic_kind=atom_kind,&
-                           orb_basis_set=orb_basis_b)
-      CALL get_gto_basis_set(gto_basis_set=orb_basis_b,&
-                             lmax=lb_max,&
-                             npgf=npgfb,&
-                             nset=nsetb,&
-                             first_sgf=first_sgfb,&
-                             sphi=sphi_b,&
-                             nsgf_set=nsgfb)
+      jkind = kind_of(jatom)
+      nsetb = basis_parameter(jkind)%nset
+      npgfb => basis_parameter(jkind)%npgf
+      lb_max => basis_parameter(jkind)%lmax
+      first_sgfb => basis_parameter(jkind)%first_sgf
+      sphi_b => basis_parameter(jkind)%sphi
+      nsgfb => basis_parameter(jkind)%nsgf
       DO jset = 1,nsetb
         ! takes the primitive to contracted transformation into account
         ncob = npgfb(jset)*ncoset(lb_max(jset))
@@ -1510,27 +1517,20 @@ MODULE four_center_integrals
     ENDDO
 
     DO jatom=1,natom
-
-      atom_kind => particle_set(jatom)%atomic_kind
-      CALL get_atomic_kind(atomic_kind=atom_kind,&
-                           orb_basis_set=orb_basis_b)
-      CALL get_gto_basis_set(gto_basis_set=orb_basis_b,&
-                             lmax=lb_max,&
-                             lmin=lb_min,&
-                             npgf=npgfb,&
-                             nset=nsetb,&
-                             zet=zetb)
+      jkind = kind_of(jatom)
+      lb_max => basis_parameter(jkind)%lmax
+      lb_min => basis_parameter(jkind)%lmin
+      npgfb => basis_parameter(jkind)%npgf
+      nsetb = basis_parameter(jkind)%nset
+      zetb => basis_parameter(jkind)%zet
       rb=particle_set(jatom)%r(:)
       DO katom = jatom,natom
-        atom_kind => particle_set(katom)%atomic_kind
-        CALL get_atomic_kind(atomic_kind=atom_kind,&
-                             orb_basis_set=orb_basis_c)
-        CALL get_gto_basis_set(gto_basis_set=orb_basis_c,&
-                               lmax=lc_max,&
-                               lmin=lc_min,&
-                               npgf=npgfc,&
-                               nset=nsetc,&
-                               zet=zetc)
+        kkind = kind_of(katom)
+        lc_max => basis_parameter(kkind)%lmax
+        lc_min => basis_parameter(kkind)%lmin
+        npgfc => basis_parameter(kkind)%npgf
+        nsetc = basis_parameter(kkind)%nset
+        zetc => basis_parameter(kkind)%zet
         rc=particle_set(katom)%r(:)
         DO jset = 1,nsetb
           p2s_b = contraction_max(jset,jatom)
@@ -1595,7 +1595,8 @@ MODULE four_center_integrals
 !****************************************************************************
   
   SUBROUTINE compute_pmax_matrices(pmax_set,pmax_atom,pmax_max, &
-              full_density,full_density_beta,screen_pmat_forces,particle_set,atomic_kind_set,error)
+              full_density,full_density_beta,screen_pmat_forces,particle_set,atomic_kind_set,&
+              kind_of, basis_parameter, error)
 
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: pmax_set
     REAL(dp), DIMENSION(:, :), POINTER       :: pmax_atom
@@ -1607,20 +1608,21 @@ MODULE four_center_integrals
       POINTER                                :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    INTEGER                                  :: kind_of(*)
+    TYPE(x_hf_basis_type), DIMENSION(:), &
+      POINTER                                :: basis_parameter
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_pmax_matrices', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, jatom, jset, katom, kset, max_set, mb, mc, natom, &
-      nsetb, nsetc, nsgfb_total, nsgfc_total, pb, pb1, pb2, pc, pc1, pc2, &
-      sgfb, sgfc, stat
+    INTEGER :: handle, jatom, jkind, jset, katom, kkind, kset, max_set, mb, &
+      mc, natom, nsetb, nsetc, nsgfb_total, nsgfc_total, pb, pb1, pb2, pc, &
+      pc1, pc2, sgfb, sgfc, stat
     INTEGER, DIMENSION(:), POINTER           :: last_sgf_global, nsgfb, nsgfc
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfb, first_sgfc
     LOGICAL                                  :: failure
     REAL(dp)                                 :: pmax_tmp
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_b, orb_basis_c
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
@@ -1633,13 +1635,8 @@ MODULE four_center_integrals
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     last_sgf_global(0)=0
     DO jatom=1,natom
-      atom_kind => particle_set(jatom)%atomic_kind
- 
-      CALL get_atomic_kind(atomic_kind=atom_kind,&
-                           orb_basis_set=orb_basis_b)
-      CALL get_gto_basis_set(gto_basis_set=orb_basis_b,&
-                             nsgf=nsgfb_total)
-      last_sgf_global(jatom) = last_sgf_global(jatom-1)+nsgfb_total
+      jkind = kind_of(jatom)
+      last_sgf_global(jatom) = last_sgf_global(jatom-1)+ basis_parameter(jkind)%nsgf_total
     END DO
 
     ! allocate and compute pmax
@@ -1650,33 +1647,22 @@ MODULE four_center_integrals
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     IF (screen_pmat_forces) THEN
-
        pmax_set=0.0_dp
        pmax_atom=0.0_dp
-
        DO jatom=1,natom
-
-         atom_kind => particle_set(jatom)%atomic_kind
-         CALL get_atomic_kind(atomic_kind=atom_kind,&
-                              orb_basis_set=orb_basis_b)
-         CALL get_gto_basis_set(gto_basis_set=orb_basis_b,&
-                                nsgf=nsgfb_total,&
-                                nset=nsetb,& 
-                                first_sgf=first_sgfb,&
-                                nsgf_set=nsgfb)
+         jkind = kind_of(jatom)
+         nsgfb_total = basis_parameter(jkind)%nsgf_total
+         nsetb = basis_parameter(jkind)%nset
+         first_sgfb => basis_parameter(jkind)%first_sgf
+         nsgfb => basis_parameter(jkind)%nsgf
          pb1 = last_sgf_global(jatom) - nsgfb_total
-
          DO katom = 1,natom
-           atom_kind => particle_set(katom)%atomic_kind
-           CALL get_atomic_kind(atomic_kind=atom_kind,&
-                                orb_basis_set=orb_basis_c)
-           CALL get_gto_basis_set(gto_basis_set=orb_basis_c,&
-                                  nsgf=nsgfc_total,&
-                                  nset=nsetc,&
-                                  first_sgf=first_sgfc,&
-                                  nsgf_set=nsgfc)
+           kkind = kind_of(katom)
+           nsgfc_total = basis_parameter(kkind)%nsgf_total
+           nsetc = basis_parameter(kkind)%nset
+           first_sgfc => basis_parameter(kkind)%first_sgf
+           nsgfc => basis_parameter(kkind)%nsgf
            pc1 = last_sgf_global(katom) - nsgfc_total
-
            DO jset = 1,nsetb
              sgfb = first_sgfb(1,jset)
              DO kset = 1,nsetc
@@ -1698,12 +1684,9 @@ MODULE four_center_integrals
            pmax_atom(jatom,katom)=MAXVAL(pmax_set(1:nsetb,1:nsetc,jatom,katom))
          END DO
        END DO
-
     ELSE
-
        pmax_set=1.0_dp
        pmax_atom=1.0_dp
-
     ENDIF
 
     pmax_max=MAXVAL(pmax_atom)
@@ -1879,8 +1862,8 @@ MODULE four_center_integrals
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, &
                                                 last_sgf_global
     INTEGER, DIMENSION(:), POINTER :: la_max, la_min, lb_max, lb_min, lc_max, &
-      lc_min, ld_max, ld_min, ncgfa, ncgfb, ncgfc, ncgfd, npgfa, npgfb, &
-      npgfc, npgfd, nsgfa, nsgfb, nsgfc, nsgfd
+      lc_min, ld_max, ld_min, npgfa, npgfb, npgfc, npgfd, nsgfa, nsgfb, &
+      nsgfc, nsgfd
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb, &
                                                 first_sgfc, first_sgfd
     LOGICAL                                  :: failure, first_j_loop, &
@@ -1888,9 +1871,9 @@ MODULE four_center_integrals
                                                 screen_pmat_forces
     REAL(dp) :: box_size(3), cartesian_estimate, center1(3), center2(3), &
       center2_folded(3), eps_box, eps_schwarz, fac, hf_fraction, Kbox, &
-      max_contraction_val, max_val1, max_val2, omega_box, pbc_center(3), &
-      pmax_max, R1, R2, ra(3), rb(3), Rbox, rc(3), rd(3), screen_max, &
-      symm_fac, temp(3), temp1, temp1b, temp2, temp3, temp3b
+      max_contraction_val, max_val1, max_val2, omega2Inv, omega_box, &
+      pbc_center(3), pmax_max, R1, R2, ra(3), rb(3), Rbox, rc(3), rd(3), &
+      screen_max, symm_fac, temp(3), temp1, temp1b, temp2, temp3, temp3b
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: work_forces
     REAL(dp), ALLOCATABLE, DIMENSION(:), &
       TARGET                                 :: primitive_forces
@@ -1903,18 +1886,16 @@ MODULE four_center_integrals
       POINTER                                :: screen_periodic
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_a, orb_basis_b, &
-                                                orb_basis_c, orb_basis_d
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(x_hf_basis_type), DIMENSION(:), &
+      POINTER                                :: basis_parameter
     TYPE(x_hf_general_type)                  :: general_parameter
     TYPE(x_hf_load_balance_type)             :: load_balance_parameter
     TYPE(x_hf_potential_type)                :: potential_parameter
     TYPE(x_hf_screening_type)                :: screening_parameter
-    REAL(dp)                                 :: omega2Inv
 
     CALL mp_sync(para_env%group)
     CALL timeset(routineN,"I",'',handle)
@@ -1930,7 +1911,8 @@ MODULE four_center_integrals
     END IF
 
     load_balance_parameter = qs_env%x_data%load_balance_parameter
-    
+    basis_parameter        => qs_env%x_data%basis_parameter
+   
     !! initalize force array to zero 
     CALL get_qs_env(qs_env=qs_env, force=force, error=error)
     DO ikind = 1,SIZE(force)
@@ -1984,13 +1966,8 @@ MODULE four_center_integrals
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     last_sgf_global(0)=0
     DO iatom=1,natom
-      atom_kind => particle_set(iatom)%atomic_kind
- 
-      CALL get_atomic_kind(atomic_kind=atom_kind,&
-                           orb_basis_set=orb_basis_a)
-      CALL get_gto_basis_set(gto_basis_set=orb_basis_a,&
-                             nsgf=nsgfa_total)
-      last_sgf_global(iatom) = last_sgf_global(iatom-1)+nsgfa_total
+      ikind = kind_of(iatom)
+      last_sgf_global(iatom) = last_sgf_global(iatom-1) + basis_parameter(ikind)%nsgf_total
     END DO
 
     ALLOCATE(max_contraction(max_set,natom),STAT=stat)
@@ -1998,17 +1975,13 @@ MODULE four_center_integrals
 
     max_contraction=0.0_dp
     DO jatom=1,natom
-
-      atom_kind => particle_set(jatom)%atomic_kind
-      CALL get_atomic_kind(atomic_kind=atom_kind,&
-                           orb_basis_set=orb_basis_b)
-      CALL get_gto_basis_set(gto_basis_set=orb_basis_b,&
-                             lmax=lb_max,&
-                             npgf=npgfb,&
-                             nset=nsetb,&
-                             first_sgf=first_sgfb,&
-                             sphi=sphi_b,&
-                             nsgf_set=nsgfb)
+      jkind = kind_of(jatom)
+      lb_max => basis_parameter(jkind)%lmax
+      npgfb => basis_parameter(jkind)%npgf
+      nsetb = basis_parameter(jkind)%nset
+      first_sgfb => basis_parameter(jkind)%first_sgf
+      sphi_b => basis_parameter(jkind)%sphi
+      nsgfb => basis_parameter(jkind)%nsgf
       DO jset = 1,nsetb
         ! takes the primitive to contracted transformation into account
         ncob = npgfb(jset)*ncoset(lb_max(jset))
@@ -2019,19 +1992,25 @@ MODULE four_center_integrals
       ENDDO
     ENDDO
 
+    NULLIFY(full_density)
+    NULLIFY(full_density_beta)
+
     !! Get the full density from all the processors
     CALL get_full_density(para_env, full_density, rho%rho_ao(1)%matrix, qs_env%x_data%number_of_p_entries,&
-                          qs_env%x_data%is_assoc_atomic_block, particle_set, natom, last_sgf_global, error)   
+                          qs_env%x_data%is_assoc_atomic_block, particle_set, natom, last_sgf_global, &
+                          kind_of, basis_parameter, error)   
     IF(nspins == 2) THEN
       CALL get_full_density(para_env, full_density_beta, rho%rho_ao(2)%matrix, qs_env%x_data%number_of_p_entries,&
-                          qs_env%x_data%is_assoc_atomic_block, particle_set, natom, last_sgf_global, error)
+                           qs_env%x_data%is_assoc_atomic_block, particle_set, natom, last_sgf_global, &
+                           kind_of, basis_parameter, error)
 
     END IF
 
     !! Calculate max entries for screening on actual density. If screen_p_mat_forces = FALSE, the
     !! matrix is initialized to 1.0
     CALL compute_pmax_matrices(pmax_set,pmax_atom,pmax_max, &
-                  full_density,full_density_beta,screen_pmat_forces,particle_set,atomic_kind_set,error)
+                  full_density,full_density_beta,screen_pmat_forces,particle_set,atomic_kind_set,&
+                  kind_of, basis_parameter, error)
 
 
     !! Calculatematrices for screening purpose taking into account periodicity. The farfield part is already
@@ -2043,13 +2022,14 @@ MODULE four_center_integrals
       ALLOCATE(screen_periodic(SIZE(qs_env%x_data%neighbor_cells),max_set,max_set,natom,natom))
       CALL comp_screen_mat_per(screen_set,screen_atom,screen_max,screen_periodic,particle_set,atomic_kind_set,&
                                                potential_parameter,.FALSE.,&
+                                               kind_of, basis_parameter,&
                                                neighbor_cells=qs_env%x_data%neighbor_cells,&
                                                box_size=box_size,&
                                                error=error)
       !! Farfield screening matrix already there
     ELSE
       CALL compute_screening_matrices(screen_set,screen_atom,screen_max,particle_set,atomic_kind_set,&
-                                      potential_parameter,.FALSE.,error=error)
+                                      potential_parameter,.FALSE., kind_of, basis_parameter, error=error)
       !! Farfield screening matrix already there
     END IF
 
@@ -2057,17 +2037,15 @@ MODULE four_center_integrals
     CALL load_balance_forces(qs_env%x_data,eps_schwarz,eps_box,particle_set,atomic_kind_set,para_env,&
                              potential_parameter,screen_set,screen_atom,screen_max,&
                              pmax_set,qs_env%x_data%is_assoc_atomic_block,ks_matrix,do_periodic,&
-                             load_balance_parameter, box_size, error)
+                             load_balance_parameter, box_size, kind_of, basis_parameter, error)
 
     !! precompute maximum nco and allocate scratch
     nco_max=0
     DO iatom=1,natom
-      atom_kind => particle_set(iatom)%atomic_kind
-      CALL get_atomic_kind(atomic_kind=atom_kind,&
-                           orb_basis_set=orb_basis_a)
-      CALL get_gto_basis_set(gto_basis_set=orb_basis_a, lmax=la_max, lmin=la_min,&
-                             npgf=npgfa, nset=nseta, zet=zeta, nsgf_set=nsgfa,&
-                             first_sgf=first_sgfa, sphi=sphi_a, nsgf=nsgfa_total)
+      ikind = kind_of(iatom)
+      nseta = basis_parameter(ikind)%nset
+      npgfa => basis_parameter(ikind)%npgf
+      la_max => basis_parameter(ikind)%lmax
       DO iset = 1, nseta
          nco_max = MAX(nco_max,npgfa(iset)*ncoset(la_max(iset)))
       ENDDO
@@ -2139,24 +2117,18 @@ MODULE four_center_integrals
       IF(my_istart == 0 .OR. my_jstart == 0 .OR. my_kstart == 0 .OR. my_lstart == 0 .OR. &
          qs_env%x_data%distribution_forces(bin)%number_of_integrals == 0) CYCLE
       DO iatom=my_istart,natom
-        atom_kind => particle_set(iatom)%atomic_kind
-
-        CALL get_atomic_kind(atomic_kind=atom_kind,&
-                             orb_basis_set=orb_basis_a)
-        CALL get_gto_basis_set(gto_basis_set=orb_basis_a,&
-                               lmax=la_max,&
-                               lmin=la_min,&
-                               npgf=npgfa,&
-                               nset=nseta,&
-                               zet=zeta,&
-                               nsgf_set=nsgfa,&
-                               ncgf_set=ncgfa,&
-                               first_sgf=first_sgfa,&
-                               sphi=sphi_a,&
-                               nsgf=nsgfa_total)
+        ikind = kind_of(iatom)
+        la_max => basis_parameter(ikind)%lmax
+        la_min => basis_parameter(ikind)%lmin
+        npgfa => basis_parameter(ikind)%npgf
+        nseta = basis_parameter(ikind)%nset
+        zeta => basis_parameter(ikind)%zet
+        nsgfa => basis_parameter(ikind)%nsgf
+        first_sgfa => basis_parameter(ikind)%first_sgf
+        sphi_a => basis_parameter(ikind)%sphi
+        nsgfa_total = basis_parameter(ikind)%nsgf_total
         ra=particle_set(iatom)%r(:)
         i_atom = atom_of_kind(iatom)
-        ikind = kind_of(iatom)
         pa1 = last_sgf_global(iatom) - nsgfa_total
         forces_map(1,1) = ikind
         forces_map(1,2) = i_atom
@@ -2168,58 +2140,50 @@ MODULE four_center_integrals
           box_idx1 = (iatom-1)*natom+jatom
           IF(MODULO(FNV64(box_idx1),ncpu)/=my_original_cpu_id-1) CYCLE
           IF (screen_atom(iatom,jatom) * screen_max < eps_schwarz) CYCLE
-          atom_kind => particle_set(jatom)%atomic_kind
-          CALL get_atomic_kind(atomic_kind=atom_kind,&
-                               orb_basis_set=orb_basis_b)
-          CALL get_gto_basis_set(gto_basis_set=orb_basis_b,&
-                                 lmax=lb_max,&
-                                 lmin=lb_min,&
-                                 npgf=npgfb,&
-                                 nset=nsetb,&
-                                 zet=zetb,&
-                                 nsgf_set=nsgfb,&
-                                 ncgf_set=ncgfb,&
-                                 first_sgf=first_sgfb,&
-                                 sphi=sphi_b,&
-                                 nsgf=nsgfb_total)
+
+          jkind = kind_of(jatom)
+          lb_max => basis_parameter(jkind)%lmax
+          lb_min => basis_parameter(jkind)%lmin
+          npgfb => basis_parameter(jkind)%npgf
+          nsetb = basis_parameter(jkind)%nset
+          zetb => basis_parameter(jkind)%zet
+          nsgfb => basis_parameter(jkind)%nsgf
+          first_sgfb => basis_parameter(jkind)%first_sgf
+          sphi_b => basis_parameter(jkind)%sphi
+          nsgfb_total = basis_parameter(jkind)%nsgf_total
+
           rb=particle_set(jatom)%r(:)
           j_atom = atom_of_kind(jatom)
-          jkind = kind_of(jatom)
           pb1 = last_sgf_global(jatom) - nsgfb_total
           forces_map(2,1) = jkind
           forces_map(2,2) = j_atom
           IF(first_k_loop) katom=my_kstart-1
-            IF(.NOT. first_k_loop) katom = 0
-            DO WHILE(katom+1<=natom)
-              katom = katom + 1
-            atom_kind => particle_set(katom)%atomic_kind
-            CALL get_atomic_kind(atomic_kind=atom_kind,&
-                                 orb_basis_set=orb_basis_c)
-            CALL get_gto_basis_set(gto_basis_set=orb_basis_c,&
-                                   lmax=lc_max,&
-                                   lmin=lc_min,&
-                                   npgf=npgfc,&
-                                   nset=nsetc,&
-                                   zet=zetc,&
-                                   nsgf_set=nsgfc,&
-                                   ncgf_set=ncgfc,&
-                                   first_sgf=first_sgfc,&
-                                   sphi=sphi_c,&
-                                   nsgf=nsgfc_total)
+          IF(.NOT. first_k_loop) katom = 0
+          DO WHILE(katom+1<=natom)
+            katom = katom + 1
+            kkind = kind_of(katom)
+            lc_max => basis_parameter(kkind)%lmax
+            lc_min => basis_parameter(kkind)%lmin
+            npgfc => basis_parameter(kkind)%npgf
+            nsetc = basis_parameter(kkind)%nset
+            zetc => basis_parameter(kkind)%zet
+            nsgfc => basis_parameter(kkind)%nsgf
+            first_sgfc => basis_parameter(kkind)%first_sgf
+            sphi_c => basis_parameter(kkind)%sphi
+            nsgfc_total = basis_parameter(kkind)%nsgf_total
             rc=particle_set(katom)%r(:)
             k_atom = atom_of_kind(katom)
-            kkind = kind_of(katom)
             pc1 = last_sgf_global(katom) - nsgfc_total
             forces_map(3,1) = kkind
             forces_map(3,2) = k_atom
             IF(first_l_loop) THEN
-                  latom=my_lstart-1
-               ELSE
-                  latom = katom-1
-               END IF
-               DO WHILE(latom+1<=natom)
-                latom = latom + 1
-   
+              latom=my_lstart-1
+            ELSE
+              latom = katom-1
+            END IF
+            DO WHILE(latom+1<=natom)
+              latom = latom + 1
+ 
               !All four centers equivalent => zero-contribution
               IF((iatom==jatom .AND. iatom==katom .AND. iatom==latom)) CYCLE 
               IF (screen_atom(iatom,jatom) * screen_atom(katom,latom) < eps_schwarz) CYCLE
@@ -2227,35 +2191,30 @@ MODULE four_center_integrals
                         qs_env%x_data%is_assoc_atomic_block(iatom,katom)>=1 .AND. &
                         qs_env%x_data%is_assoc_atomic_block(jatom,katom)>=1 .AND. &
                         qs_env%x_data%is_assoc_atomic_block(jatom,latom)>=1 ) ) CYCLE
-  
+
               IF(katom+latom<=iatom+jatom)  THEN
                 IF( ((iatom+jatom).EQ.(katom+latom) ) .AND.(katom<iatom)) CYCLE
-  
+
                 my_current_counter = my_current_counter + 1
-                   IF(my_current_counter > qs_env%x_data%distribution_forces(bin)%number_of_integrals) THEN
-                     first_j_loop = .TRUE.
-                     first_l_loop = .TRUE.
-                     first_k_loop = .TRUE.
-                     CYCLE outer
-                   END IF
-  
-                atom_kind => particle_set(latom)%atomic_kind
-                CALL get_atomic_kind(atomic_kind=atom_kind,&
-                                     orb_basis_set=orb_basis_d)
-                CALL get_gto_basis_set(gto_basis_set=orb_basis_d,&
-                                       lmax=ld_max,&
-                                       lmin=ld_min,&
-                                       npgf=npgfd,&
-                                       nset=nsetd,&
-                                       zet=zetd,&
-                                       nsgf_set=nsgfd,&
-                                       ncgf_set=ncgfd,&
-                                       first_sgf=first_sgfd,&
-                                       sphi=sphi_d,&
-                                       nsgf=nsgfd_total)
+                IF(my_current_counter > qs_env%x_data%distribution_forces(bin)%number_of_integrals) THEN
+                  first_j_loop = .TRUE.
+                  first_l_loop = .TRUE.
+                  first_k_loop = .TRUE.
+                  CYCLE outer
+                END IF
+                lkind = kind_of(latom)
+                ld_max => basis_parameter(lkind)%lmax
+                ld_min => basis_parameter(lkind)%lmin
+                npgfd => basis_parameter(lkind)%npgf
+                nsetd = basis_parameter(lkind)%nset
+                zetd => basis_parameter(lkind)%zet
+                nsgfd => basis_parameter(lkind)%nsgf
+                first_sgfd => basis_parameter(lkind)%first_sgf
+                sphi_d => basis_parameter(lkind)%sphi
+                nsgfd_total = basis_parameter(lkind)%nsgf_total
 
                 rd=particle_set(latom)%r(:)
-              
+            
                 l_atom = atom_of_kind(latom)
                 lkind = kind_of(latom)
                 pd1 = last_sgf_global(latom) - nsgfd_total
@@ -2277,7 +2236,7 @@ MODULE four_center_integrals
   
                 symm_fac = 1.0_dp/symm_fac
                 fac = fac * symm_fac             
-  
+ 
                 DO iset = 1, nseta
                   ncoa = npgfa(iset)*ncoset(la_max(iset))
                   sgfa = first_sgfa(1,iset)
@@ -2324,9 +2283,9 @@ MODULE four_center_integrals
                             CASE(do_hf_potential_coulomb)
                               Kbox = qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%K * &
                                      qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%K
-                              max_val2 = 1.0_dp/Rbox*Kbox* &
-                                         2.0_dp*MAX(pmax_set(iset,kset,iatom,katom) * pmax_set(jset,lset,jatom,latom),&
-                                         pmax_set(iset,lset,iatom,latom) * pmax_set(kset,jset,katom,jatom))
+                               max_val2 = 1.0_dp/Rbox*Kbox* &
+                                        2.0_dp*MAX(pmax_set(iset,kset,iatom,katom) * pmax_set(jset,lset,jatom,latom),&
+                                          pmax_set(iset,lset,iatom,latom) * pmax_set(kset,jset,katom,jatom))
                            CASE(do_hf_potential_short)
                               omega_box = qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%alphaInv + &
                                           qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%alphaInv + &
@@ -2377,8 +2336,8 @@ MODULE four_center_integrals
                                                 qs_env%x_data%neighbor_cells, screen_periodic(:,iset,jset,iatom,jatom),&
                                                 screen_periodic(:,kset,lset,katom,latom), eps_schwarz, &
                                                 max_contraction_val, cartesian_estimate, error)
-                        END IF
- 
+                        END IF 
+
                         IF(cartesian_estimate<eps_schwarz) CYCLE
                         DO coord = 1,12
                           T2 => primitive_forces((coord-1)*ncoa*ncob*ncoc*ncod+1:coord*ncoa*ncob*ncoc*ncod)
@@ -2405,7 +2364,7 @@ MODULE four_center_integrals
                                      0.0_dp, T2(1),&
                                      nsgfa(iset)*nsgfb(jset)*nsgfc(kset))
   
-  
+ 
                           p_index = 0
                           DO md = 1,nsgfd(lset)
                             pd2 = md+sgfd-1
@@ -2438,12 +2397,11 @@ MODULE four_center_integrals
                                           forces_map((coord-1)/3 + 1,2)) - &
                                     temp2 * T2(p_index)
                                   END IF 
-                                END DO
-                              END DO !ma
-                            END DO !mb
-                          END DO !mc
-                        END DO !md
-    
+                                END DO !ma
+                              END DO !mb
+                            END DO !mc
+                          END DO !md
+                        END DO !coord
                       END DO !lset
                     END DO !ksetm
                   END DO !jset
@@ -2683,7 +2641,7 @@ MODULE four_center_integrals
 !!****************************************************************************
 
   SUBROUTINE comp_screen_mat_per(screen_set, screen_atom, screen_max,screen_periodic,particle_set,&
-                                 atomic_kind_set,potential_parameter, read_from_memory, buffer,&
+                                 atomic_kind_set,potential_parameter, read_from_memory, kind_of, basis_parameter, buffer,&
                                  neighbor_cells, box_size, error)
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: screen_set
     REAL(dp), DIMENSION(:, :), POINTER       :: screen_atom
@@ -2696,6 +2654,9 @@ MODULE four_center_integrals
       POINTER                                :: atomic_kind_set
     TYPE(x_hf_potential_type)                :: potential_parameter
     LOGICAL                                  :: read_from_memory
+    INTEGER                                  :: kind_of(*)
+    TYPE(x_hf_basis_type), DIMENSION(:), &
+      POINTER                                :: basis_parameter
     REAL(dp), DIMENSION(:, :, :, :, :), &
       OPTIONAL, POINTER                      :: buffer
     TYPE(x_hf_cell_type), DIMENSION(:), &
@@ -2706,9 +2667,10 @@ MODULE four_center_integrals
     CHARACTER(LEN=*), PARAMETER :: routineN = 'comp_screen_mat_per', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, jatom, jset, k, &
-                                                katom, kset, max_set, natom, &
-                                                ncob, nsetb, nsetc, sgfb, stat
+    INTEGER                                  :: handle, jatom, jkind, jset, &
+                                                k, katom, kkind, kset, &
+                                                max_set, natom, ncob, nsetb, &
+                                                nsetc, sgfb, stat
     INTEGER, DIMENSION(:), POINTER           :: lb_max, lb_min, lc_max, &
                                                 lc_min, npgfb, npgfc, nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfb
@@ -2717,8 +2679,6 @@ MODULE four_center_integrals
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: max_val
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: contraction_max
     REAL(dp), DIMENSION(:, :), POINTER       :: sphi_b, zetb, zetc
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_b, orb_basis_c
 
     CALL timeset(routineN,handle)
 
@@ -2743,17 +2703,13 @@ MODULE four_center_integrals
     max_val = 0.0_dp
     
     DO jatom=1,natom
-
-      atom_kind => particle_set(jatom)%atomic_kind
-      CALL get_atomic_kind(atomic_kind=atom_kind,&
-                           orb_basis_set=orb_basis_b)
-      CALL get_gto_basis_set(gto_basis_set=orb_basis_b,&
-                             lmax=lb_max,&
-                             npgf=npgfb,&
-                             nset=nsetb,&
-                             first_sgf=first_sgfb,&
-                             sphi=sphi_b,&
-                             nsgf_set=nsgfb)
+      jkind = kind_of(jatom)
+      lb_max => basis_parameter(jkind)%lmax
+      npgfb => basis_parameter(jkind)%npgf
+      nsetb = basis_parameter(jkind)%nset
+      first_sgfb => basis_parameter(jkind)%first_sgf
+      sphi_b => basis_parameter(jkind)%sphi
+      nsgfb => basis_parameter(jkind)%nsgf 
       DO jset = 1,nsetb
         ! takes the primitive to contracted transformation into account
         ncob = npgfb(jset)*ncoset(lb_max(jset))
@@ -2765,27 +2721,20 @@ MODULE four_center_integrals
     ENDDO
 
     DO jatom=1,natom
-
-      atom_kind => particle_set(jatom)%atomic_kind
-      CALL get_atomic_kind(atomic_kind=atom_kind,&
-                           orb_basis_set=orb_basis_b)
-      CALL get_gto_basis_set(gto_basis_set=orb_basis_b,&
-                             lmax=lb_max,&
-                             lmin=lb_min,&
-                             npgf=npgfb,&
-                             nset=nsetb,&
-                             zet=zetb)
+      jkind = kind_of(jatom)
+      lb_max => basis_parameter(jkind)%lmax
+      lb_min => basis_parameter(jkind)%lmin
+      npgfb => basis_parameter(jkind)%npgf
+      nsetb = basis_parameter(jkind)%nset
+      zetb => basis_parameter(jkind)%zet
       rb=particle_set(jatom)%r(:)
       DO katom = jatom,natom
-        atom_kind => particle_set(katom)%atomic_kind
-        CALL get_atomic_kind(atomic_kind=atom_kind,&
-                             orb_basis_set=orb_basis_c)
-        CALL get_gto_basis_set(gto_basis_set=orb_basis_c,&
-                               lmax=lc_max,&
-                               lmin=lc_min,&
-                               npgf=npgfc,&
-                               nset=nsetc,&
-                               zet=zetc)
+        kkind = kind_of(katom)
+        lc_max => basis_parameter(kkind)%lmax
+        lc_min => basis_parameter(kkind)%lmin
+        npgfc => basis_parameter(kkind)%npgf
+        nsetc = basis_parameter(kkind)%nset
+        zetc => basis_parameter(kkind)%zet
         rc=particle_set(katom)%r(:)
         DO jset = 1,nsetb
           p2s_b = contraction_max(jset,jatom)
@@ -3087,7 +3036,8 @@ MODULE four_center_integrals
 !!
 !!****************************************************************************
  
-  SUBROUTINE screen_farfield(boxes, particle_set, atomic_kind_set, potential_parameter, error)
+  SUBROUTINE screen_farfield(boxes, particle_set, atomic_kind_set, potential_parameter, &
+                             kind_of, basis_parameter, error)
     TYPE(x_hf_box_scheme), DIMENSION(:, :), &
       POINTER                                :: boxes
     TYPE(particle_type), DIMENSION(:), &
@@ -3095,13 +3045,16 @@ MODULE four_center_integrals
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(x_hf_potential_type)                :: potential_parameter
+    INTEGER                                  :: kind_of(*)
+    TYPE(x_hf_basis_type), DIMENSION(:), &
+      POINTER                                :: basis_parameter
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'screen_farfield', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, jatom, jpgf, jset, k, katom, kpgf, kset, max_set, &
-      natom, ncob, nsetb, nsetc, pgf_radius, sgfb, stat
+    INTEGER :: handle, jatom, jkind, jpgf, jset, k, katom, kkind, kpgf, kset, &
+      max_set, natom, ncob, nsetb, nsetc, sgfb, stat
     INTEGER(int_8)                           :: box_idx1, box_idx2
     INTEGER, DIMENSION(:), POINTER           :: lb_max, lb_min, lc_max, &
                                                 lc_min, npgfb, npgfc, nsgfb
@@ -3111,10 +3064,7 @@ MODULE four_center_integrals
       py_min, pz_max, pz_min, R_max, rb(3), Rbc, rbc2, rc(3), rp(3), &
       system_size(3), x_max, x_min, y_max, y_min, z_max, z_min, zet1, zet2
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: contraction_max
-    REAL(dp), DIMENSION(:, :), POINTER       :: rpgfb, rpgfc, sphi_b, zetb, &
-                                                zetc
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_b, orb_basis_c
+    REAL(dp), DIMENSION(:, :), POINTER       :: sphi_b, zetb, zetc
 
     CALL timeset(routineN,handle)
 
@@ -3158,16 +3108,13 @@ MODULE four_center_integrals
     boxes(:,:)%R = -HUGE(Rbc)
     boxes(:,:)%alphaInv = HUGE(alpha)
     DO jatom=1,natom
-      atom_kind => particle_set(jatom)%atomic_kind
-      CALL get_atomic_kind(atomic_kind=atom_kind,&
-                           orb_basis_set=orb_basis_b)
-      CALL get_gto_basis_set(gto_basis_set=orb_basis_b,&
-                             lmax=lb_max,&
-                             npgf=npgfb,&
-                             nset=nsetb,&
-                             first_sgf=first_sgfb,&
-                             sphi=sphi_b,&
-                             nsgf_set=nsgfb)
+      jkind = kind_of(jatom)
+      lb_max => basis_parameter(jkind)%lmax
+      npgfb => basis_parameter(jkind)%npgf
+      nsetb = basis_parameter(jkind)%nset
+      first_sgfb => basis_parameter(jkind)%first_sgf
+      sphi_b => basis_parameter(jkind)%sphi
+      nsgfb => basis_parameter(jkind)%nsgf
       DO jset = 1,nsetb
         ! takes the primitive to contracted transformation into account
         ncob = npgfb(jset)*ncoset(lb_max(jset))
@@ -3179,28 +3126,20 @@ MODULE four_center_integrals
     ENDDO
 
     DO jatom=1,natom
-      atom_kind => particle_set(jatom)%atomic_kind
-      CALL get_atomic_kind(atomic_kind=atom_kind,&
-                           orb_basis_set=orb_basis_b)
-      CALL get_gto_basis_set(gto_basis_set=orb_basis_b,&
-                             lmax=lb_max,&
-                             lmin=lb_min,&
-                             npgf=npgfb,&
-                             nset=nsetb,&
-                             pgf_radius=rpgfb,&
-                             zet=zetb)
+      jkind = kind_of(jatom)
+      lb_max => basis_parameter(jkind)%lmax
+      lb_min => basis_parameter(jkind)%lmin
+      npgfb => basis_parameter(jkind)%npgf
+      nsetb = basis_parameter(jkind)%nset
+      zetb => basis_parameter(jkind)%zet
       rb=particle_set(jatom)%r(:)
       DO katom = 1,natom
-        atom_kind => particle_set(katom)%atomic_kind
-        CALL get_atomic_kind(atomic_kind=atom_kind,&
-                             orb_basis_set=orb_basis_c)
-        CALL get_gto_basis_set(gto_basis_set=orb_basis_c,&
-                               lmax=lc_max,&
-                               lmin=lc_min,&
-                               npgf=npgfc,&
-                               nset=nsetc,&
-                               pgf_radius=rpgfc,&
-                               zet=zetc)
+        kkind = kind_of(katom)
+        lc_max => basis_parameter(kkind)%lmax
+        lc_min => basis_parameter(kkind)%lmin
+        npgfc => basis_parameter(kkind)%npgf
+        nsetc = basis_parameter(kkind)%nset
+        zetc => basis_parameter(kkind)%zet
         rc=particle_set(katom)%r(:)
         rbc2 = (rb(1)-rc(1))**2+(rb(2)-rc(2))**2+(rb(3)-rc(3))**2
         box_idx1 = (jatom-1)*natom + katom 
@@ -3293,7 +3232,7 @@ MODULE four_center_integrals
 !!****************************************************************************
  
   SUBROUTINE screen_farfield_per(boxes, particle_set, atomic_kind_set, potential_parameter, &
-                                 neighbor_cells, box_size, error)
+                                 neighbor_cells, box_size, kind_of, basis_parameter, error)
     TYPE(x_hf_box_scheme), DIMENSION(:, :), &
       POINTER                                :: boxes
     TYPE(particle_type), DIMENSION(:), &
@@ -3304,15 +3243,16 @@ MODULE four_center_integrals
     TYPE(x_hf_cell_type), DIMENSION(:), &
       POINTER                                :: neighbor_cells
     REAL(dp), INTENT(IN)                     :: box_size(3)
+    INTEGER                                  :: kind_of(*)
+    TYPE(x_hf_basis_type), DIMENSION(:), &
+      POINTER                                :: basis_parameter
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'screen_farfield_per', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, jatom, jpgf, jset, &
-                                                k, katom, kpgf, kset, &
-                                                max_set, natom, ncob, nsetb, &
-                                                nsetc, sgfb, stat
+    INTEGER :: handle, i, jatom, jkind, jpgf, jset, k, katom, kkind, kpgf, &
+      kset, max_set, natom, ncob, nsetb, nsetc, sgfb, stat
     INTEGER(int_8)                           :: box_idx1, box_idx2
     INTEGER, DIMENSION(:), POINTER           :: lb_max, lb_min, lc_max, &
                                                 lc_min, npgfb, npgfc, nsgfb
@@ -3322,10 +3262,7 @@ MODULE four_center_integrals
       px_max, px_min, py_max, py_min, pz_max, pz_min, R_max, rb(3), Rbc, &
       rbc2, rc(3), rp(3), temp(3), zet1, zet2
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: contraction_max
-    REAL(dp), DIMENSION(:, :), POINTER       :: rpgfb, rpgfc, sphi_b, zetb, &
-                                                zetc
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_b, orb_basis_c
+    REAL(dp), DIMENSION(:, :), POINTER       :: sphi_b, zetb, zetc
 
     CALL timeset(routineN,handle)
 
@@ -3350,16 +3287,13 @@ MODULE four_center_integrals
     boxes(:,:)%R = -HUGE(Rbc)
     boxes(:,:)%alphaInv = HUGE(alpha)
     DO jatom=1,natom
-      atom_kind => particle_set(jatom)%atomic_kind
-      CALL get_atomic_kind(atomic_kind=atom_kind,&
-                           orb_basis_set=orb_basis_b)
-      CALL get_gto_basis_set(gto_basis_set=orb_basis_b,&
-                             lmax=lb_max,&
-                             npgf=npgfb,&
-                             nset=nsetb,&
-                             first_sgf=first_sgfb,&
-                             sphi=sphi_b,&
-                             nsgf_set=nsgfb)
+      jkind = kind_of(jatom)
+      lb_max => basis_parameter(jkind)%lmax
+      npgfb => basis_parameter(jkind)%npgf
+      nsetb = basis_parameter(jkind)%nset
+      first_sgfb => basis_parameter(jkind)%first_sgf
+      sphi_b => basis_parameter(jkind)%sphi
+      nsgfb => basis_parameter(jkind)%nsgf
       DO jset = 1,nsetb
         ! takes the primitive to contracted transformation into account
         ncob = npgfb(jset)*ncoset(lb_max(jset))
@@ -3371,28 +3305,20 @@ MODULE four_center_integrals
     ENDDO
 
     DO jatom=1,natom
-      atom_kind => particle_set(jatom)%atomic_kind
-      CALL get_atomic_kind(atomic_kind=atom_kind,&
-                           orb_basis_set=orb_basis_b)
-      CALL get_gto_basis_set(gto_basis_set=orb_basis_b,&
-                             lmax=lb_max,&
-                             lmin=lb_min,&
-                             npgf=npgfb,&
-                             nset=nsetb,&
-                             pgf_radius=rpgfb,&
-                             zet=zetb)
+      jkind = kind_of(jatom)
+      lb_max => basis_parameter(jkind)%lmax
+      lb_min => basis_parameter(jkind)%lmin
+      npgfb => basis_parameter(jkind)%npgf
+      nsetb = basis_parameter(jkind)%nset
+      zetb => basis_parameter(jkind)%zet
       rb=particle_set(jatom)%r(:)
       DO katom = 1,natom
-        atom_kind => particle_set(katom)%atomic_kind
-        CALL get_atomic_kind(atomic_kind=atom_kind,&
-                             orb_basis_set=orb_basis_c)
-        CALL get_gto_basis_set(gto_basis_set=orb_basis_c,&
-                               lmax=lc_max,&
-                               lmin=lc_min,&
-                               npgf=npgfc,&
-                               nset=nsetc,&
-                               pgf_radius=rpgfc,&
-                               zet=zetc)
+        kkind = kind_of(katom)
+        lc_max => basis_parameter(kkind)%lmax
+        lc_min => basis_parameter(kkind)%lmin
+        npgfc => basis_parameter(kkind)%npgf
+        nsetc = basis_parameter(kkind)%nset
+        zetc => basis_parameter(kkind)%zet
         rc=particle_set(katom)%r(:)
         box_idx1 = (jatom-1)*natom + katom 
         temp = rc-rb
@@ -3495,7 +3421,7 @@ MODULE four_center_integrals
 !****************************************************************************
   
   SUBROUTINE update_pmax_matrix(pmax_set, &
-              full_density,full_density_beta,particle_set,atomic_kind_set,error)
+              full_density,full_density_beta,particle_set,atomic_kind_set,kind_of,basis_parameter,error)
 
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: pmax_set
     REAL(dp), DIMENSION(:, :), POINTER       :: full_density, &
@@ -3504,20 +3430,21 @@ MODULE four_center_integrals
       POINTER                                :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    INTEGER                                  :: kind_of(*)
+    TYPE(x_hf_basis_type), DIMENSION(:), &
+      POINTER                                :: basis_parameter
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_pmax_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, jatom, jset, katom, kset, max_set, mb, mc, natom, &
-      nsetb, nsetc, nsgfb_total, nsgfc_total, pb, pb1, pb2, pc, pc1, pc2, &
-      sgfb, sgfc, stat
+    INTEGER :: handle, jatom, jkind, jset, katom, kkind, kset, max_set, mb, &
+      mc, natom, nsetb, nsetc, nsgfb_total, nsgfc_total, pb, pb1, pb2, pc, &
+      pc1, pc2, sgfb, sgfc, stat
     INTEGER, DIMENSION(:), POINTER           :: last_sgf_global, nsgfb, nsgfc
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfb, first_sgfc
     LOGICAL                                  :: failure
     REAL(dp)                                 :: pmax_tmp
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_b, orb_basis_c
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
@@ -3530,40 +3457,27 @@ MODULE four_center_integrals
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     last_sgf_global(0)=0
     DO jatom=1,natom
-      atom_kind => particle_set(jatom)%atomic_kind
- 
-      CALL get_atomic_kind(atomic_kind=atom_kind,&
-                           orb_basis_set=orb_basis_b)
-      CALL get_gto_basis_set(gto_basis_set=orb_basis_b,&
-                             nsgf=nsgfb_total)
-      last_sgf_global(jatom) = last_sgf_global(jatom-1)+nsgfb_total
+      jkind = kind_of(jatom)
+      last_sgf_global(jatom) = last_sgf_global(jatom-1)+basis_parameter(jkind)%nsgf_total
     END DO
 
     pmax_set=0.0_dp
 
     DO jatom=1,natom
-
-      atom_kind => particle_set(jatom)%atomic_kind
-      CALL get_atomic_kind(atomic_kind=atom_kind,&
-                           orb_basis_set=orb_basis_b)
-      CALL get_gto_basis_set(gto_basis_set=orb_basis_b,&
-                             nsgf=nsgfb_total,&
-                             nset=nsetb,& 
-                             first_sgf=first_sgfb,&
-                             nsgf_set=nsgfb)
+      jkind = kind_of(jatom)
+      nsgfb_total = basis_parameter(jkind)%nsgf_total
+      nsetb = basis_parameter(jkind)%nset
+      first_sgfb => basis_parameter(jkind)%first_sgf
+      nsgfb => basis_parameter(jkind)%nsgf
       pb1 = last_sgf_global(jatom) - nsgfb_total
 
       DO katom = 1,natom
-        atom_kind => particle_set(katom)%atomic_kind
-        CALL get_atomic_kind(atomic_kind=atom_kind,&
-                             orb_basis_set=orb_basis_c)
-        CALL get_gto_basis_set(gto_basis_set=orb_basis_c,&
-                               nsgf=nsgfc_total,&
-                               nset=nsetc,&
-                               first_sgf=first_sgfc,&
-                               nsgf_set=nsgfc)
+        kkind = kind_of(katom)
+        nsgfc_total = basis_parameter(kkind)%nsgf_total
+        nsetc = basis_parameter(kkind)%nset
+        first_sgfc => basis_parameter(kkind)%first_sgf
+        nsgfc => basis_parameter(kkind)%nsgf
         pc1 = last_sgf_global(katom) - nsgfc_total
-
         DO jset = 1,nsetb
           sgfb = first_sgfb(1,jset)
           DO kset = 1,nsetc
@@ -3787,7 +3701,7 @@ MODULE four_center_integrals
   SUBROUTINE load_balance_energy(x_data, eps_schwarz, eps_box, particle_set,atomic_kind_set,para_env,&
                                  potential_parameter, screen_set, screen_atom, screen_max,&
                                  is_assoc_atomic_block_global,ks_matrix,do_periodic,&
-                                 load_balance_parameter, box_size, error, pmax_set)
+                                 load_balance_parameter, box_size, kind_of, basis_parameter, error, pmax_set)
     TYPE(x_hf_type), POINTER                 :: x_data
     REAL(dp), INTENT(IN)                     :: eps_schwarz, eps_box
     TYPE(particle_type), DIMENSION(:), &
@@ -3805,6 +3719,9 @@ MODULE four_center_integrals
     LOGICAL                                  :: do_periodic
     TYPE(x_hf_load_balance_type)             :: load_balance_parameter
     REAL(dp), INTENT(IN)                     :: box_size(3)
+    INTEGER                                  :: kind_of(*)
+    TYPE(x_hf_basis_type), DIMENSION(:), &
+      POINTER                                :: basis_parameter
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(dp), DIMENSION(:, :, :, :), &
       OPTIONAL, POINTER                      :: pmax_set
@@ -3812,9 +3729,10 @@ MODULE four_center_integrals
     CHARACTER(LEN=*), PARAMETER :: routineN = 'load_balance_energy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, iatom, ibin, icpu, ipos, iset, jatom, jset, katom, &
-      kset, latom, lset, max_set, mepos, natom, nbins, nseta, nsetb, nsetc, &
-      nsetd, pgf_radius_box, radius1, radius2, stat, steps
+    INTEGER :: handle, i, iatom, ibin, icpu, ikind, ipos, iset, jatom, jkind, &
+      jset, katom, kkind, kset, latom, lkind, lset, max_set, mepos, natom, &
+      nbins, nseta, nsetb, nsetc, nsetd, pgf_radius_box, radius1, radius2, &
+      stat, steps
     INTEGER(int_8) :: box_idx1, box_idx2, box_idx3, box_idx4, &
       current_counter, distribution_counter_end, distribution_counter_start, &
       int_per_cpu, ncpu, optimal_cost, restore_counter, tmp_counter1, &
@@ -3823,21 +3741,17 @@ MODULE four_center_integrals
       DIMENSION(:)                           :: optimal_costs
     INTEGER(int_8), DIMENSION(:), POINTER    :: cost_matrix
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_pos
-    INTEGER, DIMENSION(:), POINTER           :: distribution_vector, npgfa, &
-                                                npgfb, npgfc, npgfd, nsgfa, &
+    INTEGER, DIMENSION(:), POINTER           :: distribution_vector, nsgfa, &
                                                 nsgfb, nsgfc, nsgfd
     LOGICAL                                  :: do_p_screening, failure
     REAL(dp) :: center1(3), center2(3), center2_folded(3), &
-      initial_temperature, K, Kbox, max_val1, max_val2, omega_box, &
-      pbc_center(3), R1, R2, ra(3), rb(3), Rbox, rc(3), rd(3), temp(3)
-    REAL(dp), DIMENSION(:, :), POINTER       :: zeta, zetb, zetc, zetd
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis
+      initial_temperature, K, Kbox, max_val1, max_val2, omega2Inv, omega_box, &
+      pbc_center(3), R1, R2, Rbox, temp(3)
     TYPE(x_hf_distribution), DIMENSION(:), &
       POINTER                                :: ptr_to_tmp_dist
     TYPE(x_hf_distribution), &
       DIMENSION(:, :), POINTER               :: binned_dist, full_dist, &
                                                 tmp_dist
-    REAL(dp)                                 :: omega2Inv
 
     do_p_screening = .FALSE.
     IF(PRESENT(pmax_set)) do_p_screening = .TRUE.
@@ -3869,24 +3783,23 @@ MODULE four_center_integrals
       DEALLOCATE(tmp_dist,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ELSE
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
       !! Calculate total numbers of integrals that have to be calculated (wrt screening and symmetry)
       total_integrals = 0
       DO iatom=1,natom
-        CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, orb_basis_set=orb_basis)
-        ra=particle_set(iatom)%r(:)
-        CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nseta, nsgf_set=nsgfa, zet=zeta, npgf=npgfa)
+        ikind = kind_of(iatom)
+        nseta =  basis_parameter(ikind)%nset
+        nsgfa => basis_parameter(ikind)%nsgf
         DO jatom=iatom,natom
           box_idx1 = (iatom-1)*natom+jatom
           IF(MODULO(FNV64(box_idx1),ncpu) /=para_env%mepos) CYCLE 
           IF (screen_atom(iatom,jatom) * screen_max < eps_schwarz) CYCLE
-          CALL get_atomic_kind(atomic_kind=particle_set(jatom)%atomic_kind, orb_basis_set=orb_basis)
-          rb=particle_set(jatom)%r(:)
-          CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nsetb, nsgf_set=nsgfb, zet=zetb, npgf=npgfb)
+          jkind = kind_of(jatom)
+          nsetb =  basis_parameter(jkind)%nset
+          nsgfb => basis_parameter(jkind)%nsgf
           DO katom=1,natom
-            CALL get_atomic_kind(atomic_kind=particle_set(katom)%atomic_kind, orb_basis_set=orb_basis)
-            rc=particle_set(katom)%r(:)
-            CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nsetc, nsgf_set=nsgfc, zet=zetc, npgf=npgfc)
+            kkind = kind_of(katom)
+            nsetc =  basis_parameter(kkind)%nset
+            nsgfc => basis_parameter(kkind)%nsgf
             DO latom=katom,natom
               IF (screen_atom(iatom,jatom) * screen_atom(katom,latom) < eps_schwarz) CYCLE
               IF(.NOT. (is_assoc_atomic_block_global(iatom,latom)  >=1 .AND. &
@@ -3897,11 +3810,10 @@ MODULE four_center_integrals
               IF((katom+latom<=iatom+jatom))  THEN
                 IF( ((iatom+jatom).EQ.(katom+latom) ) .AND.(katom<iatom)) CYCLE
                
-                CALL get_atomic_kind(atomic_kind=particle_set(latom)%atomic_kind, orb_basis_set=orb_basis)
-                rd=particle_set(latom)%r(:)
                 box_idx3 = (katom-1)*natom+latom
-                CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nsetd, nsgf_set=nsgfd, zet=zetd, npgf=npgfd)
-
+                lkind = kind_of(latom)
+                nsetd =  basis_parameter(lkind)%nset
+                nsgfd => basis_parameter(lkind)%nsgf
                 DO iset = 1, nseta
                   DO jset = 1,nsetb
                     max_val1 = screen_set(iset,jset,iatom,jatom)
@@ -3998,20 +3910,21 @@ MODULE four_center_integrals
       distribution_counter_end = 0
       ibin = 1
       DO iatom=1,natom
-        CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, orb_basis_set=orb_basis)
-        ra=particle_set(iatom)%r(:)
-        CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nseta, nsgf_set=nsgfa, zet=zeta, npgf=npgfa)
+        ikind = kind_of(iatom)
+        nseta =  basis_parameter(ikind)%nset
+        nsgfa => basis_parameter(ikind)%nsgf
+
         DO jatom=iatom,natom
           box_idx1 = (iatom-1)*natom+jatom
           IF(MODULO(FNV64(box_idx1),ncpu) /= para_env%mepos) CYCLE
           IF (screen_atom(iatom,jatom) * screen_max < eps_schwarz) CYCLE
-          CALL get_atomic_kind(atomic_kind=particle_set(jatom)%atomic_kind, orb_basis_set=orb_basis)
-          rb=particle_set(jatom)%r(:)
-          CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nsetb, nsgf_set=nsgfb, zet=zetb, npgf=npgfb)
+          jkind = kind_of(jatom)
+          nsetb =  basis_parameter(jkind)%nset
+          nsgfb => basis_parameter(jkind)%nsgf
           DO katom=1,natom
-            CALL get_atomic_kind(atomic_kind=particle_set(katom)%atomic_kind, orb_basis_set=orb_basis)
-            rc=particle_set(katom)%r(:)
-            CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nsetc, nsgf_set=nsgfc, zet=zetc, npgf=npgfc)
+            kkind = kind_of(katom)
+            nsetc =  basis_parameter(kkind)%nset
+            nsgfc => basis_parameter(kkind)%nsgf
             DO latom=katom,natom
               IF (screen_atom(iatom,jatom) * screen_atom(katom,latom) < eps_schwarz) CYCLE
               IF(.NOT. (is_assoc_atomic_block_global(iatom,latom)  >=1 .AND. &
@@ -4028,12 +3941,10 @@ MODULE four_center_integrals
                 IF(binned_dist(1,ibin)%kstart == 0 ) binned_dist(1,ibin)%kstart = katom
                 IF(binned_dist(1,ibin)%lstart == 0 ) binned_dist(1,ibin)%lstart = latom
 
-                CALL get_atomic_kind(atomic_kind=particle_set(latom)%atomic_kind, orb_basis_set=orb_basis)
-                rd=particle_set(latom)%r(:)
                 box_idx3 = (katom-1)*natom+latom
-                CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nsetd, nsgf_set=nsgfd, zet=zetd, npgf=npgfd)
-
-                
+                lkind = kind_of(latom)
+                nsetd =  basis_parameter(lkind)%nset
+                nsgfd => basis_parameter(lkind)%nsgf
                 DO iset = 1, nseta
                   DO jset = 1,nsetb
                     max_val1 = screen_set(iset,jset,iatom,jatom)
@@ -4276,7 +4187,7 @@ MODULE four_center_integrals
   SUBROUTINE load_balance_forces(x_data, eps_schwarz, eps_box, particle_set,atomic_kind_set,para_env,&
                                  potential_parameter, screen_set, screen_atom, screen_max,&
                                  pmax_set, is_assoc_atomic_block_global, ks_matrix, do_periodic, &
-                                 load_balance_parameter, box_size, error)
+                                 load_balance_parameter, box_size, kind_of, basis_parameter, error)
     TYPE(x_hf_type), POINTER                 :: x_data
     REAL(dp), INTENT(IN)                     :: eps_schwarz, eps_box
     TYPE(particle_type), DIMENSION(:), &
@@ -4295,14 +4206,18 @@ MODULE four_center_integrals
     LOGICAL                                  :: do_periodic
     TYPE(x_hf_load_balance_type)             :: load_balance_parameter
     REAL(dp), INTENT(IN)                     :: box_size(3)
+    INTEGER                                  :: kind_of(*)
+    TYPE(x_hf_basis_type), DIMENSION(:), &
+      POINTER                                :: basis_parameter
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'load_balance_forces', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, iatom, ibin, icpu, ipos, iset, jatom, jset, katom, &
-      kset, latom, lset, max_set, mepos, natom, nbins, nseta, nsetb, nsetc, &
-      nsetd, pgf_radius_box, radius1, radius2, stat, steps
+    INTEGER :: handle, i, iatom, ibin, icpu, ikind, ipos, iset, jatom, jkind, &
+      jset, katom, kkind, kset, latom, lkind, lset, max_set, mepos, natom, &
+      nbins, nseta, nsetb, nsetc, nsetd, pgf_radius_box, radius1, radius2, &
+      stat, steps
     INTEGER(int_8) :: box_idx1, box_idx2, box_idx3, box_idx4, &
       current_counter, distribution_counter_end, distribution_counter_start, &
       int_per_cpu, ncpu, optimal_cost, restore_counter, tmp_counter1, &
@@ -4315,16 +4230,13 @@ MODULE four_center_integrals
                                                 nsgfb, nsgfc, nsgfd
     LOGICAL                                  :: failure
     REAL(dp) :: center1(3), center2(3), center2_folded(3), &
-      initial_temperature, Kbox, max_val1, max_val2, omega_box, &
+      initial_temperature, Kbox, max_val1, max_val2, omega2Inv, omega_box, &
       pbc_center(3), R1, R2, Rbox, temp(3)
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(x_hf_distribution), DIMENSION(:), &
       POINTER                                :: ptr_to_tmp_dist
     TYPE(x_hf_distribution), &
       DIMENSION(:, :), POINTER               :: binned_dist, full_dist, &
                                                 tmp_dist
-    REAL(dp)                                 :: omega2Inv
-
 
     IF(potential_parameter%omega /= 0.0_dp) THEN
       omega2Inv = 1.0_dp/(potential_parameter%omega**2)
@@ -4354,18 +4266,21 @@ MODULE four_center_integrals
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxnset=max_set)
       total_integrals = 0
       DO iatom=1,natom
-        CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, orb_basis_set=orb_basis)
-        CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nseta, nsgf_set=nsgfa)
+        ikind = kind_of(iatom)
+        nseta =  basis_parameter(ikind)%nset
+        nsgfa => basis_parameter(ikind)%nsgf
         DO jatom=iatom,natom 
           box_idx1 = (iatom-1)*natom+jatom
           IF(MODULO(FNV64(box_idx1),ncpu) /= para_env%mepos) CYCLE
           IF (screen_atom(iatom,jatom) * screen_max < eps_schwarz) CYCLE
-          CALL get_atomic_kind(atomic_kind=particle_set(jatom)%atomic_kind, orb_basis_set=orb_basis)
-          CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nsetb, nsgf_set=nsgfb)
+          jkind = kind_of(jatom)
+          nsetb =  basis_parameter(jkind)%nset
+          nsgfb => basis_parameter(jkind)%nsgf
           box_idx1 = (iatom-1)*natom+jatom
           DO katom=1,natom
-            CALL get_atomic_kind(atomic_kind=particle_set(katom)%atomic_kind, orb_basis_set=orb_basis)
-            CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nsetc, nsgf_set=nsgfc)
+            kkind = kind_of(katom)
+            nsetc =  basis_parameter(kkind)%nset
+            nsgfc => basis_parameter(kkind)%nsgf
             DO latom=katom,natom
               !All four centers equivalent => zero-contribution
               IF((iatom==jatom .AND. iatom==katom .AND. iatom==latom)) CYCLE
@@ -4378,9 +4293,9 @@ MODULE four_center_integrals
 
               IF((katom+latom<=iatom+jatom))  THEN
                 IF( ((iatom+jatom).EQ.(katom+latom) ) .AND.(katom<iatom)) CYCLE
-              
-                CALL get_atomic_kind(atomic_kind=particle_set(latom)%atomic_kind, orb_basis_set=orb_basis)
-                CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nsetd, nsgf_set=nsgfd)
+                lkind = kind_of(latom)
+                nsetd =  basis_parameter(lkind)%nset
+                nsgfd => basis_parameter(lkind)%nsgf
                 box_idx3 = (katom-1)*natom+latom
 
                 DO iset = 1, nseta
@@ -4468,18 +4383,21 @@ MODULE four_center_integrals
       distribution_counter_end = 0
       ibin = 1
       DO iatom=1,natom
-        CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, orb_basis_set=orb_basis)
-        CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nseta, nsgf_set=nsgfa)
+        ikind = kind_of(iatom)
+        nseta =  basis_parameter(ikind)%nset
+        nsgfa => basis_parameter(ikind)%nsgf
         DO jatom=iatom,natom
           box_idx1 = (iatom-1)*natom+jatom
           IF(MODULO(FNV64(box_idx1),ncpu) /= para_env%mepos) CYCLE
           IF (screen_atom(iatom,jatom) * screen_max < eps_schwarz) CYCLE
-          CALL get_atomic_kind(atomic_kind=particle_set(jatom)%atomic_kind, orb_basis_set=orb_basis)
-          CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nsetb, nsgf_set=nsgfb)
+          jkind = kind_of(jatom)
+          nsetb =  basis_parameter(jkind)%nset
+          nsgfb => basis_parameter(jkind)%nsgf
           box_idx1 = (iatom-1)*natom+jatom
           DO katom=1,natom
-            CALL get_atomic_kind(atomic_kind=particle_set(katom)%atomic_kind, orb_basis_set=orb_basis)
-            CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nsetc, nsgf_set=nsgfc)
+            kkind = kind_of(katom)
+            nsetc =  basis_parameter(kkind)%nset
+            nsgfc => basis_parameter(kkind)%nsgf
             DO latom=katom,natom
               !All four centers equivalent => zero-contribution
               IF((iatom==jatom .AND. iatom==katom .AND. iatom==latom)) CYCLE
@@ -4498,11 +4416,11 @@ MODULE four_center_integrals
                 IF(binned_dist(1,ibin)%jstart == 0 ) binned_dist(1,ibin)%jstart = jatom
                 IF(binned_dist(1,ibin)%kstart == 0 ) binned_dist(1,ibin)%kstart = katom
                 IF(binned_dist(1,ibin)%lstart == 0 ) binned_dist(1,ibin)%lstart = latom
-
-                CALL get_atomic_kind(atomic_kind=particle_set(latom)%atomic_kind, orb_basis_set=orb_basis)
-                CALL get_gto_basis_set(gto_basis_set=orb_basis, nset=nsetd, nsgf_set=nsgfd)
+                
+                lkind = kind_of(latom)
+                nsetd =  basis_parameter(lkind)%nset
+                nsgfd => basis_parameter(lkind)%nsgf
                 box_idx3 = (katom-1)*natom+latom
-
                 DO iset = 1, nseta
                   DO jset = 1,nsetb
                    max_val1 = screen_set(iset,jset,iatom,jatom)
@@ -4730,7 +4648,7 @@ MODULE four_center_integrals
 !!****************************************************************************
 
   SUBROUTINE get_full_density(para_env, full_density, rho, number_of_p_entries, is_assoc_atomic_block,&
-                              particle_set, natom, last_sgf_global, error)
+                              particle_set, natom, last_sgf_global, kind_of, basis_parameter, error)
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(dp), DIMENSION(:, :), POINTER       :: full_density
@@ -4740,20 +4658,21 @@ MODULE four_center_integrals
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     INTEGER, INTENT(IN)                      :: natom
-    INTEGER                                  :: last_sgf_global(0:natom)
+    INTEGER                                  :: last_sgf_global(0:natom), &
+                                                kind_of(*)
+    TYPE(x_hf_basis_type), DIMENSION(:), &
+      POINTER                                :: basis_parameter
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_full_density', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: data_from, dest, i, iatom, icpu, istat, jatom, mepos, ncol, &
-      ncpu, nrow, nsgfa_total, nsgfb_total, pa, pa1, pb, pb1, req(2), source
+    INTEGER :: data_from, dest, i, iatom, icpu, ikind, istat, jatom, jkind, &
+      mepos, ncol, ncpu, nrow, pa, pa1, pb, pb1, req(2), source
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:), POINTER          :: recbuffer, sendbuffer, &
                                                 swapbuffer
     REAL(dp), DIMENSION(:, :), POINTER       :: sparse_block
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_a, orb_basis_b
     TYPE(real_block_node_type), POINTER      :: block_node
 
     failure = .FALSE.
@@ -4798,22 +4717,14 @@ MODULE four_center_integrals
       i = 1
       data_from = MODULO(mepos - icpu,ncpu)
       DO iatom=1,natom
-        atom_kind => particle_set(iatom)%atomic_kind
-        CALL get_atomic_kind(atomic_kind=atom_kind,&
-                             orb_basis_set=orb_basis_a)
-        CALL get_gto_basis_set(gto_basis_set=orb_basis_a,&
-                               nsgf=nsgfa_total)
-        pa1 = last_sgf_global(iatom) - nsgfa_total
+        ikind = kind_of(iatom)
+        pa1 = last_sgf_global(iatom) - basis_parameter(ikind)%nsgf_total
         DO jatom=iatom,natom
-          atom_kind => particle_set(jatom)%atomic_kind
-          CALL get_atomic_kind(atomic_kind=atom_kind,&
-                               orb_basis_set=orb_basis_b)
-          CALL get_gto_basis_set(gto_basis_set=orb_basis_b,&
-                                 nsgf=nsgfb_total)
-          pb1 = last_sgf_global(jatom) - nsgfb_total
+          jkind =kind_of(jatom)
+          pb1 = last_sgf_global(jatom) - basis_parameter(jkind)%nsgf_total
           IF(is_assoc_atomic_block(iatom,jatom)-1 == MODULO(data_from,ncpu)) THEN
-            DO pb = pb1+1, pb1+nsgfb_total
-              DO pa = pa1+1,pa1+nsgfa_total
+            DO pb = pb1+1, pb1+ basis_parameter(jkind)%nsgf_total 
+              DO pa = pa1+1,pa1+ basis_parameter(ikind)%nsgf_total
                 full_density(pa,pb) = sendbuffer(i)
                 i = i + 1
               END DO
@@ -4829,7 +4740,7 @@ MODULE four_center_integrals
       recbuffer=>swapbuffer
     ENDDO
     CALL symmetrize_matrix(full_density,"upper_to_lower")
-    DEALLOCATE(sendbuffer, recbuffer,STAT=istat)
+    DEALLOCATE(sendbuffer, recbuffer, STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE get_full_density
@@ -4867,7 +4778,7 @@ MODULE four_center_integrals
 !!****************************************************************************
 
   SUBROUTINE distribute_ks_matrix(para_env, full_ks, ks_matrix, number_of_p_entries, is_assoc_atomic_block,&
-                                  particle_set, natom, last_sgf_global, error)
+                                  particle_set, natom, last_sgf_global, kind_of, basis_parameter, error)
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(dp), DIMENSION(:, :)                :: full_ks
@@ -4877,20 +4788,23 @@ MODULE four_center_integrals
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     INTEGER, INTENT(IN)                      :: natom
-    INTEGER                                  :: last_sgf_global(0:natom)
+    INTEGER                                  :: last_sgf_global(0:natom), &
+                                                kind_of(*)
+    TYPE(x_hf_basis_type), DIMENSION(:), &
+      POINTER                                :: basis_parameter
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'distribute_ks_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: data_to, dest, i, iatom, icpu, istat, jatom, mepos, ncpu, &
-      nsgfa_total, nsgfb_total, pa, pa1, pb, pb1, req(2), source
+    INTEGER                                  :: data_to, dest, i, iatom, &
+                                                icpu, ikind, istat, jatom, &
+                                                jkind, mepos, ncpu, pa, pa1, &
+                                                pb, pb1, req(2), source
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:), POINTER          :: recbuffer, sendbuffer, &
                                                 swapbuffer
     REAL(dp), DIMENSION(:, :), POINTER       :: sparse_block
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_a, orb_basis_b
     TYPE(real_block_node_type), POINTER      :: block_node
 
     ALLOCATE(sendbuffer(number_of_p_entries), STAT=istat)
@@ -4909,23 +4823,14 @@ MODULE four_center_integrals
       i = 1
       data_to = mepos-icpu
       DO iatom=1,natom
-        atom_kind => particle_set(iatom)%atomic_kind
-        CALL get_atomic_kind(atomic_kind=atom_kind,&
-                             orb_basis_set=orb_basis_a)
-        CALL get_gto_basis_set(gto_basis_set=orb_basis_a,&
-                             nsgf=nsgfa_total)
-        pa1 = last_sgf_global(iatom) - nsgfa_total
+        ikind = kind_of(iatom)
+        pa1 = last_sgf_global(iatom) - basis_parameter(ikind)%nsgf_total
         DO jatom=iatom,natom
-          atom_kind => particle_set(jatom)%atomic_kind
-          CALL get_atomic_kind(atomic_kind=atom_kind,&
-                               orb_basis_set=orb_basis_b)
-          CALL get_gto_basis_set(gto_basis_set=orb_basis_b,&
-                                 nsgf=nsgfb_total)
-
-          pb1 = last_sgf_global(jatom) - nsgfb_total
+          jkind = kind_of(jatom)
+          pb1 = last_sgf_global(jatom) - basis_parameter(jkind)%nsgf_total
           IF(is_assoc_atomic_block(iatom,jatom)-1 == MODULO(data_to,ncpu)) THEN
-            DO pb=pb1+1,pb1+nsgfb_total
-              DO pa=pa1+1,pa1+nsgfa_total
+            DO pb=pb1+1,pb1+ basis_parameter(jkind)%nsgf_total
+              DO pa=pa1+1,pa1+ basis_parameter(ikind)%nsgf_total
                 sendbuffer(i) = sendbuffer(i) + full_ks(pa,pb)
                 i = i+1
               END DO
@@ -4945,26 +4850,18 @@ MODULE four_center_integrals
 
     i = 1
     DO iatom=1,ks_matrix%nblock_row
+      ikind = kind_of(iatom)
       block_node => first_block_node(ks_matrix,iatom)
       IF (.NOT. ASSOCIATED(block_node)) CYCLE
-      atom_kind => particle_set(iatom)%atomic_kind
-      CALL get_atomic_kind(atomic_kind=atom_kind,&
-                           orb_basis_set=orb_basis_a)
-      CALL get_gto_basis_set(gto_basis_set=orb_basis_a,&
-                             nsgf=nsgfa_total)
-      pa1 = last_sgf_global(iatom) - nsgfa_total
+      pa1 = last_sgf_global(iatom) - basis_parameter(ikind)%nsgf_total 
       block_node => first_block_node(ks_matrix,iatom)
       DO WHILE (ASSOCIATED(block_node))
         CALL get_block_node(block_node=block_node,&
                             block_col=jatom,&
                             BLOCK=sparse_block)
         block_node => next_block_node(block_node)
-        atom_kind => particle_set(jatom)%atomic_kind
-        CALL get_atomic_kind(atomic_kind=atom_kind,&
-                             orb_basis_set=orb_basis_b)
-        CALL get_gto_basis_set(gto_basis_set=orb_basis_b,&
-                               nsgf=nsgfb_total)
-        pb1 = last_sgf_global(jatom) - nsgfb_total
+        jkind = kind_of(jatom)
+        pb1 = last_sgf_global(jatom) - basis_parameter(jkind)%nsgf_total
         DO pb = 1,SIZE(sparse_block,2)
           DO pa = 1,SIZE(sparse_block,1)
             sparse_block(pa,pb) = sendbuffer(i)
@@ -4974,7 +4871,7 @@ MODULE four_center_integrals
       END DO
     END DO
     
-    DEALLOCATE(sendbuffer, recbuffer,STAT=istat)
+    DEALLOCATE(sendbuffer, recbuffer, STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
             
   END SUBROUTINE distribute_ks_matrix

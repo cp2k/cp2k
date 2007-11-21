@@ -21,12 +21,17 @@
 !!
 !****************************************************************************
 MODULE x_hf   
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
+  USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                             gto_basis_set_type
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp,&
                                              int_8
+  USE particle_types,                  ONLY: particle_type
   USE x_hf_compression_methods,        ONLY: bits2ints_specific,&
                                              ints2bits_specific
 #include "cp_common_uses.h"
@@ -44,7 +49,7 @@ MODULE x_hf
           x_hf_add_single_cache_element, x_hf_get_single_cache_element,&
           x_hf_reset_cache_and_container, x_hf_decompress_first_cache, &
           x_hf_flush_last_cache, x_hf_get_memory_info, x_hf_add_mult_cache_elements,&
-          x_hf_get_mult_cache_elements, x_hf_init_container
+          x_hf_get_mult_cache_elements, x_hf_init_container, x_hf_basis_type
 
 #define CACHE_SIZE 1024
 
@@ -139,6 +144,17 @@ MODULE x_hf
     INTEGER                                  :: list_counter
   END TYPE
 
+  TYPE x_hf_basis_type
+    INTEGER, DIMENSION(:), POINTER           :: lmax
+    INTEGER, DIMENSION(:), POINTER           :: lmin
+    INTEGER, DIMENSION(:), POINTER           :: npgf
+    INTEGER                                  :: nset
+    REAL(dp), DIMENSION(:,:), POINTER        :: zet
+    INTEGER, DIMENSION(:), POINTER           :: nsgf
+    INTEGER, DIMENSION(:,:), POINTER         :: first_sgf
+    REAL(dp), DIMENSION(:,:), POINTER        :: sphi
+    INTEGER                                  :: nsgf_total
+  END TYPE
 
 !!***** x_hf/x_hf_type [1.0] *
 !!
@@ -208,6 +224,8 @@ MODULE x_hf
                                              :: initial_p
     INTEGER, DIMENSION(:,:), POINTER         :: is_assoc_atomic_block
     INTEGER                                  :: number_of_p_entries
+    TYPE(x_hf_basis_type), DIMENSION(:), &
+                           POINTER           :: basis_parameter
   END TYPE
 
   CONTAINS
@@ -241,20 +259,27 @@ MODULE x_hf
 !!
 !!****************************************************************************
 
-  SUBROUTINE x_hf_create(x_data,hf_section,natom,max_set,error)
+  SUBROUTINE x_hf_create(x_data,hf_section,natom,max_set,atomic_kind_set, particle_set, error)
     TYPE(x_hf_type), POINTER                 :: x_data
     TYPE(section_vals_type), POINTER         :: hf_section
     INTEGER, INTENT(IN)                      :: natom, max_set
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'x_hf_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, int_val, max_memory, &
+    INTEGER                                  :: i, ikind, int_val, &
+                                                max_memory, nkind, &
                                                 pbc_shells, stat
     LOGICAL                                  :: do_periodic, failure, &
                                                 logic_val
     REAL(dp)                                 :: omega, real_val
+    TYPE(atomic_kind_type), POINTER          :: atom_kind
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_a
     TYPE(section_vals_type), POINTER         :: hf_pbc_section, hf_sub_section
 
     failure = .FALSE.
@@ -336,6 +361,27 @@ MODULE x_hf
     x_data%load_balance_parameter%tolerance = real_val
     CALL section_vals_val_get(hf_sub_section, "SWAP_PROBABILITY", r_val=real_val, error=error)
     x_data%load_balance_parameter%swap_probability = real_val
+
+    !! BASIS parameter
+    nkind = SIZE(atomic_kind_set,1)
+    ALLOCATE(x_data%basis_parameter(nkind), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO ikind = 1,nkind
+        NULLIFY(atom_kind)
+        atom_kind => atomic_kind_set(ikind)
+        CALL get_atomic_kind(atomic_kind=atom_kind,&
+                             orb_basis_set=orb_basis_a)
+        CALL get_gto_basis_set(gto_basis_set=orb_basis_a, &
+                               lmax=x_data%basis_parameter(ikind)%lmax, &
+                               lmin=x_data%basis_parameter(ikind)%lmin, &
+                               npgf=x_data%basis_parameter(ikind)%npgf, &
+                               nset=x_data%basis_parameter(ikind)%nset, &
+                               zet=x_data%basis_parameter(ikind)%zet, &
+                               nsgf_set=x_data%basis_parameter(ikind)%nsgf, &
+                               first_sgf=x_data%basis_parameter(ikind)%first_sgf, &
+                               sphi=x_data%basis_parameter(ikind)%sphi, &
+                               nsgf=x_data%basis_parameter(ikind)%nsgf_total) 
+    END DO
 
     IF(x_data%periodic_parameter%do_periodic) THEN
       hf_pbc_section => section_vals_get_subs_vals(hf_section,"PERIODIC",error=error)
@@ -457,6 +503,9 @@ MODULE x_hf
     DEALLOCATE(x_data%is_assoc_atomic_block,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
+    !! BASIS parameter
+    DEALLOCATE(x_data%basis_parameter,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     !! Deallocate containers
     CALL x_hf_init_container(x_data%maxval_container, error)
