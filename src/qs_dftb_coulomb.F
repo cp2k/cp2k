@@ -21,8 +21,7 @@ MODULE qs_dftb_coulomb
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
-                                             pbc,&
-                                             real_to_scaled
+                                             pbc
   USE cp_control_types,                ONLY: dftb_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_type,&
@@ -90,6 +89,7 @@ MODULE qs_dftb_coulomb
                                              real_block_node_type,&
                                              real_matrix_p_type,&
                                              sparse_times_local
+  USE spme,                            ONLY: get_patch
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_methods,                  ONLY: virial_pair_force
@@ -376,7 +376,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE dftb_spme_evaluate (ewald_env,ewald_pw,particle_set,box,&
-      gmcharge,mcharge,calculate_forces,virial,use_virial,error)
+       gmcharge,mcharge,calculate_forces,virial,use_virial,error)
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
@@ -395,10 +395,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dftb_spme_evaluate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: group, handle, i, ierr, &
-                                                ipart, j, n, npart, &
-                                                o_spline, p1, &
-                                                rs_distributed_id
+    INTEGER                                  :: group, handle, i, ipart, j, &
+                                                n, npart, o_spline, p1, &
+                                                rs_distributed_id, stat
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center
     INTEGER, DIMENSION(3)                    :: npts
     LOGICAL                                  :: failure
@@ -421,304 +420,172 @@ CONTAINS
 !------------------------------------------------------------------------------
 !-------------- INITIALISATION ---------------------
 
-  CALL timeset ( 'dftb_spme', 'I', ' ', handle )
+    CALL timeset ( 'dftb_spme', 'I', ' ', handle )
 
-  failure = .FALSE.
+    failure = .FALSE.
 
-  CALL ewald_env_get ( ewald_env, alpha=alpha, &
-                       o_spline = o_spline, group = group, &
-                       rs_distributed_id = rs_distributed_id, error=error)
-  NULLIFY(green, poisson_env, pw_pool)
-  CALL ewald_pw_get ( ewald_pw, pw_big_pool=pw_pool, rs_pool=rs_pool, &
-       poisson_env=poisson_env)
-  CALL pw_poisson_rebuild(poisson_env,error=error)
-  green => poisson_env%green_fft
-  grid_spme => pw_pool % pw_grid
+    CALL ewald_env_get ( ewald_env, alpha=alpha, o_spline = o_spline, group = group, &
+         rs_distributed_id = rs_distributed_id, error=error)
+    NULLIFY(green, poisson_env, pw_pool)
+    CALL ewald_pw_get ( ewald_pw, pw_big_pool=pw_pool, rs_pool=rs_pool, &
+         poisson_env=poisson_env)
+    CALL pw_poisson_rebuild(poisson_env,error=error)
+    green => poisson_env%green_fft
+    grid_spme => pw_pool % pw_grid
 
-  CALL get_pw_grid_info(grid_spme,dvol=dvols,npts=npts,error=error)
+    CALL get_pw_grid_info(grid_spme,dvol=dvols,npts=npts,error=error)
 
-  npart = SIZE ( particle_set )
+    npart = SIZE ( particle_set )
 
-  n = o_spline
-  ALLOCATE ( rhos ( n, n, n ), STAT = ierr )
-  CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    n = o_spline
+    ALLOCATE ( rhos ( n, n, n ), STAT = stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-  CALL rs_pool_create_rs ( rs_pool, rden, error=error )
-  CALL rs_grid_set_box ( grid_spme, rs=rden, error=error )
-  CALL rs_grid_zero ( rden )
+    CALL rs_pool_create_rs ( rs_pool, rden, error=error )
+    CALL rs_grid_set_box ( grid_spme, rs=rden, error=error )
+    CALL rs_grid_zero ( rden )
 
-  ALLOCATE ( center ( 3, npart ), STAT = ierr )
-  CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
-  CALL get_center ( particle_set, box, center, npts, n )
+    ALLOCATE ( center ( 3, npart ), STAT = stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL get_center ( particle_set, box, center, npts, n )
 
-!-------------- DENSITY CALCULATION ----------------
+    !-------------- DENSITY CALCULATION ----------------
+    ipart = 0
+    DO
+       CALL set_list ( particle_set, npart, center, p1, rden, ipart)
+       IF ( p1 == 0 ) EXIT
 
-  ipart = 0
+       ! calculate function on small boxes
+       CALL get_patch ( particle_set, box, green, npts, p1, rhos, is_core=.FALSE.,&
+            is_shell=.FALSE., unit_charge=.TRUE.)
+       rhos = rhos * mcharge(p1)
 
-  DO
+       ! add boxes to real space grid (big box)
+       CALL dg_sum_patch ( rden, rhos, center(:,p1) )
+    END DO
 
-     CALL set_list ( particle_set, npart, center, p1, rden, ipart)
-     IF ( p1 == 0 ) EXIT
+    CALL pw_pool_create_pw ( pw_pool, rhob_r, use_data = REALDATA3D,&
+         in_space = REALSPACE, error=error)
 
-     ! calculate function on small boxes
-     CALL get_patch ( particle_set, box, green, npts, p1, rhos)
-     rhos = rhos * mcharge(p1)
+    CALL rs_pw_transfer ( rden, rhob_r, rs2pw )
 
-     ! add boxes to real space grid (big box)
-     CALL dg_sum_patch ( rden, rhos, center(:,p1) )
-     
-  END DO     
+    ! transform density to G space and add charge function
+    CALL pw_pool_create_pw ( pw_pool, rhob_g, use_data = COMPLEXDATA1D, &
+         in_space = RECIPROCALSPACE ,error=error)
+    CALL pw_transfer ( rhob_r, rhob_g )
+    ! update charge function
+    rhob_g % cc = rhob_g % cc * green % p3m_charge % cr
 
-  CALL pw_pool_create_pw ( pw_pool, rhob_r,  &
-                           use_data = REALDATA3D, &
-                           in_space = REALSPACE ,error=error)
+    !-------------- ELECTROSTATIC CALCULATION -----------
 
-  CALL rs_pw_transfer ( rden, rhob_r, rs2pw )
-
-  ! transform density to G space and add charge function
-  CALL pw_pool_create_pw ( pw_pool, rhob_g,  &
-                           use_data = COMPLEXDATA1D, &
-                           in_space = RECIPROCALSPACE ,error=error)
-  CALL pw_transfer ( rhob_r, rhob_g )
-  ! update charge function
-  rhob_g % cc = rhob_g % cc * green % p3m_charge % cr
-
-!-------------- ELECTROSTATIC CALCULATION -----------
-
-  ! allocate intermediate arrays
-  DO i = 1, 3
-     NULLIFY(dphi_g(i)%pw)
-     CALL pw_pool_create_pw ( pw_pool, dphi_g ( i )%pw,  &
-                              use_data = COMPLEXDATA1D,   &
-                              in_space = RECIPROCALSPACE, error=error)
-  END DO
-  CALL pw_pool_create_pw ( pw_pool, phi_g,  &
-                           use_data = COMPLEXDATA1D,   &
-                           in_space = RECIPROCALSPACE, error=error)
-  IF ( use_virial ) THEN
-    CALL pw_poisson_solve ( poisson_env, rhob_g, vgc, phi_g, dphi_g, &
-                            h_stress=h_stress, error=error)
-  ELSE
-    CALL pw_poisson_solve ( poisson_env, rhob_g, vgc, phi_g, dphi_g, &
-                            error=error)
-  END IF
-
-  CALL pw_pool_give_back_pw ( pw_pool, rhob_g ,error=error)
-
-  CALL rs_pool_create_rs( rs_pool, rpot, error=error )
-  CALL rs_grid_set_box ( grid_spme, rs=rpot, error=error )
-  CALL rs_grid_zero ( rpot )
-  phi_g%cc = phi_g%cc * green%p3m_charge%cr
-  CALL pw_transfer ( phi_g, rhob_r )
-  CALL pw_pool_give_back_pw ( pw_pool, phi_g ,error=error)
-  CALL rs_pw_transfer ( rpot, rhob_r, pw2rs )
-
-!---------- END OF ELECTROSTATIC CALCULATION --------
-
-!------------- STRESS TENSOR CALCULATION ------------
-
-  IF ( use_virial ) THEN
+    ! allocate intermediate arrays
     DO i = 1, 3
-      DO j = i, 3
-         f_stress(i,j) = pw_integral_a2b(dphi_g(i)%pw,dphi_g(j)%pw)
-         f_stress(j,i) = f_stress(i,j)
-      END DO
+       NULLIFY(dphi_g(i)%pw)
+       CALL pw_pool_create_pw ( pw_pool, dphi_g ( i )%pw,  &
+            use_data = COMPLEXDATA1D,in_space = RECIPROCALSPACE, error=error)
     END DO
-    ffa = ( 1.0_dp / fourpi )  * ( 0.5_dp / alpha ) ** 2
-    virial%pv_virial = virial%pv_virial - ffa * f_stress + h_stress
-  END IF
+    CALL pw_pool_create_pw ( pw_pool, phi_g,  &
+         use_data = COMPLEXDATA1D, in_space = RECIPROCALSPACE, error=error)
+    IF ( use_virial ) THEN
+       CALL pw_poisson_solve ( poisson_env, rhob_g, vgc, phi_g, dphi_g, &
+            h_stress=h_stress, error=error)
+    ELSE
+       CALL pw_poisson_solve ( poisson_env, rhob_g, vgc, phi_g, dphi_g, &
+            error=error)
+    END IF
 
-!--------END OF STRESS TENSOR CALCULATION -----------
+    CALL pw_pool_give_back_pw ( pw_pool, rhob_g ,error=error)
 
-  IF ( calculate_forces ) THEN
-    ! move derivative of potential to real space grid and
-    ! multiply by charge function in g-space
-    ALLOCATE ( drpot(1:3), STAT=ierr )
-    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
-    DO i = 1, 3
-       CALL rs_pool_create_rs( rs_pool, drpot(i)%rs_grid, error=error )
-       CALL rs_grid_set_box ( grid_spme, rs=drpot(i)%rs_grid, error=error )
-       dphi_g ( i ) % pw % cc = dphi_g ( i ) % pw % cc * &
-                                green % p3m_charge % cr
-       CALL pw_transfer ( dphi_g ( i )%pw, rhob_r )
-       CALL pw_pool_give_back_pw ( pw_pool, dphi_g ( i )%pw ,error=error)
-       CALL rs_pw_transfer ( drpot ( i ) % rs_grid, rhob_r, pw2rs )
+    CALL rs_pool_create_rs( rs_pool, rpot, error=error )
+    CALL rs_grid_set_box ( grid_spme, rs=rpot, error=error )
+    CALL rs_grid_zero ( rpot )
+    phi_g%cc = phi_g%cc * green%p3m_charge%cr
+    CALL pw_transfer ( phi_g, rhob_r )
+    CALL pw_pool_give_back_pw ( pw_pool, phi_g ,error=error)
+    CALL rs_pw_transfer ( rpot, rhob_r, pw2rs )
+
+    !---------- END OF ELECTROSTATIC CALCULATION --------
+
+    !------------- STRESS TENSOR CALCULATION ------------
+
+    IF ( use_virial ) THEN
+       DO i = 1, 3
+          DO j = i, 3
+             f_stress(i,j) = pw_integral_a2b(dphi_g(i)%pw,dphi_g(j)%pw)
+             f_stress(j,i) = f_stress(i,j)
+          END DO
+       END DO
+       ffa = ( 1.0_dp / fourpi )  * ( 0.5_dp / alpha ) ** 2
+       virial%pv_virial = virial%pv_virial - ffa * f_stress + h_stress
+    END IF
+
+    !--------END OF STRESS TENSOR CALCULATION -----------
+
+    IF ( calculate_forces ) THEN
+       ! move derivative of potential to real space grid and
+       ! multiply by charge function in g-space
+       ALLOCATE ( drpot(1:3), STAT=stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO i = 1, 3
+          CALL rs_pool_create_rs( rs_pool, drpot(i)%rs_grid, error=error )
+          CALL rs_grid_set_box ( grid_spme, rs=drpot(i)%rs_grid, error=error )
+          dphi_g ( i ) % pw % cc = dphi_g ( i ) % pw % cc * green % p3m_charge % cr
+          CALL pw_transfer ( dphi_g ( i )%pw, rhob_r )
+          CALL pw_pool_give_back_pw ( pw_pool, dphi_g ( i )%pw ,error=error)
+          CALL rs_pw_transfer ( drpot ( i ) % rs_grid, rhob_r, pw2rs )
+       END DO
+    ELSE
+       DO i = 1, 3
+          CALL pw_pool_give_back_pw ( pw_pool, dphi_g ( i )%pw ,error=error)
+       END DO
+    END IF
+    CALL pw_pool_give_back_pw ( pw_pool, rhob_r ,error=error)
+
+    !----------------- FORCE CALCULATION ----------------
+
+    ipart = 0
+    DO
+
+       CALL set_list ( particle_set, npart, center, p1, rden, ipart )
+       IF ( p1 == 0 ) EXIT
+
+       ! calculate function on small boxes
+       CALL get_patch ( particle_set, box, green, npts, p1, rhos, is_core=.FALSE.,&
+            is_shell=.FALSE., unit_charge=.TRUE.)
+
+       CALL dg_sum_patch_force_1d ( rpot, rhos, center(:,p1), fint )
+       gmcharge(p1,1) = gmcharge(p1,1) + fint * dvols
+
+       IF ( calculate_forces ) THEN
+          CALL dg_sum_patch_force_3d ( drpot, rhos, center(:,p1), fat )
+          gmcharge(p1,2) = gmcharge(p1,2) - fat(1) * dvols
+          gmcharge(p1,3) = gmcharge(p1,3) - fat(2) * dvols
+          gmcharge(p1,4) = gmcharge(p1,4) - fat(3) * dvols
+       END IF
+
     END DO
-  ELSE
-    DO i = 1, 3
-       CALL pw_pool_give_back_pw ( pw_pool, dphi_g ( i )%pw ,error=error)
-    END DO
-  END IF
-  CALL pw_pool_give_back_pw ( pw_pool, rhob_r ,error=error)
 
-!----------------- FORCE CALCULATION ----------------
+    !--------------END OF FORCE CALCULATION -------------
 
-  ipart = 0
-  DO
+    !------------------CLEANING UP ----------------------
 
-     CALL set_list ( particle_set, npart, center, p1, rden, ipart )
-     IF ( p1 == 0 ) EXIT
+    CALL rs_pool_give_back_rs ( rs_pool, rden, error=error)
+    CALL rs_pool_give_back_rs ( rs_pool, rpot, error=error)
+    IF ( calculate_forces ) THEN
+       DO i = 1, 3
+          CALL rs_pool_give_back_rs ( rs_pool, drpot(i)%rs_grid, error=error)
+       END DO
+       DEALLOCATE ( drpot, STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    DEALLOCATE ( rhos, STAT = stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE ( center, STAT = stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-     ! calculate function on small boxes
-     CALL get_patch ( particle_set, box, green, npts, p1, rhos )
+    CALL timestop ( 0.0_dp, handle )
 
-     CALL dg_sum_patch_force_1d ( rpot, rhos, center(:,p1), fint )
-     gmcharge(p1,1) = gmcharge(p1,1) + fint * dvols
-
-     IF ( calculate_forces ) THEN
-       CALL dg_sum_patch_force_3d ( drpot, rhos, center(:,p1), fat )
-       gmcharge(p1,2) = gmcharge(p1,2) - fat(1) * dvols
-       gmcharge(p1,3) = gmcharge(p1,3) - fat(2) * dvols
-       gmcharge(p1,4) = gmcharge(p1,4) - fat(3) * dvols
-     END IF
-
-  END DO
-
-!--------------END OF FORCE CALCULATION -------------
-
-!------------------CLEANING UP ----------------------
-
-  CALL rs_pool_give_back_rs ( rs_pool, rden, error=error)
-  CALL rs_pool_give_back_rs ( rs_pool, rpot, error=error)
-  IF ( calculate_forces ) THEN
-    DO i = 1, 3
-      CALL rs_pool_give_back_rs ( rs_pool, drpot(i)%rs_grid, error=error)
-    END DO
-    DEALLOCATE ( drpot, STAT = ierr )
-    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
-  END IF
-  DEALLOCATE ( rhos, STAT = ierr )
-  CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
-  DEALLOCATE ( center, STAT = ierr )
-  CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
-
-  CALL timestop ( 0.0_dp, handle )
-
-END SUBROUTINE dftb_spme_evaluate
-!******************************************************************************
-
-SUBROUTINE get_patch ( part, box, green, npts, p, rhos )
-
-    TYPE(particle_type), DIMENSION(:), &
-      INTENT(IN)                             :: part
-    TYPE(cell_type), POINTER                 :: box
-    TYPE(greens_fn_type), POINTER            :: green
-    INTEGER, DIMENSION(3), INTENT(IN)        :: npts
-    INTEGER, INTENT(IN)                      :: p
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      INTENT(OUT)                            :: rhos
-
-    INTEGER                                  :: nbox
-    REAL(KIND=dp), DIMENSION(3)              :: delta, r
-
-!------------------------------------------------------------------------------
-
-  nbox = SIZE ( rhos, 1 )
-  r = part(p)% r
- 
-  CALL get_delta ( box, r, npts, delta, nbox )
-
-  CALL spme_get_patch ( rhos, nbox, delta, green % p3m_coeff )
-
-END SUBROUTINE get_patch
-
-SUBROUTINE spme_get_patch ( rhos, n, delta, coeff )
-
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      INTENT(OUT)                            :: rhos
-    INTEGER, INTENT(IN)                      :: n
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: delta
-    REAL(KIND=dp), &
-      DIMENSION(-(n-1):n-1, 0:n-1), &
-      INTENT(IN)                             :: coeff
-
-    INTEGER, PARAMETER                       :: nmax = 12
-
-    INTEGER                                  :: i, i1, i2, i3, j, l
-    REAL(KIND=dp)                            :: r2, r3
-    REAL(KIND=dp), DIMENSION(3, -nmax:nmax)  :: w_assign
-    REAL(KIND=dp), DIMENSION(3, 0:nmax-1)    :: deltal
-    REAL(KIND=dp), DIMENSION(3, 1:nmax)      :: f_assign
-
-!------------------------------------------------------------------------------
-!  CPPostcondition(n <= nmax,cp_failure_level,routineP,error,failure)
-! calculate the assignment function values and
-! the charges on the grid (small box)
-
-  deltal ( 1, 0 ) = 1.0_dp
-  deltal ( 2, 0 ) = 1.0_dp
-  deltal ( 3, 0 ) = 1.0_dp
-  DO l = 1, n-1
-     deltal ( 1, l ) = deltal ( 1, l-1 ) * delta ( 1 )
-     deltal ( 2, l ) = deltal ( 2, l-1 ) * delta ( 2 )
-     deltal ( 3, l ) = deltal ( 3, l-1 ) * delta ( 3 )
-  END DO
-
-  w_assign = 0.0_dp
-  DO j = -(n-1), n-1, 2
-    DO l = 0, n-1
-      w_assign ( 1, j ) =  w_assign ( 1, j ) + coeff ( j, l ) * deltal ( 1, l )
-      w_assign ( 2, j ) =  w_assign ( 2, j ) + coeff ( j, l ) * deltal ( 2, l )
-      w_assign ( 3, j ) =  w_assign ( 3, j ) + coeff ( j, l ) * deltal ( 3, l )
-    END DO
-  END DO
-  DO i = 1, n
-    j = n + 1 - 2 * i
-    f_assign (1, i ) = w_assign ( 1, j )
-    f_assign (2, i ) = w_assign ( 2, j )
-    f_assign (3, i ) = w_assign ( 3, j )
-  END DO
-
-  DO i3 = 1, n
-    r3 = f_assign ( 3, i3 )
-    DO i2 = 1, n
-      r2 = r3 * f_assign ( 2, i2 )
-      DO i1 = 1, n
-        rhos ( i1, i2, i3 ) = r2 * f_assign ( 1, i1 )
-      END DO
-    END DO
-  END DO
-
-END SUBROUTINE spme_get_patch
-
-SUBROUTINE get_delta ( box, r, npts, delta, n )
-
-    TYPE(cell_type), POINTER                 :: box
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: r
-    INTEGER, DIMENSION(3), INTENT(IN)        :: npts
-    REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: delta
-    INTEGER, INTENT(IN)                      :: n
-
-    INTEGER                                  :: mp
-    INTEGER, DIMENSION(3)                    :: center
-    REAL(KIND=dp)                            :: rmp
-    REAL(KIND=dp), DIMENSION(3)              :: ca, grid_i, s
-
-!------------------------------------------------------------------------------
-
-  mp = MAXVAL ( npts(:) )
-  rmp = REAL ( mp,KIND=dp)
-! compute the scaled coordinate of atomi
-  CALL real_to_scaled(s,r,box)
-  s = s - REAL ( NINT ( s ),KIND=dp)
-
-! find the continuous ``grid'' point
-  grid_i ( 1:3 ) = REAL ( npts ( 1:3 ),KIND=dp) * s ( 1:3 )
-
-! find the closest grid point
-
-  IF ( MOD ( n, 2 ) == 0 ) THEN
-    center ( : ) = INT ( grid_i ( : ) + rmp ) - mp
-    ca ( : ) = REAL ( center ( : ) ) + 0.5_dp
-  ELSE
-    center ( : ) = NINT ( grid_i ( : ) )
-    ca ( : ) = REAL ( center ( : ) )
-  END IF
-
-! find the distance vector
-  delta ( : ) = grid_i ( : ) - ca ( : )
-
-END SUBROUTINE get_delta
+  END SUBROUTINE dftb_spme_evaluate
 
 ! *****************************************************************************
 
