@@ -1,0 +1,77 @@
+&FORCE_EVAL
+
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM C
+        CHARGE 0
+      &END CHARGE
+      
+      &SPLINE
+        EMAX_SPLINE  3.5
+        EMAX_ACCURACY  3.5
+        RCUT_NB [bohr] 7.0
+      &END SPLINE
+      &NEIGHBOR_LISTS
+        VERLET_SKIN 0.0
+      &END
+      MULTIPLE_POTENTIAL
+      &NONBONDED
+        &TERSOFF
+          ATOMS C  C
+          A        1.3936E3
+          B        3.467E2
+          lambda1  3.4879
+          lambda2  2.2119
+          alpha    0.00
+          beta     1.5724E-7
+          n        7.2751E-1
+          c        3.8049E4
+          d        4.384
+          h       -5.7058E-1
+          lambda3  0.0000
+          bigR     1.95
+          bigD     0.15
+          RCUT [angstrom] 10.0
+        &END
+        &LENNARD-JONES
+          ATOMS C C
+          EPSILON [K_e] 120
+          SIGMA [angstrom] 3.41
+        &END LENNARD-JONES
+      &END NONBONDED
+    &END FORCEFIELD
+
+    &POISSON
+      &EWALD
+        EWALD_TYPE NONE
+      &END EWALD
+    &END POISSON
+    &PRINT
+      &NEIGHBOR_LISTS
+      &END
+    &END
+  &END MM
+
+  &SUBSYS
+    &CELL
+      ABC 6.0 6.0 6.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+      C 2.0 2.0 2.0
+      C 4.0 4.0 4.0
+    &END COORD
+    &TOPOLOGY
+      CONNECTIVITY OFF
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
+
+&GLOBAL
+  PROJECT ef
+  RUN_TYPE ENERGY_FORCE
+  PRINT_LEVEL DEBUG
+&END GLOBAL
+

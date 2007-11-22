@@ -110,14 +110,16 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: list
     LOGICAL                                  :: all_terms, do_shell, failure, &
                                                 shell_present, swap_ab
-    REAL(KIND=dp) :: energy, fscalar, pp, ptens11, ptens12, ptens13, ptens21, &
-      ptens22, ptens23, ptens31, ptens32, ptens33, rab2, rab2_com, rab2_max
+    REAL(KIND=dp) :: energy, fac, fscalar, pp, ptens11, ptens12, ptens13, &
+      ptens21, ptens22, ptens23, ptens31, ptens32, ptens33, rab2, rab2_com, &
+      rab2_max
     REAL(KIND=dp), DIMENSION(3)              :: cell_v, cvi, fr, rab, rab_cc, &
                                                 rab_com, rab_cs, rab_sc, &
                                                 rab_ss
     REAL(KIND=dp), DIMENSION(3, 3)           :: pv_com
     REAL(KIND=dp), DIMENSION(3, 4)           :: rab_list
     REAL(KIND=dp), DIMENSION(4)              :: rab2_list
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ij_kind_full_fac
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
@@ -139,13 +141,11 @@ CONTAINS
     logger => cp_error_get_logger(error)
     pp = 0.0_dp
     NULLIFY(pot,c_spline_data,cs_spline_data,sc_spline_data,rshell_last_update_pbc)
-    NULLIFY(spl_f, spl_c, spl_cs, spl_sc)
-    CALL fist_nonbond_env_get ( fist_nonbond_env, nonbonded = nonbonded, &
-         potparm = potparm, r_last_update=r_last_update, &
-         r_last_update_pbc=r_last_update_pbc,&
-         rshell_last_update_pbc=rshell_last_update_pbc,&
-         rcore_last_update_pbc=rcore_last_update_pbc,&
-         natom_types = nkinds ,error=error)
+    NULLIFY(spl_f, spl_c, spl_cs, spl_sc,ij_kind_full_fac)
+    CALL fist_nonbond_env_get ( fist_nonbond_env, nonbonded = nonbonded, potparm = potparm,&
+         r_last_update=r_last_update, r_last_update_pbc=r_last_update_pbc,natom_types = nkinds,&
+         rshell_last_update_pbc=rshell_last_update_pbc,rcore_last_update_pbc=rcore_last_update_pbc,&
+         ij_kind_full_fac=ij_kind_full_fac, error=error)
 
     ! Initializing the potential energy, pressure tensor and force
     pot_nonbond        = 0.0_dp
@@ -168,19 +168,18 @@ CONTAINS
 ! !$OMP shared(potparm) &
 ! !$OMP private(ab) &
 ! !$OMP shared(nonbonded) &
-! !$OMP private(rab,rab2_max) &
+! !$OMP private(rab,rab2_max,fac) &
 ! !$OMP private(ilist,nlist,igrp,atom_a,atom_b,npairs,cvi,list,inode,nnode) &
 ! !$OMP shared(cell) &
 ! !$OMP shared(pot_nonbond) &
 ! !$OMP private(f_eam,pot,fr,fscalar,energy) &
-! !$OMP shared(f_nonbond,ptens_nonbond,r_last_update) &
+! !$OMP shared(f_nonbond,ptens_nonbond,r_last_update,ij_kind_full_fac) &
 ! !$OMP private(rab2) &
 ! !$OMP private(neighbor_kind_pair,cell_v) &
 ! !$OMP shared(particle_set,r_last_update_pbc) &
 ! !$OMP reduction(+:ptens11,ptens12,ptens13,ptens21,ptens22,ptens23, &
 ! !$OMP             ptens31,ptens32,ptens33) &
 ! !$OMP private(ipair) 
-
     Lists: DO ilist=1,nonbonded%nlists
        neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
        npairs=neighbor_kind_pair%npairs
@@ -193,6 +192,7 @@ CONTAINS
           iend    = neighbor_kind_pair%grp_kind_end(igrp)
           ikind   = neighbor_kind_pair%ij_kind(1,igrp)
           jkind   = neighbor_kind_pair%ij_kind(2,igrp)
+          fac     = ij_kind_full_fac(ikind, jkind)
           pot     => potparm%pot(ikind,jkind)%pot
           ! In case we have manybody potentials only they will be handled in the manybody routine...
           IF (pot%only_mb) CYCLE
@@ -287,7 +287,8 @@ CONTAINS
                    rab = rab_list(:,1)
                    rab2 = rab2_list(1)
                    energy =  potential_s (c_spline_data,rab2,fscalar, spl_c, logger)
-                   pot_nonbond = pot_nonbond + energy
+                   pot_nonbond = pot_nonbond + energy*fac
+                   fscalar = fscalar*fac
                    fr(1) = fscalar*rab(1)
                    fr(2) = fscalar*rab(2)
                    fr(3) = fscalar*rab(3)
@@ -327,7 +328,8 @@ CONTAINS
                       rab  = rab_list(:,4)
                       rab2 = rab2_list(4)
                       energy =  potential_s (spline_data,rab2,fscalar,spl_f,logger)
-                      pot_nonbond = pot_nonbond + energy
+                      pot_nonbond = pot_nonbond + energy*fac
+                      fscalar = fscalar * fac
                       fr(1) = fscalar*rab(1)
                       fr(2) = fscalar*rab(2)
                       fr(3) = fscalar*rab(3)
@@ -351,7 +353,8 @@ CONTAINS
                       rab  = rab_list(:,2)
                       rab2 = rab2_list(2)
                       energy =  potential_s (cs_spline_data,rab2,fscalar,spl_cs,logger)
-                      pot_nonbond = pot_nonbond + energy
+                      pot_nonbond = pot_nonbond + energy*fac
+                      fscalar = fscalar*fac
                       fr(1) = fscalar*rab(1)
                       fr(2) = fscalar*rab(2)
                       fr(3) = fscalar*rab(3)
@@ -375,7 +378,8 @@ CONTAINS
                       rab  = rab_list(:,3)
                       rab2 = rab2_list(3)
                       energy =  potential_s (sc_spline_data,rab2,fscalar,spl_sc,logger)
-                      pot_nonbond = pot_nonbond + energy
+                      pot_nonbond = pot_nonbond + energy*fac
+                      fscalar = fscalar * fac
                       fr(1) = fscalar*rab(1)
                       fr(2) = fscalar*rab(2)
                       fr(3) = fscalar*rab(3)
@@ -399,7 +403,8 @@ CONTAINS
                       rab = rab_list(:,4)
                       rab2 = rab2_list(4)
                       energy =  potential_s (spline_data,rab2,fscalar,spl_f,logger)
-                      pot_nonbond = pot_nonbond + energy
+                      pot_nonbond = pot_nonbond + energy*fac
+                      fscalar = fscalar * fac
                       fr(1) = fscalar*rab(1)
                       fr(2) = fscalar*rab(2)
                       fr(3) = fscalar*rab(3)
@@ -459,7 +464,8 @@ CONTAINS
                    rab  = rab_com
                    rab2 = rab2_com
                    energy =  potential_s(c_spline_data,rab2,fscalar,spl_c,logger)
-                   pot_nonbond = pot_nonbond + energy
+                   pot_nonbond = pot_nonbond + energy*fac
+                   fscalar = fscalar*fac
                    fr(1) = fscalar*rab(1)
                    fr(2) = fscalar*rab(2)
                    fr(3) = fscalar*rab(3)
