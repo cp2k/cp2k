@@ -262,7 +262,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE fist_neighbor_add(neighbor_kind_pair, atom_a, atom_b, exclusion_list,&
-       particle_set, rab, added, id_kind, is_tersoff_pot, cell, error)
+       particle_set, rab, added, id_kind, is_full, cell, error)
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
     INTEGER, INTENT(IN)                      :: atom_a, atom_b
     INTEGER, DIMENSION(:), POINTER           :: exclusion_list
@@ -271,7 +271,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: rab
     LOGICAL, INTENT(OUT)                     :: added
     INTEGER, INTENT(IN)                      :: id_kind
-    LOGICAL, INTENT(IN)                      :: is_tersoff_pot
+    LOGICAL, INTENT(IN)                      :: is_full
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -285,7 +285,7 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: rabc
 
-    IF (ANY(exclusion_list==atom_b).AND.(.NOT.is_tersoff_pot)) THEN
+    IF (ANY(exclusion_list==atom_b).AND.(.NOT.is_full)) THEN
        ! Given an exclusion list only atoms connected within the shortest
        ! periodic replica are assumed to be connected...
        rabc  = pbc(particle_set(atom_b)%r - particle_set(atom_a)%r, cell)
