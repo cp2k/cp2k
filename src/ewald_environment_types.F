@@ -478,7 +478,7 @@ SUBROUTINE read_ewald_section ( ewald_env, ewald_section, error )
 
           SELECT CASE ( ewald_env % ewald_type )
           CASE ( do_ewald_ewald)
-             WRITE ( iw, '( A,T71,3I10 )' ) &
+             WRITE ( iw, '( A,T51,3I10 )' ) &
                   ' Ewald| G-space max. Miller index', ewald_env % gmax
           CASE ( do_ewald_pme)
              WRITE ( iw, '( A,T71,I10 )' ) &

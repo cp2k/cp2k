@@ -515,6 +515,8 @@ CONTAINS
                  l_val=qs_control%se_control%analytical_gradients,error=error)
     CALL section_vals_val_get(se_section,"ORTHOGONAL_BASIS",&
                  l_val=qs_control%se_control%orthogonal_basis,error=error)
+    CALL section_vals_val_get(se_section,"DO_EWALD",&
+                 l_val=qs_control%se_control%do_ewald,error=error)
     CALL section_vals_val_get(se_section,"DELTA",&
                  r_val=qs_control%se_control%delta,error=error)
     CALL section_vals_val_get(se_section,"RC_INTERACTION",&

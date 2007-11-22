@@ -58,7 +58,9 @@ MODULE cp_control_types
 !------------------------------------------------------------------------------!
 ! Control parameters for semi empirical calculations
   TYPE semi_empirical_control_type
-     LOGICAL               :: orthogonal_basis, analytical_gradients
+     LOGICAL               :: orthogonal_basis
+     LOGICAL               :: analytical_gradients
+     LOGICAL               :: do_ewald
      REAL(KIND = dp)       :: delta
      REAL(KIND = dp)       :: rc_interaction
      REAL(KIND = dp)       :: rc_coulomb

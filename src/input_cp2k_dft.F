@@ -1979,7 +1979,8 @@ CONTAINS
             error=error)
 
        CALL keyword_create(keyword, name="orthogonal_basis",&
-            description="Assume orthogonal basis set",&
+            description="Assume orthogonal basis set. This flag is overwritten by "//&
+                        "methods with fixed orthogonal/non-orthogonal basis set.",&
             usage="ORTHOGONAL_BASIS",default_l_val=.FALSE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2011,6 +2012,13 @@ CONTAINS
        CALL keyword_create(keyword, name="RC_RANGE",&
             description="Range of cutoff switch function (tapering)",&
             usage="RC_RANGE {real} ",default_r_val=8._dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="do_ewald",&
+            description="Use an Ewald type method for the calculation of the "//&
+                        "Coulomb energy",&
+            usage="DO_EWALD",default_l_val=.FALSE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

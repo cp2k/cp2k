@@ -256,7 +256,8 @@ CONTAINS
       ispin, istat, itype, jatom, jkind, natom, natorb_a, natorb_b, nkind, &
       nlist, nnode, nspins
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: anag, defined, failure, switch
+    LOGICAL                                  :: anag, defined, failure, switch,&
+                                                do_ewald
     REAL(KIND=dp)                            :: delta, dr1, ecore2, ecoul, &
                                                 enuc, enuclear, range, rc
     REAL(KIND=dp), DIMENSION(10)             :: e1b, e2a, pvec
@@ -302,6 +303,7 @@ CONTAINS
          para_env=para_env,error=error)
 
     ! set values for tapering function
+    do_ewald = dft_control%qs_control%se_control%do_ewald
     anag = dft_control%qs_control%se_control%analytical_gradients
     rc = dft_control%qs_control%se_control%rc_coulomb
     range = dft_control%qs_control%se_control%rc_range
@@ -348,6 +350,11 @@ CONTAINS
        ecore2 = 0._dp
        enuclear = 0._dp
        itype = get_se_type(dft_control%qs_control%method)
+
+       IF (do_ewald) THEN
+         !calculate 1/r contribution using Ewald type method
+!deb     CALL nddo_ewald
+       END IF
 
        DO ikind=1,nkind
           atomic_kind => atomic_kind_set(ikind)
@@ -455,162 +462,200 @@ CONTAINS
 
                    SELECT CASE (dft_control%qs_control%method)
                      CASE ("MNDO","AM1","PM3","PDG")
-                     IF (anag) THEN
-                        IF ( .NOT. switch ) THEN
-                           CALL rotnuc_ana (se_kind_a,se_kind_b,rij,e1b=e1b,e2a=e2a,enuc=enuc,itype=itype)
-                        ELSE
-                           CALL rotnuc_ana (se_kind_b,se_kind_a,-rij,e1b=e2a,e2a=e1b,enuc=enuc,itype=itype)
-                        END IF
-                     ELSE 
-                        IF ( .NOT. switch ) THEN
-                           CALL rotnuc (se_kind_a,se_kind_b,rij,e1b,e2a,enuc,itype)
-                        ELSE
-                           CALL rotnuc (se_kind_b,se_kind_a,-rij,e2a,e1b,enuc,itype)
-                        END IF
-                     END IF
-                     enuclear = enuclear + enuc
-                     ! one-centre one-electron terms
-                     CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
-                     IF ( nspins >= 1 ) THEN
-                       ! contribution to iatom
-                       IF ( SIZE(ksa_block_a,1) == 1 ) THEN
-                         ksa_block_a(1,1)=ksa_block_a(1,1)+e1b(1)
-                         ecore2=ecore2+e1b(1)*pa_block_a(1,1)
+                       IF (do_ewald) THEN
+                         !only calculate short range part
+                         IF (anag) THEN
+                           IF ( .NOT. switch ) THEN
+!deb                         CALL rotnuc_sr_ana (se_kind_a,se_kind_b,rij,e1b=e1b,e2a=e2a,enuc=enuc,itype=itype)
+                           ELSE
+!deb                         CALL rotnuc_sr_ana (se_kind_b,se_kind_a,-rij,e1b=e2a,e2a=e1b,enuc=enuc,itype=itype)
+                           END IF
+                         ELSE 
+                           IF ( .NOT. switch ) THEN
+!deb                         CALL rotnuc_sr (se_kind_a,se_kind_b,rij,e1b=e1b,e2a=e2a,enuc=enuc,itype=itype)
+                           ELSE
+!deb                         CALL rotnuc_sr (se_kind_b,se_kind_a,-rij,e1b=e2a,e2a=e1b,enuc=enuc,itype=itype)
+                           END IF
+                         END IF
                        ELSE
-                         CALL expand ( ksa_block_a, e1b )
-                         ecore2=ecore2+traceb(pa_block_a,e1b)
+                         IF (anag) THEN
+                           IF ( .NOT. switch ) THEN
+                             CALL rotnuc_ana (se_kind_a,se_kind_b,rij,e1b=e1b,e2a=e2a,enuc=enuc,itype=itype)
+                           ELSE
+                             CALL rotnuc_ana (se_kind_b,se_kind_a,-rij,e1b=e2a,e2a=e1b,enuc=enuc,itype=itype)
+                           END IF
+                         ELSE 
+                           IF ( .NOT. switch ) THEN
+                             CALL rotnuc (se_kind_a,se_kind_b,rij,e1b=e1b,e2a=e2a,enuc=enuc,itype=itype)
+                           ELSE
+                             CALL rotnuc (se_kind_b,se_kind_a,-rij,e1b=e2a,e2a=e1b,enuc=enuc,itype=itype)
+                           END IF
+                         END IF
                        END IF
-                       ! contribution to jatom
-                       IF ( SIZE(ksb_block_a,1) == 1 ) THEN
-                         ksb_block_a(1,1)=ksb_block_a(1,1)+e2a(1)
-                         ecore2=ecore2+e2a(1)*pb_block_a(1,1)
-                       ELSE
-                         CALL expand ( ksb_block_a, e2a )
-                       ecore2=ecore2+traceb(pb_block_a,e2a)
-                       END IF
-                     END IF
-                     IF ( nspins >= 2 ) THEN
-                       ! contribution to iatom
-                       IF ( SIZE(ksa_block_b,1) == 1 ) THEN
-                         ksa_block_b(1,1)=ksa_block_b(1,1)+e1b(1)
-                         ecore2=ecore2+e1b(1)*pa_block_b(1,1)
-                       ELSE
-                         CALL expand ( ksa_block_b, e1b )
-                         ecore2=ecore2+traceb(pa_block_b,e1b)
-                       END IF
-                       ! contribution to jatom
-                       IF ( SIZE(ksb_block_b,1) == 1 ) THEN
-                         ksb_block_b(1,1)=ksb_block_b(1,1)+e2a(1)
-                         ecore2=ecore2+e2a(1)*pb_block_b(1,1)
-                       ELSE
-                         CALL expand ( ksb_block_b, e2a )
-                         ecore2=ecore2+traceb(pb_block_b,e2a)
-                       END IF
-                     END IF
-                     IF(calculate_forces) THEN
-                       atom_a = atom_of_kind(iatom)
-                       atom_b = atom_of_kind(jatom)
-                       IF (anag) THEN
-                          IF ( .NOT. switch ) THEN
-                             CALL rotnuc_ana (se_kind_a,se_kind_b,rij,de1b=de1b,de2a=de2a,&
-                                  denuc=denuc,itype=itype)
-                          ELSE
-                             CALL rotnuc_ana (se_kind_b,se_kind_a,-rij,de1b=de2a,de2a=de1b,&
-                                  denuc=denuc,itype=itype)
-                          END IF
-                       ELSE
-                          IF ( .NOT. switch ) THEN
-                             CALL drotnuc (se_kind_a,se_kind_b,rij,de1b,de2a,&
-                                  denuc,itype,delta)
-                          ELSE
-                             CALL drotnuc (se_kind_b,se_kind_a,-rij,de2a,de1b,&
-                                  denuc,itype,delta)
-                          END IF
-                       END IF
-                       force_ab(1:3)=-denuc(1:3)
+                       enuclear = enuclear + enuc
+                       ! one-centre one-electron terms
                        CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
                        IF ( nspins >= 1 ) THEN
-                           IF ( SIZE(ksa_block_a,1) == 1 ) THEN
-                             force_ab(1:3)=force_ab(1:3)-de1b(1,1:3)*pa_block_a(1,1)
-                           ELSE
-                             CALL contract ( pa_block_a, pvec )
-                             DO icor=1,3
-                               force_ab(icor)=force_ab(icor)-&
-                                              SUM(de1b(1:10,icor)*pvec(1:10))
-                             END DO
-                           END IF
-                           IF ( SIZE(ksb_block_a,1) == 1 ) THEN
-                             force_ab(1:3)=force_ab(1:3)-de2a(1,1:3)*pb_block_a(1,1)
-                           ELSE
-                             CALL contract ( pb_block_a, pvec )
-                             DO icor=1,3
-                               force_ab(icor)=force_ab(icor)-&
-                                              SUM(de2a(1:10,icor)*pvec(1:10))
-                             END DO
-                           END IF
+                         ! contribution to iatom
+                         IF ( SIZE(ksa_block_a,1) == 1 ) THEN
+                           ksa_block_a(1,1)=ksa_block_a(1,1)+e1b(1)
+                           ecore2=ecore2+e1b(1)*pa_block_a(1,1)
+                         ELSE
+                           CALL expand ( ksa_block_a, e1b )
+                           ecore2=ecore2+traceb(pa_block_a,e1b)
+                         END IF
+                         ! contribution to jatom
+                         IF ( SIZE(ksb_block_a,1) == 1 ) THEN
+                           ksb_block_a(1,1)=ksb_block_a(1,1)+e2a(1)
+                           ecore2=ecore2+e2a(1)*pb_block_a(1,1)
+                         ELSE
+                           CALL expand ( ksb_block_a, e2a )
+                         ecore2=ecore2+traceb(pb_block_a,e2a)
+                         END IF
                        END IF
                        IF ( nspins >= 2 ) THEN
-                           IF ( SIZE(ksa_block_b,1) == 1 ) THEN
-                             force_ab(1:3)=force_ab(1:3)-de1b(1,1:3)*pa_block_b(1,1)
-                           ELSE
-                             CALL contract ( pa_block_b, pvec )
-                             DO icor=1,3
-                               force_ab(icor)=force_ab(icor)-&
-                                              SUM(de1b(1:10,icor)*pvec(1:10))
-                             END DO
-                           END IF
-                           IF ( SIZE(ksb_block_b,1) == 1 ) THEN
-                             force_ab(1:3)=force_ab(1:3)-de2a(1,1:3)*pb_block_b(1,1)
-                           ELSE
-                             CALL contract ( pb_block_b, pvec )
-                             DO icor=1,3
-                               force_ab(icor)=force_ab(icor)-&
-                                              SUM(de2a(1:10,icor)*pvec(1:10))
-                             END DO
-                           END IF
+                         ! contribution to iatom
+                         IF ( SIZE(ksa_block_b,1) == 1 ) THEN
+                           ksa_block_b(1,1)=ksa_block_b(1,1)+e1b(1)
+                           ecore2=ecore2+e1b(1)*pa_block_b(1,1)
+                         ELSE
+                           CALL expand ( ksa_block_b, e1b )
+                           ecore2=ecore2+traceb(pa_block_b,e1b)
+                         END IF
+                         ! contribution to jatom
+                         IF ( SIZE(ksb_block_b,1) == 1 ) THEN
+                           ksb_block_b(1,1)=ksb_block_b(1,1)+e2a(1)
+                           ecore2=ecore2+e2a(1)*pb_block_b(1,1)
+                         ELSE
+                           CALL expand ( ksb_block_b, e2a )
+                           ecore2=ecore2+traceb(pb_block_b,e2a)
+                         END IF
                        END IF
-                       IF ( .NOT. switch ) force_ab = -force_ab
-                          force(ikind)%all_potential(:,atom_a) =&
-                            force(ikind)%all_potential(:,atom_a) - force_ab(:)
-                          force(jkind)%all_potential(:,atom_b) =&
+                       IF(calculate_forces) THEN
+                         atom_a = atom_of_kind(iatom)
+                         atom_b = atom_of_kind(jatom)
+                         IF (do_ewald) then
+                           IF (anag) THEN
+                             IF ( .NOT. switch ) THEN
+!deb                           CALL rotnuc_sr_ana (se_kind_a,se_kind_b,rij,de1b=de1b,de2a=de2a,&
+!deb                              denuc=denuc,itype=itype)
+                             ELSE
+!deb                           CALL rotnuc_sr_ana (se_kind_b,se_kind_a,-rij,de1b=de2a,de2a=de1b,&
+!deb                              denuc=denuc,itype=itype)
+                             END IF
+                           ELSE
+                             IF ( .NOT. switch ) THEN
+!deb                           CALL drotnuc_sr (se_kind_a,se_kind_b,rij,de1b=de1b,de2a=de2a,&
+!deb                              denuc=denuc,itype=itype)
+                             ELSE
+!deb                           CALL drotnuc_sr (se_kind_b,se_kind_a,-rij,de1b=de2a,de2a=de1b,&
+!deb                              denuc=denuc,itype=itype)
+                             END IF
+                           END IF
+
+                         ELSE
+                           IF (anag) THEN
+                             IF ( .NOT. switch ) THEN
+                               CALL rotnuc_ana (se_kind_a,se_kind_b,rij,de1b=de1b,de2a=de2a,&
+                                  denuc=denuc,itype=itype)
+                             ELSE
+                               CALL rotnuc_ana (se_kind_b,se_kind_a,-rij,de1b=de2a,de2a=de1b,&
+                                  denuc=denuc,itype=itype)
+                             END IF
+                           ELSE
+                             IF ( .NOT. switch ) THEN
+                               CALL drotnuc (se_kind_a,se_kind_b,rij,de1b=de1b,de2a=de2a,&
+                                  denuc=denuc,itype=itype,delta=delta)
+                             ELSE
+                               CALL drotnuc (se_kind_b,se_kind_a,-rij,de1b=de2a,de2a=de1b,&
+                                  denuc=denuc,itype=itype,delta=delta)
+                             END IF
+                           END IF
+                         END IF
+                         force_ab(1:3)=-denuc(1:3)
+                         CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
+                         IF ( nspins >= 1 ) THEN
+                             IF ( SIZE(ksa_block_a,1) == 1 ) THEN
+                               force_ab(1:3)=force_ab(1:3)-de1b(1,1:3)*pa_block_a(1,1)
+                             ELSE
+                               CALL contract ( pa_block_a, pvec )
+                               DO icor=1,3
+                                 force_ab(icor)=force_ab(icor)-&
+                                              SUM(de1b(1:10,icor)*pvec(1:10))
+                               END DO
+                             END IF
+                             IF ( SIZE(ksb_block_a,1) == 1 ) THEN
+                               force_ab(1:3)=force_ab(1:3)-de2a(1,1:3)*pb_block_a(1,1)
+                             ELSE
+                               CALL contract ( pb_block_a, pvec )
+                               DO icor=1,3
+                                 force_ab(icor)=force_ab(icor)-&
+                                              SUM(de2a(1:10,icor)*pvec(1:10))
+                               END DO
+                             END IF
+                         END IF
+                         IF ( nspins >= 2 ) THEN
+                             IF ( SIZE(ksa_block_b,1) == 1 ) THEN
+                               force_ab(1:3)=force_ab(1:3)-de1b(1,1:3)*pa_block_b(1,1)
+                             ELSE
+                               CALL contract ( pa_block_b, pvec )
+                               DO icor=1,3
+                                 force_ab(icor)=force_ab(icor)-&
+                                                SUM(de1b(1:10,icor)*pvec(1:10))
+                               END DO
+                             END IF
+                             IF ( SIZE(ksb_block_b,1) == 1 ) THEN
+                               force_ab(1:3)=force_ab(1:3)-de2a(1,1:3)*pb_block_b(1,1)
+                             ELSE
+                               CALL contract ( pb_block_b, pvec )
+                               DO icor=1,3
+                                 force_ab(icor)=force_ab(icor)-&
+                                                SUM(de2a(1:10,icor)*pvec(1:10))
+                               END DO
+                             END IF
+                         END IF
+                         IF ( .NOT. switch ) force_ab = -force_ab
+                            force(ikind)%all_potential(:,atom_a) =&
+                                force(ikind)%all_potential(:,atom_a) - force_ab(:)
+                            force(jkind)%all_potential(:,atom_b) =&
                             force(jkind)%all_potential(:,atom_b) + force_ab(:)
-                     END IF
+                       END IF
 
-                     CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
-                     IF ( nspins == 1 ) THEN
-                       IF ( .NOT. switch ) THEN
-                         CALL fock2c(se_kind_a,se_kind_b,rij,pa_block_a,pb_block_a,&
-                                    ksa_block_a,ksb_block_a,anag,error)
-                       ELSE
-                         CALL fock2c(se_kind_b,se_kind_a,-rij,pb_block_a,pa_block_a,&
-                                    ksb_block_a,ksa_block_a,anag,error)
-                       ENDIF
-                     ELSE IF ( nspins == 2 ) THEN
-                       IF ( .NOT. switch ) THEN
-                         CALL fock2c(se_kind_a,se_kind_b,rij,pa_block_a,pb_block_a,&
-                                    ksa_block_a,ksb_block_a,&
-                                    pa_block_b,pb_block_b,&
-                                    ksa_block_b,ksb_block_b,anag,error)
-                       ELSE
-                         CALL fock2c(se_kind_b,se_kind_a,-rij,pb_block_a,pa_block_a,&
-                                    ksb_block_a,ksa_block_a,&
-                                    pb_block_b,pa_block_b,&
-                                    ksb_block_b,ksa_block_b,anag,error)
-                       ENDIF
-                     END IF
-
-                     IF(calculate_forces) THEN
-                       force_ab = 0._dp
                        CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
                        IF ( nspins == 1 ) THEN
                          IF ( .NOT. switch ) THEN
-                           CALL dfock2c(se_kind_a,se_kind_b,rij,pa_block_a,&
-                                pb_block_a,force_ab,delta,anag,error)
+                           CALL fock2c(se_kind_a,se_kind_b,rij,pa_block_a,pb_block_a,&
+                                      ksa_block_a,ksb_block_a,anag,error)
                          ELSE
-                           CALL dfock2c(se_kind_b,se_kind_a,-rij,pb_block_a,&
-                                pa_block_a,force_ab,delta,anag,error)
+                           CALL fock2c(se_kind_b,se_kind_a,-rij,pb_block_a,pa_block_a,&
+                                      ksb_block_a,ksa_block_a,anag,error)
                          ENDIF
                        ELSE IF ( nspins == 2 ) THEN
+                         IF ( .NOT. switch ) THEN
+                           CALL fock2c(se_kind_a,se_kind_b,rij,pa_block_a,pb_block_a,&
+                                      ksa_block_a,ksb_block_a,&
+                                      pa_block_b,pb_block_b,&
+                                      ksa_block_b,ksb_block_b,anag,error)
+                         ELSE
+                           CALL fock2c(se_kind_b,se_kind_a,-rij,pb_block_a,pa_block_a,&
+                                      ksb_block_a,ksa_block_a,&
+                                      pb_block_b,pa_block_b,&
+                                      ksb_block_b,ksa_block_b,anag,error)
+                         ENDIF
+                       END IF
+
+                       IF(calculate_forces) THEN
+                         force_ab = 0._dp
+                         CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
+                         IF ( nspins == 1 ) THEN
+                           IF ( .NOT. switch ) THEN
+                             CALL dfock2c(se_kind_a,se_kind_b,rij,pa_block_a,&
+                                  pb_block_a,force_ab,delta,anag,error)
+                           ELSE
+                             CALL dfock2c(se_kind_b,se_kind_a,-rij,pb_block_a,&
+                                  pa_block_a,force_ab,delta,anag,error)
+                           ENDIF
+                         ELSE IF ( nspins == 2 ) THEN
                          IF ( .NOT. switch ) THEN
                            CALL dfock2c(se_kind_a,se_kind_b,rij,pa_block_a,&
                                 pb_block_a,pa_block_b,pb_block_b,force_ab,delta,anag,error)
@@ -620,11 +665,15 @@ CONTAINS
                          ENDIF
                        END IF
                        IF ( switch ) force_ab = -force_ab
-                       force(ikind)%rho_elec(:,atom_a) =&
-                         force(ikind)%rho_elec(:,atom_a) - force_ab(:)
-                       force(jkind)%rho_elec(:,atom_b) =&
-                         force(jkind)%rho_elec(:,atom_b) + force_ab(:)
-                     END IF
+                         force(ikind)%rho_elec(:,atom_a) =&
+                           force(ikind)%rho_elec(:,atom_a) - force_ab(:)
+                         force(jkind)%rho_elec(:,atom_b) =&
+                           force(jkind)%rho_elec(:,atom_b) + force_ab(:)
+                       END IF
+
+                     CASE DEFAULT
+
+                       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
 
                    END SELECT
 

@@ -710,6 +710,21 @@ CONTAINS
           CALL init_se_nlradius(se_control,cell,atomic_kind_set,&
                  subsys_section,error)
       END SELECT
+      ! check for Ewald
+      IF ( se_control%do_ewald ) THEN
+        CALL ewald_env_create(ewald_env,para_env,error=error)
+        poisson_section => section_vals_get_subs_vals(dft_section,"POISSON",error=error)
+        CALL ewald_env_set(ewald_env,poisson_section=poisson_section,error=error)
+        ewald_section => section_vals_get_subs_vals(poisson_section,"EWALD",error=error)
+        print_section => section_vals_get_subs_vals(qs_env%input,&
+            "PRINT%GRID_INFORMATION",error=error)
+        CALL read_ewald_section(ewald_env,ewald_section,error=error)
+        CALL ewald_pw_create(ewald_pw,ewald_env,cell,cell_ref,&
+             print_section=print_section,error=error)
+        CALL set_qs_env(qs_env,ewald_env=ewald_env,ewald_pw=ewald_pw,error=error)
+        CALL ewald_env_release(ewald_env,error=error)
+        CALL ewald_pw_release(ewald_pw,error=error)
+      END IF
     ENDIF
 
 !   *** Allocate the MO data types ***
