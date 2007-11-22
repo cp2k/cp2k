@@ -108,10 +108,10 @@ MODULE qs_ks_methods
                                              pw_p_type,&
                                              pw_release,&
                                              pw_transfer,&
-                                             pw_type
+                                             pw_type,&
+                                             pw_integrate_function
   USE qs_charges_types,                ONLY: qs_charges_type
-  USE qs_collocate_density,            ONLY: calculate_rho_elec,&
-                                             calculate_total_rho
+  USE qs_collocate_density,            ONLY: calculate_rho_elec
   USE qs_core_energies,                ONLY: calculate_ecore
   USE qs_dftb_matrices,                ONLY: build_dftb_ks_matrix
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -499,7 +499,7 @@ CONTAINS
            END IF
            DO ispin=1,nspins
              CALL coeff_transform_space(rho%rho_g(ispin),rho%rho_r(ispin))
-             rho%tot_rho_r(ispin) = calculate_total_rho(rho%rho_r(ispin))
+             rho%tot_rho_r(ispin) = pw_integrate_function(rho%rho_r(ispin)%pw,isign=-1)
            END DO
          END IF
 
@@ -1601,7 +1601,7 @@ CONTAINS
        CALL coeff_sumup(rho%rho_g(ispin), rho_tot_gspace)
     END DO
     IF (.NOT.my_skip) &
-         qs_charges%total_rho_gspace = calculate_total_rho(rho_tot_gspace)
+         qs_charges%total_rho_gspace = pw_integrate_function(rho_tot_gspace%pw,isign=-1)
 
   END SUBROUTINE calc_rho_tot_gspace
 

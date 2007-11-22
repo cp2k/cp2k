@@ -18,6 +18,7 @@
 !!     JGH (20-12-2000) : Adapted for parallel use
 !!     JGH (07-02-2001) : Added constructor and destructor routines
 !!     JGH (21-02-2003) : Generalized reference grid concept
+!!     JGH (19-11-2007) : Refactoring and modularization
 !!
 !!   NOTES
 !!     pw_grid_create : set the defaults
@@ -72,7 +73,7 @@ MODULE pw_grids
 
   PRIVATE
   PUBLIC :: pw_grid_create, pw_grid_retain, pw_grid_release
-  PUBLIC :: get_pw_grid_info, pw_grid_compare
+  PUBLIC :: get_pw_grid_info, set_pw_grid_info, pw_grid_compare
   PUBLIC :: pw_grid_setup, pw_grid_setup1
   PUBLIC :: pw_grid_change, create_gvectors
 
@@ -219,11 +220,21 @@ END FUNCTION pw_grid_compare
 !!
 !!*** *************************************************************************
 
- SUBROUTINE get_pw_grid_info(pw_grid, id_nr, mode, &
-                             error)
+ SUBROUTINE get_pw_grid_info(pw_grid, id_nr, mode, dvol, npts, ngpts, ngpts_cut,&
+                             gvectors,gsquare,error)
 
     TYPE(pw_grid_type), POINTER              :: pw_grid
-    INTEGER, INTENT(OUT), OPTIONAL           :: id_nr, mode
+    INTEGER, INTENT(OUT), OPTIONAL           :: id_nr
+    INTEGER, INTENT(OUT), OPTIONAL           :: mode
+    REAL(dp), INTENT(OUT), OPTIONAL          :: dvol
+    INTEGER, DIMENSION(3), INTENT(OUT), &
+         OPTIONAL                            :: npts
+    INTEGER, INTENT(OUT), OPTIONAL           :: ngpts
+    INTEGER, INTENT(OUT), OPTIONAL           :: ngpts_cut
+    REAL(dp), DIMENSION(:,:), &
+         POINTER, OPTIONAL                   :: gvectors
+    REAL(dp), DIMENSION(:), &
+         POINTER, OPTIONAL                   :: gsquare
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_pw_grid_info', &
@@ -239,9 +250,53 @@ END FUNCTION pw_grid_compare
     IF ( .NOT. failure ) THEN
       IF ( PRESENT(id_nr) ) id_nr = pw_grid%id_nr
       IF ( PRESENT(mode) ) mode = pw_grid%para%mode
+      IF ( PRESENT(dvol) ) dvol = pw_grid%dvol
+      IF ( PRESENT(npts) ) npts(1:3) = pw_grid%npts(1:3)
+      IF ( PRESENT(ngpts) ) ngpts = pw_grid%ngpts
+      IF ( PRESENT(ngpts_cut) ) ngpts_cut = pw_grid%ngpts_cut
+      IF ( PRESENT(gvectors) ) gvectors => pw_grid%g
+      IF ( PRESENT(gsquare) ) gsquare => pw_grid%gsq
     END IF
 
   END SUBROUTINE get_pw_grid_info
+
+!******************************************************************************
+!!****** pw_grids/set_pw_grid_info [1.0] *
+!!
+!!   NAME
+!!     set_pw_grid_info
+!!
+!!   FUNCTION
+!!     Set some information stored in the pw_grid_type
+!!
+!!   AUTHOR
+!!     JGH (19-Nov-2007)
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** *************************************************************************
+
+ SUBROUTINE set_pw_grid_info(pw_grid, &
+                             error)
+
+    TYPE(pw_grid_type), POINTER              :: pw_grid
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_pw_grid_info', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+!   ---------------------------------------------------------------------------
+
+    failure=.FALSE.
+    CPPrecondition(pw_grid%ref_count>0,cp_failure_level,routineP,error,failure)
+
+    IF ( .NOT. failure ) THEN
+    END IF
+
+  END SUBROUTINE set_pw_grid_info
 
 !******************************************************************************
 

@@ -57,9 +57,9 @@ MODULE qs_rho0_ggrid
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
-                                             RECIPROCALSPACE
-  USE qs_collocate_density,            ONLY: calculate_total_rho,&
-                                             collocate_pgf_product_rspace
+                                             RECIPROCALSPACE,&
+                                             pw_integrate_function
+  USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
@@ -284,7 +284,7 @@ MODULE qs_rho0_ggrid
       CALL coeff_transform_space(coeff_rspace,coeff_gspace)
       CALL coeff_sumup(coeff_gspace,rho0_s_gs)
 
-      tot_rs_int = calculate_total_rho(coeff_rspace)
+      tot_rs_int = pw_integrate_function(coeff_rspace%pw,isign=-1)
 
       CALL pw_pool_give_back_coeff(pw_pool,coeff_rspace,error=error)
       CALL pw_pool_give_back_coeff(pw_pool,coeff_gspace,error=error)
@@ -296,7 +296,7 @@ MODULE qs_rho0_ggrid
       CALL rs_pw_transfer(rs_grid,rho0_s_rs%pw,rs2pw)
       CALL rs_pool_give_back_rs(pool,rs_grid,error=error)
 
-      tot_rs_int = calculate_total_rho(rho0_s_rs)
+      tot_rs_int = pw_integrate_function(rho0_s_rs%pw,isign=-1)
 
       CALL coeff_transform_space(rho0_s_rs,rho0_s_gs)
     END IF

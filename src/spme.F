@@ -42,6 +42,7 @@ MODULE spme
   USE pme_tools,                       ONLY: get_center,&
                                              set_list
   USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_grids,                        ONLY: get_pw_grid_info
   USE pw_poisson_methods,              ONLY: pw_poisson_rebuild,&
                                              pw_poisson_solve
   USE pw_poisson_types,                ONLY: greens_fn_type,&
@@ -132,6 +133,7 @@ CONTAINS
       nshell, o_spline, p1, p1_shell, rs_distributed_id
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center, core_center, &
                                                 shell_center
+    INTEGER, DIMENSION(3)                    :: npts
     LOGICAL                                  :: do_shell, failure
     REAL(KIND=dp)                            :: alpha, dvols, eps0, ffa, &
                                                 inv_fourpi_eps0
@@ -169,6 +171,9 @@ CONTAINS
     inv_fourpi_eps0 = 1.0_dp / ( fourpi * eps0 )
     npart = SIZE ( particle_set )
 
+    CALL get_pw_grid_info(grid_spme,npts=npts,dvol=dvols,error=error)
+    dvols = dvols * inv_fourpi_eps0
+
     n = o_spline
     ALLOCATE ( rhos ( n, n, n ), STAT = ierr )
     IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "rhos", n**3 )
@@ -178,7 +183,7 @@ CONTAINS
 
     ALLOCATE ( center ( 3, npart ), STAT = ierr )
     IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "center", 3*npart )
-    CALL get_center ( particle_set, box, center, grid_spme % npts, n )
+    CALL get_center ( particle_set, box, center, npts, n )
     IF(PRESENT(shell_particle_set).AND.(PRESENT(core_particle_set))) THEN
        CPPostcondition(ASSOCIATED(shell_particle_set),cp_failure_level,routineP,error,failure)
        CPPostcondition(ASSOCIATED(core_particle_set),cp_failure_level,routineP,error,failure)
@@ -187,10 +192,10 @@ CONTAINS
        CPPostcondition(nshell==ncore,cp_failure_level,routineP,error,failure)
        ALLOCATE ( shell_center ( 3, nshell ), STAT = ierr )
        IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "shell_center", 3*nshell )
-       CALL get_center ( shell_particle_set, box, shell_center, grid_spme % npts, n )
+       CALL get_center ( shell_particle_set, box, shell_center, npts, n )
        ALLOCATE ( core_center ( 3, nshell ), STAT = ierr )
        IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "core_center", 3*nshell )
-       CALL get_center ( core_particle_set, box, core_center, grid_spme % npts, n )
+       CALL get_center ( core_particle_set, box, core_center, npts, n )
     END IF
 
     !-------------- DENSITY CALCULATION ----------------
@@ -203,7 +208,7 @@ CONTAINS
        do_shell  = (particle_set(p1)%shell_index/=0)
        IF(do_shell) CYCLE
        ! calculate function on small boxes
-       CALL get_patch ( particle_set, box, green, grid_spme % npts, p1, rhos)
+       CALL get_patch ( particle_set, box, green, npts, p1, rhos)
 
        ! add boxes to real space grid (big box)
        CALL dg_sum_patch ( rden, rhos, center(:,p1) )
@@ -216,7 +221,7 @@ CONTAINS
           CALL set_list ( shell_particle_set, nshell, shell_center, p1_shell,&
                           rden, ipart )
           IF (p1_shell == 0) EXIT
-          CALL get_patch(shell_particle_set, box, green, grid_spme % npts, &
+          CALL get_patch(shell_particle_set, box, green, npts, &
                           p1_shell, rhos, is_shell=.TRUE.)
  
           ! add boxes to real space grid (big box)
@@ -228,7 +233,7 @@ CONTAINS
           CALL set_list ( core_particle_set, nshell, core_center, p1_shell,&
                           rden, ipart )
           IF ( p1_shell == 0 ) EXIT
-          CALL get_patch ( core_particle_set, box, green, grid_spme % npts, &
+          CALL get_patch ( core_particle_set, box, green, npts, &
                            p1_shell, rhos, is_core=.TRUE. )
 
           ! add boxes to real space grid (big box)
@@ -299,7 +304,6 @@ CONTAINS
     !----------------- FORCE CALCULATION ----------------
     ! initialize the forces
     fg_coulomb = 0.0_dp
-    dvols = grid_spme % dvol * inv_fourpi_eps0
     ! Particles
     ipart = 0
     DO

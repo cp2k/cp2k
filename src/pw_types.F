@@ -62,7 +62,7 @@ MODULE pw_types
   PUBLIC :: REALDATA1D, COMPLEXDATA1D, REALDATA3D, COMPLEXDATA3D, NODATA
   PUBLIC :: NOSPACE, REALSPACE, RECIPROCALSPACE
   PUBLIC :: pw_integral_aa, pw_integral_ab, pw_integral_a2b
-  PUBLIC :: pw_dr2_gg
+  PUBLIC :: pw_dr2_gg, pw_integrate_function
 
   TYPE pw_type
      REAL (KIND=dp), DIMENSION ( : ), POINTER :: cr
@@ -3833,6 +3833,70 @@ SUBROUTINE pw_structure_factor ( sf, r )
   CALL timestop ( flop, handle )
 
 END SUBROUTINE pw_structure_factor
+
+!******************************************************************************
+
+FUNCTION pw_integrate_function(fun,isign,operator) RESULT(total_fun)
+
+    TYPE(pw_type), INTENT(IN)                :: fun
+    INTEGER, INTENT(IN), OPTIONAL            :: isign
+    CHARACTER(len=*), INTENT(IN), OPTIONAL   :: operator
+    REAL(KIND=dp)                            :: total_fun
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_integrate_function', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iop
+
+!   ---------------------------------------------------------------------------
+
+    iop = 0
+    IF ( PRESENT(operator) ) THEN
+      SELECT CASE (operator)
+        CASE ("ABS","abs")
+          iop = 1
+        CASE DEFAULT
+          CALL stop_program(routineN,"Unknown operator")
+      END SELECT
+    END IF
+
+    total_fun = 0._dp
+
+    IF (fun%in_space == REALSPACE) THEN
+      IF (fun%in_use == REALDATA3D) THEN
+        ! do reduction using maximum accuracy
+        IF (iop==1) THEN
+          total_fun = fun%pw_grid%dvol*accurate_sum(ABS(fun%cr3d))
+        ELSE
+          total_fun = fun%pw_grid%dvol*accurate_sum(fun%cr3d)
+        END IF
+      ELSE
+        CALL stop_program(routineN,"in_space/in_use combination not implemented")
+      END IF
+    ELSEIF (fun%in_space == RECIPROCALSPACE) THEN
+      IF (iop==1) &
+        CALL stop_program(routineN,"Operator ABS not implemented")
+      IF (fun%in_use == COMPLEXDATA3D) THEN
+        total_fun = fun%pw_grid%vol*fun%cc3d(      &
+                            fun%pw_grid%bounds(1,1), &
+                            fun%pw_grid%bounds(1,2), &
+                            fun%pw_grid%bounds(1,3))
+      ELSEIF (fun%in_use == COMPLEXDATA1D) THEN
+        IF ( fun%pw_grid%have_g0 ) total_fun = fun%pw_grid%vol*fun%cc(1)
+      ELSE
+        CALL stop_program(routineN,"in_space/in_use combination not implemented")
+      END IF
+    ELSE
+      CALL stop_program(routineN,"No space defined")
+    END IF
+    IF (fun%pw_grid%para%mode /= PW_MODE_LOCAL) THEN
+       CALL mp_sum(total_fun,fun%pw_grid%para%group)
+    END IF
+    IF ( PRESENT(isign) ) THEN
+       total_fun = total_fun * SIGN(1._dp,REAL(isign,dp))
+    END IF
+
+END FUNCTION pw_integrate_function
 
 !******************************************************************************
 

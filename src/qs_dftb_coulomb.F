@@ -50,6 +50,7 @@ MODULE qs_dftb_coulomb
   USE pme_tools,                       ONLY: get_center,&
                                              set_list
   USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_grids,                        ONLY: get_pw_grid_info
   USE pw_poisson_methods,              ONLY: pw_poisson_rebuild,&
                                              pw_poisson_solve
   USE pw_poisson_types,                ONLY: greens_fn_type,&
@@ -399,6 +400,7 @@ CONTAINS
                                                 o_spline, p1, &
                                                 rs_distributed_id
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center
+    INTEGER, DIMENSION(3)                    :: npts
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, dvols, fat(3), ffa, &
                                                 fint, vgc
@@ -433,6 +435,8 @@ CONTAINS
   green => poisson_env%green_fft
   grid_spme => pw_pool % pw_grid
 
+  CALL get_pw_grid_info(grid_spme,dvol=dvols,npts=npts,error=error)
+
   npart = SIZE ( particle_set )
 
   n = o_spline
@@ -445,7 +449,7 @@ CONTAINS
 
   ALLOCATE ( center ( 3, npart ), STAT = ierr )
   CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
-  CALL get_center ( particle_set, box, center, grid_spme % npts, n )
+  CALL get_center ( particle_set, box, center, npts, n )
 
 !-------------- DENSITY CALCULATION ----------------
 
@@ -457,7 +461,7 @@ CONTAINS
      IF ( p1 == 0 ) EXIT
 
      ! calculate function on small boxes
-     CALL get_patch ( particle_set, box, green, grid_spme % npts, p1, rhos)
+     CALL get_patch ( particle_set, box, green, npts, p1, rhos)
      rhos = rhos * mcharge(p1)
 
      ! add boxes to real space grid (big box)
@@ -549,8 +553,6 @@ CONTAINS
 
 !----------------- FORCE CALCULATION ----------------
 
-  dvols = grid_spme % dvol
-
   ipart = 0
   DO
 
@@ -558,7 +560,7 @@ CONTAINS
      IF ( p1 == 0 ) EXIT
 
      ! calculate function on small boxes
-     CALL get_patch ( particle_set, box, green, grid_spme % npts, p1, rhos )
+     CALL get_patch ( particle_set, box, green, npts, p1, rhos )
 
      CALL dg_sum_patch_force_1d ( rpot, rhos, center(:,p1), fint )
      gmcharge(p1,1) = gmcharge(p1,1) + fint * dvols

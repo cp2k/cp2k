@@ -106,7 +106,8 @@ MODULE qs_collocate_density
                                              pw_copy,&
                                              pw_prolongate_l,&
                                              pw_sumup,&
-                                             pw_type
+                                             pw_type,&
+                                             pw_integrate_function
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_interactions,                 ONLY: exp_radius_very_extended
@@ -155,10 +156,6 @@ MODULE qs_collocate_density
             collocate_pgf_product_rspace,&
             collocate_atomic_charge_density,&
             density_rs2pw
-
-! *** Public functions ***
-
-  PUBLIC :: calculate_total_rho,calculate_total_abs_rho
 
 ! *** Public type ***
 
@@ -396,7 +393,7 @@ CONTAINS
   !    CALL coeff_transform_space(qs_env%rho%rho_g(1), qs_env%rho%rho_r(1))
   !  END IF
 
-    total_rho = calculate_total_rho(qs_env%rho%rho_r(1))
+    total_rho = pw_integrate_function(qs_env%rho%rho_r(1)%pw,isign=-1)
     qs_env%rho%tot_rho_r = total_rho
     IF (logger%para_env%source==logger%para_env%mepos) THEN
       unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
@@ -611,7 +608,7 @@ CONTAINS
     CALL rs_pw_transfer(rs_rho,rhoc_r%pw,rs2pw)
     CALL rs_pool_give_back_rs(auxbas_rs_pool,rs_rho,error=error)
 
-    total_rho = calculate_total_rho(rhoc_r)
+    total_rho = pw_integrate_function(rhoc_r%pw,isign=-1)
 
     CALL coeff_transform_space(rhoc_r,rho_core)
 
@@ -1276,7 +1273,7 @@ CONTAINS
 
     CALL density_rs2pw(pw_env,rs_rho,rho,rho_gspace,interp_section=interp_section,error=error)
 
-    total_rho = calculate_total_rho(rho)
+    total_rho = pw_integrate_function(rho%pw,isign=-1)
 
     CALL timestop(0.0_dp,handle)
 
@@ -1534,86 +1531,6 @@ CONTAINS
 
   END SUBROUTINE calculate_wavefunction
 
-!!****f* qs_collocate_density/calculate_total_rho *
-!!
-!!   NAME
-!!     calculate_total_rho
-!!
-!!   FUNCTION
-!!     given a pw density compute the total density
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
-  FUNCTION calculate_total_rho(rho) RESULT(total_rho)
-
-    TYPE(coeff_type), INTENT(IN)             :: rho
-    REAL(KIND=dp)                            :: total_rho
-
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "FUNCTION calculate_total_rho (MODULE qs_collocate_density)"
-
-!   ---------------------------------------------------------------------------
-
-    IF (ASSOCIATED(rho%pw%cc3d)) THEN
-      total_rho = -rho%pw%pw_grid%vol*rho%pw%cc3d(      &
-                            rho%pw%pw_grid%bounds(1,1), &
-                            rho%pw%pw_grid%bounds(1,2), &
-                            rho%pw%pw_grid%bounds(1,3))
-    ELSE IF (ASSOCIATED(rho%pw%cr3d)) THEN
-      ! do reduction using maximum accuracy
-      total_rho = -rho%pw%pw_grid%dvol*accurate_sum(rho%pw%cr3d)
-    ELSE IF (ASSOCIATED(rho%pw%cc)) THEN
-      IF ( rho%pw%pw_grid%have_g0 ) THEN
-        total_rho = -rho%pw%pw_grid%vol*rho%pw%cc(1)
-      ELSE
-        total_rho = 0._dp
-      END IF
-    ELSE
-      CALL stop_program(routine,"No density coefficients available")
-    END IF
-    IF (rho%pw%pw_grid%para%mode.NE.PW_MODE_LOCAL) THEN
-       CALL mp_sum(total_rho,rho%pw%pw_grid%para%group)
-    END IF
-
-  END FUNCTION calculate_total_rho
-!!****f* qs_collocate_density/calculate_total_abs_rho *
-!!
-!!   NAME
-!!     calculate_total_abs_rho
-!!
-!!   FUNCTION
-!!     computes the integral of the absolute value of the density
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
-  FUNCTION calculate_total_abs_rho(rho) RESULT(total_abs_rho)
-
-    TYPE(coeff_type), INTENT(IN)             :: rho
-    REAL(KIND=dp)                            :: total_abs_rho
-
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "FUNCTION calculate_total_rho (MODULE qs_collocate_density)"
-
-    IF (ASSOCIATED(rho%pw%cr3d)) THEN
-      total_abs_rho = rho%pw%pw_grid%dvol*accurate_sum(ABS(rho%pw%cr3d))
-    ELSE
-      CALL stop_program(routine,"Need density coefficients in real space !")
-    END IF
-    IF (rho%pw%pw_grid%para%mode.NE.PW_MODE_LOCAL) THEN
-       CALL mp_sum(total_abs_rho,rho%pw%pw_grid%para%group)
-    END IF
-
-  END FUNCTION calculate_total_abs_rho
 !!****f* qs_collocate_density/collocate_pgf_product_rspace *
 !!
 !!   NAME

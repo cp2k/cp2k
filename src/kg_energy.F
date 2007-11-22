@@ -40,7 +40,6 @@ MODULE kg_energy
   USE kg_density,                      ONLY: calculate_density,&
                                              calculate_epc_density,&
                                              calculate_p_density,&
-                                             calculate_total_density,&
                                              calculate_vp_rspace_forces
   USE kg_energy_types,                 ONLY: init_kg_energy,&
                                              kg_energy_type
@@ -77,7 +76,8 @@ MODULE kg_energy
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_p_type,&
-                                             pw_release
+                                             pw_release,&
+                                             pw_integrate_function
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_environment_types,            ONLY: qs_environment_type
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
@@ -232,7 +232,7 @@ SUBROUTINE kg_only_energies ( kg_env, force_env_section, error )
 ! calculate the frozen electronic pseudo density
 
   CALL calculate_density (rho_r, rho_g, total_rho0_rspace, kg_env,error=error)
-  rho%total_rho_gspace = calculate_total_density(rho_g)
+  rho%total_rho_gspace = pw_integrate_function(rho_g%pw)
 
 ! calculate the total density
   rho%total_rho_rspace = total_rho0_rspace+ rho%total_rho_core_rspace
@@ -722,7 +722,7 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, force_env_section, error )
   END DO
   CALL coeff_zero(rho_g)
   CALL coeff_copy(rho_core,rho_g)
-  rho%total_rho_gspace = calculate_total_density(rho_g)
+  rho%total_rho_gspace = pw_integrate_function(rho_g%pw)
 
   CALL calculate_drho_ppl(kg_env,calculate_forces,error)
 

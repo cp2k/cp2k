@@ -87,9 +87,9 @@ MODULE qs_scf_post
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_transfer
-  USE qs_collocate_density,            ONLY: calculate_total_abs_rho,&
-                                             calculate_wavefunction
+                                             pw_transfer,&
+                                             pw_integrate_function
+  USE qs_collocate_density,            ONLY: calculate_wavefunction
   USE qs_conductivity,                 ONLY: optical_conductivity
   USE qs_electric_field_gradient,      ONLY: qs_efg_calc
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -1579,7 +1579,7 @@ CONTAINS
                in_space = REALSPACE, error=error)
           CALL coeff_copy(rho%rho_r(1),wf_r)
           CALL coeff_reduce(rho%rho_r(2),wf_r)
-          total_abs_spin_dens=calculate_total_abs_rho(wf_r)
+          total_abs_spin_dens=pw_integrate_function(wf_r%pw,operator="ABS")
           IF (ionode) WRITE(UNIT=output_unit,fmt='(/,(T3,A,T60,F20.10))') &
                "Integrated absolute spin density  : ",total_abs_spin_dens
           CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r, error=error)

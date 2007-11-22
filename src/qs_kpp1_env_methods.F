@@ -62,8 +62,7 @@ MODULE qs_kpp1_env_methods
                                              pw_pool_type
   USE pw_types,                        ONLY: &
        COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_create, &
-       pw_p_type, pw_release, pw_retain, pw_transfer, pw_zero
-  USE qs_collocate_density,            ONLY: calculate_total_rho
+       pw_p_type, pw_release, pw_retain, pw_transfer, pw_zero, pw_integrate_function
   USE qs_energy_types,                 ONLY: allocate_qs_energy,&
                                              deallocate_qs_energy,&
                                              qs_energy_type
@@ -965,7 +964,7 @@ CONTAINS
 
     REAL(KIND=dp)                            :: total_rho_gspace
 
-    total_rho_gspace = calculate_total_rho(rho1_tot_gspace)
+    total_rho_gspace = pw_integrate_function(rho1_tot_gspace%pw,isign=-1)
     IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
             "KPP1 total charge density (r-space):",&

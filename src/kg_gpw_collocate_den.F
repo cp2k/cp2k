@@ -52,8 +52,8 @@ MODULE kg_gpw_collocate_den
   USE orbital_pointers,                ONLY: ncoset
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE qs_collocate_density,            ONLY: calculate_total_rho,&
-                                             collocate_pgf_product_rspace,&
+  USE pw_types,                        ONLY: pw_integrate_function
+  USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace,&
                                              density_rs2pw,&
                                              lgrid_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -608,7 +608,7 @@ CONTAINS
 
     CALL density_rs2pw(pw_env,rs_rho,rho_r,rho_g,interp_section=interp_section,error=error)
 
-    total_rho = calculate_total_rho(rho_r)
+    total_rho = pw_integrate_function(rho_r%pw,isign=-1)
 
     CALL timestop(0.0_dp,handle)
 

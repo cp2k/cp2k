@@ -58,9 +58,9 @@ MODULE xray_diffraction
                                              pw_pool_init_coeff,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             RECIPROCALSPACE
-  USE qs_collocate_density,            ONLY: calculate_total_rho,&
-                                             collocate_pgf_product_gspace
+                                             RECIPROCALSPACE,&
+                                             pw_integrate_function
+  USE qs_collocate_density,            ONLY: collocate_pgf_product_gspace
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
@@ -250,7 +250,7 @@ CONTAINS
       DEALLOCATE (rho_elec_gspace,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-      rho_soft = calculate_total_rho(rhotot_elec_gspace)
+      rho_soft = pw_integrate_function(rhotot_elec_gspace%pw,isign=-1)
       CALL coeff_scale(rhotot_elec_gspace,pw_grid%vol)
 
       ! Add the hard contribution of the electronic density
@@ -390,12 +390,7 @@ CONTAINS
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
 
-      IF (pw_grid%have_g0) THEN
-        rho_total = -rhotot_elec_gspace%pw%cc(1)
-      ELSE
-        rho_total = 0.0_dp
-      END IF
-      CALL mp_sum(rho_total,group)
+      rho_total = pw_integrate_function(rhotot_elec_gspace%pw,isign=-1)
 
       rho_hard = rho_total - rho_soft
 

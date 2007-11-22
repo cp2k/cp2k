@@ -69,7 +69,8 @@ MODULE kg_density
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
-                                             RECIPROCALSPACE
+                                             RECIPROCALSPACE,&
+                                             pw_integrate_function
   USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace
   USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace
   USE realspace_grid_types,            ONLY: pw2rs,&
@@ -93,10 +94,6 @@ MODULE kg_density
   PUBLIC :: calculate_density, calculate_epc_density, &
             calculate_epc_rspace_forces, calculate_p_density, &
             calculate_v_rspace_forces, calculate_vp_rspace_forces
-
-! *** Public functions ***
-
-  PUBLIC :: calculate_total_density
 
 !!***
 ! *****************************************************************************
@@ -301,7 +298,7 @@ CONTAINS
        CALL coeff_transform_space(rho_gspace,rho)
     END IF
 
-    total_rho = calculate_total_density(rho)
+    total_rho = pw_integrate_function(rho%pw)
 
     ! *** give back the pw multi-grids
     CALL pw_pools_give_back_coeffs(pw_pools,mgrid_gspace,&
@@ -319,45 +316,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  FUNCTION calculate_total_density(rho) RESULT(total_rho)
-
-    TYPE(coeff_type), INTENT(IN)             :: rho
-    REAL(KIND=dp)                            :: total_rho
-
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "FUNCTION calculate_total_density (MODULE kg_density)"
-
-    INTEGER, DIMENSION(3)                    :: lb_grid
-
-!   ---------------------------------------------------------------------------
-
-    IF (ASSOCIATED(rho%pw%cc3d)) THEN
-      lb_grid = rho%pw%pw_grid%bounds(1,:)
-      total_rho = rho%pw%pw_grid%vol*rho%pw%cc3d(lb_grid(1),&
-                                                  lb_grid(2),&
-                                                  lb_grid(3))
-    ELSE IF (ASSOCIATED(rho%pw%cr3d)) THEN
-      total_rho = rho%pw%pw_grid%dvol*accurate_sum(rho%pw%cr3d)
-    ELSE IF (ASSOCIATED(rho%pw%cc)) THEN
-      IF ( rho%pw%pw_grid%have_g0 ) THEN
-        total_rho = rho%pw%pw_grid%vol*rho%pw%cc(1)
-      ELSE
-        total_rho = 0.0_dp
-      END IF
-    ELSE
-      CALL stop_program(routine,"No density coefficients available")
-    END IF
-    IF (rho%pw%pw_grid%para%mode.ne.PW_MODE_LOCAL) THEN
-       CALL mp_sum(total_rho,rho%pw%pw_grid%para%group)
-    END IF
-
-  END FUNCTION calculate_total_density
-
-! *****************************************************************************
-
   SUBROUTINE calculate_epc_density (rho_core, total_rho, kg_env, error)
-! *****************************************************************************
-
 
 !   *** Arguments ***
 
@@ -453,7 +412,7 @@ CONTAINS
     CALL rs_pw_transfer(rs_rho,rhoc_r%pw,rs2pw)
     CALL rs_pool_give_back_rs(auxbas_rs_pool,rs_rho,error=error)
 
-    total_rho = calculate_total_density(rhoc_r)
+    total_rho = pw_integrate_function(rhoc_r%pw)
 
     CALL coeff_transform_space(rhoc_r,rho_core)
 
@@ -675,7 +634,7 @@ CONTAINS
        CALL coeff_transform_space(rho_gspace,rho)
     END IF
 
-    total_rho = calculate_total_density(rho)
+    total_rho = pw_integrate_function(rho%pw)
 
     ! *** give back the pw multi-grids
     CALL pw_pools_give_back_coeffs(pw_pools,mgrid_gspace,&

@@ -46,7 +46,6 @@ MODULE kg_force
                                              calculate_epc_density,&
                                              calculate_epc_rspace_forces,&
                                              calculate_p_density,&
-                                             calculate_total_density,&
                                              calculate_v_rspace_forces,&
                                              calculate_vp_rspace_forces
   USE kg_energy,                       ONLY: kg_qs_energies
@@ -82,7 +81,8 @@ MODULE kg_force
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_p_type
+                                             pw_p_type,&
+                                             pw_integrate_function
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
@@ -385,7 +385,7 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, error )
 ! add the core density to the frozen electronic density
   CALL coeff_sumup(rho_core,rho_g)
 
-  rho%total_rho_gspace = calculate_total_density(rho_g)
+  rho%total_rho_gspace = pw_integrate_function(rho_g%pw)
 
 ! add the polarization density to get the total density
   CALL coeff_sumup(rhop_g,rho_g)
@@ -667,7 +667,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, error )
 ! add the core density to the frozen electronic density
 
   CALL coeff_sumup(rho_core,rho_g)
-  rho%total_rho_gspace = calculate_total_density(rho_g)
+  rho%total_rho_gspace = pw_integrate_function(rho_g%pw)
 
 ! calculate electrostatic potential
   CALL pw_poisson_solve(poisson_env,rho_g%pw, energy % hartree,v_gspace%pw,error=error)

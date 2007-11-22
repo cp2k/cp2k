@@ -88,9 +88,9 @@ MODULE qs_linres_epr_current
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
-                                             RECIPROCALSPACE
-  USE qs_collocate_density,            ONLY: calculate_total_rho,&
-                                             collocate_pgf_product_rspace,&
+                                             RECIPROCALSPACE,&
+                                             pw_integrate_function
+  USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace,&
                                              density_rs2pw,&
                                              lgrid_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -470,8 +470,8 @@ CONTAINS
                 CALL coeff_scale(rho_rspace,scale_fac)
                 CALL coeff_scale(rho_gspace,scale_fac)
 
-                jrho_tot_G(idir,i_B) = calculate_total_rho(rho_gspace)
-                jrho_tot_R(idir,i_B) = calculate_total_rho(rho_rspace)
+                jrho_tot_G(idir,i_B) = pw_integrate_function(rho_gspace%pw,isign=-1)
+                jrho_tot_R(idir,i_B) = pw_integrate_function(rho_rspace%pw,isign=-1)
 
                 IF(output_unit>0) THEN
                    WRITE(output_unit,'(T2,2(A,E24.16))') 'Integrated j_'&
