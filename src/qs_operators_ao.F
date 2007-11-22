@@ -1362,6 +1362,9 @@ CONTAINS
                              sphi=sphi_a,&
                              zet=zeta)
       ldsa = SIZE(sphi_a,1)
+      !
+      ! protect if no soft basis set
+      IF(ldsa.EQ.0) CYCLE
       DO jkind=1,nkind
 
         atomic_kind => atomic_kind_set(jkind)
@@ -1384,13 +1387,12 @@ CONTAINS
                                sphi=sphi_b,&
                                zet=zetb)
 
-
         iab = ikind + nkind*(jkind - 1)
         ldsb = SIZE(sphi_b,1)
-
-        iab = ikind + nkind*(jkind - 1)
-        ldsb = SIZE(sphi_b,1)
-
+        !
+        ! protect if no soft basis set
+        IF(ldsb.EQ.0) CYCLE
+        
         IF (.NOT.ASSOCIATED(sab_orb(iab)%neighbor_list_set)) CYCLE
 
         CALL get_neighbor_list_set(neighbor_list_set=&
