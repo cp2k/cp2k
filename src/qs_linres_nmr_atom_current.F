@@ -134,7 +134,7 @@ CONTAINS
       last_katom, max_gau, max_nsgf, maxsoc, nat, natom, nkind, nlist, nnode, &
       nnode_c, nsetc, nsgfa, nsgfb, nsoctot, nspins
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, new_atom_b, paw_atom
+    LOGICAL                                  :: failure, new_atom_b, new_atom_c, paw_atom
     REAL(dp)                                 :: rab(3), rbc(3)
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: PC
@@ -340,6 +340,14 @@ CONTAINS
 
                       katom = reduced_3c_oce(kkind)%index_atom(kneighbor)
                       rbc(1:3) = reduced_3c_oce(kkind)%rbc(1:3,kneighbor)
+
+                      IF (katom /= last_katom) THEN
+                         new_atom_c = .TRUE.
+                         last_katom = katom
+                      ELSE
+                         new_atom_c = .FALSE.
+                         CYCLE
+                      END IF
                       !
                       ! Compute the modified Qai matrix as
                       ! mQai_\mu\nu = Qai_\mu\nu - Qbi_\mu\nu * (R_A-R_\nu)_ii 
