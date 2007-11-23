@@ -1201,13 +1201,25 @@ MODULE libint_interface
 !!
 !!****************************************************************************
 
-  SUBROUTINE pbc(x,box_size,retval)
-    REAL(dp), INTENT(IN)                     :: x(3), box_size(3)
+  SUBROUTINE pbc(x, box_size, box_size_inv, retval)
+    REAL(dp), INTENT(IN)                     :: x(3), box_size(3), box_size_inv(3)
     REAL(dp), INTENT(OUT)                    :: retval(3)
 
-    retval(1)=x(1) - box_size(1)*ANINT(x(1)/box_size(1))
-    retval(2)=x(2) - box_size(2)*ANINT(x(2)/box_size(2))
-    retval(3)=x(3) - box_size(3)*ANINT(x(3)/box_size(3))
+    IF( 2.0_dp*ABS(x(1))<box_size(1)) THEN
+      retval(1) = x(1)
+    ELSE
+      retval(1)=x(1) - box_size(1)*ANINT(x(1)*box_size_inv(1))
+    END IF
+    IF( 2.0_dp*ABS(x(2))<box_size(2)) THEN
+      retval(2) = x(2)
+    ELSE
+      retval(2)=x(2) - box_size(2)*ANINT(x(2)*box_size_inv(2))
+    END IF
+    IF( 2.0_dp*ABS(x(3))<box_size(3)) THEN
+      retval(3) = x(3)
+    ELSE
+      retval(3)=x(3) - box_size(3)*ANINT(x(3)*box_size_inv(3))
+    END IF
   END SUBROUTINE pbc
 !***************************************************************************
 

@@ -48,7 +48,7 @@ MODULE x_hf
           x_hf_container_type, x_hf_container_node, x_hf_cache_type, &
           x_hf_add_single_cache_element, x_hf_get_single_cache_element,&
           x_hf_reset_cache_and_container, x_hf_decompress_first_cache, &
-          x_hf_flush_last_cache, x_hf_get_memory_info, x_hf_add_mult_cache_elements,&
+          x_hf_flush_last_cache, x_hf_add_mult_cache_elements,&
           x_hf_get_mult_cache_elements, x_hf_init_container, x_hf_basis_type
 
 #define CACHE_SIZE 1024
@@ -81,6 +81,7 @@ MODULE x_hf
     LOGICAL                                  :: do_all_on_the_fly       !! max mem == 0 ?
     REAL(dp)                                 :: eps_storage_scaling
     INTEGER                                  :: cache_size
+    INTEGER                                  :: actual_memory_usage
   END TYPE
 
   TYPE x_hf_periodic_type
@@ -141,7 +142,6 @@ MODULE x_hf
   TYPE x_hf_container_type
     TYPE(x_hf_container_node), POINTER       :: first, current    
     INTEGER                                  :: element_counter
-    INTEGER                                  :: list_counter
   END TYPE
 
   TYPE x_hf_basis_type
@@ -306,6 +306,7 @@ MODULE x_hf
       x_data%memory_parameter%do_all_on_the_fly = .FALSE.
     END IF
     x_data%memory_parameter%cache_size = CACHE_SIZE
+    x_data%memory_parameter%actual_memory_usage = 1
 
     !! PERIODIC section
     hf_sub_section => section_vals_get_subs_vals(hf_section,"PERIODIC",error=error)
@@ -425,7 +426,6 @@ MODULE x_hf
     x_data%maxval_container%current => x_data%maxval_container%first
     x_data%maxval_container%current%data = 0
     x_data%maxval_container%element_counter = 1
-    x_data%maxval_container%list_counter = 1
 
     ALLOCATE(x_data%integral_containers(64), STAT=stat)
     DO i=1,64
@@ -438,7 +438,6 @@ MODULE x_hf
       x_data%integral_containers(i)%current => x_data%integral_containers(i)%first
       x_data%integral_containers(i)%current%data = 0
       x_data%integral_containers(i)%element_counter = 1
-      x_data%integral_containers(i)%list_counter = 1
     END DO
 
   END SUBROUTINE x_hf_create 
@@ -508,14 +507,14 @@ MODULE x_hf
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     !! Deallocate containers
-    CALL x_hf_init_container(x_data%maxval_container, error)
+    CALL x_hf_init_container(x_data%maxval_container, x_data%memory_parameter%actual_memory_usage, error)
     DEALLOCATE(x_data%maxval_container%first,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(x_data%maxval_container,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     DO i=1,64   
-      CALL x_hf_init_container(x_data%integral_containers(i), error)
+      CALL x_hf_init_container(x_data%integral_containers(i), x_data%memory_parameter%actual_memory_usage, error)
       DEALLOCATE(x_data%integral_containers(i)%first,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END DO
@@ -798,11 +797,12 @@ MODULE x_hf
 !!
 !!****************************************************************************
 
-  SUBROUTINE x_hf_add_single_cache_element(value, nbits, cache, container, error)
+  SUBROUTINE x_hf_add_single_cache_element(value, nbits, cache, container, memory_usage, error)
     INTEGER(int_8)                           :: value
     INTEGER                                  :: nbits
     TYPE(x_hf_cache_type)                    :: cache
     TYPE(x_hf_container_type)                :: container
+    INTEGER                                  :: memory_usage
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER(int_8)                           :: int_val
@@ -814,7 +814,7 @@ MODULE x_hf
       cache%element_counter = cache%element_counter + 1
     ELSE
       cache%data(CACHE_SIZE) = int_val
-      CALL x_hf_compress_cache(cache%data(1), container, CACHE_SIZE, nbits, error)
+      CALL x_hf_compress_cache(cache%data(1), container, CACHE_SIZE, nbits, memory_usage, error)
       cache%element_counter = 1
     END IF
   END SUBROUTINE x_hf_add_single_cache_element
@@ -848,10 +848,11 @@ MODULE x_hf
 !!
 !!****************************************************************************
 
-  SUBROUTINE x_hf_compress_cache(full_array, container, nints, nbits, error)
+  SUBROUTINE x_hf_compress_cache(full_array, container, nints, nbits, memory_usage, error)
     INTEGER(int_8)                           :: full_array(*)
     TYPE(x_hf_container_type)                :: container
-    INTEGER                                  :: nints, nbits
+    INTEGER, INTENT(IN)                      :: nints, nbits
+    INTEGER                                  :: memory_usage
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'x_hf_compress_cache', &
@@ -878,7 +879,7 @@ MODULE x_hf
       !! Allocate new list entry
       ALLOCATE(container%current%next, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      container%list_counter = container%list_counter + 1
+      memory_usage = memory_usage + 1
       container%current%next%next => NULL()
       container%current => container%current%next
       !! compress remaining ints
@@ -915,18 +916,19 @@ MODULE x_hf
 !!
 !!****************************************************************************
 
-  SUBROUTINE x_hf_get_single_cache_element(value, nbits, cache, container)
+  SUBROUTINE x_hf_get_single_cache_element(value, nbits, cache, container, memory_usage)
     INTEGER(int_8)                           :: value
     INTEGER                                  :: nbits
     TYPE(x_hf_cache_type)                    :: cache
     TYPE(x_hf_container_type)                :: container
+    INTEGER                                  :: memory_usage
 
     IF(cache%element_counter /= CACHE_SIZE ) THEN
       value = cache%data(cache%element_counter) 
       cache%element_counter = cache%element_counter + 1
     ELSE
       value = cache%data(CACHE_SIZE)
-      CALL x_hf_decompress_cache(cache%data(1), container, CACHE_SIZE, nbits)
+      CALL x_hf_decompress_cache(cache%data(1), container, CACHE_SIZE, nbits, memory_usage)
       cache%element_counter = 1 
     END IF
 
@@ -961,10 +963,11 @@ MODULE x_hf
 !!
 !!****************************************************************************
 
-  SUBROUTINE x_hf_decompress_cache(full_array, container, nints, nbits)
+  SUBROUTINE x_hf_decompress_cache(full_array, container, nints, nbits, memory_usage)
     INTEGER(int_8)                           :: full_array(*)
     TYPE(x_hf_container_type)                :: container
-    INTEGER                                  :: nints, nbits
+    INTEGER, INTENT(IN)                      :: nints, nbits
+    INTEGER                                  :: memory_usage
 
     INTEGER                                  :: end_idx, increment_counter, &
                                                 start_idx, tmp_elements, &
@@ -982,7 +985,7 @@ MODULE x_hf
       tmp_nints = (tmp_elements*64)/nbits
       CALL bits2ints_specific(nbits,tmp_nints,container%current%data(start_idx),full_array(1))
       container%current => container%current%next
-      container%list_counter = container%list_counter + 1
+      memory_usage = memory_usage + 1
       !! decompress remaining ints
       CALL bits2ints_specific(nbits, CACHE_SIZE-tmp_nints, container%current%data(1), full_array(tmp_nints+1))
       container%element_counter = 1 + (nbits*(CACHE_SIZE-tmp_nints) + 63)/64 
@@ -1014,14 +1017,15 @@ MODULE x_hf
 !!
 !!****************************************************************************
 
-  SUBROUTINE x_hf_reset_cache_and_container(cache, container)
+  SUBROUTINE x_hf_reset_cache_and_container(cache, container, memory_usage)
     TYPE(x_hf_cache_type)                    :: cache
     TYPE(x_hf_container_type)                :: container
+    INTEGER                                  :: memory_usage
 
     cache%element_counter = 1
     container%current => container%first
     container%element_counter = 1
-    container%list_counter = 1
+    memory_usage = 1
   END SUBROUTINE x_hf_reset_cache_and_container
 !***************************************************************************
 
@@ -1050,8 +1054,9 @@ MODULE x_hf
 !!
 !!****************************************************************************
 
-  SUBROUTINE x_hf_init_container(container, error)
+  SUBROUTINE x_hf_init_container(container, memory_usage,  error)
     TYPE(x_hf_container_type)                :: container
+    INTEGER                                  :: memory_usage
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'x_hf_init_container', &
@@ -1080,7 +1085,7 @@ MODULE x_hf
     container%current => container%first
     container%current%data = 0
     container%element_counter = 1
-    container%list_counter = 1
+    memory_usage = 1
 
   END SUBROUTINE x_hf_init_container
 !***************************************************************************
@@ -1110,12 +1115,13 @@ MODULE x_hf
 !!
 !!****************************************************************************
 
-  SUBROUTINE x_hf_decompress_first_cache(nbits, cache, container)
+  SUBROUTINE x_hf_decompress_first_cache(nbits, cache, container, memory_usage)
     INTEGER                                  :: nbits
     TYPE(x_hf_cache_type)                    :: cache
     TYPE(x_hf_container_type)                :: container
+    INTEGER                                  :: memory_usage
 
-    CALL x_hf_decompress_cache(cache%data(1), container, CACHE_SIZE, nbits)
+    CALL x_hf_decompress_cache(cache%data(1), container, CACHE_SIZE, nbits, memory_usage)
     cache%element_counter = 1
   END SUBROUTINE x_hf_decompress_first_cache
 !***************************************************************************
@@ -1147,13 +1153,14 @@ MODULE x_hf
 !!
 !!****************************************************************************
 
-  SUBROUTINE x_hf_flush_last_cache(nbits, cache, container, error)
+  SUBROUTINE x_hf_flush_last_cache(nbits, cache, container, memory_usage, error)
     INTEGER                                  :: nbits
     TYPE(x_hf_cache_type)                    :: cache
     TYPE(x_hf_container_type)                :: container
+    INTEGER                                  :: memory_usage
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CALL x_hf_compress_cache(cache%data(1), container, CACHE_SIZE, nbits, error)
+    CALL x_hf_compress_cache(cache%data(1), container, CACHE_SIZE, nbits, memory_usage, error)
   END SUBROUTINE x_hf_flush_last_cache
 !***************************************************************************
 
@@ -1185,12 +1192,13 @@ MODULE x_hf
 !!
 !!****************************************************************************
 
-  SUBROUTINE x_hf_add_mult_cache_elements(values, nints, nbits, cache, container, eps_schwarz, pmax_entry, error)
+  SUBROUTINE x_hf_add_mult_cache_elements(values, nints, nbits, cache, container, eps_schwarz, pmax_entry, memory_usage, error)
     REAL(dp)                                 :: values(*)
     INTEGER, INTENT(IN)                      :: nints, nbits
     TYPE(x_hf_cache_type)                    :: cache
     TYPE(x_hf_container_type)                :: container
     REAL(dp), INTENT(IN)                     :: eps_schwarz, pmax_entry
+    INTEGER                                  :: memory_usage
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: end_idx, i, start_idx, &
@@ -1232,7 +1240,7 @@ MODULE x_hf
           cache%data(i+start_idx-1) = shift
         END IF
       END DO
-      CALL x_hf_compress_cache(cache%data(1), container, CACHE_SIZE, nbits, error)
+      CALL x_hf_compress_cache(cache%data(1), container, CACHE_SIZE, nbits, memory_usage, error)
       DO i=tmp_elements+1, nints
         values(i) = values(i)*pmax_entry
         IF(ABS(values(i)) > eps_schwarz) THEN
@@ -1280,12 +1288,13 @@ MODULE x_hf
 !!
 !!****************************************************************************
 
-  SUBROUTINE x_hf_get_mult_cache_elements(values, nints, nbits, cache, container, eps_schwarz, pmax_entry, error)
+  SUBROUTINE x_hf_get_mult_cache_elements(values, nints, nbits, cache, container, eps_schwarz, pmax_entry, memory_usage, error)
     REAL(dp)                                 :: values(*)
     INTEGER, INTENT(IN)                      :: nints, nbits
     TYPE(x_hf_cache_type)                    :: cache
     TYPE(x_hf_container_type)                :: container
     REAL(dp), INTENT(IN)                     :: eps_schwarz, pmax_entry
+    INTEGER                                  :: memory_usage
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: end_idx, i, start_idx, &
@@ -1313,7 +1322,7 @@ MODULE x_hf
       DO i=1,tmp_elements
         values(i) = factor*REAL(cache%data(i+start_idx-1)-shift,dp)
       END DO
-      CALL x_hf_decompress_cache(cache%data(1), container, CACHE_SIZE, nbits)
+      CALL x_hf_decompress_cache(cache%data(1), container, CACHE_SIZE, nbits, memory_usage)
       DO i=tmp_elements+1,nints
         values(i) = factor*REAL(cache%data(i-tmp_elements)-shift,dp)
       END DO
@@ -1322,41 +1331,6 @@ MODULE x_hf
   END SUBROUTINE x_hf_get_mult_cache_elements
 !***************************************************************************
 
-!!***** x_hf/x_hf_get_memory_info [1.0] *
-!!
-!!   NAME
-!!     x_hf_get_memory_info
-!!
-!!   FUNCTION
-!!     - Auxiliary function that returns the memory usage of a container
-!!
-!!   NOTES
-!!     - 
-!!
-!!   INPUTS
-!!     - container: container that contains the compressed elements
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
-  FUNCTION x_hf_get_memory_info(container, error)
-    TYPE(x_hf_container_type)                :: container
-    TYPE(cp_error_type), INTENT(inout)       :: error
-    INTEGER(int_8)                           :: x_hf_get_memory_info
-
-    INTEGER(int_8)                           :: nlist_entries
-
-    nlist_entries = container%list_counter
-    x_hf_get_memory_info = nlist_entries * CACHE_SIZE
-
-  END FUNCTION x_hf_get_memory_info
 END MODULE x_hf
 
 
