@@ -3,8 +3,6 @@
 !   Copyright (C) 2000 - 2007  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-MODULE qmmm_elpot
 !!****h* cp2k/qmmm_elpot *
 !!
 !!   NAME
@@ -24,6 +22,7 @@ MODULE qmmm_elpot
 !!
 !!   SOURCE
 !****************************************************************************  
+MODULE qmmm_elpot
   USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_should_output
@@ -43,8 +42,6 @@ MODULE qmmm_elpot
                                              qmmm_gaussian_type
   USE qmmm_types,                      ONLY: qmmm_Pot_Type,&
                                              qmmm_pot_p_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
