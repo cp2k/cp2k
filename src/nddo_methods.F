@@ -462,34 +462,17 @@ CONTAINS
 
                    SELECT CASE (dft_control%qs_control%method)
                      CASE ("MNDO","AM1","PM3","PDG")
-                       IF (do_ewald) THEN
-                         !only calculate short range part
-                         IF (anag) THEN
-                           IF ( .NOT. switch ) THEN
-!deb                         CALL rotnuc_sr_ana (se_kind_a,se_kind_b,rij,e1b=e1b,e2a=e2a,enuc=enuc,itype=itype)
-                           ELSE
-!deb                         CALL rotnuc_sr_ana (se_kind_b,se_kind_a,-rij,e1b=e2a,e2a=e1b,enuc=enuc,itype=itype)
-                           END IF
-                         ELSE 
-                           IF ( .NOT. switch ) THEN
-!deb                         CALL rotnuc_sr (se_kind_a,se_kind_b,rij,e1b=e1b,e2a=e2a,enuc=enuc,itype=itype)
-                           ELSE
-!deb                         CALL rotnuc_sr (se_kind_b,se_kind_a,-rij,e1b=e2a,e2a=e1b,enuc=enuc,itype=itype)
-                           END IF
+                       IF (anag) THEN
+                         IF ( .NOT. switch ) THEN
+                           CALL rotnuc_ana (se_kind_a,se_kind_b,rij,e1b=e1b,e2a=e2a,enuc=enuc,itype=itype,shortrange=do_ewald)
+                         ELSE
+                           CALL rotnuc_ana (se_kind_b,se_kind_a,-rij,e1b=e2a,e2a=e1b,enuc=enuc,itype=itype,shortrange=do_ewald)
                          END IF
-                       ELSE
-                         IF (anag) THEN
-                           IF ( .NOT. switch ) THEN
-                             CALL rotnuc_ana (se_kind_a,se_kind_b,rij,e1b=e1b,e2a=e2a,enuc=enuc,itype=itype)
-                           ELSE
-                             CALL rotnuc_ana (se_kind_b,se_kind_a,-rij,e1b=e2a,e2a=e1b,enuc=enuc,itype=itype)
-                           END IF
-                         ELSE 
-                           IF ( .NOT. switch ) THEN
-                             CALL rotnuc (se_kind_a,se_kind_b,rij,e1b=e1b,e2a=e2a,enuc=enuc,itype=itype)
-                           ELSE
-                             CALL rotnuc (se_kind_b,se_kind_a,-rij,e1b=e2a,e2a=e1b,enuc=enuc,itype=itype)
-                           END IF
+                       ELSE 
+                         IF ( .NOT. switch ) THEN
+                           CALL rotnuc (se_kind_a,se_kind_b,rij,e1b=e1b,e2a=e2a,enuc=enuc,itype=itype,shortrange=do_ewald)
+                         ELSE
+                           CALL rotnuc (se_kind_b,se_kind_a,-rij,e1b=e2a,e2a=e1b,enuc=enuc,itype=itype,shortrange=do_ewald)
                          END IF
                        END IF
                        enuclear = enuclear + enuc
@@ -534,42 +517,21 @@ CONTAINS
                        IF(calculate_forces) THEN
                          atom_a = atom_of_kind(iatom)
                          atom_b = atom_of_kind(jatom)
-                         IF (do_ewald) then
-                           IF (anag) THEN
-                             IF ( .NOT. switch ) THEN
-!deb                           CALL rotnuc_sr_ana (se_kind_a,se_kind_b,rij,de1b=de1b,de2a=de2a,&
-!deb                              denuc=denuc,itype=itype)
-                             ELSE
-!deb                           CALL rotnuc_sr_ana (se_kind_b,se_kind_a,-rij,de1b=de2a,de2a=de1b,&
-!deb                              denuc=denuc,itype=itype)
-                             END IF
+                         IF (anag) THEN
+                           IF ( .NOT. switch ) THEN
+                             CALL rotnuc_ana (se_kind_a,se_kind_b,rij,de1b=de1b,de2a=de2a,&
+                                denuc=denuc,itype=itype,shortrange=do_ewald)
                            ELSE
-                             IF ( .NOT. switch ) THEN
-!deb                           CALL drotnuc_sr (se_kind_a,se_kind_b,rij,de1b=de1b,de2a=de2a,&
-!deb                              denuc=denuc,itype=itype)
-                             ELSE
-!deb                           CALL drotnuc_sr (se_kind_b,se_kind_a,-rij,de1b=de2a,de2a=de1b,&
-!deb                              denuc=denuc,itype=itype)
-                             END IF
+                             CALL rotnuc_ana (se_kind_b,se_kind_a,-rij,de1b=de2a,de2a=de1b,&
+                                denuc=denuc,itype=itype,shortrange=do_ewald)
                            END IF
-
                          ELSE
-                           IF (anag) THEN
-                             IF ( .NOT. switch ) THEN
-                               CALL rotnuc_ana (se_kind_a,se_kind_b,rij,de1b=de1b,de2a=de2a,&
-                                  denuc=denuc,itype=itype)
-                             ELSE
-                               CALL rotnuc_ana (se_kind_b,se_kind_a,-rij,de1b=de2a,de2a=de1b,&
-                                  denuc=denuc,itype=itype)
-                             END IF
+                           IF ( .NOT. switch ) THEN
+                             CALL drotnuc (se_kind_a,se_kind_b,rij,de1b=de1b,de2a=de2a,&
+                                denuc=denuc,itype=itype,delta=delta,shortrange=do_ewald)
                            ELSE
-                             IF ( .NOT. switch ) THEN
-                               CALL drotnuc (se_kind_a,se_kind_b,rij,de1b=de1b,de2a=de2a,&
-                                  denuc=denuc,itype=itype,delta=delta)
-                             ELSE
-                               CALL drotnuc (se_kind_b,se_kind_a,-rij,de1b=de2a,de2a=de1b,&
-                                  denuc=denuc,itype=itype,delta=delta)
-                             END IF
+                             CALL drotnuc (se_kind_b,se_kind_a,-rij,de1b=de2a,de2a=de1b,&
+                                denuc=denuc,itype=itype,delta=delta,shortrange=do_ewald)
                            END IF
                          END IF
                          force_ab(1:3)=-denuc(1:3)
@@ -625,22 +587,22 @@ CONTAINS
                        IF ( nspins == 1 ) THEN
                          IF ( .NOT. switch ) THEN
                            CALL fock2c(se_kind_a,se_kind_b,rij,pa_block_a,pb_block_a,&
-                                      ksa_block_a,ksb_block_a,anag,error)
+                                      ksa_block_a,ksb_block_a,anag,do_ewald,error)
                          ELSE
                            CALL fock2c(se_kind_b,se_kind_a,-rij,pb_block_a,pa_block_a,&
-                                      ksb_block_a,ksa_block_a,anag,error)
+                                      ksb_block_a,ksa_block_a,anag,do_ewald,error)
                          ENDIF
                        ELSE IF ( nspins == 2 ) THEN
                          IF ( .NOT. switch ) THEN
                            CALL fock2c(se_kind_a,se_kind_b,rij,pa_block_a,pb_block_a,&
                                       ksa_block_a,ksb_block_a,&
                                       pa_block_b,pb_block_b,&
-                                      ksa_block_b,ksb_block_b,anag,error)
+                                      ksa_block_b,ksb_block_b,anag,do_ewald,error)
                          ELSE
                            CALL fock2c(se_kind_b,se_kind_a,-rij,pb_block_a,pa_block_a,&
                                       ksb_block_a,ksa_block_a,&
                                       pb_block_b,pa_block_b,&
-                                      ksb_block_b,ksa_block_b,anag,error)
+                                      ksb_block_b,ksa_block_b,anag,do_ewald,error)
                          ENDIF
                        END IF
 
@@ -650,18 +612,18 @@ CONTAINS
                          IF ( nspins == 1 ) THEN
                            IF ( .NOT. switch ) THEN
                              CALL dfock2c(se_kind_a,se_kind_b,rij,pa_block_a,&
-                                  pb_block_a,force_ab,delta,anag,error)
+                                  pb_block_a,force_ab,delta,anag,do_ewald,error)
                            ELSE
                              CALL dfock2c(se_kind_b,se_kind_a,-rij,pb_block_a,&
-                                  pa_block_a,force_ab,delta,anag,error)
+                                  pa_block_a,force_ab,delta,anag,do_ewald,error)
                            ENDIF
                          ELSE IF ( nspins == 2 ) THEN
                          IF ( .NOT. switch ) THEN
                            CALL dfock2c(se_kind_a,se_kind_b,rij,pa_block_a,&
-                                pb_block_a,pa_block_b,pb_block_b,force_ab,delta,anag,error)
+                                pb_block_a,pa_block_b,pb_block_b,force_ab,delta,anag,do_ewald,error)
                          ELSE
                            CALL dfock2c(se_kind_b,se_kind_a,-rij,pb_block_a,&
-                                pa_block_a,pb_block_b,pa_block_b,force_ab,delta,anag,error)
+                                pa_block_a,pb_block_b,pa_block_b,force_ab,delta,anag,do_ewald,error)
                          ENDIF
                        END IF
                        IF ( switch ) force_ab = -force_ab
@@ -1103,12 +1065,13 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE rfock2c(sepa,sepb,rij,pa,pb,fa,fb,anag,error)
+  SUBROUTINE rfock2c(sepa,sepb,rij,pa,pb,fa,fb,anag,shortrange,error)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa, pb
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fa, fb
     LOGICAL, INTENT(IN)                      :: anag
+    LOGICAL, INTENT(IN)                      :: shortrange
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rfock2c', &
@@ -1123,9 +1086,9 @@ CONTAINS
     nb = SIZE ( pb, 1 )
 
     IF (anag) THEN
-       CALL rotint_ana (sepa,sepb,rij,wint)
+       CALL rotint_ana (sepa,sepb,rij,wint,shortrange=shortrange)
     ELSE
-       CALL rotint (sepa,sepb,rij,wint)
+       CALL rotint (sepa,sepb,rij,wint,shortrange=shortrange)
     END IF
     IF ( na==1 .AND. nb==1 ) THEN
       fa(1,1) = fa(1,1) + pb(1,1)*wint(1)
@@ -1158,7 +1121,7 @@ CONTAINS
   END SUBROUTINE rfock2c
 
   SUBROUTINE ufock2c(sepa,sepb,rij,pa_a,pb_a,fa_a,fb_a,&
-                    pa_b,pb_b,fa_b,fb_b,anag,error)
+                    pa_b,pb_b,fa_b,fb_b,anag,shortrange,error)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa_a, pb_a
@@ -1166,6 +1129,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa_b, pb_b
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fa_b, fb_b
     LOGICAL, INTENT(IN)                      :: anag
+    LOGICAL, INTENT(IN)                      :: shortrange
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ufock2c', &
@@ -1182,9 +1146,9 @@ CONTAINS
     nb = SIZE ( pb_a, 1 )
 
     IF (anag) THEN
-       CALL rotint_ana (sepa,sepb,rij,wint)
+       CALL rotint_ana (sepa,sepb,rij,wint,shortrange=shortrange)
     ELSE
-       CALL rotint (sepa,sepb,rij,wint)
+       CALL rotint (sepa,sepb,rij,wint,shortrange=shortrange)
     END IF
 
     IF ( na==1 .AND. nb==1 ) THEN
@@ -1233,13 +1197,14 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE rdfock2c(sepa,sepb,rij,pa,pb,force,delta,anag,error)
+  SUBROUTINE rdfock2c(sepa,sepb,rij,pa,pb,force,delta,anag,shortrange,error)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa, pb
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: force
     REAL(dp), INTENT(IN)                     :: delta
     LOGICAL, INTENT(IN)                      :: anag
+    LOGICAL, INTENT(IN)                      :: shortrange
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rdfock2c', &
@@ -1254,9 +1219,9 @@ CONTAINS
     nb = SIZE ( pb, 1 )
 
     IF (anag) THEN
-       CALL rotint_ana (sepa,sepb,rij,dw=dwint)
+       CALL rotint_ana (sepa,sepb,rij,dw=dwint,shortrange=shortrange)
     ELSE
-       CALL drotint (sepa,sepb,rij,dwint,delta)
+       CALL drotint (sepa,sepb,rij,dwint,delta,shortrange=shortrange)
     END IF
 
     IF ( na==1 .AND. nb==1 ) THEN
@@ -1289,13 +1254,14 @@ CONTAINS
   END SUBROUTINE rdfock2c
 
   SUBROUTINE udfock2c(sepa,sepb,rij,pa_a,pb_a,pa_b,pb_b,&
-             force,delta,anag,error)
+             force,delta,anag,shortrange,error)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa_a, pb_a, pa_b, pb_b
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: force
     REAL(dp), INTENT(IN)                     :: delta
     LOGICAL, INTENT(IN)                      :: anag
+    LOGICAL, INTENT(IN)                      :: shortrange
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'udfock2c', &
@@ -1311,9 +1277,9 @@ CONTAINS
     nb = SIZE ( pb_a, 1 )
 
     IF (anag) THEN
-       CALL rotint_ana (sepa,sepb,rij,dw=dwint)
+       CALL rotint_ana (sepa,sepb,rij,dw=dwint,shortrange=shortrange)
     ELSE
-       CALL drotint (sepa,sepb,rij,dwint,delta)
+       CALL drotint (sepa,sepb,rij,dwint,delta,shortrange=shortrange)
     END IF
 
     IF ( na==1 .AND. nb==1 ) THEN
@@ -1373,9 +1339,9 @@ CONTAINS
     nb = SIZE ( pab, 2 )
 
     IF (anag) THEN
-       CALL rotint_ana (sepa,sepb,rij,wint)
+       CALL rotint_ana (sepa,sepb,rij,wint,shortrange=.FALSE.)
     ELSE
-       CALL rotint (sepa,sepb,rij,wint)
+       CALL rotint (sepa,sepb,rij,wint,shortrange=.FALSE.)
     END IF
 
     IF ( na==1 .AND. nb==1 ) THEN
@@ -1430,9 +1396,9 @@ CONTAINS
     nb = SIZE ( pab_a, 2 )
 
     IF (anag) THEN
-       CALL rotint_ana (sepa,sepb,rij,wint)
+       CALL rotint_ana (sepa,sepb,rij,wint,shortrange=.FALSE.)
     ELSE
-       CALL rotint (sepa,sepb,rij,wint)
+       CALL rotint (sepa,sepb,rij,wint,shortrange=.FALSE.)
     END IF
 
     IF ( na==1 .AND. nb==1 ) THEN
@@ -1507,9 +1473,9 @@ CONTAINS
     nb = SIZE ( pab, 2 )
 
     IF (anag) THEN
-       CALL rotint_ana (sepa,sepb,rij,dw=dwint)
+       CALL rotint_ana (sepa,sepb,rij,dw=dwint,shortrange=.FALSE.)
     ELSE
-       CALL drotint (sepa,sepb,rij,dwint,delta)
+       CALL drotint (sepa,sepb,rij,dwint,delta,shortrange=.FALSE.)
     END IF
 
     IF ( na==1 .AND. nb==1 ) THEN
@@ -1565,9 +1531,9 @@ CONTAINS
     nb = SIZE ( pab_a, 2 )
 
     IF (anag) THEN
-       CALL rotint_ana (sepa,sepb,rij,dw=dwint)
+       CALL rotint_ana (sepa,sepb,rij,dw=dwint,shortrange=.FALSE.)
     ELSE
-       CALL drotint (sepa,sepb,rij,dwint,delta)
+       CALL drotint (sepa,sepb,rij,dwint,delta,shortrange=.FALSE.)
     END IF
 
     IF ( na==1 .AND. nb==1 ) THEN

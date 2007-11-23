@@ -1026,7 +1026,70 @@ CONTAINS
         sep%am     =      0.4336641_dp
         sep%ad     =      0.2317423_dp
         sep%aq    =      0.2621165_dp
-      CASE (31:34)
+      CASE (31)
+      CASE (32)
+        !Germanium
+        sep%defined = .TRUE.
+        sep%uss    =    -34.1838890_dp
+        sep%upp    =    -28.6408110_dp
+        sep%beta(0)  =     -4.3566070_dp
+        sep%beta(1) =     -0.9910910_dp
+        sep%sto_exponents(0)     =      1.2196310_dp
+        sep%sto_exponents(1)    =      1.9827940_dp
+        sep%sto_exponents(2)    =      1.0000000_dp
+        sep%alp    =      2.1364050_dp
+        sep%eisol  =    -78.7084810_dp
+        sep%gss    =     10.1686050_dp
+        sep%gsp   =      8.1444730_dp
+        sep%gpp   =      6.6719020_dp
+        sep%gp2   =      6.2697060_dp
+        sep%hsp   =      0.9370930_dp
+        sep%dd    =      1.2472095_dp
+        sep%qq     =      1.0698642_dp
+        sep%am     =      0.3737084_dp
+        sep%ad     =      0.3180310_dp
+        sep%aq    =      0.3485612_dp
+      CASE (33:34)
+!see calpar.F90 for additional constraint params
+!                    DATA FOR ELEMENT 33      ARSENIC
+!     data ussam1(33)/  - 41.6817510D0/
+!     data uppam1(33)/  - 33.4506152D0/
+!     data betasa(33)/  - 5.6481504D0/
+!     data betapa(33)/  - 4.9979109D0/
+!     data zsam1(33)/ 2.2576897D0/
+!     data zpam1(33)/ 1.7249710D0/
+!     data alpam1(33)/ 2.2405380D0/
+!     data gssam1(33)/ 11.0962258D0/
+!     data gspam1(33)/ 4.9259328D0/
+!     data gppam1(33)/ 7.8781648D0/
+!     data gp2am1(33)/ 7.5961088D0/
+!     data hspam1(33)/ 0.6246173D0/
+!     data guesa1(33,1)/  - 0.0073614D0/
+!     data guesa2(33,1)/ 4.9433993D0/
+!     data guesa3(33,1)/ 1.4544264D0/
+!     data guesa1(33,2)/ 0.0437629D0/
+!     data guesa2(33,2)/ 3.1944613D0/
+!     data guesa3(33,2)/ 2.0144939D0/
+!                    DATA FOR ELEMENT 34        SELENIUM
+!     data ussam1(34)/  - 41.9984056D0/
+!     data uppam1(34)/  - 32.8575485D0/
+!     data betasa(34)/  - 3.1470826D0/
+!     data betapa(34)/  - 6.1468406D0/
+!     data zsam1(34)/ 2.6841570D0/
+!     data zpam1(34)/ 2.0506164D0/
+!     data alpam1(34)/ 2.6375694D0/
+!     data gssam1(34)/ 6.7908891D0/
+!     data gspam1(34)/ 6.4812786D0/
+!     data gppam1(34)/ 6.4769273D0/
+!     data gp2am1(34)/ 5.2796993D0/
+!     data hspam1(34)/ 4.4548356D0/
+!     data guesa1(34,1)/ 0.1116681D0/
+!     data guesa2(34,1)/ 6.5086644D0/
+!     data guesa3(34,1)/ 1.4981077D0/
+!     data guesa1(34,2)/ 0.0396143D0/
+!     data guesa2(34,2)/ 6.5241228D0/
+!     data guesa3(34,2)/ 2.0751916D0/
+!
       CASE (35)
         !Bromine
         sep%defined = .TRUE.
@@ -1051,7 +1114,69 @@ CONTAINS
         sep%hsp  =    2.4558683_dp
         sep%fn1(1) = 0.0666850_dp; sep%fn2(1) = 4.0000000_dp; sep%fn3(1) = 1.5000000_dp
         sep%fn1(2) = 0.0255680_dp; sep%fn2(2) = 4.0000000_dp; sep%fn3(2) = 2.3000000_dp
-      CASE (36:52)
+      CASE (36:49)
+      CASE (50)
+        !Tin
+        sep%defined = .TRUE.
+        sep%alp   =    1.8369360_dp
+        sep%eisol =  -80.6887540_dp
+        sep%beta(0) =   -3.2350000_dp
+        sep%beta(1)=   -2.5778900_dp
+        sep%sto_exponents(0)    =    2.5993760_dp
+        sep%sto_exponents(1)   =    1.6959620_dp
+        sep%sto_exponents(2)   =    1.0000000_dp
+        sep%dd   =    1.1528229_dp
+        sep%qq    =    1.5148019_dp
+        sep%am    =    0.3601617_dp
+        sep%ad    =    0.3823775_dp
+        sep%aq   =    0.3400755_dp
+        sep%uss   =  -35.4967410_dp
+        sep%upp   =  -28.0976360_dp
+        sep%gss   =    9.8000000_dp
+        sep%gsp  =    8.3000000_dp
+        sep%gpp  =    7.3000000_dp
+        sep%gp2  =    6.5000000_dp
+        sep%hsp  =    1.3000000_dp
+      CASE (51:52)
+!                    DATA FOR ELEMENT 51        ANTIMONY
+!     data ussam1(51)/  - 44.4381620D0/
+!     data uppam1(51)/  - 32.3895140D0/
+!     data betasa(51)/  - 7.3823300D0/
+!     data betapa(51)/  - 3.6331190D0/
+!     data zsam1(51)/ 2.2548230D0/
+!     data zpam1(51)/ 2.2185920D0/
+!     data alpam1(51)/ 2.2763310D0/
+!     data gssam1(51)/ 11.4302510D0/
+!     data gspam1(51)/ 5.7879220D0/
+!     data gppam1(51)/ 6.4240940D0/
+!     data gp2am1(51)/ 6.8491810D0/
+!     data hspam1(51)/ 0.5883400D0/
+!     data guesa1(51,1)/  - 0.5964470D0/
+!     data guesa2(51,1)/ 6.0279500D0/
+!     data guesa3(51,1)/ 1.7103670D0/
+!     data guesa1(51,2)/ 0.8955130D0/
+!     data guesa2(51,2)/ 3.0281090D0/
+!     data guesa3(51,2)/ 1.5383180D0/
+!                    DATA FOR ELEMENT 52        TELLURIUM
+!     data ussam1(52)/  - 39.2454230D0/
+!     data uppam1(52)/  - 30.8515845D0/
+!     data betasa(52)/  - 8.3897294D0/
+!     data betapa(52)/  - 5.1065429D0/
+!     data zsam1(52)/ 2.1321165D0/
+!     data zpam1(52)/ 1.9712680D0/
+!     data alpam1(52)/ 6.0171167D0/
+!     data gssam1(52)/ 4.9925231D0/
+!     data gspam1(52)/ 4.9721484D0/
+!     data gppam1(52)/ 7.2097852D0/
+!     data gp2am1(52)/ 5.6211521D0/
+!     data hspam1(52)/ 4.0071821D0/
+!     data guesa1(52,1)/ 0.4873378D0/
+!     data guesa2(52,1)/ 6.0519413D0/
+!     data guesa3(52,1)/ 1.3079857D0/
+!     data guesa1(52,2)/ 0.1520464D0/
+!     data guesa2(52,2)/ 3.8304067D0/
+!     data guesa3(52,2)/ 2.0899707D0/
+
       CASE (53)
         !Iodine
         sep%defined = .TRUE.
@@ -1076,7 +1201,52 @@ CONTAINS
         sep%aq   =    0.4631775_dp
         sep%fn1(1) = 0.0043610_dp; sep%fn2(1) = 2.3000000_dp; sep%fn3(1) = 1.8000000_dp
         sep%fn1(2) = 0.0157060_dp; sep%fn2(2) = 3.0000000_dp; sep%fn3(2) = 2.2400000_dp
-      CASE (54:106)
+      CASE (80)
+        !Mercury
+        sep%defined = .TRUE.
+        sep%uss   = -19.9415780_dp
+        sep%upp   =  -11.1108700_dp
+        sep%beta(0) =   -0.9086570_dp
+        sep%beta(1)=   -4.9093840_dp
+        sep%sto_exponents(0)    =    2.0364130_dp
+        sep%sto_exponents(1)   =    1.9557660_dp
+        sep%sto_exponents(2)   =    1.0000000_dp
+        sep%alp   =    1.4847340_dp
+        sep%eisol =  -29.0831560_dp
+        sep%gss   =   10.8000000_dp
+        sep%gsp  =    9.3000000_dp
+        sep%gpp  =   14.3000000_dp
+        sep%gp2  =   13.5000000_dp
+        sep%hsp  =    1.3000000_dp
+        sep%dd   =    1.8750829_dp
+        sep%qq    =    1.5424241_dp
+        sep%am    =    0.3969129_dp
+        sep%ad    =    0.2926605_dp
+        sep%aq   =    0.3360599_dp
+      CASE (81)
+      CASE (82)
+        !Lead
+        sep%defined = .TRUE.
+        sep%uss   = -47.3196920_dp
+        sep%upp   =  -28.8475600_dp
+        sep%beta(0) =   -8.0423870_dp
+        sep%beta(1)=   -3.0000000_dp
+        sep%sto_exponents(0)    =    2.4982860_dp
+        sep%sto_exponents(1)   =    1.7283330_dp
+        sep%sto_exponents(2)   =    1.0000000_dp
+        sep%alp   =    1.7283330_dp
+        sep%eisol = -105.8345040_dp
+        sep%gss   =    9.8000000_dp
+        sep%gsp  =    8.3000000_dp
+        sep%gpp  =    7.3000000_dp
+        sep%gp2  =    6.5000000_dp
+        sep%hsp  =    1.3000000_dp
+        sep%dd   =    1.5526624_dp
+        sep%qq    =    1.4488558_dp
+        sep%am    =    0.3601617_dp
+        sep%ad    =    0.3239309_dp
+        sep%aq   =    0.3502057_dp
+      CASE (83:106)
     END SELECT
 
     sep%beta = sep%beta/evolt
@@ -1140,7 +1310,30 @@ CONTAINS
         sep%aq   =    0.5437048_dp
         sep%fn1(1) =  1.1287500_dp; sep%fn2(1) = 5.0962820_dp; sep%fn3(1) = 1.5374650_dp
         sep%fn1(2) = -1.0603290_dp; sep%fn2(2) = 6.0037880_dp; sep%fn3(2) = 1.5701890_dp
-      CASE (2:3)
+      CASE (2)
+      CASE (3)
+        !Lithium
+        sep%defined          = .TRUE.
+        sep%uss   =   -5.3000000_dp
+        sep%upp   =   -3.4000000_dp
+        sep%beta(0) =   -0.5500000_dp
+        sep%beta(1)=   -1.5000000_dp
+        sep%sto_exponents(0)    =    0.6500000_dp
+        sep%sto_exponents(1)   =    0.7500000_dp
+        sep%alp   =    1.2550000_dp
+        sep%eisol =    0.0000000_dp           !missing value?
+        sep%gss   =    9.0128510_dp
+        sep%gsp  =    6.5761990_dp
+        sep%gpp  =    6.0571820_dp
+        sep%gp2  =    9.0052190_dp
+        sep%hsp  =    0.5446790_dp
+        sep%dd   =    2.0357652_dp
+        sep%qq    =    1.6329932_dp
+        sep%am    =    0.1653804_dp
+        sep%ad    =    0.1156738_dp
+        sep%aq   =    0.3166080_dp
+        sep%fn1(1) = -0.4500000_dp; sep%fn2(1) = 5.0000000_dp; sep%fn3(1) = 1.0000000_dp
+        sep%fn1(2) =  0.8000000_dp; sep%fn2(2) = 6.5000000_dp; sep%fn3(2) = 1.0000000_dp
       CASE (4)
         !Beryllium
         sep%defined          = .TRUE.
@@ -1165,6 +1358,28 @@ CONTAINS
         sep%fn1(1) =  1.6315720_dp; sep%fn2(1) = 2.6729620_dp; sep%fn3(1) = 1.7916860_dp
         sep%fn1(2) = -2.1109590_dp; sep%fn2(2) = 1.9685940_dp; sep%fn3(2) = 1.7558710_dp
       CASE (5)
+        !Boron 
+        sep%defined = .TRUE.
+        sep%uss   =  -28.3539160_dp
+        sep%upp   =  -23.9738780_dp
+        sep%beta(0) =   -5.5215820_dp
+        sep%beta(1)=   -5.9611770_dp
+        sep%sto_exponents(0)    =    0.9885410_dp
+        sep%sto_exponents(1)   =    1.9094410_dp
+        sep%alp   =    2.4981070_dp
+        sep%eisol =  -52.1098330_dp
+        sep%gss   =    8.8104530_dp
+        sep%gsp  =   10.2992280_dp
+        sep%gpp  =    4.9891680_dp
+        sep%gp2  =    7.2899770_dp
+        sep%hsp  =    0.8370320_dp
+        sep%dd   =    0.7633744_dp
+        sep%qq    =    0.6414154_dp
+        sep%am    =    0.3237947_dp
+        sep%ad    =    0.4075662_dp
+        sep%aq   =    0.4208854_dp
+        sep%fn1(1) = 3.0046640_dp; sep%fn2(1) = 6.0288690_dp; sep%fn3(1) = 0.3472230_dp
+        sep%fn1(2) = 0.0201950_dp; sep%fn2(2) = 6.0106580_dp; sep%fn3(2) = 1.2140670_dp
       CASE (6)
         !Carbon
         sep%defined = .TRUE.
@@ -1261,9 +1476,27 @@ CONTAINS
       CASE (11)
        !Sodium
         sep%defined = .TRUE.
-        sep%alp   = 1.681_dp
-        sep%eisol = 0.000_dp
-        sep%am    = 0.500_dp
+        sep%defined = .TRUE.
+        sep%uss   =  -4.7683450_dp
+        sep%upp   =  -4.7703090_dp
+        sep%beta(0) =   -0.5354170_dp
+        sep%beta(1)=    0.0548760_dp
+        sep%sto_exponents(0)    =    0.6767940_dp
+        sep%sto_exponents(1)   =    0.9876530_dp
+        sep%alp   =    1.6810000_dp
+        sep%eisol =  -4.7683450_dp
+        sep%gss   =   5.1531420_dp
+        sep%gsp  =    3.1778570_dp
+        sep%gpp  =    3.7335330_dp
+        sep%gp2  =   11.5386740_dp
+        sep%hsp  =    0.5455510_dp
+        sep%dd   =    2.1443749_dp
+        sep%qq    =    1.6942388_dp
+        sep%am    =    0.1893841_dp
+        sep%ad    =    0.1850465_dp
+        sep%aq   =    0.2057464_dp
+        sep%fn1(1) =  0.4175960_dp; sep%fn2(1) = 8.5969780_dp; sep%fn3(1) = 1.6731780_dp
+        sep%fn1(2) =  0.4432600_dp; sep%fn2(2) = 3.3594960_dp; sep%fn3(2) = 2.2315110_dp
       CASE (12)
        !Magnesium
         sep%defined = .TRUE.
@@ -1411,10 +1644,90 @@ CONTAINS
       CASE (19)
         !Potassium
         sep%defined = .TRUE.
-        sep%alp   = 1.400_dp
-        sep%eisol = 0.000_dp
-        sep%am    = 0.500_dp
-      CASE (20:29)
+        sep%uss   = -4.1079950_dp
+        sep%upp   =  -1.9126360_dp
+        sep%beta(0) =  -0.7235020_dp
+        sep%beta(1)=    0.0109380_dp
+        sep%sto_exponents(0)   =    0.9158730_dp
+        sep%sto_exponents(1)   =    1.3430990_dp
+        sep%alp   =    4.4452360_dp
+        sep%eisol =   -4.1079950_dp
+        sep%gss   =    4.0502660_dp
+        sep%gsp  =    2.9879670_dp
+        sep%gpp  =    2.9983050_dp
+        sep%gp2  =    4.9936140_dp
+        sep%hsp  =    0.5653070_dp
+        sep%dd   =    1.9524869_dp
+        sep%qq    =    1.5794220_dp
+        sep%am    =    0.1488521_dp
+        sep%ad    =    0.1983782_dp
+        sep%aq   =    0.2164587_dp
+        sep%fn1(1) = 6.0409170_dp; sep%fn2(1) = 10.0465540_dp; sep%fn3(1) = 1.6005120_dp
+        sep%fn1(2) = 0.7242240_dp; sep%fn2(2) =  3.0082750_dp; sep%fn3(2) = 2.4643520_dp
+      CASE (20)
+        !Calcium   
+        sep%defined = .TRUE.
+        sep%uss   =-11.6466770_dp
+        sep%upp   = -11.7003040_dp
+        sep%beta(0) =  -1.3663020_dp
+        sep%beta(1)=   -0.6800840_dp
+        sep%sto_exponents(0)   =    0.8224530_dp
+        sep%sto_exponents(1)   =    1.2791170_dp
+        sep%alp   =    3.2251430_dp
+        sep%eisol =  -17.7272050_dp
+        sep%gss   =    5.5661490_dp
+        sep%gsp  =   15.8559960_dp
+        sep%gpp  =    6.7057840_dp
+        sep%gp2  =    4.8642700_dp
+        sep%hsp  =    1.0053200_dp
+        sep%dd   =    1.9888793_dp
+        sep%qq    =    1.6584256_dp
+        sep%am    =    0.2045626_dp
+        sep%ad    =    0.2518009_dp
+        sep%aq   =    0.4412688_dp
+        sep%fn1(1) = 0.7940250_dp; sep%fn2(1) =  3.8548560_dp; sep%fn3(1) = 1.5284410_dp
+        sep%fn1(2) = 0.3400220_dp; sep%fn2(2) =  5.7455560_dp; sep%fn3(2) = 2.3571110_dp
+      CASE (21:23)
+!                    DATA FOR ELEMENT 22 Titanium (Russell-Saunders only)
+!  data alppm3(22)/3.0683070d0/
+!  data betapp(22)/-0.1000000d0/
+!  data betasp(22)/-0.1000000d0/
+!  data gp2pm3(22)/3.5000000d0/
+!  data gpppm3(22)/5.0000000d0/
+!  data gsppm3(22)/4.1500000d0/
+!  data gsspm3(22)/6.0000000d0/
+!  data hsppm3(22)/1.0000000d0/
+!  data uddpm3(22)/-30.0000000d0/
+!  data upppm3(22)/10.0000000d0/
+!  data usspm3(22)/10.0000000d0/
+!  data zdpm3(22)/2.8845490d0/
+!  data zppm3(22)/1.5000000d0/
+!  data zspm3(22)/1.5000000d0/
+      CASE (24)
+        !Chromuim
+        sep%defined = .TRUE.
+        sep%uss   =-17.5170270_dp
+        sep%upp   = -12.5337290_dp
+        sep%udd   = -44.1249280_dp
+        sep%beta(0) =  -0.1000000_dp
+        sep%beta(1)=   -0.1000000_dp
+        sep%beta(2)=   -8.7766360_dp
+        sep%sto_exponents(0)   =    1.5000000_dp
+        sep%sto_exponents(1)   =    1.5000000_dp
+        sep%sto_exponents(1)   =    2.8845490_dp
+        sep%alp   =    3.0683070_dp
+        sep%eisol = -134.8187920_dp
+        sep%gss   =    6.0000000_dp
+        sep%gsp  =    4.1500000_dp
+        sep%gpp  =    5.0000000_dp
+        sep%gp2  =    3.5000000_dp
+        sep%hsp  =    1.0000000_dp
+        sep%dd   =    1.7320508_dp
+        sep%qq    =    1.4142136_dp
+        sep%am    =    0.2205072_dp
+        sep%ad    =    0.2711332_dp
+        sep%aq   =    0.4464656_dp
+      CASE (25:29)
       CASE (30)
         !Zinc
         sep%defined = .TRUE.
@@ -1555,7 +1868,64 @@ CONTAINS
         sep%aq   =    0.3823719_dp
         sep%fn1(1) =  0.9604580_dp; sep%fn2(1) = 5.9765080_dp; sep%fn3(1) = 2.3216540_dp
         sep%fn1(2) = -0.9549160_dp; sep%fn2(2) = 5.9447030_dp; sep%fn3(2) = 2.3281420_dp
-      CASE (36:47)
+      CASE (36)
+      CASE (37)
+!     DATA USSPM3( 37)/      -4.4841970D0/
+!     DATA UPPPM3( 37)/      -3.0722520D0/
+!     DATA BETASP( 37)/      -0.7442240D0/
+!     DATA BETAPP( 37)/      -0.5677060D0/
+!     DATA ZSPM3 ( 37)/       0.6801340D0/
+!     DATA ZPPM3 ( 37)/       0.9658140D0/
+!     DATA ALPPM3( 37)/       5.7668440D0/
+!     DATA EISOLP( 37)/      -4.4841970D0/
+!     DATA GSSPM3( 37)/       4.9848710D0/
+!     DATA GSPPM3( 37)/       4.9983590D0/
+!     DATA GPPPM3( 37)/       6.9857170D0/
+!     DATA GP2PM3( 37)/       5.5079160D0/
+!     DATA HSPPM3( 37)/       0.6211430D0/
+!     DATA DDPM3 ( 37)/       3.2610134D0/
+!     DATA QQPM3 ( 37)/       2.6599806D0/
+!     DATA AMPM3 ( 37)/       0.1832000D0/
+!     DATA ADPM3 ( 37)/       0.1544789D0/
+!     DATA AQPM3 ( 37)/       0.3073402D0/
+!     DATA GuesP1( 37,1)/       4.7724480D0/
+!     DATA GuesP2( 37,1)/       5.8039230D0/
+!     DATA GuesP3( 37,1)/       1.4442230D0/
+!     DATA GuesP1( 37,2)/       0.5062010D0/
+!     DATA GuesP2( 37,2)/       2.8303820D0/
+!     DATA GuesP3( 37,2)/       2.6433260D0/
+!     Data (GuesP1(37,J),J=3,10)/8*0.0d0/
+!     Data (GuesP2(37,J),J=3,10)/8*0.0d0/
+!     Data (GuesP3(37,J),J=3,10)/8*0.0d0/
+      CASE (38)
+!     DATA USSPM3( 38)/     -11.4870450D0/
+!     DATA UPPPM3( 38)/      -7.7152160D0/
+!     DATA BETASP( 38)/      -0.7533420D0/
+!     DATA BETAPP( 38)/      -0.5760720D0/
+!     DATA ZSPM3 ( 38)/       1.5592340D0/
+!     DATA ZPPM3 ( 38)/       1.2129820D0/
+!     DATA ALPPM3( 38)/       4.5905860D0/
+!     DATA EISOLP( 38)/     -16.9990050D0/
+!     DATA GSSPM3( 38)/       5.9750850D0/
+!     DATA GSPPM3( 38)/       4.8869600D0/
+!     DATA GPPPM3( 38)/       7.3407630D0/
+!     DATA GP2PM3( 38)/      15.8140850D0/
+!     DATA HSPPM3( 38)/       4.0512180D0/
+!     DATA DDPM3 ( 38)/       2.1011077D0/
+!     DATA QQPM3 ( 38)/       2.1179593D0/
+!     DATA AMPM3 ( 38)/       0.2195915D0/
+!     DATA ADPM3 ( 38)/       0.5137005D0/
+!     DATA AQPM3 ( 38)/       0.1752812D0/
+!     DATA GuesP1( 38,1)/       0.4398870D0/
+!     DATA GuesP2( 38,1)/       5.7510950D0/
+!     DATA GuesP3( 38,1)/       1.6731940D0/
+!     DATA GuesP1( 38,2)/       0.3957700D0/
+!     DATA GuesP2( 38,2)/       4.4993190D0/
+!     DATA GuesP3( 38,2)/       2.3281550D0/
+!     Data (GuesP1(38,J),J=3,10)/8*0.0d0/
+!     Data (GuesP2(38,J),J=3,10)/8*0.0d0/
+!     Data (GuesP3(38,J),J=3,10)/8*0.0d0/
+      CASE (39:47)
       CASE (48)
         !Cadmium
         sep%defined = .TRUE.
@@ -1693,7 +2063,64 @@ CONTAINS
         sep%aq   =    0.5153082_dp
         sep%fn1(1) = -0.1314810_dp; sep%fn2(1) = 5.2064170_dp; sep%fn3(1) = 1.7488240_dp
         sep%fn1(2) = -0.0368970_dp; sep%fn2(2) = 6.0101170_dp; sep%fn3(2) = 2.7103730_dp
-      CASE (54:79)
+      CASE (54)
+      CASE (55)
+!     DATA USSPM3( 55)/      -4.3207390D0/
+!     DATA UPPPM3( 55)/      -3.3475800D0/
+!     DATA BETASP( 55)/      -0.9775130D0/
+!     DATA BETAPP( 55)/      -0.5484990D0/
+!     DATA ZSPM3 ( 55)/       0.9188020D0/
+!     DATA ZPPM3 ( 55)/       1.5522530D0/
+!     DATA ALPPM3( 55)/       2.5439870D0/
+!     DATA EISOLP( 55)/      -4.3207390D0/
+!     DATA GSSPM3( 55)/       4.9615320D0/
+!     DATA GSPPM3( 55)/       4.9943210D0/
+!     DATA GPPPM3( 55)/       5.0115170D0/
+!     DATA GP2PM3( 55)/      16.0009950D0/
+!     DATA HSPPM3( 55)/       0.5830050D0/
+!     DATA DDPM3 ( 55)/       1.9526201D0/
+!     DATA QQPM3 ( 55)/       1.9433821D0/
+!     DATA AMPM3 ( 55)/       0.1823422D0/
+!     DATA ADPM3 ( 55)/       0.2009234D0/
+!     DATA AQPM3 ( 55)/       0.1864057D0/
+!     DATA GuesP1( 55,1)/       3.3960620D0/
+!     DATA GuesP2( 55,1)/       6.0007540D0/
+!     DATA GuesP3( 55,1)/       1.6762910D0/
+!     DATA GuesP1( 55,2)/       0.6677680D0/
+!     DATA GuesP2( 55,2)/       3.0084010D0/
+!     DATA GuesP3( 55,2)/       2.7188720D0/
+!     Data (GuesP1(55,J),J=3,10)/8*0.0d0/
+!     Data (GuesP2(55,J),J=3,10)/8*0.0d0/
+!     Data (GuesP3(55,J),J=3,10)/8*0.0d0/
+      CASE (56)
+!     DATA USSPM3( 56)/     -13.5286010D0/
+!     DATA UPPPM3( 56)/     -10.1346170D0/
+!     DATA BETASP( 56)/      -3.9502870D0/
+!     DATA BETAPP( 56)/      -0.5749730D0/
+!     DATA ZSPM3 ( 56)/       1.7594520D0/
+!     DATA ZPPM3 ( 56)/       1.4916880D0/
+!     DATA ALPPM3( 56)/       1.6584300D0/
+!     DATA EISOLP( 56)/     -16.9427990D0/
+!     DATA GSSPM3( 56)/      10.1144030D0/
+!     DATA GSPPM3( 56)/       4.8886780D0/
+!     DATA GPPPM3( 56)/       8.8650930D0/
+!     DATA GP2PM3( 56)/       8.7503680D0/
+!     DATA HSPPM3( 56)/       1.4151370D0/
+!     DATA DDPM3 ( 56)/       2.2086835D0/
+!     DATA QQPM3 ( 56)/       2.0222866D0/
+!     DATA AMPM3 ( 56)/       0.3717164D0/
+!     DATA ADPM3 ( 56)/       0.2800750D0/
+!     DATA AQPM3 ( 56)/       0.1811672D0/
+!     DATA GuesP1( 56,1)/       0.3501710D0/
+!     DATA GuesP2( 56,1)/       5.8729050D0/
+!     DATA GuesP3( 56,1)/       1.9750730D0/
+!     DATA GuesP1( 56,2)/       0.3339000D0/
+!     DATA GuesP2( 56,2)/       4.0328190D0/
+!     DATA GuesP3( 56,2)/       2.6276060D0/
+!     Data (GuesP1(56,J),J=3,10)/8*0.0d0/
+!     Data (GuesP2(56,J),J=3,10)/8*0.0d0/
+!     Data (GuesP3(56,J),J=3,10)/8*0.0d0/
+      CASE (57:79)
       CASE (80)
         !Mercury
         sep%defined = .TRUE.
@@ -1786,7 +2213,50 @@ CONTAINS
         sep%aq   =    0.2586520_dp
         sep%fn1(1) = 2.5816930_dp; sep%fn2(1) = 5.0940220_dp; sep%fn3(1) = 0.4997870_dp
         sep%fn1(2) = 0.0603200_dp; sep%fn2(2) = 6.0015380_dp; sep%fn3(2) = 2.4279700_dp
-      CASE (84:106)
+      CASE (84:89)
+      CASE (90)
+!     DATA USSPM3( 90)/     -40.5682920D0/
+!     DATA UPPPM3( 90)/     -28.0891870D0/
+!     DATA BETASP( 90)/      -4.2562180D0/
+!     DATA BETAPP( 90)/      -4.2562180D0/
+!     DATA ZSPM3 ( 90)/       1.4353060D0/
+!     DATA ZPPM3 ( 90)/       1.4353060D0/
+!     DATA ZDPM3 ( 90)/       1.0000000D0/
+!     DATA ALPPM3( 90)/       2.1961078D0/
+!     DATA EISOLP( 90)/       0.0000000D0/
+!     DATA GSSPM3( 90)/       9.8200000D0/
+!     DATA GSPPM3( 90)/       8.3600000D0/
+!     DATA GPPPM3( 90)/       7.3100000D0/
+!     DATA GP2PM3( 90)/       6.5400000D0/
+!     DATA HSPPM3( 90)/       1.3200000D0/
+!     DATA DDPM3 ( 90)/       0.2011245D0/
+!     DATA QQPM3 ( 90)/       0.2203208D0/
+!     DATA AMPM3 ( 90)/       0.3608967D0/
+!     DATA ADPM3 ( 90)/       1.1124287D0/
+!     DATA AQPM3 ( 90)/       1.3153602D0/
+!     Data (GuesP1(90,J),J=1,10)/10*0.0d0/
+!     Data (GuesP2(90,J),J=1,10)/10*0.0d0/
+!     Data (GuesP3(90,J),J=1,10)/10*0.0d0/
+      CASE (91)
+!     DATA USSPM3( 91)/     -75.2391520D0/
+!     DATA UPPPM3( 91)/     -57.8320130D0/
+!     DATA BETASP( 91)/     -11.1422310D0/
+!     DATA BETAPP( 91)/     -11.1422310D0/
+!     DATA ZSPM3 ( 91)/       2.6135910D0/
+!     DATA ZPPM3 ( 91)/       2.0343930D0/
+!     DATA ZDPM3 ( 91)/       1.0000000D0/
+!     DATA ALPPM3( 91)/       2.4916445D0/
+!     DATA EISOLP( 91)/       0.0000000D0/
+!     DATA HSPPM3( 91)/       0.0000001D0/
+!     DATA DDPM3 ( 91)/       0.1232470D0/
+!     DATA QQPM3 ( 91)/       0.1554408D0/
+!     DATA AMPM3 ( 91)/       0.0000000D0/
+!     DATA ADPM3 ( 91)/       0.0062312D0/
+!     DATA AQPM3 ( 91)/       1.2399130D0/
+!     Data (GuesP1(91,J),J=1,10)/10*0.0d0/
+!     Data (GuesP2(91,J),J=1,10)/10*0.0d0/
+!     Data (GuesP3(91,J),J=1,10)/10*0.0d0/
+      CASE (92:106)
     END SELECT
 
     sep%beta = sep%beta/evolt
