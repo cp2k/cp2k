@@ -84,9 +84,9 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
-       pot_nonbond, f_nonbond, ptens_nonbond, &
-       fshell_nonbond, fcore_nonbond, ewald_env, atomic_kind_set, error )
+  SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell, pot_nonbond,&
+       f_nonbond, ptens_nonbond, fshell_nonbond, fcore_nonbond, ewald_env,&
+       atomic_kind_set, error )
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(particle_type), DIMENSION(:), &
@@ -98,7 +98,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT), OPTIONAL                  :: fshell_nonbond, fcore_nonbond
     TYPE(ewald_environment_type), POINTER    :: ewald_env
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set(:)
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'force_nonbond', &
@@ -110,7 +110,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: list
     LOGICAL                                  :: all_terms, do_shell, failure, &
                                                 shell_present, swap_ab
-    REAL(KIND=dp) :: energy, fac, fscalar, pp, ptens11, ptens12, ptens13, &
+    REAL(KIND=dp) :: energy, fac, fscalar, ptens11, ptens12, ptens13, &
       ptens21, ptens22, ptens23, ptens31, ptens32, ptens33, rab2, rab2_com, &
       rab2_max
     REAL(KIND=dp), DIMENSION(3)              :: cell_v, cvi, fr, rab, rab_cc, &
@@ -139,9 +139,8 @@ CONTAINS
     CALL timeset ( routineN, handle )
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    pp = 0.0_dp
-    NULLIFY(pot,c_spline_data,cs_spline_data,sc_spline_data,rshell_last_update_pbc)
-    NULLIFY(spl_f, spl_c, spl_cs, spl_sc,ij_kind_full_fac)
+    NULLIFY(pot, c_spline_data, cs_spline_data, sc_spline_data, rshell_last_update_pbc)
+    NULLIFY(spl_f, spl_c, spl_cs, spl_sc, ij_kind_full_fac)
     CALL fist_nonbond_env_get ( fist_nonbond_env, nonbonded = nonbonded, potparm = potparm,&
          r_last_update=r_last_update, r_last_update_pbc=r_last_update_pbc,natom_types = nkinds,&
          rshell_last_update_pbc=rshell_last_update_pbc,rcore_last_update_pbc=rcore_last_update_pbc,&
@@ -151,15 +150,17 @@ CONTAINS
     pot_nonbond        = 0.0_dp
     f_nonbond(:,:)     = 0.0_dp
     ptens_nonbond(:,:) = 0.0_dp
-    IF(PRESENT(fshell_nonbond)) fshell_nonbond = 0.0_dp
-    IF(PRESENT(fcore_nonbond))   fcore_nonbond = 0.0_dp
-    shell_present = .FALSE.
-    IF(PRESENT(fshell_nonbond)) shell_present = .TRUE.
     ptens11 = 0.0_dp ; ptens12 = 0.0_dp ; ptens13 = 0.0_dp
     ptens21 = 0.0_dp ; ptens22 = 0.0_dp ; ptens23 = 0.0_dp
     ptens31 = 0.0_dp ; ptens32 = 0.0_dp ; ptens33 = 0.0_dp
+    shell_present = .FALSE.
+    IF(PRESENT(fshell_nonbond)) THEN
+       CPPostcondition(PRESENT(fcore_nonbond),cp_failure_level,routineP,error,failure)
+       fshell_nonbond = 0.0_dp
+       fcore_nonbond = 0.0_dp
+       shell_present = .TRUE.
+    END IF
     ! Starting the force loop
-    nkinds = SIZE ( potparm%pot, 1 )
 ! incorrect omp (i.e. threads can write to the variable an other thread might be reading (e.g. pot_nonbonded))
 ! !$OMP parallel do default(none) &
 ! !$OMP shared(nkinds) &
@@ -203,7 +204,7 @@ CONTAINS
           IF(shell_type/=nosh_nosh) THEN
              c_spline_data => pot%c_coul_spline_data
              spl_c         => pot%spl_c
-             CPPostcondition(PRESENT(fshell_nonbond),cp_failure_level,routineP,error,failure)
+             CPPostcondition(shell_present,cp_failure_level,routineP,error,failure)
              do_shell = .TRUE.
           ELSE
              c_spline_data => pot%pair_spline_data
@@ -220,8 +221,8 @@ CONTAINS
           Pairs: DO ipair = istart, iend
              atom_a = list(1,ipair)
              atom_b = list(2,ipair)
-             all_terms = .TRUE.
              IF (do_shell) THEN
+                all_terms = .TRUE.
                 a_kind  = particle_set(atom_a)%atomic_kind%kind_number
                 b_kind  = particle_set(atom_b)%atomic_kind%kind_number
                 swap_ab = (b_kind>a_kind)
@@ -458,7 +459,7 @@ CONTAINS
                    END IF
                 END IF
              ELSE
-                IF (rab2_com <= rab2_max .AND. all_terms) THEN
+                IF (rab2_com <= rab2_max) THEN
                    ! NO SHELL MODEL...
                    ! Ion-Ion : no shell model
                    rab  = rab_com
