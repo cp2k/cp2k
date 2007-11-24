@@ -113,6 +113,9 @@ MODULE x_hf
     INTEGER(int_8)                           :: number_of_integrals
     INTEGER(int_8)                           :: cost
     INTEGER(int_8)                           :: original_cpu_id
+    REAL(KIND=dp)                            :: time_first_scf
+    REAL(KIND=dp)                            :: time_other_scf
+    REAL(KIND=dp)                            :: time_forces
   END TYPE
   
   TYPE x_hf_box_scheme

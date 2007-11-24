@@ -42,6 +42,7 @@ MODULE four_center_integrals
                                              initialize_libint,&
                                              lib_deriv,&
                                              lib_int
+  USE machine,                         ONLY: m_walltime
   USE mathconstants
   USE mathlib,                         ONLY: symmetrize_matrix
   USE message_passing,                 ONLY: mp_bcast,&
@@ -174,7 +175,7 @@ MODULE four_center_integrals
       max_val2, omega2Inv, omega_box, p_bc, p_bd, p_beta_bc, p_beta_bd, &
       p_screening_correction_factor, pbc_center(3), pmax_entry, R1, R2, &
       ra(3), rb(3), Rbox, rc(3), rd(3), screen_max, spherical_estimate, &
-      symm_fac, temp(3), tmp
+      symm_fac, temp(3), tmp, bintime_start,bintime_stop
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: primitive_integrals, T1
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: full_ks, full_ks_beta
     REAL(dp), DIMENSION(:, :), POINTER :: full_density, full_density_beta, &
@@ -533,23 +534,33 @@ MODULE four_center_integrals
     !! iatom and katom respectively. Therefore, we use flags like first_j_loop etc.
     
     ncpu = para_env%num_pe 
+
     my_bin_size = SIZE(qs_env%x_data%distribution_energy)
-    first_j_loop = .TRUE.
-    first_l_loop = .TRUE.
-    first_k_loop = .TRUE.
-    !! outer loop will be cycled if actual work_load done
+    ! reset timings for the new SCF round
+    IF (geometry_did_change) THEN
+       DO bin=1,my_bin_size
+          qs_env%x_data%distribution_energy(bin)%time_first_scf=0.0_dp
+          qs_env%x_data%distribution_energy(bin)%time_other_scf=0.0_dp
+       ENDDO
+    ENDIF
     outer: DO bin=1,my_bin_size
+      bintime_start=m_walltime()
       !! Get information on workload
+      first_j_loop = .TRUE.
+      first_l_loop = .TRUE.
+      first_k_loop = .TRUE.
       my_istart = qs_env%x_data%distribution_energy(bin)%istart
       my_jstart = qs_env%x_data%distribution_energy(bin)%jstart
       my_kstart = qs_env%x_data%distribution_energy(bin)%kstart
       my_lstart = qs_env%x_data%distribution_energy(bin)%lstart
       my_original_cpu_id = qs_env%x_data%distribution_energy(bin)%original_cpu_id 
       my_current_counter = 0
-      !! It could happen, that one bin is empty. In that case just cycle
+      !! It could happen, that one bin is empty. In that case just skip the loop (but still time it)
       IF(my_istart == 0 .OR. my_jstart == 0 .OR. my_kstart == 0 .OR. my_lstart == 0 .OR. &
-         qs_env%x_data%distribution_energy(bin)%number_of_integrals == 0) CYCLE
-      DO iatom=my_istart,natom
+         qs_env%x_data%distribution_energy(bin)%number_of_integrals == 0) THEN
+         my_istart = natom + 1 ; my_jstart = natom + 1 ; my_kstart = natom + 1 ; my_lstart = natom + 1
+      ENDIF
+      atom_loops: DO iatom=my_istart,natom
         ikind = kind_of(iatom)
         la_max => basis_parameter(ikind)%lmax
         la_min => basis_parameter(ikind)%lmin
@@ -628,10 +639,7 @@ MODULE four_center_integrals
                 !! if we reach the counter in the distribution we are finished with the curren bunch
                 !! of integrals. We also have to reset the flags for the main loops
                 IF(my_current_counter > qs_env%x_data%distribution_energy(bin)%number_of_integrals) THEN
-                  first_j_loop = .TRUE.
-                  first_l_loop = .TRUE.
-                  first_k_loop = .TRUE.
-                  CYCLE outer
+                  EXIT atom_loops
                 END IF
 
                 !! calculate symmetry_factor accordin to degeneracy of atomic quartet
@@ -1093,12 +1101,15 @@ MODULE four_center_integrals
           first_k_loop = .FALSE.
         END DO !jatom
         first_j_loop = .FALSE.
-      END DO !iatom
-      !! Because of the Monte Carlo optimization it is not guaranteed that there are no more bunches to calculate.
-      !! Therefore we have to reset the flags
-      first_j_loop = .TRUE.
-      first_k_loop = .TRUE.
-      first_l_loop = .TRUE.
+      END DO atom_loops !iatom
+
+      bintime_stop = m_walltime()
+      IF (geometry_did_change) THEN
+         qs_env%x_data%distribution_energy(bin)%time_first_scf=bintime_stop-bintime_start 
+      ELSE
+         qs_env%x_data%distribution_energy(bin)%time_other_scf= &
+                qs_env%x_data%distribution_energy(bin)%time_other_scf+bintime_stop-bintime_start 
+      ENDIF
     END DO outer !bin
 
     DEALLOCATE(primitive_integrals,STAT=stat)
@@ -1867,7 +1878,8 @@ MODULE four_center_integrals
       center2(3), center2_folded(3), eps_box, eps_schwarz, fac, hf_fraction, &
       Kbox, max_contraction_val, max_val1, max_val2, omega2Inv, omega_box, &
       pbc_center(3), pmax_max, R1, R2, ra(3), rb(3), Rbox, rc(3), rd(3), &
-      screen_max, symm_fac, temp(3), temp1, temp1b, temp2, temp3, temp3b
+      screen_max, symm_fac, temp(3), temp1, temp1b, temp2, temp3, temp3b, &
+      bintime_start, bintime_stop
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: work_forces
     REAL(dp), ALLOCATABLE, DIMENSION(:), &
       TARGET                                 :: primitive_forces
@@ -2100,22 +2112,28 @@ MODULE four_center_integrals
 
     ncpu = para_env%num_pe
     my_bin_size = SIZE(qs_env%x_data%distribution_forces)
-    first_j_loop = .TRUE.
-    first_l_loop = .TRUE.
-    first_k_loop = .TRUE.
+    DO bin=1,my_bin_size
+       qs_env%x_data%distribution_forces(bin)%time_forces=0.0_dp
+    ENDDO
     !! outer loop will be cycled if actual work_load done
     outer: DO bin=1,my_bin_size
+      bintime_start=m_walltime()
       !! Get information on workload
+      first_j_loop = .TRUE.
+      first_l_loop = .TRUE.
+      first_k_loop = .TRUE.
       my_istart = qs_env%x_data%distribution_forces(bin)%istart
       my_jstart = qs_env%x_data%distribution_forces(bin)%jstart
       my_kstart = qs_env%x_data%distribution_forces(bin)%kstart
       my_lstart = qs_env%x_data%distribution_forces(bin)%lstart
       my_original_cpu_id = qs_env%x_data%distribution_forces(bin)%original_cpu_id 
       my_current_counter = 0
-      !! It could happen, that one bin is empty. In that case just cycle
+      !! It could happen, that one bin is empty. In that case just skip
       IF(my_istart == 0 .OR. my_jstart == 0 .OR. my_kstart == 0 .OR. my_lstart == 0 .OR. &
-         qs_env%x_data%distribution_forces(bin)%number_of_integrals == 0) CYCLE
-      DO iatom=my_istart,natom
+         qs_env%x_data%distribution_forces(bin)%number_of_integrals == 0) THEN
+         my_istart = natom + 1 ; my_jstart = natom + 1 ;my_kstart = natom + 1 ;my_lstart = natom + 1 
+      ENDIF
+      atom_loops: DO iatom=my_istart,natom
         ikind = kind_of(iatom)
         la_max => basis_parameter(ikind)%lmax
         la_min => basis_parameter(ikind)%lmin
@@ -2196,10 +2214,7 @@ MODULE four_center_integrals
 
                 my_current_counter = my_current_counter + 1
                 IF(my_current_counter > qs_env%x_data%distribution_forces(bin)%number_of_integrals) THEN
-                  first_j_loop = .TRUE.
-                  first_l_loop = .TRUE.
-                  first_k_loop = .TRUE.
-                  CYCLE outer
+                  EXIT atom_loops
                 END IF
                 lkind = kind_of(latom)
                 ld_max => basis_parameter(lkind)%lmax
@@ -2412,12 +2427,9 @@ MODULE four_center_integrals
           first_k_loop = .FALSE.
         END DO !jatom
         first_j_loop = .FALSE.
-      END DO !iatom
-      !! Because of the Monte Carlo optimization it is not guaranteed that there are no more bunches to calculate.
-      !! Therefore we have to reset the flags
-      first_j_loop = .TRUE.
-      first_k_loop = .TRUE.
-      first_l_loop = .TRUE.
+      END DO atom_loops !iatom
+      bintime_stop=m_walltime()
+      qs_env%x_data%distribution_forces(bin)%time_forces=bintime_stop-bintime_start
     END DO outer !bin
     
     IF( do_periodic ) THEN
