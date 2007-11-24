@@ -134,13 +134,18 @@ CONTAINS
 FUNCTION m_walltime() RESULT (wt)
     REAL(KIND=dp)                            :: wt
 
-    INTEGER                                  :: count, count_max, count_rate
-    INTEGER, SAVE                            :: cycles = 0, last_count = -1
+    INTEGER                                  :: count
+    INTEGER, SAVE                            :: cycles = -1, last_count, count_max, count_rate
 
-! count lies in [0,count_max] and increases monotonically
+   ! count lies in [0,count_max] and increases monotonically
+    IF (cycles == -1) THEN ! get parameters of system_clock and initialise
+        CALL SYSTEM_CLOCK(count_rate=count_rate,count_max=count_max)
+        cycles = 0
+        last_count = 0
+    ENDIF
 
-    CALL SYSTEM_CLOCK(count=count,count_rate=count_rate,count_max=count_max)
-
+    CALL SYSTEM_CLOCK(count=count)
+    
     ! protect against non-standard cases where time might be non-monotonous,
     ! but it is unlikely that the clock cycled (e.g. underlying system clock adjustments)
     ! i.e. if count is smaller than last_count by only a small fraction of count_max,
