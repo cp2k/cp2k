@@ -45,11 +45,12 @@
         &END
         &INTERACTION_POTENTIAL
           POTENTIAL_TYPE SHORTRANGE
+          OMEGA 0.11
         &END
         &MEMORY
           MAX_MEMORY  100
         &END
-        FRACTION 0.11
+        FRACTION 0.25
       &END
     &END XC
   &END DFT

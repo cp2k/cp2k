@@ -92,3 +92,15 @@ H2O-hybrid-bhandhlyp.inp
 H2O-hybrid-pbe0.inp
 NE-hybrid-HSE03-lda.inp
 NE-hybrid-HSE06-lda.inp
+# new_arch_files 
+H2O-hybrid-bhandhlyp.inp
+# new_arch_files 
+H2O-hybrid-b3lyp.inp
+# new_arch_files 
+H2O-hybrid-b3lyp-g03.inp
+# new_arch_files 
+CH3-hybrid-b3lyp-lsd-g03.inp
+# new_arch_files 
+CH3-hybrid-handhlyp-lsd.inp
+# wrong parameter for HSE
+CH3-hybrid-HSE06-lsd.inp
