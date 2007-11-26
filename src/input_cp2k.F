@@ -1870,7 +1870,6 @@ END SUBROUTINE create_cpot_section
           n_keywords=0, n_subsections=5, repeats=.FALSE., required=.TRUE.,&
           error=error)
 
-
      CALL keyword_create(keyword,name="FREQUENCY",&
           description="value close to the expected value of the frequency for to look for",&
           usage="FREQUENCY <REAL>", default_r_val=-1._dp,&
@@ -1912,14 +1911,6 @@ END SUBROUTINE create_cpot_section
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
-
-     CALL cp_print_key_section_create(print_key,"program_run_info",&
-          description="Controls the printing basic info about the mode_selectiv method", &
-          print_level=low_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
-          error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
 
   END IF
 

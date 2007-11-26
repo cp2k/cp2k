@@ -3,7 +3,6 @@
 !   Copyright (C) 2000 - 2007  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
 !!****h* cp2k/vibrational_analysis [1.0] *
 !!
 !!   NAME
@@ -33,7 +32,8 @@ MODULE vibrational_analysis
   USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
@@ -53,8 +53,7 @@ MODULE vibrational_analysis
   USE mathconstants,                   ONLY: pi
   USE mathlib,                         ONLY: diamat_all
   USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_sum,&
-                                             mp_sync
+                                             mp_sum
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE molecule_kind_types,             ONLY: fixd_constraint_type,&
                                              get_molecule_kind,&
@@ -115,21 +114,22 @@ CONTAINS
 
     CHARACTER(LEN=1), DIMENSION(3)           :: lab = (/"X","Y","Z"/)
     INTEGER :: handle, i, icoord, icoordm, icoordp, ierr, imap, ip1, ip2, &
-      iparticle1, iparticle2, iseq, j, mat_size, n_rep, natoms, ncoord, nrep, &
-      nRotTrM, nvib, output_unit, output_unit_ms, output_molden, precondit, prep, stat
+      iparticle1, iparticle2, iseq, iw, j, mat_size, n_rep, natoms, ncoord, &
+      nrep, nRotTrM, nvib, output_molden, output_unit, precondit, prep, stat
     INTEGER, DIMENSION(:), POINTER           :: Clist, Mlist
     LOGICAL                                  :: converged, do_mode_tracking, &
                                                 failure, keep_rotations, &
                                                 something_frozen
     REAL(KIND=dp)                            :: dx, norm, sel_freq, tmp
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eig_bfgs, H_eigval1, &
-                                                H_eigval2, konst, mass, pos0, &
-                                                rmass, step_b, step_r
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: H_eigval1, H_eigval2, konst, &
+                                                mass, pos0, rmass, step_b, &
+                                                step_r
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: B_MAT, b_vec, delta_vec, &
-                                                hes_bfgs, Hessian, Hint1, &
-                                                Hint2, ms_force, S_MAT
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: D, RotTrM
+      DIMENSION(:, :)                        :: b_vec, delta_vec, Hessian, &
+                                                Hint1, Hint2, ms_force
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: eig_bfgs
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: b_mat, D, hes_bfgs, RotTrM, &
+                                                s_mat
     TYPE(cp_error_type)                      :: new_error
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -140,12 +140,10 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 mode_tracking_section
 
-!    REAL(KIND=dp),DIMENSION(:,:)             :: displacement
-
     CALL timeset(routineN,"I","",handle)
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       NULLIFY(D, RotTrM, logger, subsys, f_env, particles, rep_env)
+       NULLIFY(D, RotTrM, logger, subsys, f_env, particles, rep_env, eig_bfgs, hes_bfgs, b_mat, s_mat)
        logger => cp_error_get_logger(error)
        output_unit=cp_print_key_unit_nr(logger,input,"VIBRATIONAL_ANALYSIS%PROGRAM_RUN_INFO",&
             extension=".vibLog",error=error)
@@ -177,12 +175,8 @@ CONTAINS
                new_error=new_error, failure=failure)
           CALL force_env_get(f_env%force_env,subsys=subsys,error=error)
           particles => subsys%particles%els
-          ! Allocate working arrays
-
-
+          ! Decide which kind of Vibrational Analysis to perform
           IF (do_mode_tracking)THEN
-             output_unit_ms=cp_print_key_unit_nr(logger,input,"VIBRATIONAL_ANALYSIS%MODE_SELECTIVE%PROGRAM_RUN_INFO",&
-                  extension=".msLog",error=error)
              converged=.FALSE.
              natoms=SIZE(particles)
              ncoord=3*natoms
@@ -194,17 +188,21 @@ CONTAINS
                    mass((i-1)*3+j)= SQRT(mass((i-1)*3+j))
                 END DO
              END DO
-
-             ALLOCATE(delta_vec(ncoord,nrep))
-             ALLOCATE(b_vec(ncoord,nrep))
-             ALLOCATE(step_r(nrep))
-             ALLOCATE(step_b(nrep))
+             ! Allocate working arrays
+             ALLOCATE(delta_vec(ncoord,nrep),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(b_vec(ncoord,nrep),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(step_r(nrep),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(step_b(nrep),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
              CALL MS_initial_moves( para_env, nrep , input, globenv,&
                                     particles,delta_vec,b_vec, step_r,&
                                     step_b,sel_freq ,mass,hes_bfgs,eig_bfgs,&
-                                    precondit,dx,output_unit_ms,&
-                                    B_MAT,S_MAT,mat_size,error)
+                                    precondit,dx,output_unit,&
+                                    b_mat,s_mat,mat_size,error)
              ncoord=3*natoms
              ALLOCATE(pos0(ncoord), stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -215,9 +213,7 @@ CONTAINS
                    pos0((i-1)*3+j) = particles((i))%r(j)
                 END DO
              END DO
-
              ncoord=3*natoms
-
              DO
                 ms_force = HUGE(0.0_dp)
                 DO i=1,nrep
@@ -238,9 +234,9 @@ CONTAINS
                 END DO
                 CALL rep_env_calc_e_f(rep_env,calc_f=.TRUE.,error=error)
                 CALL evaluate_H_update_b(mat_size,ms_force,rep_env,b_vec,nrep,&
-                                         particles,B_MAT,S_MAT,step_b,step_r,&
+                                         particles,b_mat,s_mat,step_b,step_r,&
                                          delta_vec,mass,sel_freq,converged,hes_bfgs,&
-                                         eig_bfgs,precondit,dx,output_unit_ms,output_molden, error)
+                                         eig_bfgs,precondit,dx,output_unit,output_molden, error)
                 IF(converged)EXIT
              END DO
              CALL f_env_rm_defaults(f_env,new_error,ierr)
@@ -259,10 +255,18 @@ CONTAINS
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              DEALLOCATE(mass, stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             DEALLOCATE(B_MAT, stat=stat)
+             DEALLOCATE(b_mat, stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             DEALLOCATE(S_MAT, stat=stat)
+             DEALLOCATE(s_mat, stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             IF (ASSOCIATED(eig_bfgs)) THEN 
+                DEALLOCATE(eig_bfgs, stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             END IF
+             IF (ASSOCIATED(hes_bfgs)) THEN 
+                DEALLOCATE(hes_bfgs, stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             END IF
           ELSE
              CALL get_moving_atoms(force_env=f_env%force_env,Ilist=Mlist,error=error)
              something_frozen = SIZE(particles).NE.SIZE(Mlist)
@@ -289,7 +293,6 @@ CONTAINS
                 pos0((i-1)*3+2) = particles(imap)%r(2)
                 pos0((i-1)*3+3) = particles(imap)%r(3)
              END DO
-
              ! 
              ! Determine the principal axes of inertia.
              ! Generation of coordinates in the rotating and translating frame
@@ -310,7 +313,6 @@ CONTAINS
              !
              Hessian = HUGE(0.0_dp)
              IF (output_unit>0) WRITE(output_unit,'(/,T2,A)')"VIB| Vibrational Analysis Info"
-
              DO icoordp = 1, ncoord, nrep
                 icoord  = icoordp-1
                 DO j = 1, nrep
@@ -465,11 +467,10 @@ CONTAINS
                 END DO
                 ! Dump Info
                 IF (para_env%mepos==para_env%source) THEN             
-                   output_unit= cp_logger_get_default_unit_nr(logger)
-                   CALL vib_out(output_unit,nvib,D,konst,rmass,H_eigval2,particles,Mlist)
-                   IF(.NOT.something_frozen)&
-                   CALL molden_out(output_molden,particles,H_eigval2,D,error)
+                   iw = cp_logger_get_default_unit_nr(logger)
+                   CALL vib_out(iw,nvib,D,konst,rmass,H_eigval2,particles,Mlist)
                 END IF
+                IF(.NOT.something_frozen) CALL molden_out(output_molden,particles,H_eigval2,D,error)
              ELSE
                 IF (output_unit>0) THEN
                    WRITE(output_unit,'(T2,"VIB| No further vibrational info. Detected a single atom")')
@@ -503,6 +504,8 @@ CONTAINS
              CALL f_env_rm_defaults(f_env,new_error,ierr)
           END IF
        END IF
+       CALL cp_print_key_finished_output(output_unit,logger,input,"VIBRATIONAL_ANALYSIS%PROGRAM_RUN_INFO",error=error)
+       CALL cp_print_key_finished_output(output_molden,logger,input,"VIBRATIONAL_ANALYSIS%MOLDEN_VIB",error=error)
        CALL rep_env_release(rep_env,error=error)
     END IF
     CALL timestop(0.0_dp,handle)
@@ -829,6 +832,7 @@ CONTAINS
     END IF
     ! Give back the vectors generating the rototranslating Frame
     ALLOCATE(mat(natoms*3,dof),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     iseq = 0
     DO i = 1, 3
        mat(:,i)=Tr(:,i)
@@ -945,7 +949,6 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE build_D_matrix
 
-
   !!****f* vibrational_analysis/MS_initial_moves [1.0] *
   !!
   !!   NAME
@@ -966,11 +969,10 @@ CONTAINS
   !!
   !!   SOURCE
   !****************************************************************************
-  
   SUBROUTINE MS_initial_moves(para_env, nrep , input, globenv ,particles ,&
                               delta_vec , b_vec, step_r,step_b, sel_freq,&
                               mass,hes_bfgs,eig_bfgs,precondit, dx,output_unit_ms,&
-                              B_MAT,S_MAT,mat_size, error)
+                              b_mat,s_mat,mat_size, error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: nrep
     TYPE(section_vals_type), POINTER         :: input
@@ -981,14 +983,12 @@ CONTAINS
     REAL(Kind=dp), DIMENSION(:)              :: step_r, step_b
     REAL(KIND=dp)                            :: sel_freq
     REAL(Kind=dp), DIMENSION(:)              :: mass
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: hes_bfgs
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eig_bfgs
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hes_bfgs
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: eig_bfgs
     INTEGER                                  :: precondit
     REAL(KIND=dp)                            :: dx
     INTEGER                                  :: output_unit_ms
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: B_MAT, S_MAT
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: b_mat, s_mat
     INTEGER                                  :: mat_size
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1012,13 +1012,11 @@ CONTAINS
        CALL section_vals_val_get(ms_vib_section,"INITIAL_GUESS",i_val=guess,error=error)
        CALL section_vals_val_get(ms_vib_section,"PRECONDITIONER",i_val=precondit,error=error)      
        CALL section_vals_val_get(ms_vib_section,"FREQUENCY",r_val=sel_freq, error=error)
-
+       
        ionode=para_env%mepos==para_env%source
        SELECT CASE(guess)
        CASE(ms_guess_atomic)
-
           CALL section_vals_val_get(ms_vib_section,"ATOMS",n_rep_val=n_rep_val,error=error)
-
           jj = 0
           DO k = 1,n_rep_val
              CALL section_vals_val_get(ms_vib_section,"ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
@@ -1028,13 +1026,15 @@ CONTAINS
           END DO
           IF (jj<1)THEN
              natoms=SIZE(particles)
-             ALLOCATE(map_atoms(natoms))
+             ALLOCATE(map_atoms(natoms),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              DO j=1,natoms
                 map_atoms(j)=j
              END DO
           ELSE
              natoms=jj
-             ALLOCATE(map_atoms(natoms))
+             ALLOCATE(map_atoms(natoms),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              jj = 0
              DO m=1,n_rep_val
                 CALL section_vals_val_get(ms_vib_section,"ATOMS",i_rep_val=m,i_vals=tmplist, error=error)
@@ -1043,13 +1043,12 @@ CONTAINS
                 END DO
              END DO
           END IF
-
-          !!!!  apply random displacement along the mass weighted nuclear cartesian coordinates   !!!!
-
+          
+          ! apply random displacement along the mass weighted nuclear cartesian coordinates
           b_vec=0._dp
           delta_vec=0._dp
           jj=0
-
+          
           DO i=1,nrep
              DO j=1,natoms
                 DO k=1,3
@@ -1060,7 +1059,7 @@ CONTAINS
              norm=SQRT(DOT_PRODUCT(b_vec(:,i),b_vec(:,i)))
              b_vec(:,i)=b_vec(:,i)/norm
           END DO
-
+          
           IF(nrep.GT.1)THEN
              DO k=1,10
                 DO j=1,nrep
@@ -1147,46 +1146,40 @@ CONTAINS
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
           mat_size=0
-          CASE(ms_guess_restart)
-             natoms=SIZE(particles)
-             ncoord=3*natoms
-             IF(ionode)THEN
-                CALL open_file(file_name="MS_RESTART",&
+       CASE(ms_guess_restart)
+          natoms=SIZE(particles)
+          ncoord=3*natoms
+          IF(ionode)THEN
+             CALL open_file(file_name="MS_RESTART",&
                   file_status="UNKNOWN",&
                   file_form="UNFORMATTED",&
                   file_action="READ",&
                   unit_number=hesunit) 
-                READ(UNIT=hesunit,IOSTAT=stat)mat_size
+             READ(UNIT=hesunit,IOSTAT=stat)mat_size
+          END IF
+          CALL mp_bcast(mat_size,para_env%source,para_env%group)
+          ALLOCATE(b_mat(ncoord,mat_size),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(s_mat(ncoord,mat_size),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          IF(ionode)THEN
+             READ(UNIT=hesunit,IOSTAT=stat)b_mat
+             READ(UNIT=hesunit,IOSTAT=stat)s_mat
+             READ(UNIT=hesunit,IOSTAT=stat)b_vec
+             READ(UNIT=hesunit,IOSTAT=stat)delta_vec 
+             CALL close_file(hesunit)
+             IF (stat /= 0) THEN
+                WRITE(6,FMT="(/,T2,A)")"**  Error while reading MS_RESTART **"
+             ELSE
+                WRITE(6,FMT="(/,T2,A)")"*** RESTART has been read successfully ***"
              END IF
-             CALL mp_bcast(mat_size,para_env%source,para_env%group)
-             CALL mp_sync(para_env%group)
-             ALLOCATE(B_MAT(ncoord,mat_size),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             ALLOCATE(S_MAT(ncoord,mat_size),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             IF(ionode)THEN
-                READ(UNIT=hesunit,IOSTAT=stat)B_MAT
-                READ(UNIT=hesunit,IOSTAT=stat)S_MAT
-                READ(UNIT=hesunit,IOSTAT=stat)b_vec
-                READ(UNIT=hesunit,IOSTAT=stat)delta_vec 
-                CALL close_file(hesunit)
-                IF (stat /= 0) THEN
-                   WRITE(6,FMT="(/,T2,A)")"**  Error while reading MS_RESTART **"
-                ELSE
-                   WRITE(6,FMT="(/,T2,A)")"*** RESTART has been read successfully ***"
-                END IF
-             END IF
-             CALL mp_bcast(B_MAT,para_env%source,para_env%group)
-             CALL mp_bcast(S_MAT,para_env%source,para_env%group)
+          END IF
+          CALL mp_bcast(b_mat,para_env%source,para_env%group)
+          CALL mp_bcast(s_mat,para_env%source,para_env%group)
        END SELECT
-
-
-
+       CALL mp_bcast(b_vec,para_env%source,para_env%group)
+       CALL mp_bcast(delta_vec,para_env%source,para_env%group)
     END IF
-
-    CALL mp_bcast(b_vec,para_env%source,para_env%group)
-    CALL mp_bcast(delta_vec,para_env%source,para_env%group)
-    CALL mp_sync(para_env%group)
     DO i=1,nrep
        step_r(i)=dx/SQRT(DOT_PRODUCT( delta_vec(:,i), delta_vec(:,i)))
        step_b(i)=SQRT(DOT_PRODUCT(step_r(i)*b_vec(:,i),step_r(i)*b_vec(:,i)))
@@ -1219,7 +1212,7 @@ CONTAINS
 
 
   SUBROUTINE  evaluate_H_update_b(mat_size,ms_force,rep_env,b_vec,nrep,&
-                                  particles,B_MAT,S_MAT,step_b,&
+                                  particles,b_mat,s_mat,step_b,&
                                   step_r,delta_vec, mass,sel_freq, &
                                   converged,hes_bfgs,eig_bfgs,precondit,dx,output_unit_ms,&
                                   output_molden,error)     
@@ -1230,18 +1223,17 @@ CONTAINS
     INTEGER                                  :: nrep
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: B_MAT, S_MAT
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: b_mat, s_mat
     REAL(Kind=dp), DIMENSION(:)              :: step_b, step_r
     REAL(KIND=dp), DIMENSION(:, :)           :: delta_vec
     REAL(Kind=dp), DIMENSION(:)              :: mass
     REAL(KIND=dp)                            :: sel_freq
     LOGICAL                                  :: converged
-    REAL(KIND=dp), DIMENSION(:, :)           :: hes_bfgs
-    REAL(Kind=dp), DIMENSION(:)              :: eig_bfgs
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hes_bfgs
+    REAL(Kind=dp), DIMENSION(:), POINTER     :: eig_bfgs
     INTEGER                                  :: precondit
     REAL(KIND=dp)                            :: dx
-    INTEGER                                  :: output_unit_ms,output_molden
+    INTEGER                                  :: output_unit_ms, output_molden
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'evaluate_H_update_b', &
@@ -1252,7 +1244,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ind
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: my_val, norm
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigenval, freq, ppp, tmp
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigenval, freq, tmp
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: approx_H, H_save, residuum, &
                                                 selected, tmp_b, tmp_s, Xpre
@@ -1271,31 +1263,31 @@ CONTAINS
        ALLOCATE(tmp_s(3*natoms,mat_size),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       tmp_b=B_MAT
-       tmp_s=S_MAT
+       tmp_b=b_mat
+       tmp_s=s_mat
 
-       DEALLOCATE(B_MAT,stat=stat)
+       DEALLOCATE(b_mat,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(S_MAT,stat=stat)
+       DEALLOCATE(s_mat,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDIF
     
-    ALLOCATE(B_MAT(3*natoms,mat_size+nrep),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(S_MAT(3*natoms,mat_size+nrep),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(b_mat(3*natoms,mat_size+nrep),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(s_mat(3*natoms,mat_size+nrep),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    S_MAT=0.0_dp
+    s_mat=0.0_dp
 
     DO i=1,3*natoms
        IF(mat_size.NE.0)THEN
           DO j=1,mat_size
-             B_MAT(i,j)=tmp_b(i,j)
-             S_MAT(i,j)=tmp_s(i,j) 
+             b_mat(i,j)=tmp_b(i,j)
+             s_mat(i,j)=tmp_s(i,j) 
           END DO
        END IF 
        DO j=1,nrep
-          B_MAT(i,mat_size+j)=b_vec(i,j) 
+          b_mat(i,mat_size+j)=b_vec(i,j) 
        END DO
     END DO
 
@@ -1320,12 +1312,12 @@ CONTAINS
 
     DO i=1,nrep
        DO j=1,3*natoms
-          S_MAT(j,mat_size-nrep+i)= -(ms_force(j,i)-rep_env%f(j,i))/(2*step_b(i)*mass(j))
+          s_mat(j,mat_size-nrep+i)= -(ms_force(j,i)-rep_env%f(j,i))/(2*step_b(i)*mass(j))
        END DO
     END DO
 
-    CALL dgemm('T','N',mat_size,mat_size,SIZE(S_MAT,1),1._dp,B_MAT,SIZE(B_MAT,1),&
-         S_MAT,SIZE(S_MAT,1),0._dp,approx_H,mat_size)
+    CALL dgemm('T','N',mat_size,mat_size,SIZE(s_mat,1),1._dp,b_mat,SIZE(b_mat,1),&
+         s_mat,SIZE(s_mat,1),0._dp,approx_H,mat_size)
     H_save=approx_H
     CALL diamat_all(approx_H,eigenval)
 
@@ -1337,7 +1329,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(ind(mat_size),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(residuum(SIZE(S_MAT,1),nrep),stat=stat)
+    ALLOCATE(residuum(SIZE(s_mat,1),nrep),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
 
@@ -1350,7 +1342,7 @@ CONTAINS
 
     DO j=1,nrep
        DO i=1,mat_size
-          residuum(:,j)=residuum(:,j)+approx_H(i,ind(j))*(S_MAT(:,i)-eigenval(ind(j))*B_MAT(:,i))
+          residuum(:,j)=residuum(:,j)+approx_H(i,ind(j))*(s_mat(:,i)-eigenval(ind(j))*b_mat(:,i))
        END DO
     END DO   
     
@@ -1358,7 +1350,7 @@ CONTAINS
 
     DO j=1,nrep
        DO i=1,mat_size
-          residuum(:,j)=residuum(:,j)-DOT_PRODUCT(residuum(:,j),B_MAT(:,i))* B_MAT(:,i)
+          residuum(:,j)=residuum(:,j)-DOT_PRODUCT(residuum(:,j),b_mat(:,i))* b_mat(:,i)
        END DO
     END DO
     
@@ -1369,7 +1361,7 @@ CONTAINS
     DO k=1,10
        DO j=1,nrep
              DO i=1,mat_size
-                residuum(:,j)=residuum(:,j)-DOT_PRODUCT(residuum(:,j),B_MAT(:,i))* B_MAT(:,i)
+                residuum(:,j)=residuum(:,j)-DOT_PRODUCT(residuum(:,j),b_mat(:,i))* b_mat(:,i)
                 residuum(:,j)=residuum(:,j)/SQRT(DOT_PRODUCT(residuum(:,j),residuum(:,j)))
              END DO
              IF(nrep.GT.1)THEN
@@ -1438,13 +1430,14 @@ CONTAINS
     END DO
     converged=.FALSE.
     IF(MAXVAL(criteria(1,:)).LE.1E-7.AND.MAXVAL(criteria(2,:)).LE.1E-6.OR.mat_size==ncoord)converged=.TRUE.
-    ALLOCATE(freq(nrep))
+    ALLOCATE(freq(nrep),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)       
     DO i=1,nrep
        freq(i)=SQRT(ABS(eigenval(ind(i)))*massunit)*vibfac
     END DO
 
     !!!   write information and output   !!!
-    CALL ms_out(output_unit_ms,converged,freq,criteria ,B_MAT,S_MAT,b_vec,delta_vec,mat_size,nrep,error)
+    CALL ms_out(output_unit_ms,converged,freq,criteria ,b_mat,s_mat,b_vec,delta_vec,mat_size,nrep,error)
     IF(converged)THEN
        eigenval(:)=SQRT(ABS(eigenval(:))*massunit)*vibfac
        ALLOCATE(tmp_b(ncoord,mat_size),stat=stat)
@@ -1452,7 +1445,7 @@ CONTAINS
        tmp_b=0._dp
        DO i=1,mat_size
           DO j=1,mat_size
-             tmp_b(:,i)=tmp_b(:,i)+approx_H(j,i)*B_MAT(:,j)
+             tmp_b(:,i)=tmp_b(:,i)+approx_H(j,i)*b_mat(:,j)
           END DO
        END DO
        CALL molden_out(output_molden,particles,eigenval,tmp_b,error)
@@ -1460,7 +1453,8 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDIF
 
-    DEALLOCATE(freq)
+    DEALLOCATE(freq,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(approx_H,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(eigenval,stat=stat)
@@ -1475,8 +1469,6 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE evaluate_H_update_b
-
-
 
   !!****f* vibrational_analysis/ms_out [1.0] *
   !!
@@ -1497,13 +1489,13 @@ CONTAINS
   !!
   !!   SOURCE
   !****************************************************************************
-
-  SUBROUTINE ms_out(iw,converged,freq,criter ,B_MAT,S_MAT,b_vec,delta_vec,mat_size,nrep,error) 
+  SUBROUTINE ms_out(iw,converged,freq,criter ,b_mat,s_mat,b_vec,delta_vec,mat_size,nrep,error) 
     INTEGER                                  :: iw
     LOGICAL                                  :: converged
     REAL(KIND=dp), DIMENSION(:)              :: freq
-    REAL(KIND=dp), DIMENSION(:, :)           :: criter, B_MAT, S_MAT, b_vec, &
-                                                delta_vec
+    REAL(KIND=dp), DIMENSION(:, :)           :: criter
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: b_mat, s_mat
+    REAL(KIND=dp), DIMENSION(:, :)           :: b_vec, delta_vec
     INTEGER                                  :: mat_size, nrep
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1515,9 +1507,8 @@ CONTAINS
     IF(converged)THEN
        IF(iw.GT.0)THEN
           WRITE(iw,'(T2,A)')"MS| DAVIDSON ALGORITHM CONVERGED"   
-          WRITE(iw,'(T2,A)')"MS| TRACKED FREQUENCIES ARE:" 
           DO i=1,nrep
-             WRITE(iw,'(T5,F12.6,3X,A)') freq(i),'cm-1'
+             WRITE(iw,'(T2,"MS| TRACKED FREQUENCY (",I0,") IS:",F12.6,3X,A)') i,freq(i),'cm-1'
           END DO
        END IF
     ELSE
@@ -1529,8 +1520,8 @@ CONTAINS
                unit_number=msunit)
           
           WRITE(UNIT=msunit,IOSTAT=stat)mat_size
-          WRITE(UNIT=msunit,IOSTAT=stat)B_MAT
-          WRITE(UNIT=msunit,IOSTAT=stat)S_MAT
+          WRITE(UNIT=msunit,IOSTAT=stat)b_mat
+          WRITE(UNIT=msunit,IOSTAT=stat)s_mat
           WRITE(UNIT=msunit,IOSTAT=stat)b_vec
           WRITE(UNIT=msunit,IOSTAT=stat)delta_vec 
           
@@ -1568,22 +1559,20 @@ CONTAINS
   !!
   !!   SOURCE
   !****************************************************************************
-
   SUBROUTINE molden_out(iw,particles,freq,eigen_vec,error)
-    INTEGER                                     :: iw
+    INTEGER                                  :: iw
     TYPE(particle_type), DIMENSION(:), &
-         POINTER                                :: particles
-    REAL(KIND=dp),DIMENSION(:)                  :: freq
-    REAL(KIND=dp),DIMENSION(:,:)                :: eigen_vec
-    
-    TYPE(cp_error_type), INTENT(inout)          :: error
+      POINTER                                :: particles
+    REAL(KIND=dp), DIMENSION(:)              :: freq
+    REAL(KIND=dp), DIMENSION(:, :)           :: eigen_vec
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'molden_out', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=2)                            :: element_symbol
-    INTEGER                                     :: i,j,k
-    LOGICAL                                     :: failure
+    CHARACTER(LEN=2)                         :: element_symbol
+    INTEGER                                  :: i, j, k
+    LOGICAL                                  :: failure
 
     IF(iw.GT.0)THEN
        CPPostcondition(MOD(SIZE(eigen_vec,1),3)==0,cp_failure_level,routineP,error,failure)    
@@ -1611,9 +1600,6 @@ CONTAINS
        END DO
     END IF
   END SUBROUTINE molden_out
-
-
-
 
 END MODULE vibrational_analysis
 
