@@ -5,6 +5,7 @@ JAC_us.inp                2
 wat_freq.inp              8
 wat_freq_norot.inp        8
 wat_freq_freeze.inp       8
+wat_mode_sel.inp          8
 #new linear scaling/fastest/more robust topology generator
 JAC_gen.inp               2
 arginine.inp              2
