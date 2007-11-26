@@ -411,13 +411,8 @@ MODULE x_hf
     ALLOCATE(x_data%far_field_boxes(1,1),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     
-    IF( x_data%screening_parameter%do_initial_p_screening) THEN
-      ALLOCATE(x_data%initial_p(max_set,max_set,natom,natom),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ELSE
-      ALLOCATE(x_data%initial_p(1,1,1,1),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
+    ALLOCATE(x_data%initial_p(max_set,max_set,natom,natom),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     x_data%maxval_cache%element_counter = 1
     ALLOCATE(x_data%maxval_container,STAT=stat)
