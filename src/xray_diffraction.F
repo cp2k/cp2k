@@ -42,8 +42,7 @@ MODULE xray_diffraction
   USE mathconstants,                   ONLY: twopi
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_gather,&
-                                             mp_gatherv,&
-                                             mp_sum
+                                             mp_gatherv
   USE orbital_pointers,                ONLY: nco,&
                                              ncoset,&
                                              nso,&
@@ -54,6 +53,7 @@ MODULE xray_diffraction
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_grids,                        ONLY: get_pw_grid_info
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
                                              pw_pool_init_coeff,&
                                              pw_pool_type
@@ -108,19 +108,21 @@ CONTAINS
       ig_shell, ikind, ipe, ipgf, iset, ishell, iso, iso1_pgf, iso1_set, &
       ispin, istat, jco, jco1_pgf, jco1_set, jg, jpgf, jset, jso, jso1_pgf, &
       jso1_set, la, lb, maxco, maxso, mype, na, natom, nb, ncoa, ncob, &
-      ncotot, ng, nkind, npe, nset, nshell, nshell_gather, nsoa, nsob, &
+      ncotot, ng, ngpts, nkind, npe, nset, nshell, nshell_gather, nsoa, nsob, &
       nsotot, nspin, source
+    INTEGER, DIMENSION(3)                    :: npts
     INTEGER, DIMENSION(:), POINTER           :: atom_list, index, lmax, lmin, &
                                                 ng_shell, ng_shell_gather, &
                                                 npgf, nshell_pe, offset_pe
-    LOGICAL                                  :: failure, paw_atom
-    REAL(KIND=dp)                            :: eps_rho_gspace, f, f2, q, &
-                                                rho_hard, rho_soft, &
-                                                rho_total, scale
-    REAL(KIND=dp), DIMENSION(3)              :: dg, ra
+    LOGICAL                                  :: failure, orthorhombic, &
+                                                paw_atom
+    REAL(KIND=dp)                            :: cutoff, eps_rho_gspace, f, &
+                                                f2, q, rho_hard, rho_soft, &
+                                                rho_total, scale, volume
+    REAL(KIND=dp), DIMENSION(3)              :: dg, dr, ra
     REAL(KIND=dp), DIMENSION(:), POINTER :: f2sum, f2sum_gather, f4sum, &
       f4sum_gather, fmax, fmax_gather, fmin, fmin_gather, fsum, fsum_gather, &
-      q_shell, q_shell_gather
+      gsq, q_shell, q_shell_gather
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: delta_cpc, pab, work, zet
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -143,7 +145,8 @@ CONTAINS
       POINTER                                :: rho_atom_set
     TYPE(rho_atom_type), POINTER             :: rho_atom
 
-! Local parameter
+! -------------------------------------------------------------------------
+! This code assumes that the g-vectors are ordered (in gsq and %cc)
 ! -------------------------------------------------------------------------
 
     failure = .FALSE.
@@ -251,7 +254,12 @@ CONTAINS
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
       rho_soft = pw_integrate_function(rhotot_elec_gspace%pw,isign=-1)
-      CALL coeff_scale(rhotot_elec_gspace,pw_grid%vol)
+
+      CALL get_pw_grid_info(pw_grid,vol=volume,npts=npts,ngpts=ngpts,&
+            dr=dr,cutoff=cutoff,orthorhombic=orthorhombic,gsquare=gsq,error=error)
+      CPPostcondition(orthorhombic,cp_failure_level,routineP,error,failure)
+
+      CALL coeff_scale(rhotot_elec_gspace,volume)
 
       ! Add the hard contribution of the electronic density
 
@@ -399,28 +407,28 @@ CONTAINS
       ! Now we have to gather the data from all processes, since each
       ! process has only worked his sub-grid
 
-      dg(:) = twopi/(pw_grid%npts(:)*pw_grid%dr(:))
+      dg(:) = twopi/(npts(:)*dr(:))
 
       ! Scan the g-vector shells
 
       CALL reallocate(q_shell,1,nblock)
       CALL reallocate(ng_shell,1,nblock)
 
-      ng = SIZE(pw_grid%gsq)
+      ng = SIZE(gsq)
 
       jg = 1
       nshell = 1
-      q_shell(1) = SQRT(pw_grid%gsq(1))
+      q_shell(1) = SQRT(gsq(1))
       ng_shell(1) = 1
 
       DO ig=2,ng
-        IF (ABS(pw_grid%gsq(ig) - pw_grid%gsq(jg)) > 1.0E-12_dp) THEN
+        IF (ABS(gsq(ig) - gsq(jg)) > 1.0E-12_dp) THEN
           nshell = nshell + 1
           IF (nshell > SIZE(q_shell)) THEN
             CALL reallocate(q_shell,1,SIZE(q_shell)+nblock)
             CALL reallocate(ng_shell,1,SIZE(ng_shell)+nblock)
           END IF
-          q = SQRT(pw_grid%gsq(ig))
+          q = SQRT(gsq(ig))
           IF (q > q_max) THEN
             nshell = nshell - 1
             EXIT
@@ -587,14 +595,14 @@ CONTAINS
           "# Soft electronic charge (G-space) :",rho_soft,&
           "# Hard electronic charge (G-space) :",rho_hard,&
           "# Total electronic charge (G-space):",rho_total,&
-          "# Density cutoff [Rydberg]         :",2.0_dp*pw_grid%cutoff,&
+          "# Density cutoff [Rydberg]         :",2.0_dp*cutoff,&
           "# q(min) [1/Angstrom]              :",q_shell(2)/angstrom,&
           "# q(max) [1/Angstrom]              :",q_shell(nshell)/angstrom
         WRITE (UNIT=unit_number,FMT="(A,2X,I8)")&
-          "# Number of g-vectors (grid points):",pw_grid%ngpts,&
+          "# Number of g-vectors (grid points):",ngpts,&
           "# Number of g-vector shells        :",nshell
         WRITE (UNIT=unit_number,FMT="(A,3X,3I6)")&
-          "# Grid size (a,b,c)                :",pw_grid%npts(1:3)
+          "# Grid size (a,b,c)                :",npts(1:3)
         WRITE (UNIT=unit_number,FMT="(A)")&
           "#",&
           "# shell  points         q [1/A]      <|F(q)|^2>     Min(|F(q)|) "//&

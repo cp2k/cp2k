@@ -70,8 +70,7 @@ MODULE qs_collocate_density
                                              return_cube_nonortho
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
-  USE input_constants,                 ONLY: linear_interp,&
-                                             pw_interp,&
+  USE input_constants,                 ONLY: pw_interp,&
                                              spline3_pbc_interp
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -104,7 +103,6 @@ MODULE qs_collocate_density
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_copy,&
-                                             pw_prolongate_l,&
                                              pw_sumup,&
                                              pw_type,&
                                              pw_integrate_function
@@ -2543,20 +2541,11 @@ CONTAINS
                               use_data = REALDATA3D,&
                               in_space = REALSPACE, error=error)
 
-    IF (interp_kind==linear_interp) THEN
-        ALLOCATE(mgrid_temp_rspace(SIZE(pw_pools)) ,stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
-        CALL pw_pools_init_coeffs(pw_pools,mgrid_temp_rspace,&
-                                  use_data = REALDATA3D,&
-                                  in_space = REALSPACE, error=error)
-    ELSE
-        ALLOCATE(mgrid_gspace(SIZE(pw_pools)) ,stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
-        CALL pw_pools_init_coeffs(pw_pools,mgrid_gspace,&
-                                  use_data = COMPLEXDATA1D,&
-                                  in_space = RECIPROCALSPACE, error=error)
-    ENDIF
-
+    ALLOCATE(mgrid_gspace(SIZE(pw_pools)) ,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+    CALL pw_pools_init_coeffs(pw_pools,mgrid_gspace,&
+                              use_data = COMPLEXDATA1D,&
+                              in_space = RECIPROCALSPACE, error=error)
 
    IF (gridlevel_info%ngrid_levels==1) THEN
        CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho%pw,rs2pw)
@@ -2574,16 +2563,6 @@ CONTAINS
 
        ! we want both rho and rho_gspace, the latter for Hartree and co-workers.
        SELECT CASE(interp_kind)
-       CASE(linear_interp)
-          CALL pw_copy(mgrid_rspace(gridlevel_info%ngrid_levels)%pw,mgrid_temp_rspace(gridlevel_info%ngrid_levels)%pw)
-          DO igrid_level=gridlevel_info%ngrid_levels,2,-1
-             ! prologate to the next grid and addup
-             CALL pw_prolongate_l(mgrid_temp_rspace(igrid_level)%pw,mgrid_temp_rspace(igrid_level-1)%pw)
-             ! add the next grid to the prolongated grid
-             CALL pw_sumup(mgrid_rspace(igrid_level-1)%pw,mgrid_temp_rspace(igrid_level-1)%pw)
-          ENDDO
-          CALL pw_copy(mgrid_temp_rspace(1)%pw,rho%pw)
-          CALL coeff_transform_space(rho,rho_gspace)
        CASE(pw_interp)
           CALL coeff_zero(rho_gspace)
           DO igrid_level=1,gridlevel_info%ngrid_levels
@@ -2607,17 +2586,10 @@ CONTAINS
     END IF
 
     ! *** give back the pw multi-grids
-    IF (interp_kind==linear_interp) THEN
-       CALL pw_pools_give_back_coeffs(pw_pools,mgrid_temp_rspace,&
-                                      error=error)
-       DEALLOCATE(mgrid_temp_rspace,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
-    ELSE
-       CALL pw_pools_give_back_coeffs(pw_pools,mgrid_gspace,&
-                                      error=error)
-       DEALLOCATE(mgrid_gspace,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
-    ENDIF
+    CALL pw_pools_give_back_coeffs(pw_pools,mgrid_gspace,&
+                                   error=error)
+    DEALLOCATE(mgrid_gspace,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
     CALL pw_pools_give_back_coeffs(pw_pools,mgrid_rspace,&
          error=error)
     DEALLOCATE(mgrid_rspace,stat=stat)

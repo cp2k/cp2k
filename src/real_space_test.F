@@ -26,35 +26,36 @@ MODULE real_space_test
   ! *****************************************************************************
 
   USE cell_types,                      ONLY: cell_create,&
-       cell_release,&
-       cell_type,&
-       get_hinv
+                                             cell_release,&
+                                             cell_type,&
+                                             get_hinv
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_cputime
   USE message_passing,                 ONLY: mp_bcast,&
-       mp_environ,&
-       mp_sum
+                                             mp_environ,&
+                                             mp_sum
   USE pw_grid_types,                   ONLY: FULLSPACE,&
-       PW_MODE_LOCAL,&
-       pw_grid_type
-  USE pw_grids,                        ONLY: pw_grid_create,&
-       pw_grid_setup
+                                             PW_MODE_LOCAL,&
+                                             pw_grid_type
+  USE pw_grids,                        ONLY: get_pw_grid_info,&
+                                             pw_grid_create,&
+                                             pw_grid_setup
   USE pw_types,                        ONLY: REALDATA3D,&
-       pw_create,&
-       pw_release,&
-       pw_type
+                                             pw_create,&
+                                             pw_release,&
+                                             pw_type
   USE realspace_grid_types,            ONLY: pw2rs,&
-       realspace_grid_type,&
-       rs2pw,&
-       rs_grid_create,&
-       rs_grid_print,&
-       rs_grid_release,&
-       rs_grid_zero,&
-       rs_pw_transfer
+                                             realspace_grid_type,&
+                                             rs2pw,&
+                                             rs_grid_create,&
+                                             rs_grid_print,&
+                                             rs_grid_release,&
+                                             rs_grid_zero,&
+                                             rs_pw_transfer
   USE realspace_task_selection,        ONLY: rs_get_my_tasks
   USE termination,                     ONLY: stop_memory,&
-       stop_program
+                                             stop_program
   USE util,                            ONLY: get_limit
 #include "cp_common_uses.h"
 
@@ -73,20 +74,20 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_test', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: nparticle = 5000
 
     INTEGER                                  :: dir, i, ierr, iounit, j, me, &
-         memory1, memory2, memory3, n, &
-         npme
+                                                memory1, memory2, memory3, n, &
+                                                npme
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(3)                    :: no, np, pt
     INTEGER, DIMENSION(3, nparticle)         :: refco, refpt
     INTEGER, DIMENSION(:, :), POINTER        :: tasks
     INTEGER, DIMENSION(nparticle)            :: bsize
     REAL(KIND=dp)                            :: energy1, energy2, energy3, &
-         integral, t1, t2, t3, tend, &
-         tstart
+                                                integral, t1, t2, t3, tend, &
+                                                tstart
     REAL(KIND=dp), DIMENSION(3)              :: s
     REAL(KIND=dp), DIMENSION(3, nparticle)   :: coord
     REAL(KIND=dp), DIMENSION(nparticle)      :: bval
@@ -172,7 +173,7 @@ CONTAINS
        CALL put_on_grid ( rden%r, pt, no, bval(i), 0 )
     END DO
     CALL pw_create ( pw_a, grid, REALDATA3D ,error=error)
-    CALL rs_pw_get ( rden, pw_a )
+    CALL rs_pw_get ( rden, pw_a, error=error )
     pw_a%cr3d = pw_a%cr3d**(1.0_dp/3.0_dp)
     CALL rs_pw_transfer ( rden, pw_a, pw2rs )
     energy1 = 0.0_dp
@@ -339,14 +340,14 @@ END SUBROUTINE rs_test
 
 SUBROUTINE put_on_grid ( r, nc, np, val, dir )
 
- REAL(KIND=dp), DIMENSION(:, :, :)        :: r
- INTEGER, DIMENSION(3)                    :: nc, np
- REAL(KIND=dp)                            :: val
- INTEGER                                  :: dir
+    REAL(KIND=dp), DIMENSION(:, :, :)        :: r
+    INTEGER, DIMENSION(3)                    :: nc, np
+    REAL(KIND=dp)                            :: val
+    INTEGER                                  :: dir
 
- INTEGER                                  :: i, ii, j, jj, k, kk, ns, nx, &
-      ny, nz
- INTEGER, DIMENSION(3)                    :: nl, nu
+    INTEGER                                  :: i, ii, j, jj, k, kk, ns, nx, &
+                                                ny, nz
+    INTEGER, DIMENSION(3)                    :: nl, nu
 
  nx = SIZE ( r, 1 )
  ny = SIZE ( r, 2 )
@@ -378,15 +379,15 @@ END SUBROUTINE put_on_grid
 
 SUBROUTINE int_on_grid ( r, nc, np, val, dir, integral )
 
- REAL(KIND=dp), DIMENSION(:, :, :)        :: r
- INTEGER, DIMENSION(3)                    :: nc, np
- REAL(KIND=dp)                            :: val
- INTEGER                                  :: dir
- REAL(KIND=dp)                            :: integral
+    REAL(KIND=dp), DIMENSION(:, :, :)        :: r
+    INTEGER, DIMENSION(3)                    :: nc, np
+    REAL(KIND=dp)                            :: val
+    INTEGER                                  :: dir
+    REAL(KIND=dp)                            :: integral
 
- INTEGER                                  :: i, ii, j, jj, k, kk, ns, nx, &
-      ny, nz
- INTEGER, DIMENSION(3)                    :: nl, nu
+    INTEGER                                  :: i, ii, j, jj, k, kk, ns, nx, &
+                                                ny, nz
+    INTEGER, DIMENSION(3)                    :: nl, nu
 
  integral = 0.0_dp
  nx = SIZE ( r, 1 )
@@ -417,26 +418,29 @@ END SUBROUTINE int_on_grid
 
 ! *****************************************************************************
 
-SUBROUTINE rs_pw_get ( rs, pw )
+SUBROUTINE rs_pw_get ( rs, pw, error )
 
- TYPE(realspace_grid_type), POINTER       :: rs
- TYPE(pw_type), POINTER                   :: pw
+    TYPE(realspace_grid_type), POINTER       :: rs
+    TYPE(pw_type), POINTER                   :: pw
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
- INTEGER                                  :: group, ierr, ii, ip, ix, iy, &
-      iz, mepos, nn, np
- INTEGER, DIMENSION(3)                    :: lb, ub
- INTEGER, DIMENSION(:, :), POINTER        :: pbo
- INTEGER, DIMENSION(:, :, :), POINTER     :: bo
- REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rlocal
+    INTEGER                                  :: group, ierr, ii, ip, ix, iy, &
+                                                iz, mepos, mode, nn, np
+    INTEGER, DIMENSION(3)                    :: lb, ub
+    INTEGER, DIMENSION(:, :), POINTER        :: pbo
+    INTEGER, DIMENSION(:, :, :), POINTER     :: bo
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rlocal
 
- !-----------------------------------------------------------------------------!
+!-----------------------------------------------------------------------------!
 
  IF ( rs % group_dim ( 1 ) /= 1 ) &
       CALL stop_program ( "rs_pw_get", "rs grid has to be replicated" )
  IF ( pw % in_use /= REALDATA3D ) &
       CALL stop_program ( "rs_pw_get", "rs grid has to be REALDATA3D" )
 
- IF ( pw % pw_grid % para % mode == PW_MODE_LOCAL ) THEN
+ CALL get_pw_grid_info(pw%pw_grid,mode=mode,error=error)
+
+ IF ( mode == PW_MODE_LOCAL ) THEN
 
     nn = SIZE ( rs%r )
     CALL dcopy ( nn, rs%r, 1, pw % cr3d, 1 )

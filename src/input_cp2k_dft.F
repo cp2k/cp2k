@@ -24,11 +24,11 @@
 !****************************************************************************
 MODULE input_cp2k_dft
   USE bibliography,                    ONLY: &
-       Avezac2005, Elstner1998, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, &
-       Krack2002, Lippert1997, Lippert1999, Perdew1981, Porezag1995, &
-       Seifert1996, VandeVondele2003, VandeVondele2005a, VandeVondele2005b, &
-       Zhechkov2005, Ortiz1994,Becke1988,Perdew1996,Zhang1998,Lee1988, &
-             Heyd2006,Vydrov2006,Heyd2003,Heyd2004,Vosko1980, Goedecker1996
+       Avezac2005, Becke1988, Elstner1998, Goedecker1996, Heyd2004, &
+       Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Krack2002, Lee1988, &
+       Lippert1997, Lippert1999, Ortiz1994, Perdew1981, Perdew1996, &
+       Porezag1995, Seifert1996, VandeVondele2003, VandeVondele2005a, &
+       VandeVondele2005b, Vosko1980, Zhang1998, Zhechkov2005
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants
@@ -3120,10 +3120,10 @@ CONTAINS
             description="The method used to compute the derivatives",&
             usage="xc_deriv NN10_SMOOTH", default_i_val=xc_deriv_pw,&
             enum_c_vals=s2a("PW","SPLINE3","SPLINE2","NN50_SMOOTH","NN10_SMOOTH",&
-            "SPLINE2_SMOOTH", "NN6_SMOOTH", "SPLINE3_SMOOTH", "NN4_SMOOTH","FD"),&
+            "SPLINE2_SMOOTH", "NN6_SMOOTH", "SPLINE3_SMOOTH", "NN4_SMOOTH"),&
             enum_i_vals=(/xc_deriv_pw, xc_deriv_spline3, xc_deriv_spline2,&
             xc_deriv_nn50_smooth, xc_deriv_nn10_smooth, xc_deriv_spline2_smooth,&
-            xc_deriv_spline2_smooth, xc_deriv_spline3_smooth, xc_deriv_spline3_smooth,xc_deriv_fd/),&
+            xc_deriv_spline2_smooth, xc_deriv_spline3_smooth, xc_deriv_spline3_smooth/),&
             error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -4171,8 +4171,8 @@ CONTAINS
             description="the interpolator to use",&
             usage="kind spline3",&
             default_i_val=pw_interp,&
-            enum_c_vals=s2a("pw","linear","spline3_nopbc","spline3"),&
-            enum_i_vals=(/pw_interp,linear_interp,&
+            enum_c_vals=s2a("pw","spline3_nopbc","spline3"),&
+            enum_i_vals=(/pw_interp,&
             spline3_nopbc_interp,spline3_pbc_interp/),error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

@@ -14,10 +14,14 @@
 !******************************************************************************
 
 MODULE cp_control_utils
-  USE bibliography,                    ONLY: cite_reference,&
+  USE bibliography,                    ONLY: Elstner1998,&
                                              Lippert1997,&
                                              Lippert1999,&
-                                             VandeVondele2005b,Porezag1995, Seifert1996, Elstner1998, Zhechkov2005
+                                             Porezag1995,&
+                                             Seifert1996,&
+                                             VandeVondele2005b,&
+                                             Zhechkov2005,&
+                                             cite_reference
   USE cp_control_types,                ONLY: dft_control_create,&
                                              dft_control_type,&
                                              qs_control_type,&
@@ -31,8 +35,8 @@ MODULE cp_control_utils
                                              section_vals_get_subs_vals2,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: default_string_length,&
-                                             default_path_length,&
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp,&
                                              dp_size
   USE qs_loc_control,                  ONLY: read_loc_section
@@ -313,9 +317,9 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: tmplist
     LOGICAL                                  :: failure, was_present
     REAL(dp)                                 :: tmpsqrt, value
-    TYPE(section_vals_type), POINTER :: ddapc_restraint_section, &
-      dftb_parameter, dftb_section, loc_section, mull_section, &
-      s2_restraint_section, se_section, becke_constraint_section
+    TYPE(section_vals_type), POINTER :: becke_constraint_section, &
+      ddapc_restraint_section, dftb_parameter, dftb_section, loc_section, &
+      mull_section, s2_restraint_section, se_section
 
 !   ---------------------------------------------------------------------------
 
@@ -724,7 +728,7 @@ CONTAINS
        CASE ( sic_ad )
          tmpstr = "AD SIC"
        CASE ( sic_eo )
-	 tmpstr = "Explicit Orbital SIC"
+         tmpstr = "Explicit Orbital SIC"
        CASE DEFAULT
          ! fix throughout the cp2k for this option
          CALL stop_program(routineN,moduleN,__LINE__,&
@@ -1140,8 +1144,6 @@ FUNCTION xc_get_deriv_method_label(xc_deriv_method_id,error) RESULT(res)
      res="NN10_SMOOTH"
   CASE (xc_deriv_nn50_smooth)
      res="NN50_SMOOTH"
-  CASE (xc_deriv_fd)
-     res="FD"
   CASE default
      WRITE (res,"('UKN',i6)") xc_deriv_method_id
   END SELECT
@@ -1227,7 +1229,7 @@ SUBROUTINE read_ddapc_section(qs_control,ddapc_restraint_section,error)
 
     INTEGER                                  :: j, jj, k, n_rep
     INTEGER, DIMENSION(:), POINTER           :: tmplist
-    REAL(KIND=dp), DIMENSION(:), POINTER           :: rtmplist
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: rtmplist
 
       CALL section_vals_val_get(ddapc_restraint_section,"STRENGTH", &
                                 r_val=qs_control%ddapc_restraint_control%strength,error=error)

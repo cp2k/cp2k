@@ -30,11 +30,11 @@ MODULE xc
   USE cp_linked_list_xc_deriv,         ONLY: cp_sll_xc_deriv_next,&
                                              cp_sll_xc_deriv_type
   USE input_constants,                 ONLY: &
-       xc_debug_new_routine, xc_deriv_fd, xc_deriv_nn10_smooth, &
-       xc_deriv_nn50_smooth, xc_deriv_pw, xc_deriv_spline2, &
-       xc_deriv_spline2_smooth, xc_deriv_spline3, xc_deriv_spline3_smooth, &
-       xc_new_f_routine, xc_rho_nn10, xc_rho_nn50, xc_rho_no_smooth, &
-       xc_rho_spline2_smooth, xc_rho_spline3_smooth, xc_test_lsd_f_routine
+       xc_debug_new_routine, xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, &
+       xc_deriv_pw, xc_deriv_spline2, xc_deriv_spline2_smooth, &
+       xc_deriv_spline3, xc_deriv_spline3_smooth, xc_new_f_routine, &
+       xc_rho_nn10, xc_rho_nn50, xc_rho_no_smooth, xc_rho_spline2_smooth, &
+       xc_rho_spline3_smooth, xc_test_lsd_f_routine
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_get_rval,&
                                              section_vals_get_subs_vals,&
@@ -59,8 +59,8 @@ MODULE xc
        spline3_deriv_coeffs
   USE pw_types,                        ONLY: &
        COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_copy, &
-       pw_create, pw_derive, pw_derive_fd, pw_p_type, pw_release, pw_sumup, &
-       pw_transfer, pw_type, pw_zero
+       pw_create, pw_derive, pw_p_type, pw_release, pw_sumup, pw_transfer, &
+       pw_type, pw_zero
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
@@ -1247,16 +1247,15 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(pw_p_type), DIMENSION(2)            :: vxc_to_deriv
     TYPE(pw_p_type), DIMENSION(3)            :: pw_to_deriv, pw_to_deriv_rho
-    TYPE(pw_type), POINTER                   :: tmp_g, tmp_r, tmp_r2, &
-                                                virial_pw, vxc_g
+    TYPE(pw_type), POINTER                   :: tmp_g, tmp_r, virial_pw, vxc_g
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_derivative_type), POINTER        :: deriv_att
     TYPE(xc_rho_set_type), POINTER           :: rho_set
 
   CALL timeset(routineN,"I","",handle)
   failure=.FALSE.
-  NULLIFY(tmp_g, tmp_r, tmp_r2, vxc_g, norm_drho_spin, norm_drho, drho_spin, drhoa,&
-       drhob, pos,deriv_set,rho_set,virial_pw)
+  NULLIFY(tmp_g, tmp_r, vxc_g, norm_drho_spin, norm_drho, drho_spin, drhoa, &
+       drhob, pos, deriv_set, rho_set, virial_pw)
   nd = RESHAPE ((/1,0,0,0,1,0,0,0,1/),(/3,3/))
   DO idir=1,3
      NULLIFY(pw_to_deriv(idir)%pw, pw_to_deriv_rho(idir)%pw)
@@ -1666,9 +1665,7 @@ CPSourceFileRef,&
 
         IF (ASSOCIATED(pw_to_deriv(1)%pw)) THEN
            ! partial integration
-           IF (xc_deriv_method_id/=xc_deriv_pw&
-                .AND. xc_deriv_method_id/=xc_deriv_fd&
-                ) THEN
+           IF (xc_deriv_method_id/=xc_deriv_pw) THEN
               CALL pw_spline_scale_deriv(pw_to_deriv, cell=cell,&
                    transpose=.TRUE.,&
                    error=error)
@@ -1749,14 +1746,6 @@ CPSourceFileRef,&
                     CALL pw_nn_deriv_r ( pw_in=pw_to_deriv(idir)%pw,&
                          pw_out=tmp_r,coeffs=nn50_deriv_coeffs,&
                          idir=idir, error=error )
-                 CASE (xc_deriv_fd)
-                    CALL pw_pool_create_pw(pw_pool, tmp_r2,&
-                         use_data=REALDATA3D, in_space=REALSPACE,&
-                         error=error)
-                    CALL pw_derive_fd(pw_to_deriv(idir)%pw,&
-                         tmp_r2,nd(:,idir))
-                    CALL pw_sumup(tmp_r2,vxc_rho(ispin)%pw)
-                    CALL pw_pool_give_back_pw(pw_pool,tmp_r2,error=error)
                  CASE default
                     CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
                  END SELECT
@@ -2065,7 +2054,6 @@ SUBROUTINE xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, rho1_set, &
                                                 ispin, j, k, nspins, order, &
                                                 stat, xc_deriv_method_id
     INTEGER, DIMENSION(2, 3)                 :: bo
-    INTEGER, DIMENSION(3, 3)                 :: nd
     LOGICAL                                  :: failure, gradient_f, lsd, &
                                                 my_gapw, unknown_deriv
     REAL(KIND=dp)                            :: dr1dr, fac, gradient_cut
@@ -2077,7 +2065,7 @@ SUBROUTINE xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, rho1_set, &
       POINTER                                :: drho, drho1, drho1a, drho1b, &
                                                 drhoa, drhob
     TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
-    TYPE(pw_p_type)                          :: tmp_t, v_drho
+    TYPE(pw_p_type)                          :: v_drho
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: tmp_a, tmp_b, tmp_r, tmp_r2
     TYPE(xc_derivative_type), POINTER        :: deriv_att
 
@@ -2846,29 +2834,6 @@ CPSourceFileRef,&
                     CALL pw_nn_deriv_r ( pw_in=tmp_r(ispin)%pw,&
                          pw_out=v_xc(ispin)%pw,coeffs=nn50_deriv_coeffs,&
                          idir=idir, error=error )
-                 CASE (xc_deriv_fd)
-                    IF (ASSOCIATED(pw_pool)) THEN
-                       CALL pw_pool_create_pw(pw_pool, tmp_t%pw,&
-                            use_data=REALDATA3D, in_space=REALSPACE,&
-                            error=error)
-                    ELSE
-                       ALLOCATE(tmp_t%pw, stat=stat)
-                       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                       ALLOCATE(tmp_t%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
-                            stat=stat)
-                       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                    END IF
-                    CALL pw_derive_fd(tmp_r(ispin)%pw,&
-                         tmp_t%pw,nd(:,idir))
-                    CALL pw_sumup(tmp_t%pw,v_xc(ispin)%pw)
-                    IF (ASSOCIATED(pw_pool)) THEN
-                       CALL pw_pool_give_back_pw(pw_pool,tmp_t%pw,error=error)
-                    ELSE
-                       DEALLOCATE(tmp_t%pw%cr3d, stat=stat)
-                       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                       DEALLOCATE(tmp_t%pw, stat=stat)
-                       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                    END IF
                  CASE default
                     CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
                  END SELECT
@@ -3062,14 +3027,6 @@ CPSourceFileRef,&
                  CALL pw_nn_deriv_r ( pw_in=tmp_r(1)%pw,&
                       pw_out=v_xc(1)%pw,coeffs=nn50_deriv_coeffs,&
                       idir=idir, error=error )
-              CASE (xc_deriv_fd)
-                 CALL pw_pool_create_pw(pw_pool, tmp_r2(1)%pw,&
-                      use_data=REALDATA3D, in_space=REALSPACE,&
-                      error=error)
-                 CALL pw_derive_fd(tmp_r(1)%pw,&
-                      tmp_r2(1)%pw,nd(:,idir))
-                 CALL pw_sumup(tmp_r2(1)%pw,v_xc(1)%pw)
-                 CALL pw_pool_give_back_pw(pw_pool,tmp_r2(1)%pw,error=error)
               CASE default
                  WRITE (*,*) "Please provide a derivation method"
                  CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)

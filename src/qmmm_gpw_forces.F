@@ -40,7 +40,6 @@ MODULE qmmm_gpw_forces
                                              do_qmmm_gauss,&
                                              do_qmmm_none,&
                                              do_qmmm_swave,&
-                                             linear_interp,&
                                              spline3_nopbc_interp,&
                                              spline3_pbc_interp
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -65,9 +64,14 @@ MODULE qmmm_gpw_forces
                                              pw_pools_create_pws,&
                                              pw_pools_give_back_pws
   USE pw_spline_utils,                 ONLY: pw_restrict_s3
-  USE pw_types,                        ONLY: &
-       REALDATA3D, REALSPACE, pw_integral_ab, pw_p_type, pw_restrict_l_NoPBC, &
-       pw_sumup, pw_transfer, pw_type, pw_zero
+  USE pw_types,                        ONLY: REALDATA3D,&
+                                             REALSPACE,&
+                                             pw_integral_ab,&
+                                             pw_p_type,&
+                                             pw_sumup,&
+                                             pw_transfer,&
+                                             pw_type,&
+                                             pw_zero
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
                                              qmmm_gaussian_type
   USE qmmm_gpw_energy,                 ONLY: qmmm_elec_with_gaussian,&
@@ -497,14 +501,6 @@ CONTAINS
     ! RealSpace Interpolation
     CALL section_vals_val_get(interp_section,"kind", i_val=kind_interp, error=error)
     SELECT CASE(kind_interp)
-    CASE(linear_interp)
-       ! Linear Interpolator
-       DO Igrid = auxbas_grid, SIZE(grids)-1
-          CALL pw_restrict_l_NoPBC(grids(Igrid  )%pw,&
-                                   grids(Igrid+1)%pw,&
-                                   error)
-          grids(igrid+1) % pw % cr3d = grids(igrid+1) % pw % cr3d / REAL(8,dp)
-       END DO
     CASE(spline3_nopbc_interp, spline3_pbc_interp)
        ! Spline Interpolator
        DO Igrid =  auxbas_grid, SIZE(grids)-1

@@ -27,7 +27,7 @@ MODULE xc_rho_set_types
   USE cell_types,                      ONLY: cell_type
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
   USE input_constants,                 ONLY: &
-       xc_deriv_fd, xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, xc_deriv_pw, &
+       xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, xc_deriv_pw, &
        xc_deriv_spline2, xc_deriv_spline2_smooth, xc_deriv_spline3, &
        xc_deriv_spline3_smooth, xc_rho_nn10, xc_rho_nn50, xc_rho_no_smooth, &
        xc_rho_spline2_smooth, xc_rho_spline3_smooth
@@ -46,7 +46,7 @@ MODULE xc_rho_set_types
        spline3_deriv_coeffs
   USE pw_types,                        ONLY: &
        COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_copy, &
-       pw_derive, pw_derive_fd, pw_p_type, pw_transfer, pw_type, pw_zero
+       pw_derive, pw_p_type, pw_transfer, pw_type, pw_zero
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_equal,&
@@ -886,20 +886,12 @@ CONTAINS
                         pw_out=drho_r(idir,ispin)%pw,&
                         coeffs=nn50_deriv_coeffs, idir=idir, error=error)
                 END DO
-             CASE (xc_deriv_fd)
-                DO idir=1,3
-                   CALL pw_derive_fd(my_rho_r(ispin)%pw,&
-                        drho_r(idir,ispin)%pw,&
-                        n=nd(:,idir))
-                END DO
              CASE default
                 CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
              END SELECT
           END IF
 
-          IF (xc_deriv_method_id/=xc_deriv_pw &
-               .AND.xc_deriv_method_id/=xc_deriv_fd &
-               ) THEN
+          IF (xc_deriv_method_id/=xc_deriv_pw) THEN
              DO idir=1,3
                 drho_r_att(idir)%pw => drho_r(idir,ispin)%pw
              END DO

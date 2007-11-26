@@ -220,21 +220,25 @@ END FUNCTION pw_grid_compare
 !!
 !!*** *************************************************************************
 
- SUBROUTINE get_pw_grid_info(pw_grid, id_nr, mode, dvol, npts, ngpts, ngpts_cut,&
+ SUBROUTINE get_pw_grid_info(pw_grid, id_nr, mode, vol, dvol, &
+                             npts, ngpts, ngpts_cut,&
+                             dr, cutoff, orthorhombic,&
                              gvectors,gsquare,error)
 
     TYPE(pw_grid_type), POINTER              :: pw_grid
-    INTEGER, INTENT(OUT), OPTIONAL           :: id_nr
-    INTEGER, INTENT(OUT), OPTIONAL           :: mode
-    REAL(dp), INTENT(OUT), OPTIONAL          :: dvol
+    INTEGER, INTENT(OUT), OPTIONAL           :: id_nr, mode
+    REAL(dp), INTENT(OUT), OPTIONAL          :: vol, dvol
     INTEGER, DIMENSION(3), INTENT(OUT), &
-         OPTIONAL                            :: npts
-    INTEGER, INTENT(OUT), OPTIONAL           :: ngpts
-    INTEGER, INTENT(OUT), OPTIONAL           :: ngpts_cut
-    REAL(dp), DIMENSION(:,:), &
-         POINTER, OPTIONAL                   :: gvectors
-    REAL(dp), DIMENSION(:), &
-         POINTER, OPTIONAL                   :: gsquare
+      OPTIONAL                               :: npts
+    INTEGER, INTENT(OUT), OPTIONAL           :: ngpts, ngpts_cut
+    REAL(dp), DIMENSION(3), INTENT(OUT), &
+      OPTIONAL                               :: dr
+    REAL(dp), INTENT(OUT), OPTIONAL          :: cutoff
+    LOGICAL, INTENT(OUT), OPTIONAL           :: orthorhombic
+    REAL(dp), DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: gvectors
+    REAL(dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: gsquare
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_pw_grid_info', &
@@ -250,10 +254,14 @@ END FUNCTION pw_grid_compare
     IF ( .NOT. failure ) THEN
       IF ( PRESENT(id_nr) ) id_nr = pw_grid%id_nr
       IF ( PRESENT(mode) ) mode = pw_grid%para%mode
+      IF ( PRESENT(vol) ) vol = pw_grid%vol
       IF ( PRESENT(dvol) ) dvol = pw_grid%dvol
       IF ( PRESENT(npts) ) npts(1:3) = pw_grid%npts(1:3)
       IF ( PRESENT(ngpts) ) ngpts = pw_grid%ngpts
       IF ( PRESENT(ngpts_cut) ) ngpts_cut = pw_grid%ngpts_cut
+      IF ( PRESENT(dr) ) dr = pw_grid%dr
+      IF ( PRESENT(cutoff) ) cutoff = pw_grid%cutoff
+      IF ( PRESENT(orthorhombic) ) orthorhombic = pw_grid%orthorhombic
       IF ( PRESENT(gvectors) ) gvectors => pw_grid%g
       IF ( PRESENT(gsquare) ) gsquare => pw_grid%gsq
     END IF

@@ -21,9 +21,6 @@
     &XC
       &XC_FUNCTIONAL HCTH120
       &END XC_FUNCTIONAL
-      &XC_GRID
-        XC_DERIV FD
-      &END XC_GRID
     &END XC
   &END DFT
   &SUBSYS

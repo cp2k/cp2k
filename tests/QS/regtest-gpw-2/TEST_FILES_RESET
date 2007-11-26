@@ -308,3 +308,5 @@ H2O-meta_res0.inp
 H2O-meta_res1.inp
 H2O-meta_res2.inp
 H2O-meta_res3.inp
+# delete FD option
+Ar-13.inp

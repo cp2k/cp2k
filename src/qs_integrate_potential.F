@@ -59,8 +59,7 @@ MODULE qs_integrate_potential
                                              return_cube_nonortho
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
-  USE input_constants,                 ONLY: linear_interp,&
-                                             pw_interp,&
+  USE input_constants,                 ONLY: pw_interp,&
                                              spline3_pbc_interp
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -86,7 +85,6 @@ MODULE qs_integrate_potential
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_copy,&
-                                             pw_restrict_l,&
                                              pw_zero
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -1213,22 +1211,6 @@ CONTAINS
     ! use either realspace or fft techniques to get the potential on the rs multigrids
     CALL section_vals_val_get(interp_section,"KIND",i_val=interp_kind,error=error)
     SELECT CASE(interp_kind)
-    CASE(linear_interp)
-       ALLOCATE(mgrid_temp_rspace(SIZE(pw_pools)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
-       CALL pw_pools_init_coeffs(pw_pools,mgrid_temp_rspace,&
-                                 use_data = REALDATA3D,&
-                                 in_space = REALSPACE, error=error)
-       CALL coeff_copy(v_rspace,mgrid_temp_rspace(1))
-       CALL coeff_copy(v_rspace,mgrid_rspace(1))
-       DO igrid_level=2,gridlevel_info%ngrid_levels
-          CALL pw_restrict_l(mgrid_temp_rspace(igrid_level-1)%pw,mgrid_rspace(igrid_level)%pw)
-          CALL coeff_copy(mgrid_rspace(igrid_level),mgrid_temp_rspace(igrid_level))
-       ENDDO
-       CALL pw_pools_give_back_coeffs(pw_pools,mgrid_temp_rspace,&
-                                      error=error)
-       DEALLOCATE(mgrid_temp_rspace,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
     CASE (pw_interp)
        ALLOCATE(mgrid_gspace(SIZE(pw_pools)),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)

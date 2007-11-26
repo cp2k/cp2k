@@ -802,9 +802,8 @@ CONTAINS
             description="the interpolator to use",&
             usage="kind spline3",&
             default_i_val=spline3_nopbc_interp,&
-            enum_c_vals=s2a("linear","spline3_nopbc"),&
-            enum_i_vals=(/linear_interp,&
-            spline3_nopbc_interp/),error=error)
+            enum_c_vals=s2a("spline3_nopbc"),&
+            enum_i_vals=(/spline3_nopbc_interp/),error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

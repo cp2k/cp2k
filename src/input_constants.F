@@ -228,8 +228,8 @@ MODULE input_constants
 
   INTEGER, PARAMETER, PUBLIC :: atomic_guess=1,restart_guess=2,random_guess=3,&
        core_guess=4, densities_guess=5, history_guess=6, no_guess=7
-  INTEGER, PARAMETER, PUBLIC :: pw_interp=1,linear_interp=2,&
-       spline3_nopbc_interp=3,spline3_pbc_interp=4 ! to move somewhere else
+  INTEGER, PARAMETER, PUBLIC :: pw_interp=1,&
+       spline3_nopbc_interp=2,spline3_pbc_interp=3 ! to move somewhere else
   INTEGER, PARAMETER, PUBLIC :: do_gapw_gcs=1,&
        do_gapw_gct=2,&
        do_gapw_log=3
@@ -405,7 +405,7 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC :: xc_deriv_pw=0, xc_deriv_spline2=1,&
        xc_deriv_spline3=2, xc_deriv_spline2_smooth=3,&
        xc_deriv_spline3_smooth=4, xc_deriv_nn10_smooth=5,&
-       xc_deriv_fd=6, xc_deriv_nn50_smooth=7
+       xc_deriv_nn50_smooth=6
   INTEGER, PARAMETER, PUBLIC :: xc_old_f_routine=0, xc_new_f_routine=1,&
        xc_test_lsd_f_routine=3, xc_debug_new_routine=4
   INTEGER, PARAMETER, PUBLIC :: xc_funct_blyp=1, xc_funct_pade=2, xc_funct_pbe=3,&

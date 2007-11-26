@@ -38,7 +38,6 @@ MODULE qmmm_gpw_energy
                                              do_qmmm_gauss,&
                                              do_qmmm_none,&
                                              do_qmmm_swave,&
-                                             linear_interp,&
                                              spline3_nopbc_interp,&
                                              spline3_pbc_interp
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -58,7 +57,6 @@ MODULE qmmm_gpw_energy
   USE pw_types,                        ONLY: REALDATA3D,&
                                              REALSPACE,&
                                              pw_p_type,&
-                                             pw_prolongate_l_NoPBC,&
                                              pw_type,&
                                              pw_zero
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
@@ -322,13 +320,6 @@ CONTAINS
     ! RealSpace Interpolation
     CALL section_vals_val_get(interp_section,"kind", i_val=kind_interp, error=error)
     SELECT CASE(kind_interp)
-    CASE(linear_interp)
-       ! Linear Interpolator
-       DO Ilevel = coarser_grid, auxbas_grid+1, -1
-          CALL pw_prolongate_l_NoPBC(grids(Ilevel  )%pw,&
-                                     grids(Ilevel-1)%pw,&
-                                     error)
-       END DO
     CASE(spline3_nopbc_interp, spline3_pbc_interp)
        ! Spline Iterpolator
        CALL mp_sync(para_env%group)
