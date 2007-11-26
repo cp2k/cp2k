@@ -363,7 +363,7 @@ CPSourceFileRef,&
                      suberror,failure)
              END SELECT
           CASE (vib_anal)
-             CALL vb_anal(root_section,para_env,error=suberror)
+             CALL vb_anal(root_section,para_env,globenv,error=suberror)
           CASE (do_band)
              CALL neb(root_section,para_env,globenv,error=suberror)
           CASE default

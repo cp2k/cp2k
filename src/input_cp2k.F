@@ -1146,6 +1146,7 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
     TYPE(section_type), POINTER              :: print_key
 
     failure=.FALSE.
@@ -1156,7 +1157,7 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
             description="Section to setup parameters to perform a Normal Modes analysis.",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
-       NULLIFY(keyword, print_key)
+       NULLIFY(keyword, print_key,subsection)
        
        CALL keyword_create(keyword, name="DX",&
             description="Specify the increment to be used to construct the HESSIAN with "//&
@@ -1184,7 +1185,18 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"MOLDEN_VIB",&
+            description="Controls the printing for visualization in molden format", &
+            print_level=low_print_level,each=(/1/),add_last=(/1/),filename="VIBRATIONS",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
        
+       CALL create_mode_selective_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
     END IF
   END SUBROUTINE create_vib_section
 !***************************************************************************
@@ -1836,5 +1848,81 @@ END SUBROUTINE create_cpot_section
 
   END SUBROUTINE create_mix_section
 
+
+
+  SUBROUTINE create_mode_selective_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_mode_selective_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key
+  failure=.FALSE.
+
+  NULLIFY(keyword,print_key)
+  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CALL section_create(section,name="MODE_SELECTIVE",&
+          description="All parameters needed for to run a mode selective vibrational analysis",&
+          n_keywords=0, n_subsections=5, repeats=.FALSE., required=.TRUE.,&
+          error=error)
+
+
+     CALL keyword_create(keyword,name="FREQUENCY",&
+          description="value close to the expected value of the frequency for to look for",&
+          usage="FREQUENCY <REAL>", default_r_val=-1._dp,&
+          error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+ 
+     CALL keyword_create(keyword, name="ATOMS",&
+          description="Specifies the list of atoms whcih should be mainly involved in the selected frequency",&
+          usage="ATOMS {integer} {integer} .. {integer}", required=.TRUE.,&
+          n_var=-1, type_of_var=integer_t, error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="INITIAL_GUESS",&
+          description="The type of initial guess for the normal modes",&
+          usage="INITIAL_GUESS BFGS_HESS",&
+          default_i_val=ms_guess_atomic,&
+          enum_c_vals=s2a("BFGS_HESS", &
+          "ATOMIC",&
+          "RESTART"),&
+          enum_desc=s2a("get the first displacement vector out of the BFGS approximate Hessian", &
+          "use random displacements for a set of atoms specified",&
+          "use data from MS_RESTART as initial guess"),&
+          enum_i_vals=(/ms_guess_bfgs,ms_guess_atomic,ms_guess_restart/),&
+          error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="PRECONDITIONER",&
+          description="The preconditioner for the davidson algorithm",&
+          usage="PRECONDITIONER NONE",&
+          default_i_val=no_ms_precond,&
+          enum_c_vals=s2a("NONE", &
+          "BFGS"),&
+          enum_desc=s2a("no preconditioner to be applied", &
+          "BFGS approximate Hessian used for preconditioning"),&
+          enum_i_vals=(/no_ms_precond,bfgs_ms_precond/),&
+          error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL cp_print_key_section_create(print_key,"program_run_info",&
+          description="Controls the printing basic info about the mode_selectiv method", &
+          print_level=low_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+          error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+
+  END IF
+
+END SUBROUTINE create_mode_selective_section
 
 END MODULE input_cp2k

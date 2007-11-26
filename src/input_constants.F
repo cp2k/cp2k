@@ -559,6 +559,12 @@ MODULE input_constants
                                 do_hf_potential_short=2,&
                                 do_hf_potential_long=3
 
+  ! mode selctive vibrational analysis
+  INTEGER, PARAMETER, PUBLIC :: ms_guess_bfgs=1, &
+                                ms_guess_atomic=2, &
+                                ms_guess_restart=3,&
+                                no_ms_precond=4, &
+                                bfgs_ms_precond=5     
 
   ! FFT library
   ! these might need sync with fft_lib.F
