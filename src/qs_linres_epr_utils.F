@@ -34,7 +34,6 @@ MODULE qs_linres_epr_utils
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE coefficient_types,               ONLY: coeff_zero
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
@@ -84,12 +83,12 @@ MODULE qs_linres_epr_utils
 !R
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_pool_types,                   ONLY: pw_pool_init_coeff,&
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
-                                             RECIPROCALSPACE
+                                             RECIPROCALSPACE, pw_zero
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_linres_epr_atom_current,      ONLY: list_3c_jrho_atom
@@ -1068,16 +1067,16 @@ CONTAINS
              ALLOCATE(epr_env%jrho1_set(idir,i_B)%rho%rho_g(nspins),stat=istat)
              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
              DO ispin=1,nspins
-                CALL pw_pool_init_coeff(auxbas_pw_pool,&
-                     &                  epr_env%jrho1_set(idir,i_B)%rho%rho_r(ispin),&
+                CALL pw_pool_create_pw(auxbas_pw_pool,&
+                     &                  epr_env%jrho1_set(idir,i_B)%rho%rho_r(ispin)%pw,&
                      &                  use_data=REALDATA3D,in_space=REALSPACE,error=error)
-                CALL coeff_zero(epr_env%jrho1_set(idir,i_B)%rho%rho_r(ispin))
+                CALL pw_zero(epr_env%jrho1_set(idir,i_B)%rho%rho_r(ispin)%pw)
 
-                CALL pw_pool_init_coeff(auxbas_pw_pool,&
-                     &                  epr_env%jrho1_set(idir,i_B)%rho%rho_g(ispin),&
+                CALL pw_pool_create_pw(auxbas_pw_pool,&
+                     &                  epr_env%jrho1_set(idir,i_B)%rho%rho_g(ispin)%pw,&
                      &                  use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
                      &                  error=error)
-                CALL coeff_zero(epr_env%jrho1_set(idir,i_B)%rho%rho_g(ispin))
+                CALL pw_zero(epr_env%jrho1_set(idir,i_B)%rho%rho_g(ispin)%pw)
              ENDDO
              CALL qs_rho_retain(epr_env%jrho1_set(idir,i_B)%rho,error=error)
           ENDDO
@@ -1120,11 +1119,11 @@ CONTAINS
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         ALLOCATE(epr_env%bind_set(idir,i_B)%rho%rho_g(1),stat=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-        CALL pw_pool_init_coeff(auxbas_pw_pool,&
-             epr_env%bind_set(idir,i_B)%rho%rho_r(1),&
+        CALL pw_pool_create_pw(auxbas_pw_pool,&
+             epr_env%bind_set(idir,i_B)%rho%rho_r(1)%pw,&
              use_data=REALDATA3D,in_space=REALSPACE,error=error)
-        CALL pw_pool_init_coeff(auxbas_pw_pool,&
-             epr_env%bind_set(idir,i_B)%rho%rho_g(1),&
+        CALL pw_pool_create_pw(auxbas_pw_pool,&
+             epr_env%bind_set(idir,i_B)%rho%rho_g(1)%pw,&
              use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
       END DO
     END DO
@@ -1144,11 +1143,11 @@ CONTAINS
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         ALLOCATE(epr_env%nablavks_set(idir,ispin)%rho%rho_g(1),stat=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-        CALL pw_pool_init_coeff(auxbas_pw_pool,&
-             epr_env%nablavks_set(idir,ispin)%rho%rho_r(1),&
+        CALL pw_pool_create_pw(auxbas_pw_pool,&
+             epr_env%nablavks_set(idir,ispin)%rho%rho_r(1)%pw,&
              use_data=REALDATA3D,in_space=REALSPACE,error=error)
-        CALL pw_pool_init_coeff(auxbas_pw_pool,&
-             epr_env%nablavks_set(idir,ispin)%rho%rho_g(1),&
+        CALL pw_pool_create_pw(auxbas_pw_pool,&
+             epr_env%nablavks_set(idir,ispin)%rho%rho_g(1)%pw,&
              use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
       END DO
     END DO

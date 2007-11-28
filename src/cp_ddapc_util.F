@@ -26,7 +26,6 @@ MODULE cp_ddapc_util
 !****************************************************************************  
   USE atomic_charges,                  ONLY: print_atomic_charges
   USE cell_types,                      ONLY: cell_type
-  USE coefficient_types,               ONLY: coeff_type
   USE cp_control_types,                ONLY: ddapc_restraint_type,&
                                              dft_control_type
   USE cp_ddapc_forces,                 ONLY: evaluate_restraint_functional
@@ -58,6 +57,7 @@ MODULE cp_ddapc_util
                                              pw_subtract,&
                                              pw_sumup,&
                                              pw_transfer,&
+                                             pw_p_type,&
                                              pw_type
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -113,7 +113,7 @@ CONTAINS
     REAL(KIND=dp)                            :: gcut, pfact, rcmin, Vol
     REAL(KIND=dp), DIMENSION(:), POINTER     :: inp_radii, radii
     TYPE(cell_type), POINTER                 :: cell, super_cell
-    TYPE(coeff_type), POINTER                :: rho0_s_gs, rho_core
+    TYPE(pw_p_type), POINTER                 :: rho0_s_gs, rho_core
     TYPE(cp_ddapc_type), POINTER             :: cp_ddapc_env
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -269,7 +269,7 @@ CONTAINS
       DIMENSION(:, :, :)                     :: dAm, dqv
     REAL(KIND=dp), DIMENSION(:), POINTER     :: inp_radii, radii
     TYPE(cell_type), POINTER                 :: cell, super_cell
-    TYPE(coeff_type), POINTER                :: rho0_s_gs, rho_core
+    TYPE(pw_p_type), POINTER                 :: rho0_s_gs, rho_core
     TYPE(cp_ddapc_type), POINTER             :: cp_ddapc_env
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -536,7 +536,7 @@ CONTAINS
 SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
      density_fit_section, particle_set, AmI, radii, charges,&
      ddapc_restraint_control,energy_res, error)
-    TYPE(coeff_type)                         :: v_hartree_gspace
+    TYPE(pw_p_type)                          :: v_hartree_gspace
     TYPE(section_vals_type), POINTER         :: density_fit_section
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -633,7 +633,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
 !!*** **********************************************************************
   SUBROUTINE modify_hartree_pot(v_hartree_gspace, density_fit_section,&
        particle_set, M, AmI, radii, charges, error)
-    TYPE(coeff_type)                         :: v_hartree_gspace
+    TYPE(pw_p_type)                          :: v_hartree_gspace
     TYPE(section_vals_type), POINTER         :: density_fit_section
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set

@@ -26,7 +26,6 @@
 MODULE qs_linres_epr_bind0
 
   USE cell_types,                      ONLY: cell_type
-  USE coefficient_types,               ONLY: coeff_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_trace
@@ -50,6 +49,7 @@ MODULE qs_linres_epr_bind0
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              RECIPROCALSPACE,&
                                              pw_transfer,&
+                                             pw_p_type,&
                                              pw_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -486,7 +486,7 @@ CONTAINS
 !R    TYPE(particle_type), DIMENSION(:), &
 !R         POINTER                             :: particle_set
 !R    TYPE(cell_type), POINTER                 :: cell
-!R    TYPE(coeff_type)                         :: shift_pw_rspace
+!R    TYPE(pw_p_type)                          :: shift_pw_rspace
 !R    INTEGER, INTENT(IN)                      :: i_B, idir
 !R    TYPE(section_vals_type), POINTER         :: epr_section
 !R    TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -503,7 +503,7 @@ CONTAINS
 !R    REAL(dp), DIMENSION(:, :), POINTER       :: r_nics
 !R    REAL(dp), DIMENSION(:, :, :), POINTER    :: chemical_shift, &
 !R                                                chemical_shift_nics
-!R    TYPE(coeff_type)                         :: shiftspl
+!R    TYPE(pw_p_type)                          :: shiftspl
 !R    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 !R    TYPE(pw_spline_precond_type), POINTER    :: precond
 !R    TYPE(section_vals_type), POINTER         :: interp_section
@@ -531,7 +531,7 @@ CONTAINS
 !R
 !R      ! calculate spline coefficients
 !R      CALL pw_env_get(pw_env,  auxbas_pw_pool=auxbas_pw_pool,error=error)
-!R      CALL pw_pool_init_coeff(pool=auxbas_pw_pool,coeff=shiftspl, &
+!R      CALL pw_pool_create_pw(auxbas_pw_pool,shiftspl%pw, &
 !R                             use_data=REALDATA3D,in_space=REALSPACE,&
 !R                             error=error)
 !R
@@ -576,7 +576,7 @@ CONTAINS
 !R        END DO
 !R      END IF
 !R
-!R      CALL pw_pool_give_back_coeff(auxbas_pw_pool,shiftspl,error=error)
+!R      CALL pw_pool_give_back_pw(auxbas_pw_pool,shiftspl%pw,error=error)
 !R
 !R    END IF
 !R
@@ -589,7 +589,7 @@ CONTAINS
 !R    TYPE(particle_type), DIMENSION(:), &
 !R      POINTER                                :: particle_set
 !R    TYPE(cell_type), POINTER                 :: cell
-!R    TYPE(coeff_type)                         :: shift_pw_gspace
+!R    TYPE(pw_p_type)                          :: shift_pw_gspace
 !R    INTEGER, INTENT(IN)                      :: i_B, idir
 !R    TYPE(section_vals_type), POINTER         :: epr_section
 !R    TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -694,8 +694,8 @@ CONTAINS
 
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(coeff_type), POINTER                :: rho_gspace
-    TYPE(coeff_type)                         :: funcG_times_rho
+    TYPE(pw_p_type), POINTER                 :: rho_gspace
+    TYPE(pw_p_type)                          :: funcG_times_rho
     INTEGER, INTENT(IN)                      :: idir
     REAL(dp), INTENT(IN)                     :: my_chi
     TYPE(cp_error_type), INTENT(inout)       :: error

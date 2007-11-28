@@ -33,9 +33,6 @@ MODULE qs_ks_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
-  USE coefficient_types,               ONLY: &
-       coeff_add, coeff_copy, coeff_init, coeff_scale, coeff_subtract, &
-       coeff_sumup, coeff_transform_space, coeff_type, coeff_zero
   USE cp_control_types,                ONLY: becke_constraint_type,&
                                              dft_control_type
   USE cp_ddapc,                        ONLY: cp_ddapc_apply,&
@@ -95,21 +92,14 @@ MODULE qs_ks_methods
   USE pw_poisson_methods,              ONLY: pw_poisson_solve
   USE pw_poisson_types,                ONLY: pw_poisson_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                             pw_pool_give_back_coeff,&
                                              pw_pool_give_back_pw,&
-                                             pw_pool_init_coeff,&
                                              pw_pool_p_type,&
                                              pw_pool_retain,&
                                              pw_pool_type
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
-                                             RECIPROCALSPACE,&
-                                             pw_p_type,&
-                                             pw_release,&
-                                             pw_transfer,&
-                                             pw_type,&
-                                             pw_integrate_function
+  USE pw_types,                        ONLY: &
+       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_add, &
+       pw_copy, pw_integrate_function, pw_p_type, pw_release, pw_scale, &
+       pw_subtract, pw_sumup, pw_transfer, pw_type, pw_zero
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_collocate_density,            ONLY: calculate_rho_elec
   USE qs_core_energies,                ONLY: calculate_ecore
@@ -241,7 +231,7 @@ CONTAINS
     IF (.NOT.failure) THEN
        ks_env%auxbas_pw_pool=>auxbas_pw_pool
        CALL pw_pool_retain(ks_env%auxbas_pw_pool,error=error)
-       CALL pw_pool_init_coeff(auxbas_pw_pool,ks_env%v_hartree_rspace,&
+       CALL pw_pool_create_pw(auxbas_pw_pool,ks_env%v_hartree_rspace%pw,&
             use_data=REALDATA3D, in_space=REALSPACE,error=error)
     END IF
 
@@ -332,9 +322,9 @@ CONTAINS
                                                 scaling_factor
     TYPE(becke_constraint_type), POINTER     :: becke
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type) :: ep_pot_r_coeff, ep_rho_g, ep_rho_r, rho_tot_gspace, &
+    TYPE(pw_p_type) :: ep_pot_r_coeff, ep_rho_g, ep_rho_r, rho_tot_gspace, &
       v_hartree_gspace, v_sic_rspace, v_spin_ddapc_rest_g, v_spin_ddapc_rest_r
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: v_rspace_new, v_tau_rspace
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, v_tau_rspace
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs
     TYPE(cp_fm_type), POINTER                :: hc_tmp, mo_coeff
@@ -454,13 +444,13 @@ CONTAINS
        ! *** Hartree contributions ***
 
        IF (.NOT.failure) THEN
-         CALL pw_pool_init_coeff(pool=auxbas_pw_pool,&
-                                 coeff=v_hartree_gspace, &
+         CALL pw_pool_create_pw(auxbas_pw_pool,&
+                                 v_hartree_gspace%pw, &
                                  use_data=COMPLEXDATA1D,&
                                  in_space=RECIPROCALSPACE,&
                                  error=error)
-         CALL pw_pool_init_coeff(pool=auxbas_pw_pool,&
-                                 coeff=rho_tot_gspace,&
+         CALL pw_pool_create_pw(auxbas_pw_pool,&
+                                 rho_tot_gspace%pw,&
                                  use_data=COMPLEXDATA1D,&
                                  in_space=RECIPROCALSPACE,&
                                  error=error)
@@ -498,7 +488,7 @@ CONTAINS
              END DO
            END IF
            DO ispin=1,nspins
-             CALL coeff_transform_space(rho%rho_g(ispin),rho%rho_r(ispin))
+             CALL pw_transfer(rho%rho_g(ispin)%pw,rho%rho_r(ispin)%pw)
              rho%tot_rho_r(ispin) = pw_integrate_function(rho%rho_r(ispin)%pw,isign=-1)
            END DO
          END IF
@@ -507,12 +497,12 @@ CONTAINS
 
        IF (BTEST(cp_print_key_should_output(logger%iter_info,scf_section,&
             "PRINT%DETAILED_ENERGY",error=error),cp_p_file).AND.(.NOT.gapw).AND.(.NOT.gapw_xc)) THEN
-          CALL coeff_zero(rho_tot_gspace)
+          CALL pw_zero(rho_tot_gspace%pw)
           CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho, skip_nuclear_density=.TRUE.,error=error)
           CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,energy%e_hartree,&
                v_hartree_gspace%pw,error=error)
-          CALL coeff_zero(rho_tot_gspace)
-          CALL coeff_zero(v_hartree_gspace)
+          CALL pw_zero(rho_tot_gspace%pw)
+          CALL pw_zero(v_hartree_gspace%pw)
        END IF
 
        CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho,error=error)
@@ -546,12 +536,12 @@ CONTAINS
        explicit_potential=ddapc_restraint_is_spin.OR.et_coupling_calc
        
        IF (explicit_potential) THEN
-         CALL pw_pool_init_coeff(pool=auxbas_pw_pool,&
-                                 coeff=v_spin_ddapc_rest_g, &
+         CALL pw_pool_create_pw(auxbas_pw_pool,&
+                                 v_spin_ddapc_rest_g%pw, &
                                  use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE,error=error)
-         CALL coeff_zero(v_spin_ddapc_rest_g)
-         CALL pw_pool_init_coeff(pool=auxbas_pw_pool,&
-                                 coeff=v_spin_ddapc_rest_r, &
+         CALL pw_zero(v_spin_ddapc_rest_g%pw)
+         CALL pw_pool_create_pw(auxbas_pw_pool,&
+                                 v_spin_ddapc_rest_r%pw, &
                                  use_data=REALDATA3D,in_space=REALSPACE,error=error)
        ENDIF
 
@@ -565,11 +555,11 @@ CONTAINS
                            error=error)
 
        IF ((.NOT. just_energy).OR.et_coupling_calc) THEN
-          CALL coeff_transform_space(v_hartree_gspace, ks_env%v_hartree_rspace)
-          CALL coeff_scale(ks_env%v_hartree_rspace, ks_env%v_hartree_rspace%pw%pw_grid%dvol)
+          CALL pw_transfer(v_hartree_gspace%pw, ks_env%v_hartree_rspace%pw)
+          CALL pw_scale(ks_env%v_hartree_rspace%pw, ks_env%v_hartree_rspace%pw%pw_grid%dvol)
           IF (explicit_potential) THEN
-             CALL coeff_transform_space(v_spin_ddapc_rest_g,v_spin_ddapc_rest_r)
-             CALL coeff_scale(v_spin_ddapc_rest_r,v_spin_ddapc_rest_r%pw%pw_grid%dvol)
+             CALL pw_transfer(v_spin_ddapc_rest_g%pw,v_spin_ddapc_rest_r%pw)
+             CALL pw_scale(v_spin_ddapc_rest_r%pw,v_spin_ddapc_rest_r%pw%pw_grid%dvol)
              IF(et_coupling_calc)THEN
                 IF(qs_env%et_coupling%keep_matrix)THEN
                    IF(qs_env%et_coupling%first_run)THEN
@@ -598,13 +588,13 @@ CONTAINS
        ENDIF
 
        IF (explicit_potential) THEN
-            CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_spin_ddapc_rest_g,&
+            CALL pw_pool_give_back_pw(auxbas_pw_pool,v_spin_ddapc_rest_g%pw,&
                                          error=error)
        ENDIF
 
-       CALL pw_pool_give_back_coeff(auxbas_pw_pool,rho_tot_gspace,&
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_tot_gspace%pw,&
             error=error)
-       CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_hartree_gspace,&
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gspace%pw,&
             error=error)
        
 
@@ -620,18 +610,18 @@ CONTAINS
        IF(qs_env%dft_control%qs_control%becke_constraint)THEN
           becke => qs_env%dft_control%qs_control%becke_control
           IF(becke%need_pot.OR.calculate_forces)THEN
-             CALL pw_pool_init_coeff(auxbas_pw_pool,coeff=becke%becke_pot,use_data=REALDATA3D,&
+             CALL pw_pool_create_pw(auxbas_pw_pool,becke%becke_pot%pw,use_data=REALDATA3D,&
                   in_space=REALSPACE,error=error) 
              CALL becke_constraint(qs_env,becke_const=becke%becke_pot,calc_pot=.TRUE.,&
                                    calculate_forces=calculate_forces,error=error)
-             CALL coeff_scale(becke%becke_pot,becke%becke_pot%pw%pw_grid%dvol)
+             CALL pw_scale(becke%becke_pot%pw,becke%becke_pot%pw%pw_grid%dvol)
              becke%need_pot=.FALSE.
           ELSE
              inv_vol=1.0_dp/becke%becke_pot%pw%pw_grid%dvol
-             CALL coeff_scale(becke%becke_pot,inv_vol)
+             CALL pw_scale(becke%becke_pot%pw,inv_vol)
              CALL becke_constraint(qs_env,becke%becke_pot,calc_pot=.FALSE.,&
                                    calculate_forces=calculate_forces,error=error)
-             CALL coeff_scale(becke%becke_pot,becke%becke_pot%pw%pw_grid%dvol)
+             CALL pw_scale(becke%becke_pot%pw,becke%becke_pot%pw%pw_grid%dvol)
           ENDIF
 
           IF(qs_env%dft_control%qs_control%et_coupling_calc)THEN
@@ -726,23 +716,23 @@ CONTAINS
        IF (.NOT. just_energy) THEN
           IF (calculate_forces .AND. .NOT. gapw) THEN
              IF (do_ep) THEN
-                CALL pw_pool_init_coeff(auxbas_pw_pool,ep_rho_r,&
+                CALL pw_pool_create_pw(auxbas_pw_pool,ep_rho_r%pw,&
                      use_data=REALDATA3D,in_space=REALSPACE,error=error)
-                CALL pw_pool_init_coeff(auxbas_pw_pool,ep_rho_g,&
+                CALL pw_pool_create_pw(auxbas_pw_pool,ep_rho_g%pw,&
                      use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
                 CPAssert(nspins==1,cp_failure_level,routineP,error,failure)
                 CALL calculate_rho_elec(matrix_p=ep_qs_env%dH_coeffs(1)%matrix,&
                      rho=ep_rho_r,rho_gspace=ep_rho_g, total_rho=ep_qs_env%tot_rho,&
                      qs_env=qs_env, error=error)
 
-                CALL pw_pool_give_back_coeff(auxbas_pw_pool,ep_rho_r,error=error)
+                CALL pw_pool_give_back_pw(auxbas_pw_pool,ep_rho_r%pw,error=error)
                 CALL pw_pool_create_pw(auxbas_pw_pool,ep_pot_g,&
                      use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
 
                 CALL pw_poisson_solve(poisson_env,ep_rho_g%pw,ep_qs_env%core_energy,&
                      ep_pot_g,error=error)
 
-                CALL pw_pool_give_back_coeff(auxbas_pw_pool,ep_rho_g,error=error)
+                CALL pw_pool_give_back_pw(auxbas_pw_pool,ep_rho_g%pw,error=error)
                 CALL pw_pool_create_pw(auxbas_pw_pool,ep_pot_r,&
                      use_data=REALDATA3D,in_space=REALSPACE,error=error)
 
@@ -750,7 +740,7 @@ CONTAINS
 
                 CALL pw_pool_give_back_pw(auxbas_pw_pool,ep_pot_g,error=error)
 
-                CALL coeff_init(ep_pot_r_coeff,pw=ep_pot_r,error=error)
+                ep_pot_r_coeff%pw => ep_pot_r
                 CALL integrate_v_core_rspace(ep_pot_r_coeff, qs_env,error=error)
 
                 CALL pw_pool_give_back_pw(auxbas_pw_pool,ep_pot_r,error=error)
@@ -796,7 +786,7 @@ CONTAINS
                       calculate_forces=calculate_forces,&
                       gapw=gapw,error=error)
 
-                 CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace_new(ispin),&
+                 CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new(ispin)%pw,&
                      error=error)
 
                END DO  ! ispin
@@ -863,7 +853,7 @@ CONTAINS
                           calculate_forces=calculate_forces,&
                           gapw=gapw, error=error)
                   END IF
-                  CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace_new(ispin),&
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new(ispin)%pw,&
                         error=error)
                END DO
              END IF
@@ -871,7 +861,7 @@ CONTAINS
              SELECT CASE (dft_control%sic_method_id)
              CASE (sic_none)
              CASE (sic_mauri_us,sic_mauri_spz, sic_ad )
-                CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_sic_rspace,error=error)
+                CALL pw_pool_give_back_pw(auxbas_pw_pool,v_sic_rspace%pw,error=error)
              END SELECT
              DEALLOCATE(v_rspace_new,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -926,7 +916,7 @@ CONTAINS
                          gapw=gapw,&
                          error=error)
                  END IF
-                 CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_tau_rspace(ispin),&
+                 CALL pw_pool_give_back_pw(auxbas_pw_pool,v_tau_rspace(ispin)%pw,&
                       error=error)
 
               END DO
@@ -936,11 +926,11 @@ CONTAINS
        END IF  ! .NOT. just energy
 
        IF (explicit_potential) THEN
-           CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_spin_ddapc_rest_r,&
+           CALL pw_pool_give_back_pw(auxbas_pw_pool,v_spin_ddapc_rest_r%pw,&
                                         error=error)
        ENDIF
        IF (calculate_forces.AND.qs_env%dft_control%qs_control%becke_constraint)&
-           CALL pw_pool_give_back_coeff(auxbas_pw_pool,becke%becke_pot,&
+           CALL pw_pool_give_back_pw(auxbas_pw_pool,becke%becke_pot%pw,&
                                         error=error)
 
        IF(my_kg_gpw) THEN
@@ -1163,7 +1153,7 @@ CONTAINS
     REAL(KIND=dp)                            :: ener, exc, total_rho
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: scaling_factor
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type)                         :: orb_rho_g, orb_rho_r, tmp_g, &
+    TYPE(pw_p_type)                          :: orb_rho_g, orb_rho_r, tmp_g, &
                                                 tmp_r, work_v_gspace, &
                                                 work_v_rspace
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -1265,22 +1255,22 @@ CONTAINS
     END SELECT
 
     ! data needed for each of the orbs
-    CALL pw_pool_init_coeff(auxbas_pw_pool,orb_rho_r,&
+    CALL pw_pool_create_pw(auxbas_pw_pool,orb_rho_r%pw,&
                             use_data=REALDATA3D,&
                             in_space=REALSPACE,error=error)
-    CALL pw_pool_init_coeff(auxbas_pw_pool,tmp_r,&
+    CALL pw_pool_create_pw(auxbas_pw_pool,tmp_r%pw,&
                             use_data=REALDATA3D,&
                             in_space=REALSPACE,error=error)
-    CALL pw_pool_init_coeff(auxbas_pw_pool,orb_rho_g,&
+    CALL pw_pool_create_pw(auxbas_pw_pool,orb_rho_g%pw,&
                             use_data=COMPLEXDATA1D,&
                             in_space=RECIPROCALSPACE,error=error)
-    CALL pw_pool_init_coeff(auxbas_pw_pool,tmp_g,&
+    CALL pw_pool_create_pw(auxbas_pw_pool,tmp_g%pw,&
                             use_data=COMPLEXDATA1D,&
                             in_space=RECIPROCALSPACE,error=error)
-    CALL pw_pool_init_coeff(auxbas_pw_pool,work_v_gspace,&
+    CALL pw_pool_create_pw(auxbas_pw_pool,work_v_gspace%pw,&
                             use_data = COMPLEXDATA1D,&
                             in_space = RECIPROCALSPACE, error=error)
-    CALL pw_pool_init_coeff(auxbas_pw_pool,work_v_rspace,&
+    CALL pw_pool_create_pw(auxbas_pw_pool,work_v_rspace%pw,&
                             use_data=REALDATA3D,&
                             in_space=REALSPACE,error=error)
 
@@ -1315,13 +1305,13 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     rho_r(1)%pw=>orb_rho_r%pw
     rho_r(2)%pw=>tmp_r%pw
-    CALL coeff_zero(tmp_r)
+    CALL pw_zero(tmp_r%pw)
     
     ALLOCATE(rho_g(2),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     rho_g(1)%pw=>orb_rho_g%pw
     rho_g(2)%pw=>tmp_g%pw
-    CALL coeff_zero(tmp_g)
+    CALL pw_zero(tmp_g%pw)
 
     NULLIFY(vxc)
     ! ALLOCATE(vxc(2),stat=stat)
@@ -1354,8 +1344,8 @@ CONTAINS
        CALL pw_poisson_solve(poisson_env,orb_rho_g%pw, ener, work_v_gspace%pw,error=error)
        energy%hartree=energy%hartree - dft_control % sic_scaling_a * ener
        IF (.NOT. just_energy) THEN
-            CALL coeff_transform_space(work_v_gspace, work_v_rspace)
-            CALL coeff_scale(work_v_rspace, - dft_control % sic_scaling_a * work_v_rspace%pw%pw_grid%dvol)
+            CALL pw_transfer(work_v_gspace%pw, work_v_rspace%pw)
+            CALL pw_scale(work_v_rspace%pw, - dft_control % sic_scaling_a * work_v_rspace%pw%pw_grid%dvol)
             CALL set_matrix(orb_h,0.0_dp)
        ENDIF
 
@@ -1399,12 +1389,12 @@ CONTAINS
 
     ENDDO
 
-    CALL pw_pool_give_back_coeff(auxbas_pw_pool,orb_rho_r,error=error)
-    CALL pw_pool_give_back_coeff(auxbas_pw_pool,tmp_r,error=error)
-    CALL pw_pool_give_back_coeff(auxbas_pw_pool,orb_rho_g,error=error)
-    CALL pw_pool_give_back_coeff(auxbas_pw_pool,tmp_g,error=error)
-    CALL pw_pool_give_back_coeff(auxbas_pw_pool,work_v_gspace,error=error)
-    CALL pw_pool_give_back_coeff(auxbas_pw_pool,work_v_rspace,error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,orb_rho_r%pw,error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,tmp_r%pw,error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,orb_rho_g%pw,error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,tmp_g%pw,error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,work_v_gspace%pw,error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,work_v_rspace%pw,error=error)
 
     CALL deallocate_matrix(orb_density_matrix,error=error)
     CALL deallocate_matrix(orb_h,error=error)
@@ -1439,7 +1429,7 @@ CONTAINS
                                qs_env,dft_control,rho,poisson_env,just_energy,&
                                calculate_forces,auxbas_pw_pool,error)
 
-    TYPE(coeff_type), INTENT(INOUT)          :: v_sic_rspace
+    TYPE(pw_p_type), INTENT(INOUT)           :: v_sic_rspace
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -1458,7 +1448,7 @@ CONTAINS
     REAL(kind=dp)                            :: ener, full_scaling, scaling
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: store_forces
-    TYPE(coeff_type)                         :: work_rho, work_v
+    TYPE(pw_p_type)                          :: work_rho, work_v
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(qs_force_type), DIMENSION(:), &
@@ -1476,17 +1466,17 @@ CONTAINS
     ! OK, right now we like two spins to do sic, could be relaxed for AD
     CPPrecondition(dft_control%nspins == 2,cp_failure_level,routineP,error,failure)
 
-    CALL pw_pool_init_coeff(auxbas_pw_pool, work_rho, &
+    CALL pw_pool_create_pw(auxbas_pw_pool, work_rho%pw, &
                             use_data = COMPLEXDATA1D,&
                             in_space = RECIPROCALSPACE, error=error)
-    CALL pw_pool_init_coeff(auxbas_pw_pool, work_v,&
+    CALL pw_pool_create_pw(auxbas_pw_pool, work_v%pw,&
                             use_data = COMPLEXDATA1D,&
                             in_space = RECIPROCALSPACE, error=error)
 
     ! Hartree sic corrections
     SELECT CASE ( dft_control%sic_method_id )
     CASE ( sic_mauri_us, sic_mauri_spz )
-       CALL coeff_subtract(rho%rho_g(1),rho%rho_g(2),work_rho)
+       CALL pw_subtract(rho%rho_g(1)%pw,rho%rho_g(2)%pw,work_rho%pw)
        CALL pw_poisson_solve(poisson_env,work_rho%pw, ener, work_v%pw,error=error)
     CASE ( sic_ad )
        ! find out how many elecs we have
@@ -1494,9 +1484,9 @@ CONTAINS
        CALL get_mo_set(mo_set=mo_array(1)%mo_set,nelectron=nelec_a)
        CALL get_mo_set(mo_set=mo_array(2)%mo_set,nelectron=nelec_b)
        nelec = nelec_a + nelec_b
-       CALL coeff_add(rho%rho_g(1),rho%rho_g(2),work_rho)
+       CALL pw_add(rho%rho_g(1)%pw,rho%rho_g(2)%pw,work_rho%pw)
        scaling = 1.0_dp / REAL(nelec,KIND=dp)
-       CALL coeff_scale(work_rho,scaling)
+       CALL pw_scale(work_rho%pw,scaling)
        CALL pw_poisson_solve(poisson_env,work_rho%pw, ener, work_v%pw,error=error)
     CASE DEFAULT
        CALL cp_assert( .FALSE., cp_failure_level,cp_assertion_failed,routineP,&
@@ -1549,23 +1539,23 @@ CONTAINS
     ENDIF
 
     IF (.NOT. just_energy) THEN
-       CALL pw_pool_init_coeff(auxbas_pw_pool,v_sic_rspace,&
+       CALL pw_pool_create_pw(auxbas_pw_pool,v_sic_rspace%pw,&
                                use_data=REALDATA3D, in_space=REALSPACE,error=error)
-       CALL coeff_transform_space(work_v, v_sic_rspace)
+       CALL pw_transfer(work_v%pw, v_sic_rspace%pw)
        ! also take into account the scaling (in addition to the volume element)
-       CALL coeff_scale(v_sic_rspace, &
+       CALL pw_scale(v_sic_rspace%pw, &
             dft_control % sic_scaling_a * v_sic_rspace%pw%pw_grid%dvol )
     ENDIF
 
-    CALL pw_pool_give_back_coeff(auxbas_pw_pool,work_rho,error=error)
-    CALL pw_pool_give_back_coeff(auxbas_pw_pool,work_v,error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,work_rho%pw,error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,work_v%pw,error=error)
 
   END SUBROUTINE calc_v_sic_rspace
 
 ! *****************************************************************************
 
   SUBROUTINE calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho, skip_nuclear_density, error)
-    TYPE(coeff_type), INTENT(INOUT)          :: rho_tot_gspace
+    TYPE(pw_p_type), INTENT(INOUT)           :: rho_tot_gspace
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_rho_type), POINTER               :: rho
     LOGICAL, INTENT(IN), OPTIONAL            :: skip_nuclear_density
@@ -1576,7 +1566,7 @@ CONTAINS
 
     INTEGER                                  :: ispin
     LOGICAL                                  :: failure, my_skip
-    TYPE(coeff_type), POINTER                :: rho0_s_gs, rho_core
+    TYPE(pw_p_type), POINTER                 :: rho0_s_gs, rho_core
     TYPE(qs_charges_type), POINTER           :: qs_charges
 
     NULLIFY (rho_core, rho0_s_gs)
@@ -1590,15 +1580,15 @@ CONTAINS
     IF (.NOT.my_skip) THEN
        IF(qs_env%dft_control%qs_control%gapw) THEN
           CPPrecondition(ASSOCIATED(rho0_s_gs),cp_failure_level,routineP,error,failure)
-          CALL coeff_add(rho0_s_gs, rho%rho_g(1), rho_tot_gspace)
+          CALL pw_add(rho0_s_gs%pw, rho%rho_g(1)%pw, rho_tot_gspace%pw)
        ELSE
-          CALL coeff_add(rho_core, rho%rho_g(1), rho_tot_gspace)
+          CALL pw_add(rho_core%pw, rho%rho_g(1)%pw, rho_tot_gspace%pw)
        END IF
     ELSE
-       CALL coeff_sumup(rho%rho_g(1), rho_tot_gspace)
+       CALL pw_sumup(rho%rho_g(1)%pw, rho_tot_gspace%pw)
     END IF
     DO ispin=2, qs_env%dft_control%nspins
-       CALL coeff_sumup(rho%rho_g(ispin), rho_tot_gspace)
+       CALL pw_sumup(rho%rho_g(ispin)%pw, rho_tot_gspace%pw)
     END DO
     IF (.NOT.my_skip) &
          qs_charges%total_rho_gspace = pw_integrate_function(rho_tot_gspace%pw,isign=-1)
@@ -1609,7 +1599,7 @@ CONTAINS
 
   SUBROUTINE print_densities(qs_env, rho_tot_gspace, rho, rho_xc, output_unit, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(coeff_type), INTENT(IN)             :: rho_tot_gspace
+    TYPE(pw_p_type), INTENT(IN)              :: rho_tot_gspace
     TYPE(qs_rho_type), POINTER               :: rho, rho_xc
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -1963,7 +1953,7 @@ END SUBROUTINE qs_ks_did_change
 !!*** *********************************************************************
 SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
      just_energy, harris, nsc_force, gapw_xc, error)
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: vxc_rho, vxc_tau
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
     REAL(KIND=dp)                            :: exc
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(in), OPTIONAL            :: just_energy, harris, &
@@ -1981,7 +1971,7 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
                                                 uf_grid
     REAL(KIND=dp)                            :: exc_m, my_scaling, nelec_s_inv
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: rho_m_gspace, rho_m_rspace
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_m_gspace, rho_m_rspace
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -2184,8 +2174,7 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
            ALLOCATE(vxc_rho(dft_control%nspins),stat=stat)
            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
            DO ispin=1,dft_control%nspins
-              CALL coeff_init(vxc_rho(ispin),pw=my_vxc_rho(ispin)%pw,&
-                   error=error)
+              vxc_rho(ispin)%pw => my_vxc_rho(ispin)%pw
            END DO
            DEALLOCATE(my_vxc_rho,stat=stat)
         END IF
@@ -2193,8 +2182,7 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
            ALLOCATE(vxc_tau(dft_control%nspins),stat=stat)
            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
            DO ispin=1,dft_control%nspins
-              CALL coeff_init(vxc_tau(ispin),pw=my_vxc_tau(ispin)%pw,&
-                   error=error)
+              vxc_tau(ispin)%pw => my_vxc_tau(ispin)%pw
            END DO
            DEALLOCATE(my_vxc_tau,stat=stat)
            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -2203,23 +2191,23 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
         ! compute again the xc but now for Exc(m,o) and the opposite sign
         IF (dft_control%sic_method_id .EQ. sic_mauri_spz .AND. .NOT. sic_scaling_b_zero) THEN
            ALLOCATE(rho_m_rspace(2),rho_m_gspace(2))
-           CALL pw_pool_init_coeff(xc_pw_pool, rho_m_gspace(1),&
+           CALL pw_pool_create_pw(xc_pw_pool, rho_m_gspace(1)%pw,&
                 use_data = COMPLEXDATA1D,&
                 in_space = RECIPROCALSPACE, error=error)
-           CALL pw_pool_init_coeff(xc_pw_pool, rho_m_rspace(1),&
+           CALL pw_pool_create_pw(xc_pw_pool, rho_m_rspace(1)%pw,&
                 use_data = REALDATA3D,&
                 in_space = REALSPACE, error=error)
-           CALL coeff_subtract(rho_struct%rho_r(1),rho_struct%rho_r(2),rho_m_rspace(1))
-           CALL coeff_subtract(rho_struct%rho_g(1),rho_struct%rho_g(2),rho_m_gspace(1))
+           CALL pw_subtract(rho_struct%rho_r(1)%pw,rho_struct%rho_r(2)%pw,rho_m_rspace(1)%pw)
+           CALL pw_subtract(rho_struct%rho_g(1)%pw,rho_struct%rho_g(2)%pw,rho_m_gspace(1)%pw)
            ! bit sad, these will be just zero...
-           CALL pw_pool_init_coeff(xc_pw_pool, rho_m_gspace(2),&
+           CALL pw_pool_create_pw(xc_pw_pool, rho_m_gspace(2)%pw,&
                 use_data = COMPLEXDATA1D,&
                 in_space = RECIPROCALSPACE, error=error)
-           CALL pw_pool_init_coeff(xc_pw_pool, rho_m_rspace(2),&
+           CALL pw_pool_create_pw(xc_pw_pool, rho_m_rspace(2)%pw,&
                 use_data = REALDATA3D,&
                 in_space = REALSPACE, error=error)
-           CALL coeff_zero(rho_m_rspace(2))
-           CALL coeff_zero(rho_m_gspace(2))
+           CALL pw_zero(rho_m_rspace(2)%pw)
+           CALL pw_zero(rho_m_gspace(2)%pw)
 
            rho_g(1)%pw => rho_m_gspace(1)%pw
            rho_g(2)%pw => rho_m_gspace(2)%pw
@@ -2254,9 +2242,9 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
            ENDIF
 
            DO ispin=1,2
-              CALL pw_pool_give_back_coeff(xc_pw_pool,rho_m_rspace(ispin),&
+              CALL pw_pool_give_back_pw(xc_pw_pool,rho_m_rspace(ispin)%pw,&
                    error=error)
-              CALL pw_pool_give_back_coeff(xc_pw_pool,rho_m_gspace(ispin),&
+              CALL pw_pool_give_back_pw(xc_pw_pool,rho_m_gspace(ispin)%pw,&
                    error=error)
            ENDDO
            DEALLOCATE(rho_m_rspace)
@@ -2274,10 +2262,10 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
 
            ALLOCATE(rho_m_rspace(2),rho_m_gspace(2))
            DO ispin=1,2
-              CALL pw_pool_init_coeff(xc_pw_pool, rho_m_gspace(ispin),&
+              CALL pw_pool_create_pw(xc_pw_pool, rho_m_gspace(ispin)%pw,&
                    use_data = COMPLEXDATA1D,&
                    in_space = RECIPROCALSPACE, error=error)
-              CALL pw_pool_init_coeff(xc_pw_pool, rho_m_rspace(ispin),&
+              CALL pw_pool_create_pw(xc_pw_pool, rho_m_rspace(ispin)%pw,&
                    use_data = REALDATA3D,&
                    in_space = REALSPACE, error=error)
            ENDDO
@@ -2294,12 +2282,12 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
                  ! does it matter if there are no electrons with this spin (H) ?
                  nelec_s_inv=0.0_dp
               ENDIF
-              CALL coeff_copy(rho_struct%rho_r(ispin),rho_m_rspace(1))
-              CALL coeff_copy(rho_struct%rho_g(ispin),rho_m_gspace(1))
-              CALL coeff_scale(rho_m_rspace(1),nelec_s_inv)
-              CALL coeff_scale(rho_m_gspace(1),nelec_s_inv)
-              CALL coeff_zero(rho_m_rspace(2))
-              CALL coeff_zero(rho_m_gspace(2))
+              CALL pw_copy(rho_struct%rho_r(ispin)%pw,rho_m_rspace(1)%pw)
+              CALL pw_copy(rho_struct%rho_g(ispin)%pw,rho_m_gspace(1)%pw)
+              CALL pw_scale(rho_m_rspace(1)%pw,nelec_s_inv)
+              CALL pw_scale(rho_m_gspace(1)%pw,nelec_s_inv)
+              CALL pw_zero(rho_m_rspace(2)%pw)
+              CALL pw_zero(rho_m_gspace(2)%pw)
 
               IF (my_just_energy) THEN
                  exc_m=xc_exc_calc(rho_r=rho_r,tau=tau,&
@@ -2328,9 +2316,9 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
            ENDDO
 
            DO ispin=1,2
-              CALL pw_pool_give_back_coeff(xc_pw_pool,rho_m_rspace(ispin),&
+              CALL pw_pool_give_back_pw(xc_pw_pool,rho_m_rspace(ispin)%pw,&
                    error=error)
-              CALL pw_pool_give_back_coeff(xc_pw_pool,rho_m_gspace(ispin),&
+              CALL pw_pool_give_back_pw(xc_pw_pool,rho_m_gspace(ispin)%pw,&
                    error=error)
            ENDDO
            DEALLOCATE(rho_m_rspace)

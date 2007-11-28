@@ -36,7 +36,6 @@ MODULE kg_gpw_pw_env_methods
                                              cell_type,&
                                              init_cell,&
                                              pbc
-  USE coefficient_types,               ONLY: coeff_deallocate
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -91,14 +90,15 @@ MODULE kg_gpw_pw_env_methods
                                              pw_poisson_release,&
                                              pw_poisson_type
   USE pw_pool_types,                   ONLY: pw_pool_create,&
-                                             pw_pool_init_coeff,&
+                                             pw_pool_create_pw,&
                                              pw_pool_p_type,&
                                              pw_pool_type,&
                                              pw_pools_dealloc
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
-                                             RECIPROCALSPACE
+                                             RECIPROCALSPACE,&
+                                             pw_release
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_rho_types,                    ONLY: qs_rho_release,&
@@ -1053,7 +1053,7 @@ CONTAINS
               IF (.NOT.failure) THEN
                 IF (ASSOCIATED(rho_mol%rho_r)) THEN
                   DO i=1,SIZE(rho_mol%rho_r)
-                     CALL coeff_deallocate(rho_mol%rho_r(i),error=error)
+                     CALL pw_release(rho_mol%rho_r(i)%pw,error=error)
                   END DO
                   DEALLOCATE(rho_mol%rho_r,stat=istat)
                   CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
@@ -1063,7 +1063,7 @@ CONTAINS
               END IF
               IF (.NOT.failure) THEN
                 DO i=1,nspins
-                   CALL pw_pool_init_coeff(auxbas_pw_pool,rho_mol%rho_r(i),&
+                   CALL pw_pool_create_pw(auxbas_pw_pool,rho_mol%rho_r(i)%pw,&
                         use_data=REALDATA3D,in_space=REALSPACE,error=error)
                 END DO
               END IF
@@ -1074,7 +1074,7 @@ CONTAINS
               IF (.NOT.failure) THEN
                 IF (ASSOCIATED(rho_mol%rho_g)) THEN
                   DO i=1,SIZE(rho_mol%rho_g)
-                     CALL coeff_deallocate(rho_mol%rho_g(i),error=error)
+                     CALL pw_release(rho_mol%rho_g(i)%pw,error=error)
                   END DO
                   DEALLOCATE(rho_mol%rho_g,STAT=istat)
                   CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
@@ -1084,7 +1084,7 @@ CONTAINS
               END IF
               IF (.NOT.failure) THEN
                 DO i=1,nspins
-                   CALL pw_pool_init_coeff(auxbas_pw_pool,rho_mol%rho_g(i),&
+                   CALL pw_pool_create_pw(auxbas_pw_pool,rho_mol%rho_g(i)%pw,&
                        use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
                 END DO
               END IF
@@ -1097,7 +1097,7 @@ CONTAINS
                 IF (.NOT.failure) THEN
                   IF (ASSOCIATED(rho_mol%tau_r)) THEN
                     DO i=1,SIZE(rho_mol%tau_r)
-                       CALL coeff_deallocate(rho_mol%tau_r(i),error=error)
+                       CALL pw_release(rho_mol%tau_r(i)%pw,error=error)
                     END DO
                     DEALLOCATE(rho_mol%tau_r,stat=istat)
                     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
@@ -1107,7 +1107,7 @@ CONTAINS
                 END IF
                 IF (.NOT.failure) THEN
                   DO i=1,nspins
-                     CALL pw_pool_init_coeff(auxbas_pw_pool,rho_mol%tau_r(i),&
+                     CALL pw_pool_create_pw(auxbas_pw_pool,rho_mol%tau_r(i)%pw,&
                           use_data=REALDATA3D,in_space=REALSPACE,error=error)
                     END DO
                 END IF
@@ -1118,7 +1118,7 @@ CONTAINS
                 IF (.NOT.failure) THEN
                   IF (ASSOCIATED(rho_mol%tau_g)) THEN
                       DO i=1,SIZE(rho_mol%tau_g)
-                       CALL coeff_deallocate(rho_mol%tau_g(i),error=error)
+                       CALL pw_release(rho_mol%tau_g(i)%pw,error=error)
                     END DO
                     DEALLOCATE(rho_mol%tau_g,STAT=istat)
                     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
@@ -1128,7 +1128,7 @@ CONTAINS
                   END IF
                 IF (.NOT.failure) THEN
                   DO i=1,nspins
-                     CALL pw_pool_init_coeff(auxbas_pw_pool,rho_mol%tau_g(i),&
+                     CALL pw_pool_create_pw(auxbas_pw_pool,rho_mol%tau_g(i)%pw,&
                           use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
                     END DO
                 END IF

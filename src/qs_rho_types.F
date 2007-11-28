@@ -25,9 +25,9 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qs_rho_types
-  USE coefficient_types,               ONLY: coeff_deallocate,&
-                                             coeff_type
   USE kinds,                           ONLY: dp
+  USE pw_types,                        ONLY: pw_release,&
+                                             pw_p_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
                                              real_matrix_p_type
   USE timings,                         ONLY: timeset,&
@@ -57,7 +57,7 @@ MODULE qs_rho_types
 !!     which ones are valid.
 !!
 !!   NOTES
-!!     If coeff_type would implement retain/release it would be nice to
+!!     If pw_p_type would implement retain/release it would be nice to
 !!     store also the core charge and the qs_charges in this structure...
 !!
 !!   ATTRIBUTES
@@ -85,8 +85,8 @@ MODULE qs_rho_types
 !***************************************************************************
   TYPE qs_rho_type
      TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: rho_ao
-     TYPE(coeff_type), DIMENSION(:), POINTER :: rho_g, rho_r
-     TYPE(coeff_type), DIMENSION(:), POINTER :: tau_g, tau_r
+     TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_g, rho_r
+     TYPE(pw_p_type), DIMENSION(:), POINTER :: tau_g, tau_r
      LOGICAL ::  rho_g_valid, &
           rho_r_valid, &
           tau_r_valid, &
@@ -211,28 +211,28 @@ CONTAINS
           END IF
           IF (ASSOCIATED(rho_struct%rho_r)) THEN
              DO i=1,SIZE(rho_struct%rho_r)
-                CALL coeff_deallocate(rho_struct%rho_r(i),error=error)
+                CALL pw_release(rho_struct%rho_r(i)%pw,error=error)
              END DO
              DEALLOCATE(rho_struct%rho_r,stat=stat)
              CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           END IF
           IF (ASSOCIATED(rho_struct%tau_r)) THEN
              DO i=1,SIZE(rho_struct%tau_r)
-                CALL coeff_deallocate(rho_struct%tau_r(i),error=error)
+                CALL pw_release(rho_struct%tau_r(i)%pw,error=error)
              END DO
              DEALLOCATE(rho_struct%tau_r,stat=stat)
              CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           END IF
           IF (ASSOCIATED(rho_struct%rho_g)) THEN
              DO i=1,SIZE(rho_struct%rho_g)
-                CALL coeff_deallocate(rho_struct%rho_g(i),error=error)
+                CALL pw_release(rho_struct%rho_g(i)%pw,error=error)
              END DO
              DEALLOCATE(rho_struct%rho_g,stat=stat)
              CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           END IF
           IF (ASSOCIATED(rho_struct%tau_g)) THEN
              DO i=1,SIZE(rho_struct%tau_g)
-                CALL coeff_deallocate(rho_struct%tau_g(i),error=error)
+                CALL pw_release(rho_struct%tau_g(i)%pw,error=error)
              END DO
              DEALLOCATE(rho_struct%tau_g,stat=stat)
              CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
@@ -323,7 +323,7 @@ CONTAINS
 !!         rho_r_valid, rho_g_valid, tau_r_valid, tau_g_valid, rebuild_each, tot_rho_r, error)
 !!       Type(qs_rho_type), Pointer:: rho_struct
 !!       Type(real_matrix_p_type), Dimension(:), Pointer, Optional:: rho_ao
-!!       Type(coeff_type), Dimension(:), Pointer, Optional:: rho_g, rho_r
+!!       Type(pw_p_type), Dimension(:), Pointer, Optional:: rho_g, rho_r
 !!       Logical, Intent (OUT), Optional:: rho_g_valid,&
 !!         rho_r_valid
 !!       Integer, Intent (OUT), Optional:: rebuild_each
@@ -356,7 +356,7 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho_ao
-    TYPE(coeff_type), DIMENSION(:), &
+    TYPE(pw_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho_r, rho_g, tau_r, tau_g
     LOGICAL, INTENT(out), OPTIONAL           :: rho_r_valid, rho_g_valid, &
                                                 tau_r_valid, tau_g_valid

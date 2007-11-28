@@ -23,9 +23,9 @@
 !******************************************************************************
 
 MODULE kg_rho_types
-  USE coefficient_types,               ONLY: coeff_deallocate,&
-                                             coeff_type
   USE kinds,                           ONLY: dp
+  USE pw_types,                        ONLY: pw_release,&
+                                             pw_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -41,7 +41,7 @@ MODULE kg_rho_types
      INTEGER :: ref_count, id_nr
      REAL(KIND=dp) :: total_rho_gspace, total_rho_core_rspace, &
                   total_rho_rspace
-     TYPE(coeff_type), POINTER                    :: rho_g, &
+     TYPE(pw_p_type), POINTER                     :: rho_g, &
                                                      rhop_g, &
                                                      rho_r, &
                                                      rhop_r,&
@@ -57,7 +57,7 @@ CONTAINS
 SUBROUTINE kg_rho_get(kg_rho, rho_r, rho_g, rhop_r, rhop_g, &
                       rho_core, error)
     TYPE(kg_rho_type), POINTER               :: kg_rho
-    TYPE(coeff_type), OPTIONAL, POINTER      :: rho_r, rho_g, rhop_r, rhop_g, &
+    TYPE(pw_p_type), OPTIONAL, POINTER       :: rho_r, rho_g, rhop_r, rhop_g, &
                                                 rho_core
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -130,27 +130,27 @@ END SUBROUTINE kg_rho_retain
     kg_rho%ref_count=kg_rho%ref_count-1
     IF (kg_rho%ref_count<1) THEN
       IF (ASSOCIATED(kg_rho%rho_core)) THEN
-        CALL coeff_deallocate(kg_rho%rho_core,error=error)
+        CALL pw_release(kg_rho%rho_core%pw,error=error)
         DEALLOCATE(kg_rho%rho_core,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF
       IF (ASSOCIATED(kg_rho%rho_r)) THEN
-        CALL coeff_deallocate(kg_rho%rho_r,error=error)
+        CALL pw_release(kg_rho%rho_r%pw,error=error)
         DEALLOCATE(kg_rho%rho_r,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF
       IF (ASSOCIATED(kg_rho%rho_g)) THEN
-        CALL coeff_deallocate(kg_rho%rho_g,error=error)
+        CALL pw_release(kg_rho%rho_g%pw,error=error)
         DEALLOCATE(kg_rho%rho_g,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF
       IF (ASSOCIATED(kg_rho%rhop_r)) THEN
-        CALL coeff_deallocate(kg_rho%rhop_r,error=error)
+        CALL pw_release(kg_rho%rhop_r%pw,error=error)
         DEALLOCATE(kg_rho%rhop_r,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF
       IF (ASSOCIATED(kg_rho%rhop_g)) THEN
-        CALL coeff_deallocate(kg_rho%rhop_g,error=error)
+        CALL pw_release(kg_rho%rhop_g%pw,error=error)
         DEALLOCATE(kg_rho%rhop_g,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF

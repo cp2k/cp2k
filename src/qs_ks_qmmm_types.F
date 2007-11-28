@@ -24,7 +24,6 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qs_ks_qmmm_types
-  USE coefficient_types,               ONLY: coeff_type
   USE cube_utils,                      ONLY: cube_info_type,&
                                              destroy_cube_info
   USE input_section_types,             ONLY: section_vals_type
@@ -32,7 +31,8 @@ MODULE qs_ks_qmmm_types
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_release,&
                                              pw_env_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
+  USE pw_types,                        ONLY: pw_p_type
+  USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
                                              pw_pool_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
                                              real_matrix_p_type
@@ -79,7 +79,7 @@ MODULE qs_ks_qmmm_types
                 id_nr, ref_count
 
      TYPE(pw_env_type), POINTER                  :: pw_env
-     TYPE(coeff_type)                            :: v_qmmm_rspace
+     TYPE(pw_p_type)                             :: v_qmmm_rspace
      TYPE(cube_info_type),DIMENSION(:), POINTER  :: cube_info
      TYPE(real_matrix_p_type), DIMENSION(:), &
           POINTER                                :: matrix_h
@@ -164,7 +164,7 @@ CONTAINS
 
        IF (ks_qmmm_env%ref_count<1) THEN
           CALL pw_env_get(ks_qmmm_env%pw_env,auxbas_pw_pool=pool,error=error)
-          CALL pw_pool_give_back_coeff(pool,ks_qmmm_env%v_qmmm_rspace,error=error)
+          CALL pw_pool_give_back_pw(pool,ks_qmmm_env%v_qmmm_rspace%pw,error=error)
           CALL pw_env_release(ks_qmmm_env%pw_env,error=error)
           IF (ASSOCIATED(ks_qmmm_env%cube_info))THEN
              DO i=1,SIZE(ks_qmmm_env%cube_info)

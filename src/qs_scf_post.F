@@ -27,10 +27,6 @@ MODULE qs_scf_post
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
                                              pbc
-  USE coefficient_types,               ONLY: coeff_copy,&
-                                             coeff_reduce,&
-                                             coeff_sumup,&
-                                             coeff_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              tddfpt_control_type
   USE cp_ddapc_util,                   ONLY: get_ddapc
@@ -79,8 +75,8 @@ MODULE qs_scf_post
   USE preconditioner,                  ONLY: preconditioner_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
-                                             pw_pool_init_coeff,&
+  USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
+                                             pw_pool_create_pw,&
                                              pw_pool_p_type,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
@@ -88,7 +84,11 @@ MODULE qs_scf_post
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_transfer,&
-                                             pw_integrate_function
+                                             pw_integrate_function,&
+                                             pw_copy,&
+                                             pw_reduce,&
+                                             pw_p_type,&
+                                             pw_sumup
   USE qs_collocate_density,            ONLY: calculate_wavefunction
   USE qs_conductivity,                 ONLY: optical_conductivity
   USE qs_electric_field_gradient,      ONLY: qs_efg_calc
@@ -198,8 +198,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: scenter
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: center
-    TYPE(coeff_type)                         :: wf_g, wf_r
-    TYPE(coeff_type), POINTER                :: rho_core
+    TYPE(pw_p_type)                          :: wf_g, wf_r
+    TYPE(pw_p_type), POINTER                 :: rho_core
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: unoccupied_orbs
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
@@ -292,10 +292,10 @@ CONTAINS
             ).OR. p_loc ) THEN
           CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
                           pw_pools=pw_pools,error=error)
-          CALL pw_pool_init_coeff(auxbas_pw_pool,wf_r,&
+          CALL pw_pool_create_pw(auxbas_pw_pool,wf_r%pw,&
                                   use_data = REALDATA3D,&
                                   in_space = REALSPACE, error=error)
-          CALL pw_pool_init_coeff(auxbas_pw_pool,wf_g,&
+          CALL pw_pool_create_pw(auxbas_pw_pool,wf_g%pw,&
                                   use_data = COMPLEXDATA1D,&
                                   in_space = RECIPROCALSPACE, error=error)
        END IF
@@ -526,9 +526,9 @@ CONTAINS
               ( section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO",error=error) /= 0 .OR. &
                 section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO",error=error) /=0 ) &
             ).OR. p_loc ) THEN
-          CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r,&
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw,&
                error=error)
-          CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_g,&
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_g%pw,&
                error=error)
        END IF
 
@@ -688,7 +688,7 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(coeff_type)                         :: wf_g, wf_r
+    TYPE(pw_p_type)                          :: wf_g, wf_r
     TYPE(cp_fm_type), POINTER                :: mo_localized
     TYPE(particle_list_type), POINTER        :: particles
     INTEGER, INTENT(IN)                      :: homo, ispin
@@ -924,7 +924,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_fm_type), POINTER                :: mo_coeff
-    TYPE(coeff_type)                         :: wf_g, wf_r
+    TYPE(pw_p_type)                          :: wf_g, wf_r
     TYPE(particle_list_type), POINTER        :: particles
     INTEGER, INTENT(IN)                      :: homo, ispin
     LOGICAL, INTENT(IN)                      :: ionode
@@ -998,7 +998,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: unoccupied_orbs
-    TYPE(coeff_type)                         :: wf_g, wf_r
+    TYPE(pw_p_type)                          :: wf_g, wf_r
     TYPE(particle_list_type), POINTER        :: particles
     INTEGER, INTENT(IN)                      :: nlumos, homo, ispin
     LOGICAL, INTENT(IN)                      :: ionode
@@ -1516,8 +1516,8 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type)                         :: wf_r
-    TYPE(coeff_type), POINTER                :: rho0_s_gs, rho_core
+    TYPE(pw_p_type)                          :: wf_r
+    TYPE(pw_p_type), POINTER                 :: rho0_s_gs, rho_core
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -1574,15 +1574,15 @@ CONTAINS
           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
           CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
                pw_pools=pw_pools,error=error)
-          CALL pw_pool_init_coeff(auxbas_pw_pool,wf_r,&
+          CALL pw_pool_create_pw(auxbas_pw_pool,wf_r%pw,&
                use_data = REALDATA3D,&
                in_space = REALSPACE, error=error)
-          CALL coeff_copy(rho%rho_r(1),wf_r)
-          CALL coeff_reduce(rho%rho_r(2),wf_r)
+          CALL pw_copy(rho%rho_r(1)%pw,wf_r%pw)
+          CALL pw_reduce(rho%rho_r(2)%pw,wf_r%pw)
           total_abs_spin_dens=pw_integrate_function(wf_r%pw,operator="ABS")
           IF (ionode) WRITE(UNIT=output_unit,fmt='(/,(T3,A,T60,F20.10))') &
                "Integrated absolute spin density  : ",total_abs_spin_dens
-          CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r, error=error)
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw, error=error)
           !
           ! XXX Fix Me XXX
           ! should be extended to the case where added MOs are present
@@ -1620,7 +1620,7 @@ CONTAINS
           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
           CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
                pw_pools=pw_pools,error=error)
-          CALL pw_pool_init_coeff(auxbas_pw_pool,wf_r,&
+          CALL pw_pool_create_pw(auxbas_pw_pool,wf_r%pw,&
                use_data = REALDATA3D,&
                in_space = REALSPACE, error=error)
           IF (dft_control%qs_control%gapw) THEN
@@ -1629,7 +1629,7 @@ CONTAINS
              CALL pw_transfer(rho_core%pw,wf_r%pw)
           END IF
           DO ispin=1,dft_control%nspins
-             CALL coeff_sumup(rho%rho_r(ispin),wf_r)
+             CALL pw_sumup(rho%rho_r(ispin)%pw,wf_r%pw)
           END DO
           filename = "TOTAL_DENSITY"
           unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%TOT_DENSITY_CUBE",&
@@ -1640,7 +1640,7 @@ CONTAINS
                error=error)
           CALL cp_print_key_finished_output(unit_nr,logger,input,&
                "DFT%PRINT%TOT_DENSITY_CUBE",error=error)
-          CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r, error=error)
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw, error=error)
        END IF
 
        !   *** Cube file of the electron density ***
@@ -1652,11 +1652,11 @@ CONTAINS
              CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
              CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
                   pw_pools=pw_pools,error=error)
-             CALL pw_pool_init_coeff(auxbas_pw_pool,wf_r,&
+             CALL pw_pool_create_pw(auxbas_pw_pool,wf_r%pw,&
                   use_data = REALDATA3D,&
                   in_space = REALSPACE, error=error)
-             CALL coeff_copy(rho%rho_r(1),wf_r)
-             CALL coeff_sumup(rho%rho_r(2),wf_r)
+             CALL pw_copy(rho%rho_r(1)%pw,wf_r%pw)
+             CALL pw_sumup(rho%rho_r(2)%pw,wf_r%pw)
              filename = "ELECTRON_DENSITY"
              unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
                   extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
@@ -1666,8 +1666,8 @@ CONTAINS
                   error=error)
              CALL cp_print_key_finished_output(unit_nr,logger,input,&
                   "DFT%PRINT%E_DENSITY_CUBE",error=error)
-             CALL coeff_copy(rho%rho_r(1),wf_r)
-             CALL coeff_reduce(rho%rho_r(2),wf_r)
+             CALL pw_copy(rho%rho_r(1)%pw,wf_r%pw)
+             CALL pw_reduce(rho%rho_r(2)%pw,wf_r%pw)
              filename = "SPIN_DENSITY"
              unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
                   extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
@@ -1677,7 +1677,7 @@ CONTAINS
                   error=error)
              CALL cp_print_key_finished_output(unit_nr,logger,input,&
                   "DFT%PRINT%E_DENSITY_CUBE",error=error)
-             CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r, error=error)
+             CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw, error=error)
           ELSE
              filename = "ELECTRON_DENSITY"
              unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&

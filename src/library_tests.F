@@ -30,11 +30,6 @@ MODULE library_tests
                                              cell_type,&
                                              get_hinv
   USE cg_test,                         ONLY: clebsch_gordon_test
-  USE coefficient_types,               ONLY: coeff_allocate,&
-                                             coeff_deallocate,&
-                                             coeff_transform_space,&
-                                             coeff_type,&
-                                             coeff_zero
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                              cp_blacs_env_release,&
                                              cp_blacs_env_write
@@ -90,7 +85,12 @@ MODULE library_tests
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              COMPLEXDATA3D,&
                                              REALDATA3D,&
-                                             RECIPROCALSPACE
+                                             RECIPROCALSPACE,&
+                                             pw_create,&
+                                             pw_release,&
+                                             pw_transfer,&
+                                             pw_p_type,&
+                                             pw_zero
   USE real_space_test,                 ONLY: rs_test
   USE termination,                     ONLY: stop_memory
 #include "cp_common_uses.h"
@@ -741,7 +741,7 @@ SUBROUTINE pw_fft_test ( para_env, iw, globenv, error )
     REAL(KIND=dp)                            :: cutoff, em, et, flops, gsq, &
                                                 perf, r, t, tend, tim, tstart
     TYPE(cell_type), POINTER                 :: box
-    TYPE(coeff_type)                         :: ca, cb, cc
+    TYPE(pw_p_type)                          :: ca, cb, cc
     TYPE(pw_grid_type), POINTER              :: grid
 
 !..the unit cell
@@ -773,12 +773,12 @@ SUBROUTINE pw_fft_test ( para_env, iw, globenv, error )
                        rs_dims=(/para_env%num_pe,1/) , iounit=iw, error=error)
   no = grid % npts
 
-  CALL coeff_allocate ( ca, grid, COMPLEXDATA1D ,error=error)
-  CALL coeff_allocate ( cb, grid, COMPLEXDATA3D ,error=error)
-  CALL coeff_allocate ( cc, grid, COMPLEXDATA1D ,error=error)
-  CALL coeff_zero ( ca )
-  CALL coeff_zero ( cb )
-  CALL coeff_zero ( cc )
+  CALL pw_create ( ca%pw, grid, COMPLEXDATA1D ,error=error)
+  CALL pw_create ( cb%pw, grid, COMPLEXDATA3D ,error=error)
+  CALL pw_create ( cc%pw, grid, COMPLEXDATA1D ,error=error)
+  CALL pw_zero ( ca%pw )
+  CALL pw_zero ( cb%pw )
+  CALL pw_zero ( cc%pw )
 
   ca % pw % in_space = RECIPROCALSPACE
   nn = SIZE ( ca % pw % cc  )
@@ -790,8 +790,8 @@ SUBROUTINE pw_fft_test ( para_env, iw, globenv, error )
   flops = PRODUCT ( no ) * 30.0_dp * LOG ( REAL ( MAXVAL ( no ),KIND=dp) )
   tstart = m_cputime ( )
   DO ip = 1, ntim
-    CALL coeff_transform_space ( ca, cb )
-    CALL coeff_transform_space ( cb, cc )
+    CALL pw_transfer ( ca%pw, cb%pw )
+    CALL pw_transfer ( cb%pw, cc%pw )
   END DO
   tend = m_cputime ( )
   t = tend - tstart+threshold
@@ -807,13 +807,13 @@ SUBROUTINE pw_fft_test ( para_env, iw, globenv, error )
   CALL mp_max ( em, para_env%group )
 
   IF ( em > toler .OR. et > toler ) THEN
-    CALL coeff_transform_space ( ca, cb, .TRUE. )
-    CALL coeff_transform_space ( cb, cc, .TRUE. )
+    CALL pw_transfer ( ca%pw, cb%pw, .TRUE. )
+    CALL pw_transfer ( cb%pw, cc%pw, .TRUE. )
   ENDIF
 
-  CALL coeff_deallocate ( ca ,error=error)
-  CALL coeff_deallocate ( cb ,error=error)
-  CALL coeff_deallocate ( cc ,error=error)
+  CALL pw_release ( ca%pw ,error=error)
+  CALL pw_release ( cb%pw ,error=error)
+  CALL pw_release ( cc%pw ,error=error)
 
   CALL pw_grid_release ( grid ,error=error)
 
@@ -836,12 +836,12 @@ SUBROUTINE pw_fft_test ( para_env, iw, globenv, error )
                        rs_dims=(/para_env%num_pe,1/) , iounit=iw, error=error)
   no = grid % npts
 
-  CALL coeff_allocate ( ca, grid, COMPLEXDATA1D ,error=error)
-  CALL coeff_allocate ( cb, grid, REALDATA3D ,error=error)
-  CALL coeff_allocate ( cc, grid, COMPLEXDATA1D ,error=error)
-  CALL coeff_zero ( ca )
-  CALL coeff_zero ( cb )
-  CALL coeff_zero ( cc )
+  CALL pw_create ( ca%pw, grid, COMPLEXDATA1D ,error=error)
+  CALL pw_create ( cb%pw, grid, REALDATA3D ,error=error)
+  CALL pw_create ( cc%pw, grid, COMPLEXDATA1D ,error=error)
+  CALL pw_zero ( ca%pw )
+  CALL pw_zero ( cb%pw )
+  CALL pw_zero ( cc%pw )
 
   ca % pw % in_space = RECIPROCALSPACE
   nn = SIZE ( ca % pw % cc  )
@@ -853,8 +853,8 @@ SUBROUTINE pw_fft_test ( para_env, iw, globenv, error )
   flops = PRODUCT ( no ) * 30.0_dp * LOG ( REAL ( MAXVAL ( no ),KIND=dp) )
   tstart = m_cputime ( )
   DO ip = 1, ntim
-    CALL coeff_transform_space ( ca, cb )
-    CALL coeff_transform_space ( cb, cc )
+    CALL pw_transfer ( ca%pw, cb%pw )
+    CALL pw_transfer ( cb%pw, cc%pw )
   END DO
   tend = m_cputime ( )
   t = tend - tstart+threshold
@@ -870,13 +870,13 @@ SUBROUTINE pw_fft_test ( para_env, iw, globenv, error )
   CALL mp_max ( em, para_env%group )
 
   IF ( em > toler .OR. et > toler ) THEN
-    CALL coeff_transform_space ( ca, cb, .TRUE. )
-    CALL coeff_transform_space ( cb, cc, .TRUE. )
+    CALL pw_transfer ( ca%pw, cb%pw, .TRUE. )
+    CALL pw_transfer ( cb%pw, cc%pw, .TRUE. )
   ENDIF
 
-  CALL coeff_deallocate ( ca ,error=error)
-  CALL coeff_deallocate ( cb ,error=error)
-  CALL coeff_deallocate ( cc ,error=error)
+  CALL pw_release ( ca%pw ,error=error)
+  CALL pw_release ( cb%pw ,error=error)
+  CALL pw_release ( cc%pw ,error=error)
 
   CALL pw_grid_release ( grid ,error=error)
 
@@ -901,12 +901,12 @@ SUBROUTINE pw_fft_test ( para_env, iw, globenv, error )
                        rs_dims=(/para_env%num_pe,1/) , iounit=iw, error=error)
   no = grid % npts
 
-  CALL coeff_allocate ( ca, grid, COMPLEXDATA1D ,error=error)
-  CALL coeff_allocate ( cb, grid, REALDATA3D ,error=error)
-  CALL coeff_allocate ( cc, grid, COMPLEXDATA1D ,error=error)
-  CALL coeff_zero ( ca )
-  CALL coeff_zero ( cb )
-  CALL coeff_zero ( cc )
+  CALL pw_create ( ca%pw, grid, COMPLEXDATA1D ,error=error)
+  CALL pw_create ( cb%pw, grid, REALDATA3D ,error=error)
+  CALL pw_create ( cc%pw, grid, COMPLEXDATA1D ,error=error)
+  CALL pw_zero ( ca%pw )
+  CALL pw_zero ( cb%pw )
+  CALL pw_zero ( cc%pw )
 
   ca % pw % in_space = RECIPROCALSPACE
   nn = SIZE ( ca % pw % cc  )
@@ -918,8 +918,8 @@ SUBROUTINE pw_fft_test ( para_env, iw, globenv, error )
   flops = PRODUCT ( no ) * 30.0_dp * LOG ( REAL ( MAXVAL ( no ),KIND=dp) )
   tstart = m_cputime ( )
   DO ip = 1, ntim
-    CALL coeff_transform_space ( ca, cb )
-    CALL coeff_transform_space ( cb, cc )
+    CALL pw_transfer ( ca%pw, cb%pw )
+    CALL pw_transfer ( cb%pw, cc%pw )
   END DO
   tend = m_cputime ( )
   t = tend - tstart+threshold
@@ -935,13 +935,13 @@ SUBROUTINE pw_fft_test ( para_env, iw, globenv, error )
   CALL mp_max ( em, para_env%group )
 
   IF ( em > toler .OR. et > toler ) THEN
-    CALL coeff_transform_space ( ca, cb, .TRUE. )
-    CALL coeff_transform_space ( cb, cc, .TRUE. )
+    CALL pw_transfer ( ca%pw, cb%pw, .TRUE. )
+    CALL pw_transfer ( cb%pw, cc%pw, .TRUE. )
   ENDIF
 
-  CALL coeff_deallocate ( ca ,error=error)
-  CALL coeff_deallocate ( cb ,error=error)
-  CALL coeff_deallocate ( cc ,error=error)
+  CALL pw_release ( ca%pw ,error=error)
+  CALL pw_release ( cb%pw ,error=error)
+  CALL pw_release ( cc%pw ,error=error)
 
   CALL pw_grid_release ( grid ,error=error)
 
@@ -965,12 +965,12 @@ SUBROUTINE pw_fft_test ( para_env, iw, globenv, error )
                        rs_dims=(/para_env%num_pe,1/) , iounit=iw, error=error)
   no = grid % npts
 
-  CALL coeff_allocate ( ca, grid, COMPLEXDATA1D ,error=error)
-  CALL coeff_allocate ( cb, grid, COMPLEXDATA3D ,error=error)
-  CALL coeff_allocate ( cc, grid, COMPLEXDATA1D ,error=error)
-  CALL coeff_zero ( ca )
-  CALL coeff_zero ( cb )
-  CALL coeff_zero ( cc )
+  CALL pw_create ( ca%pw, grid, COMPLEXDATA1D ,error=error)
+  CALL pw_create ( cb%pw, grid, COMPLEXDATA3D ,error=error)
+  CALL pw_create ( cc%pw, grid, COMPLEXDATA1D ,error=error)
+  CALL pw_zero ( ca%pw )
+  CALL pw_zero ( cb%pw )
+  CALL pw_zero ( cc%pw )
 
   ca % pw % in_space = RECIPROCALSPACE
   nn = SIZE ( ca % pw % cc  )
@@ -982,8 +982,8 @@ SUBROUTINE pw_fft_test ( para_env, iw, globenv, error )
   flops = PRODUCT ( no ) * 30.0_dp * LOG ( REAL ( MAXVAL ( no ),KIND=dp) )
   tstart = m_cputime ( )
   DO ip = 1, ntim
-    CALL coeff_transform_space ( ca, cb )
-    CALL coeff_transform_space ( cb, cc )
+    CALL pw_transfer ( ca%pw, cb%pw )
+    CALL pw_transfer ( cb%pw, cc%pw )
   END DO
   tend = m_cputime ( )
   t = tend - tstart+threshold
@@ -999,13 +999,13 @@ SUBROUTINE pw_fft_test ( para_env, iw, globenv, error )
   CALL mp_max ( em, para_env%group )
 
   IF ( em > toler .OR. et > toler ) THEN
-    CALL coeff_transform_space ( ca, cb, .TRUE. )
-    CALL coeff_transform_space ( cb, cc, .TRUE. )
+    CALL pw_transfer ( ca%pw, cb%pw, .TRUE. )
+    CALL pw_transfer ( cb%pw, cc%pw, .TRUE. )
   ENDIF
 
-  CALL coeff_deallocate ( ca ,error=error)
-  CALL coeff_deallocate ( cb ,error=error)
-  CALL coeff_deallocate ( cc ,error=error)
+  CALL pw_release ( ca%pw ,error=error)
+  CALL pw_release ( cb%pw ,error=error)
+  CALL pw_release ( cc%pw ,error=error)
 
   CALL pw_grid_release ( grid ,error=error)
 

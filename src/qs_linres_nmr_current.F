@@ -35,11 +35,6 @@ MODULE qs_linres_nmr_current
                                              gto_basis_set_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE coefficient_types,               ONLY: coeff_copy,&
-                                             coeff_scale,&
-                                             coeff_sumup,&
-                                             coeff_type,&
-                                             coeff_zero
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
@@ -80,15 +75,20 @@ MODULE qs_linres_nmr_current
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
-                                             pw_pool_init_coeff,&
+  USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
+                                             pw_pool_create_pw,&
                                              pw_pool_p_type,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_integrate_function
+                                             pw_integrate_function,&
+                                             pw_copy,&
+                                             pw_scale,&
+                                             pw_sumup,&
+                                             pw_zero,&
+                                             pw_p_type
   USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace,&
                                              density_rs2pw,&
                                              lgrid_type
@@ -207,11 +207,11 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), POINTER       :: vecbuf_psi1
     REAL(dp), EXTERNAL                       :: DDOT
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type)                         :: pw_gspace_work, &
+    TYPE(pw_p_type)                          :: pw_gspace_work, &
                                                 shift_pw_rspace, wf_r
-    TYPE(coeff_type), DIMENSION(:, :), &
+    TYPE(pw_p_type), DIMENSION(:, :), &
       POINTER                                :: shift_pw_gspace
-    TYPE(coeff_type), POINTER                :: rho_gspace, rho_rspace
+    TYPE(pw_p_type), POINTER                 :: rho_gspace, rho_rspace
     TYPE(cp_2d_r_p_type), DIMENSION(3)       :: vecbuf
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: fm_work1, mo_coeff, psi0_fk, &
@@ -278,7 +278,7 @@ CONTAINS
        IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
             &    "PRINT%CURRENT_CUBES",error=error),cp_p_file)) THEN
           CALL rs_pool_create_rs(auxbas_rs_pool,rs,error=error)
-          CALL pw_pool_init_coeff(auxbas_pw_pool,wf_r,use_data=REALDATA3D,&
+          CALL pw_pool_create_pw(auxbas_pw_pool,wf_r%pw,use_data=REALDATA3D,&
                &                  in_space=REALSPACE,error=error)
        ENDIF
        !
@@ -287,19 +287,19 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        DO ispin = 1,dft_control%nspins
           DO idir = 1,3
-             CALL pw_pool_init_coeff(auxbas_pw_pool,shift_pw_gspace(idir,ispin),&
+             CALL pw_pool_create_pw(auxbas_pw_pool,shift_pw_gspace(idir,ispin)%pw,&
                   &                  use_data=COMPLEXDATA1D,&
                   &                  in_space=RECIPROCALSPACE,error=error)
-             CALL coeff_zero(shift_pw_gspace(idir,ispin))
+             CALL pw_zero(shift_pw_gspace(idir,ispin)%pw)
           ENDDO
        ENDDO
-       CALL pw_pool_init_coeff(auxbas_pw_pool,shift_pw_rspace,&
+       CALL pw_pool_create_pw(auxbas_pw_pool,shift_pw_rspace%pw,&
             &                  use_data=REALDATA3D,in_space=REALSPACE,error=error)
-       CALL coeff_zero(shift_pw_rspace)
-       CALL pw_pool_init_coeff(auxbas_pw_pool,pw_gspace_work,&
+       CALL pw_zero(shift_pw_rspace%pw)
+       CALL pw_pool_create_pw(auxbas_pw_pool,pw_gspace_work%pw,&
             &                  use_data=COMPLEXDATA1D,&
             &                  in_space=RECIPROCALSPACE,error=error)
-       CALL coeff_zero(pw_gspace_work)
+       CALL pw_zero(pw_gspace_work%pw)
        !
        ! Initialize shift and chi
        nmr_env%chemical_shift = 0.0_dp
@@ -429,7 +429,7 @@ CONTAINS
                   &                  ncol=homo,alpha=alpha,error=error)
              DO idir3=1,3
                 ! set to zero for the calculation of the shift
-                CALL coeff_zero(shift_pw_gspace(idir3,ispin))
+                CALL pw_zero(shift_pw_gspace(idir3,ispin)%pw)
              ENDDO
              DO idir = 1,3
                 !
@@ -446,8 +446,8 @@ CONTAINS
                    rho_gspace => rho_struct%rho_g(ispin)
                 ENDIF
 
-                CALL coeff_zero(rho_rspace)
-                CALL coeff_zero(rho_gspace)
+                CALL pw_zero(rho_rspace%pw)
+                CALL pw_zero(rho_gspace%pw)
                 CALL calculate_jrho_resp(density_matrix(ispin)%matrix, &
                      &                   density_matrix_ii(ispin)%matrix,&
                      &                   density_matrix_iii(ispin)%matrix, &
@@ -455,8 +455,8 @@ CONTAINS
                      &                   gapw,error=error)
 
                 scale_fac = cell%deth / twopi
-                CALL coeff_scale(rho_rspace,scale_fac)
-                CALL coeff_scale(rho_gspace,scale_fac)
+                CALL pw_scale(rho_rspace%pw,scale_fac)
+                CALL pw_scale(rho_gspace%pw,scale_fac)
 
                 jrho_tot_G(idir,i_B) = pw_integrate_function(rho_gspace%pw,isign=-1)
                 jrho_tot_R(idir,i_B) = pw_integrate_function(rho_rspace%pw,isign=-1)
@@ -482,8 +482,8 @@ CONTAINS
                       ! scale and add to the correct component of the shift column
                       CALL set_vecp_rev(idir,idir2,idir3)
                       scale_fac=fac_vecp(idir3,idir2,idir)
-                      CALL coeff_scale(pw_gspace_work,scale_fac)
-                      CALL coeff_sumup(pw_gspace_work,shift_pw_gspace(idir3,ispin))
+                      CALL pw_scale(pw_gspace_work%pw,scale_fac)
+                      CALL pw_sumup(pw_gspace_work%pw,shift_pw_gspace(idir3,ispin)%pw)
                    ENDIF
                 ENDDO
                 !
@@ -541,7 +541,7 @@ CONTAINS
                 ! Here first G->R and then interpolation to get the shifts.
                 ! The interpolation doesnt work in parallel yet.
                 ! The choice between both methods should be left to the user.
-                !CALL coeff_transform_space(shift_pw_gspace(idir),shift_pw_rspace)
+                !CALL pw_transfer(shift_pw_gspace(idir)%pw,shift_pw_rspace%pw)
                 !CALL interpolate_shift_pwgrid(nmr_env,pw_env,particle_set,cell,shift_pw_rspace,&
                 !             i_B,idir,nmr_section,error=error)
              ENDDO
@@ -556,13 +556,13 @@ CONTAINS
                 WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
              ENDIF
              DO idir = 1,3
-                CALL coeff_zero(wf_r)
+                CALL pw_zero(wf_r%pw)
                 !!WARNING
                 ! if nspins=2 here ist should be add instead of copy, or separated cubefiles
                 ! for the different spin should be written
                 !!WARNING
                 DO ispin =1 ,nspins
-                   CALL coeff_copy(nmr_env%jrho1_set(idir,i_B)%rho%rho_r(ispin),wf_r)
+                   CALL pw_copy(nmr_env%jrho1_set(idir,i_B)%rho%rho_r(ispin)%pw,wf_r%pw)
                 ENDDO
                 IF(gapw) THEN
                    ! Add the local hard and soft contributions
@@ -598,20 +598,20 @@ CONTAINS
        !
        IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
             &    "PRINT%CURRENT_CUBES",error=error),cp_p_file)) THEN
-          CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r,error=error)
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw,error=error)
           CALL rs_pool_give_back_rs(auxbas_rs_pool,rs, error=error)
        ENDIF
        !
        ! Dellocate grids for the calculation of jrho and the shift
-       CALL pw_pool_give_back_coeff(auxbas_pw_pool,pw_gspace_work,error=error)
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,pw_gspace_work%pw,error=error)
        DO ispin = 1,dft_control%nspins
           DO idir = 1,3
-             CALL pw_pool_give_back_coeff(auxbas_pw_pool,shift_pw_gspace(idir,ispin),error=error)
+             CALL pw_pool_give_back_pw(auxbas_pw_pool,shift_pw_gspace(idir,ispin)%pw,error=error)
           ENDDO
        ENDDO
        DEALLOCATE(shift_pw_gspace,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       CALL pw_pool_give_back_coeff(auxbas_pw_pool,shift_pw_rspace,error=error)
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,shift_pw_rspace%pw,error=error)
        !
        !
        DO ispin = 1,nspins
@@ -669,7 +669,7 @@ CONTAINS
     TYPE(real_matrix_type), POINTER          :: mat_jp, mat_jp_rii, &
                                                 mat_jp_riii
     INTEGER, INTENT(IN)                      :: iB, idir
-    TYPE(coeff_type), INTENT(INOUT)          :: rho_rs, rho_gs
+    TYPE(pw_p_type), INTENT(INOUT)           :: rho_rs, rho_gs
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN), OPTIONAL            :: soft_valid
     TYPE(cp_error_type), INTENT(inout)       :: error

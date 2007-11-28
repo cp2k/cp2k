@@ -20,12 +20,6 @@
 MODULE kg_energy
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
-  USE coefficient_types,               ONLY: coeff_copy,&
-                                             coeff_init,&
-                                             coeff_sumup,&
-                                             coeff_transform_space,&
-                                             coeff_type,&
-                                             coeff_zero
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
@@ -68,16 +62,13 @@ MODULE kg_energy
                                              mp_max
   USE pw_poisson_methods,              ONLY: pw_poisson_solve
   USE pw_poisson_types,                ONLY: pw_poisson_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
-                                             pw_pool_init_coeff,&
+  USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
+                                             pw_pool_create_pw,&
                                              pw_pool_type
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
-                                             RECIPROCALSPACE,&
-                                             pw_p_type,&
-                                             pw_release,&
-                                             pw_integrate_function
+  USE pw_types,                        ONLY: &
+       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_copy, &
+       pw_integrate_function, pw_p_type, pw_release, pw_sumup, pw_transfer, &
+       pw_zero
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_environment_types,            ONLY: qs_environment_type
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
@@ -160,7 +151,7 @@ SUBROUTINE kg_only_energies ( kg_env, force_env_section, error )
                                                 ionode
     REAL(KIND=dp)                            :: dvol, total_rho0_rspace
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type), POINTER                :: rho_core, rho_g, rho_r, &
+    TYPE(pw_p_type), POINTER                 :: rho_core, rho_g, rho_r, &
                                                 v_gspace
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -252,23 +243,23 @@ SUBROUTINE kg_only_energies ( kg_env, force_env_section, error )
   NULLIFY(my_rho_r)
 
 ! add the frozen electronic density to the core density
-  CALL coeff_sumup(rho_core,rho_g)
+  CALL pw_sumup(rho_core%pw,rho_g%pw)
 
   ALLOCATE(v_gspace,stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
 
   IF (.NOT.failure) THEN
-    CALL pw_pool_init_coeff(auxbas_pw_pool, v_gspace, &
+    CALL pw_pool_create_pw(auxbas_pw_pool, v_gspace%pw, &
                             use_data = COMPLEXDATA1D,&
                             in_space = RECIPROCALSPACE, error=error)
-    CALL coeff_zero(v_gspace)
+    CALL pw_zero(v_gspace%pw)
  END IF
 
 ! calculate electrostatic potential
 
   CALL pw_poisson_solve(poisson_env,rho_g%pw, energy % hartree,v_gspace%pw,error=error)
 
-  CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_gspace,error=error)
+  CALL pw_pool_give_back_pw(auxbas_pw_pool,v_gspace%pw,error=error)
   DEALLOCATE(v_gspace,stat=stat)
   CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
 
@@ -332,7 +323,7 @@ SUBROUTINE kg_std_energies ( kg_env, root_section, error )
     REAL(KIND=dp)                            :: maxerr, maxgrad, t1, t2
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(coeff_type), POINTER                :: vxc_r
+    TYPE(pw_p_type), POINTER                 :: vxc_r
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(diis_info_type), POINTER            :: diis_info
@@ -422,7 +413,7 @@ scf_loop: DO
 
   END DO scf_loop
 
-  CALL pw_pool_give_back_coeff(auxbas_pw_pool,vxc_r,error=error)
+  CALL pw_pool_give_back_pw(auxbas_pw_pool,vxc_r%pw,error=error)
   DEALLOCATE(vxc_r,stat=stat)
   CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
 
@@ -503,7 +494,7 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, force_env_section, error)
   ! vxc_r is allocated here
 
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(coeff_type), POINTER                :: vxc_r
+    TYPE(pw_p_type), POINTER                 :: vxc_r
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -517,7 +508,7 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, force_env_section, error)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type), POINTER                :: rho_core, rho_g, rho_r
+    TYPE(pw_p_type), POINTER                 :: rho_core, rho_g, rho_r
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -604,14 +595,14 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, force_env_section, error)
   CALL xc_vxc_pw_create1(my_vxc_r,my_vxc_tau,my_rho_r,my_rho_g,my_tau,&
        energy%exc,xc_section,cell,auxbas_pw_pool,error=error)
   ALLOCATE(vxc_r)
-  CALL coeff_init(vxc_r,pw=my_vxc_r(1)%pw,error=error)
+  vxc_r%pw => my_vxc_r(1)%pw
   NULLIFY(my_rho_r(1)%pw, my_vxc_r(1)%pw)
   DEALLOCATE(my_rho_r, my_vxc_r)
   NULLIFY(my_rho_r, my_vxc_r)
 
   vxc_r%pw%cr3d(:,:,:) =dvol*vxc_r%pw%cr3d(:,:,:)
 ! add the frozen electronic density to the core density
-  CALL coeff_sumup(rho_g,rho_core)
+  CALL pw_sumup(rho_g%pw,rho_core%pw)
 
   CALL timestop(0.0_dp,handle)
 
@@ -621,7 +612,7 @@ END SUBROUTINE init_energy_calculation
 SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, force_env_section, error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(coeff_type), POINTER                :: vxc_r
+    TYPE(pw_p_type), POINTER                 :: vxc_r
     REAL(KIND=dp), INTENT(inout)             :: maxgrad
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -639,7 +630,7 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, force_env_section, error )
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type), POINTER                :: rho_core, rho_g, rho_r, &
+    TYPE(pw_p_type), POINTER                 :: rho_core, rho_g, rho_r, &
                                                 rhop_g, rhop_r, v1xc_r, &
                                                 v2xc_r, v_gspace, v_rspace
     TYPE(cp_logger_type), POINTER            :: logger
@@ -692,22 +683,22 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, force_env_section, error )
   CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
 
   IF (.NOT.failure) THEN
-    CALL pw_pool_init_coeff(auxbas_pw_pool, v_gspace, &
+    CALL pw_pool_create_pw(auxbas_pw_pool, v_gspace%pw, &
                             use_data = COMPLEXDATA1D,&
                             in_space = RECIPROCALSPACE, error=error)
-    CALL coeff_zero(v_gspace)
-    CALL pw_pool_init_coeff(auxbas_pw_pool, v_rspace,&
+    CALL pw_zero(v_gspace%pw)
+    CALL pw_pool_create_pw(auxbas_pw_pool, v_rspace%pw,&
                             use_data = REALDATA3D,&
                             in_space = REALSPACE, error=error)
-    CALL coeff_zero(v_rspace)
-    CALL pw_pool_init_coeff(auxbas_pw_pool, v1xc_r,&
+    CALL pw_zero(v_rspace%pw)
+    CALL pw_pool_create_pw(auxbas_pw_pool, v1xc_r%pw,&
                             use_data = REALDATA3D,&
                             in_space = REALSPACE, error=error)
-    CALL coeff_zero(v1xc_r)
-    CALL pw_pool_init_coeff(auxbas_pw_pool, v2xc_r,&
+    CALL pw_zero(v1xc_r%pw)
+    CALL pw_pool_create_pw(auxbas_pw_pool, v2xc_r%pw,&
                             use_data = REALDATA3D,&
                             in_space = REALSPACE, error=error)
-    CALL coeff_zero(v2xc_r)
+    CALL pw_zero(v2xc_r%pw)
   END IF
 
   dvol=v_rspace%pw%pw_grid%dvol
@@ -720,8 +711,8 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, force_env_section, error )
       forces(:,:)=0.0_dp
     END IF
   END DO
-  CALL coeff_zero(rho_g)
-  CALL coeff_copy(rho_core,rho_g)
+  CALL pw_zero(rho_g%pw)
+  CALL pw_copy(rho_core%pw,rho_g%pw)
   rho%total_rho_gspace = pw_integrate_function(rho_g%pw)
 
   CALL calculate_drho_ppl(kg_env,calculate_forces,error)
@@ -732,14 +723,14 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, force_env_section, error )
                                  v2xc_r, e1_xc, e2_xc, xc_section, calculate_forces, error)
 
 ! add the polarization density to get the total density
-  CALL coeff_sumup(rhop_g,rho_g)
+  CALL pw_sumup(rhop_g%pw,rho_g%pw)
 
 ! calculate electrostatic potential
 
   CALL pw_poisson_solve(poisson_env,rho_g%pw, energy % hartree,v_gspace%pw,error=error)
 
-  CALL coeff_transform_space(v_gspace,v_rspace)
-  CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_gspace,error=error)
+  CALL pw_transfer(v_gspace%pw,v_rspace%pw)
+  CALL pw_pool_give_back_pw(auxbas_pw_pool,v_gspace%pw,error=error)
   DEALLOCATE(v_gspace,stat=stat)
   CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
 
@@ -750,13 +741,13 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, force_env_section, error )
   CALL calculate_vp_rspace_forces(v_rspace,kg_env, calculate_forces,error=error)
 
 ! deallocate work storage
-  CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace,error=error)
+  CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace%pw,error=error)
   DEALLOCATE(v_rspace,stat=stat)
   CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
-  CALL pw_pool_give_back_coeff(auxbas_pw_pool,v1xc_r,error=error)
+  CALL pw_pool_give_back_pw(auxbas_pw_pool,v1xc_r%pw,error=error)
   DEALLOCATE(v1xc_r,stat=stat)
   CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
-  CALL pw_pool_give_back_coeff(auxbas_pw_pool,v2xc_r,error=error)
+  CALL pw_pool_give_back_pw(auxbas_pw_pool,v2xc_r%pw,error=error)
   DEALLOCATE(v2xc_r,stat=stat)
   CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
 

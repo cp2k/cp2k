@@ -33,10 +33,6 @@ MODULE qs_linres_epr_nablavks
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
-  USE coefficient_types,               ONLY: coeff_copy,&
-                                             coeff_transform_space,&
-                                             coeff_type,&
-                                             coeff_zero
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -61,16 +57,19 @@ MODULE qs_linres_epr_nablavks
                                              pw_env_type
   USE pw_poisson_methods,              ONLY: pw_poisson_solve
   USE pw_poisson_types,                ONLY: pw_poisson_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
-                                             pw_pool_init_coeff,&
+  USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
+                                             pw_pool_create_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
+                                             pw_zero,&
                                              pw_copy,&
                                              pw_derive,&
                                              pw_sumup,&
+                                             pw_transfer,&
+                                             pw_p_type,&
                                              pw_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -141,8 +140,8 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: v_rspace_new, v_tau_rspace
-    TYPE(coeff_type), POINTER :: rho_tot_gspace, v_coulomb_gspace, &
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, v_tau_rspace
+    TYPE(pw_p_type), POINTER :: rho_tot_gspace, v_coulomb_gspace, &
       v_coulomb_gtemp, v_coulomb_rtemp, v_hartree_gspace, v_hartree_gtemp, &
       v_hartree_rtemp, v_xc_gtemp, v_xc_rtemp, wf_r
     TYPE(cp_logger_type), POINTER            :: logger
@@ -256,16 +255,16 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "rho_tot_gspace",0)
 
-    CALL pw_pool_init_coeff(pool=auxbas_pw_pool,coeff=v_hartree_gspace, &
+    CALL pw_pool_create_pw(auxbas_pw_pool,v_hartree_gspace%pw, &
                             use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
                             error=error)
-    CALL pw_pool_init_coeff(pool=auxbas_pw_pool,coeff=v_hartree_gtemp, &
+    CALL pw_pool_create_pw(auxbas_pw_pool,v_hartree_gtemp%pw, &
                             use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
                             error=error)
-    CALL pw_pool_init_coeff(pool=auxbas_pw_pool,coeff=v_hartree_rtemp,&
+    CALL pw_pool_create_pw(auxbas_pw_pool,v_hartree_rtemp%pw,&
                             use_data=REALDATA3D,in_space=REALSPACE,&
                             error=error)
-    CALL pw_pool_init_coeff(pool=auxbas_pw_pool,coeff=rho_tot_gspace,&
+    CALL pw_pool_create_pw(auxbas_pw_pool,rho_tot_gspace%pw,&
                             use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
                             error=error)
 
@@ -275,25 +274,25 @@ CONTAINS
     CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,ehartree,&
                           v_hartree_gspace%pw,error=error)
 
-    CALL coeff_copy(v_hartree_gspace, v_hartree_gtemp)
+    CALL pw_copy(v_hartree_gspace%pw, v_hartree_gtemp%pw)
     CALL pw_derive(v_hartree_gtemp%pw, (/1,0,0/) )
-    CALL coeff_transform_space(v_hartree_gtemp, v_hartree_rtemp)
+    CALL pw_transfer(v_hartree_gtemp%pw, v_hartree_rtemp%pw)
     CALL pw_copy(v_hartree_rtemp%pw, pwx)
 
-    CALL coeff_copy(v_hartree_gspace, v_hartree_gtemp)
+    CALL pw_copy(v_hartree_gspace%pw, v_hartree_gtemp%pw)
     CALL pw_derive(v_hartree_gtemp%pw, (/0,1,0/) )
-    CALL coeff_transform_space(v_hartree_gtemp, v_hartree_rtemp)
+    CALL pw_transfer(v_hartree_gtemp%pw, v_hartree_rtemp%pw)
     CALL pw_copy(v_hartree_rtemp%pw, pwy)
 
-    CALL coeff_copy(v_hartree_gspace, v_hartree_gtemp)
+    CALL pw_copy(v_hartree_gspace%pw, v_hartree_gtemp%pw)
     CALL pw_derive(v_hartree_gtemp%pw, (/0,0,1/) )
-    CALL coeff_transform_space(v_hartree_gtemp, v_hartree_rtemp)
+    CALL pw_transfer(v_hartree_gtemp%pw, v_hartree_rtemp%pw)
     CALL pw_copy(v_hartree_rtemp%pw, pwz)
 
-    CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_hartree_gspace,error=error)
-    CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_hartree_gtemp,error=error)
-    CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_hartree_rtemp,error=error)
-    CALL pw_pool_give_back_coeff(auxbas_pw_pool,rho_tot_gspace,error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gspace%pw,error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gtemp%pw,error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_rtemp%pw,error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_tot_gspace%pw,error=error)
 
     DEALLOCATE(v_hartree_gspace,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -343,17 +342,17 @@ CONTAINS
                  IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                                       "v_coulomb_rtemp",0)
                  
-                 CALL pw_pool_init_coeff(pool=auxbas_pw_pool,coeff=v_coulomb_gspace, &
+                 CALL pw_pool_create_pw(auxbas_pw_pool,v_coulomb_gspace%pw, &
                                          use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
                                          error=error)
-                 CALL pw_pool_init_coeff(pool=auxbas_pw_pool,coeff=v_coulomb_gtemp, &
+                 CALL pw_pool_create_pw(auxbas_pw_pool,v_coulomb_gtemp%pw, &
                                          use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
                                          error=error)
-                 CALL pw_pool_init_coeff(pool=auxbas_pw_pool,coeff=v_coulomb_rtemp,&
+                 CALL pw_pool_create_pw(auxbas_pw_pool,v_coulomb_rtemp%pw,&
                                          use_data=REALDATA3D,in_space=REALSPACE,&
                                               error=error)
                  
-                 CALL coeff_zero(v_coulomb_gspace)
+                 CALL pw_zero(v_coulomb_gspace%pw)
 
                  DO iat = 1, natom ! natom = # atoms for ikind
 
@@ -428,24 +427,24 @@ CONTAINS
 
                  END DO
 
-                 CALL coeff_copy(v_coulomb_gspace, v_coulomb_gtemp)
+                 CALL pw_copy(v_coulomb_gspace%pw, v_coulomb_gtemp%pw)
                  CALL pw_derive(v_coulomb_gtemp%pw, (/1,0,0/) )
-                 CALL coeff_transform_space(v_coulomb_gtemp, v_coulomb_rtemp)
+                 CALL pw_transfer(v_coulomb_gtemp%pw, v_coulomb_rtemp%pw)
                  CALL pw_sumup(v_coulomb_rtemp%pw, pwx)
              
-                 CALL coeff_copy(v_coulomb_gspace, v_coulomb_gtemp)
+                 CALL pw_copy(v_coulomb_gspace%pw, v_coulomb_gtemp%pw)
                  CALL pw_derive(v_coulomb_gtemp%pw, (/0,1,0/) )
-                 CALL coeff_transform_space(v_coulomb_gtemp, v_coulomb_rtemp)
+                 CALL pw_transfer(v_coulomb_gtemp%pw, v_coulomb_rtemp%pw)
                  CALL pw_sumup(v_coulomb_rtemp%pw, pwy)
              
-                 CALL coeff_copy(v_coulomb_gspace, v_coulomb_gtemp)
+                 CALL pw_copy(v_coulomb_gspace%pw, v_coulomb_gtemp%pw)
                  CALL pw_derive(v_coulomb_gtemp%pw, (/0,0,1/) )
-                 CALL coeff_transform_space(v_coulomb_gtemp, v_coulomb_rtemp)
+                 CALL pw_transfer(v_coulomb_gtemp%pw, v_coulomb_rtemp%pw)
                  CALL pw_sumup(v_coulomb_rtemp%pw, pwz)
              
-                 CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_coulomb_gspace,error=error)
-                 CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_coulomb_gtemp,error=error)
-                 CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_coulomb_rtemp,error=error)
+                 CALL pw_pool_give_back_pw(auxbas_pw_pool,v_coulomb_gspace%pw,error=error)
+                 CALL pw_pool_give_back_pw(auxbas_pw_pool,v_coulomb_gtemp%pw,error=error)
+                 CALL pw_pool_give_back_pw(auxbas_pw_pool,v_coulomb_rtemp%pw,error=error)
 
                  DEALLOCATE(v_coulomb_gspace,STAT=istat)
                  IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -568,7 +567,7 @@ CONTAINS
     END DO
 
     DO idir = 1,3
-       CALL coeff_copy(nablavks_set(idir,1)%rho%rho_r(1),nablavks_set(idir,2)%rho%rho_r(1))
+       CALL pw_copy(nablavks_set(idir,1)%rho%rho_r(1)%pw,nablavks_set(idir,2)%rho%rho_r(1)%pw)
     END DO
 
 !   -------------------------------------
@@ -582,10 +581,10 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "v_xc_rtemp",0)
 
-    CALL pw_pool_init_coeff(pool=auxbas_pw_pool,coeff=v_xc_gtemp, &
+    CALL pw_pool_create_pw(auxbas_pw_pool,v_xc_gtemp%pw, &
                             use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
                             error=error)
-    CALL pw_pool_init_coeff(pool=auxbas_pw_pool,coeff=v_xc_rtemp,&
+    CALL pw_pool_create_pw(auxbas_pw_pool,v_xc_rtemp%pw,&
                             use_data=REALDATA3D,in_space=REALSPACE,&
                             error=error)
 
@@ -597,22 +596,22 @@ CONTAINS
 
        DO ispin = 1,nspins
 
-          CALL coeff_transform_space(v_rspace_new(ispin), v_xc_gtemp)
+          CALL pw_transfer(v_rspace_new(ispin)%pw, v_xc_gtemp%pw)
           CALL pw_derive(v_xc_gtemp%pw, (/1,0,0/) )
-          CALL coeff_transform_space(v_xc_gtemp, v_xc_rtemp)
+          CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw)
           CALL pw_sumup(v_xc_rtemp%pw, nablavks_set(1,ispin)%rho%rho_r(1)%pw)
 
-          CALL coeff_transform_space(v_rspace_new(ispin), v_xc_gtemp)
+          CALL pw_transfer(v_rspace_new(ispin)%pw, v_xc_gtemp%pw)
           CALL pw_derive(v_xc_gtemp%pw, (/0,1,0/) )
-          CALL coeff_transform_space(v_xc_gtemp, v_xc_rtemp)
+          CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw)
           CALL pw_sumup(v_xc_rtemp%pw, nablavks_set(2,ispin)%rho%rho_r(1)%pw)
 
-          CALL coeff_transform_space(v_rspace_new(ispin), v_xc_gtemp)
+          CALL pw_transfer(v_rspace_new(ispin)%pw, v_xc_gtemp%pw)
           CALL pw_derive(v_xc_gtemp%pw, (/0,0,1/) )
-          CALL coeff_transform_space(v_xc_gtemp, v_xc_rtemp)
+          CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw)
           CALL pw_sumup(v_xc_rtemp%pw, nablavks_set(3,ispin)%rho%rho_r(1)%pw)
 
-          CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace_new(ispin),&
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new(ispin)%pw,&
                error=error)
 
        END DO
@@ -626,22 +625,22 @@ CONTAINS
 
        DO ispin = 1,nspins
 
-          CALL coeff_transform_space(v_tau_rspace(ispin), v_xc_gtemp)
+          CALL pw_transfer(v_tau_rspace(ispin)%pw, v_xc_gtemp%pw)
           CALL pw_derive(v_xc_gtemp%pw, (/1,0,0/) )
-          CALL coeff_transform_space(v_xc_gtemp, v_xc_rtemp)
+          CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw)
           CALL pw_sumup(v_xc_rtemp%pw, nablavks_set(1,ispin)%rho%rho_r(1)%pw)
 
-          CALL coeff_transform_space(v_tau_rspace(ispin), v_xc_gtemp)
+          CALL pw_transfer(v_tau_rspace(ispin)%pw, v_xc_gtemp%pw)
           CALL pw_derive(v_xc_gtemp%pw, (/0,1,0/) )
-          CALL coeff_transform_space(v_xc_gtemp, v_xc_rtemp)
+          CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw)
           CALL pw_sumup(v_xc_rtemp%pw, nablavks_set(2,ispin)%rho%rho_r(1)%pw)
 
-          CALL coeff_transform_space(v_tau_rspace(ispin), v_xc_gtemp)
+          CALL pw_transfer(v_tau_rspace(ispin)%pw, v_xc_gtemp%pw)
           CALL pw_derive(v_xc_gtemp%pw, (/0,0,1/) )
-          CALL coeff_transform_space(v_xc_gtemp, v_xc_rtemp)
+          CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw)
           CALL pw_sumup(v_xc_rtemp%pw, nablavks_set(3,ispin)%rho%rho_r(1)%pw)
 
-          CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_tau_rspace(ispin),&
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,v_tau_rspace(ispin)%pw,&
                error=error)
 
        END DO
@@ -651,8 +650,8 @@ CONTAINS
                                             "v_tau_rspace",0)
     END IF
 
-    CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_xc_gtemp,error=error)
-    CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_xc_rtemp,error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,v_xc_gtemp%pw,error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,v_xc_rtemp%pw,error=error)
 
     DEALLOCATE(v_xc_gtemp,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -672,12 +671,12 @@ CONTAINS
        ALLOCATE(wf_r,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                             "wf_r",0)
-       CALL pw_pool_init_coeff(auxbas_pw_pool,wf_r,&
+       CALL pw_pool_create_pw(auxbas_pw_pool,wf_r%pw,&
                use_data = REALDATA3D,&
                in_space = REALSPACE, error=error)
        DO idir = 1,3
-          CALL coeff_zero(wf_r)
-          CALL coeff_copy(nablavks_set(idir,1)%rho%rho_r(1),wf_r) ! RA
+          CALL pw_zero(wf_r%pw)
+          CALL pw_copy(nablavks_set(idir,1)%rho%rho_r(1)%pw,wf_r%pw) ! RA
           filename="nablavks"
           WRITE(ext,'(a2,I1,a5)')  "_d",idir,".cube"
           unit_nr=cp_print_key_unit_nr(logger,epr_section,"PRINT%NABLAVKS_CUBES",&
@@ -690,7 +689,7 @@ CONTAINS
           CALL cp_print_key_finished_output(unit_nr,logger,epr_section,&
                   "PRINT%NABLAVKS_CUBES",error=error)
        END DO
-       CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r,error=error)
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw,error=error)
        DEALLOCATE(wf_r,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                             "wf_r",0)

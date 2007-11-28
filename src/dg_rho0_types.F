@@ -19,18 +19,17 @@
 
 MODULE dg_rho0_types
 
-  USE coefficient_types,               ONLY: PW_REALDATA3D,&
-                                             coeff_allocate,&
-                                             coeff_deallocate,&
-                                             coeff_init,&
-                                             coeff_type,&
-                                             coeff_zero
   USE input_constants,                 ONLY: do_ewald_ewald,&
                                              do_ewald_none,&
                                              do_ewald_pme,&
                                              do_ewald_spme
   USE kinds,                           ONLY: dp
   USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_types,                        ONLY: REALDATA3D,&
+                                             pw_create,&
+                                             pw_release,&
+                                             pw_p_type,&
+                                             pw_zero
   USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
 
@@ -55,7 +54,7 @@ MODULE dg_rho0_types
      REAL (KIND=dp) :: cutoff_radius
      REAL (KIND=dp), DIMENSION ( : ), POINTER :: gcc
      REAL (KIND=dp), DIMENSION ( : ), POINTER :: zet
-     TYPE ( coeff_type ) :: density
+     TYPE ( pw_p_type ) :: density
   END TYPE dg_rho0_type
 
 !!*****
@@ -74,7 +73,7 @@ CONTAINS
     INTEGER, OPTIONAL                        :: TYPE, grid, kind
     REAL(KIND=dp), OPTIONAL                  :: cutoff_radius
     REAL(KIND=dp), OPTIONAL, POINTER         :: gcc( : ), zet( : )
-    TYPE(coeff_type), OPTIONAL               :: density
+    TYPE(pw_p_type), OPTIONAL                :: density
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dg_rho0_set', &
       routineP = moduleN//':'//routineN
@@ -101,7 +100,7 @@ CONTAINS
     INTEGER, OPTIONAL                        :: kind, grid, TYPE
     REAL(KIND=dp), OPTIONAL                  :: cutoff_radius
     REAL(KIND=dp), OPTIONAL, POINTER         :: gcc( : ), zet( : )
-    TYPE(coeff_type), OPTIONAL, POINTER      :: density
+    TYPE(pw_p_type), OPTIONAL, POINTER       :: density
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dg_rho0_get', &
       routineP = moduleN//':'//routineN
@@ -147,7 +146,7 @@ CONTAINS
     last_dg_rho0_id_nr=last_dg_rho0_id_nr+1
     dg_rho0%id_nr=last_dg_rho0_id_nr
     dg_rho0%ref_count=1
-    CALL coeff_init(dg_rho0%density,error=error)
+    NULLIFY ( dg_rho0%density%pw )
 
   END SUBROUTINE dg_rho0_create
 !***************************************************************************
@@ -252,7 +251,7 @@ SUBROUTINE dg_rho0_release(dg_rho0, error)
            DEALLOCATE ( dg_rho0 % zet, stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
-        CALL coeff_deallocate ( dg_rho0 % density ,error=error)
+        CALL pw_release ( dg_rho0 % density % pw ,error=error)
         NULLIFY ( dg_rho0 % gcc )
         NULLIFY ( dg_rho0 % zet )
         DEALLOCATE (  dg_rho0 , stat = stat )
@@ -269,13 +268,13 @@ SUBROUTINE dg_rho0_init ( dg_rho0, pw_grid, error )
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-  CALL coeff_deallocate ( dg_rho0 % density ,error=error)
+  CALL pw_release ( dg_rho0 % density % pw ,error=error)
   SELECT CASE ( dg_rho0 % type )
   CASE ( do_ewald_ewald )
-    CALL coeff_allocate ( dg_rho0 % density, pw_grid, PW_REALDATA3D ,error=error)
+    CALL pw_create ( dg_rho0 % density % pw, pw_grid, REALDATA3D ,error=error)
     CALL dg_rho0_pme_gauss ( dg_rho0 % density, dg_rho0 % zet ( 1 ) )
   CASE ( do_ewald_pme )
-    CALL coeff_allocate ( dg_rho0 % density, pw_grid, PW_REALDATA3D ,error=error)
+    CALL pw_create ( dg_rho0 % density % pw, pw_grid, REALDATA3D ,error=error)
     CALL dg_rho0_pme_gauss ( dg_rho0 % density, dg_rho0 % zet ( 1 ) )
   CASE ( do_ewald_spme )
     CALL stop_program ( 'dg_rho0_init', 'SPME type not implemented' )
@@ -288,7 +287,7 @@ END SUBROUTINE dg_rho0_init
 SUBROUTINE dg_rho0_pme_gauss ( dg_rho0, alpha )
 
 
-    TYPE(coeff_type), INTENT(INOUT)          :: dg_rho0
+    TYPE(pw_p_type), INTENT(INOUT)           :: dg_rho0
     REAL(KIND=dp), INTENT(IN)                :: alpha
 
     INTEGER, PARAMETER                       :: IMPOSSIBLE = 10000
@@ -327,7 +326,7 @@ SUBROUTINE dg_rho0_pme_gauss ( dg_rho0, alpha )
     n0 = bds ( 1, 3 )
   END IF
 
-  CALL coeff_zero ( dg_rho0 )
+  CALL pw_zero ( dg_rho0%pw )
 
   rho0 => dg_rho0 % pw % cr3d
 

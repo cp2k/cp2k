@@ -26,8 +26,6 @@ MODULE qs_environment_types
   USE cell_types,                      ONLY: cell_release,&
                                              cell_retain,&
                                              cell_type
-  USE coefficient_types,               ONLY: coeff_deallocate,&
-                                             coeff_type
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                              cp_blacs_env_release
   USE cp_control_types,                ONLY: dft_control_release,&
@@ -95,6 +93,8 @@ MODULE qs_environment_types
   USE pw_env_types,                    ONLY: pw_env_release,&
                                              pw_env_retain,&
                                              pw_env_type
+  USE pw_types,                        ONLY: pw_release,&
+                                             pw_p_type
   USE qs_charges_types,                ONLY: qs_charges_release,&
                                              qs_charges_retain,&
                                              qs_charges_type
@@ -327,7 +327,7 @@ MODULE qs_environment_types
     TYPE (ewald_pw_type),POINTER                          :: ewald_pw
     TYPE(cp_para_env_type), POINTER                       :: para_env
     TYPE(cp_blacs_env_type), POINTER                      :: blacs_env
-    TYPE(coeff_type), POINTER                             :: rho_core
+    TYPE(pw_p_type), POINTER                              :: rho_core
     TYPE(qs_charges_type), POINTER                        :: qs_charges
     TYPE(qs_ks_env_type), POINTER                         :: ks_env
     TYPE(qs_ks_qmmm_env_type), POINTER                    :: ks_qmmm_env
@@ -335,7 +335,7 @@ MODULE qs_environment_types
     TYPE(qs_scf_env_type), POINTER                        :: scf_env
     TYPE(qs_matrix_pools_type), POINTER                   :: mpools
     TYPE(distribution_2d_type), POINTER                   :: distribution_2d
-    TYPE(cp_subsys_type), POINTER                      :: subsys
+    TYPE(cp_subsys_type), POINTER                         :: subsys
     TYPE(oce_matrix_type), POINTER                        :: oce
     TYPE(local_rho_type), POINTER                         :: local_rho_set
     TYPE(hartree_local_type),  POINTER                    :: hartree_local
@@ -457,7 +457,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: kinetic
     TYPE(qs_charges_type), OPTIONAL, POINTER :: qs_charges
-    TYPE(coeff_type), OPTIONAL, POINTER      :: rho_core
+    TYPE(pw_p_type), OPTIONAL, POINTER       :: rho_core
     TYPE(qs_ks_env_type), OPTIONAL, POINTER  :: ks_env
     TYPE(qs_ks_qmmm_env_type), OPTIONAL, &
       POINTER                                :: ks_qmmm_env
@@ -488,7 +488,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: ecoul_1c
     TYPE(vtriple_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: VH_3c_list
-    TYPE(coeff_type), OPTIONAL, POINTER      :: rho0_s_rs, rho0_s_gs
+    TYPE(pw_p_type), OPTIONAL, POINTER       :: rho0_s_rs, rho0_s_gs
     LOGICAL, OPTIONAL                        :: requires_mo_derivs
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: mo_derivs
@@ -810,7 +810,7 @@ CONTAINS
     TYPE(scf_control_type), OPTIONAL, &
       POINTER                                :: scf_control
     TYPE(qs_charges_type), OPTIONAL, POINTER :: qs_charges
-    TYPE(coeff_type), OPTIONAL, POINTER      :: rho_core
+    TYPE(pw_p_type), OPTIONAL, POINTER       :: rho_core
     TYPE(qs_ks_env_type), OPTIONAL, POINTER  :: ks_env
     TYPE(qs_ks_qmmm_env_type), OPTIONAL, &
       POINTER                                :: ks_qmmm_env
@@ -1371,7 +1371,7 @@ SUBROUTINE qs_env_release(qs_env,error)
         CALL cp_para_env_release(qs_env%para_env,error=error)
         CALL cp_blacs_env_release(qs_env%blacs_env, error=error)
         IF (ASSOCIATED(qs_env%rho_core)) THEN
-             CALL coeff_deallocate(qs_env%rho_core,error=error)
+             CALL pw_release(qs_env%rho_core%pw,error=error)
              DEALLOCATE(qs_env%rho_core)
         ENDIF
         CALL qs_charges_release(qs_env%qs_charges, error=error)

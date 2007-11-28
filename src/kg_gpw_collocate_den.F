@@ -37,7 +37,6 @@ MODULE kg_gpw_collocate_den
                                              gto_basis_set_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE coefficient_types,               ONLY: coeff_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              rs_pools_create_rs_vect,&
@@ -52,7 +51,8 @@ MODULE kg_gpw_collocate_den
   USE orbital_pointers,                ONLY: ncoset
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_types,                        ONLY: pw_integrate_function
+  USE pw_types,                        ONLY: pw_integrate_function,&
+                                             pw_p_type
   USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace,&
                                              density_rs2pw,&
                                              lgrid_type
@@ -133,7 +133,7 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_type), POINTER          :: matrix_p
-    TYPE(coeff_type), INTENT(INOUT)          :: rho_r, rho_g
+    TYPE(pw_p_type), INTENT(INOUT)           :: rho_r, rho_g
     REAL(dp), INTENT(OUT)                    :: total_rho
     TYPE(pw_env_type), POINTER               :: pw_env
     INTEGER, DIMENSION(:), INTENT(IN)        :: atom, kind
@@ -661,7 +661,7 @@ CONTAINS
                                     forces_mol,compute_tau,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(coeff_type), INTENT(IN)             :: vxc_mol
+    TYPE(pw_p_type), INTENT(IN)              :: vxc_mol
     TYPE(real_matrix_p_type), INTENT(IN)     :: matrix_p
     TYPE(real_matrix_p_type), INTENT(INOUT)  :: matrix_h
     TYPE(pw_env_type), POINTER               :: pw_env

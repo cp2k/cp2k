@@ -31,11 +31,6 @@ MODULE xray_diffraction
                                              gto_basis_set_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE coefficient_types,               ONLY: coeff_scale,&
-                                             coeff_sumup,&
-                                             coeff_transform_space,&
-                                             coeff_type,&
-                                             coeff_zero
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
@@ -54,12 +49,17 @@ MODULE xray_diffraction
                                              pw_env_type
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: get_pw_grid_info
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
-                                             pw_pool_init_coeff,&
+  USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
+                                             pw_pool_create_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              RECIPROCALSPACE,&
-                                             pw_integrate_function
+                                             pw_integrate_function,&
+                                             pw_scale,&
+                                             pw_sumup,&
+                                             pw_transfer,&
+                                             pw_zero,&
+                                             pw_p_type
   USE qs_collocate_density,            ONLY: collocate_pgf_product_gspace
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -128,7 +128,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type), POINTER                :: rho_elec_gspace, &
+    TYPE(pw_p_type), POINTER                 :: rho_elec_gspace, &
                                                 rhotot_elec_gspace
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -222,12 +222,12 @@ CONTAINS
 
       ALLOCATE (rhotot_elec_gspace,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      CALL pw_pool_init_coeff(pool=auxbas_pw_pool,&
-                              coeff=rhotot_elec_gspace,&
+      CALL pw_pool_create_pw(auxbas_pw_pool,&
+                              rhotot_elec_gspace%pw,&
                               use_data=COMPLEXDATA1D,&
                               in_space=RECIPROCALSPACE,&
                               error=error)
-      CALL coeff_zero(rhotot_elec_gspace)
+      CALL pw_zero(rhotot_elec_gspace%pw)
 
       pw_grid => rhotot_elec_gspace%pw%pw_grid
 
@@ -235,20 +235,20 @@ CONTAINS
 
       ALLOCATE (rho_elec_gspace,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      CALL pw_pool_init_coeff(pool=auxbas_pw_pool,&
-                              coeff=rho_elec_gspace,&
+      CALL pw_pool_create_pw(auxbas_pw_pool,&
+                              rho_elec_gspace%pw,&
                               use_data=COMPLEXDATA1D,&
                               in_space=RECIPROCALSPACE,&
                               error=error)
 
       DO ispin=1,nspin
-        CALL coeff_zero(rho_elec_gspace)
-        CALL coeff_transform_space(rho%rho_r(ispin),rho_elec_gspace)
-        CALL coeff_sumup(rho_elec_gspace,rhotot_elec_gspace)
+        CALL pw_zero(rho_elec_gspace%pw)
+        CALL pw_transfer(rho%rho_r(ispin)%pw,rho_elec_gspace%pw)
+        CALL pw_sumup(rho_elec_gspace%pw,rhotot_elec_gspace%pw)
       END DO
 
-      CALL pw_pool_give_back_coeff(pool=auxbas_pw_pool,&
-                                   coeff=rho_elec_gspace,&
+      CALL pw_pool_give_back_pw(auxbas_pw_pool,&
+                                   rho_elec_gspace%pw,&
                                    error=error)
       DEALLOCATE (rho_elec_gspace,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -259,7 +259,7 @@ CONTAINS
             dr=dr,cutoff=cutoff,orthorhombic=orthorhombic,gsquare=gsq,error=error)
       CPPostcondition(orthorhombic,cp_failure_level,routineP,error,failure)
 
-      CALL coeff_scale(rhotot_elec_gspace,volume)
+      CALL pw_scale(rhotot_elec_gspace%pw,volume)
 
       ! Add the hard contribution of the electronic density
 
@@ -694,8 +694,8 @@ CONTAINS
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
 
-      CALL pw_pool_give_back_coeff(pool=auxbas_pw_pool,&
-                                   coeff=rhotot_elec_gspace,&
+      CALL pw_pool_give_back_pw(auxbas_pw_pool,&
+                                   rhotot_elec_gspace%pw,&
                                    error=error)
       DEALLOCATE (rhotot_elec_gspace,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

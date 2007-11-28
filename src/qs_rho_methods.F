@@ -24,17 +24,17 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qs_rho_methods
-  USE coefficient_types,               ONLY: coeff_deallocate
   USE cp_control_types,                ONLY: dft_control_type
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_pool_types,                   ONLY: pw_pool_init_coeff,&
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
-                                             RECIPROCALSPACE
+                                             RECIPROCALSPACE,&
+                                             pw_release
   USE qs_collocate_density,            ONLY: calculate_rho_elec
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -187,7 +187,7 @@ CONTAINS
      IF (.NOT.failure) THEN
         IF (ASSOCIATED(rho%rho_r)) THEN
            DO i=1,SIZE(rho%rho_r)
-              CALL coeff_deallocate(rho%rho_r(i),error=error)
+              CALL pw_release(rho%rho_r(i)%pw,error=error)
            END DO
            DEALLOCATE(rho%rho_r,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -197,7 +197,7 @@ CONTAINS
      END IF
      IF (.NOT.failure) THEN
         DO i=1,nspins
-           CALL pw_pool_init_coeff(auxbas_pw_pool,rho%rho_r(i),&
+           CALL pw_pool_create_pw(auxbas_pw_pool,rho%rho_r(i)%pw,&
                 use_data=REALDATA3D,in_space=REALSPACE,error=error)
         END DO
      END IF
@@ -208,7 +208,7 @@ CONTAINS
      IF (.NOT.failure) THEN
         IF (ASSOCIATED(rho%rho_g)) THEN
            DO i=1,SIZE(rho%rho_g)
-              CALL coeff_deallocate(rho%rho_g(i),error=error)
+              CALL pw_release(rho%rho_g(i)%pw,error=error)
            END DO
            DEALLOCATE(rho%rho_g,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -218,7 +218,7 @@ CONTAINS
      END IF
      IF (.NOT.failure) THEN
         DO i=1,nspins
-           CALL pw_pool_init_coeff(auxbas_pw_pool,rho%rho_g(i),&
+           CALL pw_pool_create_pw(auxbas_pw_pool,rho%rho_g(i)%pw,&
                 use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
         END DO
      END IF
@@ -231,7 +231,7 @@ CONTAINS
         IF (.NOT.failure) THEN
            IF (ASSOCIATED(rho%tau_r)) THEN
               DO i=1,SIZE(rho%tau_r)
-                 CALL coeff_deallocate(rho%tau_r(i),error=error)
+                 CALL pw_release(rho%tau_r(i)%pw,error=error)
               END DO
               DEALLOCATE(rho%tau_r,stat=stat)
               CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -241,7 +241,7 @@ CONTAINS
         END IF
         IF (.NOT.failure) THEN
            DO i=1,nspins
-              CALL pw_pool_init_coeff(auxbas_pw_pool,rho%tau_r(i),&
+              CALL pw_pool_create_pw(auxbas_pw_pool,rho%tau_r(i)%pw,&
                    use_data=REALDATA3D,in_space=REALSPACE,error=error)
            END DO
         END IF
@@ -252,7 +252,7 @@ CONTAINS
         IF (.NOT.failure) THEN
            IF (ASSOCIATED(rho%tau_g)) THEN
               DO i=1,SIZE(rho%tau_g)
-                 CALL coeff_deallocate(rho%tau_g(i),error=error)
+                 CALL pw_release(rho%tau_g(i)%pw,error=error)
               END DO
               DEALLOCATE(rho%tau_g,stat=stat)
               CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -262,7 +262,7 @@ CONTAINS
         END IF
         IF (.NOT.failure) THEN
            DO i=1,nspins
-              CALL pw_pool_init_coeff(auxbas_pw_pool,rho%tau_g(i),&
+              CALL pw_pool_create_pw(auxbas_pw_pool,rho%tau_g(i)%pw,&
                    use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
            END DO
         END IF
@@ -499,7 +499,7 @@ END SUBROUTINE qs_rho_update_rho
         CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
         IF (.NOT. failure) THEN
           DO i = 1, nspins
-            CALL pw_pool_init_coeff(auxbas_pw_pool, rho_output%rho_r(i), &
+            CALL pw_pool_create_pw(auxbas_pw_pool, rho_output%rho_r(i)%pw, &
                                     use_data=REALDATA3D, in_space=REALSPACE, &
                                     error=error)
             rho_output%rho_r(i)%pw%cr3d(:,:,:) = rho_input%rho_r(i)%pw%cr3d(:,:,:)
@@ -515,7 +515,7 @@ END SUBROUTINE qs_rho_update_rho
         CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
         IF (.NOT. failure) THEN
           DO i = 1, nspins
-            CALL pw_pool_init_coeff(auxbas_pw_pool, rho_output%rho_g(i), &
+            CALL pw_pool_create_pw(auxbas_pw_pool, rho_output%rho_g(i)%pw, &
                                     use_data=COMPLEXDATA1D, &
                                     in_space=RECIPROCALSPACE, error=error)
             rho_output%rho_g(i)%pw%cc(:)      = rho_input%rho_g(i)%pw%cc(:)
@@ -536,7 +536,7 @@ END SUBROUTINE qs_rho_update_rho
           CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           IF (.NOT. failure) THEN
             DO i = 1, nspins
-              CALL pw_pool_init_coeff(auxbas_pw_pool, rho_output%tau_r(i), &
+              CALL pw_pool_create_pw(auxbas_pw_pool, rho_output%tau_r(i)%pw, &
                                       use_data=REALDATA3D, in_space=REALSPACE, &
                                       error=error)
               rho_output%tau_r(i)%pw%cr3d(:,:,:) = rho_input%tau_r(i)%pw%cr3d(:,:,:)
@@ -550,7 +550,7 @@ END SUBROUTINE qs_rho_update_rho
           CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           IF (.NOT. failure) THEN
             DO i = 1, nspins
-              CALL pw_pool_init_coeff(auxbas_pw_pool, rho_output%tau_g(i), &
+              CALL pw_pool_create_pw(auxbas_pw_pool, rho_output%tau_g(i)%pw, &
                                       use_data=COMPLEXDATA1D, &
                                       in_space=RECIPROCALSPACE, error=error)
               rho_output%tau_g(i)%pw%cc(:) = rho_input%tau_g(i)%pw%cc(:)
@@ -716,7 +716,7 @@ END SUBROUTINE qs_rho_update_rho
         CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
         IF (.NOT. failure) THEN
           DO i = 1, nspins
-            CALL pw_pool_init_coeff(auxbas_pw_pool, rho_output%rho_r(i), &
+            CALL pw_pool_create_pw(auxbas_pw_pool, rho_output%rho_r(i)%pw, &
                                     use_data=REALDATA3D, in_space=REALSPACE, &
                                     error=error)
             rho_output%rho_r(i)%pw%cr3d(:,:,:) = a*rho_input1%rho_r(i)%pw%cr3d(:,:,:) - &
@@ -733,7 +733,7 @@ END SUBROUTINE qs_rho_update_rho
         CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
         IF (.NOT. failure) THEN
           DO i = 1, nspins
-            CALL pw_pool_init_coeff(auxbas_pw_pool, rho_output%rho_g(i), &
+            CALL pw_pool_create_pw(auxbas_pw_pool, rho_output%rho_g(i)%pw, &
                                     use_data=COMPLEXDATA1D, &
                                     in_space=RECIPROCALSPACE, error=error)
             rho_output%rho_g(i)%pw%cc(:)      = a*rho_input1%rho_g(i)%pw%cc(:) - &
@@ -755,7 +755,7 @@ END SUBROUTINE qs_rho_update_rho
           CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           IF (.NOT. failure) THEN
             DO i = 1, nspins
-              CALL pw_pool_init_coeff(auxbas_pw_pool, rho_output%tau_r(i), &
+              CALL pw_pool_create_pw(auxbas_pw_pool, rho_output%tau_r(i)%pw, &
                                       use_data=REALDATA3D, in_space=REALSPACE, &
                                       error=error)
               rho_output%tau_r(i)%pw%cr3d(:,:,:) = a*rho_input1%tau_r(i)%pw%cr3d(:,:,:) - &
@@ -770,7 +770,7 @@ END SUBROUTINE qs_rho_update_rho
           CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           IF (.NOT. failure) THEN
             DO i = 1, nspins
-              CALL pw_pool_init_coeff(auxbas_pw_pool, rho_output%tau_g(i), &
+              CALL pw_pool_create_pw(auxbas_pw_pool, rho_output%tau_g(i)%pw, &
                                       use_data=COMPLEXDATA1D, &
                                       in_space=RECIPROCALSPACE, error=error)
               rho_output%tau_g(i)%pw%cc(:) = a*rho_input1%tau_g(i)%pw%cc(:) - &
@@ -920,7 +920,7 @@ END SUBROUTINE qs_rho_update_rho
           CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           IF (.NOT. failure) THEN
             DO i = 1, nspins
-              CALL pw_pool_init_coeff(auxbas_pw_pool, rho_output%rho_r(i), &
+              CALL pw_pool_create_pw(auxbas_pw_pool, rho_output%rho_r(i)%pw, &
                                       use_data=REALDATA3D, in_space=REALSPACE, &
                                       error=error)
               rho_output%rho_r(i)%pw%cr3d(:,:,:) = rho_input%rho_r(i)%pw%cr3d(:,:,:)
@@ -942,7 +942,7 @@ END SUBROUTINE qs_rho_update_rho
           CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           IF (.NOT. failure) THEN
             DO i = 1, nspins
-              CALL pw_pool_init_coeff(auxbas_pw_pool, rho_output%rho_g(i), &
+              CALL pw_pool_create_pw(auxbas_pw_pool, rho_output%rho_g(i)%pw, &
                                       use_data=COMPLEXDATA1D, &
                                       in_space=RECIPROCALSPACE, error=error)
               rho_output%rho_g(i)%pw%cc(:)      = rho_input%rho_g(i)%pw%cc(:)
@@ -969,7 +969,7 @@ END SUBROUTINE qs_rho_update_rho
             CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
             IF (.NOT. failure) THEN
               DO i = 1, nspins
-                CALL pw_pool_init_coeff(auxbas_pw_pool, rho_output%tau_r(i), &
+                CALL pw_pool_create_pw(auxbas_pw_pool, rho_output%tau_r(i)%pw, &
                                         use_data=REALDATA3D, in_space=REALSPACE, &
                                         error=error)
                 rho_output%tau_r(i)%pw%cr3d(:,:,:) = rho_input%tau_r(i)%pw%cr3d(:,:,:)
@@ -989,7 +989,7 @@ END SUBROUTINE qs_rho_update_rho
             CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
             IF (.NOT. failure) THEN
               DO i = 1, nspins
-                CALL pw_pool_init_coeff(auxbas_pw_pool, rho_output%tau_g(i), &
+                CALL pw_pool_create_pw(auxbas_pw_pool, rho_output%tau_g(i)%pw, &
                                         use_data=COMPLEXDATA1D, &
                                         in_space=RECIPROCALSPACE, error=error)
                 rho_output%tau_g(i)%pw%cc(:) = rho_input%tau_g(i)%pw%cc(:)

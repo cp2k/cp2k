@@ -28,7 +28,6 @@ MODULE qs_loc_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE coefficient_types,               ONLY: coeff_type
   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_lu_decompose
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                              cp_cfm_release,&
@@ -71,13 +70,14 @@ MODULE qs_loc_methods
   USE physcon,                         ONLY: angstrom
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
-                                             pw_pool_init_coeff,&
+  USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
+                                             pw_pool_create_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
-                                             RECIPROCALSPACE
+                                             RECIPROCALSPACE,&
+                                             pw_p_type
   USE qs_collocate_density,            ONLY: calculate_wavefunction
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -914,7 +914,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type)                         :: wf_g, wf_r
+    TYPE(pw_p_type)                          :: wf_g, wf_r
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -926,10 +926,10 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
     CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
 
-    CALL pw_pool_init_coeff(auxbas_pw_pool,wf_r,&
+    CALL pw_pool_create_pw(auxbas_pw_pool,wf_r%pw,&
          use_data = REALDATA3D,&
          in_space = REALSPACE, error=error)
-    CALL pw_pool_init_coeff(auxbas_pw_pool,wf_g,&
+    CALL pw_pool_create_pw(auxbas_pw_pool,wf_g%pw,&
          use_data = COMPLEXDATA1D,&
          in_space = RECIPROCALSPACE, error=error)
 
@@ -997,8 +997,8 @@ CONTAINS
       IF (ionode) CLOSE(21)
     END DO
 
-    CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r, error=error)
-    CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_g, error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw, error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_g%pw, error=error)
 
   END SUBROUTINE qs_print_cubes
 

@@ -28,12 +28,6 @@ MODULE harris_force
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
-  USE coefficient_types,               ONLY: coeff_add,&
-                                             coeff_scale,&
-                                             coeff_subtract,&
-                                             coeff_sumup,&
-                                             coeff_transform_space,&
-                                             coeff_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
@@ -50,16 +44,13 @@ MODULE harris_force
   USE pw_poisson_methods,              ONLY: pw_poisson_solve
   USE pw_poisson_types,                ONLY: pw_poisson_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                             pw_pool_give_back_coeff,&
-                                             pw_pool_init_coeff,&
+                                             pw_pool_give_back_pw,&
+                                             pw_pool_create_pw,&
                                              pw_pool_type
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
-                                             RECIPROCALSPACE,&
-                                             pw_p_type,&
-                                             pw_release,&
-                                             pw_zero
+  USE pw_types,                        ONLY: &
+       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_add, &
+       pw_p_type, pw_release, pw_scale, pw_subtract, pw_sumup, pw_transfer, &
+       pw_zero
   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
@@ -149,12 +140,12 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type)                         :: rho_tot_gspace, &
+    TYPE(pw_p_type)                          :: rho_tot_gspace, &
                                                 v_hartree_gspace, &
                                                 v_hartree_rspace
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: rho_r, v_rspace_new, &
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r, v_rspace_new, &
                                                 v_tau_rspace
-    TYPE(coeff_type), POINTER                :: rho_core
+    TYPE(pw_p_type), POINTER                 :: rho_core
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -259,32 +250,32 @@ CONTAINS
 
       CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env, error=error)
-      CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_gspace, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace%pw, &
                               use_data = COMPLEXDATA1D, &
                               in_space = RECIPROCALSPACE, error=error)
-      CALL pw_pool_init_coeff(auxbas_pw_pool, rho_tot_gspace, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, rho_tot_gspace%pw, &
                               use_data=COMPLEXDATA1D, &
                               in_space=RECIPROCALSPACE, error=error)
 
-      CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_rspace, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_rspace%pw, &
                               use_data=REALDATA3D, in_space=REALSPACE,error=error)
 
       ! *** Calculation of the forces due to the Hartree energy *** !
       DO ispin = 1,nspins
-        CALL coeff_add(rho_core, harris_env%rho%rho_g(ispin), rho_tot_gspace)
+        CALL pw_add(rho_core%pw, harris_env%rho%rho_g(ispin)%pw, rho_tot_gspace%pw)
       END DO
 
       CALL pw_poisson_solve(poisson_env, rho_tot_gspace%pw, ehartree=Ehartree, &
                             vhartree=v_hartree_gspace%pw,error=error)
 
-      CALL coeff_transform_space(v_hartree_gspace, v_hartree_rspace)
+      CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw)
 
       CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
                          exc=Exc, just_energy=.FALSE., error=error)
 
       DO ispin = 1,nspins
-        CALL coeff_add(v_rspace_new(ispin), v_hartree_rspace, v_rspace_new(ispin))
-        CALL coeff_scale(v_rspace_new(ispin), v_rspace_new(ispin)%pw%pw_grid%dvol)
+        CALL pw_add(v_rspace_new(ispin)%pw, v_hartree_rspace%pw, v_rspace_new(ispin)%pw)
+        CALL pw_scale(v_rspace_new(ispin)%pw, v_rspace_new(ispin)%pw%pw_grid%dvol)
 
         CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), p=qs_env%rho%rho_ao(ispin), &
                                 h=matrix_ks(ispin), qs_env=qs_env, calculate_forces=.TRUE., &
@@ -347,17 +338,17 @@ CONTAINS
 
       ! + v_hartree[rho_out-rho_in]
       DO ispin = 1,nspins
-        CALL coeff_subtract(qs_env%rho%rho_g(ispin), harris_env%rho%rho_g(ispin), rho_tot_gspace)
+        CALL pw_subtract(qs_env%rho%rho_g(ispin)%pw, harris_env%rho%rho_g(ispin)%pw, rho_tot_gspace%pw)
       END DO
 
       CALL pw_poisson_solve(poisson_env, rho_tot_gspace%pw, ehartree=Ehartree, &
                              vhartree=v_hartree_gspace%pw,error=error)
 
-      CALL coeff_transform_space(v_hartree_gspace, v_hartree_rspace)
+      CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw)
 
       DO ispin = 1,nspins
-        CALL coeff_add(v_rspace_new(ispin), v_hartree_rspace, v_rspace_new(ispin))
-        CALL coeff_scale(v_rspace_new(ispin), v_rspace_new(ispin)%pw%pw_grid%dvol)
+        CALL pw_add(v_rspace_new(ispin)%pw, v_hartree_rspace%pw, v_rspace_new(ispin)%pw)
+        CALL pw_scale(v_rspace_new(ispin)%pw, v_rspace_new(ispin)%pw%pw_grid%dvol)
 
         CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), p=harris_env%rho%rho_ao(ispin), &
                                 h=matrix_ks(ispin), qs_env=qs_env, calculate_forces=.TRUE., &
@@ -366,14 +357,14 @@ CONTAINS
 
       IF (ASSOCIATED(v_rspace_new)) THEN
         DO ispin = 1,nspins
-          CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_rspace_new(ispin), error=error)
+          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_new(ispin)%pw, error=error)
         END DO
         DEALLOCATE(v_rspace_new, stat=stat)
         CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
       END IF
       IF (ASSOCIATED(v_tau_rspace)) THEN
         DO ispin = 1,nspins
-          CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_tau_rspace(ispin), error=error)
+          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_tau_rspace(ispin)%pw, error=error)
         END DO
         DEALLOCATE(v_tau_rspace, stat=stat)
         CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
@@ -407,21 +398,21 @@ CONTAINS
 
       ! *** The forces due to n_core *** !
       DO ispin = 1,nspins
-        CALL coeff_add(rho_core, qs_env%rho%rho_g(ispin), rho_tot_gspace)
+        CALL pw_add(rho_core%pw, qs_env%rho%rho_g(ispin)%pw, rho_tot_gspace%pw)
       END DO
 
       CALL pw_poisson_solve(poisson_env, rho_tot_gspace%pw, ehartree=Ehartree, &
                             vhartree=v_hartree_gspace%pw,error=error)
 
-      CALL pw_pool_give_back_coeff(auxbas_pw_pool, rho_tot_gspace, error=error)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace%pw, error=error)
 
-      CALL coeff_transform_space(v_hartree_gspace, v_hartree_rspace)
-      CALL coeff_scale(v_hartree_rspace, v_hartree_rspace%pw%pw_grid%dvol)
+      CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw)
+      CALL pw_scale(v_hartree_rspace%pw, v_hartree_rspace%pw%pw_grid%dvol)
 
       CALL integrate_v_core_rspace(v_hartree_rspace, qs_env,error=error)
 
-      CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_gspace, error=error)
-      CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_rspace, error=error)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw, error=error)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace%pw, error=error)
 
       DO ikind = 1,SIZE(force)
         CALL mp_sum(force(ikind)%rho_core, para_env%group)
@@ -530,12 +521,12 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type)                         :: rho_tot_gspace, &
+    TYPE(pw_p_type)                          :: rho_tot_gspace, &
                                                 v_hartree_gspace, &
                                                 v_hartree_rspace
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: rho_r, v_rspace_new, &
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r, v_rspace_new, &
                                                 v_tau_rspace
-    TYPE(coeff_type), POINTER                :: rho_core
+    TYPE(pw_p_type), POINTER                 :: rho_core
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -633,34 +624,34 @@ CONTAINS
 
       CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env, error=error)
-      CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_gspace, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace%pw, &
                               use_data = COMPLEXDATA1D, &
                               in_space = RECIPROCALSPACE, error=error)
-      CALL pw_pool_init_coeff(auxbas_pw_pool, rho_tot_gspace, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, rho_tot_gspace%pw, &
                               use_data=COMPLEXDATA1D, &
                               in_space=RECIPROCALSPACE, error=error)
 
-      CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_rspace, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_rspace%pw, &
                               use_data=REALDATA3D, in_space=REALSPACE,error=error)
 
       ! *** Calculation of the forces due to the Hartree energy *** !
       DO ispin = 1,nspins
-        CALL coeff_add(rho_core, harris_env%rho%rho_g(ispin), rho_tot_gspace)
+        CALL pw_add(rho_core%pw, harris_env%rho%rho_g(ispin)%pw, rho_tot_gspace%pw)
       END DO
 
       CALL pw_poisson_solve(poisson_env, rho_tot_gspace%pw, ehartree=Ehartree, &
                             vhartree=v_hartree_gspace%pw,error=error)
 
-      CALL pw_pool_give_back_coeff(auxbas_pw_pool, rho_tot_gspace, error=error)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace%pw, error=error)
 
-      CALL coeff_transform_space(v_hartree_gspace, v_hartree_rspace)
+      CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw)
 
       CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
                          exc=Exc, just_energy=.FALSE., error=error)
 
       DO ispin = 1,nspins
-        CALL coeff_add(v_rspace_new(ispin), v_hartree_rspace, v_rspace_new(ispin))
-        CALL coeff_scale(v_rspace_new(ispin), v_rspace_new(ispin)%pw%pw_grid%dvol)
+        CALL pw_add(v_rspace_new(ispin)%pw, v_hartree_rspace%pw, v_rspace_new(ispin)%pw)
+        CALL pw_scale(v_rspace_new(ispin)%pw, v_rspace_new(ispin)%pw%pw_grid%dvol)
 
         CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), p=qs_env%rho%rho_ao(ispin), &
                                 h=matrix_ks(ispin), qs_env=qs_env, calculate_forces=.TRUE., &
@@ -685,8 +676,8 @@ CONTAINS
                               vhartree=v_hartree_gspace%pw,error=error)
       END DO
 
-      CALL coeff_transform_space(v_hartree_gspace, v_hartree_rspace)
-      CALL coeff_scale(v_hartree_rspace, v_hartree_rspace%pw%pw_grid%dvol)
+      CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw)
+      CALL pw_scale(v_hartree_rspace%pw, v_hartree_rspace%pw%pw_grid%dvol)
 
       CALL integrate_v_core_rspace(v_hartree_rspace, qs_env,error=error)
 
@@ -749,11 +740,11 @@ CONTAINS
                                vhartree=v_hartree_gspace%pw,error=error)
       END DO
 
-      CALL coeff_transform_space(v_hartree_gspace, v_hartree_rspace)
+      CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw)
 
       DO ispin = 1,nspins
-        CALL coeff_add(v_rspace_new(ispin), v_hartree_rspace, v_rspace_new(ispin))
-        CALL coeff_scale(v_rspace_new(ispin), v_rspace_new(ispin)%pw%pw_grid%dvol)
+        CALL pw_add(v_rspace_new(ispin)%pw, v_hartree_rspace%pw, v_rspace_new(ispin)%pw)
+        CALL pw_scale(v_rspace_new(ispin)%pw, v_rspace_new(ispin)%pw%pw_grid%dvol)
 
         CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), p=harris_env%rho%rho_ao(ispin), &
                                 h=matrix_ks(ispin), qs_env=qs_env, calculate_forces=.TRUE., &
@@ -762,14 +753,14 @@ CONTAINS
 
       IF (ASSOCIATED(v_rspace_new)) THEN
         DO ispin = 1,nspins
-          CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace_new(ispin),error=error)
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new(ispin)%pw,error=error)
         END DO
         DEALLOCATE(v_rspace_new,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF
       IF (ASSOCIATED(v_tau_rspace)) THEN
         DO ispin = 1,nspins
-          CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_tau_rspace(ispin),error=error)
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,v_tau_rspace(ispin)%pw,error=error)
         END DO
         DEALLOCATE(v_tau_rspace,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -810,8 +801,8 @@ CONTAINS
       CALL pw_poisson_solve(poisson_env, rho_core%pw, ehartree=Ehartree, &
                             vhartree=v_hartree_gspace%pw,error=error)
 
-      CALL coeff_transform_space(v_hartree_gspace, v_hartree_rspace)
-      CALL coeff_scale(v_hartree_rspace, v_hartree_rspace%pw%pw_grid%dvol)
+      CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw)
+      CALL pw_scale(v_hartree_rspace%pw, v_hartree_rspace%pw%pw_grid%dvol)
 
       CALL integrate_v_core_rspace(v_hartree_rspace, qs_env,error=error)
 
@@ -865,7 +856,7 @@ CONTAINS
       DO ispin = 1,nspins
         v_xc(ispin)%pw%cr3d = v_xc(ispin)%pw%cr3d * v_xc(ispin)%pw%pw_grid%dvol
         v_rspace_new(ispin)%pw%cr3d = rho_r(ispin)%pw%cr3d * v_xc(ispin)%pw%cr3d
-        CALL coeff_scale(v_rspace_new(ispin), v_rspace_new(ispin)%pw%pw_grid%dvol)
+        CALL pw_scale(v_rspace_new(ispin)%pw, v_rspace_new(ispin)%pw%pw_grid%dvol)
 
         CALL pw_release(v_xc(ispin)%pw, error=error)
       END DO
@@ -880,30 +871,30 @@ CONTAINS
                               vhartree=v_hartree_gspace%pw,error=error)
       END DO
 
-      CALL coeff_transform_space(v_hartree_gspace, v_hartree_rspace)
-      CALL coeff_scale(v_hartree_rspace, v_hartree_rspace%pw%pw_grid%dvol)
+      CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw)
+      CALL pw_scale(v_hartree_rspace%pw, v_hartree_rspace%pw%pw_grid%dvol)
 
       DO ispin = 1,nspins
-        CALL coeff_add(v_rspace_new(ispin), v_hartree_rspace, v_rspace_new(ispin))
+        CALL pw_add(v_rspace_new(ispin)%pw, v_hartree_rspace%pw, v_rspace_new(ispin)%pw)
 
         CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), p=harris_env%rho%rho_ao(ispin), &
                                 h=matrix_ks(ispin), qs_env=qs_env, calculate_forces=.TRUE., &
                                 gapw=.FALSE., error=error)
       END DO
 
-      CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_gspace, error=error)
-      CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_rspace, error=error)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw, error=error)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace%pw, error=error)
 
       IF (ASSOCIATED(v_rspace_new)) THEN
         DO ispin = 1,nspins
-          CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace_new(ispin),error=error)
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new(ispin)%pw,error=error)
         END DO
         DEALLOCATE(v_rspace_new,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF
       IF (ASSOCIATED(v_tau_rspace)) THEN
         DO ispin = 1,nspins
-          CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_tau_rspace(ispin),error=error)
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,v_tau_rspace(ispin)%pw,error=error)
         END DO
         DEALLOCATE(v_tau_rspace,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -1028,9 +1019,9 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type)                         :: v_hartree_gspace, &
+    TYPE(pw_p_type)                          :: v_hartree_gspace, &
                                                 v_hartree_rspace
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: rho_r, v_rspace_new, &
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r, v_rspace_new, &
                                                 v_tau_rspace
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -1100,10 +1091,10 @@ CONTAINS
 
       CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env, error=error)
-      CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_gspace, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace%pw, &
                               use_data = COMPLEXDATA1D, &
                               in_space = RECIPROCALSPACE, error=error)
-      CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_rspace, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_rspace%pw, &
                               use_data=REALDATA3D, in_space=REALSPACE,error=error)
 
       ! *** Calculation of the forces due to the Hartree energy *** !
@@ -1112,8 +1103,8 @@ CONTAINS
                               ehartree=Ehartree, vhartree=v_hartree_gspace%pw,error=error)
       END DO
 
-      CALL coeff_transform_space(v_hartree_gspace, v_hartree_rspace)
-      CALL coeff_scale(v_hartree_rspace, v_hartree_rspace%pw%pw_grid%dvol)
+      CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw)
+      CALL pw_scale(v_hartree_rspace%pw, v_hartree_rspace%pw%pw_grid%dvol)
 
       DO ispin = 1,nspins
         CALL integrate_v_rspace(v_rspace=v_hartree_rspace, &
@@ -1140,8 +1131,8 @@ CONTAINS
                               ehartree=Ehartree, vhartree=v_hartree_gspace%pw,error=error)
       END DO
 
-      CALL coeff_transform_space(v_hartree_gspace, v_hartree_rspace)
-      CALL coeff_scale(v_hartree_rspace, v_hartree_rspace%pw%pw_grid%dvol)
+      CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw)
+      CALL pw_scale(v_hartree_rspace%pw, v_hartree_rspace%pw%pw_grid%dvol)
 
       DO ispin = 1,nspins
         CALL integrate_v_rspace(v_rspace=v_hartree_rspace, &
@@ -1151,8 +1142,8 @@ CONTAINS
                                 error=error)
       END DO
 
-      CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_gspace, error=error)
-      CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_rspace, error=error)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw, error=error)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace%pw, error=error)
 
       DO ikind = 1,SIZE(force)
         CALL mp_sum(force(ikind)%rho_elec, para_env%group)
@@ -1177,7 +1168,7 @@ CONTAINS
       !CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
       !                   exc=Exc, just_energy=.FALSE., harris=.FALSE., error=error)
       DO ispin = 1,nspins
-        CALL coeff_scale(v_rspace_new(ispin), v_rspace_new(ispin)%pw%pw_grid%dvol)
+        CALL pw_scale(v_rspace_new(ispin)%pw, v_rspace_new(ispin)%pw%pw_grid%dvol)
         CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &
                                 p=harris_env%rho_diff%rho_ao(ispin), &
                                 h=matrix_ks(ispin), qs_env=qs_env, &
@@ -1229,7 +1220,7 @@ CONTAINS
       DO ispin = 1,nspins
         v_xc(ispin)%pw%cr3d = v_xc(ispin)%pw%cr3d * v_xc(ispin)%pw%pw_grid%dvol
         v_rspace_new(ispin)%pw%cr3d = rho_r(ispin)%pw%cr3d * v_xc(ispin)%pw%cr3d
-        CALL coeff_scale(v_rspace_new(ispin), v_rspace_new(ispin)%pw%pw_grid%dvol)
+        CALL pw_scale(v_rspace_new(ispin)%pw, v_rspace_new(ispin)%pw%pw_grid%dvol)
 
         CALL pw_release(v_xc(ispin)%pw, error=error)
       END DO
@@ -1250,14 +1241,14 @@ CONTAINS
 
       IF (ASSOCIATED(v_rspace_new)) THEN
         DO ispin = 1,nspins
-          CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace_new(ispin),error=error)
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new(ispin)%pw,error=error)
         END DO
         DEALLOCATE(v_rspace_new,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF
       IF (ASSOCIATED(v_tau_rspace)) THEN
         DO ispin = 1,nspins
-          CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_tau_rspace(ispin),error=error)
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,v_tau_rspace(ispin)%pw,error=error)
         END DO
         DEALLOCATE(v_tau_rspace,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -1540,11 +1531,11 @@ CONTAINS
     REAL(KIND=dp)                            :: Ehartree, Exc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(coeff_type)                         :: rho_tot_gspace, &
+    TYPE(pw_p_type)                          :: rho_tot_gspace, &
                                                 v_hartree_gspace, &
                                                 v_hartree_rspace
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: v_rspace_new, v_tau_rspace
-    TYPE(coeff_type), POINTER                :: rho_core
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, v_tau_rspace
+    TYPE(pw_p_type), POINTER                 :: rho_core
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
@@ -1607,14 +1598,14 @@ CONTAINS
                       matrix_ks=matrix_ks, error=error)
       CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env, error=error)
-      CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_gspace, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace%pw, &
                               use_data = COMPLEXDATA1D,&
                               in_space = RECIPROCALSPACE, error=error)
-      CALL pw_pool_init_coeff(auxbas_pw_pool, rho_tot_gspace, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, rho_tot_gspace%pw, &
                               use_data=COMPLEXDATA1D, &
                               in_space=RECIPROCALSPACE, error=error)
       DO ispin = 1,nspins
-        CALL coeff_add(rho_core, rho%rho_g(ispin), rho_tot_gspace)
+        CALL pw_add(rho_core%pw, rho%rho_g(ispin)%pw, rho_tot_gspace%pw)
       END DO
 
       CALL pw_poisson_solve(poisson_env, rho_tot_gspace%pw, ehartree=Ehartree, &
@@ -1622,14 +1613,14 @@ CONTAINS
       !CALL pw_poisson_solve(poisson_env, rho%rho_g(1)%pw, ehartree=Ehartree, &
       !                      vhartree=v_hartree_gspace%pw)
 
-      CALL pw_pool_give_back_coeff(auxbas_pw_pool, rho_tot_gspace, &
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace%pw, &
                                    error=error)
 
-      CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_rspace, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_rspace%pw, &
                               use_data=REALDATA3D, in_space=REALSPACE,error=error)
-      CALL coeff_transform_space(v_hartree_gspace, v_hartree_rspace)
+      CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw)
 
-      CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_gspace, &
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw, &
                                    error=error)
 
       NULLIFY(v_rspace_new)
@@ -1638,20 +1629,20 @@ CONTAINS
 
       ! sum-up: v_hartree_rspace = v_hartree_rspace + v_rspace_new(ispin)
       DO ispin = 1,nspins
-        CALL coeff_sumup(v_rspace_new(ispin), v_hartree_rspace)
-        CALL coeff_scale(v_hartree_rspace, v_hartree_rspace%pw%pw_grid%dvol)
+        CALL pw_sumup(v_rspace_new(ispin)%pw, v_hartree_rspace%pw)
+        CALL pw_scale(v_hartree_rspace%pw, v_hartree_rspace%pw%pw_grid%dvol)
       END DO
 
       IF (ASSOCIATED(v_rspace_new)) THEN
         DO ispin = 1,nspins
-          CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_rspace_new(ispin), error=error)
+          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_new(ispin)%pw, error=error)
         END DO
         DEALLOCATE(v_rspace_new,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF
       IF (ASSOCIATED(v_tau_rspace)) THEN
         DO ispin = 1,nspins
-          CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_tau_rspace(ispin), error=error)
+          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_tau_rspace(ispin)%pw, error=error)
         END DO
         DEALLOCATE(v_tau_rspace,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -1663,7 +1654,7 @@ CONTAINS
                                 calculate_forces=.TRUE., gapw=.FALSE.,error=error)
       END DO
 
-      CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_rspace, error=error)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace%pw, error=error)
 
       DO iatom = 1, natom
         ikind = kind_of(iatom)

@@ -32,9 +32,6 @@
 !!   SOURCE
 !****************************************************************************
 MODULE pw_pool_types
-  USE coefficient_types,               ONLY: NOTHING,&
-                                             PLANEWAVES,&
-                                             coeff_type
   USE cp_linked_list_3d_r,             ONLY: cp_sll_3d_r_dealloc,&
                                              cp_sll_3d_r_get_first_el,&
                                              cp_sll_3d_r_get_length,&
@@ -74,11 +71,10 @@ MODULE pw_pool_types
 
   PUBLIC :: pw_pool_type, pw_pool_p_type
   PUBLIC :: pw_pool_create, pw_pool_retain, pw_pool_release,&
-       pw_pool_create_pw, pw_pool_give_back_pw, pw_pool_give_back_coeff,&
-       pw_pool_init_coeff, pw_pool_flush_cache, pw_pool_write,&
+       pw_pool_create_pw, pw_pool_give_back_pw,&
+       pw_pool_flush_cache, pw_pool_write,&
        pw_pool_create_cr3d, pw_pool_give_back_cr3d
-  PUBLIC :: pw_pools_init_coeffs, pw_pools_give_back_coeffs,&
-       pw_pools_copy, pw_pools_dealloc, pw_pools_flush_cache,&
+  PUBLIC :: pw_pools_copy, pw_pools_dealloc, pw_pools_flush_cache,&
        pw_pools_create_pws, pw_pools_give_back_pws
 !!***
 !****************************************************************************
@@ -931,103 +927,6 @@ CPSourceFileRef,&
 END SUBROUTINE pw_pool_give_back_cr3d
 !***************************************************************************
 
-!!****f* pw_pool_types/pw_pool_init_coeff [1.0] *
-!!
-!!   NAME
-!!     pw_pool_init_coeff
-!!
-!!   FUNCTION
-!!     initializes a coefficent with the corresponding grid type
-!!
-!!   NOTES
-!!     The coeff will contain random data, call coeff_zero if necessary
-!!
-!!   INPUTS
-!!     - pool: the pool you get the coefficent from
-!!     - coeff: the coefficent you want to initialize
-!!     - use_data: which data it uses: REALDATA1D, COMPLEXDATA1D,
-!!       REALDATA3D, COMPLEXDATA3D
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE pw_pool_init_coeff(pool, coeff, use_data, in_space, error)
-    TYPE(pw_pool_type), POINTER              :: pool
-    TYPE(coeff_type), INTENT(inout)          :: coeff
-    INTEGER, INTENT(in)                      :: use_data
-    INTEGER, INTENT(in), OPTIONAL            :: in_space
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_init_coeff', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-
-  CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
-  CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
-
-  IF (.NOT. failure) THEN
-     NULLIFY(coeff%pw)
-     CALL pw_pool_create_pw(pool,coeff%pw,use_data,&
-          in_space=in_space, error=error)
-     coeff%in_use=PLANEWAVES
-  END IF
-END SUBROUTINE pw_pool_init_coeff
-!***************************************************************************
-
-!!****f* pw_pool_types/pw_pool_give_back_coeff [1.0] *
-!!
-!!   NAME
-!!     pw_pool_give_back_coeff
-!!
-!!   FUNCTION
-!!     returns the pw part of the coeff to the pool
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pool: the pool that will cache coeff%pw
-!!     - coeff: the coefficent to give back
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE pw_pool_give_back_coeff(pool,coeff,accept_non_compatible,error)
-    TYPE(pw_pool_type), POINTER              :: pool
-    TYPE(coeff_type), INTENT(INOUT)          :: coeff
-    LOGICAL, INTENT(in), OPTIONAL            :: accept_non_compatible
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_give_back_coeff', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-
-  IF (coeff%in_use/=NOTHING) THEN
-     CALL pw_pool_give_back_pw(pool,coeff%pw,&
-          accept_non_compatible=accept_non_compatible,error=error)
-     coeff%in_use=NOTHING
-  END IF
-END SUBROUTINE pw_pool_give_back_coeff
-!***************************************************************************
-
 !!****f* pw_pool_types/pw_pools_create_pws [1.0] *
 !!
 !!   NAME
@@ -1132,108 +1031,7 @@ SUBROUTINE pw_pools_give_back_pws(pools, pws, error)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   END IF
 END SUBROUTINE pw_pools_give_back_pws
-!***************************************************************************
 
-!!****f* pw_pool_types/pw_pools_init_coeffs [1.0] *
-!!
-!!   NAME
-!!     pw_pools_init_coeffs
-!!
-!!   FUNCTION
-!!     initializes a multigrid structure of coeff
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pools: the multigrid pool (i.e. an array of pw_pool)
-!!     - coeffs: the multigrid of coefficent you want to initialize
-!!     - use_data: which data it uses: REALDATA1D, COMPLEXDATA1D,
-!!       REALDATA3D, COMPLEXDATA3D
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE pw_pools_init_coeffs(pools, coeffs, use_data, in_space, error)
-    TYPE(pw_pool_p_type), DIMENSION(:), &
-      POINTER                                :: pools
-    TYPE(coeff_type), DIMENSION(:), &
-      INTENT(inout)                          :: coeffs
-    INTEGER, INTENT(in)                      :: use_data
-    INTEGER, INTENT(in), OPTIONAL            :: in_space
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_pools_init_coeffs', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-
-  CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
-  CPPrecondition(SIZE(pools)==SIZE(coeffs),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     DO i=1,SIZE(pools)
-        CALL pw_pool_init_coeff(pools(i)%pool,coeffs(i),use_data,&
-             in_space=in_space,error=error)
-     END DO
-  END IF
-END SUBROUTINE pw_pools_init_coeffs
-!***************************************************************************
-
-!!****f* pw_pool_types/pw_pools_give_back_coeffs [1.0] *
-!!
-!!   NAME
-!!     pw_pools_give_back_coeffs
-!!
-!!   FUNCTION
-!!     returns the pw part of the coefficents into the pools
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pools: the pools that will cache the coeffs %pw
-!!     - coeffs: the coefficents to give back
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE pw_pools_give_back_coeffs(pools, coeffs, error)
-    TYPE(pw_pool_p_type), DIMENSION(:), &
-      POINTER                                :: pools
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: coeffs
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_pools_give_back_coeffs', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-
-  CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
-  CPPrecondition(SIZE(pools)==SIZE(coeffs),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     DO i=1,SIZE(pools)
-        CALL pw_pool_give_back_coeff(pools(i)%pool,coeffs(i),error=error)
-     END DO
-  END IF
-END SUBROUTINE pw_pools_give_back_coeffs
 !***************************************************************************
 
 !!****f* pw_pools/pw_pools_copy [1.0] *

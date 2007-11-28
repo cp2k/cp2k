@@ -30,7 +30,6 @@ MODULE qs_linres_nmr_shift
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE coefficient_types,               ONLY: coeff_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_trace
@@ -63,9 +62,7 @@ MODULE qs_linres_nmr_shift
                                              pw_env_type
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                             pw_pool_give_back_coeff,&
                                              pw_pool_give_back_pw,&
-                                             pw_pool_init_coeff,&
                                              pw_pool_type
   USE pw_spline_utils,                 ONLY: Eval_Interp_Spl3_pbc,&
                                              find_coeffs,&
@@ -80,6 +77,7 @@ MODULE qs_linres_nmr_shift
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_transfer,&
+                                             pw_p_type,&
                                              pw_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -519,7 +517,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
          POINTER                             :: particle_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type)                         :: shift_pw_rspace
+    TYPE(pw_p_type)                          :: shift_pw_rspace
     INTEGER, INTENT(IN)                      :: i_B, idir
     TYPE(section_vals_type), POINTER         :: nmr_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -536,7 +534,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), POINTER       :: r_nics
     REAL(dp), DIMENSION(:, :, :), POINTER    :: chemical_shift, &
                                                 chemical_shift_nics
-    TYPE(coeff_type)                         :: shiftspl
+    TYPE(pw_p_type)                          :: shiftspl
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(pw_spline_precond_type), POINTER    :: precond
     TYPE(section_vals_type), POINTER         :: interp_section
@@ -564,7 +562,7 @@ CONTAINS
 
       ! calculate spline coefficients
       CALL pw_env_get(pw_env,  auxbas_pw_pool=auxbas_pw_pool,error=error)
-      CALL pw_pool_init_coeff(pool=auxbas_pw_pool,coeff=shiftspl, &
+      CALL pw_pool_create_pw(auxbas_pw_pool,shiftspl%pw, &
                              use_data=REALDATA3D,in_space=REALSPACE,&
                              error=error)
 
@@ -609,7 +607,7 @@ CONTAINS
         END DO
       END IF
 
-      CALL pw_pool_give_back_coeff(auxbas_pw_pool,shiftspl,error=error)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool,shiftspl%pw,error=error)
 
     END IF
 
@@ -622,7 +620,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type)                         :: shift_pw_gspace
+    TYPE(pw_p_type)                          :: shift_pw_gspace
     INTEGER, INTENT(IN)                      :: i_B, idir
     TYPE(section_vals_type), POINTER         :: nmr_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -726,8 +724,8 @@ CONTAINS
 
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(coeff_type), POINTER                :: rho_gspace
-    TYPE(coeff_type)                         :: funcG_times_rho
+    TYPE(pw_p_type), POINTER                 :: rho_gspace
+    TYPE(pw_p_type)                          :: funcG_times_rho
     INTEGER, INTENT(IN)                      :: idir
     REAL(dp), INTENT(IN)                     :: my_chi
     TYPE(cp_error_type), INTENT(inout)       :: error

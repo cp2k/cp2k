@@ -28,8 +28,6 @@
 MODULE qmmm_gpw_forces
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE coefficient_types,               ONLY: coeff_type,&
-                                             coeff_zero
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -56,9 +54,7 @@ MODULE qmmm_gpw_forces
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                             pw_pool_give_back_coeff,&
                                              pw_pool_give_back_pw,&
-                                             pw_pool_init_coeff,&
                                              pw_pool_p_type,&
                                              pw_pool_type,&
                                              pw_pools_create_pws,&
@@ -141,7 +137,7 @@ CONTAINS
     LOGICAL                                  :: failure, gapw, need_f, &
                                                 periodic
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Forces, Forces_added_charges
-    TYPE(coeff_type), POINTER                :: rho0_s_gs, rho_core
+    TYPE(pw_p_type), POINTER                 :: rho0_s_gs, rho_core
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -1368,7 +1364,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(2)              :: energy
     REAL(KIND=dp), DIMENSION(3)              :: Err
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Num_Forces
-    TYPE(coeff_type)                         :: v_qmmm_rspace
+    TYPE(pw_p_type)                          :: v_qmmm_rspace
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -1389,7 +1385,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     iw=cp_print_key_unit_nr(logger,print_section,"PROGRAM_RUN_INFO",extension=".qmmmLog",error=error)
     CALL pw_env_get(pw_env=pw_env, pw_pools=pw_pools, error=error)
-    CALL pw_pool_init_coeff(pw_pools(1)%pool, v_qmmm_rspace,&
+    CALL pw_pool_create_pw(pw_pools(1)%pool, v_qmmm_rspace%pw,&
          use_data=REALDATA3D, in_space=REALSPACE,error=error)
     ALLOCATE(Num_Forces(3,num_mm_atoms),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1402,7 +1398,7 @@ CONTAINS
           energy = 0.0_dp
           Diff: DO K = 1, 2
              mm_particles(IndMM)%r(J) = Coord_save + (-1)**K * Dx
-             CALL coeff_zero(coeff=v_qmmm_rspace)
+             CALL pw_zero(v_qmmm_rspace%pw)
              SELECT CASE(qmmm_env%qmmm_coupl_type)
              CASE(do_qmmm_coulomb)
                 CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -1470,7 +1466,7 @@ CONTAINS
     END SELECT
     CALL cp_print_key_finished_output(iw,logger,print_section,"PROGRAM_RUN_INFO",error=error)
 
-    CALL pw_pool_give_back_coeff ( pw_pools(1)%pool, v_qmmm_rspace,error=error)
+    CALL pw_pool_give_back_pw ( pw_pools(1)%pool, v_qmmm_rspace%pw, error=error)
     DEALLOCATE(Num_Forces,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(0.0_dp,handle)

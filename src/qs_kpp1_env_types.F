@@ -24,8 +24,6 @@
 !!   SOURCE
 ! ****************************************************************************
 MODULE qs_kpp1_env_types
-  USE coefficient_types,               ONLY: coeff_deallocate,&
-                                             coeff_type
   USE cp_array_i_utils,                ONLY: cp_2d_i_write
   USE cp_array_logical_utils,          ONLY: cp_1d_logical_write,&
                                              cp_2d_logical_write
@@ -34,7 +32,8 @@ MODULE qs_kpp1_env_types
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: default_path_length,&
                                              dp
-  USE pw_types,                        ONLY: pw_p_type
+  USE pw_types,                        ONLY: pw_p_type,&
+                                             pw_release
   USE realspace_grid_cube,             ONLY: pw_to_cube
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&
                                              real_matrix_p_type
@@ -98,7 +97,7 @@ MODULE qs_kpp1_env_types
   !***************************************************************************
   TYPE qs_kpp1_env_type
      INTEGER :: ref_count, id_nr, print_count, iter
-     TYPE(coeff_type), DIMENSION(:), POINTER :: v_rspace
+     TYPE(pw_p_type), DIMENSION(:), POINTER :: v_rspace
      TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: v_ao
      TYPE(pw_p_type), DIMENSION(:,:), POINTER :: drho_r
      TYPE(xc_derivative_set_type), POINTER :: deriv_set
@@ -187,7 +186,7 @@ CONTAINS
        IF (kpp1_env%ref_count<1) THEN
           IF (ASSOCIATED(kpp1_env%v_rspace)) THEN
              DO ispin=1,SIZE(kpp1_env%v_rspace)
-                CALL coeff_deallocate(kpp1_env%v_rspace(ispin),error=error)
+                CALL pw_release(kpp1_env%v_rspace(ispin)%pw,error=error)
              END DO
              DEALLOCATE(kpp1_env%v_rspace,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

@@ -23,7 +23,6 @@ MODULE et_coupling
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
-  USE coefficient_types,               ONLY: coeff_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_invert,&
                                              cp_fm_transpose
@@ -51,6 +50,7 @@ MODULE et_coupling
   USE message_passing,                 ONLY: mp_sum
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
+  USE pw_types,                        ONLY: pw_p_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
@@ -329,7 +329,7 @@ CONTAINS
   SUBROUTINE becke_constraint(qs_env,becke_const ,calc_pot,calculate_forces,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(coeff_type)                         :: becke_const
+    TYPE(pw_p_type)                          :: becke_const
     LOGICAL                                  :: calc_pot, calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -508,7 +508,7 @@ END SUBROUTINE becke_constraint
   SUBROUTINE becke_force(qs_env,becke_const,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(coeff_type)                         :: becke_const
+    TYPE(pw_p_type)                          :: becke_const
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'becke_force', &

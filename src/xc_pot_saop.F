@@ -18,7 +18,6 @@ MODULE xc_pot_saop
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type
-  USE coefficient_types,               ONLY: coeff_type
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
@@ -44,9 +43,7 @@ MODULE xc_pot_saop
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                             pw_pool_give_back_coeff,&
                                              pw_pool_give_back_pw,&
-                                             pw_pool_init_coeff,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
@@ -54,7 +51,8 @@ MODULE xc_pot_saop
                                              RECIPROCALSPACE,&
                                              pw_p_type,&
                                              pw_release,&
-                                             pw_zero
+                                             pw_zero,&
+                                             pw_p_type
   USE qs_collocate_density,            ONLY: calculate_rho_elec
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -147,8 +145,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: dummy, e_uniform
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type)                         :: orbital, orbital_g
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: vxc_SAOP
+    TYPE(pw_p_type)                          :: orbital, orbital_g
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_SAOP
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: single_mo_coeff
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -315,10 +313,10 @@ CONTAINS
 
     CALL xc_dset_release(deriv_set, error=error)
 
-    CALL pw_pool_init_coeff(auxbas_pw_pool,orbital,&
+    CALL pw_pool_create_pw(auxbas_pw_pool,orbital%pw,&
                             use_data = REALDATA3D,&
                             in_space = REALSPACE, error=error)
-    CALL pw_pool_init_coeff(auxbas_pw_pool,orbital_g,&
+    CALL pw_pool_create_pw(auxbas_pw_pool,orbital_g%pw,&
                             use_data = COMPLEXDATA1D,&
                             in_space = RECIPROCALSPACE, error=error)
 
@@ -395,7 +393,7 @@ CONTAINS
                        mo_coeff=mo_coeff, &
                        eigenvalues=mo_eigenvalues,&
                        homo=homo)
-       CALL pw_pool_init_coeff(auxbas_pw_pool, vxc_SAOP(ispin), &
+       CALL pw_pool_create_pw(auxbas_pw_pool, vxc_SAOP(ispin)%pw, &
                                use_data=REALDATA3D, in_space=REALSPACE, &
                                error=error)
        CALL pw_zero(vxc_SAOP(ispin)%pw)
@@ -460,8 +458,8 @@ CONTAINS
     END DO
 
     CALL xc_rho_set_release(rho_set, auxbas_pw_pool, error)
-    CALL pw_pool_give_back_coeff(auxbas_pw_pool, orbital, error=error)
-    CALL pw_pool_give_back_coeff(auxbas_pw_pool, orbital_g, error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool, orbital%pw, error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool, orbital_g%pw, error=error)
 
     !--------------------!
     ! Do the integration !
@@ -483,7 +481,7 @@ CONTAINS
     END DO
 
     DO ispin=1, nspins
-       CALL pw_pool_give_back_coeff(auxbas_pw_pool, vxc_SAOP(ispin), error=error)
+       CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_SAOP(ispin)%pw, error=error)
        CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_GLLB(ispin)%pw, error=error)
        CALL pw_release(vxc_LB(ispin)%pw,error=error)
        CALL pw_release(vxc_tmp(ispin)%pw,error=error)

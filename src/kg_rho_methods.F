@@ -22,7 +22,6 @@
 !******************************************************************************
 
 MODULE kg_rho_methods
-  USE coefficient_types,               ONLY: coeff_deallocate
   USE cp_control_types,                ONLY: dft_control_type
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
@@ -30,12 +29,13 @@ MODULE kg_rho_methods
   USE kg_rspw_types,                   ONLY: kg_rspw_get,&
                                              kg_rspw_type
   USE kinds,                           ONLY: dp
-  USE pw_pool_types,                   ONLY: pw_pool_init_coeff,&
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
-                                             RECIPROCALSPACE
+                                             RECIPROCALSPACE,&
+                                             pw_release
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -94,7 +94,7 @@ SUBROUTINE kg_rho_create(kg_rho,kg_env,error)
 !rho_r
   IF(.NOT.failure) THEN
     IF(ASSOCIATED(kg_rho%rho_r)) THEN
-      CALL coeff_deallocate(kg_rho%rho_r,error=error)
+      CALL pw_release(kg_rho%rho_r%pw,error=error)
       DEALLOCATE(kg_rho%rho_r,stat=stat)
       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
@@ -102,14 +102,14 @@ SUBROUTINE kg_rho_create(kg_rho,kg_env,error)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
   IF(.NOT.failure) THEN
-    CALL pw_pool_init_coeff(auxbas_pw_pool,kg_rho%rho_r,&
+    CALL pw_pool_create_pw(auxbas_pw_pool,kg_rho%rho_r%pw,&
          use_data=REALDATA3D,in_space=REALSPACE,error=error)
   END IF
 
 !rho_g
   IF(.NOT.failure) THEN
     IF(ASSOCIATED(kg_rho%rho_g)) THEN
-      CALL coeff_deallocate(kg_rho%rho_g,error=error)
+      CALL pw_release(kg_rho%rho_g%pw,error=error)
       DEALLOCATE(kg_rho%rho_g,stat=stat)
       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
@@ -117,14 +117,14 @@ SUBROUTINE kg_rho_create(kg_rho,kg_env,error)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
   IF(.NOT.failure) THEN
-    CALL pw_pool_init_coeff(auxbas_pw_pool,kg_rho%rho_g,&
+    CALL pw_pool_create_pw(auxbas_pw_pool,kg_rho%rho_g%pw,&
          use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
   END IF
 
 !rho_core
   IF(.NOT.failure) THEN
     IF(ASSOCIATED(kg_rho%rho_core)) THEN
-      CALL coeff_deallocate(kg_rho%rho_core,error=error)
+      CALL pw_release(kg_rho%rho_core%pw,error=error)
       DEALLOCATE(kg_rho%rho_core,stat=stat)
       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
@@ -132,7 +132,7 @@ SUBROUTINE kg_rho_create(kg_rho,kg_env,error)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
   IF(.NOT.failure) THEN
-    CALL pw_pool_init_coeff(auxbas_pw_pool,kg_rho%rho_core,&
+    CALL pw_pool_create_pw(auxbas_pw_pool,kg_rho%rho_core%pw,&
          use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
   END IF
 
@@ -140,7 +140,7 @@ SUBROUTINE kg_rho_create(kg_rho,kg_env,error)
 !rhop_r
     IF(.NOT.failure) THEN
       IF(ASSOCIATED(kg_rho%rhop_r)) THEN
-        CALL coeff_deallocate(kg_rho%rhop_r,error=error)
+        CALL pw_release(kg_rho%rhop_r%pw,error=error)
         DEALLOCATE(kg_rho%rhop_r,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF
@@ -148,13 +148,13 @@ SUBROUTINE kg_rho_create(kg_rho,kg_env,error)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(.NOT.failure) THEN
-      CALL pw_pool_init_coeff(auxbas_pw_pool,kg_rho%rhop_r,&
+      CALL pw_pool_create_pw(auxbas_pw_pool,kg_rho%rhop_r%pw,&
            use_data=REALDATA3D,in_space=REALSPACE,error=error)
     END IF
 !rhop_g
     IF(.NOT.failure) THEN
       IF(ASSOCIATED(kg_rho%rhop_g)) THEN
-        CALL coeff_deallocate(kg_rho%rhop_g,error=error)
+        CALL pw_release(kg_rho%rhop_g%pw,error=error)
         DEALLOCATE(kg_rho%rhop_g,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF
@@ -162,7 +162,7 @@ SUBROUTINE kg_rho_create(kg_rho,kg_env,error)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(.NOT.failure) THEN
-      CALL pw_pool_init_coeff(auxbas_pw_pool,kg_rho%rhop_g,&
+      CALL pw_pool_create_pw(auxbas_pw_pool,kg_rho%rhop_g%pw,&
            use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
     END IF
 

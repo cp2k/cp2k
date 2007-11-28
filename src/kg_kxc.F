@@ -22,7 +22,6 @@
 
 MODULE kg_kxc
   USE cell_types,                      ONLY: cell_type
-  USE coefficient_types,               ONLY: coeff_type
   USE cp_linked_list_xc_deriv,         ONLY: cp_sll_xc_deriv_next,&
                                              cp_sll_xc_deriv_type
   USE input_section_types,             ONLY: section_vals_type
@@ -84,8 +83,8 @@ CONTAINS
 
 
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(coeff_type), INTENT(in)             :: rho_r, rho_g, rhop_r, v_r
-    TYPE(coeff_type), INTENT(inout)          :: v1_r, v2_r
+    TYPE(pw_p_type), INTENT(in)              :: rho_r, rho_g, rhop_r, v_r
+    TYPE(pw_p_type), INTENT(inout)           :: v1_r, v2_r
     REAL(KIND=dp), INTENT(out)               :: e1_xc, e2_xc
     TYPE(section_vals_type), POINTER         :: xc_section
     LOGICAL, INTENT(in)                      :: calculate_forces

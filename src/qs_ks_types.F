@@ -24,11 +24,11 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qs_ks_types
-  USE coefficient_types,               ONLY: coeff_type
   USE kinds,                           ONLY: dp
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
-                                             pw_pool_release,&
-                                             pw_pool_type
+  USE pw_pool_types,                   ONLY: pw_pool_release,&
+                                             pw_pool_type,&
+                                             pw_pool_give_back_pw
+  USE pw_types,                        ONLY: pw_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -85,7 +85,7 @@ MODULE qs_ks_types
      ! hartree is supposed to contain the hartree potential (for cube ouput)
      ! ugly to keep it always around only for a cube output...
      TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
-     TYPE(coeff_type) :: v_hartree_rspace
+     TYPE(pw_p_type)  :: v_hartree_rspace
 
   END TYPE qs_ks_env_type
 !!***
@@ -165,7 +165,7 @@ CONTAINS
        ks_env%ref_count=ks_env%ref_count-1
 
        IF (ks_env%ref_count<1) THEN
-          CALL pw_pool_give_back_coeff(ks_env%auxbas_pw_pool,ks_env%v_hartree_rspace,&
+          CALL pw_pool_give_back_pw(ks_env%auxbas_pw_pool,ks_env%v_hartree_rspace%pw,&
                error=error)
           CALL pw_pool_release(ks_env%auxbas_pw_pool,error=error)
           DEALLOCATE(ks_env, stat=stat)

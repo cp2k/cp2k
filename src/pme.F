@@ -27,7 +27,6 @@ MODULE pme
   USE bibliography,                    ONLY: cite_reference,&
                                              darden1993
   USE cell_types,                      ONLY: cell_type
-  USE coefficient_types,               ONLY: coeff_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_type,&
                                              rs_pool_create_rs,&
                                              rs_pool_give_back_rs
@@ -52,9 +51,7 @@ MODULE pme
   USE pw_poisson_methods,              ONLY: pw_poisson_solve
   USE pw_poisson_types,                ONLY: pw_poisson_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                             pw_pool_give_back_coeff,&
                                              pw_pool_give_back_pw,&
-                                             pw_pool_init_coeff,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
@@ -145,7 +142,7 @@ CONTAINS
                                                 inv_fourpi_eps0
     REAL(KIND=dp), DIMENSION(3)              :: fat
     REAL(KIND=dp), DIMENSION(3, 3)           :: f_stress, h_stress
-    TYPE(coeff_type)                         :: rhos1, rhos2
+    TYPE(pw_p_type)                          :: rhos1, rhos2
     TYPE(cp_rs_pool_type), POINTER           :: rs_pool
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
     TYPE(dg_type), POINTER                   :: dg
@@ -193,9 +190,9 @@ CONTAINS
            allocate_centre = .TRUE. )
     END IF
 
-    CALL pw_pool_init_coeff ( pw_small_pool, rhos1, &
+    CALL pw_pool_create_pw ( pw_small_pool, rhos1%pw, &
                               use_data = REALDATA3D ,error=error)
-    CALL pw_pool_init_coeff ( pw_small_pool, rhos2, &
+    CALL pw_pool_create_pw ( pw_small_pool, rhos2%pw, &
                               use_data = REALDATA3D ,error=error)
 
     CALL rs_pool_create_rs ( rs_pool, rden, error=error )
@@ -419,8 +416,8 @@ CONTAINS
     DEALLOCATE ( drpot, STAT = ierr )
     CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
 
-    CALL pw_pool_give_back_coeff ( pw_small_pool, rhos1 ,error=error)
-    CALL pw_pool_give_back_coeff ( pw_small_pool, rhos2 ,error=error)
+    CALL pw_pool_give_back_pw ( pw_small_pool, rhos1%pw ,error=error)
+    CALL pw_pool_give_back_pw ( pw_small_pool, rhos2%pw ,error=error)
     CALL structure_factor_deallocate ( exp_igr )
 
     CALL timestop ( 0.0_dp, handle )
@@ -458,7 +455,7 @@ SUBROUTINE get_patch ( dg, particle_set, exp_igr, box, p1, p2, &
     TYPE(cell_type), INTENT(IN)              :: box
     INTEGER, INTENT(IN)                      :: p1, p2
     TYPE(pw_grid_type), INTENT(IN)           :: grid_b, grid_s
-    TYPE(coeff_type)                         :: rhos1, rhos2
+    TYPE(pw_p_type)                          :: rhos1, rhos2
     LOGICAL, OPTIONAL                        :: is1_core, is2_core, &
                                                 is1_shell, is2_shell
     TYPE(particle_type), DIMENSION(:), &
@@ -476,7 +473,7 @@ SUBROUTINE get_patch ( dg, particle_set, exp_igr, box, p1, p2, &
     REAL(KIND=dp)                            :: q1, q2
     REAL(KIND=dp), DIMENSION(3)              :: r1, r2
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(coeff_type), POINTER                :: rho0
+    TYPE(pw_p_type), POINTER                 :: rho0
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
     TYPE(shell_kind_type), POINTER           :: shell
 
@@ -595,7 +592,7 @@ SUBROUTINE get_patch_again ( dg, particle_set, exp_igr, p1, p2, rhos1, rhos2, is
       POINTER                                :: particle_set
     TYPE(structure_factor_type)              :: exp_igr
     INTEGER, INTENT(IN)                      :: p1, p2
-    TYPE(coeff_type)                         :: rhos1, rhos2
+    TYPE(pw_p_type)                          :: rhos1, rhos2
     LOGICAL, OPTIONAL                        :: is1_core, is2_core, &
                                                 is1_shell, is2_shell
 
@@ -607,7 +604,7 @@ SUBROUTINE get_patch_again ( dg, particle_set, exp_igr, p1, p2, rhos1, rhos2, is
                                                 my_is2_core, my_is2_shell
     REAL(KIND=dp)                            :: q1, q2
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(coeff_type), POINTER                :: rho0
+    TYPE(pw_p_type), POINTER                 :: rho0
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
     TYPE(shell_kind_type), POINTER           :: shell
 

@@ -25,8 +25,6 @@ MODULE kg_gpw_correction
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
-  USE coefficient_types,               ONLY: coeff_init,&
-                                             coeff_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: sic_none,&
                                              xc_funct_no_shortcut
@@ -49,7 +47,7 @@ MODULE kg_gpw_correction
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
+  USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: pw_p_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -139,7 +137,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell_mol
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: vxc_rho, vxc_tau
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
       POINTER                                :: fm_mol_blocks
@@ -355,8 +353,7 @@ CONTAINS
              ALLOCATE(vxc_rho(nspins),STAT=istat)
              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
              DO ispin=1,nspins
-               CALL coeff_init(vxc_rho(ispin),pw=my_vxc_rho(ispin)%pw,&
-                               error=error)
+               vxc_rho(ispin)%pw => my_vxc_rho(ispin)%pw
              END DO
              DEALLOCATE(my_vxc_rho,STAT=istat)
           END IF
@@ -364,8 +361,7 @@ CONTAINS
              ALLOCATE(vxc_tau(nspins),STAT=istat)
              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
              DO ispin=1,nspins
-                CALL coeff_init(vxc_tau(ispin),pw=my_vxc_tau(ispin)%pw,&
-                                error=error)
+               vxc_tau(ispin)%pw => my_vxc_tau(ispin)%pw
              END DO
              DEALLOCATE(my_vxc_tau,STAT=istat)
              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -397,7 +393,7 @@ CONTAINS
                                              error=error)
                END IF
 
-               CALL pw_pool_give_back_coeff(auxbas_pw_pool,vxc_rho(ispin),error=error)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool,vxc_rho(ispin)%pw,error=error)
 
              END DO
              DEALLOCATE(vxc_rho,STAT=istat)
@@ -424,7 +420,7 @@ CONTAINS
                                                atom=i_atom, kind=i_kind, ratom=r_mbox,&
                                                compute_tau=.TRUE.,error=error)
                  END IF
-                 CALL pw_pool_give_back_coeff(auxbas_pw_pool,vxc_tau(ispin),error=error)
+                 CALL pw_pool_give_back_pw(auxbas_pw_pool,vxc_tau(ispin)%pw,error=error)
 
                END DO
                DEALLOCATE(vxc_tau,STAT=istat)

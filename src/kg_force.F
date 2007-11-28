@@ -24,11 +24,6 @@ MODULE kg_force
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
-  USE coefficient_types,               ONLY: coeff_init,&
-                                             coeff_sumup,&
-                                             coeff_transform_space,&
-                                             coeff_type,&
-                                             coeff_zero
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -74,15 +69,18 @@ MODULE kg_force
   USE particle_types,                  ONLY: particle_type
   USE pw_poisson_methods,              ONLY: pw_poisson_solve
   USE pw_poisson_types,                ONLY: pw_poisson_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
-                                             pw_pool_init_coeff,&
+  USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
+                                             pw_pool_create_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
+                                             pw_integrate_function,&
                                              pw_p_type,&
-                                             pw_integrate_function
+                                             pw_sumup,&
+                                             pw_transfer,&
+                                             pw_zero
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
@@ -211,7 +209,7 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, error )
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type), POINTER                :: rho_core, rho_g, rho_r, &
+    TYPE(pw_p_type), POINTER                 :: rho_core, rho_g, rho_r, &
                                                 rhop_g, rhop_r, v1xc_r, &
                                                 v2xc_r, v_gspace, v_rspace, &
                                                 vxc_r
@@ -278,22 +276,22 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, error )
   CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
 
   IF (.NOT.failure) THEN
-    CALL pw_pool_init_coeff(auxbas_pw_pool, v_gspace, &
+    CALL pw_pool_create_pw(auxbas_pw_pool, v_gspace%pw, &
                             use_data = COMPLEXDATA1D,&
                             in_space = RECIPROCALSPACE, error=error)
-    CALL coeff_zero(v_gspace)
-    CALL pw_pool_init_coeff(auxbas_pw_pool, v_rspace,&
+    CALL pw_zero(v_gspace%pw)
+    CALL pw_pool_create_pw(auxbas_pw_pool, v_rspace%pw,&
                             use_data = REALDATA3D,&
                             in_space = REALSPACE, error=error)
-    CALL coeff_zero(v_rspace)
-    CALL pw_pool_init_coeff(auxbas_pw_pool, v1xc_r,&
+    CALL pw_zero(v_rspace%pw)
+    CALL pw_pool_create_pw(auxbas_pw_pool, v1xc_r%pw,&
                             use_data = REALDATA3D,&
                             in_space = REALSPACE, error=error)
-    CALL coeff_zero(v1xc_r)
-    CALL pw_pool_init_coeff(auxbas_pw_pool, v2xc_r,&
+    CALL pw_zero(v1xc_r%pw)
+    CALL pw_pool_create_pw(auxbas_pw_pool, v2xc_r%pw,&
                             use_data = REALDATA3D,&
                             in_space = REALSPACE, error=error)
-    CALL coeff_zero(v2xc_r)
+    CALL pw_zero(v2xc_r%pw)
   END IF
 
   calculate_forces=.TRUE.
@@ -369,7 +367,7 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, error )
   CALL xc_vxc_pw_create1(my_vxc_r,my_vxc_tau,my_rho_r,my_rho_g,my_tau,&
        energy%exc,xc_section,cell,auxbas_pw_pool,error=error)
 ! ALLOCATE(vxc_r)
-  CALL coeff_init(vxc_r,pw=my_vxc_r(1)%pw,error=error)
+  vxc_r%pw => my_vxc_r(1)%pw
   NULLIFY(my_rho_r(1)%pw,my_rho_g(1)%pw, my_vxc_r(1)%pw)
   DEALLOCATE(my_rho_r,my_rho_g, my_vxc_r)
   NULLIFY(my_rho_r,my_rho_g, my_vxc_r)
@@ -383,20 +381,20 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, error )
   rho%total_rho_rspace = total_rho0_rspace+ rho%total_rho_core_rspace
 
 ! add the core density to the frozen electronic density
-  CALL coeff_sumup(rho_core,rho_g)
+  CALL pw_sumup(rho_core%pw,rho_g%pw)
 
   rho%total_rho_gspace = pw_integrate_function(rho_g%pw)
 
 ! add the polarization density to get the total density
-  CALL coeff_sumup(rhop_g,rho_g)
+  CALL pw_sumup(rhop_g%pw,rho_g%pw)
 
 ! calculate electrostatic potential
   CALL pw_poisson_solve(poisson_env,rho_g%pw, energy % hartree,v_gspace%pw,error=error)
 
 !  calclation of the forces on the ions
 
-  CALL coeff_transform_space(v_gspace,v_rspace)
-  CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_gspace,error=error)
+  CALL pw_transfer(v_gspace%pw,v_rspace%pw)
+  CALL pw_pool_give_back_pw(auxbas_pw_pool,v_gspace%pw,error=error)
   DEALLOCATE(v_gspace,stat=stat)
   CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
 
@@ -415,16 +413,16 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, error )
   CALL calculate_v_rspace_forces(v_rspace,kg_env,error=error)
 
 ! deallocate work storage
-  CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace,error=error)
+  CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace%pw,error=error)
   DEALLOCATE(v_rspace,stat=stat)
   CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
-  CALL pw_pool_give_back_coeff(auxbas_pw_pool,vxc_r,error=error)
+  CALL pw_pool_give_back_pw(auxbas_pw_pool,vxc_r%pw,error=error)
   DEALLOCATE(vxc_r,stat=stat)
   CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
-  CALL pw_pool_give_back_coeff(auxbas_pw_pool,v1xc_r,error=error)
+  CALL pw_pool_give_back_pw(auxbas_pw_pool,v1xc_r%pw,error=error)
   DEALLOCATE(v1xc_r,stat=stat)
   CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
-  CALL pw_pool_give_back_coeff(auxbas_pw_pool,v2xc_r,error=error)
+  CALL pw_pool_give_back_pw(auxbas_pw_pool,v2xc_r%pw,error=error)
   DEALLOCATE(v2xc_r,stat=stat)
   CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
 
@@ -535,7 +533,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, error )
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type), POINTER                :: rho_core, rho_g, rho_r, &
+    TYPE(pw_p_type), POINTER                 :: rho_core, rho_g, rho_r, &
                                                 v_gspace, v_rspace, vxc_r
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -585,14 +583,14 @@ SUBROUTINE kg_calculate_forces ( kg_env, error )
   ALLOCATE(vxc_r,stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
   IF (.NOT.failure) THEN
-    CALL pw_pool_init_coeff(auxbas_pw_pool, v_gspace, &
+    CALL pw_pool_create_pw(auxbas_pw_pool, v_gspace%pw, &
                             use_data = COMPLEXDATA1D,&
                             in_space = RECIPROCALSPACE, error=error)
-    CALL coeff_zero(v_gspace)
-    CALL pw_pool_init_coeff(auxbas_pw_pool, v_rspace,&
+    CALL pw_zero(v_gspace%pw)
+    CALL pw_pool_create_pw(auxbas_pw_pool, v_rspace%pw,&
                             use_data = REALDATA3D,&
                             in_space = REALSPACE, error=error)
-    CALL coeff_zero(v_rspace)
+    CALL pw_zero(v_rspace%pw)
   END IF
 
   calculate_forces=.TRUE.
@@ -654,7 +652,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, error )
   CALL xc_vxc_pw_create1(my_vxc_r,my_vxc_tau,my_rho_r,my_rho_g,my_tau,&
        energy%exc,xc_section,cell,auxbas_pw_pool,error=error)
 ! ALLOCATE(vxc_r)
-  CALL coeff_init(vxc_r,pw=my_vxc_r(1)%pw,error=error)
+  vxc_r%pw => my_vxc_r(1)%pw
   NULLIFY(my_rho_r(1)%pw, my_vxc_r(1)%pw,my_rho_g(1)%pw)
   DEALLOCATE(my_rho_r, my_rho_g, my_vxc_r)
   NULLIFY(my_rho_r, my_rho_g, my_vxc_r)
@@ -666,15 +664,15 @@ SUBROUTINE kg_calculate_forces ( kg_env, error )
 
 ! add the core density to the frozen electronic density
 
-  CALL coeff_sumup(rho_core,rho_g)
+  CALL pw_sumup(rho_core%pw,rho_g%pw)
   rho%total_rho_gspace = pw_integrate_function(rho_g%pw)
 
 ! calculate electrostatic potential
   CALL pw_poisson_solve(poisson_env,rho_g%pw, energy % hartree,v_gspace%pw,error=error)
 
 !  calclation of the forces on the ions
-  CALL coeff_transform_space(v_gspace,v_rspace)
-  CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_gspace,error=error)
+  CALL pw_transfer(v_gspace%pw,v_rspace%pw)
+  CALL pw_pool_give_back_pw(auxbas_pw_pool,v_gspace%pw,error=error)
   DEALLOCATE(v_gspace,stat=stat)
   CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
 
@@ -687,10 +685,10 @@ SUBROUTINE kg_calculate_forces ( kg_env, error )
   CALL calculate_v_rspace_forces(v_rspace,kg_env,error=error)
 
 ! deallocate work storage
-  CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace,error=error)
+  CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace%pw,error=error)
   DEALLOCATE(v_rspace,stat=stat)
   CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
-  CALL pw_pool_give_back_coeff(auxbas_pw_pool,vxc_r,error=error)
+  CALL pw_pool_give_back_pw(auxbas_pw_pool,vxc_r%pw,error=error)
   DEALLOCATE(vxc_r,stat=stat)
   CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
 

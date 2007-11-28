@@ -24,7 +24,6 @@ MODULE molecular_states
 ! *****************************************************************************
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
-  USE coefficient_types,               ONLY: coeff_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
@@ -52,6 +51,7 @@ MODULE molecular_states
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_type
+  USE pw_types,                        ONLY: pw_p_type
   USE qs_collocate_density,            ONLY: calculate_wavefunction
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -93,7 +93,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(real_matrix_type), POINTER          :: Hks, matrix_S
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(coeff_type), INTENT(INOUT)          :: wf_r, wf_g
+    TYPE(pw_p_type), INTENT(INOUT)           :: wf_r, wf_g
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 

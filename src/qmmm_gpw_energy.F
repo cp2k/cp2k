@@ -25,8 +25,6 @@
 MODULE qmmm_gpw_energy
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE coefficient_types,               ONLY: coeff_type,&
-                                             coeff_zero
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -152,7 +150,7 @@ CONTAINS
        !
        ! Initializing vectors:
        !        Zeroing v_qmmm_rspace 
-       CALL coeff_zero(coeff=ks_qmmm_env_loc%v_qmmm_rspace)
+       CALL pw_zero(ks_qmmm_env_loc%v_qmmm_rspace%pw)
        IF (qs_env%dft_control%qs_control%semi_empirical) THEN
           ! SEMIEMPIRICAL
           SELECT CASE(qmmm_env%qmmm_coupl_type)
@@ -252,7 +250,7 @@ CONTAINS
        aug_pools, cube_info, para_env, eps_mm_rspace, pw_pools,&
        auxbas_grid, coarser_grid, interp_section, mm_cell, error)
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
-    TYPE(coeff_type), INTENT(INOUT)          :: v_qmmm
+    TYPE(pw_p_type), INTENT(INOUT)           :: v_qmmm
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
     TYPE(pw_pool_p_type), DIMENSION(:), &

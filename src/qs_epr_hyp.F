@@ -26,10 +26,6 @@ MODULE qs_epr_hyp
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE coefficient_types,               ONLY: coeff_reduce,&
-                                             coeff_sumup,&
-                                             coeff_type,&
-                                             coeff_zero
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_output_handling,              ONLY: cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -52,12 +48,16 @@ MODULE qs_epr_hyp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_grid_types,                   ONLY: pw_grid_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
-                                             pw_pool_init_coeff,&
+  USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
+                                             pw_pool_create_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              RECIPROCALSPACE,&
-                                             pw_dr2_gg
+                                             pw_dr2_gg,&
+                                             pw_reduce,&
+                                             pw_zero,&
+                                             pw_p_type,&
+                                             pw_sumup
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_grid_atom,                    ONLY: grid_atom_type
@@ -108,7 +108,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type), POINTER                :: hypaniso_gspace, &
+    TYPE(pw_p_type), POINTER                 :: hypaniso_gspace, &
                                                 rhototspin_elec_gspace
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -305,31 +305,31 @@ CONTAINS
 
     ALLOCATE (rhototspin_elec_gspace,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    CALL pw_pool_init_coeff(pool=auxbas_pw_pool,&
-                            coeff=rhototspin_elec_gspace,&
+    CALL pw_pool_create_pw(auxbas_pw_pool,&
+                            rhototspin_elec_gspace%pw,&
                             use_data=COMPLEXDATA1D,&
                             in_space=RECIPROCALSPACE,&
                             error=error)
-    CALL coeff_zero(rhototspin_elec_gspace)
+    CALL pw_zero(rhototspin_elec_gspace%pw)
 
     pw_grid => rhototspin_elec_gspace%pw%pw_grid
 
     ! Load the contribution of the soft electronic density
     CPPrecondition(SIZE(rho%rho_g)>1,cp_failure_level,routineP,error,failure)
-    CALL coeff_sumup(rho%rho_g(1),rhototspin_elec_gspace)
-    CALL coeff_reduce(rho%rho_g(2),rhototspin_elec_gspace)
+    CALL pw_sumup(rho%rho_g(1)%pw,rhototspin_elec_gspace%pw)
+    CALL pw_reduce(rho%rho_g(2)%pw,rhototspin_elec_gspace%pw)
     ! grid to assemble anisotropic hyperfine terms
     ALLOCATE (hypaniso_gspace,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    CALL pw_pool_init_coeff(pool=auxbas_pw_pool,&
-                            coeff=hypaniso_gspace,&
+    CALL pw_pool_create_pw(auxbas_pw_pool,&
+                            hypaniso_gspace%pw,&
                             use_data=COMPLEXDATA1D,&
                             in_space=RECIPROCALSPACE,&
                             error=error)
 
     DO idir1=1,3
       DO idir2=idir1,3 ! tensor symmetry
-        CALL coeff_zero(hypaniso_gspace)
+        CALL pw_zero(hypaniso_gspace%pw)
         CALL pw_dr2_gg ( rhototspin_elec_gspace%pw, hypaniso_gspace%pw, &
                          idir1, idir2 )
         DO iatom=1,natom
@@ -347,14 +347,14 @@ CONTAINS
       END DO ! idir2
     END DO ! idir1
 
-    CALL pw_pool_give_back_coeff(pool=auxbas_pw_pool,&
-                                 coeff=rhototspin_elec_gspace,&
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,&
+                                 rhototspin_elec_gspace%pw,&
                                  error=error)
     DEALLOCATE (rhototspin_elec_gspace,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL pw_pool_give_back_coeff(pool=auxbas_pw_pool,&
-                                 coeff=hypaniso_gspace,&
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,&
+                                 hypaniso_gspace%pw,&
                                  error=error)
     DEALLOCATE (hypaniso_gspace,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

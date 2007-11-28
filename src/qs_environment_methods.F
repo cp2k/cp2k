@@ -28,8 +28,6 @@
 MODULE qs_environment_methods
 
   USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE coefficient_types,               ONLY: coeff_deallocate,&
-                                             coeff_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_ddapc_types,                  ONLY: cp_ddapc_release
   USE cp_ddapc_util,                   ONLY: cp_ddapc_init
@@ -46,10 +44,12 @@ MODULE qs_environment_methods
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_release,&
                                              pw_env_type
-  USE pw_pool_types,                   ONLY: pw_pool_init_coeff,&
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             RECIPROCALSPACE
+                                             RECIPROCALSPACE,&
+                                             pw_release,&
+                                             pw_p_type
   USE qs_charges_types,                ONLY: qs_charges_create,&
                                              qs_charges_release,&
                                              qs_charges_type
@@ -278,7 +278,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
     IF(dft_control%qs_control%gapw) THEN
       qs_env%qs_charges%total_rho_core_rspace=qs_env%local_rho_set%rhoz_tot
       IF (ASSOCIATED(qs_env%rho_core)) THEN
-          CALL coeff_deallocate(qs_env%rho_core,error=error)
+          CALL pw_release(qs_env%rho_core%pw,error=error)
           DEALLOCATE(qs_env%rho_core)
       ENDIF
     ELSE IF(dft_control%qs_control%semi_empirical) THEN
@@ -360,7 +360,7 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
 
     INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
-    TYPE(coeff_type), POINTER                :: rho_core
+    TYPE(pw_p_type), POINTER                 :: rho_core
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: new_pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
@@ -384,7 +384,7 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
     CPPrecondition(ASSOCIATED(new_pw_env),cp_failure_level,routineP,error,failure)
     IF(dft_control%qs_control%gapw) THEN
       IF (ASSOCIATED(rho_core)) THEN
-         CALL coeff_deallocate(rho_core,error=error)
+         CALL pw_release(rho_core%pw,error=error)
          DEALLOCATE(rho_core,stat=stat)
          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF
@@ -392,7 +392,7 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
     ELSE IF (dft_control%qs_control%dftb) THEN
     ELSE
       IF (ASSOCIATED(rho_core)) THEN
-         CALL coeff_deallocate(rho_core,error=error)
+         CALL pw_release(rho_core%pw,error=error)
          DEALLOCATE(rho_core,stat=stat)
          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       ENDIF
@@ -400,7 +400,7 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       IF (.NOT.failure) THEN
          CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
-         CALL pw_pool_init_coeff(pool=auxbas_pw_pool, coeff=rho_core, &
+         CALL pw_pool_create_pw(auxbas_pw_pool, rho_core%pw, &
               use_data=COMPLEXDATA1D, error=error)
          rho_core%pw%in_space=RECIPROCALSPACE
          CALL set_qs_env(qs_env, rho_core=rho_core,error=error)
@@ -512,7 +512,7 @@ SUBROUTINE qs_env_update_rho_core(qs_env,error)
 
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
-    TYPE(coeff_type), POINTER                :: rho_core
+    TYPE(pw_p_type), POINTER                 :: rho_core
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(qs_charges_type), POINTER           :: qs_charges

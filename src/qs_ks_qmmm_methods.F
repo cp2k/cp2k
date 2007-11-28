@@ -19,7 +19,6 @@
 !******************************************************************************
 
 MODULE qs_ks_qmmm_methods
-  USE coefficient_types,               ONLY: coeff_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cube_utils,                      ONLY: cube_info_type,&
                                              init_cube_info
@@ -28,11 +27,12 @@ MODULE qs_ks_qmmm_methods
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_retain
-  USE pw_pool_types,                   ONLY: pw_pool_init_coeff,&
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_p_type,&
                                              pw_pool_type
   USE pw_types,                        ONLY: REALDATA3D,&
                                              REALSPACE,&
+                                             pw_p_type,&
                                              pw_integral_ab
   USE qmmm_types,                      ONLY: qmmm_env_qm_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -162,7 +162,7 @@ CONTAINS
        last_ks_qmmm_nr=last_ks_qmmm_nr+1
        ks_qmmm_env%id_nr=last_ks_qmmm_nr
 
-       CALL pw_pool_init_coeff(auxbas_pw_pool,ks_qmmm_env%v_qmmm_rspace,&
+       CALL pw_pool_create_pw(auxbas_pw_pool,ks_qmmm_env%v_qmmm_rspace%pw,&
             use_data=REALDATA3D, in_space=REALSPACE,error=error)
 
        IF ((qmmm_env%qmmm_coupl_type==do_qmmm_gauss).OR.(qmmm_env%qmmm_coupl_type==do_qmmm_swave)) THEN
@@ -210,8 +210,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE qmmm_calculate_energy(qs_env, rho, v_qmmm, qmmm_energy, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: rho
-    TYPE(coeff_type), INTENT(IN)             :: v_qmmm
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho
+    TYPE(pw_p_type), INTENT(IN)              :: v_qmmm
     REAL(KIND=dp), INTENT(INOUT)             :: qmmm_energy
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -220,7 +220,7 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin
     LOGICAL                                  :: failure
-    TYPE(coeff_type), POINTER                :: rho0_s_rs
+    TYPE(pw_p_type), POINTER                 :: rho0_s_rs
     TYPE(dft_control_type), POINTER          :: dft_control
 
     CALL timeset(routineN,"I","",handle)
@@ -268,8 +268,8 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE qmmm_modify_hartree_pot(v_hartree,v_qmmm, error)
-    TYPE(coeff_type), INTENT(INOUT)          :: v_hartree
-    TYPE(coeff_type), INTENT(IN)             :: v_qmmm
+    TYPE(pw_p_type), INTENT(INOUT)           :: v_hartree
+    TYPE(pw_p_type), INTENT(IN)              :: v_qmmm
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_modify_hartree_pot', &

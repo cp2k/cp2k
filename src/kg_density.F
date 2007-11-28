@@ -28,11 +28,6 @@ MODULE kg_density
                                              gto_basis_set_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE coefficient_types,               ONLY: coeff_copy,&
-                                             coeff_sumup,&
-                                             coeff_transform_space,&
-                                             coeff_type,&
-                                             coeff_zero
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              cp_rs_pool_type,&
@@ -47,7 +42,6 @@ MODULE kg_density
                                              dyn_coeff_type
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
-  USE kahan_sum,                       ONLY: accurate_sum
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
   USE kg_force_types,                  ONLY: kg_force_type
@@ -56,21 +50,17 @@ MODULE kg_density
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
-  USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: ncoset
   USE particle_types,                  ONLY: particle_type
-  USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
-                                             pw_pool_init_coeff,&
+  USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
+                                             pw_pool_create_pw,&
                                              pw_pool_p_type,&
                                              pw_pool_type,&
-                                             pw_pools_give_back_coeffs,&
-                                             pw_pools_init_coeffs
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
-                                             RECIPROCALSPACE,&
-                                             pw_integrate_function
+                                             pw_pools_give_back_pws,&
+                                             pw_pools_create_pws
+  USE pw_types,                        ONLY: &
+       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_copy, &
+       pw_integrate_function, pw_sumup, pw_transfer, pw_p_type, pw_zero
   USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace
   USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace
   USE realspace_grid_types,            ONLY: pw2rs,&
@@ -105,7 +95,7 @@ CONTAINS
   SUBROUTINE calculate_density(rho,rho_gspace,&
                                total_rho, kg_env,error)
 
-    TYPE(coeff_type), INTENT(INOUT)          :: rho, rho_gspace
+    TYPE(pw_p_type), INTENT(INOUT)           :: rho, rho_gspace
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -127,7 +117,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_gspace, mgrid_rspace
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
     TYPE(cube_info_type), DIMENSION(:), &
@@ -169,14 +159,10 @@ CONTAINS
     CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routine,error,failure)
     CALL kg_rspw_get(rspw, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
 
-    ALLOCATE(mgrid_rspace(SIZE(pw_pools)) ,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
-    CALL pw_pools_init_coeffs(pw_pools,mgrid_rspace,&
+    CALL pw_pools_create_pws(pw_pools,mgrid_rspace,&
                               use_data = REALDATA3D,&
                               in_space = REALSPACE, error=error)
-    ALLOCATE(mgrid_gspace(SIZE(pw_pools)) ,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
-    CALL pw_pools_init_coeffs(pw_pools,mgrid_gspace,&
+    CALL pw_pools_create_pws(pw_pools,mgrid_gspace,&
                               use_data = COMPLEXDATA1D,&
                               in_space = RECIPROCALSPACE, error=error)
 
@@ -277,9 +263,9 @@ CONTAINS
     IF (gridlevel_info%ngrid_levels==1) THEN
        CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho%pw,rs2pw)
        CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
-       CALL coeff_transform_space(rho,rho_gspace)
+       CALL pw_transfer(rho%pw,rho_gspace%pw)
        IF (rho%pw%pw_grid%spherical) THEN ! rho_gspace = rho
-          CALL coeff_transform_space(rho_gspace,rho)
+          CALL pw_transfer(rho_gspace%pw,rho%pw)
        ENDIF
     ELSE
        DO igrid_level=1,gridlevel_info%ngrid_levels
@@ -289,26 +275,20 @@ CONTAINS
        CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
 
        ! we want both rho an rho_gspace, the latter for Hartree and co-workers.
-       CALL coeff_zero(rho_gspace)
+       CALL pw_zero(rho_gspace%pw)
        DO igrid_level=1,gridlevel_info%ngrid_levels
-         CALL coeff_transform_space(mgrid_rspace(igrid_level),&
-              mgrid_gspace(igrid_level))
-         CALL coeff_sumup(mgrid_gspace(igrid_level),rho_gspace)
+         CALL pw_transfer(mgrid_rspace(igrid_level)%pw,&
+              mgrid_gspace(igrid_level)%pw)
+         CALL pw_sumup(mgrid_gspace(igrid_level)%pw,rho_gspace%pw)
        END DO
-       CALL coeff_transform_space(rho_gspace,rho)
+       CALL pw_transfer(rho_gspace%pw,rho%pw)
     END IF
 
     total_rho = pw_integrate_function(rho%pw)
 
     ! *** give back the pw multi-grids
-    CALL pw_pools_give_back_coeffs(pw_pools,mgrid_gspace,&
-                                      error=error)
-    DEALLOCATE(mgrid_gspace,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
-    CALL pw_pools_give_back_coeffs(pw_pools,mgrid_rspace,&
-         error=error)
-    DEALLOCATE(mgrid_rspace,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+    CALL pw_pools_give_back_pws(pw_pools,mgrid_gspace,error=error)
+    CALL pw_pools_give_back_pws(pw_pools,mgrid_rspace,error=error)
 
     CALL timestop(0.0_dp,handle)
 
@@ -320,7 +300,7 @@ CONTAINS
 
 !   *** Arguments ***
 
-    TYPE(coeff_type), INTENT(INOUT)          :: rho_core
+    TYPE(pw_p_type), INTENT(INOUT)           :: rho_core
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -338,7 +318,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type)                         :: rhoc_r
+    TYPE(pw_p_type)                          :: rhoc_r
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
     TYPE(cube_info_type), POINTER            :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -406,7 +386,7 @@ CONTAINS
     DEALLOCATE(pab,stat=istat)
     IF (istat /= 0) CALL stop_memory(routine,"pab")
 
-    CALL pw_pool_init_coeff(pool=auxbas_pw_pool, coeff=rhoc_r, &
+    CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r%pw, &
          use_data=REALDATA3D,in_space=REALSPACE,error=error)
 
     CALL rs_pw_transfer(rs_rho,rhoc_r%pw,rs2pw)
@@ -414,9 +394,9 @@ CONTAINS
 
     total_rho = pw_integrate_function(rhoc_r%pw)
 
-    CALL coeff_transform_space(rhoc_r,rho_core)
+    CALL pw_transfer(rhoc_r%pw,rho_core%pw)
 
-    CALL pw_pool_give_back_coeff(auxbas_pw_pool,rhoc_r,error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,rhoc_r%pw,error=error)
 
     CALL timestop(0.0_dp,handle)
 
@@ -427,7 +407,7 @@ CONTAINS
   SUBROUTINE calculate_p_density(rho,rho_gspace,&
                                     total_rho, kg_env,error)
 
-    TYPE(coeff_type), INTENT(INOUT)          :: rho, rho_gspace
+    TYPE(pw_p_type), INTENT(INOUT)           :: rho, rho_gspace
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -449,7 +429,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_gspace, mgrid_rspace
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
     TYPE(cube_info_type), DIMENSION(:), &
@@ -495,14 +475,10 @@ CONTAINS
     CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routine,error,failure)
     CALL kg_rspw_get(rspw, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
 
-    ALLOCATE(mgrid_rspace(SIZE(pw_pools)) ,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
-    CALL pw_pools_init_coeffs(pw_pools,mgrid_rspace,&
+    CALL pw_pools_create_pws(pw_pools,mgrid_rspace,&
                               use_data = REALDATA3D,&
                               in_space = REALSPACE, error=error)
-    ALLOCATE(mgrid_gspace(SIZE(pw_pools)) ,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
-    CALL pw_pools_init_coeffs(pw_pools,mgrid_gspace,&
+    CALL pw_pools_create_pws(pw_pools,mgrid_gspace,&
                               use_data = COMPLEXDATA1D,&
                               in_space = RECIPROCALSPACE, error=error)
 
@@ -613,9 +589,9 @@ CONTAINS
     IF (gridlevel_info%ngrid_levels==1) THEN
        CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho%pw,rs2pw)
        CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
-       CALL coeff_transform_space(rho,rho_gspace)
+       CALL pw_transfer(rho%pw,rho_gspace%pw)
        IF (rho%pw%pw_grid%spherical) THEN ! rho_gspace = rho
-          CALL coeff_transform_space(rho_gspace,rho)
+          CALL pw_transfer(rho_gspace%pw,rho%pw)
        ENDIF
     ELSE
        DO igrid_level=1,gridlevel_info%ngrid_levels
@@ -625,26 +601,20 @@ CONTAINS
        CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
 
        ! we want both rho an rho_gspace, the latter for Hartree and co-workers.
-       CALL coeff_zero(rho_gspace)
+       CALL pw_zero(rho_gspace%pw)
        DO igrid_level=1,gridlevel_info%ngrid_levels
-         CALL coeff_transform_space(mgrid_rspace(igrid_level),&
-              mgrid_gspace(igrid_level))
-         CALL coeff_sumup(mgrid_gspace(igrid_level),rho_gspace)
+         CALL pw_transfer(mgrid_rspace(igrid_level)%pw,&
+              mgrid_gspace(igrid_level)%pw)
+         CALL pw_sumup(mgrid_gspace(igrid_level)%pw,rho_gspace%pw)
        END DO
-       CALL coeff_transform_space(rho_gspace,rho)
+       CALL pw_transfer(rho_gspace%pw,rho%pw)
     END IF
 
     total_rho = pw_integrate_function(rho%pw)
 
     ! *** give back the pw multi-grids
-    CALL pw_pools_give_back_coeffs(pw_pools,mgrid_gspace,&
-                                   error=error)
-    DEALLOCATE(mgrid_gspace,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
-    CALL pw_pools_give_back_coeffs(pw_pools,mgrid_rspace,&
-         error=error)
-    DEALLOCATE(mgrid_rspace,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+    CALL pw_pools_give_back_pws(pw_pools,mgrid_gspace,error=error)
+    CALL pw_pools_give_back_pws(pw_pools,mgrid_rspace,error=error)
 
     CALL timestop(0.0_dp,handle)
 
@@ -657,7 +627,7 @@ CONTAINS
 
 !   *** Arguments ***
 
-    TYPE(coeff_type), INTENT(INOUT)          :: v_rspace
+    TYPE(pw_p_type), INTENT(INOUT)           :: v_rspace
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -773,7 +743,7 @@ CONTAINS
 
 !   ***  Arguments   ***
 
-    TYPE(coeff_type)                         :: v_rspace
+    TYPE(pw_p_type)                          :: v_rspace
     TYPE(kg_environment_type), POINTER       :: kg_env
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: force_type
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -797,7 +767,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_gspace, mgrid_rspace
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
     TYPE(cube_info_type), DIMENSION(:), &
@@ -840,9 +810,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routine,error,failure)
     CALL kg_rspw_get(rspw, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
 
-    ALLOCATE(mgrid_rspace(SIZE(pw_pools)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
-    CALL pw_pools_init_coeffs(pw_pools,mgrid_rspace,&
+    CALL pw_pools_create_pws(pw_pools,mgrid_rspace,&
                 use_data = REALDATA3D,&
                 in_space = REALSPACE, error=error)
 
@@ -852,25 +820,23 @@ CONTAINS
     cube_info=>rspw%cube_info
 
 !   *** Get the potential on the subgrids in real space, via fft ***
-    ALLOCATE(mgrid_gspace(SIZE(pw_pools)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
-    CALL pw_pools_init_coeffs(pw_pools,mgrid_gspace,&
+    CALL pw_pools_create_pws(pw_pools,mgrid_gspace,&
                               use_data = COMPLEXDATA1D,&
                               in_space = RECIPROCALSPACE, error=error)
 
-    CALL coeff_transform_space(v_rspace,mgrid_gspace(auxbas_grid))
+    CALL pw_transfer(v_rspace%pw,mgrid_gspace(auxbas_grid)%pw)
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
       IF ( igrid_level /= auxbas_grid ) THEN
-           CALL coeff_copy(mgrid_gspace(auxbas_grid),mgrid_gspace(igrid_level))
-           CALL coeff_transform_space(mgrid_gspace(igrid_level),&
-                                          mgrid_rspace(igrid_level))
+           CALL pw_copy(mgrid_gspace(auxbas_grid)%pw,mgrid_gspace(igrid_level)%pw)
+           CALL pw_transfer(mgrid_gspace(igrid_level)%pw,&
+                                          mgrid_rspace(igrid_level)%pw)
       ELSE
            IF (mgrid_gspace(auxbas_grid)%pw%pw_grid%spherical) THEN
-               CALL coeff_transform_space(mgrid_gspace(auxbas_grid),&
-                                          mgrid_rspace(auxbas_grid))
+               CALL pw_transfer(mgrid_gspace(auxbas_grid)%pw,&
+                                          mgrid_rspace(auxbas_grid)%pw)
            ELSE ! fft forward + backward should be identical
-               CALL coeff_copy(v_rspace,mgrid_rspace(auxbas_grid))
+               CALL pw_copy(v_rspace%pw,mgrid_rspace(auxbas_grid)%pw)
            ENDIF
       ENDIF
       ! *** Multiply by the grid volume element ratio ***
@@ -881,10 +847,7 @@ CONTAINS
                                    scale*mgrid_rspace(igrid_level)%pw%cr3d
       END IF
     END DO
-    CALL pw_pools_give_back_coeffs(pw_pools,mgrid_gspace,&
-                                   error=error)
-    DEALLOCATE(mgrid_gspace,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+    CALL pw_pools_give_back_pws(pw_pools,mgrid_gspace,error=error)
 
     CALL kg_rspw_get(rspw, rs_pools=rs_pools,error=error)
     CALL rs_pools_create_rs_vect(rs_pools, rs_v, error=error)
@@ -896,10 +859,7 @@ CONTAINS
     ENDDO
 
     ! *** give back the pw multi-grids
-    CALL pw_pools_give_back_coeffs(pw_pools,mgrid_rspace,&
-         error=error)
-    DEALLOCATE(mgrid_rspace,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+    CALL pw_pools_give_back_pws(pw_pools,mgrid_rspace,error=error)
 
 !   *** having the potential on the rs_multigrids, just integrate ...
 
@@ -1044,7 +1004,7 @@ CONTAINS
 
 !   ***  Arguments   ***
 
-    TYPE(coeff_type)                         :: v_rspace
+    TYPE(pw_p_type)                          :: v_rspace
     TYPE(kg_environment_type), POINTER       :: kg_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: force_type
@@ -1070,7 +1030,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_gspace, mgrid_rspace
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
     TYPE(cube_info_type), DIMENSION(:), &
@@ -1117,9 +1077,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routine,error,failure)
     CALL kg_rspw_get(rspw, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
 
-    ALLOCATE(mgrid_rspace(SIZE(pw_pools)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
-    CALL pw_pools_init_coeffs(pw_pools,mgrid_rspace,&
+    CALL pw_pools_create_pws(pw_pools,mgrid_rspace,&
                 use_data = REALDATA3D,&
                 in_space = REALSPACE, error=error)
 
@@ -1129,25 +1087,23 @@ CONTAINS
     cube_info=>rspw%cube_info
 
 !   *** Get the potential on the subgrids in real space, via fft ***
-    ALLOCATE(mgrid_gspace(SIZE(pw_pools)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
-    CALL pw_pools_init_coeffs(pw_pools,mgrid_gspace,&
+    CALL pw_pools_create_pws(pw_pools,mgrid_gspace,&
                               use_data = COMPLEXDATA1D,&
                               in_space = RECIPROCALSPACE, error=error)
 
-    CALL coeff_transform_space(v_rspace,mgrid_gspace(auxbas_grid))
+    CALL pw_transfer(v_rspace%pw,mgrid_gspace(auxbas_grid)%pw)
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
       IF ( igrid_level /= auxbas_grid ) THEN
-           CALL coeff_copy(mgrid_gspace(auxbas_grid),mgrid_gspace(igrid_level))
-           CALL coeff_transform_space(mgrid_gspace(igrid_level),&
-                                          mgrid_rspace(igrid_level))
+           CALL pw_copy(mgrid_gspace(auxbas_grid)%pw,mgrid_gspace(igrid_level)%pw)
+           CALL pw_transfer(mgrid_gspace(igrid_level)%pw,&
+                                          mgrid_rspace(igrid_level)%pw)
       ELSE
            IF (mgrid_gspace(auxbas_grid)%pw%pw_grid%spherical) THEN
-               CALL coeff_transform_space(mgrid_gspace(auxbas_grid),&
-                                          mgrid_rspace(auxbas_grid))
+               CALL pw_transfer(mgrid_gspace(auxbas_grid)%pw,&
+                                          mgrid_rspace(auxbas_grid)%pw)
            ELSE ! fft forward + backward should be identical
-               CALL coeff_copy(v_rspace,mgrid_rspace(auxbas_grid))
+               CALL pw_copy(v_rspace%pw,mgrid_rspace(auxbas_grid)%pw)
            ENDIF
       ENDIF
       ! *** Multiply by the grid volume element ratio ***
@@ -1158,10 +1114,7 @@ CONTAINS
                                    scale*mgrid_rspace(igrid_level)%pw%cr3d
       END IF
     END DO
-    CALL pw_pools_give_back_coeffs(pw_pools,mgrid_gspace,&
-                                   error=error)
-    DEALLOCATE(mgrid_gspace,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+    CALL pw_pools_give_back_pws(pw_pools,mgrid_gspace,error=error)
 
     CALL kg_rspw_get(rspw, rs_pools=rs_pools,error=error)
     CALL rs_pools_create_rs_vect(rs_pools, rs_v,error=error)
@@ -1172,10 +1125,7 @@ CONTAINS
     ENDDO
 
     ! *** give back the pw multi-grids
-    CALL pw_pools_give_back_coeffs(pw_pools,mgrid_rspace,&
-         error=error)
-    DEALLOCATE(mgrid_rspace,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+    CALL pw_pools_give_back_pws(pw_pools,mgrid_rspace,error=error)
 
 !   *** having the potential on the rs_multigrids, just integrate ...
 

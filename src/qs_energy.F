@@ -30,7 +30,7 @@ MODULE qs_energy
                                              section_vals_type
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
+  USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
                                              pw_pool_type
   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self
@@ -168,8 +168,8 @@ CONTAINS
        CALL calc_et_coupling(qs_env,error)
        IF(qs_env%dft_control%qs_control%becke_constraint)THEN
           CALL pw_env_get(qs_env%pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
-          CALL pw_pool_give_back_coeff(auxbas_pw_pool,&
-               qs_env%dft_control%qs_control%becke_control%becke_pot,error=error)
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,&
+               qs_env%dft_control%qs_control%becke_control%becke_pot%pw,error=error)
           qs_env%dft_control%qs_control%becke_control%need_pot=.TRUE.
        END IF
     END IF

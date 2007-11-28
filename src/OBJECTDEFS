@@ -25,7 +25,6 @@ OBJECTS_GENERIC =\
  cell_types.o\
  cg_optimizer.o\
  cg_test.o\
- coefficient_types.o\
  colvar_methods.o\
  colvar_types.o\
  constraint.o\

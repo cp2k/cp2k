@@ -18,8 +18,6 @@ MODULE qs_rho0_types
 
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell
-  USE coefficient_types,               ONLY: coeff_deallocate,&
-                                             coeff_type
   USE erf_fn,                          ONLY: erf
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
@@ -28,6 +26,8 @@ MODULE qs_rho0_types
                                              pi,&
                                              rootpi
   USE memory_utilities,                ONLY: reallocate
+  USE pw_types,                        ONLY: pw_release,&
+                                             pw_p_type
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_rho_atom_types,               ONLY: rho_atom_coeff
   USE termination,                     ONLY: stop_memory,&
@@ -76,7 +76,7 @@ MODULE qs_rho0_types
     REAL(dp), DIMENSION(:,:), POINTER           :: set_radius_3c
     INTEGER, DIMENSION(:),  POINTER             :: lmax0_kind
     INTEGER                                     :: lmax_0,igrid_zet0_s
-    TYPE(coeff_type), POINTER                   :: rho0_s_rs,&
+    TYPE(pw_p_type), POINTER                    :: rho0_s_rs,&
                                                    rho0_s_gs
   END TYPE rho0_mpole_type
 
@@ -514,13 +514,18 @@ CONTAINS
       END IF
 
       IF (ASSOCIATED(rho0%rho0_s_rs)) THEN
-          CALL coeff_deallocate(rho0%rho0_s_rs,error=error)
-          DEALLOCATE(rho0%rho0_s_rs)
+          CALL pw_release(rho0%rho0_s_rs%pw,error=error)
+          DEALLOCATE(rho0%rho0_s_rs, STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                         "rho0%rho0_s_rs")
       ENDIF
 
       IF (ASSOCIATED(rho0%rho0_s_gs)) THEN
-          CALL coeff_deallocate(rho0%rho0_s_gs,error=error)
-          DEALLOCATE(rho0%rho0_s_gs)
+          CALL pw_release(rho0%rho0_s_gs%pw,error=error)
+          DEALLOCATE(rho0%rho0_s_gs, STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                         "rho0%rho0_s_gs")
+
       ENDIF
 
       DEALLOCATE (rho0,STAT=istat)
@@ -565,7 +570,7 @@ CONTAINS
     INTEGER, INTENT(OUT), OPTIONAL           :: igrid_zet0_s
     REAL(dp), INTENT(OUT), OPTIONAL          :: rpgf0_h, rpgf0_s, r_V0hmV0s, &
                                                 max_rpgf0_s
-    TYPE(coeff_type), OPTIONAL, POINTER      :: rho0_s_rs, rho0_s_gs
+    TYPE(pw_p_type), OPTIONAL, POINTER       :: rho0_s_rs, rho0_s_gs
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_rho0_mpole'
 

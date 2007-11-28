@@ -23,12 +23,6 @@ MODULE qs_rho0_ggrid
                                              gto_basis_set_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE coefficient_types,               ONLY: coeff_copy,&
-                                             coeff_deallocate,&
-                                             coeff_sumup,&
-                                             coeff_transform_space,&
-                                             coeff_type,&
-                                             coeff_zero
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
@@ -50,15 +44,21 @@ MODULE qs_rho0_ggrid
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
-                                             pw_pool_init_coeff,&
+  USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
+                                             pw_pool_create_pw,&
                                              pw_pool_p_type,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_integrate_function
+                                             pw_integrate_function,&
+                                             pw_copy,&
+                                             pw_release,&
+                                             pw_sumup,&
+                                             pw_transfer,&
+                                             pw_zero,&
+                                             pw_p_type
   USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -126,7 +126,7 @@ MODULE qs_rho0_ggrid
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type), POINTER                :: coeff_gspace, coeff_rspace, &
+    TYPE(pw_p_type), POINTER                 :: coeff_gspace, coeff_rspace, &
                                                 rho0_s_gs, rho0_s_rs
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
@@ -181,9 +181,9 @@ MODULE qs_rho0_ggrid
       ALLOCATE(coeff_rspace,coeff_gspace ,stat=istat)
       IF(istat /= 0) CALL stop_memory("put_rho0_s_on_grid","coeff_rspace,coeff_gspace")
 
-      CALL pw_pool_init_coeff(pw_pool,coeff_rspace,use_data=REALDATA3D,&
+      CALL pw_pool_create_pw(pw_pool,coeff_rspace%pw,use_data=REALDATA3D,&
                               in_space=REALSPACE,error=error)
-      CALL pw_pool_init_coeff(pw_pool,coeff_gspace,&
+      CALL pw_pool_create_pw(pw_pool,coeff_gspace%pw,&
                               use_data = COMPLEXDATA1D,&
                               in_space = RECIPROCALSPACE, error=error)
     END IF
@@ -280,14 +280,14 @@ MODULE qs_rho0_ggrid
       CALL rs_pw_transfer(rs_grid,coeff_rspace%pw,rs2pw)
       CALL rs_pool_give_back_rs(pool,rs_grid,error=error)
 
-      CALL coeff_zero(rho0_s_gs)
-      CALL coeff_transform_space(coeff_rspace,coeff_gspace)
-      CALL coeff_sumup(coeff_gspace,rho0_s_gs)
+      CALL pw_zero(rho0_s_gs%pw)
+      CALL pw_transfer(coeff_rspace%pw,coeff_gspace%pw)
+      CALL pw_sumup(coeff_gspace%pw,rho0_s_gs%pw)
 
       tot_rs_int = pw_integrate_function(coeff_rspace%pw,isign=-1)
 
-      CALL pw_pool_give_back_coeff(pw_pool,coeff_rspace,error=error)
-      CALL pw_pool_give_back_coeff(pw_pool,coeff_gspace,error=error)
+      CALL pw_pool_give_back_pw(pw_pool,coeff_rspace%pw,error=error)
+      CALL pw_pool_give_back_pw(pw_pool,coeff_gspace%pw,error=error)
 
       DEALLOCATE(coeff_rspace,coeff_gspace,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -298,7 +298,7 @@ MODULE qs_rho0_ggrid
 
       tot_rs_int = pw_integrate_function(rho0_s_rs%pw,isign=-1)
 
-      CALL coeff_transform_space(rho0_s_rs,rho0_s_gs)
+      CALL pw_transfer(rho0_s_rs%pw,rho0_s_gs%pw)
     END IF
 
     CALL timestop(0.0_dp,handle)
@@ -319,7 +319,7 @@ MODULE qs_rho0_ggrid
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure, my_tddft
-    TYPE(coeff_type), POINTER                :: rho_gs, rho_rs
+    TYPE(pw_p_type), POINTER                 :: rho_gs, rho_rs
     TYPE(pw_env_type), POINTER               :: new_pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
@@ -345,7 +345,7 @@ MODULE qs_rho0_ggrid
 
   ! rho0 density in real space
   IF (ASSOCIATED(rho_rs)) THEN
-     CALL coeff_deallocate(rho_rs,error=error)
+     CALL pw_release(rho_rs%pw,error=error)
      DEALLOCATE(rho_rs,stat=stat)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   ELSE
@@ -353,14 +353,14 @@ MODULE qs_rho0_ggrid
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
   IF (.NOT.failure) THEN
-     CALL pw_pool_init_coeff(pool=auxbas_pw_pool, coeff=rho_rs,&
+     CALL pw_pool_create_pw(auxbas_pw_pool, rho_rs%pw,&
               use_data=REALDATA3D,in_space=REALSPACE,error=error)
      rho0_mpole%rho0_s_rs => rho_rs
   END IF
 
   ! rho0 density in reciprocal space
   IF (ASSOCIATED(rho_gs)) THEN
-     CALL coeff_deallocate(rho_gs,error=error)
+     CALL pw_release(rho_gs%pw,error=error)
      DEALLOCATE(rho_gs,stat=stat)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   ELSE
@@ -368,7 +368,7 @@ MODULE qs_rho0_ggrid
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
   IF (.NOT.failure) THEN
-     CALL pw_pool_init_coeff(pool=auxbas_pw_pool, coeff=rho_gs, &
+     CALL pw_pool_create_pw(auxbas_pw_pool, rho_gs%pw, &
           use_data=COMPLEXDATA1D, error=error)
      rho_gs%pw%in_space=RECIPROCALSPACE
      rho0_mpole%rho0_s_gs => rho_gs
@@ -386,7 +386,7 @@ MODULE qs_rho0_ggrid
                                    tddft, p_env, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(coeff_type)                         :: v_rspace
+    TYPE(pw_p_type)                          :: v_rspace
     LOGICAL, INTENT(IN)                      :: calculate_forces
     LOGICAL, INTENT(IN), OPTIONAL            :: tddft
     TYPE(qs_p_env_type), OPTIONAL, POINTER   :: p_env
@@ -415,7 +415,7 @@ MODULE qs_rho0_ggrid
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type), POINTER                :: coeff_gaux, coeff_gspace, &
+    TYPE(pw_p_type), POINTER                 :: coeff_gaux, coeff_gspace, &
                                                 coeff_raux, coeff_rspace
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
@@ -498,11 +498,11 @@ MODULE qs_rho0_ggrid
     ALLOCATE(coeff_rspace, STAT=istat)
     IF ( istat /= 0 ) CALL stop_memory ( "integrate_vhg0_rspace", &
                                          "coeff_gspace,coeff_rspace")
-    CALL pw_pool_init_coeff(pw_pool,coeff_gspace,&
+    CALL pw_pool_create_pw(pw_pool,coeff_gspace%pw,&
                             use_data = COMPLEXDATA1D,&
                             in_space = RECIPROCALSPACE, error=error)
 
-    CALL pw_pool_init_coeff(pw_pool,coeff_rspace,use_data=REALDATA3D,&
+    CALL pw_pool_create_pw(pw_pool,coeff_rspace%pw,use_data=REALDATA3D,&
                             in_space=REALSPACE,error=error)
 
     IF (igrid /= auxbas_grid) THEN
@@ -510,37 +510,37 @@ MODULE qs_rho0_ggrid
        ALLOCATE(coeff_gaux,STAT=istat)
        IF ( istat /= 0 ) CALL stop_memory ("integrate_vhg0_rspace",&
                                            "coeff_gaux")
-       CALL pw_pool_init_coeff(pw_aux, coeff_gaux,&
+       CALL pw_pool_create_pw(pw_aux, coeff_gaux%pw,&
                                use_data = COMPLEXDATA1D,&
                                in_space = RECIPROCALSPACE, error=error)
-       CALL coeff_transform_space(v_rspace,coeff_gaux)
-       CALL coeff_copy(coeff_gaux,coeff_gspace)
-       CALL coeff_transform_space(coeff_gspace,coeff_rspace)
-       CALL pw_pool_give_back_coeff(pw_aux,coeff_gaux,error=error)
+       CALL pw_transfer(v_rspace%pw,coeff_gaux%pw)
+       CALL pw_copy(coeff_gaux%pw,coeff_gspace%pw)
+       CALL pw_transfer(coeff_gspace%pw,coeff_rspace%pw)
+       CALL pw_pool_give_back_pw(pw_aux,coeff_gaux%pw,error=error)
        DEALLOCATE(coeff_gaux, STAT=istat)
        IF ( istat /= 0 ) CALL stop_memory ("integrate_vhg0_rspace",&
                                            "coeff_gaux")
        ALLOCATE(coeff_raux,STAT=istat)
        IF ( istat /= 0 ) CALL stop_memory ("integrate_vhg0_rspace",&
                                            "coeff_raux")
-       CALL pw_pool_init_coeff(pw_aux, coeff_raux,use_data=REALDATA3D,&
+       CALL pw_pool_create_pw(pw_aux, coeff_raux%pw,use_data=REALDATA3D,&
                                in_space=REALSPACE,error=error)
        scale = coeff_rspace%pw%pw_grid%dvol/coeff_raux%pw%pw_grid%dvol
        coeff_rspace%pw%cr3d = scale*coeff_rspace%pw%cr3d
-       CALL pw_pool_give_back_coeff(pw_aux,coeff_raux,error=error)
+       CALL pw_pool_give_back_pw(pw_aux,coeff_raux%pw,error=error)
        DEALLOCATE(coeff_raux, STAT=istat)
        IF ( istat /= 0 ) CALL stop_memory ("integrate_vhg0_rspace",&
                                            "coeff_raux")
     ELSE
 
        IF(coeff_gspace%pw%pw_grid%spherical) THEN
-         CALL coeff_transform_space(v_rspace,coeff_gspace)
-         CALL coeff_transform_space(coeff_gspace,coeff_rspace)
+         CALL pw_transfer(v_rspace%pw,coeff_gspace%pw)
+         CALL pw_transfer(coeff_gspace%pw,coeff_rspace%pw)
        ELSE
-         CALL coeff_copy(v_rspace,coeff_rspace)
+         CALL pw_copy(v_rspace%pw,coeff_rspace%pw)
        END IF
     END IF
-    CALL pw_pool_give_back_coeff(pw_pool,coeff_gspace,error=error)
+    CALL pw_pool_give_back_pw(pw_pool,coeff_gspace%pw,error=error)
     DEALLOCATE(coeff_gspace, STAT=istat)
     IF ( istat /= 0 ) CALL stop_memory ("integrate_vhg0_rspace",&
                                         "coeff_gspace")
@@ -550,7 +550,7 @@ MODULE qs_rho0_ggrid
     CALL rs_grid_zero(rs_v)
     CALL rs_pw_transfer(rs_v,coeff_rspace%pw,pw2rs)
 
-    CALL pw_pool_give_back_coeff(pw_pool,coeff_rspace,error=error)
+    CALL pw_pool_give_back_pw(pw_pool,coeff_rspace%pw,error=error)
     DEALLOCATE(coeff_rspace, STAT=istat)
     IF ( istat /= 0 ) CALL stop_memory ("integrate_vhg0_rspace",&
                                         "coeff_rspace")

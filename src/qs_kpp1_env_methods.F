@@ -26,12 +26,6 @@
 !****************************************************************************
 MODULE qs_kpp1_env_methods
   USE cell_types,                      ONLY: cell_type
-  USE coefficient_types,               ONLY: coeff_copy,&
-                                             coeff_deallocate,&
-                                             coeff_init,&
-                                             coeff_sumup,&
-                                             coeff_transform_space,&
-                                             coeff_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
@@ -56,13 +50,13 @@ MODULE qs_kpp1_env_methods
   USE pw_poisson_methods,              ONLY: pw_poisson_solve
   USE pw_poisson_types,                ONLY: pw_poisson_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                             pw_pool_give_back_coeff,&
-                                             pw_pool_init_coeff,&
+                                             pw_pool_give_back_pw,&
                                              pw_pool_p_type,&
                                              pw_pool_type
   USE pw_types,                        ONLY: &
-       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_create, &
-       pw_p_type, pw_release, pw_retain, pw_transfer, pw_zero, pw_integrate_function
+       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_copy, &
+       pw_create, pw_integrate_function, pw_p_type, pw_release, pw_retain, &
+       pw_sumup, pw_transfer, pw_zero
   USE qs_energy_types,                 ONLY: allocate_qs_energy,&
                                              deallocate_qs_energy,&
                                              qs_energy_type
@@ -225,10 +219,10 @@ CONTAINS
                                                 energy_hartree_2c, &
                                                 energy_hartree_3c, fac
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type)                         :: rho1_tot_gspace, &
+    TYPE(pw_p_type)                          :: rho1_tot_gspace, &
                                                 v_hartree_gspace, &
                                                 v_hartree_rspace
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: rho1_r, v_rspace_new
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho1_r, v_rspace_new
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho1_g_pw, rho1_r_pw, tau_pw, &
@@ -306,10 +300,10 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF (.NOT.failure) THEN
-       CALL pw_pool_init_coeff(auxbas_pw_pool,v_hartree_gspace,&
+       CALL pw_pool_create_pw(auxbas_pw_pool,v_hartree_gspace%pw,&
             use_data = COMPLEXDATA1D,&
             in_space = RECIPROCALSPACE, error=error)
-       CALL pw_pool_init_coeff(auxbas_pw_pool,v_hartree_rspace,&
+       CALL pw_pool_create_pw(auxbas_pw_pool,v_hartree_rspace%pw,&
             use_data = REALDATA3D,&
             in_space = REALSPACE, error=error)
     END IF
@@ -321,16 +315,16 @@ CONTAINS
 ! *** calculate the hartree potential on the total density ***
     IF (.NOT. failure) THEN
 
-       CALL pw_pool_init_coeff(auxbas_pw_pool, rho1_tot_gspace,&
+       CALL pw_pool_create_pw(auxbas_pw_pool, rho1_tot_gspace%pw,&
             use_data = COMPLEXDATA1D,&
             in_space = RECIPROCALSPACE, error=error)
 
-       CALL coeff_copy(rho1%rho_g(1),rho1_tot_gspace)
+       CALL pw_copy(rho1%rho_g(1)%pw,rho1_tot_gspace%pw)
        DO ispin=2,nspins
-          CALL coeff_sumup(rho1%rho_g(ispin), rho1_tot_gspace)
+          CALL pw_sumup(rho1%rho_g(ispin)%pw, rho1_tot_gspace%pw)
        END DO
        IF (gapw) &
-            CALL coeff_sumup(p_env%local_rho_set%rho0_mpole%rho0_s_gs, rho1_tot_gspace)
+            CALL pw_sumup(p_env%local_rho_set%rho0_mpole%rho0_s_gs%pw, rho1_tot_gspace%pw)
 
        IF (cp_print_key_should_output(logger%iter_info,scf_section,"PRINT%TOTAL_DENSITIES",&
             error=error)/=0) THEN
@@ -346,11 +340,10 @@ CONTAINS
           CALL pw_poisson_solve(poisson_env,rho1_tot_gspace%pw, &
                                  energy_hartree, &
                                  v_hartree_gspace%pw,error=error)
-          CALL coeff_transform_space(v_hartree_gspace,&
-                                     v_hartree_rspace)
+          CALL pw_transfer(v_hartree_gspace%pw,v_hartree_rspace%pw)
        END IF
 
-       CALL pw_pool_give_back_coeff(auxbas_pw_pool, rho1_tot_gspace,&
+       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho1_tot_gspace%pw,&
             error=error)
 
 ! *** calculate the xc potential ***
@@ -426,7 +419,7 @@ CONTAINS
             tddfpt_fac=fac, error=error)
 
        DO ispin=1,nspins
-          CALL coeff_init(v_rspace_new(ispin), pw=v_xc(ispin)%pw, error=error)
+          v_rspace_new(ispin)%pw => v_xc(ispin)%pw
        END DO
        DEALLOCATE(v_xc,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -563,12 +556,12 @@ CONTAINS
                                  .FALSE.,.TRUE.,p_env,error)
        END IF
 
-       CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_hartree_gspace,&
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gspace%pw,&
             error=error)
-       CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_hartree_rspace,&
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_rspace%pw,&
             error=error)
        DO ispin=1,nspins
-          CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace_new(ispin),&
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new(ispin)%pw,&
                error=error)
        END DO
        DEALLOCATE(v_rspace_new, stat=stat)
@@ -742,7 +735,7 @@ CONTAINS
     LOGICAL                                  :: explicit, failure, &
                                                 lsd_singlets
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: rho_r
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_r
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
@@ -775,8 +768,8 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           IF (.NOT.failure) THEN
              DO ispin=1,nspins
-                CALL pw_pool_init_coeff(auxbas_pw_pool, &
-                     kpp1_env%v_rspace(ispin),&
+                CALL pw_pool_create_pw(auxbas_pw_pool, &
+                     kpp1_env%v_rspace(ispin)%pw,&
                      use_data=REALDATA3D, in_space=REALSPACE,error=error)
              END DO
           END IF
@@ -940,7 +933,7 @@ CONTAINS
           IF (grid_changed) THEN
              IF (ASSOCIATED(kpp1_env%v_rspace)) THEN
                 DO i=1,SIZE(kpp1_env%v_rspace)
-                   CALL coeff_deallocate(kpp1_env%v_rspace(i),error=error)
+                   CALL pw_release(kpp1_env%v_rspace(i)%pw,error=error)
                 END DO
                 DEALLOCATE(kpp1_env%v_rspace,stat=stat)
                 CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -955,7 +948,7 @@ CONTAINS
 
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
     TYPE(qs_rho_type), POINTER               :: rho1
-    TYPE(coeff_type), INTENT(IN)             :: rho1_tot_gspace
+    TYPE(pw_p_type), INTENT(IN)              :: rho1_tot_gspace
     INTEGER                                  :: output_unit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 

@@ -28,7 +28,7 @@ MODULE cp_control_types
   USE xas_control,                     ONLY: xas_control_create,&
                                              xas_control_release,&
                                              xas_control_type
-  USE coefficient_types,               ONLY: coeff_type
+  USE pw_types,                        ONLY: pw_p_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -133,7 +133,7 @@ MODULE cp_control_types
     INTEGER                         :: functional_form
     INTEGER                         :: natoms
     INTEGER, POINTER, DIMENSION(:)  :: atoms
-    TYPE(coeff_type)                :: becke_pot
+    TYPE(pw_p_type)                 :: becke_pot
     LOGICAL                         :: need_pot
     REAL(KIND=dp), POINTER, DIMENSION(:)  :: coeff
  END TYPE becke_constraint_type

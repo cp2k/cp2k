@@ -24,9 +24,6 @@ MODULE dgs
                                              cell_type,&
                                              get_cell_param,&
                                              get_hinv
-  USE coefficient_types,               ONLY: PW_COMPLEXDATA3D,&
-                                             PW_REALDATA3D,&
-                                             coeff_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE fft_tools,                       ONLY: BWFFT,&
                                              FFT_RADIX_CLOSEST,&
@@ -39,6 +36,9 @@ MODULE dgs
                                              pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_change,&
                                              pw_grid_setup
+  USE pw_types,                        ONLY: COMPLEXDATA3D,&
+                                             REALDATA3D,&
+                                             pw_p_type
   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
                                              realspace_grid_type
   USE structure_factors,               ONLY: structure_factor_evaluate
@@ -356,7 +356,7 @@ SUBROUTINE dg_sum_patch_coef ( rs, rhos, center )
 
 
     TYPE(realspace_grid_type), POINTER       :: rs
-    TYPE(coeff_type), INTENT(IN)             :: rhos
+    TYPE(pw_p_type), INTENT(IN)              :: rhos
     INTEGER, DIMENSION(3), INTENT(IN)        :: center
 
     INTEGER                                  :: i, ia, ii
@@ -654,7 +654,7 @@ SUBROUTINE dg_sum_patch_force_coef_3d ( drpot, rhos, center, force )
 
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: drpot
-    TYPE(coeff_type), INTENT(IN)             :: rhos
+    TYPE(pw_p_type), INTENT(IN)              :: rhos
     INTEGER, DIMENSION(3), INTENT(IN)        :: center
     REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: force
 
@@ -726,7 +726,7 @@ SUBROUTINE dg_sum_patch_force_coef_1d ( drpot, rhos, center, force )
 
 
     TYPE(realspace_grid_type), POINTER       :: drpot
-    TYPE(coeff_type), INTENT(IN)             :: rhos
+    TYPE(pw_p_type), INTENT(IN)              :: rhos
     INTEGER, DIMENSION(3), INTENT(IN)        :: center
     REAL(KIND=dp), INTENT(OUT)               :: force
 
@@ -795,8 +795,8 @@ END SUBROUTINE dg_sum_patch_force_coef_1d
 SUBROUTINE dg_get_patch_1 ( rho0, rhos1, charge1, ex1, ey1, ez1 )
 
 
-    TYPE(coeff_type), INTENT(IN)             :: rho0
-    TYPE(coeff_type), INTENT(INOUT)          :: rhos1
+    TYPE(pw_p_type), INTENT(IN)              :: rho0
+    TYPE(pw_p_type), INTENT(INOUT)           :: rhos1
     REAL(KIND=dp), INTENT(IN)                :: charge1
     COMPLEX(KIND=dp), DIMENSION(:), &
       INTENT(IN)                             :: ex1, ey1, ez1
@@ -836,9 +836,9 @@ SUBROUTINE dg_get_patch_1 ( rho0, rhos1, charge1, ex1, ey1, ez1 )
   za = CMPLX ( 0.0_dp, 0.0_dp,KIND=dp)
   zb = CMPLX ( charge1, 0.0_dp,KIND=dp)
   CALL rankup ( nd, za, cd, zb, ex1, ey1, ez1, zs )
-  IF ( rho0 % pw % in_use == PW_REALDATA3D ) &
+  IF ( rho0 % pw % in_use == REALDATA3D ) &
       CALL vr_x_vc ( n, rho0 % pw % cr3d, cd )
-  IF ( rho0 % pw % in_use == PW_COMPLEXDATA3D ) &
+  IF ( rho0 % pw % in_use == COMPLEXDATA3D ) &
       CALL vc_x_vc ( n, rho0 % pw % cc3d, cd )
   CALL fft3d ( BWFFT, nd, cd )
   CALL copy_cr ( n, cd, rhos1 % pw % cr3d )
@@ -856,8 +856,8 @@ SUBROUTINE dg_get_patch_2 ( rho0, rhos1, rhos2, charge1, charge2, &
            ex1, ey1, ez1, ex2, ey2, ez2 )
 
 
-    TYPE(coeff_type), INTENT(IN)             :: rho0
-    TYPE(coeff_type), INTENT(INOUT)          :: rhos1, rhos2
+    TYPE(pw_p_type), INTENT(IN)              :: rho0
+    TYPE(pw_p_type), INTENT(INOUT)           :: rhos1, rhos2
     REAL(KIND=dp), INTENT(IN)                :: charge1, charge2
     COMPLEX(KIND=dp), DIMENSION(:), &
       INTENT(IN)                             :: ex1, ey1, ez1, ex2, ey2, ez2
@@ -900,9 +900,9 @@ SUBROUTINE dg_get_patch_2 ( rho0, rhos1, rhos2, charge1, charge2, &
   za = CMPLX ( 0.0_dp, 1.0_dp,KIND=dp)
   zb = CMPLX ( charge1, 0.0_dp,KIND=dp)
   CALL rankup ( nd, za, cd, zb, ex1, ey1, ez1, zs )
-  IF ( rho0 % pw % in_use == PW_REALDATA3D ) &
+  IF ( rho0 % pw % in_use == REALDATA3D ) &
       CALL vr_x_vc ( n, rho0 % pw % cr3d, cd )
-  IF ( rho0 % pw % in_use == PW_COMPLEXDATA3D ) &
+  IF ( rho0 % pw % in_use == COMPLEXDATA3D ) &
       CALL vc_x_vc ( n, rho0 % pw % cc3d, cd )
   CALL fft3d ( BWFFT, nd, cd )
   CALL copy_cri ( n, cd, rhos1 % pw % cr3d, rhos2 % pw % cr3d )

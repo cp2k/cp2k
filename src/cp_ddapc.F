@@ -25,7 +25,6 @@ MODULE cp_ddapc
 !!   SOURCE
 !****************************************************************************  
   USE cell_types,                      ONLY: cell_type
-  USE coefficient_types,               ONLY: coeff_type
   USE cp_ddapc_forces,                 ONLY: ewald_ddapc_force,&
                                              reset_ch_pulay,&
                                              restraint_functional_force,&
@@ -41,7 +40,8 @@ MODULE cp_ddapc
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
-  USE pw_types,                        ONLY: pw_integral_ab
+  USE pw_types,                        ONLY: pw_p_type,&
+                                             pw_integral_ab
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE timings,                         ONLY: timeset,&
@@ -84,9 +84,9 @@ CONTAINS
   SUBROUTINE cp_ddapc_apply(qs_env, rho_tot_gspace, energy, energy_res,&
        v_hartree_gspace, v_spin_ddapc_rest_g, calculate_forces, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(coeff_type)                         :: rho_tot_gspace
+    TYPE(pw_p_type)                          :: rho_tot_gspace
     REAL(KIND=dp), INTENT(INOUT)             :: energy, energy_res
-    TYPE(coeff_type)                         :: v_hartree_gspace, &
+    TYPE(pw_p_type)                          :: v_hartree_gspace, &
                                                 v_spin_ddapc_rest_g
     LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -146,9 +146,9 @@ CONTAINS
   SUBROUTINE cp_ddapc_apply_CD(qs_env, rho_tot_gspace, energy, v_hartree_gspace, &
        calculate_forces, Itype_of_density, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(coeff_type)                         :: rho_tot_gspace
+    TYPE(pw_p_type)                          :: rho_tot_gspace
     REAL(KIND=dp), INTENT(INOUT)             :: energy
-    TYPE(coeff_type)                         :: v_hartree_gspace
+    TYPE(pw_p_type)                          :: v_hartree_gspace
     LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces
     CHARACTER(LEN=*)                         :: Itype_of_density
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -301,7 +301,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp), INTENT(INOUT)             :: energy
     REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: energy_res
-    TYPE(coeff_type)                         :: v_hartree_gspace, &
+    TYPE(pw_p_type)                          :: v_hartree_gspace, &
                                                 v_spin_ddapc_rest_g
     LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -429,9 +429,9 @@ CONTAINS
   SUBROUTINE cp_ddapc_apply_RF(qs_env,rho_tot_gspace,energy,&
        v_hartree_gspace,calculate_forces, Itype_of_density, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(coeff_type)                         :: rho_tot_gspace
+    TYPE(pw_p_type)                          :: rho_tot_gspace
     REAL(KIND=dp), INTENT(INOUT)             :: energy
-    TYPE(coeff_type)                         :: v_hartree_gspace
+    TYPE(pw_p_type)                          :: v_hartree_gspace
     LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces
     CHARACTER(LEN=*)                         :: Itype_of_density
     TYPE(cp_error_type), INTENT(inout)       :: error

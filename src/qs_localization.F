@@ -33,7 +33,6 @@ MODULE qs_localization
                                              set_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE coefficient_types,               ONLY: coeff_type
   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_lu_decompose
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                              cp_cfm_release,&
@@ -92,11 +91,12 @@ MODULE qs_localization
                                              debye
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
-                                             pw_pool_init_coeff,&
+  USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
+                                             pw_pool_create_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: REALDATA3D,&
-                                             REALSPACE
+                                             REALSPACE,&
+                                             pw_p_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_integrate_potential,          ONLY: integrate_v_rspace
@@ -265,7 +265,7 @@ CONTAINS
 
     INTEGER                                  :: i, ix, iy, iz, j
     REAL(KIND=dp)                            :: thearg, theval, x, y, z
-    TYPE(coeff_type)                         :: op_rspace
+    TYPE(pw_p_type)                          :: op_rspace
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
@@ -277,7 +277,7 @@ CONTAINS
     ! get a pw grid
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
     CALL pw_env_get(pw_env=pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
-    CALL pw_pool_init_coeff(auxbas_pw_pool,op_rspace,&
+    CALL pw_pool_create_pw(auxbas_pw_pool,op_rspace%pw,&
          use_data=REALDATA3D,in_space=REALSPACE,error=error)
 
     DO i=1,3
@@ -317,7 +317,7 @@ CONTAINS
        ENDDO
     ENDDO
 
-    CALL pw_pool_give_back_coeff ( auxbas_pw_pool, op_rspace ,error=error)
+    CALL pw_pool_give_back_pw ( auxbas_pw_pool, op_rspace%pw ,error=error)
 
   END SUBROUTINE get_boys_foster_operator
 

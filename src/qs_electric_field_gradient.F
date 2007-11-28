@@ -26,7 +26,6 @@ MODULE qs_electric_field_gradient
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE coefficient_types,               ONLY: coeff_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_output_handling,              ONLY: cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -49,8 +48,8 @@ MODULE qs_electric_field_gradient
                                              pw_env_type
   USE pw_poisson_methods,              ONLY: pw_poisson_solve
   USE pw_poisson_types,                ONLY: pw_poisson_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
-                                             pw_pool_init_coeff,&
+  USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
+                                             pw_pool_create_pw,&
                                              pw_pool_type
   USE pw_spline_utils,                 ONLY: Eval_Interp_Spl3_pbc,&
                                              find_coeffs,&
@@ -62,7 +61,7 @@ MODULE qs_electric_field_gradient
                                              spl3_pbc
   USE pw_types,                        ONLY: &
        COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_dr2, &
-       pw_integral_ab, pw_smoothing, pw_structure_factor, pw_transfer
+       pw_p_type, pw_integral_ab, pw_smoothing, pw_structure_factor, pw_transfer
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_gapw_densities,               ONLY: prepare_gapw_den
@@ -116,10 +115,10 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(coeff_type)                         :: dvr2rs, rho_tot_gspace, &
+    TYPE(pw_p_type)                          :: dvr2rs, rho_tot_gspace, &
                                                 structure_factor, &
                                                 v_hartree_gspace
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: dvr2, dvspl
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: dvr2, dvspl
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -171,12 +170,12 @@ CONTAINS
     ELSEIF (ecut == -1._dp .AND. sigma == -1._dp) THEN
       smoothing = .TRUE.
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
-      CALL pw_pool_init_coeff(pool=auxbas_pw_pool,coeff=dvr2rs, &
+      CALL pw_pool_create_pw(auxbas_pw_pool,dvr2rs%pw, &
                               use_data=REALDATA3D,in_space=REALSPACE,&
                               error=error)
       ecut  = 2._dp * dvr2rs%pw%pw_grid%cutoff * 0.875_dp
       sigma = 2._dp * dvr2rs%pw%pw_grid%cutoff * 0.125_dp
-      CALL pw_pool_give_back_coeff(auxbas_pw_pool,dvr2rs,error=error)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool,dvr2rs%pw,error=error)
     ELSE
       smoothing = .TRUE.
     END IF
@@ -235,10 +234,10 @@ CONTAINS
     IF (gapw) CALL prepare_gapw_den(qs_env,do_rho0=.TRUE.,error=error)
 
     !calculate electrostatic potential
-    CALL pw_pool_init_coeff(pool=auxbas_pw_pool,coeff=v_hartree_gspace, &
+    CALL pw_pool_create_pw(auxbas_pw_pool,v_hartree_gspace%pw, &
                             use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
                             error=error)
-    CALL pw_pool_init_coeff(pool=auxbas_pw_pool,coeff=rho_tot_gspace,&
+    CALL pw_pool_create_pw(auxbas_pw_pool,rho_tot_gspace%pw,&
                             use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
                             error=error)
     CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho,error=error)
@@ -249,12 +248,12 @@ CONTAINS
     ! smoothing of potential
     IF ( smoothing ) CALL pw_smoothing(v_hartree_gspace%pw,ecut,sigma)
 
-    CALL pw_pool_give_back_coeff(auxbas_pw_pool,rho_tot_gspace,error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_tot_gspace%pw,error=error)
 
     DO i=1,3
       DO j=1,i
         ij=(i*(i-1))/2+j
-        CALL pw_pool_init_coeff(pool=auxbas_pw_pool,coeff=dvr2(ij), &
+        CALL pw_pool_create_pw(auxbas_pw_pool,dvr2(ij)%pw, &
                                 use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
                                 error=error)
         CALL pw_dr2 ( v_hartree_gspace%pw, dvr2(ij)%pw, i, j )
@@ -262,7 +261,7 @@ CONTAINS
     END DO
 
     IF ( .NOT. efg_interpolation ) THEN
-      CALL pw_pool_init_coeff(pool=auxbas_pw_pool,coeff=structure_factor, &
+      CALL pw_pool_create_pw(auxbas_pw_pool,structure_factor%pw, &
                               use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
                               error=error)
     ELSE
@@ -276,11 +275,11 @@ CONTAINS
       CALL section_vals_val_get(interp_section,"eps_r",r_val=eps_r, error=error)
       CALL section_vals_val_get(interp_section,"eps_x",r_val=eps_x, error=error)
 
-      CALL pw_pool_init_coeff(pool=auxbas_pw_pool,coeff=dvr2rs, &
+      CALL pw_pool_create_pw(auxbas_pw_pool,dvr2rs%pw, &
                               use_data=REALDATA3D,in_space=REALSPACE,&
                               error=error)
       DO i=1,6
-        CALL pw_pool_init_coeff(pool=auxbas_pw_pool,coeff=dvspl(i), &
+        CALL pw_pool_create_pw(auxbas_pw_pool,dvspl(i)%pw, &
                             use_data=REALDATA3D,in_space=REALSPACE,&
                             error=error)
         CALL pw_transfer ( dvr2(i)%pw, dvr2rs%pw )
@@ -295,9 +294,9 @@ CONTAINS
              print_section=interp_section,error=error)
         CPPostconditionNoFail(success,cp_warning_level,routineP,error)
         CALL pw_spline_precond_release(precond,error=error)
-        CALL pw_pool_give_back_coeff(auxbas_pw_pool,dvr2(i),error=error)
+        CALL pw_pool_give_back_pw(auxbas_pw_pool,dvr2(i)%pw,error=error)
       END DO
-      CALL pw_pool_give_back_coeff(auxbas_pw_pool,dvr2rs,error=error)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool,dvr2rs%pw,error=error)
     END IF
 
     nkind = SIZE(atomic_kind_set)
@@ -396,15 +395,15 @@ CONTAINS
       END IF
     ENDDO
 
-    CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_hartree_gspace,error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gspace%pw,error=error)
     IF ( .NOT. efg_interpolation ) THEN
-      CALL pw_pool_give_back_coeff(auxbas_pw_pool,structure_factor,error=error)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool,structure_factor%pw,error=error)
       DO i=1,6
-        CALL pw_pool_give_back_coeff(auxbas_pw_pool,dvr2(i),error=error)
+        CALL pw_pool_give_back_pw(auxbas_pw_pool,dvr2(i)%pw,error=error)
       END DO
     ELSE
       DO i=1,6
-        CALL pw_pool_give_back_coeff(auxbas_pw_pool,dvspl(i),error=error)
+        CALL pw_pool_give_back_pw(auxbas_pw_pool,dvspl(i)%pw,error=error)
       END DO
     END IF
 

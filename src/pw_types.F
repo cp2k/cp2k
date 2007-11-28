@@ -770,11 +770,11 @@ END SUBROUTINE pw_smoothing
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE pw_transfer ( pw1, pw2 )
-
+SUBROUTINE pw_transfer ( pw1, pw2, debug )
 
     TYPE(pw_type), INTENT(IN), TARGET        :: pw1
     TYPE(pw_type), INTENT(INOUT), TARGET     :: pw2
+    LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
 !------------------------------------------------------------------------------
 
@@ -810,7 +810,7 @@ SUBROUTINE pw_transfer ( pw1, pw2 )
   ELSE
 
      ! FFT needed, all further tests done in pw_fft_wrap
-     CALL pw_fft_wrap ( pw1, pw2 )
+     CALL pw_fft_wrap ( pw1, pw2, debug )
 
   END IF
 

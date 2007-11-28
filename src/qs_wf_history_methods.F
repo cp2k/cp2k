@@ -29,7 +29,6 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qs_wf_history_methods
-  USE coefficient_types,               ONLY: coeff_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale,&
@@ -70,7 +69,8 @@ MODULE qs_wf_history_methods
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_copy
+                                             pw_copy,&
+                                             pw_p_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_env_reorthogonalize_vectors,&
                                              qs_environment_type
@@ -501,7 +501,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,kg_fm_mol_set,error)
     INTEGER                                  :: handle, i, ispin, &
                                                 nmolecule_kind, nspins, stat
     LOGICAL                                  :: failure, kg_gpw
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: rho_g, rho_r
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_pools
     TYPE(cp_fm_type), POINTER                :: mo_coeff
