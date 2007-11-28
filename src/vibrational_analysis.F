@@ -127,7 +127,7 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: b_vec, delta_vec, Hessian, &
                                                 Hint1, Hint2, ms_force
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: eig_bfgs
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: eig_bfgs,f_range
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: b_mat, D, hes_bfgs, RotTrM, &
                                                 s_mat
     TYPE(cp_error_type)                      :: new_error
@@ -200,7 +200,7 @@ CONTAINS
 
              CALL MS_initial_moves( para_env, nrep , input, globenv,&
                                     particles,delta_vec,b_vec, step_r,&
-                                    step_b,sel_freq ,mass,hes_bfgs,eig_bfgs,&
+                                    step_b,sel_freq , f_range,mass,hes_bfgs,eig_bfgs,&
                                     precondit,dx,output_unit,&
                                     b_mat,s_mat,mat_size,error)
              ncoord=3*natoms
@@ -235,7 +235,7 @@ CONTAINS
                 CALL rep_env_calc_e_f(rep_env,calc_f=.TRUE.,error=error)
                 CALL evaluate_H_update_b(mat_size,ms_force,rep_env,b_vec,nrep,&
                                          particles,b_mat,s_mat,step_b,step_r,&
-                                         delta_vec,mass,sel_freq,converged,hes_bfgs,&
+                                         delta_vec,mass,sel_freq,f_range,converged,hes_bfgs,&
                                          eig_bfgs,precondit,dx,output_unit,output_molden, error)
                 IF(converged)EXIT
              END DO
@@ -970,7 +970,7 @@ CONTAINS
   !!   SOURCE
   !****************************************************************************
   SUBROUTINE MS_initial_moves(para_env, nrep , input, globenv ,particles ,&
-                              delta_vec , b_vec, step_r,step_b, sel_freq,&
+                              delta_vec , b_vec, step_r,step_b, sel_freq,f_range,&
                               mass,hes_bfgs,eig_bfgs,precondit, dx,output_unit_ms,&
                               b_mat,s_mat,mat_size, error)
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -984,7 +984,7 @@ CONTAINS
     REAL(KIND=dp)                            :: sel_freq
     REAL(Kind=dp), DIMENSION(:)              :: mass
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hes_bfgs
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: eig_bfgs
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: eig_bfgs,f_range
     INTEGER                                  :: precondit
     REAL(KIND=dp)                            :: dx
     INTEGER                                  :: output_unit_ms
@@ -1010,9 +1010,21 @@ CONTAINS
     IF (.NOT. failure) THEN
        ms_vib_section => section_vals_get_subs_vals(input,"VIBRATIONAL_ANALYSIS%MODE_SELECTIVE", error=error)
        CALL section_vals_val_get(ms_vib_section,"INITIAL_GUESS",i_val=guess,error=error)
-       CALL section_vals_val_get(ms_vib_section,"PRECONDITIONER",i_val=precondit,error=error)      
+       CALL section_vals_val_get(ms_vib_section,"PRECONDITIONER",i_val=precondit,error=error) 
+       CALL section_vals_val_get(ms_vib_section,"RANGE",n_rep_val=n_rep_val,error=error)
+       IF(n_rep_val.NE.0)THEN
+          CALL section_vals_val_get(ms_vib_section,"RANGE",r_vals=f_range,error=error)
+          IF(f_range(1).GT.f_range(2))THEN
+             f_range(2)=my_val
+             f_range(2)=f_range(1)
+             f_range(1)=my_val
+          END IF
+       END IF     
        CALL section_vals_val_get(ms_vib_section,"FREQUENCY",r_val=sel_freq, error=error)
-       
+       IF(n_rep_val.EQ.0.AND.sel_freq.LT.0._dp)&
+            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+            routineP,"no frequency or range specified ",&
+            error=error,failure=failure)
        ionode=para_env%mepos==para_env%source
        SELECT CASE(guess)
        CASE(ms_guess_atomic)
@@ -1119,8 +1131,10 @@ CONTAINS
                 END DO
              END DO
              CALL diamat_all(hes_bfgs,eig_bfgs)
+             IF(sel_freq.GT.0._dp) my_val=(sel_freq/vibfac)**2/massunit
+             IF(sel_freq.LT.0._dp) my_val=(((f_range(2)+f_range(1))*0.5_dp)/vibfac)**2/massunit
              my_val=(sel_freq/(vibfac))**2/massunit
-             DO i=1,ncoord
+             DO i=1,ncoord 
                 tmp(i)=ABS(my_val-eig_bfgs(i))
              END DO
              CALL sort(tmp,ncoord,tmplist)
@@ -1213,7 +1227,7 @@ CONTAINS
 
   SUBROUTINE  evaluate_H_update_b(mat_size,ms_force,rep_env,b_vec,nrep,&
                                   particles,b_mat,s_mat,step_b,&
-                                  step_r,delta_vec, mass,sel_freq, &
+                                  step_r,delta_vec, mass,sel_freq,f_range, &
                                   converged,hes_bfgs,eig_bfgs,precondit,dx,output_unit_ms,&
                                   output_molden,error)     
     INTEGER                                  :: mat_size
@@ -1230,7 +1244,7 @@ CONTAINS
     REAL(KIND=dp)                            :: sel_freq
     LOGICAL                                  :: converged
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hes_bfgs
-    REAL(Kind=dp), DIMENSION(:), POINTER     :: eig_bfgs
+    REAL(Kind=dp), DIMENSION(:), POINTER     :: eig_bfgs,f_range
     INTEGER                                  :: precondit
     REAL(KIND=dp)                            :: dx
     INTEGER                                  :: output_unit_ms, output_molden
@@ -1332,20 +1346,22 @@ CONTAINS
     ALLOCATE(residuum(SIZE(s_mat,1),nrep),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-
-    my_val=(sel_freq/(vibfac))**2/massunit
-    DO i=1,mat_size
-       tmp(i)=ABS(my_val-eigenval(i))
-    END DO
-    CALL sort(tmp,(mat_size),ind)
-    residuum=0._dp
-
-    DO j=1,nrep
+    IF(sel_freq.GT.0._dp)THEN
+       my_val=(sel_freq/(vibfac))**2/massunit
        DO i=1,mat_size
-          residuum(:,j)=residuum(:,j)+approx_H(i,ind(j))*(s_mat(:,i)-eigenval(ind(j))*b_mat(:,i))
+          tmp(i)=ABS(my_val-eigenval(i))
        END DO
-    END DO   
-    
+       CALL sort(tmp,(mat_size),ind)
+       residuum=0._dp
+       
+       DO j=1,nrep
+          DO i=1,mat_size
+             residuum(:,j)=residuum(:,j)+approx_H(i,ind(j))*(s_mat(:,i)-eigenval(ind(j))*b_mat(:,i))
+          END DO
+       END DO
+    ELSE    
+       CALL get_vibs_in_range(b_mat,s_mat,approx_H,eigenval,residuum,f_range,nrep,ind)
+    END IF
 
 
     DO j=1,nrep
@@ -1437,7 +1453,8 @@ CONTAINS
     END DO
 
     !!!   write information and output   !!!
-    CALL ms_out(output_unit_ms,converged,freq,criteria ,b_mat,s_mat,b_vec,delta_vec,mat_size,nrep,error)
+    CALL ms_out(output_unit_ms,converged,freq,criteria ,b_mat,s_mat,b_vec,delta_vec,mat_size,nrep,&
+         approx_H,eigenval,error)
     IF(converged)THEN
        eigenval(:)=SQRT(ABS(eigenval(:))*massunit)*vibfac
        ALLOCATE(tmp_b(ncoord,mat_size),stat=stat)
@@ -1489,11 +1506,12 @@ CONTAINS
   !!
   !!   SOURCE
   !****************************************************************************
-  SUBROUTINE ms_out(iw,converged,freq,criter ,b_mat,s_mat,b_vec,delta_vec,mat_size,nrep,error) 
+  SUBROUTINE ms_out(iw,converged,freq,criter ,b_mat,s_mat,b_vec,delta_vec,&
+                    mat_size,nrep,approx_H,eigenval,error)
     INTEGER                                  :: iw
     LOGICAL                                  :: converged
-    REAL(KIND=dp), DIMENSION(:)              :: freq
-    REAL(KIND=dp), DIMENSION(:, :)           :: criter
+    REAL(KIND=dp), DIMENSION(:)              :: freq,eigenval
+    REAL(KIND=dp), DIMENSION(:, :)           :: criter,approx_H
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: b_mat, s_mat
     REAL(KIND=dp), DIMENSION(:, :)           :: b_vec, delta_vec
     INTEGER                                  :: mat_size, nrep
@@ -1502,7 +1520,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ms_out', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, msunit, stat
+    REAL(KIND=dp),DIMENSION(:),ALLOCATABLE   :: residuum
+    INTEGER                                  :: i, msunit, stat,j
+    REAL(KIND=dp)                            :: crit_a,crit_b
+
 
     IF(converged)THEN
        IF(iw.GT.0)THEN
@@ -1510,6 +1531,27 @@ CONTAINS
           DO i=1,nrep
              WRITE(iw,'(T2,"MS| TRACKED FREQUENCY (",I0,") IS:",F12.6,3X,A)') i,freq(i),'cm-1'
           END DO
+          ALLOCATE(residuum(SIZE(b_mat,1)))
+          WRITE ( iw, '( /, 1X, 79("-") )' )
+          WRITE ( iw, '( " -", 24X, A, 24X, "-" )' ) 'FREQUENCY AND CONVERGENCE LIST'
+          WRITE ( iw, '(4(8X, A))')'FREQUENCY','MAXVAL CRITERIA','NORM CRITERIA', 'CONVERGENCE'
+          DO i=1,SIZE(b_mat,2)
+             residuum=0._dp
+             DO j=1,SIZE(b_mat,2)
+                residuum(:)=residuum(:)+approx_H(j,i)*(s_mat(:,j)-eigenval(i)*b_mat(:,j))                
+             END DO
+
+             crit_a=MAXVAL(residuum(:))
+             crit_b=SQRT(DOT_PRODUCT(residuum,residuum))
+             IF(crit_a.LE.1E-7.AND.crit_b.LE.1E-6)THEN
+                WRITE(iw,'(5X,F12.3,7X,E12.3,11X,E12.3,15X,A)')SQRT(ABS(eigenval(i))*massunit)*vibfac,&
+                     crit_a,crit_b,'YES'
+             ELSE 
+                WRITE(iw,'(5X,F12.3,7X,E12.3,11X,E12.3,15X,A)')SQRT(ABS(eigenval(i))*massunit)*vibfac,&
+                     crit_a,crit_b,'NO'
+            END IF
+         END DO
+         DEALLOCATE(residuum)
        END IF
     ELSE
        IF(iw.GT.0)THEN
@@ -1601,5 +1643,120 @@ CONTAINS
     END IF
   END SUBROUTINE molden_out
 
+
+  !!****f* vibrational_analysis/get_vibs_in_range [1.0] *
+  !!
+  !!   NAME
+  !!     get_vibs_in _range
+  !!
+  !!   FUNCTION
+  !!     
+  !!
+  !!   NOTES
+  !!     
+  !!
+  !!   AUTHOR
+  !!     Florian Schiffmann 11.2007
+  !!
+  !!   MODIFICATION HISTORY
+  !!             
+  !!
+  !!   SOURCE
+  !****************************************************************************
+  SUBROUTINE get_vibs_in_range(b_mat,s_mat,approx_H,eigenval,residuum,f_range,nrep,ind)
+
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: b_mat, s_mat
+    REAL(KIND=dp), DIMENSION(:, :)           :: approx_H,residuum
+    REAL(Kind=dp), DIMENSION(:), POINTER     :: f_range
+    REAL(KIND=dp), DIMENSION(:)              :: eigenval
+    INTEGER,DIMENSION(:)                     :: ind
+    
+    REAL(KIND=dp),Dimension(2)               :: myrange
+    INTEGER                                  :: i,j,count1,count2,nrep,mat_size
+    
+    INTEGER,DIMENSION(:,:),ALLOCATABLE       :: map1
+    INTEGER,DIMENSION(:),ALLOCATABLE         :: map2
+    REAL(KIND=dp),DIMENSION(:),ALLOCATABLE   :: tmp,tmp1
+    REAL(KIND=dp),DIMENSION(:,:),ALLOCATABLE :: tmp_resid
+    
+    myrange(:)=(f_range(:)/(vibfac))**2/massunit
+    count1=0
+    count2=0
+    residuum=0.0_dp
+    mat_size=SIZE(b_mat,2)
+    ALLOCATE(map1(SIZE(eigenval),2))
+    ALLOCATE(tmp(SIZE(eigenval)))
+    DO i=1,SIZE(eigenval)
+       IF(ABS(eigenval(i)-myrange(1))+ABS(eigenval(i)-myrange(2)).LE.&
+            ABS(myrange(1)-myrange(2))+myrange(1)*0.001_dp)THEN
+          count1=count1+1
+          map1(count1,1)=i
+       ELSE
+          count2=count2+1
+          map1(count2,2)=i
+          tmp(count2)=MIN(ABS(eigenval(i)-myrange(1)),ABS(eigenval(i)-myrange(2)))
+       END IF
+    END DO
+
+    IF(count1.EQ.nrep)THEN
+       DO j=1,count1
+          DO i=1,mat_size
+             residuum(:,j)=residuum(:,j)+approx_H(i,map1(j,1))*(s_mat(:,i)-eigenval(map1(j,1))*b_mat(:,i))
+             ind(j)=map1(j,1)
+          END DO
+       END DO
+    ELSE IF(count1.gt.nrep)THEN
+       ALLOCATE(tmp_resid(SIZE(b_mat,1),count1))
+       ALLOCATE(tmp1(count1))
+       ALLOCATE(map2(count1))
+       tmp_resid=0._dp
+       DO j=1,count1
+          DO i=1,mat_size
+             tmp_resid(:,j)=tmp_resid(:,j)+approx_H(i,map1(j,1))*(s_mat(:,i)-eigenval(map1(j,1))*b_mat(:,i))
+          END DO
+       END DO
+
+       DO j=1,count1
+          DO i=1,mat_size
+             tmp_resid(:,j)=tmp_resid(:,j)-DOT_PRODUCT(tmp_resid(:,j),b_mat(:,i))* b_mat(:,i)
+          END DO
+          tmp(j)=MAXVAL(tmp_resid(:,j))
+       END DO
+       CALL sort(tmp,count1,map2)
+       DO j=1,nrep
+          residuum(:,j)=tmp_resid(:,map2(count1+1-j))
+          ind(j)=map1(map2(count1+1-j),1)
+       END DO
+       DEALLOCATE(tmp_resid)
+       DEALLOCATE(tmp1)
+       DEALLOCATE(map2)
+    ELSE IF(count1.LT.nrep)THEN
+
+       ALLOCATE(map2(count2))
+       IF(count1.NE.0)THEN
+          DO j=1,count1
+             DO i=1,mat_size
+                residuum(:,j)=residuum(:,j)+approx_H(i,map1(j,1))*(s_mat(:,i)-eigenval(map1(j,1))*b_mat(:,i))
+             END DO
+             ind(j)=map1(j,1)
+          END DO
+       END IF
+       CALL sort(tmp,count2,map2)
+       DO j=1,nrep-count1
+          DO i=1,mat_size
+             residuum(:,count1+j)=residuum(:,count1+j)+approx_H(i,map1(map2(j),2))&
+                  *(s_mat(:,i)-eigenval(map1(map2(j),2))*b_mat(:,i))
+          END DO
+          ind(count1+j)=map1(map2(j),2)
+       END DO
+    
+       DEALLOCATE(map2)
+    END IF
+       
+    DEALLOCATE(map1)
+    DEALLOCATE(tmp)
+    
+    
+  END SUBROUTINE get_vibs_in_range
 END MODULE vibrational_analysis
 

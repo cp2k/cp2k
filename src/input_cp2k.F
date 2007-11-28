@@ -1168,7 +1168,9 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
 
        CALL keyword_create(keyword, name="NPROC_REP",&
             description="Specify the number of processors to be used per replica "//&
-            "environment (for parallel runs)",&
+            "environment (for parallel runs). "//&
+            "In case of mode selective calculations more than one replica will start"//&
+            " a block Davidson algorithm to track more than only one frequency",&
             default_i_val=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1871,14 +1873,24 @@ END SUBROUTINE create_cpot_section
           error=error)
 
      CALL keyword_create(keyword,name="FREQUENCY",&
-          description="value close to the expected value of the frequency for to look for",&
+          description="value close to the expected value of the frequency for to look for. "//&
+	  "If the block Davidson algorithm is applied, the nrep closest frequencies are tracked. ",&
           usage="FREQUENCY <REAL>", default_r_val=-1._dp,&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
  
+     CALL keyword_create(keyword,name="RANGE",&
+          description="Track modes in a given range of frequencies. "//&
+	  "No warranty that the set of frequencies is complete.",&
+          usage="FREQUENCY <REAL> <REAL>",&
+          n_var=-1,type_of_var=real_t,&
+          error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
      CALL keyword_create(keyword, name="ATOMS",&
-          description="Specifies the list of atoms whcih should be mainly involved in the selected frequency",&
+          description="Specifies the list of atoms which should be mainly involved in the selected frequency",&
           usage="ATOMS {integer} {integer} .. {integer}", required=.TRUE.,&
           n_var=-1, type_of_var=integer_t, error=error)
      CALL section_add_keyword(section,keyword,error=error)
