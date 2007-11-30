@@ -431,8 +431,8 @@ CONTAINS
           IF ((itmp<map0).OR.(itmp>map9)) EXIT
        END DO
        element0 = elements(i)(1:j)
-       IF(.NOT.( (topology%conn_type==do_conn_g87).OR.(topology%conn_type==do_conn_g96) )) &
-         CALL check_subsys_element(element0,my_element,subsys_section,error)
+       ! ALWAYS check for elements..
+       CALL check_subsys_element(element0,my_element,subsys_section,error)
        ! Earn time fixing same element labels for same atoms
        element0 = elements(i)
        DO k = i, topology%natoms
