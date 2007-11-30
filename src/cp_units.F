@@ -108,7 +108,7 @@ MODULE cp_units
   PUBLIC :: cp_unit_create, cp_unit_retain, cp_unit_release, &
        cp_unit_to_cp2k, cp_unit_from_cp2k, cp_unit_desc,&
        cp_unit_set_create, cp_unit_set_retain, cp_unit_set_release,&
-       cp_unit_to_cp2k1, cp_unit_from_cp2k1
+       cp_unit_to_cp2k1, cp_unit_from_cp2k1, cp_unit_compatible
   
 !!***
 !****************************************************************************
@@ -663,7 +663,6 @@ CONTAINS
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
     END IF
-    NULLIFY(unit)
   END SUBROUTINE cp_unit_release
 !***************************************************************************
 
@@ -1473,63 +1472,6 @@ CONTAINS
   END FUNCTION cp_unit_from_cp2k
 !***************************************************************************
 
-!!****f* cp_units/cp_unit_transform *
-!!
-!!   NAME
-!!     cp_unit_transform
-!!
-!!   FUNCTION
-!!     converts from a unit to another
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - value: the value to convert
-!!     - unit_from: the unit of the value
-!!     - unit_to: the unit of the result
-!!     - power: the power of the unit (defaults to 1)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
-  FUNCTION cp_unit_transform(value,unit_from,unit_to,defaults,power,error) &
-       RESULT(res)
-    REAL(kind=dp), INTENT(in)                :: value
-    TYPE(cp_unit_type), POINTER              :: unit_from, unit_to
-    TYPE(cp_unit_set_type), OPTIONAL, &
-      POINTER                                :: defaults
-    INTEGER, INTENT(in), OPTIONAL            :: power
-    TYPE(cp_error_type), INTENT(inout)       :: error
-    REAL(kind=dp)                            :: res
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_transform', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: my_power
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-    my_power=1
-    IF (PRESENT(power)) my_power=power
-    CALL cp_assert(cp_unit_compatible(unit_from,unit_to,error=error),&
-         cp_failure_level,cp_assertion_failed,routineP,"incompatible units"//&
-         TRIM(cp_unit_desc(unit_from,error=error))//", "//&
-         cp_unit_desc(unit_to,error=error),error,failure)
-    IF (.NOT.failure) THEN
-       IF (PRESENT(defaults)) THEN
-          res=cp_unit_to_cp2k1(value,unit_from,power=my_power,defaults=defaults,&
-               error=error)
-       ELSE
-          res=cp_unit_from_cp2k1(value,unit_to,power=my_power,error=error)
-       END IF
-    END IF
-  END FUNCTION cp_unit_transform
-!***************************************************************************
-
 !!****f* cp_units/cp_unit_compatible *
 !!
 !!   NAME
@@ -1546,24 +1488,26 @@ CONTAINS
 !!       see module cp_error_handling 
 !!
 !!   AUTHOR
-!!     fawzi
+!!     Teodoro Laino [tlaino] - 11.2007 - University of Zurich
 !!
 !!*** **********************************************************************
-  FUNCTION cp_unit_compatible(unit1,unit2,error) RESULT(res)
-    TYPE(cp_unit_type), POINTER              :: unit1, unit2
+  FUNCTION cp_unit_compatible(ref_unit,unit,error) RESULT(res)
+    TYPE(cp_unit_type), POINTER              :: ref_unit, unit
     TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_compatible', &
       routineP = moduleN//':'//routineN
+    INTEGER :: i
 
-    LOGICAL                                  :: failure
+    res = .TRUE.
+    DO i = 1, SIZE(ref_unit%kind_id)
+       IF  (ref_unit%kind_id(i)==unit%kind_id(i)) CYCLE
+       IF ((ref_unit%kind_id(1)==cp_ukind_undef).AND.(ALL(ref_unit%kind_id(2:)==cp_ukind_none))) CYCLE
+       res = .FALSE.
+       EXIT
+    END DO
 
-    failure=.FALSE.
-
-    !FM to do (unit=none, compress, substitute reducing to basic
-    !FM        SI kinds of unit, compress, compare)
-    res=.TRUE.
   END FUNCTION cp_unit_compatible
 !***************************************************************************
 
