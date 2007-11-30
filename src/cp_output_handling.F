@@ -1037,6 +1037,7 @@ FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension,&
            IF (PRESENT(is_new_file)) THEN
               INQUIRE(FILE=filename,EXIST=found)
               is_new_file = .NOT.found
+              IF (my_file_position=="REWIND") is_new_file = .TRUE.
            END IF
            ! If required do a backup
            IF (my_do_backup) THEN
