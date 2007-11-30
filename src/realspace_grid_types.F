@@ -766,13 +766,13 @@ CONTAINS
     INTEGER                                  :: dest, group, idir, ierr, nn, position, &
                                                 n_shifts, source, subgroup, &
                                                 offset_down, offset_up, i, j, &
-                                                rank, my_rank, send_taskno, recv_taskno, &
-                                                x,y,z,k
+                                                rank, my_rs_rank, my_pw_rank, send_taskno, recv_taskno, &
+                                                x,y,z,k,m
     INTEGER, DIMENSION(3)                    :: lb_in, lb_out, lc, ub_in, ub_out, uc
     INTEGER, DIMENSION(2)                    :: neighbours, pos
     INTEGER, DIMENSION(3)                    :: coords
     INTEGER, DIMENSION(:,:), ALLOCATABLE     :: bounds, send_tasks, recv_tasks
-    INTEGER, DIMENSION(:), ALLOCATABLE       :: send_sizes, recv_sizes, send_disps, recv_disps, dshifts, ushifts
+    INTEGER, DIMENSION(:), ALLOCATABLE       :: send_sizes, recv_sizes, send_disps, recv_disps, dshifts, ushifts, rank_pw2rs
     LOGICAL                                  :: subdim( 3 )
     REAL(KIND=dp)                            :: rs_sum,pw_sum
     REAL(KIND=dp), ALLOCATABLE, &
@@ -785,8 +785,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_pw_transfer_distributed', &
       routineP = moduleN//':'//routineN
 
-
     !Both grids are distributed, we have to do some reshuffling of data
+
+    ! first map pw ranks (corresponding to the cartesian communicator) to rs ranks (and their cart. comm)
+    ! this could become part of the rs type
+    ALLOCATE(rank_pw2rs(0:rs%group_size-1), STAT=ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","buffer",nn)
+    rank_pw2rs=0
+    rank_pw2rs(pw%pw_grid%para%rs_mpo)=rs%my_pos
+    CALL mp_sum(rank_pw2rs,rs%group)
 
     IF ( dir == rs2pw ) THEN
 
@@ -937,12 +944,12 @@ CONTAINS
        send_disps = 0
        recv_disps = 0
 
-       my_rank = pw % pw_grid % para % my_pos
+       my_rs_rank = rs % my_pos
+       my_pw_rank = pw % pw_grid % para % rs_mpo
 
        ! find the processors that should hold our data
        ! should be part of the rs grid type
-
-       DO i = 0, pw % pw_grid % para % group_size -1
+       DO i = 0, rs % group_size -1
 
           call mp_cart_coords(rs % group, i, coords)
           !calculate the real rs grid points on each processor
@@ -953,7 +960,7 @@ CONTAINS
              ub_in(idir) = pos(2)                
           ENDDO
 
-          IF(i==my_rank)THEN
+          IF(i==my_rs_rank)THEN
              lb_out(:) = lb_in(:)
              ub_out(:) = ub_in(:)
           ENDIF
@@ -963,18 +970,19 @@ CONTAINS
              IF (lb_in(1) .GT.bounds(j,2)) CYCLE
              IF (ub_in(1) .LT.bounds(j,1)) CYCLE 
 
-             IF(i==my_rank) THEN
-                send_tasks(j,1)= MAX(lb_in(1),bounds(j,1))
-                send_tasks(j,2)= MIN(ub_in(1),bounds(j,2))
-                send_tasks(j,3)= lb_in(2)
-                send_tasks(j,4)= ub_in(2)
-                send_tasks(j,5)= lb_in(3)
-                send_tasks(j,6)= ub_in(3)
-                send_sizes(j)  = (send_tasks( j ,2)-send_tasks( j ,1)+1)* &
-                     (send_tasks( j ,4)-send_tasks( j ,3)+1)*(send_tasks( j ,6)-send_tasks( j ,5)+1)
+             IF(i==my_rs_rank) THEN
+                m = rank_pw2rs(j)
+                send_tasks(m,1)= MAX(lb_in(1),bounds(j,1))
+                send_tasks(m,2)= MIN(ub_in(1),bounds(j,2))
+                send_tasks(m,3)= lb_in(2)
+                send_tasks(m,4)= ub_in(2)
+                send_tasks(m,5)= lb_in(3)
+                send_tasks(m,6)= ub_in(3)
+                send_sizes(m)  = (send_tasks( m ,2)-send_tasks( m ,1)+1)* &
+                     (send_tasks( m ,4)-send_tasks( m ,3)+1)*(send_tasks( m ,6)-send_tasks( m ,5)+1)
              ENDIF
 
-             IF(j==my_rank) THEN
+             IF(j==my_pw_rank) THEN
                 recv_tasks(i,1)= MAX(lb_in(1),bounds(j,1))
                 recv_tasks(i,2)= MIN(ub_in(1),bounds(j,2))
                 recv_tasks(i,3)= lb_in(2)
@@ -1006,7 +1014,7 @@ CONTAINS
 
        ! do packing
        j=0
-       DO i = 0, pw % pw_grid % para % group_size - 1
+       DO i = 0, rs % group_size - 1
           k=0
           DO z = send_tasks(i,5) , send_tasks(i,6)
              DO y = send_tasks(i,3) , send_tasks(i,4)
@@ -1026,7 +1034,7 @@ CONTAINS
 
        ! do unpacking
        j=0
-       DO i = 0, pw % pw_grid % para % group_size - 1
+       DO i = 0, rs % group_size - 1
           k=0
           DO z = recv_tasks(i,5) , recv_tasks(i,6)
              DO y = recv_tasks(i,3) , recv_tasks(i,4)
@@ -1109,7 +1117,8 @@ CONTAINS
        send_tasks(:,6)=0
        recv_sizes = 0
 
-       my_rank = pw % pw_grid % para % my_pos
+       my_rs_rank = rs % my_pos
+       my_pw_rank = pw % pw_grid % para % rs_mpo
 
        ! find the processors that should hold our data
        ! should be part of the rs grid type
@@ -1125,7 +1134,7 @@ CONTAINS
              ub_in(idir) = pos(2)                
           ENDDO
 
-          IF(i==my_rank)THEN
+          IF(i==my_rs_rank)THEN
              lb_out(:) = lb_in(:)
              ub_out(:) = ub_in(:)
           ENDIF
@@ -1136,18 +1145,19 @@ CONTAINS
              IF (ub_in(1) .LT.bounds(j,1)) CYCLE 
 
              ! this is the reverse of rs2pw: what were the sends are now the recvs
-             IF(i==my_rank) THEN
-                   recv_tasks(j,1)= MAX(lb_in(1),bounds(j,1))
-                   recv_tasks(j,2)= MIN(ub_in(1),bounds(j,2))
-                   recv_tasks(j,3)= lb_in(2)
-                   recv_tasks(j,4)= ub_in(2)
-                   recv_tasks(j,5)= lb_in(3)
-                   recv_tasks(j,6)= ub_in(3)
-                   recv_sizes(j)  = (recv_tasks( j ,2)-recv_tasks( j ,1)+1)* &
-                        (recv_tasks( j ,4)-recv_tasks( j ,3)+1)*(recv_tasks( j ,6)-recv_tasks( j ,5)+1)
+             IF(i==my_rs_rank) THEN
+                   m = rank_pw2rs(j)
+                   recv_tasks(m,1)= MAX(lb_in(1),bounds(j,1))
+                   recv_tasks(m,2)= MIN(ub_in(1),bounds(j,2))
+                   recv_tasks(m,3)= lb_in(2)
+                   recv_tasks(m,4)= ub_in(2)
+                   recv_tasks(m,5)= lb_in(3)
+                   recv_tasks(m,6)= ub_in(3)
+                   recv_sizes(m)  = (recv_tasks( m ,2)-recv_tasks( m ,1)+1)* &
+                        (recv_tasks( m ,4)-recv_tasks( m ,3)+1)*(recv_tasks( m ,6)-recv_tasks( m ,5)+1)
              ENDIF
 
-             IF(j==my_rank) THEN
+             IF(j==my_pw_rank) THEN
                    send_tasks(i,1)= MAX(lb_in(1),bounds(j,1))
                    send_tasks(i,2)= MIN(ub_in(1),bounds(j,2))
                    send_tasks(i,3)= lb_in(2)
@@ -1179,7 +1189,7 @@ CONTAINS
 
        ! do packing
        j=0
-       DO i = 0, pw % pw_grid % para % group_size - 1
+       DO i = 0, rs % group_size - 1
           k=0
           DO z = send_tasks(i,5) , send_tasks(i,6)
              DO y = send_tasks(i,3) , send_tasks(i,4)
@@ -1199,7 +1209,7 @@ CONTAINS
 
        ! do unpacking
        j=0
-       DO i = 0, pw % pw_grid % para % group_size - 1
+       DO i = 0, rs % group_size - 1
           k=0
           DO z = recv_tasks(i,5) , recv_tasks(i,6)
              DO y = recv_tasks(i,3) , recv_tasks(i,4)
@@ -1345,6 +1355,9 @@ CONTAINS
           END IF
        END DO       
     END IF
+
+    DEALLOCATE(rank_pw2rs, STAT=ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","rank_pw2rs")
 
 
   END SUBROUTINE rs_pw_transfer_distributed
