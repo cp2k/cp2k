@@ -1295,6 +1295,13 @@ END SUBROUTINE setup_lg4x6
              ! Intramolecular constraint
              IF (const_mol(i)/=0) THEN 
                 k = const_mol(i)
+                CALL cp_assert(k<=SIZE(molecule_kind_set),&
+                     cp_failure_level,cp_assertion_failed,routineP,&
+                     "A constraint has been specified providing the molecule index. But the "//&
+                     " molecule index ("//cp_to_string(k)//") is out of range of the possible"//&
+                     " molecule kinds ("//cp_to_string(SIZE(molecule_kind_set))//")."//&
+CPSourceFileRef,&
+                     error=error,failure=failure)
                 isize = SIZE(constr_x_mol(k)%constr)
                 CALL reallocate(constr_x_mol(k)%constr, 1, isize+1)
                 constr_x_mol(k)%constr(isize+1) = i
