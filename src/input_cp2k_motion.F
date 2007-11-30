@@ -2370,16 +2370,13 @@ CONTAINS
 
        CALL keyword_create(keyword, name="MASS",&
             description="Specifies the mass parameter of the collective variable in the"//&
-            " extended lagrangian scheme.",&
-            usage="MASS {real}",unit_str='amu',&
-            type_of_var=real_t,error=error)
+            " extended lagrangian scheme.",usage="MASS {real}",unit_str='amu',type_of_var=real_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="SCALE",&
             description="Specifies the scale factor for the following collective variable.",&
-            usage="SCALE {real}",&
-            default_r_val=1.0_dp,error=error)
+            usage="SCALE {real}",type_of_var=real_t,unit_str='internal_cp2k',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
