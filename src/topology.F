@@ -414,6 +414,7 @@ CONTAINS
     ! Fix element name
     CALL create_ff_map("AMBER",error)
     CALL create_ff_map("CHARMM",error)
+    CALL create_ff_map("GROMOS",error)
     ALLOCATE(elements(SIZE(topology%atom_info%element)),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     elements = topology%atom_info%element
@@ -444,8 +445,9 @@ CONTAINS
     END DO
     DEALLOCATE(elements,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL destroy_ff_map("AMBER",error)
+    CALL destroy_ff_map("GROMOS",error)
     CALL destroy_ff_map("CHARMM",error)
+    CALL destroy_ff_map("AMBER",error)
     CALL timestop(0.0_dp,handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------

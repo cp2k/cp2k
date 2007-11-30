@@ -36,7 +36,8 @@ MODULE topology_util
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mm_mapping_library,              ONLY: amber_map,&
-                                             charmm_map
+                                             charmm_map,&
+                                             gromos_map
   USE periodic_table,                  ONLY: ptable
   USE string_table,                    ONLY: str2id
   USE string_utilities,                ONLY: uppercase
@@ -865,11 +866,9 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: icheck
     TYPE(array1_list_type), DIMENSION(:), &
       POINTER                                :: bond_list
-    INTEGER, INTENT(IN)                      :: i
-    INTEGER, INTENT(IN)                      :: my_mol
+    INTEGER, INTENT(IN)                      :: i, my_mol
 
     INTEGER                                  :: j, k
-
 
     icheck(i) = my_mol
     DO j = 1, SIZE(bond_list(i)%array1)
@@ -1478,7 +1477,7 @@ CONTAINS
           END IF
        END DO
     END IF
-    ! Last chance.. are these atom_kinds of AMBER or CHARMM FF ?
+    ! Last chance.. are these atom_kinds of AMBER or CHARMM or GROMOS FF ?
     IF (.NOT.found) THEN
        ! First we go through the AMBER library
        DO i = 1, SIZE(amber_map%kind)
@@ -1501,6 +1500,18 @@ CONTAINS
        END DO
        IF (found) THEN
           element_out = charmm_map%element(i)
+       END IF
+    END IF
+    IF (.NOT.found) THEN
+       ! Then we go through the GROMOS library
+       DO i = 1, SIZE(gromos_map%kind)
+          IF (element_symbol==gromos_map%kind(i)) THEN
+             found =.TRUE.
+             EXIT
+          END IF
+       END DO
+       IF (found) THEN
+          element_out = gromos_map%element(i)
        END IF
     END IF
     ! If no element is found the job stops here.

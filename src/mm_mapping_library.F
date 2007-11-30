@@ -43,7 +43,8 @@ MODULE mm_mapping_library
 
 
   TYPE(ff_map_type), POINTER, PUBLIC :: amber_map,&
-                                       charmm_map
+                                        charmm_map,&
+                                        gromos_map
   PUBLIC :: create_ff_map,&
             destroy_ff_map,&
             ff_map_type
@@ -79,7 +80,8 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_ff_map', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: amb_imax = 47, chm_imax = 107
+    INTEGER, PARAMETER                       :: amb_imax = 47, &
+                                                chm_imax = 107, grm_imax = 22
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
@@ -143,7 +145,27 @@ CONTAINS
             "O ","O ","O ","O ","O ","O ","O ","P ","P ","K ",&
             "P ","S ","S ","Na","S ","S ","Zn"/)
 
+    CASE("GROMOS")
+       ALLOCATE(gromos_map,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ! allocate substructures
+       ALLOCATE(gromos_map%kind(grm_imax),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(gromos_map%element(grm_imax),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       gromos_map%kind=(/&
+            "H1  ","CA  ","HA  ","SD  ","OG  ","CG  ","HD  ","SG  ",&
+            "CZ  ","OH  ","C2  ","H8  ","O4* ","O5* ","PA  ","O1A ",&
+            "MG  ","Na  ","Cl  ","OW  ","HW  ","HW  "/)
+
+       gromos_map%element=(/&
+            "H ","C ","H ","S ","O ","C ","H ","S ",&
+            "C ","O ","C ","H ","O ","O ","P ","O ",&
+            "Mg","Na","Cl","O ","H ","H "/)       
+
     END SELECT
+
   END SUBROUTINE create_ff_map
 
 !!****f* mm_mapping_library/destroy_ff_map [1.0] *
@@ -198,6 +220,15 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ! deallocate main
        DEALLOCATE(charmm_map,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CASE("GROMOS")
+       ! deallocate substructures
+       DEALLOCATE(gromos_map%kind,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(gromos_map%element,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ! deallocate main
+       DEALLOCATE(gromos_map,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END SELECT
   END SUBROUTINE destroy_ff_map
