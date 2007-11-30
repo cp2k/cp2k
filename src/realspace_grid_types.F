@@ -1060,7 +1060,7 @@ CONTAINS
 
        ! safety check, to be removed once we're absolute sure the routine is correct
        pw_sum=pw_integrate_function(pw)
-       IF (ABS(pw_sum-rs_sum)/MAX(1,ABS(pw_sum),ABS(rs_sum))>EPSILON(rs_sum)*100) THEN
+       IF (ABS(pw_sum-rs_sum)/MAX(1.0_dp,ABS(pw_sum),ABS(rs_sum))>EPSILON(rs_sum)*100) THEN
            write(error_string,'(A,6(1X,I4.4),2F20.12)') "rs_pw_transfer_distributed", rs %  npts, rs % group_dim,pw_sum,rs_sum
            CALL stop_program(error_string, &
                 "Please report this bug... quick workaround: use RS_GRID REPLICATED")
