@@ -32,17 +32,20 @@ MODULE realspace_grid_types
   USE message_passing,                 ONLY: &
        mp_bcast, mp_cart_create, mp_cart_shift, mp_cart_sub, mp_cart_rank, mp_comm_dup, &
        mp_comm_free, mp_isendrecv, mp_max, mp_min, mp_sendrecv, mp_sum, &
-       mp_waitall,mp_sync,mp_cart_coords,mp_alltoall
+       mp_waitall,mp_sync,mp_cart_coords,mp_alltoall,mp_environ
   USE pw_grid_types,                   ONLY: PW_MODE_LOCAL,&
                                              pw_grid_type
   USE pw_types,                        ONLY: COMPLEXDATA3D,&
                                              REALDATA3D,&
-                                             pw_type
+                                             pw_type,&
+                                             pw_integrate_function
+  USE kahan_sum,                       ONLY: accurate_sum
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
+  USE mathlib,                         ONLY: det_3x3
   USE memory_utilities,                ONLY: reallocate
 #include "cp_common_uses.h"
 
@@ -305,8 +308,8 @@ CONTAINS
        rs % ub_local = pw_grid % bounds ( 2, : )
        rs % parallel = .FALSE.
        rs % distributed = .FALSE.
-       rs % group = 0
-       rs % group_size = 0
+       rs % group = -1
+       rs % group_size = 1
        rs % group_head = .TRUE.
        rs % group_dim = 1
        rs % group_coor = 0
@@ -323,7 +326,6 @@ CONTAINS
        ! group size of rs grid
        ! global grid dimensions are still the same
        rs % group_size = pw_grid % para % group_size
-       rs % my_pos = pw_grid % para % rs_mpo
        rs % npts = pw_grid % npts
        rs % ngpts = PRODUCT ( rs % npts )
        rs % lb = pw_grid % bounds ( 1, : )
@@ -383,6 +385,7 @@ CONTAINS
           rs % parallel = .TRUE.
           rs % distributed = .FALSE.
           CALL mp_comm_dup( pw_grid % para % rs_group , rs % group )
+          CALL mp_environ(rs % group_size, rs % my_pos, rs % group )
           rs % group_head = pw_grid % para % group_head
           rs % group_coor ( : ) = 0
           rs % group_coor ( 3 ) = pw_grid % para % rs_mpo
@@ -403,7 +406,8 @@ CONTAINS
           ! the new cartesian group
           CALL mp_cart_create ( pw_grid % para % group, 3, &
                rs % group_dim, pos, rs % group )
-               ! for output would be needed to have this pw_grid % para % group_head
+          CALL mp_environ(rs % group_size, rs % my_pos, rs % group )
+          ! for output would be needed to have this pw_grid % para % group_head
           rs % group_head = ALL ( pos == 0 ) 
           rs % group_coor = pos
           ! local dimensions of the grid
@@ -770,12 +774,14 @@ CONTAINS
     INTEGER, DIMENSION(:,:), ALLOCATABLE     :: bounds, send_tasks, recv_tasks
     INTEGER, DIMENSION(:), ALLOCATABLE       :: send_sizes, recv_sizes, send_disps, recv_disps, dshifts, ushifts
     LOGICAL                                  :: subdim( 3 )
+    REAL(KIND=dp)                            :: rs_sum,pw_sum
     REAL(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :)                  :: buffer
     REAL(KIND=dp), ALLOCATABLE, &
          DIMENSION(:)                        :: send_buf, recv_buf
     TYPE(cp_error_type)                      :: error
     LOGICAL                                  :: failure
+    CHARACTER(LEN=200)                       :: error_string
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_pw_transfer_distributed', &
       routineP = moduleN//':'//routineN
 
@@ -783,6 +789,10 @@ CONTAINS
     !Both grids are distributed, we have to do some reshuffling of data
 
     IF ( dir == rs2pw ) THEN
+
+       ! safety check, to be removed once we're absolute sure the routine is correct
+       rs_sum=accurate_sum(rs%r)*det_3x3(rs%dh)
+       CALL mp_sum(rs_sum,rs%group)
 
        DO idir = 1,3
 
@@ -1048,6 +1058,13 @@ CONTAINS
        DEALLOCATE ( recv_disps, STAT=ierr)
        IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_disps")
 
+       ! safety check, to be removed once we're absolute sure the routine is correct
+       pw_sum=pw_integrate_function(pw)
+       IF (ABS(pw_sum-rs_sum)/MAX(1,ABS(pw_sum),ABS(rs_sum))>EPSILON(rs_sum)*100) THEN
+           write(error_string,'(A,6(1X,I4.4),2F20.12)') "rs_pw_transfer_distributed", rs %  npts, rs % group_dim,pw_sum,rs_sum
+           CALL stop_program(error_string, &
+                "Please report this bug... quick workaround: use RS_GRID REPLICATED")
+       ENDIF
 
     ELSE
 
