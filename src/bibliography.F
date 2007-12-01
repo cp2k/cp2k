@@ -58,7 +58,7 @@ MODULE bibliography
              Genovese2007,Evans1983,Minary2003,Byrd1995,&
              VandeVondele2007,Ortiz1994,Becke1988,Perdew1996,Zhang1998,Lee1988, &
              Heyd2006,Vydrov2006,Heyd2003,Heyd2004,Vosko1980, &
-             Essmann1995,Ewald1921,Darden1993
+             Essmann1995,Ewald1921,Darden1993, Tersoff1988, Tosi1964a, Tosi1964b, Yamada2000
 
 CONTAINS
 !!****f* bibliography/add_all_references *
@@ -82,6 +82,76 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE add_all_references()
+
+    CALL add_reference(key=Yamada2000, ISI_record=s2a(&
+         "PT J",&
+         "AU Yamada, K",&
+         "   Kurosaki, K",&
+         "   Uno, M",&
+         "   Yamanaka, S",&
+         "TI Evaluation of thermal properties of uranium dioxide by molecular",&
+         "   dynamics",&
+         "SO JOURNAL OF ALLOYS AND COMPOUNDS",&
+         "SN 0925-8388",&
+         "PD JUL 14",&
+         "PY 2000",&
+         "VL 307",&
+         "BP 10",&
+         "EP 16",&
+         "UT ISI:000088590900003",&
+         "ER"),&
+         DOI="10.1016/S0925-8388(00)00806-9")
+
+    CALL add_reference(key=Tosi1964a, ISI_record=s2a(&
+         "PT J",&
+         "AU FUMI, FG",&
+         "   TOSI, MP",&
+         "TI IONIC SIZES + BORN REPULSIVE PARAMETERS IN NACL-TYPE ALKALI HALIDES .I.",&
+         "   HUGGINS-MAYER + PAULING FORMS",&
+         "SO JOURNAL OF PHYSICS AND CHEMISTRY OF SOLIDS",&
+         "SN 0022-3697",&
+         "PY 1964",&
+         "VL 25",&
+         "IS 1",&
+         "BP 31",&
+         "EP 43",&
+         "UT ISI:A19646597B00004",&
+         "ER"),&
+         DOI="10.1016/0022-3697(64)90159-3")
+
+    CALL add_reference(key=Tosi1964b, ISI_record=s2a(&
+         "PT J",&
+         "AU TOSI, MP",&
+         "   FUMI, FG",&
+         "TI IONIC SIZES + BORN REPULSIVE PARAMETERS IN NACL-TYPE ALKALI HALIDES .2.",&
+         "   GENERALIZED",&
+         "SO JOURNAL OF PHYSICS AND CHEMISTRY OF SOLIDS",&
+         "SN 0022-3697",&
+         "PY 1964",&
+         "VL 25",&
+         "IS 1",&
+         "BP 45",&
+         "EP 52",&
+         "UT ISI:A19646597B00017",&
+         "ER"),&
+         DOI="10.1016/0022-3697(64)90160-X")
+
+    CALL add_reference(key=Tersoff1988, ISI_record=s2a(&
+         "PT J",&
+         "AU TERSOFF, J",&
+         "TI EMPIRICAL INTERATOMIC POTENTIAL FOR SILICON WITH IMPROVED ELASTIC",&
+         "   PROPERTIES",&
+         "SO PHYSICAL REVIEW B",&
+         "SN 0163-1829",&
+         "PD NOV 15",&
+         "PY 1988",&
+         "VL 38",&
+         "IS 14",&
+         "BP 9902",&
+         "EP 9905",&
+         "UT ISI:A1988Q924400066",&
+         "ER"),&
+         DOI="10.1103/PhysRevB.38.9902")
 
     CALL add_reference(key=Bussi2007,ISI_record=s2a(&
          "PT J",&

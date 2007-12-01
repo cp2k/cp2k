@@ -23,6 +23,10 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_cp2k_mm
+  USE bibliography,                    ONLY: Tersoff1988,&
+                                             Tosi1964a,&
+                                             Tosi1964b,&
+                                             Yamada2000
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants
@@ -1379,7 +1383,6 @@ CONTAINS
     END IF
   END SUBROUTINE create_LJ_section
 
-
 !***************************************************************************
 !!****f* input_cp2k_mm/create_Williams_section [1.0] *
 !!
@@ -1519,7 +1522,6 @@ CONTAINS
             error=error)
 
        NULLIFY(keyword)
-       
        CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kind involved in the nonbond potential",&
             usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
@@ -1704,7 +1706,7 @@ CONTAINS
             description="This section specifies the input parameters for BMHFT potential type."//&
             "Functional form: V(r) = A * EXP(-B*r) - C/r^6 - D/r^8."//&
             "Values available inside cp2k only for the Na/Cl pair.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            citations=(/Tosi1964a,Tosi1964b/),n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
        NULLIFY(keyword)
@@ -1950,9 +1952,9 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="BUCKMORSE",&
             description="This section specifies the input parameters for"//&
-            " Buckingham plus Morse potential type (Yamada et al, J. All. Comp. 307 (2000) 10)."//&
+            " Buckingham plus Morse potential type "//&
             " Functional Form: V(r) = F0*(B1+B2)*EXP([A1+A2-r]/[B1+B2])-C/r^6+D*{EXP[-2*beta*(r-R0)]-2*EXP[-beta*(r-R0)]}.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            citations=(/Yamada2000/),n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
        NULLIFY(keyword)
@@ -2085,9 +2087,8 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="TERSOFF",&
-            description="This section specifies the input parameters for"//&
-            " Tersoff potential type. (Tersoff, J. PRB 38(14), 9902, 1988).",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            description="This section specifies the input parameters for Tersoff potential type.",&
+            citations=(/Tersoff1988/),n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
        NULLIFY(keyword)
