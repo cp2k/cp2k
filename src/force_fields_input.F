@@ -29,6 +29,11 @@
 
 MODULE force_fields_input
 
+  USE bibliography,                    ONLY: Tersoff1988,&
+                                             Tosi1964a,&
+                                             Tosi1964b,&
+                                             Yamada2000,&
+                                             cite_reference
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_files,                        ONLY: open_file
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -784,6 +789,8 @@ CONTAINS
 
     CALL section_vals_get(section,n_repetition=n_items,error=error)
     DO isec = 1, n_items
+       CALL cite_reference(Tosi1964a)
+       CALL cite_reference(Tosi1964b)
        CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
        nonbonded%pot(start+isec)%pot %type = ft_type
        nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
@@ -1058,6 +1065,7 @@ CONTAINS
 
     CALL section_vals_get(section,n_repetition=n_items,error=error)
     DO isec = 1, n_items
+       CALL cite_reference(Tersoff1988)
        CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
 
        nonbonded%pot(start+isec)%pot %type = tersoff_type
@@ -1129,6 +1137,7 @@ CONTAINS
     failure = .FALSE.
     CALL section_vals_get(section,n_repetition=n_items,error=error)
     DO isec = 1, n_items
+       CALL cite_reference(Yamada2000)
        CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
        CALL section_vals_val_get(section,"F0",i_rep_section=isec,r_val=f0,error=error)
        CALL section_vals_val_get(section,"A1",i_rep_section=isec,r_val=a1,error=error)
