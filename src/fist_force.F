@@ -53,8 +53,8 @@ MODULE fist_force
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
-  USE manybody_potential,              ONLY: density_nonbond,&
-                                             energy_manybody,&
+  USE manybody_eam,                    ONLY: density_nonbond
+  USE manybody_potential,              ONLY: energy_manybody,&
                                              force_nonbond_manybody
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_sum
@@ -116,8 +116,6 @@ MODULE fist_force
 !!******************************************************************************
 
 SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_section, error)
-
-
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(virial_type), POINTER               :: virial
     TYPE(cp_para_env_type), POINTER          :: para_env

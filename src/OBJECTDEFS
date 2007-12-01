@@ -249,7 +249,9 @@ OBJECTS_GENERIC =\
  linear_systems.o\
  lowdin.o\
  machine.o\
+ manybody_eam.o\
  manybody_potential.o\
+ manybody_tersoff.o\
  mathconstants.o\
  mathlib.o\
  mc_control.o\
