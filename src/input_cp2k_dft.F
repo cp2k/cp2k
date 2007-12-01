@@ -5469,6 +5469,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MOLNAME",&
+            variants=(/"SEGNAME"/),&
             description="Specifies the name of the molecule kind on which the charge is applied.",&
             usage="MOLNAME {character}", required=.TRUE.,&
             n_var=1, type_of_var=char_t, error=error)

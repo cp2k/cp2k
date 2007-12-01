@@ -889,6 +889,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MOLNAME",&
+            variants=(/"SEGNAME"/),&
             description="Specifies the name of the molecule on which the constraint will be applied.",&
             usage="MOLNAME {character}", required=.TRUE., n_var=1, type_of_var=char_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -985,6 +986,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MOLNAME",&
+            variants=(/"SEGNAME"/),&
             description="Specifies the name of the molecule to fix",&
             usage="MOLNAME WAT MEOH", required=.TRUE., repeats=.TRUE.,&
             n_var=-1,type_of_var=char_t, error=error)
@@ -1088,6 +1090,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MOLNAME",&
+            variants=(/"SEGNAME"/),&
             description="Specifies the name of the molecule on which the constraint will be applied.",&
             usage="MOLNAME {character}", required=.TRUE., n_var=1, type_of_var=char_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -1192,6 +1195,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MOLNAME",&
+            variants=(/"SEGNAME"/),&
             description="Specifies the names of the molecule on which the constraint will be applied.",&
             usage="MOLNAME {character} .. {character} ", required=.TRUE., n_var=-1,&
             type_of_var=char_t, error=error)
@@ -1277,6 +1281,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MOLNAME",&
+            variants=(/"SEGNAME"/),&
             description="Specifies the name of the molecule on which the constraint will be applied.",&
             usage="MOLNAME {character}", required=.TRUE., n_var=1, type_of_var=char_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -2360,7 +2365,6 @@ CONTAINS
             error=error)
         
        NULLIFY(keyword)
-
        CALL keyword_create(keyword, name="LAMBDA",&
             description="Specifies the lambda parameter of the collective variable in the"//&
             " extended lagrangian scheme.",&
@@ -2375,7 +2379,11 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="SCALE",&
-            description="Specifies the scale factor for the following collective variable.",&
+            variants=(/"WIDTH"/),&
+            description="Specifies the scale factor for the following collective variable. The history "//&
+            "dependent term has the expression: WW * Sum_{j=1}^{nhills} Prod_{k=1}^{ncolvar} "//&
+            "[EXP[-0.5*((ss-ss0(k,j))/SCALE(k))^2]], "//&
+            "where ncolvar is the number of defined METAVAR and nhills is the number of spawned hills. ",&
             usage="SCALE {real}",type_of_var=real_t,unit_str='internal_cp2k',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2991,6 +2999,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MOLNAME",&
+            variants=(/"SEGNAME"/),&
             description="Specifies the name of the molecules to thermostat",&
             usage="MOLNAME WAT MEOH", required=.TRUE., repeats=.TRUE.,&
             n_var=-1,type_of_var=char_t, error=error)
