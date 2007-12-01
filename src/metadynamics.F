@@ -46,7 +46,7 @@ MODULE metadynamics
                                              do_wall_p,&
                                              do_wall_quadratic,&
                                              do_wall_reflective
-  USE input_cp2k_motion,               ONLY: create_metavar_section
+  USE input_cp2k_free_energy,          ONLY: create_metavar_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type
   USE input_keyword_types,             ONLY: keyword_get,&

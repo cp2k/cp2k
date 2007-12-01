@@ -183,11 +183,14 @@ OBJECTS_GENERIC =\
  header.o\
  input_constants.o\
  input_cp2k.o\
+ input_cp2k_barostats.o\
  input_cp2k_check.o\
  input_cp2k_colvar.o\
+ input_cp2k_constraints.o\
  input_cp2k_dft.o\
  input_cp2k_distribution.o\
  input_cp2k_eip.o\
+ input_cp2k_free_energy.o\
  input_cp2k_hfx.o\
  input_cp2k_mm.o\
  input_cp2k_motion.o\
@@ -196,6 +199,7 @@ OBJECTS_GENERIC =\
  input_cp2k_resp.o\
  input_cp2k_restarts.o\
  input_cp2k_subsys.o\
+ input_cp2k_thermostats.o\
  input_enumeration_types.o\
  input_keyword_types.o\
  input_parsing.o\
