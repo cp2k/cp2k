@@ -67,7 +67,7 @@ MODULE qs_linres_epr_nablavks
                                              pw_zero,&
                                              pw_copy,&
                                              pw_derive,&
-                                             pw_sumup,&
+                                             pw_axpy,&
                                              pw_transfer,&
                                              pw_p_type,&
                                              pw_type
@@ -430,17 +430,17 @@ CONTAINS
                  CALL pw_copy(v_coulomb_gspace%pw, v_coulomb_gtemp%pw)
                  CALL pw_derive(v_coulomb_gtemp%pw, (/1,0,0/) )
                  CALL pw_transfer(v_coulomb_gtemp%pw, v_coulomb_rtemp%pw)
-                 CALL pw_sumup(v_coulomb_rtemp%pw, pwx)
+                 CALL pw_axpy(v_coulomb_rtemp%pw, pwx)
              
                  CALL pw_copy(v_coulomb_gspace%pw, v_coulomb_gtemp%pw)
                  CALL pw_derive(v_coulomb_gtemp%pw, (/0,1,0/) )
                  CALL pw_transfer(v_coulomb_gtemp%pw, v_coulomb_rtemp%pw)
-                 CALL pw_sumup(v_coulomb_rtemp%pw, pwy)
+                 CALL pw_axpy(v_coulomb_rtemp%pw, pwy)
              
                  CALL pw_copy(v_coulomb_gspace%pw, v_coulomb_gtemp%pw)
                  CALL pw_derive(v_coulomb_gtemp%pw, (/0,0,1/) )
                  CALL pw_transfer(v_coulomb_gtemp%pw, v_coulomb_rtemp%pw)
-                 CALL pw_sumup(v_coulomb_rtemp%pw, pwz)
+                 CALL pw_axpy(v_coulomb_rtemp%pw, pwz)
              
                  CALL pw_pool_give_back_pw(auxbas_pw_pool,v_coulomb_gspace%pw,error=error)
                  CALL pw_pool_give_back_pw(auxbas_pw_pool,v_coulomb_gtemp%pw,error=error)
@@ -599,17 +599,17 @@ CONTAINS
           CALL pw_transfer(v_rspace_new(ispin)%pw, v_xc_gtemp%pw)
           CALL pw_derive(v_xc_gtemp%pw, (/1,0,0/) )
           CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw)
-          CALL pw_sumup(v_xc_rtemp%pw, nablavks_set(1,ispin)%rho%rho_r(1)%pw)
+          CALL pw_axpy(v_xc_rtemp%pw, nablavks_set(1,ispin)%rho%rho_r(1)%pw)
 
           CALL pw_transfer(v_rspace_new(ispin)%pw, v_xc_gtemp%pw)
           CALL pw_derive(v_xc_gtemp%pw, (/0,1,0/) )
           CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw)
-          CALL pw_sumup(v_xc_rtemp%pw, nablavks_set(2,ispin)%rho%rho_r(1)%pw)
+          CALL pw_axpy(v_xc_rtemp%pw, nablavks_set(2,ispin)%rho%rho_r(1)%pw)
 
           CALL pw_transfer(v_rspace_new(ispin)%pw, v_xc_gtemp%pw)
           CALL pw_derive(v_xc_gtemp%pw, (/0,0,1/) )
           CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw)
-          CALL pw_sumup(v_xc_rtemp%pw, nablavks_set(3,ispin)%rho%rho_r(1)%pw)
+          CALL pw_axpy(v_xc_rtemp%pw, nablavks_set(3,ispin)%rho%rho_r(1)%pw)
 
           CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new(ispin)%pw,&
                error=error)
@@ -628,17 +628,17 @@ CONTAINS
           CALL pw_transfer(v_tau_rspace(ispin)%pw, v_xc_gtemp%pw)
           CALL pw_derive(v_xc_gtemp%pw, (/1,0,0/) )
           CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw)
-          CALL pw_sumup(v_xc_rtemp%pw, nablavks_set(1,ispin)%rho%rho_r(1)%pw)
+          CALL pw_axpy(v_xc_rtemp%pw, nablavks_set(1,ispin)%rho%rho_r(1)%pw)
 
           CALL pw_transfer(v_tau_rspace(ispin)%pw, v_xc_gtemp%pw)
           CALL pw_derive(v_xc_gtemp%pw, (/0,1,0/) )
           CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw)
-          CALL pw_sumup(v_xc_rtemp%pw, nablavks_set(2,ispin)%rho%rho_r(1)%pw)
+          CALL pw_axpy(v_xc_rtemp%pw, nablavks_set(2,ispin)%rho%rho_r(1)%pw)
 
           CALL pw_transfer(v_tau_rspace(ispin)%pw, v_xc_gtemp%pw)
           CALL pw_derive(v_xc_gtemp%pw, (/0,0,1/) )
           CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw)
-          CALL pw_sumup(v_xc_rtemp%pw, nablavks_set(3,ispin)%rho%rho_r(1)%pw)
+          CALL pw_axpy(v_xc_rtemp%pw, nablavks_set(3,ispin)%rho%rho_r(1)%pw)
 
           CALL pw_pool_give_back_pw(auxbas_pw_pool,v_tau_rspace(ispin)%pw,&
                error=error)

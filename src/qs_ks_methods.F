@@ -97,9 +97,9 @@ MODULE qs_ks_methods
                                              pw_pool_retain,&
                                              pw_pool_type
   USE pw_types,                        ONLY: &
-       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_add, &
+       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, &
        pw_copy, pw_integrate_function, pw_p_type, pw_release, pw_scale, &
-       pw_subtract, pw_sumup, pw_transfer, pw_type, pw_zero
+       pw_axpy, pw_transfer, pw_type, pw_zero
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_collocate_density,            ONLY: calculate_rho_elec
   USE qs_core_energies,                ONLY: calculate_ecore
@@ -1476,7 +1476,8 @@ CONTAINS
     ! Hartree sic corrections
     SELECT CASE ( dft_control%sic_method_id )
     CASE ( sic_mauri_us, sic_mauri_spz )
-       CALL pw_subtract(rho%rho_g(1)%pw,rho%rho_g(2)%pw,work_rho%pw)
+       CALL pw_copy(rho%rho_g(1)%pw,work_rho%pw)
+       CALL pw_axpy(rho%rho_g(2)%pw,work_rho%pw,alpha=-1._dp)
        CALL pw_poisson_solve(poisson_env,work_rho%pw, ener, work_v%pw,error=error)
     CASE ( sic_ad )
        ! find out how many elecs we have
@@ -1484,7 +1485,8 @@ CONTAINS
        CALL get_mo_set(mo_set=mo_array(1)%mo_set,nelectron=nelec_a)
        CALL get_mo_set(mo_set=mo_array(2)%mo_set,nelectron=nelec_b)
        nelec = nelec_a + nelec_b
-       CALL pw_add(rho%rho_g(1)%pw,rho%rho_g(2)%pw,work_rho%pw)
+       CALL pw_copy(rho%rho_g(1)%pw,work_rho%pw)
+       CALL pw_axpy(rho%rho_g(2)%pw,work_rho%pw)
        scaling = 1.0_dp / REAL(nelec,KIND=dp)
        CALL pw_scale(work_rho%pw,scaling)
        CALL pw_poisson_solve(poisson_env,work_rho%pw, ener, work_v%pw,error=error)
@@ -1580,15 +1582,17 @@ CONTAINS
     IF (.NOT.my_skip) THEN
        IF(qs_env%dft_control%qs_control%gapw) THEN
           CPPrecondition(ASSOCIATED(rho0_s_gs),cp_failure_level,routineP,error,failure)
-          CALL pw_add(rho0_s_gs%pw, rho%rho_g(1)%pw, rho_tot_gspace%pw)
+          CALL pw_copy(rho0_s_gs%pw,rho_tot_gspace%pw)
+          CALL pw_axpy(rho%rho_g(1)%pw,rho_tot_gspace%pw)
        ELSE
-          CALL pw_add(rho_core%pw, rho%rho_g(1)%pw, rho_tot_gspace%pw)
+          CALL pw_copy(rho_core%pw,rho_tot_gspace%pw)
+          CALL pw_axpy(rho%rho_g(1)%pw,rho_tot_gspace%pw)
        END IF
     ELSE
-       CALL pw_sumup(rho%rho_g(1)%pw, rho_tot_gspace%pw)
+       CALL pw_axpy(rho%rho_g(1)%pw, rho_tot_gspace%pw)
     END IF
     DO ispin=2, qs_env%dft_control%nspins
-       CALL pw_sumup(rho%rho_g(ispin)%pw, rho_tot_gspace%pw)
+       CALL pw_axpy(rho%rho_g(ispin)%pw, rho_tot_gspace%pw)
     END DO
     IF (.NOT.my_skip) &
          qs_charges%total_rho_gspace = pw_integrate_function(rho_tot_gspace%pw,isign=-1)
@@ -2197,8 +2201,10 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
            CALL pw_pool_create_pw(xc_pw_pool, rho_m_rspace(1)%pw,&
                 use_data = REALDATA3D,&
                 in_space = REALSPACE, error=error)
-           CALL pw_subtract(rho_struct%rho_r(1)%pw,rho_struct%rho_r(2)%pw,rho_m_rspace(1)%pw)
-           CALL pw_subtract(rho_struct%rho_g(1)%pw,rho_struct%rho_g(2)%pw,rho_m_gspace(1)%pw)
+           CALL pw_copy(rho_struct%rho_r(1)%pw,rho_m_rspace(1)%pw)
+           CALL pw_axpy(rho_struct%rho_r(2)%pw,rho_m_rspace(1)%pw,alpha=-1._dp)
+           CALL pw_copy(rho_struct%rho_g(1)%pw,rho_m_gspace(1)%pw)
+           CALL pw_axpy(rho_struct%rho_g(2)%pw,rho_m_gspace(1)%pw,alpha=-1._dp)
            ! bit sad, these will be just zero...
            CALL pw_pool_create_pw(xc_pw_pool, rho_m_gspace(2)%pw,&
                 use_data = COMPLEXDATA1D,&

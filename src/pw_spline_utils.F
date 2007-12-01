@@ -56,7 +56,7 @@ MODULE pw_spline_utils
                                              pw_pool_type
   USE pw_types,                        ONLY: &
        COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, SQUARE, &
-       pw_copy, pw_integral_aa, pw_integral_ab, pw_p_type, pw_sumup, pw_type, &
+       pw_copy, pw_integral_aa, pw_integral_ab, pw_p_type, pw_axpy, pw_type, &
        pw_zero
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -3749,7 +3749,7 @@ CPSourceFileRef,&
           CALL pw_zero(r)
           CALL linOp(pw_in=coeffs,pw_out=r,error=error)
           r%cr3d=-r%cr3d
-          CALL pw_sumup(values,r)
+          CALL pw_axpy(values,r)
           CALL pw_spline_do_precond(preconditioner,in_v=r,out_v=z,error=error)
           CALL pw_copy(z,p)
           r_z=pw_integral_ab(r,z)
@@ -3764,7 +3764,7 @@ CPSourceFileRef,&
                 CALL linOp(pw_in=p,pw_out=Ap,error=error)
                 alpha=r_z/pw_integral_ab(Ap,p)
 
-                CALL pw_sumup(p,coeffs,alpha=alpha)
+                CALL pw_axpy(p,coeffs,alpha=alpha)
 
                 eps_x_att=alpha*SQRT(pw_integral_aa(p,SQUARE)) ! try to spare if unneded?
                 IF (eps_r_att<eps_r .AND. eps_x_att<eps_x) last=.TRUE.
@@ -3782,7 +3782,7 @@ CPSourceFileRef,&
                 EXIT ext_do
              END IF
 
-             CALL pw_sumup(Ap,r,alpha=-alpha)
+             CALL pw_axpy(Ap,r,alpha=-alpha)
 
              CALL pw_spline_do_precond(preconditioner,in_v=r,out_v=z,error=error)
 
@@ -3921,7 +3921,7 @@ CPSourceFileRef,&
        CALL pw_spline_precond_release(precond,error=error)
 
        CALL pw_zero(pw_coarse_out)
-       CALL pw_sumup(coeffs,pw_coarse_out)
+       CALL pw_axpy(coeffs,pw_coarse_out)
 
        CALL pw_pool_give_back_pw(coarse_pool,values,error=error)
        CALL pw_pool_give_back_pw(coarse_pool,coeffs,error=error)

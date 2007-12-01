@@ -60,7 +60,7 @@ MODULE kg_density
                                              pw_pools_create_pws
   USE pw_types,                        ONLY: &
        COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_copy, &
-       pw_integrate_function, pw_sumup, pw_transfer, pw_p_type, pw_zero
+       pw_integrate_function, pw_axpy, pw_transfer, pw_p_type, pw_zero
   USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace
   USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace
   USE realspace_grid_types,            ONLY: pw2rs,&
@@ -279,7 +279,7 @@ CONTAINS
        DO igrid_level=1,gridlevel_info%ngrid_levels
          CALL pw_transfer(mgrid_rspace(igrid_level)%pw,&
               mgrid_gspace(igrid_level)%pw)
-         CALL pw_sumup(mgrid_gspace(igrid_level)%pw,rho_gspace%pw)
+         CALL pw_axpy(mgrid_gspace(igrid_level)%pw,rho_gspace%pw)
        END DO
        CALL pw_transfer(rho_gspace%pw,rho%pw)
     END IF
@@ -605,7 +605,7 @@ CONTAINS
        DO igrid_level=1,gridlevel_info%ngrid_levels
          CALL pw_transfer(mgrid_rspace(igrid_level)%pw,&
               mgrid_gspace(igrid_level)%pw)
-         CALL pw_sumup(mgrid_gspace(igrid_level)%pw,rho_gspace%pw)
+         CALL pw_axpy(mgrid_gspace(igrid_level)%pw,rho_gspace%pw)
        END DO
        CALL pw_transfer(rho_gspace%pw,rho%pw)
     END IF

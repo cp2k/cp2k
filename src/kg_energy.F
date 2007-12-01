@@ -67,7 +67,7 @@ MODULE kg_energy
                                              pw_pool_type
   USE pw_types,                        ONLY: &
        COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_copy, &
-       pw_integrate_function, pw_p_type, pw_release, pw_sumup, pw_transfer, &
+       pw_integrate_function, pw_p_type, pw_release, pw_axpy, pw_transfer, &
        pw_zero
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_environment_types,            ONLY: qs_environment_type
@@ -243,7 +243,7 @@ SUBROUTINE kg_only_energies ( kg_env, force_env_section, error )
   NULLIFY(my_rho_r)
 
 ! add the frozen electronic density to the core density
-  CALL pw_sumup(rho_core%pw,rho_g%pw)
+  CALL pw_axpy(rho_core%pw,rho_g%pw)
 
   ALLOCATE(v_gspace,stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
@@ -602,7 +602,7 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, force_env_section, error)
 
   vxc_r%pw%cr3d(:,:,:) =dvol*vxc_r%pw%cr3d(:,:,:)
 ! add the frozen electronic density to the core density
-  CALL pw_sumup(rho_g%pw,rho_core%pw)
+  CALL pw_axpy(rho_g%pw,rho_core%pw)
 
   CALL timestop(0.0_dp,handle)
 
@@ -723,7 +723,7 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, force_env_section, error )
                                  v2xc_r, e1_xc, e2_xc, xc_section, calculate_forces, error)
 
 ! add the polarization density to get the total density
-  CALL pw_sumup(rhop_g%pw,rho_g%pw)
+  CALL pw_axpy(rhop_g%pw,rho_g%pw)
 
 ! calculate electrostatic potential
 

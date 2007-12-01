@@ -87,7 +87,7 @@ MODULE qs_linres_epr_current
                                              pw_p_type,&
                                              pw_copy,&
                                              pw_scale,&
-                                             pw_sumup,&
+                                             pw_axpy,&
                                              pw_zero,&
                                              pw_transfer
   USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace,&
@@ -495,7 +495,7 @@ CONTAINS
                       CALL set_vecp_rev(idir,idir2,idir3)
                       scale_fac=fac_vecp(idir3,idir2,idir)
                       CALL pw_scale(pw_gspace_work%pw,scale_fac)
-                      CALL pw_sumup(pw_gspace_work%pw,shift_pw_gspace(idir3,ispin)%pw)
+                      CALL pw_axpy(pw_gspace_work%pw,shift_pw_gspace(idir3,ispin)%pw)
                    ENDIF
                 ENDDO
                 !

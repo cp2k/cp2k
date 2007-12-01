@@ -64,7 +64,7 @@ MODULE qmmm_gpw_forces
                                              REALSPACE,&
                                              pw_integral_ab,&
                                              pw_p_type,&
-                                             pw_sumup,&
+                                             pw_axpy,&
                                              pw_transfer,&
                                              pw_type,&
                                              pw_zero
@@ -234,7 +234,7 @@ CONTAINS
        IF (need_f) THEN
           !
           DO ispin=1,SIZE(rho%rho_r)
-             CALL pw_sumup(rho%rho_r(ispin)%pw,rho_tot_r)
+             CALL pw_axpy(rho%rho_r(ispin)%pw,rho_tot_r)
           END DO
           IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"Evaluating forces on MM atoms due to the:"
           ! Electrostatic Interaction type...

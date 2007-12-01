@@ -56,7 +56,7 @@ MODULE qs_kpp1_env_methods
   USE pw_types,                        ONLY: &
        COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_copy, &
        pw_create, pw_integrate_function, pw_p_type, pw_release, pw_retain, &
-       pw_sumup, pw_transfer, pw_zero
+       pw_axpy, pw_transfer, pw_zero
   USE qs_energy_types,                 ONLY: allocate_qs_energy,&
                                              deallocate_qs_energy,&
                                              qs_energy_type
@@ -321,10 +321,10 @@ CONTAINS
 
        CALL pw_copy(rho1%rho_g(1)%pw,rho1_tot_gspace%pw)
        DO ispin=2,nspins
-          CALL pw_sumup(rho1%rho_g(ispin)%pw, rho1_tot_gspace%pw)
+          CALL pw_axpy(rho1%rho_g(ispin)%pw, rho1_tot_gspace%pw)
        END DO
        IF (gapw) &
-            CALL pw_sumup(p_env%local_rho_set%rho0_mpole%rho0_s_gs%pw, rho1_tot_gspace%pw)
+            CALL pw_axpy(p_env%local_rho_set%rho0_mpole%rho0_s_gs%pw, rho1_tot_gspace%pw)
 
        IF (cp_print_key_should_output(logger%iter_info,scf_section,"PRINT%TOTAL_DENSITIES",&
             error=error)/=0) THEN

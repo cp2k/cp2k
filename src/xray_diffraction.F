@@ -56,7 +56,7 @@ MODULE xray_diffraction
                                              RECIPROCALSPACE,&
                                              pw_integrate_function,&
                                              pw_scale,&
-                                             pw_sumup,&
+                                             pw_axpy,&
                                              pw_transfer,&
                                              pw_zero,&
                                              pw_p_type
@@ -244,7 +244,7 @@ CONTAINS
       DO ispin=1,nspin
         CALL pw_zero(rho_elec_gspace%pw)
         CALL pw_transfer(rho%rho_r(ispin)%pw,rho_elec_gspace%pw)
-        CALL pw_sumup(rho_elec_gspace%pw,rhotot_elec_gspace%pw)
+        CALL pw_axpy(rho_elec_gspace%pw,rhotot_elec_gspace%pw)
       END DO
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool,&
@@ -422,6 +422,7 @@ CONTAINS
       ng_shell(1) = 1
 
       DO ig=2,ng
+        CPPostcondition(gsq(ig)>=gsq(jg),cp_failure_level,routineP,error,failure)
         IF (ABS(gsq(ig) - gsq(jg)) > 1.0E-12_dp) THEN
           nshell = nshell + 1
           IF (nshell > SIZE(q_shell)) THEN

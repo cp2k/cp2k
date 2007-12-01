@@ -55,7 +55,7 @@ MODULE qs_rho0_ggrid
                                              pw_integrate_function,&
                                              pw_copy,&
                                              pw_release,&
-                                             pw_sumup,&
+                                             pw_axpy,&
                                              pw_transfer,&
                                              pw_zero,&
                                              pw_p_type
@@ -282,7 +282,7 @@ MODULE qs_rho0_ggrid
 
       CALL pw_zero(rho0_s_gs%pw)
       CALL pw_transfer(coeff_rspace%pw,coeff_gspace%pw)
-      CALL pw_sumup(coeff_gspace%pw,rho0_s_gs%pw)
+      CALL pw_axpy(coeff_gspace%pw,rho0_s_gs%pw)
 
       tot_rs_int = pw_integrate_function(coeff_rspace%pw,isign=-1)
 

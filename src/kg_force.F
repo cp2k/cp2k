@@ -78,7 +78,7 @@ MODULE kg_force
                                              RECIPROCALSPACE,&
                                              pw_integrate_function,&
                                              pw_p_type,&
-                                             pw_sumup,&
+                                             pw_axpy,&
                                              pw_transfer,&
                                              pw_zero
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
@@ -381,12 +381,12 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, error )
   rho%total_rho_rspace = total_rho0_rspace+ rho%total_rho_core_rspace
 
 ! add the core density to the frozen electronic density
-  CALL pw_sumup(rho_core%pw,rho_g%pw)
+  CALL pw_axpy(rho_core%pw,rho_g%pw)
 
   rho%total_rho_gspace = pw_integrate_function(rho_g%pw)
 
 ! add the polarization density to get the total density
-  CALL pw_sumup(rhop_g%pw,rho_g%pw)
+  CALL pw_axpy(rhop_g%pw,rho_g%pw)
 
 ! calculate electrostatic potential
   CALL pw_poisson_solve(poisson_env,rho_g%pw, energy % hartree,v_gspace%pw,error=error)
@@ -664,7 +664,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, error )
 
 ! add the core density to the frozen electronic density
 
-  CALL pw_sumup(rho_core%pw,rho_g%pw)
+  CALL pw_axpy(rho_core%pw,rho_g%pw)
   rho%total_rho_gspace = pw_integrate_function(rho_g%pw)
 
 ! calculate electrostatic potential

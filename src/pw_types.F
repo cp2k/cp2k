@@ -15,8 +15,9 @@
 !!   MODIFICATION HISTORY
 !!     JGH (29-Dec-2000) : Changes for parallel use
 !!     JGH (13-Mar-2001) : added timing calls
-!!     JGH (26-feb-2003) : OpenMP enabled
-!!     JGH (17-nov-2007) : Removed mass arrays
+!!     JGH (26-Feb-2003) : OpenMP enabled
+!!     JGH (17-Nov-2007) : Removed mass arrays
+!!     JGH (01-Dec-2007) : Removed and renamed routines
 !!
 !!   NOTES
 !!     If parallel mode is distributed certain combination of
@@ -53,12 +54,12 @@ MODULE pw_types
   PRIVATE
   PUBLIC :: pw_type, pw_p_type
   PUBLIC :: pw_retain, pw_release, pw_create
-  PUBLIC :: pw_zero, pw_structure_factor, pw_smoothing
-  PUBLIC :: pw_copy, pw_add, pw_sumup, pw_subtract, pw_reduce, pw_transfer, pw_scale
-  PUBLIC :: pw_derive, pw_dr2, pw_sumup_square, pw_fft_wrap, pw_write
-  PUBLIC :: pw_compare_debug
   PUBLIC :: REALDATA1D, COMPLEXDATA1D, REALDATA3D, COMPLEXDATA3D, NODATA
   PUBLIC :: NOSPACE, REALSPACE, RECIPROCALSPACE
+  PUBLIC :: pw_zero, pw_structure_factor, pw_smoothing
+  PUBLIC :: pw_copy, pw_axpy, pw_transfer, pw_scale
+  PUBLIC :: pw_derive, pw_dr2, pw_fft_wrap, pw_write
+  PUBLIC :: pw_compare_debug
   PUBLIC :: pw_integral_aa, pw_integral_ab, pw_integral_a2b
   PUBLIC :: pw_dr2_gg, pw_integrate_function
 
@@ -149,22 +150,16 @@ SUBROUTINE pw_zero ( pw )
   CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_zero")
   IF ( pw % in_use == REALDATA1D ) THEN
      ns = SIZE ( pw % cr  )
-!$omp parallel do private(i)
-     DO i = 1, ns
-        pw % cr ( i ) = 0.0_dp
-     END DO
+     CALL DCOPY(ns,0.0_dp,0,pw%cr,1)
   ELSE IF ( pw % in_use == COMPLEXDATA1D ) THEN
-     ns = SIZE ( pw % cc  )
-!$omp parallel do private(i)
-     DO i = 1, ns
-        pw % cc ( i ) = CMPLX ( 0.0_dp, 0.0_dp,KIND=dp)
-     END DO
+     ns = 2 * SIZE ( pw % cc  )
+     CALL DCOPY(ns,0.0_dp,0,pw%cc,1)
   ELSE IF ( pw % in_use == REALDATA3D ) THEN
      ns = SIZE ( pw % cr3d  )
-     CALL DCOPY(ns,0.0_dp,0,pw % cr3d,1)
+     CALL DCOPY(ns,0.0_dp,0,pw%cr3d,1)
   ELSE IF ( pw % in_use == COMPLEXDATA3D ) THEN
      ns = 2 * SIZE ( pw % cc3d  )
-     CALL DCOPY(ns,0.0_dp,0,pw % cc3d,1) 
+     CALL DCOPY(ns,0.0_dp,0,pw%cc3d,1) 
   ELSE
      CALL stop_program ( "pw_zero", "no possible data field" )
   END IF
@@ -387,19 +382,31 @@ SUBROUTINE pw_scale( pw, a )
     TYPE(pw_type), INTENT(INOUT)             :: pw
     REAL(KIND=dp), INTENT(IN)                :: a
 
+    INTEGER                                  :: ns, handle
+    REAL(KIND=dp)                            :: flop
+
+    CALL timeset ( 'pw_scale', 'I', 'Mflops', handle )
     CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_scale")
+
     SELECT CASE ( pw % in_use )
     CASE ( REALDATA1D )
-       pw % cr = pw % cr * a
+       ns = SIZE ( pw % cr  )
+       CALL DSCAL(ns,a,pw%cr,1)
     CASE ( COMPLEXDATA1D )
-       pw % cc = pw % cc * a 
+       ns = 2 * SIZE ( pw % cc  )
+       CALL DSCAL(ns,a,pw%cc,1)
     CASE ( REALDATA3D)
-       pw % cr3d = pw % cr3d * a
+       ns = SIZE ( pw % cr3d  )
+       CALL DSCAL(ns,a,pw%cr3d,1)
     CASE (COMPLEXDATA3D )
-       pw % cc3d = pw % cc3d * a
+       ns = 2 * SIZE ( pw % cc3d  )
+       CALL DSCAL(ns,a,pw%cc3d,1)
     CASE DEFAULT  
        CALL stop_program ( "pw_scale", "no suitable data field" )
     END SELECT
+
+    flop = REAL ( ns, KIND=dp) * 1.e-6_dp
+    CALL timestop ( flop, handle )
 
 END SUBROUTINE pw_scale
 
@@ -734,7 +741,7 @@ SUBROUTINE pw_smoothing ( pw, ecut, sigma )
 
   ELSE
 
-    CALL stop_program ( "pw_dr2", "no suitable data field" )
+    CALL stop_program ( "pw_smoothing", "no suitable data field" )
 
   END IF
 
@@ -818,345 +825,17 @@ END SUBROUTINE pw_transfer
 
 !!*****
 !******************************************************************************
-!!****** pw_types/pw_add [1.0] *
+!!****** pw_types/pw_axpy [1.0] *
 !!
 !!   NAME
-!!     pw_add
+!!     pw_axpy
 !!
 !!   SYNOPSIS
-!!     Subroutine pw_add(pw1, pw2, pw3)
-!!       Type(pw_type), Intent (IN):: pw1, pw2
-!!       Type(pw_type), Intent (INOUT):: pw3
-!!     End Subroutine pw_add
-!!
-!!   FUNCTION
-!!     pw3 = pw1 + pw2
-!!
-!!   AUTHOR
-!!     apsi
-!!
-!!   MODIFICATION HISTORY
-!!     CJM (23-May-01)  : check for pw_grid %id_nr, allow copy if 
-!!       in_use == COMPLEXDATA1D and in_space == RECIPROCALSPACE
-!!     JGH (21-Feb-03)  : generalization to all reference grid types
-!!
-!!   NOTES
-!!     Currently only adding of respective types allowed,
-!!     in order to avoid errors
-!!
-!!   SOURCE
-!******************************************************************************
-
-SUBROUTINE pw_add ( pw1, pw2, pw3 )
-  
-  
-    TYPE(pw_type), INTENT(IN)                :: pw1, pw2
-    TYPE(pw_type), INTENT(INOUT)             :: pw3
-
-    INTEGER                                  :: handle, i, j, ng, ng1, ng2, &
-                                                ng3, ngm
-    REAL(KIND=dp)                            :: flop
-
-!------------------------------------------------------------------------------
-
-  CALL timeset ( 'pw_add', 'I', 'Mflops', handle )
-  CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"pw_add")
-  CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,"pw_add")
-  CPPreconditionNoErr(pw3%ref_count>0,cp_failure_level,"pw_add")
-
-  IF ( pw3 % pw_grid %id_nr /= pw2 % pw_grid %id_nr .OR. &
-       pw3 % pw_grid %id_nr /= pw1 % pw_grid %id_nr  ) THEN
-
-    ! different grids: this works only with reference grids
-
-    IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
-         pw2 % in_use == COMPLEXDATA1D .AND. &
-         pw3 % in_use == COMPLEXDATA1D .AND. &
-         pw1 % in_space == RECIPROCALSPACE .AND. &
-         pw2 % in_space == RECIPROCALSPACE ) THEN
-
-       ng1 = SIZE ( pw1 % cc )
-       ng2 = SIZE ( pw2 % cc )
-       ng3 = SIZE ( pw3 % cc )
-       
-       IF ( pw1 % pw_grid % spherical .AND. pw2 % pw_grid % spherical &
-                            .AND. pw3 % pw_grid % spherical ) THEN
-
-         IF ( pw_compatible ( pw1 % pw_grid, pw3 % pw_grid ) .AND. &
-              pw_compatible ( pw2 % pw_grid, pw3 % pw_grid ) ) THEN
-
-            ng = MIN ( ng1, ng2, ng3 )
-!$omp parallel do private(i)
-            DO i = 1,ng
-               pw3 % cc ( i ) = pw2 % cc ( i ) + pw1 % cc ( i )
-            END DO
-            IF ( ng3 > ng ) THEN
-!$omp parallel do private(i)
-               DO i = ng+1, ng3
-                  pw3 % cc ( i ) = CMPLX ( 0.0_dp, 0.0_dp,KIND=dp)
-               END DO
-               IF ( ng1 > ng ) THEN
-                  ngm = MIN ( ng3, ng1 )
-!$omp parallel do private(i)
-                  DO i = ng+1, ngm
-                     pw3 % cc ( i ) = pw1 % cc ( i )
-                  END DO
-               END IF
-               IF ( ng2 > ng ) THEN
-                  ngm = MIN ( ng3, ng2 )
-!$omp parallel do private(i)
-                  DO i = ng+1, ngm
-                     pw3 % cc ( i ) = pw2 % cc ( i )
-                  END DO
-               END IF
-            END IF
-
-         ELSE
-            WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-               " grid 1 :",pw1 % pw_grid %id_nr, &
-               " sperical :",pw1 % pw_grid % spherical, &
-               " reference :",pw1 % pw_grid % reference 
-            WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-               " grid 2 :",pw2 % pw_grid %id_nr, &
-               " sperical :",pw2 % pw_grid % spherical, &
-               " reference :",pw2 % pw_grid % reference 
-            WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-               " grid 3 :",pw3 % pw_grid %id_nr, &
-               " sperical :",pw3 % pw_grid % spherical, &
-               " reference :",pw3 % pw_grid % reference 
-            CALL stop_program ( "pw_add", "incompatible grids" )
-         END IF
-
-       ELSE IF ( .NOT. (pw1 % pw_grid % spherical .OR. &
-                        pw2 % pw_grid % spherical .OR. &
-                        pw3 % pw_grid % spherical) ) THEN
-         
-         CALL pw_copy ( pw1, pw3 )
-
-         IF ( pw_compatible ( pw2 % pw_grid, pw3 % pw_grid ) ) THEN
-
-           IF ( pw2 % pw_grid %id_nr == pw3 % pw_grid %id_nr ) THEN
-
-!$omp parallel do private(i)
-             DO i = 1, ng3
-                pw3 % cc ( i ) = pw3 % cc ( i ) + pw2 % cc ( i )
-             END DO
-
-           ELSEIF ( ( pw2 % pw_grid %id_nr == pw3 % pw_grid % reference ) ) THEN
-
-             IF( ng2 >= ng3 ) THEN
-!$omp parallel do private(i,j)
-               DO i = 1, ng3
-                 j = pw3 % pw_grid % gidx ( i )
-                 pw3 % cc ( i ) = pw3 % cc ( i ) + pw2 % cc ( j )
-               END DO
-             ELSE
-!$omp parallel do private(i,j)
-               DO i = 1, ng2
-                 j = pw3 % pw_grid % gidx ( i )
-                 pw3 % cc ( j ) = pw3 % cc ( j ) + pw2 % cc ( i )
-               END DO
-             END IF
-
-           ELSEIF ( ( pw3 % pw_grid %id_nr == pw2 % pw_grid % reference ) ) THEN
-
-             IF( ng2 >= ng3 ) THEN
-!$omp parallel do private(i,j)
-               DO i = 1, ng3
-                 j = pw2 % pw_grid % gidx ( i )
-                 pw3 % cc ( i ) = pw3 % cc ( i ) + pw2 % cc ( j )
-               END DO
-             ELSE
-!$omp parallel do private(i,j)
-               DO i = 1, ng2
-                 j = pw2 % pw_grid % gidx ( i )
-                 pw3 % cc ( j ) = pw3 % cc ( j ) + pw2 % cc ( i )
-               END DO
-             END IF
-
-           END IF
-
-         ELSE
-            WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-               " grid 1 :",pw1 % pw_grid %id_nr, &
-               " sperical :",pw1 % pw_grid % spherical, &
-               " reference :",pw1 % pw_grid % reference 
-            WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-               " grid 2 :",pw2 % pw_grid %id_nr, &
-               " sperical :",pw2 % pw_grid % spherical, &
-               " reference :",pw2 % pw_grid % reference 
-            WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-               " grid 3 :",pw3 % pw_grid %id_nr, &
-               " sperical :",pw3 % pw_grid % spherical, &
-               " reference :",pw3 % pw_grid % reference 
-            CALL stop_program ( "pw_add", "Incompatible grids" )
-         END IF
-
-       ELSE
-
-          WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-             " grid 1 :",pw1 % pw_grid %id_nr, &
-             " sperical :",pw1 % pw_grid % spherical, &
-             " reference :",pw1 % pw_grid % reference 
-          WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-             " grid 2 :",pw2 % pw_grid %id_nr, &
-             " sperical :",pw2 % pw_grid % spherical, &
-             " reference :",pw2 % pw_grid % reference 
-          WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-             " grid 3 :",pw3 % pw_grid %id_nr, &
-             " sperical :",pw3 % pw_grid % spherical, &
-             " reference :",pw3 % pw_grid % reference 
-          CALL stop_program ( "pw_add", "incompatible grids" )
-
-       END IF
-
-       flop = 2 * ng3
-       pw3 % in_space = RECIPROCALSPACE
-
-    ELSE
-       CALL stop_program ( "pw_add", "no suitable data field" )
-    END IF
-
-  ELSE 
-
-    IF ( pw1 % in_use == REALDATA1D .AND. pw2 % in_use == REALDATA1D .AND. &
-         pw3 % in_use == REALDATA1D ) THEN
-!$omp parallel do private(i)
-       DO i = 1, SIZE ( pw3 % cr )
-          pw3 % cr ( i ) = pw1 % cr ( i ) + pw2 % cr ( i )
-       END DO
-       flop = REAL ( SIZE ( pw2 % cr ),KIND=dp)
-    ELSE IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
-         pw2 % in_use == COMPLEXDATA1D .AND. pw3 % in_use == COMPLEXDATA1D ) THEN
-!$omp parallel do private(i)
-       DO i = 1, SIZE ( pw3 % cc )
-          pw3 % cc ( i ) = pw1 % cc ( i ) + pw2 % cc ( i )
-       END DO
-       flop = REAL ( 2 * SIZE ( pw2 % cc ),KIND=dp)
-    ELSE IF ( pw1 % in_use == REALDATA3D .AND. pw2 % in_use == REALDATA3D .AND. &
-         pw3 % in_use == REALDATA3D ) THEN
-       pw3 % cr3d = pw1 % cr3d + pw2 % cr3d
-       flop = REAL ( SIZE ( pw2 % cr3d ),KIND=dp)
-    ELSE IF ( pw1 % in_use == COMPLEXDATA3D .AND. &
-         pw2 % in_use == COMPLEXDATA3D .AND. pw3 % in_use == COMPLEXDATA3D ) THEN
-       pw3 % cc3d = pw1 % cc3d + pw2 % cc3d
-       flop = REAL ( 2 * SIZE ( pw2 % cc3d ),KIND=dp)
-    ELSE
-       CALL stop_program ( "pw_add", "no suitable data field" )
-    END IF
-
-  END IF
-
-  flop = flop * 1.e-6_dp
-  CALL timestop ( flop, handle )
-  
-END SUBROUTINE pw_add
-
-!!*****
-!******************************************************************************
-!!****** pw_types/pw_sumup_square [1.0] *
-!!
-!!   NAME
-!!     pw_sumup_square
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_sumup_square(pw1, pw2)
-!!       Type(pw_type), Intent (INOUT):: pw1
-!!       Type(pw_type), Intent (IN):: pw2
-!!     End Subroutine pw_sumup_square
-!!
-!!   FUNCTION
-!!     pw1 = pw1 + pw2*pw2
-!!
-!!   AUTHOR
-!!     JGH ( 25-Feb-2001)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
-SUBROUTINE pw_sumup_square ( pw1, pw2 )
-  
-  
-    TYPE(pw_type), INTENT(INOUT)             :: pw1
-    TYPE(pw_type), INTENT(IN)                :: pw2
-
-    INTEGER                                  :: handle, i
-    REAL(KIND=dp)                            :: flop
-
-!------------------------------------------------------------------------------
-
-  CALL timeset ( 'pw_sumup_square', 'I', 'Mflops', handle )
-  CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"pw_sumup_square")
-  CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,"pw_sumup_square")
-  
-  IF ( pw1 % pw_grid %id_nr /= pw2 % pw_grid %id_nr ) &
-     CALL stop_program ( "pw_sumup_square", "grids not compatible" )
-
-  IF ( pw1 % in_use == REALDATA1D ) THEN
-     IF ( pw2 % in_use == REALDATA1D ) THEN
-!$omp parallel do private(i)
-        DO i = 1, SIZE ( pw2 % cr )
-           pw1 % cr(i) = pw1 % cr(i) + pw2 % cr(i) * pw2 % cr(i)
-        END DO
-        flop = REAL ( 2 * SIZE ( pw2 % cr ),KIND=dp)
-     ELSE IF ( pw2 % in_use == COMPLEXDATA1D ) THEN
-!$omp parallel do private(i)
-        DO i = 1, SIZE ( pw2 % cc )
-           pw1 % cr(i) = pw1 % cr(i) + REAL ( pw2 % cc(i) * CONJG ( pw2 % cc(i) ),KIND=dp)
-        END DO
-        flop = REAL ( 7 * SIZE ( pw2 % cc ),KIND=dp)
-     ELSE
-        CALL stop_program ( "pw_sumup_square", "no suitable data fields" )
-     END IF
-  ELSE IF ( pw1 % in_use == COMPLEXDATA1D ) THEN
-     IF ( pw2 % in_use == COMPLEXDATA1D ) THEN
-!$omp parallel do private(i)
-        DO i = 1, SIZE ( pw2 % cc )
-           pw1 % cc(i) = pw1 % cc(i) + pw2 % cc(i) * CONJG ( pw2 % cc(i) )
-        END DO
-        flop = REAL ( 8 * SIZE ( pw2 % cc ),KIND=dp)
-     ELSE
-        CALL stop_program ( "pw_sumup_square", "no suitable data fields" )
-     END IF
-  ELSE IF ( pw1 % in_use == REALDATA3D ) THEN
-     IF ( pw2 % in_use == REALDATA3D ) THEN
-        pw1 % cr3d = pw1 % cr3d + pw2 % cr3d * pw2 % cr3d
-        flop = REAL ( 2 * SIZE ( pw2 % cr3d ),KIND=dp)
-     ELSE IF ( pw2 % in_use == COMPLEXDATA3D ) THEN
-        pw1 % cr3d = pw1 % cr3d + REAL ( pw2 % cc3d * CONJG ( pw2 % cc3d ),KIND=dp)
-        flop = REAL ( 7 * SIZE ( pw2 % cr3d ),KIND=dp)
-     ELSE
-        CALL stop_program ( "pw_sumup_square", "no suitable data fields" )
-     END IF
-  ELSE IF ( pw1 % in_use == COMPLEXDATA3D ) THEN
-     IF ( pw2 % in_use == COMPLEXDATA3D ) THEN
-        pw1 % cc3d = pw1 % cc3d + pw2 % cc3d * CONJG ( pw2 % cc3d )
-        flop = REAL ( 8 * SIZE ( pw2 % cr3d ),KIND=dp)
-     ELSE
-        CALL stop_program ( "pw_sumup_square", "no suitable data fields" )
-     END IF
-  END IF
-
-  flop = flop * 1.e-6_dp
-  CALL timestop ( flop, handle )
-  
-END SUBROUTINE pw_sumup_square
-
-!!*****
-!******************************************************************************
-!!****** pw_types/pw_sumup [1.0] *
-!!
-!!   NAME
-!!     pw_sumup
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_sumup(pw1, pw2)
-!!       Type(pw_type), Intent (IN):: pw1
-!!       Type(pw_type), Intent (INOUT):: pw2
-!!     End Subroutine pw_sumup
+!!     Subroutine pw_axpy(pw1, pw2, alpha)
+!!       Type(pw_type), Intent (IN)           :: pw1
+!!       Type(pw_type), Intent (INOUT)        :: pw2
+!!       REAL(KIND=dp), Intent (IN), OPTIONAL :: alpha
+!!     End Subroutine pw_axpy
 !!
 !!   FUNCTION
 !!     pw2 = alpha*pw1 + pw2
@@ -1167,6 +846,7 @@ END SUBROUTINE pw_sumup_square
 !!
 !!   MODIFICATION HISTORY
 !!     JGH (21-Feb-2003) : added reference grid functionality
+!!     JGH (01-Dec-2007) : rename and remove complex alpha
 !!
 !!   NOTES
 !!     Currently only summing up of respective types allowed,
@@ -1175,30 +855,24 @@ END SUBROUTINE pw_sumup_square
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE pw_sumup ( pw1, pw2, alpha, alpha_im )
+SUBROUTINE pw_axpy ( pw1, pw2, alpha )
 
 
     TYPE(pw_type), INTENT(IN)                :: pw1
     TYPE(pw_type), INTENT(INOUT)             :: pw2
-    REAL(KIND=dp), INTENT(in), OPTIONAL      :: alpha, alpha_im
+    REAL(KIND=dp), INTENT(in), OPTIONAL      :: alpha
 
-    COMPLEX(KIND=dp)                         :: my_alpha_c
     INTEGER                                  :: handle, i, j, ng, ng1, ng2
     REAL(KIND=dp)                            :: flop, my_alpha
 
 !------------------------------------------------------------------------------
 
-  CALL timeset ( 'pw_sumup', 'I', 'Mflops', handle )
-  CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"pw_sumup")
-  CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,"pw_sumup")
+  CALL timeset ( 'pw_axpy', 'I', 'Mflops', handle )
+  CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"pw_axpy")
+  CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,"pw_axpy")
 
   my_alpha=1.0_dp
   IF (PRESENT(alpha)) my_alpha=alpha
-  IF (PRESENT(alpha_im)) THEN
-     my_alpha_c=CMPLX(my_alpha,alpha_im,dp)
-  ELSE
-     my_alpha_c=CMPLX(my_alpha,0.0_dp,dp)
-  END IF
 
   IF ( pw1 % pw_grid %id_nr == pw2 % pw_grid %id_nr ) THEN
 
@@ -1218,7 +892,7 @@ SUBROUTINE pw_sumup ( pw1, pw2, alpha, alpha_im )
         END IF
      ELSE IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
           pw2 % in_use == COMPLEXDATA1D ) THEN
-        IF (my_alpha_c==CMPLX(1.0_dp,0.0_dp,dp)) THEN
+        IF (my_alpha==1.0_dp) THEN
            !$omp parallel do private(i)
            DO i = 1, SIZE ( pw2 % cc )
               pw2 % cc(i) = pw2 % cc(i) + pw1 % cc(i)
@@ -1227,7 +901,7 @@ SUBROUTINE pw_sumup ( pw1, pw2, alpha, alpha_im )
         ELSE
            !$omp parallel do private(i)
            DO i = 1, SIZE ( pw2 % cc )
-              pw2 % cc(i) = pw2 % cc(i) + my_alpha_c*pw1 % cc(i)
+              pw2 % cc(i) = pw2 % cc(i) + my_alpha*pw1 % cc(i)
            END DO
            flop = REAL ( 4 * SIZE ( pw2 % cc ),KIND=dp)
         END IF
@@ -1241,15 +915,15 @@ SUBROUTINE pw_sumup ( pw1, pw2, alpha, alpha_im )
         END IF
      ELSE IF ( pw1 % in_use == COMPLEXDATA3D .AND. &
           pw2 % in_use == COMPLEXDATA3D ) THEN
-        IF (my_alpha_c==CMPLX(1.0_dp,0.0_dp,dp)) THEN
+        IF (my_alpha==1.0_dp) THEN
            pw2 % cc3d = pw2 % cc3d + pw1 % cc3d
            flop = REAL ( 2 * SIZE ( pw2 % cc3d ),KIND=dp)
         ELSE
-           pw2 % cc3d = pw2 % cc3d + my_alpha_c*pw1 % cc3d
+           pw2 % cc3d = pw2 % cc3d + my_alpha*pw1 % cc3d
            flop = REAL ( 4 * SIZE ( pw2 % cc3d ),KIND=dp)
         END IF
      ELSE
-        CALL stop_program ( "pw_sumup", "no suitable data field" )
+        CALL stop_program ( "pw_axpy", "no suitable data field" )
      END IF
 
   ELSE IF ( pw_compatible ( pw1 % pw_grid, pw2 % pw_grid ) ) THEN
@@ -1266,7 +940,7 @@ SUBROUTINE pw_sumup ( pw1, pw2, alpha, alpha_im )
 
         IF ( pw1 % pw_grid % spherical ) THEN
 
-           IF (my_alpha_c==CMPLX(1.0_dp,0.0_dp,dp)) THEN           
+           IF (my_alpha==1.0_dp) THEN           
               !$omp parallel do private(i)
               DO i = 1, ng
                  pw2 % cc (i) = pw2 % cc (i) + pw1 % cc (i)
@@ -1274,13 +948,13 @@ SUBROUTINE pw_sumup ( pw1, pw2, alpha, alpha_im )
            ELSE
               !$omp parallel do private(i)
               DO i = 1, ng
-                 pw2 % cc (i) = pw2 % cc (i) + my_alpha_c*pw1 % cc (i)
+                 pw2 % cc (i) = pw2 % cc (i) + my_alpha*pw1 % cc (i)
               END DO
            END IF
 
         ELSEIF ( ( pw1 % pw_grid %id_nr == pw2 % pw_grid % reference ) ) THEN
   
-           IF (my_alpha_c==CMPLX(1.0_dp,0.0_dp,dp)) THEN
+           IF (my_alpha==1.0_dp) THEN
               IF( ng1 >= ng2 ) THEN
                  !$omp parallel do private(i,j)
                  DO i = 1, ng2
@@ -1299,19 +973,19 @@ SUBROUTINE pw_sumup ( pw1, pw2, alpha, alpha_im )
                  !$omp parallel do private(i,j)
                  DO i = 1, ng2
                     j = pw2 % pw_grid % gidx ( i )
-                    pw2 % cc ( i ) = pw2 % cc ( i ) + my_alpha_c*pw1 % cc ( j )
+                    pw2 % cc ( i ) = pw2 % cc ( i ) + my_alpha*pw1 % cc ( j )
                  END DO
               ELSE
                  !$omp parallel do private(i,j)
                  DO i = 1, ng1
                     j = pw2 % pw_grid % gidx ( i )
-                    pw2 % cc ( j ) = pw2 % cc ( j ) + my_alpha_c*pw1 % cc ( i )
+                    pw2 % cc ( j ) = pw2 % cc ( j ) + my_alpha*pw1 % cc ( i )
                  END DO
               END IF
            END IF
         ELSEIF ( ( pw2 % pw_grid %id_nr == pw1 % pw_grid % reference ) ) THEN
 
-           IF (my_alpha_c==CMPLX(1.0_dp,0.0_dp,dp)) THEN
+           IF (my_alpha==1.0_dp) THEN
               IF( ng1 >= ng2 ) THEN
                  !$omp parallel do private(i,j)
                  DO i = 1, ng2
@@ -1330,13 +1004,13 @@ SUBROUTINE pw_sumup ( pw1, pw2, alpha, alpha_im )
                  !$omp parallel do private(i,j)
                  DO i = 1, ng2
                     j = pw1 % pw_grid % gidx ( i )
-                    pw2 % cc ( i ) = pw2 % cc ( i ) + my_alpha_c* pw1 % cc ( j )
+                    pw2 % cc ( i ) = pw2 % cc ( i ) + my_alpha* pw1 % cc ( j )
                  END DO
               ELSE
                  !$omp parallel do private(i,j)
                  DO i = 1, ng1
                     j = pw1 % pw_grid % gidx ( i )
-                    pw2 % cc ( j ) = pw2 % cc ( j ) + my_alpha_c*pw1 % cc ( i )
+                    pw2 % cc ( j ) = pw2 % cc ( j ) + my_alpha*pw1 % cc ( i )
                  END DO
               END IF
            END IF
@@ -1350,12 +1024,12 @@ SUBROUTINE pw_sumup ( pw1, pw2, alpha, alpha_im )
                 " grid 2 :",pw2 % pw_grid %id_nr, &
                 " sperical :",pw2 % pw_grid % spherical, &
                 " reference :",pw2 % pw_grid % reference
-           CALL stop_program ( "pw_sumup_square", "grids not compatible" )
+           CALL stop_program ( "pw_axpy", "grids not compatible" )
 
         END IF
 
      ELSE
-        CALL stop_program ( "pw_sumup", "no suitable data field" )
+        CALL stop_program ( "pw_axpy", "no suitable data field" )
      END IF
 
   ELSE
@@ -1368,157 +1042,14 @@ SUBROUTINE pw_sumup ( pw1, pw2, alpha, alpha_im )
           " grid 2 :",pw2 % pw_grid %id_nr, &
           " sperical :",pw2 % pw_grid % spherical, &
           " reference :",pw2 % pw_grid % reference
-     CALL stop_program ( "pw_sumup_square", "grids not compatible" )
+     CALL stop_program ( "pw_axpy", "grids not compatible" )
 
   END IF
 
   flop = flop * 1.e-6_dp
   CALL timestop ( flop, handle )
 
-END SUBROUTINE pw_sumup
-
-!!*****
-!******************************************************************************
-!!****** pw_types/pw_subtract [1.0] *
-!!
-!!   NAME
-!!     pw_subtract
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_subtract(pw1, pw2, pw3)
-!!       Type(pw_type), Intent (IN):: pw1, pw2
-!!       Type(pw_type), Intent (INOUT):: pw3
-!!     End Subroutine pw_subtract
-!!
-!!   FUNCTION
-!!     pw3 = pw1 - pw2
-!!
-!!   AUTHOR
-!!     apsi
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   NOTES
-!!     Currently only subtracting of respective types allowed,
-!!     in order to avoid errors
-!!
-!!   SOURCE
-!******************************************************************************
-
-SUBROUTINE pw_subtract ( pw1, pw2, pw3 )
-  
-  
-    TYPE(pw_type), INTENT(IN)                :: pw1, pw2
-    TYPE(pw_type), INTENT(INOUT)             :: pw3
-
-    INTEGER                                  :: handle
-    REAL(KIND=dp)                            :: flop
-
-!------------------------------------------------------------------------------
-
-  CALL timeset ( 'pw_subtract', 'I', 'Mflops', handle )
-  CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"pw_subtract")
-  CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,"pw_subtract")
-  CPPreconditionNoErr(pw3%ref_count>0,cp_failure_level,"pw_subtract")
-
-  IF ( pw1 % pw_grid %id_nr /= pw2 % pw_grid %id_nr ) &
-     CALL stop_program ( "pw_sumup_square", "grids not compatible" )
-
-  IF ( pw1 % in_use == REALDATA1D .AND. pw2 % in_use == REALDATA1D .AND. &
-       pw3 % in_use == REALDATA1D ) THEN
-     pw3 % cr = pw1 % cr - pw2 % cr
-     flop = REAL ( SIZE ( pw2 % cr ),KIND=dp)
-  ELSE IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
-       pw2 % in_use == COMPLEXDATA1D .AND. pw3 % in_use == COMPLEXDATA1D ) THEN
-     pw3 % cc = pw1 % cc - pw2 % cc
-     flop = REAL ( 2 * SIZE ( pw2 % cc ),KIND=dp)
-  ELSE IF ( pw1 % in_use == REALDATA3D .AND. pw2 % in_use == REALDATA3D .AND. &
-       pw3 % in_use == REALDATA3D ) THEN
-     pw3 % cr3d = pw1 % cr3d - pw2 % cr3d
-     flop = REAL ( SIZE ( pw2 % cr3d ),KIND=dp)
-  ELSE IF ( pw1 % in_use == COMPLEXDATA3D .AND. &
-       pw2 % in_use == COMPLEXDATA3D .AND. pw3 % in_use == COMPLEXDATA3D ) THEN
-     pw3 % cc3d = pw1 % cc3d - pw2 % cc3d
-     flop = REAL ( 2 * SIZE ( pw2 % cc3d ),KIND=dp)
-  ELSE
-     CALL stop_program ( "pw_subtract", "no suitable data field" )
-  END IF
-
-  flop = flop * 1.e-6_dp
-  CALL timestop ( flop, handle )
-  
-END SUBROUTINE pw_subtract
-
-!!*****
-!******************************************************************************
-!!****** pw_types/pw_reduce [1.0] *
-!!
-!!   NAME
-!!     pw_reduce
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_reduce(pw1, pw2)
-!!       Type(pw_type), Intent (IN):: pw1
-!!       Type(pw_type), Intent (INOUT):: pw2
-!!     End Subroutine pw_reduce
-!!
-!!   FUNCTION
-!!     pw2 = pw2 - pw1
-!!
-!!   AUTHOR
-!!     apsi
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   NOTES
-!!     Currently only reduction of respective types allowed,
-!!     in order to avoid errors
-!!
-!!   SOURCE
-!******************************************************************************
-
-SUBROUTINE pw_reduce ( pw1, pw2 )
-  
-  
-    TYPE(pw_type), INTENT(IN)                :: pw1
-    TYPE(pw_type), INTENT(INOUT)             :: pw2
-
-    INTEGER                                  :: handle
-    REAL(KIND=dp)                            :: flop
-
-!------------------------------------------------------------------------------
-
-  CALL timeset ( 'pw_reduce', 'I', 'Mflops', handle )
-  CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"pw_reduce")
-  CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,"pw_reduce")
-
-  IF ( pw1 % pw_grid %id_nr /= pw2 % pw_grid %id_nr ) &
-     CALL stop_program ( "pw_sumup_square", "grids not compatible" )
-
-  IF ( pw1 % in_use == REALDATA1D .AND. pw2 % in_use == REALDATA1D ) THEN
-     pw2 % cr = pw2 % cr - pw1 % cr
-     flop = REAL ( SIZE ( pw2 % cr ),KIND=dp)
-  ELSE IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
-       pw2 % in_use == COMPLEXDATA1D ) THEN
-     pw2 % cc = pw2 % cc - pw1 % cc
-     flop = REAL ( 2 * SIZE ( pw2 % cc ),KIND=dp)
-  ELSE IF ( pw1 % in_use == REALDATA3D .AND. pw2 % in_use == REALDATA3D ) THEN
-     pw2 % cr3d = pw2 % cr3d - pw1 % cr3d
-     flop = REAL ( SIZE ( pw2 % cr3d ),KIND=dp)
-  ELSE IF ( pw1 % in_use == COMPLEXDATA3D .AND. &
-       pw2 % in_use == COMPLEXDATA3D ) THEN
-     pw2 % cc3d = pw2 % cc3d - pw1 % cc3d
-     flop = REAL ( 2 * SIZE ( pw2 % cc3d ),KIND=dp)
-  ELSE
-     CALL stop_program ( "pw_reduce", "no suitable data field" )
-  END IF
-
-  flop = flop * 1.e-6_dp
-  CALL timestop ( flop, handle )
-  
-END SUBROUTINE pw_reduce
+END SUBROUTINE pw_axpy
 
 !!*****
 !******************************************************************************

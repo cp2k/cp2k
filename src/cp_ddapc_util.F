@@ -54,8 +54,8 @@ MODULE cp_ddapc_util
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              RECIPROCALSPACE,&
-                                             pw_subtract,&
-                                             pw_sumup,&
+                                             pw_copy,&
+                                             pw_axpy,&
                                              pw_transfer,&
                                              pw_p_type,&
                                              pw_type
@@ -326,11 +326,12 @@ CONTAINS
                 CALL pw_transfer(rho_core%pw,rho_tot_g)       
              END IF
              DO ispin=1,SIZE(rho%rho_g)
-                CALL pw_sumup(rho%rho_g(ispin)%pw,rho_tot_g)
+                CALL pw_axpy(rho%rho_g(ispin)%pw,rho_tot_g)
              END DO
              type_of_density = "FULL DENSITY"
           CASE(do_spin_density)
-             CALL pw_subtract(rho%rho_g(1)%pw,rho%rho_g(2)%pw,rho_tot_g)
+             CALL pw_copy (rho%rho_g(1)%pw,rho_tot_g)
+             CALL pw_axpy (rho%rho_g(2)%pw,rho_tot_g,alpha=-1._dp)
              type_of_density = "SPIN DENSITY"
           END SELECT
        END IF

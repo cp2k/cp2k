@@ -59,7 +59,7 @@ MODULE xc
        spline3_deriv_coeffs
   USE pw_types,                        ONLY: &
        COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_copy, &
-       pw_create, pw_derive, pw_p_type, pw_release, pw_sumup, pw_transfer, &
+       pw_create, pw_derive, pw_p_type, pw_release, pw_axpy, pw_transfer, &
        pw_type, pw_zero
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -1654,7 +1654,7 @@ CPSourceFileRef,&
               END IF
            ELSE
               DO idir=1,3
-                 CALL pw_sumup(pw_to_deriv_rho(idir)%pw,pw_to_deriv(idir)%pw)
+                 CALL pw_axpy(pw_to_deriv_rho(idir)%pw,pw_to_deriv(idir)%pw)
                  IF (ispin==2) THEN
                     CALL pw_pool_give_back_pw(pw_pool,pw_to_deriv_rho(idir)%pw,&
                          error=error)
@@ -1711,7 +1711,7 @@ CPSourceFileRef,&
                  IF (zero_result .AND. idir==1) THEN
                     NULLIFY(tmp_g)
                  ELSE
-                    CALL pw_sumup ( tmp_g, vxc_g )
+                    CALL pw_axpy ( tmp_g, vxc_g )
                     CALL pw_pool_give_back_pw(pw_pool,tmp_g,error=error)
                  END IF
                  IF(dealloc_pw_to_deriv) THEN
@@ -1723,7 +1723,7 @@ CPSourceFileRef,&
                    use_data=REALDATA3D, in_space=REALSPACE,&
                    error=error)
               CALL pw_transfer ( vxc_g, tmp_r )
-              CALL pw_sumup ( tmp_r, vxc_rho(ispin)%pw )
+              CALL pw_axpy ( tmp_r, vxc_rho(ispin)%pw )
               CALL pw_pool_give_back_pw(pw_pool, tmp_r, error=error)
               CALL pw_pool_give_back_pw(pw_pool,vxc_g,error=error)
            ELSE

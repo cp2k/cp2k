@@ -48,9 +48,8 @@ MODULE harris_force
                                              pw_pool_create_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: &
-       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_add, &
-       pw_p_type, pw_release, pw_scale, pw_subtract, pw_sumup, pw_transfer, &
-       pw_zero
+       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_copy, &
+       pw_p_type, pw_release, pw_scale, pw_zero, pw_axpy, pw_transfer
   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
@@ -261,8 +260,11 @@ CONTAINS
                               use_data=REALDATA3D, in_space=REALSPACE,error=error)
 
       ! *** Calculation of the forces due to the Hartree energy *** !
+      CALL pw_copy(rho_core%pw,rho_tot_gspace%pw)
       DO ispin = 1,nspins
-        CALL pw_add(rho_core%pw, harris_env%rho%rho_g(ispin)%pw, rho_tot_gspace%pw)
+        CALL pw_axpy(harris_env%rho%rho_g(ispin)%pw,rho_tot_gspace%pw)
+        ! old code seems to be wrong for spin polarized case
+        ! CALL pw_add(rho_core%pw, harris_env%rho%rho_g(ispin)%pw, rho_tot_gspace%pw)
       END DO
 
       CALL pw_poisson_solve(poisson_env, rho_tot_gspace%pw, ehartree=Ehartree, &
@@ -274,7 +276,8 @@ CONTAINS
                          exc=Exc, just_energy=.FALSE., error=error)
 
       DO ispin = 1,nspins
-        CALL pw_add(v_rspace_new(ispin)%pw, v_hartree_rspace%pw, v_rspace_new(ispin)%pw)
+        CALL pw_copy(v_rspace_new(ispin)%pw,v_rspace_new(ispin)%pw)
+        CALL pw_axpy(v_hartree_rspace%pw,v_rspace_new(ispin)%pw)
         CALL pw_scale(v_rspace_new(ispin)%pw, v_rspace_new(ispin)%pw%pw_grid%dvol)
 
         CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), p=qs_env%rho%rho_ao(ispin), &
@@ -337,8 +340,12 @@ CONTAINS
       CALL xc_rho_set_release(rho_set,error=error)
 
       ! + v_hartree[rho_out-rho_in]
+      CALL pw_zero(rho_tot_gspace%pw)
       DO ispin = 1,nspins
-        CALL pw_subtract(qs_env%rho%rho_g(ispin)%pw, harris_env%rho%rho_g(ispin)%pw, rho_tot_gspace%pw)
+        CALL pw_axpy(qs_env%rho%rho_g(ispin)%pw,rho_tot_gspace%pw)
+        CALL pw_axpy(harris_env%rho%rho_g(ispin)%pw,rho_tot_gspace%pw,alpha=-1._dp)
+        ! this original code seems to be wrong for spin polarized cases (overwrites rho_tot_gspace)
+        ! CALL pw_subtract(qs_env%rho%rho_g(ispin)%pw, harris_env%rho%rho_g(ispin)%pw, rho_tot_gspace%pw)
       END DO
 
       CALL pw_poisson_solve(poisson_env, rho_tot_gspace%pw, ehartree=Ehartree, &
@@ -347,7 +354,8 @@ CONTAINS
       CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw)
 
       DO ispin = 1,nspins
-        CALL pw_add(v_rspace_new(ispin)%pw, v_hartree_rspace%pw, v_rspace_new(ispin)%pw)
+        CALL pw_copy(v_rspace_new(ispin)%pw,v_rspace_new(ispin)%pw)
+        CALL pw_axpy(v_hartree_rspace%pw,v_rspace_new(ispin)%pw)
         CALL pw_scale(v_rspace_new(ispin)%pw, v_rspace_new(ispin)%pw%pw_grid%dvol)
 
         CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), p=harris_env%rho%rho_ao(ispin), &
@@ -397,8 +405,11 @@ CONTAINS
       CALL zero_qs_force(force)
 
       ! *** The forces due to n_core *** !
+      CALL pw_copy(rho_core%pw,rho_tot_gspace%pw)
       DO ispin = 1,nspins
-        CALL pw_add(rho_core%pw, qs_env%rho%rho_g(ispin)%pw, rho_tot_gspace%pw)
+        CALL pw_axpy(qs_env%rho%rho_g(ispin)%pw,rho_tot_gspace%pw)
+        ! old code seems to be wrong for spin polarized case
+        ! CALL pw_add(rho_core%pw, qs_env%rho%rho_g(ispin)%pw, rho_tot_gspace%pw)
       END DO
 
       CALL pw_poisson_solve(poisson_env, rho_tot_gspace%pw, ehartree=Ehartree, &
@@ -635,8 +646,11 @@ CONTAINS
                               use_data=REALDATA3D, in_space=REALSPACE,error=error)
 
       ! *** Calculation of the forces due to the Hartree energy *** !
+      CALL pw_copy(rho_core%pw,rho_tot_gspace%pw)
       DO ispin = 1,nspins
-        CALL pw_add(rho_core%pw, harris_env%rho%rho_g(ispin)%pw, rho_tot_gspace%pw)
+        CALL pw_axpy(harris_env%rho%rho_g(ispin)%pw,rho_tot_gspace%pw)
+        ! old code seems to be wrong for spin polarized case
+        ! CALL pw_add(rho_core%pw, harris_env%rho%rho_g(ispin)%pw, rho_tot_gspace%pw)
       END DO
 
       CALL pw_poisson_solve(poisson_env, rho_tot_gspace%pw, ehartree=Ehartree, &
@@ -650,7 +664,8 @@ CONTAINS
                          exc=Exc, just_energy=.FALSE., error=error)
 
       DO ispin = 1,nspins
-        CALL pw_add(v_rspace_new(ispin)%pw, v_hartree_rspace%pw, v_rspace_new(ispin)%pw)
+        CALL pw_copy(v_rspace_new(ispin)%pw,v_rspace_new(ispin)%pw)
+        CALL pw_axpy(v_hartree_rspace%pw,v_rspace_new(ispin)%pw)
         CALL pw_scale(v_rspace_new(ispin)%pw, v_rspace_new(ispin)%pw%pw_grid%dvol)
 
         CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), p=qs_env%rho%rho_ao(ispin), &
@@ -743,7 +758,8 @@ CONTAINS
       CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw)
 
       DO ispin = 1,nspins
-        CALL pw_add(v_rspace_new(ispin)%pw, v_hartree_rspace%pw, v_rspace_new(ispin)%pw)
+        CALL pw_copy(v_rspace_new(ispin)%pw,v_rspace_new(ispin)%pw)
+        CALL pw_axpy(v_hartree_rspace%pw,v_rspace_new(ispin)%pw)
         CALL pw_scale(v_rspace_new(ispin)%pw, v_rspace_new(ispin)%pw%pw_grid%dvol)
 
         CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), p=harris_env%rho%rho_ao(ispin), &
@@ -875,7 +891,8 @@ CONTAINS
       CALL pw_scale(v_hartree_rspace%pw, v_hartree_rspace%pw%pw_grid%dvol)
 
       DO ispin = 1,nspins
-        CALL pw_add(v_rspace_new(ispin)%pw, v_hartree_rspace%pw, v_rspace_new(ispin)%pw)
+        CALL pw_copy(v_rspace_new(ispin)%pw,v_rspace_new(ispin)%pw)
+        CALL pw_axpy(v_hartree_rspace%pw,v_rspace_new(ispin)%pw)
 
         CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), p=harris_env%rho%rho_ao(ispin), &
                                 h=matrix_ks(ispin), qs_env=qs_env, calculate_forces=.TRUE., &
@@ -1604,14 +1621,15 @@ CONTAINS
       CALL pw_pool_create_pw(auxbas_pw_pool, rho_tot_gspace%pw, &
                               use_data=COMPLEXDATA1D, &
                               in_space=RECIPROCALSPACE, error=error)
+      CALL pw_copy(rho_core%pw,rho_tot_gspace%pw)
       DO ispin = 1,nspins
-        CALL pw_add(rho_core%pw, rho%rho_g(ispin)%pw, rho_tot_gspace%pw)
+        CALL pw_axpy(rho%rho_g(ispin)%pw,rho_tot_gspace%pw)
+        ! old code seems to be wrong for spin polarized case
+        ! CALL pw_add(rho_core%pw, rho%rho_g(ispin)%pw, rho_tot_gspace%pw)
       END DO
 
       CALL pw_poisson_solve(poisson_env, rho_tot_gspace%pw, ehartree=Ehartree, &
                             vhartree=v_hartree_gspace%pw,error=error)
-      !CALL pw_poisson_solve(poisson_env, rho%rho_g(1)%pw, ehartree=Ehartree, &
-      !                      vhartree=v_hartree_gspace%pw)
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace%pw, &
                                    error=error)
@@ -1629,7 +1647,7 @@ CONTAINS
 
       ! sum-up: v_hartree_rspace = v_hartree_rspace + v_rspace_new(ispin)
       DO ispin = 1,nspins
-        CALL pw_sumup(v_rspace_new(ispin)%pw, v_hartree_rspace%pw)
+        CALL pw_axpy(v_rspace_new(ispin)%pw, v_hartree_rspace%pw)
         CALL pw_scale(v_hartree_rspace%pw, v_hartree_rspace%pw%pw_grid%dvol)
       END DO
 

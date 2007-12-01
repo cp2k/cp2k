@@ -54,10 +54,9 @@ MODULE qs_epr_hyp
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              RECIPROCALSPACE,&
                                              pw_dr2_gg,&
-                                             pw_reduce,&
                                              pw_zero,&
                                              pw_p_type,&
-                                             pw_sumup
+                                             pw_axpy
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_grid_atom,                    ONLY: grid_atom_type
@@ -316,8 +315,8 @@ CONTAINS
 
     ! Load the contribution of the soft electronic density
     CPPrecondition(SIZE(rho%rho_g)>1,cp_failure_level,routineP,error,failure)
-    CALL pw_sumup(rho%rho_g(1)%pw,rhototspin_elec_gspace%pw)
-    CALL pw_reduce(rho%rho_g(2)%pw,rhototspin_elec_gspace%pw)
+    CALL pw_axpy(rho%rho_g(1)%pw,rhototspin_elec_gspace%pw)
+    CALL pw_axpy(rho%rho_g(2)%pw,rhototspin_elec_gspace%pw,alpha=-1._dp)
     ! grid to assemble anisotropic hyperfine terms
     ALLOCATE (hypaniso_gspace,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -347,15 +346,11 @@ CONTAINS
       END DO ! idir2
     END DO ! idir1
 
-    CALL pw_pool_give_back_pw(auxbas_pw_pool,&
-                                 rhototspin_elec_gspace%pw,&
-                                 error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,rhototspin_elec_gspace%pw,error=error)
     DEALLOCATE (rhototspin_elec_gspace,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL pw_pool_give_back_pw(auxbas_pw_pool,&
-                                 hypaniso_gspace%pw,&
-                                 error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,hypaniso_gspace%pw,error=error)
     DEALLOCATE (hypaniso_gspace,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 

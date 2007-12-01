@@ -24,7 +24,7 @@ MODULE mt_util
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_sumup,&
+                                             pw_axpy,&
                                              pw_transfer,&
                                              pw_type,&
                                              pw_zero
@@ -107,7 +107,7 @@ CONTAINS
        END IF
        CALL mt0din( Vloc, alpha)
        CALL pw_transfer ( Vloc,  Vlocg )
-       CALL pw_sumup(Vlocg, screen_function )
+       CALL pw_axpy(Vlocg, screen_function )
        IF (ASSOCIATED(pw_pool_aux)) THEN
           CALL pw_pool_give_back_pw(pw_pool_aux, Vloc,  error=error)
           CALL pw_pool_give_back_pw(pw_pool_aux, Vlocg, error=error)

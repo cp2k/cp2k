@@ -86,9 +86,8 @@ MODULE qs_scf_post
                                              pw_transfer,&
                                              pw_integrate_function,&
                                              pw_copy,&
-                                             pw_reduce,&
                                              pw_p_type,&
-                                             pw_sumup
+                                             pw_axpy
   USE qs_collocate_density,            ONLY: calculate_wavefunction
   USE qs_conductivity,                 ONLY: optical_conductivity
   USE qs_electric_field_gradient,      ONLY: qs_efg_calc
@@ -1578,7 +1577,7 @@ CONTAINS
                use_data = REALDATA3D,&
                in_space = REALSPACE, error=error)
           CALL pw_copy(rho%rho_r(1)%pw,wf_r%pw)
-          CALL pw_reduce(rho%rho_r(2)%pw,wf_r%pw)
+          CALL pw_axpy(rho%rho_r(2)%pw,wf_r%pw,alpha=-1._dp)
           total_abs_spin_dens=pw_integrate_function(wf_r%pw,operator="ABS")
           IF (ionode) WRITE(UNIT=output_unit,fmt='(/,(T3,A,T60,F20.10))') &
                "Integrated absolute spin density  : ",total_abs_spin_dens
@@ -1629,7 +1628,7 @@ CONTAINS
              CALL pw_transfer(rho_core%pw,wf_r%pw)
           END IF
           DO ispin=1,dft_control%nspins
-             CALL pw_sumup(rho%rho_r(ispin)%pw,wf_r%pw)
+             CALL pw_axpy(rho%rho_r(ispin)%pw,wf_r%pw)
           END DO
           filename = "TOTAL_DENSITY"
           unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%TOT_DENSITY_CUBE",&
@@ -1656,7 +1655,7 @@ CONTAINS
                   use_data = REALDATA3D,&
                   in_space = REALSPACE, error=error)
              CALL pw_copy(rho%rho_r(1)%pw,wf_r%pw)
-             CALL pw_sumup(rho%rho_r(2)%pw,wf_r%pw)
+             CALL pw_axpy(rho%rho_r(2)%pw,wf_r%pw)
              filename = "ELECTRON_DENSITY"
              unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
                   extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
@@ -1667,7 +1666,7 @@ CONTAINS
              CALL cp_print_key_finished_output(unit_nr,logger,input,&
                   "DFT%PRINT%E_DENSITY_CUBE",error=error)
              CALL pw_copy(rho%rho_r(1)%pw,wf_r%pw)
-             CALL pw_reduce(rho%rho_r(2)%pw,wf_r%pw)
+             CALL pw_axpy(rho%rho_r(2)%pw,wf_r%pw,alpha=-1._dp)
              filename = "SPIN_DENSITY"
              unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
                   extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)

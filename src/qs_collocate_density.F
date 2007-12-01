@@ -100,7 +100,7 @@ MODULE qs_collocate_density
                                              RECIPROCALSPACE,&
                                              pw_copy,&
                                              pw_integrate_function,&
-                                             pw_sumup,&
+                                             pw_axpy,&
                                              pw_transfer,&
                                              pw_p_type,&
                                              pw_type,&
@@ -369,7 +369,7 @@ CONTAINS
       DO igrid_level=1, gridlevel_info%ngrid_levels
         CALL pw_transfer(mgrid_rspace(igrid_level)%pw, &
                                    mgrid_gspace(igrid_level)%pw)
-        CALL pw_sumup(mgrid_gspace(igrid_level)%pw, qs_env%rho%rho_g(1)%pw)
+        CALL pw_axpy(mgrid_gspace(igrid_level)%pw, qs_env%rho%rho_g(1)%pw)
       END DO
       CALL pw_transfer(qs_env%rho%rho_g(1)%pw, qs_env%rho%rho_r(1)%pw)
     END IF
@@ -1478,7 +1478,7 @@ CONTAINS
     DO igrid_level=1,gridlevel_info%ngrid_levels
       CALL pw_transfer(mgrid_rspace(igrid_level)%pw,&
            mgrid_gspace(igrid_level)%pw)
-      CALL pw_sumup(mgrid_gspace(igrid_level)%pw,rho_gspace%pw)
+      CALL pw_axpy(mgrid_gspace(igrid_level)%pw,rho_gspace%pw)
     END DO
 
     CALL pw_transfer(rho_gspace%pw,rho%pw)
@@ -2535,7 +2535,7 @@ CONTAINS
           DO igrid_level=1,gridlevel_info%ngrid_levels
              CALL pw_transfer(mgrid_rspace(igrid_level)%pw,&
                   mgrid_gspace(igrid_level)%pw)
-             CALL pw_sumup(mgrid_gspace(igrid_level)%pw,rho_gspace%pw)
+             CALL pw_axpy(mgrid_gspace(igrid_level)%pw,rho_gspace%pw)
           END DO
           CALL pw_transfer(rho_gspace%pw,rho%pw)
        CASE(spline3_pbc_interp)
