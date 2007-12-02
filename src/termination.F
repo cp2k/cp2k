@@ -17,7 +17,6 @@
 !!     none
 !!
 !!   INDEX
-!!     SUBROUTINE get_error_unit(lunit)
 !!     SUBROUTINE set_error_unit(lunit)
 !!     SUBROUTINE stop_allocate(routine,array,memory)
 !!     SUBROUTINE stop_deallocate(routine,array)
@@ -53,7 +52,6 @@ MODULE termination
   INTEGER :: error_unit
 
   PUBLIC :: external_control,&
-            get_error_unit,&
             set_error_unit,&
             stop_memory,&
             stop_program
@@ -74,35 +72,6 @@ MODULE termination
 
 CONTAINS
 
-!******************************************************************************
-!!****** termination/get_error_unit [1.0] *
-!!
-!!   NAME
-!!     get_error_unit
-!!
-!!   FUNCTION
-!!     Get the output unit number for error messages.
-!!
-!!   AUTHOR
-!!     MK
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
-  SUBROUTINE get_error_unit(lunit)
-
-    INTEGER, INTENT(OUT)                     :: lunit
-
-!   ---------------------------------------------------------------------------
-
-    lunit = error_unit
-
-  END SUBROUTINE get_error_unit
-
-!!*****
 !******************************************************************************
 !!****** termination/set_error_unit [1.0] *
 !!

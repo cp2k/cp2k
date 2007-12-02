@@ -28,8 +28,7 @@ MODULE mathlib
                                              int_size
   USE mathconstants,                   ONLY: euler,&
                                              fac
-  USE termination,                     ONLY: get_error_unit,&
-                                             stop_memory,&
+  USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -617,11 +616,9 @@ CONTAINS
     END IF
 
     IF (r_cond < EPSILON(0.0_dp)) THEN
-       CALL get_error_unit(output_unit)
-       WRITE (message,"(A,ES10.3,A)") "R_COND =",r_cond
-       CALL print_message(message,output_unit,1,1,1)
+       WRITE (message,"(A,ES10.3)") "R_COND =",r_cond
        CALL stop_program(moduleN,routineN,__LINE__,&
-            "Bad condition number (smaller than the machine "//&
+            "Bad condition number "//TRIM(message)//" (smaller than the machine "//&
             "working precision)")
     END IF
 
