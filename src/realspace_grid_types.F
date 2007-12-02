@@ -277,10 +277,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_setup_1', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: dir, ip, lb( 2 ), n_slices(3), &
-                                                neighbours(3), ngmax, nmin, pos( 3 ), i, j, k
+    INTEGER                                  :: dir, ip, lb( 2 ), n_slices(3), n_slices_tmp(3), &
+                                                neighbours(3), ngmax, nmin, pos( 3 ), i, j, k,m
     REAL(KIND=dp)                            :: ratio,ratio_best,volume,volume_dist
-    LOGICAL :: failure
+    LOGICAL :: failure, small
 
     failure = .FALSE.
 
@@ -347,6 +347,20 @@ CONTAINS
           DO j=1,rs % group_size
              i=rs % group_size/(j*k)
              IF (i*j*k .NE. rs % group_size) CYCLE
+
+             ! a safe-guard, we only accept a topology if the borders overlap only with
+             ! one neighbor. This should be removed in the final code.
+             n_slices_tmp=(/i,j,k/)
+             small=.FALSE.
+             DO dir=1,3
+                DO m=0,n_slices_tmp( dir )-1
+                   lb = get_limit ( rs % npts ( dir ), n_slices_tmp( dir ), m  )
+                   IF (lb(2)-lb(1)+1<nmin) small=.TRUE.
+                ENDDO
+             ENDDO
+             IF (small) CYCLE
+
+             ! a heuristic optimisation to reduce the memory usage
              ! volume of the box without the wings / volume of the box with the wings
              ratio = PRODUCT(REAL(rs % npts,KIND=dp) / (/i,j,k/)) /  & 
                      PRODUCT(REAL(rs % npts,KIND=dp) / (/i,j,k/) +   &
