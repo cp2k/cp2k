@@ -40,7 +40,6 @@ MODULE message_passing
                                              m_walltime,&
                                              m_flush,&
                                              default_output_unit
-  USE parallel_include
 #if defined(__mp_timeset__)
   !
   ! this really is a circular dependency
@@ -53,6 +52,16 @@ MODULE message_passing
 
   PRIVATE
 
+#if defined(__parallel)
+  INCLUDE "mpif.h"
+#if defined (__SGL)
+  INTEGER     :: MP_STD_REAL = MPI_REAL
+  INTEGER     :: MP_STD_COMPLEX = MPI_COMPLEX
+#else
+  INTEGER     :: MP_STD_REAL = MPI_DOUBLE_PRECISION
+  INTEGER     :: MP_STD_COMPLEX = MPI_DOUBLE_COMPLEX
+#endif
+#endif
 
 #ifdef __parallel
   LOGICAL, PARAMETER :: cp2k_is_parallel=.TRUE.
