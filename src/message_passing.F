@@ -80,7 +80,7 @@ MODULE message_passing
 
   ! init and error
   PUBLIC :: mp_world_init, mp_world_finalize
-  PUBLIC :: mp_stop, mp_abort
+  PUBLIC :: mp_abort
 
   ! performance gathering
   PUBLIC :: mp_perf_env_type, mp_perf_env_p_type,mp_perf_type
@@ -344,7 +344,7 @@ SUBROUTINE add_mp_perf_env(perf_env)
 
   stack_pointer = stack_pointer + 1
   IF (stack_pointer > max_stack_size) THEN
-     CALL mp_stop ( stack_pointer, "stack_pointer too large : message_passing @ add_mp_perf_env" )   
+     CALL mp_abort ( "stack_pointer too large : message_passing @ add_mp_perf_env" )   
   ENDIF
   NULLIFY(mp_perf_stack(stack_pointer)%mp_perf_env)
   IF (PRESENT(perf_env)) THEN
@@ -365,7 +365,7 @@ SUBROUTINE mp_perf_env_create(perf_env)
     NULLIFY(perf_env)
     ALLOCATE(perf_env,stat=stat)
     IF (stat/=0) THEN
-       CALL mp_stop ( stat, "stack_pointer too large : message_passing @ mp_perf_create" )   
+       CALL mp_abort ( "allocation failed in mp_perf_env_create")
     ENDIF
     last_mp_perf_env_id=last_mp_perf_env_id+1
     perf_env%id_nr=last_mp_perf_env_id
@@ -386,15 +386,14 @@ SUBROUTINE mp_perf_env_release(perf_env)
 
   IF (ASSOCIATED(perf_env)) THEN
      IF (perf_env%ref_count<1) THEN
-        CALL mp_stop(perf_env%ref_count,&
+        CALL mp_abort(&
              "invalid ref_count: message_passing @ mp_perf_env_release")
      END IF
      perf_env%ref_count=perf_env%ref_count-1
      IF (perf_env%ref_count==0) THEN
         DEALLOCATE(perf_env,stat=stat)
         IF (stat/=0) THEN
-           CALL mp_stop(stat,&
-                "deallocation error: message_passing @ mp_perf_env_release")
+           CALL mp_abort("deallocation error: message_passing @ mp_perf_env_release")
         END IF
      END IF
   END IF
@@ -405,12 +404,10 @@ SUBROUTINE mp_perf_env_retain(perf_env)
     TYPE(mp_perf_env_type), POINTER          :: perf_env
 
   IF (.NOT.ASSOCIATED(perf_env)) THEN
-     CALL mp_stop(-1,&
-          "unassociated perf_env: message_passing @ mp_perf_env_retain")
+     CALL mp_abort("unassociated perf_env: message_passing @ mp_perf_env_retain")
   END IF
   IF (perf_env%ref_count<1) THEN
-     CALL mp_stop(perf_env%ref_count,&
-          "invalid ref_count: message_passing @ mp_perf_env_retain")
+     CALL mp_abort("invalid ref_count: message_passing @ mp_perf_env_retain")
   END IF
   perf_env%ref_count=perf_env%ref_count+1
 END SUBROUTINE mp_perf_env_retain
@@ -424,10 +421,10 @@ SUBROUTINE mp_perf_env_describe ( perf_env, iw )
     REAL(KIND=dp)                            :: per, vol
 
   IF (.not.ASSOCIATED(perf_env)) THEN
-     CALL mp_stop ( 1, "unassociated perf_env : message_passing @ mp_perf_env_describe" )   
+     CALL mp_abort ("unassociated perf_env : message_passing @ mp_perf_env_describe" )   
   ENDIF
   IF (perf_env%ref_count<1) THEN
-     CALL mp_stop ( perf_env%ref_count, "invalid perf_env%ref_count : message_passing @ mp_perf_env_describe" )   
+     CALL mp_abort ("invalid perf_env%ref_count : message_passing @ mp_perf_env_describe" )   
   ENDIF
 #if defined(__parallel)
   IF ( iw > 0 ) THEN
@@ -466,7 +463,7 @@ END SUBROUTINE mp_perf_env_describe
 
 SUBROUTINE rm_mp_perf_env ()
   IF (stack_pointer<1) THEN
-     CALL mp_stop ( stack_pointer, "no perf_env in the stack : message_passing @ rm_mp_perf_env" )   
+     CALL mp_abort ( "no perf_env in the stack : message_passing @ rm_mp_perf_env" )   
   ENDIF
   CALL mp_perf_env_release(mp_perf_stack(stack_pointer)%mp_perf_env)
   stack_pointer = stack_pointer - 1
@@ -476,7 +473,7 @@ FUNCTION get_mp_perf_env () RESULT(res)
     TYPE(mp_perf_env_type), POINTER          :: res
 
   IF (stack_pointer<1) THEN
-     CALL mp_stop ( stack_pointer, "no perf_env in the stack : message_passing @ get_mp_perf_env" )   
+     CALL mp_abort ( "no perf_env in the stack : message_passing @ get_mp_perf_env" )   
   ENDIF
   res => mp_perf_stack(stack_pointer)%mp_perf_env
 
@@ -529,17 +526,56 @@ SUBROUTINE add_perf(perf_id,count,time,msg_size)
 
 END SUBROUTINE add_perf
 
-!!****f* message_passing/mp_stop / mp_abort *
+!!****f* message_passing/mp_abort *
 !!
 !!   NAME
-!!      mp_stop / mp_abort
+!!      mp_abort
 !!   FUNCTION
-!!      stops all tasks of MPI_COMM_WORLD
+!!      globally stops all tasks, can optionally print a message.
+!!      this is intended to be low level, most of CP2K should rather use cp_error_handling
 !!   NOTES
-!!      we should learn to error out more gracefully (i.e. for farming) 
+!!
 !!   INPUTS
-!!    -
-!!    -
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!!*** **********************************************************************
+SUBROUTINE mp_abort (message)
+  CHARACTER ( LEN=* ), INTENT(IN), OPTIONAL :: message
+
+  INTEGER                                   :: numtask, taskid, ierr
+#if defined(__parallel)
+  CALL mp_environ ( numtask, taskid, MPI_COMM_WORLD )
+#else
+  numtask=1
+  taskid=0
+#endif
+  IF (PRESENT(message)) THEN
+      WRITE(default_output_unit,'(A)')         ' CP2K| '//TRIM(message)
+  ENDIF
+  WRITE(default_output_unit,'(A,I0)')   ' CP2K| Abnormal program termination, stopped by process number ',taskid
+  CALL m_flush(default_output_unit)
+
+#if defined(__parallel)
+  CALL mpi_abort ( MPI_COMM_WORLD, 1, ierr )
+#else
+  CALL m_abort() ! uncomment if you want nice core dumps
+#endif
+  ! this routine never returns
+  STOP 1
+END SUBROUTINE mp_abort
+
+!!****f* message_passing/mp_stop  
+!!
+!!   NAME
+!!      mp_stop 
+!!   FUNCTION
+!!      stops *after an mpi error* translating the error code
+!!   NOTES
+!!      this function is private to message_passing.F
+!!   INPUTS
+!!      - ierr: an error code * returned by an mpi call *
 !!
 !!   MODIFICATION HISTORY
 !!
@@ -549,63 +585,29 @@ SUBROUTINE mp_stop ( ierr, prg_code )
 
   IMPLICIT NONE
 
-! Arguments
   INTEGER, INTENT ( IN ) :: ierr
   CHARACTER ( LEN=* ) :: prg_code
 
-! Locals
-  INTEGER :: numtask, taskid, groupid, len
 #if defined(__parallel)
   CHARACTER ( LEN = MPI_MAX_ERROR_STRING ) :: error_string
-  CALL mp_environ ( numtask, taskid, MPI_COMM_WORLD )
 #else
-  numtask=1
-  taskid=0
+  CHARACTER ( LEN = 512 )                  :: error_string
 #endif
-  WRITE(default_output_unit,'(/,A,T71,I10)') ' CP2K| Stopped by processor number',taskid
-  WRITE(default_output_unit,'(A," ",A)') ' CP2K| ', TRIM(prg_code)
-  WRITE(default_output_unit,'(A,T71,I10,/)') ' CP2K| Error number was ',ierr
-  CALL m_flush(default_output_unit)
+  CHARACTER ( LEN = 512 )                  :: full_error
+  INTEGER :: istat,len
 
+  write(6,*) "HIIIII"
 #if defined(__parallel)
-  CALL mpi_error_string ( ierr, error_string, len )
-  WRITE(default_output_unit,'(A,A)') ' CP2K| ', ADJUSTR ( error_string )
-  CALL m_flush(default_output_unit)
-  CALL mpi_abort ( MPI_COMM_WORLD, prg_code )
+  CALL mpi_error_string ( ierr, error_string, len, istat )
+  WRITE(full_error,'(A,I0,A)') ' MPI error ',ierr,' in '//TRIM(prg_code)//' : '//error_string(1:len)
+#else
+  WRITE(full_error,'(A,I0,A)') ' MPI error (!?) ',ierr,' in '//TRIM(prg_code)
 #endif
+  write(6,*) "HIIIII"
 
-  STOP 1
-
+  CALL mp_abort(full_error)
 
 END SUBROUTINE mp_stop
-
-!******************************************************************************
-
-!..mp_abort
-SUBROUTINE mp_abort ( )
-
-    INTEGER                                  :: numtask, taskid
-#if defined(__parallel)
-  CALL mp_environ ( numtask, taskid, MPI_COMM_WORLD )
-#else
-  numtask=1
-  taskid=0
-#endif
-  WRITE(default_output_unit,'(/,A,T71,I10)') ' CP2K| Stopped by process number',taskid
-  WRITE(default_output_unit,'(A,/)')         ' CP2K| Abnormal program termination'
-  CALL m_flush(default_output_unit)
-
-#if defined(__parallel)
-  CALL mpi_abort ( MPI_COMM_WORLD, 0 )
-#else
-  CALL m_abort() ! uncomment if you want nice core dumps
-#endif
-  ! this routine never returns
-  STOP 1
-
-END SUBROUTINE mp_abort
-
-
 
 !!****f* message_passing/mp_sync *
 !!
@@ -1037,7 +1039,7 @@ SUBROUTINE mp_rank_compare ( comm1, comm2, rank )
   CALL mpi_comm_group ( comm2, g2, ierr )
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_group @ mp_rank_compare" )
   ALLOCATE ( rin ( 0 : n - 1 ), STAT = ierr )
-  IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_rank_compare" )
+  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_rank_compare" )
   DO i = 0, n-1
     rin ( i ) = i
   END DO
@@ -1045,7 +1047,7 @@ SUBROUTINE mp_rank_compare ( comm1, comm2, rank )
   IF ( ierr /= 0 ) CALL mp_stop( ierr, &
       "mpi_group_translate_rank @ mp_rank_compare" )
   DEALLOCATE ( rin, STAT = ierr )
-  IF ( ierr /= 0 ) CALL mp_stop( 0, "deallocate @ mp_rank_compare" )
+  IF ( ierr /= 0 ) CALL mp_abort( "deallocate @ mp_rank_compare" )
 #endif
 #if defined(__mp_timeset__)
     CALL timestop(handle)
@@ -1130,14 +1132,7 @@ SUBROUTINE mp_shift_im( msg, group, displ_in)
   CALL mpi_sendrecv_replace(msg,msglen,MPI_INTEGER,right,tag,left,tag, &
      group,status(1),ierror)
   t_end = m_walltime ( )
-  IF ( ierror /= 0 ) THEN
-! this seems not to work (on SUN)
-!    CALL mpi_error_string ( ierror, estring, elen )
-!    WRITE (*,*) estring(1:elen)
-     WRITE (default_output_unit,*) msglen,status
-     CALL m_flush(default_output_unit)
-     CALL mp_stop ( ierror, "mpi_sendrecv_replace @ mp_shift_im" )
-  END IF
+  IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_sendrecv_replace @ mp_shift_im" )
   CALL add_perf(perf_id=7,count=1,time=t_end-t_start,msg_size=msglen*intlen)
   DEALLOCATE(status)
 #endif
@@ -1183,12 +1178,7 @@ SUBROUTINE mp_shift_rm( msg, group, displ_in)
   CALL mpi_sendrecv_replace(msg,msglen,MP_STD_REAL,right,tag,left,&
                             tag,group,status(1),ierror)
   t_end = m_walltime ( )
-  IF ( ierror /= 0 ) THEN
-! this seems not to work (on SUN)
-!    CALL mpi_error_string ( ierror, estring, elen )
-!    WRITE (*,*) estring(1:elen)
-     CALL mp_stop ( ierror, "mpi_sendrecv_replace @ mp_shift_rm" )
-  END IF
+  IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_sendrecv_replace @ mp_shift_rm" )
   CALL add_perf(perf_id=7,count=1,time=t_end-t_start,msg_size=msglen*reallen)
   DEALLOCATE(status)
 #endif
@@ -1234,12 +1224,7 @@ SUBROUTINE mp_shift_r1( msg, group, displ_in)
   CALL mpi_sendrecv_replace(msg,msglen,MP_STD_REAL,right,tag,left,&
                             tag,group,status(1),ierror)
   t_end = m_walltime ( )
-  IF ( ierror /= 0 ) THEN
-! this seems not to work (on SUN)
-!    CALL mpi_error_string ( ierror, estring, elen )
-!    WRITE (*,*) estring(1:elen)
-     CALL mp_stop ( ierror, "mpi_sendrecv_replace @ mp_shift_r1" )
-  END IF
+  IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_sendrecv_replace @ mp_shift_r1" )
   CALL add_perf(perf_id=7,count=1,time=t_end-t_start,msg_size=msglen*reallen)
   DEALLOCATE(status)
 #endif
@@ -1404,8 +1389,7 @@ SUBROUTINE mp_alltoall_c22v_sgl ( dummy )
     CALL timeset(routineN,handle)
 #endif
 
-  ierr = 100
-  CALL mp_stop( ierr, "mp_alltoall_c22v_sgl" )
+  CALL mp_abort("illegal call !? to mp_alltoall_c22v_sgl" )
 #if defined(__mp_timeset__)
     CALL timestop(handle)
 #endif
@@ -2066,11 +2050,11 @@ SUBROUTINE mp_bcast_z(msg,source,gid)
      imsg(i) = ICHAR(msg(i:i))
   END DO
   CALL mpi_bcast(imsg,msglen,MPI_INTEGER,source,gid,ierr)
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_z" )
   DO i = 1, msglen
      msg(i:i) = CHAR(imsg(i))
   END DO
   DEALLOCATE (imsg)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_z" )
   t_end = m_walltime ( )
   CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*charlen)
 #endif
@@ -2098,8 +2082,8 @@ SUBROUTINE mp_sum_i1(msg,gid)
 #if defined(__parallel)
   t_start = m_walltime ( )
   CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
-  msg = res
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_i1" )
+  msg = res
   t_end = m_walltime ( )
   CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
 #endif
@@ -2125,8 +2109,8 @@ SUBROUTINE mp_sum_8i1(msg,gid)
 #if defined(__parallel)
   t_start = m_walltime ( )
   CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER8,MPI_SUM,gid,ierr)
-  msg = res
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_8i1" )
+  msg = res
   t_end = m_walltime ( )
   CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
 #endif
@@ -2152,11 +2136,11 @@ SUBROUTINE mp_sum_iv(msg,gid)
   t_start = m_walltime ( )
   msglen = SIZE(msg)
   ALLOCATE (res(1:msglen),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_iv" )
+  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_iv" )
   CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_iv" )
   msg = res
   DEALLOCATE (res)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_iv" )
   t_end = m_walltime ( )
   CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
 #endif
@@ -2181,11 +2165,11 @@ SUBROUTINE mp_sum_8iv(msg,gid)
   t_start = m_walltime ( )
   msglen = SIZE(msg)
   ALLOCATE (res(1:msglen),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_iv" )
+  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_iv" )
   CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER8,MPI_SUM,gid,ierr)
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_8iv" )
   msg = res
   DEALLOCATE (res)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_8iv" )
   t_end = m_walltime ( )
   CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
 #endif
@@ -2213,11 +2197,11 @@ SUBROUTINE mp_sum_im(msg,gid)
   m1 = SIZE(msg,1)
   m2 = SIZE(msg,2)
   ALLOCATE (res(m1,m2),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_im" )
+  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_im" )
   CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_im" )
   msg = res
   DEALLOCATE (res)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_im" )
   t_end = m_walltime ( )
   CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
 #endif
@@ -2244,11 +2228,11 @@ SUBROUTINE mp_sum_im3(msg,gid)
   m2 = SIZE(msg,2)
   m3 = SIZE(msg,3)
   ALLOCATE (res(m1,m2,m3),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_im3" )
+  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_im3" )
   CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_im3" )
   msg = res
   DEALLOCATE (res)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_im3" )
   t_end = m_walltime ( )
   CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
 #endif
@@ -2272,10 +2256,9 @@ SUBROUTINE mp_sum_r1(msg,gid)
   msglen = 1
 #if defined(__parallel)
   t_start = m_walltime ( )
-  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, &
-       ierr)
-  msg = res
+  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_r1" )
+  msg = res
   t_end = m_walltime ( )
   CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #endif
@@ -2299,12 +2282,11 @@ SUBROUTINE mp_sum_rv(msg,gid)
   t_start = m_walltime ( )
   msglen = SIZE(msg)
   ALLOCATE (res(1:msglen),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_rv" )
-  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, &
-       ierr)
+  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_rv" )
+  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, ierr)
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_rv" )
   msg = res
   DEALLOCATE (res)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_rv" )
   t_end = m_walltime ( )
   CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #endif
@@ -2331,14 +2313,14 @@ SUBROUTINE mp_sum_root_rv(msg,root,gid)
   msglen = SIZE(msg)
   m1 = SIZE(msg,1)
   ALLOCATE (res(m1),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_root_rv" )
+  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_root_rv" )
   CALL mpi_reduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,&
        root,gid,ierr)
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_reduce @ mp_sum_root_rv" )
   IF ( taskid == root ) THEN
     msg = res
   END IF
   DEALLOCATE (res)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_reduce @ mp_sum_root_rv" )
   t_end = m_walltime ( )
   CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #endif
@@ -2364,12 +2346,11 @@ SUBROUTINE mp_sum_rm(msg,gid)
   m1 = SIZE(msg,1)
   m2 = SIZE(msg,2)
   ALLOCATE (res(m1,m2),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_rm" )
-  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, &
-       ierr)
+  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_rm" )
+  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, ierr)
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_rm" )
   msg = res
   DEALLOCATE (res)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_rm" )
   t_end = m_walltime ( )
   CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #endif
@@ -2397,14 +2378,13 @@ SUBROUTINE mp_sum_root_rm(msg,root,gid)
   m1 = SIZE(msg,1)
   m2 = SIZE(msg,2)
   ALLOCATE (res(m1,m2),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_root_rm" )
-  CALL mpi_reduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,&
-       root,gid,ierr)
+  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_root_rm" )
+  CALL mpi_reduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,root,gid,ierr)
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_reduce @ mp_sum_root_rm" )
   IF ( taskid == root ) THEN
     msg = res
   END IF
   DEALLOCATE (res)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_reduce @ mp_sum_root_rm" )
   t_end = m_walltime ( )
   CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #endif
@@ -2431,12 +2411,11 @@ SUBROUTINE mp_sum_rm3(msg,gid)
   m2 = SIZE(msg,2)
   m3 = SIZE(msg,3)
   ALLOCATE (res(m1,m2,m3),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_rm3" )
-  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, &
-       ierr)
+  IF ( ierr /= 0 ) CALL mp_abort("allocate @ mp_sum_rm3" )
+  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, ierr)
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_rm3" )
   msg = res
   DEALLOCATE (res)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_rm3" )
   t_end = m_walltime ( )
   CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #endif
@@ -2465,14 +2444,13 @@ SUBROUTINE mp_sum_root_rm3(msg,root,gid)
   m2 = SIZE(msg,2)
   m3 = SIZE(msg,3)
   ALLOCATE (res(m1,m2,m3),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_root_rm3" )
-  CALL mpi_reduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,&
-       root,gid,ierr)
+  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_root_rm3" )
+  CALL mpi_reduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,root,gid,ierr)
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_reduce @ mp_sum_root_rm3" )
   IF ( taskid == root ) THEN
     msg = res
   END IF
   DEALLOCATE (res)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_reduce @ mp_sum_root_rm3" )
   t_end = m_walltime ( )
   CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #endif
@@ -2496,10 +2474,9 @@ SUBROUTINE mp_sum_c1(msg,gid)
   msglen = 2
 #if defined(__parallel)
   t_start = m_walltime ( )
-  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, &
-       ierr)
-  msg = res
+  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_c1" )
+  msg = res
   t_end = m_walltime ( )
   CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*2*reallen)
 #endif
@@ -2523,12 +2500,11 @@ SUBROUTINE mp_sum_cv(msg,gid)
   t_start = m_walltime ( )
   msglen = SIZE(msg)
   ALLOCATE (res(1:msglen),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_cv" )
-  CALL mpi_allreduce(msg,res,2*msglen,MP_STD_REAL,MPI_SUM,gid, &
-       ierr)
+  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_cv" )
+  CALL mpi_allreduce(msg,res,2*msglen,MP_STD_REAL,MPI_SUM,gid, ierr)
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_cv" )
   msg = res
   DEALLOCATE (res)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_cv" )
   t_end = m_walltime ( )
   CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*2*reallen)
 #endif
@@ -2554,12 +2530,11 @@ SUBROUTINE mp_sum_cm(msg,gid)
   m1 = SIZE(msg,1)
   m2 = SIZE(msg,2)
   ALLOCATE (res(m1,m2),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_cm" )
-  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, &
-       ierr)
+  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_cm" )
+  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, ierr)
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_cm" )
   msg = res
   DEALLOCATE (res)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_cm" )
   t_end = m_walltime ( )
   CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*2*reallen)
 #endif
@@ -2586,12 +2561,11 @@ SUBROUTINE mp_sum_cm3(msg,gid)
   m2 = SIZE(msg,2)
   m3 = SIZE(msg,3)
   ALLOCATE (res(m1,m2,m3),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_cm3" )
-  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, &
-       ierr)
+  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_cm3" )
+  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, ierr)
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_cm3" )
   msg = res
   DEALLOCATE (res)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_cm3" )
   t_end = m_walltime ( )
   CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*2*reallen)
 #endif
@@ -2643,11 +2617,11 @@ SUBROUTINE mp_max_iv(msg,gid)
   t_start = m_walltime ( )
   msglen = SIZE(msg)
   ALLOCATE (res(1:msglen),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_max_iv" )
+  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_max_iv" )
   CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_MAX,gid,ierr)
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_max_iv" )
   msg = res
   DEALLOCATE (res)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_max_iv" )
   t_end = m_walltime ( )
   CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
 #endif
@@ -2670,8 +2644,7 @@ SUBROUTINE mp_max_r(msg,gid)
 #if defined(__parallel)
   t_start = m_walltime ( )
   msglen = 1
-  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_MAX,gid, &
-       ierr)
+  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_MAX,gid, ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_max_r" )
   msg = res
   t_end = m_walltime ( )
@@ -2698,12 +2671,11 @@ SUBROUTINE mp_maxloc_i(msg,gid)
   t_start = m_walltime ( )
   msglen = SIZE(msg)
   ALLOCATE (res(1:msglen),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_maxloc_i" )
-  CALL mpi_allreduce(msg,res,1,MPI_2INTEGER,MPI_MAXLOC,gid, &
-       ierr)
+  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_maxloc_i" )
+  CALL mpi_allreduce(msg,res,1,MPI_2INTEGER,MPI_MAXLOC,gid, ierr)
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_maxloc_i" )
   msg = res
   DEALLOCATE (res,STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_maxloc_i" )
   t_end = m_walltime ( )
   CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
 #endif
@@ -2728,12 +2700,11 @@ SUBROUTINE mp_minloc_rv(msg,gid)
   t_start = m_walltime ( )
   msglen = SIZE(msg)
   ALLOCATE (res(1:msglen),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_min_rv" )
-  CALL mpi_allreduce(msg,res,1,MPI_2DOUBLE_PRECISION,MPI_MINLOC,gid, &
-       ierr)
+  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_min_rv" )
+  CALL mpi_allreduce(msg,res,1,MPI_2DOUBLE_PRECISION,MPI_MINLOC,gid, ierr)
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_min_rv" )
   msg = res
   DEALLOCATE (res)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_min_rv" )
   t_end = m_walltime ( )
   CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #endif
@@ -2758,12 +2729,11 @@ SUBROUTINE mp_max_rv(msg,gid)
   t_start = m_walltime ( )
   msglen = SIZE(msg)
   ALLOCATE (res(1:msglen),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_max_rv" )
-  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_MAX,gid, &
-       ierr)
+  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_max_rv" )
+  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_MAX,gid, ierr)
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_max_rv" )
   msg = res
   DEALLOCATE (res)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_max_rv" )
   t_end = m_walltime ( )
   CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #endif
@@ -2815,11 +2785,11 @@ SUBROUTINE mp_min_iv(msg,gid)
   t_start = m_walltime ( )
   msglen = SIZE(msg)
   ALLOCATE (res(1:msglen),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_min_iv" )
+  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_min_iv" )
   CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_MIN,gid,ierr)
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_min_iv" )
   msg = res
   DEALLOCATE (res)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_min_iv" )
   t_end = m_walltime ( )
   CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
 #endif
@@ -2869,12 +2839,11 @@ SUBROUTINE mp_min_rv(msg,gid)
   t_start = m_walltime ( )
   msglen = SIZE(msg)
   ALLOCATE (res(1:msglen),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_min_rv" )
-  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_MIN,gid, &
-       ierr)
+  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_min_rv" )
+  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_MIN,gid, ierr)
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_min_rv" )
   msg = res
   DEALLOCATE (res)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_min_rv" )
   t_end = m_walltime ( )
   CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #endif
@@ -3625,8 +3594,7 @@ SUBROUTINE mp_irecv_rm2(msgout,source,comm,request,tag)
   t_end = m_walltime ( )
   CALL add_perf(perf_id=12,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #else
-  ierr=1
-  CALL mp_stop( ierr, "mp_irecv called in non parallel case" )
+  CALL mp_abort( "mp_irecv called in non parallel case" )
 #endif
 #if defined(__mp_timeset__)
     CALL timestop(handle)
@@ -3786,33 +3754,33 @@ SUBROUTINE mp_comm_split(comm,sub_comm,ngroups, group_distribution, &
 ! actual number of groups
 
     IF (.NOT. PRESENT(subgroup_min_size) .AND. .NOT. PRESENT(n_subgroups)) THEN
-       CALL mp_stop(1,routineP//" missing arguments ")
+       CALL mp_abort(routineP//" missing arguments ")
     ENDIF
     IF (PRESENT(subgroup_min_size) .AND. PRESENT(n_subgroups)) THEN
-       CALL mp_stop(1,routineP//" too many arguments ")
+       CALL mp_abort(routineP//" too many arguments ")
     ENDIF
 
     CALL mp_environ(nnodes,mepos,comm)
 
     IF (.NOT. ASSOCIATED(group_distribution)) THEN
-       CALL mp_stop(1,routineP//" group_distribution not associated")
+       CALL mp_abort(routineP//" group_distribution not associated")
     ENDIF
     IF (LBOUND(group_distribution,1) .NE. 0 .OR. &
         UBOUND(group_distribution,1).NE.nnodes-1) THEN
-       CALL mp_stop(1,routineP//" group_distribution wrong bounds")
+       CALL mp_abort(routineP//" group_distribution wrong bounds")
     ENDIF
   
 #if defined(__parallel)
     t_start = m_walltime ( )
     IF (PRESENT(subgroup_min_size)) THEN
        IF (subgroup_min_size<0) THEN
-          CALL mp_stop(mpi_err_comm,routineP//" subgroup_min_size too small")
+          CALL mp_abort(routineP//" subgroup_min_size too small")
        ENDIF
        ngroups= nnodes / subgroup_min_size
        my_subgroup_min_size = subgroup_min_size
     ELSE  ! n_subgroups
        IF (n_subgroups<=0) THEN
-          CALL mp_stop(mpi_err_comm,routineP//" n_subgroups too small")
+          CALL mp_abort(routineP//" n_subgroups too small")
        ENDIF
        IF (nnodes/n_subgroups > 0) THEN ! we have a least one cpu per group
           ngroups = n_subgroups 

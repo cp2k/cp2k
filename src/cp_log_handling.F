@@ -30,7 +30,7 @@
 !!     (they have already separate routines in a separate module 
 !!     @see cp_output_handling).
 !!
-!!     some practices (use of print *, stop_program, no cp_error_type,
+!!     some practices (use of print *, no cp_error_type,
 !!     manual retain release of some objects) are dictated by the need to
 !!     have minimal dependency
 !!
@@ -60,7 +60,7 @@ MODULE cp_log_handling
                                              m_getpid,&
                                              m_hostnm
   USE message_passing,                 ONLY: mp_comm_free,&
-                                             mp_stop
+                                             mp_abort
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: print_stack
 
@@ -284,7 +284,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     IF (stack_pointer+1>max_stack_pointer) THEN
-       CALL mp_stop(100,routineP//&
+       CALL mp_abort(routineP//&
             "too many default loggers, increase max_stack_pointer in "//moduleN)
     ENDIF
 
@@ -317,7 +317,7 @@ CONTAINS
 !!*** *********************************************************************
   SUBROUTINE cp_rm_default_logger()
     IF (stack_pointer-1<0) THEN
-       CALL mp_stop(101,moduleN//":cp_rm_default_logger"//&
+       CALL mp_abort(moduleN//":cp_rm_default_logger"//&
             "can not destroy default logger "//moduleN)
     ENDIF
 
@@ -357,12 +357,12 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: res
 
     IF ( .NOT. stack_pointer>0 ) THEN
-       CALL mp_stop(102,"cp_log_handling:cp_get_default_logger"//&
+       CALL mp_abort("cp_log_handling:cp_get_default_logger"//&
             "default logger not yet initialized (CALL cp_init_default_logger)")
     END IF
     res => default_logger_stack(stack_pointer)%cp_default_logger
     IF (.NOT.ASSOCIATED(res)) THEN
-       CALL mp_stop(103,"cp_log_handling:cp_get_default_logger"//&
+       CALL mp_abort("cp_log_handling:cp_get_default_logger"//&
             "default logger is null (released too much ?)")
     END IF
   END FUNCTION cp_get_default_logger
@@ -457,7 +457,7 @@ CONTAINS
     INTEGER                                  :: stat
 
     ALLOCATE(logger, stat=stat)
-    IF (stat/=0) CALL mp_stop(104,routineP//" could not ALLOCATE a logger")
+    IF (stat/=0) CALL mp_abort(routineP//" could not ALLOCATE a logger")
 
     NULLIFY(logger%para_env)
     logger%ref_count=1
@@ -466,7 +466,7 @@ CONTAINS
 
     IF (PRESENT(template_logger)) THEN
       IF (template_logger%ref_count<1) &
-            CALL mp_stop(105,routineP//" template_logger%ref_count<1")
+            CALL mp_abort(routineP//" template_logger%ref_count<1")
       logger%print_level=template_logger%print_level
       logger%default_global_unit_nr=template_logger%default_global_unit_nr
       logger%close_local_unit_on_dealloc=template_logger%close_local_unit_on_dealloc
@@ -501,9 +501,9 @@ CONTAINS
     logger%suffix=""
    END IF
     IF (PRESENT(para_env)) logger%para_env => para_env
-    IF (.NOT.ASSOCIATED(logger%para_env)) CALL mp_stop(106,routineP//&
+    IF (.NOT.ASSOCIATED(logger%para_env)) CALL mp_abort(routineP//&
          " para env not associated")
-    IF (logger%para_env%ref_count<1) CALL mp_stop(107,routineP//&
+    IF (logger%para_env%ref_count<1) CALL mp_abort(routineP//&
          " para_env%ref_count<1")
     logger%para_env%ref_count = logger%para_env%ref_count+1
 
@@ -594,9 +594,9 @@ CONTAINS
 
     failure=.FALSE.
 
-    IF (.NOT.ASSOCIATED(logger)) CALL mp_stop(110,routineP//&
+    IF (.NOT.ASSOCIATED(logger)) CALL mp_abort(routineP//&
          " logger not associated")
-    IF (logger%ref_count<1) CALL mp_stop(111,routineP//&
+    IF (logger%ref_count<1) CALL mp_abort(routineP//&
          " logger%ref_count<1")
     logger%ref_count=logger%ref_count+1
   END SUBROUTINE cp_logger_retain
@@ -637,7 +637,7 @@ CONTAINS
     INTEGER                                  :: stat
 
     IF (ASSOCIATED(logger)) THEN
-       IF (logger%ref_count<1) CALL mp_stop(112,routineP//" logger%ref_count<1")
+       IF (logger%ref_count<1) CALL mp_abort(routineP//" logger%ref_count<1")
        logger%ref_count=logger%ref_count-1
        IF (logger%ref_count==0) THEN
           IF (logger%close_global_unit_on_dealloc .AND. &
@@ -717,7 +717,7 @@ CONTAINS
 
     lggr => logger
     IF (.NOT.ASSOCIATED(lggr)) lggr => cp_get_default_logger()
-    IF (lggr%ref_count<1) CALL mp_stop(114,routineP//&
+    IF (lggr%ref_count<1) CALL mp_abort(routineP//&
          " logger%ref_count<1")
 
     res = level>=lggr%print_level
@@ -828,7 +828,7 @@ CONTAINS
 
     lggr => logger
     IF (.NOT.ASSOCIATED(lggr)) lggr => cp_get_default_logger()
-    IF (lggr%ref_count<1) CALL mp_stop(115,routineP//&
+    IF (lggr%ref_count<1) CALL mp_abort(routineP//&
          " logger%ref_count<1")
 
     loc=.TRUE.
@@ -901,9 +901,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_logger_set_log_level', &
       routineP = moduleN//':'//routineN
 
-    IF (.NOT.ASSOCIATED(logger)) CALL mp_stop(116,routineP//&
+    IF (.NOT.ASSOCIATED(logger)) CALL mp_abort(routineP//&
          " logger not associated")
-    IF (logger%ref_count<1) CALL mp_stop(117,routineP//&
+    IF (logger%ref_count<1) CALL mp_abort(routineP//&
          " logger%ref_count<1")
     logger%print_level=level
   END SUBROUTINE cp_logger_set_log_level
@@ -941,7 +941,7 @@ CONTAINS
 
     lggr => logger
     IF (.NOT.ASSOCIATED(lggr)) lggr => cp_get_default_logger()
-    IF (lggr%ref_count<1) CALL mp_stop(117,routineP//&
+    IF (lggr%ref_count<1) CALL mp_abort(routineP//&
          " logger%ref_count<1")
 
     res=lggr%print_level
@@ -1002,7 +1002,7 @@ CONTAINS
        NULLIFY(lggr)
     ENDIF
     IF (.NOT.ASSOCIATED(lggr)) lggr => cp_get_default_logger()
-    IF (lggr%ref_count<1) CALL mp_stop(118,routineP//&
+    IF (lggr%ref_count<1) CALL mp_abort(routineP//&
          " logger%ref_count<1")
 
     IF (PRESENT(local)) loc=local
@@ -1103,7 +1103,7 @@ CONTAINS
 
     IF (ASSOCIATED(para_env)) THEN
        IF (para_env%ref_count<1) THEN
-          CALL mp_stop(119,routineP//" para_env%ref_count<1")
+          CALL mp_abort(routineP//" para_env%ref_count<1")
        END IF
        para_env%ref_count=para_env%ref_count-1
        IF (para_env%ref_count<1) THEN
@@ -1174,7 +1174,7 @@ CONTAINS
     lggr => logger
 
     IF (.NOT.ASSOCIATED(lggr)) lggr => cp_get_default_logger()
-    IF (lggr%ref_count<1) CALL mp_stop(120, routineP//&
+    IF (lggr%ref_count<1) CALL mp_abort(routineP//&
          " logger%ref_count<1")
     IF (PRESENT(local)) loc=local
     IF (loc) THEN
@@ -1217,7 +1217,7 @@ SUBROUTINE cp_logger_set(logger,local_filename,global_filename)
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_logger_set', &
       routineP = moduleN//':'//routineN
 
-  IF (.NOT.ASSOCIATED(logger)) CALL mp_stop(121,routineP//&
+  IF (.NOT.ASSOCIATED(logger)) CALL mp_abort(routineP//&
        " unassociated logger")
   IF (PRESENT(local_filename)) logger%local_filename=local_filename
   IF (PRESENT(global_filename)) logger%global_filename=global_filename
@@ -1256,7 +1256,7 @@ SUBROUTINE cp_iteration_info_create(iteration_info,project_name)
 
   ALLOCATE(iteration_info,stat=stat)
   IF (stat/=0) THEN
-     CALL mp_stop(122,routineP//" could not allocate iteration_info")
+     CALL mp_abort(routineP//" could not allocate iteration_info")
   END IF
   last_it_info_id=last_it_info_id+1
   iteration_info%id_nr=last_it_info_id
@@ -1296,10 +1296,10 @@ SUBROUTINE cp_iteration_info_retain(iteration_info)
       routineP = moduleN//':'//routineN
 
   IF (.NOT.ASSOCIATED(iteration_info)) THEN
-     CALL mp_stop(123,routineP//" iteration_info not associated")
+     CALL mp_abort(routineP//" iteration_info not associated")
   END IF
   IF (iteration_info%ref_count<=0) THEN
-     CALL mp_stop(124,routineP//" iteration_info%ref_counf<=0")
+     CALL mp_abort(routineP//" iteration_info%ref_counf<=0")
   END IF
   iteration_info%ref_count=iteration_info%ref_count+1
 END SUBROUTINE cp_iteration_info_retain
@@ -1333,13 +1333,13 @@ SUBROUTINE cp_iteration_info_release(iteration_info)
 
   IF (ASSOCIATED(iteration_info)) THEN
      IF (iteration_info%ref_count<=0) THEN
-        CALL mp_stop(125,routineP//" iteration_info%ref_counf<=0")
+        CALL mp_abort(routineP//" iteration_info%ref_counf<=0")
      END IF
      iteration_info%ref_count=iteration_info%ref_count-1
      IF (iteration_info%ref_count==0) THEN
         DEALLOCATE(iteration_info,stat=stat)
         IF (stat/=0) THEN
-           CALL mp_stop(126,routineP//" iteration_info deallocation stat"//&
+           CALL mp_abort(routineP//" iteration_info deallocation stat"//&
                 cp_to_string(stat))
         END IF
      END IF
