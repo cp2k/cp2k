@@ -43,9 +43,11 @@ MODULE x_hf_compression_methods
         1152921504606846975_int_8, 2305843009213693951_int_8, 4611686018427387903_int_8, &
         9223372036854775807_int_8 /)
   
-  ! masks the corresponding number of bits from the left (use ibset to avoid explicitly writing -HUGE-1)
+  ! masks the corresponding number of bits from the left
+  ! use ishft to avoid explicitly writing -HUGE-1, and keep it out of the array a work-around for a bug in pgi 6.1-1
+  INTEGER(kind=int_8), PARAMETER :: ugly_duck = ISHFT(1_int_8,63)
   INTEGER(kind=int_8), PARAMETER :: mask_left(0:63)=&
-     (/ 0_int_8, IBSET(0_int_8,63) , -4611686018427387904_int_8, -2305843009213693952_int_8, &
+     (/ 0_int_8, ugly_duck, -4611686018427387904_int_8, -2305843009213693952_int_8, &
         -1152921504606846976_int_8, -576460752303423488_int_8, -288230376151711744_int_8, &
         -144115188075855872_int_8, -72057594037927936_int_8, -36028797018963968_int_8, &
         -18014398509481984_int_8, -9007199254740992_int_8, -4503599627370496_int_8, -2251799813685248_int_8, &
