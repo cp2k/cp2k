@@ -511,8 +511,8 @@ CONTAINS
 
 !$OMP parallel do &
 !$OMP default(none) &
-!$OMP private(iatom,j,atom_a,ra) &
-!$OMP shared(bo,tasks,dir,rs_rho,atom_list,particle_set,cell)
+!$OMP private(iatom,j,atom_a,ra,dir) &
+!$OMP shared(bo,tasks,rs_rho,atom_list,particle_set,cell)
       DO iatom=bo(1),bo(2)
         j = iatom - bo(1) + 1
         tasks ( 1, j ) = iatom
