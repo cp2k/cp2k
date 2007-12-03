@@ -596,14 +596,12 @@ SUBROUTINE mp_stop ( ierr, prg_code )
   CHARACTER ( LEN = 512 )                  :: full_error
   INTEGER :: istat,len
 
-  write(6,*) "HIIIII"
 #if defined(__parallel)
   CALL mpi_error_string ( ierr, error_string, len, istat )
   WRITE(full_error,'(A,I0,A)') ' MPI error ',ierr,' in '//TRIM(prg_code)//' : '//error_string(1:len)
 #else
   WRITE(full_error,'(A,I0,A)') ' MPI error (!?) ',ierr,' in '//TRIM(prg_code)
 #endif
-  write(6,*) "HIIIII"
 
   CALL mp_abort(full_error)
 
