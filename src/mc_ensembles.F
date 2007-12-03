@@ -1438,7 +1438,7 @@ CONTAINS
                   ELSEIF(exponent .LT. exp_min_val) THEN
                      exponent=exp_min_val
                   ENDIF
-                  mayer(itemp,ibin)=mayer(itemp,ibin)+dexp(exponent)-1.0_dp
+                  mayer(itemp,ibin)=mayer(itemp,ibin)+EXP(exponent)-1.0_dp
                ENDDO
             ENDIF
 

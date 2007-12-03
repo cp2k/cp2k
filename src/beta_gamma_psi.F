@@ -1010,7 +1010,11 @@ FUNCTION psi(xx) RESULT(fn_val)
 !---------------------------------------------------------------------
 
 xmax1 = ipmpar(3)
+#if defined(__SGL)
+xmax1 = MIN(xmax1, 1.0e0_dp/spmpar(1))
+#else
 xmax1 = MIN(xmax1, 1.0e0_dp/dpmpar(1))
+#endif
 xsmall = 1.e-9_dp
 !---------------------------------------------------------------------
 x = xx
@@ -1327,7 +1331,11 @@ SUBROUTINE bratio (a, b, x, y, w, w1, ierr)
 !     ****** EPS IS A MACHINE DEPENDENT CONSTANT. EPS IS THE SMALLEST
 !            FLOATING POINT NUMBER FOR WHICH 1.0 + EPS .GT. 1.0
 
+#if defined(__SGL)
+eps = spmpar(1)
+#else
 eps = dpmpar(1)
+#endif
 
 !-----------------------------------------------------------------------
 w = 0.0e0_dp

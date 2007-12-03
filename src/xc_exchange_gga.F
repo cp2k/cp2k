@@ -882,7 +882,7 @@ CONTAINS
         x = s(ip)
           t1 = b**2 
           t2 = x**2
-          t5 = dsqrt(0.1e1_dp+t1*t2)
+          t5 = SQRT(0.1e1_dp+t1*t2)
           t6 = t5**2
           t9 = t1**2
           t10 = 1/t6/t5*t9
