@@ -58,8 +58,8 @@ MODULE xc
        spline2_coeffs, spline2_deriv_coeffs, spline3_coeffs, &
        spline3_deriv_coeffs
   USE pw_types,                        ONLY: &
-       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_copy, &
-       pw_create, pw_derive, pw_p_type, pw_release, pw_axpy, pw_transfer, &
+       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_axpy, &
+       pw_copy, pw_create, pw_derive, pw_p_type, pw_release, pw_transfer, &
        pw_type, pw_zero
   USE timings,                         ONLY: timeset,&
                                              timestop

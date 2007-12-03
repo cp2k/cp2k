@@ -32,8 +32,6 @@ MODULE qs_linres_epr_atom_current
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cell_types,                      ONLY: cell_type,&
-                                             pbc
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
@@ -45,13 +43,11 @@ MODULE qs_linres_epr_atom_current
                                              qs_environment_type
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: harmonics_atom_type
-  USE qs_linres_epr_op,                ONLY: fac_vecp,&
-                                             set_vecp,&
-                                             set_vecp_rev
+  USE qs_linres_epr_op,                ONLY: set_vecp
   USE qs_linres_types,                 ONLY: allocate_jrho_atom_rad,&
+                                             epr_env_type,&
                                              get_epr_env,&
                                              jrho_atom_type,&
-                                             epr_env_type,&
                                              set2zero_jrho_atom_rad
   USE qs_neighbor_list_types,          ONLY: &
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
@@ -570,7 +566,7 @@ CONTAINS
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf
     LOGICAL                                  :: failure, paw_atom
-    LOGICAL, ALLOCATABLE, DIMENSION(:,:)     :: is_set_to_0
+    LOGICAL, ALLOCATABLE, DIMENSION(:, :)    :: is_set_to_0
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: g1, g2
     REAL(dp), ALLOCATABLE, DIMENSION(:, :) :: cjc_h_block, cjc_ii_h_block, &
       cjc_ii_s_block, cjc_iii_h_block, cjc_iii_s_block, cjc_s_block, dgg_1, &
@@ -741,8 +737,8 @@ CONTAINS
                       DO ispin=1,nspins
                          !------------------------------------------------------------------
                          ! mQai_\alpha\alpha'
-                         cjc_h_block = HUGE(1d0)!0.0_dp
-                         cjc_s_block = HUGE(1d0)!0.0_dp
+                         cjc_h_block = HUGE(1e0_dp)!0.0_dp
+                         cjc_s_block = HUGE(1e0_dp)!0.0_dp
                          !
                          ! Hard term
                          coeff => jrho1_atom_set(iatom)%cjc_h(ispin)%r_coef
@@ -755,8 +751,8 @@ CONTAINS
                               &coeff(iso1_first:iso1_last,iso2_first:iso2_last)
                          !------------------------------------------------------------------
                          ! Qci_\alpha\alpha'
-                         cjc_ii_h_block = HUGE(1d0)!0.0_dp
-                         cjc_ii_s_block = HUGE(1d0)!0.0_dp
+                         cjc_ii_h_block = HUGE(1e0_dp)!0.0_dp
+                         cjc_ii_s_block = HUGE(1e0_dp)!0.0_dp
                          !
                          ! Hard term
                          coeff => jrho1_atom_set(iatom)%cjc_ii_h(ispin)%r_coef
@@ -769,8 +765,8 @@ CONTAINS
                               &   coeff(iso1_first:iso1_last,iso2_first:iso2_last)
                          !------------------------------------------------------------------
                          ! Qbi_\alpha\alpha'
-                         cjc_iii_h_block = HUGE(1d0)!0.0_dp
-                         cjc_iii_s_block = HUGE(1d0)!0.0_dp
+                         cjc_iii_h_block = HUGE(1e0_dp)!0.0_dp
+                         cjc_iii_s_block = HUGE(1e0_dp)!0.0_dp
                          !
                          ! Hard term
                          coeff => jrho1_atom_set(iatom)%cjc_iii_h(ispin)%r_coef
@@ -887,8 +883,8 @@ CONTAINS
                                Fr_c_s_ii(1:nr,iso)  = Fr_c_s_ii(1:nr,iso) + &
                                     &                 gg(1:nr,l)*cjc_ii_s_block(iso1,iso2)*&
                                     &                 my_CG(iso1,iso2,iso)
-                               Fr_c_h_ii(1:nr,iso)  = 1.23456789e10! HUGE(1d0)
-                               Fr_c_s_ii(1:nr,iso)  = 1.23456789e10! HUGE(1d0)
+                               Fr_c_h_ii(1:nr,iso)  = 1.23456789e10_dp! HUGE(1e0_dp)
+                               Fr_c_s_ii(1:nr,iso)  = 1.23456789e10_dp! HUGE(1e0_dp)
                                !------------------------------------------------------------------
                                ! Pbi
                                ! not needed
@@ -902,8 +898,8 @@ CONTAINS
                                Fr_c_s_iii(1:nr,iso) = Fr_c_s_iii(1:nr,iso) + &
                                     &                 gg(1:nr,l)*cjc_iii_s_block(iso1,iso2)*&
                                     &                 my_CG(iso1,iso2,iso)
-                               Fr_c_h_iii(1:nr,iso) = 1.23456789e10!HUGE(1d0)
-                               Fr_c_s_iii(1:nr,iso) = 1.23456789e10!HUGE(1d0)
+                               Fr_c_h_iii(1:nr,iso) = 1.23456789e10_dp!HUGE(1e0_dp)
+                               Fr_c_s_iii(1:nr,iso) = 1.23456789e10_dp!HUGE(1e0_dp)
                                !------------------------------------------------------------------
                             ENDDO !icg
                             !

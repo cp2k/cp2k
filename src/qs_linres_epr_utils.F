@@ -88,7 +88,8 @@ MODULE qs_linres_epr_utils
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
-                                             RECIPROCALSPACE, pw_zero
+                                             RECIPROCALSPACE,&
+                                             pw_zero
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_linres_epr_atom_current,      ONLY: list_3c_jrho_atom

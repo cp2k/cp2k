@@ -827,7 +827,7 @@ CONTAINS
 !!     - ener_var: variance of the energy/atom
 !!     - coord_var: variance of the coordination number
 !!     - count: count is increased by one per call, has to be initialized
-!               to 0.d0 before first call of eip_bazant
+!               to 0.e0_dp before first call of eip_bazant
 !!
 !!   AUTHOR
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
@@ -862,10 +862,10 @@ CONTAINS
 
 
 !        cut=par_a
-        cut= 3.1213820d0 + 1.d-14
+        cut= 3.1213820e0_dp + 1.e-14_dp
 
         if (count.eq.0)  open(unit=10,file='bazant.mon',status='unknown')
-        count=count+1.d0
+        count=count+1.e0_dp
 
 ! linear scaling calculation of verlet list
         ll1=int(alat(1)/cut)
@@ -1435,21 +1435,21 @@ CONTAINS
                  num2(max_nbrs),num3(max_nbrs),numz(max_nbrs))
 !$omp end critical
         if (iam.eq.0) then
-        ener=0.d0
-        ener2=0.d0
-        coord=0.d0
-        coord2=0.d0
+        ener=0.e0_dp
+        ener2=0.e0_dp
+        coord=0.e0_dp
+        coord2=0.e0_dp
         endif
 !$omp do
         do iat=1,nat
-        fxyz(1,iat)=0.d0
-        fxyz(2,iat)=0.d0
-        fxyz(3,iat)=0.d0
+        fxyz(1,iat)=0.e0_dp
+        fxyz(2,iat)=0.e0_dp
+        fxyz(3,iat)=0.e0_dp
         enddo
 !$omp barrier
 
 ! Each thread treats at most lot atoms
-        lot=int(float(nat)/float(npr)+.999999999999d0)
+        lot=int(float(nat)/float(npr)+.999999999999e0_dp)
         iat1=iam*lot+1
         iat2=min((iam+1)*lot,nat)
 !       write(6,*) 'subfeniat:iat1,iat2,iam',iat1,iat2,iam
@@ -1584,50 +1584,50 @@ CONTAINS
 !   indices for the store arrays
 
 !   EDIP parameters
-          par_cap_A = 5.6714030d0
-          par_cap_B = 2.0002804d0
-          par_rh = 1.2085196d0
-          par_a = 3.1213820d0
-          par_sig = 0.5774108d0
-          par_lam = 1.4533108d0
-          par_gam = 1.1247945d0
-          par_b = 3.1213820d0
-          par_c = 2.5609104d0
-          par_delta = 78.7590539d0
-          par_mu = 0.6966326d0
-          par_Qo = 312.1341346d0
-          par_palp = 1.4074424d0
-          par_bet = 0.0070975d0
-          par_alp = 3.1083847d0
+          par_cap_A = 5.6714030e0_dp
+          par_cap_B = 2.0002804e0_dp
+          par_rh = 1.2085196e0_dp
+          par_a = 3.1213820e0_dp
+          par_sig = 0.5774108e0_dp
+          par_lam = 1.4533108e0_dp
+          par_gam = 1.1247945e0_dp
+          par_b = 3.1213820e0_dp
+          par_c = 2.5609104e0_dp
+          par_delta = 78.7590539e0_dp
+          par_mu = 0.6966326e0_dp
+          par_Qo = 312.1341346e0_dp
+          par_palp = 1.4074424e0_dp
+          par_bet = 0.0070975e0_dp
+          par_alp = 3.1083847e0_dp
 
-          u1 = -0.165799d0
-          u2 = 32.557d0
-          u3 = 0.286198d0
-          u4 = 0.66d0
+          u1 = -0.165799e0_dp
+          u2 = 32.557e0_dp
+          u3 = 0.286198e0_dp
+          u4 = 0.66e0_dp
 
           par_bg=par_a
           par_eta = par_delta/par_Qo
 
           do i=1, nat
-            ff(1,i) = 0.0d0
-            ff(2,i) = 0.0d0
-            ff(3,i) = 0.0d0
+            ff(1,i) = 0.0e0_dp
+            ff(2,i) = 0.0e0_dp
+            ff(3,i) = 0.0e0_dp
           end do
 
-          coord=0.d0
-          coord2=0.d0
-          ener=0.d0
-          ener2=0.d0
+          coord=0.e0_dp
+          coord2=0.e0_dp
+          ener=0.e0_dp
+          ener2=0.e0_dp
           istop=0
 
 
 !   COMBINE COEFFICIENTS
 
           Qort = sqrt(par_Qo)
-          muhalf = par_mu*0.5D0
+          muhalf = par_mu*0.5e0_dp
           u5 = u2*u4
           bmc = par_b-par_c
-          cmbinv = 1.0D0/(par_c-par_b)
+          cmbinv = 1.0e0_dp/(par_c-par_b)
 
 
 
@@ -1637,9 +1637,9 @@ CONTAINS
 
 !   RESET COORDINATION AND NEIGHBOR NUMBERS
 
-            coord_iat=0.d0
-            ener_iat=0.d0
-            Z = 0.0d0
+            coord_iat=0.e0_dp
+            ener_iat=0.e0_dp
+            Z = 0.0e0_dp
             n2 = 1
             n3 = 1
             nz = 1
@@ -1659,7 +1659,7 @@ CONTAINS
                 dz = -rel(3,n)
                 r=rel(4,n)
                 rinv=rel(5,n)
-                rmainv = 1.d0/(r-par_a)
+                rmainv = 1.e0_dp/(r-par_a)
                 s2_t0(n2) = par_cap_A*exp(par_sig*rmainv)
                 s2_t1(n2) = (par_cap_B*rinv)**par_rh
                 s2_t2(n2) = par_rh*rinv
@@ -1677,12 +1677,12 @@ CONTAINS
 
 ! coordination number calculated with soft cutoff between first
 ! nearest neighbor and midpoint of first and second nearest neighbor
-        if (r.le.2.36d0) then
-        coord_iat=coord_iat+1.d0
-        else if (r.ge.3.12d0) then
+        if (r.le.2.36e0_dp) then
+        coord_iat=coord_iat+1.e0_dp
+        else if (r.ge.3.12e0_dp) then
         else
-        xarg=(r-2.36d0)*(1.d0/(3.12d0-2.36d0))
-        coord_iat=coord_iat+(2*xarg+1.d0)*(xarg-1.d0)**2
+        xarg=(r-2.36e0_dp)*(1.e0_dp/(3.12e0_dp-2.36e0_dp))
+        coord_iat=coord_iat+(2*xarg+1.e0_dp)*(xarg-1.e0_dp)**2
         endif
 
 
@@ -1691,7 +1691,7 @@ CONTAINS
                 if(r .lt. par_bg)  then
 
                   num3(n3) = j
-                  rmbinv = 1.d0/(r-par_bg)
+                  rmbinv = 1.e0_dp/(r-par_bg)
                   temp1 = par_gam*rmbinv
                   temp0 = exp(temp1)
                   s3_g(n3) = temp0
@@ -1713,16 +1713,16 @@ CONTAINS
 
                   if(r .lt. par_b) then
                     if(r .lt. par_c) then
-                    Z = Z + 1.d0
+                    Z = Z + 1.e0_dp
                    else
                     xinv = bmc/(r-par_c)
                     xinv3 = xinv*xinv*xinv
-                    den = 1.d0/(1 - xinv3)
+                    den = 1.e0_dp/(1 - xinv3)
                     temp1 = par_alp*den
                     fZ = exp(temp1)
                     Z = Z + fZ
                     numz(nz) = j
-                    sz_df(nz) = fZ*temp1*den*3.d0*xinv3*xinv*cmbinv
+                    sz_df(nz) = fZ*temp1*den*3.e0_dp*xinv3*xinv*cmbinv
 !   df/dr
                     sz_dx(nz) = dx
                     sz_dy(nz) = dy
@@ -1746,7 +1746,7 @@ CONTAINS
 !   ZERO ACCUMULATION ARRAY FOR ENVIRONMENT FORCES
 
               do nl=1, nz-1
-                sz_sum(nl)=0.d0
+                sz_sum(nl)=0.e0_dp
               end do
 
 
@@ -1755,7 +1755,7 @@ CONTAINS
               temp0 = par_bet*Z
               pZ = par_palp*exp(-temp0*Z)
 !   bond order
-              dp1 = -2.d0*temp0*pZ
+              dp1 = -2.e0_dp*temp0*pZ
 !   derivative of bond order
 
 
@@ -1969,7 +1969,7 @@ CONTAINS
            lstb(indlst)=lay(jat)
 !        write(6,*) 'iat,indlst,lay(jat)',iat,indlst,lay(jat)
            tt=sqrt(rr2)
-           tti=1.d0/tt
+           tti=1.e0_dp/tt
            rel(1,indlst)=xrel*tti
            rel(2,indlst)=yrel*tti
            rel(3,indlst)=zrel*tti
@@ -2016,7 +2016,7 @@ CONTAINS
 !!     - ener_var: variance of the energy/atom
 !!     - coord_var: variance of the coordination number
 !!     - count: count is increased by one per call, has to be initialized
-!               to 0.d0 before first call of eip_bazant
+!               to 0.e0_dp before first call of eip_bazant
 !!
 !!   AUTHOR
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
@@ -2048,12 +2048,12 @@ CONTAINS
         REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: txyz
         REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: f2ij,f3ij,f3ik
 
-!        tmax_phi= 0.4500000d+01
+!        tmax_phi= 0.4500000e+01_dp
 !        cut=tmax_phi
-        cut= 0.4500000d+01
+        cut= 0.4500000e+01_dp
 
         if (count.eq.0)  open(unit=10,file='lenosky.mon',status='unknown')
-        count=count+1.d0
+        count=count+1.e0_dp
 
 ! linear scaling calculation of verlet list
         ll1=int(alat(1)/cut)
@@ -2621,21 +2621,21 @@ CONTAINS
         allocate(txyz(3,nat),f2ij(3,npjx),f3ij(3,npjkx),f3ik(3,npjkx))
 !$omp end critical
         if (iam.eq.0) then
-        ener=0.d0
-        ener2=0.d0
-        coord=0.d0
-        coord2=0.d0
+        ener=0.e0_dp
+        ener2=0.e0_dp
+        coord=0.e0_dp
+        coord2=0.e0_dp
         endif
 !$omp do
         do 121,iat=1,nat
-        fxyz(1,iat)=0.d0
-        fxyz(2,iat)=0.d0
-        fxyz(3,iat)=0.d0
+        fxyz(1,iat)=0.e0_dp
+        fxyz(2,iat)=0.e0_dp
+        fxyz(3,iat)=0.e0_dp
 121     continue
 !$omp barrier
 
 ! Each thread treats at most lot atoms
-        lot=int(float(nat)/float(npr)+.999999999999d0)
+        lot=int(float(nat)/float(npr)+.999999999999e0_dp)
         iat1=iam*lot+1
         iat2=min((iam+1)*lot,nat)
 !       write(6,*) 'subfeniat:iat1,iat2,iam',iat1,iat2,iam
@@ -2689,101 +2689,101 @@ CONTAINS
         implicit REAL(KIND=dp) (a-h,o-z)
         dimension lsta(2,nat),lstb(nnbrx*nat),rel(5,nnbrx*nat),txyz(3,nat)
         dimension f2ij(3,npjx),f3ij(3,npjkx),f3ik(3,npjkx)
-        REAL(KIND=dp) :: tmin_phi= 0.1500000d+01
-        REAL(KIND=dp) :: tmax_phi= 0.4500000d+01
-        REAL(KIND=dp) :: hi_phi= 3.00000000000d0
-        REAL(KIND=dp) :: hsixth_phi=5.55555555555556D-002
-        REAL(KIND=dp) :: h2sixth_phi=1.85185185185185D-002
+        REAL(KIND=dp) :: tmin_phi= 0.1500000e+01_dp
+        REAL(KIND=dp) :: tmax_phi= 0.4500000e+01_dp
+        REAL(KIND=dp) :: hi_phi= 3.00000000000e0_dp
+        REAL(KIND=dp) :: hsixth_phi=5.55555555555556e-002_dp
+        REAL(KIND=dp) :: h2sixth_phi=1.85185185185185e-002_dp
         REAL(KIND=dp), dimension(0:9) :: cof_phi  = &
-                     (/ 0.69299400000000d+01, -0.43995000000000d+00, &
-                       -0.17012300000000d+01, -0.16247300000000d+01, &
-                       -0.99696000000000d+00, -0.27391000000000d+00, &
-                       -0.24990000000000d-01, -0.17840000000000d-01, &
-                       -0.96100000000000d-02,  0.00000000000000d+00 /)
+                     (/ 0.69299400000000e+01_dp, -0.43995000000000e+00_dp, &
+                       -0.17012300000000e+01_dp, -0.16247300000000e+01_dp, &
+                       -0.99696000000000e+00_dp, -0.27391000000000e+00_dp, &
+                       -0.24990000000000e-01_dp, -0.17840000000000e-01_dp, &
+                       -0.96100000000000e-02_dp,  0.00000000000000e+00_dp /)
         REAL(KIND=dp), dimension(0:9) :: dof_phi  = &
-                     (/ 0.16533229480429d+03,  0.39415410391417d+02, &
-                        0.68710036300407d+01,  0.53406950884203d+01, &
-                        0.15347960162782d+01, -0.63347591535331d+01, &
-                       -0.17987794021458d+01,  0.47429676211617d+00, &
-                       -0.40087646318907d-01, -0.23942617684055d+00 /)
-        REAL(KIND=dp) :: tmin_rho= 0.1500000d+01
-        REAL(KIND=dp) :: tmax_rho= 0.3500000d+01
-        REAL(KIND=dp) :: hi_rho= 5.00000000000d0
-        REAL(KIND=dp) :: hsixth_rho=3.33333333333333D-002
-        REAL(KIND=dp) :: h2sixth_rho=6.66666666666667D-003
+                     (/ 0.16533229480429e+03_dp,  0.39415410391417e+02_dp, &
+                        0.68710036300407e+01_dp,  0.53406950884203e+01_dp, &
+                        0.15347960162782e+01_dp, -0.63347591535331e+01_dp, &
+                       -0.17987794021458e+01_dp,  0.47429676211617e+00_dp, &
+                       -0.40087646318907e-01_dp, -0.23942617684055e+00_dp /)
+        REAL(KIND=dp) :: tmin_rho= 0.1500000e+01_dp
+        REAL(KIND=dp) :: tmax_rho= 0.3500000e+01_dp
+        REAL(KIND=dp) :: hi_rho= 5.00000000000e0_dp
+        REAL(KIND=dp) :: hsixth_rho=3.33333333333333e-002_dp
+        REAL(KIND=dp) :: h2sixth_rho=6.66666666666667e-003_dp
         REAL(KIND=dp), dimension(0:10) :: cof_rho =  &
-                     (/ 0.13747000000000d+00, -0.14831000000000d+00, &
-                       -0.55972000000000d+00, -0.73110000000000d+00, &
-                       -0.76283000000000d+00, -0.72918000000000d+00, &
-                       -0.66620000000000d+00, -0.57328000000000d+00, &
-                       -0.40690000000000d+00, -0.16662000000000d+00, &
-                        0.00000000000000d+00 /)
+                     (/ 0.13747000000000e+00_dp, -0.14831000000000e+00_dp, &
+                       -0.55972000000000e+00_dp, -0.73110000000000e+00_dp, &
+                       -0.76283000000000e+00_dp, -0.72918000000000e+00_dp, &
+                       -0.66620000000000e+00_dp, -0.57328000000000e+00_dp, &
+                       -0.40690000000000e+00_dp, -0.16662000000000e+00_dp, &
+                        0.00000000000000e+00_dp /)
         REAL(KIND=dp), dimension(0:10) :: dof_rho =  &
-                    (/ -0.32275496741918d+01, -0.64119006516165d+01, &
-                        0.10030652280658d+02,  0.22937915289857d+01, &
-                        0.17416816033995d+01,  0.54648205741626d+00, &
-                        0.47189016693543d+00,  0.20569572748420d+01, &
-                        0.23192807336964d+01, -0.24908020962757d+00, &
-                       -0.12371959895186d+02 /)
-        REAL(KIND=dp) :: tmin_fff= 0.1500000d+01
-        REAL(KIND=dp) :: tmax_fff= 0.3500000d+01
-        REAL(KIND=dp) :: hi_fff= 4.50000000000d0
-        REAL(KIND=dp) :: hsixth_fff=3.70370370370370D-002
-        REAL(KIND=dp) :: h2sixth_fff=8.23045267489712D-003
+                    (/ -0.32275496741918e+01_dp, -0.64119006516165e+01_dp, &
+                        0.10030652280658e+02_dp,  0.22937915289857e+01_dp, &
+                        0.17416816033995e+01_dp,  0.54648205741626e+00_dp, &
+                        0.47189016693543e+00_dp,  0.20569572748420e+01_dp, &
+                        0.23192807336964e+01_dp, -0.24908020962757e+00_dp, &
+                       -0.12371959895186e+02_dp /)
+        REAL(KIND=dp) :: tmin_fff= 0.1500000e+01_dp
+        REAL(KIND=dp) :: tmax_fff= 0.3500000e+01_dp
+        REAL(KIND=dp) :: hi_fff= 4.50000000000e0_dp
+        REAL(KIND=dp) :: hsixth_fff=3.70370370370370e-002_dp
+        REAL(KIND=dp) :: h2sixth_fff=8.23045267489712e-003_dp
         REAL(KIND=dp), dimension(0:9) :: cof_fff  = &
-                     (/ 0.12503100000000d+01,  0.86821000000000d+00, &
-                        0.60846000000000d+00,  0.48756000000000d+00, &
-                        0.44163000000000d+00,  0.37610000000000d+00, &
-                        0.27145000000000d+00,  0.14814000000000d+00, &
-                        0.48550000000000d-01,  0.00000000000000d+00 /)
+                     (/ 0.12503100000000e+01_dp,  0.86821000000000e+00_dp, &
+                        0.60846000000000e+00_dp,  0.48756000000000e+00_dp, &
+                        0.44163000000000e+00_dp,  0.37610000000000e+00_dp, &
+                        0.27145000000000e+00_dp,  0.14814000000000e+00_dp, &
+                        0.48550000000000e-01_dp,  0.00000000000000e+00_dp /)
         REAL(KIND=dp), dimension(0:9) :: dof_fff  = &
-                     (/ 0.27904652711432d+02, -0.45230754228635d+01, &
-                        0.50531739800222d+01,  0.11806545027747d+01, &
-                       -0.66693699112098d+00, -0.89430653829079d+00, &
-                       -0.50891685571587d+00,  0.66278396115427d+00, &
-                        0.73976101109878d+00,  0.25795319944506d+01 /)
-        REAL(KIND=dp) :: tmin_uuu= -0.1770930d+01
-        REAL(KIND=dp) :: tmax_uuu= 0.7908520d+01
-        REAL(KIND=dp) :: hi_uuu= 0.723181585730594d0
-        REAL(KIND=dp) :: hsixth_uuu=0.230463095238095d0
-        REAL(KIND=dp) :: h2sixth_uuu=0.318679429600340d0
+                     (/ 0.27904652711432e+02_dp, -0.45230754228635e+01_dp, &
+                        0.50531739800222e+01_dp,  0.11806545027747e+01_dp, &
+                       -0.66693699112098e+00_dp, -0.89430653829079e+00_dp, &
+                       -0.50891685571587e+00_dp,  0.66278396115427e+00_dp, &
+                        0.73976101109878e+00_dp,  0.25795319944506e+01_dp /)
+        REAL(KIND=dp) :: tmin_uuu= -0.1770930e+01_dp
+        REAL(KIND=dp) :: tmax_uuu= 0.7908520e+01_dp
+        REAL(KIND=dp) :: hi_uuu= 0.723181585730594e0_dp
+        REAL(KIND=dp) :: hsixth_uuu=0.230463095238095e0_dp
+        REAL(KIND=dp) :: h2sixth_uuu=0.318679429600340e0_dp
         REAL(KIND=dp), dimension(0:7) :: cof_uuu  = &
-                    (/ -0.10749300000000d+01, -0.20045000000000d+00, &
-                        0.41422000000000d+00,  0.87939000000000d+00, &
-                        0.12668900000000d+01,  0.16299800000000d+01, &
-                        0.19773800000000d+01,  0.23961800000000d+01 /)
+                    (/ -0.10749300000000e+01_dp, -0.20045000000000e+00_dp, &
+                        0.41422000000000e+00_dp,  0.87939000000000e+00_dp, &
+                        0.12668900000000e+01_dp,  0.16299800000000e+01_dp, &
+                        0.19773800000000e+01_dp,  0.23961800000000e+01_dp /)
         REAL(KIND=dp), dimension(0:7) :: dof_uuu  = &
-                    (/ -0.14827125747284d+00, -0.14922155328475d+00, &
-                       -0.70113224223509d-01, -0.39449020349230d-01, &
-                       -0.15815242579643d-01,  0.26112640061855d-01, &
-                       -0.13786974745095d+00,  0.74941595372657d+00 /)
-        REAL(KIND=dp) :: tmin_ggg= -0.1000000d+01
-        REAL(KIND=dp) :: tmax_ggg= 0.8001400d+00
-        REAL(KIND=dp) :: hi_ggg= 3.88858644327663d0
-        REAL(KIND=dp) :: hsixth_ggg=4.28604761904762D-002
-        REAL(KIND=dp) :: h2sixth_ggg=1.10221225156463D-002
+                    (/ -0.14827125747284e+00_dp, -0.14922155328475e+00_dp, &
+                       -0.70113224223509e-01_dp, -0.39449020349230e-01_dp, &
+                       -0.15815242579643e-01_dp,  0.26112640061855e-01_dp, &
+                       -0.13786974745095e+00_dp,  0.74941595372657e+00_dp /)
+        REAL(KIND=dp) :: tmin_ggg= -0.1000000e+01_dp
+        REAL(KIND=dp) :: tmax_ggg= 0.8001400e+00_dp
+        REAL(KIND=dp) :: hi_ggg= 3.88858644327663e0_dp
+        REAL(KIND=dp) :: hsixth_ggg=4.28604761904762e-002_dp
+        REAL(KIND=dp) :: h2sixth_ggg=1.10221225156463e-002_dp
         REAL(KIND=dp), dimension(0:7) :: cof_ggg  = &
-                     (/ 0.52541600000000d+01,  0.23591500000000d+01, &
-                        0.11959500000000d+01,  0.12299500000000d+01, &
-                        0.20356500000000d+01,  0.34247400000000d+01, &
-                        0.49485900000000d+01,  0.56179900000000d+01 /)
+                     (/ 0.52541600000000e+01_dp,  0.23591500000000e+01_dp, &
+                        0.11959500000000e+01_dp,  0.12299500000000e+01_dp, &
+                        0.20356500000000e+01_dp,  0.34247400000000e+01_dp, &
+                        0.49485900000000e+01_dp,  0.56179900000000e+01_dp /)
         REAL(KIND=dp), dimension(0:7) :: dof_ggg  = &
-                     (/ 0.15826876132396d+02,  0.31176239377907d+02, &
-                        0.16589446539683d+02,  0.11083892500520d+02, &
-                        0.90887216383860d+01,  0.54902279653967d+01, &
-                       -0.18823313223755d+02, -0.77183416481005d+01 /)
+                     (/ 0.15826876132396e+02_dp,  0.31176239377907e+02_dp, &
+                        0.16589446539683e+02_dp,  0.11083892500520e+02_dp, &
+                        0.90887216383860e+01_dp,  0.54902279653967e+01_dp, &
+                       -0.18823313223755e+02_dp, -0.77183416481005e+01_dp /)
 
 ! initialize temporary private scalars for reduction sum on energies and
 ! private workarray txyz for forces forces
-        tener=0.d0
-        tener2=0.d0
-        tcoord=0.d0
-        tcoord2=0.d0
+        tener=0.e0_dp
+        tener2=0.e0_dp
+        tcoord=0.e0_dp
+        tcoord2=0.e0_dp
         istop=0
         do 121,iat=1,nat
-        txyz(1,iat)=0.d0
-        txyz(2,iat)=0.d0
-        txyz(3,iat)=0.d0
+        txyz(1,iat)=0.e0_dp
+        txyz(2,iat)=0.e0_dp
+        txyz(3,iat)=0.e0_dp
 121     continue
 
 
@@ -2791,12 +2791,12 @@ CONTAINS
 
         do 1000,iat=iat1,iat2
 
-        dens2=0.d0
-        dens3=0.d0
+        dens2=0.e0_dp
+        dens3=0.e0_dp
         jcnt=0
         jkcnt=0
-        coord_iat=0.d0
-        ener_iat=0.d0
+        coord_iat=0.e0_dp
+        ener_iat=0.e0_dp
         do 2000,jbr=lsta(1,iat),lsta(2,iat)
         jat=lstb(jbr)
         jcnt=jcnt+1
@@ -2814,24 +2814,24 @@ CONTAINS
 
 ! coordination number calculated with soft cutoff between first
 ! nearest neighbor and midpoint of first and second nearest neighbor
-        if (rij.le.2.36d0) then
-        coord_iat=coord_iat+1.d0
-        else if (rij.ge.3.12d0) then
+        if (rij.le.2.36e0_dp) then
+        coord_iat=coord_iat+1.e0_dp
+        else if (rij.ge.3.12e0_dp) then
         else
-        xarg=(rij-2.36d0)*(1.d0/(3.12d0-2.36d0))
-        coord_iat=coord_iat+(2*xarg+1.d0)*(xarg-1.d0)**2
+        xarg=(rij-2.36e0_dp)*(1.e0_dp/(3.12e0_dp-2.36e0_dp))
+        coord_iat=coord_iat+(2*xarg+1.e0_dp)*(xarg-1.e0_dp)**2
         endif
 
 ! pairpotential term
         call splint(cof_phi,dof_phi,tmin_phi,tmax_phi, &
            hsixth_phi,h2sixth_phi,hi_phi,10,rij,e_phi,ep_phi)
-        ener_iat=ener_iat+(e_phi*.5d0)
-        txyz(1,iat)=txyz(1,iat)-fxij*(ep_phi*.5d0)
-        txyz(2,iat)=txyz(2,iat)-fyij*(ep_phi*.5d0)
-        txyz(3,iat)=txyz(3,iat)-fzij*(ep_phi*.5d0)
-        txyz(1,jat)=txyz(1,jat)+fxij*(ep_phi*.5d0)
-        txyz(2,jat)=txyz(2,jat)+fyij*(ep_phi*.5d0)
-        txyz(3,jat)=txyz(3,jat)+fzij*(ep_phi*.5d0)
+        ener_iat=ener_iat+(e_phi*.5e0_dp)
+        txyz(1,iat)=txyz(1,iat)-fxij*(ep_phi*.5e0_dp)
+        txyz(2,iat)=txyz(2,iat)-fyij*(ep_phi*.5e0_dp)
+        txyz(3,iat)=txyz(3,iat)-fzij*(ep_phi*.5e0_dp)
+        txyz(1,jat)=txyz(1,jat)+fxij*(ep_phi*.5e0_dp)
+        txyz(2,jat)=txyz(2,jat)+fyij*(ep_phi*.5e0_dp)
+        txyz(3,jat)=txyz(3,jat)+fzij*(ep_phi*.5e0_dp)
 
 ! 2 body embedding term
         call splint(cof_rho,dof_rho,tmin_rho,tmax_rho, &
@@ -2872,9 +2872,9 @@ CONTAINS
 ! begin optimized version
         rik=rel(4,kbr)
       if (rik.gt.tmax_fff) then
-        fikp=0.d0 ; fik=0.d0
-        gjik=0.d0 ;  gjikp=0.d0 ; sik=0.d0
-        costheta=0.d0 ; fxik=0.d0 ; fyik=0.d0 ; fzik=0.d0
+        fikp=0.e0_dp ; fik=0.e0_dp
+        gjik=0.e0_dp ;  gjikp=0.e0_dp ; sik=0.e0_dp
+        costheta=0.e0_dp ; fxik=0.e0_dp ; fyik=0.e0_dp ; fzik=0.e0_dp
       else if (rik.lt.tmin_fff) then
         fxik=rel(1,kbr)
         fyik=rel(2,kbr)
@@ -2882,12 +2882,12 @@ CONTAINS
         costheta=fxij*fxik+fyij*fyik+fzij*fzik
         sik=rel(5,kbr)
         fikp=hi_fff*(cof_fff(1)-cof_fff(0)) -  &
-             ( dof_fff(1)+2.d0*dof_fff(0) )*hsixth_fff
+             ( dof_fff(1)+2.e0_dp*dof_fff(0) )*hsixth_fff
         fik=cof_fff(0) + (rik-tmin_fff)*fikp
         tt_ggg=(costheta-tmin_ggg)*hi_ggg
         if (costheta.gt.tmax_ggg) then
            gjikp=hi_ggg*(cof_ggg(8-1)-cof_ggg(8-2)) + &
-                ( 2.d0*dof_ggg(8-1)+dof_ggg(8-2) )*hsixth_ggg
+                ( 2.e0_dp*dof_ggg(8-1)+dof_ggg(8-2) )*hsixth_ggg
                  gjik=cof_ggg(8-1) + (costheta-tmax_ggg)*gjikp
         else
            klo_ggg=tt_ggg
@@ -2895,23 +2895,23 @@ CONTAINS
            cof_ggg_klo=cof_ggg(klo_ggg)
            dof_ggg_klo=dof_ggg(klo_ggg)
            b_ggg=tt_ggg-klo_ggg
-           a_ggg=1.d0-b_ggg
+           a_ggg=1.e0_dp-b_ggg
            cof_ggg_khi=cof_ggg(khi_ggg)
            dof_ggg_khi=dof_ggg(khi_ggg)
            b2_ggg=b_ggg*b_ggg
            gjik=a_ggg*cof_ggg_klo
            gjikp=cof_ggg_khi-cof_ggg_klo
            a2_ggg=a_ggg*a_ggg
-           cof1_ggg=a2_ggg-1.d0
-           cof2_ggg=b2_ggg-1.d0
+           cof1_ggg=a2_ggg-1.e0_dp
+           cof2_ggg=b2_ggg-1.e0_dp
            gjik=gjik+b_ggg*cof_ggg_khi
            gjikp=hi_ggg*gjikp
-           cof3_ggg=3.d0*b2_ggg
-           cof4_ggg=3.d0*a2_ggg
+           cof3_ggg=3.e0_dp*b2_ggg
+           cof4_ggg=3.e0_dp*a2_ggg
            cof1_ggg=a_ggg*cof1_ggg
            cof2_ggg=b_ggg*cof2_ggg
-           cof3_ggg=cof3_ggg-1.d0
-           cof4_ggg=cof4_ggg-1.d0
+           cof3_ggg=cof3_ggg-1.e0_dp
+           cof4_ggg=cof4_ggg-1.e0_dp
            yt1_ggg=cof1_ggg*dof_ggg_klo
            yt2_ggg=cof2_ggg*dof_ggg_khi
            ypt1_ggg=cof3_ggg*dof_ggg_khi
@@ -2933,29 +2933,29 @@ CONTAINS
         tt_ggg=(costheta-tmin_ggg)*hi_ggg
         if (costheta.gt.tmax_ggg) then
           gjikp=hi_ggg*(cof_ggg(8-1)-cof_ggg(8-2)) + &
-                ( 2.d0*dof_ggg(8-1)+dof_ggg(8-2) )*hsixth_ggg
+                ( 2.e0_dp*dof_ggg(8-1)+dof_ggg(8-2) )*hsixth_ggg
                 gjik=cof_ggg(8-1) + (costheta-tmax_ggg)*gjikp
           khi_fff=klo_fff+1
           cof_fff_klo=cof_fff(klo_fff)
           dof_fff_klo=dof_fff(klo_fff)
           b_fff=tt_fff-klo_fff
-          a_fff=1.d0-b_fff
+          a_fff=1.e0_dp-b_fff
           cof_fff_khi=cof_fff(khi_fff)
           dof_fff_khi=dof_fff(khi_fff)
           b2_fff=b_fff*b_fff
           fik=a_fff*cof_fff_klo
           fikp=cof_fff_khi-cof_fff_klo
           a2_fff=a_fff*a_fff
-          cof1_fff=a2_fff-1.d0
-          cof2_fff=b2_fff-1.d0
+          cof1_fff=a2_fff-1.e0_dp
+          cof2_fff=b2_fff-1.e0_dp
           fik=fik+b_fff*cof_fff_khi
           fikp=hi_fff*fikp
-          cof3_fff=3.d0*b2_fff
-          cof4_fff=3.d0*a2_fff
+          cof3_fff=3.e0_dp*b2_fff
+          cof4_fff=3.e0_dp*a2_fff
           cof1_fff=a_fff*cof1_fff
           cof2_fff=b_fff*cof2_fff
-          cof3_fff=cof3_fff-1.d0
-          cof4_fff=cof4_fff-1.d0
+          cof3_fff=cof3_fff-1.e0_dp
+          cof4_fff=cof4_fff-1.e0_dp
           yt1_fff=cof1_fff*dof_fff_klo
           yt2_fff=cof2_fff*dof_fff_khi
           ypt1_fff=cof3_fff*dof_fff_khi
@@ -2972,8 +2972,8 @@ CONTAINS
            dof_fff_klo=dof_fff(klo_fff)
               b_ggg=tt_ggg-klo_ggg
            b_fff=tt_fff-klo_fff
-              a_ggg=1.d0-b_ggg
-           a_fff=1.d0-b_fff
+              a_ggg=1.e0_dp-b_ggg
+           a_fff=1.e0_dp-b_fff
               cof_ggg_khi=cof_ggg(khi_ggg)
            cof_fff_khi=cof_fff(khi_fff)
               dof_ggg_khi=dof_ggg(khi_ggg)
@@ -2986,26 +2986,26 @@ CONTAINS
            fikp=cof_fff_khi-cof_fff_klo
               a2_ggg=a_ggg*a_ggg
            a2_fff=a_fff*a_fff
-              cof1_ggg=a2_ggg-1.d0
-           cof1_fff=a2_fff-1.d0
-              cof2_ggg=b2_ggg-1.d0
-           cof2_fff=b2_fff-1.d0
+              cof1_ggg=a2_ggg-1.e0_dp
+           cof1_fff=a2_fff-1.e0_dp
+              cof2_ggg=b2_ggg-1.e0_dp
+           cof2_fff=b2_fff-1.e0_dp
               gjik=gjik+b_ggg*cof_ggg_khi
            fik=fik+b_fff*cof_fff_khi
               gjikp=hi_ggg*gjikp
            fikp=hi_fff*fikp
-              cof3_ggg=3.d0*b2_ggg
-           cof3_fff=3.d0*b2_fff
-              cof4_ggg=3.d0*a2_ggg
-           cof4_fff=3.d0*a2_fff
+              cof3_ggg=3.e0_dp*b2_ggg
+           cof3_fff=3.e0_dp*b2_fff
+              cof4_ggg=3.e0_dp*a2_ggg
+           cof4_fff=3.e0_dp*a2_fff
               cof1_ggg=a_ggg*cof1_ggg
            cof1_fff=a_fff*cof1_fff
               cof2_ggg=b_ggg*cof2_ggg
            cof2_fff=b_fff*cof2_fff
-              cof3_ggg=cof3_ggg-1.d0
-           cof3_fff=cof3_fff-1.d0
-              cof4_ggg=cof4_ggg-1.d0
-           cof4_fff=cof4_fff-1.d0
+              cof3_ggg=cof3_ggg-1.e0_dp
+           cof3_fff=cof3_fff-1.e0_dp
+              cof4_ggg=cof4_ggg-1.e0_dp
+           cof4_fff=cof4_fff-1.e0_dp
               yt1_ggg=cof1_ggg*dof_ggg_klo
            yt1_fff=cof1_fff*dof_fff_klo
               yt2_ggg=cof2_ggg*dof_ggg_khi
@@ -3114,7 +3114,7 @@ CONTAINS
            lstb(indlst)=lay(jat)
 !        write(6,*) 'iat,indlst,lay(jat)',iat,indlst,lay(jat)
            tt=sqrt(rr2)
-           tti=1.d0/tt
+           tti=1.e0_dp/tt
            rel(1,indlst)=xrel*tti
            rel(2,indlst)=yrel*tti
            rel(3,indlst)=zrel*tti
@@ -3138,11 +3138,11 @@ CONTAINS
         tt=(x-tmin)*hi
         if (x.lt.tmin) then
           yp=hi*(ya(1)-ya(0)) -  &
-          ( y2a(1)+2.d0*y2a(0) )*hsixth
+          ( y2a(1)+2.e0_dp*y2a(0) )*hsixth
           y=ya(0) + (x-tmin)*yp
         else if (x.gt.tmax) then
           yp=hi*(ya(n-1)-ya(n-2)) +  &
-          ( 2.d0*y2a(n-1)+y2a(n-2) )*hsixth
+          ( 2.e0_dp*y2a(n-1)+y2a(n-2) )*hsixth
           y=ya(n-1) + (x-tmax)*yp
 ! otherwise evaluate cubic spline
         else
@@ -3151,23 +3151,23 @@ CONTAINS
           ya_klo=ya(klo)
           y2a_klo=y2a(klo)
           b=tt-klo
-          a=1.d0-b
+          a=1.e0_dp-b
           ya_khi=ya(khi)
           y2a_khi=y2a(khi)
           b2=b*b
           y=a*ya_klo
           yp=ya_khi-ya_klo
           a2=a*a
-          cof1=a2-1.d0
-          cof2=b2-1.d0
+          cof1=a2-1.e0_dp
+          cof2=b2-1.e0_dp
           y=y+b*ya_khi
           yp=hi*yp
-          cof3=3.d0*b2
-          cof4=3.d0*a2
+          cof3=3.e0_dp*b2
+          cof4=3.e0_dp*a2
           cof1=a*cof1
           cof2=b*cof2
-          cof3=cof3-1.d0
-          cof4=cof4-1.d0
+          cof3=cof3-1.e0_dp
+          cof4=cof4-1.e0_dp
           yt1=cof1*y2a_klo
           yt2=cof2*y2a_khi
           ypt1=cof3*y2a_khi

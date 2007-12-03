@@ -76,8 +76,8 @@ MODULE qs_linres_nmr_shift
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_transfer,&
                                              pw_p_type,&
+                                             pw_transfer,&
                                              pw_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -335,13 +335,13 @@ CONTAINS
           ! the factor 2 should be already included in the matrix elements
           contrib = 0.0_dp
           CALL cp_sm_fm_multiply(op_mom_der_ao(ii,iii)%matrix,psi_rxp_istate,&
-               &                 momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+               &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
           CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
           chi(idir) = chi(idir) + 2.0_dp * contrib
 
           contrib = 0.0_dp
           CALL cp_sm_fm_multiply(op_mom_der_ao(iii,ii)%matrix,psi_rxp_istate,&
-               &                 momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+               &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
           CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
           chi(idir) = chi(idir) - 2.0_dp *contrib
           !
@@ -349,13 +349,13 @@ CONTAINS
           ! factor 2 not included in the matrix elements
           contrib = 0.0_dp
           CALL cp_sm_fm_multiply(op_p_ao(iii)%matrix,psi_rxp_istate,&
-               &                 momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+               &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
           CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
           chi(idir) = chi(idir) + 2.0_dp*dk(ii)*contrib
           !
           contrib2 = 0.0_dp
           CALL cp_sm_fm_multiply(op_p_ao(ii)%matrix,psi_rxp_istate,&
-               &                 momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+               &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
           CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
           chi(idir) = chi(idir) - 2.0_dp*dk(iii)*contrib2
           !
@@ -365,13 +365,13 @@ CONTAINS
           contrib = 0.0_dp
           idir2 = ind_m2(ii,iiB)
           CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,iii)%matrix,psi_p2_istate,&
-               &                 momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+               &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
           CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
           chi(idir) = chi(idir) - 2.0_dp * contrib
           contrib2 = 0.0_dp
           IF(iiB==iii) THEN
              CALL cp_sm_fm_multiply(op_mom_ao(ii)%matrix,psi_p2_istate,&
-                  &                 momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+                  &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
              CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
              chi(idir) = chi(idir) - contrib2
           ENDIF
@@ -379,13 +379,13 @@ CONTAINS
           contrib = 0.0_dp
           idir2 = ind_m2(iii,iiB)
           CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,ii)%matrix,psi_p2_istate,&
-               &                 momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+               &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
           CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
           chi(idir) = chi(idir) + 2.0_dp * contrib
           contrib2 = 0.0_dp
           IF(iiB==ii) THEN
              CALL cp_sm_fm_multiply(op_mom_ao(iii)%matrix,psi_p2_istate,&
-                  &                 momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+                  &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
              CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
              chi(idir) = chi(idir) + contrib2
           ENDIF
@@ -396,13 +396,13 @@ CONTAINS
           ! no additional correction terms because of the orthogonality between C0 and C1
           contrib = 0.0_dp
           CALL cp_sm_fm_multiply(op_mom_der_ao(iiB,iii)%matrix,psi_p2_istate,&
-               &                 momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+               &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
           CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
           chi(idir) = chi(idir) - 2.0_dp*dk(ii)*contrib
           !
           contrib2 = 0.0_dp
           CALL cp_sm_fm_multiply(op_mom_der_ao(iiB,ii)%matrix,psi_p2_istate,&
-               &                 momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+               &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
           CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
           chi(idir) = chi(idir) + 2.0_dp*dk(iii)*contrib2
           !
@@ -412,13 +412,13 @@ CONTAINS
           contrib = 0.0_dp
           idir2 = ind_m2(ii,iiiB)
           CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,iii)%matrix,psi_p1_istate,&
-               &                 momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+               &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
           CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
           chi(idir) = chi(idir) + 2.0_dp*contrib
           contrib2 = 0.0_dp
           IF(iiiB==iii) THEN
              CALL cp_sm_fm_multiply(op_mom_ao(ii)%matrix,psi_p1_istate,&
-                  &                 momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+                  &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
              CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
              chi(idir) = chi(idir) + contrib2
           ENDIF
@@ -426,13 +426,13 @@ CONTAINS
           contrib = 0.0_dp
           idir2 = ind_m2(iii,iiiB)
           CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,ii)%matrix,psi_p1_istate,&
-               &                 momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+               &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
           CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
           chi(idir) = chi(idir) - 2.0_dp * contrib
           contrib2 = 0.0_dp
           IF(iiiB==ii) THEN
              CALL cp_sm_fm_multiply(op_mom_ao(iii)%matrix,psi_p1_istate,&
-                  &                 momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+                  &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
              CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
              chi(idir) = chi(idir) - contrib2
           ENDIF
@@ -442,13 +442,13 @@ CONTAINS
           ! the factor 2 should be already included in the matrix elements
           contrib = 0.0_dp
           CALL cp_sm_fm_multiply(op_mom_der_ao(iiiB,iii)%matrix,psi_p1_istate,&
-               &                 momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+               &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
           CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
           chi(idir) = chi(idir) + 2.0_dp*dk(ii)*contrib
           !
           contrib2 = 0.0_dp
           CALL cp_sm_fm_multiply(op_mom_der_ao(iiiB,ii)%matrix,psi_p1_istate,&
-               &                 momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+               &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
           CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
           chi(idir) = chi(idir) - 2.0_dp*dk(iii)*contrib2
 
@@ -874,8 +874,8 @@ CONTAINS
     END IF
     CALL  dcopy(9,chi_sym_tot,1,chi_tmp,1)
     CALL  diamat_all(chi_tmp,eigenv)
-    chi_iso   = (eigenv(1)+ eigenv(2)+eigenv(3))/3.d0
-    chi_aniso =  eigenv(3)-(eigenv(2)+eigenv(1))/2.d0
+    chi_iso   = (eigenv(1)+ eigenv(2)+eigenv(3))/3.e0_dp
+    chi_aniso =  eigenv(3)-(eigenv(2)+eigenv(1))/2.e0_dp
     !
     IF(output_unit > 0) THEN
        WRITE(output_unit,'(T2,A,E24.16)') 'CheckSum Chi =',&

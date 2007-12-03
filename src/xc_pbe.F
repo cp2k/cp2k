@@ -28,9 +28,9 @@
 !!   SOURCE
 !****************************************************************************
 MODULE xc_pbe
-  USE bibliography,                    ONLY: cite_reference,&
-                                             Perdew1996,&
-                                             Zhang1998
+  USE bibliography,                    ONLY: Perdew1996,&
+                                             Zhang1998,&
+                                             cite_reference
   USE input_constants,                 ONLY: xc_pbe_orig,&
                                              xc_rev_pbe
   USE input_section_types,             ONLY: section_vals_type,&

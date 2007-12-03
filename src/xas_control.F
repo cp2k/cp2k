@@ -446,7 +446,7 @@ CONTAINS
     xas_control%ub_atom = 1
     xas_control%state_type = xas_1s_type    
     xas_control%max_scf = 150
-    xas_control%eps_scf = 0.5d-6
+    xas_control%eps_scf = 0.5e-6_dp
     xas_control%localized_wfn = .FALSE. 
     xas_control%xas_restart = .FALSE. 
     xas_control%write_restart_each = 0

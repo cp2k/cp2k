@@ -24,8 +24,8 @@
 !!   SOURCE
 !****************************************************************************
 MODULE xc_xbecke88
-  USE bibliography,                    ONLY: cite_reference,&
-                                             Becke1988
+  USE bibliography,                    ONLY: Becke1988,&
+                                             cite_reference
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
@@ -85,9 +85,7 @@ CONTAINS
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
-    REAL(KIND=dp)                            :: sx
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lda_info', &
       routineP = moduleN//':'//routineN
@@ -139,8 +137,7 @@ CONTAINS
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lsd_info', &
       routineP = moduleN//':'//routineN
@@ -195,9 +192,8 @@ CONTAINS
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
-    TYPE(section_vals_type), POINTER         :: xb88_params 
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(section_vals_type), POINTER         :: xb88_params
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lda_eval', &
       routineP = moduleN//':'//routineN
@@ -205,7 +201,8 @@ CONTAINS
     INTEGER                                  :: handle, npoints, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: epsilon_norm_drho, epsilon_rho,sx
+    REAL(kind=dp)                            :: epsilon_norm_drho, &
+                                                epsilon_rho, sx
     REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndrho, &
       e_ndrho_ndrho, e_ndrho_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho, &
       e_ndrho_rho_rho, e_rho, e_rho_rho, e_rho_rho_rho, norm_drho, rho, &
@@ -355,9 +352,9 @@ CONTAINS
       e_ndrho_ndrho, e_ndrho_rho, e_rho_rho, e_ndrho, e_rho, e_0
     REAL(kind=dp), DIMENSION(1:npoints), &
       INTENT(in)                             :: norm_drho, rho_1_3, rho
-    REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_norm_drho, sx
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho, &
+                                                epsilon_norm_drho, sx
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lda_calc', &
       routineP = moduleN//':'//routineN
@@ -779,8 +776,7 @@ CONTAINS
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
     TYPE(section_vals_type), POINTER         :: xb88_params
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lsd_eval', &
       routineP = moduleN//':'//routineN
@@ -993,8 +989,7 @@ CONTAINS
       e_ndrho_ndrho_ndrho_spin
     INTEGER, INTENT(in)                      :: grad_deriv, npoints
     REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho, sx
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lsd_calc', &
       routineP = moduleN//':'//routineN

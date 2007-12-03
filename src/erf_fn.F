@@ -104,18 +104,18 @@ SUBROUTINE CALERF(ARG,RESULT,JINT)
 !
 !   Approximate values for some important machines are:
 !
-!                          XMIN       XINF        XNEG     XSMALL
+!                          XMIN            XINF        XNEG     XSMALL
 !
-!  CDC 7600      (S.P.)  3.13E-294   1.26E+322   -27.220  7.11E-15
-!  CRAY-1        (S.P.)  4.58E-2467  5.45E+2465  -75.345  7.11E-15
+!  CDC 7600      (S.P.)  3.13E-294      1.26E+322     -27.220  7.11E-15
+!  CRAY-1        (S.P.)  4.58E-2467     5.45E+2465    -75.345  7.11E-15
 !  IEEE (IBM/XT,
-!    SUN, etc.)  (S.P.)  1.18E-38    3.40E+38     -9.382  5.96E-8
+!    SUN, etc.)  (S.P.)  1.18E-38       3.40E+38       -9.382  5.96E-8
 !  IEEE (IBM/XT,
-!    SUN, etc.)  (D.P.)  2.23D-308   1.79D+308   -26.628  1.11D-16
-!  IBM 195       (D.P.)  5.40D-79    7.23E+75    -13.190  1.39D-17
-!  UNIVAC 1108   (D.P.)  2.78D-309   8.98D+307   -26.615  1.73D-18
-!  VAX D-Format  (D.P.)  2.94D-39    1.70D+38     -9.345  1.39D-17
-!  VAX G-Format  (D.P.)  5.56D-309   8.98D+307   -26.615  1.11D-16
+!    SUN, etc.)  (D.P.)  2.23e-308_dp   1.79e+308_dp  -26.628  1.11e-16_dp
+!  IBM 195       (D.P.)  5.40e-79_dp    7.23E+75      -13.190  1.39e-17_dp
+!  UNIVAC 1108   (D.P.)  2.78e-309_dp   8.98e+307_dp  -26.615  1.73e-18_dp
+!  VAX D-Format  (D.P.)  2.94e-39_dp    1.70e+38_dp    -9.345  1.39e-17_dp
+!  VAX G-Format  (D.P.)  5.56e-309_dp   8.98e+307_dp  -26.615  1.11e-16_dp
 !
 !
 !                          XBIG       XHUGE       XMAX
@@ -125,11 +125,11 @@ SUBROUTINE CALERF(ARG,RESULT,JINT)
 !  IEEE (IBM/XT,
 !    SUN, etc.)  (S.P.)   9.194      2.90E+3     4.79E+37
 !  IEEE (IBM/XT,
-!    SUN, etc.)  (D.P.)  26.543      6.71D+7     2.53D+307
-!  IBM 195       (D.P.)  13.306      1.90D+8     7.23E+75
-!  UNIVAC 1108   (D.P.)  26.582      5.37D+8     8.98D+307
-!  VAX D-Format  (D.P.)   9.269      1.90D+8     1.70D+38
-!  VAX G-Format  (D.P.)  26.569      6.71D+7     8.98D+307
+!    SUN, etc.)  (D.P.)  26.543      6.71e+7_dp  2.53e+307_dp
+!  IBM 195       (D.P.)  13.306      1.90e+8_dp  7.23E+75
+!  UNIVAC 1108   (D.P.)  26.582      5.37e+8_dp  8.98e+307_dp
+!  VAX D-Format  (D.P.)   9.269      1.90e+8_dp  1.70e+38_dp
+!  VAX G-Format  (D.P.)  26.569      6.71e+7_dp  8.98e+307_dp
 !
 !*******************************************************************
 !*******************************************************************

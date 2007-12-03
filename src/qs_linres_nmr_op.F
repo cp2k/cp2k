@@ -41,8 +41,8 @@ MODULE qs_linres_nmr_op
                                              cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_set_submatrix,&
-                                             cp_fm_type,&
-                                             cp_fm_to_fm
+                                             cp_fm_to_fm,&
+                                             cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -62,8 +62,9 @@ MODULE qs_linres_nmr_op
                                              mo_set_p_type
   USE qs_operators_ao,                 ONLY: p_xyz_ao,&
                                              rmc_x_p_xyz_ao
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
-                                             checksum_matrix, set_matrix
+  USE sparse_matrix_types,             ONLY: checksum_matrix,&
+                                             real_matrix_p_type,&
+                                             set_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -122,7 +123,7 @@ CONTAINS
                                                 nsgf, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     LOGICAL                                  :: failure, ionode
-    REAL(dp)                                 :: ck(3), ckdk(3), dk(3), chk(3)
+    REAL(dp)                                 :: chk(3), ck(3), ckdk(3), dk(3)
     REAL(dp), DIMENSION(:, :), POINTER       :: basisfun_center, vecbuf_c0
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -204,9 +205,9 @@ CONTAINS
     ENDIF
 
     DO ispin=1,dft_control%nspins
-       p_psi0(ispin,1)%matrix%local_data=0d0
-       p_psi0(ispin,2)%matrix%local_data=0d0
-       p_psi0(ispin,3)%matrix%local_data=0d0
+       p_psi0(ispin,1)%matrix%local_data=0e0_dp
+       p_psi0(ispin,2)%matrix%local_data=0e0_dp
+       p_psi0(ispin,3)%matrix%local_data=0e0_dp
        CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo,homo=homo)
        DO istate = 1,homo    
           CALL set_matrix(op_rmd_ao(1)%matrix,0.0_dp)
@@ -234,9 +235,9 @@ CONTAINS
     chk(2) = checksum_matrix(op_rmd_ao(2)%matrix,para_env)
     chk(3) = checksum_matrix(op_rmd_ao(3)%matrix,para_env)
     IF(output_unit>0) THEN
-       write(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum L_x =',chk(1)
-       write(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum L_y =',chk(2)
-       write(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum L_z =',chk(3)
+       WRITE(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum L_x =',chk(1)
+       WRITE(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum L_y =',chk(2)
+       WRITE(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum L_z =',chk(3)
     ENDIF
 !************************************************************
     !

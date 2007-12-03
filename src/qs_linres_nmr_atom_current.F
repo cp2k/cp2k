@@ -32,6 +32,7 @@ MODULE qs_linres_nmr_atom_current
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE block_p_types,                   ONLY: block_p_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
@@ -41,11 +42,11 @@ MODULE qs_linres_nmr_atom_current
   USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: indso,&
                                              nsoset
-  USE particle_types,                  ONLY: particle_type,&
-                                             get_particle_set
+  USE particle_types,                  ONLY: get_particle_set,&
+                                             particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             set_qs_env,&
-                                             qs_environment_type
+                                             qs_environment_type,&
+                                             set_qs_env
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: harmonics_atom_type
   USE qs_linres_nmr_op,                ONLY: fac_vecp,&
@@ -60,23 +61,22 @@ MODULE qs_linres_nmr_atom_current
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
        neighbor_node_type, next, reduced_3c_list_type
-  USE qs_oce_types,                    ONLY: allocate_vtriple,&
-                                             build_reduced_3c_lists,&
-                                             oce_matrix_type,&
-                                             retrieve_sac_list,&
-                                             dist_list_4oce_type,&
-                                             create_oce_set,&
-                                             allocate_oce_set,&
-                                             prepare_oce_coeff
   USE qs_oce_methods,                  ONLY: set_up_oce
-  USE block_p_types,                   ONLY: block_p_type
+  USE qs_oce_types,                    ONLY: allocate_oce_set,&
+                                             allocate_vtriple,&
+                                             build_reduced_3c_lists,&
+                                             create_oce_set,&
+                                             dist_list_4oce_type,&
+                                             oce_matrix_type,&
+                                             prepare_oce_coeff,&
+                                             retrieve_sac_list
   USE qs_rho_atom_types,               ONLY: rho_atom_coeff
   USE sparse_matrix_types,             ONLY: get_block_node,&
                                              real_matrix_p_type
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
-  USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -134,7 +134,8 @@ CONTAINS
       last_katom, max_gau, max_nsgf, maxsoc, nat, natom, nkind, nlist, nnode, &
       nnode_c, nsetc, nsgfa, nsgfb, nsoctot, nspins
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, new_atom_b, new_atom_c, paw_atom
+    LOGICAL                                  :: failure, new_atom_b, &
+                                                new_atom_c, paw_atom
     REAL(dp)                                 :: rab(3), rbc(3)
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: PC
@@ -158,8 +159,10 @@ CONTAINS
     TYPE(rho_atom_coeff), DIMENSION(:), &
       POINTER                                :: jp_block, jp_ii_block, &
                                                 jp_iii_block, jp_RARnu
-    !
-    !
+
+!
+!
+
     CALL timeset("calculate_jrho_atom_coeff","I"," ",handle)
     !
     failure =.FALSE.
@@ -590,7 +593,7 @@ CONTAINS
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf
     LOGICAL                                  :: failure, paw_atom
-    LOGICAL, ALLOCATABLE, DIMENSION(:,:)     :: is_set_to_0
+    LOGICAL, ALLOCATABLE, DIMENSION(:, :)    :: is_set_to_0
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: g1, g2
     REAL(dp), ALLOCATABLE, DIMENSION(:, :) :: cjc_h_block, cjc_ii_h_block, &
       cjc_ii_s_block, cjc_iii_h_block, cjc_iii_s_block, cjc_s_block, dgg_1, &
@@ -612,8 +615,10 @@ CONTAINS
     TYPE(jrho_atom_type), DIMENSION(:), &
       POINTER                                :: jrho1_atom_set
     TYPE(jrho_atom_type), POINTER            :: jrho1_atom
-    !
-    !
+
+!
+!
+
     CALL timeset("calculate_jrho_atom_rad","I"," ",handle)
     !
     failure =.FALSE.
@@ -751,8 +756,8 @@ CONTAINS
                       DO ispin=1,nspins
                          !------------------------------------------------------------------
                          ! mQai_\alpha\alpha'
-                         cjc_h_block = HUGE(1d0)!0.0_dp
-                         cjc_s_block = HUGE(1d0)!0.0_dp
+                         cjc_h_block = HUGE(1e0_dp)!0.0_dp
+                         cjc_s_block = HUGE(1e0_dp)!0.0_dp
                          !
                          ! Hard term
                          coeff => jrho1_atom_set(iatom)%cjc_h(ispin)%r_coef
@@ -765,8 +770,8 @@ CONTAINS
                               &coeff(iso1_first:iso1_last,iso2_first:iso2_last)
                          !------------------------------------------------------------------
                          ! Qci_\alpha\alpha'
-                         cjc_ii_h_block = HUGE(1d0)!0.0_dp
-                         cjc_ii_s_block = HUGE(1d0)!0.0_dp
+                         cjc_ii_h_block = HUGE(1e0_dp)!0.0_dp
+                         cjc_ii_s_block = HUGE(1e0_dp)!0.0_dp
                          !
                          ! Hard term
                          coeff => jrho1_atom_set(iatom)%cjc_ii_h(ispin)%r_coef
@@ -779,8 +784,8 @@ CONTAINS
                               &   coeff(iso1_first:iso1_last,iso2_first:iso2_last)
                          !------------------------------------------------------------------
                          ! Qbi_\alpha\alpha'
-                         cjc_iii_h_block = HUGE(1d0)!0.0_dp
-                         cjc_iii_s_block = HUGE(1d0)!0.0_dp
+                         cjc_iii_h_block = HUGE(1e0_dp)!0.0_dp
+                         cjc_iii_s_block = HUGE(1e0_dp)!0.0_dp
                          !
                          ! Hard term
                          coeff => jrho1_atom_set(iatom)%cjc_iii_h(ispin)%r_coef
@@ -897,8 +902,8 @@ CONTAINS
                                Fr_c_s_ii(1:nr,iso)  = Fr_c_s_ii(1:nr,iso) + &
                                     &                 gg(1:nr,l)*cjc_ii_s_block(iso1,iso2)*&
                                     &                 my_CG(iso1,iso2,iso)
-                               Fr_c_h_ii(1:nr,iso)  = 1.23456789e10! HUGE(1d0)
-                               Fr_c_s_ii(1:nr,iso)  = 1.23456789e10! HUGE(1d0)
+                               Fr_c_h_ii(1:nr,iso)  = 1.23456789e10_dp! HUGE(1e0_dp)
+                               Fr_c_s_ii(1:nr,iso)  = 1.23456789e10_dp! HUGE(1e0_dp)
                                !------------------------------------------------------------------
                                ! Pbi
                                ! not needed
@@ -912,8 +917,8 @@ CONTAINS
                                Fr_c_s_iii(1:nr,iso) = Fr_c_s_iii(1:nr,iso) + &
                                     &                 gg(1:nr,l)*cjc_iii_s_block(iso1,iso2)*&
                                     &                 my_CG(iso1,iso2,iso)
-                               Fr_c_h_iii(1:nr,iso) = 1.23456789e10!HUGE(1d0)
-                               Fr_c_s_iii(1:nr,iso) = 1.23456789e10!HUGE(1d0)
+                               Fr_c_h_iii(1:nr,iso) = 1.23456789e10_dp!HUGE(1e0_dp)
+                               Fr_c_s_iii(1:nr,iso) = 1.23456789e10_dp!HUGE(1e0_dp)
                                !------------------------------------------------------------------
                             ENDDO !icg
                             !
@@ -1023,15 +1028,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'shift_atom', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, ia, iat, iatom, idir2, idir3, ikind, ir, ispin, jatom, &
-      mepos, n_nics, na, natom, natom_tot, nkind, nr, nspins, num_pe, &
-      output_unit, istat
+    INTEGER :: handle, ia, iat, iatom, idir2, idir3, ikind, ir, ispin, istat, &
+      jatom, mepos, n_nics, na, natom, natom_tot, nkind, nr, nspins, num_pe, &
+      output_unit
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, jatomisneighbor, &
                                                 paw_atom, store_current
     REAL(dp) :: ddiff, distance, itegrated_jrho, jrho1_tot, r_iatom(3), &
       r_jatom(3), rdiff(3), rij(3), rvec(3), scale_fac, threshold
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: chemical_shift_loc_tmp
     REAL(dp), DIMENSION(:, :), POINTER       :: jrho_h_grid, jrho_s_grid, &
                                                 r_nics
     REAL(dp), DIMENSION(:, :, :), POINTER    :: chemical_shift_loc, &
@@ -1050,9 +1056,10 @@ CONTAINS
     TYPE(jrho_atom_type), POINTER            :: jrho1_atom
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    REAL(dp), DIMENSION(:,:), ALLOCATABLE    :: chemical_shift_loc_tmp
+
 !
 !
+
     CALL timeset("shift_atom","I"," ",handle)
     !
     failure =.FALSE.
@@ -1438,16 +1445,21 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'list_3c_jrho_atom', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iab, iat, iatom, ikind, &
-                                                ilist, inode, jatom, jkind, &
-                                                last_jatom, nat, natom, &
-                                                nkind, nlist, nnode, nsgf, istat, i
+    INTEGER :: i, iab, iat, iatom, ikind, ilist, inode, istat, jatom, jkind, &
+      last_jatom, nat, natom, nkind, nlist, nnode, nsgf
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, new_atom_b
     REAL(dp)                                 :: rab(3)
+    REAL(dp), DIMENSION(:, :), POINTER       :: C_coeff_hh, C_coeff_ss
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(block_p_type), DIMENSION(:), &
+      POINTER                                :: oceh, oces
+    TYPE(dist_list_4oce_type), &
+      DIMENSION(:), POINTER                  :: dist_list
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb, sac_oce, sbc_oce
     TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
@@ -1458,15 +1470,10 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(reduced_3c_list_type), &
       DIMENSION(:), POINTER                  :: reduced_3c_oce
-    TYPE(dist_list_4oce_type), &
-         DIMENSION(:), POINTER               :: dist_list
-    TYPE(block_p_type), DIMENSION(:), &
-         POINTER                             :: oceh, oces
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf,last_sgf
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
-    REAL(dp), POINTER, DIMENSION(:,:)        :: C_coeff_hh,C_coeff_ss
-    !
-    !
+
+!
+!
+
     NULLIFY(sac_oce, sbc_oce, oce, &
          &  atomic_kind,atomic_kind_set,&
          &  sab_orb_neighbor_list,sab_orb_neighbor_list_local,&

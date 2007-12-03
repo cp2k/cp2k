@@ -23,29 +23,26 @@
 
 MODULE qs_linres_methods
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                             cp_fm_frobenius_norm,&
+                                             cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_symm,&
-                                             cp_fm_trace,&
-                                             cp_fm_column_scale,&
-                                             cp_fm_frobenius_norm
+                                             cp_fm_trace
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_invert
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              fm_pool_create_fm,&
                                              fm_pools_create_fm_vect,&
                                              fm_pools_give_back_fm_vect
-  USE cp_fm_types,                     ONLY: cp_fm_get_element,&
-                                             cp_fm_get_info,&
-                                             cp_fm_maxabsval,&
+  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_to_fm
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
@@ -75,7 +72,6 @@ MODULE qs_linres_methods
   USE qs_p_env_methods,                ONLY: p_preortho
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_tddfpt_eigensolver,           ONLY: apply_op
-  USE qs_tddfpt_utils,                 ONLY: normalize
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -120,26 +116,28 @@ CONTAINS
                              centers_only,error)
     !
     TYPE(localized_wfn_control_type), &
-         POINTER                             :: localized_wfn_control
+      POINTER                                :: localized_wfn_control
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: nspins
     TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(IN), OPTIONAL            :: centers_only
     TYPE(cp_error_type), INTENT(INOUT)       :: error
-    !
+
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_localize', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin, istate, n_mo(2), &
                                                 nelectron, nmoloc(2), &
                                                 output_unit
-    LOGICAL                                  :: failure,my_centers_only
+    LOGICAL                                  :: failure, my_centers_only
     REAL(dp)                                 :: maxocc
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(mo_set_p_type), DIMENSION(:), &
-         POINTER                             :: mos
+      POINTER                                :: mos
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(section_vals_type), POINTER         :: loc_section, lr_section
+
+!
 
     failure = .FALSE.
     NULLIFY(logger, lr_section, loc_section)
@@ -223,33 +221,36 @@ CONTAINS
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
-         POINTER                             :: psi1, h1_psi0
+      POINTER                                :: psi1, h1_psi0
     TYPE(cp_error_type), INTENT(INOUT)       :: error
-    !
+
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_scf', &
-         routineP = moduleN//':'//routineN
-    INTEGER                                  :: handle,homo,i,ispin, &
-                                                istat,iter,nao,&
-                                                nvectors,output_unit
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, homo, i, ispin, &
+                                                istat, iter, nao, output_unit
     LOGICAL                                  :: failure
-    REAL(dp)                                 :: out_of_ortho,tmp,tmp1,&
-                                                tmp2,norm,norm_max
+    REAL(dp)                                 :: norm, norm_max, out_of_ortho, &
+                                                tmp1, tmp2
     REAL(dp), DIMENSION(:), POINTER          :: occupations
     TYPE(cp_fm_p_type), DIMENSION(:), &
-         POINTER                             :: Ab,b,R,X
+      POINTER                                :: Ab, b, R, X
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
-         POINTER                             :: ao_mo_fm_pools
+      POINTER                                :: ao_mo_fm_pools
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(mo_set_p_type), DIMENSION(:), &
-         POINTER                             :: mos
+      POINTER                                :: mos
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(real_matrix_p_type), DIMENSION(:), &
-         POINTER                             :: matrix_s
+      POINTER                                :: matrix_s
     TYPE(section_vals_type), POINTER         :: lr_section
-    !
+
+!
+!
+
     failure = .FALSE.
     CALL timeset(routineN,"I","",handle)
    
@@ -438,6 +439,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_p_env_init', &
       routineP = moduleN//':'//routineN
+
     INTEGER                                  :: ispin, ncol, nrow
     LOGICAL                                  :: failure
 
@@ -511,9 +513,10 @@ CONTAINS
       POINTER                                :: b, Ab
     INTEGER, INTENT(IN)                      :: nspins, iter
     TYPE(cp_error_type), INTENT(INOUT)       :: error
-    !
+
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_scf_mini', &
       routineP = moduleN//':'//routineN
+
     INTEGER                                  :: ispin, k, nao, nmo
     LOGICAL                                  :: failure
     REAL(dp)                                 :: polak_gamma, test_down, tmp
@@ -522,6 +525,8 @@ CONTAINS
       POINTER                                :: mos
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s, matrix_t
+
+!
 
     failure = .FALSE.
 
@@ -694,11 +699,14 @@ CONTAINS
     TYPE(qs_p_env_type), POINTER             :: p_env
     INTEGER                                  :: nspins
     TYPE(cp_error_type), INTENT(inout)       :: error
-    !
+
     CHARACTER(len=*), PARAMETER :: routineN = 'linres_derivative', &
       routineP = moduleN//':'//routineN
+
     INTEGER                                  :: ispin, n_ao, n_mo
     LOGICAL                                  :: failure
+
+!
 
     failure = .FALSE.
     DO ispin = 1,nspins
@@ -726,9 +734,11 @@ CONTAINS
     TYPE(linres_control_type), POINTER       :: linres_control
     INTEGER                                  :: nspins
     TYPE(cp_error_type), INTENT(inout)       :: error
-    !
+
     INTEGER                                  :: ispin
     REAL(dp)                                 :: ds
+
+!
 
     SELECT CASE(linres_control%ls_method)
       CASE(lr_ls_gold)
@@ -758,10 +768,12 @@ CONTAINS
     REAL(dp)                                 :: ds_min
     INTEGER                                  :: nspins
     TYPE(cp_error_type), INTENT(INOUT)       :: error
-    !
+
     INTEGER                                  :: count, ispin
     REAL(dp)                                 :: a, b, c, ds, pos, val, x0, x1
     REAL(dp), DIMENSION(:), POINTER          :: ls_pos
+
+!
 
     NULLIFY(ls_pos)
     p_env%ls_count = p_env%ls_count + 1

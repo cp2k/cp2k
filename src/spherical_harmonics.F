@@ -37,7 +37,8 @@ MODULE spherical_harmonics
 ! *****************************************************************************
 
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: fac,dfac,&
+  USE mathconstants,                   ONLY: dfac,&
+                                             fac,&
                                              maxfac,&
                                              pi
   USE termination,                     ONLY: stop_memory,&
@@ -1068,10 +1069,12 @@ CONTAINS
   FUNCTION dlegendre (x, l, m) RESULT (dplm)
     REAL(KIND=dp), INTENT(IN)                :: x
     INTEGER, INTENT(IN)                      :: l, m
-    INTEGER                                  :: ll, i, mm, il, im
-    REAL(KIND=dp)                            :: dplm, pmm, plgndr, pll, dpll 
-    REAL(KIND=dp)                            :: dpmm, somx2, dsomx2, fact
-    REAL(KIND=dp)                            :: pmmp1, dpmmp1, plm
+    REAL(KIND=dp)                            :: dplm
+
+    INTEGER                                  :: il, im, mm
+    REAL(KIND=dp)                            :: dpll, dpmm, dpmmp1, dsomx2, &
+                                                fact, pll, plm, pmm, pmmp1, &
+                                                somx2
 
   IF ( ABS ( x ) > 1.0_dp ) CALL stop_program("dlegendre","x value > 1")
   SELECT CASE ( l )
@@ -1191,7 +1194,7 @@ CONTAINS
     dpmm = 0.0_dp
     IF ( mm > 0 ) THEN
       somx2 = SQRT((1.0_dp-x)*(1.0_dp+x))
-      dsomx2 = ((1d0 - x)*(1d0 + x))**(0.5d0*m-1)
+      dsomx2 = ((1e0_dp - x)*(1e0_dp + x))**(0.5e0_dp*m-1)
       dpmm = -m*x*dsomx2*dfac(2*m-1)
       fact = 1.0_dp
       DO im = 1, mm

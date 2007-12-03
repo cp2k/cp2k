@@ -23,13 +23,13 @@
 !****************************************************************************
 MODULE cp_fm_basic_linalg
   USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent
-  USE cp_fm_types,                     ONLY: cp_fm_get_element,&
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_get_element,&
                                              cp_fm_get_info,&
-                                             cp_fm_type,&
-                                             cp_fm_create,&
-                                             cp_fm_to_fm,&
                                              cp_fm_release,&
-                                             cp_fm_set_all
+                                             cp_fm_set_all,&
+                                             cp_fm_to_fm,&
+                                             cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type
   USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp
@@ -212,7 +212,7 @@ CPSourceFileRef,&
   SUBROUTINE cp_fm_lu_decompose(matrix_a,almost_determinant,correct_sign)
     TYPE(cp_fm_type), POINTER                :: matrix_a
     REAL(KIND=dp), INTENT(OUT)               :: almost_determinant
-    LOGICAL,INTENT(IN),OPTIONAL              :: correct_sign
+    LOGICAL, INTENT(IN), OPTIONAL            :: correct_sign
 
     CHARACTER(LEN=*), PARAMETER :: routine = "SUBROUTINE cp_fm_lu_decompose"
 
@@ -502,14 +502,15 @@ CPSourceFileRef,&
 !!*** *********************************************************************
   SUBROUTINE cp_fm_frobenius_norm(matrix_a,norm,error)
     TYPE(cp_fm_type), POINTER                :: matrix_a
-    REAL(KIND=dp),INTENT(inout)              :: norm
+    REAL(KIND=dp), INTENT(inout)             :: norm
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: handle,group,size_a
+    INTEGER                                  :: group, handle, size_a
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
-    
     REAL(KIND=dp), EXTERNAL                  :: DDOT
+
 !   ---------------------------------------------------------------------------
+
     CALL timeset("cp_fm_frobenius_norm","I","",handle)
     norm = 0.0_dp
     a => matrix_a%local_data
@@ -1254,24 +1255,22 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 !!*** *********************************************************************
   SUBROUTINE cp_fm_invert(matrix_a,matrix_inverse,det_a,error)
   
-    TYPE(cp_fm_type), POINTER                :: matrix_a
-    TYPE(cp_fm_type), POINTER                :: matrix_inverse
-    REAL(KIND=dp),INTENT(OUT),OPTIONAL       :: det_a   
+    TYPE(cp_fm_type), POINTER                :: matrix_a, matrix_inverse
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: det_a
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_invert', &
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "SUBROUTINE cp_fm_invert",&
-         routineP=moduleN//':'//routineN     
-    TYPE(cp_fm_type), POINTER                :: matrix_B,matrix_lu    
-    REAL(KIND=dp)                            :: alpha,beta,eps1,eps2,determinant
-    LOGICAL                                  :: sign  
+    INTEGER                                  :: i, info, liwork, lwork, n
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipivot, iwork
     INTEGER, DIMENSION(9)                    :: desca
+    LOGICAL                                  :: failure, sign
+    REAL(KIND=dp)                            :: alpha, beta, determinant, eps1
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: berr, ferr, work
     REAL(KIND=dp), DIMENSION(:), POINTER     :: diag
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
-    INTEGER                                  :: info,lwork,liwork,i,iter,n
-    REAL(KIND=dp), DIMENSION(:),ALLOCATABLE  :: ferr,berr,work
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork,ipivot
-    LOGICAL :: failure
+    TYPE(cp_fm_type), POINTER                :: matrix_B, matrix_lu
 
     failure=.FALSE.
 
@@ -1292,7 +1291,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     ALLOCATE(ferr(n))
     ALLOCATE(berr(n))
     ALLOCATE(work(3*n))
-    ALLOCATE(iwork(3*N))	
+    ALLOCATE(iwork(3*N))        
     lwork=3*n
     liwork=3*n
     desca(:) = matrix_lu%matrix_struct%descriptor(:)

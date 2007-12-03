@@ -350,7 +350,7 @@ SUBROUTINE ftest(m,ch,cg,cgt,cht)
               t4=t4+cht(l-2*i)*cg(l-2*j)
            END IF
         END DO
-        eps=1.d-10
+        eps=1.e-10_dp
         IF (i.eq.j) THEN
            IF (ABS(t1-1._dp).gt.eps .OR. ABS(t2-1._dp).gt.eps .OR. &
              & ABS(t3).gt.eps  .OR. ABS(t4).gt.eps ) THEN 

@@ -74,7 +74,7 @@ CONTAINS
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout)       :: error 
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'optx_lda_info', &
       routineP = moduleN//':'//routineN
@@ -172,8 +172,8 @@ CONTAINS
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
-    TYPE(section_vals_type), POINTER         :: optx_params 
-    TYPE(cp_error_type), INTENT(inout)       :: error 
+    TYPE(section_vals_type), POINTER         :: optx_params
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'optx_lda_eval', &
       routineP = moduleN//':'//routineN
@@ -258,7 +258,7 @@ CONTAINS
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
     TYPE(section_vals_type), POINTER         :: optx_params
-    TYPE(cp_error_type), INTENT(inout)       :: error 
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'optx_lsd_eval', &
       routineP = moduleN//':'//routineN
@@ -360,7 +360,7 @@ CONTAINS
       INTENT(INOUT)                          :: e_0, e_rho, e_ndrho
     REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho
     INTEGER, INTENT(in)                      :: npoints
-    REAL(KIND=dp), INTENT(IN)                :: sx
+    REAL(kind=dp), INTENT(in)                :: sx
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     REAL(KIND=dp), PARAMETER :: a1cx = 0.9784571170284421_dp, &
@@ -427,8 +427,8 @@ CONTAINS
       INTENT(INOUT)                          :: e_0, e_rho, e_ndrho
     REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho
     INTEGER, INTENT(in)                      :: npoints
-    REAL(KIND=dp), INTENT(IN)                :: sx
-    TYPE(cp_error_type), INTENT(inout)       :: error 
+    REAL(kind=dp), INTENT(in)                :: sx
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     REAL(KIND=dp), PARAMETER :: a1cx = 0.9784571170284421_dp, &
       a2 = 1.43169_dp, gam = 0.006_dp, o43 = 4.0_dp/3.0_dp 

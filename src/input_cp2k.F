@@ -1146,8 +1146,7 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: subsection
-    TYPE(section_type), POINTER              :: print_key
+    TYPE(section_type), POINTER              :: print_key, subsection
 
     failure=.FALSE.
 
@@ -1856,15 +1855,16 @@ END SUBROUTINE create_cpot_section
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_mode_selective_section', &
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_mode_selective_section', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key
+
   failure=.FALSE.
 
-  NULLIFY(keyword,print_key)
+  NULLIFY(keyword)
   CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CALL section_create(section,name="MODE_SELECTIVE",&
@@ -1874,7 +1874,7 @@ END SUBROUTINE create_cpot_section
 
      CALL keyword_create(keyword,name="FREQUENCY",&
           description="value close to the expected value of the frequency for to look for. "//&
-	  "If the block Davidson algorithm is applied, the nrep closest frequencies are tracked. ",&
+          "If the block Davidson algorithm is applied, the nrep closest frequencies are tracked. ",&
           usage="FREQUENCY <REAL>", default_r_val=-1._dp,&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
@@ -1882,7 +1882,7 @@ END SUBROUTINE create_cpot_section
  
      CALL keyword_create(keyword,name="RANGE",&
           description="Track modes in a given range of frequencies. "//&
-	  "No warranty that the set of frequencies is complete.",&
+          "No warranty that the set of frequencies is complete.",&
           usage="FREQUENCY <REAL> <REAL>",&
           n_var=-1,type_of_var=real_t,&
           error=error)

@@ -702,7 +702,7 @@ CONTAINS
        rmax1  = CEILING(rcut/cell%hmat(1,1))
        rmax2  = CEILING(rcut/cell%hmat(2,2))
        rmax3  = CEILING(rcut/cell%hmat(3,3))
-       fac    = 1.d0/cell%deth
+       fac    = 1.e0_dp/cell%deth
        fac2   = 1.0_dp / ( 4.0_dp * pi * eps0 )
        fac3   = fac*pi
        fvec   = 2.0_dp * pi / (/cell%hmat(1,1),cell%hmat(2,2),cell%hmat(3,3)/)

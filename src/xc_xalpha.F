@@ -150,7 +150,7 @@ ELSE
     INTEGER, INTENT(in)                      :: order
     TYPE(section_vals_type), POINTER         :: xa_params
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: xa_parameter
-    TYPE(cp_error_type), INTENT(inout)       :: error 
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xalpha_lda_eval', &
       routineP = moduleN//':'//routineN
@@ -228,7 +228,7 @@ ELSE
     INTEGER, INTENT(in)                      :: order
     TYPE(section_vals_type), POINTER         :: xa_params
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: xa_parameter
-    TYPE(cp_error_type), INTENT(inout)       :: error 
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xalpha_lsd_eval', &
       routineP = moduleN//':'//routineN
@@ -319,8 +319,8 @@ ELSE
       INTENT(INOUT)                          :: pot
     REAL(KIND=dp), INTENT(IN)                :: sx
 
-    REAL(KIND=dp)                            :: f
     INTEGER                                  :: ip
+    REAL(KIND=dp)                            :: f
 
 !   ---------------------------------------------------------------------------
 
@@ -419,9 +419,9 @@ ELSE
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: pot
     REAL(KIND=dp)                            :: sx
-   
-    REAL(KIND=dp)                            :: f
+
     INTEGER                                  :: ip
+    REAL(KIND=dp)                            :: f
 
 ! number of points in array 
 !   ---------------------------------------------------------------------------

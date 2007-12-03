@@ -1146,9 +1146,6 @@ CONTAINS
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!      w=0.0d0
-!      w=1.0d0
-
       IF ( rand .LT. w ) THEN
 
 ! accept the move
@@ -1480,7 +1477,7 @@ CONTAINS
 
 ! now we need to make the new cells
       DO ibox=1,2
-         hmat_test(:,:,ibox)=0.0d0
+         hmat_test(:,:,ibox)=0.0e0_dp
          hmat_test(1,1,ibox)=new_cell_length(1,ibox)
          hmat_test(2,2,ibox)=new_cell_length(2,ibox)
          hmat_test(3,3,ibox)=new_cell_length(3,ibox)

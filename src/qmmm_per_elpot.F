@@ -124,7 +124,7 @@ CONTAINS
                 mm_cell%hmat(3,3)**2 ) 
     CALL section_vals_val_get(qmmm_periodic,"GMAX",r_val=Gmax,error=error)
     CALL section_vals_val_get(qmmm_periodic,"REPLICA",i_val=n_rep_real_val,error=error)
-    fac = 2.0D0*Pi/(/mm_cell%hmat(1,1),mm_cell%hmat(2,2),mm_cell%hmat(3,3)/)
+    fac = 2.0e0_dp*Pi/(/mm_cell%hmat(1,1),mm_cell%hmat(2,2),mm_cell%hmat(3,3)/)
     Kmax    = CEILING(Gmax/Fac)
     Vol     = mm_cell%hmat(1,1)*&
               mm_cell%hmat(2,2)*&

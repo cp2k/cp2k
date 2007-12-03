@@ -30,18 +30,19 @@ MODULE qs_linres_types
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type
   USE kinds,                           ONLY: dp
+  USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: harmonics_atom_type
   USE qs_loc_control,                  ONLY: localized_wfn_control_create,&
                                              localized_wfn_control_release,&
                                              localized_wfn_control_type
-  USE qs_rho_atom_types,               ONLY: rho_atom_coeff,&
-                                             rho_atom_type,& !R
-                                             deallocate_rho_atom_set !R
-  USE qs_grid_atom,                    ONLY: grid_atom_type
+  USE qs_rho_atom_types,               ONLY: deallocate_rho_atom_set,&
+                                             rho_atom_coeff,&
+                                             rho_atom_type
+!R
+!R
   USE qs_rho_types,                    ONLY: qs_rho_p_type,&
                                              qs_rho_release
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
-                                             real_matrix_type
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -186,7 +187,7 @@ MODULE qs_linres_types
      REAL(dp), DIMENSION(:,:), POINTER           :: basisfun_center
      REAL(dp)                                    :: g_free_factor, g_zke_factor,& !R
                                                     g_so_factor, g_soo_factor,& !R
-						    g_soo_chicorr_factor !R
+                                                    g_soo_chicorr_factor !R
      REAL(dp)                                    :: g_zke !R
 !R   REAL(dp), DIMENSION(:,:), POINTER           :: r_nics
 !R   REAL(dp), DIMENSION(:,:,:), POINTER         :: chemical_shift
@@ -502,11 +503,9 @@ CONTAINS
     TYPE(qs_rho_p_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: jrho1_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: op_p_ao, op_rmd_ao
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-         OPTIONAL, POINTER                   :: jp1_ao
-    TYPE(real_matrix_p_type), DIMENSION(:,:), &
-      OPTIONAL, POINTER                      :: jp2_ao
+      OPTIONAL, POINTER                      :: op_p_ao, op_rmd_ao, jp1_ao
+    TYPE(real_matrix_p_type), &
+      DIMENSION(:, :), OPTIONAL, POINTER     :: jp2_ao
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_nmr_env', &
@@ -631,23 +630,13 @@ CONTAINS
              vks_atom_set, error)
 
     TYPE(epr_env_type)                       :: epr_env
-    INTEGER, INTENT(OUT), OPTIONAL           :: nao, nstates(2) !R
-!R  REAL(dp), INTENT(out), OPTIONAL          :: chi_tensor(3,3)
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: list_cubes !R
+    INTEGER, INTENT(OUT), OPTIONAL           :: nao, nstates(2)
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: list_cubes
     INTEGER, DIMENSION(:, :, :), OPTIONAL, &
       POINTER                                :: statetrueindex
-!R  REAL(dp), INTENT(out), OPTIONAL          :: chi_tensor_loc(3,3)
-!R  REAL(dp), DIMENSION(:, :), OPTIONAL, &
-!R    POINTER                                :: r_nics
-!R  REAL(dp), DIMENSION(:, :, :), OPTIONAL, &
-!R    POINTER                                :: chemical_shift, &
-!R                                              chemical_shift_loc, &
-!R                                              chemical_shift_loc_nics, &
-!R                                              chemical_shift_nics
-    REAL(dp), DIMENSION(:,:), OPTIONAL, &
-      POINTER                                :: g_total, g_so, g_soo, bind0 !R
     REAL(dp), DIMENSION(:, :), OPTIONAL, &
-      POINTER                                :: basisfun_center
+      POINTER                                :: g_total, g_so, g_soo, bind0, &
+                                                basisfun_center
     TYPE(cp_2d_r_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: centers_set
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
@@ -658,27 +647,23 @@ CONTAINS
     TYPE(qs_rho_p_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: jrho1_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: op_p_ao, op_rmd_ao
+      OPTIONAL, POINTER                      :: op_p_ao, op_rmd_ao, jp1_ao
+    TYPE(real_matrix_p_type), &
+      DIMENSION(:, :), OPTIONAL, POINTER     :: jp2_ao
     TYPE(real_matrix_p_type), DIMENSION(:), &
-         OPTIONAL, POINTER                   :: jp1_ao
-    TYPE(real_matrix_p_type), DIMENSION(:,:), &
-      OPTIONAL, POINTER                      :: jp2_ao
-    TYPE(real_matrix_p_type), DIMENSION(:), & !R
-      OPTIONAL, POINTER                      :: matrix_v !R
-    TYPE(real_matrix_p_type), DIMENSION(:), & !R
-      OPTIONAL, POINTER                      :: matrix_h_wonl !RX
-    TYPE(qs_rho_p_type), DIMENSION(:,:), & !R
-      OPTIONAL, POINTER                      :: nablavks_set !R
-    TYPE(qs_rho_p_type), DIMENSION(:), & !RA
-      OPTIONAL, POINTER                      :: delta_set !RA
-    TYPE(nablavks_atom_type), DIMENSION(:), & !R
-      OPTIONAL, POINTER                      :: nablavks_atom_set !R
-    TYPE(qs_rho_p_type), DIMENSION(:,:), & !R
-      OPTIONAL, POINTER                      :: bind_set !R
-    TYPE(rho_atom_coeff), DIMENSION(:,:), & !R
-      OPTIONAL, POINTER                      :: bind_atom_set !R
+      OPTIONAL, POINTER                      :: matrix_v, matrix_h_wonl
+    TYPE(qs_rho_p_type), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: nablavks_set
+    TYPE(qs_rho_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: delta_set
+    TYPE(nablavks_atom_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: nablavks_atom_set
+    TYPE(qs_rho_p_type), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: bind_set
+    TYPE(rho_atom_coeff), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: bind_atom_set
     TYPE(rho_atom_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: vks_atom_set !R
+      OPTIONAL, POINTER                      :: vks_atom_set
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -686,6 +671,34 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
+
+!R
+!R  REAL(dp), INTENT(out), OPTIONAL          :: chi_tensor(3,3)
+!R
+!R  REAL(dp), INTENT(out), OPTIONAL          :: chi_tensor_loc(3,3)
+!R  REAL(dp), DIMENSION(:, :), OPTIONAL, &
+!R    POINTER                                :: r_nics
+!R  REAL(dp), DIMENSION(:, :, :), OPTIONAL, &
+!R    POINTER                                :: chemical_shift, &
+!R                                              chemical_shift_loc, &
+!R                                              chemical_shift_loc_nics, &
+!R                                              chemical_shift_nics
+!R
+!R
+!R
+!R
+!RX
+!R
+!R
+!RA
+!RA
+!R
+!R
+!R
+!R
+!R
+!R
+!R
 
      failure =.FALSE.
 
@@ -736,23 +749,21 @@ CONTAINS
                          vks_atom_set,delta_set,nablavks_set,nablavks_atom_set,error) !R !RX ! RA
 
     TYPE(epr_env_type)                       :: epr_env
-!R  REAL(dp), INTENT(IN), OPTIONAL :: shift_factor, chi_factor, &
-!R    chi_SI2shiftppm, chi_SI2ppmcgs, chi_tensor(3,3), chi_tensor_loc(3,3)
-    REAL(dp), INTENT(IN), OPTIONAL           :: g_free_factor, g_zke_factor,& !R
-                                                g_so_factor, g_soo_factor,& !R
-						g_soo_chicorr_factor !R
+    REAL(dp), INTENT(IN), OPTIONAL           :: g_free_factor, g_zke_factor, &
+                                                g_so_factor, g_soo_factor, &
+                                                g_soo_chicorr_factor
     TYPE(jrho_atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: jrho1_atom_set
-    TYPE(qs_rho_p_type), DIMENSION(:, :), & !RX
-      OPTIONAL, POINTER                      :: jrho1_set !RX
-    TYPE(qs_rho_p_type), DIMENSION(:,:), & !RX
-      OPTIONAL, POINTER                      :: nablavks_set !RX
-    TYPE(nablavks_atom_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: nablavks_atom_set
-    TYPE(qs_rho_p_type), DIMENSION(:), & !RX
-      OPTIONAL, POINTER                      :: delta_set !RX
+    TYPE(qs_rho_p_type), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: jrho1_set
     TYPE(rho_atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: vks_atom_set
+    TYPE(qs_rho_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: delta_set
+    TYPE(qs_rho_p_type), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: nablavks_set
+    TYPE(nablavks_atom_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: nablavks_atom_set
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -761,6 +772,18 @@ CONTAINS
 
     INTEGER                                  :: iB, idir, ispin
     LOGICAL                                  :: failure
+
+!R  REAL(dp), INTENT(IN), OPTIONAL :: shift_factor, chi_factor, &
+!R    chi_SI2shiftppm, chi_SI2ppmcgs, chi_tensor(3,3), chi_tensor_loc(3,3)
+!R
+!R
+!R
+!RX
+!RX
+!RX
+!RX
+!RX
+!RX
 
     failure =.FALSE.
 
@@ -878,9 +901,10 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_nablavks_atom_set'
 
-    INTEGER                                  :: i, iat, idir, istat, n, &
-                                                natom !RX
+    INTEGER                                  :: i, iat, idir, istat, n, natom
     LOGICAL                                  :: failure
+
+!RX
 
     failure = .FALSE.
 
@@ -899,7 +923,7 @@ CONTAINS
                    CPPrecondition(istat==0, cp_failure_level,routineN,error,failure)
                 ENDDO
              ENDDO
-	  ENDIF   
+          ENDIF   
           DEALLOCATE(nablavks_atom_set(iat)%nablavks_vec_rad_h,STAT=istat)
           CPPrecondition(istat==0, cp_failure_level,routineN,error,failure)
           DEALLOCATE(nablavks_atom_set(iat)%nablavks_vec_rad_s,STAT=istat)
@@ -1177,11 +1201,15 @@ CONTAINS
     TYPE(jrho_atom_type), POINTER            :: jrho1_atom
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(cp_error_type), INTENT(inout)       :: error
-    !
-    CHARACTER(len=*), PARAMETER              :: routineN = 'set2zero_jrho_atom_rad', &
-         &                                      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'set2zero_jrho_atom_rad', &
+      routineP = moduleN//':'//routineN
+
     LOGICAL                                  :: failure
-    !
+
+!
+!
+
     failure = .FALSE.
     !
     CPPrecondition(ASSOCIATED(jrho1_atom),cp_failure_level,routineN,error,failure)
@@ -1214,16 +1242,16 @@ CONTAINS
              cjc_iii_h,cjc_iii_s,jrho_rad_h,jrho_rad_s,jrho_vec_rad_h,jrho_vec_rad_s,error)
 
     TYPE(jrho_atom_type), DIMENSION(:), &
-         & POINTER                              :: jrho1_atom_set
-    INTEGER, INTENT(IN)                         :: iatom
+      POINTER                                :: jrho1_atom_set
+    INTEGER, INTENT(IN)                      :: iatom
     TYPE(rho_atom_coeff), DIMENSION(:), &
-         OPTIONAL, POINTER                      :: cjc_h, cjc_s, cjc_ii_h, &
-                                                   cjc_ii_s, cjc_iii_h, &
-                                                   cjc_iii_s, jrho_rad_h, &
-                                                   jrho_rad_s
-    TYPE(rho_atom_coeff), DIMENSION(:,:,:), &
-         &                   OPTIONAL, POINTER  :: jrho_vec_rad_h, jrho_vec_rad_s
-    TYPE(cp_error_type), INTENT(inout)          :: error
+      OPTIONAL, POINTER                      :: cjc_h, cjc_s, cjc_ii_h, &
+                                                cjc_ii_s, cjc_iii_h, &
+                                                cjc_iii_s, jrho_rad_h, &
+                                                jrho_rad_s
+    TYPE(rho_atom_coeff), &
+      DIMENSION(:, :, :), OPTIONAL, POINTER  :: jrho_vec_rad_h, jrho_vec_rad_s
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_jrho_atom', &
       routineP = moduleN//':'//routineN
@@ -1266,8 +1294,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, paw_atom
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(grid_atom_type), POINTER            :: grid_atom
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(harmonics_atom_type), POINTER       :: harmonics
 
     CALL timeset("init_jrho_atom_set","I"," ",handle)
@@ -1295,7 +1323,7 @@ CONTAINS
                             atom_list=atom_list,natom=nat, &
                             paw_atom=paw_atom,&
                             harmonics=harmonics,&
-			    grid_atom=grid_atom)
+                            grid_atom=grid_atom)
 
        na = grid_atom%ng_sphere 
        nr = grid_atom%nr 
@@ -1460,20 +1488,21 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     INTEGER, INTENT(IN)                      :: nspins
-!RX LOGICAL, INTENT(IN)                      :: store_current
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_nablavks_atom_set'
 
-    INTEGER :: handle, iat, iatom, iB, idir, ikind, ispin, istat, &
-      max_iso_not0, maxso, na, nat, natom, nkind, nr, nset, nsotot
+    INTEGER :: handle, iat, iatom, idir, ikind, ispin, istat, max_iso_not0, &
+      maxso, na, nat, natom, nkind, nr, nset, nsotot
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, paw_atom
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(grid_atom_type), POINTER            :: grid_atom
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(harmonics_atom_type), POINTER       :: harmonics
+
+!RX LOGICAL, INTENT(IN)                      :: store_current
 
     CALL timeset("init_nablavks_atom_set","I"," ",handle)
 
@@ -1500,7 +1529,7 @@ CONTAINS
                             atom_list=atom_list,natom=nat, &
                             paw_atom=paw_atom,&
                             harmonics=harmonics,&
-			    grid_atom=grid_atom)
+                            grid_atom=grid_atom)
 
        na = grid_atom%ng_sphere 
        nr = grid_atom%nr 

@@ -88,7 +88,7 @@ MODULE xc_derivatives
   USE xc_xwpbe,                        ONLY: xwpbe_lda_eval,&
                                              xwpbe_lda_info,&
                                              xwpbe_lsd_eval,&
-                                             xwpbe_lsd_info     
+                                             xwpbe_lsd_info
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

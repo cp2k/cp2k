@@ -544,7 +544,7 @@ END SUBROUTINE becke_constraint
 
   failure=.FALSE.
   CALL timeset(routineN,"I","",handle)
-  th=1.0d-8
+  th=1.0e-8_dp
   IF(qs_env%dft_control%qs_control%becke_constraint)THEN
      
      target_val=qs_env%dft_control%qs_control%becke_control%TARGET

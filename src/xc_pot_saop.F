@@ -51,8 +51,7 @@ MODULE xc_pot_saop
                                              RECIPROCALSPACE,&
                                              pw_p_type,&
                                              pw_release,&
-                                             pw_zero,&
-                                             pw_p_type
+                                             pw_zero
   USE qs_collocate_density,            ONLY: calculate_rho_elec
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -145,8 +144,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: dummy, e_uniform
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(pw_p_type)                          :: orbital, orbital_g
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_SAOP
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: single_mo_coeff
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -154,8 +151,10 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: molecular_orbitals
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type)                          :: orbital, orbital_g
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r, tau, vxc_GLLB, &
-                                                vxc_LB, vxc_tau, vxc_tmp
+                                                vxc_LB, vxc_SAOP, vxc_tau, &
+                                                vxc_tmp
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(real_matrix_p_type), DIMENSION(:), &

@@ -24,8 +24,8 @@
 !!   SOURCE
 !****************************************************************************
 MODULE xc_lyp
-  USE bibliography,                    ONLY: cite_reference,&
-                                             Lee1988
+  USE bibliography,                    ONLY: Lee1988,&
+                                             cite_reference
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -227,7 +227,8 @@ SUBROUTINE lyp_lda_eval(rho_set,deriv_set,grad_deriv,lyp_params,error)
     INTEGER                                  :: handle, npoints, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: epsilon_norm_drho, epsilon_rho, sc
+    REAL(kind=dp)                            :: epsilon_norm_drho, &
+                                                epsilon_rho, sc
     REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndrho, &
       e_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho, e_ndrho_rho_rho, e_rho, &
       e_rho_rho, e_rho_rho_rho, norm_drho, rho, rho_1_3
@@ -383,7 +384,8 @@ SUBROUTINE lyp_lda_calc(rho, rho_1_3, norm_drho,&
       e_ndrho, e_rho, e_0
     REAL(kind=dp), DIMENSION(1:npoints), &
       INTENT(in)                             :: norm_drho, rho_1_3, rho
-    REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_norm_drho, sc
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho, &
+                                                epsilon_norm_drho, sc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'lyp_lda_calc', &
@@ -875,7 +877,7 @@ SUBROUTINE lyp_lsd_eval(rho_set,deriv_set,grad_deriv,lyp_params,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
-    TYPE(section_vals_type), POINTER         :: lyp_params 
+    TYPE(section_vals_type), POINTER         :: lyp_params
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'lyp_lsd_eval', &
@@ -1058,9 +1060,8 @@ SUBROUTINE lyp_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
       e_ndra_rb, e_ndrb_ra, e_ndrb_rb, e_ndr_ndr, e_ndra_ndra, e_ndrb_ndrb, &
       e_ndr, e_ndra, e_ndrb, e_ra_ra, e_ra_rb, e_rb_rb, e_ndr_ra, e_ndr_rb
     INTEGER, INTENT(in)                      :: grad_deriv, npoints
-    REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho,sc
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho, sc
     TYPE(cp_error_type), INTENT(inout)       :: error
-
 
     CHARACTER(len=*), PARAMETER :: routineN = 'lyp_lsd_calc', &
       routineP = moduleN//':'//routineN

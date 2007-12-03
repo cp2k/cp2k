@@ -24,9 +24,7 @@ MODULE xc_perdew86
 ! *****************************************************************************
 
   USE input_constants,                 ONLY: pz_orig
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_val_get
-
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -101,7 +99,7 @@ CONTAINS
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout)       :: error 
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     IF ( PRESENT ( reference ) ) THEN
       reference = "J. P. Perdew, Phys. Rev. B, 33, 8822 (1986) {LDA version}"
@@ -127,7 +125,7 @@ CONTAINS
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(IN)                      :: order
     TYPE(section_vals_type), POINTER         :: p86_params
-    TYPE(cp_error_type), INTENT(inout)       :: error 
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p86_lda_eval', &
       routineP = moduleN//':'//routineN
@@ -382,7 +380,7 @@ CONTAINS
                                                 e_rho_ndrho_ndrho, &
                                                 e_ndrho_ndrho_ndrho
     INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout)       :: error 
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ip
     REAL(KIND=dp) :: cr, d2cr, d2p, d2phir, d2phirg, d2pq, d2q, d2z, d3cr, &

@@ -75,21 +75,14 @@ MODULE qs_linres_epr_current
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
-                                             pw_pool_create_pw,&
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_pw,&
                                              pw_pool_p_type,&
                                              pw_pool_type
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
-                                             RECIPROCALSPACE,&
-                                             pw_integrate_function,&
-                                             pw_p_type,&
-                                             pw_copy,&
-                                             pw_scale,&
-                                             pw_axpy,&
-                                             pw_zero,&
-                                             pw_transfer
+  USE pw_types,                        ONLY: &
+       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_axpy, &
+       pw_copy, pw_integrate_function, pw_p_type, pw_scale, pw_transfer, &
+       pw_zero
   USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace,&
                                              density_rs2pw,&
                                              lgrid_type
@@ -216,11 +209,6 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), POINTER       :: vecbuf_psi1
     REAL(dp), EXTERNAL                       :: DDOT
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(pw_p_type)                          :: pw_gspace_work, &
-                                                shift_pw_rspace, wf_r
-    TYPE(pw_p_type), DIMENSION(:, :), &
-      POINTER                                :: shift_pw_gspace
-    TYPE(pw_p_type), POINTER                 :: rho_gspace, rho_rspace
     TYPE(cp_2d_r_p_type), DIMENSION(3)       :: vecbuf
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: fm_work1, mo_coeff, psi0_fk, &
@@ -234,6 +222,11 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type)                          :: pw_gspace_work, &
+                                                shift_pw_rspace, wf_r
+    TYPE(pw_p_type), DIMENSION(:, :), &
+      POINTER                                :: shift_pw_gspace
+    TYPE(pw_p_type), POINTER                 :: rho_gspace, rho_rspace
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool

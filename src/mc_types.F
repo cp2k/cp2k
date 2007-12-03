@@ -1653,7 +1653,7 @@ SUBROUTINE find_mc_rcut ( mc_par, force_env, lterminate )
       CALL get_cell(cell,abc=abc)
 
 ! find the largest value of rcutsq
-      rcutsq_max=0.0d0
+      rcutsq_max=0.0e0_dp
       DO itype=1,SIZE(potparm%pot,1)
          DO jtype=itype,SIZE(potparm%pot,2)
             IF(potparm%pot(itype,jtype)%pot%rcutsq .GT. rcutsq_max) &
@@ -1857,7 +1857,7 @@ SUBROUTINE mc_determine_molecule_info(force_env,mc_molecule_info,error,box_numbe
           total=nbond+nbend+ntorsion
 
           IF(total == 0) THEN
-             mc_molecule_info%conf_prob(:,iunique)=0.0d0
+             mc_molecule_info%conf_prob(:,iunique)=0.0e0_dp
           ELSE
              mc_molecule_info%conf_prob(1,iunique)=REAL(nbond,dp)/REAL(total,dp)
              mc_molecule_info%conf_prob(2,iunique)=REAL(nbend,dp)/REAL(total,dp)

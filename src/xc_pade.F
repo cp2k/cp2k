@@ -28,8 +28,8 @@
 
 MODULE xc_pade
 ! *****************************************************************************
-  USE bibliography,                    ONLY: cite_reference,&
-                                             Goedecker1996
+  USE bibliography,                    ONLY: Goedecker1996,&
+                                             cite_reference
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_memory,&
                                              stop_program

@@ -39,29 +39,28 @@ MODULE qs_localization_methods
                                              cp_cfm_set_all,&
                                              cp_cfm_to_cfm,&
                                              cp_cfm_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_frobenius_norm,&
+                                             cp_fm_gemm,&
+                                             cp_fm_scale,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_trace,&
-                                             cp_fm_transpose,&
-                                             cp_fm_frobenius_norm,&
-                                             cp_fm_scale
+                                             cp_fm_transpose
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_get,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type
   USE cp_fm_types,                     ONLY: &
        cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_maxabsval, &
        cp_fm_p_type, cp_fm_release, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                             cp_fm_struct_get,&
-                                             cp_fm_struct_release,&
-                                             cp_fm_struct_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_max,&
                                              mp_sum
   USE timings,                         ONLY: timeset,&
                                              timestop
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -80,20 +79,26 @@ CONTAINS
     INTEGER, INTENT(INOUT)                   :: sweeps
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: handle,n,k,output_unit,&
-         &                                      p,o,i,istep,nrow_local,ncol_local
-    LOGICAL                                  :: ionode
-    TYPE(cp_logger_type), POINTER            :: logger
+    INTEGER, PARAMETER                       :: taylor_order = 100
+    REAL(KIND=dp), DIMENSION(4), PARAMETER :: &
+      thresh = (/1e-3_dp,1e-5_dp,1e-7_dp,1e-9_dp/)
+    REAL(KIND=dp), PARAMETER                 :: alpha = 0.1_dp, &
+                                                f2_eps = 0.01_dp, &
+                                                grad_thresh = 1.0E-1_dp
 
-    TYPE(cp_fm_type), POINTER                :: CTmp,U,G,Gp1,Gp2
-    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_k_k
+    INTEGER                                  :: handle, i, istep, k, n, &
+                                                ncol_local, nrow_local, &
+                                                output_unit, p
+    LOGICAL                                  :: ionode
+    REAL(KIND=dp)                            :: expfactor, f2, f2old, gnorm, &
+                                                tnorm
     TYPE(cp_blacs_env_type), POINTER         :: context
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_k_k
+    TYPE(cp_fm_type), POINTER                :: CTmp, G, Gp1, Gp2, U
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    REAL(KIND=dp)                            :: tnorm,gnorm,expfactor,f2,f2old
-    INTEGER, PARAMETER                       :: taylor_order=100
-    REAL(KIND=dp), PARAMETER                 :: grad_thresh=1.0E-1_dp!,f2_thresh=1.0E-5_dp
-    REAL(KIND=dp), PARAMETER                 :: f2_eps=0.01_dp,alpha=0.1_dp
-    REAL(KIND=dp), PARAMETER, DIMENSION(4)   :: thresh=(/1d-3,1d-5,1d-7,1d-9/)
+
+!,f2_thresh=1.0E-5_dp
 
     CALL timeset("approx_l1_norm_sd","I",'',handle)
 

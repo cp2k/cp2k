@@ -1268,7 +1268,7 @@ END SUBROUTINE mc_conformation_change
       ENDIF
 
 ! now we need to make the new cell
-      hmat_test(:,:)=0.0d0
+      hmat_test(:,:)=0.0e0_dp
       hmat_test(1,1)=new_cell_length(1)
       hmat_test(2,2)=new_cell_length(2)
       hmat_test(3,3)=new_cell_length(3)

@@ -543,7 +543,7 @@ CONTAINS
     nmax1  = NINT(0.25_dp + hmat(1,1)*alpha*tol1/pi)
     nmax2  = NINT(0.25_dp + hmat(2,2)*alpha*tol1/pi)
     nmax3  = NINT(0.25_dp + hmat(3,3)*alpha*tol1/pi)
-    fac    = 1.d0/deth
+    fac    = 1.e0_dp/deth
     fvec   = 2.0_dp * pi / (/hmat(1,1),hmat(2,2),hmat(3,3)/)
     ndim   = (nmax1+1)*(2*nmax2+1)*(2*nmax3+1)-1
     ALLOCATE(LG(ndim), stat=stat)

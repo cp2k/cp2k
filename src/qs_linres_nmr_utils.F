@@ -82,7 +82,8 @@ MODULE qs_linres_nmr_utils
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
-                                             RECIPROCALSPACE, pw_zero
+                                             RECIPROCALSPACE,&
+                                             pw_zero
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_linres_methods,               ONLY: linres_scf
