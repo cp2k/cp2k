@@ -77,6 +77,9 @@ MODULE qs_linres_nmr_atom_current
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
+  USE input_constants,                 ONLY: nmr_gauge_r,&
+                                             nmr_gauge_r_and_Bader,&
+                                             nmr_gauge_r_and_step_function
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -115,13 +118,13 @@ CONTAINS
 !!
 !****************************************************************************
 
-  SUBROUTINE calculate_jrho_atom_coeff(qs_env,nmr_env,mat_jp,mat_jp_pii,&
+  SUBROUTINE calculate_jrho_atom_coeff(qs_env,nmr_env,mat_jp0,mat_jp,mat_jp_pii,&
        &                               mat_jp_piii,iB,idir,error)
     !
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(nmr_env_type)                       :: nmr_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: mat_jp, mat_jp_pii, &
+      POINTER                                :: mat_jp0, mat_jp, mat_jp_pii, &
                                                 mat_jp_piii
     INTEGER, INTENT(IN)                      :: iB, idir
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -157,17 +160,15 @@ CONTAINS
     TYPE(reduced_3c_list_type), &
       DIMENSION(:), POINTER                  :: reduced_3c_oce
     TYPE(rho_atom_coeff), DIMENSION(:), &
-      POINTER                                :: jp_block, jp_ii_block, &
+      POINTER                                :: jp0_block, jp_block, jp_ii_block, &
                                                 jp_iii_block, jp_RARnu
-
-!
-!
+    REAL(dp) :: hard_radius_a,hard_radius_b,hard_radius_c
 
     CALL timeset("calculate_jrho_atom_coeff","I"," ",handle)
     !
     failure =.FALSE.
     NULLIFY(atom_list,atomic_kind_set,dft_control,orb_basis_set,sab_orb,&
-         &  jrho1_atom_set,oce,reduced_3c_oce,jp_block,jp_ii_block,&
+         &  jrho1_atom_set,oce,reduced_3c_oce,jp0_block,jp_block,jp_ii_block,&
          &  jp_ii_block,jp_RARnu,C_coeff_hh_a,C_coeff_hh_b,C_coeff_ss_a,&
          &  C_coeff_ss_b,sab_orb_neighbor_list,sab_orb_neighbor_list_local,&
          &  sab_orb_neighbor_node)
@@ -196,7 +197,7 @@ CONTAINS
     CALL set_vecp(iB,ii,iii)
     !
     ! Allocate some arrays
-    ALLOCATE(jp_block(nspins),jp_ii_block(nspins),jp_iii_block(nspins),&
+    ALLOCATE(jp0_block(nspins),jp_block(nspins),jp_ii_block(nspins),jp_iii_block(nspins),&
          &   jp_RARnu(nspins),PC(max_nsgf,max_gau),STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     !
@@ -216,6 +217,9 @@ CONTAINS
        DO iat = 1,nat
           iatom = atom_list(iat)
           DO ispin = 1, nspins
+             jrho1_atom_set(iatom)%cjc0_h(ispin)%r_coef = 0.0_dp
+             jrho1_atom_set(iatom)%cjc0_s(ispin)%r_coef = 0.0_dp
+
              jrho1_atom_set(iatom)%cjc_h(ispin)%r_coef = 0.0_dp
              jrho1_atom_set(iatom)%cjc_s(ispin)%r_coef = 0.0_dp
              jrho1_atom_set(iatom)%cjc_ii_h(ispin)%r_coef = 0.0_dp
@@ -237,6 +241,7 @@ CONTAINS
     DO ikind = 1,nkind
        atomic_kind => atomic_kind_set(ikind)
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+            &               hard_radius=hard_radius_a,&
             &               orb_basis_set=orb_basis_set)
        IF(.NOT.ASSOCIATED(orb_basis_set)) CYCLE
        
@@ -246,6 +251,7 @@ CONTAINS
        DO jkind = 1,nkind
           atomic_kind => atomic_kind_set(jkind)
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
+               &               hard_radius=hard_radius_b,&
                &               orb_basis_set=orb_basis_set)
 
           IF(.NOT.ASSOCIATED(orb_basis_set)) CYCLE
@@ -299,12 +305,14 @@ CONTAINS
                 !
                 ! Take the block \mu\nu of jpab, jpab_ii and jpab_iii
                 DO ispin = 1,nspins
-
-                   !write(*,*) 'iatom',iatom,'jatom',jatom
-
+                   NULLIFY(jp0_block(ispin)%r_coef)
                    NULLIFY(jp_block(ispin)%r_coef)
                    NULLIFY(jp_ii_block(ispin)%r_coef)
                    NULLIFY(jp_iii_block(ispin)%r_coef)
+                   CALL get_block_node(matrix=mat_jp0(ispin)%matrix,&
+                        &              block_row=iatom,&
+                        &              block_col=jatom,&
+                        &              BLOCK=jp0_block(ispin)%r_coef)
                    CALL get_block_node(matrix=mat_jp(ispin)%matrix,&
                         &              block_row=iatom,&
                         &              block_col=jatom,&
@@ -326,6 +334,7 @@ CONTAINS
 
                    CALL get_atomic_kind(atomic_kind=atomic_kind,&
                         &               orb_basis_set=orb_basis_set,&
+                        &               hard_radius=hard_radius_c,&
                         &               paw_atom=paw_atom)
 
                    CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
@@ -352,6 +361,15 @@ CONTAINS
                          CYCLE
                       END IF
                       !
+                      ! check if the hard_radius overlap
+                      !IF(hard_radius_b+hard_radius_c.GT.SQRT(rbc(1)**2+rbc(2)**2+rbc(3)**2)&
+                      !     & .AND.SQRT(rbc(1)**2+rbc(2)**2+rbc(3)**2).GT.1.0E-10_dp) THEN
+                      !   write(*,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
+                      !   write(*,*) 'hard_radius_b',hard_radius_b,' hard_radius_c',hard_radius_c
+                      !   write(*,*) '|rbc|',SQRT(rbc(1)**2+rbc(2)**2+rbc(3)**2)
+                      !   write(*,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
+                      !ENDIF
+                      !
                       ! Compute the modified Qai matrix as
                       ! mQai_\mu\nu = Qai_\mu\nu - Qbi_\mu\nu * (R_A-R_\nu)_ii 
                       !             + Qci_\mu\nu * (R_A-R_\nu)_iii
@@ -360,7 +378,7 @@ CONTAINS
                       DO isgfb = 1,nsgfb
                       DO isgfa = 1,nsgfa
                          jp_RARnu(ispin)%r_coef(isgfa,isgfb) =  &
-                              &  jp_block(ispin)%r_coef(isgfa,isgfb)  &
+                              &  jp_block(ispin)%r_coef(isgfa,isgfb) &
                               & -jp_iii_block(ispin)%r_coef(isgfa,isgfb)*rbc(ii)&
                               & +jp_ii_block(ispin)%r_coef(isgfa,isgfb)*rbc(iii)
                       ENDDO
@@ -387,6 +405,27 @@ CONTAINS
                       IF(iatom==jatom) THEN
                          !
                          DO ispin = 1,nspins
+                            !------------------------------------------------------------------
+                            ! P_\alpha\alpha'
+                            ! hard
+                            CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,&
+                                 &     1.0_dp,jp0_block(ispin)%r_coef(1,1),nsgfa,&
+                                 &     C_coeff_hh_a(1,1),SIZE(C_coeff_hh_a,1),&
+                                 &     0.0_dp,PC(1,1),max_nsgf)
+                            CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,&
+                                 &     1.0_dp,C_coeff_hh_a(1,1),SIZE(C_coeff_hh_a,1),&
+                                 &     PC(1,1),max_nsgf,&
+                                 &     1.0_dp,jrho1_atom_set(katom)%cjc0_h(ispin)%r_coef(1,1),nsoctot)
+                            !
+                            ! soft
+                            CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,&
+                                 &     1.0_dp,jp0_block(ispin)%r_coef(1,1),nsgfa,&
+                                 &     C_coeff_ss_a(1,1),SIZE(C_coeff_ss_a,1),&
+                                 &     0.0_dp,PC(1,1),max_nsgf)
+                            CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,&
+                                 &     1.0_dp,C_coeff_ss_a(1,1),SIZE(C_coeff_ss_a,1),&
+                                 &     PC(1,1),max_nsgf,&
+                                 &     1.0_dp,jrho1_atom_set(katom)%cjc0_s(ispin)%r_coef(1,1),nsoctot)
                             !------------------------------------------------------------------
                             ! mQai_\alpha\alpha'
                             ! hard
@@ -472,6 +511,27 @@ CONTAINS
                          !
                          DO ispin = 1,nspins
                             !------------------------------------------------------------------
+                            ! P_\alpha\alpha'
+                            ! hard
+                            CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,&
+                                 &     1.0_dp,jp0_block(ispin)%r_coef(1,1),nsgfa,&
+                                 &     C_coeff_hh_b(1,1),SIZE(C_coeff_hh_b,1),&
+                                 &     0.0_dp,PC(1,1),max_nsgf)
+                            CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,&
+                                 &     1.0_dp,C_coeff_hh_a(1,1),SIZE(C_coeff_hh_a,1),&
+                                 &     PC(1,1),max_nsgf,&
+                                 &     1.0_dp,jrho1_atom_set(katom)%cjc0_h(ispin)%r_coef(1,1),nsoctot)
+                            !
+                            ! soft
+                            CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,&
+                                 &     1.0_dp,jp0_block(ispin)%r_coef(1,1),nsgfa,&
+                                 &     C_coeff_ss_b(1,1),SIZE(C_coeff_ss_b,1),&
+                                 &     0.0_dp,PC(1,1),max_nsgf)
+                            CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,&
+                                 &     1.0_dp,C_coeff_ss_a(1,1),SIZE(C_coeff_ss_a,1),&
+                                 &     PC(1,1),max_nsgf,&
+                                 &     1.0_dp,jrho1_atom_set(katom)%cjc0_s(ispin)%r_coef(1,1),nsoctot)
+                            !------------------------------------------------------------------
                             ! mQai_\alpha\alpha'
                             ! hard
                             CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,&
@@ -555,6 +615,8 @@ CONTAINS
     DO iatom = 1,natom
        DO ispin = 1,nspins
           IF(ASSOCIATED(jrho1_atom_set(iatom)%cjc_h(ispin)%r_coef)) THEN
+             CALL mp_sum(jrho1_atom_set(iatom)%cjc0_h(ispin)%r_coef,qs_env%para_env%group)
+             CALL mp_sum(jrho1_atom_set(iatom)%cjc0_s(ispin)%r_coef,qs_env%para_env%group)
              CALL mp_sum(jrho1_atom_set(iatom)%cjc_h(ispin)%r_coef,qs_env%para_env%group)
              CALL mp_sum(jrho1_atom_set(iatom)%cjc_s(ispin)%r_coef,qs_env%para_env%group)
              CALL mp_sum(jrho1_atom_set(iatom)%cjc_ii_h(ispin)%r_coef,qs_env%para_env%group)
@@ -566,7 +628,7 @@ CONTAINS
     ENDDO
     !
     ! clean up
-    DEALLOCATE(PC,jp_block,jp_ii_block,jp_iii_block,jp_RARnu,STAT=istat)
+    DEALLOCATE(PC,jp0_block,jp_block,jp_ii_block,jp_iii_block,jp_RARnu,STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     !
     CALL timestop(0.0_dp,handle)
@@ -593,15 +655,14 @@ CONTAINS
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf
     LOGICAL                                  :: failure, paw_atom
-    LOGICAL, ALLOCATABLE, DIMENSION(:, :)    :: is_set_to_0
-    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: g1, g2
-    REAL(dp), ALLOCATABLE, DIMENSION(:, :) :: cjc_h_block, cjc_ii_h_block, &
+    LOGICAL, ALLOCATABLE, DIMENSION(:,:)     :: is_set_to_0
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: g1, g2, gauge_h, gauge_s
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :) :: cjc0_h_block,cjc0_s_block,cjc_h_block, cjc_ii_h_block, &
       cjc_ii_s_block, cjc_iii_h_block, cjc_iii_s_block, cjc_s_block, dgg_1, &
       dgg_2, gg, gg_lm1
-    REAL(dp), DIMENSION(:, :), POINTER :: coeff, Fr_a_h, Fr_a_h_ii, &
+    REAL(dp), DIMENSION(:, :), POINTER :: coeff, Fr_h, Fr_s, Fr_a_h, Fr_a_h_ii, &
       Fr_a_h_iii, Fr_a_s, Fr_a_s_ii, Fr_a_s_iii, Fr_b_h, Fr_b_h_ii, &
-      Fr_b_h_iii, Fr_b_s, Fr_b_s_ii, Fr_b_s_iii, Fr_c_h_ii, Fr_c_h_iii, &
-      Fr_c_s_ii, Fr_c_s_iii, zet
+      Fr_b_h_iii, Fr_b_s, Fr_b_s_ii, Fr_b_s_iii, zet
     REAL(dp), DIMENSION(:, :, :), POINTER    :: my_CG
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: my_CG_dxyz_asym
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -615,18 +676,17 @@ CONTAINS
     TYPE(jrho_atom_type), DIMENSION(:), &
       POINTER                                :: jrho1_atom_set
     TYPE(jrho_atom_type), POINTER            :: jrho1_atom
-
-!
-!
-
+    REAL(dp)                                 :: hard_radius,alpha
+    INTEGER::ir
+    !
+    !
     CALL timeset("calculate_jrho_atom_rad","I"," ",handle)
     !
     failure =.FALSE.
     NULLIFY(atomic_kind_set,dft_control,para_env,&
-         &  coeff,Fr_a_h,Fr_a_s,Fr_a_h_ii,Fr_a_s_ii,&
+         &  coeff,Fr_h,Fr_s,Fr_a_h,Fr_a_s,Fr_a_h_ii,Fr_a_s_ii,&
          &  Fr_a_h_iii,Fr_a_s_iii,Fr_b_h,Fr_b_s,Fr_b_h_ii,&
-         &  Fr_b_s_ii,Fr_b_h_iii,Fr_b_s_iii,Fr_c_h_ii,&
-         &  Fr_c_s_ii,Fr_c_h_iii,Fr_c_s_iii,jrho1_atom_set,&
+         &  Fr_b_s_ii,Fr_b_h_iii,Fr_b_s_iii,jrho1_atom_set,&
          &  jrho1_atom)
     !
     CALL get_qs_env(qs_env=qs_env,&
@@ -660,6 +720,7 @@ CONTAINS
             &               natom=natom,&
             &               paw_atom=paw_atom,&
             &               harmonics=harmonics,&
+            &               hard_radius=hard_radius,&
             &               orb_basis_set=orb_basis_set)
        !
        ! Quick cycle if needed.
@@ -687,11 +748,39 @@ CONTAINS
        max_nso = nsoset(maxl)
        ALLOCATE(g1(nr),g2(nr),gg(nr,0:2*maxl),gg_lm1(nr,0:2*maxl),&
             &   dgg_1(nr,0:2*maxl),dgg_2(nr,0:2*maxl),&
+            &   cjc0_h_block(max_nso,max_nso),cjc0_s_block(max_nso,max_nso),&
             &   cjc_h_block(max_nso,max_nso),cjc_s_block(max_nso,max_nso),&
             &   cjc_ii_h_block(max_nso,max_nso),cjc_ii_s_block(max_nso,max_nso),&
             &   cjc_iii_h_block(max_nso,max_nso),cjc_iii_s_block(max_nso,max_nso),&
-            &   STAT=istat)
+            &   gauge_h(nr),gauge_s(nr),STAT=istat)
        CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+       !
+       ! Compute the gauge
+       SELECT CASE(nmr_env%gauge)
+       CASE(nmr_gauge_r)
+          ! d(r)=r
+          gauge_h(1:nr) = grid_atom%rad(1:nr)
+          gauge_s(1:nr) = grid_atom%rad(1:nr)
+       CASE(nmr_gauge_r_and_bader)
+          ! d_h(r)=r*(1-exp(-alpha*r**4)))
+          ! d_s(r)=r*   exp(-alpha*r**4)
+          alpha = LOG(2.0_dp*hard_radius)/hard_radius**4
+          gauge_h(1:nr) = grid_atom%rad(1:nr)*(1.0_dp-EXP(-alpha*grid_atom%rad2(1:nr)*grid_atom%rad2(1:nr)))
+          gauge_s(1:nr) = grid_atom%rad(1:nr)*        EXP(-alpha*grid_atom%rad2(1:nr)*grid_atom%rad2(1:nr))
+       CASE(nmr_gauge_r_and_step_function)
+          ! step function
+          gauge_h(1:nr) = 0d0
+          do ir=1,nr
+             if(grid_atom%rad(ir).LE.hard_radius) then
+                gauge_s(ir) = grid_atom%rad(ir)
+             else
+                gauge_s(ir) = gauge_h(ir)
+             endif
+          enddo
+       CASE DEFAULT
+          CALL stop_program(routineP,"Unknown gauge, try again...")
+       END SELECT
+       !
        !
        m1s = 0
        DO iset1 = 1,nset
@@ -755,6 +844,20 @@ CONTAINS
                       !
                       DO ispin=1,nspins
                          !------------------------------------------------------------------
+                         ! P_\alpha\alpha'
+                         cjc0_h_block = huge(1d0)!0.0_dp
+                         cjc0_s_block = huge(1d0)!0.0_dp
+                         !
+                         ! Hard term
+                         coeff => jrho1_atom_set(iatom)%cjc0_h(ispin)%r_coef
+                         cjc0_h_block(i1:i1+size1-1,i2:i2+size2-1) = &
+                              &coeff(iso1_first:iso1_last,iso2_first:iso2_last)
+                         !
+                         ! Soft term
+                         coeff => jrho1_atom_set(iatom)%cjc0_s(ispin)%r_coef
+                         cjc0_s_block(i1:i1+size1-1,i2:i2+size2-1) = &
+                              &coeff(iso1_first:iso1_last,iso2_first:iso2_last)
+                         !------------------------------------------------------------------
                          ! mQai_\alpha\alpha'
                          cjc_h_block = HUGE(1e0_dp)!0.0_dp
                          cjc_s_block = HUGE(1e0_dp)!0.0_dp
@@ -811,6 +914,10 @@ CONTAINS
                          ENDIF
                          !------------------------------------------------------------------
                          ! 
+                         Fr_h => jrho1_atom%jrho_h(ispin)%r_coef
+                         Fr_s => jrho1_atom%jrho_s(ispin)%r_coef
+                         !------------------------------------------------------------------
+                         ! 
                          Fr_a_h => jrho1_atom%jrho_a_h(ispin)%r_coef
                          Fr_a_s => jrho1_atom%jrho_a_s(ispin)%r_coef
                          Fr_b_h => jrho1_atom%jrho_b_h(ispin)%r_coef
@@ -821,16 +928,12 @@ CONTAINS
                          Fr_a_s_ii => jrho1_atom%jrho_a_s_ii(ispin)%r_coef
                          Fr_b_h_ii => jrho1_atom%jrho_b_h_ii(ispin)%r_coef
                          Fr_b_s_ii => jrho1_atom%jrho_b_s_ii(ispin)%r_coef
-                         Fr_c_h_ii => jrho1_atom%jrho_c_h_ii(ispin)%r_coef ! not needed
-                         Fr_c_s_ii => jrho1_atom%jrho_c_s_ii(ispin)%r_coef ! not needed
                          !------------------------------------------------------------------
                          !
                          Fr_a_h_iii => jrho1_atom%jrho_a_h_iii(ispin)%r_coef
                          Fr_a_s_iii => jrho1_atom%jrho_a_s_iii(ispin)%r_coef
                          Fr_b_h_iii => jrho1_atom%jrho_b_h_iii(ispin)%r_coef
                          Fr_b_s_iii => jrho1_atom%jrho_b_s_iii(ispin)%r_coef
-                         Fr_c_h_iii => jrho1_atom%jrho_c_h_iii(ispin)%r_coef ! not needed
-                         Fr_c_s_iii => jrho1_atom%jrho_c_s_iii(ispin)%r_coef ! not needed
                          !------------------------------------------------------------------
                          !
                          DO iso = 1,max_iso_not0
@@ -854,71 +957,57 @@ CONTAINS
                                ENDIF
                                CPPrecondition(l<=lmax_expansion,cp_failure_level,routineP,error,failure)
                                !------------------------------------------------------------------
+                               ! P
+                               !
+                               ! Hard term
+                               Fr_h(1:nr,iso) = Fr_h(1:nr,iso) + &
+                                    &           gg(1:nr,l)*cjc0_h_block(iso1,iso2)*&
+                                    &           my_CG(iso1,iso2,iso)*(grid_atom%rad(1:nr)-gauge_h(1:nr))
+                               !
+                               ! Soft term
+                               Fr_s(1:nr,iso) = Fr_s(1:nr,iso) + &
+                                    &           gg(1:nr,l)*cjc0_s_block(iso1,iso2)*&
+                                    &           my_CG(iso1,iso2,iso)*(grid_atom%rad(1:nr)-gauge_s(1:nr))
+                               !------------------------------------------------------------------
                                ! Rai
                                !
                                ! Hard term
-                               Fr_a_h(1:nr,iso)     = Fr_a_h(1:nr,iso) + &
-                                    &                 dgg_1(1:nr,l)*cjc_h_block(iso1,iso2)*&
-                                    &                 my_CG(iso1,iso2,iso)
+                               Fr_a_h(1:nr,iso) = Fr_a_h(1:nr,iso) + &
+                                    &             dgg_1(1:nr,l)*cjc_h_block(iso1,iso2)*&
+                                    &             my_CG(iso1,iso2,iso)
                                !
                                ! Soft term
-                               Fr_a_s(1:nr,iso)     = Fr_a_s(1:nr,iso) + &
-                                    &                 dgg_1(1:nr,l)*cjc_s_block(iso1,iso2)*&
-                                    &                 my_CG(iso1,iso2,iso)
+                               Fr_a_s(1:nr,iso) = Fr_a_s(1:nr,iso) + &
+                                    &             dgg_1(1:nr,l)*cjc_s_block(iso1,iso2)*&
+                                    &             my_CG(iso1,iso2,iso)
                                !------------------------------------------------------------------
                                ! Rci
                                !
                                ! Hard term
-                               Fr_a_h_ii(1:nr,iso)  = Fr_a_h_ii(1:nr,iso) + &
-                                    &                 dgg_2(1:nr,l)*cjc_ii_h_block(iso1,iso2)*&
-                                    &                 my_CG(iso1,iso2,iso)
+                               Fr_a_h_ii(1:nr,iso) = Fr_a_h_ii(1:nr,iso) + &
+                                    &                dgg_1(1:nr,l)*gauge_h(1:nr)*cjc_ii_h_block(iso1,iso2)*&
+!                                    &                 dgg_2(1:nr,l)*cjc_ii_h_block(iso1,iso2)*&
+                                    &                my_CG(iso1,iso2,iso)
                                !
                                ! Soft term
-                               Fr_a_s_ii(1:nr,iso)  = Fr_a_s_ii(1:nr,iso) + &
-                                    &                 dgg_2(1:nr,l)*cjc_ii_s_block(iso1,iso2)*&
-                                    &                 my_CG(iso1,iso2,iso)
+                               Fr_a_s_ii(1:nr,iso) = Fr_a_s_ii(1:nr,iso) + &
+                                    &                dgg_1(1:nr,l)*gauge_s(1:nr)*cjc_ii_s_block(iso1,iso2)*&
+!                                    &                 dgg_2(1:nr,l)*cjc_ii_s_block(iso1,iso2)*&
+                                    &                my_CG(iso1,iso2,iso)
                                !------------------------------------------------------------------
                                ! Rbi
                                !
                                ! Hard term
                                Fr_a_h_iii(1:nr,iso) = Fr_a_h_iii(1:nr,iso) + &
-                                    &                 dgg_2(1:nr,l)*cjc_iii_h_block(iso1,iso2)*&
+                                    &                 dgg_1(1:nr,l)*gauge_h(1:nr)*cjc_iii_h_block(iso1,iso2)*&
+!                                    &                 dgg_2(1:nr,l)*cjc_iii_h_block(iso1,iso2)*&
                                     &                 my_CG(iso1,iso2,iso)
                                !
                                ! Soft term
                                Fr_a_s_iii(1:nr,iso) = Fr_a_s_iii(1:nr,iso) + &
-                                    &                 dgg_2(1:nr,l)*cjc_iii_s_block(iso1,iso2)*&
+                                    &                 dgg_1(1:nr,l)*gauge_s(1:nr)*cjc_iii_s_block(iso1,iso2)*&
+!                                    &                 dgg_2(1:nr,l)*cjc_iii_s_block(iso1,iso2)*&
                                     &                 my_CG(iso1,iso2,iso)
-                               !------------------------------------------------------------------
-                               ! Pci
-                               ! not needed
-                               !
-                               ! Hard term
-                               Fr_c_h_ii(1:nr,iso)  = Fr_c_h_ii(1:nr,iso) + &
-                                    &                 gg(1:nr,l)*cjc_ii_h_block(iso1,iso2)*&
-                                    &                 my_CG(iso1,iso2,iso)
-                               !
-                               ! Soft term
-                               Fr_c_s_ii(1:nr,iso)  = Fr_c_s_ii(1:nr,iso) + &
-                                    &                 gg(1:nr,l)*cjc_ii_s_block(iso1,iso2)*&
-                                    &                 my_CG(iso1,iso2,iso)
-                               Fr_c_h_ii(1:nr,iso)  = 1.23456789e10_dp! HUGE(1e0_dp)
-                               Fr_c_s_ii(1:nr,iso)  = 1.23456789e10_dp! HUGE(1e0_dp)
-                               !------------------------------------------------------------------
-                               ! Pbi
-                               ! not needed
-                               !
-                               ! Hard term
-                               Fr_c_h_iii(1:nr,iso) = Fr_c_h_iii(1:nr,iso) + &
-                                    &                 gg(1:nr,l)*cjc_iii_h_block(iso1,iso2)*&
-                                    &                 my_CG(iso1,iso2,iso)
-                               !
-                               ! Soft term
-                               Fr_c_s_iii(1:nr,iso) = Fr_c_s_iii(1:nr,iso) + &
-                                    &                 gg(1:nr,l)*cjc_iii_s_block(iso1,iso2)*&
-                                    &                 my_CG(iso1,iso2,iso)
-                               Fr_c_h_iii(1:nr,iso) = 1.23456789e10_dp!HUGE(1e0_dp)
-                               Fr_c_s_iii(1:nr,iso) = 1.23456789e10_dp!HUGE(1e0_dp)
                                !------------------------------------------------------------------
                             ENDDO !icg
                             !
@@ -967,24 +1056,28 @@ CONTAINS
                                !
                                ! Hard term
                                Fr_b_h_ii(1:nr,iso) = Fr_b_h_ii(1:nr,iso) + &
-                                    &                gg(1:nr,l)*cjc_ii_h_block(iso1,iso2)*&
+                                    &                gg_lm1(1:nr,l)*gauge_h(1:nr)*cjc_ii_h_block(iso1,iso2)*&
+!                                    &                gg(1:nr,l)*cjc_ii_h_block(iso1,iso2)*&
                                     &                my_CG_dxyz_asym(idir,iso1,iso2,iso)
                                !
                                ! Soft term
                                Fr_b_s_ii(1:nr,iso) = Fr_b_s_ii(1:nr,iso) + &
-                                       &                gg(1:nr,l)*cjc_ii_s_block(iso1,iso2)*&
-                                       &                my_CG_dxyz_asym(idir,iso1,iso2,iso)
+                                    &                gg_lm1(1:nr,l)*gauge_s(1:nr)*cjc_ii_s_block(iso1,iso2)*&
+!                                       &                gg(1:nr,l)*cjc_ii_s_block(iso1,iso2)*&
+                                    &                my_CG_dxyz_asym(idir,iso1,iso2,iso)
                                !------------------------------------------------------------------
                                ! Dbij
                                !
                                ! Hard term
                                Fr_b_h_iii(1:nr,iso) = Fr_b_h_iii(1:nr,iso) + &
-                                       &                 gg(1:nr,l)*cjc_iii_h_block(iso1,iso2)*&
-                                       &                 my_CG_dxyz_asym(idir,iso1,iso2,iso)
+                                    &                 gg_lm1(1:nr,l)*gauge_h(1:nr)*cjc_iii_h_block(iso1,iso2)*&
+!                                       &                 gg(1:nr,l)*cjc_iii_h_block(iso1,iso2)*&
+                                    &                 my_CG_dxyz_asym(idir,iso1,iso2,iso)
                                !
                                ! Soft term
                                Fr_b_s_iii(1:nr,iso) = Fr_b_s_iii(1:nr,iso) + &
-                                    &                 gg(1:nr,l)*cjc_iii_s_block(iso1,iso2)*&
+                                    &                 gg_lm1(1:nr,l)*gauge_s(1:nr)*cjc_iii_s_block(iso1,iso2)*&
+!                                    &                 gg(1:nr,l)*cjc_iii_s_block(iso1,iso2)*&
                                     &                 my_CG_dxyz_asym(idir,iso1,iso2,iso)
                                !------------------------------------------------------------------
                             ENDDO ! icg
@@ -1002,9 +1095,9 @@ CONTAINS
           m1s = m1s+maxso
        ENDDO ! iset1
        !
-       DEALLOCATE(cjc_h_block,cjc_s_block,cjc_ii_h_block,cjc_ii_s_block,&
-            &     cjc_iii_h_block,cjc_iii_s_block,g1,g2,gg,gg_lm1,dgg_1,&
-            &     dgg_2,STAT=istat)
+       DEALLOCATE(cjc0_h_block,cjc0_s_block,cjc_h_block,cjc_s_block,cjc_ii_h_block,cjc_ii_s_block,&
+            &     cjc_iii_h_block,cjc_iii_s_block,g1,g2,gg,gg_lm1,dgg_1,dgg_2,gauge_h,gauge_s,&
+            &     STAT=istat)
        CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     ENDDO ! ikind
     !
@@ -1158,7 +1251,6 @@ CONTAINS
                    !
                    !vw Can we compute that in calculate_jrho_atom_ang? wv!
                    jrho1_tot = (jrho_h_grid(ir,ia)-jrho_s_grid(ir,ia)) * grid_atom%weight(ia,ir)
-
                    itegrated_jrho = itegrated_jrho+jrho1_tot
                    !
                    ! local contribution to chi (NEEDS SOME MODIFICATIONS FOR PBC)
@@ -1301,21 +1393,19 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_jrho_atom_ang', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ia, iiB, iiiB, ir, iso, &
+    INTEGER                                  :: ia, iiB, iiiB, idir2, ir, iso, &
                                                 max_iso_not0, na, nr
     LOGICAL                                  :: failure
-    REAL(dp)                                 :: rad_part
-    REAL(dp), DIMENSION(:, :), POINTER :: a, Fr_a_h, Fr_a_h_ii, Fr_a_h_iii, &
-      Fr_a_s, Fr_a_s_ii, Fr_a_s_iii, Fr_b_h, Fr_b_h_ii, Fr_b_h_iii, Fr_b_s, &
-      Fr_b_s_ii, Fr_b_s_iii, Fr_c_h_ii, Fr_c_h_iii, Fr_c_s_ii, Fr_c_s_iii, slm
-
-!
-!
-
+    REAL(dp)                                 :: rad_part,scale
+    REAL(dp), DIMENSION(:,:), POINTER :: a, Fr_h, Fr_s, Fr_a_h, Fr_a_h_ii, Fr_a_h_iii, &
+         Fr_a_s, Fr_a_s_ii, Fr_a_s_iii, Fr_b_h, Fr_b_h_ii, Fr_b_h_iii, Fr_b_s, &
+         Fr_b_s_ii, Fr_b_s_iii, slm
+    !
+    !
     failure = .FALSE.
-    NULLIFY(Fr_a_h,Fr_a_s,Fr_a_h_ii,Fr_a_s_ii,Fr_a_h_iii,Fr_a_s_iii,&
+    NULLIFY(Fr_h,Fr_s,Fr_a_h,Fr_a_s,Fr_a_h_ii,Fr_a_s_ii,Fr_a_h_iii,Fr_a_s_iii,&
          &  Fr_b_h,Fr_b_s,Fr_b_h_ii,Fr_b_s_ii,Fr_b_h_iii,Fr_b_s_iii,&
-         &  Fr_c_h_ii,Fr_c_s_ii,Fr_c_h_iii,Fr_c_s_iii,a,slm)
+         &  a,slm)
     !
     CPPrecondition(ASSOCIATED(jrho_h),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(jrho_s),cp_failure_level,routineP,error,failure)
@@ -1333,8 +1423,6 @@ CONTAINS
     CPPrecondition(ASSOCIATED(jrho1_atom%jrho_a_s_ii),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(jrho1_atom%jrho_b_h_ii),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(jrho1_atom%jrho_b_s_ii),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_c_h_ii),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_c_s_ii),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(jrho1_atom%jrho_a_h_ii(ispin)%r_coef),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(jrho1_atom%jrho_a_s_ii(ispin)%r_coef),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(jrho1_atom%jrho_b_h_ii(ispin)%r_coef),cp_failure_level,routineP,error,failure)
@@ -1345,19 +1433,19 @@ CONTAINS
     CPPrecondition(ASSOCIATED(jrho1_atom%jrho_a_s_iii),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(jrho1_atom%jrho_b_h_iii),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(jrho1_atom%jrho_b_s_iii),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_c_h_iii),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_c_s_iii),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(jrho1_atom%jrho_a_h_iii(ispin)%r_coef),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(jrho1_atom%jrho_a_s_iii(ispin)%r_coef),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(jrho1_atom%jrho_b_h_iii(ispin)%r_coef),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(jrho1_atom%jrho_b_s_iii(ispin)%r_coef),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_c_h_iii(ispin)%r_coef),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_c_s_iii(ispin)%r_coef),cp_failure_level,routineP,error,failure)
     !
     !
     nr = grid_atom%nr
     na = grid_atom%ng_sphere
     max_iso_not0 = harmonics%max_iso_not0
+    !------------------------------------------------------------------
+    !
+    Fr_h => jrho1_atom%jrho_h(ispin)%r_coef
+    Fr_s => jrho1_atom%jrho_s(ispin)%r_coef
     !------------------------------------------------------------------
     !
     Fr_a_h => jrho1_atom%jrho_a_h(ispin)%r_coef !Rai
@@ -1370,22 +1458,25 @@ CONTAINS
     Fr_a_s_ii => jrho1_atom%jrho_a_s_ii(ispin)%r_coef
     Fr_b_h_ii => jrho1_atom%jrho_b_h_ii(ispin)%r_coef !Dcij
     Fr_b_s_ii => jrho1_atom%jrho_b_s_ii(ispin)%r_coef
-    Fr_c_h_ii => jrho1_atom%jrho_c_h_ii(ispin)%r_coef !Pci !not needed
-    Fr_c_s_ii => jrho1_atom%jrho_c_s_ii(ispin)%r_coef      !not needed
     !------------------------------------------------------------------
     !
     Fr_a_h_iii => jrho1_atom%jrho_a_h_iii(ispin)%r_coef !Rbi
     Fr_a_s_iii => jrho1_atom%jrho_a_s_iii(ispin)%r_coef
     Fr_b_h_iii => jrho1_atom%jrho_b_h_iii(ispin)%r_coef !Dbij
     Fr_b_s_iii => jrho1_atom%jrho_b_s_iii(ispin)%r_coef
-    Fr_c_h_iii => jrho1_atom%jrho_c_h_iii(ispin)%r_coef !Pbi !not needed
-    Fr_c_s_iii => jrho1_atom%jrho_c_s_iii(ispin)%r_coef      !not needed
     !------------------------------------------------------------------
     !
     a   => harmonics%a
     slm => harmonics%slm
     !
     CALL set_vecp(iB,iiB,iiiB)
+    !
+    scale = 0.0_dp
+    idir2 = 1
+    IF(idir.NE.iB) THEN
+       CALL set_vecp_rev(idir,iB,idir2)
+       scale = fac_vecp(idir,iB,idir2)
+    ENDIF
     !
     DO ir = 1,nr
        DO iso = 1,max_iso_not0
@@ -1396,16 +1487,18 @@ CONTAINS
              !                  -  aii(ia) * ( aj(ia) * Rbi(ir,iso) + Dbij )
              !                  + aiii(ia) * ( aj(ia) * Rci(ir,iso) + Dcij ) 
              !                 ) * Ylm(ia)
-             rad_part =             a(idir,ia)*Fr_a_h    (ir,iso)+Fr_b_h    (ir,iso)&
+             rad_part =             a(idir,ia)*Fr_a_h    (ir,iso)+Fr_b_h    (ir,iso) &
                   &   - a( iiB,ia)*(a(idir,ia)*Fr_a_h_iii(ir,iso)+Fr_b_h_iii(ir,iso))&
-                  &   + a(iiiB,ia)*(a(idir,ia)*Fr_a_h_ii (ir,iso)+Fr_b_h_ii (ir,iso))
+                  &   + a(iiiB,ia)*(a(idir,ia)*Fr_a_h_ii (ir,iso)+Fr_b_h_ii (ir,iso))&
+                  &   + scale*a(idir2,ia)*Fr_h(ir,iso)
              !
              jrho_h(ir,ia) = jrho_h(ir,ia) + rad_part * slm(ia,iso)
              !------------------------------------------------------------------
              ! Soft current density response
-             rad_part =             a(idir,ia)*Fr_a_s    (ir,iso)+Fr_b_s    (ir,iso)&
+             rad_part =             a(idir,ia)*Fr_a_s    (ir,iso)+Fr_b_s    (ir,iso) &
                   &   - a( iiB,ia)*(a(idir,ia)*Fr_a_s_iii(ir,iso)+Fr_b_s_iii(ir,iso))&
-                  &   + a(iiiB,ia)*(a(idir,ia)*Fr_a_s_ii (ir,iso)+Fr_b_s_ii (ir,iso))
+                  &   + a(iiiB,ia)*(a(idir,ia)*Fr_a_s_ii (ir,iso)+Fr_b_s_ii (ir,iso))&
+                  &   + scale*a(idir2,ia)*Fr_s(ir,iso)
              !
              jrho_s(ir,ia) = jrho_s(ir,ia) + rad_part * slm(ia,iso)
              !------------------------------------------------------------------
@@ -1506,7 +1599,7 @@ CONTAINS
        dist_list(i)%ndist = 0
        NULLIFY(dist_list(i)%rdist)
     ENDDO
-    NULLIFY (oceh(1)%block,oces(1)%block)
+    NULLIFY(oceh(1)%block,oces(1)%block)
 
     CALL get_particle_set(particle_set=particle_set,&
          &                first_sgf=first_sgf,&

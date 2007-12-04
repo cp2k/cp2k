@@ -66,7 +66,10 @@ MODULE qs_linres_nmr_utils
                                              parser_get_object,&
                                              parser_release
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
-  USE input_constants,                 ONLY: restart_guess
+  USE input_constants,                 ONLY: restart_guess,&
+                                             nmr_gauge_r,&
+                                             nmr_gauge_r_and_Bader,&
+                                             nmr_gauge_r_and_step_function
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -637,6 +640,18 @@ CONTAINS
     ! If surrent_density or full_nmr different allocations are required
     nmr_section => section_vals_get_subs_vals(qs_env%input, &
          &                                    "PROPERTIES%LINRES%NMR",error=error)
+    CALL section_vals_val_get(nmr_section,"GAUGE",i_val=nmr_env%gauge,error=error)
+    SELECT CASE(nmr_env%gauge)
+    CASE(nmr_gauge_r)
+       nmr_env%gauge_name="R"
+    CASE(nmr_gauge_r_and_Bader)
+       nmr_env%gauge_name="R_AND_BADER"
+    CASE(nmr_gauge_r_and_step_function)
+       nmr_env%gauge_name="R_AND_STEP_FUNCTION"
+    CASE DEFAULT
+       CALL stop_program("nmr_env_init","unknown gauge, try again...")
+    END SELECT
+
     CALL section_vals_val_get(nmr_section,"FULL",l_val=nmr_env%full_nmr,error=error)
     CALL section_vals_val_get(nmr_section,"RESTART_NMR",l_val=nmr_env%restart_nmr,error=error)
     CALL section_vals_val_get(nmr_section,"NICS",l_val=nmr_env%do_nics,error=error)
@@ -773,6 +788,7 @@ CONTAINS
          &                   (cell%deth /cell%unit_of_length**3*1.0E-30_dp) * 1.0E+6_dp
 
     IF(output_unit>0) THEN
+       WRITE(output_unit,"(T2,A,T60,A)") "  NMR|","Gauge used "//TRIM(nmr_env%gauge_name)
        IF(nmr_env%full_nmr) THEN
           WRITE(output_unit,"(T2,A,T60,A)") "  NMR|","Full orbital dependent correction"
        ENDIF
@@ -993,6 +1009,18 @@ CONTAINS
     ENDDO
     !
     ! Current density matrix in x y and z:
+    !
+    !jp0_ao
+    ALLOCATE(nmr_env%jp0_ao(nspins),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DO ispin = 1,nspins
+       NULLIFY(nmr_env%jp0_ao(ispin)%matrix)
+       CALL replicate_matrix_structure(nmr_env%op_rmd_ao(1)%matrix, &
+            &                          nmr_env%jp0_ao(ispin)%matrix,"nmr_env%jp0_ao"//&
+            &                          "-"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+            &                          target_symmetry="none",error=error)
+       CALL set_matrix(nmr_env%jp0_ao(ispin)%matrix,0.0_dp)
+    ENDDO
     !
     !jp1_ao
     ALLOCATE( nmr_env%jp1_ao(nspins),STAT=istat)
@@ -1215,6 +1243,14 @@ CONTAINS
         !op_rmd_ao
         IF(ASSOCIATED(nmr_env%op_rmd_ao)) THEN
           CALL deallocate_matrix_set(nmr_env%op_rmd_ao,error=error)
+        END IF
+        !jp0_ao
+        IF(ASSOCIATED(nmr_env%jp0_ao)) THEN
+          DO i = 1,SIZE(nmr_env%jp0_ao,1)
+              CALL deallocate_matrix(nmr_env%jp0_ao(i)%matrix,error=error)
+          END DO
+          DEALLOCATE(nmr_env%jp0_ao,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         END IF
         !jp1_ao
         IF(ASSOCIATED(nmr_env%jp1_ao)) THEN

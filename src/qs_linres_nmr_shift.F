@@ -455,12 +455,12 @@ CONTAINS
        ENDDO  ! idir
 
     ENDDO  ! istate
-
-    IF (output_unit>0) WRITE(output_unit,*) "CHI TENSOR : iB =", iB
+    !
+    !IF (output_unit>0) WRITE(output_unit,*) "CHI TENSOR : iB =", iB
     DO idir = 1,3
        nmr_env%chi_tensor(idir,iB) = nmr_env%chi_tensor(idir,iB)+&
             &                        chi(idir)*nmr_env%chi_factor
-       IF (output_unit>0) WRITE(output_unit,*) idir, nmr_env%chi_tensor(idir,iB)
+       !IF (output_unit>0) WRITE(output_unit,*) idir, nmr_env%chi_tensor(idir,iB)
     ENDDO
     !
     ! deallocate the sparse matrices
@@ -859,8 +859,8 @@ CONTAINS
           DO j = 1,3
              chi_sym(i,j) = (chi_tensor(i,j)+chi_tensor(j,i))/2.0_dp
              chi_sym_tot(i,j) = (chi_tensor(i,j)+chi_tensor(j,i))/2.0_dp
-             !chi_sym_tot(i,j) = (chi_tensor(i,j)+chi_tensor(j,i)+&
-             !                    chi_tensor_loc(i,j)+chi_tensor_loc(j,i))/2.0_dp
+             chi_sym_tot(i,j) = (chi_tensor(i,j)+chi_tensor(j,i)+&
+                                 chi_tensor_loc(i,j)+chi_tensor_loc(j,i))/2.0_dp
           END DO
        END DO
     ELSE
@@ -903,13 +903,13 @@ CONTAINS
              WRITE(unit_atoms,'(3(A,f15.6))') ' ZX=',chi_tensor(3,1),&
                   &                           ' ZY=',chi_tensor(3,2),&
                   &                           ' ZZ=',chi_tensor(3,3)
-             !WRITE(unit_atoms,'(T30,A)') " CHI from LOCAL J in 10^-30 J/T^2 units"
-             !WRITE(unit_atoms,'(3(A,f15.6))') ' XX=',chi_tensor_loc(1,1),&
-             !     ' XY=',chi_tensor_loc(1,2),' XZ=',chi_tensor_loc(1,3)
-             !WRITE(unit_atoms,'(3(A,f15.6))') ' YX=',chi_tensor_loc(2,1),&
-             !     ' YY=',chi_tensor_loc(2,2),' YZ=',chi_tensor_loc(2,3)
-             !WRITE(unit_atoms,'(3(A,f15.6))') ' ZX=',chi_tensor_loc(3,1),&
-             !    ' ZY=',chi_tensor_loc(3,2),' ZZ=',chi_tensor_loc(3,3)
+             WRITE(unit_atoms,'(T30,A)') " CHI from LOCAL J in 10^-30 J/T^2 units"
+             WRITE(unit_atoms,'(3(A,f15.6))') ' XX=',chi_tensor_loc(1,1),&
+                  ' XY=',chi_tensor_loc(1,2),' XZ=',chi_tensor_loc(1,3)
+             WRITE(unit_atoms,'(3(A,f15.6))') ' YX=',chi_tensor_loc(2,1),&
+                  ' YY=',chi_tensor_loc(2,2),' YZ=',chi_tensor_loc(2,3)
+             WRITE(unit_atoms,'(3(A,f15.6))') ' ZX=',chi_tensor_loc(3,1),&
+                 ' ZY=',chi_tensor_loc(3,2),' ZZ=',chi_tensor_loc(3,3)
           ELSE
              WRITE(unit_atoms,'(T30,A)') " CHI from J in atomic units"
              WRITE(unit_atoms,'(3(A,f15.6))')' XX=',chi_tensor(1,1),&
@@ -1034,7 +1034,8 @@ CONTAINS
                 WRITE(unit_atoms,'(A,3f15.6)') 'S_x = ',-chemical_shift_loc(1,:,iatom) / 2.0_dp
                 WRITE(unit_atoms,'(A,3f15.6)') 'S_y = ',-chemical_shift_loc(2,:,iatom) / 2.0_dp
                 WRITE(unit_atoms,'(A,3f15.6)') 'S_z = ',-chemical_shift_loc(3,:,iatom) / 2.0_dp
-                WRITE(unit_atoms,'(T1,A)') " SIGMA TOTAL"
+                WRITE(unit_atoms,'(T1,A,f15.6)') " SIGMA TOTAL",&
+                     & (shift_nosym(1,1)+shift_nosym(2,2)+shift_nosym(3,3))/3.0_dp
                 WRITE(unit_atoms,'(A,3f15.6)') 'S_x = ',shift_nosym(1, 1:3)!eigenv_tmp(1)
                 WRITE(unit_atoms,'(A,3f15.6)') 'S_y = ',shift_nosym(2, 1:3)!eigenv_tmp(2)
                 WRITE(unit_atoms,'(A,3f15.6)') 'S_z = ',shift_nosym(3, 1:3)!eigenv_tmp(3)

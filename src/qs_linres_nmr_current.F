@@ -223,7 +223,8 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: density_matrix, &
+      POINTER                                :: density_matrix0, &
+                                                density_matrix, &
                                                 density_matrix_ii, &
                                                 density_matrix_iii
     TYPE(realspace_grid_type), POINTER       :: rs
@@ -236,7 +237,7 @@ CONTAINS
     CALL timeset("nmr_response_current","I"," ",handle)
     !
     NULLIFY(rho_rspace,rho_gspace,logger,nmr_section)
-    NULLIFY(density_matrix,density_matrix_ii,density_matrix_iii)
+    NULLIFY(density_matrix0,density_matrix,density_matrix_ii,density_matrix_iii)
     NULLIFY(cell,dft_control,mos,rho_struct,particle_set,pw_env)
     NULLIFY(auxbas_rs_pool,auxbas_pw_pool,pw_pools)
     NULLIFY(shift_pw_gspace,para_env)
@@ -247,8 +248,10 @@ CONTAINS
     output_unit= cp_logger_get_default_unit_nr(logger)
 
     nspins = SIZE(psi1,1)
-    ALLOCATE(density_matrix(nspins),density_matrix_ii(nspins),density_matrix_iii(nspins))
+    ALLOCATE(density_matrix0(nspins),density_matrix(nspins),density_matrix_ii(nspins),&
+         &   density_matrix_iii(nspins))
     DO ispin = 1,nspins
+       NULLIFY(density_matrix0(ispin)%matrix)
        NULLIFY(density_matrix(ispin)%matrix)
        NULLIFY(density_matrix_ii(ispin)%matrix)
        NULLIFY(density_matrix_iii(ispin)%matrix)
@@ -305,6 +308,30 @@ CONTAINS
        nmr_env%chi_tensor_loc = 0.0_dp
        jrho_tot_G = 0.0_dp
        jrho_tot_R = 0.0_dp
+       !
+       ! built density matrix
+       DO ispin = 1,nspins
+          CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff,&
+               &          occupation_numbers=occupation,homo=homo,nao=nao,nmo=nmo,&
+               &          uniform_occupation=uni_occ,maxocc=maxocc)
+          !
+          ! Multiply by the occupation number for the density matrix
+          IF ( .NOT. uni_occ ) THEN
+             alpha = 1.0_dp
+             CALL cp_fm_to_fm(mo_coeff,psi0_fk,error=error)
+             CALL cp_fm_column_scale(psi0_fk,occupation(1:homo))
+          ELSE
+             alpha = maxocc
+             psi0_fk => mo_coeff
+          ENDIF
+          !
+          ! Build the first density matrix
+          density_matrix0(ispin)%matrix => nmr_env%jp0_ao(ispin)%matrix
+          CALL set_matrix(density_matrix0(ispin)%matrix,0.0_dp)
+          CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix0(ispin)%matrix ,&
+               &                  matrix_v=psi0_fk,matrix_g=psi0_fk,&
+               &                  ncol=homo,alpha=alpha,error=error)
+       ENDDO
        !
        ! Loop on the field direction
        DO i_B = 1,3
@@ -504,7 +531,7 @@ CONTAINS
                 ! compute the atomic response current densities on the spherical grids
                 ! First the sparse matrices are multiplied by the expansion coefficients
                 ! this is the equivalent of the CPC for the charge density
-                CALL calculate_jrho_atom_coeff(qs_env,nmr_env,density_matrix,&
+                CALL calculate_jrho_atom_coeff(qs_env,nmr_env,density_matrix0,density_matrix,&
                      &                         density_matrix_ii,density_matrix_iii,&
                      &                         i_B,idir,error=error)
                 !
@@ -608,11 +635,12 @@ CONTAINS
        !
        !
        DO ispin = 1,nspins
+          NULLIFY(density_matrix0(ispin)%matrix)
           NULLIFY(density_matrix(ispin)%matrix)
           NULLIFY(density_matrix_ii(ispin)%matrix)
           NULLIFY(density_matrix_iii(ispin)%matrix)
        ENDDO
-       DEALLOCATE(density_matrix,density_matrix_ii,density_matrix_iii,STAT=istat)
+       DEALLOCATE(density_matrix0,density_matrix,density_matrix_ii,density_matrix_iii,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ENDIF  !  failure
     !

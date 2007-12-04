@@ -5162,6 +5162,19 @@ CONTAINS
        !       CALL section_add_keyword(section,keyword,error=error)
        !       CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword,name="GAUGE",&
+            description="The gauge used to compute the chemical shifts within GAPW.",&
+            usage="GAUGE R",&
+            default_i_val=nmr_gauge_r_and_step_function,&
+            enum_c_vals=s2a("R", "R_AND_BADER", "R_AND_STEP_FUNCTION"),&
+            enum_desc=s2a("Position gauge (doesnt work well).",&
+                          "Position and Bader gauges for the soft and the local parts, respectively.",&
+                          "Position and step function for the soft and the local parts, respectively."),&
+            enum_i_vals=(/nmr_gauge_r,nmr_gauge_r_and_Bader,nmr_gauge_r_and_step_function/),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="FULL",&
             description="Calculate the orbital dependent correction "//&
             " to get the full current density", usage="FULL",&

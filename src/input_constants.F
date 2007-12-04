@@ -377,6 +377,10 @@ MODULE input_constants
                                 use_mom_ref_zero=3,&
                                 use_mom_ref_nondef=4
 
+  INTEGER, PARAMETER, PUBLIC :: nmr_gauge_r=1,&
+                                nmr_gauge_r_and_Bader=2,&
+                                nmr_gauge_r_and_step_function=3
+
   INTEGER, PARAMETER, PUBLIC :: ot_mini_sd=1,ot_mini_cg=2,ot_mini_diis=3
   INTEGER, PARAMETER, PUBLIC :: ot_algo_taylor_or_diag=1,ot_algo_irac=2
   INTEGER, PARAMETER, PUBLIC :: ot_chol_irac=1,ot_poly_irac=2,ot_lwdn_irac=3
