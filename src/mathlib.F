@@ -1274,7 +1274,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'expint'
     INTEGER, PARAMETER                       :: maxit = 100
     REAL(dp), PARAMETER :: eps = 6.e-14_dp, &
-      euler = 0.5772156649015328606065120_dp, fpmin = 1.e-100_dp
+      euler = 0.5772156649015328606065120_dp, fpmin = TINY(0.0_dp)
 
     INTEGER                                  :: i, ii, nm1
     REAL(dp)                                 :: a, b, c, d, del, fact, h, psi
