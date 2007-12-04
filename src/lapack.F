@@ -14,7 +14,7 @@
 !!     APSI
 !!
 !!   MODIFICATION HISTORY
-!!     JGH (26-5-2001): New flag __sp_lib
+!!     JGH (26-5-2001): New flag __SGL
 !!                    : Added SVD routines
 !!     JGH (30-5-2001): Added Cholesky facotrisation and triangular inverse
 !!
@@ -24,7 +24,7 @@
 MODULE lapack
   IMPLICIT NONE
   PUBLIC ! make all routines public 
-#if defined (__sp_lib)
+#if defined (__SGL)
   INTERFACE lapack_ssyev
      SUBROUTINE ssyev ( jobz, uplo, n, a, lda, w, work, lwork, info )
        USE kinds, ONLY: dp
