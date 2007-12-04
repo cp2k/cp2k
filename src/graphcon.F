@@ -30,7 +30,8 @@
 !!   SOURCE
 !****************************************************************************
 MODULE graphcon
-  USE util,                            ONLY: sort
+    USE util,                            ONLY: sort
+#include "cp_common_uses.h"
 
     IMPLICIT NONE
 

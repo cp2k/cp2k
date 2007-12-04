@@ -26,6 +26,7 @@ MODULE  qs_modify_pab_block
 
   USE kinds,                           ONLY: dp
   USE orbital_pointers,                ONLY: coset
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

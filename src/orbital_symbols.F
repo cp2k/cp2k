@@ -21,6 +21,7 @@
 
 MODULE orbital_symbols
   USE termination,                     ONLY: stop_program
+#include "cp_common_uses.h"
 ! *****************************************************************************
 ! Index:
 ! FUNCTION cgf_symbol(n,lxyz) RESULT(symbol)

@@ -51,6 +51,7 @@ MODULE ai_nuclear
   USE mathconstants,                   ONLY: pi
   USE orbital_pointers,                ONLY: coset,&
                                              ncoset
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

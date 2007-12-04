@@ -26,6 +26,7 @@ MODULE xc_functionals_utilities
 
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_program
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

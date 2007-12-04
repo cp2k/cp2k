@@ -53,6 +53,7 @@ MODULE semi_empirical_parameters
                                              kcalmol
   USE semi_empirical_types,            ONLY: semi_empirical_type
   USE termination,                     ONLY: stop_program
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

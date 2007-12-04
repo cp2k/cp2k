@@ -36,6 +36,7 @@ MODULE ai_derivatives
   USE kinds,                           ONLY: dp
   USE orbital_pointers,                ONLY: coset,&
                                              ncoset
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

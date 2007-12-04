@@ -21,6 +21,7 @@
 MODULE structure_factor_types
 
   USE kinds,                           ONLY: dp
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

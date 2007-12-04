@@ -33,8 +33,10 @@ MODULE libint_wrapper
   USE, INTRINSIC :: ISO_C_BINDING
 #else
   !! We do not need it
-#endif !COMPILERS
-#endif !LIBINT
+!COMPILERS
+#endif
+!LIBINT
+#endif 
   USE kinds,                           ONLY: dp, int_8
   USE mathconstants
   USE orbital_pointers
@@ -897,7 +899,8 @@ MODULE libint_wrapper
 
   END SUBROUTINE get_derivs
 !***************************************************************************
-#endif !COMPILERS
+!COMPILERS
+#endif 
 
 !****************************************************************************!
 !****************************************************************************!
@@ -907,9 +910,8 @@ MODULE libint_wrapper
 !***                                                                      ***!
 !****************************************************************************!
 !****************************************************************************!
-
-#else !LIBINT
-
+!LIBINT
+#else
   ! some bogus types to be able to compile without libint being present
   TYPE prim_data
     REAL(dp)        :: F(prim_data_f_size)
@@ -1019,6 +1021,7 @@ MODULE libint_wrapper
 
   END SUBROUTINE get_derivs
 !***************************************************************************
-#endif !LIBINT
+!LIBINT
+#endif 
 
 END MODULE libint_wrapper

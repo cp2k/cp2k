@@ -30,6 +30,7 @@ MODULE cp_lbfgs
                                              cite_reference
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_cputime
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE

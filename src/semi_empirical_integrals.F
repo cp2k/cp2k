@@ -24,6 +24,7 @@ MODULE semi_empirical_integrals
 
   USE kinds,                           ONLY: dp
   USE semi_empirical_types,            ONLY: semi_empirical_type
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

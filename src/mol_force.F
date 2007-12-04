@@ -23,6 +23,7 @@ MODULE mol_force
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE termination,                     ONLY: stop_program
+#include "cp_common_uses.h"
 
   PRIVATE
   PUBLIC :: force_bonds, force_bends, force_torsions, force_imp_torsions

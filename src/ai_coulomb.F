@@ -60,6 +60,7 @@ MODULE ai_coulomb
                                              ncoset
   USE timings,                         ONLY: timeset,&
                                              timestop
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

@@ -26,6 +26,7 @@
 !****************************************************************************
 MODULE cp_blacs_calls
   USE kinds,                           ONLY: dp
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_blacs_calls'

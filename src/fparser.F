@@ -18,6 +18,7 @@ MODULE fparser
   !------- -------- --------- --------- --------- --------- --------- --------- -------
   USE kinds,                    ONLY: rn => dp
   USE termination,              ONLY: stop_program
+#include "cp_common_uses.h"
   IMPLICIT NONE
   !------- -------- --------- --------- --------- --------- --------- --------- -------
   PUBLIC                     :: initf,    & ! Initialize function parser for n functions

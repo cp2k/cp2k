@@ -18,6 +18,7 @@
 MODULE ps_wavelet_scaling_function
   USE kinds,                           ONLY: dp
   USE lazy,                            ONLY: lazy_arrays
+#include "cp_common_uses.h"
 
 PUBLIC :: scaling_function,&
           scf_recursion

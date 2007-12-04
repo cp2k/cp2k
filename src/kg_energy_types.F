@@ -17,6 +17,7 @@ MODULE kg_energy_types
                                              dp_size
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

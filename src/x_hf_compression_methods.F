@@ -25,6 +25,7 @@ MODULE x_hf_compression_methods
   
   USE kinds,                           ONLY: dp,&
                                              int_8
+#include "cp_common_uses.h"
 
   IMPLICIT NONE   
   ! masks the corresponding number of bits from the right

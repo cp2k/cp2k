@@ -23,6 +23,7 @@ MODULE kg_force_types
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

@@ -33,6 +33,7 @@ MODULE qs_harmonics_atom
   USE spherical_harmonics,             ONLY: y_lm
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

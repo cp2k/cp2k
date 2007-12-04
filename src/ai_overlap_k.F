@@ -49,6 +49,7 @@ MODULE ai_overlap_k
                                              pi
   USE orbital_pointers,                ONLY: coset,&
                                              ncoset
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

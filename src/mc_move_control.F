@@ -33,6 +33,7 @@ MODULE mc_move_control
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

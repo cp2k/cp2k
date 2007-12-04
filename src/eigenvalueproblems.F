@@ -33,6 +33,7 @@ MODULE eigenvalueproblems
                                              lapack_sspgv,&
                                              lapack_ssyev
   USE termination,                     ONLY: stop_program
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
