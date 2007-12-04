@@ -323,7 +323,11 @@ END SUBROUTINE fftw31dm
          integer iunit
          external fftw_write_char
 #if defined ( __FFTW3 )
+#if defined (__SGL) || defined(__FFTSGL)
+         call sfftw_export_wisdom(fftw_write_char, iunit)
+#else
          call dfftw_export_wisdom(fftw_write_char, iunit)
+#endif
 #endif
       end
 
@@ -365,6 +369,10 @@ END SUBROUTINE fftw31dm
          external fftw_read_char
          isuccess=0
 #if defined ( __FFTW3 )
+#if defined (__SGL) || defined(__FFTSGL)
+         call sfftw_import_wisdom(isuccess, fftw_read_char, iunit)
+#else
          call dfftw_import_wisdom(isuccess, fftw_read_char, iunit)
+#endif
 #endif
       end
