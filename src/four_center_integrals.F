@@ -93,6 +93,10 @@ MODULE four_center_integrals
   REAL(dp), PARAMETER      :: log_2 = 0.69314718055994530942_dp !LOG(2.0_dp)
   REAL(dp), PARAMETER      :: log_2_inv = 1.4426950408889634074_dp !1.0_dp/log_2
 
+  LOGICAL, SAVE            :: b_first_load_balance = .TRUE.
+  LOGICAL, SAVE            :: b_first_load_balance_f = .TRUE.
+  INTEGER ,SAVE            :: static_counter = 0
+
 !***
 !****************************************************************************
   
@@ -167,15 +171,15 @@ MODULE four_center_integrals
                                                 first_sgfc, first_sgfd
     LOGICAL :: buffer_overflow, do_correct_p_screening, do_p_screening, &
       failure, first_j_loop, first_k_loop, first_l_loop
-    REAL(dp) :: actual_pmax_entry, box_size(3), box_size_inv(3), &
-      cartesian_estimate, center1(3), center2(3), center2_folded(3), &
-      compression_factor, current_max_error, ene_x_aa, ene_x_bb, eps_box, &
-      eps_schwarz, eps_storage, estimate_to_store, fac, hf_fraction, K, Kbox, &
-      ks_bc, ks_bd, ks_beta_bc, ks_beta_bd, max_contraction_val, max_val1, &
-      max_val2, omega2Inv, omega_box, p_bc, p_bd, p_beta_bc, p_beta_bd, &
-      p_screening_correction_factor, pbc_center(3), pmax_entry, R1, R2, &
-      ra(3), rb(3), Rbox, rc(3), rd(3), screen_max, spherical_estimate, &
-      symm_fac, temp(3), tmp, bintime_start,bintime_stop
+    REAL(dp) :: actual_pmax_entry, bintime_start, bintime_stop, box_size(3), &
+      box_size_inv(3), cartesian_estimate, center1(3), center2(3), &
+      center2_folded(3), compression_factor, current_max_error, ene_x_aa, &
+      ene_x_bb, eps_box, eps_schwarz, eps_storage, estimate_to_store, fac, &
+      hf_fraction, K, Kbox, ks_bc, ks_bd, ks_beta_bc, ks_beta_bd, &
+      max_contraction_val, max_val1, max_val2, omega2Inv, omega_box, p_bc, &
+      p_bd, p_beta_bc, p_beta_bd, p_screening_correction_factor, &
+      pbc_center(3), pmax_entry, R1, R2, ra(3), rb(3), Rbox, rc(3), rd(3), &
+      screen_max, spherical_estimate, symm_fac, temp(3), tmp
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: primitive_integrals, T1
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: full_ks, full_ks_beta
     REAL(dp), DIMENSION(:, :), POINTER :: full_density, full_density_beta, &
@@ -238,6 +242,8 @@ MODULE four_center_integrals
     mem_maxvals = 0_int_8
     compression_factor = 0.0_dp
 
+
+    static_counter = static_counter + 1
  
     !! We do not need the containers if MAX_MEM = 0
     IF(.NOT. memory_parameter%do_all_on_the_fly) THEN 
@@ -340,6 +346,7 @@ MODULE four_center_integrals
       CALL mp_sum(qs_env%x_data%is_assoc_atomic_block,para_env%group)
       CALL mp_max(qs_env%x_data%number_of_p_entries, para_env%group)
     END IF
+
 
     !! Get the full density from all the processors
     NULLIFY(full_density)
@@ -460,10 +467,16 @@ MODULE four_center_integrals
     !! Call routines that distribute the load on all processes. If we want to screen on a initial density matrix, there is
     !! an optional parameter. Of course, this is only done if the geometry did change
     IF( geometry_did_change ) THEN
-      CALL load_balance_energy(qs_env%x_data,eps_schwarz,eps_box,particle_set,atomic_kind_set,para_env,&
-                               potential_parameter,screen_set,screen_atom,screen_max,&
-                               qs_env%x_data%is_assoc_atomic_block,ks_matrix,do_periodic,load_balance_parameter, box_size, &
-                               box_size_inv, kind_of, basis_parameter, qs_env%x_data%initial_p, error)
+      IF( b_first_load_balance ) THEN
+        CALL load_balance_energy(qs_env%x_data,eps_schwarz,eps_box,particle_set,atomic_kind_set,para_env,&
+                                 potential_parameter,screen_set,screen_atom,screen_max,&
+                                 qs_env%x_data%is_assoc_atomic_block,ks_matrix,do_periodic,load_balance_parameter, box_size, &
+                                 box_size_inv, kind_of, basis_parameter, qs_env%x_data%initial_p, error)
+        b_first_load_balance = .FALSE.
+      ELSE
+        CALL update_load_balance_energy(qs_env%x_data,para_env, screen_set,screen_atom,screen_max, &
+                                        qs_env%x_data%is_assoc_atomic_block,load_balance_parameter, error)
+      END IF
     END IF
 
     !! precompute maximum nco and allocate scratch
@@ -532,6 +545,7 @@ MODULE four_center_integrals
        DO bin=1,my_bin_size
           qs_env%x_data%distribution_energy(bin)%time_first_scf=0.0_dp
           qs_env%x_data%distribution_energy(bin)%time_other_scf=0.0_dp
+          qs_env%x_data%distribution_energy(bin)%time_forces=0.0_dp
        ENDDO
     ENDIF
     outer: DO bin=1,my_bin_size
@@ -572,7 +586,6 @@ MODULE four_center_integrals
           !! Be consistent with the modulo distribution of the load balance
           box_idx1 = (iatom-1)*natom+jatom
           IF(MODULO(FNV64(box_idx1),ncpu)/=my_original_cpu_id-1) CYCLE
-          IF (screen_atom(jatom,iatom) * screen_max < eps_schwarz) CYCLE
           jkind = kind_of(jatom)
           lb_max => basis_parameter(jkind)%lmax
           lb_min => basis_parameter(jkind)%lmin
@@ -611,20 +624,10 @@ MODULE four_center_integrals
             END IF
             DO WHILE(latom+1<=natom)
               latom = latom + 1
-              !! we want to be consistent with the KS matrix. If none of the atomic indices
-              !! is associated cycle
-              IF(.NOT. (qs_env%x_data%is_assoc_atomic_block(latom,iatom)>=1 .AND. &
-                        qs_env%x_data%is_assoc_atomic_block(katom,iatom)>=1 .AND. &
-                        qs_env%x_data%is_assoc_atomic_block(katom,jatom)>=1 .AND. &
-                        qs_env%x_data%is_assoc_atomic_block(latom,jatom)>=1 ) ) CYCLE
 
               !! third permutational symmetry
               IF(katom+latom<=iatom+jatom)  THEN
                 IF( ((iatom+jatom).EQ.(katom+latom) ) .AND.(katom<iatom)) CYCLE
-                
-                !! screen near field atomic part
-                IF (screen_atom(jatom,iatom) * screen_atom(latom,katom) < eps_schwarz) CYCLE
-                
                 !! if we pass through here, we have to update the workload counter
                 my_current_counter = my_current_counter + 1
                 !! if we reach the counter in the distribution we are finished with the curren bunch
@@ -632,6 +635,18 @@ MODULE four_center_integrals
                 IF(my_current_counter > qs_env%x_data%distribution_energy(bin)%number_of_integrals) THEN
                   EXIT atom_loops
                 END IF
+                
+                IF (screen_atom(jatom,iatom) * screen_max < eps_schwarz) CYCLE
+
+                !! screen near field atomic part
+                IF (screen_atom(jatom,iatom) * screen_atom(latom,katom) < eps_schwarz) CYCLE
+
+                !! we want to be consistent with the KS matrix. If none of the atomic indices
+                !! is associated cycle
+                IF(.NOT. (qs_env%x_data%is_assoc_atomic_block(latom,iatom)>=1 .AND. &
+                          qs_env%x_data%is_assoc_atomic_block(katom,iatom)>=1 .AND. &
+                          qs_env%x_data%is_assoc_atomic_block(katom,jatom)>=1 .AND. &
+                          qs_env%x_data%is_assoc_atomic_block(latom,jatom)>=1 ) ) CYCLE
 
                 !! calculate symmetry_factor accordin to degeneracy of atomic quartet
                 symm_fac = 0.5_dp
@@ -1121,7 +1136,7 @@ MODULE four_center_integrals
         END IF
       END DO
     END DO
- 
+
     !! Distribute the current KS-matrix to all the processes
     CALL mp_sync(para_env%group) ! to clarify timings 
     CALL timeset(routineN//"_dist_KS",handle_dist_ks)
@@ -1133,7 +1148,7 @@ MODULE four_center_integrals
                               qs_env%x_data%is_assoc_atomic_block,&
                               particle_set, natom, last_sgf_global, kind_of, basis_parameter, error)
     END IF
- 
+
     CALL mp_sync(para_env%group) ! to clarify timings 
     CALL timestop(handle_dist_ks)
     CALL mp_sum(ene_x_aa, para_env%group)
@@ -1853,12 +1868,12 @@ MODULE four_center_integrals
     LOGICAL                                  :: failure, first_j_loop, &
                                                 first_k_loop, first_l_loop, &
                                                 screen_pmat_forces
-    REAL(dp) :: box_size(3), box_size_inv(3), cartesian_estimate, center1(3), &
-      center2(3), center2_folded(3), eps_box, eps_schwarz, fac, hf_fraction, &
-      Kbox, max_contraction_val, max_val1, max_val2, omega2Inv, omega_box, &
-      pbc_center(3), pmax_max, R1, R2, ra(3), rb(3), Rbox, rc(3), rd(3), &
-      screen_max, symm_fac, temp(3), temp1, temp1b, temp2, temp3, temp3b, &
-      bintime_start, bintime_stop
+    REAL(dp) :: bintime_start, bintime_stop, box_size(3), box_size_inv(3), &
+      cartesian_estimate, center1(3), center2(3), center2_folded(3), eps_box, &
+      eps_schwarz, fac, hf_fraction, Kbox, max_contraction_val, max_val1, &
+      max_val2, omega2Inv, omega_box, pbc_center(3), pmax_entry, pmax_max, &
+      R1, R2, ra(3), rb(3), Rbox, rc(3), rd(3), screen_max, symm_fac, &
+      temp(3), temp1, temp1b, temp2, temp3, temp3b
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: work_forces
     REAL(dp), ALLOCATABLE, DIMENSION(:), &
       TARGET                                 :: primitive_forces
@@ -1881,7 +1896,6 @@ MODULE four_center_integrals
     TYPE(x_hf_load_balance_type)             :: load_balance_parameter
     TYPE(x_hf_potential_type)                :: potential_parameter
     TYPE(x_hf_screening_type)                :: screening_parameter
-    REAL(dp)                                 :: pmax_entry
 
     CALL mp_sync(para_env%group)
     CALL timeset(routineN,"I",'',handle)
@@ -2025,10 +2039,17 @@ MODULE four_center_integrals
     END IF
 
     !! Load balance the work
-    CALL load_balance_forces(qs_env%x_data,eps_schwarz,eps_box,particle_set,atomic_kind_set,para_env,&
-                             potential_parameter,screen_set,screen_atom,screen_max,&
-                             pmax_set,qs_env%x_data%is_assoc_atomic_block,ks_matrix,do_periodic,&
-                             load_balance_parameter, box_size, box_size_inv, kind_of, basis_parameter, error)
+    IF( b_first_load_balance_f ) THEN
+      CALL load_balance_forces(qs_env%x_data,eps_schwarz,eps_box,particle_set,atomic_kind_set,para_env,&
+                               potential_parameter,screen_set,screen_atom,screen_max,&
+                               pmax_set,qs_env%x_data%is_assoc_atomic_block,ks_matrix,do_periodic,&
+                               load_balance_parameter, box_size, box_size_inv, kind_of, basis_parameter, error)
+      b_first_load_balance_f = .FALSE.
+    ELSE
+      CALL update_load_balance_forces(qs_env%x_data, para_env, screen_set,screen_atom,screen_max, &
+                                      qs_env%x_data%is_assoc_atomic_block,load_balance_parameter, error)
+    END IF
+
 
     !! precompute maximum nco and allocate scratch
     nco_max=0
@@ -2136,7 +2157,6 @@ MODULE four_center_integrals
           !! Be consistent to the modulo distribution of the load balance
           box_idx1 = (iatom-1)*natom+jatom
           IF(MODULO(FNV64(box_idx1),ncpu)/=my_original_cpu_id-1) CYCLE
-          IF (screen_atom(jatom,iatom) * screen_max < eps_schwarz) CYCLE
 
           jkind = kind_of(jatom)
           lb_max => basis_parameter(jkind)%lmax
@@ -2183,12 +2203,6 @@ MODULE four_center_integrals
  
               !All four centers equivalent => zero-contribution
               IF((iatom==jatom .AND. iatom==katom .AND. iatom==latom)) CYCLE 
-              IF (screen_atom(jatom,iatom) * screen_atom(latom,katom) < eps_schwarz) CYCLE
-              IF(.NOT. (qs_env%x_data%is_assoc_atomic_block(latom,iatom)>=1 .AND. &
-                        qs_env%x_data%is_assoc_atomic_block(katom,iatom)>=1 .AND. &
-                        qs_env%x_data%is_assoc_atomic_block(katom,jatom)>=1 .AND. &
-                        qs_env%x_data%is_assoc_atomic_block(latom,jatom)>=1 ) ) CYCLE
-
               IF(katom+latom<=iatom+jatom)  THEN
                 IF( ((iatom+jatom).EQ.(katom+latom) ) .AND.(katom<iatom)) CYCLE
 
@@ -2196,6 +2210,14 @@ MODULE four_center_integrals
                 IF(my_current_counter > qs_env%x_data%distribution_forces(bin)%number_of_integrals) THEN
                   EXIT atom_loops
                 END IF
+               
+                IF (screen_atom(jatom,iatom) * screen_max < eps_schwarz) CYCLE
+                IF (screen_atom(jatom,iatom) * screen_atom(latom,katom) < eps_schwarz) CYCLE
+                IF(.NOT. (qs_env%x_data%is_assoc_atomic_block(latom,iatom)>=1 .AND. &
+                          qs_env%x_data%is_assoc_atomic_block(katom,iatom)>=1 .AND. &
+                          qs_env%x_data%is_assoc_atomic_block(katom,jatom)>=1 .AND. &
+                          qs_env%x_data%is_assoc_atomic_block(latom,jatom)>=1 ) ) CYCLE
+
                 lkind = kind_of(latom)
                 ld_max => basis_parameter(lkind)%lmax
                 ld_min => basis_parameter(lkind)%lmin
@@ -3718,8 +3740,7 @@ MODULE four_center_integrals
     INTEGER                                  :: kind_of(*)
     TYPE(x_hf_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
-    REAL(dp), DIMENSION(:, :, :, :), &
-                POINTER                      :: pmax_set
+    REAL(dp), DIMENSION(:, :, :, :), POINTER :: pmax_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'load_balance_energy', &
@@ -3728,7 +3749,7 @@ MODULE four_center_integrals
     INTEGER :: data_from, dest, handle, i, iatom, ibin, icpu, ikind, ipos, &
       iset, jatom, jkind, jset, katom, kkind, kset, latom, lkind, lset, &
       max_set, natom, nbins, nseta, nsetb, nsetc, nsetd, pgf_radius_box, &
-      radius1, radius2, req(2), source, stat, steps
+      radius1, radius2, req(2), source, stat
     INTEGER(int_8) :: box_idx1, box_idx2, box_idx3, box_idx4, &
       current_counter, distribution_counter_end, distribution_counter_start, &
       int_per_cpu, mepos, ncpu, optimal_cost, restore_counter, tmp_counter1, &
@@ -3740,16 +3761,15 @@ MODULE four_center_integrals
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_pos
     INTEGER, DIMENSION(:), POINTER           :: distribution_vector, nsgfa, &
                                                 nsgfb, nsgfc, nsgfd
-    LOGICAL                                  :: do_p_screening, failure
-    REAL(dp) :: center1(3), center2(3), center2_folded(3), &
-      initial_temperature, K, Kbox, max_val1, max_val2, omega2Inv, omega_box, &
-      pbc_center(3), R1, R2, Rbox, temp(3)
+    LOGICAL                                  :: failure
+    REAL(dp) :: center1(3), center2(3), center2_folded(3), K, Kbox, max_val1, &
+      max_val2, omega2Inv, omega_box, pbc_center(3), pmax_entry, R1, R2, &
+      Rbox, temp(3)
     TYPE(x_hf_distribution), DIMENSION(:), &
       POINTER                                :: ptr_to_tmp_dist
     TYPE(x_hf_distribution), &
-    DIMENSION(:, :), POINTER                 :: binned_dist, full_dist, &
+      DIMENSION(:, :), POINTER               :: binned_dist, full_dist, &
                                                 tmp_dist
-    REAL(dp)                                 :: pmax_entry
 
     IF(potential_parameter%omega /= 0.0_dp) THEN
       omega2Inv = 1.0_dp/(potential_parameter%omega**2)
@@ -3891,6 +3911,9 @@ MODULE four_center_integrals
       binned_dist(:,:)%number_of_integrals = 0
       binned_dist(:,:)%cost = 0
       binned_dist(:,:)%original_cpu_id = 0
+      binned_dist(:,:)%time_first_scf = 0.0_dp
+      binned_dist(:,:)%time_other_scf =0.0_dp
+      binned_dist(:,:)%time_forces = 0.0_dp
  
       tmp_counter1=0
       current_counter = 0
@@ -3908,7 +3931,7 @@ MODULE four_center_integrals
         DO jatom=iatom,natom
           box_idx1 = (iatom-1)*natom+jatom
           IF(MODULO(FNV64(box_idx1),ncpu) /= para_env%mepos) CYCLE
-          IF (screen_atom(jatom,iatom) * screen_max < eps_schwarz) CYCLE
+!          IF (screen_atom(jatom,iatom) * screen_max < eps_schwarz) CYCLE
           jkind = kind_of(jatom)
           nsetb =  basis_parameter(jkind)%nset
           nsgfb => basis_parameter(jkind)%nsgf
@@ -3917,11 +3940,11 @@ MODULE four_center_integrals
             nsetc =  basis_parameter(kkind)%nset
             nsgfc => basis_parameter(kkind)%nsgf
             DO latom=katom,natom
-              IF (screen_atom(jatom,iatom) * screen_atom(latom,katom) < eps_schwarz) CYCLE
-              IF(.NOT. (is_assoc_atomic_block_global(latom,iatom)  >=1 .AND. &
-                        is_assoc_atomic_block_global(katom,iatom)  >=1 .AND. &
-                        is_assoc_atomic_block_global(katom,jatom)  >=1 .AND. &
-                        is_assoc_atomic_block_global(latom,jatom)  >=1 ) ) CYCLE 
+!              IF (screen_atom(jatom,iatom) * screen_atom(latom,katom) < eps_schwarz) CYCLE
+!              IF(.NOT. (is_assoc_atomic_block_global(latom,iatom)  >=1 .AND. &
+!                        is_assoc_atomic_block_global(katom,iatom)  >=1 .AND. &
+!                        is_assoc_atomic_block_global(katom,jatom)  >=1 .AND. &
+!                        is_assoc_atomic_block_global(latom,jatom)  >=1 ) ) CYCLE 
 
               IF((katom+latom<=iatom+jatom))  THEN
                 IF( ((iatom+jatom).EQ.(katom+latom) ) .AND.(katom<iatom)) CYCLE
@@ -3931,6 +3954,14 @@ MODULE four_center_integrals
                 IF(binned_dist(1,ibin)%jstart == 0 ) binned_dist(1,ibin)%jstart = jatom
                 IF(binned_dist(1,ibin)%kstart == 0 ) binned_dist(1,ibin)%kstart = katom
                 IF(binned_dist(1,ibin)%lstart == 0 ) binned_dist(1,ibin)%lstart = latom
+
+                IF (screen_atom(jatom,iatom) * screen_max < eps_schwarz) CYCLE
+                IF (screen_atom(jatom,iatom) * screen_atom(latom,katom) < eps_schwarz) CYCLE
+                IF(.NOT. (is_assoc_atomic_block_global(latom,iatom)  >=1 .AND. &
+                          is_assoc_atomic_block_global(katom,iatom)  >=1 .AND. &
+                          is_assoc_atomic_block_global(katom,jatom)  >=1 .AND. &
+                          is_assoc_atomic_block_global(latom,jatom)  >=1 ) ) CYCLE
+
 
                 box_idx3 = (katom-1)*natom+latom
                 lkind = kind_of(latom)
@@ -3998,7 +4029,7 @@ MODULE four_center_integrals
                 ENDDO
 
                 IF( current_counter >= int_per_cpu) THEN
-                  binned_dist(1,ibin)%number_of_integrals = distribution_counter_end - distribution_counter_start +1
+                  binned_dist(1,ibin)%number_of_integrals = distribution_counter_end - distribution_counter_start + 1
                   binned_dist(1,ibin)%cost = binned_dist(1,ibin)%cost + current_counter
                   ibin = ibin + 1
                   distribution_counter_start = distribution_counter_end + 1
@@ -4062,8 +4093,6 @@ MODULE four_center_integrals
       !! Find an optimal distribution i.e. assign each element of the cost matrix to a certain process
       ALLOCATE(distribution_vector(ncpu*nbins),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      steps = 10000
-      initial_temperature = 1.0_dp
       ALLOCATE(optimal_costs(ncpu), STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       optimal_costs = 0
@@ -4099,6 +4128,10 @@ MODULE four_center_integrals
       full_dist(:,:)%number_of_integrals = 0
       full_dist(:,:)%cost = 0
       full_dist(:,:)%original_cpu_id = 0
+      full_dist(:,:)%time_first_scf = 0.0_dp
+      full_dist(:,:)%time_other_scf = 0.0_dp
+      full_dist(:,:)%time_forces = 0.0_dp
+
       
       DO mepos = 1,ncpu
         IF(para_env%mepos == mepos-1) THEN
@@ -4173,8 +4206,9 @@ MODULE four_center_integrals
           ptr_to_tmp_dist => tmp_dist(icpu,1:tmp_pos(icpu)-1)
         END IF
       END DO
-     
+      
       CALL x_hf_set_distr_energy(ptr_to_tmp_dist,x_data,error=error)
+
       DEALLOCATE(tmp_dist, full_dist, tmp_pos, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       DEALLOCATE(optimal_costs, distribution_vector, STAT=stat)
@@ -4258,7 +4292,7 @@ MODULE four_center_integrals
     INTEGER :: data_from, dest, handle, i, iatom, ibin, icpu, ikind, ipos, &
       iset, jatom, jkind, jset, katom, kkind, kset, latom, lkind, lset, &
       max_set, natom, nbins, nseta, nsetb, nsetc, nsetd, pgf_radius_box, &
-      radius1, radius2, req(2), source, stat, steps
+      radius1, radius2, req(2), source, stat
     INTEGER(int_8) :: box_idx1, box_idx2, box_idx3, box_idx4, &
       current_counter, distribution_counter_end, distribution_counter_start, &
       int_per_cpu, mepos, ncpu, optimal_cost, restore_counter, tmp_counter1, &
@@ -4271,15 +4305,14 @@ MODULE four_center_integrals
     INTEGER, DIMENSION(:), POINTER           :: distribution_vector, nsgfa, &
                                                 nsgfb, nsgfc, nsgfd
     LOGICAL                                  :: failure
-    REAL(dp) :: center1(3), center2(3), center2_folded(3), &
-      initial_temperature, Kbox, max_val1, max_val2, omega2Inv, omega_box, &
-      pbc_center(3), R1, R2, Rbox, temp(3)
+    REAL(dp) :: center1(3), center2(3), center2_folded(3), Kbox, max_val1, &
+      max_val2, omega2Inv, omega_box, pbc_center(3), pmax_entry, R1, R2, &
+      Rbox, temp(3)
     TYPE(x_hf_distribution), DIMENSION(:), &
       POINTER                                :: ptr_to_tmp_dist
     TYPE(x_hf_distribution), &
       DIMENSION(:, :), POINTER               :: binned_dist, full_dist, &
                                                 tmp_dist
-    REAL(dp)                                 :: pmax_entry
 
     IF(potential_parameter%omega /= 0.0_dp) THEN
       omega2Inv = 1.0_dp/(potential_parameter%omega**2)
@@ -4428,7 +4461,7 @@ MODULE four_center_integrals
         DO jatom=iatom,natom
           box_idx1 = (iatom-1)*natom+jatom
           IF(MODULO(FNV64(box_idx1),ncpu) /= para_env%mepos) CYCLE
-          IF (screen_atom(jatom,iatom) * screen_max < eps_schwarz) CYCLE
+!          IF (screen_atom(jatom,iatom) * screen_max < eps_schwarz) CYCLE
           jkind = kind_of(jatom)
           nsetb =  basis_parameter(jkind)%nset
           nsgfb => basis_parameter(jkind)%nsgf
@@ -4441,11 +4474,11 @@ MODULE four_center_integrals
               !All four centers equivalent => zero-contribution
               IF((iatom==jatom .AND. iatom==katom .AND. iatom==latom)) CYCLE
  
-              IF (screen_atom(jatom,iatom) * screen_atom(latom,katom) < eps_schwarz) CYCLE
-              IF(.NOT. (is_assoc_atomic_block_global(latom,iatom)  >=1 .AND. &
-                        is_assoc_atomic_block_global(katom,iatom)  >=1 .AND. &
-                        is_assoc_atomic_block_global(katom,jatom)  >=1 .AND. &
-                        is_assoc_atomic_block_global(latom,jatom)  >=1 ) ) CYCLE
+!              IF (screen_atom(jatom,iatom) * screen_atom(latom,katom) < eps_schwarz) CYCLE
+!              IF(.NOT. (is_assoc_atomic_block_global(latom,iatom)  >=1 .AND. &
+!                        is_assoc_atomic_block_global(katom,iatom)  >=1 .AND. &
+!                        is_assoc_atomic_block_global(katom,jatom)  >=1 .AND. &
+!                        is_assoc_atomic_block_global(latom,jatom)  >=1 ) ) CYCLE
 
               IF((katom+latom<=iatom+jatom))  THEN
                 IF( ((iatom+jatom).EQ.(katom+latom) ) .AND.(katom<iatom)) CYCLE
@@ -4455,6 +4488,14 @@ MODULE four_center_integrals
                 IF(binned_dist(1,ibin)%jstart == 0 ) binned_dist(1,ibin)%jstart = jatom
                 IF(binned_dist(1,ibin)%kstart == 0 ) binned_dist(1,ibin)%kstart = katom
                 IF(binned_dist(1,ibin)%lstart == 0 ) binned_dist(1,ibin)%lstart = latom
+
+                IF (screen_atom(jatom,iatom) * screen_max < eps_schwarz) CYCLE
+                IF (screen_atom(jatom,iatom) * screen_atom(latom,katom) < eps_schwarz) CYCLE
+                IF(.NOT. (is_assoc_atomic_block_global(latom,iatom)  >=1 .AND. &
+                          is_assoc_atomic_block_global(katom,iatom)  >=1 .AND. &
+                          is_assoc_atomic_block_global(katom,jatom)  >=1 .AND. &
+                          is_assoc_atomic_block_global(latom,jatom)  >=1 ) ) CYCLE
+ 
                 
                 lkind = kind_of(latom)
                 nsetd =  basis_parameter(lkind)%nset
@@ -4580,8 +4621,6 @@ MODULE four_center_integrals
       !! Find an optimal distribution i.e. assign each element of the cost matrix to a certain process
       ALLOCATE(distribution_vector(ncpu*nbins),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      steps = 10000
-      initial_temperature = 1.0_dp
       ALLOCATE(optimal_costs(ncpu), STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       optimal_costs = 0
@@ -5004,6 +5043,571 @@ MODULE four_center_integrals
       hash = hash + ISHFT(hash,1) + ISHFT(hash,4)+ISHFT(hash,5)+ISHFT(hash,7)+ISHFT(hash,8)+ISHFT(hash,40)      
     ENDDO
   END FUNCTION FNV64
+!***************************************************************************
 
+!!***** four_center_integrals/update_load_balance_energy [1.0] *
+!!
+!!   NAME
+!!     update_load_balance_energy 
+!!
+!!   FUNCTION
+!!     Distributes the computation of eri's to all available processes.
+!!
+!!   NOTES
+!!     The cost matrix is given by the walltime for each bin that is measured during the calculation
+!!
+!!   INPUTS
+!!     - x_data: Object that stores the indices array
+!!     - potential_parameter: short/longrange screening information 
+!!     - screen_set, screen_atom, screen_max: screening matrices
+!!     - is_assoc_atomic_kind: KS-matrix sparsity
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     12.2007 created [Manuel Guidon]
+!!
+!!****************************************************************************
+
+  SUBROUTINE update_load_balance_energy(x_data, para_env, screen_set, screen_atom, screen_max, &
+                                        is_assoc_atomic_block_global, load_balance_parameter, error)
+
+    TYPE(x_hf_type), POINTER                 :: x_data
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    REAL(dp), DIMENSION(:, :, :, :), POINTER :: screen_set
+    REAL(dp), DIMENSION(:, :), POINTER       :: screen_atom
+    REAL(dp), INTENT(IN)                     :: screen_max
+    INTEGER, DIMENSION(:, :)                 :: is_assoc_atomic_block_global
+    TYPE(x_hf_load_balance_type)             :: load_balance_parameter
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'update_load_balance_energy', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: data_from, dest, handle, i, ibin, icpu, max_bin_size, &
+      my_bin_size, my_global_start_idx, nbins, req(2), source, stat
+    INTEGER(int_8)                           :: mepos, ncpu, optimal_cost
+    INTEGER(int_8), ALLOCATABLE, &
+      DIMENSION(:)                           :: optimal_costs
+    INTEGER(int_8), DIMENSION(:), POINTER    :: cost_matrix, recbuffer, &
+                                                sendbuffer, swapbuffer
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_pos
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: bin_histogram
+    INTEGER, DIMENSION(:), POINTER           :: distribution_vector
+    LOGICAL                                  :: failure
+    TYPE(x_hf_distribution), DIMENSION(:), &
+      POINTER                                :: binned_dist, ptr_to_tmp_dist
+    TYPE(x_hf_distribution), &
+      DIMENSION(:, :), POINTER               :: full_dist, tmp_dist
+
+    CALL timeset(routineN,handle)
+    failure=.FALSE.
+
+    ncpu = para_env%num_pe
+    !! If there is only 1 cpu skip the binning
+    IF(ncpu == 1) THEN
+      ALLOCATE(tmp_dist(1,1),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      tmp_dist(1,1)%number_of_integrals = HUGE(tmp_dist(1,1)%number_of_integrals)
+      tmp_dist(1,1)%istart = 1
+      tmp_dist(1,1)%jstart = 1
+      tmp_dist(1,1)%kstart = 1
+      tmp_dist(1,1)%lstart = 1
+      tmp_dist(1,1)%original_cpu_id = 1
+      ptr_to_tmp_dist => tmp_dist(1,:)
+      CALL x_hf_set_distr_energy(ptr_to_tmp_dist,x_data,error=error)
+      DEALLOCATE(tmp_dist,STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ELSE
+      mepos = para_env%mepos
+      nbins = load_balance_parameter%nbins
+      ALLOCATE(bin_histogram(ncpu,2),STAT=stat)
+      bin_histogram = 0
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      my_bin_size = SIZE(x_data%distribution_energy)
+      bin_histogram(para_env%mepos+1,1) = my_bin_size 
+      CALL mp_sum(bin_histogram(:,1), para_env%group)
+      bin_histogram(1,2) = bin_histogram(1,1)
+      DO icpu=2,ncpu
+        bin_histogram(icpu,2) = bin_histogram(icpu-1,2) + bin_histogram(icpu,1)
+      END DO
+
+      max_bin_size = 0
+      CALL mp_max(my_bin_size, para_env%group)
+      max_bin_size = my_bin_size
+      my_bin_size = SIZE(x_data%distribution_energy)
+
+
+      ALLOCATE(binned_dist(my_bin_size), STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      !! Use old binned_dist, but with timings cost
+      binned_dist = x_data%distribution_energy
+      DO ibin=1,my_bin_size
+        IF(binned_dist(ibin)%number_of_integrals == 0 ) THEN
+          binned_dist(ibin)%cost = 0
+        ELSE
+          binned_dist(ibin)%cost = INT((binned_dist(ibin)%time_first_scf + &
+                                   binned_dist(ibin)%time_other_scf)*10000.0_dp, int_8)
+        END IF
+      END DO
+      !! store all local results in a big cost matrix
+      ALLOCATE(cost_matrix(ncpu*nbins),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+      ALLOCATE(sendbuffer(max_bin_size),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(recbuffer(max_bin_size),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+      cost_matrix = 0
+      my_global_start_idx = bin_histogram(mepos+1,2)- my_bin_size
+      DO icpu=1,ncpu
+        IF(para_env%mepos+1 == icpu ) THEN
+          DO i=1,my_bin_size
+            cost_matrix(my_global_start_idx + i) = binned_dist(i)%cost
+          END DO
+        END IF
+      END DO
+
+      mepos = para_env%mepos
+      sendbuffer(1:my_bin_size) = cost_matrix(my_global_start_idx+1:my_global_start_idx+my_bin_size)
+
+      dest  =MODULO(mepos+1,ncpu)
+      source=MODULO(mepos-1,ncpu)
+      DO icpu = 0, ncpu-1
+        IF (icpu .NE. ncpu-1) THEN
+          CALL mp_isendrecv(sendbuffer,dest,recbuffer,source, &
+                            para_env%group,req(1),req(2),13)
+        ENDIF
+        data_from = MODULO(mepos - icpu,ncpu)
+        cost_matrix(bin_histogram(data_from+1,2)-bin_histogram(data_from+1,1)+1:bin_histogram(data_from+1,2)) = &
+                    sendbuffer(1:bin_histogram(data_from+1,1))
+        IF (icpu .NE. ncpu -1) THEN
+          CALL mp_waitall(req)
+        ENDIF
+        swapbuffer=>sendbuffer
+        sendbuffer=>recbuffer
+        recbuffer=>swapbuffer
+      ENDDO
+      DEALLOCATE(recbuffer, sendbuffer, STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+      !! Find an optimal distribution i.e. assign each element of the cost matrix to a certain process
+      ALLOCATE(distribution_vector(ncpu*nbins),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(optimal_costs(ncpu), STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      optimal_costs = 0
+      optimal_cost = 0
+      !! Optimize load on each node independently
+      CALL x_hf_optimize_distribution(para_env, ncpu*nbins, ncpu, cost_matrix, distribution_vector, &
+                                      load_balance_parameter, optimal_cost, error)
+      
+      !! Find optimal load balance wrt the cost
+      optimal_costs(para_env%mepos+1) = optimal_cost
+      CALL mp_sum_i8(optimal_costs(1:ncpu), para_env%group)
+      icpu = 0
+      optimal_cost = HUGE(optimal_cost)
+      !! Get process id of the best distribution
+      DO i = 1,ncpu
+        IF(optimal_costs(i) < optimal_cost ) THEN
+          optimal_cost = optimal_costs(i)
+          icpu = i
+        END IF
+      END DO
+
+      !! Broadcast the best distribution_vector
+      CALL mp_bcast(distribution_vector,icpu-1,para_env%group) 
+
+
+      !! Collect local data to global array
+      ALLOCATE(full_dist(ncpu,max_bin_size),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+      full_dist(:,:)%istart = 0
+      full_dist(:,:)%jstart = 0
+      full_dist(:,:)%kstart = 0
+      full_dist(:,:)%lstart = 0
+      full_dist(:,:)%number_of_integrals = 0
+      full_dist(:,:)%cost = 0
+      full_dist(:,:)%original_cpu_id = 0
+      full_dist(:,:)%time_first_scf = 0.0_dp
+      full_dist(:,:)%time_other_scf = 0.0_dp
+      full_dist(:,:)%time_forces = 0.0_dp
+
+      
+      DO mepos = 1,ncpu
+        IF(para_env%mepos == mepos-1) THEN
+          full_dist(mepos,1:my_bin_size) = binned_dist(:)
+        END IF
+      END DO
+
+      ALLOCATE(sendbuffer(7*max_bin_size),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(recbuffer(7*max_bin_size),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      mepos = para_env%mepos
+      DO i=1,max_bin_size
+        sendbuffer((i-1)*7+1) = full_dist(mepos+1,i)%istart
+        sendbuffer((i-1)*7+2) = full_dist(mepos+1,i)%jstart
+        sendbuffer((i-1)*7+3) = full_dist(mepos+1,i)%kstart
+        sendbuffer((i-1)*7+4) = full_dist(mepos+1,i)%lstart
+        sendbuffer((i-1)*7+5) = full_dist(mepos+1,i)%number_of_integrals
+        sendbuffer((i-1)*7+6) = full_dist(mepos+1,i)%cost
+        sendbuffer((i-1)*7+7) = full_dist(mepos+1,i)%original_cpu_id
+      END DO
+      dest   = MODULO(mepos+1,ncpu)
+      source = MODULO(mepos-1,ncpu)
+      DO icpu = 0, ncpu-1
+        IF (icpu .NE. ncpu-1) THEN
+          CALL mp_isendrecv(sendbuffer,dest,recbuffer,source, &
+                            para_env%group,req(1),req(2),13)
+        ENDIF
+        data_from = MODULO(mepos - icpu,ncpu)
+        cost_matrix(data_from*nbins+1:data_from*nbins+nbins) = sendbuffer
+        DO i=1,max_bin_size
+          full_dist(data_from+1,i)%istart = sendbuffer((i-1)*7+1)
+          full_dist(data_from+1,i)%jstart = sendbuffer((i-1)*7+2)
+          full_dist(data_from+1,i)%kstart = sendbuffer((i-1)*7+3)
+          full_dist(data_from+1,i)%lstart = sendbuffer((i-1)*7+4)
+          full_dist(data_from+1,i)%number_of_integrals = sendbuffer((i-1)*7+5)
+          full_dist(data_from+1,i)%cost = sendbuffer((i-1)*7+6)
+          full_dist(data_from+1,i)%original_cpu_id = sendbuffer((i-1)*7+7)
+        END DO
+
+        IF (icpu .NE. ncpu -1) THEN
+          CALL mp_waitall(req)
+        ENDIF
+        swapbuffer=>sendbuffer
+        sendbuffer=>recbuffer
+        recbuffer=>swapbuffer
+      ENDDO
+      DEALLOCATE(recbuffer, sendbuffer, STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+      !! reorder the distribution according to the distribution vector
+      ALLOCATE(tmp_pos(ncpu),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      tmp_pos = 1
+      ALLOCATE(tmp_dist(ncpu,nbins*ncpu),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      
+      DO mepos = 1,ncpu
+        DO icpu=1,ncpu
+          DO i=1,bin_histogram(icpu,1)
+            IF(distribution_vector(bin_histogram(icpu,2)-bin_histogram(icpu,1)+ i) == mepos) THEN
+              tmp_dist(mepos,tmp_pos(mepos)) = full_dist(icpu,i)
+              tmp_pos(mepos) = tmp_pos(mepos) + 1
+            END IF
+          END DO
+        END DO
+      END DO
+      
+      !! Assign the load to each process
+      NULLIFY(ptr_to_tmp_dist) 
+      DO icpu=1,ncpu
+        IF(para_env%mepos == icpu -1) THEN
+          ptr_to_tmp_dist => tmp_dist(icpu,1:tmp_pos(icpu)-1)
+        END IF
+      END DO
+
+     
+      CALL x_hf_set_distr_energy(ptr_to_tmp_dist,x_data,error=error)
+
+      DEALLOCATE(tmp_dist, full_dist, tmp_pos, STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(optimal_costs, distribution_vector, STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(cost_matrix,binned_dist, STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    CALL timestop(handle)
+  END SUBROUTINE update_load_balance_energy
+!***************************************************************************
+
+!!***** four_center_integrals/update_load_balance_forces [1.0] *
+!!
+!!   NAME
+!!     update_load_balance_forces 
+!!
+!!   FUNCTION
+!!     Distributes the computation of eri's to all available processes.
+!!
+!!   NOTES
+!!     The cost matrix is given by the walltime for each bin that is measured during the calculation
+!!
+!!   INPUTS
+!!     - x_data: Object that stores the indices array
+!!     - potential_parameter: short/longrange screening information 
+!!     - screen_set, screen_atom, screen_max: screening matrices
+!!     - is_assoc_atomic_kind: KS-matrix sparsity
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     12.2007 created [Manuel Guidon]
+!!
+!!****************************************************************************
+
+  SUBROUTINE update_load_balance_forces(x_data, para_env, screen_set, screen_atom, screen_max, &
+                                        is_assoc_atomic_block_global, load_balance_parameter, error)
+
+    TYPE(x_hf_type), POINTER                 :: x_data
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    REAL(dp), DIMENSION(:, :, :, :), POINTER :: screen_set
+    REAL(dp), DIMENSION(:, :), POINTER       :: screen_atom
+    REAL(dp), INTENT(IN)                     :: screen_max
+    INTEGER, DIMENSION(:, :)                 :: is_assoc_atomic_block_global
+    TYPE(x_hf_load_balance_type)             :: load_balance_parameter
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'update_load_balance_forces', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: data_from, dest, handle, i, ibin, icpu, max_bin_size, &
+      my_bin_size, my_global_start_idx, nbins, req(2), source, stat
+    INTEGER(int_8)                           :: mepos, ncpu, optimal_cost
+    INTEGER(int_8), ALLOCATABLE, &
+      DIMENSION(:)                           :: optimal_costs
+    INTEGER(int_8), DIMENSION(:), POINTER    :: cost_matrix, recbuffer, &
+                                                sendbuffer, swapbuffer
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_pos
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: bin_histogram
+    INTEGER, DIMENSION(:), POINTER           :: distribution_vector
+    LOGICAL                                  :: failure
+    TYPE(x_hf_distribution), DIMENSION(:), &
+      POINTER                                :: binned_dist, ptr_to_tmp_dist
+    TYPE(x_hf_distribution), &
+      DIMENSION(:, :), POINTER               :: full_dist, tmp_dist
+
+    CALL timeset(routineN,handle)
+    failure=.FALSE.
+
+    ncpu = para_env%num_pe
+    !! If there is only 1 cpu skip the binning
+    IF(ncpu == 1) THEN
+      ALLOCATE(tmp_dist(1,1),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      tmp_dist(1,1)%number_of_integrals = HUGE(tmp_dist(1,1)%number_of_integrals)
+      tmp_dist(1,1)%istart = 1
+      tmp_dist(1,1)%jstart = 1
+      tmp_dist(1,1)%kstart = 1
+      tmp_dist(1,1)%lstart = 1
+      tmp_dist(1,1)%original_cpu_id = 1
+      ptr_to_tmp_dist => tmp_dist(1,:)
+      CALL x_hf_set_distr_forces(ptr_to_tmp_dist,x_data,error=error)
+      DEALLOCATE(tmp_dist,STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ELSE
+      mepos = para_env%mepos
+      nbins = load_balance_parameter%nbins
+      ALLOCATE(bin_histogram(ncpu,2),STAT=stat)
+      bin_histogram = 0
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      my_bin_size = SIZE(x_data%distribution_forces)
+      bin_histogram(para_env%mepos+1,1) = my_bin_size 
+      CALL mp_sum(bin_histogram(:,1), para_env%group)
+      bin_histogram(1,2) = bin_histogram(1,1)
+      DO icpu=2,ncpu
+        bin_histogram(icpu,2) = bin_histogram(icpu-1,2) + bin_histogram(icpu,1)
+      END DO
+
+      max_bin_size = 0
+      CALL mp_max(my_bin_size, para_env%group)
+      max_bin_size = my_bin_size
+      my_bin_size = SIZE(x_data%distribution_forces)
+
+
+      ALLOCATE(binned_dist(my_bin_size), STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      !! Use old binned_dist, but with timings cost
+      binned_dist = x_data%distribution_forces
+      DO ibin=1,my_bin_size
+        IF(binned_dist(ibin)%number_of_integrals == 0 ) THEN
+          binned_dist(ibin)%cost = 0
+        ELSE
+          binned_dist(ibin)%cost = INT((binned_dist(ibin)%time_forces)*10000.0_dp, int_8)
+        END IF
+      END DO
+      !! store all local results in a big cost matrix
+      ALLOCATE(cost_matrix(ncpu*nbins),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+      ALLOCATE(sendbuffer(max_bin_size),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(recbuffer(max_bin_size),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+      cost_matrix = 0
+      my_global_start_idx = bin_histogram(mepos+1,2)- my_bin_size
+      DO icpu=1,ncpu
+        IF(para_env%mepos+1 == icpu ) THEN
+          DO i=1,my_bin_size
+            cost_matrix(my_global_start_idx + i) = binned_dist(i)%cost
+          END DO
+        END IF
+      END DO
+
+      mepos = para_env%mepos
+      sendbuffer(1:my_bin_size) = cost_matrix(my_global_start_idx+1:my_global_start_idx+my_bin_size)
+
+      dest  =MODULO(mepos+1,ncpu)
+      source=MODULO(mepos-1,ncpu)
+      DO icpu = 0, ncpu-1
+        IF (icpu .NE. ncpu-1) THEN
+          CALL mp_isendrecv(sendbuffer,dest,recbuffer,source, &
+                            para_env%group,req(1),req(2),13)
+        ENDIF
+        data_from = MODULO(mepos - icpu,ncpu)
+        cost_matrix(bin_histogram(data_from+1,2)-bin_histogram(data_from+1,1)+1:bin_histogram(data_from+1,2)) = &
+                    sendbuffer(1:bin_histogram(data_from+1,1))
+        IF (icpu .NE. ncpu -1) THEN
+          CALL mp_waitall(req)
+        ENDIF
+        swapbuffer=>sendbuffer
+        sendbuffer=>recbuffer
+        recbuffer=>swapbuffer
+      ENDDO
+      DEALLOCATE(recbuffer, sendbuffer, STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+      !! Find an optimal distribution i.e. assign each element of the cost matrix to a certain process
+      ALLOCATE(distribution_vector(ncpu*nbins),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(optimal_costs(ncpu), STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      optimal_costs = 0
+      optimal_cost = 0
+      !! Optimize load on each node independently
+      CALL x_hf_optimize_distribution(para_env, ncpu*nbins, ncpu, cost_matrix, distribution_vector, &
+                                      load_balance_parameter, optimal_cost, error)
+      
+      !! Find optimal load balance wrt the cost
+      optimal_costs(para_env%mepos+1) = optimal_cost
+      CALL mp_sum_i8(optimal_costs(1:ncpu), para_env%group)
+      icpu = 0
+      optimal_cost = HUGE(optimal_cost)
+      !! Get process id of the best distribution
+      DO i = 1,ncpu
+        IF(optimal_costs(i) < optimal_cost ) THEN
+          optimal_cost = optimal_costs(i)
+          icpu = i
+        END IF
+      END DO
+
+      !! Broadcast the best distribution_vector
+      CALL mp_bcast(distribution_vector,icpu-1,para_env%group) 
+
+
+      !! Collect local data to global array
+      ALLOCATE(full_dist(ncpu,max_bin_size),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+      full_dist(:,:)%istart = 0
+      full_dist(:,:)%jstart = 0
+      full_dist(:,:)%kstart = 0
+      full_dist(:,:)%lstart = 0
+      full_dist(:,:)%number_of_integrals = 0
+      full_dist(:,:)%cost = 0
+      full_dist(:,:)%original_cpu_id = 0
+      full_dist(:,:)%time_first_scf = 0.0_dp
+      full_dist(:,:)%time_other_scf = 0.0_dp
+      full_dist(:,:)%time_forces = 0.0_dp
+
+      
+      DO mepos = 1,ncpu
+        IF(para_env%mepos == mepos-1) THEN
+          full_dist(mepos,1:my_bin_size) = binned_dist(:)
+        END IF
+      END DO
+
+      ALLOCATE(sendbuffer(7*max_bin_size),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(recbuffer(7*max_bin_size),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      mepos = para_env%mepos
+      DO i=1,max_bin_size
+        sendbuffer((i-1)*7+1) = full_dist(mepos+1,i)%istart
+        sendbuffer((i-1)*7+2) = full_dist(mepos+1,i)%jstart
+        sendbuffer((i-1)*7+3) = full_dist(mepos+1,i)%kstart
+        sendbuffer((i-1)*7+4) = full_dist(mepos+1,i)%lstart
+        sendbuffer((i-1)*7+5) = full_dist(mepos+1,i)%number_of_integrals
+        sendbuffer((i-1)*7+6) = full_dist(mepos+1,i)%cost
+        sendbuffer((i-1)*7+7) = full_dist(mepos+1,i)%original_cpu_id
+      END DO
+      dest   = MODULO(mepos+1,ncpu)
+      source = MODULO(mepos-1,ncpu)
+      DO icpu = 0, ncpu-1
+        IF (icpu .NE. ncpu-1) THEN
+          CALL mp_isendrecv(sendbuffer,dest,recbuffer,source, &
+                            para_env%group,req(1),req(2),13)
+        ENDIF
+        data_from = MODULO(mepos - icpu,ncpu)
+        cost_matrix(data_from*nbins+1:data_from*nbins+nbins) = sendbuffer
+        DO i=1,max_bin_size
+          full_dist(data_from+1,i)%istart = sendbuffer((i-1)*7+1)
+          full_dist(data_from+1,i)%jstart = sendbuffer((i-1)*7+2)
+          full_dist(data_from+1,i)%kstart = sendbuffer((i-1)*7+3)
+          full_dist(data_from+1,i)%lstart = sendbuffer((i-1)*7+4)
+          full_dist(data_from+1,i)%number_of_integrals = sendbuffer((i-1)*7+5)
+          full_dist(data_from+1,i)%cost = sendbuffer((i-1)*7+6)
+          full_dist(data_from+1,i)%original_cpu_id = sendbuffer((i-1)*7+7)
+        END DO
+
+        IF (icpu .NE. ncpu -1) THEN
+          CALL mp_waitall(req)
+        ENDIF
+        swapbuffer=>sendbuffer
+        sendbuffer=>recbuffer
+        recbuffer=>swapbuffer
+      ENDDO
+      DEALLOCATE(recbuffer, sendbuffer, STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+      !! reorder the distribution according to the distribution vector
+      ALLOCATE(tmp_pos(ncpu),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      tmp_pos = 1
+      ALLOCATE(tmp_dist(ncpu,nbins*ncpu),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      
+      DO mepos = 1,ncpu
+        DO icpu=1,ncpu
+          DO i=1,bin_histogram(icpu,1)
+            IF(distribution_vector(bin_histogram(icpu,2)-bin_histogram(icpu,1)+ i) == mepos) THEN
+              tmp_dist(mepos,tmp_pos(mepos)) = full_dist(icpu,i)
+              tmp_pos(mepos) = tmp_pos(mepos) + 1
+            END IF
+          END DO
+        END DO
+      END DO
+      
+      !! Assign the load to each process
+      NULLIFY(ptr_to_tmp_dist) 
+      DO icpu=1,ncpu
+        IF(para_env%mepos == icpu -1) THEN
+          ptr_to_tmp_dist => tmp_dist(icpu,1:tmp_pos(icpu)-1)
+        END IF
+      END DO
+
+     
+      CALL x_hf_set_distr_forces(ptr_to_tmp_dist,x_data,error=error)
+
+      DEALLOCATE(tmp_dist, full_dist, tmp_pos, STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(optimal_costs, distribution_vector, STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(cost_matrix,binned_dist, STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    CALL timestop(handle)
+  END SUBROUTINE update_load_balance_forces
+!***************************************************************************
 
 END MODULE four_center_integrals
