@@ -49,7 +49,7 @@ FESOBJECTDEFS  = $(TOOLSRC)/metadyn/OBJECTDEFS
 VERSION_TARGETS = sopt sdbg popt pdbg ssmp psmp
 #
 # uses an ugly trick, these are disguised as file names, the directory (@D) part 
-# is used as a version, the file (@F) part is used as the version.
+# is used as a version, the file (@F) part is used as the target.
 #
 LIB_TARGETS = $(addsuffix /lib ,$(VERSION_TARGETS)) 
 ALL_TARGETS = $(addsuffix /all ,$(VERSION_TARGETS))
@@ -141,8 +141,16 @@ vpath %.dep $(OBJDIR)/$(VERSION)
 #
 # generation of the dependencies
 #
+# if HACKDEP=="yes" we hack the dependencies so that only modified source files are recompiled
+# this is obviously not correct (i.e. can lead to a miscompiled CP2K), 
+# but if you know what you are doing (i.e. you are sure that only information private to this module will be changed) might be useful nevertheless.
+#
 all.dep: $(OBJECTS:.o=.F) cp_common_uses.h cp2k.F
+ifeq ($(HACKDEP),yes)
+	echo $^ | awk '{for (i=1;i<=NF;i++) {obj=$$(i) ; sub(".F",".o",obj); if ($$(i)!=obj) print obj,":",$$(i) }}' > $(OBJDIR)/$(VERSION)/all.dep
+else
 	$(TOOLDIR)/makedepf90 -m "%m.mod" -free $^ > $(OBJDIR)/$(VERSION)/all.dep
+endif
 
 lib.dep: $(LIB1_OBJECTS:.o=.F) $(LIB2_OBJECTS:.o=.F)
 	$(TOOLDIR)/makedepf90 -m "%m.mod" -free $^ > $(OBJDIR)/$(VERSION)/lib.dep
