@@ -845,8 +845,8 @@ CONTAINS
                       DO ispin=1,nspins
                          !------------------------------------------------------------------
                          ! P_\alpha\alpha'
-                         cjc0_h_block = huge(1d0)!0.0_dp
-                         cjc0_s_block = huge(1d0)!0.0_dp
+                         cjc0_h_block = HUGE(1.0_dp)!0.0_dp
+                         cjc0_s_block = HUGE(1.0_dp)!0.0_dp
                          !
                          ! Hard term
                          coeff => jrho1_atom_set(iatom)%cjc0_h(ispin)%r_coef
@@ -859,8 +859,8 @@ CONTAINS
                               &coeff(iso1_first:iso1_last,iso2_first:iso2_last)
                          !------------------------------------------------------------------
                          ! mQai_\alpha\alpha'
-                         cjc_h_block = HUGE(1e0_dp)!0.0_dp
-                         cjc_s_block = HUGE(1e0_dp)!0.0_dp
+                         cjc_h_block = HUGE(1.0_dp)!0.0_dp
+                         cjc_s_block = HUGE(1.0_dp)!0.0_dp
                          !
                          ! Hard term
                          coeff => jrho1_atom_set(iatom)%cjc_h(ispin)%r_coef
@@ -873,8 +873,8 @@ CONTAINS
                               &coeff(iso1_first:iso1_last,iso2_first:iso2_last)
                          !------------------------------------------------------------------
                          ! Qci_\alpha\alpha'
-                         cjc_ii_h_block = HUGE(1e0_dp)!0.0_dp
-                         cjc_ii_s_block = HUGE(1e0_dp)!0.0_dp
+                         cjc_ii_h_block = HUGE(1.0_dp)!0.0_dp
+                         cjc_ii_s_block = HUGE(1.0_dp)!0.0_dp
                          !
                          ! Hard term
                          coeff => jrho1_atom_set(iatom)%cjc_ii_h(ispin)%r_coef
@@ -887,8 +887,8 @@ CONTAINS
                               &   coeff(iso1_first:iso1_last,iso2_first:iso2_last)
                          !------------------------------------------------------------------
                          ! Qbi_\alpha\alpha'
-                         cjc_iii_h_block = HUGE(1e0_dp)!0.0_dp
-                         cjc_iii_s_block = HUGE(1e0_dp)!0.0_dp
+                         cjc_iii_h_block = HUGE(1.0_dp)!0.0_dp
+                         cjc_iii_s_block = HUGE(1.0_dp)!0.0_dp
                          !
                          ! Hard term
                          coeff => jrho1_atom_set(iatom)%cjc_iii_h(ispin)%r_coef

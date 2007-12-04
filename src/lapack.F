@@ -58,10 +58,10 @@ MODULE lapack
     INTEGER                                  :: itype
     CHARACTER                                :: jobz, uplo
     INTEGER                                  :: n
-    COMPLEX(KIND=dp)                         :: ap( * ), bp( * )
+    REAL(KIND=dp)                            :: ap( * ), bp( * )
     REAL(KIND=dp)                            :: w( * )
     INTEGER                                  :: ldz
-    COMPLEX(KIND=dp)                         :: z( ldz, * ), work( * )
+    REAL(KIND=dp)                            :: z( ldz, * ), work( * )
     INTEGER                                  :: info
 
      END SUBROUTINE sspgv
@@ -148,7 +148,7 @@ MODULE lapack
        USE kinds, ONLY: dp
     CHARACTER                                :: uplo, diag
     INTEGER                                  :: n, lda
-    COMPLEX(KIND=dp)                         :: a( lda, * )
+    REAL(KIND=dp)                            :: a( lda, * )
     INTEGER                                  :: info
 
      END SUBROUTINE strtri

@@ -1148,8 +1148,8 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'ei'
     INTEGER, PARAMETER                       :: maxit = 100
-    REAL(dp), PARAMETER                      :: eps = 6.e-14_dp, &
-                                                fpmin = 1.e-100_dp
+    REAL(dp), PARAMETER                      :: eps = EPSILON(0.0_dp), &
+                                                fpmin = TINY(0.0_dp)
 
     INTEGER                                  :: k
     REAL(dp)                                 :: fact, prev, sum1, term

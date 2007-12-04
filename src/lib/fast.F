@@ -20,7 +20,7 @@ SUBROUTINE rankup ( n, za, cmat, zb, ex, ey, ez, scr )
   COMPLEX ( dbl ), INTENT ( INOUT ) :: cmat ( * )
   COMPLEX ( dbl ), INTENT ( INOUT ) :: scr ( * )
 
-  INTEGER :: n2, n3, i
+  INTEGER :: n2, n3
   COMPLEX ( dbl ) :: cone
   
   cone = CMPLX ( 1._dbl, KIND = dbl )
