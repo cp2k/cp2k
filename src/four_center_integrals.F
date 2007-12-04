@@ -95,7 +95,6 @@ MODULE four_center_integrals
 
   LOGICAL, SAVE            :: b_first_load_balance = .TRUE.
   LOGICAL, SAVE            :: b_first_load_balance_f = .TRUE.
-  INTEGER ,SAVE            :: static_counter = 0
 
 !***
 !****************************************************************************
@@ -243,8 +242,6 @@ MODULE four_center_integrals
     compression_factor = 0.0_dp
 
 
-    static_counter = static_counter + 1
- 
     !! We do not need the containers if MAX_MEM = 0
     IF(.NOT. memory_parameter%do_all_on_the_fly) THEN 
       !! IF new md step -> reinitialize containers
@@ -3931,7 +3928,6 @@ MODULE four_center_integrals
         DO jatom=iatom,natom
           box_idx1 = (iatom-1)*natom+jatom
           IF(MODULO(FNV64(box_idx1),ncpu) /= para_env%mepos) CYCLE
-!          IF (screen_atom(jatom,iatom) * screen_max < eps_schwarz) CYCLE
           jkind = kind_of(jatom)
           nsetb =  basis_parameter(jkind)%nset
           nsgfb => basis_parameter(jkind)%nsgf
@@ -3940,12 +3936,6 @@ MODULE four_center_integrals
             nsetc =  basis_parameter(kkind)%nset
             nsgfc => basis_parameter(kkind)%nsgf
             DO latom=katom,natom
-!              IF (screen_atom(jatom,iatom) * screen_atom(latom,katom) < eps_schwarz) CYCLE
-!              IF(.NOT. (is_assoc_atomic_block_global(latom,iatom)  >=1 .AND. &
-!                        is_assoc_atomic_block_global(katom,iatom)  >=1 .AND. &
-!                        is_assoc_atomic_block_global(katom,jatom)  >=1 .AND. &
-!                        is_assoc_atomic_block_global(latom,jatom)  >=1 ) ) CYCLE 
-
               IF((katom+latom<=iatom+jatom))  THEN
                 IF( ((iatom+jatom).EQ.(katom+latom) ) .AND.(katom<iatom)) CYCLE
                 distribution_counter_end = distribution_counter_end + 1
@@ -4461,7 +4451,6 @@ MODULE four_center_integrals
         DO jatom=iatom,natom
           box_idx1 = (iatom-1)*natom+jatom
           IF(MODULO(FNV64(box_idx1),ncpu) /= para_env%mepos) CYCLE
-!          IF (screen_atom(jatom,iatom) * screen_max < eps_schwarz) CYCLE
           jkind = kind_of(jatom)
           nsetb =  basis_parameter(jkind)%nset
           nsgfb => basis_parameter(jkind)%nsgf
@@ -4473,13 +4462,6 @@ MODULE four_center_integrals
             DO latom=katom,natom
               !All four centers equivalent => zero-contribution
               IF((iatom==jatom .AND. iatom==katom .AND. iatom==latom)) CYCLE
- 
-!              IF (screen_atom(jatom,iatom) * screen_atom(latom,katom) < eps_schwarz) CYCLE
-!              IF(.NOT. (is_assoc_atomic_block_global(latom,iatom)  >=1 .AND. &
-!                        is_assoc_atomic_block_global(katom,iatom)  >=1 .AND. &
-!                        is_assoc_atomic_block_global(katom,jatom)  >=1 .AND. &
-!                        is_assoc_atomic_block_global(latom,jatom)  >=1 ) ) CYCLE
-
               IF((katom+latom<=iatom+jatom))  THEN
                 IF( ((iatom+jatom).EQ.(katom+latom) ) .AND.(katom<iatom)) CYCLE
                 distribution_counter_end = distribution_counter_end + 1
