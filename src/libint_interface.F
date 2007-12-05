@@ -127,7 +127,11 @@ MODULE libint_interface
 #endif
 
 #if defined (__PGI)
+#if defined (__UGLY_BUT_FAST)
+    !! do_nothing
+#else
     ALLOCATE(p_work(mysize))
+#endif
 #endif
 
 
@@ -413,7 +417,11 @@ MODULE libint_interface
 #endif
 
 #if defined (__PGI)
+#if defined (__UGLY_BUT_FAST)
+    !! do_nothing
+#else
     DEALLOCATE(p_work)
+#endif
 #endif
 
   END SUBROUTINE evaluate_eri
@@ -1086,7 +1094,11 @@ MODULE libint_interface
 #endif
 
 #if defined (__PGI)
+#if defined (__UGLY_BUT_FAST)
+    !! do_nothing
+#else
     ALLOCATE(p_work(mysize))
+#endif
 #endif
     
     IF(m_max/=0) THEN
@@ -1194,7 +1206,11 @@ MODULE libint_interface
 #endif
 
 #if defined (__PGI)
+#if defined(__UGLY_BUT_FAST)
+    !! do nothing
+#else
     DEALLOCATE(p_work)
+#endif
 #endif
 
 
