@@ -93,7 +93,7 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: energy_only
     TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(nablavks_atom_type), DIMENSION(:), &
-      INTENT(inout), OPTIONAL, POINTER       :: gradient_atom_set
+       OPTIONAL, POINTER       :: gradient_atom_set
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_vxc_atom', &
       routineP = moduleN//':'//routineN
