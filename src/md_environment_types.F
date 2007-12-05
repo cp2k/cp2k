@@ -53,7 +53,7 @@ MODULE md_environment_types
      INTEGER       :: ref_count
      INTEGER       :: nfree, nfree_qm, nfree_shell
      REAL(KIND=dp) :: constant
-     REAL(KIND=dp) :: delta_cons
+     REAL(KIND=dp) :: delta_cons, delta_epot
      REAL(KIND=dp) :: epot
      REAL(KIND=dp) :: ekin, ekin_qm
      REAL(KIND=dp) :: temp_part, temp_qm
@@ -714,6 +714,7 @@ SUBROUTINE zero_md_ener(md_ener, tkind, tshell, error)
     md_ener%temp_shell  = 0.0_dp    
     md_ener%constant    = 0.0_dp
     md_ener%delta_cons  = 0.0_dp
+    md_ener%delta_epot  = 0.0_dp
     md_ener%thermostat_part_kin  = 0.0_dp
     md_ener%thermostat_part_pot  = 0.0_dp
     md_ener%thermostat_coef_kin  = 0.0_dp

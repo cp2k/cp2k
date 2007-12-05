@@ -25,20 +25,44 @@
 
 MODULE reftraj_util
 
+  USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
+  USE convert_units,                   ONLY: convert_to_cp2k_units
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
+  USE distribution_1d_types,           ONLY: distribution_1d_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
-  USE input_section_types,             ONLY: section_vals_type
-  USE kinds,                           ONLY: default_string_length,&
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp
+  USE machine,                         ONLY: m_flush
   USE md,                              ONLY: simulation_parameters_type
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type
+  USE message_passing,                 ONLY: mp_bcast, mp_sum
+  USE mol_new_list_types,              ONLY: mol_new_list_type
+  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
+  USE molecule_kind_types,             ONLY: get_molecule_kind,&
+                                             get_molecule_kind_set,&
+                                             molecule_kind_type
+  USE molecule_types_new,              ONLY: get_molecule,&
+                                             molecule_type
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
-  USE reftraj_types,                   ONLY: reftraj_type
+  USE physcon,                         ONLY: angstrom,&
+                                             femtoseconds
+  USE reftraj_types,                   ONLY: reftraj_msd_type,&
+                                             reftraj_type
   USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
 
@@ -50,7 +74,7 @@ MODULE reftraj_util
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'reftraj_util'
 
       
-      PUBLIC ::   initialize_reftraj
+      PUBLIC ::   initialize_reftraj, compute_msd_reftraj, write_output_reftraj
       
 
 !!***
@@ -95,25 +119,26 @@ CONTAINS
     CHARACTER(LEN=10)                        :: AA
     CHARACTER(LEN=80)                        :: title
     CHARACTER(LEN=default_string_length)     :: name
-    INTEGER                                  :: cellunit, iatom, iter, natom, &
+    INTEGER                                  :: cellunit, iatom, it, iter, natom, &
                                                 Natom_read, nskip, trjunit
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: hx, hy, hz, x, y, z
+    REAL(KIND=dp)                            :: hx,hy,hz,time,vol,x,y,z
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE (section_vals_type), POINTER        :: msd_section
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
 
     failure = .FALSE.
 
-    NULLIFY (subsys, force_env, particles, particle_set, simpar)
+    NULLIFY (force_env, msd_section, particles, particle_set, simpar, subsys)
     CALL get_md_env(md_env=md_env, force_env=force_env, para_env=para_env,&
          simpar=simpar, error=error)
-    CALL force_env_get(force_env=force_env,subsys=subsys,error=error)
+    CALL force_env_get(force_env=force_env,  subsys=subsys,error=error)
     CALL cp_subsys_get(subsys=subsys, particles=particles,error=error)
     natom = particles%n_els
     particle_set => particles%els
@@ -121,40 +146,41 @@ CONTAINS
     trjunit = reftraj%info%trjfile_unit
 
     IF (para_env%mepos==para_env%source) THEN
-    REWIND(trjunit)
-    !Check the first snapshot in the trajectory file
-    READ(trjunit,*,ERR=999,END=998) natom_read    
-    CPPostcondition(natom_read==natom,cp_failure_level,routineP,error,failure)
-    READ(trjunit,'(A)',ERR=999,END=998) title
-    DO iatom = 1,natom
-      READ(trjunit,*,ERR=999,END=998) AA, x, y, z
-      name=TRIM(particle_set(iatom)%atomic_kind%element_symbol)
-      CPPostcondition((TRIM(AA)==name),cp_failure_level,routineP,error,failure)
-    END DO
-    REWIND(trjunit)
+      REWIND(trjunit)
+      !Check the first snapshot in the trajectory file
+      READ(trjunit,*,ERR=999,END=998) natom_read    
+      CPPostcondition(natom_read==natom,cp_failure_level,routineP,error,failure)
+      READ(trjunit,'(A)',ERR=999,END=998) title
+      DO iatom = 1,natom_read
+        READ(trjunit,*,ERR=999,END=998) AA, x, y, z
+        name=TRIM(particle_set(iatom)%atomic_kind%element_symbol)
+        CPPostcondition((TRIM(AA)==name),cp_failure_level,routineP,error,failure)
+      END DO
+      REWIND(trjunit)
 
-    
-    IF(reftraj%info%first_snapshot>0) THEN
-      nskip = reftraj%info%first_snapshot
-      DO iter = 1,nskip
-        READ(trjunit,*,ERR=999,END=998) natom_read
-        READ(trjunit,'(A)',ERR=999,END=998) title
-        DO iatom = 1,natom
-          READ(trjunit,*,ERR=999,END=998)  AA, x, y, z 
-        END DO
-      END DO      
-    END IF
-    IF(reftraj%info%variable_volume) THEN
-      cellunit = reftraj%info%cellfile_unit
-      IF(reftraj%info%first_snapshot>1) THEN
+      reftraj%isnap = -1 
+      IF(reftraj%info%first_snapshot>0) THEN
+        nskip = reftraj%info%first_snapshot
         DO iter = 1,nskip
-          READ(cellunit,'(A)',ERR=997,END=996) title
-          READ(cellunit,*,ERR=997,END=996) AA, hx,hy,hz
-        END DO
+          READ(trjunit,*,ERR=999,END=998) natom_read
+          READ(trjunit,'(A)',ERR=999,END=998) title
+          DO iatom = 1,natom_read
+            READ(trjunit,*,ERR=999,END=998)  AA, x, y, z 
+          END DO
+        END DO      
+        reftraj%isnap = nskip-1
+      END IF
+      IF(reftraj%info%variable_volume) THEN
+        cellunit = reftraj%info%cellfile_unit
+        IF(reftraj%info%first_snapshot>1) THEN
+          DO iter = 1,nskip
+            READ(cellunit,*,ERR=997,END=996) it, time, hx,hy,hz, hx,hy,hz, hx,hy,hz,vol
+          END DO
+        END IF
       END IF
     END IF
-    END IF
 
+    reftraj%natom = natom
     IF(reftraj%info%last_snapshot>0) THEN
       simpar%nsteps = (reftraj%info%last_snapshot - reftraj%info%first_snapshot)
     END IF
@@ -164,8 +190,9 @@ CONTAINS
     END IF
     
     IF(reftraj%info%msd) THEN
+      msd_section =>  section_vals_get_subs_vals(reftraj_section,"MSD",error=error)
       ! set up and printout
-      CALL initialize_msd_reftraj(reftraj,reftraj_section,error=error)
+      CALL initialize_msd_reftraj(reftraj%msd,msd_section,reftraj,md_env,error=error)
     END IF
     
     RETURN
@@ -209,21 +236,422 @@ CONTAINS
 !!
 !!*** **********************************************************************
 
-  SUBROUTINE initialize_msd_reftraj(reftraj,reftraj_section,error)
+  SUBROUTINE initialize_msd_reftraj(msd,msd_section,reftraj,md_env,error)
+    TYPE(reftraj_msd_type), POINTER          :: msd
+    TYPE(section_vals_type), POINTER         :: msd_section
     TYPE(reftraj_type), POINTER              :: reftraj
-    TYPE(section_vals_type), POINTER         :: reftraj_section
+    TYPE (md_environment_type), POINTER      :: md_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_msd_reftraj', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=10)                        :: AA
+    CHARACTER(LEN=80)                        :: title
+    CHARACTER(LEN=default_path_length)       :: filename
+    CHARACTER(LEN=default_string_length)     :: name
+    INTEGER                                  :: first_atom, iatom, ikind, imol, istat, last_atom,&
+                                                natom, natom_read, &
+                                                nkind, nmol, nmolecule, nmolkind, &
+                                                total_mass
     LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: com(3), mass, mass_mol, x,y,z
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    TYPE(molecule_type), POINTER             :: molecule
+    TYPE(mol_new_list_type), POINTER         :: molecules
+
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
 
     failure = .FALSE.
 
+    NULLIFY (molecule, molecules, molecule_kind, molecule_kind_set,&
+             molecule_kinds, molecule_set, subsys, force_env, particles, particle_set)
+    CPPrecondition(.NOT. ASSOCIATED(msd),cp_failure_level,routineP,error,failure)
+    
+    ALLOCATE(msd, STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
+    NULLIFY(msd%ref0_pos)
+    NULLIFY(msd%ref0_com_molecule)
+    NULLIFY(msd%val_msd_kind)
+    NULLIFY(msd%val_msd_molecule)
+
+    CALL get_md_env(md_env=md_env, force_env=force_env, para_env=para_env,&
+         error=error)
+    CALL force_env_get(force_env=force_env,subsys=subsys,error=error)
+    CALL cp_subsys_get(subsys=subsys, particles=particles,error=error)
+    particle_set => particles%els
+
+    msd%ref0_unit = -1
+    CALL section_vals_val_get(msd_section,"REF0_FILENAME",c_val=filename,error=error)
+    CALL open_file(TRIM(filename),unit_number=msd%ref0_unit)
+
+    ALLOCATE(msd%ref0_pos(3,reftraj%natom),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    msd%ref0_pos = 0.0_dp
+    
+    IF (para_env%mepos==para_env%source) THEN
+      REWIND(msd%ref0_unit)
+      READ(msd%ref0_unit,*,ERR=999,END=998) natom_read
+      CPPostcondition(natom_read==reftraj%natom,cp_failure_level,routineP,error,failure)
+      READ(msd%ref0_unit,'(A)',ERR=999,END=998) title
+      total_mass = 0.0_dp
+      DO iatom = 1,natom_read
+          READ(msd%ref0_unit,*,ERR=999,END=998)  AA, x, y, z 
+          name=TRIM(particle_set(iatom)%atomic_kind%element_symbol)
+          CPPostcondition((TRIM(AA)==name),cp_failure_level,routineP,error,failure)
+
+          CALL convert_to_cp2k_units("ANGSTROM",length=x)
+          CALL convert_to_cp2k_units("ANGSTROM",length=y)
+          CALL convert_to_cp2k_units("ANGSTROM",length=z)
+          msd%ref0_pos(1,iatom) = x
+          msd%ref0_pos(2,iatom) = y
+          msd%ref0_pos(3,iatom) = z
+          mass = particle_set(iatom)%atomic_kind%mass
+          msd%ref0_com(1) = x * mass 
+          msd%ref0_com(2) = y * mass 
+          msd%ref0_com(3) = z * mass 
+          total_mass = total_mass + mass
+      END DO
+
+    END IF
+    CALL close_file(unit_number=msd%ref0_unit)
+
+    CALL mp_bcast(msd%ref0_pos,para_env%source,para_env%group)
   
+    CALL section_vals_val_get(msd_section,"MSD_PER_KIND",l_val=msd%msd_kind,error=error)
+    CALL section_vals_val_get(msd_section,"MSD_PER_MOLKIND",l_val=msd%msd_molecule,error=error)
+    CALL section_vals_val_get(msd_section,"MSD_PER_REGION",l_val=msd%msd_region,error=error)
+
+    IF(msd%msd_kind) THEN
+      CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds, error=error)
+      nkind = atomic_kinds%n_els
+
+      ALLOCATE(msd%val_msd_kind(4,nkind),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      msd%val_msd_kind = 0.0_dp
+    END IF
+
+    IF(msd%msd_molecule) THEN
+      CALL cp_subsys_get(subsys=subsys, molecules_new=molecules,&
+           molecule_kinds_new=molecule_kinds,error=error)
+      nmolkind =  molecule_kinds%n_els
+      ALLOCATE(msd%val_msd_molecule(4,nmolkind),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+      molecule_kind_set => molecule_kinds%els
+      molecule_set => molecules%els
+      nmol = molecules%n_els
+
+      ALLOCATE(msd%ref0_com_molecule(3,nmol), STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      
+      DO ikind = 1, nmolkind
+        molecule_kind => molecule_kind_set(ikind)
+        CALL get_molecule_kind (molecule_kind=molecule_kind, nmolecule=nmolecule )
+        DO imol = 1,nmolecule
+           molecule => molecule_set(molecule_kind%molecule_list(imol))
+           CALL get_molecule ( molecule=molecule, first_atom = first_atom, last_atom = last_atom )
+           com = 0.0_dp
+           mass_mol = 0.0_dp
+           DO iatom = first_atom, last_atom
+              mass = particle_set(iatom)%atomic_kind%mass
+              com(1) = com(1) + msd%ref0_pos(1,iatom)*mass
+              com(2) = com(2) + msd%ref0_pos(2,iatom)*mass
+              com(3) = com(3) + msd%ref0_pos(3,iatom)*mass
+              mass_mol = mass_mol+mass
+           ENDDO  ! iatom
+           msd%ref0_com_molecule(1,molecule_kind%molecule_list(imol)) =  com(1)/mass_mol
+           msd%ref0_com_molecule(2,molecule_kind%molecule_list(imol)) =  com(2)/mass_mol
+           msd%ref0_com_molecule(3,molecule_kind%molecule_list(imol)) =  com(3)/mass_mol
+        END DO  ! imol
+      ENDDO ! ikind
+    END IF
+
+    IF(msd%msd_region) THEN
+ 
+
+    END IF 
+
+
+    RETURN
+998 CONTINUE ! end of file
+    CALL stop_program(routineN,moduleN,__LINE__,&
+         "End of reference positions file reached")
+999 CONTINUE ! error
+    CALL stop_program(routineN,moduleN,__LINE__,&
+         "Error reading reference positions file")
+    
   END SUBROUTINE initialize_msd_reftraj
+
+!!****f* reftraj_util/compute_msd_reftraj [1.0] *
+!!
+!!   NAME
+!!    compute_msd_reftraj 
+!!
+!!   FUNCTION
+!!     -
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!   MODIFICATION HISTORY
+!!     10.2007 created 
+!!
+!!*** **********************************************************************
+
+  SUBROUTINE compute_msd_reftraj(reftraj,md_env,particle_set,error)
+
+    TYPE(reftraj_type), POINTER              :: reftraj
+    TYPE (md_environment_type), POINTER      :: md_env
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'compute_msd_reftraj', &
+      routineP = moduleN//':'//routineN
+      
+    CHARACTER(LEN=default_path_length)       :: root_fname
+    CHARACTER(LEN=default_string_length)     :: my_ext, my_mittle
+    INTEGER                                  :: atom, first_atom, last_atom,&
+                                                iatom, ikind,imol, imol_global, &
+                                                natom_kind, nmolkind, nmolecule,&
+                                                nmol_per_kind
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: dx, dy, dz, mass, mass_mol
+    REAL(KIND=dp)                            :: com(3), diff2_com(4), msd_mkind(4)
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(molecule_kind_type), DIMENSION(:),&
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    TYPE(molecule_type), POINTER             :: molecule 
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
+    TYPE(mol_new_list_type), POINTER         :: molecules
+  
+    failure = .FALSE.
+    NULLIFY(force_env,para_env,subsys)
+    NULLIFY(atomic_kind,atomic_kinds,atom_list)
+    NULLIFY(local_molecules, molecule, molecule_kind, molecule_kinds,&
+            molecule_kind_set, molecules, molecule_set)
+
+    CALL get_md_env(md_env=md_env, force_env=force_env, para_env=para_env,&
+         error=error)
+    CALL force_env_get(force_env=force_env,subsys=subsys,&
+         error=error)
+    CALL cp_subsys_get(subsys=subsys, atomic_kinds=atomic_kinds,error=error)
+    
+
+    IF(reftraj%msd%msd_kind)THEN
+      reftraj%msd%val_msd_kind = 0.0_dp
+      DO ikind=1,atomic_kinds%n_els
+          atomic_kind => atomic_kinds%els(ikind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               atom_list=atom_list,&
+                               natom=natom_kind)
+    
+          DO iatom = 1,natom_kind
+            atom = atom_list(iatom)
+            dx =  particle_set(atom)%r(1)-reftraj%msd%ref0_pos(1,atom)
+            dy =  particle_set(atom)%r(2)-reftraj%msd%ref0_pos(2,atom)
+            dz =  particle_set(atom)%r(3)-reftraj%msd%ref0_pos(3,atom)
+            reftraj%msd%val_msd_kind(1,ikind) = reftraj%msd%val_msd_kind(1,ikind) + dx*dx 
+            reftraj%msd%val_msd_kind(2,ikind) = reftraj%msd%val_msd_kind(2,ikind) + dy*dy 
+            reftraj%msd%val_msd_kind(3,ikind) = reftraj%msd%val_msd_kind(3,ikind) + dz*dz 
+            reftraj%msd%val_msd_kind(4,ikind) = reftraj%msd%val_msd_kind(4,ikind) + &
+                  dx*dx +  dy*dy + dz*dz
+          END DO  !iatom
+          reftraj%msd%val_msd_kind(1:4,ikind) = &
+                     reftraj%msd%val_msd_kind(1:4,ikind)/REAL(natom_kind,KIND=dp)
+
+      END DO  ! ikind
+    ENDIF  
+
+    IF(reftraj%msd%msd_molecule) THEN
+      CALL cp_subsys_get(subsys=subsys, local_molecules_new=local_molecules, &
+           molecules_new=molecules, molecule_kinds_new=molecule_kinds, error=error)
+           
+      nmolkind =  molecule_kinds%n_els
+      molecule_kind_set => molecule_kinds%els
+      molecule_set => molecules%els
+
+      reftraj%msd%val_msd_molecule = 0.0_dp
+      DO ikind = 1,nmolkind
+         molecule_kind => molecule_kind_set(ikind)
+         CALL get_molecule_kind (molecule_kind=molecule_kind, nmolecule=nmolecule )
+         nmol_per_kind =  local_molecules%n_el(ikind)
+         msd_mkind = 0.0_dp
+         DO imol = 1, nmol_per_kind
+            imol_global = local_molecules%list(ikind)%array(imol)
+            molecule => molecule_set ( imol_global )
+            CALL get_molecule (molecule,first_atom=first_atom,last_atom=last_atom)
+
+            com = 0.0_dp
+            mass_mol = 0.0_dp
+            DO iatom = first_atom, last_atom
+              mass = particle_set(iatom)%atomic_kind%mass
+              com(1) = com(1) + particle_set(iatom)%r(1)*mass
+              com(2) = com(2) + particle_set(iatom)%r(2)*mass
+              com(3) = com(3) + particle_set(iatom)%r(3)*mass
+              mass_mol = mass_mol+mass
+            ENDDO  ! iatom
+            com(1) =  com(1)/mass_mol 
+            com(2) =  com(2)/mass_mol 
+            com(3) =  com(3)/mass_mol 
+            diff2_com(1) = com(1)- reftraj%msd%ref0_com_molecule(1,imol_global)
+            diff2_com(2) = com(2)- reftraj%msd%ref0_com_molecule(2,imol_global)
+            diff2_com(3) = com(3)- reftraj%msd%ref0_com_molecule(3,imol_global)
+            diff2_com(1) = diff2_com(1)*diff2_com(1)
+            diff2_com(2) = diff2_com(2)*diff2_com(2)
+            diff2_com(3) = diff2_com(3)*diff2_com(3)
+            diff2_com(4) = diff2_com(1) + diff2_com(2) + diff2_com(3)
+            msd_mkind(1) = msd_mkind(1) + diff2_com(1)
+            msd_mkind(2) = msd_mkind(2) + diff2_com(2)
+            msd_mkind(3) = msd_mkind(3) + diff2_com(3)
+            msd_mkind(4) = msd_mkind(4) + diff2_com(4)
+         ENDDO ! imol
+      
+         reftraj%msd%val_msd_molecule(1,ikind) = msd_mkind(1)/REAL(nmolecule,KIND=dp)
+         reftraj%msd%val_msd_molecule(2,ikind) = msd_mkind(2)/REAL(nmolecule,KIND=dp)
+         reftraj%msd%val_msd_molecule(3,ikind) = msd_mkind(3)/REAL(nmolecule,KIND=dp)
+         reftraj%msd%val_msd_molecule(4,ikind) = msd_mkind(4)/REAL(nmolecule,KIND=dp)
+      END DO  ! ikind
+      CALL mp_sum(reftraj%msd%val_msd_molecule, para_env%group)
+
+    END IF
+
+  END SUBROUTINE compute_msd_reftraj 
+
+!!****f* reftraj_util/write_output_reftraj [1.0] *
+!!
+!!   NAME
+!!    write_output_reftraj 
+!!
+!!   FUNCTION
+!!     -
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!   MODIFICATION HISTORY
+!!     10.2007 created 
+!!
+!!*** **********************************************************************
+
+  SUBROUTINE write_output_reftraj(md_env,error)
+    TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+     CHARACTER(len=*), PARAMETER :: routineN = 'write_output_reftraj', &
+        routineP = moduleN//':'//routineN
+  
+    CHARACTER(LEN=default_string_length)     :: fmd, my_act, &
+                                               my_pos, my_mittle
+    INTEGER :: nkind, ikind, out_msd
+    LOGICAL :: failure
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(reftraj_type), POINTER              :: reftraj
+    TYPE(section_vals_type), POINTER         :: print_section,&
+                                                reftraj_section,&
+                                                root_section
+
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+                                                
+    NULLIFY(reftraj)
+    NULLIFY(print_section,reftraj_section,root_section)
+
+    CALL get_md_env(md_env=md_env, force_env=force_env, &
+         reftraj=reftraj, error=error)
+ 
+    CALL force_env_get(force_env=force_env,root_section=root_section,&
+         error=error)
+
+    reftraj_section => section_vals_get_subs_vals(root_section,&
+           "MOTION%MD%REFTRAJ",error=error)
+    print_section => section_vals_get_subs_vals(reftraj_section,"PRINT",error=error)
+
+    my_pos = "APPEND"
+    my_act = "WRITE"
+    IF(reftraj%init.AND.(reftraj%isnap==reftraj%info%first_snapshot)) THEN
+      my_pos = "REWIND"
+      my_act = "WRITE"
+    END IF
+
+    IF(reftraj%info%msd) THEN
+      IF(reftraj%msd%msd_kind)THEN
+         nkind = SIZE(reftraj%msd%val_msd_kind,2)
+         DO ikind = 1,nkind
+           my_mittle ="k"//TRIM(ADJUSTL(cp_to_string(ikind)))
+           out_msd = cp_print_key_unit_nr(logger,reftraj_section,"PRINT%MSD_KIND",&
+               extension=".msd", file_position=my_pos, file_action=my_act,&
+               file_form="FORMATTED", middle_name=TRIM(my_mittle), &
+               error=error)
+           IF(out_msd>0) THEN
+              WRITE(UNIT=out_msd,FMT="(I8, F12.3,4F20.10)") reftraj%itimes, &
+                   reftraj%time*femtoseconds, &
+                   reftraj%msd%val_msd_kind(1:4,ikind)*angstrom*angstrom
+              CALL m_flush(out_msd)
+           END IF
+           CALL cp_print_key_finished_output(out_msd,logger,reftraj_section,&
+                "PRINT%MSD_KIND", error=error)
+         END DO  
+      END IF
+      IF(reftraj%msd%msd_molecule) THEN
+         nkind = SIZE(reftraj%msd%val_msd_molecule,2)
+         DO ikind = 1,nkind
+           my_mittle ="mk"//TRIM(ADJUSTL(cp_to_string(ikind)))
+           out_msd = cp_print_key_unit_nr(logger,reftraj_section,"PRINT%MSD_MOLECULE",&
+               extension=".msd", file_position=my_pos, file_action=my_act,&
+               file_form="FORMATTED", middle_name=TRIM(my_mittle), &
+               error=error)
+           IF(out_msd>0) THEN
+              WRITE(UNIT=out_msd,FMT="(I8, F12.3,4F20.10)") reftraj%itimes, &
+                   reftraj%time*femtoseconds, &
+                   reftraj%msd%val_msd_molecule(1:4,ikind)*angstrom*angstrom
+              CALL m_flush(out_msd)
+           END IF
+           CALL cp_print_key_finished_output(out_msd,logger,reftraj_section,&
+                "PRINT%MSD_MOLECULE", error=error)
+         END DO
+      END IF        
+    ENDIF ! msd
+    reftraj%init = .FALSE.
+
+  END SUBROUTINE write_output_reftraj
 
 END MODULE reftraj_util
 

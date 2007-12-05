@@ -76,7 +76,8 @@ MODULE md_run
   USE reftraj_types,                   ONLY: create_reftraj,&
                                              reftraj_type,&
                                              release_reftraj
-  USE reftraj_util,                    ONLY: initialize_reftraj
+  USE reftraj_util,                    ONLY: initialize_reftraj,&
+                                             write_output_reftraj
   USE termination,                     ONLY: external_control
   USE thermostat_methods,              ONLY: create_thermostats
   USE thermostat_types,                ONLY: release_thermostats,&
@@ -361,6 +362,7 @@ CONTAINS
       ! Velocity Verlet Integrator
       CALL velocity_verlet(md_env,error)
 
+
       ! Close Shake output if requested...
       CALL cp_print_key_finished_output(simpar%info_constraint, logger,&
            root_section,"MOTION%CONSTRAINT%CONSTRAINT_INFO",error=error)
@@ -392,6 +394,10 @@ CONTAINS
       time_iter_start=time_iter_stop
 
       CALL md_output(md_env,force_env_section,root_section,error)
+      IF(simpar%ensemble == reftraj_ensemble) THEN
+         CALL write_output_reftraj(md_env,error=error) 
+      END IF
+
     END DO
 
     CALL cp_rm_iter_level(logger%iter_info,n_rlevel_att=iter_level,&

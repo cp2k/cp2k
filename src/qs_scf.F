@@ -196,7 +196,8 @@ MODULE qs_scf
 ! *** Public subroutines ***
 
   PUBLIC :: scf, scf_env_cleanup, scf_env_do_scf,&
-            init_scf_run, init_scf_loop, qs_scf_loop_do_ot
+            init_scf_run, init_scf_loop, qs_scf_loop_do_ot,&
+            qs_scf_print_summary
 
 ! *****************************************************************************
 

@@ -494,12 +494,12 @@ MODULE input_constants
   ! X-Ray spectra Calculation
   INTEGER, PARAMETER, PUBLIC :: xas_none=0, xas_tp_hh=1, xas_tp_fh=2,&
                                 xes_tp_val=3, xas_tp_xhh=4,xas_tp_xfh=5,&
-                                xas_tddft=6, xas_dscf=7 
+                                xas_dscf=6 
   INTEGER, PARAMETER, PUBLIC :: xas_1s_type=1, xas_2s_type=2, xas_2p_type=3,&
                                 xas_3s_type=4, xas_3p_type=5, xas_3d_type=6,&
                                 xas_4s_type=7, xas_4p_type=8, xas_4d_type=9, xas_4f_type=10
   INTEGER, PARAMETER, PUBLIC :: xas_dip_len=1, xas_dip_vel=2, xas_dip_len2=3
-  INTEGER, PARAMETER, PUBLIC :: xas_scf_default=0,xas_scf_general=1, xas_scf_ot=2
+  INTEGER, PARAMETER, PUBLIC :: xas_scf_default=0,xas_scf_general=1
 
   ! Linear Response for properties
   INTEGER, PARAMETER, PUBLIC :: lr_none=0, lr_chemshift=1, lr_gtensor=2 !R

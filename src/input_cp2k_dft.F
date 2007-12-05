@@ -297,12 +297,14 @@ CONTAINS
          default_lc_val="BASIS_SET",error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
+
     CALL keyword_create(keyword, name="POTENTIAL_FILE_NAME",&
          description="Name of the pseudo potential file, may include a path",&
          usage="POTENTIAL_FILE_NAME <FILENAME>",&
          default_lc_val="POTENTIAL",error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
+
     CALL keyword_create(keyword, name="WFN_RESTART_FILE_NAME",&
          variants=(/"RESTART_FILE_NAME"/),&
          description="Name of the wavefunction restart file, may include a path."//&
@@ -312,6 +314,7 @@ CONTAINS
          error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
+
     CALL keyword_create(keyword=keyword,&
          name="UKS",&
          variants=s2a("UNRESTRICTED_KOHN_SHAM",&
@@ -4705,14 +4708,14 @@ CONTAINS
             description="Method to be used to calculate core-level excitation spectra",&
             usage="METHOD TP_HH",&
             default_i_val=xas_none,&
-            enum_c_vals=s2a( "NONE", "TP_HH", "TP_FH", "TP_VAL", "TP_XHH","TP_XFH", "TDDFT","DSCF"),&
+            enum_c_vals=s2a( "NONE", "TP_HH", "TP_FH", "TP_VAL", "TP_XHH","TP_XFH", "DSCF"),&
             enum_desc=s2a("No XAS is calculated", "Transition potential halfhole",&
             "Transition potential fullhole", "Hole in homo for XES " , &
             "Transition potential excited halfhole", &
             "Transition potential excited fullhole " , &
-            "Excitations by TDDFT","DSCF calculations for the first excited state"),&
+            "DSCF calculations for the first excited state"),&
             enum_i_vals=(/xas_none,xas_tp_hh,xas_tp_fh,xes_tp_val,xas_tp_xhh,&
-            xas_tp_xfh,xas_tddft,xas_dscf/), error=error)
+            xas_tp_xfh,xas_dscf/), error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -4739,11 +4742,10 @@ CONTAINS
        CALL keyword_create(keyword, name="SCF_OPTIMIZER",&
             description="Optimization algorithm: diagonalization or OT",&
             usage="SCF_OPTIMIZER GENERAL",&
-            default_i_val=xas_scf_default,&
-            enum_c_vals=s2a( "DEFAULT", "GENERAL", "OT"),&
-            enum_desc=s2a("same as in std SCF", "diagonalization",&
-            "adapted orbital transformation"),&
-            enum_i_vals=(/xas_scf_default,xas_scf_general,xas_scf_ot/),&
+            default_i_val=xas_scf_general,&
+            enum_c_vals=s2a( "DEFAULT", "GENERAL"),&
+            enum_desc=s2a("same as in std SCF", "diagonalization"),&
+            enum_i_vals=(/xas_scf_default,xas_scf_general/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -4781,12 +4783,12 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="EACH_STEP",&
-            description="How often  the xas spectra are computed",&
-            usage="EACH_STEP 1",&
-            default_i_val=1,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+!       CALL keyword_create(keyword, name="EACH_STEP",&
+!            description="How often  the xas spectra are computed",&
+!            usage="EACH_STEP 1",&
+!            default_i_val=1,error=error)
+!       CALL section_add_keyword(section,keyword,error=error)
+!       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="STATE_TYPE",&
             variants=(/"TYPE"/),&
@@ -4807,12 +4809,12 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="FNAME",&
-            description="Root of the file names where to store the spectra",&
-            usage="FNAME xas_1s_o",&
-            default_lc_val="xas_out",error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+!       CALL keyword_create(keyword, name="FNAME",&
+!            description="Root of the file names where to store the spectra",&
+!            usage="FNAME xas_1s_o",&
+!            default_lc_val="xas_out",error=error)
+!       CALL section_add_keyword(section,keyword,error=error)
+!       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="SMEAR",&
             description="smearing coefficient",&
@@ -4821,12 +4823,12 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="FERMI",&
-            description="Fermi distributionfor the occupation numbers",&
-            usage="FERMI",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error) 
+!       CALL keyword_create(keyword, name="FERMI",&
+!            description="Fermi distribution for the occupation numbers",&
+!            usage="FERMI",&
+!            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+!       CALL section_add_keyword(section,keyword,error=error)
+!       CALL keyword_release(keyword,error=error) 
 
 
        CALL keyword_create(keyword,name="ATOMS_LU_BOUNDS",&
@@ -4894,15 +4896,15 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error) 
 
-       CALL keyword_create(keyword, name="WRITE_RESTART_EACH",&
-            description="How often the wavefunction restart file should be "//&
-            "written during the tp_scf cycle (0=only at the end, -1=never).",&
-            usage="WRITE_RESTART_EACH 5",&
-            default_i_val=10,error=error)
+       CALL keyword_create(keyword, name="WFN_RESTART_FILE_NAME",&
+            variants=(/"RESTART_FILE_NAME"/),&
+            description="Root of the file names where to read the MOS from"//&
+            "which to restart the calculation of the core level excited states",&
+            usage="WFN_RESTART_FILE_NAME <FILENAME>",&
+            type_of_var=lchar_t,&
+            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-
-
 
        NULLIFY(subsection)
        CALL create_localize_section(subsection,error)
@@ -4921,9 +4923,28 @@ CONTAINS
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       CALL cp_print_key_section_create(print_key,"SPECTRUM",&
+            description="Controls the dumping of the CLS output files containing the spectra",&
+            print_level=low_print_level,common_iter_levels=3,filename="",&
+            error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+
+       CALL cp_print_key_section_create(print_key,"RESTART",&
+            description="Controls the dumping of MO restart file during the scf"//&
+            "of a Core-Level-Spectroscopy calculation. For each new excited atom,"//&
+            "one different restart file is dumped. These restart files should be"//&
+            "employed only to restart the same type of CLS calculation, "//&
+            "i.e. with the same core potential.", &
+            print_level=low_print_level,common_iter_levels=3,each=(/3/),filename="",&
+            error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
        CALL cp_print_key_section_create(print_key,"CLS_FUNCTION_CUBES",&
             description="Controls the printing of the relaxed orbitals ", &
-            print_level=high_print_level,each=(/1/),add_last=(/1/),filename="",&
+            print_level=high_print_level,common_iter_levels=3,each=(/1/),add_last=(/1/),filename="",&
             error=error)
        CALL keyword_create(keyword, name="stride",&
             description="the stride used to write the cube file "//&

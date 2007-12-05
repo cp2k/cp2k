@@ -43,7 +43,8 @@ MODULE md_energies
                                              nph_uniaxial_damped_ensemble,&
                                              nph_uniaxial_ensemble,&
                                              npt_f_ensemble,&
-                                             npt_i_ensemble
+                                             npt_i_ensemble,&
+                                             reftraj_ensemble
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -306,12 +307,17 @@ SUBROUTINE md_ener_reftraj(md_env,md_ener,error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(reftraj_type), POINTER              :: reftraj
 
+
     CALL zero_md_ener(md_ener, tkind=.FALSE., tshell=.FALSE., error=error)
 
     CALL get_md_env(md_env=md_env,  force_env=force_env, reftraj=reftraj, error=error)
     
     IF(reftraj%info%eval_ef) THEN
       CALL force_env_get(force_env, potential_energy=md_ener%epot, error=error)
+    ELSE
+      md_ener%epot = reftraj%epot
+      md_ener%delta_epot = (reftraj%epot - reftraj%epot0)/&
+          REAL(reftraj%natom, kind=dp)*kelvin
     END IF
     
 END SUBROUTINE  md_ener_reftraj
@@ -355,7 +361,7 @@ END SUBROUTINE  md_ener_reftraj
     REAL(dp)                                 :: abc( 3 ), cell_angle( 3 ), &
                                                 econs, pv_scalar, pv_xx
     REAL(KIND=dp)                            :: harm_shell, hugoniot
-    REAL(KIND=dp), POINTER                   :: constant, t, used_time
+    REAL(KIND=dp), POINTER                   :: constant, time, used_time
     REAL(KIND=dp), SAVE                      :: econs_avg, itimes_old, t_old
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -370,6 +376,7 @@ END SUBROUTINE  md_ener_reftraj
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+    TYPE (reftraj_type), POINTER             :: reftraj
     TYPE(section_vals_type), POINTER         :: motion_section, root_section
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
@@ -384,16 +391,17 @@ END SUBROUTINE  md_ener_reftraj
 
     ! Zeroing
     hugoniot = 0._dp
+    econs = 0.0_dp
     shell_adiabatic = .FALSE.
     shell_present   = .FALSE.
     NULLIFY(dyn_coeff_set,motion_section, atomic_kinds, atomic_kind_set)
-    NULLIFY(cell, subsys, force_env, md_ener, qmmm_env)
+    NULLIFY(cell, subsys, force_env, md_ener, qmmm_env, reftraj)
     NULLIFY(core_particles, particles,shell_particles)
     NULLIFY(root_section,simpar,virial)
 
     CALL get_md_env(md_env=md_env, itimes=itimes, constant=constant,&
-         t=t, used_time = used_time, simpar=simpar, force_env=force_env, &
-         init=init, md_ener=md_ener, error=error)
+         t=time, used_time = used_time, simpar=simpar, force_env=force_env, &
+         init=init, md_ener=md_ener, reftraj=reftraj, error=error)
 
     root_section   => force_env%root_section
     motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
@@ -458,7 +466,14 @@ END SUBROUTINE  md_ener_reftraj
        ENDIF
        ! Assigning the initial time-step and time
        itimes_old = itimes
-       t_old      = t
+       t_old      = time
+
+       IF (simpar%ensemble==reftraj_ensemble) THEN
+          itimes_old = reftraj%itimes0
+          t_old = reftraj%time0
+          reftraj%init = init
+       END IF
+       
        ! Write initial values of quantities of interest
        IF (iw>0) THEN
           WRITE (iw,*)
@@ -469,21 +484,23 @@ END SUBROUTINE  md_ener_reftraj
                'GO CP2K GO! **********************************'
           WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL POTENTIAL ENERGY', &
                ADJUSTL( unit % e_label), '= ', md_ener%epot
-          IF (.NOT.qmmm) THEN
-             ! NO QM/MM info
-             WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL KINETIC ENERGY', &
+          IF (simpar%ensemble/=reftraj_ensemble) THEN
+            IF (.NOT.qmmm) THEN
+              ! NO QM/MM info
+              WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL KINETIC ENERGY', &
                   ADJUSTL( unit % e_label), '= ', md_ener%ekin
-             WRITE ( iw, '( A,A,T40,A,T60,1(1X,F20.3) )' ) ' INITIAL TEMPERATURE', &
+              WRITE ( iw, '( A,A,T40,A,T60,1(1X,F20.3) )' ) ' INITIAL TEMPERATURE', &
                   ADJUSTL( unit % temp_label ), '= ', md_ener%temp_part
-          ELSE
-             WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' MM INITIAL KINETIC ENERGY', &
+            ELSE
+              WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' MM INITIAL KINETIC ENERGY', &
                   ADJUSTL( unit % e_label), '= ', md_ener%ekin
-             WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' QM INITIAL KINETIC ENERGY', &
+              WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' QM INITIAL KINETIC ENERGY', &
                   ADJUSTL( unit % e_label), '= ', md_ener%ekin_qm
-             WRITE ( iw, '( A,A,T40,A,T60,1(1X,F20.3) )' ) ' MM INITIAL TEMPERATURE', &
+              WRITE ( iw, '( A,A,T40,A,T60,1(1X,F20.3) )' ) ' MM INITIAL TEMPERATURE', &
                   ADJUSTL( unit % temp_label ), '= ', md_ener%temp_part
-             WRITE ( iw, '( A,A,T40,A,T60,1(1X,F20.3) )' ) ' QM INITIAL TEMPERATURE', &
+              WRITE ( iw, '( A,A,T40,A,T60,1(1X,F20.3) )' ) ' QM INITIAL TEMPERATURE', &
                   ADJUSTL( unit % temp_label ), '= ', md_ener%temp_qm
+            END IF
           END IF
           IF ( simpar % ensemble == nph_ensemble .OR.&
                simpar % ensemble == nph_uniaxial_ensemble .OR.&
@@ -526,8 +543,15 @@ END SUBROUTINE  md_ener_reftraj
             hugoniot = md_ener%epot + md_ener%ekin - simpar % e0 -  &
             .5_dp * ( pv_xx/unit%bar + simpar % p0 ) * &
             ( simpar % v0 - cell % deth )
-       t = t_old + REAL(itimes-itimes_old,dp)*simpar%dt
-       econs = md_ener%delta_cons!(md_ener%constant-constant)/nat*kelvin
+
+       IF (simpar%ensemble==reftraj_ensemble) THEN
+          time = reftraj%time
+          econs = md_ener%delta_epot
+          itimes = reftraj%itimes
+       ELSE
+          time = t_old + REAL(itimes-itimes_old,dp)*simpar%dt
+          econs = md_ener%delta_cons!(md_ener%constant-constant)/nat*kelvin
+       END IF
 
        ! average quantities:
        delta_t = itimes - itimes_old
@@ -598,7 +622,7 @@ END SUBROUTINE  md_ener_reftraj
           WRITE ( iw, '( A,T61,A )' ) ' ENSEMBLE TYPE                = ', &
                ADJUSTR ( ensemble_name_types(simpar%ensemble)(1:20))
           WRITE ( iw, '( A,T71,I10 )' ) ' STEP NUMBER                  = ', itimes
-          WRITE ( iw, '( A,T60,1(1X,F20.6) )' ) ' TIME [FS]                    = ', t*femtoseconds
+          WRITE ( iw, '( A,T60,1(1X,F20.6) )' ) ' TIME [FS]                    = ', time*femtoseconds
           WRITE ( iw, '( A,T60,1(1X,E20.12) )' ) ' CONSERVED QNTY               = ', &
                md_ener%constant
           WRITE ( iw, '( )' )
@@ -609,21 +633,23 @@ END SUBROUTINE  md_ener_reftraj
                econs, econs_avg/REAL( delta_t,dp)
           WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' POTENTIAL ENERGY', &
                ADJUSTL(unit % e_label), '= ', md_ener%epot, averages%avepot
-          IF (.NOT.qmmm) THEN
-             ! No QM/MM info
-             WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' KINETIC ENERGY', &
+          IF(simpar%ensemble/=reftraj_ensemble) THEN
+            IF (.NOT.qmmm) THEN
+              ! No QM/MM info
+              WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' KINETIC ENERGY', &
                   ADJUSTL(unit % e_label), '= ', md_ener%ekin, averages%avekin
-             WRITE ( iw, '( A,A,T31,A,T39,2(1X,F20.3) )' ) ' TEMPERATURE', &
+              WRITE ( iw, '( A,A,T31,A,T39,2(1X,F20.3) )' ) ' TEMPERATURE', &
                   ADJUSTL(unit % temp_label), '= ', md_ener%temp_part, averages%avetemp
-          ELSE
-             WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' MM KINETIC ENERGY', &
+            ELSE
+              WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' MM KINETIC ENERGY', &
                   ADJUSTL(unit % e_label), '= ', md_ener%ekin, averages%avekin
-             WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' QM KINETIC ENERGY', &
+              WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' QM KINETIC ENERGY', &
                   ADJUSTL(unit % e_label), '= ', md_ener%ekin_qm, averages%avekin_qm
-             WRITE ( iw, '( A,A,T31,A,T39,2(1X,F20.3) )' ) ' MM TEMPERATURE', &
+              WRITE ( iw, '( A,A,T31,A,T39,2(1X,F20.3) )' ) ' MM TEMPERATURE', &
                   ADJUSTL(unit % temp_label), '= ', md_ener%temp_part, averages%avetemp
-             WRITE ( iw, '( A,A,T31,A,T39,2(1X,F20.3) )' ) ' QM TEMPERATURE', &
+              WRITE ( iw, '( A,A,T31,A,T39,2(1X,F20.3) )' ) ' QM TEMPERATURE', &
                   ADJUSTL(unit % temp_label), '= ', md_ener%temp_qm, averages%avetemp_qm
+            END IF
           END IF
           IF ( virial % pv_availability ) &
                WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' PRESSURE', &
@@ -691,6 +717,7 @@ END SUBROUTINE  md_ener_reftraj
          box = cp_print_key_unit_nr(logger,motion_section,"PRINT%CELL",&
               extension=".cell", file_position=my_pos, file_action=my_act,&
               file_form="FORMATTED", error=error)
+
        ELSE
          box = 0
        END IF
@@ -814,7 +841,7 @@ END SUBROUTINE  md_ener_reftraj
           ELSEIF(outformat==dump_xmol) THEN
              !         *** This information can be digested by Molden ***
              WRITE (UNIT=title,FMT="(A,I8,A,F20.10,A,F12.3)")&
-                  " i = ",itimes," , E =",md_ener%epot,", Time (fs)=",t*femtoseconds
+                  " i = ",itimes," , E =",md_ener%epot,", Time (fs)=",time*femtoseconds
           ELSE
              title = ""
           END IF
@@ -827,22 +854,19 @@ END SUBROUTINE  md_ener_reftraj
        ! Print Simulation Cell (only if constant pressure)
        !------------------
        IF ( box > 0 ) THEN
-          WRITE (UNIT=title,FMT="(A,I8,A,F20.10,A,F12.3)")&
-                  " i =",itimes,", E =",md_ener%epot, ",  Time (fs)=",t*femtoseconds
-          WRITE(UNIT=box,FMT="(A)") title
-          WRITE(UNIT=box,FMT="(4X,3F20.10)") cell%hmat(1,1)*angstrom,&
-                       cell%hmat(2,1)*angstrom,cell%hmat(3,1)*angstrom
-          WRITE(UNIT=box,FMT="(4X,3F20.10)") cell%hmat(1,2)*angstrom,&
-                       cell%hmat(2,2)*angstrom,cell%hmat(3,2)*angstrom
-          WRITE(UNIT=box,FMT="(4X,3F20.10)") cell%hmat(1,3)*angstrom,&
-                       cell%hmat(2,3)*angstrom,cell%hmat(3,3)*angstrom
+          WRITE(UNIT=box,FMT="(I8, F12.3,10F20.10)") itimes,time*femtoseconds,&
+             cell%hmat(1,1)*angstrom,cell%hmat(2,1)*angstrom,cell%hmat(3,1)*angstrom,&
+             cell%hmat(1,2)*angstrom,cell%hmat(2,2)*angstrom,cell%hmat(3,2)*angstrom,&
+             cell%hmat(1,3)*angstrom,cell%hmat(2,3)*angstrom,cell%hmat(3,3)*angstrom,&
+             cell%deth*angstrom*angstrom*angstrom
+      
           CALL m_flush(box)
        END IF
        !------------------
        ! Print the Stress tensor
        !------------------
        IF ( str > 0 ) THEN
-          WRITE(UNIT=str,FMT="(I10,F12.3,9F20.10)") itimes,t*femtoseconds,&
+          WRITE(UNIT=str,FMT="(I10,F12.3,9F20.10)") itimes,time*femtoseconds,&
                         virial%pv_total(1,1)/cell%deth*unit%bar,&
                         virial%pv_total(1,2)/cell%deth*unit%bar,&
                         virial%pv_total(1,3)/cell%deth*unit%bar,&
@@ -918,7 +942,7 @@ END SUBROUTINE  md_ener_reftraj
        IF (ener_mix>0 .AND. is_mixed) THEN
           WRITE (ener_mix,"(I8,F12.3,F20.9,"//&
                cp_to_string(SIZE(force_env%mixed_env%energies))//"F20.9,F20.9)")&
-               itimes,t*femtoseconds,md_ener%epot,force_env%mixed_env%energies,md_ener%constant
+               itimes,time*femtoseconds,md_ener%epot,force_env%mixed_env%energies,md_ener%constant
           CALL m_flush(ener_mix)
        END IF
        !------------------
@@ -930,7 +954,7 @@ END SUBROUTINE  md_ener_reftraj
           ! "Step Nr.    Time[fs]  Kin.[a.u.]     Temp[K]  Pot.[a.u.]    Cons Qty UsedTime[s]"
           !
           WRITE (ene,"(I10,F20.3,F20.9,F20.9,F20.9,F20.9,F20.9)")&
-               itimes,t*femtoseconds,md_ener%ekin,md_ener%temp_part, md_ener%epot,md_ener%constant,used_time
+               itimes,time*femtoseconds,md_ener%ekin,md_ener%temp_part, md_ener%epot,md_ener%constant,used_time
           CALL m_flush(ene)
        END IF
        !------------------
@@ -940,7 +964,7 @@ END SUBROUTINE  md_ener_reftraj
           ! "Step Nr.    Time[fs]  Shell Kin.[a.u.]    Shell Temp[K]  Shell Pot.[a.u.] 
           !
           WRITE (shene,"(I8,F12.3,F20.9,F20.9,F20.9,F20.9 )")&
-               itimes,t*femtoseconds,md_ener%ekin_shell,md_ener%temp_shell,harm_shell
+               itimes,time*femtoseconds,md_ener%ekin_shell,md_ener%temp_shell,harm_shell
           CALL m_flush(shene)
        END IF
        !------------------
@@ -1127,7 +1151,7 @@ END SUBROUTINE  md_ener_reftraj
           fmd="(I10,F20.3,"//TRIM(ADJUSTL(cp_to_string(nkind)))//"F20.9)"     
           fmd=TRIM(fmd)
           WRITE (tempkind,fmd)&
-               itimes,t*femtoseconds, md_ener%temp_kind(1:nkind)
+               itimes,time*femtoseconds, md_ener%temp_kind(1:nkind)
           CALL m_flush(tempkind)
        END IF   
        IF( tempshellkind > 0 ) THEN
@@ -1135,7 +1159,7 @@ END SUBROUTINE  md_ener_reftraj
           fmd="(I10,F20.3,"//TRIM(ADJUSTL(cp_to_string(nkind)))//"F20.9)"     
           fmd=TRIM(fmd)
           WRITE (tempshellkind,fmd)&
-               itimes,t*femtoseconds, md_ener%temp_shell_kind(1:nkind)
+               itimes,time*femtoseconds, md_ener%temp_shell_kind(1:nkind)
           CALL m_flush(tempshellkind)
        END IF
 

@@ -55,6 +55,7 @@ MODULE input_cp2k_thermostats
 
 PUBLIC :: create_thermostat_section,&
           create_coord_section,&
+          create_region_section,&
           create_velocity_section,&
           create_mass_section
 

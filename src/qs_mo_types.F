@@ -122,6 +122,7 @@ MODULE qs_mo_types
             init_mo_set,&
             wfn_restart_file_name,&
             read_mo_set,&
+            read_mos_restart_low,&
             set_mo_occupation,&
             set_mo_set, &
             write_mo_set, &
@@ -799,27 +800,42 @@ CONTAINS
   END SUBROUTINE write_mo_set_low
 
 ! *****************************************************************************
-  SUBROUTINE wfn_restart_file_name(filename,exist,dft_section,logger,error)
+  SUBROUTINE wfn_restart_file_name(filename,exist,section,logger,xas,error)
     CHARACTER(LEN=default_path_length), &
       INTENT(OUT)                            :: filename
     LOGICAL, INTENT(OUT)                     :: exist
-    TYPE(section_vals_type), POINTER         :: dft_section
+    TYPE(section_vals_type), POINTER         :: section
     TYPE(cp_logger_type), POINTER            :: logger
+    LOGICAL, INTENT(IN), OPTIONAL            :: xas
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: n_rep_val
+    lOGICAL :: my_xas
     TYPE(section_vals_type), POINTER         :: print_key
 
-    CALL section_vals_val_get(dft_section,"WFN_RESTART_FILE_NAME",n_rep_val=n_rep_val,error=error)
+    my_xas = .FALSE.
+    IF(PRESENT(xas)) my_xas = xas
+
+    exist = .FALSE. 
+    CALL section_vals_val_get(section,"WFN_RESTART_FILE_NAME",n_rep_val=n_rep_val,error=error)
     IF (n_rep_val>0) THEN
-      CALL section_vals_val_get(dft_section,"WFN_RESTART_FILE_NAME",c_val=filename,error=error)
+      CALL section_vals_val_get(section,"WFN_RESTART_FILE_NAME",c_val=filename,error=error)
     ELSE
-      ! try to read from the filename that is generated automatically from the printkey
-      print_key => section_vals_get_subs_vals(dft_section,"SCF%PRINT%RESTART",error=error)
-      filename = cp_print_key_generate_filename(logger,print_key, &
-                  extension=".wfn", my_local=.FALSE., error=error)
+      IF(my_xas) THEN
+       ! try to read from the filename that is generated automatically from the printkey
+        print_key => section_vals_get_subs_vals(section,"PRINT%RESTART",error=error)
+        filename = cp_print_key_generate_filename(logger,print_key, &
+                    extension="",my_local=.FALSE., error=error)
+      ELSE
+        ! try to read from the filename that is generated automatically from the printkey
+        print_key => section_vals_get_subs_vals(section,"SCF%PRINT%RESTART",error=error)
+        filename = cp_print_key_generate_filename(logger,print_key, &
+                    extension=".wfn", my_local=.FALSE., error=error)
+      END IF
     ENDIF
-    INQUIRE(FILE=filename,exist=exist)
+    IF(.NOT.my_xas) THEN
+      INQUIRE(FILE=filename,exist=exist)
+    END IF
 
   END SUBROUTINE
 
@@ -841,34 +857,23 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: file_name
-    INTEGER :: group, handle, i, iatom, irow, iset, iset_read, ishell, &
-      ishell_read, iso, ispin, istat, lmax, lshell, nao, nao_read, natom, &
-      natom_read, nelectron, nmo, nmo_read, nnshell, nset, nset_max, &
-      nshell_max, nspin, nspin_read, offset_read, restart_unit, source
-    INTEGER, DIMENSION(:), POINTER           :: nset_info, nshell
-    INTEGER, DIMENSION(:, :), POINTER        :: l, nshell_info
-    INTEGER, DIMENSION(:, :, :), POINTER     :: nso_info, offset_info
-    LOGICAL                                  :: did_change, exist, minbas, &
-                                                use_this
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer, vecbuffer_read
+    INTEGER :: handle, ispin, natom, &
+               nspin, restart_unit
+    LOGICAL                                  :: exist
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-    TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
-    group = para_env%group
-    source = para_env%source
     logger=>cp_error_get_logger()
 
     nspin = SIZE(mo_array)
-    nao = mo_array(1)%mo_set%nao
+    restart_unit = -1
 
     IF (para_env%ionode) THEN
 
       natom = SIZE(particle_set,1)
-      CALL wfn_restart_file_name(file_name,exist,dft_section,logger,error)
+      CALL wfn_restart_file_name(file_name,exist,dft_section,logger,error=error)
       IF (id_nr/=0) THEN
          ! Is it one of the backup files?
          file_name = TRIM(file_name)//".bak-"//ADJUSTL(cp_to_string(id_nr))
@@ -880,78 +885,148 @@ CONTAINS
                      file_status="OLD",&
                      unit_number=restart_unit)
 
-      READ (restart_unit) natom_read,nspin_read,nao_read,nset_max,nshell_max
+    END IF
+    
+    CALL read_mos_restart_low (mo_array, para_env, particle_set, natom,&
+         restart_unit, multiplicity=multiplicity, error=error)
 
-      ! we should allow for restarting with different spin settings
-      IF (nspin_read /= nspin) THEN
-        WRITE(cp_logger_get_default_unit_nr(logger),*)  &
-          "READ RESTART : WARNING : nspin is not equal "
+    DO ispin = 1,nspin
+        CALL write_mo_set(mo_array(ispin)%mo_set,atomic_kind_set,particle_set,&
+                            4,6,dft_section,error=error)
+    END DO
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE read_mo_set_from_restart
+
+!!****f* qs_mo_types/read_mos_restart_low [1.0] *
+!!
+!!   NAME
+!!    read_mos_restart_low 
+!!
+!!   FUNCTION
+!!     Reading the mos from apreviously defined restart file
+!!
+!!   ARGUMENTS
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!   MODIFICATION HISTORY
+!!     12.2007 created [MI]
+!!
+!!*** **********************************************************************
+
+  SUBROUTINE read_mos_restart_low (mos, para_env, particle_set, natom, rst_unit, multiplicity, xas, error)
+
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    INTEGER, INTENT(IN)                      :: natom
+    INTEGER, INTENT(IN)                      :: rst_unit
+    INTEGER, INTENT(in), OPTIONAL            :: multiplicity
+    LOGICAL, INTENT(IN), OPTIONAL            :: xas
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mos_restart_low', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: group, homo, i, iatom, irow, iset, iset_read, ishell, &
+      ishell_read, iso, ispin, istat, lmax, lshell, my_mult, nao, nao_read, &
+      natom_read, nelectron, nmo, nmo_read, nnshell, nset, nset_max, nshell_max, &
+      nspin, nspin_read, offset_read, source
+    INTEGER, DIMENSION(:), POINTER           :: nset_info, nshell
+    INTEGER, DIMENSION(:, :), POINTER        :: l, nshell_info
+    INTEGER, DIMENSION(:, :, :), POINTER     :: nso_info, offset_info
+    LOGICAL                                  :: failure, minbas, my_xas, use_this
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer, vecbuffer_read
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
+
+    logger=>cp_error_get_logger()
+
+    nspin = SIZE(mos)
+    nao = mos(1)%mo_set%nao
+    my_mult = 0
+    IF(PRESENT(multiplicity)) my_mult = multiplicity
+    my_xas = .FALSE.
+    IF(PRESENT(xas)) my_xas = xas
+    group = para_env%group
+    source = para_env%source
+
+    IF (para_env%ionode) THEN
+      READ (rst_unit) natom_read,nspin_read,nao_read,nset_max,nshell_max
+      IF(my_xas) THEN
+        IF (nspin_read /= nspin) THEN
+          CALL stop_program(routineP,"changed nspin, not possible")
+        END IF
+      ELSE        
+       ! we should allow for restarting with different spin settings
+        IF (nspin_read /= nspin) THEN
+          WRITE(cp_logger_get_default_unit_nr(logger),*)  &
+            "READ RESTART : WARNING : nspin is not equal "
+        END IF
       END IF
-
+  
       IF (natom_read /= natom) THEN
-        CALL stop_program(routineP,"incorrect natom")
+          CALL stop_program(routineP,"incorrect natom")
       END IF
-
+  
+      ! Let's make it possible to change the basis set
       ALLOCATE (nso_info(nshell_max,nset_max,natom_read),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"nso_info",&
-                                       nshell_max*nset_max*natom_read*int_size)
-
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE (nshell_info(nset_max,natom_read),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"nshell_info",&
-                                       nset_max*natom_read*int_size)
-
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE (nset_info(natom_read),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"nset_info",natom_read*int_size)
-
-
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE (offset_info(nshell_max,nset_max,natom_read),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"nso_info",&
-                                       nshell_max*nset_max*natom_read*int_size)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+  
 
       IF (nao_read /= nao) THEN
         WRITE(cp_logger_get_default_unit_nr(logger),*) &
           " READ RESTART : WARNING : DIFFERENT # AOs ",nao,nao_read
-        did_change=.TRUE.
       END IF
 
-      READ (restart_unit) nset_info
-      READ (restart_unit) nshell_info
-      READ (restart_unit) nso_info
+      READ (rst_unit) nset_info
+      READ (rst_unit) nshell_info
+      READ (rst_unit) nso_info
 
-      i=1
-      DO iatom=1,natom
-        DO iset=1,nset_info(iatom)
-          DO ishell=1,nshell_info(iset,iatom)
-            offset_info(ishell,iset,iatom) = i
-            i=i+nso_info(ishell,iset,iatom)
+        i=1
+        DO iatom=1,natom
+          DO iset=1,nset_info(iatom)
+            DO ishell=1,nshell_info(iset,iatom)
+              offset_info(ishell,iset,iatom) = i
+              i=i+nso_info(ishell,iset,iatom)
+            END DO
           END DO
         END DO
-      END DO
-
-      ALLOCATE(vecbuffer_read(1,nao_read),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"vecbuffer_read",&
-                                       nao_read*dp_size)
-
+  
+        ALLOCATE(vecbuffer_read(1,nao_read),STAT=istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     CALL mp_bcast(nspin_read,source,group)
 
     ALLOCATE (vecbuffer(1,nao),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"vecbuffer",nao*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     DO ispin=1,nspin
 
-      nmo=mo_array(ispin)%mo_set%nmo
-
-      mo_array(ispin)%mo_set%eigenvalues(:) = 0.0_dp
-      mo_array(ispin)%mo_set%occupation_numbers(:) = 0.0_dp
-      CALL cp_fm_set_all(mo_array(ispin)%mo_set%mo_coeff,0.0_dp,error=error)
+      nmo=mos(ispin)%mo_set%nmo
+      homo=mos(ispin)%mo_set%homo
+      mos(ispin)%mo_set%eigenvalues(:) = 0.0_dp
+      mos(ispin)%mo_set%occupation_numbers(:) = 0.0_dp
+      CALL cp_fm_set_all(mos(ispin)%mo_set%mo_coeff,0.0_dp,error=error)
 
       IF (para_env%ionode.AND.(nmo > 0)) THEN
-        READ (restart_unit) nmo_read,&
-                            mo_array(ispin)%mo_set%homo,&
-                            mo_array(ispin)%mo_set%lfomo,&
-                            mo_array(ispin)%mo_set%nelectron
+        READ (rst_unit) nmo_read,&
+                            mos(ispin)%mo_set%homo,&
+                            mos(ispin)%mo_set%lfomo,&
+                            mos(ispin)%mo_set%nelectron
         nmo = MIN(nmo,nmo_read)
         CALL cp_assert((nmo_read >= nmo),cp_warning_level,cp_assertion_failed,routineP,&
              "The number of MOs on the restart unit is smaller than the number of "//&
@@ -963,9 +1038,18 @@ CPSourceFileRef,&
              "the allocated MOs. The read MO set will be truncated!"//&
 CPSourceFileRef,&
              only_ionode=.TRUE.)
-        READ (restart_unit) mo_array(ispin)%mo_set%eigenvalues(1:nmo),&
-                            mo_array(ispin)%mo_set%occupation_numbers(1:nmo)
-        IF (mo_array(ispin)%mo_set%homo > nmo) THEN
+        IF(my_xas) THEN
+            CALL cp_assert((homo==mos(ispin)%mo_set%homo),cp_warning_level,&
+                 cp_assertion_failed,routineP,&
+                 "The homo has changed,  you are probably using a different "//&
+                 " core-hole potential."//&
+CPSourceFileRef,&
+                only_ionode=.TRUE.)
+        END IF
+
+        READ (rst_unit) mos(ispin)%mo_set%eigenvalues(1:nmo),&
+                            mos(ispin)%mo_set%occupation_numbers(1:nmo)
+        IF (mos(ispin)%mo_set%homo > nmo) THEN
           ! can not make this a warning i.e. homo must be smaller than nmo
           ! otherwise e.g. set_mo_occupation will go out of bounds
           CALL stop_program(routineP,"The number of the occupied MOs on the "//&
@@ -975,20 +1059,20 @@ CPSourceFileRef,&
       END IF
 
       CALL mp_bcast(nmo,source,group)
-      CALL mp_bcast(mo_array(ispin)%mo_set%homo,source,group)
-      CALL mp_bcast(mo_array(ispin)%mo_set%lfomo,source,group)
-      CALL mp_bcast(mo_array(ispin)%mo_set%nelectron,source,group)
-      CALL mp_bcast(mo_array(ispin)%mo_set%eigenvalues,source,group)
-      CALL mp_bcast(mo_array(ispin)%mo_set%occupation_numbers,source,group)
+      CALL mp_bcast(mos(ispin)%mo_set%homo,source,group)
+      CALL mp_bcast(mos(ispin)%mo_set%lfomo,source,group)
+      CALL mp_bcast(mos(ispin)%mo_set%nelectron,source,group)
+      CALL mp_bcast(mos(ispin)%mo_set%eigenvalues,source,group)
+      CALL mp_bcast(mos(ispin)%mo_set%occupation_numbers,source,group)
 
       DO i=1,nmo
         IF (para_env%ionode) THEN
-          READ (restart_unit) vecbuffer_read
+          READ (rst_unit) vecbuffer_read
           ! now, try to assign the read to the real vector
           ! in case the basis set changed this involves some guessing
           irow=1
           DO iatom=1,natom
-            NULLIFY(orb_basis_set,dftb_parameter)
+            NULLIFY(orb_basis_set,dftb_parameter,l,nshell)
             CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
                    orb_basis_set=orb_basis_set,dftb_parameter=dftb_parameter)
             IF (ASSOCIATED(orb_basis_set)) THEN
@@ -1057,10 +1141,8 @@ CPSourceFileRef,&
         END IF
 
         CALL mp_bcast(vecbuffer,source,group)
-        CALL cp_fm_set_submatrix(mo_array(ispin)%mo_set%mo_coeff,&
+        CALL cp_fm_set_submatrix(mos(ispin)%mo_set%mo_coeff,&
                vecbuffer,1,i,nao,1,transpose=.TRUE.,error=error)
-        did_change=.FALSE.
-
       END DO
 
       ! Skip extra MOs if there any
@@ -1068,56 +1150,54 @@ CPSourceFileRef,&
         !ignore nmo = 0
         IF(nmo>0) THEN 
           DO i=nmo+1,nmo_read
-            READ (restart_unit) vecbuffer_read
+            READ (rst_unit) vecbuffer_read
           END DO
         END IF
       END IF
 
-      CALL write_mo_set(mo_array(ispin)%mo_set,atomic_kind_set,particle_set,&
-                          4,6,dft_section,error=error)
+      IF(.not. my_xas) THEN
 
-      IF(ispin==1 .AND. nspin_read<nspin) THEN
+        IF(ispin==1 .AND. nspin_read<nspin) THEN
 
-        mo_array(ispin+1)%mo_set%homo = mo_array(ispin)%mo_set%homo
-        mo_array(ispin+1)%mo_set%lfomo = mo_array(ispin)%mo_set%lfomo
-        nelectron = mo_array(ispin)%mo_set%nelectron
-        IF (MODULO(nelectron + multiplicity - 1,2) /= 0) THEN
-           CALL stop_program(routineN,moduleN,__LINE__,&
-                         "LSD: try to use a different multiplicity.")
+          mos(ispin+1)%mo_set%homo = mos(ispin)%mo_set%homo
+          mos(ispin+1)%mo_set%lfomo = mos(ispin)%mo_set%lfomo
+          nelectron = mos(ispin)%mo_set%nelectron
+          IF (MODULO(nelectron + my_mult - 1,2) /= 0) THEN
+             CALL stop_program(routineN,moduleN,__LINE__,&
+                           "LSD: try to use a different multiplicity.")
+          END IF
+          mos(ispin)%mo_set%nelectron = (nelectron + my_mult - 1)/2
+          mos(ispin+1)%mo_set%nelectron = (nelectron - my_mult + 1)/2
+          IF(mos(ispin+1)%mo_set%nelectron < 0)THEN
+             CALL stop_program(routineN,moduleN,__LINE__,&
+                           "LSD: too few electrons for this multiplicity.")
+          END IF
+          mos(ispin+1)%mo_set%eigenvalues = mos(ispin)%mo_set%eigenvalues
+          mos(ispin+1)%mo_set%occupation_numbers = mos(ispin)%mo_set%occupation_numbers
+          CALL cp_fm_to_fm(mos(ispin)%mo_set%mo_coeff,mos(ispin+1)%mo_set%mo_coeff,error=error)
+          EXIT
         END IF
-        mo_array(ispin)%mo_set%nelectron = (nelectron + multiplicity - 1)/2
-        mo_array(ispin+1)%mo_set%nelectron = (nelectron - multiplicity + 1)/2
-        IF(mo_array(ispin+1)%mo_set%nelectron < 0)THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                         "LSD: too few electrons for this multiplicity.")
-        END IF
-        mo_array(ispin+1)%mo_set%eigenvalues = mo_array(ispin)%mo_set%eigenvalues
-        mo_array(ispin+1)%mo_set%occupation_numbers = mo_array(ispin)%mo_set%occupation_numbers
-        CALL cp_fm_to_fm(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin+1)%mo_set%mo_coeff,error=error)
-        EXIT
       END IF
     END DO   ! ispin
 
     DEALLOCATE(vecbuffer,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"vecbuffer")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     IF (para_env%ionode) THEN
       DEALLOCATE(vecbuffer_read,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"vecbuffer_read")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       DEALLOCATE(offset_info,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"offset_info")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       DEALLOCATE(nso_info,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"nso_info")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       DEALLOCATE(nshell_info,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"nshell_info")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       DEALLOCATE(nset_info,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"nset_info")
-      CALL close_file(unit_number=restart_unit)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      CALL close_file(unit_number=rst_unit)
     END IF
 
-    CALL timestop(0.0_dp,handle)
-
-  END SUBROUTINE read_mo_set_from_restart
+  END SUBROUTINE read_mos_restart_low
 
   ! ***************************************************************************
 

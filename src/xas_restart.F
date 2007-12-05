@@ -39,11 +39,14 @@ MODULE xas_restart
                                              cp_fm_set_submatrix,&
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_generate_filename,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length, &
                                              dp
   USE message_passing,                 ONLY: mp_bcast
   USE orbital_pointers,                ONLY: nso
@@ -54,7 +57,9 @@ MODULE xas_restart
                                              make_basis_sm
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
-                                             write_mo_set_low
+                                             read_mos_restart_low,&
+                                             write_mo_set_low,&
+                                             wfn_restart_file_name
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
@@ -78,260 +83,6 @@ MODULE xas_restart
 !****************************************************************************
 
 CONTAINS
-
-!!****f* xas_restart/read_mo_set_xas [1.0] *
-!!
-!!   NAME
-!!     read_mo_set_xas
-!!
-!!   FUNCTION
-!!
-!!
-!!   NOTES
-!!     this routine should notbe public, it reads only the mos
-!!     for an xas calculation, i.e. for each core excitation from a different
-!!     restart file.
-!!
-!!   ARGUMENTS
-!!     - mos: store the molecular orbitalsread fromthe restart file
-!!     - qs_env: contains the para_env and info about basis set and atomic kinds
-!!     - rst_unit: where to read the mos
-!!     - error
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     09.2006 created [MI]
-!!
-!!*** **********************************************************************
-
-  SUBROUTINE read_mo_set_restart_xas(mos,qs_env,rst_unit,error)
-
-    TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    INTEGER, INTENT(IN)                      :: rst_unit
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mo_set_restart_xas', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER :: group, homo, i, iatom, irow, iset, iset_read, ishell, &
-      ishell_read, iso, ispin, istat, lshell, nao, nao_read, natom, &
-      natom_read, nmo, nmo_read, nset, nset_max, nshell_max, nspin, &
-      nspin_read, offset_read, source
-    INTEGER, DIMENSION(:), POINTER           :: nset_info, nshell
-    INTEGER, DIMENSION(:, :), POINTER        :: l, nshell_info
-    INTEGER, DIMENSION(:, :, :), POINTER     :: nso_info, offset_info
-    LOGICAL                                  :: failure, use_this
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer, vecbuffer_read
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-
-!   ---------------------------------------------------------------------------
-
-    NULLIFY (logger, para_env, particle_set)
-    NULLIFY (nset_info, nshell,l, nshell_info,nso_info, offset_info)
-
-    CALL get_qs_env(qs_env=qs_env, para_env=para_env, particle_set=particle_set,error=error)
-    group = para_env%group
-    source = para_env%source
-    logger => cp_error_get_logger()
-
-    nspin = SIZE(mos,1)
-    nao = mos(1)%mo_set%nao
-    natom = SIZE(particle_set,1)
-
-    IF (para_env%ionode) THEN
-
-      READ (rst_unit) natom_read,nspin_read,nao_read,nset_max,nshell_max
-
-      IF (nspin_read /= nspin) THEN
-        CALL stop_program(routineP,"changed nspin, not possible")
-      END IF
-      IF (natom_read /= natom) THEN
-        CALL stop_program(routineP,"changed natom, not possible")
-      END IF
-
-      ! Let's make it possible tochange the basis set
-      ALLOCATE (nso_info(nshell_max,nset_max,natom_read),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE (nshell_info(nset_max,natom_read),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE (nset_info(natom_read),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE (offset_info(nshell_max,nset_max,natom_read),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-      IF (nao_read /= nao) THEN
-        WRITE(cp_logger_get_default_unit_nr(logger),*) &
-             " READ RESTART XAS : WARNING, DIFFERENT # AOs ",nao,nao_read
-      END IF
-
-      READ (rst_unit) nset_info
-      READ (rst_unit) nshell_info
-      READ (rst_unit) nso_info
-
-      i=1
-      DO iatom=1,natom
-        DO iset=1,nset_info(iatom)
-          DO ishell=1,nshell_info(iset,iatom)
-            offset_info(ishell,iset,iatom) = i
-                i=i+nso_info(ishell,iset,iatom)
-          END DO
-        END DO
-      END DO
-
-      ALLOCATE(vecbuffer_read(1,nao_read),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-    END IF
-
-    CALL mp_bcast(nspin_read,source,group)
-
-    ALLOCATE (vecbuffer(1,nao),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-    DO ispin=1,nspin
-
-      nmo=mos(ispin)%mo_set%nmo
-      homo=mos(ispin)%mo_set%homo
-      mos(ispin)%mo_set%eigenvalues(:) = 0.0_dp
-      mos(ispin)%mo_set%occupation_numbers(:) = 0.0_dp
-      CALL cp_fm_set_all(mos(ispin)%mo_set%mo_coeff,0.0_dp,error=error)
-
-      IF (para_env%ionode.AND.(nmo > 0)) THEN
-        READ (rst_unit) nmo_read,&
-                            mos(ispin)%mo_set%homo,&
-                            mos(ispin)%mo_set%lfomo,&
-                            mos(ispin)%mo_set%nelectron
-        nmo = MIN(nmo,nmo_read)
-        CALL cp_assert((nmo_read >= nmo),cp_warning_level,cp_assertion_failed,routineP,&
-             "The number of MOs on the restart unit is smaller than the number of "//&
-             "the allocated MOs. The MO set will be padded with zeros!"//&
-CPSourceFileRef,&
-             only_ionode=.TRUE.)
-        CALL cp_assert((nmo_read<=nmo),cp_warning_level,cp_assertion_failed,routineP,&
-             "The number of MOs on the restart unit is greater than the number of "//&
-             "the allocated MOs. The read MO set will be truncated!"//&
-CPSourceFileRef,&
-             only_ionode=.TRUE.)
-        CALL cp_assert((homo==mos(ispin)%mo_set%homo),cp_warning_level,cp_assertion_failed,routineP,&
-             "The homo has changed,  you are probably using a different core-hole potential."//&
-CPSourceFileRef,&
-             only_ionode=.TRUE.)
-        READ (rst_unit) mos(ispin)%mo_set%eigenvalues(1:nmo),&
-                            mos(ispin)%mo_set%occupation_numbers(1:nmo)
-        IF (mos(ispin)%mo_set%homo > nmo) THEN
-          ! can not make this a warning i.e. homo must be smaller than nmo
-          ! otherwise e.g. set_mo_occupation will go out of bounds
-          CALL stop_program(routineP,"The number of the occupied MOs on the "//&
-                                     "restart unit is greater than the "//&
-                                     "number of the allocated MOs.")
-        END IF
-      END IF
-
-      CALL mp_bcast(nmo,source,group)
-      CALL mp_bcast(mos(ispin)%mo_set%homo,source,group)
-      CALL mp_bcast(mos(ispin)%mo_set%lfomo,source,group)
-      CALL mp_bcast(mos(ispin)%mo_set%nelectron,source,group)
-      CALL mp_bcast(mos(ispin)%mo_set%eigenvalues,source,group)
-      CALL mp_bcast(mos(ispin)%mo_set%occupation_numbers,source,group)
-
-      DO i=1,nmo
-        IF (para_env%ionode) THEN
-          READ (rst_unit) vecbuffer_read
-          ! now, try to assign the read to the real vector
-          ! in case the basis set changed this involves some guessing
-          irow=1
-          DO iatom=1,natom
-            NULLIFY(orb_basis_set,l,nshell)
-            CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-                                 orb_basis_set=orb_basis_set)
-            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                                   nset=nset,&
-                                   nshell=nshell,&
-                                   l=l)
-
-            use_this = .TRUE.
-            iset_read = 1
-            DO iset=1,nset
-              ishell_read = 1
-              DO ishell=1,nshell(iset)
-                lshell = l(ishell,iset)
-                IF (iset_read > nset_info(iatom)) use_this = .FALSE.
-                IF (use_this) THEN ! avoids out of bound access of the lower line if false
-                   IF (nso(lshell) == nso_info(ishell_read,iset_read,iatom)) THEN
-                      offset_read=offset_info(ishell_read,iset_read,iatom)
-                      ishell_read=ishell_read+1
-                      IF (ishell_read > nshell_info(iset,iatom)) THEN
-                        ishell_read = 1
-                        iset_read = iset_read+1
-                      END IF
-                    ELSE
-                      use_this = .FALSE.
-                    END IF
-                END IF
-                DO iso=1,nso(lshell)
-                  IF (use_this) THEN
-                    IF (offset_read-1+iso.LT.1 .OR. offset_read-1+iso.GT.nao_read) THEN
-                      vecbuffer(1,irow)=0.0_dp
-                    ELSE
-                      vecbuffer(1,irow)=vecbuffer_read(1,offset_read-1+iso)
-                    END IF
-                  ELSE
-                    vecbuffer(1,irow) = 0.0_dp
-                  END IF
-                  irow = irow + 1
-                END DO
-                use_this = .TRUE.
-              END DO
-            END DO
-          END DO
-
-        ELSE
-
-          vecbuffer(1,:) = 0.0_dp
-
-        END IF
-
-        CALL mp_bcast(vecbuffer,source,group)
-        CALL cp_fm_set_submatrix(mos(ispin)%mo_set%mo_coeff,vecbuffer,1,&
-             i,nao,1,transpose=.TRUE.,error=error)
-
-      END DO
-
-      ! Skip extra MOs if there any
-      IF (para_env%ionode) THEN
-        DO i=nmo+1,nmo_read
-          READ (rst_unit) vecbuffer_read
-        END DO
-      END IF
-
-    END DO   ! ispin
-
-    DEALLOCATE(vecbuffer,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-    IF (para_env%ionode) THEN
-      DEALLOCATE(vecbuffer_read,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      DEALLOCATE(offset_info,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      DEALLOCATE(nso_info,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      DEALLOCATE(nshell_info,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      DEALLOCATE(nset_info,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    END IF
-
-  END SUBROUTINE read_mo_set_restart_xas
-
   ! ***************************************************************************
 
 !!****f* xas_restart/xas_read_restart [1.0] *
@@ -375,15 +126,17 @@ CPSourceFileRef,&
 
     CHARACTER(LEN=default_path_length)       :: filename
     INTEGER                                  :: group, handle, homo, ia, ie, &
-                                                ispin, istate, nspin, &
+                                                ispin, istate, natom, nspin, &
                                                 output_unit, rst_unit, source
-    LOGICAL                                  :: failure, file_exists, ionode
+    LOGICAL                                  :: failure, file_exists
     REAL(dp), DIMENSION(:), POINTER          :: occupation_numbers
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
 
@@ -397,29 +150,23 @@ CPSourceFileRef,&
     NULLIFY(matrix_s,mos,occupation_numbers,para_env)
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) THEN
-      output_unit= cp_logger_get_default_unit_nr(logger)
-    ELSE
-      output_unit = -1
-    END IF
 
     output_unit = cp_print_key_unit_nr(logger,xas_section,&
-         "PRINT%PROGRAM_RUN_INFO",&
-         extension=".Log",error=error)
+         "PRINT%PROGRAM_RUN_INFO", extension=".Log",error=error)
 
     CALL get_qs_env( qs_env=qs_env, para_env=para_env ,error=error)
     group = para_env%group
     source = para_env%source
 
-    IF(ionode) THEN
-      ! check if the restart file exists
-      CALL xstring (xas_control%xas_rootfname, ia, ie )
-      filename = xas_control%xas_rootfname(ia:ie)//'_at'//&
+    IF (para_env%ionode) THEN
+      CALL wfn_restart_file_name(filename,file_exists,xas_section,logger,&
+           xas=.TRUE.,error=error)
+
+      CALL xstring (filename, ia, ie )
+      filename = filename(ia:ie)//'-at'//&
                  TRIM(ADJUSTL(cp_to_string(iatom)))//'.rst'
 
       INQUIRE (FILE=filename,EXIST=file_exists)
-
       ! open file
       IF(file_exists) THEN
 
@@ -430,29 +177,28 @@ CPSourceFileRef,&
                      file_status="OLD",&
                      unit_number=rst_unit)
 
-        IF(output_unit > 0) WRITE (UNIT=output_unit,FMT="(/,T20,A,I5,/)")&
+         IF(output_unit > 0) WRITE (UNIT=output_unit,FMT="(/,T20,A,I5,/)")&
              "Read restart file for atom ", iatom
 
-      ELSE
-        IF(output_unit > 0) WRITE (UNIT=output_unit,FMT="(/,T10,A,I5,A,/)")&
-             "Restart file for atom ", iatom,&
-             " not available. Initialization done with GS orbitals"
+      ELSEIF (.NOT.file_exists) THEN
+          IF(output_unit > 0) WRITE (UNIT=output_unit,FMT="(/,T10,A,I5,A,/)")&
+               "Restart file for atom ", iatom,&
+               " not available. Initialization done with GS orbitals"
       END IF
-
     END IF
-
     CALL mp_bcast(file_exists,source,group)
 
     IF(file_exists) THEN
-      CALL get_qs_env(qs_env=qs_env, mos=mos, matrix_s=matrix_s,error=error)
-      CALL read_mo_set_restart_xas(mos,qs_env,rst_unit,error=error)
+      CALL get_qs_env(qs_env=qs_env, mos=mos, matrix_s=matrix_s,&
+           para_env=para_env, particle_set=particle_set,error=error)
 
-      ! close file
-      IF(ionode) THEN
-        CALL close_file(unit_number=rst_unit)
-      END IF
+      natom = SIZE(particle_set,1)
 
-      CALL get_mo_set(mo_set=mos(1)%mo_set,occupation_numbers=occupation_numbers,homo=homo)
+      CALL read_mos_restart_low (mos, para_env, particle_set, natom, &
+           rst_unit, xas=.TRUE., error=error)
+
+      CALL get_mo_set(mo_set=mos(1)%mo_set,occupation_numbers=occupation_numbers,&
+           homo=homo)
       estate = 0
       DO istate = 1,xas_control%nexc_search
         IF(occupation_numbers(istate)==xas_control%occ_estate) THEN
@@ -481,10 +227,10 @@ CPSourceFileRef,&
 
   !*****************************************************************************
 
-  SUBROUTINE xas_write_restart(xas_control,xas_section,scf_section,qs_env,iatom,error)
+  SUBROUTINE xas_write_restart(xas_control,xas_section,qs_env,iatom,error)
 
     TYPE(xas_control_type)                   :: xas_control
-    TYPE(section_vals_type), POINTER         :: xas_section, scf_section
+    TYPE(section_vals_type), POINTER         :: xas_section
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: iatom
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -493,23 +239,26 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: filename
+    CHARACTER(LEN=default_string_length)     :: my_mittle
     INTEGER                                  :: handle, ia, ie, output_unit, &
                                                 rst_unit, source
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: failure 
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(section_vals_type), POINTER         :: print_key
 
     CALL timeset(routineN,"I","",handle)
     failure = .FALSE.
-    NULLIFY(mos,para_env,particle_set,logger)
+    NULLIFY(mos,para_env,particle_set,logger,print_key)
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
+
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-         scf_section,"PRINT%RESTART",error=error),cp_p_file)) THEN
+              xas_section,"PRINT%RESTART",used_print_key=print_key,error=error),&
+              cp_p_file)) THEN
 
        output_unit = cp_print_key_unit_nr(logger,xas_section,&
             "PRINT%PROGRAM_RUN_INFO",extension=".Log",error=error)
@@ -519,34 +268,33 @@ CPSourceFileRef,&
        
        ! Open file
        rst_unit = -1
-       IF(ionode) THEN
-          ! Check if the restart file exists
-          CALL xstring (xas_control%xas_rootfname, ia, ie )
-          filename = xas_control%xas_rootfname(ia:ie)//'_at'//&
-               TRIM(ADJUSTL(cp_to_string(iatom)))//'.rst'
+       my_mittle= 'at'//TRIM(ADJUSTL(cp_to_string(iatom)))
+       rst_unit = cp_print_key_unit_nr(logger,xas_section,"PRINT%RESTART",&
+                  extension=".rst", file_status="REPLACE", file_action="WRITE",&
+                  file_form="UNFORMATTED",middle_name=TRIM(my_mittle), error=error)
+
+       filename = cp_print_key_generate_filename(logger,print_key,&
+                  middle_name=TRIM(my_mittle),extension=".rst",&
+                  my_local=.FALSE.,error=error)
+
+       IF(output_unit>0) THEN
+          WRITE (UNIT=output_unit,FMT="(/,T10,A,I5,A,A,/)")&
+               "Xas orbitals  for the absorbing atom ", iatom,&
+               " are written in ", filename
           
-          CALL open_file(file_name=TRIM(filename),&
-               file_action="WRITE",&
-               file_form="UNFORMATTED",&
-               file_status="REPLACE",&
-               unit_number=rst_unit)
-          IF(output_unit>0) THEN
-             WRITE (UNIT=output_unit,FMT="(/,T10,A,I5,A,A,/)")&
-                  "Xas orbitals  for the absorbing atom ", iatom,&
-                  " are written in ", filename
-             
-          END IF
        END IF
+
        ! Write mos
        CALL write_mo_set_low(mos, particle_set, para_env, rst_unit, error)
        ! Close file
-       IF(ionode)  CALL close_file(unit_number=rst_unit)
+       CALL cp_print_key_finished_output(rst_unit,logger,xas_section,&
+                  "PRINT%RESTART", error=error)
     END IF
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE xas_write_restart
 
-  !*****************************************************************************
+!*****************************************************************************
 !****f* xas_restart/xas_initialize_rho [1.0] *
 !!
 !!   NAME

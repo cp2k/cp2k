@@ -65,19 +65,25 @@ MODULE reftraj_types
   END TYPE reftraj_info_type
 
   TYPE reftraj_msd_type
-     LOGICAL :: msd_kind, msd_molecule
+     INTEGER :: ref0_unit
+     LOGICAL :: msd_kind, msd_molecule, msd_region
+     REAL(KIND=dp) :: ref0_com(3)
      REAL(KIND=dp), POINTER, DIMENSION(:,:) :: ref0_pos
-     REAL(KIND=dp), POINTER, DIMENSION(:,:,:) :: ref0_com_molecule 
+     REAL(KIND=dp), POINTER, DIMENSION(:,:) :: ref0_com_molecule 
      REAL(KIND=dp), POINTER, DIMENSION(:,:) :: val_msd_kind
      REAL(KIND=dp), POINTER, DIMENSION(:,:) :: val_msd_molecule
-!     REAL(KIND=dp), POINTER, DIMENSION(:,:) :: ref0_h
+     REAL(KIND=dp), POINTER, DIMENSION(:,:) :: val_msd_region
   END TYPE reftraj_msd_type
 
  
   TYPE reftraj_type
      INTEGER :: ref_count
      INTEGER :: itimes
-     REAL(KIND=dp) :: epot, time
+     INTEGER :: itimes0
+     INTEGER :: isnap
+     INTEGER :: natom
+     LOGICAL :: init
+     REAL(KIND=dp) :: epot, epot0, time, time0
      TYPE(reftraj_info_type), POINTER   :: info
      TYPE(reftraj_msd_type), POINTER    :: msd
   END TYPE reftraj_type

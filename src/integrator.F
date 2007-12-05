@@ -89,6 +89,7 @@ MODULE integrator
   USE physcon,                         ONLY: femtoseconds
   USE qmmm_util,                       ONLY: apply_qmmm_walls
   USE reftraj_types,                   ONLY: reftraj_type
+  USE reftraj_util,                    ONLY: compute_msd_reftraj
   USE shell_potential_types,           ONLY: shell_kind_type
   USE termination,                     ONLY: stop_program
   USE thermostat_methods,              ONLY: apply_thermostat_baro,&
@@ -1812,11 +1813,14 @@ CONTAINS
 
     CHARACTER(LEN=10)                        :: AA
     CHARACTER(LEN=80)                        :: title
-    INTEGER                                  :: cell_itimes, I, istat, &
-                                                nparticle, Nread, trj_itimes
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: cell_epot, cell_time, h(3,3), &
-                                                trj_epot, trj_time
+    INTEGER                                  :: cell_itimes, I, &
+                                                istat, nparticle, &
+                                                Nread, trj_itimes
+    LOGICAL                                  :: init, failure
+    REAL(KIND=dp)                            :: h(3,3), &
+                                                cell_time,&
+                                                trj_epot, trj_time,&
+                                                vol
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pos
     TYPE(cell_type), POINTER                 :: cell
@@ -1827,17 +1831,16 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(reftraj_type), POINTER              :: reftraj_env
-    TYPE(section_vals_type), POINTER         :: root_section
 
     failure = .FALSE.
 
-    NULLIFY(root_section, reftraj_env, particle_set, particles, force_env,&
+    NULLIFY(reftraj_env, particle_set, particles, force_env,&
          subsys, para_env, cell)
-    CALL get_md_env(md_env=md_env, reftraj=reftraj_env, force_env=force_env,&
+    CALL get_md_env(md_env=md_env, init=init, reftraj=reftraj_env, force_env=force_env,&
          para_env=para_env, error=error)
 
     CALL force_env_get(force_env=force_env, cell=cell, subsys=subsys, &
-         root_section=root_section,error=error)
+         error=error)
 
     ! Do some checks on coordinates and box
     CALL apply_qmmm_walls(force_env, error=error)
@@ -1853,6 +1856,11 @@ CONTAINS
        READ(reftraj_env%info%trjfile_unit,'(A)',ERR=999,END=998) title
 
        READ(UNIT=title,FMT="(T6,I8,T20,F20.10,T52,F12.3)") trj_itimes, trj_epot, trj_time
+       IF(init) THEN
+          reftraj_env%time0 = trj_time
+          reftraj_env%epot0 = trj_epot
+          reftraj_env%itimes0 = trj_itimes
+       END IF
 
        DO I=1,Nread
           READ(reftraj_env%info%trjfile_unit,*,ERR=999,END=998) AA,pos(:,I)
@@ -1862,19 +1870,15 @@ CONTAINS
        ENDDO
 
        IF(reftraj_env%info%variable_volume)THEN
-          READ(reftraj_env%info%cellfile_unit ,'(A)',ERR=997,END=996) title    
-          READ(UNIT=title,FMT="(T6,I8,T20,F20.10,T52,F12.3)") cell_itimes, cell_epot, cell_time
+          READ(reftraj_env%info%cellfile_unit,*,ERR=997,END=996)  cell_itimes, cell_time,&
+          h(1,1),h(2,1),h(3,1), h(1,2),h(2,2),h(3,2), h(1,3),h(2,3),h(3,3),vol
           CPPostcondition(trj_time==cell_time,cp_failure_level,routineP,error,failure)
-
-          READ(reftraj_env%info%cellfile_unit,*,ERR=997,END=996)  h(1,1),h(2,1),h(3,1)
           CALL convert_to_cp2k_units("ANGSTROM",length=h(1,1))
           CALL convert_to_cp2k_units("ANGSTROM",length=h(2,1))
           CALL convert_to_cp2k_units("ANGSTROM",length=h(3,1))
-          READ(reftraj_env%info%cellfile_unit,*,ERR=997,END=996)  h(1,2),h(2,2),h(3,2)
           CALL convert_to_cp2k_units("ANGSTROM",length=h(1,2))
           CALL convert_to_cp2k_units("ANGSTROM",length=h(2,2))
           CALL convert_to_cp2k_units("ANGSTROM",length=h(3,2))
-          READ(reftraj_env%info%cellfile_unit,*,ERR=997,END=996)  h(1,3),h(2,3),h(3,3)
           CALL convert_to_cp2k_units("ANGSTROM",length=h(1,3))
           CALL convert_to_cp2k_units("ANGSTROM",length=h(2,3))
           CALL convert_to_cp2k_units("ANGSTROM",length=h(3,3))
@@ -1891,24 +1895,26 @@ CONTAINS
 
     IF (reftraj_env%info%variable_volume)THEN
         CALL mp_bcast(cell_itimes,para_env%source,para_env%group)
-        CALL mp_bcast(cell_epot,para_env%source,para_env%group)
         CALL mp_bcast(cell_time,para_env%source,para_env%group)
     ENDIF
 
     reftraj_env%epot = trj_epot
     reftraj_env%itimes = trj_itimes
     reftraj_env%time = trj_time/femtoseconds
+
     IF(reftraj_env%info%variable_volume)THEN
        CALL mp_bcast(h,para_env%source,para_env%group)
        cell%hmat(1:3,1) = h(1:3,1)
        cell%hmat(1:3,2) = h(1:3,2)
        cell%hmat(1:3,3) = h(1:3,3)
+       CALL get_hinv(cell)
     END IF
     
     
     DEALLOCATE(pos ,stat=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
+    reftraj_env%isnap = reftraj_env%isnap + 1
 
     ! Task to perform on the reference trajectory
     ! Compute energy and forces
@@ -1917,9 +1923,7 @@ CONTAINS
 
     ! Compute MSD with respect to a reference configuration
     IF(reftraj_env%info%msd) THEN
-    ! CALL reftraj_msd(reftraj_env,md_env,error=error)
-      CALL stop_program(routineN,moduleN,__LINE__,&
-         "MSD from REFTRAJ NYI")
+      CALL compute_msd_reftraj(reftraj_env,md_env, particle_set,error=error)
     END IF
     
     RETURN

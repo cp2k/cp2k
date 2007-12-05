@@ -1057,7 +1057,7 @@ CONTAINS
     IF (para_env%ionode) THEN
 
       dft_section=>section_vals_get_subs_vals(force_env_section,"DFT",error=error)
-      CALL wfn_restart_file_name(file_name,exist,dft_section,logger,error)
+      CALL wfn_restart_file_name(file_name,exist,dft_section,logger,error=error)
       IF (id_nr/=1) THEN
         file_name(LEN_TRIM(file_name):LEN(file_name)) = "-"//&
                     ADJUSTL(cp_to_string(id_nr))

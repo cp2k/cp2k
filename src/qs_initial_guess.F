@@ -211,7 +211,7 @@ CONTAINS
     ! in sync with read_mo_set_from_restart
     id_nr=0
     IF (density_guess == restart_guess) THEN
-        CALL wfn_restart_file_name(file_name,exist,dft_section,logger,error)
+        CALL wfn_restart_file_name(file_name,exist,dft_section,logger,error=error)
         IF (.NOT.exist) THEN
            CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                 "User requested to restart the wavefunction from the file named: "//&
@@ -223,7 +223,7 @@ CPSourceFileRef,&
            density_guess = atomic_guess
         END IF
     ELSE IF (density_guess == history_guess) THEN
-       CALL wfn_restart_file_name(file_name,exist,dft_section,logger,error)
+       CALL wfn_restart_file_name(file_name,exist,dft_section,logger,error=error)
        nvec = qs_env%wf_history%memory_depth
        not_read = nvec+1
        ! At this level we read the saved backup RESTART files..

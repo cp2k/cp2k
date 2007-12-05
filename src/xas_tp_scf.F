@@ -36,10 +36,13 @@ MODULE xas_tp_scf
                                              cp_fm_set_submatrix,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_output_handling,              ONLY: cp_p_file,&
+  USE cp_output_handling,              ONLY: cp_add_iter_level,&
+                                             cp_iterate,&
+                                             cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
-                                             cp_print_key_unit_nr
+                                             cp_print_key_unit_nr,&
+                                             cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
@@ -48,7 +51,6 @@ MODULE xas_tp_scf
                                              ot_precond_full_kinetic,&
                                              xas_dscf,&
                                              xas_scf_general,&
-                                             xas_scf_ot,&
                                              xas_tp_xfh,&
                                              xas_tp_xhh
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -88,6 +90,7 @@ MODULE xas_tp_scf
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf,                          ONLY: init_scf_run,&
                                              qs_scf_loop_do_ot,&
+                                             qs_scf_print_summary,&
                                              scf_env_cleanup,&
                                              scf_env_do_scf
   USE qs_scf_methods,                  ONLY: eigensolver,&
@@ -165,11 +168,12 @@ CONTAINS
 
     INTEGER                                  :: handle, handle2, homo, i, &
                                                 ic_max, ir_max, ispin, istat, &
-                                                iter_count, m, n, nao, nmo, &
+                                                iter_count, iter_level,&
+                                                m, n, nao, nmo, &
                                                 output_unit
     INTEGER, DIMENSION(:), POINTER           :: col_indices
-    LOGICAL :: diis_step, do_level_shift, energy_only, failure, gapw, ionode, &
-      uniform_occupation, use_cholesky, use_jacobi
+    LOGICAL :: diis_step, do_level_shift, energy_only, exit_loop, &
+               failure, gapw, ionode, uniform_occupation, use_cholesky, use_jacobi
     REAL(KIND=dp)                            :: a_max, b_max, diis_error, &
                                                 IP_energy, t1, t2, tot1_h, &
                                                 tot1_s
@@ -225,29 +229,31 @@ CONTAINS
          atomic_kind_set=atomic_kind_set,&
          dft_control=dft_control,&
          scf_control=scf_control,&
-         input=input,error=error)
+         input=input, &
+         matrix_h=matrix_h,&
+         matrix_s=matrix_s,energy=energy,&
+         particle_set=particle_set,&
+         qs_charges=qs_charges,&
+         ks_env=ks_env,&
+         error=error)
 
     ionode = logger%para_env%source==logger%para_env%mepos
     energy_only = .FALSE.
     dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
     scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
     xas_section => section_vals_get_subs_vals(dft_section,"XAS",error=error)
-    output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
-         extension=".scfLog",error=error)
+    output_unit=cp_print_key_unit_nr(logger,xas_section,"PRINT%PROGRAM_RUN_INFO",&
+         extension=".xasLog",error=error)
     IF (output_unit>0) THEN
-       WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
-            "XAS_TP_SCF WAVEFUNCTION OPTIMIZATION"
+       WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") "XAS_TP_SCF WAVEFUNCTION OPTIMIZATION"
     END IF
 
-!   True the GAPW method is used
+!   GAPW method must be used
     gapw = dft_control%qs_control%gapw
+    CPPrecondition(gapw,cp_failure_level,routineP,error,failure)
 
-    CALL get_qs_env(qs_env=qs_env,&
-         matrix_h=matrix_h,&
-         matrix_s=matrix_s,energy=energy,&
-         particle_set=particle_set,&
-         qs_charges=qs_charges,&
-         ks_env=ks_env,error=error)
+    CALL cp_add_iter_level(logger%iter_info,"XASSCF",n_rlevel_new=iter_level,&
+         error=error)
 
     scf_work1 => scf_env%scf_work1
     scf_work2 => scf_env%scf_work2
@@ -278,15 +284,16 @@ CONTAINS
             REPEAT("-",77)
     END IF
 
-
 !   *** SCF loop ***
 
     scf_loop: DO
        CALL timeset("scf_iter","I"," ",handle2)
 
-       IF (ionode) CALL m_flush(output_unit)
+       exit_loop = .FALSE.
+       IF (output_unit > 0) CALL m_flush(output_unit)
 
        iter_count = iter_count + 1
+       CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=iter_count,error=error)
 
 ! ** here qs_env%rho%rho_r and qs_env%rho%rho_g should be up to date
 
@@ -441,10 +448,6 @@ CONTAINS
 
             ENDDO
 
-         CASE(xas_scf_ot)
-             CALL qs_scf_loop_do_ot(scf_env,mos,rho,qs_env%mo_derivs,energy%total, &
-                  matrix_s, energy_only, has_unit_metric=.FALSE.,error=error)
-
        END SELECT
 
 
@@ -465,30 +468,40 @@ CONTAINS
        END IF
 
 ! ** convergence check
-       CALL external_control(should_stop,"SCF",globenv,error)
+       CALL external_control(should_stop,"XASSCF",globenv,error)
        IF (scf_env%iter_delta < xas_control%eps_scf) THEN
           IF (output_unit>0) THEN
              WRITE(UNIT=output_unit,FMT="(/,T3,A,I5,A/)")&
                   "*** SCF run converged in ",iter_count," steps ***"
           END IF
-          CALL timestop(0.0_dp,handle2)
-          EXIT scf_loop
-       ELSE IF (should_stop.OR.&
-            iter_count == xas_control%max_scf) THEN
+          exit_loop = .TRUE.
+       ELSE IF (should_stop.OR. iter_count == xas_control%max_scf) THEN
           IF (output_unit>0) THEN
              WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
                   "*** SCF run NOT converged ***"
           END IF
           converged = .FALSE.
-          CALL timestop(0.0_dp,handle2)
-          EXIT scf_loop
+          exit_loop = .TRUE.
+       END IF
+       !   *** Exit if we have finished with the SCF inner loop ***
+       IF (exit_loop) THEN
+           ! now, print out energies and charges corresponding to the obtained wfn
+           ! (this actually is not 100% consistent at this point)!
+           CALL qs_scf_print_summary(output_unit,rho,qs_charges,energy,scf_env, &
+                  dft_control,qs_env%qmmm,.TRUE.,.FALSE.)
+           CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=iter_count,error=error)
        END IF
 
        ! ** Write restart file **
-       CALL xas_write_restart(xas_control, xas_section, scf_section, qs_env,iatom,error=error)
+       CALL xas_write_restart(xas_control, xas_section, qs_env,iatom,error=error)
 
-       IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
-         scf_section,"PRINT%ITERATION_INFO/TIME_CUMUL",error=error),cp_p_file)) t1 = m_walltime()
+       IF (exit_loop) THEN
+           CALL timestop(0.0_dp,handle2)
+           EXIT scf_loop     
+       END IF
+
+!       IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
+!         xas_section,"PRINT%ITERATION_INFO/TIME_CUMUL",error=error),cp_p_file)) t1 = m_walltime()
 
        !   *** mixing methods have the new density matrix in p_mix_new
        IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
@@ -498,69 +511,15 @@ CONTAINS
            END DO
        ENDIF
 
-
        ! ** update qs_env%rho
        CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
        CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
-
        CALL timestop(0.0_dp,handle2)
 
     END DO scf_loop
 
-
-    !   *** Write restart file ***
-    CALL xas_write_restart(xas_control, xas_section, scf_section, qs_env, iatom,error=error)
-
     IF (output_unit>0) THEN
-       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
-            "Total electronic density (r-space): ",&
-            accurate_sum(rho%tot_rho_r),&
-            accurate_sum(rho%tot_rho_r)+ REAL(scf_env%nelectron,dp),&
-            "Total core charge density (r-space):",&
-            qs_charges%total_rho_core_rspace,&
-            qs_charges%total_rho_core_rspace - REAL(scf_env%nelectron+dft_control%charge,dp)
-       IF(gapw) THEN
-          tot1_h =  qs_charges%total_rho1_hard(1)
-          tot1_s =  qs_charges%total_rho1_soft(1)
-          DO ispin=2,dft_control%nspins
-            tot1_h = tot1_h + qs_charges%total_rho1_hard(ispin)
-            tot1_s = tot1_s + qs_charges%total_rho1_soft(ispin)
-          END DO
-          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
-                "Hard and soft densities (Lebedev):",&
-                tot1_h, tot1_s
-          WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
-               "Total Rho_soft + Rho1_hard - Rho1_soft (r-space): ",&
-               accurate_sum(rho%tot_rho_r)+ tot1_h - tot1_s ,&
-               "Total charge density (r-space):      ",&
-               accurate_sum(rho%tot_rho_r)+ tot1_h - tot1_s &
-               + qs_charges%total_rho_core_rspace,&
-               "Total Rho_soft + Rho0_soft (g-space):",&
-               qs_charges%total_rho_gspace
-       ELSE
-         WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
-            "Total charge density (r-space):     ",&
-            accurate_sum(rho%tot_rho_r)+&
-            qs_charges%total_rho_core_rspace,&
-            "Total charge density (g-space):     ",qs_charges%total_rho_gspace
-       END IF
-
-         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
-            "Overlap energy of the core charge distribution:",energy%core_overlap,&
-            "Self energy of the core charge distribution:   ",energy%core_self,&
-            "Core Hamiltonian energy:                       ",energy%core,&
-            "Hartree energy:                                ",energy%hartree,&
-            "Exchange-correlation energy:                   ",energy%exc
-         IF(gapw) THEN
-           WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
-              "GAPW| Exc from hard and soft atomic rho1:      ",energy%exc1,&
-              "GAPW| local Eh = 1 center integrals:           ",energy%hartree_1c,&
-              "GAPW| local Eh = 2 center integrals:           ",energy%hartree_2c,&
-              "GAPW| local Eh = 3 centers integrals:          ",energy%hartree_3c
-         END IF
-         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
-            "Total energy:                                  ",energy%total
-         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
             "Ionization potential of the excited atom:      ",IP_energy
        CALL m_flush(output_unit)
     END IF
@@ -575,8 +534,10 @@ CONTAINS
 
     CALL mp_sync(qs_env%para_env%group)
 
-    CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
+    CALL cp_print_key_finished_output(output_unit,logger,xas_section,&
          "PRINT%PROGRAM_RUN_INFO", error=error)
+    CALL cp_rm_iter_level(logger%iter_info,n_rlevel_att=iter_level,&
+         error=error)
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE xas_do_tp_scf
@@ -626,9 +587,6 @@ CONTAINS
     imin = estate+1
     smear = xas_control%smear
 
-    IF(xas_control%fermidist) THEN
-       ! not implemented yet
-    ELSE
       e1 = eigenvalues(nomo) - 0.5_dp*smear
       e2 = eigenvalues(nomo) + 0.5_dp*smear
 
@@ -674,8 +632,6 @@ CONTAINS
         homo = nomo
         lfomo = nomo + 1
       END IF
-
-    END IF
 
     IF(ispin==1) THEN
       occupation(estate) = occ_estate
@@ -804,16 +760,10 @@ CONTAINS
          centers_wfn(1,istate) =  localized_wfn_control%centers_set(1)%array(1,istate)
          centers_wfn(2,istate) =  localized_wfn_control%centers_set(1)%array(2,istate)
          centers_wfn(3,istate) =  localized_wfn_control%centers_set(1)%array(3,istate)
-!dbg
-!   WRITE(*,*) 'center i =',istate , centers_wfn(1,istate),centers_wfn(2,istate),centers_wfn(3,istate)
-!dbg
 
          rc(1:3) = centers_wfn(1:3,istate)
          rac = pbc(ra,rc,cell)
          dist = rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3)
-!dbg
-!      WRITE(*,*) 'dist ', dist,SQRT(dist)
-!dbg
 
          IF(dist < 1.0_dp) THEN
            CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,istate,&
@@ -838,10 +788,6 @@ CONTAINS
 
       CALL cp_fm_get_submatrix(mo_coeff,vecbuffer2,1,my_state,&
                 nao,1,transpose=.TRUE.,error=error)
-!dbg
-! WRITE(*,*) 'my state loc ', my_state, ' exc state ',dft_control%xas_estate
-!dbg
-
 
     ! Rotate the wfn to get the eigenstate of the KS hamiltonian
     ! Only ispin=1 should be needed
@@ -857,20 +803,11 @@ CONTAINS
       CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff)
       CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,dft_control%xas_estate,&
                 nao,1,transpose=.TRUE.,error=error)
-!dbg
-!  DO i = 1,nao
-!       WRITE(*,*) 'icomp ', i, vecbuffer(1,i),vecbuffer2(1,i)
-!  END DO
-!dbg
-
-!      CALL cp_fm_set_submatrix(excvec_coeff,vecbuffer,1,1,&
-!                nao,1,transpose=.TRUE.,error=error)
       CALL cp_fm_set_submatrix(excvec_coeff,vecbuffer2,1,1,&
                 nao,1,transpose=.TRUE.,error=error)
 !
     END IF
 
-!   WRITE(*,*) qs_env%para_env%mepos, 'nvirtual2 ', nvirtual2
     CALL mp_sync(qs_env%para_env%group)
     !Calculate the virtual states from the KS matrix matrix_ks(1)
     IF(nvirtual2 .GT. 0) THEN
@@ -886,25 +823,19 @@ CONTAINS
                   matrix_t=qs_env%kinetic(1)%matrix, &
                   mo_coeff=mo_coeff,energy_gap=0.2_dp,error=error)
 
-!   WRITE(*,*) qs_env%para_env%mepos,'precond done'
-
       CALL get_xas_env(xas_env=xas_env,unoccupied_orbs=uno_orbs,&
            unoccupied_evals=uno_evals,unoccupied_eps=uno_eps,unoccupied_max_iter=uno_iter,error=error)
       CALL cp_fm_init_random(uno_orbs,nvirtual2,error=error)
-
-!   WRITE(*,*) qs_env%para_env%mepos,'orb initialized', uno_iter
 
       CALL ot_eigensolver(matrix_h=matrix_ks(1)%matrix,matrix_s=matrix_s(1)%matrix, &
            matrix_c=uno_orbs,matrix_orthogonal_space=mo_coeff,&
            preconditioner=preconditioner,eps_gradient=uno_eps,&
            iter_max=uno_iter,size_ortho_space=nmo,error=error)
 
-!   WRITE(*,*) qs_env%para_env%mepos,'out eigensolver'
-
       CALL calculate_subspace_eigenvalues(uno_orbs,matrix_ks(1)%matrix,&
            uno_evals,para_env=qs_env%para_env,do_rotation=.TRUE.,error=error)
       CALL destroy_preconditioner(preconditioner,error=error)
-!   WRITE(*,*) qs_env%para_env%mepos,'prec destroyed'
+
       DEALLOCATE(preconditioner,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF

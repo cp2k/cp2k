@@ -282,7 +282,7 @@ CPSourceFileRef,&
        ELSE
           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
           "Thermostat for Shells has been defined but for the selected ensemble the adiabatic  "//&
-               " shell model has not be implemented! Ignoring thermostat input."//&
+               " shell model has not been implemented! Ignoring thermostat input."//&
 CPSourceFileRef,&
                only_ionode=.TRUE.)          
        END IF
