@@ -25,6 +25,7 @@ MODULE xc_derivative_types
                                              MAX_LABEL_LENGTH,&
                                              create_split_derivative_desc,&
                                              standardize_derivative_desc
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

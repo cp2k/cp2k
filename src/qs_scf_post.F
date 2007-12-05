@@ -128,6 +128,7 @@ MODULE qs_scf_post
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xray_diffraction,                ONLY: xray_diffraction_spectrum
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

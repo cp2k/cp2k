@@ -59,6 +59,7 @@ MODULE particle_types
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort_unique
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

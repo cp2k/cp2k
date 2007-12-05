@@ -48,6 +48,7 @@ MODULE topology_util
                                              connectivity_info_type,&
                                              topology_parameters_type
   USE util,                            ONLY: sort
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

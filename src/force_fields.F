@@ -54,6 +54,7 @@ MODULE force_fields
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

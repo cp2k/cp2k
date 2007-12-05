@@ -30,6 +30,7 @@ MODULE extended_system_types
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

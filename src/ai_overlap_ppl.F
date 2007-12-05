@@ -59,6 +59,7 @@ MODULE ai_overlap_ppl
   USE mathconstants,                   ONLY: pi
   USE orbital_pointers,                ONLY: coset,&
                                              ncoset
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

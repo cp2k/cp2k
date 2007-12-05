@@ -108,6 +108,7 @@ MODULE xas_tp_scf
                                              set_xas_env,&
                                              xas_environment_type
   USE xas_restart,                     ONLY: xas_write_restart
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -148,6 +148,7 @@ MODULE force_env_methods
                                              virial_set,&
                                              virial_type,&
                                              zero_virial
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

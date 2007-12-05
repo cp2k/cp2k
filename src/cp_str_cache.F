@@ -27,6 +27,7 @@ MODULE cp_str_cache
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_bcast
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

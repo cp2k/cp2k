@@ -67,6 +67,7 @@ MODULE pw_grids
                                              timestop
   USE util,                            ONLY: get_limit,&
                                              sort
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -35,6 +35,7 @@ MODULE csvr_system_types
                                              next_rng_seed,&
                                              rng_stream_type
   USE string_utilities,                ONLY: compress
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -27,6 +27,7 @@ MODULE splines_methods
                                              spline_data_type,&
                                              spline_factor_type
   USE termination,                     ONLY: stop_memory
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

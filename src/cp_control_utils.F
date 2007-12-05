@@ -46,6 +46,7 @@ MODULE cp_control_utils
   USE xc_derivatives,                  ONLY: xc_functional_get_info,&
                                              xc_functionals_get_needs
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

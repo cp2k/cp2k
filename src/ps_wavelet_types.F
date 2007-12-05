@@ -45,6 +45,7 @@ MODULE ps_wavelet_types
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

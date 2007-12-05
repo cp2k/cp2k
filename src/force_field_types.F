@@ -34,6 +34,7 @@ MODULE force_field_types
                                              spline_data_p_type,&
                                              spline_factor_release,&
                                              spline_factor_type
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

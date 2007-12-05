@@ -99,6 +99,7 @@ MODULE integrator
   USE thermostat_types,                ONLY: thermostat_type
   USE virial_methods,                  ONLY: virial_evaluate
   USE virial_types,                    ONLY: virial_type
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

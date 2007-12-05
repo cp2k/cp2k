@@ -62,6 +62,7 @@ MODULE fist_neighbor_lists
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -34,6 +34,7 @@ MODULE fft_tools
   USE cp_files,                        ONLY: get_unit_number
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE 

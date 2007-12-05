@@ -70,6 +70,7 @@ MODULE topology_generate_util
                                              reorder_structure
   USE util,                            ONLY: find_boundary,&
                                              sort
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

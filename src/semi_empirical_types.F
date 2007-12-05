@@ -23,6 +23,7 @@ MODULE semi_empirical_types
   USE basis_set_types,                 ONLY: sto_basis_set_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

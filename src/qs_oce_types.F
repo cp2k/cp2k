@@ -47,6 +47,7 @@ MODULE qs_oce_types
                                              timestop
   USE util,                            ONLY: locate,&
                                              sort
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

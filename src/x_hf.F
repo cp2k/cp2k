@@ -34,6 +34,7 @@ MODULE x_hf
   USE particle_types,                  ONLY: particle_type
   USE x_hf_compression_methods,        ONLY: bits2ints_specific,&
                                              ints2bits_specific
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

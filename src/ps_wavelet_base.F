@@ -21,6 +21,7 @@ MODULE ps_wavelet_base
                                              fftstp
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE f77_blas
 #include "cp_common_uses.h"
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ps_wavelet_util'

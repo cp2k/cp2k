@@ -62,6 +62,7 @@ MODULE cp_output_handling
                                              dp
   USE machine,                         ONLY: m_mov
   USE string_utilities,                ONLY: compress
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -23,6 +23,7 @@ MODULE hartree_local_types
                                              vtriple_type
   USE qs_rho_atom_types,               ONLY: rho_atom_coeff
   USE termination,                     ONLY: stop_memory
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

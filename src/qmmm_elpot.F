@@ -42,6 +42,7 @@ MODULE qmmm_elpot
                                              qmmm_gaussian_type
   USE qmmm_types,                      ONLY: qmmm_Pot_Type,&
                                              qmmm_pot_p_type
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

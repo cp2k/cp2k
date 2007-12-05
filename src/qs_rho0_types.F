@@ -34,6 +34,7 @@ MODULE qs_rho0_types
                                              stop_program
   USE whittaker,                       ONLY: whittaker_c0a,&
                                              whittaker_ci
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

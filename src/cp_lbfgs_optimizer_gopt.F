@@ -73,6 +73,7 @@ MODULE cp_lbfgs_optimizer_gopt
   USE message_passing,                 ONLY: mp_bcast
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

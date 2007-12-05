@@ -55,6 +55,7 @@ MODULE extended_system_init
   USE thermostat_utils,                ONLY: get_nhc_energies
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE f77_blas
 #include "cp_common_uses.h"
 
   PRIVATE

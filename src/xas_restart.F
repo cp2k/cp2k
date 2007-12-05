@@ -68,6 +68,7 @@ MODULE xas_restart
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xas_control,                     ONLY: xas_control_type
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

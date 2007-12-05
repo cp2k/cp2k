@@ -59,6 +59,7 @@ MODULE cp_linked_list_pw
   USE pw_types,                        ONLY: pw_p_type,&
                                              pw_type,&
                                              pw_write
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

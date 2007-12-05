@@ -53,6 +53,7 @@ MODULE fist_nonbond_force
                                              spline_factor_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -50,6 +50,7 @@ MODULE manybody_potential
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

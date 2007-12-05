@@ -87,6 +87,7 @@ MODULE md_run
   USE velocity_verlet_control,         ONLY: velocity_verlet
   USE virial_methods,                  ONLY: virial_evaluate
   USE wiener_process,                  ONLY: create_wiener_process
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

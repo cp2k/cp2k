@@ -44,6 +44,7 @@ MODULE csvr_system_init
   USE thermostat_types,                ONLY: thermostat_info_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE f77_blas
 #include "cp_common_uses.h"
 
   PRIVATE

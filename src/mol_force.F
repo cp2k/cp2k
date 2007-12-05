@@ -23,6 +23,7 @@ MODULE mol_force
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE termination,                     ONLY: stop_program
+  USE f77_blas
 #include "cp_common_uses.h"
 
   PRIVATE

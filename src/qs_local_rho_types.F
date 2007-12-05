@@ -31,6 +31,7 @@ MODULE qs_local_rho_types
   USE qs_rho_atom_types,               ONLY: deallocate_rho_atom_set,&
                                              rho_atom_type
   USE termination,                     ONLY: stop_memory
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

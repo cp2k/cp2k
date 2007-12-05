@@ -3,6 +3,7 @@ MODULE ps_wavelet_fft3d
 
   USE kinds,                           ONLY: dp
 
+  USE f77_blas
 #include "cp_common_uses.h"
 
   PRIVATE

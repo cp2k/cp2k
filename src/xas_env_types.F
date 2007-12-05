@@ -36,6 +36,7 @@ MODULE xas_env_types
                                              qs_loc_env_retain
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
                                              real_matrix_p_type
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

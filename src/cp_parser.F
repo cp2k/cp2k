@@ -39,6 +39,7 @@ MODULE cp_parser
                                              mp_bcast
   USE string_utilities,                ONLY: compress,&
                                              uppercase
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -56,6 +56,7 @@ MODULE topology_psf
                                              reorder_structure,&
                                              tag_molecule
   USE util,                            ONLY: sort
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

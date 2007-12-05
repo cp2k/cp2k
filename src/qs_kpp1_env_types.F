@@ -44,6 +44,7 @@ MODULE qs_kpp1_env_types
                                              xc_dset_release
   USE xc_rho_set_types,                ONLY: xc_rho_set_release,&
                                              xc_rho_set_type
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -17,6 +17,7 @@ MODULE kg_energy_utils
   USE message_passing,                 ONLY: mp_max
 !  USE scf_control_types, ONLY : scf_control
   USE termination,                     ONLY: stop_memory
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

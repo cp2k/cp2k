@@ -94,6 +94,7 @@ MODULE cp2k_runs
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE vibrational_analysis,            ONLY: vb_anal
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

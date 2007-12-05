@@ -50,6 +50,7 @@ MODULE qs_tddfpt_module
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_pot_saop,                     ONLY: add_saop_pot
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

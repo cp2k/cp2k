@@ -52,6 +52,7 @@ MODULE dynamical_coeff_types
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE util,                            ONLY: locate
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

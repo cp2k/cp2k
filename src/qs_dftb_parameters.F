@@ -52,6 +52,7 @@ MODULE qs_dftb_parameters
   USE qs_dftb_utils,                   ONLY: allocate_dftb_atom_param,&
                                              get_dftb_atom_param,&
                                              set_dftb_atom_param
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

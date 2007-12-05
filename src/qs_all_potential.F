@@ -43,6 +43,7 @@ MODULE qs_all_potential
                                              reduced_3c_list_type
   USE virial_methods,                  ONLY: virial_pair_force
 
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

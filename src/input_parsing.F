@@ -74,6 +74,7 @@ MODULE input_parsing
   USE string_utilities,                ONLY: uppercase
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

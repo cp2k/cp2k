@@ -67,6 +67,7 @@ MODULE  hartree_local_2centers
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

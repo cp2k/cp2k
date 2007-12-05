@@ -48,6 +48,7 @@ MODULE qmmm_gaussian_init
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
                                              qmmm_gaussian_type
   USE qs_util,                         ONLY: exp_radius
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

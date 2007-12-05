@@ -33,6 +33,7 @@ MODULE cp_para_env
                                              mp_environ
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

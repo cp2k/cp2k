@@ -40,6 +40,7 @@ MODULE xas_control
                                              localized_wfn_control_release,&
                                              localized_wfn_control_type,&
                                              read_loc_section
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

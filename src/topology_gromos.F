@@ -40,6 +40,7 @@ MODULE topology_gromos
   USE topology_types,                  ONLY: atom_info_type,&
                                              connectivity_info_type,&
                                              topology_parameters_type
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

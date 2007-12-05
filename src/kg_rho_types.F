@@ -28,6 +28,7 @@ MODULE kg_rho_types
                                              pw_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -52,6 +52,7 @@ MODULE xc_rho_set_types
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_equal,&
                                              xc_rho_cflags_setall,&
                                              xc_rho_cflags_type
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

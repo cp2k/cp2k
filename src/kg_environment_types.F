@@ -94,6 +94,7 @@ MODULE kg_environment_types
   USE virial_types,                    ONLY: virial_release,&
                                              virial_retain,&
                                              virial_type
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

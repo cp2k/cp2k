@@ -35,6 +35,7 @@ MODULE kg_rspw_types
                                              pw_pools_dealloc
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

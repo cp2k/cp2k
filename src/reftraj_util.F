@@ -64,6 +64,7 @@ MODULE reftraj_util
   USE reftraj_types,                   ONLY: reftraj_msd_type,&
                                              reftraj_type
   USE termination,                     ONLY: stop_program
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

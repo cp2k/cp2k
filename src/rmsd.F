@@ -28,6 +28,7 @@ MODULE rmsd
   USE mathlib,                         ONLY: diamat_all,&
                                              matvec_3x3
   USE particle_types,                  ONLY: particle_type
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -81,6 +81,7 @@ MODULE topology
                                              topology_reorder_atoms,&
                                              topology_set_atm_mass
   USE topology_xyz,                    ONLY: read_coordinate_xyz
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

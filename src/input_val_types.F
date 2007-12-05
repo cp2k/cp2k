@@ -38,6 +38,7 @@ MODULE input_val_types
                                              enumeration_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

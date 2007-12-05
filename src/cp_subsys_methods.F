@@ -62,6 +62,7 @@ MODULE cp_subsys_methods
                                              init_topology,&
                                              topology_parameters_type
   USE topology_util,                   ONLY: check_subsys_element
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -35,6 +35,7 @@ MODULE qmmm_topology_util
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology_types,                  ONLY: topology_parameters_type
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

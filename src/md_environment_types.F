@@ -43,6 +43,7 @@ MODULE md_environment_types
                                              retain_thermostats,&
                                              thermostat_type,&
                                              thermostats_type
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

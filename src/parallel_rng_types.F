@@ -67,6 +67,7 @@ MODULE parallel_rng_types
 
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: compress
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

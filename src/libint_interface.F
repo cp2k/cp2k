@@ -36,6 +36,7 @@ MODULE libint_interface
   USE mathconstants
   USE orbital_pointers
   USE x_hf,                            ONLY: x_hf_potential_type
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

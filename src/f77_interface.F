@@ -105,6 +105,7 @@ MODULE f77_interface
                                              timer_env_type,&
                                              timeset,&
                                              timestop
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

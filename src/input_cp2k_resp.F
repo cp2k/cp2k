@@ -37,6 +37,7 @@ MODULE input_cp2k_resp
   USE input_val_types,                 ONLY: real_t, integer_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

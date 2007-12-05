@@ -63,6 +63,7 @@ MODULE topology_constraint_util
   USE topology_types,                  ONLY: constr_list_type,&
                                              constraint_info_type,&
                                              topology_parameters_type
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

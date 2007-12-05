@@ -34,6 +34,7 @@ MODULE fist_main
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

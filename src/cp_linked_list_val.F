@@ -56,6 +56,7 @@
 MODULE cp_linked_list_val
   USE input_val_types,                 ONLY: val_p_type,&
                                              val_type
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

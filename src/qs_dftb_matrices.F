@@ -71,6 +71,7 @@ MODULE qs_dftb_matrices
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
 
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -39,6 +39,7 @@ MODULE qmmm_util
                                              qs_subsys
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

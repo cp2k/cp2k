@@ -72,6 +72,7 @@ MODULE qmmm_init
   USE qs_environment_types,            ONLY: qs_environment_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

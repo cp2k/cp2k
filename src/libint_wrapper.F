@@ -42,6 +42,7 @@ MODULE libint_wrapper
   USE orbital_pointers
 
 
+  USE f77_blas
 #include "cp_common_uses.h"
  
   IMPLICIT NONE

@@ -66,6 +66,7 @@ MODULE qs_epr_hyp
                                              rho_atom_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE util,                            ONLY: get_limit
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

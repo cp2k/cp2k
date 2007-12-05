@@ -34,6 +34,7 @@ MODULE qs_loc_control
                                              dp
   USE memory_utilities,                ONLY: reallocate
   USE string_utilities,                ONLY: xstring
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -135,6 +135,7 @@ MODULE qs_ks_methods
   USE virial_types,                    ONLY: virial_type
   USE xc,                              ONLY: xc_exc_calc,&
                                              xc_vxc_pw_create1
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

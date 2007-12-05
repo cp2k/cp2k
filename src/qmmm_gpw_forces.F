@@ -86,6 +86,7 @@ MODULE qmmm_gpw_forces
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

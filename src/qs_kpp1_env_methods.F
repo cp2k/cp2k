@@ -89,6 +89,7 @@ MODULE qs_kpp1_env_methods
                                              xc_rho_set_release,&
                                              xc_rho_set_type,&
                                              xc_rho_set_update
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

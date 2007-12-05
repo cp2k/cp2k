@@ -26,6 +26,7 @@ MODULE cp2k_units
   USE physcon,                         ONLY: &
        a_bohr, bohr, boltzmann, e_charge, evolt, femtoseconds, h_bar, hz, &
        joule, kcalmol, kjmol, massunit, permittivity, picoseconds, wavenum
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

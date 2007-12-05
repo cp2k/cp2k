@@ -45,6 +45,7 @@ MODULE cp_ddapc_methods
   USE spherical_harmonics,             ONLY: legendre
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

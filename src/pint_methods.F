@@ -33,6 +33,7 @@ MODULE pint_methods
        pint_f2uf, pint_release, pint_start, pint_u2x, pint_x2u
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

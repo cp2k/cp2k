@@ -29,6 +29,7 @@ MODULE cp_control_types
                                              xas_control_release,&
                                              xas_control_type
   USE pw_types,                        ONLY: pw_p_type
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

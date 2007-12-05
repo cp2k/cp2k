@@ -33,6 +33,7 @@ MODULE cg_test
                                              clebsch_gordon_init,&
                                              y_lm
   USE termination,                     ONLY: stop_memory
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

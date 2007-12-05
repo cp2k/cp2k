@@ -44,6 +44,7 @@ MODULE semi_empirical_utils
   USE semi_empirical_types,            ONLY: semi_empirical_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

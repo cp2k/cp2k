@@ -48,6 +48,7 @@ MODULE kg_gpw_pw_env_types
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_retain,&
                                              qs_rho_type
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

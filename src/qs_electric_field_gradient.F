@@ -72,6 +72,7 @@ MODULE qs_electric_field_gradient
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE util,                            ONLY: get_limit,&
                                              sort
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

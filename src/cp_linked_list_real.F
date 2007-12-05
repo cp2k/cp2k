@@ -55,6 +55,7 @@
 !*****************************************************************************
 MODULE cp_linked_list_real
   USE kinds,                           ONLY: dp
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

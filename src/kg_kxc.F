@@ -44,6 +44,7 @@ MODULE kg_kxc
                                              xc_derivative_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_release,&
                                              xc_rho_set_type
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

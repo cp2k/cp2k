@@ -27,6 +27,7 @@ MODULE gaussian_gridlevels
   USE kinds,                           ONLY: dp, int_8
   USE message_passing,                 ONLY: mp_sum_i8
   USE termination,                     ONLY: stop_memory
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

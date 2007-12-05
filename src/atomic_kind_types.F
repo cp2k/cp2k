@@ -87,6 +87,7 @@ MODULE atomic_kind_types
   USE soft_basis_set,                  ONLY: create_soft_basis
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_program
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

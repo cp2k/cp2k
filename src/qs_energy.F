@@ -47,6 +47,7 @@ MODULE qs_energy
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xas_methods,                     ONLY: xas
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

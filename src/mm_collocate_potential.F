@@ -33,6 +33,7 @@ MODULE mm_collocate_potential
   USE qs_util,                         ONLY: exp_radius
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

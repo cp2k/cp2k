@@ -30,6 +30,7 @@ MODULE qmmm_links_methods
                                              qmmm_env_qm_type,&
                                              qmmm_imomm_link_type,&
                                              qmmm_links_type
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

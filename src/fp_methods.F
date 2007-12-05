@@ -43,6 +43,7 @@ MODULE fp_methods
   USE particle_types,                  ONLY: particle_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

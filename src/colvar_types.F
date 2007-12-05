@@ -36,6 +36,7 @@ MODULE colvar_types
   USE memory_utilities,                ONLY: reallocate
   USE particle_types,                  ONLY: particle_type
   USE termination,                     ONLY: stop_memory
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

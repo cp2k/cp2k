@@ -89,6 +89,7 @@ MODULE xc_derivatives
                                              xwpbe_lda_info,&
                                              xwpbe_lsd_eval,&
                                              xwpbe_lsd_info
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

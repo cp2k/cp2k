@@ -28,6 +28,7 @@ MODULE gamma
                                              pi
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

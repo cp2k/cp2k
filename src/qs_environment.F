@@ -164,6 +164,7 @@ MODULE qs_environment
   USE topology,                        ONLY: topology_control
   USE x_hf,                            ONLY: x_hf_create
   USE xas_control,                     ONLY: write_xas_control
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -57,6 +57,7 @@ PROGRAM cp2k
   USE kinds,             ONLY : default_path_length
   USE f77_interface,     ONLY : init_cp2k, finalize_cp2k, &
                                 check_input, default_para_env
+  USE f77_blas
 #include "cp_common_uses.h"
   IMPLICIT NONE
 

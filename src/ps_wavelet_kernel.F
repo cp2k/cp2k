@@ -34,6 +34,7 @@ MODULE ps_wavelet_kernel
                                              timestop
 
   USE message_passing,                 ONLY: mp_alltoall
+  USE f77_blas
 #include "cp_common_uses.h"
 
 

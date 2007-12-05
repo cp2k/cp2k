@@ -57,6 +57,7 @@ MODULE distribution_methods
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE input_constants,                 ONLY: model_block_count,model_block_surface, model_block_lmax
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -28,6 +28,7 @@ MODULE semi_empirical_int_ana
        al, drotint, drotnuc, nucint, r0, rotint, rotnuc, taper, &
        taper_fn_init, terep
   USE semi_empirical_types,            ONLY: semi_empirical_type
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -15,6 +15,7 @@ MODULE farming_methods
                                              section_vals_type,&
                                              section_vals_val_get
   USE message_passing,                 ONLY: mp_bcast
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -50,6 +50,7 @@ MODULE ewald_environment_types
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE physcon,                         ONLY: angstrom
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

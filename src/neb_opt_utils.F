@@ -40,6 +40,7 @@ MODULE neb_opt_utils
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE f77_blas
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

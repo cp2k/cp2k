@@ -28,6 +28,7 @@ MODULE qs_dftb_utils
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

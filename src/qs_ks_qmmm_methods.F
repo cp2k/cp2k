@@ -42,6 +42,7 @@ MODULE qs_ks_qmmm_methods
                                              qs_ks_qmmm_release
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

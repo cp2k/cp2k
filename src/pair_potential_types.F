@@ -30,6 +30,7 @@ MODULE pair_potential_types
                                              spline_factor_copy,&
                                              spline_factor_release,&
                                              spline_factor_type
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

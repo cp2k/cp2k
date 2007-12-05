@@ -62,6 +62,7 @@ MODULE md
   USE shell_potential_types,           ONLY: shell_kind_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

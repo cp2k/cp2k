@@ -44,6 +44,7 @@ MODULE qs_numerical_pressure
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              qs_ks_release
   USE virial_types,                    ONLY: virial_type
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -31,6 +31,7 @@ MODULE memory_utilities
                                              int_size
   USE message_passing,                 ONLY: mp_sync
   USE termination,                     ONLY: stop_memory
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

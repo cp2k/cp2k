@@ -46,6 +46,7 @@ MODULE qs_debug
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
   USE qs_numerical_pressure,           ONLY: qs_calc_numerical_pressure
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

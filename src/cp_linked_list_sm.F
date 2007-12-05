@@ -59,6 +59,7 @@ MODULE cp_linked_list_sm
   USE sparse_matrix_types,             ONLY: cp_sm_get_id_nr,&
                                              real_matrix_p_type,&
                                              real_matrix_type
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
