@@ -3628,54 +3628,6 @@ CONTAINS
 
   !====================== The end of timer ===============================
 
-  FUNCTION dnrm2(n,x,incx)
-    INTEGER                                  :: n
-    REAL(KIND=dp)                            :: x(n)
-    INTEGER                                  :: incx
-    REAL(KIND=dp)                            :: dnrm2
-
-    INTEGER                                  :: i
-    REAL(KIND=dp)                            :: scale
-
-! **********
-! Function dnrm2
-! Given a vector x of length n, this function calculates the
-! Euclidean norm of x with stride incx.
-! The function statement is
-! double precision function dnrm2(n,x,incx)
-! where
-! n is a positive integer input variable.
-! x is an input array of length n.
-! incx is a positive integer variable that specifies the
-! stride of the vector.
-! Subprograms called
-! FORTRAN-supplied ... abs, max, sqrt
-! MINPACK-2 Project. February 1991.
-! Argonne National Laboratory.
-! Brett M. Averick.
-! **********
-
-    dnrm2 = 0.0e0_dp
-    scale = 0.0e0_dp
-    
-    DO 10 i = 1, n, incx
-       scale = MAX(scale, ABS(x(i)))
-10  ENDDO
-    
-    IF (scale == 0.0e0_dp) RETURN
-    
-    DO 20 i = 1, n, incx
-       dnrm2 = dnrm2 + (x(i)/scale)**2
-20  ENDDO
-    
-    dnrm2 = scale*SQRT(dnrm2)
-    
-    RETURN
-    
-  END FUNCTION dnrm2
-  
-  !====================== The end of dnrm2 ===============================
-
   SUBROUTINE dpofa(a,lda,n,info)
     INTEGER                                  :: lda
     REAL(KIND=dp)                            :: a(lda,*)
