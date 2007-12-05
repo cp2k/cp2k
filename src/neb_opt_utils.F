@@ -39,6 +39,7 @@ MODULE neb_opt_utils
   USE replica_types,                   ONLY: replica_env_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -187,7 +188,7 @@ CONTAINS
                 ENDIF
                 VT(k,:)=VT(k,:)*S(k)
              ENDDO
-             CALL DGEMM('T','T',np,np,np,1.0_dp,VT,np,U,np,0.0_dp,wrk_inv,np)
+             CALL BL_GEMM('T','T',np,np,np,1.0_dp,VT,np,U,np,0.0_dp,wrk_inv,np)
              DEALLOCATE(iwork,stat=stat)
  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              DEALLOCATE(S,stat=stat)
