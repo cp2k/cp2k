@@ -16,7 +16,6 @@
 !******************************************************************************
 
 MODULE nddo_methods
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -30,6 +29,12 @@ MODULE nddo_methods
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
+  USE f77_blas
+  USE input_constants,                 ONLY: do_method_am1,&
+                                             do_method_mndo,&
+                                             do_method_pdg,&
+                                             do_method_pm3,&
+                                             do_method_rm1
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -70,7 +75,6 @@ MODULE nddo_methods
                                              transfer_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -257,8 +261,8 @@ CONTAINS
       ispin, istat, itype, jatom, jkind, natom, natorb_a, natorb_b, nkind, &
       nlist, nnode, nspins
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: anag, defined, failure, switch,&
-                                                do_ewald
+    LOGICAL                                  :: anag, defined, do_ewald, &
+                                                failure, switch
     REAL(KIND=dp)                            :: delta, dr1, ecore2, ecoul, &
                                                 enuc, enuclear, range, rc
     REAL(KIND=dp), DIMENSION(10)             :: e1b, e2a, pvec
@@ -350,7 +354,7 @@ CONTAINS
 
        ecore2 = 0._dp
        enuclear = 0._dp
-       itype = get_se_type(dft_control%qs_control%method)
+       itype = get_se_type(dft_control%qs_control%method_id)
 
        IF (do_ewald) THEN
          !calculate 1/r contribution using Ewald type method
@@ -461,8 +465,8 @@ CONTAINS
                      CPPostcondition(ASSOCIATED(ksb_block_b),cp_failure_level,routineP,error,failure)
                    END IF
 
-                   SELECT CASE (dft_control%qs_control%method)
-                     CASE ("MNDO","AM1","PM3","PDG")
+                   SELECT CASE (dft_control%qs_control%method_id)
+                     CASE (do_method_mndo,do_method_am1,do_method_pm3,do_method_pdg,do_method_rm1)
                        IF (anag) THEN
                          IF ( .NOT. switch ) THEN
                            CALL rotnuc_ana (se_kind_a,se_kind_b,rij,e1b=e1b,e2a=e2a,enuc=enuc,itype=itype,shortrange=do_ewald)
@@ -1071,8 +1075,7 @@ CONTAINS
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa, pb
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fa, fb
-    LOGICAL, INTENT(IN)                      :: anag
-    LOGICAL, INTENT(IN)                      :: shortrange
+    LOGICAL, INTENT(IN)                      :: anag, shortrange
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rfock2c', &
@@ -1129,8 +1132,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fa_a, fb_a
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa_b, pb_b
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fa_b, fb_b
-    LOGICAL, INTENT(IN)                      :: anag
-    LOGICAL, INTENT(IN)                      :: shortrange
+    LOGICAL, INTENT(IN)                      :: anag, shortrange
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ufock2c', &
@@ -1204,8 +1206,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa, pb
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: force
     REAL(dp), INTENT(IN)                     :: delta
-    LOGICAL, INTENT(IN)                      :: anag
-    LOGICAL, INTENT(IN)                      :: shortrange
+    LOGICAL, INTENT(IN)                      :: anag, shortrange
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rdfock2c', &
@@ -1261,8 +1262,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa_a, pb_a, pa_b, pb_b
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: force
     REAL(dp), INTENT(IN)                     :: delta
-    LOGICAL, INTENT(IN)                      :: anag
-    LOGICAL, INTENT(IN)                      :: shortrange
+    LOGICAL, INTENT(IN)                      :: anag, shortrange
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'udfock2c', &

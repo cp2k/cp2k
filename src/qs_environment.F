@@ -86,6 +86,7 @@ MODULE qs_environment
   USE ewald_pw_types,                  ONLY: ewald_pw_create,&
                                              ewald_pw_release,&
                                              ewald_pw_type
+  USE f77_blas
   USE gamma,                           ONLY: init_md_ftable
   USE global_types,                    ONLY: global_environment_type
   USE harris_energy_types,             ONLY: harris_energy_create,&
@@ -101,8 +102,8 @@ MODULE qs_environment
   USE input_constants,                 ONLY: &
        do_et_becke, do_et_ddapc, do_method_am1, do_method_dftb, &
        do_method_gapw, do_method_gapw_xc, do_method_mndo, do_method_pdg, &
-       do_method_pm3, general_roks, restart_guess, state_loc_all, &
-       state_loc_none
+       do_method_pm3, do_method_rm1, general_roks, restart_guess, &
+       state_loc_all, state_loc_none
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -164,7 +165,6 @@ MODULE qs_environment
   USE topology,                        ONLY: topology_control
   USE x_hf,                            ONLY: x_hf_create
   USE xas_control,                     ONLY: write_xas_control
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -462,7 +462,7 @@ CONTAINS
     SELECT CASE (method_id)
       CASE DEFAULT
         CALL qs_header(iw, iw>0)
-      CASE ( do_method_am1, do_method_mndo, do_method_pdg, do_method_pm3 )
+      CASE ( do_method_rm1, do_method_am1, do_method_mndo, do_method_pdg, do_method_pm3 )
         CALL se_header(iw, iw>0)
       CASE ( do_method_dftb )
         CALL dftb_header(iw, iw>0)
@@ -702,9 +702,9 @@ CONTAINS
          END IF
       END IF
       se_control%rc_interaction = rc
-      SELECT CASE ( dft_control%qs_control%method )
+      SELECT CASE ( dft_control%qs_control%method_id)
         CASE DEFAULT
-        CASE ("AM1","PM3","MNDO")
+        CASE (do_method_rm1,do_method_am1,do_method_mndo,do_method_pm3)
           ! Neighbor lists have to be
           ! MAX(interaction range, orbital range)
           ! set new kind radius

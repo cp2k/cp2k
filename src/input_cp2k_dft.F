@@ -31,6 +31,7 @@ MODULE input_cp2k_dft
        VandeVondele2005b, Vosko1980, Zhang1998, Zhechkov2005
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
+  USE f77_blas
   USE input_constants
   USE input_cp2k_distribution,         ONLY: create_distribution_section
   USE input_cp2k_hfx,                  ONLY: create_hf_section
@@ -52,7 +53,6 @@ MODULE input_cp2k_dft
   USE string_utilities,                ONLY: s2a
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -62,7 +62,7 @@ MODULE input_cp2k_dft
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_dft'
 
   PUBLIC :: create_dft_section
-  PUBLIC :: create_bsse_section
+  PUBLIC :: create_bsse_section, create_qs_section
   PUBLIC :: create_properties_section, create_scf_section, create_ep_section
   !***
   !****************************************************************************
@@ -1783,19 +1783,19 @@ CONTAINS
             description="Specifies the electronic structure method that should be employed",&
             usage="METHOD GAPW",&
             enum_c_vals=s2a("GAPW","GAPW_XC","GPW","KG_POL","KG_NOPOL","KG_GPW",&
-            "MNDO","AM1","PM3","PDG","DFTB"),&
+            "MNDO","AM1","PM3","PDG","RM1","DFTB"),&
             enum_desc=s2a("Gaussian and augmented plane waves method",&
-            "Gaussian and augmented plane waves method only for XC",&
-            "Gaussian and plane waves method",&
-            "Polarisable Kim-Gordon method",&
-            "Non-polarisable Kim-Gordon method", " DFT Embedding method ",&
-            "MNDO semiempirical","AM1 semiempirical",&
-            "PM3 semiempirical","PDG semiempirical",&
-            "DFTB: Density Functional based Tight-Binding"),&
+                          "Gaussian and augmented plane waves method only for XC",&
+                          "Gaussian and plane waves method",&
+                          "Polarisable Kim-Gordon method",&
+                          "Non-polarisable Kim-Gordon method", " DFT Embedding method ",&
+                          "MNDO semiempirical","AM1 semiempirical",&
+                          "PM3 semiempirical","PDG semiempirical","RM1 semiempirical",&
+                          "DFTB: Density Functional based Tight-Binding"),&
             enum_i_vals=(/ do_method_gapw, do_method_gapw_xc, do_method_gpw, &
             do_method_kg_pol, do_method_kg_nopol, do_method_kg_gpw, &
             do_method_mndo, do_method_am1, do_method_pm3, do_method_pdg, &
-            do_method_dftb/),&
+            do_method_rm1,do_method_dftb/),&
             citations=(/Lippert1997,Lippert1999,VandeVondele2005a,Iannuzzi2006/),&
             default_i_val=do_method_gpw, error=error)
        CALL section_add_keyword(section,keyword,error=error)

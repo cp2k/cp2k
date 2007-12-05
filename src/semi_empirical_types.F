@@ -21,9 +21,9 @@
 MODULE semi_empirical_types
 
   USE basis_set_types,                 ONLY: sto_basis_set_type
+  USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -36,7 +36,7 @@ MODULE semi_empirical_types
 
   TYPE semi_empirical_type
     ! PRIVATE
-    CHARACTER(LEN=default_string_length)   :: typ
+    INTEGER                                :: typ
     CHARACTER(LEN=default_string_length)   :: name
     LOGICAL                                :: defined
     INTEGER                                :: z

@@ -242,7 +242,8 @@ MODULE input_constants
        do_pwgrid_ns_fullspace=2,&
        do_pwgrid_ns_halfspace=3
 
-  INTEGER, PARAMETER, PUBLIC :: do_extrpl_use_guess=0,&
+  INTEGER, PARAMETER, PUBLIC ::&
+       do_extrpl_use_guess=0,&
        do_extrpl_use_prev_p=1,&
        do_extrpl_use_prev_rho_r=2,&
        do_extrpl_linear_wf=3,&
@@ -252,13 +253,9 @@ MODULE input_constants
        do_extrpl_ps=7,&
        do_extrpl_frozen=8,&
        do_extrpl_aspc=9
-  CHARACTER (LEN=default_string_length), PARAMETER, &
-                          DIMENSION(11), PUBLIC :: elstr_method_name=&
-      (/"GAPW    ", "GAPW_XC ","GPW     ",&
-        "KG_POL  ", "KG_NOPOL", "KG_GPW  ", &
-        "MNDO    ", "AM1     ", "PM3     ", "PDG     ", &
-        "DFTB    "/)
-  INTEGER, PARAMETER, PUBLIC :: do_method_gapw=1,&
+
+  INTEGER, PARAMETER, PUBLIC ::&
+       do_method_gapw=1,&
        do_method_gapw_xc=2,&
        do_method_gpw=3,&
        do_method_kg_pol=4,&
@@ -268,7 +265,9 @@ MODULE input_constants
        do_method_am1=8,&
        do_method_pm3=9,&
        do_method_pdg=10,&
-       do_method_dftb=11
+       do_method_rm1=11,&
+       do_method_dftb=12,&
+       do_method_pchg=13
    INTEGER, PARAMETER, PUBLIC :: use_unit_angstrom=0,&
        use_unit_bohr=1,&
        use_unit_scaled_angstrom=2,&

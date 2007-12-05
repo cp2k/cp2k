@@ -17,7 +17,6 @@
 !******************************************************************************
 
 MODULE qs_semi_empirical_hamiltonian
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -27,6 +26,12 @@ MODULE qs_semi_empirical_hamiltonian
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
+  USE input_constants,                 ONLY: do_method_am1,&
+                                             do_method_mndo,&
+                                             do_method_pdg,&
+                                             do_method_pm3,&
+                                             do_method_rm1
   USE kinds,                           ONLY: dp
   USE nddo_methods,                    ONLY: build_nddo_fock_matrix
   USE particle_types,                  ONLY: particle_type
@@ -58,7 +63,6 @@ MODULE qs_semi_empirical_hamiltonian
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -171,7 +175,7 @@ CONTAINS
 
      ! kh might be set in qs_control
      kh=1._dp
-     itype = get_se_type(dft_control%qs_control%method)
+     itype = get_se_type(dft_control%qs_control%method_id)
      kh = 0.5_dp * kh
 
      nkind = SIZE(atomic_kind_set)
@@ -241,8 +245,8 @@ CONTAINS
 
              sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
 
-             SELECT CASE (dft_control%qs_control%method)
-               CASE ("MNDO","AM1","PM3","PDG")
+             SELECT CASE (dft_control%qs_control%method_id)
+               CASE (do_method_am1,do_method_rm1,do_method_mndo,do_method_pdg,do_method_pm3)
                  NULLIFY(h_blocka)
                  CALL get_block_node(matrix=diagmat_h,&
                                      block_row=iatom,&
@@ -265,11 +269,11 @@ CONTAINS
                dr = SUM(rij(:)**2)
                IF (iatom == jatom .AND. dr < 0.001_dp) THEN
 
-                 SELECT CASE (dft_control%qs_control%method)
+                 SELECT CASE (dft_control%qs_control%method_id)
                     CASE DEFAULT
                       CALL stop_program(routineN,moduleN,__LINE__,&
                                       "Method not available",para_env)
-                    CASE ("AM1","PM3","MNDO","PDG")
+                    CASE (do_method_am1,do_method_rm1,do_method_mndo,do_method_pdg,do_method_pm3)
                       DO i=1,SIZE(h_blocka,1)
                         h_blocka(i,i)=h_blocka(i,i)+ua(i)
                       END DO
@@ -414,10 +418,10 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,error=error)
 
-    SELECT CASE (dft_control%qs_control%method)
+    SELECT CASE (dft_control%qs_control%method_id)
       CASE DEFAULT
         CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-      CASE ("AM1","PM3","MNDO","PDG")
+      CASE (do_method_am1,do_method_rm1,do_method_mndo,do_method_pdg,do_method_pm3)
         CALL build_nddo_fock_matrix (ks_env,qs_env,ks_matrix,rho,energy,&
                calculate_forces,just_energy,error)
     END SELECT

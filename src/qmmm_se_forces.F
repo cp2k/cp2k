@@ -16,13 +16,19 @@
 !******************************************************************************
 
 MODULE qmmm_se_forces
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
+  USE input_constants,                 ONLY: do_method_am1,&
+                                             do_method_mndo,&
+                                             do_method_pchg,&
+                                             do_method_pdg,&
+                                             do_method_pm3,&
+                                             do_method_rm1
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
@@ -46,7 +52,6 @@ MODULE qmmm_se_forces
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -122,8 +127,8 @@ CONTAINS
                        ks_qmmm_env=ks_qmmm_env_loc,&
                        dft_control=dft_control,error=error)
        number_qm_atoms = SIZE(qs_env%subsys%particles%els)
-       SELECT CASE (dft_control%qs_control%method)
-       CASE ("AM1","PM3","MNDO","PDG")
+       SELECT CASE (dft_control%qs_control%method_id)
+       CASE (do_method_rm1,do_method_am1,do_method_mndo,do_method_pdg,do_method_pm3)
           ! Go on with the calculation.. 
        CASE DEFAULT
           ! Otherwise stop..
@@ -133,7 +138,7 @@ CONTAINS
        ALLOCATE(Forces_QM(3,number_qm_atoms),stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL allocate_se_param(se_kind_mm)
-       CALL se_param_set_default(se_kind_mm,0,"POINT_CHARGE")
+       CALL se_param_set_default(se_kind_mm,0,do_method_pchg)
        itype    = get_se_type(se_kind_mm%typ)
        nkind    = SIZE(atomic_kind_set)
        enuclear = 0.0_dp

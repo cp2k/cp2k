@@ -28,9 +28,18 @@ MODULE cp_control_utils
                                              tddfpt_control_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE f77_blas
   USE input_constants
   USE input_cp2k_check,                ONLY: xc_functionals_expand
-  USE input_section_types,             ONLY: section_vals_get,&
+  USE input_cp2k_dft,                  ONLY: create_qs_section
+  USE input_enumeration_types,         ONLY: enum_i2c,&
+                                             enumeration_type
+  USE input_keyword_types,             ONLY: keyword_get,&
+                                             keyword_type
+  USE input_section_types,             ONLY: section_get_keyword,&
+                                             section_release,&
+                                             section_type,&
+                                             section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_get_subs_vals2,&
                                              section_vals_type,&
@@ -46,7 +55,6 @@ MODULE cp_control_utils
   USE xc_derivatives,                  ONLY: xc_functional_get_info,&
                                              xc_functionals_get_needs
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -89,8 +97,6 @@ CONTAINS
                                                 xc_fun_section, xc_section
     TYPE(xc_rho_cflags_type)                 :: needs
 
-!   ---------------------------------------------------------------------------
-
     failure=.FALSE.
     was_present = .FALSE.
     NULLIFY(tmp_section,xc_fun_section,xc_section)
@@ -100,7 +106,7 @@ CONTAINS
     not_SE = .TRUE.
     CALL section_vals_val_get(dft_section,"QS%METHOD",i_val=method_id,error=error)
     SELECT CASE (method_id)
-      CASE (do_method_dftb,do_method_mndo,do_method_am1,do_method_pm3,do_method_pdg)
+      CASE (do_method_dftb,do_method_mndo,do_method_am1,do_method_pm3,do_method_pdg,do_method_rm1)
          not_SE = .FALSE.
     END SELECT
     ! Check for XC section and XC_FUNCTIONAL section
@@ -318,11 +324,12 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: tmplist
     LOGICAL                                  :: failure, was_present
     REAL(dp)                                 :: tmpsqrt, value
+    TYPE(enumeration_type), POINTER          :: enum
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: section
     TYPE(section_vals_type), POINTER :: becke_constraint_section, &
       ddapc_restraint_section, dftb_parameter, dftb_section, loc_section, &
       mull_section, s2_restraint_section, se_section
-
-!   ---------------------------------------------------------------------------
 
     failure=.FALSE.
     was_present = .FALSE.
@@ -436,7 +443,12 @@ CONTAINS
 
     !Method
     CALL section_vals_val_get(qs_section,"METHOD",i_val=qs_control%method_id,error=error)
-    qs_control %method = elstr_method_name(qs_control %method_id)
+    NULLIFY(section,keyword,enum)
+    CALL create_qs_section(section,error=error)
+    keyword => section_get_keyword(section,"METHOD",error=error)
+    CALL keyword_get(keyword,enum=enum,error=error)
+    qs_control%method = enum_i2c(enum,qs_control%method_id,error=error)
+    CALL section_release(section,error=error)
     qs_control%gapw = .FALSE.
     qs_control%gapw_xc = .FALSE.
     qs_control%gpw = .FALSE.
@@ -457,7 +469,7 @@ CONTAINS
         qs_control%dftb = .TRUE.
         CALL cite_reference(Porezag1995)
         CALL cite_reference(Seifert1996)
-      CASE (do_method_mndo,do_method_am1,do_method_pm3,do_method_pdg)
+      CASE (do_method_mndo,do_method_am1,do_method_pm3,do_method_pdg,do_method_rm1)
         qs_control%semi_empirical = .TRUE.
     END SELECT
 
@@ -531,9 +543,10 @@ CONTAINS
     CALL section_vals_val_get(se_section,"RC_RANGE",&
                  r_val=qs_control%se_control%rc_range,error=error)
     IF(qs_control %method_id == do_method_mndo .OR. &
-       qs_control %method_id == do_method_am1 .OR. &
-       qs_control %method_id == do_method_pdg .OR. &
-       qs_control %method_id == do_method_pm3) THEN
+       qs_control %method_id == do_method_am1  .OR. &
+       qs_control %method_id == do_method_pdg  .OR. &
+       qs_control %method_id == do_method_pm3  .OR. &
+       qs_control %method_id == do_method_rm1  ) THEN
        qs_control%se_control%orthogonal_basis=.TRUE.
     END IF
 

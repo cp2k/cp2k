@@ -40,14 +40,10 @@ MODULE atomic_kind_types
        elp_potential_type, get_potential, gth_potential_type, init_potential, &
        read_potential, set_default_all_potential, set_potential, &
        write_potential
-  USE input_constants,                 ONLY: do_fist,&
-                                             do_kg,&
-                                             do_method_am1,&
-                                             do_method_dftb,&
-                                             do_method_mndo,&
-                                             do_method_pdg,&
-                                             do_method_pm3,&
-                                             do_qs
+  USE f77_blas
+  USE input_constants,                 ONLY: &
+       do_fist, do_kg, do_method_am1, do_method_dftb, do_method_mndo, &
+       do_method_pdg, do_method_pm3, do_method_rm1, do_qs
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -87,7 +83,6 @@ MODULE atomic_kind_types
   USE soft_basis_set,                  ONLY: create_soft_basis
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_program
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -1599,7 +1594,7 @@ CONTAINS
        CALL section_vals_val_get(force_env_section,"DFT%QS%METHOD",i_val=qs_method,&
             error=error)
        SELECT CASE (qs_method)
-       CASE (do_method_mndo,do_method_am1,do_method_pm3,do_method_pdg)
+       CASE (do_method_mndo,do_method_am1,do_method_pm3,do_method_pdg,do_method_rm1)
           no_fail = .TRUE.
        CASE (do_method_dftb)
           no_fail = .TRUE.
@@ -1679,7 +1674,7 @@ CONTAINS
        IF (.NOT.defined) THEN
           ! set default parameters
           CALL se_param_set_default(se_parameter,z,&
-               dft_control%qs_control%method)
+               dft_control%qs_control%method_id)
        END IF
        CALL write_se_param(se_parameter,subsys_section,error)
        CALL init_se_param(atomic_kind%se_parameter,&

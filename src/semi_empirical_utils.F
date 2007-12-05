@@ -19,7 +19,6 @@
 !******************************************************************************
 
 MODULE semi_empirical_utils
-
   USE basis_set_types,                 ONLY: allocate_sto_basis_set,&
                                              create_gto_from_sto_basis,&
                                              deallocate_sto_basis_set,&
@@ -29,6 +28,13 @@ MODULE semi_empirical_utils
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
+  USE f77_blas
+  USE input_constants,                 ONLY: do_method_am1,&
+                                             do_method_mndo,&
+                                             do_method_pchg,&
+                                             do_method_pdg,&
+                                             do_method_pm3,&
+                                             do_method_rm1
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -40,11 +46,11 @@ MODULE semi_empirical_utils
                                              mndo_default_parameter,&
                                              pcharge_default_parameter,&
                                              pdg_default_parameter,&
-                                             pm3_default_parameter
+                                             pm3_default_parameter,&
+                                             rm1_default_parameter
   USE semi_empirical_types,            ONLY: semi_empirical_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -94,7 +100,7 @@ CONTAINS
 
     se_parameter % defined = .FALSE.
     se_parameter % name = ""
-    se_parameter % typ = "NONE"
+    se_parameter % typ = HUGE(0)
     se_parameter % z = -1
     se_parameter % zeff = -1.0_dp
     se_parameter % natorb = 0
@@ -172,7 +178,8 @@ CONTAINS
 
     TYPE(semi_empirical_type), POINTER       :: se_parameter
     CHARACTER(LEN=default_string_length), &
-      INTENT(OUT), OPTIONAL                  :: name, typ
+      INTENT(OUT), OPTIONAL                  :: name
+    INTEGER, INTENT(OUT), OPTIONAL           :: typ
     LOGICAL, INTENT(OUT), OPTIONAL           :: defined
     INTEGER, INTENT(OUT), OPTIONAL           :: z
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: zeff
@@ -321,7 +328,8 @@ CONTAINS
 
     TYPE(semi_empirical_type), POINTER       :: se_parameter
     CHARACTER(LEN=default_string_length), &
-      INTENT(IN), OPTIONAL                   :: name, typ
+      INTENT(IN), OPTIONAL                   :: name
+    INTEGER, INTENT(IN), OPTIONAL            :: typ
     LOGICAL, INTENT(IN), OPTIONAL            :: defined
     INTEGER, INTENT(IN), OPTIONAL            :: z
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: zeff
@@ -387,9 +395,9 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'write_se_param'
 
-    CHARACTER(LEN=default_string_length)     :: name, typ
+    CHARACTER(LEN=default_string_length)     :: name
     INTEGER                                  :: l, lm, natorb, ngauss, &
-                                                output_unit, z
+                                                output_unit, typ, z
     LOGICAL                                  :: defined
     REAL(KIND=dp)                            :: alp, eheat, eisol, gp2, gpp, &
                                                 gsp, gss, hsp, udd, uff, upp, &
@@ -426,11 +434,16 @@ CONTAINS
 
           SELECT CASE (typ)
           CASE DEFAULT
-             CALL stop_program(routineN,moduleN,__LINE__,&
-                  "Typ unknown: "//typ)
-          CASE ('AM1')
-             WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
-                  " Semi empirical parameters: ","Austin Model 1 (AM1)",TRIM(name)
+             CALL stop_program(routineN,moduleN,__LINE__,"Semiempirical method unknown")
+          CASE (do_method_am1,do_method_rm1)
+             SELECT CASE (typ)
+             CASE(do_method_am1)
+                WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
+                     " Semi empirical parameters: ","Austin Model 1 (AM1)",TRIM(name)
+             CASE(do_method_rm1)
+                WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
+                     " Semi empirical parameters: ","Recife Model 1 (RM1)",TRIM(name)
+             END SELECT
              IF ( defined ) THEN
                 WRITE (UNIT=output_unit,FMT="(T16,A,T71,F10.2)")&
                      "Effective core charge:",zeff
@@ -459,7 +472,7 @@ CONTAINS
                 WRITE (UNIT=output_unit,FMT="(T55,A)")&
                      "Parameters are not defined"
              END IF
-          CASE ('PM3')
+          CASE (do_method_pm3)
              WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
                   " Semi empirical parameters: ","Parametric Method 3 (PM3) ",&
                   TRIM(name)
@@ -491,7 +504,7 @@ CONTAINS
                 WRITE (UNIT=output_unit,FMT="(T55,A)")&
                      "Parameters are not defined"
              END IF
-          CASE ('PDG')
+          CASE (do_method_pdg)
              WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
                   " Semi empirical parameters: ","PDDG/PM3 ",&
                   TRIM(name)
@@ -526,7 +539,7 @@ CONTAINS
                 WRITE (UNIT=output_unit,FMT="(T55,A)")&
                      "Parameters are not defined"
              END IF
-          CASE ('MNDO')
+          CASE (do_method_mndo)
              WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
                   " Semi empirical parameters: ","MNDO ",TRIM(name)
              IF ( defined ) THEN
@@ -570,8 +583,7 @@ CONTAINS
   SUBROUTINE se_param_set_default(se_parameter,z,method)
 
     TYPE(semi_empirical_type), POINTER       :: se_parameter
-    INTEGER, INTENT(IN)                      :: z
-    CHARACTER(LEN=*)                         :: method
+    INTEGER, INTENT(IN)                      :: z, method
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'se_param_set_default'
 
@@ -583,19 +595,20 @@ CONTAINS
                "Atomic number < 0")
        END IF
        SELECT CASE (method)
-       CASE ("AM1")
+       CASE (do_method_am1)
           CALL am1_default_parameter(se_parameter,z)
-       CASE ("PM3")
+       CASE (do_method_rm1)
+          CALL rm1_default_parameter(se_parameter,z)
+       CASE (do_method_pm3)
           CALL pm3_default_parameter(se_parameter,z)
-       CASE ("PDG")
+       CASE (do_method_pdg)
           CALL pdg_default_parameter(se_parameter,z)
-       CASE ("MNDO")
+       CASE (do_method_mndo)
           CALL mndo_default_parameter(se_parameter,z)
-       CASE ("POINT_CHARGE")
+       CASE (do_method_pchg)
           CALL pcharge_default_parameter(se_parameter,z)
        CASE DEFAULT
-          CALL stop_program(routineN,moduleN,__LINE__,&
-               "Invalid method:"//method)
+          CALL stop_program(routineN,moduleN,__LINE__,"Semiempirical method unknown")
        END SELECT
     ELSE
 
@@ -610,22 +623,14 @@ CONTAINS
 
   FUNCTION get_se_type(se_method) RESULT(se_type)
 
-    CHARACTER(LEN=*)                         :: se_method
+    INTEGER, INTENT(IN)                      :: se_method
     INTEGER                                  :: se_type
 
     SELECT CASE (se_method)
-       CASE DEFAULT
-         se_type=-1
-       CASE ("AM1")
-         se_type=2
-       CASE ("PM3")
-         se_type=3
-       CASE ("PDG")
-         se_type=4
-       CASE ("MNDO")
-         se_type=1
-       CASE ("POINT_CHARGE")
-         se_type=0
+    CASE DEFAULT
+       se_type=se_method
+    CASE (do_method_am1,do_method_rm1)
+       se_type=do_method_am1
     END SELECT
 
   END FUNCTION get_se_type

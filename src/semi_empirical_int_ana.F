@@ -23,12 +23,16 @@
 
 MODULE semi_empirical_int_ana
 
+  USE f77_blas
+  USE input_constants,                 ONLY: do_method_am1,&
+                                             do_method_pchg,&
+                                             do_method_pdg,&
+                                             do_method_pm3
   USE kinds,                           ONLY: dp
   USE semi_empirical_integrals,        ONLY: &
        al, drotint, drotnuc, nucint, r0, rotint, rotnuc, taper, &
        taper_fn_init, terep
   USE semi_empirical_types,            ONLY: semi_empirical_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -64,10 +68,6 @@ CONTAINS
 !!     on input  sepi   = Atomic parameters of first atom
 !!               sepj   = Atomic parameters of second atom
 !!               rijv   = Coordinate vector i -> j 
-!!               itype  = 1  (MNDO)
-!!                      = 2  (AM1)
-!!                      = 3  (PM3)
-!!                      = 4  (PDG)
 !!   
 !!   on output e1b,e2a= Array of electron-nuclear attraction integrals,
 !!                      e1b = Electron on atom ni attracting nucleus of nj.
@@ -362,8 +362,8 @@ CONTAINS
           END IF
           scale=ABS(scale*enuc_loc)
           zz=zz/rij
-          IF(itype == 2 .OR. itype == 3 .OR. itype == 4) THEN
-             IF(itype == 2 .AND. sepi%z == 5) THEN
+          IF(itype == do_method_am1 .OR. itype == do_method_pm3 .OR. itype == do_method_pdg) THEN
+             IF(itype == do_method_am1 .AND. sepi%z == 5) THEN
                 !special case AM1 Boron
                 SELECT CASE (sepj%z)
                 CASE DEFAULT
@@ -383,7 +383,7 @@ CONTAINS
                 fni2(:) = sepi%fn2(:)
                 fni3(:) = sepi%fn3(:)
              END IF
-             IF(itype == 2 .AND. sepj%z == 5) THEN
+             IF(itype == do_method_am1 .AND. sepj%z == 5) THEN
                 !special case AM1 Boron
                 SELECT CASE (sepi%z)
                 CASE DEFAULT
@@ -427,7 +427,7 @@ CONTAINS
                 ENDIF
              END DO
           ENDIF
-          IF(itype == 4) THEN
+          IF(itype == do_method_pdg) THEN
              ! PDDG function 
              zaf=sepi%zeff/nt
              zbf=sepj%zeff/nt
@@ -450,7 +450,7 @@ CONTAINS
                          (zaf*pbi+zbf*paj)*EXP(-apdg*(rij-dbi-daj)**2)*(-2.0_dp*apdg*(rij-dbi-daj))+ &
                          (zaf*pbi+zbf*pbj)*EXP(-apdg*(rij-dbi-dbj)**2)*(-2.0_dp*apdg*(rij-dbi-dbj))
              END IF
-          ELSEIF (itype==0) THEN
+          ELSEIF (itype==do_method_pchg) THEN
              qcorr = 0.0_dp
              scale = 0.0_dp
              dscale= 0.0_dp
@@ -793,7 +793,7 @@ CONTAINS
        ami = sepi%am
        amj = sepj%am
        aee = 0.0_dp
-       IF (itype/=0) THEN
+       IF (itype/=do_method_pchg) THEN
           aee = 0.5_dp/ami + 0.5_dp/amj
           aee = aee * aee
        END IF
@@ -819,7 +819,7 @@ CONTAINS
        aee = 0.0_dp
        ade = 0.0_dp
        aqe = 0.0_dp
-       IF (itype /=0) THEN
+       IF (itype /=do_method_pchg) THEN
           aee = 0.5_dp/ami + 0.5_dp/amj
           ade = 0.5_dp/adi + 0.5_dp/amj
           aqe = 0.5_dp/aqi + 0.5_dp/amj
@@ -885,7 +885,7 @@ CONTAINS
        aee = 0.0_dp
        aed = 0.0_dp
        aeq = 0.0_dp
-       IF (itype /=0) THEN
+       IF (itype /=do_method_pchg) THEN
           aee = 0.5_dp/ami + 0.5_dp/amj
           aed = 0.5_dp/ami + 0.5_dp/adj
           aeq = 0.5_dp/ami + 0.5_dp/aqj
@@ -958,7 +958,7 @@ CONTAINS
        aqe = 0.0_dp
        aed = 0.0_dp
        aeq = 0.0_dp
-       IF (itype /=0) THEN
+       IF (itype /=do_method_pchg) THEN
           aee = 0.5_dp/ami + 0.5_dp/amj
           ade = 0.5_dp/adi + 0.5_dp/amj
           aqe = 0.5_dp/aqi + 0.5_dp/amj
@@ -1268,7 +1268,7 @@ CONTAINS
     ! Tapering function
     ft = 1.0_dp
     dft= 0.0_dp
-    IF (itype/=0) THEN
+    IF (itype/=do_method_pchg) THEN
        ft = taper ( rij )
        dft= dtaper_ana ( rij )
     END IF

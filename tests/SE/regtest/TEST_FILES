@@ -22,3 +22,5 @@ h2o_lsd-ot.inp 3
 O-ROKS.inp 3
 O2-ROKS.inp 3
 NO2-ROKS.inp 3
+#RM1 Model
+c2h4_rm1.inp 3
