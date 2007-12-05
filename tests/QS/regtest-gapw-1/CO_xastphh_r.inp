@@ -66,7 +66,7 @@
     &END POISSON
 
     &XAS 
-      CONVERGENCE 0.000001
+      CONVERGENCE 0.01
       EPS_DIIS   0.4
       METHOD        TP_HH
       DIPOLE_FORM   VELOCITY
@@ -78,6 +78,7 @@
       ADDED_MOS     20
       LOCALIZE_WFN
       EMISSION
+      RESTART
       &PRINT
          &PROGRAM_RUN_INFO
          &END 

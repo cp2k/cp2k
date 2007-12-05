@@ -70,15 +70,18 @@
       METHOD        TP_VAL
       DIPOLE_FORM   VELOCITY
       MAXSTEP       3
-      EACH_STEP     1
       STATE_TYPE    1s
       STATE_SEARCH  2
-      FNAME         CO_val_631Gsblyp
       ATOMS_LIST    1
       ATOMS_LIST    2
       ADDED_MOS     20
       LOCALIZE_WFN
       EMISSION
+      &PRINT
+        &RESTART
+          EACH 1
+        &END
+      &END
     &END
 ##    &PRINT
 ##      &MO

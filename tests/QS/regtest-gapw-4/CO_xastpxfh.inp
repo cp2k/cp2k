@@ -34,14 +34,14 @@
       ALPHA0_S     10
      &END
     &MGRID
-      CUTOFF       50
+      CUTOFF       80
       NGRIDS        1
     &END
     &SCF
       SCF_GUESS RESTART
       EPS_SCF 5.E-7
       EPS_DIIS 0.4
-      MAX_SCF 1
+      MAX_SCF 10
       MIXING 0.4
       ADDED_MOS  1 1
       &OT OFF
@@ -65,20 +65,24 @@
     &END POISSON
 
     &XAS 
-      CONVERGENCE 0.000001
+      CONVERGENCE 0.05
       EPS_DIIS   0.4
       METHOD        TP_XFH
       DIPOLE_FORM   VELOCITY
-      MAXSTEP       3
-      EACH_STEP     1
+      MAXSTEP       20
       STATE_TYPE    1s
       STATE_SEARCH  2
-      FNAME         CO_xfh_631Gsblyp
       ATOMS_LIST    1
       ATOMS_LIST    2
       ADDED_MOS     20
       LOCALIZE_WFN
       EMISSION
+      &PRINT
+         &CLS_FUNCTION_CUBES
+           STRIDE 2 
+         &END
+
+      &END 
     &END
 ##    &PRINT
 ##      &MO

@@ -70,10 +70,8 @@
       METHOD        TP_HH
       DIPOLE_FORM   VELOCITY
       MAXSTEP       20
-      EACH_STEP     1
       STATE_TYPE    1s
       STATE_SEARCH  7
-      FNAME         CO_hh_igloiii
       ATOMS_LIST    1
       ATOMS_LIST    2
       ADDED_MOS     0

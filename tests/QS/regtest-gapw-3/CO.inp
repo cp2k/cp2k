@@ -41,7 +41,7 @@
       SCF_GUESS ATOMIC
       EPS_SCF 5.E-7
       EPS_DIIS 0.4
-      MAX_SCF 3
+      MAX_SCF 10
       MIXING 0.4
       ADDED_MOS  1 1
       &OT OFF
@@ -70,10 +70,8 @@
       METHOD        TP_HH
       DIPOLE_FORM   VELOCITY
       MAXSTEP       20
-      EACH_STEP     1
       STATE_TYPE    1s
       STATE_SEARCH  7
-      FNAME         CO_hh_igloiii
       ATOMS_LIST    1
       ATOMS_LIST    2
       ADDED_MOS     0
