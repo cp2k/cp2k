@@ -126,6 +126,11 @@ MODULE libint_interface
 #endif
 #endif
 
+#if defined (__PGI)
+    ALLOCATE(p_work(mysize))
+#endif
+
+
     IF(m_max/=0) THEN
       perm_case = 1
       IF(n_a<n_b) THEN
@@ -405,6 +410,10 @@ MODULE libint_interface
 #else
     DEALLOCATE(p_work)
 #endif
+#endif
+
+#if defined (__PGI)
+    DEALLOCATE(p_work)
 #endif
 
   END SUBROUTINE evaluate_eri
@@ -1075,6 +1084,10 @@ MODULE libint_interface
     ALLOCATE(p_work(mysize))
 #endif
 #endif
+
+#if defined (__PGI)
+    ALLOCATE(p_work(mysize))
+#endif
     
     IF(m_max/=0) THEN
       perm_case = 1
@@ -1179,6 +1192,11 @@ MODULE libint_interface
     DEALLOCATE(p_work)
 #endif
 #endif
+
+#if defined (__PGI)
+    DEALLOCATE(p_work)
+#endif
+
 
   END SUBROUTINE evaluate_eri_screen
 !***************************************************************************

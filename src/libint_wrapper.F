@@ -41,7 +41,6 @@ MODULE libint_wrapper
   USE mathconstants
   USE orbital_pointers
 
-
   USE f77_blas
 #include "cp_common_uses.h"
  
@@ -900,6 +899,163 @@ MODULE libint_wrapper
 
   END SUBROUTINE get_derivs
 !***************************************************************************
+
+#elif defined (__PGI)
+  TYPE prim_data
+    REAL(dp)        :: F(prim_data_f_size)
+    REAL(dp)        :: U(3,6)
+    REAL(dp)        :: twozeta_a
+    REAL(dp)        :: twozeta_b
+    REAL(dp)        :: twozeta_c
+    REAL(dp)        :: twozeta_d
+    REAL(dp)        :: oo2z
+    REAL(dp)        :: oo2n
+    REAL(dp)        :: oo2zn
+    REAL(dp)        :: poz
+    REAL(dp)        :: pon
+    REAL(dp)        :: oo2p
+    REAL(dp)        :: ss_r12_ss
+  END TYPE prim_data
+        
+  TYPE lib_int
+    INTEGER(int_8)  :: int_stack
+    INTEGER(int_8)  :: PrimQuartet
+    REAL(dp)        :: AB(3)
+    REAL(dp)        :: CD(3)
+    INTEGER(int_8)  :: vrr_classes(lib_int_vrr_classes_size,lib_int_vrr_classes_size)
+    INTEGER(int_8)  :: vrr_stack
+  END TYPE lib_int
+
+  TYPE lib_deriv
+    INTEGER(int_8)  :: int_stack
+    INTEGER(int_8)  :: PrimQuartet
+    INTEGER(int_8)  :: zero_stack
+    REAL(dp)        :: ABCD(156)
+    REAL(dp)        :: AB(3)
+    REAL(dp)        :: CD(3)
+    INTEGER(int_8)  :: deriv_classes(12,7,7)
+    INTEGER(int_8)  :: deriv2_classes(144,7,7)
+    INTEGER(int_8)  :: dvrr_classes(7,7)
+    INTEGER(int_8)  :: dvtt_stack
+  END TYPE lib_deriv
+!***
+!****************************************************************************
+  
+  CONTAINS
+  
+  SUBROUTINE initialize_libint(lib,max_am,error)
+    TYPE(lib_int)                            :: lib
+    INTEGER                                  :: max_am
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    LOGICAL                                  :: failure
+    INTEGER                                  :: max_am_local
+    INTEGER                                  :: max_prim
+    INTEGER                                  :: lib_storage
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_libint', &
+      routineP = moduleN//':'//routineN
+
+    EXTERNAL wrapper_init_lib
+  
+    failure = .FALSE.
+    max_am_local= max_am
+    max_prim = 1
+    CALL wrapper_init_lib(lib, max_am_local, max_prim, lib_storage)
+    IF (lib_storage<0) THEN
+        CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
+                        " the angular momentum needed exceeds the value assumed when configuring libint ", &
+                        error,failure)
+    ENDIF
+
+  END SUBROUTINE initialize_libint
+!***************************************************************************
+
+  SUBROUTINE initialize_libderiv(deriv,max_am,error)
+    TYPE(lib_deriv)                          :: deriv
+    INTEGER                                  :: max_am
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_libderiv', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                          :: failure
+    INTEGER                          :: max_am_local
+    INTEGER                          :: lib_deriv_storage
+    INTEGER                          :: max_prim
+    INTEGER                          :: max_classes
+    
+    EXTERNAL wrapper_init_deriv
+
+    failure = .FALSE.
+    max_am_local= max_am
+    max_prim = 1
+    max_classes = 10000!max_am**4
+
+    CALL wrapper_init_deriv(deriv, max_am_local, max_prim, max_classes, lib_deriv_storage)
+
+    IF (lib_deriv_storage<0) THEN
+        CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
+                        " the angular momentum needed exceeds the value assumed when configuring libderiv ", &
+                        error,failure)
+    ENDIF
+  END SUBROUTINE initialize_libderiv
+!***************************************************************************
+
+  SUBROUTINE terminate_libint(lib)
+    TYPE(lib_int)                    :: lib
+
+    EXTERNAL wrapper_free_libint
+
+    CALL wrapper_free_libint(lib)
+  END SUBROUTINE terminate_libint
+!***************************************************************************
+
+  SUBROUTINE terminate_libderiv(deriv)
+    TYPE(lib_deriv)                  :: deriv
+
+    EXTERNAL wrapper_free_libderiv
+
+    CALL wrapper_free_libderiv(deriv)
+  END SUBROUTINE terminate_libderiv
+!***************************************************************************
+
+  SUBROUTINE get_eris(n_d, n_c, n_b, n_a, lib, prim, p_work, a_mysize)
+    INTEGER , INTENT(IN)                    :: n_d, n_c, n_b, n_a
+    TYPE(lib_int)                           :: lib
+    TYPE(prim_data), TARGET                 :: prim
+    REAL(dp), DIMENSION(:), POINTER         :: p_work
+    INTEGER                                 :: a_mysize(1)
+
+#if defined (__UGLY_BUT_FAST)   
+    REAL(dp), TARGET                        :: tmp(*)
+    POINTER(pointer,tmp)
+    EXTERNAL wrapper_build_eri_cray
+
+    CALL wrapper_build_eri_cray(n_a, n_b, n_c, n_d, lib, prim, pointer)
+    p_work => tmp(1:a_mysize(1))
+#else
+    EXTERNAL wrapper_build_eri
+    CALL wrapper_build_eri(n_a, n_b, n_c, n_d, lib, a_mysize(1), p_work(1), prim)
+#endif
+    
+  END SUBROUTINE get_eris
+!***************************************************************************
+
+  SUBROUTINE get_derivs(n_d, n_c, n_b, n_a, deriv, prim, work_forces, a_mysize)
+    INTEGER , INTENT(IN)                    :: n_d, n_c, n_b, n_a
+    TYPE(lib_deriv)                         :: deriv
+    TYPE(prim_data), TARGET                 :: prim
+    REAL(dp), DIMENSION(nco(n_a)*nco(n_b)*nco(n_c)*nco(n_d),12) :: work_forces
+    INTEGER                                 :: a_mysize(1)
+
+    EXTERNAL wrapper_build_deriv1_eri
+    
+    CALL wrapper_build_deriv1_eri(n_a, n_b, n_c, n_d, deriv, a_mysize(1), work_forces(1,1),prim)
+
+  END SUBROUTINE get_derivs
+!***************************************************************************
+
+
 !COMPILERS
 #endif 
 
