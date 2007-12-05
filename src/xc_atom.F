@@ -54,7 +54,7 @@ CONTAINS
 !******************************************************************************
 
   SUBROUTINE vxc_of_r_new(xc_fun_section,rho_set,deriv_set,deriv_order,needs,w,&
-                          lsd,na,nr,exc,vxc,vxg,energy_only,error)
+                          lsd,na,nr,exc,vxc,vxg,energy_only,epr_xc,error)
 
 ! This routine updates rho_set by giving to it the rho and drho that are needed.
 ! Since for the local densities rho1_h and rho1_s local grids are used it is not possible
@@ -78,14 +78,16 @@ CONTAINS
     REAL(dp), DIMENSION(:, :, :), POINTER    :: vxc
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: vxg
     LOGICAL, INTENT(IN), OPTIONAL            :: energy_only
+    LOGICAL, INTENT(IN), OPTIONAL            :: epr_xc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'vxc_of_r_new', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ia, idir, ir
+    INTEGER                                  :: handle, i, ia, idir, ir, &
+                                                my_deriv_order
     LOGICAL                                  :: failure, gradient_f, &
-                                                my_only_energy
+                                                my_epr_xc, my_only_energy
     REAL(dp), DIMENSION(:, :, :), POINTER    :: deriv_data
     REAL(KIND=dp)                            :: drho_cutoff
     TYPE(xc_derivative_type), POINTER        :: deriv_att
@@ -97,6 +99,12 @@ CONTAINS
     my_only_energy = .FALSE.
     IF(PRESENT(energy_only)) my_only_energy=energy_only
 
+    ! needed for the epr routines
+    my_epr_xc = .FALSE.
+    IF(PRESENT(epr_xc)) my_epr_xc = epr_xc
+    my_deriv_order = deriv_order
+    IF(my_epr_xc) my_deriv_order = 2
+
     gradient_f=(needs%drho_spin.OR.needs%norm_drho_spin.OR.&
                 needs%drhoa_drhob.OR.needs%drho.OR.needs%norm_drho)
 
@@ -105,12 +113,45 @@ CONTAINS
          lsd=lsd,&
          rho_set=rho_set, &
          deriv_set=deriv_set,&
-         deriv_order=deriv_order, &
+         deriv_order=my_deriv_order, &
          error=error)
 
     CALL xc_rho_set_get(rho_set, drho_cutoff=drho_cutoff, error=error)
 
    NULLIFY (deriv_data)
+
+   IF (my_epr_xc) THEN
+      ! nabla v_xc (using the vxg arrays)
+      ! there's no point doing this when lsd = false
+      IF(lsd) THEN
+         deriv_att => xc_dset_get_derivative(deriv_set, "(rhoa)(rhoa)",error=error)
+         IF (ASSOCIATED(deriv_att)) THEN
+            CALL xc_derivative_get(deriv_att,deriv_data=deriv_data, error=error)
+            DO ir = 1,nr
+               DO ia = 1,na
+                  DO idir = 1,3
+                     vxg(idir,ia,ir,1) = rho_set%drhoa(idir)%array(ia,ir,1) * &
+                                         deriv_data(ia,ir,1)
+                  END DO !idir
+               END DO !ia
+            END DO !ir
+            NULLIFY(deriv_data)
+         END IF
+         deriv_att => xc_dset_get_derivative(deriv_set, "(rhob)(rhob)",error=error)
+         IF (ASSOCIATED(deriv_att)) THEN
+            CALL xc_derivative_get(deriv_att,deriv_data=deriv_data, error=error)
+            DO ir = 1,nr
+               DO ia = 1,na
+                  DO idir = 1,3
+                     vxg(idir,ia,ir,2) = rho_set%drhob(idir)%array(ia,ir,1) * &
+                                         deriv_data(ia,ir,1)
+                  END DO !idir
+               END DO !ia
+            END DO !ir
+            NULLIFY(deriv_data)
+         END IF
+      END IF
+   ELSE
 !  EXC energy
    deriv_att => xc_dset_get_derivative(deriv_set,"", error=error)
    IF (ASSOCIATED(deriv_att)) THEN
@@ -232,6 +273,7 @@ CONTAINS
       END IF
    END IF  ! lsd
    END IF  ! only_energy
+   END IF  ! epr_xc
 
    CALL timestop(0.0_dp,handle)
 

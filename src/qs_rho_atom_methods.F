@@ -26,7 +26,7 @@ MODULE qs_rho_atom_methods
                                              gapw_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE erf_fn,                          ONLY: erf
-  USE input_constants,                 ONLY: lr_chemshift, lr_gtensor !R
+  USE input_constants,                 ONLY: lr_chemshift, lr_gtensor
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
@@ -850,7 +850,7 @@ MODULE qs_rho_atom_methods
     !do_dxyz_asym = .FALSE.
     !IF(ASSOCIATED(linres_control)) THEN
     !  IF(linres_control%property==lr_chemshift) do_dxyz_asym=.TRUE.
-    !  IF(linres_control%property==lr_gtensor) do_dxyz_asym=.TRUE. !R
+    !  IF(linres_control%property==lr_gtensor) do_dxyz_asym=.TRUE.
     !END IF
     ALLOCATE(rga(lcleb,2),STAT=istat)
     DO lc1 = 0,maxlgto

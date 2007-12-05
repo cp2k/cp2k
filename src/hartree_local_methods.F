@@ -77,7 +77,7 @@ MODULE  hartree_local_methods
 
 ! Public Subroutine
 
-  PUBLIC :: init_coulomb_local, Vh_1c_gg_integrals
+  PUBLIC :: init_coulomb_local, calculate_Vh_1center, Vh_1c_gg_integrals
 
 !******************************************************************************
 
@@ -194,7 +194,7 @@ MODULE  hartree_local_methods
     rho_2 = 0.0_dp
 
 !   Case lm = 0
-!    rho_1(:,1) = rrad_z(:)
+    rho_1(:,1) = rrad_z(:)
     rho_2(:,1) = rrad_0(:,1)
 
     DO iso = 2,nchannels

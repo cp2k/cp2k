@@ -46,6 +46,7 @@ MODULE qs_vxc_atom
                                              qs_environment_type
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: harmonics_atom_type
+  USE qs_linres_types,                 ONLY: nablavks_atom_type
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                              rho_atom_coeff,&
@@ -86,22 +87,24 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_vxc_atom(qs_env,energy_only,error)
+  SUBROUTINE calculate_vxc_atom(qs_env,energy_only,error,gradient_atom_set)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: energy_only
     TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(nablavks_atom_type), DIMENSION(:), &
+      INTENT(inout), OPTIONAL, POINTER       :: gradient_atom_set
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_vxc_atom', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: bo(2), handle, i, iat, iatom, &
-                                                ikind, ir, istat, mepos, &
-                                                myfun, na, natom, nkind, nr, &
-                                                nspins, num_pe
+    INTEGER                                  :: bo(2), handle, i, ia, iat, iatom, &
+                                                idir, ikind, ir, ispin, istat, &
+                                                mepos, myfun, na, natom, &
+                                                nkind, nr, nspins, num_pe
     INTEGER, DIMENSION(2, 3)                 :: bounds
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: gradient_f, lsd, paw_atom
+    LOGICAL                                  :: epr_xc, gradient_f, lsd, paw_atom
     REAL(dp)                                 :: density_cut, exc_h, exc_s, &
                                                 gradient_cut, tau_cut
     REAL(dp), DIMENSION(:, :), POINTER       :: rho_h, rho_s, weight
@@ -146,6 +149,11 @@ CONTAINS
     NULLIFY (rho_set_h)
     NULLIFY (rho_set_s)
 
+    epr_xc = .FALSE.
+    IF(PRESENT(gradient_atom_set)) THEN
+       epr_xc = .TRUE.
+    END IF
+
     CALL get_qs_env(qs_env=qs_env,&
                     dft_control=dft_control,&
                     para_env=para_env,&
@@ -154,7 +162,12 @@ CONTAINS
                     input=input,&
                     rho_atom_set=rho_atom_set,error=error)
 
-    xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+    IF(epr_xc) THEN
+       xc_section => section_vals_get_subs_vals(input,&
+                     "PROPERTIES%LINRES%EPR%PRINT%G_TENSOR%XC",error=error)
+    ELSE
+       xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+    END IF
     xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",&
          error=error)
     CALL section_vals_val_get(xc_fun_section,"_SECTION_PARAMETERS_",&
@@ -178,6 +191,9 @@ CONTAINS
                                        lsd=lsd,&
                                        add_basic_components=.TRUE.,&
                                        error=error)
+
+      ! whatever the xc, if epr_xc, drho_spin is needed
+      IF(epr_xc) needs%drho_spin = .TRUE.
 
       gradient_f = (needs%drho.OR.needs%drho_spin)
 
@@ -282,7 +298,8 @@ CONTAINS
           !-------------------!
           CALL xc_dset_zero_all(deriv_set, error)
           CALL vxc_of_r_new(xc_fun_section, rho_set_h, deriv_set, 1, needs, weight, &
-                            lsd, na, nr, exc_h, vxc_h, vxg_h,energy_only=energy_only, error=error)
+                            lsd, na, nr, exc_h, vxc_h, vxg_h,energy_only=energy_only, &
+                            epr_xc=epr_xc, error=error)
           rho_atom%exc_h = rho_atom%exc_h + exc_h
 
           !-------------------!
@@ -290,8 +307,26 @@ CONTAINS
           !-------------------!
           CALL xc_dset_zero_all(deriv_set, error)
           CALL vxc_of_r_new(xc_fun_section, rho_set_s, deriv_set, 1, needs, weight, &
-                            lsd, na, nr, exc_s, vxc_s, vxg_s, energy_only=energy_only, error=error)
+                            lsd, na, nr, exc_s, vxc_s, vxg_s, energy_only=energy_only, &
+                            epr_xc=epr_xc, error=error)
           rho_atom%exc_s = rho_atom%exc_s + exc_s
+
+          IF (epr_xc) THEN
+             DO ispin = 1,nspins
+                DO idir = 1,3
+                   DO ir = 1,nr
+                      DO ia = 1,na
+                         gradient_atom_set(iatom)%nablavks_vec_rad_h(idir,ispin)%r_coef(ir,ia) = &
+                            gradient_atom_set(iatom)%nablavks_vec_rad_h(idir,ispin)%r_coef(ir,ia) &
+                            + vxg_h(idir,ia,ir,ispin)
+                         gradient_atom_set(iatom)%nablavks_vec_rad_s(idir,ispin)%r_coef(ir,ia) = &
+                            gradient_atom_set(iatom)%nablavks_vec_rad_s(idir,ispin)%r_coef(ir,ia) &
+                            + vxg_s(idir,ia,ir,ispin)
+                      END DO ! ia
+                   END DO ! ir
+                END DO ! idir
+             END DO ! ispin
+          END IF
 
           ! Add contributions to the exc energy
   

@@ -1957,12 +1957,13 @@ END SUBROUTINE qs_ks_did_change
 !!
 !!*** *********************************************************************
 SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
-     just_energy, harris, nsc_force, gapw_xc, error)
+     just_energy, harris, nsc_force, gapw_xc, epr_xc, error)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
     REAL(KIND=dp)                            :: exc
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(in), OPTIONAL            :: just_energy, harris, &
-                                                nsc_force, gapw_xc
+                                                nsc_force, gapw_xc, &
+                                                epr_xc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_vxc_create', &
@@ -1971,8 +1972,9 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
     INTEGER                                  :: handle, ispin, myfun, &
                                                 nelec_spin(2), stat
     LOGICAL                                  :: failure, harris_flag, &
-                                                my_gapw_xc, my_just_energy, &
-                                                nsc_flag, sic_scaling_b_zero, &
+                                                my_epr_xc,my_gapw_xc, &
+                                                my_just_energy, nsc_flag, &
+                                                sic_scaling_b_zero, &
                                                 uf_grid
     REAL(KIND=dp)                            :: exc_m, my_scaling, nelec_s_inv
     TYPE(cell_type), POINTER                 :: cell
@@ -2005,6 +2007,8 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
   IF (PRESENT(just_energy)) my_just_energy=just_energy
   my_gapw_xc=.FALSE.
   IF(PRESENT(gapw_xc)) my_gapw_xc=gapw_xc
+  my_epr_xc=.FALSE.
+  IF(PRESENT(epr_xc)) my_epr_xc=epr_xc
   IF (PRESENT(harris)) THEN
      harris_flag = harris
   ELSE
@@ -2018,7 +2022,12 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
 
   CALL get_qs_env(qs_env=qs_env, dft_control=dft_control,input=input, &
        pw_env=pw_env, cell=cell,virial=virial, error=error)
-  xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+  IF(my_epr_xc) THEN
+     xc_section => section_vals_get_subs_vals(input,&
+                   "PROPERTIES%LINRES%EPR%PRINT%G_TENSOR%XC",error=error)
+  ELSE
+     xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+  END IF
   CALL section_vals_val_get(xc_section,"XC_FUNCTIONAL%_SECTION_PARAMETERS_",&
        i_val=myfun,error=error)
   IF (myfun/=xc_none) THEN

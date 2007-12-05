@@ -10,12 +10,7 @@
 !!     qs_linres_epr_nablavks
 !!
 !!   FUNCTION
-!!     Calculates Nabla V_KS (local part) on the RS grids
-!!       PW grid: PSP G-space (F) and R-space (F, nearest-neighbour only)
-!!                AE: Ewald sum (NF)
-!!       Atomic grids: (NF)
-!!
-!!       (N)F: (Not) Functional
+!!     Calculates Nabla V_KS (local part if PSP) on the different grids
 !!
 !!   NOTE
 !!
@@ -41,12 +36,16 @@ MODULE qs_linres_epr_nablavks
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
-  USE erf_fn,                          ONLY: erf
+  USE erf_fn,                          ONLY: erf,&
+                                             erfc
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential,&
                                              gth_potential_type
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
+  USE hartree_local_methods,           ONLY: calculate_Vh_1center                                             
+  USE input_section_types,             ONLY: section_get_ival,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi,&
                                              rootpi,&
@@ -57,22 +56,33 @@ MODULE qs_linres_epr_nablavks
                                              pw_env_type
   USE pw_poisson_methods,              ONLY: pw_poisson_solve
   USE pw_poisson_types,                ONLY: pw_poisson_type
-  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                             pw_pool_give_back_pw,&
+  USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
+                                             pw_pool_create_pw,&
                                              pw_pool_type
+  USE qs_rho0_types,                   ONLY: rho0_atom_type
   USE pw_types,                        ONLY: &
        COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_axpy, &
        pw_copy, pw_derive, pw_p_type, pw_transfer, pw_type, pw_zero
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_gapw_densities,               ONLY: prepare_gapw_den
+  USE qs_grid_atom,                    ONLY: grid_atom_type
+  USE qs_harmonics_atom,               ONLY: harmonics_atom_type
   USE qs_ks_methods,                   ONLY: calc_rho_tot_gspace,&
                                              qs_vxc_create
   USE qs_linres_types,                 ONLY: epr_env_type,&
-                                             get_epr_env
+                                             get_epr_env,&
+                                             nablavks_atom_type ! R0
+  USE qs_local_rho_types,              ONLY: rhoz_type
+  USE qs_rho_atom_types,               ONLY: get_rho_atom,&
+                                             rho_atom_coeff,& ! R0
+                                             rho_atom_type
   USE qs_rho_types,                    ONLY: qs_rho_p_type,&
                                              qs_rho_type
+  USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
   USE realspace_grid_cube,             ONLY: pw_to_cube
   USE termination,                     ONLY: stop_memory
+  USE util,                            ONLY: get_limit
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -105,66 +115,96 @@ CONTAINS
 
   SUBROUTINE epr_nablavks(epr_env,qs_env,error)
 
-    TYPE(epr_env_type)                       :: epr_env
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(epr_env_type)                          :: epr_env
+    TYPE(qs_environment_type), POINTER          :: qs_env
+    TYPE(cp_error_type), INTENT(INOUT),&
+      OPTIONAL                                  :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_nablavks', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=80)                        :: ext, filename
-    COMPLEX(KIND=dp)                         :: gtemp
-    INTEGER :: iat, iatom, idir, iexp, ig, ikind, ispin, istat, ix, iy, iz, &
-      natom, nexp_ppl, nkind, nspins, output_unit, unit_nr
-    INTEGER, DIMENSION(2, 3)                 :: bo
-    INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: all_potential_present, gapw, &
-                                                gapw_xc, gth_gspace, &
-                                                gth_potential_present, ionode
-    REAL(KIND=dp)                            :: alpha, arg, charge, ehartree, &
-                                                exc, exp_rap, sqrt_alpha, &
-                                                sqrt_rap
-    REAL(KIND=dp), DIMENSION(3)              :: rap, ratom, roffset, rpoint
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: cexp_ppl
-    TYPE(all_potential_type), POINTER        :: all_potential
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(gth_potential_type), POINTER        :: gth_potential
-    TYPE(particle_list_type), POINTER        :: particles
+    CHARACTER(LEN=80)                           :: ext, filename
+    COMPLEX(KIND = dp)                          :: gtemp
+    INTEGER, DIMENSION(:), POINTER              :: atom_list
+    INTEGER :: bo_atom(2), cnt, iat, iatom, idir, iexp, ikind, ispin, istat,&
+               ia, ig, ir, iso, ix, iy, iz, natom, nexp_ppl, nkind, nspins,&
+               output_unit, unit_nr
+    INTEGER, DIMENSION(2,3)                     :: bo
+    LOGICAL                                     :: failure, ionode, gapw,&
+                                                   gapw_xc, gth_gspace,&
+                                                   make_soft, paw_atom
+    REAL(KIND = dp) :: alpha, alpha_core, arg, charge, ehartree, exc,&
+                       exp_rap, gapw_max_alpha, hard_value, mu, soft_value,&
+                       sqrt_alpha, sqrt_rap
+    REAL(KIND = dp), DIMENSION(3)               :: ratom, rpoint, roffset, rap
+    REAL(KIND = dp), DIMENSION(:), POINTER      :: cexp_ppl, rho_rad_z
+    REAL(KIND = dp), ALLOCATABLE,&
+       DIMENSION(:,:)                           :: vh1_rad_h,vh1_rad_s
+    REAL(KIND = dp), DIMENSION(:,:), POINTER    :: rho_rad_0
+
+    TYPE(all_potential_type), POINTER           :: all_potential
+    TYPE(atomic_kind_type), DIMENSION(:),&
+       POINTER                                  :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER             :: atomic_kind
+    TYPE(cell_type), POINTER                    :: cell
+    TYPE(cp_logger_type), POINTER               :: logger
+    TYPE(cp_para_env_type), POINTER             :: para_env
+    TYPE(cp_subsys_type), POINTER               :: subsys
+    TYPE(dft_control_type), POINTER             :: dft_control
+    TYPE(grid_atom_type), POINTER               :: grid_atom ! R0
+    TYPE(gth_potential_type), POINTER           :: gth_potential
+    TYPE(harmonics_atom_type), POINTER          :: harmonics
+    TYPE(nablavks_atom_type), DIMENSION(:), & ! R0
+       POINTER                                  :: nablavks_atom_set ! R0
+    TYPE(particle_list_type), POINTER           :: particles
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, v_tau_rspace
-    TYPE(pw_p_type), POINTER :: rho_tot_gspace, v_coulomb_gspace, &
-      v_coulomb_gtemp, v_coulomb_rtemp, v_hartree_gspace, v_hartree_gtemp, &
-      v_hartree_rtemp, v_xc_gtemp, v_xc_rtemp, wf_r
-    TYPE(pw_poisson_type), POINTER           :: poisson_env
-    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(pw_type), POINTER                   :: pwx, pwy, pwz
-    TYPE(qs_rho_p_type), DIMENSION(:, :), &
-      POINTER                                :: nablavks_set
-    TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(section_vals_type), POINTER         :: epr_section, lr_section
+       POINTER                                  :: particle_set
+    TYPE(pw_env_type), POINTER                  :: pw_env
+    TYPE(pw_p_type), DIMENSION(:), POINTER     :: v_rspace_new, v_tau_rspace
+    TYPE(pw_p_type), POINTER                   :: rho_tot_gspace, v_hartree_gspace,&
+       v_hartree_gtemp, v_hartree_rtemp, v_coulomb_gspace, v_coulomb_gtemp,&
+       v_coulomb_rtemp, v_xc_gtemp, v_xc_rtemp, wf_r
+    TYPE(pw_poisson_type), POINTER              :: poisson_env
+    TYPE(pw_pool_type), POINTER                 :: auxbas_pw_pool
+    TYPE(pw_type), POINTER                      :: pwx, pwy, pwz
+    TYPE(qs_rho_p_type),DIMENSION(:,:), &
+       POINTER                                  :: nablavks_set
+    TYPE(qs_rho_type), POINTER                  :: rho
+    TYPE(rho0_atom_type), DIMENSION(:), &
+       POINTER                                  :: rho0_atom_set
+    TYPE(rho_atom_coeff), DIMENSION(:), &
+       POINTER                                  :: rho_rad_h, rho_rad_s
+    TYPE(rho_atom_coeff), DIMENSION(:,:), & ! R0
+       POINTER                                  :: nablavks_vec_rad_h,& ! R0
+                                                   nablavks_vec_rad_s ! R0
+    TYPE(rho_atom_type), DIMENSION(:), &
+       POINTER                                  :: rho_atom_set
+    TYPE(rho_atom_type), POINTER                :: rho_atom
+    TYPE(rhoz_type), DIMENSION(:), POINTER      :: rhoz_set    
+    TYPE(section_vals_type), POINTER            :: g_section, lr_section
 
     NULLIFY(auxbas_pw_pool)
     NULLIFY(cell)
     NULLIFY(dft_control)
-    NULLIFY(epr_section)
+    NULLIFY(g_section)
     NULLIFY(logger)
     NULLIFY(lr_section)
     NULLIFY(nablavks_set)
+    NULLIFY(nablavks_atom_set) ! R0
+    NULLIFY(nablavks_vec_rad_h) ! R0
+    NULLIFY(nablavks_vec_rad_s) ! R0
     NULLIFY(para_env)
     NULLIFY(particle_set)
     NULLIFY(particles)
+    NULLIFY(poisson_env)
     NULLIFY(pw_env)
+    NULLIFY(pwx) ! R0
+    NULLIFY(pwy) ! R0
+    NULLIFY(pwz) ! R0
     NULLIFY(rho)
+    NULLIFY(rho0_atom_set)
+    NULLIFY(rho_atom_set)
+    NULLIFY(rhoz_set)
     NULLIFY(subsys)
     NULLIFY(v_rspace_new)
     NULLIFY(v_tau_rspace)
@@ -176,17 +216,38 @@ CONTAINS
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
          extension=".linresLog",error=error)
 
+    failure = .FALSE.
+
 !   -------------------------------------
-!   Set defaults
+!   Read settings
 !   -------------------------------------
 
-    gth_gspace = .FALSE.
+    g_section => section_vals_get_subs_vals(lr_section,&
+                 "EPR%PRINT%G_TENSOR",error=error)
+
+    CALL section_vals_val_get(g_section,"gapw_max_alpha",r_val=gapw_max_alpha, error=error)
+
+    gth_gspace = .TRUE.
 
 !   -------------------------------------
 !   Get nablavks arrays
 !   -------------------------------------
 
-    CALL get_epr_env(epr_env,nablavks_set=nablavks_set,error=error)
+    CALL get_epr_env(epr_env,nablavks_set=nablavks_set,& ! R0
+                     nablavks_atom_set=nablavks_atom_set,& ! R0
+                     error=error) ! R0
+
+    DO ispin = 1,nspins
+       DO idir = 1,3
+          CALL pw_zero(nablavks_set(idir,ispin)%rho%rho_r(1)%pw)
+       END DO
+    END DO
+
+    pwx => nablavks_set(1,1)%rho%rho_r(1)%pw
+    pwy => nablavks_set(2,1)%rho%rho_r(1)%pw
+    pwz => nablavks_set(3,1)%rho%rho_r(1)%pw
+
+    roffset = -REAL(MODULO(pwx%pw_grid%npts,2),dp)*pwx%pw_grid%dr/2.0_dp
 
 !   -------------------------------------
 !   Get grids / atom info
@@ -200,6 +261,9 @@ CONTAINS
                     particle_set=particle_set,&
                     pw_env=pw_env,&
                     rho=rho,&
+                    rho_atom_set=rho_atom_set,&
+                    rho0_atom_set=rho0_atom_set,&
+                    rhoz_set=rhoz_set,&
                     subsys=subsys,&
                     error=error)
 
@@ -209,26 +273,10 @@ CONTAINS
 
     CALL cp_subsys_get(subsys,particles=particles,error=error)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             gth_potential_present=gth_potential_present,&
-                             all_potential_present=all_potential_present)
-
-    IF (output_unit>0) THEN
-        WRITE (UNIT=output_unit,FMT="(/,T2,A,T79,L1)") &
-           "epr(debug)|NABLAVKS gth_pot", gth_potential_present
-        WRITE (UNIT=output_unit,FMT="(T2,A,T79,L1,/)") &
-           "epr(debug)|NABLAVKS all_pot", all_potential_present
-    END IF
-
     gapw    = dft_control%qs_control%gapw
     gapw_xc = dft_control%qs_control%gapw_xc
+    nkind = SIZE(atomic_kind_set)
     nspins  = dft_control%nspins
-
-    NULLIFY(pwx, pwy, pwz)
-    pwx => nablavks_set(1,1)%rho%rho_r(1)%pw
-    pwy => nablavks_set(2,1)%rho%rho_r(1)%pw
-    pwz => nablavks_set(3,1)%rho%rho_r(1)%pw
-    roffset = -REAL(MODULO(pwx%pw_grid%npts,2),dp)*pwx%pw_grid%dr/2.0_dp
 
 !   -------------------------------------
 !   Add Hartree potential
@@ -248,23 +296,164 @@ CONTAINS
                                          "rho_tot_gspace",0)
 
     CALL pw_pool_create_pw(auxbas_pw_pool,v_hartree_gspace%pw, &
-                            use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
-                            error=error)
+                           use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
+                           error=error)
     CALL pw_pool_create_pw(auxbas_pw_pool,v_hartree_gtemp%pw, &
-                            use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
-                            error=error)
+                           use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
+                           error=error)
     CALL pw_pool_create_pw(auxbas_pw_pool,v_hartree_rtemp%pw,&
-                            use_data=REALDATA3D,in_space=REALSPACE,&
-                            error=error)
+                           use_data=REALDATA3D,in_space=REALSPACE,&
+                           error=error)
     CALL pw_pool_create_pw(auxbas_pw_pool,rho_tot_gspace%pw,&
-                            use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
-                            error=error)
+                           use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
+                           error=error)
+
+    IF (gapw) CALL prepare_gapw_den(qs_env,do_rho0=.TRUE.,error=error)
+
+    CALL pw_zero(rho_tot_gspace%pw)
 
     CALL calc_rho_tot_gspace(rho_tot_gspace,qs_env,rho,&
-                             skip_nuclear_density=.TRUE.,error=error)
+                             skip_nuclear_density=.NOT. gapw,error=error)
 
     CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,ehartree,&
                           v_hartree_gspace%pw,error=error)
+
+    !   -------------------------------------
+    !   Atomic grids part
+    !   -------------------------------------
+
+    IF (gapw) THEN
+
+       DO ikind = 1,nkind ! loop over atom types
+
+          NULLIFY(atomic_kind)
+          NULLIFY(atom_list)
+          NULLIFY(grid_atom)
+          NULLIFY(harmonics)
+          NULLIFY(rho_rad_z)
+
+          atomic_kind => atomic_kind_set(ikind)
+          rho_rad_z  => rhoz_set(ikind)%r_coef
+
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               atom_list=atom_list,&
+                               grid_atom=grid_atom,&
+                               harmonics=harmonics,&
+                               natom=natom,&
+                               paw_atom=paw_atom,&
+                               zeff=charge,&
+                               alpha_core_charge=alpha_core)
+
+          IF (paw_atom) THEN
+
+             ALLOCATE(vh1_rad_h(grid_atom%nr,harmonics%max_iso_not0),STAT=istat)
+             ALLOCATE(vh1_rad_s(grid_atom%nr,harmonics%max_iso_not0),STAT=istat)
+             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+             
+             DO iat = 1, natom ! natom = # atoms for ikind
+
+                iatom = atom_list(iat)
+                ratom = particle_set(iatom)%r
+                
+                DO ig = v_hartree_gspace%pw%pw_grid%first_gne0,v_hartree_gspace%pw%pw_grid%ngpts_cut_local
+
+                   gtemp = fourpi * charge / cell%deth * &
+                           EXP ( - v_hartree_gspace%pw%pw_grid%gsq(ig) / (4.0_dp * alpha_core) ) &
+                           / v_hartree_gspace%pw%pw_grid%gsq(ig)
+                
+                   arg = DOT_PRODUCT(v_hartree_gspace%pw%pw_grid%g(:,ig),ratom)
+                
+                   gtemp = gtemp * CMPLX(COS(arg),-SIN(arg),KIND=dp)
+                
+                   v_hartree_gspace%pw%cc(ig) = v_hartree_gspace%pw%cc(ig) + gtemp 
+                END DO
+                IF ( v_hartree_gspace%pw%pw_grid%have_g0 ) v_hartree_gspace%pw%cc(1) = 0.0_dp
+
+             END DO
+
+             bo_atom = get_limit(natom, para_env%num_pe, para_env%mepos)
+
+             DO iat = bo_atom(1),bo_atom(2) ! natomkind = # atoms for ikind
+
+                iatom = atom_list(iat)
+                ratom = particle_set(iatom)%r
+
+                nablavks_vec_rad_h => nablavks_atom_set(iatom)%nablavks_vec_rad_h
+                nablavks_vec_rad_s => nablavks_atom_set(iatom)%nablavks_vec_rad_s
+
+                DO ispin = 1,nspins
+                   DO idir = 1,3
+                      nablavks_vec_rad_h(idir,ispin)%r_coef(:,:) = 0.0_dp
+                      nablavks_vec_rad_s(idir,ispin)%r_coef(:,:) = 0.0_dp
+                   END DO ! idir
+                END DO ! ispin
+
+                rho_atom => rho_atom_set(iatom)
+                NULLIFY(rho_rad_h,rho_rad_s,rho_rad_0)
+                CALL get_rho_atom(rho_atom=rho_atom,rho_rad_h=rho_rad_h,&
+                                  rho_rad_s=rho_rad_s)
+                rho_rad_0 => rho0_atom_set(iatom)%rho0_rad_s%r_coef
+                vh1_rad_h = 0.0_dp
+                vh1_rad_s = 0.0_dp
+
+                CALL calculate_Vh_1center(vh1_rad_h,vh1_rad_s,rho_rad_h,rho_rad_s,rho_rad_0,rho_rad_z,grid_atom)
+
+                DO ir = 2,grid_atom%nr
+
+                   IF (grid_atom%rad(ir) >= atomic_kind%hard_radius) CYCLE
+
+                   DO ia = 1,grid_atom%ng_sphere
+
+                      ! hard part
+
+                      DO idir= 1,3
+                         hard_value = 0.0_dp
+                         DO iso = 1,harmonics%max_iso_not0
+                            hard_value = hard_value + &
+                               vh1_rad_h(ir,iso) * harmonics%dslm_dxyz(idir,ia,iso) + &
+                               harmonics%slm(ia,iso) * &
+                               ( vh1_rad_h(ir - 1,iso) - vh1_rad_h(ir,iso) ) / &
+                               ( grid_atom%rad(ir - 1) - grid_atom%rad(ir) ) * &
+                               ( harmonics%a(idir,ia) )
+                         END DO
+                         nablavks_vec_rad_h(idir,1)%r_coef(ir,ia) = hard_value
+                      END DO
+
+                      ! soft part
+
+                      DO idir= 1,3
+                         soft_value = 0.0_dp
+                         DO iso = 1,harmonics%max_iso_not0
+                            soft_value = soft_value + &
+                               vh1_rad_s(ir,iso) * harmonics%dslm_dxyz(idir,ia,iso) + &
+                               harmonics%slm(ia,iso) * &
+                               ( vh1_rad_s(ir - 1,iso) - vh1_rad_s(ir,iso) ) / &
+                               ( grid_atom%rad(ir - 1) - grid_atom%rad(ir) ) * &
+                               ( harmonics%a(idir,ia) )
+                         END DO
+                         nablavks_vec_rad_s(idir,1)%r_coef(ir,ia) = soft_value
+                      END DO
+
+                   END DO ! ia
+
+                END DO ! ir
+
+                DO idir = 1,3
+                   nablavks_vec_rad_h(idir,2)%r_coef(:,:) = nablavks_vec_rad_h(idir,1)%r_coef(:,:)
+                   nablavks_vec_rad_s(idir,2)%r_coef(:,:) = nablavks_vec_rad_s(idir,1)%r_coef(:,:)
+                END DO
+
+             END DO ! iat
+
+             DEALLOCATE(vh1_rad_h,STAT=istat)
+             DEALLOCATE(vh1_rad_s,STAT=istat)
+             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+          END IF ! paw_atom
+
+       END DO ! ikind
+
+    END IF ! gapw
 
     CALL pw_copy(v_hartree_gspace%pw, v_hartree_gtemp%pw)
     CALL pw_derive(v_hartree_gtemp%pw, (/1,0,0/) )
@@ -303,255 +492,468 @@ CONTAINS
 !   Add Coulomb potential
 !   -------------------------------------
 
-    nkind = SIZE(atomic_kind_set) ! nkind = number of atom types
-
     DO ikind = 1,nkind ! loop over atom types
-       NULLIFY(atom_list, atomic_kind)
+
+       NULLIFY(atom_list)
+       NULLIFY(atomic_kind)
+       NULLIFY(grid_atom)
+       NULLIFY(harmonics)
+
        atomic_kind => atomic_kind_set(ikind)
-       IF (gth_potential_present) THEN
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                               gth_potential=gth_potential,&
-                               atom_list=atom_list,natom=natom)
-          IF (ASSOCIATED(gth_potential)) THEN
-              NULLIFY(cexp_ppl)
-              CALL get_potential(potential=gth_potential,&
-                                 zeff=charge,&
-                                 alpha_ppl=alpha,&
-                                 nexp_ppl=nexp_ppl,&
-                                 cexp_ppl=cexp_ppl)
 
-              sqrt_alpha = SQRT(alpha)
+       CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                            all_potential=all_potential,&
+                            atom_list=atom_list,&
+                            grid_atom=grid_atom,&
+                            gth_potential=gth_potential,&
+                            harmonics=harmonics,&
+                            natom=natom,&
+                            paw_atom=paw_atom)
 
-              IF (gth_gspace) THEN
+       IF (ASSOCIATED(gth_potential)) THEN
 
-                 ALLOCATE(v_coulomb_gspace,STAT=istat)
-                 IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                                      "v_coulomb_gspace",0)
-                 ALLOCATE(v_coulomb_gtemp,STAT=istat)
-                 IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                                      "v_coulomb_gtemp",0)
-                 ALLOCATE(v_coulomb_rtemp,STAT=istat)
-                 IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                                      "v_coulomb_rtemp",0)
-                 
-                 CALL pw_pool_create_pw(auxbas_pw_pool,v_coulomb_gspace%pw, &
-                                         use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
-                                         error=error)
-                 CALL pw_pool_create_pw(auxbas_pw_pool,v_coulomb_gtemp%pw, &
-                                         use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
-                                         error=error)
-                 CALL pw_pool_create_pw(auxbas_pw_pool,v_coulomb_rtemp%pw,&
-                                         use_data=REALDATA3D,in_space=REALSPACE,&
-                                              error=error)
-                 
-                 CALL pw_zero(v_coulomb_gspace%pw)
+          NULLIFY(cexp_ppl)
 
-                 DO iat = 1, natom ! natom = # atoms for ikind
+          CALL get_potential(potential=gth_potential,&
+                             zeff=charge,&
+                             alpha_ppl=alpha,&
+                             nexp_ppl=nexp_ppl,&
+                             cexp_ppl=cexp_ppl)
 
-                    iatom = atom_list(iat)
-                    ratom = particle_set(iatom)%r
+          sqrt_alpha = SQRT(alpha)
 
-                    DO ig = v_coulomb_gspace%pw%pw_grid%first_gne0,v_coulomb_gspace%pw%pw_grid%ngpts_cut_local
-                       gtemp = 0.0_dp
-                        gtemp = - fourpi * charge / cell%deth * &
-                             EXP ( - v_coulomb_gspace%pw%pw_grid%gsq(ig) / (4.0_dp * alpha) ) &
-                                / v_coulomb_gspace%pw%pw_grid%gsq(ig)
-
-                       arg = DOT_PRODUCT(v_coulomb_gspace%pw%pw_grid%g(:,ig),ratom)
-
-                       SELECT CASE (nexp_ppl)
-                          CASE(1)
-                             gtemp = gtemp + &
-                                     (twopi)**(1.5_dp) / ( cell%deth * (2.0_dp * alpha)**(1.5_dp) ) * &
-                                     EXP ( - v_coulomb_gspace%pw%pw_grid%gsq(ig) / (4.0_dp * alpha) ) * ( &
-                             ! C1
-                                     + cexp_ppl(1) & 
-                                     )
-                          CASE(2)
-                             gtemp = gtemp + &
-                                     (twopi)**(1.5_dp) / ( cell%deth * (2.0_dp * alpha)**(1.5_dp) ) * &
-                                     EXP ( - v_coulomb_gspace%pw%pw_grid%gsq(ig) / (4.0_dp * alpha) ) * ( &
-                             ! C1
-                                     + cexp_ppl(1) & 
-                             ! C2
-                                     + cexp_ppl(2) / (2.0_dp * alpha) * &
-                                     ( 3.0_dp - v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) ) &
-                                     )
-                          CASE(3)
-                             gtemp = gtemp + &
-                                     (twopi)**(1.5_dp) / ( cell%deth * (2.0_dp * alpha)**(1.5_dp) ) * &
-                                     EXP ( - v_coulomb_gspace%pw%pw_grid%gsq(ig) / (4.0_dp * alpha) ) * ( &
-                             ! C1
-                                     + cexp_ppl(1) & 
-                             ! C2
-                                     + cexp_ppl(2) / (2.0_dp * alpha) * &
-                                     ( 3.0_dp - v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) ) &
-                             ! C3
-                                     + cexp_ppl(3) / (2.0_dp * alpha)**2 * &
-                                     ( 15.0_dp - 10.0_dp * v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) &
-                                                       + ( v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) )**2 ) &
-                                     )
-                          CASE(4)
-                             gtemp = gtemp + &
-                                     (twopi)**(1.5_dp) / ( cell%deth * (2.0_dp * alpha)**(1.5_dp) ) * &
-                                     EXP ( - v_coulomb_gspace%pw%pw_grid%gsq(ig) / (4.0_dp * alpha) ) * ( &
-                             ! C1
-                                     + cexp_ppl(1) & 
-                             ! C2
-                                     + cexp_ppl(2) / (2.0_dp * alpha) * &
-                                     ( 3.0_dp - v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) ) &
-                             ! C3
-                                     + cexp_ppl(3) / (2.0_dp * alpha)**2 * &
-                                     ( 15.0_dp - 10.0_dp * v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) &
-                                                       + ( v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) )**2 ) &
-                             ! C4
-                                     + cexp_ppl(4) / (2.0_dp * alpha)**3 * &
-                                     ( 105.0_dp - 105.0_dp * v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) &
-                                          + 21.0_dp * ( v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) )**2 &
-                                                       - ( v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) )**3 ) &
-                                     )
-                       END SELECT
-
-                       gtemp = gtemp * CMPLX(COS(arg),-SIN(arg),KIND=dp)
-                       v_coulomb_gspace%pw%cc(ig) = v_coulomb_gspace%pw%cc(ig) + gtemp 
-                    END DO
-                    IF ( v_coulomb_gspace%pw%pw_grid%have_g0 ) v_coulomb_gspace%pw%cc(1) = 0.0_dp
-
-                 END DO
-
-                 CALL pw_copy(v_coulomb_gspace%pw, v_coulomb_gtemp%pw)
-                 CALL pw_derive(v_coulomb_gtemp%pw, (/1,0,0/) )
-                 CALL pw_transfer(v_coulomb_gtemp%pw, v_coulomb_rtemp%pw)
-                 CALL pw_axpy(v_coulomb_rtemp%pw, pwx)
-             
-                 CALL pw_copy(v_coulomb_gspace%pw, v_coulomb_gtemp%pw)
-                 CALL pw_derive(v_coulomb_gtemp%pw, (/0,1,0/) )
-                 CALL pw_transfer(v_coulomb_gtemp%pw, v_coulomb_rtemp%pw)
-                 CALL pw_axpy(v_coulomb_rtemp%pw, pwy)
-             
-                 CALL pw_copy(v_coulomb_gspace%pw, v_coulomb_gtemp%pw)
-                 CALL pw_derive(v_coulomb_gtemp%pw, (/0,0,1/) )
-                 CALL pw_transfer(v_coulomb_gtemp%pw, v_coulomb_rtemp%pw)
-                 CALL pw_axpy(v_coulomb_rtemp%pw, pwz)
-             
-                 CALL pw_pool_give_back_pw(auxbas_pw_pool,v_coulomb_gspace%pw,error=error)
-                 CALL pw_pool_give_back_pw(auxbas_pw_pool,v_coulomb_gtemp%pw,error=error)
-                 CALL pw_pool_give_back_pw(auxbas_pw_pool,v_coulomb_rtemp%pw,error=error)
-
-                 DEALLOCATE(v_coulomb_gspace,STAT=istat)
-                 IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                                      "v_coulomb_gspace",0)
-                 DEALLOCATE(v_coulomb_gtemp,STAT=istat)
-                 IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                                      "v_coulomb_gtemp",0)
-                 DEALLOCATE(v_coulomb_rtemp,STAT=istat)
-                 IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                                      "v_coulomb_rtemp",0)
-              ELSE
-
-                 ! Attic of the atomic parallellisation
-                 !
-                 ! bo(2)
-                 ! bo = get_limit(natom, para_env%num_pe, para_env%mepos)
-                 ! DO iat =  bo(1),bo(2) ! natom = # atoms for ikind
-                 ! DO ix = lbound(pwx%cr3d,1), ubound(pwx%cr3d,1) 
-                 ! DO iy = lbound(pwx%cr3d,2), ubound(pwx%cr3d,2)
-                 ! DO iz = lbound(pwx%cr3d,3), ubound(pwx%cr3d,3)
-
-                 bo = pwx%pw_grid%bounds_local
-
-                 DO iat =  1, natom ! natom = # atoms for ikind
-                    iatom = atom_list(iat)
-                    ratom = particle_set(iatom)%r
-                    
-                    DO ix = bo(1,1),bo(2,1) 
-                       DO iy = bo(1,2),bo(2,2)
-                          DO iz = bo(1,3),bo(2,3)
-                              rpoint = (/REAL(ix,dp)*pwx%pw_grid%dr(1),&
-                                         REAL(iy,dp)*pwx%pw_grid%dr(2),&
-                                         REAL(iz,dp)*pwx%pw_grid%dr(3)/)
-                                 rpoint = rpoint + roffset
-                               rap = rpoint - ratom
-                                 rap(1)=MODULO(rap(1),cell%hmat(1,1))-cell%hmat(1,1)/2._dp
-                                 rap(2)=MODULO(rap(2),cell%hmat(2,2))-cell%hmat(2,2)/2._dp
-                              rap(3)=MODULO(rap(3),cell%hmat(3,3))-cell%hmat(3,3)/2._dp
-                              sqrt_rap = SQRT(DOT_PRODUCT(rap,rap))
-                                 exp_rap = EXP( - alpha * sqrt_rap**2 )
-                              IF (sqrt_rap < 1.e-10_dp ) sqrt_rap = 1.e-10_dp
-                              ! d_x
-    
-                                     pwx%cr3d(ix,iy,iz) = pwx%cr3d(ix,iy,iz) + charge * ( &
-                                             - 2.0_dp * sqrt_alpha * EXP( - sqrt_rap**2 * sqrt_alpha**2 ) * rap(1) &
-                                             / ( rootpi * sqrt_rap**2 ) &
-                                             + erf( sqrt_rap * sqrt_alpha ) * rap(1) &
-                                             / sqrt_rap**3 )
-                              
-                                 DO iexp = 1,nexp_ppl
-                                    pwx%cr3d(ix,iy,iz) = pwx%cr3d(ix,iy,iz) + ( &
-                                           - 2.0_dp * alpha * rap(1) * exp_rap * &
-                                           cexp_ppl(iexp) * ( sqrt_rap**2 )**(iexp - 1) )
-                                    IF (iexp > 1) THEN
-                                       pwx%cr3d(ix,iy,iz) = pwx%cr3d(ix,iy,iz) + ( &
-                                       2.0_dp * exp_rap * cexp_ppl(iexp) * &
-                                       ( sqrt_rap**2 )**(iexp - 2) * REAL(iexp - 1,dp) * rap(1) )
-                                    END IF
-                                 END DO
-   
-                              ! d_y
-    
-                                    pwy%cr3d(ix,iy,iz) = pwy%cr3d(ix,iy,iz) + charge * ( &
-                                            - 2.0_dp * sqrt_alpha * EXP( - sqrt_rap**2 * sqrt_alpha**2 ) * rap(2) &
-                                            / ( rootpi * sqrt_rap**2 ) &
-                                            + erf( sqrt_rap * sqrt_alpha ) * rap(2) &
-                                            / sqrt_rap**3 )
-                              
-                                 DO iexp = 1,nexp_ppl
-                                    pwy%cr3d(ix,iy,iz) = pwy%cr3d(ix,iy,iz) + ( &
-                                           - 2.0_dp * alpha * rap(2) * exp_rap * cexp_ppl(iexp) *&
-                                           ( sqrt_rap**2 )**(iexp - 1) )
-                                    IF (iexp > 1) THEN
-                                       pwy%cr3d(ix,iy,iz) = pwy%cr3d(ix,iy,iz) + ( &
-                                       2.0_dp * exp_rap * cexp_ppl(iexp) * ( sqrt_rap**2 )**(iexp - 2) *&
-                                       REAL(iexp - 1,dp) * rap(2) )
-                                    END IF
-                                 END DO
-   
-                              ! d_z
-    
-                                    pwz%cr3d(ix,iy,iz) = pwz%cr3d(ix,iy,iz) + charge * ( &
-                                            - 2.0_dp * sqrt_alpha * EXP( - sqrt_rap**2 * sqrt_alpha**2 ) * rap(3) &
-                                            / ( rootpi * sqrt_rap**2 ) &
-                                            + erf( sqrt_rap * sqrt_alpha ) * rap(3) &
-                                            / sqrt_rap**3 )
-   
-                                 DO iexp = 1,nexp_ppl
-                                    pwz%cr3d(ix,iy,iz) = pwz%cr3d(ix,iy,iz) + ( &
-                                           - 2.0_dp * alpha * rap(3) * exp_rap * cexp_ppl(iexp) *&
-                                           ( sqrt_rap**2 )**(iexp - 1) )
-                                    IF (iexp > 1) THEN
-                                       pwz%cr3d(ix,iy,iz) = pwz%cr3d(ix,iy,iz) + ( &
-                                       2.0_dp * exp_rap * cexp_ppl(iexp) * ( sqrt_rap**2 )**(iexp - 2) *&
-                                       REAL(iexp - 1,dp) * rap(3) )
-                                    END IF
-                                 END DO
-   
-                             END DO ! iz
-                          END DO ! iy
-                       END DO ! ix
-   
-                 END DO ! iat
-              END IF ! gth_gspace
-                 
-          END IF ! ASSOCIATED(gth_potential)
-
-       ELSE IF (all_potential_present) THEN
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                               all_potential=all_potential,&
-                               atom_list=atom_list,natom=natom)
-          IF (ASSOCIATED(all_potential)) THEN
-              CALL get_potential(potential=all_potential,&
-                                 zeff=charge)
+          IF (gapw .AND. paw_atom .AND. alpha > gapw_max_alpha) THEN
+             make_soft = .TRUE.
+          ELSE
+             make_soft = .FALSE.
           END IF
+
+          !   -------------------------------------
+          !   PW grid part
+          !   -------------------------------------
+
+          IF (gth_gspace) THEN
+
+             ALLOCATE(v_coulomb_gspace,STAT=istat)
+             IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                                     "v_coulomb_gspace",0)
+             ALLOCATE(v_coulomb_gtemp,STAT=istat)
+             IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                                     "v_coulomb_gtemp",0)
+             ALLOCATE(v_coulomb_rtemp,STAT=istat)
+             IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                                     "v_coulomb_rtemp",0)
+                
+             CALL pw_pool_create_pw(auxbas_pw_pool,v_coulomb_gspace%pw, &
+                                    use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
+                                    error=error)
+             CALL pw_pool_create_pw(auxbas_pw_pool,v_coulomb_gtemp%pw, &
+                                    use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
+                                    error=error)
+             CALL pw_pool_create_pw(auxbas_pw_pool,v_coulomb_rtemp%pw,&
+                                    use_data=REALDATA3D,in_space=REALSPACE,&
+                                    error=error)
+                
+             CALL pw_zero(v_coulomb_gspace%pw)
+
+             DO iat = 1, natom ! natom = # atoms for ikind
+
+                iatom = atom_list(iat)
+                ratom = particle_set(iatom)%r
+
+                DO ig = v_coulomb_gspace%pw%pw_grid%first_gne0,v_coulomb_gspace%pw%pw_grid%ngpts_cut_local
+                   gtemp = 0.0_dp
+                   gtemp = - fourpi * charge / cell%deth * &
+                           EXP ( - v_coulomb_gspace%pw%pw_grid%gsq(ig) / (4.0_dp * alpha) ) &
+                           / v_coulomb_gspace%pw%pw_grid%gsq(ig)
+
+                   IF (.NOT. make_soft) THEN
+
+                      SELECT CASE (nexp_ppl)
+                         CASE(1)
+                            gtemp = gtemp + &
+                                    (twopi)**(1.5_dp) / ( cell%deth * (2.0_dp * alpha)**(1.5_dp) ) * &
+                                    EXP ( - v_coulomb_gspace%pw%pw_grid%gsq(ig) / (4.0_dp * alpha) ) * ( &
+                            ! C1
+                                    + cexp_ppl(1) & 
+                                    )
+                         CASE(2)
+                            gtemp = gtemp + &
+                                    (twopi)**(1.5_dp) / ( cell%deth * (2.0_dp * alpha)**(1.5_dp) ) * &
+                                    EXP ( - v_coulomb_gspace%pw%pw_grid%gsq(ig) / (4.0_dp * alpha) ) * ( &
+                            ! C1
+                                    + cexp_ppl(1) & 
+                            ! C2
+                                    + cexp_ppl(2) / (2.0_dp * alpha) * &
+                                    ( 3.0_dp - v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) ) &
+                                    )
+                         CASE(3)
+                            gtemp = gtemp + &
+                                    (twopi)**(1.5_dp) / ( cell%deth * (2.0_dp * alpha)**(1.5_dp) ) * &
+                                    EXP ( - v_coulomb_gspace%pw%pw_grid%gsq(ig) / (4.0_dp * alpha) ) * ( &
+                            ! C1
+                                    + cexp_ppl(1) & 
+                            ! C2
+                                    + cexp_ppl(2) / (2.0_dp * alpha) * &
+                                    ( 3.0_dp - v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) ) &
+                            ! C3
+                                    + cexp_ppl(3) / (2.0_dp * alpha)**2 * &
+                                    ( 15.0_dp - 10.0_dp * v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) &
+                                                      + ( v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) )**2 ) &
+                                    )
+                         CASE(4)
+                            gtemp = gtemp + &
+                                    (twopi)**(1.5_dp) / ( cell%deth * (2.0_dp * alpha)**(1.5_dp) ) * &
+                                    EXP ( - v_coulomb_gspace%pw%pw_grid%gsq(ig) / (4.0_dp * alpha) ) * ( &
+                            ! C1
+                                    + cexp_ppl(1) & 
+                            ! C2
+                                    + cexp_ppl(2) / (2.0_dp * alpha) * &
+                                    ( 3.0_dp - v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) ) &
+                            ! C3
+                                    + cexp_ppl(3) / (2.0_dp * alpha)**2 * &
+                                    ( 15.0_dp - 10.0_dp * v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) &
+                                                      + ( v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) )**2 ) &
+                            ! C4
+                                    + cexp_ppl(4) / (2.0_dp * alpha)**3 * &
+                                    ( 105.0_dp - 105.0_dp * v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) &
+                                                      + 21.0_dp * ( v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) )**2 &
+                                                      - ( v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp * alpha) )**3 ) &
+                                    )
+                      END SELECT
+
+                   END IF
+
+                   arg = DOT_PRODUCT(v_coulomb_gspace%pw%pw_grid%g(:,ig),ratom)
+
+                   gtemp = gtemp * CMPLX(COS(arg),-SIN(arg),KIND=dp)
+                   v_coulomb_gspace%pw%cc(ig) = v_coulomb_gspace%pw%cc(ig) + gtemp 
+                END DO
+                IF ( v_coulomb_gspace%pw%pw_grid%have_g0 ) v_coulomb_gspace%pw%cc(1) = 0.0_dp
+
+             END DO
+
+             CALL pw_copy(v_coulomb_gspace%pw, v_coulomb_gtemp%pw)
+             CALL pw_derive(v_coulomb_gtemp%pw, (/1,0,0/) )
+             CALL pw_transfer(v_coulomb_gtemp%pw, v_coulomb_rtemp%pw)
+             CALL pw_axpy(v_coulomb_rtemp%pw, pwx)
+
+             CALL pw_copy(v_coulomb_gspace%pw, v_coulomb_gtemp%pw)
+             CALL pw_derive(v_coulomb_gtemp%pw, (/0,1,0/) )
+             CALL pw_transfer(v_coulomb_gtemp%pw, v_coulomb_rtemp%pw)
+             CALL pw_axpy(v_coulomb_rtemp%pw, pwy)
+
+             CALL pw_copy(v_coulomb_gspace%pw, v_coulomb_gtemp%pw)
+             CALL pw_derive(v_coulomb_gtemp%pw, (/0,0,1/) )
+             CALL pw_transfer(v_coulomb_gtemp%pw, v_coulomb_rtemp%pw)
+             CALL pw_axpy(v_coulomb_rtemp%pw, pwz)
+
+             CALL pw_pool_give_back_pw(auxbas_pw_pool,v_coulomb_gspace%pw,error=error)
+             CALL pw_pool_give_back_pw(auxbas_pw_pool,v_coulomb_gtemp%pw,error=error)
+             CALL pw_pool_give_back_pw(auxbas_pw_pool,v_coulomb_rtemp%pw,error=error)
+
+             DEALLOCATE(v_coulomb_gspace,STAT=istat)
+             IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                                     "v_coulomb_gspace",0)
+             DEALLOCATE(v_coulomb_gtemp,STAT=istat)
+             IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                                     "v_coulomb_gtemp",0)
+             DEALLOCATE(v_coulomb_rtemp,STAT=istat)
+             IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                                     "v_coulomb_rtemp",0)
+          ELSE
+
+             ! Attic of the atomic parallellisation
+             !
+             ! bo(2)
+             ! bo = get_limit(natom, para_env%num_pe, para_env%mepos)
+             ! DO iat =  bo(1),bo(2) ! natom = # atoms for ikind
+             ! DO ix = lbound(pwx%cr3d,1), ubound(pwx%cr3d,1) 
+             ! DO iy = lbound(pwx%cr3d,2), ubound(pwx%cr3d,2)
+             ! DO iz = lbound(pwx%cr3d,3), ubound(pwx%cr3d,3)
+
+             bo = pwx%pw_grid%bounds_local
+
+             DO iat =  1, natom ! natom = # atoms for ikind
+
+                iatom = atom_list(iat)
+                ratom = particle_set(iatom)%r
+                   
+                DO ix = bo(1,1),bo(2,1) 
+                   DO iy = bo(1,2),bo(2,2)
+                      DO iz = bo(1,3),bo(2,3)
+                          rpoint = (/REAL(ix,dp)*pwx%pw_grid%dr(1),&
+                                  REAL(iy,dp)*pwx%pw_grid%dr(2),&
+                                  REAL(iz,dp)*pwx%pw_grid%dr(3)/)
+                          rpoint = rpoint + roffset
+                          rap = rpoint - ratom
+                          rap(1)=MODULO(rap(1),cell%hmat(1,1))-cell%hmat(1,1)/2._dp
+                          rap(2)=MODULO(rap(2),cell%hmat(2,2))-cell%hmat(2,2)/2._dp
+                          rap(3)=MODULO(rap(3),cell%hmat(3,3))-cell%hmat(3,3)/2._dp
+                          sqrt_rap = SQRT(DOT_PRODUCT(rap,rap))
+                          exp_rap = EXP( - alpha * sqrt_rap**2 )
+                          IF (sqrt_rap < 1.e-10_dp ) sqrt_rap = 1.e-10_dp
+                          ! d_x
+   
+                          pwx%cr3d(ix,iy,iz) = pwx%cr3d(ix,iy,iz) + charge * ( &
+                                    - 2.0_dp * sqrt_alpha * EXP( - sqrt_rap**2 * sqrt_alpha**2 ) * rap(1) &
+                                    / ( rootpi * sqrt_rap**2 ) &
+                                    + erf( sqrt_rap * sqrt_alpha ) * rap(1) &
+                                    / sqrt_rap**3 )
+
+                          ! d_y
+   
+                          pwy%cr3d(ix,iy,iz) = pwy%cr3d(ix,iy,iz) + charge * ( &
+                                    - 2.0_dp * sqrt_alpha * EXP( - sqrt_rap**2 * sqrt_alpha**2 ) * rap(2) &
+                                    / ( rootpi * sqrt_rap**2 ) &
+                                    + erf( sqrt_rap * sqrt_alpha ) * rap(2) &
+                                    / sqrt_rap**3 )
+
+                          ! d_z
+   
+                          pwz%cr3d(ix,iy,iz) = pwz%cr3d(ix,iy,iz) + charge * ( &
+                                    - 2.0_dp * sqrt_alpha * EXP( - sqrt_rap**2 * sqrt_alpha**2 ) * rap(3) &
+                                    / ( rootpi * sqrt_rap**2 ) &
+                                    + erf( sqrt_rap * sqrt_alpha ) * rap(3) &
+                                    / sqrt_rap**3 )
+
+                          IF (make_soft) CYCLE
+
+                          ! d_x
+
+                          DO iexp = 1,nexp_ppl
+                             pwx%cr3d(ix,iy,iz) = pwx%cr3d(ix,iy,iz) + ( &
+                                    - 2.0_dp * alpha * rap(1) * exp_rap * &
+                                    cexp_ppl(iexp) * ( sqrt_rap**2 )**(iexp - 1) )
+                             IF (iexp > 1) THEN
+                                pwx%cr3d(ix,iy,iz) = pwx%cr3d(ix,iy,iz) + ( &
+                                2.0_dp * exp_rap * cexp_ppl(iexp) * &
+                                ( sqrt_rap**2 )**(iexp - 2) * REAL(iexp - 1,dp) * rap(1) )
+                             END IF
+                          END DO
+  
+                          ! d_y
+   
+                          DO iexp = 1,nexp_ppl
+                             pwy%cr3d(ix,iy,iz) = pwy%cr3d(ix,iy,iz) + ( &
+                                    - 2.0_dp * alpha * rap(2) * exp_rap * &
+                                    cexp_ppl(iexp) * ( sqrt_rap**2 )**(iexp - 1) )
+                             IF (iexp > 1) THEN
+                                pwy%cr3d(ix,iy,iz) = pwy%cr3d(ix,iy,iz) + ( &
+                                2.0_dp * exp_rap * cexp_ppl(iexp) * &
+                                ( sqrt_rap**2 )**(iexp - 2) * REAL(iexp - 1,dp) * rap(2) )
+                             END IF
+                          END DO
+  
+                          ! d_z
+   
+                          DO iexp = 1,nexp_ppl
+                             pwz%cr3d(ix,iy,iz) = pwz%cr3d(ix,iy,iz) + ( &
+                                    - 2.0_dp * alpha * rap(3) * exp_rap * &
+                                    cexp_ppl(iexp) * ( sqrt_rap**2 )**(iexp - 1) )
+                             IF (iexp > 1) THEN
+                                pwz%cr3d(ix,iy,iz) = pwz%cr3d(ix,iy,iz) + ( &
+                                2.0_dp * exp_rap * cexp_ppl(iexp) * &
+                                ( sqrt_rap**2 )**(iexp - 2) * REAL(iexp - 1,dp) * rap(3) )
+                             END IF
+                          END DO
+  
+                      END DO ! iz
+                   END DO ! iy
+                END DO ! ix
+             END DO ! iat
+          END IF ! gth_gspace
+
+          !   -------------------------------------
+          !   Atomic grids part
+          !   -------------------------------------
+
+          IF (gapw .AND. paw_atom) THEN
+
+             bo_atom = get_limit(natom, para_env%num_pe, para_env%mepos)
+
+             DO iat = bo_atom(1),bo_atom(2) ! natom = # atoms for ikind
+
+                iatom = atom_list(iat)
+
+                nablavks_vec_rad_h => nablavks_atom_set(iatom)%nablavks_vec_rad_h
+                nablavks_vec_rad_s => nablavks_atom_set(iatom)%nablavks_vec_rad_s
+
+                DO ir = 1,grid_atom%nr
+
+                   exp_rap = EXP( - alpha * grid_atom%rad(ir)**2 )
+
+                   DO ia = 1,grid_atom%ng_sphere
+
+                      DO idir = 1,3
+                         hard_value = 0.0_dp
+                         hard_value = charge * ( &
+                                    - 2.0_dp * sqrt_alpha * EXP( - grid_atom%rad(ir)**2 * sqrt_alpha**2 ) &
+                                    * grid_atom%rad(ir)*harmonics%a(idir,ia) &
+                                    / ( rootpi * grid_atom%rad(ir)**2 ) &
+                                    + erf( grid_atom%rad(ir) * sqrt_alpha ) &
+                                    * grid_atom%rad(ir)*harmonics%a(idir,ia) &
+                                    / grid_atom%rad(ir)**3 )
+                         soft_value = hard_value
+                         DO iexp = 1,nexp_ppl
+                            hard_value = hard_value + ( &
+                                    - 2.0_dp * alpha * grid_atom%rad(ir)*harmonics%a(idir,ia) &
+                                    * exp_rap * cexp_ppl(iexp) * ( grid_atom%rad(ir)**2 )**(iexp - 1) )
+                            IF (iexp > 1) THEN
+                               hard_value = hard_value + ( &
+                                    2.0_dp * exp_rap * cexp_ppl(iexp) &
+                                    * ( grid_atom%rad(ir)**2 )**(iexp - 2) * REAL(iexp - 1,dp) &
+                                    * grid_atom%rad(ir)*harmonics%a(idir,ia) )
+                            END IF
+                         END DO
+                         nablavks_vec_rad_h(idir,1)%r_coef(ir,ia) = &
+                            nablavks_vec_rad_h(idir,1)%r_coef(ir,ia) + hard_value
+                         IF (make_soft) THEN
+                            nablavks_vec_rad_s(idir,1)%r_coef(ir,ia) = &
+                               nablavks_vec_rad_s(idir,1)%r_coef(ir,ia) + soft_value
+                         ELSE
+                            nablavks_vec_rad_s(idir,1)%r_coef(ir,ia) = &
+                               nablavks_vec_rad_s(idir,1)%r_coef(ir,ia) + hard_value
+                         END IF
+                      END DO
+
+                   END DO ! ia
+                END DO ! ir
+
+                DO ispin = 2,nspins
+                   DO idir = 1,3
+                      nablavks_vec_rad_h(idir,ispin)%r_coef(:,:) = nablavks_vec_rad_h(idir,1)%r_coef(:,:)
+                      nablavks_vec_rad_s(idir,ispin)%r_coef(:,:) = nablavks_vec_rad_s(idir,1)%r_coef(:,:)
+                   END DO
+                END DO
+
+             END DO
+
+          END IF
+              
+       ELSE IF (ASSOCIATED(all_potential)) THEN
+
+          CALL get_potential(potential=all_potential,&
+                             alpha_core_charge=alpha,&
+                             zeff=charge)
+
+          sqrt_alpha = SQRT(alpha)
+
+          !   -------------------------------------
+          !   PW grid part
+          !   -------------------------------------
+
+          ALLOCATE(v_coulomb_gspace,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                                  "v_coulomb_gspace",0)
+          ALLOCATE(v_coulomb_gtemp,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                                  "v_coulomb_gtemp",0)
+          ALLOCATE(v_coulomb_rtemp,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                                  "v_coulomb_rtemp",0)
+             
+          CALL pw_pool_create_pw(auxbas_pw_pool,v_coulomb_gspace%pw, &
+                                 use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
+                                 error=error)
+          CALL pw_pool_create_pw(auxbas_pw_pool,v_coulomb_gtemp%pw, &
+                                 use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
+                                 error=error)
+          CALL pw_pool_create_pw(auxbas_pw_pool,v_coulomb_rtemp%pw,&
+                                 use_data=REALDATA3D,in_space=REALSPACE,&
+                                 error=error)
+             
+          CALL pw_zero(v_coulomb_gspace%pw)
+
+          DO iat = 1, natom ! natom = # atoms for ikind
+
+             iatom = atom_list(iat)
+             ratom = particle_set(iatom)%r
+             
+             DO ig = v_coulomb_gspace%pw%pw_grid%first_gne0,v_coulomb_gspace%pw%pw_grid%ngpts_cut_local
+                gtemp = 0.0_dp
+                gtemp = - fourpi * charge / cell%deth * &
+                        EXP ( - v_coulomb_gspace%pw%pw_grid%gsq(ig) / (4.0_dp * alpha) ) &
+                        / v_coulomb_gspace%pw%pw_grid%gsq(ig)
+             
+                arg = DOT_PRODUCT(v_coulomb_gspace%pw%pw_grid%g(:,ig),ratom)
+             
+                gtemp = gtemp * CMPLX(COS(arg),-SIN(arg),KIND=dp)
+                v_coulomb_gspace%pw%cc(ig) = v_coulomb_gspace%pw%cc(ig) + gtemp 
+             END DO
+             IF ( v_coulomb_gspace%pw%pw_grid%have_g0 ) v_coulomb_gspace%pw%cc(1) = 0.0_dp
+
+          END DO
+
+          CALL pw_copy(v_coulomb_gspace%pw, v_coulomb_gtemp%pw)
+          CALL pw_derive(v_coulomb_gtemp%pw, (/1,0,0/) )
+          CALL pw_transfer(v_coulomb_gtemp%pw, v_coulomb_rtemp%pw)
+          CALL pw_axpy(v_coulomb_rtemp%pw, pwx)
+
+          CALL pw_copy(v_coulomb_gspace%pw, v_coulomb_gtemp%pw)
+          CALL pw_derive(v_coulomb_gtemp%pw, (/0,1,0/) )
+          CALL pw_transfer(v_coulomb_gtemp%pw, v_coulomb_rtemp%pw)
+          CALL pw_axpy(v_coulomb_rtemp%pw, pwy)
+
+          CALL pw_copy(v_coulomb_gspace%pw, v_coulomb_gtemp%pw)
+          CALL pw_derive(v_coulomb_gtemp%pw, (/0,0,1/) )
+          CALL pw_transfer(v_coulomb_gtemp%pw, v_coulomb_rtemp%pw)
+          CALL pw_axpy(v_coulomb_rtemp%pw, pwz)
+
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,v_coulomb_gspace%pw,error=error)
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,v_coulomb_gtemp%pw,error=error)
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,v_coulomb_rtemp%pw,error=error)
+
+          DEALLOCATE(v_coulomb_gspace,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                                  "v_coulomb_gspace",0)
+          DEALLOCATE(v_coulomb_gtemp,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                                  "v_coulomb_gtemp",0)
+          DEALLOCATE(v_coulomb_rtemp,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                                  "v_coulomb_rtemp",0)
+
+          !   -------------------------------------
+          !   Atomic grids part
+          !   -------------------------------------
+
+          bo_atom = get_limit(natom, para_env%num_pe, para_env%mepos)
+
+          DO iat = bo_atom(1),bo_atom(2) ! natom = # atoms for ikind
+
+             iatom = atom_list(iat)
+
+             nablavks_vec_rad_h => nablavks_atom_set(iatom)%nablavks_vec_rad_h
+
+             DO ir = 1,grid_atom%nr
+             
+                DO ia = 1,grid_atom%ng_sphere
+
+                   DO idir = 1,3
+                      hard_value = 0.0_dp
+                      hard_value = charge * ( &
+                                 2.0_dp * sqrt_alpha * EXP( - grid_atom%rad(ir)**2 * sqrt_alpha**2 ) &
+                                 * grid_atom%rad(ir)*harmonics%a(idir,ia) &
+                                 / ( rootpi * grid_atom%rad(ir)**2 ) &
+                                 + erfc( grid_atom%rad(ir) * sqrt_alpha ) &
+                                 * grid_atom%rad(ir)*harmonics%a(idir,ia) &
+                                 / grid_atom%rad(ir)**3 )
+                      nablavks_vec_rad_h(idir,1)%r_coef(ir,ia) = &
+                         nablavks_vec_rad_h(idir,1)%r_coef(ir,ia) + hard_value
+                   END DO
+
+                END DO ! ia
+             END DO ! ir
+
+             DO ispin = 2,nspins
+                DO idir = 1,3
+                   nablavks_vec_rad_h(idir,ispin)%r_coef(:,:) = nablavks_vec_rad_h(idir,1)%r_coef(:,:)
+                END DO
+             END DO
+
+          END DO
+
        ELSE
           CYCLE
        END IF
@@ -574,15 +976,15 @@ CONTAINS
                                          "v_xc_rtemp",0)
 
     CALL pw_pool_create_pw(auxbas_pw_pool,v_xc_gtemp%pw, &
-                            use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
-                            error=error)
+                           use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
+                           error=error)
     CALL pw_pool_create_pw(auxbas_pw_pool,v_xc_rtemp%pw,&
-                            use_data=REALDATA3D,in_space=REALSPACE,&
-                            error=error)
+                           use_data=REALDATA3D,in_space=REALSPACE,&
+                           error=error)
 
     CALL qs_vxc_create(qs_env=qs_env,&
          vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=exc, &
-         just_energy=.FALSE., gapw_xc=gapw_xc, error=error)
+         just_energy=.FALSE., gapw_xc=gapw_xc, epr_xc=.TRUE., error=error)
 
     IF (ASSOCIATED(v_rspace_new)) THEN
 
@@ -652,14 +1054,18 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "v_xc_rtemp",0)
 
+    IF (gapw .OR. gapw_xc) THEN
+       CALL calculate_vxc_atom(qs_env=qs_env,energy_only=.FALSE.,&
+                               gradient_atom_set=nablavks_atom_set,&
+                               error=error)
+    END IF
+
 !   -------------------------------------
 !   Write Nabla V_KS (local) to cubes
 !   -------------------------------------
 
-    epr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES%EPR",&
-                   error=error)
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,epr_section,&
-                  "PRINT%NABLAVKS_CUBES",error=error),cp_p_file)) THEN
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,lr_section,&
+                  "EPR%PRINT%NABLAVKS_CUBES",error=error),cp_p_file)) THEN
        ALLOCATE(wf_r,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                             "wf_r",0)
@@ -671,15 +1077,16 @@ CONTAINS
           CALL pw_copy(nablavks_set(idir,1)%rho%rho_r(1)%pw,wf_r%pw) ! RA
           filename="nablavks"
           WRITE(ext,'(a2,I1,a5)')  "_d",idir,".cube"
-          unit_nr=cp_print_key_unit_nr(logger,epr_section,"PRINT%NABLAVKS_CUBES",&
+          unit_nr=cp_print_key_unit_nr(logger,lr_section,"EPR%PRINT%NABLAVKS_CUBES",&
                   extension=TRIM(ext),middle_name=TRIM(filename),&
                   log_filename=.FALSE.,file_position="REWIND",error=error)
           CALL pw_to_cube(wf_r%pw,unit_nr,ionode,"NABLA V_KS ",&
                   particles=particles,&
-                  stride=1,&
+                  stride=section_get_ival(lr_section,&
+                  "EPR%PRINT%NABLAVKS_CUBES%STRIDE",error=error),&
                   error=error)
-          CALL cp_print_key_finished_output(unit_nr,logger,epr_section,&
-                  "PRINT%NABLAVKS_CUBES",error=error)
+          CALL cp_print_key_finished_output(unit_nr,logger,lr_section,&
+                  "EPR%PRINT%NABLAVKS_CUBES",error=error)
        END DO
        CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw,error=error)
        DEALLOCATE(wf_r,STAT=istat)

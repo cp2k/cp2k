@@ -5126,10 +5126,10 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
-       NULLIFY(subsection) !R
-       CALL create_epr_section(subsection,error=error) !R
-       CALL section_add_subsection(section,subsection,error=error) !R
-       CALL section_release(subsection,error=error) !R
+       NULLIFY(subsection)
+       CALL create_epr_section(subsection,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
 
        CALL section_create(subsection,"PRINT","printing of information during the XAS calculation",&
             error=error,repeats=.FALSE.,required=.FALSE.)
@@ -5324,7 +5324,7 @@ CONTAINS
 
   END SUBROUTINE create_nmr_section
 
-  SUBROUTINE create_epr_section(section,error) !R
+  SUBROUTINE create_epr_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -5334,10 +5334,11 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key, subsection
+    TYPE(section_type), POINTER              :: print_key, subsection, &
+                                                subsubsection
 
     failure=.FALSE.
-    NULLIFY(keyword,print_key, subsection)
+    NULLIFY(keyword,print_key, subsection, subsubsection)
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -5352,6 +5353,19 @@ CONTAINS
            default_l_val=.FALSE.,&
            lone_keyword_l_val=.TRUE.,&
            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword,name="GAUGE",&
+            description="The gauge used to compute the g tensor within GAPW.",&
+            usage="GAUGE R",&
+            default_i_val=epr_gauge_r_and_step_function,&
+            enum_c_vals=s2a("R", "R_AND_BADER", "R_AND_STEP_FUNCTION"),&
+            enum_desc=s2a("Position gauge (doesnt work well).",&
+                          "Position and Bader gauges for the soft and the local parts, respectively.",&
+                          "Position and step function for the soft and the local parts, respectively."),&
+            enum_i_vals=(/epr_gauge_r,epr_gauge_r_and_Bader,epr_gauge_r_and_step_function/),&
+            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -5396,6 +5410,31 @@ CONTAINS
             description="the stride used to write the cube file "//&
             "(the bigger, the smaller the cube gets)",&
             default_i_val=2, error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"G_TENSOR",&
+            description="Controls the printing of the g tensor",&
+            print_level=high_print_level,each=(/1/),add_last=(/1/),filename="",&
+            error=error)
+       CALL create_xc_section(subsubsection,error)
+       CALL section_add_subsection(print_key, subsubsection, error=error)
+       CALL section_release(subsubsection,error=error)
+
+       CALL keyword_create(keyword, name="GAPW_MAX_ALPHA",&
+            description="Maximum alpha of GTH potentials allowed on the soft grids ",&
+            usage="GAPW_MAX_ALPHA real", default_r_val=5.0_dp,&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="SOO_RHO_HARD",&
+            description="Whether or not to include the atomic parts of the density "//&
+            "in the SOO part of the g tensor", usage="SOO_RHO_HARD", &
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

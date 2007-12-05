@@ -243,9 +243,9 @@ CONTAINS
             "DFT%XAS%_SECTION_PARAMETERS_", l_val=cls,error=error)
     CALL section_vals_val_get(qs_env%input,&
             "PROPERTIES%LINRES%NMR%_SECTION_PARAMETERS_",l_val=nmr,error=error)
-    CALL section_vals_val_get(qs_env%input,& !R
-            "PROPERTIES%LINRES%EPR%_SECTION_PARAMETERS_",l_val=epr,error=error) !R
-    IF(cls .OR. nmr .OR. epr) THEN !R
+    CALL section_vals_val_get(qs_env%input,&
+            "PROPERTIES%LINRES%EPR%_SECTION_PARAMETERS_",l_val=epr,error=error)
+    IF(cls .OR. nmr .OR. epr) THEN
        all_pairs_list = .TRUE.
     ELSE
        all_pairs_list = .FALSE.

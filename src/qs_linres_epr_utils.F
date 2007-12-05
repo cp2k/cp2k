@@ -60,7 +60,10 @@ MODULE qs_linres_epr_utils
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
-  USE input_constants,                 ONLY: restart_guess
+  USE input_constants,                 ONLY: restart_guess,&
+                                             epr_gauge_r,&
+                                             epr_gauge_r_and_Bader,&
+                                             epr_gauge_r_and_step_function
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -69,18 +72,14 @@ MODULE qs_linres_epr_utils
                                              dp
   USE mathconstants,                   ONLY: fourpi,&
                                              twopi
-!R
-!R
   USE memory_utilities,                ONLY: reallocate
   USE particle_types,                  ONLY: particle_type
-  USE physcon,                         ONLY: a_bohr,&
+  USE physcon,                         ONLY: a_fine,&
+                                             a_bohr,&
                                              e_charge,&
+                                             e_gfactor,&
                                              e_mass,&
                                              mu_perm
-!R
-!R
-!R
-!R
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -95,16 +94,12 @@ MODULE qs_linres_epr_utils
   USE qs_linres_epr_atom_current,      ONLY: list_3c_jrho_atom
   USE qs_linres_epr_current,           ONLY: epr_response_current
   USE qs_linres_epr_op,                ONLY: set_vecp
-!RUSE qs_linres_epr_shift,             ONLY: epr_print_shift
   USE qs_linres_methods,               ONLY: linres_scf
   USE qs_linres_types,                 ONLY: &
        deallocate_jrho_atom_set, deallocate_nablavks_atom_set, &
        epr_env_create, epr_env_type, get_epr_env, init_jrho_atom_set, &
        init_nablavks_atom_set, jrho_atom_type, linres_control_type, &
        nablavks_atom_type, set_epr_env
-!R
-!R
-!R
   USE qs_loc_methods,                  ONLY: qs_print_cubes
   USE qs_matrix_pools,                 ONLY: mpools_get,&
                                              qs_matrix_pools_type
@@ -114,11 +109,8 @@ MODULE qs_linres_epr_utils
   USE qs_p_env_types,                  ONLY: p_env_release,&
                                              qs_p_env_type
   USE qs_rho_atom_methods,             ONLY: allocate_rho_atom_internals
-!R
   USE qs_rho_atom_types,               ONLY: deallocate_rho_atom_set,&
                                              rho_atom_type
-!R
-!R
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_retain
   USE scf_control_types,               ONLY: scf_control_type
@@ -199,6 +191,17 @@ CONTAINS
     lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
     epr_section => section_vals_get_subs_vals(qs_env%input, &
                                                  "PROPERTIES%LINRES%EPR",error=error)
+    CALL section_vals_val_get(epr_section,"GAUGE",i_val=epr_env%gauge,error=error)
+    SELECT CASE(epr_env%gauge)
+    CASE(epr_gauge_r)
+       epr_env%gauge_name="R"
+    CASE(epr_gauge_r_and_Bader)
+       epr_env%gauge_name="R_AND_BADER"
+    CASE(epr_gauge_r_and_step_function)
+       epr_env%gauge_name="R_AND_STEP_FUNCTION"
+    CASE DEFAULT
+       CALL stop_program("epr_env_init","unknown gauge, try again...")
+    END SELECT
 
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
          extension=".linresLog",error=error)
@@ -540,9 +543,6 @@ CONTAINS
     !Calculate current density and induced field
     CALL epr_response_current(epr_env,qs_env,psi1,h1_psi0,error=error)
     !
-    ! Print Results
-!R  CALL epr_print_shift(epr_env,qs_env,epr_section,error=error)
-    !
     ! clean up
     CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, psi1,error=error)
     CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, h1_psi0,error=error)
@@ -582,7 +582,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_env_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, homo, i1, i_B, icount, idir, ini, ir, ispin, istat, &
+    INTEGER :: handle, homo, i_B, icount, idir, ini, ir, ispin, istat, &
       istate, istate2, istate_next, j, k, n_mo(2), n_rep, nao, natom, ncubes, &
       nmo, nmoloc, nspins, nstates, output_unit
     INTEGER, DIMENSION(:), POINTER           :: bounds, list
@@ -613,14 +613,6 @@ CONTAINS
       POINTER                                :: vks_atom_set
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: epr_section, lr_section
-
-!R  CHARACTER(LEN=default_path_length)     :: nics_file_name
-!R
-!R
-!R
-!R
-!R
-!
 
     CALL timeset("epr_env_init","I"," ",handle)
 
@@ -658,28 +650,6 @@ CONTAINS
          &                                    "PROPERTIES%LINRES%EPR",error=error)
     CALL section_vals_val_get(epr_section,"FULL",l_val=epr_env%full_epr,error=error)
     CALL section_vals_val_get(epr_section,"RESTART_EPR",l_val=epr_env%restart_epr,error=error)
-!R    CALL section_vals_val_get(epr_section,"NICS",l_val=epr_env%do_nics,error=error)
-!R    IF(epr_env%do_nics) THEN
-!R       CALL section_vals_val_get(epr_section,"NICS_FILE_NAME",&
-!R            &                    c_val=nics_file_name,error=error)
-!R       CALL parser_create(parser,nics_file_name,error=error)
-!R       CALL parser_get_next_line(parser,1,error=error)
-!R       CALL parser_get_object(parser,epr_env%n_nics,error=error)
-!R       ALLOCATE(epr_env%r_nics(3,epr_env%n_nics),STAT=istat)
-!R       CALL parser_get_next_line(parser,2,error=error)
-!R       DO j = 1,epr_env%n_nics
-!R          CALL parser_get_object(parser,label,error=error)
-!R          CALL parser_get_object(parser,epr_env%r_nics(1,j),error=error)
-!R          CALL parser_get_object(parser,epr_env%r_nics(2,j),error=error)
-!R          CALL parser_get_object(parser,epr_env%r_nics(3,j),error=error)
-!R          CALL convert_to_cp2k_units("ANGSTROM",length=epr_env%r_nics(1,j))
-!R          CALL convert_to_cp2k_units("ANGSTROM",length=epr_env%r_nics(2,j))
-!R          CALL convert_to_cp2k_units("ANGSTROM",length=epr_env%r_nics(3,j))
-!R          CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
-!R          IF (my_end) EXIT
-!R       ENDDO
-!R       CALL parser_release(parser,error=error)
-!R    ENDIF
 
     CALL get_qs_env(qs_env=qs_env,&
          &          atomic_kind_set=atomic_kind_set,&
@@ -779,53 +749,23 @@ CONTAINS
     !
     ! Conversion factors
     ! Magical constant twopi/cell%deth just like in NMR shift (basically undo scale_fac in qs_linres_nmr_current.F)
-    epr_env%g_free_factor = 2.0023192778_dp
-    epr_env%g_zke_factor = -1.0_dp * 2.0023192778_dp * ( 1.0_dp / 137.03602_dp )**2
-    epr_env%g_so_factor =  ( 1.0_dp / 137.03602_dp )**2 * ( 2.0023192778_dp - 1.0_dp ) * twopi / cell%deth
-    epr_env%g_soo_factor = 4.0_dp * fourpi * ( 1.0_dp / 137.03602_dp )**2 * twopi / cell%deth
+    epr_env%g_free_factor = -1.0_dp * e_gfactor
+    epr_env%g_zke_factor = e_gfactor * ( a_fine )**2
+    epr_env%g_so_factor = ( a_fine )**2 * ( -1.0_dp * e_gfactor - 1.0_dp ) * twopi / cell%deth
+    epr_env%g_so_factor_gapw =  ( a_fine )**2 * ( -1.0_dp * e_gfactor - 1.0_dp )
+    ! * 2 because B_ind = 2 * B_beta
+    epr_env%g_soo_factor = 4.0_dp * fourpi * ( a_fine )**2 * twopi / cell%deth
     ! 2 * 2 * 1/4 * e^2 / m * a_0^2 * 2/3 * mu_0 / (omega * 1e-30 )
     epr_env%g_soo_chicorr_factor = 2.0_dp / 3.0_dp * e_charge**2 / e_mass * a_bohr**2 * &
                                    mu_perm / (cell%deth /cell%unit_of_length**3*1.0E-30_dp)
 
-!R    ! Conversion factors
-!R    ! factor for the CHEMICAL SHIFTS: alpha^2 *  ppm.
-!R    epr_env%shift_factor = ( 1.0_dp / 137.03602_dp )**2   * 1.0E+6_dp / cell%deth
-!R    ! factor for the CHEMICAL SHIFTS: alpha^2 *  ppm.
-!R    epr_env%shift_factor_gapw = ( 1.0_dp / 137.03602_dp )**2   * 1.0E+6_dp
-!R    ! chi_factor =  1/4 * e^2/m * a_0 ^2
-!R    epr_env%chi_factor = 1.9727566E-29_dp / 1.0E-30_dp ! -> displayed in 10^-30 J/T^2
-!R    ! Factor to convert 10^-30 J/T^2 into ppm cgs = ppm cm^3/mol
-!R    ! = 10^-30 * mu_0/4pi * N_A * 10^6 * 10^6  [one 10^6 for ppm, one for m^3 -> cm^3]
-!R    epr_env%chi_SI2ppmcgs = 6.022045_dp/1.0E+2_dp
-!R    ! Chi to Shift: 10^-30  *  2/3  mu_0 / Omega  * 1/ppm
-!R    epr_env%chi_SI2shiftppm = 1.0E-30_dp * 8.37758041E-7_dp/ &
-!R         &                   (cell%deth /cell%unit_of_length**3*1.0E-30_dp) * 1.0E+6_dp
-
     IF(output_unit>0) THEN
+       WRITE(output_unit,"(T2,A,T60,A)") "  EPR|","Gauge used "//TRIM(epr_env%gauge_name)
        IF(epr_env%full_epr) THEN
           WRITE(output_unit,"(T2,A,T60,A)") "  EPR|","Full orbital dependent correction"
        ENDIF
-!R       IF(epr_env%do_nics) THEN
-!R          WRITE(output_unit,"(T2,A,T50,I5,A)")&
-!R               & "  EPR|   NICS computed in ",epr_env%n_nics," additional points"
-!R          WRITE(output_unit,"(T2,A,T60,A)")&
-!R               & "  EPR|   NICS coordinates read on file ",nics_file_name
-!R       ENDIF
-!R       WRITE(output_unit,"(T2,A,T60,ES15.6)")&
-!R            & "  EPR|      Shift factor (ppm)", epr_env%shift_factor
-!R       IF(gapw) THEN
-!R          WRITE(output_unit,"(T2,A,T60,ES15.6)")&
-!R               & "  EPR| Shift factor gapw (ppm)", epr_env%shift_factor_gapw
-!R       ENDIF
-!R       WRITE(output_unit,"(T2,A,T60,ES15.6)")&
-!R            & "  EPR|        Chi factor  (SI)", epr_env%chi_factor
-!R       WRITE(output_unit,"(T2,A,T60,ES15.6)")&
-!R            & "  EPR| Conversion Chi (ppm/cgs)", epr_env%chi_SI2ppmcgs
-!R       WRITE(output_unit,"(T2,A,T60,ES15.6)")&
-!R            & "  EPR| Conversion Chi to Shift", epr_env%chi_SI2shiftppm
     ENDIF
 
-!R  epr_env%store_current = .FALSE.
     IF (BTEST(cp_print_key_should_output(logger%iter_info,epr_section,&
          &    "PRINT%RESPONSE_FUNCTION_CUBES",error=error),cp_p_file)) THEN
 
@@ -867,75 +807,6 @@ CONTAINS
           ENDDO
        ENDIF
     ENDIF
-!R    IF (BTEST(cp_print_key_should_output(logger%iter_info,epr_section,&
-!R         &    "PRINT%CURRENT_CUBES",error=error),cp_p_file)) THEN
-!R       epr_env%store_current = .TRUE.
-!R    ENDIF
-!R
-!R    ALLOCATE (epr_env%do_calc_cs_atom(natom), STAT=istat)
-!R    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-!R    epr_env%do_calc_cs_atom = 0
-!R
-!R    IF (BTEST(cp_print_key_should_output(logger%iter_info,epr_section,&
-!R         &    "PRINT%SHIELDING_TENSOR",error=error),cp_p_file)) THEN
-!R
-!R       NULLIFY(bounds,list)
-!R       nat_print = 0
-!R       CALL section_vals_val_get(epr_section,&
-!R            &                    "PRINT%SHIELDING_TENSOR%ATOMS_LU_BOUNDS",&
-!R            &                    i_vals=bounds,error=error)
-!R       nat_print = bounds(2) - bounds(1)  + 1
-!R       IF(nat_print > 0) THEN
-!R          ALLOCATE(epr_env%cs_atom_list(nat_print),STAT=istat)
-!R          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-!R          DO ir = 1,nat_print
-!R             epr_env%cs_atom_list(ir) = bounds(1) + (ir-1)
-!R             epr_env%do_calc_cs_atom(bounds(1) + (ir-1)) = 1
-!R          ENDDO
-!R       ENDIF
-!R
-!R       IF(.NOT. ASSOCIATED(epr_env%cs_atom_list)) THEN
-!R          CALL section_vals_val_get(epr_section,"PRINT%SHIELDING_TENSOR%ATOMS_LIST",&
-!R               &                    n_rep_val=n_rep,error=error)
-!R          nat_print = 0
-!R          DO ir = 1,n_rep
-!R             NULLIFY(list)
-!R             CALL section_vals_val_get(epr_section,"PRINT%SHIELDING_TENSOR%ATOMS_LIST",&
-!R                  &                    i_rep_val=ir,i_vals=list,error=error)
-!R             IF(ASSOCIATED(list)) THEN
-!R                CALL reallocate(epr_env%cs_atom_list,1,nat_print + SIZE(list))
-!R                DO ini = 1, SIZE(list)
-!R                   epr_env%cs_atom_list(ini+nat_print) = list(ini)
-!R                   epr_env%do_calc_cs_atom(list(ini)) = 1
-!R                ENDDO
-!R                nat_print = nat_print + SIZE(list)
-!R             ENDIF
-!R          ENDDO  ! ir
-!R       ENDIF
-!R
-!R       IF(.NOT. ASSOCIATED(epr_env%cs_atom_list)) THEN
-!R          ALLOCATE(epr_env%cs_atom_list(natom),STAT=istat)
-!R          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-!R          DO ir = 1,natom
-!R             epr_env%cs_atom_list(ir) = ir
-!R          ENDDO
-!R          epr_env%do_calc_cs_atom = 1
-!R       ENDIF
-!R
-!R    ELSE
-!R       NULLIFY(epr_env%cs_atom_list)
-!R    ENDIF
-!R
-!R    IF(output_unit>0) THEN
-!R       IF(ASSOCIATED(epr_env%cs_atom_list)) THEN
-!R          WRITE(output_unit,"(T2,A,T40,I5,A)")&
-!R               & "  EPR|   Shielding tensor computed for ",&
-!R               & SIZE(epr_env%cs_atom_list,1) ," atoms"
-!R       ELSE
-!R          WRITE(output_unit,"(T2,A,T50)")&
-!R               & "  EPR|   Shielding tensor not computed at the atomic positions"
-!R       ENDIF
-!R    ENDIF
 
     CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=epr_env%ao_mo_fm_pools, error=error)
     ! for the chemical shift we need 6 psi1, i.e. 6 optimization procedures
@@ -1023,6 +894,18 @@ CONTAINS
     !
     ! Current density matrix in x y and z:
     !
+    !jp0_ao
+    ALLOCATE(epr_env%jp0_ao(nspins),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DO ispin = 1,nspins
+       NULLIFY(epr_env%jp0_ao(ispin)%matrix)
+       CALL replicate_matrix_structure(epr_env%op_rmd_ao(1)%matrix, &
+            &                          epr_env%jp0_ao(ispin)%matrix,"epr_env%jp0_ao"//&
+            &                          "-"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+            &                          target_symmetry="none",error=error)
+       CALL set_matrix(epr_env%jp0_ao(ispin)%matrix,0.0_dp)
+    ENDDO
+    !
     !jp1_ao
     ALLOCATE( epr_env%jp1_ao(nspins),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -1050,40 +933,37 @@ CONTAINS
     ENDDO
     !
     ! If the current density on the grid needs to be stored
-!R    IF(epr_env%store_current) THEN
-       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
-       ALLOCATE(epr_env%jrho1_set(3,3),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       DO i_B = 1,3
-          DO idir = 1,3
-             NULLIFY(epr_env%jrho1_set(idir,i_B)%rho)
-             ALLOCATE(epr_env%jrho1_set(idir,i_B)%rho,STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-             epr_env%jrho1_set(idir,i_B)%rho%ref_count = 1
-             NULLIFY( epr_env%jrho1_set(idir,i_B)%rho%rho_r)
-             NULLIFY( epr_env%jrho1_set(idir,i_B)%rho%rho_g)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
+      ALLOCATE(epr_env%jrho1_set(3,3),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      DO i_B = 1,3
+         DO idir = 1,3
+            NULLIFY(epr_env%jrho1_set(idir,i_B)%rho)
+            ALLOCATE(epr_env%jrho1_set(idir,i_B)%rho,STAT=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            epr_env%jrho1_set(idir,i_B)%rho%ref_count = 1
+            NULLIFY( epr_env%jrho1_set(idir,i_B)%rho%rho_r)
+            NULLIFY( epr_env%jrho1_set(idir,i_B)%rho%rho_g)
 
-             ALLOCATE(epr_env%jrho1_set(idir,i_B)%rho%rho_r(nspins),stat=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-             ALLOCATE(epr_env%jrho1_set(idir,i_B)%rho%rho_g(nspins),stat=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-             DO ispin=1,nspins
-                CALL pw_pool_create_pw(auxbas_pw_pool,&
-                     &                  epr_env%jrho1_set(idir,i_B)%rho%rho_r(ispin)%pw,&
-                     &                  use_data=REALDATA3D,in_space=REALSPACE,error=error)
-                CALL pw_zero(epr_env%jrho1_set(idir,i_B)%rho%rho_r(ispin)%pw)
+            ALLOCATE(epr_env%jrho1_set(idir,i_B)%rho%rho_r(nspins),stat=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            ALLOCATE(epr_env%jrho1_set(idir,i_B)%rho%rho_g(nspins),stat=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            DO ispin=1,nspins
+               CALL pw_pool_create_pw(auxbas_pw_pool,&
+                    &                  epr_env%jrho1_set(idir,i_B)%rho%rho_r(ispin)%pw,&
+                    &                  use_data=REALDATA3D,in_space=REALSPACE,error=error)
+               CALL pw_zero(epr_env%jrho1_set(idir,i_B)%rho%rho_r(ispin)%pw)
 
-                CALL pw_pool_create_pw(auxbas_pw_pool,&
-                     &                  epr_env%jrho1_set(idir,i_B)%rho%rho_g(ispin)%pw,&
-                     &                  use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
-                     &                  error=error)
-                CALL pw_zero(epr_env%jrho1_set(idir,i_B)%rho%rho_g(ispin)%pw)
-             ENDDO
-             CALL qs_rho_retain(epr_env%jrho1_set(idir,i_B)%rho,error=error)
-          ENDDO
-       ENDDO
-
-!R    ENDIF
+               CALL pw_pool_create_pw(auxbas_pw_pool,&
+                    &                  epr_env%jrho1_set(idir,i_B)%rho%rho_g(ispin)%pw,&
+                    &                  use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
+                    &                  error=error)
+               CALL pw_zero(epr_env%jrho1_set(idir,i_B)%rho%rho_g(ispin)%pw)
+            ENDDO
+            CALL qs_rho_retain(epr_env%jrho1_set(idir,i_B)%rho,error=error)
+         ENDDO
+      ENDDO
     !
     ! Initialize local current density if GAPW calculation
     IF(gapw) THEN
@@ -1091,15 +971,14 @@ CONTAINS
        CALL list_3c_jrho_atom(qs_env,error=error)
        !write(*,*) 'epr_env_init: enter init_jrho_atom_set'
        CALL init_jrho_atom_set(jrho1_atom_set,atomic_kind_set,&
-            &                  nspins,.TRUE.,& !R
+            &                  nspins,.TRUE.,&
             &                  error=error)
-       CALL init_nablavks_atom_set(nablavks_atom_set,atomic_kind_set,& !R
-                   nspins,error=error) !R
-       CALL allocate_rho_atom_internals(qs_env, vks_atom_set,error=error) !R
+       CALL init_nablavks_atom_set(nablavks_atom_set,atomic_kind_set,&
+                   nspins,error=error)
        !write(*,*) 'epr_env_init: enter set_epr_env'
-       CALL set_epr_env(epr_env=epr_env,jrho1_atom_set=jrho1_atom_set,& !R
-                        nablavks_atom_set=nablavks_atom_set, vks_atom_set=vks_atom_set,& !R
-            &           error=error) !R
+       CALL set_epr_env(epr_env=epr_env,jrho1_atom_set=jrho1_atom_set,&
+                        nablavks_atom_set=nablavks_atom_set,&
+            &           error=error)
        !write(*,*) 'epr_env_init: done with gapw'
     ENDIF
     !
@@ -1153,41 +1032,21 @@ CONTAINS
       END DO
     END DO
 
-!R    ! Initialize the chemical shift tensor
-!R    epr_env%chi_tensor = 0.0_dp
-!R    ALLOCATE(epr_env%chemical_shift(3,3,natom),STAT=istat)
-!R    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-!R    epr_env%chemical_shift = 0.0_dp
-!R    ALLOCATE(epr_env%chemical_shift_loc(3,3,natom),STAT=istat)
-!R    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-!R    epr_env%chemical_shift = 0.0_dp
-!R    IF(epr_env%do_nics) THEN
-!R       ALLOCATE(epr_env%chemical_shift_loc_nics(3,3,epr_env%n_nics),STAT=istat)
-!R       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-!R       epr_env%chemical_shift_loc_nics = 0.0_dp
-!R       ALLOCATE(epr_env%chemical_shift_nics(3,3,epr_env%n_nics),STAT=istat)
-!R       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-!R       epr_env%chemical_shift_nics = 0.0_dp
-!R    ENDIF
-
-    ! Initialize the g tensor components !R
-    ALLOCATE(epr_env%g_total(3,3),STAT=istat) !R
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) !R
-    ALLOCATE(epr_env%g_so(3,3),STAT=istat) !R
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) !R
-    ALLOCATE(epr_env%g_soo(3,3),STAT=istat) !R
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) !R
-    epr_env%g_total = 0.0_dp !R
-    epr_env%g_zke = 0.0_dp !R
-    epr_env%g_so = 0.0_dp !R
-    epr_env%g_soo = 0.0_dp !R
-    DO i1 = 1,3 !R
-       epr_env%g_total(i1,i1) = epr_env%g_free_factor !R
-    END DO !R
-    ! Initialize the Bind0 tensor components !R
-    ALLOCATE(epr_env%bind0(3,3),STAT=istat) !R
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) !R
-    epr_env%bind0 = 0.0_dp !R
+    ! Initialize the g tensor components
+    ALLOCATE(epr_env%g_total(3,3),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(epr_env%g_so(3,3),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(epr_env%g_soo(3,3),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    epr_env%g_total = 0.0_dp
+    epr_env%g_zke = 0.0_dp
+    epr_env%g_so = 0.0_dp
+    epr_env%g_soo = 0.0_dp
+    ! Initialize the Bind0 tensor components
+    ALLOCATE(epr_env%bind0(3,3),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    epr_env%bind0 = 0.0_dp
 
     ALLOCATE(epr_env%basisfun_center(3,epr_env%nao),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -1305,12 +1164,6 @@ CONTAINS
         IF(ASSOCIATED(epr_env%list_cubes)) THEN
           DEALLOCATE(epr_env%list_cubes)
         END IF
-!R        IF(ASSOCIATED(epr_env%cs_atom_list)) THEN
-!R          DEALLOCATE(epr_env%cs_atom_list)
-!R        END IF
-!R        IF(ASSOCIATED(epr_env%do_calc_cs_atom)) THEN
-!R          DEALLOCATE(epr_env%do_calc_cs_atom)
-!R        END IF
         !op_p_ao
         IF(ASSOCIATED(epr_env%op_p_ao)) THEN
           CALL deallocate_matrix_set(epr_env%op_p_ao,error=error)
@@ -1319,6 +1172,14 @@ CONTAINS
         IF(ASSOCIATED(epr_env%op_rmd_ao)) THEN
           CALL deallocate_matrix_set(epr_env%op_rmd_ao,error=error)
         END IF
+        !jp0_ao
+        IF(ASSOCIATED(epr_env%jp0_ao)) THEN
+          DO i = 1,SIZE(epr_env%jp0_ao,1)
+              CALL deallocate_matrix(epr_env%jp0_ao(i)%matrix,error=error)
+          END DO
+          DEALLOCATE(epr_env%jp0_ao,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        END IF        
         !jp1_ao
         IF(ASSOCIATED(epr_env%jp1_ao)) THEN
           DO i = 1,SIZE(epr_env%jp1_ao,1)
@@ -1355,15 +1216,6 @@ CONTAINS
           DEALLOCATE(epr_env%fullepr_done,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         END IF
-!R        !chemical_shift
-!R        IF(ASSOCIATED(epr_env%chemical_shift)) THEN
-!R          DEALLOCATE(epr_env%chemical_shift,STAT=istat)
-!R          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-!R        END IF
-!R        IF(ASSOCIATED(epr_env%chemical_shift_loc)) THEN
-!R          DEALLOCATE(epr_env%chemical_shift_loc,STAT=istat)
-!R          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-!R        END IF
         IF(ASSOCIATED(epr_env%basisfun_center)) THEN
           DEALLOCATE(epr_env%basisfun_center,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -1373,61 +1225,45 @@ CONTAINS
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         END IF
 
-!R        ! nics
-!R        IF(ASSOCIATED(epr_env%r_nics)) THEN
-!R          DEALLOCATE(epr_env%r_nics,STAT=istat)
-!R          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-!R        END IF
-!R
-!R        IF(ASSOCIATED(epr_env%chemical_shift_nics)) THEN
-!R          DEALLOCATE(epr_env%chemical_shift_nics,STAT=istat)
-!R          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-!R        END IF
-!R
-!R        IF(ASSOCIATED(epr_env%chemical_shift_loc_nics)) THEN
-!R          DEALLOCATE(epr_env%chemical_shift_loc_nics,STAT=istat)
-!R          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-!R        END IF
-
-        ! nablavks_set !R
+        ! nablavks_set
         IF(ASSOCIATED(epr_env%nablavks_set)) THEN
           DEALLOCATE(epr_env%nablavks_set,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         END IF
-        ! nablavks_atom_set !R
+        ! nablavks_atom_set
         IF(ASSOCIATED(epr_env%nablavks_atom_set)) THEN
           CALL deallocate_nablavks_atom_set(epr_env%nablavks_atom_set,error=error)
         END IF
-        ! vks_atom_set !R
+        ! vks_atom_set
         IF(ASSOCIATED(epr_env%vks_atom_set)) THEN
           CALL deallocate_rho_atom_set(epr_env%vks_atom_set)
         END IF
-        ! bind_set !R
+        ! bind_set
         IF(ASSOCIATED(epr_env%bind_set)) THEN
           DEALLOCATE(epr_env%bind_set,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         END IF
-        ! bind_atom_set !R
+        ! bind_atom_set
         IF(ASSOCIATED(epr_env%bind_atom_set)) THEN
           DEALLOCATE(epr_env%bind_atom_set,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         END IF
-        ! g_total !R
+        ! g_total
         IF(ASSOCIATED(epr_env%g_total)) THEN
           DEALLOCATE(epr_env%g_total,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         END IF
-        ! g_so !R
+        ! g_so
         IF(ASSOCIATED(epr_env%g_so)) THEN
           DEALLOCATE(epr_env%g_so,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         END IF
-        ! g_soo !R
+        ! g_soo
         IF(ASSOCIATED(epr_env%g_soo)) THEN
           DEALLOCATE(epr_env%g_soo,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         END IF
-        ! bind0 !R
+        ! bind0
         IF(ASSOCIATED(epr_env%bind0)) THEN
           DEALLOCATE(epr_env%bind0,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
