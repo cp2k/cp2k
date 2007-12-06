@@ -59,8 +59,8 @@ MODULE cp_log_handling
                                              m_flush,&
                                              m_getpid,&
                                              m_hostnm
-  USE message_passing,                 ONLY: mp_comm_free,&
-                                             mp_abort
+  USE message_passing,                 ONLY: mp_abort,&
+                                             mp_comm_free
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: print_stack
 
@@ -1510,7 +1510,7 @@ END SUBROUTINE cp_iteration_info_release
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=12)                        :: fmtstr1
-    CHARACTER(LEN=23)                        :: fmtstr2
+    CHARACTER(LEN=25)                        :: fmtstr2
     INTEGER :: blank_lines_after, blank_lines_before, decoration_level, i, &
       ibreak, ipos1, ipos2, maxrowlen, msglen, nrow, rowlen
 
@@ -1612,11 +1612,17 @@ END SUBROUTINE cp_iteration_info_release
       END IF
 
       IF (decoration_level == 0) THEN
-        WRITE (UNIT=output_unit,FMT="(T2,A)") message(ipos1:ibreak)
+         fmtstr2 = "(T2,A)"
+         IF (ipos1==1) fmtstr2 = "(/T2,A)"
+         WRITE (UNIT=output_unit,FMT=fmtstr2) message(ipos1:ibreak)
       ELSE IF (decoration_level > 0) THEN
-        fmtstr2 = "(T2,""*** "",A,  X,""***"")"
-        WRITE (UNIT=fmtstr2(14:15),FMT="(I2)") ipos1 + maxrowlen - ibreak
-        WRITE (UNIT=output_unit,FMT=fmtstr2) message(ipos1:ibreak)
+         fmtstr2 = "(T2,""*** "",A,  X,"" ***"")"
+         WRITE (UNIT=fmtstr2(14:15),FMT="(I2)") ipos1 + maxrowlen - ibreak
+         IF (ipos1==1) THEN
+            fmtstr2 = "(/T2,""*** "",A,  X,"" ***"")"
+            WRITE (UNIT=fmtstr2(15:16),FMT="(I2)") ipos1 + maxrowlen - ibreak
+         END IF
+         WRITE (UNIT=output_unit,FMT=fmtstr2) message(ipos1:ibreak)
       END IF
 
       ipos1 = ibreak + 2

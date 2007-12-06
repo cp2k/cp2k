@@ -38,8 +38,8 @@ MODULE basis_set_types
                                              section_vals_val_set
   USE input_val_types,                 ONLY: val_get,&
                                              val_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             default_path_length,&
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp,&
                                              dp_size
   USE mathconstants,                   ONLY: dfac,&
@@ -820,7 +820,7 @@ CONTAINS
   ! ***************************************************************************
 
   SUBROUTINE read_gto_basis_set(element_symbol,basis_set_name,gto_basis_set,&
-       para_env,force_env_section,basis_section,error)
+       para_env,dft_section,basis_section,error)
 
     ! Read a Gaussian-type orbital (GTO) basis set from the database file.
 
@@ -829,17 +829,17 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, basis_set_name
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: basis_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_gto_basis_set'
 
+    CHARACTER(len=20*default_string_length)  :: line_att
     CHARACTER(LEN=240)                       :: line
     CHARACTER(LEN=242)                       :: line2
-    CHARACTER(len=20*default_string_length)  :: line_att
-    CHARACTER(len=default_path_length)       :: basis_set_file_name,tmp
+    CHARACTER(len=default_path_length)       :: basis_set_file_name, tmp
     CHARACTER(LEN=LEN(basis_set_name))       :: bsname
     CHARACTER(LEN=LEN(basis_set_name)+2)     :: bsname2
     CHARACTER(LEN=LEN(element_symbol))       :: symbol
@@ -870,7 +870,7 @@ CONTAINS
        CALL section_vals_get(basis_section,explicit=read_from_input, error=error)
     END IF
     IF (.NOT.read_from_input) THEN
-       CALL section_vals_val_get(force_env_section,"DFT%BASIS_SET_FILE_NAME",&
+       CALL section_vals_val_get(dft_section,"BASIS_SET_FILE_NAME",&
             c_val=basis_set_file_name,error=error)
        NULLIFY(parser)
        CALL parser_create(parser,basis_set_file_name,para_env=para_env,error=error)
