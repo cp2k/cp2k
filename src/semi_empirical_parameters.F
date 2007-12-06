@@ -2685,7 +2685,7 @@ CONTAINS
     !  P is non-zero, there are two S electrons)
     hspc = REAL(-k ,KIND=dp)
     !   CONSTRAINTS ON THE POSSIBLE VALUES OF PARAMETERS
-    zp = dmax1(0.3e0_dp,zp) 
+    zp = MAX(0.3e0_dp,zp) 
     !  PUT IN ANY CONSTRAINTS AT THIS POINT
     hpp = 0.5e0_dp*(gpp-gp2) 
     hpp = MAX(0.1e0_dp,hpp) 
