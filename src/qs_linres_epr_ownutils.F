@@ -515,7 +515,7 @@ CONTAINS
                                 )
           END DO
           temp_so_soft = -1.0_dp * epr_env%g_so_factor * temp_so_soft
-	  IF (output_unit>0) THEN
+          IF (output_unit>0) THEN
                WRITE (UNIT=output_unit,FMT="(T2,A,T18,I1,I1,T56,E24.16)")&
                "epr|SOX:soft",iB,idir1,temp_so_soft
           END IF

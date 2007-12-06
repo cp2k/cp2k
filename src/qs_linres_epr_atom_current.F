@@ -764,7 +764,7 @@ CONTAINS
           gauge_s(1:nr) = grid_atom%rad(1:nr)*        EXP(-alpha*grid_atom%rad2(1:nr)*grid_atom%rad2(1:nr))
        CASE(epr_gauge_r_and_step_function)
           ! step function
-          gauge_h(1:nr) = 0d0
+          gauge_h(1:nr) = 0e0_dp
           do ir=1,nr
              if(grid_atom%rad(ir).LE.hard_radius) then
                 gauge_s(ir) = grid_atom%rad(ir)
