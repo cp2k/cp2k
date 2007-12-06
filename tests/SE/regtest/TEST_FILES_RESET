@@ -88,3 +88,21 @@ nh4.inp
 NO2-ROKS.inp
 O2-ROKS.inp
 st.inp
+# reset MNDO after enabling calpar
+c2h4.inp
+H2O-MNDO.inp
+hcn.inp
+nh4.inp
+O2-ROKS.inp
+st.inp
+# reset due to the use of calpar for AM1 and PM3
+ch2o.inp
+ch4.inp
+ch4-ot.inp
+ch4-restart.inp
+h2o.inp
+h2o_lsd.inp
+h2o_lsd-ot.inp
+h2op.inp
+hf.inp
+NO2-ROKS.inp

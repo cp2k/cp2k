@@ -45,3 +45,16 @@ water_3_NOwalls.inp
 water_3_walls.inp
 #  
 zwitt.inp
+# reset due to the use of calpar for AM1 and PM3
+h2_dbg_-2_2.inp
+mol_CSVR_gen1.inp
+mol_CSVR_gen2.inp
+mol_CSVR_gen3.inp
+mol.inp
+water_3_fdbg.inp
+water_3_fdbg_inv.inp
+water_3_full.inp
+water_3.inp
+water_3_NOwalls.inp
+water_3_walls.inp
+zwitt.inp

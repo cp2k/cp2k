@@ -115,6 +115,25 @@ MODULE semi_empirical_parameters
           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,               &
                             0, 0, 0, 0, 0, 0, 0, 0, 0,   1, 2, 3, 4, 5, 6, &!   86
           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 /)
+!
+!              H           Initial "d" Orbital Occupancies                   He
+!              Li Be                                          B  C  N  O  F  Ne
+!              Na Mg                                          Al Si P  S  Cl Ar
+!              K  Ca Sc          Ti V  Cr Mn Fe Co Ni Cu Zn   Ga Ge As Se Br Kr
+!              Rb Sr Y           Zr Nb Mo Tc Ru Rh Pd Ag Cd   In Sn Sb Te I  Xe
+!              Cs Ba La Ce-Lu    Hf Ta W  Re Os Ir Pt Au Hg   Tl Pb Bi Po At Rn
+!              Fr Ra Ac Th Pa U  Np Pu Am Cm Bk Cf (The rest are reserved for MOPAC)
+!                                      "d" shell
+  INTEGER, DIMENSION(107), PRIVATE :: Nod =(/&
+          0,                                                           0, &!    2
+          0, 0,                                         0, 0, 0, 0, 0, 0, &!   10
+          0, 0,                                         0, 0, 0, 0, 0, 0, &!   18
+          0, 0, 1,          2, 3, 5, 5, 6, 7, 8, 10, 0, 0, 0, 0, 0, 0, 0, &!   36
+          0, 0, 1,          2, 4, 5, 5, 7, 8,10, 10, 0, 0, 0, 0, 0, 0, 0, &!   54
+          0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 1,             &
+                            2, 3, 5, 5, 6, 7, 9, 10, 0, 0, 0, 0, 0, 0, 0, &!   86
+          0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0 /)
+
 
 !!***
 ! *****************************************************************************
@@ -189,12 +208,8 @@ CONTAINS
         !Hydrogen
         sep%defined          = .TRUE.
         sep%alp              =   2.5441341_dp
-        sep%eisol            = -11.9062760_dp
         sep%beta(0)          =  -6.9890640_dp
         sep%sto_exponents(0) =   1.3319670_dp
-        sep%am               =   0.4721793_dp
-        sep%ad               =   0.4721793_dp 
-        sep%aq               =   0.4721793_dp
         sep%uss              = -11.9062760_dp
         sep%gss              =  12.8480000_dp
       CASE (2)
@@ -202,16 +217,10 @@ CONTAINS
         !Lithium
         sep%defined          = .TRUE.
         sep%alp              =   1.2501400_dp
-        sep%eisol            =  -5.1280000_dp
         sep%beta(0)          =  -1.3500400_dp
         sep%beta(1)          =  -1.3500400_dp
         sep%sto_exponents(0) =   0.7023800_dp 
         sep%sto_exponents(1) =   0.7023800_dp
-        sep%dd               =   2.0549783_dp 
-        sep%qq               =   1.7437069_dp
-        sep%am               =   0.2682837_dp 
-        sep%ad               =   0.2269793_dp 
-        sep%aq               =   0.2614581_dp
         sep%uss              =  -5.1280000_dp 
         sep%upp              =  -2.7212000_dp
         sep%gss              =   7.3000000_dp 
@@ -223,16 +232,10 @@ CONTAINS
       !Beryllium
         sep%defined          = .TRUE.
         sep%alp              =   1.6694340_dp
-        sep%eisol            = -24.2047560_dp
         sep%beta(0) = -4.0170960_dp
         sep%beta(1) = -4.0170960_dp
         sep%sto_exponents(0) = 1.0042100_dp 
         sep%sto_exponents(1) = 1.0042100_dp
-        sep%dd = 1.4373245_dp 
-        sep%qq = 1.2196103_dp 
-        sep%am = 0.3307607_dp 
-        sep%ad = 0.3356142_dp 
-        sep%aq = 0.3846373_dp
         sep%uss = -16.6023780_dp 
         sep%upp = -10.7037710_dp 
         sep%gss = 9.0000000_dp 
@@ -244,16 +247,10 @@ CONTAINS
         !Boron
         sep%defined = .TRUE.
         sep%alp   =   2.1349930_dp
-        sep%eisol = -64.3159500_dp
         sep%beta(0) =  -8.2520540_dp
         sep%beta(1) =  -8.2520540_dp
         sep%sto_exponents(0)    =   1.5068010_dp
         sep%sto_exponents(1)    =   1.5068010_dp
-        sep%dd    =   0.9579073_dp
-        sep%qq    =   0.8128113_dp
-        sep%am    =   0.3891951_dp
-        sep%ad    =   0.4904730_dp
-        sep%aq    =   0.5556979_dp
         sep%uss   = -34.5471300_dp
         sep%upp   = -23.1216900_dp
         sep%gss   =  10.5900000_dp
@@ -265,16 +262,10 @@ CONTAINS
         !Carbon
         sep%defined = .TRUE.
         sep%alp   =    2.5463800_dp
-        sep%eisol = -120.5006060_dp
         sep%beta(0) =  -18.9850440_dp
         sep%beta(1) =   -7.9341220_dp
         sep%sto_exponents(0)    =    1.7875370_dp
         sep%sto_exponents(1)    =    1.7875370_dp
-        sep%dd    =    0.8074662_dp
-        sep%qq    =    0.6851578_dp
-        sep%am    =    0.4494671_dp
-        sep%ad    =    0.6149474_dp
-        sep%aq    =    0.6685897_dp
         sep%uss   =  -52.2797450_dp
         sep%upp   =  -39.2055580_dp
         sep%gss   =   12.2300000_dp
@@ -286,16 +277,10 @@ CONTAINS
       !Nitrogen
         sep%defined = .TRUE.
         sep%alp   =    2.8613420_dp
-        sep%eisol = -202.5812010_dp
         sep%beta(0) =  -20.4957580_dp
         sep%beta(1) =  -20.4957580_dp
         sep%sto_exponents(0)    =    2.2556140_dp
         sep%sto_exponents(1)    =    2.2556140_dp
-        sep%dd    =    0.6399037_dp
-        sep%qq    =    0.5429763_dp
-        sep%am    =    0.4994487_dp
-        sep%ad    =    0.7843643_dp
-        sep%aq    =    0.8144720_dp
         sep%uss   =  -71.9321220_dp
         sep%upp   =  -57.1723190_dp
         sep%gss   =   13.5900000_dp
@@ -307,16 +292,10 @@ CONTAINS
       !Oxygen
         sep%defined = .TRUE.
         sep%alp   =    3.1606040_dp
-        sep%eisol = -317.8685060_dp
         sep%beta(0) =  -32.6880820_dp
         sep%beta(1) =  -32.6880820_dp
         sep%sto_exponents(0)    =    2.6999050_dp
         sep%sto_exponents(1)    =    2.6999050_dp
-        sep%dd    =    0.5346024_dp
-        sep%qq    =    0.4536252_dp
-        sep%am    =    0.5667034_dp
-        sep%ad    =    0.9592562_dp
-        sep%aq    =    0.9495934_dp
         sep%uss   =  -99.6443090_dp
         sep%upp   =  -77.7974720_dp
         sep%gss   =   15.4200000_dp
@@ -328,16 +307,10 @@ CONTAINS
       !Fluorine
         sep%defined = .TRUE.
         sep%alp   =    3.4196606_dp
-        sep%eisol = -476.6837810_dp
         sep%beta(0) =  -48.2904660_dp
         sep%beta(1) =  -36.5085400_dp
         sep%sto_exponents(0)    =    2.8484870_dp
         sep%sto_exponents(1)    =    2.8484870_dp
-        sep%dd    =    0.5067166_dp
-        sep%qq    =    0.4299633_dp
-        sep%am    =    0.6218302_dp
-        sep%ad    =    1.0850301_dp
-        sep%aq    =    1.0343643_dp
         sep%uss   = -131.0715480_dp
         sep%upp   = -105.7821370_dp
         sep%gss   =   16.9200000_dp
@@ -345,29 +318,16 @@ CONTAINS
         sep%gpp   =   16.7100000_dp
         sep%gp2   =   14.9100000_dp
         sep%hsp   =    4.8300000_dp
-      CASE (10)
-      CASE (11)
-      !Sodium
-        sep%defined = .TRUE.
-        sep%alp   =  1.66_dp
-        sep%eisol =  0.00_dp
-        sep%am    =  0.50_dp
-      CASE (12)
+      CASE (10:12)
       CASE (13)
        !Aluminium
         sep%defined = .TRUE.
         sep%alp   =   1.8688394_dp
-        sep%eisol = -44.4840720_dp
         sep%beta(0) =  -2.6702840_dp
         sep%beta(1) =  -2.6702840_dp
         sep%sto_exponents(0) =   1.4441610_dp
         sep%sto_exponents(1) =   1.4441610_dp
         sep%sto_exponents(2) =   1.0000000_dp
-        sep%dd    =   1.3992387_dp
-        sep%qq    =   1.1586797_dp
-        sep%am    =   0.2973172_dp
-        sep%ad    =   0.2635574_dp
-        sep%aq    =   0.3673560_dp
         sep%uss   = -23.8070970_dp
         sep%upp   = -17.5198780_dp
         sep%gss   =   8.0900000_dp
@@ -379,17 +339,11 @@ CONTAINS
       !Silicon
         sep%defined = .TRUE.
         sep%alp   =   2.2053160_dp
-        sep%eisol = -82.8394220_dp
         sep%beta(0) =  -9.0868040_dp
         sep%beta(1) =  -1.0758270_dp
         sep%sto_exponents(0)    =   1.3159860_dp
         sep%sto_exponents(1)    =   1.7099430_dp
         sep%sto_exponents(2)    =   1.0000000_dp
-        sep%dd    =   1.2580349_dp
-        sep%qq    =   0.9785824_dp
-        sep%am    =   0.3608967_dp
-        sep%ad    =   0.3664244_dp
-        sep%aq    =   0.4506740_dp
         sep%uss   = -37.0375330_dp
         sep%upp   = -27.7696780_dp
         sep%gss   =   9.8200000_dp
@@ -401,17 +355,11 @@ CONTAINS
       !Phosphorus
         sep%defined = .TRUE.
         sep%alp   =    2.4152800_dp
-        sep%eisol = -152.9599600_dp
         sep%beta(0) =   -6.7916000_dp
         sep%beta(1) =   -6.7916000_dp
         sep%sto_exponents(0)    =    2.1087200_dp
         sep%sto_exponents(1)    =    1.7858100_dp
         sep%sto_exponents(2)    =    1.0000000_dp
-        sep%dd    =    1.0129699_dp
-        sep%qq    =    0.9370090_dp
-        sep%am    =    0.4248438_dp
-        sep%ad    =    0.4882420_dp
-        sep%aq    =    0.4979406_dp
         sep%uss   =  -56.1433600_dp
         sep%upp   =  -42.8510800_dp
         sep%gss   =   11.5600000_dp
@@ -423,17 +371,11 @@ CONTAINS
       !Sulphur
         sep%defined = .TRUE.
         sep%alp   =    2.4780260_dp
-        sep%eisol = -226.0123900_dp
         sep%beta(0) =  -10.7616700_dp
         sep%beta(1) =  -10.1084330_dp
         sep%sto_exponents(0)    =    2.3129620_dp
         sep%sto_exponents(1)    =    2.0091460_dp
         sep%sto_exponents(2)    =    1.0000000_dp
-        sep%dd    =    0.9189935_dp
-        sep%qq    =    0.8328514_dp
-        sep%am    =    0.4733554_dp
-        sep%ad    =    0.5544502_dp
-        sep%aq    =    0.5585244_dp
         sep%uss   =  -72.2422810_dp
         sep%upp   =  -56.9732070_dp
         sep%gss   =   12.8800000_dp
@@ -445,17 +387,11 @@ CONTAINS
       !Chlorine
         sep%defined = .TRUE.
         sep%alp   =    2.5422010_dp
-        sep%eisol = -353.1176670_dp
         sep%beta(0) =  -14.2623200_dp
         sep%beta(1) =  -14.2623200_dp
         sep%sto_exponents(0)    =    3.7846450_dp
         sep%sto_exponents(1)    =    2.0362630_dp
         sep%sto_exponents(2)    =    1.0000000_dp
-        sep%dd    =    0.4986870_dp
-        sep%qq    =    0.8217603_dp
-        sep%am    =    0.5523705_dp
-        sep%ad    =    0.8061220_dp
-        sep%aq    =    0.6053435_dp
         sep%uss   = -100.2271660_dp
         sep%upp   =  -77.3786670_dp
         sep%gss   =   15.0300000_dp
@@ -463,30 +399,17 @@ CONTAINS
         sep%gpp   =   11.3000000_dp
         sep%gp2   =    9.9700000_dp
         sep%hsp   =    2.4200000_dp
-      CASE (18)
-      CASE (19)
-        !Potassium
-        sep%defined = .TRUE.
-        sep%alp   =  1.16_dp
-        sep%eisol =  0.00_dp
-        sep%am    =  0.50_dp
-      CASE (20:23)
+      CASE (18:23)
       CASE (24)
         !Chromium.
         sep%defined = .TRUE.
         sep%alp   =    3.0683070_dp
-        sep%eisol = -134.8187920_dp
         sep%beta(0) =   -0.1000000_dp
         sep%beta(1) =   -0.1000000_dp
         sep%beta(2) =   -8.7766360_dp
         sep%sto_exponents(0)    =    1.5000000_dp
         sep%sto_exponents(1)    =    1.5000000_dp
         sep%sto_exponents(2)    =    2.8845490_dp
-        sep%dd    =    1.7320508_dp
-        sep%qq    =    1.4142136_dp
-        sep%am    =    0.2205072_dp
-        sep%ad    =    0.2711332_dp
-        sep%aq    =    0.4464656_dp
         sep%uss   =  -17.5170270_dp
         sep%upp   =  -12.5337290_dp
         sep%udd   =  -44.1249280_dp
@@ -503,17 +426,11 @@ CONTAINS
         !Zinc
         sep%defined = .TRUE.
         sep%alp   =    1.5064570_dp
-        sep%eisol =  -29.8794320_dp
         sep%beta(0) =   -1.0000000_dp
         sep%beta(1) =   -2.0000000_dp
         sep%sto_exponents(0)    =    2.0473590_dp
         sep%sto_exponents(1)    =    1.4609460_dp
         sep%sto_exponents(2)    =    1.0000000_dp
-        sep%dd    =    1.3037826_dp
-        sep%qq    =    1.4520183_dp
-        sep%am    =    0.4336641_dp
-        sep%ad    =    0.2375912_dp
-        sep%aq    =    0.2738858_dp
         sep%uss   =  -20.8397160_dp
         sep%upp   =  -19.6252240_dp
         sep%gss   =   11.8000000_dp
@@ -526,16 +443,10 @@ CONTAINS
         !Germanium
         sep%defined = .TRUE.
         sep%alp   =   1.9784980_dp
-        sep%eisol = -76.2489440_dp
         sep%beta(0) =  -4.5164790_dp
         sep%beta(1) =  -1.7555170_dp
         sep%sto_exponents(0)    =   1.2931800_dp
         sep%sto_exponents(1)    =   2.0205640_dp
-        sep%dd    =   1.2556091_dp
-        sep%qq    =   1.0498655_dp
-        sep%am    =   0.3601617_dp
-        sep%ad    =   0.3643722_dp
-        sep%aq    =   0.4347337_dp
         sep%uss   = -33.9493670_dp
         sep%upp   = -27.4251050_dp
         sep%gss   =   9.8000000_dp
@@ -548,17 +459,11 @@ CONTAINS
       !Bromine
         sep%defined = .TRUE.
         sep%alp   =    2.44570510_dp
-        sep%eisol = -346.68125000_dp
         sep%beta(0) =   -8.91710700_dp
         sep%beta(1) =   -9.94374000_dp
         sep%sto_exponents(0)    =    3.85430190_dp
         sep%sto_exponents(1)    =    2.19920910_dp
         sep%sto_exponents(2)    =    1.00000000_dp
-        sep%dd    =    0.60510740_dp
-        sep%qq    =    0.96458730_dp
-        sep%am    =    0.55260680_dp
-        sep%ad    =    0.72583300_dp
-        sep%aq    =    0.55745890_dp
         sep%uss   =  -99.98644050_dp
         sep%upp   =  -75.67130750_dp
         sep%gss   =   15.03643948_dp
@@ -571,16 +476,10 @@ CONTAINS
         !Tin
         sep%defined = .TRUE.
         sep%alp   =   1.8008140_dp
-        sep%eisol = -92.3241020_dp
         sep%beta(0) =  -3.2351470_dp
         sep%beta(1) =  -4.2904160_dp
         sep%sto_exponents(0)    =   2.0803800_dp
         sep%sto_exponents(1)    =   1.9371060_dp
-        sep%dd    =   1.5697766_dp
-        sep%qq    =   1.3262292_dp
-        sep%am    =   0.3601617_dp
-        sep%ad    =   0.3219998_dp
-        sep%aq    =   0.3713827_dp
         sep%uss   = -40.8518020_dp
         sep%upp   = -28.5602490_dp
         sep%gss   =   9.8000000_dp
@@ -600,32 +499,20 @@ CONTAINS
         sep%sto_exponents(1)    =    2.16949800_dp
         sep%sto_exponents(2)    =    1.00000000_dp
         sep%alp   =    2.20732000_dp
-        sep%eisol = -340.59836000_dp
         sep%gss   =   15.04044855_dp
         sep%gsp   =   13.05655798_dp
         sep%gpp   =   11.14778369_dp
         sep%gp2   =    9.91409071_dp
         sep%hsp   =    2.45638202_dp
-        sep%dd    =    1.42532330_dp
-        sep%qq    =    1.18417070_dp
-        sep%am    =    0.55275410_dp
-        sep%ad    =    0.45934510_dp
-        sep%aq    =    0.45853760_dp
       CASE (54:79)
       CASE (80)
         !Mercury
         sep%defined = .TRUE.
         sep%alp   =   1.3356410_dp
-        sep%eisol = -28.8191480_dp
         sep%beta(0) =  -0.4045250_dp
         sep%beta(1) =  -6.2066830_dp
         sep%sto_exponents(0)    =   2.2181840_dp
         sep%sto_exponents(1)    =   2.0650380_dp
-        sep%dd    =   1.7378048_dp
-        sep%qq    =   1.4608064_dp
-        sep%am    =   0.3969129_dp
-        sep%ad    =   0.3047694_dp
-        sep%aq    =   0.3483102_dp
         sep%uss   = -19.8095740_dp
         sep%upp   = -13.1025300_dp
         sep%gss   =  10.8000000_dp
@@ -638,16 +525,10 @@ CONTAINS
         !Lead
         sep%defined = .TRUE.
         sep%alp   =    1.7283330_dp
-        sep%eisol = -105.8345040_dp
         sep%beta(0) =   -8.0423870_dp
         sep%beta(1) =   -3.0000000_dp
         sep%sto_exponents(0)    =    2.4982860_dp
         sep%sto_exponents(1)    =    2.0820710_dp
-        sep%dd    =    1.5526624_dp
-        sep%qq    =    1.4488558_dp
-        sep%am    =    0.3601617_dp
-        sep%ad    =    0.3239309_dp
-        sep%aq    =    0.3502057_dp
         sep%uss   =  -47.3196920_dp
         sep%upp   =  -28.8475600_dp
         sep%gss   =    9.8000000_dp
@@ -657,6 +538,7 @@ CONTAINS
         sep%hsp   =    1.3000000_dp
       CASE (83:106)
     END SELECT
+    CALL calpar(z,sep)
 
     sep%beta = sep%beta/evolt
     sep%uss = sep%uss/evolt; sep%upp = sep%upp/evolt; sep%udd = sep%udd/evolt
@@ -709,12 +591,8 @@ CONTAINS
         !Hydrogen
         sep%defined          = .TRUE.
         sep%alp   =   2.8823240_dp
-        sep%eisol = -11.3964270_dp
         sep%beta(0) =  -6.1737870_dp
         sep%sto_exponents(0)    =   1.1880780_dp
-        sep%am    =   0.4721793_dp
-        sep%ad    =   0.4721793_dp
-        sep%aq   =   0.4721793_dp
         sep%uss   = -11.3964270_dp
         sep%gss   =  12.8480000_dp
         sep%fn1(1) =  0.1227960_dp; sep%fn2(1) = 5.0000000_dp; sep%fn3(1) = 1.2000000_dp
@@ -725,16 +603,10 @@ CONTAINS
         !Lithium
         sep%defined          = .TRUE.
         sep%alp   =   1.2501400_dp
-        sep%eisol =  -5.1280000_dp
         sep%beta(0) =  -1.3500400_dp
         sep%beta(1) =  -1.3500400_dp
         sep%sto_exponents(0)    =   0.7023800_dp
         sep%sto_exponents(1)   =   0.7023800_dp
-        sep%dd   =   2.0549783_dp
-        sep%qq    =   1.7437069_dp
-        sep%am    =   0.2682837_dp
-        sep%ad    =   0.2269793_dp
-        sep%aq   =   0.2614581_dp
         sep%uss   =  -5.1280000_dp
         sep%upp   =  -2.7212000_dp
         sep%gss   =   7.3000000_dp
@@ -746,16 +618,10 @@ CONTAINS
       !Beryllium
         sep%defined          = .TRUE.
         sep%alp   =   1.6694340_dp
-        sep%eisol = -24.2047560_dp
         sep%beta(0) =  -4.0170960_dp
         sep%beta(1)=  -4.0170960_dp
         sep%sto_exponents(0)    =   1.0042100_dp
         sep%sto_exponents(1)   =   1.0042100_dp
-        sep%dd   =   1.4373245_dp
-        sep%qq    =   1.2196103_dp
-        sep%am    =   0.3307607_dp
-        sep%ad    =   0.3356142_dp
-        sep%aq   =   0.3846373_dp
         sep%uss   = -16.6023780_dp
         sep%upp   = -10.7037710_dp
         sep%gss   =   9.0000000_dp
@@ -767,16 +633,10 @@ CONTAINS
         !Boron
         sep%defined = .TRUE.
         sep%alp   =   2.4469090_dp
-        sep%eisol = -63.7172650_dp
         sep%beta(0) =  -9.5991140_dp
         sep%beta(1)=  -6.2737570_dp
         sep%sto_exponents(0)    =   1.6117090_dp
         sep%sto_exponents(1)   =   1.5553850_dp
-        sep%dd   =   0.9107622_dp
-        sep%qq    =   0.7874223_dp
-        sep%am    =   0.3891951_dp
-        sep%ad    =   0.5045152_dp
-        sep%aq   =   0.5678856_dp
         sep%uss   = -34.4928700_dp
         sep%upp   = -22.6315250_dp
         sep%gss   =  10.5900000_dp
@@ -800,16 +660,10 @@ CONTAINS
         !Carbon
         sep%defined = .TRUE.
         sep%alp   =    2.6482740_dp
-        sep%eisol = -120.8157940_dp
         sep%beta(0) =  -15.7157830_dp
         sep%beta(1) =   -7.7192830_dp
         sep%sto_exponents(0)     =    1.8086650_dp
         sep%sto_exponents(1)     =    1.6851160_dp
-        sep%dd    =    0.8236736_dp
-        sep%qq    =    0.7268015_dp
-        sep%am    =    0.4494671_dp
-        sep%ad    =    0.6082946_dp
-        sep%aq    =    0.6423492_dp
         sep%uss   =  -52.0286580_dp
         sep%upp   =  -39.6142390_dp
         sep%gss   =   12.2300000_dp
@@ -825,16 +679,10 @@ CONTAINS
       !Nitrogen
         sep%defined = .TRUE.
         sep%alp   =    2.9472860_dp
-        sep%eisol= -202.4077430_dp
         sep%beta(0) =  -20.2991100_dp
         sep%beta(1) =  -18.2386660_dp
         sep%sto_exponents(0)   =    2.3154100_dp
         sep%sto_exponents(1)    =    2.1579400_dp
-        sep%dd   =    0.6433247_dp
-        sep%qq    =    0.5675528_dp
-        sep%am    =    0.4994487_dp
-        sep%ad    =    0.7820840_dp
-        sep%aq    =    0.7883498_dp
         sep%uss   =  -71.8600000_dp
         sep%upp   =  -57.1675810_dp
         sep%gss   =   13.5900000_dp
@@ -849,16 +697,10 @@ CONTAINS
       !Oxygen
         sep%defined = .TRUE.
         sep%alp   =    4.4553710_dp
-        sep%eisol= -316.0995200_dp
         sep%beta(0) =  -29.2727730_dp
         sep%beta(1) =  -29.2727730_dp
         sep%sto_exponents(0)   =    3.1080320_dp
         sep%sto_exponents(1)    =    2.5240390_dp
-        sep%dd    =    0.4988896_dp
-        sep%qq    =    0.4852322_dp
-        sep%am    =    0.5667034_dp
-        sep%ad    =    0.9961066_dp
-        sep%aq    =    0.9065223_dp
         sep%uss   =  -97.8300000_dp
         sep%upp   =  -78.2623800_dp
         sep%gss   =   15.4200000_dp
@@ -872,16 +714,10 @@ CONTAINS
       !Fluorine
         sep%defined = .TRUE.
         sep%alp   =    5.5178000_dp
-        sep%eisol= -482.2905830_dp
         sep%beta(0) =  -69.5902770_dp
         sep%beta(1) =  -27.9223600_dp
         sep%sto_exponents(0)   =    3.7700820_dp
         sep%sto_exponents(1)    =    2.4946700_dp
-        sep%dd    =    0.4145203_dp
-        sep%qq    =    0.4909446_dp
-        sep%am    =    0.6218302_dp
-        sep%ad    =    1.2088792_dp
-        sep%aq    =    0.9449355_dp
         sep%uss   = -136.1055790_dp
         sep%upp   = -104.8898850_dp
         sep%gss   =   16.9200000_dp
@@ -891,13 +727,7 @@ CONTAINS
         sep%hsp   =    4.8300000_dp
         sep%fn1(1) = 0.2420790_dp; sep%fn2(1) = 4.8000000_dp; sep%fn3(1) = 0.9300000_dp
         sep%fn1(2) = 0.0036070_dp; sep%fn2(2) = 4.6000000_dp; sep%fn3(2) = 1.6600000_dp
-      CASE (10)
-      CASE (11)
-        !Sodium
-        sep%defined = .TRUE.
-        sep%alp   =  1.32_dp
-        sep%eisol=  0.00_dp
-        sep%am    =  0.50_dp
+      CASE (10:11)
       CASE (12)
         !Magnesium
         sep%defined = .TRUE.
@@ -908,17 +738,11 @@ CONTAINS
         sep%sto_exponents(0)    =    1.22339270_dp
         sep%sto_exponents(1)   =    1.02030798_dp
         sep%alp   =    1.67049799_dp
-        sep%eisol =  -22.43786349_dp 
         sep%gss   =    7.50132277_dp
         sep%gsp  =    6.34591536_dp
         sep%gpp  =    4.77534467_dp
         sep%gp2  =    4.34017279_dp
         sep%hsp  =    0.48930466_dp
-        sep%dd   =    1.75012115_dp 
-        sep%qq    =    1.64001467_dp 
-        sep%am    =    0.27568257_dp 
-        sep%ad    =    0.19957236_dp 
-        sep%aq   =    0.26440152_dp 
         sep%fn1(1) =  2.55017735_dp; sep%fn2(1) = 4.29397225_dp; sep%fn3(1) = 0.79989601_dp
         sep%fn1(2) = -0.00565806_dp; sep%fn2(2) = 2.96053910_dp; sep%fn3(2) = 1.47499983_dp
         sep%fn1(3) = -0.00610286_dp; sep%fn2(3) = 2.61416919_dp; sep%fn3(3) = 2.42604040_dp
@@ -926,17 +750,11 @@ CONTAINS
        !Aluminium
         sep%defined = .TRUE.
         sep%alp   =   1.9765860_dp
-        sep%eisol = -46.4208150_dp
         sep%beta(0) =  -3.8668220_dp
         sep%beta(1)=  -2.3171460_dp
         sep%sto_exponents(0)   =   1.5165930_dp
         sep%sto_exponents(1)   =   1.3063470_dp
         sep%sto_exponents(2)   =   1.0000000_dp
-        sep%dd   =   1.4040443_dp
-        sep%qq    =   1.2809154_dp
-        sep%am    =   0.2973172_dp
-        sep%ad    =   0.2630229_dp
-        sep%aq   =   0.3427832_dp
         sep%uss   = -24.3535850_dp
         sep%upp   = -18.3636450_dp
         sep%gss   =   8.0900000_dp
@@ -949,17 +767,11 @@ CONTAINS
       !Silicon
         sep%defined = .TRUE.
         sep%alp   =   2.257816_dp
-        sep%eisol = -79.0017420_dp
         sep%beta(0) =  -3.784852_dp
         sep%beta(1)=  -1.968123_dp
         sep%sto_exponents(0)   =   1.830697_dp
         sep%sto_exponents(1)   =   1.2849530_dp
         sep%sto_exponents(2)   =   1.0000000_dp
-        sep%dd   =   1.1631107_dp
-        sep%qq    =   1.3022422_dp
-        sep%am    =   0.3608967_dp
-        sep%ad    =   0.3829813_dp
-        sep%aq   =   0.3999442_dp
         sep%uss   = -33.9536220_dp
         sep%upp   = -28.9347490_dp
         sep%gss   =   9.8200000_dp
@@ -973,18 +785,12 @@ CONTAINS
       CASE (15)
       !Phosphorus
         sep%defined = .TRUE.
-        sep%alp   =    2.4553220_dp
         sep%eisol = -124.4368355_dp
         sep%beta(0) =   -6.3537640_dp
         sep%beta(1)=   -6.5907090_dp
         sep%sto_exponents(0)   =    1.9812800_dp
         sep%sto_exponents(1)   =    1.8751500_dp
         sep%sto_exponents(2)   =    1.0000000_dp
-        sep%dd   =    1.0452022_dp
-        sep%qq    =    0.8923660_dp
-        sep%am    =    0.4248440_dp
-        sep%ad    =    0.3275319_dp
-        sep%aq   =    0.4386854_dp
         sep%uss   =  -42.0298630_dp
         sep%upp   =  -34.0307090_dp
         sep%gss   =   11.5600050_dp
@@ -999,17 +805,11 @@ CONTAINS
         !Sulphur
         sep%defined = .TRUE.
         sep%alp   =    2.4616480_dp
-        sep%eisol = -191.7321930_dp
         sep%beta(0) =  -3.9205660_dp
         sep%beta(1)=  -7.9052780_dp
         sep%sto_exponents(0)   =    2.3665150_dp
         sep%sto_exponents(1)   =    1.6672630_dp
         sep%sto_exponents(2)   =    1.0000000_dp
-        sep%dd   =    0.9004265_dp
-        sep%qq    =    1.0036329_dp
-        sep%am    =    0.4331617_dp
-        sep%ad    =    0.5907115_dp
-        sep%aq   =    0.6454943_dp
         sep%uss   =  -56.6940560_dp
         sep%upp   =  -48.7170490_dp
         sep%gss   =   11.7863290_dp
@@ -1024,17 +824,11 @@ CONTAINS
         !Chlorine
         sep%defined = .TRUE.
         sep%alp   =    2.9193680_dp
-        sep%eisol = -372.1984310_dp
         sep%beta(0) =  -24.5946700_dp
         sep%beta(1)=  -14.6372160_dp
         sep%sto_exponents(0)    =    3.6313760_dp
         sep%sto_exponents(1)   =    2.0767990_dp
         sep%sto_exponents(2)   =    1.0000000_dp
-        sep%dd   =    0.5406286_dp
-        sep%qq    =    0.8057208_dp
-        sep%am    =    0.5523705_dp
-        sep%ad    =    0.7693200_dp
-        sep%aq   =    0.6133369_dp
         sep%uss   = -111.6139480_dp
         sep%upp   =  -76.6401070_dp
         sep%gss   =   15.0300000_dp
@@ -1044,14 +838,7 @@ CONTAINS
         sep%hsp  =    2.4200000_dp
         sep%fn1(1) = 0.0942430_dp; sep%fn2(1) = 4.0000000_dp; sep%fn3(1) = 1.3000000_dp
         sep%fn1(2) = 0.0271680_dp; sep%fn2(2) = 4.0000000_dp; sep%fn3(2) = 2.1000000_dp
-      CASE (18)
-      CASE (19)
-        !Potassium
-        sep%defined = .TRUE.
-        sep%alp   =  1.16_dp
-        sep%eisol =  0.00_dp
-        sep%am    =  0.50_dp
-      CASE (20:29)
+      CASE (18:29)
       CASE (30)
         !Zinc
         sep%defined = .TRUE.
@@ -1063,17 +850,11 @@ CONTAINS
         sep%sto_exponents(1)    =      1.3723650_dp
         sep%sto_exponents(2)    =      1.0000000_dp
         sep%alp    =      1.4845630_dp
-        sep%eisol  =    -30.2800160_dp
         sep%gss    =     11.8000000_dp
         sep%gsp   =     11.1820180_dp
         sep%gpp   =     13.3000000_dp
         sep%gp2   =     12.9305200_dp
         sep%hsp   =      0.4846060_dp
-        sep%dd    =      1.3581113_dp
-        sep%qq     =      1.5457406_dp
-        sep%am     =      0.4336641_dp
-        sep%ad     =      0.2317423_dp
-        sep%aq    =      0.2621165_dp
       CASE (31)
       CASE (32)
         !Germanium
@@ -1086,17 +867,11 @@ CONTAINS
         sep%sto_exponents(1)    =      1.9827940_dp
         sep%sto_exponents(2)    =      1.0000000_dp
         sep%alp    =      2.1364050_dp
-        sep%eisol  =    -78.7084810_dp
         sep%gss    =     10.1686050_dp
         sep%gsp   =      8.1444730_dp
         sep%gpp   =      6.6719020_dp
         sep%gp2   =      6.2697060_dp
         sep%hsp   =      0.9370930_dp
-        sep%dd    =      1.2472095_dp
-        sep%qq     =      1.0698642_dp
-        sep%am     =      0.3737084_dp
-        sep%ad     =      0.3180310_dp
-        sep%aq    =      0.3485612_dp
       CASE (33:34)
 !see calpar.F90 for additional constraint params
 !                    DATA FOR ELEMENT 33      ARSENIC
@@ -1142,17 +917,11 @@ CONTAINS
         !Bromine
         sep%defined = .TRUE.
         sep%alp   =    2.5765460_dp
-        sep%eisol = -352.3142087_dp
         sep%beta(0) =  -19.3998800_dp
         sep%beta(1)=   -8.9571950_dp
         sep%sto_exponents(0)    =    3.0641330_dp
         sep%sto_exponents(1)   =    2.0383330_dp
         sep%sto_exponents(2)   =    1.0000000_dp
-        sep%dd   =    0.8458104_dp
-        sep%qq    =    1.0407133_dp
-        sep%am    =    0.5526071_dp
-        sep%ad    =    0.6024598_dp
-        sep%aq   =    0.5307555_dp
         sep%uss   = -104.6560630_dp
         sep%upp   =  -74.9300520_dp
         sep%gss   =   15.0364395_dp
@@ -1167,17 +936,11 @@ CONTAINS
         !Tin
         sep%defined = .TRUE.
         sep%alp   =    1.8369360_dp
-        sep%eisol =  -80.6887540_dp
         sep%beta(0) =   -3.2350000_dp
         sep%beta(1)=   -2.5778900_dp
         sep%sto_exponents(0)    =    2.5993760_dp
         sep%sto_exponents(1)   =    1.6959620_dp
         sep%sto_exponents(2)   =    1.0000000_dp
-        sep%dd   =    1.1528229_dp
-        sep%qq    =    1.5148019_dp
-        sep%am    =    0.3601617_dp
-        sep%ad    =    0.3823775_dp
-        sep%aq   =    0.3400755_dp
         sep%uss   =  -35.4967410_dp
         sep%upp   =  -28.0976360_dp
         sep%gss   =    9.8000000_dp
@@ -1236,17 +999,11 @@ CONTAINS
         sep%sto_exponents(1)   =    2.1611530_dp
         sep%sto_exponents(2)   =    1.0000000_dp
         sep%alp   =    2.2994240_dp
-        sep%eisol = -346.8642857_dp
         sep%gss   =   15.0404486_dp
         sep%gsp  =   13.0565580_dp
         sep%gpp  =   11.1477837_dp
         sep%gp2  =    9.9140907_dp
         sep%hsp  =    2.4563820_dp
-        sep%dd   =    1.4878778_dp
-        sep%qq    =    1.1887388_dp
-        sep%am    =    0.5527544_dp
-        sep%ad    =    0.4497523_dp
-        sep%aq   =    0.4631775_dp
         sep%fn1(1) = 0.0043610_dp; sep%fn2(1) = 2.3000000_dp; sep%fn3(1) = 1.8000000_dp
         sep%fn1(2) = 0.0157060_dp; sep%fn2(2) = 3.0000000_dp; sep%fn3(2) = 2.2400000_dp
       CASE (80)
@@ -1260,17 +1017,11 @@ CONTAINS
         sep%sto_exponents(1)   =    1.9557660_dp
         sep%sto_exponents(2)   =    1.0000000_dp
         sep%alp   =    1.4847340_dp
-        sep%eisol =  -29.0831560_dp
         sep%gss   =   10.8000000_dp
         sep%gsp  =    9.3000000_dp
         sep%gpp  =   14.3000000_dp
         sep%gp2  =   13.5000000_dp
         sep%hsp  =    1.3000000_dp
-        sep%dd   =    1.8750829_dp
-        sep%qq    =    1.5424241_dp
-        sep%am    =    0.3969129_dp
-        sep%ad    =    0.2926605_dp
-        sep%aq   =    0.3360599_dp
       CASE (81)
       CASE (82)
         !Lead
@@ -1283,19 +1034,14 @@ CONTAINS
         sep%sto_exponents(1)   =    1.7283330_dp
         sep%sto_exponents(2)   =    1.0000000_dp
         sep%alp   =    1.7283330_dp
-        sep%eisol = -105.8345040_dp
         sep%gss   =    9.8000000_dp
         sep%gsp  =    8.3000000_dp
         sep%gpp  =    7.3000000_dp
         sep%gp2  =    6.5000000_dp
         sep%hsp  =    1.3000000_dp
-        sep%dd   =    1.5526624_dp
-        sep%qq    =    1.4488558_dp
-        sep%am    =    0.3601617_dp
-        sep%ad    =    0.3239309_dp
-        sep%aq   =    0.3502057_dp
       CASE (83:106)
     END SELECT
+    CALL calpar(z,sep)
 
     sep%beta = sep%beta/evolt
     sep%uss = sep%uss/evolt; sep%upp = sep%upp/evolt; sep%udd = sep%udd/evolt
@@ -1584,11 +1330,7 @@ CONTAINS
         sep%beta(0) =   -5.6265120_dp
         sep%sto_exponents(0)    =    0.9678070_dp
         sep%alp   =    3.3563860_dp
-        sep%eisol =  -13.0733210_dp
         sep%gss   =   14.7942080_dp
-        sep%am    =    0.5437048_dp
-        sep%ad    =    0.5437048_dp
-        sep%aq   =    0.5437048_dp
         sep%fn1(1) =  1.1287500_dp; sep%fn2(1) = 5.0962820_dp; sep%fn3(1) = 1.5374650_dp
         sep%fn1(2) = -1.0603290_dp; sep%fn2(2) = 6.0037880_dp; sep%fn3(2) = 1.5701890_dp
       CASE (2)
@@ -1602,17 +1344,11 @@ CONTAINS
         sep%sto_exponents(0)    =    0.6500000_dp
         sep%sto_exponents(1)   =    0.7500000_dp
         sep%alp   =    1.2550000_dp
-        sep%eisol =    0.0000000_dp           !missing value?
         sep%gss   =    9.0128510_dp
         sep%gsp  =    6.5761990_dp
         sep%gpp  =    6.0571820_dp
         sep%gp2  =    9.0052190_dp
         sep%hsp  =    0.5446790_dp
-        sep%dd   =    2.0357652_dp
-        sep%qq    =    1.6329932_dp
-        sep%am    =    0.1653804_dp
-        sep%ad    =    0.1156738_dp
-        sep%aq   =    0.3166080_dp
         sep%fn1(1) = -0.4500000_dp; sep%fn2(1) = 5.0000000_dp; sep%fn3(1) = 1.0000000_dp
         sep%fn1(2) =  0.8000000_dp; sep%fn2(2) = 6.5000000_dp; sep%fn3(2) = 1.0000000_dp
       CASE (4)
@@ -1625,17 +1361,11 @@ CONTAINS
         sep%sto_exponents(0)    =    0.8774390_dp
         sep%sto_exponents(1)   =    1.5087550_dp
         sep%alp   =    1.5935360_dp
-        sep%eisol =  -25.5166530_dp
         sep%gss   =    9.0128510_dp
         sep%gsp  =    6.5761990_dp
         sep%gpp  =    6.0571820_dp
         sep%gp2  =    9.0052190_dp
         sep%hsp  =    0.5446790_dp
-        sep%dd   =    1.0090531_dp
-        sep%qq    =    0.8117586_dp
-        sep%am    =    0.3312330_dp
-        sep%ad    =    0.2908996_dp
-        sep%aq   =    0.3530008_dp
         sep%fn1(1) =  1.6315720_dp; sep%fn2(1) = 2.6729620_dp; sep%fn3(1) = 1.7916860_dp
         sep%fn1(2) = -2.1109590_dp; sep%fn2(2) = 1.9685940_dp; sep%fn3(2) = 1.7558710_dp
       CASE (5)
@@ -1648,17 +1378,11 @@ CONTAINS
         sep%sto_exponents(0)    =    0.9885410_dp
         sep%sto_exponents(1)   =    1.9094410_dp
         sep%alp   =    2.4981070_dp
-        sep%eisol =  -52.1098330_dp
         sep%gss   =    8.8104530_dp
         sep%gsp  =   10.2992280_dp
         sep%gpp  =    4.9891680_dp
         sep%gp2  =    7.2899770_dp
         sep%hsp  =    0.8370320_dp
-        sep%dd   =    0.7633744_dp
-        sep%qq    =    0.6414154_dp
-        sep%am    =    0.3237947_dp
-        sep%ad    =    0.4075662_dp
-        sep%aq   =    0.4208854_dp
         sep%fn1(1) = 3.0046640_dp; sep%fn2(1) = 6.0288690_dp; sep%fn3(1) = 0.3472230_dp
         sep%fn1(2) = 0.0201950_dp; sep%fn2(2) = 6.0106580_dp; sep%fn3(2) = 1.2140670_dp
       CASE (6)
@@ -1671,17 +1395,11 @@ CONTAINS
         sep%sto_exponents(0)    =    1.5650850_dp
         sep%sto_exponents(1)   =    1.8423450_dp
         sep%alp   =    2.7078070_dp
-        sep%eisol = -111.2299170_dp
         sep%gss   =   11.2007080_dp
         sep%gsp  =   10.2650270_dp
         sep%gpp  =   10.7962920_dp
         sep%gp2  =    9.0425660_dp
         sep%hsp  =    2.2909800_dp
-        sep%dd   =    0.8332396_dp
-        sep%qq    =    0.6647750_dp
-        sep%am    =    0.4116394_dp
-        sep%ad    =    0.5885862_dp
-        sep%aq   =    0.7647667_dp
         sep%fn1(1) = 0.0501070_dp; sep%fn2(1) = 6.0031650_dp; sep%fn3(1) = 1.6422140_dp
         sep%fn1(2) = 0.0507330_dp; sep%fn2(2) = 6.0029790_dp; sep%fn3(2) = 0.8924880_dp
       CASE (7)
@@ -1694,17 +1412,11 @@ CONTAINS
         sep%sto_exponents(0)    =    2.0280940_dp
         sep%sto_exponents(1)   =    2.3137280_dp
         sep%alp   =    2.8305450_dp
-        sep%eisol = -157.6137755_dp
         sep%gss   =   11.9047870_dp
         sep%gsp  =    7.3485650_dp
         sep%gpp  =   11.7546720_dp
         sep%gp2  =   10.8072770_dp
         sep%hsp  =    1.1367130_dp
-        sep%dd   =    0.6577006_dp
-        sep%qq    =    0.5293383_dp
-        sep%am    =    0.4375151_dp
-        sep%ad    =    0.5030995_dp
-        sep%aq   =    0.7364933_dp
         sep%fn1(1) =  1.5016740_dp; sep%fn2(1) = 5.9011480_dp; sep%fn3(1) = 1.7107400_dp
         sep%fn1(2) = -1.5057720_dp; sep%fn2(2) = 6.0046580_dp; sep%fn3(2) = 1.7161490_dp
       CASE (8)
@@ -1717,17 +1429,11 @@ CONTAINS
         sep%sto_exponents(0)    =    3.7965440_dp
         sep%sto_exponents(1)   =    2.3894020_dp
         sep%alp   =    3.2171020_dp
-        sep%eisol = -289.3422065_dp
         sep%gss   =   15.7557600_dp
         sep%gsp  =   10.6211600_dp
         sep%gpp  =   13.6540160_dp
         sep%gp2  =   12.4060950_dp
         sep%hsp  =    0.5938830_dp
-        sep%dd   =    0.4086173_dp
-        sep%qq    =    0.5125738_dp
-        sep%am    =    0.5790430_dp
-        sep%ad    =    0.5299630_dp
-        sep%aq   =    0.8179630_dp
         sep%fn1(1) = -1.1311280_dp; sep%fn2(1) = 6.0024770_dp; sep%fn3(1) = 1.6073110_dp
         sep%fn1(2) =  1.1378910_dp; sep%fn2(2) = 5.9505120_dp; sep%fn3(2) = 1.5983950_dp
       CASE (9)
@@ -1740,17 +1446,11 @@ CONTAINS
         sep%sto_exponents(0)    =    4.7085550_dp
         sep%sto_exponents(1)   =    2.4911780_dp
         sep%alp   =    3.3589210_dp
-        sep%eisol = -437.5171690_dp
         sep%gss   =   10.4966670_dp
         sep%gsp  =   16.0736890_dp
         sep%gpp  =   14.8172560_dp
         sep%gp2  =   14.4183930_dp
         sep%hsp  =    0.7277630_dp
-        sep%dd   =    0.3125302_dp
-        sep%qq    =    0.4916328_dp
-        sep%am    =    0.3857650_dp
-        sep%ad    =    0.6768503_dp
-        sep%aq   =    0.6120047_dp
         sep%fn1(1) = -0.0121660_dp; sep%fn2(1) = 6.0235740_dp; sep%fn3(1) = 1.8568590_dp
         sep%fn1(2) = -0.0028520_dp; sep%fn2(2) = 6.0037170_dp; sep%fn3(2) = 2.6361580_dp
       CASE (10)
@@ -1765,17 +1465,11 @@ CONTAINS
         sep%sto_exponents(0)    =    0.6767940_dp
         sep%sto_exponents(1)   =    0.9876530_dp
         sep%alp   =    1.6810000_dp
-        sep%eisol =  -4.7683450_dp
         sep%gss   =   5.1531420_dp
         sep%gsp  =    3.1778570_dp
         sep%gpp  =    3.7335330_dp
         sep%gp2  =   11.5386740_dp
         sep%hsp  =    0.5455510_dp
-        sep%dd   =    2.1443749_dp
-        sep%qq    =    1.6942388_dp
-        sep%am    =    0.1893841_dp
-        sep%ad    =    0.1850465_dp
-        sep%aq   =    0.2057464_dp
         sep%fn1(1) =  0.4175960_dp; sep%fn2(1) = 8.5969780_dp; sep%fn3(1) = 1.6731780_dp
         sep%fn1(2) =  0.4432600_dp; sep%fn2(2) = 3.3594960_dp; sep%fn3(2) = 2.2315110_dp
       CASE (12)
@@ -1788,17 +1482,11 @@ CONTAINS
         sep%sto_exponents(0)    =    0.6985520_dp
         sep%sto_exponents(1)   =    1.4834530_dp
         sep%alp   =    1.3291470_dp
-        sep%eisol =  -22.5530760_dp
         sep%gss   =    6.6943000_dp
         sep%gsp  =    6.7939950_dp
         sep%gpp  =    6.9104460_dp
         sep%gp2  =    7.0908230_dp
         sep%hsp  =    0.5433000_dp
-        sep%dd   =    1.1403950_dp
-        sep%qq    =    1.1279899_dp
-        sep%am    =    0.2460235_dp
-        sep%ad    =    0.2695751_dp
-        sep%aq   =    0.2767522_dp
         sep%fn1(1) =  2.1170500_dp; sep%fn2(1) = 6.0094770_dp; sep%fn3(1) = 2.0844060_dp
         sep%fn1(2) = -2.5477670_dp; sep%fn2(2) = 4.3953700_dp; sep%fn3(2) = 2.0636740_dp
       CASE (13)
@@ -1812,17 +1500,11 @@ CONTAINS
         sep%sto_exponents(1)   =    1.0736290_dp
         sep%sto_exponents(2)   =    1.0000000_dp
         sep%alp   =    1.5217030_dp
-        sep%eisol =  -46.8647630_dp
         sep%gss   =    5.7767370_dp
         sep%gsp  =   11.6598560_dp
         sep%gpp  =    6.3477900_dp
         sep%gp2  =    6.1210770_dp
         sep%hsp  =    4.0062450_dp
-        sep%dd   =    1.2102799_dp
-        sep%qq    =    1.5585645_dp
-        sep%am    =    0.2123020_dp
-        sep%ad    =    0.6418584_dp
-        sep%aq   =    0.2262838_dp
         sep%fn1(1) = -0.4730900_dp; sep%fn2(1) = 1.9158250_dp; sep%fn3(1) = 1.4517280_dp
         sep%fn1(2) = -0.1540510_dp; sep%fn2(2) = 6.0050860_dp; sep%fn3(2) = 2.5199970_dp
       CASE (14)
@@ -1836,17 +1518,11 @@ CONTAINS
         sep%sto_exponents(1)   =    1.3130880_dp
         sep%sto_exponents(2)   =    1.0000000_dp
         sep%alp   =    2.1358090_dp
-        sep%eisol =  -67.7882140_dp
         sep%gss   =    5.0471960_dp
         sep%gsp  =    5.9490570_dp
         sep%gpp  =    6.7593670_dp
         sep%gp2  =    5.1612970_dp
         sep%hsp  =    0.9198320_dp
-        sep%dd   =    1.3144550_dp
-        sep%qq    =    1.2743396_dp
-        sep%am    =    0.1854905_dp
-        sep%ad    =    0.3060715_dp
-        sep%aq   =    0.4877432_dp
         sep%fn1(1) = -0.3906000_dp; sep%fn2(1) = 6.0000540_dp; sep%fn3(1) = 0.6322620_dp
         sep%fn1(2) =  0.0572590_dp; sep%fn2(2) = 6.0071830_dp; sep%fn3(2) = 2.0199870_dp
       CASE (15)
@@ -1860,17 +1536,11 @@ CONTAINS
         sep%sto_exponents(1)   =    1.5047320_dp
         sep%sto_exponents(2)   =    1.0000000_dp
         sep%alp   =    1.9405340_dp
-        sep%eisol = -117.9591740_dp
         sep%gss   =    7.8016150_dp
         sep%gsp  =    5.1869490_dp
         sep%gpp  =    6.6184780_dp
         sep%gp2  =    6.0620020_dp
         sep%hsp  =    1.5428090_dp
-        sep%dd   =    1.0644947_dp
-        sep%qq    =    1.1120386_dp
-        sep%am    =    0.2867187_dp
-        sep%ad    =    0.4309446_dp
-        sep%aq   =    0.3732517_dp
         sep%fn1(1) = -0.6114210_dp; sep%fn2(1) = 1.9972720_dp; sep%fn3(1) = 0.7946240_dp
         sep%fn1(2) = -0.0939350_dp; sep%fn2(2) = 1.9983600_dp; sep%fn3(2) = 1.9106770_dp
       CASE (16)
@@ -1884,17 +1554,11 @@ CONTAINS
         sep%sto_exponents(1)   =    1.6589720_dp
         sep%sto_exponents(2)   =    1.0000000_dp
         sep%alp   =    2.2697060_dp
-        sep%eisol = -183.4537395_dp
         sep%gss   =    8.9646670_dp
         sep%gsp  =    6.7859360_dp
         sep%gpp  =    9.9681640_dp
         sep%gp2  =    7.9702470_dp
         sep%hsp  =    4.0418360_dp
-        sep%dd   =    1.1214313_dp
-        sep%qq    =    1.0086488_dp
-        sep%am    =    0.3294622_dp
-        sep%ad    =    0.6679118_dp
-        sep%aq   =    0.6137472_dp
         sep%fn1(1) = -0.3991910_dp; sep%fn2(1) = 6.0006690_dp; sep%fn3(1) = 0.9621230_dp
         sep%fn1(2) = -0.0548990_dp; sep%fn2(2) = 6.0018450_dp; sep%fn3(2) = 1.5799440_dp
       CASE (17)
@@ -1908,17 +1572,11 @@ CONTAINS
         sep%sto_exponents(1)   =    2.1510100_dp
         sep%sto_exponents(2)   =    1.0000000_dp
         sep%alp   =    2.5172960_dp
-        sep%eisol = -315.1949480_dp
         sep%gss   =   16.0136010_dp
         sep%gsp  =    8.0481150_dp
         sep%gpp  =    7.5222150_dp
         sep%gp2  =    7.5041540_dp
         sep%hsp  =    3.4811530_dp
-        sep%dd   =    0.9175856_dp
-        sep%qq    =    0.7779230_dp
-        sep%am    =    0.5885190_dp
-        sep%ad    =    0.6814522_dp
-        sep%aq   =    0.3643694_dp
         sep%fn1(1) = -0.1715910_dp; sep%fn2(1) = 6.0008020_dp; sep%fn3(1) = 1.0875020_dp
         sep%fn1(2) = -0.0134580_dp; sep%fn2(2) = 1.9666180_dp; sep%fn3(2) = 2.2928910_dp
       CASE (18)
@@ -1932,17 +1590,11 @@ CONTAINS
         sep%sto_exponents(0)   =    0.9158730_dp
         sep%sto_exponents(1)   =    1.3430990_dp
         sep%alp   =    4.4452360_dp
-        sep%eisol =   -4.1079950_dp
         sep%gss   =    4.0502660_dp
         sep%gsp  =    2.9879670_dp
         sep%gpp  =    2.9983050_dp
         sep%gp2  =    4.9936140_dp
         sep%hsp  =    0.5653070_dp
-        sep%dd   =    1.9524869_dp
-        sep%qq    =    1.5794220_dp
-        sep%am    =    0.1488521_dp
-        sep%ad    =    0.1983782_dp
-        sep%aq   =    0.2164587_dp
         sep%fn1(1) = 6.0409170_dp; sep%fn2(1) = 10.0465540_dp; sep%fn3(1) = 1.6005120_dp
         sep%fn1(2) = 0.7242240_dp; sep%fn2(2) =  3.0082750_dp; sep%fn3(2) = 2.4643520_dp
       CASE (20)
@@ -1955,17 +1607,11 @@ CONTAINS
         sep%sto_exponents(0)   =    0.8224530_dp
         sep%sto_exponents(1)   =    1.2791170_dp
         sep%alp   =    3.2251430_dp
-        sep%eisol =  -17.7272050_dp
         sep%gss   =    5.5661490_dp
         sep%gsp  =   15.8559960_dp
         sep%gpp  =    6.7057840_dp
         sep%gp2  =    4.8642700_dp
         sep%hsp  =    1.0053200_dp
-        sep%dd   =    1.9888793_dp
-        sep%qq    =    1.6584256_dp
-        sep%am    =    0.2045626_dp
-        sep%ad    =    0.2518009_dp
-        sep%aq   =    0.4412688_dp
         sep%fn1(1) = 0.7940250_dp; sep%fn2(1) =  3.8548560_dp; sep%fn3(1) = 1.5284410_dp
         sep%fn1(2) = 0.3400220_dp; sep%fn2(2) =  5.7455560_dp; sep%fn3(2) = 2.3571110_dp
       CASE (21:23)
@@ -1997,17 +1643,11 @@ CONTAINS
         sep%sto_exponents(1)   =    1.5000000_dp
         sep%sto_exponents(1)   =    2.8845490_dp
         sep%alp   =    3.0683070_dp
-        sep%eisol = -134.8187920_dp
         sep%gss   =    6.0000000_dp
         sep%gsp  =    4.1500000_dp
         sep%gpp  =    5.0000000_dp
         sep%gp2  =    3.5000000_dp
         sep%hsp  =    1.0000000_dp
-        sep%dd   =    1.7320508_dp
-        sep%qq    =    1.4142136_dp
-        sep%am    =    0.2205072_dp
-        sep%ad    =    0.2711332_dp
-        sep%aq   =    0.4464656_dp
       CASE (25:29)
       CASE (30)
         !Zinc
@@ -2020,17 +1660,11 @@ CONTAINS
         sep%sto_exponents(1)   =    1.5069220_dp
         sep%sto_exponents(2)   =    1.0000000_dp
         sep%alp   =    1.3501260_dp
-        sep%eisol =  -27.3872000_dp
         sep%gss   =    9.6771960_dp
         sep%gsp  =    7.7362040_dp
         sep%gpp  =    4.9801740_dp
         sep%gp2  =    4.6696560_dp
         sep%hsp  =    0.6004130_dp
-        sep%dd   =    1.5005758_dp
-        sep%qq    =    1.4077174_dp
-        sep%am    =    0.3556485_dp
-        sep%ad    =    0.2375689_dp
-        sep%aq   =    0.2661069_dp
         sep%fn1(1) = -0.1112340_dp; sep%fn2(1) = 6.0014780_dp; sep%fn3(1) = 1.5160320_dp
         sep%fn1(2) = -0.1323700_dp; sep%fn2(2) = 1.9958390_dp; sep%fn3(2) = 2.5196420_dp
       CASE (31)
@@ -2043,17 +1677,11 @@ CONTAINS
         sep%sto_exponents(0)    =    1.8470400_dp
         sep%sto_exponents(1)   =    0.8394110_dp
         sep%alp   =    1.6051150_dp
-        sep%eisol =  -57.3280250_dp
         sep%gss   =    8.4585540_dp
         sep%gsp  =    8.9256190_dp
         sep%gpp  =    5.0868550_dp
         sep%gp2  =    4.9830450_dp
         sep%hsp  =    2.0512600_dp
-        sep%dd   =    0.9776692_dp
-        sep%qq    =    2.5271534_dp
-        sep%am    =    0.3108620_dp
-        sep%ad    =    0.5129360_dp
-        sep%aq   =    0.1546208_dp
         sep%fn1(1) = -0.5601790_dp; sep%fn2(1) = 5.6232730_dp; sep%fn3(1) = 1.5317800_dp
         sep%fn1(2) = -0.2727310_dp; sep%fn2(2) = 1.9918430_dp; sep%fn3(2) = 2.1838640_dp
       CASE (32)
@@ -2066,17 +1694,11 @@ CONTAINS
         sep%sto_exponents(0)    =    2.2373526_dp
         sep%sto_exponents(1)   =    1.5924319_dp
         sep%alp   =    1.9723370_dp
-        sep%eisol =  -84.0156006_dp
         sep%gss   =    5.3769635_dp
         sep%gsp  =   10.2095293_dp
         sep%gpp  =    7.6718647_dp
         sep%gp2  =    6.9242663_dp
         sep%hsp  =    1.3370204_dp
-        sep%dd   =    1.1920304_dp
-        sep%qq    =    1.3321263_dp
-        sep%am    =    0.1976098_dp
-        sep%ad    =    0.3798182_dp
-        sep%aq   =    0.3620669_dp
         sep%fn1(1) =  0.9631726_dp; sep%fn2(1) = 6.0120134_dp; sep%fn3(1) = 2.1633655_dp
         sep%fn1(2) = -0.9593891_dp; sep%fn2(2) = 5.7491802_dp; sep%fn3(2) = 2.1693724_dp
       CASE (33)
@@ -2089,17 +1711,11 @@ CONTAINS
         sep%sto_exponents(0)    =    2.6361770_dp
         sep%sto_exponents(1)   =    1.7038890_dp
         sep%alp   =    1.7944770_dp
-        sep%eisol = -122.6326140_dp
         sep%gss   =    8.7890010_dp
         sep%gsp  =    5.3979830_dp
         sep%gpp  =    8.2872500_dp
         sep%gp2  =    8.2103460_dp
         sep%hsp  =    1.9510340_dp
-        sep%dd   =    0.9679655_dp
-        sep%qq    =    1.2449874_dp
-        sep%am    =    0.3230063_dp
-        sep%ad    =    0.5042239_dp
-        sep%aq   =    0.2574219_dp
         sep%fn1(1) = -0.4600950_dp; sep%fn2(1) = 1.9831150_dp; sep%fn3(1) = 1.0867930_dp
         sep%fn1(2) = -0.0889960_dp; sep%fn2(2) = 1.9929440_dp; sep%fn3(2) = 2.1400580_dp
       CASE (34)
@@ -2112,17 +1728,11 @@ CONTAINS
         sep%sto_exponents(0)    =    2.8280510_dp
         sep%sto_exponents(1)   =    1.7325360_dp
         sep%alp   =    3.0439570_dp
-        sep%eisol = -192.7748115_dp
         sep%gss   =    7.4325910_dp
         sep%gsp  =   10.0604610_dp
         sep%gpp  =    9.5683260_dp
         sep%gp2  =    7.7242890_dp
         sep%hsp  =    4.0165580_dp
-        sep%dd   =    0.8719813_dp
-        sep%qq    =    1.2244019_dp
-        sep%am    =    0.2731566_dp
-        sep%ad    =    0.7509697_dp
-        sep%aq   =    0.5283737_dp
         sep%fn1(1) = 0.0478730_dp; sep%fn2(1) = 6.0074000_dp; sep%fn3(1) = 2.0817170_dp
         sep%fn1(2) = 0.1147200_dp; sep%fn2(2) = 6.0086720_dp; sep%fn3(2) = 1.5164230_dp
       CASE (35)
@@ -2136,17 +1746,11 @@ CONTAINS
         sep%sto_exponents(1)   =    2.1275900_dp
         sep%sto_exponents(2)   =    1.0000000_dp
         sep%alp   =    2.5118420_dp
-        sep%eisol = -352.5398970_dp
         sep%gss   =   15.9434250_dp
         sep%gsp  =   16.0616800_dp
         sep%gpp  =    8.2827630_dp
         sep%gp2  =    7.8168490_dp
         sep%hsp  =    0.5788690_dp
-        sep%dd   =    0.2759025_dp
-        sep%qq    =    0.9970532_dp
-        sep%am    =    0.5859399_dp
-        sep%ad    =    0.6755383_dp
-        sep%aq   =    0.3823719_dp
         sep%fn1(1) =  0.9604580_dp; sep%fn2(1) = 5.9765080_dp; sep%fn3(1) = 2.3216540_dp
         sep%fn1(2) = -0.9549160_dp; sep%fn2(2) = 5.9447030_dp; sep%fn3(2) = 2.3281420_dp
       CASE (36)
@@ -2217,17 +1821,11 @@ CONTAINS
         sep%sto_exponents(0)    =    1.6793510_dp
         sep%sto_exponents(1)   =    2.0664120_dp
         sep%alp   =    1.5253820_dp
-        sep%eisol =  -22.4502080_dp
         sep%gss   =    9.2069600_dp
         sep%gsp  =    8.2315390_dp
         sep%gpp  =    4.9481040_dp
         sep%gp2  =    4.6696560_dp
         sep%hsp  =    1.6562340_dp
-        sep%dd   =    1.5982681_dp
-        sep%qq    =    1.2432402_dp
-        sep%am    =    0.3383668_dp
-        sep%ad    =    0.3570290_dp
-        sep%aq   =    0.2820582_dp
       CASE (49)
         !Indium
         sep%defined = .TRUE.
@@ -2238,17 +1836,11 @@ CONTAINS
         sep%sto_exponents(0)    =    2.0161160_dp
         sep%sto_exponents(1)   =    1.4453500_dp
         sep%alp   =    1.4183850_dp
-        sep%eisol =  -51.9750470_dp
         sep%gss   =    6.5549000_dp
         sep%gsp  =    8.2298730_dp
         sep%gpp  =    6.2992690_dp
         sep%gp2  =    4.9842110_dp
         sep%hsp  =    2.6314610_dp
-        sep%dd   =    1.5766241_dp
-        sep%qq    =    1.7774563_dp
-        sep%am    =    0.2409004_dp
-        sep%ad    =    0.4532655_dp
-        sep%aq   =    0.3689812_dp
         sep%fn1(1) = -0.3431380_dp; sep%fn2(1) = 1.9940340_dp; sep%fn3(1) = 1.6255160_dp
         sep%fn1(2) = -0.1095320_dp; sep%fn2(2) = 5.6832170_dp; sep%fn3(2) = 2.8670090_dp
       CASE (50)
@@ -2261,17 +1853,11 @@ CONTAINS
         sep%sto_exponents(0)    =    2.3733280_dp
         sep%sto_exponents(1)   =    1.6382330_dp
         sep%alp   =    1.6996500_dp
-        sep%eisol =  -78.8877790_dp
         sep%gss   =   10.1900330_dp
         sep%gsp  =    7.2353270_dp
         sep%gpp  =    5.6738100_dp
         sep%gp2  =    5.1822140_dp
         sep%hsp  =    1.0331570_dp
-        sep%dd   =    1.3120038_dp
-        sep%qq    =    1.5681814_dp
-        sep%am    =    0.3744959_dp
-        sep%ad    =    0.3218163_dp
-        sep%aq   =    0.2832529_dp
         sep%fn1(1) = -0.1503530_dp; sep%fn2(1) = 6.0056940_dp; sep%fn3(1) = 1.7046420_dp
         sep%fn1(2) = -0.0444170_dp; sep%fn2(2) = 2.2573810_dp; sep%fn3(2) = 2.4698690_dp
       CASE (51)
@@ -2284,17 +1870,11 @@ CONTAINS
         sep%sto_exponents(0)    =    2.3430390_dp
         sep%sto_exponents(1)   =    1.8999920_dp
         sep%alp   =    2.0343010_dp
-        sep%eisol = -148.9382890_dp
         sep%gss   =    9.2382770_dp
         sep%gsp  =    5.2776800_dp
         sep%gpp  =    6.3500000_dp
         sep%gp2  =    6.2500000_dp
         sep%hsp  =    2.4244640_dp
-        sep%dd   =    1.4091903_dp
-        sep%qq    =    1.3521354_dp
-        sep%am    =    0.3395177_dp
-        sep%ad    =    0.4589010_dp
-        sep%aq   =    0.2423472_dp
         sep%fn1(1) =  3.0020280_dp; sep%fn2(1) = 6.0053420_dp; sep%fn3(1) = 0.8530600_dp
         sep%fn1(2) = -0.0188920_dp; sep%fn2(2) = 6.0114780_dp; sep%fn3(2) = 2.7933110_dp
       CASE (52)
@@ -2307,17 +1887,11 @@ CONTAINS
         sep%sto_exponents(0)    =    4.1654920_dp
         sep%sto_exponents(1)   =    1.6475550_dp
         sep%alp   =    2.4850190_dp
-        sep%eisol = -168.0945925_dp
         sep%gss   =   10.2550730_dp
         sep%gsp  =    8.1691450_dp
         sep%gpp  =    7.7775920_dp
         sep%gp2  =    7.7551210_dp
         sep%hsp  =    3.7724620_dp
-        sep%dd   =    0.3484177_dp
-        sep%qq    =    1.5593085_dp
-        sep%am    =    0.3768862_dp
-        sep%ad    =    1.1960743_dp
-        sep%aq   =    0.2184786_dp
         sep%fn1(1) =  0.0333910_dp; sep%fn2(1) = 5.9563790_dp; sep%fn3(1) = 2.2775750_dp 
         sep%fn1(2) = -1.9218670_dp; sep%fn2(2) = 4.9732190_dp; sep%fn3(2) = 0.5242430_dp
       CASE (53)
@@ -2331,17 +1905,11 @@ CONTAINS
         sep%sto_exponents(1)   =    2.4543540_dp
         sep%sto_exponents(2)   =    1.0000000_dp
         sep%alp   =    1.9901850_dp
-        sep%eisol = -288.3160860_dp
         sep%gss   =   13.6319430_dp
         sep%gsp  =   14.9904060_dp
         sep%gpp  =    7.2883300_dp
         sep%gp2  =    5.9664070_dp
         sep%hsp  =    2.6300350_dp
-        sep%dd   =    0.1581469_dp
-        sep%qq    =    1.0467302_dp
-        sep%am    =    0.5009902_dp
-        sep%ad    =    1.6699104_dp
-        sep%aq   =    0.5153082_dp
         sep%fn1(1) = -0.1314810_dp; sep%fn2(1) = 5.2064170_dp; sep%fn3(1) = 1.7488240_dp
         sep%fn1(2) = -0.0368970_dp; sep%fn2(2) = 6.0101170_dp; sep%fn3(2) = 2.7103730_dp
       CASE (54)
@@ -2412,17 +1980,11 @@ CONTAINS
         sep%sto_exponents(0)    =    1.4768850_dp
         sep%sto_exponents(1)   =    2.4799510_dp
         sep%alp   =    1.5293770_dp
-        sep%eisol =  -28.8997380_dp
         sep%gss   =    6.6247200_dp
         sep%gsp  =   10.6392970_dp
         sep%gpp  =   14.7092830_dp
         sep%gp2  =   16.0007400_dp
         sep%hsp  =    2.0363110_dp
-        sep%dd   =    1.2317811_dp
-        sep%qq    =    1.2164033_dp
-        sep%am    =    0.2434664_dp
-        sep%ad    =    0.4515472_dp
-        sep%aq   =    0.2618394_dp
         sep%fn1(1) =  1.0827200_dp; sep%fn2(1) = 6.4965980_dp; sep%fn3(1) = 1.1951460_dp
         sep%fn1(2) = -0.0965530_dp; sep%fn2(2) = 3.9262810_dp; sep%fn3(2) = 2.6271600_dp
       CASE (81)
@@ -2435,17 +1997,11 @@ CONTAINS
         sep%sto_exponents(0)    =    6.8679210_dp
         sep%sto_exponents(1)   =    1.9694450_dp
         sep%alp   =    1.3409510_dp
-        sep%eisol =  -56.6492050_dp
         sep%gss   =   10.4604120_dp
         sep%gsp  =   11.2238830_dp
         sep%gpp  =    4.9927850_dp
         sep%gp2  =    8.9627270_dp
         sep%hsp  =    2.5304060_dp
-        sep%dd   =    0.0781362_dp
-        sep%qq    =    1.5317110_dp
-        sep%am    =    0.3844326_dp
-        sep%ad    =    2.5741815_dp
-        sep%aq   =    0.2213264_dp
         sep%fn1(1) = -1.3613990_dp; sep%fn2(1) = 3.5572260_dp; sep%fn3(1) = 1.0928020_dp
         sep%fn1(2) = -0.0454010_dp; sep%fn2(2) = 2.3069950_dp; sep%fn3(2) = 2.9650290_dp
       CASE (82)
@@ -2458,17 +2014,11 @@ CONTAINS
         sep%sto_exponents(0)    =    3.1412890_dp
         sep%sto_exponents(1)   =    1.8924180_dp
         sep%alp   =    1.6200450_dp
-        sep%eisol =  -73.4660775_dp
         sep%gss   =    7.0119920_dp
         sep%gsp  =    6.7937820_dp
         sep%gpp  =    5.1837800_dp
         sep%gp2  =    5.0456510_dp
         sep%hsp  =    1.5663020_dp
-        sep%dd   =    0.9866290_dp
-        sep%qq    =    1.5940562_dp
-        sep%am    =    0.2576991_dp
-        sep%ad    =    0.4527678_dp
-        sep%aq   =    0.2150175_dp
         sep%fn1(1) = -0.1225760_dp; sep%fn2(1) = 6.0030620_dp; sep%fn3(1) = 1.9015970_dp
         sep%fn1(2) = -0.0566480_dp; sep%fn2(2) = 4.7437050_dp; sep%fn3(2) = 2.8618790_dp
       CASE (83)
@@ -2481,17 +2031,11 @@ CONTAINS
         sep%sto_exponents(0)    =    4.9164510_dp
         sep%sto_exponents(1)   =    1.9349350_dp
         sep%alp   =    1.8574310_dp
-        sep%eisol = -109.2774910_dp
         sep%gss   =    4.9894800_dp
         sep%gsp  =    6.1033080_dp
         sep%gpp  =    8.6960070_dp
         sep%gp2  =    8.3354470_dp
         sep%hsp  =    0.5991220_dp
-        sep%dd   =    0.2798609_dp
-        sep%qq    =    1.5590294_dp
-        sep%am    =    0.1833693_dp
-        sep%ad    =    0.6776013_dp
-        sep%aq   =    0.2586520_dp
         sep%fn1(1) = 2.5816930_dp; sep%fn2(1) = 5.0940220_dp; sep%fn3(1) = 0.4997870_dp
         sep%fn1(2) = 0.0603200_dp; sep%fn2(2) = 6.0015380_dp; sep%fn3(2) = 2.4279700_dp
       CASE (84:89)
@@ -2539,6 +2083,7 @@ CONTAINS
 !     Data (GuesP3(91,J),J=1,10)/10*0.0e0_dp/
       CASE (92:106)
     END SELECT
+    CALL calpar(z,sep)
 
     sep%beta = sep%beta/evolt
     sep%uss = sep%uss/evolt; sep%upp = sep%upp/evolt; sep%udd = sep%udd/evolt
@@ -2941,7 +2486,6 @@ CONTAINS
 
   END SUBROUTINE pdg_default_parameter
 ! *****************************************************************************
-
   
   SUBROUTINE valence_electrons ( z, zeff, natorb )
     INTEGER, INTENT(IN)                      :: z
@@ -3102,14 +2646,15 @@ CONTAINS
     INTEGER, DIMENSION(107), PARAMETER :: nspqn = (/(1,j=1,2), (2,j=1,8), (3,j&
       =1,8), (4,j=1,18), (5,j=1,18), (6,j=1,32), (0,j=1,21)/)
 
-    INTEGER                                  :: iop, ios, jmax, k, l
+    INTEGER                                  :: iod, iop, ios, jmax, k, l
     REAL(KIND=dp) :: ad, am, aq, d1, d2, d3, dd, df, eisol, gdd1, gp2, gp2c, &
       gpp, gppc, gqq, gsp, gspc, gss, gssc, hpp, hpp1, hpp2, hsp, hsp1, hsp2, &
-      hspc, p, p4, q1, q2, q3, qf, qn, qq, upp, uss, zp, zs
+      hspc, p, p4, q1, q2, q3, qf, qn, qq, udd, upp, uss, zp, zs
 
     IF (.NOT.sep%defined) RETURN
     uss = sep%uss
     upp = sep%upp
+    udd = sep%udd
     gss = sep%gss
     gpp = sep%gpp
     gsp = sep%gsp
@@ -3119,6 +2664,7 @@ CONTAINS
     zp  = sep%sto_exponents(1)
     ios = Nos(z)
     iop = Nop(z)
+    iod = Nod(z)
 
     p = 2.e0_dp 
     p4 = p**4
@@ -3144,7 +2690,7 @@ CONTAINS
     hpp = 0.5e0_dp*(gpp-gp2) 
     hpp = MAX(0.1e0_dp,hpp) 
     hsp = MAX(1.e-7_dp,hsp) 
-    eisol = uss*ios + upp*iop + gss*gssc + gpp*gppc + gsp*gspc + gp2*gp2c + hsp*hspc 
+    eisol = uss*ios + upp*iop + udd*iod + gss*gssc + gpp*gppc + gsp*gspc + gp2*gp2c + hsp*hspc 
     qn = REAL(nspqn(z),KIND=dp)
     dd = (2.e0_dp*qn + 1)*(4.e0_dp*zs*zp)**(qn + 0.5e0_dp)/(zs+zp)**(2.e0_dp*qn + 2)/SQRT(3.e0_dp) 
     qq = SQRT((4.e0_dp*qn*qn + 6.e0_dp*qn + 2.e0_dp)/20.e0_dp)/zp
