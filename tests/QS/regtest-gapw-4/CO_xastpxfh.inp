@@ -78,9 +78,9 @@
       LOCALIZE_WFN
       EMISSION
       &PRINT
-         &CLS_FUNCTION_CUBES
-           STRIDE 2 
-         &END
+!        &CLS_FUNCTION_CUBES
+!          STRIDE 2 
+!        &END
 
       &END 
     &END
