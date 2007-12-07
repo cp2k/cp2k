@@ -1586,11 +1586,14 @@ END SUBROUTINE cp_iteration_info_release
 !   *** Generate the first set of star rows ***
 
     IF (decoration_level > 1) THEN
-      fmtstr1 = "(T2,  (""*""))"
-      WRITE (UNIT=fmtstr1(5:6),FMT="(I2)") maxrowlen + 8
-      DO i=1,decoration_level-1
-        WRITE (UNIT=output_unit,FMT=fmtstr1)
-      END DO
+       fmtstr1 = "(/,T2,  (""*""))"
+       WRITE (UNIT=fmtstr1(5:6),FMT="(I2)") maxrowlen + 8
+       fmtstr1 = "(T2,  (""*""))"
+       DO i=1,decoration_level-1
+          WRITE (UNIT=output_unit,FMT=fmtstr1)
+       END DO
+    ELSE IF (decoration_level == 1) THEN
+       WRITE (UNIT=output_unit,FMT='(A)')""
     END IF
 
 !   *** Break long messages ***
@@ -1599,7 +1602,6 @@ END SUBROUTINE cp_iteration_info_release
     ipos2 = rowlen
 
     DO
-
       IF (ipos2 < msglen) THEN
          i=INDEX(message(ipos1:ipos2)," ",BACK=.TRUE.)
          IF (i == 0) THEN
@@ -1618,10 +1620,6 @@ END SUBROUTINE cp_iteration_info_release
       ELSE IF (decoration_level > 0) THEN
          fmtstr2 = "(T2,""*** "",A,  X,"" ***"")"
          WRITE (UNIT=fmtstr2(14:15),FMT="(I2)") ipos1 + maxrowlen - ibreak
-         IF (ipos1==1) THEN
-            fmtstr2 = "(/T2,""*** "",A,  X,"" ***"")"
-            WRITE (UNIT=fmtstr2(15:16),FMT="(I2)") ipos1 + maxrowlen - ibreak
-         END IF
          WRITE (UNIT=output_unit,FMT=fmtstr2) message(ipos1:ibreak)
       END IF
 
@@ -1631,7 +1629,6 @@ END SUBROUTINE cp_iteration_info_release
 !     *** When the last row is processed, exit loop ***
 
       IF (ipos1 > msglen) EXIT
-
     END DO
 
 !   *** Generate the second set star rows ***
