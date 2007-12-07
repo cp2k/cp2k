@@ -46,6 +46,7 @@ MODULE force_fields_input
                                              parser_release,&
                                              parser_search_string,&
                                              parser_test_next_token
+  USE f77_blas
   USE force_field_types,               ONLY: charmm_info_type,&
                                              force_field_type,&
                                              gromos_info_type,&
@@ -73,7 +74,6 @@ MODULE force_fields_input
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -126,6 +126,7 @@ CONTAINS
       nlj, nshell, ntersoff, ntors, ntot, nubs, nwl
     LOGICAL                                  :: explicit, failure, &
                                                 unique_spline
+    REAL(KIND=dp)                            :: min_eps_spline_allowed
     TYPE(input_info_type), POINTER           :: inp_info
     TYPE(section_vals_type), POINTER         :: tmp_section, tmp_section2
 
@@ -140,6 +141,18 @@ CONTAINS
        CALL section_vals_val_get(ff_section,"SPLINE%RCUT_NB",r_val=ff_type%rcut_nb,error=error)
        CALL section_vals_val_get(ff_section,"SPLINE%R0_NB",r_val=ff_type%rlow_nb,error=error)
        CALL section_vals_val_get(ff_section,"SPLINE%EPS_SPLINE",r_val=ff_type%eps_spline,error=error)
+       ! check w.r.t. running numerical accuracy
+       min_eps_spline_allowed = 100.0_dp*EPSILON(0.0_dp)
+       IF (ff_type%eps_spline < min_eps_spline_allowed) THEN
+          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+               "Requested spline accuracy ("//TRIM(cp_to_string(ff_type%eps_spline))//" ) "//&
+               "is smaller than the minimum value allowed ("//TRIM(cp_to_string(min_eps_spline_allowed))//&
+               " ) with the present machine precision ("//TRIM(cp_to_string(EPSILON(0.0_dp)))//" ). "//&
+               "New EPS_SPLINE value ("//TRIM(cp_to_string(min_eps_spline_allowed))//" ). "//&
+CPSourceFileRef,&
+               only_ionode=.TRUE.)
+          ff_type%eps_spline = min_eps_spline_allowed
+       END IF
        CALL section_vals_val_get(ff_section,"SPLINE%EMAX_SPLINE",r_val=ff_type%emax_spline,error=error)
        CALL section_vals_val_get(ff_section,"SPLINE%EMAX_ACCURACY",r_val=ff_type%max_energy,error=error)
        CALL section_vals_val_get(ff_section,"SCALE_CUTOFF",l_val=ff_type%scale_cutoff,error=error)

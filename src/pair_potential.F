@@ -28,6 +28,7 @@ MODULE pair_potential
                                              get_atomic_kind_set
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
+  USE f77_blas
   USE fparser,                         ONLY: finalizef,&
                                              initf,&
                                              parsef
@@ -58,7 +59,6 @@ MODULE pair_potential
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -596,6 +596,7 @@ CONTAINS
              xsav = MIN(x,xsav)
           END IF
           x2 = x2 + dx2
+          IF (x2>hicut) EXIT
        END DO
        IF (npoints > MAX_POINTS) THEN
           WRITE(message,'(A,I8,A,G12.6,A)') "SPLINE_INFO| Number of points: ",npoints,&

@@ -3,24 +3,25 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-H2O-MNDO.inp 3
-c2h4.inp 3
-ch2o.inp 3
-ch4.inp 3
-ch4-restart.inp 3
-h2o.inp 3
-h2o_lsd.inp 3  
-h2op.inp 3
-hcn.inp 3
-hf.inp 3
-nh4.inp 3
-st.inp 3
+H2O-MNDO.inp     3
+c2h4.inp         3
+ch2o.inp         3
+ch4.inp          3
+ch4-restart.inp  3
+h2o.inp          3
+h2o_lsd.inp      3  
+h2op.inp         3
+hcn.inp          3
+hf.inp           3
+nh4.inp          3
+st.inp           3
 # test the initial adaptation to OT
-ch4-ot.inp 3
-h2o_lsd-ot.inp 3
+ch4-ot.inp       3
+h2o_lsd-ot.inp   3
 # tests for high-spin ROKS
-O-ROKS.inp 3
-O2-ROKS.inp 3
-NO2-ROKS.inp 3
+O-ROKS.inp       3
+O2-ROKS.inp      3
+NO2-ROKS.inp     3
 #RM1 Model
-c2h4_rm1.inp 3
+c2h4_rm1.inp     3
+h2op_2.inp       3
