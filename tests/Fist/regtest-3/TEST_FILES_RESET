@@ -39,3 +39,6 @@ silicon_cluster_4.inp
 silicon_cluster_5.inp
 silicon_cluster_6.inp
 silicon_cluster.inp
+# more numerically stable spline generation
+al2o3.inp
+al2o3-res.inp

@@ -590,7 +590,7 @@ CONTAINS
           IF (do_nonbonded) THEN
              e =  e + ener_pot(pot, x , energy_cutoff, my_vdw_scale14 )
           END IF
-          IF (e<max_energy) THEN
+          IF (ABS(e)<max_energy) THEN
              xdum1   = ABS(e-potential_s(spl_p,x*x,xdum,spl_f,logger))
              diffmax = MAX(diffmax,xdum1)
              xsav = MIN(x,xsav)
@@ -603,9 +603,9 @@ CONTAINS
                " obtained accuracy ",diffmax,". MM SPLINE: no convergence on required"//&
                " accuracy (adjust EPS_SPLINE and rerun)"
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed, routineP,&
-                        TRIM(message)//" "//&
+               TRIM(message)//" "//&
 CPSourceFileRef,&
-                        only_ionode=.TRUE.)
+               only_ionode=.TRUE.)
        END IF
        IF (diffmax > eps_spline ) THEN
           npoints   = CEILING(1.2_dp*REAL(npoints,KIND=dp))
