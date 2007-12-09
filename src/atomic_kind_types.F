@@ -1219,7 +1219,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
     LOGICAL, INTENT(IN)                      :: no_fail
-    INTEGER                                  :: method_id
+    INTEGER, INTENT(IN)                      :: method_id
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_atomic_kind', &
@@ -1640,6 +1640,8 @@ CPSourceFileRef,&
        CASE (do_method_dftb)
           no_fail = .TRUE.
        END SELECT
+    ELSE
+       qs_method = method
     END IF
     IF (ASSOCIATED(atomic_kind_set)) THEN
        nkind = SIZE(atomic_kind_set)
