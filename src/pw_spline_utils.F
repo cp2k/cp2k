@@ -47,8 +47,10 @@ MODULE pw_spline_utils
   USE mathconstants,                   ONLY: twopi
   USE message_passing,                 ONLY: mp_alltoall,&
                                              mp_comm_compare,&
-                                             mp_sendrecv
-  USE pw_grid_types,                   ONLY: FULLSPACE
+                                             mp_sendrecv,&
+                                             mp_sum
+  USE pw_grid_types,                   ONLY: FULLSPACE,&
+                                             PW_MODE_LOCAL
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
                                              pw_pool_release,&
@@ -56,7 +58,7 @@ MODULE pw_spline_utils
                                              pw_pool_type
   USE pw_types,                        ONLY: &
        COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, SQUARE, &
-       pw_copy, pw_integral_aa, pw_integral_ab, pw_p_type, pw_axpy, pw_type, &
+       pw_axpy, pw_copy, pw_integral_aa, pw_integral_ab, pw_p_type, pw_type, &
        pw_zero
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -4464,6 +4466,9 @@ CPSourceFileRef,&
   !!   AUTHOR
   !!     Teodoro Laino 12/2005 [tlaino]
   !!
+  !!   MODIFICATION HISTORY
+  !!     12.2007 Adapted for use with distributed grids [rdeclerck]
+  !!
   !!*** **********************************************************************
   FUNCTION Eval_Interp_Spl3_pbc(vec,pw,error) RESULT(val)
     REAL(KIND=dp), DIMENSION(3), INTENT(in)  :: vec
@@ -4474,113 +4479,70 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'Eval_Interp_Spl3_pbc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ii1, ii2, ii3, ii4, ij1, ij2, &
-                                                ij3, ij4, ik1, ik2, ik3, ik4, &
-                                                ivec(3), npts(3)
-    LOGICAL                                  :: failure
-    REAL(KIND=dp) :: a1, a2, a3, aaa, aab, aac, aad, aba, abb, abc, abd, aca, &
-      acb, acc, acd, ada, adb, adc, add, b1, b2, b3, baa, bab, bac, bad, bba, &
-      bbb, bbc, bbd, bca, bcb, bcc, bcd, bda, bdb, bdc, bdd, c1, c2, c3, caa, &
-      cab, cac, cad, cba, cbb, cbc, cbd, cca, ccb, ccc, ccd, cda, cdb, cdc, &
-      cdd, d1, d2, d3, daa, dab, dac, dad, dba, dbb, dbc, dbd, dca, dcb, dcc, &
-      dcd, dda, ddb, ddc, ddd, dr1, dr2, dr3, e1, e2, e3, f1, f2, f3, g1, g2, &
-      g3, h1, h2, h3, p1, p2, p3, q1, q2, q3, r1, r2, r3, s1, s2, s3, s4, t1, &
-      t2, t3, t4, u1, u2, u3, v1, v2, v3, v4, xd1, xd2, xd3
+    INTEGER                                  :: i, ivec(3), j, k, npts(3)
+    INTEGER, DIMENSION(2, 3)                 :: bo, bo_l
+    INTEGER, DIMENSION(4)                    :: ii, ij, ik
+    LOGICAL                                  :: failure, my_mpsum
+    REAL(KIND=dp) :: a1, a2, a3, b1, b2, b3, c1, c2, c3, d1, d2, d3, dr1, &
+      dr2, dr3, e1, e2, e3, f1, f2, f3, g1, g2, g3, h1, h2, h3, p1, p2, p3, &
+      q1, q2, q3, r1, r2, r3, s1, s2, s3, s4, t1, t2, t3, t4, u1, u2, u3, v1, &
+      v2, v3, v4, xd1, xd2, xd3
+    REAL(KIND=dp), DIMENSION(4, 4, 4)        :: box
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: grid
 
     NULLIFY(grid)
     failure=.FALSE.
     IF (.NOT.failure) THEN
+       my_mpsum = (pw%pw_grid%para%mode/=PW_MODE_LOCAL)
        npts = pw%pw_grid%npts
        ivec = FLOOR(vec/pw%pw_grid%dr)
        dr1  = pw%pw_grid%dr(1)
        dr2  = pw%pw_grid%dr(2)
        dr3  = pw%pw_grid%dr(3)
+
        xd1  = (vec(1)/dr1)-REAL(ivec(1),kind=dp)
        xd2  = (vec(2)/dr2)-REAL(ivec(2),kind=dp)
        xd3  = (vec(3)/dr3)-REAL(ivec(3),kind=dp)
-       grid => pw%cr3d(:,:,:)       
+       grid => pw%cr3d(:,:,:)
+       bo = pw%pw_grid%bounds
+       bo_l = pw%pw_grid%bounds_local
 
-       ik1 = MODULO(ivec(3)-1,npts(3))+1
-       ik2 = MODULO(ivec(3)  ,npts(3))+1
-       ik3 = MODULO(ivec(3)+1,npts(3))+1
-       ik4 = MODULO(ivec(3)+2,npts(3))+1
+       ik(1) = MODULO(ivec(3)-1,npts(3)) + bo(1,3)
+       ik(2) = MODULO(ivec(3)  ,npts(3)) + bo(1,3)
+       ik(3) = MODULO(ivec(3)+1,npts(3)) + bo(1,3)
+       ik(4) = MODULO(ivec(3)+2,npts(3)) + bo(1,3)
 
-       ij1 = MODULO(ivec(2)-1,npts(2))+1
-       ij2 = MODULO(ivec(2)  ,npts(2))+1
-       ij3 = MODULO(ivec(2)+1,npts(2))+1
-       ij4 = MODULO(ivec(2)+2,npts(2))+1
+       ij(1) = MODULO(ivec(2)-1,npts(2)) + bo(1,2)
+       ij(2) = MODULO(ivec(2)  ,npts(2)) + bo(1,2)
+       ij(3) = MODULO(ivec(2)+1,npts(2)) + bo(1,2)
+       ij(4) = MODULO(ivec(2)+2,npts(2)) + bo(1,2)
        
-       ii1 = MODULO(ivec(1)-1,npts(1))+1
-       ii2 = MODULO(ivec(1)  ,npts(1))+1
-       ii3 = MODULO(ivec(1)+1,npts(1))+1
-       ii4 = MODULO(ivec(1)+2,npts(1))+1
- 
-       aaa   = grid(ii1,ij1,ik1)
-       baa   = grid(ii2,ij1,ik1)
-       caa   = grid(ii3,ij1,ik1)
-       daa   = grid(ii4,ij1,ik1)
-       aba   = grid(ii1,ij2,ik1)
-       bba   = grid(ii2,ij2,ik1)
-       cba   = grid(ii3,ij2,ik1)
-       dba   = grid(ii4,ij2,ik1)
-       aca   = grid(ii1,ij3,ik1)
-       bca   = grid(ii2,ij3,ik1)
-       cca   = grid(ii3,ij3,ik1)
-       dca   = grid(ii4,ij3,ik1)
-       ada   = grid(ii1,ij4,ik1)
-       bda   = grid(ii2,ij4,ik1)
-       cda   = grid(ii3,ij4,ik1)
-       dda   = grid(ii4,ij4,ik1)
-       aab   = grid(ii1,ij1,ik2)
-       bab   = grid(ii2,ij1,ik2)
-       cab   = grid(ii3,ij1,ik2)
-       dab   = grid(ii4,ij1,ik2)
-       abb   = grid(ii1,ij2,ik2)
-       bbb   = grid(ii2,ij2,ik2)
-       cbb   = grid(ii3,ij2,ik2)
-       dbb   = grid(ii4,ij2,ik2)
-       acb   = grid(ii1,ij3,ik2)
-       bcb   = grid(ii2,ij3,ik2)
-       ccb   = grid(ii3,ij3,ik2)
-       dcb   = grid(ii4,ij3,ik2)
-       adb   = grid(ii1,ij4,ik2)
-       bdb   = grid(ii2,ij4,ik2)
-       cdb   = grid(ii3,ij4,ik2)
-       ddb   = grid(ii4,ij4,ik2)
-       aac   = grid(ii1,ij1,ik3)
-       bac   = grid(ii2,ij1,ik3)
-       cac   = grid(ii3,ij1,ik3)
-       dac   = grid(ii4,ij1,ik3)
-       abc   = grid(ii1,ij2,ik3)
-       bbc   = grid(ii2,ij2,ik3)
-       cbc   = grid(ii3,ij2,ik3)
-       dbc   = grid(ii4,ij2,ik3)
-       acc   = grid(ii1,ij3,ik3)
-       bcc   = grid(ii2,ij3,ik3)
-       ccc   = grid(ii3,ij3,ik3)
-       dcc   = grid(ii4,ij3,ik3)
-       adc   = grid(ii1,ij4,ik3)
-       bdc   = grid(ii2,ij4,ik3)
-       cdc   = grid(ii3,ij4,ik3)
-       ddc   = grid(ii4,ij4,ik3)
-       aad   = grid(ii1,ij1,ik4)
-       bad   = grid(ii2,ij1,ik4)
-       cad   = grid(ii3,ij1,ik4)
-       dad   = grid(ii4,ij1,ik4)
-       abd   = grid(ii1,ij2,ik4)
-       bbd   = grid(ii2,ij2,ik4)
-       cbd   = grid(ii3,ij2,ik4)
-       dbd   = grid(ii4,ij2,ik4)
-       acd   = grid(ii1,ij3,ik4)
-       bcd   = grid(ii2,ij3,ik4)
-       ccd   = grid(ii3,ij3,ik4)
-       dcd   = grid(ii4,ij3,ik4)
-       add   = grid(ii1,ij4,ik4)
-       bdd   = grid(ii2,ij4,ik4)
-       cdd   = grid(ii3,ij4,ik4)
-       ddd   = grid(ii4,ij4,ik4)
+       ii(1) = MODULO(ivec(1)-1,npts(1)) + bo(1,1)
+       ii(2) = MODULO(ivec(1)  ,npts(1)) + bo(1,1)
+       ii(3) = MODULO(ivec(1)+1,npts(1)) + bo(1,1)
+       ii(4) = MODULO(ivec(1)+2,npts(1)) + bo(1,1)
+
+       DO k = 1,4
+          DO j = 1,4
+             DO i = 1,4
+                IF(&
+                   ii(i) >= bo_l(1,1) .AND. &
+                   ii(i) <= bo_l(2,1) .AND. &
+                   ij(j) >= bo_l(1,2) .AND. &
+                   ij(j) <= bo_l(2,2) .AND. &
+                   ik(k) >= bo_l(1,3) .AND. &
+                   ik(k) <= bo_l(2,3) &
+                ) THEN
+                   box(i,j,k) = grid(ii(i) + 1 - bo_l(1,1),&
+                                     ij(j) + 1 - bo_l(1,2),&
+                                     ik(k) + 1 - bo_l(1,3))
+                ELSE
+                   box(i,j,k) = 0.0_dp
+                END IF
+             END DO
+          END DO
+       END DO
               
        a1  = 3.0_dp + xd1
        a2  = a1*a1
@@ -4631,24 +4593,25 @@ CPSourceFileRef,&
        v2 = -22.0_dp/3.0_dp + 10.0_dp*q1 - 4.0_dp*q2 + 0.5_dp*q3
        v3 =   2.0_dp/3.0_dp -  2.0_dp*r1 + 2.0_dp*r2 - 0.5_dp*r3
        v4 =   1.0_dp/6.0_dp*u3
-       
-       val = (( aaa * t1 + baa * t2 + caa * t3 + daa * t4 ) * s1  +&
-              ( aba * t1 + bba * t2 + cba * t3 + dba * t4 ) * s2  +&
-              ( aca * t1 + bca * t2 + cca * t3 + dca * t4 ) * s3  +&
-              ( ada * t1 + bda * t2 + cda * t3 + dda * t4 ) * s4  ) * v1 +&
-             (( aab * t1 + bab * t2 + cab * t3 + dab * t4 ) * s1  +&
-              ( abb * t1 + bbb * t2 + cbb * t3 + dbb * t4 ) * s2  +&
-              ( acb * t1 + bcb * t2 + ccb * t3 + dcb * t4 ) * s3  +&
-              ( adb * t1 + bdb * t2 + cdb * t3 + ddb * t4 ) * s4  ) * v2 +&
-             (( aac * t1 + bac * t2 + cac * t3 + dac * t4 ) * s1  +&
-              ( abc * t1 + bbc * t2 + cbc * t3 + dbc * t4 ) * s2  +&
-              ( acc * t1 + bcc * t2 + ccc * t3 + dcc * t4 ) * s3  +&
-              ( adc * t1 + bdc * t2 + cdc * t3 + ddc * t4 ) * s4  ) * v3 +&
-             (( aad * t1 + bad * t2 + cad * t3 + dad * t4 ) * s1  +&
-              ( abd * t1 + bbd * t2 + cbd * t3 + dbd * t4 ) * s2  +&
-              ( acd * t1 + bcd * t2 + ccd * t3 + dcd * t4 ) * s3  +&
-              ( add * t1 + bdd * t2 + cdd * t3 + ddd * t4 ) * s4  ) * v4 
-          
+
+       val = (( box(1,1,1) * t1 + box(2,1,1) * t2 + box(3,1,1) * t3 + box(4,1,1) * t4 ) * s1  +&
+              ( box(1,2,1) * t1 + box(2,2,1) * t2 + box(3,2,1) * t3 + box(4,2,1) * t4 ) * s2  +&
+              ( box(1,3,1) * t1 + box(2,3,1) * t2 + box(3,3,1) * t3 + box(4,3,1) * t4 ) * s3  +&
+              ( box(1,4,1) * t1 + box(2,4,1) * t2 + box(3,4,1) * t3 + box(4,4,1) * t4 ) * s4  ) * v1 +&
+             (( box(1,1,2) * t1 + box(2,1,2) * t2 + box(3,1,2) * t3 + box(4,1,2) * t4 ) * s1  +&
+              ( box(1,2,2) * t1 + box(2,2,2) * t2 + box(3,2,2) * t3 + box(4,2,2) * t4 ) * s2  +&
+              ( box(1,3,2) * t1 + box(2,3,2) * t2 + box(3,3,2) * t3 + box(4,3,2) * t4 ) * s3  +&
+              ( box(1,4,2) * t1 + box(2,4,2) * t2 + box(3,4,2) * t3 + box(4,4,2) * t4 ) * s4  ) * v2 +&
+             (( box(1,1,3) * t1 + box(2,1,3) * t2 + box(3,1,3) * t3 + box(4,1,3) * t4 ) * s1  +&
+              ( box(1,2,3) * t1 + box(2,2,3) * t2 + box(3,2,3) * t3 + box(4,2,3) * t4 ) * s2  +&
+              ( box(1,3,3) * t1 + box(2,3,3) * t2 + box(3,3,3) * t3 + box(4,3,3) * t4 ) * s3  +&
+              ( box(1,4,3) * t1 + box(2,4,3) * t2 + box(3,4,3) * t3 + box(4,4,3) * t4 ) * s4  ) * v3 +&
+             (( box(1,1,4) * t1 + box(2,1,4) * t2 + box(3,1,4) * t3 + box(4,1,4) * t4 ) * s1  +&
+              ( box(1,2,4) * t1 + box(2,2,4) * t2 + box(3,2,4) * t3 + box(4,2,4) * t4 ) * s2  +&
+              ( box(1,3,4) * t1 + box(2,3,4) * t2 + box(3,3,4) * t3 + box(4,3,4) * t4 ) * s3  +&
+              ( box(1,4,4) * t1 + box(2,4,4) * t2 + box(3,4,4) * t3 + box(4,4,4) * t4 ) * s4  ) * v4
+
+       IF (my_mpsum) CALL mp_sum ( val, pw%pw_grid%para%group )
     END IF
 
   END FUNCTION Eval_Interp_Spl3_pbc
@@ -4672,6 +4635,9 @@ CPSourceFileRef,&
   !!   AUTHOR
   !!     Teodoro Laino 12/2005 [tlaino]
   !!
+  !!   MODIFICATION HISTORY
+  !!     12.2007 Adapted for use with distributed grids [rdeclerck]
+  !!
   !!*** **********************************************************************
   FUNCTION Eval_d_Interp_Spl3_pbc(vec,pw,error) RESULT(val)
     REAL(KIND=dp), DIMENSION(3), INTENT(in)  :: vec
@@ -4682,27 +4648,24 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'Eval_d_Interp_Spl3_pbc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ii1, ii2, ii3, ii4, ij1, ij2, &
-                                                ij3, ij4, ik1, ik2, ik3, ik4, &
-                                                ivec(3), npts(3)
-    LOGICAL                                  :: failure
-    REAL(KIND=dp) :: a1, a2, a3, aaa, aab, aac, aad, aba, abb, abc, abd, aca, &
-      acb, acc, acd, ada, adb, adc, add, b1, b2, b3, baa, bab, bac, bad, bba, &
-      bbb, bbc, bbd, bca, bcb, bcc, bcd, bda, bdb, bdc, bdd, c1, c2, c3, caa, &
-      cab, cac, cad, cba, cbb, cbc, cbd, cca, ccb, ccc, ccd, cda, cdb, cdc, &
-      cdd, d1, d2, d3, daa, dab, dac, dad, dba, dbb, dbc, dbd, dca, dcb, dcc, &
-      dcd, dda, ddb, ddc, ddd, dr1, dr1i, dr2, dr2i, dr3, dr3i, e1, e2, e3, &
-      f1, f2, f3, g1, g2, g3, h1, h2, h3, p1, p2, p3, q1, q2, q3, r1, r2, r3, &
-      s1, s1d, s1o, s2, s2d, s2o, s3, s3d, s3o, s4, s4d, s4o, t1, t1d, t1o, &
-      t2, t2d, t2o, t3, t3d, t3o, t4, t4d, t4o, u1
-    REAL(KIND=dp) :: u2, u3, v1, v1d, v1o, v2, v2d, v2o, v3, v3d, v3o, v4, &
+    INTEGER                                  :: i, ivec(3), j, k, npts(3)
+    INTEGER, DIMENSION(2, 3)                 :: bo, bo_l
+    INTEGER, DIMENSION(4)                    :: ii, ij, ik
+    LOGICAL                                  :: failure, my_mpsum
+    REAL(KIND=dp) :: a1, a2, a3, b1, b2, b3, c1, c2, c3, d1, d2, d3, dr1, &
+      dr1i, dr2, dr2i, dr3, dr3i, e1, e2, e3, f1, f2, f3, g1, g2, g3, h1, h2, &
+      h3, p1, p2, p3, q1, q2, q3, r1, r2, r3, s1, s1d, s1o, s2, s2d, s2o, s3, &
+      s3d, s3o, s4, s4d, s4o, t1, t1d, t1o, t2, t2d, t2o, t3, t3d, t3o, t4, &
+      t4d, t4o, u1, u2, u3, v1, v1d, v1o, v2, v2d, v2o, v3, v3d, v3o, v4, &
       v4d, v4o, xd1, xd2, xd3
+    REAL(KIND=dp), DIMENSION(4, 4, 4)        :: box
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: grid
 
     NULLIFY(grid)
     failure=.FALSE.
     IF (.NOT.failure) THEN
+       my_mpsum = (pw%pw_grid%para%mode/=PW_MODE_LOCAL)
        npts = pw%pw_grid%npts
        ivec = FLOOR(vec/pw%pw_grid%dr)
        dr1  = pw%pw_grid%dr(1)
@@ -4715,87 +4678,45 @@ CPSourceFileRef,&
        xd2  = (vec(2)/dr2)-REAL(ivec(2),kind=dp)
        xd3  = (vec(3)/dr3)-REAL(ivec(3),kind=dp)
        grid => pw%cr3d(:,:,:)       
+       bo = pw%pw_grid%bounds
+       bo_l = pw%pw_grid%bounds_local
 
-       ik1 = MODULO(ivec(3)-1,npts(3))+1
-       ik2 = MODULO(ivec(3)  ,npts(3))+1
-       ik3 = MODULO(ivec(3)+1,npts(3))+1
-       ik4 = MODULO(ivec(3)+2,npts(3))+1
+       ik(1) = MODULO(ivec(3)-1,npts(3)) + bo(1,3)
+       ik(2) = MODULO(ivec(3)  ,npts(3)) + bo(1,3)
+       ik(3) = MODULO(ivec(3)+1,npts(3)) + bo(1,3)
+       ik(4) = MODULO(ivec(3)+2,npts(3)) + bo(1,3)
 
-       ij1 = MODULO(ivec(2)-1,npts(2))+1
-       ij2 = MODULO(ivec(2)  ,npts(2))+1
-       ij3 = MODULO(ivec(2)+1,npts(2))+1
-       ij4 = MODULO(ivec(2)+2,npts(2))+1
+       ij(1) = MODULO(ivec(2)-1,npts(2)) + bo(1,2)
+       ij(2) = MODULO(ivec(2)  ,npts(2)) + bo(1,2)
+       ij(3) = MODULO(ivec(2)+1,npts(2)) + bo(1,2)
+       ij(4) = MODULO(ivec(2)+2,npts(2)) + bo(1,2)
        
-       ii1 = MODULO(ivec(1)-1,npts(1))+1
-       ii2 = MODULO(ivec(1)  ,npts(1))+1
-       ii3 = MODULO(ivec(1)+1,npts(1))+1
-       ii4 = MODULO(ivec(1)+2,npts(1))+1
- 
-       aaa   = grid(ii1,ij1,ik1)
-       baa   = grid(ii2,ij1,ik1)
-       caa   = grid(ii3,ij1,ik1)
-       daa   = grid(ii4,ij1,ik1)
-       aba   = grid(ii1,ij2,ik1)
-       bba   = grid(ii2,ij2,ik1)
-       cba   = grid(ii3,ij2,ik1)
-       dba   = grid(ii4,ij2,ik1)
-       aca   = grid(ii1,ij3,ik1)
-       bca   = grid(ii2,ij3,ik1)
-       cca   = grid(ii3,ij3,ik1)
-       dca   = grid(ii4,ij3,ik1)
-       ada   = grid(ii1,ij4,ik1)
-       bda   = grid(ii2,ij4,ik1)
-       cda   = grid(ii3,ij4,ik1)
-       dda   = grid(ii4,ij4,ik1)
-       aab   = grid(ii1,ij1,ik2)
-       bab   = grid(ii2,ij1,ik2)
-       cab   = grid(ii3,ij1,ik2)
-       dab   = grid(ii4,ij1,ik2)
-       abb   = grid(ii1,ij2,ik2)
-       bbb   = grid(ii2,ij2,ik2)
-       cbb   = grid(ii3,ij2,ik2)
-       dbb   = grid(ii4,ij2,ik2)
-       acb   = grid(ii1,ij3,ik2)
-       bcb   = grid(ii2,ij3,ik2)
-       ccb   = grid(ii3,ij3,ik2)
-       dcb   = grid(ii4,ij3,ik2)
-       adb   = grid(ii1,ij4,ik2)
-       bdb   = grid(ii2,ij4,ik2)
-       cdb   = grid(ii3,ij4,ik2)
-       ddb   = grid(ii4,ij4,ik2)
-       aac   = grid(ii1,ij1,ik3)
-       bac   = grid(ii2,ij1,ik3)
-       cac   = grid(ii3,ij1,ik3)
-       dac   = grid(ii4,ij1,ik3)
-       abc   = grid(ii1,ij2,ik3)
-       bbc   = grid(ii2,ij2,ik3)
-       cbc   = grid(ii3,ij2,ik3)
-       dbc   = grid(ii4,ij2,ik3)
-       acc   = grid(ii1,ij3,ik3)
-       bcc   = grid(ii2,ij3,ik3)
-       ccc   = grid(ii3,ij3,ik3)
-       dcc   = grid(ii4,ij3,ik3)
-       adc   = grid(ii1,ij4,ik3)
-       bdc   = grid(ii2,ij4,ik3)
-       cdc   = grid(ii3,ij4,ik3)
-       ddc   = grid(ii4,ij4,ik3)
-       aad   = grid(ii1,ij1,ik4)
-       bad   = grid(ii2,ij1,ik4)
-       cad   = grid(ii3,ij1,ik4)
-       dad   = grid(ii4,ij1,ik4)
-       abd   = grid(ii1,ij2,ik4)
-       bbd   = grid(ii2,ij2,ik4)
-       cbd   = grid(ii3,ij2,ik4)
-       dbd   = grid(ii4,ij2,ik4)
-       acd   = grid(ii1,ij3,ik4)
-       bcd   = grid(ii2,ij3,ik4)
-       ccd   = grid(ii3,ij3,ik4)
-       dcd   = grid(ii4,ij3,ik4)
-       add   = grid(ii1,ij4,ik4)
-       bdd   = grid(ii2,ij4,ik4)
-       cdd   = grid(ii3,ij4,ik4)
-       ddd   = grid(ii4,ij4,ik4)
-              
+       ii(1) = MODULO(ivec(1)-1,npts(1)) + bo(1,1)
+       ii(2) = MODULO(ivec(1)  ,npts(1)) + bo(1,1)
+       ii(3) = MODULO(ivec(1)+1,npts(1)) + bo(1,1)
+       ii(4) = MODULO(ivec(1)+2,npts(1)) + bo(1,1)
+
+       DO k = 1,4
+          DO j = 1,4
+             DO i = 1,4
+                IF(&
+                   ii(i) >= bo_l(1,1) .AND. &
+                   ii(i) <= bo_l(2,1) .AND. &
+                   ij(j) >= bo_l(1,2) .AND. &
+                   ij(j) <= bo_l(2,2) .AND. &
+                   ik(k) >= bo_l(1,3) .AND. &
+                   ik(k) <= bo_l(2,3) &
+                ) THEN
+                   box(i,j,k) = grid(ii(i) + 1 - bo_l(1,1),&
+                                     ij(j) + 1 - bo_l(1,2),&
+                                     ik(k) + 1 - bo_l(1,3))
+                ELSE
+                   box(i,j,k) = 0.0_dp
+                END IF
+             END DO
+          END DO
+       END DO
+
        a1  = 3.0_dp + xd1
        a2  = a1*a1
        a3  = a2*a1
@@ -4871,22 +4792,22 @@ CPSourceFileRef,&
        v2     = v2o
        v3     = v3o
        v4     = v4o
-       val(1) = (( aaa * t1 + baa * t2 + caa * t3 + daa * t4 ) * s1  +&
-                 ( aba * t1 + bba * t2 + cba * t3 + dba * t4 ) * s2  +&
-                 ( aca * t1 + bca * t2 + cca * t3 + dca * t4 ) * s3  +&
-                 ( ada * t1 + bda * t2 + cda * t3 + dda * t4 ) * s4  ) * v1 +&
-                (( aab * t1 + bab * t2 + cab * t3 + dab * t4 ) * s1  +&
-                 ( abb * t1 + bbb * t2 + cbb * t3 + dbb * t4 ) * s2  +&
-                 ( acb * t1 + bcb * t2 + ccb * t3 + dcb * t4 ) * s3  +&
-                 ( adb * t1 + bdb * t2 + cdb * t3 + ddb * t4 ) * s4  ) * v2 +&
-                (( aac * t1 + bac * t2 + cac * t3 + dac * t4 ) * s1  +&
-                 ( abc * t1 + bbc * t2 + cbc * t3 + dbc * t4 ) * s2  +&
-                 ( acc * t1 + bcc * t2 + ccc * t3 + dcc * t4 ) * s3  +&
-                 ( adc * t1 + bdc * t2 + cdc * t3 + ddc * t4 ) * s4  ) * v3 +&
-                (( aad * t1 + bad * t2 + cad * t3 + dad * t4 ) * s1  +&
-                 ( abd * t1 + bbd * t2 + cbd * t3 + dbd * t4 ) * s2  +&
-                 ( acd * t1 + bcd * t2 + ccd * t3 + dcd * t4 ) * s3  +&
-                 ( add * t1 + bdd * t2 + cdd * t3 + ddd * t4 ) * s4  ) * v4
+       val(1) = (( box(1,1,1) * t1 + box(2,1,1) * t2 + box(3,1,1) * t3 + box(4,1,1) * t4 ) * s1  +&
+                 ( box(1,2,1) * t1 + box(2,2,1) * t2 + box(3,2,1) * t3 + box(4,2,1) * t4 ) * s2  +&
+                 ( box(1,3,1) * t1 + box(2,3,1) * t2 + box(3,3,1) * t3 + box(4,3,1) * t4 ) * s3  +&
+                 ( box(1,4,1) * t1 + box(2,4,1) * t2 + box(3,4,1) * t3 + box(4,4,1) * t4 ) * s4  ) * v1 +&
+                (( box(1,1,2) * t1 + box(2,1,2) * t2 + box(3,1,2) * t3 + box(4,1,2) * t4 ) * s1  +&
+                 ( box(1,2,2) * t1 + box(2,2,2) * t2 + box(3,2,2) * t3 + box(4,2,2) * t4 ) * s2  +&
+                 ( box(1,3,2) * t1 + box(2,3,2) * t2 + box(3,3,2) * t3 + box(4,3,2) * t4 ) * s3  +&
+                 ( box(1,4,2) * t1 + box(2,4,2) * t2 + box(3,4,2) * t3 + box(4,4,2) * t4 ) * s4  ) * v2 +&
+                (( box(1,1,3) * t1 + box(2,1,3) * t2 + box(3,1,3) * t3 + box(4,1,3) * t4 ) * s1  +&
+                 ( box(1,2,3) * t1 + box(2,2,3) * t2 + box(3,2,3) * t3 + box(4,2,3) * t4 ) * s2  +&
+                 ( box(1,3,3) * t1 + box(2,3,3) * t2 + box(3,3,3) * t3 + box(4,3,3) * t4 ) * s3  +&
+                 ( box(1,4,3) * t1 + box(2,4,3) * t2 + box(3,4,3) * t3 + box(4,4,3) * t4 ) * s4  ) * v3 +&
+                (( box(1,1,4) * t1 + box(2,1,4) * t2 + box(3,1,4) * t3 + box(4,1,4) * t4 ) * s1  +&
+                 ( box(1,2,4) * t1 + box(2,2,4) * t2 + box(3,2,4) * t3 + box(4,2,4) * t4 ) * s2  +&
+                 ( box(1,3,4) * t1 + box(2,3,4) * t2 + box(3,3,4) * t3 + box(4,3,4) * t4 ) * s3  +&
+                 ( box(1,4,4) * t1 + box(2,4,4) * t2 + box(3,4,4) * t3 + box(4,4,4) * t4 ) * s4  ) * v4
 
        t1     = t1o
        t2     = t2o
@@ -4900,22 +4821,22 @@ CPSourceFileRef,&
        v2     = v2o
        v3     = v3o
        v4     = v4o
-       val(2) = (( aaa * t1 + baa * t2 + caa * t3 + daa * t4 ) * s1  +&
-                 ( aba * t1 + bba * t2 + cba * t3 + dba * t4 ) * s2  +&
-                 ( aca * t1 + bca * t2 + cca * t3 + dca * t4 ) * s3  +&
-                 ( ada * t1 + bda * t2 + cda * t3 + dda * t4 ) * s4  ) * v1 +&
-                (( aab * t1 + bab * t2 + cab * t3 + dab * t4 ) * s1  +&
-                 ( abb * t1 + bbb * t2 + cbb * t3 + dbb * t4 ) * s2  +&
-                 ( acb * t1 + bcb * t2 + ccb * t3 + dcb * t4 ) * s3  +&
-                 ( adb * t1 + bdb * t2 + cdb * t3 + ddb * t4 ) * s4  ) * v2 +&
-                (( aac * t1 + bac * t2 + cac * t3 + dac * t4 ) * s1  +&
-                 ( abc * t1 + bbc * t2 + cbc * t3 + dbc * t4 ) * s2  +&
-                 ( acc * t1 + bcc * t2 + ccc * t3 + dcc * t4 ) * s3  +&
-                 ( adc * t1 + bdc * t2 + cdc * t3 + ddc * t4 ) * s4  ) * v3 +&
-                (( aad * t1 + bad * t2 + cad * t3 + dad * t4 ) * s1  +&
-                 ( abd * t1 + bbd * t2 + cbd * t3 + dbd * t4 ) * s2  +&
-                 ( acd * t1 + bcd * t2 + ccd * t3 + dcd * t4 ) * s3  +&
-                 ( add * t1 + bdd * t2 + cdd * t3 + ddd * t4 ) * s4  ) * v4
+       val(2) = (( box(1,1,1) * t1 + box(2,1,1) * t2 + box(3,1,1) * t3 + box(4,1,1) * t4 ) * s1  +&
+                 ( box(1,2,1) * t1 + box(2,2,1) * t2 + box(3,2,1) * t3 + box(4,2,1) * t4 ) * s2  +&
+                 ( box(1,3,1) * t1 + box(2,3,1) * t2 + box(3,3,1) * t3 + box(4,3,1) * t4 ) * s3  +&
+                 ( box(1,4,1) * t1 + box(2,4,1) * t2 + box(3,4,1) * t3 + box(4,4,1) * t4 ) * s4  ) * v1 +&
+                (( box(1,1,2) * t1 + box(2,1,2) * t2 + box(3,1,2) * t3 + box(4,1,2) * t4 ) * s1  +&
+                 ( box(1,2,2) * t1 + box(2,2,2) * t2 + box(3,2,2) * t3 + box(4,2,2) * t4 ) * s2  +&
+                 ( box(1,3,2) * t1 + box(2,3,2) * t2 + box(3,3,2) * t3 + box(4,3,2) * t4 ) * s3  +&
+                 ( box(1,4,2) * t1 + box(2,4,2) * t2 + box(3,4,2) * t3 + box(4,4,2) * t4 ) * s4  ) * v2 +&
+                (( box(1,1,3) * t1 + box(2,1,3) * t2 + box(3,1,3) * t3 + box(4,1,3) * t4 ) * s1  +&
+                 ( box(1,2,3) * t1 + box(2,2,3) * t2 + box(3,2,3) * t3 + box(4,2,3) * t4 ) * s2  +&
+                 ( box(1,3,3) * t1 + box(2,3,3) * t2 + box(3,3,3) * t3 + box(4,3,3) * t4 ) * s3  +&
+                 ( box(1,4,3) * t1 + box(2,4,3) * t2 + box(3,4,3) * t3 + box(4,4,3) * t4 ) * s4  ) * v3 +&
+                (( box(1,1,4) * t1 + box(2,1,4) * t2 + box(3,1,4) * t3 + box(4,1,4) * t4 ) * s1  +&
+                 ( box(1,2,4) * t1 + box(2,2,4) * t2 + box(3,2,4) * t3 + box(4,2,4) * t4 ) * s2  +&
+                 ( box(1,3,4) * t1 + box(2,3,4) * t2 + box(3,3,4) * t3 + box(4,3,4) * t4 ) * s3  +&
+                 ( box(1,4,4) * t1 + box(2,4,4) * t2 + box(3,4,4) * t3 + box(4,4,4) * t4 ) * s4  ) * v4
 
        t1     = t1o
        t2     = t2o
@@ -4929,23 +4850,25 @@ CPSourceFileRef,&
        v2     = v2d*dr3i
        v3     = v3d*dr3i
        v4     = v4d*dr3i
-       val(3) = (( aaa * t1 + baa * t2 + caa * t3 + daa * t4 ) * s1  +&
-                 ( aba * t1 + bba * t2 + cba * t3 + dba * t4 ) * s2  +&
-                 ( aca * t1 + bca * t2 + cca * t3 + dca * t4 ) * s3  +&
-                 ( ada * t1 + bda * t2 + cda * t3 + dda * t4 ) * s4  ) * v1 +&
-                (( aab * t1 + bab * t2 + cab * t3 + dab * t4 ) * s1  +&
-                 ( abb * t1 + bbb * t2 + cbb * t3 + dbb * t4 ) * s2  +&
-                 ( acb * t1 + bcb * t2 + ccb * t3 + dcb * t4 ) * s3  +&
-                 ( adb * t1 + bdb * t2 + cdb * t3 + ddb * t4 ) * s4  ) * v2 +&
-                (( aac * t1 + bac * t2 + cac * t3 + dac * t4 ) * s1  +&
-                 ( abc * t1 + bbc * t2 + cbc * t3 + dbc * t4 ) * s2  +&
-                 ( acc * t1 + bcc * t2 + ccc * t3 + dcc * t4 ) * s3  +&
-                 ( adc * t1 + bdc * t2 + cdc * t3 + ddc * t4 ) * s4  ) * v3 +&
-                (( aad * t1 + bad * t2 + cad * t3 + dad * t4 ) * s1  +&
-                 ( abd * t1 + bbd * t2 + cbd * t3 + dbd * t4 ) * s2  +&
-                 ( acd * t1 + bcd * t2 + ccd * t3 + dcd * t4 ) * s3  +&
-                 ( add * t1 + bdd * t2 + cdd * t3 + ddd * t4 ) * s4  ) * v4 
+       val(3) = (( box(1,1,1) * t1 + box(2,1,1) * t2 + box(3,1,1) * t3 + box(4,1,1) * t4 ) * s1  +&
+                 ( box(1,2,1) * t1 + box(2,2,1) * t2 + box(3,2,1) * t3 + box(4,2,1) * t4 ) * s2  +&
+                 ( box(1,3,1) * t1 + box(2,3,1) * t2 + box(3,3,1) * t3 + box(4,3,1) * t4 ) * s3  +&
+                 ( box(1,4,1) * t1 + box(2,4,1) * t2 + box(3,4,1) * t3 + box(4,4,1) * t4 ) * s4  ) * v1 +&
+                (( box(1,1,2) * t1 + box(2,1,2) * t2 + box(3,1,2) * t3 + box(4,1,2) * t4 ) * s1  +&
+                 ( box(1,2,2) * t1 + box(2,2,2) * t2 + box(3,2,2) * t3 + box(4,2,2) * t4 ) * s2  +&
+                 ( box(1,3,2) * t1 + box(2,3,2) * t2 + box(3,3,2) * t3 + box(4,3,2) * t4 ) * s3  +&
+                 ( box(1,4,2) * t1 + box(2,4,2) * t2 + box(3,4,2) * t3 + box(4,4,2) * t4 ) * s4  ) * v2 +&
+                (( box(1,1,3) * t1 + box(2,1,3) * t2 + box(3,1,3) * t3 + box(4,1,3) * t4 ) * s1  +&
+                 ( box(1,2,3) * t1 + box(2,2,3) * t2 + box(3,2,3) * t3 + box(4,2,3) * t4 ) * s2  +&
+                 ( box(1,3,3) * t1 + box(2,3,3) * t2 + box(3,3,3) * t3 + box(4,3,3) * t4 ) * s3  +&
+                 ( box(1,4,3) * t1 + box(2,4,3) * t2 + box(3,4,3) * t3 + box(4,4,3) * t4 ) * s4  ) * v3 +&
+                (( box(1,1,4) * t1 + box(2,1,4) * t2 + box(3,1,4) * t3 + box(4,1,4) * t4 ) * s1  +&
+                 ( box(1,2,4) * t1 + box(2,2,4) * t2 + box(3,2,4) * t3 + box(4,2,4) * t4 ) * s2  +&
+                 ( box(1,3,4) * t1 + box(2,3,4) * t2 + box(3,3,4) * t3 + box(4,3,4) * t4 ) * s3  +&
+                 ( box(1,4,4) * t1 + box(2,4,4) * t2 + box(3,4,4) * t3 + box(4,4,4) * t4 ) * s4  ) * v4
           
+       IF (my_mpsum) CALL mp_sum ( val, pw%pw_grid%para%group )
+
     END IF
 
   END FUNCTION Eval_d_Interp_Spl3_pbc

@@ -17,7 +17,7 @@
 !!     JGH (03-05-2006)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     12.2007 Added checksum for interpolation regtest [rdeclerck]
 !!
 !!****
 
@@ -30,6 +30,7 @@ MODULE qs_electric_field_gradient
   USE cp_output_handling,              ONLY: cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE eigenvalueproblems,              ONLY: diagonalise
+  USE f77_blas
   USE input_section_types,             ONLY: section_get_lval,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -48,20 +49,18 @@ MODULE qs_electric_field_gradient
                                              pw_env_type
   USE pw_poisson_methods,              ONLY: pw_poisson_solve
   USE pw_poisson_types,                ONLY: pw_poisson_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
-                                             pw_pool_create_pw,&
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_pw,&
                                              pw_pool_type
-  USE pw_spline_utils,                 ONLY: Eval_Interp_Spl3_pbc,&
-                                             find_coeffs,&
-                                             pw_spline_do_precond,&
-                                             pw_spline_precond_create,&
-                                             pw_spline_precond_release,&
-                                             pw_spline_precond_set_kind,&
-                                             pw_spline_precond_type,&
-                                             spl3_pbc
+  USE pw_spline_utils,                 ONLY: &
+       Eval_Interp_Spl3_pbc, Eval_d_Interp_Spl3_pbc, find_coeffs, &
+       pw_spline_do_precond, pw_spline_precond_create, &
+       pw_spline_precond_release, pw_spline_precond_set_kind, &
+       pw_spline_precond_type, spl3_pbc
   USE pw_types,                        ONLY: &
        COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_dr2, &
-       pw_p_type, pw_integral_ab, pw_smoothing, pw_structure_factor, pw_transfer
+       pw_integral_ab, pw_p_type, pw_smoothing, pw_structure_factor, &
+       pw_transfer
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_gapw_densities,               ONLY: prepare_gapw_den
@@ -72,7 +71,6 @@ MODULE qs_electric_field_gradient
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE util,                            ONLY: get_limit,&
                                              sort
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -103,9 +101,9 @@ CONTAINS
     LOGICAL                                  :: efg_debug, efg_interpolation, &
                                                 failure, gapw, paw_atom, &
                                                 smoothing, success
-    REAL(KIND=dp)                            :: ecut, efg_units, efg_val, &
-                                                ehartree, eps_r, eps_x, f1, &
-                                                f2, sigma
+    REAL(KIND=dp)                            :: chk_spl, ecut, efg_units, &
+                                                efg_val, ehartree, eps_r, &
+                                                eps_x, f1, f2, sigma
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: efg_diagval, vh0
     REAL(KIND=dp), ALLOCATABLE, &
@@ -116,10 +114,6 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(pw_p_type)                          :: dvr2rs, rho_tot_gspace, &
-                                                structure_factor, &
-                                                v_hartree_gspace
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: dvr2, dvspl
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -127,6 +121,10 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type)                          :: dvr2rs, rho_tot_gspace, &
+                                                structure_factor, &
+                                                v_hartree_gspace
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: dvr2, dvspl
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(pw_spline_precond_type), POINTER    :: precond
@@ -141,6 +139,7 @@ CONTAINS
 
     logger => cp_error_get_logger(error)
 
+    chk_spl = 0.0_dp
     efg_units = Joule/a_bohr**2/e_charge * 1.e-21_dp
     f1 = SQRT(15._dp/fourpi)
     f2 = SQRT(5._dp/fourpi)
@@ -317,6 +316,10 @@ CONTAINS
               efg_val = Eval_Interp_Spl3_pbc(ra,dvspl(ij)%pw,error)
               efg_tensor(i,j,iatom)=-efg_val
               efg_tensor(j,i,iatom)=efg_tensor(i,j,iatom)
+              IF ( efg_debug ) THEN
+                 chk_spl = chk_spl + efg_val + &
+                    SUM(Eval_d_Interp_Spl3_pbc(ra,dvspl(ij)%pw,error))
+              END IF
             END DO
           END DO
         ELSE
@@ -380,6 +383,13 @@ CONTAINS
       IF (unit_nr > 0) THEN
           WRITE (UNIT=unit_nr,FMT=*)
       END IF
+      IF ( efg_interpolation ) THEN
+         IF (unit_nr > 0 ) THEN
+             WRITE (UNIT=unit_nr,FMT="(T2,A,E24.16)") "CheckSum splines =",&
+              chk_spl
+             WRITE (UNIT=unit_nr,FMT=*)
+         END IF 
+      END IF 
     END IF
 
     DO iatom=1,natom
