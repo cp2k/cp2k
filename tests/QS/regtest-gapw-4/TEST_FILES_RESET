@@ -20,3 +20,7 @@ CO_xastpxfh.inp
 # again
 H2O_gpw.inp
 CO_xastpxfh.inp
+#  
+CO.inp
+CO_xastpxfh.inp
+CO_xastpxfh_150Ry.inp
