@@ -36,26 +36,22 @@ MODULE qs_moments
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                              cp_cfm_release,&
                                              cp_cfm_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
-  USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
-                                             fm_pool_create_fm
-  USE cp_fm_types,                     ONLY: &
-       cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, &
-       cp_fm_p_type, cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, &
-       cp_fm_to_fm, cp_fm_type
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
-  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
-                                             cp_sm_fm_multiply
-  USE cp_control_types,                ONLY: dft_control_type
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_p_type,&
+                                             cp_fm_release,&
+                                             cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE input_constants,                 ONLY: use_mom_ref_com,&
-       use_mom_ref_coac, use_mom_ref_user, use_mom_ref_zero, use_mom_ref_nondef
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: twopi, pi, pio2
+  USE mathconstants,                   ONLY: twopi
   USE message_passing,                 ONLY: mp_sum
+  USE moments_utils,                   ONLY: get_reference_point
   USE orbital_pointers,                ONLY: current_maxl,&
                                              indco,&
                                              ncoset
@@ -72,7 +68,6 @@ MODULE qs_moments
        neighbor_list_type, neighbor_node_type, next
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
-                                             allocate_matrix,&
                                              cp_sm_sm_trace,&
                                              deallocate_matrix,&
                                              deallocate_matrix_set,&
@@ -614,8 +609,9 @@ CONTAINS
   SUBROUTINE qs_moment_berry_phase (qs_env,nmoments,reference,ref_point,unit_number,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    INTEGER, INTENT(IN)                      :: nmoments, reference, unit_number
+    INTEGER, INTENT(IN)                      :: nmoments, reference
     REAL(dp), DIMENSION(:), POINTER          :: ref_point
+    INTEGER, INTENT(IN)                      :: unit_number
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_moment_berry_phase', &
@@ -623,35 +619,37 @@ CONTAINS
 
     CHARACTER(LEN=8), ALLOCATABLE, &
       DIMENSION(:)                           :: rlab
-    INTEGER                                  :: handle, ia, iatom, ikind, &
-      istat, ix, iy, iz, l, nm, nmom, ispin, i, nmo, nao, nmotot, j, k
+    COMPLEX(dp)                              :: xphase(3), zdet, zdeta, &
+                                                zi(3), zij(3,3), zijk(3,3,3), &
+                                                zijkl(3,3,3,3), zphase(3), zz
+    INTEGER                                  :: handle, i, ia, ispin, istat, &
+                                                ix, iy, iz, j, k, l, nao, nm, &
+                                                nmo, nmom, nmotot
     LOGICAL                                  :: failure, uniform
-    REAL(dp)                                 :: charge, dd, ztot, trace, occ
-    COMPLEX(dp)                              :: zdet, zdeta, xphase(3), zphase(3)
+    REAL(dp)                                 :: charge, ci(3), cij(3,3), dd, &
+                                                occ, trace
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: rmom
-    REAL(dp), DIMENSION(3)                   :: rcc, ria, kvec
+    REAL(dp), DIMENSION(3)                   :: kvec, rcc, ria
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_cfm_type), POINTER               :: eigrmat
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: opvec
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      POINTER                                :: op_fm_set
+    TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(real_matrix_type), POINTER          :: cosmat, sinmat
-    TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
-    TYPE(cp_fm_p_type), DIMENSION(:, :), &
-      POINTER                                :: op_fm_set
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: opvec
-    TYPE(cp_fm_type), POINTER                :: mo_coeff
-    TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
-    TYPE(cp_cfm_type), POINTER               :: eigrmat
-    COMPLEX(dp) :: zz, zi(3), zij(3,3), zijk(3,3,3), zijkl(3,3,3,3)
-    REAL(dp) :: ci(3), cij(3,3), cijk(3,3,3), cijkl(3,3,3,3)
 
 ! -------------------------------------------------------------------------
 
@@ -716,7 +714,7 @@ CONTAINS
        END DO
 
        ! reference point
-       CALL get_reference_point(rcc,qs_env,reference,ref_point,error)
+       CALL get_reference_point(rcc,qs_env=qs_env,reference=reference,ref_point=ref_point,error=error)
        rcc = pbc(rcc,cell)
 
        ! label
@@ -735,7 +733,7 @@ CONTAINS
          CALL get_atomic_kind(atomic_kind=atomic_kind,core_charge=charge)
          rmom(1,2) = rmom(1,2) - charge
        END DO
-       ria = twopi * matmul ( cell%h_inv, rcc )
+       ria = twopi * MATMUL ( cell%h_inv, rcc )
        zphase = CMPLX ( COS(ria), SIN(ria), dp )**rmom(1,2)
 
        zi = 0._dp
@@ -824,7 +822,7 @@ CONTAINS
 
        ! electronic contribution
 
-       ria = twopi * REAL(nmotot,dp) * matmul ( cell%h_inv, rcc )
+       ria = twopi * REAL(nmotot,dp) * MATMUL ( cell%h_inv, rcc )
        xphase = CMPLX ( COS(ria), SIN(ria), dp )
 
        ! charge
@@ -974,80 +972,6 @@ CONTAINS
 
   END SUBROUTINE qs_moment_berry_phase
 
-  SUBROUTINE get_reference_point(rpoint,qs_env,reference,ref_point,error)
-    REAL(dp), DIMENSION(3), INTENT(OUT)      :: rpoint
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    INTEGER, INTENT(IN)                      :: reference
-    REAL(dp), DIMENSION(:), POINTER          :: ref_point
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_reference_point', &
-      routineP = moduleN//':'//routineN
-
-    REAL(dp)                                 :: ztot, mtot, charge, mass
-    REAL(dp), DIMENSION(3)                   :: ria
-    INTEGER                                  :: ikind, ia, iatom
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(distribution_1d_type), POINTER      :: local_particles
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-
-    para_env => qs_env%para_env
-    NULLIFY ( cell, particle_set, local_particles )
-    CALL get_qs_env ( qs_env, cell=cell, particle_set=particle_set, &
-                      local_particles=local_particles, error=error)
-
-    SELECT CASE (reference)
-      CASE DEFAULT
-        CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="Type of reference point not implemented", &
-                  error=error, error_level=cp_failure_level)
-      CASE (use_mom_ref_com)
-        rpoint = 0._dp
-        mtot = 0._dp
-        DO ikind = 1,SIZE(local_particles%n_el)
-          DO ia = 1,local_particles%n_el(ikind)
-            iatom = local_particles%list(ikind)%array(ia)
-            ria = particle_set(iatom)%r
-            ria = pbc(ria,cell)
-            atomic_kind => particle_set(iatom)%atomic_kind
-            CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-            rpoint(:) = rpoint(:) + mass*ria(:)
-            mtot = mtot + mass
-          END DO
-        END DO
-        CALL mp_sum(rpoint,para_env%group)
-        CALL mp_sum(mtot,para_env%group)
-        IF (ABS(mtot) > 0._dp) rpoint(:) = rpoint(:)/mtot
-      CASE (use_mom_ref_coac)
-        rpoint = 0._dp
-        ztot = 0._dp
-        DO ikind = 1,SIZE(local_particles%n_el)
-          DO ia = 1,local_particles%n_el(ikind)
-            iatom = local_particles%list(ikind)%array(ia)
-            ria = particle_set(iatom)%r
-            ria = pbc(ria,cell)
-            atomic_kind => particle_set(iatom)%atomic_kind
-            CALL get_atomic_kind(atomic_kind=atomic_kind,core_charge=charge)
-            rpoint(:) = rpoint(:) + charge*ria(:)
-            ztot = ztot + charge
-          END DO
-        END DO
-        CALL mp_sum(rpoint,para_env%group)
-        CALL mp_sum(ztot,para_env%group)
-        IF (ABS(ztot) > 0._dp) rpoint(:) = rpoint(:)/ztot
-      CASE (use_mom_ref_user)
-        rpoint = ref_point
-      CASE (use_mom_ref_zero)
-        rpoint = 0._dp
-      CASE (use_mom_ref_nondef)
-        rpoint = 0._dp
-    END SELECT
-
-  END SUBROUTINE get_reference_point
-
   SUBROUTINE op_orbbas (cosmat,sinmat,mos,op_fm_set,opvec,error)
 
     TYPE(real_matrix_type), POINTER          :: cosmat, sinmat
@@ -1079,8 +1003,9 @@ CONTAINS
   SUBROUTINE qs_moment_locop (qs_env,nmoments,reference,ref_point,unit_number,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    INTEGER, INTENT(IN)                      :: nmoments, reference, unit_number
+    INTEGER, INTENT(IN)                      :: nmoments, reference
     REAL(dp), DIMENSION(:), POINTER          :: ref_point
+    INTEGER, INTENT(IN)                      :: unit_number
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_moment_locop', &
@@ -1094,7 +1019,7 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(dp)                                 :: charge, dd, strace, trace
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: rmom
-    REAL(dp), DIMENSION(3)                   :: ria, rcc
+    REAL(dp), DIMENSION(3)                   :: rcc, ria
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -1116,7 +1041,7 @@ CONTAINS
        CALL timeset(routineN,"I","",handle)
 
        ! reference point
-       CALL get_reference_point(rcc,qs_env,reference,ref_point,error)
+       CALL get_reference_point(rcc,qs_env=qs_env,reference=reference,ref_point=ref_point,error=error)
 
        ! only allow for moments up to maxl set by basis
        nmom = MIN (nmoments,current_maxl)

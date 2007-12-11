@@ -1285,15 +1285,15 @@ CONTAINS
             usage="REFERENCE COM",&
             enum_c_vals=s2a("COM","COAC","USER_DEFINED","ZERO","DEFAULT"),&
             enum_desc=s2a("Use Center of Mass",&
-            "Use Center of Atomic Charges",&
-            "Use User Defined Point (Keyword:REF_POINT)",&
-            "Use Origin of Coordinate System",&
-            "Use Default (depends on method: periodic or localized)"),&
+                          "Use Center of Atomic Charges",&
+                          "Use User Defined Point (Keyword:REF_POINT)",&
+                          "Use Origin of Coordinate System",&
+                          "Use Default (depends on method: periodic or localized)"),&
             enum_i_vals=(/ use_mom_ref_com,&
-            use_mom_ref_coac,&
-            use_mom_ref_user,&
-            use_mom_ref_zero,&
-            use_mom_ref_nondef /),&
+                           use_mom_ref_coac,&
+                           use_mom_ref_user,&
+                           use_mom_ref_zero,&
+                           use_mom_ref_nondef /),&
             default_i_val=use_mom_ref_nondef, error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
