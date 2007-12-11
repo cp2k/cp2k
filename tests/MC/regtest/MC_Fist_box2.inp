@@ -20,12 +20,12 @@
       &END CHARGE
       &BOND
         ATOMS O  H
-        K  0.1
+        K  0.05
         R0 0.97572
       &END BOND
       &BEND
         ATOMS H  O  H
-        K  0.1
+        K  0.05
         THETA0 1.82422
       &END BEND
       &NONBONDED

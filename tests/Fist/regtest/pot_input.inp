@@ -7,65 +7,65 @@
         #CTL2  HAL2  309.00      1.111
         ATOMS   CTL2 HAL2
         KIND    CHARMM
-        K       [kcalmol*angstrom^-2] 618.0
+        K       [kcalmol*angstrom^-2] 309.0
         R0      [angstrom] 1.111
       &END BOND
       &BOND
         #CTL3  HAL3  322.00      1.111
         ATOMS   CTL3 HAL3
         KIND    CHARMM
-        K       [kcalmol*angstrom^-2] 644.0
+        K       [kcalmol*angstrom^-2] 322.0
         R0      [angstrom] 1.111
       &END BOND
       &BOND
         #CTL2  CTL2  222.500     1.530
         ATOMS   CTL2 CTL2
         KIND    CHARMM
-        K       [kcalmol*angstrom^-2] 445.0
+        K       [kcalmol*angstrom^-2] 222.5
         R0      [angstrom] 1.530
       &END BOND
       &BOND
         #CTL2  CTL3  222.500     1.528
         ATOMS   CTL2 CTL3
         KIND    CHARMM
-        K       [kcalmol*angstrom^-2] 445.0
+        K       [kcalmol*angstrom^-2] 222.5
         R0      [angstrom] 1.528
       &END BOND
 #####################################################
       &BEND
         #HAL2 CTL2 HAL2   35.500    109.00
         ATOMS   HAL2 CTL2 HAL2
-        K       [kcalmol*rad^-2] 71.0
+        K       [kcalmol*rad^-2] 35.500
         THETA0  [deg] 109.00
       &END BEND
       &BEND
         #HAL3 CTL3 HAL3   35.500    108.40
         ATOMS   HAL3 CTL3 HAL3
-        K       [kcalmol*rad^-2] 71.0
+        K       [kcalmol*rad^-2] 35.500
         THETA0  [deg] 108.40
       &END BEND
       &BEND
         #HAL2 CTL2 CTL3   34.600    110.10
         ATOMS   HAL2 CTL2 CTL3
-        K       [kcalmol*rad^-2] 69.2
+        K       [kcalmol*rad^-2] 34.600
         THETA0  [deg] 110.10
       &END BEND
       &BEND
         #CTL2 CTL2 CTL3   58.000    115.00
         ATOMS   CTL2 CTL2 CTL3
-        K       [kcalmol*rad^-2] 116.0
+        K       [kcalmol*rad^-2] 58.000
         THETA0  [deg] 115.00
       &END BEND
       &BEND
         #HAL3 CTL3 CTL2   34.600    110.10
         ATOMS   HAL3 CTL3 CTL2
-        K       [kcalmol*rad^-2] 69.2
+        K       [kcalmol*rad^-2] 34.600
         THETA0  [deg] 110.10
       &END BEND
       &BEND
         #HAL2 CTL2 CTL2   26.500    110.10
         ATOMS   HAL2 CTL2 CTL2
-        K       [kcalmol*rad^-2] 53.0
+        K       [kcalmol*rad^-2] 26.500
         THETA0  [deg] 110.10
       &END BEND
 #####################################################

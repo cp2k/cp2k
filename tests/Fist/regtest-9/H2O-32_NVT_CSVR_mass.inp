@@ -5,12 +5,12 @@
     &FORCEFIELD
       &BEND
         ATOMS H O H
-        K [kcalmol*rad^-2] 80.
+        K [kcalmol*rad^-2] 40.
         THETA0 1.8
       &END BEND
       &BOND
         ATOMS O H
-        K [kcalmol*angstrom^-2] 1000.
+        K [kcalmol*angstrom^-2] 500.
         R0 1.8
       &END BOND
       &CHARGE

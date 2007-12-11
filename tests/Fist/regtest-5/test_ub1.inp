@@ -22,7 +22,7 @@
         K 0.0
         THETA0 0.0
         &UB
-          K 1.0
+          K 0.5
           R0 2.0
         &END UB
       &END BEND

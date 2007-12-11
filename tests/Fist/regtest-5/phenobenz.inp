@@ -10,32 +10,32 @@
       &end
       &bond 
         atoms C H
-        K 0.2
+        K 0.1
         R0 [angstrom] 1.1
       &end
       &bond 
         atoms O H
-        K 0.2
+        K 0.1
         R0 [angstrom] 1.0
       &end
       &bend
         atoms C C H
-        K 0.02
+        K 0.01
         THETA0 [deg] 120.0
       &end
       &bend
         atoms C C C
-        K 0.02
+        K 0.01
         THETA0 [deg] 120.0
       &end
       &bend
         atoms C C O
-        K 0.02
+        K 0.01
         THETA0 [deg] 120.0
       &end
       &bend
         atoms H O C
-        K 0.02
+        K 0.01
         THETA0 [deg] 120.0
       &end
       &charge

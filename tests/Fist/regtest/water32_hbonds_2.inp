@@ -5,7 +5,7 @@
     &FORCEFIELD
       &BEND
         ATOMS H O H
-        K 0.05
+        K 0.025
         THETA0 1.8
       &END BEND
       &BOND

@@ -6,61 +6,61 @@
       &BOND
         ATOMS   C F
         KIND    CHARMM
-        K       [kjmol*angstrom^-2] 3697.
+        K       [kjmol*angstrom^-2] 1848.5
         R0      [angstrom] 1.323
       &END BOND
       &BOND
         ATOMS   C S
         KIND    CHARMM
-        K       [kjmol*angstrom^-2] 1970.
+        K       [kjmol*angstrom^-2] 985.
         R0      [angstrom] 1.818
       &END BOND
       &BOND
         ATOMS   S O
         KIND    CHARMM
-        K       [kjmol*angstrom^-2] 5331.
+        K       [kjmol*angstrom^-2] 2665.5
         R0      [angstrom] 1.442
       &END BOND
       &BOND
         ATOMS   S N
         KIND    CHARMM
-        K       [kjmol*angstrom^-2] 3113.
+        K       [kjmol*angstrom^-2] 1556.5
         R0      [angstrom] 1.570
       &END BOND
 #####################################################
       &BEND
         ATOMS   F C F
-        K       [kjmol*rad^-2] 781.
+        K       [kjmol*rad^-2] 390.5
         THETA0  [deg] 107.1
       &END BEND
       &BEND
         ATOMS   F C S
-        K       [kjmol*rad^-2] 694.
+        K       [kjmol*rad^-2] 347.
         THETA0  [deg] 111.8
       &END BEND
       &BEND
         ATOMS   C S O
-        K       [kjmol*rad^-2] 870.
+        K       [kjmol*rad^-2] 435.
         THETA0  [deg] 102.6
       &END BEND
       &BEND
         ATOMS   O S O
-        K       [kjmol*rad^-2] 969.
+        K       [kjmol*rad^-2] 484.5
         THETA0  [deg] 118.5
       &END BEND
       &BEND
         ATOMS   S N S
-        K       [kjmol*rad^-2] 671.
+        K       [kjmol*rad^-2] 335.5
         THETA0  [deg] 125.6
       &END BEND
       &BEND
         ATOMS   O S N
-        K       [kjmol*rad^-2] 789.
+        K       [kjmol*rad^-2] 394.5
         THETA0  [deg] 113.6
       &END BEND
       &BEND
         ATOMS   N S C
-        K       [kjmol*rad^-2] 816.
+        K       [kjmol*rad^-2] 408.
         THETA0  [deg] 100.2
       &END BEND
 #####################################################

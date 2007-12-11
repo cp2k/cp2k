@@ -29,6 +29,7 @@ MODULE input_cp2k_mm
                                              Yamada2000
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
+  USE f77_blas
   USE input_constants
   USE input_cp2k_poisson,              ONLY: create_poisson_section
   USE input_keyword_types,             ONLY: keyword_create,&
@@ -46,7 +47,6 @@ MODULE input_cp2k_mm
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -589,8 +589,9 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="BEND",&
             description="specifies the bend potential of the MM system."//&
-            "Functional Form (G96): 1/2*K*(COS(THETA)-THETA0)^2"//&
-            "Functional Form (HARMONIC/CHARMM/G87): 1/2*K*(THETA-THETA0)^2",&
+            "Functional Form (G96): 1/2*K*(COS(THETA)-THETA0)^2. "//&
+            "Functional Form (CHARMM): K*(THETA-THETA0)^2. "//&
+            "Functional Form (HARMONIC/G87): 1/2*K*(THETA-THETA0)^2. ",&
             n_keywords=1, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
@@ -701,9 +702,10 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="BOND",&
             description="specifies the bond potential the MM system"//&
-            "Functional Form (QUARTIC): (1/2*K1+[1/3*K2+1/4*K3*|R-R0|]*|R-R0|)(R-R0)^2"//&
-            "Functional Form (G96): 1/4*K*(R-R0)^2"//&
-            "Functional Form (HARMONIC|CHARMM|G87): 1/2*K*(R-R0)^2",&
+            "Functional Form (QUARTIC): (1/2*K1+[1/3*K2+1/4*K3*|R-R0|]*|R-R0|)(R-R0)^2. "//&
+            "Functional Form (G96): 1/4*K*(R-R0)^2. "//&
+            "Functional Form (CHARMM): K*(R-R0)^2. "//&
+            "Functional Form (HARMONIC|G87): 1/2*K*(R-R0)^2. ",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 

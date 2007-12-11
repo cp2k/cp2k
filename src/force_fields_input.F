@@ -126,7 +126,7 @@ CONTAINS
       nlj, nshell, ntersoff, ntors, ntot, nubs, nwl
     LOGICAL                                  :: explicit, failure, &
                                                 unique_spline
-    REAL(KIND=dp)                            :: min_eps_spline_allowed,myfac
+    REAL(KIND=dp)                            :: min_eps_spline_allowed
     TYPE(input_info_type), POINTER           :: inp_info
     TYPE(section_vals_type), POINTER         :: tmp_section, tmp_section2
 
@@ -1930,7 +1930,6 @@ CPSourceFileRef,&
     ! 1. Read in all the Bonds info from the param file here
     !      Vbond = Kb(b-b0)^2
     !      UNITS for Kb: [(kcal/mol)/(A^2)] to [Eh/(AU^2)]
-    !      FACTOR of "2" rolled into Kb
     !-----------------------------------------------------------------------------
     nbond = 0
     DO ilab = 1, SIZE(bond_section)
@@ -1967,7 +1966,6 @@ CPSourceFileRef,&
                 CALL convert_to_cp2k_units("KCAL",energy=chm_info%bond_k(nbond))
                 CALL convert_to_cp2k_units("BOHR",length=chm_info%bond_k(nbond))
                 CALL convert_to_cp2k_units("BOHR",length=chm_info%bond_k(nbond))
-                chm_info%bond_k(nbond) = 2.0_dp * chm_info%bond_k(nbond)
                 CALL charmm_get_next_line(parser,1,error=error)
              END DO
           ELSE
@@ -1984,7 +1982,6 @@ CPSourceFileRef,&
     !      FACTOR of "2" rolled into Ktheta
     !      Vub = Kub(S-S0)^2
     !      UNITS for Kub: [(kcal/mol)/(A^2)] to [Eh/(AU^2)]
-    !      FACTOR of "2" rolled into Kub
     !-----------------------------------------------------------------------------
     nbend = 0
     nub = 0
@@ -2025,7 +2022,6 @@ CPSourceFileRef,&
                 ! Do some units conversion into internal atomic units
                 CALL convert_to_cp2k_units("DEGREE",angle=chm_info%bend_theta0(nbend))
                 CALL convert_to_cp2k_units("KCAL",energy=chm_info%bend_k(nbend))
-                chm_info%bend_k(nbend) = 2.0_dp * chm_info%bend_k(nbend)
                 IF (parser_test_next_token(parser,error=error) == "FLT") THEN
                    nub = nub + 1
                    CALL reallocate(chm_info%ub_a,1,nub)
@@ -2049,7 +2045,6 @@ CPSourceFileRef,&
                    CALL convert_to_cp2k_units("KCAL",energy=chm_info%ub_k(nub))
                    CALL convert_to_cp2k_units("BOHR",length=chm_info%ub_k(nub))
                    CALL convert_to_cp2k_units("BOHR",length=chm_info%ub_k(nub))
-                   chm_info%ub_k(nub) = 2.0_dp * chm_info%ub_k(nub)
                 END IF
                 CALL charmm_get_next_line(parser,1,error=error)
              END DO
@@ -2127,7 +2122,6 @@ CPSourceFileRef,&
     ! 4. Read in all the Improper info from the param file here
     !      Vimpr = Kpsi(psi-psi0)^2
     !      UNITS for Kpsi: [(kcal/mol)/(rad^2)] to [Eh/(rad^2)]
-    !      FACTOR of "2" rolled into Kpsi
     !-----------------------------------------------------------------------------
     nimpr = 0
     DO ilab = 1, SIZE(impr_section)
@@ -2173,7 +2167,6 @@ CPSourceFileRef,&
                 ! Do some units conversion into internal atomic units
                 CALL convert_to_cp2k_units("DEGREE",angle=chm_info%impr_phi0(nimpr))
                 CALL convert_to_cp2k_units("KCAL",energy=chm_info%impr_k(nimpr))
-                chm_info%impr_k(nimpr) = 2.0_dp * chm_info%impr_k(nimpr)
                 CALL charmm_get_next_line(parser,1,error=error)
              END DO
           ELSE
