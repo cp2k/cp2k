@@ -311,7 +311,7 @@ CPSourceFileRef,&
           CALL reallocate(inp_info%bond_b,1,nbonds)
           CALL reallocate(inp_info%bond_k,1,3,1,nbonds)
           CALL reallocate(inp_info%bond_r0,1,nbonds)
-          CALL read_bonds_section(inp_info%bond_kind,inp_info%bond_a, inp_info%bond_b, inp_info%bond_k,&
+          CALL read_bonds_section(inp_info%bond_kind, inp_info%bond_a, inp_info%bond_b, inp_info%bond_k,&
                inp_info%bond_r0, tmp_section, ntot, error)
        END IF
        tmp_section => section_vals_get_subs_vals(ff_section,"BEND",error=error)
@@ -1314,8 +1314,9 @@ CPSourceFileRef,&
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE read_bonds_section(bond_kind,bond_a, bond_b, bond_k, bond_r0, section, start, error)
+    INTEGER, DIMENSION(:), POINTER           :: bond_kind
     CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: bond_kind, bond_a, bond_b
+      DIMENSION(:), POINTER                  :: bond_a, bond_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: bond_k
     REAL(KIND=dp), DIMENSION(:), POINTER     :: bond_r0
     TYPE(section_vals_type), POINTER         :: section
@@ -1335,8 +1336,7 @@ CPSourceFileRef,&
     NULLIFY(Kvals, atm_names)
     CALL section_vals_get(section,n_repetition=n_items,error=error)
     DO isec = 1, n_items
-       CALL section_vals_val_get(section,"KIND",i_rep_section=isec,c_vals=atm_names,error=error)
-       bond_kind(start+isec) = atm_names(1)
+       CALL section_vals_val_get(section,"KIND",i_rep_section=isec,i_val=bond_kind(start+isec),error=error)
        CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
        bond_a(start+isec) = atm_names(1)
        bond_b(start+isec) = atm_names(2)
@@ -1369,9 +1369,9 @@ CPSourceFileRef,&
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE read_bends_section(bend_kind,bend_a, bend_b, bend_c, bend_k, bend_theta0, section, start, error)
+    INTEGER, DIMENSION(:), POINTER           :: bend_kind
     CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: bend_kind, bend_a, bend_b, &
-                                                bend_c
+      DIMENSION(:), POINTER                  :: bend_a, bend_b, bend_c
     REAL(KIND=dp), DIMENSION(:), POINTER     :: bend_k, bend_theta0
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
@@ -1390,8 +1390,7 @@ CPSourceFileRef,&
     NULLIFY(Kvals, atm_names)
     CALL section_vals_get(section,n_repetition=n_items,error=error)
     DO isec = 1, n_items
-       CALL section_vals_val_get(section,"KIND",i_rep_section=isec,c_vals=atm_names,error=error)
-       bend_kind(start+isec) = atm_names(1)
+       CALL section_vals_val_get(section,"KIND",i_rep_section=isec,i_val=bend_kind(start+isec),error=error)
        CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
        bend_a(start+isec) = atm_names(1)
        bend_b(start+isec) = atm_names(2)
@@ -1424,8 +1423,9 @@ CPSourceFileRef,&
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE read_ubs_section(ub_kind,ub_a, ub_b, ub_c, ub_k, ub_r0, section, start, error)
+    INTEGER, DIMENSION(:), POINTER           :: ub_kind
     CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: ub_kind, ub_a, ub_b, ub_c
+      DIMENSION(:), POINTER                  :: ub_a, ub_b, ub_c
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ub_k
     REAL(KIND=dp), DIMENSION(:), POINTER     :: ub_r0
     TYPE(section_vals_type), POINTER         :: section
@@ -1449,8 +1449,7 @@ CPSourceFileRef,&
        subsection => section_vals_get_subs_vals(section,"UB",i_rep_section=isec,error=error)
        CALL section_vals_get(subsection,explicit=explicit,error=error)
        IF (explicit) THEN
-          CALL section_vals_val_get(subsection,"KIND",c_vals=atm_names,error=error)
-          ub_kind(start+isec) = atm_names(1)
+          CALL section_vals_val_get(subsection,"KIND",i_val=ub_kind(start+isec),error=error)
           CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
           ub_a(start+isec) = atm_names(1)
           ub_b(start+isec) = atm_names(2)
@@ -1487,10 +1486,10 @@ CPSourceFileRef,&
 !******************************************************************************
   SUBROUTINE read_torsions_section(torsion_kind,torsion_a, torsion_b, torsion_c, torsion_d, torsion_k,&
        torsion_cosphi0, torsion_m, section, start, error )
+    INTEGER, DIMENSION(:), POINTER           :: torsion_kind
     CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: torsion_kind, torsion_a, &
-                                                torsion_b, torsion_c, &
-                                                torsion_d
+      DIMENSION(:), POINTER                  :: torsion_a, torsion_b, &
+                                                torsion_c, torsion_d
     REAL(KIND=dp), DIMENSION(:), POINTER     :: torsion_k, torsion_cosphi0
     INTEGER, DIMENSION(:), POINTER           :: torsion_m
     TYPE(section_vals_type), POINTER         :: section
@@ -1509,8 +1508,7 @@ CPSourceFileRef,&
     NULLIFY( atm_names)
     CALL section_vals_get(section,n_repetition=n_items,error=error)
     DO isec = 1, n_items
-       CALL section_vals_val_get(section,"KIND",i_rep_section=isec,c_vals=atm_names,error=error)
-       torsion_kind(start+isec) = atm_names(1)
+       CALL section_vals_val_get(section,"KIND",i_rep_section=isec,i_val=torsion_kind(start+isec),error=error)
        CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
        torsion_a(start+isec) = atm_names(1)
        torsion_b(start+isec) = atm_names(2)

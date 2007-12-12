@@ -35,18 +35,16 @@ MODULE molecule_kind_types
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential,&
                                              gth_potential_type
+  USE f77_blas
   USE force_field_types,               ONLY: &
        bend_kind_type, bond_kind_type, impr_kind_dealloc_ref, impr_kind_type, &
        onfo_kind_dealloc_ref, onfo_kind_type, torsion_kind_dealloc_ref, &
        torsion_kind_type, ub_kind_dealloc_ref, ub_kind_type
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
-                                             dp,&
-                                             int_size
+                                             dp
   USE shell_potential_types,           ONLY: shell_kind_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
-  USE f77_blas
+  USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -218,6 +216,9 @@ CONTAINS
       DIMENSION(:), POINTER                  :: colv_list
     TYPE(colvar_counters)                    :: ncolv
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'setup_colvar_counters', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: k
 
     ncolv%ndist       = 0
@@ -282,20 +283,19 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nmolecule_kind
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_molecule_kind_set'
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_molecule_kind_set', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: imolecule_kind, istat
+    INTEGER                                  :: imolecule_kind, stat
+    LOGICAL                                  :: failure
 
-!   ---------------------------------------------------------------------------
-
+    failure = .FALSE.
     IF (ASSOCIATED(molecule_kind_set)) THEN
       CALL deallocate_molecule_kind_set(molecule_kind_set,error=error)
     END IF
 
-    ALLOCATE (molecule_kind_set(nmolecule_kind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "molecule_kind_set",&
-                                     nmolecule_kind*int_size)
+    ALLOCATE (molecule_kind_set(nmolecule_kind),STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
     DO imolecule_kind=1,nmolecule_kind
       NULLIFY (molecule_kind_set(imolecule_kind)%atom_list)
@@ -357,13 +357,14 @@ CONTAINS
       POINTER                                :: molecule_kind_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_molecule_kind_set'
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_molecule_kind_set', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, imolecule_kind, istat, j, &
-                                                nmolecule_kind
+    INTEGER                                  :: i, imolecule_kind, j, &
+                                                nmolecule_kind, stat
+    LOGICAL                                  :: failure
 
-!   ---------------------------------------------------------------------------
-
+    failure = .FALSE.
     IF (ASSOCIATED(molecule_kind_set)) THEN
 
       nmolecule_kind = SIZE(molecule_kind_set)
@@ -371,155 +372,96 @@ CONTAINS
       DO imolecule_kind=1,nmolecule_kind
 
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%atom_list)) THEN
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%atom_list,STAT=istat)
-           IF (istat /= 0) THEN
-             CALL stop_memory(routineN,moduleN,__LINE__,&
-                              "molecule_kind_set(imolecule_kind)%atom_list")
-           END IF
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%atom_list,STAT=stat)
+           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%bend_kind_set)) THEN
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%bend_kind_set,STAT=istat)
-           IF (istat /= 0) THEN
-             CALL stop_memory(routineN,moduleN,__LINE__,&
-                              "molecule_kind_set(imolecule_kind)%bend_kind_set")
-           END IF
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%bend_kind_set,STAT=stat)
+           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%bend_list)) THEN
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%bend_list,STAT=istat)
-           IF (istat /= 0) THEN
-             CALL stop_memory(routineN,moduleN,__LINE__,&
-                              "molecule_kind_set(imolecule_kind)%bend_list")
-           END IF
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%bend_list,STAT=stat)
+           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%ub_list)) THEN
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%ub_list,STAT=istat)
-           IF (istat /= 0) THEN
-             CALL stop_memory(routineN,moduleN,__LINE__,&
-                              "molecule_kind_set(imolecule_kind)%ub_list")
-           END IF
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%ub_list,STAT=stat)
+           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%ub_kind_set)) THEN
            CALL ub_kind_dealloc_ref(molecule_kind_set(imolecule_kind)%ub_kind_set,error=error)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%impr_list)) THEN
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%impr_list,STAT=istat)
-           IF (istat /= 0) THEN
-             CALL stop_memory(routineN,moduleN,__LINE__,&
-                              "molecule_kind_set(imolecule_kind)%impr_list")
-           END IF
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%impr_list,STAT=stat)
+           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%impr_kind_set)) THEN
            DO i = 1, SIZE(molecule_kind_set(imolecule_kind)%impr_kind_set)
               CALL impr_kind_dealloc_ref(molecule_kind_set(imolecule_kind)%impr_kind_set(i),error=error)
            END DO
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%impr_kind_set,STAT=istat)
-           IF (istat /= 0) THEN
-             CALL stop_memory(routineN,moduleN,__LINE__,&
-                              "molecule_kind_set(imolecule_kind)%onfo_list")
-           END IF
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%impr_kind_set,STAT=stat)
+           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%onfo_list)) THEN
-           DEALLOCATE(molecule_kind_set(imolecule_kind)%onfo_list, STAT=istat)
-           IF (istat /= 0) THEN
-              CALL stop_memory(routineN,moduleN,__LINE__,&
-                   "molecule_kind_set(imolecule_kind)%onfo_list")
-           END IF
+           DEALLOCATE(molecule_kind_set(imolecule_kind)%onfo_list, STAT=stat)
+           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%onfo_kind_set)) THEN
           CALL onfo_kind_dealloc_ref(molecule_kind_set(imolecule_kind)%onfo_kind_set,error=error)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%bond_kind_set)) THEN
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%bond_kind_set,STAT=istat)
-           IF (istat /= 0) THEN
-             CALL stop_memory(routineN,moduleN,__LINE__,&
-                              "molecule_kind_set(imolecule_kind)%bond_kind_set")
-           END IF
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%bond_kind_set,STAT=stat)
+           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%bond_list)) THEN
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%bond_list,STAT=istat)
-           IF (istat /= 0) THEN
-             CALL stop_memory(routineN,moduleN,__LINE__,&
-                              "molecule_kind_set(imolecule_kind)%bond_list")
-           END IF
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%bond_list,STAT=stat)
+           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%colv_list)) THEN
            DO j = 1, SIZE(molecule_kind_set(imolecule_kind)%colv_list)
-              DEALLOCATE (molecule_kind_set(imolecule_kind)%colv_list(j)%i_atoms,STAT=istat)
-              IF (istat /= 0) THEN
-                 CALL stop_memory(routineN,moduleN,__LINE__,&
-                      "molecule_kind_set(imolecule_kind)%colv_list%i_atoms")
-              END IF
+              DEALLOCATE (molecule_kind_set(imolecule_kind)%colv_list(j)%i_atoms,STAT=stat)
+              CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
            END DO
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%colv_list,STAT=istat)
-           IF (istat /= 0) THEN
-             CALL stop_memory(routineN,moduleN,__LINE__,&
-                           "molecule_kind_set(imolecule_kind)%colv_list")
-           END IF
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%colv_list,STAT=stat)
+           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%g3x3_list)) THEN
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%g3x3_list,STAT=istat)
-           IF (istat /= 0) THEN
-             CALL stop_memory(routineN,moduleN,__LINE__,&
-                              "molecule_kind_set(imolecule_kind)%g3x3_list")
-           END IF
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%g3x3_list,STAT=stat)
+           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%g4x6_list)) THEN
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%g4x6_list,STAT=istat)
-           IF (istat /= 0) THEN
-             CALL stop_memory(routineN,moduleN,__LINE__,&
-                              "molecule_kind_set(imolecule_kind)%g4x6_list")
-           END IF
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%g4x6_list,STAT=stat)
+           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%fixd_list)) THEN
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%fixd_list,STAT=istat)
-           IF (istat /= 0) THEN
-             CALL stop_memory(routineN,moduleN,__LINE__,&
-                              "molecule_kind_set(imolecule_kind)%fixd_list")
-           END IF
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%fixd_list,STAT=stat)
+           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%torsion_kind_set)) THEN
            DO i = 1, SIZE(molecule_kind_set(imolecule_kind)%torsion_kind_set)
               CALL torsion_kind_dealloc_ref(molecule_kind_set(imolecule_kind)%torsion_kind_set(i),error=error)
            END DO
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%torsion_kind_set,STAT=istat)
-           IF (istat /= 0) THEN
-             CALL stop_memory(routineN,moduleN,__LINE__,&
-                              "molecule_kind_set(imolecule_kind)%torsion_kind_set")
-           END IF
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%torsion_kind_set,STAT=stat)
+           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%shell_list)) THEN
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%shell_list,STAT=istat)
-           IF (istat /= 0) THEN
-             CALL stop_memory(routineN,moduleN,__LINE__,&
-                              "molecule_kind_set(imolecule_kind)%shell_list")
-           END IF
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%shell_list,STAT=stat)
+           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%torsion_list)) THEN
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%torsion_list,STAT=istat)
-           IF (istat /= 0) THEN
-             CALL stop_memory(routineN,moduleN,__LINE__,&
-                              "molecule_kind_set(imolecule_kind)%torsion_list")
-           END IF
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%torsion_list,STAT=stat)
+           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%molecule_list)) THEN
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%molecule_list,STAT=istat)
-           IF (istat /= 0) THEN
-             CALL stop_memory(routineN,moduleN,__LINE__,&
-                              "molecule_kind_set(imolecule_kind)%molecule_list")
-           END IF
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%molecule_list,STAT=stat)
+           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
         ENDIF
       END DO
 
-      DEALLOCATE (molecule_kind_set,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "molecule_kind_set")
-
+      DEALLOCATE (molecule_kind_set,STAT=stat)
+      CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     ELSE
-
       CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The pointer molecule_kind_set is not associated "//&
-                        "and cannot be deallocated")
-
+           "The pointer molecule_kind_set is not associated and cannot be deallocated")
     END IF
 
   END SUBROUTINE deallocate_molecule_kind_set
@@ -595,7 +537,8 @@ CONTAINS
       OPTIONAL, POINTER                      :: torsion_kind_set
     LOGICAL, INTENT(OUT), OPTIONAL           :: molname_generated
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_molecule_kind'
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_molecule_kind', &
+      routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
@@ -678,7 +621,8 @@ CONTAINS
                                                 nconstraint, nmolecule, &
                                                 nrestraints
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_molecule_kind_set'
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_molecule_kind_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: ibend, ibond, iimpr, imolecule_kind, ionfo, itorsion, iub, na, &
       nc, nfixd, nfixd_restraint, nm, nmolecule_kind, nrestraints_tot
@@ -757,7 +701,8 @@ CONTAINS
       POINTER                                :: molecule_kind_set
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: charge_x_mol
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'num_ao_el_per_molecule'
+    CHARACTER(len=*), PARAMETER :: routineN = 'num_ao_el_per_molecule', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iatom, imol, my_charge, n_ao, &
                                                 natom, nelectron, nmol_kind, &
@@ -896,7 +841,8 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: nelectron, nsgf
     LOGICAL, INTENT(IN), OPTIONAL            :: molname_generated
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_molecule_kind'
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_molecule_kind', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: n
 

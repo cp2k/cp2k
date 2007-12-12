@@ -20,13 +20,17 @@
 
 MODULE mol_force
 
-  USE f77_blas
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
+  USE input_constants,                 ONLY: do_ff_charmm,&
+                                             do_ff_g87,&
+                                             do_ff_g96,&
+                                             do_ff_harmonic,&
+                                             do_ff_quartic
+  USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
 
   PRIVATE
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mol_force'
   PUBLIC :: force_bonds, force_bends, force_torsions, force_imp_torsions
   PUBLIC :: get_pv_bond, get_pv_bend, get_pv_torsion
 
@@ -53,34 +57,34 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE force_bonds ( TYPE, rij, r0, k, energy, fscalar )
-
-    CHARACTER(len=default_string_length), &
-      INTENT(IN)                             :: TYPE
+  SUBROUTINE force_bonds ( id_type, rij, r0, k, energy, fscalar )
+    INTEGER, INTENT(IN)                      :: id_type
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rij
     REAL(KIND=dp), INTENT(IN)                :: r0, k(3)
     REAL(KIND=dp), INTENT(OUT)               :: energy, fscalar
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'force_bonds', &
+      routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: f12 = 1.0_dp/2.0_dp, &
                                                 f13 = 1.0_dp/3.0_dp, &
                                                 f14 = 1.0_dp/4.0_dp
 
     REAL(KIND=dp)                            :: dij, disp
 
-    SELECT CASE ( TYPE )
-    CASE ( "QUARTIC" )
+    SELECT CASE (id_type)
+    CASE (do_ff_quartic)
        dij     = SQRT ( DOT_PRODUCT ( rij, rij ) )
        disp    = dij - r0
        energy  = (f12*k(1) + (f13*k(2)+f14*k(3)*disp)*disp)*disp*disp
        fscalar = ((k(1) + (k(2) + k(3)*disp)*disp)*disp) / dij
-    CASE ( "G96" )
+    CASE (do_ff_g96)
        ! From GROMOS...
        ! V = (1/4)*Kb*(rij**2 - bij**2)**2
        dij     = DOT_PRODUCT ( rij, rij )
        disp    = dij - r0*r0
        energy  = f14*k(1)*disp*disp
        fscalar = k(1)*disp
-    CASE ( "CHARMM" )
+    CASE (do_ff_charmm)
        dij = SQRT ( DOT_PRODUCT ( rij, rij ) )
        disp = dij - r0
        IF(ABS(disp) < EPSILON(1.0_dp)) THEN
@@ -90,7 +94,7 @@ CONTAINS
           energy  = k(1)*disp*disp
           fscalar = 2.0_dp*k(1)*disp / dij
        END IF
-    CASE ( "HARMONIC","G87" )
+    CASE (do_ff_harmonic,do_ff_g87)
        dij  = SQRT ( DOT_PRODUCT ( rij, rij ) )
        disp = dij - r0
        IF(ABS(disp) < EPSILON(1.0_dp)) THEN
@@ -125,36 +129,36 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-  SUBROUTINE force_bends ( TYPE, b12, b32, d12, d32, id12, id32, dist, &
+  SUBROUTINE force_bends (id_type, b12, b32, d12, d32, id12, id32, dist, &
        theta, theta0, k, g1, g2, g3, energy, fscalar )
-
-    CHARACTER(len=default_string_length), &
-      INTENT(IN)                             :: TYPE
+    INTEGER, INTENT(IN)                      :: id_type
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: b12, b32
     REAL(KIND=dp), INTENT(IN)                :: d12, d32, id12, id32, dist, &
                                                 theta, theta0, k
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: g1, g2, g3
     REAL(KIND=dp), INTENT(OUT)               :: energy, fscalar
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'force_bends', &
+      routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: f12 = 1.0_dp/2.0_dp
 
     REAL(KIND=dp)                            :: denom
 
-    SELECT CASE ( TYPE )
-    CASE ( "G96" )
+    SELECT CASE (id_type)
+    CASE (do_ff_g96)
        energy = f12 * k * ( COS(theta) - theta0 ) ** 2
        fscalar =-k*(COS(theta)-theta0)
        g1 = (b32*id32-b12*id12*COS(theta))*id12
        g3 = (b12*id12-b32*id32*COS(theta))*id32
        g2 = -g1-g3 
-    CASE ( "CHARMM")
+    CASE (do_ff_charmm)
        denom = id12*id12*id32*id32
        energy = k * ( theta - theta0 ) ** 2
        fscalar = 2.0_dp* k *(theta-theta0)/SIN(theta)
        g1 = (b32*d12*d32-dist*d32*id12*b12)*denom
        g2 = (-(b12+b32)*d12*d32+dist*(d32*id12*b12+id32*d12*b32))*denom
        g3 = (b12*d12*d32-dist*id32*d12*b32)*denom
-    CASE ( "HARMONIC","G87")
+    CASE (do_ff_harmonic,do_ff_g87)
        denom = id12*id12*id32*id32
        energy = f12 * k * ( theta - theta0 ) ** 2
        fscalar = k*(theta-theta0)/SIN(theta)
@@ -186,12 +190,9 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-  SUBROUTINE force_torsions ( TYPE, is32, dist1, dist2, u1, u2, iw1, iw2, &
+  SUBROUTINE force_torsions (id_type, is32, dist1, dist2, u1, u2, iw1, iw2, &
        k, cosphi0, m, gt1, gt2, gt3, gt4, energy, fscalar )
-
-
-    CHARACTER(len=default_string_length), &
-      INTENT(IN)                             :: TYPE
+    INTEGER, INTENT(IN)                      :: id_type
     REAL(KIND=dp), INTENT(IN)                :: is32, dist1, dist2
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: u1, u2
     REAL(KIND=dp), INTENT(IN)                :: iw1, iw2, k, cosphi0
@@ -199,15 +200,16 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: gt1, gt2, gt3, gt4
     REAL(KIND=dp), INTENT(OUT)               :: energy, fscalar
 
-    REAL(KIND=dp)                            :: cosphi, trig
+    CHARACTER(len=*), PARAMETER :: routineN = 'force_torsions', &
+      routineP = moduleN//':'//routineN
 
-! define cosphi
+    REAL(KIND=dp)                            :: cosphi, trig
 
     cosphi = DOT_PRODUCT ( u1, u2 ) * iw1 * iw2
 
     ! compute energy
-    SELECT CASE ( TYPE )
-    CASE ( "CHARMM", "G87", "G96" )
+    SELECT CASE (id_type)
+    CASE (do_ff_charmm,do_ff_g87,do_ff_g96)
        SELECT CASE ( m )
        CASE ( 0 )
           trig = 1.0_dp
@@ -274,11 +276,9 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-  SUBROUTINE force_imp_torsions ( TYPE,s32, is32, ism, isn,  dist1, dist2, tm, tn, t12, t32, &
+  SUBROUTINE force_imp_torsions (id_type,s32, is32, ism, isn,  dist1, dist2, tm, tn, t12, t32, &
        k, phi0, gt1, gt2, gt3, gt4, energy, fscalar )
-
-    CHARACTER(len=default_string_length), &
-      INTENT(IN)                             :: TYPE
+    INTEGER, INTENT(IN)                      :: id_type
     REAL(KIND=dp), INTENT(IN)                :: s32, is32, ism, isn, dist1, &
                                                 dist2
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: tm, tn, t12, t32
@@ -286,12 +286,14 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: gt1, gt2, gt3, gt4
     REAL(KIND=dp), INTENT(OUT)               :: energy, fscalar
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'force_imp_torsions', &
+      routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: f12 = 1.0_dp/2.0_dp
 
     REAL(KIND=dp)                            :: cosphi, phi
 
-    SELECT CASE ( TYPE )
-    CASE ( "CHARMM" )
+    SELECT CASE (id_type)
+    CASE (do_ff_charmm)
        ! define cosphi
        cosphi = DOT_PRODUCT ( tm, tn ) * ism * isn
        IF(cosphi > 1.0_dp) cosphi = 1.0_dp
@@ -308,7 +310,7 @@ CONTAINS
        gt4 = -( s32 * isn * isn ) * tn
        gt2 = ( dist1 * is32 ** 2 - 1.0_dp ) * gt1 - dist2 * is32 ** 2 * gt4
        gt3 = ( dist2 * is32 ** 2 - 1.0_dp ) * gt4 - dist1 * is32 ** 2 * gt1
-    CASE ( "HARMONIC","G87","G96" )
+    CASE (do_ff_harmonic,do_ff_g87,do_ff_g96)
        ! define cosphi
        cosphi = DOT_PRODUCT ( tm, tn ) * ism * isn
        IF(cosphi > 1.0_dp) cosphi = 1.0_dp
@@ -356,6 +358,9 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: pv_bond
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_pv_bond', &
+      routineP = moduleN//':'//routineN
+
     pv_bond(1,1) = pv_bond(1,1) + f12(1)*r12(1)
     pv_bond(1,2) = pv_bond(1,2) + f12(1)*r12(2)
     pv_bond(1,3) = pv_bond(1,3) + f12(1)*r12(3)
@@ -388,11 +393,12 @@ CONTAINS
 !******************************************************************************
 
   SUBROUTINE get_pv_bend(f1,f3,r12,r32,pv_bend)
-
-
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: f1, f3, r12, r32
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: pv_bend
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_pv_bend', &
+      routineP = moduleN//':'//routineN
 
     pv_bend(1,1) = pv_bend(1,1) + f1(1)*r12(1)
     pv_bend(1,1) = pv_bend(1,1) + f3(1)*r32(1)
@@ -435,11 +441,12 @@ CONTAINS
 !******************************************************************************
 
   SUBROUTINE get_pv_torsion(f1,f3,f4,r12,r32,r43,pv_torsion)
-
-
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: f1, f3, f4, r12, r32, r43
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: pv_torsion
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_pv_torsion', &
+      routineP = moduleN//':'//routineN
 
     pv_torsion(1,1) = pv_torsion(1,1) + f1(1)*r12(1)
     pv_torsion(1,1) = pv_torsion(1,1) + (f3(1)+f4(1))*r32(1)

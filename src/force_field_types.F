@@ -23,6 +23,8 @@
 
 MODULE force_field_types
 
+  USE f77_blas
+  USE input_constants,                 ONLY: do_ff_undef
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -34,7 +36,6 @@ MODULE force_field_types
                                              spline_data_p_type,&
                                              spline_factor_release,&
                                              spline_factor_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -48,64 +49,64 @@ MODULE force_field_types
 
   ! k(3) ... allow for IPBV bond types sum(i=2,4) k_i (r-r0)**i/i
   TYPE bond_kind_type
-    CHARACTER(LEN=default_string_length) :: name
-    REAL(KIND = dp)                :: k(3),r0   
-    INTEGER                        :: kind_number
+     INTEGER                        :: id_type
+     REAL(KIND = dp)                :: k(3),r0   
+     INTEGER                        :: kind_number
   END TYPE bond_kind_type
 
   TYPE bend_kind_type
-    CHARACTER(LEN=default_string_length) :: name
-    REAL(KIND = dp)                :: k,theta0
-    INTEGER                        :: kind_number
+     INTEGER                        :: id_type
+     REAL(KIND = dp)                :: k,theta0
+     INTEGER                        :: kind_number
   END TYPE bend_kind_type
 
   TYPE ub_kind_type
-    CHARACTER(LEN=default_string_length) :: name
-    REAL(KIND = dp)                :: k(3),r0
-    INTEGER                        :: kind_number
+     INTEGER                        :: id_type
+     REAL(KIND = dp)                :: k(3),r0
+     INTEGER                        :: kind_number
   END TYPE ub_kind_type
 
   TYPE torsion_kind_type
-    CHARACTER(LEN=default_string_length) :: name
-    INTEGER                        :: nmul
-    INTEGER, POINTER               :: m(:)
-    REAL(KIND = dp), POINTER       :: k(:),cosphi0(:)
-    INTEGER                        :: kind_number
+     INTEGER                        :: id_type
+     INTEGER                        :: nmul
+     INTEGER, POINTER               :: m(:)
+     REAL(KIND = dp), POINTER       :: k(:),cosphi0(:)
+     INTEGER                        :: kind_number
   END TYPE torsion_kind_type
 
   TYPE impr_kind_type
-    CHARACTER(LEN=default_string_length) :: name
-    REAL(KIND = dp)                :: k,phi0
-    INTEGER                        :: kind_number
+     INTEGER                        :: id_type
+     REAL(KIND = dp)                :: k,phi0
+     INTEGER                        :: kind_number
   END TYPE impr_kind_type
 
   TYPE onfo_kind_type
      TYPE ( spline_factor_type ), POINTER               :: spl_f
      TYPE ( spline_data_p_type ), POINTER, DIMENSION(:) :: spl_p
-    INTEGER                                         :: kind_number
+     INTEGER                                            :: kind_number
   END TYPE onfo_kind_type
 
   TYPE input_info_type
     CHARACTER (LEN=default_string_length), POINTER :: charge_atm(:)
     REAL(KIND=dp), POINTER                         :: charge(:)
-    CHARACTER (LEN=default_string_length), POINTER :: bond_kind(:)
+    INTEGER, POINTER                               :: bond_kind(:)
     CHARACTER (LEN=default_string_length), POINTER :: bond_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: bond_b(:)
     REAL(KIND=dp), POINTER                         :: bond_k(:,:)
     REAL(KIND=dp), POINTER                         :: bond_r0(:)
-    CHARACTER (LEN=default_string_length), POINTER :: bend_kind(:)
+    INTEGER, POINTER                               :: bend_kind(:)
     CHARACTER (LEN=default_string_length), POINTER :: bend_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: bend_b(:)
     CHARACTER (LEN=default_string_length), POINTER :: bend_c(:)
     REAL(KIND=dp), POINTER                         :: bend_k(:)
     REAL(KIND=dp), POINTER                         :: bend_theta0(:)
-    CHARACTER (LEN=default_string_length), POINTER :: ub_kind(:)
+    INTEGER, POINTER                               :: ub_kind(:)
     CHARACTER (LEN=default_string_length), POINTER :: ub_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: ub_b(:)
     CHARACTER (LEN=default_string_length), POINTER :: ub_c(:)
     REAL(KIND=dp), POINTER                         :: ub_k(:,:)
     REAL(KIND=dp), POINTER                         :: ub_r0(:)
-    CHARACTER (LEN=default_string_length), POINTER :: torsion_kind(:)
+    INTEGER, POINTER                               :: torsion_kind(:)
     CHARACTER (LEN=default_string_length), POINTER :: torsion_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: torsion_b(:)
     CHARACTER (LEN=default_string_length), POINTER :: torsion_c(:)
@@ -113,7 +114,7 @@ MODULE force_field_types
     REAL(KIND=dp), POINTER                         :: torsion_k(:)
     INTEGER, POINTER                               :: torsion_m(:)
     REAL(KIND=dp), POINTER                         :: torsion_cosphi0(:)
-    CHARACTER (LEN=default_string_length), POINTER :: impr_kind(:)
+    INTEGER, POINTER                               :: impr_kind(:)
     CHARACTER (LEN=default_string_length), POINTER :: impr_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: impr_b(:)
     CHARACTER (LEN=default_string_length), POINTER :: impr_c(:)
@@ -184,9 +185,9 @@ MODULE force_field_types
   END TYPE gromos_info_type
 
   TYPE force_field_type
-    TYPE (input_info_type),POINTER   :: inp_info
-    TYPE (charmm_info_type),POINTER  :: chm_info
-    TYPE (gromos_info_type),POINTER  :: gro_info
+    TYPE (input_info_type),POINTER            :: inp_info
+    TYPE (charmm_info_type),POINTER           :: chm_info
+    TYPE (gromos_info_type),POINTER           :: gro_info
     CHARACTER (LEN=default_path_length)       :: ff_file_name
     CHARACTER (LEN=default_string_length)     :: ff_type
     REAL(KIND=dp)                             :: rcut_nb
@@ -276,7 +277,7 @@ CONTAINS
        ALLOCATE (bend_kind_set(nkind),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO ikind=1,nkind
-          bend_kind_set(ikind)%name = "UNDEF"
+          bend_kind_set(ikind)%id_type = do_ff_undef
           bend_kind_set(ikind)%k = 0.0_dp
           bend_kind_set(ikind)%theta0 = 0.0_dp
           bend_kind_set(ikind)%kind_number = ikind
@@ -320,7 +321,7 @@ CONTAINS
        ALLOCATE (bond_kind_set(nkind),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO ikind=1,nkind
-          bond_kind_set(ikind)%name = "UNDEF"
+          bond_kind_set(ikind)%id_type = do_ff_undef
           bond_kind_set(ikind)%k(:) = 0.0_dp
           bond_kind_set(ikind)%r0 = 0.0_dp
           bond_kind_set(ikind)%kind_number = ikind
@@ -365,7 +366,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        DO ikind=1,nkind
-          torsion_kind_set(ikind)%name = "UNDEF"
+          torsion_kind_set(ikind)%id_type = do_ff_undef
           torsion_kind_set(ikind)%nmul = 0
           NULLIFY(torsion_kind_set(ikind)%k)
           NULLIFY(torsion_kind_set(ikind)%m)
@@ -410,7 +411,7 @@ CONTAINS
     ALLOCATE (ub_kind_set(nkind),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
-      ub_kind_set(ikind)%name = "UNDEF"
+      ub_kind_set(ikind)%id_type = do_ff_undef
       ub_kind_set(ikind)%k = 0.0_dp
       ub_kind_set(ikind)%r0 = 0.0_dp
       ub_kind_set(ikind)%kind_number = ikind
@@ -450,7 +451,7 @@ CONTAINS
     ALLOCATE (impr_kind_set(nkind),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
-      impr_kind_set(ikind)%name = "UNDEF"
+      impr_kind_set(ikind)%id_type = do_ff_undef
       impr_kind_set(ikind)%k = 0.0_dp
       impr_kind_set(ikind)%phi0 = 0.0_dp
       impr_kind_set(ikind)%kind_number = ikind

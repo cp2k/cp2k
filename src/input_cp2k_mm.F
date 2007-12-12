@@ -29,7 +29,6 @@ MODULE input_cp2k_mm
                                              Yamada2000
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE f77_blas
   USE input_constants
   USE input_cp2k_poisson,              ONLY: create_poisson_section
   USE input_keyword_types,             ONLY: keyword_create,&
@@ -42,7 +41,6 @@ MODULE input_cp2k_mm
                                              section_type
   USE input_val_types,                 ONLY: char_t,&
                                              integer_t,&
-                                             lchar_t,&
                                              real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
@@ -540,8 +538,7 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="TORSION",&
-            description="specifies the torsion potential of the MM system."//&
-            "Functional Form (CHARMM): K * [ 1 +  cos[M*PHI] * cos[PHI0]].",&
+            description="Specifies the torsion potential of the MM system.",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
@@ -553,11 +550,17 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="KIND",&
-            description="kind of tors",&
-            usage="KIND {KIND1}", required=.FALSE., type_of_var=lchar_t,&
-            default_lc_val="CHARMM",&
-            n_var=1, error=error)
+       CALL keyword_create(keyword=keyword, name="KIND",&
+            description="Define the kind of torsion potential",&
+            usage="KIND {HARMONIC,CHARMM,G87,G96}",&
+            enum_c_vals=s2a("CHARMM","G87","G96"),&
+            enum_desc=s2a("Functional Form (CHARMM|G87|G96): K * [ 1 +  cos[M*PHI] * cos[PHI0]]",&
+                          "Functional Form (CHARMM|G87|G96): K * [ 1 +  cos[M*PHI] * cos[PHI0]]",&
+                          "Functional Form (CHARMM|G87|G96): K * [ 1 +  cos[M*PHI] * cos[PHI0]]"),&
+            enum_i_vals=(/ do_ff_charmm,&
+                           do_ff_g87,&
+                           do_ff_g96/),&
+            default_i_val=do_ff_charmm, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -622,10 +625,7 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="BEND",&
-            description="specifies the bend potential of the MM system."//&
-            "Functional Form (G96): 1/2*K*(COS(THETA)-THETA0)^2. "//&
-            "Functional Form (CHARMM): K*(THETA-THETA0)^2. "//&
-            "Functional Form (HARMONIC/G87): 1/2*K*(THETA-THETA0)^2. ",&
+            description="Specifies the bend potential of the MM system.",&
             n_keywords=1, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
@@ -638,11 +638,19 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="KIND",&
-            description="kind of bend",&
-            usage="KIND {G96|HARMONIC|CHARMM|G87}", required=.FALSE., type_of_var=lchar_t,&
-            default_lc_val="CHARMM",&
-            n_var=1, error=error)
+       CALL keyword_create(keyword=keyword, name="KIND",&
+            description="Define the kind of bend potential",&
+            usage="KIND {HARMONIC,CHARMM,G87,G96}",&
+            enum_c_vals=s2a("HARMONIC","CHARMM","G87","G96"),&
+            enum_desc=s2a("Functional Form (HARMONIC/G87): 1/2*K*(THETA-THETA0)^2",&
+                          "Functional Form (CHARMM): K*(THETA-THETA0)^2",&
+                          "Functional Form (HARMONIC/G87): 1/2*K*(THETA-THETA0)^2",&
+                          "Functional Form (G96): 1/2*K*(COS(THETA)-THETA0)^2"),&
+            enum_i_vals=(/ do_ff_harmonic,&
+                           do_ff_charmm,&
+                           do_ff_g87,&
+                           do_ff_g96/),&
+            default_i_val=do_ff_charmm, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -661,19 +669,25 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL section_create(subsection,name="UB",&
-            description="specifies the bond potential the MM system"//&
-            "Functional Form (QUARTIC): (1/2*K1+[1/3*K2+1/4*K3*|R-R0|]*|R-R0|)(R-R0)^2"//&
-            "Functional Form (G96): 1/4*K*(R-R0)^2"//&
-            "Functional Form (HARMONIC|CHARMM|G87): K*(R-R0)^2",&
+            description="Specifies the bond potential the MM system",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       CALL keyword_create(keyword, name="KIND",&
-            description="kind of bond",&
+       CALL keyword_create(keyword=keyword, name="KIND",&
+            description="Define the kind of Urey-Bradley potential.",&
             usage="KIND {HARMONIC,CHARMM,G87,G96,QUARTIC}",&
-            required=.FALSE., type_of_var=lchar_t,&
-            default_lc_val="CHARMM",&
-            n_var=1, error=error)
+            enum_c_vals=s2a("HARMONIC","CHARMM","G87","G96","QUARTIC"),&
+            enum_desc=s2a("Functional Form (QUARTIC): (1/2*K1+[1/3*K2+1/4*K3*|R-R0|]*|R-R0|)(R-R0)^2",&
+                          "Functional Form (HARMONIC|CHARMM|G87): K*(R-R0)^2",&
+                          "Functional Form (HARMONIC|CHARMM|G87): K*(R-R0)^2",&
+                          "Functional Form (G96): 1/4*K*(R-R0)^2",&
+                          "Functional Form (HARMONIC|CHARMM|G87): K*(R-R0)^2"),&
+            enum_i_vals=(/ do_ff_harmonic,&
+                           do_ff_charmm,&
+                           do_ff_g87,&
+                           do_ff_g96,&
+                           do_ff_quartic/),&
+            default_i_val=do_ff_charmm, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -735,11 +749,7 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="BOND",&
-            description="specifies the bond potential the MM system"//&
-            "Functional Form (QUARTIC): (1/2*K1+[1/3*K2+1/4*K3*|R-R0|]*|R-R0|)(R-R0)^2. "//&
-            "Functional Form (G96): 1/4*K*(R-R0)^2. "//&
-            "Functional Form (CHARMM): K*(R-R0)^2. "//&
-            "Functional Form (HARMONIC|G87): 1/2*K*(R-R0)^2. ",&
+            description="Specifies the bond potential the MM system",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
@@ -752,12 +762,21 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="KIND",&
-            description="kind of bond",&
+       CALL keyword_create(keyword=keyword, name="KIND",&
+            description="Define the kind of bond potential.",&
             usage="KIND {HARMONIC,CHARMM,G87,G96,QUARTIC}",&
-            required=.FALSE., type_of_var=lchar_t,&
-            default_lc_val="CHARMM",&
-            n_var=1, error=error)
+            enum_c_vals=s2a("HARMONIC","CHARMM","G87","G96","QUARTIC"),&
+            enum_desc=s2a("Functional Form (HARMONIC|G87): 1/2*K*(R-R0)^2",&
+                          "Functional Form (CHARMM): K*(R-R0)^2",&
+                          "Functional Form (HARMONIC|G87): 1/2*K*(R-R0)^2",&
+                          "Functional Form (G96): 1/4*K*(R-R0)^2",&
+                          "Functional Form (QUARTIC): (1/2*K1+[1/3*K2+1/4*K3*|R-R0|]*|R-R0|)(R-R0)^2"),&
+            enum_i_vals=(/ do_ff_harmonic,&
+                           do_ff_charmm,&
+                           do_ff_g87,&
+                           do_ff_g96,&
+                           do_ff_quartic/),&
+            default_i_val=do_ff_charmm, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

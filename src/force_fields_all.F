@@ -33,6 +33,7 @@ MODULE force_fields_all
   USE external_potential_types,        ONLY: elp_potential_type,&
                                              get_potential,&
                                              set_potential
+  USE f77_blas
   USE force_field_types,               ONLY: &
        allocate_bend_kind_set, allocate_bond_kind_set, &
        allocate_impr_kind_set, allocate_onfo_kind_set, &
@@ -40,7 +41,11 @@ MODULE force_fields_all
        bond_kind_type, charmm_info_type, force_field_type, gromos_info_type, &
        impr_kind_type, input_info_type, onfo_kind_type, torsion_kind_type, &
        ub_kind_type
-  USE input_constants,                 ONLY: do_qmmm_none
+  USE input_constants,                 ONLY: do_ff_charmm,&
+                                             do_ff_g87,&
+                                             do_ff_g96,&
+                                             do_ff_undef,&
+                                             do_qmmm_none
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -82,7 +87,6 @@ MODULE force_fields_all
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -967,8 +971,8 @@ CONTAINS
              IF(itype<=k) THEN
                bond_list(j)%bond_kind%k(1) = gro_info%bond_k(itype)
                bond_list(j)%bond_kind%r0   = gro_info%bond_r0(itype)
-               IF(ff_type%ff_type=="G87") bond_list(j)%bond_kind%name = "G87"
-               IF(ff_type%ff_type=="G96") bond_list(j)%bond_kind%name = "G96"
+               IF(ff_type%ff_type=="G87") bond_list(j)%bond_kind%id_type = do_ff_g87
+               IF(ff_type%ff_type=="G96") bond_list(j)%bond_kind%id_type = do_ff_g96
                IF(ff_type%ff_type=="G87") bond_list(j)%name = "G87"
                IF(ff_type%ff_type=="G96") bond_list(j)%name = "G96"
                found = .TRUE.
@@ -979,8 +983,8 @@ CONTAINS
                itype=itype-k
                bond_list(j)%bond_kind%k(1) = gro_info%solvent_k(itype)
                bond_list(j)%bond_kind%r0   = gro_info%solvent_r0(itype)
-               IF(ff_type%ff_type=="G87") bond_list(j)%bond_kind%name = "G87"
-               IF(ff_type%ff_type=="G96") bond_list(j)%bond_kind%name = "G96"
+               IF(ff_type%ff_type=="G87") bond_list(j)%bond_kind%id_type = do_ff_g87
+               IF(ff_type%ff_type=="G96") bond_list(j)%bond_kind%id_type = do_ff_g96
                IF(ff_type%ff_type=="G87") bond_list(j)%name = "G87"
                IF(ff_type%ff_type=="G96") bond_list(j)%name = "G96"
                found = .TRUE.
@@ -994,7 +998,7 @@ CONTAINS
                      ((chm_info%bond_b(k))==(name_atm_b))) .OR. &
                      (((chm_info%bond_a(k))==(name_atm_b)) .AND. &
                      ((chm_info%bond_b(k))==(name_atm_a))) ) THEN
-                   bond_list(j)%bond_kind%name = "CHARMM"
+                   bond_list(j)%bond_kind%id_type = do_ff_charmm
                    bond_list(j)%bond_kind%k(1) = chm_info%bond_k(k)
                    bond_list(j)%bond_kind%r0   = chm_info%bond_r0(k)
                    CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
@@ -1015,9 +1019,9 @@ CPSourceFileRef,&
                      ((inp_info%bond_b(k))==(name_atm_b))) .OR. &
                      (((inp_info%bond_a(k))==(name_atm_b)) .AND. &
                      ((inp_info%bond_b(k))==(name_atm_a))) ) THEN
-                   bond_list(j)%bond_kind%name = inp_info%bond_kind(k)
-                   bond_list(j)%bond_kind%k(:) = inp_info%bond_k(:,k)
-                   bond_list(j)%bond_kind%r0   = inp_info%bond_r0(k)
+                   bond_list(j)%bond_kind%id_type = inp_info%bond_kind(k)
+                   bond_list(j)%bond_kind%k(:)    = inp_info%bond_k(:,k)
+                   bond_list(j)%bond_kind%r0      = inp_info%bond_r0(k)
                    CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
                         "Multiple Bond declarations: "//TRIM(name_atm_a)//" and "//&
                         TRIM(name_atm_b)//" overwriting! "//&
@@ -1035,12 +1039,10 @@ CPSourceFileRef,&
                                                    type_name="Bond",&
                                                    array=Ainfo,&
                                                    error=error)
-          !
           ! QM/MM modifications
-          !
           IF (only_qm) THEN
-             bond_list(j)%name           = "UNSET"
-             bond_list(j)%bond_kind%name = "UNSET"
+             bond_list(j)%name              = "UNSET"
+             bond_list(j)%bond_kind%id_type = do_ff_undef
           END IF
        END DO
        CALL set_molecule_kind(molecule_kind=molecule_kind,&
@@ -1140,16 +1142,16 @@ CPSourceFileRef,&
              IF(itype>0) THEN
                bend_list(j)%bend_kind%k      = gro_info%bend_k(itype)
                bend_list(j)%bend_kind%theta0 = gro_info%bend_theta0(itype)
-               IF(ff_type%ff_type=="G87") bend_list(j)%bend_kind%name   = "G87"
-               IF(ff_type%ff_type=="G96") bend_list(j)%bend_kind%name   = "G96"
+               IF(ff_type%ff_type=="G87") bend_list(j)%bend_kind%id_type = do_ff_g87
+               IF(ff_type%ff_type=="G96") bend_list(j)%bend_kind%id_type = do_ff_g96
                IF(ff_type%ff_type=="G87") bend_list(j)%name   = "G87"
                IF(ff_type%ff_type=="G96") bend_list(j)%name   = "G96"
                found = .TRUE.
              ELSE
                bend_list(j)%bend_kind%k      = gro_info%bend_k(itype/k)
                bend_list(j)%bend_kind%theta0 = gro_info%bend_theta0(itype/k)
-               IF(ff_type%ff_type=="G87") bend_list(j)%bend_kind%name   = "G87"
-               IF(ff_type%ff_type=="G96") bend_list(j)%bend_kind%name   = "G96"
+               IF(ff_type%ff_type=="G87") bend_list(j)%bend_kind%id_type = do_ff_g87
+               IF(ff_type%ff_type=="G96") bend_list(j)%bend_kind%id_type = do_ff_g96
                IF(ff_type%ff_type=="G87") bend_list(j)%name   = "G87"
                IF(ff_type%ff_type=="G96") bend_list(j)%name   = "G96"
                found = .TRUE.
@@ -1165,9 +1167,9 @@ CPSourceFileRef,&
                      (((chm_info%bend_a(k))==(name_atm_c)) .AND. &
                      ((chm_info%bend_b(k))==(name_atm_b)) .AND. &
                      ((chm_info%bend_c(k))==(name_atm_a))) ) THEN
-                   bend_list(j)%bend_kind%name   = "CHARMM"
-                   bend_list(j)%bend_kind%k      = chm_info%bend_k(k)
-                   bend_list(j)%bend_kind%theta0 = chm_info%bend_theta0(k)
+                   bend_list(j)%bend_kind%id_type = do_ff_charmm
+                   bend_list(j)%bend_kind%k       = chm_info%bend_k(k)
+                   bend_list(j)%bend_kind%theta0  = chm_info%bend_theta0(k)
                    CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
                         "Multiple Bend declarations: "//TRIM(name_atm_a)//&
                         ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting! "//&
@@ -1188,9 +1190,9 @@ CPSourceFileRef,&
                      (((inp_info%bend_a(k))==(name_atm_c)) .AND. &
                      ((inp_info%bend_b(k))==(name_atm_b)) .AND. &
                      ((inp_info%bend_c(k))==(name_atm_a))) ) THEN
-                   bend_list(j)%bend_kind%name   = inp_info%bend_kind(k)
-                   bend_list(j)%bend_kind%k      = inp_info%bend_k(k)
-                   bend_list(j)%bend_kind%theta0 = inp_info%bend_theta0(k)
+                   bend_list(j)%bend_kind%id_type = inp_info%bend_kind(k)
+                   bend_list(j)%bend_kind%k       = inp_info%bend_k(k)
+                   bend_list(j)%bend_kind%theta0  = inp_info%bend_theta0(k)
                    CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
                         "Multiple Bend declarations: "//TRIM(name_atm_a)//&
                         ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting! "//&
@@ -1209,12 +1211,10 @@ CPSourceFileRef,&
                                                    type_name="Angle",&
                                                    array=Ainfo,&
                                                    error=error)
-          !
           ! QM/MM modifications
-          !
           IF (only_qm) THEN
-             bend_list(j)%name           = "UNSET"
-             bend_list(j)%bend_kind%name = "UNSET"
+             bend_list(j)%name              = "UNSET"
+             bend_list(j)%bend_kind%id_type = do_ff_undef
           END IF
        END DO
        CALL set_molecule_kind(molecule_kind=molecule_kind,&
@@ -1317,9 +1317,9 @@ CPSourceFileRef,&
                      (((chm_info%ub_a(k))==(name_atm_c)) .AND. &
                      ((chm_info%ub_b(k))==(name_atm_b)) .AND. &
                      ((chm_info%ub_c(k))==(name_atm_a))) ) THEN
-                   ub_list(j)%ub_kind%name   = "CHARMM"
-                   ub_list(j)%ub_kind%k(1)   = chm_info%ub_k(k)
-                   ub_list(j)%ub_kind%r0     = chm_info%ub_r0(k)
+                   ub_list(j)%ub_kind%id_type = do_ff_charmm
+                   ub_list(j)%ub_kind%k(1)    = chm_info%ub_k(k)
+                   ub_list(j)%ub_kind%r0      = chm_info%ub_r0(k)
                    IF(iw>0) WRITE(iw,*) "    Found UB ",TRIM(name_atm_a)," ",&
                         TRIM(name_atm_b)," ",TRIM(name_atm_c)
                    CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
@@ -1342,9 +1342,9 @@ CPSourceFileRef,&
                     (((inp_info%ub_a(k))==(name_atm_c)) .AND. &
                      ((inp_info%ub_b(k))==(name_atm_b)) .AND. &
                      ((inp_info%ub_c(k))==(name_atm_a))) ) THEN
-                   ub_list(j)%ub_kind%name   = inp_info%ub_kind(k)
-                   ub_list(j)%ub_kind%k(:)   = inp_info%ub_k(:,k)
-                   ub_list(j)%ub_kind%r0     = inp_info%ub_r0(k)
+                   ub_list(j)%ub_kind%id_type = inp_info%ub_kind(k)
+                   ub_list(j)%ub_kind%k(:)    = inp_info%ub_k(:,k)
+                   ub_list(j)%ub_kind%r0      = inp_info%ub_r0(k)
                    CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
                         "Multiple UB declarations: "//TRIM(name_atm_a)//&
                         ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting! "//&
@@ -1363,17 +1363,16 @@ CPSourceFileRef,&
                                        type_name="Urey-Bradley",&
                                        array=Ainfo,&
                                        error=error)
-             ub_list(j)%name           = "UNSET"
-             ub_list(j)%ub_kind%name   = "UNSET"
-             ub_list(j)%ub_kind%k      = 0.0_dp
-             ub_list(j)%ub_kind%r0     = 0.0_dp
+             ub_list(j)%name            = "UNSET"
+             ub_list(j)%ub_kind%id_type = do_ff_undef
+             ub_list(j)%ub_kind%k       = 0.0_dp
+             ub_list(j)%ub_kind%r0      = 0.0_dp
           END IF
-          !
+
           ! QM/MM modifications
-          !
           IF (only_qm) THEN
-             ub_list(j)%name         = "UNSET"
-             ub_list(j)%ub_kind%name = "UNSET"
+             ub_list(j)%name            = "UNSET"
+             ub_list(j)%ub_kind%id_type = do_ff_undef
           END IF
        END DO
        CALL set_molecule_kind(molecule_kind=molecule_kind,&
@@ -1453,7 +1452,7 @@ CPSourceFileRef,&
        molecule=>molecule_set(molecule_list(1))
        CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
        DO j=1,ntorsion
-          IF(torsion_list(j)%torsion_kind%name == "UNDEF") THEN
+          IF(torsion_list(j)%torsion_kind%id_type == do_ff_undef) THEN
              atm_a = torsion_list(j)%a
              atomic_kind => particle_set(atm_a+first-1)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -1489,8 +1488,8 @@ CPSourceFileRef,&
                    torsion_list(j)%torsion_kind%m(1)   = gro_info%torsion_m(itype)
                    torsion_list(j)%torsion_kind%k(1)   = gro_info%torsion_k(itype)
                    torsion_list(j)%torsion_kind%cosphi0(1) = gro_info%torsion_cosphi0(itype)
-                   IF(ff_type%ff_type=="G87") torsion_list(j)%torsion_kind%name   = "G87"
-                   IF(ff_type%ff_type=="G96") torsion_list(j)%torsion_kind%name   = "G96"
+                   IF(ff_type%ff_type=="G87") torsion_list(j)%torsion_kind%id_type = do_ff_g87
+                   IF(ff_type%ff_type=="G96") torsion_list(j)%torsion_kind%id_type = do_ff_g96
                    IF(ff_type%ff_type=="G87") torsion_list(j)%name   = "G87"
                    IF(ff_type%ff_type=="G96") torsion_list(j)%name   = "G96"
                    found = .TRUE.
@@ -1502,8 +1501,8 @@ CPSourceFileRef,&
                    torsion_list(j)%torsion_kind%m(1)   = gro_info%torsion_m(itype/k)
                    torsion_list(j)%torsion_kind%k(1)   = gro_info%torsion_k(itype/k)
                    torsion_list(j)%torsion_kind%cosphi0(1) = gro_info%torsion_cosphi0(itype/k)
-                   IF(ff_type%ff_type=="G87") torsion_list(j)%torsion_kind%name   = "G87"
-                   IF(ff_type%ff_type=="G96") torsion_list(j)%torsion_kind%name   = "G96"
+                   IF(ff_type%ff_type=="G87") torsion_list(j)%torsion_kind%id_type = do_ff_g87
+                   IF(ff_type%ff_type=="G96") torsion_list(j)%torsion_kind%id_type = do_ff_g96
                    IF(ff_type%ff_type=="G87") torsion_list(j)%name   = "G87"
                    IF(ff_type%ff_type=="G96") torsion_list(j)%name   = "G96"
                    found = .TRUE.
@@ -1526,7 +1525,7 @@ CPSourceFileRef,&
                       CALL reallocate(torsion_list(j)%torsion_kind%k,1,imul)
                       CALL reallocate(torsion_list(j)%torsion_kind%m,1,imul)
                       CALL reallocate(torsion_list(j)%torsion_kind%cosphi0,1,imul)
-                      torsion_list(j)%torsion_kind%name    = "CHARMM"
+                      torsion_list(j)%torsion_kind%id_type = do_ff_charmm
                       torsion_list(j)%torsion_kind%k(imul) = chm_info%torsion_k(k)
                       torsion_list(j)%torsion_kind%m(imul) = chm_info%torsion_m(k)
                       torsion_list(j)%torsion_kind%cosphi0(imul) = chm_info%torsion_cosphi0(k)
@@ -1549,7 +1548,7 @@ CPSourceFileRef,&
                          CALL reallocate(torsion_list(j)%torsion_kind%k,1,imul)
                          CALL reallocate(torsion_list(j)%torsion_kind%m,1,imul)
                          CALL reallocate(torsion_list(j)%torsion_kind%cosphi0,1,imul)
-                         torsion_list(j)%torsion_kind%name    = "CHARMM"
+                         torsion_list(j)%torsion_kind%id_type = do_ff_charmm
                          torsion_list(j)%torsion_kind%k(imul) = chm_info%torsion_k(k)
                          torsion_list(j)%torsion_kind%m(imul) = chm_info%torsion_m(k)
                          torsion_list(j)%torsion_kind%cosphi0(imul) = chm_info%torsion_cosphi0(k)
@@ -1574,7 +1573,7 @@ CPSourceFileRef,&
                       CALL reallocate(torsion_list(j)%torsion_kind%k,1,imul)
                       CALL reallocate(torsion_list(j)%torsion_kind%m,1,imul)
                       CALL reallocate(torsion_list(j)%torsion_kind%cosphi0,1,imul)
-                      torsion_list(j)%torsion_kind%name    = inp_info%torsion_kind(k)
+                      torsion_list(j)%torsion_kind%id_type = inp_info%torsion_kind(k)
                       torsion_list(j)%torsion_kind%k(imul) = inp_info%torsion_k(k)
                       torsion_list(j)%torsion_kind%m(imul) = inp_info%torsion_m(k)
                       torsion_list(j)%torsion_kind%cosphi0(imul) = COS(inp_info%torsion_cosphi0(k))
@@ -1592,8 +1591,8 @@ CPSourceFileRef,&
                                           type_name="Torsion",&
                                           array=Ainfo,&
                                           error=error)
-                torsion_list(j)%torsion_kind%name = "UNSET"
-                torsion_list(j)%name              = "UNSET"
+                torsion_list(j)%torsion_kind%id_type = do_ff_undef
+                torsion_list(j)%name                 = "UNSET"
              ELSE
                 ldum = cp_to_string(imul)
                 IF ((imul /= 1).AND.(iw>0))&
@@ -1615,8 +1614,8 @@ CPSourceFileRef,&
                      torsion_list(j)%b,&
                      torsion_list(j)%c,&
                      torsion_list(j)%d
-                torsion_list(j)%torsion_kind%name = "UNSET"
-                torsion_list(j)%name              = "UNSET"
+                torsion_list(j)%torsion_kind%id_type = do_ff_undef
+                torsion_list(j)%name                 = "UNSET"
              END IF
           END IF
        END DO
@@ -1725,16 +1724,16 @@ CPSourceFileRef,&
             IF(itype>0) THEN
               impr_list(j)%impr_kind%k    = gro_info%impr_k(itype)
               impr_list(j)%impr_kind%phi0 = gro_info%impr_phi0(itype)
-              IF(ff_type%ff_type=="G87") impr_list(j)%impr_kind%name = "G87"
-              IF(ff_type%ff_type=="G96") impr_list(j)%impr_kind%name = "G96"
+              IF(ff_type%ff_type=="G87") impr_list(j)%impr_kind%id_type = do_ff_g87
+              IF(ff_type%ff_type=="G96") impr_list(j)%impr_kind%id_type = do_ff_g96
               IF(ff_type%ff_type=="G87") impr_list(j)%name = "G87"
               IF(ff_type%ff_type=="G96") impr_list(j)%name = "G96"
               found = .TRUE.
             ELSE
               impr_list(j)%impr_kind%k    = gro_info%impr_k(itype)
               impr_list(j)%impr_kind%phi0 = gro_info%impr_phi0(itype)
-              IF(ff_type%ff_type=="G87") impr_list(j)%impr_kind%name = "G87"
-              IF(ff_type%ff_type=="G96") impr_list(j)%impr_kind%name = "G96"
+              IF(ff_type%ff_type=="G87") impr_list(j)%impr_kind%id_type = do_ff_g87
+              IF(ff_type%ff_type=="G96") impr_list(j)%impr_kind%id_type = do_ff_g96
               IF(ff_type%ff_type=="G87") impr_list(j)%name = "G87"
               IF(ff_type%ff_type=="G96") impr_list(j)%name = "G96"
               found = .TRUE.
@@ -1752,7 +1751,7 @@ CPSourceFileRef,&
                      ((chm_info%impr_b(k))==(name_atm_c)) .AND. &
                      ((chm_info%impr_c(k))==(name_atm_b)) .AND. &
                      ((chm_info%impr_d(k))==(name_atm_a))) ) THEN
-                   impr_list(j)%impr_kind%name = "CHARMM"
+                   impr_list(j)%impr_kind%id_type = do_ff_charmm
                    impr_list(j)%impr_kind%k    = chm_info%impr_k(k)
                    impr_list(j)%impr_kind%phi0 = chm_info%impr_phi0(k)
                    CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
@@ -1775,7 +1774,7 @@ CPSourceFileRef,&
                         ((chm_info%impr_b(k))==("X")) .AND. &
                         ((chm_info%impr_c(k))==("X")) .AND. &
                         ((chm_info%impr_d(k))==(name_atm_a))) ) THEN
-                      impr_list(j)%impr_kind%name = "CHARMM"
+                      impr_list(j)%impr_kind%id_type = do_ff_charmm
                       impr_list(j)%impr_kind%k    = chm_info%impr_k(k)
                       impr_list(j)%impr_kind%phi0 = chm_info%impr_phi0(k)
                       CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
@@ -1802,9 +1801,9 @@ CPSourceFileRef,&
                      ((inp_info%impr_b(k))==(name_atm_c)) .AND. &
                      ((inp_info%impr_c(k))==(name_atm_b)) .AND. &
                      ((inp_info%impr_d(k))==(name_atm_a))) ) THEN
-                   impr_list(j)%impr_kind%name = inp_info%impr_kind(k)
-                   impr_list(j)%impr_kind%k    = inp_info%impr_k(k)
-                   impr_list(j)%impr_kind%phi0 = inp_info%impr_phi0(k)
+                   impr_list(j)%impr_kind%id_type = inp_info%impr_kind(k)
+                   impr_list(j)%impr_kind%k       = inp_info%impr_k(k)
+                   impr_list(j)%impr_kind%phi0    = inp_info%impr_phi0(k)
                    CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
                         "Multiple Improper declarations: "//TRIM(name_atm_a)//&
                         ","//TRIM(name_atm_b)//","//TRIM(name_atm_c)//" and "//TRIM(name_atm_d)//&
@@ -1825,17 +1824,17 @@ CPSourceFileRef,&
                                        type_name="Improper",&
                                        array=Ainfo,&
                                        error=error)
-             impr_list(j)%impr_kind%k      = 0.0_dp
-             impr_list(j)%impr_kind%phi0   = 0.0_dp
-             impr_list(j)%impr_kind%name   = "UNSET"
-             impr_list(j)%name             = "UNSET"
+             impr_list(j)%impr_kind%k       = 0.0_dp
+             impr_list(j)%impr_kind%phi0    = 0.0_dp
+             impr_list(j)%impr_kind%id_type = do_ff_undef
+             impr_list(j)%name              = "UNSET"
           END IF
           !
           ! QM/MM modifications
           !
           IF (only_qm) THEN
-             impr_list(j)%impr_kind%name = "UNSET"
-             impr_list(j)%name           = "UNSET"
+             impr_list(j)%impr_kind%id_type = do_ff_undef
+             impr_list(j)%name              = "UNSET"
           END IF
 
        END DO

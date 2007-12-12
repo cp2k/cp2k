@@ -347,6 +347,13 @@ MODULE input_constants
                                 do_coord_g96=2,&
                                 do_coord_off=3
 
+  INTEGER, PARAMETER, PUBLIC :: do_ff_undef=0,&
+                                do_ff_quartic=1,&
+                                do_ff_g96=2,&
+                                do_ff_charmm=3,&
+                                do_ff_harmonic=4,&
+                                do_ff_g87=5
+
   INTEGER, PARAMETER, PUBLIC :: do_mc_traditional=0,&
                                 do_mc_gemc_nvt=1,&
                                 do_mc_gemc_npt=2,&

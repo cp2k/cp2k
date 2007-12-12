@@ -35,6 +35,7 @@ MODULE force_fields_util
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE ewald_environment_types,         ONLY: ewald_environment_type
+  USE f77_blas
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_create,&
                                              fist_nonbond_env_type
   USE force_field_types,               ONLY: &
@@ -53,6 +54,7 @@ MODULE force_fields_util
        force_field_unique_bend, force_field_unique_bond, &
        force_field_unique_impr, force_field_unique_onfo, &
        force_field_unique_tors, force_field_unique_ub
+  USE input_constants,                 ONLY: do_ff_undef
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -70,7 +72,6 @@ MODULE force_fields_util
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -760,7 +761,7 @@ CONTAINS
           bad1(:)=0
           DO ibond=1,SIZE(bond_kind_set)
              unsetme=.FALSE.
-             IF(bond_kind_set(ibond)%name=="UNSET") unsetme = .TRUE.
+             IF(bond_kind_set(ibond)%id_type==do_ff_undef) unsetme = .TRUE.
              valid_kind=.FALSE.
              DO i=1,SIZE(bond_list)
                 IF(bond_list(i)%name/="UNSET".AND.&
@@ -788,7 +789,7 @@ CONTAINS
              bad2(:)=0
              DO ibond=1,SIZE(bond_list)
                 unsetme = .FALSE.
-                IF(bond_list(ibond)%bond_kind%name=="UNSET") unsetme = .TRUE.
+                IF(bond_list(ibond)%bond_kind%id_type==do_ff_undef) unsetme = .TRUE.
                 IF(bond_list(ibond)%name=="UNSET")           unsetme = .TRUE.
                 IF(unsetme) bad2(ibond) = 1
              END DO
@@ -849,7 +850,7 @@ CONTAINS
           bad1(:)=0
           DO ibend=1,SIZE(bend_kind_set)
              unsetme=.FALSE.
-             IF(bend_kind_set(ibend)%name=="UNSET") unsetme = .TRUE.
+             IF(bend_kind_set(ibend)%id_type==do_ff_undef) unsetme = .TRUE.
              valid_kind=.FALSE.
              DO i=1,SIZE(bend_list)
                 IF(bend_list(i)%name/="UNSET".AND.&
@@ -877,7 +878,7 @@ CONTAINS
              bad2(:)=0
              DO ibend=1,SIZE(bend_list)
                 unsetme = .FALSE.
-                IF(bend_list(ibend)%bend_kind%name=="UNSET") unsetme = .TRUE.
+                IF(bend_list(ibend)%bend_kind%id_type==do_ff_undef) unsetme = .TRUE.
                 IF(bend_list(ibend)%name=="UNSET")           unsetme = .TRUE.
                 IF(unsetme) bad2(ibend) = 1
              END DO
@@ -939,7 +940,7 @@ CONTAINS
           bad1(:)=0
           DO iub=1,SIZE(ub_kind_set)
              unsetme=.FALSE.
-             IF(ub_kind_set(iub)%name=="UNSET") unsetme = .TRUE.
+             IF(ub_kind_set(iub)%id_type==do_ff_undef) unsetme = .TRUE.
              valid_kind=.FALSE.
              DO i=1,SIZE(ub_list)
                 IF(ub_list(i)%name/="UNSET".AND.&
@@ -967,7 +968,7 @@ CONTAINS
              bad2(:)=0
              DO iub=1,SIZE(ub_list)
                 unsetme = .FALSE.
-                IF(ub_list(iub)%ub_kind%name=="UNSET") unsetme = .TRUE.
+                IF(ub_list(iub)%ub_kind%id_type==do_ff_undef) unsetme = .TRUE.
                 IF(ub_list(iub)%name=="UNSET")           unsetme = .TRUE.
                 IF(unsetme) bad2(iub) = 1
              END DO
@@ -1029,7 +1030,7 @@ CONTAINS
           bad1(:)=0
           DO itorsion=1,SIZE(torsion_kind_set)
              unsetme=.FALSE.
-             IF(torsion_kind_set(itorsion)%name=="UNSET") unsetme = .TRUE.
+             IF(torsion_kind_set(itorsion)%id_type==do_ff_undef) unsetme = .TRUE.
              valid_kind=.FALSE.
              DO i=1,SIZE(torsion_list)
                 IF(torsion_list(i)%name/="UNSET".AND.&
@@ -1069,7 +1070,7 @@ CONTAINS
              bad2(:)=0
              DO itorsion=1,SIZE(torsion_list)
                 unsetme = .FALSE.
-                IF(torsion_list(itorsion)%torsion_kind%name=="UNSET") unsetme = .TRUE.
+                IF(torsion_list(itorsion)%torsion_kind%id_type==do_ff_undef) unsetme = .TRUE.
                 IF(torsion_list(itorsion)%name=="UNSET")           unsetme = .TRUE.
                 IF(unsetme) bad2(itorsion) = 1
              END DO
@@ -1134,7 +1135,7 @@ CONTAINS
           bad1(:)=0
           DO iimpr=1,SIZE(impr_kind_set)
              unsetme=.FALSE.
-             IF(impr_kind_set(iimpr)%name=="UNSET") unsetme = .TRUE.
+             IF(impr_kind_set(iimpr)%id_type==do_ff_undef) unsetme = .TRUE.
              valid_kind=.FALSE.
              DO i=1,SIZE(impr_list)
                 IF(impr_list(i)%name/="UNSET".AND.&
@@ -1162,7 +1163,7 @@ CONTAINS
              bad2(:)=0
              DO iimpr=1,SIZE(impr_list)
                 unsetme = .FALSE.
-                IF(impr_list(iimpr)%impr_kind%name=="UNSET") unsetme = .TRUE.
+                IF(impr_list(iimpr)%impr_kind%id_type==do_ff_undef) unsetme = .TRUE.
                 IF(impr_list(iimpr)%name=="UNSET")           unsetme = .TRUE.
                 IF(unsetme) bad2(iimpr) = 1
              END DO
