@@ -25,8 +25,12 @@ MODULE topology_connectivity_util
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE input_constants,                 ONLY: do_conn_g87,&
-                                             do_conn_g96
+                                             do_conn_g96,&
+                                             do_ff_charmm,&
+                                             do_ff_g87,&
+                                             do_ff_g96
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -48,7 +52,6 @@ MODULE topology_connectivity_util
                                              connectivity_info_type,&
                                              topology_parameters_type
   USE util,                            ONLY: sort
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -457,11 +460,13 @@ CONTAINS
           bond_list(ibond)%a=conn_info%bond_a(jind)-first+1
           bond_list(ibond)%b=conn_info%bond_b(jind)-first+1
           IF(topology%conn_type==do_conn_g96) THEN
-             WRITE(bond_list(ibond)%name,*) "G96_",conn_info%bond_type(jind)
+             bond_list(ibond)%id_type = do_ff_g96
+             bond_list(ibond)%itype   = conn_info%bond_type(jind)
           ELSE IF(topology%conn_type==do_conn_g87) THEN
-             WRITE(bond_list(ibond)%name,*) "G87_",conn_info%bond_type(jind)
+             bond_list(ibond)%id_type = do_ff_g87
+             bond_list(ibond)%itype   = conn_info%bond_type(jind)
           ELSE
-             WRITE(bond_list(ibond)%name,*) "CHARMM"
+             bond_list(ibond)%id_type = do_ff_charmm
           END IF
           !point this to the right bond_kind_type if using force field
           NULLIFY(bond_list(ibond)%bond_kind)
@@ -484,11 +489,13 @@ CONTAINS
           bond_list(ibond)%a=conn_info%c_bond_a(jind)-first+1
           bond_list(ibond)%b=conn_info%c_bond_b(jind)-first+1
           IF(topology%conn_type==do_conn_g96) THEN
-             WRITE(bond_list(ibond)%name,*) "G96_",conn_info%c_bond_type(jind)
+             bond_list(ibond)%id_type = do_ff_g96
+             bond_list(ibond)%itype   = conn_info%c_bond_type(jind)
           ELSE IF(topology%conn_type==do_conn_g87) THEN
-             WRITE(bond_list(ibond)%name,*) "G87_",conn_info%c_bond_type(jind)
+             bond_list(ibond)%id_type = do_ff_g87
+             bond_list(ibond)%itype   = conn_info%c_bond_type(jind)
           ELSE
-             WRITE(bond_list(ibond)%name,*) "CHARMM"
+             bond_list(ibond)%id_type = do_ff_charmm
           END IF
           !point this to the right bond_kind_type if using force field
           NULLIFY(bond_list(ibond)%bond_kind)
@@ -638,11 +645,13 @@ CONTAINS
           bend_list(ibend)%b=conn_info%theta_b(jind)-first+1
           bend_list(ibend)%c=conn_info%theta_c(jind)-first+1
           IF(topology%conn_type==do_conn_g96) THEN
-             WRITE(bend_list(ibend)%name,*) "G96_",conn_info%theta_type(jind)
+             bend_list(ibend)%id_type = do_ff_g96
+             bend_list(ibend)%itype   = conn_info%theta_type(jind)
           ELSE IF(topology%conn_type==do_conn_g87) THEN
-             WRITE(bend_list(ibend)%name,*) "G87_",conn_info%theta_type(jind)
+             bend_list(ibend)%id_type = do_ff_g87
+             bend_list(ibend)%itype   = conn_info%theta_type(jind)
           ELSE
-             WRITE(bend_list(ibend)%name,*) "CHARMM"
+             bend_list(ibend)%id_type = do_ff_charmm
           END IF
           !point this to the right bend_kind_type if using force field
           NULLIFY(bend_list(ibend)%bend_kind)
@@ -668,11 +677,13 @@ CONTAINS
           bend_list(ibend)%b=c_var_b(jind)-first+1
           bend_list(ibend)%c=c_var_c(jind)-first+1
           IF(topology%conn_type==do_conn_g96) THEN
-             WRITE(bend_list(ibend)%name,*) "G96_",c_var_type(jind)
+             bend_list(ibend)%id_type = do_ff_g96
+             bend_list(ibend)%itype   = c_var_type(jind)
           ELSE IF(topology%conn_type==do_conn_g87) THEN
-             WRITE(bend_list(ibend)%name,*) "G87_",c_var_type(jind)
+             bend_list(ibend)%id_type = do_ff_g87
+             bend_list(ibend)%itype   = c_var_type(jind)
           ELSE
-             WRITE(bend_list(ibend)%name,*) "CHARMM"
+             bend_list(ibend)%id_type = do_ff_charmm
           END IF
           !point this to the right bend_kind_type if using force field
           NULLIFY(bend_list(ibend)%bend_kind)
@@ -811,7 +822,7 @@ CONTAINS
           ub_list(iub)%a=conn_info%ub_a(jind)-first+1
           ub_list(iub)%b=conn_info%ub_b(jind)-first+1
           ub_list(iub)%c=conn_info%ub_c(jind)-first+1
-          ub_list(iub)%name="UB"
+          ub_list(iub)%id_type=do_ff_charmm
           !point this to the right ub_kind_type if using force field
           NULLIFY(ub_list(iub)%ub_kind)
           IF(iw>0) THEN
@@ -835,7 +846,7 @@ CONTAINS
           ub_list(iub)%a=c_var_a(jind)-first+1
           ub_list(iub)%b=c_var_b(jind)-first+1
           ub_list(iub)%c=c_var_c(jind)-first+1
-          ub_list(iub)%name="UB"
+          ub_list(iub)%id_type=do_ff_charmm
           !point this to the right ub_kind_type if using force field
           NULLIFY(ub_list(iub)%ub_kind)
           IF(iw>0) THEN
@@ -990,11 +1001,13 @@ CONTAINS
           torsion_list(itorsion)%c=conn_info%phi_c(jind)-first+1
           torsion_list(itorsion)%d=conn_info%phi_d(jind)-first+1
           IF(topology%conn_type==do_conn_g96) THEN
-             WRITE(torsion_list(itorsion)%name,*) "G96_",conn_info%phi_type(jind)
+             torsion_list(itorsion)%id_type = do_ff_g96
+             torsion_list(itorsion)%itype   = conn_info%phi_type(jind)
           ELSE IF(topology%conn_type==do_conn_g87) THEN
-             WRITE(torsion_list(itorsion)%name,*) "G87_",conn_info%phi_type(jind)
+             torsion_list(itorsion)%id_type = do_ff_g87
+             torsion_list(itorsion)%itype   = conn_info%phi_type(jind)
           ELSE
-             WRITE(torsion_list(itorsion)%name,*) "CHARMM"
+             torsion_list(itorsion)%id_type = do_ff_charmm
           END IF
           !point this to the right torsion_kind_type if using force field
           NULLIFY(torsion_list(itorsion)%torsion_kind)
@@ -1023,11 +1036,13 @@ CONTAINS
           torsion_list(itorsion)%c=c_var_c(jind)-first+1
           torsion_list(itorsion)%d=c_var_d(jind)-first+1
           IF(topology%conn_type==do_conn_g96) THEN
-             WRITE(torsion_list(itorsion)%name,*) "G96_",c_var_type(jind)
+             torsion_list(itorsion)%id_type = do_ff_g96
+             torsion_list(itorsion)%itype   = c_var_type(jind)
           ELSE IF(topology%conn_type==do_conn_g87) THEN
-             WRITE(torsion_list(itorsion)%name,*) "G87_",c_var_type(jind)
+             torsion_list(itorsion)%id_type = do_ff_g87
+             torsion_list(itorsion)%itype   = c_var_type(jind)
           ELSE
-             WRITE(torsion_list(itorsion)%name,*) "CHARMM"
+             torsion_list(itorsion)%id_type = do_ff_charmm
           END IF
           !point this to the right torsion_kind_type if using force field
           NULLIFY(torsion_list(itorsion)%torsion_kind)
@@ -1191,11 +1206,13 @@ CONTAINS
           impr_list(iimpr)%c=conn_info%impr_c(jind)-first+1
           impr_list(iimpr)%d=conn_info%impr_d(jind)-first+1
           IF(topology%conn_type==do_conn_g96) THEN
-             WRITE(impr_list(iimpr)%name,*) "G96_",conn_info%impr_type(jind)
+             impr_list(iimpr)%id_type = do_ff_g96
+             impr_list(iimpr)%itype   = conn_info%impr_type(jind)
           ELSE IF(topology%conn_type==do_conn_g87) THEN
-             WRITE(impr_list(iimpr)%name,*) "G87_",conn_info%impr_type(jind)
+             impr_list(iimpr)%id_type = do_ff_g87
+             impr_list(iimpr)%itype   = conn_info%impr_type(jind)
           ELSE
-             WRITE(impr_list(iimpr)%name,*) "CHARMM"
+             impr_list(iimpr)%id_type = do_ff_charmm
           END IF
           !point this to the right impr_kind_type if using force field
           NULLIFY(impr_list(iimpr)%impr_kind)
@@ -1224,11 +1241,13 @@ CONTAINS
           impr_list(iimpr)%c=c_var_c(jind)-first+1
           impr_list(iimpr)%d=c_var_d(jind)-first+1
           IF(topology%conn_type==do_conn_g96) THEN
-             WRITE(impr_list(iimpr)%name,*) "G96_",c_var_type(jind)
+             impr_list(iimpr)%id_type = do_ff_g96
+             impr_list(iimpr)%itype   = c_var_type(jind)
           ELSE IF(topology%conn_type==do_conn_g87) THEN
-             WRITE(impr_list(iimpr)%name,*) "G87_",c_var_type(jind)
+             impr_list(iimpr)%id_type = do_ff_g87
+             impr_list(iimpr)%itype   = c_var_type(jind)
           ELSE
-             WRITE(impr_list(iimpr)%name,*) "CHARMM"
+             impr_list(iimpr)%id_type = do_ff_charmm
           END IF
           !point this to the right impr_kind_type if using force field
           NULLIFY(impr_list(iimpr)%impr_kind)

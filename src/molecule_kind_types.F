@@ -35,7 +35,6 @@ MODULE molecule_kind_types
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential,&
                                              gth_potential_type
-  USE f77_blas
   USE force_field_types,               ONLY: &
        bend_kind_type, bond_kind_type, impr_kind_dealloc_ref, impr_kind_type, &
        onfo_kind_dealloc_ref, onfo_kind_type, torsion_kind_dealloc_ref, &
@@ -61,45 +60,45 @@ MODULE molecule_kind_types
   END TYPE atom_type
 
   TYPE shell_type
-    TYPE(shell_kind_type), POINTER :: shell_kind
     INTEGER :: a
     CHARACTER(LEN=default_string_length)  :: name
+    TYPE(shell_kind_type), POINTER :: shell_kind
   END TYPE shell_type
 
   TYPE bond_type
-    TYPE(bond_kind_type), POINTER :: bond_kind
     INTEGER :: a,b
-    CHARACTER(LEN=default_string_length)  :: name
+    INTEGER :: id_type, itype
+    TYPE(bond_kind_type), POINTER :: bond_kind
   END TYPE bond_type
 
   TYPE bend_type
-    TYPE(bend_kind_type), POINTER :: bend_kind
     INTEGER :: a,b,c
-    CHARACTER(LEN=default_string_length)  :: name
+    INTEGER :: id_type, itype
+    TYPE(bend_kind_type), POINTER :: bend_kind
   END TYPE bend_type
 
   TYPE ub_type
-    TYPE(ub_kind_type), POINTER :: ub_kind
     INTEGER :: a,b,c
-    CHARACTER(LEN=default_string_length)  :: name
+    INTEGER :: id_type, itype
+    TYPE(ub_kind_type), POINTER :: ub_kind
   END TYPE ub_type
 
   TYPE torsion_type
-    TYPE(torsion_kind_type), POINTER :: torsion_kind
     INTEGER :: a,b,c,d
-    CHARACTER(LEN=default_string_length)  :: name
+    INTEGER :: id_type, itype
+    TYPE(torsion_kind_type), POINTER :: torsion_kind
   END TYPE torsion_type
 
   TYPE impr_type
-    TYPE(impr_kind_type), POINTER :: impr_kind
     INTEGER :: a,b,c,d
-    CHARACTER(LEN=default_string_length)  :: name
+    INTEGER :: id_type, itype
+    TYPE(impr_kind_type), POINTER :: impr_kind
   END TYPE impr_type
 
   TYPE onfo_type
-    TYPE(onfo_kind_type), POINTER :: onfo_kind
     INTEGER :: a,b
-    CHARACTER(LEN=default_string_length)  :: name
+    INTEGER :: id_type
+    TYPE(onfo_kind_type), POINTER :: onfo_kind
   END TYPE onfo_type
 
   TYPE restraint_type

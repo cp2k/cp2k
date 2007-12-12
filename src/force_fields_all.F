@@ -42,8 +42,6 @@ MODULE force_fields_all
        impr_kind_type, input_info_type, onfo_kind_type, torsion_kind_type, &
        ub_kind_type
   USE input_constants,                 ONLY: do_ff_charmm,&
-                                             do_ff_g87,&
-                                             do_ff_g96,&
                                              do_ff_undef,&
                                              do_qmmm_none
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -908,7 +906,7 @@ CONTAINS
 !!*****************************************************************************
 
   SUBROUTINE force_field_pack_bond (particle_set, molecule_kind_set, molecule_set, &
-       ff_type, fatal, Ainfo, chm_info, inp_info, gro_info, error)
+      fatal, Ainfo, chm_info, inp_info, gro_info, error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -916,7 +914,6 @@ CONTAINS
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
-    TYPE(force_field_type), INTENT(INOUT)    :: ff_type
     LOGICAL                                  :: fatal
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: Ainfo
@@ -967,28 +964,17 @@ CONTAINS
           ! loop over params from gromos
           IF(ASSOCIATED(gro_info%bond_k)) THEN
              k=SIZE(gro_info%bond_k)
-             READ(bond_list(j)%name(6:80),*) itype
+             itype = bond_list(j)%itype
              IF(itype<=k) THEN
-               bond_list(j)%bond_kind%k(1) = gro_info%bond_k(itype)
-               bond_list(j)%bond_kind%r0   = gro_info%bond_r0(itype)
-               IF(ff_type%ff_type=="G87") bond_list(j)%bond_kind%id_type = do_ff_g87
-               IF(ff_type%ff_type=="G96") bond_list(j)%bond_kind%id_type = do_ff_g96
-               IF(ff_type%ff_type=="G87") bond_list(j)%name = "G87"
-               IF(ff_type%ff_type=="G96") bond_list(j)%name = "G96"
-               found = .TRUE.
+                bond_list(j)%bond_kind%k(1) = gro_info%bond_k(itype)
+                bond_list(j)%bond_kind%r0   = gro_info%bond_r0(itype)
              ELSE
-               !k=SIZE(gro_info%solvent_k)
-               !bond_list(j)%bond_kind%k(1) = gro_info%solvent_k(itype/k)
-               !bond_list(j)%bond_kind%r0   = gro_info%solvent_r0(itype/k)
-               itype=itype-k
-               bond_list(j)%bond_kind%k(1) = gro_info%solvent_k(itype)
-               bond_list(j)%bond_kind%r0   = gro_info%solvent_r0(itype)
-               IF(ff_type%ff_type=="G87") bond_list(j)%bond_kind%id_type = do_ff_g87
-               IF(ff_type%ff_type=="G96") bond_list(j)%bond_kind%id_type = do_ff_g96
-               IF(ff_type%ff_type=="G87") bond_list(j)%name = "G87"
-               IF(ff_type%ff_type=="G96") bond_list(j)%name = "G96"
-               found = .TRUE.
+                itype=itype-k
+                bond_list(j)%bond_kind%k(1) = gro_info%solvent_k(itype)
+                bond_list(j)%bond_kind%r0   = gro_info%solvent_r0(itype)
              END IF
+             bond_list(j)%bond_kind%id_type =  bond_list(j)%id_type
+             found = .TRUE.
           END IF
 
           ! loop over params from charmm
@@ -1041,7 +1027,7 @@ CPSourceFileRef,&
                                                    error=error)
           ! QM/MM modifications
           IF (only_qm) THEN
-             bond_list(j)%name              = "UNSET"
+             bond_list(j)%id_type           = do_ff_undef
              bond_list(j)%bond_kind%id_type = do_ff_undef
           END IF
        END DO
@@ -1073,7 +1059,7 @@ CPSourceFileRef,&
 !!*****************************************************************************
 
   SUBROUTINE force_field_pack_bend (particle_set, molecule_kind_set, molecule_set, &
-       ff_type, fatal, Ainfo, chm_info, inp_info, gro_info, error)
+       fatal, Ainfo, chm_info, inp_info, gro_info, error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -1081,7 +1067,6 @@ CPSourceFileRef,&
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
-    TYPE(force_field_type), INTENT(INOUT)    :: ff_type
     LOGICAL                                  :: fatal
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: Ainfo
@@ -1138,24 +1123,16 @@ CPSourceFileRef,&
           ! loop over params from GROMOS
           IF(ASSOCIATED(gro_info%bend_k)) THEN
              k=SIZE(gro_info%bend_k)
-             READ(bend_list(j)%name(6:80),*) itype
+             itype = bend_list(j)%itype
              IF(itype>0) THEN
                bend_list(j)%bend_kind%k      = gro_info%bend_k(itype)
                bend_list(j)%bend_kind%theta0 = gro_info%bend_theta0(itype)
-               IF(ff_type%ff_type=="G87") bend_list(j)%bend_kind%id_type = do_ff_g87
-               IF(ff_type%ff_type=="G96") bend_list(j)%bend_kind%id_type = do_ff_g96
-               IF(ff_type%ff_type=="G87") bend_list(j)%name   = "G87"
-               IF(ff_type%ff_type=="G96") bend_list(j)%name   = "G96"
-               found = .TRUE.
              ELSE
                bend_list(j)%bend_kind%k      = gro_info%bend_k(itype/k)
                bend_list(j)%bend_kind%theta0 = gro_info%bend_theta0(itype/k)
-               IF(ff_type%ff_type=="G87") bend_list(j)%bend_kind%id_type = do_ff_g87
-               IF(ff_type%ff_type=="G96") bend_list(j)%bend_kind%id_type = do_ff_g96
-               IF(ff_type%ff_type=="G87") bend_list(j)%name   = "G87"
-               IF(ff_type%ff_type=="G96") bend_list(j)%name   = "G96"
-               found = .TRUE.
              END IF
+             bend_list(j)%bend_kind%id_type = bend_list(j)%id_type
+             found = .TRUE.
           END IF
 
           ! loop over params from CHARMM
@@ -1213,7 +1190,7 @@ CPSourceFileRef,&
                                                    error=error)
           ! QM/MM modifications
           IF (only_qm) THEN
-             bend_list(j)%name              = "UNSET"
+             bend_list(j)%id_type           = do_ff_undef
              bend_list(j)%bend_kind%id_type = do_ff_undef
           END IF
        END DO
@@ -1363,7 +1340,7 @@ CPSourceFileRef,&
                                        type_name="Urey-Bradley",&
                                        array=Ainfo,&
                                        error=error)
-             ub_list(j)%name            = "UNSET"
+             ub_list(j)%id_type         = do_ff_undef
              ub_list(j)%ub_kind%id_type = do_ff_undef
              ub_list(j)%ub_kind%k       = 0.0_dp
              ub_list(j)%ub_kind%r0      = 0.0_dp
@@ -1371,7 +1348,7 @@ CPSourceFileRef,&
 
           ! QM/MM modifications
           IF (only_qm) THEN
-             ub_list(j)%name            = "UNSET"
+             ub_list(j)%id_type         = do_ff_undef
              ub_list(j)%ub_kind%id_type = do_ff_undef
           END IF
        END DO
@@ -1403,7 +1380,7 @@ CPSourceFileRef,&
 !!*****************************************************************************
 
   SUBROUTINE force_field_pack_tors (particle_set, molecule_kind_set, molecule_set, &
-       ff_type, Ainfo, chm_info, inp_info, gro_info, iw, error)
+       Ainfo, chm_info, inp_info, gro_info, iw, error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -1411,7 +1388,6 @@ CPSourceFileRef,&
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
-    TYPE(force_field_type), INTENT(INOUT)    :: ff_type
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: Ainfo
     TYPE(charmm_info_type), POINTER          :: chm_info
@@ -1439,9 +1415,6 @@ CPSourceFileRef,&
 
     CALL timeset(routineN,'I','',handle2)
     failure = .FALSE.
-    inp_info => ff_type%inp_info
-    chm_info => ff_type%chm_info
-    gro_info => ff_type%gro_info
 
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
@@ -1479,7 +1452,7 @@ CPSourceFileRef,&
              ! loop over params from GROMOS
              IF(ASSOCIATED(gro_info%torsion_k)) THEN
                 k=SIZE(gro_info%torsion_k)
-                READ(torsion_list(j)%name(6:80),*) itype
+                itype = torsion_list(j)%itype
                 IF(itype>0) THEN
                    CALL reallocate(torsion_list(j)%torsion_kind%k,1,1)
                    CALL reallocate(torsion_list(j)%torsion_kind%m,1,1)
@@ -1488,11 +1461,6 @@ CPSourceFileRef,&
                    torsion_list(j)%torsion_kind%m(1)   = gro_info%torsion_m(itype)
                    torsion_list(j)%torsion_kind%k(1)   = gro_info%torsion_k(itype)
                    torsion_list(j)%torsion_kind%cosphi0(1) = gro_info%torsion_cosphi0(itype)
-                   IF(ff_type%ff_type=="G87") torsion_list(j)%torsion_kind%id_type = do_ff_g87
-                   IF(ff_type%ff_type=="G96") torsion_list(j)%torsion_kind%id_type = do_ff_g96
-                   IF(ff_type%ff_type=="G87") torsion_list(j)%name   = "G87"
-                   IF(ff_type%ff_type=="G96") torsion_list(j)%name   = "G96"
-                   found = .TRUE.
                 ELSE
                    CALL reallocate(torsion_list(j)%torsion_kind%k,1,1)
                    CALL reallocate(torsion_list(j)%torsion_kind%m,1,1)
@@ -1501,12 +1469,9 @@ CPSourceFileRef,&
                    torsion_list(j)%torsion_kind%m(1)   = gro_info%torsion_m(itype/k)
                    torsion_list(j)%torsion_kind%k(1)   = gro_info%torsion_k(itype/k)
                    torsion_list(j)%torsion_kind%cosphi0(1) = gro_info%torsion_cosphi0(itype/k)
-                   IF(ff_type%ff_type=="G87") torsion_list(j)%torsion_kind%id_type = do_ff_g87
-                   IF(ff_type%ff_type=="G96") torsion_list(j)%torsion_kind%id_type = do_ff_g96
-                   IF(ff_type%ff_type=="G87") torsion_list(j)%name   = "G87"
-                   IF(ff_type%ff_type=="G96") torsion_list(j)%name   = "G96"
-                   found = .TRUE.
                 END IF
+                torsion_list(j)%torsion_kind%id_type = torsion_list(j)%id_type
+                found = .TRUE.
                 imul = torsion_list(j)%torsion_kind%nmul
              END IF
 
@@ -1592,7 +1557,7 @@ CPSourceFileRef,&
                                           array=Ainfo,&
                                           error=error)
                 torsion_list(j)%torsion_kind%id_type = do_ff_undef
-                torsion_list(j)%name                 = "UNSET"
+                torsion_list(j)%id_type              = do_ff_undef
              ELSE
                 ldum = cp_to_string(imul)
                 IF ((imul /= 1).AND.(iw>0))&
@@ -1615,7 +1580,7 @@ CPSourceFileRef,&
                      torsion_list(j)%c,&
                      torsion_list(j)%d
                 torsion_list(j)%torsion_kind%id_type = do_ff_undef
-                torsion_list(j)%name                 = "UNSET"
+                torsion_list(j)%id_type              = do_ff_undef
              END IF
           END IF
        END DO
@@ -1647,7 +1612,7 @@ CPSourceFileRef,&
 !!*****************************************************************************
 
   SUBROUTINE force_field_pack_impr (particle_set, molecule_kind_set, molecule_set, &
-       ff_type, Ainfo, chm_info, inp_info, gro_info, error)
+       Ainfo, chm_info, inp_info, gro_info, error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -1655,7 +1620,6 @@ CPSourceFileRef,&
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
-    TYPE(force_field_type), INTENT(INOUT)    :: ff_type
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: Ainfo
     TYPE(charmm_info_type), POINTER          :: chm_info
@@ -1680,10 +1644,6 @@ CPSourceFileRef,&
 
     CALL timeset(routineN,'I','',handle2)
     failure = .FALSE.
-
-    inp_info => ff_type%inp_info
-    chm_info => ff_type%chm_info
-    gro_info => ff_type%gro_info
 
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
@@ -1720,24 +1680,16 @@ CPSourceFileRef,&
           ! loop over params from GROMOS
           IF(ASSOCIATED(gro_info%impr_k)) THEN
             k=SIZE(gro_info%impr_k)
-            READ(impr_list(j)%name(6:80),*) itype
+            itype = impr_list(j)%itype
             IF(itype>0) THEN
               impr_list(j)%impr_kind%k    = gro_info%impr_k(itype)
               impr_list(j)%impr_kind%phi0 = gro_info%impr_phi0(itype)
-              IF(ff_type%ff_type=="G87") impr_list(j)%impr_kind%id_type = do_ff_g87
-              IF(ff_type%ff_type=="G96") impr_list(j)%impr_kind%id_type = do_ff_g96
-              IF(ff_type%ff_type=="G87") impr_list(j)%name = "G87"
-              IF(ff_type%ff_type=="G96") impr_list(j)%name = "G96"
-              found = .TRUE.
             ELSE
               impr_list(j)%impr_kind%k    = gro_info%impr_k(itype)
               impr_list(j)%impr_kind%phi0 = gro_info%impr_phi0(itype)
-              IF(ff_type%ff_type=="G87") impr_list(j)%impr_kind%id_type = do_ff_g87
-              IF(ff_type%ff_type=="G96") impr_list(j)%impr_kind%id_type = do_ff_g96
-              IF(ff_type%ff_type=="G87") impr_list(j)%name = "G87"
-              IF(ff_type%ff_type=="G96") impr_list(j)%name = "G96"
-              found = .TRUE.
             END IF
+            found = .TRUE.
+            impr_list(j)%impr_kind%id_type = impr_list(j)%id_type
           END IF
 
           ! loop over params from charmm
@@ -1827,19 +1779,18 @@ CPSourceFileRef,&
              impr_list(j)%impr_kind%k       = 0.0_dp
              impr_list(j)%impr_kind%phi0    = 0.0_dp
              impr_list(j)%impr_kind%id_type = do_ff_undef
-             impr_list(j)%name              = "UNSET"
+             impr_list(j)%id_type           = do_ff_undef
           END IF
           !
           ! QM/MM modifications
           !
           IF (only_qm) THEN
              impr_list(j)%impr_kind%id_type = do_ff_undef
-             impr_list(j)%name              = "UNSET"
+             impr_list(j)%id_type           = do_ff_undef
           END IF
 
        END DO
-       CALL set_molecule_kind(molecule_kind=molecule_kind,&
-            impr_list=impr_list)
+       CALL set_molecule_kind(molecule_kind=molecule_kind,impr_list=impr_list)
     END DO
     CALL timestop(0.0_dp,handle2)
 

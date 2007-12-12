@@ -221,13 +221,13 @@ CONTAINS
     ! 7. Bonds
     !-----------------------------------------------------------------------------
     CALL force_field_pack_bond (particle_set, molecule_kind_set, molecule_set,   &
-         ff_type, fatal, Ainfo, chm_info, inp_info, gro_info, error)
+         fatal, Ainfo, chm_info, inp_info, gro_info, error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 8. Bends
     !-----------------------------------------------------------------------------
     CALL force_field_pack_bend (particle_set, molecule_kind_set, molecule_set,   &
-         ff_type, fatal, Ainfo, chm_info, inp_info, gro_info, error)
+         fatal, Ainfo, chm_info, inp_info, gro_info, error)
     ! Give information and abort if any bond or angle parameter is missing..
     CALL release_FF_missing_par(fatal,AInfo,output_unit,iw,error)    
     !-----------------------------------------------------------------------------
@@ -241,13 +241,13 @@ CONTAINS
     ! 10. Torsions
     !-----------------------------------------------------------------------------
     CALL force_field_pack_tors (particle_set, molecule_kind_set, molecule_set,   &
-         ff_type, Ainfo, chm_info, inp_info, gro_info, iw, error)
+         Ainfo, chm_info, inp_info, gro_info, iw, error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 11. Impropers
     !-----------------------------------------------------------------------------
     CALL force_field_pack_impr (particle_set, molecule_kind_set, molecule_set,   &
-         ff_type, Ainfo, chm_info, inp_info, gro_info, error)
+         Ainfo, chm_info, inp_info, gro_info, error)
     ! Give information only if any Urey-Bradley, Torsion or improper is missing
     ! continue calculation..
     CALL release_FF_missing_par(fatal,AInfo,output_unit,iw,error)
@@ -587,7 +587,7 @@ CONTAINS
                    atm2_b = bond_list(ibond)%b
                    IF(atm2_a==atm_a .AND. atm2_b==atm_b) unsetme=.TRUE.
                    IF(atm2_a==atm_b .AND. atm2_b==atm_a) unsetme=.TRUE.
-                   IF(unsetme) bond_list(ibond)%name = "UNSET"
+                   IF(unsetme) bond_list(ibond)%id_type = do_ff_undef
                 END DO
              END IF
           END DO
@@ -624,7 +624,7 @@ CONTAINS
                    END IF
                 END IF
              END DO
-             IF(unsetme) bend_list(ibend)%name = "UNSET"
+             IF(unsetme) bend_list(ibend)%id_type = do_ff_undef
           END DO
        END IF
     END DO
@@ -651,7 +651,7 @@ CONTAINS
              IF(atm2_a==atm_a .AND. atm2_b==atm_b) unsetme=.TRUE.
              IF(atm2_a==atm_a .AND. atm2_b==atm_c) unsetme=.TRUE.
              IF(atm2_a==atm_c .AND. atm2_b==atm_c) unsetme=.TRUE.
-             IF(unsetme) bond_list(ibond)%name = "UNSET"
+             IF(unsetme) bond_list(ibond)%id_type = do_ff_undef
           END DO
        END DO
     END DO
@@ -680,7 +680,7 @@ CONTAINS
              IF(atm2_a==atm_a .AND. atm2_b==atm_c .AND. atm2_c==atm_b) unsetme=.TRUE.
              IF(atm2_a==atm_b .AND. atm2_b==atm_a .AND. atm2_c==atm_c) unsetme=.TRUE.
              IF(atm2_a==atm_b .AND. atm2_b==atm_c .AND. atm2_c==atm_a) unsetme=.TRUE.
-             IF(unsetme) bend_list(ibend)%name = "UNSET"
+             IF(unsetme) bend_list(ibend)%id_type = do_ff_undef
           END DO
        END DO
     END DO
@@ -708,7 +708,7 @@ CONTAINS
              IF(atm2_a==atm_a .AND. atm2_b==atm_b) unsetme=.TRUE.
              IF(atm2_a==atm_a .AND. atm2_b==atm_c) unsetme=.TRUE.
              IF(atm2_a==atm_a .AND. atm2_b==atm_d) unsetme=.TRUE.
-             IF(unsetme) bond_list(ibond)%name = "UNSET"
+             IF(unsetme) bond_list(ibond)%id_type = do_ff_undef
           END DO
        END DO
     END DO
@@ -737,7 +737,7 @@ CONTAINS
              IF(atm2_a==atm_b .AND. atm2_b==atm_a .AND. atm2_c==atm_c) unsetme=.TRUE.
              IF(atm2_a==atm_b .AND. atm2_b==atm_a .AND. atm2_c==atm_d) unsetme=.TRUE.
              IF(atm2_a==atm_c .AND. atm2_b==atm_a .AND. atm2_c==atm_d) unsetme=.TRUE.
-             IF(unsetme) bend_list(ibend)%name = "UNSET"
+             IF(unsetme) bend_list(ibend)%id_type = do_ff_undef
           END DO
        END DO
     END DO
@@ -764,7 +764,7 @@ CONTAINS
              IF(bond_kind_set(ibond)%id_type==do_ff_undef) unsetme = .TRUE.
              valid_kind=.FALSE.
              DO i=1,SIZE(bond_list)
-                IF(bond_list(i)%name/="UNSET".AND.&
+                IF(bond_list(i)%id_type/=do_ff_undef.AND.&
                      bond_list(i)%bond_kind%kind_number==ibond) THEN
                    valid_kind=.TRUE.
                    EXIT
@@ -790,7 +790,7 @@ CONTAINS
              DO ibond=1,SIZE(bond_list)
                 unsetme = .FALSE.
                 IF(bond_list(ibond)%bond_kind%id_type==do_ff_undef) unsetme = .TRUE.
-                IF(bond_list(ibond)%name=="UNSET")           unsetme = .TRUE.
+                IF(bond_list(ibond)%id_type==do_ff_undef)           unsetme = .TRUE.
                 IF(unsetme) bad2(ibond) = 1
              END DO
              IF(SUM(bad2)/=0) THEN
@@ -853,7 +853,7 @@ CONTAINS
              IF(bend_kind_set(ibend)%id_type==do_ff_undef) unsetme = .TRUE.
              valid_kind=.FALSE.
              DO i=1,SIZE(bend_list)
-                IF(bend_list(i)%name/="UNSET".AND.&
+                IF(bend_list(i)%id_type/=do_ff_undef.AND.&
                      bend_list(i)%bend_kind%kind_number==ibend) THEN
                    valid_kind=.TRUE.
                    EXIT
@@ -879,7 +879,7 @@ CONTAINS
              DO ibend=1,SIZE(bend_list)
                 unsetme = .FALSE.
                 IF(bend_list(ibend)%bend_kind%id_type==do_ff_undef) unsetme = .TRUE.
-                IF(bend_list(ibend)%name=="UNSET")           unsetme = .TRUE.
+                IF(bend_list(ibend)%id_type==do_ff_undef)           unsetme = .TRUE.
                 IF(unsetme) bad2(ibend) = 1
              END DO
              IF(SUM(bad2)/=0) THEN
@@ -943,7 +943,7 @@ CONTAINS
              IF(ub_kind_set(iub)%id_type==do_ff_undef) unsetme = .TRUE.
              valid_kind=.FALSE.
              DO i=1,SIZE(ub_list)
-                IF(ub_list(i)%name/="UNSET".AND.&
+                IF(ub_list(i)%id_type/=do_ff_undef.AND.&
                      ub_list(i)%ub_kind%kind_number==iub) THEN
                    valid_kind=.TRUE.
                    EXIT
@@ -969,7 +969,7 @@ CONTAINS
              DO iub=1,SIZE(ub_list)
                 unsetme = .FALSE.
                 IF(ub_list(iub)%ub_kind%id_type==do_ff_undef) unsetme = .TRUE.
-                IF(ub_list(iub)%name=="UNSET")           unsetme = .TRUE.
+                IF(ub_list(iub)%id_type==do_ff_undef)         unsetme = .TRUE.
                 IF(unsetme) bad2(iub) = 1
              END DO
              IF(SUM(bad2)/=0) THEN
@@ -1033,7 +1033,7 @@ CONTAINS
              IF(torsion_kind_set(itorsion)%id_type==do_ff_undef) unsetme = .TRUE.
              valid_kind=.FALSE.
              DO i=1,SIZE(torsion_list)
-                IF(torsion_list(i)%name/="UNSET".AND.&
+                IF(torsion_list(i)%id_type/=do_ff_undef.AND.&
                      torsion_list(i)%torsion_kind%kind_number==itorsion) THEN
                    valid_kind=.TRUE.
                    EXIT
@@ -1071,7 +1071,7 @@ CONTAINS
              DO itorsion=1,SIZE(torsion_list)
                 unsetme = .FALSE.
                 IF(torsion_list(itorsion)%torsion_kind%id_type==do_ff_undef) unsetme = .TRUE.
-                IF(torsion_list(itorsion)%name=="UNSET")           unsetme = .TRUE.
+                IF(torsion_list(itorsion)%id_type==do_ff_undef)              unsetme = .TRUE.
                 IF(unsetme) bad2(itorsion) = 1
              END DO
              IF(SUM(bad2)/=0) THEN
@@ -1138,7 +1138,7 @@ CONTAINS
              IF(impr_kind_set(iimpr)%id_type==do_ff_undef) unsetme = .TRUE.
              valid_kind=.FALSE.
              DO i=1,SIZE(impr_list)
-                IF(impr_list(i)%name/="UNSET".AND.&
+                IF(impr_list(i)%id_type/=do_ff_undef.AND.&
                      impr_list(i)%impr_kind%kind_number==iimpr) THEN
                    valid_kind=.TRUE.
                    EXIT
@@ -1164,7 +1164,7 @@ CONTAINS
              DO iimpr=1,SIZE(impr_list)
                 unsetme = .FALSE.
                 IF(impr_list(iimpr)%impr_kind%id_type==do_ff_undef) unsetme = .TRUE.
-                IF(impr_list(iimpr)%name=="UNSET")           unsetme = .TRUE.
+                IF(impr_list(iimpr)%id_type==do_ff_undef)           unsetme = .TRUE.
                 IF(unsetme) bad2(iimpr) = 1
              END DO
              IF(SUM(bad2)/=0) THEN
