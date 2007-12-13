@@ -237,8 +237,8 @@ CONTAINS
                      nablavks_atom_set=nablavks_atom_set,& ! R0
                      error=error) ! R0
 
-    DO ispin = 1,nspins
-       DO idir = 1,3
+    DO ispin = 1,SIZE(nablavks_set,2)
+       DO idir = 1,SIZE(nablavks_set,1)
           CALL pw_zero(nablavks_set(idir,ispin)%rho%rho_r(1)%pw)
        END DO
     END DO

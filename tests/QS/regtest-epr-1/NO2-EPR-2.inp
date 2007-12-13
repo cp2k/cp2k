@@ -16,6 +16,7 @@
       METHOD GAPW
     &END QS
     &SCF
+      MAX_SCF 5
       SCF_GUESS ATOMIC
     &END SCF
     &XC
@@ -27,9 +28,12 @@
     &LINRES
        LOCALIZE_PSI0
        OPT_METHOD  CG
-       MAX_SCF  100
+       MAX_SCF  5
        LINESEARCH  2PNT
        PRECONDITIONER FULL_ALL
+       &LOCALIZE
+         MAX_ITER 10
+       &END LOCALIZE
        &EPR
          &PRINT
             &G_TENSOR

@@ -507,7 +507,7 @@ CONTAINS
           ! j_pw x nabla_vks_pw
           temp_so_soft = 0.0_dp
           DO ispin=1,nspins
-            temp_so_soft = temp_so_soft + (-1.0_dp)**(1.0_dp + REAL(ispin,KIND=dp)) * ( &
+            temp_so_soft = temp_so_soft + (-1.0_dp)**(1 + ispin) * ( &
                                 pw_integral_ab ( jrho1_set(idir2,iB)%rho%rho_r(ispin)%pw, &
                                 nablavks_set(idir3,ispin)%rho%rho_r(1)%pw ) - &
                                 pw_integral_ab ( jrho1_set(idir3,iB)%rho%rho_r(ispin)%pw, &
@@ -576,7 +576,8 @@ CONTAINS
     
           bo = get_limit( natom, para_env%num_pe, para_env%mepos )
 
-          DO iat = bo(1),bo(2)
+          DO iat = 1,natom !bo(1),bo(2)! this partitioning blocks the interpolation 
+             !                         ! routines (i.e. waiting for mp_sum)
              iatom = atom_list(iat)
              NULLIFY (jrho1_atom, nablavks_atom)
              jrho1_atom => jrho1_atom_set(iatom)
@@ -598,9 +599,12 @@ CONTAINS
                             vks_ra_idir3 = Eval_Interp_Spl3_pbc(ra,&
                                            vks_pw_spline(idir3,ispin)%pw,error)
 
+                            IF(iat.LT.bo(1).OR.iat.GT.bo(2))CYCLE!quick and dirty: 
+                            !                                    !here take care of the partition
+
                             ! + sum_A j_loc_h_A x nabla_vks_s_A
                             temp_so_gapw(iB,idir1) = temp_so_gapw(iB,idir1) + &
-                               (-1.0_dp)**(1.0_dp + REAL(ispin,KIND=dp)) * ( &
+                               (-1.0_dp)**(1 + ispin) * ( &
                                jrho1_atom%jrho_vec_rad_h(idir2,iB,ispin)%r_coef(ir,ia) * &
                                vks_ra_idir3 - &
                                jrho1_atom%jrho_vec_rad_h(idir3,iB,ispin)%r_coef(ir,ia) * &
@@ -609,7 +613,7 @@ CONTAINS
 
                             ! - sum_A j_loc_s_A x nabla_vks_s_A
                             temp_so_gapw(iB,idir1) = temp_so_gapw(iB,idir1) - &
-                               (-1.0_dp)**(1.0_dp + REAL(ispin,KIND=dp)) * ( &
+                               (-1.0_dp)**(1 + ispin) * ( &
                                jrho1_atom%jrho_vec_rad_s(idir2,iB,ispin)%r_coef(ir,ia) * &
                                vks_ra_idir3 - &
                                jrho1_atom%jrho_vec_rad_s(idir3,iB,ispin)%r_coef(ir,ia) * &
@@ -618,7 +622,7 @@ CONTAINS
 
                             ! + sum_A j_loc_h_A x nabla_vks_loc_h_A
                             temp_so_gapw(iB,idir1) = temp_so_gapw(iB,idir1) + &
-                               (-1.0_dp)**(1.0_dp + REAL(ispin,KIND=dp)) * ( &
+                               (-1.0_dp)**(1 + ispin) * ( &
                                jrho1_atom%jrho_vec_rad_h(idir2,iB,ispin)%r_coef(ir,ia) * &
                                nablavks_atom%nablavks_vec_rad_h(idir3,ispin)%r_coef(ir,ia) - &
                                jrho1_atom%jrho_vec_rad_h(idir3,iB,ispin)%r_coef(ir,ia) * &
@@ -627,7 +631,7 @@ CONTAINS
  
                             ! - sum_A j_loc_h_A x nabla_vks_loc_s_A
                             temp_so_gapw(iB,idir1) = temp_so_gapw(iB,idir1) - &
-                               (-1.0_dp)**(1.0_dp + REAL(ispin,KIND=dp)) * ( &
+                               (-1.0_dp)**(1 + ispin) * ( &
                                jrho1_atom%jrho_vec_rad_h(idir2,iB,ispin)%r_coef(ir,ia) * &
                                nablavks_atom%nablavks_vec_rad_s(idir3,ispin)%r_coef(ir,ia) - &
                                jrho1_atom%jrho_vec_rad_h(idir3,iB,ispin)%r_coef(ir,ia) * &
@@ -679,6 +683,9 @@ CONTAINS
                                        error=error)
           END DO
        END DO
+
+       DEALLOCATE(vks_pw_spline,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     END IF ! gapw
 
@@ -793,7 +800,7 @@ CONTAINS
        DO idir1=1,3
           temp_soo_soft = 0.0_dp
           DO ispin=1,nspins
-             temp_soo_soft = temp_soo_soft + (-1.0_dp)**(1.0_dp + REAL(ispin,KIND=dp)) * ( &
+             temp_soo_soft = temp_soo_soft + (-1.0_dp)**(1 +ispin) * ( &
                                pw_integral_ab ( bind_set(idir1,iB)%rho%rho_r(1)%pw, &
                                rho%rho_r(ispin)%pw ) &
                                )
@@ -872,7 +879,8 @@ CONTAINS
     
           bo = get_limit( natom, para_env%num_pe, para_env%mepos )
 
-          DO iat = bo(1),bo(2)
+          DO iat = 1,natom !bo(1),bo(2)! this partitioning blocks the interpolation
+             !                         ! routines (i.e. waiting for mp_sum)
              iatom = atom_list(iat)
              rho_atom => rho_atom_set(iatom)
              NULLIFY(rho_rad_h,rho_rad_s)
@@ -892,6 +900,9 @@ CONTAINS
                             bind_ra_idir1 = Eval_Interp_Spl3_pbc(ra,&
                                             bind_pw_spline(idir1,iB)%pw,error)
    
+                            IF(iat.LT.bo(1).OR.iat.GT.bo(2))CYCLE!quick and dirty: 
+                            !                                    !here take care of the partition
+
                             rho_spin = 0.0_dp
    
                             DO iso = 1,harmonics%max_iso_not0
@@ -902,7 +913,7 @@ CONTAINS
                             END DO
    
                             temp_soo_gapw(iB,idir1) = temp_soo_gapw(iB,idir1) + &
-                               (-1.0_dp)**(1.0_dp + REAL(ispin,KIND=dp)) * ( &
+                               (-1.0_dp)**(1 + ispin) * ( &
                                bind_ra_idir1 * rho_spin & 
                                ) * grid_atom%wr(ir)*grid_atom%wa(ia)
    
@@ -934,6 +945,9 @@ CONTAINS
                                        error=error)
           END DO
        END DO
+
+       DEALLOCATE(bind_pw_spline,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     END IF ! gapw
 

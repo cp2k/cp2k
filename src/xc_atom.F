@@ -131,7 +131,7 @@ CONTAINS
                DO ia = 1,na
                   DO idir = 1,3
                      vxg(idir,ia,ir,1) = rho_set%drhoa(idir)%array(ia,ir,1) * &
-                                         deriv_data(ia,ir,1)
+                          deriv_data(ia,ir,1)
                   END DO !idir
                END DO !ia
             END DO !ir
@@ -144,12 +144,24 @@ CONTAINS
                DO ia = 1,na
                   DO idir = 1,3
                      vxg(idir,ia,ir,2) = rho_set%drhob(idir)%array(ia,ir,1) * &
-                                         deriv_data(ia,ir,1)
+                          deriv_data(ia,ir,1)
                   END DO !idir
                END DO !ia
             END DO !ir
             NULLIFY(deriv_data)
          END IF
+      END IF
+      !  EXC energy ! is that needed for epr?
+      deriv_att => xc_dset_get_derivative(deriv_set,"", error=error)
+      IF (ASSOCIATED(deriv_att)) THEN
+         CALL xc_derivative_get(deriv_att,deriv_data=deriv_data, error=error)
+         exc = 0.0_dp
+         DO ir = 1, nr
+            DO ia = 1, na
+               exc = exc + deriv_data(ia,ir,1)*w(ia,ir)
+            END DO
+         END DO
+         NULLIFY (deriv_data)
       END IF
    ELSE
 !  EXC energy

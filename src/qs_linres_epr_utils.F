@@ -88,7 +88,8 @@ MODULE qs_linres_epr_utils
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_zero
+                                             pw_zero,&
+                                             pw_release
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_linres_epr_atom_current,      ONLY: list_3c_jrho_atom
@@ -191,18 +192,6 @@ CONTAINS
     lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
     epr_section => section_vals_get_subs_vals(qs_env%input, &
                                                  "PROPERTIES%LINRES%EPR",error=error)
-    CALL section_vals_val_get(epr_section,"GAUGE",i_val=epr_env%gauge,error=error)
-    SELECT CASE(epr_env%gauge)
-    CASE(epr_gauge_r)
-       epr_env%gauge_name="R"
-    CASE(epr_gauge_r_and_Bader)
-       epr_env%gauge_name="R_AND_BADER"
-    CASE(epr_gauge_r_and_step_function)
-       epr_env%gauge_name="R_AND_STEP_FUNCTION"
-    CASE DEFAULT
-       CALL stop_program("epr_env_init","unknown gauge, try again...")
-    END SELECT
-
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
          extension=".linresLog",error=error)
     IF (output_unit>0) THEN
@@ -621,7 +610,7 @@ CONTAINS
     NULLIFY(atomic_kind_set, cell, dft_control, linres_control, scf_control)
     NULLIFY(logger, matrix_s, mos, mpools, epr_section, particle_set)
     NULLIFY(auxbas_pw_pool, pw_env)
-    NULLIFY(jrho1_atom_set)
+    NULLIFY(jrho1_atom_set, nablavks_atom_set)
 
     n_mo(1:2) = 0
     nao = 0
@@ -648,6 +637,19 @@ CONTAINS
     ! If surrent_density or full_epr different allocations are required
     epr_section => section_vals_get_subs_vals(qs_env%input, &
          &                                    "PROPERTIES%LINRES%EPR",error=error)
+
+    CALL section_vals_val_get(epr_section,"GAUGE",i_val=epr_env%gauge,error=error)
+    SELECT CASE(epr_env%gauge)
+    CASE(epr_gauge_r)
+       epr_env%gauge_name="R"
+    CASE(epr_gauge_r_and_Bader)
+       epr_env%gauge_name="R_AND_BADER"
+    CASE(epr_gauge_r_and_step_function)
+       epr_env%gauge_name="R_AND_STEP_FUNCTION"
+    CASE DEFAULT
+       CALL stop_program("epr_env_init","unknown gauge, try again...")
+    END SELECT
+
     CALL section_vals_val_get(epr_section,"FULL",l_val=epr_env%full_epr,error=error)
     CALL section_vals_val_get(epr_section,"RESTART_EPR",l_val=epr_env%restart_epr,error=error)
 
@@ -1202,9 +1204,25 @@ CONTAINS
         IF(ASSOCIATED(epr_env%jrho1_set)) THEN
           DO i_B = 1,3
             DO idir = 1,3
-              CALL qs_rho_release(epr_env%jrho1_set(idir,i_B)%rho,error=error)
+               DO i=1,SIZE(epr_env%jrho1_set(idir,i_B)%rho%rho_r)
+                  CALL pw_release(epr_env%jrho1_set(idir,i_B)%rho%rho_r(i)%pw,error=error)
+               END DO
+               DO i=1,SIZE(epr_env%jrho1_set(idir,i_B)%rho%rho_g)
+                  CALL pw_release(epr_env%jrho1_set(idir,i_B)%rho%rho_g(i)%pw,error=error)
+               END DO
+               DEALLOCATE(epr_env%jrho1_set(idir,i_B)%rho%rho_r,stat=istat)
+               CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+               DEALLOCATE(epr_env%jrho1_set(idir,i_B)%rho%rho_g,stat=istat)
+               CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+               DEALLOCATE(epr_env%jrho1_set(idir,i_B)%rho,STAT=istat)
+               CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+               !
+               ! here ref_count=2 and qs_rho_release doesnt relase the structure
+               !CALL qs_rho_release(epr_env%jrho1_set(idir,i_B)%rho,error=error)
             END DO
           END DO
+          DEALLOCATE(epr_env%jrho1_set,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         END IF
         ! Local current density, atom by atom (only gapw)
         IF(ASSOCIATED(epr_env%jrho1_atom_set)) THEN
@@ -1224,11 +1242,26 @@ CONTAINS
           DEALLOCATE(epr_env%statetrueindex,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         END IF
-
         ! nablavks_set
         IF(ASSOCIATED(epr_env%nablavks_set)) THEN
-          DEALLOCATE(epr_env%nablavks_set,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+           DO ispin = 1,SIZE(epr_env%nablavks_set,2)
+           DO idir = 1,SIZE(epr_env%nablavks_set,1)
+              DO i=1,SIZE(epr_env%nablavks_set(idir,ispin)%rho%rho_r)
+                 CALL pw_release(epr_env%nablavks_set(idir,ispin)%rho%rho_r(i)%pw,error=error)
+              END DO
+              DO i=1,SIZE(epr_env%nablavks_set(idir,ispin)%rho%rho_g)
+                 CALL pw_release(epr_env%nablavks_set(idir,ispin)%rho%rho_g(i)%pw,error=error)
+              END DO
+              DEALLOCATE(epr_env%nablavks_set(idir,ispin)%rho%rho_g,stat=istat)
+              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+              DEALLOCATE(epr_env%nablavks_set(idir,ispin)%rho%rho_r,stat=istat)
+              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+              DEALLOCATE(epr_env%nablavks_set(idir,ispin)%rho,STAT=istat)
+              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+           ENDDO
+           ENDDO
+           DEALLOCATE(epr_env%nablavks_set,STAT=istat)
+           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         END IF
         ! nablavks_atom_set
         IF(ASSOCIATED(epr_env%nablavks_atom_set)) THEN
@@ -1240,6 +1273,22 @@ CONTAINS
         END IF
         ! bind_set
         IF(ASSOCIATED(epr_env%bind_set)) THEN
+           DO i_B = 1,SIZE(epr_env%bind_set,2)
+           DO idir = 1,SIZE(epr_env%bind_set,1)
+              DO i=1,SIZE(epr_env%bind_set(idir,i_B)%rho%rho_r)
+                 CALL pw_release(epr_env%bind_set(idir,i_B)%rho%rho_r(i)%pw,error=error)
+              END DO
+              DO i=1,SIZE(epr_env%bind_set(idir,i_B)%rho%rho_g)
+                 CALL pw_release(epr_env%bind_set(idir,i_B)%rho%rho_g(i)%pw,error=error)
+              END DO
+              DEALLOCATE(epr_env%bind_set(idir,i_B)%rho%rho_r,STAT=istat)
+              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+              DEALLOCATE(epr_env%bind_set(idir,i_B)%rho%rho_g,STAT=istat)
+              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+              DEALLOCATE(epr_env%bind_set(idir,i_B)%rho,STAT=istat)
+              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+           ENDDO
+           ENDDO
           DEALLOCATE(epr_env%bind_set,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         END IF

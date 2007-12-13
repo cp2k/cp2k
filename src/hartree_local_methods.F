@@ -160,7 +160,7 @@ MODULE  hartree_local_methods
 
   SUBROUTINE calculate_Vh_1center(vrad_h,vrad_s,rrad_h,rrad_s,rrad_0,rrad_z,grid_atom)
 
-    REAL(dp), DIMENSION(:,:), INTENT(OUT)      :: vrad_h, vrad_s
+    REAL(dp), DIMENSION(:,:), INTENT(INOUT)    :: vrad_h, vrad_s
     REAL(dp), DIMENSION(:,:), INTENT(IN)       :: rrad_0
     REAL(dp), DIMENSION(:), INTENT(IN)         :: rrad_z
     TYPE (rho_atom_coeff), DIMENSION(:),&
