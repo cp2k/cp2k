@@ -322,7 +322,9 @@ CONTAINS
  error,failure)
        IF (ASSOCIATED(force_env%sub_force_env)) THEN
           DO i = 1, SIZE(force_env%sub_force_env)
-             check = check .AND. force_env%sub_force_env(i)%force_env%virial%pv_availability
+             IF (ASSOCIATED(force_env%sub_force_env(i)%force_env)) THEN
+                check = check .AND. force_env%sub_force_env(i)%force_env%virial%pv_availability
+             END IF
           END DO
        END IF
        CALL cp_assert(check,cp_failure_level,cp_assertion_failed,&
