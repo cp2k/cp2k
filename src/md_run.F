@@ -38,6 +38,7 @@ MODULE md_run
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_initialize,&
                                              dyn_coeff_set_type
+  USE f77_blas
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
@@ -46,6 +47,10 @@ MODULE md_run
                                              free_energy_type
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: langevin_ensemble,&
+                                             nph_uniaxial_damped_ensemble,&
+                                             nph_uniaxial_ensemble,&
+                                             npt_f_ensemble,&
+                                             npt_i_ensemble,&
                                              reftraj_ensemble
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_remove_values,&
@@ -87,7 +92,6 @@ MODULE md_run
   USE velocity_verlet_control,         ONLY: velocity_verlet
   USE virial_methods,                  ONLY: virial_evaluate
   USE wiener_process,                  ONLY: create_wiener_process
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -183,7 +187,8 @@ CONTAINS
     INTEGER                                  :: handle, i, istep, iter_level, &
                                                 stat
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: failure, save_mem, should_stop
+    LOGICAL                                  :: check, failure, save_mem, &
+                                                should_stop
     REAL(KIND=dp)                            :: time_iter_start, &
                                                 time_iter_stop
     REAL(KIND=dp), POINTER                   :: t, used_time
@@ -301,6 +306,20 @@ CONTAINS
 
     ! Initialize the md_ener structure
     CALL initialize_md_ener(md_ener, force_env, simpar, error=error)
+
+    ! Check for ensembles requiring the stress tensor
+    IF ( (simpar%ensemble==npt_i_ensemble).OR.&
+         (simpar%ensemble==npt_f_ensemble).OR.&
+         (simpar%ensemble==nph_uniaxial_ensemble).OR.&
+         (simpar%ensemble==nph_uniaxial_damped_ensemble)) THEN
+       check = force_env%virial%pv_availability
+       CALL cp_assert(check,cp_failure_level,cp_assertion_failed,&
+            routineP,"Virial evaluation not requested for this run in the input file! "//&
+            "You may consider to switch the virial evaluation ON with the keyword: PV_AVA. "//&
+            "Be sure the method you're using can compute the virial! "//&
+ CPSourceFileRef,&
+            error,failure)
+    END IF
 
     ! Computing Forces at zero MD step
     IF (simpar%ensemble /= reftraj_ensemble) THEN

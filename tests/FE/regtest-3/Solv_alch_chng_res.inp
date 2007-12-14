@@ -244,7 +244,7 @@
       EACH 1
      &END
     &END
-    PV_AVA 
+    STRESS_TENSOR ANALYTICAL
   &END MD
   &PRINT
    &TRAJECTORY

@@ -92,7 +92,6 @@
     STEPS  20
     TIMESTEP 0.5
     TEMPERATURE 300.0
-    PV_AVA
     &PRINT
       &ENERGY
         EACH 1

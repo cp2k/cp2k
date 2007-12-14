@@ -353,7 +353,13 @@ MODULE input_constants
                                 do_ff_charmm=3,&
                                 do_ff_harmonic=4,&
                                 do_ff_g87=5
-
+  
+  INTEGER, PARAMETER, PUBLIC :: do_stress_none=0,&
+                                do_stress_analytical=1,&
+                                do_stress_numerical=2,&
+                                do_stress_diagonal_anal=3,&
+                                do_stress_diagonal_numer=4
+  
   INTEGER, PARAMETER, PUBLIC :: do_mc_traditional=0,&
                                 do_mc_gemc_nvt=1,&
                                 do_mc_gemc_npt=2,&

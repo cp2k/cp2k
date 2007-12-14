@@ -54,6 +54,7 @@ MODULE force_env_methods
   USE ewald_environment_types,         ONLY: ewald_environment_type
   USE ewald_pw_methods,                ONLY: ewald_pw_grid_change
   USE ewald_pw_types,                  ONLY: ewald_pw_type
+  USE f77_blas
   USE fist_environment_types,          ONLY: fist_env_retain,&
                                              fist_environment_type,&
                                              get_fist_env,&
@@ -74,6 +75,8 @@ MODULE force_env_methods
   USE global_types,                    ONLY: global_environment_type,&
                                              globenv_retain
   USE input_constants,                 ONLY: &
+       do_stress_analytical, do_stress_diagonal_anal, &
+       do_stress_diagonal_numer, do_stress_none, do_stress_numerical, &
        dump_xmol, mix_coupled, mix_generic, mix_linear_combination, &
        mix_minimum, mix_restrained, qs_debug_run, use_bazant_eip, &
        use_lenosky_eip
@@ -148,7 +151,6 @@ MODULE force_env_methods
                                              virial_set,&
                                              virial_type,&
                                              zero_virial
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -192,9 +194,8 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
-       calc_force, consistent_energies, skip_external_control, eval_energy_forces,&
-       error)
+  RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, calc_force, &
+       consistent_energies, skip_external_control, eval_energy_forces, error)
 
     TYPE(force_env_type), POINTER            :: force_env
     LOGICAL, INTENT(IN), OPTIONAL            :: calc_force, &
@@ -250,26 +251,20 @@ CONTAINS
        IF (my_eval) THEN 
          SELECT CASE ( force_env%in_use )
          CASE ( use_fist_force )
-            CALL fist_force_control( force_env%fist_env,virial, force_env%para_env, &
+            CALL fist_force_control( force_env%fist_env, virial, force_env%para_env, &
                  force_env_section=force_env%force_env_section, error=error)
          CASE (use_ep_force)
             CALL ep_env_calc_e_f(force_env%ep_env,need_f,error=error)
          CASE ( use_qs_force )
             IF (.NOT.need_f) THEN
                CALL qs_energies(qs_env=force_env%qs_env, globenv=force_env%globenv, &
-                    consistent_energies=energy_consistency, &
-                    calc_forces=calc_force, error=error)
-               IF (virial%pv_availability.AND.virial%pv_numer) THEN
-                  CALL qs_calc_numerical_pressure(force_env,error=error)
-               END IF
+                    consistent_energies=energy_consistency, calc_forces=calc_force, error=error)
             ELSE
-               CALL qs_forces(force_env%qs_env,force_env%globenv,&
-                    error=error)
-               IF (virial%pv_availability.AND.virial%pv_numer) THEN
-                  CALL qs_calc_numerical_pressure(force_env,error=error)
-               END IF
+               CALL qs_forces(force_env%qs_env,force_env%globenv, error=error)
             END IF
-         
+            IF (virial%pv_availability.AND.virial%pv_numer) THEN
+               CALL qs_calc_numerical_pressure(force_env,error=error)
+            END IF
          CASE ( use_kg_force )
             IF (.NOT.need_f) THEN
                root_section=>force_env%root_section
@@ -395,7 +390,7 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: stat, stress_tensor
     LOGICAL                                  :: explicit, failure, &
                                                 pv_availability, pv_diagonal, &
                                                 pv_numerical, virial_in_use
@@ -438,9 +433,29 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
      md_section => section_vals_get_subs_vals(force_env%root_section,"MOTION%MD",error=error)
      CALL section_vals_get(md_section, explicit=explicit, error=error)
      IF (explicit) THEN
-        CALL section_vals_val_get(md_section,"PV_AVA",l_val=pv_availability,error=error)
-        CALL section_vals_val_get(md_section,"PV_NUM",l_val=pv_numerical,error=error)
-        CALL section_vals_val_get(md_section,"PV_DIA",l_val=pv_diagonal,error=error)
+        CALL section_vals_val_get(md_section,"STRESS_TENSOR",i_val=stress_tensor,error=error)
+        SELECT CASE(stress_tensor)
+        CASE(do_stress_none)
+           pv_availability=.FALSE.        
+           pv_numerical=.FALSE.
+           pv_diagonal=.FALSE.
+        CASE(do_stress_analytical)
+           pv_availability=.TRUE.        
+           pv_numerical=.FALSE.
+           pv_diagonal=.FALSE.
+        CASE(do_stress_numerical)
+           pv_availability=.TRUE.        
+           pv_numerical=.TRUE.
+           pv_diagonal=.FALSE.
+        CASE(do_stress_diagonal_anal)
+           pv_availability=.TRUE.        
+           pv_numerical=.FALSE.
+           pv_diagonal=.TRUE.
+        CASE(do_stress_diagonal_numer)
+           pv_availability=.TRUE.        
+           pv_numerical=.TRUE.
+           pv_diagonal=.TRUE.
+        END SELECT
      ELSE
         pv_availability=.FALSE.        
         pv_numerical=.FALSE.
@@ -453,9 +468,9 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
            force_env%in_use=use_fist_force
            force_env%fist_env => fist_env
            CALL fist_env_retain ( fist_env, error = error )
-           ! Virial  fully present for FIST
+           ! Virial controlled through the external request
            CALL virial_create ( force_env % virial, error=error)
-           CALL virial_set ( force_env % virial, pv_availability = .TRUE.)
+           CALL virial_set ( force_env % virial, pv_availability=pv_availability)
         END IF
      END IF
      IF (PRESENT(kg_env)) THEN
@@ -495,7 +510,7 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
               CALL virial_set ( force_env % virial, pv_availability = virial_in_use)
            ELSE
               CALL virial_create(force_env%virial, error=error)
-              ! This call should be removed when virial will be fully implemented for QS
+              ! Virial controlled through the external request
               CALL virial_set ( virial=force_env%virial,&
                                 pv_availability=pv_availability,&
                                 pv_numer=pv_numerical,&
@@ -512,7 +527,7 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
         CALL qmmm_env_qm_retain(qmmm_env,error=error)
         force_env%virial => sub_force_env(1)%force_env%virial
         CALL virial_retain(force_env%virial,error=error)
-        ! This call should be removed when virial will be implemented for QMMM
+        ! Virial controlled through the external request
         CALL virial_set ( virial=force_env%virial,&
                           pv_availability=pv_availability,&
                           pv_numer=pv_numerical,&
@@ -664,17 +679,16 @@ END SUBROUTINE ep_create_force_env
 !!     09.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-RECURSIVE SUBROUTINE force_env_set_cell(force_env, cell, check_virial_defined, error)
+RECURSIVE SUBROUTINE force_env_set_cell(force_env, cell, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cell_type), POINTER                 :: cell
-    LOGICAL, INTENT(IN)                      :: check_virial_defined
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_set_cell', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iforce_eval, nforce_eval
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: failure
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(kg_rho_type), POINTER               :: kg_rho
@@ -686,15 +700,6 @@ RECURSIVE SUBROUTINE force_env_set_cell(force_env, cell, check_virial_defined, e
   CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
   CPPrecondition(cell%ref_count>0,cp_failure_level,routineP,error,failure)
-  IF (check_virial_defined) THEN
-     check = force_env%virial%pv_availability
-     CALL cp_assert(check,cp_failure_level,cp_assertion_failed,&
-          routineP,"Virial not implemented for this method! You may consider to force "//&
-          " the virial evaluation with the keyword: PV_AVA. Be sure the method you're "//&
-          " using can compute the virial! "//&
- CPSourceFileRef,&
-          error,failure)
-  END IF
   IF (.NOT. failure) THEN
      SELECT CASE(force_env%in_use)
      CASE (use_qs_force)
@@ -739,7 +744,7 @@ RECURSIVE SUBROUTINE force_env_set_cell(force_env, cell, check_virial_defined, e
         DO iforce_eval = 1, nforce_eval
            IF (ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) THEN
               CALL force_env_set_cell(force_env=force_env%sub_force_env(iforce_eval)%force_env,&
-                   cell=cell, check_virial_defined=.TRUE., error=error) 
+                   cell=cell, error=error) 
            END IF
         END DO
      CASE default

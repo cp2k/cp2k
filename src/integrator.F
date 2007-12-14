@@ -55,6 +55,7 @@ MODULE integrator
   USE extended_system_types,           ONLY: debug_isotropic_limit,&
                                              debug_uniaxial_limit,&
                                              npt_info_type
+  USE f77_blas
   USE force_env_methods,               ONLY: force_env_calc_energy_force,&
                                              force_env_set_cell
   USE force_env_types,                 ONLY: force_env_get,&
@@ -63,7 +64,6 @@ MODULE integrator
        dyn_coeff_mass_atom, dyn_coeff_mass_coeff, dyn_coeff_mass_global, &
        dyn_coeff_mass_kind, nph_ensemble, nph_uniaxial_damped_ensemble, &
        nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble
-  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: matmul_3x3,&
                                              matvec_3x3,&
@@ -99,7 +99,6 @@ MODULE integrator
   USE thermostat_types,                ONLY: thermostat_type
   USE virial_methods,                  ONLY: virial_evaluate
   USE virial_types,                    ONLY: virial_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -1642,7 +1641,7 @@ CONTAINS
     END IF
 
     !     *** Update forces ***
-    CALL force_env_set_cell(force_env, cell, .TRUE.,error)
+    CALL force_env_set_cell(force_env, cell, error)
     CALL force_env_calc_energy_force(force_env,error=error)
     CALL metadyn_forces(force_env, vel, error=error)
 
@@ -1814,14 +1813,11 @@ CONTAINS
 
     CHARACTER(LEN=10)                        :: AA
     CHARACTER(LEN=80)                        :: title
-    INTEGER                                  :: cell_itimes, I, &
-                                                istat, nparticle, &
-                                                Nread, trj_itimes
-    LOGICAL                                  :: init, failure
-    REAL(KIND=dp)                            :: h(3,3), &
-                                                cell_time,&
-                                                trj_epot, trj_time,&
-                                                vol
+    INTEGER                                  :: cell_itimes, I, istat, &
+                                                nparticle, Nread, trj_itimes
+    LOGICAL                                  :: failure, init
+    REAL(KIND=dp)                            :: cell_time, h(3,3), trj_epot, &
+                                                trj_time, vol
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pos
     TYPE(cell_type), POINTER                 :: cell
@@ -2148,7 +2144,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     !     *** Update forces (and stress)***
-    CALL force_env_set_cell(force_env, cell, .TRUE.,error)
+    CALL force_env_set_cell(force_env, cell, error)
     CALL force_env_calc_energy_force(force_env, error=error)
     CALL metadyn_forces(force_env, vel, error=error)
 
@@ -2429,7 +2425,7 @@ CONTAINS
 
 
     !     *** Update forces ***
-    CALL force_env_set_cell(force_env, cell, .TRUE.,error)
+    CALL force_env_set_cell(force_env, cell, error)
     CALL force_env_calc_energy_force(force_env, error=error)
     CALL metadyn_forces(force_env, vel, error=error)
 
@@ -3125,7 +3121,7 @@ END SUBROUTINE nph_uniaxial_damped
     END IF
 
     !     *** Update forces ***
-    CALL force_env_set_cell(force_env, cell, .TRUE.,error)
+    CALL force_env_set_cell(force_env, cell, error)
     CALL force_env_calc_energy_force(force_env,error=error)
     CALL metadyn_forces(force_env, vel, error=error)
 

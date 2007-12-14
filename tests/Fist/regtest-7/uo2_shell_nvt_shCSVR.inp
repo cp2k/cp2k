@@ -104,7 +104,6 @@
       &END
     &END
     COMVEL_TOL  2.0E-7
-    PV_AVA
     &THERMOSTAT
       REGION MOLECULE
       TYPE CSVR

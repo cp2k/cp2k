@@ -35,6 +35,7 @@ MODULE mc_ge_moves
                                              cp_subsys_p_type,&
                                              cp_subsys_set,&
                                              cp_subsys_type
+  USE f77_blas
   USE force_env_methods,               ONLY: force_env_calc_energy_force,&
                                              force_env_set_cell
   USE force_env_types,                 ONLY: force_env_get,&
@@ -67,7 +68,6 @@ MODULE mc_ge_moves
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -1487,7 +1487,7 @@ CONTAINS
               cell(ibox)%cell%perd,cell(ibox)%cell%orthorhombic,error=error)
          cell_test(ibox)%cell%subcells=cell_old(ibox)%cell%subcells
          CALL force_env_set_cell(force_env(ibox)%force_env,&
-              cell_test(ibox)%cell,.FALSE.,error=error)
+              cell_test(ibox)%cell,error=error)
       ENDDO
 
 
@@ -1638,7 +1638,7 @@ CONTAINS
 ! reset the cell and particle positions
          DO ibox=1,2
             CALL force_env_set_cell(force_env(ibox)%force_env,&
-                 cell_old(ibox)%cell,.FALSE.,error=error)
+                 cell_old(ibox)%cell,error=error)
             DO iatom=1,nunits_tot(ibox)
                particles_old(ibox)%list%els(iatom)%r(1:3)=r_old(1:3,iatom,ibox)
             ENDDO

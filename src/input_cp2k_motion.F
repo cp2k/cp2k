@@ -28,6 +28,7 @@ MODULE input_cp2k_motion
                                              Minary2003
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
+  USE f77_blas
   USE input_constants
   USE input_cp2k_barostats,            ONLY: create_barostat_section
   USE input_cp2k_constraints,          ONLY: create_constraint_section
@@ -51,7 +52,6 @@ MODULE input_cp2k_motion
   USE string_utilities,                ONLY: s2a
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -1252,24 +1252,20 @@ CONTAINS
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
-       CALL keyword_create(keyword, name="pv_ava",&         
-            description="Virial availability for force environment",&         
-            usage="pv_ava LOGICAL",&         
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)         
-       CALL section_add_keyword(section,keyword,error=error)         
-       CALL keyword_release(keyword,error=error)         
-
-       CALL keyword_create(keyword, name="pv_num",&
-            description="Indicates that a finite difference scheme is used to compute virial",&
-            usage="pv_num LOGICAL",&
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="pv_dia",&
-            description="Only calculate diagonal part of numerical virial",&
-            usage="pv_dia LOGICAL",&
-            default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
+       CALL keyword_create(keyword, name="stress_tensor",&
+            description="Controls the calculation of the stress tensor. The combinations defined below"//&
+            " are not implemented for all methods.",&
+            usage="stress_tensor (NONE|ANALYTICAL|NUMERICAL|DIAGONAL_ANA|DIAGONAL_NUM)", &
+            default_i_val=do_stress_none,&
+            enum_c_vals=s2a("NONE","ANALYTICAL","NUMERICAL","DIAGONAL_ANALYTICAL","DIAGONAL_NUMERICAL"),&
+            enum_i_vals=(/do_stress_none,do_stress_analytical,do_stress_numerical,&
+                          do_stress_diagonal_anal,do_stress_diagonal_numer/),&
+            enum_desc=s2a("Do not compute stress tensor",&
+                          "Compute the stress tensor analytical (if available).",&
+                          "Compute the stress tensor numerically.",&
+                          "Compute the diagonal part only of the stress tensor analytical (if available).",&
+                          "Compute the diagonal part only of the stress tensor numerically"),&
+            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

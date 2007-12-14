@@ -98,7 +98,6 @@
       TEMP_TOL 25.0
     &END
     COMVEL_TOL  2.0E-7
-    PV_AVA
     &THERMOSTAT
       REGION MOLECULE
       &NOSE

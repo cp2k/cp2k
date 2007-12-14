@@ -136,7 +136,6 @@
     TEMPERATURE 300
     STEPS 10
     TEMP_TOL 50
-    PV_AVA T
   &END MD
 &END
 

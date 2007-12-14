@@ -98,7 +98,6 @@
       TEMPERATURE 25.0
       TEMP_TOL 25.0
     &END
-    PV_AVA
     &THERMOSTAT
       REGION MOLECULE
       &NOSE
