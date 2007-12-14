@@ -428,39 +428,30 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
      CALL section_vals_retain(force_env_section,error=error)
      force_env%force_env_section => force_env_section
 
-     ! For methods not still implementing the virial let's set using the keywords
-     ! in the MD section...
-     md_section => section_vals_get_subs_vals(force_env%root_section,"MOTION%MD",error=error)
-     CALL section_vals_get(md_section, explicit=explicit, error=error)
-     IF (explicit) THEN
-        CALL section_vals_val_get(md_section,"STRESS_TENSOR",i_val=stress_tensor,error=error)
-        SELECT CASE(stress_tensor)
-        CASE(do_stress_none)
-           pv_availability=.FALSE.        
-           pv_numerical=.FALSE.
-           pv_diagonal=.FALSE.
-        CASE(do_stress_analytical)
-           pv_availability=.TRUE.        
-           pv_numerical=.FALSE.
-           pv_diagonal=.FALSE.
-        CASE(do_stress_numerical)
-           pv_availability=.TRUE.        
-           pv_numerical=.TRUE.
-           pv_diagonal=.FALSE.
-        CASE(do_stress_diagonal_anal)
-           pv_availability=.TRUE.        
-           pv_numerical=.FALSE.
-           pv_diagonal=.TRUE.
-        CASE(do_stress_diagonal_numer)
-           pv_availability=.TRUE.        
-           pv_numerical=.TRUE.
-           pv_diagonal=.TRUE.
-        END SELECT
-     ELSE
+     ! Should we compute the virial?
+     CALL section_vals_val_get(force_env_section,"STRESS_TENSOR",i_val=stress_tensor,error=error)
+     SELECT CASE(stress_tensor)
+     CASE(do_stress_none)
         pv_availability=.FALSE.        
         pv_numerical=.FALSE.
         pv_diagonal=.FALSE.
-     END IF
+     CASE(do_stress_analytical)
+        pv_availability=.TRUE.        
+        pv_numerical=.FALSE.
+        pv_diagonal=.FALSE.
+     CASE(do_stress_numerical)
+        pv_availability=.TRUE.        
+        pv_numerical=.TRUE.
+        pv_diagonal=.FALSE.
+     CASE(do_stress_diagonal_anal)
+        pv_availability=.TRUE.        
+        pv_numerical=.FALSE.
+        pv_diagonal=.TRUE.
+     CASE(do_stress_diagonal_numer)
+        pv_availability=.TRUE.        
+        pv_numerical=.TRUE.
+        pv_diagonal=.TRUE.
+     END SELECT
 
      IF (PRESENT(fist_env)) THEN
         IF (ASSOCIATED(fist_env)) THEN

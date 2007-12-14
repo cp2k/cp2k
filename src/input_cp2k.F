@@ -896,6 +896,24 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
+
+    CALL keyword_create(keyword, name="stress_tensor",&
+         description="Controls the calculation of the stress tensor. The combinations defined below"//&
+         " are not implemented for all methods.",&
+         usage="stress_tensor (NONE|ANALYTICAL|NUMERICAL|DIAGONAL_ANA|DIAGONAL_NUM)", &
+         default_i_val=do_stress_none,&
+         enum_c_vals=s2a("NONE","ANALYTICAL","NUMERICAL","DIAGONAL_ANALYTICAL","DIAGONAL_NUMERICAL"),&
+         enum_i_vals=(/do_stress_none,do_stress_analytical,do_stress_numerical,&
+                       do_stress_diagonal_anal,do_stress_diagonal_numer/),&
+         enum_desc=s2a("Do not compute stress tensor",&
+                       "Compute the stress tensor analytical (if available).",&
+                       "Compute the stress tensor numerically.",&
+                       "Compute the diagonal part only of the stress tensor analytical (if available).",&
+                       "Compute the diagonal part only of the stress tensor numerically"),&
+         error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
     CALL create_rescale_force_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
