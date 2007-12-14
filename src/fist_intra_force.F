@@ -76,12 +76,11 @@ CONTAINS
 !!   SOURCE
 !!******************************************************************************
 
-  SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecules, &
-                  particle_set, shell_particle_set, core_particle_set, &
-                  pot_bond, pot_bend, pot_urey_bradley, &
-                  pot_torsion, pot_imp_torsion, pot_onef, pot_shell, pv_bond, pv_bend,     &
-                  pv_urey_bradley, pv_torsion, pv_imp_torsion, pv_onef, pv_shell, &
-                  f_bond, f_bend, f_torsion, f_ub, f_imptor, f_onef, cell, error )
+  SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecules,&
+       particle_set, shell_particle_set, core_particle_set, pot_bond, pot_bend,&
+       pot_urey_bradley, pot_torsion, pot_imp_torsion, pot_onef, pot_shell, pv_bond,&
+       pv_bend, pv_urey_bradley, pv_torsion, pv_imp_torsion, pv_onef, f_bond,&
+       f_bend, f_torsion, f_ub, f_imptor, f_onef, cell, use_virial, error )
 
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
@@ -96,12 +95,12 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: pv_bond, pv_bend, &
                                                 pv_urey_bradley, pv_torsion, &
-                                                pv_imp_torsion, pv_onef, &
-                                                pv_shell
+                                                pv_imp_torsion, pv_onef
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT), OPTIONAL                :: f_bond, f_bend, f_torsion, &
                                                 f_ub, f_imptor, f_onef
     TYPE(cell_type), POINTER                 :: cell
+    LOGICAL, INTENT(IN)                      :: use_virial
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_intra_control', &
@@ -157,7 +156,7 @@ CONTAINS
 ! !$OMP parallel do default(none) &
 ! !$OMP shared(ikind,nmol_per_kind)&
 ! !$OMP shared(local_molecules,molecule_set,particle_set) &
-! !$OMP shared(f_bond,pv_bond,pot_bond) &
+! !$OMP shared(f_bond,pv_bond,pot_bond,use_virial) &
 ! !$OMP shared(f_ub,pv_urey_bradley,pot_urey_bradley) &
 ! !$OMP shared(f_bend,pv_bend,pot_bend) &
 ! !$OMP shared(f_torsion,pv_torsion,pot_torsion) &
@@ -216,7 +215,7 @@ CONTAINS
 
              ! computing the pressure tensor
              k2 =  - rij * fscalar
-             CALL get_pv_bond  ( k2, rij, pv_bond )
+             IF (use_virial) CALL get_pv_bond  ( k2, rij, pv_bond )
 
              ! the contribution from the bonds. ONLY FOR DEBUG
              IF ( PRESENT ( f_bond ) ) THEN
@@ -266,7 +265,7 @@ CONTAINS
 
              ! computing the pressure tensor
              k2 =  - rij * fscalar
-             CALL get_pv_bond ( k2,rij,pv_urey_bradley )
+             IF (use_virial) CALL get_pv_bond ( k2,rij,pv_urey_bradley )
 
              ! the contribution from the ub. ONLY FOR DEBUG
              IF ( PRESENT ( f_ub ) ) THEN
@@ -312,7 +311,7 @@ CONTAINS
              ! computing the pressure tensor
              k1 = fscalar*g1
              k3 = fscalar*g3
-             CALL get_pv_bend(k1,k3,b12,b32,pv_bend)
+             IF (use_virial) CALL get_pv_bend(k1,k3,b12,b32,pv_bend)
 
              ! the contribution from the bends. ONLY FOR DEBUG
              IF ( PRESENT ( f_bend)) THEN
@@ -369,7 +368,7 @@ CONTAINS
                 k1 = fscalar*gt1
                 k3 = fscalar*gt3
                 k4 = fscalar*gt4
-                CALL get_pv_torsion(k1,k3,k4,t12,t32,t43,pv_torsion)
+                IF (use_virial) CALL get_pv_torsion(k1,k3,k4,t12,t32,t43,pv_torsion)
   
                 ! the contribution from the torsions. ONLY FOR DEBUG
                 IF ( PRESENT ( f_torsion)) THEN
@@ -433,7 +432,7 @@ CONTAINS
              k1 = fscalar*gt1
              k3 = fscalar*gt3
              k4 = fscalar*gt4
-             CALL get_pv_torsion(k1,k3,k4,t12,t32,t43,pv_imp_torsion)
+             IF (use_virial) CALL get_pv_torsion(k1,k3,k4,t12,t32,t43,pv_imp_torsion)
 
              ! the contribution from the torsions. ONLY FOR DEBUG
              IF ( PRESENT ( f_imptor)) THEN
@@ -470,7 +469,7 @@ CONTAINS
              
              ! computing the pressure tensor
              k2 = rij * fscalar
-             CALL get_pv_bond ( k2,rij,pv_onef )
+             IF (use_virial) CALL get_pv_bond ( k2,rij,pv_onef )
              
              ! the contribution from the bonds. ONLY FOR DEBUG
              IF ( PRESENT ( f_onef ) ) THEN

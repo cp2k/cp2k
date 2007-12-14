@@ -22,6 +22,7 @@
 MODULE manybody_tersoff
 
   USE cell_types,                      ONLY: cell_type
+  USE f77_blas
   USE fist_neighbor_list_types,        ONLY: fist_neighbor_type,&
                                              neighbor_kind_pairs_type
   USE fist_nonbond_env_types,          ONLY: pos_type
@@ -35,7 +36,6 @@ MODULE manybody_tersoff
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -579,13 +579,13 @@ CONTAINS
 !!      Using a local list of neighbors - [tlaino] 2007
 !!
 !!*** **********************************************************************
-  SUBROUTINE ter_zeta_ij_d(tersoff,r_last_update_pbc,iparticle,jparticle,f_nonbond,ptens_nonbond,prefactor,&
-       n_loc_size,full_loc_list, loc_cell_v, cell_v,rcutsq)
+  SUBROUTINE ter_zeta_ij_d(tersoff,r_last_update_pbc,iparticle,jparticle,f_nonbond,pv_nonbond,prefactor,&
+       n_loc_size,full_loc_list, loc_cell_v, cell_v,rcutsq,use_virial)
     TYPE(tersoff_pot_type), POINTER          :: tersoff
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update_pbc
     INTEGER, INTENT(IN)                      :: iparticle, jparticle
     REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(INOUT)                          :: f_nonbond, ptens_nonbond
+      INTENT(INOUT)                          :: f_nonbond, pv_nonbond
     REAL(KIND=dp), INTENT(IN)                :: prefactor
     INTEGER, INTENT(IN)                      :: n_loc_size
     INTEGER, DIMENSION(2, 1:n_loc_size)      :: full_loc_list
@@ -593,6 +593,7 @@ CONTAINS
       DIMENSION(3, 1:n_loc_size)             :: loc_cell_v
     REAL(KIND=dp), DIMENSION(3)              :: cell_v
     REAL(KIND=dp), INTENT(IN)                :: rcutsq
+    LOGICAL, INTENT(IN)                      :: use_virial
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'ter_zeta_ij_d', &
       routineP = moduleN//':'//routineN
@@ -664,17 +665,19 @@ CONTAINS
        f_nonbond(2,kparticle) = f_nonbond(2,kparticle) + prefactor*drk(2)
        f_nonbond(3,kparticle) = f_nonbond(3,kparticle) + prefactor*drk(3)
 
-       ptens_nonbond(1,1) = ptens_nonbond(1,1) + prefactor*(rij(1)*drj(1) + rik(1)*drk(1))
-       ptens_nonbond(1,2) = ptens_nonbond(1,2) + prefactor*(rij(1)*drj(2) + rik(1)*drk(2))
-       ptens_nonbond(1,3) = ptens_nonbond(1,3) + prefactor*(rij(1)*drj(3) + rik(1)*drk(3))
-
-       ptens_nonbond(2,1) = ptens_nonbond(2,1) + prefactor*(rij(2)*drj(1) + rik(2)*drk(1))
-       ptens_nonbond(2,2) = ptens_nonbond(2,2) + prefactor*(rij(2)*drj(2) + rik(2)*drk(2))
-       ptens_nonbond(2,3) = ptens_nonbond(2,3) + prefactor*(rij(2)*drj(3) + rik(2)*drk(3))
-
-       ptens_nonbond(3,1) = ptens_nonbond(3,1) + prefactor*(rij(3)*drj(1) + rik(3)*drk(1))
-       ptens_nonbond(3,2) = ptens_nonbond(3,2) + prefactor*(rij(3)*drj(2) + rik(3)*drk(2))
-       ptens_nonbond(3,3) = ptens_nonbond(3,3) + prefactor*(rij(3)*drj(3) + rik(3)*drk(3))
+       IF (use_virial) THEN
+          pv_nonbond(1,1) = pv_nonbond(1,1) + prefactor*(rij(1)*drj(1) + rik(1)*drk(1))
+          pv_nonbond(1,2) = pv_nonbond(1,2) + prefactor*(rij(1)*drj(2) + rik(1)*drk(2))
+          pv_nonbond(1,3) = pv_nonbond(1,3) + prefactor*(rij(1)*drj(3) + rik(1)*drk(3))
+          
+          pv_nonbond(2,1) = pv_nonbond(2,1) + prefactor*(rij(2)*drj(1) + rik(2)*drk(1))
+          pv_nonbond(2,2) = pv_nonbond(2,2) + prefactor*(rij(2)*drj(2) + rik(2)*drk(2))
+          pv_nonbond(2,3) = pv_nonbond(2,3) + prefactor*(rij(2)*drj(3) + rik(2)*drk(3))
+          
+          pv_nonbond(3,1) = pv_nonbond(3,1) + prefactor*(rij(3)*drj(1) + rik(3)*drk(1))
+          pv_nonbond(3,2) = pv_nonbond(3,2) + prefactor*(rij(3)*drj(2) + rik(3)*drk(2))
+          pv_nonbond(3,3) = pv_nonbond(3,3) + prefactor*(rij(3)*drj(3) + rik(3)*drk(3))
+       END IF
     END DO
   END SUBROUTINE ter_zeta_ij_d
 
@@ -789,7 +792,8 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE tersoff_forces(tersoff,r_last_update_pbc, cell_v, n_loc_size,&
-       full_loc_list, loc_cell_v, iparticle,jparticle,f_nonbond,ptens_nonbond,rcutsq)
+       full_loc_list, loc_cell_v, iparticle,jparticle,f_nonbond,pv_nonbond,&
+       use_virial, rcutsq)
     TYPE(tersoff_pot_type), POINTER          :: tersoff
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update_pbc
     REAL(KIND=dp), DIMENSION(3)              :: cell_v
@@ -799,7 +803,8 @@ CONTAINS
       DIMENSION(3, 1:n_loc_size)             :: loc_cell_v
     INTEGER, INTENT(IN)                      :: iparticle, jparticle
     REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(INOUT)                          :: f_nonbond, ptens_nonbond
+      INTENT(INOUT)                          :: f_nonbond, pv_nonbond
+    LOGICAL, INTENT(IN)                      :: use_virial
     REAL(KIND=dp), INTENT(IN)                :: rcutsq
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'tersoff_forces', &
@@ -834,15 +839,17 @@ CONTAINS
     f_nonbond(2,jparticle) = f_nonbond(2,jparticle) - f_R1*rij(2)
     f_nonbond(3,jparticle) = f_nonbond(3,jparticle) - f_R1*rij(3)
 
-    ptens_nonbond(1,1) = ptens_nonbond(1,1) - f_R1*rij(1)*rij(1)
-    ptens_nonbond(1,2) = ptens_nonbond(1,2) - f_R1*rij(1)*rij(2)
-    ptens_nonbond(1,3) = ptens_nonbond(1,3) - f_R1*rij(1)*rij(3)
-    ptens_nonbond(2,1) = ptens_nonbond(2,1) - f_R1*rij(2)*rij(1)
-    ptens_nonbond(2,2) = ptens_nonbond(2,2) - f_R1*rij(2)*rij(2)
-    ptens_nonbond(2,3) = ptens_nonbond(2,3) - f_R1*rij(2)*rij(3)
-    ptens_nonbond(3,1) = ptens_nonbond(3,1) - f_R1*rij(3)*rij(1)
-    ptens_nonbond(3,2) = ptens_nonbond(3,2) - f_R1*rij(3)*rij(2)
-    ptens_nonbond(3,3) = ptens_nonbond(3,3) - f_R1*rij(3)*rij(3)
+    IF (use_virial) THEN
+       pv_nonbond(1,1) = pv_nonbond(1,1) - f_R1*rij(1)*rij(1)
+       pv_nonbond(1,2) = pv_nonbond(1,2) - f_R1*rij(1)*rij(2)
+       pv_nonbond(1,3) = pv_nonbond(1,3) - f_R1*rij(1)*rij(3)
+       pv_nonbond(2,1) = pv_nonbond(2,1) - f_R1*rij(2)*rij(1)
+       pv_nonbond(2,2) = pv_nonbond(2,2) - f_R1*rij(2)*rij(2)
+       pv_nonbond(2,3) = pv_nonbond(2,3) - f_R1*rij(2)*rij(3)
+       pv_nonbond(3,1) = pv_nonbond(3,1) - f_R1*rij(3)*rij(1)
+       pv_nonbond(3,2) = pv_nonbond(3,2) - f_R1*rij(3)*rij(2)
+       pv_nonbond(3,3) = pv_nonbond(3,3) - f_R1*rij(3)*rij(3)
+    END IF
 
     f_R2 = f_C * f_R_d * fac
     f_nonbond(1,iparticle) = f_nonbond(1,iparticle) + f_R2*rij(1)
@@ -852,15 +859,17 @@ CONTAINS
     f_nonbond(2,jparticle) = f_nonbond(2,jparticle) - f_R2*rij(2)
     f_nonbond(3,jparticle) = f_nonbond(3,jparticle) - f_R2*rij(3)
 
-    ptens_nonbond(1,1) = ptens_nonbond(1,1) - f_R2*rij(1)*rij(1)
-    ptens_nonbond(1,2) = ptens_nonbond(1,2) - f_R2*rij(1)*rij(2)
-    ptens_nonbond(1,3) = ptens_nonbond(1,3) - f_R2*rij(1)*rij(3)
-    ptens_nonbond(2,1) = ptens_nonbond(2,1) - f_R2*rij(2)*rij(1)
-    ptens_nonbond(2,2) = ptens_nonbond(2,2) - f_R2*rij(2)*rij(2)
-    ptens_nonbond(2,3) = ptens_nonbond(2,3) - f_R2*rij(2)*rij(3)
-    ptens_nonbond(3,1) = ptens_nonbond(3,1) - f_R2*rij(3)*rij(1)
-    ptens_nonbond(3,2) = ptens_nonbond(3,2) - f_R2*rij(3)*rij(2)
-    ptens_nonbond(3,3) = ptens_nonbond(3,3) - f_R2*rij(3)*rij(3)
+    IF (use_virial) THEN
+       pv_nonbond(1,1) = pv_nonbond(1,1) - f_R2*rij(1)*rij(1)
+       pv_nonbond(1,2) = pv_nonbond(1,2) - f_R2*rij(1)*rij(2)
+       pv_nonbond(1,3) = pv_nonbond(1,3) - f_R2*rij(1)*rij(3)
+       pv_nonbond(2,1) = pv_nonbond(2,1) - f_R2*rij(2)*rij(1)
+       pv_nonbond(2,2) = pv_nonbond(2,2) - f_R2*rij(2)*rij(2)
+       pv_nonbond(2,3) = pv_nonbond(2,3) - f_R2*rij(2)*rij(3)
+       pv_nonbond(3,1) = pv_nonbond(3,1) - f_R2*rij(3)*rij(1)
+       pv_nonbond(3,2) = pv_nonbond(3,2) - f_R2*rij(3)*rij(2)
+       pv_nonbond(3,3) = pv_nonbond(3,3) - f_R2*rij(3)*rij(3)
+    END IF
 
     ! Lets do the f_A1 piece derivative of F_C
     f_A1 = f_C_d * b_ij * f_A * fac
@@ -871,15 +880,17 @@ CONTAINS
     f_nonbond(2,jparticle) = f_nonbond(2,jparticle) - f_A1*rij(2)
     f_nonbond(3,jparticle) = f_nonbond(3,jparticle) - f_A1*rij(3)
 
-    ptens_nonbond(1,1) = ptens_nonbond(1,1) - f_A1*rij(1)*rij(1)
-    ptens_nonbond(1,2) = ptens_nonbond(1,2) - f_A1*rij(1)*rij(2)
-    ptens_nonbond(1,3) = ptens_nonbond(1,3) - f_A1*rij(1)*rij(3)
-    ptens_nonbond(2,1) = ptens_nonbond(2,1) - f_A1*rij(2)*rij(1)
-    ptens_nonbond(2,2) = ptens_nonbond(2,2) - f_A1*rij(2)*rij(2)
-    ptens_nonbond(2,3) = ptens_nonbond(2,3) - f_A1*rij(2)*rij(3)
-    ptens_nonbond(3,1) = ptens_nonbond(3,1) - f_A1*rij(3)*rij(1)
-    ptens_nonbond(3,2) = ptens_nonbond(3,2) - f_A1*rij(3)*rij(2)
-    ptens_nonbond(3,3) = ptens_nonbond(3,3) - f_A1*rij(3)*rij(3)
+    IF (use_virial) THEN
+       pv_nonbond(1,1) = pv_nonbond(1,1) - f_A1*rij(1)*rij(1)
+       pv_nonbond(1,2) = pv_nonbond(1,2) - f_A1*rij(1)*rij(2)
+       pv_nonbond(1,3) = pv_nonbond(1,3) - f_A1*rij(1)*rij(3)
+       pv_nonbond(2,1) = pv_nonbond(2,1) - f_A1*rij(2)*rij(1)
+       pv_nonbond(2,2) = pv_nonbond(2,2) - f_A1*rij(2)*rij(2)
+       pv_nonbond(2,3) = pv_nonbond(2,3) - f_A1*rij(2)*rij(3)
+       pv_nonbond(3,1) = pv_nonbond(3,1) - f_A1*rij(3)*rij(1)
+       pv_nonbond(3,2) = pv_nonbond(3,2) - f_A1*rij(3)*rij(2)
+       pv_nonbond(3,3) = pv_nonbond(3,3) - f_A1*rij(3)*rij(3)
+    END IF
 
     ! Lets do the f_A2 piece derivative of F_A
     f_A2 = f_C * b_ij * f_A_d * fac
@@ -890,20 +901,22 @@ CONTAINS
     f_nonbond(2,jparticle) = f_nonbond(2,jparticle) - f_A2*rij(2)
     f_nonbond(3,jparticle) = f_nonbond(3,jparticle) - f_A2*rij(3)
 
-    ptens_nonbond(1,1) = ptens_nonbond(1,1) - f_A2*rij(1)*rij(1)
-    ptens_nonbond(1,2) = ptens_nonbond(1,2) - f_A2*rij(1)*rij(2)
-    ptens_nonbond(1,3) = ptens_nonbond(1,3) - f_A2*rij(1)*rij(3)
-    ptens_nonbond(2,1) = ptens_nonbond(2,1) - f_A2*rij(2)*rij(1)
-    ptens_nonbond(2,2) = ptens_nonbond(2,2) - f_A2*rij(2)*rij(2)
-    ptens_nonbond(2,3) = ptens_nonbond(2,3) - f_A2*rij(2)*rij(3)
-    ptens_nonbond(3,1) = ptens_nonbond(3,1) - f_A2*rij(3)*rij(1)
-    ptens_nonbond(3,2) = ptens_nonbond(3,2) - f_A2*rij(3)*rij(2)
-    ptens_nonbond(3,3) = ptens_nonbond(3,3) - f_A2*rij(3)*rij(3)
+    IF (use_virial) THEN
+       pv_nonbond(1,1) = pv_nonbond(1,1) - f_A2*rij(1)*rij(1)
+       pv_nonbond(1,2) = pv_nonbond(1,2) - f_A2*rij(1)*rij(2)
+       pv_nonbond(1,3) = pv_nonbond(1,3) - f_A2*rij(1)*rij(3)
+       pv_nonbond(2,1) = pv_nonbond(2,1) - f_A2*rij(2)*rij(1)
+       pv_nonbond(2,2) = pv_nonbond(2,2) - f_A2*rij(2)*rij(2)
+       pv_nonbond(2,3) = pv_nonbond(2,3) - f_A2*rij(2)*rij(3)
+       pv_nonbond(3,1) = pv_nonbond(3,1) - f_A2*rij(3)*rij(1)
+       pv_nonbond(3,2) = pv_nonbond(3,2) - f_A2*rij(3)*rij(2)
+       pv_nonbond(3,3) = pv_nonbond(3,3) - f_A2*rij(3)*rij(3)
+    END IF
 
     ! Lets do the f_A3 piece derivative of b_ij
     prefactor = f_C * b_ij_d * f_A * fac  ! Note need to do d(Zeta_ij)/dR
-    CALL ter_zeta_ij_d(tersoff,r_last_update_pbc,iparticle,jparticle,f_nonbond,ptens_nonbond,prefactor,&
-         n_loc_size, full_loc_list, loc_cell_v,cell_v,rcutsq)
+    CALL ter_zeta_ij_d(tersoff,r_last_update_pbc,iparticle,jparticle,f_nonbond,pv_nonbond,prefactor,&
+         n_loc_size, full_loc_list, loc_cell_v,cell_v,rcutsq, use_virial)
     CALL timestop ( handle )
   END SUBROUTINE tersoff_forces
 

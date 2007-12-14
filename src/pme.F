@@ -41,6 +41,7 @@ MODULE pme
                                              ewald_environment_type
   USE ewald_pw_types,                  ONLY: ewald_pw_get,&
                                              ewald_pw_type
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi
@@ -76,7 +77,6 @@ MODULE pme
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -111,8 +111,8 @@ CONTAINS
 !******************************************************************************
 
   SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, box, particle_set, vg_coulomb, &
-                            fg_coulomb, pv_g, force_env_section, shell_particle_set, &
-                            core_particle_set, fgshell_coulomb, fgcore_coulomb, error )
+       fg_coulomb, pv_g, force_env_section, shell_particle_set, core_particle_set,&
+       fgshell_coulomb, fgcore_coulomb, use_virial, error )
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(cell_type), POINTER                 :: box
@@ -128,26 +128,26 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT), OPTIONAL                  :: fgshell_coulomb, &
                                                 fgcore_coulomb
+    LOGICAL, INTENT(IN)                      :: use_virial
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pme_evaluate', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: group, handle, i, ierr, &
-                                                ipart, j, npart, &
-                                                nshell, p1, p2, &
-                                                rs_distributed_id
+                                                ipart, j, npart, nshell, p1, &
+                                                p2, rs_distributed_id
     LOGICAL                                  :: failure, is1_core, is1_shell, &
                                                 is2_core, is2_shell
     REAL(KIND=dp)                            :: alpha, dvols, eps0, ffa, &
                                                 inv_fourpi_eps0
     REAL(KIND=dp), DIMENSION(3)              :: fat
     REAL(KIND=dp), DIMENSION(3, 3)           :: f_stress, h_stress
-    TYPE(pw_p_type)                          :: rhos1, rhos2
     TYPE(cp_rs_pool_type), POINTER           :: rs_pool
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
     TYPE(dg_type), POINTER                   :: dg
     TYPE(pw_grid_type), POINTER              :: grid_b, grid_s
+    TYPE(pw_p_type)                          :: rhos1, rhos2
     TYPE(pw_p_type), DIMENSION(3)            :: dphi_g
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: pw_big_pool, pw_small_pool
@@ -292,7 +292,7 @@ CONTAINS
 
     !------------- STRESS TENSOR CALCULATION ------------
 
-    IF ( PRESENT ( pv_g ) ) THEN
+    IF ((use_virial).AND.(PRESENT(pv_g))) THEN
        DO i = 1, 3
           DO j = i, 3
              f_stress ( i, j ) = pw_integral_a2b ( dphi_g ( i ) % pw, dphi_g ( j ) % pw )
@@ -474,8 +474,8 @@ SUBROUTINE get_patch ( dg, particle_set, exp_igr, box, p1, p2, &
     REAL(KIND=dp)                            :: q1, q2
     REAL(KIND=dp), DIMENSION(3)              :: r1, r2
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(pw_p_type), POINTER                 :: rho0
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
+    TYPE(pw_p_type), POINTER                 :: rho0
     TYPE(shell_kind_type), POINTER           :: shell
 
 !------------------------------------------------------------------------------
@@ -605,8 +605,8 @@ SUBROUTINE get_patch_again ( dg, particle_set, exp_igr, p1, p2, rhos1, rhos2, is
                                                 my_is2_core, my_is2_shell
     REAL(KIND=dp)                            :: q1, q2
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(pw_p_type), POINTER                 :: rho0
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
+    TYPE(pw_p_type), POINTER                 :: rho0
     TYPE(shell_kind_type), POINTER           :: shell
 
 !------------------------------------------------------------------------------

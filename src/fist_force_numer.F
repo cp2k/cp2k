@@ -2200,7 +2200,7 @@ CONTAINS
 !******************************************************************************
 
   SUBROUTINE pme_force_numer ( ewald_env, ewald_pw, cell, particle_set, delta, f_part ,&
-       force_env_section, error)
+       force_env_section, use_virial, error)
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(cell_type), POINTER                 :: cell
@@ -2210,6 +2210,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: f_part
     TYPE(section_vals_type), POINTER         :: force_env_section
+    LOGICAL, INTENT(IN)                      :: use_virial
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pme_force_numer', &
@@ -2223,10 +2224,10 @@ CONTAINS
        DO id = 1, 3
           particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) + delta
           CALL pme_evaluate ( ewald_env, ewald_pw, cell, particle_set, eplus,&
-               force_env_section=force_env_section,error=error)
+               force_env_section=force_env_section, use_virial=use_virial,error=error)
           particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) - 2.0_dp * delta
           CALL pme_evaluate ( ewald_env, ewald_pw, cell, particle_set, eminus,&
-               force_env_section=force_env_section,error=error )
+               force_env_section=force_env_section, use_virial=use_virial,error=error )
           f_part ( id, i ) = eminus - eplus
           particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) + delta
        ENDDO

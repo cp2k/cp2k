@@ -100,6 +100,7 @@ CONTAINS
     INTEGER                                  :: ewald_type, group, i, iatom, &
                                                 ir, isos, iw, iwf, natoms
     INTEGER, DIMENSION(2)                    :: dum
+    LOGICAL                                  :: use_virial
     REAL(KIND=dp)                            :: delta, energy_numer, &
                                                 pv_test( 3, 3 )
     REAL(KIND=dp), ALLOCATABLE, &
@@ -137,6 +138,7 @@ CONTAINS
     NULLIFY(force_env_section)
     force_env_section => force_env%force_env_section
 
+    use_virial = force_env%virial%pv_availability.AND.(.NOT.force_env%virial%pv_numer)
     CALL fist_nonbond_env_get ( fist_nonbond_env, potparm = potparm ,error=error)
     CALL ewald_env_get ( ewald_env, ewald_type = ewald_type ,error=error)
     isos = 0
@@ -223,7 +225,7 @@ CONTAINS
     END IF
     f_numer = 0.0_dp
     energy_numer = 0.0_dp
-    pv_test = 0.0_dp
+    IF (use_virial) pv_test = 0.0_dp
 
     CALL force_nonbond_numer ( fist_nonbond_env, atomic_kind_set, particle_set, local_particles, &
          ewald_env, cell, potparm, delta, f_numer, energy_numer,error=error)
@@ -282,28 +284,31 @@ CONTAINS
                ' F NUM NON-BONDED =', f_numer ( :, dum ( 2 ) )
        ENDIF
     END IF
+    
     ! Debug non-bonded virial
-
-    CALL pv_nonbond_numer ( fist_nonbond_env, ewald_env, atomic_kind_set, &
-         particle_set, local_particles, cell, pv_test, delta , para_env,&
-         force_env%force_env_section, error=error)
-
-    CALL mp_sum( pv_test, group )
-
+    IF (use_virial) THEN
+       CALL pv_nonbond_numer ( fist_nonbond_env, ewald_env, atomic_kind_set, &
+            particle_set, local_particles, cell, pv_test, delta , para_env,&
+            force_env%force_env_section, error=error)
+       
+       CALL mp_sum( pv_test, group )
+       IF ( iw > 0 ) THEN
+          ! write out the virials
+          WRITE ( iw, '( A )' ) ' PV ANA NON-BONDED'
+          DO i = 1, 3
+             WRITE ( iw, '( T21,3G20.12 )' ) dbg % pv_nonbond(i,:)
+          END DO
+          WRITE ( iw, '( A )' ) ' PV NUM NON-BONDED'
+          DO i = 1, 3
+             WRITE ( iw, '( T21,3G20.12 )' ) pv_test(i,:)
+          END DO
+          WRITE ( iw, '( A,A )' ) ' **************************************', &
+               '*****************************************'
+          WRITE ( iw, '( A,A )' ) ' **************************************', &
+               '*****************************************'
+       END IF
+    END IF
     IF ( iw > 0 ) THEN
-       ! write out the virials
-       WRITE ( iw, '( A )' ) ' PV ANA NON-BONDED'
-       DO i = 1, 3
-          WRITE ( iw, '( T21,3G20.12 )' ) dbg % pv_nonbond(i,:)
-       END DO
-       WRITE ( iw, '( A )' ) ' PV NUM NON-BONDED'
-       DO i = 1, 3
-          WRITE ( iw, '( T21,3G20.12 )' ) pv_test(i,:)
-       END DO
-       WRITE ( iw, '( A,A )' ) ' **************************************', &
-            '*****************************************'
-       WRITE ( iw, '( A,A )' ) ' **************************************', &
-            '*****************************************'
        WRITE ( iw, '( 16x,A )' ) ' '
        WRITE ( iw, '( A,A )' ) ' **************************************', &
             '*****************************************'
@@ -372,26 +377,30 @@ CONTAINS
                ' F NUM BOND =', f_numer(:,dum(2))
        END IF
     ENDIF
-    ! Debug bond virial
 
-    pv_test = 0.0_dp
-    CALL pv_bond_numer ( molecule_set, molecule_kind_set, local_molecules, &
-         particle_set, cell, pv_test, delta ,error=error)
-    CALL mp_sum ( pv_test, group )
+    ! Debug bond virial
+    IF (use_virial) THEN
+       pv_test = 0.0_dp
+       CALL pv_bond_numer ( molecule_set, molecule_kind_set, local_molecules, &
+            particle_set, cell, pv_test, delta ,error=error)
+       CALL mp_sum ( pv_test, group )
+       IF ( iw > 0 ) THEN
+          ! write out the virials
+          WRITE ( iw, '( A )' ) ' PV ANA BOND'
+          DO i = 1, 3
+             WRITE ( iw, '( T21,3G20.12 )' ) dbg % pv_bond(i,:)
+          END DO
+          WRITE ( iw, '( A )' ) ' PV NUM BOND'
+          DO i = 1, 3
+             WRITE ( iw, '( T21, 3G20.12 )' ) pv_test ( i, : )
+          END DO
+          WRITE ( iw, '( A,A )' ) ' **************************************', &
+               '*****************************************'
+          WRITE ( iw, '( A,A )' ) ' **************************************', &
+               '*****************************************'
+       END IF
+    END IF
     IF ( iw > 0 ) THEN
-       ! write out the virials
-       WRITE ( iw, '( A )' ) ' PV ANA BOND'
-       DO i = 1, 3
-          WRITE ( iw, '( T21,3G20.12 )' ) dbg % pv_bond(i,:)
-       END DO
-       WRITE ( iw, '( A )' ) ' PV NUM BOND'
-       DO i = 1, 3
-          WRITE ( iw, '( T21, 3G20.12 )' ) pv_test ( i, : )
-       END DO
-       WRITE ( iw, '( A,A )' ) ' **************************************', &
-            '*****************************************'
-       WRITE ( iw, '( A,A )' ) ' **************************************', &
-            '*****************************************'
        WRITE ( iw, '( 16x,A )' ) ' '
        WRITE ( iw, '( A,A )' ) ' **************************************', &
             '*****************************************'
@@ -403,7 +412,6 @@ CONTAINS
     ! Debug urey-bradley
     f_numer = 0.0_dp
     energy_numer = 0.0_dp
-    pv_test = 0.0_dp
     CALL force_ub_numer ( molecule_set, molecule_kind_set, local_molecules, &
          particle_set, f_numer, energy_numer, delta, cell, error)
 
@@ -462,25 +470,31 @@ CONTAINS
                ' F NUM UREY-BRADLEY =', f_numer(:,dum(2))
        END IF
     ENDIF
-    ! Debug ub virial
-    CALL pv_ub_numer ( molecule_set, molecule_kind_set, local_molecules, &
-         particle_set, cell, pv_test, delta ,error=error)
 
-    CALL mp_sum ( pv_test, group )
+    ! Debug ub virial
+    IF (use_virial) THEN
+       pv_test = 0.0_dp
+       CALL pv_ub_numer ( molecule_set, molecule_kind_set, local_molecules, &
+            particle_set, cell, pv_test, delta ,error=error)
+       
+       CALL mp_sum ( pv_test, group )
+       IF ( iw > 0 ) THEN
+          ! write out the virials
+          WRITE ( iw, '( A )' ) ' PV ANA UREY-BRADLEY'
+          DO i = 1, 3
+             WRITE ( iw, '( T21,3G20.12 )' ) dbg % pv_ub(i,:)
+          END DO
+          WRITE ( iw, '( A )' ) ' PV NUM UREY-BRADLEY'
+          DO i = 1, 3
+             WRITE ( iw, '( T21, 3G20.12 )' ) pv_test ( i, : )
+          END DO
+          WRITE ( iw, '( A,A )' ) ' **************************************', &
+               '*****************************************'
+          WRITE ( iw, '( A,A )' ) ' **************************************', &
+               '*****************************************'
+       END IF
+    END IF
     IF ( iw > 0 ) THEN
-       ! write out the virials
-       WRITE ( iw, '( A )' ) ' PV ANA UREY-BRADLEY'
-       DO i = 1, 3
-          WRITE ( iw, '( T21,3G20.12 )' ) dbg % pv_ub(i,:)
-       END DO
-       WRITE ( iw, '( A )' ) ' PV NUM UREY-BRADLEY'
-       DO i = 1, 3
-          WRITE ( iw, '( T21, 3G20.12 )' ) pv_test ( i, : )
-       END DO
-       WRITE ( iw, '( A,A )' ) ' **************************************', &
-            '*****************************************'
-       WRITE ( iw, '( A,A )' ) ' **************************************', &
-            '*****************************************'
        WRITE ( iw, '( 16x,A )' ) ' '
        WRITE ( iw, '( A,A )' ) ' **************************************', &
             '*****************************************'
@@ -488,10 +502,10 @@ CONTAINS
        WRITE ( iw, '( A,A )' ) ' **************************************', &
             '*****************************************'
     ENDIF
+
     ! Debug onefours
     f_numer = 0.0_dp
     energy_numer = 0.0_dp
-    pv_test = 0.0_dp
     CALL force_onefour_numer ( molecule_set, molecule_kind_set, local_molecules, &
          particle_set, f_numer, energy_numer, delta,cell, logger, error)
     CALL mp_sum( f_numer, group )
@@ -549,25 +563,30 @@ CONTAINS
                ' F NUM ONE-FOUR =', f_numer(:,dum(2))
        END IF
     ENDIF
-    ! Debug ub virial
-    CALL pv_onefour_numer ( molecule_set, molecule_kind_set, local_molecules, &
-         particle_set, cell, pv_test, delta ,error=error,&
-         logger=logger)
-    CALL mp_sum ( pv_test, group )
+
+    ! Debug onefour virial
+    IF (use_virial) THEN
+       pv_test = 0.0_dp
+       CALL pv_onefour_numer ( molecule_set, molecule_kind_set, local_molecules, &
+            particle_set, cell, pv_test, delta ,error=error, logger=logger)
+       CALL mp_sum ( pv_test, group )
+       IF ( iw > 0 ) THEN
+          ! write out the virials
+          WRITE ( iw, '( A )' ) ' PV ANA ONE-FOUR'
+          DO i = 1, 3
+             WRITE ( iw, '( T21,3G20.12 )' ) dbg % pv_onef(i,:)
+          END DO
+          WRITE ( iw, '( A )' ) ' PV NUM ONE-FOUR'
+          DO i = 1, 3
+             WRITE ( iw, '( T21, 3G20.12 )' ) pv_test ( i, : )
+          END DO
+          WRITE ( iw, '( A,A )' ) ' **************************************', &
+               '*****************************************'
+          WRITE ( iw, '( A,A )' ) ' **************************************', &
+               '*****************************************'
+       END IF
+    END IF
     IF ( iw > 0 ) THEN
-       ! write out the virials
-       WRITE ( iw, '( A )' ) ' PV ANA ONE-FOUR'
-       DO i = 1, 3
-          WRITE ( iw, '( T21,3G20.12 )' ) dbg % pv_onef(i,:)
-       END DO
-       WRITE ( iw, '( A )' ) ' PV NUM ONE-FOUR'
-       DO i = 1, 3
-          WRITE ( iw, '( T21, 3G20.12 )' ) pv_test ( i, : )
-       END DO
-       WRITE ( iw, '( A,A )' ) ' **************************************', &
-            '*****************************************'
-       WRITE ( iw, '( A,A )' ) ' **************************************', &
-            '*****************************************'
        WRITE ( iw, '( 16x,A )' ) ' '
        WRITE ( iw, '( A,A )' ) ' **************************************', &
             '*****************************************'
@@ -578,7 +597,6 @@ CONTAINS
     ! Debug bends
     f_numer = 0.0_dp
     energy_numer = 0.0_dp
-    pv_test = 0.0_dp
     CALL force_bend_numer ( molecule_set, molecule_kind_set, local_molecules, &
          particle_set, f_numer, energy_numer, delta,cell, error )
     CALL mp_sum( f_numer, group )
@@ -635,26 +653,32 @@ CONTAINS
                ' F NUM BEND =', f_numer(:,dum(2))
        ENDIF
     END IF
+
     ! Debug bend virial
-    CALL pv_bend_numer ( molecule_set, molecule_kind_set, local_molecules, &
-         particle_set, cell, pv_test, delta ,error=error)
-    CALL mp_sum ( pv_test, group )
-
+    IF (use_virial) THEN
+       pv_test = 0.0_dp
+       CALL pv_bend_numer ( molecule_set, molecule_kind_set, local_molecules, &
+            particle_set, cell, pv_test, delta ,error=error)
+       CALL mp_sum ( pv_test, group )
+       
+       IF ( iw > 0 ) THEN
+          ! write out the virials
+          WRITE ( iw, '( A )' ) ' PV ANA BEND'
+          DO i = 1, 3
+             WRITE ( iw, '( T21, 3G20.12 )' ) dbg % pv_bend(i,:)
+          END DO
+          WRITE ( iw, '( A )' ) ' PV NUM BEND'
+          DO i = 1, 3
+             WRITE ( iw, '( T21, 3G20.12 )' ) pv_test(i,:)
+          END DO
+          
+          WRITE ( iw, '( A,A )' ) ' **************************************', &
+               '*****************************************'
+          WRITE ( iw, '( A,A )' ) ' **************************************', &
+               '*****************************************'
+       END IF
+    END IF
     IF ( iw > 0 ) THEN
-       ! write out the virials
-       WRITE ( iw, '( A )' ) ' PV ANA BEND'
-       DO i = 1, 3
-          WRITE ( iw, '( T21, 3G20.12 )' ) dbg % pv_bend(i,:)
-       END DO
-       WRITE ( iw, '( A )' ) ' PV NUM BEND'
-       DO i = 1, 3
-          WRITE ( iw, '( T21, 3G20.12 )' ) pv_test(i,:)
-       END DO
-
-       WRITE ( iw, '( A,A )' ) ' **************************************', &
-            '*****************************************'
-       WRITE ( iw, '( A,A )' ) ' **************************************', &
-            '*****************************************'
        WRITE ( iw, '( 16x,A )' ) ' '
        WRITE ( iw, '( A,A )' ) ' **************************************', &
             '*****************************************'
@@ -665,7 +689,6 @@ CONTAINS
     ! Debug torsions
     f_numer = 0.0_dp
     energy_numer = 0.0_dp
-    pv_test = 0.0_dp
     CALL force_torsion_numer ( molecule_set, molecule_kind_set, local_molecules, &
          particle_set, f_numer, energy_numer, delta ,cell,error=error)
     CALL mp_sum( f_numer, group )
@@ -725,25 +748,31 @@ CONTAINS
                ' F NUM TORSION =', f_numer(:,dum(2))
        ENDIF
     END IF
-    ! Debug torsion virial
-    CALL pv_torsion_numer ( molecule_set, molecule_kind_set, local_molecules, &
-         particle_set, cell, pv_test, delta ,error=error)
-    CALL mp_sum ( pv_test, group )
 
+    IF (use_virial) THEN
+       ! Debug torsion virial
+       pv_test = 0.0_dp
+       CALL pv_torsion_numer ( molecule_set, molecule_kind_set, local_molecules, &
+            particle_set, cell, pv_test, delta ,error=error)
+       CALL mp_sum ( pv_test, group )
+       
+       IF ( iw > 0 ) THEN
+          ! write out the virials
+          WRITE ( iw, '( A )' ) ' PV ANA TORSION'
+          DO i = 1, 3
+             WRITE ( iw, '( T21, 3G20.12 )' ) dbg % pv_torsion(i,:)
+          END DO
+          WRITE ( iw, '( A )' ) ' PV NUM TORSION'
+          DO i = 1, 3
+             WRITE ( iw, '( T21, 3G20.12 )' ) pv_test(i,:)
+          END DO
+          WRITE ( iw, '( A,A )' ) ' **************************************', &
+               '*****************************************'
+          WRITE ( iw, '( A,A )' ) ' **************************************', &
+               '*****************************************'
+       END IF
+    END IF
     IF ( iw > 0 ) THEN
-       ! write out the virials
-       WRITE ( iw, '( A )' ) ' PV ANA TORSION'
-       DO i = 1, 3
-          WRITE ( iw, '( T21, 3G20.12 )' ) dbg % pv_torsion(i,:)
-       END DO
-       WRITE ( iw, '( A )' ) ' PV NUM TORSION'
-       DO i = 1, 3
-          WRITE ( iw, '( T21, 3G20.12 )' ) pv_test(i,:)
-       END DO
-       WRITE ( iw, '( A,A )' ) ' **************************************', &
-            '*****************************************'
-       WRITE ( iw, '( A,A )' ) ' **************************************', &
-            '*****************************************'
        WRITE ( iw, '( 16x,A )' ) ' '
        WRITE ( iw, '( A,A )' ) ' **************************************', &
             '*****************************************'
@@ -755,7 +784,6 @@ CONTAINS
     ! Debug improper torsions
     f_numer = 0.0_dp
     energy_numer = 0.0_dp
-    pv_test = 0.0_dp
     CALL force_imptors_numer ( molecule_set, molecule_kind_set, local_molecules, &
          particle_set, f_numer, energy_numer, delta ,cell,error=error)
     CALL mp_sum( f_numer, group )
@@ -814,28 +842,32 @@ CONTAINS
                ' F NUM IMP TORSION =', f_numer(:,dum(2))
        ENDIF
     END IF
+
     ! Debug torsion virial
-    CALL pv_imptors_numer ( molecule_set, molecule_kind_set, local_molecules, &
-         particle_set, cell, pv_test, delta ,error=error)
-    CALL mp_sum ( pv_test, group )
-
-    IF ( iw > 0 ) THEN
-       ! write out the virials
-       WRITE ( iw, '( A )' ) ' PV ANA IMP TORSION'
-       DO i = 1, 3
-          WRITE ( iw, '( T21, 3G20.12 )' ) dbg % pv_imptors (i,:)
-       END DO
-       WRITE ( iw, '( A )' ) ' PV NUM IMP TORSION'
-       DO i = 1, 3
-          WRITE ( iw, '( T21, 3G20.12 )' ) pv_test(i,:)
-       END DO
-       WRITE ( iw, '( A,A )' ) ' **************************************', &
-            '*****************************************'
-       WRITE ( iw, '( A,A )' ) ' **************************************', &
-            '*****************************************'
-       WRITE ( iw, '( 16x,A )' ) ' '
-
+    IF (use_virial) THEN
+       pv_test = 0.0_dp
+       CALL pv_imptors_numer ( molecule_set, molecule_kind_set, local_molecules, &
+            particle_set, cell, pv_test, delta ,error=error)
+       CALL mp_sum ( pv_test, group )
+       
+       IF ( iw > 0 ) THEN
+          ! write out the virials
+          WRITE ( iw, '( A )' ) ' PV ANA IMP TORSION'
+          DO i = 1, 3
+             WRITE ( iw, '( T21, 3G20.12 )' ) dbg % pv_imptors (i,:)
+          END DO
+          WRITE ( iw, '( A )' ) ' PV NUM IMP TORSION'
+          DO i = 1, 3
+             WRITE ( iw, '( T21, 3G20.12 )' ) pv_test(i,:)
+          END DO
+          WRITE ( iw, '( A,A )' ) ' **************************************', &
+               '*****************************************'
+          WRITE ( iw, '( A,A )' ) ' **************************************', &
+               '*****************************************'
+          WRITE ( iw, '( 16x,A )' ) ' '
+       END IF
     END IF
+
     ! Debug g-space
     CALL ewald_env_get ( ewald_env, ewald_type = ewald_type ,error=error)
     IF ( iw > 0 ) THEN
@@ -874,7 +906,7 @@ CONTAINS
     CASE ( do_ewald_pme )
        f_numer = 0.0_dp
        CALL pme_force_numer ( ewald_env, ewald_pw, cell, particle_set, delta, f_numer,&
-            force_env_section=force_env_section, error=error)
+            force_env_section=force_env_section, use_virial=.FALSE., error=error)
     CASE ( do_ewald_spme )
        CALL stop_program ( "fist_debug", " NO SPME debug routines " )
     END SELECT
@@ -926,28 +958,29 @@ CONTAINS
     ENDIF
 
     ! Debug g-space virial
-    SELECT CASE ( ewald_type )
-    CASE ( do_ewald_ewald )
-       pv_test = 0.0_dp
-       CALL pv_g_numer ( ewald_env, ewald_pw, cell, atomic_kind_set, &
-            particle_set, local_particles, delta, pv_test ,error=error)
-    CASE ( do_ewald_pme )
-       CALL stop_program ( "fist_debug", " NO PME debug routines " )
-    CASE ( do_ewald_spme )
-       CALL stop_program ( "fist_debug", " NO SPME debug routines " )
-    END SELECT
-
-    ! write out the virials
-    IF ( iw > 0 ) THEN
-       WRITE ( iw, '( A )' ) ' PV NUM G-SPACE'
-       DO i = 1, 3
-          WRITE ( iw, '( T21,3G20.12 )' ) pv_test(i,:)
-       END DO
-       WRITE ( iw, '( A )' ) ' PV ANA G-SPACE'
-       DO i = 1, 3
-          WRITE ( iw, '( T21,3G20.12 )' ) dbg % pv_g(i,:)
-       END DO
-    ENDIF
+    IF (use_virial) THEN
+       SELECT CASE ( ewald_type )
+       CASE ( do_ewald_ewald )
+          pv_test = 0.0_dp
+          CALL pv_g_numer ( ewald_env, ewald_pw, cell, atomic_kind_set, &
+               particle_set, local_particles, delta, pv_test ,error=error)
+       CASE ( do_ewald_pme )
+          CALL stop_program ( "fist_debug", " NO PME debug routines " )
+       CASE ( do_ewald_spme )
+          CALL stop_program ( "fist_debug", " NO SPME debug routines " )
+       END SELECT
+       ! write out the virials
+       IF ( iw > 0 ) THEN
+          WRITE ( iw, '( A )' ) ' PV NUM G-SPACE'
+          DO i = 1, 3
+             WRITE ( iw, '( T21,3G20.12 )' ) pv_test(i,:)
+          END DO
+          WRITE ( iw, '( A )' ) ' PV ANA G-SPACE'
+          DO i = 1, 3
+             WRITE ( iw, '( T21,3G20.12 )' ) dbg % pv_g(i,:)
+          END DO
+       ENDIF
+    END IF
     ! deallocating all arrays involved with debug
     DEALLOCATE ( diff, STAT = isos )
     IF ( isos /= 0 ) CALL stop_memory ( "debug_control", "diff", 3 * natoms )

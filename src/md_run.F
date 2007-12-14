@@ -315,7 +315,7 @@ CONTAINS
        check = force_env%virial%pv_availability
        CALL cp_assert(check,cp_failure_level,cp_assertion_failed,&
             routineP,"Virial evaluation not requested for this run in the input file! "//&
-            "You may consider to switch the virial evaluation ON with the keyword: PV_AVA. "//&
+            "You may consider to switch on the virial evaluation with the keyword: STRESS_TENSOR."//&
             "Be sure the method you're using can compute the virial! "//&
  CPSourceFileRef,&
             error,failure)

@@ -27,6 +27,7 @@ MODULE manybody_potential
   USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE f77_blas
   USE fist_neighbor_list_types,        ONLY: fist_neighbor_type,&
                                              neighbor_kind_pairs_type
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
@@ -50,7 +51,6 @@ MODULE manybody_potential
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -275,14 +275,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE force_nonbond_manybody ( fist_nonbond_env, particle_set, cell,  &
-       f_nonbond, ptens_nonbond, error )
+       f_nonbond, pv_nonbond, use_virial, error )
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(particle_type), DIMENSION(:), &
       INTENT(IN)                             :: particle_set
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(INOUT)                          :: f_nonbond, ptens_nonbond
+      INTENT(INOUT)                          :: f_nonbond, pv_nonbond
+    LOGICAL, INTENT(IN)                      :: use_virial
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'force_nonbond_manybody', &
@@ -319,21 +320,23 @@ CONTAINS
          natom_types=nkinds,r_last_update_pbc=r_last_update_pbc,error=error)
 
     ! Initializing the potential energy, pressure tensor and force
-    ptens11 = 0.0_dp ; ptens12 = 0.0_dp ; ptens13 = 0.0_dp
-    ptens21 = 0.0_dp ; ptens22 = 0.0_dp ; ptens23 = 0.0_dp
-    ptens31 = 0.0_dp ; ptens32 = 0.0_dp ; ptens33 = 0.0_dp
+    IF (use_virial) THEN
+       ptens11 = 0.0_dp ; ptens12 = 0.0_dp ; ptens13 = 0.0_dp
+       ptens21 = 0.0_dp ; ptens22 = 0.0_dp ; ptens23 = 0.0_dp
+       ptens31 = 0.0_dp ; ptens32 = 0.0_dp ; ptens33 = 0.0_dp
+    END IF
     ! starting the force loop
     ! !$OMP parallel do default(none) &
     ! !$OMP shared(nkinds) &
     ! !$OMP private(ikind,jkind) &
     ! !$OMP shared(potparm) &
     ! !$OMP private(is_eam) &
-    ! !$OMP shared(nonbonded) &
+    ! !$OMP shared(nonbonded, use_virial) &
     ! !$OMP private(rab,rab2_max) &
     ! !$OMP private(ilist,nlist,atom_a,atom_b,npairs,list,inode,nnode) &
     ! !$OMP shared(cell) &
     ! !$OMP private(f_eam,pot,fr,fscalar,energy) &
-    ! !$OMP shared(f_nonbond,ptens_nonbond,r_last_update) &
+    ! !$OMP shared(f_nonbond,pv_nonbond,r_last_update) &
     ! !$OMP private(rab2) &
     ! !$OMP private(neighbor_kind_pair) &
     ! !$OMP shared(particle_set,r_last_update_pbc) &
@@ -383,15 +386,17 @@ CONTAINS
                       f_nonbond(1,atom_b) = f_nonbond(1,atom_b) + fr(1)
                       f_nonbond(2,atom_b) = f_nonbond(2,atom_b) + fr(2)
                       f_nonbond(3,atom_b) = f_nonbond(3,atom_b) + fr(3)
-                      ptens11 = ptens11 + rab(1)*fr(1)
-                      ptens21 = ptens21 + rab(2)*fr(1)
-                      ptens31 = ptens31 + rab(3)*fr(1)
-                      ptens12 = ptens12 + rab(1)*fr(2)
-                      ptens22 = ptens22 + rab(2)*fr(2)
-                      ptens32 = ptens32 + rab(3)*fr(2)
-                      ptens13 = ptens13 + rab(1)*fr(3)
-                      ptens23 = ptens23 + rab(2)*fr(3)
-                      ptens33 = ptens33 + rab(3)*fr(3)
+                      IF (use_virial) THEN
+                         ptens11 = ptens11 + rab(1)*fr(1)
+                         ptens21 = ptens21 + rab(2)*fr(1)
+                         ptens31 = ptens31 + rab(3)*fr(1)
+                         ptens12 = ptens12 + rab(1)*fr(2)
+                         ptens22 = ptens22 + rab(2)*fr(2)
+                         ptens32 = ptens32 + rab(3)*fr(2)
+                         ptens13 = ptens13 + rab(1)*fr(3)
+                         ptens23 = ptens23 + rab(2)*fr(3)
+                         ptens33 = ptens33 + rab(3)*fr(3)
+                      END IF
                    ENDIF
                 END DO
              END IF
@@ -463,7 +468,7 @@ CONTAINS
                          IF (DOT_PRODUCT(rtmp,rtmp)<=tersoff%rcutsq) THEN
                             CALL tersoff_forces ( tersoff, r_last_update_pbc, cell_v,&
                                  nloc_size, glob_loc_list(:,ifirst:ilast), glob_cell_v(:,ifirst:ilast),&
-                                 atom_a, atom_b, f_nonbond, ptens_nonbond, tersoff%rcutsq)
+                                 atom_a, atom_b, f_nonbond, pv_nonbond, use_virial, tersoff%rcutsq)
                          END IF
                       END DO
                       ifirst = ilast + 1
@@ -477,15 +482,17 @@ CONTAINS
        END DO
        CALL destroy_tersoff_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a, error)
     END IF
-    ptens_nonbond(1,1) = ptens_nonbond(1,1) + ptens11
-    ptens_nonbond(1,2) = ptens_nonbond(1,2) + ptens12
-    ptens_nonbond(1,3) = ptens_nonbond(1,3) + ptens13
-    ptens_nonbond(2,1) = ptens_nonbond(2,1) + ptens21
-    ptens_nonbond(2,2) = ptens_nonbond(2,2) + ptens22
-    ptens_nonbond(2,3) = ptens_nonbond(2,3) + ptens23
-    ptens_nonbond(3,1) = ptens_nonbond(3,1) + ptens31
-    ptens_nonbond(3,2) = ptens_nonbond(3,2) + ptens32
-    ptens_nonbond(3,3) = ptens_nonbond(3,3) + ptens33
+    IF (use_virial) THEN
+       pv_nonbond(1,1) = pv_nonbond(1,1) + ptens11
+       pv_nonbond(1,2) = pv_nonbond(1,2) + ptens12
+       pv_nonbond(1,3) = pv_nonbond(1,3) + ptens13
+       pv_nonbond(2,1) = pv_nonbond(2,1) + ptens21
+       pv_nonbond(2,2) = pv_nonbond(2,2) + ptens22
+       pv_nonbond(2,3) = pv_nonbond(2,3) + ptens23
+       pv_nonbond(3,1) = pv_nonbond(3,1) + ptens31
+       pv_nonbond(3,2) = pv_nonbond(3,2) + ptens32
+       pv_nonbond(3,3) = pv_nonbond(3,3) + ptens33
+    END IF
     CALL timestop ( handle )
   END SUBROUTINE force_nonbond_manybody
 

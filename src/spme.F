@@ -35,6 +35,7 @@ MODULE spme
                                              ewald_environment_type
   USE ewald_pw_types,                  ONLY: ewald_pw_get,&
                                              ewald_pw_type
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi
@@ -69,7 +70,6 @@ MODULE spme
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -101,7 +101,7 @@ CONTAINS
 !!*** *************************************************************************
   SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
        fg_coulomb, vg_coulomb, pv_g, force_env_section,shell_particle_set,&
-       core_particle_set, fgshell_coulomb, fgcore_coulomb, error )
+       core_particle_set, fgshell_coulomb, fgcore_coulomb, use_virial, error )
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
@@ -120,6 +120,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT), OPTIONAL                  :: fgshell_coulomb, &
                                                 fgcore_coulomb
+    LOGICAL, INTENT(IN)                      :: use_virial
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spme_evaluate', &
@@ -272,17 +273,18 @@ CONTAINS
     !---------- END OF ELECTROSTATIC CALCULATION --------
 
     !------------- STRESS TENSOR CALCULATION ------------
-    DO i = 1, 3
-       DO j = i, 3
-          f_stress ( i, j ) = pw_integral_a2b ( dphi_g ( i ) % pw, &
-               dphi_g ( j ) % pw )
-          f_stress ( j, i ) = f_stress ( i, j )
+    IF (use_virial) THEN
+       DO i = 1, 3
+          DO j = i, 3
+             f_stress ( i, j ) = pw_integral_a2b ( dphi_g ( i ) % pw, &
+                  dphi_g ( j ) % pw )
+             f_stress ( j, i ) = f_stress ( i, j )
+          END DO
        END DO
-    END DO
-    ffa = ( 1.0_dp / fourpi ) * ( 0.5_dp / alpha ) ** 2
-    f_stress = -ffa * f_stress
-    pv_g = inv_fourpi_eps0 * ( h_stress + f_stress )
-
+       ffa = ( 1.0_dp / fourpi ) * ( 0.5_dp / alpha ) ** 2
+       f_stress = -ffa * f_stress
+       pv_g = inv_fourpi_eps0 * ( h_stress + f_stress )
+    END IF
     !--------END OF STRESS TENSOR CALCULATION -----------
     ! move derivative of potential to real space grid and
     ! multiply by charge function in g-space

@@ -82,13 +82,13 @@ MODULE fist_force
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_force'
 
   TYPE debug_variables_type
-     REAL (KIND=dp) :: pot_manybody
-     REAL (KIND=dp) :: pot_nonbond, pot_g, pot_bond, pot_bend, pot_torsion
-     REAL (KIND=dp) :: pot_imptors, pot_onef, pot_urey_bradley
-     REAL (KIND=dp), DIMENSION ( :, : ), POINTER :: &
-          f_nonbond, f_g, f_bond, f_bend, f_torsion, f_imptors, f_onef, f_ub
-     REAL (KIND=dp), DIMENSION ( 3, 3 ) :: pv_nonbond, pv_g, pv_bond, &
-          pv_bend, pv_torsion, pv_imptors, pv_onef, pv_ub
+     REAL (KIND=dp)                           :: pot_manybody, pot_bend, pot_torsion
+     REAL (KIND=dp)                           :: pot_nonbond, pot_g, pot_bond
+     REAL (KIND=dp)                           :: pot_imptors, pot_onef, pot_urey_bradley
+     REAL (KIND=dp), DIMENSION (:,:), POINTER :: f_nonbond, f_g, f_bond, f_bend,&
+                                                 f_torsion, f_imptors, f_onef, f_ub
+     REAL (KIND=dp), DIMENSION (3,3)          :: pv_nonbond, pv_g, pv_bond, pv_onef, pv_ub,&
+                                                 pv_bend, pv_torsion, pv_imptors
   END TYPE debug_variables_type
 
 !******************************************************************************
@@ -136,7 +136,8 @@ CONTAINS
       iparticle_local, iw, j, natoms, nlocal_particles, node, nparticle_kind, &
       nparticle_local, nshell, stat
     LOGICAL                                  :: failure, first_time, &
-                                                shell_model_ad, shell_present
+                                                shell_model_ad, &
+                                                shell_present, use_virial
     REAL(KIND=dp) :: mass, massc, masss, pot_bend, pot_bond, pot_imptors, &
       pot_manybody, pot_nonbond, pot_onef, pot_shell, pot_torsion, &
       pot_urey_bradley, umass, vg_coulomb, xdum1, xdum2, xdum3
@@ -144,7 +145,7 @@ CONTAINS
       fcore_nonbond, fcore_total, fg_coulomb, fgcore_coulomb, &
       fgshell_coulomb, fshell_nonbond, fshell_total
     REAL(KIND=dp), DIMENSION(3, 3) :: ident, pv_bc, pv_bend, pv_bond, pv_g, &
-      pv_imptors, pv_nonbond, pv_onef, pv_shell, pv_torsion, pv_urey_bradley
+      pv_imptors, pv_nonbond, pv_onef, pv_torsion, pv_urey_bradley
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -171,6 +172,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
+    use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
     NULLIFY(atomic_kind,atomic_kind_set,cell,ewald_pw,ewald_env,&
          fist_nonbond_env,fist_section,local_molecules,local_particles,&
@@ -228,7 +230,7 @@ CONTAINS
        particle_set ( i ) % f ( 1 ) = 0.0_dp
        particle_set ( i ) % f ( 2 ) = 0.0_dp
        particle_set ( i ) % f ( 3 ) = 0.0_dp
-       particle_set ( i ) % rho = 0.0_dp
+       particle_set ( i ) % rho     = 0.0_dp
        particle_set ( i ) % f_embed = 0.0_dp
     ENDDO
     IF(nshell>0) THEN
@@ -236,37 +238,41 @@ CONTAINS
           shell_particle_set ( i ) % f ( 1 ) = 0.0_dp
           shell_particle_set ( i ) % f ( 2 ) = 0.0_dp
           shell_particle_set ( i ) % f ( 3 ) = 0.0_dp
-          shell_particle_set ( i ) % rho = 0.0_dp
+          shell_particle_set ( i ) % rho     = 0.0_dp
           shell_particle_set ( i ) % f_embed = 0.0_dp
           core_particle_set ( i ) % f ( 1 ) = 0.0_dp
           core_particle_set ( i ) % f ( 2 ) = 0.0_dp
           core_particle_set ( i ) % f ( 3 ) = 0.0_dp
-          core_particle_set ( i ) % rho = 0.0_dp
+          core_particle_set ( i ) % rho     = 0.0_dp
           core_particle_set ( i ) % f_embed = 0.0_dp
        END DO
     ENDIF
+    
+    IF (use_virial) THEN
+       pv_bc            = 0.0_dp
+       pv_bond          = 0.0_dp
+       pv_bend          = 0.0_dp
+       pv_torsion       = 0.0_dp
+       pv_imptors       = 0.0_dp
+       pv_onef          = 0.0_dp
+       pv_urey_bradley  = 0.0_dp
+       pv_nonbond       = 0.0_dp
+       pv_g             = 0.0_dp
+       virial%pv_virial = 0.0_dp
+    END IF
 
-    pv_bc = 0.0_dp
-    pv_bond = 0.0_dp
-    pv_bend = 0.0_dp
-    pv_torsion = 0.0_dp
-    pv_imptors = 0.0_dp
-    pv_onef = 0.0_dp
-    pv_urey_bradley = 0.0_dp
-    pv_shell = 0.0_dp
-    pot_nonbond = 0.0_dp
-    pot_manybody = 0.0_dp
-    pot_bond = 0.0_dp
-    pot_bend = 0.0_dp
-    pot_torsion = 0.0_dp
-    pot_imptors = 0.0_dp
-    pot_onef = 0.0_dp
-    pot_urey_bradley = 0.0_dp
-    pot_shell = 0.0_dp
-    vg_coulomb = 0.0_dp
-    thermo % pot = 0.0_dp
-    thermo % harm_shell = 0.0_dp
-    virial % pv_virial = 0.0_dp
+    pot_nonbond       = 0.0_dp
+    pot_manybody      = 0.0_dp
+    pot_bond          = 0.0_dp
+    pot_bend          = 0.0_dp
+    pot_torsion       = 0.0_dp
+    pot_imptors       = 0.0_dp
+    pot_onef          = 0.0_dp
+    pot_urey_bradley  = 0.0_dp
+    pot_shell         = 0.0_dp
+    vg_coulomb        = 0.0_dp
+    thermo%pot        = 0.0_dp
+    thermo%harm_shell = 0.0_dp
 
     ! get real-space non-bonded forces:
     IF (iw>0) THEN
@@ -284,26 +290,25 @@ CONTAINS
 
        ! nonbond contribution + manybody forces
        IF(shell_present) THEN
-          CALL force_nonbond ( fist_nonbond_env, particle_set, cell, &
-               pot_nonbond, f_nonbond, pv_nonbond, &
-               fshell_nonbond=fshell_nonbond, &
-               fcore_nonbond=fcore_nonbond, &
-               ewald_env=ewald_env,&
-               atomic_kind_set=atomic_kind_set,&
+          CALL force_nonbond ( fist_nonbond_env, particle_set, cell, pot_nonbond, f_nonbond, &
+               pv_nonbond, fshell_nonbond=fshell_nonbond, fcore_nonbond=fcore_nonbond, &
+               ewald_env=ewald_env,atomic_kind_set=atomic_kind_set, use_virial=use_virial,&
                error=error)
        ELSE
-          CALL force_nonbond ( fist_nonbond_env, particle_set, cell, &
-               pot_nonbond, f_nonbond, pv_nonbond, ewald_env=ewald_env,&
-               atomic_kind_set=atomic_kind_set, error=error)
-          CALL force_nonbond_manybody ( fist_nonbond_env, particle_set, cell, &
-               f_nonbond, pv_nonbond  ,error=error)
+          CALL force_nonbond ( fist_nonbond_env, particle_set, cell, pot_nonbond, f_nonbond, &
+               pv_nonbond, ewald_env=ewald_env, atomic_kind_set=atomic_kind_set, use_virial=use_virial,&
+               error=error)
+          CALL force_nonbond_manybody ( fist_nonbond_env, particle_set, cell, f_nonbond, pv_nonbond,&
+               use_virial=use_virial, error=error)
        END IF
     ELSE
        f_nonbond  = 0.0_dp
-       pv_nonbond = 0.0_dp
        IF (shell_present) THEN
           fshell_nonbond = 0.0_dp
           fcore_nonbond  = 0.0_dp
+       END IF
+       IF (use_virial) THEN
+          pv_nonbond = 0.0_dp
        END IF
     END IF
 
@@ -331,7 +336,7 @@ CONTAINS
              CALL stop_program ( "fist_force_control","ewald and shell model NIY" )
           ELSE
              CALL ewald_evaluate ( ewald_env, ewald_pw, cell, atomic_kind_set, particle_set, &
-                  local_particles, fg_coulomb, vg_coulomb, pv_g ,error=error)
+                  local_particles, fg_coulomb, vg_coulomb, pv_g ,use_virial=use_virial, error=error)
           END IF
        CASE ( do_ewald_pme )
           ! Parallelisation over grids --> allocate all atoms
@@ -345,18 +350,17 @@ CONTAINS
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              fgshell_coulomb = 0.0_dp 
              fgcore_coulomb = 0.0_dp 
-             CALL pme_evaluate ( ewald_env, ewald_pw, cell, particle_set, &
-                  vg_coulomb, fg_coulomb, pv_g , force_env_section, &
-                  shell_particle_set=shell_particle_set,&
-                  core_particle_set=core_particle_set, &
-                  fgshell_coulomb=fgshell_coulomb, &
-                  fgcore_coulomb=fgcore_coulomb, error=error)
+             CALL pme_evaluate ( ewald_env, ewald_pw, cell, particle_set,&
+                  vg_coulomb, fg_coulomb, pv_g , force_env_section,&
+                  shell_particle_set=shell_particle_set, core_particle_set=core_particle_set,&
+                  fgshell_coulomb=fgshell_coulomb, fgcore_coulomb=fgcore_coulomb,&
+                  use_virial=use_virial, error=error)
              CALL mp_sum ( fgshell_coulomb, para_env%group )
              CALL mp_sum ( fgcore_coulomb, para_env%group )
           ELSE
-             CALL pme_evaluate ( ewald_env, ewald_pw, cell, particle_set, &
-                  vg_coulomb, fg_coulomb, pv_g , force_env_section, &
-                  error=error)
+             CALL pme_evaluate ( ewald_env, ewald_pw, cell, particle_set,&
+                  vg_coulomb, fg_coulomb, pv_g , force_env_section,&
+                  use_virial=use_virial,error=error)
           END IF
           CALL mp_sum ( fg_coulomb, para_env%group )
        CASE ( do_ewald_spme )
@@ -371,42 +375,40 @@ CONTAINS
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              fgshell_coulomb = 0.0_dp 
              fgcore_coulomb = 0.0_dp 
-             CALL spme_evaluate ( ewald_env, ewald_pw, cell, particle_set, &
+             CALL spme_evaluate ( ewald_env, ewald_pw, cell, particle_set,&
                   fg_coulomb, vg_coulomb, pv_g, force_env_section,&
-                  shell_particle_set=shell_particle_set, &
-                  core_particle_set=core_particle_set, &
-                  fgshell_coulomb=fgshell_coulomb, &
-                  fgcore_coulomb=fgcore_coulomb, error=error)
+                  shell_particle_set=shell_particle_set, core_particle_set=core_particle_set, &
+                  fgshell_coulomb=fgshell_coulomb, fgcore_coulomb=fgcore_coulomb,&
+                  use_virial=use_virial, error=error)
              CALL mp_sum ( fgshell_coulomb, para_env%group )
              CALL mp_sum ( fgcore_coulomb, para_env%group )
           ELSE
-             CALL spme_evaluate ( ewald_env, ewald_pw, cell, particle_set, &
+             CALL spme_evaluate ( ewald_env, ewald_pw, cell, particle_set,&
                   fg_coulomb, vg_coulomb, pv_g, force_env_section,&
-                  error=error)
+                  use_virial=use_virial, error=error)
           END IF
           CALL mp_sum ( fg_coulomb, para_env%group )
        END SELECT
 
        IF(shell_present) THEN
-          CALL bonded_correct_gaussian ( atomic_kind_set, local_particles, &
-               particle_set, ewald_env, &
-               thermo % e_bonded, pv_bc ,&
-               shell_particle_set=shell_particle_set,&
-               core_particle_set=core_particle_set,&
-               cell=cell, error=error)
+          CALL bonded_correct_gaussian ( atomic_kind_set, local_particles,&
+               particle_set, ewald_env, thermo%e_bonded, pv_bc ,&
+               shell_particle_set=shell_particle_set, core_particle_set=core_particle_set,&
+               cell=cell, use_virial=use_virial, error=error)
 
        ELSE
-          CALL bonded_correct_gaussian ( atomic_kind_set, local_particles, &
-               particle_set, ewald_env, thermo % e_bonded,&
-               pv_bc=pv_bc , cell=cell, error=error)
+          CALL bonded_correct_gaussian ( atomic_kind_set, local_particles,&
+               particle_set, ewald_env, thermo%e_bonded, pv_bc=pv_bc , cell=cell,&
+               use_virial=use_virial, error=error)
        END IF
-       IF (  first_time ) THEN
-          IF (iw > 0 )  CALL ewald_print ( iw , cell, vg_coulomb, &
-               thermo % e_self, thermo % e_neut, thermo % e_bonded )
+       IF ( first_time) THEN
+          CALL ewald_print ( iw , cell, vg_coulomb, thermo%e_self, thermo%e_neut, thermo%e_bonded)
        ENDIF
     ELSE
-       pv_g  = 0.0_dp
-       pv_bc = 0.0_dp
+       IF (use_virial) THEN
+          pv_g  = 0.0_dp
+          pv_bc = 0.0_dp
+       END IF
        thermo % e_neut = 0.0_dp
     END IF
 
@@ -423,24 +425,20 @@ CONTAINS
        END IF
     END IF
 
-    !
-    ! get intramolecular forces
-    !
+    ! Get intramolecular forces
     IF ( PRESENT ( debug ) ) THEN
        CALL force_intra_control ( molecule_set, molecule_kind_set, local_molecules, &
-            particle_set, shell_particle_set, core_particle_set,&
-            pot_bond, pot_bend, pot_urey_bradley, &
-            pot_torsion, pot_imptors, pot_onef, pot_shell, pv_bond, pv_bend, &
-            pv_urey_bradley, pv_torsion, pv_imptors, pv_onef, pv_shell,    &
-            debug % f_bond, debug % f_bend, debug % f_torsion,  &
-            debug % f_ub, debug % f_imptors, debug % f_onef, cell, error )
+            particle_set, shell_particle_set, core_particle_set, pot_bond, pot_bend,&
+            pot_urey_bradley, pot_torsion, pot_imptors, pot_onef, pot_shell, pv_bond,&
+            pv_bend, pv_urey_bradley, pv_torsion, pv_imptors, pv_onef, debug%f_bond,&
+            debug%f_bend, debug%f_torsion, debug%f_ub, debug%f_imptors,debug%f_onef,&
+            cell, use_virial, error )
     ELSE
        CALL force_intra_control ( molecule_set, molecule_kind_set, local_molecules, &
-            particle_set, shell_particle_set, core_particle_set, &
-            pot_bond, pot_bend, pot_urey_bradley, &
-            pot_torsion, pot_imptors, pot_onef, pot_shell, pv_bond, pv_bend, &
-            pv_urey_bradley, pv_torsion, pv_imptors, pv_onef, pv_shell, cell=cell,&
-            error=error)
+            particle_set, shell_particle_set, core_particle_set, pot_bond, pot_bend,&
+            pot_urey_bradley, pot_torsion, pot_imptors, pot_onef, pot_shell, pv_bond,&
+            pv_bend, pv_urey_bradley, pv_torsion, pv_imptors, pv_onef, cell=cell,&
+            use_virial=use_virial, error=error)
     ENDIF
 
     IF (iw>0) THEN
@@ -488,7 +486,7 @@ CONTAINS
     ! ewald forces are strictly local -> sum only over pnode
     ! We first sum the forces in f_nonbond, this allows for a more efficient
     ! global sum in the parallel code and in the end copy them back to part
-    ALLOCATE ( f_total ( 3,natoms ), STAT=stat )
+    ALLOCATE ( f_total(3,natoms), STAT=stat )
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     f_total = 0.0_dp
     DO i = 1, natoms
@@ -564,24 +562,24 @@ CONTAINS
           WRITE(iw,'(3f15.9)')((fcore_total ( j, i ),j=1,3), i = 1, nshell)
        END IF
     END IF
-    ! add up all the pressure tensors
-    IF ( ewald_type == do_ewald_none ) THEN
-       virial % pv_virial = pv_nonbond + pv_bond + pv_bend + &
-            pv_torsion + pv_imptors + pv_urey_bradley
-       CALL mp_sum ( virial % pv_virial, para_env%group )
-    ELSE
-       ident = 0.0_dp
-       DO i = 1, 3
-          ident ( i, i ) = 1.0_dp
-       END DO
-
-       virial % pv_virial = pv_nonbond + pv_bond + pv_bend + &
-            pv_torsion + pv_imptors + pv_urey_bradley +pv_bc
-       CALL mp_sum ( virial % pv_virial, para_env%group )
-
-       virial % pv_virial = virial % pv_virial + &
-            ident * thermo % e_neut / cell % deth
-       virial % pv_virial = virial % pv_virial + pv_g
+    
+    IF (use_virial) THEN
+       ! Add up all the pressure tensors
+       IF ( ewald_type == do_ewald_none ) THEN
+          virial%pv_virial = pv_nonbond + pv_bond + pv_bend + pv_torsion + pv_imptors + pv_urey_bradley
+          CALL mp_sum (virial%pv_virial, para_env%group)
+       ELSE
+          ident = 0.0_dp
+          DO i = 1, 3
+             ident(i, i) = 1.0_dp
+          END DO
+          
+          virial%pv_virial = pv_nonbond + pv_bond + pv_bend + pv_torsion + pv_imptors + pv_urey_bradley + pv_bc
+          CALL mp_sum (virial%pv_virial, para_env%group)
+          
+          virial%pv_virial = virial%pv_virial + ident * thermo%e_neut/cell%deth
+          virial%pv_virial = virial%pv_virial + pv_g
+       END IF
     END IF
 
     ! Sum total forces
@@ -721,20 +719,22 @@ CONTAINS
        debug % pot_urey_bradley = pot_urey_bradley
        CALL mp_sum ( f_nonbond, para_env%group )
        debug % f_nonbond = f_nonbond
-       CALL mp_sum ( pv_nonbond, para_env%group )
-       debug % pv_nonbond = pv_nonbond
-       CALL mp_sum ( pv_bond, para_env%group )
-       debug % pv_bond = pv_bond
-       CALL mp_sum ( pv_bend, para_env%group )
-       debug % pv_bend = pv_bend
-       CALL mp_sum ( pv_torsion, para_env%group )
-       debug % pv_torsion = pv_torsion
-       CALL mp_sum ( pv_imptors, para_env%group )
-       debug % pv_imptors = pv_imptors
-       CALL mp_sum ( pv_onef, para_env%group )
-       debug % pv_onef = pv_onef
-       CALL mp_sum ( pv_urey_bradley, para_env%group )
-       debug % pv_ub = pv_urey_bradley
+       IF (use_virial) THEN
+          CALL mp_sum (pv_nonbond, para_env%group )
+          debug%pv_nonbond = pv_nonbond
+          CALL mp_sum (pv_bond, para_env%group )
+          debug%pv_bond = pv_bond
+          CALL mp_sum (pv_bend, para_env%group )
+          debug%pv_bend = pv_bend
+          CALL mp_sum (pv_torsion, para_env%group )
+          debug%pv_torsion = pv_torsion
+          CALL mp_sum (pv_imptors, para_env%group )
+          debug%pv_imptors = pv_imptors
+          CALL mp_sum (pv_onef, para_env%group )
+          debug%pv_onef = pv_onef
+          CALL mp_sum (pv_urey_bradley, para_env%group )
+          debug%pv_ub = pv_urey_bradley
+       END IF
        SELECT CASE ( ewald_type )
        CASE ( do_ewald_spme, do_ewald_pme )
           debug % pot_g = vg_coulomb
@@ -742,13 +742,11 @@ CONTAINS
           debug % f_g = fg_coulomb
        CASE ( do_ewald_ewald )
           debug % pot_g = vg_coulomb
-          debug % pv_g = pv_g
-          ! debug % fg is computed above because of
-          ! distributed particle data
+          IF (use_virial) debug%pv_g = pv_g
        CASE default
           debug % pot_g = 0.0_dp
           debug % f_g = 0.0_dp
-          debug % pv_g = 0.0_dp
+          IF (use_virial) debug%pv_g = 0.0_dp
        END SELECT
     END IF
 
@@ -767,15 +765,11 @@ CONTAINS
     END IF
     DEALLOCATE ( f_nonbond, STAT = stat )
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF(ALLOCATED (fshell_total)) THEN
+    IF (shell_present) THEN
        DEALLOCATE ( fshell_total, STAT = stat )
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-    IF(ALLOCATED(fgshell_coulomb)) THEN
        DEALLOCATE ( fgshell_coulomb, STAT = stat )
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ENDIF
-    IF(ALLOCATED (fshell_nonbond)) THEN
        DEALLOCATE ( fshell_nonbond, STAT = stat )
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF

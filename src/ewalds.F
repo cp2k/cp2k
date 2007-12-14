@@ -35,6 +35,7 @@ MODULE ewalds
                                              ewald_environment_type
   USE ewald_pw_types,                  ONLY: ewald_pw_get,&
                                              ewald_pw_type
+  USE f77_blas
   USE input_constants,                 ONLY: do_ewald_none
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
@@ -53,7 +54,6 @@ MODULE ewalds
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -88,7 +88,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, cell, atomic_kind_set, particle_set,&
-       local_particles, fg_coulomb, vg_coulomb, pv_g, error )
+       local_particles, fg_coulomb, vg_coulomb, pv_g, use_virial, error )
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(cell_type), POINTER                 :: cell
@@ -100,6 +100,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT)               :: vg_coulomb
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: pv_g
+    LOGICAL, INTENT(IN)                      :: use_virial
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_evaluate', &
@@ -111,10 +112,9 @@ CONTAINS
       iparticle_local, isos, lp, mp, nnodes, node, np, nparticle_kind, &
       nparticle_local
     INTEGER, DIMENSION(:, :), POINTER        :: bds
-    REAL(KIND=dp)                            :: alpha, COMMON, denom, &
-                                                e_igdotr, eps0, flops, &
-                                                four_alpha_sq, gauss, gsq, &
-                                                pref, q
+    REAL(KIND=dp)                            :: alpha, denom, e_igdotr, eps0, &
+                                                factor, flops, four_alpha_sq, &
+                                                gauss, gsq, pref, q
     REAL(KIND=dp), DIMENSION(3)              :: vec
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charge
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -158,7 +158,7 @@ CONTAINS
     ! Initializing vg_coulomb and fg_coulomb
     vg_coulomb = 0.0_dp
     fg_coulomb = 0.0_dp
-    pv_g = 0.0_dp
+    IF (use_virial) pv_g = 0.0_dp
     ! defining four_alpha_sq
     four_alpha_sq = 4.0_dp * alpha ** 2
     ! zero node count
@@ -217,8 +217,8 @@ CONTAINS
        IF ( pw_grid % gsq ( gpt ) <= 1.0E-10_dp ) CYCLE
 
        gauss = ( rho0 ( lp, mp, np ) * pw_grid % vol ) ** 2 / pw_grid % gsq ( gpt )
-       COMMON = gauss * REAL ( summe ( gpt ) * CONJG ( summe ( gpt ) ) )
-       vg_coulomb = vg_coulomb + COMMON
+       factor = gauss * REAL ( summe ( gpt ) * CONJG ( summe ( gpt ) ) )
+       vg_coulomb = vg_coulomb + factor
 
        ! computing the force
        node = 0
@@ -233,24 +233,17 @@ CONTAINS
 
        ! compute the virial P*V
        denom = 1.0_dp / four_alpha_sq + 1.0_dp / pw_grid % gsq ( gpt )
-       pv_g(1,1) = pv_g(1,1) + COMMON * ( 1.0_dp &
-            - 2.0_dp * pw_grid % g ( 1, gpt ) * pw_grid % g ( 1, gpt ) * denom )
-       pv_g(1,2) = pv_g(1,2) - COMMON * &
-            ( 2.0_dp * pw_grid % g ( 1, gpt ) * pw_grid % g ( 2, gpt ) * denom )
-       pv_g(1,3) = pv_g(1,3) - COMMON * &
-            ( 2.0_dp * pw_grid % g ( 1, gpt ) * pw_grid % g ( 3, gpt ) * denom )
-       pv_g(2,1) = pv_g(2,1) - COMMON * &
-            ( 2.0_dp * pw_grid % g ( 2, gpt ) * pw_grid % g ( 1, gpt ) * denom )
-       pv_g(2,2) = pv_g(2,2) + COMMON * ( 1.0_dp &
-            - 2.0_dp * pw_grid % g ( 2, gpt ) * pw_grid % g ( 2, gpt ) * denom )
-       pv_g(2,3) = pv_g(2,3) - COMMON * &
-            ( 2.0_dp * pw_grid % g ( 2, gpt ) * pw_grid % g ( 3, gpt ) * denom )
-       pv_g(3,1) = pv_g(3,1) - COMMON * &
-            ( 2.0_dp * pw_grid % g ( 3, gpt ) * pw_grid % g ( 1, gpt ) * denom )
-       pv_g(3,2) = pv_g(3,2) - COMMON * &
-            ( 2.0_dp * pw_grid % g ( 3, gpt ) * pw_grid % g ( 2, gpt ) * denom )
-       pv_g(3,3) = pv_g(3,3) + COMMON * ( 1.0_dp &
-            - 2.0_dp * pw_grid % g ( 3, gpt ) * pw_grid % g ( 3, gpt ) * denom )
+       IF (use_virial) THEN
+          pv_g(1,1) = pv_g(1,1) + factor*(1.0_dp - 2.0_dp*pw_grid%g(1,gpt)*pw_grid%g(1,gpt)*denom)
+          pv_g(1,2) = pv_g(1,2) - factor*(         2.0_dp*pw_grid%g(1,gpt)*pw_grid%g(2,gpt)*denom)
+          pv_g(1,3) = pv_g(1,3) - factor*(         2.0_dp*pw_grid%g(1,gpt)*pw_grid%g(3,gpt)*denom)
+          pv_g(2,1) = pv_g(2,1) - factor*(         2.0_dp*pw_grid%g(2,gpt)*pw_grid%g(1,gpt)*denom)
+          pv_g(2,2) = pv_g(2,2) + factor*(1.0_dp - 2.0_dp*pw_grid%g(2,gpt)*pw_grid%g(2,gpt)*denom)
+          pv_g(2,3) = pv_g(2,3) - factor*(         2.0_dp*pw_grid%g(2,gpt)*pw_grid%g(3,gpt)*denom)
+          pv_g(3,1) = pv_g(3,1) - factor*(         2.0_dp*pw_grid%g(3,gpt)*pw_grid%g(1,gpt)*denom)
+          pv_g(3,2) = pv_g(3,2) - factor*(         2.0_dp*pw_grid%g(3,gpt)*pw_grid%g(2,gpt)*denom)
+          pv_g(3,3) = pv_g(3,3) + factor*(1.0_dp - 2.0_dp*pw_grid%g(3,gpt)*pw_grid%g(3,gpt)*denom)
+       END IF
     END DO
 
     flops = flops + pw_grid % ngpts_cut * 55.0_dp &
@@ -258,7 +251,7 @@ CONTAINS
 
     pref = 1.0_dp / eps0 / pw_grid % vol
     vg_coulomb = vg_coulomb * pref
-    pv_g = pv_g * pref
+    IF (use_virial) pv_g = pv_g * pref
 
     pref = 2.0_dp * pref
     fg_coulomb = fg_coulomb * pref
@@ -422,19 +415,20 @@ CONTAINS
     TYPE(unit_convert_type), POINTER         :: units
 
     CALL get_cp2k_units ( units )
-
-    WRITE ( iw, '( A, A )' ) ' *********************************', &
-         '**********************************************'
-    WRITE ( iw, '( A, A, T35, A, T66, E15.7 )' ) ' INITIAL GSPACE ENERGY', &
-         units % e_label, '= ', e_gspace
-    WRITE ( iw, '( A, A, T35, A, T66, E15.7 )' ) ' SELF ENERGY CORRECTION', &
-         units % e_label, '= ', e_self
-    WRITE ( iw, '( A, A, T35, A, T66, E15.7 )' ) ' NEUT. BACKGROUND', units % e_label, &
-         '= ', e_neut / cell % deth
-    WRITE ( iw, '( A, A, T35, A, T66, E15.7 )' ) ' BONDED CORRECTION', units % e_label, &
-         '= ', e_bonded
-    WRITE ( iw, '( A, A )' ) ' *********************************', &
-         '**********************************************'
+    IF (iw>0) THEN
+       WRITE ( iw, '( A, A )' ) ' *********************************', &
+            '**********************************************'
+       WRITE ( iw, '( A, A, T35, A, T66, E15.7 )' ) ' INITIAL GSPACE ENERGY', &
+            units % e_label, '= ', e_gspace
+       WRITE ( iw, '( A, A, T35, A, T66, E15.7 )' ) ' SELF ENERGY CORRECTION', &
+            units % e_label, '= ', e_self
+       WRITE ( iw, '( A, A, T35, A, T66, E15.7 )' ) ' NEUT. BACKGROUND', units % e_label, &
+            '= ', e_neut / cell % deth
+       WRITE ( iw, '( A, A, T35, A, T66, E15.7 )' ) ' BONDED CORRECTION', units % e_label, &
+            '= ', e_bonded
+       WRITE ( iw, '( A, A )' ) ' *********************************', &
+            '**********************************************'
+    END IF
   END SUBROUTINE ewald_print
 
 END MODULE ewalds

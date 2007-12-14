@@ -32,6 +32,7 @@ MODULE fist_nonbond_force
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
+  USE f77_blas
   USE fist_neighbor_list_types,        ONLY: fist_neighbor_type,&
                                              neighbor_kind_pairs_type
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
@@ -53,7 +54,6 @@ MODULE fist_nonbond_force
                                              spline_factor_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -86,8 +86,8 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell, pot_nonbond,&
-       f_nonbond, ptens_nonbond, fshell_nonbond, fcore_nonbond, ewald_env,&
-       atomic_kind_set, error )
+       f_nonbond, pv_nonbond, fshell_nonbond, fcore_nonbond, ewald_env,&
+       atomic_kind_set, use_virial, error )
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(particle_type), DIMENSION(:), &
@@ -95,11 +95,12 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), INTENT(OUT)               :: pot_nonbond
     REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(INOUT)                          :: f_nonbond, ptens_nonbond
+      INTENT(INOUT)                          :: f_nonbond, pv_nonbond
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT), OPTIONAL                  :: fshell_nonbond, fcore_nonbond
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set(:)
+    LOGICAL, INTENT(IN)                      :: use_virial
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'force_nonbond', &
@@ -150,10 +151,13 @@ CONTAINS
     ! Initializing the potential energy, pressure tensor and force
     pot_nonbond        = 0.0_dp
     f_nonbond(:,:)     = 0.0_dp
-    ptens_nonbond(:,:) = 0.0_dp
-    ptens11 = 0.0_dp ; ptens12 = 0.0_dp ; ptens13 = 0.0_dp
-    ptens21 = 0.0_dp ; ptens22 = 0.0_dp ; ptens23 = 0.0_dp
-    ptens31 = 0.0_dp ; ptens32 = 0.0_dp ; ptens33 = 0.0_dp
+    
+    IF (use_virial) THEN
+       pv_nonbond(:,:) = 0.0_dp
+       ptens11 = 0.0_dp ; ptens12 = 0.0_dp ; ptens13 = 0.0_dp
+       ptens21 = 0.0_dp ; ptens22 = 0.0_dp ; ptens23 = 0.0_dp
+       ptens31 = 0.0_dp ; ptens32 = 0.0_dp ; ptens33 = 0.0_dp
+    END IF
     shell_present = .FALSE.
     IF(PRESENT(fshell_nonbond)) THEN
        CPPostcondition(PRESENT(fcore_nonbond),cp_failure_level,routineP,error,failure)
@@ -167,7 +171,7 @@ CONTAINS
 ! !$OMP shared(nkinds) &
 ! !$OMP private(ikind,jkind,id_kind,istart,iend) &
 ! !$OMP private(spline_data) &
-! !$OMP shared(potparm) &
+! !$OMP shared(potparm,use_virial) &
 ! !$OMP private(ab) &
 ! !$OMP shared(nonbonded) &
 ! !$OMP private(rab,rab2_max,fac) &
@@ -175,7 +179,7 @@ CONTAINS
 ! !$OMP shared(cell) &
 ! !$OMP shared(pot_nonbond) &
 ! !$OMP private(f_eam,pot,fr,fscalar,energy) &
-! !$OMP shared(f_nonbond,ptens_nonbond,r_last_update,ij_kind_full_fac) &
+! !$OMP shared(f_nonbond,pv_nonbond,r_last_update,ij_kind_full_fac) &
 ! !$OMP private(rab2) &
 ! !$OMP private(neighbor_kind_pair,cell_v) &
 ! !$OMP shared(particle_set,r_last_update_pbc) &
@@ -315,15 +319,17 @@ CONTAINS
                       f_nonbond(3,atom_b) = f_nonbond(3,atom_b) + fr(3)
                       CPPostcondition(shell_a/=0,cp_failure_level,routineP,error,failure)
                    END IF
-                   pv_com(1,1) = rab(1) * fr(1)
-                   pv_com(1,2) = rab(1) * fr(2)
-                   pv_com(1,3) = rab(1) * fr(3)
-                   pv_com(2,1) = rab(2) * fr(1)
-                   pv_com(2,2) = rab(2) * fr(2)
-                   pv_com(2,3) = rab(2) * fr(3)
-                   pv_com(3,1) = rab(3) * fr(1)
-                   pv_com(3,2) = rab(3) * fr(2)
-                   pv_com(3,3) = rab(3) * fr(3)
+                   IF (use_virial) THEN
+                      pv_com(1,1) = rab(1) * fr(1)
+                      pv_com(1,2) = rab(1) * fr(2)
+                      pv_com(1,3) = rab(1) * fr(3)
+                      pv_com(2,1) = rab(2) * fr(1)
+                      pv_com(2,2) = rab(2) * fr(2)
+                      pv_com(2,3) = rab(2) * fr(3)
+                      pv_com(3,1) = rab(3) * fr(1)
+                      pv_com(3,2) = rab(3) * fr(2)
+                      pv_com(3,3) = rab(3) * fr(3)
+                   END IF
           
                    IF(shell_type==sh_sh) THEN
                       ! shell-shell : VDW + Coulomb
@@ -341,15 +347,17 @@ CONTAINS
                       fshell_nonbond(1,shell_b) = fshell_nonbond(1,shell_b) + fr(1)
                       fshell_nonbond(2,shell_b) = fshell_nonbond(2,shell_b) + fr(2)
                       fshell_nonbond(3,shell_b) = fshell_nonbond(3,shell_b) + fr(3)
-                      pv_com(1,1) = pv_com(1,1) + rab(1) * fr(1)
-                      pv_com(1,2) = pv_com(1,2) + rab(1) * fr(2)
-                      pv_com(1,3) = pv_com(1,3) + rab(1) * fr(3)
-                      pv_com(2,1) = pv_com(2,1) + rab(2) * fr(1)
-                      pv_com(2,2) = pv_com(2,2) + rab(2) * fr(2)
-                      pv_com(2,3) = pv_com(2,3) + rab(2) * fr(3)
-                      pv_com(3,1) = pv_com(3,1) + rab(3) * fr(1)
-                      pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2)
-                      pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3)
+                      IF (use_virial) THEN
+                         pv_com(1,1) = pv_com(1,1) + rab(1) * fr(1)
+                         pv_com(1,2) = pv_com(1,2) + rab(1) * fr(2)
+                         pv_com(1,3) = pv_com(1,3) + rab(1) * fr(3)
+                         pv_com(2,1) = pv_com(2,1) + rab(2) * fr(1)
+                         pv_com(2,2) = pv_com(2,2) + rab(2) * fr(2)
+                         pv_com(2,3) = pv_com(2,3) + rab(2) * fr(3)
+                         pv_com(3,1) = pv_com(3,1) + rab(3) * fr(1)
+                         pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2)
+                         pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3)
+                      END IF
           
                       ! core-shell : Coulomb only
                       rab  = rab_list(:,2)
@@ -366,15 +374,17 @@ CONTAINS
                       fshell_nonbond(1,shell_b) = fshell_nonbond(1,shell_b) + fr(1)
                       fshell_nonbond(2,shell_b) = fshell_nonbond(2,shell_b) + fr(2)
                       fshell_nonbond(3,shell_b) = fshell_nonbond(3,shell_b) + fr(3)
-                      pv_com(1,1) = pv_com(1,1) + rab(1) * fr(1)
-                      pv_com(1,2) = pv_com(1,2) + rab(1) * fr(2)
-                      pv_com(1,3) = pv_com(1,3) + rab(1) * fr(3)
-                      pv_com(2,1) = pv_com(2,1) + rab(2) * fr(1)
-                      pv_com(2,2) = pv_com(2,2) + rab(2) * fr(2)
-                      pv_com(2,3) = pv_com(2,3) + rab(2) * fr(3)
-                      pv_com(3,1) = pv_com(3,1) + rab(3) * fr(1)
-                      pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2)
-                      pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3)
+                      IF (use_virial) THEN
+                         pv_com(1,1) = pv_com(1,1) + rab(1) * fr(1)
+                         pv_com(1,2) = pv_com(1,2) + rab(1) * fr(2)
+                         pv_com(1,3) = pv_com(1,3) + rab(1) * fr(3)
+                         pv_com(2,1) = pv_com(2,1) + rab(2) * fr(1)
+                         pv_com(2,2) = pv_com(2,2) + rab(2) * fr(2)
+                         pv_com(2,3) = pv_com(2,3) + rab(2) * fr(3)
+                         pv_com(3,1) = pv_com(3,1) + rab(3) * fr(1)
+                         pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2)
+                         pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3)
+                      END IF
                       
                       ! shell-core : Coulomb only
                       rab  = rab_list(:,3)
@@ -391,15 +401,17 @@ CONTAINS
                       fcore_nonbond(1,shell_b) = fcore_nonbond(1,shell_b) + fr(1)
                       fcore_nonbond(2,shell_b) = fcore_nonbond(2,shell_b) + fr(2)
                       fcore_nonbond(3,shell_b) = fcore_nonbond(3,shell_b) + fr(3)
-                      pv_com(1,1) = pv_com(1,1) + rab(1) * fr(1)
-                      pv_com(1,2) = pv_com(1,2) + rab(1) * fr(2)
-                      pv_com(1,3) = pv_com(1,3) + rab(1) * fr(3)
-                      pv_com(2,1) = pv_com(2,1) + rab(2) * fr(1)
-                      pv_com(2,2) = pv_com(2,2) + rab(2) * fr(2)
-                      pv_com(2,3) = pv_com(2,3) + rab(2) * fr(3)
-                      pv_com(3,1) = pv_com(3,1) + rab(3) * fr(1)
-                      pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2)
-                      pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3)
+                      IF (use_virial) THEN
+                         pv_com(1,1) = pv_com(1,1) + rab(1) * fr(1)
+                         pv_com(1,2) = pv_com(1,2) + rab(1) * fr(2)
+                         pv_com(1,3) = pv_com(1,3) + rab(1) * fr(3)
+                         pv_com(2,1) = pv_com(2,1) + rab(2) * fr(1)
+                         pv_com(2,2) = pv_com(2,2) + rab(2) * fr(2)
+                         pv_com(2,3) = pv_com(2,3) + rab(2) * fr(3)
+                         pv_com(3,1) = pv_com(3,1) + rab(3) * fr(1)
+                         pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2)
+                         pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3)
+                      END IF
                    ELSEIF(shell_type==nosh_sh) THEN
                       ! shell-ion or ion-shell : VDW + Coulomb
                       rab = rab_list(:,4)
@@ -425,25 +437,29 @@ CONTAINS
                          fshell_nonbond(2,shell_b) = fshell_nonbond(2,shell_b) + fr(2)
                          fshell_nonbond(3,shell_b) = fshell_nonbond(3,shell_b) + fr(3)
                       END IF
-                      pv_com(1,1) = pv_com(1,1) + rab(1) * fr(1)
-                      pv_com(1,2) = pv_com(1,2) + rab(1) * fr(2)
-                      pv_com(1,3) = pv_com(1,3) + rab(1) * fr(3)
-                      pv_com(2,1) = pv_com(2,1) + rab(2) * fr(1)
-                      pv_com(2,2) = pv_com(2,2) + rab(2) * fr(2)
-                      pv_com(2,3) = pv_com(2,3) + rab(2) * fr(3)
-                      pv_com(3,1) = pv_com(3,1) + rab(3) * fr(1)
-                      pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2)
-                      pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3)
+                      IF (use_virial) THEN
+                         pv_com(1,1) = pv_com(1,1) + rab(1) * fr(1)
+                         pv_com(1,2) = pv_com(1,2) + rab(1) * fr(2)
+                         pv_com(1,3) = pv_com(1,3) + rab(1) * fr(3)
+                         pv_com(2,1) = pv_com(2,1) + rab(2) * fr(1)
+                         pv_com(2,2) = pv_com(2,2) + rab(2) * fr(2)
+                         pv_com(2,3) = pv_com(2,3) + rab(2) * fr(3)
+                         pv_com(3,1) = pv_com(3,1) + rab(3) * fr(1)
+                         pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2)
+                         pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3)
+                      END IF
                    END IF
-                   ptens11 = ptens11 + pv_com(1,1)
-                   ptens21 = ptens21 + pv_com(2,1)
-                   ptens31 = ptens31 + pv_com(3,1)
-                   ptens12 = ptens12 + pv_com(1,2)
-                   ptens22 = ptens22 + pv_com(2,2)
-                   ptens32 = ptens32 + pv_com(3,2)
-                   ptens13 = ptens13 + pv_com(1,3)
-                   ptens23 = ptens23 + pv_com(2,3)
-                   ptens33 = ptens33 + pv_com(3,3)
+                   IF (use_virial) THEN
+                      ptens11 = ptens11 + pv_com(1,1)
+                      ptens21 = ptens21 + pv_com(2,1)
+                      ptens31 = ptens31 + pv_com(3,1)
+                      ptens12 = ptens12 + pv_com(1,2)
+                      ptens22 = ptens22 + pv_com(2,2)
+                      ptens32 = ptens32 + pv_com(3,2)
+                      ptens13 = ptens13 + pv_com(1,3)
+                      ptens23 = ptens23 + pv_com(2,3)
+                      ptens33 = ptens33 + pv_com(3,3)
+                   END IF
                    ! Let's restore the proper order to save time...
                    IF (swap_ab) THEN
                       cs_spline_data => pot%cs_coul_spline_data
@@ -477,29 +493,33 @@ CONTAINS
                    f_nonbond(1,atom_b) = f_nonbond(1,atom_b) + fr(1)
                    f_nonbond(2,atom_b) = f_nonbond(2,atom_b) + fr(2)
                    f_nonbond(3,atom_b) = f_nonbond(3,atom_b) + fr(3)
-                   ptens11 = ptens11 + rab(1) * fr(1)
-                   ptens21 = ptens21 + rab(2) * fr(1)
-                   ptens31 = ptens31 + rab(3) * fr(1)
-                   ptens12 = ptens12 + rab(1) * fr(2)
-                   ptens22 = ptens22 + rab(2) * fr(2)
-                   ptens32 = ptens32 + rab(3) * fr(2)
-                   ptens13 = ptens13 + rab(1) * fr(3)
-                   ptens23 = ptens23 + rab(2) * fr(3)
-                   ptens33 = ptens33 + rab(3) * fr(3)
+                   IF (use_virial) THEN
+                      ptens11 = ptens11 + rab(1) * fr(1)
+                      ptens21 = ptens21 + rab(2) * fr(1)
+                      ptens31 = ptens31 + rab(3) * fr(1)
+                      ptens12 = ptens12 + rab(1) * fr(2)
+                      ptens22 = ptens22 + rab(2) * fr(2)
+                      ptens32 = ptens32 + rab(3) * fr(2)
+                      ptens13 = ptens13 + rab(1) * fr(3)
+                      ptens23 = ptens23 + rab(2) * fr(3)
+                      ptens33 = ptens33 + rab(3) * fr(3)
+                   END IF
                 END IF
              END IF
           END DO Pairs
        END DO Kind_Group_Loop
     END DO Lists
-    ptens_nonbond(1,1) = ptens_nonbond(1,1) + ptens11
-    ptens_nonbond(1,2) = ptens_nonbond(1,2) + ptens12
-    ptens_nonbond(1,3) = ptens_nonbond(1,3) + ptens13
-    ptens_nonbond(2,1) = ptens_nonbond(2,1) + ptens21
-    ptens_nonbond(2,2) = ptens_nonbond(2,2) + ptens22
-    ptens_nonbond(2,3) = ptens_nonbond(2,3) + ptens23
-    ptens_nonbond(3,1) = ptens_nonbond(3,1) + ptens31
-    ptens_nonbond(3,2) = ptens_nonbond(3,2) + ptens32
-    ptens_nonbond(3,3) = ptens_nonbond(3,3) + ptens33
+    IF (use_virial) THEN
+       pv_nonbond(1,1) = pv_nonbond(1,1) + ptens11
+       pv_nonbond(1,2) = pv_nonbond(1,2) + ptens12
+       pv_nonbond(1,3) = pv_nonbond(1,3) + ptens13
+       pv_nonbond(2,1) = pv_nonbond(2,1) + ptens21
+       pv_nonbond(2,2) = pv_nonbond(2,2) + ptens22
+       pv_nonbond(2,3) = pv_nonbond(2,3) + ptens23
+       pv_nonbond(3,1) = pv_nonbond(3,1) + ptens31
+       pv_nonbond(3,2) = pv_nonbond(3,2) + ptens32
+       pv_nonbond(3,3) = pv_nonbond(3,3) + ptens33
+    END IF
 
     CALL timestop ( handle )
   END SUBROUTINE force_nonbond
@@ -523,8 +543,7 @@ CONTAINS
 !******************************************************************************
   SUBROUTINE bonded_correct_gaussian ( atomic_kind_set, local_particles, &
              particle_set, ewald_env, v_bonded_corr, pv_bc, shell_particle_set, &
-             core_particle_set, cell, error )
-
+             core_particle_set, cell, use_virial, error )
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_particles
@@ -536,9 +555,11 @@ CONTAINS
     TYPE(particle_type), OPTIONAL, POINTER   :: shell_particle_set( : ), &
                                                 core_particle_set( : )
     TYPE(cell_type), POINTER                 :: cell
+    LOGICAL, INTENT(IN)                      :: use_virial
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'bonded_correct_gaussian'
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'bonded_correct_gaussian', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: group, handle, i, iatom, &
                                                 iexl, ikind, j, &
@@ -555,7 +576,7 @@ CONTAINS
     flops = 0.0_dp
 
     ! Initializing values
-    pv_bc         = 0.0_dp
+    IF (use_virial) pv_bc = 0.0_dp
     v_bonded_corr = 0.0_dp
     ! Defining the constants
     CALL ewald_env_get ( ewald_env, eps0 = eps0, alpha = alpha, group = group ,error=error)
@@ -585,13 +606,12 @@ CONTAINS
              ! This term excludes always ION-ION interactions
              IF(i_is_shell) THEN
                 CALL bonded_correct_gaussian_low(rci, rcj, cell, v_bonded_corr, &
-                                                 core_particle_set, core_particle_set, &
-                                                 shell_i_index, shell_j_index, .TRUE., &
-                                                 alpha, qci, qcj, ifourpieps0, const, pv_bc)
+                     core_particle_set, core_particle_set, shell_i_index, shell_j_index,&
+                     .TRUE., alpha, qci, qcj, ifourpieps0, const, pv_bc, use_virial)
              ELSE
-                CALL bonded_correct_gaussian_low(rci, rcj, cell, v_bonded_corr,&
-                                                 particle_set, particle_set, i, j, .TRUE.,&
-                                                 alpha, qci, qcj, ifourpieps0, const, pv_bc)
+                CALL bonded_correct_gaussian_low(rci, rcj, cell, v_bonded_corr, particle_set,&
+                     particle_set, i, j, .TRUE., alpha, qci, qcj, ifourpieps0, const, pv_bc,&
+                     use_virial)
              END IF
 
              ! Shell-Model
@@ -600,18 +620,18 @@ CONTAINS
                 IF(i_is_shell .AND. j_is_shell) THEN
                    CALL bonded_correct_gaussian_low(rsi, rsj, cell, v_bonded_corr,&
                         shell_particle_set, shell_particle_set, shell_i_index, shell_j_index,&
-                        shell_adiabatic, alpha, qsi, qsj, ifourpieps0, const, pv_bc)
+                        shell_adiabatic, alpha, qsi, qsj, ifourpieps0, const, pv_bc, use_virial)
                 END IF
                 ! shell-model: exclude shell_i-core_j interactions
                 IF(i_is_shell ) THEN
                    IF (j_is_shell) THEN
                       CALL bonded_correct_gaussian_low(rsi, rcj, cell, v_bonded_corr,&
                            shell_particle_set, core_particle_set, shell_i_index, shell_j_index,&
-                           shell_adiabatic, alpha, qsi, qcj, ifourpieps0, const, pv_bc)
+                           shell_adiabatic, alpha, qsi, qcj, ifourpieps0, const, pv_bc, use_virial)
                    ELSE
                       CALL bonded_correct_gaussian_low(rsi, rcj, cell, v_bonded_corr,&
                            shell_particle_set, particle_set, shell_i_index, j, shell_adiabatic,&
-                           alpha, qsi, qcj, ifourpieps0, const, pv_bc)
+                           alpha, qsi, qcj, ifourpieps0, const, pv_bc,use_virial)
                    END IF
                 END IF
                 ! shell-model: exclude shell_j-core_i interactions
@@ -619,11 +639,11 @@ CONTAINS
                    IF (i_is_shell) THEN
                       CALL bonded_correct_gaussian_low(rci, rsj, cell, v_bonded_corr,&
                            core_particle_set, shell_particle_set, shell_i_index, shell_j_index,&
-                           shell_adiabatic, alpha, qci, qsj, ifourpieps0, const, pv_bc)
+                           shell_adiabatic, alpha, qci, qsj, ifourpieps0, const, pv_bc, use_virial)
                    ELSE
                       CALL bonded_correct_gaussian_low(rci, rsj, cell, v_bonded_corr,&
                            particle_set, shell_particle_set, i, shell_j_index, shell_adiabatic,&
-                           alpha, qci, qsj, ifourpieps0, const, pv_bc)
+                           alpha, qci, qsj, ifourpieps0, const, pv_bc, use_virial)
                    END IF
                 END IF
              END IF
@@ -635,7 +655,7 @@ CONTAINS
           IF(i_is_shell ) THEN
              CALL bonded_correct_gaussian_low_sh(rci, rsi, cell, v_bonded_corr,&
                   core_particle_set, shell_particle_set, shell_i_index, shell_adiabatic,&
-                  alpha, qci, qsi, ifourpieps0, const, pv_bc)
+                  alpha, qci, qsi, ifourpieps0, const, pv_bc, use_virial)
           END IF
 
        END DO
@@ -666,7 +686,7 @@ CONTAINS
 !******************************************************************************
   SUBROUTINE bonded_correct_gaussian_low(r1, r2, cell, v_bonded_corr,&
        particle_set1, particle_set2, i, j, shell_adiabatic, alpha, q1, q2, &
-       ifourpieps0, const, pv_bc)
+       ifourpieps0, const, pv_bc, use_virial)
     REAL(KIND=dp), DIMENSION(3)              :: r1, r2
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), INTENT(INOUT)             :: v_bonded_corr
@@ -677,8 +697,10 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: alpha, q1, q2, ifourpieps0, &
                                                 const
     REAL(KIND=dp), INTENT(INOUT)             :: pv_bc(3,3)
+    LOGICAL, INTENT(IN)                      :: use_virial
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'bonded_correct_gaussian_low'
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'bonded_correct_gaussian_low', &
+      routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER :: ac1 = 0.254829592_dp, ac2 = -0.284496736_dp, &
       ac3 = 1.421413741_dp, ac4 = -1.453152027_dp, ac5 = 1.061405429_dp, &
       pc = 0.3275911_dp
@@ -714,7 +736,7 @@ CONTAINS
     particle_set2(j)%f(2) = particle_set2(j)%f(2) + fscalar*rij(2)
     particle_set2(j)%f(3) = particle_set2(j)%f(3) + fscalar*rij(3)
 
-    IF(shell_adiabatic) THEN
+    IF (use_virial.AND.(shell_adiabatic)) THEN
        fij_com = fscalar*rij
        pv_bc(1,1) = pv_bc(1,1) - fij_com(1) * rij(1)
        pv_bc(1,2) = pv_bc(1,2) - fij_com(1) * rij(2)
@@ -726,7 +748,6 @@ CONTAINS
        pv_bc(3,2) = pv_bc(3,2) - fij_com(3) * rij(2)
        pv_bc(3,3) = pv_bc(3,3) - fij_com(3) * rij(3)
     END IF
-
   END SUBROUTINE bonded_correct_gaussian_low
 
 !!****** fist_nonbond_force/bonded_correct_gaussian_low_sh [1.0] *
@@ -749,7 +770,7 @@ CONTAINS
 !******************************************************************************
   SUBROUTINE bonded_correct_gaussian_low_sh(r1, r2, cell, v_bonded_corr, &
        core_particle_set, shell_particle_set, i, shell_adiabatic, alpha, q1, q2,&
-       ifourpieps0, const, pv_bc)
+       ifourpieps0, const, pv_bc, use_virial)
     REAL(KIND=dp), DIMENSION(3)              :: r1, r2
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), INTENT(INOUT)             :: v_bonded_corr
@@ -760,8 +781,11 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: alpha, q1, q2, ifourpieps0, &
                                                 const
     REAL(KIND=dp), INTENT(INOUT)             :: pv_bc(3,3)
+    LOGICAL, INTENT(IN)                      :: use_virial
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'bonded_correct_gaussian_low_sh'
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'bonded_correct_gaussian_low_sh', &
+      routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER :: ac1 = 0.254829592_dp, ac2 = -0.284496736_dp, &
       ac3 = 1.421413741_dp, ac4 = -1.453152027_dp, ac5 = 1.061405429_dp, &
       pc = 0.3275911_dp
@@ -810,7 +834,7 @@ CONTAINS
     shell_particle_set(i)%f(2)=shell_particle_set(i)%f(2)+fscalar*rij(2)
     shell_particle_set(i)%f(3)=shell_particle_set(i)%f(3)+fscalar*rij(3)
     
-    IF(shell_adiabatic) THEN
+    IF((shell_adiabatic).AND.use_virial) THEN
        fij_com = fscalar*rij
        pv_bc(1,1) = pv_bc(1,1) - fij_com(1) * rij(1)
        pv_bc(1,2) = pv_bc(1,2) - fij_com(1) * rij(2)
