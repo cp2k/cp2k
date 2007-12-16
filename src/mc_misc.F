@@ -555,7 +555,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=default_string_length)     :: c_val, mol_name, name, &
                                                 name_a, name_b, name_c, &
-                                                name_d, unit_type
+                                                name_d
     INTEGER :: current_bend, current_bond, current_torsion, ewald_type, &
       gmax(3), handle, i_val, iatom, ibend, ibond, ichain, ifunct, imolecule, &
       imul, itorsion, itype, jbend, jbond, jtorsion, jtype, natoms, nbend, &
@@ -611,7 +611,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
          CALL get_fist_env(fist_env,cell=cell,ewald_env=ewald_env,&
             input=input,atomic_kind_set=atomic_kind_set,&
             fist_nonbond_env=fist_nonbond_env,error=error)
-         CALL ewald_env_get(ewald_env,unit_type=unit_type,&
+         CALL ewald_env_get(ewald_env,&
             ewald_type=ewald_type,alpha=alpha,gmax=gmax,o_spline=o_spline,&
             ns_max=ns_max,epsilon=epsilon,error=error)
          CALL get_cell(cell,abc=abc)
