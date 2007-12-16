@@ -32,6 +32,7 @@ MODULE input_cp2k_poisson
                                              Toukmaji1996
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
+  USE f77_blas
   USE input_constants
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
@@ -47,7 +48,6 @@ MODULE input_cp2k_poisson
   USE string_utilities,                ONLY: s2a
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -371,6 +371,15 @@ SUBROUTINE create_ewald_section(section,error)
                        do_ewald_ewald,&
                        do_ewald_pme,&
                        do_ewald_spme/),error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="EWALD_ACCURACY",&
+         description="Expected accuracy in the Ewald sum. This number affects only the calculation of "//&
+         "the cutoff for the real-space term of the ewald summation (EWALD|PME|SPME). This keyword has no "//&
+         "effect on the reciprocal space term (which can be tuned indipendently).",&
+         usage="EWALD_ACCURACY {real}", n_var=1, type_of_var=real_t,&
+         unit_str="hartree",default_r_val=1.0E-6_dp,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 

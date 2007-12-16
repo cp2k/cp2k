@@ -108,11 +108,10 @@ CONTAINS
 !!   INPUTS
 !!*****************************************************************************
 
-  SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
-       molecule_kind_set,molecule_set,&
-       ewald_env,fist_nonbond_env,ff_type,root_section,&
-       qmmm, qmmm_env, mm_section, subsys_section, shell_particle_set,&
-       core_particle_set, cell, error)
+  SUBROUTINE force_field_pack (particle_set,atomic_kind_set,molecule_kind_set, &
+       molecule_set, ewald_env,fist_nonbond_env,ff_type,root_section, qmmm, &
+       qmmm_env, mm_section, subsys_section, shell_particle_set,core_particle_set,&
+       cell, error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -311,7 +310,7 @@ CONTAINS
     END IF
     ! Create non bond environment
     CALL fist_nonbond_env_create (fist_nonbond_env, potparm_nonbond, ff_type%nonbonded14, &
-         ff_type%nonbonded, mm_section, error )
+         ff_type%nonbonded, mm_section, ewald_env, error )
 
     ! Release all spline_environments
     IF (ff_type%nonbonded) THEN

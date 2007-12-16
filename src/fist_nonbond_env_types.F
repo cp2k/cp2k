@@ -21,6 +21,8 @@
 MODULE fist_nonbond_env_types
   USE cell_types,                      ONLY: cell_release,&
                                              cell_type
+  USE ewald_environment_types,         ONLY: ewald_env_get,&
+                                             ewald_environment_type
   USE fist_neighbor_list_types,        ONLY: fist_neighbor_deallocate,&
                                              fist_neighbor_type
   USE input_section_types,             ONLY: section_vals_type,&
@@ -246,11 +248,12 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE fist_nonbond_env_create(fist_nonbond_env, potparm, nonbonded14,&
-       nonbonded, mm_section, error)
+       nonbonded, mm_section, ewald_env, error)
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(pair_potential_pp_type), POINTER    :: potparm
     LOGICAL, INTENT(IN)                      :: nonbonded14, nonbonded
     TYPE(section_vals_type), POINTER         :: mm_section
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_nonbond_env_create', &
@@ -265,7 +268,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL init_fist_nonbond_env( fist_nonbond_env, potparm, nonbonded14,&
-            nonbonded, mm_section, error)
+            nonbonded, mm_section, ewald_env, error)
     END IF
   END SUBROUTINE fist_nonbond_env_create
 
@@ -291,12 +294,13 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE init_fist_nonbond_env ( fist_nonbond_env, potparm, nonbonded14,&
-     nonbonded, mm_section, error)
+     nonbonded, mm_section, ewald_env, error)
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(pair_potential_pp_type), POINTER    :: potparm
     LOGICAL, INTENT(IN)                      :: nonbonded14, nonbonded
     TYPE(section_vals_type), POINTER         :: mm_section
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_fist_nonbond_env', &
@@ -304,7 +308,8 @@ CONTAINS
 
     INTEGER                                  :: idim, jdim, natom_types, stat
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: fac, rcut, verlet_skin, tmp
+    REAL(KIND=dp)                            :: ewald_rcut, fac, rcut, tmp, &
+                                                verlet_skin
 
     NULLIFY (fist_nonbond_env%nonbonded)
     NULLIFY (fist_nonbond_env%r_last_update)
@@ -327,8 +332,8 @@ CONTAINS
     fist_nonbond_env%ref_count=1
     fist_nonbond_env%id_nr=last_fist_nonbond_env_id_nr
     last_fist_nonbond_env_id_nr=last_fist_nonbond_env_id_nr+1
-    
     IF (nonbonded) THEN
+       CALL ewald_env_get(ewald_env, rcut=ewald_rcut, error=error)
        CALL section_vals_val_get(mm_section,"FORCEFIELD%NEIGHBOR_LISTS%VERLET_SKIN",&
             r_val=verlet_skin,error=error)
        natom_types = SIZE ( potparm%pot, 1 )
@@ -342,7 +347,8 @@ CONTAINS
        DO idim = 1, natom_types
           DO jdim = idim, natom_types
              fac  = potparm%pot(idim,jdim)%pot%spl_f%rscale(2)
-             rcut = SQRT (potparm%pot(idim,jdim)%pot%rcutsq) + verlet_skin
+             rcut = SQRT(potparm%pot(idim,jdim)%pot%rcutsq) + verlet_skin
+             rcut = MAX(rcut, ewald_rcut)
              fist_nonbond_env % rlist_cutsq(idim,jdim) = rcut
              fist_nonbond_env % rlist_cutsq(jdim,idim) = rcut
              rcut = fac / (potparm%pot(idim,jdim)%pot%pair_spline_data(1)%spline_data%xn)

@@ -78,7 +78,7 @@ MODULE ewald_environment_types
     INTEGER   :: ns_max                   ! # grid points for small grid (PME)
     INTEGER   :: o_spline                 ! order of spline (SPME)
     INTEGER   :: rs_distributed_id        ! realspace distribution
-    REAL (KIND=dp) :: alpha               ! ewald alpha
+    REAL (KIND=dp) :: alpha, rcut         ! ewald alpha and real-space cutoff
     REAL (KIND=dp) :: eps0                ! permittivity constant
     REAL (KIND=dp) :: epsilon             ! tolerance for small grid (PME)
     TYPE ( cp_para_env_type ), POINTER   :: para_env
@@ -146,7 +146,7 @@ CONTAINS
 !******************************************************************************
   SUBROUTINE ewald_env_get( ewald_env, ewald_type, alpha, eps0, epsilon, gmax,&
        ns_max, o_spline, rs_distributed_id, group, para_env, id_nr, poisson_section,&
-       error )
+       rcut, error )
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     INTEGER, OPTIONAL                        :: ewald_type
     REAL(KIND=dp), OPTIONAL                  :: alpha, eps0, epsilon
@@ -157,6 +157,7 @@ CONTAINS
     INTEGER, INTENT(OUT), OPTIONAL           :: id_nr
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: poisson_section
+    REAL(KIND=dp), OPTIONAL                  :: rcut
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -171,6 +172,7 @@ CONTAINS
     IF (PRESENT(id_nr)) id_nr = ewald_env%id_nr
     IF (PRESENT(ewald_type)) ewald_type = ewald_env%ewald_type
     IF (PRESENT(alpha)) alpha = ewald_env%alpha
+    IF (PRESENT(rcut)) rcut = ewald_env%rcut
     IF (PRESENT(eps0)) eps0 = ewald_env%eps0
     IF (PRESENT(epsilon)) epsilon = ewald_env%epsilon
     IF (PRESENT(gmax)) gmax = ewald_env%gmax
@@ -430,7 +432,7 @@ CONTAINS
     INTEGER                                  :: iw
     INTEGER, DIMENSION(:), POINTER           :: gmax_read
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: dummy
+    REAL(KIND=dp)                            :: dummy, precs
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(enumeration_type), POINTER          :: enum
     TYPE(keyword_type), POINTER              :: keyword
@@ -444,11 +446,14 @@ CONTAINS
     failure = .FALSE.
     IF (.NOT.failure) THEN
        CALL section_vals_val_get(ewald_section,"EWALD_TYPE",i_val=ewald_env%ewald_type,error=error)
+       CALL section_vals_val_get(ewald_section,"RS_GRID",i_val=ewald_env%rs_distributed_id,error=error)
        CALL section_vals_val_get(ewald_section,"ALPHA",r_val=ewald_env%alpha,error=error)
-
+       CALL section_vals_val_get(ewald_section,"EWALD_ACCURACY",r_val=precs,error=error)
+       
+       ewald_env%rcut = find_ewald_optimal_value(precs,error)/ewald_env%alpha
        ! we have no defaults for gmax, gmax is only needed for ewald and spme
        SELECT CASE ( ewald_env%ewald_type )
-       CASE ( do_ewald_ewald, do_ewald_spme)
+       CASE (do_ewald_ewald, do_ewald_spme)
           CALL section_vals_val_get(ewald_section,"GMAX",i_vals=gmax_read,error=error)
           SELECT CASE (SIZE(gmax_read,1))
           CASE (1)
@@ -458,15 +463,17 @@ CONTAINS
           CASE DEFAULT
              CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
           END SELECT
+          IF (ewald_env%ewald_type==do_ewald_spme) THEN
+             CALL section_vals_val_get(ewald_section,"O_SPLINE",i_val=ewald_env%o_spline,error=error)
+          END IF
+       CASE (do_ewald_pme)
+          CALL section_vals_val_get(ewald_section,"NS_MAX",i_val=ewald_env%ns_max,error=error)
+          CALL section_vals_val_get(ewald_section,"EPSILON",r_val=ewald_env%epsilon,error=error)
        CASE DEFAULT
-          ! this should not be used for do_ewald_none and do_ewald_ewald
-          ewald_env%gmax = HUGE(0)
+          ! this should not be used for do_ewald_none
+          ewald_env%gmax   = HUGE(0)
+          ewald_env%ns_max = HUGE(0)
        END SELECT
-
-       CALL section_vals_val_get(ewald_section,"NS_MAX",i_val=ewald_env%ns_max,error=error)
-       CALL section_vals_val_get(ewald_section,"O_SPLINE",i_val=ewald_env%o_spline,error=error)
-       CALL section_vals_val_get(ewald_section,"EPSILON",r_val=ewald_env%epsilon,error=error)
-       CALL section_vals_val_get(ewald_section,"RS_GRID",i_val=ewald_env%rs_distributed_id,error=error)
 
        iw=cp_print_key_unit_nr(logger,ewald_section,"PRINT%PROGRAM_RUN_INFO",&
             extension=".log",error=error)
@@ -475,11 +482,14 @@ CONTAINS
           keyword => section_get_keyword(section,"EWALD_TYPE",error=error)
           CALL keyword_get(keyword,enum=enum,error=error)
           IF ( ewald_env%ewald_type /= do_ewald_none ) THEN
-             dummy = cp_unit_from_cp2k(ewald_env%alpha,"angstrom^-1",error=error)
              WRITE ( iw, '( A,T67,A14 )' ) ' Ewald| Summation is done by:', &
                   ADJUSTR(TRIM(enum_i2c(enum,ewald_env%ewald_type,error=error)))
+             dummy = cp_unit_from_cp2k(ewald_env%alpha,"angstrom^-1",error=error)
              WRITE ( iw, '( A,A18,A,T71,F10.4 )' ) &
-                  ' Ewald| Alpha parameter [','ANGSTROM^-1',']', dummy
+                  ' Ewald| Alpha parameter [','ANGSTROM^-1',']',dummy
+             dummy = cp_unit_from_cp2k(ewald_env%rcut,"angstrom",error=error)
+             WRITE ( iw, '( A,A18,A,T71,F10.4 )' ) &
+                  ' Ewald| Real Space Cutoff [','ANGSTROM',']',dummy
 
              SELECT CASE ( ewald_env%ewald_type )
              CASE ( do_ewald_ewald)
@@ -509,6 +519,63 @@ CONTAINS
 
   END SUBROUTINE read_ewald_section
 
+!!****s* ewald_environment_types/find_ewald_optimal_value [1.0] *
+!!
+!!   NAME
+!!     find_ewald_optimal_value
+!!
+!!   FUNCTION
+!!     triggers (by bisection) the optimal value for EWALD parameter x
+!!     EXP(-x^2)/x^2 = EWALD_ACCURACY
+!!
+!!   ATTRIBUTES
+!!     - ewald_env: the pointer to the ewald_env
+!!
+!!   AUTHOR
+!!     Teodoro Laino [tlaino] - University of Zurich - 12.2007
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!******************************************************************************
+  FUNCTION find_ewald_optimal_value(precs,error) RESULT(value)
+    REAL(KIND=dp)                            :: precs
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(KIND=dp)                            :: value
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'find_ewald_optimal_value', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: func, func1, func2, s, s1, s2
+
+    failure = .FALSE.
+    s    =  0.1_dp
+    func =  EXP(-s**2)/s**2 - precs
+    CPPrecondition(func>0.0_dp,cp_failure_level,routineP,error,failure)
+    DO WHILE (func>0.0_dp)
+       s = s + 0.1_dp
+       func =  EXP(-s**2)/s**2 - precs
+    END DO
+    s2 = s
+    s1 = s - 0.1_dp
+    ! Start bisection
+    DO WHILE (.TRUE.)
+       func2 = EXP(-s2**2)/s2**2 - precs
+       func1 = EXP(-s1**2)/s1**2 - precs
+       CPPrecondition(func1>=0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(func2<=0,cp_failure_level,routineP,error,failure)
+       s    = 0.5_dp * (s1 + s2)
+       func = EXP(-s**2)/s**2 - precs
+       IF      (func > 0.0_dp) THEN
+          s1 = s
+       ELSE IF (func < 0.0_dp) THEN
+          s2 = s
+       END IF
+       IF (ABS(func)<100.0_dp*EPSILON(0.0_dp)) EXIT
+    END DO
+    value = s
+  END FUNCTION find_ewald_optimal_value
 !***************************************************************************
 
 END MODULE ewald_environment_types
