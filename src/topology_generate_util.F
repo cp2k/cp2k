@@ -31,6 +31,7 @@ MODULE topology_generate_util
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE fist_neighbor_list_types,        ONLY: fist_neighbor_deallocate,&
                                              fist_neighbor_type
   USE fist_neighbor_lists,             ONLY: build_fist_neighbor_lists
@@ -70,7 +71,6 @@ MODULE topology_generate_util
                                              reorder_structure
   USE util,                            ONLY: find_boundary,&
                                              sort
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -486,11 +486,8 @@ CONTAINS
     NULLIFY(logger, particle_set, atomic_kind_set, nonbonded)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) THEN
-      output_unit= cp_logger_get_default_unit_nr(logger)
-    ELSE
-      output_unit = -1
-    END IF
+    output_unit = -1
+    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/GENERATE_INFO",&
          extension=".subsysLog",error=error)
     CALL timeset(routineN,'I','',handle)
@@ -701,6 +698,7 @@ CONTAINS
           n_bonds       = n_heavy_bonds
           ! Now check bonds formed by hydrogens...
           ! The hydrogen valence is 1 so we can choose the closest atom..
+          IF (output_unit>0) WRITE(output_unit,*)
           DO iatm1 = 1, natom
              IF (.NOT.h_list(iatm1)) CYCLE
              r2_min = HUGE(0.0_dp)
