@@ -86,6 +86,7 @@ MODULE qs_ks_methods
   USE kg_gpw_pw_env_types,             ONLY: kg_sub_pw_env_type
   USE kinds,                           ONLY: dp
   USE mulliken,                        ONLY: mulliken_restraint
+  USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_grids,                        ONLY: pw_grid_compare
@@ -101,7 +102,8 @@ MODULE qs_ks_methods
        pw_copy, pw_integrate_function, pw_p_type, pw_release, pw_scale, &
        pw_axpy, pw_transfer, pw_type, pw_zero
   USE qs_charges_types,                ONLY: qs_charges_type
-  USE qs_collocate_density,            ONLY: calculate_rho_elec
+  USE qs_collocate_density,            ONLY: calculate_rho_elec, &
+                                             calculate_wavefunction
   USE qs_core_energies,                ONLY: calculate_ecore
   USE qs_dftb_matrices,                ONLY: build_dftb_ks_matrix
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -700,6 +702,9 @@ CONTAINS
          END DO
          CALL integrate_four_center(qs_env, ks_matrix,energy,rho,hf_section,&
                                     para_env,ks_env%s_mstruct_changed,do_hf_periodic,error)
+
+         CALL pw_hfx(qs_env,energy,hf_section,poisson_env,auxbas_pw_pool,error)
+
          IF ( calculate_forces ) THEN
            CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
            CALL derivatives_four_center(qs_env, ks_matrix,energy,rho,hf_section,&
@@ -1117,6 +1122,145 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE qs_ks_build_kohn_sham_matrix
+
+!!****f* qs_ks_methods/pw_hfx *
+!!
+!!   NAME
+!!     pw_hfx
+!!
+!!   FUNCTION
+!!     computes the Hartree-Fock energy brute force in a pw basis
+!!
+!!   NOTES
+!!     only computes the HFX energy, no derivatives as yet
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!     12.2007 created [Joost VandeVondele]
+!!
+!!*** **********************************************************************
+  SUBROUTINE pw_hfx(qs_env,energy,hf_section,poisson_env,auxbas_pw_pool,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(section_vals_type), POINTER         :: hf_section
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(*), PARAMETER :: routineN = 'pw_hfx', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, iorb, jorb,norb, ispin, iw
+    LOGICAL                                  :: failure,do_pw_hfx
+    REAL(KIND=dp)                            :: pair_energy, exchange_energy, scaling, fraction
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(pw_p_type)                          :: rho_i, rho_j, &
+                                                rho_g, pot_g
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mo_array
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(cp_logger_type), POINTER            :: logger
+
+
+    CALL timeset(routineN,handle)
+    failure = .FALSE.
+    logger => cp_error_get_logger(error)
+
+    CALL section_vals_val_get(hf_section, "PW_HFX", l_val=do_pw_hfx, error=error)
+
+    IF (do_pw_hfx) THEN
+       CALL section_vals_val_get(hf_section, "FRACTION", r_val=fraction, error=error)
+   
+       CALL get_qs_env(qs_env,mos=mo_array,pw_env=pw_env, dft_control=dft_control, &
+                       cell=cell, particle_set=particle_set, &
+                       atomic_kind_set=atomic_kind_set, error=error)
+   
+   
+       CALL pw_pool_create_pw(auxbas_pw_pool,rho_i%pw,&
+                               use_data=REALDATA3D,&
+                               in_space=REALSPACE,error=error)
+       CALL pw_pool_create_pw(auxbas_pw_pool,rho_j%pw,&
+                               use_data=REALDATA3D,&
+                               in_space=REALSPACE,error=error)
+       CALL pw_pool_create_pw(auxbas_pw_pool,rho_g%pw,&
+                               use_data=COMPLEXDATA1D,&
+                               in_space=RECIPROCALSPACE,error=error)
+       CALL pw_pool_create_pw(auxbas_pw_pool,pot_g%pw,&
+                               use_data=COMPLEXDATA1D,&
+                               in_space=RECIPROCALSPACE,error=error)
+   
+       exchange_energy = 0.0_dp
+   
+       DO ispin=1,SIZE(mo_array)
+          CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff)
+          CALL cp_fm_get_info(mo_coeff,ncol_global=norb,error=error)
+          DO iorb=1,norb
+   
+             CALL calculate_wavefunction(mo_coeff,iorb,rho_i,rho_g, &
+                      atomic_kind_set,cell,dft_control,particle_set, &
+                      pw_env,error)
+   
+             DO jorb=iorb,norb
+   
+                CALL calculate_wavefunction(mo_coeff,jorb,rho_j,rho_g, &
+                         atomic_kind_set,cell,dft_control,particle_set, &
+                         pw_env,error)
+   
+   
+                ! compute the pair density
+                rho_j%pw%cr3d = rho_i%pw%cr3d * rho_j%pw%cr3d
+   
+                ! should be either zero or one
+   
+                ! go the g-space and compute hartree energy
+                CALL pw_transfer(rho_j%pw, rho_g%pw)
+                pair_energy = 0.0_dp ; CALL pw_zero(pot_g%pw)
+                CALL pw_poisson_solve(poisson_env,rho_g%pw, pair_energy, pot_g%pw,error=error)
+   
+                ! write(6,*) iorb,jorb,pw_integrate_function(rho_j%pw),pair_energy
+   
+                ! sum up to the full energy
+                scaling=fraction
+                IF (SIZE(mo_array)==1) scaling=scaling*2.0_dp
+                IF (iorb/=jorb) scaling=scaling*2.0_dp
+   
+                exchange_energy=exchange_energy - scaling * pair_energy
+        
+             ENDDO
+          ENDDO
+       ENDDO
+   
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_i%pw,error=error)
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_j%pw,error=error)
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_g%pw,error=error)
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,pot_g%pw,error=error)
+   
+       iw = cp_print_key_unit_nr(logger,hf_section,"HF_INFO",&
+              extension=".scfLog",error=error)
+   
+       IF (iw>0) THEN
+           WRITE (UNIT=iw,FMT="((T3,A,T60,F20.10))")&
+                    "HF_PW_HFX| PW exchange energy:",exchange_energy
+           WRITE (UNIT=iw,FMT="((T3,A,T60,F20.10))")&
+                    "HF_PW_HFX| Gaussian exchange energy:",energy%ex
+       ENDIF
+   
+       CALL cp_print_key_finished_output(iw,logger,hf_section,&
+                                         "HF_INFO", error=error)
+   
+    ENDIF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE pw_hfx
 
 !!****f* qs_ks_methods/sic_explicit_orbitals *
 !!
