@@ -35,6 +35,7 @@ MODULE cp_subsys_types
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_retain,&
                                              distribution_1d_type
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_release,&
                                              mol_kind_new_list_retain,&
@@ -43,12 +44,14 @@ MODULE cp_subsys_types
                                              mol_new_list_retain,&
                                              mol_new_list_type
   USE molecule_types_new,              ONLY: global_constraint_type
+  USE multipole_types,                 ONLY: multipole_type,&
+                                             release_multipole_type,&
+                                             retain_multipole_type
   USE particle_list_types,             ONLY: particle_list_release,&
                                              particle_list_retain,&
                                              particle_list_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -94,20 +97,22 @@ MODULE cp_subsys_types
 !***************************************************************************
   TYPE cp_subsys_type
      INTEGER :: ref_count, id_nr
-     TYPE (atomic_kind_list_type), POINTER :: atomic_kinds
-     TYPE (particle_list_type), POINTER :: particles
-     TYPE (particle_list_type), POINTER :: shell_particles
-     TYPE (particle_list_type), POINTER :: core_particles
-     TYPE (distribution_1d_type), POINTER :: local_particles
-     TYPE (cp_para_env_type), POINTER :: para_env
+     TYPE (atomic_kind_list_type), POINTER       :: atomic_kinds
+     TYPE (particle_list_type), POINTER          :: particles
+     TYPE (particle_list_type), POINTER          :: shell_particles
+     TYPE (particle_list_type), POINTER          :: core_particles
+     TYPE (distribution_1d_type), POINTER        :: local_particles
+     TYPE (cp_para_env_type), POINTER            :: para_env
      ! New molecules kinds
-     TYPE (mol_new_list_type), POINTER :: molecules_new
-     TYPE (mol_kind_new_list_type), POINTER :: molecule_kinds_new
-     TYPE (distribution_1d_type), POINTER   :: local_molecules_new
+     TYPE (mol_new_list_type), POINTER           :: molecules_new
+     TYPE (mol_kind_new_list_type), POINTER      :: molecule_kinds_new
+     TYPE (distribution_1d_type), POINTER        :: local_molecules_new
      ! Definitions of the collective variables
      TYPE (colvar_p_type), DIMENSION(:), POINTER :: colvar_p
      ! Intermolecular constraints
-     TYPE (global_constraint_type), POINTER  :: gci
+     TYPE (global_constraint_type), POINTER      :: gci
+     ! Multipoles
+     TYPE (multipole_type), POINTER              :: multipoles
   END TYPE cp_subsys_type
 
 !!****s* cp_subsys_types/cp_subsys_p_type [1.0] *
@@ -195,7 +200,7 @@ CONTAINS
             subsys%shell_particles , subsys%core_particles, &
             subsys%local_particles, subsys%molecules_new,&
             subsys%molecule_kinds_new, subsys%local_molecules_new,&
-            subsys%gci)
+            subsys%gci, subsys%multipoles)
        NULLIFY(subsys%colvar_p)
     END IF
   END SUBROUTINE cp_subsys_create
@@ -301,6 +306,10 @@ CONTAINS
           CALL mol_new_list_release(subsys%molecules_new, error=error)
           CALL distribution_1d_release(subsys%local_molecules_new,error=error)
           CALL cp_para_env_release(subsys%para_env, error=error)
+          ! Multipoles
+          IF(ASSOCIATED(subsys%multipoles)) THEN
+             CALL release_multipole_type(subsys%multipoles, error)
+          END IF          
           ! Colvar info
           IF(ASSOCIATED(subsys%colvar_p)) THEN
              DO i=1,SIZE(subsys%colvar_p)
@@ -407,7 +416,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_subsys_set(subsys, atomic_kinds, particles, local_particles,&
        molecules_new, molecule_kinds_new, local_molecules_new, para_env,&
-       colvar_p, shell_particles, core_particles, gci, error)
+       colvar_p, shell_particles, core_particles, gci, multipoles, error)
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(atomic_kind_list_type), OPTIONAL, &
       POINTER                                :: atomic_kinds
@@ -430,6 +439,7 @@ CONTAINS
                                                 core_particles
     TYPE(global_constraint_type), OPTIONAL, &
       POINTER                                :: gci
+    TYPE(multipole_type), OPTIONAL, POINTER  :: multipoles
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_set', &
@@ -442,6 +452,11 @@ CONTAINS
     CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
     CPPrecondition(subsys%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
+       IF (PRESENT(multipoles)) THEN
+          CALL retain_multipole_type(multipoles, error)
+          CALL release_multipole_type(subsys%multipoles, error)
+          subsys%multipoles => multipoles
+       END IF
        IF (PRESENT(atomic_kinds)) THEN
           CALL atomic_kind_list_retain(atomic_kinds,error=error)
           CALL atomic_kind_list_release(subsys%atomic_kinds, error=error)
@@ -548,7 +563,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_subsys_get(subsys, id_nr, ref_count, atomic_kinds, particles,&
        local_particles, molecules_new, molecule_kinds_new, local_molecules_new, &
-       para_env, colvar_p, shell_particles, core_particles, gci, error)
+       para_env, colvar_p, shell_particles, core_particles, gci, multipoles,error)
     TYPE(cp_subsys_type), POINTER            :: subsys
     INTEGER, INTENT(out), OPTIONAL           :: id_nr, ref_count
     TYPE(atomic_kind_list_type), OPTIONAL, &
@@ -572,6 +587,7 @@ CONTAINS
                                                 core_particles
     TYPE(global_constraint_type), OPTIONAL, &
       POINTER                                :: gci
+    TYPE(multipole_type), OPTIONAL, POINTER  :: multipoles
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_get', &
@@ -597,6 +613,7 @@ CONTAINS
        IF (PRESENT(shell_particles)) shell_particles => subsys%shell_particles
        IF (PRESENT(core_particles)) core_particles => subsys%core_particles
        IF (PRESENT(gci)) gci => subsys%gci
+       IF (PRESENT(multipoles)) multipoles => subsys%multipoles
     END IF
   END SUBROUTINE cp_subsys_get
 

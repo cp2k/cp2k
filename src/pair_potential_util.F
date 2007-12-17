@@ -25,6 +25,7 @@ MODULE pair_potential_util
   USE erf_fn,                          ONLY: erfc
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
+  USE f77_blas
   USE fparser,                         ONLY: EvalErrType,&
                                              evalf,&
                                              finalizef,&
@@ -40,7 +41,6 @@ MODULE pair_potential_util
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -233,6 +233,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ewald_type, i, max_id
+    LOGICAL                                  :: do_multipoles
     REAL(KIND=dp)                            :: alpha, e_cutoff_coul, &
                                                 energy_cutoff, eps0, f, &
                                                 hicut, rij
@@ -264,10 +265,13 @@ CONTAINS
     ENDIF
     ! real-space ewald non-bond energy
     IF ( PRESENT ( ewald_env ) ) THEN
-       CALL ewald_env_get(ewald_env,ewald_type=ewald_type,alpha=alpha,eps0=eps0,error=error)
-       f = ifourpi / eps0 * qi * qj
-       e_cutoff_coul = ener_coul ( 0.0_dp, f, hicut, ewald_type, alpha, my_do_14=.FALSE.)
-       energy = energy + ener_coul (e_cutoff_coul, f, rij, ewald_type, alpha, my_do_14=.FALSE.)
+       CALL ewald_env_get(ewald_env,ewald_type=ewald_type,alpha=alpha,eps0=eps0,&
+            do_multipoles=do_multipoles,error=error)
+       IF (.NOT.do_multipoles) THEN
+          f = ifourpi / eps0 * qi * qj
+          e_cutoff_coul = ener_coul ( 0.0_dp, f, hicut, ewald_type, alpha, my_do_14=.FALSE.)
+          energy = energy + ener_coul (e_cutoff_coul, f, rij, ewald_type, alpha, my_do_14=.FALSE.)
+       END IF
     END IF
 
   END SUBROUTINE potential_f

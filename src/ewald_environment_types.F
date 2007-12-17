@@ -41,6 +41,7 @@ MODULE ewald_environment_types
   USE input_section_types,             ONLY: section_get_keyword,&
                                              section_release,&
                                              section_type,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_release,&
                                              section_vals_retain,&
                                              section_vals_type,&
@@ -73,6 +74,8 @@ MODULE ewald_environment_types
   TYPE ewald_environment_type
     PRIVATE
     INTEGER   :: id_nr, ref_count
+    LOGICAL   :: do_multipoles            ! Flag for using the multipole code
+    INTEGER   :: max_multipole            ! max expansion in the multipoles
     INTEGER   :: ewald_type               ! type of ewald
     INTEGER   :: gmax(3)                  ! max Miller index
     INTEGER   :: ns_max                   ! # grid points for small grid (PME)
@@ -146,7 +149,7 @@ CONTAINS
 !******************************************************************************
   SUBROUTINE ewald_env_get( ewald_env, ewald_type, alpha, eps0, epsilon, gmax,&
        ns_max, o_spline, rs_distributed_id, group, para_env, id_nr, poisson_section,&
-       rcut, error )
+       rcut, do_multipoles, max_multipole, error)
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     INTEGER, OPTIONAL                        :: ewald_type
     REAL(KIND=dp), OPTIONAL                  :: alpha, eps0, epsilon
@@ -158,6 +161,8 @@ CONTAINS
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: poisson_section
     REAL(KIND=dp), OPTIONAL                  :: rcut
+    LOGICAL, INTENT(OUT), OPTIONAL           :: do_multipoles
+    INTEGER, INTENT(OUT), OPTIONAL           :: max_multipole
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -171,6 +176,8 @@ CONTAINS
 
     IF (PRESENT(id_nr)) id_nr = ewald_env%id_nr
     IF (PRESENT(ewald_type)) ewald_type = ewald_env%ewald_type
+    IF (PRESENT(do_multipoles)) do_multipoles = ewald_env%do_multipoles
+    IF (PRESENT(max_multipole)) max_multipole = ewald_env%max_multipole
     IF (PRESENT(alpha)) alpha = ewald_env%alpha
     IF (PRESENT(rcut)) rcut = ewald_env%rcut
     IF (PRESENT(eps0)) eps0 = ewald_env%eps0
@@ -437,9 +444,10 @@ CONTAINS
     TYPE(enumeration_type), POINTER          :: enum
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
+    TYPE(section_vals_type), POINTER         :: multipole_section
     TYPE(unit_convert_type), POINTER         :: units
 
-    NULLIFY( units, enum, keyword, section)
+    NULLIFY( units, enum, keyword, section,multipole_section)
     logger=>cp_error_get_logger(error)
     CALL get_cp2k_units ( units )
 
@@ -475,41 +483,67 @@ CONTAINS
           ewald_env%ns_max = HUGE(0)
        END SELECT
 
+       ! Multipoles
+       multipole_section => section_vals_get_subs_vals(ewald_section,"MULTIPOLES",error=error)
+       CALL section_vals_val_get(multipole_section,"_SECTION_PARAMETERS_",l_val=ewald_env%do_multipoles,error=error)
+       IF (ewald_env%do_multipoles) THEN
+          SELECT CASE(ewald_env%ewald_type)
+          CASE(do_ewald_ewald)
+             CALL section_vals_val_get(multipole_section,"MAX_MULTIPOLE_EXPANSION",i_val=ewald_env%max_multipole,error=error)
+          CASE DEFAULT
+             CALL cp_unimplemented_error(fromWhere=routineP, &
+                  message="Multipole code works at the moment only with standard EWALD sums.", &
+                  error=error, error_level=cp_failure_level)
+          END SELECT
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="Multipoles code not yet working!", &
+               error=error, error_level=cp_failure_level)
+       END IF
+
        iw=cp_print_key_unit_nr(logger,ewald_section,"PRINT%PROGRAM_RUN_INFO",&
             extension=".log",error=error)
        IF ( iw > 0 ) THEN
+          NULLIFY(keyword, enum)
           CALL create_ewald_section(section,error=error)
-          keyword => section_get_keyword(section,"EWALD_TYPE",error=error)
-          CALL keyword_get(keyword,enum=enum,error=error)
           IF ( ewald_env%ewald_type /= do_ewald_none ) THEN
-             WRITE ( iw, '( A,T67,A14 )' ) ' Ewald| Summation is done by:', &
+             keyword => section_get_keyword(section,"EWALD_TYPE",error=error)
+             CALL keyword_get(keyword,enum=enum,error=error)
+             WRITE ( iw, '(/,T2,"EWALD| ",A,T67,A14 )')'Summation is done by:', &
                   ADJUSTR(TRIM(enum_i2c(enum,ewald_env%ewald_type,error=error)))
+             IF (ewald_env%do_multipoles) THEN
+                NULLIFY(keyword, enum)
+                keyword => section_get_keyword(section,"MULTIPOLES%MAX_MULTIPOLE_EXPANSION",error=error)
+                CALL keyword_get(keyword,enum=enum,error=error)
+                WRITE ( iw, '( T2,"EWALD| ",A )' ) 'Enabled Multipole Method'
+                WRITE ( iw, '( T2,"EWALD| ",A,T67,A14 )' ) 'Max Term in Multipole Expansion :',&
+                     ADJUSTR(TRIM(enum_i2c(enum,ewald_env%max_multipole,error=error)))
+             END IF
              dummy = cp_unit_from_cp2k(ewald_env%alpha,"angstrom^-1",error=error)
-             WRITE ( iw, '( A,A18,A,T71,F10.4 )' ) &
-                  ' Ewald| Alpha parameter [','ANGSTROM^-1',']',dummy
+             WRITE ( iw, '( T2,"EWALD| ",A,A18,A,T71,F10.4 )' ) &
+                  'Alpha parameter [','ANGSTROM^-1',']',dummy
              dummy = cp_unit_from_cp2k(ewald_env%rcut,"angstrom",error=error)
-             WRITE ( iw, '( A,A18,A,T71,F10.4 )' ) &
-                  ' Ewald| Real Space Cutoff [','ANGSTROM',']',dummy
+             WRITE ( iw, '( T2,"EWALD| ",A,A18,A,T71,F10.4 )' ) &
+                  'Real Space Cutoff [','ANGSTROM',']',dummy
 
              SELECT CASE ( ewald_env%ewald_type )
              CASE ( do_ewald_ewald)
-                WRITE ( iw, '( A,T51,3I10 )' ) &
-                     ' Ewald| G-space max. Miller index', ewald_env%gmax
+                WRITE ( iw, '( T2,"EWALD| ",A,T51,3I10 )' ) &
+                     'G-space max. Miller index', ewald_env%gmax
              CASE ( do_ewald_pme)
-                WRITE ( iw, '( A,T71,I10 )' ) &
-                     ' EWALD| Max small-grid points (input) ', ewald_env%ns_max
-                WRITE ( iw, '( A,T71,E10.4 )' ) &
-                     ' EWALD| Gaussian tolerance (input) ', ewald_env%epsilon
+                WRITE ( iw, '( T2,"EWALD| ",A,T71,I10 )' ) &
+                     'Max small-grid points (input) ', ewald_env%ns_max
+                WRITE ( iw, '( T2,"EWALD| ",A,T71,E10.4 )' ) &
+                     'Gaussian tolerance (input) ', ewald_env%epsilon
              CASE ( do_ewald_spme )
-                WRITE ( iw, '( A,T51,3I10 )' ) &
-                     ' Ewald| G-space max. Miller index', ewald_env%gmax
-                WRITE ( iw, '( A,T71,I10 )' ) &
-                     ' Ewald| Spline interpolation order ', ewald_env%o_spline
+                WRITE ( iw, '( T2,"EWALD| ",A,T51,3I10 )' ) &
+                     'G-space max. Miller index', ewald_env%gmax
+                WRITE ( iw, '( T2,"EWALD| ",A,T71,I10 )' ) &
+                     'Spline interpolation order ', ewald_env%o_spline
              CASE DEFAULT
                 CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
              END SELECT
           ELSE
-             WRITE ( iw, '( A, T73, A )' ) ' Ewald| ','not used'
+             WRITE ( iw, '( T2,"EWALD| ",T73, A )' ) 'not used'
           END IF
           CALL section_release(section,error=error)
        END IF

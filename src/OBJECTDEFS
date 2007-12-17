@@ -122,6 +122,7 @@ OBJECTS_GENERIC =\
  ewald_pw_types.o\
  ewald_spline_util.o\
  ewalds.o\
+ ewalds_multipole.o\
  extended_system_dynamics.o\
  extended_system_init.o\
  extended_system_mapping.o\
@@ -289,6 +290,7 @@ OBJECTS_GENERIC =\
  moments_utils.o\
  mt_util.o\
  mulliken.o\
+ multipole_types.o\
  nddo_methods.o\
  neb_io.o\
  neb_methods.o\

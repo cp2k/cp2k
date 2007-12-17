@@ -57,7 +57,7 @@ MODULE bibliography
              Frigo2005, Nose1984a, Nose1984b, Bussi2007,Genovese2006,&
              Genovese2007,Evans1983,Minary2003,Byrd1995,&
              VandeVondele2007,Ortiz1994,Becke1988,Perdew1996,Zhang1998,Lee1988, &
-             Heyd2006,Vydrov2006,Heyd2003,Heyd2004,Vosko1980, &
+             Heyd2006,Vydrov2006,Heyd2003,Heyd2004,Vosko1980, Aguado2003,&
              Essmann1995,Ewald1921,Darden1993, Tersoff1988, Tosi1964a, Tosi1964b, Yamada2000
 
 CONTAINS
@@ -82,6 +82,24 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE add_all_references()
+
+    CALL add_reference(key=Aguado2003, ISI_record=s2a(&
+         "PT J",&
+         "AU Aguado, A",&
+         "   Madden, PA",&
+         "TI Ewald summation of electrostatic multipole interactions up to the",&
+         "   quadrupolar level",&
+         "SO JOURNAL OF CHEMICAL PHYSICS",&
+         "SN 0021-9606",&
+         "PD OCT 8",&
+         "PY 2003",&
+         "VL 119",&
+         "IS 14",&
+         "BP 7471",&
+         "EP 7483",&
+         "UT ISI:000185575700055",&
+         "ER"),&
+         DOI="10.1063/1.1605941")
 
     CALL add_reference(key=Yamada2000, ISI_record=s2a(&
          "PT J",&

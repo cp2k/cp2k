@@ -41,6 +41,7 @@ MODULE fist_environment
                                              distribution_1d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d
   USE ewald_environment_types,         ONLY: ewald_env_create,&
+                                             ewald_env_get,&
                                              ewald_env_release,&
                                              ewald_env_set,&
                                              ewald_environment_type,&
@@ -50,6 +51,7 @@ MODULE fist_environment
                                              ewald_pw_release,&
                                              ewald_pw_type
   USE ewalds,                          ONLY: ewald_self
+  USE f77_blas
   USE fist_energy_types,               ONLY: allocate_fist_energy,&
                                              fist_energy_type
   USE fist_environment_types,          ONLY: fist_environment_type,&
@@ -72,6 +74,9 @@ MODULE fist_environment
   USE molecule_kind_types,             ONLY: molecule_kind_type,&
                                              write_molecule_kind_set
   USE molecule_types_new,              ONLY: molecule_type
+  USE multipole_types,                 ONLY: create_multipole_type,&
+                                             multipole_type,&
+                                             release_multipole_type
   USE particle_list_types,             ONLY: particle_list_create,&
                                              particle_list_release,&
                                              particle_list_type
@@ -83,7 +88,6 @@ MODULE fist_environment
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology,                        ONLY: topology_control
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -289,6 +293,7 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'fist_init_subsys'
 
     INTEGER                                  :: handle
+    LOGICAL                                  :: do_multipoles
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
@@ -299,67 +304,75 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
+    TYPE(multipole_type), POINTER            :: multipoles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: grid_print_section
 
-  CALL timeset(routineN,"I",'',handle)
-  NULLIFY ( thermo, ewald_pw, local_molecules, local_particles)
-  particle_set => subsys % particles % els
-  atomic_kind_set => subsys % atomic_kinds % els
-  molecule_set => subsys % molecules_new % els
-  molecule_kind_set => subsys % molecule_kinds_new % els
+    CALL timeset(routineN,"I",'',handle)
+    NULLIFY ( thermo, ewald_pw, local_molecules, local_particles, multipoles)
+    particle_set => subsys % particles % els
+    atomic_kind_set => subsys % atomic_kinds % els
+    molecule_set => subsys % molecules_new % els
+    molecule_kind_set => subsys % molecule_kinds_new % els
+    
+    ! Create the fist_energy_type
+    CALL allocate_fist_energy( thermo )
+    
+    ! Print the molecule kind set
+    CALL write_molecule_kind_set(molecule_kind_set,subsys_section,error)
+    
+    ! Print the atomic coordinates
+    CALL write_fist_particle_coordinates(particle_set,cell,subsys_section,error)
+    CALL write_particle_distances(particle_set,cell,subsys_section,error)
+    CALL write_structure_data(particle_set, cell=cell, subsys_section=subsys_section, error=error)
+    
+    ! Distribute molecules and atoms using the new data structures ***
+    CALL distribute_molecules_1d ( particle_kind_set=atomic_kind_set,&
+                                   particle_set=particle_set,&
+                                   local_particles=local_particles,&
+                                   molecule_kind_set=molecule_kind_set,&
+                                   molecule_set=molecule_set,&
+                                   local_molecules=local_molecules,&
+                                   force_env_section=force_env_section,&
+                                   error=error )
+    
+    ! Create ewald grids
+    grid_print_section => section_vals_get_subs_vals(force_env_section,&
+         "PRINT%GRID_INFORMATION",error=error)
+    CALL ewald_pw_create ( ewald_pw, ewald_env, cell, cell_ref, grid_print_section, error )
+       
+    ! Initialize ewald grids
+    CALL ewald_pw_grid_change ( ewald_pw, ewald_env, cell, error )
+    
+    ! Possibly Initialize the multipole environment
+    CALL create_multipole_type(multipoles, particle_set, subsys_section, ewald_env, error)
+    CALL cp_subsys_set(subsys, multipoles=multipoles, error=error)
 
-  ! Create the fist_energy_type
-  CALL allocate_fist_energy( thermo )
+    CALL ewald_env_get(ewald_env, do_multipoles=do_multipoles, error=error)
+    IF (.NOT.do_multipoles) THEN
+       ! Initialize self-interaction and neutralizing background
+       CALL ewald_self ( ewald_env, atomic_kind_set, local_particles, &
+            thermo % e_self, thermo % e_neut ,error=error)
+    END IF
 
-  ! Print the molecule kind set
-  CALL write_molecule_kind_set(molecule_kind_set,subsys_section,error)
-  
-  ! Print the atomic coordinates
-  CALL write_fist_particle_coordinates(particle_set,cell,subsys_section,error)
-  CALL write_particle_distances(particle_set,cell,subsys_section,error)
-  CALL write_structure_data(particle_set, cell=cell, subsys_section=subsys_section, error=error)
-
-  ! Distribute molecules and atoms using the new data structures ***
-  CALL distribute_molecules_1d ( particle_kind_set=atomic_kind_set,&
-                                 particle_set=particle_set,&
-                                 local_particles=local_particles,&
-                                 molecule_kind_set=molecule_kind_set,&
-                                 molecule_set=molecule_set,&
-                                 local_molecules=local_molecules,&
-                                 force_env_section=force_env_section,&
-                                 error=error )
-
-  ! Create ewald grids
-  grid_print_section => section_vals_get_subs_vals(force_env_section,&
-       "PRINT%GRID_INFORMATION",error=error)
-  CALL ewald_pw_create ( ewald_pw, ewald_env, cell, cell_ref, grid_print_section, error )
-     
-  ! initialize ewald grids
-  CALL ewald_pw_grid_change ( ewald_pw, ewald_env, cell, error )
-  
-  ! Initialize self-interaction and neutralizing background
-  CALL ewald_self ( ewald_env, atomic_kind_set, local_particles, &
-                    thermo % e_self, thermo % e_neut ,error=error)
-
-  ! set the fist_env
-  CALL set_fist_env ( fist_env = fist_env, subsys = subsys, error = error )
-  CALL set_fist_env ( fist_env=fist_env,&
-                      cell=cell, cell_ref=cell_ref, &
-                      local_molecules=local_molecules,&
-                      local_particles=local_particles,&
-                      ewald_env=ewald_env, ewald_pw=ewald_pw, &
-                      fist_nonbond_env=fist_nonbond_env,&
-                      thermo=thermo ,error=error)
-
-  CALL distribution_1d_release ( local_particles, error = error )
-  CALL distribution_1d_release ( local_molecules, error = error )
-  CALL ewald_pw_release ( ewald_pw, error )
-
-  CALL timestop(0.0_dp,handle)
-
- END SUBROUTINE fist_init_subsys
+    ! set the fist_env
+    CALL set_fist_env ( fist_env = fist_env, subsys = subsys, error = error )
+    CALL set_fist_env ( fist_env=fist_env,&
+                        cell=cell, cell_ref=cell_ref, &
+                        local_molecules=local_molecules,&
+                        local_particles=local_particles,&
+                        ewald_env=ewald_env, ewald_pw=ewald_pw, &
+                        fist_nonbond_env=fist_nonbond_env,&
+                        thermo=thermo ,error=error)
+    
+    CALL distribution_1d_release(local_particles, error=error)
+    CALL distribution_1d_release(local_molecules, error=error)
+    CALL ewald_pw_release(ewald_pw, error)
+    CALL release_multipole_type(multipoles, error)
+    CALL timestop(0.0_dp,handle)
+    
+  END SUBROUTINE fist_init_subsys
 !******************************************************************************
 END MODULE fist_environment
 !******************************************************************************

@@ -18,7 +18,9 @@
 !!     2006 - Major rewriting of the routines.. Linear scaling setup of splines
 !!     2007 - Teodoro Laino - University of Zurich - Multiple potential 
 !!            Major rewriting nr.2
+!!
 !!   SOURCE
+!!
 !******************************************************************************
 
 MODULE pair_potential
@@ -172,10 +174,8 @@ CONTAINS
 
     INTEGER                                  :: ewald_type, handle, i, j, k, &
                                                 n, ncount, npoints, ntype
-    LOGICAL                                  :: do_i_shell_model, &
-                                                do_j_shell_model, &
-                                                do_shell_model, failure, &
-                                                found_locut, my_do_14
+    LOGICAL :: do_i_shell_model, do_j_shell_model, do_multipoles, &
+      do_shell_model, failure, found_locut, my_do_14
     REAL(KIND=dp) :: alpha, c_cutoff_e, cs_cutoff_e, cutoff_e, cutoff_n, &
       e_cutoff_coul, ec_cc, ec_cs, ec_sc, energy_cutoff, eps0, fac, hicut, &
       hicut0, locut, my_ei_scale14, my_vdw_scale14, sc_cutoff_e
@@ -197,8 +197,10 @@ CONTAINS
     ENDIF
     CALL init_genpot(potparm, ntype)
     ! Real computation of splines
-    CALL ewald_env_get(ewald_env,ewald_type=ewald_type,alpha=alpha,eps0=eps0,error=error)
-    IF (scale_cutoff) fac = my_ei_scale14*ifourpi/eps0
+    CALL ewald_env_get(ewald_env,ewald_type=ewald_type,alpha=alpha,eps0=eps0,&
+         do_multipoles=do_multipoles,error=error)
+    IF (scale_cutoff)  fac = my_ei_scale14*ifourpi/eps0
+    IF (do_multipoles) fac = 0.0_dp
     DO i = 1, ntype
        ! First Atom
        atomic_kind=> atomic_kind_set(i)
@@ -254,17 +256,15 @@ CONTAINS
 
           ! Find the real locut according emax_spline
           CALL get_spline_cutoff(hicut, locut, found_locut, do_shell_model, pot, my_vdw_scale14,&
-               my_ei_scale14, my_do_14, ewald_type, alpha, eps0, e_cutoff_coul, ec_cc, ec_sc, ec_cs,&
-               energy_cutoff, emax_spline)
+               my_ei_scale14, my_do_14, ewald_type, do_multipoles, alpha, eps0, e_cutoff_coul, &
+               ec_cc, ec_sc, ec_cs, energy_cutoff, emax_spline)
           locut=MAX(locut*SQRT(pot%spl_f%rcutsq_f),rlow_nb)
 
           ! Real Generation of the Spline
-          CALL generate_spline_low(spline_env%spl_pp(n)%spl_p, npoints, locut, hicut,&
-                                   my_vdw_scale14, my_ei_scale14, my_do_14, ewald_type, alpha, eps0,&
-                                   pot%e_fac, scale_cutoff, eps_spline, iw, iw2, i, j, n, ncount,&
-                                   max_energy, e_cutoff_coul, pot, energy_cutoff,&
-                                   label='', found_locut=found_locut, do_nonbonded=.TRUE.,&
-                                   hicut0=hicut0, error=error)
+          CALL generate_spline_low(spline_env%spl_pp(n)%spl_p, npoints, locut, hicut, my_vdw_scale14,&
+               my_ei_scale14, my_do_14, ewald_type, do_multipoles, alpha, eps0, pot%e_fac, scale_cutoff,&
+               eps_spline, iw, iw2, i, j, n, ncount, max_energy, e_cutoff_coul, pot, energy_cutoff,&
+               label='', found_locut=found_locut, do_nonbonded=.TRUE.,hicut0=hicut0, error=error)
 
           ! This is Specific for Shell-Model (Only Coulomb terms in the splines)
           IF(do_shell_model) THEN
@@ -274,26 +274,26 @@ CONTAINS
 
              ! Real Generation of the Spline Core-Core
              CALL generate_spline_low(spline_c_coul%spl_pp(n)%spl_p, npoints, locut, hicut,&
-                                      0.0_dp, 1.0_dp, .FALSE., ewald_type, alpha, eps0, pot%e_fcc, &
-                                      .FALSE., eps_spline, iw, iw2, i, j, n, ncount, max_energy, ec_cc,&
-                                      pot, label='Core-Core Coulomb term in Shell-Model',&
-                                      found_locut=found_locut,do_nonbonded=.FALSE.,hicut0=hicut0,error=error)
+                  0.0_dp, 1.0_dp, .FALSE., ewald_type, do_multipoles, alpha, eps0, pot%e_fcc, &
+                  .FALSE., eps_spline, iw, iw2, i, j, n, ncount, max_energy, ec_cc,&
+                  pot, label='Core-Core Coulomb term in Shell-Model',&
+                  found_locut=found_locut,do_nonbonded=.FALSE.,hicut0=hicut0,error=error)
 
              ! Both are shell
              IF (do_i_shell_model.AND.do_j_shell_model) THEN
                 ! Real Generation of the Spline Core-Shell
                 CALL generate_spline_low(spline_cs_coul%spl_pp(n)%spl_p, npoints, locut, hicut,&
-                                         0.0_dp, 1.0_dp, .FALSE., ewald_type, alpha, eps0, pot%e_fcs, &
-                                         .FALSE., eps_spline, iw, iw2, i, j, n, ncount, max_energy, ec_cs,&
-                                         pot,label='Core-Shell Coulomb term in Shell-Model',&
-                                         found_locut=found_locut,do_nonbonded=.FALSE.,hicut0=hicut0,error=error)
+                     0.0_dp, 1.0_dp, .FALSE., ewald_type, do_multipoles, alpha, eps0, pot%e_fcs, &
+                     .FALSE., eps_spline, iw, iw2, i, j, n, ncount, max_energy, ec_cs,&
+                     pot,label='Core-Shell Coulomb term in Shell-Model',&
+                     found_locut=found_locut,do_nonbonded=.FALSE.,hicut0=hicut0,error=error)
 
                 ! Real Generation of the Spline Shell-Core
                 CALL generate_spline_low(spline_sc_coul%spl_pp(n)%spl_p, npoints, locut, hicut,&
-                                         0.0_dp, 1.0_dp, .FALSE., ewald_type, alpha, eps0, pot%e_fsc, &
-                                         .FALSE., eps_spline, iw, iw2, i, j, n, ncount, max_energy, ec_sc,&
-                                         pot,label='Shell-Core Coulomb term in Shell-Model',&
-                                         found_locut=found_locut,do_nonbonded=.FALSE.,hicut0=hicut0,error=error)
+                     0.0_dp, 1.0_dp, .FALSE., ewald_type, do_multipoles, alpha, eps0, pot%e_fsc, &
+                     .FALSE., eps_spline, iw, iw2, i, j, n, ncount, max_energy, ec_sc,&
+                     pot,label='Shell-Core Coulomb term in Shell-Model',&
+                     found_locut=found_locut,do_nonbonded=.FALSE.,hicut0=hicut0,error=error)
              END IF
           END IF
           pot%undef = .FALSE.
@@ -413,8 +413,8 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE  get_spline_cutoff(hicut, locut, found_locut, do_shell_model, pot,&
-       my_vdw_scale14, my_ei_scale14, my_do_14, ewald_type, alpha, eps0, e_cutoff_coul,&
-       ec_cc, ec_sc, ec_cs, energy_cutoff, emax_spline)
+       my_vdw_scale14, my_ei_scale14, my_do_14, ewald_type, do_multipoles, alpha,&
+       eps0, e_cutoff_coul, ec_cc, ec_sc, ec_cs, energy_cutoff, emax_spline)
 
     REAL(KIND=dp), INTENT(IN)                :: hicut
     REAL(KIND=dp), INTENT(INOUT)             :: locut
@@ -425,6 +425,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: my_vdw_scale14, my_ei_scale14
     LOGICAL, INTENT(IN)                      :: my_do_14
     INTEGER, INTENT(IN)                      :: ewald_type
+    LOGICAL, INTENT(IN)                      :: do_multipoles
     REAL(KIND=dp), INTENT(IN)                :: alpha, eps0, e_cutoff_coul, &
                                                 ec_cc, ec_sc, ec_cs, &
                                                 energy_cutoff, emax_spline
@@ -433,25 +434,26 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ilevel, jx
-    REAL(KIND=dp)                            :: dx2, e, f, locut_found, x
+    REAL(KIND=dp)                            :: dx2, e, f, fac, locut_found, x
 
     dx2 = (hicut-locut)
     x   = hicut
     locut_found = locut
     found_locut = .FALSE.
-
-    IF(do_shell_model) THEN
+    fac = 1.0_dp
+    IF (do_multipoles) fac = 0.0_dp
+    IF (do_shell_model) THEN
        DO ilevel=1,2
           dx2 = dx2 / 100.0_dp
           DO jx = 1, 100
              e = ener_pot( pot, x , energy_cutoff, my_vdw_scale14 )
-             f = ifourpi / eps0 * pot%e_fac
+             f = fac*ifourpi / eps0 * pot%e_fac
              e = e + ener_coul ( e_cutoff_coul, f, x, ewald_type, alpha, .FALSE. )
-             f = ifourpi / eps0 * pot%e_fsc
+             f = fac*ifourpi / eps0 * pot%e_fsc
              e = e + ener_coul (         ec_sc, f, x, ewald_type, alpha, .FALSE. )
-             f = ifourpi / eps0 * pot%e_fcs
+             f = fac*ifourpi / eps0 * pot%e_fcs
              e = e + ener_coul (         ec_cs, f, x, ewald_type, alpha, .FALSE. )
-             f = ifourpi / eps0 * pot%e_fcc
+             f = fac*ifourpi / eps0 * pot%e_fcc
              e = e + ener_coul (         ec_cc, f, x, ewald_type, alpha, .FALSE. )  
              IF (ABS(e) > emax_spline) THEN
                 locut_found = x
@@ -467,7 +469,7 @@ CONTAINS
           dx2 = dx2 / 100.0_dp
           DO jx = 1, 100
              e = ener_pot(pot, x , energy_cutoff, my_vdw_scale14 )
-             f =  my_ei_scale14 * ifourpi / eps0 * pot%e_fac
+             f =  fac * my_ei_scale14 * ifourpi / eps0 * pot%e_fac
              e = e + ener_coul (e_cutoff_coul, f, x, ewald_type, alpha, my_do_14 )
              IF (ABS(e) > emax_spline) THEN
                 locut_found = x
@@ -501,9 +503,9 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE generate_spline_low(spl_p, npoints, locut, hicut, my_vdw_scale14,&
-       my_ei_scale14, my_do_14, ewald_type, alpha, eps0, e_fac, scale_cutoff, eps_spline,&
-       iw, iw2, i, j, n, ncount, max_energy, e_cutoff_coul, pot, energy_cutoff, label,&
-       found_locut, do_nonbonded, hicut0, error)
+       my_ei_scale14, my_do_14, ewald_type, do_multipoles, alpha, eps0, e_fac,&
+       scale_cutoff, eps_spline, iw, iw2, i, j, n, ncount, max_energy, e_cutoff_coul,&
+       pot, energy_cutoff, label, found_locut, do_nonbonded, hicut0, error)
 
     TYPE(spline_data_p_type), DIMENSION(:), &
       POINTER                                :: spl_p
@@ -512,6 +514,7 @@ CONTAINS
                                                 my_ei_scale14
     LOGICAL, INTENT(IN)                      :: my_do_14
     INTEGER, INTENT(IN)                      :: ewald_type
+    LOGICAL, INTENT(IN)                      :: do_multipoles
     REAL(KIND=dp), INTENT(IN)                :: alpha, eps0, e_fac
     LOGICAL, INTENT(IN)                      :: scale_cutoff
     REAL(KIND=dp), INTENT(IN)                :: eps_spline
@@ -551,6 +554,7 @@ CONTAINS
     spline_data => spl_p(1)%spline_data
     IF (.NOT. found_locut) npoints = 2
     f = my_ei_scale14 * ifourpi / eps0 * e_fac
+    IF (do_multipoles) f = 0.0_dp
     DO WHILE (.TRUE.)
        CALL init_splinexy ( spline_data, npoints+1)
        dx2 = (1.0_dp/locut**2-1.0_dp/hicut**2)/REAL(npoints,KIND=dp)
@@ -1165,6 +1169,7 @@ CPSourceFileRef,&
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: wrk
     LOGICAL                                  :: check, do_i_shell_model, &
                                                 do_j_shell_model, &
+                                                do_multipoles, &
                                                 do_shell_model, failure
     REAL(KIND=dp) :: alpha, eps0, fac, hicut0, l_elec, l_elec_c, l_elec_cs, &
       l_elec_sc, l_epsilon, l_sigma6, m_elec, m_elec_c, m_elec_cs, m_elec_sc, &
@@ -1248,8 +1253,10 @@ CPSourceFileRef,&
     pot => potparm%pot(tmpij(1),tmpij(2))%pot
     pot%undef = .TRUE.
     IF (scale_cutoff) THEN 
-       CALL ewald_env_get(ewald_env,ewald_type=ewald_type,alpha=alpha,eps0=eps0,error=error)
+       CALL ewald_env_get(ewald_env,ewald_type=ewald_type,alpha=alpha,eps0=eps0,&
+            do_multipoles=do_multipoles,error=error)
        fac = my_ei_scale14*ifourpi/eps0
+       IF (do_multipoles) fac = 0.0_dp
        hicut0 = SQRT(pot%rcutsq)
        IF (ABS(hicut0) <= MIN_HICUT_VALUE) hicut0 = DEFAULT_HICUT_VALUE
     END IF

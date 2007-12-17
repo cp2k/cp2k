@@ -30,6 +30,7 @@ MODULE input_cp2k_subsys
                                              VandeVondele2007
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
+  USE f77_blas
   USE input_constants
   USE input_cp2k_colvar,               ONLY: create_colvar_section
   USE input_keyword_types,             ONLY: keyword_create,&
@@ -49,7 +50,6 @@ MODULE input_cp2k_subsys
   USE string_utilities,                ONLY: s2a
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -110,7 +110,6 @@ CONTAINS
             error=error)
 
        NULLIFY(keyword, subsection)
-! Real
        CALL keyword_create(keyword, name="A",&
             description="Read the hmat(1,1); hmat(2,1); hmat(3,1)",&
             usage="A real real real",&
@@ -146,8 +145,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-
-! Character
        CALL keyword_create(keyword, name="UNITS",&
             variants=(/"UNIT"/),& 
             description="Specify the global units used in the input.",&
@@ -173,9 +170,6 @@ CONTAINS
             default_i_val=my_periodic, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)     
-
-
-!Subsections
 
        CALL create_cell_ref_section(subsection,error=error)
        CALL section_add_subsection(section,subsection,error=error)
@@ -274,7 +268,6 @@ CONTAINS
             error=error)
 
        NULLIFY(keyword)
-! Real
        CALL keyword_create(keyword, name="A",&
             description="Read the hmat(1,1); hmat(2,1); hmat(3,1)",&
             usage="A real real real",&
@@ -310,7 +303,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-! Character
        CALL keyword_create(keyword, name="UNITS",&
             variants=(/"UNIT"/),& 
             description="Specify the global units used in the input.",&
@@ -332,8 +324,6 @@ CONTAINS
             default_i_val=use_perd_xyz, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)     
-
-
     END IF
   END SUBROUTINE create_cell_ref_section
 
@@ -366,8 +356,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key, subsection
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
 
@@ -378,7 +367,7 @@ CONTAINS
             n_keywords=0, n_subsections=9, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       NULLIFY(subsection,print_key,keyword)
+       NULLIFY(subsection)
 
        CALL create_rng_section(subsection,error=error)
        CALL section_add_subsection(section,subsection,error=error)
@@ -408,6 +397,10 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_multipole_section(subsection, error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
        CALL create_shell_coord_section(subsection,error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
@@ -423,8 +416,52 @@ CONTAINS
        CALL create_core_vel_section(subsection,error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
+    
+       CALL create_subsys_print_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+    END IF
 
-       CALL section_create(subsection,name="print",&
+  END SUBROUTINE create_subsys_section
+
+!***************************************************************************
+!!****f* input_cp2k_subsys/create_subsys_print_section [1.0] *
+!!
+!!   NAME
+!!     create_subsys_print_section
+!!
+!!   FUNCTION
+!!     Creates the subsys print section
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_subsys_print_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_subsys_print_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key
+
+    failure=.FALSE.
+
+    NULLIFY(print_key, keyword)
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="print",&
             description="Controls printings related to the subsys",&
             n_keywords=0, n_subsections=9, repeats=.FALSE., required=.TRUE.,&
             error=error)
@@ -434,18 +471,18 @@ CONTAINS
             "force environment. For printing coordinates during MD or GEO refer to the keyword"//&
             " trajectory.",&
             print_level=medium_print_level, filename="__STD_OUT__",error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL create_structure_data(print_key, error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)           
 
        CALL cp_print_key_section_create(print_key,"interatomic_distances",&
             description="controls the output of the interatomic distances when setting up the"//&
             "force environment",&
             print_level=debug_print_level, filename="__STD_OUT__",error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
        
        CALL cp_print_key_section_create(print_key, "topology_info", description=&
@@ -487,13 +524,13 @@ CONTAINS
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)       
-       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)  
 
        CALL cp_print_key_section_create(print_key,"cell",&
             description="controls the output of the cell parameters",&
             print_level=medium_print_level, filename="__STD_OUT__",error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"kinds",&
@@ -510,13 +547,13 @@ CONTAINS
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
-       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
        
        CALL cp_print_key_section_create(print_key,"molecules",&
             description="controls the output of information on the molecules",&
             print_level=medium_print_level, filename="__STD_OUT__",error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"radii",&
@@ -568,15 +605,80 @@ CONTAINS
             default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
-       CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error)       
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
 
+    END IF
+  END SUBROUTINE create_subsys_print_section
+
+!***************************************************************************
+!!****f* input_cp2k_subsys/create_multipole_section [1.0] *
+!!
+!!   NAME
+!!     create_multipole_section
+!!
+!!   FUNCTION
+!!     Creates the multipole section
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_multipole_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_multipole_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="multipoles",&
+            description="Specifies the dipoles and quadrupoles for particles.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword, subsection)
+       CALL section_create(subsection,name="dipoles",&
+            description="Specifies the dipoles of the particles.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="The dipole components for each atom.",repeats=.TRUE.,&
+            usage="dx dy dz", type_of_var=real_t, n_var=3, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL section_create(subsection,name="quadrupoles",&
+            description="Specifies the quadrupoles of the particles.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="The quadrupole components for each atom.",repeats=.TRUE.,&
+            usage="qxx qxy qxz qyy qyz qzz", type_of_var=real_t, n_var=6, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
     END IF
-
-  END SUBROUTINE create_subsys_section
+  END SUBROUTINE create_multipole_section
 
 !!****f* input_cp2k_subsys/create_structure_data [1.0] *
 !!
@@ -613,67 +715,37 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(print_key),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        NULLIFY(keyword)
-       CALL cp_print_key_section_create(print_key,&
-                                        name="STRUCTURE_DATA",&
-                                        description="Request the printing of special "//&
-                                                    "structure data during a structure "//&
-                                                    "optimization (in MOTION%PRINT) or when "//&
-                                                    "setting up a subsys (in SUBSYS%PRINT).",&
-                                        print_level=high_print_level,&
-                                        filename="__STD_OUT__",&
-                                        error=error)
-       CALL keyword_create(keyword,&
-                           name="POSITION",&
-                           variants=(/"POS"/),&
-                           description="Print the position vector of "//&
-                                       "atom a specified by its index",&
-                           usage="POSITION {integer}",&
-                           n_var=1,&
-                           repeats=.TRUE.,&
-                           required=.FALSE.,&
-                           type_of_var=integer_t,&
-                           error=error)
+       CALL cp_print_key_section_create(print_key,name="STRUCTURE_DATA",&
+            description="Request the printing of special structure data during a structure "//&
+            "optimization (in MOTION%PRINT) or when setting up a subsys (in SUBSYS%PRINT).",&
+            print_level=high_print_level,filename="__STD_OUT__",error=error)
+
+       CALL keyword_create(keyword, name="POSITION", variants=(/"POS"/),&
+            description="Print the position vector of atom a specified by its index",&
+            usage="POSITION {integer}",n_var=1,repeats=.TRUE.,required=.FALSE.,&
+            type_of_var=integer_t,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword,&
-                           name="DISTANCE",&
-                           variants=(/"DIS"/),&
-                           description="Print the distance between the "//&
-                                       "atoms a and b specified by their "//&
-                                       "indices",&
-                           usage="DISTANCE {integer} {integer}",&
-                           n_var=2,&
-                           repeats=.TRUE.,&
-                           required=.FALSE.,&
-                           type_of_var=integer_t,&
-                           error=error)
+
+       CALL keyword_create(keyword,name="DISTANCE",variants=(/"DIS"/),&
+            description="Print the distance between the atoms a and b specified by their indices",&
+            usage="DISTANCE {integer} {integer}",n_var=2,repeats=.TRUE.,required=.FALSE.,&
+            type_of_var=integer_t,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword,&
-                           name="ANGLE",&
-                           variants=(/"ANG"/),&
-                           description="Print the angle formed by the "//&
-                                       "atoms specified by their indices",&
-                           usage="ANGLE {integer}  {integer} {integer}",&
-                           n_var=3,&
-                           repeats=.TRUE.,&
-                           required=.FALSE.,&
-                           type_of_var=integer_t,&
-                           error=error)
+
+       CALL keyword_create(keyword,name="ANGLE",variants=(/"ANG"/),&
+            description="Print the angle formed by the atoms specified by their indices",&
+            usage="ANGLE {integer} {integer} {integer}",n_var=3, repeats=.TRUE.,&
+            required=.FALSE., type_of_var=integer_t, error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword,&
-                           name="DIHEDRAL_ANGLE",&
-                           variants=s2a("DIHEDRAL","DIH"),&
-                           description="rint the dihedral angle between the "//&
-                                       "planes defined by the atoms (a,b,c) and "//&
-                                       "the atoms (b,c,d) specified by their indices",&
-                           usage="DIHEDRAL_ANGLE {integer}  {integer} {integer} {integer}",&
-                           n_var=4,&
-                           repeats=.TRUE.,&
-                           required=.FALSE.,&
-                           type_of_var=integer_t,&
-                           error=error)
+
+       CALL keyword_create(keyword, name="DIHEDRAL_ANGLE", variants=s2a("DIHEDRAL","DIH"),&
+            description="Print the dihedral angle between the planes defined by the atoms (a,b,c) and "//&
+            "the atoms (b,c,d) specified by their indices",&
+            usage="DIHEDRAL_ANGLE {integer}  {integer} {integer} {integer}",n_var=4,&
+            repeats=.TRUE.,required=.FALSE.,type_of_var=integer_t,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
     END IF

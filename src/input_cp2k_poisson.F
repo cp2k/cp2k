@@ -42,7 +42,8 @@ MODULE input_cp2k_poisson
                                              section_create,&
                                              section_release,&
                                              section_type
-  USE input_val_types,                 ONLY: integer_t,&
+  USE input_val_types,                 ONLY: enum_t,&
+                                             integer_t,&
                                              real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
@@ -431,9 +432,37 @@ SUBROUTINE create_ewald_section(section,error)
     CALL keyword_release(keyword,error=error)
 
     NULLIFY(subsection)
+    CALL section_create(subsection,name="MULTIPOLES",&
+         description="Enables the use of multipoles in the treatment of the electrostatics.",&
+         n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+         error=error)
+    
+    CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+         description="Controls the activation of the Multipoles",&
+         usage="&MULTIPOLES T",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
+         error=error)
+    CALL section_add_keyword(subsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="MAX_MULTIPOLE_EXPANSION",&
+         description="Specify the maximum level of multipoles expansion used "//&
+         " for the electrostatics.",&
+         usage="MAX_MULTIPOLE_EXPANSION",&
+         enum_c_vals=s2a("CHARGE","DIPOLE","QUADRUPOLE"),&
+         enum_desc=s2a("Use up to the Charge term", &
+                       "Use up to the Dipole term",&
+                       "Use up to the Quadrupole term"),&
+         enum_i_vals=(/ do_multipole_charge, do_multipole_dipole, do_multipole_quadrupole/),&
+         type_of_var=enum_t,error=error)
+    CALL section_add_keyword(subsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error)   
+    CALL section_add_subsection(section,subsection,error=error)
+    CALL section_release(subsection,error=error)
+
+    NULLIFY(subsection)
     CALL section_create(subsection,name="PRINT",&
          description="Controls printing of Ewald properties",&
-         n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
+         n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
          error=error)
     NULLIFY(print_key)
     CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&

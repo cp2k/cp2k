@@ -49,6 +49,7 @@ MODULE input_cp2k_restarts
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              map_info_type,&
                                              npt_info_type
+  USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type,&
                                              multiple_fe_list,&
@@ -83,6 +84,7 @@ MODULE input_cp2k_restarts
   USE molecule_kind_types,             ONLY: get_molecule_kind
   USE molecule_types_new,              ONLY: get_molecule,&
                                              molecule_type
+  USE multipole_types,                 ONLY: multipole_type
   USE parallel_rng_types,              ONLY: dump_rng_stream,&
                                              rng_record_length
   USE particle_list_types,             ONLY: particle_list_type
@@ -96,7 +98,6 @@ MODULE input_cp2k_restarts
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -1672,25 +1673,21 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(mol_new_list_type), POINTER         :: molecules
+    TYPE(multipole_type), POINTER            :: multipoles
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
     TYPE(section_vals_type), POINTER         :: work_section
 
     failure = .FALSE.
     NULLIFY(work_section, core_particles, particles, shell_particles, &
-         subsys, cell, cell_ref)
+         subsys, cell, cell_ref, multipoles)
     CALL timeset(routineN,"I",'',handle)
-    CALL force_env_get(force_env,&
-         subsys=subsys,&
-         cell=cell,&
-         cell_ref=cell_ref,&
-         use_ref_cell=use_ref_cell,&
-         error=error)
+    CALL force_env_get(force_env, subsys=subsys, cell=cell, cell_ref=cell_ref,&
+         use_ref_cell=use_ref_cell, error=error)
 
-    CALL cp_subsys_get(subsys,&
-         particles=particles, molecules_new=molecules, &
-         shell_particles=shell_particles, &
-         core_particles=core_particles, error=error)       
+    CALL cp_subsys_get(subsys, particles=particles, molecules_new=molecules,&
+         shell_particles=shell_particles, core_particles=core_particles,&
+         multipoles=multipoles, error=error)       
     work_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
     CALL section_vals_val_get(subsys_section,"CELL%UNITS",i_val=my_unit,error=error)
     scale = .FALSE.
@@ -1736,7 +1733,22 @@ CONTAINS
     ENDIF
     ! Updating cell info
     CALL update_cell_section(force_env, subsys_section, error)
-
+    ! Updating multipoles
+    IF (ASSOCIATED(multipoles)) THEN
+       work_section => section_vals_get_subs_vals(subsys_section,"MULTIPOLES",error=error)
+       DO
+          IF (SIZE(work_section%values,2)==1) EXIT
+          CALL section_vals_add_values(work_section,error=error)
+       END DO
+       IF (ASSOCIATED(multipoles%dipoles)) THEN
+          work_section => section_vals_get_subs_vals(subsys_section,"MULTIPOLES%DIPOLES",error=error)
+          CALL update_dipoles_section(multipoles%dipoles, work_section, error)
+       END IF
+       IF (ASSOCIATED(multipoles%quadrupoles)) THEN
+          work_section => section_vals_get_subs_vals(subsys_section,"MULTIPOLES%QUADRUPOLES",error=error)
+          CALL update_quadrupoles_section(multipoles%quadrupoles, work_section, error)
+       END IF
+    END IF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE update_subsys
 
@@ -2116,6 +2128,205 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE section_velocity_val_set
+
+!!****f* input_cp2k_restarts/update_dipoles_section [1.0] *
+!!
+!!   NAME
+!!     update_dipoles_section
+!!
+!!   FUNCTION
+!!     routine to dump dipoles.. fast implementation
+!!
+!!   NOTES
+!!
+!!
+!!   ARGUMENTS
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     12.2007 created [teo]
+!!
+!!*** **********************************************************************
+  SUBROUTINE update_dipoles_section(dipoles, dipoles_section, error)
+
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dipoles
+    TYPE(section_vals_type), POINTER         :: dipoles_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'update_dipoles_section', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ik, irk, Nlist, &
+                                                nloop, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: work
+    TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
+    TYPE(section_type), POINTER              :: section
+    TYPE(val_type), POINTER                  :: my_val, old_val
+
+    CALL timeset(routineN,"I",'',handle)
+    failure=.FALSE.
+    NULLIFY(my_val, old_val, section, vals)
+    CPPrecondition(ASSOCIATED(dipoles_section),cp_failure_level,routineP,error,failure)
+    CPPrecondition(dipoles_section%ref_count>0,cp_failure_level,routineP,error,failure)
+    section => dipoles_section%section
+    ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_",error=error)
+    CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
+         "section "//TRIM(section%name)//" does not contain keyword "//&
+         "_DEFAULT_KEYWORD_",error,failure)
+
+    ! At least one of the two arguments must be present..
+    nloop = SIZE(dipoles,2)
+    DO
+       IF (SIZE(dipoles_section%values,2)==1) EXIT
+       CALL section_vals_add_values(dipoles_section,error=error)
+    END DO
+    vals  => dipoles_section%values(ik,1)%list
+    Nlist = 0
+    IF (ASSOCIATED(vals)) THEN
+       Nlist = cp_sll_val_get_length(vals,error)
+    END IF
+    DO irk=1,nloop
+       ALLOCATE(work(3),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ! Always stored in A.U.
+       work = dipoles(1:3,irk)
+       CALL val_create(my_val,r_vals_ptr=work,error=error)
+
+       IF (Nlist /= 0) THEN
+          IF (irk==1) THEN
+             new_pos => vals
+          ELSE
+             new_pos => new_pos%rest
+          END IF
+          old_val => new_pos%first_el
+          CALL val_release(old_val,error=error)
+          new_pos%first_el => my_val
+       ELSE
+          IF (irk==1) THEN
+             NULLIFY(new_pos)
+             CALL cp_sll_val_create(new_pos,first_el=my_val,error=error)
+             vals => new_pos
+          ELSE
+             NULLIFY(new_pos%rest)
+             CALL cp_sll_val_create(new_pos%rest,first_el=my_val,error=error)
+             new_pos => new_pos%rest
+          END IF
+       END IF
+       NULLIFY(my_val)
+    END DO
+    dipoles_section%values(ik,1)%list => vals
+
+    CALL timestop(0.0_dp,handle)
+  END SUBROUTINE update_dipoles_section
+
+!!****f* input_cp2k_restarts/update_quadrupoles_section [1.0] *
+!!
+!!   NAME
+!!     update_quadrupoles_section
+!!
+!!   FUNCTION
+!!     routine to dump quadrupoles.. fast implementation
+!!
+!!   NOTES
+!!
+!!
+!!   ARGUMENTS
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     12.2007 created [teo]
+!!
+!!*** **********************************************************************
+  SUBROUTINE update_quadrupoles_section(quadrupoles, quadrupoles_section, error)
+
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: quadrupoles
+    TYPE(section_vals_type), POINTER         :: quadrupoles_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'update_quadrupoles_section', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, ik, ind, irk, j, &
+                                                Nlist, nloop, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: work
+    TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
+    TYPE(section_type), POINTER              :: section
+    TYPE(val_type), POINTER                  :: my_val, old_val
+
+    CALL timeset(routineN,"I",'',handle)
+    failure=.FALSE.
+    NULLIFY(my_val, old_val, section, vals)
+    CPPrecondition(ASSOCIATED(quadrupoles_section),cp_failure_level,routineP,error,failure)
+    CPPrecondition(quadrupoles_section%ref_count>0,cp_failure_level,routineP,error,failure)
+    section => quadrupoles_section%section
+    ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_",error=error)
+    CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
+         "section "//TRIM(section%name)//" does not contain keyword "//&
+         "_DEFAULT_KEYWORD_",error,failure)
+
+    ! At least one of the two arguments must be present..
+    nloop = SIZE(quadrupoles,2)
+    DO
+       IF (SIZE(quadrupoles_section%values,2)==1) EXIT
+       CALL section_vals_add_values(quadrupoles_section,error=error)
+    END DO
+    vals  => quadrupoles_section%values(ik,1)%list
+    Nlist = 0
+    IF (ASSOCIATED(vals)) THEN
+       Nlist = cp_sll_val_get_length(vals,error)
+    END IF
+    DO irk=1,nloop
+       ALLOCATE(work(6),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ! Always stored in A.U.
+       ind = 0
+       DO i = 1, 3
+          DO j = i, 3
+             ind  = ind + 1
+             work(ind) = quadrupoles(j,i,irk)
+          END DO
+       END DO
+       CALL val_create(my_val,r_vals_ptr=work,error=error)
+
+       IF (Nlist /= 0) THEN
+          IF (irk==1) THEN
+             new_pos => vals
+          ELSE
+             new_pos => new_pos%rest
+          END IF
+          old_val => new_pos%first_el
+          CALL val_release(old_val,error=error)
+          new_pos%first_el => my_val
+       ELSE
+          IF (irk==1) THEN
+             NULLIFY(new_pos)
+             CALL cp_sll_val_create(new_pos,first_el=my_val,error=error)
+             vals => new_pos
+          ELSE
+             NULLIFY(new_pos%rest)
+             CALL cp_sll_val_create(new_pos%rest,first_el=my_val,error=error)
+             new_pos => new_pos%rest
+          END IF
+       END IF
+       NULLIFY(my_val)
+    END DO
+    quadrupoles_section%values(ik,1)%list => vals
+
+    CALL timestop(0.0_dp,handle)
+  END SUBROUTINE update_quadrupoles_section
 
 !!****f* input_cp2k_restarts/section_rng_val_set [1.0] *
 !!

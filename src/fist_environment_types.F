@@ -45,6 +45,7 @@ MODULE fist_environment_types
   USE ewald_pw_types,                  ONLY: ewald_pw_release,&
                                              ewald_pw_retain,&
                                              ewald_pw_type
+  USE f77_blas
   USE fist_energy_types,               ONLY: deallocate_fist_energy,&
                                              fist_energy_type
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_release,&
@@ -62,6 +63,7 @@ MODULE fist_environment_types
                                              mol_new_list_type
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
+  USE multipole_types,                 ONLY: multipole_type
   USE particle_list_types,             ONLY: particle_list_create,&
                                              particle_list_release,&
                                              particle_list_type
@@ -72,7 +74,6 @@ MODULE fist_environment_types
                                              qmmm_env_mm_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -178,11 +179,10 @@ CONTAINS
 !!   SOURCE
 !***************************************************************************
   SUBROUTINE get_fist_env( fist_env, atomic_kind_set, particle_set, ewald_pw,  &
-                           local_particles, local_molecules, molecule_kind_set, &
-                           molecule_set, cell, cell_ref, ewald_env,  &
-                           fist_nonbond_env, thermo, para_env, subsys,  &
-                           qmmm, qmmm_env, input, shell_model, shell_model_ad,&
-                           shell_particle_set, core_particle_set, first_time, error )
+       local_particles, local_molecules, molecule_kind_set, molecule_set, cell,&
+       cell_ref, ewald_env, fist_nonbond_env, thermo, para_env, subsys, qmmm,&
+       qmmm_env, input, shell_model, shell_model_ad, shell_particle_set,&
+       core_particle_set, first_time, multipoles, error )
 
     TYPE(fist_environment_type), INTENT(IN)  :: fist_env
     TYPE(atomic_kind_type), OPTIONAL, &
@@ -214,6 +214,7 @@ CONTAINS
     TYPE(particle_type), OPTIONAL, POINTER   :: shell_particle_set( : ), &
                                                 core_particle_set( : )
     LOGICAL, OPTIONAL                        :: first_time
+    TYPE(multipole_type), OPTIONAL, POINTER  :: multipoles
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_fist_env', &
@@ -223,11 +224,12 @@ CONTAINS
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(mol_new_list_type), POINTER         :: molecules_new
+    TYPE(multipole_type), POINTER            :: fist_multipoles
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
 
     failure=.FALSE.
-    NULLIFY( atomic_kinds, particles, molecules_new, molecule_kinds_new )
+    NULLIFY( atomic_kinds, particles, molecules_new, molecule_kinds_new, fist_multipoles)
     CPPrecondition(ASSOCIATED(fist_env%subsys),cp_failure_level,routineP,error,failure)
 
     IF ( PRESENT ( input ) ) input => fist_env%input
@@ -253,6 +255,7 @@ CONTAINS
                       molecules_new=molecules_new,&
                       shell_particles=shell_particles,&
                       core_particles=core_particles,&
+                      multipoles=fist_multipoles,&
                       error=error)
     IF (PRESENT(atomic_kind_set)) atomic_kind_set => atomic_kinds%els
     IF (PRESENT(particle_set)) particle_set => particles%els
@@ -260,7 +263,7 @@ CONTAINS
     IF (PRESENT(molecule_set)) molecule_set => molecules_new%els
     IF (PRESENT(shell_particle_set)) shell_particle_set => shell_particles%els
     IF (PRESENT(core_particle_set)) core_particle_set => core_particles%els
-
+    IF (PRESENT(multipoles)) multipoles => fist_multipoles
   END SUBROUTINE get_fist_env
 
 !!****s* fist_environment_types/init_fist_env [1.0] *
