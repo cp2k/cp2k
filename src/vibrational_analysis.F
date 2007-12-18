@@ -152,7 +152,8 @@ CONTAINS
     CALL timeset(routineN,"I","",handle)
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       NULLIFY(D, RotTrM, logger, subsys, f_env, particles, rep_env, eig_bfgs, hes_bfgs, b_mat, s_mat)
+       NULLIFY(D, RotTrM, logger, subsys, f_env, particles, rep_env, eig_bfgs, hes_bfgs,&
+            b_mat, s_mat, intensities)
        logger => cp_error_get_logger(error)
        output_unit=cp_print_key_unit_nr(logger,input,"VIBRATIONAL_ANALYSIS%PROGRAM_RUN_INFO",&
             extension=".vibLog",error=error)
@@ -530,8 +531,8 @@ CONTAINS
              END IF
              ALLOCATE(intensities(SIZE(D,2)),stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             intensities=0._dp
-             Hint1 = Hessian
+             intensities=  0._dp
+             Hint1      = Hessian
              CALL diamat_all(Hint1,H_eigval1)
              IF (output_unit>0) THEN
                 WRITE(output_unit,'(T2,"VIB| Cartesian Low frequencies ---",4G12.5)')&
@@ -580,7 +581,7 @@ CONTAINS
                 ! Dump Info
                 IF (para_env%mepos==para_env%source) THEN             
                    iw = cp_logger_get_default_unit_nr(logger)
-                   CALL vib_out(iw,nvib,D,konst,rmass,H_eigval2,particles,Mlist)
+                   CALL vib_out(iw,nvib,D,konst,rmass,H_eigval2,particles,Mlist, intensities)
                 END IF
                 IF(.NOT.something_frozen) CALL molden_out(output_molden,particles,H_eigval2,D,intensities,calc_intens,error)
              ELSE
@@ -748,9 +749,10 @@ CONTAINS
   !!
   !!   SOURCE
   !****************************************************************************
-  SUBROUTINE vib_out(iw,nvib,D,k,m,freq,particles,Mlist)
+  SUBROUTINE vib_out(iw,nvib,D,k,m,freq,particles,Mlist,intensities)
     INTEGER, INTENT(IN)                      :: iw, nvib
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: D
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: intensities
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: k, m, freq
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles
@@ -770,6 +772,10 @@ CONTAINS
             (icol,icol=from,to)
        WRITE(UNIT=iw,FMT="(T2,'VIB|Frequency (cm^-1)',3(1X,F12.6,8X))")&
             (freq(icol),icol=from,to)
+       IF (ASSOCIATED(intensities)) THEN
+          WRITE(UNIT=iw,FMT="(T2,'VIB|Intensities      ',3(1X,F12.6,8X))")&
+               (intensities(icol),icol=from,to)
+       END IF
        WRITE(UNIT=iw,FMT="(T2,'VIB|Red.Masses (a.u.)',3(1X,F12.6,8X))")&
             (m(icol),icol=from,to)
        WRITE(UNIT=iw,FMT="(T2,'VIB|Frc consts (a.u.)',3(1X,F12.6,8X))")&
@@ -1627,13 +1633,15 @@ CONTAINS
           CALL ms_out(output_unit_ms,converged,freq,criteria ,b_mat,s_mat,b_vec,&
                       delta_vec,mat_size,nrep,approx_H,eigenval,dip_deriv,calc_intens,eps,&
                       intensities=intensities,error=error)
-          DEALLOCATE(intensities,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
        ELSE
           CALL ms_out(output_unit_ms,converged,freq,criteria ,b_mat,s_mat,b_vec,&
                       delta_vec,mat_size,nrep,approx_H,eigenval,dip_deriv,calc_intens,eps,error=error)
        ENDIF
        CALL molden_out(output_molden,particles,eigenval,tmp_b,intensities,calc_intens,error)
+       IF (calc_intens) THEN
+          DEALLOCATE(intensities,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
+       END IF
        DEALLOCATE(tmp_b,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(tmp_s,stat=stat)
