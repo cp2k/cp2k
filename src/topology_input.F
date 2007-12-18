@@ -25,6 +25,7 @@
 MODULE topology_input
   USE colvar_types,                    ONLY: colvar_clone,&
                                              colvar_p_type
+  USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_constr_none,&
                                              do_coord_off
@@ -41,7 +42,6 @@ MODULE topology_input
                                              timestop
   USE topology_types,                  ONLY: constraint_info_type,&
                                              topology_parameters_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -585,11 +585,18 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
                    c_val=cons_info%const_colv_molname(ig),error=error)
            END IF
            IF  (((cons_info%const_colv_mol(ig)/=0).AND.(cons_info%const_colv_molname(ig)/="UNDEF"))) THEN
-              CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                   "Both MOLNAME and MOLECULE specified for CONSTRAINT section. "//&
+CPSourceFileRef,&
+                   only_ionode=.TRUE.)
            END IF
            IF  ((cons_info%const_colv_mol(ig)==0).AND.(cons_info%const_colv_molname(ig)=="UNDEF").AND.&
                 (.NOT.cons_info%colv_intermolecular(ig))) THEN
-              CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                   "Constraint section error: you have to specify at least one of the "//&
+                   "following keywords: MOLECULE, MOLNAME or INTERMOLECULAR! "//&
+CPSourceFileRef,&
+                   only_ionode=.TRUE.)
            END IF
            NULLIFY(cons_info%colvar_set(ig)%colvar)
            CALL section_vals_val_get(collective_section,"COLVAR",i_rep_section=ig,&

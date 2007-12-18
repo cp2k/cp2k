@@ -24,6 +24,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE colvar_types
+  USE f77_blas
   USE input_constants,                 ONLY: do_clv_fix_point,&
                                              do_clv_geo_center,&
                                              do_clv_xyz
@@ -36,7 +37,6 @@ MODULE colvar_types
   USE memory_utilities,                ONLY: reallocate
   USE particle_types,                  ONLY: particle_type
   USE termination,                     ONLY: stop_memory
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -346,8 +346,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_check_points', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, irep, natoms, nweights, npoints, &
-                                                nrep, stat
+    INTEGER                                  :: i, irep, natoms, npoints, &
+                                                nrep, nweights, stat
     INTEGER, DIMENSION(:), POINTER           :: atoms
     LOGICAL                                  :: explicit, failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r, weights
@@ -880,29 +880,29 @@ CONTAINS
        NULLIFY(colvar_out%coord_param%c_kinds_to, colvar_out%coord_param%i_at_to)
        IF(colvar_in%coord_param%use_kinds_from) THEN
           ! KINDS
-          ndim = SIZE(colvar_out%coord_param%c_kinds_from)
+          ndim = SIZE(colvar_in%coord_param%c_kinds_from)
           ALLOCATE(colvar_out%coord_param%c_kinds_from(ndim),stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           colvar_out%coord_param%c_kinds_from    = colvar_in%coord_param%c_kinds_from
        ELSE
           ! INDEX
-          ndim = SIZE(colvar_out%coord_param%i_at_from)
+          ndim = SIZE(colvar_in%coord_param%i_at_from)
           ALLOCATE(colvar_out%coord_param%i_at_from(ndim),stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           colvar_out%coord_param%i_at_from    = colvar_in%coord_param%i_at_from + my_offset
        END IF
        IF(colvar_in%coord_param%use_kinds_to) THEN
           ! KINDS
-          ndim = SIZE(colvar_out%coord_param%c_kinds_to)
+          ndim = SIZE(colvar_in%coord_param%c_kinds_to)
           ALLOCATE(colvar_out%coord_param%c_kinds_to(ndim),stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           colvar_out%coord_param%c_kinds_to    = colvar_in%coord_param%c_kinds_to
        ELSE
           ! INDEX
-          ndim = SIZE(colvar_out%coord_param%i_at_to)
-          ALLOCATE(colvar_out%coord_param%i_at_from(ndim),stat=stat)
+          ndim = SIZE(colvar_in%coord_param%i_at_to)
+          ALLOCATE(colvar_out%coord_param%i_at_to(ndim),stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-          colvar_out%coord_param%i_at_to      = colvar_in%coord_param%i_at_from + my_offset
+          colvar_out%coord_param%i_at_to      = colvar_in%coord_param%i_at_to + my_offset
        END IF
     CASE(angle_colvar_id)
        colvar_out%angle_param%i_at_angle   = colvar_in%angle_param%i_at_angle + my_offset
@@ -925,11 +925,11 @@ CONTAINS
        colvar_out%qparm_param%rcut         = colvar_in%qparm_param%rcut
        colvar_out%qparm_param%l            = colvar_in%qparm_param%l
        colvar_out%qparm_param%alpha        = colvar_in%qparm_param%alpha
-       ndim = SIZE(colvar_out%qparm_param%i_at_from)
+       ndim = SIZE(colvar_in%qparm_param%i_at_from)
        ALLOCATE(colvar_out%qparm_param%i_at_from(ndim),stat=stat)
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       ndim = SIZE(colvar_out%qparm_param%i_at_to)
-       ALLOCATE(colvar_out%qparm_param%i_at_from(ndim),stat=stat)
+       ndim = SIZE(colvar_in%qparm_param%i_at_to)
+       ALLOCATE(colvar_out%qparm_param%i_at_to(ndim),stat=stat)
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        colvar_out%qparm_param%i_at_from    = colvar_in%qparm_param%i_at_from + my_offset
        colvar_out%qparm_param%i_at_to      = colvar_in%qparm_param%i_at_from + my_offset
@@ -945,10 +945,10 @@ CONTAINS
        colvar_out%hydronium_param%q           = colvar_in%hydronium_param%q
        colvar_out%hydronium_param%r_OO        = colvar_in%hydronium_param%r_OO         
        colvar_out%hydronium_param%r_OH        = colvar_in%hydronium_param%r_OH         
-       ndim = SIZE(colvar_out%hydronium_param%i_oxygens)
+       ndim = SIZE(colvar_in%hydronium_param%i_oxygens)
        ALLOCATE(colvar_out%hydronium_param%i_oxygens(ndim),stat=stat)
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       ndim = SIZE(colvar_out%hydronium_param%i_hydrogens)
+       ndim = SIZE(colvar_in%hydronium_param%i_hydrogens)
        ALLOCATE(colvar_out%hydronium_param%i_hydrogens(ndim),stat=stat)
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        colvar_out%hydronium_param%i_oxygens    = colvar_in%hydronium_param%i_oxygens + my_offset

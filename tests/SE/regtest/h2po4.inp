@@ -1,0 +1,158 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    CHARGE -1
+    &QS
+      METHOD PM3
+     &SE
+       ANALYTICAL_GRADIENTS F
+     &END SE
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC  
+      MAX_SCF 50
+      EPS_SCF 1.0E-7
+      &OUTER_SCF
+        EPS_SCF 1.0E-7
+      &END
+      &OT ON
+          MINIMIZER DIIS
+          N_DIIS 7
+        PRECONDITIONER NONE
+      &END OT
+     &PRINT SILENT
+        &RESTART
+           EACH  1 1 50
+        &END RESTART
+        &PROGRAM_RUN_INFO SILENT
+        &END PROGRAM_RUN_INFO
+     &END PRINT
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 15.0 15.0 15.0
+      UNIT ANGSTROM
+      PERIODIC NONE
+    &END CELL
+    &COORD
+ P         3.987000        1.531000        0.800000
+ O         3.932000        2.722000       -0.053000
+ O         3.579000        2.055000        2.143000
+ O         3.038000        0.367000        0.259000
+ O         5.394000        0.986000        0.848000
+ H         2.050000        0.354000        0.617000
+ H         3.196000        1.408000        2.846000
+ O         2.918000        0.008000        3.653000
+ H         3.222000        0.145000        4.552000
+ H         3.345000       -0.907000        3.514000
+ O         5.524000       -1.714000        0.987000
+ H         5.295000       -1.995000        1.910000
+ H         5.367000       -0.730000        0.960000
+ O         5.595000        4.437000        2.482000
+ H         5.376000        5.246000        1.935000
+ H         5.410000        3.734000        1.832000
+ O         6.221000        3.439000       -0.461000
+ H         6.801000        2.946000        0.142000
+ H         5.352000        3.000000       -0.270000
+    &END COORD
+       
+     &COLVAR
+        &COORDINATION
+           # phosphate 
+           ATOMS_FROM 1 
+           # 2 water oxygens
+           ATOMS_TO 14 17
+           R0 5.5
+           NN 16
+           ND 32
+        &END COORDINATION
+     &END COLVAR
+
+     &COLVAR
+         &DISTANCE_DIFFERENCE
+            # PO - OH distance
+            ATOMS 1 3 3 7
+         &END DISTANCE_DIFFERENCE
+         &PRINT
+         &PROGRAM_RUN_INFO LOW
+           EACH 1000
+               ADD_LAST NUMERIC
+               COMMON_ITERATION_LEVELS 0
+               FILENAME diff-dist
+            &END PROGRAM_RUN_INFO
+         &END PRINT
+     &END COLVAR
+     
+     &COLVAR
+         &COORDINATION
+            #phosphate
+            ATOMS_FROM 1
+            # 2 water oxygens
+            ATOMS_TO 14 17 
+            R0 3.5
+            NN 12
+            ND 24
+         &END COORDINATION
+         &PRINT
+            &PROGRAM_RUN_INFO LOW
+               EACH 1000
+               ADD_LAST NUMERIC
+               COMMON_ITERATION_LEVELS 0
+               FILENAME P-watO
+            &END PROGRAM_RUN_INFO
+         &END PRINT
+     &END COLVAR
+
+  &END SUBSYS
+&END FORCE_EVAL
+&MOTION
+      &CONSTRAINT
+       &FIXED_ATOMS
+        LIST 1 4 
+        &RESTRAINT
+         K 9.0E-04
+        &END RESTRAINT
+       &END FIXED_ATOMS
+
+       &COLLECTIVE
+        COLVAR 1
+        INTERMOLECULAR T 
+        TARGET 2.0
+         &RESTRAINT
+          K 0.005
+         &END RESTRAINT
+       &END COLLECTIVE
+      &END CONSTRAINT
+   &MD
+      ENSEMBLE NVT
+      STEPS 10
+      TIMESTEP 0.3
+      TEMPERATURE 300
+      !TEMP_TOL 50
+      &THERMOSTAT
+       TYPE NOSE
+       REGION MASSIVE
+        &NOSE
+         LENGTH 5
+         YOSHIDA 3
+         TIMECON [wavenumber_t] 2000
+         MTS 2
+        &END NOSE
+      &END THERMOSTAT
+      &PRINT
+         &ENERGY
+            EACH 1
+         &END ENERGY
+      &END PRINT
+     &END MD
+     
+&END MOTION
+&GLOBAL
+   PRINT_LEVEL MEDIUM
+   PROGRAM CP2K
+   RUN_TYPE md
+   ECHO_INPUT
+   PROJECT h2po4
+   TRACE OFF
+&END GLOBAL
