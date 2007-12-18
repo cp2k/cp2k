@@ -1,0 +1,66 @@
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &PRINT
+      &DIPOLE
+      &END
+    &END
+    &FORCEFIELD
+      parm_file_name ../sample_pot/charmm.pot
+      parmtype CHM
+      &CHARGE
+        ATOM CE2
+        CHARGE -0.42
+      &END CHARGE
+      &CHARGE
+        ATOM HE2
+        CHARGE 0.21
+      &END CHARGE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE ewald
+        ALPHA .44
+        GMAX 23
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 24.955 24.955 24.955
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE_NAME ../sample_pdb/ethene.pdb
+      COORDINATE pdb
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT ethene
+  RUN_TYPE NORMAL_MODES
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 100
+    TIMESTEP 0.5
+    TEMPERATURE 298
+  &END MD
+&END MOTION
+&VIBRATIONAL_ANALYSIS
+   NPROC_REP 4
+   DX 0.01
+   INTENSITIES
+   &PROGRAM_RUN_INFO ON
+   &END
+   &MODE_SELECTIVE
+      FREQUENCY 3000
+!    ATOMS 2 3
+!     INITIAL_GUESS BFGS_HESS
+   &END
+&END
+
+

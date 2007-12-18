@@ -106,5 +106,6 @@ H2O-1-GENPOT-2.inp
 H2O-1-GENPOT.inp
 water32_hbonds_3.inp
 water32_hbonds_4.inp
-#
-wat_mode_sel.inp
+#changed default convergence criterium
+wat_mode_sel.inp         
+wat_mode_sel_range.inp   
