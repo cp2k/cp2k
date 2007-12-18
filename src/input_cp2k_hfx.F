@@ -105,6 +105,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="PW_HFX_BLOCKSIZE",&
+            description="Improve the performance of pw_hfx at the cost of some additional memory "//&
+                        "by storing the realspace representation of PW_HFX_BLOCKSIZE states.",&
+            usage="PW_HFX_BLOCKSIZE 20", default_i_val=20,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL cp_print_key_section_create(print_key,"HF_INFO",&
             description="Controls the printing basic info about hf method", &
             print_level=medium_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&

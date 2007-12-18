@@ -1151,12 +1151,12 @@ CONTAINS
     CHARACTER(*), PARAMETER :: routineN = 'pw_hfx', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iorb, jorb,norb, ispin, iw
+    INTEGER                                  :: handle, iorb, jorb,norb, ispin, iw,blocksize, iorb_block, jorb_block, iloc, jloc
     LOGICAL                                  :: failure,do_pw_hfx
     REAL(KIND=dp)                            :: pair_energy, exchange_energy, scaling, fraction
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(pw_p_type)                          :: rho_i, rho_j, &
-                                                rho_g, pot_g
+    TYPE(pw_p_type)                          :: rho_r, rho_g, pot_g
+    TYPE(pw_p_type), ALLOCATABLE, DIMENSION(:) :: rho_i, rho_j
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -1178,16 +1178,30 @@ CONTAINS
 
     IF (do_pw_hfx) THEN
        CALL section_vals_val_get(hf_section, "FRACTION", r_val=fraction, error=error)
+       CALL section_vals_val_get(hf_section, "PW_HFX_BLOCKSIZE", i_val=blocksize, error=error)
    
        CALL get_qs_env(qs_env,mos=mo_array,pw_env=pw_env, dft_control=dft_control, &
                        cell=cell, particle_set=particle_set, &
                        atomic_kind_set=atomic_kind_set, error=error)
-   
-   
-       CALL pw_pool_create_pw(auxbas_pw_pool,rho_i%pw,&
-                               use_data=REALDATA3D,&
-                               in_space=REALSPACE,error=error)
-       CALL pw_pool_create_pw(auxbas_pw_pool,rho_j%pw,&
+
+       ! limit the blocksize by the number of orbitals
+       CALL get_mo_set(mo_set=mo_array(1)%mo_set,mo_coeff=mo_coeff)
+       CALL cp_fm_get_info(mo_coeff,ncol_global=norb,error=error)
+       blocksize=MAX(1,MIN(blocksize,norb))
+
+       ALLOCATE(rho_i(blocksize)) 
+       ALLOCATE(rho_j(blocksize)) 
+  
+       DO iorb_block=1,blocksize 
+          CALL pw_pool_create_pw(auxbas_pw_pool,rho_i(iorb_block)%pw,&
+                                  use_data=REALDATA3D,&
+                                  in_space=REALSPACE,error=error)
+          CALL pw_pool_create_pw(auxbas_pw_pool,rho_j(iorb_block)%pw,&
+                                  use_data=REALDATA3D,&
+                                  in_space=REALSPACE,error=error)
+       ENDDO
+
+       CALL pw_pool_create_pw(auxbas_pw_pool,rho_r%pw,&
                                use_data=REALDATA3D,&
                                in_space=REALSPACE,error=error)
        CALL pw_pool_create_pw(auxbas_pw_pool,rho_g%pw,&
@@ -1202,44 +1216,64 @@ CONTAINS
        DO ispin=1,SIZE(mo_array)
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff)
           CALL cp_fm_get_info(mo_coeff,ncol_global=norb,error=error)
-          DO iorb=1,norb
+
+          DO iorb_block=1,norb,blocksize
+
+             DO iorb=iorb_block,MIN(iorb_block+blocksize-1,norb)
+
+                 iloc=iorb-iorb_block+1
+                 CALL calculate_wavefunction(mo_coeff,iorb,rho_i(iloc),rho_g, &
+                          atomic_kind_set,cell,dft_control,particle_set, &
+                          pw_env,error)
+
+             ENDDO
    
-             CALL calculate_wavefunction(mo_coeff,iorb,rho_i,rho_g, &
-                      atomic_kind_set,cell,dft_control,particle_set, &
-                      pw_env,error)
+             DO jorb_block=iorb_block,norb,blocksize
+  
+                DO jorb=jorb_block,MIN(jorb_block+blocksize-1,norb)
+
+                   jloc=jorb-jorb_block+1
+                   CALL calculate_wavefunction(mo_coeff,jorb,rho_j(jloc),rho_g, &
+                            atomic_kind_set,cell,dft_control,particle_set, &
+                            pw_env,error)
+
+                ENDDO
    
-             DO jorb=iorb,norb
-   
-                CALL calculate_wavefunction(mo_coeff,jorb,rho_j,rho_g, &
-                         atomic_kind_set,cell,dft_control,particle_set, &
-                         pw_env,error)
-   
-   
-                ! compute the pair density
-                rho_j%pw%cr3d = rho_i%pw%cr3d * rho_j%pw%cr3d
-   
-                ! should be either zero or one
-   
-                ! go the g-space and compute hartree energy
-                CALL pw_transfer(rho_j%pw, rho_g%pw)
-                pair_energy = 0.0_dp ; CALL pw_zero(pot_g%pw)
-                CALL pw_poisson_solve(poisson_env,rho_g%pw, pair_energy, pot_g%pw,error=error)
-   
-                ! write(6,*) iorb,jorb,pw_integrate_function(rho_j%pw),pair_energy
-   
-                ! sum up to the full energy
-                scaling=fraction
-                IF (SIZE(mo_array)==1) scaling=scaling*2.0_dp
-                IF (iorb/=jorb) scaling=scaling*2.0_dp
-   
-                exchange_energy=exchange_energy - scaling * pair_energy
+                DO iorb=iorb_block,MIN(iorb_block+blocksize-1,norb)
+                   iloc=iorb-iorb_block+1
+                   DO jorb=jorb_block,MIN(jorb_block+blocksize-1,norb)
+                      jloc=jorb-jorb_block+1 
+                      IF (jorb<iorb) CYCLE
+
+                      ! compute the pair density
+                      rho_r%pw%cr3d = rho_i(iloc)%pw%cr3d * rho_j(jloc)%pw%cr3d
+         
+                      ! go the g-space and compute hartree energy
+                      CALL pw_transfer(rho_r%pw, rho_g%pw)
+                      CALL pw_poisson_solve(poisson_env,rho_g%pw, pair_energy, pot_g%pw,error=error)
+         
+                      ! write(6,*) iorb,jorb,pw_integrate_function(rho_j%pw),pair_energy
+         
+                      ! sum up to the full energy
+                      scaling=fraction
+                      IF (SIZE(mo_array)==1) scaling=scaling*2.0_dp
+                      IF (iorb/=jorb) scaling=scaling*2.0_dp
+         
+                      exchange_energy=exchange_energy - scaling * pair_energy
+
+                   ENDDO
+                ENDDO
         
              ENDDO
           ENDDO
        ENDDO
-   
-       CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_i%pw,error=error)
-       CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_j%pw,error=error)
+       
+       DO iorb_block=1,blocksize 
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_i(iorb_block)%pw,error=error)
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_j(iorb_block)%pw,error=error)
+       ENDDO
+
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_r%pw,error=error)
        CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_g%pw,error=error)
        CALL pw_pool_give_back_pw(auxbas_pw_pool,pot_g%pw,error=error)
    
