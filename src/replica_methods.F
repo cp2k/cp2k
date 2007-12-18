@@ -29,10 +29,15 @@ MODULE replica_methods
   USE cp_output_handling,              ONLY: cp_add_iter_level
   USE cp_para_types,                   ONLY: cp_para_cart_type,&
                                              cp_para_env_type
+  USE cp_result_types,                 ONLY: cp_result_create,&
+                                             cp_result_p_type,&
+                                             cp_result_retain
+  USE f77_blas
   USE f77_interface,                   ONLY: f_env_add_defaults,&
                                              f_env_rm_defaults,&
                                              f_env_type
   USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_set,&
                                              use_qs_force
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get,&
@@ -49,12 +54,12 @@ MODULE replica_methods
                                              rep_env_create,&
                                              rep_env_release,&
                                              rep_env_sync,&
+                                             rep_env_sync_type,&
                                              rep_env_write,&
                                              rep_envs_get_rep_env,&
                                              replica_env_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -100,6 +105,8 @@ SUBROUTINE rep_env_init_low(rep_env_id, ierr)
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_cart_type), POINTER         :: cart
     TYPE(cp_para_env_type), POINTER          :: para_env_f, para_env_inter_rep
+    TYPE(cp_result_p_type), DIMENSION(:), &
+      POINTER                                :: results
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -111,7 +118,7 @@ SUBROUTINE rep_env_init_low(rep_env_id, ierr)
   CALL cp_assert(ASSOCIATED(rep_env),cp_failure_level,cp_assertion_failed,&
        routineP,"could not find rep_env with id_nr"//cp_to_string(rep_env_id),&
        failure=failure)
-  NULLIFY(wf_history,qs_env,dft_control)
+  NULLIFY(wf_history,qs_env,dft_control,results)
   NULLIFY(cart,para_env_f,para_env_inter_rep, f_env)
   IF (.NOT. failure) THEN
      CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
@@ -153,6 +160,20 @@ SUBROUTINE rep_env_init_low(rep_env_id, ierr)
               rep_env%keep_wf_history=.FALSE.
            END IF
         END IF
+        ALLOCATE(rep_env%results(rep_env%nrep),stat=stat)
+        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+        DO i=1,SIZE(rep_env%results)
+           NULLIFY(rep_env%results(i)%results)
+           IF (i==1) THEN
+              CALL force_env_get(f_env%force_env,&
+                   results=rep_env%results(i)%results,&
+                   error=error)
+              CALL cp_result_retain(rep_env%results(i)%results,error)
+           ELSE
+              CALL cp_result_create(rep_env%results(i)%results,&
+                   error)
+           END IF
+        END DO
      END IF
      IF (.NOT.failure) THEN
         CALL rep_env_sync(rep_env,rep_env%r,error=error)
@@ -405,6 +426,14 @@ SUBROUTINE rep_env_calc_e_f_int(rep_env,calc_f,error)
            CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
         END IF
 
+        CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
+             new_error=new_error, failure=failure)
+        CALL force_env_set(force_env=f_env%force_env,&
+             results=rep_env%results(irep)%results,&
+             error=error)
+        CALL f_env_rm_defaults(f_env,new_error,ierr)
+        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
+        
         CALL cp_calc_force(rep_env%f_env_id,rep_env%r(:,irep),3*rep_env%nat,&
              rep_env%f(3*rep_env%nat+1,irep),rep_env%f(:3*rep_env%nat,irep),&
              my_calc_f,ierr)
@@ -413,6 +442,7 @@ SUBROUTINE rep_env_calc_e_f_int(rep_env,calc_f,error)
      END DO
      IF (.NOT.failure) THEN
         CALL rep_env_sync(rep_env,rep_env%f,error=error)
+        CALL rep_env_sync_type(rep_env,rep_env%results,error)
      END IF
      CALL cp_error_synchronize_error(error,rep_env%para_env)
   END IF

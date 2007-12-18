@@ -32,6 +32,9 @@ MODULE fist_environment_types
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_result_types,                 ONLY: cp_result_type,&
+                                             cp_result_create,&
+                                             cp_result_release
   USE cp_subsys_types,                 ONLY: cp_subsys_create,&
                                              cp_subsys_get,&
                                              cp_subsys_release,&
@@ -113,6 +116,7 @@ MODULE fist_environment_types
     TYPE (cp_subsys_type), POINTER               :: subsys
     TYPE (fist_nonbond_env_type), POINTER        :: fist_nonbond_env
     TYPE(section_vals_type), POINTER             :: input
+    TYPE(cp_result_type),POINTER                 :: results
  END TYPE fist_environment_type
 
 
@@ -182,7 +186,7 @@ CONTAINS
        local_particles, local_molecules, molecule_kind_set, molecule_set, cell,&
        cell_ref, ewald_env, fist_nonbond_env, thermo, para_env, subsys, qmmm,&
        qmmm_env, input, shell_model, shell_model_ad, shell_particle_set,&
-       core_particle_set, first_time, multipoles, error )
+       core_particle_set, first_time, multipoles, results, error )
 
     TYPE(fist_environment_type), INTENT(IN)  :: fist_env
     TYPE(atomic_kind_type), OPTIONAL, &
@@ -211,6 +215,7 @@ CONTAINS
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input
     LOGICAL, OPTIONAL                        :: shell_model, shell_model_ad
+    TYPE(cp_result_type), POINTER,OPTIONAL   :: results
     TYPE(particle_type), OPTIONAL, POINTER   :: shell_particle_set( : ), &
                                                 core_particle_set( : )
     LOGICAL, OPTIONAL                        :: first_time
@@ -227,6 +232,7 @@ CONTAINS
     TYPE(multipole_type), POINTER            :: fist_multipoles
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
+
 
     failure=.FALSE.
     NULLIFY( atomic_kinds, particles, molecules_new, molecule_kinds_new, fist_multipoles)
@@ -263,6 +269,7 @@ CONTAINS
     IF (PRESENT(molecule_set)) molecule_set => molecules_new%els
     IF (PRESENT(shell_particle_set)) shell_particle_set => shell_particles%els
     IF (PRESENT(core_particle_set)) core_particle_set => core_particles%els
+    IF (PRESENT(results)) results => fist_env%results
     IF (PRESENT(multipoles)) multipoles => fist_multipoles
   END SUBROUTINE get_fist_env
 
@@ -306,6 +313,7 @@ CONTAINS
     fist_env % shell_model_ad = .FALSE.
     CALL qmmm_env_mm_create(fist_env%qmmm_env, error)
     CALL cp_subsys_create(fist_env%subsys, para_env=para_env, error=error)
+    CALL cp_result_create(results=fist_env%results,error=error)
     CALL cp_para_env_retain(para_env,error=error)
     fist_env%para_env => para_env
     fist_env%ref_count=1
@@ -626,7 +634,7 @@ CONTAINS
           CALL deallocate_fist_energy(fist_env%thermo)
           
           CALL fist_nonbond_env_release ( fist_env % fist_nonbond_env, error = error )
-          
+          CALL cp_result_release(fist_env%results,error=error)	  
           CALL cp_subsys_release(fist_env%subsys,error=error)
           CALL section_vals_release(fist_env%input,error=error)
           DEALLOCATE(fist_env, stat=stat)

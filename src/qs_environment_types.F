@@ -46,6 +46,9 @@ MODULE qs_environment_types
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
+  USE cp_result_types,                 ONLY: cp_result_type,&
+                                             cp_result_create,&
+                                             cp_result_release
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
                                              sm_pools_give_back_matrix_vect
   USE cp_subsys_types,                 ONLY: cp_subsys_create,&
@@ -184,8 +187,7 @@ MODULE qs_environment_types
             qs_env_release,&
             qs_env_reorthogonalize_vectors,&
             qs_env_retain,&
-            set_qs_env,&
-            qs_store_results_type
+            set_qs_env
 
 !!***
 !****************************************************************************
@@ -287,9 +289,6 @@ MODULE qs_environment_types
 !!     08.2004 renamed some of the very short names (s,c,k,h) for easier grepping
 !!
 !!*** *********************************************************************
-  TYPE qs_store_results_type
-     REAL(KIND=dp), DIMENSION(3)                          :: dipole
-  END TYPE qs_store_results_type
 
   TYPE qs_environment_type
 !   PRIVATE
@@ -353,7 +352,7 @@ MODULE qs_environment_types
     TYPE(x_hf_type),POINTER                               :: x_data
     TYPE(et_coupling_type),POINTER                        :: et_coupling   
     TYPE(qs_dftb_pairpot_type), DIMENSION(:,:), POINTER   :: dftb_potential
-    TYPE(qs_store_results_type)                           :: results
+    TYPE(cp_result_type) ,POINTER                         :: results
   END TYPE qs_environment_type
 
 ! *****************************************************************************
@@ -406,7 +405,7 @@ CONTAINS
                         neighbor_list_id,kg_sub_pw_env,linres_control,xas_env,&
                         virial,cp_ddapc_env,cp_ddapc_ewald,outer_scf_history, &
                         outer_scf_ihistory,ep_qs_env,x_data,et_coupling,&
-                        dftb_potential,error)
+                        dftb_potential,results,error)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -516,7 +515,7 @@ CONTAINS
     TYPE(qs_dftb_pairpot_type), &
       DIMENSION(:, :), OPTIONAL, POINTER     :: dftb_potential
     TYPE(cp_error_type), INTENT(INOUT)       :: error
-
+    TYPE(cp_result_type), POINTER,OPTIONAL   :: results
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', &
       routineP = moduleN//':'//routineN
 
@@ -526,6 +525,7 @@ CONTAINS
     TYPE(mol_new_list_type), POINTER         :: molecules_new
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(rho0_mpole_type), POINTER           :: rho0_m
+
 
 !   ---------------------------------------------------------------------------
 
@@ -642,7 +642,7 @@ CONTAINS
     IF (PRESENT(x_data)) x_data => qs_env%x_data
     IF (PRESENT(et_coupling)) et_coupling => qs_env%et_coupling    
     IF (PRESENT(dftb_potential)) dftb_potential => qs_env%dftb_potential    
-
+    IF (PRESENT(results)) results => qs_env%results
   END SUBROUTINE get_qs_env
 
 ! *****************************************************************************
@@ -720,7 +720,7 @@ CONTAINS
     NULLIFY (qs_env%x_data)
     NULLIFY (qs_env%et_coupling)
     NULLIFY (qs_env%dftb_potential)
-
+    NULLIFY (qs_env%results)
     qs_env%outer_scf_ihistory=0
     qs_env%neighbor_list_id=-1
 
@@ -739,21 +739,12 @@ CONTAINS
     qs_env%requires_mo_derivs=.FALSE.
     qs_env%use_harris=.FALSE.
     ! Zero all variables containing results
-    CALL init_results(qs_env%results, error)
+    CALL cp_result_create(qs_env%results, error)
     NULLIFY(qs_env%mo_derivs)
 
   END SUBROUTINE init_qs_env
 
 
-  SUBROUTINE init_results(results, error)
-    TYPE(qs_store_results_type)              :: results
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'init_results', &
-      routineP = moduleN//':'//routineN
-
-    results%dipole=0.0_dp
-  END SUBROUTINE init_results
 ! *****************************************************************************
 
   SUBROUTINE set_qs_env(qs_env,cell,super_cell,cell_ref,use_ref_cell, &
@@ -1389,6 +1380,7 @@ SUBROUTINE qs_env_release(qs_env,error)
         CALL cp_ddapc_release(qs_env%cp_ddapc_env, error=error)
         CALL cp_ddapc_ewald_release(qs_env%cp_ddapc_ewald, error=error)
         CALL ep_qs_release(qs_env%ep_qs_env,error=error)
+        CALL cp_result_release(qs_env%results,error=error)
         IF(ASSOCIATED(qs_env%x_data)) THEN
           CALL x_hf_release(qs_env%x_data, error=error)
         END IF

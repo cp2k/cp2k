@@ -34,6 +34,9 @@ MODULE force_env_methods
                                              cp_print_key_unit_nr
   USE cp_para_env,                     ONLY: cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_result_types,                 ONLY: cp_result_type,&
+                                             transfer_result_type,&
+                                             erase_result
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_p_type,&
                                              cp_subsys_retain,&
@@ -60,6 +63,8 @@ MODULE force_env_methods
                                              get_fist_env,&
                                              set_fist_env
   USE fist_force,                      ONLY: fist_force_control
+  USE cp_result_types,          ONLY: cp_result_type,&
+                                             cp_result_create         
   USE force_env_types,                 ONLY: &
        force_env_get, force_env_get_natom, force_env_p_type, &
        force_env_pos_get, force_env_type, use_eip_force, use_ep_force, &
@@ -220,8 +225,9 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(virial_type), POINTER               :: virial
+    TYPE(cp_result_type),POINTER             :: results
 
-    NULLIFY(logger)
+    NULLIFY(logger,results)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
     output_unit = -1
@@ -253,6 +259,7 @@ CONTAINS
          CASE ( use_fist_force )
             CALL fist_force_control( force_env%fist_env, virial, force_env%para_env, &
                  force_env_section=force_env%force_env_section, error=error)
+            CALL get_fist_env(fist_env=force_env%fist_env,results=results,error=error)
          CASE (use_ep_force)
             CALL ep_env_calc_e_f(force_env%ep_env,need_f,error=error)
          CASE ( use_qs_force )
@@ -265,6 +272,7 @@ CONTAINS
             IF (virial%pv_availability.AND.virial%pv_numer) THEN
                CALL qs_calc_numerical_pressure(force_env,error=error)
             END IF
+            CALL get_qs_env(qs_env=force_env%qs_env,results=results,error=error)         
          CASE ( use_kg_force )
             IF (.NOT.need_f) THEN
                root_section=>force_env%root_section
@@ -332,6 +340,10 @@ CONTAINS
           CALL force_env_get(force_env, potential_energy=e_pot, error=error)
           WRITE(output_unit,'(/,T2,"ENERGY| Total FORCE_EVAL ( ",A," ) energy (a.u.): ",T55,F26.15,/)')&
                ADJUSTR(TRIM(use_prog_name(force_env%in_use))),e_pot
+       END IF
+       IF(ASSOCIATED(results))THEN
+          CALL erase_result(results=force_env%results,error=error)
+          CALL transfer_result_type(res_target=force_env%results,res_source=results,error=error)
        END IF
     END IF
   END SUBROUTINE force_env_calc_energy_force
@@ -410,7 +422,7 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
           force_env%qmmm_env, force_env%ep_env, force_env%fp_env, &
           force_env%force_env_section, force_env%eip_env,force_env%mixed_env,&
           force_env%extended_energies,force_env%root_section,&
-          force_env%cpot_env)
+          force_env%cpot_env,force_env%results)
      last_force_env_id=last_force_env_id+1
      force_env%id_nr=last_force_env_id
      force_env%ref_count=1
@@ -557,6 +569,7 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
         CALL meta_env_retain(meta_env,error=error)
      END IF
 
+     CALL cp_result_create(results=force_env%results,error=error)
      SELECT CASE(force_env%in_use)
      CASE(use_fist_force)
         CALL get_fist_env (force_env%fist_env, subsys=force_env%subsys, error=error)

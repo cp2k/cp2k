@@ -31,6 +31,9 @@ MODULE fist_force
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_result_types,                 ONLY: cp_result_type,&
+                                             put_results,&
+                                             erase_result
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
@@ -813,7 +816,7 @@ CONTAINS
          "PRINT%DERIVATIVES",error=error)
     CALL timestop(0.0_dp,handle)
 
-  END SUBROUTINE fist_force_control
+END SUBROUTINE fist_force_control
 
 !******************************************************************************
 !!****** fist_force/print_fist [1.1] *
@@ -901,14 +904,17 @@ CONTAINS
       via(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: ref_point
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    CHARACTER(LEN=30)                        :: description
+    TYPE(cp_result_type), POINTER            :: results
 
     NULLIFY(atomic_kind)
     ! Reference point
     reference = section_get_ival(print_section,keyword_name="DIPOLE%REFERENCE",error=error)
     NULLIFY ( ref_point )
+    description='[DIPOLE]'
     CALL section_vals_val_get(print_section,"DIPOLE%REF_POINT",r_vals=ref_point,error=error)
     CALL section_vals_val_get(print_section,"DIPOLE%PERIODIC",l_val=do_berry,error=error)
-
+    
     CALL get_reference_point(rcc,drcc,fist_env=fist_env,reference=reference,ref_point=ref_point,error=error)
     rcc = pbc(rcc,cell)
 
@@ -960,6 +966,10 @@ CONTAINS
           dipole       = MATMUL ( cell%hmat, ci )/twopi
           dipole_deriv = MATMUL ( cell%hmat, dci )/twopi
        END IF
+       CALL get_fist_env( fist_env=fist_env,results=results,error=error)
+       CALL erase_result(results,description,error=error)
+       CALL put_results(results,description,dipole,error=error)
+
        IF (unit_nr>0) THEN
           WRITE(unit_nr,'(1X,A,T48,3F11.6)')"MM DIPOLE [BERRY PHASE] ( A.U.)|",dipole
           WRITE(unit_nr,'(1X,A,T48,3F11.6)')"MM DIPOLE [BERRY PHASE] (Debye)|",dipole*debye
@@ -973,6 +983,10 @@ CONTAINS
           dipole = dipole - q * (ria-rcc)
           dipole_deriv(:) = dipole_deriv(:) - q * (particle_set(i)%v(:) - drcc)
        END DO
+       CALL get_fist_env( fist_env=fist_env,results=results,error=error)
+       CALL erase_result(results,description,error=error)
+       CALL put_results(results,description,dipole,error=error)
+
        IF (unit_nr>0) THEN
           WRITE(unit_nr,'(1X,A,T48,3F11.6)')"MM DIPOLE [NON-PERIODIC] ( A.U.)|",dipole
           WRITE(unit_nr,'(1X,A,T48,3F11.6)')"MM DIPOLE [NON-PERIODIC] (Debye)|",dipole*debye

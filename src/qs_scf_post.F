@@ -47,6 +47,9 @@ MODULE qs_scf_post
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_result_types,                 ONLY: put_results,&
+                                             get_results,&
+                                             erase_result
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
@@ -776,10 +779,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: iter
-    INTEGER                                  :: i, ispins, unit_nr
+    CHARACTER(LEN=80)                        :: description
+    INTEGER                                  :: i, ispins, unit_nr,n_rep
     LOGICAL                                  :: failure, first_time, ghost
     REAL(KIND=dp)                            :: zeff, zwfc
-    REAL(KIND=dp), DIMENSION(3)              :: dipole, r_pbc
+    REAL(KIND=dp), DIMENSION(3)              :: dipole,dipole_old, r_pbc
     TYPE(cell_type), POINTER                 :: cell
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(particle_type), DIMENSION(:), &
@@ -793,7 +797,8 @@ CONTAINS
                        cell=cell,&
                        particle_set=particle_set,&
                        error=error)
-
+       
+       description='[DIPOLE]'
        dipole=0.0_dp
        ! Charges of the atoms involved
        DO i=1,SIZE(particle_set)
@@ -811,6 +816,7 @@ CONTAINS
        ! Charges of the wfc involved
        ! Warning, this assumes the same occupation for all states
        zwfc = 3.0_dp-REAL(dft_control%nspins,dp)
+       
        DO ispins=1,dft_control%nspins
           DO i=1,SIZE(center,1)
              r_pbc = pbc(center(i,1:3,ispins),cell)
@@ -828,12 +834,19 @@ CONTAINS
                                  "delta_dipole(x,y,z)[atomic units]"
           END IF
           iter=cp_iter_string(logger%iter_info,error=error)
+          CALL get_results(qs_env%results,description,n_rep=n_rep,error=error)
+          IF(n_rep==0)THEN
+             dipole_old=0._dp
+          ELSE
+             CALL get_results(qs_env%results,description,dipole_old,nval=n_rep,error=error)
+          END IF
           WRITE(unit=unit_nr,fmt="(a,9(es18.8))")&
-               iter(1:15), dipole, dipole*debye, (dipole-qs_env%results%dipole)
+               iter(1:15), dipole, dipole*debye, (dipole-dipole_old)
        END IF
        CALL cp_print_key_finished_output(unit_nr,logger,input,&
             "DFT%PRINT%LOCALIZATION",on_file=.TRUE.,error=error)
-       qs_env%results%dipole=dipole
+       CALL erase_result(qs_env%results,description,error=error)
+       CALL put_results(qs_env%results,description,dipole,error)
     END IF
 
   END SUBROUTINE qs_scf_post_loc_dip

@@ -1199,6 +1199,12 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="INTENSITIES",&
+            description="Calculation of the IR-Intensities. Calculation of dipols has to be specified explicitly ",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL cp_print_key_section_create(print_key,"program_run_info",&
             description="Controls the printing basic info about the vibrational method", &
             print_level=medium_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
@@ -1915,6 +1921,22 @@ END SUBROUTINE create_cpot_section
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
+     CALL keyword_create(keyword,name="EPS_MAX_VAL",&
+          description="Convergence criterium for the davidson algorithm. Specifies the maximal value in the "//&
+          "residuum vectors ",&
+          usage="EPS_MAX_VAL <REAL>", default_r_val=5.0E-7_dp,&
+          error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword,name="EPS_NORM",&
+          description="Convergence criterium for the davidson algorithm. Specifies the maximal value of the norm "//&
+          "of the residuum vectors ",&
+          usage="EPS_MAX_VAL <REAL>", default_r_val=2.0E-6_dp,&
+          error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
      CALL keyword_create(keyword, name="INITIAL_GUESS",&
           description="The type of initial guess for the normal modes",&
           usage="INITIAL_GUESS BFGS_HESS",&
@@ -1931,7 +1953,7 @@ END SUBROUTINE create_cpot_section
      CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="PRECONDITIONER",&
-          description="The preconditioner for the davidson algorithm",&
+          description="The preconditioner for the davidson algorithm (do not use yet they have to improve first )",&
           usage="PRECONDITIONER NONE",&
           default_i_val=no_ms_precond,&
           enum_c_vals=s2a("NONE", &

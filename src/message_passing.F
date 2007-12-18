@@ -178,7 +178,7 @@ MODULE message_passing
   INTERFACE mp_alltoall
      MODULE PROCEDURE mp_alltoall_c22v, mp_alltoall_i, mp_alltoall_c22v_sgl, &
                       mp_alltoall_i11v, mp_alltoall_r11v, mp_alltoall_r45,&
-                      mp_alltoall_r34,mp_alltoall_r54
+                      mp_alltoall_r34,mp_alltoall_r54, mp_alltoall_z11v
   END INTERFACE
 
   INTERFACE mp_send
@@ -1300,6 +1300,45 @@ SUBROUTINE mp_alltoall_i11v ( sb, scount, sdispl, rb, rcount, rdispl, group )
 #endif
 
 END SUBROUTINE mp_alltoall_i11v
+
+
+SUBROUTINE mp_alltoall_z11v ( sb, scount, sdispl, rb, rcount, rdispl,len_string, group )
+
+    INTEGER,INTENT(IN)                       :: len_string
+    CHARACTER(LEN=len_string),DIMENSION(:), INTENT(IN)    :: sb
+    INTEGER, DIMENSION(:), INTENT(IN)        :: scount, sdispl
+    CHARACTER(LEN=len_string), DIMENSION(:), INTENT(OUT)  :: rb
+    INTEGER, DIMENSION(:), INTENT(IN)        :: rcount, rdispl
+    INTEGER, INTENT(IN)                      :: group
+
+    INTEGER                                  :: ierr, msglen
+    INTEGER :: handle
+    INTEGER,DIMENSION(SIZE(scount))          :: len_s,len_r
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_z11v', &
+      routineP = moduleN//':'//routineN
+#if defined(__mp_timeset__)
+    CALL timeset(routineN,handle)
+#endif
+
+  ierr = 0
+#if defined(__parallel)
+  t_start = m_walltime ( )
+  len_s(:)=scount(:)*len_string
+  len_r(:)=rcount(:)*len_string  
+  CALL mpi_alltoallv ( sb, len_s, sdispl*len_string, MPI_CHARACTER, &
+                       rb, len_r, rdispl*len_string, MPI_CHARACTER, group, ierr )
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoallv @ mp_alltoall_z11v" )
+  msglen = SUM ( scount ) + SUM ( rcount )
+  t_end = m_walltime ( )
+  CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+#else
+  rb(rdispl(1)+1:rdispl(1)+rcount(1))=sb(sdispl(1)+1:sdispl(1)+scount(1))
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop(handle)
+#endif
+
+  END SUBROUTINE mp_alltoall_z11v
 
 SUBROUTINE mp_alltoall_r11v ( sb, scount, sdispl, rb, rcount, rdispl, group )
 

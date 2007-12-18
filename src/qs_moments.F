@@ -41,6 +41,8 @@ MODULE qs_moments
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
+  USE cp_result_types,                  ONLY: erase_result,&
+                                             put_results
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
@@ -650,6 +652,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(real_matrix_type), POINTER          :: cosmat, sinmat
+    CHARACTER(LEN=30)                        :: description
 
 ! -------------------------------------------------------------------------
 
@@ -943,7 +946,10 @@ CONTAINS
        END DO
 
        rmom(:,3) = rmom(:,1) + rmom(:,2)
-
+       description="[DIPOLE]"
+       CALL erase_result(results=qs_env%results,description=description,error=error)
+       CALL put_results(results=qs_env%results,description=description,&
+                        values=rmom(2:4,3),error=error)
        CALL print_moments(unit_number,nmom,rmom,rlab,rcc)
 
        DEALLOCATE (rmom,STAT=istat)
@@ -1030,7 +1036,7 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s, moments
-
+    CHARACTER(LEN=30)                        :: description
 ! -------------------------------------------------------------------------
 
      failure = .FALSE.
@@ -1110,6 +1116,11 @@ CONTAINS
        rmom(:,:) = -rmom(:,:)
        rmom(:,3) = rmom(:,1) + rmom(:,2)
 
+       description="[DIPOLE]"
+       CALL erase_result(results=qs_env%results,description=description,error=error)
+       CALL put_results(results=qs_env%results,description=description,&
+                        values=rmom(2:4,3),error=error)
+       CALL print_moments(unit_number,nmom,rmom,rlab,rcc)
        CALL print_moments(unit_number,nmom,rmom,rlab,rcc)
 
        DEALLOCATE (rmom,STAT=istat)

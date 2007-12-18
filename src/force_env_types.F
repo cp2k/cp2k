@@ -43,6 +43,9 @@ MODULE force_env_types
   USE fist_environment_types,          ONLY: fist_env_release,&
                                              fist_environment_type,&
                                              get_fist_env
+  USE cp_result_types,                 ONLY: cp_result_type,&
+                                             cp_result_retain,&
+                                             cp_result_release
   USE fp_types,                        ONLY: fp_env_release,&
                                              fp_env_retain,&
                                              fp_type
@@ -179,6 +182,7 @@ MODULE force_env_types
      TYPE ( section_vals_type), POINTER                  :: root_section
      TYPE ( extended_energy_type), POINTER               :: extended_energies
      TYPE ( cpot_type), POINTER                          :: cpot_env
+     TYPE ( cp_result_type), POINTER                     :: results 
   END TYPE force_env_type
 
 !!****s* force_env_types/force_env_p_type [1.0] *
@@ -321,7 +325,7 @@ END SUBROUTINE force_env_retain
              DEALLOCATE(force_env%extended_energies,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
-    
+
           SELECT CASE ( force_env%in_use )
           CASE ( use_fist_force )
              CALL fist_env_release(force_env%fist_env,error=error)
@@ -336,7 +340,7 @@ END SUBROUTINE force_env_retain
           CASE (use_mixed_force)
              CALL mixed_env_release(force_env%mixed_env,error=error)
           END SELECT
-    
+          CALL cp_result_release(results=force_env%results,error=error)
           CALL cpot_release(force_env%cpot_env,error=error)
           CALL globenv_release(force_env%globenv,force_env%para_env,error=error)
           CALL cp_para_env_release(force_env%para_env,error=error)
@@ -391,7 +395,7 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
      potential_energy, kinetic_energy, harmonic_shell, kinetic_shell,&
      cell, cell_ref, sub_force_env, qmmm_env, &
      eip_env, virial, use_ref_cell, globenv, input, ep_env, force_env_section, &
-     method_name_id, root_section, mixed_env, error)
+     method_name_id, root_section, mixed_env,results, error)
     TYPE(force_env_type), POINTER            :: force_env
     INTEGER, INTENT(out), OPTIONAL           :: in_use
     TYPE(fist_environment_type), OPTIONAL, &
@@ -431,6 +435,8 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
       POINTER                                :: root_section
     TYPE(mixed_environment_type), OPTIONAL, &
       POINTER                                :: mixed_env
+    TYPE(cp_result_type), OPTIONAL, &
+      POINTER                                :: results    
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_get', &
@@ -599,6 +605,7 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
      IF (PRESENT(eip_env)) THEN
         eip_env => force_env%eip_env
      END IF
+     IF (PRESENT(results)) results => force_env%results     
      IF (PRESENT(dyn_coeff_set)) dyn_coeff_set => force_env%dyn_coeff_set
      IF (PRESENT(subsys)) subsys => force_env%subsys
      IF (PRESENT(para_env)) para_env => force_env%para_env
@@ -662,7 +669,7 @@ END SUBROUTINE force_env_get
 !!
 !!*** **********************************************************************
 SUBROUTINE force_env_set(force_env, meta_env,fp_env, virial, force_env_section,&
-     method_name_id, extended_energies, error)
+     method_name_id, extended_energies,results, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
     TYPE(fp_type), OPTIONAL, POINTER         :: fp_env
@@ -672,6 +679,7 @@ SUBROUTINE force_env_set(force_env, meta_env,fp_env, virial, force_env_section,&
     INTEGER, OPTIONAL                        :: method_name_id
     TYPE(extended_energy_type), OPTIONAL, &
       POINTER                                :: extended_energies
+    TYPE(cp_result_type),OPTIONAL,POINTER    :: results
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_set', &
@@ -718,6 +726,13 @@ SUBROUTINE force_env_set(force_env, meta_env,fp_env, virial, force_env_section,&
            CALL section_vals_release(force_env%force_env_section,error=error)
            force_env%force_env_section => force_env_section
         END IF
+     END IF
+     IF(PRESENT(results))THEN
+        IF(ASSOCIATED(results))THEN
+           CALL cp_result_retain(results,error)
+        END IF
+        CALL cp_result_release(force_env%results,error)
+        force_env%results => results
      END IF
      IF (PRESENT(method_name_id))THEN
         force_env%method_name_id=method_name_id
