@@ -32,8 +32,9 @@ MODULE fist_force
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_result_types,                 ONLY: cp_result_type,&
-                                             put_results,&
-                                             erase_result
+                                             description_length,&
+                                             erase_result,&
+                                             put_results
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
@@ -892,6 +893,7 @@ END SUBROUTINE fist_force_control
     INTEGER, INTENT(IN)                      :: unit_nr
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
+    CHARACTER(LEN=description_length)        :: description
     COMPLEX(KIND=dp)                         :: dzeta, dzphase(3), zeta, &
                                                 zphase(3)
     COMPLEX(KIND=dp), DIMENSION(3)           :: dggamma, ggamma
@@ -904,7 +906,6 @@ END SUBROUTINE fist_force_control
       via(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: ref_point
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    CHARACTER(LEN=30)                        :: description
     TYPE(cp_result_type), POINTER            :: results
 
     NULLIFY(atomic_kind)

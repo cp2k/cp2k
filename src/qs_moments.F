@@ -41,13 +41,14 @@ MODULE qs_moments
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
-  USE cp_result_types,                  ONLY: erase_result,&
-                                             put_results
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_result_types,                 ONLY: description_length,&
+                                             erase_result,&
+                                             put_results
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE kinds,                           ONLY: dp
@@ -621,6 +622,7 @@ CONTAINS
 
     CHARACTER(LEN=8), ALLOCATABLE, &
       DIMENSION(:)                           :: rlab
+    CHARACTER(LEN=description_length)        :: description
     COMPLEX(dp)                              :: xphase(3), zdet, zdeta, &
                                                 zi(3), zij(3,3), zijk(3,3,3), &
                                                 zijkl(3,3,3,3), zphase(3), zz
@@ -652,7 +654,6 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(real_matrix_type), POINTER          :: cosmat, sinmat
-    CHARACTER(LEN=30)                        :: description
 
 ! -------------------------------------------------------------------------
 
@@ -1019,6 +1020,7 @@ CONTAINS
 
     CHARACTER(LEN=8), ALLOCATABLE, &
       DIMENSION(:)                           :: rlab
+    CHARACTER(LEN=description_length)        :: description
     INTEGER                                  :: handle, i, ia, iatom, ikind, &
                                                 ispin, istat, ix, iy, iz, l, &
                                                 nm, nmom
@@ -1036,7 +1038,7 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s, moments
-    CHARACTER(LEN=30)                        :: description
+
 ! -------------------------------------------------------------------------
 
      failure = .FALSE.

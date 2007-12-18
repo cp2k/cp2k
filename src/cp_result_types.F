@@ -44,6 +44,7 @@
             erase_result,&
             transfer_result_type
 
+  INTEGER, PARAMETER, PUBLIC           ::  description_length=30
 
   INTERFACE put_results
      MODULE PROCEDURE put_result_r1, put_result_r2,replace_full_type
@@ -81,13 +82,14 @@
 !******************************************************************************
 
   TYPE cp_result_type
-     CHARACTER(30),DIMENSION(:),POINTER                   :: result_list
+     CHARACTER(LEN=description_length),DIMENSION(:),&
+          POINTER                                         :: result_list
      INTEGER,DIMENSION(:),POINTER                         :: desc_map
      INTEGER :: ref_count
   END TYPE cp_result_type
 
   TYPE cp_result_p_type
-     TYPE(cp_result_type), POINTER            :: results
+     TYPE(cp_result_type), POINTER                        :: results
   END TYPE cp_result_p_type
 
 CONTAINS
@@ -194,12 +196,12 @@ CONTAINS
   SUBROUTINE cp_result_retain(results,error)
     TYPE(cp_result_type), POINTER            :: results
     TYPE(cp_error_type), INTENT(inout)       :: error
-    
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_result_release', &
-         routineP = moduleN//':'//routineN
-    
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_result_retain', &
+      routineP = moduleN//':'//routineN
+
     LOGICAL                                  :: failure
-    
+
     failure=.FALSE.
     
     CPPrecondition(ASSOCIATED(results),cp_failure_level,routineP,error,failure)
@@ -228,15 +230,16 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE put_result_r1(results,description,values,error)
     TYPE(cp_result_type), POINTER            :: results
-    CHARACTER(30)                            :: description
+    CHARACTER(LEN=description_length)        :: description
     REAL(KIND=dp), DIMENSION(:)              :: values
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'put_result_r1', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(30)                            :: line
-    CHARACTER(30), ALLOCATABLE, DIMENSION(:) :: tmp_string
+    CHARACTER(LEN=description_length)        :: line
+    CHARACTER(LEN=description_length), &
+      ALLOCATABLE, DIMENSION(:)              :: tmp_string
     INTEGER                                  :: i, isize, j, jsize, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_map
     LOGICAL                                  :: failure
@@ -288,15 +291,16 @@ CONTAINS
 
   SUBROUTINE put_result_r2(results,description,values,error)
     TYPE(cp_result_type), POINTER            :: results
-    CHARACTER(30)                            :: description
+    CHARACTER(LEN=description_length)        :: description
     REAL(KIND=dp), DIMENSION(:, :)           :: values
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'put_result_r2', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(30)                            :: line
-    CHARACTER(30), ALLOCATABLE, DIMENSION(:) :: tmp_string
+    CHARACTER(LEN=description_length)        :: line
+    CHARACTER(LEN=description_length), &
+      ALLOCATABLE, DIMENSION(:)              :: tmp_string
     INTEGER                                  :: i, isize, j, jsize, k, ksize, &
                                                 stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_map
@@ -350,15 +354,17 @@ CONTAINS
 
   SUBROUTINE replace_full_type(results,list,map,size_list,size_map,displ_list,displ_map,error)
     TYPE(cp_result_type), POINTER            :: results
-    CHARACTER(30),DIMENSION(:)               :: list
-    INTEGER,DIMENSION(:)                     :: map
-    INTEGER,OPTIONAL                         :: size_list,size_map,displ_list,displ_map
+    CHARACTER(LEN=description_length), &
+      DIMENSION(:)                           :: list
+    INTEGER, DIMENSION(:)                    :: map
+    INTEGER, OPTIONAL                        :: size_list, size_map, &
+                                                displ_list, displ_map
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'replace_full_type', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat             
+    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -417,7 +423,7 @@ CONTAINS
   
   SUBROUTINE get_result_r1(results,description,values,nval,n_rep,n_entries,error)
     TYPE(cp_result_type), POINTER            :: results
-    CHARACTER(30)                            :: description
+    CHARACTER(LEN=description_length)        :: description
     REAL(KIND=dp), DIMENSION(:)              :: values
     INTEGER, OPTIONAL                        :: nval, n_rep, n_entries
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -425,7 +431,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_result_r1', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(30)                            :: line
+    CHARACTER(LEN=description_length)        :: line
     INTEGER                                  :: desc_size, i, k, l, m, nrep, &
                                                 size_res
     LOGICAL                                  :: failure
@@ -484,7 +490,7 @@ CONTAINS
 
   SUBROUTINE get_result_r2(results,description,values,nval,n_rep,n_entries,error)
     TYPE(cp_result_type), POINTER            :: results
-    CHARACTER(30)                            :: description
+    CHARACTER(LEN=description_length)        :: description
     REAL(KIND=dp), DIMENSION(:, :)           :: values
     INTEGER, OPTIONAL                        :: nval, n_rep, n_entries
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -492,7 +498,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_result_r2', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(30)                            :: line
+    CHARACTER(LEN=description_length)        :: line
     INTEGER                                  :: desc_size, i, k, l, m, n, &
                                                 nrep, size_res, val_size1, &
                                                 val_size2
@@ -555,7 +561,7 @@ CONTAINS
 
   SUBROUTINE get_nreps(results,description,n_rep,n_entries,error)
     TYPE(cp_result_type), POINTER            :: results
-    CHARACTER(30)                            :: description
+    CHARACTER(LEN=description_length)        :: description
     INTEGER, OPTIONAL                        :: n_rep, n_entries
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -599,14 +605,16 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE erase_result(results,description,nval,error)
     TYPE(cp_result_type), POINTER            :: results
-    CHARACTER(30),OPTIONAL                   :: description
+    CHARACTER(LEN=description_length), &
+      OPTIONAL                               :: description
     INTEGER, OPTIONAL                        :: nval
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'erase_result', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(30), ALLOCATABLE, DIMENSION(:) :: tmp_string
+    CHARACTER(LEN=description_length), &
+      ALLOCATABLE, DIMENSION(:)              :: tmp_string
     INTEGER                                  :: count, desc_size, i, isize, &
                                                 j, k, n, nrep, size_res, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_map
@@ -737,17 +745,21 @@ CONTAINS
 
   SUBROUTINE transfer_result_type(res_target,res_source,description_target,description_source,nval,error)
     TYPE(cp_result_type), POINTER            :: res_target, res_source
-    CHARACTER(30),OPTIONAL                   :: description_target,description_source
+    CHARACTER(LEN=description_length), &
+      OPTIONAL                               :: description_target, &
+                                                description_source
     INTEGER, OPTIONAL                        :: nval
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'transfer_result_type', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(30), ALLOCATABLE, DIMENSION(:) :: tmp_string
-    INTEGER                                  :: desc_size, desc_size1, i, j, &
-                                                k, n, nrep, size_res, handle, &
-                                                size_source, size_target, stat
+    CHARACTER(LEN=description_length), &
+      ALLOCATABLE, DIMENSION(:)              :: tmp_string
+    INTEGER                                  :: desc_size, desc_size1, &
+                                                handle, i, j, k, n, nrep, &
+                                                size_res, size_source, &
+                                                size_target, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_map
     LOGICAL                                  :: failure
 
@@ -817,7 +829,7 @@ CONTAINS
        tmp_string(j)= res_source%result_list( res_source%desc_map(desc_size))   
        tmp_map(SIZE(tmp_map))=j
     ELSE
-       
+
        ALLOCATE(tmp_string(size_target+size_source-2),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(tmp_map(desc_size+desc_size1-2),stat=stat)
@@ -845,15 +857,15 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(res_target%desc_map(SIZE(tmp_map)),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)    
-    
+
     res_target%result_list=tmp_string
     res_target%desc_map=tmp_map
-    
+
     DEALLOCATE(tmp_string,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(tmp_map,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)    
-    
+
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE transfer_result_type
 END MODULE cp_result_types

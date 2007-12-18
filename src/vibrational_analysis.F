@@ -35,7 +35,8 @@ MODULE vibrational_analysis
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_result_types,                 ONLY: get_results
+  USE cp_result_types,                 ONLY: description_length,&
+                                             get_results
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -114,7 +115,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=1), DIMENSION(3)           :: lab = (/"X","Y","Z"/)
-    CHARACTER(LEN=30)                        :: description
+    CHARACTER(LEN=description_length)        :: description
     INTEGER :: handle, i, icoord, icoordm, icoordp, ierr, imap, ip1, ip2, &
       iparticle1, iparticle2, iseq, iw, j, k, mat_size, n_rep, natoms, &
       ncoord, nrep, nres, nRotTrM, nvib, output_molden, output_unit, &
@@ -752,11 +753,11 @@ CONTAINS
   SUBROUTINE vib_out(iw,nvib,D,k,m,freq,particles,Mlist,intensities)
     INTEGER, INTENT(IN)                      :: iw, nvib
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: D
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: intensities
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: k, m, freq
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles
     INTEGER, DIMENSION(:), POINTER           :: Mlist
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: intensities
 
     CHARACTER(LEN=2)                         :: element_symbol
     INTEGER                                  :: from, iatom, icol, j, jatom, &
@@ -1699,8 +1700,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:)              :: eigenval
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dip_deriv
     LOGICAL                                  :: calc_intens
-    REAL(KIND=dp),DIMENSION(:),OPTIONAL      :: intensities
     REAL(KIND=dp), DIMENSION(2)              :: eps
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL    :: intensities
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ms_out', &
@@ -1719,7 +1720,7 @@ CONTAINS
           ALLOCATE(residuum(SIZE(b_mat,1)))
           WRITE ( iw, '( /, 1X, 79("-") )' )
           WRITE ( iw, '( 25X, A)' ) 'FREQUENCY AND CONVERGENCE LIST'
-	  IF(PRESENT(intensities))THEN
+          IF(PRESENT(intensities))THEN
              WRITE ( iw, '(3X,5(4X, A))')'FREQUENCY','INTENSITY','MAXVAL CRITERIA','NORM CRITERIA', 'CONVERGENCE'
           ELSE
              WRITE ( iw, '(3X,5(4X, A))')'FREQUENCY','MAXVAL CRITERIA','NORM CRITERIA', 'CONVERGENCE'
@@ -1734,7 +1735,7 @@ CONTAINS
              END DO
              crit_a=MAXVAL(residuum(:))
              crit_b=SQRT(DOT_PRODUCT(residuum,residuum))
-	     IF(PRESENT(intensities))THEN
+             IF(PRESENT(intensities))THEN
                 IF(crit_a.LE.eps(1).AND.crit_b.LE.eps(2))THEN
                    IF(eigenval(i).GT.0._dp) WRITE(iw,'(2X,A,2X,F8.3,1X,F12.6,3X,E12.3,7X,E12.3,11X,A)')&
                        'VIB|',eigenval(i),intensities(i),crit_a,crit_b,'YES'
