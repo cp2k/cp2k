@@ -100,7 +100,7 @@ MODULE qs_ks_methods
   USE pw_types,                        ONLY: &
        COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, &
        pw_copy, pw_integrate_function, pw_p_type, pw_release, pw_scale, &
-       pw_axpy, pw_transfer, pw_type, pw_zero
+       pw_axpy, pw_transfer, pw_type, pw_zero, pw_create
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_collocate_density,            ONLY: calculate_rho_elec, &
                                              calculate_wavefunction
@@ -1189,18 +1189,6 @@ CONTAINS
        CALL cp_fm_get_info(mo_coeff,ncol_global=norb,error=error)
        blocksize=MAX(1,MIN(blocksize,norb))
 
-       ALLOCATE(rho_i(blocksize)) 
-       ALLOCATE(rho_j(blocksize)) 
-  
-       DO iorb_block=1,blocksize 
-          CALL pw_pool_create_pw(auxbas_pw_pool,rho_i(iorb_block)%pw,&
-                                  use_data=REALDATA3D,&
-                                  in_space=REALSPACE,error=error)
-          CALL pw_pool_create_pw(auxbas_pw_pool,rho_j(iorb_block)%pw,&
-                                  use_data=REALDATA3D,&
-                                  in_space=REALSPACE,error=error)
-       ENDDO
-
        CALL pw_pool_create_pw(auxbas_pw_pool,rho_r%pw,&
                                use_data=REALDATA3D,&
                                in_space=REALSPACE,error=error)
@@ -1210,7 +1198,22 @@ CONTAINS
        CALL pw_pool_create_pw(auxbas_pw_pool,pot_g%pw,&
                                use_data=COMPLEXDATA1D,&
                                in_space=RECIPROCALSPACE,error=error)
-   
+
+       ALLOCATE(rho_i(blocksize)) 
+       ALLOCATE(rho_j(blocksize)) 
+  
+       DO iorb_block=1,blocksize 
+          NULLIFY(rho_i(iorb_block)%pw)
+          CALL pw_create(rho_i(iorb_block)%pw,rho_r%pw%pw_grid,&
+                                  use_data=REALDATA3D,&
+                                  in_space=REALSPACE,error=error)
+          NULLIFY(rho_j(iorb_block)%pw)
+          CALL pw_create(rho_j(iorb_block)%pw,rho_r%pw%pw_grid,&
+                                  use_data=REALDATA3D,&
+                                  in_space=REALSPACE,error=error)
+       ENDDO
+
+
        exchange_energy = 0.0_dp
    
        DO ispin=1,SIZE(mo_array)
@@ -1252,8 +1255,6 @@ CONTAINS
                       CALL pw_transfer(rho_r%pw, rho_g%pw)
                       CALL pw_poisson_solve(poisson_env,rho_g%pw, pair_energy, pot_g%pw,error=error)
          
-                      ! write(6,*) iorb,jorb,pw_integrate_function(rho_j%pw),pair_energy
-         
                       ! sum up to the full energy
                       scaling=fraction
                       IF (SIZE(mo_array)==1) scaling=scaling*2.0_dp
@@ -1269,8 +1270,8 @@ CONTAINS
        ENDDO
        
        DO iorb_block=1,blocksize 
-          CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_i(iorb_block)%pw,error=error)
-          CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_j(iorb_block)%pw,error=error)
+          CALL pw_release(rho_i(iorb_block)%pw,error=error)
+          CALL pw_release(rho_j(iorb_block)%pw,error=error)
        ENDDO
 
        CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_r%pw,error=error)
@@ -1283,7 +1284,7 @@ CONTAINS
        IF (iw>0) THEN
            WRITE (UNIT=iw,FMT="((T3,A,T60,F20.10))")&
                     "HF_PW_HFX| PW exchange energy:",exchange_energy
-           WRITE (UNIT=iw,FMT="((T3,A,T60,F20.10))")&
+           WRITE (UNIT=iw,FMT="((T3,A,T60,F20.10),/)")&
                     "HF_PW_HFX| Gaussian exchange energy:",energy%ex
        ENDIF
    
