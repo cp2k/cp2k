@@ -1,0 +1,116 @@
+&GLOBAL
+  PRINT_LEVEL                      LOW
+  PROJECT                          OMP_OPT
+  RUN_TYPE                         GEO_OPT
+&END GLOBAL
+
+&MOTION
+  &GEO_OPT
+    OPTIMIZER                      BFGS
+    MAX_ITER                       5
+    &PRINT
+      &PROGRAM_RUN_INFO
+        EACH                       1
+      &END PROGRAM_RUN_INFO
+    &END PRINT
+  &END GEO_OPT
+  &PRINT
+    &TRAJECTORY SILENT
+      EACH                         1
+      FILENAME                     =OMP_OPT.xyz
+    &END TRAJECTORY
+    &VELOCITIES SILENT
+      EACH                         1
+      FILENAME                     =OMP_OPT.vel
+    &END VELOCITIES
+    &FORCES SILENT
+      EACH                         1
+      FILENAME                     =OMP_OPT.for
+    &END FORCES
+    &RESTART_HISTORY OFF
+    &END RESTART_HISTORY
+    &RESTART                       SILENT
+      EACH                         20
+      FILENAME                     =OMP_OPT.restart
+    &END RESTART
+  &END PRINT
+&END MOTION
+
+&FORCE_EVAL
+  METHOD                          QS
+  &DFT
+    CHARGE                         -3
+    &SCF
+      MAX_SCF                      20
+      EPS_SCF                      1.0E-6
+      SCF_GUESS                    ATOMIC
+      &OUTER_SCF
+        EPS_SCF                      1.0E-6
+        MAX_SCF                      20
+      &END OUTER_SCF
+      &OT
+        PRECONDITIONER              NONE
+        MINIMIZER                   DIIS
+        N_DIIS                      7
+      &END OT
+      &PRINT
+        &RESTART
+          EACH 20 20 20
+          FILENAME                  =RESTART
+        &END RESTART
+        &RESTART_HISTORY OFF
+        &END RESTART_HISTORY
+      &END PRINT
+    &END SCF
+    &QS
+      METHOD                       AM1
+      EPS_DEFAULT                  1.0E-12
+      EXTRAPOLATION                PS
+      EXTRAPOLATION_ORDER          3
+    &END QS
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC                          20.0 20.0 20.0
+      UNIT                         ANGSTROM
+      PERIODIC                     NONE
+    &END CELL
+    &COORD
+  P        16.6707707320        4.9141357920        5.5907412949
+  O        18.0042470321        5.5613071202        6.0124856870
+  O        16.4539899456        3.4602942257        6.0713447103
+  O        16.2702495072        5.1312172563        4.1096202864
+  O        15.4648158180        5.8494225338        6.5177931382
+  C        14.1330293299        5.3901210000        6.3323149745
+  H        13.9874148539        4.3922860510        6.7909391972
+  H        13.9279730706        5.2762792937        5.2492456298
+  C        13.0281647209        6.3149307139        6.8717495717
+  H        12.0863146553        6.0093512465        6.3754726986
+  O        12.7982429452        6.1442104943        8.3341112451
+  C        11.9838228116        7.2755458042        8.6813792484
+  H        10.9839121472        7.1702219836        8.2353809036
+  N        11.7421564493        7.3358446070       10.1438890791
+  C        10.4129137020        7.3041458988       10.6538207551
+  C         9.2316009956        7.9303725051        9.8647128960
+  O         9.5305966729        8.8726807782        9.0366028985
+  O         8.0682165934        7.5232267578       10.1515589608
+  C        12.8535841238        7.2664716342       11.0090261963
+  O        14.0112572967        7.5604608964       10.7015750393
+  N        12.5501688357        6.8080931371       12.2984366540
+  H        13.3511003987        6.7266323814       12.9200203765
+  C        11.2605002835        6.5931923043       12.8651973472
+  O        11.1763556175        6.2261415102       14.0695957735
+  C        10.1970868574        6.8995219073       11.9602172588
+  H         9.1763415272        6.8836186069       12.3275064132
+  C        12.6889566015        8.4791564184        8.0211830486
+  H        13.5536436042        8.7807436279        8.6207921904
+  O        11.8035560536        9.6103488298        7.8210810865
+  H        10.9433615559        9.3882989158        8.3053782266
+  C        13.1639172113        7.8538205125        6.6571430565
+  H        14.2064554361        8.1065514875        6.4291228855
+  O        12.2989008262        8.3263161119        5.5863533759
+  H        11.7683384980        9.0252944059        6.0415573955
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+

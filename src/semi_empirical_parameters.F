@@ -785,7 +785,7 @@ CONTAINS
       CASE (15)
       !Phosphorus
         sep%defined = .TRUE.
-        sep%eisol = -124.4368355_dp
+        sep%alp = 2.4553220_dp
         sep%beta(0) =   -6.3537640_dp
         sep%beta(1)=   -6.5907090_dp
         sep%sto_exponents(0)   =    1.9812800_dp
