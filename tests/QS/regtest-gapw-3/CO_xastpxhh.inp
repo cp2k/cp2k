@@ -75,17 +75,13 @@
       ATOMS_LIST    1
       ATOMS_LIST    2
       ADDED_MOS     20
-      LOCALIZE_WFN
+      &LOCALIZE
+        SET_OF_STATES none
+      &END
       EMISSION
       RESTART
       WFN_RESTART_FILE_NAME ./pippo
     &END
-##    &PRINT
-##      &MO
-##        EIGENVALUES
-##        OCCUPATION_NUMBERS
-##      &END
-##    &END
   &END SECTION DFT
   &SUBSYS
     &CELL

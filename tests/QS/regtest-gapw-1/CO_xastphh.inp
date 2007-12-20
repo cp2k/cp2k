@@ -76,8 +76,10 @@
       ATOMS_LIST    1
       ATOMS_LIST    2
       ADDED_MOS     20
-      LOCALIZE_WFN
       EMISSION
+      &LOCALIZE
+        SET_OF_STATES NONE
+      &END
       &PRINT
          &PROGRAM_RUN_INFO
          &END 

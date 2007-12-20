@@ -75,13 +75,11 @@
       ATOMS_LIST    1
       ATOMS_LIST    2
       ADDED_MOS     20
-      LOCALIZE_WFN
+      &LOCALIZE
+        SET_OF_STATES NONE
+      &END
       EMISSION
       &PRINT
-#        &CLS_FUNCTION_CUBES
-#          STRIDE 2 
-#          CUBES_LIST 8 9 10
-#        &END
         &RESTART
            EACH 4 
         &END

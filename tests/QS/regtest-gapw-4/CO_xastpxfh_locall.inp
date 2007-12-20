@@ -1,6 +1,6 @@
 &GLOBAL
 
- PROJECT      xas_COhch
+ PROJECT      xas_COxfch
  IOLEVEL      MEDIUM
  RUN_TYPE     ENERGY
 &END 
@@ -34,14 +34,14 @@
       ALPHA0_S     10
      &END
     &MGRID
-      CUTOFF       50
+      CUTOFF       100
       NGRIDS        1
     &END
     &SCF
       SCF_GUESS RESTART
       EPS_SCF 5.E-7
       EPS_DIIS 0.4
-      MAX_SCF 1
+      MAX_SCF 50
       MIXING 0.4
       ADDED_MOS  1 1
       &OT OFF
@@ -54,7 +54,6 @@
            FILENAME =RESTART
         &END
       &END
-
     &END SCF
    &POISSON
      POISSON_SOLVER MT
@@ -66,11 +65,11 @@
     &END POISSON
 
     &XAS 
-      CONVERGENCE 0.01
+      CONVERGENCE 0.05
       EPS_DIIS   0.4
-      METHOD        TP_HH
+      METHOD        TP_XFH
       DIPOLE_FORM   VELOCITY
-      MAXSTEP       10
+      MAXSTEP       20
       STATE_TYPE    1s
       STATE_SEARCH  2
       ATOMS_LIST    1
@@ -78,28 +77,10 @@
       ADDED_MOS     20
       EMISSION
       &LOCALIZE
-         SET_OF_STATES NONE 
+        SET_OF_STATES ALL
       &END
-      RESTART
-      &PRINT
-         &PROGRAM_RUN_INFO
-         &END 
-         &RESTART
-             FILENAME ./pippo
-             EACH 1
-         &END 
-         &SPECTRUM
-           FILENAME ./pippo
-         &END
 
-      &END
     &END
-##    &PRINT
-##      &MO
-##        EIGENVALUES
-##        OCCUPATION_NUMBERS
-##      &END
-##    &END
   &END SECTION DFT
   &SUBSYS
     &CELL

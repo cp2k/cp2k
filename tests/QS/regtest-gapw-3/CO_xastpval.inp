@@ -75,7 +75,8 @@
       ATOMS_LIST    1
       ATOMS_LIST    2
       ADDED_MOS     20
-      LOCALIZE_WFN
+      &LOCALIZE
+      &END
       EMISSION
       &PRINT
         &RESTART

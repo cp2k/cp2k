@@ -7,6 +7,7 @@
 #XAS
 CO.inp             1
 CO_xastpxfh.inp    1
+CO_xastpxfh_locall.inp 1
 CO_xastpxfh_150Ry.inp    1
 #bug fix gpw_type
 H2O_gpw.inp        1

@@ -27,7 +27,8 @@
   &END DFT
   &PROPERTIES
     &LINRES
-       LOCALIZE_PSI0
+       &LOCALIZE
+       &END
        OPT_METHOD CG
        MAX_SCF 10
        LINESEARCH 2PNT
