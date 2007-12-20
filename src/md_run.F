@@ -41,8 +41,7 @@ MODULE md_run
   USE f77_blas
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_type, &
-                                             use_fist_force
+                                             force_env_type
   USE free_energy_methods,             ONLY: free_energy_evaluate
   USE free_energy_types,               ONLY: fe_env_create,&
                                              free_energy_type
@@ -414,13 +413,6 @@ CONTAINS
       ! and forces are not converged. So we don't want to dump trajectory
       ! with wrong coordinates (due to the last integration step with fake forces)..
       CALL external_control(should_stop,"MD",globenv,error=error)
-      IF (should_stop) THEN
-         IF(force_env%in_use == use_fist_force) THEN
-           CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=itimes,error=error)
-           CALL md_output(md_env,force_env_section,root_section,error)
-         END IF
-         EXIT
-      END IF
 
       IF(simpar%ensemble /= reftraj_ensemble) THEN
         CALL md_energy(md_env, md_ener, error) 
