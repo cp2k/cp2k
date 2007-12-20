@@ -149,15 +149,8 @@ CONTAINS
 
    localized_wfn_control%ref_count= 1
    localized_wfn_control%iter_count= 0
-!   localized_wfn_control%each_step= 1
-!   localized_wfn_control%min_or_max= do_loc_min
-!   localized_wfn_control%localization_method =do_loc_jacobi
-!   localized_wfn_control%operator_type = op_loc_berry
-!   localized_wfn_control%set_of_states = state_loc_all
    localized_wfn_control%nloc_states=0
    localized_wfn_control%lu_bound_states=0
-!   localized_wfn_control%max_iter=10000
-!   localized_wfn_control%eps_localization=1.0E-4_dp
    localized_wfn_control%print_cubes = .FALSE.
    localized_wfn_control%print_centers = .FALSE.
    localized_wfn_control%print_spreads = .FALSE.
@@ -363,8 +356,8 @@ CONTAINS
             localized_wfn_control%list_cubes(ir) = bounds(1) + (ir-1)
           END DO
         END IF
-        IF(.NOT. ASSOCIATED(localized_wfn_control%list_cubes)) THEN
 
+        IF(.NOT.ASSOCIATED(localized_wfn_control%list_cubes)) THEN
           CALL section_vals_val_get(loc_section,"PRINT%WANNIER_CUBES%CUBES_LIST",&
                n_rep_val=n_rep,error=error)
           ncubes = 0
@@ -380,26 +373,19 @@ CONTAINS
               ncubes = ncubes + SIZE(list)
             END IF
           END DO  ! ir
-
         END IF
 
-        IF(.NOT. ASSOCIATED(localized_wfn_control%list_cubes)) THEN
-          ncubes = localized_wfn_control%nloc_states(1)
-          ALLOCATE( localized_wfn_control%list_cubes(ncubes),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        IF(.NOT.ASSOCIATED(localized_wfn_control%list_cubes)) THEN
+           ncubes = localized_wfn_control%nloc_states(1)
+           IF (ncubes>0) THEN
+              ALLOCATE( localized_wfn_control%list_cubes(ncubes),STAT=istat)
+              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-          DO ir = 1,ncubes
-            localized_wfn_control%list_cubes(ir) = localized_wfn_control%loc_states(ir)
-          END DO
-
+              DO ir = 1,ncubes
+                 localized_wfn_control%list_cubes(ir) = localized_wfn_control%loc_states(ir)
+              END DO
+           END IF
         END IF
-
-        IF(ncubes==0) THEN
-          NULLIFY(localized_wfn_control%list_cubes)
-        END IF
-
-      ELSE
-        NULLIFY(localized_wfn_control%list_cubes)
       ENDIF
 
            
