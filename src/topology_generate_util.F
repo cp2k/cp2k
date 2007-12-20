@@ -674,9 +674,10 @@ CONTAINS
                      REAL(nonbonded%neighbor_kind_pairs(k)%cell_vector,KIND=dp))
                 dr = pbc_coord(:,iatm1) - pbc_coord(:,iatm2) - ksign*cell_v
                 r2 = DOT_PRODUCT(dr,dr)
-                IF(r2 <= 0.01_dp) THEN
+                IF(r2 <= r_minsq(1,1)) THEN
                    CALL stop_program ("topology_generate_bond",&
-                        "bond distance between atoms less then 0.01")
+                        "bond distance between atoms less then the smallest distance provided "//&
+                        "in input "//cp_to_string(tmp)//" [bohr]")
                 END IF
                 
                 ! Screen neighbors
@@ -716,9 +717,10 @@ CONTAINS
                      REAL(nonbonded%neighbor_kind_pairs(k)%cell_vector,KIND=dp))
                 dr = pbc_coord(:,iatm1) - pbc_coord(:,iatm2) - ksign*cell_v
                 r2 = DOT_PRODUCT(dr,dr)
-                IF(r2 <= 0.01_dp) THEN
+                IF(r2 <= r_minsq(1,1)) THEN
                    CALL stop_program ("topology_generate_bond",&
-                        "bond distance between atoms less then 0.01")
+                        "bond distance between atoms less then the smallest distance provided "//&
+                        "in input "//cp_to_string(tmp)//" [bohr]")
                 END IF
                 IF (r2 <= r2_min) THEN
                    r2_min = r2
@@ -913,7 +915,7 @@ CONTAINS
        CALL sort(mol_map,natom,wrk)
        !
        ! mol(i,1) : stores id of the molecule
-       ! mol(i,2) : stores the total number of atoms forming that kind of molecule
+       ! mol(i,2) : stores the total number of atoms fo_ming that kind of molecule
        ! mol(i,3) : contains the number of molecules generated for that kind
        ! mol(i,4) : contains the number of atoms forming one molecule of that kind
        ! Connectivity will be considered correct only if for each i:
