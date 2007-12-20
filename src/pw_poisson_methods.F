@@ -316,7 +316,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_solve', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: alpha, beta, i, ig, ng
+    INTEGER                                  :: alpha, beta, i, ig, ng, handle
     INTEGER, DIMENSION(3)                    :: n
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ffa
@@ -324,6 +324,8 @@ CONTAINS
     TYPE(pw_p_type)                          :: dvg( 3 )
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(pw_type), POINTER                   :: rhog, rhor, tmpg
+
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(poisson_env),cp_failure_level,routineP,error,failure)
@@ -501,7 +503,12 @@ CONTAINS
        END IF
        
        CALL pw_pool_give_back_pw (pw_pool, rhog, error=error )
+    ELSE
+       ! stop on failure ?!
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END IF
+
+    CALL timestop(handle)
 
   END SUBROUTINE pw_poisson_solve
   !****************************************************************************

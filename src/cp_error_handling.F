@@ -829,7 +829,7 @@ CONTAINS
 !!     that is at least failure_level(i.e. if there was a serious error
 !!     in the subroutine) propagates the error to the actual error
 !!     (i.e. sets error to the same error than iError) and sets failure
-!!     to true
+!!     to true if a failure more severe than warning happened
 !!
 !!   NOTES
 !!     -
@@ -866,7 +866,7 @@ CONTAINS
 
     f_level=cp_warning_level
     IF (PRESENT(failure_level)) f_level=failure_level
-    IF (cp_error_get_level(iError) /= 0 .AND. iError%level>=f_level) THEN
+    IF (cp_error_get_level(iError) /= 0 .AND. iError%level>f_level) THEN
        IF (PRESENT(failure)) &
             failure=.TRUE.
        IF (PRESENT(error)) THEN
@@ -1069,7 +1069,7 @@ SUBROUTINE cp_error_check(error, failure)
   failure=.FALSE.
   
   IF (PRESENT(error).and.PRESENT(failure)) THEN
-     IF (error%error_nr /=0 .OR. error%level /=0) THEN
+     IF (error%error_nr /=0 .AND. error%level > CP_WARNING_LEVEL) THEN
         failure=.TRUE.
      END IF
   END IF

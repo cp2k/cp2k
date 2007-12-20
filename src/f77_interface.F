@@ -297,7 +297,11 @@ CONTAINS
        DEALLOCATE(f_envs,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        CALL cp_para_env_release(default_para_env,error)
-       ierr=cp_error_get_level(error)
+       IF (cp_error_get_level(error)>CP_WARNING_LEVEL) THEN
+          ierr=cp_error_get_level(error)
+       ELSE
+          ierr=0
+       ENDIF
        CALL cp_rm_default_logger()
        CALL rm_cp2k_units(error=error)
        !   *** deallocate the bibliography ***
@@ -536,7 +540,13 @@ SUBROUTINE f_env_rm_defaults(f_env,error,ierr,handle)
         CPPrecondition(d_timer_env%id_nr==f_env%timer_env%id_nr,cp_failure_level,routineP,error,failure)
         CPPrecondition(d_mp_perf_env%id_nr==f_env%mp_perf_env%id_nr,cp_failure_level,routineP,error,failure)
      END IF
-     IF (PRESENT(ierr)) ierr=cp_error_get_level(error)
+     IF (PRESENT(ierr)) THEN
+       IF (cp_error_get_level(error)>CP_WARNING_LEVEL) THEN
+          ierr=cp_error_get_level(error)
+       ELSE
+          ierr=0
+       ENDIF
+     ENDIF
      CALL cp_error_dealloc_ref(error)
      IF (.NOT.failure) THEN
         CALL cp_rm_default_logger()
@@ -544,7 +554,13 @@ SUBROUTINE f_env_rm_defaults(f_env,error,ierr,handle)
         CALL rm_mp_perf_env()
      END IF
   ELSE
-     IF (PRESENT(ierr)) ierr=cp_error_get_level(error)
+     IF (PRESENT(ierr)) THEN
+       IF (cp_error_get_level(error)>CP_WARNING_LEVEL) THEN
+          ierr=cp_error_get_level(error)
+       ELSE
+          ierr=0
+       ENDIF
+     ENDIF
      CALL cp_error_dealloc_ref(error)
   END IF
 END SUBROUTINE f_env_rm_defaults
@@ -934,7 +950,11 @@ CPSourceFileRef,&
           DEALLOCATE(f_env,stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        END IF
-       ierr=cp_error_get_level(error)
+       IF (cp_error_get_level(error)>CP_WARNING_LEVEL) THEN
+          ierr=cp_error_get_level(error)
+       ELSE
+          ierr=0
+       ENDIF
        CALL cp_error_dealloc_ref(error)
     ELSE
        ! write out something?
