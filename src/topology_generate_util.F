@@ -915,7 +915,7 @@ CONTAINS
        CALL sort(mol_map,natom,wrk)
        !
        ! mol(i,1) : stores id of the molecule
-       ! mol(i,2) : stores the total number of atoms fo_ming that kind of molecule
+       ! mol(i,2) : stores the total number of atoms forming that kind of molecule
        ! mol(i,3) : contains the number of molecules generated for that kind
        ! mol(i,4) : contains the number of atoms forming one molecule of that kind
        ! Connectivity will be considered correct only if for each i:
