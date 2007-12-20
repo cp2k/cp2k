@@ -623,6 +623,15 @@ CONTAINS
             n_keywords=8, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
             error=error)
 
+       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+            description="controls the activation of the MOS localization procedure",&
+            usage="&LOCALIZE T",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="MAX_ITER",&
             description="Maximum number of iterations used for localization methods",&
             usage="MAX_ITER 2000", default_i_val=10000, error=error)
@@ -1670,13 +1679,6 @@ CONTAINS
             default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="LOCALIZE_WFN",&
-            description="Check and possibly optimize the localization of the wavefunctions",&
-            usage="LOCALIZE_WFN",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error) 
 
        NULLIFY(subsection)
        CALL create_localize_section(subsection,error)
@@ -4883,13 +4885,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error) 
 
-       CALL keyword_create(keyword, name="LOCALIZE_WFN",&
-            description="Check and possibly optimize the localization of the wavefunctions",&
-            usage="LOCALIZE_WFN",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error) 
-
        CALL keyword_create(keyword, name="RESTART",&
             description="Restart the excited state if the restart file exists",&
             usage="RESTART",&
@@ -5108,12 +5103,12 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="LOCALIZE_PSI0",&
-            description="Maximize the localization of the ground state wavefunctions",&
-            usage="LOCALIZE_PSI0",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+!       CALL keyword_create(keyword, name="LOCALIZE_PSI0",&
+!            description="Maximize the localization of the ground state wavefunctions",&
+!            usage="LOCALIZE_PSI0",&
+!            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+!       CALL section_add_keyword(section,keyword,error=error)
+!       CALL keyword_release(keyword,error=error)
 
        NULLIFY(subsection)
        CALL create_localize_section(subsection,error)

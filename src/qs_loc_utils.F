@@ -446,7 +446,6 @@ CONTAINS
          CALL cp_fm_to_fm(mo_coeff,moloc_coeff(ispin)%matrix,nmosub,lb,1)
        END IF
     END DO
-
     CALL set_qs_loc_env(qs_loc_env=qs_loc_env, cell=cell, local_molecules=local_molecules,&
                         moloc_coeff=moloc_coeff, particle_set=particle_set,para_env=para_env,&
                         localized_wfn_control=localized_wfn_control,error=error)

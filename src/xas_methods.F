@@ -60,7 +60,8 @@ MODULE xas_methods
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
-       do_loc_none, op_loc_berry, state_loc_upton, xas_1s_type, xas_2p_type, &
+       do_loc_none, op_loc_berry, state_loc_all, state_loc_fromitoj, state_loc_list, state_loc_none, &
+       state_loc_upton, xas_1s_type, xas_2p_type, &
        xas_2s_type, xas_dip_len2, xas_dip_vel, xas_dscf, xas_scf_default, &
        xas_scf_general,  xas_tp_fh, xas_tp_hh, &
        xas_tp_xfh, xas_tp_xhh, xes_tp_val
@@ -369,20 +370,33 @@ CONTAINS
     CPPrecondition(ASSOCIATED(my_localized_wfn_control),cp_failure_level,routineP,error,failure)
 
     CALL get_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env,error=error)
-    IF (output_unit>0) THEN
-          WRITE (UNIT=output_unit,FMT="(/,T10,A,/,T10,A,I7,/)")&
-           "Localize a set of MOs: those where to search the states to be excited",&
-           "MOs to be localized from 1 to ",nexc_search
+    IF (xas_control%localized_wfn) THEN
+      IF(output_unit>0) THEN
+          WRITE (UNIT=output_unit,FMT="(/,T10,A,/)")&
+              "Localize a sub-set of MOs with spin alpha,"//&
+              " to better identify the core states that have to be excited"
+          IF(my_localized_wfn_control%set_of_states==state_loc_upton .OR. &
+              my_localized_wfn_control%set_of_states == state_loc_fromitoj .OR. &
+              my_localized_wfn_control%set_of_states == state_loc_all) THEN
+              WRITE (UNIT=output_unit,FMT="( A , I7, A, I7)") " The sub-setcontains the states from ",&
+                  my_localized_wfn_control%lu_bound_states(1,1), " to ",&
+                  my_localized_wfn_control%lu_bound_states(2,1)  
+         ELSEIF (my_localized_wfn_control%set_of_states==state_loc_list) THEN
+              WRITE (UNIT=output_unit,FMT="( A )") " The sub-setcontains the states from given from a list in the input "
+
+         END IF
+
+      END IF
+      IF(.NOT.(ASSOCIATED(qs_loc_env))) THEN
+        CALL qs_loc_env_create(qs_loc_env,error=error)
+        CALL set_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env,error=error)
+        CALL qs_loc_env_release(qs_loc_env,error=error)
+        CALL get_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env,error=error)
+        CALL qs_loc_env_init(qs_loc_env,my_localized_wfn_control,&
+             qs_env,onlyspin1=.TRUE.,error=error)
+      END IF
+      CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,onlyspin1=.TRUE.,error=error)
     END IF
-    IF(.NOT.(ASSOCIATED(qs_loc_env))) THEN
-      CALL qs_loc_env_create(qs_loc_env,error=error)
-      CALL set_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env,error=error)
-      CALL qs_loc_env_release(qs_loc_env,error=error)
-      CALL get_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env,error=error)
-      CALL qs_loc_env_init(qs_loc_env,my_localized_wfn_control,&
-           qs_env,onlyspin1=.TRUE.,error=error)
-    END IF
-    CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,onlyspin1=.TRUE.,error=error)
 
     CALL cls_assign_core_states(xas_control,xas_env,my_localized_wfn_control,&
          qs_env,error=error)
@@ -626,7 +640,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: name_sto
     INTEGER :: homo, i, iat, iatom, ik, ikind, ispin, istat, j, l, n_mo(2), &
-      nao, ncubes, nexc_atoms, nexc_search, nj, nk, nkind, nmo, nmoloc(2), norb(0:3), &
+      nao, ncubes, nelectron, nexc_atoms, nexc_search, nj, nk, nkind, nmo, nmoloc(2), norb(0:3), &
       nsgf_gto, nsgf_sto, nspins, nwork, n_rep
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_type_tmp, kind_z_tmp
     INTEGER, DIMENSION(:), POINTER           :: bounds, list
@@ -898,17 +912,27 @@ CONTAINS
       CPPrecondition(ASSOCIATED(my_localized_wfn_control),cp_failure_level,routineP,error,failure)
       IF(.NOT. xas_control%localized_wfn) THEN
         my_localized_wfn_control%localization_method = do_loc_none
+        nmoloc = 0
+      ELSE
+        CALL get_mo_set(mos(1)%mo_set,nelectron=nelectron,mo_coeff=mo_coeff)
+        nmoloc = 0
+        IF(my_localized_wfn_control%set_of_states == state_loc_all) THEN
+          nmoloc(1) = nelectron
+          my_localized_wfn_control%nloc_states(1)=nelectron
+          nmoloc(2) = 0
+          my_localized_wfn_control%nloc_states(2)=0
+        ELSEIF(my_localized_wfn_control%set_of_states == state_loc_none) THEN
+          nmoloc(1) = nexc_search
+          my_localized_wfn_control%nloc_states(1)=nexc_search
+          nmoloc(2) = 0
+          my_localized_wfn_control%nloc_states(2)=0
+          my_localized_wfn_control%set_of_states = state_loc_upton
+        ELSE
+          nmoloc(1) = MIN(my_localized_wfn_control%nloc_states(1) ,n_mo(1))
+          nmoloc(2) = 0
+        END IF
       END IF
 
-      ! The localization is needed only for the states up to nexc_search
-      my_localized_wfn_control%set_of_states = state_loc_upton
-      my_localized_wfn_control%operator_type = op_loc_berry
-      my_localized_wfn_control%nloc_states(1) = nexc_search
-      my_localized_wfn_control%nloc_states(2) = 0
-      my_localized_wfn_control%lu_bound_states(1,1) = 1
-      my_localized_wfn_control%lu_bound_states(2,1) = nexc_search
-
-      nmoloc(1:2) = my_localized_wfn_control%nloc_states(1:2)
       CALL set_loc_wfn_lists(xas_control%localized_wfn_control,nmoloc,n_mo,nspins,error=error)
       CALL set_loc_centers(xas_control%localized_wfn_control,nmoloc,nspins,globenv,&
            qs_env%input,error=error)
@@ -1421,7 +1445,6 @@ CONTAINS
                                                 ra(3), realpart
     REAL(dp), DIMENSION(:), POINTER          :: eigenvalues
 
-!    TYPE(cp_fm_type), POINTER                   :: mo_coeff
 
     failure = .FALSE.
 
@@ -1832,7 +1855,7 @@ CONTAINS
       state_of_atom(iat) = state_of_mytype(iatom)
       IF (output_unit>0) THEN
          WRITE(UNIT=output_unit,FMT="(T10,A,I6,T32,A,I6)") 'Atom: ',iatom ,&
-         "localized MO index", state_of_atom(iat)
+         "MO index", state_of_atom(iat)
       END IF
       IF(state_of_atom(iat)==0 .OR. state_of_atom(iat) .GT. homo) THEN
         CALL stop_program(routineP,&

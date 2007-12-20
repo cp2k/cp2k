@@ -322,8 +322,10 @@ CONTAINS
       END DO
       CALL check_tolerance ( c_zij, weights, tolerance )
       IF (rmat%matrix_struct%para_env%mepos .EQ. rmat%matrix_struct%para_env%source ) THEN
-          WRITE(cp_logger_get_default_unit_nr(),'(T20,I12,T40,E12.4)') &
+          IF(MODULO(sweeps,100)==0) THEN
+            WRITE(cp_logger_get_default_unit_nr(),'(T20,I12,T40,E12.4)') &
                  sweeps,tolerance
+          END IF
       ENDIF
     END DO
 

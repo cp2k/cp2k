@@ -62,7 +62,8 @@ MODULE qs_linres_module
                                              linres_control_type,&
                                              nmr_env_type,&
                                              epr_env_type
-  USE qs_loc_control,                  ONLY: read_loc_section
+  USE qs_loc_control,                  ONLY: localized_wfn_control_create,&
+                                             read_loc_section
   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
                                              calculate_subspace_eigenvalues
   USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -195,7 +196,7 @@ CONTAINS
 
            IF(.NOT.linres_control%localized_psi0) THEN
              CALL stop_program(routineP,&
-                               "Are you sure that you want to calculate the g tensor without localized psi0??")
+                  "Are you sure that you want to calculate the g tensor without localized psi0??")
  
              CALL linres_localize(linres_control%localized_wfn_control,qs_env,&
                                   dft_control%nspins,globenv,centers_only=.TRUE.,error=error)
@@ -309,9 +310,11 @@ CONTAINS
                        dft_control=dft_control,matrix_ks=matrix_ks,mos=mos,rho=rho,error=error)
 
        ! Localized Psi0 are required when the position operator has to be defined (nmr)
-       CALL section_vals_val_get(lr_section,"LOCALIZE_PSI0",&
-           l_val=linres_control%localized_psi0,error=error)
-
+       loc_section =>section_vals_get_subs_vals(lr_section,"LOCALIZE",error=error)
+       CALL section_vals_val_get(loc_section,"_SECTION_PARAMETERS_",&
+            l_val=linres_control%localized_psi0,error=error)
+       CALL localized_wfn_control_create(linres_control%localized_wfn_control,error=error)
+       CALL read_loc_section(linres_control%localized_wfn_control,loc_section,error=error)
        IF(linres_control%localized_psi0) THEN
          IF(output_unit>0) THEN
            WRITE (UNIT=output_unit,FMT="(/,T3,A,A)")&
@@ -319,8 +322,6 @@ CONTAINS
                   " before starting the linear response calculation"
          END IF
 
-         loc_section =>section_vals_get_subs_vals(lr_section,"LOCALIZE",error=error)
-         CALL read_loc_section(linres_control%localized_wfn_control,loc_section,error=error)
          CALL linres_localize(linres_control%localized_wfn_control,qs_env,&
                dft_control%nspins,globenv,error=error)
 

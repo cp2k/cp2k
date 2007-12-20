@@ -412,7 +412,7 @@ CONTAINS
     ! Logicals
     CALL section_vals_val_get(qs_section,"MAP_PAA",l_val=qs_control%map_paa,error=error)
     CALL section_vals_val_get(qs_section,"MAP_CONSISTENT",l_val=qs_control%map_consistent,error=error)
-    CALL section_vals_val_get(qs_section,"LOCALIZE_WFN",l_val=qs_control%localized_wfn,error=error)
+
 
     ! Integers gapw
     CALL section_vals_val_get(qs_section,"LMAXN1",i_val=qs_control%gapw_control%lmax_sphere,error=error)
@@ -475,9 +475,11 @@ CONTAINS
 
     IF(qs_control %method_id == do_method_kg_pol) qs_control%polarization = .TRUE.
 
-    IF(qs_control%localized_wfn) THEN
-      CALL read_loc_section(qs_control%localized_wfn_control,loc_section,error=error)
-    END IF
+    CALL section_vals_val_get(loc_section,"_SECTION_PARAMETERS_",&
+            l_val=qs_control%localized_wfn,error=error)
+!    IF(qs_control%localized_wfn) THEN
+    CALL read_loc_section(qs_control%localized_wfn_control,loc_section,error=error)
+!    END IF
 
     CALL section_vals_get(mull_section,explicit=qs_control%mulliken_restraint,error=error)
 

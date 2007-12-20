@@ -149,15 +149,15 @@ CONTAINS
 
    localized_wfn_control%ref_count= 1
    localized_wfn_control%iter_count= 0
-   localized_wfn_control%each_step= 1
-   localized_wfn_control%min_or_max= do_loc_min
-   localized_wfn_control%localization_method =do_loc_jacobi
-   localized_wfn_control%operator_type = op_loc_berry
-   localized_wfn_control%set_of_states = state_loc_all
+!   localized_wfn_control%each_step= 1
+!   localized_wfn_control%min_or_max= do_loc_min
+!   localized_wfn_control%localization_method =do_loc_jacobi
+!   localized_wfn_control%operator_type = op_loc_berry
+!   localized_wfn_control%set_of_states = state_loc_all
    localized_wfn_control%nloc_states=0
    localized_wfn_control%lu_bound_states=0
-   localized_wfn_control%max_iter=10000
-   localized_wfn_control%eps_localization=1.0E-4_dp
+!   localized_wfn_control%max_iter=10000
+!   localized_wfn_control%eps_localization=1.0E-4_dp
    localized_wfn_control%print_cubes = .FALSE.
    localized_wfn_control%print_centers = .FALSE.
    localized_wfn_control%print_spreads = .FALSE.
@@ -274,15 +274,15 @@ CONTAINS
 
       CALL section_vals_val_get(loc_section,"METHOD",&
            i_val=localized_wfn_control%localization_method,error=error)
+
       CALL section_vals_val_get(loc_section,"OPERATOR",&
            i_val=localized_wfn_control%operator_type,error=error)
 
       CALL section_vals_val_get(loc_section,"SET_OF_STATES",&
            i_val=localized_wfn_control%set_of_states, error=error)
 
-      IF(localized_wfn_control%set_of_states==state_loc_all) THEN
 
-      ELSE IF(localized_wfn_control%set_of_states==state_loc_upton) THEN
+      IF(localized_wfn_control%set_of_states==state_loc_upton) THEN
 
          CALL section_vals_val_get(loc_section,"UP_BOUND",&
               i_val=localized_wfn_control%lu_bound_states(2,1), error=error)
@@ -405,6 +405,7 @@ CONTAINS
            
       output_unit = cp_print_key_unit_nr(logger,loc_section,"PRINT%PROGRAM_RUN_INFO",&
                     extension=".Log",error=error) 
+
       IF(output_unit>0) THEN
 
         WRITE (UNIT=output_unit,FMT="(/,T3,A)")&

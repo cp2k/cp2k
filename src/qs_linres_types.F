@@ -293,7 +293,7 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        linres_control%ref_count=1
        NULLIFY(linres_control%localized_wfn_control)
-       CALL localized_wfn_control_create(linres_control%localized_wfn_control, error=error)
+!       CALL localized_wfn_control_create(linres_control%localized_wfn_control, error=error)
 
      END IF
 

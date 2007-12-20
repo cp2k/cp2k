@@ -65,7 +65,6 @@ MODULE xas_control
 
   TYPE xas_control_type
     INTEGER                             :: ref_count
-!    INTEGER                             :: each_step
     INTEGER                             :: max_scf
     INTEGER                             :: scf_method
     INTEGER                             :: nexc_atoms
@@ -78,12 +77,10 @@ MODULE xas_control
     INTEGER                             :: max_iter_added
     INTEGER                             :: ngauss
     INTEGER                             :: stride
-!    INTEGER                             :: write_restart_each
     INTEGER, DIMENSION(:), POINTER      :: exc_atoms 
     LOGICAL                             :: emission
     LOGICAL                             :: localized_wfn
     LOGICAL                             :: cubes, do_centers
-!    LOGICAL                             :: fermidist
     LOGICAL                             :: xas_restart
     INTEGER, DIMENSION(:), POINTER      :: list_cubes
     REAL(dp)                            :: eps_scf
@@ -93,7 +90,6 @@ MODULE xas_control
     REAL(dp)                            :: smear
     REAL(dp)                            :: xes_core_occupation
     REAL(dp)                            :: occ_estate, occ_homo
-!    CHARACTER(LEN=default_path_length)  :: xas_rootfname
     TYPE(localized_wfn_control_type), &
       POINTER                           :: localized_wfn_control
   END TYPE xas_control_type
@@ -256,61 +252,12 @@ CONTAINS
     CALL section_vals_val_get(xas_section,"EMISSION",&
          l_val=xas_control%emission,error=error)
          
-    CALL section_vals_val_get(xas_section,"LOCALIZE_WFN",&
-         l_val=xas_control%localized_wfn,error=error)
 
     loc_section =>section_vals_get_subs_vals(xas_section,"LOCALIZE",error=error)
-    CALL section_vals_get(loc_section,explicit=was_present,error=error)
-    IF (was_present) THEN
-      CALL read_loc_section(xas_control%localized_wfn_control,loc_section,error=error)
-    END IF
-
-!    IF (BTEST(cp_print_key_should_output(logger%iter_info,xas_section,&
-!                  "PRINT%CLS_FUNCTION_CUBES",error=error),cp_p_file)) THEN
-!      NULLIFY(bounds,list)
-!      CALL section_vals_val_get(xas_section,"PRINT%CLS_FUNCTION_CUBES%CUBES_LU_BOUNDS",&
-!           i_vals=bounds,error=error) 
-!      ncubes = bounds(2) - bounds(1)  + 1
-!      IF(ncubes > 0 ) THEN
-!        ALLOCATE( xas_control%list_cubes(ncubes),STAT=istat)
-!        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-!
-!        DO ir = 1,ncubes
-!          xas_control%list_cubes(ir) = bounds(1) + (ir-1)
-!        END DO
-!      END IF
-!
-!      IF(.NOT. ASSOCIATED(xas_control%list_cubes)) THEN
-!        CALL section_vals_val_get(xas_section,"PRINT%CLS_FUNCTION_CUBES%CUBES_LIST",&
-!             n_rep_val=n_rep,error=error)
-!        ncubes = 0
-!        DO ir = 1,n_rep
-!          NULLIFY(list)
-!          CALL section_vals_val_get(xas_section,"PRINT%CLS_FUNCTION_CUBES%CUBES_LIST",&
-!             i_rep_val=ir,i_vals=list,error=error)
-!          IF(ASSOCIATED(list)) THEN
-!            CALL reallocate(xas_control%list_cubes,1,ncubes+ SIZE(list))
-!            DO i = 1, SIZE(list)
-!              xas_control%list_cubes(i+ncubes) = list(i)
-!            END DO
-!            ncubes = ncubes + SIZE(list)
-!          END IF
-!        END DO  ! ir
-!      END IF
-
-!      IF(.NOT. ASSOCIATED(xas_control%list_cubes)) THEN
-!        ncubes = MAX(10,xas_control%added_mos/10)
-!        ncubes = MIN(ncubes,xas_control%added_mos)
-!        ALLOCATE( xas_control%list_cubes(ncubes),STAT=istat)
-!        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-!        DO ir = 1,ncubes
-!          xas_control%list_cubes(ir) = ir
-!        END DO
-!      END IF
-!    ELSE
-!      NULLIFY(xas_control%list_cubes)
-!    ENDIF
-    
+    CALL section_vals_val_get(loc_section,"_SECTION_PARAMETERS_",&
+            l_val=xas_control%localized_wfn,error=error)
+    CALL localized_wfn_control_create(xas_control%localized_wfn_control,error=error)
+    CALL read_loc_section(xas_control%localized_wfn_control,loc_section,error=error)
 
   END SUBROUTINE read_xas_control
 !   ***************************************************************************
@@ -383,11 +330,6 @@ CONTAINS
           WRITE (UNIT=output_unit,FMT="(/,T2,A,T30,A)")&
                 "XAS|"," Orbitals read from atom-specific restart file when available"
       END IF
-!      IF(xas_control%write_restart_each>0) THEN
-!          WRITE (UNIT=output_unit,FMT="(/,T2,A,T40,A,I5,A)")&
-!                "XAS|","  Store restart each ", xas_control%write_restart_each,& 
-!                " iterations"
-!      END IF        
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,dft_section,&
          "PRINT%DFT_CONTROL_PARAMETERS",error=error)
@@ -426,7 +368,6 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     xas_control%ref_count= 1
-!    xas_control%each_step= 1
     xas_control%xas_method = xas_tp_hh
     xas_control%occ_estate = 0.5_dp
     xas_control%occ_homo = 1.0_dp
@@ -439,12 +380,11 @@ CONTAINS
     xas_control%eps_scf = 0.5e-6_dp
     xas_control%localized_wfn = .FALSE. 
     xas_control%xas_restart = .FALSE. 
-!    xas_control%write_restart_each = 0
     xas_control%emission = .FALSE. 
     xas_control%added_mos=0
     xas_control%xes_core_occupation=1.0_dp
     NULLIFY(xas_control%localized_wfn_control)
-    CALL localized_wfn_control_create(xas_control%localized_wfn_control,error=error)
+!    CALL localized_wfn_control_create(xas_control%localized_wfn_control,error=error)
     NULLIFY(xas_control%exc_atoms)
     xas_control%cubes = .FALSE.
     xas_control%do_centers = .FALSE.

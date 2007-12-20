@@ -352,13 +352,10 @@ CONTAINS
           my_localized_wfn_control =>  dft_control%qs_control%localized_wfn_control
           CALL localized_wfn_control_retain(my_localized_wfn_control,error=error)
           CPPrecondition(ASSOCIATED(my_localized_wfn_control),cp_failure_level,routineP,error,failure)
-          my_localized_wfn = (.NOT. failure .AND. .TRUE.)
-          IF(my_localized_wfn) THEN
-             CALL qs_loc_env_create(qs_loc_env_new,error=error)
-             CALL qs_loc_env_init(qs_loc_env_new,my_localized_wfn_control,qs_env,error=error)
-          END IF
+          CALL qs_loc_env_create(qs_loc_env_new,error=error)
+          CALL qs_loc_env_init(qs_loc_env_new,my_localized_wfn_control,qs_env,error=error)
           CALL localized_wfn_control_release(my_localized_wfn_control,error=error)
-
+          my_localized_wfn = .TRUE.
        ELSEIF (p_loc)THEN
 
           NULLIFY(qs_loc_env)

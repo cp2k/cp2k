@@ -89,11 +89,8 @@ MODULE qs_loc_methods
                                              direct_mini,&
                                              jacobi_rotations
   USE qs_matrix_pools,                 ONLY: mpools_get
-!  USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-!  USE qs_rho_methods,                  ONLY: qs_rho_update_rho
-!  USE qs_rho_types,                    ONLY: qs_rho_type
   USE realspace_grid_cube,             ONLY: pw_to_cube
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE string_utilities,                ONLY: xstring
