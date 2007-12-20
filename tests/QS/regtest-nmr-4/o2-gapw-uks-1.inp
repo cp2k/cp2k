@@ -28,6 +28,7 @@
   &PROPERTIES
     &LINRES
        &LOCALIZE
+         MAX_ITER 10
        &END
        OPT_METHOD CG
        LINESEARCH 2PNT
