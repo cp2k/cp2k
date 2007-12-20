@@ -413,6 +413,7 @@ CONTAINS
       ! and forces are not converged. So we don't want to dump trajectory
       ! with wrong coordinates (due to the last integration step with fake forces)..
       CALL external_control(should_stop,"MD",globenv,error=error)
+      IF (should_stop) EXIT
 
       IF(simpar%ensemble /= reftraj_ensemble) THEN
         CALL md_energy(md_env, md_ener, error) 
