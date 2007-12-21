@@ -518,33 +518,43 @@ CONTAINS
        IF (scf_control%use_ot .AND. &
             (scf_control%density_guess==core_guess)) THEN
           CALL stop_program("scf_c_read_parameters","Use GUESS {ATOMIC,RESTART,RANDOM} with OT")
-       ENDIF
+       END IF
 
-       outer_scf_section => section_vals_get_subs_vals(scf_section,&
-                            "OUTER_SCF",error=error)
+       outer_scf_section => section_vals_get_subs_vals(scf_section,"OUTER_SCF",error=error)
 
        CALL section_vals_get(outer_scf_section,explicit=explicit,error=error)
+
        IF (explicit) THEN
-          scf_control%outer_scf%have_scf=.TRUE.
+          CALL section_vals_val_get(outer_scf_section,"_SECTION_PARAMETERS_",&
+                                    l_val=scf_control%outer_scf%have_scf,&
+                                    error=error)
           CALL section_vals_val_get(outer_scf_section,"EPS_SCF",&
-                     r_val=scf_control%outer_scf%eps_scf,error=error)
+                                    r_val=scf_control%outer_scf%eps_scf,&
+                                    error=error)
           CALL section_vals_val_get(outer_scf_section,"STEP_SIZE",&
-                     r_val=scf_control%outer_scf%step_size,error=error)
+                                    r_val=scf_control%outer_scf%step_size,&
+                                    error=error)
           CALL section_vals_val_get(outer_scf_section,"DIIS_BUFFER_LENGTH",&
-                     i_val=scf_control%outer_scf%diis_buffer_length,error=error)
+                                    i_val=scf_control%outer_scf%diis_buffer_length,&
+                                    error=error)
           CALL section_vals_val_get(outer_scf_section,"BISECT_TRUST_COUNT",&
-                     i_val=scf_control%outer_scf%bisect_trust_count,error=error)
+                                    i_val=scf_control%outer_scf%bisect_trust_count,&
+                                    error=error)
           CALL section_vals_val_get(outer_scf_section,"TYPE",&
-                     i_val=scf_control%outer_scf%type,error=error)
+                                    i_val=scf_control%outer_scf%type,&
+                                    error=error)
           CALL section_vals_val_get(outer_scf_section,"OPTIMIZER",&
-                     i_val=scf_control%outer_scf%optimizer,error=error)
+                                    i_val=scf_control%outer_scf%optimizer,&
+                                    error=error)
           CALL section_vals_val_get(outer_scf_section,"MAX_SCF",&
-                     i_val=scf_control%outer_scf%max_scf,error=error)
+                                    i_val=scf_control%outer_scf%max_scf,&
+                                    error=error)
           CALL section_vals_val_get(outer_scf_section,"EXTRAPOLATION_ORDER",&
-                     i_val=scf_control%outer_scf%extrapolation_order,error=error)
+                                    i_val=scf_control%outer_scf%extrapolation_order,&
+                                    error=error)
        ELSE
-          scf_control%outer_scf%have_scf=.FALSE.
-       ENDIF
+          scf_control%outer_scf%have_scf = .FALSE.
+       END IF
 
     END IF
 

@@ -60,7 +60,7 @@ MODULE input_cp2k_subsys
 
 PUBLIC :: create_subsys_section,&
           create_cell_section,&
-          create_structure_data,&
+          create_structure_data_section,&
           create_rng_section
 !***
 !****************************************************************************
@@ -474,7 +474,7 @@ CONTAINS
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL create_structure_data(print_key, error=error)
+       CALL create_structure_data_section(print_key, error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)           
 
@@ -680,10 +680,10 @@ CONTAINS
     END IF
   END SUBROUTINE create_multipole_section
 
-!!****f* input_cp2k_subsys/create_structure_data [1.0] *
+!!****f* input_cp2k_subsys/create_structure_data_section [1.0] *
 !!
 !!   NAME
-!!     create_structure_data
+!!     create_structure_data_section
 !!
 !!   FUNCTION
 !!     creates structure data section for output.. both subsys  (for initialization)
@@ -701,11 +701,11 @@ CONTAINS
 !!     
 !!
 !!*** **********************************************************************
-  SUBROUTINE create_structure_data(print_key,error)
+  SUBROUTINE create_structure_data_section(print_key,error)
     TYPE(section_type), POINTER              :: print_key
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_structure_data', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_structure_data_section', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -749,7 +749,7 @@ CONTAINS
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
     END IF
-  END SUBROUTINE create_structure_data
+  END SUBROUTINE create_structure_data_section
 
 !***************************************************************************
 !!****f* input_cp2k_subsys/create_velocity_section [1.0] *

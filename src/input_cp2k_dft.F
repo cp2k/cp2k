@@ -3543,14 +3543,23 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,"OUTER_SCF",&
-            description="parameters controlling the outer scf loop ",&
-            n_keywords=8, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            description="parameters controlling the outer SCF loop",&
+            n_keywords=9, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
        NULLIFY(keyword)
 
+       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+            description="controls the activation of the outer SCF loop",&
+            usage="&OUTER_SCF ON",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="TYPE",&
-            description="Specifies which kind of outer scf should be employed",&
+            description="Specifies which kind of outer SCF should be employed",&
             usage="TYPE DDAPC_CONSTRAINT ",&
             default_i_val=outer_scf_none,&
             enum_c_vals=s2a( "DDAPC_CONSTRAINT", "S2_CONSTRAINT", "BECKE_CONSTRAINT",&

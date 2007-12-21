@@ -33,7 +33,7 @@ MODULE input_cp2k_motion
   USE input_cp2k_barostats,            ONLY: create_barostat_section
   USE input_cp2k_constraints,          ONLY: create_constraint_section
   USE input_cp2k_free_energy,          ONLY: create_fe_section
-  USE input_cp2k_subsys,               ONLY: create_structure_data
+  USE input_cp2k_subsys,               ONLY: create_structure_data_section
   USE input_cp2k_thermostats,          ONLY: create_coord_section,&
                                              create_region_section,&
                                              create_thermostat_section,&
@@ -251,7 +251,7 @@ CONTAINS
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL create_structure_data(print_key, error=error)
+       CALL create_structure_data_section(print_key, error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)           
 
