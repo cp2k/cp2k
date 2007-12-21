@@ -191,18 +191,18 @@ CONTAINS
          z=CMPLX(realpart,imagpart,dp)
          centers (idir+3, istate )=SQRT( -weights ( idir ) * 2.0_dp * LOG ( ABS ( Z ) ) ) / twopi
           c(idir) = ( cell % hmat ( idir, idir ) / twopi ) * AIMAG ( LOG ( z ) )
-      ENDDO
-      cpbc = pbc(c,cell)
-      centers (1:3, istate ) = cpbc(1:3)
-      IF (BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
-               "PRINT%WANNIER_CENTERS",error=error),cp_p_file) .AND. ionode) THEN
-          WRITE(unit_out_c,'(A,3F16.8)') "He ", angstrom*centers(1:3, istate)
-      END IF
-      IF (BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
-               "PRINT%WANNIER_SPREADS",error=error),cp_p_file) .AND. ionode) THEN
-          WRITE(unit_out_s,'(I6,3F16.8)') istate, angstrom*centers(4:6,istate)
-      END IF
-     ENDDO
+       END DO
+       cpbc = pbc(c,cell)
+       centers (1:3, istate ) = cpbc(1:3)
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
+                 "PRINT%WANNIER_CENTERS",error=error),cp_p_file) .AND. ionode) THEN
+         WRITE(unit_out_c,'(A,3F16.8)') "He ", angstrom*centers(1:3, istate)
+       END IF
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
+                 "PRINT%WANNIER_SPREADS",error=error),cp_p_file) .AND. ionode) THEN
+         WRITE(unit_out_s,'(I6,3F16.8)') istate, angstrom*centers(4:6,istate)
+       END IF
+     END DO
 
 ! now, find the spread of the orbitals
      CALL cp_cfm_create ( complexresult, zij ( 1, 1 ) % matrix % matrix_struct ,error=error)
@@ -220,20 +220,22 @@ CONTAINS
        WRITE(output_unit,'(T4,A,/10x,3F16.10)') " Total Spread of the selected mos (Berry) x,y,z ",&
              spreadtot(1:3)
      END IF
-     IF (BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
-               "PRINT%WANNIER_SPREADS",error=error),cp_p_file)) &
-                WRITE(unit_out_s,'(A,3F16.10)')  " Total ",  spreadtot(1:3)
 
-     IF(BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
-               "PRINT%WANNIER_CENTERS",error=error),cp_p_file)) THEN
-        CALL cp_print_key_finished_output(unit_out_c,logger,loc_section,&
-               "PRINT%WANNIER_CENTERS",error=error)
+     IF (BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
+               "PRINT%WANNIER_SPREADS",error=error),cp_p_file) .AND. ionode)&
+       WRITE (unit_out_s,'(A,3F16.10)') " Total ", spreadtot(1:3)
+
+     IF (BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
+               "PRINT%WANNIER_CENTERS",error=error),cp_p_file) .AND. ionode) THEN
+       CALL cp_print_key_finished_output(unit_out_c,logger,loc_section,&
+                                         "PRINT%WANNIER_CENTERS",error=error)
      END IF
      IF (BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
-               "PRINT%WANNIER_SPREADS",error=error),cp_p_file)) THEN
+               "PRINT%WANNIER_SPREADS",error=error),cp_p_file) .AND. ionode) THEN
        CALL cp_print_key_finished_output(unit_out_s,logger,loc_section,&
-               "PRINT%WANNIER_SPREADS",error=error)
+                                         "PRINT%WANNIER_SPREADS",error=error)
      END IF
+
   END SUBROUTINE centers_spreads_berry
 
 !******************************************************************************
