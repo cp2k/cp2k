@@ -44,13 +44,12 @@ MODULE qs_loc_methods
        cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, &
        cp_fm_p_type, cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, &
        cp_fm_to_fm, cp_fm_type
-  USE cp_output_handling,              ONLY: cp_p_file,&
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
+  USE f77_blas
   USE input_constants,                 ONLY: do_loc_crazy,&
                                              do_loc_direct,&
                                              do_loc_jacobi,&
@@ -70,8 +69,8 @@ MODULE qs_loc_methods
   USE physcon,                         ONLY: angstrom
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
-                                             pw_pool_create_pw,&
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
@@ -97,7 +96,6 @@ MODULE qs_loc_methods
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -151,26 +149,18 @@ CONTAINS
      failure = .FALSE.
      logger => cp_error_get_logger(error)
      ionode = logger%para_env%mepos==logger%para_env%source
-     IF (ionode) THEN
-        output_unit= cp_logger_get_default_unit_nr(logger)
-     ELSE
-        output_unit = -1
-     END IF
+     output_unit = -1
+     IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
 
-     IF (BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
-               "PRINT%WANNIER_CENTERS",error=error),cp_p_file)) THEN
-       file_tmp = "_centers_s"//TRIM(ADJUSTL(cp_to_string(ispin)))
-       unit_out_c = cp_print_key_unit_nr(logger,loc_section,"PRINT%WANNIER_CENTERS",&
-                    middle_name=file_tmp, extension=".data",log_filename=.FALSE.,error=error)
-       IF(ionode) WRITE(unit_out_c,'(i6,/,i10)') nmoloc, iter
-     END IF
-     IF (BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
-               "PRINT%WANNIER_SPREADS",error=error),cp_p_file)) THEN
-       file_tmp = "_spreads_s"//TRIM(ADJUSTL(cp_to_string(ispin)))
-       unit_out_s = cp_print_key_unit_nr(logger,loc_section,"PRINT%WANNIER_SPREADS",&
-                  middle_name=file_tmp,extension=".data",log_filename=.FALSE.,error=error)
-       IF(ionode) WRITE(unit_out_s,'(i6,/,i10)') nmoloc, iter
-     END IF
+     file_tmp = "_centers_s"//TRIM(ADJUSTL(cp_to_string(ispin)))
+     unit_out_c = cp_print_key_unit_nr(logger,loc_section,"PRINT%WANNIER_CENTERS",&
+                  middle_name=file_tmp, extension=".data",log_filename=.FALSE.,error=error)
+     IF(unit_out_c>0) WRITE(unit_out_c,'(i6,/,i10)') nmoloc, iter
+
+     file_tmp = "_spreads_s"//TRIM(ADJUSTL(cp_to_string(ispin)))
+     unit_out_s = cp_print_key_unit_nr(logger,loc_section,"PRINT%WANNIER_SPREADS",&
+                middle_name=file_tmp,extension=".data",log_filename=.FALSE.,error=error)
+     IF(unit_out_s>0) WRITE(unit_out_s,'(i6,/,i10)') nmoloc, iter
 
 !  It should be the step at which the property localization is calculated
 
@@ -191,18 +181,12 @@ CONTAINS
          z=CMPLX(realpart,imagpart,dp)
          centers (idir+3, istate )=SQRT( -weights ( idir ) * 2.0_dp * LOG ( ABS ( Z ) ) ) / twopi
           c(idir) = ( cell % hmat ( idir, idir ) / twopi ) * AIMAG ( LOG ( z ) )
-       END DO
-       cpbc = pbc(c,cell)
-       centers (1:3, istate ) = cpbc(1:3)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
-                 "PRINT%WANNIER_CENTERS",error=error),cp_p_file) .AND. ionode) THEN
-         WRITE(unit_out_c,'(A,3F16.8)') "He ", angstrom*centers(1:3, istate)
-       END IF
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
-                 "PRINT%WANNIER_SPREADS",error=error),cp_p_file) .AND. ionode) THEN
-         WRITE(unit_out_s,'(I6,3F16.8)') istate, angstrom*centers(4:6,istate)
-       END IF
-     END DO
+      ENDDO
+      cpbc = pbc(c,cell)
+      centers (1:3, istate ) = cpbc(1:3)
+      IF (unit_out_c>0) WRITE(unit_out_c,'(A,3F16.8)') "He ", angstrom*centers(1:3, istate)
+      IF (unit_out_s>0) WRITE(unit_out_s,'(I6,3F16.8)') istate, angstrom*centers(4:6,istate)
+     ENDDO
 
 ! now, find the spread of the orbitals
      CALL cp_cfm_create ( complexresult, zij ( 1, 1 ) % matrix % matrix_struct ,error=error)
@@ -221,20 +205,10 @@ CONTAINS
              spreadtot(1:3)
      END IF
 
-     IF (BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
-               "PRINT%WANNIER_SPREADS",error=error),cp_p_file) .AND. ionode)&
-       WRITE (unit_out_s,'(A,3F16.10)') " Total ", spreadtot(1:3)
+     IF (unit_out_s>0) WRITE (unit_out_s,'(A,3F16.10)') " Total ", spreadtot(1:3)
 
-     IF (BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
-               "PRINT%WANNIER_CENTERS",error=error),cp_p_file) .AND. ionode) THEN
-       CALL cp_print_key_finished_output(unit_out_c,logger,loc_section,&
-                                         "PRINT%WANNIER_CENTERS",error=error)
-     END IF
-     IF (BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
-               "PRINT%WANNIER_SPREADS",error=error),cp_p_file) .AND. ionode) THEN
-       CALL cp_print_key_finished_output(unit_out_s,logger,loc_section,&
-                                         "PRINT%WANNIER_SPREADS",error=error)
-     END IF
+     CALL cp_print_key_finished_output(unit_out_c,logger,loc_section,"PRINT%WANNIER_CENTERS",error=error)
+     CALL cp_print_key_finished_output(unit_out_s,logger,loc_section,"PRINT%WANNIER_SPREADS",error=error)
 
   END SUBROUTINE centers_spreads_berry
 
@@ -298,10 +272,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'optimize_loc_berry', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, j, nao, nmoloc, &
-                                                output_unit, sweeps, max_iter
-    REAL(dp)                                 :: eps_localization
+    INTEGER                                  :: handle, i, j, max_iter, nao, &
+                                                nmoloc, output_unit, sweeps
     LOGICAL                                  :: ionode
+    REAL(dp)                                 :: eps_localization
     TYPE(cp_fm_type), POINTER                :: opvec
     TYPE(cp_logger_type), POINTER            :: logger
 
