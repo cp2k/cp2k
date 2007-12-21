@@ -656,12 +656,13 @@ CONTAINS
 
        CALL keyword_create(keyword,name="METHOD",&
             description="Method of optimization if any",&
-            usage="METHOD (JACOBI|CRAZY|DIRECT|NONE)",&
-            enum_c_vals=s2a("NONE","JACOBI","CRAZY","DIRECT"),&
-            enum_i_vals=(/do_loc_jacobi, do_loc_crazy, do_loc_direct, do_loc_none/),&
+            usage="METHOD (JACOBI|CRAZY|DIRECT|L1SD|NONE)",&
+            enum_c_vals=s2a("NONE","JACOBI","CRAZY","DIRECT","L1SD"),&
+            enum_i_vals=(/do_loc_none, do_loc_jacobi, do_loc_crazy, do_loc_direct,do_loc_l1_norm_sd/),&
             enum_desc=s2a("No localization is applied",&
             "Using 2 x 2 rotations of the orbitals, slow but robust",&
             "A new fast method is applied, might be slightly less robust than jacobi, but usually much faster",&
+            "Steepest descent minimization of an approximate l1 norm",&
             "Using a direct minimisation approach"),&
             default_i_val=do_loc_jacobi,error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -676,33 +677,16 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword,name="SET_OF_STATES",&
-            description="Selected states to be localized",&
-            usage="SET_OF_STATES (ALL|UPTON|FROMITOJ|LIST|NONE)",&
-            enum_c_vals=s2a("ALL","UPTON","FROMITOJ","LIST","NONE"),&
-            enum_i_vals=(/state_loc_all, state_loc_upton, state_loc_fromitoj,& 
-            state_loc_list,state_loc_none/),&
-            default_i_val=state_loc_all,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-
-       CALL keyword_create(keyword,name="LU_BOUNDS",&
-            description="The lower and upper index of the set of wfn to be localized",&
-            usage="LU_BOUNDS integer integer",&
+       
+       CALL keyword_create(keyword, name="RANGE",&
+            description="The lower and upper index of the orbitals to be localized",&
+            usage="RANGE {integer} {integer}",&
             n_var=2,default_i_vals=(/0,0/),type_of_var=integer_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword,name="UP_BOUND",&
-            description="Highest index of  wfn to be localized",&
-            usage="UP_BOUND  integer",&
-            default_i_val=0,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
 
-
-       CALL keyword_create(keyword,name="LISTSTATES",&
+       CALL keyword_create(keyword,name="LIST",&
             description="Indexes of the wfn to be localized"//&
             "This keyword can be repeated several times"//&
             "(useful if you have to specify many indexes).",&

@@ -258,7 +258,8 @@ CONTAINS
             l_val=xas_control%localized_wfn,error=error)
     CALL localized_wfn_control_create(xas_control%localized_wfn_control,error=error)
     CALL read_loc_section(xas_control%localized_wfn_control,loc_section,&
-         xas_control%localized_wfn,error=error)
+         xas_control%localized_wfn,do_xas=.true.,&
+         nloc_xas=xas_control%nexc_search,error=error)
 
   END SUBROUTINE read_xas_control
 !   ***************************************************************************
@@ -385,7 +386,6 @@ CONTAINS
     xas_control%added_mos=0
     xas_control%xes_core_occupation=1.0_dp
     NULLIFY(xas_control%localized_wfn_control)
-!    CALL localized_wfn_control_create(xas_control%localized_wfn_control,error=error)
     NULLIFY(xas_control%exc_atoms)
     xas_control%cubes = .FALSE.
     xas_control%do_centers = .FALSE.

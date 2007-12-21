@@ -997,55 +997,59 @@ CONTAINS
       IF (qs_control%localized_wfn) THEN
          nstep = qs_control%localized_wfn_control%each_step
          WRITE (UNIT=output_unit,FMT="(T2,A)")&
-           "QS| Localization: The spread relative to a set of orbitals is computed"
-         WRITE (UNIT=output_unit,FMT="(T2,A,T55,I5,A)")&
-           "                  at the end of a scf loop every ",nstep," iteration steps"
+           "QS| LOC| The spread relative to a set of orbitals is computed"
+ !        WRITE (UNIT=output_unit,FMT="(T2,A,T55,I5,A)")&
+ !          "                  at the end of a scf loop every ",nstep," iteration steps"
          SELECT CASE ( qs_control%localized_wfn_control%set_of_states )
          CASE(state_loc_all)
            WRITE (UNIT=output_unit,FMT="(T2,A)")&
-           "                Set:  All the occupied orbitals"
-         CASE(state_loc_upton)
-           WRITE (UNIT=output_unit,FMT="(T2,A,T73,I8)")&
-           "                Set:  All the orbital with index lower than ",&
-            qs_control%localized_wfn_control%nloc_states(1)
-         CASE(state_loc_fromitoj)
-           WRITE (UNIT=output_unit,FMT="(T2,A,T73,2I8)")&
-           "                Set:  All the orbital with index between ",&
+           "QS| LOC| Orbitals to be localized: All the occupied"
+!         CASE(state_loc_upton)
+!           WRITE (UNIT=output_unit,FMT="(T2,A,T65,I8)")&
+!           "QS| LOC| Orbitals to be localized: Those with index lower than ", &
+!            qs_control%localized_wfn_control%nloc_states(1)
+         CASE(state_loc_range)
+           WRITE (UNIT=output_unit,FMT="(T2,A,T65,2I8)")&
+           "QS| LOC| Orbitals to be localized: Those with index between " , &
             qs_control%localized_wfn_control%lu_bound_states(1,1),&
             qs_control%localized_wfn_control%lu_bound_states(2,1)
          CASE(state_loc_list)
            WRITE (UNIT=output_unit,FMT="(T2,A)")&
-           "                Set:  All the orbital with index in the list:"
+           "QS| LOC| Orbitals to be localized: Those with index in the list "
            WRITE (UNIT=output_unit,FMT=*) qs_control%localized_wfn_control%loc_states
          CASE DEFAULT
            WRITE (UNIT=output_unit,FMT="(T2,A)")&
-           "                Set:  None"
+           "QS| LOC| Orbitals to be localized: None " 
          END SELECT
          SELECT CASE (qs_control%localized_wfn_control%operator_type )
          CASE(op_loc_berry)
            WRITE (UNIT=output_unit,FMT="(T2,A)")&
-           "                Spread: defined by the Berry phase operator "
+           "QS| LOC| Spread defined by the Berry phase operator " 
          CASE(op_loc_boys)
            WRITE (UNIT=output_unit,FMT="(T2,A)")&
-           "                Spread: defined by the Boys operator"
+           "QS| LOC| Spread defined by the Boys phase operator " 
          CASE DEFAULT
             WRITE (UNIT=output_unit,FMT="(T2,A)")&
-           "                Spread: defined by the Pipek operator"
+           "QS| LOC| Spread defined by the Pipek phase operator " 
          END SELECT
 
          SELECT CASE (qs_control%localized_wfn_control%localization_method)
          CASE(do_loc_jacobi)
             WRITE (UNIT=output_unit,FMT="(T2,A)")&
-             "                Optimize  the spread by the jacobi algorithm"
+           "QS| LOC| The optimal unitary transformation is gnerated by the Jacobi algorithm " 
          CASE(do_loc_crazy)
             WRITE (UNIT=output_unit,FMT="(T2,A)")&
-             "                Optimize  the spread by the crazy angle algorithm"
+           "QS| LOC| The optimal unitary transformation is gnerated by the Crazy angle algorithm " 
          CASE(do_loc_direct)
             WRITE (UNIT=output_unit,FMT="(T2,A)")&
-             "                Optimize  the spread by the direct algorithm"
+           "QS| LOC| The optimal unitary transformation is gnerated by the direct algorithm " 
+         CASE(do_loc_l1_norm_sd)
+            WRITE (UNIT=output_unit,FMT="(T2,A)")&
+           "QS| LOC| The optimal unitary transformation is gnerated by the "//&
+             " steepest descent algorithm applyed on an approximate l1 norm " 
          CASE(do_loc_none)
             WRITE (UNIT=output_unit,FMT="(T2,A)")&
-             "                No minimization or maximization is performed "
+           "QS| LOC| No unitary transformation is applied " 
          END SELECT
       END IF
     END IF

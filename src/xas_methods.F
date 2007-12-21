@@ -60,8 +60,9 @@ MODULE xas_methods
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
-       do_loc_none, op_loc_berry, state_loc_all, state_loc_fromitoj, state_loc_list, state_loc_none, &
-       state_loc_upton, xas_1s_type, xas_2p_type, &
+       do_loc_none, op_loc_berry, state_loc_all, state_loc_range,&
+       state_loc_list, state_loc_none, &
+       xas_1s_type, xas_2p_type, &
        xas_2s_type, xas_dip_len2, xas_dip_vel, xas_dscf, xas_scf_default, &
        xas_scf_general,  xas_tp_fh, xas_tp_hh, &
        xas_tp_xfh, xas_tp_xhh, xes_tp_val
@@ -375,14 +376,14 @@ CONTAINS
           WRITE (UNIT=output_unit,FMT="(/,T10,A,/)")&
               "Localize a sub-set of MOs with spin alpha,"//&
               " to better identify the core states that have to be excited"
-          IF(my_localized_wfn_control%set_of_states==state_loc_upton .OR. &
-              my_localized_wfn_control%set_of_states == state_loc_fromitoj .OR. &
+          IF(&
+              my_localized_wfn_control%set_of_states == state_loc_range .OR. &
               my_localized_wfn_control%set_of_states == state_loc_all) THEN
               WRITE (UNIT=output_unit,FMT="( A , I7, A, I7)") " The sub-setcontains the states from ",&
                   my_localized_wfn_control%lu_bound_states(1,1), " to ",&
                   my_localized_wfn_control%lu_bound_states(2,1)  
          ELSEIF (my_localized_wfn_control%set_of_states==state_loc_list) THEN
-              WRITE (UNIT=output_unit,FMT="( A )") " The sub-setcontains the states from given from a list in the input "
+              WRITE (UNIT=output_unit,FMT="( A )") " The sub-set contains the states given in the input list"
 
          END IF
 
@@ -921,14 +922,13 @@ CONTAINS
           my_localized_wfn_control%nloc_states(1)=nelectron
           nmoloc(2) = 0
           my_localized_wfn_control%nloc_states(2)=0
-        ELSEIF(my_localized_wfn_control%set_of_states == state_loc_none) THEN
-          nmoloc(1) = nexc_search
-          my_localized_wfn_control%nloc_states(1)=nexc_search
-          nmoloc(2) = 0
-          my_localized_wfn_control%nloc_states(2)=0
-          my_localized_wfn_control%set_of_states = state_loc_upton
+!        ELSEIF(my_localized_wfn_control%set_of_states == state_loc_range) THEN
+!          nmoloc(1) = nexc_search
+!          my_localized_wfn_control%nloc_states(1)=nexc_search
+!          nmoloc(2) = 0
+!          my_localized_wfn_control%nloc_states(2)=0
         ELSE
-          nmoloc(1) = MIN(my_localized_wfn_control%nloc_states(1) ,n_mo(1))
+          nmoloc(1) = MIN(my_localized_wfn_control%nloc_states(1) ,nelectron)
           nmoloc(2) = 0
         END IF
       END IF

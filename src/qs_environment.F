@@ -103,7 +103,7 @@ MODULE qs_environment
        do_et_becke, do_et_ddapc, do_method_am1, do_method_dftb, &
        do_method_gapw, do_method_gapw_xc, do_method_mndo, do_method_pdg, &
        do_method_pm3, do_method_rm1, general_roks, restart_guess, &
-       state_loc_all, state_loc_none
+       state_loc_all
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -759,11 +759,6 @@ CONTAINS
     END IF
 
     ! The transition potential method to calculate XAS needs LSD
-!    xas_section =>  section_vals_get_subs_vals(qs_env%input, &
-!                                                 "DFT%XAS")
-!    CALL section_vals_val_get(xas_section,"_SECTION_PARAMETERS_",&
-!         l_val=xas_calculation,error=error)
-
     IF(dft_control%do_xas_calculation ) THEN
       IF(dft_control%nspins == 1) THEN
         CALL stop_program(routineN,moduleN,__LINE__,&
@@ -899,7 +894,6 @@ CONTAINS
         DO ispin = 1,dft_control%nspins
           nmoloc(ispin) = NINT(nelectron_spin(ispin)/maxocc)
         END DO
-      ELSEIF(localized_wfn_control%set_of_states == state_loc_none) THEN
       ELSE
         DO ispin = 1,dft_control%nspins
           nmoloc(ispin) = MIN(localized_wfn_control%nloc_states(1) ,n_mo(ispin))

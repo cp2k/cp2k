@@ -27,7 +27,7 @@ MODULE qs_loc_control
   USE input_constants,                 ONLY: &
        do_loc_crazy, do_loc_direct, do_loc_jacobi, do_loc_max, do_loc_min, &
        do_loc_none, op_loc_berry, op_loc_boys, op_loc_pipek, state_loc_all, &
-       state_loc_fromitoj, state_loc_list, state_loc_none, state_loc_upton
+       state_loc_range, state_loc_list, state_loc_none
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
@@ -227,33 +227,40 @@ CONTAINS
 !!   SOURCE
 !!*** **********************************************************************
 
-  SUBROUTINE read_loc_section(localized_wfn_control,loc_section,localize,error)
+SUBROUTINE read_loc_section(localized_wfn_control,loc_section,localize,&
+          do_xas,nloc_xas,error)
 
     TYPE(localized_wfn_control_type), &
       POINTER                                :: localized_wfn_control
     TYPE(section_vals_type), POINTER         :: loc_section
     LOGICAL, INTENT(IN)                      :: localize
+    LOGICAL, INTENT(IN), OPTIONAL            :: do_xas
+    INTEGER, INTENT(IN), OPTIONAL            :: nloc_xas
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_loc_section', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ir, istat, n_rep, n_state, &
+    INTEGER                                  :: i, ir, istat, n_list, n_rep, n_state, &
                                                 ncubes, output_unit
     INTEGER, DIMENSION(:), POINTER           :: bounds, list
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: failure, log_val, my_do_xas
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure=.FALSE.
+    my_do_xas=.FALSE.
+    IF(PRESENT(do_xas)) my_do_xas=do_xas
     CPPrecondition(ASSOCIATED(loc_section),cp_failure_level,routineP,error,failure)
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
 
     IF(.NOT. failure)  THEN
 
       IF(localize) THEN
         NULLIFY (bounds, list ) 
+        localized_wfn_control%lu_bound_states = 0
+        localized_wfn_control%nloc_states = 0
+        n_state = 0
 
         CALL section_vals_val_get(loc_section,"MAX_ITER",&
              i_val=localized_wfn_control%max_iter,error=error)
@@ -267,60 +274,62 @@ CONTAINS
              i_val=localized_wfn_control%localization_method,error=error)
         CALL section_vals_val_get(loc_section,"OPERATOR",&
              i_val=localized_wfn_control%operator_type,error=error)
-        CALL section_vals_val_get(loc_section,"SET_OF_STATES",&
-             i_val=localized_wfn_control%set_of_states, error=error)
-  
-        IF(localized_wfn_control%set_of_states==state_loc_upton) THEN
-           CALL section_vals_val_get(loc_section,"UP_BOUND",&
-                i_val=localized_wfn_control%lu_bound_states(2,1), error=error)
-           localized_wfn_control%lu_bound_states(1,1) = 1
-           n_state = localized_wfn_control%lu_bound_states(2,1)
-           localized_wfn_control%nloc_states(1) = &
-                       localized_wfn_control%lu_bound_states(2,1)
-           IF(n_state > 0) THEN
-             ALLOCATE(localized_wfn_control%loc_states(n_state),STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-             DO i = 1, n_state
-               localized_wfn_control%loc_states(i) = i
-             END DO
-           END IF
-        ELSE IF(localized_wfn_control%set_of_states==state_loc_fromitoj) THEN
-           CALL section_vals_val_get(loc_section,"LU_BOUNDS",&
-                i_vals=bounds,error=error)
-                localized_wfn_control%lu_bound_states(1,1) = bounds(1)
-                localized_wfn_control%lu_bound_states(2,1) = bounds(2)
-           IF(bounds(1)>0 .AND. bounds(2)>0) THEN
-             n_state = localized_wfn_control%lu_bound_states(2,1)-&
-                       localized_wfn_control%lu_bound_states(1,1)+1
-             localized_wfn_control%nloc_states(1) = n_state
-                        
-             ALLOCATE(localized_wfn_control%loc_states(n_state),STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-             DO i = 1, n_state
-               localized_wfn_control%loc_states(i) = bounds(1) + (i-1)
-             END DO
-           END IF
-        ELSE IF(localized_wfn_control%set_of_states==state_loc_list) THEN
-           CALL section_vals_val_get(loc_section,"LISTSTATES",&
-                n_rep_val=n_rep,error=error)
-           n_state = 0
-           DO ir = 1,n_rep
-             NULLIFY(list)
-             CALL section_vals_val_get(loc_section,"LISTSTATES",&
+
+        CALL section_vals_val_get(loc_section,"LIST",  n_rep_val=n_rep,error=error)
+        n_list = 0
+        NULLIFY(localized_wfn_control%loc_states)
+        DO ir = 1,n_rep
+          NULLIFY(list)
+          CALL section_vals_val_get(loc_section,"LIST",&
                   i_rep_val=ir,i_vals=list,error=error)
-             IF(ASSOCIATED(list)) THEN
-               CALL reallocate(localized_wfn_control%loc_states,1,n_state+SIZE(list))
-               DO i = 1, SIZE(list)
-                 localized_wfn_control%loc_states(n_state+i) = list(i) 
-               END DO ! i 
-               localized_wfn_control%nloc_states(1) = n_state + SIZE(list)
-               n_state = n_state +  SIZE(list)
-             END IF
-           END DO ! ir
-        ELSE IF(localized_wfn_control%set_of_states==state_loc_none) THEN
-           localized_wfn_control%nloc_states(:) = 0
+          IF(ASSOCIATED(list)) THEN
+            CALL reallocate(localized_wfn_control%loc_states,1,n_list+SIZE(list))
+            DO i = 1, SIZE(list)
+               localized_wfn_control%loc_states(n_list+i) = list(i) 
+            END DO ! i 
+            localized_wfn_control%nloc_states(1) = n_list + SIZE(list)
+            n_list = n_list +  SIZE(list)
+          END IF
+        END DO ! ir
+        IF(n_list/=0)THEN
+          localized_wfn_control%set_of_states=state_loc_list      
         END IF
-  
+
+        CALL section_vals_val_get(loc_section, "RANGE",i_vals=bounds,error=error)
+        IF(bounds(1)>0 .AND. bounds(2)>0) THEN
+           localized_wfn_control%set_of_states=state_loc_range
+           localized_wfn_control%lu_bound_states(1,1) = bounds(1)
+           localized_wfn_control%lu_bound_states(2,1) = bounds(2)
+           n_state = localized_wfn_control%lu_bound_states(2,1)-&
+                       localized_wfn_control%lu_bound_states(1,1)+1
+           localized_wfn_control%nloc_states(1) = n_state
+           IF(ASSOCIATED(localized_wfn_control%loc_states))   THEN
+              DEALLOCATE(localized_wfn_control%loc_states,STAT=istat)
+              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+              NULLIFY(localized_wfn_control%loc_states)
+           END IF          
+           ALLOCATE(localized_wfn_control%loc_states(n_state),STAT=istat)
+           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+           DO i = 1, n_state
+             localized_wfn_control%loc_states(i) = bounds(1) + (i-1)
+           END DO
+        END IF
+
+
+        IF(localized_wfn_control%nloc_states(1) == 0 )  THEN
+          IF(my_do_xas) THEN
+             localized_wfn_control%set_of_states = state_loc_range
+             localized_wfn_control%nloc_states(1) =  nloc_xas
+             localized_wfn_control%lu_bound_states(1,1) = 1
+             localized_wfn_control%lu_bound_states(2,1) = nloc_xas
+             localized_wfn_control%nloc_states(2) =  0
+             localized_wfn_control%lu_bound_states(1,2) = 0
+             localized_wfn_control%lu_bound_states(2,2) = 0
+          ELSE
+             localized_wfn_control%set_of_states = state_loc_all
+          END IF
+        END IF
+
         localized_wfn_control%print_centers = &
             BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
                   "PRINT%WANNIER_CENTERS",error=error),cp_p_file)
@@ -385,55 +394,6 @@ CONTAINS
         output_unit = cp_print_key_unit_nr(logger,loc_section,"PRINT%PROGRAM_RUN_INFO",&
                       extension=".Log",error=error) 
 
-        IF(output_unit>0) THEN
-  
-          WRITE (UNIT=output_unit,FMT="(/,T3,A)")&
-                   "Localization of a subset of KS orbitals"
-          IF(localized_wfn_control%min_or_max==do_loc_min) &
-             WRITE (UNIT=output_unit,FMT="(T2,A,T54,A)")&
-            "LOC|","Minimize the orbital spread"
-          IF(localized_wfn_control%min_or_max==do_loc_max) &
-              WRITE (UNIT=output_unit,FMT="(T2,A,T54,A)")&
-            "LOC|","Maximize the orbital spread"
-          IF(localized_wfn_control%operator_type==op_loc_berry)  &
-             WRITE (UNIT=output_unit,FMT="(T2,A,T65,A)")&
-            "LOC|  Definition of the spread functional by ","     Berry Phase"
-          IF(localized_wfn_control%operator_type==op_loc_pipek)  &
-             WRITE (UNIT=output_unit,FMT="(T2,A,T65,A)")&
-            "LOC|  Definition of the spread functional by ","Pipek definition"
-          IF(localized_wfn_control%operator_type==op_loc_boys)  &
-             WRITE (UNIT=output_unit,FMT="(T2,A,T65,A)")&
-            "LOC|  Definition of the spread functional by "," Boys definition"
-          IF(localized_wfn_control%operator_type==do_loc_jacobi)  &
-             WRITE (UNIT=output_unit,FMT="(T2,A,T63,A)")&
-            "LOC|  Optimal Rotation found by ",             "     Jacobi method"
-          IF(localized_wfn_control%operator_type==do_loc_crazy)  &
-             WRITE (UNIT=output_unit,FMT="(T2,A,T63,A)")&
-            "LOC|  Optimal Rotation found by ","Crazy angle method"
-          IF(localized_wfn_control%operator_type==do_loc_direct)  &
-             WRITE (UNIT=output_unit,FMT="(T2,A,T63,A)")&
-            "LOC|  Optimal Rotation found by ","  Direct SD method"
-          IF(localized_wfn_control%operator_type==do_loc_none)  &
-             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-            "LOC|   ","No stationary state is located"
-          IF(localized_wfn_control%set_of_states==state_loc_all) &
-             WRITE (UNIT=output_unit,FMT="(T2,A,T57,A)")&
-            "LOC|  Set of states: " , "All the occupied orbitals"
-          IF(localized_wfn_control%set_of_states==state_loc_upton) &
-             WRITE (UNIT=output_unit,FMT="(T2,A,T53,A,I6)")&
-            "LOC|  Set of states: " , "All the orbitals up to",&
-             localized_wfn_control%nloc_states(1)
-          IF(localized_wfn_control%set_of_states==state_loc_fromitoj) &
-             WRITE (UNIT=output_unit,FMT="(T2,A,T46,A,I6,A,I6)")&
-            "LOC|  Set of states: " , "The orbitals between",&
-             localized_wfn_control%lu_bound_states(1,1), " and ",&
-             localized_wfn_control%lu_bound_states(2,1)
-          IF(localized_wfn_control%set_of_states==state_loc_list) &
-             WRITE (UNIT=output_unit,FMT="(T2,A,T50,A,I6,A)")&
-            "LOC|  Set of states: " , "List of ",&
-            localized_wfn_control%nloc_states(1), " orbitals from input"
-        END IF
-  
         CALL cp_print_key_finished_output(output_unit,logger,loc_section,&
                     "PRINT%PROGRAM_RUN_INFO",error=error)
                    
@@ -568,7 +528,7 @@ CONTAINS
           DEALLOCATE(localized_wfn_control%loc_states,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
-      IF(localized_wfn_control%set_of_states == state_loc_fromitoj) THEN
+      IF(localized_wfn_control%set_of_states == state_loc_range) THEN
         DO ispin = 1,nspins
            localized_wfn_control%lu_bound_states(1,ispin) = &
                localized_wfn_control%lu_bound_states(1,1) 

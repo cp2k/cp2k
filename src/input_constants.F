@@ -369,10 +369,10 @@ MODULE input_constants
                                 do_multipole_dipole=1,&
                                 do_multipole_quadrupole=2
 
-  INTEGER, PARAMETER, PUBLIC :: do_loc_jacobi=0,&
-                                do_loc_crazy=1,&
-                                do_loc_direct=2,&
-                                do_loc_none=3,&
+  INTEGER, PARAMETER, PUBLIC :: do_loc_none=0,&
+                                do_loc_jacobi=1,&
+                                do_loc_crazy=2,&
+                                do_loc_direct=3,&
                                 do_loc_l1_norm_sd=4
 
   INTEGER, PARAMETER, PUBLIC :: do_loc_min=0,&
@@ -382,10 +382,9 @@ MODULE input_constants
                                 op_loc_pipek=2,&
                                 op_loc_l1_norm=3,&
                                 state_loc_all=0,&
-                                state_loc_upton=1,&
-                                state_loc_fromitoj=2,&
-                                state_loc_list=3,&
-                                state_loc_none=4
+                                state_loc_range=1,&
+                                state_loc_list=2,&
+                                state_loc_none=3
 
   INTEGER, PARAMETER, PUBLIC :: use_mom_ref_com=0,&
                                 use_mom_ref_coac=1,&

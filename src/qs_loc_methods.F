@@ -201,7 +201,7 @@ CONTAINS
      CALL cp_cfm_release(complexresult,error=error)
 
      IF (ionode) THEN
-       WRITE(output_unit,'(T4,A,/10x,3F16.10)') " Total Spread of the selected mos (Berry) x,y,z ",&
+       WRITE(output_unit,'(T4,A,10x,3F16.10)') " Total Spread (Berry) x,y,z: ",&
              spreadtot(1:3)
      END IF
 
@@ -309,9 +309,6 @@ CONTAINS
 
     max_iter = localized_wfn_control%max_iter
     eps_localization = localized_wfn_control%eps_localization
-
-!      CALL centers_spreads_berry( localized_wfn_control, zij_fm_set, nmoloc, &
-!           cell, weights, ispin, ionode, error=error )
 
     SELECT CASE ( method )
     CASE ( do_loc_jacobi )
