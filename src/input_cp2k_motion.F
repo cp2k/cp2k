@@ -1252,15 +1252,6 @@ CONTAINS
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
-       CALL keyword_create(keyword, name="PRINTOUT_IF_SHOULDSTOP",&         
-            description="Print the output and restart file if walltime is reached or"//&
-           "if an external EXIT command is given",&         
-            usage="PRINTOUT_IF_SHOULDSTOP LOGICAL",&         
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)         
-       CALL section_add_keyword(section,keyword,error=error)         
-       CALL keyword_release(keyword,error=error)   
-
-
        CALL create_msst_section(uni_section, error=error)
        CALL section_add_subsection(section, uni_section, error=error)
        CALL section_release(uni_section,error=error)       
@@ -1294,6 +1285,17 @@ CONTAINS
             n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
             error=error)
        NULLIFY(print_key)
+
+       CALL keyword_create(keyword, name="FORCE_LAST",&         
+            description="Print the output and restart file if walltime is reached or "//&
+           "if an external EXIT command is given. It still requires the keyword LAST "//&
+           "to be present for the specific print key (in case the last step should not "//&
+           "match with the print_key iteration number).",&         
+            usage="FORCE_LAST LOGICAL",&         
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)         
+       CALL section_add_keyword(subsection,keyword,error=error)         
+       CALL keyword_release(keyword,error=error)   
+
        CALL cp_print_key_section_create(print_key,"energy",&
             description="Controls the output the ener file",&
             print_level=low_print_level, common_iter_levels=1,&

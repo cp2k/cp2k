@@ -41,8 +41,7 @@ MODULE md_run
   USE f77_blas
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_type, &
-                                             use_fist_force
+                                             force_env_type
   USE free_energy_methods,             ONLY: free_energy_evaluate
   USE free_energy_types,               ONLY: fe_env_create,&
                                              free_energy_type
@@ -409,16 +408,18 @@ CONTAINS
 
       IF (should_stop) EXIT
       ! Test for EXIT_MD or for WALL_TIME to exit 
+      ! Default:
       ! IF so we don't overwrite the restart or append to the trajectory
       ! because the execution could in principle stop inside the SCF where energy
-      ! and forces are not converged. So we don't want to dump trajectory
-      ! with wrong coordinates (due to the last integration step with fake forces)..
+      ! and forces are not converged. 
+      ! But:
+      ! You can force to print the last step (for example if the method used
+      ! to compute energy and forces is not SCF based) activating the print_key
+      ! MOTION%MD%PRINT%FORCE_LAST.
       CALL external_control(should_stop,"MD",globenv,error=error)
       IF (should_stop) THEN
-         IF(simpar%printout_if_shouldstop) THEN
-           CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=itimes,error=error)
-           CALL md_output(md_env,force_env_section,root_section,error)
-         END IF
+         CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=itimes,error=error)
+         CALL md_output(md_env,force_env_section,root_section,should_stop,error)
          EXIT
       END IF
 
@@ -434,7 +435,7 @@ CONTAINS
       used_time = time_iter_stop - time_iter_start
       time_iter_start=time_iter_stop
 
-      CALL md_output(md_env,force_env_section,root_section,error)
+      CALL md_output(md_env,force_env_section,root_section,should_stop,error)
       IF(simpar%ensemble == reftraj_ensemble) THEN
          CALL write_output_reftraj(md_env,error=error) 
       END IF

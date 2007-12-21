@@ -36,6 +36,7 @@ MODULE md
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
+  USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
@@ -62,7 +63,6 @@ MODULE md
   USE shell_potential_types,           ONLY: shell_kind_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -99,7 +99,6 @@ MODULE md
      LOGICAL :: annealing
      LOGICAL :: dump_lm 
      LOGICAL :: angvel_zero 
-     LOGICAL :: printout_if_shouldstop
      INTEGER :: nfree, nfree_rot_transl
      INTEGER :: info_constraint
      INTEGER :: lagrange_multipliers
@@ -353,8 +352,6 @@ CPSourceFileRef,&
        CALL section_vals_val_get(md_section,"TEMP_KIND",l_val=simpar%temperature_per_kind,error=error)
        CALL section_vals_val_get(md_section,"SCALE_TEMP_KIND",l_val=simpar%scale_temperature_per_kind,error=error)
 
-       CALL section_vals_val_get(md_section,"PRINTOUT_IF_SHOULDSTOP",&
-            l_val=simpar%printout_if_shouldstop,error=error)
        IF (simpar%ensemble == langevin_ensemble) THEN
           CALL section_vals_val_get(md_section, "GAMMA", r_val=simpar%gamma, error=error)
           CALL section_vals_val_get(md_section, "NOISY_GAMMA", r_val=simpar%noisy_gamma, &

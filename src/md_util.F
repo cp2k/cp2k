@@ -30,6 +30,7 @@ MODULE md_util
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
+  USE f77_blas
   USE force_env_methods,               ONLY: force_env_calc_energy_force,&
                                              force_env_rattle,&
                                              force_env_shake
@@ -55,7 +56,6 @@ MODULE md_util
   USE shell_potential_types,           ONLY: shell_kind_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -89,24 +89,32 @@ CONTAINS
 !!     03.2006 created [Joost VandeVondele]
 !!
 !!*** **********************************************************************
-  SUBROUTINE md_output(md_env,force_env_section,root_section,error)
+  SUBROUTINE md_output(md_env,force_env_section,root_section,forced_io,error)
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 root_section
+    LOGICAL, INTENT(IN)                      :: forced_io
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'md_output', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
+    LOGICAL                                  :: do_print
+    TYPE(section_vals_type), POINTER         :: print_section
 
     CALL timeset(routineN,handle)
-
-    CALL md_write_output ( md_env, error ) ! also writes trajectories
-
-    CALL write_restart(md_env=md_env,root_section=root_section,&
-         force_env_section=force_env_section,error=error)
-
+    do_print = .TRUE.
+    IF (forced_io) THEN
+       print_section => section_vals_get_subs_vals(root_section,"MOTION%MD%PRINT",error=error)
+       CALL section_vals_val_get(print_section,"FORCE_LAST",l_val=do_print,error=error)
+    END IF
+    IF (do_print) THEN
+       ! Dumps all files related to the MD run
+       CALL md_write_output (md_env, error)
+       CALL write_restart(md_env=md_env,root_section=root_section,&
+            force_env_section=force_env_section,error=error)
+    END IF
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE md_output
