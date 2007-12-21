@@ -5,7 +5,6 @@ uo2_shell_nve_r.inp             2
 uo2_shell_nvt.inp               2
 uo2_shell_nvt_res.inp           2
 uo2_shell_nvt_res_2.inp         2
-uo2_shell_nvt_wt.inp            2
 # Shell model NPT
 uo2_shell_npti_b.inp            2
 uo2_shell_npti.inp              2
