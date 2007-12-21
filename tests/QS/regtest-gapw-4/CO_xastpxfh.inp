@@ -76,7 +76,6 @@
       ATOMS_LIST    2
       ADDED_MOS     20
       &LOCALIZE
-        SET_OF_STATES NONE
       &END
       EMISSION
       &PRINT

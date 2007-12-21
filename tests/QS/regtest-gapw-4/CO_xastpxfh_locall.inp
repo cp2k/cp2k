@@ -77,7 +77,7 @@
       ADDED_MOS     20
       EMISSION
       &LOCALIZE
-        SET_OF_STATES ALL
+        RANGE 1  7
       &END
 
     &END

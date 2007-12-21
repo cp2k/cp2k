@@ -78,7 +78,6 @@
       ADDED_MOS     20
       EMISSION
       &LOCALIZE
-        SET_OF_STATES NONE
       &END
       &PRINT
          &PROGRAM_RUN_INFO

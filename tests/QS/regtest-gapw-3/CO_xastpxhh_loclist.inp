@@ -76,6 +76,7 @@
       ATOMS_LIST    2
       ADDED_MOS     20
       &LOCALIZE
+         LIST   1 2
       &END
       EMISSION
       RESTART

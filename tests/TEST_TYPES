@@ -1,4 +1,4 @@
-22
+23
 Total energy:!3
 POTENTIAL ENERGY!4
 Total energy \[eV\]:!4
@@ -21,6 +21,7 @@ CheckSum splines =!4
 epr|TOT:checksum!2
 VIB| !3
 PW exchange energy!5
+Total Spread!5
 #
 # these are the tests the can be selected for regtesting. 
 # do regtest will grep for test_grep (first column) and look if the numeric value
