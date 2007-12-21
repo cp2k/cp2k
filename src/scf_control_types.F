@@ -27,6 +27,7 @@ MODULE scf_control_types
 
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE f77_blas
   USE input_constants,                 ONLY: &
        atomic_guess, core_guess, general_roks, high_spin_roks, &
        outer_scf_becke, outer_scf_ddapc_constraint, outer_scf_none, &
@@ -41,7 +42,6 @@ MODULE scf_control_types
   USE input_section_types,             ONLY: section_get_keyword,&
                                              section_release,&
                                              section_type,&
-                                             section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -49,7 +49,6 @@ MODULE scf_control_types
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -401,7 +400,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER, DIMENSION(:), POINTER           :: added_mos
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: PARAMETER, r_vals
     TYPE(section_vals_type), POINTER         :: outer_scf_section, scf_section
 
@@ -521,13 +520,9 @@ CONTAINS
        END IF
 
        outer_scf_section => section_vals_get_subs_vals(scf_section,"OUTER_SCF",error=error)
-
-       CALL section_vals_get(outer_scf_section,explicit=explicit,error=error)
-
-       IF (explicit) THEN
-          CALL section_vals_val_get(outer_scf_section,"_SECTION_PARAMETERS_",&
-                                    l_val=scf_control%outer_scf%have_scf,&
-                                    error=error)
+       CALL section_vals_val_get(outer_scf_section,"_SECTION_PARAMETERS_",&
+            l_val=scf_control%outer_scf%have_scf,error=error)
+       IF (scf_control%outer_scf%have_scf) THEN
           CALL section_vals_val_get(outer_scf_section,"EPS_SCF",&
                                     r_val=scf_control%outer_scf%eps_scf,&
                                     error=error)
@@ -552,8 +547,6 @@ CONTAINS
           CALL section_vals_val_get(outer_scf_section,"EXTRAPOLATION_ORDER",&
                                     i_val=scf_control%outer_scf%extrapolation_order,&
                                     error=error)
-       ELSE
-          scf_control%outer_scf%have_scf = .FALSE.
        END IF
 
     END IF
