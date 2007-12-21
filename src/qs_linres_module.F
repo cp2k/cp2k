@@ -314,7 +314,8 @@ CONTAINS
        CALL section_vals_val_get(loc_section,"_SECTION_PARAMETERS_",&
             l_val=linres_control%localized_psi0,error=error)
        CALL localized_wfn_control_create(linres_control%localized_wfn_control,error=error)
-       CALL read_loc_section(linres_control%localized_wfn_control,loc_section,error=error)
+       CALL read_loc_section(linres_control%localized_wfn_control,loc_section,&
+           linres_control%localized_psi0, error=error)
        IF(linres_control%localized_psi0) THEN
          IF(output_unit>0) THEN
            WRITE (UNIT=output_unit,FMT="(/,T3,A,A)")&

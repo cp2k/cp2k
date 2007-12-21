@@ -99,6 +99,7 @@ MODULE md
      LOGICAL :: annealing
      LOGICAL :: dump_lm 
      LOGICAL :: angvel_zero 
+     LOGICAL :: printout_if_shouldstop
      INTEGER :: nfree, nfree_rot_transl
      INTEGER :: info_constraint
      INTEGER :: lagrange_multipliers
@@ -352,6 +353,8 @@ CPSourceFileRef,&
        CALL section_vals_val_get(md_section,"TEMP_KIND",l_val=simpar%temperature_per_kind,error=error)
        CALL section_vals_val_get(md_section,"SCALE_TEMP_KIND",l_val=simpar%scale_temperature_per_kind,error=error)
 
+       CALL section_vals_val_get(md_section,"PRINTOUT_IF_SHOULDSTOP",&
+            l_val=simpar%printout_if_shouldstop,error=error)
        IF (simpar%ensemble == langevin_ensemble) THEN
           CALL section_vals_val_get(md_section, "GAMMA", r_val=simpar%gamma, error=error)
           CALL section_vals_val_get(md_section, "NOISY_GAMMA", r_val=simpar%noisy_gamma, &

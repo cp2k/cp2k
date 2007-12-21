@@ -470,19 +470,6 @@ CONTAINS
          ENDDO
       END DO
 
-!      ALLOCATE ( qs_loc_env % op_fm_set( 2, 3 ), STAT = istat )
-!      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-!      DO i =   1, SIZE ( qs_loc_env % op_fm_set, 2 )
-!         DO j =   1, SIZE ( qs_loc_env % op_fm_set, 1 )
-!           NULLIFY(qs_loc_env % op_fm_set(j,i)%matrix)
-!           CALL cp_fm_create (qs_loc_env % op_fm_set(j,i)%matrix , tmp_fm_struct ,error=error)
-!           CALL cp_fm_get_info(qs_loc_env %op_fm_set(j,i)%matrix, nrow_global=nmosub, &
-!               error=error)
-!           CPPostcondition(nmo>=nmosub,cp_failure_level,routineP,error,failure)
-!           CALL cp_fm_set_all(qs_loc_env %op_fm_set(j,i)%matrix,0.0_dp,error=error)
-!         END DO
-!      END DO
-
     ELSEIF ( localized_wfn_control%operator_type== op_loc_pipek) THEN
       natoms = SIZE ( qs_loc_env % particle_set, 1 )
       ALLOCATE ( qs_loc_env % op_fm_set ( natoms , 1 ), STAT = istat )

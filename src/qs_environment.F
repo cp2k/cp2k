@@ -141,7 +141,9 @@ MODULE qs_environment
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_interactions,                 ONLY: init_interaction_radii,&
                                              init_se_nlradius
-  USE qs_loc_control,                  ONLY: localized_wfn_control_type,&
+  USE qs_loc_control,                  ONLY: localized_wfn_control_release,&
+                                             localized_wfn_control_retain,&
+                                             localized_wfn_control_type,&
                                              set_loc_centers,&
                                              set_loc_wfn_lists
   USE qs_mo_types,                     ONLY: allocate_mo_set,&
@@ -891,6 +893,7 @@ CONTAINS
     IF (dft_control%qs_control%localized_wfn) THEN
       NULLIFY (localized_wfn_control)
       localized_wfn_control =>  dft_control%qs_control%localized_wfn_control
+      CALL localized_wfn_control_retain(localized_wfn_control,error=error)
       nmoloc = 0
       IF(localized_wfn_control%set_of_states == state_loc_all) THEN
         DO ispin = 1,dft_control%nspins
@@ -902,7 +905,7 @@ CONTAINS
           nmoloc(ispin) = MIN(localized_wfn_control%nloc_states(1) ,n_mo(ispin))
         END DO
       END IF
-      NULLIFY (localized_wfn_control)
+      CALL localized_wfn_control_release(localized_wfn_control,error=error)
       CALL set_loc_wfn_lists(dft_control%qs_control%localized_wfn_control,&
            nmoloc,n_mo,dft_control%nspins,error=error)
       CALL set_loc_centers(dft_control%qs_control%localized_wfn_control,nmoloc,&

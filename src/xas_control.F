@@ -257,7 +257,8 @@ CONTAINS
     CALL section_vals_val_get(loc_section,"_SECTION_PARAMETERS_",&
             l_val=xas_control%localized_wfn,error=error)
     CALL localized_wfn_control_create(xas_control%localized_wfn_control,error=error)
-    CALL read_loc_section(xas_control%localized_wfn_control,loc_section,error=error)
+    CALL read_loc_section(xas_control%localized_wfn_control,loc_section,&
+         xas_control%localized_wfn,error=error)
 
   END SUBROUTINE read_xas_control
 !   ***************************************************************************
