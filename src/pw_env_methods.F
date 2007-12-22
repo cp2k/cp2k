@@ -46,6 +46,7 @@ MODULE pw_env_methods
   USE cube_utils,                      ONLY: destroy_cube_info,&
                                              init_cube_info,&
                                              return_cube_max_iradius
+  USE f77_blas
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gaussian_gridlevel,&
                                              init_gaussian_gridlevel
@@ -56,20 +57,14 @@ MODULE pw_env_methods
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_type
-  USE pw_grid_info,                    ONLY: pw_cutoff_from_n,&
-                                             pw_find_cutoff,&
-                                             pw_grid_bounds_from_n,&
-                                             pw_grid_find_n,&
-                                             pw_grid_n_for_fft,&
-                                             pw_grid_n_from_cutoff
+  USE pw_grid_info,                    ONLY: pw_find_cutoff
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
                                              pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_change,&
                                              pw_grid_create,&
                                              pw_grid_release,&
-                                             pw_grid_setup,&
-                                             pw_grid_setup1
+                                             pw_grid_setup
   USE pw_poisson_methods,              ONLY: pw_poisson_set
   USE pw_poisson_types,                ONLY: pw_poisson_create
   USE pw_pool_types,                   ONLY: pw_pool_create,&
@@ -86,7 +81,6 @@ MODULE pw_env_methods
                                              rs_grid_print
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -194,8 +188,9 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
       stat
     INTEGER, DIMENSION(:), POINTER           :: npgfa, npgfb, nshella, nshellb
     INTEGER, DIMENSION(:, :), POINTER        :: lshella, lshellb
-    LOGICAL                                  :: failure, should_output, &
-                                                uf_grid, use_ref_cell
+    LOGICAL                                  :: failure, odd, should_output, &
+                                                spherical, uf_grid, &
+                                                use_ref_cell
     REAL(KIND=dp)                            :: alpha, core_charge, cutilev, &
                                                 max_rpgf0_s, maxradius, &
                                                 my_cut, rel_cutoff, zet0_s, &
@@ -316,19 +311,20 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      !
      ! If Tuckerman is present let's perform the set-up of the super-reference-grid
      !
+     cutilev = cutoff(1)
      IF ( dft_control % qs_control % pw_grid_opt % spherical ) THEN
-        cutilev = cutoff(1)
         grid_span = HALFSPACE
+        spherical = .TRUE.
      ELSE IF ( dft_control % qs_control % pw_grid_opt % fullspace ) THEN
-        cutilev = -cutoff(1)
         grid_span = FULLSPACE
+        spherical = .FALSE.
      ELSE
-        cutilev = -cutoff(1)
         grid_span = HALFSPACE
+        spherical = .FALSE.
      END IF
 
      CALL setup_super_ref_grid(super_ref_grid,mt_super_ref_grid,&
-          xc_super_ref_grid, cutilev, grid_span, my_cell, para_env, &
+          xc_super_ref_grid, cutilev, grid_span, spherical, my_cell, para_env, &
           qs_env%input, ncommensurate, uf_grid=uf_grid,&
           print_section=print_section,error=error)
      old_pw_grid => super_ref_grid
@@ -342,39 +338,51 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      DO igrid_level=1,ngrid_level
         CALL pw_grid_create(pw_grid,para_env%group,error=error)
 
+        cutilev = cutoff(igrid_level)
         IF ( dft_control % qs_control % pw_grid_opt % spherical ) THEN
-           cutilev = cutoff(igrid_level)
-           pw_grid%grid_span = HALFSPACE
+           grid_span = HALFSPACE
+           spherical = .TRUE.
+           odd = .TRUE.
         ELSE IF ( dft_control % qs_control % pw_grid_opt % fullspace ) THEN
-           cutilev = -cutoff(igrid_level)
-           pw_grid%grid_span = FULLSPACE
+           grid_span = FULLSPACE
+           spherical = .FALSE.
+           odd = .FALSE.
         ELSE
-           cutilev = -cutoff(igrid_level)
-           pw_grid%grid_span = HALFSPACE
+           grid_span = HALFSPACE
+           spherical = .FALSE.
+           odd = .TRUE.
         END IF
-
 
         IF (igrid_level == 1) THEN
            IF (ASSOCIATED(old_pw_grid)) THEN
-              CALL pw_grid_setup(my_cell,pw_grid,cutilev,&
+              CALL pw_grid_setup(my_cell,pw_grid,grid_span=grid_span,&
+                   cutoff=cutilev,&
+                   spherical=spherical,odd=odd,fft_usage=.TRUE.,&
+                   ncommensurate=ncommensurate,icommensurate=igrid_level,&
+                   blocked=.FALSE.,&
                    ref_grid=old_pw_grid,&
-                   blocked=.FALSE.,ncommensurate=ncommensurate,&
-                   icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/),&
-                   iounit=iounit, error=error)
+                   rs_dims=(/para_env%num_pe,1/),&
+                   iounit=iounit,error=error)
               old_pw_grid => pw_grid
            ELSE
-              CALL pw_grid_setup(my_cell,pw_grid, cutilev,&
-                   blocked=.FALSE.,ncommensurate=ncommensurate,&
-                   icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/),&
-                   iounit=iounit, error=error)
+              CALL pw_grid_setup(my_cell,pw_grid,grid_span=grid_span,&
+                   cutoff=cutilev,&
+                   spherical=spherical,odd=odd,fft_usage=.TRUE.,&
+                   ncommensurate=ncommensurate,icommensurate=igrid_level,&
+                   blocked=.FALSE.,&
+                   rs_dims=(/para_env%num_pe,1/),&
+                   iounit=iounit,error=error)
               old_pw_grid => pw_grid
            END IF
         ELSE
-           CALL pw_grid_setup(my_cell,pw_grid, cutilev,&
-                blocked=.FALSE., &
-                ref_grid=old_pw_grid,ncommensurate=ncommensurate,&
-                icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/),&
-                iounit=iounit, error=error)
+           CALL pw_grid_setup(my_cell,pw_grid,grid_span=grid_span,&
+                cutoff=cutilev,&
+                spherical=spherical,odd=odd,fft_usage=.TRUE.,&
+                ncommensurate=ncommensurate,icommensurate=igrid_level,&
+                blocked=.FALSE.,&
+                ref_grid=old_pw_grid,&
+                rs_dims=(/para_env%num_pe,1/),&
+                iounit=iounit,error=error)
         END IF
 
       ! init pw_pools
@@ -423,9 +431,9 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
          DO igrid_level = 1, SIZE ( pw_pools )
            CALL pw_grid_change ( cell, pw_pools ( igrid_level ) % pool % pw_grid )
-           CALL pw_find_cutoff ( pw_pools ( igrid_level ) % pool % pw_grid % bounds,  &
-                                 cell%h_inv, my_cut ,error=error)
-           my_cutoff (igrid_level) = my_cut
+           my_cut = pw_find_cutoff ( pw_pools ( igrid_level ) % pool % pw_grid % npts,  &
+                                 cell%h_inv, error=error)
+           my_cutoff (igrid_level) = 0.5_dp * my_cut*my_cut
          ENDDO
          CALL destroy_gaussian_gridlevel (pw_env%gridlevel_info, error=error )
          print_section=>section_vals_get_subs_vals(qs_env%input, &
@@ -622,31 +630,29 @@ END SUBROUTINE pw_env_rebuild
   !!
   !!*** ***********************************************************************
   SUBROUTINE setup_super_ref_grid(super_ref_pw_grid,mt_super_ref_pw_grid,&
-       xc_super_ref_pw_grid, cutilev, grid_span,&
+       xc_super_ref_pw_grid, cutilev, grid_span, spherical,&
        cell_ref, para_env, input, my_ncommensurate, uf_grid,print_section, &
-       symm_usage, error)
+       error)
     TYPE(pw_grid_type), POINTER              :: super_ref_pw_grid, &
                                                 mt_super_ref_pw_grid, &
                                                 xc_super_ref_pw_grid
     REAL(KIND=dp), INTENT(IN)                :: cutilev
     INTEGER, INTENT(IN)                      :: grid_span
+    LOGICAL, INTENT(in)                      :: spherical
     TYPE(cell_type), POINTER                 :: cell_ref
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: input
     INTEGER, INTENT(IN)                      :: my_ncommensurate
     LOGICAL, INTENT(in)                      :: uf_grid
     TYPE(section_vals_type), POINTER         :: print_section
-    LOGICAL, INTENT(in), OPTIONAL            :: symm_usage
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_super_ref_grid', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iounit, my_val, n_new(3), &
-                                                n_orig(3)
-    LOGICAL                                  :: failure, mt_s_grid, symmetry
-    REAL(KIND=dp)                            :: mt_rel_cutoff, my_cutilev, &
-                                                xc_cut
+    INTEGER                                  :: iounit, my_val
+    LOGICAL                                  :: failure, mt_s_grid
+    REAL(KIND=dp)                            :: mt_rel_cutoff, my_cutilev
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: poisson_section
 
@@ -655,8 +661,6 @@ END SUBROUTINE pw_env_rebuild
     CPPrecondition(.NOT.ASSOCIATED(mt_super_ref_pw_grid),cp_failure_level,routineP,error,failure)
     CPPrecondition(.NOT.ASSOCIATED(xc_super_ref_pw_grid),cp_failure_level,routineP,error,failure)
     CPPrecondition(.NOT.ASSOCIATED(super_ref_pw_grid),cp_failure_level,routineP,error,failure)
-    symmetry=.FALSE.
-    IF (PRESENT(symm_usage)) symmetry=symm_usage
     IF (.NOT. failure) THEN
        poisson_section => section_vals_get_subs_vals(input,"DFT%POISSON",error=error)
        CALL section_vals_val_get(poisson_section,"POISSON_SOLVER",i_val=my_val,error=error)
@@ -670,24 +674,15 @@ END SUBROUTINE pw_env_rebuild
           IF (mt_rel_cutoff>1._dp) mt_s_grid=.TRUE.
        END IF
 
-       n_orig=pw_grid_find_n( cell=cell_ref, cutoff=ABS(cutilev),&
-            fft_usage=.TRUE., grid_span=grid_span,&
-            symm_usage=symm_usage, spherical=cutilev>0._dp,&
-            ncommensurate=my_ncommensurate, error=error)
-       my_cutilev=pw_cutoff_from_n(n_orig,cell_ref,error=error)
-
-
        logger => cp_error_get_logger(error)
        iounit = cp_print_key_unit_nr(logger,print_section,"",&
             extension=".Log",error=error)
 
        IF (uf_grid) THEN
           CALL pw_grid_create(xc_super_ref_pw_grid,para_env%group,error=error)
-          xc_super_ref_pw_grid%grid_span = grid_span
-          xc_cut=pw_cutoff_from_n(2*n_orig,cell_ref,error=error)
-          CALL pw_grid_setup1(cell_ref, xc_super_ref_pw_grid, &
-               bounds=pw_grid_bounds_from_n(2*n_orig,error=error),&
-               grid_span=grid_span, spherical_cutoff=SIGN(xc_cut,cutilev),&
+          CALL pw_grid_setup(cell_ref, xc_super_ref_pw_grid, grid_span=grid_span,&
+               cutoff=4._dp*cutilev,spherical=spherical,odd=.FALSE., fft_usage=.TRUE., &
+               ncommensurate=my_ncommensurate,icommensurate=1,&
                blocked=.FALSE., rs_dims=(/para_env%num_pe,1/),&
                iounit=iounit,error=error)
           super_ref_pw_grid => xc_super_ref_pw_grid
@@ -700,18 +695,12 @@ END SUBROUTINE pw_env_rebuild
                   "special grid for mt and fine xc grid not compatible",&
                   error=error)
           ELSE
-             my_cutilev=my_cutilev*mt_rel_cutoff
-             n_new= pw_grid_n_for_fft(&
-                  pw_grid_n_from_cutoff(cell_ref%hmat,my_cutilev,error=error),&
-                  odd=(grid_span==HALFSPACE .and.symmetry),error=error)
-             IF (ALL(n_new>n_orig)) THEN
-                CALL pw_grid_setup1(cell=cell_ref, pw_grid=mt_super_ref_pw_grid,&
-                     bounds=pw_grid_bounds_from_n(n_new,error=error), &
-                     grid_span=grid_span,&
-                     spherical_cutoff=SIGN(my_cutilev,cutilev),blocked=.FALSE.,&
-                     rs_dims=(/para_env%num_pe,1/), iounit=iounit, error=error )
-                super_ref_pw_grid => mt_super_ref_pw_grid
-             END IF
+             my_cutilev=cutilev*mt_rel_cutoff
+             CALL pw_grid_setup(cell_ref, mt_super_ref_pw_grid, &
+                  cutoff=my_cutilev,spherical=spherical,fft_usage=.TRUE., &
+                  blocked=.FALSE., rs_dims=(/para_env%num_pe,1/),&
+                  iounit=iounit,error=error)
+             super_ref_pw_grid => mt_super_ref_pw_grid
           END IF
        END IF
        CALL cp_print_key_finished_output(iounit,logger,print_section,&

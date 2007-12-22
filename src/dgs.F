@@ -25,6 +25,7 @@ MODULE dgs
                                              get_cell_param,&
                                              get_hinv
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE fft_tools,                       ONLY: BWFFT,&
                                              FFT_RADIX_CLOSEST,&
                                              FFT_RADIX_NEXT_ODD,&
@@ -44,7 +45,6 @@ MODULE dgs
   USE structure_factors,               ONLY: structure_factor_evaluate
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -103,6 +103,7 @@ SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, cutoff_radius, grid_s, grid_b, &
     INTEGER, INTENT(IN), OPTIONAL            :: iounit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
+    INTEGER, DIMENSION(2, 3)                 :: bo
     REAL(KIND=dp)                            :: cutoff, ecut
     TYPE(cell_type), POINTER                 :: box_s, unit_box
 
@@ -113,21 +114,22 @@ SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, cutoff_radius, grid_s, grid_b, &
   CALL dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s, grid_b, cutoff ,error=error)
 
   ecut = 0.5_dp * cutoff * cutoff
-
+  bo = grid_b % bounds
   IF ( PRESENT ( grid_ref ) ) THEN
-     CALL pw_grid_setup ( box_b, grid_b, cutoff = ecut, fft_usage = .TRUE., &
-          ref_grid = grid_ref, rs_dims=rs_dims, iounit=iounit, error=error )
+     CALL pw_grid_setup ( box_b, grid_b, bounds=bo, cutoff=ecut, spherical=.TRUE.,&
+          ref_grid = grid_ref, rs_dims=rs_dims, iounit=iounit, error=error)
   ELSE
-     CALL pw_grid_setup ( box_b, grid_b, cutoff = ecut, &
-          fft_usage = .TRUE., rs_dims=rs_dims , iounit=iounit, error=error )
+     CALL pw_grid_setup ( box_b, grid_b, bounds=bo, cutoff=ecut, spherical=.TRUE.,&
+          rs_dims=rs_dims, iounit=iounit, error=error)
   ENDIF
 
   CALL dg_find_basis ( grid_b % npts, box_b, unit_box )
 
   CALL dg_set_cell ( grid_s % npts, unit_box, box_s )
 
-  CALL pw_grid_setup ( box_s, grid_s, symm_usage=.FALSE. , &
-       iounit=iounit, error=error )
+  bo = grid_s % bounds
+  CALL pw_grid_setup ( box_s, grid_s, bounds=bo, cutoff=ecut, iounit=iounit, error=error)
+
   CALL cell_release(box_s,error=error)
   CALL cell_release(unit_box,error=error)
 END SUBROUTINE dg_pme_grid_setup
@@ -181,7 +183,7 @@ SUBROUTINE dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s,  &
   grid_s % grid_span = HALFSPACE
   grid_s % npts = nout
 
-  CALL pw_find_cutoff ( grid_b % npts, box_b, cutoff ,error=error)
+  cutoff = pw_find_cutoff ( grid_b % npts, box_b%h_inv, error=error)
 
 END SUBROUTINE  dg_find_cutoff
 !******************************************************************************

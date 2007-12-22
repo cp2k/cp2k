@@ -29,11 +29,11 @@ MODULE ewald_spline_util
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE pw_grid_info,                    ONLY: pw_find_cutoff
   USE pw_grid_types,                   ONLY: HALFSPACE,&
                                              pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_create,&
@@ -53,7 +53,6 @@ MODULE ewald_spline_util
                                              pw_zero
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -104,9 +103,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'Setup_Ewald_Spline', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iounit
+    INTEGER                                  :: bo(2,3), iounit
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: cutoff, ecut
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pw_type), POINTER                   :: pw
@@ -123,17 +121,13 @@ CONTAINS
 
        CALL cell_create(cell, hmat=hmat, periodic=(/1,1,1/), error=error)
        CALL pw_grid_create( pw_grid, para_env%group, local=.TRUE., error=error )
-       pw_grid % grid_span       =  HALFSPACE
-       pw_grid % bounds ( 1, 1:3 ) = 0
-       pw_grid % bounds ( 2, 1:3 ) = npts(1:3) - 1
-       CALL pw_find_cutoff ( npts, cell, cutoff ,error=error)
-       ecut = 0.5_dp * cutoff * cutoff
-       ! pw_grid initialized NOT DISTRIBUTED
        logger => cp_error_get_logger(error)
        iounit = cp_print_key_unit_nr(logger,print_section,"",&
             extension=".Log",error=error)
-       CALL pw_grid_setup(cell, pw_grid, cutoff = ecut, &
-            fft_usage = .TRUE.,iounit=iounit,error=error)
+       bo ( 1, 1:3 ) = 0
+       bo ( 2, 1:3 ) = npts(1:3) - 1
+       CALL pw_grid_setup (cell, pw_grid, grid_span=HALFSPACE, bounds=bo, iounit=iounit, error=error)
+
        CALL cp_print_key_finished_output(iounit,logger,print_section,&
            "",error=error)
        ! pw_pool initialized

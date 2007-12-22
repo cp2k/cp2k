@@ -39,6 +39,7 @@ MODULE kg_rspw_methods
   USE cube_utils,                      ONLY: destroy_cube_info,&
                                              init_cube_info,&
                                              return_cube_max_iradius
+  USE f77_blas
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gaussian_gridlevel,&
                                              init_gaussian_gridlevel
@@ -68,7 +69,6 @@ MODULE kg_rspw_methods
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -140,12 +140,13 @@ END SUBROUTINE kg_rspw_create
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: safety_factor = 1.2
 
-    INTEGER :: handle, i, igrid_level, ikind, iounit, ipgf, iset, ishell, la, &
-      lgrid_level, ncommensurate, ngrid_level, nkind, nseta, nsmax, stat
+    INTEGER :: grid_span, handle, i, igrid_level, ikind, iounit, ipgf, iset, &
+      ishell, la, lgrid_level, ncommensurate, ngrid_level, nkind, nseta, &
+      nsmax, stat
     INTEGER, DIMENSION(:), POINTER           :: npgfa, nshella
     INTEGER, DIMENSION(:, :), POINTER        :: lshella
-    LOGICAL                                  :: failure, should_output, &
-                                                use_ref_cell
+    LOGICAL                                  :: failure, odd, should_output, &
+                                                spherical, use_ref_cell
     REAL(dp)                                 :: alpha, cutilev, maxradius, &
                                                 my_cut, rel_cutoff, zetp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: radius
@@ -256,36 +257,51 @@ END SUBROUTINE kg_rspw_create
      DO igrid_level=1,ngrid_level
         CALL pw_grid_create(pw_grid,para_env%group,error=error)
 
+        cutilev = cutoff(igrid_level)
         IF ( dft_control % qs_control % pw_grid_opt % spherical ) THEN
-           cutilev = cutoff(igrid_level)
-           pw_grid%grid_span = HALFSPACE
+           grid_span = HALFSPACE
+           spherical = .TRUE.
+           odd = .TRUE.
         ELSE IF ( dft_control % qs_control % pw_grid_opt % fullspace ) THEN
-           cutilev = -cutoff(igrid_level)
-           pw_grid%grid_span = FULLSPACE
+           grid_span = FULLSPACE
+           spherical = .FALSE.
+           odd = .FALSE.
         ELSE
-           cutilev = -cutoff(igrid_level)
-           pw_grid%grid_span = HALFSPACE
+           grid_span = HALFSPACE
+           spherical = .FALSE.
+           odd = .TRUE.
         END IF
 
         IF (igrid_level == 1) THEN
            IF (ASSOCIATED(old_pw_grid)) THEN
-             CALL pw_grid_setup(my_cell,pw_grid, cutilev,&
-                  ref_grid=old_pw_grid, &
-                  blocked=.FALSE., ncommensurate=ncommensurate, &
-                  icommensurate=igrid_level,rs_dims=(/para_env%num_pe,1/),&
-                  iounit=iounit,error=error)
+              CALL pw_grid_setup(my_cell,pw_grid,grid_span=grid_span,&
+                   cutoff=cutilev,&
+                   spherical=spherical,odd=odd,fft_usage=.TRUE.,&
+                   ncommensurate=ncommensurate,icommensurate=igrid_level,&
+                   blocked=.FALSE.,&
+                   ref_grid=old_pw_grid,&
+                   rs_dims=(/para_env%num_pe,1/),&
+                   iounit=iounit,error=error)
               old_pw_grid => pw_grid
            ELSE
-              CALL pw_grid_setup(my_cell,pw_grid, cutilev,&
-                   blocked=.FALSE.,ncommensurate=ncommensurate,&
-                   icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/),&
-                  iounit=iounit,error=error)
+              CALL pw_grid_setup(my_cell,pw_grid,grid_span=grid_span,&
+                   cutoff=cutilev,&
+                   spherical=spherical,odd=odd,fft_usage=.TRUE.,&
+                   ncommensurate=ncommensurate,icommensurate=igrid_level,&
+                   blocked=.FALSE.,&
+                   ref_grid=old_pw_grid,&
+                   rs_dims=(/para_env%num_pe,1/),&
+                   iounit=iounit,error=error)
               old_pw_grid => pw_grid
            END IF
         ELSE
-           CALL pw_grid_setup(my_cell,pw_grid, cutilev,&
-                blocked=.FALSE.,ref_grid=old_pw_grid,ncommensurate=ncommensurate,&
-                icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/),&
+           CALL pw_grid_setup(my_cell,pw_grid,grid_span=grid_span,&
+                cutoff=cutilev,&
+                spherical=spherical,odd=odd,fft_usage=.TRUE.,&
+                ncommensurate=ncommensurate,icommensurate=igrid_level,&
+                blocked=.FALSE.,&
+                ref_grid=old_pw_grid,&
+                rs_dims=(/para_env%num_pe,1/),&
                 iounit=iounit,error=error)
         ENDIF
 
@@ -326,9 +342,9 @@ END SUBROUTINE kg_rspw_create
            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
            DO igrid_level = 1, SIZE ( pw_pools )
              CALL pw_grid_change ( cell, pw_pools ( igrid_level ) % pool % pw_grid )
-             CALL pw_find_cutoff ( pw_pools ( igrid_level ) % pool % pw_grid % bounds,  &
-                                   cell%h_inv, my_cut ,error=error)
-             my_cutoff (igrid_level) = my_cut
+             my_cut = pw_find_cutoff ( pw_pools ( igrid_level ) % pool % pw_grid % npts,  &
+                                   cell%h_inv, error=error)
+             my_cutoff (igrid_level) = 0.5_dp * my_cut * my_cut
            ENDDO
            CALL destroy_gaussian_gridlevel (kg_rspw%gridlevel_info, error=error )
            print_section=>section_vals_get_subs_vals(kg_env%input, &

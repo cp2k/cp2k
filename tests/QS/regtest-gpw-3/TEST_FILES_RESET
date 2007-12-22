@@ -296,3 +296,7 @@ rsgrid-dist-2.inp
 rsgrid-dist-1.inp
 #
 rsgrid-dist-1.inp 
+# change in definition for MT cutoff
+OH-H2O-bsse.inp
+H2O-ref-1.inp
+H2O-ref-2.inp

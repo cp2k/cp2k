@@ -284,3 +284,5 @@ spin_restraint.inp
 C2H4-meta.inp
 H2O-meta_g.inp
 H2O-meta_hydro.inp
+# change in definition for MT cutoff
+NO2-EFG-1.inp

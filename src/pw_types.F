@@ -149,17 +149,17 @@ SUBROUTINE pw_zero ( pw )
   CALL timeset ( 'pw_zero', 'I', 'Mzero', handle )
   CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_zero")
   IF ( pw % in_use == REALDATA1D ) THEN
-     ns = SIZE ( pw % cr  )
-     CALL DCOPY(ns,0.0_dp,0,pw%cr,1)
+     ns = SIZE(pw%cr)
+     pw%cr(:) = 0._dp
   ELSE IF ( pw % in_use == COMPLEXDATA1D ) THEN
-     ns = 2 * SIZE ( pw % cc  )
-     CALL DCOPY(ns,0.0_dp,0,pw%cc,1)
+     ns = SIZE(pw%cc)
+     pw%cc(:) = CMPLX(0._dp,0._dp,KIND=dp)
   ELSE IF ( pw % in_use == REALDATA3D ) THEN
-     ns = SIZE ( pw % cr3d  )
-     CALL DCOPY(ns,0.0_dp,0,pw%cr3d,1)
+     ns = SIZE(pw%cr3d)
+     pw%cr3d(:,:,:) = 0._dp
   ELSE IF ( pw % in_use == COMPLEXDATA3D ) THEN
-     ns = 2 * SIZE ( pw % cc3d  )
-     CALL DCOPY(ns,0.0_dp,0,pw%cc3d,1) 
+     ns = SIZE(pw%cc3d)
+     pw%cc3d(:,:,:) = CMPLX(0._dp,0._dp,KIND=dp)
   ELSE
      CALL stop_program ( "pw_zero", "no possible data field" )
   END IF
@@ -341,12 +341,10 @@ SUBROUTINE pw_copy ( pw1, pw2 )
           pw2 % cc(i) = pw1 % cc(i)
        END DO
     ELSE IF ( pw1 % in_use == REALDATA3D .AND. pw2 % in_use == REALDATA3D ) THEN
-       ns = SIZE ( pw1 % cr3d )
-       CALL DCOPY(ns, pw1 % cr3d, 1, pw2 % cr3d, 1)
+       pw2 % cr3d(:,:,:) = pw1 % cr3d(:,:,:)
     ELSE IF ( pw1 % in_use == COMPLEXDATA3D .AND. &
          pw2 % in_use == COMPLEXDATA3D ) THEN
-       ns = 2 * SIZE ( pw1 % cc3d )
-       CALL DCOPY(ns, pw1 % cc3d, 1, pw2 % cc3d, 1)
+       pw2 % cc3d(:,:,:) = pw1 % cc3d(:,:,:)
     ELSE
        CALL stop_program ( "pw_copy", "no suitable data field" )
     END IF
@@ -390,17 +388,13 @@ SUBROUTINE pw_scale( pw, a )
 
     SELECT CASE ( pw % in_use )
     CASE ( REALDATA1D )
-       ns = SIZE ( pw % cr  )
-       CALL DSCAL(ns,a,pw%cr,1)
+       pw%cr(:) = a*pw%cr(:)
     CASE ( COMPLEXDATA1D )
-       ns = 2 * SIZE ( pw % cc  )
-       CALL DSCAL(ns,a,pw%cc,1)
+       pw%cc(:) = a*pw%cc(:)
     CASE ( REALDATA3D)
-       ns = SIZE ( pw % cr3d  )
-       CALL DSCAL(ns,a,pw%cr3d,1)
+       pw%cr3d(:,:,:) = a*pw%cr3d(:,:,:)
     CASE (COMPLEXDATA3D )
-       ns = 2 * SIZE ( pw % cc3d  )
-       CALL DSCAL(ns,a,pw%cc3d,1)
+       pw%cc3d(:,:,:) = a*pw%cc3d(:,:,:)
     CASE DEFAULT  
        CALL stop_program ( "pw_scale", "no suitable data field" )
     END SELECT

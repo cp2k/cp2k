@@ -144,16 +144,12 @@ CONTAINS
        IF ( refpt ( 3, i ) > np(3) ) refpt ( 3, i ) = refpt ( 3, i ) - np ( 3 )
     END DO
 
-    CALL pw_grid_create ( grid, para_env%group ,error=error)
-    grid % grid_span = FULLSPACE
-    grid % bounds ( 1, : ) = -np / 2
-    grid % bounds ( 2, : ) = ( np - 1 ) / 2
-
     iounit = -1
     IF ( para_env%ionode ) iounit = iw
 
-    CALL pw_grid_setup ( box, grid, rs_dims=(/para_env%num_pe,1/), &
-         iounit=iounit, error=error)
+    CALL pw_grid_create ( grid, para_env%group ,error=error)
+    CALL pw_grid_setup ( box, grid, grid_span=FULLSPACE, npts=no,&
+         rs_dims=(/para_env%num_pe,1/), iounit=iounit, error=error)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! TEST 1, replicated calculation

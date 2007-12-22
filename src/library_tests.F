@@ -75,22 +75,15 @@ MODULE library_tests
                                              next_random_number,&
                                              rng_stream_type,&
                                              write_rng_stream
-  USE pw_grid_info,                    ONLY: pw_find_cutoff
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
                                              pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_create,&
                                              pw_grid_release,&
                                              pw_grid_setup
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             COMPLEXDATA3D,&
-                                             REALDATA3D,&
-                                             RECIPROCALSPACE,&
-                                             pw_create,&
-                                             pw_release,&
-                                             pw_transfer,&
-                                             pw_p_type,&
-                                             pw_zero
+  USE pw_types,                        ONLY: &
+       COMPLEXDATA1D, COMPLEXDATA3D, REALDATA3D, RECIPROCALSPACE, pw_create, &
+       pw_p_type, pw_release, pw_transfer, pw_zero
   USE real_space_test,                 ONLY: rs_test
   USE termination,                     ONLY: stop_memory
 #include "cp_common_uses.h"
@@ -738,11 +731,11 @@ SUBROUTINE pw_fft_test ( para_env, iw, globenv, error )
 
     INTEGER                                  :: ig, ip, nn, ntim
     INTEGER, DIMENSION(3)                    :: no, np
-    REAL(KIND=dp)                            :: cutoff, em, et, flops, gsq, &
-                                                perf, r, t, tend, tim, tstart
+    REAL(KIND=dp)                            :: em, et, flops, gsq, perf, r, &
+                                                t, tend, tim, tstart
     TYPE(cell_type), POINTER                 :: box
-    TYPE(pw_p_type)                          :: ca, cb, cc
     TYPE(pw_grid_type), POINTER              :: grid
+    TYPE(pw_p_type)                          :: ca, cb, cc
 
 !..the unit cell
 
@@ -753,7 +746,8 @@ SUBROUTINE pw_fft_test ( para_env, iw, globenv, error )
   CALL get_hinv ( box )
 
 !..set fft lib
-  CALL init_fft ( globenv%default_fft_library, alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", para_env=para_env )
+  CALL init_fft ( globenv%default_fft_library, alltoall=.FALSE., fftsg_sizes=.TRUE., &
+                  wisdom_file="", para_env=para_env )
 
   ntim = 4
   tim = 1.0_dp
@@ -765,12 +759,8 @@ SUBROUTINE pw_fft_test ( para_env, iw, globenv, error )
 
 !..Test 1
   CALL pw_grid_create ( grid, para_env%group ,error=error)
-  grid % grid_span = FULLSPACE
-  grid % bounds ( 1, : ) = -np / 2
-  grid % bounds ( 2, : ) = ( np - 1 ) / 2
-
-  CALL pw_grid_setup ( box, grid, &
-                       rs_dims=(/para_env%num_pe,1/) , iounit=iw, error=error)
+  CALL pw_grid_setup ( box, grid, grid_span=FULLSPACE, npts=np, fft_usage=.TRUE.,&
+       rs_dims=(/para_env%num_pe,1/), iounit=iw, error=error)
   no = grid % npts
 
   CALL pw_create ( ca%pw, grid, COMPLEXDATA1D ,error=error)
@@ -828,12 +818,9 @@ SUBROUTINE pw_fft_test ( para_env, iw, globenv, error )
 
 !..Test 2
   CALL pw_grid_create ( grid, para_env%group ,error=error)
-  grid % grid_span = HALFSPACE
-  grid % bounds ( 1, : ) = -np / 2
-  grid % bounds ( 2, : ) = ( np - 1 ) / 2
+  CALL pw_grid_setup ( box, grid, grid_span=HALFSPACE, npts=np,odd=.TRUE.,fft_usage=.TRUE.,&
+       rs_dims=(/para_env%num_pe,1/), iounit=iw, error=error)
 
-  CALL pw_grid_setup ( box, grid, &
-                       rs_dims=(/para_env%num_pe,1/) , iounit=iw, error=error)
   no = grid % npts
 
   CALL pw_create ( ca%pw, grid, COMPLEXDATA1D ,error=error)
@@ -890,15 +877,9 @@ SUBROUTINE pw_fft_test ( para_env, iw, globenv, error )
   END IF
 
 !..Test 3
-  CALL pw_grid_create ( grid, para_env%group ,error=error)
-  grid % grid_span = FULLSPACE
-
-  CALL pw_find_cutoff ( np, box, cutoff ,error=error)
-  cutoff = 0.5_dp * cutoff * cutoff
- ! CALL pw_find_cutoff ( grid % bounds, box % h_inv, cutoff )
-
-  CALL pw_grid_setup ( box, grid, cutoff = cutoff, &
-                       rs_dims=(/para_env%num_pe,1/) , iounit=iw, error=error)
+  CALL pw_grid_create ( grid, para_env%group, error=error)
+  CALL pw_grid_setup ( box, grid, grid_span=FULLSPACE, npts=np,spherical=.TRUE.,fft_usage=.TRUE.,&
+       rs_dims=(/para_env%num_pe,1/), iounit=iw, error=error)
   no = grid % npts
 
   CALL pw_create ( ca%pw, grid, COMPLEXDATA1D ,error=error)
@@ -956,13 +937,8 @@ SUBROUTINE pw_fft_test ( para_env, iw, globenv, error )
 
 !..Test 4
   CALL pw_grid_create ( grid , para_env%group ,error=error)
-  grid % grid_span = HALFSPACE
-  CALL pw_find_cutoff ( np, box, cutoff ,error=error)
-  cutoff = cutoff * cutoff
-!  CALL pw_find_cutoff ( grid%bounds, box%h_inv, cutoff )
-
-  CALL pw_grid_setup ( box, grid, &
-                       rs_dims=(/para_env%num_pe,1/) , iounit=iw, error=error)
+  CALL pw_grid_setup ( box, grid, grid_span=HALFSPACE, npts=np, spherical=.TRUE.,odd=.TRUE.,fft_usage=.TRUE.,&
+       rs_dims=(/para_env%num_pe,1/), iounit=iw, error=error)
   no = grid % npts
 
   CALL pw_create ( ca%pw, grid, COMPLEXDATA1D ,error=error)

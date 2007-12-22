@@ -10,3 +10,8 @@ CO_xastpfh.inp
 CO.inp
 CO_xastphh.inp
 CO_xastpfh.inp
+# change in definition for MT cutoff
+CO.inp
+CO_xastphh.inp.
+CO_xastphh_r.inp
+CO_xastpfh.inp

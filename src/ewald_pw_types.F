@@ -36,6 +36,7 @@ MODULE ewald_pw_types
   USE dgs,                             ONLY: dg_pme_grid_setup
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
+  USE f77_blas
   USE input_constants,                 ONLY: do_ewald_ewald,&
                                              do_ewald_none,&
                                              do_ewald_pme,&
@@ -45,7 +46,6 @@ MODULE ewald_pw_types
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: MPI_COMM_SELF
-  USE pw_grid_info,                    ONLY: pw_find_cutoff
   USE pw_grid_types,                   ONLY: HALFSPACE,&
                                              pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_create,&
@@ -67,7 +67,6 @@ MODULE ewald_pw_types
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -231,12 +230,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: ewald_type, gmax(3), handle, npts_s( 3 ), ns_max, nsmax, &
-      o_spline, output_unit, rs_distributed_id, stat
+    INTEGER :: bo(2,3), ewald_type, gmax(3), handle, npts_s( 3 ), ns_max, &
+      nsmax, o_spline, output_unit, rs_distributed_id, stat
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: alpha, alphasq, cutoff, &
-                                                cutoff_radius, ecut, epsilon, &
-                                                i, norm
+    REAL(KIND=dp)                            :: alpha, alphasq, &
+                                                cutoff_radius, epsilon, i, &
+                                                norm
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_rs_pool_type), POINTER           :: rs_pool
@@ -277,16 +276,10 @@ CONTAINS
           IF ( ANY(gmax == 2 * ( gmax / 2 )) ) THEN
              CALL stop_program ( "initialize_ewalds", "gmax has to be odd" )
           END IF
-          pw_big_grid % bounds ( 1, : ) = -gmax / 2
-          pw_big_grid % bounds ( 2, : ) = +gmax / 2
-          npts_s = gmax
-          pw_big_grid % grid_span = HALFSPACE
-          
-          CALL pw_find_cutoff ( npts_s, cell_ref, cutoff ,error=error)
-          ecut = 0.5_dp * cutoff * cutoff
-          
-          CALL pw_grid_setup ( cell_ref, pw_big_grid, cutoff = ecut, &
-               fft_usage = .FALSE. ,iounit=output_unit, error=error)
+          bo ( 1, : ) = -gmax / 2
+          bo ( 2, : ) = +gmax / 2
+          CALL pw_grid_setup ( cell_ref, pw_big_grid, grid_span=HALFSPACE, bounds=bo, spherical=.TRUE., &
+                                iounit=output_unit, error=error)
           NULLIFY ( pw_pool )
           CALL pw_pool_create ( pw_pool, pw_grid = pw_big_grid ,error=error)
           ewald_pw % pw_big_pool => pw_pool
@@ -369,14 +362,8 @@ CONTAINS
           END IF
           CALL pw_grid_create( pw_big_grid, para_env%group ,error=error)
           npts_s = gmax
-          pw_big_grid % grid_span = HALFSPACE
-          pw_big_grid % bounds ( 1, : ) = -gmax/2
-          pw_big_grid % bounds ( 2, : ) = -gmax/2 + gmax - 1
-          
-          CALL pw_find_cutoff ( npts_s, cell_ref, cutoff ,error=error)
-          ecut = 0.5_dp * cutoff * cutoff
-          CALL pw_grid_setup( cell_ref, pw_big_grid, cutoff = ecut, &
-               fft_usage = .TRUE., rs_dims=(/para_env%num_pe,1/),iounit=output_unit,error=error)
+          CALL pw_grid_setup ( cell_ref, pw_big_grid, grid_span=HALFSPACE, npts=npts_s, spherical=.TRUE.,&
+               rs_dims=(/para_env%num_pe,1/), iounit=output_unit, error=error)
           
           ! pw pools initialized
           NULLIFY ( pw_pool )

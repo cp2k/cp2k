@@ -19,6 +19,7 @@
 !!     JGH (07-02-2001) : Added constructor and destructor routines
 !!     JGH (21-02-2003) : Generalized reference grid concept
 !!     JGH (19-11-2007) : Refactoring and modularization
+!!     JGH (21-12-2007) : pw_grid_setup refactoring
 !!
 !!   NOTES
 !!     pw_grid_create : set the defaults
@@ -38,13 +39,12 @@
 !!
 !!     pw_grid_change : updates g-vectors after a change of the box
 !!
-!!     pw_find_cutoff : Calculates the cutoff for given box and points
-!!
 !!   SOURCE
 !******************************************************************************
 
 MODULE pw_grids
   USE cell_types,                      ONLY: cell_type
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
   USE mathlib,                         ONLY: matvec_3x3
@@ -52,10 +52,9 @@ MODULE pw_grids
        MPI_COMM_SELF, mp_cart_coords, mp_cart_create, mp_cart_rank, &
        mp_comm_compare, mp_comm_dup, mp_comm_free, mp_dims_create, &
        mp_environ, mp_max, mp_min, mp_sum
-  USE pw_grid_info,                    ONLY: pw_cutoff_from_n,&
+  USE pw_grid_info,                    ONLY: pw_find_cutoff,&
                                              pw_grid_bounds_from_n,&
-                                             pw_grid_find_n,&
-                                             pw_grid_n_for_fft
+                                             pw_grid_init_setup
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
                                              PW_MODE_DISTRIBUTED,&
@@ -67,7 +66,6 @@ MODULE pw_grids
                                              timestop
   USE util,                            ONLY: get_limit,&
                                              sort
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -75,7 +73,7 @@ MODULE pw_grids
   PRIVATE
   PUBLIC :: pw_grid_create, pw_grid_retain, pw_grid_release
   PUBLIC :: get_pw_grid_info, set_pw_grid_info, pw_grid_compare
-  PUBLIC :: pw_grid_setup, pw_grid_setup1
+  PUBLIC :: pw_grid_setup
   PUBLIC :: pw_grid_change, create_gvectors
 
   INTEGER :: grid_tag = 0
@@ -286,10 +284,17 @@ END FUNCTION pw_grid_compare
 !!
 !!*** *************************************************************************
 
- SUBROUTINE set_pw_grid_info(pw_grid, &
+ SUBROUTINE set_pw_grid_info(pw_grid, grid_span, npts, bounds, cutoff, spherical,&
                              error)
 
     TYPE(pw_grid_type), POINTER              :: pw_grid
+    INTEGER, INTENT(in), OPTIONAL            :: grid_span
+    INTEGER, DIMENSION(3), INTENT(IN), &
+      OPTIONAL                               :: npts
+    INTEGER, DIMENSION(2, 3), INTENT(IN), &
+      OPTIONAL                               :: bounds
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: cutoff
+    LOGICAL, INTENT(IN), OPTIONAL            :: spherical
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_pw_grid_info', &
@@ -303,158 +308,176 @@ END FUNCTION pw_grid_compare
     CPPrecondition(pw_grid%ref_count>0,cp_failure_level,routineP,error,failure)
 
     IF ( .NOT. failure ) THEN
+      IF ( PRESENT(grid_span) ) THEN
+        pw_grid%grid_span = grid_span
+      END IF
+      IF ( PRESENT(bounds) .AND. PRESENT(npts) ) THEN
+        pw_grid%bounds = bounds
+        pw_grid%npts = npts
+        CPPostcondition(ALL(npts==bounds(2,:)-bounds(1,:)+1),cp_failure_level,routineP,error,failure)
+      ELSE IF ( PRESENT(bounds) ) THEN
+        pw_grid%bounds = bounds
+        pw_grid%npts = bounds(2,:)-bounds(1,:)+1
+      ELSE IF ( PRESENT(npts) ) THEN
+        pw_grid%npts = npts
+        pw_grid%bounds = pw_grid_bounds_from_n(npts,error)
+      END IF
+      IF ( PRESENT(cutoff) ) THEN
+        pw_grid%cutoff = cutoff
+        IF( PRESENT(spherical) ) THEN
+           pw_grid%spherical = spherical
+        ELSE
+           pw_grid%spherical = .FALSE.
+        END IF
+      END IF
     END IF
 
   END SUBROUTINE set_pw_grid_info
-
 !******************************************************************************
 
-!!****** pw_grids/pw_grid_setup [1.1] *
+!!****f* pw_grids/pw_grid_setup *
 !!
 !!   NAME
 !!     pw_grid_setup
 !!
 !!   FUNCTION
-!!     Defines the PW grid
+!!     sets up a pw_grid
+!!
+!!   NOTES
+!!     this is the function that should be used in the future
+!!
+!!   ARGUMENTS
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
-!!     apsi
-!!     Christopher Mundy
+!!     JGH (21-Dec-2007)
 !!
 !!   MODIFICATION HISTORY
-!!     JGH (20-Dec-2000) : Adapted for parallel use
-!!     JGH (28-Feb-2001) : New optional argument fft_usage
-!!     JGH (21-Mar-2001) : Reference grid code
-!!     JGH (21-Mar-2001) : New optional argument symm_usage
-!!     JGH (22-Mar-2001) : Simplify group assignment (mp_comm_dup)
-!!     JGH (21-May-2002) : Remove orthorhombic keyword (code is fast enough)
-!!     JGH (19-Feb-2003) : Negative cutoff can be used for non-spheric grids
-!!     Joost VandeVondele (Feb-2004) : optionally generate pw grids that are commensurate in rs
 !!
-!!*** *************************************************************************
-SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, fft_usage, &
-                           symm_usage, blocked, ref_grid, ncommensurate,&
-                           icommensurate, rs_dims, iounit, error)
-
+!!*** **********************************************************************
+SUBROUTINE pw_grid_setup ( cell, pw_grid, grid_span, cutoff, bounds, npts, &
+           spherical, odd, fft_usage, &
+           ncommensurate, icommensurate, blocked, ref_grid, rs_dims, iounit, error )
 
     TYPE(cell_type), INTENT(IN)              :: cell
     TYPE(pw_grid_type), POINTER              :: pw_grid
+    INTEGER, INTENT(in), OPTIONAL            :: grid_span
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: cutoff
-    LOGICAL, INTENT(IN), OPTIONAL            :: fft_usage, symm_usage, blocked
+    INTEGER, DIMENSION(2, 3), INTENT(IN), &
+      OPTIONAL                               :: bounds
+    INTEGER, DIMENSION(3), INTENT(IN), &
+      OPTIONAL                               :: npts
+    LOGICAL, INTENT(in), OPTIONAL            :: spherical, odd, fft_usage
+    INTEGER, INTENT(in), OPTIONAL            :: ncommensurate, icommensurate
+    LOGICAL, INTENT(in), OPTIONAL            :: blocked
     TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: ref_grid
-    INTEGER, INTENT(IN), OPTIONAL            :: ncommensurate, icommensurate
     INTEGER, DIMENSION(2), INTENT(in), &
       OPTIONAL                               :: rs_dims
-    INTEGER, INTENT(IN), OPTIONAL            :: iounit
+    INTEGER, INTENT(in), OPTIONAL            :: iounit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_setup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, my_bounds(2,3), &
-                                                my_icommensurate, &
-                                                my_ncommensurate, my_span, &
-                                                n(3)
-    LOGICAL                                  :: failure, fft, symmetry
-    REAL(KIND=dp)                            :: spherical_cutoff
+    INTEGER                                  :: handle, my_icommensurate, &
+                                                my_ncommensurate
+    INTEGER, DIMENSION(3)                    :: n
+    LOGICAL                                  :: my_fft_usage, my_odd, &
+                                                my_spherical
+    REAL(KIND=dp)                            :: my_cutoff
 
-! cutoff could be inout, and set to the effective cutoff of the given grid
-! in atomic units
-! parent group for this grid
-! output unit for information on grid
-! has the grid size to be
-! compatible with the FFT
-! has the grid size to be
-! symmetric (g <-> -g)
-! block or ray-distribution
-!------------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
-  CALL timeset("pw_grid_setup","I","",handle)
+    CALL timeset("pw_grid_setup","I","",handle)
 
-  ! default is to use only fft compatible grids
-  IF ( PRESENT ( fft_usage ) ) THEN
-    fft = fft_usage
-  ELSE
-    fft = .TRUE.
-  END IF
+    IF ( PRESENT(grid_span) ) THEN
+      CALL set_pw_grid_info ( pw_grid, grid_span=grid_span, error=error)
+    END IF
 
-  ! default is to use only symmetric grids
-  IF ( PRESENT ( symm_usage ) ) THEN
-    symmetry = symm_usage
-  ELSE
-    symmetry = .TRUE.
-  END IF
-  my_ncommensurate=0
-  IF (PRESENT(ncommensurate)) my_ncommensurate=ncommensurate
-  IF (my_ncommensurate>0) THEN
-     CPPrecondition(PRESENT(icommensurate),cp_failure_level,routineP,error,failure)
-     my_icommensurate=icommensurate
-     CPPrecondition(icommensurate>0,cp_failure_level,routineP,error,failure)
-     CPPrecondition(icommensurate<=my_ncommensurate,cp_failure_level,routineP,error,failure)
-  ELSE
-     my_icommensurate=0
-  END IF
-  spherical_cutoff=0._dp
+    IF ( PRESENT(spherical) ) THEN
+      my_spherical = spherical
+    ELSE
+      my_spherical = .FALSE.
+    END IF
 
-  my_span=pw_grid%grid_span ! *** UGLY! should be an argument ***
-  n=0
-  IF (ANY(pw_grid%bounds(:,:)/=0)) THEN
-     n=pw_grid%bounds(2,:)-pw_grid%bounds(1,:)+1 ! *** UGLY! should be an argument ***
-  END IF
-  IF (PRESENT(cutoff)) THEN
-     spherical_cutoff=cutoff
-     IF (PRODUCT(n)<=0) THEN
-        n=pw_grid_find_n(cell,cutoff=ABS(cutoff),fft_usage=fft_usage,&
-             symm_usage=symmetry, grid_span=my_span,ncommensurate=my_ncommensurate, &
-             spherical=spherical_cutoff>0._dp, error=error)
-     END IF
-     IF (my_icommensurate>1) THEN
-        n=ref_grid%npts/2**(my_icommensurate-1)
-        CPPostcondition(ALL(ref_grid%npts==n*2**(my_icommensurate-1)),cp_failure_level,routineP,error,failure)
-        CALL cp_assert(.NOT.fft .OR. ALL(pw_grid_n_for_fft(n,error=error)==n),&
-             cp_failure_level,cp_assertion_failed,routineP,&
-             "could not build commensurate grids, probably for this fft library"//&
-             "  it is not true that if n is allowed 2*n is also allowed"//&
-CPSourceFileRef,&
-             error=error,failure=failure)
-     END IF
-     my_bounds=pw_grid_bounds_from_n(n,error=error)
-  ELSE
-     my_bounds=pw_grid%bounds ! *** UGLY! should be an argument ***
-     n=my_bounds(2,:)-my_bounds(1,:)+1
+    IF ( PRESENT(odd) ) THEN
+      my_odd = odd
+    ELSE
+      my_odd = .FALSE.
+    END IF
 
-     IF (fft) THEN
-        n=pw_grid_n_for_fft(n,odd=(my_span == HALFSPACE .AND. symmetry),&
-             error=error)
-     ELSE
-        ! without a cutoff and HALFSPACE we have to be sure that there is
-        ! a negative counterpart to every g vector (-> odd number of grid points)
-        IF ( my_span == HALFSPACE .AND. symmetry ) &
-             n = n + MOD ( n + 1, 2 )
-     END IF
-     my_bounds = pw_grid_bounds_from_n(n,error=error)
-  END IF
-  IF (ALL(pw_grid%bounds(2,:)-pw_grid%bounds(1,:)+1==n)) THEN
-     my_bounds=pw_grid%bounds
-  END IF
-  CALL pw_grid_setup1( cell=cell, pw_grid=pw_grid, &
-       bounds=my_bounds, grid_span=my_span, spherical_cutoff=spherical_cutoff, &
-       blocked=blocked, ref_grid=ref_grid, rs_dims=rs_dims, iounit=iounit, error=error)
+    IF ( PRESENT(fft_usage) ) THEN
+      my_fft_usage = fft_usage
+    ELSE
+      my_fft_usage = .FALSE.
+    END IF
 
-  CALL timestop(0.0_dp,handle)
+    IF ( PRESENT(ncommensurate) ) THEN
+      my_ncommensurate = ncommensurate
+      IF ( PRESENT(icommensurate) ) THEN
+        my_icommensurate = icommensurate
+      ELSE
+        my_icommensurate = MIN(1,ncommensurate)
+      END IF
+    ELSE
+      my_ncommensurate = 0
+    END IF
+
+    IF ( PRESENT(bounds) ) THEN
+      IF ( PRESENT(cutoff) ) THEN
+        CALL set_pw_grid_info ( pw_grid, bounds=bounds, cutoff=cutoff, &
+                 spherical=my_spherical, error=error)
+      ELSE
+        n = bounds(2,:) - bounds(1,:) + 1
+        my_cutoff = pw_find_cutoff ( n, cell%h_inv, error=error)
+        my_cutoff = 0.5_dp * my_cutoff * my_cutoff
+        CALL set_pw_grid_info ( pw_grid, bounds=bounds, cutoff=my_cutoff, &
+                 spherical=my_spherical, error=error)
+      END IF
+    ELSE IF ( PRESENT(npts) ) THEN
+      n = npts
+      IF ( PRESENT(cutoff) ) THEN
+        my_cutoff=cutoff
+      ELSE
+        my_cutoff = pw_find_cutoff ( npts, cell%h_inv, error=error)
+        my_cutoff = 0.5_dp * my_cutoff * my_cutoff
+      END IF
+      IF ( my_fft_usage ) THEN
+        n = pw_grid_init_setup(cell%hmat,cutoff=cutoff,&
+                 spherical=my_spherical,odd=my_odd,fft_usage=my_fft_usage,&
+                 ncommensurate=my_ncommensurate,icommensurate=my_icommensurate,&
+                 ref_grid=ref_grid,error=error)
+      END IF
+      CALL set_pw_grid_info ( pw_grid, npts=n, cutoff=my_cutoff, &
+               spherical=my_spherical, error=error)
+    ELSE IF ( PRESENT(cutoff) ) THEN
+      n = pw_grid_init_setup(cell%hmat,cutoff=cutoff,&
+                 spherical=my_spherical,odd=my_odd,fft_usage=my_fft_usage,&
+                 ncommensurate=my_ncommensurate,icommensurate=my_icommensurate,&
+                 ref_grid=ref_grid,error=error)
+      CALL set_pw_grid_info ( pw_grid, npts=n, cutoff=cutoff, &
+                 spherical=my_spherical, error=error)
+    ELSE
+      CALL stop_program ( routineP, "BOUNDS, NPTS or CUTOFF have to be specified" )
+    END IF
+
+    CALL pw_grid_setup_internal ( cell, pw_grid, blocked, ref_grid, rs_dims, iounit, error )
+
+    CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE pw_grid_setup
-!****************************************************************************
 
-!!****f* pw_grids/pw_grid_setup1 *
+!******************************************************************************
+
+!!****f* pw_grids/pw_grid_setup_internal *
 !!
 !!   NAME
-!!     pw_grid_setup1
+!!     pw_grid_setup_internal
 !!
 !!   FUNCTION
 !!     sets up a pw_grid, needs valid bounds as input, it is up to you to
-!!     make sure of it using pw_grid_bounds_from_n, pw_grid_n_for_fft,
-!!     pw_grid_n_from_cutoff...
+!!     make sure of it using pw_grid_bounds_from_n
 !!
 !!   NOTES
 !!     this is the function that should be used in the future
@@ -466,17 +489,23 @@ END SUBROUTINE pw_grid_setup
 !!   AUTHOR
 !!     fawzi
 !!
+!!   MODIFICATION HISTORY
+!!     JGH (20-Dec-2000) : Adapted for parallel use
+!!     JGH (28-Feb-2001) : New optional argument fft_usage
+!!     JGH (21-Mar-2001) : Reference grid code
+!!     JGH (21-Mar-2001) : New optional argument symm_usage
+!!     JGH (22-Mar-2001) : Simplify group assignment (mp_comm_dup)
+!!     JGH (21-May-2002) : Remove orthorhombic keyword (code is fast enough)
+!!     JGH (19-Feb-2003) : Negative cutoff can be used for non-spheric grids
+!!     Joost VandeVondele (Feb-2004) : optionally generate pw grids that are commensurate in rs
+!!     JGH (18-Dec-2007) : Refactoring
+!!
 !!*** **********************************************************************
-SUBROUTINE pw_grid_setup1 ( cell, pw_grid, bounds, grid_span, &
-                            spherical_cutoff,blocked, ref_grid, rs_dims, &
-                            iounit, error )
+SUBROUTINE pw_grid_setup_internal ( cell, pw_grid, blocked, ref_grid, rs_dims, iounit, error )
 
 
     TYPE(cell_type), INTENT(IN)              :: cell
     TYPE(pw_grid_type), POINTER              :: pw_grid
-    INTEGER, DIMENSION(2, 3), INTENT(in)     :: bounds
-    INTEGER, INTENT(in), OPTIONAL            :: grid_span
-    REAL(kind=dp), INTENT(in), OPTIONAL      :: spherical_cutoff
     LOGICAL, INTENT(in), OPTIONAL            :: blocked
     TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: ref_grid
     INTEGER, DIMENSION(2), INTENT(in), &
@@ -484,27 +513,15 @@ SUBROUTINE pw_grid_setup1 ( cell, pw_grid, bounds, grid_span, &
     INTEGER, INTENT(in), OPTIONAL            :: iounit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_setup1', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_setup_internal', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: allocstat, handle, i, ires, &
-                                                n(3)
+    INTEGER                                  :: allocstat, ires, n(3)
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_mask
     LOGICAL                                  :: blocking, failure
     REAL(KIND=dp)                            :: ecut
 
-! cutoff could be inout, and set to the effective cutoff of the given grid
-! in atomic units
-! parent group for this grid
-! output unit for information on grid
-! has the grid size to be
-! compatible with the FFT
-! has the grid size to be
-! symmetric (g <-> -g)
-! block or ray-distribution
 !------------------------------------------------------------------------------
-
-  CALL timeset("pw_grid_setup","I","",handle)
 
   failure=.FALSE.
   CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
@@ -517,28 +534,11 @@ SUBROUTINE pw_grid_setup1 ( cell, pw_grid, bounds, grid_span, &
     blocking = .TRUE.
   END IF
 
-  IF (PRESENT(grid_span)) THEN
-     pw_grid%grid_span=grid_span
-  ELSE
-     pw_grid%grid_span=FULLSPACE
-  END IF
-
   ! set pointer to possible reference grid
   IF ( PRESENT ( ref_grid ) ) THEN
     pw_grid % reference = ref_grid %id_nr
   END IF
 
-  pw_grid % bounds = bounds
-  pw_grid % npts = bounds(2,:)-bounds(1,:)+1
-  pw_grid % cutoff = pw_cutoff_from_n(pw_grid % npts,cell,error)
-
-  pw_grid%spherical=.FALSE.
-  IF (PRESENT(spherical_cutoff)) THEN
-     IF (spherical_cutoff>0._dp) THEN
-        pw_grid%spherical=.TRUE.
-        pw_grid % cutoff = spherical_cutoff
-     END IF
-  END IF
   IF (pw_grid%spherical) THEN
      ecut = pw_grid%cutoff
   ELSE
@@ -609,9 +609,7 @@ SUBROUTINE pw_grid_setup1 ( cell, pw_grid, bounds, grid_span, &
     CALL pw_grid_print ( cell, pw_grid, iounit, error )
   END IF
 
-  CALL timestop(0.0_dp,handle)
-
-END SUBROUTINE pw_grid_setup1
+END SUBROUTINE pw_grid_setup_internal
 
 !******************************************************************************
 
@@ -688,7 +686,7 @@ SUBROUTINE pw_grid_print ( cell, pw_grid, info, error )
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, n(3)
-    REAL(KIND=dp)                            :: rv(3,3)
+    REAL(KIND=dp)                            :: cutoff, rv(3,3)
 
 !------------------------------------------------------------------------------
 !
@@ -705,10 +703,10 @@ SUBROUTINE pw_grid_print ( cell, pw_grid, info, error )
              WRITE ( info, '(A,T71,I10)' ) " PW_GRID: Grid points within cutoff", &
                   pw_grid % ngpts_cut
           END IF
+          cutoff = pw_find_cutoff(pw_grid%npts, cell%h_inv, error=error)
+          cutoff = 0.5_dp*cutoff*cutoff
           WRITE ( info, '(A,T35,A,T66,F10.1,T77,A)' ) " PW_GRID: ", &
-                  "max spherical cutoff", &
-                  pw_cutoff_from_n(pw_grid % npts, cell, error=error),&
-                  "a.u."
+                  "max spherical cutoff", cutoff, "a.u."
           DO i = 1, 3
              WRITE ( info, '(A,I3,T30,2I8,T62,A,T71,I10)' ) " PW_GRID:   Bounds ", &
                   i, pw_grid % bounds ( 1, I ), pw_grid % bounds ( 2, I ), &
