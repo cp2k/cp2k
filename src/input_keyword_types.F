@@ -27,6 +27,7 @@ MODULE input_keyword_types
                                              cp_unit_desc,&
                                              cp_unit_release,&
                                              cp_unit_type
+  USE f77_blas
   USE input_enumeration_types,         ONLY: enum_create,&
                                              enum_release,&
                                              enum_retain,&
@@ -44,7 +45,6 @@ MODULE input_keyword_types
                                              substitute_special_xml_tokens,&
                                              typo_match,&
                                              uppercase
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

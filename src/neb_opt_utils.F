@@ -29,6 +29,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE neb_opt_utils
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -39,8 +40,6 @@ MODULE neb_opt_utils
   USE replica_types,                   ONLY: replica_env_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -404,11 +403,12 @@ CONTAINS
 
     INTEGER                                  :: i, np, stat
     LOGICAL                                  :: failure
-    ! replaced xc by xc_cray to work around yet another bug in pgf90 on CRAY xt3 
     REAL(KIND=dp)                            :: a, b, max_stepsize, xa, xb, &
                                                 xc_cray, ya, yb
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: Icoord
+
+! replaced xc by xc_cray to work around yet another bug in pgf90 on CRAY xt3 
 
     failure  = .FALSE.
     IF (.NOT.failure) THEN
