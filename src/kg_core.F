@@ -29,6 +29,7 @@ MODULE kg_core
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE erf_fn,                          ONLY: erfc
+  USE f77_blas
   USE kg_energy_types,                 ONLY: kg_energy_type
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
@@ -48,7 +49,6 @@ MODULE kg_core
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

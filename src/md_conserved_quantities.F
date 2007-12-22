@@ -32,6 +32,7 @@ MODULE md_conserved_quantities
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
                                              dyn_coeff_type
   USE extended_system_types,           ONLY: npt_info_type
+  USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE input_constants,                 ONLY: &
@@ -56,7 +57,6 @@ MODULE md_conserved_quantities
   USE termination,                     ONLY: stop_program
   USE thermostat_types,                ONLY: thermostat_type
   USE thermostat_utils,                ONLY: get_thermostat_energies
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

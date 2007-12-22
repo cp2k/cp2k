@@ -20,7 +20,9 @@
 !******************************************************************************
 
 MODULE external_potential_types
-  USE bibliography,                    ONLY: Goedecker1996, Hartwigsen1998, Krack2005, &
+  USE bibliography,                    ONLY: Goedecker1996,&
+                                             Hartwigsen1998,&
+                                             Krack2005,&
                                              cite_reference
   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
                                              cp_sll_val_type
@@ -31,6 +33,7 @@ MODULE external_potential_types
                                              parser_release,&
                                              parser_search_string,&
                                              parser_test_next_token
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_list_get,&
                                              section_vals_type,&
@@ -38,8 +41,8 @@ MODULE external_potential_types
                                              section_vals_val_set
   USE input_val_types,                 ONLY: val_get,&
                                              val_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             default_path_length,&
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp
   USE mathconstants,                   ONLY: dfac,&
                                              fac,&
@@ -58,7 +61,6 @@ MODULE external_potential_types
                                              uppercase
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

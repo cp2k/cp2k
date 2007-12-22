@@ -22,7 +22,8 @@
 
 MODULE machine_xt3
 
-  USE kinds,                           ONLY: dp, int_8
+  USE kinds,                           ONLY: dp,&
+                                             int_8
 
   IMPLICIT NONE
 

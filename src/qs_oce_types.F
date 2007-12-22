@@ -21,6 +21,7 @@ MODULE qs_oce_types
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
+  USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
@@ -47,7 +48,6 @@ MODULE qs_oce_types
                                              timestop
   USE util,                            ONLY: locate,&
                                              sort
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

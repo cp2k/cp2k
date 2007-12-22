@@ -22,12 +22,12 @@
 !
 !------------------------------------------------------------------------------!
 !
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE physcon,                         ONLY: boltzmann,&
                                              joule
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE f77_blas
 #include "cp_common_uses.h"
 
       IMPLICIT NONE

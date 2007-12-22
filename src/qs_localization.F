@@ -59,6 +59,7 @@ MODULE qs_localization
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE external_potential_types,        ONLY: get_potential,&
                                              gth_potential_type
+  USE f77_blas
   USE input_constants,                 ONLY: do_loc_crazy,&
                                              do_loc_direct,&
                                              do_loc_jacobi,&
@@ -91,8 +92,8 @@ MODULE qs_localization
                                              debye
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
-                                             pw_pool_create_pw,&
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: REALDATA3D,&
                                              REALSPACE,&
@@ -113,7 +114,6 @@ MODULE qs_localization
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -266,8 +266,8 @@ CONTAINS
 
     INTEGER                                  :: i, ix, iy, iz, j
     REAL(KIND=dp)                            :: thearg, theval, x, y, z
-    TYPE(pw_p_type)                          :: op_rspace
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type)                          :: op_rspace
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
     NULLIFY ( pw_env, auxbas_pw_pool )

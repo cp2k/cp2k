@@ -22,9 +22,9 @@ MODULE convert_units
   USE cell_types,                      ONLY: cell_type
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

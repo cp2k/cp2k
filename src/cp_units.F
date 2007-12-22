@@ -38,6 +38,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE cp_units
+  USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mathconstants,                   ONLY: radians
@@ -48,7 +49,6 @@ MODULE cp_units
                                              uppercase
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -1499,7 +1499,8 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_compatible', &
       routineP = moduleN//':'//routineN
-    INTEGER :: i
+
+    INTEGER                                  :: i
 
     res = .TRUE.
     DO i = 1, SIZE(ref_unit%kind_id)

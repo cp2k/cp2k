@@ -32,8 +32,9 @@
 !!   SOURCE
 !****************************************************************************
 MODULE reference_manager
-  USE kinds, ONLY: default_string_length
-  USE util, ONLY: sort
+  USE kinds,                           ONLY: default_string_length
+  USE util,                            ONLY: sort
+
   IMPLICIT NONE
 
   PUBLIC ::  print_reference, print_all_references, cite_reference
@@ -96,7 +97,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cite_reference(key) 
-    INTEGER, INTENT(IN) :: key
+    INTEGER, INTENT(IN)                      :: key
 
     IF (key<1 .OR. key>max_reference) STOP "citation key out of range" 
 
@@ -128,13 +129,13 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE add_reference(key,ISI_record,DOI)
-    INTEGER, INTENT(OUT) :: key
-    CHARACTER(LEN=*), DIMENSION(:)  :: ISI_record
-    CHARACTER(LEN=*)                :: DOI
+    INTEGER, INTENT(OUT)                     :: key
+    CHARACTER(LEN=*), DIMENSION(:)           :: ISI_record
+    CHARACTER(LEN=*)                         :: DOI
 
-    INTEGER :: nlines,line,commaloc,mylen,match,i,ires
-    CHARACTER(LEN=ISI_length)                        :: citation_key
-    CHARACTER(LEN=ISI_length)                        :: author,year
+    CHARACTER(LEN=ISI_length)                :: author, citation_key, year
+    INTEGER                                  :: commaloc, i, ires, line, &
+                                                match, mylen, nlines
 
     IF (nbib+1>max_reference) STOP "increase max_reference" 
     nbib=nbib+1 
@@ -180,7 +181,7 @@ CONTAINS
     DO I=1,nbib-1
        IF (thebib(I)%ref%citation_key(1:mylen)==citation_key(1:mylen)) match=match+1
     ENDDO
-    IF (match>0) citation_key=citation_key(1:mylen)//char(ichar('a')+match)
+    IF (match>0) citation_key=citation_key(1:mylen)//CHAR(ICHAR('a')+match)
 
     ! finally store it 
     thebib(key)%ref%citation_key=citation_key
@@ -204,7 +205,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE remove_all_references()
-    INTEGER :: i
+    INTEGER                                  :: i
 
     DO i=1,nbib        
        IF (ASSOCIATED(thebib(i)%ref%ISI_record)) DEALLOCATE(thebib(i)%ref%ISI_record)
@@ -236,19 +237,18 @@ CONTAINS
 !!     08.2007 Joost VandeVondele [ ]
 !!
 !!*** **********************************************************************
-  SUBROUTINE print_all_references(cited_only,sorted,format,unit,list)
-    LOGICAL, INTENT(IN) :: cited_only,sorted
-    INTEGER, INTENT(IN) :: format
-    INTEGER, INTENT(IN) :: unit
-    INTEGER, INTENT(IN), DIMENSION(:), OPTIONAL :: list
+  SUBROUTINE print_all_references(cited_only,sorted,FORMAT,unit,list)
+    LOGICAL, INTENT(IN)                      :: cited_only, sorted
+    INTEGER, INTENT(IN)                      :: FORMAT, unit
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      OPTIONAL                               :: list
 
+    INTEGER                                  :: I, irecord, nref
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: indx, irank, ival
 
-    INTEGER :: I, tmp, irecord, nref
-    INTEGER, DIMENSION(:), ALLOCATABLE :: ival,irank,indx
-    CHARACTER(LEN=ISI_length)                        :: year
+! we'll sort the references wrt to the publication year
+! the most recent first, publications without a year get last
 
-    ! we'll sort the references wrt to the publication year
-    ! the most recent first, publications without a year get last
     IF (PRESENT(list)) THEN
        nref=SIZE(list)
     ELSE
@@ -282,37 +282,37 @@ CONTAINS
     ENDIF
     CALL sort(ival,nref,irank)
 
-    IF (format.EQ.print_format_html) THEN
-       write(unit,'(A)') '<TABLE border="1">'
+    IF (FORMAT.EQ.print_format_html) THEN
+       WRITE(unit,'(A)') '<TABLE border="1">'
     ENDIF
     DO I=1,nref
        irecord=indx(irank(I))
        IF (.NOT. cited_only .OR. thebib(irecord)%ref%is_cited) THEN
-          SELECT CASE(format)
+          SELECT CASE(FORMAT)
           CASE(print_format_isi)
           CASE(print_format_journal)
-            write(unit,'(A)') ""
+            WRITE(unit,'(A)') ""
           CASE(print_format_html)
-            write(unit,'(A)') "<TR><TD>"//'['//TRIM(thebib(irecord)%ref%citation_key)//']'//"</TD><TD>"
+            WRITE(unit,'(A)') "<TR><TD>"//'['//TRIM(thebib(irecord)%ref%citation_key)//']'//"</TD><TD>"
           CASE DEFAULT
             STOP "print_reference: wrong format"
           END SELECT
 
-          CALL print_reference(irecord,format,unit)
+          CALL print_reference(irecord,FORMAT,unit)
 
-          SELECT CASE(format)
+          SELECT CASE(FORMAT)
           CASE(print_format_isi)
           CASE(print_format_journal)
-            write(unit,'(A)') ""
+            WRITE(unit,'(A)') ""
           CASE(print_format_html)
-            write(unit,'(A)') '</TD></TR>'
+            WRITE(unit,'(A)') '</TD></TR>'
           CASE DEFAULT
             STOP "print_reference: wrong format"
           END SELECT
        ENDIF
     ENDDO
-    IF (format.EQ.print_format_html) THEN
-       write(unit,'(A)') "</TABLE>"
+    IF (FORMAT.EQ.print_format_html) THEN
+       WRITE(unit,'(A)') "</TABLE>"
     ENDIF
 
   END SUBROUTINE print_all_references
@@ -334,19 +334,17 @@ CONTAINS
 !!     08.2007 Joost VandeVondele [ ]
 !!
 !!*** **********************************************************************
-  SUBROUTINE print_reference(key,format,unit)
-    INTEGER, INTENT(IN) :: key
-    INTEGER, INTENT(IN) :: format
-    INTEGER, INTENT(IN) :: unit
+  SUBROUTINE print_reference(key,FORMAT,unit)
+    INTEGER, INTENT(IN)                      :: key, FORMAT, unit
 
-    INTEGER :: I
+    INTEGER                                  :: I
 
     IF (key<1 .OR. key>max_reference) STOP "citation key out of range" 
 
-    SELECT CASE(format)
+    SELECT CASE(FORMAT)
     CASE(print_format_isi)
       DO I=1,SIZE(thebib(key)%ref%ISI_record)
-          write(unit,'(T2,A)') TRIM(thebib(key)%ref%ISI_record(I))
+          WRITE(unit,'(T2,A)') TRIM(thebib(key)%ref%ISI_record(I))
       ENDDO
     CASE(print_format_journal)
       CALL print_reference_journal(key,unit)
@@ -374,32 +372,33 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE print_reference_journal(key,unit)
-    INTEGER, INTENT(IN) :: key
-    INTEGER, INTENT(IN) :: unit
+    INTEGER, INTENT(IN)                      :: key, unit
 
-    CHARACTER(LEN=ISI_length)                        :: author,title,journal
-    INTEGER :: line, ipos_line, iauthor, ititle
+    CHARACTER(LEN=ISI_length)                :: author, journal, title
+    INTEGER                                  :: iauthor, ipos_line, ititle, &
+                                                line
 
-    ! write the author list
-    write(unit,'(T2,A)',ADVANCE="NO") ""
+! write the author list
+
+    WRITE(unit,'(T2,A)',ADVANCE="NO") ""
     line=1 ; iauthor=0 ; ipos_line=2
     author=get_next_author(thebib(key)%ref%ISI_record,line)
     DO WHILE (author.NE."")
        iauthor=iauthor+1
        IF (ipos_line+LEN_TRIM(author)>71) THEN
-          write(unit,'(A)') ";"
-          write(unit,'(T2,A)',ADVANCE="NO") ""
+          WRITE(unit,'(A)') ";"
+          WRITE(unit,'(T2,A)',ADVANCE="NO") ""
           ipos_line=2
        ELSE
-          IF (iauthor.NE.1) write(unit,'(A)',ADVANCE="NO") "; "
+          IF (iauthor.NE.1) WRITE(unit,'(A)',ADVANCE="NO") "; "
           ipos_line=ipos_line+2
        ENDIF
-       write(unit,'(A)',ADVANCE="NO") TRIM(author)
+       WRITE(unit,'(A)',ADVANCE="NO") TRIM(author)
        ipos_line=ipos_line+LEN_TRIM(author)
        author=get_next_author(thebib(key)%ref%ISI_record,line)
     ENDDO
     IF (iauthor>0) THEN
-        write(unit,'(A)',ADVANCE="NO") ". "
+        WRITE(unit,'(A)',ADVANCE="NO") ". "
         ipos_line=ipos_line+2
     ENDIF
 
@@ -414,27 +413,27 @@ CONTAINS
         journal=TRIM(journal)//" ("//TRIM(get_year(thebib(key)%ref%ISI_record))//")."
     ENDIF
     IF (ipos_line+LEN_TRIM(journal)>71) THEN
-       write(unit,'(A)') "" 
-       write(unit,'(T2,A)',ADVANCE="NO") ""
+       WRITE(unit,'(A)') "" 
+       WRITE(unit,'(T2,A)',ADVANCE="NO") ""
        ipos_line=2
     ENDIF
-    write(unit,'(A)',ADVANCE="NO") TRIM(journal)
+    WRITE(unit,'(A)',ADVANCE="NO") TRIM(journal)
 
-    write(unit,'(T2,A)') ""
+    WRITE(unit,'(T2,A)') ""
     ! Title
     line=1 ; ititle=0 
     title=get_next_title(thebib(key)%ref%ISI_record,line)
     DO WHILE (title.NE."")
        ititle=ititle+1
-       IF (ititle.NE.1) write(unit,'(A)') ""
-       write(unit,'(T2,A)', ADVANCE="NO") TRIM(title)
+       IF (ititle.NE.1) WRITE(unit,'(A)') ""
+       WRITE(unit,'(T2,A)', ADVANCE="NO") TRIM(title)
        title=get_next_title(thebib(key)%ref%ISI_record,line)
     ENDDO
-    IF (ititle>0) write(unit,'(A)') "."
+    IF (ititle>0) WRITE(unit,'(A)') "."
 
     ! DOI
     IF (thebib(key)%ref%DOI .NE. "") THEN
-      write(unit,'(T2,A)') "http://dx.doi.org/"//TRIM(thebib(key)%ref%DOI)
+      WRITE(unit,'(T2,A)') "http://dx.doi.org/"//TRIM(thebib(key)%ref%DOI)
     ENDIF
     
   END SUBROUTINE print_reference_journal
@@ -457,27 +456,27 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE print_reference_html(key,unit)
-    INTEGER, INTENT(IN) :: key
-    INTEGER, INTENT(IN) :: unit
+    INTEGER, INTENT(IN)                      :: key, unit
 
-    CHARACTER(LEN=ISI_length)                        :: author,title,journal
-    INTEGER :: line, iauthor, ititle
+    CHARACTER(LEN=ISI_length)                :: author, journal, title
+    INTEGER                                  :: iauthor, ititle, line
 
-    ! write the author list
-    write(unit,'(T2,A,I0,A)',ADVANCE="NO") '<A NAME="reference_',key,'">'
+! write the author list
+
+    WRITE(unit,'(T2,A,I0,A)',ADVANCE="NO") '<A NAME="reference_',key,'">'
     line=1 ; iauthor=0 
     author=get_next_author(thebib(key)%ref%ISI_record,line)
     DO WHILE (author.NE."")
        iauthor=iauthor+1
-       IF (iauthor.NE.1) write(unit,'(A)',ADVANCE="NO") "; "
-       write(unit,'(A)',ADVANCE="NO") TRIM(author)
+       IF (iauthor.NE.1) WRITE(unit,'(A)',ADVANCE="NO") "; "
+       WRITE(unit,'(A)',ADVANCE="NO") TRIM(author)
        author=get_next_author(thebib(key)%ref%ISI_record,line)
     ENDDO
-    IF (iauthor>0) write(unit,'(A)') ".<br>"
+    IF (iauthor>0) WRITE(unit,'(A)') ".<br>"
 
     ! DOI
     IF (thebib(key)%ref%DOI .NE. "") THEN
-      write(unit,'(T2,A)',ADVANCE="NO") '<A HREF="http://dx.doi.org/'//TRIM(thebib(key)%ref%DOI)//'">'
+      WRITE(unit,'(T2,A)',ADVANCE="NO") '<A HREF="http://dx.doi.org/'//TRIM(thebib(key)%ref%DOI)//'">'
     ENDIF
     ! Journal, volume (issue), pages (year).
     journal=TRIM(get_source(thebib(key)%ref%ISI_record))//","
@@ -489,22 +488,22 @@ CONTAINS
     IF (get_year(thebib(key)%ref%ISI_record).NE."") THEN
         journal=TRIM(journal)//" ("//TRIM(get_year(thebib(key)%ref%ISI_record))//")."
     ENDIF
-    write(unit,'(A)',ADVANCE="NO") TRIM(journal)
+    WRITE(unit,'(A)',ADVANCE="NO") TRIM(journal)
     IF (thebib(key)%ref%DOI .NE. "") THEN
-      write(unit,'(A)',ADVANCE="NO") '</A>'
+      WRITE(unit,'(A)',ADVANCE="NO") '</A>'
     ENDIF
-    write(unit,'(A)') "</A><br>"
+    WRITE(unit,'(A)') "</A><br>"
 
     ! Title
     line=1 ; ititle=0 
     title=get_next_title(thebib(key)%ref%ISI_record,line)
     DO WHILE (title.NE."")
        ititle=ititle+1
-       IF (ititle.NE.1) write(unit,'(A)') ""
-       write(unit,'(T2,A)', ADVANCE="NO") TRIM(title)
+       IF (ititle.NE.1) WRITE(unit,'(A)') ""
+       WRITE(unit,'(T2,A)', ADVANCE="NO") TRIM(title)
        title=get_next_title(thebib(key)%ref%ISI_record,line)
     ENDDO
-    IF (ititle>0) write(unit,'(A)') "."
+    IF (ititle>0) WRITE(unit,'(A)') "."
 
     
   END SUBROUTINE print_reference_html
@@ -530,17 +529,18 @@ CONTAINS
 !!
 !!*** **********************************************************************
   FUNCTION get_next_author(ISI_record,iline_start) RESULT(res)
-    CHARACTER(LEN=ISI_length)                        :: res
-    CHARACTER(LEN=ISI_length), DIMENSION(:), POINTER :: ISI_record
-    INTEGER, INTENT(INOUT)                           :: iline_start
+    CHARACTER(LEN=ISI_length), &
+      DIMENSION(:), POINTER                  :: ISI_record
+    INTEGER, INTENT(INOUT)                   :: iline_start
+    CHARACTER(LEN=ISI_length)                :: res
 
-    INTEGER :: I,N
-    LOGICAL :: in_au_section
+    INTEGER                                  :: I, N
+    LOGICAL                                  :: in_au_section
 
     res=""
     in_au_section=.FALSE.
     N=SIZE(ISI_record,1)
-    IF (iline_start>N) return
+    IF (iline_start>N) RETURN
     line_loop: DO I=1,N
        IF (ISI_record(I)(1:3)=="AU ") in_au_section=.TRUE.
        IF (in_au_section .AND. (ISI_record(I)(1:3)/="AU " .AND. ISI_record(I)(1:3)/="   ")) in_au_section=.FALSE.
@@ -558,17 +558,19 @@ CONTAINS
   END FUNCTION get_next_author
 
   FUNCTION get_next_title(ISI_record,iline_start) RESULT(res)
-    CHARACTER(LEN=ISI_length)                        :: res
-    CHARACTER(LEN=ISI_length), DIMENSION(:), POINTER :: ISI_record
-    INTEGER, INTENT(INOUT)                           :: iline_start
+    CHARACTER(LEN=ISI_length), &
+      DIMENSION(:), POINTER                  :: ISI_record
+    INTEGER, INTENT(INOUT)                   :: iline_start
+    CHARACTER(LEN=ISI_length)                :: res
 
-    INTEGER :: I,N
-    LOGICAL :: in_ti_section
+    INTEGER                                  :: I, N
+    LOGICAL                                  :: in_ti_section
+
     res=""
 
     in_ti_section=.FALSE.
     N=SIZE(ISI_record,1)
-    IF (iline_start>N) return
+    IF (iline_start>N) RETURN
     line_loop: DO I=1,N
        IF (ISI_record(I)(1:3)=="TI ") in_ti_section=.TRUE.
        IF (in_ti_section .AND. (ISI_record(I)(1:3)/="TI " .AND. ISI_record(I)(1:3)/="   ")) in_ti_section=.FALSE.
@@ -584,10 +586,12 @@ CONTAINS
   END FUNCTION get_next_title
 
   FUNCTION get_source(ISI_record) RESULT(res)
-    CHARACTER(LEN=ISI_length)                        :: res
-    CHARACTER(LEN=ISI_length), DIMENSION(:), POINTER :: ISI_record
+    CHARACTER(LEN=ISI_length), &
+      DIMENSION(:), POINTER                  :: ISI_record
+    CHARACTER(LEN=ISI_length)                :: res
 
-    INTEGER :: I,N
+    INTEGER                                  :: I, N
+
     N=SIZE(ISI_record,1)
     res=""
     DO I=1,N
@@ -596,10 +600,12 @@ CONTAINS
   END FUNCTION get_source
 
   FUNCTION get_year(ISI_record) RESULT(res)
-    CHARACTER(LEN=ISI_length)                        :: res
-    CHARACTER(LEN=ISI_length), DIMENSION(:), POINTER :: ISI_record
+    CHARACTER(LEN=ISI_length), &
+      DIMENSION(:), POINTER                  :: ISI_record
+    CHARACTER(LEN=ISI_length)                :: res
 
-    INTEGER :: I,N
+    INTEGER                                  :: I, N
+
     N=SIZE(ISI_record,1)
     res=""
     DO I=1,N
@@ -608,10 +614,12 @@ CONTAINS
   END FUNCTION get_year
 
   FUNCTION get_month(ISI_record) RESULT(res)
-    CHARACTER(LEN=ISI_length)                        :: res
-    CHARACTER(LEN=ISI_length), DIMENSION(:), POINTER :: ISI_record
+    CHARACTER(LEN=ISI_length), &
+      DIMENSION(:), POINTER                  :: ISI_record
+    CHARACTER(LEN=ISI_length)                :: res
 
-    INTEGER :: I,N
+    INTEGER                                  :: I, N
+
     N=SIZE(ISI_record,1)
     res=""
     DO I=1,N
@@ -620,10 +628,12 @@ CONTAINS
   END FUNCTION get_month
 
   FUNCTION get_day(ISI_record) RESULT(res)
-    CHARACTER(LEN=ISI_length)                        :: res
-    CHARACTER(LEN=ISI_length), DIMENSION(:), POINTER :: ISI_record
+    CHARACTER(LEN=ISI_length), &
+      DIMENSION(:), POINTER                  :: ISI_record
+    CHARACTER(LEN=ISI_length)                :: res
 
-    INTEGER :: I,N,D
+    INTEGER                                  :: D, I, N
+
     N=SIZE(ISI_record,1)
     res=""
     DO I=1,N
@@ -638,10 +648,12 @@ CONTAINS
   END FUNCTION get_day
 
   FUNCTION get_volume(ISI_record) RESULT(res)
-    CHARACTER(LEN=ISI_length)                        :: res
-    CHARACTER(LEN=ISI_length), DIMENSION(:), POINTER :: ISI_record
+    CHARACTER(LEN=ISI_length), &
+      DIMENSION(:), POINTER                  :: ISI_record
+    CHARACTER(LEN=ISI_length)                :: res
 
-    INTEGER :: I,N
+    INTEGER                                  :: I, N
+
     N=SIZE(ISI_record,1)
     res=""
     DO I=1,N
@@ -650,10 +662,12 @@ CONTAINS
   END FUNCTION get_volume
 
   FUNCTION get_issue(ISI_record) RESULT(res)
-    CHARACTER(LEN=ISI_length)                        :: res
-    CHARACTER(LEN=ISI_length), DIMENSION(:), POINTER :: ISI_record
+    CHARACTER(LEN=ISI_length), &
+      DIMENSION(:), POINTER                  :: ISI_record
+    CHARACTER(LEN=ISI_length)                :: res
 
-    INTEGER :: I,N
+    INTEGER                                  :: I, N
+
     N=SIZE(ISI_record,1)
     res=""
     DO I=1,N
@@ -662,11 +676,13 @@ CONTAINS
   END FUNCTION get_issue
 
   FUNCTION get_pages(ISI_record) RESULT(res)
-    CHARACTER(LEN=ISI_length)                        :: res
-    CHARACTER(LEN=ISI_length), DIMENSION(:), POINTER :: ISI_record
+    CHARACTER(LEN=ISI_length), &
+      DIMENSION(:), POINTER                  :: ISI_record
+    CHARACTER(LEN=ISI_length)                :: res
 
-    INTEGER :: I,N
-    CHARACTER(LEN=ISI_length)                        :: bp,ep,ar
+    CHARACTER(LEN=ISI_length)                :: ar, bp, ep
+    INTEGER                                  :: I, N
+
     N=SIZE(ISI_record,1)
     res=""
     bp=""
@@ -686,8 +702,9 @@ CONTAINS
   END FUNCTION get_pages
 
   FUNCTION get_citation_key(key) RESULT(res)
-    CHARACTER(LEN=default_string_length)    :: res
-    INTEGER :: key
+    INTEGER                                  :: key
+    CHARACTER(LEN=default_string_length)     :: res
+
     res=thebib(key)%ref%citation_key
   END FUNCTION get_citation_key
 
@@ -696,13 +713,15 @@ CONTAINS
 ! missing years, months, days are implied zero(1900)
 !
   FUNCTION get_epoch(ISI_record) RESULT(res)
-    INTEGER                                          :: res
-    CHARACTER(LEN=ISI_length), DIMENSION(:), POINTER :: ISI_record
+    CHARACTER(LEN=ISI_length), &
+      DIMENSION(:), POINTER                  :: ISI_record
+    INTEGER                                  :: res
 
-    CHARACTER(LEN=ISI_length)                        :: tmp
-    INTEGER :: year,month,day,istat
+    CHARACTER(LEN=ISI_length)                :: tmp
+    INTEGER                                  :: day, istat, month, year
 
-    ! read year
+! read year
+
     tmp=get_year(ISI_record)
     READ(tmp,*,IOSTAT=istat) year
     IF (istat.NE.0) year=1900

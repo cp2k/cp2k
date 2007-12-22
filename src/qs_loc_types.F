@@ -46,6 +46,7 @@ MODULE qs_loc_types
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_retain,&
                                              distribution_1d_type
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
   USE qs_loc_control,                  ONLY: localized_wfn_control_release,&
@@ -55,7 +56,6 @@ MODULE qs_loc_types
                                              real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

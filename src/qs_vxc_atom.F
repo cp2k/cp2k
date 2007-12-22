@@ -93,18 +93,17 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: energy_only
     TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(nablavks_atom_type), DIMENSION(:), &
-       OPTIONAL, POINTER       :: gradient_atom_set
+      OPTIONAL, POINTER                      :: gradient_atom_set
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_vxc_atom', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: bo(2), handle, i, ia, iat, iatom, &
-                                                idir, ikind, ir, ispin, istat, &
-                                                mepos, myfun, na, natom, &
-                                                nkind, nr, nspins, num_pe
+    INTEGER :: bo(2), handle, i, ia, iat, iatom, idir, ikind, ir, ispin, &
+      istat, mepos, myfun, na, natom, nkind, nr, nspins, num_pe
     INTEGER, DIMENSION(2, 3)                 :: bounds
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: epr_xc, gradient_f, lsd, paw_atom
+    LOGICAL                                  :: epr_xc, gradient_f, lsd, &
+                                                paw_atom
     REAL(dp)                                 :: density_cut, exc_h, exc_s, &
                                                 gradient_cut, tau_cut
     REAL(dp), DIMENSION(:, :), POINTER       :: rho_h, rho_s, weight

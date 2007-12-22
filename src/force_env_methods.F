@@ -34,9 +34,10 @@ MODULE force_env_methods
                                              cp_print_key_unit_nr
   USE cp_para_env,                     ONLY: cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_result_types,                 ONLY: cp_result_type,&
-                                             transfer_result_type,&
-                                             erase_result
+  USE cp_result_types,                 ONLY: cp_result_create,&
+                                             cp_result_type,&
+                                             erase_result,&
+                                             transfer_result_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_p_type,&
                                              cp_subsys_retain,&
@@ -63,8 +64,6 @@ MODULE force_env_methods
                                              get_fist_env,&
                                              set_fist_env
   USE fist_force,                      ONLY: fist_force_control
-  USE cp_result_types,          ONLY: cp_result_type,&
-                                             cp_result_create         
   USE force_env_types,                 ONLY: &
        force_env_get, force_env_get_natom, force_env_p_type, &
        force_env_pos_get, force_env_type, use_eip_force, use_ep_force, &
@@ -221,11 +220,11 @@ CONTAINS
     REAL(kind=dp), DIMENSION(:), POINTER     :: pos
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_result_type), POINTER            :: results
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(virial_type), POINTER               :: virial
-    TYPE(cp_result_type),POINTER             :: results
 
     NULLIFY(logger,results)
     logger => cp_error_get_logger(error)
@@ -403,11 +402,10 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat, stress_tensor
-    LOGICAL                                  :: explicit, failure, &
-                                                pv_availability, pv_diagonal, &
-                                                pv_numerical, virial_in_use
+    LOGICAL                                  :: failure, pv_availability, &
+                                                pv_diagonal, pv_numerical, &
+                                                virial_in_use
     TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(section_vals_type), POINTER         :: md_section
 
   failure=.FALSE.
 

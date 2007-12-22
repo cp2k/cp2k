@@ -27,12 +27,12 @@ MODULE pme_tools
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
                                              real_to_scaled
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
   USE realspace_grid_types,            ONLY: realspace_grid_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -60,8 +60,8 @@ CONTAINS
     INTEGER, DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: core_center
 
-    INTEGER, DIMENSION(3)                    :: lb, ub
     INTEGER                                  :: ndim, npos
+    INTEGER, DIMENSION(3)                    :: lb, ub
     REAL(KIND=dp)                            :: charge
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
@@ -110,8 +110,8 @@ CONTAINS
 
   FUNCTION in_slice ( pos, lb, ub ) RESULT ( internal )
 
-    INTEGER, DIMENSION(3), INTENT(IN)                      :: pos, lb, ub
-    LOGICAL                                                :: internal
+    INTEGER, DIMENSION(3), INTENT(IN)        :: pos, lb, ub
+    LOGICAL                                  :: internal
 
     IF ( ALL ( pos >= lb ) .AND. ALL ( pos <= ub ) ) THEN
        internal = .TRUE.

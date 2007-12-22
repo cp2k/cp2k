@@ -14,12 +14,12 @@ MODULE qs_tddfpt_types
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_p_type,&
                                              cp_fm_release
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE qs_environment_types,            ONLY: qs_environment_type
   USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE termination,                     ONLY: stop_memory
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

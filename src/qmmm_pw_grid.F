@@ -20,6 +20,7 @@
 MODULE qmmm_pw_grid
   USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE input_constants,                 ONLY: do_par_atom,&
                                              do_qmmm_gauss,&
                                              do_qmmm_swave
@@ -42,7 +43,6 @@ MODULE qmmm_pw_grid
   USE qmmm_types,                      ONLY: qmmm_env_qm_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

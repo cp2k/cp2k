@@ -33,6 +33,7 @@ MODULE mc_misc
   USE external_potential_types,        ONLY: elp_potential_type,&
                                              get_potential,&
                                              gth_potential_type
+  USE f77_blas
   USE fist_environment_types,          ONLY: fist_environment_type,&
                                              get_fist_env
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
@@ -80,7 +81,6 @@ MODULE mc_misc
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -554,8 +554,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
                                                 atom_c_done, atom_d_done
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=default_string_length)     :: c_val, mol_name, name, &
-                                                name_a, name_b, name_c, &
-                                                name_d
+                                                name_a, name_b, name_c, name_d
     INTEGER :: current_bend, current_bond, current_torsion, ewald_type, &
       gmax(3), handle, i_val, iatom, ibend, ibond, ichain, ifunct, imolecule, &
       imul, itorsion, itype, jbend, jbond, jtorsion, jtype, natoms, nbend, &

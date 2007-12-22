@@ -24,6 +24,7 @@ MODULE qs_gapw_densities
                                              get_atomic_kind
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE qs_charges_types,                ONLY: qs_charges_type
@@ -40,7 +41,6 @@ MODULE qs_gapw_densities
   USE qs_rho_atom_types,               ONLY: rho_atom_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

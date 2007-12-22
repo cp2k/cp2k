@@ -29,13 +29,13 @@ MODULE distribution_2d_types
                                              cp_blacs_env_retain,&
                                              cp_blacs_env_write
   USE cp_para_types,                   ONLY: cp_blacs_env_type
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_max,&
                                              mp_sum
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

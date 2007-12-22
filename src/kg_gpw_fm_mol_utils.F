@@ -31,9 +31,8 @@ MODULE kg_gpw_fm_mol_utils
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_get_subs_vals
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
   USE kg_gpw_fm_mol_types,             ONLY: fm_mol_blocks_type,&
                                              get_fm_mol_block,&
                                              get_kg_fm_mol_set,&
@@ -42,17 +41,17 @@ MODULE kg_gpw_fm_mol_utils
                                              kg_fm_p_type,&
                                              mol_mo_set_p_type,&
                                              mol_mo_set_type
-  USE kinds,                           ONLY: dp,&
-                                             default_path_length,&
+  USE kinds,                           ONLY: default_path_length,&
+                                             dp,&
                                              dp_size,&
                                              int_size
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sum
+  USE qs_mo_types,                     ONLY: wfn_restart_file_name
   USE sparse_matrix_types,             ONLY: get_block_node,&
                                              real_matrix_type,&
                                              set_matrix
-  USE qs_mo_types,                     ONLY: wfn_restart_file_name
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -1004,8 +1003,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mo_mol_restart', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_path_length)       :: file_name
     CHARACTER(LEN=6)                         :: method
+    CHARACTER(LEN=default_path_length)       :: file_name
     INTEGER :: group, handle, imo, imol_found, imol_global, imol_global_read, &
       imol_local, imol_proc, imolecule_kind, ispin, ispin_read, istat, n_ao, &
       n_ao_read, n_mo(2), n_mo_read(2), nao_max, natom, nelectron_global, &
@@ -1017,13 +1016,14 @@ CONTAINS
                                                 natom_molkind_read, &
                                                 nmol_molkind_read
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: nel_molkind_read
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: exist, failure
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: eig_buffer, occ_buffer
     REAL(dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: mo_buffer
     REAL(dp), DIMENSION(:), POINTER          :: eigenvalues, &
                                                 occupation_numbers
     REAL(dp), DIMENSION(:, :), POINTER       :: mo
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
       POINTER                                :: mol_blocks
     TYPE(fm_mol_blocks_type), POINTER        :: mol_block
@@ -1031,10 +1031,7 @@ CONTAINS
     TYPE(mol_mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(mol_mo_set_type), POINTER           :: mo_set
-    LOGICAL                                  :: explicit,exist
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: dft_section
-
 
 !   ---------------------------------------------------------------------------
 

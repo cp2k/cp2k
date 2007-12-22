@@ -34,6 +34,7 @@ MODULE neb_io
                                              unit_convert_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE f77_blas
   USE force_env_types,                 ONLY: force_env_get
   USE input_constants,                 ONLY: band_md_opt,&
                                              dump_xmol
@@ -59,7 +60,6 @@ MODULE neb_io
                                              write_particle_coordinates
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

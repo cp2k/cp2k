@@ -23,12 +23,12 @@
 
 MODULE timings
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE message_passing,                 ONLY: mp_bcast
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_cputime,&
-                                             m_walltime,&
-                                             m_memory
+                                             m_memory,&
+                                             m_walltime
   USE mathconstants,                   ONLY: zero
+  USE message_passing,                 ONLY: mp_bcast
   USE string_utilities,                ONLY: uppercase
   USE util,                            ONLY: sort
 
@@ -412,17 +412,17 @@ SUBROUTINE timeset_full ( name, ct, pu, handle )
      timer_env%astring,stack_size, &
      timer_env%routine_calls ( handle ), &
      TRIM( timer_env%routine_stack ( stack_size )),"       start"
-     write(line,'(A,1X,I0,1X,A2)') TRIM(mystring),(m_memory()+1023)/1024,"Kb"
+     WRITE(line,'(A,1X,I0,1X,A2)') TRIM(mystring),(m_memory()+1023)/1024,"Kb"
      IF (timer_env%trace_sync) THEN
       DO i=0,timer_env%num_pe-1
         line2=line
         CALL mp_bcast(line2,i,timer_env%group)
         IF (timer_env%mepos==0) THEN
-           write(6,*) TRIM(line2)
+           WRITE(6,*) TRIM(line2)
         ENDIF
       ENDDO
      ELSE
-       write(6,*) TRIM(line)
+       WRITE(6,*) TRIM(line)
      ENDIF
   ENDIF
 
@@ -528,17 +528,17 @@ SUBROUTINE timestop_full ( perf, handle )
      timer_env%stack_size, &
      timer_env%routine_calls ( handle ), &
      TRIM(timer_env%routine_stack(timer_env%stack_size)),cpt
-     write(line,'(A,1X,I0,1X,A2)') TRIM(mystring),(m_memory()+1023)/1024,"Kb"
+     WRITE(line,'(A,1X,I0,1X,A2)') TRIM(mystring),(m_memory()+1023)/1024,"Kb"
      IF (timer_env%trace_sync) THEN
        DO i=0,timer_env%num_pe-1
           line2=line
           CALL mp_bcast(line2,i,timer_env%group)
           IF (timer_env%mepos==0) THEN
-             write(6,*) TRIM(line2)
+             WRITE(6,*) TRIM(line2)
           ENDIF
        ENDDO
      ELSE
-       write(6,*) TRIM(line)
+       WRITE(6,*) TRIM(line)
      ENDIF
    ENDIF
 

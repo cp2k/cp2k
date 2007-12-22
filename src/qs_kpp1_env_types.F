@@ -30,6 +30,7 @@ MODULE qs_kpp1_env_types
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE kinds,                           ONLY: default_path_length,&
                                              dp
   USE pw_types,                        ONLY: pw_p_type,&
@@ -44,7 +45,6 @@ MODULE qs_kpp1_env_types
                                              xc_dset_release
   USE xc_rho_set_types,                ONLY: xc_rho_set_release,&
                                              xc_rho_set_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

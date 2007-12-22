@@ -37,6 +37,7 @@ MODULE cp_ddapc_util
                                              cp_ddapc_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE f77_blas
   USE input_constants,                 ONLY: do_full_density,&
                                              do_spin_density
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -54,10 +55,10 @@ MODULE cp_ddapc_util
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              RECIPROCALSPACE,&
-                                             pw_copy,&
                                              pw_axpy,&
-                                             pw_transfer,&
+                                             pw_copy,&
                                              pw_p_type,&
+                                             pw_transfer,&
                                              pw_type
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -65,7 +66,6 @@ MODULE cp_ddapc_util
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -114,13 +114,13 @@ CONTAINS
     REAL(KIND=dp)                            :: gcut, pfact, rcmin, Vol
     REAL(KIND=dp), DIMENSION(:), POINTER     :: inp_radii, radii
     TYPE(cell_type), POINTER                 :: cell, super_cell
-    TYPE(pw_p_type), POINTER                 :: rho0_s_gs, rho_core
     TYPE(cp_ddapc_type), POINTER             :: cp_ddapc_env
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), POINTER                 :: rho0_s_gs, rho_core
     TYPE(pw_pool_type), POINTER              :: auxbas_pool
     TYPE(pw_type), POINTER                   :: rho_tot_g
     TYPE(qs_charges_type), POINTER           :: qs_charges
@@ -270,13 +270,13 @@ CONTAINS
       DIMENSION(:, :, :)                     :: dAm, dqv
     REAL(KIND=dp), DIMENSION(:), POINTER     :: inp_radii, radii
     TYPE(cell_type), POINTER                 :: cell, super_cell
-    TYPE(pw_p_type), POINTER                 :: rho0_s_gs, rho_core
     TYPE(cp_ddapc_type), POINTER             :: cp_ddapc_env
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), POINTER                 :: rho0_s_gs, rho_core
     TYPE(pw_pool_type), POINTER              :: auxbas_pool
     TYPE(pw_type), POINTER                   :: rho_tot_g
     TYPE(qs_charges_type), POINTER           :: qs_charges

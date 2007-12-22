@@ -20,10 +20,9 @@
 
 MODULE shell_potential_types
 
+  USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -73,10 +72,11 @@ CONTAINS
   SUBROUTINE get_shell(shell,charge_core,charge_shell,mass_core,mass_shell,&
              k_spring,max_dist,shell_cutoff,error)
 
-    TYPE(shell_kind_type), POINTER                :: shell
-    REAL(kind=dp), INTENT(out), OPTIONAL     :: charge_core,charge_shell  
-    REAL(kind=dp), INTENT(out), OPTIONAL     :: mass_core,mass_shell  
-    REAL(kind=dp), INTENT(out), OPTIONAL     :: k_spring,max_dist,shell_cutoff
+    TYPE(shell_kind_type), POINTER           :: shell
+    REAL(kind=dp), INTENT(out), OPTIONAL     :: charge_core, charge_shell, &
+                                                mass_core, mass_shell, &
+                                                k_spring, max_dist, &
+                                                shell_cutoff
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_shell', &
@@ -99,8 +99,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE shell_create(shell,error)
 
-    TYPE(shell_kind_type), POINTER                :: shell
-    
+    TYPE(shell_kind_type), POINTER           :: shell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'shell_create', &
@@ -150,8 +149,7 @@ CONTAINS
   
   SUBROUTINE shell_retain(shell,error)
 
-    TYPE(shell_kind_type), POINTER                :: shell
-    
+    TYPE(shell_kind_type), POINTER           :: shell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'shell_retain', &
@@ -196,8 +194,7 @@ CONTAINS
   
   SUBROUTINE shell_release(shell,error)
 
-    TYPE(shell_kind_type), POINTER                :: shell
-    
+    TYPE(shell_kind_type), POINTER           :: shell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'shell_release', &

@@ -32,18 +32,17 @@ MODULE qs_linres_epr_ownutils
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_val_get,&
-                                             section_vals_type
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE mathconstants,                   ONLY: twopi
   USE mathlib,                         ONLY: diamat_all
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
-                                             pw_pool_create_pw,&
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_pw,&
                                              pw_pool_type
   USE pw_spline_utils,                 ONLY: Eval_Interp_Spl3_pbc,&
                                              find_coeffs,&
@@ -53,10 +52,10 @@ MODULE qs_linres_epr_ownutils
                                              pw_spline_precond_set_kind,&
                                              pw_spline_precond_type,&
                                              spl3_pbc
-  USE pw_types,                        ONLY: pw_integral_ab,&
-                                             pw_p_type,&
-                                             REALDATA3D,&
-                                             REALSPACE
+  USE pw_types,                        ONLY: REALDATA3D,&
+                                             REALSPACE,&
+                                             pw_integral_ab,&
+                                             pw_p_type
   USE qs_core_energies,                ONLY: calculate_ecore
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -68,14 +67,13 @@ MODULE qs_linres_epr_ownutils
                                              get_epr_env,&
                                              jrho_atom_type,&
                                              nablavks_atom_type
-  USE qs_rho_types,                    ONLY: qs_rho_p_type,&
-                                             qs_rho_type
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                              rho_atom_coeff,&
                                              rho_atom_type
+  USE qs_rho_types,                    ONLY: qs_rho_p_type,&
+                                             qs_rho_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE util,                            ONLY: get_limit
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -117,10 +115,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: title
-    INTEGER                                  :: idir1,idir2,output_unit,&
+    INTEGER                                  :: idir1, idir2, output_unit, &
                                                 unit_nr
-    REAL(KIND=dp)                            :: eigenv_g(3),g_sym(3,3),&
-                                                gsum
+    REAL(KIND=dp)                            :: eigenv_g(3), g_sym(3,3), gsum
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: lr_section
 
@@ -256,7 +253,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_g_zke', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: output_unit, ispin, i1
+    INTEGER                                  :: i1, ispin, output_unit
     REAL(KIND=dp)                            :: epr_g_zke_temp(2)
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -322,16 +319,16 @@ CONTAINS
 
     TYPE(epr_env_type)                       :: epr_env
     TYPE(qs_environment_type), POINTER       :: qs_env
+    INTEGER, INTENT(IN)                      :: iB, idir
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
-    INTEGER, INTENT(IN)                      :: iB, idir
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_jrho_atom', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: output_unit, ispin,&
-                                                nkind, ikind, natom, iat, iatom,&
-                                                nspins
+    INTEGER                                  :: iat, iatom, ikind, ispin, &
+                                                natom, nkind, nspins, &
+                                                output_unit
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: gapw, paw_atom
@@ -343,7 +340,7 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(harmonics_atom_type), POINTER       :: harmonics
-    TYPE(jrho_atom_type),DIMENSION(:),&
+    TYPE(jrho_atom_type), DIMENSION(:), &
       POINTER                                :: jrho1_atom_set
     TYPE(jrho_atom_type), POINTER            :: jrho1_atom
     TYPE(section_vals_type), POINTER         :: lr_section
@@ -432,46 +429,42 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_g_so', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: &
-      aint_precond, ia, iat, iatom, iB, idir1, idir2, idir3,&
-      ikind, ispin, ir, istat, max_iter, precond_kind, natom,&
-      nkind, nspins, output_unit
+    INTEGER :: aint_precond, ia, iat, iatom, iB, idir1, idir2, idir3, ikind, &
+      ir, ispin, istat, max_iter, natom, nkind, nspins, output_unit, &
+      precond_kind
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: gapw, paw_atom, failure,&
+    LOGICAL                                  :: failure, gapw, paw_atom, &
                                                 success
-    REAL(dp)                                 :: eps_r, eps_x,&
-                                                temp_so_soft,&
-                                                vks_ra_idir2,&
-                                                vks_ra_idir3
+    REAL(dp)                                 :: eps_r, eps_x, temp_so_soft, &
+                                                vks_ra_idir2, vks_ra_idir3
+    REAL(dp), DIMENSION(3, 3)                :: temp_so_gapw
+    REAL(dp), DIMENSION(:, :), POINTER       :: g_so, g_total
     REAL(KIND=dp), DIMENSION(3)              :: ra
-    REAL(dp), DIMENSION(3,3)                 :: temp_so_gapw
-    REAL(dp), DIMENSION(:,:), POINTER        :: g_total, g_so
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atom_kind
-    TYPE(pw_p_type), DIMENSION(:,:),&
-      POINTER                                :: vks_pw_spline
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(harmonics_atom_type), POINTER       :: harmonics
-    TYPE(jrho_atom_type),DIMENSION(:),&
+    TYPE(jrho_atom_type), DIMENSION(:), &
       POINTER                                :: jrho1_atom_set
     TYPE(jrho_atom_type), POINTER            :: jrho1_atom
-    TYPE(nablavks_atom_type),DIMENSION(:),&
-      POINTER                                :: nablavks_atom_set 
+    TYPE(nablavks_atom_type), DIMENSION(:), &
+      POINTER                                :: nablavks_atom_set
     TYPE(nablavks_atom_type), POINTER        :: nablavks_atom
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), DIMENSION(:, :), &
+      POINTER                                :: vks_pw_spline
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(pw_spline_precond_type), POINTER    :: precond
-    TYPE(qs_rho_p_type),DIMENSION(:,:),&
+    TYPE(qs_rho_p_type), DIMENSION(:, :), &
       POINTER                                :: jrho1_set, nablavks_set
-    TYPE(section_vals_type), POINTER         :: interp_section,&
-                                                lr_section
+    TYPE(section_vals_type), POINTER         :: interp_section, lr_section
 
     NULLIFY(atomic_kind_set, atom_kind, atom_list, dft_control,&
       grid_atom, g_so, g_total, harmonics, interp_section, jrho1_atom_set,&
@@ -725,27 +718,21 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_g_soo', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: &
-       aint_precond, ia, iat, iatom, iB, idir1, ikind, iso, ispin, ir, istat,&
-       max_iter, precond_kind, natom, nkind, nspins, output_unit
+    INTEGER :: aint_precond, ia, iat, iatom, iB, idir1, ikind, ir, iso, &
+      ispin, istat, max_iter, natom, nkind, nspins, output_unit, precond_kind
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: gapw, paw_atom, failure,&
+    LOGICAL                                  :: failure, gapw, paw_atom, &
                                                 soo_rho_hard, success
-    REAL(dp)                                 :: eps_r, eps_x,&
-                                                temp_soo_soft,&
-                                                bind_ra_idir1,&
-                                                rho_spin
+    REAL(dp)                                 :: bind_ra_idir1, eps_r, eps_x, &
+                                                rho_spin, temp_soo_soft
+    REAL(dp), DIMENSION(3, 3)                :: temp_soo_gapw
+    REAL(dp), DIMENSION(:, :), POINTER       :: bind0, g_soo, g_total
     REAL(KIND=dp), DIMENSION(3)              :: ra
-    REAL(dp), DIMENSION(3,3)                 :: temp_soo_gapw
-    REAL(dp), DIMENSION(:,:), POINTER        :: bind0, g_soo, g_total
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atom_kind
-    TYPE(pw_p_type), DIMENSION(:,:),&
-      POINTER                                :: bind_pw_spline
     TYPE(cp_logger_type), POINTER            :: logger
-
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(grid_atom_type), POINTER            :: grid_atom
@@ -753,18 +740,19 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), DIMENSION(:, :), &
+      POINTER                                :: bind_pw_spline
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(pw_spline_precond_type), POINTER    :: precond
-    TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(qs_rho_p_type), DIMENSION(:,:), &
+    TYPE(qs_rho_p_type), DIMENSION(:, :), &
       POINTER                                :: bind_set
+    TYPE(qs_rho_type), POINTER               :: rho
     TYPE(rho_atom_coeff), DIMENSION(:), &
       POINTER                                :: rho_rad_h, rho_rad_s
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
     TYPE(rho_atom_type), POINTER             :: rho_atom
-    TYPE(section_vals_type), POINTER         :: g_section,&
-                                                interp_section,&
+    TYPE(section_vals_type), POINTER         :: g_section, interp_section, &
                                                 lr_section
 
     NULLIFY(atomic_kind_set, atom_kind, atom_list, bind0, bind_set,&

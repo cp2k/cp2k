@@ -35,6 +35,7 @@ MODULE qs_core_energies
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE erf_fn,                          ONLY: erfc
+  USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
@@ -62,7 +63,6 @@ MODULE qs_core_energies
                                              timestop
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -21,10 +21,10 @@
 
 MODULE csvr_system_utils
 
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE parallel_rng_types,              ONLY: next_random_number,&
                                              rng_stream_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

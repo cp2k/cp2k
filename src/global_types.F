@@ -29,13 +29,13 @@
 MODULE global_types
 
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             default_path_length,&
+  USE f77_blas
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp
   USE machine,                         ONLY: m_walltime
   USE parallel_rng_types,              ONLY: delete_rng_stream,&
                                              rng_stream_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

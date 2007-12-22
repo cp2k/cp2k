@@ -31,6 +31,7 @@ MODULE qmmm_gaussian_input
                                              parser_get_object,&
                                              parser_release,&
                                              parser_search_string
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
@@ -41,7 +42,6 @@ MODULE qmmm_gaussian_input
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_program
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

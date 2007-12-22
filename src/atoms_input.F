@@ -35,6 +35,7 @@ MODULE atoms_input
                                              scaled_to_real
   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
                                              cp_sll_val_type
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_list_get,&
@@ -53,7 +54,6 @@ MODULE atoms_input
                                              timestop
   USE topology_types,                  ONLY: atom_info_type,&
                                              topology_parameters_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

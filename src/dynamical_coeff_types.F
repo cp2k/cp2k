@@ -34,6 +34,7 @@ MODULE dynamical_coeff_types
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_retain,&
                                              distribution_1d_type
+  USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: dyn_coeff_mass_atom,&
                                              dyn_coeff_mass_coeff,&
@@ -52,7 +53,6 @@ MODULE dynamical_coeff_types
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE util,                            ONLY: locate
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

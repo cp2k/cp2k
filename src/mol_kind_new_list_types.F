@@ -44,12 +44,12 @@
 !!   SOURCE
 !****************************************************************************
 MODULE mol_kind_new_list_types
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE molecule_kind_types,             ONLY: deallocate_molecule_kind_set,&
                                              molecule_kind_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

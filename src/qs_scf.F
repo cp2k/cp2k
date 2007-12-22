@@ -85,6 +85,7 @@ MODULE qs_scf
                                              sm_pools_create_matrix_vect,&
                                              sm_pools_flush_cache,&
                                              sm_pools_give_back_matrix_vect
+  USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE harris_env_types,                ONLY: harris_env_type
   USE harris_functional,               ONLY: harris_eigenvalue_calculation,&
@@ -183,7 +184,6 @@ MODULE qs_scf
                                              timestop
   USE virial_types,                    ONLY: virial_type
   USE xas_restart,                     ONLY: xas_initialize_rho
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

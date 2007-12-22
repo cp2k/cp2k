@@ -17,9 +17,11 @@
 !!****
 
 MODULE qs_tddfpt_module
-  USE bibliography,                    ONLY: Iannuzzi2005,cite_reference
+  USE bibliography,                    ONLY: Iannuzzi2005,&
+                                             cite_reference
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE header,                          ONLY: tddfpt_header
   USE input_constants,                 ONLY: oe_gllb,&
@@ -50,7 +52,6 @@ MODULE qs_tddfpt_module
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_pot_saop,                     ONLY: add_saop_pot
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

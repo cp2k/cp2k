@@ -22,12 +22,12 @@
 
 MODULE splines_methods
 
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE splines_types,                   ONLY: spline_data_p_type,&
                                              spline_data_type,&
                                              spline_factor_type
   USE termination,                     ONLY: stop_memory
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

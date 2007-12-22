@@ -26,6 +26,7 @@ MODULE qs_scf_types
                                              cp_fm_release,&
                                              cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE preconditioner,                  ONLY: destroy_preconditioner,&
                                              preconditioner_p_type
@@ -37,7 +38,6 @@ MODULE qs_scf_types
                                              real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

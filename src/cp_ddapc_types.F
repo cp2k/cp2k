@@ -34,6 +34,7 @@ MODULE cp_ddapc_types
   USE cp_output_handling,              ONLY: cp_printkey_is_on
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE ewald_spline_util,               ONLY: Setup_Ewald_Spline
+  USE f77_blas
   USE input_constants,                 ONLY: use_multipole
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -50,7 +51,6 @@ MODULE cp_ddapc_types
   USE pw_types,                        ONLY: pw_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

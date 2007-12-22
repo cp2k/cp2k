@@ -36,6 +36,7 @@ MODULE kg_gpw_pw_env_types
                                              cell_retain,&
                                              cell_type
   USE cube_utils,                      ONLY: destroy_cube_info
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_type
   USE kg_gpw_fm_mol_types,             ONLY: fm_mol_blocks_type
   USE kinds,                           ONLY: dp
@@ -48,7 +49,6 @@ MODULE kg_gpw_pw_env_types
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_retain,&
                                              qs_rho_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

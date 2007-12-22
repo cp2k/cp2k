@@ -35,6 +35,7 @@ MODULE geo_opt
                                              cp_iterate,&
                                              cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
@@ -55,7 +56,6 @@ MODULE geo_opt
   USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
  IMPLICIT NONE

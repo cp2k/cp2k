@@ -34,6 +34,7 @@
 MODULE cp_output_handling
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE f77_blas
   USE input_constants,                 ONLY: debug_print_level,&
                                              high_print_level,&
                                              low_print_level,&
@@ -62,7 +63,6 @@ MODULE cp_output_handling
                                              dp
   USE machine,                         ONLY: m_mov
   USE string_utilities,                ONLY: compress
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

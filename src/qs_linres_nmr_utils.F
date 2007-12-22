@@ -66,10 +66,10 @@ MODULE qs_linres_nmr_utils
                                              parser_get_object,&
                                              parser_release
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
-  USE input_constants,                 ONLY: restart_guess,&
-                                             nmr_gauge_r,&
+  USE input_constants,                 ONLY: nmr_gauge_r,&
                                              nmr_gauge_r_and_Bader,&
-                                             nmr_gauge_r_and_step_function
+                                             nmr_gauge_r_and_step_function,&
+                                             restart_guess
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&

@@ -33,6 +33,7 @@ MODULE xc_perdew_zunger
   USE bibliography,                    ONLY: Ortiz1994,&
                                              Perdew1981,&
                                              cite_reference
+  USE f77_blas
   USE input_constants,                 ONLY: pz_dmc,&
                                              pz_orig,&
                                              pz_vmc
@@ -54,7 +55,6 @@ MODULE xc_perdew_zunger
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                              xc_rho_set_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

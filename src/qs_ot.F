@@ -22,8 +22,8 @@
 !!
 MODULE qs_ot
 ! *****************************************************************************
-  USE bibliography,                    ONLY: cite_reference,&
-                                             VandeVondele2003
+  USE bibliography,                    ONLY: VandeVondele2003,&
+                                             cite_reference
   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
                                              cp_cfm_gemm
   USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
@@ -33,13 +33,13 @@ MODULE qs_ot
                                              cp_cfm_to_cfm,&
                                              cp_cfm_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                             cp_fm_frobenius_norm,&
                                              cp_fm_gemm,&
-                                             cp_fm_scale_and_add,&
                                              cp_fm_scale,&
+                                             cp_fm_scale_and_add,&
                                              cp_fm_schur_product,&
                                              cp_fm_symm,&
-                                             cp_fm_transpose,&
-                                             cp_fm_frobenius_norm
+                                             cp_fm_transpose
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_invert,&
                                              cp_fm_cholesky_restore
@@ -58,16 +58,16 @@ MODULE qs_ot
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
+  USE f77_blas
   USE input_constants,                 ONLY: ot_precond_full_kinetic
   USE kinds,                           ONLY: dp
   USE preconditioner,                  ONLY: apply_preconditioner,&
                                              preconditioner_type
   USE sparse_matrix_types,             ONLY: real_matrix_type
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -543,17 +543,22 @@ END SUBROUTINE qs_ot_destroy
 
 SUBROUTINE qs_ot_on_the_fly_localize(qs_ot_env, C_NEW, SC, G_OLD, D, error)
   !
-  TYPE(qs_ot_type)                   :: qs_ot_env
-  TYPE(cp_fm_type), POINTER          :: C_NEW,SC,G_OLD,D
-  TYPE(cp_error_type), INTENT(INOUT) :: error
-  !
-  TYPE(cp_fm_type), POINTER          :: U,GU,Gp1,Gp2,C
-  INTEGER                            :: o,p,i,k,n,kscale,handle
-  REAL(KIND=dp)                      :: expfactor,norm_fro,norm_gct,scale,tmp
-  REAL(KIND=dp), PARAMETER           :: rone=1.0_dp,rzero=0.0_dp
-  REAL(KIND=dp), PARAMETER           :: f2_eps=0.01_dp,alpha=0.1_dp
-  INTEGER, PARAMETER                 :: taylor_order=50
-  !
+    TYPE(qs_ot_type)                         :: qs_ot_env
+    TYPE(cp_fm_type), POINTER                :: C_NEW, SC, G_OLD, D
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    INTEGER, PARAMETER                       :: taylor_order = 50
+    REAL(KIND=dp), PARAMETER                 :: alpha = 0.1_dp, &
+                                                f2_eps = 0.01_dp, &
+                                                rone = 1.0_dp, rzero = 0.0_dp
+
+    INTEGER                                  :: handle, i, k, n, p
+    REAL(KIND=dp)                            :: expfactor, norm_fro, norm_gct
+    TYPE(cp_fm_type), POINTER                :: C, Gp1, Gp2, GU, U
+
+!
+!
+
   CALL timeset("qs_ot_on_the_fly_localize","I","",handle)
   !
   NULLIFY(U,GU,Gp1,Gp2,C)
@@ -635,13 +640,16 @@ END SUBROUTINE qs_ot_on_the_fly_localize
 
 SUBROUTINE qs_ot_ref_chol(qs_ot_env, C_OLD, C_TMP, C_NEW, P, SC, update, error)
   !
-  TYPE(qs_ot_type)                   :: qs_ot_env
-  TYPE(cp_fm_type), POINTER          :: C_OLD,C_TMP,C_NEW,P,SC
-  LOGICAL, INTENT(IN)                :: update
-  TYPE(cp_error_type), INTENT(INOUT) :: error
-  !
-  INTEGER                            :: handle,n,k
-  !
+    TYPE(qs_ot_type)                         :: qs_ot_env
+    TYPE(cp_fm_type), POINTER                :: C_OLD, C_TMP, C_NEW, P, SC
+    LOGICAL, INTENT(IN)                      :: update
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    INTEGER                                  :: handle, k, n
+
+!
+!
+
   CALL timeset("qs_ot_ref_chol","I","",handle)
   !
   CALL cp_fm_get_info(C_NEW,nrow_global=n,ncol_global=k,error=error)
@@ -665,15 +673,18 @@ END SUBROUTINE qs_ot_ref_chol
 
 SUBROUTINE qs_ot_ref_lwdn(qs_ot_env, C_OLD, C_TMP, C_NEW, P, SC, update, error)
   !
-  TYPE(qs_ot_type)                   :: qs_ot_env
-  TYPE(cp_fm_type), POINTER          :: C_OLD,C_TMP,C_NEW,P,SC
-  LOGICAL, INTENT(IN)                :: update
-  TYPE(cp_error_type), INTENT(INOUT) :: error
-  !
-  INTEGER                            :: handle,i,n,k
-  TYPE(cp_fm_type), POINTER          :: V,W
-  REAL(dp), DIMENSION(:), POINTER    :: eig,fun
-  !
+    TYPE(qs_ot_type)                         :: qs_ot_env
+    TYPE(cp_fm_type), POINTER                :: C_OLD, C_TMP, C_NEW, P, SC
+    LOGICAL, INTENT(IN)                      :: update
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    INTEGER                                  :: handle, i, k, n
+    REAL(dp), DIMENSION(:), POINTER          :: eig, fun
+    TYPE(cp_fm_type), POINTER                :: V, W
+
+!
+!
+
   CALL timeset("qs_ot_ref_lwdn","I","",handle)
   !
   NULLIFY(V,W,eig)
@@ -715,20 +726,26 @@ END SUBROUTINE qs_ot_ref_lwdn
 
 SUBROUTINE qs_ot_ref_poly(qs_ot_env,S,C_OLD,C_TMP,C_NEW,P,SC,norm_in,update,error)
   !
-  TYPE(qs_ot_type)                   :: qs_ot_env
-  TYPE(real_matrix_type), POINTER    :: S
-  TYPE(cp_fm_type), POINTER          :: C_OLD,C_TMP,C_NEW,P,SC
-  REAL(dp), INTENT(IN)               :: norm_in
-  LOGICAL, INTENT(IN)                :: update
-  TYPE(cp_error_type), INTENT(INOUT) :: error
-  !
-  TYPE(cp_fm_type), POINTER          :: FY,FT,Y
-  TYPE(cp_logger_type), POINTER      :: logger
-  REAL(dp)                           :: norm,norm_gct,norm_fro,rescale
-  REAL(dp), PARAMETER                :: rzero=0.0_dp,rone=1.0_dp
-  INTEGER                            :: handle,n,k,output_unit,irefine
-  LOGICAL                            :: quick_exit
-  !
+    TYPE(qs_ot_type)                         :: qs_ot_env
+    TYPE(real_matrix_type), POINTER          :: S
+    TYPE(cp_fm_type), POINTER                :: C_OLD, C_TMP, C_NEW, P, SC
+    REAL(dp), INTENT(IN)                     :: norm_in
+    LOGICAL, INTENT(IN)                      :: update
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    REAL(dp), PARAMETER                      :: rone = 1.0_dp, rzero = 0.0_dp
+
+    INTEGER                                  :: handle, irefine, k, n, &
+                                                output_unit
+    LOGICAL                                  :: quick_exit
+    REAL(dp)                                 :: norm, norm_fro, norm_gct, &
+                                                rescale
+    TYPE(cp_fm_type), POINTER                :: FT, FY, Y
+    TYPE(cp_logger_type), POINTER            :: logger
+
+!
+!
+
   CALL timeset("qs_ot_ref_poly","I","",handle)
   !
   NULLIFY(logger,FY,Y)
@@ -754,7 +771,7 @@ SUBROUTINE qs_ot_ref_poly(qs_ot_env,S,C_OLD,C_TMP,C_NEW,P,SC,norm_in,update,erro
      !
      ! rescaling
      IF(norm.GT.1.0_dp) THEN
-        IF(output_unit>0) write(output_unit,'(A,I3,A)') &
+        IF(output_unit>0) WRITE(output_unit,'(A,I3,A)') &
              &'qs_ot_ref_poly: ',irefine,': we rescale (C+a*D)'
         CALL cp_fm_scale(1.0_dp/norm,P,error=error)
         rescale = rescale/SQRT(norm)
@@ -773,7 +790,7 @@ SUBROUTINE qs_ot_ref_poly(qs_ot_env,S,C_OLD,C_TMP,C_NEW,P,SC,norm_in,update,erro
      !
      ! quick exit if possible
      IF(quick_exit) THEN
-        IF(output_unit>0) write(output_unit,'(A,I3,A)') &
+        IF(output_unit>0) WRITE(output_unit,'(A,I3,A)') &
              & 'qs_ot_ref_poly: ',irefine,': quick exit!'
         EXIT
      ENDIF
@@ -790,7 +807,7 @@ SUBROUTINE qs_ot_ref_poly(qs_ot_env,S,C_OLD,C_TMP,C_NEW,P,SC,norm_in,update,erro
      norm = MIN(norm_gct,norm_fro)
      !
      ! printing
-     IF(output_unit>0) write(output_unit,'(A,I3,A,E12.5)') &
+     IF(output_unit>0) WRITE(output_unit,'(A,I3,A,E12.5)') &
           & 'qs_ot_ref_poly: ',irefine,': ||P-I||=',norm
      !
      ! blows up
@@ -822,9 +839,11 @@ END SUBROUTINE qs_ot_ref_poly
 
 FUNCTION qs_ot_ref_update(qs_ot_env1) RESULT(update)
   !
-  TYPE(qs_ot_type)                   :: qs_ot_env1
-  LOGICAL                            :: update
-  !
+    TYPE(qs_ot_type)                         :: qs_ot_env1
+    LOGICAL                                  :: update
+
+!
+
   update = .FALSE.
   SELECT CASE(qs_ot_env1%settings%ot_method)
   CASE("CG")
@@ -843,10 +862,12 @@ END FUNCTION qs_ot_ref_update
 
 SUBROUTINE qs_ot_ref_decide(qs_ot_env1, norm_in, ortho_irac)
   !
-  TYPE(qs_ot_type)                   :: qs_ot_env1
-  REAL(dp), INTENT(IN)               :: norm_in
-  CHARACTER(LEN=*), INTENT(INOUT)    :: ortho_irac
-  !
+    TYPE(qs_ot_type)                         :: qs_ot_env1
+    REAL(dp), INTENT(IN)                     :: norm_in
+    CHARACTER(LEN=*), INTENT(INOUT)          :: ortho_irac
+
+!
+
   ortho_irac = qs_ot_env1%settings%ortho_irac
   IF(norm_in.LT.qs_ot_env1%settings%eps_irac_switch) ortho_irac = "POLY"
 END SUBROUTINE qs_ot_ref_decide
@@ -855,22 +876,27 @@ SUBROUTINE qs_ot_get_orbitals_ref(matrix_c, matrix_s, matrix_x, matrix_sx, &
      &                            matrix_gx_old, matrix_dx, qs_ot_env, &
      &                            qs_ot_env1, error)
   !
-  TYPE(cp_fm_type), POINTER          :: matrix_c,matrix_x,matrix_sx,matrix_gx_old,&
-       &                                matrix_dx
-  TYPE(real_matrix_type), POINTER    :: matrix_s
-  TYPE(qs_ot_type)                   :: qs_ot_env,qs_ot_env1
-  TYPE(cp_error_type), INTENT(INOUT) :: error
-  !
-  REAL(KIND=dp), PARAMETER           :: rone = 1.0_dp, rzero = 0.0_dp
-  TYPE(cp_fm_type), POINTER          :: SC,P,Y,C_NEW,C_OLD,C_TMP,G_OLD,D
-  TYPE(real_matrix_type), POINTER    :: S
-  TYPE(cp_logger_type), POINTER      :: logger
-  INTEGER                            :: handle,k,n,irefine,output_unit,&
-       &                                max_irac
-  REAL(dp)                           :: norm,norm_decide,norm_gct,norm_fro
-  LOGICAL                            :: update,on_the_fly_loc
-  CHARACTER(LEN=4)                   :: ortho_irac
-  !
+    TYPE(cp_fm_type), POINTER                :: matrix_c
+    TYPE(real_matrix_type), POINTER          :: matrix_s
+    TYPE(cp_fm_type), POINTER                :: matrix_x, matrix_sx, &
+                                                matrix_gx_old, matrix_dx
+    TYPE(qs_ot_type)                         :: qs_ot_env, qs_ot_env1
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
+
+    CHARACTER(LEN=4)                         :: ortho_irac
+    INTEGER                                  :: handle, k, n, output_unit
+    LOGICAL                                  :: on_the_fly_loc, update
+    REAL(dp)                                 :: norm, norm_fro, norm_gct
+    TYPE(cp_fm_type), POINTER                :: C_NEW, C_OLD, C_TMP, D, &
+                                                G_OLD, P, SC, Y
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(real_matrix_type), POINTER          :: S
+
+!
+!
+
   CALL timeset("qs_ot_get_orbitals_ref","I","",handle)
   NULLIFY(S,SC,P,Y,C_NEW,C_OLD,C_TMP,G_OLD,D,logger)
   logger => cp_error_get_logger(error)
@@ -913,7 +939,7 @@ SUBROUTINE qs_ot_get_orbitals_ref(matrix_c, matrix_s, matrix_x, matrix_sx, &
   CALL cp_fm_maxabsrownorm(Y,norm_gct,error=error)
   norm = MIN(norm_gct,norm_fro)
   CALL qs_ot_ref_decide(qs_ot_env1,norm,ortho_irac)
-  IF(output_unit>0) write(output_unit,'(A,I3,A,E12.5,A)') &
+  IF(output_unit>0) WRITE(output_unit,'(A,I3,A,E12.5,A)') &
        & 'qs_ot_get_orbitals_ref: ',0,': ||P-I||=',norm,&
        & ', ortho_irac = '//ortho_irac
   !
@@ -932,7 +958,7 @@ SUBROUTINE qs_ot_get_orbitals_ref(matrix_c, matrix_s, matrix_x, matrix_sx, &
   ! We update the C_i+1 and localization
   IF(update) THEN
      IF(on_the_fly_loc) THEN
-        IF(output_unit>0) write(output_unit,'(A)') &
+        IF(output_unit>0) WRITE(output_unit,'(A)') &
              & 'qs_ot_get_orbitals_ref: we localize C'
         CALL qs_ot_on_the_fly_localize(qs_ot_env,C_NEW,SC,G_OLD,D,error)
      ENDIF
@@ -946,15 +972,19 @@ SUBROUTINE qs_ot_refine(qs_ot_env,P,FY,error)
   !----------------------------------------------------------------------
   ! refinement polynomial of degree 2,3 and 4 (PRB 70, 193102 (2004))
   !----------------------------------------------------------------------
-  TYPE(qs_ot_type)                         :: qs_ot_env
-  TYPE(cp_fm_type), POINTER                :: P,FY
-  TYPE(cp_error_type), INTENT(inout)       :: error
-  !
-  TYPE(cp_fm_type), POINTER                :: P2,T,Y
-  REAL(KIND=dp), PARAMETER                 :: rone=1.0_dp,rzero=0.0_dp
-  REAL(dp)                                 :: r
-  INTEGER                                  :: k,n
-  !
+    TYPE(qs_ot_type)                         :: qs_ot_env
+    TYPE(cp_fm_type), POINTER                :: P, FY
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
+
+    INTEGER                                  :: k, n
+    REAL(dp)                                 :: r
+    TYPE(cp_fm_type), POINTER                :: P2, T
+
+!
+!
+
   NULLIFY(P2,T)
   CALL cp_fm_get_info(P,ncol_global=k,error=error)
   P2 => qs_ot_env%matrix_buf2 ! a buffer
@@ -1004,14 +1034,18 @@ END SUBROUTINE qs_ot_refine
 
 SUBROUTINE qs_ot_get_derivative_ref(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
      &                              qs_ot_env,error)
-  TYPE(cp_fm_type), POINTER                :: matrix_hc, matrix_x, &
-       &                                      matrix_sx, matrix_gx
-  TYPE(qs_ot_type)                         :: qs_ot_env
-  TYPE(cp_error_type), INTENT(inout)       :: error
-  TYPE(cp_fm_type), POINTER                :: C,SC,HC,CHC,G
-  REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
-  INTEGER                                  :: handle, k, n
-  !
+    TYPE(cp_fm_type), POINTER                :: matrix_hc, matrix_x, &
+                                                matrix_sx, matrix_gx
+    TYPE(qs_ot_type)                         :: qs_ot_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
+
+    INTEGER                                  :: handle, k, n
+    TYPE(cp_fm_type), POINTER                :: C, CHC, G, HC, SC
+
+!
+
   CALL timeset("qs_ot_get_derivative_ref","I","",handle)
   NULLIFY(C,SC,HC,CHC,G)
   CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k,error=error)

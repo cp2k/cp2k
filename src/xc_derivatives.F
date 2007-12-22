@@ -17,6 +17,7 @@
 !!
 !!****
 MODULE xc_derivatives
+  USE f77_blas
   USE input_cp2k_check,                ONLY: xc_functionals_expand
   USE input_section_types,             ONLY: section_vals_get_subs_vals2,&
                                              section_vals_type,&
@@ -89,7 +90,6 @@ MODULE xc_derivatives
                                              xwpbe_lda_info,&
                                              xwpbe_lsd_eval,&
                                              xwpbe_lsd_info
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -29,6 +29,7 @@ MODULE wiener_process
                                              cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_type,&
                                              init_local_particle_set
+  USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE input_constants,                 ONLY: langevin_ensemble
@@ -43,7 +44,6 @@ MODULE wiener_process
                                              next_rng_seed
   USE particle_list_types,             ONLY: particle_list_type
   USE string_utilities,                ONLY: compress
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

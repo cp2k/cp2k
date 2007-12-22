@@ -26,6 +26,7 @@
 MODULE xc_lyp
   USE bibliography,                    ONLY: Lee1988,&
                                              cite_reference
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -39,7 +40,6 @@ MODULE xc_lyp
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                              xc_rho_set_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -20,6 +20,7 @@
 !******************************************************************************
 
 MODULE mc_move_control
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE mc_types,                        ONLY: get_mc_molecule_info,&
@@ -33,7 +34,6 @@ MODULE mc_move_control
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

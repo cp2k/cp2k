@@ -31,6 +31,7 @@ MODULE mc_types
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
+  USE f77_blas
   USE fist_environment_types,          ONLY: fist_environment_type,&
                                              get_fist_env
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
@@ -69,7 +70,6 @@ MODULE mc_types
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

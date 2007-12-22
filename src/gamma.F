@@ -22,13 +22,13 @@
 
 MODULE gamma
 
+  USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE mathconstants,                   ONLY: ifac,&
                                              pi
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -205,7 +205,7 @@ CONTAINS
       INTENT(OUT)                            :: f
 
     INTEGER                                  :: itab, k, n
-    REAL(KIND=dp)                            :: expt, g, tdelta, ttab, tmp
+    REAL(KIND=dp)                            :: expt, g, tdelta, tmp, ttab
 
 !   ---------------------------------------------------------------------------
 !   *** Calculate F(t) ***
@@ -334,7 +334,7 @@ CONTAINS
       INTENT(OUT)                            :: f
 
     INTEGER                                  :: i, itab, k, n
-    REAL(KIND=dp)                            :: expt, g, tdelta, ttab, tmp
+    REAL(KIND=dp)                            :: expt, g, tdelta, tmp, ttab
 
 !   ---------------------------------------------------------------------------
 

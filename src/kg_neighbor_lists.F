@@ -36,6 +36,7 @@ MODULE kg_neighbor_lists
   USE external_potential_types,        ONLY: elp_potential_type,&
                                              get_potential,&
                                              gth_potential_type
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_type
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type,&
@@ -55,7 +56,6 @@ MODULE kg_neighbor_lists
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

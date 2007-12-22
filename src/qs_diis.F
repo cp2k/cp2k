@@ -45,6 +45,7 @@ MODULE qs_diis
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
@@ -58,7 +59,6 @@ MODULE qs_diis
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

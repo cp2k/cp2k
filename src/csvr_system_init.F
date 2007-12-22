@@ -28,6 +28,7 @@ MODULE csvr_system_init
   USE csvr_system_types,               ONLY: csvr_system_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type
+  USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -44,7 +45,6 @@ MODULE csvr_system_init
   USE thermostat_types,                ONLY: thermostat_info_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   PRIVATE

@@ -37,6 +37,7 @@ MODULE reftraj_util
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -49,11 +50,11 @@ MODULE reftraj_util
   USE md,                              ONLY: simulation_parameters_type
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type
-  USE message_passing,                 ONLY: mp_bcast, mp_sum
-  USE mol_new_list_types,              ONLY: mol_new_list_type
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_sum
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
+  USE mol_new_list_types,              ONLY: mol_new_list_type
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
-                                             get_molecule_kind_set,&
                                              molecule_kind_type
   USE molecule_types_new,              ONLY: get_molecule,&
                                              molecule_type
@@ -64,7 +65,6 @@ MODULE reftraj_util
   USE reftraj_types,                   ONLY: reftraj_msd_type,&
                                              reftraj_type
   USE termination,                     ONLY: stop_program
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -120,17 +120,18 @@ CONTAINS
     CHARACTER(LEN=10)                        :: AA
     CHARACTER(LEN=80)                        :: title
     CHARACTER(LEN=default_string_length)     :: name
-    INTEGER                                  :: cellunit, iatom, it, iter, natom, &
-                                                Natom_read, nskip, trjunit
+    INTEGER                                  :: cellunit, iatom, it, iter, &
+                                                natom, Natom_read, nskip, &
+                                                trjunit
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: hx,hy,hz,time,vol,x,y,z
+    REAL(KIND=dp)                            :: hx, hy, hz, time, vol, x, y, z
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE (section_vals_type), POINTER        :: msd_section
+    TYPE(section_vals_type), POINTER         :: msd_section
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
 
@@ -241,7 +242,7 @@ CONTAINS
     TYPE(reftraj_msd_type), POINTER          :: msd
     TYPE(section_vals_type), POINTER         :: msd_section
     TYPE(reftraj_type), POINTER              :: reftraj
-    TYPE (md_environment_type), POINTER      :: md_env
+    TYPE(md_environment_type), POINTER       :: md_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_msd_reftraj', &
@@ -251,25 +252,23 @@ CONTAINS
     CHARACTER(LEN=80)                        :: title
     CHARACTER(LEN=default_path_length)       :: filename
     CHARACTER(LEN=default_string_length)     :: name
-    INTEGER                                  :: first_atom, iatom, ikind, imol, istat, last_atom,&
-                                                natom, natom_read, &
-                                                nkind, nmol, nmolecule, nmolkind, &
-                                                total_mass
+    INTEGER :: first_atom, iatom, ikind, imol, istat, last_atom, natom, &
+      natom_read, nkind, nmol, nmolecule, nmolkind, total_mass
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: com(3), mass, mass_mol, x,y,z
+    REAL(KIND=dp)                            :: com(3), mass, mass_mol, x, y, &
+                                                z
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
+    TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(molecule_type), POINTER             :: molecule
-    TYPE(mol_new_list_type), POINTER         :: molecules
-
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -422,39 +421,36 @@ CONTAINS
   SUBROUTINE compute_msd_reftraj(reftraj,md_env,particle_set,error)
 
     TYPE(reftraj_type), POINTER              :: reftraj
-    TYPE (md_environment_type), POINTER      :: md_env
+    TYPE(md_environment_type), POINTER       :: md_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'compute_msd_reftraj', &
       routineP = moduleN//':'//routineN
-      
-    CHARACTER(LEN=default_path_length)       :: root_fname
-    CHARACTER(LEN=default_string_length)     :: my_ext, my_mittle
-    INTEGER                                  :: atom, first_atom, last_atom,&
-                                                iatom, ikind,imol, imol_global, &
-                                                natom_kind, nmolkind, nmolecule,&
-                                                nmol_per_kind
+
+    INTEGER :: atom, first_atom, iatom, ikind, imol, imol_global, last_atom, &
+      natom_kind, nmol_per_kind, nmolecule, nmolkind
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: dx, dy, dz, mass, mass_mol
-    REAL(KIND=dp)                            :: com(3), diff2_com(4), msd_mkind(4)
+    REAL(KIND=dp)                            :: com(3), diff2_com(4), dx, dy, &
+                                                dz, mass, mass_mol, &
+                                                msd_mkind(4)
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(molecule_kind_type), DIMENSION(:),&
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
+    TYPE(mol_new_list_type), POINTER         :: molecules
+    TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
-    TYPE(molecule_type), POINTER             :: molecule 
-    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
-    TYPE(mol_new_list_type), POINTER         :: molecules
-  
+    TYPE(molecule_type), POINTER             :: molecule
+
     failure = .FALSE.
     NULLIFY(force_env,para_env,subsys)
     NULLIFY(atomic_kind,atomic_kinds,atom_list)
@@ -575,19 +571,16 @@ CONTAINS
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-     CHARACTER(len=*), PARAMETER :: routineN = 'write_output_reftraj', &
-        routineP = moduleN//':'//routineN
-  
-    CHARACTER(LEN=default_string_length)     :: fmd, my_act, &
-                                               my_pos, my_mittle
-    INTEGER :: nkind, ikind, out_msd
-    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN = 'write_output_reftraj', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: my_act, my_mittle, my_pos
+    INTEGER                                  :: ikind, nkind, out_msd
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(reftraj_type), POINTER              :: reftraj
-    TYPE(section_vals_type), POINTER         :: print_section,&
-                                                reftraj_section,&
-                                                root_section
+    TYPE(section_vals_type), POINTER         :: print_section, &
+                                                reftraj_section, root_section
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)

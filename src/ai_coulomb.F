@@ -53,6 +53,7 @@ MODULE ai_coulomb
 
 ! *****************************************************************************
 
+  USE f77_blas
   USE gamma,                           ONLY: fgamma
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
@@ -60,7 +61,6 @@ MODULE ai_coulomb
                                              ncoset
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

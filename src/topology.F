@@ -27,6 +27,7 @@ MODULE topology
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        do_conn_g87, do_conn_g96, do_conn_generate, do_conn_mol_set, &
@@ -81,7 +82,6 @@ MODULE topology
                                              topology_reorder_atoms,&
                                              topology_set_atm_mass
   USE topology_xyz,                    ONLY: read_coordinate_xyz
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -30,6 +30,7 @@ MODULE input_cp2k_check
   USE cp_units,                        ONLY: cp_unit_set_create,&
                                              cp_unit_set_release,&
                                              cp_unit_set_type
+  USE f77_blas
   USE input_constants,                 ONLY: &
        do_region_global, do_thermo_csvr, do_thermo_nose, &
        do_thermo_same_as_part, xc_funct_blyp, xc_funct_bp, xc_funct_hcth120, &
@@ -50,7 +51,6 @@ MODULE input_cp2k_check
                                              dp
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

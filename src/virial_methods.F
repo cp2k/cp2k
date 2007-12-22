@@ -23,14 +23,13 @@ MODULE virial_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
-  USE shell_potential_types,           ONLY: shell_kind_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -92,8 +91,6 @@ SUBROUTINE virial_evaluate ( atomic_kind_set, particle_set, &
     INTEGER :: handle, i, iparticle, iparticle_kind, iparticle_local, j, &
       nnodes, nparticle_kind, nparticle_local
     REAL(KIND=dp)                            :: mass, mfl
-    REAL(KIND=dp)                            :: v_sc_com_i, v_sc_com_j
-    REAL(KIND=dp)                            :: vc(3), vs(3)
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
 !
@@ -158,15 +155,16 @@ END SUBROUTINE virial_evaluate
 
 SUBROUTINE virial_pair_force ( pv_virial, f0, force, rab, error)
 
-  REAL(KIND=dp), DIMENSION(3,3)            :: pv_virial
-  REAL(KIND=dp)                            :: f0
-  REAL(KIND=dp), DIMENSION(3)              :: force, rab
-  TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(KIND=dp), DIMENSION(3, 3)           :: pv_virial
+    REAL(KIND=dp)                            :: f0
+    REAL(KIND=dp), DIMENSION(3)              :: force, rab
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-  CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_pair_force', &
-    routineP = moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_pair_force', &
+      routineP = moduleN//':'//routineN
 
-  INTEGER       :: i, j
+    INTEGER                                  :: i, j
+
 !------------------------------------------------------------------------------
 
   DO i=1,3

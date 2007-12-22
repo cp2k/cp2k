@@ -25,6 +25,7 @@ MODULE kg_energy
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
                                              dyn_coeff_type,&
                                              get_dyn_coeff
+  USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -62,12 +63,12 @@ MODULE kg_energy
                                              mp_max
   USE pw_poisson_methods,              ONLY: pw_poisson_solve
   USE pw_poisson_types,                ONLY: pw_poisson_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
-                                             pw_pool_create_pw,&
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: &
-       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_copy, &
-       pw_integrate_function, pw_p_type, pw_release, pw_axpy, pw_transfer, &
+       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_axpy, &
+       pw_copy, pw_integrate_function, pw_p_type, pw_release, pw_transfer, &
        pw_zero
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_environment_types,            ONLY: qs_environment_type
@@ -76,7 +77,6 @@ MODULE kg_energy
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc,                              ONLY: xc_vxc_pw_create1
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -152,8 +152,6 @@ SUBROUTINE kg_only_energies ( kg_env, force_env_section, error )
                                                 ionode
     REAL(KIND=dp)                            :: dvol, total_rho0_rspace
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(pw_p_type), POINTER                 :: rho_core, rho_g, rho_r, &
-                                                v_gspace
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -162,6 +160,8 @@ SUBROUTINE kg_only_energies ( kg_env, force_env_section, error )
     TYPE(kg_rspw_type), POINTER              :: rspw
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_g, my_rho_r, my_tau, &
                                                 my_vxc_r, my_vxc_tau
+    TYPE(pw_p_type), POINTER                 :: rho_core, rho_g, rho_r, &
+                                                v_gspace
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(section_vals_type), POINTER         :: xc_section
@@ -324,12 +324,12 @@ SUBROUTINE kg_std_energies ( kg_env, root_section, error )
     REAL(KIND=dp)                            :: maxerr, maxgrad, t1, t2
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(pw_p_type), POINTER                 :: vxc_r
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(diis_info_type), POINTER            :: diis_info
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(kg_rspw_type), POINTER              :: rspw
+    TYPE(pw_p_type), POINTER                 :: vxc_r
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(scf_control_type), POINTER          :: scf_control
 
@@ -509,7 +509,6 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, force_env_section, error)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(pw_p_type), POINTER                 :: rho_core, rho_g, rho_r
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -519,6 +518,7 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, force_env_section, error)
     TYPE(kg_rspw_type), POINTER              :: rspw
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_g, my_rho_r, my_tau, &
                                                 my_vxc_r, my_vxc_tau
+    TYPE(pw_p_type), POINTER                 :: rho_core, rho_g, rho_r
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: xc_section
@@ -631,9 +631,6 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, force_env_section, error )
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(pw_p_type), POINTER                 :: rho_core, rho_g, rho_r, &
-                                                rhop_g, rhop_r, v1xc_r, &
-                                                v2xc_r, v_gspace, v_rspace
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -642,6 +639,9 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, force_env_section, error )
     TYPE(kg_energy_type), POINTER            :: energy
     TYPE(kg_rho_type), POINTER               :: rho
     TYPE(kg_rspw_type), POINTER              :: rspw
+    TYPE(pw_p_type), POINTER                 :: rho_core, rho_g, rho_r, &
+                                                rhop_g, rhop_r, v1xc_r, &
+                                                v2xc_r, v_gspace, v_rspace
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(section_vals_type), POINTER         :: xc_section

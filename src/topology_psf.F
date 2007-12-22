@@ -33,14 +33,15 @@ MODULE topology_psf
                                              parser_release,&
                                              parser_search_string,&
                                              parser_test_next_token
+  USE f77_blas
   USE force_fields_input,              ONLY: read_chrg_section
   USE input_constants,                 ONLY: do_conn_psf,&
                                              do_conn_psf_u,&
                                              do_skip_14
   USE input_section_types,             ONLY: section_vals_get,&
-                                             section_vals_val_get,&
                                              section_vals_get_subs_vals,&
-                                             section_vals_type
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
@@ -56,7 +57,6 @@ MODULE topology_psf
                                              reorder_structure,&
                                              tag_molecule
   USE util,                            ONLY: sort
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -711,17 +711,16 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'idm_psf', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, iw, natom, nbond, &
-                                                nimpr, nphi, ntheta, n_rep, j, stat, mol_id,&
-                                                noe, istart, iend, istart1, iend1, item
+    INTEGER :: handle, i, iend, iend1, istart, istart1, item, iw, j, mol_id, &
+      n_rep, natom, nbond, nimpr, noe, nphi, ntheta, stat
+    INTEGER, DIMENSION(:), POINTER           :: tag_mols, tmp, wrk
     LOGICAL                                  :: explicit, failure
+    TYPE(array1_list_type), DIMENSION(:), &
+      POINTER                                :: ex_bond_list
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: subsection
-    INTEGER, DIMENSION(:), POINTER           :: tmp, tag_mols, wrk
-    TYPE(array1_list_type), DIMENSION(:), &
-         POINTER                             :: ex_bond_list
 
     NULLIFY(logger)
     failure = .FALSE.

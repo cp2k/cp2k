@@ -911,7 +911,8 @@ END SUBROUTINE cp_sm_scale_and_add
     TYPE(real_matrix_type), POINTER          :: sparse_matrix
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: fm
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'copy_local_sm_to_replicated_fm', &
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'copy_local_sm_to_replicated_fm', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iblock_col, &
@@ -1007,7 +1008,6 @@ END SUBROUTINE cp_sm_scale_and_add
     TYPE(real_block_node_type), POINTER      :: block_node
 
 !   ---------------------------------------------------------------------------
-
 
     IF (PRESENT(alpha)) THEN
         alpha_l=alpha
@@ -2120,15 +2120,19 @@ END SUBROUTINE cp_sm_scale_and_add
   FUNCTION checksum_real_matrix(a,para_env)
     TYPE(real_matrix_type), POINTER          :: a
     TYPE(cp_para_env_type), POINTER          :: para_env
+    REAL(KIND=dp)                            :: checksum_real_matrix
+
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE checksum_real_matrix (MODULE sparse_matrix_types)"
-    INTEGER                                  :: iblock_row,n
-    REAL(KIND=dp)                            :: checksum_real_matrix
+
+    INTEGER                                  :: iblock_row, n
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: BLOCK
     REAL(KIND=dp), EXTERNAL                  :: DDOT
     TYPE(real_block_node_type), POINTER      :: block_node
+
 !   ---------------------------------------------------------------------------
 !   *** Check the association status of the matrices ***
+
     checksum_real_matrix = 0.0_dp
     IF (.NOT.ASSOCIATED(a)) THEN
        CALL stop_program(routine,"The matrix pointer a is not associated")

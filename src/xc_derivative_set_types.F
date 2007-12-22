@@ -28,6 +28,7 @@ MODULE xc_derivative_set_types
                                              cp_sll_xc_deriv_insert_ordered,&
                                              cp_sll_xc_deriv_next,&
                                              cp_sll_xc_deriv_type
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: MPI_COMM_SELF
   USE pw_grid_types,                   ONLY: pw_grid_type
@@ -45,7 +46,6 @@ MODULE xc_derivative_set_types
   USE xc_derivative_types,             ONLY: xc_derivative_create,&
                                              xc_derivative_release,&
                                              xc_derivative_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

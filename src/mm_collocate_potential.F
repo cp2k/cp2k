@@ -28,12 +28,12 @@ MODULE mm_collocate_potential
   USE cell_types,                      ONLY: cell_type
   USE cube_utils,                      ONLY: cube_info_type,&
                                              return_cube
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE pw_types,                        ONLY: pw_type
   USE qs_util,                         ONLY: exp_radius
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -83,8 +83,8 @@ CONTAINS
     INTEGER, DIMENSION(3), INTENT(IN)        :: n_rep_real
     TYPE(cell_type), POINTER                 :: mm_cell
 
-    INTEGER                                  :: ig, ix, iy, iz, xlb, &
-                                                xub, ylb, yub, zlb, zub
+    INTEGER                                  :: ig, ix, iy, iz, xlb, xub, &
+                                                ylb, yub, zlb, zub
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     INTEGER, DIMENSION(3)                    :: cubecenter, lb_cube, ub_cube
     INTEGER, DIMENSION(:), POINTER           :: sphere_bounds
@@ -215,8 +215,8 @@ CONTAINS
     INTEGER, DIMENSION(3), INTENT(IN)        :: n_rep_real
     TYPE(cell_type), POINTER                 :: mm_cell
 
-    INTEGER                                  :: ig, ix, iy, iz, xlb, &
-                                                xub, ylb, yub, zlb, zub
+    INTEGER                                  :: ig, ix, iy, iz, xlb, xub, &
+                                                ylb, yub, zlb, zub
     INTEGER, DIMENSION(2, 3)                 :: gbo
     INTEGER, DIMENSION(3)                    :: cubecenter, lb_cube, ub_cube
     INTEGER, DIMENSION(:), POINTER           :: sphere_bounds

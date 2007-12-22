@@ -29,6 +29,7 @@ MODULE qs_epr_hyp
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_output_handling,              ONLY: cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -48,15 +49,15 @@ MODULE qs_epr_hyp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_grid_types,                   ONLY: pw_grid_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
-                                             pw_pool_create_pw,&
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              RECIPROCALSPACE,&
+                                             pw_axpy,&
                                              pw_dr2_gg,&
-                                             pw_zero,&
                                              pw_p_type,&
-                                             pw_axpy
+                                             pw_zero
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_grid_atom,                    ONLY: grid_atom_type
@@ -66,7 +67,6 @@ MODULE qs_epr_hyp
                                              rho_atom_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE util,                            ONLY: get_limit
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -108,8 +108,6 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(pw_p_type), POINTER                 :: hypaniso_gspace, &
-                                                rhototspin_elec_gspace
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -119,6 +117,8 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_grid_type), POINTER              :: pw_grid
+    TYPE(pw_p_type), POINTER                 :: hypaniso_gspace, &
+                                                rhototspin_elec_gspace
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(rho_atom_coeff), DIMENSION(:), &

@@ -39,8 +39,8 @@ MODULE cp_fm_types
                                              cp_fm_struct_write
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE kinds,                           ONLY: dp, &
-                                             default_path_length
+  USE kinds,                           ONLY: default_path_length,&
+                                             dp
   USE message_passing,                 ONLY: cp2k_is_parallel,&
                                              mp_bcast,&
                                              mp_max,&

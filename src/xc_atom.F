@@ -18,6 +18,7 @@ MODULE xc_atom
 
   USE cp_linked_list_xc_deriv,         ONLY: cp_sll_xc_deriv_next,&
                                              cp_sll_xc_deriv_type
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -36,7 +37,6 @@ MODULE xc_atom
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                              xc_rho_set_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
  IMPLICIT NONE
@@ -77,8 +77,7 @@ CONTAINS
     REAL(dp)                                 :: exc
     REAL(dp), DIMENSION(:, :, :), POINTER    :: vxc
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: vxg
-    LOGICAL, INTENT(IN), OPTIONAL            :: energy_only
-    LOGICAL, INTENT(IN), OPTIONAL            :: epr_xc
+    LOGICAL, INTENT(IN), OPTIONAL            :: energy_only, epr_xc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'vxc_of_r_new', &

@@ -32,6 +32,7 @@ MODULE cp_parser
                                              cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -39,7 +40,6 @@ MODULE cp_parser
                                              mp_bcast
   USE string_utilities,                ONLY: compress,&
                                              uppercase
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -435,7 +435,8 @@ SUBROUTINE parser_next_token(parser,string_length,error)
     CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_next_token', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, length, len_inputline, len_trim_inputline
+    INTEGER                                  :: i, len_inputline, &
+                                                len_trim_inputline, length
     LOGICAL                                  :: failure
 
 !   ---------------------------------------------------------------------------
@@ -932,8 +933,7 @@ END SUBROUTINE parser_next_token
 
     CHARACTER(LEN=max_line_length), &
       DIMENSION(2)                           :: string
-    INTEGER                                  :: idot_first, idot_last, &
-                                                islash, istat, iz, nline, nz
+    INTEGER                                  :: islash, istat, iz, nline, nz
     LOGICAL                                  :: failure, my_at_end, &
                                                 my_multiline
     REAL(KIND=dp), DIMENSION(2)              :: z

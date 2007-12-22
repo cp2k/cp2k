@@ -19,6 +19,7 @@ MODULE qs_rho0_types
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell
   USE erf_fn,                          ONLY: erf
+  USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
@@ -26,15 +27,14 @@ MODULE qs_rho0_types
                                              pi,&
                                              rootpi
   USE memory_utilities,                ONLY: reallocate
-  USE pw_types,                        ONLY: pw_release,&
-                                             pw_p_type
+  USE pw_types,                        ONLY: pw_p_type,&
+                                             pw_release
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_rho_atom_types,               ONLY: rho_atom_coeff
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE whittaker,                       ONLY: whittaker_c0a,&
                                              whittaker_ci
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -34,6 +34,7 @@ MODULE particle_types
                                              pbc
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE f77_blas
   USE input_constants,                 ONLY: dump_atomic,&
                                              dump_dcd,&
                                              dump_xmol
@@ -59,7 +60,6 @@ MODULE particle_types
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort_unique
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

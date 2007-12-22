@@ -23,11 +23,11 @@ MODULE fist_neighbor_list_types
 
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

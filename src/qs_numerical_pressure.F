@@ -31,6 +31,7 @@ MODULE qs_numerical_pressure
                                              scaled_to_real
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_type
+  USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
@@ -44,7 +45,6 @@ MODULE qs_numerical_pressure
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              qs_ks_release
   USE virial_types,                    ONLY: virial_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -22,6 +22,7 @@
 
 MODULE velocity_verlet_control
 
+  USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type,&
                                              use_fist_force
@@ -39,7 +40,6 @@ MODULE velocity_verlet_control
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

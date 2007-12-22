@@ -36,6 +36,7 @@ MODULE qs_initial_guess
                                              cp_sm_fm_multiply
   USE external_potential_types,        ONLY: all_potential_type,&
                                              gth_potential_type
+  USE f77_blas
   USE input_constants,                 ONLY: atomic_guess,&
                                              core_guess,&
                                              densities_guess,&
@@ -44,8 +45,7 @@ MODULE qs_initial_guess
                                              random_guess,&
                                              restart_guess
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_type
   USE kinds,                           ONLY: default_path_length,&
                                              dp,&
                                              dp_size,&
@@ -79,7 +79,6 @@ MODULE qs_initial_guess
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -146,6 +145,7 @@ CONTAINS
       POINTER                                :: work1
     TYPE(cp_fm_type), POINTER                :: mo_coeff, moa, mob, ortho, &
                                                 sv, work2
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -158,7 +158,6 @@ CONTAINS
                                                 s_sparse
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, input
-    TYPE(cp_logger_type), POINTER            :: logger
 
     logger => cp_error_get_logger(error)
     failure = .FALSE.

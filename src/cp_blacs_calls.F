@@ -25,8 +25,8 @@
 !!   SOURCE
 !****************************************************************************
 MODULE cp_blacs_calls
-  USE kinds,                           ONLY: dp
   USE f77_blas
+  USE kinds,                           ONLY: dp
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

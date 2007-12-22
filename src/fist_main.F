@@ -21,6 +21,7 @@
 
 MODULE fist_main
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE fist_environment,                ONLY: fist_init
   USE fist_environment_types,          ONLY: fist_env_create,&
                                              fist_env_release,&
@@ -34,7 +35,6 @@ MODULE fist_main
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -23,18 +23,19 @@ MODULE qs_loc_control
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
+  USE f77_blas
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: &
-       do_loc_crazy, do_loc_direct, do_loc_jacobi, do_loc_max, do_loc_min, &
-       do_loc_none, op_loc_berry, op_loc_boys, op_loc_pipek, state_loc_all, &
-       state_loc_range, state_loc_list, state_loc_none
+  USE input_constants,                 ONLY: do_loc_none,&
+                                             state_loc_all,&
+                                             state_loc_list,&
+                                             state_loc_none,&
+                                             state_loc_range
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
   USE string_utilities,                ONLY: xstring
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -241,10 +242,10 @@ SUBROUTINE read_loc_section(localized_wfn_control,loc_section,localize,&
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_loc_section', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ir, istat, n_list, n_rep, n_state, &
-                                                ncubes, output_unit
+    INTEGER                                  :: i, ir, istat, n_list, n_rep, &
+                                                n_state, ncubes, output_unit
     INTEGER, DIMENSION(:), POINTER           :: bounds, list
-    LOGICAL                                  :: failure, log_val, my_do_xas
+    LOGICAL                                  :: failure, my_do_xas
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure=.FALSE.
@@ -400,9 +401,9 @@ SUBROUTINE read_loc_section(localized_wfn_control,loc_section,localize,&
       ELSE
         localized_wfn_control%localization_method = do_loc_none
         localized_wfn_control%localization_method = state_loc_none
-        localized_wfn_control%print_centers  = .false.
-        localized_wfn_control%print_spreads  = .false.
-        localized_wfn_control%print_cubes  = .false.
+        localized_wfn_control%print_centers  = .FALSE.
+        localized_wfn_control%print_spreads  = .FALSE.
+        localized_wfn_control%print_cubes  = .FALSE.
       END IF
     END IF  ! failure
 

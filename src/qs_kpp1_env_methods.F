@@ -29,6 +29,7 @@ MODULE qs_kpp1_env_methods
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
+  USE f77_blas
   USE hartree_local_2centers,          ONLY: integrate_vhg0_g0
   USE hartree_local_3centers,          ONLY: integrate_a_vhg0_b
   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
@@ -54,9 +55,9 @@ MODULE qs_kpp1_env_methods
                                              pw_pool_p_type,&
                                              pw_pool_type
   USE pw_types,                        ONLY: &
-       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_copy, &
-       pw_create, pw_integrate_function, pw_p_type, pw_release, pw_retain, &
-       pw_axpy, pw_transfer, pw_zero
+       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_axpy, &
+       pw_copy, pw_create, pw_integrate_function, pw_p_type, pw_release, &
+       pw_retain, pw_transfer, pw_zero
   USE qs_energy_types,                 ONLY: allocate_qs_energy,&
                                              deallocate_qs_energy,&
                                              qs_energy_type
@@ -89,7 +90,6 @@ MODULE qs_kpp1_env_methods
                                              xc_rho_set_release,&
                                              xc_rho_set_type,&
                                              xc_rho_set_update
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -220,14 +220,13 @@ CONTAINS
                                                 energy_hartree_2c, &
                                                 energy_hartree_3c, fac
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: rho1_tot_gspace, &
                                                 v_hartree_gspace, &
                                                 v_hartree_rspace
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho1_r, v_rspace_new
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho1_g_pw, rho1_r_pw, tau_pw, &
-                                                v_xc
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho1_g_pw, rho1_r, rho1_r_pw, &
+                                                tau_pw, v_rspace_new, v_xc
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
@@ -736,9 +735,8 @@ CONTAINS
     LOGICAL                                  :: explicit, failure, &
                                                 lsd_singlets
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_r
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_r, rho_r
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &

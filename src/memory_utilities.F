@@ -21,17 +21,12 @@
 
 MODULE memory_utilities
 
-  USE cp_output_handling,              ONLY: cp_p_file,&
-                                             cp_print_key_should_output
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE input_section_types,             ONLY: section_vals_type
+  USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              dp_size,&
                                              int_size
-  USE message_passing,                 ONLY: mp_sync
   USE termination,                     ONLY: stop_memory
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

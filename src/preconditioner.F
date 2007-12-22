@@ -183,7 +183,6 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, matrix_h,
 
 !----
 
-
   CALL timeset("make_preconditioner","I","",handle)
 
   CALL cp_fm_get_info(mo_coeff,ncol_global=k,error=error)
@@ -1013,7 +1012,7 @@ SUBROUTINE make_full_all(preconditioner_env, matrix_c0, matrix_h, matrix_s, c0_e
                                                 lambda_base = 10.0_dp
 
     INTEGER                                  :: k, n
-    REAL(KIND=dp)                            :: error_estimate,lambda
+    REAL(KIND=dp)                            :: error_estimate, lambda
     REAL(KIND=dp), DIMENSION(:), POINTER     :: diag, norms, shifted_evals
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER :: matrix_hc0, matrix_left, matrix_pre, &
@@ -1296,16 +1295,17 @@ SUBROUTINE make_full_kinetic(preconditioner_env, fm, matrix_t, matrix_s, &
     REAL(KIND=dp)                            :: energy_homo, energy_gap
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    LOGICAL                                  :: failure
+    CHARACTER(len=*), PARAMETER :: routineN = 'make_full_kinetic', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: n
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: shift
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: fm_work
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'make_full_kinetic', &
-      routineP = moduleN//':'//routineN
-
 ! ---
+
   failure = .FALSE.
   CPPrecondition(ASSOCIATED(matrix_t),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,error,failure)

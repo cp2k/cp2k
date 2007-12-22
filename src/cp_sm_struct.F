@@ -31,10 +31,10 @@ MODULE cp_sm_struct
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_retain,&
                                              distribution_2d_type
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

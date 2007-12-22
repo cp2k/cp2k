@@ -24,6 +24,7 @@
 !****************************************************************************
 MODULE pint_methods
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE input_constants,                 ONLY: mol_dyn_run
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_set
@@ -33,7 +34,6 @@ MODULE pint_methods
        pint_f2uf, pint_release, pint_start, pint_u2x, pint_x2u
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

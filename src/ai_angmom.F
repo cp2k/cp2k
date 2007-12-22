@@ -45,11 +45,11 @@ MODULE ai_angmom
 
   USE ai_derivatives,                  ONLY: dabdr
   USE ai_moments,                      ONLY: moment
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE orbital_pointers,                ONLY: coset,&
                                              ncoset
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

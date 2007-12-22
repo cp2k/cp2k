@@ -53,7 +53,6 @@ MODULE qs_ks_atom
                                              timestop
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -119,9 +118,10 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: my_tddft, new_atom_b, &
-                                                new_atom_c, paw_atom, use_virial
-    REAL(dp), DIMENSION(3, 3)                :: force_tmp
+                                                new_atom_c, paw_atom, &
+                                                use_virial
     REAL(dp), DIMENSION(3)                   :: rac, rbc
+    REAL(dp), DIMENSION(3, 3)                :: force_tmp
     REAL(kind=dp)                            :: factor
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: dCPC_h, dCPC_s
@@ -147,7 +147,7 @@ CONTAINS
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom
     TYPE(rho_atom_type), POINTER             :: rho_at
-    TYPE(virial_type), POINTER                  :: virial
+    TYPE(virial_type), POINTER               :: virial
 
 !******************************************************************************
 

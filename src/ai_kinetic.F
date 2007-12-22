@@ -45,10 +45,10 @@ MODULE ai_kinetic
 
 ! *****************************************************************************
 
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE orbital_pointers,                ONLY: coset,&
                                              ncoset
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

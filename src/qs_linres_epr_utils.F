@@ -60,22 +60,21 @@ MODULE qs_linres_epr_utils
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
-  USE input_constants,                 ONLY: restart_guess,&
-                                             epr_gauge_r,&
+  USE input_constants,                 ONLY: epr_gauge_r,&
                                              epr_gauge_r_and_Bader,&
-                                             epr_gauge_r_and_step_function
+                                             epr_gauge_r_and_step_function,&
+                                             restart_guess
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: default_path_length,&
-                                             dp
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi,&
                                              twopi
   USE memory_utilities,                ONLY: reallocate
   USE particle_types,                  ONLY: particle_type
-  USE physcon,                         ONLY: a_fine,&
-                                             a_bohr,&
+  USE physcon,                         ONLY: a_bohr,&
+                                             a_fine,&
                                              e_charge,&
                                              e_gfactor,&
                                              e_mass,&
@@ -88,8 +87,8 @@ MODULE qs_linres_epr_utils
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_zero,&
-                                             pw_release
+                                             pw_release,&
+                                             pw_zero
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_linres_epr_atom_current,      ONLY: list_3c_jrho_atom
@@ -109,11 +108,8 @@ MODULE qs_linres_epr_utils
   USE qs_operators_ao,                 ONLY: set_up_op_sm
   USE qs_p_env_types,                  ONLY: p_env_release,&
                                              qs_p_env_type
-  USE qs_rho_atom_methods,             ONLY: allocate_rho_atom_internals
-  USE qs_rho_atom_types,               ONLY: deallocate_rho_atom_set,&
-                                             rho_atom_type
-  USE qs_rho_types,                    ONLY: qs_rho_release,&
-                                             qs_rho_retain
+  USE qs_rho_atom_types,               ONLY: deallocate_rho_atom_set
+  USE qs_rho_types,                    ONLY: qs_rho_retain
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              deallocate_matrix,&
@@ -598,8 +594,6 @@ CONTAINS
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
-    TYPE(rho_atom_type), DIMENSION(:), &
-      POINTER                                :: vks_atom_set
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: epr_section, lr_section
 

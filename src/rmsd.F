@@ -24,11 +24,11 @@
 !****************************************************************************
 MODULE rmsd
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: diamat_all,&
                                              matvec_3x3
   USE particle_types,                  ONLY: particle_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

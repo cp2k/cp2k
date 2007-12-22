@@ -31,6 +31,7 @@ MODULE gopt_f_types
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
+  USE f77_blas
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_release,&
@@ -38,9 +39,9 @@ MODULE gopt_f_types
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: default_bfgs_method_id,&
+                                             dump_atomic,&
                                              dump_dcd,&
-                                             dump_xmol,&
-                                             dump_atomic
+                                             dump_xmol
   USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_vals_get_subs_vals,&
@@ -58,7 +59,6 @@ MODULE gopt_f_types
   USE qmmm_util,                       ONLY: apply_qmmm_translate
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

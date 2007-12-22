@@ -20,6 +20,7 @@
 MODULE ps_wavelet_util
 
 
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi
   USE ps_wavelet_base
@@ -27,7 +28,6 @@ MODULE ps_wavelet_util
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -128,6 +128,7 @@ CONTAINS
 
 !the order of the finite-difference gradient (fixed)
 !calculate the dimensions wrt the geocode
+
     IF (geocode == 'P') THEN
        CALL P_FFT_dimensions(n01,n02,n03,m1,m2,m3,n1,n2,n3,md1,md2,md3,nd1,nd2,nd3,nproc)
     ELSE IF (geocode == 'S') THEN
@@ -571,16 +572,14 @@ CONTAINS
                                                 nxcl, nxcr
     REAL(KIND=dp), INTENT(in)                :: hx, hy, hz
     INTEGER, INTENT(in)                      :: nproc, iproc
-
-    CHARACTER(len=*), PARAMETER              :: routineN = 'scale_and_distribute'
-
     REAL(KIND=dp), &
       DIMENSION(md1, md3, md2/nproc), &
       INTENT(inout)                          :: zf, rhopot
     REAL(KIND=dp), INTENT(in)                :: factor
 
-    INTEGER                                  :: j1, j3, jp2, jpp2, jppp2, &
-                                                offset,handle
+    CHARACTER(len=*), PARAMETER :: routineN = 'scale_and_distribute'
+
+    INTEGER                                  :: handle, j1, j3, jp2
 
     CALL timeset(routineN,"I","",handle)
 

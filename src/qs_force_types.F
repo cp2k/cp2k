@@ -21,12 +21,12 @@
 MODULE qs_force_types
 
   !USE cp_control_types,                ONLY: qs_control_type
+  USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

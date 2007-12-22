@@ -21,6 +21,7 @@
 
 MODULE pair_potential_types
 
+  USE f77_blas
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -30,7 +31,6 @@ MODULE pair_potential_types
                                              spline_factor_copy,&
                                              spline_factor_release,&
                                              spline_factor_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

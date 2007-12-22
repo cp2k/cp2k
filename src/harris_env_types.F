@@ -27,6 +27,7 @@
 !******************************************************************************
 MODULE harris_env_types
 
+  USE f77_blas
   USE harris_energy_types,             ONLY: harris_energy_clear,&
                                              harris_energy_release,&
                                              harris_energy_type
@@ -37,7 +38,6 @@ MODULE harris_env_types
 !harris_force_create
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

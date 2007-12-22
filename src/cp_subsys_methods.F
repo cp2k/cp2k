@@ -36,6 +36,7 @@ MODULE cp_subsys_methods
                                              cp_subsys_get,&
                                              cp_subsys_set,&
                                              cp_subsys_type
+  USE f77_blas
   USE input_constants,                 ONLY: do_conn_off
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_type
@@ -62,7 +63,6 @@ MODULE cp_subsys_methods
                                              init_topology,&
                                              topology_parameters_type
   USE topology_util,                   ONLY: check_subsys_element
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

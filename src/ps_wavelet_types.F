@@ -25,6 +25,7 @@ MODULE ps_wavelet_types
   USE bibliography,                    ONLY: Genovese2006,&
                                              Genovese2007,&
                                              cite_reference
+  USE f77_blas
   USE input_constants,                 ONLY: &
        WAVELET0D, WAVELET2D, WAVELET3D, use_perd_none, use_perd_x, &
        use_perd_xy, use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, &
@@ -45,7 +46,6 @@ MODULE ps_wavelet_types
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

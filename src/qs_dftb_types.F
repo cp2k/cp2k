@@ -20,9 +20,9 @@
 
 MODULE qs_dftb_types
 
+  USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

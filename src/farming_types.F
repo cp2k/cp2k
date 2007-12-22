@@ -4,8 +4,9 @@
 !-----------------------------------------------------------------------------!
 
 MODULE farming_types
-  USE kinds,                           ONLY: default_path_length,dp
   USE f77_blas
+  USE kinds,                           ONLY: default_path_length,&
+                                             dp
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -102,7 +103,7 @@ END SUBROUTINE
 !!
 !!*** **********************************************************************
 ELEMENTAL SUBROUTINE init_job_type(job)
-    TYPE(job_type), INTENT(OUT)  :: job
+    TYPE(job_type), INTENT(OUT)              :: job
 
     job%cwd=""
     job%input=""
@@ -129,7 +130,7 @@ END SUBROUTINE init_job_type
 !!
 !!*** **********************************************************************
 SUBROUTINE deallocate_job_type(job)
-    TYPE(job_type)       :: job
+    TYPE(job_type)                           :: job
 
     IF (ASSOCIATED(job%dependencies)) DEALLOCATE(job%dependencies)
 
@@ -160,7 +161,7 @@ END SUBROUTINE deallocate_job_type
   SUBROUTINE deallocate_farming_env(farming_env)
     TYPE(farming_env_type), POINTER          :: farming_env
 
-    INTEGER :: I
+    INTEGER                                  :: I
 
     IF (ASSOCIATED(farming_env)) THEN
        IF (ASSOCIATED(farming_env%job)) THEN

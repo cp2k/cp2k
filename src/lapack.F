@@ -58,8 +58,7 @@ MODULE lapack
     INTEGER                                  :: itype
     CHARACTER                                :: jobz, uplo
     INTEGER                                  :: n
-    REAL(KIND=dp)                            :: ap( * ), bp( * )
-    REAL(KIND=dp)                            :: w( * )
+    REAL(KIND=dp)                            :: ap( * ), bp( * ), w( * )
     INTEGER                                  :: ldz
     REAL(KIND=dp)                            :: z( ldz, * ), work( * )
     INTEGER                                  :: info

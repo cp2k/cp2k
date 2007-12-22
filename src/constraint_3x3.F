@@ -22,6 +22,7 @@ MODULE constraint_3x3
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE constraint_fxd,                  ONLY: check_fixed_atom_cns_g3x3
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE linear_systems,                  ONLY: solve_system
   USE mathlib,                         ONLY: dotprod_3d,&
@@ -37,7 +38,6 @@ MODULE constraint_3x3
   USE particle_types,                  ONLY: particle_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

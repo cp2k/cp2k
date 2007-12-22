@@ -19,6 +19,7 @@
 
 MODULE dg_rho0_types
 
+  USE f77_blas
   USE input_constants,                 ONLY: do_ewald_ewald,&
                                              do_ewald_none,&
                                              do_ewald_pme,&
@@ -27,11 +28,10 @@ MODULE dg_rho0_types
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_types,                        ONLY: REALDATA3D,&
                                              pw_create,&
-                                             pw_release,&
                                              pw_p_type,&
+                                             pw_release,&
                                              pw_zero
   USE termination,                     ONLY: stop_program
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -29,6 +29,7 @@ MODULE csvr_system_mapping
                                              get_dyn_coeff
   USE extended_system_types,           ONLY: debug_isotropic_limit,&
                                              map_info_type
+  USE f77_blas
   USE input_constants,                 ONLY: &
        do_region_global, do_region_massive, do_thermo_communication, &
        do_thermo_no_communication, do_thermo_only_master, isokin_ensemble, &
@@ -48,7 +49,6 @@ MODULE csvr_system_mapping
                                              init_coeff_map_info,&
                                              thermostat_mapping_region
   USE thermostat_types,                ONLY: thermostat_info_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

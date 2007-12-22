@@ -26,6 +26,7 @@
 MODULE x_hf_distribution_mc
 
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE parallel_rng_types,              ONLY: UNIFORM,&
@@ -35,7 +36,6 @@ MODULE x_hf_distribution_mc
                                              reset_to_next_rng_substream,&
                                              rng_stream_type
   USE x_hf,                            ONLY: x_hf_load_balance_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

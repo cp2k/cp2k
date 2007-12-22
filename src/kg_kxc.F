@@ -24,6 +24,7 @@ MODULE kg_kxc
   USE cell_types,                      ONLY: cell_type
   USE cp_linked_list_xc_deriv,         ONLY: cp_sll_xc_deriv_next,&
                                              cp_sll_xc_deriv_type
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
@@ -44,7 +45,6 @@ MODULE kg_kxc
                                              xc_derivative_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_release,&
                                              xc_rho_set_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

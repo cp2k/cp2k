@@ -23,6 +23,7 @@ MODULE qs_dftb_dispersion
   USE cp_control_types,                ONLY: dft_control_type,&
                                              dftb_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
@@ -41,8 +42,6 @@ MODULE qs_dftb_dispersion
                                              timestop
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
-
-  USE f77_blas
 #include "cp_common_uses.h"
 
   PRIVATE
@@ -74,7 +73,7 @@ CONTAINS
     REAL(KIND=dp)                            :: a, b, c, devdw, dij, dr, &
                                                 evdw, rc, rc_a, rc_b, x0ij, &
                                                 xij, xp
-    REAL(KIND=dp), DIMENSION(3)              :: rij, fdij
+    REAL(KIND=dp), DIMENSION(3)              :: fdij, rij
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind

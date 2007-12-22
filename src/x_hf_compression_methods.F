@@ -23,9 +23,9 @@
 
 MODULE x_hf_compression_methods
   
+  USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_8
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE   

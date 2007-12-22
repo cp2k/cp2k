@@ -26,6 +26,7 @@
 MODULE qmmm_util
   USE cell_types,                      ONLY: cell_type
   USE cp_subsys_types,                 ONLY: cp_subsys_type
+  USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type,&
                                              use_qmmm
@@ -39,7 +40,6 @@ MODULE qmmm_util
                                              qs_subsys
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

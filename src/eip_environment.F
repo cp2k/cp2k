@@ -45,6 +45,7 @@ MODULE eip_environment
   USE distribution_methods,            ONLY: distribute_molecules_1d
   USE eip_environment_types,           ONLY: eip_env_set,&
                                              eip_environment_type
+  USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -70,7 +71,6 @@ MODULE eip_environment
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology,                        ONLY: topology_control
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

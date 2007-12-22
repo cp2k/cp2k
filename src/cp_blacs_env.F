@@ -33,6 +33,7 @@ MODULE cp_blacs_env
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
+  USE f77_blas
   USE global_types,                    ONLY: BLACS_GRID_COL,&
                                              BLACS_GRID_ROW,&
                                              BLACS_GRID_SQUARE
@@ -42,7 +43,6 @@ MODULE cp_blacs_env
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

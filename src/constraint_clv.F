@@ -22,6 +22,7 @@ MODULE constraint_clv
   USE cell_types,                      ONLY: cell_type
   USE colvar_methods,                  ONLY: colvar_eval_mol_f
   USE colvar_types,                    ONLY: colvar_type
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: matvec_3x3
   USE molecule_kind_types,             ONLY: colvar_constraint_type,&
@@ -35,7 +36,6 @@ MODULE constraint_clv
   USE particle_types,                  ONLY: particle_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

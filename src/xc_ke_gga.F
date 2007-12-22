@@ -23,6 +23,7 @@
 MODULE xc_ke_gga
 ! *****************************************************************************
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
+  USE f77_blas
   USE input_constants,                 ONLY: &
        ke_lc, ke_llp, ke_ol1, ke_ol2, ke_pbe, ke_pw86, ke_pw91, ke_revpbe, &
        ke_t92
@@ -39,7 +40,6 @@ MODULE xc_ke_gga
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                              xc_rho_set_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

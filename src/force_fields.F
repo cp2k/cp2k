@@ -34,6 +34,7 @@ MODULE force_fields
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE ewald_environment_types,         ONLY: ewald_environment_type
+  USE f77_blas
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type
   USE force_field_types,               ONLY: deallocate_ff_type,&
                                              force_field_type,&
@@ -54,7 +55,6 @@ MODULE force_fields
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

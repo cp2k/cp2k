@@ -21,20 +21,17 @@
 !******************************************************************************
 
 MODULE qs_outer_scf
-  USE cp_control_types,                ONLY: ddapc_restraint_type,&
+  USE cp_control_types,                ONLY: becke_constraint_type,&
+                                             ddapc_restraint_type,&
                                              dft_control_type,&
-                                             s2_restraint_type,&
-                                             becke_constraint_type
-  USE input_constants,                 ONLY: do_ddapc_constraint,&
-                                             do_s2_constraint,&
-                                             outer_scf_ddapc_constraint,&
-                                             outer_scf_becke,&
-                                             outer_scf_none,&
-                                             outer_scf_optimizer_diis,&
-                                             outer_scf_optimizer_none,&
-                                             outer_scf_optimizer_sd,&
-                                             outer_scf_s2_constraint,&
-                                             outer_scf_optimizer_bisect
+                                             s2_restraint_type
+  USE f77_blas
+  USE input_constants,                 ONLY: &
+       do_ddapc_constraint, do_s2_constraint, outer_scf_becke, &
+       outer_scf_ddapc_constraint, outer_scf_none, &
+       outer_scf_optimizer_bisect, outer_scf_optimizer_diis, &
+       outer_scf_optimizer_none, outer_scf_optimizer_sd, &
+       outer_scf_s2_constraint
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: diamat_all
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -45,7 +42,6 @@ MODULE qs_outer_scf
   USE scf_control_types,               ONLY: scf_control_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -125,11 +121,11 @@ SUBROUTINE outer_loop_gradient(qs_env, scf_env, error)
 
     INTEGER                                  :: handle, ihistory
     LOGICAL                                  :: failure, is_constraint
+    TYPE(becke_constraint_type), POINTER     :: becke_control
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(s2_restraint_type), POINTER         :: s2_restraint_control
-    TYPE(becke_constraint_type),POINTER   :: becke_control
     TYPE(scf_control_type), POINTER          :: scf_control
 
     CALL timeset(routineN,handle)
@@ -206,11 +202,12 @@ SUBROUTINE outer_loop_optimize(scf_env, scf_control, error)
     CHARACTER(LEN=*), PARAMETER :: routineN = 'outer_loop_optimize', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ibuf, ihistory, j, &
-                                                jbuf, nb, optimizer_type, ilow,ihigh
+    INTEGER                                  :: handle, i, ibuf, ihigh, &
+                                                ihistory, ilow, j, jbuf, nb, &
+                                                optimizer_type
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipivot
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: interval,tmp
+    REAL(KIND=dp)                            :: interval, tmp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ev
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: a, b
@@ -340,11 +337,11 @@ SUBROUTINE outer_loop_update_qs_env(qs_env, scf_env, error)
 
     INTEGER                                  :: handle, ihistory
     LOGICAL                                  :: failure
+    TYPE(becke_constraint_type), POINTER     :: becke_control
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(s2_restraint_type), POINTER         :: s2_restraint_control
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(becke_constraint_type),POINTER   :: becke_control
 
     failure=.FALSE.
 
@@ -405,9 +402,9 @@ SUBROUTINE outer_loop_extrapolate(qs_env, error)
     REAL(kind=dp)                            :: alpha
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: extrapolation
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: outer_scf_history
+    TYPE(becke_constraint_type), POINTER     :: becke_control
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(becke_constraint_type),POINTER   :: becke_control
 
     CALL timeset(routineN,handle)
 

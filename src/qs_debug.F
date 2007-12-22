@@ -37,6 +37,7 @@ MODULE qs_debug
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_type
+  USE f77_blas
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
@@ -46,7 +47,6 @@ MODULE qs_debug
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
   USE qs_numerical_pressure,           ONLY: qs_calc_numerical_pressure
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

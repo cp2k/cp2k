@@ -20,14 +20,14 @@
 !******************************************************************************
 
 MODULE orbital_symbols
-  USE termination,                     ONLY: stop_program
   USE f77_blas
-#include "cp_common_uses.h"
 ! *****************************************************************************
 ! Index:
 ! FUNCTION cgf_symbol(n,lxyz) RESULT(symbol)
 ! FUNCTION sgf_symbol(n,l,m) RESULT(symbol)
 ! *****************************************************************************
+  USE termination,                     ONLY: stop_program
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

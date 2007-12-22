@@ -27,27 +27,23 @@
 !!   SOURCE
 !****************************************************************************
 MODULE distribution_optimize
-  USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sum
-  USE molecule_kind_types,             ONLY: molecule_kind_type
-  USE molecule_types_new,              ONLY: molecule_type
   USE parallel_rng_types,              ONLY: UNIFORM,&
                                              create_rng_stream,&
                                              delete_rng_stream,&
                                              next_random_number,&
                                              reset_to_next_rng_substream,&
                                              rng_stream_type
-  USE particle_types,                  ONLY: particle_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

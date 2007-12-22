@@ -24,13 +24,13 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qmmm_links_methods
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
   USE qmmm_types,                      ONLY: add_set_type,&
                                              qmmm_env_qm_type,&
                                              qmmm_imomm_link_type,&
                                              qmmm_links_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

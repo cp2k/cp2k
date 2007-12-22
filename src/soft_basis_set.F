@@ -26,6 +26,7 @@ MODULE soft_basis_set
                                              gto_basis_set_type,&
                                              init_cphi_and_sphi
   USE cp_control_types,                ONLY: gapw_control_type
+  USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mathconstants,                   ONLY: dfac,&
@@ -38,7 +39,6 @@ MODULE soft_basis_set
   USE orbital_symbols,                 ONLY: cgf_symbol,&
                                              sgf_symbol
   USE qs_util,                         ONLY: exp_radius
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

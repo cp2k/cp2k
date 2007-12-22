@@ -38,6 +38,7 @@ MODULE qmmm_main
   USE cp_subsys_methods,               ONLY: create_small_subsys
   USE cp_subsys_types,                 ONLY: cp_subsys_release,&
                                              cp_subsys_type
+  USE f77_blas
   USE fist_main,                       ONLY: fist_create_force_env
   USE force_env_methods,               ONLY: force_env_create
   USE force_env_types,                 ONLY: force_env_get,&
@@ -73,7 +74,6 @@ MODULE qmmm_main
   USE qs_main,                         ONLY: quickstep_create_force_env
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

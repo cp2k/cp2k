@@ -30,21 +30,23 @@ MODULE cp2k_runs
                                              cp2k_init,&
                                              cp2k_read,&
                                              cp2k_setup
+  USE f77_blas
   USE f77_interface,                   ONLY: create_force_env,&
                                              destroy_force_env,&
                                              f77_default_para_env => default_para_env,&
                                              f_env_add_defaults,&
                                              f_env_rm_defaults,&
                                              f_env_type
-  USE farming_methods,                 ONLY: farming_parse_input, &
-                                             get_next_job, &
-                                             do_nothing, &
-                                             do_wait, &
-                                             do_deadlock
+  USE farming_methods,                 ONLY: do_deadlock,&
+                                             do_nothing,&
+                                             do_wait,&
+                                             farming_parse_input,&
+                                             get_next_job
   USE farming_types,                   ONLY: deallocate_farming_env,&
                                              farming_env_type,&
                                              init_farming_env,&
-                                             job_pending,job_running,job_finished
+                                             job_finished,&
+                                             job_running
   USE fist_debug,                      ONLY: fist_debug_control => debug_control
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
@@ -94,7 +96,6 @@ MODULE cp2k_runs
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE vibrational_analysis,            ONLY: vb_anal
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -437,10 +438,10 @@ CPSourceFileRef,&
     CHARACTER(len=5)                         :: label
     CHARACTER(LEN=default_path_length)       :: output_file
     CHARACTER(LEN=default_string_length)     :: str
-    INTEGER :: dest, handle, i, i_job_to_restart, ierr, ijob, ijob_end, &
-      ijob_start, ijob_current, iunit, n_jobs_to_run, new_group, new_output_unit, new_rank, &
-      new_size, ngroups, num_slaves, output_unit, primus_slave, slave_group, &
-      slave_rank, source, stat, tag, todo
+    INTEGER :: dest, handle, i, i_job_to_restart, ierr, ijob, ijob_current, &
+      ijob_end, ijob_start, iunit, n_jobs_to_run, new_group, new_output_unit, &
+      new_rank, new_size, ngroups, num_slaves, output_unit, primus_slave, &
+      slave_group, slave_rank, source, stat, tag, todo
     INTEGER, DIMENSION(:), POINTER           :: group_distribution, &
                                                 master_slave_partition, &
                                                 slave_distribution, &

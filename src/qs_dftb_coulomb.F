@@ -36,6 +36,7 @@ MODULE qs_dftb_coulomb
                                              ewald_environment_type
   USE ewald_pw_types,                  ONLY: ewald_pw_get,&
                                              ewald_pw_type
+  USE f77_blas
   USE input_constants,                 ONLY: do_ewald_ewald,&
                                              do_ewald_none,&
                                              do_ewald_pme,&
@@ -94,7 +95,6 @@ MODULE qs_dftb_coulomb
                                              timestop
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

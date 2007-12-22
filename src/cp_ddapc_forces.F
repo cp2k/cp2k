@@ -31,6 +31,7 @@ MODULE cp_ddapc_forces
                                              unit_convert_type
   USE cp_control_types,                ONLY: ddapc_restraint_type
   USE erf_fn,                          ONLY: erfc
+  USE f77_blas
   USE input_constants,                 ONLY: do_ddapc_constraint,&
                                              do_ddapc_restraint,&
                                              weight_type_mass,&
@@ -50,7 +51,6 @@ MODULE cp_ddapc_forces
                                              legendre
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

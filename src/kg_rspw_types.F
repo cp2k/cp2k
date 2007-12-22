@@ -25,6 +25,7 @@ MODULE kg_rspw_types
                                              rs_pools_dealloc
   USE cube_utils,                      ONLY: cube_info_type,&
                                              destroy_cube_info
+  USE f77_blas
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gridlevel_info_type
   USE kinds,                           ONLY: dp
@@ -35,7 +36,6 @@ MODULE kg_rspw_types
                                              pw_pools_dealloc
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

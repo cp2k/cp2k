@@ -27,26 +27,24 @@
 !******************************************************************************
 
 MODULE realspace_grid_types
+  USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp
-  USE machine,                         ONLY: m_flush
+  USE mathlib,                         ONLY: det_3x3
   USE message_passing,                 ONLY: &
-       mp_bcast, mp_cart_create, mp_cart_shift, mp_cart_sub, mp_cart_rank, mp_comm_dup, &
-       mp_comm_free, mp_isendrecv, mp_max, mp_min, mp_sendrecv, mp_sum, &
-       mp_waitall,mp_sync,mp_cart_coords,mp_alltoall,mp_environ
+       mp_alltoall, mp_cart_coords, mp_cart_create, mp_cart_shift, &
+       mp_comm_dup, mp_comm_free, mp_environ, mp_isendrecv, mp_max, mp_min, &
+       mp_sendrecv, mp_sum, mp_sync, mp_waitall
   USE pw_grid_types,                   ONLY: PW_MODE_LOCAL,&
                                              pw_grid_type
   USE pw_types,                        ONLY: COMPLEXDATA3D,&
                                              REALDATA3D,&
-                                             pw_type,&
-                                             pw_integrate_function
-  USE kahan_sum,                       ONLY: accurate_sum
+                                             pw_integrate_function,&
+                                             pw_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
-  USE mathlib,                         ONLY: det_3x3
-  USE memory_utilities,                ONLY: reallocate
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -277,10 +275,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_setup_1', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: dir, ip, lb( 2 ), n_slices(3), n_slices_tmp(3), &
-                                                neighbours(3), ngmax, nmin, pos( 3 ), i, j, k,m
-    REAL(KIND=dp)                            :: ratio,ratio_best,volume,volume_dist
-    LOGICAL :: failure, small
+    INTEGER                                  :: dir, i, j, k, lb( 2 ), m, &
+                                                n_slices(3), n_slices_tmp(3), &
+                                                neighbours(3), nmin, pos( 3 )
+    LOGICAL                                  :: failure, small
+    REAL(KIND=dp)                            :: ratio, ratio_best, volume, &
+                                                volume_dist
 
     failure = .FALSE.
 
@@ -506,7 +506,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_print', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, nn ,dir
+    INTEGER                                  :: dir, i, nn
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: pp( 3 )
 
@@ -598,13 +598,9 @@ CONTAINS
     TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(pw_type), POINTER                   :: pw
     INTEGER, INTENT(IN)                      :: dir
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: neighbours
 
     CHARACTER(LEN=5)                         :: dirname
-    INTEGER                                  :: handle, handle2, nn, stat, ierr, lb(2)
-
-    TYPE(cp_error_type)                      :: error
+    INTEGER                                  :: handle, handle2, nn
 
 !-----------------------------------------------------------------------------!
 
@@ -777,32 +773,31 @@ CONTAINS
     TYPE(pw_type), POINTER                   :: pw
     INTEGER, INTENT(IN)                      :: dir
 
-    INTEGER                                  :: dest, group, idir, ierr, nn, position, &
-                                                n_shifts, source, subgroup, &
-                                                offset_down, offset_up, i, j, &
-                                                rank, my_rs_rank, my_pw_rank, send_taskno, recv_taskno, &
-                                                x,y,z,k,m
-    INTEGER, DIMENSION(3)                    :: lb_in, lb_out, lc, ub_in, ub_out, uc
-    INTEGER, DIMENSION(2)                    :: neighbours, pos
-    INTEGER, DIMENSION(3)                    :: coords
-    INTEGER, DIMENSION(:,:), ALLOCATABLE     :: bounds, send_tasks, recv_tasks
-    INTEGER, DIMENSION(:), ALLOCATABLE       :: send_sizes, recv_sizes, send_disps, recv_disps, dshifts, ushifts, rank_pw2rs
-    LOGICAL                                  :: subdim( 3 )
-    REAL(KIND=dp)                            :: rs_sum,pw_sum
-    REAL(KIND=dp), ALLOCATABLE, &
-         DIMENSION(:, :, :)                  :: buffer
-    REAL(KIND=dp), ALLOCATABLE, &
-         DIMENSION(:)                        :: send_buf, recv_buf
-    TYPE(cp_error_type)                      :: error
-    LOGICAL                                  :: failure
-    CHARACTER(LEN=200)                       :: error_string
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_pw_transfer_distributed', &
       routineP = moduleN//':'//routineN
 
-    !Both grids are distributed, we have to do some reshuffling of data
+    CHARACTER(LEN=200)                       :: error_string
+    INTEGER :: dest, group, i, idir, ierr, j, k, m, my_pw_rank, my_rs_rank, &
+      n_shifts, nn, offset_down, offset_up, position, source, x, y, z
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: dshifts, rank_pw2rs, &
+                                                recv_disps, recv_sizes, &
+                                                send_disps, send_sizes, &
+                                                ushifts
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: bounds, recv_tasks, send_tasks
+    INTEGER, DIMENSION(2)                    :: neighbours, pos
+    INTEGER, DIMENSION(3)                    :: coords, lb_in, lb_out, ub_in, &
+                                                ub_out
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: pw_sum, rs_sum
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_buf, send_buf
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: buffer
+    TYPE(cp_error_type)                      :: error
 
-    ! first map pw ranks (corresponding to the cartesian communicator) to rs ranks (and their cart. comm)
-    ! this could become part of the rs type
+!Both grids are distributed, we have to do some reshuffling of data
+! first map pw ranks (corresponding to the cartesian communicator) to rs ranks (and their cart. comm)
+! this could become part of the rs type
+
     ALLOCATE(rank_pw2rs(0:rs%group_size-1), STAT=ierr )
     IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","buffer",nn)
     rank_pw2rs=0
@@ -965,7 +960,7 @@ CONTAINS
        ! should be part of the rs grid type
        DO i = 0, rs % group_size -1
 
-          call mp_cart_coords(rs % group, i, coords)
+          CALL mp_cart_coords(rs % group, i, coords)
           !calculate the real rs grid points on each processor
           DO idir = 1,3
              pos (:) = get_limit ( rs %  npts ( idir ), rs % group_dim ( idir ), coords(idir) )
@@ -1083,7 +1078,7 @@ CONTAINS
        ! safety check, to be removed once we're absolute sure the routine is correct
        pw_sum=pw_integrate_function(pw)
        IF (ABS(pw_sum-rs_sum)/MAX(1.0_dp,ABS(pw_sum),ABS(rs_sum))>EPSILON(rs_sum)*100) THEN
-           write(error_string,'(A,6(1X,I4.4),2F20.12)') "rs_pw_transfer_distributed", rs %  npts, rs % group_dim,pw_sum,rs_sum
+           WRITE(error_string,'(A,6(1X,I4.4),2F20.12)') "rs_pw_transfer_distributed", rs %  npts, rs % group_dim,pw_sum,rs_sum
            CALL stop_program(error_string, &
                 "Please report this bug... quick workaround: use RS_GRID REPLICATED")
        ENDIF
@@ -1139,7 +1134,7 @@ CONTAINS
 
        DO i = 0, pw % pw_grid % para % group_size -1
 
-          call mp_cart_coords(rs % group, i, coords)
+          CALL mp_cart_coords(rs % group, i, coords)
           !calculate the real rs grid points on each processor
           DO idir = 1,3
              pos (:) = get_limit ( rs %  npts ( idir ), rs % group_dim ( idir ), coords(idir) )
@@ -1709,9 +1704,9 @@ END SUBROUTINE rs_grid_p_release
 ! Prints the sum of all elements and the sum of absolute value of all elements
 SUBROUTINE rs_total_sum ( rs )
 
-  TYPE(realspace_grid_type), POINTER       :: rs
+    TYPE(realspace_grid_type), POINTER       :: rs
 
-  REAL(dp)                                 :: global_sum, global_sum_abs, &
+    REAL(dp)                                 :: global_sum, global_sum_abs, &
                                                 local_sum, local_sum_abs
 
   local_sum = SUM(rs%r)

@@ -29,6 +29,7 @@ MODULE qmmm_gaussian_init
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
   USE input_constants,                 ONLY: do_qmmm_gauss,&
@@ -48,7 +49,6 @@ MODULE qmmm_gaussian_init
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
                                              qmmm_gaussian_type
   USE qs_util,                         ONLY: exp_radius
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

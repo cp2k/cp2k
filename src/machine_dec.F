@@ -22,7 +22,8 @@
 MODULE machine_dec
 
   USE kinds,                           ONLY: default_string_length,&
-                                             dp, int_8
+                                             dp,&
+                                             int_8
 
   IMPLICIT NONE
 
@@ -112,7 +113,8 @@ END SUBROUTINE m_datum
 ! returns the total amount of memory [bytes] in use, if known, zero otherwise
 ! *****************************************************************************
   FUNCTION m_memory()
-    INTEGER(KIND=int_8) m_memory
+    INTEGER(KIND=int_8)                      :: m_memory
+
     m_memory=0
   END FUNCTION m_memory
 

@@ -135,9 +135,11 @@ FUNCTION m_walltime() RESULT (wt)
     REAL(KIND=dp)                            :: wt
 
     INTEGER                                  :: count
-    INTEGER, SAVE                            :: cycles = -1, last_count, count_max, count_rate
+    INTEGER, SAVE                            :: count_max, count_rate, &
+                                                cycles = -1, last_count
 
-   ! count lies in [0,count_max] and increases monotonically
+! count lies in [0,count_max] and increases monotonically
+
     IF (cycles == -1) THEN ! get parameters of system_clock and initialise
         CALL SYSTEM_CLOCK(count_rate=count_rate,count_max=count_max)
         cycles = 0

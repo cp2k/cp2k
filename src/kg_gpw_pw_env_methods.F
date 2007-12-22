@@ -50,6 +50,7 @@ MODULE kg_gpw_pw_env_methods
   USE cube_utils,                      ONLY: cube_info_type,&
                                              destroy_cube_info,&
                                              init_cube_info
+  USE f77_blas
   USE fft_tools,                       ONLY: FFT_RADIX_NEXT,&
                                              FFT_RADIX_NEXT_ODD,&
                                              fft_radix_operations
@@ -109,7 +110,6 @@ MODULE kg_gpw_pw_env_methods
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -387,14 +387,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_mol_rebuild', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: auxbas_grid, i, igrid_level, iounit, istat, &
-      my_icommensurate, my_ncommensurate, ncommensurate, ngrid_level, &
-      nlowest, nlowest_new, npts_out(3), npts_tmp(3), nsmax
+    INTEGER :: auxbas_grid, i, igrid_level, iounit, istat, my_icommensurate, &
+      my_ncommensurate, ncommensurate, ngrid_level, nlowest, nlowest_new, &
+      npts_out(3), npts_tmp(3), nsmax
     LOGICAL                                  :: blocking, failure, fft, &
                                                 should_output, symmetry
     REAL(dp)                                 :: cutilev, dr_g(3), drmin, &
-                                                ecut, hmat(3,3), maxradius, &
-                                                rel_cutoff
+                                                ecut, hmat(3,3), rel_cutoff
     REAL(dp), DIMENSION(:), POINTER          :: cutoff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &

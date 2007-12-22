@@ -23,12 +23,12 @@
 
 MODULE atomic_charges
   USE atomic_kind_types,               ONLY: get_atomic_kind
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

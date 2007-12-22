@@ -8,6 +8,7 @@ MODULE mt_util
                                              cite_reference
   USE cell_types,                      ONLY: cell_type
   USE erf_fn,                          ONLY: erf
+  USE f77_blas
   USE input_constants,                 ONLY: MT0D,&
                                              MT1D,&
                                              MT2D
@@ -30,7 +31,6 @@ MODULE mt_util
                                              pw_zero
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

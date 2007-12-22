@@ -33,11 +33,12 @@ MODULE qs_linres_epr_atom_current
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE block_p_types,                   ONLY: block_p_type
-  USE cell_types,                      ONLY: cell_type,&
-                                             pbc
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
+  USE input_constants,                 ONLY: epr_gauge_r,&
+                                             epr_gauge_r_and_Bader,&
+                                             epr_gauge_r_and_step_function
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: indso,&
@@ -53,9 +54,9 @@ MODULE qs_linres_epr_atom_current
                                              set_vecp,&
                                              set_vecp_rev
   USE qs_linres_types,                 ONLY: allocate_jrho_atom_rad,&
+                                             epr_env_type,&
                                              get_epr_env,&
                                              jrho_atom_type,&
-                                             epr_env_type,&
                                              set2zero_jrho_atom_rad
   USE qs_neighbor_list_types,          ONLY: &
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
@@ -77,9 +78,6 @@ MODULE qs_linres_epr_atom_current
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
-  USE input_constants,                 ONLY: epr_gauge_r,&
-                                             epr_gauge_r_and_Bader,&
-                                             epr_gauge_r_and_step_function
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -139,7 +137,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, new_atom_b, &
                                                 new_atom_c, paw_atom
-    REAL(dp)                                 :: rab(3), rbc(3)
+    REAL(dp)                                 :: hard_radius_a, hard_radius_b, &
+                                                hard_radius_c, rab(3), rbc(3)
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: PC
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: C_coeff_hh_a, C_coeff_hh_b, &
@@ -160,9 +159,9 @@ CONTAINS
     TYPE(reduced_3c_list_type), &
       DIMENSION(:), POINTER                  :: reduced_3c_oce
     TYPE(rho_atom_coeff), DIMENSION(:), &
-      POINTER                                :: jp0_block, jp_block, jp_ii_block, &
-                                                jp_iii_block, jp_RARnu
-    REAL(dp) :: hard_radius_a,hard_radius_b,hard_radius_c
+      POINTER                                :: jp0_block, jp_block, &
+                                                jp_ii_block, jp_iii_block, &
+                                                jp_RARnu
 
     CALL timeset("calculate_jrho_atom_coeff","I"," ",handle)
     !
@@ -642,22 +641,23 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_jrho_atom_rad', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i1, i2, iat, iatom, icg, ikind, ipgf1, ipgf2, iset1, &
-      iset2, iso, iso1, iso1_first, iso1_last, iso2, iso2_first, iso2_last, &
-      ispin, istat, l, l_iso, lmax12, lmax_expansion, lmin12, m1s, m2s, &
-      max_iso_not0, max_nso, maxl, maxso, mepos, n1s, n2s, natom, natom_tot, &
-      nkind, nr, nset, nspins, num_pe, size1, size2
+    INTEGER :: handle, i1, i2, iat, iatom, icg, ikind, ipgf1, ipgf2, ir, &
+      iset1, iset2, iso, iso1, iso1_first, iso1_last, iso2, iso2_first, &
+      iso2_last, ispin, istat, l, l_iso, lmax12, lmax_expansion, lmin12, m1s, &
+      m2s, max_iso_not0, max_nso, maxl, maxso, mepos, n1s, n2s, natom, &
+      natom_tot, nkind, nr, nset, nspins, num_pe, size1, size2
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf
     LOGICAL                                  :: failure, paw_atom
-    LOGICAL, ALLOCATABLE, DIMENSION(:,:)     :: is_set_to_0
+    LOGICAL, ALLOCATABLE, DIMENSION(:, :)    :: is_set_to_0
+    REAL(dp)                                 :: alpha, hard_radius
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: g1, g2, gauge_h, gauge_s
-    REAL(dp), ALLOCATABLE, DIMENSION(:, :) :: cjc0_h_block,cjc0_s_block,cjc_h_block, cjc_ii_h_block, &
-      cjc_ii_s_block, cjc_iii_h_block, cjc_iii_s_block, cjc_s_block, dgg_1, &
-      dgg_2, gg, gg_lm1
-    REAL(dp), DIMENSION(:, :), POINTER :: coeff, Fr_h, Fr_s, Fr_a_h, Fr_a_h_ii, &
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :) :: cjc0_h_block, cjc0_s_block, &
+      cjc_h_block, cjc_ii_h_block, cjc_ii_s_block, cjc_iii_h_block, &
+      cjc_iii_s_block, cjc_s_block, dgg_1, dgg_2, gg, gg_lm1
+    REAL(dp), DIMENSION(:, :), POINTER :: coeff, Fr_a_h, Fr_a_h_ii, &
       Fr_a_h_iii, Fr_a_s, Fr_a_s_ii, Fr_a_s_iii, Fr_b_h, Fr_b_h_ii, &
-      Fr_b_h_iii, Fr_b_s, Fr_b_s_ii, Fr_b_s_iii, zet
+      Fr_b_h_iii, Fr_b_s, Fr_b_s_ii, Fr_b_s_iii, Fr_h, Fr_s, zet
     REAL(dp), DIMENSION(:, :, :), POINTER    :: my_CG
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: my_CG_dxyz_asym
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -671,10 +671,10 @@ CONTAINS
     TYPE(jrho_atom_type), DIMENSION(:), &
       POINTER                                :: jrho1_atom_set
     TYPE(jrho_atom_type), POINTER            :: jrho1_atom
-    REAL(dp)                                 :: hard_radius,alpha
-    INTEGER::ir
-    !
-    !
+
+!
+!
+
     CALL timeset("calculate_jrho_atom_rad","I"," ",handle)
     !
     failure =.FALSE.
@@ -765,13 +765,13 @@ CONTAINS
        CASE(epr_gauge_r_and_step_function)
           ! step function
           gauge_h(1:nr) = 0e0_dp
-          do ir=1,nr
-             if(grid_atom%rad(ir).LE.hard_radius) then
+          DO ir=1,nr
+             IF(grid_atom%rad(ir).LE.hard_radius) THEN
                 gauge_s(ir) = grid_atom%rad(ir)
-             else
+             ELSE
                 gauge_s(ir) = gauge_h(ir)
-             endif
-          enddo
+             ENDIF
+          ENDDO
        CASE DEFAULT
           CALL stop_program(routineP,"Unknown gauge, try again...")
        END SELECT
@@ -840,8 +840,8 @@ CONTAINS
                       DO ispin=1,nspins
                          !------------------------------------------------------------------
                          ! P_\alpha\alpha'
-                         cjc0_h_block = huge(1.0_dp)!0.0_dp
-                         cjc0_s_block = huge(1.0_dp)!0.0_dp
+                         cjc0_h_block = HUGE(1.0_dp)!0.0_dp
+                         cjc0_s_block = HUGE(1.0_dp)!0.0_dp
                          !
                          ! Hard term
                          coeff => jrho1_atom_set(iatom)%cjc0_h(ispin)%r_coef
@@ -1119,15 +1119,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_jrho_atom_ang', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ia, iiB, iiiB, idir2, ir, iso, &
-                                                max_iso_not0, na, nr
+    INTEGER                                  :: ia, idir2, iiB, iiiB, ir, &
+                                                iso, max_iso_not0, na, nr
     LOGICAL                                  :: failure
-    REAL(dp)                                 :: rad_part,scale
-    REAL(dp), DIMENSION(:,:), POINTER :: a, Fr_h, Fr_s, Fr_a_h, Fr_a_h_ii, Fr_a_h_iii, &
-         Fr_a_s, Fr_a_s_ii, Fr_a_s_iii, Fr_b_h, Fr_b_h_ii, Fr_b_h_iii, Fr_b_s, &
-         Fr_b_s_ii, Fr_b_s_iii, slm
-    !
-    !
+    REAL(dp)                                 :: rad_part, scale
+    REAL(dp), DIMENSION(:, :), POINTER :: a, Fr_a_h, Fr_a_h_ii, Fr_a_h_iii, &
+      Fr_a_s, Fr_a_s_ii, Fr_a_s_iii, Fr_b_h, Fr_b_h_ii, Fr_b_h_iii, Fr_b_s, &
+      Fr_b_s_ii, Fr_b_s_iii, Fr_h, Fr_s, slm
+
+!
+!
+
     failure = .FALSE.
     NULLIFY(Fr_h,Fr_s,Fr_a_h,Fr_a_s,Fr_a_h_ii,Fr_a_s_ii,Fr_a_h_iii,Fr_a_s_iii,&
          &  Fr_b_h,Fr_b_s,Fr_b_h_ii,Fr_b_s_ii,Fr_b_h_iii,Fr_b_s_iii,&
@@ -1270,7 +1272,6 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, new_atom_b
     REAL(dp)                                 :: rab(3)
-    REAL(dp), DIMENSION(:, :), POINTER       :: C_coeff_hh, C_coeff_ss
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind

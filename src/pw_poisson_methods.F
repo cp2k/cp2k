@@ -26,6 +26,7 @@ MODULE pw_poisson_methods
   USE cell_types,                      ONLY: cell_release,&
                                              cell_retain,&
                                              cell_type
+  USE f77_blas
   USE input_constants,                 ONLY: &
        ANALYTIC0D, ANALYTIC1D, ANALYTIC2D, MT0D, MT1D, MT2D, MULTIPOLE0D, &
        PERIODIC3D, WAVELET0D, WAVELET1D, WAVELET2D, WAVELET3D, do_ewald_spme, &
@@ -62,7 +63,6 @@ MODULE pw_poisson_methods
        pw_derive, pw_integral_ab, pw_p_type, pw_transfer, pw_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -316,7 +316,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_solve', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: alpha, beta, i, ig, ng, handle
+    INTEGER                                  :: alpha, beta, handle, i, ig, ng
     INTEGER, DIMENSION(3)                    :: n
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ffa

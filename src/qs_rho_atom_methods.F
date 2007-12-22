@@ -26,7 +26,6 @@ MODULE qs_rho_atom_methods
                                              gapw_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE erf_fn,                          ONLY: erf
-  USE input_constants,                 ONLY: lr_chemshift, lr_gtensor
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size

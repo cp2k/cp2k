@@ -30,6 +30,7 @@ MODULE termination
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: default_output_unit,&
@@ -39,7 +40,6 @@ MODULE termination
                                              mp_bcast
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: print_stack
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

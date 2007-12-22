@@ -38,6 +38,7 @@ MODULE qs_ot_eigensolver
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE preconditioner,                  ONLY: preconditioner_in_use,&
                                              preconditioner_type
@@ -54,7 +55,6 @@ MODULE qs_ot_eigensolver
   USE sparse_matrix_types,             ONLY: real_matrix_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

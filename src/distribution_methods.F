@@ -32,7 +32,7 @@ MODULE distribution_methods
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
-  USE cp_para_types,                   ONLY: cp_blacs_env_type, &
+  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_create,&
                                              distribution_1d_type
@@ -40,6 +40,10 @@ MODULE distribution_methods
                                              distribution_2d_type,&
                                              distribution_2d_write
   USE distribution_optimize,           ONLY: distribute_2d_monte_carlo
+  USE f77_blas
+  USE input_constants,                 ONLY: model_block_count,&
+                                             model_block_lmax,&
+                                             model_block_surface
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -56,8 +60,6 @@ MODULE distribution_methods
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE input_constants,                 ONLY: model_block_count,model_block_surface, model_block_lmax
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -489,10 +491,10 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'distribute_molecules_2d'
 
-    INTEGER :: group, iatom, iatom_mol, imol, imolecule, imolecule_kind, &
-      iparticle_kind, ipcol, iprow, istat, iw, kind_a, mypcol, myprow, n, &
-      natom, natom_mol, nele, nmolecule, nmolecule_kind, nparticle_kind, &
-      npcol, nprow, output_unit, handle, cost_model
+    INTEGER :: cost_model, group, handle, iatom, iatom_mol, imol, imolecule, &
+      imolecule_kind, iparticle_kind, ipcol, iprow, istat, iw, kind_a, &
+      mypcol, myprow, n, natom, natom_mol, nele, nmolecule, nmolecule_kind, &
+      nparticle_kind, npcol, nprow, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: col_ele, nparticle_local_col, &
                                                 nparticle_local_row, row_ele, &
                                                 work
@@ -500,7 +502,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: col_distribution, &
                                                 molecule_list, &
                                                 row_distribution
-    LOGICAL                                  :: molecular_distribution, skip_optimization
+    LOGICAL                                  :: molecular_distribution, &
+                                                skip_optimization
     TYPE(cp_1d_i_p_type), DIMENSION(:), &
       POINTER                                :: local_particle_col, &
                                                 local_particle_row
@@ -837,23 +840,24 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribute_2d_cost_model', &
       routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: nscale = 1000 
 
-    LOGICAL :: molecular_distribution,symmetric,include_ab,failure
-
-    INTEGER :: nmolecule_kind, cost_block_ab,iparticle,cost_model,natom, handle
-    INTEGER :: imol_a,imolecule_kind_a,natom_mol_a,imolecule_a,iatom_mol_a,iatom_a,ishell_a
-    INTEGER :: imol_b,imolecule_kind_b,natom_mol_b,imolecule_b,iatom_mol_b,iatom_b,ishell_b
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind_a
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind_b
-    INTEGER, DIMENSION(:), POINTER           :: molecule_list_a, &
+    CHARACTER(LEN=20)                        :: cost_model_used
+    INTEGER :: cost_block_ab, cost_model, handle, iatom_a, iatom_b, &
+      iatom_mol_a, iatom_mol_b, imol_a, imol_b, imolecule_a, imolecule_b, &
+      imolecule_kind_a, imolecule_kind_b, iparticle, natom, natom_mol_a, &
+      natom_mol_b, nmolecule_kind
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: lmax, nsgf
+    INTEGER, DIMENSION(:), POINTER           :: lmax_basis, molecule_list_a, &
                                                 molecule_list_b
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: nsgf
-    INTEGER, POINTER, DIMENSION(:)           :: lmax_basis
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: lmax
-    TYPE(gto_basis_set_type), POINTEr        :: orb_basis_set
-    INTEGER, DIMENSION(:,:), ALLOCATABLE     :: memory_blocks_ab
-    CHARACTER(LEN=20) :: cost_model_used
-    INTEGER, PARAMETER                       :: nscale = 1000 ! use kilointegrals
+    LOGICAL                                  :: failure, include_ab, &
+                                                molecular_distribution, &
+                                                symmetric
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_a, &
+                                                molecule_kind_b
+
+! use kilointegrals
 
     CALL timeset(routineN,handle)
 

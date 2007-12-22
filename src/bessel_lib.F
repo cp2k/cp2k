@@ -24,10 +24,10 @@
 
 MODULE bessel_lib
   
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fac,&
                                              pi
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

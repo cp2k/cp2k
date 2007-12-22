@@ -33,6 +33,7 @@ MODULE ewald_pw_methods
   USE ewald_pw_types,                  ONLY: ewald_pw_get,&
                                              ewald_pw_set,&
                                              ewald_pw_type
+  USE f77_blas
   USE input_constants,                 ONLY: do_ewald_ewald,&
                                              do_ewald_none,&
                                              do_ewald_pme,&
@@ -51,7 +52,6 @@ MODULE ewald_pw_methods
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

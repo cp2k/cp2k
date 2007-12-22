@@ -28,6 +28,7 @@ MODULE xc_pot_saop
                                              cp_fm_set_submatrix,&
                                              cp_fm_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_plus_fm_fm_t
+  USE f77_blas
   USE input_constants,                 ONLY: do_method_gapw,&
                                              oe_gllb,&
                                              oe_lb,&
@@ -98,7 +99,6 @@ MODULE xc_pot_saop
                                              xc_rho_set_update
   USE xc_xbecke88,                     ONLY: xb88_lda_info,&
                                              xb88_lsd_info
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

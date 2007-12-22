@@ -35,6 +35,7 @@ MODULE s_square_methods
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
+  USE f77_blas
   USE input_constants,                 ONLY: do_s2_constraint,&
                                              do_s2_restraint
   USE kinds,                           ONLY: dp
@@ -45,7 +46,6 @@ MODULE s_square_methods
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

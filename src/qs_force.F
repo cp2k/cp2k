@@ -29,6 +29,7 @@ MODULE qs_force
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE harris_env_types,                ONLY: harris_env_set,&
                                              harris_env_type
@@ -46,8 +47,8 @@ MODULE qs_force
   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
-  USE qs_dftb_matrices,                ONLY: build_dftb_matrices
   USE qs_dftb_dispersion,              ONLY: calculate_dftb_dispersion
+  USE qs_dftb_matrices,                ONLY: build_dftb_matrices
   USE qs_energy,                       ONLY: qs_energies
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -76,7 +77,6 @@ MODULE qs_force
                                              timestop
   USE virial_types,                    ONLY: virial_get,&
                                              virial_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

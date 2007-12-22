@@ -29,6 +29,7 @@ MODULE qmmm_per_elpot
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE ewald_spline_util,               ONLY: Setup_Ewald_Spline
+  USE f77_blas
   USE input_constants,                 ONLY: do_qmmm_coulomb,&
                                              do_qmmm_gauss,&
                                              do_qmmm_swave
@@ -45,7 +46,6 @@ MODULE qmmm_per_elpot
   USE qs_util,                         ONLY: exp_radius
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

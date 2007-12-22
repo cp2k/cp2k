@@ -27,6 +27,7 @@ MODULE input_cp2k_qmmm
                                              Laino2006
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
+  USE f77_blas
   USE input_constants
   USE input_cp2k_mm,                   ONLY: create_GENPOT_section,&
                                              create_Goodwin_section,&
@@ -51,7 +52,6 @@ MODULE input_cp2k_qmmm
   USE string_utilities,                ONLY: s2a
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

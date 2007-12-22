@@ -28,6 +28,7 @@ MODULE eip_main
   USE eip_environment_types,           ONLY: eip_env_create,&
                                              eip_env_release,&
                                              eip_environment_type
+  USE f77_blas
   USE force_env_methods,               ONLY: force_env_create
   USE force_env_types,                 ONLY: force_env_type
   USE global_types,                    ONLY: global_environment_type
@@ -35,7 +36,6 @@ MODULE eip_main
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

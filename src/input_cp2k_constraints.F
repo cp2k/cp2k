@@ -24,6 +24,7 @@
 !****************************************************************************
 MODULE input_cp2k_constraints
   USE cp_output_handling,              ONLY: cp_print_key_section_create
+  USE f77_blas
   USE input_constants
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
@@ -40,7 +41,6 @@ MODULE input_cp2k_constraints
   USE string_utilities,                ONLY: s2a
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

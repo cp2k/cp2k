@@ -23,6 +23,7 @@
 !!***
 !****************************************************************************
 MODULE kg_scf_types
+  USE f77_blas
   USE kg_diis_types,                   ONLY: kg_diis_b_release,&
                                              kg_diis_buffer_type
   USE kinds,                           ONLY: dp
@@ -34,7 +35,6 @@ MODULE kg_scf_types
                                              real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

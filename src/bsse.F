@@ -34,6 +34,7 @@ MODULE bsse
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_release,&
                                              cp_subsys_type
+  USE f77_blas
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_release,&
@@ -51,7 +52,6 @@ MODULE bsse
   USE particle_list_types,             ONLY: particle_list_type
   USE qs_main,                         ONLY: quickstep_create_force_env
   USE string_utilities,                ONLY: compress
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

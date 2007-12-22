@@ -32,11 +32,9 @@ MODULE qs_linres_types
   USE kinds,                           ONLY: dp
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: harmonics_atom_type
-  USE qs_loc_control,                  ONLY: localized_wfn_control_create,&
-                                             localized_wfn_control_release,&
+  USE qs_loc_control,                  ONLY: localized_wfn_control_release,&
                                              localized_wfn_control_type
-  USE qs_rho_atom_types,               ONLY: deallocate_rho_atom_set,&
-                                             rho_atom_coeff,&
+  USE qs_rho_atom_types,               ONLY: rho_atom_coeff,&
                                              rho_atom_type
   USE qs_rho_types,                    ONLY: qs_rho_p_type,&
                                              qs_rho_release
@@ -483,11 +481,10 @@ CONTAINS
     TYPE(qs_rho_p_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: jrho1_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: op_p_ao, op_rmd_ao
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-         OPTIONAL, POINTER                   :: jp1_ao,jp0_ao
-    TYPE(real_matrix_p_type), DIMENSION(:,:), &
-      OPTIONAL, POINTER                      :: jp2_ao
+      OPTIONAL, POINTER                      :: op_p_ao, op_rmd_ao, jp0_ao, &
+                                                jp1_ao
+    TYPE(real_matrix_p_type), &
+      DIMENSION(:, :), OPTIONAL, POINTER     :: jp2_ao
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_nmr_env', &
@@ -622,11 +619,10 @@ CONTAINS
     TYPE(qs_rho_p_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: jrho1_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: op_p_ao, op_rmd_ao
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: jp0_ao, jp1_ao
-    TYPE(real_matrix_p_type), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: jp2_ao
+      OPTIONAL, POINTER                      :: op_p_ao, op_rmd_ao, jp0_ao, &
+                                                jp1_ao
+    TYPE(real_matrix_p_type), &
+      DIMENSION(:, :), OPTIONAL, POINTER     :: jp2_ao
     TYPE(qs_rho_p_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: nablavks_set
     TYPE(nablavks_atom_type), DIMENSION(:), &
@@ -644,7 +640,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-
 
      failure =.FALSE.
 
@@ -687,15 +682,12 @@ CONTAINS
                          error)
 
     TYPE(epr_env_type)                       :: epr_env
-    REAL(dp), INTENT(IN), OPTIONAL           :: &
-      g_free_factor, g_soo_chicorr_factor, g_soo_factor,&
-      g_so_factor, g_so_factor_gapw, g_zke_factor
+    REAL(dp), INTENT(IN), OPTIONAL :: g_free_factor, g_soo_chicorr_factor, &
+      g_soo_factor, g_so_factor, g_so_factor_gapw, g_zke_factor
     TYPE(jrho_atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: jrho1_atom_set
     TYPE(qs_rho_p_type), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: jrho1_set
-    TYPE(qs_rho_p_type), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: nablavks_set
+      OPTIONAL, POINTER                      :: jrho1_set, nablavks_set
     TYPE(nablavks_atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: nablavks_atom_set
     TYPE(cp_error_type), INTENT(inout), &
@@ -706,7 +698,6 @@ CONTAINS
 
     INTEGER                                  :: iB, idir, ispin
     LOGICAL                                  :: failure
-
 
     failure =.FALSE.
 
@@ -794,7 +785,6 @@ CONTAINS
 
     INTEGER                                  :: i, iat, idir, istat, n, natom
     LOGICAL                                  :: failure
-
 
     failure = .FALSE.
 

@@ -38,14 +38,13 @@ MODULE xas_tp_scf
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
-                                             cp_p_file,&
                                              cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
                                              cp_print_key_unit_nr,&
                                              cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
+  USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: core_guess,&
                                              ot_precond_full_kinetic,&
@@ -55,7 +54,6 @@ MODULE xas_tp_scf
                                              xas_tp_xhh
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
-  USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
@@ -89,7 +87,6 @@ MODULE xas_tp_scf
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf,                          ONLY: init_scf_run,&
-                                             qs_scf_loop_do_ot,&
                                              qs_scf_print_summary,&
                                              scf_env_cleanup,&
                                              scf_env_do_scf
@@ -108,7 +105,6 @@ MODULE xas_tp_scf
                                              set_xas_env,&
                                              xas_environment_type
   USE xas_restart,                     ONLY: xas_write_restart
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -167,17 +163,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'xas_do_tp_scf', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, handle2, homo, i, &
-                                                ic_max, ir_max, ispin, istat, &
-                                                iter_count, iter_level,&
-                                                m, n, nao, nmo, &
-                                                output_unit
+    INTEGER :: handle, handle2, homo, i, ic_max, ir_max, ispin, istat, &
+      iter_count, iter_level, m, n, nao, nmo, output_unit
     INTEGER, DIMENSION(:), POINTER           :: col_indices
-    LOGICAL :: diis_step, do_level_shift, energy_only, exit_loop, &
-               failure, gapw, ionode, uniform_occupation, use_cholesky, use_jacobi
+    LOGICAL :: diis_step, do_level_shift, energy_only, exit_loop, failure, &
+      gapw, ionode, uniform_occupation, use_cholesky, use_jacobi
     REAL(KIND=dp)                            :: a_max, b_max, diis_error, &
-                                                IP_energy, t1, t2, tot1_h, &
-                                                tot1_s
+                                                IP_energy, t1, t2
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues, &
                                                 occupation_numbers
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer, vecbuffer2

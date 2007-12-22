@@ -28,6 +28,7 @@ MODULE cp_ddapc_methods
                                              unit_convert_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE erf_fn,                          ONLY: erfc
+  USE f77_blas
   USE input_constants,                 ONLY: weight_type_mass,&
                                              weight_type_unit
   USE input_section_types,             ONLY: section_vals_type,&
@@ -45,7 +46,6 @@ MODULE cp_ddapc_methods
   USE spherical_harmonics,             ONLY: legendre
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

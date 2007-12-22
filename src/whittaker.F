@@ -21,6 +21,8 @@
 !
 !------------------------------------------------------------------------------!
 
+  USE f77_blas
+!
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: dfac,&
                                              fac,&
@@ -28,9 +30,7 @@
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
-!
 
   IMPLICIT NONE
 
@@ -60,14 +60,14 @@ CONTAINS
 !   l1, l2   :: L-quantum number
 !   n        :: number of points
 
-    INTEGER, INTENT(IN)                      :: n, l1, l2
+    INTEGER, INTENT(IN)                      :: n, l2, l1
     REAL(KIND=dp), INTENT(IN)                :: alpha
     REAL(KIND=dp), DIMENSION(n)              :: erfa, expa, r, wc
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'whittaker_c0'
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'whittaker_c0a'
 
     INTEGER                                  :: i, k, l
-    REAL(dp) :: x, t1, y
+    REAL(dp)                                 :: t1, x, y
 
 ! -----------------------------------------------------------------------------
 

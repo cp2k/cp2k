@@ -38,6 +38,7 @@ MODULE qs_mo_methods
                                              cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_max
   USE qs_mo_types,                     ONLY: mo_set_p_type,&
@@ -47,7 +48,6 @@ MODULE qs_mo_methods
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

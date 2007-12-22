@@ -810,7 +810,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: n_rep_val
-    lOGICAL :: my_xas
+    LOGICAL                                  :: my_xas
     TYPE(section_vals_type), POINTER         :: print_key
 
     my_xas = .FALSE.
@@ -857,8 +857,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: file_name
-    INTEGER :: handle, ispin, natom, &
-               nspin, restart_unit
+    INTEGER                                  :: handle, ispin, natom, nspin, &
+                                                restart_unit
     LOGICAL                                  :: exist
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -924,8 +924,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    INTEGER, INTENT(IN)                      :: natom
-    INTEGER, INTENT(IN)                      :: rst_unit
+    INTEGER, INTENT(IN)                      :: natom, rst_unit
     INTEGER, INTENT(in), OPTIONAL            :: multiplicity
     LOGICAL, INTENT(IN), OPTIONAL            :: xas
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -935,12 +934,13 @@ CONTAINS
 
     INTEGER :: group, homo, i, iatom, irow, iset, iset_read, ishell, &
       ishell_read, iso, ispin, istat, lmax, lshell, my_mult, nao, nao_read, &
-      natom_read, nelectron, nmo, nmo_read, nnshell, nset, nset_max, nshell_max, &
-      nspin, nspin_read, offset_read, source
+      natom_read, nelectron, nmo, nmo_read, nnshell, nset, nset_max, &
+      nshell_max, nspin, nspin_read, offset_read, source
     INTEGER, DIMENSION(:), POINTER           :: nset_info, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, nshell_info
     INTEGER, DIMENSION(:, :, :), POINTER     :: nso_info, offset_info
-    LOGICAL                                  :: failure, minbas, my_xas, use_this
+    LOGICAL                                  :: failure, minbas, my_xas, &
+                                                use_this
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer, vecbuffer_read
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -1155,7 +1155,7 @@ CPSourceFileRef,&
         END IF
       END IF
 
-      IF(.not. my_xas) THEN
+      IF(.NOT. my_xas) THEN
 
         IF(ispin==1 .AND. nspin_read<nspin) THEN
 

@@ -90,12 +90,12 @@ MODULE qs_linres_epr_current
                                              qs_environment_type
   USE qs_linres_epr_atom_current,      ONLY: calculate_jrho_atom_coeff,&
                                              calculate_jrho_atom_rad
-  USE qs_linres_epr_ownutils,          ONLY: calculate_jrho_atom
   USE qs_linres_epr_bind0,             ONLY: chicorr_analytic,&
                                              mult_G_ov_G2_grid
   USE qs_linres_epr_op,                ONLY: fac_vecp,&
                                              set_vecp,&
                                              set_vecp_rev
+  USE qs_linres_epr_ownutils,          ONLY: calculate_jrho_atom
   USE qs_linres_types,                 ONLY: epr_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
@@ -225,13 +225,12 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: density_matrix0, &
-                                                density_matrix, &
+      POINTER                                :: density_matrix, &
+                                                density_matrix0, &
                                                 density_matrix_ii, &
                                                 density_matrix_iii
     TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(section_vals_type), POINTER         :: epr_section
-
 
     failure = .FALSE.
     CALL timeset("epr_response_current","I"," ",handle)

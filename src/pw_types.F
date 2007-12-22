@@ -380,7 +380,7 @@ SUBROUTINE pw_scale( pw, a )
     TYPE(pw_type), INTENT(INOUT)             :: pw
     REAL(KIND=dp), INTENT(IN)                :: a
 
-    INTEGER                                  :: ns, handle
+    INTEGER                                  :: handle, ns
     REAL(KIND=dp)                            :: flop
 
     CALL timeset ( 'pw_scale', 'I', 'Mflops', handle )

@@ -28,6 +28,7 @@
 MODULE qs_wf_history_types
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
+  USE f77_blas
   USE kg_gpw_fm_mol_types,             ONLY: kg_fm_mol_set_release,&
                                              kg_fm_p_type
   USE kinds,                           ONLY: dp
@@ -40,7 +41,6 @@ MODULE qs_wf_history_types
                                              real_matrix_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

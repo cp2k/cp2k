@@ -30,6 +30,7 @@ MODULE ep_types
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE global_types,                    ONLY: global_environment_type,&
                                              globenv_release,&
                                              globenv_retain
@@ -51,7 +52,6 @@ MODULE ep_types
                                              real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

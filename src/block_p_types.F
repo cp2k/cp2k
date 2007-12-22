@@ -23,8 +23,8 @@
 !!   SOURCE
 !****************************************************************************
 MODULE block_p_types
-  USE kinds,                           ONLY: dp
   USE f77_blas
+  USE kinds,                           ONLY: dp
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

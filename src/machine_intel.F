@@ -22,8 +22,7 @@
 
 MODULE machine_intel
 
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp,&
+  USE kinds,                           ONLY: dp,&
                                              int_8
 
   IMPLICIT NONE
@@ -122,18 +121,18 @@ END SUBROUTINE m_datum
   SUBROUTINE m_mov(source,TARGET)
     USE IFPOSIX, ONLY: PXFRENAME
     CHARACTER(LEN=*), INTENT(IN)             :: source, TARGET
-    INTEGER*4 :: ierrno,len_source,len_target
 
-    CHARACTER(LEN=2*default_string_length+4) :: cmd
+    INTEGER*4                                :: ierrno, len_source, len_target
 
-    ! cmd = "mv " // source(1:LEN_TRIM(source)) // " " // TARGET(1:LEN_TRIM(TARGET))
-    ! istat = system(cmd)
+! cmd = "mv " // source(1:LEN_TRIM(source)) // " " // TARGET(1:LEN_TRIM(TARGET))
+! istat = system(cmd)
+
     len_source=LEN_TRIM(source)
-    len_target=LEN_TRIM(target)
-    CALL PXFRENAME(source,len_source,target,len_target,ierrno)
+    len_target=LEN_TRIM(TARGET)
+    CALL PXFRENAME(source,len_source,TARGET,len_target,ierrno)
 
     IF(ierrno.NE.0) THEN
-       write(*,*) "PXFRENAME returned",ierrno
+       WRITE(*,*) "PXFRENAME returned",ierrno
     END IF
 
 

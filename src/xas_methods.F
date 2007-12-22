@@ -37,7 +37,6 @@ MODULE xas_methods
                                              pbc
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_files,                        ONLY: open_file
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_pool_types,                ONLY: fm_pool_create_fm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -60,12 +59,10 @@ MODULE xas_methods
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
-       do_loc_none, op_loc_berry, state_loc_all, state_loc_range,&
-       state_loc_list, state_loc_none, &
-       xas_1s_type, xas_2p_type, &
-       xas_2s_type, xas_dip_len2, xas_dip_vel, xas_dscf, xas_scf_default, &
-       xas_scf_general,  xas_tp_fh, xas_tp_hh, &
-       xas_tp_xfh, xas_tp_xhh, xes_tp_val
+       do_loc_none, state_loc_all, state_loc_list, state_loc_range, &
+       xas_1s_type, xas_2p_type, xas_2s_type, xas_dip_len2, xas_dip_vel, &
+       xas_dscf, xas_scf_general, xas_tp_fh, xas_tp_hh, xas_tp_xfh, &
+       xas_tp_xhh, xes_tp_val
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -117,7 +114,6 @@ MODULE xas_methods
                                              real_matrix_p_type,&
                                              replicate_matrix_structure,&
                                              set_matrix
-  USE string_utilities,                ONLY: xstring
   USE termination,                     ONLY: external_control,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -641,12 +637,11 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: name_sto
     INTEGER :: homo, i, iat, iatom, ik, ikind, ispin, istat, j, l, n_mo(2), &
-      nao, ncubes, nelectron, nexc_atoms, nexc_search, nj, nk, nkind, nmo, nmoloc(2), norb(0:3), &
-      nsgf_gto, nsgf_sto, nspins, nwork, n_rep
+      n_rep, nao, ncubes, nelectron, nexc_atoms, nexc_search, nj, nk, nkind, &
+      nmo, nmoloc(2), norb(0:3), nsgf_gto, nsgf_sto, nspins, nwork
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_type_tmp, kind_z_tmp
-    INTEGER, DIMENSION(:), POINTER           :: bounds, list
     INTEGER, DIMENSION(4, 7)                 :: ne
-    INTEGER, DIMENSION(:), POINTER           :: lq, nq
+    INTEGER, DIMENSION(:), POINTER           :: bounds, list, lq, nq
     LOGICAL                                  :: failure, ihavethis
     REAL(dp)                                 :: zatom
     REAL(dp), DIMENSION(:), POINTER          :: sto_zet
@@ -1223,12 +1218,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_write', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_path_length)       :: filename
-    CHARACTER(LEN=default_string_length)     :: fmd, my_act, &
-                                                my_pos, my_mittle
-    INTEGER                                  :: ia, ie, istate, istate0, &
-                                                out_sp
-    LOGICAL                                  :: failure, file_exists
+    CHARACTER(LEN=default_string_length)     :: my_act, my_mittle, my_pos
+    INTEGER                                  :: istate, istate0, out_sp
+    LOGICAL                                  :: failure
     REAL(dp)                                 :: ene2
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_section
@@ -1335,9 +1327,8 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: filename
     CHARACTER(LEN=default_string_length)     :: my_mittle
-    CHARACTER(len=50)                        :: flag
-    INTEGER                                  :: homo, ia, ie, istat, istate0, &
-                                                nspins, nstates
+    INTEGER                                  :: homo, istat, istate0, nspins, &
+                                                nstates
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:, :), POINTER       :: centers
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1444,7 +1435,6 @@ CONTAINS
     REAL(dp)                                 :: ene_f, ene_i, imagpart, &
                                                 ra(3), realpart
     REAL(dp), DIMENSION(:), POINTER          :: eigenvalues
-
 
     failure = .FALSE.
 

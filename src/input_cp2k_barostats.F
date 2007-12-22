@@ -24,6 +24,7 @@
 !****************************************************************************
 MODULE input_cp2k_barostats
   USE cp_units,                        ONLY: cp_unit_to_cp2k
+  USE f77_blas
   USE input_constants
   USE input_cp2k_thermostats,          ONLY: create_mass_section,&
                                              create_thermostat_section,&
@@ -39,7 +40,6 @@ MODULE input_cp2k_barostats
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

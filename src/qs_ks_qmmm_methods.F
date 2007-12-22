@@ -22,6 +22,7 @@ MODULE qs_ks_qmmm_methods
   USE cp_control_types,                ONLY: dft_control_type
   USE cube_utils,                      ONLY: cube_info_type,&
                                              init_cube_info
+  USE f77_blas
   USE input_constants,                 ONLY: do_qmmm_gauss,&
                                              do_qmmm_swave
   USE kinds,                           ONLY: dp
@@ -32,8 +33,8 @@ MODULE qs_ks_qmmm_methods
                                              pw_pool_type
   USE pw_types,                        ONLY: REALDATA3D,&
                                              REALSPACE,&
-                                             pw_p_type,&
-                                             pw_integral_ab
+                                             pw_integral_ab,&
+                                             pw_p_type
   USE qmmm_types,                      ONLY: qmmm_env_qm_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
@@ -42,7 +43,6 @@ MODULE qs_ks_qmmm_methods
                                              qs_ks_qmmm_release
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -221,8 +221,8 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin
     LOGICAL                                  :: failure
-    TYPE(pw_p_type), POINTER                 :: rho0_s_rs
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pw_p_type), POINTER                 :: rho0_s_rs
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.

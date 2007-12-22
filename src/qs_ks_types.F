@@ -24,14 +24,14 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qs_ks_types
+  USE f77_blas
   USE kinds,                           ONLY: dp
-  USE pw_pool_types,                   ONLY: pw_pool_release,&
-                                             pw_pool_type,&
-                                             pw_pool_give_back_pw
+  USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
+                                             pw_pool_release,&
+                                             pw_pool_type
   USE pw_types,                        ONLY: pw_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

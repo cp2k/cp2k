@@ -53,6 +53,7 @@ MODULE kg_environment
                                              dyn_coeff_set_initialize,&
                                              dyn_coeff_set_release,&
                                              dyn_coeff_set_type
+  USE f77_blas
   USE gamma,                           ONLY: init_md_ftable
   USE global_types,                    ONLY: global_environment_type
   USE header,                          ONLY: kg_header
@@ -122,7 +123,6 @@ MODULE kg_environment
                                              timestop
   USE topology,                        ONLY: topology_control
   USE virial_types,                    ONLY: virial_create
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

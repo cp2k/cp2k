@@ -19,17 +19,17 @@
 MODULE cp_control_types
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
+  USE f77_blas
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
+  USE pw_types,                        ONLY: pw_p_type
   USE qs_loc_control,                  ONLY: localized_wfn_control_create,&
                                              localized_wfn_control_release,&
                                              localized_wfn_control_type
   USE xas_control,                     ONLY: xas_control_create,&
                                              xas_control_release,&
                                              xas_control_type
-  USE pw_types,                        ONLY: pw_p_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -38,6 +38,7 @@ MODULE pw_poisson_types
                                              bessk1
   USE cell_types,                      ONLY: cell_release,&
                                              cell_type
+  USE f77_blas
   USE input_constants,                 ONLY: &
        ANALYTIC0D, ANALYTIC1D, ANALYTIC2D, MT0D, MT1D, MT2D, MULTIPOLE0D, &
        PERIODIC3D, do_ewald_none, do_ewald_spme, use_analytic, use_mt, &
@@ -68,7 +69,6 @@ MODULE pw_poisson_types
                                              pw_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

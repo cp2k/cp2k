@@ -31,6 +31,7 @@ MODULE qmmm_gpw_energy
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: cube_info_type
+  USE f77_blas
   USE input_constants,                 ONLY: do_par_atom,&
                                              do_qmmm_coulomb,&
                                              do_qmmm_gauss,&
@@ -71,7 +72,6 @@ MODULE qmmm_gpw_energy
   USE realspace_grid_cube,             ONLY: pw_to_cube
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -27,6 +27,7 @@ MODULE orbital_transformation_matrices
 
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
@@ -42,7 +43,6 @@ MODULE orbital_transformation_matrices
                                              sgf_symbol
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

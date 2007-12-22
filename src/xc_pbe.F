@@ -31,6 +31,7 @@ MODULE xc_pbe
   USE bibliography,                    ONLY: Perdew1996,&
                                              Zhang1998,&
                                              cite_reference
+  USE f77_blas
   USE input_constants,                 ONLY: xc_pbe_orig,&
                                              xc_rev_pbe
   USE input_section_types,             ONLY: section_vals_type,&
@@ -46,7 +47,6 @@ MODULE xc_pbe
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                              xc_rho_set_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

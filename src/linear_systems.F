@@ -26,6 +26,7 @@
 
 MODULE linear_systems
 
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE lapack,                          ONLY: lapack_cpotrf,&
                                              lapack_ctrtri,&
@@ -33,7 +34,6 @@ MODULE linear_systems
                                              lapack_spotrf,&
                                              lapack_strtri
   USE termination,                     ONLY: stop_program
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

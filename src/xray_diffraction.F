@@ -49,17 +49,17 @@ MODULE xray_diffraction
                                              pw_env_type
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: get_pw_grid_info
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
-                                             pw_pool_create_pw,&
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              RECIPROCALSPACE,&
-                                             pw_integrate_function,&
-                                             pw_scale,&
                                              pw_axpy,&
+                                             pw_integrate_function,&
+                                             pw_p_type,&
+                                             pw_scale,&
                                              pw_transfer,&
-                                             pw_zero,&
-                                             pw_p_type
+                                             pw_zero
   USE qs_collocate_density,            ONLY: collocate_pgf_product_gspace
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -128,8 +128,6 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(pw_p_type), POINTER                 :: rho_elec_gspace, &
-                                                rhotot_elec_gspace
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -137,6 +135,8 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_grid_type), POINTER              :: pw_grid
+    TYPE(pw_p_type), POINTER                 :: rho_elec_gspace, &
+                                                rhotot_elec_gspace
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(rho_atom_coeff), DIMENSION(:), &

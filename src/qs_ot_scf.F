@@ -33,11 +33,11 @@ MODULE qs_ot_scf
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
+  USE f77_blas
   USE input_constants,                 ONLY: &
-       ot_ls_2pnt, ot_ls_3pnt, ot_ls_gold, ot_ls_none, ot_mini_cg, &
-       ot_mini_diis, ot_mini_sd, ot_precond_full_all, &
-       ot_algo_taylor_or_diag,ot_algo_irac, &
-       ot_chol_irac,ot_poly_irac,ot_lwdn_irac,&
+       ot_algo_irac, ot_algo_taylor_or_diag, ot_chol_irac, ot_ls_2pnt, &
+       ot_ls_3pnt, ot_ls_gold, ot_ls_none, ot_lwdn_irac, ot_mini_cg, &
+       ot_mini_diis, ot_mini_sd, ot_poly_irac, ot_precond_full_all, &
        ot_precond_full_kinetic, ot_precond_full_single, &
        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
        ot_precond_sparse_diag
@@ -62,7 +62,6 @@ MODULE qs_ot_scf
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -88,8 +87,9 @@ CONTAINS
 
     CHARACTER(LEN=40)                        :: value
     INTEGER                                  :: handle, ispin, ls_method, &
-                                                nspin, ot_method, ot_algorithm, &
-                                                ot_ortho_irac, output_unit
+                                                nspin, ot_algorithm, &
+                                                ot_method, ot_ortho_irac, &
+                                                output_unit
     LOGICAL                                  :: explicit
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: ot_section

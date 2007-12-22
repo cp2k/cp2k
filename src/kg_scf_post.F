@@ -33,6 +33,7 @@ MODULE kg_scf_post
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kg_environment_types,            ONLY: get_kg_env,&
@@ -63,7 +64,6 @@ MODULE kg_scf_post
                                              real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

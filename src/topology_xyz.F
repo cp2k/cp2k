@@ -27,6 +27,7 @@ MODULE topology_xyz
                                              parser_get_next_line,&
                                              parser_get_object,&
                                              parser_release
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -37,7 +38,6 @@ MODULE topology_xyz
                                              timestop
   USE topology_types,                  ONLY: atom_info_type,&
                                              topology_parameters_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

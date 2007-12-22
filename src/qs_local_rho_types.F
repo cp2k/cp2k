@@ -17,6 +17,7 @@
 MODULE qs_local_rho_types
 
   USE erf_fn,                          ONLY: erf
+  USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE mathconstants,                   ONLY: fourpi,&
@@ -31,7 +32,6 @@ MODULE qs_local_rho_types
   USE qs_rho_atom_types,               ONLY: deallocate_rho_atom_set,&
                                              rho_atom_type
   USE termination,                     ONLY: stop_memory
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

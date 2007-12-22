@@ -46,6 +46,7 @@ MODULE qs_matrix_pools
   USE cp_sm_struct,                    ONLY: cp_sm_struct_type,&
                                              sm_struct_create,&
                                              sm_struct_release
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
@@ -55,7 +56,6 @@ MODULE qs_matrix_pools
                                              real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

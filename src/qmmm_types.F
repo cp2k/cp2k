@@ -24,6 +24,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qmmm_types
+  USE f77_blas
   USE force_field_types,               ONLY: deallocate_inp_info,&
                                              init_inp_info,&
                                              input_info_type
@@ -43,7 +44,6 @@ MODULE qmmm_types
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

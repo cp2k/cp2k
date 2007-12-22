@@ -41,6 +41,7 @@ MODULE fist_neighbor_lists
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE f77_blas
   USE fist_neighbor_list_types,        ONLY: fist_neighbor_add,&
                                              fist_neighbor_deallocate,&
                                              fist_neighbor_init,&
@@ -62,7 +63,6 @@ MODULE fist_neighbor_lists
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

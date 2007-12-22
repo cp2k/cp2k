@@ -32,6 +32,7 @@ MODULE kg_force
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
                                              dyn_coeff_type
+  USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
@@ -69,18 +70,12 @@ MODULE kg_force
   USE particle_types,                  ONLY: particle_type
   USE pw_poisson_methods,              ONLY: pw_poisson_solve
   USE pw_poisson_types,                ONLY: pw_poisson_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
-                                             pw_pool_create_pw,&
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_pw,&
                                              pw_pool_type
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
-                                             RECIPROCALSPACE,&
-                                             pw_integrate_function,&
-                                             pw_p_type,&
-                                             pw_axpy,&
-                                             pw_transfer,&
-                                             pw_zero
+  USE pw_types,                        ONLY: &
+       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_axpy, &
+       pw_integrate_function, pw_p_type, pw_transfer, pw_zero
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
@@ -103,7 +98,6 @@ MODULE kg_force
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc,                              ONLY: xc_vxc_pw_create1
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -210,10 +204,6 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, error )
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(pw_p_type), POINTER                 :: rho_core, rho_g, rho_r, &
-                                                rhop_g, rhop_r, v1xc_r, &
-                                                v2xc_r, v_gspace, v_rspace, &
-                                                vxc_r
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -227,6 +217,10 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, error )
     TYPE(particle_type), POINTER             :: part( : )
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_g, my_rho_r, my_tau, &
                                                 my_vxc_r, my_vxc_tau
+    TYPE(pw_p_type), POINTER                 :: rho_core, rho_g, rho_r, &
+                                                rhop_g, rhop_r, v1xc_r, &
+                                                v2xc_r, v_gspace, v_rspace, &
+                                                vxc_r
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(section_vals_type), POINTER         :: xc_section
@@ -534,8 +528,6 @@ SUBROUTINE kg_calculate_forces ( kg_env, error )
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(pw_p_type), POINTER                 :: rho_core, rho_g, rho_r, &
-                                                v_gspace, v_rspace, vxc_r
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -547,6 +539,8 @@ SUBROUTINE kg_calculate_forces ( kg_env, error )
     TYPE(particle_type), POINTER             :: part( : )
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_g, my_rho_r, my_tau, &
                                                 my_vxc_r, my_vxc_tau
+    TYPE(pw_p_type), POINTER                 :: rho_core, rho_g, rho_r, &
+                                                v_gspace, v_rspace, vxc_r
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(section_vals_type), POINTER         :: xc_section

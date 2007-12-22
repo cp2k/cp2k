@@ -51,6 +51,7 @@ MODULE cp_rs_pool_types
                                              cp_sll_rs_next,&
                                              cp_sll_rs_rm_first_el,&
                                              cp_sll_rs_type
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_release,&
@@ -61,7 +62,6 @@ MODULE cp_rs_pool_types
                                              rs_grid_release
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

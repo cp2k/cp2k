@@ -32,8 +32,8 @@ MODULE qs_all_potential
                                              gto_basis_set_type
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential
-  USE kinds,                           ONLY: dp,&
-                                             dp_size
+  USE f77_blas
+  USE kinds,                           ONLY: dp
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: coset,&
                                              indco,&
@@ -42,8 +42,6 @@ MODULE qs_all_potential
                                              qlist_type,&
                                              reduced_3c_list_type
   USE virial_methods,                  ONLY: virial_pair_force
-
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -102,22 +100,20 @@ MODULE qs_all_potential
       OPTIONAL                               :: pab
     REAL(dp), DIMENSION(3), INTENT(OUT), &
       OPTIONAL                               :: f_a, f_b
-    REAL(dp), DIMENSION(3,3), INTENT(OUT), &
+    REAL(dp), DIMENSION(3, 3), INTENT(OUT), &
       OPTIONAL                               :: virial_ab
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-
     CHARACTER(len=*), PARAMETER :: routineN = 'all_integrals', &
       routineP = moduleN//':'//routineN
-
     REAL(dp), PARAMETER                      :: EPS = 1.E-8_dp
 
     INTEGER :: bc, i, ic_a, ic_am, ic_ap, ic_b, ic_bm, icoa, icoa_plus, &
       icoam_plus, icoap_plus, icob, icobm, ipgfa, ipgfb, istat, katom, kkind, &
       knode, na, na_plus, nap, nb, nb_plus, ncoa, ncob, nnode_c
     INTEGER, DIMENSION(3)                    :: la, lam, lap, lb, lbm
-    LOGICAL                                  :: failure
-    LOGICAL                                  :: calculate_forces, use_virial
+    LOGICAL                                  :: calculate_forces, failure, &
+                                                use_virial
     REAL(dp) :: cerf, der_intab_a, der_intab_b, force_a(3), force_b(3), rab2, &
       rac(3), rac2, rbc(3), rbc2, rpgfc, zax2, zbx2, zc, zetc
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ff
@@ -321,11 +317,11 @@ MODULE qs_all_potential
     CHARACTER(len=*), PARAMETER :: routineN = 'radii_3c_orbxall', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     INTEGER                                  :: i, ico, icoa, ikind, ipgf, &
                                                 iset, istat, maxlgto, n, &
                                                 ncoa, ncoc, nkind, nseta
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa
+    LOGICAL                                  :: failure
     REAL(dp)                                 :: cerf, intmax0, r(3,0:60), &
                                                 r2(0:60), rab(3), rab2, &
                                                 rac(3), rac2, ri, rmax, &

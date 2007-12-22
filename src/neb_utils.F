@@ -38,6 +38,7 @@ MODULE neb_utils
                                              parser_get_next_line,&
                                              parser_get_object,&
                                              parser_release
+  USE f77_blas
   USE f77_interface,                   ONLY: f_env_add_defaults,&
                                              f_env_rm_defaults,&
                                              f_env_type
@@ -70,7 +71,6 @@ MODULE neb_utils
   USE rmsd,                            ONLY: rmsd3
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

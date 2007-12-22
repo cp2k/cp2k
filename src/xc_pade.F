@@ -30,6 +30,7 @@ MODULE xc_pade
 ! *****************************************************************************
   USE bibliography,                    ONLY: Goedecker1996,&
                                              cite_reference
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -44,7 +45,6 @@ MODULE xc_pade
                                              setup_calculation
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

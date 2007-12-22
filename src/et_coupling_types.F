@@ -22,12 +22,9 @@ MODULE et_coupling_types
 
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
-                                             allocate_matrix_set,&
-                                             deallocate_matrix_set
-  USE kinds,                           ONLY: dp
-
   USE f77_blas
+  USE kinds,                           ONLY: dp
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -80,15 +77,15 @@ MODULE et_coupling_types
 
 
     SUBROUTINE et_coupling_create(et_coupling,error)
-      TYPE(et_coupling_type), POINTER          :: et_coupling
-      TYPE(cp_error_type), INTENT(inout)       :: error
-      
-      CHARACTER(len=*), PARAMETER :: routineN = 'et_coupling_create', &
-           routineP = moduleN//':'//routineN
-      
-      INTEGER                                  :: stat
-      LOGICAL                                  :: failure
-      
+    TYPE(et_coupling_type), POINTER          :: et_coupling
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'et_coupling_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
       failure=.FALSE.
       
       ALLOCATE(et_coupling, stat=stat)
@@ -105,44 +102,46 @@ MODULE et_coupling_types
     END SUBROUTINE et_coupling_create
 
     SUBROUTINE get_et_coupling_type(et_coupling,et_mo_coeff,rest_mat,error)
-      TYPE(et_coupling_type), POINTER                            :: et_coupling
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER, OPTIONAL        :: et_mo_coeff
-      TYPE(real_matrix_p_type), DIMENSION(:), POINTER, OPTIONAL  :: rest_mat
-      TYPE(cp_error_type), INTENT(inout)                         :: error
-  
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_et_coupling_type', &
-           routineP = moduleN//':'//routineN
-      
-      
+    TYPE(et_coupling_type), POINTER          :: et_coupling
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: et_mo_coeff
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: rest_mat
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_et_coupling_type', &
+      routineP = moduleN//':'//routineN
+
       IF(PRESENT(et_mo_coeff))et_mo_coeff => et_coupling%et_mo_coeff
       IF(PRESENT(rest_mat))rest_mat => et_coupling%rest_mat
       
     END SUBROUTINE get_et_coupling_type
 
     SUBROUTINE set_et_coupling_type(et_coupling,et_mo_coeff,rest_mat,error)
-      TYPE(et_coupling_type), POINTER                          :: et_coupling
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER, OPTIONAL      :: et_mo_coeff
-      TYPE(real_matrix_p_type), DIMENSION(:), POINTER, OPTIONAL:: rest_mat
-      TYPE(cp_error_type), INTENT(inout)       :: error
-  
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_et_coupling_type', &
-           routineP = moduleN//':'//routineN
-      
-      
+    TYPE(et_coupling_type), POINTER          :: et_coupling
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: et_mo_coeff
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: rest_mat
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_et_coupling_type', &
+      routineP = moduleN//':'//routineN
+
       IF(PRESENT(et_mo_coeff))  et_coupling%et_mo_coeff  = et_mo_coeff
       IF(PRESENT(rest_mat)) et_coupling%rest_mat => rest_mat
       
     END SUBROUTINE set_et_coupling_type
 
     SUBROUTINE et_coupling_release(et_coupling,error)
-      TYPE(et_coupling_type), POINTER          :: et_coupling
-      TYPE(cp_error_type), INTENT(inout)       :: error
-      
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'et_coupling_release', &
-           routineP = moduleN//':'//routineN
-      
-      INTEGER                                  :: stat,i
-      LOGICAL                                  :: failure
+    TYPE(et_coupling_type), POINTER          :: et_coupling
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'et_coupling_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
 
       IF(ASSOCIATED(et_coupling%et_mo_coeff))THEN
          DO i=1,SIZE(et_coupling%et_mo_coeff)

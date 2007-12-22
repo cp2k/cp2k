@@ -28,6 +28,7 @@ MODULE csvr_system_dynamics
                                              dyn_coeff_type
   USE extended_system_types,           ONLY: map_info_type,&
                                              npt_info_type
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
@@ -43,7 +44,6 @@ MODULE csvr_system_dynamics
                                              vel_rescale_shells
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

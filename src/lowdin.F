@@ -35,6 +35,7 @@ MODULE lowdin
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
@@ -44,7 +45,6 @@ MODULE lowdin
                                              real_matrix_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

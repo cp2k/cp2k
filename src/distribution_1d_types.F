@@ -41,6 +41,7 @@ MODULE distribution_1d_types
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -55,7 +56,6 @@ MODULE distribution_1d_types
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

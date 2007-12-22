@@ -33,6 +33,7 @@ MODULE extended_system_init
                                              lnhc_parameters_type,&
                                              map_info_type,&
                                              npt_info_type
+  USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_thermo_only_master,&
                                              nph_uniaxial_damped_ensemble,&
@@ -55,7 +56,6 @@ MODULE extended_system_init
   USE thermostat_utils,                ONLY: get_nhc_energies
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   PRIVATE

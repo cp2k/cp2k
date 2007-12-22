@@ -33,6 +33,7 @@ MODULE qs_conductivity
                                              cp_fm_release,&
                                              cp_fm_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_sum
@@ -40,7 +41,6 @@ MODULE qs_conductivity
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

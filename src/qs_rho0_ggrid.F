@@ -30,6 +30,7 @@ MODULE qs_rho0_ggrid
                                              rs_pool_create_rs,&
                                              rs_pool_give_back_rs
   USE cube_utils,                      ONLY: cube_info_type
+  USE f77_blas
   USE input_constants,                 ONLY: tddfpt_singlet
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: dfac,&
@@ -44,21 +45,14 @@ MODULE qs_rho0_ggrid
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
-                                             pw_pool_create_pw,&
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_pw,&
                                              pw_pool_p_type,&
                                              pw_pool_type
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
-                                             RECIPROCALSPACE,&
-                                             pw_integrate_function,&
-                                             pw_copy,&
-                                             pw_release,&
-                                             pw_axpy,&
-                                             pw_transfer,&
-                                             pw_zero,&
-                                             pw_p_type
+  USE pw_types,                        ONLY: &
+       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_axpy, &
+       pw_copy, pw_integrate_function, pw_p_type, pw_release, pw_transfer, &
+       pw_zero
   USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -81,7 +75,6 @@ MODULE qs_rho0_ggrid
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -127,8 +120,6 @@ MODULE qs_rho0_ggrid
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(pw_p_type), POINTER                 :: coeff_gspace, coeff_rspace, &
-                                                rho0_s_gs, rho0_s_rs
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
@@ -139,6 +130,8 @@ MODULE qs_rho0_ggrid
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), POINTER                 :: coeff_gspace, coeff_rspace, &
+                                                rho0_s_gs, rho0_s_rs
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: pw_pool
@@ -320,8 +313,8 @@ MODULE qs_rho0_ggrid
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure, my_tddft
-    TYPE(pw_p_type), POINTER                 :: rho_gs, rho_rs
     TYPE(pw_env_type), POINTER               :: new_pw_env
+    TYPE(pw_p_type), POINTER                 :: rho_gs, rho_rs
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
 !   ---------------------------------------------------------------------------
@@ -416,8 +409,6 @@ MODULE qs_rho0_ggrid
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(pw_p_type), POINTER                 :: coeff_gaux, coeff_gspace, &
-                                                coeff_raux, coeff_rspace
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
@@ -430,6 +421,8 @@ MODULE qs_rho0_ggrid
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), POINTER                 :: coeff_gaux, coeff_gspace, &
+                                                coeff_raux, coeff_rspace
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: pw_aux, pw_pool

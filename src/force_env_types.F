@@ -27,6 +27,9 @@ MODULE force_env_types
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_env,                     ONLY: cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_result_types,                 ONLY: cp_result_release,&
+                                             cp_result_retain,&
+                                             cp_result_type
   USE cp_subsys_types,                 ONLY: cp_subsys_release,&
                                              cp_subsys_type
   USE cpot_types,                      ONLY: cpot_release,&
@@ -39,13 +42,11 @@ MODULE force_env_types
   USE ep_types,                        ONLY: ep_env_release,&
                                              ep_env_type
   USE extended_system_types,           ONLY: extended_energy_type
+  USE f77_blas
   USE fist_energy_types,               ONLY: fist_energy_type
   USE fist_environment_types,          ONLY: fist_env_release,&
                                              fist_environment_type,&
                                              get_fist_env
-  USE cp_result_types,                 ONLY: cp_result_type,&
-                                             cp_result_retain,&
-                                             cp_result_release
   USE fp_types,                        ONLY: fp_env_release,&
                                              fp_env_retain,&
                                              fp_type
@@ -80,7 +81,6 @@ MODULE force_env_types
   USE virial_types,                    ONLY: virial_release,&
                                              virial_retain,&
                                              virial_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -435,8 +435,7 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
       POINTER                                :: root_section
     TYPE(mixed_environment_type), OPTIONAL, &
       POINTER                                :: mixed_env
-    TYPE(cp_result_type), OPTIONAL, &
-      POINTER                                :: results    
+    TYPE(cp_result_type), OPTIONAL, POINTER  :: results
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_get', &
@@ -679,7 +678,7 @@ SUBROUTINE force_env_set(force_env, meta_env,fp_env, virial, force_env_section,&
     INTEGER, OPTIONAL                        :: method_name_id
     TYPE(extended_energy_type), OPTIONAL, &
       POINTER                                :: extended_energies
-    TYPE(cp_result_type),OPTIONAL,POINTER    :: results
+    TYPE(cp_result_type), OPTIONAL, POINTER  :: results
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_set', &

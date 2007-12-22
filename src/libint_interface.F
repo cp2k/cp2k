@@ -23,6 +23,7 @@
 !****************************************************************************
 MODULE libint_interface
 
+  USE f77_blas
   USE gamma,                           ONLY: fgamma
   USE input_constants,                 ONLY: do_hf_potential_coulomb,&
                                              do_hf_potential_long,&
@@ -36,7 +37,6 @@ MODULE libint_interface
   USE mathconstants
   USE orbital_pointers
   USE x_hf,                            ONLY: x_hf_potential_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -1237,7 +1237,8 @@ MODULE libint_interface
 !!****************************************************************************
 
   SUBROUTINE pbc(x, box_size, box_size_inv, retval)
-    REAL(dp), INTENT(IN)                     :: x(3), box_size(3), box_size_inv(3)
+    REAL(dp), INTENT(IN)                     :: x(3), box_size(3), &
+                                                box_size_inv(3)
     REAL(dp), INTENT(OUT)                    :: retval(3)
 
     IF( 2.0_dp*ABS(x(1))<box_size(1)) THEN

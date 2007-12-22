@@ -25,6 +25,7 @@ MODULE qs_energy
                                              read_ddapc_section
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE et_coupling,                     ONLY: calc_et_coupling
+  USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
@@ -47,7 +48,6 @@ MODULE qs_energy
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xas_methods,                     ONLY: xas
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

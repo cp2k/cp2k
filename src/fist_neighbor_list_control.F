@@ -32,6 +32,7 @@ MODULE fist_neighbor_list_control
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE f77_blas
   USE fist_neighbor_list_types,        ONLY: fist_neighbor_type
   USE fist_neighbor_lists,             ONLY: build_fist_neighbor_lists
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
@@ -47,7 +48,6 @@ MODULE fist_neighbor_list_control
   USE particle_types,                  ONLY: particle_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

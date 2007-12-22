@@ -24,6 +24,7 @@
 !******************************************************************************
 
 MODULE realspace_task_selection
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_cart_sub,&
@@ -39,7 +40,6 @@ MODULE realspace_task_selection
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -89,22 +89,22 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: tasks
     INTEGER, INTENT(OUT)                     :: npme
     INTEGER, DIMENSION(:, :), OPTIONAL, &
-         POINTER                                :: ival
+      POINTER                                :: ival
     REAL(KIND=dp), DIMENSION(:, :), &
-         OPTIONAL, POINTER                      :: rval
+      OPTIONAL, POINTER                      :: rval
     TYPE(real_matrix_type), OPTIONAL, &
-         POINTER                                :: pmat, pmat2, pmat3
+      POINTER                                :: pmat, pmat2, pmat3
     INTEGER, DIMENSION(:, :), OPTIONAL, &
-         POINTER                                :: pcor
+      POINTER                                :: pcor
     LOGICAL, INTENT(IN), OPTIONAL            :: symmetric
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER :: acol, arow, handle, i, ic, icmax, ileft, isend, j, k, n1, &
-         npmax, nppp, plength, plength2, plength3, stat, subgroup, subpos, &
-         subsize, dir
-    INTEGER, DIMENSION(:, :), POINTER        :: ilist, plist, pls, pls2, &
-         pls3, tlist
+    INTEGER :: acol, arow, dir, handle, i, ic, icmax, ileft, isend, j, k, n1, &
+      npmax, nppp, plength, plength2, plength3, stat, subgroup, subpos, &
+      subsize
     INTEGER, DIMENSION(3)                    :: lb, ub
+    INTEGER, DIMENSION(:, :), POINTER        :: ilist, plist, pls, pls2, &
+                                                pls3, tlist
     LOGICAL                                  :: matrix, my_symmetric
     LOGICAL, DIMENSION(3)                    :: subdim
     REAL(KIND=dp), DIMENSION(:), POINTER     :: ppack, ppack2, ppack3
@@ -377,7 +377,7 @@ CONTAINS
 
        ! are all tasks distributed?
        IF ( ANY ( tlist(1,:) > 0 ) ) THEN
-          write(6,*) "# of unallocated tasks is ",SIZE ( tlist , 2) 
+          WRITE(6,*) "# of unallocated tasks is ",SIZE ( tlist , 2) 
           CALL stop_program ( "get_my_tasks", "left over tasks" )
        END IF
 

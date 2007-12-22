@@ -25,11 +25,11 @@
 !****************************************************************************
 MODULE kg_diis_types
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

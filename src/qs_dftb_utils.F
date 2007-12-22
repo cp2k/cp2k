@@ -24,11 +24,11 @@ MODULE qs_dftb_utils
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -96,8 +96,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_dftb_atom_param', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     INTEGER                                  :: istat
+    LOGICAL                                  :: failure
 
 !   ---------------------------------------------------------------------------
 

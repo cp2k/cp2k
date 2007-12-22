@@ -26,11 +26,11 @@ MODULE extended_system_types
   USE bibliography,                    ONLY: Nose1984a,&
                                              Nose1984b,&
                                              cite_reference
+  USE f77_blas
   USE input_constants,                 ONLY: do_thermo_no_communication
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -33,6 +33,7 @@ MODULE qs_dftb_matrices
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE distribution_2d_types,           ONLY: distribution_2d_type
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -70,8 +71,6 @@ MODULE qs_dftb_matrices
                                              timestop
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
-
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -122,8 +121,8 @@ CONTAINS
     LOGICAL                                  :: defined, failure, new_atom_b, &
                                                 use_virial
     REAL(KIND=dp)                            :: ddr, dgam, dgrd, dr, drm, &
-                                                drp, erep, ga, gb, s_cut, &
-                                                urep_cut, foab, fow, f0
+                                                drp, erep, f0, foab, fow, ga, &
+                                                gb, s_cut, urep_cut
     REAL(KIND=dp), DIMENSION(0:3)            :: eta_a, eta_b, skself
     REAL(KIND=dp), DIMENSION(10)             :: urep
     REAL(KIND=dp), DIMENSION(2)              :: surr

@@ -21,6 +21,7 @@ MODULE constraint_util
   USE cell_types,                      ONLY: cell_type
   USE colvar_methods,                  ONLY: colvar_eval_mol_f
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: matmul_3x3,&
                                              transpose_3d
@@ -42,7 +43,6 @@ MODULE constraint_util
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

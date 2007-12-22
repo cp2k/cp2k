@@ -52,15 +52,15 @@ MODULE kg_density
                                              int_size
   USE orbital_pointers,                ONLY: ncoset
   USE particle_types,                  ONLY: particle_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
-                                             pw_pool_create_pw,&
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_pw,&
                                              pw_pool_p_type,&
                                              pw_pool_type,&
-                                             pw_pools_give_back_pws,&
-                                             pw_pools_create_pws
+                                             pw_pools_create_pws,&
+                                             pw_pools_give_back_pws
   USE pw_types,                        ONLY: &
-       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_copy, &
-       pw_integrate_function, pw_axpy, pw_transfer, pw_p_type, pw_zero
+       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_axpy, &
+       pw_copy, pw_integrate_function, pw_p_type, pw_transfer, pw_zero
   USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace
   USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace
   USE realspace_grid_types,            ONLY: pw2rs,&
@@ -117,7 +117,6 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
     TYPE(cube_info_type), DIMENSION(:), &
@@ -129,6 +128,7 @@ CONTAINS
     TYPE(kg_rspw_type), POINTER              :: rspw
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(realspace_grid_p_type), &
@@ -318,7 +318,6 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(pw_p_type)                          :: rhoc_r
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
     TYPE(cube_info_type), POINTER            :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -326,6 +325,7 @@ CONTAINS
     TYPE(kg_rspw_type), POINTER              :: rspw
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(pw_p_type)                          :: rhoc_r
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(realspace_grid_type), POINTER       :: rs_rho
 
@@ -429,7 +429,6 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
     TYPE(cube_info_type), DIMENSION(:), &
@@ -443,6 +442,7 @@ CONTAINS
     TYPE(kg_rspw_type), POINTER              :: rspw
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(realspace_grid_p_type), &
@@ -767,7 +767,6 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
     TYPE(cube_info_type), DIMENSION(:), &
@@ -781,6 +780,7 @@ CONTAINS
     TYPE(kg_rspw_type), POINTER              :: rspw
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(realspace_grid_p_type), &
@@ -1030,7 +1030,6 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
     TYPE(cube_info_type), DIMENSION(:), &
@@ -1046,6 +1045,7 @@ CONTAINS
     TYPE(kg_rspw_type), POINTER              :: rspw
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(realspace_grid_p_type), &

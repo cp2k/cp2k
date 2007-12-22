@@ -47,14 +47,15 @@ MODULE qs_scf_post
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_result_types,                 ONLY: put_results,&
+  USE cp_result_types,                 ONLY: erase_result,&
                                              get_results,&
-                                             erase_result
+                                             put_results
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE et_coupling_types,               ONLY: set_et_coupling_type
   USE external_potential_types,        ONLY: gth_potential_type
+  USE f77_blas
   USE input_constants,                 ONLY: do_loc_none,&
                                              ot_precond_full_all
   USE input_section_types,             ONLY: section_get_ival,&
@@ -78,19 +79,13 @@ MODULE qs_scf_post
   USE preconditioner,                  ONLY: preconditioner_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
-                                             pw_pool_create_pw,&
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_pw,&
                                              pw_pool_p_type,&
                                              pw_pool_type
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
-                                             RECIPROCALSPACE,&
-                                             pw_transfer,&
-                                             pw_integrate_function,&
-                                             pw_copy,&
-                                             pw_p_type,&
-                                             pw_axpy
+  USE pw_types,                        ONLY: &
+       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_axpy, &
+       pw_copy, pw_integrate_function, pw_p_type, pw_transfer
   USE qs_collocate_density,            ONLY: calculate_wavefunction
   USE qs_conductivity,                 ONLY: optical_conductivity
   USE qs_electric_field_gradient,      ONLY: qs_efg_calc
@@ -131,7 +126,6 @@ MODULE qs_scf_post
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xray_diffraction,                ONLY: xray_diffraction_spectrum
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -201,8 +195,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: scenter
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: center
-    TYPE(pw_p_type)                          :: wf_g, wf_r
-    TYPE(pw_p_type), POINTER                 :: rho_core
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: unoccupied_orbs
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
@@ -222,6 +214,8 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(preconditioner_type), POINTER       :: preconditioner
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type)                          :: wf_g, wf_r
+    TYPE(pw_p_type), POINTER                 :: rho_core
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
@@ -775,12 +769,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_loc_dip', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: iter
     CHARACTER(LEN=80)                        :: description
-    INTEGER                                  :: i, ispins, unit_nr,n_rep
+    CHARACTER(LEN=default_string_length)     :: iter
+    INTEGER                                  :: i, ispins, n_rep, unit_nr
     LOGICAL                                  :: failure, first_time, ghost
     REAL(KIND=dp)                            :: zeff, zwfc
-    REAL(KIND=dp), DIMENSION(3)              :: dipole,dipole_old, r_pbc
+    REAL(KIND=dp), DIMENSION(3)              :: dipole, dipole_old, r_pbc
     TYPE(cell_type), POINTER                 :: cell
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(particle_type), DIMENSION(:), &
@@ -1173,9 +1167,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: filename
-    INTEGER                                  :: maxmom, unit_nr, reference
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: ref_point
+    INTEGER                                  :: maxmom, reference, unit_nr
     LOGICAL                                  :: periodic
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: ref_point
     TYPE(section_vals_type), POINTER         :: print_key
 
     print_key => section_vals_get_subs_vals(section_vals=input,&
@@ -1526,8 +1520,6 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(pw_p_type)                          :: wf_r
-    TYPE(pw_p_type), POINTER                 :: rho0_s_gs, rho_core
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -1539,6 +1531,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type)                          :: wf_r
+    TYPE(pw_p_type), POINTER                 :: rho0_s_gs, rho_core
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
@@ -1589,7 +1583,7 @@ CONTAINS
                in_space = REALSPACE, error=error)
           CALL pw_copy(rho%rho_r(1)%pw,wf_r%pw)
           CALL pw_axpy(rho%rho_r(2)%pw,wf_r%pw,alpha=-1._dp)
-          total_abs_spin_dens=pw_integrate_function(wf_r%pw,operator="ABS")
+          total_abs_spin_dens=pw_integrate_function(wf_r%pw,OPERATOR="ABS")
           IF (ionode) WRITE(UNIT=output_unit,fmt='(/,(T3,A,T60,F20.10))') &
                "Integrated absolute spin density  : ",total_abs_spin_dens
           CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw, error=error)

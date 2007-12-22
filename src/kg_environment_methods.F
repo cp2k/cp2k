@@ -25,6 +25,7 @@ MODULE kg_environment_methods
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_type
   USE distribution_methods,            ONLY: distribute_molecules_2d
+  USE f77_blas
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type,&
                                              set_kg_env
@@ -53,7 +54,6 @@ MODULE kg_environment_methods
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

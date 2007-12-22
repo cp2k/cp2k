@@ -23,6 +23,7 @@
 
 MODULE kg_rho_methods
   USE cp_control_types,                ONLY: dft_control_type
+  USE f77_blas
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
   USE kg_rho_types,                    ONLY: kg_rho_type
@@ -38,7 +39,6 @@ MODULE kg_rho_methods
                                              pw_release
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

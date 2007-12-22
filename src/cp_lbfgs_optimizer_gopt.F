@@ -59,6 +59,7 @@ MODULE cp_lbfgs_optimizer_gopt
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE force_env_types,                 ONLY: force_env_type
   USE gopt_f_types,                    ONLY: check_converg,&
                                              cp_eval_at,&
@@ -73,7 +74,6 @@ MODULE cp_lbfgs_optimizer_gopt
   USE message_passing,                 ONLY: mp_bcast
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

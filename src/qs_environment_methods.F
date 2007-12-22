@@ -35,6 +35,7 @@ MODULE qs_environment_methods
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_type
   USE distribution_methods,            ONLY: distribute_molecules_2d
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
@@ -48,8 +49,8 @@ MODULE qs_environment_methods
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              RECIPROCALSPACE,&
-                                             pw_release,&
-                                             pw_p_type
+                                             pw_p_type,&
+                                             pw_release
   USE qs_charges_types,                ONLY: qs_charges_create,&
                                              qs_charges_release,&
                                              qs_charges_type
@@ -68,7 +69,6 @@ MODULE qs_environment_methods
                                              real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -361,9 +361,9 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
 
     INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
-    TYPE(pw_p_type), POINTER                 :: rho_core
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: new_pw_env
+    TYPE(pw_p_type), POINTER                 :: rho_core
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
     CALL timeset(routineN,handle)
@@ -513,9 +513,9 @@ SUBROUTINE qs_env_update_rho_core(qs_env,error)
 
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
-    TYPE(pw_p_type), POINTER                 :: rho_core
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), POINTER                 :: rho_core
     TYPE(qs_charges_type), POINTER           :: qs_charges
 
     CALL timeset(routineN,handle)

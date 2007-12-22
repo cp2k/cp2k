@@ -25,6 +25,7 @@
 
 MODULE eigenvalueproblems
 
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE lapack,                          ONLY: lapack_cgesvd,&
                                              lapack_chpev,&
@@ -33,7 +34,6 @@ MODULE eigenvalueproblems
                                              lapack_sspgv,&
                                              lapack_ssyev
   USE termination,                     ONLY: stop_program
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

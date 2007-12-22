@@ -25,8 +25,7 @@
 
 MODULE qs_linres_epr_nablavks
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set
+                                             get_atomic_kind
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_output_handling,              ONLY: cp_p_file,&
@@ -41,7 +40,7 @@ MODULE qs_linres_epr_nablavks
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential,&
                                              gth_potential_type
-  USE hartree_local_methods,           ONLY: calculate_Vh_1center                                             
+  USE hartree_local_methods,           ONLY: calculate_Vh_1center
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -56,10 +55,9 @@ MODULE qs_linres_epr_nablavks
                                              pw_env_type
   USE pw_poisson_methods,              ONLY: pw_poisson_solve
   USE pw_poisson_types,                ONLY: pw_poisson_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
-                                             pw_pool_create_pw,&
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_pw,&
                                              pw_pool_type
-  USE qs_rho0_types,                   ONLY: rho0_atom_type
   USE pw_types,                        ONLY: &
        COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_axpy, &
        pw_copy, pw_derive, pw_p_type, pw_transfer, pw_type, pw_zero
@@ -72,11 +70,14 @@ MODULE qs_linres_epr_nablavks
                                              qs_vxc_create
   USE qs_linres_types,                 ONLY: epr_env_type,&
                                              get_epr_env,&
-                                             nablavks_atom_type ! R0
+                                             nablavks_atom_type
+! R0
   USE qs_local_rho_types,              ONLY: rhoz_type
+  USE qs_rho0_types,                   ONLY: rho0_atom_type
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
-                                             rho_atom_coeff,& ! R0
+                                             rho_atom_coeff,&
                                              rho_atom_type
+! R0
   USE qs_rho_types,                    ONLY: qs_rho_p_type,&
                                              qs_rho_type
   USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
@@ -115,73 +116,78 @@ CONTAINS
 
   SUBROUTINE epr_nablavks(epr_env,qs_env,error)
 
-    TYPE(epr_env_type)                          :: epr_env
-    TYPE(qs_environment_type), POINTER          :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT),&
-      OPTIONAL                                  :: error
+    TYPE(epr_env_type)                       :: epr_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_nablavks', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=80)                           :: ext, filename
-    COMPLEX(KIND = dp)                          :: gtemp
-    INTEGER, DIMENSION(:), POINTER              :: atom_list
-    INTEGER :: bo_atom(2), cnt, iat, iatom, idir, iexp, ikind, ispin, istat,&
-               ia, ig, ir, iso, ix, iy, iz, natom, nexp_ppl, nkind, nspins,&
-               output_unit, unit_nr
-    INTEGER, DIMENSION(2,3)                     :: bo
-    LOGICAL                                     :: failure, ionode, gapw,&
-                                                   gapw_xc, gth_gspace,&
-                                                   make_soft, paw_atom
-    REAL(KIND = dp) :: alpha, alpha_core, arg, charge, ehartree, exc,&
-                       exp_rap, gapw_max_alpha, hard_value, mu, soft_value,&
-                       sqrt_alpha, sqrt_rap
-    REAL(KIND = dp), DIMENSION(3)               :: ratom, rpoint, roffset, rap
-    REAL(KIND = dp), DIMENSION(:), POINTER      :: cexp_ppl, rho_rad_z
-    REAL(KIND = dp), ALLOCATABLE,&
-       DIMENSION(:,:)                           :: vh1_rad_h,vh1_rad_s
-    REAL(KIND = dp), DIMENSION(:,:), POINTER    :: rho_rad_0
-
-    TYPE(all_potential_type), POINTER           :: all_potential
-    TYPE(atomic_kind_type), DIMENSION(:),&
-       POINTER                                  :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER             :: atomic_kind
-    TYPE(cell_type), POINTER                    :: cell
-    TYPE(cp_logger_type), POINTER               :: logger
-    TYPE(cp_para_env_type), POINTER             :: para_env
-    TYPE(cp_subsys_type), POINTER               :: subsys
-    TYPE(dft_control_type), POINTER             :: dft_control
-    TYPE(grid_atom_type), POINTER               :: grid_atom ! R0
-    TYPE(gth_potential_type), POINTER           :: gth_potential
-    TYPE(harmonics_atom_type), POINTER          :: harmonics
-    TYPE(nablavks_atom_type), DIMENSION(:), & ! R0
-       POINTER                                  :: nablavks_atom_set ! R0
-    TYPE(particle_list_type), POINTER           :: particles
+    CHARACTER(LEN=80)                        :: ext, filename
+    COMPLEX(KIND=dp)                         :: gtemp
+    INTEGER :: bo_atom(2), ia, iat, iatom, idir, iexp, ig, ikind, ir, iso, &
+      ispin, istat, ix, iy, iz, natom, nexp_ppl, nkind, nspins, output_unit, &
+      unit_nr
+    INTEGER, DIMENSION(2, 3)                 :: bo
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    LOGICAL                                  :: failure, gapw, gapw_xc, &
+                                                gth_gspace, ionode, &
+                                                make_soft, paw_atom
+    REAL(KIND=dp) :: alpha, alpha_core, arg, charge, ehartree, exc, exp_rap, &
+      gapw_max_alpha, hard_value, soft_value, sqrt_alpha, sqrt_rap
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: vh1_rad_h, vh1_rad_s
+    REAL(KIND=dp), DIMENSION(3)              :: rap, ratom, roffset, rpoint
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: cexp_ppl, rho_rad_z
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rho_rad_0
+    TYPE(all_potential_type), POINTER        :: all_potential
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(grid_atom_type), POINTER            :: grid_atom
+    TYPE(gth_potential_type), POINTER        :: gth_potential
+    TYPE(harmonics_atom_type), POINTER       :: harmonics
+    TYPE(nablavks_atom_type), DIMENSION(:), &
+      POINTER                                :: nablavks_atom_set
+    TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
-       POINTER                                  :: particle_set
-    TYPE(pw_env_type), POINTER                  :: pw_env
-    TYPE(pw_p_type), DIMENSION(:), POINTER     :: v_rspace_new, v_tau_rspace
-    TYPE(pw_p_type), POINTER                   :: rho_tot_gspace, v_hartree_gspace,&
-       v_hartree_gtemp, v_hartree_rtemp, v_coulomb_gspace, v_coulomb_gtemp,&
-       v_coulomb_rtemp, v_xc_gtemp, v_xc_rtemp, wf_r
-    TYPE(pw_poisson_type), POINTER              :: poisson_env
-    TYPE(pw_pool_type), POINTER                 :: auxbas_pw_pool
-    TYPE(pw_type), POINTER                      :: pwx, pwy, pwz
-    TYPE(qs_rho_p_type),DIMENSION(:,:), &
-       POINTER                                  :: nablavks_set
-    TYPE(qs_rho_type), POINTER                  :: rho
+      POINTER                                :: particle_set
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, v_tau_rspace
+    TYPE(pw_p_type), POINTER :: rho_tot_gspace, v_coulomb_gspace, &
+      v_coulomb_gtemp, v_coulomb_rtemp, v_hartree_gspace, v_hartree_gtemp, &
+      v_hartree_rtemp, v_xc_gtemp, v_xc_rtemp, wf_r
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(pw_type), POINTER                   :: pwx, pwy, pwz
+    TYPE(qs_rho_p_type), DIMENSION(:, :), &
+      POINTER                                :: nablavks_set
+    TYPE(qs_rho_type), POINTER               :: rho
     TYPE(rho0_atom_type), DIMENSION(:), &
-       POINTER                                  :: rho0_atom_set
+      POINTER                                :: rho0_atom_set
     TYPE(rho_atom_coeff), DIMENSION(:), &
-       POINTER                                  :: rho_rad_h, rho_rad_s
-    TYPE(rho_atom_coeff), DIMENSION(:,:), & ! R0
-       POINTER                                  :: nablavks_vec_rad_h,& ! R0
-                                                   nablavks_vec_rad_s ! R0
+      POINTER                                :: rho_rad_h, rho_rad_s
+    TYPE(rho_atom_coeff), DIMENSION(:, :), &
+      POINTER                                :: nablavks_vec_rad_h, &
+                                                nablavks_vec_rad_s
     TYPE(rho_atom_type), DIMENSION(:), &
-       POINTER                                  :: rho_atom_set
-    TYPE(rho_atom_type), POINTER                :: rho_atom
-    TYPE(rhoz_type), DIMENSION(:), POINTER      :: rhoz_set    
-    TYPE(section_vals_type), POINTER            :: g_section, lr_section
+      POINTER                                :: rho_atom_set
+    TYPE(rho_atom_type), POINTER             :: rho_atom
+    TYPE(rhoz_type), DIMENSION(:), POINTER   :: rhoz_set
+    TYPE(section_vals_type), POINTER         :: g_section, lr_section
+
+! R0
+! R0
+! R0
+! R0
+! R0
+! R0
 
     NULLIFY(auxbas_pw_pool)
     NULLIFY(cell)

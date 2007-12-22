@@ -21,6 +21,7 @@
 MODULE cell_types
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE f77_blas
   USE input_constants,                 ONLY: &
        use_perd_none, use_perd_x, use_perd_xy, use_perd_xyz, use_perd_xz, &
        use_perd_y, use_perd_yz, use_perd_z, use_unit_angstrom, use_unit_bohr, &
@@ -36,7 +37,6 @@ MODULE cell_types
                                              inv_3x3
   USE physcon,                         ONLY: bohr
   USE termination,                     ONLY: stop_program
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -24,10 +24,10 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qs_charges_types
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

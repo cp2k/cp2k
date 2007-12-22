@@ -32,9 +32,9 @@ MODULE qs_linres_module
                                              cp_print_key_unit_nr
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
-       lr_cg, lr_chemshift, lr_diis, lr_ls_2pnt, lr_ls_3pnt, lr_ls_gold, &
-       lr_ls_none, lr_none, lr_precond_full_all, lr_precond_none, &
-       lr_precond_s_inverse, lr_precond_single, lr_sd, lr_gtensor
+       lr_cg, lr_chemshift, lr_diis, lr_gtensor, lr_ls_2pnt, lr_ls_3pnt, &
+       lr_ls_gold, lr_ls_none, lr_none, lr_precond_full_all, lr_precond_none, &
+       lr_precond_s_inverse, lr_precond_single, lr_sd
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -43,25 +43,25 @@ MODULE qs_linres_module
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
+  USE qs_linres_epr_nablavks,          ONLY: epr_nablavks
   USE qs_linres_epr_op,                ONLY: epr_operators
+  USE qs_linres_epr_ownutils,          ONLY: epr_g_print,&
+                                             epr_g_so,&
+                                             epr_g_soo,&
+                                             epr_g_zke
   USE qs_linres_epr_utils,             ONLY: epr_do_epr,&
                                              epr_env_cleanup,&
                                              epr_env_init
-  USE qs_linres_epr_ownutils,          ONLY: epr_g_print,&
-                                             epr_g_zke,&
-                                             epr_g_so,&
-                                             epr_g_soo
-  USE qs_linres_epr_nablavks,          ONLY: epr_nablavks
   USE qs_linres_methods,               ONLY: linres_localize
   USE qs_linres_nmr_op,                ONLY: nmr_operators
   USE qs_linres_nmr_utils,             ONLY: nmr_do_nmr,&
                                              nmr_env_cleanup,&
                                              nmr_env_init
-  USE qs_linres_types,                 ONLY: linres_control_create,&
+  USE qs_linres_types,                 ONLY: epr_env_type,&
+                                             linres_control_create,&
                                              linres_control_release,&
                                              linres_control_type,&
-                                             nmr_env_type,&
-                                             epr_env_type
+                                             nmr_env_type
   USE qs_loc_control,                  ONLY: localized_wfn_control_create,&
                                              read_loc_section
   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
@@ -78,7 +78,6 @@ MODULE qs_linres_module
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -127,9 +126,9 @@ CONTAINS
                                                 lr_calculation, was_present
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(epr_env_type)                       :: epr_env
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(nmr_env_type)                       :: nmr_env
-    TYPE(epr_env_type)                       :: epr_env
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(section_vals_type), POINTER         :: lr_section, prop_section
 

@@ -17,13 +17,13 @@
 
 MODULE hartree_local_types
 
+  USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE qs_oce_types,                    ONLY: deallocate_vtriple,&
                                              vtriple_type
   USE qs_rho_atom_types,               ONLY: rho_atom_coeff
   USE termination,                     ONLY: stop_memory
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

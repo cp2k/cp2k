@@ -30,13 +30,13 @@ MODULE xas_env_types
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_type
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE qs_loc_types,                    ONLY: qs_loc_env_new_type,&
                                              qs_loc_env_release,&
                                              qs_loc_env_retain
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
                                              real_matrix_p_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

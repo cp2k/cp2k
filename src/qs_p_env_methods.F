@@ -56,6 +56,7 @@ MODULE qs_p_env_methods
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type
+  USE f77_blas
   USE hartree_local_methods,           ONLY: init_coulomb_local
   USE hartree_local_types,             ONLY: hartree_local_create
   USE input_constants,                 ONLY: lr_cg,&
@@ -98,7 +99,6 @@ MODULE qs_p_env_methods
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

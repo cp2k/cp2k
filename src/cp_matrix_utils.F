@@ -29,6 +29,7 @@ MODULE cp_matrix_utils
   USE cp_array_utils,                  ONLY: cp_2d_r_write
   USE cp_sm_struct,                    ONLY: cp_sm_struct_type,&
                                              sm_struct_add_local_block
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE sparse_matrix_types,             ONLY: first_block_node,&
@@ -39,7 +40,6 @@ MODULE cp_matrix_utils
                                              real_matrix_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

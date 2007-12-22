@@ -33,6 +33,7 @@ MODULE topology_coordinate_util
                                              elp_potential_type,&
                                              get_potential,&
                                              set_potential
+  USE f77_blas
   USE input_constants,                 ONLY: do_fist,&
                                              do_skip_12,&
                                              do_skip_13,&
@@ -61,7 +62,6 @@ MODULE topology_coordinate_util
                                              topology_parameters_type
   USE topology_util,                   ONLY: array1_list_type,&
                                              reorder_structure
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -136,8 +136,11 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: iatomlist, kind_of, list, &
                                                 list2, molecule_list, &
                                                 natom_of_kind, wlist
-    LOGICAL                                  :: failure, found, my_qmmm, do_center
-    REAL(KIND=dp)                            :: alpha_core_charge, qeff, bounds(2,3), dims(3), cdims(3)
+    LOGICAL                                  :: do_center, failure, found, &
+                                                my_qmmm
+    REAL(KIND=dp)                            :: alpha_core_charge, &
+                                                bounds(2,3), cdims(3), &
+                                                dims(3), qeff
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charge, mass
     TYPE(array1_list_type), DIMENSION(:), &
       POINTER                                :: ex_bend_list, ex_bond_list, &

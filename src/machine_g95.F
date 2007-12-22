@@ -24,8 +24,8 @@
 MODULE machine_g95
 
   USE ISO_C_BINDING,                   ONLY: C_INT64_T
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp, int_8
+  USE kinds,                           ONLY: dp,&
+                                             int_8
 
   IMPLICIT NONE
 
@@ -108,7 +108,8 @@ END SUBROUTINE m_datum
 ! returns the total amount of memory [bytes] in use, if known, zero otherwise
 ! *****************************************************************************
   FUNCTION m_memory()
-    INTEGER(KIND=int_8) m_memory
+    INTEGER(KIND=int_8)                      :: m_memory
+
     m_memory=total_memory
   END FUNCTION m_memory
 
@@ -118,7 +119,7 @@ END SUBROUTINE m_datum
 
 !   ---------------------------------------------------------------------------
 
-    CALL rename(TRIM(source),TRIM(target))
+    CALL rename(TRIM(source),TRIM(TARGET))
 
   END SUBROUTINE m_mov
 

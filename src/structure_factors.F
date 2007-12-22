@@ -19,11 +19,11 @@
 
 MODULE structure_factors
 
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
   USE structure_factor_types,          ONLY: structure_factor_type
   USE termination,                     ONLY: stop_memory
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -110,9 +110,9 @@ SUBROUTINE structure_factor_allocate ( bds, nparts, exp_igr, &
     INTEGER, DIMENSION(:, :), INTENT(IN)     :: bds
     INTEGER, INTENT(IN)                      :: nparts
     TYPE(structure_factor_type), INTENT(OUT) :: exp_igr
-    LOGICAL, INTENT(IN), OPTIONAL            :: allocate_centre
-    LOGICAL, INTENT(IN), OPTIONAL            :: allocate_shell_e
-    LOGICAL, INTENT(IN), OPTIONAL            :: allocate_shell_centre
+    LOGICAL, INTENT(IN), OPTIONAL            :: allocate_centre, &
+                                                allocate_shell_e, &
+                                                allocate_shell_centre
     INTEGER, INTENT(IN), OPTIONAL            :: nshell
 
     INTEGER                                  :: isos

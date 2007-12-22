@@ -36,6 +36,7 @@ MODULE spherical_harmonics
 
 ! *****************************************************************************
 
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: dfac,&
                                              fac,&
@@ -43,7 +44,6 @@ MODULE spherical_harmonics
                                              pi
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

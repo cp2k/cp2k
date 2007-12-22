@@ -30,6 +30,7 @@ MODULE harris_force
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE harris_env_types,                ONLY: harris_env_get,&
                                              harris_env_type
@@ -45,11 +46,10 @@ MODULE harris_force
   USE pw_poisson_types,                ONLY: pw_poisson_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
-                                             pw_pool_create_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: &
-       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_copy, &
-       pw_p_type, pw_release, pw_scale, pw_zero, pw_axpy, pw_transfer
+       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_axpy, &
+       pw_copy, pw_p_type, pw_release, pw_scale, pw_transfer, pw_zero
   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
@@ -76,7 +76,6 @@ MODULE harris_force
                                              xc_dset_release
   USE xc_rho_set_types,                ONLY: xc_rho_set_release,&
                                              xc_rho_set_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -140,12 +139,6 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(pw_p_type)                          :: rho_tot_gspace, &
-                                                v_hartree_gspace, &
-                                                v_hartree_rspace
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r, v_rspace_new, &
-                                                v_tau_rspace
-    TYPE(pw_p_type), POINTER                 :: rho_core
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -153,7 +146,13 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_r, v_xc
+    TYPE(pw_p_type)                          :: rho_tot_gspace, &
+                                                v_hartree_gspace, &
+                                                v_hartree_rspace
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_r, rho_r, &
+                                                v_rspace_new, v_tau_rspace, &
+                                                v_xc
+    TYPE(pw_p_type), POINTER                 :: rho_core
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_force_type), DIMENSION(:), &
@@ -533,12 +532,6 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(pw_p_type)                          :: rho_tot_gspace, &
-                                                v_hartree_gspace, &
-                                                v_hartree_rspace
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r, v_rspace_new, &
-                                                v_tau_rspace
-    TYPE(pw_p_type), POINTER                 :: rho_core
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -546,7 +539,13 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_r, v_xc
+    TYPE(pw_p_type)                          :: rho_tot_gspace, &
+                                                v_hartree_gspace, &
+                                                v_hartree_rspace
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_r, rho_r, &
+                                                v_rspace_new, v_tau_rspace, &
+                                                v_xc
+    TYPE(pw_p_type), POINTER                 :: rho_core
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_force_type), DIMENSION(:), &
@@ -1037,10 +1036,6 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(pw_p_type)                          :: v_hartree_gspace, &
-                                                v_hartree_rspace
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r, v_rspace_new, &
-                                                v_tau_rspace
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_env_type), POINTER           :: harris_env
@@ -1048,7 +1043,11 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_r, v_xc
+    TYPE(pw_p_type)                          :: v_hartree_gspace, &
+                                                v_hartree_rspace
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_r, rho_r, &
+                                                v_rspace_new, v_tau_rspace, &
+                                                v_xc
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_force_type), DIMENSION(:), &
@@ -1549,16 +1548,16 @@ CONTAINS
     REAL(KIND=dp)                            :: Ehartree, Exc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(pw_p_type)                          :: rho_tot_gspace, &
-                                                v_hartree_gspace, &
-                                                v_hartree_rspace
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, v_tau_rspace
-    TYPE(pw_p_type), POINTER                 :: rho_core
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type)                          :: rho_tot_gspace, &
+                                                v_hartree_gspace, &
+                                                v_hartree_rspace
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, v_tau_rspace
+    TYPE(pw_p_type), POINTER                 :: rho_core
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_force_type), DIMENSION(:), &

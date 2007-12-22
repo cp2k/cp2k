@@ -37,6 +37,7 @@ MODULE qs_tddfpt_eigensolver
                                              cp_fm_to_fm
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
+  USE f77_blas
   USE input_constants,                 ONLY: tddfpt_davidson,&
                                              tddfpt_lanczos
   USE kinds,                           ONLY: dp
@@ -57,7 +58,6 @@ MODULE qs_tddfpt_eigensolver
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

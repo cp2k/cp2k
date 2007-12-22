@@ -234,7 +234,7 @@ END FUNCTION
 PURE FUNCTION s2a_15(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
                                                 s8, s9, s10, s11, s12, s13, &
-                                                s14,s15
+                                                s14, s15
     CHARACTER(LEN=1000), DIMENSION(15)       :: a
 
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
@@ -245,7 +245,7 @@ PURE FUNCTION s2a_16(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
                      s16) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
                                                 s8, s9, s10, s11, s12, s13, &
-                                                s14,s15,s16
+                                                s14, s15, s16
     CHARACTER(LEN=1000), DIMENSION(16)       :: a
 
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
@@ -256,7 +256,7 @@ PURE FUNCTION s2a_17(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
                      s16,s17) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
                                                 s8, s9, s10, s11, s12, s13, &
-                                                s14,s15,s16,s17
+                                                s14, s15, s16, s17
     CHARACTER(LEN=1000), DIMENSION(17)       :: a
 
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
@@ -267,7 +267,7 @@ PURE FUNCTION s2a_18(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
                      s16,s17,s18) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
                                                 s8, s9, s10, s11, s12, s13, &
-                                                s14,s15,s16,s17,s18
+                                                s14, s15, s16, s17, s18
     CHARACTER(LEN=1000), DIMENSION(18)       :: a
 
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
@@ -278,7 +278,7 @@ PURE FUNCTION s2a_19(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
                      s16,s17,s18,s19) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
                                                 s8, s9, s10, s11, s12, s13, &
-                                                s14,s15,s16,s17,s18,s19
+                                                s14, s15, s16, s17, s18, s19
     CHARACTER(LEN=1000), DIMENSION(19)       :: a
 
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
@@ -289,7 +289,8 @@ PURE FUNCTION s2a_20(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
                      s16,s17,s18,s19,s20) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
                                                 s8, s9, s10, s11, s12, s13, &
-                                                s14,s15,s16,s17,s18,s19,s20
+                                                s14, s15, s16, s17, s18, s19, &
+                                                s20
     CHARACTER(LEN=1000), DIMENSION(20)       :: a
 
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
@@ -300,8 +301,8 @@ PURE FUNCTION s2a_21(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
                      s16,s17,s18,s19,s20,s21) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
                                                 s8, s9, s10, s11, s12, s13, &
-                                                s14,s15,s16,s17,s18,s19,s20, &
-                                                s21
+                                                s14, s15, s16, s17, s18, s19, &
+                                                s20, s21
     CHARACTER(LEN=1000), DIMENSION(21)       :: a
 
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
@@ -313,8 +314,8 @@ PURE FUNCTION s2a_22(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
                      s16,s17,s18,s19,s20,s21,s22) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
                                                 s8, s9, s10, s11, s12, s13, &
-                                                s14,s15,s16,s17,s18,s19,s20, &
-                                                s21,s22
+                                                s14, s15, s16, s17, s18, s19, &
+                                                s20, s21, s22
     CHARACTER(LEN=1000), DIMENSION(22)       :: a
 
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
@@ -326,8 +327,8 @@ PURE FUNCTION s2a_23(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
                      s16,s17,s18,s19,s20,s21,s22,s23) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
                                                 s8, s9, s10, s11, s12, s13, &
-                                                s14,s15,s16,s17,s18,s19,s20, &
-                                                s21,s22,s23
+                                                s14, s15, s16, s17, s18, s19, &
+                                                s20, s21, s22, s23
     CHARACTER(LEN=1000), DIMENSION(23)       :: a
 
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
@@ -339,8 +340,8 @@ PURE FUNCTION s2a_24(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
                      s16,s17,s18,s19,s20,s21,s22,s23,s24) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
                                                 s8, s9, s10, s11, s12, s13, &
-                                                s14,s15,s16,s17,s18,s19,s20, &
-                                                s21,s22,s23,s24
+                                                s14, s15, s16, s17, s18, s19, &
+                                                s20, s21, s22, s23, s24
     CHARACTER(LEN=1000), DIMENSION(24)       :: a
 
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
@@ -352,8 +353,8 @@ PURE FUNCTION s2a_25(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
                      s16,s17,s18,s19,s20,s21,s22,s23,s24,s25) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
                                                 s8, s9, s10, s11, s12, s13, &
-                                                s14,s15,s16,s17,s18,s19,s20, &
-                                                s21,s22,s23,s24,s25
+                                                s14, s15, s16, s17, s18, s19, &
+                                                s20, s21, s22, s23, s24, s25
     CHARACTER(LEN=1000), DIMENSION(25)       :: a
 
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
@@ -365,8 +366,9 @@ PURE FUNCTION s2a_26(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
                      s16,s17,s18,s19,s20,s21,s22,s23,s24,s25,s26) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
                                                 s8, s9, s10, s11, s12, s13, &
-                                                s14,s15,s16,s17,s18,s19,s20, &
-                                                s21,s22,s23,s24,s25,s26
+                                                s14, s15, s16, s17, s18, s19, &
+                                                s20, s21, s22, s23, s24, s25, &
+                                                s26
     CHARACTER(LEN=1000), DIMENSION(26)       :: a
 
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
@@ -378,8 +380,9 @@ PURE FUNCTION s2a_27(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
                      s16,s17,s18,s19,s20,s21,s22,s23,s24,s25,s26,s27) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
                                                 s8, s9, s10, s11, s12, s13, &
-                                                s14,s15,s16,s17,s18,s19,s20, &
-                                                s21,s22,s23,s24,s25,s26,s27
+                                                s14, s15, s16, s17, s18, s19, &
+                                                s20, s21, s22, s23, s24, s25, &
+                                                s26, s27
     CHARACTER(LEN=1000), DIMENSION(27)       :: a
 
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
@@ -392,9 +395,9 @@ PURE FUNCTION s2a_28(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
                      s16,s17,s18,s19,s20,s21,s22,s23,s24,s25,s26,s27,s28) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
                                                 s8, s9, s10, s11, s12, s13, &
-                                                s14,s15,s16,s17,s18,s19,s20, &
-                                                s21,s22,s23,s24,s25,s26,s27, &
-                                                s28
+                                                s14, s15, s16, s17, s18, s19, &
+                                                s20, s21, s22, s23, s24, s25, &
+                                                s26, s27, s28
     CHARACTER(LEN=1000), DIMENSION(28)       :: a
 
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
@@ -405,11 +408,9 @@ PURE FUNCTION s2a_28(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
 END FUNCTION
 PURE FUNCTION s2a_29(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
                      s16,s17,s18,s19,s20,s21,s22,s23,s24,s25,s26,s27,s28,s29) RESULT(a)
-    CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
-                                                s8, s9, s10, s11, s12, s13, &
-                                                s14,s15,s16,s17,s18,s19,s20, &
-                                                s21,s22,s23,s24,s25,s26,s27, &
-                                                s28,s29
+    CHARACTER(LEN=*), INTENT(IN) :: s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, &
+      s11, s12, s13, s14, s15, s16, s17, s18, s19, s20, s21, s22, s23, s24, &
+      s25, s26, s27, s28, s29
     CHARACTER(LEN=1000), DIMENSION(29)       :: a
 
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7

@@ -29,6 +29,7 @@ MODULE qs_p_env_types
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc,&
                                              cp_fm_vect_write
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE hartree_local_types,             ONLY: hartree_local_release,&
                                              hartree_local_type
   USE kinds,                           ONLY: dp
@@ -44,7 +45,6 @@ MODULE qs_p_env_types
                                              real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

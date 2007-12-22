@@ -26,6 +26,7 @@ MODULE kg_gpw_correction
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE input_constants,                 ONLY: sic_none,&
                                              xc_funct_no_shortcut
   USE input_section_types,             ONLY: &
@@ -60,7 +61,6 @@ MODULE kg_gpw_correction
                                              timestop
   USE xc,                              ONLY: xc_exc_calc,&
                                              xc_vxc_pw_create1
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -138,7 +138,6 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell_mol
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
       POINTER                                :: fm_mol_blocks
@@ -149,7 +148,8 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env_mol
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_vxc_rho, my_vxc_tau, &
-                                                rho_g, rho_r, tau
+                                                rho_g, rho_r, tau, vxc_rho, &
+                                                vxc_tau
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force_global

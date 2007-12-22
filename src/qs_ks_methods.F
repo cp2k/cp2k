@@ -65,6 +65,7 @@ MODULE qs_ks_methods
                                              cp_sm_plus_fm_fm_t
   USE ep_qs_types,                     ONLY: ep_qs_type
   USE et_coupling,                     ONLY: becke_constraint
+  USE f77_blas
   USE four_center_integrals,           ONLY: derivatives_four_center,&
                                              integrate_four_center
   USE harris_env_types,                ONLY: harris_env_type
@@ -98,11 +99,11 @@ MODULE qs_ks_methods
                                              pw_pool_retain,&
                                              pw_pool_type
   USE pw_types,                        ONLY: &
-       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, &
-       pw_copy, pw_integrate_function, pw_p_type, pw_release, pw_scale, &
-       pw_axpy, pw_transfer, pw_type, pw_zero, pw_create
+       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_axpy, &
+       pw_copy, pw_create, pw_integrate_function, pw_p_type, pw_release, &
+       pw_scale, pw_transfer, pw_type, pw_zero
   USE qs_charges_types,                ONLY: qs_charges_type
-  USE qs_collocate_density,            ONLY: calculate_rho_elec, &
+  USE qs_collocate_density,            ONLY: calculate_rho_elec,&
                                              calculate_wavefunction
   USE qs_core_energies,                ONLY: calculate_ecore
   USE qs_dftb_matrices,                ONLY: build_dftb_ks_matrix
@@ -137,7 +138,6 @@ MODULE qs_ks_methods
   USE virial_types,                    ONLY: virial_type
   USE xc,                              ONLY: xc_exc_calc,&
                                              xc_vxc_pw_create1
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -325,9 +325,6 @@ CONTAINS
                                                 scaling_factor
     TYPE(becke_constraint_type), POINTER     :: becke
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(pw_p_type) :: ep_pot_r_coeff, ep_rho_g, ep_rho_r, rho_tot_gspace, &
-      v_hartree_gspace, v_sic_rspace, v_spin_ddapc_rest_g, v_spin_ddapc_rest_r
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, v_tau_rspace
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs
     TYPE(cp_fm_type), POINTER                :: hc_tmp, mo_coeff
@@ -338,6 +335,9 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type) :: ep_pot_r_coeff, ep_rho_g, ep_rho_r, rho_tot_gspace, &
+      v_hartree_gspace, v_sic_rspace, v_spin_ddapc_rest_g, v_spin_ddapc_rest_r
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, v_tau_rspace
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
@@ -1151,24 +1151,26 @@ CONTAINS
     CHARACTER(*), PARAMETER :: routineN = 'pw_hfx', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iorb, jorb,norb, ispin, iw,blocksize, iorb_block, jorb_block, iloc, jloc
-    LOGICAL                                  :: failure,do_pw_hfx
-    REAL(KIND=dp)                            :: pair_energy, exchange_energy, scaling, fraction
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(pw_p_type)                          :: rho_r, rho_g, pot_g
-    TYPE(pw_p_type), ALLOCATABLE, DIMENSION(:) :: rho_i, rho_j
-    TYPE(cp_fm_type), POINTER                :: mo_coeff
-    TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mo_array
-    TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(qs_rho_type), POINTER               :: rho
+    INTEGER                                  :: blocksize, handle, iloc, &
+                                                iorb, iorb_block, ispin, iw, &
+                                                jloc, jorb, jorb_block, norb
+    LOGICAL                                  :: do_pw_hfx, failure
+    REAL(KIND=dp)                            :: exchange_energy, fraction, &
+                                                pair_energy, scaling
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mo_array
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(cp_logger_type), POINTER            :: logger
-
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type)                          :: pot_g, rho_g, rho_r
+    TYPE(pw_p_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: rho_i, rho_j
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
@@ -1333,9 +1335,6 @@ CONTAINS
     REAL(KIND=dp)                            :: ener, exc, total_rho
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: scaling_factor
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(pw_p_type)                          :: orb_rho_g, orb_rho_r, tmp_g, &
-                                                tmp_r, work_v_gspace, &
-                                                work_v_rspace
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs, mo_derivs_local
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
@@ -1343,6 +1342,9 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type)                          :: orb_rho_g, orb_rho_r, tmp_g, &
+                                                tmp_r, work_v_gspace, &
+                                                work_v_rspace
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r, tau, vxc, &
                                                 vxc_tau
     TYPE(pw_pool_type), POINTER              :: xc_pw_pool
@@ -1628,9 +1630,9 @@ CONTAINS
     REAL(kind=dp)                            :: ener, full_scaling, scaling
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: store_forces
-    TYPE(pw_p_type)                          :: work_rho, work_v
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
+    TYPE(pw_p_type)                          :: work_rho, work_v
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
 
@@ -2141,8 +2143,7 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
     REAL(KIND=dp)                            :: exc
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(in), OPTIONAL            :: just_energy, harris, &
-                                                nsc_force, gapw_xc, &
-                                                epr_xc
+                                                nsc_force, gapw_xc, epr_xc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_vxc_create', &
@@ -2150,21 +2151,18 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
 
     INTEGER                                  :: handle, ispin, myfun, &
                                                 nelec_spin(2), stat
-    LOGICAL                                  :: failure, harris_flag, &
-                                                my_epr_xc,my_gapw_xc, &
-                                                my_just_energy, nsc_flag, &
-                                                sic_scaling_b_zero, &
-                                                uf_grid
+    LOGICAL :: failure, harris_flag, my_epr_xc, my_gapw_xc, my_just_energy, &
+      nsc_flag, sic_scaling_b_zero, uf_grid
     REAL(KIND=dp)                            :: exc_m, my_scaling, nelec_s_inv
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_m_gspace, rho_m_rspace
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_vxc_rho, my_vxc_tau, &
-                                                rho_g, rho_r, tau
+                                                rho_g, rho_m_gspace, &
+                                                rho_m_rspace, rho_r, tau
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool, xc_pw_pool
     TYPE(pw_type), POINTER                   :: tmp_g, tmp_g2, tmp_pw
     TYPE(qs_rho_type), POINTER               :: rho_struct

@@ -25,6 +25,7 @@ MODULE mulliken
   USE atomic_charges,                  ONLY: print_atomic_charges
   USE cp_control_types,                ONLY: mulliken_restraint_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
@@ -38,7 +39,6 @@ MODULE mulliken
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

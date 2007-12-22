@@ -17,6 +17,7 @@
 
 MODULE qs_grid_atom
 
+  USE f77_blas
   USE input_constants,                 ONLY: do_gapw_gcs,&
                                              do_gapw_gct,&
                                              do_gapw_log
@@ -25,7 +26,6 @@ MODULE qs_grid_atom
   USE memory_utilities,                ONLY: reallocate
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

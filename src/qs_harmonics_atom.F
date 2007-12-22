@@ -19,6 +19,7 @@ MODULE qs_harmonics_atom
 
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE lebedev,                         ONLY: lebedev_grid
   USE memory_utilities,                ONLY: reallocate
@@ -33,7 +34,6 @@ MODULE qs_harmonics_atom
   USE spherical_harmonics,             ONLY: y_lm
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

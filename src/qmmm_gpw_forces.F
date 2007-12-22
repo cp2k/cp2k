@@ -33,6 +33,7 @@ MODULE qmmm_gpw_forces
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: cube_info_type
+  USE f77_blas
   USE input_constants,                 ONLY: do_par_atom,&
                                              do_qmmm_coulomb,&
                                              do_qmmm_gauss,&
@@ -62,9 +63,9 @@ MODULE qmmm_gpw_forces
   USE pw_spline_utils,                 ONLY: pw_restrict_s3
   USE pw_types,                        ONLY: REALDATA3D,&
                                              REALSPACE,&
+                                             pw_axpy,&
                                              pw_integral_ab,&
                                              pw_p_type,&
-                                             pw_axpy,&
                                              pw_transfer,&
                                              pw_type,&
                                              pw_zero
@@ -86,7 +87,6 @@ MODULE qmmm_gpw_forces
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -138,11 +138,11 @@ CONTAINS
     LOGICAL                                  :: failure, gapw, need_f, &
                                                 periodic
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Forces, Forces_added_charges
-    TYPE(pw_p_type), POINTER                 :: rho0_s_gs, rho_core
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), POINTER                 :: rho0_s_gs, rho_core
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pool
@@ -1365,10 +1365,10 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(2)              :: energy
     REAL(KIND=dp), DIMENSION(3)              :: Err
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Num_Forces
-    TYPE(pw_p_type)                          :: v_qmmm_rspace
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type)                          :: v_qmmm_rspace
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc

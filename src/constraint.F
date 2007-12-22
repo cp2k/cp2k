@@ -52,6 +52,7 @@ MODULE constraint
                                              update_temporary_set
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE f77_blas
   USE input_constants,                 ONLY: npt_f_ensemble,&
                                              npt_i_ensemble
   USE kinds,                           ONLY: default_string_length,&
@@ -68,7 +69,6 @@ MODULE constraint
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

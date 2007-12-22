@@ -26,6 +26,7 @@
 MODULE xc_rho_set_types
   USE cell_types,                      ONLY: cell_type
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
+  USE f77_blas
   USE input_constants,                 ONLY: &
        xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, xc_deriv_pw, &
        xc_deriv_spline2, xc_deriv_spline2_smooth, xc_deriv_spline3, &
@@ -52,7 +53,6 @@ MODULE xc_rho_set_types
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_equal,&
                                              xc_rho_cflags_setall,&
                                              xc_rho_cflags_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

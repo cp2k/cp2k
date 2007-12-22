@@ -33,18 +33,14 @@ MODULE md_energies
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type
+  USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type,&
                                              use_mixed_force
-  USE input_constants,                 ONLY: dump_dcd,&
-                                             dump_xmol,&
-                                             ensemble_name_types,&
-                                             nph_ensemble,&
-                                             nph_uniaxial_damped_ensemble,&
-                                             nph_uniaxial_ensemble,&
-                                             npt_f_ensemble,&
-                                             npt_i_ensemble,&
-                                             reftraj_ensemble
+  USE input_constants,                 ONLY: &
+       dump_dcd, dump_xmol, ensemble_name_types, nph_ensemble, &
+       nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
+       npt_i_ensemble, reftraj_ensemble
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -71,7 +67,6 @@ MODULE md_energies
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -308,7 +303,6 @@ SUBROUTINE md_ener_reftraj(md_env,md_ener,error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(reftraj_type), POINTER              :: reftraj
 
-
     CALL zero_md_ener(md_ener, tkind=.FALSE., tshell=.FALSE., error=error)
 
     CALL get_md_env(md_env=md_env,  force_env=force_env, reftraj=reftraj, error=error)
@@ -377,7 +371,7 @@ END SUBROUTINE  md_ener_reftraj
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
-    TYPE (reftraj_type), POINTER             :: reftraj
+    TYPE(reftraj_type), POINTER              :: reftraj
     TYPE(section_vals_type), POINTER         :: motion_section, root_section
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar

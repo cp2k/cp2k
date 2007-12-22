@@ -25,6 +25,7 @@ MODULE restraint
                                              cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE extended_system_types,           ONLY: extended_energy_type
+  USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_set,&
                                              force_env_type
@@ -47,7 +48,6 @@ MODULE restraint
                                              update_particle_set
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

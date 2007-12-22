@@ -23,18 +23,18 @@
 
 MODULE fft_tools
 
+  USE cp_files,                        ONLY: get_unit_number
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              sp
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE message_passing,                 ONLY: &
        mp_alltoall, mp_cart_coords, mp_cart_rank, mp_cart_sub, &
        mp_comm_compare, mp_comm_free, mp_environ, mp_rank_compare, mp_sum
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE cp_files,                        ONLY: get_unit_number
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE 
@@ -87,14 +87,12 @@ CONTAINS
 SUBROUTINE init_fft ( fftlib, alltoall, fftsg_sizes, wisdom_file, para_env )
 
     CHARACTER(LEN=*), INTENT(IN)             :: fftlib
-    LOGICAL, INTENT(IN)                      :: alltoall
-    LOGICAL, INTENT(IN)                      :: fftsg_sizes
+    LOGICAL, INTENT(IN)                      :: alltoall, fftsg_sizes
     CHARACTER(LEN=*), INTENT(IN)             :: wisdom_file
     TYPE(cp_para_env_type), POINTER          :: para_env
 
-
-    COMPLEX(KIND=dp)                         :: zz( 4, 4, 4 )
-    INTEGER                                  :: fft_library, i, n(3) = 4, stat, iunit,isuccess,istat
+    INTEGER                                  :: fft_library, istat, isuccess, &
+                                                iunit
     LOGICAL                                  :: exist
 
     use_fftsg_sizes = fftsg_sizes
@@ -139,11 +137,10 @@ END SUBROUTINE init_fft
 !!*** **********************************************************************
 SUBROUTINE finalize_fft( para_env )
     TYPE(cp_para_env_type), POINTER          :: para_env
-    INTEGER :: fft_library
-    INTEGER :: iunit
 
+    INTEGER                                  :: fft_library, iunit
 
-    ! we don't want to use this yet, it is only meaningful if we really plan with something else than estimate
+! we don't want to use this yet, it is only meaningful if we really plan with something else than estimate
 
     RETURN
     ! only do FFTW3 related stuff right now
@@ -183,9 +180,10 @@ SUBROUTINE fft_radix_operations ( radix_in, radix_out, operation )
     INTEGER, INTENT(OUT)                     :: radix_out
     INTEGER, INTENT(IN)                      :: operation
 
+    INTEGER, PARAMETER                       :: fft_type_sg = 1
+
     INTEGER                                  :: i, iloc, ldata
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: DATA
-    INTEGER, PARAMETER                       :: fft_type_sg=1
 
 !------------------------------------------------------------------------------
 

@@ -32,9 +32,9 @@ MODULE fist_environment_types
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_result_types,                 ONLY: cp_result_type,&
-                                             cp_result_create,&
-                                             cp_result_release
+  USE cp_result_types,                 ONLY: cp_result_create,&
+                                             cp_result_release,&
+                                             cp_result_type
   USE cp_subsys_types,                 ONLY: cp_subsys_create,&
                                              cp_subsys_get,&
                                              cp_subsys_release,&
@@ -215,11 +215,11 @@ CONTAINS
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input
     LOGICAL, OPTIONAL                        :: shell_model, shell_model_ad
-    TYPE(cp_result_type), POINTER,OPTIONAL   :: results
     TYPE(particle_type), OPTIONAL, POINTER   :: shell_particle_set( : ), &
                                                 core_particle_set( : )
     LOGICAL, OPTIONAL                        :: first_time
     TYPE(multipole_type), OPTIONAL, POINTER  :: multipoles
+    TYPE(cp_result_type), OPTIONAL, POINTER  :: results
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_fist_env', &
@@ -232,7 +232,6 @@ CONTAINS
     TYPE(multipole_type), POINTER            :: fist_multipoles
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
-
 
     failure=.FALSE.
     NULLIFY( atomic_kinds, particles, molecules_new, molecule_kinds_new, fist_multipoles)
@@ -634,7 +633,7 @@ CONTAINS
           CALL deallocate_fist_energy(fist_env%thermo)
           
           CALL fist_nonbond_env_release ( fist_env % fist_nonbond_env, error = error )
-          CALL cp_result_release(fist_env%results,error=error)	  
+          CALL cp_result_release(fist_env%results,error=error)          
           CALL cp_subsys_release(fist_env%subsys,error=error)
           CALL section_vals_release(fist_env%input,error=error)
           DEALLOCATE(fist_env, stat=stat)

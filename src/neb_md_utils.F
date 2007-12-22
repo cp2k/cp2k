@@ -32,6 +32,7 @@ MODULE neb_md_utils
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -42,7 +43,6 @@ MODULE neb_md_utils
   USE particle_types,                  ONLY: particle_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

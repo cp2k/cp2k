@@ -21,13 +21,14 @@ MODULE gaussian_gridlevels
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_release,&
                                              section_vals_retain,&
                                              section_vals_type
-  USE kinds,                           ONLY: dp, int_8
+  USE kinds,                           ONLY: dp,&
+                                             int_8
   USE message_passing,                 ONLY: mp_sum_i8
   USE termination,                     ONLY: stop_memory
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

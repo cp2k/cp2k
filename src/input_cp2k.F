@@ -36,6 +36,7 @@ MODULE input_cp2k
                                              cp_unit_set_release,&
                                              cp_unit_set_type,&
                                              cp_unit_to_cp2k
+  USE f77_blas
   USE input_constants
   USE input_cp2k_dft,                  ONLY: create_bsse_section,&
                                              create_dft_section,&
@@ -63,7 +64,6 @@ MODULE input_cp2k
   USE string_utilities,                ONLY: s2a
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

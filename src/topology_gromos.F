@@ -28,6 +28,7 @@ MODULE topology_gromos
                                              parser_get_object,&
                                              parser_release,&
                                              parser_search_string
+  USE f77_blas
   USE input_constants,                 ONLY: do_skip_14
   USE input_cp2k_restarts,             ONLY: section_velocity_val_set
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -40,7 +41,6 @@ MODULE topology_gromos
   USE topology_types,                  ONLY: atom_info_type,&
                                              connectivity_info_type,&
                                              topology_parameters_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -34,6 +34,7 @@ MODULE sparse_matrix_output
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
@@ -50,7 +51,6 @@ MODULE sparse_matrix_output
                                              real_matrix_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

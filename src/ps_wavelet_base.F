@@ -15,13 +15,13 @@
 !******************************************************************************
 
 MODULE ps_wavelet_base
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_alltoall
   USE ps_wavelet_fft3d,                ONLY: ctrig,&
                                              fftstp
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ps_wavelet_util'

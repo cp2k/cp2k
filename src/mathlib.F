@@ -22,6 +22,7 @@
 
 MODULE mathlib
 
+  USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              dp_size,&
@@ -32,7 +33,6 @@ MODULE mathlib
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -511,8 +511,7 @@ CONTAINS
 
     CHARACTER(LEN=1)                         :: norm, trans
     CHARACTER(LEN=80)                        :: message
-    INTEGER                                  :: info, istat, iter, n, &
-                                                output_unit
+    INTEGER                                  :: info, istat, iter, n
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv, iwork
     REAL(KIND=dp)                            :: a_norm, old_error, r_cond
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: berr, ferr, work

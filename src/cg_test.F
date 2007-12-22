@@ -23,6 +23,7 @@ MODULE cg_test
 
 ! *****************************************************************************
 
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE lebedev,                         ONLY: get_number_of_lebedev_grid,&
                                              init_lebedev_grids,&
@@ -33,7 +34,6 @@ MODULE cg_test
                                              clebsch_gordon_init,&
                                              y_lm
   USE termination,                     ONLY: stop_memory
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

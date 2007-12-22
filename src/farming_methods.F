@@ -8,14 +8,17 @@ MODULE farming_methods
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE farming_types,                   ONLY: farming_env_type, &
-                                             init_job_type, job_pending, job_running, job_finished
+  USE f77_blas
+  USE farming_types,                   ONLY: farming_env_type,&
+                                             init_job_type,&
+                                             job_finished,&
+                                             job_pending,&
+                                             job_running
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE message_passing,                 ONLY: mp_bcast
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -31,14 +34,14 @@ MODULE farming_methods
 
 CONTAINS
 
-  SUBROUTINE get_next_job(farming_env,start,end,current,todo)
+  SUBROUTINE get_next_job(farming_env,start,END,current,todo)
     TYPE(farming_env_type), POINTER          :: farming_env
-    INTEGER, INTENT(IN)                      :: start, end
+    INTEGER, INTENT(IN)                      :: start, END
     INTEGER, INTENT(INOUT)                   :: current
     INTEGER, INTENT(OUT)                     :: todo
 
-    INTEGER :: itry,idep,ndep,icheck
-    LOGICAL :: dep_ok
+    INTEGER                                  :: icheck, idep, itry, ndep
+    LOGICAL                                  :: dep_ok
 
     IF (farming_env%cycle) THEN
         IF (current<start) THEN
@@ -46,7 +49,7 @@ CONTAINS
         ELSE
            current=current+1
         ENDIF
-        IF (current>end) THEN
+        IF (current>END) THEN
             todo=do_nothing
         ELSE
             todo=MODULO(current-1,farming_env%njobs)+1
@@ -55,14 +58,14 @@ CONTAINS
         ! find a pending job
         itry=start
         todo=do_nothing
-        DO itry=start,end
+        DO itry=start,END
            IF (farming_env%job(itry)%status==job_pending) THEN
            
               ! see if all dependencies are OK
               ndep=SIZE(farming_env%job(itry)%dependencies)
               dep_ok=.TRUE.
               dep: DO idep=1,ndep
-                 DO icheck=start,end
+                 DO icheck=start,END
                     IF (farming_env%job(icheck)%status.NE.job_finished) THEN
                       IF (farming_env%job(icheck)%id==farming_env%job(itry)%dependencies(idep)) THEN
                           dep_ok=.FALSE. 
@@ -74,7 +77,7 @@ CONTAINS
 
               ! if there are pending jobs, the slave can not be told to stop
               ! at least wait if there are unresolved dependencies
-              IF (dep_OK) THEn
+              IF (dep_OK) THEN
                   todo=itry
                   EXIT
               ELSE
@@ -86,7 +89,7 @@ CONTAINS
         ! which we signal
         IF (todo==do_wait) THEN
            dep_OK=.FALSE.
-           DO itry=start,end
+           DO itry=start,END
               IF (farming_env%job(icheck)%status.EQ.job_running) dep_OK=.TRUE.
            ENDDO 
            IF (.NOT. dep_OK) todo=do_deadlock
@@ -105,13 +108,11 @@ CONTAINS
 
     CHARACTER(LEN=3)                         :: text
     INTEGER                                  :: i, iunit, n_rep_val, &
-                                                output_unit, stat, num_slaves
-    INTEGER, DIMENSION(:), POINTER           :: i_vals
-    LOGICAL                                  :: failure, found
+                                                num_slaves, output_unit, stat
+    INTEGER, DIMENSION(:), POINTER           :: dependencies, i_vals
+    LOGICAL                                  :: failure, found, has_dep
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: farming_section, jobs_section
-    INTEGER, POINTER, DIMENSION(:)           :: dependencies
-    LOGICAL                                  :: has_dep
 
     failure=.FALSE.
 

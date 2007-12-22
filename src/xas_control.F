@@ -18,10 +18,9 @@
 
 MODULE xas_control
 
-  USE cp_output_handling,              ONLY: cp_p_file,&
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE f77_blas
   USE input_constants,                 ONLY: xas_1s_type,&
                                              xas_dscf,&
                                              xas_tp_fh,&
@@ -29,18 +28,15 @@ MODULE xas_control
                                              xas_tp_xfh,&
                                              xas_tp_xhh,&
                                              xes_tp_val
-  USE input_section_types,             ONLY: section_vals_get,&
-                                             section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: default_path_length,&
-                                             dp
+  USE kinds,                           ONLY: dp
   USE memory_utilities,                ONLY: reallocate
   USE qs_loc_control,                  ONLY: localized_wfn_control_create,&
                                              localized_wfn_control_release,&
                                              localized_wfn_control_type,&
                                              read_loc_section
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -137,8 +133,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_xas_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ir, istat, n_rep, ncubes, &
-                                                nex_at
+    INTEGER                                  :: i, ir, istat, n_rep, nex_at
     INTEGER, DIMENSION(:), POINTER           :: bounds, list
     LOGICAL                                  :: failure, was_present
     TYPE(cp_logger_type), POINTER            :: logger
@@ -258,7 +253,7 @@ CONTAINS
             l_val=xas_control%localized_wfn,error=error)
     CALL localized_wfn_control_create(xas_control%localized_wfn_control,error=error)
     CALL read_loc_section(xas_control%localized_wfn_control,loc_section,&
-         xas_control%localized_wfn,do_xas=.true.,&
+         xas_control%localized_wfn,do_xas=.TRUE.,&
          nloc_xas=xas_control%nexc_search,error=error)
 
   END SUBROUTINE read_xas_control

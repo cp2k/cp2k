@@ -22,24 +22,32 @@
 !******************************************************************************
 
 MODULE environment
-  USE bibliography,                    ONLY: cite_reference,Frigo2005
-  USE cp2k_info,                       ONLY: compile_arch,compile_date,compile_host,compile_lastcvs, &
-                                             cp2k_year, cp2k_version, cp2k_home
+  USE bibliography,                    ONLY: Frigo2005,&
+                                             cite_reference
+  USE cp2k_info,                       ONLY: compile_arch,&
+                                             compile_date,&
+                                             compile_host,&
+                                             compile_lastcvs,&
+                                             cp2k_home,&
+                                             cp2k_version,&
+                                             cp2k_year
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE fft_tools,                       ONLY: fft3d,&
-                                             init_fft,&
-                                             finalize_fft
+                                             finalize_fft,&
+                                             init_fft
   USE force_env_types,                 ONLY: multiple_fe_list
   USE gamma,                           ONLY: deallocate_md_ftable
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
-       do_cp2k, do_eip, do_farming, do_fist, do_kg, do_qs, do_test, &
-       energy_run, mol_dyn_run, none_run, program_names, run_type_names, &
-       do_fft_sg, do_fft_fftw2, do_fft_fftw3, do_fft_essl, do_fft_acml, do_fft_mkl, do_fft_sci, do_fft_fftw
+       do_cp2k, do_eip, do_farming, do_fft_acml, do_fft_essl, do_fft_fftw, &
+       do_fft_fftw2, do_fft_fftw3, do_fft_mkl, do_fft_sci, do_fft_sg, &
+       do_fist, do_kg, do_qs, do_test, energy_run, mol_dyn_run, none_run, &
+       program_names, run_type_names
   USE input_section_types,             ONLY: section_get_lval,&
                                              section_get_rval,&
                                              section_vals_get,&
@@ -86,7 +94,6 @@ MODULE environment
                                              timestop,&
                                              trace_debug,&
                                              use_HPM
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -483,17 +490,18 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_global_section', &
       start_section_label = "GLOBAL"
 
-    CHARACTER(len=default_path_length) :: basis_set_file_name, &
-      coord_file_name, mm_potential_file_name, potential_file_name
-      
+    CHARACTER(len=default_path_length)       :: basis_set_file_name, &
+                                                coord_file_name, &
+                                                mm_potential_file_name, &
+                                                potential_file_name
     CHARACTER(len=default_string_length)     :: env_num
-    INTEGER                                  :: iforce_eval, method_name_id, &
-                                                nforce_eval, num_threads, &
-                                                output_unit, print_level, &
-                                                i_fft
+    INTEGER                                  :: i_fft, iforce_eval, &
+                                                method_name_id, nforce_eval, &
+                                                num_threads, output_unit, &
+                                                print_level
     INTEGER, DIMENSION(:), POINTER           :: i_force_eval
-    LOGICAL                                  :: ata, explicit, failure, &
-                                                trace, trace_sync, exist, efl
+    LOGICAL                                  :: ata, efl, explicit, failure, &
+                                                trace, trace_sync
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: dft_section, &
                                                 force_env_sections, &
@@ -683,14 +691,13 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'read_cp2k_section'&
                                                 , start_section_label = "CP2K"
 
+    CHARACTER(LEN=10)                        :: fftw_name
     COMPLEX(KIND=dp), DIMENSION(4, 4, 4)     :: zz
     INTEGER                                  :: output_unit, stat
     INTEGER, DIMENSION(3)                    :: n
     LOGICAL                                  :: try_fftw
-    CHARACTER(LEN=10)                        :: fftw_name
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: global_section
-    INTEGER                                  :: iwisdom,isuccess
 
 !   ---------------------------------------------------------------------------
 

@@ -25,6 +25,7 @@ MODULE topology_util
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE graphcon,                        ONLY: graph_type,&
                                              hash_molecule,&
                                              reorder_graph,&
@@ -48,7 +49,6 @@ MODULE topology_util
                                              connectivity_info_type,&
                                              topology_parameters_type
   USE util,                            ONLY: sort
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -46,9 +46,9 @@ MODULE qs_environment_types
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE cp_result_types,                 ONLY: cp_result_type,&
-                                             cp_result_create,&
-                                             cp_result_release
+  USE cp_result_types,                 ONLY: cp_result_create,&
+                                             cp_result_release,&
+                                             cp_result_type
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
                                              sm_pools_give_back_matrix_vect
   USE cp_subsys_types,                 ONLY: cp_subsys_create,&
@@ -71,6 +71,7 @@ MODULE qs_environment_types
   USE ewald_pw_types,                  ONLY: ewald_pw_release,&
                                              ewald_pw_retain,&
                                              ewald_pw_type
+  USE f77_blas
   USE harris_env_types,                ONLY: harris_env_release,&
                                              harris_env_type
   USE hartree_local_types,             ONLY: ecoul_1center_type,&
@@ -96,8 +97,8 @@ MODULE qs_environment_types
   USE pw_env_types,                    ONLY: pw_env_release,&
                                              pw_env_retain,&
                                              pw_env_type
-  USE pw_types,                        ONLY: pw_release,&
-                                             pw_p_type
+  USE pw_types,                        ONLY: pw_p_type,&
+                                             pw_release
   USE qs_charges_types,                ONLY: qs_charges_release,&
                                              qs_charges_retain,&
                                              qs_charges_type
@@ -164,7 +165,6 @@ MODULE qs_environment_types
   USE xas_env_types,                   ONLY: xas_env_release,&
                                              xas_env_retain,&
                                              xas_environment_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -514,8 +514,9 @@ CONTAINS
       POINTER                                :: et_coupling
     TYPE(qs_dftb_pairpot_type), &
       DIMENSION(:, :), OPTIONAL, POINTER     :: dftb_potential
+    TYPE(cp_result_type), OPTIONAL, POINTER  :: results
     TYPE(cp_error_type), INTENT(INOUT)       :: error
-    TYPE(cp_result_type), POINTER,OPTIONAL   :: results
+
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', &
       routineP = moduleN//':'//routineN
 
@@ -525,7 +526,6 @@ CONTAINS
     TYPE(mol_new_list_type), POINTER         :: molecules_new
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(rho0_mpole_type), POINTER           :: rho0_m
-
 
 !   ---------------------------------------------------------------------------
 

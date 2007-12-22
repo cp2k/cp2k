@@ -705,7 +705,8 @@ CONTAINS
     TYPE(section_type), POINTER              :: print_key
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_structure_data_section', &
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_structure_data_section', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure

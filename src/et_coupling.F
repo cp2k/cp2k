@@ -39,6 +39,7 @@ MODULE et_coupling
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get
+  USE f77_blas
   USE input_constants,                 ONLY: do_spin_density
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -61,7 +62,6 @@ MODULE et_coupling
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

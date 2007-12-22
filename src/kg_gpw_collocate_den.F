@@ -148,8 +148,8 @@ CONTAINS
       ga_gb_function, handle, i, iat, iatom, igrid_level, ikind, ikind_old, &
       ipgf, iset, istat, itask, ithread, j, jat, jatom, jkind, jkind_old, &
       jpgf, jset, k, maxco, maxsgf, maxsgf_set, n, na1, na2, nat_mol, nb1, &
-      nb2, ncoa, ncob, nseta, nsetb, nthread, num_tasks, omp_get_max_threads, &
-      omp_get_thread_num, sgfa, sgfb, tp, npme
+      nb2, ncoa, ncob, npme, nseta, nsetb, nthread, num_tasks, &
+      omp_get_max_threads, omp_get_thread_num, sgfa, sgfb, tp
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb, ntasks, ub

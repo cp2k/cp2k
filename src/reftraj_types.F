@@ -26,11 +26,11 @@ MODULE reftraj_types
 
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
                                              dp
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

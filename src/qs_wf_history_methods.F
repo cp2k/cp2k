@@ -48,6 +48,7 @@ MODULE qs_wf_history_methods
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
                                              sm_pool_create_matrix,&
                                              sm_pools_create_matrix_vect
+  USE f77_blas
   USE kg_gpw_fm_mol_types,             ONLY: duplicate_kg_fm_p_type,&
                                              kg_fm_mol_set_create,&
                                              kg_fm_mol_set_release,&
@@ -101,7 +102,6 @@ MODULE qs_wf_history_methods
                                              transfer_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -502,7 +502,6 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,kg_fm_mol_set,error)
     INTEGER                                  :: handle, i, ispin, &
                                                 nmolecule_kind, nspins, stat
     LOGICAL                                  :: failure, kg_gpw
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_pools
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -512,6 +511,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,kg_fm_mol_set,error)
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &

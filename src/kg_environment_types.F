@@ -51,6 +51,7 @@ MODULE kg_environment_types
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_release,&
                                              dyn_coeff_set_retain,&
                                              dyn_coeff_set_type
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_release,&
                                              section_vals_retain,&
                                              section_vals_type
@@ -94,7 +95,6 @@ MODULE kg_environment_types
   USE virial_types,                    ONLY: virial_release,&
                                              virial_retain,&
                                              virial_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

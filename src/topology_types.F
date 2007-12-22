@@ -28,6 +28,7 @@ MODULE topology_types
                                              cell_type
   USE colvar_types,                    ONLY: colvar_p_type,&
                                              colvar_release
+  USE f77_blas
   USE input_constants,                 ONLY: do_bondparm_covalent,&
                                              do_conn_generate,&
                                              do_constr_none,&
@@ -36,7 +37,6 @@ MODULE topology_types
                                              default_string_length,&
                                              dp
   USE termination,                     ONLY: stop_memory
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -50,6 +50,7 @@ MODULE topology_pdb
                                              parser_create,&
                                              parser_get_next_line,&
                                              parser_release
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: default_string_length,&
@@ -62,7 +63,6 @@ MODULE topology_pdb
                                              timestop
   USE topology_types,                  ONLY: atom_info_type,&
                                              topology_parameters_type
-  USE f77_blas
 #include "cp_common_uses.h"  
 
   IMPLICIT NONE

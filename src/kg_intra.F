@@ -32,6 +32,7 @@ MODULE kg_intra
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE erf_fn,                          ONLY: erf
+  USE f77_blas
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
   USE kg_force_types,                  ONLY: kg_force_type
@@ -44,7 +45,6 @@ MODULE kg_intra
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

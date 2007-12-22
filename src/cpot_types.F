@@ -25,6 +25,7 @@
 !****************************************************************************
 MODULE cpot_types
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_release,&
                                              section_vals_retain,&
                                              section_vals_type,&
@@ -33,7 +34,6 @@ MODULE cpot_types
                                              dp
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -47,6 +47,7 @@ MODULE pw_pool_types
                                              cp_sll_pw_next,&
                                              cp_sll_pw_rm_first_el,&
                                              cp_sll_pw_type
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_loc_r
   USE pw_grid_types,                   ONLY: pw_grid_type
@@ -59,7 +60,6 @@ MODULE pw_pool_types
   USE timings,                         ONLY: print_stack,&
                                              timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

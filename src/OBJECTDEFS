@@ -4,9 +4,6 @@ OBJECTS_GENERIC =\
  ai_derivatives.o\
  ai_kinetic.o\
  ai_moments.o\
- ai_nuclear.o\
- ai_overlap3.o\
- ai_overlap_k.o\
  ai_overlap_new.o\
  ai_overlap_ppl.o\
  ai_verfc.o\
@@ -86,7 +83,6 @@ OBJECTS_GENERIC =\
  cp_sm_fm_interactions.o\
  cp_sm_pool_types.o\
  cp_sm_struct.o\
- cp_str_cache.o\
  cp_subsys_methods.o\
  cp_subsys_types.o\
  cp_units.o\
@@ -430,7 +426,6 @@ OBJECTS_GENERIC =\
  qs_p_env_methods.o\
  qs_p_env_types.o\
  qs_p_sparse_psi.o\
- qs_prop_store_types.o\
  qs_resp.o\
  qs_rho0_ggrid.o\
  qs_rho0_methods.o\

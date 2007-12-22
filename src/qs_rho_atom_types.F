@@ -17,11 +17,11 @@
 
 MODULE qs_rho_atom_types
 
+  USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -33,6 +33,7 @@ MODULE thermostat_utils
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              map_info_type,&
                                              npt_info_type
+  USE f77_blas
   USE input_constants,                 ONLY: &
        do_constr_atomic, do_constr_molec, do_region_defined, &
        do_region_global, do_region_massive, do_region_molecule, &
@@ -65,7 +66,6 @@ MODULE thermostat_utils
                                              thermostats_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

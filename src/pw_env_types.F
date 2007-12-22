@@ -30,6 +30,7 @@ MODULE pw_env_types
                                              rs_pools_flush_cache
   USE cube_utils,                      ONLY: cube_info_type,&
                                              destroy_cube_info
+  USE f77_blas
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gridlevel_info_type
   USE input_section_types,             ONLY: section_vals_release
@@ -43,7 +44,6 @@ MODULE pw_env_types
                                              pw_pools_flush_cache
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

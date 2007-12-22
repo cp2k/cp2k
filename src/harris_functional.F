@@ -26,6 +26,7 @@
 MODULE harris_functional
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE harris_energy_types,             ONLY: harris_energy_type
   USE harris_env_types,                ONLY: harris_env_get,&
                                              harris_env_type
@@ -34,8 +35,8 @@ MODULE harris_functional
                                              pw_env_type
   USE pw_poisson_methods,              ONLY: pw_poisson_solve
   USE pw_poisson_types,                ONLY: pw_poisson_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
-                                             pw_pool_create_pw,&
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              RECIPROCALSPACE,&
@@ -57,7 +58,6 @@ MODULE harris_functional
                                              real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -123,12 +123,12 @@ CONTAINS
     INTEGER                                  :: handle, ispin, nspins, stat
     LOGICAL                                  :: failure, fast_flag, &
                                                 my_EII_necessary
-    TYPE(pw_p_type)                          :: v_hartree_gspace
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, v_tau_rspace
-    TYPE(pw_p_type), POINTER                 :: rho_core
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_energy_type), POINTER        :: harris_energy
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type)                          :: v_hartree_gspace
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, v_tau_rspace
+    TYPE(pw_p_type), POINTER                 :: rho_core
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho

@@ -223,8 +223,8 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: density_matrix0, &
-                                                density_matrix, &
+      POINTER                                :: density_matrix, &
+                                                density_matrix0, &
                                                 density_matrix_ii, &
                                                 density_matrix_iii
     TYPE(realspace_grid_type), POINTER       :: rs

@@ -27,13 +27,13 @@
 
 MODULE cube_utils
 
+  USE f77_blas
   USE kinds,                           ONLY: dp
+  USE mathlib,                         ONLY: matvec_3x3
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE mathlib,                         ONLY: matvec_3x3
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -68,11 +68,12 @@ CONTAINS
   SUBROUTINE return_cube_nonortho(info,radius,lb,ub,rp)
 
     TYPE(cube_info_type)                     :: info
-    REAL(KIND=dp)                            :: radius,rp(3)
+    REAL(KIND=dp)                            :: radius
     INTEGER                                  :: lb(3), ub(3)
+    REAL(KIND=dp)                            :: rp(3)
 
-    REAL(KIND=dp)                            :: point(3),res(3)
-    INTEGER                                  :: i,j,k
+    INTEGER                                  :: i, j, k
+    REAL(KIND=dp)                            :: point(3), res(3)
 
     IF (radius>info%max_rad_ga) THEN
             !
@@ -81,7 +82,7 @@ CONTAINS
             ! This error can invariably be fixed by improving the computation of maxradius
             ! in the call to init_cube_info
             !
-            write(6,*) info%max_rad_ga,radius
+            WRITE(6,*) info%max_rad_ga,radius
             CALL stop_program("return_cube_nonortho","called with radius too large")
     ENDIF
 
@@ -172,18 +173,19 @@ CONTAINS
 
   SUBROUTINE init_cube_info(info,dr,dh,dh_inv,ortho,max_radius)
     TYPE(cube_info_type), INTENT(OUT)        :: info
-    REAL(KIND=dp),        INTENT(IN)         :: dr(3), dh(3,3),dh_inv(3,3)
-    LOGICAL,              INTENT(IN)         :: ortho
-    REAL(KIND=dp),        INTENT(IN)         :: max_radius
+    REAL(KIND=dp), INTENT(IN)                :: dr(3), dh(3,3), dh_inv(3,3)
+    LOGICAL, INTENT(IN)                      :: ortho
+    REAL(KIND=dp), INTENT(IN)                :: max_radius
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE init_cube_info (MODULE cube_utils)"
 
     INTEGER                                  :: check_1, check_2, handle, i, &
                                                 igmin, imr, istat, jg, jg2, &
-                                                jgmin, k, kg, kg2, kgmin, lb(3), ub(3)
-    REAL(KIND=dp)                            :: drmin, dxi, dy2, dyi, &
-                                                dz2, dzi, radius, radius2, rp(3)
+                                                jgmin, k, kg, kg2, kgmin, &
+                                                lb(3), ub(3)
+    REAL(KIND=dp)                            :: drmin, dxi, dy2, dyi, dz2, &
+                                                dzi, radius, radius2, rp(3)
 
     CALL timeset("init_cube_info","I","",handle) 
     info%dr = dr

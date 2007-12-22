@@ -32,6 +32,7 @@ MODULE topology_constraint_util
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE input_constants,                 ONLY: do_constr_atomic,&
                                              do_constr_molec
   USE input_section_types,             ONLY: section_vals_get,&
@@ -63,7 +64,6 @@ MODULE topology_constraint_util
   USE topology_types,                  ONLY: constr_list_type,&
                                              constraint_info_type,&
                                              topology_parameters_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

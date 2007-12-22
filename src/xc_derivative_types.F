@@ -18,6 +18,7 @@
 !!
 !!****
 MODULE xc_derivative_types
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE pw_pool_types,                   ONLY: pw_pool_give_back_cr3d,&
                                              pw_pool_type
@@ -25,7 +26,6 @@ MODULE xc_derivative_types
                                              MAX_LABEL_LENGTH,&
                                              create_split_derivative_desc,&
                                              standardize_derivative_desc
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

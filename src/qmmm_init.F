@@ -38,6 +38,7 @@ MODULE qmmm_init
   USE external_potential_types,        ONLY: elp_potential_type,&
                                              get_potential,&
                                              set_potential
+  USE f77_blas
   USE force_field_types,               ONLY: input_info_type
   USE force_fields_input,              ONLY: read_gd_section,&
                                              read_gp_section,&
@@ -72,7 +73,6 @@ MODULE qmmm_init
   USE qs_environment_types,            ONLY: qs_environment_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

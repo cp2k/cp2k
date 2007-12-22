@@ -24,12 +24,12 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_enumeration_types
+  USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE string_utilities,                ONLY: uppercase
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

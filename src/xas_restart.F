@@ -29,27 +29,21 @@
 MODULE xas_restart
 
 
-  USE atomic_kind_types,               ONLY: get_atomic_kind
-  USE basis_set_types,                 ONLY: get_gto_basis_set,&
-                                             gto_basis_set_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_files,                        ONLY: close_file,&
-                                             open_file
-  USE cp_fm_types,                     ONLY: cp_fm_set_all,&
-                                             cp_fm_set_submatrix,&
-                                             cp_fm_type
+  USE cp_files,                        ONLY: open_file
+  USE cp_fm_types,                     ONLY: cp_fm_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_generate_filename,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_path_length,&
-                                             default_string_length, &
+                                             default_string_length,&
                                              dp
   USE message_passing,                 ONLY: mp_bcast
-  USE orbital_pointers,                ONLY: nso
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -58,8 +52,8 @@ MODULE xas_restart
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
                                              read_mos_restart_low,&
-                                             write_mo_set_low,&
-                                             wfn_restart_file_name
+                                             wfn_restart_file_name,&
+                                             write_mo_set_low
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
@@ -68,7 +62,6 @@ MODULE xas_restart
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xas_control,                     ONLY: xas_control_type
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -241,9 +234,8 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: filename
     CHARACTER(LEN=default_string_length)     :: my_mittle
-    INTEGER                                  :: handle, ia, ie, output_unit, &
-                                                rst_unit, source
-    LOGICAL                                  :: failure 
+    INTEGER                                  :: handle, output_unit, rst_unit
+    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(mo_set_p_type), DIMENSION(:), &

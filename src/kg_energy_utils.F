@@ -10,6 +10,7 @@ MODULE kg_energy_utils
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
                                              dyn_coeff_type,&
                                              get_dyn_coeff
+  USE f77_blas
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
   USE kinds,                           ONLY: dp
@@ -17,7 +18,6 @@ MODULE kg_energy_utils
   USE message_passing,                 ONLY: mp_max
 !  USE scf_control_types, ONLY : scf_control
   USE termination,                     ONLY: stop_memory
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -38,6 +38,7 @@ MODULE qs_scf_methods
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_max
   USE qs_environment_types,            ONLY: qs_environment_type
@@ -60,7 +61,6 @@ MODULE qs_scf_methods
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

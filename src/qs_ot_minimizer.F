@@ -28,6 +28,7 @@ MODULE qs_ot_minimizer
                                              cp_fm_p_type,&
                                              cp_fm_set_all,&
                                              cp_fm_to_fm
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE preconditioner,                  ONLY: apply_preconditioner
   USE qs_ot,                           ONLY: qs_ot_get_derivative,&
@@ -36,7 +37,6 @@ MODULE qs_ot_minimizer
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
