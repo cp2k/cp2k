@@ -54,7 +54,6 @@
 !!   SOURCE
 !*****************************************************************************
 MODULE cp_linked_list_logical
-   
   USE f77_blas
 #include "cp_common_uses.h"
 

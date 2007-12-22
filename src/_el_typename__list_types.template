@@ -44,6 +44,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE [el_typename]_list_types
+  USE f77_blas
   USE kinds, ONLY: dp
   USE timings, ONLY: timeset, timestop
   [USE]

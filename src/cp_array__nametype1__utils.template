@@ -49,6 +49,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE cp_array_[nametype1]_utils
+  USE f77_blas
   USE kinds, ONLY: dp
   USE timings, ONLY: timeset, timestop
   USE machine, ONLY: m_flush

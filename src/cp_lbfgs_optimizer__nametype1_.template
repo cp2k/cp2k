@@ -51,6 +51,7 @@
 !!   SOURCE
 !*****************************************************************************
 MODULE cp_lbfgs_optimizer_[nametype1]
+  USE f77_blas
   USE cp_lbfgs, ONLY: setulb, cp_lbfgs_unit_nr
   USE kinds, ONLY: dp
   USE cp_para_types, ONLY: cp_para_env_type

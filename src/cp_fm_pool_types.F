@@ -58,6 +58,7 @@ MODULE cp_fm_pool_types
                                              cp_sll_fm_next,&
                                              cp_sll_fm_rm_first_el,&
                                              cp_sll_fm_type
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop

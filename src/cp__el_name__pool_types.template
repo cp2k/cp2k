@@ -44,6 +44,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE cp_[el_name]_pool_types
+  USE f77_blas
   USE cp_linked_list_[el_name],        ONLY: cp_sll_[el_name]_dealloc,&
                                              cp_sll_[el_name]_get_first_el,&
                                              cp_sll_[el_name]_insert_el,&
