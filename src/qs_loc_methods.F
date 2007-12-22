@@ -788,7 +788,7 @@ CONTAINS
        ELSE
          nmosub = localized_wfn_control%nloc_states(ispin)
 
-         CALL cp_fm_to_fm(moloc_coeff(ispin)%matrix,mo_coeff,nmosub,lb,1)
+         CALL cp_fm_to_fm(moloc_coeff(ispin)%matrix,mo_coeff,nmosub,1,lb)
 
        END IF
 
