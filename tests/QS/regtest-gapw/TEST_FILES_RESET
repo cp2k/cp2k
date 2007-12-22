@@ -20,3 +20,5 @@ He2-all.inp
 He2-all-md.inp
 # reset due to numericals (10^-14) after bug fix on initial temperature 
 He2-all-md.inp
+#
+H2O-gapw-all_localize_crazy.inp

@@ -7,9 +7,10 @@
 H2O-gapw-gth.inp   1
 H2O-gapw-all.inp   1
 H2O-gapw-all_localize.inp 23
-H2O-gapw-all_loc_range.inp 23
-H2O-gapw-all_localize_direct.inp 23
 H2O-gapw-all_localize_crazy.inp  23
+H2O-gapw-all_loc_list.inp 23
+##H2O-gapw-all_loc_range.inp 23
+##H2O-gapw-all_localize_direct.inp 23
 H2O-gapwxc-gth.inp 1
 # test with presence of soft S
 H2S-gapw.inp       1
