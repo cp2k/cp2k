@@ -214,7 +214,6 @@ SUBROUTINE pw_copy ( pw1, pw2 )
   CALL timeset ( 'pw_copy', 'I', 'Mcopy', handle )
   CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"pw_copy")
   CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,"pw_copy")
-
   IF ( pw1 % pw_grid %id_nr /= pw2 % pw_grid %id_nr ) THEN
 
     IF ( pw1 % pw_grid % spherical .AND. pw2 % pw_grid % spherical ) THEN
@@ -341,9 +340,11 @@ SUBROUTINE pw_copy ( pw1, pw2 )
           pw2 % cc(i) = pw1 % cc(i)
        END DO
     ELSE IF ( pw1 % in_use == REALDATA3D .AND. pw2 % in_use == REALDATA3D ) THEN
+       ns = SIZE ( pw1 % cr3d )
        pw2 % cr3d(:,:,:) = pw1 % cr3d(:,:,:)
     ELSE IF ( pw1 % in_use == COMPLEXDATA3D .AND. &
          pw2 % in_use == COMPLEXDATA3D ) THEN
+       ns = SIZE ( pw1 % cc3d )
        pw2 % cc3d(:,:,:) = pw1 % cc3d(:,:,:)
     ELSE
        CALL stop_program ( "pw_copy", "no suitable data field" )
@@ -388,12 +389,16 @@ SUBROUTINE pw_scale( pw, a )
 
     SELECT CASE ( pw % in_use )
     CASE ( REALDATA1D )
+       ns = SIZE(pw%cr)
        pw%cr(:) = a*pw%cr(:)
     CASE ( COMPLEXDATA1D )
+       ns = 2*SIZE(pw%cc)
        pw%cc(:) = a*pw%cc(:)
     CASE ( REALDATA3D)
+       ns = SIZE(pw%cr3d)
        pw%cr3d(:,:,:) = a*pw%cr3d(:,:,:)
     CASE (COMPLEXDATA3D )
+       ns = 2*SIZE(pw%cc3d)
        pw%cc3d(:,:,:) = a*pw%cc3d(:,:,:)
     CASE DEFAULT  
        CALL stop_program ( "pw_scale", "no suitable data field" )
