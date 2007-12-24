@@ -57,7 +57,8 @@ MODULE pw_env_methods
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_type
-  USE pw_grid_info,                    ONLY: pw_find_cutoff
+  USE pw_grid_info,                    ONLY: pw_find_cutoff,&
+                                             pw_grid_init_setup
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
                                              pw_grid_type
@@ -335,23 +336,24 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      iounit = cp_print_key_unit_nr(logger,print_section,"",&
               extension=".Log",error=error)
 
+     IF ( dft_control % qs_control % pw_grid_opt % spherical ) THEN
+        grid_span = HALFSPACE
+        spherical = .TRUE.
+        odd = .TRUE.
+     ELSE IF ( dft_control % qs_control % pw_grid_opt % fullspace ) THEN
+        grid_span = FULLSPACE
+        spherical = .FALSE.
+        odd = .FALSE.
+     ELSE
+        grid_span = HALFSPACE
+        spherical = .FALSE.
+        odd = .TRUE.
+     END IF
+
      DO igrid_level=1,ngrid_level
         CALL pw_grid_create(pw_grid,para_env%group,error=error)
 
         cutilev = cutoff(igrid_level)
-        IF ( dft_control % qs_control % pw_grid_opt % spherical ) THEN
-           grid_span = HALFSPACE
-           spherical = .TRUE.
-           odd = .TRUE.
-        ELSE IF ( dft_control % qs_control % pw_grid_opt % fullspace ) THEN
-           grid_span = FULLSPACE
-           spherical = .FALSE.
-           odd = .FALSE.
-        ELSE
-           grid_span = HALFSPACE
-           spherical = .FALSE.
-           odd = .TRUE.
-        END IF
 
         IF (igrid_level == 1) THEN
            IF (ASSOCIATED(old_pw_grid)) THEN
@@ -387,11 +389,12 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
 
       ! init pw_pools
         NULLIFY(pw_pools(igrid_level)%pool)
-        CALL pw_pool_create(pw_pools(igrid_level)%pool,&
-             pw_grid=pw_grid,error=error)
+        CALL pw_pool_create(pw_pools(igrid_level)%pool,pw_grid=pw_grid,error=error)
 
         CALL pw_grid_release(pw_grid,error=error)
+
      END DO
+
      pw_env%pw_pools => pw_pools
 
      CALL cp_print_key_finished_output(iounit,logger,print_section,&
@@ -650,7 +653,7 @@ END SUBROUTINE pw_env_rebuild
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_super_ref_grid', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iounit, my_val
+    INTEGER                                  :: iounit, my_val, nn(3), no(3)
     LOGICAL                                  :: failure, mt_s_grid
     REAL(KIND=dp)                            :: mt_rel_cutoff, my_cutilev
     TYPE(cp_logger_type), POINTER            :: logger
@@ -696,6 +699,14 @@ END SUBROUTINE pw_env_rebuild
                   error=error)
           ELSE
              my_cutilev=cutilev*mt_rel_cutoff
+
+             no = pw_grid_init_setup(cell_ref%hmat,cutoff=cutilev,spherical=spherical,&
+                  odd=.FALSE.,fft_usage=.TRUE.,ncommensurate=0,icommensurate=1,error=error)
+             nn = pw_grid_init_setup(cell_ref%hmat,cutoff=my_cutilev,spherical=spherical,&
+                  odd=.FALSE.,fft_usage=.TRUE.,ncommensurate=0,icommensurate=1,error=error)
+
+             ! bug appears for nn==no, also in old versions
+             CPPrecondition(ALL(nn>no),cp_failure_level,routineP,error,failure)
              CALL pw_grid_setup(cell_ref, mt_super_ref_pw_grid, &
                   cutoff=my_cutilev,spherical=spherical,fft_usage=.TRUE., &
                   blocked=.FALSE., rs_dims=(/para_env%num_pe,1/),&

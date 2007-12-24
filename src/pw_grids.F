@@ -422,6 +422,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, grid_span, cutoff, bounds, npts, &
       END IF
     ELSE
       my_ncommensurate = 0
+      my_icommensurate = 1
     END IF
 
     IF ( PRESENT(bounds) ) THEN
@@ -507,7 +508,8 @@ SUBROUTINE pw_grid_setup_internal ( cell, pw_grid, blocked, ref_grid, rs_dims, i
     TYPE(cell_type), INTENT(IN)              :: cell
     TYPE(pw_grid_type), POINTER              :: pw_grid
     LOGICAL, INTENT(in), OPTIONAL            :: blocked
-    TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: ref_grid
+    TYPE(pw_grid_type), INTENT(in), &
+      OPTIONAL, TARGET                       :: ref_grid
     INTEGER, DIMENSION(2), INTENT(in), &
       OPTIONAL                               :: rs_dims
     INTEGER, INTENT(in), OPTIONAL            :: iounit
@@ -703,8 +705,7 @@ SUBROUTINE pw_grid_print ( cell, pw_grid, info, error )
              WRITE ( info, '(A,T71,I10)' ) " PW_GRID: Grid points within cutoff", &
                   pw_grid % ngpts_cut
           END IF
-          cutoff = pw_find_cutoff(pw_grid%npts, cell%h_inv, error=error)
-          cutoff = 0.5_dp*cutoff*cutoff
+          CALL get_pw_grid_info(pw_grid,cutoff=cutoff,error=error)
           WRITE ( info, '(A,T35,A,T66,F10.1,T77,A)' ) " PW_GRID: ", &
                   "max spherical cutoff", cutoff, "a.u."
           DO i = 1, 3

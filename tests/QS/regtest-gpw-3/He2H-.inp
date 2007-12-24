@@ -12,7 +12,7 @@
       POISSON_SOLVER MT
       &MT
         ALPHA 7.0
-        REL_CUTOFF 1.2
+        REL_CUTOFF 1.5
       &END MT
     &END POISSON
     &QS
