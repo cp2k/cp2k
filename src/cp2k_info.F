@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2007  CP2K developers group                          !
+!   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/cp2k_info [1.0] *
 !!
@@ -28,7 +28,7 @@ MODULE cp2k_info
   PUBLIC :: print_cp2k_license
 
   ! the version string of CP2K intended to be adjust after releases and branches
-  CHARACTER(LEN=*), PARAMETER :: cp2k_year    = "2007"
+  CHARACTER(LEN=*), PARAMETER :: cp2k_year    = "2008"
   CHARACTER(LEN=*), PARAMETER :: cp2k_version = "CP2K version 2.0.0 (development version)"
   CHARACTER(LEN=*), PARAMETER :: cp2k_home    = "http://cp2k.berlios.de/"
 
@@ -71,6 +71,7 @@ CONTAINS
      WRITE(iunit,'(T2,A)') '!   CP2K: A general program to perform molecular dynamics simulations         !'
      WRITE(iunit,'(T2,A)') '!   Copyright (C) 2000, 2001, 2002, 2003  CP2K developers group               !'
      WRITE(iunit,'(T2,A)') '!   Copyright (C) 2004, 2005, 2006, 2007  CP2K developers group               !'
+     WRITE(iunit,'(T2,A)') '!   Copyright (C) 2008  CP2K developers group                                 !'
      WRITE(iunit,'(T2,A)') '!                                                                             !'
      WRITE(iunit,'(T2,A)') '!   This program is free software; you can redistribute it and/or modify      !'
      WRITE(iunit,'(T2,A)') '!   it under the terms of the GNU General Public License as published by      !'

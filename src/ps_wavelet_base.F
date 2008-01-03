@@ -1,4 +1,8 @@
-!!****** cp2k/ ps_wavelet_base
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2007 - 2008  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+!!****h* cp2k/ps_wavelet_base *
 !!
 !!   NAME
 !!     ps_wavelet_base
@@ -13,7 +17,6 @@
 !!
 !!   SOURCE
 !******************************************************************************
-
 MODULE ps_wavelet_base
   USE f77_blas
   USE kinds,                           ONLY: dp

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2007  CP2K developers group                          !
+!   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/header [1.0] *
 !!
@@ -169,7 +169,7 @@ CONTAINS
          "**                                                                           **",&
          "**                                                ... make the atoms dance   **",&
          "**                                                                           **",&
-         "**            Copyright (C) by CP2K Developers Group (2000 - 2007)           **",&
+         "**            Copyright (C) by CP2K Developers Group (2000 - 2008)           **",&
          "**                                                                           **",&
          "*******************************************************************************"
   END SUBROUTINE qs_header
