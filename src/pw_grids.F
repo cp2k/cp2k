@@ -509,7 +509,7 @@ SUBROUTINE pw_grid_setup_internal ( cell, pw_grid, blocked, ref_grid, rs_dims, i
     TYPE(pw_grid_type), POINTER              :: pw_grid
     LOGICAL, INTENT(in), OPTIONAL            :: blocked
     TYPE(pw_grid_type), INTENT(in), &
-      OPTIONAL, TARGET                       :: ref_grid
+      OPTIONAL                               :: ref_grid
     INTEGER, DIMENSION(2), INTENT(in), &
       OPTIONAL                               :: rs_dims
     INTEGER, INTENT(in), OPTIONAL            :: iounit
