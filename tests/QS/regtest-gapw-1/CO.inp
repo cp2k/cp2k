@@ -13,11 +13,7 @@
     BASIS_SET_FILE_NAME ALL_BASIS_SETS
     POTENTIAL_FILE_NAME POTENTIAL
     &XC
-      &XC_FUNCTIONAL
-       &BECKE88
-       &END
-       &LYP
-       &END
+      &XC_FUNCTIONAL PADE
       &END
     &END
     &QS
@@ -59,7 +55,7 @@
      POISSON_SOLVER MT
      &MT
       ALPHA 7.0
-      REL_CUTOFF 1.2
+      #REL_CUTOFF 1.2
      &END
      PERIODIC NONE
     &END POISSON
@@ -89,7 +85,7 @@
   &SUBSYS
     &CELL
        UNIT   ANGSTROM
-       ABC    6.0    6.0     6.0 
+       ABC    3.0    3.0     3.0 
        PERIODIC NONE
     &END CELL
 

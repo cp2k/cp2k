@@ -88,10 +88,11 @@
   &DFT
    CHARGE +1
    &MGRID
-     CUTOFF 200
+     CUTOFF 50
    &END MGRID
    &SCF
      SCF_GUESS          ATOMIC
+     EPS_SCF 1.0E-3
    &END SCF
    &QS
    &END QS

@@ -38,3 +38,9 @@ CO_xastpxfh_locall.inp
 CO_xastpxfh.inp
 CO.inp
 H2O_gpw.inp
+# speeding up few regtests
+CO.inp
+CO_xastpxfh_150Ry.inp
+CO_xastpxfh.inp
+CO_xastpxfh_locall.inp
+H2O_gpw.inp

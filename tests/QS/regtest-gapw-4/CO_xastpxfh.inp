@@ -13,11 +13,7 @@
     BASIS_SET_FILE_NAME ALL_BASIS_SETS
     POTENTIAL_FILE_NAME POTENTIAL
     &XC
-      &XC_FUNCTIONAL
-       &BECKE88
-       &END
-       &LYP
-       &END
+      &XC_FUNCTIONAL PADE
       &END
     &END
     &QS

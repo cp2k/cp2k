@@ -17,3 +17,8 @@ CO_xastphh_r.inp
 CO_xastpfh.inp
 #
 CO_xastphh.inp
+# speeding up few regtests
+CO.inp
+CO_xastpfh.inp
+CO_xastphh.inp
+CO_xastphh_r.inp

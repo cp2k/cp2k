@@ -286,3 +286,5 @@ H2O-meta_g.inp
 H2O-meta_hydro.inp
 # change in definition for MT cutoff
 NO2-EFG-1.inp
+# speeding up few regtests
+H2O-meta_hydro.inp
