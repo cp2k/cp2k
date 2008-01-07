@@ -673,7 +673,6 @@ CONTAINS
       IF (PRESENT(qm_atom_present)) qm_atom_present = .FALSE.
       IF (PRESENT(shell_present)) shell_present = .FALSE.
       IF (PRESENT(shell_adiabatic)) shell_adiabatic = .FALSE.
-      IF (PRESENT(paw_atom_present)) paw_atom_present = .FALSE.
       IF (PRESENT(atom_of_kind)) atom_of_kind(:) = 0
       IF (PRESENT(kind_of)) kind_of(:) = 0
       IF (PRESENT(natom_of_kind)) natom_of_kind(:) = 0
