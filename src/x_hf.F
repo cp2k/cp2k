@@ -25,7 +25,6 @@ MODULE x_hf
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE f77_blas
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -35,6 +34,7 @@ MODULE x_hf
   USE particle_types,                  ONLY: particle_type
   USE x_hf_compression_methods,        ONLY: bits2ints_specific,&
                                              ints2bits_specific
+  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -806,7 +806,7 @@ MODULE x_hf
 
     INTEGER(int_8)                           :: int_val
 
-    int_val = value + ISHFT(one,nbits-1)
+    int_val = value + IBSET(one,nbits-1)
     
     IF(cache%element_counter /= CACHE_SIZE ) THEN
       cache%data(cache%element_counter) = int_val
@@ -931,7 +931,7 @@ MODULE x_hf
       cache%element_counter = 1 
     END IF
 
-    value = value - ISHFT(one,nbits-1)
+    value = value - IBSET(one,nbits-1)
 
   END SUBROUTINE x_hf_get_single_cache_element
 !***************************************************************************
@@ -1205,17 +1205,14 @@ MODULE x_hf
     INTEGER(int_8)                           :: shift
     REAL(dp)                                 :: eps_schwarz_inv, factor
 
-!! ASSUME nints< CACHE_SIZE
-
     eps_schwarz_inv = 1.0_dp/eps_schwarz
     factor = eps_schwarz/pmax_entry
 
-    shift = ISHFT(one,nbits-1)
+    shift = IBSET(one,nbits-1)
 
     start_idx = cache%element_counter
     end_idx = start_idx + nints-1
     IF(end_idx< CACHE_SIZE) THEN
-      
       DO i=1,nints
         values(i) = values(i)*pmax_entry
         IF(ABS(values(i)) > eps_schwarz) THEN
@@ -1301,12 +1298,11 @@ MODULE x_hf
     INTEGER(int_8)                           :: shift
     REAL(dp)                                 :: eps_schwarz_inv, factor
 
-!! ASSUME nints< CACHE_SIZE
 
     eps_schwarz_inv = 1.0_dp/eps_schwarz
     factor = eps_schwarz/pmax_entry
 
-    shift = ISHFT(one,nbits-1)
+    shift = IBSET(one,nbits-1)
 
     start_idx = cache%element_counter
     end_idx = start_idx + nints-1

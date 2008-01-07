@@ -810,10 +810,11 @@ MODULE four_center_integrals
                           nints = current_counter 
                           CALL x_hf_get_single_cache_element(estimate_to_store_int, 6,&
                                                              maxval_cache, maxval_container, memory_parameter%actual_memory_usage)
-                          spherical_estimate = EXP(log_2*estimate_to_store_int)
+!                          spherical_estimate = EXP(log_2*estimate_to_store_int)
+                          spherical_estimate = SET_EXPONENT(1.0_dp,estimate_to_store_int+1)
                           IF(spherical_estimate*pmax_entry<eps_schwarz) CYCLE
-                          nbits = CEILING(LOG(spherical_estimate*pmax_entry/eps_storage)*log_2_inv) + 1
-                          
+!                          nbits = CEILING(LOG(spherical_estimate*pmax_entry/eps_storage)*log_2_inv) + 1
+                          nbits = EXPONENT(spherical_estimate*pmax_entry/eps_storage) + 1                         
                           buffer_left = nints
                           buffer_start = 1
                           DO WHILE (buffer_left > 0 )
@@ -933,11 +934,10 @@ MODULE four_center_integrals
                           
                           nints = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
                           neris_total = neris_total + nints 
-                          IF(cartesian_estimate == 0.0_dp) cartesian_estimate = TINY(cartesian_estimate) 
-                          estimate_to_store = LOG(cartesian_estimate)*log_2_inv
-                          estimate_to_store_int = CEILING(estimate_to_store)
+
+                          estimate_to_store_int = EXPONENT(cartesian_estimate)
                           estimate_to_store_int = MAX(estimate_to_store_int,-15_int_8)
-                          cartesian_estimate = EXP(log_2*estimate_to_store_int)
+                          cartesian_estimate = SET_EXPONENT(1.0_dp,estimate_to_store_int+1)
                           IF(.NOT.buffer_overflow .AND. geometry_did_change) THEN
                             IF(cartesian_estimate < eps_schwarz ) THEN
                               CALL x_hf_add_single_cache_element(estimate_to_store_int, 6,&
@@ -971,21 +971,19 @@ MODULE four_center_integrals
                           DO i=1,nints
                             spherical_estimate = MAX(spherical_estimate,ABS(primitive_integrals(i)))
                           END DO
-                          !! Otherwise NAG is going crazy
-                          IF(spherical_estimate == 0.0_dp) spherical_estimate = TINY(spherical_estimate)
-                          estimate_to_store = LOG(spherical_estimate)*log_2_inv
-                          estimate_to_store_int = CEILING(estimate_to_store)
+                          estimate_to_store_int = EXPONENT(spherical_estimate)
                           estimate_to_store_int = MAX(estimate_to_store_int, -15_int_8)
+                          
                           IF(.NOT. buffer_overflow .AND. geometry_did_change) THEN
                             CALL x_hf_add_single_cache_element(estimate_to_store_int, 6, &
                                                                maxval_cache, maxval_container, &
                                                                memory_parameter%actual_memory_usage, error)
                           END IF
-                          spherical_estimate = EXP(log_2*estimate_to_store_int)
+                          spherical_estimate = SET_EXPONENT(1.0_dp,estimate_to_store_int+1)
                           IF(spherical_estimate*pmax_entry<eps_schwarz) CYCLE 
                           IF(.NOT.buffer_overflow) THEN
                             neris_incore = neris_incore + nints
-                            nbits = CEILING(LOG(spherical_estimate*pmax_entry/eps_storage)*log_2_inv) + 1
+                            nbits = EXPONENT(spherical_estimate*pmax_entry/eps_storage) + 1
                             buffer_left = nints
                             buffer_start = 1
                             DO WHILE (buffer_left > 0 )
