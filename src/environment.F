@@ -30,7 +30,8 @@ MODULE environment
                                              compile_lastcvs,&
                                              cp2k_home,&
                                              cp2k_version,&
-                                             cp2k_year
+                                             cp2k_year,&
+                                             id_cp2k_version
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -46,8 +47,8 @@ MODULE environment
   USE input_constants,                 ONLY: &
        do_cp2k, do_eip, do_farming, do_fft_acml, do_fft_essl, do_fft_fftw, &
        do_fft_fftw2, do_fft_fftw3, do_fft_mkl, do_fft_sci, do_fft_sg, &
-       do_fist, do_kg, do_qs, do_test, energy_run, mol_dyn_run, none_run, &
-       program_names, run_type_names
+       do_fist, do_kg, do_qs, do_test, energy_run, id_development_version, &
+       mol_dyn_run, none_run, program_names, run_type_names
   USE input_section_types,             ONLY: section_get_lval,&
                                              section_get_rval,&
                                              section_vals_get,&
@@ -135,31 +136,28 @@ CONTAINS
 
   SUBROUTINE cp2k_init(para_env,output_unit,globenv,input_file_name)
 
-    TYPE(global_environment_type), POINTER         :: globenv
-    CHARACTER(LEN=*)                               :: input_file_name
-    INTEGER                                        :: output_unit
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER                                  :: output_unit
+    TYPE(global_environment_type), POINTER   :: globenv
+    CHARACTER(LEN=*)                         :: input_file_name
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "cp2k_init"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'cp2k_init'
 
-!   *** Local variables ***
-
-    CHARACTER(LEN=default_path_length)             :: cwd
-    CHARACTER(LEN=default_string_length)           :: host_name,string,user_name
-    CHARACTER(LEN=26)                              :: datx
-    INTEGER                                        :: ipe,istat,l,my_output_unit,pid,&
-                                                      strstart,strend
-    LOGICAL                                        :: ionode
-
-    INTEGER, DIMENSION(:), ALLOCATABLE             :: all_pid
-    INTEGER, DIMENSION(:,:), ALLOCATABLE           :: all_host
-    TYPE(cp_logger_type), POINTER                  :: logger
-    TYPE(cp_para_env_type), POINTER                :: para_env
+    CHARACTER(LEN=26)                        :: datx
+    CHARACTER(LEN=default_path_length)       :: cwd
+    CHARACTER(LEN=default_string_length)     :: dev_flag, host_name, string, &
+                                                user_name
+    INTEGER                                  :: ipe, istat, l, &
+                                                my_output_unit, pid, strend, &
+                                                strstart
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: all_pid
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: all_host
+    LOGICAL                                  :: ionode
+    TYPE(cp_logger_type), POINTER            :: logger
 
 #if defined(__HPM)
 #include "f_hpm.h"
 #endif
-
-!   ---------------------------------------------------------------------------
 
     CALL m_getpid(pid)
     CALL m_getlog(user_name)
@@ -179,8 +177,11 @@ CONTAINS
        CALL set_error_unit(6)
     ENDIF
 
-!   *** Init the default logger
+!   *** Set flag if this is a development version
+    dev_flag = ""
+    IF (id_cp2k_version==id_development_version) dev_flag=" (Development Version)"
 
+!   *** Init the default logger
     IF (para_env%source==para_env%mepos) THEN
        my_output_unit=output_unit
     ELSE
@@ -258,7 +259,7 @@ CONTAINS
 
       WRITE (UNIT=my_output_unit,FMT="(/,T2,A,T31,A50)")&
         "CP2K| version string: ",&
-        ADJUSTR(TRIM(cp2k_version))
+        ADJUSTR(TRIM(cp2k_version)//TRIM(dev_flag))
       WRITE (UNIT=my_output_unit,FMT="(T2,A,T41,A40)")&
         "CP2K| is freely available from ",&
         ADJUSTR(TRIM(cp2k_home))
@@ -816,32 +817,33 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
   SUBROUTINE cp2k_finalize(root_section,para_env,globenv,error)
 
     TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=default_path_length)       :: cwd
-    CHARACTER(LEN=default_string_length)     :: host_name,user_name
     CHARACTER(LEN=26)                        :: datx
-    INTEGER                                  :: l,iw,pid,unit_exit
-    LOGICAL                                  :: delete_it,failure
-    TYPE(cp_logger_type), POINTER            :: logger
+    CHARACTER(LEN=default_path_length)       :: cwd
+    CHARACTER(LEN=default_string_length)     :: dev_flag, host_name, user_name
+    INTEGER                                  :: iw, l, pid, unit_exit
+    LOGICAL                                  :: delete_it, failure
     REAL(KIND=dp)                            :: r_timings
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    INTEGER                                  :: iwisdom
+    TYPE(cp_logger_type), POINTER            :: logger
+
 #if defined(__HPM)
 #include "f_hpm.h"
 #endif
 
-    ! -------------------------------------------------------------------------
-
-    ! look if we inherited a failure, more care is needed if so
-    ! i.e. the input is most likely not available
+! look if we inherited a failure, more care is needed if so
+! i.e. the input is most likely not available
 
     failure=.FALSE.
     CALL cp_error_check(error,failure)
 
-    ! Clean up
+    ! Set flag if this is a development version
+    dev_flag = ""
+    IF (id_cp2k_version==id_development_version) dev_flag=" (Development Version)"
 
+    ! Clean up
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     CALL deallocate_spherical_harmonics()
@@ -881,7 +883,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
            WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
 
            WRITE (UNIT=iw,FMT="(T2,A)") ""
-           WRITE (UNIT=iw,FMT="(T2,A)") TRIM(cp2k_version)//", the CP2K developers group ("//TRIM(cp2k_year)//")."
+           WRITE (UNIT=iw,FMT="(T2,A)") TRIM(cp2k_version)//TRIM(dev_flag)//", the CP2K developers group ("//TRIM(cp2k_year)//")."
            WRITE (UNIT=iw,FMT="(T2,A)") "CP2K is freely available from "//TRIM(cp2k_home)//" ."
 
            CALL print_all_references(sorted=.TRUE.,cited_only=.TRUE., &

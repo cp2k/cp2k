@@ -28,6 +28,10 @@ MODULE input_constants
   IMPLICIT NONE
   PRIVATE
 
+  ! Tags for development/release versions
+  INTEGER, PARAMETER, PUBLIC :: id_development_version=0,&
+                                id_release_version=1
+
   ! Program Names
   CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(3), PUBLIC :: program_names=&
        (/"FARMING   ",&

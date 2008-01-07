@@ -137,7 +137,7 @@ MODULE input_keyword_types
      CHARACTER(LEN=description_string_length) :: description
      INTEGER, POINTER, DIMENSION(:) :: citations
      INTEGER :: type_of_var,n_var
-     LOGICAL :: repeats, required
+     LOGICAL :: repeats, required, supported_feature
      TYPE(enumeration_type), POINTER :: enum
      TYPE(cp_unit_type), POINTER :: unit
      TYPE(val_type), POINTER :: default_value
@@ -177,7 +177,7 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
      lone_keyword_val, lone_keyword_l_val, lone_keyword_r_val, lone_keyword_c_val,&
      lone_keyword_i_val, lone_keyword_l_vals, lone_keyword_r_vals, &
      lone_keyword_c_vals, lone_keyword_i_vals, enum_c_vals, enum_i_vals, &
-     enum,enum_strict,enum_desc,unit_str,citations,error)
+     enum,enum_strict,enum_desc,unit_str,citations,supported_feature,error)
     TYPE(keyword_type), POINTER              :: keyword
     CHARACTER(len=*), INTENT(in)             :: name, description
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: usage
@@ -185,7 +185,7 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
     LOGICAL, INTENT(in), OPTIONAL            :: repeats
     CHARACTER(len=*), DIMENSION(:), &
       INTENT(in), OPTIONAL                   :: variants
-    LOGICAL, INTENT(in), OPTIONAL            :: required
+    LOGICAL, INTENT(in), OPTIONAL            :: required, supported_feature
     TYPE(val_type), OPTIONAL, POINTER        :: default_val
     LOGICAL, INTENT(in), OPTIONAL            :: default_l_val
     REAL(KIND=DP), INTENT(in), OPTIONAL      :: default_r_val
@@ -282,6 +282,8 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
      IF (PRESENT(repeats)) keyword%repeats=repeats
      keyword%required=.FALSE.
      IF (PRESENT(required)) keyword%required=required
+     keyword%supported_feature=.FALSE.
+     IF (PRESENT(supported_feature)) keyword%supported_feature=supported_feature
 
      NULLIFY(keyword%enum)
      IF (PRESENT(enum)) THEN

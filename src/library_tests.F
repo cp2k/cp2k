@@ -130,7 +130,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
     logger => cp_error_get_logger(error)
-    iw=cp_print_key_unit_nr(logger,root_section,"GLOBAL%PROGRAM_RUN_INFO",&
+    iw=cp_print_key_unit_nr(logger,root_section,"TEST%PROGRAM_RUN_INFO",&
                                          extension=".log",error=error)
     IF ( iw > 0 ) THEN
        WRITE ( iw, '(T2,79("*"))' )
@@ -163,7 +163,7 @@ CONTAINS
     END IF
 
     CALL cp_print_key_finished_output(iw,logger,root_section,&
-               "GLOBAL%PROGRAM_RUN_INFO", error=error)
+               "TEST%PROGRAM_RUN_INFO", error=error)
 
   END SUBROUTINE lib_test
 

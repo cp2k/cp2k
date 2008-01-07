@@ -173,12 +173,12 @@ MODULE four_center_integrals
     REAL(dp) :: actual_pmax_entry, bintime_start, bintime_stop, box_size(3), &
       box_size_inv(3), cartesian_estimate, center1(3), center2(3), &
       center2_folded(3), compression_factor, current_max_error, ene_x_aa, &
-      ene_x_bb, eps_box, eps_schwarz, eps_storage, estimate_to_store, fac, &
-      hf_fraction, K, Kbox, ks_bc, ks_bd, ks_beta_bc, ks_beta_bd, &
-      max_contraction_val, max_val1, max_val2, omega2Inv, omega_box, p_bc, &
-      p_bd, p_beta_bc, p_beta_bd, p_screening_correction_factor, &
-      pbc_center(3), pmax_entry, R1, R2, ra(3), rb(3), Rbox, rc(3), rd(3), &
-      screen_max, spherical_estimate, symm_fac, temp(3), tmp
+      ene_x_bb, eps_box, eps_schwarz, eps_storage, fac, hf_fraction, K, Kbox, &
+      ks_bc, ks_bd, ks_beta_bc, ks_beta_bd, max_contraction_val, max_val1, &
+      max_val2, omega2Inv, omega_box, p_bc, p_bd, p_beta_bc, p_beta_bd, &
+      p_screening_correction_factor, pbc_center(3), pmax_entry, R1, R2, &
+      ra(3), rb(3), Rbox, rc(3), rd(3), screen_max, spherical_estimate, &
+      symm_fac, temp(3), tmp
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: primitive_integrals, T1
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: full_ks, full_ks_beta
     REAL(dp), DIMENSION(:, :), POINTER :: full_density, full_density_beta, &

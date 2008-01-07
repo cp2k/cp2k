@@ -20,17 +20,27 @@
 !******************************************************************************
 
 MODULE cp2k_info
+  USE input_constants,                 ONLY: id_development_version,&
+                                             id_release_version
+
   IMPLICIT NONE
   PRIVATE
 
-  PUBLIC :: cp2k_year,cp2k_version,cp2k_home
+  PUBLIC :: cp2k_year,cp2k_version,cp2k_home,id_cp2k_version
   PUBLIC :: compile_arch,compile_date,compile_host,compile_lastcvs
   PUBLIC :: print_cp2k_license
 
   ! the version string of CP2K intended to be adjust after releases and branches
-  CHARACTER(LEN=*), PARAMETER :: cp2k_year    = "2008"
-  CHARACTER(LEN=*), PARAMETER :: cp2k_version = "CP2K version 2.0.0 (development version)"
-  CHARACTER(LEN=*), PARAMETER :: cp2k_home    = "http://cp2k.berlios.de/"
+#if defined(__RELEASE_VERSION)
+  INTEGER, PARAMETER          :: id_cp2k_version = id_release_version     ! (Uncomment for release     version)
+#else
+  INTEGER, PARAMETER          :: id_cp2k_version = id_development_version ! (Uncomment for development version)
+#endif
+
+  CHARACTER(LEN=*), PARAMETER :: version_nr      = "2.0.0"
+  CHARACTER(LEN=*), PARAMETER :: cp2k_year       = "2008"
+  CHARACTER(LEN=*), PARAMETER :: cp2k_version    = "CP2K version "//TRIM(version_nr)
+  CHARACTER(LEN=*), PARAMETER :: cp2k_home       = "http://cp2k.berlios.de/"
 
   ! compile time information
 #if defined(__COMPILE_ARCH)

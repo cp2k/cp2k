@@ -25,6 +25,7 @@ MODULE x_hf
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -34,7 +35,6 @@ MODULE x_hf
   USE particle_types,                  ONLY: particle_type
   USE x_hf_compression_methods,        ONLY: bits2ints_specific,&
                                              ints2bits_specific
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -1297,7 +1297,6 @@ MODULE x_hf
                                                 tmp_elements
     INTEGER(int_8)                           :: shift
     REAL(dp)                                 :: eps_schwarz_inv, factor
-
 
     eps_schwarz_inv = 1.0_dp/eps_schwarz
     factor = eps_schwarz/pmax_entry

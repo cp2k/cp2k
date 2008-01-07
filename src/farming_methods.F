@@ -214,7 +214,7 @@ CONTAINS
    IF (.NOT. failure) THEN
      
       logger => cp_error_get_logger(error)
-      output_unit=cp_print_key_unit_nr(logger,root_section,"GLOBAL%PROGRAM_RUN_INFO",&
+      output_unit=cp_print_key_unit_nr(logger,farming_section,"PROGRAM_RUN_INFO",&
                                          extension=".log",error=error)
 
       ! master slave not supported
@@ -285,8 +285,8 @@ CONTAINS
            CLOSE(iunit,IOSTAT=stat)
         ENDIF
 
-        CALL cp_print_key_finished_output(output_unit,logger,root_section,&
-               "GLOBAL%PROGRAM_RUN_INFO", error=error)
+        CALL cp_print_key_finished_output(output_unit,logger,farming_section,&
+               "PROGRAM_RUN_INFO", error=error)
       ENDIF
     ENDIF
     CALL mp_bcast(farming_env%restart_n,para_env%source,para_env%group)

@@ -464,7 +464,7 @@ CPSourceFileRef,&
     NULLIFY(my_parser,g_section,g_data,default_units)
 
     logger => cp_error_get_logger(error)
-    output_unit=cp_print_key_unit_nr(logger,root_section,"GLOBAL%PROGRAM_RUN_INFO",&
+    output_unit=cp_print_key_unit_nr(logger,root_section,"FARMING%PROGRAM_RUN_INFO",&
                                          extension=".log",error=error)
 
     IF (output_unit>0) WRITE(output_unit,FMT="(T2,A)") "FARMING| Hi, welcome on this farm!"
@@ -759,7 +759,7 @@ CPSourceFileRef,&
     CALL deallocate_farming_env(farming_env)
 
     CALL cp_print_key_finished_output(output_unit,logger,root_section,&
-               "GLOBAL%PROGRAM_RUN_INFO", error=error)
+               "FARMING%PROGRAM_RUN_INFO", error=error)
 
     CALL timestop(0.0_dp,handle)
 

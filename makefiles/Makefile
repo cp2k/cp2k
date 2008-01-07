@@ -9,7 +9,7 @@ SHELL = /bin/sh
 CP2KHOME  := $(PWD)/..
 ARCH      := $(shell $(CP2KHOME)/tools/get_arch_code)
 SMAKE     = $(MAKE) -r
-PMAKE     = $(SMAKE) -j 4
+PMAKE     = $(SMAKE) -j 16
 LIB1      = cp2k_base_lib
 LIB2      = cp2k_fft_lib
 LIBCP2K   = cp2k_lib
@@ -46,7 +46,7 @@ FESOBJECTDEFS  = $(TOOLSRC)/metadyn/OBJECTDEFS
 #
 ### Definition of the multiple targets ###
 #
-VERSION_TARGETS = sopt sdbg popt pdbg ssmp psmp
+VERSION_TARGETS = release sopt sdbg popt pdbg ssmp psmp
 #
 # uses an ugly trick, these are disguised as file names, the directory (@D) part 
 # is used as a version, the file (@F) part is used as the target.

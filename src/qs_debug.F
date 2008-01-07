@@ -95,7 +95,7 @@ CONTAINS
             r_val=dx, error=error)
        IF (num_pressure) CALL qs_calc_numerical_pressure(force_env,error=error)
        logger => cp_error_get_logger(error)
-       iw=cp_print_key_unit_nr(logger,root_section,"GLOBAL%PROGRAM_RUN_INFO",&
+       iw=cp_print_key_unit_nr(logger,root_section,"DEBUG%PROGRAM_RUN_INFO",&
             extension=".log",error=error)
        !
        ! First evaluate energy and forces...
@@ -190,7 +190,7 @@ CONTAINS
        IF (ASSOCIATED(analyt_forces)) DEALLOCATE(analyt_forces)
        IF (ASSOCIATED( numer_forces)) DEALLOCATE( numer_forces)
        CALL cp_print_key_finished_output(iw,logger,root_section,&
-            "GLOBAL%PROGRAM_RUN_INFO", error=error)
+            "DEBUG%PROGRAM_RUN_INFO", error=error)
     END IF
 100 FORMAT(I5,F15.9," ( ",F7.2," ) ",F15.9," ( ",F7.2," ) ",F15.9," ( ",F7.2," ) ")
   END SUBROUTINE qs_debug_energy_and_forces

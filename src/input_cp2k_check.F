@@ -23,6 +23,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_cp2k_check
+  USE cp2k_info,                       ONLY: id_cp2k_version
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_parser,                       ONLY: cp_parser_type,&
                                              parser_create,&
@@ -33,18 +34,19 @@ MODULE input_cp2k_check
   USE f77_blas
   USE input_constants,                 ONLY: &
        do_region_global, do_thermo_csvr, do_thermo_nose, &
-       do_thermo_same_as_part, xc_funct_blyp, xc_funct_bp, xc_funct_hcth120, &
-       xc_funct_no_shortcut, xc_funct_olyp, xc_funct_pade, xc_funct_pbe, &
-       xc_funct_tpss, xc_funct_xwpbe, xc_none
+       do_thermo_same_as_part, id_release_version, xc_funct_blyp, &
+       xc_funct_bp, xc_funct_hcth120, xc_funct_no_shortcut, xc_funct_olyp, &
+       xc_funct_pade, xc_funct_pbe, xc_funct_tpss, xc_funct_xwpbe, xc_none
   USE input_cp2k,                      ONLY: create_cp2k_root_section
   USE input_keyword_types,             ONLY: keyword_type
   USE input_parsing,                   ONLY: section_vals_parse
   USE input_section_types,             ONLY: &
-       section_release, section_type, section_vals_create, section_vals_get, &
-       section_vals_get_subs_vals, section_vals_get_subs_vals3, &
-       section_vals_release, section_vals_remove_values, &
-       section_vals_set_subs_vals, section_vals_type, section_vals_val_get, &
-       section_vals_val_set, section_vals_val_unset
+       section_release, section_type, section_vals_check_release, &
+       section_vals_create, section_vals_get, section_vals_get_subs_vals, &
+       section_vals_get_subs_vals3, section_vals_release, &
+       section_vals_remove_values, section_vals_set_subs_vals, &
+       section_vals_type, section_vals_val_get, section_vals_val_set, &
+       section_vals_val_unset
   USE input_val_types,                 ONLY: logical_t
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
@@ -65,8 +67,7 @@ MODULE input_cp2k_check
 !****************************************************************************
 CONTAINS
 
-
-!!****f* input_cp2k/check_cp2k_input *
+!!****f* input_cp2k_check/check_cp2k_input *
 !!
 !!   NAME
 !!     check_cp2k_input
@@ -96,15 +97,14 @@ CONTAINS
 
     INTEGER                                  :: handle, iforce_eval, &
                                                 nforce_eval
-    LOGICAL                                  :: explicit, explicit_mix, &
+    LOGICAL                                  :: enable_unsupported_features, &
+                                                explicit, explicit_mix, &
                                                 failure
     TYPE(section_vals_type), POINTER         :: section, section2, section3, &
                                                 sections
 
     CALL timeset(routineN,handle)
-
     failure=.FALSE.
-
     CPPrecondition(ASSOCIATED(input_file),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        CPPrecondition(input_file%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -116,27 +116,26 @@ CONTAINS
        ! checks on force_eval section
        sections => section_vals_get_subs_vals(input_file,"FORCE_EVAL",error=error)
        CALL section_vals_get(sections, n_repetition=nforce_eval, error=error)
+
        ! multiple force_eval only if present RESPA or MIXED calculation is performed
-       section2 => section_vals_get_subs_vals(input_file,&
-            "MOTION%MD%RESPA",error=error)
+       section2 => section_vals_get_subs_vals(input_file,"MOTION%MD%RESPA",error=error)
        CALL section_vals_get(section2,explicit=explicit,error=error)
        DO iforce_eval=1,nforce_eval         
           section3 =>section_vals_get_subs_vals(sections,"MIXED",&
-                     i_rep_section=iforce_eval,error=error)
+               i_rep_section=iforce_eval,error=error)
           CALL section_vals_get(section3,explicit=explicit_mix,error=error)
           IF(explicit_mix)EXIT
        END DO
-          
+
        IF ((explicit.AND.(nforce_eval==1)).OR.(.NOT.explicit.AND.(nforce_eval>1)))THEN
           IF((explicit_mix.AND.(nforce_eval==1)).OR.(.NOT.explicit_mix.AND.(nforce_eval>1)))THEN
-           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                routineP,"Error multiple force_env without RESPA or MIXED, or RESPA with one single "//&
-                " or MIXED with only two force_env section.",error,failure)
-        END IF
-     END IF
+             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                  routineP,"Error multiple force_env without RESPA or MIXED, or RESPA with one single "//&
+                  " or MIXED with only two force_env section.",error,failure)
+          END IF
+       END IF
        DO iforce_eval = 1,nforce_eval
-          section => section_vals_get_subs_vals3(sections,"DFT",&
-                i_rep_section=iforce_eval,error=error)
+          section => section_vals_get_subs_vals3(sections,"DFT",i_rep_section=iforce_eval,error=error)
           ! xc: expand and fix default for tddfpt
           section2 => section_vals_get_subs_vals(section,"XC%XC_FUNCTIONAL",error=error)
           CALL xc_functionals_expand(section2,error=error)
@@ -145,13 +144,17 @@ CONTAINS
           IF (explicit) THEN
              CALL xc_functionals_expand(section2,error=error)
           ELSE
-             section2 => section_vals_get_subs_vals(section,&
-                  "XC%XC_FUNCTIONAL",error=error)
-             CALL section_vals_set_subs_vals(section,&
-                  "TDDFPT%XC%XC_FUNCTIONAL",&
-                  section2,error=error)
+             section2 => section_vals_get_subs_vals(section,"XC%XC_FUNCTIONAL",error=error)
+             CALL section_vals_set_subs_vals(section,"TDDFPT%XC%XC_FUNCTIONAL",section2,error=error)
           END IF
        END DO
+
+       ! Check for unsupported features for release version
+       IF (id_cp2k_version==id_release_version) THEN
+          CALL section_vals_val_get(input_file,"GLOBAL%ENABLE_UNSUPPORTED_FEATURES",&
+               l_val=enable_unsupported_features, error=error)
+          CALL section_vals_check_release(input_file,enable_unsupported_features,error)
+       END IF
     END IF
     CALL timestop(handle)
   END SUBROUTINE check_cp2k_input

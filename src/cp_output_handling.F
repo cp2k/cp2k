@@ -114,15 +114,15 @@ INTEGER, SAVE, PRIVATE :: last_flags_id=0
 !!***
 !****************************************************************************
 
-  !!****s* cp_output_handling/cp_out_flags_type *
-  !!
-  !!   NAME
-  !!     cp_out_flags_type
-  !!
-  !!   FUNCTION
-  !!     stores the flags_env controlling the output of properties
-  !!
-  !!   NOTES
+!!****s* cp_output_handling/cp_out_flags_type *
+!!
+!!   NAME
+!!     cp_out_flags_type
+!!
+!!   FUNCTION
+!!     stores the flags_env controlling the output of properties
+!!
+!!   NOTES
 !!     Two features of this object should be:
 !!       1) easy state storage, one should be able to store the state of the
 !!          flags, to some changes to them just for one (or few) force evaluations
@@ -132,8 +132,8 @@ INTEGER, SAVE, PRIVATE :: last_flags_id=0
 !!          if you pass just a subsection of the input the control flags get lost.
 !!       A better implementation should be done storing the flags also in the
 !!       input itself to be transparent
-  !!
-  !!   ATTRIBUTES
+!!
+!!   ATTRIBUTES
 !!     - ref_count: reference count (see doc/ReferenceCounting.html)
 !!     - id_nr: identification number (unique to each istance)
 !!     - n_flags: number of flags stored in this type
@@ -144,12 +144,12 @@ INTEGER, SAVE, PRIVATE :: last_flags_id=0
 !!     - strict: if flags that were not stored can be read
 !!     - default_val: default value of the flags that are not explicitly
 !!       stored
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!   SOURCE
-  !***************************************************************************
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   SOURCE
+!***************************************************************************
   TYPE cp_out_flags_type
      INTEGER :: ref_count, id_nr, n_flags
      CHARACTER(default_string_length), DIMENSION(:), POINTER :: names
@@ -190,7 +190,8 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_print_key_section_create(print_key_section, name, description, &
-       print_level,each,add_last,filename,common_iter_levels,store,citations,error)
+       print_level,each,add_last,filename,common_iter_levels,store,citations,&
+       supported_feature,error)
     TYPE(section_type), POINTER              :: print_key_section
     CHARACTER(len=*), INTENT(in)             :: name, description
     INTEGER, INTENT(in), OPTIONAL            :: print_level
@@ -200,6 +201,7 @@ CONTAINS
     INTEGER, INTENT(in), OPTIONAL            :: common_iter_levels
     LOGICAL, INTENT(IN), OPTIONAL            :: store
     INTEGER, DIMENSION(:), OPTIONAL          :: citations
+    LOGICAL, INTENT(IN), OPTIONAL            :: supported_feature
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_section_create', &
@@ -223,8 +225,7 @@ CONTAINS
 
        CALL section_create(print_key_section,name=name,description=description,&
             n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-            citations=citations,&
-            error=error)
+            citations=citations, supported_feature=supported_feature, error=error)
 
        NULLIFY(keyword, val,enum)
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
@@ -236,7 +237,7 @@ CONTAINS
             enum_i_vals=(/ silent_print_level-1,debug_print_level+1,&
             silent_print_level, low_print_level,&
             medium_print_level,high_print_level,debug_print_level/),&
-            error=error)
+            supported_feature=supported_feature,error=error)
        CALL section_add_keyword(print_key_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -250,9 +251,8 @@ CONTAINS
             " the actual iteration level from the right replacing non present "//&
             "levels with 1. How to handle the last iteration is treated "//&
             "separately in ADD_LAST (this mean that EACH 0 might print the last "//&
-            "iteration)",&
-            usage="EACH 25",&
-            default_val=val,error=error)
+            "iteration)",usage="EACH 25",default_val=val,supported_feature=supported_feature,&
+            error=error)
        CALL val_release(val,error=error)
        CALL section_add_keyword(print_key_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -275,8 +275,7 @@ CONTAINS
                "Not every process is able to identify the last iteration "//&
                "early enough to be able to output.",&
                usage="ADD_LAST no symbolic",&
-               default_val=val,&
-               error=error)
+               default_val=val,supported_feature=supported_feature,error=error)
        CALL val_release(val,error=error)
        CALL section_add_keyword(print_key_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -288,7 +287,7 @@ CONTAINS
             " in the same file (no extra information about the actual"//&
             " iteration level is written to the file)",&
             usage="COMMON_ITERATION_LEVELS 1",&
-            default_i_val=my_comm_iter_levels, error=error)
+            default_i_val=my_comm_iter_levels, supported_feature=supported_feature,error=error)
        CALL section_add_keyword(print_key_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -306,14 +305,14 @@ CONTAINS
                         ' Please note that this can lead to clashes of'//&
                         ' filenames.',&
             usage="FILENAME ./filename ",&
-            default_lc_val=my_filename, error=error)
+            default_lc_val=my_filename, supported_feature=supported_feature,error=error)
        CALL section_add_keyword(print_key_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="__CONTROL_VAL",&
             description=' hidden parameter that controls storage, printing,...'//&
                         ' of the print_key',&
-            default_i_val=cp_out_default, error=error)
+            default_i_val=cp_out_default, supported_feature=supported_feature,error=error)
        CALL section_add_keyword(print_key_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -328,17 +327,17 @@ CONTAINS
           CALL section_create(store_section,name="STORE",&
              description="A section where print results can be stored",&
              n_keywords=2, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-             error=error)
+             supported_feature=supported_feature, error=error)
 
           CALL keyword_create(keyword, name="NAME",&
                description="Specifies what can be stored in this section, if implemented",&
-               type_of_var=char_t,error=error)
+               type_of_var=char_t,supported_feature=supported_feature, error=error)
           CALL section_add_keyword(store_section,keyword,error=error)
           CALL keyword_release(keyword,error=error)
 
           CALL keyword_create(keyword,name="VALUE",&
                description="Whatever real value that needs to be stored (output)",&
-               default_r_val=0.0_dp,repeats=.FALSE.,error=error)
+               default_r_val=0.0_dp,repeats=.FALSE.,supported_feature=supported_feature, error=error)
           CALL section_add_keyword(store_section,keyword,error=error)
           CALL keyword_release(keyword,error=error)
 

@@ -50,19 +50,24 @@
 !!
 !------------------------------------------------------------------------------
 PROGRAM cp2k
-  USE cp2k_info,         ONLY : print_cp2k_license,cp2k_version
+  USE cp2k_info,         ONLY : print_cp2k_license,&
+                                cp2k_version,&
+                                id_cp2k_version
   USE cp2k_runs,         ONLY : write_cp2k_html_manual, &
                                 write_xml_file, run_input
+  USE input_constants,   ONLY : id_development_version
   USE machine,           ONLY : m_iargc,m_getarg, default_output_unit
   USE message_passing,   ONLY : mp_sync, mp_abort
-  USE kinds,             ONLY : default_path_length
+  USE kinds,             ONLY : default_path_length,&
+                                default_string_length
   USE f77_interface,     ONLY : init_cp2k, finalize_cp2k, &
                                 check_input, default_para_env
   USE f77_blas
 #include "cp_common_uses.h"
   IMPLICIT NONE
 
-  CHARACTER(LEN=default_path_length) :: input_file_name,output_file_name,arg_att
+  CHARACTER(LEN=default_path_length)   :: input_file_name,output_file_name,arg_att
+  CHARACTER(LEN=default_string_length) :: dev_flag
   INTEGER                              :: output_unit
   INTEGER                              :: ierr, i, n_arg, i_arg
   LOGICAL                              :: check, manual, usage, echo_input, command_line_error,&
@@ -234,7 +239,9 @@ arg_loop: DO WHILE (i_arg<n_arg)
         ! write the version string
         IF (print_version) THEN
            IF (default_para_env%source==default_para_env%mepos) THEN
-              WRITE(output_unit,'(T2,A)') cp2k_version
+              dev_flag = ""
+              IF (id_cp2k_version==id_development_version) dev_flag=" (Development Version)"
+              WRITE(output_unit,'(T2,A)') cp2k_version//TRIM(dev_flag)
            ENDIF
         ENDIF
 

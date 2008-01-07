@@ -74,7 +74,8 @@ MODULE input_section_types
        section_vals_get, section_vals_get_subs_vals, section_vals_val_get, section_vals_list_get, &
        section_vals_write, section_vals_add_values, section_vals_get_subs_vals2,&
        section_vals_val_set, section_vals_val_unset, section_vals_get_subs_vals3,&
-       section_vals_set_subs_vals, section_vals_duplicate, section_vals_remove_values
+       section_vals_set_subs_vals, section_vals_duplicate, section_vals_remove_values,&
+       section_vals_check_release
   PUBLIC :: write_section_xml
 
   PUBLIC :: section_get_ival,&
@@ -85,7 +86,7 @@ MODULE input_section_types
 !!***
 !****************************************************************************
 
-!!****s* cp_keywords/section_p_type *
+!!****s* input_section_types/section_p_type *
 !!
 !!   NAME
 !!     section_p_type
@@ -110,7 +111,7 @@ MODULE input_section_types
 !!***
 !****************************************************************************
 
-!!****s* cp_keywords/section_type *
+!!****s* input_section_types/section_type *
 !!
 !!   NAME
 !!     section_type
@@ -143,7 +144,7 @@ MODULE input_section_types
 !!   SOURCE
 !***************************************************************************
   TYPE section_type
-     LOGICAL :: frozen, required, repeats
+     LOGICAL :: frozen, required, repeats, supported_feature
      INTEGER :: id_nr,ref_count, n_keywords, n_subsections
      CHARACTER(len=default_string_length)        :: name
      CHARACTER(len=description_string_length)    :: description
@@ -154,7 +155,7 @@ MODULE input_section_types
 !!***
 !****************************************************************************
 
-!!****s* cp_keywords/section_vals_p_type *
+!!****s* input_section_types/section_vals_p_type *
 !!
 !!   NAME
 !!     section_vals_p_type
@@ -179,7 +180,7 @@ MODULE input_section_types
 !!***
 !****************************************************************************
 
-!!****s* cp_keyword/section_vals_type [1.0] *
+!!****s* input_section_types/section_vals_type [1.0] *
 !!
 !!   NAME
 !!     section_vals_type
@@ -209,7 +210,7 @@ MODULE input_section_types
   
 CONTAINS
 
-!!****f* cp_keywords/section_create *
+!!****f* input_section_types/section_create *
 !!
 !!   NAME
 !!     section_create
@@ -236,13 +237,14 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE section_create(section,name,description,n_keywords,&
-       n_subsections, repeats, required, citations, error)
+       n_subsections, repeats, required, citations, supported_feature, error)
     TYPE(section_type), POINTER              :: section
     CHARACTER(len=*), INTENT(in)             :: name, description
     INTEGER, INTENT(in), OPTIONAL            :: n_keywords, n_subsections
     LOGICAL, INTENT(in), OPTIONAL            :: repeats, required
     INTEGER, DIMENSION(:), INTENT(IN), &
       OPTIONAL                               :: citations
+    LOGICAL, INTENT(in), OPTIONAL            :: supported_feature
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_create', &
@@ -275,9 +277,11 @@ CONTAINS
        section%description=description
        section%frozen=.FALSE.
        section%required=.FALSE.
+       section%supported_feature=.FALSE.
        section%repeats=.FALSE.
        IF (PRESENT(required)) section%required=required
        IF (PRESENT(repeats)) section%repeats=repeats
+       IF (PRESENT(supported_feature)) section%supported_feature=supported_feature
 
        NULLIFY(section%citations)
        IF (PRESENT(citations)) THEN
@@ -305,7 +309,7 @@ CONTAINS
   END SUBROUTINE section_create
 !***************************************************************************
 
-!!****f* cp_keywords/section_retain *
+!!****f* input_section_types/section_retain *
 !!
 !!   NAME
 !!     section_retain
@@ -344,7 +348,7 @@ CONTAINS
   END SUBROUTINE section_retain
 !***************************************************************************
 
-!!****f* cp_keywords/section_release *
+!!****f* input_section_types/section_release *
 !!
 !!   NAME
 !!     section_release
@@ -407,7 +411,7 @@ CONTAINS
   END SUBROUTINE section_release
 !***************************************************************************
 
-!!****f* cp_keywords/section_describe [1.0] *
+!!****f* input_section_types/section_describe [1.0] *
 !!
 !!   NAME
 !!     section_describe
@@ -487,7 +491,6 @@ CONTAINS
        IF (.NOT.my_hide_root)&
             WRITE(unit_nr,"('*** &end section ',a,' ***')")TRIM(section%name)
     ELSE
-       !WRITE(unit_nr,"('<section *null*>')")
        WRITE(unit_nr,"(a)") '<section *null*>'
     END IF
   END SUBROUTINE section_describe
@@ -630,7 +633,7 @@ CONTAINS
   END SUBROUTINE section_describe_index_html
 
 !***************************************************************************
-!!****f* cp_keywords/section_get_subsection_index *
+!!****f* input_section_types/section_get_subsection_index *
 !!
 !!   NAME
 !!     section_get_subsection_index
@@ -683,7 +686,7 @@ CONTAINS
   END FUNCTION section_get_subsection_index
 !***************************************************************************
 
-!!****f* cp_keywords/section_get_subsection *
+!!****f* input_section_types/section_get_subsection *
 !!
 !!   NAME
 !!     section_get_subsection
@@ -724,7 +727,7 @@ CONTAINS
   END FUNCTION section_get_subsection
 !***************************************************************************
 
-!!****f* cp_keywords/section_get_keyword_index *
+!!****f* input_section_types/section_get_keyword_index *
 !!
 !!   NAME
 !!     section_get_keyword_index
@@ -788,7 +791,7 @@ CONTAINS
     END IF
   END FUNCTION section_get_keyword_index
 
-!!****f* cp_keywords/section_get_keyword *
+!!****f* input_section_types/section_get_keyword *
 !!
 !!   NAME
 !!     section_get_keyword
@@ -819,7 +822,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ik, my_index
-    LOGICAL                                  :: failure 
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (INDEX(keyword_name,"%")/=0) THEN
@@ -841,7 +844,7 @@ CONTAINS
   END FUNCTION section_get_keyword
 !***************************************************************************
 
-!!****f* cp_keywords/section_get *
+!!****f* input_section_types/section_get *
 !!
 !!   NAME
 !!     section_get
@@ -895,7 +898,7 @@ CONTAINS
 !***************************************************************************
 
 
-!!****f* cp_keywords/section_add_keyword *
+!!****f* input_section_types/section_add_keyword *
 !!
 !!   NAME
 !!     section_add_keyword
@@ -978,7 +981,7 @@ CONTAINS
   END SUBROUTINE section_add_keyword
 !***************************************************************************
 
-!!****f* cp_keywords/section_add_subsection *
+!!****f* input_section_types/section_add_subsection *
 !!
 !!   NAME
 !!     section_add_subsection
@@ -1045,7 +1048,7 @@ CONTAINS
   END SUBROUTINE section_add_subsection
 !***************************************************************************
 
-!!****f* cp_keywords/section_vals_create *
+!!****f* input_section_types/section_vals_create *
 !!
 !!   NAME
 !!     section_vals_create
@@ -1103,7 +1106,7 @@ CONTAINS
   END SUBROUTINE section_vals_create
 !***************************************************************************
 
-!!****f* cp_keywords/section_vals_retain [1.0] *
+!!****f* input_section_types/section_vals_retain [1.0] *
 !!
 !!   NAME
 !!     section_vals_retain
@@ -1141,7 +1144,7 @@ CONTAINS
   END SUBROUTINE section_vals_retain
 !***************************************************************************
 
-!!****f* cp_keywords/section_vals_release [1.0] *
+!!****f* input_section_types/section_vals_release [1.0] *
 !!
 !!   NAME
 !!     section_vals_release
@@ -1206,7 +1209,7 @@ CONTAINS
   END SUBROUTINE section_vals_release
 !***************************************************************************
 
-!!****f* cp_keywords/section_vals_get *
+!!****f* input_section_types/section_vals_get *
 !!
 !!   NAME
 !!     section_vals_get
@@ -1264,7 +1267,7 @@ CONTAINS
   END SUBROUTINE section_vals_get
 !***************************************************************************
 
-!!****f* cp_keywords/section_vals_get_subs_vals *
+!!****f* input_section_types/section_vals_get_subs_vals *
 !!
 !!   NAME
 !!     section_vals_get_subs_vals
@@ -1350,7 +1353,7 @@ CONTAINS
   END FUNCTION section_vals_get_subs_vals
 !***************************************************************************
 
-!!****f* cp_keywords/section_vals_get_subs_vals2 *
+!!****f* input_section_types/section_vals_get_subs_vals2 *
 !!
 !!   NAME
 !!     section_vals_get_subs_vals2
@@ -1374,8 +1377,7 @@ CONTAINS
 !!     fawzi
 !!
 !!*** **********************************************************************
-  FUNCTION section_vals_get_subs_vals2(section_vals,i_section,&
-       i_rep_section,error) RESULT(res)
+  FUNCTION section_vals_get_subs_vals2(section_vals,i_section,i_rep_section,error) RESULT(res)
     TYPE(section_vals_type), POINTER         :: section_vals
     INTEGER, INTENT(in)                      :: i_section
     INTEGER, INTENT(in), OPTIONAL            :: i_rep_section
@@ -1413,7 +1415,7 @@ CONTAINS
 !***************************************************************************
 
 
-!!****f* cp_keywords/section_vals_get_subs_vals3 *
+!!****f* input_section_types/section_vals_get_subs_vals3 *
 !!
 !!   NAME
 !!     section_vals_get_subs_vals3
@@ -1467,7 +1469,7 @@ CONTAINS
   END FUNCTION section_vals_get_subs_vals3
 !***************************************************************************
 
-!!****f* cp_keywords/section_vals_add_values *
+!!****f* input_section_types/section_vals_add_values *
 !!
 !!   NAME
 !!     section_vals_add_values
@@ -1544,7 +1546,7 @@ CONTAINS
   END SUBROUTINE section_vals_add_values
 !***************************************************************************
 
-!!****f* cp_keywords/section_vals_remove_values *
+!!****f* input_section_types/section_vals_remove_values *
 !!
 !!   NAME
 !!     section_vals_remove_values
@@ -1657,7 +1659,7 @@ CONTAINS
 
 !***************************************************************************
 
-!!****f* cp_keywords/section_vals_val_get *
+!!****f* input_section_types/section_vals_val_get *
 !!
 !!   NAME
 !!     section_vals_val_get
@@ -1687,11 +1689,9 @@ CONTAINS
 !!     fawzi
 !!
 !!*** **********************************************************************
-
-
   SUBROUTINE section_vals_val_get(section_vals,keyword_name,i_rep_section,&
-       i_rep_val,n_rep_val,val,&
-       l_val,i_val,r_val,c_val,l_vals,i_vals,r_vals,c_vals,ignore_required,error)
+       i_rep_val,n_rep_val,val,l_val,i_val,r_val,c_val,l_vals,i_vals,r_vals,&
+       c_vals,ignore_required,error)
     TYPE(section_vals_type), POINTER         :: section_vals
     CHARACTER(len=*), INTENT(in)             :: keyword_name
     INTEGER, INTENT(in), OPTIONAL            :: i_rep_section, i_rep_val
@@ -1818,7 +1818,7 @@ CONTAINS
   END SUBROUTINE section_vals_val_get
 !***************************************************************************
 
-!!****f* cp_keywords/section_vals_list_get *
+!!****f* input_section_types/section_vals_list_get *
 !!
 !!   NAME
 !!     section_vals_list_get
@@ -1839,8 +1839,6 @@ CONTAINS
 !!     Joost VandeVondele
 !!
 !!*** **********************************************************************
-
-
   SUBROUTINE section_vals_list_get(section_vals,keyword_name,i_rep_section,&
        list,error)
     TYPE(section_vals_type), POINTER         :: section_vals
@@ -1900,7 +1898,7 @@ CONTAINS
 
 
 
-!!****f* cp_keywords/section_vals_val_set *
+!!****f* input_section_types/section_vals_val_set *
 !!
 !!   NAME
 !!     section_vals_val_set
@@ -2076,7 +2074,7 @@ CONTAINS
   END SUBROUTINE section_vals_val_set
 !***************************************************************************
 
-!!****f* cp_keywords/section_vals_val_unset *
+!!****f* input_section_types/section_vals_val_unset *
 !!
 !!   NAME
 !!     section_vals_val_unset
@@ -2178,7 +2176,131 @@ CONTAINS
   END SUBROUTINE section_vals_val_unset
 !***************************************************************************
 
-!!****f* cp_keywords/section_vals_write *
+!!****f* input_section_types/section_vals_check_release *
+!!
+!!   NAME
+!!     section_vals_check_release
+!!
+!!   FUNCTION
+!!     Checks if all sections or keywords defined have been supported for
+!!     release version
+!!
+!!   NOTES
+!!     skips required sections which weren't read
+!!
+!!   INPUTS
+!!     - section_vals: the section to check for released features
+!!     - unit_nr: the unit where to write to
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino [tlaino] - University of Zurich - 01.2008
+!!
+!!*** **********************************************************************
+  RECURSIVE SUBROUTINE section_vals_check_release(section_vals,enable_unsupported_features,error)
+    TYPE(section_vals_type), POINTER         :: section_vals
+    LOGICAL, INTENT(IN)                      :: enable_unsupported_features
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_check_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i_rep_s, ik, isec, nr, nval, &
+                                                output_unit
+    LOGICAL                                  :: defaultSection, failure, &
+                                                ionode, check_key
+    TYPE(cp_error_type)                      :: suberror
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: section
+    TYPE(section_vals_type), POINTER         :: sval
+
+    failure=.FALSE.
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    output_unit = -1
+    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
+
+    CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
+    CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
+    CALL cp_error_init(suberror,template_error=error)
+    IF (.NOT. failure) THEN
+       CALL section_vals_get(section_vals, n_repetition=nr, section=section, error=error)
+       DO i_rep_s=1,nr
+          defaultSection=(SIZE(section_vals%values,2)==0)
+          IF (.NOT.(section%required.AND.defaultSection)) THEN
+             IF (.NOT.section%supported_feature) THEN
+                IF (output_unit>0) THEN
+                   WRITE(output_unit,'(/)')
+                   WRITE(output_unit,'(T2,"RELEASE_ERROR|",1X,A)')&
+                        "Section <"//TRIM(section%name)//"> is not supported for CP2K release version."
+                   IF (enable_unsupported_features) THEN
+                      WRITE(output_unit,'(T2,"RELEASE_ERROR|",1X,A)')&
+                           "Calculation continues but the results could be totally meaningless!"
+                   ELSE
+                      WRITE(output_unit,'(T2,"RELEASE_ERROR|",1X,A)')&
+                           "You may consider to enable the keyword: GLOBAL%ENABLE_UNSUPPORTED_FEATURES or"
+                      WRITE(output_unit,'(T2,"RELEASE_ERROR|",1X,A)')"download a Development Version!"
+                   END IF
+                END IF
+                IF (.NOT.enable_unsupported_features)  failure = .TRUE.
+             END IF
+             DO ik=-1,section%n_keywords
+                keyword => section%keywords(ik)%keyword
+                IF (ASSOCIATED(keyword)) THEN
+                   CALL section_vals_val_get(section_vals,keyword%names(1),i_rep_s,n_rep_val=nval,error=error)
+                   check_key = .FALSE.
+                   IF (i_rep_s<=SIZE(section_vals%values,2)) THEN 
+                      vals  => section_vals%values(ik,i_rep_s)%list
+                      new_pos => vals
+                      IF (ASSOCIATED(new_pos)) THEN
+                         ! Keyword was parsed
+                         check_key = .TRUE.
+                      END IF
+                   ELSEIF (.NOT.keyword%required.AND.ASSOCIATED(keyword%default_value)) THEN
+                      ! Keyword was not parsed but a default value is present
+                      check_key = .TRUE.
+                   END IF
+                   IF ((check_key).AND.(.NOT.keyword%supported_feature)) THEN
+                      IF (output_unit>0) THEN
+                         WRITE(output_unit,'(T2,"RELEASE_ERROR|",2X,A)')&
+                              "Keyword <"//TRIM(keyword%names(1))//"> is not supported for CP2K release version."
+                         IF (enable_unsupported_features) THEN
+                            WRITE(output_unit,'(T2,"RELEASE_ERROR|",2X,A)')&
+                                 "Calculation continues but the results could be totally meaningless!"
+                         ELSE
+                            WRITE(output_unit,'(T2,"RELEASE_ERROR|",2X,A)')&
+                                 "You may consider to enable the keyword: GLOBAL%ENABLE_UNSUPPORTED_FEATURES or"
+                            WRITE(output_unit,'(T2,"RELEASE_ERROR|",2X,A)')"download a Development Version!"
+                         END IF
+                      END IF
+                      IF (.NOT.enable_unsupported_features)  failure = .TRUE.
+                   END IF
+                END IF
+             END DO
+             IF (.NOT.failure) THEN
+                IF (ASSOCIATED(section_vals%subs_vals)) THEN
+                   DO isec=1,SIZE(section_vals%subs_vals,1)
+                      sval => section_vals%subs_vals(isec,i_rep_s)%section_vals
+                      IF (ASSOCIATED(sval)) THEN
+                         ! Section was parsed
+                         CALL section_vals_check_release(sval,enable_unsupported_features,error)
+                      END IF
+                   END DO
+                END IF
+             END IF
+             CPPrecondition(.NOT.failure,cp_failure_level,routineP,error,failure)
+          END IF
+       END DO
+    END IF
+    CALL cp_error_dealloc_ref(suberror)
+    
+  END SUBROUTINE section_vals_check_release
+
+!!****f* input_section_types/section_vals_write *
 !!
 !!   NAME
 !!     section_vals_write
@@ -2349,16 +2471,11 @@ CONTAINS
     INTEGER                                  :: i, l0, l1
     LOGICAL                                  :: failure
 
-!   ---------------------------------------------------------------------------
-
     failure = .FALSE.
-
     IF (ASSOCIATED(section)) THEN
-
        CPPrecondition(section%ref_count>0,cp_failure_level,routineP,error,failure)
 
        ! Indentation for current level, next level, etc.
-
        l0 = level
        l1 = level + 1
 
@@ -2454,10 +2571,7 @@ CONTAINS
 
   END SUBROUTINE section_typo_match
 
-! *****************************************************************************
-
-
-!!****f* cp_keywords/section_vals_set_subs_vals *
+!!****f* input_section_types/section_vals_set_subs_vals *
 !!
 !!   NAME
 !!     section_vals_set_subs_vals
