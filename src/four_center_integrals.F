@@ -4146,7 +4146,6 @@ MODULE four_center_integrals
                             para_env%group,req(1),req(2),13)
         ENDIF
         data_from = MODULO(mepos - icpu,ncpu)
-        cost_matrix(data_from*nbins+1:data_from*nbins+nbins) = sendbuffer
         DO i=1,nbins
           full_dist(data_from+1,i)%istart = sendbuffer((i-1)*7+1)
           full_dist(data_from+1,i)%jstart = sendbuffer((i-1)*7+2)
@@ -4663,7 +4662,6 @@ MODULE four_center_integrals
                             para_env%group,req(1),req(2),13)
         ENDIF
         data_from = MODULO(mepos - icpu,ncpu)
-        cost_matrix(data_from*nbins+1:data_from*nbins+nbins) = sendbuffer
         DO i=1,nbins
           full_dist(data_from+1,i)%istart = sendbuffer((i-1)*7+1)
           full_dist(data_from+1,i)%jstart = sendbuffer((i-1)*7+2)

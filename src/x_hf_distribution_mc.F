@@ -111,7 +111,7 @@ MODULE x_hf_distribution_mc
     
     my_bin_costs           = bin_costs_in
     my_cost_total          = SUM(my_bin_costs)
-    my_cost_optimal        = (my_cost_optimal + (my_ncpu)-1 )/my_ncpu
+    my_cost_optimal        = (my_cost_total + (my_ncpu)-1 )/my_ncpu
     my_moves               = load_balance_parameter%moves
     my_cycles              = load_balance_parameter%cycles
     my_reduction_steps     = load_balance_parameter%reduction_steps
@@ -328,6 +328,7 @@ MODULE x_hf_distribution_mc
       CALL compute_max_cost(max_cost)
 
       ! accept / reject
+      random_accept = next_random_number(my_rng_stream,error=error)
       IF (max_cost < max_cost_old .OR. (EXP( -(max_cost - max_cost_old)/T) .GT. random_accept)) THEN
         max_cost_old = max_cost
         old_distribution = my_distribution
@@ -342,7 +343,6 @@ MODULE x_hf_distribution_mc
         my_best_distribution = my_distribution
         best_iac = iac
       ENDIF
-
       IF (REAL((max_cost-my_cost_optimal),dp)/my_cost_optimal.LE.my_tolerance) EXIT
     ENDDO
     CALL CPU_TIME(t_final)
