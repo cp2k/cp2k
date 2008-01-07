@@ -810,10 +810,8 @@ MODULE four_center_integrals
                           nints = current_counter 
                           CALL x_hf_get_single_cache_element(estimate_to_store_int, 6,&
                                                              maxval_cache, maxval_container, memory_parameter%actual_memory_usage)
-!                          spherical_estimate = EXP(log_2*estimate_to_store_int)
                           spherical_estimate = SET_EXPONENT(1.0_dp,estimate_to_store_int+1)
                           IF(spherical_estimate*pmax_entry<eps_schwarz) CYCLE
-!                          nbits = CEILING(LOG(spherical_estimate*pmax_entry/eps_storage)*log_2_inv) + 1
                           nbits = EXPONENT(spherical_estimate*pmax_entry/eps_storage) + 1                         
                           buffer_left = nints
                           buffer_start = 1
