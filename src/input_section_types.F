@@ -505,6 +505,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'section_describe_html', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=100)                       :: color_tag
     CHARACTER(LEN=1000)                      :: local_prefix
     CHARACTER(LEN=256), DIMENSION(50), SAVE  :: location, name
     INTEGER                                  :: idepth, ikeyword, iref, isub
@@ -522,7 +523,11 @@ CONTAINS
        WRITE(179,*) '<META NAME="description" content="CP2K">'
        WRITE(179,*) '<META NAME="keywords" contents="scientific,computing,chemistry,physics,'//&
             'documentation,help,manual,Fortran,parallel">'
-       WRITE(179,*) "<H1> Section "//section%name//"</H1>"
+       color_tag='<font color="#000000">'
+       IF (section%supported_feature) THEN
+          color_tag='<font color="#00CC00">'
+       END IF
+       WRITE(179,*) "<H1> Section "//TRIM(color_tag)//section%name//"</font> </H1>"
        WRITE(179,*) ' <A HREF="index.html">Index of all sections</A>. This section is located at '
        DO idepth=1,depth
           WRITE(179,FMT='(A)',ADVANCE="NO") '<A HREF="'//TRIM(location(idepth))//'">'//TRIM(name(idepth))//'</A>%'
@@ -550,8 +555,12 @@ CONTAINS
        IF (section%n_subsections>0) THEN
           WRITE(179,*) "<UL>"
           DO isub=1,section%n_subsections
+             color_tag='<font color="#0000FF">'
+             IF (section%subsections(isub)%section%supported_feature) THEN
+                color_tag='<font color="#00CC00">'
+             END IF
              WRITE(179,*) '<LI><A HREF="'//TRIM(local_prefix)//"~"//TRIM(section%subsections(isub)%section%name)//".html"//'">'// &
-                  TRIM(section%subsections(isub)%section%name)//'</A>'
+                  TRIM(color_tag)//TRIM(section%subsections(isub)%section%name)//'</font> </A>'
           END DO
           WRITE(179,*) "</UL>"
        ELSE
@@ -563,29 +572,23 @@ CONTAINS
             section%n_keywords>=1
        IF (has_keywords) THEN
           WRITE(179,*) "<UL>"
-          IF (ASSOCIATED(section%keywords(-1)%keyword)) THEN
-             WRITE(179,*) '<LI><A HREF="#'//TRIM(section%keywords(-1)%keyword%names(1))//'">'//&
-                  TRIM(section%keywords(-1)%keyword%names(1))//"</A>"
-          END IF
-          IF (ASSOCIATED(section%keywords(0)%keyword)) THEN
-             WRITE(179,*) '<LI><A HREF="#'//TRIM(section%keywords(0)%keyword%names(1))//'">'//&
-                  TRIM(section%keywords(0)%keyword%names(1))//"</A>"
-          END IF
-          DO ikeyword=1,section%n_keywords
-             WRITE(179,*) '<LI><A HREF="#'//TRIM(section%keywords(ikeyword)%keyword%names(1))//'">'//&
-                  TRIM(section%keywords(ikeyword)%keyword%names(1))//"</A>"
+          DO ikeyword=-1,section%n_keywords
+             IF (ASSOCIATED(section%keywords(ikeyword)%keyword)) THEN
+                color_tag='<font color="#0000FF">'
+                IF (section%keywords(ikeyword)%keyword%supported_feature) THEN
+                   color_tag='<font color="#00CC00">'
+                END IF
+                WRITE(179,*) '<LI><A HREF="#'//TRIM(section%keywords(ikeyword)%keyword%names(1))//'">'//&
+                     TRIM(color_tag)//TRIM(section%keywords(ikeyword)%keyword%names(1))//"</font> </A>"
+             END IF
           END DO
           WRITE(179,*) "</UL>"
           WRITE(179,*) "<H2> Keyword descriptions </H2>"
           WRITE(179,*) "<TABLE>"
-          IF (ASSOCIATED(section%keywords(-1)%keyword)) THEN
-             CALL keyword_describe_html(section%keywords(-1)%keyword,179,error=error)
-          END IF
-          IF (ASSOCIATED(section%keywords(0)%keyword)) THEN
-             CALL keyword_describe_html(section%keywords(0)%keyword,179,error=error)
-          END IF
-          DO ikeyword=1,section%n_keywords
-             CALL keyword_describe_html(section%keywords(ikeyword)%keyword,179,error=error)
+          DO ikeyword=-1,section%n_keywords
+             IF (ASSOCIATED(section%keywords(ikeyword)%keyword)) THEN
+                CALL keyword_describe_html(section%keywords(ikeyword)%keyword,179,error=error)
+             END IF
           END DO
           WRITE(179,*) "</TABLE>"
        ELSE
@@ -612,6 +615,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'section_describe_index_html', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=100)                       :: color_tag
     CHARACTER(LEN=1000)                      :: local_prefix
     INTEGER                                  :: isub
     LOGICAL                                  :: failure
@@ -620,7 +624,11 @@ CONTAINS
     IF (ASSOCIATED(section)) THEN
        CPPrecondition(section%ref_count>0,cp_failure_level,routineP,error,failure)
        local_prefix=TRIM(prefix//"~"//TRIM(section%name))
-       WRITE(unit_nr,*) '<LI><A HREF="'//TRIM(local_prefix)//'.html">'//TRIM(section%name)//"</A>"
+       color_tag='<font color="#0000FF">'
+       IF (section%supported_feature) THEN
+          color_tag='<font color="#00CC00">'
+       END IF
+       WRITE(unit_nr,*) '<LI><A HREF="'//TRIM(local_prefix)//'.html">'//TRIM(color_tag)//TRIM(section%name)//"</font></A>"
        IF (section%n_subsections>0) THEN
           WRITE(unit_nr,*) "<UL>"
           DO isub=1,section%n_subsections
@@ -2208,8 +2216,8 @@ CONTAINS
 
     INTEGER                                  :: i_rep_s, ik, isec, nr, nval, &
                                                 output_unit
-    LOGICAL                                  :: defaultSection, failure, &
-                                                ionode, check_key
+    LOGICAL                                  :: check_key, defaultSection, &
+                                                failure, ionode
     TYPE(cp_error_type)                      :: suberror
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
