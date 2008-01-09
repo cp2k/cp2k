@@ -30,7 +30,8 @@ MODULE four_center_integrals
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE erf_fn,                          ONLY: erfc
   USE input_constants,                 ONLY: do_hf_potential_coulomb,&
-                                             do_hf_potential_short
+                                             do_hf_potential_short,&
+                                             do_hf_potential_mix_cl
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              int_8
@@ -773,6 +774,12 @@ MODULE four_center_integrals
                               Kbox = qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%K * &
                                      qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = erfc(omega_box*Rbox)/Rbox*Kbox
+                              IF(max_val2 < eps_box ) CYCLE
+                              max_val2 = max_val2 * pmax_entry
+                            CASE(do_hf_potential_mix_cl)
+                              Kbox = qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%K * &
+                                     qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%K
+                              max_val2 = 1.0_dp/Rbox*Kbox
                               IF(max_val2 < eps_box ) CYCLE
                               max_val2 = max_val2 * pmax_entry
                           END SELECT
@@ -2292,8 +2299,8 @@ MODULE four_center_integrals
                             CASE(do_hf_potential_coulomb)
                               Kbox = qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%K * &
                                      qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%K
-                               max_val2 = 1.0_dp/Rbox*Kbox* pmax_entry
-                           CASE(do_hf_potential_short)
+                              max_val2 = 1.0_dp/Rbox*Kbox* pmax_entry
+                            CASE(do_hf_potential_short)
                               omega_box = qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%alphaInv + &
                                           qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%alphaInv + &
                                           omega2Inv 
@@ -2301,6 +2308,10 @@ MODULE four_center_integrals
                               Kbox = qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%K * &
                                      qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = erfc(omega_box*Rbox)/Rbox*Kbox *  pmax_entry
+                            CASE(do_hf_potential_mix_cl)
+                              Kbox = qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%K * &
+                                     qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%K
+                              max_val2 = 1.0_dp/Rbox*Kbox* pmax_entry
                           END SELECT
                           IF(max_val2<eps_box) CYCLE
                         END IF
@@ -3876,6 +3887,11 @@ MODULE four_center_integrals
                                      x_data%far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = erfc(omega_box*Rbox)/Rbox*Kbox
                               max_val2 = max_val2 * pmax_entry
+                            CASE(do_hf_potential_mix_cl)
+                              Kbox = x_data%far_field_boxes(box_idx2, box_idx1)%K * &
+                                     x_data%far_field_boxes(box_idx4, box_idx3)%K
+                              max_val2 = 1.0_dp/Rbox*Kbox
+                              max_val2 = max_val2 * pmax_entry
                           END SELECT
                           IF(max_val2<eps_box) CYCLE
                         END IF
@@ -4005,6 +4021,11 @@ MODULE four_center_integrals
                               Kbox = x_data%far_field_boxes(box_idx2, box_idx1)%K * &
                                      x_data%far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = erfc(omega_box*Rbox)/Rbox*Kbox
+                              max_val2 = max_val2 * pmax_entry
+                            CASE(do_hf_potential_mix_cl)
+                              Kbox = x_data%far_field_boxes(box_idx2, box_idx1)%K * &
+                                     x_data%far_field_boxes(box_idx4, box_idx3)%K
+                              max_val2 = 1.0_dp/Rbox*Kbox
                               max_val2 = max_val2 * pmax_entry
                           END SELECT
                           IF(max_val2<eps_box) CYCLE
@@ -4406,6 +4427,10 @@ MODULE four_center_integrals
                               Kbox = x_data%far_field_boxes(box_idx2, box_idx1)%K * &
                                      x_data%far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = erfc(omega_box*Rbox)/Rbox*Kbox * pmax_entry 
+                            CASE(do_hf_potential_mix_cl)
+                              Kbox = x_data%far_field_boxes(box_idx2, box_idx1)%K * &
+                                     x_data%far_field_boxes(box_idx4, box_idx3)%K
+                              max_val2 = 1.0_dp/Rbox*Kbox * pmax_entry
                           END SELECT
                           IF(max_val2<eps_box) CYCLE
                         END IF
@@ -4526,6 +4551,10 @@ MODULE four_center_integrals
                               Kbox = x_data%far_field_boxes(box_idx2, box_idx1)%K * &
                                      x_data%far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = erfc(omega_box*Rbox)/Rbox*Kbox * pmax_entry
+                            CASE(do_hf_potential_mix_cl)
+                              Kbox = x_data%far_field_boxes(box_idx2, box_idx1)%K * &
+                                     x_data%far_field_boxes(box_idx4, box_idx3)%K
+                              max_val2 = 1.0_dp/Rbox*Kbox * pmax_entry
                           END SELECT
                           IF(max_val2<eps_box) CYCLE
                         END IF

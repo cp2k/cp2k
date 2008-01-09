@@ -93,7 +93,9 @@ CONTAINS
 
        CALL keyword_create(keyword, name="FRACTION",&
             description="The fraction of Hartree-Fock to add to the total energy. "//&
-                        "1.0 implies standard Hartree-Fock if used with XC_FUNCTIONAL NONE.",&
+                        "1.0 implies standard Hartree-Fock if used with XC_FUNCTIONAL NONE. "//&
+                        "NOTE: In a mixed potential calculation this should be set to 1.0, otherwise "//&
+                        "all parts are multiplied with this factor. ",&
             usage="FRACTION 1.0", default_r_val=1.0_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -300,11 +302,12 @@ CONTAINS
             description="Which interaction potential should be used "//&
                          "(Coulomb, longrange or shortrange).",&
             usage="POTENTIAL_TYPE SHORTRANGE",&
-            enum_c_vals=s2a("COULOMB","SHORTRANGE","LONGRANGE"),&
-            enum_i_vals=(/do_hf_potential_coulomb, do_hf_potential_short, do_hf_potential_long/),&
+            enum_c_vals=s2a("COULOMB","SHORTRANGE","LONGRANGE","MIX_CL"),&
+            enum_i_vals=(/do_hf_potential_coulomb, do_hf_potential_short, do_hf_potential_long, do_hf_potential_mix_cl/),&
             enum_desc=s2a("Coulomb potential: 1/r", &
                           "Shortrange potential: erfc(omega*r)/r",&
-                          "Longrange potential: erf(omega*r)/r"),&
+                          "Longrange potential: erf(omega*r)/r",&
+                          "Mix coulomb and longrange potential: 1/r + erf(omega*r)/r"),&
             default_i_val=do_hf_potential_coulomb, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -319,6 +322,21 @@ CONTAINS
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="SCALE_COULOMB",&
+            description="Scales Hartree-Fock contribution arising from a coulomb potential. "//&
+                        "Only comes into play when doing a mixed potential calculation",&
+            usage="SCALE_COULOMB 1.0", default_r_val=1.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="SCALE_LONGRANGE",&
+            description="Scales Hartree-Fock contribution arising from a longrange potential. "//&
+                        "Only comes into play when doing a mixed potential calculation",&
+            usage="SCALE_LONGRANGE 1.0", default_r_val=1.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
     END IF
  
   END SUBROUTINE create_hf_potential_section

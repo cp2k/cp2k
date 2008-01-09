@@ -27,7 +27,8 @@ MODULE libint_interface
   USE gamma,                           ONLY: fgamma
   USE input_constants,                 ONLY: do_hf_potential_coulomb,&
                                              do_hf_potential_long,&
-                                             do_hf_potential_short
+                                             do_hf_potential_short,&
+                                             do_hf_potential_mix_cl
   USE kinds,                           ONLY: dp
   USE libint_wrapper,                  ONLY: get_derivs,&
                                              get_eris,&
@@ -514,6 +515,19 @@ MODULE libint_interface
           prim%F(i)= prim%F(i)*tmp
           tmp = tmp * omega_corr2
         END DO
+      CASE(do_hf_potential_mix_cl)
+        CALL fgamma(m_max,T,prim%F)
+        omega2 = potential_parameter%omega**2
+        omega_corr2 = omega2/(omega2+Rho)
+        omega_corr = SQRT(omega_corr2)
+        T = T*omega_corr2
+        CALL fgamma(m_max,T,Fm)
+        tmp = omega_corr
+        DO i=1,m_max+1
+          prim%F(i)= prim%F(i)*potential_parameter%scale_coulomb + Fm(i)*tmp*potential_parameter%scale_longrange
+          tmp = tmp * omega_corr2
+        END DO
+
     END SELECT
 
     factor = 2.0_dp*Pi*RhoInv 
@@ -628,6 +642,18 @@ MODULE libint_interface
         tmp = omega_corr
         DO i=1,m_max+1
           prim%F(i)= prim%F(i)*tmp
+          tmp = tmp * omega_corr2
+        END DO
+      CASE(do_hf_potential_mix_cl)
+        CALL fgamma(m_max,T,prim%F)
+        omega2 = potential_parameter%omega**2
+        omega_corr2 = omega2/(omega2+Rho)
+        omega_corr = SQRT(omega_corr2)
+        T = T*omega_corr2
+        CALL fgamma(m_max,T,Fm)
+        tmp = omega_corr
+        DO i=1,m_max+1
+          prim%F(i)= prim%F(i)*potential_parameter%scale_coulomb + Fm(i)*tmp*potential_parameter%scale_longrange
           tmp = tmp * omega_corr2
         END DO
     END SELECT

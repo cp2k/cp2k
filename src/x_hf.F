@@ -63,6 +63,8 @@ MODULE x_hf
   TYPE x_hf_potential_type
     INTEGER                                  :: potential_type     !! 1/r/ erfc(wr)/r ...
     REAL(dp)                                 :: omega              !! w 
+    REAL(dp)                                 :: scale_coulomb      !! scaling factor for mixed potential
+    REAL(dp)                                 :: scale_longrange    !! scaling factor for mixed potential
   END TYPE
 
   TYPE x_hf_screening_type
@@ -347,6 +349,10 @@ MODULE x_hf
     x_data%potential_parameter%potential_type = int_val
     CALL section_vals_val_get(hf_sub_section, "OMEGA", r_val=real_val, error=error)
     x_data%potential_parameter%omega = real_val 
+    CALL section_vals_val_get(hf_sub_section, "SCALE_COULOMB", r_val=real_val, error=error)
+    x_data%potential_parameter%scale_coulomb = real_val
+    CALL section_vals_val_get(hf_sub_section, "SCALE_LONGRANGE", r_val=real_val, error=error)
+    x_data%potential_parameter%scale_longrange = real_val
 
     !! LOAD_BALANCE section
     hf_sub_section => section_vals_get_subs_vals(hf_section,"LOAD_BALANCE",error=error)
