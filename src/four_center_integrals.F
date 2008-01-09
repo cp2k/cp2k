@@ -932,7 +932,7 @@ MODULE four_center_integrals
                           
                           nints = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
                           neris_total = neris_total + nints 
-
+                          IF(cartesian_estimate == 0.0_dp) cartesian_estimate = TINY(cartesian_estimate)
                           estimate_to_store_int = EXPONENT(cartesian_estimate)
                           estimate_to_store_int = MAX(estimate_to_store_int,-15_int_8)
                           cartesian_estimate = SET_EXPONENT(1.0_dp,estimate_to_store_int+1)
@@ -969,6 +969,7 @@ MODULE four_center_integrals
                           DO i=1,nints
                             spherical_estimate = MAX(spherical_estimate,ABS(primitive_integrals(i)))
                           END DO
+                          IF(spherical_estimate == 0.0_dp) spherical_estimate = TINY(spherical_estimate)
                           estimate_to_store_int = EXPONENT(spherical_estimate)
                           estimate_to_store_int = MAX(estimate_to_store_int, -15_int_8)
                           
