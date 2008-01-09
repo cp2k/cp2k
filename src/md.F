@@ -43,7 +43,8 @@ MODULE md
   USE input_constants,                 ONLY: &
        ensemble_name_types, isokin_ensemble, langevin_ensemble, nph_ensemble, &
        nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
-       npt_i_ensemble, nve_ensemble
+       npt_i_ensemble, nve_ensemble, use_perd_none, use_perd_x, use_perd_xy, &
+       use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_list_get,&
@@ -477,7 +478,7 @@ CPSourceFileRef,&
   SUBROUTINE compute_rcom(part,is_fixed,rcom)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: part
-    LOGICAL, DIMENSION(:), INTENT(IN)        :: is_fixed
+    INTEGER, DIMENSION(:), INTENT(IN)        :: is_fixed
     REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: rcom
 
     CHARACTER(len=*), PARAMETER :: routineN = 'compute_rcom', &
@@ -492,12 +493,13 @@ CPSourceFileRef,&
     DO i = 1, SIZE(part)
        atomic_kind => part(i)%atomic_kind
        CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
-       IF (.NOT.is_fixed(i)) THEN
+       SELECT CASE(is_fixed(i))
+       CASE(use_perd_x,use_perd_y,use_perd_z,use_perd_xy,use_perd_xz,use_perd_yz,use_perd_none)
           rcom(1) = rcom(1) + part(i)%r(1) * mass
           rcom(2) = rcom(2) + part(i)%r(2) * mass
           rcom(3) = rcom(3) + part(i)%r(3) * mass
           denom = denom + mass
-       END IF
+       END SELECT
     END DO
     rcom = rcom/denom
 
@@ -523,7 +525,7 @@ CPSourceFileRef,&
   SUBROUTINE compute_vcom(part,is_fixed,vcom,ecom)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: part
-    LOGICAL, DIMENSION(:), INTENT(IN)        :: is_fixed
+    INTEGER, DIMENSION(:), INTENT(IN)        :: is_fixed
     REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: vcom
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: ecom
 
@@ -539,12 +541,13 @@ CPSourceFileRef,&
     DO i = 1, SIZE(part)
        atomic_kind => part(i)%atomic_kind
        CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
-       IF (.NOT.is_fixed(i)) THEN
+       SELECT CASE(is_fixed(i))
+       CASE(use_perd_x,use_perd_y,use_perd_z,use_perd_xy,use_perd_xz,use_perd_yz,use_perd_none)
           vcom(1) = vcom(1) + part(i)%v(1) * mass
           vcom(2) = vcom(2) + part(i)%v(2) * mass
           vcom(3) = vcom(3) + part(i)%v(3) * mass
           denom = denom + mass
-       END IF
+       END SELECT
     END DO
     vcom = vcom/denom
     IF (PRESENT(ecom)) THEN
@@ -699,7 +702,7 @@ CPSourceFileRef,&
   SUBROUTINE subtract_vcom(part,is_fixed,vcom)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: part
-    LOGICAL, DIMENSION(:), INTENT(IN)        :: is_fixed
+    INTEGER, DIMENSION(:), INTENT(IN)        :: is_fixed
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: vcom
 
     CHARACTER(len=*), PARAMETER :: routineN = 'subtract_vcom', &
@@ -708,9 +711,25 @@ CPSourceFileRef,&
     INTEGER                                  :: i
 
     DO i = 1, SIZE(part)
-       IF (.NOT.is_fixed(i)) THEN
+       SELECT CASE(is_fixed(i))
+       CASE(use_perd_x)
+          part(i)%v(2) = part(i)%v(2) - vcom(2)
+          part(i)%v(3) = part(i)%v(3) - vcom(3)
+       CASE(use_perd_y)
+          part(i)%v(1) = part(i)%v(1) - vcom(1)
+          part(i)%v(3) = part(i)%v(3) - vcom(3)
+       CASE(use_perd_z)
+          part(i)%v(1) = part(i)%v(1) - vcom(1)
+          part(i)%v(2) = part(i)%v(2) - vcom(2)
+       CASE(use_perd_xy)
+          part(i)%v(3) = part(i)%v(3) - vcom(3)
+       CASE(use_perd_xz)
+          part(i)%v(2) = part(i)%v(2) - vcom(2)
+       CASE(use_perd_yz)
+          part(i)%v(1) = part(i)%v(1) - vcom(1)
+       CASE(use_perd_none)
           part(i)%v(:) = part(i)%v(:) - vcom(:)
-       END IF
+       END SELECT
     END DO
   END SUBROUTINE subtract_vcom
 
@@ -734,7 +753,7 @@ CPSourceFileRef,&
   SUBROUTINE compute_vang(part,is_fixed,rcom,vang)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: part
-    LOGICAL, DIMENSION(:), INTENT(IN)        :: is_fixed
+    INTEGER, DIMENSION(:), INTENT(IN)        :: is_fixed
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rcom
     REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: vang
 
@@ -751,7 +770,8 @@ CPSourceFileRef,&
     iner(:,:) = 0.0_dp
     DO i=1,SIZE(part)
        ! compute angular momentum and inertia tensor
-       IF (.NOT.is_fixed(i)) THEN
+       SELECT CASE(is_fixed(i))
+       CASE(use_perd_x,use_perd_y,use_perd_z,use_perd_xy,use_perd_xz,use_perd_yz,use_perd_none)
           r(:) = part(i)%r(:) - rcom(:)
           atomic_kind => part(i)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
@@ -766,7 +786,7 @@ CPSourceFileRef,&
           iner(1,2) = iner(1,2) - mass*r(1)*r(2)
           iner(2,3) = iner(2,3) - mass*r(2)*r(3)
           iner(3,1) = iner(3,1) - mass*r(3)*r(1)
-       END IF
+       END SELECT
     END DO
     iner(2,1) = iner(1,2)
     iner(3,2) = iner(2,3)
@@ -809,7 +829,7 @@ CPSourceFileRef,&
   SUBROUTINE subtract_vang(part,is_fixed,rcom,vang)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: part
-    LOGICAL, DIMENSION(:), INTENT(IN)        :: is_fixed
+    INTEGER, DIMENSION(:), INTENT(IN)        :: is_fixed
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rcom, vang
 
     CHARACTER(len=*), PARAMETER :: routineN = 'subtract_vang', &
@@ -819,12 +839,28 @@ CPSourceFileRef,&
     REAL(KIND=dp), DIMENSION(3)              :: r
 
     DO i=1,SIZE(part)
-       IF (.NOT.is_fixed(i)) THEN
-          r(:) = part(i)%r(:) - rcom(:)
+       r(:) = part(i)%r(:) - rcom(:)
+       SELECT CASE(is_fixed(i))
+       CASE(use_perd_x)
+          part(i)%v(2) = part(i)%v(2) - (vang(3)*r(1) - vang(1)*r(3))
+          part(i)%v(3) = part(i)%v(3) - (vang(1)*r(2) - vang(2)*r(1))
+       CASE(use_perd_y)
+          part(i)%v(1) = part(i)%v(1) - (vang(2)*r(3) - vang(3)*r(2))
+          part(i)%v(3) = part(i)%v(3) - (vang(1)*r(2) - vang(2)*r(1))
+       CASE(use_perd_z)
+          part(i)%v(1) = part(i)%v(1) - (vang(2)*r(3) - vang(3)*r(2))
+          part(i)%v(2) = part(i)%v(2) - (vang(3)*r(1) - vang(1)*r(3))
+       CASE(use_perd_xy)
+          part(i)%v(3) = part(i)%v(3) - (vang(1)*r(2) - vang(2)*r(1))
+       CASE(use_perd_xz)
+          part(i)%v(2) = part(i)%v(2) - (vang(3)*r(1) - vang(1)*r(3))
+       CASE(use_perd_yz)
+          part(i)%v(1) = part(i)%v(1) - (vang(2)*r(3) - vang(3)*r(2))
+       CASE(use_perd_none)
           part(i)%v(1) = part(i)%v(1) - (vang(2)*r(3) - vang(3)*r(2))
           part(i)%v(2) = part(i)%v(2) - (vang(3)*r(1) - vang(1)*r(3))
           part(i)%v(3) = part(i)%v(3) - (vang(1)*r(2) - vang(2)*r(1))
-       END IF
+       END SELECT
     END DO
 
   END SUBROUTINE subtract_vang
@@ -878,12 +914,11 @@ CPSourceFileRef,&
 
     INTEGER                                  :: handle, i, ifixd, &
                                                 imolecule_kind, iw, natoms, &
-                                                nfixd, nshell, shell_index, &
-                                                stat
+                                                nshell, shell_index, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: is_fixed
     LOGICAL                                  :: atomvel_explicit, &
                                                 corevel_explicit, failure, &
                                                 is_ok, shellvel_explicit
-    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: is_fixed
     REAL(KIND=dp)                            :: ecom, ekin, fac_massc, &
                                                 fac_masss, mass, mass_tot, &
                                                 temp
@@ -941,14 +976,16 @@ CPSourceFileRef,&
     ALLOCATE (is_fixed(natoms),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    is_fixed(:) = .FALSE.
+    is_fixed = use_perd_none
     molecule_kind_set => molecule_kinds%els
     DO imolecule_kind=1,molecule_kinds%n_els
        molecule_kind => molecule_kind_set(imolecule_kind)
-       CALL get_molecule_kind(molecule_kind=molecule_kind,nfixd=nfixd,fixd_list=fixd_list)
-       DO ifixd=1,nfixd
-          IF (.NOT.fixd_list(ifixd)%restraint%active) is_fixed(fixd_list(ifixd)%fixd) = .TRUE.
-       END DO
+       CALL get_molecule_kind(molecule_kind=molecule_kind,fixd_list=fixd_list)
+       IF (ASSOCIATED(fixd_list)) THEN
+          DO ifixd=1,SIZE(fixd_list)
+             IF (.NOT.fixd_list(ifixd)%restraint%active) is_fixed(fixd_list(ifixd)%fixd) = fixd_list(ifixd)%itype
+          END DO
+       END IF
     END DO
     
     ! Compute the total mass when needed
@@ -978,7 +1015,25 @@ CPSourceFileRef,&
          is_ok=cp_sll_val_next(atom_list,val,error=error)
          CALL val_get(val,r_vals=vel,error=error)
          part(i)%v = vel
-         IF (is_fixed(i)) part(i)%v = 0.0_dp
+         SELECT CASE(is_fixed(i))
+         CASE (use_perd_x)
+            part(i)%v(1) = 0.0_dp
+         CASE (use_perd_y)
+            part(i)%v(2) = 0.0_dp
+         CASE (use_perd_z)
+            part(i)%v(3) = 0.0_dp
+         CASE (use_perd_xy)
+            part(i)%v(1) = 0.0_dp
+            part(i)%v(2) = 0.0_dp
+         CASE (use_perd_xz)
+            part(i)%v(1) = 0.0_dp
+            part(i)%v(3) = 0.0_dp
+         CASE (use_perd_yz)
+            part(i)%v(2) = 0.0_dp
+            part(i)%v(3) = 0.0_dp
+         CASE (use_perd_xyz)
+            part(i)%v    = 0.0_dp
+         END SELECT
        END DO
        IF(shell_present) THEN 
           IF (shellvel_explicit) THEN
@@ -1031,15 +1086,30 @@ CPSourceFileRef,&
        DO i = 1, natoms
           atomic_kind => part(i)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
-          IF (is_fixed(i)) THEN
-             part(i)%v(1) = 0.0_dp
-             part(i)%v(2) = 0.0_dp
-             part(i)%v(3) = 0.0_dp
-          ELSE
+          part(i)%v(1) = 0.0_dp
+          part(i)%v(2) = 0.0_dp
+          part(i)%v(3) = 0.0_dp
+          SELECT CASE(is_fixed(i))
+          CASE (use_perd_x)
+             part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+             part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+          CASE (use_perd_y)
+             part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+             part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+          CASE (use_perd_z)
+             part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+             part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+          CASE (use_perd_xy)
+             part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+          CASE (use_perd_xz)
+             part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+          CASE (use_perd_yz)
+             part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+          CASE (use_perd_none)
              part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
              part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
              part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
-          END IF
+          END SELECT
        END DO
        
        ! Subtract the vcom

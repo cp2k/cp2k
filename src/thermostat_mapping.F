@@ -23,12 +23,11 @@ MODULE thermostat_mapping
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE extended_system_types,           ONLY: map_info_type
   USE f77_blas
-  USE input_constants,                 ONLY: do_region_defined,&
-                                             do_region_global,&
-                                             do_region_massive,&
-                                             do_region_molecule,&
-                                             do_thermo_communication,&
-                                             do_thermo_no_communication
+  USE input_constants,                 ONLY: &
+       do_region_defined, do_region_global, do_region_massive, &
+       do_region_molecule, do_thermo_communication, &
+       do_thermo_no_communication, use_perd_x, use_perd_xy, use_perd_xyz, &
+       use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
   USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
   USE memory_utilities,                ONLY: reallocate
@@ -402,7 +401,7 @@ CONTAINS
 
     INTEGER :: atm_offset, first_atom, i, iatm, icount, id_region, ikind, &
       ilist, imol, imol_local, j, jatm, katom, last_atom, natom, nc, nfixd, &
-      nfixd_restraint, nkind, nmol_per_kind, nmolecule, nshell, stat
+      nkind, nmol_per_kind, nmolecule, nshell, stat
     LOGICAL                                  :: failure
     TYPE(colvar_constraint_type), &
       DIMENSION(:), POINTER                  :: colv_list
@@ -470,11 +469,20 @@ CONTAINS
                    DO katom = first_atom, last_atom
                       DO ilist = 1, SIZE(fixd_list)
                          IF ( ( katom == fixd_list(ilist)%fixd        ) .AND. &
-                              (.NOT. fixd_list(ilist)%restraint%active)) nfixd=nfixd+1
+                              (.NOT. fixd_list(ilist)%restraint%active)) THEN 
+                            SELECT CASE(fixd_list(ilist)%itype)
+                            CASE(use_perd_x,use_perd_y,use_perd_z)
+                               nfixd=nfixd+1
+                            CASE(use_perd_xy,use_perd_xz,use_perd_yz)
+                               nfixd=nfixd+2
+                            CASE(use_perd_xyz)
+                               nfixd=nfixd+3
+                            END SELECT
+                         END IF
                       END DO
                    END DO
                 END IF
-                const_mol ( icount ) = nc + 3*nfixd
+                const_mol ( icount ) = nc + nfixd
                 tot_const ( icount ) = const_mol ( icount )
              END IF
              atm_offset =  point ( 2, icount )
@@ -591,7 +599,14 @@ CONTAINS
                             IF ( ( katom == fixd_list(ilist)%fixd        ) .AND. &
                                  (.NOT. fixd_list(ilist)%restraint%active)) THEN
                                id_region = map_loc_thermo_gen(atm_offset+iatm)
-                               tot_const(id_region) = tot_const(id_region) + 3
+                               SELECT CASE(fixd_list(ilist)%itype)
+                               CASE(use_perd_x, use_perd_y, use_perd_z)
+                                  tot_const(id_region) = tot_const(id_region) + 1
+                               CASE(use_perd_xy, use_perd_xz, use_perd_yz)
+                                  tot_const(id_region) = tot_const(id_region) + 2
+                               CASE(use_perd_xyz)
+                                  tot_const(id_region) = tot_const(id_region) + 3
+                               END SELECT
                             END IF
                          END DO
                       END DO
@@ -615,14 +630,13 @@ CONTAINS
              nmol_per_kind =  local_molecules % n_el ( ikind )
              molecule_kind => molecule_kind_set ( ikind )
              CALL get_molecule_kind ( molecule_kind, nconstraint=nc, natom = natom,&
-                  nmolecule=nmolecule, nfixd=nfixd, nfixd_restraint=nfixd_restraint,&
-                  nshell=nshell)
+                  nmolecule=nmolecule, nconstraint_fixd=nfixd,nshell=nshell)
              IF (shell) natom = nshell
              IF (.NOT.shell) THEN
                 const_mol ( ikind ) = nc
                 ! Let's consider the fixed atoms only for the total number of constraints
                 ! in case we are in REPLICATED/INTERACTING thermostats
-                tot_const ( ikind ) = const_mol ( ikind ) * nmolecule + 3*(nfixd-nfixd_restraint)
+                tot_const ( ikind ) = const_mol ( ikind ) * nmolecule + nfixd
              END IF
              point ( 1, ikind ) = atm_offset + 1
              point ( 2, ikind ) = atm_offset + natom * nmol_per_kind

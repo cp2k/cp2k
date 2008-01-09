@@ -39,6 +39,13 @@ MODULE molecule_kind_types
        bend_kind_type, bond_kind_type, impr_kind_dealloc_ref, impr_kind_type, &
        onfo_kind_dealloc_ref, onfo_kind_type, torsion_kind_dealloc_ref, &
        torsion_kind_type, ub_kind_dealloc_ref, ub_kind_type
+  USE input_constants,                 ONLY: use_perd_x,&
+                                             use_perd_xy,&
+                                             use_perd_xyz,&
+                                             use_perd_xz,&
+                                             use_perd_y,&
+                                             use_perd_yz,&
+                                             use_perd_z
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -129,7 +136,7 @@ MODULE molecule_kind_types
 
   TYPE fixd_constraint_type
      TYPE(restraint_type)           :: restraint
-     INTEGER                        :: fixd
+     INTEGER                        :: fixd, itype
      REAL(KIND=dp), DIMENSION(3)    :: coord
   END TYPE fixd_constraint_type
 
@@ -471,7 +478,7 @@ CONTAINS
                                ub_list,impr_list,onfo_list,colv_list,fixd_list,&
                                g3x3_list,g4x6_list,torsion_list,shell_list,&
                                name,mass,charge,kind_number,natom,nbend,nbond,nub,&
-                               nimpr,nonfo,nconstraint,nfixd, ncolv,ng3x3,ng4x6,&
+                               nimpr,nonfo,nconstraint,nconstraint_fixd,nfixd,ncolv,ng3x3,ng4x6,&
                                nfixd_restraint,ng3x3_restraint, ng4x6_restraint,&
                                nrestraints,nmolecule,nsgf,nshell,ntorsion,&
                                molecule_list,nelectron, bond_kind_set,bend_kind_set,&
@@ -514,7 +521,8 @@ CONTAINS
     REAL(KIND=dp), OPTIONAL                  :: mass, charge
     INTEGER, INTENT(OUT), OPTIONAL           :: kind_number, natom, nbend, &
                                                 nbond, nub, nimpr, nonfo, &
-                                                nconstraint, nfixd
+                                                nconstraint, &
+                                                nconstraint_fixd, nfixd
     TYPE(colvar_counters), INTENT(out), &
       OPTIONAL                               :: ncolv
     INTEGER, INTENT(OUT), OPTIONAL :: ng3x3, ng4x6, nfixd_restraint, &
@@ -539,7 +547,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_molecule_kind', &
       routineP = moduleN//':'//routineN
 
-!   ---------------------------------------------------------------------------
+    INTEGER                                  :: i
 
     IF (ASSOCIATED(molecule_kind)) THEN
 
@@ -578,7 +586,25 @@ CONTAINS
       IF (PRESENT(ncolv)) ncolv = molecule_kind%ncolv
       IF (PRESENT(ng3x3)) ng3x3= molecule_kind%ng3x3
       IF (PRESENT(ng4x6)) ng4x6= molecule_kind%ng4x6
+      ! Number of atoms that have one or more components fixed
       IF (PRESENT(nfixd)) nfixd= molecule_kind%nfixd
+      ! Number of degrees of freedom fixed
+      IF (PRESENT(nconstraint_fixd)) THEN 
+         nconstraint_fixd = 0
+         IF (molecule_kind%nfixd/=0) THEN
+            DO i = 1, SIZE(molecule_kind%fixd_list)
+               IF (molecule_kind%fixd_list(i)%restraint%active) CYCLE
+               SELECT CASE(molecule_kind%fixd_list(i)%itype)
+               CASE(use_perd_x, use_perd_y, use_perd_z)
+                  nconstraint_fixd=nconstraint_fixd+1
+               CASE(use_perd_xy, use_perd_xz, use_perd_yz)
+                  nconstraint_fixd=nconstraint_fixd+2
+               CASE(use_perd_xyz)
+                  nconstraint_fixd=nconstraint_fixd+3
+               END SELECT
+            END DO
+         END IF
+      END IF
       IF (PRESENT(ng3x3_restraint)) ng3x3_restraint= molecule_kind%ng3x3_restraint
       IF (PRESENT(ng4x6_restraint)) ng4x6_restraint= molecule_kind%ng4x6_restraint
       IF (PRESENT(nfixd_restraint)) nfixd_restraint= molecule_kind%nfixd_restraint
@@ -624,7 +650,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: ibend, ibond, iimpr, imolecule_kind, ionfo, itorsion, iub, na, &
-      nc, nfixd, nfixd_restraint, nm, nmolecule_kind, nrestraints_tot
+      nc, nconstraint_fixd, nfixd, nfixd_restraint, nm, nmolecule_kind, &
+      nrestraints_tot
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
 !   ---------------------------------------------------------------------------
@@ -659,6 +686,7 @@ CONTAINS
                                nimpr=iimpr,&
                                nonfo=ionfo,&
                                nconstraint=nc,&
+                               nconstraint_fixd=nconstraint_fixd,&
                                nfixd=nfixd,&
                                nfixd_restraint=nfixd_restraint,&
                                nrestraints=nrestraints_tot,&
@@ -671,7 +699,7 @@ CONTAINS
         IF (PRESENT(ntorsion)) ntorsion = ntorsion + itorsion*nm
         IF (PRESENT(nimpr)) nimpr = nimpr + iimpr*nm
         IF (PRESENT(nonfo)) nonfo = nonfo + ionfo*nm
-        IF (PRESENT(nconstraint)) nconstraint = nconstraint + nc*nm + 3*(nfixd-nfixd_restraint)
+        IF (PRESENT(nconstraint)) nconstraint = nconstraint + nc*nm + nconstraint_fixd
         IF (PRESENT(nmolecule)) nmolecule = nmolecule + nm
         IF (PRESENT(nrestraints)) nrestraints = nrestraints + nm*nrestraints_tot + nfixd_restraint
 

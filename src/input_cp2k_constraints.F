@@ -261,7 +261,7 @@ CONTAINS
             description="The restarting position of fixed atoms for restraints."//&
             " The order is an internal order. So if you decide to modify these values by hand"//&
             " first think what you're doing!",repeats=.TRUE.,&
-            usage="<REAL> <REAL> <REAL>", type_of_var=real_t, n_var=3, error=error)
+            usage="<REAL> <REAL> <REAL>", type_of_var=real_t, n_var=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -458,8 +458,28 @@ CONTAINS
             description="This section is used to constraint the overall atomic position (X,Y,Z).",&
             n_keywords=3, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
-
        NULLIFY(keyword)
+
+       ! Section Parameter
+       CALL keyword_create(keyword, name="COMPONENTS_TO_FIX",&
+            description="Specify which components (X,Y,Z or combinations) of the atoms specified in the section"//&
+            "will be constrained/restrained.",&
+            usage="FIXED_ATOMS (x|y|z|xy|xz|yz|xyz)",&
+            default_i_val=use_perd_xyz,&
+            enum_c_vals=s2a("x","y","z","xy","xz","yz","xyz"),&
+            enum_i_vals=(/ use_perd_x,  use_perd_y,  use_perd_z,&
+                           use_perd_xy, use_perd_xz, use_perd_yz,&
+                           use_perd_xyz /),&
+            enum_desc=s2a("Fix only X component",&
+                          "Fix only Y component",&
+                          "Fix only Z component",&
+                          "Fix X-Y components",&
+                          "Fix X-Z components",&
+                          "Fix Y-Z components",&
+                          "Fix the full components of the atomic position."),&
+            repeats=.FALSE.,required=.FALSE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
        ! Integer
        CALL keyword_create(keyword, name="LIST",&

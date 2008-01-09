@@ -106,3 +106,5 @@ h2o_lsd-ot.inp
 h2op.inp
 hf.inp
 NO2-ROKS.inp
+# numerics
+h2po4.inp

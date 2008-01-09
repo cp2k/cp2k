@@ -25,6 +25,13 @@ MODULE constraint_fxd
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
+  USE input_constants,                 ONLY: use_perd_x,&
+                                             use_perd_xy,&
+                                             use_perd_xyz,&
+                                             use_perd_xz,&
+                                             use_perd_y,&
+                                             use_perd_yz,&
+                                             use_perd_z
   USE kinds,                           ONLY: dp
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE molecule_kind_types,             ONLY: fixd_constraint_type,&
@@ -135,13 +142,49 @@ CONTAINS
                    DO ii = 1, SIZE(fixd_list)
                       IF (fixd_list(ii)%fixd == iparticle) THEN
                          zero_force = ((fixd_list(ii)%fixd == iparticle).AND.&
-                              (.NOT.fixd_list(ii)%restraint%active))
+                                       (.NOT.fixd_list(ii)%restraint%active))
                          IF (zero_force) THEN
                             ! Constraint
                             IF (PRESENT(w)) THEN
-                               w(:,iparticle) = 0.0_dp
+                               SELECT CASE(fixd_list(ii)%itype)
+                               CASE (use_perd_x)
+                                  w(1,iparticle)     = 0.0_dp
+                               CASE (use_perd_y)
+                                  w(2,iparticle)     = 0.0_dp
+                               CASE (use_perd_z)
+                                  w(3,iparticle)     = 0.0_dp
+                               CASE (use_perd_xy)
+                                  w(1,iparticle)     = 0.0_dp
+                                  w(2,iparticle)     = 0.0_dp
+                               CASE (use_perd_xz)
+                                  w(1,iparticle)     = 0.0_dp
+                                  w(3,iparticle)     = 0.0_dp
+                               CASE (use_perd_yz)
+                                  w(2,iparticle)     = 0.0_dp
+                                  w(3,iparticle)     = 0.0_dp
+                               CASE (use_perd_xyz)
+                                  w(:,iparticle)     = 0.0_dp
+                               END SELECT
                             ELSE
-                               force(:,iparticle) = 0.0_dp
+                               SELECT CASE(fixd_list(ii)%itype)
+                               CASE (use_perd_x)
+                                  force(1,iparticle) = 0.0_dp
+                               CASE (use_perd_y)
+                                  force(2,iparticle) = 0.0_dp
+                               CASE (use_perd_z)
+                                  force(3,iparticle) = 0.0_dp
+                               CASE (use_perd_xy)
+                                  force(1,iparticle) = 0.0_dp
+                                  force(2,iparticle) = 0.0_dp
+                               CASE (use_perd_xz)
+                                  force(1,iparticle) = 0.0_dp
+                                  force(3,iparticle) = 0.0_dp
+                               CASE (use_perd_yz)
+                                  force(2,iparticle) = 0.0_dp
+                                  force(3,iparticle) = 0.0_dp
+                               CASE (use_perd_xyz)
+                                  force(:,iparticle) = 0.0_dp
+                               END SELECT
                             END IF
                             EXIT
                          END IF
@@ -194,18 +237,21 @@ CONTAINS
           IF (SIZE(fixd_list)>0) THEN
              DO i = 1, SIZE(fixd_list)
                 IF (fixd_list(i)%fixd==index_a) THEN
+                   IF (fixd_list(i)%itype/=use_perd_xyz) CYCLE
                    IF (.NOT.fixd_list(i)%restraint%active) imass1 = 0.0_dp
                    EXIT
                 END IF
              END DO
              DO i = 1, SIZE(fixd_list)
                 IF (fixd_list(i)%fixd==index_b) THEN
+                   IF (fixd_list(i)%itype/=use_perd_xyz) CYCLE
                    IF (.NOT.fixd_list(i)%restraint%active) imass2 = 0.0_dp
                    EXIT
                 END IF
              END DO
              DO i = 1, SIZE(fixd_list)
                 IF (fixd_list(i)%fixd==index_c) THEN
+                   IF (fixd_list(i)%itype/=use_perd_xyz) CYCLE
                    IF (.NOT.fixd_list(i)%restraint%active) imass3 = 0.0_dp
                    EXIT
                 END IF
@@ -254,24 +300,28 @@ CONTAINS
           IF (SIZE(fixd_list)>0) THEN
              DO i = 1, SIZE(fixd_list)
                 IF (fixd_list(i)%fixd==index_a) THEN
+                   IF (fixd_list(i)%itype/=use_perd_xyz) CYCLE
                    IF (.NOT.fixd_list(i)%restraint%active) imass1 = 0.0_dp
                    EXIT
                 END IF
              END DO
              DO i = 1, SIZE(fixd_list)
                 IF (fixd_list(i)%fixd==index_b) THEN
+                   IF (fixd_list(i)%itype/=use_perd_xyz) CYCLE
                    IF (.NOT.fixd_list(i)%restraint%active) imass2 = 0.0_dp
                    EXIT
                 END IF
              END DO
              DO i = 1, SIZE(fixd_list)
                 IF (fixd_list(i)%fixd==index_c) THEN
+                   IF (fixd_list(i)%itype/=use_perd_xyz) CYCLE
                    IF (.NOT.fixd_list(i)%restraint%active) imass3 = 0.0_dp
                    EXIT
                 END IF
              END DO
              DO i = 1, SIZE(fixd_list)
                 IF (fixd_list(i)%fixd==index_d) THEN
+                   IF (fixd_list(i)%itype/=use_perd_xyz) CYCLE
                    IF (.NOT.fixd_list(i)%restraint%active) imass4 = 0.0_dp
                    EXIT
                 END IF
@@ -314,6 +364,7 @@ CONTAINS
                 j = colvar%i_atom(i)
                 DO k = 1, SIZE(fixd_list)
                    IF (fixd_list(k)%fixd==j) THEN
+                      IF (fixd_list(k)%itype/=use_perd_xyz) CYCLE
                       IF (.NOT.fixd_list(k)%restraint%active)&
                            colvar%dsdr(:,i) = 0.0_dp
                       EXIT

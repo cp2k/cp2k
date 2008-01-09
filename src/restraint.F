@@ -29,6 +29,13 @@ MODULE restraint
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_set,&
                                              force_env_type
+  USE input_constants,                 ONLY: use_perd_x,&
+                                             use_perd_xy,&
+                                             use_perd_xyz,&
+                                             use_perd_xz,&
+                                             use_perd_y,&
+                                             use_perd_yz,&
+                                             use_perd_z
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
@@ -83,8 +90,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, ii, ikind, imol, iparticle, iparticle_local, &
-      n3x3con_restraint, n4x6con_restraint, n_restraint, nfixd_restraint, &
-      nkind, nmol_per_kind, nparticle_local, stat
+      n3x3con_restraint, n4x6con_restraint, n_restraint, nkind, &
+      nmol_per_kind, nparticle_local, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: energy_3x3, energy_4x6, &
                                                 energy_colv, energy_fixd, k0, &
@@ -136,11 +143,8 @@ CONTAINS
           ! Fixed Atoms restraint
 
           molecule_kind => molecule_kind_set(ikind)
-          CALL get_molecule_kind ( molecule_kind, nfixd=nfixd_restraint,&
-               fixd_list=fixd_list )
-
-          IF (nfixd_restraint /=0) THEN
-             n_restraint=n_restraint+nfixd_restraint
+          CALL get_molecule_kind ( molecule_kind, fixd_list=fixd_list )
+          IF (ASSOCIATED(fixd_list)) THEN
              DO i = 1, SIZE(local_particles%n_el)
                 nparticle_local   = local_particles%n_el(i)
                 DO iparticle_local=1,nparticle_local
@@ -148,9 +152,29 @@ CONTAINS
                    DO ii = 1, SIZE(fixd_list)
                       IF (fixd_list(ii)%fixd == iparticle) THEN
                          IF (fixd_list(ii)%restraint%active) THEN
+                            n_restraint=n_restraint+1
                             k0   = fixd_list(ii)%restraint%k0
                             targ = fixd_list(ii)%coord
-                            rab  = particle_set(iparticle)%r-targ
+                            rab = 0.0_dp
+                            SELECT CASE(fixd_list(ii)%itype)
+                            CASE(use_perd_x)
+                               rab(1)  = particle_set(iparticle)%r(1)-targ(1)
+                            CASE(use_perd_y)
+                               rab(2)  = particle_set(iparticle)%r(2)-targ(2)
+                            CASE(use_perd_z)
+                               rab(3)  = particle_set(iparticle)%r(3)-targ(3)
+                            CASE(use_perd_xy)
+                               rab(1)  = particle_set(iparticle)%r(1)-targ(1)
+                               rab(2)  = particle_set(iparticle)%r(2)-targ(2)
+                            CASE(use_perd_xz)
+                               rab(1)  = particle_set(iparticle)%r(1)-targ(1)
+                               rab(3)  = particle_set(iparticle)%r(3)-targ(3)
+                            CASE(use_perd_yz)
+                               rab(2)  = particle_set(iparticle)%r(2)-targ(2)
+                               rab(3)  = particle_set(iparticle)%r(3)-targ(3)
+                            CASE(use_perd_xyz)
+                               rab  = particle_set(iparticle)%r-targ
+                            END SELECT
                             rab2 = DOT_PRODUCT(rab,rab)
                             ! Energy
                             energy_fixd = energy_fixd + k0 * rab2

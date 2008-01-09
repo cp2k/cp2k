@@ -33,8 +33,9 @@ MODULE topology_constraint_util
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
-  USE input_constants,                 ONLY: do_constr_atomic,&
-                                             do_constr_molec
+  USE input_constants,                 ONLY: &
+       do_constr_atomic, do_constr_molec, use_perd_x, use_perd_xy, &
+       use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -125,9 +126,9 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: molname, name
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: atom_typeh, cnds
-    INTEGER :: first, first_atom, gind, handle, i, ii, iw, j, k, k1loc, &
-      k2loc, kk, last, last_atom, m, n_start_colv, natom, nbond, ncolv_glob, &
-      ncolv_mol, nfixd_list_gci, nfixd_restart, nfixd_restraint, &
+    INTEGER :: first, first_atom, gind, handle, i, ii, itype, iw, j, k, &
+      k1loc, k2loc, kk, last, last_atom, m, n_start_colv, natom, nbond, &
+      ncolv_glob, ncolv_mol, nfixd_list_gci, nfixd_restart, nfixd_restraint, &
       nfixed_atoms, ng3x3, ng3x3_restraint, ng4x6, ng4x6_restraint, nhdist, &
       nmolecule, nrep, offset, output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: constr_x_glob, inds, &
@@ -674,6 +675,7 @@ CONTAINS
                    DO k1loc = 1, SIZE(cons_info%fixed_molnames)
                       IF (cons_info%fixed_molnames(k1loc).EQ.molname) THEN
                          fix_atom_molname=.TRUE.
+                         itype = cons_info%fixed_mol_type(k1loc)
                          EXIT
                       END IF
                    END DO
@@ -684,6 +686,7 @@ CONTAINS
                    DO k2loc=1,SIZE(cons_info%fixed_atoms)
                       IF (cons_info%fixed_atoms(k2loc) == k) THEN
                          fix_fixed_atom = .TRUE.
+                         itype = cons_info%fixed_type(k2loc)
                          EXIT
                       END IF
                    END DO
@@ -695,25 +698,29 @@ CONTAINS
                       SELECT CASE(cons_info%freeze_qm)
                       CASE(do_constr_atomic)
                          IF (ANY(qmmm_env%qm_atom_index==k)) THEN 
-                            fix_atom_qmmm=.TRUE.
-                            fix_atom_qm = .TRUE.
+                            fix_atom_qmmm = .TRUE.
+                            fix_atom_qm   = .TRUE.
+                            itype         = cons_info%freeze_qm_type
                          END IF
                       CASE(do_constr_molec)
                          IF (ANY(qmmm_env%qm_molecule_index == molecule_list(j))) THEN 
                             fix_atom_qmmm = .TRUE.
                             fix_atom_qm   = .TRUE.
+                            itype         = cons_info%freeze_qm_type
                          END IF
                       END SELECT
                       SELECT CASE(cons_info%freeze_mm)
                       CASE(do_constr_atomic)
                          IF (ALL(qmmm_env%qm_atom_index/=k)) THEN 
-                            fix_atom_qmmm=.TRUE.
-                            fix_atom_mm = .TRUE.
+                            fix_atom_qmmm = .TRUE.
+                            fix_atom_mm   = .TRUE.
+                            itype         = cons_info%freeze_mm_type
                          END IF
                       CASE(do_constr_molec)
                          IF (ALL(qmmm_env%qm_molecule_index /= molecule_list(j))) THEN 
                             fix_atom_qmmm = .TRUE.
-                            fix_atom_mm = .TRUE.
+                            fix_atom_mm   = .TRUE.
+                            itype         = cons_info%freeze_mm_type
                          END IF
                       END SELECT
                       ! We should never reach this point but let's check it anyway
@@ -734,6 +741,7 @@ CONTAINS
                       kk = kk + 1
                       fixd_list(kk)%fixd  = k
                       fixd_list(kk)%coord = particle_set(k)%r
+                      fixd_list(kk)%itype = itype
                       ! Possibly Restraint
                       IF     (fix_fixed_atom) THEN
                          fixd_list(kk)%restraint%active = cons_info%fixed_restraint(k2loc)
@@ -754,16 +762,89 @@ CONTAINS
                       IF (fixd_list(kk)%restraint%active) THEN 
                          nfixd_restraint = nfixd_restraint+ 1
                          nfixd_restart   = nfixd_restart  + 1
+                         ! Check that we use the components that we really want..
+                         SELECT CASE(itype)
+                         CASE(use_perd_x)
+                            fixd_list(kk)%coord(2) = HUGE(0.0_dp)
+                            fixd_list(kk)%coord(3) = HUGE(0.0_dp)
+                         CASE(use_perd_y)
+                            fixd_list(kk)%coord(1) = HUGE(0.0_dp)
+                            fixd_list(kk)%coord(3) = HUGE(0.0_dp)
+                         CASE(use_perd_z)
+                            fixd_list(kk)%coord(1) = HUGE(0.0_dp)
+                            fixd_list(kk)%coord(2) = HUGE(0.0_dp)
+                         CASE(use_perd_xy)
+                            fixd_list(kk)%coord(3) = HUGE(0.0_dp)
+                         CASE(use_perd_xz)
+                            fixd_list(kk)%coord(2) = HUGE(0.0_dp)
+                         CASE(use_perd_yz)
+                            fixd_list(kk)%coord(1) = HUGE(0.0_dp)
+                         END SELECT
                          IF (restart_restraint_pos) THEN
                             ! Read  coord0 value for restraint
                             CALL section_vals_val_get(fixd_restr_rest,"_DEFAULT_KEYWORD_",&
                                  i_rep_val=nfixd_restart, r_vals=r, error=error)
-                            fixd_list(kk)%coord = r
+                            SELECT CASE(itype)
+                            CASE(use_perd_x)
+                               CPPostcondition(SIZE(r)==1,cp_failure_level,routineP,error,failure)
+                               fixd_list(kk)%coord(1) = r(1)
+                            CASE(use_perd_y)
+                               CPPostcondition(SIZE(r)==1,cp_failure_level,routineP,error,failure)
+                               fixd_list(kk)%coord(2) = r(1)
+                            CASE(use_perd_z)
+                               CPPostcondition(SIZE(r)==1,cp_failure_level,routineP,error,failure)
+                               fixd_list(kk)%coord(3) = r(1)
+                            CASE(use_perd_xy)
+                               CPPostcondition(SIZE(r)==2,cp_failure_level,routineP,error,failure)
+                               fixd_list(kk)%coord(1) = r(1)
+                               fixd_list(kk)%coord(2) = r(2)
+                            CASE(use_perd_xz)
+                               CPPostcondition(SIZE(r)==2,cp_failure_level,routineP,error,failure)
+                               fixd_list(kk)%coord(1) = r(1)
+                               fixd_list(kk)%coord(3) = r(2)
+                            CASE(use_perd_yz)
+                               CPPostcondition(SIZE(r)==2,cp_failure_level,routineP,error,failure)
+                               fixd_list(kk)%coord(2) = r(1)
+                               fixd_list(kk)%coord(3) = r(2)
+                            CASE(use_perd_xyz)
+                               CPPostcondition(SIZE(r)==3,cp_failure_level,routineP,error,failure)
+                               fixd_list(kk)%coord(1:3) = r(1:3)
+                            END SELECT
                          ELSE
                             ! Write coord0 value for restraint
-                            ALLOCATE(r(3),stat=stat)
-                            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                            r = fixd_list(kk)%coord
+                            SELECT CASE(itype)
+                            CASE(use_perd_x)
+                               ALLOCATE(r(1),stat=stat)
+                               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                               r(1) = fixd_list(kk)%coord(1)
+                            CASE(use_perd_y)
+                               ALLOCATE(r(1),stat=stat)
+                               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                               r(1) = fixd_list(kk)%coord(2)
+                            CASE(use_perd_z)
+                               ALLOCATE(r(1),stat=stat)
+                               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                               r(1) = fixd_list(kk)%coord(3)
+                            CASE(use_perd_xy)
+                               ALLOCATE(r(2),stat=stat)
+                               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                               r(1) = fixd_list(kk)%coord(1)
+                               r(2) = fixd_list(kk)%coord(2)
+                            CASE(use_perd_xz)
+                               ALLOCATE(r(2),stat=stat)
+                               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                               r(1) = fixd_list(kk)%coord(1)
+                               r(2) = fixd_list(kk)%coord(3)
+                            CASE(use_perd_yz)
+                               ALLOCATE(r(2),stat=stat)
+                               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                               r(1) = fixd_list(kk)%coord(1)
+                               r(2) = fixd_list(kk)%coord(3)
+                            CASE(use_perd_xyz)
+                               ALLOCATE(r(3),stat=stat)
+                               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                               r(1:3) = fixd_list(kk)%coord(1:3)
+                            END SELECT
                             CALL section_vals_val_set(fixd_restr_rest,"_DEFAULT_KEYWORD_",&
                                  i_rep_val=nfixd_restart, r_vals_ptr=r, error=error)                         
                          END IF

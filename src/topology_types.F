@@ -36,7 +36,6 @@ MODULE topology_types
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
-  USE termination,                     ONLY: stop_memory
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -74,11 +73,11 @@ MODULE topology_types
      REAL(KIND=dp)                                 :: hbonds_k0                               ! Restraints control
      ! Fixed Atoms
      INTEGER                                       :: nfixed_atoms
-     INTEGER, POINTER                              :: fixed_atoms(:)
+     INTEGER, POINTER                              :: fixed_atoms(:), fixed_type(:), fixed_mol_type(:)
      LOGICAL, POINTER                              :: fixed_restraint(:)                      ! Restraints control
      REAL(KIND=dp), POINTER                        :: fixed_k0(:)                             ! Restraints control
      ! Freeze QM or MM
-     INTEGER                                       :: freeze_qm, freeze_mm
+     INTEGER                                       :: freeze_qm, freeze_mm, freeze_qm_type, freeze_mm_type
      LOGICAL                                       :: fixed_mm_restraint, fixed_qm_restraint  ! Restraints control
      REAL(KIND=dp)                                 :: fixed_mm_k0, fixed_qm_k0                ! Restraints control
      ! Freeze with molnames
@@ -183,38 +182,43 @@ MODULE topology_types
 
 CONTAINS
 
-  !******************************************************************************
-  !!****** topology_types/init_topology [1.0] *
-  !!
-  !!   NAME
-  !!     init_topology
-  !!
-  !!   FUNCTION
-  !!     1. Just NULLIFY and zero all the stuff
-  !!
-  !!   AUTHOR
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!   SOURCE
-  !******************************************************************************
-  SUBROUTINE init_topology (topology)
+!******************************************************************************
+!!****** topology_types/init_topology [1.0] *
+!!
+!!   NAME
+!!     init_topology
+!!
+!!   FUNCTION
+!!     1. Just NULLIFY and zero all the stuff
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE init_topology (topology, error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: istat
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_topology', &
+      routineP = moduleN//':'//routineN
 
-!-----------------------------------------------------------------------------
-! 1. Nullify and allocate things in topology
-!-----------------------------------------------------------------------------
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
-    ALLOCATE(topology%atom_info,STAT=istat)
-    IF(istat/=0) CALL stop_memory ('init_topology','atom_info')
-    ALLOCATE(topology%conn_info,STAT=istat)
-    IF(istat/=0) CALL stop_memory ('init_topology','conn_info')
-    ALLOCATE(topology%cons_info,STAT=istat)
-    IF(istat/=0) CALL stop_memory ('init_topology','cons_info')
+    failure = .FALSE.
+    !-----------------------------------------------------------------------------
+    ! 1. Nullify and allocate things in topology
+    !-----------------------------------------------------------------------------
+    ALLOCATE(topology%atom_info,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(topology%conn_info,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(topology%cons_info,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     !-----------------------------------------------------------------------------
     ! 2. Initialize and Nullify things in topology
     !-----------------------------------------------------------------------------
@@ -295,14 +299,36 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 5. Initialize and Nullify things in topology%cons_info
     !-----------------------------------------------------------------------------
-    CALL init_constraint(topology%cons_info)
+    CALL init_constraint(topology%cons_info, error)
   END SUBROUTINE init_topology
 
-
-  SUBROUTINE init_constraint(constraint_info)
+!******************************************************************************
+!!****** topology_types/init_constraint [1.0] *
+!!
+!!   NAME
+!!     init_topology
+!!
+!!   FUNCTION
+!!     1. Just NULLIFY and zero all the stuff
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE init_constraint(constraint_info, error)
     TYPE(constraint_info_type), POINTER      :: constraint_info
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-! Bonds involving Hydrogens
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_constraint', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    ! Bonds involving Hydrogens
 
     constraint_info%hbonds_restraint = .FALSE.
     ! Fixed Atoms
@@ -310,6 +336,8 @@ CONTAINS
     constraint_info%freeze_mm = do_constr_none
     constraint_info%freeze_qm = do_constr_none
     NULLIFY(constraint_info%fixed_atoms)
+    NULLIFY(constraint_info%fixed_type)
+    NULLIFY(constraint_info%fixed_mol_type)
     NULLIFY(constraint_info%fixed_molnames)
     NULLIFY(constraint_info%fixed_restraint)
     NULLIFY(constraint_info%fixed_k0)
@@ -361,195 +389,199 @@ CONTAINS
 
   END SUBROUTINE init_constraint
 
-  !******************************************************************************
-  !!****** topology_types/deallocate_topology [1.0] *
-  !!
-  !!   NAME
-  !!     deallocate_topology
-  !!
-  !!   FUNCTION
-  !!     1. Just DEALLOCATE all the stuff
-  !!
-  !!   AUTHOR
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!   SOURCE
-  !******************************************************************************
+!******************************************************************************
+!!****** topology_types/deallocate_topology [1.0] *
+!!
+!!   NAME
+!!     deallocate_topology
+!!
+!!   FUNCTION
+!!     1. Just DEALLOCATE all the stuff
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
   SUBROUTINE deallocate_topology (topology, error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: istat
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_topology', &
+      routineP = moduleN//':'//routineN
 
-!-----------------------------------------------------------------------------
-! 1. DEALLOCATE things in topology%atom_info
-!-----------------------------------------------------------------------------
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
+    failure = .FALSE.
+    !-----------------------------------------------------------------------------
+    ! 1. DEALLOCATE things in topology%atom_info
+    !-----------------------------------------------------------------------------
     IF(ASSOCIATED(topology%atom_info%label_molname)) THEN
-       DEALLOCATE(topology%atom_info%label_molname,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','label_molname')
+       DEALLOCATE(topology%atom_info%label_molname,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%atom_info%label_resname)) THEN
-       DEALLOCATE(topology%atom_info%label_resname,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','label_resname')
+       DEALLOCATE(topology%atom_info%label_resname,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%atom_info%label_resid)) THEN
-       DEALLOCATE(topology%atom_info%label_resid,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','label_resid')
+       DEALLOCATE(topology%atom_info%label_resid,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%atom_info%label_atmname)) THEN
-       DEALLOCATE(topology%atom_info%label_atmname,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','label_atmname')
+       DEALLOCATE(topology%atom_info%label_atmname,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%atom_info%atom_names)) THEN
-       DEALLOCATE(topology%atom_info%atom_names,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','atom_names')
+       DEALLOCATE(topology%atom_info%atom_names,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%atom_info%r)) THEN
-       DEALLOCATE(topology%atom_info%r,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','r')
+       DEALLOCATE(topology%atom_info%r,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%atom_info%map_mol_typ)) THEN
-       DEALLOCATE(topology%atom_info%map_mol_typ,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','map_mol_typ')
+       DEALLOCATE(topology%atom_info%map_mol_typ,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%atom_info%map_mol_num)) THEN
-       DEALLOCATE(topology%atom_info%map_mol_num,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','map_mol_num')
+       DEALLOCATE(topology%atom_info%map_mol_num,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%atom_info%map_mol_res)) THEN
-       DEALLOCATE(topology%atom_info%map_mol_res,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','map_mol_res')
+       DEALLOCATE(topology%atom_info%map_mol_res,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%atom_info%atm_charge)) THEN
-       DEALLOCATE(topology%atom_info%atm_charge,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','atm_charge')
+       DEALLOCATE(topology%atom_info%atm_charge,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%atom_info%atm_mass)) THEN
-       DEALLOCATE(topology%atom_info%atm_mass,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','atm_mass')
+       DEALLOCATE(topology%atom_info%atm_mass,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%atom_info%occup)) THEN
-       DEALLOCATE(topology%atom_info%occup,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','occup')
+       DEALLOCATE(topology%atom_info%occup,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%atom_info%beta)) THEN
-       DEALLOCATE(topology%atom_info%beta,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','beta')
+       DEALLOCATE(topology%atom_info%beta,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%atom_info%element)) THEN
-       DEALLOCATE(topology%atom_info%element,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','element')
+       DEALLOCATE(topology%atom_info%element,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     !-----------------------------------------------------------------------------
     ! 2. DEALLOCATE things in topology%conn_info
     !-----------------------------------------------------------------------------
     IF(ASSOCIATED(topology%conn_info%bond_a)) THEN
-       DEALLOCATE(topology%conn_info%bond_a,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','bond_a')
+       DEALLOCATE(topology%conn_info%bond_a,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%conn_info%bond_b)) THEN
-       DEALLOCATE(topology%conn_info%bond_b,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','bond_b')
+       DEALLOCATE(topology%conn_info%bond_b,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%conn_info%bond_type)) THEN
-       DEALLOCATE(topology%conn_info%bond_type,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','bond_type')
+       DEALLOCATE(topology%conn_info%bond_type,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%conn_info%ub_a)) THEN
-       DEALLOCATE(topology%conn_info%ub_a,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','ub_a')
+       DEALLOCATE(topology%conn_info%ub_a,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%conn_info%ub_b)) THEN
-       DEALLOCATE(topology%conn_info%ub_b,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','ub_b')
+       DEALLOCATE(topology%conn_info%ub_b,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%conn_info%ub_c)) THEN
-       DEALLOCATE(topology%conn_info%ub_c,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','ub_c')
+       DEALLOCATE(topology%conn_info%ub_c,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%conn_info%theta_a)) THEN
-       DEALLOCATE(topology%conn_info%theta_a,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','theta_a')
+       DEALLOCATE(topology%conn_info%theta_a,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%conn_info%theta_b)) THEN
-       DEALLOCATE(topology%conn_info%theta_b,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','theta_b')
+       DEALLOCATE(topology%conn_info%theta_b,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%conn_info%theta_c)) THEN
-       DEALLOCATE(topology%conn_info%theta_c,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','theta_c')
+       DEALLOCATE(topology%conn_info%theta_c,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%conn_info%theta_type)) THEN
-       DEALLOCATE(topology%conn_info%theta_type,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','theta_type')
+       DEALLOCATE(topology%conn_info%theta_type,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%conn_info%phi_a)) THEN
-       DEALLOCATE(topology%conn_info%phi_a,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','phi_a')
+       DEALLOCATE(topology%conn_info%phi_a,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%conn_info%phi_b)) THEN
-       DEALLOCATE(topology%conn_info%phi_b,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','phi_b')
+       DEALLOCATE(topology%conn_info%phi_b,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%conn_info%phi_c)) THEN
-       DEALLOCATE(topology%conn_info%phi_c,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','phi_c')
+       DEALLOCATE(topology%conn_info%phi_c,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%conn_info%phi_d)) THEN
-       DEALLOCATE(topology%conn_info%phi_d,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','phi_d')
+       DEALLOCATE(topology%conn_info%phi_d,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%conn_info%phi_type)) THEN
-       DEALLOCATE(topology%conn_info%phi_type,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','phi_type')
+       DEALLOCATE(topology%conn_info%phi_type,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%conn_info%impr_a)) THEN
-       DEALLOCATE(topology%conn_info%impr_a,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','impr_a')
+       DEALLOCATE(topology%conn_info%impr_a,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%conn_info%impr_b)) THEN
-       DEALLOCATE(topology%conn_info%impr_b,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','impr_b')
+       DEALLOCATE(topology%conn_info%impr_b,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%conn_info%impr_c)) THEN
-       DEALLOCATE(topology%conn_info%impr_c,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','impr_c')
+       DEALLOCATE(topology%conn_info%impr_c,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%conn_info%impr_d)) THEN
-       DEALLOCATE(topology%conn_info%impr_d,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','impr_d')
+       DEALLOCATE(topology%conn_info%impr_d,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%conn_info%impr_type)) THEN
-       DEALLOCATE(topology%conn_info%impr_type,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','impr_type')
+       DEALLOCATE(topology%conn_info%impr_type,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%conn_info%onfo_a)) THEN
-       DEALLOCATE(topology%conn_info%onfo_a,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','onfo_a')
+       DEALLOCATE(topology%conn_info%onfo_a,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%conn_info%onfo_b)) THEN
-       DEALLOCATE(topology%conn_info%onfo_b,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','onfo_b')
+       DEALLOCATE(topology%conn_info%onfo_b,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%conn_info%onfo_type)) THEN
-       DEALLOCATE(topology%conn_info%onfo_type,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','onfo_type')
+       DEALLOCATE(topology%conn_info%onfo_type,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%conn_info%c_bond_a)) THEN
-       DEALLOCATE(topology%conn_info%c_bond_a,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','c_bond_a')
+       DEALLOCATE(topology%conn_info%c_bond_a,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%conn_info%c_bond_b)) THEN
-       DEALLOCATE(topology%conn_info%c_bond_b,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','c_bond_b')
+       DEALLOCATE(topology%conn_info%c_bond_b,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%conn_info%c_bond_type)) THEN
-       DEALLOCATE(topology%conn_info%c_bond_type,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','c_bond_type')
+       DEALLOCATE(topology%conn_info%c_bond_type,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     !-----------------------------------------------------------------------------
     ! 3. DEALLOCATE things in topology%cons_info
@@ -562,22 +594,36 @@ CONTAINS
     CALL cell_release(topology%cell,error=error)
     CALL cell_release(topology%cell_ref,error=error)
     IF(ASSOCIATED(topology%atom_info)) THEN
-       DEALLOCATE(topology%atom_info,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','atom_info')
+       DEALLOCATE(topology%atom_info,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%conn_info)) THEN
-       DEALLOCATE(topology%conn_info,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','conn_info')
+       DEALLOCATE(topology%conn_info,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%cons_info)) THEN
-       DEALLOCATE(topology%cons_info,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('deallocate_topology','cons_info')
+       DEALLOCATE(topology%cons_info,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
   END SUBROUTINE deallocate_topology
 
-
-
+!******************************************************************************
+!!****** topology_types/deallocate_constraint [1.0] *
+!!
+!!   NAME
+!!     deallocate_constraint
+!!
+!!   FUNCTION
+!!     1. Just DEALLOCATE all the stuff
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
   SUBROUTINE deallocate_constraint(constraint_info, error)
     TYPE(constraint_info_type), POINTER      :: constraint_info
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -595,8 +641,16 @@ CONTAINS
           DEALLOCATE(constraint_info%fixed_atoms, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
+       IF(ASSOCIATED(constraint_info%fixed_type)) THEN
+          DEALLOCATE(constraint_info%fixed_type, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
        IF(ASSOCIATED(constraint_info%fixed_molnames)) THEN
           DEALLOCATE(constraint_info%fixed_molnames, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF(ASSOCIATED(constraint_info%fixed_mol_type)) THEN
+          DEALLOCATE(constraint_info%fixed_mol_type, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
        IF(ASSOCIATED(constraint_info%fixed_restraint)) THEN
