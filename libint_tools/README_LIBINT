@@ -142,6 +142,35 @@ The following list describes how to proceed if you want to use another compiler.
                            'path_to_libint_libs'/lib/libint.a\
             NOTE: Take care that you link in the correct order
      - Compile cp2k in the usual way
+   c) XLF on a power linux machine (tested with IBM XL Fortran Advanced Edition V10.1 for Linux on power5 machine)
+      Note: IBM XL Fortran Advanced Edition V11 should fully support the the ISO_C_BINDING Fortran 2003 standard.
+     - Compile the libint library. Usually it is enough to execute the following commands:
+       ./configure --prefix='your_install_directory'
+       make
+       make install
+     - Add -D__LIBINT to the DFLAGS in the architecture file
+       Example:
+           DFLAGS = -D__AIX -D__FFTSG -D__FFTW3 -D__LIBINT
+     - Add the following compiler option to fix the underscore problem:
+           FFLAGS = [..] -qextname=wrapper_build_deriv1_eri:wrapper_build_eri:wrapper_free_libderiv:wrapper_free_libint:wrapper_init_deriv:wrapper_init_lib
+           where [..] are the standard option you may want to use for the compilation
+     - Since XLF v10.1 does not support ISO_C_BINDING you need to compile a C++ wrapper:
+         1. Move into the cp2k/libint_tools directory
+         2. The source file is called libint_cpp_wrapper.cpp
+         3. Compile
+              xlc++_r -qstrict -q64 -qarch=pwr5 -qcache=auto -qmaxmem=-1 -qtune=pwr5 -c libint_cpp_wrapper.cpp  -I/'path_to_libint.h_and_libderiv.h'
+            to get libint_cpp_wrapper.o
+            (Alternatively you can use g++, but then you have to provide libstdc++)
+         4. Add the libint libraries and the libint_cpp_wrapper.o to the architecture file
+            Example:
+                LIBS     = [..]\
+                           /cp2k/libint_tools/libint_cpp_wrapper.o\
+                           'path_to_libint_libs'/lib/libderiv.a\
+                           'path_to_libint_libs'/lib/libint.a\
+                           /opt/ibmcmp/vacpp/8.0/lib64/libibmc++.a
+            Where [..] are the standard libraries you may need for the version you want to compile.
+            NOTE: Take care that you link in the correct order
+     - Compile cp2k in the usual way
 4. Other compilers 
    
    We will try to test other compilers in the future. If you want to play around yourself, have a look at

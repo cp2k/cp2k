@@ -900,7 +900,7 @@ MODULE libint_wrapper
   END SUBROUTINE get_derivs
 !***************************************************************************
 
-#elif defined (__PGI)
+#elif defined (__PGI) || defined (__AIX)
   TYPE prim_data
     REAL(dp)        :: F(prim_data_f_size)
     REAL(dp)        :: U(3,6)

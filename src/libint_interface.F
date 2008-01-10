@@ -127,7 +127,7 @@ MODULE libint_interface
 #endif
 #endif
 
-#if defined (__PGI)
+#if defined (__PGI) || defined (__AIX)
 #if defined (__UGLY_BUT_FAST)
     !! do_nothing
 #else
@@ -417,7 +417,7 @@ MODULE libint_interface
 #endif
 #endif
 
-#if defined (__PGI)
+#if defined (__PGI) || defined (__AIX)
 #if defined (__UGLY_BUT_FAST)
     !! do_nothing
 #else
@@ -1119,7 +1119,7 @@ MODULE libint_interface
 #endif
 #endif
 
-#if defined (__PGI)
+#if defined (__PGI) || defined (__AIX)
 #if defined (__UGLY_BUT_FAST)
     !! do_nothing
 #else
@@ -1231,7 +1231,7 @@ MODULE libint_interface
 #endif
 #endif
 
-#if defined (__PGI)
+#if defined (__PGI) || defined (__AIX)
 #if defined(__UGLY_BUT_FAST)
     !! do nothing
 #else
