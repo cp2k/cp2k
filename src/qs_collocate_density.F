@@ -1410,9 +1410,6 @@ CONTAINS
     END DO
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
-       write(6,*) "rs pos, pw pos grid level",rs_rho(igrid_level)%rs_grid%my_pos,&
-            mgrid_rspace(igrid_level)%pw%pw_grid%para%rs_mpo,&
-            mgrid_rspace(1)%pw%pw_grid%para%rs_mpo,igrid_level
        CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid,&
             mgrid_rspace(igrid_level)%pw,rs2pw)
     ENDDO
