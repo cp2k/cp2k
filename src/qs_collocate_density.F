@@ -499,11 +499,6 @@ CONTAINS
 !$OMP end parallel
       END IF
 
-!$OMP parallel do &
-!$OMP default(none) &
-!$OMP private(iatom,j,atom_a,ra) &
-!$OMP shared(bo,tasks,dir,rs_rho,atom_list,particle_set,cell)
-
       CALL reallocate ( tasks, 1, natom )
       npme = 0
       tasks = 0
@@ -537,12 +532,12 @@ CONTAINS
       END DO
 
       ithread=0
+      IF(npme.GT.0)THEN
 !$OMP parallel do &
 !$OMP default(none) &
 !$OMP private(j,iatom,atom_a,ra,ithread) &
 !$OMP shared(npme,tasks,atom_list,particle_set,cell,pab,rs_rho) &
 !$OMP shared(cube_info,eps_rho_rspace,alpha,error,lgrid,nthread)
-      IF(npme.GT.0)THEN
          DO j=1,npme
 
             iatom = tasks(j)
