@@ -34,9 +34,10 @@ MODULE input_cp2k_check
   USE f77_blas
   USE input_constants,                 ONLY: &
        do_region_global, do_thermo_csvr, do_thermo_nose, &
-       do_thermo_same_as_part, id_release_version, xc_funct_blyp, &
-       xc_funct_bp, xc_funct_hcth120, xc_funct_no_shortcut, xc_funct_olyp, &
-       xc_funct_pade, xc_funct_pbe, xc_funct_tpss, xc_funct_xwpbe, xc_none
+       do_thermo_same_as_part, do_vwn5, id_release_version, xc_funct_b3lyp, &
+       xc_funct_blyp, xc_funct_bp, xc_funct_hcth120, xc_funct_no_shortcut, &
+       xc_funct_olyp, xc_funct_pade, xc_funct_pbe, xc_funct_pbe0, &
+       xc_funct_tpss, xc_funct_xwpbe, xc_none
   USE input_cp2k,                      ONLY: create_cp2k_root_section
   USE input_keyword_types,             ONLY: keyword_type
   USE input_parsing,                   ONLY: section_vals_parse
@@ -100,8 +101,8 @@ CONTAINS
     LOGICAL                                  :: enable_unsupported_features, &
                                                 explicit, explicit_mix, &
                                                 failure
-    TYPE(section_vals_type), POINTER         :: section, section2, section3, &
-                                                sections
+    TYPE(section_vals_type), POINTER         :: section, section1, section2, &
+                                                section3, sections
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
@@ -137,12 +138,14 @@ CONTAINS
        DO iforce_eval = 1,nforce_eval
           section => section_vals_get_subs_vals3(sections,"DFT",i_rep_section=iforce_eval,error=error)
           ! xc: expand and fix default for tddfpt
+          section1 => section_vals_get_subs_vals(section,"XC",error=error)
           section2 => section_vals_get_subs_vals(section,"XC%XC_FUNCTIONAL",error=error)
-          CALL xc_functionals_expand(section2,error=error)
+          CALL xc_functionals_expand(section2,section1,error=error)
+          section1 => section_vals_get_subs_vals(section,"TDDFPT%XC",error=error)
           section2 => section_vals_get_subs_vals(section,"TDDFPT%XC%XC_FUNCTIONAL",error=error)
           CALL section_vals_get(section2,explicit=explicit,error=error)
           IF (explicit) THEN
-             CALL xc_functionals_expand(section2,error=error)
+             CALL xc_functionals_expand(section2,section1,error=error)
           ELSE
              section2 => section_vals_get_subs_vals(section,"XC%XC_FUNCTIONAL",error=error)
              CALL section_vals_set_subs_vals(section,"TDDFPT%XC%XC_FUNCTIONAL",section2,error=error)
@@ -180,8 +183,8 @@ CONTAINS
 !!     fawzi
 !!
 !!*** **********************************************************************
-  SUBROUTINE xc_functionals_expand(functionals,error)
-    TYPE(section_vals_type), POINTER         :: functionals
+  SUBROUTINE xc_functionals_expand(functionals,xc_section,error)
+    TYPE(section_vals_type), POINTER         :: functionals, xc_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_functionals_expand', &
@@ -198,6 +201,42 @@ CONTAINS
        SELECT CASE(shortcut)
        CASE(xc_funct_no_shortcut, xc_none)
           ! nothing to expand
+       CASE(xc_funct_pbe0)
+          CALL section_vals_val_set(functionals,"PBE%_SECTION_PARAMETERS_",&
+               l_val=.TRUE.,error=error)
+          CALL section_vals_val_set(functionals,"PBE%SCALE_X",&
+               r_val=0.75_dp,error=error)
+          CALL section_vals_val_set(functionals,"PBE%SCALE_C",&
+               r_val=1.0_dp,error=error)
+          ! Hartree Fock Exact Exchange
+          CALL section_vals_val_set(xc_section,"HF%FRACTION",&
+               r_val=0.25_dp,error=error)
+          CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
+               i_val=xc_funct_no_shortcut,error=error)
+       CASE(xc_funct_b3lyp)
+          CALL section_vals_val_set(functionals,"BECKE88%_SECTION_PARAMETERS_",&
+               l_val=.TRUE.,error=error)
+          CALL section_vals_val_set(functionals,"BECKE88%SCALE_X",&
+               r_val=0.72_dp,error=error)
+          CALL section_vals_val_set(functionals,"LYP%_SECTION_PARAMETERS_",&
+               l_val=.TRUE.,error=error)
+          CALL section_vals_val_set(functionals,"LYP%SCALE_C",&
+               r_val=0.81_dp,error=error)
+          CALL section_vals_val_set(functionals,"VWN%_SECTION_PARAMETERS_",&
+               l_val=.TRUE.,error=error)
+          CALL section_vals_val_set(functionals,"VWN%FUNCTIONAL_TYPE",&
+               i_val=do_vwn5,error=error)
+          CALL section_vals_val_set(functionals,"VWN%SCALE_C",&
+               r_val=0.19_dp,error=error)
+          CALL section_vals_val_set(functionals,"XALPHA%_SECTION_PARAMETERS_",&
+               l_val=.TRUE.,error=error)
+          CALL section_vals_val_set(functionals,"XALPHA%SCALE_X",&
+               r_val=0.08_dp,error=error)
+          ! Hartree Fock Exact Exchange
+          CALL section_vals_val_set(xc_section,"HF%FRACTION",&
+               r_val=0.20_dp,error=error)
+          CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
+               i_val=xc_funct_no_shortcut,error=error)
        CASE(xc_funct_blyp)
           CALL section_vals_val_set(functionals,"BECKE88%_SECTION_PARAMETERS_",&
                l_val=.TRUE.,error=error)
@@ -246,7 +285,6 @@ CONTAINS
                i_val=120,error=error)
           CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
                i_val=xc_funct_no_shortcut,error=error)
-          
        CASE default
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP,"unknown shortcut "//TRIM(ADJUSTL(cp_to_string(shortcut))),&

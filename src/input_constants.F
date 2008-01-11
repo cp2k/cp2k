@@ -435,9 +435,11 @@ MODULE input_constants
        xc_deriv_nn50_smooth=6
   INTEGER, PARAMETER, PUBLIC :: xc_old_f_routine=0, xc_new_f_routine=1,&
        xc_test_lsd_f_routine=3, xc_debug_new_routine=4
-  INTEGER, PARAMETER, PUBLIC :: xc_funct_blyp=1, xc_funct_pade=2, xc_funct_pbe=3,&
-       xc_funct_tpss=4, xc_funct_hcth120=5, xc_funct_olyp=6,xc_funct_no_shortcut=0,&
-       xc_funct_bp=7,xc_none=8, xc_funct_xwpbe=9
+  INTEGER, PARAMETER, PUBLIC :: xc_funct_no_shortcut=0,&
+       xc_funct_blyp=1, xc_funct_pade=2, xc_funct_pbe=3,&
+       xc_funct_tpss=4, xc_funct_hcth120=5, xc_funct_olyp=6,&
+       xc_funct_bp=7, xc_none=8, xc_funct_xwpbe=9, xc_funct_b3lyp=10,&
+       xc_funct_pbe0=11
   INTEGER, PARAMETER, PUBLIC :: sic_none=0, sic_mauri_us=1, sic_mauri_spz=2, sic_ad=3, sic_eo=4
   INTEGER, PARAMETER, PUBLIC :: sic_list_all=1, sic_list_unpaired=2 
   INTEGER, PARAMETER, PUBLIC :: tddfpt_singlet=0, tddfpt_triplet=1

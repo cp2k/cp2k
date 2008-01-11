@@ -848,7 +848,7 @@ CONTAINS
                c_val=tmpStr,error=error)
           WRITE (output_unit, fmt="(' FUNCTIONAL| ROUTINE=',a)")&
                TRIM(tmpStr)
-          CALL xc_functionals_expand(xc_fun_section,error=error)
+          CALL xc_functionals_expand(xc_fun_section,xc_section,error=error)
           ifun=0
           DO
              ifun=ifun+1

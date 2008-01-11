@@ -18,7 +18,6 @@
 !!****
 MODULE xc_derivatives
   USE f77_blas
-  USE input_cp2k_check,                ONLY: xc_functionals_expand
   USE input_section_types,             ONLY: section_vals_get_subs_vals2,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -538,20 +537,18 @@ SUBROUTINE xc_functionals_eval(functionals, lsd, rho_set, deriv_set, &
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(functionals),cp_failure_level,routineP,error,failure)
-  CALL xc_functionals_expand(functionals,error=error)
   IF (.NOT. failure) THEN
      ifun=0
      DO 
         ifun=ifun+1
-        xc_fun => section_vals_get_subs_vals2(functionals,i_section=ifun,&
-             error=error)
+        xc_fun => section_vals_get_subs_vals2(functionals,i_section=ifun,error=error)
         IF (.NOT.ASSOCIATED(xc_fun)) EXIT
         CALL xc_functional_eval(xc_fun, &
-             lsd=lsd,&
-             rho_set=rho_set, &
-             deriv_set=deriv_set,&
-             deriv_order=deriv_order, &
-             error=error)
+                                lsd=lsd,&
+                                rho_set=rho_set, &
+                                deriv_set=deriv_set,&
+                                deriv_order=deriv_order, &
+                                error=error)
      END DO
   END IF
 END SUBROUTINE xc_functionals_eval
@@ -603,17 +600,14 @@ FUNCTION xc_functionals_get_needs(functionals, lsd, add_basic_components,&
   IF (PRESENT(add_basic_components)) my_add_basic_components=add_basic_components
   
   CPPrecondition(ASSOCIATED(functionals),cp_failure_level,routineP,error,failure)
-  CALL xc_functionals_expand(functionals,error=error)
   IF (.NOT. failure) THEN
      CALL xc_rho_cflags_setall(needs,.FALSE.,error=error)
      ifun=0
      DO
         ifun=ifun+1
-        xc_fun => section_vals_get_subs_vals2(functionals,i_section=ifun,&
-             error=error)
+        xc_fun => section_vals_get_subs_vals2(functionals,i_section=ifun,error=error)
         IF (.NOT.ASSOCIATED(xc_fun)) EXIT
-        CALL xc_functional_get_info(xc_fun,lsd=lsd,&
-             needs=needs, error=error)
+        CALL xc_functional_get_info(xc_fun,lsd=lsd,needs=needs, error=error)
      END DO
      IF (my_add_basic_components) THEN
         IF (lsd) THEN
