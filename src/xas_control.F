@@ -247,11 +247,8 @@ CONTAINS
     CALL section_vals_val_get(xas_section,"EMISSION",&
          l_val=xas_control%emission,error=error)
          
-
-    loc_section =>section_vals_get_subs_vals(xas_section,"LOCALIZE",error=error)
-    CALL section_vals_val_get(loc_section,"_SECTION_PARAMETERS_",&
-            l_val=xas_control%localized_wfn,error=error)
     CALL localized_wfn_control_create(xas_control%localized_wfn_control,error=error)
+    loc_section =>section_vals_get_subs_vals(xas_section,"LOCALIZE",error=error)
     CALL read_loc_section(xas_control%localized_wfn_control,loc_section,&
          xas_control%localized_wfn,do_xas=.TRUE.,&
          nloc_xas=xas_control%nexc_search,error=error)

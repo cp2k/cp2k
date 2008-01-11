@@ -400,10 +400,10 @@ OBJECTS_GENERIC =\
  qs_linres_types.o\
  qs_loc_control.o\
  qs_loc_methods.o\
+ qs_loc_molecules.o\
  qs_loc_types.o\
  qs_loc_utils.o\
  qs_local_rho_types.o\
- qs_localization.o\
  qs_localization_methods.o\
  qs_main.o\
  qs_matrix_pools.o\

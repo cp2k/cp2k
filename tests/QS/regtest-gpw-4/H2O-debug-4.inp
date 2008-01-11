@@ -21,6 +21,8 @@
         IONS+CENTERS
         FORMAT XMOL
         COMMON_ITERATION_LEVELS 2
+        &LOCALIZE T
+        &END
       &END
     &END
   &END DFT

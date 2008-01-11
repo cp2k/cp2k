@@ -113,8 +113,7 @@ CONTAINS
 !****************************************************************************
 
   SUBROUTINE linres_localize(localized_wfn_control,qs_env,nspins,globenv,&
-                             centers_only,error)
-    !
+       centers_only,error)
     TYPE(localized_wfn_control_type), &
       POINTER                                :: localized_wfn_control
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -136,8 +135,6 @@ CONTAINS
       POINTER                                :: mos
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(section_vals_type), POINTER         :: loc_section, lr_section
-
-!
 
     failure = .FALSE.
     NULLIFY(logger, lr_section, loc_section)
@@ -166,12 +163,10 @@ CONTAINS
           nmoloc(ispin) = MIN(localized_wfn_control%nloc_states(1) ,n_mo(ispin))
        ENDIF
     ENDDO  ! ispin
-    CALL set_loc_wfn_lists(localized_wfn_control,&
-                           nmoloc,n_mo,nspins,error=error)
-    CALL set_loc_centers(localized_wfn_control,nmoloc,&
-                         nspins,globenv,qs_env%input,error=error)
+    CALL set_loc_wfn_lists(localized_wfn_control,nmoloc,n_mo,nspins,error=error)
+    CALL set_loc_centers(localized_wfn_control,nmoloc,nspins,error=error)
     CALL qs_loc_env_create(qs_loc_env,error=error)
-    CALL qs_loc_env_init(qs_loc_env,localized_wfn_control,qs_env,error=error)
+    CALL qs_loc_env_init(qs_loc_env,localized_wfn_control,qs_env,do_localize=.TRUE.,error=error)
     ! The localized orbitals are copied in the mos,
     ! The orbital centers are stored in linres_control%localized_wfn_control
     CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,error=error)

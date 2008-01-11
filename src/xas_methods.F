@@ -52,7 +52,6 @@ MODULE xas_methods
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
-                                             cp_print_key_generate_filename,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -63,12 +62,10 @@ MODULE xas_methods
        xas_1s_type, xas_2p_type, xas_2s_type, xas_dip_len2, xas_dip_vel, &
        xas_dscf, xas_scf_general, xas_tp_fh, xas_tp_hh, xas_tp_xfh, &
        xas_tp_xhh, xes_tp_val
-  USE input_section_types,             ONLY: section_get_ival,&
-                                             section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: default_path_length,&
-                                             default_string_length,&
+  USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mathconstants,                   ONLY: twopi
   USE memory_utilities,                ONLY: reallocate
@@ -390,9 +387,9 @@ CONTAINS
         CALL qs_loc_env_release(qs_loc_env,error=error)
         CALL get_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env,error=error)
         CALL qs_loc_env_init(qs_loc_env,my_localized_wfn_control,&
-             qs_env,onlyspin1=.TRUE.,error=error)
+             qs_env,myspin=1,do_localize=xas_control%localized_wfn,error=error)
       END IF
-      CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,onlyspin1=.TRUE.,error=error)
+      CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,myspin=1,error=error)
     END IF
 
     CALL cls_assign_core_states(xas_control,xas_env,my_localized_wfn_control,&
@@ -929,8 +926,7 @@ CONTAINS
       END IF
 
       CALL set_loc_wfn_lists(xas_control%localized_wfn_control,nmoloc,n_mo,nspins,error=error)
-      CALL set_loc_centers(xas_control%localized_wfn_control,nmoloc,nspins,globenv,&
-           qs_env%input,error=error)
+      CALL set_loc_centers(xas_control%localized_wfn_control,nmoloc,nspins,error=error)
 
       CALL localized_wfn_control_release(my_localized_wfn_control,error=error)
 
@@ -1325,7 +1321,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_print_cubes', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_path_length)       :: filename
     CHARACTER(LEN=default_string_length)     :: my_mittle
     INTEGER                                  :: homo, istat, istate0, nspins, &
                                                 nstates
@@ -1339,14 +1334,8 @@ CONTAINS
     logger => cp_error_get_logger(error)
     nspins = SIZE(mos)
 
-    print_key => section_vals_get_subs_vals(xas_section,"PRINT%CLS_FUNCTION_CUBES",&
-                 error=error)
-
+    print_key => section_vals_get_subs_vals(xas_section,"PRINT%CLS_FUNCTION_CUBES",error=error)
     my_mittle = 'at'//TRIM(ADJUSTL(cp_to_string(iatom)))
-    filename = cp_print_key_generate_filename(logger,print_key, &
-                    middle_name=TRIM(my_mittle),&
-                    extension="",my_local=.FALSE., error=error)
-
     nstates = SIZE(xas_control%list_cubes,1)
 
     IF(xas_control%do_centers) THEN
@@ -1362,8 +1351,7 @@ CONTAINS
     IF(xas_control%emission) istate0 = 0
 
     CALL qs_print_cubes(qs_env,all_vectors,nstates,xas_control%list_cubes,&
-         centers,ionode,filename,stride=section_get_ival(xas_section,&
-         "PRINT%CLS_FUNCTION_CUBES%STRIDE",error=error),state0=istate0,error=error)
+         centers,print_key,my_mittle,state0=istate0,error=error)
 
     DEALLOCATE(centers,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

@@ -19,9 +19,6 @@
       METHOD GAPW
       QUADRATURE GC_LOG
       FULL_GAPW
-    &LOCALIZE
-       LIST 2 3 4 5
-    &END
     &END QS
     &SCF
       EPS_SCF 1.0E-4
@@ -31,6 +28,13 @@
       &XC_FUNCTIONAL Pade
       &END XC_FUNCTIONAL
     &END XC
+    &PRINT
+      &LOCALIZATION
+        &LOCALIZE
+           LIST 2 3 4 5
+        &END
+      &END
+    &END
   &END DFT
   &SUBSYS
     &CELL

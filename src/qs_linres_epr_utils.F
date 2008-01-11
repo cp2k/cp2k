@@ -64,8 +64,7 @@ MODULE qs_linres_epr_utils
                                              epr_gauge_r_and_Bader,&
                                              epr_gauge_r_and_step_function,&
                                              restart_guess
-  USE input_section_types,             ONLY: section_get_ival,&
-                                             section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -169,7 +168,8 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
-    TYPE(section_vals_type), POINTER         :: epr_section, lr_section
+    TYPE(section_vals_type), POINTER         :: epr_section, lr_section, &
+                                                print_key
 
 !
 
@@ -180,7 +180,7 @@ CONTAINS
     NULLIFY(logger, mpools, psi1,h1_psi0, vecbuf_dklxp0, mos, mo_coeff,para_env )
     NULLIFY(fm_work_ii, fm_work_iii, tmp_fm_struct, dkl_vec_ii,dkl_vec_iii )
 
-    NULLIFY(list_cubes, statetrueindex, centers_set)
+    NULLIFY(list_cubes, statetrueindex, centers_set, print_key)
     NULLIFY(psi1_p, psi1_rxp, psi1_D, p_psi0, rxp_psi0)
 
     logger => cp_error_get_logger(error)
@@ -260,14 +260,12 @@ CONTAINS
           !
           ! print response functions
           IF(BTEST(cp_print_key_should_output(logger%iter_info,epr_section,&
-               &   "PRINT%RESPONSE_FUNCTION_CUBES",error=error),cp_p_file)) THEN
+               "PRINT%RESPONSE_FUNCTION_CUBES",error=error),cp_p_file)) THEN
+             print_key => section_vals_get_subs_vals(epr_section,"PRINT%RESPONSE_FUNCTION_CUBES",error=error)
              ncubes = SIZE(list_cubes,1)
              DO ispin = 1,dft_control%nspins
                 CALL qs_print_cubes(qs_env,psi1(ispin)%matrix,ncubes,list_cubes,&
-                     &              centers_set(ispin)%array,ionode,'psi1_p',&
-                     &              idir=idir,ispin=ispin,stride=section_get_ival(epr_section,&
-                     &              "PRINT%RESPONSE_FUNCTION_CUBES%STRIDE",error=error),&
-                     &              error=error)
+                     centers_set(ispin)%array,print_key,'psi1_p',idir=idir,ispin=ispin,error=error)
              ENDDO ! ispin
           ENDIF ! print response functions
           !
@@ -327,12 +325,11 @@ CONTAINS
           IF(BTEST(cp_print_key_should_output(logger%iter_info,epr_section,&
                &   "PRINT%RESPONSE_FUNCTION_CUBES",error=error),cp_p_file)) THEN
              ncubes = SIZE(list_cubes,1)
+             print_key => section_vals_get_subs_vals(epr_section,"PRINT%RESPONSE_FUNCTION_CUBES",error=error)
              DO ispin = 1,dft_control%nspins
                 CALL qs_print_cubes(qs_env,psi1(ispin)%matrix,ncubes,list_cubes,&
-                     &              centers_set(ispin)%array,ionode,'psi1_rxp',&
-                     &              idir=idir,ispin=ispin,stride=section_get_ival(epr_section,&
-                     &              "PRINT%RESPONSE_FUNCTION_CUBES%STRIDE",error=error),&
-                     &              error=error)
+                     centers_set(ispin)%array,print_key,'psi1_rxp',&
+                     idir=idir,ispin=ispin,error=error)
              ENDDO ! ispin
           ENDIF ! print response functions
           !
@@ -490,14 +487,12 @@ CONTAINS
           ! print response functions
           IF(BTEST(cp_print_key_should_output(logger%iter_info,epr_section,&
                &   "PRINT%RESPONSE_FUNCTION_CUBES",error=error),cp_p_file)) THEN
+             print_key => section_vals_get_subs_vals(epr_section,"PRINT%RESPONSE_FUNCTION_CUBES",error=error)
              ncubes = SIZE(list_cubes,1)
              DO ispin = 1,dft_control%nspins
                 CALL qs_print_cubes(qs_env,psi1_D(ispin,idir)%matrix,&
-                     &              ncubes,list_cubes,&
-                     &              centers_set(ispin)%array,ionode,'psi1_D',&
-                     &              idir=idir,ispin=ispin,stride=section_get_ival(epr_section,&
-                     &              "PRINT%RESPONSE_FUNCTION_CUBES%STRIDE",error=error),&
-                     &              error=error)
+                      ncubes,list_cubes,centers_set(ispin)%array,print_key,'psi1_D',&
+                      idir=idir,ispin=ispin,error=error)
              ENDDO
           ENDIF ! print response functions
           ! CALL epr_restart_epr(epr_env,qs_env,action="write",ivec=idir+6,error=error)

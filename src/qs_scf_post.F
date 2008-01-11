@@ -56,8 +56,8 @@ MODULE qs_scf_post
   USE et_coupling_types,               ONLY: set_et_coupling_type
   USE external_potential_types,        ONLY: gth_potential_type
   USE f77_blas
-  USE input_constants,                 ONLY: do_loc_none,&
-                                             ot_precond_full_all
+  USE input_constants,                 ONLY: ot_precond_full_all,&
+                                             state_loc_all
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_get_lval,&
                                              section_get_rval,&
@@ -74,8 +74,7 @@ MODULE qs_scf_post
   USE mulliken,                        ONLY: mulliken_charges
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
-  USE physcon,                         ONLY: angstrom,&
-                                             debye
+  USE physcon,                         ONLY: debye
   USE preconditioner,                  ONLY: preconditioner_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
@@ -95,18 +94,16 @@ MODULE qs_scf_post
   USE qs_epr_hyp,                      ONLY: qs_epr_hyp_calc
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
-  USE qs_loc_control,                  ONLY: localized_wfn_control_release,&
-                                             localized_wfn_control_retain,&
-                                             localized_wfn_control_type
+  USE qs_loc_control,                  ONLY: localized_wfn_control_create,&
+                                             read_loc_section,&
+                                             set_loc_centers,&
+                                             set_loc_wfn_lists
   USE qs_loc_methods,                  ONLY: qs_loc_driver
+  USE qs_loc_molecules,                ONLY: wfc_to_molecule
   USE qs_loc_types,                    ONLY: qs_loc_env_create,&
                                              qs_loc_env_destroy,&
                                              qs_loc_env_new_type
   USE qs_loc_utils,                    ONLY: qs_loc_env_init
-  USE qs_localization,                 ONLY: qs_loc_compute_properties,&
-                                             qs_loc_destroy,&
-                                             qs_loc_env_type,&
-                                             qs_loc_init
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
@@ -184,17 +181,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_path_length)       :: filename
-    INTEGER                                  :: handle, homo, ispin, istat, &
-                                                n, nao, nlumos, nmo, nmos, &
+    INTEGER                                  :: handle, homo, ispin, n, &
+                                                n_mo(2), nao, nelectron, &
+                                                nlumos, nmo, nmoloc(2), nmos, &
                                                 output_unit
     LOGICAL                                  :: failure, ionode, &
                                                 my_localized_wfn, p_loc, &
                                                 p_molstates, uniform_occ
+    REAL(KIND=dp)                            :: maxocc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: scenter
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: center
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: unoccupied_orbs
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
@@ -206,8 +202,6 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(evals_p_type), DIMENSION(:), &
       POINTER                                :: unoccupied_evals
-    TYPE(localized_wfn_control_type), &
-      POINTER                                :: my_localized_wfn_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(molecule_type), POINTER             :: molecule_set( : )
@@ -219,17 +213,14 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env_new
-    TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
+    TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: ks_rmpv, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: input, loc_print_key, &
-                                                loc_section, print_key
+                                                print_key
     TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
-
-!------------------------------------------------------------------------------
 
     CALL timeset(routineN,"I",'',handle)
 
@@ -242,9 +233,7 @@ CONTAINS
     NULLIFY(dft_control,pw_env,auxbas_pw_pool,pw_pools,mos,rho,mo_coeff,&
             ks_rmpv,matrix_s,qs_loc_env,scf_control,unoccupied_orbs,&
             mo_eigenvalues,unoccupied_evals,fm_struct_tmp,molecule_set,&
-            center,rho_core,tddfpt_control,subsys,particles,input,print_key)
-
-    NULLIFY(qs_loc_env_new,my_localized_wfn_control,loc_section)
+            rho_core,tddfpt_control,subsys,particles,input,print_key)
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -271,8 +260,7 @@ CONTAINS
 
        ! Print Localized orbitals
        print_key => section_vals_get_subs_vals(dft_section,"PRINT%LOCALIZATION",error=error)
-       p_loc=BTEST(cp_print_key_should_output(logger%iter_info,print_key,&
-            error=error),cp_p_file)
+       p_loc=BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
        ! Print Molecular States
        print_key => section_vals_get_subs_vals(dft_section,"PRINT%MOLECULAR_STATES",error=error)
        p_molstates=BTEST(cp_print_key_should_output(logger%iter_info,print_key,&
@@ -282,7 +270,7 @@ CONTAINS
        IF ( ((BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
               error=error),cp_p_file).OR.&
               BTEST(cp_print_key_should_output(logger%iter_info,dft_section,&
-              "PRINT%LOCALIZATION%CUBES",error=error),cp_p_file)&
+              "PRINT%LOCALIZATION%LOCALIZE%PRINT%WANNIER_CUBES",error=error),cp_p_file)&
              ).AND. &
               ( section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO",error=error) /= 0 .OR. &
                 section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO",error=error) /=0 ) &
@@ -339,44 +327,40 @@ CONTAINS
           ENDIF
        ENDIF
 
-       ! Initialize the localization environment, 
-       ! needed e.g. for wannier functions and molecular states
-       IF(dft_control%qs_control%localized_wfn) THEN
+       ! Initialize the localization environment, needed e.g. for wannier functions and molecular states
+       IF (p_loc) THEN
+          CALL qs_loc_env_create(qs_loc_env,error=error)
+          CALL localized_wfn_control_create(qs_loc_env%localized_wfn_control,error=error)
+          loc_print_key => section_vals_get_subs_vals(input,"DFT%PRINT%LOCALIZATION%LOCALIZE",error=error)
+          CALL read_loc_section(qs_loc_env%localized_wfn_control,loc_print_key,qs_loc_env%do_localize,&
+               error=error)
+          ! Some setup for MOs to be localized
+          nmoloc = 0
+          DO ispin = 1,dft_control%nspins
+             CALL get_mo_set(mos(ispin)%mo_set,nmo=n_mo(ispin),nelectron=nelectron,maxocc=maxocc)
+             IF(qs_loc_env%localized_wfn_control%set_of_states == state_loc_all) THEN
+                nmoloc(ispin) = NINT(nelectron/maxocc)
+             ELSE
+                nmoloc(ispin) = MIN(qs_loc_env%localized_wfn_control%nloc_states(1) ,n_mo(ispin))
+             ENDIF
+          ENDDO  ! ispin
+          CALL set_loc_wfn_lists(qs_loc_env%localized_wfn_control,nmoloc,n_mo,dft_control%nspins,error=error)
+          CALL set_loc_centers(qs_loc_env%localized_wfn_control,nmoloc,dft_control%nspins,error=error)
+          CALL qs_loc_env_init(qs_loc_env,qs_loc_env%localized_wfn_control,qs_env,error=error)
 
-          my_localized_wfn_control =>  dft_control%qs_control%localized_wfn_control
-          CALL localized_wfn_control_retain(my_localized_wfn_control,error=error)
-          CPPrecondition(ASSOCIATED(my_localized_wfn_control),cp_failure_level,routineP,error,failure)
-          CALL qs_loc_env_create(qs_loc_env_new,error=error)
-          CALL qs_loc_env_init(qs_loc_env_new,my_localized_wfn_control,qs_env,error=error)
-          CALL localized_wfn_control_release(my_localized_wfn_control,error=error)
-          my_localized_wfn = .TRUE.
-       ELSEIF (p_loc)THEN
-
-          NULLIFY(qs_loc_env)
-          ALLOCATE(qs_loc_env)
-          CALL qs_loc_init(qs_loc_env,qs_env,error=error)
-          CALL section_vals_val_get(input,"DFT%PRINT%LOCALIZATION%LOC_TYPE",&
-               i_val=qs_loc_env%localization_method,error=error)
-          qs_loc_env%wannier = .NOT. (qs_loc_env % localization_method .EQ. do_loc_none)
-          IF (p_molstates) qs_loc_env%molecular_states = .TRUE.
-          CALL section_vals_val_get(input,"DFT%PRINT%LOCALIZATION%MAX_ITER",&
-               i_val=qs_loc_env%max_iter,error=error)
-          CALL section_vals_val_get(input,"DFT%PRINT%LOCALIZATION%JACOBI_FALLBACK",&
-               l_val=qs_loc_env%jacobi_fallback,error=error)
-          CALL section_vals_val_get(input,"DFT%PRINT%LOCALIZATION%EPS_LOCALIZATION",&
-               r_val=qs_loc_env%eps_localization,error=error)
+          ! Let's inform in case the section is not present in the input
+          CALL cp_assert(qs_loc_env%do_localize,cp_warning_level,cp_assertion_failed,routineP,&
+               "User requested the calculation of the localized wavefunction but the section "//&
+               "LOCALIZE (located in: DFT%PRINT%LOCALIZATION%LOCALIZE) was not specified. Localization "//&
+               "will not be performed!"//&
+CPSourceFileRef,&
+               only_ionode=.TRUE.)
        ENDIF
 
        ! Gets localization info for the occupied orbs
        !  - Possibly gets wannier functions
        !  - Possibly gets molecular states
-       IF (my_localized_wfn) THEN
-
-          loc_section => section_vals_get_subs_vals(dft_section,"QS%LOCALIZE",error=error)
-          CALL qs_loc_driver(qs_env,qs_loc_env_new,loc_section,error=error)
-
-       ELSEIF (p_loc) THEN
-
+       IF (p_loc) THEN
           IF (qs_env%dft_control%restricted) THEN
              IF (ionode) WRITE(output_unit,*) &
               " Unclear how we define MOs / localization in the restricted case ... skipping"
@@ -387,9 +371,7 @@ CONTAINS
                 CPPrecondition(uniform_occ,cp_failure_level,routineP,error,failure)
                 nmos=MAX(nmos,nmo)
              END DO
-             ALLOCATE(center(nmos,6,dft_control%nspins),STAT=istat)
-             CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-             center = 0._dp
+             qs_loc_env%tag_mo="HOMO"
              DO ispin=1,dft_control%nspins
                 CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
                                 eigenvalues=mo_eigenvalues,homo=homo,nmo=nmo)
@@ -414,33 +396,34 @@ CONTAINS
                 NULLIFY(mo_localized)
                 CALL cp_fm_create(mo_localized,mo_coeff%matrix_struct,error=error)
                 CALL cp_fm_to_fm(mo_coeff,mo_localized,error=error)
-                ! Do localization..
-                WRITE(filename,'(a13,I1.1)') "HOMO_CENTERS_",ispin
-                IF (ionode) WRITE(output_unit,*) ""
-                IF (ionode) WRITE(output_unit,*) "Computing localization properties"
-                qs_loc_env%filename = filename
-                loc_print_key => section_vals_get_subs_vals(input,"DFT%PRINT%LOCALIZATION",error=error) 
-                scenter => center(:,:,ispin)
-                CALL qs_loc_compute_properties(qs_loc_env,molecule_set,mo_localized,&
-                     scenter,ionode,loc_print_key,error=error)
-                IF (ionode) WRITE(output_unit,*) "Results in ",filename
+                IF (qs_loc_env%do_localize) THEN
+                   ! Do the Real localization..
+                   IF (ionode) WRITE(output_unit,"(/,T2,A,I3)") "LOCALIZATION| Computing localization properties "//&
+                        "for OCCUPIED ORBITALS. Spin:",ispin
 
-                ! Write the wannier functions to cubes
-                CALL qs_scf_post_wannier(input, dft_section, dft_control, logger, qs_env,&
-                     wf_g, wf_r, mo_localized, particles, homo, ispin, ionode, scenter, error)
+                   loc_print_key => section_vals_get_subs_vals(input,"DFT%PRINT%LOCALIZATION%LOCALIZE",&
+                        error=error) 
+                   scenter => qs_loc_env%localized_wfn_control%centers_set(ispin)%array
+                
+                   CALL qs_loc_driver(qs_env,qs_loc_env,loc_print_key,myspin=ispin,&
+                        ext_mo_coeff=mo_localized,error=error)
 
-                ! Compute the molecular states
-                IF ( p_molstates ) THEN
-                   CALL construct_molecular_states ( molecule_set, mo_localized, mo_coeff, &
-                        mo_eigenvalues, ks_rmpv(ispin)%matrix, matrix_s(1)%matrix, qs_env, &
-                        wf_r, wf_g, force_env_section=qs_env%input, error=error)
-                ENDIF
+                   ! Compute the molecular states
+                   IF ( p_molstates ) THEN
+                      loc_print_key => section_vals_get_subs_vals(input,"DFT%PRINT%LOCALIZATION",error=error) 
+                      CALL wfc_to_molecule(qs_loc_env, loc_print_key, scenter, molecule_set, error)
+                      
+                      CALL construct_molecular_states(molecule_set, mo_localized, mo_coeff, &
+                           mo_eigenvalues, ks_rmpv(ispin)%matrix, matrix_s(1)%matrix, qs_env, &
+                           wf_r, wf_g, force_env_section=qs_env%input, error=error)
+                   ENDIF
+                END IF
                 CALL cp_fm_release(mo_localized,error=error)
              ENDDO
-             ! Print Total Dipole
-             CALL qs_scf_post_loc_dip(input, dft_control, center, logger, qs_env, error)
-             DEALLOCATE(center,STAT=istat)
-             CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+             ! Print Total Dipole if the localization has been performed
+             IF (qs_loc_env%do_localize) THEN
+                CALL qs_scf_post_loc_dip(input, dft_control, qs_loc_env, logger, qs_env, error)
+             END IF
           ENDIF
        ENDIF
 
@@ -490,10 +473,6 @@ CONTAINS
                   unoccupied_evals(ispin)%evals, para_env=qs_env%para_env,scr=output_unit, &
                   ionode=ionode,error=error)
 
-             ! Localization
-             CALL qs_scf_post_loc(input, logger, unoccupied_orbs, qs_loc_env, molecule_set,&
-                  output_unit, ispin, ionode, p_loc, error)
-
              ! Prints the cube files of UNOCCUPIED ORBITALS
              CALL qs_scf_post_unocc_cubes(input, dft_section, dft_control, logger, qs_env,&
                   unoccupied_orbs, wf_g, wf_r, particles, nlumos, homo, ispin, ionode, error)
@@ -514,7 +493,8 @@ CONTAINS
        ! Deallocate grids needed to compute wavefunctions
        IF ( ((BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
               error=error),cp_p_file).OR.&
-              BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%LOCALIZATION%CUBES",&
+              BTEST(cp_print_key_should_output(logger%iter_info,dft_section,&
+              "PRINT%LOCALIZATION%LOCALIZE%PRINT%WANNIER_CUBES",&
               error=error),cp_p_file)&
              ).AND. &
               ( section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO",error=error) /= 0 .OR. &
@@ -527,12 +507,8 @@ CONTAINS
        END IF
 
        ! Destroy the localization environment
-       IF (dft_control%qs_control%localized_wfn .AND. my_localized_wfn) THEN
-          CALL qs_loc_env_destroy(qs_loc_env_new, error=error)
-       ELSEIF (p_loc) THEN
-          CALL qs_loc_destroy(qs_loc_env,error=error)
-          DEALLOCATE(qs_loc_env,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       IF (p_loc) THEN
+          CALL qs_loc_env_destroy(qs_loc_env, error=error)
        ENDIF
 
        ! Compute the optical conductivity (needs homos and lumos)
@@ -564,7 +540,6 @@ CONTAINS
        ! Calculation of properties needed for BASIS_MOLOPT optimizations
        CALL qs_scf_post_molopt(input, logger, qs_env, error)
 
-       
     END IF
     
     CALL timestop(0.0_dp,handle)
@@ -654,86 +629,7 @@ CONTAINS
     END IF
 
   END SUBROUTINE qs_scf_post_charges
-!!****f* qs_scf_post/qs_scf_post_wannier [1.0] *
-!!
-!!   NAME
-!!     qs_scf_post_wannier
-!!
-!!   FUNCTION
-!!     Prints WANNIER centers
-!!
-!!   NOTES
-!!     
-!!   ARGUMENTS
-!!     - qs_env: the qs_env in which the qs_env lives
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!*** **********************************************************************
-  SUBROUTINE qs_scf_post_wannier(input, dft_section, dft_control, logger, qs_env,&
-       wf_g, wf_r, mo_localized, particles, homo, ispin, ionode, center, error)
-    TYPE(section_vals_type), POINTER         :: input, dft_section
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(pw_p_type)                          :: wf_g, wf_r
-    TYPE(cp_fm_type), POINTER                :: mo_localized
-    TYPE(particle_list_type), POINTER        :: particles
-    INTEGER, INTENT(IN)                      :: homo, ispin
-    LOGICAL, INTENT(IN)                      :: ionode
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: center
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_wannier', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=default_path_length)       :: filename, title
-    INTEGER                                  :: ivector, nhomo, unit_nr
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(pw_env_type), POINTER               :: pw_env
-
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%LOCALIZATION%CUBES",&
-         error=error),cp_p_file)) THEN 
-
-       nhomo=section_get_ival(dft_section,"PRINT%LOCALIZATION%CUBES%NHOMO",error=error)
-       IF(nhomo==-1) nhomo=homo
-       DO ivector=MAX(1,homo-nhomo+1),homo
-          CALL get_qs_env(qs_env=qs_env,&
-                          atomic_kind_set=atomic_kind_set,&
-                          cell=cell,&
-                          particle_set=particle_set,&
-                          pw_env=pw_env,&
-                          error=error)
-          CALL calculate_wavefunction(mo_localized,ivector,wf_r,wf_g,atomic_kind_set,cell,&
-               dft_control,particle_set,pw_env ,error=error)
-
-          WRITE(filename,'(a8,I5.5,a1,I1.1)') "WANNIER",ivector,"_",ispin
-          unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%LOCALIZATION%CUBES",&
-               extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
-          ! Title name
-          WRITE(title,'(A7,I5.5,A1,I1.1,A1,6G10.4)') "WANNIER",ivector,"_",ispin," ",&
-               center(ivector,1:3)*angstrom, &
-               center(ivector,4:6)*angstrom
-          CALL pw_to_cube(wf_r%pw,unit_nr,ionode,title,&
-               particles=particles,&
-               stride=section_get_ival(dft_section,"PRINT%LOCALIZATION%CUBES%STRIDE",error=error),&
-               error=error)
-          CALL cp_print_key_finished_output(unit_nr,logger,input,&
-               "DFT%PRINT%LOCALIZATION%CUBES",error=error)
-       ENDDO
-    END IF
-
-  END SUBROUTINE qs_scf_post_wannier
 
 !!****f* qs_scf_post/qs_scf_post_loc_dip [1.0] *
 !!
@@ -757,11 +653,10 @@ CONTAINS
 !!
 !!
 !!*** **********************************************************************
-  SUBROUTINE qs_scf_post_loc_dip(input, dft_control, center, logger, qs_env, error)
+  SUBROUTINE qs_scf_post_loc_dip(input, dft_control, qs_loc_env, logger, qs_env, error)
     TYPE(section_vals_type), POINTER         :: input
     TYPE(dft_control_type), POINTER          :: dft_control
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: center
+    TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -809,8 +704,8 @@ CONTAINS
        zwfc = 3.0_dp-REAL(dft_control%nspins,dp)
        
        DO ispins=1,dft_control%nspins
-          DO i=1,SIZE(center,1)
-             r_pbc = pbc(center(i,1:3,ispins),cell)
+          DO i=1,SIZE(qs_loc_env%localized_wfn_control%centers_set(ispins)%array,1)
+             r_pbc = pbc(qs_loc_env%localized_wfn_control%centers_set(ispins)%array(1:3,i),cell)
              dipole=dipole - zwfc * r_pbc
           ENDDO
        ENDDO
@@ -841,63 +736,6 @@ CONTAINS
     END IF
 
   END SUBROUTINE qs_scf_post_loc_dip
-
-!!****f* qs_scf_post/qs_scf_post_loc [1.0] *
-!!
-!!   NAME
-!!     qs_scf_post_loc
-!!
-!!   FUNCTION
-!!     Computes and prints info about Localization
-!!
-!!   NOTES
-!!     
-!!   ARGUMENTS
-!!     - qs_env: the qs_env in which the qs_env lives
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!*** **********************************************************************
-  SUBROUTINE qs_scf_post_loc(input, logger, unoccupied_orbs, qs_loc_env, molecule_set,&
-       output_unit, ispin, ionode, p_loc, error)
-    TYPE(section_vals_type), POINTER         :: input
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: unoccupied_orbs
-    TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
-    TYPE(molecule_type), DIMENSION(:), &
-      POINTER                                :: molecule_set
-    INTEGER, INTENT(IN)                      :: output_unit, ispin
-    LOGICAL, INTENT(IN)                      :: ionode, p_loc
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_loc', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=default_path_length)       :: filename
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: center
-    TYPE(section_vals_type), POINTER         :: loc_print_key
-
-    IF (p_loc) THEN
-       IF (ionode) WRITE(output_unit,*) ""
-       IF (ionode) WRITE(output_unit,*) "Computing localization properties"
-       WRITE(filename,'(a13,I1.1)') "LUMO_CENTERS_",ispin
-       qs_loc_env%filename = filename
-       loc_print_key => section_vals_get_subs_vals(input,"DFT%PRINT%LOCALIZATION",error=error)
-       ALLOCATE(center(unoccupied_orbs(ispin)%matrix%matrix_struct%ncol_global,6))
-       CALL qs_loc_compute_properties(qs_loc_env,molecule_set,unoccupied_orbs(ispin)%matrix,&
-            center,ionode,loc_print_key,error=error)
-       DEALLOCATE(center)
-       IF (ionode) WRITE(output_unit,*) "Results in ",filename
-    ENDIF
-
-  END SUBROUTINE qs_scf_post_loc
 
 !!****f* qs_scf_post/qs_scf_post_occ_cubes [1.0] *
 !!
@@ -1308,7 +1146,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_efg', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin, istat
+    INTEGER                                  :: ispin, stat
     LOGICAL                                  :: do_et
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: my_mos
@@ -1329,8 +1167,8 @@ CONTAINS
     IF(do_et)THEN
        IF(qs_env%et_coupling%first_run)THEN
           NULLIFY(my_mos)
-          ALLOCATE(my_mos(dft_control%nspins),STAT=istat)
-          ALLOCATE(qs_env%et_coupling%et_mo_coeff(dft_control%nspins),STAT=istat)          
+          ALLOCATE(my_mos(dft_control%nspins),STAT=stat)
+          ALLOCATE(qs_env%et_coupling%et_mo_coeff(dft_control%nspins),STAT=stat)          
           DO ispin =1,dft_control%nspins
              NULLIFY(my_mos(ispin)%matrix)
              CALL cp_fm_create(matrix=my_mos(ispin)%matrix,&

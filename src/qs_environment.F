@@ -2,6 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
+
 !!****** cp2k/qs_environment [1.0] *
 !!
 !!   NAME
@@ -23,7 +24,6 @@
 !!
 !!   SOURCE
 !******************************************************************************
-
 MODULE qs_environment
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
                                              atomic_kind_list_release,&
@@ -101,8 +101,7 @@ MODULE qs_environment
   USE input_constants,                 ONLY: &
        do_et_becke, do_et_ddapc, do_method_am1, do_method_dftb, &
        do_method_gapw, do_method_gapw_xc, do_method_mndo, do_method_pdg, &
-       do_method_pm3, do_method_rm1, general_roks, restart_guess, &
-       state_loc_all
+       do_method_pm3, do_method_rm1, general_roks, restart_guess
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -140,11 +139,6 @@ MODULE qs_environment
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_interactions,                 ONLY: init_interaction_radii,&
                                              init_se_nlradius
-  USE qs_loc_control,                  ONLY: localized_wfn_control_release,&
-                                             localized_wfn_control_retain,&
-                                             localized_wfn_control_type,&
-                                             set_loc_centers,&
-                                             set_loc_wfn_lists
   USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                              mo_set_p_type
   USE qs_rho0_ggrid,                   ONLY: rho0_s_grid_create
@@ -185,17 +179,28 @@ MODULE qs_environment
 
 CONTAINS
 
-! *****************************************************************************
-
+!****f* qs_environment/qs_init [1.0] *
+!!
+!!   NAME
+!!    qs_init 
+!!
+!!   FUNCTION
+!!     Read the input and the database files for the setup of the
+!!     QUICKSTEP environment.
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!
+!!   AUTHOR
+!!     Creation (22.05.2000,MK)
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** **********************************************************************
   SUBROUTINE qs_init(qs_env,root_section,globenv,subsys,cell,cell_ref,qmmm,&
        qmmm_periodic,force_env_section,subsys_section,use_motion_section,error)
-
-!   Purpose: Read the input and the database files for the setup of the
-!            QUICKSTEP environment.
-
-!   History: - Creation (22.05.2000,MK)
-
-!   ***************************************************************************
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: root_section
@@ -339,17 +344,27 @@ CONTAINS
     
   END SUBROUTINE qs_init
 
-! *****************************************************************************
-
+!****f* qs_environment/qs_init_subsys [1.0] *
+!!
+!!   NAME
+!!     qs_init_subsys
+!!
+!!   FUNCTION
+!!     Initialize the qs environment (subsys)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!
+!!   AUTHOR
+!!     Creation (22.05.2000,MK)
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** **********************************************************************
   SUBROUTINE qs_init_subsys(qs_env,subsys,cell,cell_ref,use_ref_cell,&
        root_section,subsys_section,globenv,qmmm,harris,error)
-
-!   Purpose: Read the input and the database files for the setup of the
-!            QUICKSTEP environment.
-
-!   History: - Creation (22.05.2000,MK)
-
-!   ***************************************************************************
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -361,12 +376,13 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: harris
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'qs_init_subsys'
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_init_subsys', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: handle, ispin, istat, iw, lmax_sphere, maxl, maxlgto, maxlppl, &
       maxlppnl, method_id, multiplicity, my_ival, n_ao, natom, nelectron, &
       output_unit
-    INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin, nmoloc
+    INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin
     LOGICAL                                  :: all_potential_present, &
                                                 harris_flag, ionode, &
                                                 was_present
@@ -385,8 +401,6 @@ CONTAINS
     TYPE(harris_energy_type), POINTER        :: harris_energy
     TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(harris_force_type), POINTER         :: harris_force
-    TYPE(localized_wfn_control_type), &
-      POINTER                                :: localized_wfn_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(molecule_kind_type), DIMENSION(:), &
@@ -416,17 +430,17 @@ CONTAINS
     logger => cp_error_get_logger(error)
 
     ionode = para_env%ionode
+    output_unit = -1
     IF(ionode) output_unit = cp_logger_get_default_unit_nr(logger)
     was_present = .FALSE.
 
     IF (PRESENT(harris)) THEN
-      harris_flag = harris
+       harris_flag = harris
     ELSE
-      harris_flag = .FALSE.
+       harris_flag = .FALSE.
     END IF
 
-!   *** Initialise the Quickstep environment ***
-
+    ! Initialise the Quickstep environment
     NULLIFY (mos)
     NULLIFY (dft_control)
     NULLIFY (energy)
@@ -437,52 +451,46 @@ CONTAINS
     NULLIFY (local_molecules)
     NULLIFY (local_particles)
     NULLIFY (scf_control)
-    NULLIFY (localized_wfn_control)
     NULLIFY (dft_section)
     NULLIFY (et_coupling_section)
     dft_section =>  section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
     qs_section =>  section_vals_get_subs_vals(dft_section,"QS",error=error)
-    et_coupling_section =>  section_vals_get_subs_vals(qs_env%input,&
-                            "PROPERTIES%ET_COUPLING",error=error)
+    et_coupling_section =>  section_vals_get_subs_vals(qs_env%input,"PROPERTIES%ET_COUPLING",error=error)
+
     particle_set => subsys%particles%els
     atomic_kind_set => subsys%atomic_kinds%els
     molecule_set => subsys%molecules_new%els
     molecule_kind_set => subsys%molecule_kinds_new%els
 
-!   *** Read the input section with the DFT control parameters ***
-
+    !   *** Read the input section with the DFT control parameters ***
     CALL read_dft_control(dft_control,root_section,dft_section,error=error)
 
     CALL read_tddfpt_control(dft_control%tddfpt_control,dft_control%nspins, &
-                             dft_section,error)
+         dft_section,error)
 
-!   *** Print the Quickstep program banner (copyright and version number) ***
-    iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%PROGRAM_BANNER",&
-         extension=".Log",error=error)
+    !   *** Print the Quickstep program banner (copyright and version number) ***
+    iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%PROGRAM_BANNER",extension=".Log",error=error)
     CALL section_vals_val_get(qs_section,"METHOD",i_val=method_id,error=error)
     SELECT CASE (method_id)
-      CASE DEFAULT
-        CALL qs_header(iw, iw>0)
-      CASE ( do_method_rm1, do_method_am1, do_method_mndo, do_method_pdg, do_method_pm3 )
-        CALL se_header(iw, iw>0)
-      CASE ( do_method_dftb )
-        CALL dftb_header(iw, iw>0)
+    CASE DEFAULT
+       CALL qs_header(iw, iw>0)
+    CASE ( do_method_rm1, do_method_am1, do_method_mndo, do_method_pdg, do_method_pm3 )
+       CALL se_header(iw, iw>0)
+    CASE ( do_method_dftb )
+       CALL dftb_header(iw, iw>0)
     END SELECT
 
     CALL cp_print_key_finished_output(iw,logger,dft_section,&
          "PRINT%PROGRAM_BANNER",error=error)
 
-!   *** Read the input section with the Quickstep control parameters ***
-
+    !   *** Read the input section with the Quickstep control parameters ***
     CALL read_qs_section(dft_control%qs_control,qs_section,error=error)
 
-    !    *******  check if any kind of electron transfer calculation has to be performed
-
+    !   *******  check if any kind of electron transfer calculation has to be performed
     CALL  section_vals_val_get(et_coupling_section,"TYPE_OF_CONSTRAINT",i_val=my_ival,error=error)
     dft_control%qs_control%et_coupling_calc=.FALSE.
     IF (my_ival==do_et_ddapc)THEN
-       et_ddapc_section =>  section_vals_get_subs_vals(et_coupling_section,&
-            "DDAPC_RESTRAINT_A",error=error)
+       et_ddapc_section =>  section_vals_get_subs_vals(et_coupling_section,"DDAPC_RESTRAINT_A",error=error)
        dft_control%qs_control%et_coupling_calc=.TRUE.
        dft_control%qs_control%ddapc_restraint=.TRUE.
        CALL  read_ddapc_section(dft_control%qs_control,et_ddapc_section,error)
@@ -491,60 +499,54 @@ CONTAINS
     IF (my_ival==do_et_becke)THEN
        dft_control%qs_control%becke_constraint=.TRUE.
        dft_control%qs_control%et_coupling_calc=.TRUE.       
-       et_becke_section =>  section_vals_get_subs_vals(et_coupling_section,&
-            "BECKE_CONSTRAINT_A",error=error)      
+       et_becke_section =>  section_vals_get_subs_vals(et_coupling_section,"BECKE_CONSTRAINT_A",error=error)      
        CALL  read_becke_section(dft_control%qs_control,et_becke_section,error)
     END IF
     CALL read_mgrid_section(dft_control%qs_control,dft_section,error=error)
 
-!   *** Read DFTB parameter files ***
+    !   *** Read DFTB parameter files ***
     IF ( dft_control%qs_control%method == "DFTB" ) THEN
-      NULLIFY (ewald_env,ewald_pw,dftb_potential)
-      dftb_control => dft_control%qs_control%dftb_control
-      CALL qs_dftb_param_init (atomic_kind_set,dftb_control,dftb_potential,&
-           subsys_section=subsys_section,para_env=para_env,error=error)
-      CALL set_qs_env(qs_env,dftb_potential=dftb_potential,error=error)
-      ! check for Ewald
-      IF ( dftb_control%do_ewald ) THEN
-        CALL ewald_env_create(ewald_env,para_env,error=error)
-        poisson_section => section_vals_get_subs_vals(dft_section,"POISSON",error=error)
-        CALL ewald_env_set(ewald_env,poisson_section=poisson_section,error=error)
-        ewald_section => section_vals_get_subs_vals(poisson_section,"EWALD",error=error)
-        print_section => section_vals_get_subs_vals(qs_env%input,&
-            "PRINT%GRID_INFORMATION",error=error)
-        CALL read_ewald_section(ewald_env,ewald_section,error=error)
-        CALL ewald_pw_create(ewald_pw,ewald_env,cell,cell_ref,&
-             print_section=print_section,error=error)
-        CALL set_qs_env(qs_env,ewald_env=ewald_env,ewald_pw=ewald_pw,error=error)
-        CALL ewald_env_release(ewald_env,error=error)
-        CALL ewald_pw_release(ewald_pw,error=error)
-      END IF
+       NULLIFY (ewald_env,ewald_pw,dftb_potential)
+       dftb_control => dft_control%qs_control%dftb_control
+       CALL qs_dftb_param_init (atomic_kind_set,dftb_control,dftb_potential,&
+            subsys_section=subsys_section,para_env=para_env,error=error)
+       CALL set_qs_env(qs_env,dftb_potential=dftb_potential,error=error)
+       ! check for Ewald
+       IF ( dftb_control%do_ewald ) THEN
+          CALL ewald_env_create(ewald_env,para_env,error=error)
+          poisson_section => section_vals_get_subs_vals(dft_section,"POISSON",error=error)
+          CALL ewald_env_set(ewald_env,poisson_section=poisson_section,error=error)
+          ewald_section => section_vals_get_subs_vals(poisson_section,"EWALD",error=error)
+          print_section => section_vals_get_subs_vals(qs_env%input,&
+               "PRINT%GRID_INFORMATION",error=error)
+          CALL read_ewald_section(ewald_env,ewald_section,error=error)
+          CALL ewald_pw_create(ewald_pw,ewald_env,cell,cell_ref,&
+               print_section=print_section,error=error)
+          CALL set_qs_env(qs_env,ewald_env=ewald_env,ewald_pw=ewald_pw,error=error)
+          CALL ewald_env_release(ewald_env,error=error)
+          CALL ewald_pw_release(ewald_pw,error=error)
+       END IF
     END IF
 
-!   *** Check basis and fill in missing parts ***
-
+    !   *** Check basis and fill in missing parts ***
     CALL check_atomic_kind_set(atomic_kind_set,dft_control,para_env,&
-        subsys_section=subsys_section,error=error)
+         subsys_section=subsys_section,error=error)
 
-!   *** Check that no all-electron potential is present if GPW or GAPW_XC
-
+    !   *** Check that no all-electron potential is present if GPW or GAPW_XC
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                            all_potential_present=all_potential_present)
+         all_potential_present=all_potential_present)
     IF ( (dft_control%qs_control%method == "GPW") .OR. &
          (dft_control%qs_control%method == "GAPW_XC") ) THEN
-      IF( all_potential_present ) THEN
-        CALL stop_program(routineN,moduleN,__LINE__,&
-                "all-el calculations with GPW and GAPW_XC are not implemented ")
-      END IF
+       IF( all_potential_present ) THEN
+          CALL stop_program(routineN,moduleN,__LINE__,&
+               "all-el calculations with GPW and GAPW_XC are not implemented ")
+       END IF
     END IF
 
-!   *** Initialize the spherical harmonics and ***
-!   *** the orbital transformation matrices    ***
-
+    !   *** Initialize the spherical harmonics and ***
+    !   *** the orbital transformation matrices    ***
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             maxlgto=maxlgto,&
-                             maxlppl=maxlppl,&
-                             maxlppnl=maxlppnl)
+         maxlgto=maxlgto,maxlppl=maxlppl,maxlppnl=maxlppnl)
 
     lmax_sphere = dft_control%qs_control%gapw_control%lmax_sphere
     IF(lmax_sphere .LT.0) THEN
@@ -558,34 +560,29 @@ CONTAINS
     CALL init_orbital_pointers(maxl)
     CALL init_spherical_harmonics(maxl,root_section,error)
 
-!   *** Initialise the atomic kind set ***
-
+    !   *** Initialise the atomic kind set ***
     CALL init_atomic_kind_set(atomic_kind_set,para_env,qs_env%input,error=error)
 
-!   *** Initialise GAPW soft basis and projectors
-
+    !   *** Initialise GAPW soft basis and projectors
     IF(dft_control%qs_control%method == "GAPW" .OR. &
-       dft_control%qs_control%method == "GAPW_XC")  THEN
-      qs_control => dft_control%qs_control
-      gapw_control => dft_control%qs_control%gapw_control
-      CALL init_gapw_basis_set(atomic_kind_set,qs_control,qs_env%input,error)
+         dft_control%qs_control%method == "GAPW_XC")  THEN
+       qs_control => dft_control%qs_control
+       gapw_control => dft_control%qs_control%gapw_control
+       CALL init_gapw_basis_set(atomic_kind_set,qs_control,qs_env%input,error)
     ENDIF
 
-!   *** Initialize the pretabulation for the calculation of the   ***
-!   *** incomplete Gamma function F_n(t) after McMurchie-Davidson ***
-
+    !   *** Initialize the pretabulation for the calculation of the   ***
+    !   *** incomplete Gamma function F_n(t) after McMurchie-Davidson ***
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             maxlgto=maxlgto)
+         maxlgto=maxlgto)
     maxl = 3*maxlgto + 1
     CALL init_md_ftable(maxl)
 
-!   *** Initialize the atomic interaction radii ***
-
+    !   *** Initialize the atomic interaction radii ***
     CALL init_interaction_radii(dft_control%qs_control,cell,atomic_kind_set,&
-                                subsys_section,error)
+         subsys_section,error)
 
-!   *** Distribute molecules and atoms using the new data structures ***
-
+    !   *** Distribute molecules and atoms using the new data structures ***
     CALL distribute_molecules_1d(particle_kind_set=atomic_kind_set,&
                                  particle_set=particle_set,&
                                  local_particles=local_particles,&
@@ -595,46 +592,39 @@ CONTAINS
                                  force_env_section=qs_env%input,&
                                  error=error)
 
-!   *** SCF parameters ***
-
+    !   *** SCF parameters ***
     CALL scf_c_create(scf_control,error=error)
     CALL scf_c_read_parameters(scf_control,root_section,qs_env%input,error=error)
 
-!   *** Use the just read block sizes to set the optimal values in cp_fm_struct ***
-
+    !   *** Use the just read block sizes to set the optimal values in cp_fm_struct ***
     optimal_blacs_row_block_size=scf_control%nrow_block
     optimal_blacs_col_block_size=scf_control%ncol_block
 
-!   *** Allocate the data structure for Quickstep energies ***
-
+    !   *** Allocate the data structure for Quickstep energies ***
     CALL allocate_qs_energy(energy)
 
-!   *** Allocate the data structure for the Harris energies ***
-
+    !   *** Allocate the data structure for the Harris energies ***
     IF (harris_flag) THEN
-      CALL harris_energy_create(harris_energy=harris_energy,error=error)
+       CALL harris_energy_create(harris_energy=harris_energy,error=error)
     END IF
 
-!   *** Activate the interpolation ***
-
+    !   *** Activate the interpolation ***
     CALL wfi_create(wf_history,&
                     interpolation_method_nr=&
                     dft_control%qs_control%wf_interpolation_method_nr,&
                     extrapolation_order = dft_control%qs_control%wf_extrapolation_order,&
                     error=error)
 
-!   *** Set the actual Harris environment ***
-
+    !   *** Set the actual Harris environment ***
     IF (harris_flag) THEN
-      natom = SIZE(particle_set)
-      CALL harris_env_create(harris_env=harris_env, natom=natom, &
-                             nspins=dft_control%nspins, error=error)
-      CALL harris_env_set(harris_env=harris_env, harris_energy=harris_energy, &
-                          harris_force=harris_force, error=error)
+       natom = SIZE(particle_set)
+       CALL harris_env_create(harris_env=harris_env, natom=natom, &
+            nspins=dft_control%nspins, error=error)
+       CALL harris_env_set(harris_env=harris_env, harris_energy=harris_energy, &
+            harris_force=harris_force, error=error)
     END IF
 
-!   *** Set the current Quickstep environment ***
-
+    !   *** Set the current Quickstep environment ***
     CALL set_qs_env(qs_env,subsys=subsys,error=error)
     CALL set_qs_env(qs_env=qs_env,&
                     cell=cell,&
@@ -645,10 +635,11 @@ CONTAINS
                     energy=energy,&
                     force=force,&
                     scf_control=scf_control,&
-                    wf_history=wf_history,error=error)
+                    wf_history=wf_history,&
+                    error=error)
 
     IF (harris_flag) THEN
-      CALL set_qs_env(qs_env=qs_env, harris_env=harris_env, error=error)
+       CALL set_qs_env(qs_env=qs_env, harris_env=harris_env, error=error)
     END IF
 
     CALL cp_subsys_set(subsys,local_molecules_new=local_molecules,&
@@ -668,149 +659,143 @@ CONTAINS
     ! decide what conditions need mo_derivs
     ! right now, this only appears to be OT
     IF (scf_control%use_ot) THEN
-      CALL set_qs_env(qs_env=qs_env,requires_mo_derivs=.TRUE.,error=error)
+       CALL set_qs_env(qs_env=qs_env,requires_mo_derivs=.TRUE.,error=error)
     ELSE
-      CALL set_qs_env(qs_env=qs_env,requires_mo_derivs=.FALSE.,error=error)
+       CALL set_qs_env(qs_env=qs_env,requires_mo_derivs=.FALSE.,error=error)
     ENDIF
 
-!   Initialize the GAPW local densities and potentials
-    IF(dft_control%qs_control%method_id == do_method_gapw .OR. &
-      dft_control%qs_control%method_id == do_method_gapw_xc) THEN
-!     *** Allocate and initialize the set of atomic densities ***
-      CALL init_rho_atom(qs_env,gapw_control,error=error)
-      IF(dft_control%qs_control%method_id /= do_method_gapw_xc) THEN
-!       *** Allocate and initialize the compensation density rho0 ***
-        CALL init_rho0(qs_env,gapw_control,cell,error=error)
-!       *** Allocate and Initialize the local coulomb terms (1,2 and 3 centers) ***
-        CALL init_coulomb_local(qs_env,gapw_control,error=error)
-      END IF
+    !   Initialize the GAPW local densities and potentials
+    IF  (dft_control%qs_control%method_id == do_method_gapw .OR. &
+         dft_control%qs_control%method_id == do_method_gapw_xc) THEN
+       !     *** Allocate and initialize the set of atomic densities ***
+       CALL init_rho_atom(qs_env,gapw_control,error=error)
+       IF(dft_control%qs_control%method_id /= do_method_gapw_xc) THEN
+          !       *** Allocate and initialize the compensation density rho0 ***
+          CALL init_rho0(qs_env,gapw_control,cell,error=error)
+          !       *** Allocate and Initialize the local coulomb terms (1,2 and 3 centers) ***
+          CALL init_coulomb_local(qs_env,gapw_control,error=error)
+       END IF
     ELSE IF(dft_control%qs_control%semi_empirical) THEN
-      se_control => dft_control%qs_control%se_control
-      ! Make interaction radius compatible with unit cell
-      rc = se_control%rc_interaction
-      IF(cell%perd(1)==1) rc = MIN(rc,0.5_dp*plane_distance(1,0,0,cell))
-      IF(cell%perd(2)==1) rc = MIN(rc,0.5_dp*plane_distance(0,1,0,cell))
-      IF(cell%perd(3)==1) rc = MIN(rc,0.5_dp*plane_distance(0,0,1,cell))
-      IF (rc /= se_control%rc_interaction) THEN
-         IF (para_env%ionode) THEN
-           WRITE(output_unit,*)
-           WRITE(output_unit,'(A,T34,A)')     " WARNING|",&
-                                   " Integral interaction cutoff has been redefined"
-           WRITE(output_unit,'(A,T71,F10.3)') " WARNING| Old value [a.u.]",&
-                                   se_control%rc_interaction
-           WRITE(output_unit,'(A,T71,F10.3)') " WARNING| New value [a.u.]",rc
-           WRITE(output_unit,*)
-         END IF
-      END IF
-      se_control%rc_interaction = rc
-      SELECT CASE ( dft_control%qs_control%method_id)
-        CASE DEFAULT
-        CASE (do_method_rm1,do_method_am1,do_method_mndo,do_method_pm3)
+       se_control => dft_control%qs_control%se_control
+       ! Make interaction radius compatible with unit cell
+       rc = se_control%rc_interaction
+       IF(cell%perd(1)==1) rc = MIN(rc,0.5_dp*plane_distance(1,0,0,cell))
+       IF(cell%perd(2)==1) rc = MIN(rc,0.5_dp*plane_distance(0,1,0,cell))
+       IF(cell%perd(3)==1) rc = MIN(rc,0.5_dp*plane_distance(0,0,1,cell))
+       IF (rc /= se_control%rc_interaction) THEN
+          IF (output_unit>0) THEN
+             WRITE(output_unit,*)
+             WRITE(output_unit,'(A,T34,A)')     " WARNING|",&
+                  " Integral interaction cutoff has been redefined"
+             WRITE(output_unit,'(A,T71,F10.3)') " WARNING| Old value [a.u.]",&
+                  se_control%rc_interaction
+             WRITE(output_unit,'(A,T71,F10.3)') " WARNING| New value [a.u.]",rc
+             WRITE(output_unit,*)
+          END IF
+       END IF
+       se_control%rc_interaction = rc
+       SELECT CASE ( dft_control%qs_control%method_id)
+       CASE DEFAULT
+       CASE (do_method_rm1,do_method_am1,do_method_mndo,do_method_pm3)
           ! Neighbor lists have to be
           ! MAX(interaction range, orbital range)
           ! set new kind radius
-          CALL init_se_nlradius(se_control,cell,atomic_kind_set,&
-                 subsys_section,error)
-      END SELECT
-      ! check for Ewald
-      IF ( se_control%do_ewald ) THEN
-        CALL ewald_env_create(ewald_env,para_env,error=error)
-        poisson_section => section_vals_get_subs_vals(dft_section,"POISSON",error=error)
-        CALL ewald_env_set(ewald_env,poisson_section=poisson_section,error=error)
-        ewald_section => section_vals_get_subs_vals(poisson_section,"EWALD",error=error)
-        print_section => section_vals_get_subs_vals(qs_env%input,&
-            "PRINT%GRID_INFORMATION",error=error)
-        CALL read_ewald_section(ewald_env,ewald_section,error=error)
-        CALL ewald_pw_create(ewald_pw,ewald_env,cell,cell_ref,&
-             print_section=print_section,error=error)
-        CALL set_qs_env(qs_env,ewald_env=ewald_env,ewald_pw=ewald_pw,error=error)
-        CALL ewald_env_release(ewald_env,error=error)
-        CALL ewald_pw_release(ewald_pw,error=error)
-      END IF
+          CALL init_se_nlradius(se_control,cell,atomic_kind_set,subsys_section,error)
+       END SELECT
+       ! check for Ewald
+       IF ( se_control%do_ewald ) THEN
+          CALL ewald_env_create(ewald_env,para_env,error=error)
+          poisson_section => section_vals_get_subs_vals(dft_section,"POISSON",error=error)
+          CALL ewald_env_set(ewald_env,poisson_section=poisson_section,error=error)
+          ewald_section => section_vals_get_subs_vals(poisson_section,"EWALD",error=error)
+          print_section => section_vals_get_subs_vals(qs_env%input,&
+               "PRINT%GRID_INFORMATION",error=error)
+          CALL read_ewald_section(ewald_env,ewald_section,error=error)
+          CALL ewald_pw_create(ewald_pw,ewald_env,cell,cell_ref,&
+               print_section=print_section,error=error)
+          CALL set_qs_env(qs_env,ewald_env=ewald_env,ewald_pw=ewald_pw,error=error)
+          CALL ewald_env_release(ewald_env,error=error)
+          CALL ewald_pw_release(ewald_pw,error=error)
+       END IF
     ENDIF
 
-!   *** Allocate the MO data types ***
-
+    !   *** Allocate the MO data types ***
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              nsgf=n_ao,&
                              nelectron=nelectron)
 
-    nelectron = nelectron - dft_control%charge ! the total number of electrons
+    ! the total number of electrons
+    nelectron = nelectron - dft_control%charge
 
     IF (dft_control%multiplicity == 0) THEN
-      IF (MODULO(nelectron,2) == 0) THEN
-        dft_control%multiplicity = 1
-      ELSE
-        dft_control%multiplicity = 2
-      END IF
+       IF (MODULO(nelectron,2) == 0) THEN
+          dft_control%multiplicity = 1
+       ELSE
+          dft_control%multiplicity = 2
+       END IF
     END IF
 
     multiplicity = dft_control%multiplicity
 
     IF ((dft_control%nspins < 1).OR.(dft_control%nspins > 2)) THEN
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "nspins should be 1 or 2 for the time being...")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            "nspins should be 1 or 2 for the time being...")
     END IF
 
     IF ((MODULO(nelectron,2) /= 0).AND.(dft_control%nspins == 1)) THEN
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "Use the LSD option for an odd number of electrons.")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            "Use the LSD option for an odd number of electrons.")
     END IF
 
     ! The transition potential method to calculate XAS needs LSD
     IF(dft_control%do_xas_calculation ) THEN
-      IF(dft_control%nspins == 1) THEN
-        CALL stop_program(routineN,moduleN,__LINE__,&
-                   "Use the LSD option for XAS with transition potential.")
-      END IF
-      IF(dft_control%xas_control%xas_restart .AND. &
-          scf_control%density_guess/= restart_guess ) THEN
+       IF(dft_control%nspins == 1) THEN
+          CALL stop_program(routineN,moduleN,__LINE__,&
+               "Use the LSD option for XAS with transition potential.")
+       END IF
+       IF(dft_control%xas_control%xas_restart .AND. &
+            scf_control%density_guess/= restart_guess ) THEN
           CALL stop_program(routineN,moduleN,__LINE__,&
                "Restart of XAS orbitals possible only if the GS orbitals"//&
                " are also read from restart file.")
-      END IF
+       END IF
     END IF
 
-!   assigning the number of states per spin initial version, not yet very
-!   general. Should work for an even number of electrons and a single
-!   additional electron this set of options that requires full matrices,
-!   however, makes things a bit ugly right now.... we try to make a
-!   distinction between the number of electrons per spin and the number of
-!   MOs per spin this should allow the use of fractional occupations later
-!   on
+    !   assigning the number of states per spin initial version, not yet very
+    !   general. Should work for an even number of electrons and a single
+    !   additional electron this set of options that requires full matrices,
+    !   however, makes things a bit ugly right now.... we try to make a
+    !   distinction between the number of electrons per spin and the number of
+    !   MOs per spin this should allow the use of fractional occupations later
+    !   on
+    IF (dft_control%nspins == 1) THEN
+       maxocc = 2.0_dp
+       nelectron_spin(1) = nelectron
+       nelectron_spin(2) = 0
+       n_mo(1) = nelectron/2
+       n_mo(2) = 0
+    ELSE
+       maxocc=1.0_dp
 
-   IF (dft_control%nspins == 1) THEN
+       !    *** the simplist spin distribution is written here. Special cases will
+       !    *** need additional user input
+       IF (MODULO(nelectron + multiplicity - 1,2) /= 0) THEN
+          CALL stop_program(routineN,moduleN,__LINE__,&
+               "LSD: try to use a different multiplicity.")
+       END IF
 
-     maxocc = 2.0_dp
-     nelectron_spin(1) = nelectron
-     nelectron_spin(2) = 0
-     n_mo(1) = nelectron/2
-     n_mo(2) = 0
+       nelectron_spin(1) = (nelectron + multiplicity - 1)/2
+       nelectron_spin(2) = (nelectron - multiplicity + 1)/2
 
-   ELSE
+       IF (nelectron_spin(2) < 0) THEN
+          CALL stop_program(routineN,moduleN,__LINE__,&
+               "LSD: too few electrons for this multiplicity.")
+       END IF
 
-     maxocc=1.0_dp
+       n_mo(1) = nelectron_spin(1)
+       n_mo(2) = nelectron_spin(2)
 
-!    *** the simplist spin distribution is written here. Special cases will
-!    *** need additional user input
-
-     IF (MODULO(nelectron + multiplicity - 1,2) /= 0) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "LSD: try to use a different multiplicity.")
-     END IF
-
-     nelectron_spin(1) = (nelectron + multiplicity - 1)/2
-     nelectron_spin(2) = (nelectron - multiplicity + 1)/2
-
-     IF (nelectron_spin(2) < 0) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "LSD: too few electrons for this multiplicity.")
-     END IF
-
-     n_mo(1) = nelectron_spin(1)
-     n_mo(2) = nelectron_spin(2)
-
-   END IF
+    END IF
 
     scf_control%added_mos(1) = MIN(scf_control%added_mos(1),n_ao-n_mo(1))
 
@@ -818,43 +803,42 @@ CONTAINS
     IF (n_mo(2) /= 0) n_mo(2) = n_mo(2) + scf_control%added_mos(2)
 
     IF ((scf_control%smear /= 0.0_dp).AND.(scf_control%added_mos(1) == 0)) THEN
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "More states are needed to apply smearing.")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            "More states are needed to apply smearing.")
     END IF
 
-!   *** Some options require that all MOs are computed ... ***
+    !   *** Some options require that all MOs are computed ... ***
     IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,&
-                                         "PRINT%MO/CARTESIAN",error=error),&
-              cp_p_file).OR.&
-        (scf_control%level_shift /= 0.0_dp).OR.&
-        (scf_control%eps_jacobi /= 0.0_dp).OR.&
-        (dft_control%roks.AND.(.NOT.scf_control%use_ot))) THEN
+         "PRINT%MO/CARTESIAN",error=error),&
+         cp_p_file).OR.&
+         (scf_control%level_shift /= 0.0_dp).OR.&
+         (scf_control%eps_jacobi /= 0.0_dp).OR.&
+         (dft_control%roks.AND.(.NOT.scf_control%use_ot))) THEN
        n_mo(:) = n_ao
     END IF
 
     ! Compatibility checks for ROKS
     IF (dft_control%roks.AND.(.NOT.scf_control%use_ot)) THEN
-      IF (scf_control%roks_scheme == general_roks) THEN
-        IF (para_env%ionode) THEN
-          CALL print_message("WARNING: General ROKS scheme is not yet tested",&
-                             output_unit,2,1,1)
-        END IF
-      END IF
-      IF (scf_control%eps_jacobi /= 0.0_dp) THEN
-        CALL stop_program(routineN,moduleN,__LINE__,&
-                          "Pseudo-diagonalization for ROKS is not yet implemented")
-      END IF
-      IF (scf_control%smear /= 0.0_dp) THEN
-        CALL stop_program(routineN,moduleN,__LINE__,&
-                          "The options ROKS and SMEAR are not compatible. "//&
-                          "Try UKS instead of ROKS")
-      END IF
+       CALL cp_assert((scf_control%roks_scheme /= general_roks),cp_warning_level,&
+            cp_assertion_failed,routineP,"General ROKS scheme is not yet tested!"//&
+CPSourceFileRef,&
+            only_ionode=.TRUE.)
+
+       IF (scf_control%eps_jacobi /= 0.0_dp) THEN
+          CALL stop_program(routineN,moduleN,__LINE__,&
+               "Pseudo-diagonalization for ROKS is not yet implemented")
+       END IF
+       IF (scf_control%smear /= 0.0_dp) THEN
+          CALL stop_program(routineN,moduleN,__LINE__,&
+               "The options ROKS and SMEAR are not compatible. "//&
+               "Try UKS instead of ROKS")
+       END IF
     END IF
 
     ALLOCATE (mos(dft_control%nspins),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "mos",dft_control%nspins*int_size)
+       CALL stop_memory(routineN,moduleN,__LINE__,&
+            "mos",dft_control%nspins*int_size)
     END IF
 
     ! in principle the restricted calculation could be performed
@@ -872,38 +856,16 @@ CONTAINS
     ENDIF
 
     DO ispin=1,dft_control%nspins
-      NULLIFY (mos(ispin)%mo_set)
-      CALL allocate_mo_set(mo_set=mos(ispin)%mo_set,&
-                           nao=n_ao,&
-                           nmo=n_mo(ispin),&
-                           nelectron=nelectron_spin(ispin),&
-                           maxocc=maxocc,&
-                           error=error)
+       NULLIFY (mos(ispin)%mo_set)
+       CALL allocate_mo_set(mo_set=mos(ispin)%mo_set,&
+                            nao=n_ao,&
+                            nmo=n_mo(ispin),&
+                            nelectron=nelectron_spin(ispin),&
+                            maxocc=maxocc,&
+                            error=error)
     END DO
 
     CALL set_qs_env(qs_env,mos=mos,error=error)
-
-!   *** Some preparetion for the localization of the MOS if required
-    IF (dft_control%qs_control%localized_wfn) THEN
-      NULLIFY (localized_wfn_control)
-      localized_wfn_control =>  dft_control%qs_control%localized_wfn_control
-      CALL localized_wfn_control_retain(localized_wfn_control,error=error)
-      nmoloc = 0
-      IF(localized_wfn_control%set_of_states == state_loc_all) THEN
-        DO ispin = 1,dft_control%nspins
-          nmoloc(ispin) = NINT(nelectron_spin(ispin)/maxocc)
-        END DO
-      ELSE
-        DO ispin = 1,dft_control%nspins
-          nmoloc(ispin) = MIN(localized_wfn_control%nloc_states(1) ,n_mo(ispin))
-        END DO
-      END IF
-      CALL localized_wfn_control_release(localized_wfn_control,error=error)
-      CALL set_loc_wfn_lists(dft_control%qs_control%localized_wfn_control,&
-           nmoloc,n_mo,dft_control%nspins,error=error)
-      CALL set_loc_centers(dft_control%qs_control%localized_wfn_control,nmoloc,&
-           dft_control%nspins,globenv,qs_env%input,error=error)
-    END IF
 
     ! Print the DFT control parameters
     CALL write_dft_control(dft_control,dft_section,error)
@@ -913,8 +875,8 @@ CONTAINS
 
     ! Print XES/XAS control parameters
     IF (dft_control%do_xas_calculation) THEN
-      CALL cite_reference(Iannuzzi2007)
-      CALL write_xas_control(dft_control%xas_control,dft_section,error=error)
+       CALL cite_reference(Iannuzzi2007)
+       CALL write_xas_control(dft_control%xas_control,dft_section,error=error)
     END IF
 
     ! Print the unnormalized basis set information (input data)
@@ -946,26 +908,36 @@ CONTAINS
 
     ! Allocate and Initialie rho0 soft on the global grid
     IF(dft_control%qs_control%method == "GAPW") THEN
-      CALL get_qs_env(qs_env=qs_env,rho0_mpole=rho0_mpole,error=error)
-      CALL rho0_s_grid_create(qs_env, rho0_mpole, error=error)
+       CALL get_qs_env(qs_env=qs_env,rho0_mpole=rho0_mpole,error=error)
+       CALL rho0_s_grid_create(qs_env, rho0_mpole, error=error)
     END IF
 
-    IF (ionode) CALL m_flush(output_unit)
-
+    IF (output_unit>0) CALL m_flush(output_unit)
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE qs_init_subsys
 
-! *****************************************************************************
-
+!****f* qs_environment/write_total_numbers [1.0] *
+!!
+!!   NAME
+!!     write_total_numbers
+!!
+!!   FUNCTION
+!!     Write the total number of kinds, atoms, etc. to the logical unit
+!!     number lunit.
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!
+!!   AUTHOR
+!!     Creation (06.10.2000)
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** **********************************************************************
   SUBROUTINE write_total_numbers(atomic_kind_set,particle_set,force_env_section,error)
-
-!   Purpose: Write the total number of kinds, atoms, etc. to the logical unit
-!            number lunit.
-
-!   History: - Creation (06.10.2000, Matthias Krack)
-
-!   ***************************************************************************
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -973,6 +945,9 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'write_total_numbers', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: maxlgto, maxlppl, maxlppnl, &
                                                 natom, ncgf, nkind, npgf, &

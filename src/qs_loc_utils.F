@@ -87,11 +87,7 @@ MODULE qs_loc_utils
 ! *** Public ***
   PUBLIC ::  jacobi_rotation_pipek, qs_loc_env_init
 
-! *****************************************************************************
-
 CONTAINS
-
-
 !******************************************************************************
 !!****f* qs_loc_types/jacpbi_rotation_pipek [1.0] *
 !!
@@ -185,20 +181,39 @@ CONTAINS
 
   END SUBROUTINE jacobi_rotation_pipek
 
+!******************************************************************************
+!!****f* qs_loc_types/rotate_rmat_real [1.0] *
+!!
+!!   NAME
+!!    rotate_rmat_real 
+!!
+!!   FUNCTION
+!!      
+!!
+!!   NOTES
+!!     
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!   MODIFICATION HISTORY
+!!     04.2005 created [MI]
+!!
+!!*** **********************************************************************
   SUBROUTINE rotate_rmat_real(istate,jstate,st,ct,rmat,error)
 
-    INTEGER, INTENT(IN)              :: istate, jstate
-    REAL(dp), INTENT(IN)             :: ct, st
-    TYPE(cp_fm_type), POINTER        :: rmat
-    INTEGER                          :: nstate
-    TYPE(cp_error_type), INTENT(inout)  &
-                                         :: error
+    INTEGER, INTENT(IN)                      :: istate, jstate
+    REAL(dp), INTENT(IN)                     :: st, ct
+    TYPE(cp_fm_type), POINTER                :: rmat
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-
+    INTEGER                                  :: nstate
 #if defined(__SCALAPACK)
-    INTEGER, DIMENSION(9) :: desc
+    INTEGER, DIMENSION(9)                    :: desc
 #endif
+    LOGICAL                                  :: failure
 
+    failure = .FALSE.
     CALL cp_fm_get_info(rmat, nrow_global=nstate, error=error)
 #if defined(__SCALAPACK)
     desc(:) = rmat%matrix_struct%descriptor(:)
@@ -211,20 +226,40 @@ CONTAINS
 
   END SUBROUTINE rotate_rmat_real
 
+!******************************************************************************
+!!****f* qs_loc_types/rotate_zij_real [1.0] *
+!!
+!!   NAME
+!!     rotate_zij_real
+!!
+!!   FUNCTION
+!!      
+!!
+!!   NOTES
+!!     
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!   MODIFICATION HISTORY
+!!     04.2005 created [MI]
+!!
+!!*** **********************************************************************
   SUBROUTINE rotate_zij_real(istate,jstate,st,ct,zij,error)
 
-    INTEGER, INTENT(IN)                   :: istate, jstate
-    REAL(dp), INTENT(IN)                  :: ct, st
-    TYPE(cp_fm_p_type), DIMENSION(:,:), &
-      POINTER                             :: zij
-    TYPE(cp_error_type), INTENT(inout)  &
-                                         :: error
+    INTEGER, INTENT(IN)                      :: istate, jstate
+    REAL(dp), INTENT(IN)                     :: st, ct
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      POINTER                                :: zij
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER :: iatom, natom, nstate, stride
+    INTEGER                                  :: iatom, natom, nstate, stride
 #if defined(__SCALAPACK)
-    INTEGER, DIMENSION(9) :: desc
+    INTEGER, DIMENSION(9)                    :: desc
 #endif
+    LOGICAL                                  :: failure
 
+    failure = .FALSE.
     CALL cp_fm_get_info(zij(1,1)%matrix,nrow_global = nstate, error=error)
 
     natom = SIZE(zij, 1)
@@ -248,6 +283,25 @@ CONTAINS
 
   END SUBROUTINE rotate_zij_real
 
+!******************************************************************************
+!!****f* qs_loc_types/check_tolerance_real [1.0] *
+!!
+!!   NAME
+!!     check_tolerance_real
+!!
+!!   FUNCTION
+!!      
+!!
+!!   NOTES
+!!     
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!   MODIFICATION HISTORY
+!!     04.2005 created [MI]
+!!
+!!*** **********************************************************************
   SUBROUTINE check_tolerance_real(zij_fm_set,tolerance,error)
 
     TYPE(cp_fm_p_type), DIMENSION(:, :)      :: zij_fm_set
@@ -303,6 +357,7 @@ CONTAINS
     CALL cp_fm_release ( force ,error=error)
 
   END SUBROUTINE check_tolerance_real
+
 !******************************************************************************
 !!****f* qs_loc_types/qs_loc_env_init [1.0] *
 !!
@@ -329,24 +384,22 @@ CONTAINS
 !!     04.2005 created [MI]
 !!
 !!*** **********************************************************************
-  SUBROUTINE qs_loc_env_init(qs_loc_env,localized_wfn_control,qs_env,onlyspin1,error)
+  SUBROUTINE qs_loc_env_init(qs_loc_env,localized_wfn_control,qs_env,myspin,do_localize,error)
 
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(localized_wfn_control_type), &
       POINTER                                :: localized_wfn_control
     TYPE(qs_environment_type), POINTER       :: qs_env
-    LOGICAL, OPTIONAL                        :: onlyspin1
+    INTEGER, INTENT(IN), OPTIONAL            :: myspin
+    LOGICAL, INTENT(IN), OPTIONAL            :: do_localize
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, iatom, imo, &
-                                                imoloc, ispin, istat, j, lb, &
-                                                my_nspins, nao, naosub, &
-                                                natoms, nmo, nmosub, nspins, &
-                                                ub
-    LOGICAL                                  :: failure, my_one_spin
+    INTEGER :: handle, i, iatom, imo, imoloc, ispin, istat, j, l_spin, lb, &
+      my_nspins, nao, naosub, natoms, nmo, nmosub, nspins, s_spin, ub
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: my_occ, occ_imo
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupations
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
@@ -364,156 +417,153 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset("qs_loc_env_init","I",'',handle)
 
     failure = .FALSE.
-    my_one_spin = .FALSE.
-    IF(PRESENT(onlyspin1)) my_one_spin = onlyspin1
 
     NULLIFY(mos,matrix_s,moloc_coeff,particle_set,para_env,cell,local_molecules,occupations)
-
-    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, cell=cell, &
-                     local_molecules=local_molecules,&
-                     particle_set=particle_set, &
-                     para_env=para_env,&
-                     mos=mos,error=error)
-
-    nspins = SIZE(mos,1)
-    my_nspins = nspins
-    IF(my_one_spin) my_nspins = 1
-    ALLOCATE (moloc_coeff(my_nspins), STAT=istat)
-    DO ispin = 1,my_nspins
-      NULLIFY(tmp_fm_struct,mo_coeff)
-      CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,nao=nao,nmo=nmo)
-      nmosub = localized_wfn_control%nloc_states(ispin)
-      CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
-           ncol_global=nmosub,para_env=para_env,context=mo_coeff%matrix_struct%context,error=error)
-
-      CALL cp_fm_create (moloc_coeff(ispin)%matrix , tmp_fm_struct ,error=error)
-
-      CALL cp_fm_get_info(moloc_coeff(ispin)%matrix, nrow_global=naosub, &
-           ncol_global=nmosub,error=error)
-      CPPostcondition(nao==naosub,cp_failure_level,routineP,error,failure)
-      CPPostcondition(nmo>=nmosub,cp_failure_level,routineP,error,failure)
-      CALL cp_fm_set_all(moloc_coeff(ispin)%matrix,0.0_dp,error=error)
-      CALL cp_fm_struct_release ( tmp_fm_struct ,error=error)
-    END DO  ! ispin
-    ! Copy the submatrix
-
-    DO ispin = 1,my_nspins
-      CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff,&
-           occupation_numbers=occupations, nao=nao, nmo=nmo)
-      lb = localized_wfn_control%lu_bound_states(1,ispin)
-      ub = localized_wfn_control%lu_bound_states(2,ispin)
-
-      IF(localized_wfn_control%set_of_states == state_loc_list) THEN
-        ALLOCATE(vecbuffer(1,nao),STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-        nmosub = SIZE(localized_wfn_control%loc_states,1)
-        CPPostcondition(nmosub>0,cp_failure_level,routineP,error,failure)
-        imoloc = 0
-        my_occ =  occupations(localized_wfn_control%loc_states(1))
-        DO i = lb,ub
-           ! Get the index in the subset
-           imoloc = imoloc + 1
-           ! Get the index in the full set
-           imo = localized_wfn_control%loc_states(i)
-           occ_imo = occupations(imo)
-           IF(ABS(occ_imo-my_occ) > EPSILON(1.0_dp)) THEN
-             IF(localized_wfn_control%localization_method /= do_loc_none) &
-               CALL stop_program(routineP,"States with different occupations"//&
-               " cannot be rotated together")
-           END IF
-           ! Take the imo vector from the full set and copy in the imoloc vector of the subset
-           CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,imo,&
-                nao,1,transpose=.TRUE.,error=error)
-           CALL cp_fm_set_submatrix(moloc_coeff(ispin)%matrix,vecbuffer,1,imoloc,&
-                nao,1,transpose=.TRUE.,error=error)
-         END DO
-         DEALLOCATE(vecbuffer,STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       ELSE
-         my_occ = occupations( lb )
-         occ_imo = occupations( ub )
-         IF(ABS(occ_imo-my_occ) >  EPSILON(1.0_dp)) THEN
-            IF(localized_wfn_control%localization_method /= do_loc_none) &
-             CALL stop_program(routineP,"States with different occupations"//&
-             " cannot be rotated together")
-         END IF
-         nmosub = localized_wfn_control%nloc_states(ispin)
-         CALL cp_fm_to_fm(mo_coeff,moloc_coeff(ispin)%matrix,nmosub,lb,1)
+    IF (PRESENT(do_localize)) qs_loc_env%do_localize = do_localize
+    IF (qs_loc_env%do_localize) THEN
+       CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, cell=cell, &
+            local_molecules=local_molecules,particle_set=particle_set, &
+            para_env=para_env,mos=mos,error=error)
+       nspins    = SIZE(mos,1)
+       s_spin    = 1
+       l_spin    = nspins
+       my_nspins = nspins
+       IF(PRESENT(myspin))  THEN
+          s_spin = myspin
+          l_spin = myspin
+          my_nspins = 1
        END IF
-    END DO
-    CALL set_qs_loc_env(qs_loc_env=qs_loc_env, cell=cell, local_molecules=local_molecules,&
-                        moloc_coeff=moloc_coeff, particle_set=particle_set,para_env=para_env,&
-                        localized_wfn_control=localized_wfn_control,error=error)
+       ALLOCATE (moloc_coeff(my_nspins), STAT=istat)
+       DO ispin = s_spin,l_spin
+          NULLIFY(tmp_fm_struct,mo_coeff)
+          CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,nao=nao,nmo=nmo)
+          nmosub = localized_wfn_control%nloc_states(ispin)
+          CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
+               ncol_global=nmosub,para_env=para_env,context=mo_coeff%matrix_struct%context,error=error)
 
-    ! Prepare the operators
-    NULLIFY(tmp_fm_struct,mo_coeff)
-    nmosub = MAXVAL(localized_wfn_control%nloc_states)
-    CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff)
-    CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nmosub,&
-         ncol_global=nmosub,para_env=para_env,context=mo_coeff%matrix_struct%context,error=error)
+          CALL cp_fm_create (moloc_coeff(ispin)%matrix , tmp_fm_struct ,error=error)
 
-    IF ( localized_wfn_control%operator_type==op_loc_berry )  THEN
-      ALLOCATE ( qs_loc_env % op_sm_set ( 2, 3 ), STAT = istat )
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      DO i=1, SIZE ( qs_loc_env % op_sm_set, 2 )
-         DO j=1, SIZE ( qs_loc_env % op_sm_set, 1 )
-           NULLIFY(qs_loc_env%op_sm_set(j,i)%matrix)
-           CALL replicate_matrix_structure(matrix_s(1)%matrix, &
-                qs_loc_env%op_sm_set(j,i)%matrix,"qs_loc_env%op_sm_"//&
-                TRIM(ADJUSTL(cp_to_string(j)))//"-"//TRIM(ADJUSTL(cp_to_string(i))),error=error)
-           CALL set_matrix(qs_loc_env%op_sm_set(j,i)%matrix,0.0_dp)
-         ENDDO
-      END DO
+          CALL cp_fm_get_info(moloc_coeff(ispin)%matrix, nrow_global=naosub, &
+               ncol_global=nmosub,error=error)
+          CPPostcondition(nao==naosub,cp_failure_level,routineP,error,failure)
+          CPPostcondition(nmo>=nmosub,cp_failure_level,routineP,error,failure)
+          CALL cp_fm_set_all(moloc_coeff(ispin)%matrix,0.0_dp,error=error)
+          CALL cp_fm_struct_release ( tmp_fm_struct ,error=error)
+       END DO  ! ispin
+       ! Copy the submatrix
 
-    ELSEIF ( localized_wfn_control%operator_type== op_loc_pipek) THEN
-      natoms = SIZE ( qs_loc_env % particle_set, 1 )
-      ALLOCATE ( qs_loc_env % op_fm_set ( natoms , 1 ), STAT = istat )
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      DO ispin = 1, SIZE(qs_loc_env % op_fm_set ,2)
-         CALL get_mo_set(mos(ispin)%mo_set,nmo=nmo)
-         DO iatom = 1,natoms
-           NULLIFY(qs_loc_env %op_fm_set(iatom,ispin)%matrix)
+       DO ispin =  s_spin,l_spin
+          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff,&
+               occupation_numbers=occupations, nao=nao, nmo=nmo)
+          lb = localized_wfn_control%lu_bound_states(1,ispin)
+          ub = localized_wfn_control%lu_bound_states(2,ispin)
 
-           CALL cp_fm_create (qs_loc_env % op_fm_set(iatom,ispin)%matrix , tmp_fm_struct ,error=error)
+          IF(localized_wfn_control%set_of_states == state_loc_list) THEN
+             ALLOCATE(vecbuffer(1,nao),STAT=istat)
+             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+             nmosub = SIZE(localized_wfn_control%loc_states,1)
+             CPPostcondition(nmosub>0,cp_failure_level,routineP,error,failure)
+             imoloc = 0
+             my_occ =  occupations(localized_wfn_control%loc_states(1))
+             DO i = lb,ub
+                ! Get the index in the subset
+                imoloc = imoloc + 1
+                ! Get the index in the full set
+                imo = localized_wfn_control%loc_states(i)
+                occ_imo = occupations(imo)
+                IF(ABS(occ_imo-my_occ) > EPSILON(1.0_dp)) THEN
+                   IF(localized_wfn_control%localization_method /= do_loc_none) &
+                        CALL stop_program(routineP,"States with different occupations"//&
+                        " cannot be rotated together")
+                END IF
+                ! Take the imo vector from the full set and copy in the imoloc vector of the subset
+                CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,imo,&
+                     nao,1,transpose=.TRUE.,error=error)
+                CALL cp_fm_set_submatrix(moloc_coeff(ispin)%matrix,vecbuffer,1,imoloc,&
+                     nao,1,transpose=.TRUE.,error=error)
+             END DO
+             DEALLOCATE(vecbuffer,STAT=istat)
+             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          ELSE
+             my_occ  = occupations( lb )
+             occ_imo = occupations( ub )
+             IF(ABS(occ_imo-my_occ) >  EPSILON(1.0_dp)) THEN
+                IF(localized_wfn_control%localization_method /= do_loc_none) &
+                     CALL stop_program(routineP,"States with different occupations"//&
+                     " cannot be rotated together")
+             END IF
+             nmosub = localized_wfn_control%nloc_states(ispin)
+             CALL cp_fm_to_fm(mo_coeff,moloc_coeff(ispin)%matrix,nmosub,lb,1)
+          END IF
+       END DO
+       CALL set_qs_loc_env(qs_loc_env=qs_loc_env, cell=cell, local_molecules=local_molecules,&
+            moloc_coeff=moloc_coeff, particle_set=particle_set,para_env=para_env,&
+            localized_wfn_control=localized_wfn_control,error=error)
 
-           CALL cp_fm_get_info(qs_loc_env %op_fm_set(iatom,ispin)%matrix, nrow_global=nmosub, &
-                error=error)
-           CPPostcondition(nmo>=nmosub,cp_failure_level,routineP,error,failure)
-           CALL cp_fm_set_all(qs_loc_env %op_fm_set(iatom,ispin)%matrix,0.0_dp,error=error)
-         END DO  ! iatom
-      END DO  ! ispin
-    ELSE
-      CALL stop_program(routineP,"Type of operator not implemented")
-    ENDIF
-    CALL cp_fm_struct_release ( tmp_fm_struct ,error=error)
+       ! Prepare the operators
+       NULLIFY(tmp_fm_struct,mo_coeff)
+       nmosub = MAXVAL(localized_wfn_control%nloc_states)
+       CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff)
+       CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nmosub,&
+            ncol_global=nmosub,para_env=para_env,context=mo_coeff%matrix_struct%context,error=error)
 
-    IF (  localized_wfn_control%operator_type==op_loc_berry ) THEN
+       IF ( localized_wfn_control%operator_type==op_loc_berry )  THEN
+          ALLOCATE ( qs_loc_env % op_sm_set ( 2, 3 ), STAT = istat )
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          DO i=1, SIZE ( qs_loc_env % op_sm_set, 2 )
+             DO j=1, SIZE ( qs_loc_env % op_sm_set, 1 )
+                NULLIFY(qs_loc_env%op_sm_set(j,i)%matrix)
+                CALL replicate_matrix_structure(matrix_s(1)%matrix, &
+                     qs_loc_env%op_sm_set(j,i)%matrix,"qs_loc_env%op_sm_"//&
+                     TRIM(ADJUSTL(cp_to_string(j)))//"-"//TRIM(ADJUSTL(cp_to_string(i))),error=error)
+                CALL set_matrix(qs_loc_env%op_sm_set(j,i)%matrix,0.0_dp)
+             ENDDO
+          END DO
 
-      CALL initialize_weights ( qs_loc_env % cell, qs_loc_env % weights )
+       ELSEIF ( localized_wfn_control%operator_type== op_loc_pipek) THEN
+          natoms = SIZE ( qs_loc_env % particle_set, 1 )
+          ALLOCATE ( qs_loc_env % op_fm_set ( natoms , 1 ), STAT = istat )
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          DO ispin = 1, SIZE(qs_loc_env % op_fm_set ,2)
+             CALL get_mo_set(mos(ispin)%mo_set,nmo=nmo)
+             DO iatom = 1,natoms
+                NULLIFY(qs_loc_env %op_fm_set(iatom,ispin)%matrix)
 
-      CALL get_berry_operator ( qs_loc_env, qs_env , error=error)
+                CALL cp_fm_create (qs_loc_env % op_fm_set(iatom,ispin)%matrix , tmp_fm_struct ,error=error)
 
-    ELSEIF ( localized_wfn_control%operator_type== op_loc_pipek) THEN
+                CALL cp_fm_get_info(qs_loc_env %op_fm_set(iatom,ispin)%matrix, nrow_global=nmosub, &
+                     error=error)
+                CPPostcondition(nmo>=nmosub,cp_failure_level,routineP,error,failure)
+                CALL cp_fm_set_all(qs_loc_env %op_fm_set(iatom,ispin)%matrix,0.0_dp,error=error)
+             END DO  ! iatom
+          END DO  ! ispin
+       ELSE
+          CALL stop_program(routineP,"Type of operator not implemented")
+       ENDIF
+       CALL cp_fm_struct_release ( tmp_fm_struct ,error=error)
 
-!!    here we don't have to do anything
-!!    CALL get_pipek_mezey_operator ( qs_loc_env, qs_env )
+       IF (  localized_wfn_control%operator_type==op_loc_berry ) THEN
 
-    ENDIF
+          CALL initialize_weights ( qs_loc_env % cell, qs_loc_env % weights )
+
+          CALL get_berry_operator ( qs_loc_env, qs_env , error=error)
+
+       ELSEIF ( localized_wfn_control%operator_type== op_loc_pipek) THEN
+
+          !!    here we don't have to do anything
+          !!    CALL get_pipek_mezey_operator ( qs_loc_env, qs_env )
+
+       ENDIF
 
 
-    qs_loc_env%molecular_states = .FALSE.
-
-
-! done
-    qs_loc_env%is_initialized = 666
+       qs_loc_env%molecular_states = .FALSE.
+    END IF
     CALL timestop(0.0_dp,handle)
 
-END SUBROUTINE qs_loc_env_init
+  END SUBROUTINE qs_loc_env_init
 
 !******************************************************************************
 !!****f* qs_loc_types/get_berry_operator [1.0] *
@@ -547,10 +597,7 @@ END SUBROUTINE qs_loc_env_init
 !!     04.2005 created [MI]
 !!
 !!*** **********************************************************************
-
   SUBROUTINE get_berry_operator ( qs_loc_env, qs_env, error )
-
-! globals
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -892,10 +939,7 @@ END SUBROUTINE qs_loc_env_init
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(0.0_dp,handle)
-
   END SUBROUTINE get_berry_operator
-
-!------------------------------------------------------------------------------
 
 END MODULE qs_loc_utils
 

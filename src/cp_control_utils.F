@@ -2,6 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
+
 !!****s* cp2k/cp_control_utils [1.0] *
 !!
 !!   NAME
@@ -12,7 +13,6 @@
 !!
 !!   SOURCE
 !******************************************************************************
-
 MODULE cp_control_utils
   USE bibliography,                    ONLY: Elstner1998,&
                                              Lippert1997,&
@@ -48,7 +48,6 @@ MODULE cp_control_utils
                                              default_string_length,&
                                              dp,&
                                              dp_size
-  USE qs_loc_control,                  ONLY: read_loc_section
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE xas_control,                     ONLY: read_xas_control
@@ -79,13 +78,32 @@ MODULE cp_control_utils
 
 CONTAINS
 
+!!****f* cp_control_utils/read_dft_control [1.0] *
+!!
+!!   NAME
+!!     read_dft_control
+!!
+!!   FUNCTION
+!!     
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** **********************************************************************
   SUBROUTINE read_dft_control(dft_control,root_section, dft_section, error)
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(section_vals_type), POINTER         :: root_section, dft_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE read_dft_control (MODULE dft_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_dft_control', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_path_length)       :: basis_set_file_name, &
                                                 potential_file_name
@@ -113,13 +131,13 @@ CONTAINS
     xc_section => section_vals_get_subs_vals(dft_section,"XC",error=error)
     CALL section_vals_get(xc_section,explicit=is_present,error=error)
     IF (.NOT.is_present.AND.not_SE) THEN
-       CALL stop_program(routine,"XC section missing.")
+       CALL stop_program(routineN,"XC section missing.")
     END IF
     xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",&
                                                  error=error)
     CALL section_vals_get(xc_fun_section,explicit=is_present,error=error)
     IF (.NOT.is_present.AND.not_SE) THEN
-       CALL stop_program(routine,"XC_FUNCTIONAL section missing.")
+       CALL stop_program(routineN,"XC_FUNCTIONAL section missing.")
     END IF
     scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
     CALL section_vals_val_get(dft_section,"UKS",l_val=dft_control%uks,error=error)
@@ -171,7 +189,7 @@ CONTAINS
     CASE (mol_dyn_run,energy_force_run,geo_opt_run,qs_debug_run,pint_run,vib_anal,do_band)
       dft_control%forces = .TRUE.
     CASE DEFAULT
-      CALL stop_program(routine,"unknown run type ")
+      CALL stop_program(routineN,"unknown run type ")
     END SELECT
 
 !   *** Read the input section ***
@@ -211,26 +229,43 @@ CONTAINS
 
   END SUBROUTINE read_dft_control
 
-! *****************************************************************************
+!!****f* cp_control_utils/read_mgrid_section [1.0] *
+!!
+!!   NAME
+!!    read_mgrid_section 
+!!
+!!   FUNCTION
+!!     
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** **********************************************************************
   SUBROUTINE read_mgrid_section(qs_control,dft_section,error)
 
     TYPE(qs_control_type), INTENT(INOUT)     :: qs_control
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine = "SUBROUTINE read_mgrid_control "
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_mgrid_section', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: igrid_level, istat, &
                                                 ngrid_level
     LOGICAL                                  :: failure, multigrid_set
     REAL(dp)                                 :: cutoff
     REAL(dp), DIMENSION(:), POINTER          :: cutofflist
-    TYPE(section_vals_type), POINTER         :: interp_section, mgrid_section
-
-!   ---------------------------------------------------------------------------
+    TYPE(section_vals_type), POINTER         :: mgrid_section
 
     failure=.FALSE.
-    NULLIFY(interp_section,mgrid_section,cutofflist)
+    NULLIFY(mgrid_section, cutofflist)
     mgrid_section => section_vals_get_subs_vals(dft_section,"MGRID",error=error)
 
     CALL section_vals_val_get(mgrid_section,"NGRIDS",i_val=ngrid_level,error=error)
@@ -241,7 +276,7 @@ CONTAINS
     END IF
 
     ALLOCATE(qs_control%e_cutoff(ngrid_level),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"qs_control%e_cutoff",&
+    IF (istat /= 0) CALL stop_memory(routineN,"qs_control%e_cutoff",&
                                              ngrid_level*dp_size)
     CALL section_vals_val_get(mgrid_section,"CUTOFF",r_val=cutoff,error=error)
     qs_control%cutoff = MAX(0.01_dp,cutoff)
@@ -261,7 +296,7 @@ CONTAINS
     IF(multigrid_set) THEN
       ! Read the values from input
       IF (qs_control%commensurate_mgrids) THEN
-          CALL stop_program(routine,&
+          CALL stop_program(routineN,&
                "Do not specify cutoffs for the commensurate grids (NYI)")
       ENDIF
 
@@ -269,7 +304,7 @@ CONTAINS
            r_vals=cutofflist,error=error)
       IF(ASSOCIATED(cutofflist)) THEN
          CALL cp_assert(SIZE(cutofflist,1) == ngrid_level,&
-              cp_failure_level,cp_assertion_failed,routine,&
+              cp_failure_level,cp_assertion_failed,routineN,&
               "Inconsistent values for number of multi grids",error,failure)
          IF (.NOT.failure) THEN
             DO igrid_level = 1,ngrid_level
@@ -300,23 +335,38 @@ CONTAINS
     DO igrid_level=2,ngrid_level
       IF ( qs_control%e_cutoff(igrid_level) > &
            qs_control%e_cutoff(igrid_level-1) ) THEN
-         CALL stop_program (routine,"Multi grids not ordered")
+         CALL stop_program (routineN,"Multi grids not ordered")
       END IF
     END DO
-
-    interp_section => section_vals_get_subs_vals(mgrid_section,"INTERPOLATOR",error=error)
-    ! I don't kow what this is, help is welcome
-
-
   END SUBROUTINE read_mgrid_section
 
+!!****f* cp_control_utils/read_qs_section [1.0] *
+!!
+!!   NAME
+!!    read_qs_section 
+!!
+!!   FUNCTION
+!!     
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** **********************************************************************
   SUBROUTINE read_qs_section(qs_control,qs_section,error)
 
     TYPE(qs_control_type), INTENT(INOUT)     :: qs_control
     TYPE(section_vals_type), POINTER         :: qs_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine = "SUBROUTINE read_qs_section "
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_qs_section', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: clist
@@ -328,14 +378,13 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
     TYPE(section_vals_type), POINTER :: becke_constraint_section, &
-      ddapc_restraint_section, dftb_parameter, dftb_section, loc_section, &
-      mull_section, s2_restraint_section, se_section
+      ddapc_restraint_section, dftb_parameter, dftb_section, mull_section, &
+      s2_restraint_section, se_section
 
     failure=.FALSE.
     was_present = .FALSE.
-    NULLIFY(loc_section,mull_section,se_section,dftb_section)
+    NULLIFY(mull_section,se_section,dftb_section)
 
-    loc_section => section_vals_get_subs_vals(qs_section,"LOCALIZE",error=error)
     mull_section => section_vals_get_subs_vals(qs_section,"MULLIKEN_RESTRAINT", error=error)
     ddapc_restraint_section => section_vals_get_subs_vals(qs_section,"DDAPC_RESTRAINT", error=error)
     s2_restraint_section => section_vals_get_subs_vals(qs_section,"S2_RESTRAINT", error=error)
@@ -457,52 +506,49 @@ CONTAINS
     qs_control%dftb = .FALSE.
     qs_control%semi_empirical = .FALSE.
     SELECT CASE (qs_control%method_id)
-      CASE (do_method_gapw)
-        CALL cite_reference(Lippert1999)
-        qs_control%gapw = .TRUE.
-      CASE (do_method_gapw_xc)
-        qs_control%gapw_xc = .TRUE.
-      CASE (do_method_gpw)
-        CALL cite_reference(Lippert1997)
-        qs_control%gpw = .TRUE.
-      CASE (do_method_dftb)
-        qs_control%dftb = .TRUE.
-        CALL cite_reference(Porezag1995)
-        CALL cite_reference(Seifert1996)
-      CASE (do_method_mndo,do_method_am1,do_method_pm3,do_method_pdg,do_method_rm1)
-        qs_control%semi_empirical = .TRUE.
+    CASE (do_method_gapw)
+       CALL cite_reference(Lippert1999)
+       qs_control%gapw = .TRUE.
+    CASE (do_method_gapw_xc)
+       qs_control%gapw_xc = .TRUE.
+    CASE (do_method_gpw)
+       CALL cite_reference(Lippert1997)
+       qs_control%gpw = .TRUE.
+    CASE (do_method_dftb)
+       qs_control%dftb = .TRUE.
+       CALL cite_reference(Porezag1995)
+       CALL cite_reference(Seifert1996)
+    CASE (do_method_mndo,do_method_am1,do_method_pm3,do_method_pdg,do_method_rm1)
+       qs_control%semi_empirical = .TRUE.
     END SELECT
 
     IF(qs_control %method_id == do_method_kg_pol) qs_control%polarization = .TRUE.
 
-    CALL section_vals_val_get(loc_section,"_SECTION_PARAMETERS_",&
-            l_val=qs_control%localized_wfn,error=error)
-    CALL read_loc_section(qs_control%localized_wfn_control,loc_section,qs_control%localized_wfn,error=error)
-
     CALL section_vals_get(mull_section,explicit=qs_control%mulliken_restraint,error=error)
 
     IF (qs_control%mulliken_restraint) THEN
-      CALL section_vals_val_get(mull_section,"STRENGTH",r_val=qs_control%mulliken_restraint_control%strength,error=error)
-      CALL section_vals_val_get(mull_section,"TARGET",r_val=qs_control%mulliken_restraint_control%target,error=error)
-      CALL section_vals_val_get(mull_section,"ATOMS",n_rep_val=n_rep,error=error)
-      jj = 0
-      DO k = 1,n_rep
-         CALL section_vals_val_get(mull_section,"ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
-         jj=jj+SIZE(tmplist)
-      END DO
-      qs_control%mulliken_restraint_control%natoms = jj
-      IF (qs_control%mulliken_restraint_control%natoms<1) &
-           CALL stop_program(routine, "Need at least 1 atom to use mulliken contraints")
-      ALLOCATE(qs_control%mulliken_restraint_control%atoms(qs_control%mulliken_restraint_control%natoms))
-      jj = 0
-      DO k = 1,n_rep
-         CALL section_vals_val_get(mull_section,"ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
-         DO  j = 1,SIZE(tmplist)
-           jj = jj+1
-           qs_control%mulliken_restraint_control%atoms (jj) = tmplist(j)
-        END DO
-     END DO
-  ENDIF
+       CALL section_vals_val_get(mull_section,"STRENGTH",r_val=qs_control%mulliken_restraint_control%strength,&
+            error=error)
+       CALL section_vals_val_get(mull_section,"TARGET",r_val=qs_control%mulliken_restraint_control%target,error=error)
+       CALL section_vals_val_get(mull_section,"ATOMS",n_rep_val=n_rep,error=error)
+       jj = 0
+       DO k = 1,n_rep
+          CALL section_vals_val_get(mull_section,"ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
+          jj=jj+SIZE(tmplist)
+       END DO
+       qs_control%mulliken_restraint_control%natoms = jj
+       IF (qs_control%mulliken_restraint_control%natoms<1) &
+            CALL stop_program(routineN, "Need at least 1 atom to use mulliken contraints")
+       ALLOCATE(qs_control%mulliken_restraint_control%atoms(qs_control%mulliken_restraint_control%natoms))
+       jj = 0
+       DO k = 1,n_rep
+          CALL section_vals_val_get(mull_section,"ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
+          DO  j = 1,SIZE(tmplist)
+             jj = jj+1
+             qs_control%mulliken_restraint_control%atoms (jj) = tmplist(j)
+          END DO
+       END DO
+    ENDIF
 
     CALL section_vals_get(ddapc_restraint_section,explicit=qs_control%ddapc_restraint,error=error)
 
@@ -512,70 +558,70 @@ CONTAINS
 
     CALL section_vals_get(s2_restraint_section,explicit=qs_control%s2_restraint,error=error)
     IF (qs_control%s2_restraint) THEN
-      CALL section_vals_val_get(s2_restraint_section,"STRENGTH", &
-                                r_val=qs_control%s2_restraint_control%strength,error=error)
-      CALL section_vals_val_get(s2_restraint_section,"TARGET", &
-                                r_val=qs_control%s2_restraint_control%target,error=error)
-      CALL section_vals_val_get(s2_restraint_section,"FUNCTIONAL_FORM", &
-                                i_val=qs_control%s2_restraint_control%functional_form,error=error)
+       CALL section_vals_val_get(s2_restraint_section,"STRENGTH", &
+            r_val=qs_control%s2_restraint_control%strength,error=error)
+       CALL section_vals_val_get(s2_restraint_section,"TARGET", &
+            r_val=qs_control%s2_restraint_control%target,error=error)
+       CALL section_vals_val_get(s2_restraint_section,"FUNCTIONAL_FORM", &
+            i_val=qs_control%s2_restraint_control%functional_form,error=error)
     ENDIF
-    
+
     CALL section_vals_get(becke_constraint_section,explicit=qs_control%becke_constraint,error=error)
 
     IF (qs_control%becke_constraint) THEN
        CALL  read_becke_section(qs_control,becke_constraint_section,error)
-    ENDIF    
+    ENDIF
 
 
     ! Semi-empirical code
     CALL section_vals_val_get(se_section,"ANALYTICAL_GRADIENTS",&
-                 l_val=qs_control%se_control%analytical_gradients,error=error)
+         l_val=qs_control%se_control%analytical_gradients,error=error)
     CALL section_vals_val_get(se_section,"ORTHOGONAL_BASIS",&
-                 l_val=qs_control%se_control%orthogonal_basis,error=error)
+         l_val=qs_control%se_control%orthogonal_basis,error=error)
     CALL section_vals_val_get(se_section,"DO_EWALD",&
-                 l_val=qs_control%se_control%do_ewald,error=error)
+         l_val=qs_control%se_control%do_ewald,error=error)
     CALL section_vals_val_get(se_section,"DELTA",&
-                 r_val=qs_control%se_control%delta,error=error)
+         r_val=qs_control%se_control%delta,error=error)
     CALL section_vals_val_get(se_section,"RC_INTERACTION",&
-                 r_val=qs_control%se_control%rc_interaction,error=error)
+         r_val=qs_control%se_control%rc_interaction,error=error)
     CALL section_vals_val_get(se_section,"RC_COULOMB",&
-                 r_val=qs_control%se_control%rc_coulomb,error=error)
+         r_val=qs_control%se_control%rc_coulomb,error=error)
     CALL section_vals_val_get(se_section,"RC_RANGE",&
-                 r_val=qs_control%se_control%rc_range,error=error)
+         r_val=qs_control%se_control%rc_range,error=error)
     IF(qs_control %method_id == do_method_mndo .OR. &
-       qs_control %method_id == do_method_am1  .OR. &
-       qs_control %method_id == do_method_pdg  .OR. &
-       qs_control %method_id == do_method_pm3  .OR. &
-       qs_control %method_id == do_method_rm1  ) THEN
+         qs_control %method_id == do_method_am1  .OR. &
+         qs_control %method_id == do_method_pdg  .OR. &
+         qs_control %method_id == do_method_pm3  .OR. &
+         qs_control %method_id == do_method_rm1  ) THEN
        qs_control%se_control%orthogonal_basis=.TRUE.
     END IF
 
     ! DFTB code
     CALL section_vals_val_get(dftb_section,"ORTHOGONAL_BASIS",&
-                 l_val=qs_control%dftb_control%orthogonal_basis,error=error)
+         l_val=qs_control%dftb_control%orthogonal_basis,error=error)
     CALL section_vals_val_get(dftb_section,"SELF_CONSISTENT",&
-                 l_val=qs_control%dftb_control%self_consistent,error=error)
+         l_val=qs_control%dftb_control%self_consistent,error=error)
     CALL section_vals_val_get(dftb_section,"DISPERSION",&
-                 l_val=qs_control%dftb_control%dispersion,error=error)
+         l_val=qs_control%dftb_control%dispersion,error=error)
     CALL section_vals_val_get(dftb_section,"EPS_DISP",&
-                 r_val=qs_control%dftb_control%eps_disp,error=error)
+         r_val=qs_control%dftb_control%eps_disp,error=error)
     CALL section_vals_val_get(dftb_section,"DO_EWALD",&
-                 l_val=qs_control%dftb_control%do_ewald,error=error)
+         l_val=qs_control%dftb_control%do_ewald,error=error)
     CALL section_vals_val_get(dftb_parameter,"PARAM_FILE_PATH",&
-                 c_val=qs_control%dftb_control%sk_file_path,error=error)
+         c_val=qs_control%dftb_control%sk_file_path,error=error)
     CALL section_vals_val_get(dftb_parameter,"PARAM_FILE_NAME",&
-                 c_val=qs_control%dftb_control%sk_file_list,error=error)
+         c_val=qs_control%dftb_control%sk_file_list,error=error)
     CALL section_vals_val_get(dftb_parameter,"SK_FILE",n_rep_val=n_var,&
-                 error=error)
+         error=error)
     ALLOCATE(qs_control%dftb_control%sk_pair_list(3,n_var),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"qs_control%dftb_control%sk_pair_list",3*n_var)
+    IF (istat /= 0) CALL stop_memory(routineN,"qs_control%dftb_control%sk_pair_list",3*n_var)
     DO k = 1, n_var
-      CALL section_vals_val_get(dftb_parameter,"SK_FILE",i_rep_val=k,&
-           c_vals=clist,error=error)
-      qs_control%dftb_control%sk_pair_list(1:3,k) = clist(1:3)
+       CALL section_vals_val_get(dftb_parameter,"SK_FILE",i_rep_val=k,&
+            c_vals=clist,error=error)
+       qs_control%dftb_control%sk_pair_list(1:3,k) = clist(1:3)
     END DO
     CALL section_vals_val_get(dftb_parameter,"UFF_FORCE_FIELD",&
-                 c_val=qs_control%dftb_control%uff_force_field,error=error)
+         c_val=qs_control%dftb_control%uff_force_field,error=error)
 
     IF (qs_control%dftb) THEN
        IF (qs_control%dftb_control%dispersion) CALL cite_reference(Zhechkov2005)
@@ -584,8 +630,25 @@ CONTAINS
 
   END SUBROUTINE read_qs_section
 
-! *****************************************************************************
-
+!!****f* cp_control_utils/read_tddfpt_control [1.0] *
+!!
+!!   NAME
+!!    read_tddfpt_control 
+!!
+!!   FUNCTION
+!!     
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** **********************************************************************
   SUBROUTINE read_tddfpt_control(t_control,nspins,dft_section,error)
     TYPE(tddfpt_control_type)                :: t_control
     INTEGER, INTENT(IN)                      :: nspins
@@ -603,68 +666,54 @@ CONTAINS
     NULLIFY(sic_section, t_section)
     t_section => section_vals_get_subs_vals(dft_section,"TDDFPT",error=error)
 
-    CALL section_vals_val_get(t_section,"CONVERGENCE", &
-         r_val=t_control%tolerance,error=error)
-
-    CALL section_vals_val_get(t_section,"NEV", &
-         i_val=t_control%n_ev,error=error)
-
-    CALL section_vals_val_get(t_section,"MAX_KV", &
-         i_val=t_control%max_kv,error=error)
-
-    CALL section_vals_val_get(t_section,"RESTARTS", &
-         i_val=t_control%n_restarts,error=error)
-
-    CALL section_vals_val_get(t_section,"NREORTHO", &
-         i_val=t_control%n_reortho,error=error)
-
-    CALL section_vals_val_get(t_section,"RES_ETYPE", &
-         i_val=t_control%res_etype,error=error)
-
-    CALL section_vals_val_get(t_section,"DIAG_METHOD", &
-         i_val=t_control%diag_method,error=error)
-
-    CALL section_vals_val_get(t_section,"KERNEL", &
-         l_val=t_control%do_kernel,error=error)
-
-    CALL section_vals_val_get(t_section,"LSD_SINGLETS", &
-         l_val=t_control%lsd_singlets,error=error)
-
-    CALL section_vals_val_get(t_section,"INVERT_S", &
-         l_val=t_control%invert_S,error=error)
-
-    CALL section_vals_val_get(t_section,"PRECOND", &
-         l_val=t_control%precond,error=error)
-
-    CALL section_vals_val_get(t_section,"OE_CORR", &
-         i_val=t_control%oe_corr,error=error)
+    CALL section_vals_val_get(t_section,"CONVERGENCE", r_val=t_control%tolerance,error=error)
+    CALL section_vals_val_get(t_section,"NEV",i_val=t_control%n_ev,error=error)
+    CALL section_vals_val_get(t_section,"MAX_KV",i_val=t_control%max_kv,error=error)
+    CALL section_vals_val_get(t_section,"RESTARTS",i_val=t_control%n_restarts,error=error)
+    CALL section_vals_val_get(t_section,"NREORTHO",i_val=t_control%n_reortho,error=error)
+    CALL section_vals_val_get(t_section,"RES_ETYPE",i_val=t_control%res_etype,error=error)
+    CALL section_vals_val_get(t_section,"DIAG_METHOD",i_val=t_control%diag_method,error=error)
+    CALL section_vals_val_get(t_section,"KERNEL",l_val=t_control%do_kernel,error=error)
+    CALL section_vals_val_get(t_section,"LSD_SINGLETS",l_val=t_control%lsd_singlets,error=error)
+    CALL section_vals_val_get(t_section,"INVERT_S",l_val=t_control%invert_S,error=error)
+    CALL section_vals_val_get(t_section,"PRECOND",l_val=t_control%precond,error=error)
+    CALL section_vals_val_get(t_section,"OE_CORR",i_val=t_control%oe_corr,error=error)
 
     t_control%use_kinetic_energy_density = .FALSE.
     sic_section=>section_vals_get_subs_vals(t_section,"SIC",error=error)
-    CALL section_vals_val_get(sic_section,"SIC_METHOD",&
-         i_val=t_control%sic_method_id,error=error)
-    CALL section_vals_val_get(sic_section,"ORBITAL_SET",&
-         i_val=t_control%sic_list_id,error=error)
-    CALL section_vals_val_get(sic_section,"SIC_SCALING_A",&
-         r_val=t_control%sic_scaling_a,error=error)
-    CALL section_vals_val_get(sic_section,"SIC_SCALING_B",&
-         r_val=t_control%sic_scaling_b,error=error)
+    CALL section_vals_val_get(sic_section,"SIC_METHOD",i_val=t_control%sic_method_id,error=error)
+    CALL section_vals_val_get(sic_section,"ORBITAL_SET",i_val=t_control%sic_list_id,error=error)
+    CALL section_vals_val_get(sic_section,"SIC_SCALING_A",r_val=t_control%sic_scaling_a,error=error)
+    CALL section_vals_val_get(sic_section,"SIC_SCALING_B",r_val=t_control%sic_scaling_b,error=error)
 
   END SUBROUTINE read_tddfpt_control
 
-!   ***************************************************************************
-
+!!****f* cp_control_utils/write_dft_control [1.0] *
+!!
+!!   NAME
+!!    write_dft_control 
+!!
+!!   FUNCTION
+!!    Write the DFT control parameters to the output unit. 
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** **********************************************************************
   SUBROUTINE write_dft_control(dft_control, dft_section, error)
-
-    !   Purpose: Write the DFT control parameters to the output unit.
-
-    !   ***************************************************************************
-
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'write_dft_control'
+    CHARACTER(len=*), PARAMETER :: routineN = 'write_dft_control', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(len=160)                       :: reference
     CHARACTER(len=20)                        :: tmpStr
@@ -688,36 +737,36 @@ CONTAINS
          "PRINT%DFT_CONTROL_PARAMETERS",extension=".Log",error=error)
     IF (output_unit>0) THEN
        xc_section => section_vals_get_subs_vals(dft_section,&
-                                                "XC",error=error)
+            "XC",error=error)
        IF (dft_control%uks) THEN
-         WRITE (UNIT=output_unit,FMT="(/,T2,A,T78,A)")&
-           "DFT| Spin unrestricted (spin-polarized) Kohn-Sham calculation","UKS"
+          WRITE (UNIT=output_unit,FMT="(/,T2,A,T78,A)")&
+               "DFT| Spin unrestricted (spin-polarized) Kohn-Sham calculation","UKS"
        ELSE IF (dft_control%roks) THEN
-         WRITE (UNIT=output_unit,FMT="(/,T2,A,T77,A)")&
-           "DFT| Spin restricted open Kohn-Sham calculation","ROKS"
+          WRITE (UNIT=output_unit,FMT="(/,T2,A,T77,A)")&
+               "DFT| Spin restricted open Kohn-Sham calculation","ROKS"
        ELSE
-         WRITE (UNIT=output_unit,FMT="(/,T2,A,T78,A)")&
-           "DFT| Spin restricted Kohn-Sham (RKS) calculation","RKS"
+          WRITE (UNIT=output_unit,FMT="(/,T2,A,T78,A)")&
+               "DFT| Spin restricted Kohn-Sham (RKS) calculation","RKS"
        END IF
 
        WRITE (UNIT=output_unit,FMT="(T2,A,T76,I5)")&
-         "DFT| Multiplicity",dft_control%multiplicity
+            "DFT| Multiplicity",dft_control%multiplicity
        WRITE (UNIT=output_unit,FMT="(T2,A,T76,I5)")&
-         "DFT| Number of spin states",dft_control%nspins
+            "DFT| Number of spin states",dft_control%nspins
 
        IF ( dft_control % finite_field_control % efield_strength /= 0._dp ) THEN
           IF (dft_control % finite_field_control % berry_phase) THEN
-            WRITE ( output_unit, '( A, T51, A )' ) " DFT| Finite electrical field ",&
-             "Polarisation type: Berry phase"
+             WRITE ( output_unit, '( A, T51, A )' ) " DFT| Finite electrical field ",&
+                  "Polarisation type: Berry phase"
           ELSE
-            WRITE ( output_unit, '( A )' ) " DFT| Finite electrical field "
+             WRITE ( output_unit, '( A )' ) " DFT| Finite electrical field "
           END IF
           WRITE ( output_unit, '( A, T61, F20.5 )' ) " DFT| Field strength [a.u.]",&
-            dft_control % finite_field_control % efield_strength
+               dft_control % finite_field_control % efield_strength
           WRITE ( output_unit, '( A, T51, 3F10.5 )' ) " DFT| Field polarisation",&
-            dft_control % finite_field_control % efield_polarisation
+               dft_control % finite_field_control % efield_polarisation
           CALL stop_program(routineN,moduleN,__LINE__,&
-                           "Finite field not operational")
+               "Finite field not operational")
        END IF
 
        WRITE (UNIT=output_unit,FMT="(T2,A,T76,I5)")&
@@ -833,22 +882,35 @@ CONTAINS
 
   END SUBROUTINE write_dft_control
 
-! *****************************************************************************
-
+!!****f* cp_control_utils/write_qs_control [1.0] *
+!!
+!!   NAME
+!!    write_qs_control 
+!!
+!!   FUNCTION
+!!     Purpose: Write the QS control parameters to the output unit.
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** **********************************************************************
   SUBROUTINE write_qs_control(qs_control,dft_section,error)
-
-!   Purpose: Write the DFT control parameters to the output unit.
-
-!   ***************************************************************************
-
     TYPE(qs_control_type), INTENT(IN)        :: qs_control
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'write_qs_control'
+    CHARACTER(len=*), PARAMETER :: routineN = 'write_qs_control', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: igrid_level, ngrid_level, &
-                                                nstep, output_unit
+                                                output_unit
     TYPE(cp_logger_type), POINTER            :: logger
 
     IF (qs_control%semi_empirical) RETURN
@@ -859,207 +921,147 @@ CONTAINS
     output_unit = cp_print_key_unit_nr(logger, dft_section,&
          "PRINT%DFT_CONTROL_PARAMETERS",extension=".Log",error=error)
     IF (output_unit>0) THEN
-      ngrid_level = SIZE(qs_control%e_cutoff)
-      WRITE (UNIT=output_unit,FMT="(/,T2,A,T71,A)")&
-        "QS| Method:",ADJUSTR(qs_control%method)
-      IF ( qs_control% pw_grid_opt % spherical ) THEN
-         WRITE (UNIT=output_unit,FMT="(T2,A,T61,A)")&
-            "QS| Density plane wave grid type"," SPHERICAL HALFSPACE"
-      ELSE IF ( qs_control% pw_grid_opt % fullspace ) THEN
-         WRITE (UNIT=output_unit,FMT="(T2,A,T57,A)")&
-            "QS| Density plane wave grid type"," NON-SPHERICAL FULLSPACE"
-      ELSE
-         WRITE (UNIT=output_unit,FMT="(T2,A,T57,A)")&
-            "QS| Density plane wave grid type"," NON-SPHERICAL HALFSPACE"
-      END IF
-      WRITE (UNIT=output_unit,FMT="(T2,A,T71,I10)")&
-        "QS| Number of grid levels:",SIZE(qs_control%e_cutoff)
-      IF (ngrid_level == 1) THEN
-        WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
-          "QS| Density cutoff [a.u.]:",qs_control%e_cutoff(1)
-      ELSE
-        WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
-          "QS| Density cutoff [a.u.]:",qs_control%cutoff
-        IF (qs_control%commensurate_mgrids) &
-        WRITE (UNIT=output_unit,FMT="(T2,A)") "QS| Using commensurate multigrids"
-        WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
-             "QS| Multi grid cutoff [a.u.]: 1) grid level",qs_control%e_cutoff(1)
-        WRITE (UNIT=output_unit,FMT="(T2,A,I3,A,T71,F10.1)")&
-                ("QS|                         ",igrid_level,") grid level",&
-              qs_control%e_cutoff(igrid_level),&
-              igrid_level=2,SIZE(qs_control%e_cutoff))
-      END IF
-      IF (qs_control%pao) THEN
-         WRITE (UNIT=output_unit,FMT="(T2,A)") "QS| PAO active"
-      END IF
-      WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
-        "QS| Grid level progression factor:",qs_control%progression_factor
-      WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
-        "QS| Relative density cutoff [a.u.]:",qs_control%relative_cutoff
-      IF (qs_control%map_consistent) THEN
-         WRITE (UNIT=output_unit,FMT="(T2,A)")&
-            "QS| Consistent realspace mapping and integration "
-      ENDIF
-      WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
-        "QS| Interaction thresholds: eps_pgf_orb:",&
-        qs_control%eps_pgf_orb,&
-        "QS|                         eps_core_charge:",&
-        qs_control%eps_core_charge,&
-        "QS|                         eps_rho_gspace:",&
-        qs_control%eps_rho_gspace,&
-        "QS|                         eps_rho_rspace:",&
-        qs_control%eps_rho_rspace,&
-        "QS|                         eps_gvg_rspace:",&
-        qs_control%eps_gvg_rspace,&
-        "QS|                         eps_ppl:",&
-        qs_control%eps_ppl,&
-        "QS|                         eps_ppnl:",&
-        qs_control%eps_ppnl
-      IF (qs_control%gapw) THEN
-         WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
-           "QS| GAPW|                   eps_fit:",&
-           qs_control%gapw_control%eps_fit,&
-           "QS| GAPW|                   eps_iso:",&
-           qs_control%gapw_control%eps_iso,&
-           "QS| GAPW|                   eps_svd:",&
-           qs_control%gapw_control%eps_svd
-         WRITE (UNIT=output_unit,FMT="(T2,A,T55,A30)")&
-           "QS| GAPW|   atom-r-grid: quadrature:",&
-           qs_control%gapw_control%quadrature_name
-         WRITE (UNIT=output_unit,FMT="(T2,A,T71,I10)")&
-           "QS| GAPW|      atom-s-grid:  max l :",&
-           qs_control%gapw_control%lmax_sphere ,&
-           "QS| GAPW|      max_l_rho0 :",&
-            qs_control%gapw_control%lmax_rho0
-      END IF
-      IF (qs_control%gapw_xc) THEN
-         WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
-           "QS| GAPW_XC|                eps_fit:",&
-           qs_control%gapw_control%eps_fit,&
-           "QS| GAPW_XC|                eps_iso:",&
-           qs_control%gapw_control%eps_iso,&
-           "QS| GAPW_XC|                eps_svd:",&
-           qs_control%gapw_control%eps_svd
-         WRITE (UNIT=output_unit,FMT="(T2,A,T55,A30)")&
-           "QS| GAPW_XC|atom-r-grid: quadrature:",&
-           qs_control%gapw_control%quadrature_name
-         WRITE (UNIT=output_unit,FMT="(T2,A,T71,I10)")&
-           "QS| GAPW_XC|   atom-s-grid:  max l :",&
-           qs_control%gapw_control%lmax_sphere
-      END IF
-      IF (qs_control%mulliken_restraint) THEN
-         WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
-           "QS| Mulliken restraint target", qs_control%mulliken_restraint_control%target
-         WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
-           "QS| Mulliken restraint strength", qs_control%mulliken_restraint_control%strength
-         WRITE (UNIT=output_unit,FMT="(T2,A,T73,I8)")&
-           "QS| Mulliken restraint atoms: ", qs_control%mulliken_restraint_control%natoms
-         WRITE (UNIT=output_unit,FMT="(5I8)") qs_control%mulliken_restraint_control%atoms
-      END IF
-      IF (qs_control%ddapc_restraint) THEN
-         WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
-           "QS| ddapc restraint target", qs_control%ddapc_restraint_control%target
-         WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
-           "QS| ddapc restraint strength", qs_control%ddapc_restraint_control%strength
-         WRITE (UNIT=output_unit,FMT="(T2,A,T73,I8)")&
-           "QS| ddapc restraint atoms: ", qs_control%ddapc_restraint_control%natoms
-         WRITE (UNIT=output_unit,FMT="(5I8)") qs_control%ddapc_restraint_control%atoms
-         WRITE (UNIT=output_unit,FMT="(T2,A)") "Coefficients:"
-         WRITE (UNIT=output_unit,FMT="(5F6.2)") qs_control%ddapc_restraint_control%coeff
-         SELECT CASE(qs_control%ddapc_restraint_control%functional_form)
-         CASE (do_ddapc_restraint)
-           WRITE (UNIT=output_unit,FMT="(T2,A,T61,A20)")&
-           "QS| ddapc restraint functional form :","RESTRAINT"
-         CASE (do_ddapc_constraint)
-           WRITE (UNIT=output_unit,FMT="(T2,A,T61,A20)")&
-           "QS| ddapc restraint functional form :","CONSTRAINT"
-         CASE DEFAULT
-           CALL stop_program(routineN,"unknown ddapc restraint")
-         END SELECT
-      END IF
-      IF (qs_control%s2_restraint) THEN
-         WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
-           "QS| s2 restraint target", qs_control%s2_restraint_control%target
-         WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
-           "QS| s2 restraint strength", qs_control%s2_restraint_control%strength
-         SELECT CASE(qs_control%s2_restraint_control%functional_form)
-         CASE (do_s2_restraint)
-           WRITE (UNIT=output_unit,FMT="(T2,A,T61,A20)")&
-           "QS| s2 restraint functional form :","RESTRAINT"
-           CALL stop_program(routineN,"Not yet implemented")
-         CASE (do_s2_constraint)
-           WRITE (UNIT=output_unit,FMT="(T2,A,T61,A20)")&
-           "QS| s2 restraint functional form :","CONSTRAINT"
-         CASE DEFAULT
-           CALL stop_program(routineN,"unknown ddapc restraint")
-         END SELECT
-      END IF
-      IF (qs_control%localized_wfn) THEN
-         nstep = qs_control%localized_wfn_control%each_step
-         WRITE (UNIT=output_unit,FMT="(T2,A)")&
-           "QS| LOC| The spread relative to a set of orbitals is computed"
- !        WRITE (UNIT=output_unit,FMT="(T2,A,T55,I5,A)")&
- !          "                  at the end of a scf loop every ",nstep," iteration steps"
-         SELECT CASE ( qs_control%localized_wfn_control%set_of_states )
-         CASE(state_loc_all)
-           WRITE (UNIT=output_unit,FMT="(T2,A)")&
-           "QS| LOC| Orbitals to be localized: All the occupied"
-!         CASE(state_loc_upton)
-!           WRITE (UNIT=output_unit,FMT="(T2,A,T65,I8)")&
-!           "QS| LOC| Orbitals to be localized: Those with index lower than ", &
-!            qs_control%localized_wfn_control%nloc_states(1)
-         CASE(state_loc_range)
-           WRITE (UNIT=output_unit,FMT="(T2,A,T65,2I8)")&
-           "QS| LOC| Orbitals to be localized: Those with index between " , &
-            qs_control%localized_wfn_control%lu_bound_states(1,1),&
-            qs_control%localized_wfn_control%lu_bound_states(2,1)
-         CASE(state_loc_list)
-           WRITE (UNIT=output_unit,FMT="(T2,A)")&
-           "QS| LOC| Orbitals to be localized: Those with index in the list "
-           WRITE (UNIT=output_unit,FMT=*) qs_control%localized_wfn_control%loc_states
-         CASE DEFAULT
-           WRITE (UNIT=output_unit,FMT="(T2,A)")&
-           "QS| LOC| Orbitals to be localized: None " 
-         END SELECT
-         SELECT CASE (qs_control%localized_wfn_control%operator_type )
-         CASE(op_loc_berry)
-           WRITE (UNIT=output_unit,FMT="(T2,A)")&
-           "QS| LOC| Spread defined by the Berry phase operator " 
-         CASE(op_loc_boys)
-           WRITE (UNIT=output_unit,FMT="(T2,A)")&
-           "QS| LOC| Spread defined by the Boys phase operator " 
-         CASE DEFAULT
-            WRITE (UNIT=output_unit,FMT="(T2,A)")&
-           "QS| LOC| Spread defined by the Pipek phase operator " 
-         END SELECT
-
-         SELECT CASE (qs_control%localized_wfn_control%localization_method)
-         CASE(do_loc_jacobi)
-            WRITE (UNIT=output_unit,FMT="(T2,A)")&
-           "QS| LOC| The optimal unitary transformation is gnerated by the Jacobi algorithm " 
-         CASE(do_loc_crazy)
-            WRITE (UNIT=output_unit,FMT="(T2,A)")&
-           "QS| LOC| The optimal unitary transformation is gnerated by the Crazy angle algorithm " 
-         CASE(do_loc_direct)
-            WRITE (UNIT=output_unit,FMT="(T2,A)")&
-           "QS| LOC| The optimal unitary transformation is gnerated by the direct algorithm " 
-         CASE(do_loc_l1_norm_sd)
-            WRITE (UNIT=output_unit,FMT="(T2,A)")&
-           "QS| LOC| The optimal unitary transformation is gnerated by the "//&
-             " steepest descent algorithm applyed on an approximate l1 norm " 
-         CASE(do_loc_none)
-            WRITE (UNIT=output_unit,FMT="(T2,A)")&
-           "QS| LOC| No unitary transformation is applied " 
-         END SELECT
-      END IF
+       ngrid_level = SIZE(qs_control%e_cutoff)
+       WRITE (UNIT=output_unit,FMT="(/,T2,A,T71,A)")&
+            "QS| Method:",ADJUSTR(qs_control%method)
+       IF ( qs_control% pw_grid_opt % spherical ) THEN
+          WRITE (UNIT=output_unit,FMT="(T2,A,T61,A)")&
+               "QS| Density plane wave grid type"," SPHERICAL HALFSPACE"
+       ELSE IF ( qs_control% pw_grid_opt % fullspace ) THEN
+          WRITE (UNIT=output_unit,FMT="(T2,A,T57,A)")&
+               "QS| Density plane wave grid type"," NON-SPHERICAL FULLSPACE"
+       ELSE
+          WRITE (UNIT=output_unit,FMT="(T2,A,T57,A)")&
+               "QS| Density plane wave grid type"," NON-SPHERICAL HALFSPACE"
+       END IF
+       WRITE (UNIT=output_unit,FMT="(T2,A,T71,I10)")&
+            "QS| Number of grid levels:",SIZE(qs_control%e_cutoff)
+       IF (ngrid_level == 1) THEN
+          WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
+               "QS| Density cutoff [a.u.]:",qs_control%e_cutoff(1)
+       ELSE
+          WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
+               "QS| Density cutoff [a.u.]:",qs_control%cutoff
+          IF (qs_control%commensurate_mgrids) &
+               WRITE (UNIT=output_unit,FMT="(T2,A)") "QS| Using commensurate multigrids"
+          WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
+               "QS| Multi grid cutoff [a.u.]: 1) grid level",qs_control%e_cutoff(1)
+          WRITE (UNIT=output_unit,FMT="(T2,A,I3,A,T71,F10.1)")&
+               ("QS|                         ",igrid_level,") grid level",&
+               qs_control%e_cutoff(igrid_level),&
+               igrid_level=2,SIZE(qs_control%e_cutoff))
+       END IF
+       IF (qs_control%pao) THEN
+          WRITE (UNIT=output_unit,FMT="(T2,A)") "QS| PAO active"
+       END IF
+       WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
+            "QS| Grid level progression factor:",qs_control%progression_factor
+       WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
+            "QS| Relative density cutoff [a.u.]:",qs_control%relative_cutoff
+       IF (qs_control%map_consistent) THEN
+          WRITE (UNIT=output_unit,FMT="(T2,A)")&
+               "QS| Consistent realspace mapping and integration "
+       ENDIF
+       WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
+            "QS| Interaction thresholds: eps_pgf_orb:",&
+            qs_control%eps_pgf_orb,&
+            "QS|                         eps_core_charge:",&
+            qs_control%eps_core_charge,&
+            "QS|                         eps_rho_gspace:",&
+            qs_control%eps_rho_gspace,&
+            "QS|                         eps_rho_rspace:",&
+            qs_control%eps_rho_rspace,&
+            "QS|                         eps_gvg_rspace:",&
+            qs_control%eps_gvg_rspace,&
+            "QS|                         eps_ppl:",&
+            qs_control%eps_ppl,&
+            "QS|                         eps_ppnl:",&
+            qs_control%eps_ppnl
+       IF (qs_control%gapw) THEN
+          WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
+               "QS| GAPW|                   eps_fit:",&
+               qs_control%gapw_control%eps_fit,&
+               "QS| GAPW|                   eps_iso:",&
+               qs_control%gapw_control%eps_iso,&
+               "QS| GAPW|                   eps_svd:",&
+               qs_control%gapw_control%eps_svd
+          WRITE (UNIT=output_unit,FMT="(T2,A,T55,A30)")&
+               "QS| GAPW|   atom-r-grid: quadrature:",&
+               qs_control%gapw_control%quadrature_name
+          WRITE (UNIT=output_unit,FMT="(T2,A,T71,I10)")&
+               "QS| GAPW|      atom-s-grid:  max l :",&
+               qs_control%gapw_control%lmax_sphere ,&
+               "QS| GAPW|      max_l_rho0 :",&
+               qs_control%gapw_control%lmax_rho0
+       END IF
+       IF (qs_control%gapw_xc) THEN
+          WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
+               "QS| GAPW_XC|                eps_fit:",&
+               qs_control%gapw_control%eps_fit,&
+               "QS| GAPW_XC|                eps_iso:",&
+               qs_control%gapw_control%eps_iso,&
+               "QS| GAPW_XC|                eps_svd:",&
+               qs_control%gapw_control%eps_svd
+          WRITE (UNIT=output_unit,FMT="(T2,A,T55,A30)")&
+               "QS| GAPW_XC|atom-r-grid: quadrature:",&
+               qs_control%gapw_control%quadrature_name
+          WRITE (UNIT=output_unit,FMT="(T2,A,T71,I10)")&
+               "QS| GAPW_XC|   atom-s-grid:  max l :",&
+               qs_control%gapw_control%lmax_sphere
+       END IF
+       IF (qs_control%mulliken_restraint) THEN
+          WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
+               "QS| Mulliken restraint target", qs_control%mulliken_restraint_control%target
+          WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
+               "QS| Mulliken restraint strength", qs_control%mulliken_restraint_control%strength
+          WRITE (UNIT=output_unit,FMT="(T2,A,T73,I8)")&
+               "QS| Mulliken restraint atoms: ", qs_control%mulliken_restraint_control%natoms
+          WRITE (UNIT=output_unit,FMT="(5I8)") qs_control%mulliken_restraint_control%atoms
+       END IF
+       IF (qs_control%ddapc_restraint) THEN
+          WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
+               "QS| ddapc restraint target", qs_control%ddapc_restraint_control%target
+          WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
+               "QS| ddapc restraint strength", qs_control%ddapc_restraint_control%strength
+          WRITE (UNIT=output_unit,FMT="(T2,A,T73,I8)")&
+               "QS| ddapc restraint atoms: ", qs_control%ddapc_restraint_control%natoms
+          WRITE (UNIT=output_unit,FMT="(5I8)") qs_control%ddapc_restraint_control%atoms
+          WRITE (UNIT=output_unit,FMT="(T2,A)") "Coefficients:"
+          WRITE (UNIT=output_unit,FMT="(5F6.2)") qs_control%ddapc_restraint_control%coeff
+          SELECT CASE(qs_control%ddapc_restraint_control%functional_form)
+          CASE (do_ddapc_restraint)
+             WRITE (UNIT=output_unit,FMT="(T2,A,T61,A20)")&
+                  "QS| ddapc restraint functional form :","RESTRAINT"
+          CASE (do_ddapc_constraint)
+             WRITE (UNIT=output_unit,FMT="(T2,A,T61,A20)")&
+                  "QS| ddapc restraint functional form :","CONSTRAINT"
+          CASE DEFAULT
+             CALL stop_program(routineN,"unknown ddapc restraint")
+          END SELECT
+       END IF
+       IF (qs_control%s2_restraint) THEN
+          WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
+               "QS| s2 restraint target", qs_control%s2_restraint_control%target
+          WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
+               "QS| s2 restraint strength", qs_control%s2_restraint_control%strength
+          SELECT CASE(qs_control%s2_restraint_control%functional_form)
+          CASE (do_s2_restraint)
+             WRITE (UNIT=output_unit,FMT="(T2,A,T61,A20)")&
+                  "QS| s2 restraint functional form :","RESTRAINT"
+             CALL stop_program(routineN,"Not yet implemented")
+          CASE (do_s2_constraint)
+             WRITE (UNIT=output_unit,FMT="(T2,A,T61,A20)")&
+                  "QS| s2 restraint functional form :","CONSTRAINT"
+          CASE DEFAULT
+             CALL stop_program(routineN,"unknown ddapc restraint")
+          END SELECT
+       END IF
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,dft_section,&
          "PRINT%DFT_CONTROL_PARAMETERS",error=error)
   END SUBROUTINE write_qs_control
 
-! *****************************************************************************
-
-!!****f* cp_control_types/xc_get_rho_smooth_label [1.0] *
+!!****f* cp_control_utils/xc_get_rho_smooth_label [1.0] *
 !!
 !!   NAME
 !!     xc_get_rho_smooth_label
@@ -1082,7 +1084,7 @@ CONTAINS
 !!     05.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-FUNCTION xc_get_rho_smooth_label(xc_rho_smooth_id,error) RESULT(res)
+  FUNCTION xc_get_rho_smooth_label(xc_rho_smooth_id,error) RESULT(res)
     INTEGER, INTENT(in)                      :: xc_rho_smooth_id
     TYPE(cp_error_type), INTENT(inout)       :: error
     CHARACTER(len=10)                        :: res
@@ -1092,26 +1094,25 @@ FUNCTION xc_get_rho_smooth_label(xc_rho_smooth_id,error) RESULT(res)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
+    failure=.FALSE.
 
-  SELECT CASE(xc_rho_smooth_id)
-  CASE (xc_rho_no_smooth)
-     res="NONE"
-  CASE (xc_rho_spline2_smooth)
-     res="SPLINE2"
-  CASE (xc_rho_spline3_smooth)
-     res="SPLINE3"
-  CASE (xc_rho_nn10)
-     res="NN10"
-  CASE (xc_rho_nn50)
-     res="NN50"
+    SELECT CASE(xc_rho_smooth_id)
+    CASE (xc_rho_no_smooth)
+       res="NONE"
+    CASE (xc_rho_spline2_smooth)
+       res="SPLINE2"
+    CASE (xc_rho_spline3_smooth)
+       res="SPLINE3"
+    CASE (xc_rho_nn10)
+       res="NN10"
+    CASE (xc_rho_nn50)
+       res="NN50"
     CASE default
-     WRITE (res,"('UKN',i6)") xc_rho_smooth_id
-  END SELECT
-END FUNCTION xc_get_rho_smooth_label
-!***************************************************************************
+       WRITE (res,"('UKN',i6)") xc_rho_smooth_id
+    END SELECT
+  END FUNCTION xc_get_rho_smooth_label
 
-!!****f* cp_control_types/xc_get_deriv_method_label [1.0] *
+!!****f* cp_control_utils/xc_get_deriv_method_label [1.0] *
 !!
 !!   NAME
 !!     xc_get_deriv_method_label
@@ -1135,7 +1136,7 @@ END FUNCTION xc_get_rho_smooth_label
 !!     06.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-FUNCTION xc_get_deriv_method_label(xc_deriv_method_id,error) RESULT(res)
+  FUNCTION xc_get_deriv_method_label(xc_deriv_method_id,error) RESULT(res)
     INTEGER, INTENT(in)                      :: xc_deriv_method_id
     TYPE(cp_error_type), INTENT(inout)       :: error
     CHARACTER(len=20)                        :: res
@@ -1145,30 +1146,29 @@ FUNCTION xc_get_deriv_method_label(xc_deriv_method_id,error) RESULT(res)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
+    failure=.FALSE.
 
-  SELECT CASE(xc_deriv_method_id)
-  CASE (xc_deriv_pw)
-     res="PW"
-  CASE (xc_deriv_spline2)
-     res="SPLINE2"
-  CASE (xc_deriv_spline3)
-     res="SPLINE3"
-  CASE (xc_deriv_spline2_smooth)
-     res="SPLINE2_SMOOTH"
-  CASE (xc_deriv_spline3_smooth)
-     res="SPLINE3_SMOOTH"
-  CASE (xc_deriv_nn10_smooth)
-     res="NN10_SMOOTH"
-  CASE (xc_deriv_nn50_smooth)
-     res="NN50_SMOOTH"
-  CASE default
-     WRITE (res,"('UKN',i6)") xc_deriv_method_id
-  END SELECT
-END FUNCTION xc_get_deriv_method_label
-!***************************************************************************
+    SELECT CASE(xc_deriv_method_id)
+    CASE (xc_deriv_pw)
+       res="PW"
+    CASE (xc_deriv_spline2)
+       res="SPLINE2"
+    CASE (xc_deriv_spline3)
+       res="SPLINE3"
+    CASE (xc_deriv_spline2_smooth)
+       res="SPLINE2_SMOOTH"
+    CASE (xc_deriv_spline3_smooth)
+       res="SPLINE3_SMOOTH"
+    CASE (xc_deriv_nn10_smooth)
+       res="NN10_SMOOTH"
+    CASE (xc_deriv_nn50_smooth)
+       res="NN50_SMOOTH"
+    CASE default
+       WRITE (res,"('UKN',i6)") xc_deriv_method_id
+    END SELECT
+  END FUNCTION xc_get_deriv_method_label
 
-!!****f* cp_control_types/xc_get_routine_label [1.0] *
+!!****f* cp_control_utils/xc_get_routine_label [1.0] *
 !!
 !!   NAME
 !!     xc_get_routine_label
@@ -1190,7 +1190,7 @@ END FUNCTION xc_get_deriv_method_label
 !!     Fawzi Mohamed
 !!
 !!*** **********************************************************************
-FUNCTION xc_get_routine_label(xc_functional_routine_id,error) RESULT(res)
+  FUNCTION xc_get_routine_label(xc_functional_routine_id,error) RESULT(res)
     INTEGER, INTENT(in)                      :: xc_functional_routine_id
     TYPE(cp_error_type), INTENT(inout)       :: error
     CHARACTER(len=20)                        :: res
@@ -1200,25 +1200,23 @@ FUNCTION xc_get_routine_label(xc_functional_routine_id,error) RESULT(res)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
+    failure=.FALSE.
 
-  SELECT CASE(xc_functional_routine_id)
-  CASE(xc_old_f_routine)
-     res="OLD"
-  CASE(xc_new_f_routine)
-     res="NEW"
-  CASE(xc_test_lsd_f_routine)
-     res="TEST_LSD"
-  CASE(xc_debug_new_routine)
-     res="DEBUG_NEW"
-  CASE default
-     WRITE (res,"('UKN',i6)") xc_functional_routine_id
-  END SELECT
-END FUNCTION xc_get_routine_label
+    SELECT CASE(xc_functional_routine_id)
+    CASE(xc_old_f_routine)
+       res="OLD"
+    CASE(xc_new_f_routine)
+       res="NEW"
+    CASE(xc_test_lsd_f_routine)
+       res="TEST_LSD"
+    CASE(xc_debug_new_routine)
+       res="DEBUG_NEW"
+    CASE default
+       WRITE (res,"('UKN',i6)") xc_functional_routine_id
+    END SELECT
+  END FUNCTION xc_get_routine_label
 
-!***************************************************************************
-
-!!****f* cp_control_types/read_ddapc_section [1.0] *
+!!****f* cp_control_utils/read_ddapc_section [1.0] *
 !!
 !!   NAME
 !!    read_ddapc_section
@@ -1235,72 +1233,71 @@ END FUNCTION xc_get_routine_label
 !!     fschiff
 !!
 !!*** **********************************************************************
-
-!***************************************************************************
-SUBROUTINE read_ddapc_section(qs_control,ddapc_restraint_section,error)
+  SUBROUTINE read_ddapc_section(qs_control,ddapc_restraint_section,error)
 
     TYPE(qs_control_type), INTENT(INOUT)     :: qs_control
     TYPE(section_vals_type), POINTER         :: ddapc_restraint_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine = "SUBROUTINE read_ddapc_section "
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_ddapc_section', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: j, jj, k, n_rep
     INTEGER, DIMENSION(:), POINTER           :: tmplist
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rtmplist
 
-      CALL section_vals_val_get(ddapc_restraint_section,"STRENGTH", &
-                                r_val=qs_control%ddapc_restraint_control%strength,error=error)
-      CALL section_vals_val_get(ddapc_restraint_section,"TARGET", &
-                                r_val=qs_control%ddapc_restraint_control%target,error=error)
-      CALL section_vals_val_get(ddapc_restraint_section,"FUNCTIONAL_FORM", &
-                                i_val=qs_control%ddapc_restraint_control%functional_form,error=error)
-      CALL section_vals_val_get(ddapc_restraint_section,"ATOMS", &
-                                n_rep_val=n_rep,error=error)
-      jj = 0
-      DO k = 1,n_rep
-         CALL section_vals_val_get(ddapc_restraint_section,"ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
-         DO  j = 1,SIZE(tmplist)
-           jj = jj+1
-         END DO
-      END DO
-      IF (jj<1) CALL stop_program(routine, "Need at least 1 atom to use ddapc contraints")
-      qs_control%ddapc_restraint_control%natoms=jj
-      IF(ASSOCIATED(qs_control%ddapc_restraint_control%atoms))&
-           DEALLOCATE(qs_control%ddapc_restraint_control%atoms)
-      ALLOCATE(qs_control%ddapc_restraint_control%atoms(qs_control%ddapc_restraint_control%natoms))
-      jj = 0
-      DO k = 1,n_rep
-         CALL section_vals_val_get(ddapc_restraint_section,"ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
-         DO  j = 1,SIZE(tmplist)
-           jj = jj+1
-           qs_control%ddapc_restraint_control%atoms (jj) = tmplist(j)
-         END DO
-      END DO
+    CALL section_vals_val_get(ddapc_restraint_section,"STRENGTH", &
+         r_val=qs_control%ddapc_restraint_control%strength,error=error)
+    CALL section_vals_val_get(ddapc_restraint_section,"TARGET", &
+         r_val=qs_control%ddapc_restraint_control%target,error=error)
+    CALL section_vals_val_get(ddapc_restraint_section,"FUNCTIONAL_FORM", &
+         i_val=qs_control%ddapc_restraint_control%functional_form,error=error)
+    CALL section_vals_val_get(ddapc_restraint_section,"ATOMS", &
+         n_rep_val=n_rep,error=error)
+    jj = 0
+    DO k = 1,n_rep
+       CALL section_vals_val_get(ddapc_restraint_section,"ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
+       DO  j = 1,SIZE(tmplist)
+          jj = jj+1
+       END DO
+    END DO
+    IF (jj<1) CALL stop_program(routineN, "Need at least 1 atom to use ddapc contraints")
+    qs_control%ddapc_restraint_control%natoms=jj
+    IF(ASSOCIATED(qs_control%ddapc_restraint_control%atoms))&
+         DEALLOCATE(qs_control%ddapc_restraint_control%atoms)
+    ALLOCATE(qs_control%ddapc_restraint_control%atoms(qs_control%ddapc_restraint_control%natoms))
+    jj = 0
+    DO k = 1,n_rep
+       CALL section_vals_val_get(ddapc_restraint_section,"ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
+       DO  j = 1,SIZE(tmplist)
+          jj = jj+1
+          qs_control%ddapc_restraint_control%atoms (jj) = tmplist(j)
+       END DO
+    END DO
 
-      IF(ASSOCIATED(qs_control%ddapc_restraint_control%coeff))&
-           DEALLOCATE(qs_control%ddapc_restraint_control%coeff)
-      ALLOCATE(qs_control%ddapc_restraint_control%coeff(qs_control%ddapc_restraint_control%natoms))
-      qs_control%ddapc_restraint_control%coeff=1.0_dp
+    IF(ASSOCIATED(qs_control%ddapc_restraint_control%coeff))&
+         DEALLOCATE(qs_control%ddapc_restraint_control%coeff)
+    ALLOCATE(qs_control%ddapc_restraint_control%coeff(qs_control%ddapc_restraint_control%natoms))
+    qs_control%ddapc_restraint_control%coeff=1.0_dp
 
-      CALL section_vals_val_get(ddapc_restraint_section,"COEFF", &
-                                n_rep_val=n_rep,error=error)
-      jj = 0
-      DO k = 1,n_rep
-         CALL section_vals_val_get(ddapc_restraint_section,"COEFF",i_rep_val=k,r_vals=rtmplist, error=error)
-         DO  j = 1,SIZE(rtmplist)
-           jj = jj+1
-           IF (jj>qs_control%ddapc_restraint_control%natoms) &
-                 CALL stop_program(routine, "Need the same number of coeff as there are atoms ")
-           qs_control%ddapc_restraint_control%coeff (jj) = rtmplist(j)
-         END DO
-      END DO
-      IF (jj<qs_control%ddapc_restraint_control%natoms .AND. jj.NE.0) &
-            CALL stop_program(routine, "Need no or the same number of coeff as there are atoms ")
+    CALL section_vals_val_get(ddapc_restraint_section,"COEFF", &
+         n_rep_val=n_rep,error=error)
+    jj = 0
+    DO k = 1,n_rep
+       CALL section_vals_val_get(ddapc_restraint_section,"COEFF",i_rep_val=k,r_vals=rtmplist, error=error)
+       DO  j = 1,SIZE(rtmplist)
+          jj = jj+1
+          IF (jj>qs_control%ddapc_restraint_control%natoms) &
+               CALL stop_program(routineN, "Need the same number of coeff as there are atoms ")
+          qs_control%ddapc_restraint_control%coeff (jj) = rtmplist(j)
+       END DO
+    END DO
+    IF (jj<qs_control%ddapc_restraint_control%natoms .AND. jj.NE.0) &
+         CALL stop_program(routineN, "Need no or the same number of coeff as there are atoms ")
 
-    END SUBROUTINE read_ddapc_section
+  END SUBROUTINE read_ddapc_section
 
-!!****f* cp_control_types/read_becke_section [1.0] *
+!!****f* cp_control_utils/read_becke_section [1.0] *
 !!
 !!   NAME
 !!    read_becke_section
@@ -1317,67 +1314,64 @@ SUBROUTINE read_ddapc_section(qs_control,ddapc_restraint_section,error)
 !!     fschiff
 !!
 !!*** **********************************************************************
-
-!***************************************************************************
-SUBROUTINE read_becke_section(qs_control,becke_section,error)
+  SUBROUTINE read_becke_section(qs_control,becke_section,error)
 
     TYPE(qs_control_type), INTENT(INOUT)     :: qs_control
     TYPE(section_vals_type), POINTER         :: becke_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine = "SUBROUTINE read_becke_section "
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_becke_section', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: j, jj, k, n_rep
     INTEGER, DIMENSION(:), POINTER           :: tmplist
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rtmplist
 
-      CALL section_vals_val_get(becke_section,"STRENGTH", &
-                                r_val=qs_control%becke_control%strength,error=error)
-      CALL section_vals_val_get(becke_section,"TARGET", &
-                                r_val=qs_control%becke_control%target,error=error)
-      CALL section_vals_val_get(becke_section,"ATOMS", &
-                                n_rep_val=n_rep,error=error)
-      jj = 0
-      DO k = 1,n_rep
-         CALL section_vals_val_get(becke_section,"ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
-         DO  j = 1,SIZE(tmplist)
-           jj = jj+1
-         END DO
-      END DO
-      IF (jj<1) CALL stop_program(routine, "Need at least 1 atom to use ddapc contraints")
-      qs_control%becke_control%natoms=jj
-      IF(ASSOCIATED(qs_control%becke_control%atoms))DEALLOCATE(qs_control%becke_control%atoms)
-      ALLOCATE(qs_control%becke_control%atoms(qs_control%becke_control%natoms))
-      jj = 0
-      DO k = 1,n_rep
-         CALL section_vals_val_get(becke_section,"ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
-         DO  j = 1,SIZE(tmplist)
-           jj = jj+1
-           qs_control%becke_control%atoms (jj) = tmplist(j)
-         END DO
-      END DO
+    CALL section_vals_val_get(becke_section,"STRENGTH", &
+         r_val=qs_control%becke_control%strength,error=error)
+    CALL section_vals_val_get(becke_section,"TARGET", &
+         r_val=qs_control%becke_control%target,error=error)
+    CALL section_vals_val_get(becke_section,"ATOMS", &
+         n_rep_val=n_rep,error=error)
+    jj = 0
+    DO k = 1,n_rep
+       CALL section_vals_val_get(becke_section,"ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
+       DO  j = 1,SIZE(tmplist)
+          jj = jj+1
+       END DO
+    END DO
+    IF (jj<1) CALL stop_program(routineN, "Need at least 1 atom to use ddapc contraints")
+    qs_control%becke_control%natoms=jj
+    IF(ASSOCIATED(qs_control%becke_control%atoms))DEALLOCATE(qs_control%becke_control%atoms)
+    ALLOCATE(qs_control%becke_control%atoms(qs_control%becke_control%natoms))
+    jj = 0
+    DO k = 1,n_rep
+       CALL section_vals_val_get(becke_section,"ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
+       DO  j = 1,SIZE(tmplist)
+          jj = jj+1
+          qs_control%becke_control%atoms (jj) = tmplist(j)
+       END DO
+    END DO
 
-      IF(ASSOCIATED(qs_control%becke_control%coeff))&
-           DEALLOCATE(qs_control%becke_control%coeff)
-      ALLOCATE(qs_control%becke_control%coeff(qs_control%becke_control%natoms))
-      qs_control%becke_control%coeff=1.0_dp
+    IF(ASSOCIATED(qs_control%becke_control%coeff))&
+         DEALLOCATE(qs_control%becke_control%coeff)
+    ALLOCATE(qs_control%becke_control%coeff(qs_control%becke_control%natoms))
+    qs_control%becke_control%coeff=1.0_dp
 
-      CALL section_vals_val_get(becke_section,"COEFF", &
-                                n_rep_val=n_rep,error=error)
-      jj = 0
-      DO k = 1,n_rep
-         CALL section_vals_val_get(becke_section,"COEFF",i_rep_val=k,r_vals=rtmplist, error=error)
-         DO  j = 1,SIZE(rtmplist)
-           jj = jj+1
-           IF (jj>qs_control%becke_control%natoms) &
-                 CALL stop_program(routine, "Need the same number of coeff as there are atoms ")
-           qs_control%becke_control%coeff (jj) = rtmplist(j)
-         END DO
-      END DO
-      IF (jj<qs_control%becke_control%natoms .AND. jj.NE.0) &
-            CALL stop_program(routine, "Need no or the same number of coeff as there are atoms ")
-
-
-    END SUBROUTINE read_becke_section
+    CALL section_vals_val_get(becke_section,"COEFF", &
+         n_rep_val=n_rep,error=error)
+    jj = 0
+    DO k = 1,n_rep
+       CALL section_vals_val_get(becke_section,"COEFF",i_rep_val=k,r_vals=rtmplist, error=error)
+       DO  j = 1,SIZE(rtmplist)
+          jj = jj+1
+          IF (jj>qs_control%becke_control%natoms) &
+               CALL stop_program(routineN, "Need the same number of coeff as there are atoms ")
+          qs_control%becke_control%coeff (jj) = rtmplist(j)
+       END DO
+    END DO
+    IF (jj<qs_control%becke_control%natoms .AND. jj.NE.0) &
+         CALL stop_program(routineN, "Need no or the same number of coeff as there are atoms ")
+  END SUBROUTINE read_becke_section
 
 END MODULE cp_control_utils

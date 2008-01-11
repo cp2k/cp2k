@@ -18,8 +18,10 @@
     &END XC
     &PRINT
       &LOCALIZATION
-        LOC_TYPE L1SD
-        EPS_LOCALIZATION 1.0E-10
+        &LOCALIZE
+          METHOD L1SD
+          EPS_LOCALIZATION 1.0E-10
+        &END
       &END LOCALIZATION
     &END PRINT
   &END DFT
