@@ -645,7 +645,24 @@ CONTAINS
     CALL timestop(0.0_dp,handle2)
   END SUBROUTINE rs_pw_transfer
 
-  ! treat the two different parallel cases here
+!!****f* realspace_grid_types/rs_pw_transfer_replicated *
+!!
+!!   NAME
+!!     rs_pw_transfer_replicated
+!!
+!!   FUNCTION
+!!     transfer from a realspace grid to a planewave grid or the other way around
+!!
+!!   NOTES
+!!     rs2pw sums all data on the rs grid into the respective pw grid
+!!     pw2rs will scatter all pw data to the rs grids
+!!
+!!   INPUTS
+!!     - dir == rs2pw or dir == pw2rs
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** **********************************************************************
   SUBROUTINE rs_pw_transfer_replicated(rs,pw,dir)
     TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(pw_type), POINTER                   :: pw
@@ -766,6 +783,25 @@ CONTAINS
     IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer", "recvbuf" )
   END SUBROUTINE rs_pw_transfer_replicated
 
+!!****f* realspace_grid_types/rs_pw_transfer_distributed *
+!!
+!!   NAME
+!!      rs_pw_transfer_distributed
+!!
+!!   FUNCTION
+!!      does the rs2pw and pw2rs transfer in the case where the rs grid is 
+!!      distributed (3D domain decomposition)
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!    -
+!!    -
+!!
+!!   MODIFICATION HISTORY
+!!     12.2007 created [Matt Watkins]
+!!
+!!*** **********************************************************************
   SUBROUTINE rs_pw_transfer_distributed(rs,pw,dir)
     TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(pw_type), POINTER                   :: pw
