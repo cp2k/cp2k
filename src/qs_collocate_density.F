@@ -422,9 +422,8 @@ CONTAINS
     INTEGER                                  :: atom_a, dest, dir, handle, &
                                                 iatom, ierr, ikind, ithread, &
                                                 j, natom, npme, &
-                                                omp_get_thread_num, &
                                                 nthread,i,k,n, &
-                                                omp_get_max_threads,tp(3)
+                                                tp(3)
     INTEGER, DIMENSION(:), POINTER           :: atom_list,ub,lb
     INTEGER, DIMENSION(:), POINTER           :: tasks
     REAL(KIND=dp)                            :: alpha, eps_rho_rspace
@@ -446,7 +445,6 @@ CONTAINS
     TYPE(realspace_grid_type), POINTER       :: rs_rho
     TYPE(lgrid_type)                         :: lgrid
 
-    SAVE pab                ! Temporary addition for Intel 8.0 OpenMP to work
 !   ---------------------------------------------------------------------------
 
     CALL timeset("calculate_rho_core","I"," ",handle)
@@ -483,21 +481,8 @@ CONTAINS
 
       IF (alpha == 0.0_dp) CYCLE
 
-    nthread = 1
-!$  nthread = omp_get_max_threads()
-
-      IF ( nthread > 1 ) THEN
-         lb => rs_rho%lb_local
-         ub => rs_rho%ub_local
-         n = rs_rho%ngpts_local*nthread
-         CALL reallocate(lgrid%r,1,n)
-         lgrid%ldim = rs_rho%ngpts_local
-!$OMP parallel private(ithread,n)
-!$      ithread = omp_get_thread_num()
-         n = ithread*lgrid%ldim + 1
-         CALL dcopy(lgrid%ldim,0._dp,0,lgrid%r(n),1)
-!$OMP end parallel
-      END IF
+      nthread = 1
+      ithread=0
 
       CALL reallocate ( tasks, 1, natom )
       npme = 0
@@ -531,50 +516,20 @@ CONTAINS
          ENDIF
       END DO
 
-      ithread=0
       IF(npme.GT.0)THEN
-!$OMP parallel do &
-!$OMP default(none) &
-!$OMP private(j,iatom,atom_a,ra,ithread) &
-!$OMP shared(npme,tasks,atom_list,particle_set,cell,pab,rs_rho) &
-!$OMP shared(cube_info,eps_rho_rspace,alpha,error,lgrid,nthread)
          DO j=1,npme
 
             iatom = tasks(j)
             atom_a = atom_list(iatom)
             ra(:) = pbc(particle_set(atom_a)%r,cell)
 
-!$      ithread=omp_get_thread_num()
-            IF (nthread > 1) then
-               CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_dp,0,ra,&
-                    (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,-1.0_dp,pab,0,0,rs_rho,&
-                    cell,cube_info,eps_rho_rspace,ga_gb_function=FUNC_AB,&
-                    lgrid=lgrid,ithread=ithread,error=error)
-            ELSE
-               CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_dp,0,ra,&
-                    (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,-1.0_dp,pab,0,0,rs_rho,&
-                    cell,cube_info,eps_rho_rspace,ga_gb_function=FUNC_AB,&
-                    ithread=ithread,error=error)
-            ENDIF
+            CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_dp,0,ra,&
+                  (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,-1.0_dp,pab,0,0,rs_rho,&
+                  cell,cube_info,eps_rho_rspace,ga_gb_function=FUNC_AB,&
+                  ithread=ithread,error=error)
 
          END DO
       ENDIF
-
-      IF ( nthread > 1 ) THEN
-         n = (ub(1)-lb(1)+1)*(ub(2)-lb(2)+1)
-         DO i=1,nthread
-!$OMP parallel do &
-!$OMP default(none) &
-!$OMP private(j,k) &
-!$OMP shared(i,lb,ub,lgrid,rs_rho,n)
-            DO j=lb(3),ub(3)
-               k = lgrid%ldim*(i-1) + n*(j-lb(3)) + 1
-               CALL daxpy (n,1._dp,lgrid%r(k),1,&
-               rs_rho%r(lb(1),lb(2),j),1)
-            END DO
-         END DO
-      END IF
-
 
     END DO
 
@@ -639,7 +594,7 @@ CONTAINS
          ilist, inode, ipgf, iset, istat, itask, ithread, j, jatom, jkind, jkind_old, jpgf, &
          jset, k, maxco, maxsgf, maxsgf_set, n, na1, na2, natoms, natom_pairs, nb1, nb2, &
          maxset, maxpgf, ncoa, ncob, nkind, nlist, nnode, nseta, nsetb, nthread, &
-         omp_get_max_threads, omp_get_thread_num, sgfa, sgfb, stat, tp(3), ntasks,&
+         sgfa, sgfb, stat, tp(3), ntasks,&
          iatom_old, jatom_old, iset_old, jset_old
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &

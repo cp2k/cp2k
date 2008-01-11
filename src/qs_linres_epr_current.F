@@ -681,7 +681,7 @@ CONTAINS
       ipgf, iset, iset_old, istat, itask, ithread, jatom, jatom_old, jkind, &
       jkind_old, jpgf, jset, jset_old, maxco, maxpgf, maxset, maxsgf, &
       maxsgf_set, na1, na2, natom, nb1, nb2, ncoa, ncob, nkind, nlist, nnode, &
-      nseta, nsetb, ntasks, nthread, omp_get_max_threads, sgfa, sgfb, stat, &
+      nseta, nsetb, ntasks, nthread, sgfa, sgfb, stat, &
       tp(3)
     INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks
@@ -793,7 +793,6 @@ CONTAINS
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
     map_consistent = dft_control%qs_control%map_consistent
     nthread = 1
-    !$  nthread = omp_get_max_threads()
 
     !   *** Allocate work storage ***
 

@@ -201,10 +201,6 @@ MODULE qs_rho0_ggrid
       npme = 0
       tasks = 0
                   
-! !$OMP parallel do &
-! !$OMP default(none) &
-! !$OMP private(iat,j,iatom,ra) &
-! !$OMP shared(bo,tasks,dir,rs_grid,atom_list,particle_set,cell)
       DO iat=1,nat
          iatom = atom_list(iat)
          ra(:) = pbc(particle_set(iatom)%r,cell)
@@ -233,12 +229,6 @@ MODULE qs_rho0_ggrid
       END DO
 
       ithread=0
-! !$OMP parallel do &
-! !$OMP default(none) &
-! !$OMP private(j,iat,iatom,ra,ithread) &
-! !$OMP shared(npme,tasks,atom_list,particle_set,cell,pab,rs_grid,r_V0) &
-! !$OMP shared(cube_info,eps_rho_rspace,zet0_s,rho0,Qlm_c,nch_ik) &
-! !$OMP shared(l0_ikind,igrid,rpgf0_s,error)
       DO j=1,npme
 
         iat =  tasks(j)
@@ -250,7 +240,6 @@ MODULE qs_rho0_ggrid
 
         ra(:) = pbc(particle_set(iatom)%r,cell)
 
-! !$      ithread=omp_get_thread_num()
         CALL collocate_pgf_product_rspace(&
            l0_ikind,zet0_s,0,0,0.0_dp,0,&
            ra, (/0.0_dp,0.0_dp,0.0_dp/), 0.0_dp, 1.0_dp, pab,0,0,&
@@ -393,7 +382,7 @@ MODULE qs_rho0_ggrid
       igrid, ikind, ipgf1, ipgf2, is, iset1, iset2, iso, iso1, iso2, ispin, &
       istat, ithread, j, l0_ikind, lmax0, lshell, lx, ly, lz, m1, m2, maxso, &
       n1, n2, nat, nch_ik, nch_max, ncurr, npme, nset, nspins, nthread, &
-      omp_get_thread_num, tp(3)
+      tp(3)
     INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, npgf, tasks
     LOGICAL                                  :: failure, my_tddft, paw_atom
     REAL(dp)                                 :: c4pi, eps_rho_rspace, &
@@ -553,8 +542,6 @@ MODULE qs_rho0_ggrid
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
     nthread = 1
-! !$  nthread = omp_get_max_threads()
-
 !   *** Allocate work storage ***
 
     NULLIFY(habt,hab_spht,hdabt,hdab_spht,hadbt,pab)
@@ -596,11 +583,6 @@ MODULE qs_rho0_ggrid
       npme = 0
       tasks = 0
 
-! !$OMP parallel do &
-! !$OMP default(none) &
-! !$OMP private(iat,j,iatom,ra) &
-! !$OMP shared(bo,tasks,dir,rs_v,atom_list,particle_set,cell)
-
       DO iat=1,nat
          iatom = atom_list(iat)
          ra(:) = pbc(particle_set(iatom)%r,cell)
@@ -629,22 +611,8 @@ MODULE qs_rho0_ggrid
       END DO
 
       ithread=0
-! !$OMP parallel do &
-! !$OMP default(none) &
-! !$OMP private(j,iat,iatom,ra,ithread) &
-! !$OMP private(lshell,is,iso,hab,hdab,hadb,hab_sph,hdab_sph)&
-! !$OMP private(lx,ly,lz,ic,ico,Qlm)&
-! !$OMP private(iset1,iset2,ipgf1,ipgf2,n1,n2,m1,m2,ig1,ig2,iso1,iso2)&
-! !$OMP private(force_tmp,rho_atom,int_local_h,int_local_s,icg,ispin)&
-! !$OMP shared(npme,tasks,atom_list,particle_set,cell,pab,rs_v,ikind) &
-! !$OMP shared(habt,hdabt,hadbt,hab_spht,hdab_spht)&
-! !$OMP shared(cube_info,eps_rho_rspace,zet0_s,l0_ikind) &
-! !$OMP shared(norm_l,calculate_forces,c4pi,rho_atom_set)&
-! !$OMP shared(nset,npgf,lmax,maxso,harmonics,force,nso,nsoset,nco,ncoset,indco,orbtramat,dfac,Qlm_gg)&
-! !$OMP shared(rho0_mpole,r_V0,nspins,rpgf0_s,igrid,error)
       DO j=1,npme
 
-!$      ithread=omp_get_thread_num()
         iat =  tasks(j)
         iatom = atom_list(iat)
         ra(:) = pbc(particle_set(iatom)%r,cell)
@@ -774,10 +742,8 @@ MODULE qs_rho0_ggrid
             m1 = m1 + maxso
           END DO  ! iset1
 
-! !$OMP critical (qs_core_force_g0s_Vh_elec)
           force(ikind)%g0s_Vh_elec(1:3,iat) =  force(ikind)%g0s_Vh_elec(1:3,iat) + &
                                             force_tmp(1:3)
-! !$OMP end critical (qs_core_force_g0s_Vh_elec)
 
         ELSE
 

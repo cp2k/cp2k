@@ -706,8 +706,8 @@ CONTAINS
       igrid_level, iiB, iiiB, ijatoms, ijsets, ikind, ilist, inode, ipgf, &
       iset, istat, itask, ithread, j, jatom, jkind, jpgf, jset, k, maxco, &
       maxsgf, maxsgf_set, n, na1, na2, natom, nb1, nb2, ncoa, ncob, &
-      nkind, nlist, nnode, npme, nseta, nsetb, nthread, omp_get_max_threads, &
-      omp_get_thread_num, sgfa, sgfb, stat, tp(3),iatom_old, jatom_old,&
+      nkind, nlist, nnode, npme, nseta, nsetb, nthread,  &
+      sgfa, sgfb, stat, tp(3),iatom_old, jatom_old,&
       iset_old, jset_old, ikind_old, jkind_old, ntasks, maxset, maxpgf, dest
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
@@ -821,7 +821,6 @@ CONTAINS
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
     map_consistent = dft_control%qs_control%map_consistent
     nthread = 1
-!$  nthread = omp_get_max_threads()
 
 !   *** Allocate work storage ***
 

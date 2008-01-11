@@ -344,7 +344,7 @@ CONTAINS
          iset, istat, itask, ithread, jatom, jkind, jkind_old, jpgf, jset, maxco, &
          maxsgf_set, n, na1, na2, natom, natom_pairs, nb1, nb2, &
          ncoa, ncob, nkind, nlist, nnode, npme, nseta, nsetb, ntasks, nthread, offs_dv, &
-         omp_get_max_threads, omp_get_thread_num, sgfa, sgfb, stat, tp(3), maxset,&
+         sgfa, sgfb, stat, tp(3), maxset,&
          maxpgf, iatom_old, jatom_old, iset_old, jset_old, ipgf_old, jpgf_old,&
          iatom_new, jatom_new, iset_new, jset_new, ipgf_new, jpgf_new
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
