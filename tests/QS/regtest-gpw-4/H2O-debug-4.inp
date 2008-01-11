@@ -18,10 +18,14 @@
     &END XC
     &PRINT
       &LOCALIZATION
-        IONS+CENTERS
-        FORMAT XMOL
         COMMON_ITERATION_LEVELS 2
         &LOCALIZE T
+          &PRINT
+            &WANNIER_CENTERS
+              IONS+CENTERS
+              FORMAT XMOL
+            &END
+          &END
         &END
       &END
     &END

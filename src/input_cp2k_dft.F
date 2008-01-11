@@ -1220,23 +1220,6 @@ CONTAINS
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="IONS+CENTERS",&
-            description="prints out the wannier centers together with the particles",&
-            usage="IONS+CENTERS", default_l_val=.FALSE., &
-            lone_keyword_l_val=.TRUE., error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="FORMAT",&
-            description="Specifies the format of the output file when IONS+CENTERS is enabled.",&
-            usage="FORMAT (ATOMIC|XMOL|DCD)",&
-            default_i_val=dump_xmol,&
-            enum_c_vals=output_name_types,&
-            enum_i_vals=output_name_index,&
-            error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
