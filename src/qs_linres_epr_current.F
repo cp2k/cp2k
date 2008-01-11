@@ -114,7 +114,8 @@ MODULE qs_linres_epr_current
                                              rs_grid_zero
   USE realspace_task_selection,        ONLY: int2pair,&
                                              pair2int,&
-                                             rs_get_my_tasks
+                                             rs_get_my_tasks,&
+                                             distribute_matrix
   USE sparse_matrix_types,             ONLY: add_block_node,&
                                              allocate_matrix,&
                                              deallocate_matrix,&
@@ -1099,7 +1100,13 @@ CONTAINS
     IF (distributed_rs_grids) THEN
        CALL rs_get_my_tasks ( rs_rho(1)%rs_grid, ntasks, natom,&
             maxset, maxpgf, tasks, dist_ab, atom_pair_send, atom_pair_recv,&
-            deltajp, deltajp_rii, deltajp_riii, .FALSE. , error)
+            .FALSE. , error)
+    ENDIF
+
+    IF (distributed_rs_grids) THEN
+        CALL distribute_matrix (rs_rho(1)%rs_grid, deltajp, atom_pair_send, atom_pair_recv, natom, scatter=.TRUE., error=error)
+        CALL distribute_matrix (rs_rho(1)%rs_grid, deltajp_rii, atom_pair_send, atom_pair_recv, natom, scatter=.TRUE., error=error)
+        CALL distribute_matrix (rs_rho(1)%rs_grid, deltajp_riii, atom_pair_send, atom_pair_recv, natom, scatter=.TRUE., error=error)
     ENDIF
 
     ithread = 0

@@ -786,15 +786,12 @@ CONTAINS
     ! redistribute the tasks list so that all tasks map on the local rs grids
 
     IF (distributed_grids) THEN
-       IF (pab_required) THEN
-          CALL rs_get_my_tasks ( rs_v(1)%rs_grid, ntasks, natom,& 
-               maxset,maxpgf, tasks,rval=dist_ab, atom_pair_send=atom_pair_send,&
-               atom_pair_recv=atom_pair_recv, pmat=deltap ,error=error)
-       ELSE
-          CALL rs_get_my_tasks ( rs_v(1)%rs_grid, ntasks, natom, maxset, maxpgf, tasks,&
-               atom_pair_send=atom_pair_send,&
-               atom_pair_recv=atom_pair_recv, rval=dist_ab ,error=error)
-       END IF
+        CALL rs_get_my_tasks ( rs_v(1)%rs_grid, ntasks, natom, maxset, maxpgf, tasks,&
+                atom_pair_send=atom_pair_send, atom_pair_recv=atom_pair_recv, rval=dist_ab ,error=error)
+    ENDIF
+
+    IF (distributed_grids .AND. pab_required) THEN
+        CALL distribute_matrix (rs_v(1)%rs_grid, deltap, atom_pair_send, atom_pair_recv, natom, scatter=.TRUE., error=error)
     ENDIF
 
     ithread = 0

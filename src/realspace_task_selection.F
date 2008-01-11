@@ -150,7 +150,7 @@ CONTAINS
 
   SUBROUTINE rs_get_my_tasks ( rs, ntasks, natoms,&
        maxset,maxpgf,  tasks, rval, atom_pair_send, atom_pair_recv,&
-       pmat, pmat2, pmat3, symmetric, error)
+       symmetric, error)
 
     TYPE(realspace_grid_type), POINTER       :: rs
     INTEGER                                  :: ntasks, natoms, maxset, maxpgf
@@ -158,8 +158,6 @@ CONTAINS
       POINTER                                :: tasks
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rval
     INTEGER, DIMENSION(:), POINTER           :: atom_pair_send, atom_pair_recv
-    TYPE(real_matrix_type), OPTIONAL, &
-      POINTER                                :: pmat, pmat2, pmat3
     LOGICAL, INTENT(IN), OPTIONAL            :: symmetric
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -358,21 +356,6 @@ CONTAINS
 
     CALL get_atom_pair ( atom_pair_recv, tasks_recv, send,&
          my_symmetric, natoms, maxset, maxpgf )
-
-    ! if matrices are present we need to scatter them to the processors who need them
-    scatter = .TRUE.
-
-    IF (PRESENT (pmat) ) THEN
-       CALL distribute_matrix (rs, pmat, atom_pair_send, atom_pair_recv, natoms, scatter, error)
-    ENDIF
-
-    IF (PRESENT (pmat2) ) THEN
-       CALL distribute_matrix (rs, pmat2, atom_pair_send, atom_pair_recv, natoms, scatter, error)
-    ENDIF
-
-    IF (PRESENT (pmat3) ) THEN
-       CALL distribute_matrix (rs, pmat3, atom_pair_send, atom_pair_recv, natoms, scatter, error)
-    ENDIF
 
     !********************************************************************************************
 

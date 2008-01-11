@@ -112,7 +112,7 @@ MODULE qs_linres_nmr_current
                                              rs_grid_zero,&
                                              rs_find_node
   USE realspace_task_selection,        ONLY: rs_get_my_tasks,&
-                                             int2pair, pair2int
+                                             int2pair, pair2int, distribute_matrix
   USE sparse_matrix_types,             ONLY: add_block_node,&
                                              allocate_matrix,&
                                              deallocate_matrix,&
@@ -1122,8 +1122,13 @@ CONTAINS
   IF (distributed_rs_grids) THEN
      CALL rs_get_my_tasks ( rs_rho(1)%rs_grid, ntasks, natom,&
           maxset, maxpgf, tasks, rval=dist_ab, atom_pair_send=atom_pair_send,&
-          atom_pair_recv=atom_pair_recv, pmat=deltajp, pmat2=deltajp_rii,&
-          pmat3=deltajp_riii,SYMMETRIC=.FALSE., error=error)
+          atom_pair_recv=atom_pair_recv, SYMMETRIC=.FALSE., error=error)
+  ENDIF
+
+  IF (distributed_rs_grids) THEN
+     CALL distribute_matrix (rs_rho(1)%rs_grid, deltajp , atom_pair_send, atom_pair_recv, natom, scatter=.TRUE., error=error)
+     CALL distribute_matrix (rs_rho(1)%rs_grid, deltajp_rii , atom_pair_send, atom_pair_recv, natom, scatter=.TRUE., error=error)
+     CALL distribute_matrix (rs_rho(1)%rs_grid, deltajp_riii , atom_pair_send, atom_pair_recv, natom, scatter=.TRUE., error=error)
   ENDIF
 
   ithread = 0

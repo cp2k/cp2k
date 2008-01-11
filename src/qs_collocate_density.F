@@ -127,6 +127,7 @@ MODULE qs_collocate_density
                                              rs_pw_transfer,&
                                              rs_find_node
   USE realspace_task_selection,        ONLY: rs_get_my_tasks,&
+                                             distribute_matrix,&
                                              pair2int,&
                                              int2pair
   USE sparse_matrix_types,             ONLY: add_block_node,&
@@ -959,7 +960,12 @@ CONTAINS
     IF (distributed_rs_grids)THEN
        CALL rs_get_my_tasks (rs_rho(1)%rs_grid,ntasks, natoms,&
             maxset,maxpgf, tasks, rval=dist_ab, atom_pair_send=atom_pair_send,&
-            atom_pair_recv=atom_pair_recv, pmat=deltap, error=error)
+            atom_pair_recv=atom_pair_recv, error=error)
+    ENDIF
+
+    ! distribute the matrix
+    IF (distributed_rs_grids) THEN
+       CALL distribute_matrix (rs_rho(1)%rs_grid, deltap, atom_pair_send, atom_pair_recv, natoms, scatter=.TRUE., error=error)
     ENDIF
 
     ! map all tasks on the grids
