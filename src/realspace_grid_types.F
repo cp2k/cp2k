@@ -793,6 +793,14 @@ CONTAINS
 !!      distributed (3D domain decomposition)
 !!
 !!   NOTES
+!!      the transfer is a two step procedure. For example, for the rs2pw transfer:
+!!     
+!!      1) Halo-exchange in 3D so that the local part of the rs_grid contains the full data
+!!      2) an alltoall communication to redistribute the local rs_grid to the local pw_grid
+!!
+!!      the halo exchange is most expensive on a large number of CPUs. Particular in this halo
+!!      exchange is that the border region is rather large (e.g. 20 points) and that it might overlap
+!!      with the central domain of several CPUs (i.e. next nearest neighbors)
 !!
 !!   INPUTS
 !!    -
@@ -830,7 +838,7 @@ CONTAINS
       DIMENSION(:, :, :)                     :: recv_buf_3d, send_buf_3d
     TYPE(cp_error_type)                      :: error
 
-!Both grids are distributed, we have to do some reshuffling of data
+! Both grids are distributed, we have to do some reshuffling of data
 ! first map pw ranks (corresponding to the cartesian communicator) to rs ranks (and their cart. comm)
 ! this could become part of the rs type
 
