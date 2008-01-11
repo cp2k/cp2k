@@ -178,7 +178,8 @@ MODULE message_passing
   INTERFACE mp_alltoall
      MODULE PROCEDURE mp_alltoall_c22v, mp_alltoall_i, mp_alltoall_c22v_sgl, &
                       mp_alltoall_i11v, mp_alltoall_r11v, mp_alltoall_r45,&
-                      mp_alltoall_r34,mp_alltoall_r54, mp_alltoall_z11v
+                      mp_alltoall_r34,mp_alltoall_r54, mp_alltoall_i8v, mp_alltoall_z11v
+                      
   END INTERFACE
 
   INTERFACE mp_send
@@ -792,7 +793,10 @@ SUBROUTINE mp_cart_create ( comm_old, ndims, dims, pos, comm_cart )
   IF (ANY(dims == 0)) CALL mpi_dims_create(nodes,ndims,dims,ierr)
   IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_dims_create @ mp_cart_create" )
 
-  reorder = .TRUE.
+  ! FIX ME.  Quick hack to avoid problems with realspace grids for compilers
+  ! like IBM that actually reorder the processors when creating the new
+  ! communicator
+  reorder = .FALSE.
   period = .TRUE.
   CALL mpi_cart_create ( comm_old, ndims, dims, period, reorder, comm_cart, &
        ierr )
@@ -1301,6 +1305,45 @@ SUBROUTINE mp_alltoall_i11v ( sb, scount, sdispl, rb, rcount, rdispl, group )
 
 END SUBROUTINE mp_alltoall_i11v
 
+SUBROUTINE mp_alltoall_i8v ( sb, scount, sdispl, rb, rcount, rdispl, group )
+
+
+    INTEGER(kind=int_8), DIMENSION(:), INTENT(IN)        :: sb 
+    INTEGER, DIMENSION(:), INTENT(IN)        :: scount, sdispl
+    INTEGER(kind=int_8), DIMENSION(:), INTENT(OUT)       :: rb
+    INTEGER, DIMENSION(:), INTENT(IN)        :: rcount, rdispl
+    INTEGER, INTENT(IN)                      :: group
+    INTEGER(kind=int_8)                      :: int_8_size, dummy
+
+    INTEGER                                  :: ierr, msglen, int_8_size_4
+    INTEGER :: handle
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_i8v', &
+      routineP = moduleN//':'//routineN
+#if defined(__mp_timeset__)
+    CALL timeset(routineN,handle)
+#endif
+
+    dummy = 10
+    int_8_size = BIT_SIZE (dummy) / 8
+    int_8_size_4 = int_8_size
+
+  ierr = 0
+#if defined(__parallel)
+  t_start = m_walltime ( )
+  CALL mpi_alltoallv ( sb, scount, sdispl, MPI_INTEGER8, &
+                       rb, rcount, rdispl, MPI_INTEGER8, group, ierr )
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoallv @ mp_alltoall_i8v" )
+  t_end = m_walltime ( )
+  msglen = SUM ( scount ) + SUM ( rcount )
+  CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*int_8_size_4)
+#else
+  rb(rdispl(1)+1:rdispl(1)+rcount(1))=sb(sdispl(1)+1:sdispl(1)+scount(1))
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop(handle)
+#endif
+
+END SUBROUTINE mp_alltoall_i8v
 
 SUBROUTINE mp_alltoall_z11v ( sb, scount, sdispl, rb, rcount, rdispl,len_string, group )
 

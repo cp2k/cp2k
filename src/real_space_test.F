@@ -30,7 +30,8 @@ MODULE real_space_test
                                              cell_type,&
                                              get_hinv
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             int_8
   USE machine,                         ONLY: m_cputime
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_environ,&
@@ -77,19 +78,22 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: nparticle = 5000
 
-    INTEGER                                  :: dir, i, ierr, iounit, j, me, &
-                                                memory1, memory2, memory3, n, &
-                                                npme
+    INTEGER                                  :: dir, i, ierr, iounit, j, &
+                                                maxpgf, maxset, me, memory1, &
+                                                memory2, memory3, n, npme
+    INTEGER(kind=int_8), DIMENSION(:, :), &
+      POINTER                                :: tasks
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(3)                    :: no, np, pt
     INTEGER, DIMENSION(3, nparticle)         :: refco, refpt
-    INTEGER, DIMENSION(:, :), POINTER        :: tasks
+    INTEGER, DIMENSION(:), POINTER           :: atom_pair_recv, atom_pair_send
     INTEGER, DIMENSION(nparticle)            :: bsize
     REAL(KIND=dp)                            :: energy1, energy2, energy3, &
                                                 integral, t1, t2, t3, tend, &
                                                 tstart
     REAL(KIND=dp), DIMENSION(3)              :: s
     REAL(KIND=dp), DIMENSION(3, nparticle)   :: coord
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rval
     REAL(KIND=dp), DIMENSION(nparticle)      :: bval
     TYPE(cell_type), POINTER                 :: box
     TYPE(pw_grid_type), POINTER              :: grid
@@ -235,81 +239,81 @@ CONTAINS
     CALL rs_grid_print ( rden, iounit, error=error)
     CALL rs_grid_zero ( rden )
 
-    DO dir = 1 , 3
-       IF (rden % perd (dir) /= 1 ) THEN
-          IF ( para_env%ionode ) &
-               WRITE(iw,'(/,A,/)') " Start Test 3: Distributed grid, parallel calculation"
-          DO i = 1, nparticle
-             refco(:,i) = refpt(:,i) + rden%lb(:) - 1
-          END DO
-          IF ( rden%parallel ) THEN
-             CALL mp_environ ( n, me, rden%group )
-          ELSE
-             n  = 1
-             me = 0
-          END IF
-          bo = get_limit ( nparticle, n, me )
-          npme = bo(2) - bo(1) + 1
-          ALLOCATE ( tasks ( 4, npme ), STAT=ierr )
-          IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks", 2*npme )
-          DO i = bo(1), bo(2)
-             j = i - bo(1) + 1
-             tasks ( 1, j ) = i
-             tasks ( 2, j ) = refco(1,i)
-             tasks ( 3, j ) = refco(2,i)
-             tasks ( 4, j ) = refco(3,i)
-          END DO
-          CALL rs_get_my_tasks ( rden, tasks, npme ,error=error)
-          DO i = 1, npme
-             j = tasks ( 1, i )
-             pt = refco(:,j) - rden%lb_local(:) + 1
-             no = bsize ( j )
-             CALL put_on_grid ( rden%r, pt, no, bval(j), dir )
-          END DO
-          DEALLOCATE ( tasks, STAT=ierr )
-          IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks" )
-          CALL pw_create ( pw_c, grid, REALDATA3D ,error=error)
-          CALL rs_pw_transfer ( rden, pw_c, rs2pw )
-          pw_c%cr3d = pw_c%cr3d**(1.0_dp/3.0_dp)
-          CALL rs_grid_zero ( rden )
-          CALL rs_pw_transfer ( rden, pw_c, pw2rs )
-          IF ( rden%parallel ) THEN
-             CALL mp_environ ( n, me, rden%group )
-          ELSE
-             n  = 1
-             me = 0
-          END IF
-          bo = get_limit ( nparticle, n, me )
-          npme = bo(2) - bo(1) + 1
-          ALLOCATE ( tasks ( 2, npme ), STAT=ierr )
-          IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks", 3*npme )
-          DO i = bo(1), bo(2)
-             j = i - bo(1) + 1
-             tasks ( 1, j ) = i
-             tasks ( 2, j ) = refco(1,i)
-             tasks ( 3, j ) = refco(2,i)
-             tasks ( 4, j ) = refco(3,i)
-          END DO
-          CALL rs_get_my_tasks ( rden, tasks, npme ,error=error)
-          energy3 = 0.0_dp
-          DO i = 1, npme
-             j = tasks ( 1, i )
-             pt = refco(:,j) - rden%lb_local(:) + 1
-             no = bsize ( j )
-             CALL int_on_grid ( rden%r, pt, no, bval(j), dir, integral )
-             energy3 = energy3 + integral
-          END DO
-          DEALLOCATE ( tasks, STAT=ierr )
-          IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks" )
-          IF ( rden%parallel ) CALL mp_sum ( energy3, rden%group )
-          memory3 = SIZE ( rden%r ) + SIZE ( pw_c%cr3d )
-          CALL rs_grid_release ( rden ,error=error)
-          tend  = m_cputime ( )
-          t3 = tend - tstart
-
+    IF (rden % distributed ) THEN
+       IF ( para_env%ionode ) &
+            WRITE(iw,'(/,A,/)') " Start Test 3: Distributed grid, parallel calculation"
+       DO i = 1, nparticle
+          refco(:,i) = refpt(:,i) + rden%lb(:) - 1
+       END DO
+       IF ( rden%parallel ) THEN
+          CALL mp_environ ( n, me, rden%group )
+       ELSE
+          n  = 1
+          me = 0
        END IF
+       bo = get_limit ( nparticle, n, me )
+       npme = bo(2) - bo(1) + 1
+       ALLOCATE ( tasks ( 4, npme ), STAT=ierr )
+       IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks", 2*npme )
+       DO i = bo(1), bo(2)
+          j = i - bo(1) + 1
+          tasks ( 1, j ) = i
+          tasks ( 2, j ) = refco(1,i)
+          tasks ( 3, j ) = refco(2,i)
+          tasks ( 4, j ) = refco(3,i)
+       END DO
+       CALL rs_get_my_tasks ( rden, npme, nparticle,&
+            maxset, maxpgf, tasks, rval, atom_pair_send, atom_pair_recv, error=error)
+       DO i = 1, npme
+          j = tasks ( 1, i )
+          pt = refco(:,j) - rden%lb_local(:) + 1
+          no = bsize ( j )
+          CALL put_on_grid ( rden%r, pt, no, bval(j), dir )
+       END DO
+       DEALLOCATE ( tasks, STAT=ierr )
+       IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks" )
+       CALL pw_create ( pw_c, grid, REALDATA3D ,error=error)
+       CALL rs_pw_transfer ( rden, pw_c, rs2pw )
+       pw_c%cr3d = pw_c%cr3d**(1.0_dp/3.0_dp)
+       CALL rs_grid_zero ( rden )
+       CALL rs_pw_transfer ( rden, pw_c, pw2rs )
+       IF ( rden%parallel ) THEN
+          CALL mp_environ ( n, me, rden%group )
+       ELSE
+          n  = 1
+          me = 0
+       END IF
+       bo = get_limit ( nparticle, n, me )
+       npme = bo(2) - bo(1) + 1
+       ALLOCATE ( tasks ( 2, npme ), STAT=ierr )
+       IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks", 3*npme )
+       DO i = bo(1), bo(2)
+          j = i - bo(1) + 1
+          tasks ( 1, j ) = i
+          tasks ( 2, j ) = refco(1,i)
+          tasks ( 3, j ) = refco(2,i)
+          tasks ( 4, j ) = refco(3,i)
+       END DO
+       CALL rs_get_my_tasks ( rden, npme, nparticle,&
+            maxset, maxpgf, tasks, rval, atom_pair_send, atom_pair_recv, error=error)
+       energy3 = 0.0_dp
+       DO i = 1, npme
+          j = tasks ( 1, i )
+          pt = refco(:,j) - rden%lb_local(:) + 1
+          no = bsize ( j )
+          CALL int_on_grid ( rden%r, pt, no, bval(j), dir, integral )
+          energy3 = energy3 + integral
+       END DO
+       DEALLOCATE ( tasks, STAT=ierr )
+       IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks" )
+       IF ( rden%parallel ) CALL mp_sum ( energy3, rden%group )
+       memory3 = SIZE ( rden%r ) + SIZE ( pw_c%cr3d )
+       CALL rs_grid_release ( rden ,error=error)
+       tend  = m_cputime ( )
+       t3 = tend - tstart
 
-    END DO
+    END IF
+
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
  IF ( para_env%ionode ) THEN

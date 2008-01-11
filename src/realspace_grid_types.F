@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2008  CP2K developers group                          !
+!   Copyright (C) 2000 - 2007  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 
@@ -62,7 +62,8 @@ MODULE realspace_grid_types
             rs_grid_p_create,&
             rs_grid_p_release, &
             rs_grid_print, &
-            rs_total_sum
+            rs_total_sum,  &
+            rs_find_node
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'realspace_grid_types'
   INTEGER, SAVE, PRIVATE :: last_rs_id=0
@@ -275,10 +276,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_setup_1', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: dir, i, j, k, lb( 2 ), m, &
-                                                n_slices(3), n_slices_tmp(3), &
-                                                neighbours(3), nmin, pos( 3 )
-    LOGICAL                                  :: failure, small
+    INTEGER                                  :: dir, i, j, k, lb( 2 ), &
+                                                n_slices(3), neighbours(3), &
+                                                nmin, pos( 3 )
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ratio, ratio_best, volume, &
                                                 volume_dist
 
@@ -343,23 +344,11 @@ CONTAINS
        ELSE
           n_slices = 1
           ratio_best=-HUGE(ratio_best)
-          DO k=1,rs % group_size
-          DO j=1,rs % group_size
-             i=rs % group_size/(j*k)
+          ! don't allow distributions with more processors than real grid points
+          DO k=1, MIN(rs % npts (3), rs % group_size)
+          DO j=1, MIN(rs % npts (2), rs % group_size)
+             i= MIN (rs % npts (1), rs % group_size/(j*k) )
              IF (i*j*k .NE. rs % group_size) CYCLE
-
-             ! a safe-guard, we only accept a topology if the borders overlap only with
-             ! one neighbor. This should be removed in the final code.
-             n_slices_tmp=(/i,j,k/)
-             small=.FALSE.
-             DO dir=1,3
-                DO m=0,n_slices_tmp( dir )-1
-                   lb = get_limit ( rs % npts ( dir ), n_slices_tmp( dir ), m  )
-                   IF (lb(2)-lb(1)+1<nmin) small=.TRUE.
-                ENDDO
-             ENDDO
-             IF (small) CYCLE
-
              ! a heuristic optimisation to reduce the memory usage
              ! volume of the box without the wings / volume of the box with the wings
              ratio = PRODUCT(REAL(rs % npts,KIND=dp) / (/i,j,k/)) /  & 
@@ -382,8 +371,8 @@ CONTAINS
           ENDIF
           
        END IF
-      
-       rs % group_dim (:) = n_slices(:)
+
+1234   rs % group_dim (:) = n_slices(:)
 
        IF ( ALL (n_slices == 1 ) ) THEN
           ! CASE 1 : only one slice: we do not need overlapping regions and special
@@ -402,7 +391,6 @@ CONTAINS
           CALL mp_environ(rs % group_size, rs % my_pos, rs % group )
           rs % group_head = pw_grid % para % group_head
           rs % group_coor ( : ) = 0
-          rs % group_coor ( 3 ) = pw_grid % para % rs_mpo
        ELSE
           ! CASE 2 : general case
           ! periodicity is no longer enforced arbritary  directions
@@ -443,6 +431,14 @@ CONTAINS
                 CALL mp_min ( neighbours(dir), rs % group )
                 rs % neighbours(dir) = CEILING( REAL(rs%border + neighbours(dir)) / & 
                      REAL( neighbours(dir) ))
+                ! really ugly hack to prevent the situation where the wings
+                ! overlap with periodic images of the real data
+                IF( rs % neighbours(dir) .GE. n_slices (dir) ) THEN
+                   !write(6,*)"grid too small, would be overlapping with self"
+                   n_slices = 1
+                   CALL mp_comm_free ( rs % group )
+                   GOTO 1234
+                ENDIF
              ENDIF
           ENDDO
           rs % ngpts_local = PRODUCT ( rs % npts_local )
@@ -473,6 +469,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
+
+    WRITE(6,*)"rs_grid_setup_n called, size of rs grids is", SIZE (rs)
 
     CALL rs_grid_setup_1 ( rs ( 1 ) % rs_grid , pw_grid, nsmax, error )
     DO i = 2, SIZE ( rs )
@@ -777,21 +775,23 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=200)                       :: error_string
-    INTEGER :: dest, group, i, idir, ierr, j, k, m, my_pw_rank, my_rs_rank, &
-      n_shifts, nn, offset_down, offset_up, position, source, x, y, z
+    INTEGER                                  :: dest, group, i, idir, ierr, &
+                                                j, k, my_pw_rank, my_rs_rank, &
+                                                n_shifts, nn, position, &
+                                                source, x, y, z
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: dshifts, rank_pw2rs, &
                                                 recv_disps, recv_sizes, &
                                                 send_disps, send_sizes, &
                                                 ushifts
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: bounds, recv_tasks, send_tasks
     INTEGER, DIMENSION(2)                    :: neighbours, pos
-    INTEGER, DIMENSION(3)                    :: coords, lb_in, lb_out, ub_in, &
-                                                ub_out
+    INTEGER, DIMENSION(3) :: coords, lb_recv, lb_recv_new, lb_send, &
+      lb_send_new, ub_recv, ub_recv_new, ub_send, ub_send_new
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: pw_sum, rs_sum
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_buf, send_buf
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: buffer
+      DIMENSION(:, :, :)                     :: recv_buf_3d, send_buf_3d
     TYPE(cp_error_type)                      :: error
 
 !Both grids are distributed, we have to do some reshuffling of data
@@ -814,104 +814,162 @@ CONTAINS
 
           IF ( rs % perd (idir) .NE. 1) THEN
 
-             offset_down = 0
-             offset_up   = 0
+             ALLOCATE ( dshifts ( 0:rs % neighbours (idir ) ), STAT=ierr )
+             ALLOCATE ( ushifts ( 0:rs % neighbours (idir ) ), STAT=ierr )
+             
+             ushifts = 0
+             dshifts = 0
 
              ! check that we don't try to send data to ourself
              DO n_shifts = 1, MIN(rs % neighbours(idir),rs%group_dim(idir)-1)
 
                 ! need to take into account the possible varying widths of neighbouring cells
                 ! offset_up and offset_down hold the real size of the neighbouring cells
+                position = MODULO ( rs % group_coor (idir) - n_shifts, rs % group_dim (idir))
+                neighbours = get_limit ( rs % npts ( idir ), rs % group_dim ( idir ), position )
+                dshifts(n_shifts) = dshifts(n_shifts-1) + ( neighbours (2) - neighbours (1) + 1 ) 
 
-                IF(n_shifts.NE.1)THEN
-                   position = MODULO ( rs % group_coor (idir) - n_shifts + 1, rs % group_dim (idir))
-                   neighbours = get_limit ( rs % npts ( idir ), rs % group_dim ( idir ), position )
-                   offset_down = offset_down + ( neighbours (2) - neighbours (1)  + 1 ) 
+                position = MODULO ( rs % group_coor (idir) + n_shifts, rs % group_dim (idir))
+                neighbours = get_limit ( rs % npts ( idir ), rs % group_dim ( idir ), position )
+                ushifts(n_shifts) = ushifts(n_shifts-1) + ( neighbours (2) - neighbours (1) + 1 )
 
-                   position = MODULO ( rs % group_coor (idir) + n_shifts - 1, rs % group_dim (idir))
-                   neighbours = get_limit ( rs % npts ( idir ), rs % group_dim ( idir ), position )
-                   offset_up = offset_up + ( neighbours (2) - neighbours (1)  + 1 )
-                ENDIF
-
-                ! The border data has to be send/received from the neighbors
+                ! The border data has to be send/received from the neighbours
                 ! First we calculate the source and destination processes for the shift
                 ! The first shift is "downwards"
 
                 CALL mp_cart_shift ( rs % group, idir -1, -1 * n_shifts, source, dest )
 
-                lb_in ( : ) = rs % lb_local ( : )
-                ub_in ( : ) = rs % ub_local ( : )
-                ub_in ( idir ) = lb_in ( idir ) + rs % border - 1 - offset_down
+                lb_send ( : ) = rs % lb_local ( : )
+                ub_send ( : ) = rs % ub_local ( : )
+                ub_send ( idir ) = lb_send ( idir ) + rs % border - 1 - dshifts(n_shifts-1)
 
-                lb_out ( : ) = rs % lb_local ( : )
-                ub_out ( : ) = rs % ub_local ( : )
-                ub_out ( idir ) = ub_out ( idir ) - rs % border
-                lb_out ( idir ) = ub_out ( idir ) - rs % border + 1 + offset_up 
+                lb_recv ( : ) = rs % lb_local ( : )
+                ub_recv ( : ) = rs % ub_local ( : )
+                ub_recv ( idir ) = ub_recv ( idir ) - rs % border
+                lb_recv ( idir ) = ub_recv ( idir ) - rs % border + 1 + ushifts(n_shifts-1)
+
+                lb_send_new ( : ) = rs % lb_local ( : )
+                lb_recv_new ( : ) = rs % lb_local ( : )
+                ub_recv_new ( : ) = rs % ub_local ( : )
+                ub_send_new ( : ) = rs % ub_local ( : )
+
+                IF(dshifts (n_shifts - 1) .LE. rs % border ) THEN
+                   ub_send_new ( idir ) = lb_send_new ( idir ) + rs % border  - 1 - dshifts(n_shifts-1)
+                   lb_send_new ( idir ) = MAX( lb_send_new ( idir ),&
+                        lb_send_new ( idir ) + rs % border  - dshifts ( n_shifts ) )
+                   
+                   ub_recv_new ( idir ) = ub_recv_new ( idir ) - rs % border
+                   lb_recv_new ( idir ) = MAX(lb_recv_new(idir) + rs % border,&
+                        ub_recv_new ( idir ) - rs % border + 1 + ushifts(n_shifts-1) )
+                ELSE
+                   lb_send_new( idir ) = 0
+                   ub_send_new( idir ) = lb_send_new( idir ) - 1
+                   lb_recv_new( idir ) = 0
+                   ub_recv_new( idir ) = lb_recv_new( idir ) - 1
+                ENDIF
+
+                lb_send = lb_send_new
+                ub_send = ub_send_new
+                lb_recv = lb_recv_new
+                ub_recv = ub_recv_new
+
+                ! Allocate a scratch arrays to receive the data
+                nn = PRODUCT ( ub_send - lb_send + 1 )
+                ALLOCATE ( send_buf_3d ( lb_send(1):ub_send(1), lb_send(2):ub_send(2), lb_send(3):ub_send(3) ), STAT=ierr )
+                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d",nn)
+                nn = PRODUCT ( ub_recv - lb_recv + 1 )
+                ALLOCATE ( recv_buf_3d ( lb_recv(1):ub_recv(1), lb_recv(2):ub_recv(2), lb_recv(3):ub_recv(3) ), STAT=ierr )
+                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf_3d",nn)
+                
+                send_buf_3d = rs % r ( lb_send(1):ub_send(1), lb_send(2):ub_send(2), lb_send(3):ub_send(3) )
+
+                CALL mp_sendrecv ( send_buf_3d, dest, recv_buf_3d, source, rs % group )
 
                 ! only some procs may need later shifts
-                IF(ub_out(idir).GE.lb_out(idir))THEN
-
-                   ! Allocate a scratch array to receive the data
-                   nn = PRODUCT ( ub_out - lb_out + 1 )
-                   ALLOCATE ( buffer ( lb_out(1):ub_out(1), lb_out(2):ub_out(2), lb_out(3):ub_out(3) ), STAT=ierr )
-                   IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","buffer",nn)
-
-                   CALL mp_sendrecv ( rs % r ( lb_in(1):ub_in(1), lb_in(2):ub_in(2), lb_in(3):ub_in(3) ), &
-                        dest, buffer, source, rs % group )
+                IF(ub_recv(idir).GE.lb_recv(idir))THEN
 
                    ! Sum the data in the RS Grid
-                   rs % r ( lb_out(1):ub_out(1), lb_out(2):ub_out(2), lb_out(3):ub_out(3) ) = &
-                        rs % r ( lb_out(1):ub_out(1), lb_out(2):ub_out(2), lb_out(3):ub_out(3) ) + buffer ( :, :, : )
-                   DEALLOCATE ( buffer, STAT=ierr )
-                   IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","buffer")
+                   rs % r ( lb_recv(1):ub_recv(1), lb_recv(2):ub_recv(2), lb_recv(3):ub_recv(3) ) = &
+                        rs % r ( lb_recv(1):ub_recv(1), lb_recv(2):ub_recv(2), lb_recv(3):ub_recv(3) ) + recv_buf_3d ( :, :, : )
                 END IF
+
+                DEALLOCATE ( send_buf_3d, STAT=ierr )
+                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d")
+                DEALLOCATE ( recv_buf_3d, STAT=ierr )
+                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf_3d")
 
                 ! Now for the other direction
 
                 CALL mp_cart_shift ( rs % group, idir -1 , n_shifts, source, dest )
 
-                lb_in ( : ) = rs % lb_local ( : )
-                ub_in ( : ) = rs % ub_local ( : )
-                lb_in ( idir ) = ub_in ( idir ) - rs % border + 1 + offset_up
+                lb_send ( : ) = rs % lb_local ( : )
+                ub_send ( : ) = rs % ub_local ( : )
+                lb_send ( idir ) = ub_send ( idir ) - rs % border + 1 + ushifts(n_shifts-1)
 
-                lb_out ( : ) = rs % lb_local ( : )
-                ub_out ( : ) = rs % ub_local ( : )
-                lb_out ( idir ) = lb_out ( idir ) + rs % border
-                ub_out ( idir ) = lb_out ( idir ) + rs % border -1 - offset_down
+                lb_recv ( : ) = rs % lb_local ( : )
+                ub_recv ( : ) = rs % ub_local ( : )
+                lb_recv ( idir ) = lb_recv ( idir ) + rs % border
+                ub_recv ( idir ) = lb_recv ( idir ) + rs % border -1 - dshifts(n_shifts-1)
+
+                lb_send_new ( : ) = rs % lb_local ( : )
+                lb_recv_new ( : ) = rs % lb_local ( : )
+                ub_recv_new ( : ) = rs % ub_local ( : )
+                ub_send_new ( : ) = rs % ub_local ( : )
+
+                IF (ushifts(n_shifts - 1) .LE. rs % border ) THEN
+
+                   lb_send_new ( idir ) = ub_send_new ( idir ) - rs % border + 1 + ushifts(n_shifts-1)
+                   ub_send_new ( idir ) = MIN( ub_send_new( idir ),&
+                        ub_send_new ( idir ) - rs % border  + ushifts( n_shifts ) )
+
+                   lb_recv_new ( idir ) = lb_recv_new ( idir ) + rs % border
+                   ub_recv_new ( idir ) = MIN(ub_recv_new (idir)- rs%border,&
+                        lb_recv_new ( idir ) + rs % border - 1 - dshifts(n_shifts-1))
+                ELSE
+                   lb_send_new( idir ) = 0
+                   ub_send_new( idir ) = lb_send_new( idir ) - 1
+                   lb_recv_new( idir ) = 0
+                   ub_recv_new( idir ) = lb_recv_new( idir ) - 1
+                ENDIF
+
+                lb_send = lb_send_new
+                ub_send = ub_send_new
+                lb_recv = lb_recv_new
+                ub_recv = ub_recv_new
+
+                nn = PRODUCT ( ub_send - lb_send + 1 )
+                ALLOCATE ( send_buf_3d ( lb_send(1):ub_send(1), lb_send(2):ub_send(2), lb_send(3):ub_send(3) ), STAT=ierr )
+                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d",nn)
+                nn = PRODUCT ( ub_recv - lb_recv + 1 )
+                ALLOCATE ( recv_buf_3d ( lb_recv(1):ub_recv(1), lb_recv(2):ub_recv(2), lb_recv(3):ub_recv(3) ), STAT=ierr )
+                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf_3d",nn)
+                
+                send_buf_3d = rs % r ( lb_send(1):ub_send(1), lb_send(2):ub_send(2), lb_send(3):ub_send(3) )
+
+                CALL mp_sendrecv ( send_buf_3d, dest, recv_buf_3d, source, rs % group )
 
                 ! only some procs may need later shifts
-                IF(ub_out(idir).GE.lb_out(idir))THEN
-
-                   nn = PRODUCT ( ub_out - lb_out  + 1 )
-                   ALLOCATE ( buffer ( lb_out(1):ub_out(1), lb_out(2):ub_out(2), lb_out(3):ub_out(3) ), STAT=ierr )
-                   IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","buffer",nn)
-
-                   CALL mp_sendrecv ( rs % r ( lb_in(1):ub_in(1), lb_in(2):ub_in(2), lb_in(3):ub_in(3) ), &
-                        dest, buffer, source, rs % group )
+                IF(ub_recv(idir).GE.lb_recv(idir))THEN
 
                    ! Sum the data in the RS Grid
-                   rs % r ( lb_out(1):ub_out(1), lb_out(2):ub_out(2), lb_out(3):ub_out(3) ) = &
-                        rs % r ( lb_out(1):ub_out(1), lb_out(2):ub_out(2), lb_out(3):ub_out(3) ) + buffer ( :, :, : )
-                   DEALLOCATE ( buffer, STAT=ierr )
-                   IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","buffer")
+                   rs % r ( lb_recv(1):ub_recv(1), lb_recv(2):ub_recv(2), lb_recv(3):ub_recv(3) ) = &
+                        rs % r ( lb_recv(1):ub_recv(1), lb_recv(2):ub_recv(2), lb_recv(3):ub_recv(3) ) + recv_buf_3d ( :, :, : )
                 END IF
+
+                DEALLOCATE ( send_buf_3d, STAT=ierr )
+                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d")
+                DEALLOCATE ( recv_buf_3d, STAT=ierr )
+                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf_3d")
+
              END DO
+
+             DEALLOCATE ( dshifts, STAT=ierr )
+             IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","dshifts")
+             DEALLOCATE ( ushifts, STAT=ierr )
+             IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","ushifts")
+
           END IF
        END DO
-
-       ! recreates a replicated grid for testing purposes, the wings should no longer be needed anyhoo
-          IF(rs%perd(1).NE.1)THEN
-             rs % r (rs%lb_local(1):rs%lb_local(1)+rs%border-1,rs%lb_local(2):rs%ub_local(2),rs%lb_local(3):rs%ub_local(3)) = 0
-             rs % r (rs%ub_local(1)-rs%border+1:rs%ub_local(1),rs%lb_local(2):rs%ub_local(2),rs%lb_local(3):rs%ub_local(3)) = 0
-          ENDIF
-          IF(rs%perd(2).NE.1)THEN
-             rs % r (rs%lb_local(1):rs%ub_local(1),rs%lb_local(2):rs%lb_local(2)+rs%border-1,rs%lb_local(3):rs%ub_local(3)) = 0
-             rs % r (rs%lb_local(1):rs%ub_local(1),rs%ub_local(2)-rs%border+1:rs%ub_local(2),rs%lb_local(3):rs%ub_local(3)) = 0
-          ENDIF
-          IF(rs%perd(3).NE.1)THEN
-             rs % r (rs%lb_local(1):rs%ub_local(1),rs%lb_local(2):rs%ub_local(2),rs%lb_local(3):rs%lb_local(3)+rs%border-1) = 0
-             rs % r (rs%lb_local(1):rs%ub_local(1),rs%lb_local(2):rs%ub_local(2),rs%ub_local(3)-rs%border+1:rs%ub_local(3)) = 0
-          ENDIF
 
        ! This is the real redistribution
 
@@ -965,39 +1023,38 @@ CONTAINS
           DO idir = 1,3
              pos (:) = get_limit ( rs %  npts ( idir ), rs % group_dim ( idir ), coords(idir) )
              pos (:) = pos (:) - rs %  npts (idir) / 2 - 1
-             lb_in(idir) = pos(1)
-             ub_in(idir) = pos(2)                
+             lb_send(idir) = pos(1)
+             ub_send(idir) = pos(2)                
           ENDDO
 
           IF(i==my_rs_rank)THEN
-             lb_out(:) = lb_in(:)
-             ub_out(:) = ub_in(:)
+             lb_recv(:) = lb_send(:)
+             ub_recv(:) = ub_send(:)
           ENDIF
 
           DO j = 0, pw % pw_grid % para % group_size - 1
           
-             IF (lb_in(1) .GT.bounds(j,2)) CYCLE
-             IF (ub_in(1) .LT.bounds(j,1)) CYCLE 
+             IF (lb_send(1) .GT.bounds(j,2)) CYCLE
+             IF (ub_send(1) .LT.bounds(j,1)) CYCLE 
 
              IF(i==my_rs_rank) THEN
-                m = rank_pw2rs(j)
-                send_tasks(m,1)= MAX(lb_in(1),bounds(j,1))
-                send_tasks(m,2)= MIN(ub_in(1),bounds(j,2))
-                send_tasks(m,3)= lb_in(2)
-                send_tasks(m,4)= ub_in(2)
-                send_tasks(m,5)= lb_in(3)
-                send_tasks(m,6)= ub_in(3)
-                send_sizes(m)  = (send_tasks( m ,2)-send_tasks( m ,1)+1)* &
-                     (send_tasks( m ,4)-send_tasks( m ,3)+1)*(send_tasks( m ,6)-send_tasks( m ,5)+1)
+                send_tasks(j,1)= MAX(lb_send(1),bounds(j,1))
+                send_tasks(j,2)= MIN(ub_send(1),bounds(j,2))
+                send_tasks(j,3)= lb_send(2)
+                send_tasks(j,4)= ub_send(2)
+                send_tasks(j,5)= lb_send(3)
+                send_tasks(j,6)= ub_send(3)
+                send_sizes(j)  = (send_tasks( j ,2)-send_tasks( j ,1)+1)* &
+                     (send_tasks( j ,4)-send_tasks( j ,3)+1)*(send_tasks( j ,6)-send_tasks( j ,5)+1)
              ENDIF
 
-             IF(j==my_pw_rank) THEN
-                recv_tasks(i,1)= MAX(lb_in(1),bounds(j,1))
-                recv_tasks(i,2)= MIN(ub_in(1),bounds(j,2))
-                recv_tasks(i,3)= lb_in(2)
-                recv_tasks(i,4)= ub_in(2)
-                recv_tasks(i,5)= lb_in(3)
-                recv_tasks(i,6)= ub_in(3)
+             IF(j==my_rs_rank) THEN
+                recv_tasks(i,1)= MAX(lb_send(1),bounds(j,1))
+                recv_tasks(i,2)= MIN(ub_send(1),bounds(j,2))
+                recv_tasks(i,3)= lb_send(2)
+                recv_tasks(i,4)= ub_send(2)
+                recv_tasks(i,5)= lb_send(3)
+                recv_tasks(i,6)= ub_send(3)
                 recv_sizes(i)  = (recv_tasks(i,2)-recv_tasks( i ,1)+1)* &
                      (recv_tasks( i ,4)-recv_tasks( i ,3)+1)*(recv_tasks( i ,6)-recv_tasks( i ,5)+1)
              ENDIF
@@ -1011,7 +1068,7 @@ CONTAINS
           recv_disps(i) = recv_disps(i-1) + recv_sizes(i-1)
        ENDDO
 
-       CPPrecondition(SUM(send_sizes)==PRODUCT(ub_out - lb_out + 1),cp_failure_level,routineP,error,failure)
+       CPPrecondition(SUM(send_sizes)==PRODUCT(ub_recv - lb_recv + 1),cp_failure_level,routineP,error,failure)
 
        ALLOCATE ( send_buf ( SUM(send_sizes) ), STAT=ierr )
        IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf",nn)
@@ -1139,40 +1196,39 @@ CONTAINS
           DO idir = 1,3
              pos (:) = get_limit ( rs %  npts ( idir ), rs % group_dim ( idir ), coords(idir) )
              pos (:) = pos (:) - rs %  npts (idir) / 2 - 1
-             lb_in(idir) = pos(1)
-             ub_in(idir) = pos(2)                
+             lb_send(idir) = pos(1)
+             ub_send(idir) = pos(2)                
           ENDDO
 
           IF(i==my_rs_rank)THEN
-             lb_out(:) = lb_in(:)
-             ub_out(:) = ub_in(:)
+             lb_recv(:) = lb_send(:)
+             ub_recv(:) = ub_send(:)
           ENDIF
 
           DO j = 0, pw % pw_grid % para % group_size - 1
           
-             IF (lb_in(1) .GT.bounds(j,2)) CYCLE
-             IF (ub_in(1) .LT.bounds(j,1)) CYCLE 
+             IF (lb_send(1) .GT.bounds(j,2)) CYCLE
+             IF (ub_send(1) .LT.bounds(j,1)) CYCLE 
 
              ! this is the reverse of rs2pw: what were the sends are now the recvs
              IF(i==my_rs_rank) THEN
-                   m = rank_pw2rs(j)
-                   recv_tasks(m,1)= MAX(lb_in(1),bounds(j,1))
-                   recv_tasks(m,2)= MIN(ub_in(1),bounds(j,2))
-                   recv_tasks(m,3)= lb_in(2)
-                   recv_tasks(m,4)= ub_in(2)
-                   recv_tasks(m,5)= lb_in(3)
-                   recv_tasks(m,6)= ub_in(3)
-                   recv_sizes(m)  = (recv_tasks( m ,2)-recv_tasks( m ,1)+1)* &
-                        (recv_tasks( m ,4)-recv_tasks( m ,3)+1)*(recv_tasks( m ,6)-recv_tasks( m ,5)+1)
+                   recv_tasks(j,1)= MAX(lb_send(1),bounds(j,1))
+                   recv_tasks(j,2)= MIN(ub_send(1),bounds(j,2))
+                   recv_tasks(j,3)= lb_send(2)
+                   recv_tasks(j,4)= ub_send(2)
+                   recv_tasks(j,5)= lb_send(3)
+                   recv_tasks(j,6)= ub_send(3)
+                   recv_sizes(j)  = (recv_tasks( j ,2)-recv_tasks( j ,1)+1)* &
+                        (recv_tasks( j ,4)-recv_tasks( j ,3)+1)*(recv_tasks( j ,6)-recv_tasks( j ,5)+1)
              ENDIF
 
-             IF(j==my_pw_rank) THEN
-                   send_tasks(i,1)= MAX(lb_in(1),bounds(j,1))
-                   send_tasks(i,2)= MIN(ub_in(1),bounds(j,2))
-                   send_tasks(i,3)= lb_in(2)
-                   send_tasks(i,4)= ub_in(2)
-                   send_tasks(i,5)= lb_in(3)
-                   send_tasks(i,6)= ub_in(3)
+             IF(j==my_rs_rank) THEN
+                   send_tasks(i,1)= MAX(lb_send(1),bounds(j,1))
+                   send_tasks(i,2)= MIN(ub_send(1),bounds(j,2))
+                   send_tasks(i,3)= lb_send(2)
+                   send_tasks(i,4)= ub_send(2)
+                   send_tasks(i,5)= lb_send(3)
+                   send_tasks(i,6)= ub_send(3)
                    send_sizes(i)  = (send_tasks(i,2)-send_tasks( i ,1)+1)* &
                         (send_tasks( i ,4)-send_tasks( i ,3)+1)*(send_tasks( i ,6)-send_tasks( i ,5)+1)
              ENDIF
@@ -1186,7 +1242,7 @@ CONTAINS
           recv_disps(i) = recv_disps(i-1) + recv_sizes(i-1)
        ENDDO
 
-       CPPrecondition(SUM(recv_sizes)==PRODUCT(ub_out - lb_out + 1),cp_failure_level,routineP,error,failure)
+       CPPrecondition(SUM(recv_sizes)==PRODUCT(ub_recv - lb_recv + 1),cp_failure_level,routineP,error,failure)
 
        ALLOCATE ( send_buf ( SUM(send_sizes) ), STAT=ierr )
        IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf",nn)
@@ -1283,79 +1339,98 @@ CONTAINS
 
                 CALL mp_cart_shift ( rs % group, idir -1, -1 * n_shifts, source, dest )
 
-                   lb_in ( : ) = rs % lb_local ( : )
-                   ub_in ( : ) = rs % ub_local ( : )
-                   lb_out ( : ) = rs % lb_local ( : )
-                   ub_out ( : ) = rs % ub_local ( : )
+                   lb_send ( : ) = rs % lb_local ( : )
+                   ub_send ( : ) = rs % ub_local ( : )
+                   lb_recv ( : ) = rs % lb_local ( : )
+                   ub_recv ( : ) = rs % ub_local ( : )
 
                 IF( dshifts ( n_shifts - 1 ) .LE. rs % border ) THEN
-                   lb_in ( idir ) = lb_in ( idir ) + rs % border 
-                   ub_in ( idir ) = MIN (ub_in (idir) - rs% border, lb_in ( idir ) + rs % border - 1 - dshifts (n_shifts - 1))
+                   lb_send ( idir ) = lb_send ( idir ) + rs % border 
+                   ub_send ( idir ) = MIN (ub_send (idir) - rs% border,&
+                        lb_send ( idir ) + rs % border - 1 - dshifts (n_shifts - 1))
 
-                   lb_out ( idir ) = ub_out ( idir ) - rs % border + 1 + ushifts ( n_shifts - 1 ) 
-                   ub_out ( idir ) = MIN (ub_out ( idir ), ub_out ( idir ) - rs%border + ushifts ( n_shifts )) 
+                   lb_recv ( idir ) = ub_recv ( idir ) - rs % border + 1 + ushifts ( n_shifts - 1 ) 
+                   ub_recv ( idir ) = MIN (ub_recv ( idir ),&
+                        ub_recv ( idir ) - rs%border + ushifts ( n_shifts )) 
                 ELSE
-                   lb_in( idir ) = 0
-                   ub_in( idir ) = lb_in( idir ) - 1
-                   lb_out( idir ) = 0
-                   ub_out( idir ) = lb_out( idir ) - 1
+                   lb_send( idir ) = 0
+                   ub_send( idir ) = lb_send( idir ) - 1
+                   lb_recv( idir ) = 0
+                   ub_recv( idir ) = lb_recv( idir ) - 1
                 ENDIF
 
+                nn = PRODUCT ( ub_send - lb_send + 1 )
+                ALLOCATE ( send_buf_3d ( lb_send(1):ub_send(1), lb_send(2):ub_send(2), lb_send(3):ub_send(3) ), STAT=ierr )
+                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d",nn)
+                nn = PRODUCT ( ub_recv - lb_recv + 1 )
+                ALLOCATE ( recv_buf_3d ( lb_recv(1):ub_recv(1), lb_recv(2):ub_recv(2), lb_recv(3):ub_recv(3) ), STAT=ierr )
+                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf_3d",nn)
+                
+                send_buf_3d = rs % r ( lb_send(1):ub_send(1), lb_send(2):ub_send(2), lb_send(3):ub_send(3) )
+
+                CALL mp_sendrecv ( send_buf_3d, dest, recv_buf_3d, source, rs % group )
+
                 ! only some procs may need later shifts
-                IF(ub_out(idir).GE.lb_out(idir))THEN
-
-                   ! Allocate a scratch array to receive the data
-                   nn = PRODUCT ( ub_out - lb_out + 1 )
-                   ALLOCATE ( buffer ( lb_out(1):ub_out(1), lb_out(2):ub_out(2), lb_out(3):ub_out(3) ), STAT=ierr )
-                   IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","buffer",nn)
-
-                   CALL mp_sendrecv ( rs % r ( lb_in(1):ub_in(1), lb_in(2):ub_in(2), lb_in(3):ub_in(3) ), &
-                        dest, buffer, source, rs % group )
+                IF(ub_recv(idir).GE.lb_recv(idir))THEN
 
                    ! Sum the data in the RS Grid
-                   rs % r ( lb_out(1):ub_out(1), lb_out(2):ub_out(2), lb_out(3):ub_out(3) ) =  buffer ( :, :, : )
-                   DEALLOCATE ( buffer, STAT=ierr )
-                   IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","buffer")
+                   rs % r ( lb_recv(1):ub_recv(1), lb_recv(2):ub_recv(2), lb_recv(3):ub_recv(3) ) =  recv_buf_3d ( :, :, : )
 
                 END IF
+
+                DEALLOCATE ( send_buf_3d, STAT=ierr )
+                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d")
+                DEALLOCATE ( recv_buf_3d, STAT=ierr )
+                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf_3d")
+
 
                 ! Now for the other direction
 
                 CALL mp_cart_shift ( rs % group, idir -1 , n_shifts, source, dest )
 
-                   lb_in ( : ) = rs % lb_local ( : )
-                   ub_in ( : ) = rs % ub_local ( : )
-                   lb_out ( : ) = rs % lb_local ( : )
-                   ub_out ( : ) = rs % ub_local ( : )
+                   lb_send ( : ) = rs % lb_local ( : )
+                   ub_send ( : ) = rs % ub_local ( : )
+                   lb_recv ( : ) = rs % lb_local ( : )
+                   ub_recv ( : ) = rs % ub_local ( : )
 
                 IF( ushifts ( n_shifts - 1 ) .LE. rs % border ) THEN
-                   ub_in ( idir ) = ub_in ( idir ) - rs % border 
-                   lb_in ( idir ) = MAX (lb_in( idir) + rs % border, ub_in ( idir ) - rs % border + 1 + ushifts (n_shifts - 1) )
+                   ub_send ( idir ) = ub_send ( idir ) - rs % border 
+                   lb_send ( idir ) = MAX (lb_send( idir) + rs % border,&
+                        ub_send ( idir ) - rs % border + 1 + ushifts (n_shifts - 1) )
 
-                   ub_out ( idir ) = lb_out ( idir ) + rs % border - 1 - dshifts ( n_shifts - 1 ) 
-                   lb_out ( idir ) = MAX (lb_out ( idir ), lb_out ( idir ) + rs % border - dshifts ( n_shifts )) 
+                   ub_recv ( idir ) = lb_recv ( idir ) + rs % border - 1 - dshifts ( n_shifts - 1 ) 
+                   lb_recv ( idir ) = MAX (lb_recv ( idir ),&
+                        lb_recv ( idir ) + rs % border - dshifts ( n_shifts )) 
                 ELSE
-                   lb_in( idir ) = 0
-                   ub_in( idir ) = lb_in( idir ) - 1
-                   lb_out( idir ) = 0
-                   ub_out( idir ) = lb_out( idir ) - 1
+                   lb_send( idir ) = 0
+                   ub_send( idir ) = lb_send( idir ) - 1
+                   lb_recv( idir ) = 0
+                   ub_recv( idir ) = lb_recv( idir ) - 1
                 ENDIF
 
+                nn = PRODUCT ( ub_send - lb_send + 1 )
+                ALLOCATE ( send_buf_3d ( lb_send(1):ub_send(1), lb_send(2):ub_send(2), lb_send(3):ub_send(3) ), STAT=ierr )
+                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d",nn)
+                nn = PRODUCT ( ub_recv - lb_recv + 1 )
+                ALLOCATE ( recv_buf_3d ( lb_recv(1):ub_recv(1), lb_recv(2):ub_recv(2), lb_recv(3):ub_recv(3) ), STAT=ierr )
+                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf_3d",nn)
+
+                send_buf_3d = rs % r ( lb_send(1):ub_send(1), lb_send(2):ub_send(2), lb_send(3):ub_send(3) )
+
+                   CALL mp_sendrecv ( send_buf_3d, dest, recv_buf_3d, source, rs % group )
+
                 ! only some procs may need later shifts
-                IF(ub_out(idir).GE.lb_out(idir))THEN
-
-                   nn = PRODUCT ( ub_out - lb_out  + 1 )
-                   ALLOCATE ( buffer ( lb_out(1):ub_out(1), lb_out(2):ub_out(2), lb_out(3):ub_out(3) ), STAT=ierr )
-                   IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","buffer",nn)
-
-                   CALL mp_sendrecv ( rs % r ( lb_in(1):ub_in(1), lb_in(2):ub_in(2), lb_in(3):ub_in(3) ), &
-                        dest, buffer, source, rs % group )
+                IF(ub_recv(idir).GE.lb_recv(idir))THEN
 
                    ! Add the data to the RS Grid
-                   rs % r ( lb_out(1):ub_out(1), lb_out(2):ub_out(2), lb_out(3):ub_out(3) ) =  buffer ( :, :, : )
-                   DEALLOCATE ( buffer, STAT=ierr )
-                   IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","buffer")
+                   rs % r ( lb_recv(1):ub_recv(1), lb_recv(2):ub_recv(2), lb_recv(3):ub_recv(3) ) =  recv_buf_3d ( :, :, : )
                 END IF
+
+                DEALLOCATE ( send_buf_3d, STAT=ierr )
+                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d")
+                DEALLOCATE ( recv_buf_3d, STAT=ierr )
+                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf_3d")
+                   
              END DO
 
              DEALLOCATE ( ushifts, STAT=ierr)
@@ -1493,6 +1568,7 @@ SUBROUTINE rs_grid_create(rs_grid, pw_grid, nsmax, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
+
   my_nsmax = -1
   IF (PRESENT(nsmax)) my_nsmax=nsmax
 
@@ -1502,7 +1578,7 @@ SUBROUTINE rs_grid_create(rs_grid, pw_grid, nsmax, error)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
   IF (.NOT. failure) THEN
-     CALL rs_grid_setup(rs_grid, pw_grid, my_nsmax,error=error)
+     CALL rs_grid_setup(rs_grid, pw_grid, my_nsmax, error=error)
   END IF
 END SUBROUTINE rs_grid_create
 
@@ -1727,6 +1803,63 @@ SUBROUTINE rs_total_sum ( rs )
 
 END SUBROUTINE rs_total_sum 
 
+!***************************************************************************
+!!****f* realspace_grid_types/rs_find-node  
+!!
+!!   NAME
+!!     rs_find_node
+!!
+!!   FUNCTION
+!!     determines the rank of the processor who's real rs grid contains point
+!!
+!!   AUTHOR
+!!     MattW
+!!
+!!   MODIFICATION HISTORY
+!!     11.2007 created [MattW]
+!*****
+!!**************************************************************************
+
+SUBROUTINE rs_find_node(rs,point,dest)
+
+    TYPE(realspace_grid_type), POINTER       :: rs
+    INTEGER, DIMENSION(3), INTENT(IN)        :: point
+    INTEGER, INTENT(OUT)                     :: dest
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rs_find_node', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: dir, i
+    INTEGER, DIMENSION(2)                    :: pos
+    INTEGER, DIMENSION(3)                    :: coords, lb, ub
+    TYPE(cp_error_type)                      :: error
+
+!  CPPrecondition(rs%distributed,cp_failure_level,routineP,error,failure)
+
+  dest = -1
+
+  DO i = 0, rs % group_size - 1
+     
+     CALL mp_cart_coords(rs % group, i, coords)
+     !calculate the real rs grid points on each processor
+     DO dir = 1,3
+        pos (:) = get_limit ( rs %  npts ( dir ), rs % group_dim ( dir ), coords(dir) )
+        pos (:) = pos (:) - rs %  npts (dir) / 2 - 1
+        lb(dir) = pos(1)
+        ub(dir) = pos(2)                
+     ENDDO
+
+     ! check whether the point is local to proc i
+     IF ( ALL (point.GE.lb) .AND. ALL (point.LE.ub ) ) THEN
+        dest = i
+        EXIT
+     ENDIF
+
+  ENDDO
+
+  CPPostconditionNoFail(dest.GE.0 .AND. dest.LE.rs % group_size,cp_warning_level,routineP,error)
+
+END SUBROUTINE rs_find_node
 
 END MODULE realspace_grid_types
 

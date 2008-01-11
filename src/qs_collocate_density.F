@@ -1,4 +1,4 @@
-!-----------------------------------------------------------------------------!
+ !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
@@ -72,7 +72,7 @@ MODULE qs_collocate_density
                                              section_vals_type,&
                                              section_vals_val_get
   USE kahan_sum,                       ONLY: accurate_sum
-  USE kinds,                           ONLY: dp,&
+  USE kinds,                           ONLY: dp, int_8,&
                                              dp_size
   USE mathconstants,                   ONLY: pi,&
                                              twopi, &
@@ -124,9 +124,11 @@ MODULE qs_collocate_density
                                              realspace_grid_type,&
                                              rs2pw,&
                                              rs_grid_zero,&
-                                             rs_pw_transfer
-  USE realspace_task_selection,        ONLY: rs_get_loop_vars,&
-                                             rs_get_my_tasks
+                                             rs_pw_transfer,&
+                                             rs_find_node
+  USE realspace_task_selection,        ONLY: rs_get_my_tasks,&
+                                             pair2int,&
+                                             int2pair
   USE sparse_matrix_types,             ONLY: add_block_node,&
                                              allocate_matrix,&
                                              deallocate_matrix,&
@@ -360,7 +362,7 @@ CONTAINS
       END IF
     ELSE
       DO igrid_level = 1,gridlevel_info%ngrid_levels
-        CALL rs_pw_transfer(rs=rs_rho(igrid_level)%rs_grid, &
+         CALL rs_pw_transfer(rs=rs_rho(igrid_level)%rs_grid, &
                             pw=mgrid_rspace(igrid_level)%pw, dir=rs2pw)
       END DO
       CALL rs_pools_give_back_rs_vect(pools=rs_pools, elements=rs_rho, error=error)
@@ -417,14 +419,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_core', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom_a, bo(2), dir, handle, &
+    INTEGER                                  :: atom_a, dest, dir, handle, &
                                                 iatom, ierr, ikind, ithread, &
-                                                j, natom, ncurr, npme, &
+                                                j, natom, npme, &
                                                 omp_get_thread_num, &
                                                 nthread,i,k,n, &
-                                                omp_get_max_threads
+                                                omp_get_max_threads,tp(3)
     INTEGER, DIMENSION(:), POINTER           :: atom_list,ub,lb
-    INTEGER, DIMENSION(:, :), POINTER        :: tasks
+    INTEGER, DIMENSION(:), POINTER           :: tasks
     REAL(KIND=dp)                            :: alpha, eps_rho_rspace
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab
@@ -467,8 +469,6 @@ CONTAINS
     CALL rs_pool_create_rs(auxbas_rs_pool,rs_rho, error=error)
     CALL rs_grid_zero(rs_rho)
 
-    ncurr = -1
-
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
     DO ikind=1,SIZE(atomic_kind_set)
@@ -482,16 +482,6 @@ CONTAINS
                            ccore_charge=pab(1,1))
 
       IF (alpha == 0.0_dp) CYCLE
-
-      bo = get_limit ( natom, para_env%num_pe, para_env%mepos )
-
-      npme = bo(2) - bo(1) + 1
-      IF ( ncurr < npme ) THEN
-        CALL reallocate ( tasks, 1, 4, 1, npme )
-        ncurr = npme
-      ELSE
-        tasks = 0
-      END IF
 
     nthread = 1
 !$  nthread = omp_get_max_threads()
@@ -511,21 +501,40 @@ CONTAINS
 
 !$OMP parallel do &
 !$OMP default(none) &
-!$OMP private(iatom,j,atom_a,ra,dir) &
-!$OMP shared(bo,tasks,rs_rho,atom_list,particle_set,cell)
-      DO iatom=bo(1),bo(2)
-        j = iatom - bo(1) + 1
-        tasks ( 1, j ) = iatom
-        atom_a = atom_list(iatom)
-        ra(:) = pbc(particle_set(atom_a)%r,cell)
-        DO dir = 1,3 
-            tasks ( 1+dir, j ) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_rho%npts(dir))
-            tasks ( 1+dir, j ) = MODULO ( tasks ( 1+dir, j ), rs_rho%npts(dir) )
-            tasks ( 1+dir, j ) = tasks ( 1+dir, j ) + rs_rho%lb(dir)
-        END DO
-      END DO
+!$OMP private(iatom,j,atom_a,ra) &
+!$OMP shared(bo,tasks,dir,rs_rho,atom_list,particle_set,cell)
 
-      CALL rs_get_my_tasks ( rs_rho, tasks, npme ,error=error)
+      CALL reallocate ( tasks, 1, natom )
+      npme = 0
+      tasks = 0
+
+      DO iatom = 1, natom
+         atom_a = atom_list(iatom)
+         ra(:) = pbc(particle_set(atom_a)%r,cell)
+         DO dir = 1,3 
+            tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_rho%npts(dir))
+            tp(dir) = MODULO ( tp(dir), rs_rho%npts(dir) )
+            tp(dir) = tp(dir) + rs_rho%lb(dir)
+         END DO
+         IF(rs_rho%distributed)THEN
+            IF( ALL (tp.GE.rs_rho%lb_real) .AND. ALL (tp.LE.rs_rho%ub_real) ) THEN
+               ! local atom
+               CALL rs_find_node(rs_rho,tp,dest)
+               npme = npme + 1
+               tasks (npme) = iatom
+            ENDIF
+         ELSEIF(rs_rho%parallel) THEN
+            ! replicated realspace grid, split the atoms up between procs
+            IF (MODULO(natom,rs_rho%group_size) == rs_rho % my_pos ) THEN
+               npme = npme + 1
+               tasks (npme) = iatom
+            ENDIF
+         ELSE
+            ! serial job
+            npme = npme + 1
+            tasks (npme) = iatom            
+         ENDIF
+      END DO
 
       ithread=0
 !$OMP parallel do &
@@ -533,26 +542,28 @@ CONTAINS
 !$OMP private(j,iatom,atom_a,ra,ithread) &
 !$OMP shared(npme,tasks,atom_list,particle_set,cell,pab,rs_rho) &
 !$OMP shared(cube_info,eps_rho_rspace,alpha,error,lgrid,nthread)
-      DO j=1,npme
+      IF(npme.GT.0)THEN
+         DO j=1,npme
 
-        iatom = tasks(1,j)
-        atom_a = atom_list(iatom)
-        ra(:) = pbc(particle_set(atom_a)%r,cell)
+            iatom = tasks(j)
+            atom_a = atom_list(iatom)
+            ra(:) = pbc(particle_set(atom_a)%r,cell)
 
 !$      ithread=omp_get_thread_num()
-        IF (nthread > 1) then
-           CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_dp,0,ra,&
-           (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,-1.0_dp,pab,0,0,rs_rho,&
-           cell,cube_info,eps_rho_rspace,ga_gb_function=FUNC_AB,&
-           lgrid=lgrid,ithread=ithread,error=error)
-        ELSE
-           CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_dp,0,ra,&
-           (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,-1.0_dp,pab,0,0,rs_rho,&
-           cell,cube_info,eps_rho_rspace,ga_gb_function=FUNC_AB,&
-           ithread=ithread,error=error)
-        ENDIF
+            IF (nthread > 1) then
+               CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_dp,0,ra,&
+                    (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,-1.0_dp,pab,0,0,rs_rho,&
+                    cell,cube_info,eps_rho_rspace,ga_gb_function=FUNC_AB,&
+                    lgrid=lgrid,ithread=ithread,error=error)
+            ELSE
+               CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_dp,0,ra,&
+                    (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,-1.0_dp,pab,0,0,rs_rho,&
+                    cell,cube_info,eps_rho_rspace,ga_gb_function=FUNC_AB,&
+                    ithread=ithread,error=error)
+            ENDIF
 
-      END DO
+         END DO
+      ENDIF
 
       IF ( nthread > 1 ) THEN
          n = (ub(1)-lb(1)+1)*(ub(2)-lb(2)+1)
@@ -594,6 +605,7 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_rho_core
+
 !!****f* qs_collocate_density/calculate_rho_elec *
 !!
 !!   NAME
@@ -611,8 +623,8 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!
 !!*** **********************************************************************
-  SUBROUTINE calculate_rho_elec(matrix_p,rho,rho_gspace, total_rho,&
-                                qs_env, soft_valid,  compute_tau, error)
+  SUBROUTINE calculate_rho_elec(matrix_p, rho,rho_gspace, total_rho,&
+       qs_env, soft_valid, compute_tau, error)
 
     TYPE(real_matrix_type), POINTER          :: matrix_p
     TYPE(pw_p_type), INTENT(INOUT)           :: rho, rho_gspace
@@ -622,77 +634,76 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE calculate_rho_elec (MODULE qs_collocate_density)"
+         routine = "SUBROUTINE calculate_rho_elec (MODULE qs_collocate_density)"
     INTEGER, PARAMETER                       :: add_tasks = 1000, &
-                                                max_tasks = 2000
+         max_tasks = 2000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
-    INTEGER :: ab, bcol, brow, curr_tasks, dir, first_pgfb, first_setb, &
-      ga_gb_function, handle, i, iatom, igrid_level, ijatoms, ijsets, ikind, &
-      ilist, inode, ipgf, iset, istat, itask, ithread, j, jatom, jkind, jpgf, &
-      jset, k, maxco, maxsgf, maxsgf_set, n, na1, na2, natom_pairs, nb1, nb2, &
-      ncoa, ncob, nkind, nlist, nnode, npme, nseta, nsetb, nthread, &
-      omp_get_max_threads, omp_get_thread_num, sgfa, sgfb, stat, tp
+    INTEGER :: ab, bcol, brow, curr_tasks, dest, dir, &
+         ga_gb_function, handle, i, iatom, igrid_level, ijatoms, ijsets, ikind, ikind_old, &
+         ilist, inode, ipgf, iset, istat, itask, ithread, j, jatom, jkind, jkind_old, jpgf, &
+         jset, k, maxco, maxsgf, maxsgf_set, n, na1, na2, natoms, natom_pairs, nb1, nb2, &
+         maxset, maxpgf, ncoa, ncob, nkind, nlist, nnode, nseta, nsetb, nthread, &
+         omp_get_max_threads, omp_get_thread_num, sgfa, sgfb, stat, tp(3), ntasks,&
+         iatom_old, jatom_old, iset_old, jset_old
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
-                                                nsgfb, ntasks, ub
-    INTEGER, DIMENSION(:, :), POINTER        :: asets, atasks, first_sgfa, &
-                                                first_sgfb, ival, latom, &
-                                                tasks_local
-    INTEGER, DIMENSION(:, :, :), POINTER     :: tasks
+                                                nsgfb, ub
+    INTEGER, DIMENSION(:), POINTER           :: atom_pair_send, atom_pair_recv
+
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, &
+                                                first_sgfb
+    INTEGER(kind=int_8), DIMENSION(:, :),&
+         POINTER                             :: tasks
     LOGICAL                                  :: distributed_rs_grids, &
-                                                failure, map_consistent, &
-                                                my_compute_tau, my_soft
+         failure, map_consistent, &
+         my_compute_tau, my_soft, &
+         atom_pair_changed
     REAL(KIND=dp)                            :: dab, eps_rho_rspace, &
-                                                kind_radius_b, rab2, scale, &
-                                                zetp
+         kind_radius_b, rab2, scale, &
+         zetp
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb, rp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dab_local, p_block, pab, &
-                                                pblock, rpgfa, rpgfb, sphi_a, &
-                                                sphi_b, work, zeta, zetb
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block, pab, &
+         pblock, rpgfa, rpgfb, sphi_a, &
+         sphi_b, work, zeta, zetb, dist_ab
     REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: dist_ab, pabt, workt
+         POINTER                             :: pabt, workt
     TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
+         POINTER                             :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
-      POINTER                                :: rs_pools
+         POINTER                             :: rs_pools
     TYPE(cube_info_type), DIMENSION(:), &
-      POINTER                                :: cube_info
+         POINTER                             :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(lgrid_type)                         :: lgrid
     TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_orb
+         DIMENSION(:), POINTER                  :: sab_orb
     TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list
     TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
+         POINTER                             :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(real_matrix_type), POINTER          :: deltap
     TYPE(realspace_grid_p_type), &
-      DIMENSION(:), POINTER                  :: rs_rho
+         DIMENSION(:), POINTER               :: rs_rho
     TYPE(section_vals_type), POINTER         :: input, interp_section
 
-!PARATIME
-!PARATIME  REAL                                     :: time_t1,time_t2
-!PARATIME  REAL(kind=dp)                            :: time_min,time_max
-!PARATIME  INTEGER                                  :: unit_nr
-!PARATIME  TYPE(cp_logger_type), POINTER            :: logger
-!   ---------------------------------------------------------------------------
+    !   ---------------------------------------------------------------------------
 
     failure=.FALSE.
     NULLIFY(atomic_kind,cell,dft_control,orb_basis_set,sab_orb_neighbor_list,&
          sab_orb_neighbor_node,deltap,atomic_kind_set,sab_orb,particle_set,&
-         rs_rho,pw_env,rs_pools,para_env,pblock,dist_ab,dab_local,&
+         rs_rho,pw_env,rs_pools,para_env,pblock,dist_ab,&
          set_radius_a,set_radius_b,la_max,la_min,&
          lb_max,lb_min,npgfa,npgfb,nsgfa,nsgfb,p_block,&
          rpgfa,rpgfb,sphi_a,sphi_b,zeta,zetb,first_sgfa,first_sgfb,&
-         tasks,tasks_local,ival,latom,ntasks,asets,atasks,pabt,workt)
+         tasks,pabt,workt)
     NULLIFY(lgrid%r)
 
     debug_count=debug_count+1
@@ -718,14 +729,14 @@ CONTAINS
     ENDIF
 
     CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
-                    cell=cell,&
-                    dft_control=dft_control,&
-                    particle_set=particle_set,&
-                    sab_orb=sab_orb,&
-                    para_env=para_env,&
-                    input=input,&
-                    pw_env=pw_env,error=error)
+         atomic_kind_set=atomic_kind_set,&
+         cell=cell,&
+         dft_control=dft_control,&
+         particle_set=particle_set,&
+         sab_orb=sab_orb,&
+         para_env=para_env,&
+         input=input,&
+         pw_env=pw_env,error=error)
 
     ! *** assign from pw_env
     gridlevel_info=>pw_env%gridlevel_info
@@ -743,7 +754,7 @@ CONTAINS
     CALL rs_pools_create_rs_vect(rs_pools, rs_rho, error=error)
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
-       IF ( .NOT. ALL (rs_rho(igrid_level)%rs_grid%perd == 0 ) ) THEN
+       IF ( rs_rho(igrid_level)%rs_grid%distributed ) THEN
           distributed_rs_grids=.TRUE.
        ENDIF
     END DO
@@ -751,500 +762,431 @@ CONTAINS
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
     map_consistent = dft_control%qs_control%map_consistent
     nthread = 1
-!$  nthread = omp_get_max_threads()
 
-!   *** From here on there should be no parallel sync anymore if replicated grids are used.
-    !PARATIME CALL mp_sync(para_env%group)
-    !PARATIME CALL CPU_TIME(time_t1)
-
-!   *** Allocate work storage ***
+    !   *** Allocate work storage ***
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             maxco=maxco,&
-                             maxsgf=maxsgf,&
-                             maxsgf_set=maxsgf_set)
-
-    IF ( nthread > 1 ) THEN
-      n=0
-      DO igrid_level = 1,gridlevel_info%ngrid_levels
-        n = MAX(n,rs_rho(igrid_level)%rs_grid%ngpts_local)
-      END DO
-      n = n*nthread
-      CALL reallocate(lgrid%r,1,n)
-    END IF
+         maxco=maxco,&
+         maxsgf=maxsgf,&
+         maxsgf_set=maxsgf_set)
 
     nkind = SIZE(atomic_kind_set)
 
     CALL reallocate(pabt,1,maxco,1,maxco,0,nthread-1)
     CALL reallocate(workt,1,maxco,1,maxsgf_set,0,nthread-1)
-    CALL reallocate(ntasks,1,gridlevel_info%ngrid_levels)
-    CALL reallocate(tasks,1,11,1,max_tasks,1,gridlevel_info%ngrid_levels)
-    CALL reallocate(dist_ab,1,3,1,max_tasks,1,gridlevel_info%ngrid_levels)
-    CALL reallocate(tasks_local,1,4,1,max_tasks)
-    CALL reallocate(ival,1,6,1,max_tasks)
-    CALL reallocate(latom,1,2,1,max_tasks)
-    CALL reallocate(dab_local,1,3,1,max_tasks)
-    CALL reallocate(atasks,1,2,1,max_tasks)
-    CALL reallocate(asets,1,2,1,max_tasks)
-    curr_tasks = max_tasks
+    CALL reallocate(tasks,1,3,1,max_tasks)
+    CALL reallocate(dist_ab,1,3,1,max_tasks)
 
-!   *** Initialize working density matrix ***
-
-
+    !   *** Initialize working density matrix ***
     ! distributed rs grids require a matrix that will be changed (rs_get_my_tasks)
     ! whereas this is not the case for replicated grids
     IF (distributed_rs_grids) THEN
-        CALL allocate_matrix(matrix=deltap,&
-                         nrow=matrix_p%nrow,&
-                         ncol=matrix_p%ncol,&
-                         nblock_row=matrix_p%nblock_row,&
-                         nblock_col=matrix_p%nblock_col,&
-                         first_row=matrix_p%first_row(:),&
-                         last_row=matrix_p%last_row(:),&
-                         first_col=matrix_p%first_col(:),&
-                         last_col=matrix_p%last_col(:),&
-                         matrix_name="DeltaP",&
-                         sparsity_id=-1, &        ! basically unknown sparsity in parallel
-                         matrix_symmetry=matrix_p%symmetry,error=error)
+       CALL allocate_matrix(matrix=deltap,&
+            nrow=matrix_p%nrow,&
+            ncol=matrix_p%ncol,&
+            nblock_row=matrix_p%nblock_row,&
+            nblock_col=matrix_p%nblock_col,&
+            first_row=matrix_p%first_row(:),&
+            last_row=matrix_p%last_row(:),&
+            first_col=matrix_p%first_col(:),&
+            last_col=matrix_p%last_col(:),&
+            matrix_name="DeltaP",&
+            sparsity_id=-1, &        ! basically unknown sparsity in parallel
+            matrix_symmetry=matrix_p%symmetry,error=error)
     ELSE
-        deltap=>matrix_p
+       deltap=>matrix_p
     ENDIF
 
+    !   get maximum numbers
+    natoms = SIZE( particle_set )
+    maxset=0
+    maxpgf=0
     DO ikind=1,nkind
+       atomic_kind => atomic_kind_set(ikind)
 
-      atomic_kind => atomic_kind_set(ikind)
+       CALL get_atomic_kind(atomic_kind=atomic_kind,&
+            softb = my_soft, &
+            orb_basis_set=orb_basis_set)
 
-      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           softb = my_soft, &
-                           orb_basis_set=orb_basis_set)
+       IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
 
-      IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
+       CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+            npgf=npgfa, nset=nseta )
 
-      CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                             first_sgf=first_sgfa,&
-                             lmax=la_max,&
-                             lmin=la_min,&
-                             npgf=npgfa,&
-                             nset=nseta,&
-                             nsgf_set=nsgfa,&
-                             pgf_radius=rpgfa,&
-                             set_radius=set_radius_a,&
-                             sphi=sphi_a,&
-                             zet=zeta)
-
-      DO jkind=1,nkind
-
-        atomic_kind => atomic_kind_set(jkind)
-
-        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           softb = my_soft, &
-                           orb_basis_set=orb_basis_set)
-
-        IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
-
-        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                               first_sgf=first_sgfb,&
-                               kind_radius=kind_radius_b,&
-                               lmax=lb_max,&
-                               lmin=lb_min,&
-                               npgf=npgfb,&
-                               nset=nsetb,&
-                               nsgf_set=nsgfb,&
-                               pgf_radius=rpgfb,&
-                               set_radius=set_radius_b,&
-                               sphi=sphi_b,&
-                               zet=zetb)
-
-        ab = ikind + nkind*(jkind - 1)
-
-        IF (ASSOCIATED(sab_orb(ab)%neighbor_list_set)) THEN
-
-           CALL get_neighbor_list_set(neighbor_list_set=&
-                                      sab_orb(ab)%neighbor_list_set,&
-                                      nlist=nlist)
-           sab_orb_neighbor_list => first_list(sab_orb(ab)%neighbor_list_set)
-        ELSE
-           nlist=0
-        END IF
-
-        ntasks = 0
-        tasks = 0
-
-        DO ilist = 1, nlist
-
-          CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list,&
-                                 atom=iatom,nnode=nnode)
-
-          ra(:) = pbc(particle_set(iatom)%r,cell)
-
-          sab_orb_neighbor_node => first_node(sab_orb_neighbor_list)
-
-          DO inode = 1, nnode
-
-            CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
-                                   neighbor=jatom,&
-                                   r=rab(:))
-
-             IF (iatom <= jatom) THEN
-                brow = iatom
-                bcol = jatom
-             ELSE
-                brow = jatom
-                bcol = iatom
-             END IF
-
-             ! bad, should do better loop ordering XXXXXXXXXX
-             CALL get_block_node(matrix=matrix_p,&
-                                 block_row=brow,&
-                                 block_col=bcol,&
-                                 BLOCK=p_block)
-
-!           *** Check, if the atomic block has to be ***
-!           *** calculated by the current processor  ***
-
-             IF (.NOT.ASSOCIATED(p_block)) THEN
-               sab_orb_neighbor_node => next(sab_orb_neighbor_node)
-               CYCLE
-             END IF
-
-             IF (distributed_rs_grids) THEN
-                 NULLIFY ( pblock )
-                 CALL add_block_node ( deltap, brow, bcol, pblock ,error=error)
-                 pblock = p_block
-             ELSE
-                 pblock => p_block
-             ENDIF
-
-
-             IF (.NOT. map_consistent) THEN
-                IF ( ALL ( 100.0_dp*ABS(pblock) < eps_rho_rspace) ) THEN
-                  sab_orb_neighbor_node => next(sab_orb_neighbor_node)
-                  CYCLE
-                END IF
-             END IF
-
-             rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-             dab = SQRT(rab2)
-
-             DO iset=1,nseta
-
-               IF (set_radius_a(iset) + kind_radius_b < dab) CYCLE
-
-               IF (iatom == jatom) THEN
-                 first_setb = iset
-               ELSE
-                 first_setb = 1
-               END IF
-
-               DO jset=first_setb,nsetb
-
-                 IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
-
-                 DO ipgf=1,npgfa(iset)
-
-                   IF (rpgfa(ipgf,iset) + set_radius_b(jset) < dab) CYCLE
-
-                   IF ((iatom == jatom).AND.(iset == jset)) THEN
-                     first_pgfb = ipgf
-                   ELSE
-                     first_pgfb = 1
-                   END IF
-
-                   DO jpgf=first_pgfb,npgfb(jset)
-
-                     IF (rpgfa(ipgf,iset) + rpgfb(jpgf,jset) < dab) CYCLE
-
-                     zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
-
-                     IF (dab.lt.0.1E0_dp .AND. dft_control%qs_control%map_paa) THEN
-                         igrid_level = 1
-                     ELSE
-                         igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
-                     ENDIF
-
-                     ntasks(igrid_level) = ntasks(igrid_level) + 1
-                     n = ntasks(igrid_level)
-                     IF ( n > curr_tasks ) THEN
-!                       curr_tasks = curr_tasks + add_tasks
-                       curr_tasks = curr_tasks*mult_tasks
-                       CALL reallocate(tasks,1,11,1,curr_tasks,&
-                                       1,gridlevel_info%ngrid_levels)
-                       CALL reallocate(dist_ab,1,3,1,curr_tasks,&
-                                       1,gridlevel_info%ngrid_levels)
-                     END IF
-                     tasks (1,n,igrid_level) = n
-
-                     DO dir = 1,3
-                        rp(:) = ra(:) + zetb(jpgf,jset)/zetp*rab(:)
-                        rp(:) = pbc(rp,cell)
-                        tp = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),rp)*rs_rho(igrid_level)%rs_grid%npts(dir))
-                        tp = MODULO ( tp, rs_rho(igrid_level)%rs_grid%npts(dir) )
-                        tasks (8+dir,n,igrid_level) = tp + rs_rho(igrid_level)%rs_grid%lb(dir)
-                     END DO
-
-                     tasks (3,n,igrid_level) = iatom
-                     tasks (4,n,igrid_level) = jatom
-                     tasks (5,n,igrid_level) = iset
-                     tasks (6,n,igrid_level) = jset
-                     tasks (7,n,igrid_level) = ipgf
-                     tasks (8,n,igrid_level) = jpgf
-                     dist_ab (1,n,igrid_level) = rab(1)
-                     dist_ab (2,n,igrid_level) = rab(2)
-                     dist_ab (3,n,igrid_level) = rab(3)
-
-                   END DO
-
-                 END DO
-
-               END DO
-
-             END DO
-
-             sab_orb_neighbor_node => next(sab_orb_neighbor_node)
-
-          END DO
-
-          sab_orb_neighbor_list => next(sab_orb_neighbor_list)
-
-        END DO
-
-        DO igrid_level = 1, gridlevel_info%ngrid_levels
-          n = ntasks ( igrid_level )
-          IF ( n > SIZE ( tasks_local, 2 ) ) &
-            CALL reallocate(tasks_local,1,4,1,n)
-          IF ( n > SIZE ( ival, 2 ) ) &
-            CALL reallocate(ival,1,6,1,n)
-          IF ( n > SIZE ( latom, 2 ) ) &
-            CALL reallocate(latom,1,2,1,n)
-          IF ( n > SIZE ( dab_local, 2 ) ) &
-            CALL reallocate(dab_local,1,3,1,n)
-
-!$OMP parallel do private(i)
-          DO i=1,n
-            tasks_local(1,i) = tasks(1,i,igrid_level)
-            tasks_local(2,i) = tasks(9,i,igrid_level)
-            tasks_local(3,i) = tasks(10,i,igrid_level)
-            tasks_local(4,i) = tasks(11,i,igrid_level)
-            latom(1,i) = tasks(3,i,igrid_level)
-            latom(2,i) = tasks(4,i,igrid_level)
-            ival(1,i) = tasks(3,i,igrid_level)
-            ival(2,i) = tasks(4,i,igrid_level)
-            ival(3,i) = tasks(5,i,igrid_level)
-            ival(4,i) = tasks(6,i,igrid_level)
-            ival(5,i) = tasks(7,i,igrid_level)
-            ival(6,i) = tasks(8,i,igrid_level)
-            dab_local(1,i) = dist_ab(1,i,igrid_level)
-            dab_local(2,i) = dist_ab(2,i,igrid_level)
-            dab_local(3,i) = dist_ab(3,i,igrid_level)
-          END DO
-!$OMP parallel do private(i)
-          DO i=n+1,SIZE(tasks_local,2)
-            tasks_local(1,i) = 0
-            tasks_local(2,i) = 0
-            tasks_local(3,i) = 0
-            tasks_local(4,i) = 0
-          END DO
-          npme = 0
-          ! modifies deltap if distributed_rs_grids
-          CALL rs_get_my_tasks ( rs_rho(igrid_level)%rs_grid, tasks_local, &
-               npme, ival=ival, rval=dab_local, pmat=deltap, pcor=latom ,error=error)
-          CALL rs_get_loop_vars ( npme, ival, natom_pairs, asets, atasks )
-
-          IF ( nthread > 1 .AND. natom_pairs > 0 ) THEN
-            lb => rs_rho(igrid_level)%rs_grid%lb_local
-            ub => rs_rho(igrid_level)%rs_grid%ub_local
-            lgrid%ldim = rs_rho(igrid_level)%rs_grid%ngpts_local
-!$OMP parallel private(ithread,n)
-!$          ithread = omp_get_thread_num()
-            n = ithread*lgrid%ldim + 1
-            CALL dcopy(lgrid%ldim,0._dp,0,lgrid%r(n),1)
-!$OMP end parallel
-          END IF
-!$OMP parallel &
-!$OMP default(none) &
-!$OMP private(ijatoms,ithread,itask,iatom,jatom,ra,brow,bcol,p_block) &
-!$OMP private(ijsets,iset,jset,ncoa,ncob,sgfa,sgfb) &
-!$OMP private(work,pab,istat) &
-!$OMP private(rb,rab,rab2,ipgf,jpgf,na1,na2,nb1,nb2,scale) &
-!$OMP shared(maxco,maxsgf_set,natom_pairs,atasks,asets,ival,particle_set,cell) &
-!$OMP shared(deltap,npgfa,npgfb,ncoset,la_max,lb_max,first_sgfa,first_sgfb) &
-!$OMP shared(nsgfa,nsgfb,sphi_a,sphi_b,dab_local,la_min,lb_min,zeta,zetb) &
-!$OMP shared(rs_rho,igrid_level,cube_info,eps_rho_rspace,lgrid,nthread) &
-!$OMP shared(workt,pabt,ga_gb_function,map_consistent,error)
-          ithread = 0
-!$        ithread = omp_get_thread_num()
-          pab => pabt(:,:,ithread)
-          work => workt(:,:,ithread)
-!$OMP do
-          DO ijatoms = 1,natom_pairs
-            itask = atasks(1,asets(1,ijatoms))
-            iatom  = ival (1,itask)
-            jatom  = ival (2,itask)
-            ra(:) = pbc(particle_set(iatom)%r,cell)
-            IF (iatom <= jatom) THEN
-              brow = iatom
-              bcol = jatom
-            ELSE
-              brow = jatom
-              bcol = iatom
-            END IF
-!bgl :
-!    this critical was added because p_block%block_list(block_row)%last_used_block_node
-!    is shared and is both read and written in get_block_node.  This could probably be 
-!    taken care of in a more efficient way by using a local copy of last_used_block_node
-!$OMP critical
-            CALL get_block_node(matrix=deltap,&
-                                block_row=brow,&
-                                block_col=bcol,&
-                                BLOCK=p_block)
-!$OMP end critical
-            IF (.NOT.ASSOCIATED(p_block)) &
-               CALL stop_program(routine,"p_block not associated in deltap")
-            DO ijsets = asets(1,ijatoms), asets(2,ijatoms)
-              itask = atasks(1,ijsets)
-              iset   = ival (3,itask)
-              jset   = ival (4,itask)
-              ncoa = npgfa(iset)*ncoset(la_max(iset))
-              sgfa = first_sgfa(1,iset)
-              ncob = npgfb(jset)*ncoset(lb_max(jset))
-              sgfb = first_sgfb(1,jset)
-              IF (iatom <= jatom) THEN
-                CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
-                           1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                           p_block(sgfa,sgfb),SIZE(p_block,1),&
-                           0.0_dp,work(1,1),maxco)
-                CALL dgemm("N","T",ncoa,ncob,nsgfb(jset),&
-                           1.0_dp,work(1,1),maxco,&
-                           sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                           0.0_dp,pab(1,1),maxco)
-              ELSE
-                CALL dgemm("N","N",ncob,nsgfa(iset),nsgfb(jset),&
-                           1.0_dp,sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                           p_block(sgfb,sgfa),SIZE(p_block,1),&
-                           0.0_dp,work(1,1),maxco)
-                CALL dgemm("N","T",ncob,ncoa,nsgfa(iset),&
-                           1.0_dp,work(1,1),maxco,&
-                           sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                           0.0_dp,pab(1,1),maxco)
-              END IF
-              DO itask = atasks(1,ijsets),atasks(2,ijsets)
-                rab(:) = dab_local (:,itask)
-                rab2  = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-                rb(:) = ra(:) + rab(:)
-                ipgf   = ival (5,itask)
-                jpgf   = ival (6,itask)
-                na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
-                na2 = ipgf*ncoset(la_max(iset))
-                nb1 = (jpgf - 1)*ncoset(lb_max(jset)) + 1
-                nb2 = jpgf*ncoset(lb_max(jset))
-
-                IF ((iatom == jatom).AND.&
-                    (iset == jset).AND.&
-                    (ipgf == jpgf)) THEN
-                  scale = 1.0_dp
-                ELSE
-                  scale = 2.0_dp
-                END IF
-                IF ( nthread > 1 ) THEN
-                  IF (iatom <= jatom) THEN
-                    CALL collocate_pgf_product_rspace(&
-                      la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                      lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                      ra,rab,rab2,scale,pab,na1-1,nb1-1,&
-                      rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
-                      eps_rho_rspace,&
-                      ga_gb_function=ga_gb_function,&
-                      lgrid=lgrid,ithread=ithread, &
-                      map_consistent=map_consistent,error=error)
-                  ELSE
-                    CALL collocate_pgf_product_rspace(&
-                      lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                      la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                      rb,-rab,rab2,scale,pab,nb1-1,na1-1,&
-                      rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
-                      eps_rho_rspace,&
-                      ga_gb_function=ga_gb_function,&
-                      lgrid=lgrid,ithread=ithread, &
-                      map_consistent=map_consistent,error=error)
-                  END IF
-                ELSE
-                  IF (iatom <= jatom) THEN
-                    CALL collocate_pgf_product_rspace(&
-                      la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                      lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                      ra,rab,rab2,scale,pab,na1-1,nb1-1,&
-                      rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
-                      eps_rho_rspace,&
-                      ga_gb_function=ga_gb_function, &
-                      map_consistent=map_consistent,error=error)
-                  ELSE
-                    CALL collocate_pgf_product_rspace(&
-                      lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                      la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                      rb,-rab,rab2,scale,pab,nb1-1,na1-1,&
-                      rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
-                      eps_rho_rspace,&
-                      ga_gb_function=ga_gb_function, &
-                      map_consistent=map_consistent,error=error)
-                  END IF
-                END IF
-
-              END DO
-
-            END DO
-
-          END DO
-!$OMP end parallel
-          IF ( nthread > 1 .AND. natom_pairs > 0 ) THEN
-            n = (ub(1)-lb(1)+1)*(ub(2)-lb(2)+1)
-            DO i=1,nthread
-!$OMP parallel do &
-!$OMP default(none) &
-!$OMP private(j,k) &
-!$OMP shared(i,lb,ub,lgrid,rs_rho,n,igrid_level)
-              DO j=lb(3),ub(3)
-                k = lgrid%ldim*(i-1) + n*(j-lb(3)) + 1
-                CALL daxpy (n,1._dp,lgrid%r(k),1,&
-                  rs_rho(igrid_level)%rs_grid%r(lb(1),lb(2),j),1)
-              END DO
-            END DO
-          END IF
-
-        END DO
-
-      END DO
-
+       maxset=MAX(nseta,maxset)
+       maxpgf=MAX(MAXVAL(npgfa),maxpgf)
     END DO
 
+    ! construct a list of all tasks
 
-!   *** Release work storage ***
+    ntasks = 0
+    tasks = 0
+    curr_tasks = SIZE(tasks,2)
 
-    IF (distributed_rs_grids) CALL deallocate_matrix ( deltap ,error=error)
+    loop_ikind: DO ikind=1,nkind
 
-    IF ( nthread > 1 ) THEN
-      DEALLOCATE (lgrid%r,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"lgrid%r")
-    END IF
- 
-    DEALLOCATE (pabt,workt,ntasks,tasks,tasks_local,ival,latom,&
-        dist_ab,dab_local,asets,atasks,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pabt,workt,ntasks,"//&
-        "tasks,tasks_local,ival,latom,dist_ab,dab_local,asets,atasks")
+       atomic_kind => atomic_kind_set(ikind)
 
-!   *** find the parallel min-max timings ***
-    !PARATIME CALL CPU_TIME(time_t2)
-    !PARATIME CALL mp_sync(para_env%group)
-    !PARATIME time_max=time_t2-time_t1
-    !PARATIME CALL mp_max(time_max,para_env%group)
-    !PARATIME time_min=-(time_t2-time_t1)
-    !PARATIME CALL mp_max(time_min,para_env%group)
-    !PARATIME time_min=-time_min
-    !PARATIME logger => cp_error_get_logger(error)
-    !PARATIME IF (logger%para_env%source==logger%para_env%mepos) THEN
-    !PARATIME   unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
-    !PARATIME   WRITE (unit_nr,'(T3,A,F0.3,A,F0.3)') "calculate rho, grid bit. maximum time: ", &
-    !PARATIME                                            time_max," , minimum time: ",time_min
-    !PARATIME END IF
+       CALL get_atomic_kind(atomic_kind=atomic_kind,&
+            softb = my_soft, &
+            orb_basis_set=orb_basis_set)
+
+       IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
+
+       CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+            first_sgf=first_sgfa,&
+            lmax=la_max,&
+            lmin=la_min,&
+            npgf=npgfa,&
+            nset=nseta,&
+            nsgf_set=nsgfa,&
+            pgf_radius=rpgfa,&
+            set_radius=set_radius_a,&
+            sphi=sphi_a,&
+            zet=zeta)
+
+       loop_jkind: DO jkind=1,nkind
+
+          atomic_kind => atomic_kind_set(jkind)
+
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+               softb = my_soft, &
+               orb_basis_set=orb_basis_set)
+
+          IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
+
+          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+               first_sgf=first_sgfb,&
+               kind_radius=kind_radius_b,&
+               lmax=lb_max,&
+               lmin=lb_min,&
+               npgf=npgfb,&
+               nset=nsetb,&
+               nsgf_set=nsgfb,&
+               pgf_radius=rpgfb,&
+               set_radius=set_radius_b,&
+               sphi=sphi_b,&
+               zet=zetb)
+
+
+          ab = ikind + nkind*(jkind - 1)
+
+          IF (ASSOCIATED(sab_orb(ab)%neighbor_list_set)) THEN
+
+             CALL get_neighbor_list_set(neighbor_list_set=&
+                  sab_orb(ab)%neighbor_list_set,&
+                  nlist=nlist)
+             sab_orb_neighbor_list => first_list(sab_orb(ab)%neighbor_list_set)
+          ELSE
+             nlist=0
+          END IF
+
+          loop_ilist: DO ilist = 1, nlist
+
+             CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list,&
+                  atom=iatom,nnode=nnode)
+
+             ra(:) = pbc(particle_set(iatom)%r,cell)
+
+             sab_orb_neighbor_node => first_node(sab_orb_neighbor_list)
+
+             loop_inode: DO inode = 1, nnode
+
+                CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
+                     neighbor=jatom,&
+                     r=rab(:))
+
+                IF (iatom <= jatom) THEN
+                   brow = iatom
+                   bcol = jatom
+                ELSE
+                   brow = jatom
+                   bcol = iatom
+                END IF
+
+                ! bad, should do better loop ordering XXXXXXXXXX
+                CALL get_block_node(matrix=matrix_p,&
+                     block_row=brow,&
+                     block_col=bcol,&
+                     BLOCK=p_block)
+
+                !           *** Check, if the atomic block has to be ***
+                !           *** calculated by the current processor  ***
+
+                IF (.NOT.ASSOCIATED(p_block)) THEN
+                   sab_orb_neighbor_node => next(sab_orb_neighbor_node)
+                   CYCLE
+                END IF
+
+                ! we might still need our local blocks (i.e. replicated grids), add them to deltap
+
+                IF (distributed_rs_grids) THEN
+                   NULLIFY ( pblock )
+                   CALL add_block_node ( deltap, brow, bcol, pblock ,error=error)
+                   pblock = p_block
+                ELSE
+                   pblock => p_block
+                ENDIF
+
+                rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+                dab = SQRT(rab2)
+
+                loop_iset: DO iset=1,nseta
+
+                   IF (set_radius_a(iset) + kind_radius_b < dab) CYCLE
+
+                   loop_jset: DO jset=1,nsetb
+
+                      IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
+
+                      loop_ipgf: DO ipgf=1,npgfa(iset)
+
+                         IF (rpgfa(ipgf,iset) + set_radius_b(jset) < dab) CYCLE
+
+                         loop_jpgf: DO jpgf=1,npgfb(jset)
+
+                            IF (rpgfa(ipgf,iset) + rpgfb(jpgf,jset) < dab) CYCLE
+
+                            zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
+                            IF (dab.lt.0.1E0_dp .AND. dft_control%qs_control%map_paa) THEN
+                               igrid_level = 1
+                            ELSE
+                               igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
+                            ENDIF
+
+                            ntasks = ntasks + 1
+                            IF ( ntasks > curr_tasks ) THEN
+                               curr_tasks = (curr_tasks+add_tasks)*mult_tasks
+                               CALL reallocate(tasks,1,3,1,curr_tasks)
+                               CALL reallocate(dist_ab,1,3,1,curr_tasks)
+                            END IF
+
+                            DO dir = 1,3
+                               rp(:) = ra(:) + zetb(jpgf,jset)/zetp*rab(:)
+                               rp(:) = pbc(rp,cell)
+                               tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),rp)*rs_rho(igrid_level)%rs_grid%npts(dir))
+                               tp(dir) = MODULO ( tp(dir), rs_rho(igrid_level)%rs_grid%npts(dir) )
+                               tp(dir) = tp(dir) + rs_rho(igrid_level)%rs_grid%lb(dir)
+                            END DO
+
+                            IF(rs_rho(igrid_level)%rs_grid%distributed) THEN
+                               CALL rs_find_node(rs_rho(igrid_level)%rs_grid,tp,dest)
+                            ELSE
+                               dest =  rs_rho(igrid_level)%rs_grid%my_pos 
+                            ENDIF
+
+                            tasks (1,ntasks) = dest
+                            tasks (2,ntasks) = rs_rho(igrid_level)% rs_grid % my_pos
+
+                            !encode the atom pairs and basis info as a single long integer
+                            CALL pair2int(tasks(3,ntasks),iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
+
+                            dist_ab (1,ntasks) = rab(1)
+                            dist_ab (2,ntasks) = rab(2)
+                            dist_ab (3,ntasks) = rab(3)
+
+                         END DO loop_jpgf
+
+                      END DO loop_ipgf
+
+                   END DO loop_jset
+
+                END DO loop_iset
+
+                sab_orb_neighbor_node => next(sab_orb_neighbor_node)
+
+             END DO loop_inode
+
+             sab_orb_neighbor_list => next(sab_orb_neighbor_list)
+
+          END DO loop_ilist
+
+       END DO loop_jkind
+
+    END DO loop_ikind
+
+    ! redistribute the task list so that all tasks map on the local rs grids
+    IF (distributed_rs_grids)THEN
+       CALL rs_get_my_tasks (rs_rho(1)%rs_grid,ntasks, natoms,&
+            maxset,maxpgf, tasks, rval=dist_ab, atom_pair_send=atom_pair_send,&
+            atom_pair_recv=atom_pair_recv, pmat=deltap, error=error)
+    ENDIF
+
+    ! map all tasks on the grids
+
+    ithread = 0
+    pab => pabt(:,:,ithread)
+    work => workt(:,:,ithread)
+
+    iatom_old = -1 ; jatom_old = -1 ; iset_old = -1 ; jset_old = -1 
+    ikind_old = -1 ; jkind_old = -1
+
+    loop_tasks: DO itask=1,ntasks
+
+       !decode the atom pair and basis info
+       CALL int2pair(tasks(3,itask),iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
+
+       ikind = particle_set(iatom)%atomic_kind%kind_number
+       jkind = particle_set(jatom)%atomic_kind%kind_number
+
+       IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old) THEN 
+
+          IF (iatom .NE. iatom_old) ra(:) = pbc(particle_set(iatom)%r,cell)
+
+          IF (iatom <= jatom) THEN
+             brow = iatom
+             bcol = jatom
+          ELSE
+             brow = jatom
+             bcol = iatom
+          END IF
+
+          IF(ikind .NE. ikind_old ) THEN
+             CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                  softb = my_soft, &
+                  orb_basis_set=orb_basis_set)
+
+             CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                  first_sgf=first_sgfa,&
+                  lmax=la_max,&
+                  lmin=la_min,&
+                  npgf=npgfa,&
+                  nset=nseta,&
+                  nsgf_set=nsgfa,&
+                  pgf_radius=rpgfa,&
+                  set_radius=set_radius_a,&
+                  sphi=sphi_a,&
+                  zet=zeta)
+          ENDIF
+
+          IF (jkind .NE. jkind_old ) THEN
+             CALL get_atomic_kind(atomic_kind=particle_set(jatom)%atomic_kind,&
+                  softb = my_soft, &
+                  orb_basis_set=orb_basis_set)
+
+             CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                  first_sgf=first_sgfb,&
+                  kind_radius=kind_radius_b,&
+                  lmax=lb_max,&
+                  lmin=lb_min,&
+                  npgf=npgfb,&
+                  nset=nsetb,&
+                  nsgf_set=nsgfb,&
+                  pgf_radius=rpgfb,&
+                  set_radius=set_radius_b,&
+                  sphi=sphi_b,&
+                  zet=zetb)          
+          ENDIF
+
+          CALL get_block_node(matrix=deltap,&
+               block_row=brow,&
+               block_col=bcol,&
+               BLOCK=p_block)
+          IF (.NOT.ASSOCIATED(p_block)) &
+               CALL stop_program(routine,"p_block not associated in deltap")
+
+          iatom_old = iatom
+          jatom_old = jatom
+          ikind_old = ikind
+          jkind_old = jkind
+          atom_pair_changed = .TRUE.
+
+       ELSE
+
+          atom_pair_changed = .FALSE.
+
+       ENDIF
+
+
+       IF (atom_pair_changed .OR. iset_old .NE. iset .OR. jset_old .NE. jset) THEN
+
+          ncoa = npgfa(iset)*ncoset(la_max(iset))
+          sgfa = first_sgfa(1,iset)
+          ncob = npgfb(jset)*ncoset(lb_max(jset))
+          sgfb = first_sgfb(1,jset)
+
+          IF (iatom <= jatom) THEN
+             CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
+                  1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                  p_block(sgfa,sgfb),SIZE(p_block,1),&
+                  0.0_dp,work(1,1),maxco)
+             CALL dgemm("N","T",ncoa,ncob,nsgfb(jset),&
+                  1.0_dp,work(1,1),maxco,&
+                  sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                  0.0_dp,pab(1,1),maxco)
+          ELSE
+             CALL dgemm("N","N",ncob,nsgfa(iset),nsgfb(jset),&
+                  1.0_dp,sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                  p_block(sgfb,sgfa),SIZE(p_block,1),&
+                  0.0_dp,work(1,1),maxco)
+             CALL dgemm("N","T",ncob,ncoa,nsgfa(iset),&
+                  1.0_dp,work(1,1),maxco,&
+                  sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                  0.0_dp,pab(1,1),maxco)
+          END IF
+
+          iset_old = iset
+          jset_old = jset
+
+       ENDIF
+
+       rab(:) = dist_ab (:,itask)
+       rab2  = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+       rb(:) = ra(:) + rab(:)
+       zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
+       IF (dab.lt.0.1E0_dp .AND. dft_control%qs_control%map_paa) THEN
+          igrid_level = 1
+       ELSE
+          igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
+       ENDIF
+
+       na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
+       na2 = ipgf*ncoset(la_max(iset))
+       nb1 = (jpgf - 1)*ncoset(lb_max(jset)) + 1
+       nb2 = jpgf*ncoset(lb_max(jset))
+
+       ! takes the density matrix symmetry in account, i.e. off-diagonal blocks need to be mapped 'twice'
+       IF (iatom == jatom) THEN
+          scale = 1.0_dp
+       ELSE
+          scale = 2.0_dp
+       END IF
+
+       IF (iatom <= jatom) THEN
+          CALL collocate_pgf_product_rspace(&
+               la_max(iset),zeta(ipgf,iset),la_min(iset),&
+               lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+               ra,rab,rab2,scale,pab,na1-1,nb1-1,&
+               rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
+               eps_rho_rspace,&
+               ga_gb_function=ga_gb_function, &
+               map_consistent=map_consistent,error=error)
+       ELSE
+          CALL collocate_pgf_product_rspace(&
+               lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+               la_max(iset),zeta(ipgf,iset),la_min(iset),&
+               rb,-rab,rab2,scale,pab,nb1-1,na1-1,&
+               rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
+               eps_rho_rspace,&
+               ga_gb_function=ga_gb_function, &
+               map_consistent=map_consistent,error=error)
+       END IF
+
+    END DO loop_tasks
+
+
+    !   *** Release work storage ***
+
+    IF (distributed_rs_grids) THEN
+      CALL deallocate_matrix ( deltap ,error=error)
+      DEALLOCATE (atom_pair_send, STAT=istat)      
+      IF (istat /= 0) CALL stop_memory(routine,"atom_pair_send")
+      DEALLOCATE (atom_pair_recv, STAT=istat)      
+      IF (istat /= 0) CALL stop_memory(routine,"atom_pair_recv")
+    ENDIF
+
+    DEALLOCATE (pabt,workt, tasks, dist_ab,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"pabt,workt,tasks, dist_ab")
 
     CALL mp_sync(para_env%group)
 
@@ -1468,6 +1410,9 @@ CONTAINS
     END DO
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
+       write(6,*) "rs pos, pw pos grid level",rs_rho(igrid_level)%rs_grid%my_pos,&
+            mgrid_rspace(igrid_level)%pw%pw_grid%para%rs_mpo,&
+            mgrid_rspace(1)%pw%pw_grid%para%rs_mpo,igrid_level
        CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid,&
             mgrid_rspace(igrid_level)%pw,rs2pw)
     ENDDO

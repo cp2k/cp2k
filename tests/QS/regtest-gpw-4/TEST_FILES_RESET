@@ -288,3 +288,13 @@ H2O-meta_hydro.inp
 NO2-EFG-1.inp
 # speeding up few regtests
 H2O-meta_hydro.inp
+#  
+H2-geo-4.inp
+#  
+spin_restraint.inp
+#  
+NO2-EFG-1.inp
+#  
+spin_restraint.inp
+#  
+NO2-EFG-1.inp

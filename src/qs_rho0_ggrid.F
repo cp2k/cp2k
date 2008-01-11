@@ -70,11 +70,9 @@ MODULE qs_rho0_ggrid
                                              rs2pw,&
                                              rs_grid_zero,&
                                              rs_pw_transfer
-  USE realspace_task_selection,        ONLY: rs_get_my_tasks
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: get_limit
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -107,11 +105,9 @@ MODULE qs_rho0_ggrid
     CHARACTER(LEN=*), PARAMETER :: routineN = 'put_rho0_s_on_grid', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: auxbas_grid, bo(2), dir, handle, iat, iatom, igrid, ikind, &
-      istat, ithread, j, l0_ikind, lmax0, nat, nch_ik, nch_max, ncurr, nkind, &
-      npme
-    INTEGER, DIMENSION(:), POINTER           :: atom_list
-    INTEGER, DIMENSION(:, :), POINTER        :: tasks
+    INTEGER :: auxbas_grid, dir, handle, iat, iatom, igrid, ikind, istat, &
+      ithread, j, l0_ikind, lmax0, nat, nch_ik, nch_max, nkind, npme, tp(3)
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, tasks
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: eps_rho_rspace, r_V0, &
                                                 rpgf0_s, zet0_s
@@ -191,8 +187,6 @@ MODULE qs_rho0_ggrid
 
     nkind=SIZE(atom_set,1)
 
-    ncurr = -1
-
     DO ikind = 1,nkind
       atom_kind => atom_set(ikind)
       CALL get_atomic_kind(atomic_kind=atom_kind,atom_list=atom_list,natom=nat)
@@ -203,34 +197,40 @@ MODULE qs_rho0_ggrid
       nch_ik = ncoset(l0_ikind)
       pab = 0.0_dp
 
-      bo = get_limit ( nat, para_env%num_pe, para_env%mepos )
-
-      npme = bo(2) - bo(1) + 1
-      IF ( ncurr < npme ) THEN
-        CALL reallocate ( tasks, 1, 4, 1, npme )
-        ncurr = npme
-      ELSE
-        tasks = 0
-      END IF
-
-      DO dir = 1,3
+      CALL reallocate ( tasks, 1, nat )
+      npme = 0
+      tasks = 0
                   
 ! !$OMP parallel do &
 ! !$OMP default(none) &
 ! !$OMP private(iat,j,iatom,ra) &
 ! !$OMP shared(bo,tasks,dir,rs_grid,atom_list,particle_set,cell)
-         DO iat=bo(1),bo(2)
-            j = iat - bo(1) + 1
-            tasks ( 1, j ) = iat
-            iatom = atom_list(iat)
-            ra(:) = pbc(particle_set(iatom)%r,cell)
-            tasks ( 1+dir, j ) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_grid%npts(dir))
-            tasks ( 1+dir, j ) = MODULO ( tasks ( 1+dir, j ), rs_grid%npts(dir) )
-            tasks ( 1+dir, j ) = tasks ( 1+dir, j ) + rs_grid%lb(dir)
+      DO iat=1,nat
+         iatom = atom_list(iat)
+         ra(:) = pbc(particle_set(iatom)%r,cell)
+         DO dir = 1,3
+            tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_grid%npts(dir))
+            tp(dir) = MODULO ( tp(dir), rs_grid%npts(dir) )
+            tp(dir) = tp(dir) + rs_grid%lb(dir)
          END DO
+         IF(rs_grid%distributed)THEN
+            IF( ALL (tp.GE.rs_grid%lb_real) .AND. ALL (tp.LE.rs_grid%ub_real) ) THEN
+               ! local atom
+               npme = npme + 1
+               tasks (npme) = iat
+            ENDIF
+         ELSEIF(rs_grid%parallel) THEN
+            ! replicated realspace grid, split the atoms up between procs
+            IF (MODULO(nat,rs_grid%group_size) == rs_grid % my_pos ) THEN
+               npme = npme + 1
+               tasks (npme) = iat
+            ENDIF
+         ELSE
+            ! serial job
+            npme = npme + 1
+            tasks (npme) = iat           
+         ENDIF
       END DO
-
-      CALL rs_get_my_tasks ( rs_grid, tasks, npme ,error=error)
 
       ithread=0
 ! !$OMP parallel do &
@@ -241,7 +241,7 @@ MODULE qs_rho0_ggrid
 ! !$OMP shared(l0_ikind,igrid,rpgf0_s,error)
       DO j=1,npme
 
-        iat =  tasks(1,j)
+        iat =  tasks(j)
         iatom = atom_list(iat)
 
         CALL  get_rho0_mpole(rho0_mpole=rho0, iat=iatom, Qlm_car_s=Qlm_c)
@@ -389,13 +389,12 @@ MODULE qs_rho0_ggrid
     CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_vhg0_rspace', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: auxbas_grid, bo(2), dir, handle, iat, iatom, ic, icg, ico, &
-      ig1, ig2, igrid, ikind, ipgf1, ipgf2, is, iset1, iset2, iso, iso1, &
-      iso2, ispin, istat, ithread, j, l0_ikind, lmax0, lshell, lx, ly, lz, &
-      m1, m2, maxso, n1, n2, nat, nch_ik, nch_max, ncurr, npme, nset, nspins, &
-      nthread, omp_get_thread_num
-    INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, npgf
-    INTEGER, DIMENSION(:, :), POINTER        :: tasks
+    INTEGER :: auxbas_grid, dir, handle, iat, iatom, ic, icg, ico, ig1, ig2, &
+      igrid, ikind, ipgf1, ipgf2, is, iset1, iset2, iso, iso1, iso2, ispin, &
+      istat, ithread, j, l0_ikind, lmax0, lshell, lx, ly, lz, m1, m2, maxso, &
+      n1, n2, nat, nch_ik, nch_max, ncurr, npme, nset, nspins, nthread, &
+      omp_get_thread_num, tp(3)
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, npgf, tasks
     LOGICAL                                  :: failure, my_tddft, paw_atom
     REAL(dp)                                 :: c4pi, eps_rho_rspace, &
                                                 force_tmp(3), r_V0, ra(3), &
@@ -593,35 +592,41 @@ MODULE qs_rho0_ggrid
       nch_ik = ncoset(l0_ikind)
       pab = 1.0_dp
 
-      bo = get_limit ( nat, para_env%num_pe, para_env%mepos )
-
-      npme = bo(2) - bo(1) + 1
-      IF ( ncurr < npme ) THEN
-        CALL reallocate ( tasks, 1, 4, 1, npme )
-        ncurr = npme
-      ELSE
-        tasks = 0
-      END IF
-
-      DO dir = 1,3
+      CALL reallocate ( tasks, 1, nat )
+      npme = 0
+      tasks = 0
 
 ! !$OMP parallel do &
 ! !$OMP default(none) &
 ! !$OMP private(iat,j,iatom,ra) &
 ! !$OMP shared(bo,tasks,dir,rs_v,atom_list,particle_set,cell)
-         DO iat=bo(1),bo(2)
 
-            j = iat - bo(1) + 1
-            tasks ( 1, j ) = iat
-            iatom = atom_list(iat)
-            ra(:) = pbc(particle_set(iatom)%r,cell)
-            tasks ( 1+dir, j ) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_v%npts(dir))
-            tasks ( 1+dir, j ) = MODULO ( tasks ( 1+dir, j ), rs_v%npts(dir) )
-            tasks ( 1+dir, j ) = tasks ( 1+dir, j ) + rs_v%lb(dir)
+      DO iat=1,nat
+         iatom = atom_list(iat)
+         ra(:) = pbc(particle_set(iatom)%r,cell)
+         DO dir = 1,3
+            tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_v%npts(dir))
+            tp(dir) = MODULO ( tp(dir), rs_v%npts(dir) )
+            tp(dir) = tp(dir) + rs_v%lb(dir)
          END DO
+         IF(rs_v%distributed)THEN
+            IF( ALL (tp.GE.rs_v%lb_real) .AND. ALL (tp.LE.rs_v%ub_real) ) THEN
+               ! local atom
+               npme = npme + 1
+               tasks (npme) = iat
+            ENDIF
+         ELSEIF(rs_v%parallel) THEN
+            ! replicated realspace grid, split the atoms up between procs
+            IF (MODULO(nat,rs_v%group_size) == rs_v % my_pos ) THEN
+               npme = npme + 1
+               tasks (npme) = iat
+            ENDIF
+         ELSE
+            ! serial job
+            npme = npme + 1
+            tasks (npme) = iat           
+         ENDIF
       END DO
-      
-      CALL rs_get_my_tasks ( rs_v, tasks, npme ,error=error)
 
       ithread=0
 ! !$OMP parallel do &
@@ -640,7 +645,7 @@ MODULE qs_rho0_ggrid
       DO j=1,npme
 
 !$      ithread=omp_get_thread_num()
-        iat =  tasks(1,j)
+        iat =  tasks(j)
         iatom = atom_list(iat)
         ra(:) = pbc(particle_set(iatom)%r,cell)
 

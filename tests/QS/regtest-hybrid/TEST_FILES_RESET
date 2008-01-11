@@ -118,3 +118,15 @@ NE-hybrid-HSE03-lda.inp
 NE-hybrid-HSE06-lda.inp
 CH3-hybrid-HSE06-lsd.inp
 
+#  
+H2O-hybrid-bhandhlyp.inp
+#  
+H2O-hybrid-b3lyp.inp
+#  
+H2O-hybrid-b3lyp-g03.inp
+#  
+CH3-hybrid-b3lyp-lsd-g03.inp
+#  
+CH3-hybrid-handhlyp-lsd.inp
+#  
+CH3-hybrid-HSE06-lsd.inp

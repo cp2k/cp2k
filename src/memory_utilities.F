@@ -25,6 +25,7 @@ MODULE memory_utilities
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              dp_size,&
+                                             int_8,&
                                              int_size
   USE termination,                     ONLY: stop_memory
 #include "cp_common_uses.h"
@@ -45,7 +46,8 @@ MODULE memory_utilities
     MODULE PROCEDURE reallocate_c1,reallocate_c2,reallocate_c3,reallocate_c4,&
                      reallocate_i1,reallocate_i2,reallocate_i3,reallocate_i4,&
                      reallocate_r1,reallocate_r2,reallocate_r3,reallocate_r4,&
-                     reallocate_r5,reallocate_s1,reallocate_l1
+                     reallocate_r5,reallocate_s1,reallocate_l1,reallocate_8i1,&
+                     reallocate_8i2
   END INTERFACE
 
 !!***
@@ -361,6 +363,128 @@ CONTAINS
     END IF
 
   END SUBROUTINE reallocate_i1
+
+! ****************************************************************************
+
+  SUBROUTINE reallocate_8i1(p,lb1_new,ub1_new)
+
+!   Purpose: (Re)Allocate an integer vector with a new dimension.
+
+!   History: - Creation (18.07.2002,MK)
+
+!   ***************************************************************************
+
+    INTEGER(kind=int_8), DIMENSION(:), &
+      POINTER                                :: p
+    INTEGER, INTENT(IN)                      :: lb1_new, ub1_new
+
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'reallocate_8i1'
+
+    INTEGER                                  :: istat, lb1, lb1_old, &
+                                                new_size, old_size, ub1, &
+                                                ub1_old
+    INTEGER(kind=int_8), ALLOCATABLE, &
+      DIMENSION(:)                           :: work
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED(p)) THEN
+      lb1_old = LBOUND(p,1)
+      ub1_old = UBOUND(p,1)
+      lb1 = MAX(lb1_new,lb1_old)
+      ub1 = MIN(ub1_new,ub1_old)
+      ALLOCATE (work(lb1:ub1),STAT=istat)
+      IF (istat /= 0) THEN
+        old_size = (ub1 - lb1 + 1)*int_size
+        CALL stop_memory(routineN,moduleN,__LINE__,"work",old_size)
+      END IF
+      work(lb1:ub1) = p(lb1:ub1)
+      DEALLOCATE (p,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"p")
+    END IF
+
+    ALLOCATE (p(lb1_new:ub1_new),STAT=istat)
+    IF (istat /= 0) THEN
+      new_size = (ub1_new - lb1_new + 1)*int_size
+      CALL stop_memory(routineN,moduleN,__LINE__,"p",new_size)
+    END IF
+    p(:) = 0
+
+    IF (ALLOCATED(work)) THEN
+      lb1 = MAX(lb1_new,lb1_old)
+      ub1 = MIN(ub1_new,ub1_old)
+      p(lb1:ub1) = work(lb1:ub1)
+      DEALLOCATE (work,STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routineN,moduleN,__LINE__,"work")
+      END IF
+    END IF
+
+  END SUBROUTINE reallocate_8i1
+
+
+  SUBROUTINE reallocate_8i2(p,lb1_new,ub1_new,lb2_new,ub2_new)
+
+!   Purpose: (Re)Allocate an integer vector with a new dimension.
+
+!   History: - Creation (18.07.2002,MK)
+
+!   ***************************************************************************
+    INTEGER(kind=int_8), DIMENSION(:, :), &
+      POINTER                                :: p
+    INTEGER, INTENT(IN)                      :: lb1_new, ub1_new, lb2_new, &
+                                                ub2_new
+
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'reallocate_8i2'
+
+    INTEGER                                  :: istat, lb1, lb1_old, lb2, &
+                                                lb2_old, new_size, old_size, &
+                                                ub1, ub1_old, ub2, ub2_old
+    INTEGER(kind=int_8)                      :: dummy, int_8_size
+    INTEGER(kind=int_8), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: work
+
+!   ---------------------------------------------------------------------------
+
+    dummy = 10
+    int_8_size = BIT_SIZE (dummy) / 8
+
+    IF (ASSOCIATED(p)) THEN
+      lb1_old = LBOUND(p,1)
+      ub1_old = UBOUND(p,1)
+      lb2_old = LBOUND(p,2)
+      ub2_old = UBOUND(p,2)
+      lb1 = MAX(lb1_new,lb1_old)
+      ub1 = MIN(ub1_new,ub1_old)
+      lb2 = MAX(lb2_new,lb2_old)
+      ub2 = MIN(ub2_new,ub2_old)
+      ALLOCATE (work(lb1:ub1,lb2:ub2),STAT=istat)
+      IF (istat /= 0) THEN
+        old_size = (ub1 - lb1 + 1)*(ub2 - lb2 + 1)*int_size
+        CALL stop_memory(routineN,moduleN,__LINE__,"work",old_size)
+      END IF
+      work(lb1:ub1,lb2:ub2) = p(lb1:ub1,lb2:ub2)
+      DEALLOCATE (p,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"p")
+    END IF
+
+    ALLOCATE (p(lb1_new:ub1_new,lb2_new:ub2_new),STAT=istat)
+    IF (istat /= 0) THEN
+      new_size = (ub1_new - lb1_new + 1)*(ub2_new - lb2_new + 1)*int_size
+      CALL stop_memory(routineN,moduleN,__LINE__,"p",new_size)
+    END IF
+    p(:,:) = 0
+
+    IF (ALLOCATED(work)) THEN
+      p(lb1:ub1,lb2:ub2) = work(lb1:ub1,lb2:ub2)
+      DEALLOCATE (work,STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routineN,moduleN,__LINE__,"work")
+      END IF
+    END IF
+
+  END SUBROUTINE reallocate_8i2
+
 
 ! *****************************************************************************
 

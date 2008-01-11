@@ -79,7 +79,7 @@ CONTAINS
           ! check if the rs grid is distributed or not
           IF ( ALL ( rs % group_dim == 1 ) ) THEN
              ndim = rs % group_size
-             npos = rs % group_coor ( 3 )
+             npos = rs % my_pos
              ! All processors work on the same grid
              IF ( MOD ( ipart, ndim ) == npos ) THEN
                 p1 = ipart

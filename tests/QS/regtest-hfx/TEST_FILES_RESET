@@ -90,3 +90,5 @@ CH-hfx-pbc-md.inp
 CH-hfx-pbc-md.inp
 # change in definition for MT cutoff
 H2O_pw.inp
+#  
+CH-hfx-pbc-md.inp
