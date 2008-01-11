@@ -10,6 +10,7 @@
 !!
 !!   FUNCTION
 !!     Utility routines for the memory handling.
+!!     Uses stop_memory to handle exceptions
 !!
 !!   AUTHOR
 !!     Matthias Krack (25.06.1999)
@@ -24,10 +25,8 @@ MODULE memory_utilities
   USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
-                                             dp_size,&
-                                             int_8,&
-                                             int_size
-  USE termination,                     ONLY: stop_memory
+                                             int_8
+  USE termination
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
