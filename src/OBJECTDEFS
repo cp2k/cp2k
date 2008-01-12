@@ -188,6 +188,7 @@ OBJECTS_GENERIC =\
  input_cp2k_dft.o\
  input_cp2k_distribution.o\
  input_cp2k_eip.o\
+ input_cp2k_force_eval.o\
  input_cp2k_free_energy.o\
  input_cp2k_hfx.o\
  input_cp2k_mm.o\
@@ -198,6 +199,7 @@ OBJECTS_GENERIC =\
  input_cp2k_restarts.o\
  input_cp2k_subsys.o\
  input_cp2k_thermostats.o\
+ input_cp2k_vib.o\
  input_enumeration_types.o\
  input_keyword_types.o\
  input_parsing.o\

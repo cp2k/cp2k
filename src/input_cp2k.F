@@ -31,19 +31,12 @@ MODULE input_cp2k
                                              parser_release
   USE cp_units,                        ONLY: cp_unit_set_create,&
                                              cp_unit_set_release,&
-                                             cp_unit_set_type,&
-                                             cp_unit_to_cp2k
+                                             cp_unit_set_type
   USE f77_blas
   USE input_constants
-  USE input_cp2k_dft,                  ONLY: create_bsse_section,&
-                                             create_dft_section,&
-                                             create_ep_section,&
-                                             create_properties_section
-  USE input_cp2k_eip,                  ONLY: create_eip_section
-  USE input_cp2k_mm,                   ONLY: create_mm_section
+  USE input_cp2k_force_eval,           ONLY: create_force_eval_section
   USE input_cp2k_motion,               ONLY: create_motion_section
-  USE input_cp2k_qmmm,                 ONLY: create_qmmm_section
-  USE input_cp2k_subsys,               ONLY: create_subsys_section
+  USE input_cp2k_vib,                  ONLY: create_vib_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -55,7 +48,6 @@ MODULE input_cp2k
   USE input_val_types,                 ONLY: char_t,&
                                              integer_t,&
                                              logical_t,&
-                                             no_t,&
                                              real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
@@ -74,7 +66,6 @@ MODULE input_cp2k
 !!***
 !****************************************************************************
 CONTAINS
-
 
 !!****f* input_cp2k/create_cp2k_input_reading *
 !!
@@ -97,7 +88,7 @@ CONTAINS
 !!     fawzi
 !!
 !!*** **********************************************************************
-FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
+  FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
     CHARACTER(len=*), INTENT(in)             :: file_path
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -159,7 +150,6 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
 
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
 
     CALL timeset(routineN,"I",'',handle)
@@ -207,14 +197,6 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
        CALL create_vib_section(section,error=error)
        CALL section_add_subsection(root_section,section,error=error)
        CALL section_release(section,error=error)
-
-       NULLIFY(keyword)
-       CALL keyword_create(keyword,name="_DEFAULT_KEYWORD_",&
-            description="ignores lines outside sections",&
-            usage=" ", type_of_var=no_t,error=error)
-       CALL section_add_keyword(root_section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
     END IF
     CALL timestop(0.0_dp,handle)
 
@@ -449,7 +431,7 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
     CALL keyword_create(keyword, name="TRACE",&
          description="If a debug trace of the execution of the program should be written ",&
          usage="TRACE",&
-         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -459,7 +441,7 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
                      "This does not work for all possible types of CP2K runs "//&
                      "(requires that timeset/timestop is called by all processes in sync, and fails otherwise)",&
          usage="TRACE_SYNC",&
-         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -561,38 +543,10 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
                         supported_feature=.TRUE.,error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
-    CALL section_add_subsection(section,print_key,error=error)
-    CALL section_release(print_key,error=error)
-
-    CALL cp_print_key_section_create(print_key, "PERFORMANCE", description=&
-         "Controls the of standard our performance indicators", &
-         print_level=high_print_level,filename="__STD_OUT__",&
-         supported_feature=.TRUE.,error=error)
     CALL keyword_create(keyword,"HPM",&
-         description="if the printkey is active controls the printing of the hpm info (if linked as"//&
+         description="if the keyword is active controls the printing of the hpm info (if linked as"//&
          " external library, on IBM only)",&
          default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
-    CALL section_add_keyword(print_key,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
-    CALL keyword_create(keyword,"cputime",&
-         description="if the printkey is active controls the printing of the cputime at important"//&
-         " points during the PROGRAM run",&
-         supported_feature=.TRUE.,default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-    CALL section_add_keyword(print_key,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
-    CALL keyword_create(keyword,"routines",&
-         description="if the printkey is active controls the printing of the routine's name"//&
-         " at important points during the PROGRAM run",&
-         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
-    CALL section_add_keyword(print_key,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
-    CALL keyword_create(keyword,"memory",&
-         description="if the printkey is active controls the printing of the "//&
-         "memory usage at important points during the PROGRAM run",&
-         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     CALL section_add_subsection(section,print_key,error=error)
@@ -631,13 +585,13 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
     TYPE(section_type), POINTER              :: print_key
 
     CALL section_create(section,name="test",&
-         description="tests to perform",&
+         description="Tests to perform on the supported libraries.",&
          n_keywords=7, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
          error=error)
 
     NULLIFY(keyword, print_key)
     CALL keyword_create(keyword, name="memory",&
-         description="tries to allocate the given amount of memory ",&
+         description="tries to allocate the given amount of memory (in bytes)",&
          usage="MEMORY <REAL>",default_r_val=256.e6_dp, error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
@@ -730,7 +684,6 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
   END SUBROUTINE create_test_section
 !***************************************************************************
 
-
 !!****f* input_cp2k/create_debug_section [1.0] *
 !!
 !!   NAME
@@ -797,13 +750,13 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
   END SUBROUTINE create_debug_section
 !***************************************************************************
 
-!!****f* input_cp2k/create_force_eval_section *
+!!****f* input_cp2k/create_multi_force_section *
 !!
 !!   NAME
-!!     create_force_eval_section
+!!     create_multi_force_section
 !!
 !!   FUNCTION
-!!     creates the force_eval section
+!!     creates the multiple force_eval section
 !!
 !!   NOTES
 !!     -
@@ -833,7 +786,7 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
     CALL section_create(section,name="MULTIPLE_FORCE_EVALS",&
          description="Describes how to handle multiple force_evals.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-         error=error)
+         supported_feature=.TRUE.,error=error)
 
     NULLIFY(keyword)
     CALL keyword_create(keyword, name="FORCE_EVAL_ORDER",&
@@ -841,7 +794,7 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
          " this does not need to be specified in this list, because it that takes into account only the real"//&
          " energy contributions",&
          usage="FORCE_EVAL_ORDER <INTEGER> .. <INTEGER>", type_of_var=integer_t, n_var=-1,&
-         default_i_vals=(/1/), error=error)
+         default_i_vals=(/1/), supported_feature=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -849,128 +802,11 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
          description="Specify if force_eval have different subsys. In case hey share the same subsys,"//&
          " it needs to be specified only in the MIXED force_eval (if using MIXED) or"//&
          " in the force_eval corresponding to first force_eval of the previous order (when not using MIXED).",&
-         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
+         default_l_val=.FALSE., lone_keyword_l_val=.TRUE., supported_feature=.TRUE., error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
    END SUBROUTINE create_multi_force_section
-!***************************************************************************
-
-!!****f* input_cp2k/create_force_eval_section *
-!!
-!!   NAME
-!!     create_force_eval_section
-!!
-!!   FUNCTION
-!!     creates the force_eval section
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the section to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
-  SUBROUTINE create_force_eval_section(section,error)
-    TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_force_eval_section', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
-
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    CALL section_create(section,name="force_eval",&
-         description="parameters needed to calculate energy and forces and"//&
-         " describe the system you want to analyze.",&
-         n_keywords=1, n_subsections=9, repeats=.TRUE., required=.TRUE.,&
-         error=error)
-
-    NULLIFY(subsection)
-    NULLIFY(keyword)
-    CALL keyword_create(keyword, name="METHOD",&
-         description="Which method should be used to compute forces",&
-         usage="METHOD <STRING>",&
-         enum_c_vals=method_names,&
-         enum_desc=method_name_desc,&
-         enum_i_vals=method_name_index,&
-         default_i_val=do_qs, error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
-
-    CALL keyword_create(keyword, name="stress_tensor",&
-         description="Controls the calculation of the stress tensor. The combinations defined below"//&
-         " are not implemented for all methods.",&
-         usage="stress_tensor (NONE|ANALYTICAL|NUMERICAL|DIAGONAL_ANA|DIAGONAL_NUM)", &
-         default_i_val=do_stress_none,&
-         enum_c_vals=s2a("NONE","ANALYTICAL","NUMERICAL","DIAGONAL_ANALYTICAL","DIAGONAL_NUMERICAL"),&
-         enum_i_vals=(/do_stress_none,do_stress_analytical,do_stress_numerical,&
-                       do_stress_diagonal_anal,do_stress_diagonal_numer/),&
-         enum_desc=s2a("Do not compute stress tensor",&
-                       "Compute the stress tensor analytical (if available).",&
-                       "Compute the stress tensor numerically.",&
-                       "Compute the diagonal part only of the stress tensor analytical (if available).",&
-                       "Compute the diagonal part only of the stress tensor numerically"),&
-         error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
-    CALL create_rescale_force_section(subsection,error)
-    CALL section_add_subsection(section, subsection, error=error)
-    CALL section_release(subsection,error=error)
-
-    CALL create_ep_section(subsection,error)
-    CALL section_add_subsection(section, subsection, error=error)
-    CALL section_release(subsection,error=error)
-
-    CALL create_dft_section(subsection,error)
-    CALL section_add_subsection(section, subsection, error=error)
-    CALL section_release(subsection,error=error)
-
-    CALL create_eip_section(subsection, error)
-    CALL section_add_subsection(section, subsection, error=error)
-    CALL section_release(subsection, error=error)
-
-    CALL create_mm_section(subsection,error)
-    CALL section_add_subsection(section, subsection, error=error)
-    CALL section_release(subsection,error=error)
-
-    CALL create_mix_section(subsection,error)
-    CALL section_add_subsection(section, subsection, error=error)
-    CALL section_release(subsection,error=error)    
-
-    CALL create_qmmm_section(subsection,error)
-    CALL section_add_subsection(section, subsection, error=error)
-    CALL section_release(subsection,error=error)
-
-    CALL create_bsse_section(subsection,error)
-    CALL section_add_subsection(section, subsection, error=error)
-    CALL section_release(subsection,error=error)
-
-    CALL create_subsys_section(subsection,error)
-    CALL section_add_subsection(section, subsection, error=error)
-    CALL section_release(subsection,error=error)
-
-    CALL create_properties_section(subsection,error)
-    CALL section_add_subsection(section, subsection, error=error)
-    CALL section_release(subsection,error=error)
-
-    CALL create_f_env_print_section(subsection,error)
-    CALL section_add_subsection(section, subsection, error=error)
-    CALL section_release(subsection,error=error)
-
-  END SUBROUTINE create_force_eval_section
 !***************************************************************************
 
 !!****f* input_cp2k/create_ext_restart_section [1.0] *
@@ -1148,154 +984,6 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
   END SUBROUTINE create_ext_restart_section
 !***************************************************************************
 
-!!****f* input_cp2k/create_vib_section [1.0] *
-!!
-!!   NAME
-!!     create_vib_section
-!!
-!!   FUNCTION
-!!     Creates the exteranal restart section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
-  SUBROUTINE create_vib_section(section,error)
-    TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_vib_section', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key, subsection
-
-    failure=.FALSE.
-
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL section_create(section,name="VIBRATIONAL_ANALYSIS",&
-            description="Section to setup parameters to perform a Normal Modes analysis.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)
-       NULLIFY(keyword, print_key,subsection)
-       
-       CALL keyword_create(keyword, name="DX",&
-            description="Specify the increment to be used to construct the HESSIAN with "//&
-            "finite difference method",&
-            default_r_val=1.0E-2_dp, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="NPROC_REP",&
-            description="Specify the number of processors to be used per replica "//&
-            "environment (for parallel runs). "//&
-            "In case of mode selective calculations more than one replica will start"//&
-            " a block Davidson algorithm to track more than only one frequency",&
-            default_i_val=1, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="FULLY_PERIODIC",&
-            description="Avoids to clean rotations from the Hessian matrix.",&
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="INTENSITIES",&
-            description="Calculation of the IR-Intensities. Calculation of dipols has to be specified explicitly ",&
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL cp_print_key_section_create(print_key,"program_run_info",&
-            description="Controls the printing basic info about the vibrational method", &
-            print_level=medium_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"MOLDEN_VIB",&
-            description="Controls the printing for visualization in molden format", &
-            print_level=low_print_level,each=(/1/),add_last=(/1/),filename="VIBRATIONS",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-       
-       CALL create_mode_selective_section(subsection,error)
-       CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)
-
-    END IF
-  END SUBROUTINE create_vib_section
-!***************************************************************************
-
-!!****f* input_cp2k/create_rescale_force_section [1.0] *
-!!
-!!   NAME
-!!     create_rescale_force_section
-!!
-!!   FUNCTION
-!!     Creates the section controlling the rescaling of forces
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
-  SUBROUTINE create_rescale_force_section(section,error)
-    TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_rescale_force_section', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
-
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL section_create(section,name="RESCALE_FORCES",&
-            description="Section controlling the rescaling of forces. Useful when"//&
-            " starting from quite bad geometries with unphysically large forces.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)
-       NULLIFY(keyword)
-       
-       CALL keyword_create(keyword, name="MAX_FORCE",&
-            description="Specify the Maximum Values of the force. If the force"//&
-            " of one atom exceed this value it's rescaled to the MAX_FORCE"//&
-            " value.",&
-            default_r_val=cp_unit_to_cp2k(value=50.0_dp,&
-                                          unit_str="kcalmol*angstrom^-1",&
-                                          error=error),&
-             unit_str="hartree*bohr^-1",&
-             error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       
-    END IF
-  END SUBROUTINE create_rescale_force_section
-!***************************************************************************
-
 !!****f* input_cp2k/create_farming_section *
 !!
 !!   NAME
@@ -1332,79 +1020,80 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     CALL section_create(section,name="farming",&
          description="describes a farming job, in which multiple inputs are executed",&
-         repeats=.FALSE., required=.TRUE., error=error)
+         repeats=.FALSE., required=.TRUE., supported_feature=.TRUE.,error=error)
     NULLIFY(keyword, print_key)
 
     CALL keyword_create(keyword, name="MASTER_SLAVE",&
          description="If a master-slave setup should be employed, in which one process is used to distribute the tasks. "//&
          "This is most useful to load-balance if not all jobs have the same length, "//&
          "and a lot of CPUs/groups are availabe.",&
-         usage="MASTER_SLAVE",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+         usage="MASTER_SLAVE",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
+         supported_feature=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="NGROUPS",variants=(/"NGROUP"/),&
          description="Gives the preferred number of working groups.",&
-         usage="ngroups 4", type_of_var=integer_t, error=error)
+         usage="ngroups 4", type_of_var=integer_t, supported_feature=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="GROUP_SIZE",&
          description="Gives the preferred size of a working group, "//&
          "groups will always be equal or larger than this size.",&
-         usage="group_size 2", default_i_val=8, error=error)
+         usage="group_size 2", default_i_val=8, supported_feature=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="GROUP_PARTITION",&
          description="gives the exact number of processors for each group.",& 
-         usage="group_partition  2 2 4 2 4 ", type_of_var=integer_t, n_var=-1, error=error)
+         usage="group_partition  2 2 4 2 4 ", type_of_var=integer_t, n_var=-1, supported_feature=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="RESTART",&
          description="restart a farming job (and should pick up where the previous left off)",&
          usage="RESTART",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
-         error=error)
+         supported_feature=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="MAX_JOBS_PER_GROUP",&
          variants=(/"MAX_JOBS"/),&
          description="maximum number of jobs executed per group",&
-         usage="max_step 4", default_i_val=HUGE(0)/32768, error=error)
+         usage="max_step 4", default_i_val=HUGE(0)/32768, supported_feature=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="CYCLE",&
          description="If farming should process all jobs in a cyclic way, stopping only if MAX_JOBS_PER_GROUP is exceeded." ,&
          usage="CYCLE",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
-         error=error)
+         supported_feature=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="WAIT_TIME",&
          description="Time to wait [s] for a new task if no task is currently available, make this zero if no clock is available",&
-         usage="WAIT_TIME 0.1",default_r_val=0.5_dp, error=error)
+         usage="WAIT_TIME 0.1",default_r_val=0.5_dp, supported_feature=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     NULLIFY(sub_section)
     CALL section_create(sub_section,name="JOB",&
          description="description of the jobs to be executed",&
-         repeats=.TRUE., required=.TRUE., error=error)
+         repeats=.TRUE., required=.TRUE., supported_feature=.TRUE.,error=error)
 
     CALL keyword_create(keyword,name="DIRECTORY",&
          description="the directory in which the job should be executed",&
          usage="DIRECTORY /my/path",&
-         required=.TRUE.,default_lc_val=".",error=error)
+         required=.TRUE.,default_lc_val=".",supported_feature=.TRUE.,error=error)
     CALL section_add_keyword(sub_section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword,name="INPUT_FILE_NAME",&
          description="the filename of the input file",&
          usage="input_file my_input.inp",&
-         required=.TRUE.,default_lc_val="input.inp",error=error)
+         required=.TRUE.,default_lc_val="input.inp",supported_feature=.TRUE.,error=error)
     CALL section_add_keyword(sub_section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -1412,7 +1101,7 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
          description="An ID used to indentify a job in DEPENDENCIES. "//&
          "JOB_IDs do not need to be unique, dependencies will be on all jobs with a given ID. "//&
          "If no JOB_ID is given, the index of the &JOB section in the input file will be used. ",&
-         usage="JOB_ID 13", type_of_var=integer_t, error=error)
+         usage="JOB_ID 13", type_of_var=integer_t, supported_feature=.TRUE.,error=error)
     CALL section_add_keyword(sub_section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -1428,7 +1117,7 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
          "Additionally, note that, on some file systems, "//&
          " output (restart) files might not be immediately available on all compute nodes,"//&
          "potentially resulting in unexpected failures.", &
-         usage="DEPENDENCIES 13 1 7",type_of_var=integer_t, n_var=-1, error=error)
+         usage="DEPENDENCIES 13 1 7",type_of_var=integer_t, n_var=-1, supported_feature=.TRUE.,error=error)
     CALL section_add_keyword(sub_section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     CALL section_add_subsection(section, sub_section, error=error)
@@ -1442,86 +1131,6 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
     CALL section_release(print_key,error=error)
 
   END SUBROUTINE create_farming_section
-!***************************************************************************
-
-!!****f* input_cp2k/create_f_env_print_section *
-!!
-!!   NAME
-!!     create_f_env_print_section
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
-  SUBROUTINE create_f_env_print_section(section,error)
-    TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_f_env_print_section', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(section_type), POINTER              :: print_key
-
-    failure=.FALSE.
-
-    NULLIFY(print_key)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL section_create(section,name="print",&
-            description="propreties that you want to output and that are common to all methods",&
-            n_keywords=0, n_subsections=5, repeats=.FALSE., required=.TRUE.,&
-            error=error)
-
-       CALL cp_print_key_section_create(print_key,"FORCES",&
-            description="Prints the atomic forces at the end of each force_eval",&
-            print_level=high_print_level, filename="__STD_OUT__",error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"GRID_INFORMATION",&
-            description="Controls the printing of information regarding the PW and RS grid structures.",&
-            print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"TOTAL_NUMBERS",&
-            description="controls the printing of the total number of atoms, kinds,...",&
-            print_level=medium_print_level, filename="__STD_OUT__",error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"DISTRIBUTION",&
-            description="controls the printing of the distribution of molecules, atoms, ...",&
-            print_level=medium_print_level, filename="__STD_OUT__",error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"DISTRIBUTION2D",&
-            description="controls the printing of the distribution of matrix blocks,...",&
-            print_level=high_print_level, filename="__STD_OUT__",error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"DISTRIBUTION1D",&
-            description="Each node prints out its distribution info...",&
-            print_level=high_print_level, filename="__STD_OUT__",error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-    END IF
-  END SUBROUTINE create_f_env_print_section
 !***************************************************************************
 
 !!****f* input_cp2k/create_cpot_section *
@@ -1605,405 +1214,5 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
     END IF
   END SUBROUTINE create_cpot_section
 !***************************************************************************
-!***************************************************************************
-
-!!****f* input_cp2k/create_mix_section [1.0] *
-!!
-!!   NAME
-!!     create_mixed_section
-!!
-!!   FUNCTION
-!!     Create the input section for MIXED.
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fschiff
-!!
-!!*** **********************************************************************
-  SUBROUTINE create_mix_section(section,error)
-    TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_mix_section', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key, sub2section, &
-                                                sub3section, subsection
-
-    failure=.FALSE.
-
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL section_create(section,name="MIXED",&
-            description="This section contains all information to run with a hamiltonian "//&
-                        "defined by a mixing of force_evals",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)
-       NULLIFY(keyword, subsection, print_key)
-
-       CALL keyword_create(keyword, name="MIXING_TYPE",&
-            description="The type of mixing to be employed",&
-            usage="MIXING_TYPE LINEAR_COMBINATION",&
-            default_i_val=mix_linear_combination,&
-            enum_c_vals=s2a("LINEAR_COMBINATION", &
-                            "MINIMUM",&
-                            "COUPLED",&
-                            "RESTRAINT",&
-                            "GENMIX"),&
-            enum_desc=s2a("Linear combination of force envs (support only 2 force_evals)", &
-                          "Use the force env with the minimum energy (support only 2 force_evals)",&
-                          "Consider the force envs as a two state system with a given"//&
-                          " coupling matrix element (support only 2 force_evals)",&
-                          "Use the difference between the energy of the force envs as a"//&
-                          " restraint on the first (support only 2 force_evals)",&
-                          "Defines a user-driven generica coupling (support for an unlimited number of force_eval)"),&
-            enum_i_vals=(/mix_linear_combination,mix_minimum,mix_coupled,mix_restrained,mix_generic/),&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="GROUP_PARTITION",&
-            description="gives the exact number of processors for each group."//&
-            " If not specified processors allocated will be equally distributed for"//&
-            " the specified subforce_eval, trying to build a number of groups equal to the"//&
-            " number of subforce_eval specified.",&
-            usage="group_partition  2 2 4 2 4 ", type_of_var=integer_t, n_var=-1, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="NGROUPS",variants=(/"NGROUP"/),&
-            description="Gives the wanted number of groups. If not specified the number"//&
-            " of groups is set to the number of subforce_eval defined.",&
-            usage="ngroups 4", type_of_var=integer_t, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       
-       ! Double force_eval
-       CALL section_create(subsection,name="LINEAR",&
-            description="Linear combination between two force_eval:  F= lambda F1 + (1-lambda) F2",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)
-       CALL keyword_create(keyword, name="LAMBDA",&
-            description="Specify the mixing parameter lambda in the formula:",&
-            usage="lambda <REAL>", type_of_var=real_t,&
-            required=.TRUE.,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL section_add_subsection(section,subsection,error=error)
-       CALL section_release(subsection,error=error)
-
-       CALL section_create(subsection,name="COUPLING",&
-            description="Coupling between two force_eval: E=(E1+E2 - sqrt((E1-E2)**2+4*H12**2))/2",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)
-       CALL keyword_create(keyword, name="COUPLING_PARAMETER",&
-            description="Coupling parameter H12 used in the coupling",&
-            usage="COUPLING_PARAMETER <REAL>", type_of_var=real_t,&
-            required=.TRUE.,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL section_add_subsection(section,subsection,error=error)
-       CALL section_release(subsection,error=error)
-
-       CALL section_create(subsection,name="RESTRAINT",&
-            description="Restraint between two force_eval: E = E1 + k*(E1-E2-t)**2",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)
-       CALL keyword_create(keyword, name="RESTRAINT_TARGET",&
-            description="Target value of the restraint (t) ",&
-            usage="RESTRAINT_TARGET <REAL>", type_of_var=real_t,&
-            required=.TRUE.,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="RESTRAINT_STRENGTH",&
-            description="Strength of the restraint (k) in "//&
-            "k*(E1-E2-t)**2" ,&
-            usage="RESTRAINT_STRENGTH <REAL>", type_of_var=real_t,&
-            required=.TRUE.,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL section_add_subsection(section,subsection,error=error)
-       CALL section_release(subsection,error=error)
-       
-       ! Multiple force_eval
-       CALL section_create(subsection,name="GENERIC",&
-            description="User driven coupling between two or more force_eval.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)
-       CALL keyword_create(keyword, name="MIXING_FUNCTION",&
-            description="Specifies the mixing functional form in mathematical notation.",&
-            usage="MIXING_FUNCTION (E1+E2-LOG(E1/E2))", required=.TRUE., type_of_var=char_t,&
-            n_var=-1, error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="VARIABLES",&
-            description="Defines the variables of the functional form. To allow an efficient"//&
-            " mapping the order of the energy variables will be considered identical to the"//&
-            " order of the force_eval in the force_eval_order list.",&
-            usage="VARIABLES x", required=.TRUE., type_of_var=char_t,&
-            n_var=-1, error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="PARAMETERS",&
-            description="Defines the parameters of the functional form",&
-            usage="PARAMETERS a b D", required=.TRUE., type_of_var=char_t,&
-            n_var=-1, error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="VALUES",&
-            description="Defines the values of  parameter of the functional form",&
-            usage="VALUES ", required=.TRUE., type_of_var=real_t,&
-            n_var=-1, error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="DX",&
-            description="Parameter used for computing the derivative with the Ridders method.",&
-            usage="DX <REAL>", default_r_val=0.1_dp, error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="ERROR_LIMIT",&
-            description="Checks that the error in computing the derivative is not larger than "//&
-            "the value set. In case prints a warning message.",&
-            usage="ERROR_LIMIT <REAL>", default_r_val=1.0E-12_dp, error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL section_add_subsection(section,subsection,error=error)
-       CALL section_release(subsection,error=error)
-
-       ! Mapping of atoms
-       NULLIFY(sub2section, sub3section)
-       CALL section_create(subsection,name="MAPPING",&
-            description="Defines the mapping of atoms for the different force_eval with the mixed force_eval."//&
-            " The default is to have a mapping 1-1 between atom index (i.e. all force_eval share the same"//&
-            " geometrical structure). The mapping is based on defining fragments and the mapping the "//&
-            " fragments between the several force_eval and the mixed force_eval",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-            error=error)
-
-       ! Mixed force_eval
-       CALL section_create(sub2section,name="FORCE_EVAL_MIXED",&
-            description="Defines the fragments for the mixed force_eval (reference)",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-            error=error)
-
-       CALL section_create(sub3section,name="FRAGMENT",&
-            description="Fragment definition",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-            error=error)
-
-       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
-            description="Defines the index of the fragment defined",&
-            usage="<INTEGER>",  type_of_var=integer_t, n_var=1, required=.TRUE.,error=error)
-       CALL section_add_keyword(sub3section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="Starting and ending atomic index defining one fragment must be provided",& 
-            usage="<INTEGER> <INTEGER>", type_of_var=integer_t, n_var=2, repeats=.TRUE.,&
-            required=.TRUE.,error=error)
-       CALL section_add_keyword(sub3section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL section_add_subsection(sub2section,sub3section,error=error)
-       CALL section_release(sub3section,error=error)
-       CALL section_add_subsection(subsection,sub2section,error=error)
-       CALL section_release(sub2section,error=error)
-
-       ! All other force_eval
-       CALL section_create(sub2section,name="FORCE_EVAL",&
-            description="Defines the fragments and the mapping for each force_eval (an integer index (ID) "//&
-            "needs to be provided as parameter)",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-            error=error)
-
-       CALL keyword_create(keyword, name="DEFINE_FRAGMENTS",&
-            description="Specify the fragments definition of the force_eval through the fragments of the"//&
-            " force_eval_mixed. This avoids the pedantic definition of the fragments for the force_eval,"//&
-            " assuming the order of the fragments for the specified force_eval is the same as the sequence "//&
-            " of integers provided. Easier to USE should be preferred to the specification of the single fragments.",&
-            usage="DEFINE_FRAGMENTS <INTEGER> .. <INTEGER>", type_of_var=integer_t, n_var=-1,&
-            error=error)
-       CALL section_add_keyword(sub2section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
-            description="Defines the index of the force_eval for which fragments and mappings are provided",&
-            usage="<INTEGER>",  type_of_var=integer_t, n_var=1, required=.TRUE.,error=error)
-       CALL section_add_keyword(sub2section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL section_create(sub3section,name="FRAGMENT",&
-            description="Fragment definition",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-            error=error)
-
-       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
-            description="Defines the index of the fragment defined",&
-            usage="<INTEGER>",  type_of_var=integer_t, n_var=1, required=.FALSE.,error=error)
-       CALL section_add_keyword(sub3section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="Starting and ending atomic index defining one fragment must be provided",& 
-            usage="<INTEGER> <INTEGER>", type_of_var=integer_t, n_var=2, repeats=.FALSE.,&
-            required=.TRUE.,error=error)
-       CALL section_add_keyword(sub3section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="MAP",&
-            description="Provides the index of the fragment of the MIXED force_eval mapped on the"//&
-            " locally defined fragment.",& 
-            usage="MAP <INTEGER>", type_of_var=integer_t, n_var=1, repeats=.FALSE.,&
-            required=.TRUE.,error=error)
-       CALL section_add_keyword(sub3section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL section_add_subsection(sub2section,sub3section,error=error)
-       CALL section_release(sub3section,error=error)
-       CALL section_add_subsection(subsection,sub2section,error=error)
-       CALL section_release(sub2section,error=error)
-
-       CALL section_add_subsection(section,subsection,error=error)
-       CALL section_release(subsection,error=error)
-
-       CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
-            description="controls the printing of ewald setup",&
-            print_level=low_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-       
-    END IF
-
-  END SUBROUTINE create_mix_section
-
-
-!!****f* input_cp2k/create_mode_selective_section [1.0] *
-!!
-!!   NAME
-!!     create_mode_selective_section
-!!
-!!   FUNCTION
-!!     Create the input section for MODE selective
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fschiff
-!!
-!!*** **********************************************************************
-  SUBROUTINE create_mode_selective_section(section,error)
-    TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'create_mode_selective_section', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
-
-    NULLIFY(keyword)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL section_create(section,name="MODE_SELECTIVE",&
-            description="All parameters needed for to run a mode selective vibrational analysis",&
-            n_keywords=0, n_subsections=5, repeats=.FALSE., required=.TRUE.,&
-            error=error)
-
-       CALL keyword_create(keyword,name="FREQUENCY",&
-            description="value close to the expected value of the frequency for to look for. "//&
-            "If the block Davidson algorithm is applied, the nrep closest frequencies are tracked. ",&
-            usage="FREQUENCY <REAL>", default_r_val=-1._dp,&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword,name="RANGE",&
-            description="Track modes in a given range of frequencies. "//&
-            "No warranty that the set of frequencies is complete.",&
-            usage="FREQUENCY <REAL> <REAL>",&
-            n_var=-1,type_of_var=real_t,&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="ATOMS",&
-            description="Specifies the list of atoms which should be mainly involved in the selected frequency",&
-            usage="ATOMS {integer} {integer} .. {integer}", required=.TRUE.,&
-            n_var=-1, type_of_var=integer_t, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword,name="EPS_MAX_VAL",&
-            description="Convergence criterium for the davidson algorithm. Specifies the maximal value in the "//&
-            "residuum vectors ",&
-            usage="EPS_MAX_VAL <REAL>", default_r_val=5.0E-7_dp,&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword,name="EPS_NORM",&
-            description="Convergence criterium for the davidson algorithm. Specifies the maximal value of the norm "//&
-            "of the residuum vectors ",&
-            usage="EPS_MAX_VAL <REAL>", default_r_val=2.0E-6_dp,&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="INITIAL_GUESS",&
-            description="The type of initial guess for the normal modes",&
-            usage="INITIAL_GUESS BFGS_HESS",&
-            default_i_val=ms_guess_atomic,&
-            enum_c_vals=s2a("BFGS_HESS", &
-            "ATOMIC",&
-            "RESTART"),&
-            enum_desc=s2a("get the first displacement vector out of the BFGS approximate Hessian", &
-            "use random displacements for a set of atoms specified",&
-            "use data from MS_RESTART as initial guess"),&
-            enum_i_vals=(/ms_guess_bfgs,ms_guess_atomic,ms_guess_restart/),&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="PRECONDITIONER",&
-            description="The preconditioner for the davidson algorithm (do not use yet they have to improve first )",&
-            usage="PRECONDITIONER NONE",&
-            default_i_val=no_ms_precond,&
-            enum_c_vals=s2a("NONE", &
-            "BFGS"),&
-            enum_desc=s2a("no preconditioner to be applied", &
-            "BFGS approximate Hessian used for preconditioning"),&
-            enum_i_vals=(/no_ms_precond,bfgs_ms_precond/),&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-    END IF
-
-  END SUBROUTINE create_mode_selective_section
 
 END MODULE input_cp2k

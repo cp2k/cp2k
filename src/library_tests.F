@@ -93,10 +93,10 @@ MODULE library_tests
   PRIVATE
   PUBLIC :: lib_test
 
-  INTEGER :: runtest ( 100 )
-  REAL (KIND=dp) :: max_memory
+  INTEGER                  :: runtest(100)
+  REAL (KIND=dp)           :: max_memory
   REAL(KIND=dp), PARAMETER :: threshold=1.0E-8_dp
-
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'library_tests'
 !!***
 !******************************************************************************
 
@@ -126,12 +126,15 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'lib_test', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: iw
     TYPE(cp_logger_type), POINTER            :: logger
 
     logger => cp_error_get_logger(error)
-    iw=cp_print_key_unit_nr(logger,root_section,"TEST%PROGRAM_RUN_INFO",&
-                                         extension=".log",error=error)
+    iw=cp_print_key_unit_nr(logger,root_section,"TEST%PROGRAM_RUN_INFO",extension=".log",error=error)
+
     IF ( iw > 0 ) THEN
        WRITE ( iw, '(T2,79("*"))' )
        WRITE ( iw, '(A,T31,A,T80,A)' ) ' *',' PERFORMANCE TESTS ','*'
@@ -146,24 +149,19 @@ CONTAINS
     !
     IF ( runtest ( 3 ) /= 0 ) CALL fft_test ( para_env, iw,globenv )
     !
-    IF ( runtest ( 4 ) /= 0 ) CALL pw_fft_test ( para_env, iw,globenv, error )
+    IF ( runtest ( 4 ) /= 0 ) CALL pw_fft_test ( para_env, iw, globenv, error )
     !
     IF ( runtest ( 6 ) /= 0 ) CALL clebsch_gordon_test ( error )
     !
     IF ( runtest ( 7 ) /= 0 ) CALL rs_test ( para_env, iw, error )
     !
     IF ( runtest ( 8 ) /= 0 ) CALL mpi_test ( para_env%group )
+    !
+    IF ( runtest ( 9 ) /= 0 ) CALL rng_test( para_env, iw, globenv, error)
+    !
+    IF ( runtest ( 10 )/= 0 ) CALL eigensolver_test( para_env, iw, globenv, error)
 
-    IF (runtest(9) /= 0) THEN
-      CALL rng_test(runtest(9),para_env, iw,globenv,error)
-    END IF
-
-    IF (runtest(10) /= 0) THEN
-      CALL eigensolver_test(runtest(10),runtest(11),para_env, iw,globenv,error)
-    END IF
-
-    CALL cp_print_key_finished_output(iw,logger,root_section,&
-               "TEST%PROGRAM_RUN_INFO", error=error)
+    CALL cp_print_key_finished_output(iw,logger,root_section,"TEST%PROGRAM_RUN_INFO", error=error)
 
   END SUBROUTINE lib_test
 
@@ -205,13 +203,15 @@ CONTAINS
 !!
 !!*** *************************************************************************
 
-SUBROUTINE test_input ( root_section, para_env, iw,globenv , error)
-
+  SUBROUTINE test_input ( root_section, para_env, iw,globenv , error)
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: iw
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'test_input', &
+      routineP = moduleN//':'//routineN
 
     INTEGER, DIMENSION(:), POINTER           :: i_vals
     TYPE(section_vals_type), POINTER         :: test_section
@@ -219,25 +219,23 @@ SUBROUTINE test_input ( root_section, para_env, iw,globenv , error)
 !
 !..defaults
 
-  runtest = 0
-  max_memory = 256.e6_dp
+    runtest = 0
+    test_section => section_vals_get_subs_vals(root_section,"TEST",error=error)
+    CALL section_vals_val_get(test_section,"memory",r_val=max_memory,error=error)
+    CALL section_vals_val_get(test_section,'copy',i_val=runtest(1),error=error )
+    CALL section_vals_val_get(test_section,'matmul',i_val=runtest(2),error=error )
+    CALL section_vals_val_get(test_section,'fft',i_val=runtest(3),error=error )
+    CALL section_vals_val_get(test_section,'pw_fft',i_val=runtest(4),error=error )
+    CALL section_vals_val_get(test_section,'clebsch_gordon',i_val=runtest(6),error=error )
+    CALL section_vals_val_get(test_section,'rs_grids',i_val=runtest (7),error=error )
+    CALL section_vals_val_get(test_section,'mpi',i_val=runtest (8),error=error )
+    CALL section_vals_val_get(test_section,'rng',i_val=runtest(9),error=error )
+    CALL section_vals_val_get(test_section,'eigensolver',i_vals=i_vals,error=error )
+    runtest(10) = i_vals(1)
+    runtest(11) = MIN(MAX(1,i_vals(2)),ABS(i_vals(1)))
 
-  test_section => section_vals_get_subs_vals(root_section,"TEST",error=error)
-  CALL section_vals_val_get(test_section,"memory",r_val=max_memory,error=error)
-  CALL section_vals_val_get(test_section,'copy',i_val=runtest ( 1 ),error=error )
-  CALL section_vals_val_get(test_section,'matmul',i_val=runtest ( 2 ),error=error )
-  CALL section_vals_val_get(test_section,'fft',i_val=runtest ( 3 ),error=error )
-  CALL section_vals_val_get(test_section,'pw_fft',i_val=runtest ( 4 ),error=error )
-  CALL section_vals_val_get(test_section,'clebsch_gordon',i_val=runtest ( 6 ),error=error )
-  CALL section_vals_val_get(test_section,'rs_grids',i_val=runtest ( 7 ),error=error )
-  CALL section_vals_val_get(test_section,'mpi',i_val=runtest ( 8 ),error=error )
-  CALL section_vals_val_get(test_section,'rng',i_val=runtest(9),error=error )
-  CALL section_vals_val_get(test_section,'eigensolver',i_vals=i_vals,error=error )
-  runtest(10)=i_vals(1)
-  runtest(11) = MIN(MAX(1,i_vals(2)),i_vals(1))
-
-  CALL mp_sync(para_env%group)
-END SUBROUTINE test_input
+    CALL mp_sync(para_env%group)
+  END SUBROUTINE test_input
 
 !******************************************************************************
 !!****** library_tests/copy_test [1.0] *
@@ -261,10 +259,13 @@ END SUBROUTINE test_input
 !!
 !!*** *************************************************************************
 
-SUBROUTINE copy_test ( para_env, iw, globenv )
+  SUBROUTINE copy_test ( para_env, iw, globenv )
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: iw
     TYPE(global_environment_type), POINTER   :: globenv
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'copy_test', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ierr, j, len, ntim, siz
     REAL(KIND=dp)                            :: perf, t, tend, tstart
@@ -272,46 +273,46 @@ SUBROUTINE copy_test ( para_env, iw, globenv )
 
 ! test for copy --> Cache size
 
-  siz = ABS ( runtest ( 1 ) )
-  IF ( para_env%ionode ) WRITE ( iw, '(//,A,/)' ) " Test of copy ( F95 ) "
-  DO i = 6, 24
-    len = 2**i
-    IF ( 8.0_dp * REAL ( len,KIND=dp) > max_memory * 0.5_dp ) EXIT
-    ALLOCATE ( ca ( len ), STAT = ierr )
-    IF ( ierr /= 0 ) EXIT
-    ALLOCATE ( cb ( len ), STAT = ierr )
-    IF ( ierr /= 0 ) EXIT
+    siz = ABS ( runtest ( 1 ) )
+    IF ( para_env%ionode ) WRITE ( iw, '(//,A,/)' ) " Test of copy ( F95 ) "
+    DO i = 6, 24
+       len = 2**i
+       IF ( 8.0_dp * REAL ( len,KIND=dp) > max_memory * 0.5_dp ) EXIT
+       ALLOCATE ( ca ( len ), STAT = ierr )
+       IF ( ierr /= 0 ) EXIT
+       ALLOCATE ( cb ( len ), STAT = ierr )
+       IF ( ierr /= 0 ) EXIT
 
-    CALL RANDOM_NUMBER ( ca )
-    ntim = NINT ( 1.e7_dp / REAL ( len,KIND=dp) )
-    ntim = MAX ( ntim, 1 )
-    ntim = MIN ( ntim, siz * 10000 )
+       CALL RANDOM_NUMBER ( ca )
+       ntim = NINT ( 1.e7_dp / REAL ( len,KIND=dp) )
+       ntim = MAX ( ntim, 1 )
+       ntim = MIN ( ntim, siz * 10000 )
 
-    tstart = m_cputime ( )
-    DO j = 1, ntim
-      cb ( : ) = ca ( : )
-      ca ( 1 ) = REAL ( j,KIND=dp)
+       tstart = m_cputime ( )
+       DO j = 1, ntim
+          cb ( : ) = ca ( : )
+          ca ( 1 ) = REAL ( j,KIND=dp)
+       END DO
+       tend = m_cputime ( )
+       t = tend - tstart + threshold
+       IF ( t > 0.0_dp ) THEN
+          perf = REAL ( ntim,KIND=dp) * REAL ( len,KIND=dp) * 1.e-6_dp / t
+       ELSE
+          perf = 0.0_dp
+       END IF
+
+       IF ( para_env%ionode ) THEN
+          WRITE ( iw, '(A,i2,i10,A,T59,F14.4,A)' ) " Copy test:   Size = 2^",i, &
+               len/1024," Kwords",perf," Mcopy/s"
+       END IF
+
+       DEALLOCATE ( ca , STAT = ierr )
+       IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ca" )
+       DEALLOCATE ( cb , STAT = ierr )
+       IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "cb" )
     END DO
-    tend = m_cputime ( )
-    t = tend - tstart + threshold
-    IF ( t > 0.0_dp ) THEN
-       perf = REAL ( ntim,KIND=dp) * REAL ( len,KIND=dp) * 1.e-6_dp / t
-    ELSE
-       perf = 0.0_dp
-    END IF
-
-    IF ( para_env%ionode ) THEN
-      WRITE ( iw, '(A,i2,i10,A,T59,F14.4,A)' ) " Copy test:   Size = 2^",i, &
-       len/1024," Kwords",perf," Mcopy/s"
-    END IF
-
-    DEALLOCATE ( ca , STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ca" )
-    DEALLOCATE ( cb , STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "cb" )
-  END DO
-  CALL mp_sync(para_env%group)
-END SUBROUTINE copy_test
+    CALL mp_sync(para_env%group)
+  END SUBROUTINE copy_test
 
 !******************************************************************************
 !!****** library_tests/matmul_test [1.0] *
@@ -331,10 +332,13 @@ END SUBROUTINE copy_test
 !!
 !!*** *************************************************************************
 
-SUBROUTINE matmul_test ( para_env, iw, globenv )
+  SUBROUTINE matmul_test ( para_env, iw, globenv )
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: iw
     TYPE(global_environment_type), POINTER   :: globenv
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'matmul_test', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ierr, j, len, ntim, siz
     REAL(KIND=dp)                            :: perf, t, tend, tstart, xdum
@@ -343,196 +347,196 @@ SUBROUTINE matmul_test ( para_env, iw, globenv )
 
 ! test for matrix multpies
 
-  siz = ABS ( runtest ( 2 ) )
-  IF ( para_env%ionode ) WRITE ( iw, '(//,A,/)' ) " Test of matmul ( F95 ) "
-  DO i = 4, 10, 2
-    len = 2**i + 1
-    IF ( 8.0_dp * REAL ( len*len,KIND=dp) > max_memory * 0.3_dp ) EXIT
-    ALLOCATE ( ma ( len, len ), STAT = ierr )
-    IF ( ierr /= 0 ) EXIT
-    ALLOCATE ( mb ( len, len ), STAT = ierr )
-    IF ( ierr /= 0 ) EXIT
-    ALLOCATE ( mc ( len, len ), STAT = ierr )
-    IF ( ierr /= 0 ) EXIT
+    siz = ABS ( runtest ( 2 ) )
+    IF ( para_env%ionode ) WRITE ( iw, '(//,A,/)' ) " Test of matmul ( F95 ) "
+    DO i = 4, 10, 2
+       len = 2**i + 1
+       IF ( 8.0_dp * REAL ( len*len,KIND=dp) > max_memory * 0.3_dp ) EXIT
+       ALLOCATE ( ma ( len, len ), STAT = ierr )
+       IF ( ierr /= 0 ) EXIT
+       ALLOCATE ( mb ( len, len ), STAT = ierr )
+       IF ( ierr /= 0 ) EXIT
+       ALLOCATE ( mc ( len, len ), STAT = ierr )
+       IF ( ierr /= 0 ) EXIT
 
-    CALL RANDOM_NUMBER ( xdum )
-    ma = xdum
-    CALL RANDOM_NUMBER ( xdum )
-    mb = xdum
-    ntim = NINT ( 1.e8_dp / ( 2.0_dp * REAL ( len,KIND=dp)**3 ) )
-    ntim = MAX ( ntim, 1 )
-    ntim = MIN ( ntim, siz * 200 )
-    tstart = m_cputime ( )
-    DO j = 1, ntim
-      mc = MATMUL ( ma, mb )
-      ma ( 1, 1 ) = REAL ( j,KIND=dp)
-    END DO
-    tend = m_cputime ( )
-    t = tend - tstart + threshold
-    perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
-    IF ( para_env%ionode ) THEN
-      WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
-       " Matrix multiply test: c = a * b         Size = ",len, perf," Mflop/s"
-    END IF
-    tstart = m_cputime ( )
-    DO j = 1, ntim
-      ma = MATMUL ( ma, mb )
-      ma ( 1, 1 ) = REAL ( j,KIND=dp)
-    END DO
-    tend = m_cputime ( )
-    t = tend - tstart +threshold
-    IF ( t > 0.0_dp ) THEN
+       CALL RANDOM_NUMBER ( xdum )
+       ma = xdum
+       CALL RANDOM_NUMBER ( xdum )
+       mb = xdum
+       ntim = NINT ( 1.e8_dp / ( 2.0_dp * REAL ( len,KIND=dp)**3 ) )
+       ntim = MAX ( ntim, 1 )
+       ntim = MIN ( ntim, siz * 200 )
+       tstart = m_cputime ( )
+       DO j = 1, ntim
+          mc = MATMUL ( ma, mb )
+          ma ( 1, 1 ) = REAL ( j,KIND=dp)
+       END DO
+       tend = m_cputime ( )
+       t = tend - tstart + threshold
        perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
-    ELSE
-       perf = 0.0_dp
-    END IF
+       IF ( para_env%ionode ) THEN
+          WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
+               " Matrix multiply test: c = a * b         Size = ",len, perf," Mflop/s"
+       END IF
+       tstart = m_cputime ( )
+       DO j = 1, ntim
+          ma = MATMUL ( ma, mb )
+          ma ( 1, 1 ) = REAL ( j,KIND=dp)
+       END DO
+       tend = m_cputime ( )
+       t = tend - tstart +threshold
+       IF ( t > 0.0_dp ) THEN
+          perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
+       ELSE
+          perf = 0.0_dp
+       END IF
 
-    IF ( para_env%ionode ) THEN
-      WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
-       " Matrix multiply test: a = a * b         Size = ",len, perf," Mflop/s"
-    END IF
+       IF ( para_env%ionode ) THEN
+          WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
+               " Matrix multiply test: a = a * b         Size = ",len, perf," Mflop/s"
+       END IF
 
-    tstart = m_cputime ( )
-    DO j = 1, ntim
-      mc = MATMUL ( ma, TRANSPOSE ( mb ) )
-      ma ( 1, 1 ) = REAL ( j,KIND=dp)
+       tstart = m_cputime ( )
+       DO j = 1, ntim
+          mc = MATMUL ( ma, TRANSPOSE ( mb ) )
+          ma ( 1, 1 ) = REAL ( j,KIND=dp)
+       END DO
+       tend = m_cputime ( )
+       t = tend - tstart + threshold
+       IF ( t > 0.0_dp ) THEN
+          perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
+       ELSE
+          perf = 0.0_dp
+       END IF
+
+       IF ( para_env%ionode ) THEN
+          WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
+               " Matrix multiply test: c = a * b(T)      Size = ",len, perf," Mflop/s"
+       END IF
+
+       tstart = m_cputime ( )
+       DO j = 1, ntim
+          mc = MATMUL ( TRANSPOSE ( ma ), mb )
+          ma ( 1, 1 ) = REAL ( j,KIND=dp)
+       END DO
+       tend = m_cputime ( )
+       t = tend - tstart +threshold
+       IF ( t > 0.0_dp ) THEN
+          perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
+       ELSE
+          perf = 0.0_dp
+       END IF
+
+       IF ( para_env%ionode ) THEN
+          WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
+               " Matrix multiply test: c = a(T) * b      Size = ",len, perf," Mflop/s"
+       END IF
+
+       DEALLOCATE ( ma , STAT = ierr )
+       IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ma" )
+       DEALLOCATE ( mb , STAT = ierr )
+       IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "mb" )
+       DEALLOCATE ( mc , STAT = ierr )
+       IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "mc" )
     END DO
-    tend = m_cputime ( )
-    t = tend - tstart + threshold
-    IF ( t > 0.0_dp ) THEN
-       perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
-    ELSE
-       perf = 0.0_dp
-    END IF
 
-    IF ( para_env%ionode ) THEN
-      WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
-       " Matrix multiply test: c = a * b(T)      Size = ",len, perf," Mflop/s"
-    END IF
+    ! test for matrix multpies
+    IF ( para_env%ionode ) WRITE ( iw, '(//,A,/)' ) " Test of matmul ( BLAS ) "
+    DO i = 4, 10, 2
+       len = 2**i + 1
+       IF ( 8.0_dp * REAL ( len*len,KIND=dp) > max_memory * 0.3_dp ) EXIT
+       ALLOCATE ( ma ( len, len ), STAT = ierr )
+       IF ( ierr /= 0 ) EXIT
+       ALLOCATE ( mb ( len, len ), STAT = ierr )
+       IF ( ierr /= 0 ) EXIT
+       ALLOCATE ( mc ( len, len ), STAT = ierr )
+       IF ( ierr /= 0 ) EXIT
 
-    tstart = m_cputime ( )
-    DO j = 1, ntim
-      mc = MATMUL ( TRANSPOSE ( ma ), mb )
-      ma ( 1, 1 ) = REAL ( j,KIND=dp)
+       CALL RANDOM_NUMBER ( xdum )
+       ma = xdum
+       CALL RANDOM_NUMBER ( xdum )
+       mb = xdum
+       ntim = NINT ( 1.e8_dp / ( 2.0_dp * REAL ( len,KIND=dp)**3 ) )
+       ntim = MAX ( ntim, 1 )
+       ntim = MIN ( ntim, 1000 )
+
+       tstart = m_cputime ( )
+       DO j = 1, ntim
+          CALL dgemm ( "N", "N", len, len, len, 1.0_dp, ma, len, mb, len, 0.0_dp, mc, len )
+       END DO
+       tend = m_cputime ( )
+       t = tend - tstart+threshold
+       IF ( t > 0.0_dp ) THEN
+          perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
+       ELSE
+          perf = 0.0_dp
+       END IF
+
+       IF ( para_env%ionode ) THEN
+          WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
+               " Matrix multiply test: c = a * b         Size = ",len, perf," Mflop/s"
+       END IF
+
+       tstart = m_cputime ( )
+       DO j = 1, ntim
+          CALL dgemm ( "N", "N", len, len, len, 1.0_dp, ma, len, mb, len, 0.0_dp, mc, len )
+       END DO
+       tend = m_cputime ( )
+       t = tend - tstart+threshold
+       IF ( t > 0.0_dp ) THEN
+          perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
+       ELSE
+          perf = 0.0_dp
+       END IF
+
+       IF ( para_env%ionode ) THEN
+          WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
+               " Matrix multiply test: a = a * b         Size = ",len, perf," Mflop/s"
+       END IF
+
+       tstart = m_cputime ( )
+       DO j = 1, ntim
+          CALL dgemm ( "N", "T", len, len, len, 1.0_dp, ma, len, mb, len, 0.0_dp, mc, len )
+       END DO
+       tend = m_cputime ( )
+       t = tend - tstart+threshold
+       IF ( t > 0.0_dp ) THEN
+          perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
+       ELSE
+          perf = 0.0_dp
+       END IF
+
+       IF ( para_env%ionode ) THEN
+          WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
+               " Matrix multiply test: c = a * b(T)      Size = ",len, perf," Mflop/s"
+       END IF
+
+       tstart = m_cputime ( )
+       DO j = 1, ntim
+          CALL dgemm ( "T", "N", len, len, len, 1.0_dp, ma, len, mb, len, 0.0_dp, mc, len )
+       END DO
+       tend = m_cputime ( )
+       t = tend - tstart+threshold
+       IF ( t > 0.0_dp ) THEN
+          perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
+       ELSE
+          perf = 0.0_dp
+       END IF
+
+       IF ( para_env%ionode ) THEN
+          WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
+               " Matrix multiply test: c = a(T) * b      Size = ",len, perf," Mflop/s"
+       END IF
+
+       DEALLOCATE ( ma , STAT = ierr )
+       IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ma" )
+       DEALLOCATE ( mb , STAT = ierr )
+       IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "mb" )
+       DEALLOCATE ( mc , STAT = ierr )
+       IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "mc" )
     END DO
-    tend = m_cputime ( )
-    t = tend - tstart +threshold
-    IF ( t > 0.0_dp ) THEN
-       perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
-    ELSE
-       perf = 0.0_dp
-    END IF
-
-    IF ( para_env%ionode ) THEN
-      WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
-       " Matrix multiply test: c = a(T) * b      Size = ",len, perf," Mflop/s"
-    END IF
-
-    DEALLOCATE ( ma , STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ma" )
-    DEALLOCATE ( mb , STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "mb" )
-    DEALLOCATE ( mc , STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "mc" )
-  END DO
-
-! test for matrix multpies
-  IF ( para_env%ionode ) WRITE ( iw, '(//,A,/)' ) " Test of matmul ( BLAS ) "
-  DO i = 4, 10, 2
-    len = 2**i + 1
-    IF ( 8.0_dp * REAL ( len*len,KIND=dp) > max_memory * 0.3_dp ) EXIT
-    ALLOCATE ( ma ( len, len ), STAT = ierr )
-    IF ( ierr /= 0 ) EXIT
-    ALLOCATE ( mb ( len, len ), STAT = ierr )
-    IF ( ierr /= 0 ) EXIT
-    ALLOCATE ( mc ( len, len ), STAT = ierr )
-    IF ( ierr /= 0 ) EXIT
-
-    CALL RANDOM_NUMBER ( xdum )
-    ma = xdum
-    CALL RANDOM_NUMBER ( xdum )
-    mb = xdum
-    ntim = NINT ( 1.e8_dp / ( 2.0_dp * REAL ( len,KIND=dp)**3 ) )
-    ntim = MAX ( ntim, 1 )
-    ntim = MIN ( ntim, 1000 )
-
-    tstart = m_cputime ( )
-    DO j = 1, ntim
-      CALL dgemm ( "N", "N", len, len, len, 1.0_dp, ma, len, mb, len, 0.0_dp, mc, len )
-    END DO
-    tend = m_cputime ( )
-    t = tend - tstart+threshold
-    IF ( t > 0.0_dp ) THEN
-       perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
-    ELSE
-       perf = 0.0_dp
-    END IF
-
-    IF ( para_env%ionode ) THEN
-      WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
-       " Matrix multiply test: c = a * b         Size = ",len, perf," Mflop/s"
-    END IF
-
-    tstart = m_cputime ( )
-    DO j = 1, ntim
-      CALL dgemm ( "N", "N", len, len, len, 1.0_dp, ma, len, mb, len, 0.0_dp, mc, len )
-    END DO
-    tend = m_cputime ( )
-    t = tend - tstart+threshold
-    IF ( t > 0.0_dp ) THEN
-       perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
-    ELSE
-       perf = 0.0_dp
-    END IF
-
-    IF ( para_env%ionode ) THEN
-      WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
-       " Matrix multiply test: a = a * b         Size = ",len, perf," Mflop/s"
-    END IF
-
-    tstart = m_cputime ( )
-    DO j = 1, ntim
-      CALL dgemm ( "N", "T", len, len, len, 1.0_dp, ma, len, mb, len, 0.0_dp, mc, len )
-    END DO
-    tend = m_cputime ( )
-    t = tend - tstart+threshold
-    IF ( t > 0.0_dp ) THEN
-       perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
-    ELSE
-       perf = 0.0_dp
-    END IF
-
-    IF ( para_env%ionode ) THEN
-      WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
-       " Matrix multiply test: c = a * b(T)      Size = ",len, perf," Mflop/s"
-    END IF
-
-    tstart = m_cputime ( )
-    DO j = 1, ntim
-      CALL dgemm ( "T", "N", len, len, len, 1.0_dp, ma, len, mb, len, 0.0_dp, mc, len )
-    END DO
-    tend = m_cputime ( )
-    t = tend - tstart+threshold
-    IF ( t > 0.0_dp ) THEN
-       perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
-    ELSE
-       perf = 0.0_dp
-    END IF
-
-    IF ( para_env%ionode ) THEN
-      WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
-       " Matrix multiply test: c = a(T) * b      Size = ",len, perf," Mflop/s"
-    END IF
-
-    DEALLOCATE ( ma , STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ma" )
-    DEALLOCATE ( mb , STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "mb" )
-    DEALLOCATE ( mc , STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "mc" )
-  END DO
-  CALL mp_sync(para_env%group)
-END SUBROUTINE matmul_test
+    CALL mp_sync(para_env%group)
+  END SUBROUTINE matmul_test
 
 !******************************************************************************
 !!****** library_tests/fft_test [1.0] *
@@ -551,11 +555,14 @@ END SUBROUTINE matmul_test
 !!
 !!*** *************************************************************************
 
-SUBROUTINE fft_test ( para_env, iw, globenv )
+  SUBROUTINE fft_test ( para_env, iw, globenv )
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: iw
     TYPE(global_environment_type), POINTER   :: globenv
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'fft_test', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iall, ierr, it, j, len, n(3), &
                                                 ndate( 3 ) = (/ 12, 48, 96 /),&
@@ -572,136 +579,136 @@ SUBROUTINE fft_test ( para_env, iw, globenv )
 
 ! test for 3d FFT
 
-  IF ( para_env%ionode ) WRITE ( iw, '(//,A,/)' ) " Test of 3D-FFT "
-  siz = ABS ( runtest ( 3 ) )
+    IF ( para_env%ionode ) WRITE ( iw, '(//,A,/)' ) " Test of 3D-FFT "
+    siz = ABS ( runtest ( 3 ) )
 
-  DO iall = 1, 100
-    SELECT CASE ( iall )
-    CASE DEFAULT
-      EXIT
-    CASE ( 1 )
-      CALL init_fft ( "FFTSG", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", para_env=para_env )
-      method = "FFTSG  "
-    CASE ( 2 )
-      CALL init_fft ( "FFTW2", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", para_env=para_env )
-      method = "FFTW2  "
-    CASE ( 3 )
-      CALL init_fft ( "FFTW3", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", para_env=para_env )
-      method = "FFTW3  "
-    CASE ( 4 )
-      CALL init_fft ( "FFTESSL", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", para_env=para_env )
-      method = "FFTESSL"
-    CASE ( 5 )
-      CALL init_fft ( "FFTACML", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", para_env=para_env )
-      method = "FFTACML"
-    CASE ( 6 )
-      CALL init_fft ( "FFTMKL", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", para_env=para_env )
-      method = "FFTMKL"
-    CASE ( 7 )
-      CALL init_fft ( "FFTSCI", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", para_env=para_env )
-      method = "FFTSCI"
-    END SELECT
-    n = 4
-    zz =0.0_dp
-    CALL fft3d ( 1, n, zz, status=stat )
-    IF ( stat == 0 ) THEN
-      DO it = 1, 3
-        radix_in = ndate ( it )
-        CALL fft_radix_operations ( radix_in, radix_out, FFT_RADIX_CLOSEST )
-        len = radix_out
-        n = len
-        IF ( 16.0_dp * REAL ( len*len*len,KIND=dp) > max_memory * 0.5_dp ) EXIT
-        ALLOCATE ( ra ( len, len, len ), STAT = ierr )
-        IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ra", len*len*len )
-        ALLOCATE ( ca ( len, len, len ), STAT = ierr )
-        IF ( ierr == 0 ) THEN
+    DO iall = 1, 100
+       SELECT CASE ( iall )
+       CASE DEFAULT
+          EXIT
+       CASE ( 1 )
+          CALL init_fft ( "FFTSG", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", para_env=para_env )
+          method = "FFTSG  "
+       CASE ( 2 )
+          CALL init_fft ( "FFTW2", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", para_env=para_env )
+          method = "FFTW2  "
+       CASE ( 3 )
+          CALL init_fft ( "FFTW3", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", para_env=para_env )
+          method = "FFTW3  "
+       CASE ( 4 )
+          CALL init_fft ( "FFTESSL", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", para_env=para_env )
+          method = "FFTESSL"
+       CASE ( 5 )
+          CALL init_fft ( "FFTACML", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", para_env=para_env )
+          method = "FFTACML"
+       CASE ( 6 )
+          CALL init_fft ( "FFTMKL", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", para_env=para_env )
+          method = "FFTMKL"
+       CASE ( 7 )
+          CALL init_fft ( "FFTSCI", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", para_env=para_env )
+          method = "FFTSCI"
+       END SELECT
+       n = 4
+       zz =0.0_dp
+       CALL fft3d ( 1, n, zz, status=stat )
+       IF ( stat == 0 ) THEN
+          DO it = 1, 3
+             radix_in = ndate ( it )
+             CALL fft_radix_operations ( radix_in, radix_out, FFT_RADIX_CLOSEST )
+             len = radix_out
+             n = len
+             IF ( 16.0_dp * REAL ( len*len*len,KIND=dp) > max_memory * 0.5_dp ) EXIT
+             ALLOCATE ( ra ( len, len, len ), STAT = ierr )
+             IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ra", len*len*len )
+             ALLOCATE ( ca ( len, len, len ), STAT = ierr )
+             IF ( ierr == 0 ) THEN
+                CALL RANDOM_NUMBER ( ra )
+                ca = ra
+                CALL RANDOM_NUMBER ( ra )
+                ca = ca + CMPLX ( 0.0_dp, 1.0_dp,KIND=dp) * ra
+                flops = REAL ( len**3,KIND=dp) * 15.0_dp * LOG ( REAL ( len,KIND=dp) )
+                ntim = NINT ( siz * 1.e7_dp / flops )
+                ntim = MAX ( ntim, 1 )
+                ntim = MIN ( ntim, 200 )
+                scale = 1.0_dp / REAL ( len**3,KIND=dp)
+                tstart = m_cputime ( )
+                DO j = 1, ntim
+                   CALL fft3d ( FWFFT, n, ca )
+                   CALL fft3d ( BWFFT, n, ca, SCALE = scale )
+                END DO
+                tend = m_cputime ( )
+                t = tend - tstart+threshold
+                IF ( t > 0.0_dp ) THEN
+                   perf = REAL ( ntim,KIND=dp) * 2.0_dp * flops * 1.e-6_dp / t
+                ELSE
+                   perf = 0.0_dp
+                END IF
+
+                IF ( para_env%ionode ) THEN
+                   WRITE ( iw, '(T2,A,A,i6,T59,F14.4,A)' ) &
+                        ADJUSTR(method)," test (in-place)    Size = ",len, perf," Mflop/s"
+                END IF
+                DEALLOCATE ( ca , STAT = ierr )
+                IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ca" )
+                DEALLOCATE ( ra , STAT = ierr )
+                IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ra" )
+             END IF
+          END DO
+          IF ( para_env%ionode ) WRITE ( iw, * )
+          ! test if input data is preserved
+          len = 24
+          n = len
+          ALLOCATE ( ra ( len, len, len ), STAT = ierr )
+          IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ra", len*len*len )
+          ALLOCATE ( ca ( len, len, len ), STAT = ierr )
+          IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ca", len*len*len )
+          ALLOCATE ( cb ( len, len, len ), STAT = ierr )
+          IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "cb", len*len*len )
+          ALLOCATE ( cc ( len, len, len ), STAT = ierr )
+          IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "cc", len*len*len )
+
           CALL RANDOM_NUMBER ( ra )
           ca = ra
           CALL RANDOM_NUMBER ( ra )
           ca = ca + CMPLX ( 0.0_dp, 1.0_dp,KIND=dp) * ra
-          flops = REAL ( len**3,KIND=dp) * 15.0_dp * LOG ( REAL ( len,KIND=dp) )
-          ntim = NINT ( siz * 1.e7_dp / flops )
-          ntim = MAX ( ntim, 1 )
-          ntim = MIN ( ntim, 200 )
-          scale = 1.0_dp / REAL ( len**3,KIND=dp)
-          tstart = m_cputime ( )
-          DO j = 1, ntim
-            CALL fft3d ( FWFFT, n, ca )
-            CALL fft3d ( BWFFT, n, ca, SCALE = scale )
-          END DO
-          tend = m_cputime ( )
-          t = tend - tstart+threshold
-          IF ( t > 0.0_dp ) THEN
-             perf = REAL ( ntim,KIND=dp) * 2.0_dp * flops * 1.e-6_dp / t
+          cc = ca
+          CALL fft3d ( FWFFT, n, ca, cb )
+          tdiff = MAXVAL ( ABS ( ca - cc ) )
+          IF ( tdiff > 1.0E-12_dp ) THEN
+             IF ( para_env%ionode ) &
+                  WRITE ( iw, '(T2,A,A,A)' ) ADJUSTR(method),"         FWFFT ", &
+                  "             Input array is changed in out-of-place FFT !"
           ELSE
-             perf = 0.0_dp
+             IF ( para_env%ionode ) &
+                  WRITE ( iw, '(T2,A,A,A)' ) ADJUSTR(method),"         FWFFT ", &
+                  "         Input array is not changed in out-of-place FFT !"
           END IF
+          ca = cc
+          CALL fft3d ( BWFFT, n, ca, cb )
+          tdiff = MAXVAL ( ABS ( ca - cc ) )
+          IF ( tdiff > 1.0E-12_dp ) THEN
+             IF ( para_env%ionode ) &
+                  WRITE ( iw, '(T2,A,A,A)' ) ADJUSTR(method),"         BWFFT ", &
+                  "             Input array is changed in out-of-place FFT !"
+          ELSE
+             IF ( para_env%ionode ) &
+                  WRITE ( iw, '(T2,A,A,A)' ) ADJUSTR(method),"         BWFFT ", &
+                  "         Input array is not changed in out-of-place FFT !"
+          END IF
+          IF ( para_env%ionode ) WRITE ( iw, * )
 
-          IF ( para_env%ionode ) THEN
-            WRITE ( iw, '(T2,A,A,i6,T59,F14.4,A)' ) &
-             ADJUSTR(method)," test (in-place)    Size = ",len, perf," Mflop/s"
-          END IF
-          DEALLOCATE ( ca , STAT = ierr )
-          IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ca" )
           DEALLOCATE ( ra , STAT = ierr )
           IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ra" )
-        END IF
-      END DO
-      IF ( para_env%ionode ) WRITE ( iw, * )
-! test if input data is preserved
-      len = 24
-      n = len
-      ALLOCATE ( ra ( len, len, len ), STAT = ierr )
-      IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ra", len*len*len )
-      ALLOCATE ( ca ( len, len, len ), STAT = ierr )
-      IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ca", len*len*len )
-      ALLOCATE ( cb ( len, len, len ), STAT = ierr )
-      IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "cb", len*len*len )
-      ALLOCATE ( cc ( len, len, len ), STAT = ierr )
-      IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "cc", len*len*len )
+          DEALLOCATE ( ca , STAT = ierr )
+          IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ca" )
+          DEALLOCATE ( cb , STAT = ierr )
+          IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "cb" )
+          DEALLOCATE ( cc , STAT = ierr )
+          IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "cc" )
+       END IF
+    END DO
 
-      CALL RANDOM_NUMBER ( ra )
-      ca = ra
-      CALL RANDOM_NUMBER ( ra )
-      ca = ca + CMPLX ( 0.0_dp, 1.0_dp,KIND=dp) * ra
-      cc = ca
-      CALL fft3d ( FWFFT, n, ca, cb )
-      tdiff = MAXVAL ( ABS ( ca - cc ) )
-      IF ( tdiff > 1.0E-12_dp ) THEN
-        IF ( para_env%ionode ) &
-        WRITE ( iw, '(T2,A,A,A)' ) ADJUSTR(method),"         FWFFT ", &
-               "             Input array is changed in out-of-place FFT !"
-      ELSE
-        IF ( para_env%ionode ) &
-        WRITE ( iw, '(T2,A,A,A)' ) ADJUSTR(method),"         FWFFT ", &
-               "         Input array is not changed in out-of-place FFT !"
-      END IF
-      ca = cc
-      CALL fft3d ( BWFFT, n, ca, cb )
-      tdiff = MAXVAL ( ABS ( ca - cc ) )
-      IF ( tdiff > 1.0E-12_dp ) THEN
-        IF ( para_env%ionode ) &
-        WRITE ( iw, '(T2,A,A,A)' ) ADJUSTR(method),"         BWFFT ", &
-               "             Input array is changed in out-of-place FFT !"
-      ELSE
-        IF ( para_env%ionode ) &
-        WRITE ( iw, '(T2,A,A,A)' ) ADJUSTR(method),"         BWFFT ", &
-               "         Input array is not changed in out-of-place FFT !"
-      END IF
-      IF ( para_env%ionode ) WRITE ( iw, * )
-
-      DEALLOCATE ( ra , STAT = ierr )
-      IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ra" )
-      DEALLOCATE ( ca , STAT = ierr )
-      IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ca" )
-      DEALLOCATE ( cb , STAT = ierr )
-      IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "cb" )
-      DEALLOCATE ( cc , STAT = ierr )
-      IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "cc" )
-    END IF
-  END DO
-
-END SUBROUTINE fft_test
+  END SUBROUTINE fft_test
 
 !******************************************************************************
 !!****** library_tests/pw_fft_test [1.0] *
@@ -720,13 +727,15 @@ END SUBROUTINE fft_test
 !!
 !!*** *************************************************************************
 
-SUBROUTINE pw_fft_test ( para_env, iw, globenv, error )
+  SUBROUTINE pw_fft_test ( para_env, iw, globenv, error )
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: iw
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_fft_test', &
+      routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: toler = 1.e-11_dp
 
     INTEGER                                  :: ig, ip, nn, ntim
@@ -739,289 +748,305 @@ SUBROUTINE pw_fft_test ( para_env, iw, globenv, error )
 
 !..the unit cell
 
-  NULLIFY(box,grid)
-  CALL cell_create(box,error=error)
-  box % hmat = RESHAPE ( (/10.0_dp,0.0_dp,0.0_dp,0.0_dp,8.0_dp,0.0_dp,&
-                           0.0_dp,0.0_dp,7.0_dp/), (/3,3/) )
-  CALL get_hinv ( box )
+    NULLIFY(box,grid)
+    CALL cell_create(box,error=error)
+    box % hmat = RESHAPE ( (/10.0_dp,0.0_dp,0.0_dp,0.0_dp,8.0_dp,0.0_dp,&
+         0.0_dp,0.0_dp,7.0_dp/), (/3,3/) )
+    CALL get_hinv ( box )
 
-!..set fft lib
-  CALL init_fft ( globenv%default_fft_library, alltoall=.FALSE., fftsg_sizes=.TRUE., &
-                  wisdom_file="", para_env=para_env )
+    !..set fft lib
+    CALL init_fft ( globenv%default_fft_library, alltoall=.FALSE., fftsg_sizes=.TRUE., &
+         wisdom_file="", para_env=para_env )
 
-  ntim = 4
-  tim = 1.0_dp
-  perf = 100.e6_dp
-  r = ( tim * perf / 150.0_dp )  ** 0.33333_dp
-  np ( 1 ) = NINT ( r * 1.5_dp )
-  np ( 2 ) = NINT ( r )
-  np ( 3 ) = NINT ( r * 0.666_dp )
+    ntim = 4
+    tim = 1.0_dp
+    perf = 100.e6_dp
+    r = ( tim * perf / 150.0_dp )  ** 0.33333_dp
+    np ( 1 ) = NINT ( r * 1.5_dp )
+    np ( 2 ) = NINT ( r )
+    np ( 3 ) = NINT ( r * 0.666_dp )
 
-!..Test 1
-  CALL pw_grid_create ( grid, para_env%group ,error=error)
-  CALL pw_grid_setup ( box, grid, grid_span=FULLSPACE, npts=np, fft_usage=.TRUE.,&
-       rs_dims=(/para_env%num_pe,1/), iounit=iw, error=error)
-  no = grid % npts
+    !..Test 1
+    CALL pw_grid_create ( grid, para_env%group ,error=error)
+    CALL pw_grid_setup ( box, grid, grid_span=FULLSPACE, npts=np, fft_usage=.TRUE.,&
+         rs_dims=(/para_env%num_pe,1/), iounit=iw, error=error)
+    no = grid % npts
 
-  CALL pw_create ( ca%pw, grid, COMPLEXDATA1D ,error=error)
-  CALL pw_create ( cb%pw, grid, COMPLEXDATA3D ,error=error)
-  CALL pw_create ( cc%pw, grid, COMPLEXDATA1D ,error=error)
-  CALL pw_zero ( ca%pw )
-  CALL pw_zero ( cb%pw )
-  CALL pw_zero ( cc%pw )
+    CALL pw_create ( ca%pw, grid, COMPLEXDATA1D ,error=error)
+    CALL pw_create ( cb%pw, grid, COMPLEXDATA3D ,error=error)
+    CALL pw_create ( cc%pw, grid, COMPLEXDATA1D ,error=error)
+    CALL pw_zero ( ca%pw )
+    CALL pw_zero ( cb%pw )
+    CALL pw_zero ( cc%pw )
 
-  ca % pw % in_space = RECIPROCALSPACE
-  nn = SIZE ( ca % pw % cc  )
-  DO ig = 1, nn
-    gsq = grid % gsq ( ig )
-    ca  % pw % cc ( ig ) = EXP ( - gsq )
-  END DO
+    ca % pw % in_space = RECIPROCALSPACE
+    nn = SIZE ( ca % pw % cc  )
+    DO ig = 1, nn
+       gsq = grid % gsq ( ig )
+       ca  % pw % cc ( ig ) = EXP ( - gsq )
+    END DO
 
-  flops = PRODUCT ( no ) * 30.0_dp * LOG ( REAL ( MAXVAL ( no ),KIND=dp) )
-  tstart = m_cputime ( )
-  DO ip = 1, ntim
-    CALL pw_transfer ( ca%pw, cb%pw )
-    CALL pw_transfer ( cb%pw, cc%pw )
-  END DO
-  tend = m_cputime ( )
-  t = tend - tstart+threshold
-  IF ( t > 0.0_dp ) THEN
-     perf = REAL ( ntim,KIND=dp) * 2.0_dp * flops * 1.e-6_dp / t
-  ELSE
-     perf = 0.0_dp
-  END IF
+    flops = PRODUCT ( no ) * 30.0_dp * LOG ( REAL ( MAXVAL ( no ),KIND=dp) )
+    tstart = m_cputime ( )
+    DO ip = 1, ntim
+       CALL pw_transfer ( ca%pw, cb%pw )
+       CALL pw_transfer ( cb%pw, cc%pw )
+    END DO
+    tend = m_cputime ( )
+    t = tend - tstart+threshold
+    IF ( t > 0.0_dp ) THEN
+       perf = REAL ( ntim,KIND=dp) * 2.0_dp * flops * 1.e-6_dp / t
+    ELSE
+       perf = 0.0_dp
+    END IF
 
-  em = MAXVAL ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
-  et = SUM ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
-  CALL mp_sum ( et, para_env%group )
-  CALL mp_max ( em, para_env%group )
+    em = MAXVAL ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
+    et = SUM ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
+    CALL mp_sum ( et, para_env%group )
+    CALL mp_max ( em, para_env%group )
 
-  IF ( em > toler .OR. et > toler ) THEN
-    CALL pw_transfer ( ca%pw, cb%pw, .TRUE. )
-    CALL pw_transfer ( cb%pw, cc%pw, .TRUE. )
-  ENDIF
+    IF ( em > toler .OR. et > toler ) THEN
+       CALL pw_transfer ( ca%pw, cb%pw, .TRUE. )
+       CALL pw_transfer ( cb%pw, cc%pw, .TRUE. )
+    ENDIF
 
-  CALL pw_release ( ca%pw ,error=error)
-  CALL pw_release ( cb%pw ,error=error)
-  CALL pw_release ( cc%pw ,error=error)
+    CALL pw_release ( ca%pw ,error=error)
+    CALL pw_release ( cb%pw ,error=error)
+    CALL pw_release ( cc%pw ,error=error)
 
-  CALL pw_grid_release ( grid ,error=error)
+    CALL pw_grid_release ( grid ,error=error)
 
-  IF ( para_env%ionode ) THEN
-    WRITE ( iw, * )
-    WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Maximal Error ", em
-    WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Total Error ", et
-    WRITE ( iw, '(A,T67,F14.0)' ) &
-      " Parallel FFT Tests: Performance [Mflops] ", perf
-    WRITE ( iw, * )
-  END IF
+    IF ( para_env%ionode ) THEN
+       WRITE ( iw, * )
+       WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Maximal Error ", em
+       WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Total Error ", et
+       WRITE ( iw, '(A,T67,F14.0)' ) &
+            " Parallel FFT Tests: Performance [Mflops] ", perf
+       WRITE ( iw, * )
+    END IF
 
-!..Test 2
-  CALL pw_grid_create ( grid, para_env%group ,error=error)
-  CALL pw_grid_setup ( box, grid, grid_span=HALFSPACE, npts=np,odd=.TRUE.,fft_usage=.TRUE.,&
-       rs_dims=(/para_env%num_pe,1/), iounit=iw, error=error)
+    !..Test 2
+    CALL pw_grid_create ( grid, para_env%group ,error=error)
+    CALL pw_grid_setup ( box, grid, grid_span=HALFSPACE, npts=np,odd=.TRUE.,fft_usage=.TRUE.,&
+         rs_dims=(/para_env%num_pe,1/), iounit=iw, error=error)
 
-  no = grid % npts
+    no = grid % npts
 
-  CALL pw_create ( ca%pw, grid, COMPLEXDATA1D ,error=error)
-  CALL pw_create ( cb%pw, grid, REALDATA3D ,error=error)
-  CALL pw_create ( cc%pw, grid, COMPLEXDATA1D ,error=error)
-  CALL pw_zero ( ca%pw )
-  CALL pw_zero ( cb%pw )
-  CALL pw_zero ( cc%pw )
+    CALL pw_create ( ca%pw, grid, COMPLEXDATA1D ,error=error)
+    CALL pw_create ( cb%pw, grid, REALDATA3D ,error=error)
+    CALL pw_create ( cc%pw, grid, COMPLEXDATA1D ,error=error)
+    CALL pw_zero ( ca%pw )
+    CALL pw_zero ( cb%pw )
+    CALL pw_zero ( cc%pw )
 
-  ca % pw % in_space = RECIPROCALSPACE
-  nn = SIZE ( ca % pw % cc  )
-  DO ig = 1, nn
-    gsq = grid % gsq ( ig )
-    ca  % pw % cc ( ig ) = EXP ( - gsq )
-  END DO
+    ca % pw % in_space = RECIPROCALSPACE
+    nn = SIZE ( ca % pw % cc  )
+    DO ig = 1, nn
+       gsq = grid % gsq ( ig )
+       ca  % pw % cc ( ig ) = EXP ( - gsq )
+    END DO
 
-  flops = PRODUCT ( no ) * 30.0_dp * LOG ( REAL ( MAXVAL ( no ),KIND=dp) )
-  tstart = m_cputime ( )
-  DO ip = 1, ntim
-    CALL pw_transfer ( ca%pw, cb%pw )
-    CALL pw_transfer ( cb%pw, cc%pw )
-  END DO
-  tend = m_cputime ( )
-  t = tend - tstart+threshold
-  IF ( t > 0.0_dp ) THEN
-     perf = REAL ( ntim,KIND=dp) * 2.0_dp * flops * 1.e-6_dp / t
-  ELSE
-     perf = 0.0_dp
-  END IF
+    flops = PRODUCT ( no ) * 30.0_dp * LOG ( REAL ( MAXVAL ( no ),KIND=dp) )
+    tstart = m_cputime ( )
+    DO ip = 1, ntim
+       CALL pw_transfer ( ca%pw, cb%pw )
+       CALL pw_transfer ( cb%pw, cc%pw )
+    END DO
+    tend = m_cputime ( )
+    t = tend - tstart+threshold
+    IF ( t > 0.0_dp ) THEN
+       perf = REAL ( ntim,KIND=dp) * 2.0_dp * flops * 1.e-6_dp / t
+    ELSE
+       perf = 0.0_dp
+    END IF
 
-  em = MAXVAL ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
-  et = SUM ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
-  CALL mp_sum ( et, para_env%group )
-  CALL mp_max ( em, para_env%group )
+    em = MAXVAL ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
+    et = SUM ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
+    CALL mp_sum ( et, para_env%group )
+    CALL mp_max ( em, para_env%group )
 
-  IF ( em > toler .OR. et > toler ) THEN
-    CALL pw_transfer ( ca%pw, cb%pw, .TRUE. )
-    CALL pw_transfer ( cb%pw, cc%pw, .TRUE. )
-  ENDIF
+    IF ( em > toler .OR. et > toler ) THEN
+       CALL pw_transfer ( ca%pw, cb%pw, .TRUE. )
+       CALL pw_transfer ( cb%pw, cc%pw, .TRUE. )
+    ENDIF
 
-  CALL pw_release ( ca%pw ,error=error)
-  CALL pw_release ( cb%pw ,error=error)
-  CALL pw_release ( cc%pw ,error=error)
+    CALL pw_release ( ca%pw ,error=error)
+    CALL pw_release ( cb%pw ,error=error)
+    CALL pw_release ( cc%pw ,error=error)
 
-  CALL pw_grid_release ( grid ,error=error)
+    CALL pw_grid_release ( grid ,error=error)
 
-  IF ( para_env%ionode ) THEN
-    WRITE ( iw, * )
-    WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Maximal Error ", em
-    WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Total Error ", et
-    WRITE ( iw, '(A,T67,F14.0)' ) &
-      " Parallel FFT Tests: Performance [Mflops] ", perf
-    WRITE ( iw, * )
-  END IF
+    IF ( para_env%ionode ) THEN
+       WRITE ( iw, * )
+       WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Maximal Error ", em
+       WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Total Error ", et
+       WRITE ( iw, '(A,T67,F14.0)' ) &
+            " Parallel FFT Tests: Performance [Mflops] ", perf
+       WRITE ( iw, * )
+    END IF
 
-!..Test 3
-  CALL pw_grid_create ( grid, para_env%group, error=error)
-  CALL pw_grid_setup ( box, grid, grid_span=FULLSPACE, npts=np,spherical=.TRUE.,fft_usage=.TRUE.,&
-       rs_dims=(/para_env%num_pe,1/), iounit=iw, error=error)
-  no = grid % npts
+    !..Test 3
+    CALL pw_grid_create ( grid, para_env%group, error=error)
+    CALL pw_grid_setup ( box, grid, grid_span=FULLSPACE, npts=np,spherical=.TRUE.,fft_usage=.TRUE.,&
+         rs_dims=(/para_env%num_pe,1/), iounit=iw, error=error)
+    no = grid % npts
 
-  CALL pw_create ( ca%pw, grid, COMPLEXDATA1D ,error=error)
-  CALL pw_create ( cb%pw, grid, REALDATA3D ,error=error)
-  CALL pw_create ( cc%pw, grid, COMPLEXDATA1D ,error=error)
-  CALL pw_zero ( ca%pw )
-  CALL pw_zero ( cb%pw )
-  CALL pw_zero ( cc%pw )
+    CALL pw_create ( ca%pw, grid, COMPLEXDATA1D ,error=error)
+    CALL pw_create ( cb%pw, grid, REALDATA3D ,error=error)
+    CALL pw_create ( cc%pw, grid, COMPLEXDATA1D ,error=error)
+    CALL pw_zero ( ca%pw )
+    CALL pw_zero ( cb%pw )
+    CALL pw_zero ( cc%pw )
 
-  ca % pw % in_space = RECIPROCALSPACE
-  nn = SIZE ( ca % pw % cc  )
-  DO ig = 1, nn
-    gsq = grid % gsq ( ig )
-    ca  % pw % cc ( ig ) = EXP ( - gsq )
-  END DO
+    ca % pw % in_space = RECIPROCALSPACE
+    nn = SIZE ( ca % pw % cc  )
+    DO ig = 1, nn
+       gsq = grid % gsq ( ig )
+       ca  % pw % cc ( ig ) = EXP ( - gsq )
+    END DO
 
-  flops = PRODUCT ( no ) * 30.0_dp * LOG ( REAL ( MAXVAL ( no ),KIND=dp) )
-  tstart = m_cputime ( )
-  DO ip = 1, ntim
-    CALL pw_transfer ( ca%pw, cb%pw )
-    CALL pw_transfer ( cb%pw, cc%pw )
-  END DO
-  tend = m_cputime ( )
-  t = tend - tstart+threshold
-  IF ( t > 0.0_dp ) THEN
-     perf = REAL ( ntim,KIND=dp) * 2.0_dp * flops * 1.e-6_dp / t
-  ELSE
-     perf = 0.0_dp
-  END IF
+    flops = PRODUCT ( no ) * 30.0_dp * LOG ( REAL ( MAXVAL ( no ),KIND=dp) )
+    tstart = m_cputime ( )
+    DO ip = 1, ntim
+       CALL pw_transfer ( ca%pw, cb%pw )
+       CALL pw_transfer ( cb%pw, cc%pw )
+    END DO
+    tend = m_cputime ( )
+    t = tend - tstart+threshold
+    IF ( t > 0.0_dp ) THEN
+       perf = REAL ( ntim,KIND=dp) * 2.0_dp * flops * 1.e-6_dp / t
+    ELSE
+       perf = 0.0_dp
+    END IF
 
-  em = MAXVAL ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
-  et = SUM ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
-  CALL mp_sum ( et, para_env%group )
-  CALL mp_max ( em, para_env%group )
+    em = MAXVAL ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
+    et = SUM ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
+    CALL mp_sum ( et, para_env%group )
+    CALL mp_max ( em, para_env%group )
 
-  IF ( em > toler .OR. et > toler ) THEN
-    CALL pw_transfer ( ca%pw, cb%pw, .TRUE. )
-    CALL pw_transfer ( cb%pw, cc%pw, .TRUE. )
-  ENDIF
+    IF ( em > toler .OR. et > toler ) THEN
+       CALL pw_transfer ( ca%pw, cb%pw, .TRUE. )
+       CALL pw_transfer ( cb%pw, cc%pw, .TRUE. )
+    ENDIF
 
-  CALL pw_release ( ca%pw ,error=error)
-  CALL pw_release ( cb%pw ,error=error)
-  CALL pw_release ( cc%pw ,error=error)
+    CALL pw_release ( ca%pw ,error=error)
+    CALL pw_release ( cb%pw ,error=error)
+    CALL pw_release ( cc%pw ,error=error)
 
-  CALL pw_grid_release ( grid ,error=error)
+    CALL pw_grid_release ( grid ,error=error)
 
-  IF ( para_env%ionode ) THEN
-    WRITE ( iw, * )
-    WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Maximal Error ", em
-    WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Total Error ", et
-    WRITE ( iw, '(A,T67,F14.0)' ) &
-      " Parallel FFT Tests: Performance [Mflops] ", perf
-    WRITE ( iw, * )
-  END IF
+    IF ( para_env%ionode ) THEN
+       WRITE ( iw, * )
+       WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Maximal Error ", em
+       WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Total Error ", et
+       WRITE ( iw, '(A,T67,F14.0)' ) &
+            " Parallel FFT Tests: Performance [Mflops] ", perf
+       WRITE ( iw, * )
+    END IF
 
-!..Test 4
-  CALL pw_grid_create ( grid , para_env%group ,error=error)
-  CALL pw_grid_setup ( box, grid, grid_span=HALFSPACE, npts=np, spherical=.TRUE.,odd=.TRUE.,fft_usage=.TRUE.,&
-       rs_dims=(/para_env%num_pe,1/), iounit=iw, error=error)
-  no = grid % npts
+    !..Test 4
+    CALL pw_grid_create ( grid , para_env%group ,error=error)
+    CALL pw_grid_setup ( box, grid, grid_span=HALFSPACE, npts=np, spherical=.TRUE.,odd=.TRUE.,fft_usage=.TRUE.,&
+         rs_dims=(/para_env%num_pe,1/), iounit=iw, error=error)
+    no = grid % npts
 
-  CALL pw_create ( ca%pw, grid, COMPLEXDATA1D ,error=error)
-  CALL pw_create ( cb%pw, grid, COMPLEXDATA3D ,error=error)
-  CALL pw_create ( cc%pw, grid, COMPLEXDATA1D ,error=error)
-  CALL pw_zero ( ca%pw )
-  CALL pw_zero ( cb%pw )
-  CALL pw_zero ( cc%pw )
+    CALL pw_create ( ca%pw, grid, COMPLEXDATA1D ,error=error)
+    CALL pw_create ( cb%pw, grid, COMPLEXDATA3D ,error=error)
+    CALL pw_create ( cc%pw, grid, COMPLEXDATA1D ,error=error)
+    CALL pw_zero ( ca%pw )
+    CALL pw_zero ( cb%pw )
+    CALL pw_zero ( cc%pw )
 
-  ca % pw % in_space = RECIPROCALSPACE
-  nn = SIZE ( ca % pw % cc  )
-  DO ig = 1, nn
-    gsq = grid % gsq ( ig )
-    ca  % pw % cc ( ig ) = EXP ( - gsq )
-  END DO
+    ca % pw % in_space = RECIPROCALSPACE
+    nn = SIZE ( ca % pw % cc  )
+    DO ig = 1, nn
+       gsq = grid % gsq ( ig )
+       ca  % pw % cc ( ig ) = EXP ( - gsq )
+    END DO
 
-  flops = PRODUCT ( no ) * 30.0_dp * LOG ( REAL ( MAXVAL ( no ),KIND=dp) )
-  tstart = m_cputime ( )
-  DO ip = 1, ntim
-    CALL pw_transfer ( ca%pw, cb%pw )
-    CALL pw_transfer ( cb%pw, cc%pw )
-  END DO
-  tend = m_cputime ( )
-  t = tend - tstart+threshold
-  IF ( t > 0.0_dp ) THEN
-     perf = REAL ( ntim,KIND=dp) * 2.0_dp * flops * 1.e-6_dp / t
-  ELSE
-     perf = 0.0_dp
-  END IF
+    flops = PRODUCT ( no ) * 30.0_dp * LOG ( REAL ( MAXVAL ( no ),KIND=dp) )
+    tstart = m_cputime ( )
+    DO ip = 1, ntim
+       CALL pw_transfer ( ca%pw, cb%pw )
+       CALL pw_transfer ( cb%pw, cc%pw )
+    END DO
+    tend = m_cputime ( )
+    t = tend - tstart+threshold
+    IF ( t > 0.0_dp ) THEN
+       perf = REAL ( ntim,KIND=dp) * 2.0_dp * flops * 1.e-6_dp / t
+    ELSE
+       perf = 0.0_dp
+    END IF
 
-  em = MAXVAL ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
-  et = SUM ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
-  CALL mp_sum ( et, para_env%group )
-  CALL mp_max ( em, para_env%group )
+    em = MAXVAL ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
+    et = SUM ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
+    CALL mp_sum ( et, para_env%group )
+    CALL mp_max ( em, para_env%group )
 
-  IF ( em > toler .OR. et > toler ) THEN
-    CALL pw_transfer ( ca%pw, cb%pw, .TRUE. )
-    CALL pw_transfer ( cb%pw, cc%pw, .TRUE. )
-  ENDIF
+    IF ( em > toler .OR. et > toler ) THEN
+       CALL pw_transfer ( ca%pw, cb%pw, .TRUE. )
+       CALL pw_transfer ( cb%pw, cc%pw, .TRUE. )
+    ENDIF
 
-  CALL pw_release ( ca%pw ,error=error)
-  CALL pw_release ( cb%pw ,error=error)
-  CALL pw_release ( cc%pw ,error=error)
+    CALL pw_release ( ca%pw ,error=error)
+    CALL pw_release ( cb%pw ,error=error)
+    CALL pw_release ( cc%pw ,error=error)
 
-  CALL pw_grid_release ( grid ,error=error)
+    CALL pw_grid_release ( grid ,error=error)
 
-  IF ( para_env%ionode ) THEN
-    WRITE ( iw, * )
-    WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Maximal Error ", em
-    WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Total Error ", et
-    WRITE ( iw, '(A,T67,F14.0)' ) &
-      " Parallel FFT Tests: Performance [Mflops] ", perf
-    WRITE ( iw, * )
-  END IF
-  CALL cell_release(box,error=error)
-END SUBROUTINE pw_fft_test
+    IF ( para_env%ionode ) THEN
+       WRITE ( iw, * )
+       WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Maximal Error ", em
+       WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Total Error ", et
+       WRITE ( iw, '(A,T67,F14.0)' ) &
+            " Parallel FFT Tests: Performance [Mflops] ", perf
+       WRITE ( iw, * )
+    END IF
+    CALL cell_release(box,error=error)
+  END SUBROUTINE pw_fft_test
 
-!
-!
-! quickly adapted benchmark code, will only work on an even number of CPUs.
-! comm is the relevant, initialized communicator
-! runtest(8) will produce messages of the size 8*10**runtest(8)
-!
-!
-SUBROUTINE mpi_test(comm)
+!******************************************************************************
+!!****** library_tests/mpi_test [1.0] *
+!!
+!!   NAME
+!!     mpi_test
+!!
+!!   FUNCTION
+!!     Tests the MPI library
+!!
+!!   AUTHOR
+!!     JGH  1-JAN-2001
+!!
+!!   MODIFICATION HISTORY
+!!     JGH  6-Feb-2001 : Test and performance code
+!!
+!!   NOTES
+!!     quickly adapted benchmark code, will only work on an even number of CPUs.
+!!     comm is the relevant, initialized communicator
+!!     runtest(8) will produce messages of the size 8*10**runtest(8)
+!!
+!!*** *************************************************************************
+  SUBROUTINE mpi_test(comm)
 
-  INTEGER :: comm
+    INTEGER                                  :: comm
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mpi_test', &
+      routineP = moduleN//':'//routineN
 
 #if defined(__parallel)
-    INTEGER :: Ngrid
     INCLUDE 'mpif.h'
-    INTEGER :: status(MPI_STATUS_SIZE)
-    INTEGER :: ierror, ierr, taskid,nprocs
-    LOGICAL :: ionode
-    INTEGER :: Ntot,Nloc,left,right,partner,I,J,itests,npow,itask,jtask,ncount,nbufmax
-    INTEGER, ALLOCATABLE, DIMENSION(:) :: rcount,scount,sdispl,rdispl
-
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:)  :: grid,grid2,grid3   ! for convenience
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)    :: lgrid,lgrid2,lgrid3
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)    :: buffer1,buffer2,buffer3
-    REAL(KIND=dp) :: t1,t2,t3,t4,t5,t6,t7,maxdiff,res,res2,res3
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:)  :: send_timings,send_timings2
-
+    INTEGER :: I, ierr, ierror, itask, itests, J, jtask, left, nbufmax, &
+      ncount, Ngrid, Nloc, npow, nprocs, Ntot, partner, right, &
+      status(MPI_STATUS_SIZE), taskid
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, sdispl
+    LOGICAL                                  :: ionode
+    REAL(KIND=dp)                            :: maxdiff, res, res2, res3, t1, &
+                                                t2, t3, t4, t5
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: buffer1, buffer2, buffer3, &
+                                                lgrid, lgrid2, lgrid3
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: grid, grid2, grid3, &
+                                                send_timings, send_timings2
 
     ! set system sizes !
     npow = runtest(8)
@@ -1118,25 +1143,25 @@ SUBROUTINE mpi_test(comm)
     IF (ionode) WRITE(6,*) "For messages of ",ncount*8," bytes"
     IF (ncount.GT.nbufmax) STOP
     DO itask=0,nprocs-1
-     DO jtask=itask+1,nprocs-1
-        CALL MPI_BARRIER(comm,ierror)
-        t1=MPI_WTIME()
-        IF (taskid.EQ. itask) THEN
-           CALL MPI_SEND(buffer1, ncount, MPI_DOUBLE_PRECISION, jtask, itask*jtask, comm, ierror)
-        ENDIF
-        IF (taskid.EQ. jtask) THEN
-           CALL MPI_RECV(buffer1, ncount, MPI_DOUBLE_PRECISION, itask, itask*jtask, comm, status, ierror)
-        ENDIF
-        send_timings(itask,jtask)=MPI_WTIME()-t1+threshold
-     ENDDO
+       DO jtask=itask+1,nprocs-1
+          CALL MPI_BARRIER(comm,ierror)
+          t1=MPI_WTIME()
+          IF (taskid.EQ. itask) THEN
+             CALL MPI_SEND(buffer1, ncount, MPI_DOUBLE_PRECISION, jtask, itask*jtask, comm, ierror)
+          ENDIF
+          IF (taskid.EQ. jtask) THEN
+             CALL MPI_RECV(buffer1, ncount, MPI_DOUBLE_PRECISION, itask, itask*jtask, comm, status, ierror)
+          ENDIF
+          send_timings(itask,jtask)=MPI_WTIME()-t1+threshold
+       ENDDO
     ENDDO
     send_timings2=send_timings
     CALL MPI_REDUCE(send_timings2, send_timings, nprocs**2, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
     IF (ionode) THEN
        DO itask=0,nprocs-1
-        DO jtask=itask+1,nprocs-1
-         WRITE(6,'(I4,I4,F12.4,A)') itask,jtask,ncount*8.0E-6_dp/send_timings(itask,jtask)," Mb/s"
-        ENDDO
+          DO jtask=itask+1,nprocs-1
+             WRITE(6,'(I4,I4,F12.4,A)') itask,jtask,ncount*8.0E-6_dp/send_timings(itask,jtask)," Mb/s"
+          ENDDO
        ENDDO
     ENDIF
     CALL MPI_BARRIER(comm,ierror)
@@ -1181,9 +1206,9 @@ SUBROUTINE mpi_test(comm)
           t1=MPI_WTIME()
           ! first half with partner
           IF (taskid .LT. nprocs/2) THEN
-            CALL MPI_SEND(buffer1, ncount, MPI_DOUBLE_PRECISION, taskid+nprocs/2, 0 , comm, ierror)
+             CALL MPI_SEND(buffer1, ncount, MPI_DOUBLE_PRECISION, taskid+nprocs/2, 0 , comm, ierror)
           ELSE
-            CALL MPI_RECV(buffer1, ncount, MPI_DOUBLE_PRECISION, taskid-nprocs/2, 0 , comm, status, ierror)
+             CALL MPI_RECV(buffer1, ncount, MPI_DOUBLE_PRECISION, taskid-nprocs/2, 0 , comm, status, ierror)
           ENDIF
           t2=t2+MPI_WTIME()-t1+threshold
        ENDDO
@@ -1253,7 +1278,7 @@ SUBROUTINE mpi_test(comm)
           CALL MPI_BARRIER(comm,ierror)
           t1=MPI_WTIME()
           CALL mpi_alltoallv ( buffer1, scount, sdispl, MPI_DOUBLE_PRECISION, &
-                               buffer2, rcount, rdispl, MPI_DOUBLE_PRECISION, comm, ierr )
+               buffer2, rcount, rdispl, MPI_DOUBLE_PRECISION, comm, ierr )
           t2=t2+MPI_WTIME()-t1+threshold
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
@@ -1270,22 +1295,22 @@ SUBROUTINE mpi_test(comm)
     rcount=Nloc
     DO itests=1,3
        IF (ionode) WRITE(6,*) "------------------------------- test ",itests," ------------------------"
-! *** reference ***
+       ! *** reference ***
        DO j=1,Nprocs
-         DO i=1,Nloc
-            grid(i,j)=MODULO(i*j*taskid,itests)
-         ENDDO
+          DO i=1,Nloc
+             grid(i,j)=MODULO(i*j*taskid,itests)
+          ENDDO
        ENDDO
        t1=MPI_WTIME()
        CALL MPI_REDUCE_SCATTER(grid, lgrid, rcount, MPI_DOUBLE_PRECISION, MPI_SUM, comm, ierr)
        t2=MPI_WTIME()-t1+threshold
        CALL mpi_allreduce(t2,res,1,MPI_DOUBLE_PRECISION,MPI_MAX,comm, ierr)
        IF (ionode) WRITE(6,*) "MPI_REDUCE_SCATTER    ",res
-! *** simple shift ***
+       ! *** simple shift ***
        DO j=1,Nprocs
-         DO i=1,Nloc
-            grid2(i,j)=MODULO(i*j*taskid,itests)
-         ENDDO
+          DO i=1,Nloc
+             grid2(i,j)=MODULO(i*j*taskid,itests)
+          ENDDO
        ENDDO
        left =MODULO(taskid-1,Nprocs)
        right=MODULO(taskid+1,Nprocs)
@@ -1301,12 +1326,12 @@ SUBROUTINE mpi_test(comm)
        maxdiff=MAXVAL(ABS(lgrid2-lgrid))
        CALL mpi_allreduce(maxdiff,res2,1,MPI_DOUBLE_PRECISION,MPI_MAX,comm, ierr)
        IF (ionode) WRITE(6,*) "MPI_SENDRECV_REPLACE  ",res,res2
-! *** involved shift ****
+       ! *** involved shift ****
        IF (MODULO(nprocs,2)/=0) STOP
        DO j=1,Nprocs
-         DO i=1,Nloc
-            grid3(i,j)=MODULO(i*j*taskid,itests)
-         ENDDO
+          DO i=1,Nloc
+             grid3(i,j)=MODULO(i*j*taskid,itests)
+          ENDDO
        ENDDO
        t3=MPI_WTIME()
        ! first sum the grid in pairs (0,1),(2,3) should be within an LPAR and fast XXXXXXXXX
@@ -1316,15 +1341,15 @@ SUBROUTINE mpi_test(comm)
        IF (MODULO(taskid,2)==0) THEN
           partner=taskid+1
           DO i=1,Nprocs,2 ! sum the full grid with the partner
-              CALL MPI_SENDRECV(grid3(1,i+1),nloc,MPI_DOUBLE_PRECISION,partner,17, &
-                                lgrid3,nloc,MPI_DOUBLE_PRECISION,partner,19,comm,status,ierr)
+             CALL MPI_SENDRECV(grid3(1,i+1),nloc,MPI_DOUBLE_PRECISION,partner,17, &
+                  lgrid3,nloc,MPI_DOUBLE_PRECISION,partner,19,comm,status,ierr)
              grid3(:,i)=grid3(:,i)+lgrid3(:)
           ENDDO
        ELSE
           partner=taskid-1
           DO i=1,Nprocs,2
-              CALL MPI_SENDRECV(grid3(1,i),nloc,MPI_DOUBLE_PRECISION,partner,19, &
-                                lgrid3,nloc,MPI_DOUBLE_PRECISION,partner,17,comm,status,ierr)
+             CALL MPI_SENDRECV(grid3(1,i),nloc,MPI_DOUBLE_PRECISION,partner,19, &
+                  lgrid3,nloc,MPI_DOUBLE_PRECISION,partner,17,comm,status,ierr)
              grid3(:,i+1)=grid3(:,i+1)+lgrid3(:)
           ENDDO
        ENDIF
@@ -1362,46 +1387,71 @@ SUBROUTINE mpi_test(comm)
     DEALLOCATE(lgrid3)
     DEALLOCATE(send_timings)
     DEALLOCATE(send_timings2)
-
 #else
     WRITE(6,*) "No MPI tests for a serial program"
 #endif
+  END SUBROUTINE mpi_test
 
-END SUBROUTINE mpi_test
-
-SUBROUTINE simple_copy(buf1,buf2,N)
+!!****** library_tests/simple_copy [1.0] *
+!!
+!!   NAME
+!!    simple_copy 
+!!
+!!   FUNCTION
+!!     just a trivial copy routine
+!!
+!!   AUTHOR
+!!     
+!!
+!!   MODIFICATION HISTORY
+!!     
+!!*** *************************************************************************
+  SUBROUTINE simple_copy(buf1,buf2,N)
     REAL(KIND=KIND(0.0E0_dp))                :: buf1(*), buf2(*)
     INTEGER                                  :: N
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'simple_copy', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: I
 
-  DO I=1,N
-     buf2(I)=buf1(I)
-  ENDDO
-END SUBROUTINE simple_copy
+    DO I=1,N
+       buf2(I)=buf1(I)
+    ENDDO
+  END SUBROUTINE simple_copy
 
-  ! ***************************************************************************
-
-  SUBROUTINE rng_test(n,para_env,output_unit, globenv,error)
-
-    ! Test the parallel (pseudo)random number generator (RNG).
-
-    INTEGER, INTENT(IN)                      :: n
+!!****** library_tests/rng_test [1.0] *
+!!
+!!   NAME
+!!     rng_test
+!!
+!!   FUNCTION
+!!     Test the parallel (pseudo)random number generator (RNG).
+!!
+!!   AUTHOR
+!!     JGH  1-JAN-2001
+!!
+!!   MODIFICATION HISTORY
+!!     JGH  6-Feb-2001 : Test and performance code
+!!
+!!*** *************************************************************************
+  SUBROUTINE rng_test(para_env,output_unit, globenv,error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: output_unit
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    INTEGER                                  :: i
+    CHARACTER(len=*), PARAMETER :: routineN = 'rng_test', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, n
     LOGICAL                                  :: ionode
     REAL(KIND=dp)                            :: t, tend, tmax, tmin, tstart, &
                                                 tsum, tsum2
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
-! -------------------------------------------------------------------------
-
     ionode = para_env%ionode
-
+    n = runtest(9)
     NULLIFY (rng_stream)
 
     ! Check correctness
@@ -1411,19 +1461,19 @@ END SUBROUTINE simple_copy
     ! Check performance
 
     IF (ionode) THEN
-      WRITE (UNIT=output_unit,FMT="(/,/,T2,A,I10,A)")&
-          "Check distributions using",n," random numbers:"
+       WRITE (UNIT=output_unit,FMT="(/,/,T2,A,I10,A)")&
+            "Check distributions using",n," random numbers:"
     END IF
 
     ! Test uniform distribution [0,1]
 
     CALL create_rng_stream(rng_stream=rng_stream,&
-                           name="Test uniform distribution [0,1]",&
-                           distribution_type=UNIFORM,&
-                           extended_precision=.TRUE.,error=error)
+         name="Test uniform distribution [0,1]",&
+         distribution_type=UNIFORM,&
+         extended_precision=.TRUE.,error=error)
 
     IF (ionode) THEN
-      CALL write_rng_stream(rng_stream,output_unit,write_all=.TRUE.,error=error)
+       CALL write_rng_stream(rng_stream,output_unit,write_all=.TRUE.,error=error)
     END IF
 
     tmax = -HUGE(0.0_dp)
@@ -1433,21 +1483,21 @@ END SUBROUTINE simple_copy
 
     tstart = m_cputime()
     DO i=1,n
-      t = next_random_number(rng_stream,error=error)
-      tsum = tsum + t
-      tsum2 = tsum2 + t*t
-      IF (t > tmax) tmax = t
-      IF (t < tmin) tmin = t
+       t = next_random_number(rng_stream,error=error)
+       tsum = tsum + t
+       tsum2 = tsum2 + t*t
+       IF (t > tmax) tmax = t
+       IF (t < tmin) tmin = t
     END DO
     tend = m_cputime()
 
     IF (ionode) THEN
-      WRITE (UNIT=output_unit,FMT="(/,(T4,A,F12.6))")&
-        "Minimum: ",tmin,&
-        "Maximum: ",tmax,&
-        "Average: ",tsum/REAL(n,KIND=dp),&
-        "Variance:",tsum2/REAL(n,KIND=dp),&
-        "Time [s]:",tend - tstart
+       WRITE (UNIT=output_unit,FMT="(/,(T4,A,F12.6))")&
+            "Minimum: ",tmin,&
+            "Maximum: ",tmax,&
+            "Average: ",tsum/REAL(n,KIND=dp),&
+            "Variance:",tsum2/REAL(n,KIND=dp),&
+            "Time [s]:",tend - tstart
     END IF
 
     CALL delete_rng_stream(rng_stream,error=error)
@@ -1455,9 +1505,9 @@ END SUBROUTINE simple_copy
     ! Test normal Gaussian distribution
 
     CALL create_rng_stream(rng_stream=rng_stream,&
-                           name="Test normal Gaussian distribution",&
-                           distribution_type=GAUSSIAN,&
-                           extended_precision=.TRUE.,error=error)
+         name="Test normal Gaussian distribution",&
+         distribution_type=GAUSSIAN,&
+         extended_precision=.TRUE.,error=error)
 
     tmax = -HUGE(0.0_dp)
     tmin = +HUGE(0.0_dp)
@@ -1466,42 +1516,58 @@ END SUBROUTINE simple_copy
 
     tstart = m_cputime()
     DO i=1,n
-      t = next_random_number(rng_stream,error=error)
-      tsum = tsum + t
-      tsum2 = tsum2 + t*t
-      IF (t > tmax) tmax = t
-      IF (t < tmin) tmin = t
+       t = next_random_number(rng_stream,error=error)
+       tsum = tsum + t
+       tsum2 = tsum2 + t*t
+       IF (t > tmax) tmax = t
+       IF (t < tmin) tmin = t
     END DO
     tend = m_cputime()
 
     IF (ionode) THEN
-      CALL write_rng_stream(rng_stream,output_unit,error=error)
-      WRITE (UNIT=output_unit,FMT="(/,(T4,A,F12.6))")&
-        "Minimum: ",tmin,&
-        "Maximum: ",tmax,&
-        "Average: ",tsum/REAL(n,KIND=dp),&
-        "Variance:",tsum2/REAL(n,KIND=dp),&
-        "Time [s]:",tend - tstart
+       CALL write_rng_stream(rng_stream,output_unit,error=error)
+       WRITE (UNIT=output_unit,FMT="(/,(T4,A,F12.6))")&
+            "Minimum: ",tmin,&
+            "Maximum: ",tmax,&
+            "Average: ",tsum/REAL(n,KIND=dp),&
+            "Variance:",tsum2/REAL(n,KIND=dp),&
+            "Time [s]:",tend - tstart
     END IF
 
     CALL delete_rng_stream(rng_stream,error=error)
 
   END SUBROUTINE rng_test
 
-  ! ***************************************************************************
-
-  SUBROUTINE eigensolver_test(nrow_global,neig,para_env,output_unit,globenv,error)
-
-    ! Test eigensolver library routines.
-
-    INTEGER, INTENT(IN)                      :: nrow_global, neig
+!!****** library_tests/eigensolver_test [1.0] *
+!!
+!!   NAME
+!!     eigensolver_test
+!!
+!!   FUNCTION
+!!     Tests the eigensolver library routines
+!!
+!!   AUTHOR
+!!     JGH  1-JAN-2001
+!!
+!!   MODIFICATION HISTORY
+!!     JGH  6-Feb-2001 : Test and performance code
+!!
+!!   NOTES
+!!     
+!!
+!!*** *************************************************************************
+  SUBROUTINE eigensolver_test(para_env,output_unit,globenv,error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: output_unit
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    INTEGER                                  :: group, i, istat, j, n, &
-                                                source, unit_number
+    CHARACTER(len=*), PARAMETER :: routineN = 'eigensolver_test', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: group, i, istat, j, n, neig, &
+                                                nrow_global, source, &
+                                                unit_number
     LOGICAL                                  :: ionode
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigenvalues
     REAL(KIND=dp), ALLOCATABLE, &
@@ -1511,15 +1577,15 @@ END SUBROUTINE simple_copy
     TYPE(cp_fm_type), POINTER                :: eigenvectors, matrix, work
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
-! -------------------------------------------------------------------------
-
-    group = para_env%group
+    nrow_global = runtest(10)
+    neig   = runtest(11)
+    group  = para_env%group
     ionode = para_env%ionode
     source = para_env%source
     n = ABS(nrow_global)
 
     IF (ionode) THEN
-      WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/)") "EIGENSOLVER TEST"
+       WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/)") "EIGENSOLVER TEST"
     END IF
 
     NULLIFY (blacs_env)
@@ -1527,11 +1593,11 @@ END SUBROUTINE simple_copy
                              para_env=para_env,&
                              error=error)
     IF (ionode) THEN
-      WRITE (UNIT=output_unit,FMT="(/,T3,A,/)")&
-        "BLACS_ENV (BLACS environment)"
-      CALL cp_blacs_env_write(blacs_env=blacs_env,&
-                              unit_nr=output_unit,&
-                              error=error)
+       WRITE (UNIT=output_unit,FMT="(/,T3,A,/)")&
+            "BLACS_ENV (BLACS environment)"
+       CALL cp_blacs_env_write(blacs_env=blacs_env,&
+                               unit_nr=output_unit,&
+                               error=error)
     END IF
 
     NULLIFY (fmstruct)
@@ -1542,12 +1608,12 @@ END SUBROUTINE simple_copy
                              ncol_global=n,&
                              error=error)
     IF (ionode) THEN
-      WRITE (UNIT=output_unit,FMT="(/,T3,A,/)")&
-        "FMSTRUCT (Full Matrix STRUCTure information)"
-      CALL cp_fm_struct_write(fmstruct=fmstruct,&
-                              unit_nr=output_unit,&
-                              long_description=.TRUE.,&
-                              error=error)
+       WRITE (UNIT=output_unit,FMT="(/,T3,A,/)")&
+            "FMSTRUCT (Full Matrix STRUCTure information)"
+       CALL cp_fm_struct_write(fmstruct=fmstruct,&
+                               unit_nr=output_unit,&
+                               long_description=.TRUE.,&
+                               error=error)
     END IF
 
     NULLIFY (matrix)
@@ -1577,85 +1643,84 @@ END SUBROUTINE simple_copy
     ALLOCATE (buffer(1,n),STAT=istat)
 
     IF (ionode) THEN
-      IF (nrow_global > 0) THEN
-        NULLIFY (rng_stream)
-        CALL create_rng_stream(rng_stream=rng_stream,&
-                               name="rng_stream",&
-                               distribution_type=UNIFORM,&
-                               extended_precision=.TRUE.,error=error)
-      ELSE
-        CALL open_file(file_name="MATRIX",&
-                       file_action="READ",&
-                       file_form="FORMATTED",&
-                       file_status="OLD",&
-                       unit_number=unit_number)
-      END IF
+       IF (nrow_global > 0) THEN
+          NULLIFY (rng_stream)
+          CALL create_rng_stream(rng_stream=rng_stream,&
+                                 name="rng_stream",&
+                                 distribution_type=UNIFORM,&
+                                 extended_precision=.TRUE.,error=error)
+       ELSE
+          CALL open_file(file_name="MATRIX",&
+                         file_action="READ",&
+                         file_form="FORMATTED",&
+                         file_status="OLD",&
+                         unit_number=unit_number)
+       END IF
     END IF
 
     DO i=1,n
-      IF (ionode) THEN
-        IF (nrow_global > 0) THEN
-          DO j=i,n
-            buffer(1,j) = next_random_number(rng_stream,error=error) - 0.5_dp
-          END DO
-          !MK activate/modify for a diagonal dominant symmetric matrix:
-          !MK buffer(1,i) = 10.0_dp*buffer(1,i)
-        ELSE
-          READ (UNIT=unit_number,FMT=*) buffer(1,1:n)
-        END IF
-      END IF
-      CALL mp_bcast(buffer,source,group)
-      IF (nrow_global > 0) THEN
-        CALL cp_fm_set_submatrix(fm=matrix,&
-                                 new_values=buffer,&
-                                 start_row=i,&
-                                 start_col=i,&
-                                 n_rows=1,&
-                                 n_cols=n-i+1,&
-                                 alpha=1.0_dp,&
-                                 beta=0.0_dp,&
-                                 transpose=.FALSE.,&
-                                 error=error)
-        CALL cp_fm_set_submatrix(fm=matrix,&
-                                 new_values=buffer,&
-                                 start_row=i,&
-                                 start_col=i,&
-                                 n_rows=n-i+1,&
-                                 n_cols=1,&
-                                 alpha=1.0_dp,&
-                                 beta=0.0_dp,&
-                                 transpose=.TRUE.,&
-                                 error=error)
-      ELSE
-        CALL cp_fm_set_submatrix(fm=matrix,&
-                                 new_values=buffer,&
-                                 start_row=i,&
-                                 start_col=1,&
-                                 n_rows=1,&
-                                 n_cols=n,&
-                                 alpha=1.0_dp,&
-                                 beta=0.0_dp,&
-                                 transpose=.FALSE.,&
-                                 error=error)
-      END IF
+       IF (ionode) THEN
+          IF (nrow_global > 0) THEN
+             DO j=i,n
+                buffer(1,j) = next_random_number(rng_stream,error=error) - 0.5_dp
+             END DO
+             !MK activate/modify for a diagonal dominant symmetric matrix:
+             !MK buffer(1,i) = 10.0_dp*buffer(1,i)
+          ELSE
+             READ (UNIT=unit_number,FMT=*) buffer(1,1:n)
+          END IF
+       END IF
+       CALL mp_bcast(buffer,source,group)
+       IF (nrow_global > 0) THEN
+          CALL cp_fm_set_submatrix(fm=matrix,&
+                                   new_values=buffer,&
+                                   start_row=i,&
+                                   start_col=i,&
+                                   n_rows=1,&
+                                   n_cols=n-i+1,&
+                                   alpha=1.0_dp,&
+                                   beta=0.0_dp,&
+                                   transpose=.FALSE.,&
+                                   error=error)
+          CALL cp_fm_set_submatrix(fm=matrix,&
+                                   new_values=buffer,&
+                                   start_row=i,&
+                                   start_col=i,&
+                                   n_rows=n-i+1,&
+                                   n_cols=1,&
+                                   alpha=1.0_dp,&
+                                   beta=0.0_dp,&
+                                   transpose=.TRUE.,&
+                                   error=error)
+       ELSE
+          CALL cp_fm_set_submatrix(fm=matrix,&
+                                   new_values=buffer,&
+                                   start_row=i,&
+                                   start_col=1,&
+                                   n_rows=1,&
+                                   n_cols=n,&
+                                   alpha=1.0_dp,&
+                                   beta=0.0_dp,&
+                                   transpose=.FALSE.,&
+                                   error=error)
+       END IF
     END DO
 
     DEALLOCATE (buffer,STAT=istat)
 
     IF (ionode) THEN
-      IF (nrow_global > 0) THEN
-        CALL delete_rng_stream(rng_stream=rng_stream,error=error)
-        WRITE (UNIT=output_unit,FMT="(/,/,T3,2(I5,A),/)")&
-          n," x ",n," matrix generated using random numbers [-0.5,+0.5]"
-      ELSE
-        CALL close_file(unit_number=unit_number)
-        WRITE (UNIT=output_unit,FMT="(/,/,T3,2(I5,A),/)")&
-          n," x ",n," matrix read from file MATRIX"
-      END IF
+       IF (nrow_global > 0) THEN
+          CALL delete_rng_stream(rng_stream=rng_stream,error=error)
+          WRITE (UNIT=output_unit,FMT="(/,/,T3,2(I5,A),/)")&
+               n," x ",n," matrix generated using random numbers [-0.5,+0.5]"
+       ELSE
+          CALL close_file(unit_number=unit_number)
+          WRITE (UNIT=output_unit,FMT="(/,/,T3,2(I5,A),/)")&
+               n," x ",n," matrix read from file MATRIX"
+       END IF
     END IF
 
     ! Divide-and-conquer driver
-
     CALL cp_fm_to_fm(source=matrix,&
                      destination=work,&
                      error=error)
@@ -1665,11 +1730,11 @@ END SUBROUTINE simple_copy
                      error=error)
 
     IF (ionode) THEN
-      WRITE (UNIT=output_unit,FMT="(/,T3,A,/)") "Eigenvalues (SYEVD)"
-      DO i=1,neig
-        WRITE (UNIT=output_unit,FMT="(T3,I6,F14.6)") i,eigenvalues(i)
-      END DO
-      WRITE (UNIT=output_unit,FMT="(T3,A4,F16.6)") "Sum:",SUM(eigenvalues(1:neig))
+       WRITE (UNIT=output_unit,FMT="(/,T3,A,/)") "Eigenvalues (SYEVD)"
+       DO i=1,neig
+          WRITE (UNIT=output_unit,FMT="(T3,I6,F14.6)") i,eigenvalues(i)
+       END DO
+       WRITE (UNIT=output_unit,FMT="(T3,A4,F16.6)") "Sum:",SUM(eigenvalues(1:neig))
     END IF
 
     ! Expert driver
@@ -1687,11 +1752,11 @@ END SUBROUTINE simple_copy
                      error=error)
 
     IF (ionode) THEN
-      WRITE (UNIT=output_unit,FMT="(/,T3,A,/)") "Eigenvalues (SYEVX)"
-      DO i=1,neig
-        WRITE (UNIT=output_unit,FMT="(T3,I6,F14.6)") i,eigenvalues(i)
-      END DO
-      WRITE (UNIT=output_unit,FMT="(T3,A4,F16.6)") "Sum:",SUM(eigenvalues(1:neig))
+       WRITE (UNIT=output_unit,FMT="(/,T3,A,/)") "Eigenvalues (SYEVX)"
+       DO i=1,neig
+          WRITE (UNIT=output_unit,FMT="(T3,I6,F14.6)") i,eigenvalues(i)
+       END DO
+       WRITE (UNIT=output_unit,FMT="(T3,A4,F16.6)") "Sum:",SUM(eigenvalues(1:neig))
     END IF
 
     ! Clean up
