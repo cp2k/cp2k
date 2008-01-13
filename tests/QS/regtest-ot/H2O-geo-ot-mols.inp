@@ -7,6 +7,8 @@
         WRITE_CUBE FALSE
       &END
       &LOCALIZATION
+        &LOCALIZE
+        &END
       &END
       &MOLECULAR_STATES
       &END

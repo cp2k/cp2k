@@ -334,28 +334,30 @@ CONTAINS
           loc_print_key => section_vals_get_subs_vals(input,"DFT%PRINT%LOCALIZATION%LOCALIZE",error=error)
           CALL read_loc_section(qs_loc_env%localized_wfn_control,loc_print_key,qs_loc_env%do_localize,&
                error=error)
-          ! Some setup for MOs to be localized
-          nmoloc = 0
-          DO ispin = 1,dft_control%nspins
-             CALL get_mo_set(mos(ispin)%mo_set,nmo=n_mo(ispin),nelectron=nelectron,maxocc=maxocc)
-             IF(qs_loc_env%localized_wfn_control%set_of_states == state_loc_all) THEN
-                nmoloc(ispin) = NINT(nelectron/maxocc)
-             ELSE
-                nmoloc(ispin) = MIN(qs_loc_env%localized_wfn_control%nloc_states(1) ,n_mo(ispin))
-             ENDIF
-          ENDDO  ! ispin
-          CALL set_loc_wfn_lists(qs_loc_env%localized_wfn_control,nmoloc,n_mo,dft_control%nspins,error=error)
-          CALL set_loc_centers(qs_loc_env%localized_wfn_control,nmoloc,dft_control%nspins,error=error)
-          CALL qs_loc_env_init(qs_loc_env,qs_loc_env%localized_wfn_control,qs_env,error=error)
-
-          ! Let's inform in case the section is not present in the input
-          CALL cp_assert(qs_loc_env%do_localize,cp_warning_level,cp_assertion_failed,routineP,&
-               "User requested the calculation of the localized wavefunction but the section "//&
-               "LOCALIZE (located in: DFT%PRINT%LOCALIZATION%LOCALIZE) was not specified. Localization "//&
-               "will not be performed!"//&
+          IF (qs_loc_env%do_localize) THEN
+             ! Some setup for MOs to be localized
+             nmoloc = 0
+             DO ispin = 1,dft_control%nspins
+                CALL get_mo_set(mos(ispin)%mo_set,nmo=n_mo(ispin),nelectron=nelectron,maxocc=maxocc)
+                IF(qs_loc_env%localized_wfn_control%set_of_states == state_loc_all) THEN
+                   nmoloc(ispin) = NINT(nelectron/maxocc)
+                ELSE
+                   nmoloc(ispin) = MIN(qs_loc_env%localized_wfn_control%nloc_states(1) ,n_mo(ispin))
+                ENDIF
+             ENDDO  ! ispin
+             CALL set_loc_wfn_lists(qs_loc_env%localized_wfn_control,nmoloc,n_mo,dft_control%nspins,error=error)
+             CALL set_loc_centers(qs_loc_env%localized_wfn_control,nmoloc,dft_control%nspins,error=error)
+             CALL qs_loc_env_init(qs_loc_env,qs_loc_env%localized_wfn_control,qs_env,error=error)
+          ELSE
+             ! Let's inform in case the section is not present in the input
+             CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                  "User requested the calculation of the localized wavefunction but the section "//&
+                  "LOCALIZE (located in: DFT%PRINT%LOCALIZATION%LOCALIZE) was not specified. Localization "//&
+                  "will not be performed!"//&
 CPSourceFileRef,&
-               only_ionode=.TRUE.)
-       ENDIF
+                  only_ionode=.TRUE.)
+          END IF
+       END IF
 
        ! Gets localization info for the occupied orbs
        !  - Possibly gets wannier functions
