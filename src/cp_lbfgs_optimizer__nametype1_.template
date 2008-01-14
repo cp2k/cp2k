@@ -76,8 +76,8 @@ MODULE cp_lbfgs_optimizer_[nametype1]
   USE cp_subsys_types,              ONLY: cp_subsys_get,&
                                              cp_subsys_type  
   USE machine,                         ONLY: m_flush
-  USE gopt_f_types,                    ONLY: gopt_param_type,&
-                                             write_cycle_infos,&
+  USE gopt_param_types,                    ONLY: gopt_param_type
+  USE gopt_f_methods,                    ONLY: write_cycle_infos,&
                                              check_converg,&
                                              write_geo_traj
   USE particle_list_types,             ONLY: particle_list_type
@@ -768,7 +768,6 @@ CPSourceFileRef,&
                   f=optimizer%f,&
                   gradient=optimizer%gradient,&
                   master=optimizer%master,para_env=optimizer%para_env,&
-                  force_env_section=force_env_section,&
                   error=error) ! do not use keywords?
              IF (is_master) THEN
                 CALL setulb (SIZE(optimizer%x), optimizer%m, optimizer%x, &

@@ -96,6 +96,8 @@ OBJECTS_GENERIC =\
  dg_rho0_types.o\
  dg_types.o\
  dgs.o\
+ dimer_types.o\
+ dimer_methods.o\
  distribution_1d_types.o\
  distribution_2d_types.o\
  distribution_methods.o\
@@ -168,6 +170,8 @@ OBJECTS_GENERIC =\
  glob_matching.o\
  global_types.o\
  gopt_f_types.o\
+ gopt_f_methods.o\
+ gopt_param_types.o\
  graphcon.o\
  harris_energy_types.o\
  harris_env_types.o\

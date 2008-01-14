@@ -410,13 +410,13 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC :: ot_chol_irac=1,ot_poly_irac=2,ot_lwdn_irac=3
   INTEGER, PARAMETER, PUBLIC :: ot_ls_none=1,ot_ls_2pnt=2,ot_ls_3pnt=3,ot_ls_gold=4
   INTEGER, PARAMETER, PUBLIC :: ot_precond_none=0, &
-                        ot_precond_full_single=1, &
-                        ot_precond_full_kinetic=2, &
-                        ot_precond_s_inverse=3, &
-                        ot_precond_sparse_diag=4,&
-                        ot_precond_sparse_firstorder=5,&
-                        ot_precond_full_all=6,&
-                        ot_precond_full_single_inverse=7
+                                ot_precond_full_single=1, &
+                                ot_precond_full_kinetic=2, &
+                                ot_precond_s_inverse=3, &
+                                ot_precond_sparse_diag=4,&
+                                ot_precond_sparse_firstorder=5,&
+                                ot_precond_full_all=6,&
+                                ot_precond_full_single_inverse=7
   INTEGER, PARAMETER,PUBLIC :: dyn_coeff_mass_global=1, dyn_coeff_mass_kind=2,&
    dyn_coeff_mass_atom=3, dyn_coeff_mass_coeff=4
 
@@ -424,6 +424,10 @@ MODULE input_constants
                                 default_bfgs_method_id=2,&
                                 default_cg_method_id=3
 
+  INTEGER, PUBLIC, PARAMETER :: default_minimization_method_id=1,&
+                                default_ts_method_id=2
+
+  INTEGER, PUBLIC, PARAMETER :: default_dimer_method_id=1
 
   INTEGER, PARAMETER, PUBLIC :: silent_print_level=0, low_print_level=1,&
        medium_print_level=2, high_print_level=3, debug_print_level=4

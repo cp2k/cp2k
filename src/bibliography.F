@@ -53,7 +53,7 @@ MODULE bibliography
              Goedecker1996, Hartwigsen1998, Krack2005, Lippert1997, Lippert1999, Krack2000,&
              Krack2002, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Toukmaji1996, Martyna1999,&
              VandeVondele2005b, Perdew1981,Avezac2005, Porezag1995, &
-             Seifert1996, Elstner1998, Zhechkov2005,&
+             Seifert1996, Elstner1998, Zhechkov2005, Henkelman1999,&
              Frigo2005, Nose1984a, Nose1984b, Bussi2007,Genovese2006,&
              Genovese2007,Evans1983,Minary2003,Byrd1995,&
              VandeVondele2007,Ortiz1994,Becke1988,Perdew1996,Zhang1998,Lee1988, &
@@ -82,6 +82,24 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE add_all_references()
+
+    CALL add_reference(key=Henkelman1999, ISI_record=s2a(&
+         "PT J",&
+         "AU Henkelman, G",&
+         "   Jonsson, H",&
+         "TI A dimer method for finding saddle points on high dimensional potential",&
+         "   surfaces using only first derivatives",&
+         "SO JOURNAL OF CHEMICAL PHYSICS",&
+         "SN 0021-9606",&
+         "PD OCT 15",&
+         "PY 1999",&
+         "VL 111",&
+         "IS 15",&
+         "BP 7010",&
+         "EP 7022",&
+         "UT ISI:000083051600040",&
+         "ER"),&
+         DOI="10.1063/1.480097")
 
     CALL add_reference(key=Aguado2003, ISI_record=s2a(&
          "PT J",&

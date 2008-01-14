@@ -25,6 +25,7 @@
 MODULE input_cp2k_motion
   USE bibliography,                    ONLY: Byrd1995,&
                                              Evans1983,&
+                                             Henkelman1999,&
                                              Minary2003
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
@@ -756,7 +757,8 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key, subsection
+    TYPE(section_type), POINTER              :: print_key, subsection, &
+                                                subsubsection
 
     failure=.FALSE.
 
@@ -768,6 +770,16 @@ CONTAINS
             error=error)
 
        NULLIFY(keyword)
+       CALL keyword_create(keyword, name="TYPE",&
+            description="Specify which kind of geometry optimization to perform",&
+            usage="TYPE (MINIMIZATION|TRANSITION_STATE)",&
+            enum_c_vals=s2a( "MINIMIZATION","TRANSITION_STATE"),&
+            enum_desc=s2a("Performs a geometry minimization.",&
+                          "Performs a transition state optimization."),&
+            enum_i_vals=(/default_minimization_method_id,default_ts_method_id/),&
+            default_i_val=default_minimization_method_id,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="OPTIMIZER",&
             variants=(/"MINIMIZER"/),&
@@ -826,7 +838,7 @@ CONTAINS
        NULLIFY(subsection)
        CALL section_create(subsection,name="LBFGS",&
             description="Provides parameters to tune the limited memory BFGS (LBFGS) optimization",&
-            n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
             citations=(/byrd1995/),&
             error=error)
 
@@ -870,7 +882,7 @@ CONTAINS
        ! create the CG subsection
        CALL section_create(subsection,name="CG",&
             description="Provides parameters to tune the conjugate gradient optimization",&
-            n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
        CALL keyword_create(keyword, name="BRENT_TOL",&
@@ -943,7 +955,7 @@ CONTAINS
        NULLIFY(subsection)
        CALL section_create(subsection,name="BFGS",&
             description="Provides parameters to tune the BFGS optimization",&
-            n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
        CALL keyword_create(keyword, name="RESTART",&
@@ -972,6 +984,50 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)    
 
+       ! create the Transition State subsection 
+       NULLIFY(subsection)
+       CALL section_create(subsection,name="TRANSITION_STATE",&
+            description="Specifies parameters to perform a transition state search",&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(keyword)
+       CALL keyword_create(keyword, name="METHOD",&
+            description="Specify which kind of method to use for locating transition states",&
+            citations=(/Henkelman1999/),&
+            usage="TYPE (DIMER)",&
+            enum_c_vals=s2a("DIMER"),&
+            enum_desc=s2a("Uses the dimer method to optimize transition states."),&
+            enum_i_vals=(/default_dimer_method_id/),&
+            default_i_val=default_dimer_method_id,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)   
+
+       NULLIFY(subsubsection)
+       CALL section_create(subsubsection,name="DIMER",&
+            description="Specifies parameters for Dimer Method",&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="USE_REPLICA",&
+            description="Enables the parallel execution of the two points of the dimer.",&
+            usage="USE_REPLICA <LOGICAL>",&
+            default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="DR",&
+            description="This keyword sets the value for the DR parameter.",&
+            usage="DR {real}",unit_str='angstrom',&
+            default_r_val=cp_unit_to_cp2k(0.01_dp,"angstrom",error=error),error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(subsection,subsubsection,error=error)
+       CALL section_release(subsubsection,error=error)
+
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
     END IF
   END SUBROUTINE create_geoopt_section
 

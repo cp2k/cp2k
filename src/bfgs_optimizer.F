@@ -37,13 +37,13 @@ MODULE bfgs_optimizer
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE gopt_f_types,                    ONLY: check_converg,&
+  USE gopt_f_methods,                  ONLY: check_converg,&
                                              cp_eval_at,&
-                                             gopt_f_type,&
-                                             gopt_param_type,&
                                              write_cycle_infos,&
                                              write_final_info,&
                                              write_geo_traj
+  USE gopt_f_types,                    ONLY: gopt_f_type
+  USE gopt_param_types,                ONLY: gopt_param_type
   USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
@@ -219,7 +219,7 @@ CONTAINS
 
     ! Calculate Energy & Gradients
     CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos,&
-            gopt_env%force_env%para_env, force_env_section, error)
+            gopt_env%force_env%para_env, error)
     !MK Hm, it seems that here only the root process has the correct gradient for all atoms
     CALL mp_bcast(g,para_env%source,para_env%group)
 
@@ -320,7 +320,7 @@ CONTAINS
 
        ! Energy & Gradients at new step
        CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos,&
-            gopt_env%force_env%para_env, force_env_section, error)
+            gopt_env%force_env%para_env, error)
        ediff = etot - eold
 
        IF (output_unit > 0) THEN

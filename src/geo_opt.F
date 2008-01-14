@@ -39,14 +39,14 @@ MODULE geo_opt
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE gopt_f_types,                    ONLY: gopt_f_create,&
-                                             gopt_f_create_x0,&
-                                             gopt_f_release,&
-                                             gopt_f_type,&
-                                             gopt_param_read,&
-                                             gopt_param_release,&
-                                             gopt_param_type,&
+  USE gopt_f_methods,                  ONLY: gopt_f_create_x0,&
                                              write_final_info
+  USE gopt_f_types,                    ONLY: gopt_f_create,&
+                                             gopt_f_release,&
+                                             gopt_f_type
+  USE gopt_param_types,                ONLY: gopt_param_read,&
+                                             gopt_param_release,&
+                                             gopt_param_type
   USE input_constants,                 ONLY: default_bfgs_method_id,&
                                              default_cg_method_id,&
                                              default_lbfgs_method_id
@@ -114,7 +114,7 @@ MODULE geo_opt
     CALL gopt_param_read(gopt_param, root_section, error=error)
 
     force_env_section => force_env%force_env_section
-    CALL gopt_f_create(gopt_env, force_env=force_env, globenv=globenv,error=error)
+    CALL gopt_f_create(gopt_env, gopt_param, force_env=force_env, globenv=globenv,error=error)
     CALL gopt_f_create_x0(gopt_env, x0, error=error)
 
     SELECT CASE (gopt_param%method_id)

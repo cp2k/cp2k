@@ -34,13 +34,13 @@ MODULE cg_optimizer
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE gopt_f_types,                    ONLY: check_converg,&
+  USE gopt_f_methods,                  ONLY: check_converg,&
                                              cp_eval_at,&
-                                             gopt_f_type,&
-                                             gopt_param_type,&
                                              write_cycle_infos,&
                                              write_final_info,&
                                              write_geo_traj
+  USE gopt_f_types,                    ONLY: gopt_f_type
+  USE gopt_param_types,                ONLY: gopt_param_type
   USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
@@ -228,7 +228,7 @@ CONTAINS
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
        CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos,&
-            gopt_env%force_env%para_env, force_env_section, error)
+            gopt_env%force_env%para_env, error)
 
        g  = -xi
        h  =   g
@@ -267,7 +267,7 @@ CONTAINS
 
           IF (conv.OR.(its==maxiter))  EXIT
           CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos,&
-               gopt_env%force_env%para_env, force_env_section, error)
+               gopt_env%force_env%para_env, error)
           gg  = DOT_PRODUCT(g,g)
           IF (Fletcher_Reeves_ON) THEN
              dgg = DOT_PRODUCT(xi,xi)
@@ -912,8 +912,7 @@ CONTAINS
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        xvec = pcom + x*xicom
        CALL cp_eval_at(gopt_env, xvec, my_val, master=gopt_env%force_env%para_env%mepos,&
-            para_env=gopt_env%force_env%para_env,&
-            force_env_section=gopt_env%force_env_section, error=error)
+            para_env=gopt_env%force_env%para_env, error=error)
        DEALLOCATE(xvec, stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
@@ -971,8 +970,7 @@ CONTAINS
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        xvec = pcom + x * xicom
        CALL cp_eval_at(gopt_env, xvec, energy, grad, master=gopt_env%force_env%para_env%mepos,&
-            para_env=gopt_env%force_env%para_env,&
-            force_env_section=gopt_env%force_env_section, error=error)
+            para_env=gopt_env%force_env%para_env, error=error)
        my_val = DOT_PRODUCT(grad,xicom)
        fval   = energy
        DEALLOCATE(xvec, stat=stat)

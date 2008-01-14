@@ -61,14 +61,14 @@ MODULE cp_lbfgs_optimizer_gopt
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_type
-  USE gopt_f_types,                    ONLY: check_converg,&
+  USE gopt_f_methods,                  ONLY: check_converg,&
                                              cp_eval_at,&
-                                             gopt_f_release,&
-                                             gopt_f_retain,&
-                                             gopt_f_type,&
-                                             gopt_param_type,&
                                              write_cycle_infos,&
                                              write_geo_traj
+  USE gopt_f_types,                    ONLY: gopt_f_release,&
+                                             gopt_f_retain,&
+                                             gopt_f_type
+  USE gopt_param_types,                ONLY: gopt_param_type
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_bcast
@@ -763,7 +763,6 @@ CPSourceFileRef,&
                   f=optimizer%f,&
                   gradient=optimizer%gradient,&
                   master=optimizer%master,para_env=optimizer%para_env,&
-                  force_env_section=force_env_section,&
                   error=error) ! do not use keywords?
              IF (is_master) THEN
                 CALL setulb (SIZE(optimizer%x), optimizer%m, optimizer%x, &
@@ -1049,7 +1048,9 @@ CPSourceFileRef,&
   ! files are almost the same (multi-line use change it a bit)
   ! [template(type1,nametype1,USE,type1_retain,type1_release,type1_eval_at)]
 ! ARGS:
-!  USE = "USE gopt_f_types, ONLY: gopt_f_type, cp_eval_at, gopt_f_release,gopt_f_retain"
+!  USE = 
+!    "USE gopt_f_types, ONLY: gopt_f_type, gopt_f_release,gopt_f_retain
+!             USE gopt_f_methods,  ONLY: cp_eval_at"
 !  nametype1 = "gopt"
 !  type1 = "type(gopt_f_type)"
 !  type1_eval_at = "cp_eval_at"
