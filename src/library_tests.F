@@ -84,7 +84,6 @@ MODULE library_tests
   USE pw_types,                        ONLY: &
        COMPLEXDATA1D, COMPLEXDATA3D, REALDATA3D, RECIPROCALSPACE, pw_create, &
        pw_p_type, pw_release, pw_transfer, pw_zero
-  USE real_space_test,                 ONLY: rs_test
   USE termination,                     ONLY: stop_memory
 #include "cp_common_uses.h"
 
@@ -153,7 +152,7 @@ CONTAINS
     !
     IF ( runtest ( 6 ) /= 0 ) CALL clebsch_gordon_test ( error )
     !
-    IF ( runtest ( 7 ) /= 0 ) CALL rs_test ( para_env, iw, error )
+    ! runtest 7 has been deleted and can be recycled
     !
     IF ( runtest ( 8 ) /= 0 ) CALL mpi_test ( para_env%group )
     !
@@ -227,7 +226,6 @@ CONTAINS
     CALL section_vals_val_get(test_section,'fft',i_val=runtest(3),error=error )
     CALL section_vals_val_get(test_section,'pw_fft',i_val=runtest(4),error=error )
     CALL section_vals_val_get(test_section,'clebsch_gordon',i_val=runtest(6),error=error )
-    CALL section_vals_val_get(test_section,'rs_grids',i_val=runtest (7),error=error )
     CALL section_vals_val_get(test_section,'mpi',i_val=runtest (8),error=error )
     CALL section_vals_val_get(test_section,'rng',i_val=runtest(9),error=error )
     CALL section_vals_val_get(test_section,'eigensolver',i_vals=i_vals,error=error )

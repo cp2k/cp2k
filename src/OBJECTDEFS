@@ -197,6 +197,7 @@ OBJECTS_GENERIC =\
  input_cp2k_qmmm.o\
  input_cp2k_resp.o\
  input_cp2k_restarts.o\
+ input_cp2k_rsgrid.o\
  input_cp2k_subsys.o\
  input_cp2k_thermostats.o\
  input_cp2k_vib.o\
@@ -449,7 +450,6 @@ OBJECTS_GENERIC =\
  qs_vxc_atom.o\
  qs_wf_history_methods.o\
  qs_wf_history_types.o\
- real_space_test.o\
  realspace_grid_cube.o\
  realspace_grid_types.o\
  realspace_task_selection.o\

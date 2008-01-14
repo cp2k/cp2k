@@ -105,7 +105,9 @@ MODULE kg_gpw_pw_env_methods
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_type
   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
-                                             rs_grid_print
+                                             rs_grid_print,&
+                                             realspace_grid_input_type,&
+                                             init_input_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -408,6 +410,7 @@ CONTAINS
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs
     TYPE(section_vals_type), POINTER         :: print_section
+    TYPE(realspace_grid_input_type)          :: input_settings
 
     failure = .FALSE.
 
@@ -640,12 +643,11 @@ CONTAINS
 
      ! init rs_pools
       drmin = MINVAL ( pw_grid_mol%dr )
-      nsmax = -1
-
+      CALL init_input_type(input_settings,nsmax=-1,ilevel=1,error=error)
 
       NULLIFY(rs_pools_mol(1)%pool)
       CALL rs_pool_create(rs_pools_mol(1)%pool,&
-            el_struct=pw_grid_mol,nsmax=nsmax,error=error)
+            el_struct=pw_grid_mol,input_settings=input_settings,error=error)
       CALL pw_grid_release(pw_grid_mol,error=error)
 
 ! And now the other grid levels if it is necessary
@@ -823,15 +825,11 @@ CONTAINS
 
         ! init rs_pools, kg_gpw is really only a serial code
            drmin = MINVAL ( pw_grid_mol%dr )
-!      IF ( dft_control % qs_control % rs_distributed ) THEN
-!        nsmax = 2*MAX(1,CEILING((radius(1)/drmin))+1
-!      ELSE
-           nsmax = -1
-!      ENDIF
+           CALL init_input_type(input_settings,nsmax=-1,ilevel=1,error=error)
 
            NULLIFY(rs_pools_mol(igrid_level)%pool)
            CALL rs_pool_create(rs_pools_mol(igrid_level)%pool,&
-               el_struct=pw_grid_mol,nsmax=nsmax,error=error)
+               el_struct=pw_grid_mol,input_settings=input_settings,error=error)
            CALL pw_grid_release(pw_grid_mol,error=error)
 
          END DO  ! igrid_level

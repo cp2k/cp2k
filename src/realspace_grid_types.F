@@ -25,6 +25,10 @@
 !******************************************************************************
 
 MODULE realspace_grid_types
+  USE input_constants,                 ONLY: rsgrid_replicated,rsgrid_automatic,rsgrid_distributed
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get,&
+                                             section_vals_get
   USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: det_3x3
@@ -49,7 +53,8 @@ MODULE realspace_grid_types
 
   PRIVATE
   PUBLIC :: realspace_grid_type,&
-            realspace_grid_p_type
+            realspace_grid_p_type,&
+            realspace_grid_input_type
 
   PUBLIC :: rs_pw_transfer,&
             rs_grid_zero,&
@@ -58,12 +63,19 @@ MODULE realspace_grid_types
             rs_grid_retain,&
             rs_grid_release,&
             rs_grid_print, &
-            rs_find_node
+            rs_find_node,&
+            init_input_type
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'realspace_grid_types'
   INTEGER, SAVE, PRIVATE :: last_rs_id=0
   INTEGER, SAVE, PRIVATE :: allocated_rs_grid_count=0
   INTEGER, PARAMETER, PUBLIC :: rs2pw=11,pw2rs=12
+
+  TYPE realspace_grid_input_type
+     INTEGER :: distribution_type
+     INTEGER :: distribution_layout(3)
+     INTEGER :: nsmax
+  END TYPE realspace_grid_input_type
 
   TYPE realspace_grid_type
      INTEGER :: grid_id                                  ! tag of the pw_grid
@@ -112,113 +124,59 @@ MODULE realspace_grid_types
 
 CONTAINS
 
-!-----------------------------------------------------------------------------!
-!******************************************************************************
-!!****** realspace_grid_types/rs_grid_allocate [1.0] *
+!!****f* realspace_grid_types/init_input_type *
 !!
 !!   NAME
-!!     rs_grid_allocate
+!!     init_input_type
 !!
 !!   FUNCTION
-!!     Allocate real space grids
+!!     parses an input section to assign the proper values to the input type
 !!
-!!   AUTHOR
-!!     JGH (18-Mar-2001)
+!!   NOTES
+!!     if rs_grid_section is not present we setup for an replicated setup
 !!
-!!   MODIFICATION HISTORY
-!!     none
-!*****
-!******************************************************************************
-
-  SUBROUTINE rs_grid_allocate ( rs, error )
-
-    TYPE(realspace_grid_type), POINTER       :: rs
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_allocate_1', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, ierr
-    INTEGER, DIMENSION(:), POINTER           :: lb, ub
-
-!-----------------------------------------------------------------------------!
-
-    CALL timeset("rs_grid_allocate",'I',' ',handle)
-
-    allocated_rs_grid_count = allocated_rs_grid_count + 1
-    ! write(6,*) "allocated_rs_grid_count ",allocated_rs_grid_count
-
-    lb => rs % lb_local
-    ub => rs % ub_local
-
-    ALLOCATE ( rs % r (lb(1):ub(1),lb(2):ub(2),lb(3):ub(3)), STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "rs_grid_allocate","rs % r", &
-         rs % ngpts_local )
-    ALLOCATE ( rs % px ( rs % npts ( 1 ) ), STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "rs_grid_allocate","rs % px", &
-         rs % npts ( 1 ) )
-    ALLOCATE ( rs % py ( rs % npts ( 2 ) ), STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "rs_grid_allocate","rs % py", &
-         rs % npts ( 2 ) )
-    ALLOCATE ( rs % pz ( rs % npts ( 3 ) ), STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "rs_grid_allocate","rs % pz", &
-         rs % npts ( 3 ) )
-
-    CALL timestop(0.0_dp,handle)
-  END SUBROUTINE rs_grid_allocate
-
-!!****** realspace_grid_types/rs_grid_deallocate [1.0] *
-!!
-!!   NAME
-!!     rs_grid_deallocate
-!!
-!!   FUNCTION
-!!     Deallocate real space grids
-!!
-!!   AUTHOR
-!!     JGH (18-Mar-2001)
+!!   INPUTS
+!!    -
+!!    -
 !!
 !!   MODIFICATION HISTORY
-!!     none
-!*****
+!!     01.2008 created [Joost VandeVondele]
+!!
+!!*** **********************************************************************
+SUBROUTINE init_input_type(input_settings,nsmax,rs_grid_section,ilevel,error)
+   TYPE(realspace_grid_input_type), INTENT(OUT) :: input_settings
+   INTEGER, INTENT(IN)                          :: nsmax
+   TYPE(section_vals_type), POINTER, OPTIONAL   :: rs_grid_section
+   INTEGER, INTENT(IN)                          :: ilevel
+   TYPE(cp_error_type), INTENT(inout)           :: error
+
+   INTEGER,POINTER, DIMENSION(:)                :: tmp
+   INTEGER                                      :: isection, nsection
+
+   IF (PRESENT(rs_grid_section)) THEN
+       input_settings%nsmax=nsmax
+       ! we use the section corresponding to the level, or the largest available one
+       ! i.e. the last section defines all following ones
+       CALL section_vals_get(rs_grid_section,n_repetition=nsection,error=error)
+       isection=MAX(1,MIN(ilevel,nsection))
+       CALL section_vals_val_get(rs_grid_section,"DISTRIBUTION_TYPE",&
+                i_rep_section=isection,&
+                i_val=input_settings%distribution_type,error=error)
+       CALL section_vals_val_get(rs_grid_section,"DISTRIBUTION_LAYOUT",&
+                i_rep_section=isection,&
+                i_vals=tmp,error=error)
+       input_settings%distribution_layout=tmp
+   ELSE
+       input_settings%nsmax=-1
+       input_settings%distribution_layout=(/-1,-1,-1/)
+       input_settings%distribution_type=rsgrid_replicated
+   ENDIF
+END SUBROUTINE init_input_type
 !******************************************************************************
-
-  SUBROUTINE rs_grid_deallocate ( rs, error )
-
-    TYPE(realspace_grid_type), POINTER       :: rs
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_deallocate_1', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, ierr, stat
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-    CALL timeset("rs_grid_dealloc",'I',' ',handle)
-    allocated_rs_grid_count=allocated_rs_grid_count-1
-    DEALLOCATE ( rs % r, STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "rs_grid_deallocate","rs % r" )
-    DEALLOCATE ( rs % px , STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "rs_grid_deallocate","rs % px" )
-    DEALLOCATE ( rs % py , STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "rs_grid_deallocate","rs % py" )
-    DEALLOCATE ( rs % pz , STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "rs_grid_deallocate","rs % pz" )
-    rs % grid_id = 0
-    IF ( rs % parallel ) THEN
-       ! release the group communicator
-       CALL mp_comm_free ( rs % group )
-    END IF
-
-    CALL timestop(0.0_dp,handle)
-  END SUBROUTINE rs_grid_deallocate
-
-!******************************************************************************
-!!****** realspace_grid_types/rs_grid_setup [1.0] *
+!!****** realspace_grid_types/rs_grid_create [1.0] *
 !!
 !!   NAME
-!!     rs_grid_setup
+!!     rs_grid_create
 !!
 !!   FUNCTION
 !!     Determine the setup of real space grids
@@ -231,23 +189,30 @@ CONTAINS
 !*****
 !******************************************************************************
 
-  SUBROUTINE rs_grid_setup ( rs, pw_grid, nsmax, error)
+  SUBROUTINE rs_grid_create ( rs, pw_grid, input_settings, error)
     TYPE(realspace_grid_type), POINTER       :: rs
-    TYPE(pw_grid_type), INTENT(IN)           :: pw_grid
-    INTEGER, INTENT(IN)                      :: nsmax
+    TYPE(pw_grid_type), POINTER              :: pw_grid
+    TYPE(realspace_grid_input_type), INTENT(IN) :: input_settings
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_setup', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_create', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: dir, i, j, k, l, lb( 2 ), &
                                                 n_slices(3), neighbours(3), &
-                                                nmin, pos( 3 ), n_slices_tmp(3)
+                                                nmin, pos( 3 ), n_slices_tmp(3), nsmax, stat, handle
     LOGICAL                                  :: failure, overlap
     REAL(KIND=dp)                            :: ratio, ratio_best, volume, &
                                                 volume_dist
 
+    CALL timeset(routineN,handle)
+
     failure = .FALSE.
+
+    CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
+
+    ALLOCATE(rs,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL mp_sync(pw_grid % para % group)
 
@@ -297,11 +262,11 @@ CONTAINS
        rs % ub = pw_grid % bounds ( 2, : )
 
        ! this is the eventual border size
-       nmin = ( nsmax + 1 ) / 2
+       nmin = ( input_settings % nsmax + 1 ) / 2
 
        ! x is the main distribution direction of pw grids in real space
 
-       IF ( nsmax <= 0 ) THEN
+       IF ( input_settings % distribution_type == rsgrid_replicated ) THEN
 
           n_slices = 1
 
@@ -313,11 +278,18 @@ CONTAINS
           DO k=1, MIN(rs % npts (3), rs % group_size)
           DO j=1, MIN(rs % npts (2), rs % group_size)
              i= MIN (rs % npts (1), rs % group_size/(j*k) )
-             IF (i*j*k .NE. rs % group_size) CYCLE
-
              n_slices_tmp=(/i,j,k/)
+     
+             ! we don't match the actual number of CPUs
+             IF (PRODUCT(n_slices_tmp) .NE. rs % group_size) CYCLE
 
-             ! we currently don't accept a grid that has borders that overlaps with the local data of the grid itself
+             ! we see if there has been a input constraint
+             ! i.e. if the layout is not -1 we need to fullfil it
+             IF (.NOT. ALL(PACK(n_slices_tmp==input_settings % distribution_layout,&
+                                (/-1,-1,-1/)/=input_settings % distribution_layout )&
+                          )) CYCLE
+
+             ! we currently can not work with a grid that has borders that overlaps with the local data of the grid itself
              overlap=.FALSE.
              DO dir=1,3
                 IF (n_slices_tmp(dir)>1) THEN
@@ -329,11 +301,16 @@ CONTAINS
                    rs % neighbours(dir) = CEILING( REAL(nmin + neighbours(dir)) / & 
                         REAL( neighbours(dir) ))
                    IF( rs % neighbours(dir) .GE. n_slices_tmp (dir) ) overlap=.TRUE.
+                ELSE
+                   neighbours(dir) = 0
                 ENDIF
              ENDDO
+             ! XXXXXXX I think the overlap criterium / neighbour calculation is too conservative
+             ! write(6,*) n_slices_tmp,rs % neighbours, overlap
              IF (overlap) CYCLE
 
              ! a heuristic optimisation to reduce the memory usage
+             ! we go for the smallest local to real volume
              ! volume of the box without the wings / volume of the box with the wings
              ratio = PRODUCT(REAL(rs % npts,KIND=dp) / n_slices_tmp ) /  & 
                      PRODUCT(REAL(rs % npts,KIND=dp) / n_slices_tmp  +   &
@@ -342,16 +319,20 @@ CONTAINS
                 ratio_best=ratio
                 n_slices=n_slices_tmp
              ENDIF
+
           ENDDO
           ENDDO
 
-          volume=PRODUCT(REAL(rs % npts,KIND=dp)) 
-          volume_dist=PRODUCT(REAL(rs % npts,KIND=dp) / n_slices  +   &
-                       MERGE((/0,0,0/),2*(/nmin,nmin,nmin/),n_slices==(/1,1,1/)))
 
-          !factor of 2 is currently an arbritary input parameter 
-          IF (volume<volume_dist*2) THEN
-              n_slices=1
+          ! if automatic we can still decide this is a replicated grid
+          IF (input_settings % distribution_type == rsgrid_automatic) THEN
+             !factor of 2 is currently an arbritary input parameter 
+             volume=PRODUCT(REAL(rs % npts,KIND=dp)) 
+             volume_dist=PRODUCT(REAL(rs % npts,KIND=dp) / n_slices  +   &
+                          MERGE((/0,0,0/),2*(/nmin,nmin,nmin/),n_slices==(/1,1,1/)))
+             IF (volume<volume_dist*2) THEN
+                 n_slices=1
+             ENDIF
           ENDIF
           
        END IF
@@ -426,11 +407,23 @@ CONTAINS
 
     END IF
 
-    CALL mp_sync(pw_grid % para % group)
 
-    CALL rs_grid_allocate ( rs, error )
+    allocated_rs_grid_count = allocated_rs_grid_count + 1
 
-  END SUBROUTINE rs_grid_setup
+    ALLOCATE ( rs % r (rs % lb_local(1):rs % ub_local(1), &
+                       rs % lb_local(2):rs % ub_local(2), &
+                       rs % lb_local(3):rs % ub_local(3)), STAT = stat )
+    IF ( stat /= 0 ) CALL stop_memory ( routineN,"rs % r", rs % ngpts_local )
+    ALLOCATE ( rs % px ( rs % npts ( 1 ) ), STAT = stat )
+    IF ( stat /= 0 ) CALL stop_memory ( routineN,"rs % px", rs % npts ( 1 ) )
+    ALLOCATE ( rs % py ( rs % npts ( 2 ) ), STAT = stat )
+    IF ( stat /= 0 ) CALL stop_memory ( routineN, "rs % py", rs % npts ( 2 ) )
+    ALLOCATE ( rs % pz ( rs % npts ( 3 ) ), STAT = stat )
+    IF ( stat /= 0 ) CALL stop_memory ( routineN,"rs % pz", rs % npts ( 3 ) )
+
+    CALL timestop(handle)
+
+  END SUBROUTINE rs_grid_create
 
 !******************************************************************************
 !!****** realspace_grid_types/rs_grid_print [1.0] *
@@ -445,7 +438,6 @@ CONTAINS
 !!     JGH (17-May-2007)
 !!
 !!   MODIFICATION HISTORY
-!!     earlier version was part of rs_grid_setup
 !*****
 !******************************************************************************
 
@@ -1515,55 +1507,6 @@ SUBROUTINE rs_grid_set_box ( pw_grid, rs, error )
 
 END SUBROUTINE rs_grid_set_box
 
-!******************************************************************************
-!!****f* realspace_grid_types/rs_grid_create [1.0] *
-!!
-!!   NAME
-!!     rs_grid_create
-!!
-!!   FUNCTION
-!!     allocates and initialize an rs grid
-!!
-!!   ARGUMENTS
-!!     - rs_grid: the rs grid that is created
-!!     - pw_grid: the corresponding pw_grid
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     03.2003 created [fawzi]
-!*****
-!!**************************************************************************
-SUBROUTINE rs_grid_create(rs_grid, pw_grid, nsmax, error)
-    TYPE(realspace_grid_type), POINTER       :: rs_grid
-    TYPE(pw_grid_type), POINTER              :: pw_grid
-    INTEGER, INTENT(in), OPTIONAL            :: nsmax
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_create', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: my_nsmax, stat
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-
-  my_nsmax = -1
-  IF (PRESENT(nsmax)) my_nsmax=nsmax
-
-  CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
-
-  ALLOCATE(rs_grid,stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-  IF (.NOT. failure) THEN
-     CALL rs_grid_setup(rs_grid, pw_grid, my_nsmax, error=error)
-  END IF
-END SUBROUTINE rs_grid_create
-
 !***************************************************************************
 !!****f* realspace_grid_types/rs_grid_retain [1.0] *
 !!
@@ -1642,19 +1585,32 @@ SUBROUTINE rs_grid_release(rs_grid,error)
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
+    failure=.FALSE.
 
-  IF (ASSOCIATED(rs_grid)) THEN
-     CPPreconditionNoFail(rs_grid%ref_count>0,cp_failure_level,routineP,error)
-     rs_grid%ref_count=rs_grid%ref_count-1
-     IF (rs_grid%ref_count==0) THEN
-        rs_grid%ref_count=1
-        CALL rs_grid_deallocate(rs_grid,error=error)
-        DEALLOCATE(rs_grid, stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-     END IF
-  END IF
-  NULLIFY(rs_grid)
+    IF (ASSOCIATED(rs_grid)) THEN
+       CPPreconditionNoFail(rs_grid%ref_count>0,cp_failure_level,routineP,error)
+       rs_grid%ref_count=rs_grid%ref_count-1
+       IF (rs_grid%ref_count==0) THEN
+
+         allocated_rs_grid_count=allocated_rs_grid_count-1
+         DEALLOCATE ( rs_grid % r, STAT = stat )
+         IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % r" )
+         DEALLOCATE ( rs_grid % px , STAT = stat )
+         IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % px" )
+         DEALLOCATE ( rs_grid % py , STAT = stat )
+         IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % py" )
+         DEALLOCATE ( rs_grid % pz , STAT = stat )
+         IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % pz" )
+         IF ( rs_grid % parallel ) THEN
+            ! release the group communicator
+            CALL mp_comm_free ( rs_grid % group )
+         END IF
+
+         DEALLOCATE(rs_grid, stat=stat)
+         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       END IF
+    END IF
+    NULLIFY(rs_grid)
 END SUBROUTINE rs_grid_release
 
 !***************************************************************************

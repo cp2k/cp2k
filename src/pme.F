@@ -136,7 +136,7 @@ CONTAINS
 
     INTEGER                                  :: group, handle, i, ierr, &
                                                 ipart, j, npart, nshell, p1, &
-                                                p2, rs_distributed_id
+                                                p2
     LOGICAL                                  :: failure, is1_core, is1_shell, &
                                                 is2_core, is2_shell
     REAL(KIND=dp)                            :: alpha, dvols, eps0, ffa, &
@@ -164,7 +164,7 @@ CONTAINS
     failure = .FALSE.
     CALL cite_reference(Darden1993)
     CALL ewald_env_get (ewald_env, alpha=alpha, eps0 = eps0, &
-         rs_distributed_id = rs_distributed_id, group = group ,error=error)
+         group = group ,error=error)
     CALL ewald_pw_get (ewald_pw, pw_big_pool=pw_big_pool, &
                        pw_small_pool=pw_small_pool, rs_pool=rs_pool,&
                        poisson_env=poisson_env, dg = dg )

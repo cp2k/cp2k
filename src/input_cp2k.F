@@ -633,13 +633,6 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    CALL keyword_create(keyword, name="rs_grids",&
-         description="Tests the realspace grids. Tests are repeated the given number of times.",&
-         usage="rs_grids 10",default_i_val=0,error=error)
-    
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
     CALL keyword_create(keyword, name="mpi",&
          description="Tests mpi, quickly adapted benchmark code,"//&
          "will ONLY work on an even number of CPUs. comm is the relevant, "//&

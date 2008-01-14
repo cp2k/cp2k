@@ -186,7 +186,6 @@ MODULE cp_control_types
     TYPE (gapw_control_type), POINTER       :: gapw_control
     TYPE ( pw_grid_option )         :: pw_grid_opt
     INTEGER                         :: pw_grid_opt_id
-    INTEGER                         :: rs_distributed_id
     INTEGER                         :: wf_interpolation_method_nr
     INTEGER                         :: wf_extrapolation_order
   END TYPE qs_control_type

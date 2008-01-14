@@ -484,8 +484,6 @@ CONTAINS
        qs_control%pw_grid_opt%fullspace = .FALSE.
     END SELECT
 
-    CALL section_vals_val_get(qs_section,"RS_GRID",i_val=qs_control%rs_distributed_id,error=error)
-
     !Integers extrapolation
     CALL section_vals_val_get(qs_section,"EXTRAPOLATION",i_val=qs_control%wf_interpolation_method_nr,error=error)
     CALL section_vals_val_get(qs_section,"EXTRAPOLATION_ORDER",i_val=qs_control%wf_extrapolation_order,error=error)

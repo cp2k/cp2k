@@ -37,6 +37,7 @@ MODULE input_cp2k_dft
   USE input_cp2k_hfx,                  ONLY: create_hf_section
   USE input_cp2k_poisson,              ONLY: create_poisson_section
   USE input_cp2k_resp,                 ONLY: create_resp_section
+  USE input_cp2k_rsgrid,               ONLY: create_rsgrid_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -1689,16 +1690,6 @@ CONTAINS
             enum_desc=s2a("- not tested"," tested"," - not tested"),&
             enum_i_vals=(/ do_pwgrid_spherical, do_pwgrid_ns_fullspace,do_pwgrid_ns_halfspace/),&
             default_i_val=do_pwgrid_ns_fullspace, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="RS_GRID",&
-            description="Parallellisation strategy of the realspace grids",&
-            usage="RS_GRID DISTRIBUTED",&
-            enum_c_vals=s2a("DISTRIBUTED","REPLICATED"),&
-            enum_desc=s2a("Should be faster in parallel and consumes significantly less memory.", "Old default, better tested."),&
-            enum_i_vals=(/ do_rsgrid_distributed, do_rsgrid_replicated/),&
-            default_i_val=do_rsgrid_distributed, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -4046,7 +4037,7 @@ CONTAINS
             n_keywords=5, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
             error=error)
        NULLIFY(keyword)
-       CALL keyword_create(keyword, name="ngrids",&
+       CALL keyword_create(keyword, name="NGRIDS",&
             description="The number of multigrids to use",&
             usage="ngrids 1", default_i_val=4, error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -4111,6 +4102,11 @@ CONTAINS
             n_var=-1,type_of_var=real_t,repeats=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       
+       NULLIFY(subsection)
+       CALL create_rsgrid_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
 
        NULLIFY(subsection)
        CALL create_interp_section(subsection,error)

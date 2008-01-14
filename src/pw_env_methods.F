@@ -50,8 +50,7 @@ MODULE pw_env_methods
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gaussian_gridlevel,&
                                              init_gaussian_gridlevel
-  USE input_constants,                 ONLY: do_rsgrid_distributed,&
-                                             use_mt
+  USE input_constants,                 ONLY: use_mt
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -79,7 +78,9 @@ MODULE pw_env_methods
                                              rho0_mpole_type
   USE qs_util,                         ONLY: exp_radius
   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
-                                             rs_grid_print
+                                             rs_grid_print,&
+                                             realspace_grid_input_type,&
+                                             init_input_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -219,7 +220,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
       DIMENSION(:), POINTER                  :: rs
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(section_vals_type), POINTER         :: input, poisson_section, &
-                                                print_section
+                                                print_section, rs_grid_section
+    TYPE(realspace_grid_input_type)          :: input_settings
 
 ! a very small safety factor might be needed for roundoff issues
 ! e.g. radius being computed here as 12.998 (13) and 13.002 (14) during the collocation
@@ -291,6 +293,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      CALL section_vals_val_get(input,"DFT%XC%XC_GRID%USE_FINER_GRID",&
           l_val=uf_grid,error=error)
      ngrid_level = SIZE(cutoff)
+
 
      ! init gridlevel_info XXXXXXXXX setup mapping to the effective cutoff ?
      !                     XXXXXXXXX the cutoff array here is more a 'wish-list'
@@ -576,15 +579,14 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
              pw_grid%dr(:), pw_grid%dh(:,:), pw_grid%dh_inv(:,:), pw_grid%orthorhombic,&
              radius(igrid_level))
 
-        IF ( dft_control % qs_control % rs_distributed_id .EQ. do_rsgrid_distributed ) THEN
-           nsmax = 2*MAX(1,return_cube_max_iradius(pw_env%cube_info(igrid_level)))+1
-        ELSE
-           nsmax = -1
-        ENDIF
+        rs_grid_section=>section_vals_get_subs_vals(input,"DFT%MGRID%RS_GRID",error=error)
+
+        CALL init_input_type(input_settings,nsmax=2*MAX(1,return_cube_max_iradius(pw_env%cube_info(igrid_level)))+1,&
+                                 rs_grid_section=rs_grid_section,ilevel=igrid_level,error=error)
 
         NULLIFY(rs_pools(igrid_level)%pool)
         CALL rs_pool_create(rs_pools(igrid_level)%pool,&
-             el_struct=pw_grid,nsmax=nsmax,error=error)
+             el_struct=pw_grid,input_settings=input_settings,error=error)
      END DO
      pw_env%rs_pools => rs_pools
 

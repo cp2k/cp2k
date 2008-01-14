@@ -80,7 +80,6 @@ MODULE ewald_environment_types
     INTEGER   :: gmax(3)                  ! max Miller index
     INTEGER   :: ns_max                   ! # grid points for small grid (PME)
     INTEGER   :: o_spline                 ! order of spline (SPME)
-    INTEGER   :: rs_distributed_id        ! realspace distribution
     REAL (KIND=dp) :: alpha, rcut         ! ewald alpha and real-space cutoff
     REAL (KIND=dp) :: eps0                ! permittivity constant
     REAL (KIND=dp) :: epsilon             ! tolerance for small grid (PME)
@@ -148,13 +147,13 @@ CONTAINS
 !!
 !******************************************************************************
   SUBROUTINE ewald_env_get( ewald_env, ewald_type, alpha, eps0, epsilon, gmax,&
-       ns_max, o_spline, rs_distributed_id, group, para_env, id_nr, poisson_section,&
+       ns_max, o_spline, group, para_env, id_nr, poisson_section,&
        rcut, do_multipoles, max_multipole, error)
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     INTEGER, OPTIONAL                        :: ewald_type
     REAL(KIND=dp), OPTIONAL                  :: alpha, eps0, epsilon
     INTEGER, OPTIONAL                        :: gmax(3), ns_max, o_spline, &
-                                                rs_distributed_id, group
+                                                group
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
     INTEGER, INTENT(OUT), OPTIONAL           :: id_nr
@@ -185,7 +184,6 @@ CONTAINS
     IF (PRESENT(gmax)) gmax = ewald_env%gmax
     IF (PRESENT(ns_max)) ns_max = ewald_env%ns_max
     IF (PRESENT(o_spline)) o_spline = ewald_env%o_spline
-    IF (PRESENT(rs_distributed_id)) rs_distributed_id = ewald_env%rs_distributed_id
     IF (PRESENT(group)) group = ewald_env%para_env%group
     IF (PRESENT(para_env)) para_env => ewald_env%para_env
     IF (PRESENT(poisson_section)) poisson_section => ewald_env%poisson_section
@@ -211,13 +209,13 @@ CONTAINS
 !!
 !******************************************************************************
   SUBROUTINE ewald_env_set( ewald_env, ewald_type, alpha, eps0, epsilon, gmax, ns_max,&
-       o_spline, rs_distributed_id, para_env, id_nr, poisson_section, error )
+       o_spline, para_env, id_nr, poisson_section, error )
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     INTEGER, OPTIONAL                        :: ewald_type
     REAL(KIND=dp), OPTIONAL                  :: alpha, eps0, epsilon
-    INTEGER, OPTIONAL                        :: gmax(3), ns_max, o_spline, &
-                                                rs_distributed_id
+    INTEGER, OPTIONAL                        :: gmax(3), ns_max, o_spline
+                                                
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
     INTEGER, INTENT(IN), OPTIONAL            :: id_nr
@@ -243,7 +241,6 @@ CONTAINS
        IF (PRESENT(gmax)) ewald_env%gmax = gmax
        IF (PRESENT(ns_max)) ewald_env%ns_max = ns_max
        IF (PRESENT(o_spline)) ewald_env%o_spline = o_spline
-       IF (PRESENT(rs_distributed_id)) ewald_env%rs_distributed_id = rs_distributed_id
        IF (PRESENT(para_env))ewald_env% para_env => para_env
        IF (PRESENT(poisson_section)) THEN
           CALL section_vals_retain(poisson_section,error=error)
@@ -454,7 +451,6 @@ CONTAINS
     failure = .FALSE.
     IF (.NOT.failure) THEN
        CALL section_vals_val_get(ewald_section,"EWALD_TYPE",i_val=ewald_env%ewald_type,error=error)
-       CALL section_vals_val_get(ewald_section,"RS_GRID",i_val=ewald_env%rs_distributed_id,error=error)
        CALL section_vals_val_get(ewald_section,"ALPHA",r_val=ewald_env%alpha,error=error)
        CALL section_vals_val_get(ewald_section,"EWALD_ACCURACY",r_val=precs,error=error)
        

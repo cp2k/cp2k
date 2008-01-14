@@ -1,0 +1,62 @@
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &MGRID
+      CUTOFF 200
+      ! first grid, leave it up to cp2k to distribute or not
+      ! if distributed the x direction should be sliced in 3,
+      ! the others are free
+      &RS_GRID
+          DISTRIBUTION_TYPE AUTOMATIC
+          DISTRIBUTION_LAYOUT 3 -1 -1
+      &END
+      ! second grid level should be replicated
+      &RS_GRID
+          DISTRIBUTION_TYPE REPLICATED
+      &END
+      ! third and fourth should be distributed exactly slicing 12x1x1
+      ! (unless these distribution can not be accepted, i.e. overlap)
+      &RS_GRID
+          DISTRIBUTION_TYPE DISTRIBUTED
+          DISTRIBUTION_LAYOUT 12 1 1
+      &END
+    &END MGRID
+    &QS
+      WF_INTERPOLATION PS 
+      EXTRAPOLATION_ORDER 3
+    &END QS
+    &SCF
+      MAX_SCF   1
+      SCF_GUESS ATOMIC
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL Pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 9.865 9.865 9.865
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+    O                  -4.583   5.333   1.560   H2O
+    H                  -3.777   5.331   0.943   H2O
+    H                  -5.081   4.589   1.176   H2O
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT H2O
+  RUN_TYPE ENERGY
+  PRINT_LEVEL MEDIUM
+&END GLOBAL

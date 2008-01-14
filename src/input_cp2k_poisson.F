@@ -45,6 +45,7 @@ MODULE input_cp2k_poisson
   USE input_val_types,                 ONLY: enum_t,&
                                              integer_t,&
                                              real_t
+  USE input_cp2k_rsgrid,               ONLY: create_rsgrid_section
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
   USE timings,                         ONLY: timeset,&
@@ -420,17 +421,11 @@ SUBROUTINE create_ewald_section(section,error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    CALL keyword_create(keyword, name="RS_GRID",&
-         description="Parallellisation strategy of the realspace grids",&
-         usage="RS_GRID DISTRIBUTED",&
-         enum_c_vals=s2a("DISTRIBUTED","REPLICATED"),&
-         enum_desc=s2a("Better memory usage and parallel scalability.", &
-                       "Has been tested more extensively (old default)."),&
-         enum_i_vals=(/ do_rsgrid_distributed, do_rsgrid_replicated/),&
-         default_i_val=do_rsgrid_distributed, error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
+    NULLIFY(subsection)
+    CALL create_rsgrid_section(subsection,error)
+    CALL section_add_subsection(section,subsection,error=error)
+    CALL section_release(subsection,error=error)
+     
     NULLIFY(subsection)
     CALL section_create(subsection,name="MULTIPOLES",&
          description="Enables the use of multipoles in the treatment of the electrostatics.",&

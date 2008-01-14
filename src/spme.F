@@ -129,7 +129,7 @@ CONTAINS
     INTEGER                                  :: group, handle, i, ipart, j, &
                                                 n, ncore, npart, nshell, &
                                                 o_spline, p1, p1_shell, &
-                                                rs_distributed_id, stat
+                                                stat
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center, core_center, &
                                                 shell_center
     INTEGER, DIMENSION(3)                    :: npts
@@ -158,7 +158,7 @@ CONTAINS
 
     !-------------- INITIALISATION ---------------------
     CALL ewald_env_get ( ewald_env, alpha=alpha, eps0 = eps0, o_spline = o_spline,&
-         group = group, rs_distributed_id = rs_distributed_id, error=error)
+         group = group, error=error)
     CALL ewald_pw_get ( ewald_pw, pw_big_pool=pw_pool, rs_pool=rs_pool,&
          poisson_env=poisson_env)
     CALL pw_poisson_rebuild(poisson_env,error=error)

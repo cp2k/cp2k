@@ -43,7 +43,6 @@ MODULE kg_rspw_methods
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gaussian_gridlevel,&
                                              init_gaussian_gridlevel
-  USE input_constants,                 ONLY: do_rsgrid_distributed
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kg_environment_types,            ONLY: get_kg_env,&
@@ -65,7 +64,9 @@ MODULE kg_rspw_methods
                                              pw_pools_dealloc
   USE qs_util,                         ONLY: exp_radius
   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
-                                             rs_grid_print
+                                             rs_grid_print,&
+                                             realspace_grid_input_type,&
+                                             init_input_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -167,7 +168,8 @@ END SUBROUTINE kg_rspw_create
       POINTER                                :: pw_pools
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs
-    TYPE(section_vals_type), POINTER         :: poisson_section, print_section
+    TYPE(section_vals_type), POINTER         :: poisson_section, print_section, rs_grid_section
+    TYPE(realspace_grid_input_type)          :: input_settings
 
 ! KG doesn't setup the radius correctly. It appears that not all primitives that are actually mapped
 ! are being tested in the radius calculation. This safety_factor will lead to poorer parallel performance
@@ -442,15 +444,13 @@ END SUBROUTINE kg_rspw_create
                pw_grid%dr(:), pw_grid%dh(:,:), pw_grid%dh_inv(:,:), pw_grid%orthorhombic,&
                radius(igrid_level))
 
-        ! nsmax is used as a flag to create rs grids either replicated or distributed
-        IF ( dft_control % qs_control % rs_distributed_id .EQ. do_rsgrid_distributed ) THEN
-           nsmax = 2*MAX(1,return_cube_max_iradius(kg_rspw%cube_info(igrid_level)))+1
-        ELSE
-            nsmax = -1
-        ENDIF
+        rs_grid_section=>section_vals_get_subs_vals(kg_env%input,"DFT%MGRID%RS_GRID",error=error)
+
+        CALL init_input_type(input_settings,nsmax=2*MAX(1,return_cube_max_iradius(kg_rspw%cube_info(igrid_level)))+1,&
+                                 rs_grid_section=rs_grid_section,ilevel=igrid_level,error=error)
 
         CALL rs_pool_create(rs_pools(igrid_level)%pool,&
-            el_struct=pw_grid,nsmax=nsmax,error=error)
+            el_struct=pw_grid,input_settings=input_settings,error=error)
       ENDDO
       kg_rspw%rs_pools => rs_pools
 

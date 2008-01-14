@@ -56,7 +56,8 @@ MODULE cp_rs_pool_types
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_release,&
                                              pw_grid_retain
-  USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
+  USE realspace_grid_types,            ONLY: realspace_grid_input_type,&
+                                             realspace_grid_p_type,&
                                              realspace_grid_type,&
                                              rs_grid_create,&
                                              rs_grid_release
@@ -111,7 +112,7 @@ MODULE cp_rs_pool_types
      PRIVATE
      INTEGER :: ref_count, id_nr
      TYPE(pw_grid_type), POINTER :: el_struct
-     INTEGER :: nsmax
+     TYPE(realspace_grid_input_type) :: input_settings
      TYPE(cp_sll_rs_type), POINTER :: cache
   END TYPE cp_rs_pool_type
 !!***
@@ -174,10 +175,11 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE rs_pool_create(pool, el_struct,&
-       nsmax, error)
+       input_settings, error)
     TYPE(cp_rs_pool_type), POINTER           :: pool
     TYPE(pw_grid_type), POINTER              :: el_struct
-    INTEGER, INTENT(IN)                      :: nsmax
+    TYPE(realspace_grid_input_type), &
+      INTENT(IN)                             :: input_settings
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_pool_create', &
@@ -197,7 +199,7 @@ CONTAINS
        pool%id_nr=last_rs_pool_id_nr
        pool%ref_count=1
        NULLIFY(pool%cache)
-       pool%nsmax=nsmax
+       pool%input_settings=input_settings
     END IF
   END SUBROUTINE rs_pool_create
 !***************************************************************************
@@ -393,7 +395,7 @@ CONTAINS
        ELSE
           NULLIFY(element)
           CALL rs_grid_create(element,pw_grid=pool%el_struct,&
-         nsmax=pool%nsmax,error=error)
+         input_settings=pool%input_settings,error=error)
        END IF
        
     END IF

@@ -276,8 +276,9 @@ MODULE input_constants
        use_unit_bohr=1,&
        use_unit_scaled_angstrom=2,&
        use_unit_scaled_bohr=3
-  INTEGER, PARAMETER, PUBLIC :: do_rsgrid_distributed=0,&
-       do_rsgrid_replicated=1
+  INTEGER, PARAMETER, PUBLIC :: rsgrid_distributed=0,&
+                                rsgrid_replicated=1,&
+                                rsgrid_automatic=2
 
   INTEGER, PARAMETER, PUBLIC :: do_par_atom=0,&
                                 do_par_grid=1

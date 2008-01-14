@@ -398,7 +398,7 @@ CONTAINS
 
     INTEGER                                  :: group, handle, i, ipart, j, &
                                                 n, npart, o_spline, p1, &
-                                                rs_distributed_id, stat
+                                                stat
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center
     INTEGER, DIMENSION(3)                    :: npts
     LOGICAL                                  :: failure
@@ -426,7 +426,7 @@ CONTAINS
     failure = .FALSE.
 
     CALL ewald_env_get ( ewald_env, alpha=alpha, o_spline = o_spline, group = group, &
-         rs_distributed_id = rs_distributed_id, error=error)
+         error=error)
     NULLIFY(green, poisson_env, pw_pool)
     CALL ewald_pw_get ( ewald_pw, pw_big_pool=pw_pool, rs_pool=rs_pool, &
          poisson_env=poisson_env)

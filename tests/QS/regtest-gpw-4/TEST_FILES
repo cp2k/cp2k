@@ -39,3 +39,4 @@ H2O_wavelet_free2.inp 1
 H2O_wavelet_XZ.inp    1
 #function to compute splined values - distributed grids
 NO2-EFG-1.inp        19
+H2O-8.inp            1

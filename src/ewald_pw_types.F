@@ -40,9 +40,9 @@ MODULE ewald_pw_types
   USE input_constants,                 ONLY: do_ewald_ewald,&
                                              do_ewald_none,&
                                              do_ewald_pme,&
-                                             do_ewald_spme,&
-                                             do_rsgrid_distributed
-  USE input_section_types,             ONLY: section_vals_type
+                                             do_ewald_spme
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: MPI_COMM_SELF
@@ -63,12 +63,13 @@ MODULE ewald_pw_types
                                              pw_pool_type
   USE qs_util,                         ONLY: exp_radius
   USE realspace_grid_types,            ONLY: realspace_grid_type,&
-                                             rs_grid_print
+                                             rs_grid_print,&
+                                             realspace_grid_input_type,&
+                                             init_input_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
-
   IMPLICIT NONE
 
   PRIVATE
@@ -231,7 +232,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: bo(2,3), ewald_type, gmax(3), handle, npts_s( 3 ), ns_max, &
-      nsmax, o_spline, output_unit, rs_distributed_id, stat
+      nsmax, o_spline, output_unit, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, alphasq, &
                                                 cutoff_radius, epsilon, i, &
@@ -244,7 +245,8 @@ CONTAINS
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(realspace_grid_type), POINTER       :: rs
-    TYPE(section_vals_type), POINTER         :: poisson_section
+    TYPE(section_vals_type), POINTER         :: poisson_section, rs_grid_section
+    TYPE(realspace_grid_input_type)          :: input_settings
 
     CALL timeset("ewald_pw_init","I","",handle)
     failure=.FALSE.
@@ -264,8 +266,10 @@ CONTAINS
                             ewald_type = ewald_type, &
                             o_spline=o_spline,&
                             poisson_section=poisson_section,&
-                            rs_distributed_id = rs_distributed_id,&
                             epsilon = epsilon ,error=error)
+
+       rs_grid_section => section_vals_get_subs_vals(poisson_section,"EWALD%RS_GRID",error=error)
+
        SELECT CASE ( ewald_type )
        CASE ( do_ewald_ewald )
           ! set up Classic EWALD sum
@@ -333,12 +337,9 @@ CONTAINS
           CALL pw_pool_release ( pw_pool ,error=error)
           
           NULLIFY ( rs_pool )
-          IF ( rs_distributed_id == do_rsgrid_distributed ) THEN
-             nsmax = MAXVAL ( pw_small_grid % npts(1:3) )
-          ELSE
-             nsmax = -1
-          END IF
-          CALL rs_pool_create(rs_pool,el_struct=pw_big_grid,nsmax=nsmax,error=error)
+          CALL init_input_type(input_settings,nsmax=MAXVAL ( pw_small_grid % npts(1:3) ),&
+                               rs_grid_section=rs_grid_section,ilevel=1,error=error)
+          CALL rs_pool_create(rs_pool,el_struct=pw_big_grid,input_settings=input_settings,error=error)
           
           CALL rs_pool_create_rs(rs_pool,rs,error=error)
           CALL rs_grid_print(rs,output_unit,error=error)
@@ -373,12 +374,9 @@ CONTAINS
           CALL pw_pool_release ( pw_pool ,error=error)
           
           NULLIFY ( rs_pool )
-          IF ( rs_distributed_id == do_rsgrid_distributed ) THEN
-             nsmax = o_spline
-          ELSE
-             nsmax = -1
-          END IF
-          CALL rs_pool_create(rs_pool,el_struct=pw_big_grid,nsmax=nsmax,error=error)
+          CALL init_input_type(input_settings,nsmax=o_spline,&
+                               rs_grid_section=rs_grid_section,ilevel=1,error=error)
+          CALL rs_pool_create(rs_pool,el_struct=pw_big_grid,input_settings=input_settings,error=error)
           
           CALL rs_pool_create_rs(rs_pool,rs,error=error)
           CALL rs_grid_print(rs,output_unit,error=error)
