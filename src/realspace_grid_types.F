@@ -276,10 +276,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_setup_1', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: dir, i, j, k, lb( 2 ), &
+    INTEGER                                  :: dir, i, j, k, l, lb( 2 ), &
                                                 n_slices(3), neighbours(3), &
-                                                nmin, pos( 3 )
-    LOGICAL                                  :: failure
+                                                nmin, pos( 3 ), n_slices_tmp(3)
+    LOGICAL                                  :: failure, overlap
     REAL(KIND=dp)                            :: ratio, ratio_best, volume, &
                                                 volume_dist
 
@@ -344,19 +344,39 @@ CONTAINS
        ELSE
           n_slices = 1
           ratio_best=-HUGE(ratio_best)
+
           ! don't allow distributions with more processors than real grid points
           DO k=1, MIN(rs % npts (3), rs % group_size)
           DO j=1, MIN(rs % npts (2), rs % group_size)
              i= MIN (rs % npts (1), rs % group_size/(j*k) )
              IF (i*j*k .NE. rs % group_size) CYCLE
+
+             n_slices_tmp=(/i,j,k/)
+
+             ! we currently don't accept a grid that has borders that overlaps with the local data of the grid itself
+             overlap=.FALSE.
+             DO dir=1,3
+                IF (n_slices_tmp(dir)>1) THEN
+                   neighbours(dir) = HUGE(0)
+                   DO l=0,n_slices_tmp(dir)-1
+                      lb = get_limit ( rs % npts ( dir ),  n_slices_tmp( dir ), l )
+                      neighbours(dir) = MIN(lb (2) -lb (1) + 1, neighbours(dir) )
+                   ENDDO
+                   rs % neighbours(dir) = CEILING( REAL(nmin + neighbours(dir)) / & 
+                        REAL( neighbours(dir) ))
+                   IF( rs % neighbours(dir) .GE. n_slices_tmp (dir) ) overlap=.TRUE.
+                ENDIF
+             ENDDO
+             IF (overlap) CYCLE
+
              ! a heuristic optimisation to reduce the memory usage
              ! volume of the box without the wings / volume of the box with the wings
-             ratio = PRODUCT(REAL(rs % npts,KIND=dp) / (/i,j,k/)) /  & 
-                     PRODUCT(REAL(rs % npts,KIND=dp) / (/i,j,k/) +   &
-                       MERGE((/0,0,0/),2*(/nmin,nmin,nmin/),(/i,j,k/)==(/1,1,1/)))
+             ratio = PRODUCT(REAL(rs % npts,KIND=dp) / n_slices_tmp ) /  & 
+                     PRODUCT(REAL(rs % npts,KIND=dp) / n_slices_tmp  +   &
+                       MERGE((/0,0,0/),2*(/nmin,nmin,nmin/), n_slices_tmp ==(/1,1,1/)))
              IF (ratio>ratio_best) THEN
                 ratio_best=ratio
-                n_slices=(/i,j,k/)
+                n_slices=n_slices_tmp
              ENDIF
           ENDDO
           ENDDO
@@ -367,12 +387,12 @@ CONTAINS
 
           !factor of 2 is currently an arbritary input parameter 
           IF (volume<volume_dist*2) THEN
-               n_slices=1
+              n_slices=1
           ENDIF
           
        END IF
 
-1234   rs % group_dim (:) = n_slices(:)
+       rs % group_dim (:) = n_slices(:)
 
        IF ( ALL (n_slices == 1 ) ) THEN
           ! CASE 1 : only one slice: we do not need overlapping regions and special
@@ -421,24 +441,20 @@ CONTAINS
           DO dir = 1,3
              rs % neighbours(dir) = 0
              IF (n_slices(dir).GT.1) THEN             
+                neighbours(dir) = HUGE(0)
+                DO l=0,n_slices(dir)-1
+                   lb = get_limit ( rs % npts ( dir ),  n_slices( dir ), l )
+                   neighbours(dir) = MIN(lb (2) -lb (1) + 1, neighbours(dir) )
+                ENDDO
+                rs % neighbours(dir) = CEILING( REAL(nmin + neighbours(dir)) / &
+                     REAL( neighbours(dir) ))
+
                 lb = get_limit ( rs % npts ( dir ), rs % group_dim ( dir ), pos ( dir ) )
                 rs % npts_local ( dir ) = 2 * rs % border + ( lb ( 2 ) - lb ( 1 ) + 1 )
                 rs % lb_local ( dir ) = lb ( 1 ) + rs % lb ( dir ) - rs % border - 1
                 rs % ub_local ( dir ) = lb ( 2 ) + rs % lb ( dir ) + rs % border - 1
                 rs % lb_real ( dir ) = rs % lb_local(dir) + rs % border 
                 rs % ub_real ( dir ) = rs % ub_local(dir) - rs % border                
-                neighbours(dir) = lb (2) -lb (1) + 1
-                CALL mp_min ( neighbours(dir), rs % group )
-                rs % neighbours(dir) = CEILING( REAL(rs%border + neighbours(dir)) / & 
-                     REAL( neighbours(dir) ))
-                ! really ugly hack to prevent the situation where the wings
-                ! overlap with periodic images of the real data
-                IF( rs % neighbours(dir) .GE. n_slices (dir) ) THEN
-                   !write(6,*)"grid too small, would be overlapping with self"
-                   n_slices = 1
-                   CALL mp_comm_free ( rs % group )
-                   GOTO 1234
-                ENDIF
              ENDIF
           ENDDO
           rs % ngpts_local = PRODUCT ( rs % npts_local )
