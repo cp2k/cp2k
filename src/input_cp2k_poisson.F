@@ -615,7 +615,8 @@ END SUBROUTINE create_ewald_section
             description="Sets up parameters of  wavelet based poisson solver."//&
                   "This solver allows for non-periodic (PERIODIC NONE) boundary conditions and slab-boundary conditions "//&
                   "(but only PERIODIC XZ)."//&
-                  "It does not require very large unit cells, only that the density goes to zero on the faces of the cell.",&
+                  "It does not require very large unit cells, only that the density goes to zero on the faces of the cell."//&
+                  "The use of PREFERRED_FFT_LIBRARY FFTSG is required",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             citations=(/Genovese2006,Genovese2007/),&
             error=error)
