@@ -86,6 +86,7 @@ CONTAINS
             description="Set options that influence how the realspace grids are being distributed in parallel runs.",&
             n_keywords=5, n_subsections=0, repeats=.TRUE., required=.FALSE.,error=error)
 
+       NULLIFY(keyword)
        CALL keyword_create(keyword, name="DISTRIBUTION_TYPE",&
             description="Parallelization strategy.",&
             usage="DISTRIBUTION_TYPE DISTRIBUTED",&
