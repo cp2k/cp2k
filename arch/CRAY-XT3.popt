@@ -31,4 +31,5 @@ kg_ppl.o: kg_ppl.F
 	$(FC) -c $(FCFLAGS2) $<
 qs_dftb_coulomb.o: qs_dftb_coulomb.F
 	$(FC) -c $(FCFLAGS2) $<
-
+input_cp2k_check.o: input_cp2k_check.F
+        $(FC) -c $(FCFLAGS2) $<
