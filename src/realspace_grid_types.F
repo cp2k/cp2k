@@ -1,9 +1,7 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2007  CP2K developers group                          !
+!   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-
-
 !!****s* cp2k/realspace_grid_types [1.0] *
 !!
 !!   NAME
@@ -59,10 +57,7 @@ MODULE realspace_grid_types
             rs_grid_create,&
             rs_grid_retain,&
             rs_grid_release,&
-            rs_grid_p_create,&
-            rs_grid_p_release, &
             rs_grid_print, &
-            rs_total_sum,  &
             rs_find_node
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'realspace_grid_types'
@@ -113,14 +108,6 @@ MODULE realspace_grid_types
      TYPE(realspace_grid_type), POINTER :: rs_grid
   END TYPE realspace_grid_p_type
 
-  INTERFACE rs_grid_deallocate
-     MODULE PROCEDURE rs_grid_deallocate_1, rs_grid_deallocate_n
-  END INTERFACE
-
-  INTERFACE rs_grid_setup
-     MODULE PROCEDURE rs_grid_setup_1, rs_grid_setup_n
-  END INTERFACE
-
 !-----------------------------------------------------------------------------!
 
 CONTAINS
@@ -143,7 +130,7 @@ CONTAINS
 !*****
 !******************************************************************************
 
-  SUBROUTINE rs_grid_allocate_1 ( rs, error )
+  SUBROUTINE rs_grid_allocate ( rs, error )
 
     TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -178,7 +165,7 @@ CONTAINS
          rs % npts ( 3 ) )
 
     CALL timestop(0.0_dp,handle)
-  END SUBROUTINE rs_grid_allocate_1
+  END SUBROUTINE rs_grid_allocate
 
 !!****** realspace_grid_types/rs_grid_deallocate [1.0] *
 !!
@@ -196,7 +183,7 @@ CONTAINS
 !*****
 !******************************************************************************
 
-  SUBROUTINE rs_grid_deallocate_1 ( rs, error )
+  SUBROUTINE rs_grid_deallocate ( rs, error )
 
     TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -225,30 +212,7 @@ CONTAINS
     END IF
 
     CALL timestop(0.0_dp,handle)
-  END SUBROUTINE rs_grid_deallocate_1
-
-!******************************************************************************
-
-  SUBROUTINE rs_grid_deallocate_n ( rs, error )
-
-    TYPE(realspace_grid_p_type), &
-      DIMENSION(:), POINTER                  :: rs
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_deallocate_n', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, n
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-
-    n = SIZE ( rs )
-    DO i = 1, n
-       CALL rs_grid_deallocate_1 ( rs ( i )%rs_grid, error )
-    END DO
-
-  END SUBROUTINE rs_grid_deallocate_n
+  END SUBROUTINE rs_grid_deallocate
 
 !******************************************************************************
 !!****** realspace_grid_types/rs_grid_setup [1.0] *
@@ -267,13 +231,13 @@ CONTAINS
 !*****
 !******************************************************************************
 
-  SUBROUTINE rs_grid_setup_1 ( rs, pw_grid, nsmax, error)
+  SUBROUTINE rs_grid_setup ( rs, pw_grid, nsmax, error)
     TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(pw_grid_type), INTENT(IN)           :: pw_grid
     INTEGER, INTENT(IN)                      :: nsmax
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_setup_1', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_setup', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: dir, i, j, k, l, lb( 2 ), &
@@ -320,7 +284,7 @@ CONTAINS
             pw_grid % bounds_local ( 1, 2:3 ) .AND. &
             pw_grid % bounds ( 2, 2:3 ) == &
             pw_grid % bounds_local ( 2, 2:3 ) ) ) THEN
-          CALL stop_program ( "rs_grid_setup_1", &
+          CALL stop_program ( routineN, &
                "This pw type not supported" )
        END IF
  
@@ -464,36 +428,9 @@ CONTAINS
 
     CALL mp_sync(pw_grid % para % group)
 
-    CALL rs_grid_allocate_1 ( rs, error )
+    CALL rs_grid_allocate ( rs, error )
 
-  END SUBROUTINE rs_grid_setup_1
-
-!******************************************************************************
-
-  SUBROUTINE rs_grid_setup_n ( rs, pw_grid, nsmax, error)
-
-    TYPE(realspace_grid_p_type), &
-      DIMENSION(:), POINTER                  :: rs
-    TYPE(pw_grid_type), INTENT(IN)           :: pw_grid
-    INTEGER, INTENT(IN)                      :: nsmax
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_setup_n', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-
-    WRITE(6,*)"rs_grid_setup_n called, size of rs grids is", SIZE (rs)
-
-    CALL rs_grid_setup_1 ( rs ( 1 ) % rs_grid , pw_grid, nsmax, error )
-    DO i = 2, SIZE ( rs )
-       CALL rs_grid_setup_1 ( rs ( i ) % rs_grid , pw_grid, nsmax, error )
-    END DO
-
-  END SUBROUTINE rs_grid_setup_n
+  END SUBROUTINE rs_grid_setup
 
 !******************************************************************************
 !!****** realspace_grid_types/rs_grid_print [1.0] *
@@ -1556,13 +1493,10 @@ END SUBROUTINE rs_grid_zero
 !*****
 !******************************************************************************
 
-SUBROUTINE rs_grid_set_box ( pw_grid, rs, rs_p, error )
+SUBROUTINE rs_grid_set_box ( pw_grid, rs, error )
 
     TYPE(pw_grid_type), POINTER              :: pw_grid
-    TYPE(realspace_grid_type), OPTIONAL, &
-      POINTER                                :: rs
-    TYPE(realspace_grid_p_type), &
-      DIMENSION(:), OPTIONAL, POINTER        :: rs_p
+    TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_set_box', &
@@ -1573,23 +1507,11 @@ SUBROUTINE rs_grid_set_box ( pw_grid, rs, rs_p, error )
 
 !-----------------------------------------------------------------------------!
 
-  IF ( PRESENT(rs) ) THEN
     CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(rs),cp_failure_level,routineP,error,failure)
     CPPrecondition(rs%grid_id==pw_grid%id_nr,cp_failure_level,routineP,error,failure)
     rs % dh = pw_grid%dh
     rs % dh_inv = pw_grid%dh_inv
-  END IF
-  IF ( PRESENT(rs_p) ) THEN
-    CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
-    n = SIZE(rs_p)
-    id = rs_p(1)%rs_grid%grid_id
-    CPPrecondition(id==pw_grid%id_nr,cp_failure_level,routineP,error,failure)
-    DO i = 1, n
-      rs_p(i)%rs_grid % dh = pw_grid%dh
-      rs_p(i)%rs_grid % dh_inv = pw_grid%dh_inv
-    END DO
-  END IF
 
 END SUBROUTINE rs_grid_set_box
 
@@ -1735,136 +1657,8 @@ SUBROUTINE rs_grid_release(rs_grid,error)
   NULLIFY(rs_grid)
 END SUBROUTINE rs_grid_release
 
-!!****f* realspace_grid_types/rs_grid_p_create [1.0] *
-!!
-!!   NAME
-!!     rs_grid_p_create
-!!
-!!   FUNCTION
-!!     allocates and initialize an rs_grid_p_type
-!!
-!!   ARGUMENTS
-!!     - rs_grid: the rs grid that is created
-!!     - pw_grid: the corresponding pw_grid
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!   MODIFICATION HISTORY
-!!     12.2005 created [teo]
-!*****
-!!**************************************************************************
-
-SUBROUTINE rs_grid_p_create(rs_p_grid, ndim, pw_grid, nsmax,  error)
-    TYPE(realspace_grid_p_type), &
-      DIMENSION(:), POINTER                  :: rs_p_grid
-    INTEGER, INTENT(in), OPTIONAL            :: ndim
-    TYPE(pw_grid_type), POINTER              :: pw_grid
-    INTEGER, INTENT(in), OPTIONAL            :: nsmax
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_p_create', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: j, my_nsmax, stat
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-  my_nsmax = -1
-  IF (PRESENT(nsmax)) my_nsmax=nsmax
-
-  CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
-
-  ALLOCATE(rs_p_grid(ndim),stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  DO j = 1, ndim
-     NULLIFY(rs_p_grid(j)%rs_grid)
-     CALL rs_grid_create(rs_p_grid(j)%rs_grid, pw_grid,my_nsmax,error=error)
-  END DO
-
-END SUBROUTINE rs_grid_p_create
-
 !***************************************************************************
-!!****f* realspace_grid_types/rs_grid_p_release [1.0] *
-!!
-!!   NAME
-!!     rs_grid_p_release
-!!
-!!   FUNCTION
-!!     releases the given rs_grid_p_type
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - rs_grid: the rs grid to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!   MODIFICATION HISTORY
-!!     12.2005 created [teo]
-!*****
-!!**************************************************************************
-
-SUBROUTINE rs_grid_p_release(rs_grid,error)
-    TYPE(realspace_grid_p_type), &
-      DIMENSION(:), POINTER                  :: rs_grid
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_p_release', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: j, stat
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-
-  IF (ASSOCIATED(rs_grid)) THEN
-     DO j = 1, SIZE(rs_grid)
-        CALL rs_grid_release(rs_grid(j)%rs_grid,error)
-     END DO
-     DEALLOCATE(rs_grid, stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-  END IF
-  NULLIFY(rs_grid)
-END SUBROUTINE rs_grid_p_release
-
-!******************************************************************************
-
-! This routine can be used for debugging
-! Prints the sum of all elements and the sum of absolute value of all elements
-SUBROUTINE rs_total_sum ( rs )
-
-    TYPE(realspace_grid_type), POINTER       :: rs
-
-    REAL(dp)                                 :: global_sum, global_sum_abs, &
-                                                local_sum, local_sum_abs
-
-  local_sum = SUM(rs%r)
-  local_sum_abs = SUM(ABS(rs%r))
-  IF ( rs%parallel ) THEN
-    global_sum = local_sum
-    CALL mp_sum ( global_sum, rs % group )
-    global_sum_abs = local_sum_abs
-    CALL mp_sum ( global_sum_abs, rs % group )
-    IF ( rs%group_head ) THEN
-      WRITE(*,*) " TOTAL SUM OF REAL SPACE GRID     :",global_sum
-      WRITE(*,*) " TOTAL ABSSUM OF REAL SPACE GRID  :",global_sum_abs
-    END IF
-  ELSE
-    WRITE(*,*) " TOTAL SUM OF REAL SPACE GRID     :",local_sum
-    WRITE(*,*) " TOTAL ABSSUM OF REAL SPACE GRID  :",local_sum_abs
-  ENDIF
-
-END SUBROUTINE rs_total_sum 
-
-!***************************************************************************
-!!****f* realspace_grid_types/rs_find-node  
+!!****f* realspace_grid_types/rs_find_node  
 !!
 !!   NAME
 !!     rs_find_node
