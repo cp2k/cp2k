@@ -509,7 +509,6 @@ CONTAINS
                                  nmolecule=nmolecule,&
                                  molecule_list=molecule_list)
           ng3x3 =  SIZE(constr_x_mol(ii)%constr)
-          WRITE(*,*)ng3x3
           ALLOCATE(g3x3_list(ng3x3),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           CALL setup_g3x3_list(g3x3_list, constr_x_mol(ii)%constr, cons_info, ng3x3_restraint, error)
