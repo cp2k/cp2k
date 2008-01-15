@@ -52,6 +52,9 @@ MODULE kg_environment_methods
   USE qs_matrix_pools,                 ONLY: mpools_get,&
                                              mpools_rebuild_s_sm_pools
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
+  USE task_list_types,                 ONLY: task_list_type,&
+                                             allocate_task_list
+  USE task_list_methods,               ONLY: generate_qs_task_list
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -167,6 +170,7 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks
+    TYPE(task_list_type), POINTER            :: task_list
 
 !------------------------------------------------------------------------------
 
@@ -195,6 +199,29 @@ CONTAINS
     CALL mpools_rebuild_s_sm_pools(qs_env%mpools,s=qs_env%matrix_s,&
          nspins=nspins,particle_set=particle_set,&
          para_env=para_env, error=error)
+
+    ! generate task lists (non-soft)
+    IF (.NOT. dft_control%qs_control%gapw) THEN
+       CALL get_qs_env(qs_env=qs_env,task_list=task_list,error=error)
+       IF (.NOT. ASSOCIATED(task_list)) THEN
+          CALL allocate_task_list(task_list,error)
+          CALL set_qs_env(qs_env=qs_env,task_list=task_list,error=error)
+       ENDIF
+       CALL generate_qs_task_list(qs_env, .FALSE. , &
+              task_list%tasks, task_list%dist_ab, task_list%ntasks,&
+              task_list%atom_pair_send, task_list%atom_pair_recv, error)
+    ENDIF
+    ! generate the soft task list
+    IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
+       CALL get_qs_env(qs_env=qs_env,task_list_soft=task_list,error=error)  ! task_list == soft_task_list
+       IF (.NOT. ASSOCIATED(task_list)) THEN
+          CALL allocate_task_list(task_list,error)
+          CALL set_qs_env(qs_env=qs_env,task_list_soft=task_list,error=error)
+       ENDIF
+       CALL generate_qs_task_list(qs_env, .TRUE. , &
+              task_list%tasks, task_list%dist_ab, task_list%ntasks, &
+              task_list%atom_pair_send, task_list%atom_pair_recv, error)
+    ENDIF
 
 !dbg
 !    CALL get_qs_env(qs_env, matrix_ks=matrix_ks, error=error)

@@ -67,6 +67,9 @@ MODULE qs_environment_methods
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
                                              real_matrix_p_type
+  USE task_list_types,                 ONLY: task_list_type,&
+                                             allocate_task_list
+  USE task_list_methods,               ONLY: generate_qs_task_list
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -257,6 +260,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
       POINTER                                :: particle_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks
+    TYPE(task_list_type), POINTER            :: task_list
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
@@ -296,6 +300,28 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
               qs_env%qs_charges%total_rho_core_rspace,qs_env,error=error)
       END IF
     END IF
+
+    ! generate task lists (non-soft)
+    IF (.NOT. dft_control%qs_control%gapw) THEN
+       CALL get_qs_env(qs_env=qs_env,task_list=task_list,error=error)
+       IF (.NOT. ASSOCIATED(task_list)) THEN
+          CALL allocate_task_list(task_list,error)
+          CALL set_qs_env(qs_env=qs_env,task_list=task_list,error=error)
+       ENDIF
+       CALL generate_qs_task_list(qs_env, .FALSE. , &
+              task_list%tasks, task_list%dist_ab, task_list%ntasks, task_list%atom_pair_send, task_list%atom_pair_recv, error)
+    ENDIF
+    ! generate the soft task list
+    IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
+       CALL get_qs_env(qs_env=qs_env,task_list_soft=task_list,error=error)  ! task_list == soft_task_list
+       IF (.NOT. ASSOCIATED(task_list)) THEN
+          CALL allocate_task_list(task_list,error)
+          CALL set_qs_env(qs_env=qs_env,task_list_soft=task_list,error=error)
+       ENDIF
+       CALL generate_qs_task_list(qs_env, .TRUE. , &
+              task_list%tasks, task_list%dist_ab, task_list%ntasks, task_list%atom_pair_send, task_list%atom_pair_recv, error)
+    ENDIF
+
     
     ! *** environment for ddapc ***
     IF (ASSOCIATED(qs_env%cp_ddapc_env)) THEN

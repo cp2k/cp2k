@@ -109,3 +109,5 @@ water32_hbonds_4.inp
 #changed default convergence criterium
 wat_mode_sel.inp         
 wat_mode_sel_range.inp   
+#  
+JAC_gen.inp

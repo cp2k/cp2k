@@ -64,6 +64,7 @@ MODULE qs_collocate_density
   USE cube_utils,                      ONLY: cube_info_type,&
                                              return_cube,&
                                              return_cube_nonortho
+  USE distribution_2d_types,           ONLY: distribution_2d_release
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
   USE input_constants,                 ONLY: pw_interp,&
@@ -134,7 +135,9 @@ MODULE qs_collocate_density
                                              allocate_matrix,&
                                              deallocate_matrix,&
                                              get_block_node,&
+                                             replicate_matrix,&
                                              real_matrix_type
+  USE task_list_types,                 ONLY: task_list_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -556,7 +559,6 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_rho_core
-
 !!****f* qs_collocate_density/calculate_rho_elec *
 !!
 !!   NAME
@@ -644,6 +646,8 @@ CONTAINS
     TYPE(realspace_grid_p_type), &
          DIMENSION(:), POINTER               :: rs_rho
     TYPE(section_vals_type), POINTER         :: input, interp_section
+    TYPE(task_list_type), POINTER            :: task_list
+    TYPE(task_list_type), POINTER            :: task_list_soft
 
     !   ---------------------------------------------------------------------------
 
@@ -686,6 +690,8 @@ CONTAINS
          particle_set=particle_set,&
          sab_orb=sab_orb,&
          para_env=para_env,&
+         task_list=task_list,&
+         task_list_soft=task_list_soft,&
          input=input,&
          pw_env=pw_env,error=error)
 
@@ -693,62 +699,18 @@ CONTAINS
     gridlevel_info=>pw_env%gridlevel_info
     cube_info=>pw_env%cube_info
 
-    interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",&
-         error=error)
-
-    ! *** set up the pw multi-grids
-    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routine,error,failure)
-    CALL pw_env_get(pw_env, rs_pools=rs_pools, error=error)
-
-    ! *** set up the rs multi-grids
-    distributed_rs_grids=.FALSE.
-    CALL rs_pools_create_rs_vect(rs_pools, rs_rho, error=error)
-    DO igrid_level=1,gridlevel_info%ngrid_levels
-       CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
-       IF ( rs_rho(igrid_level)%rs_grid%distributed ) THEN
-          distributed_rs_grids=.TRUE.
-       ENDIF
-    END DO
-
-    eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
-    map_consistent = dft_control%qs_control%map_consistent
-    nthread = 1
-
     !   *** Allocate work storage ***
-
+    nthread = 1
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          maxco=maxco,&
          maxsgf=maxsgf,&
          maxsgf_set=maxsgf_set)
-
     nkind = SIZE(atomic_kind_set)
-
     CALL reallocate(pabt,1,maxco,1,maxco,0,nthread-1)
     CALL reallocate(workt,1,maxco,1,maxsgf_set,0,nthread-1)
-    CALL reallocate(tasks,1,3,1,max_tasks)
-    CALL reallocate(dist_ab,1,3,1,max_tasks)
 
-    !   *** Initialize working density matrix ***
-    ! distributed rs grids require a matrix that will be changed (rs_get_my_tasks)
-    ! whereas this is not the case for replicated grids
-    IF (distributed_rs_grids) THEN
-       CALL allocate_matrix(matrix=deltap,&
-            nrow=matrix_p%nrow,&
-            ncol=matrix_p%ncol,&
-            nblock_row=matrix_p%nblock_row,&
-            nblock_col=matrix_p%nblock_col,&
-            first_row=matrix_p%first_row(:),&
-            last_row=matrix_p%last_row(:),&
-            first_col=matrix_p%first_col(:),&
-            last_col=matrix_p%last_col(:),&
-            matrix_name="DeltaP",&
-            sparsity_id=-1, &        ! basically unknown sparsity in parallel
-            matrix_symmetry=matrix_p%symmetry,error=error)
-    ELSE
-       deltap=>matrix_p
-    ENDIF
-
-    !   get maximum numbers
+    ! find maximum numbers
+    nkind = SIZE(atomic_kind_set)
     natoms = SIZE( particle_set )
     maxset=0
     maxpgf=0
@@ -768,199 +730,42 @@ CONTAINS
        maxpgf=MAX(MAXVAL(npgfa),maxpgf)
     END DO
 
-    ! construct a list of all tasks
+    ! get the task lists
+    IF (my_soft) task_list=>task_list_soft
+    CPPrecondition(ASSOCIATED(task_list),cp_failure_level,routine,error,failure)
+    tasks  =>task_list%tasks
+    dist_ab=>task_list%dist_ab
+    atom_pair_send=>task_list%atom_pair_send
+    atom_pair_recv=>task_list%atom_pair_recv
+    ntasks=task_list%ntasks
+    
+    ! *** set up the pw multi-grids
+    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routine,error,failure)
+    CALL pw_env_get(pw_env, rs_pools=rs_pools, error=error)
+    ! *** set up the rs multi-grids
+    distributed_rs_grids=.FALSE.
+    CALL rs_pools_create_rs_vect(rs_pools, rs_rho, error=error)
+    DO igrid_level=1,gridlevel_info%ngrid_levels
+       CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
+       IF ( rs_rho(igrid_level)%rs_grid%distributed ) THEN
+          distributed_rs_grids=.TRUE.
+       ENDIF
+    END DO
 
-    ntasks = 0
-    tasks = 0
-    curr_tasks = SIZE(tasks,2)
+    eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
+    map_consistent = dft_control%qs_control%map_consistent
 
-    loop_ikind: DO ikind=1,nkind
-
-       atomic_kind => atomic_kind_set(ikind)
-
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-            softb = my_soft, &
-            orb_basis_set=orb_basis_set)
-
-       IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
-
-       CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-            first_sgf=first_sgfa,&
-            lmax=la_max,&
-            lmin=la_min,&
-            npgf=npgfa,&
-            nset=nseta,&
-            nsgf_set=nsgfa,&
-            pgf_radius=rpgfa,&
-            set_radius=set_radius_a,&
-            sphi=sphi_a,&
-            zet=zeta)
-
-       loop_jkind: DO jkind=1,nkind
-
-          atomic_kind => atomic_kind_set(jkind)
-
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               softb = my_soft, &
-               orb_basis_set=orb_basis_set)
-
-          IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
-
-          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-               first_sgf=first_sgfb,&
-               kind_radius=kind_radius_b,&
-               lmax=lb_max,&
-               lmin=lb_min,&
-               npgf=npgfb,&
-               nset=nsetb,&
-               nsgf_set=nsgfb,&
-               pgf_radius=rpgfb,&
-               set_radius=set_radius_b,&
-               sphi=sphi_b,&
-               zet=zetb)
-
-
-          ab = ikind + nkind*(jkind - 1)
-
-          IF (ASSOCIATED(sab_orb(ab)%neighbor_list_set)) THEN
-
-             CALL get_neighbor_list_set(neighbor_list_set=&
-                  sab_orb(ab)%neighbor_list_set,&
-                  nlist=nlist)
-             sab_orb_neighbor_list => first_list(sab_orb(ab)%neighbor_list_set)
-          ELSE
-             nlist=0
-          END IF
-
-          loop_ilist: DO ilist = 1, nlist
-
-             CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list,&
-                  atom=iatom,nnode=nnode)
-
-             ra(:) = pbc(particle_set(iatom)%r,cell)
-
-             sab_orb_neighbor_node => first_node(sab_orb_neighbor_list)
-
-             loop_inode: DO inode = 1, nnode
-
-                CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
-                     neighbor=jatom,&
-                     r=rab(:))
-
-                IF (iatom <= jatom) THEN
-                   brow = iatom
-                   bcol = jatom
-                ELSE
-                   brow = jatom
-                   bcol = iatom
-                END IF
-
-                ! bad, should do better loop ordering XXXXXXXXXX
-                CALL get_block_node(matrix=matrix_p,&
-                     block_row=brow,&
-                     block_col=bcol,&
-                     BLOCK=p_block)
-
-                !           *** Check, if the atomic block has to be ***
-                !           *** calculated by the current processor  ***
-
-                IF (.NOT.ASSOCIATED(p_block)) THEN
-                   sab_orb_neighbor_node => next(sab_orb_neighbor_node)
-                   CYCLE
-                END IF
-
-                ! we might still need our local blocks (i.e. replicated grids), add them to deltap
-
-                IF (distributed_rs_grids) THEN
-                   NULLIFY ( pblock )
-                   CALL add_block_node ( deltap, brow, bcol, pblock ,error=error)
-                   pblock = p_block
-                ELSE
-                   pblock => p_block
-                ENDIF
-
-                rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-                dab = SQRT(rab2)
-
-                loop_iset: DO iset=1,nseta
-
-                   IF (set_radius_a(iset) + kind_radius_b < dab) CYCLE
-
-                   loop_jset: DO jset=1,nsetb
-
-                      IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
-
-                      loop_ipgf: DO ipgf=1,npgfa(iset)
-
-                         IF (rpgfa(ipgf,iset) + set_radius_b(jset) < dab) CYCLE
-
-                         loop_jpgf: DO jpgf=1,npgfb(jset)
-
-                            IF (rpgfa(ipgf,iset) + rpgfb(jpgf,jset) < dab) CYCLE
-
-                            zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
-                            IF (dab.lt.0.1E0_dp .AND. dft_control%qs_control%map_paa) THEN
-                               igrid_level = 1
-                            ELSE
-                               igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
-                            ENDIF
-
-                            ntasks = ntasks + 1
-                            IF ( ntasks > curr_tasks ) THEN
-                               curr_tasks = (curr_tasks+add_tasks)*mult_tasks
-                               CALL reallocate(tasks,1,3,1,curr_tasks)
-                               CALL reallocate(dist_ab,1,3,1,curr_tasks)
-                            END IF
-
-                            DO dir = 1,3
-                               rp(:) = ra(:) + zetb(jpgf,jset)/zetp*rab(:)
-                               rp(:) = pbc(rp,cell)
-                               tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),rp)*rs_rho(igrid_level)%rs_grid%npts(dir))
-                               tp(dir) = MODULO ( tp(dir), rs_rho(igrid_level)%rs_grid%npts(dir) )
-                               tp(dir) = tp(dir) + rs_rho(igrid_level)%rs_grid%lb(dir)
-                            END DO
-
-                            IF(rs_rho(igrid_level)%rs_grid%distributed) THEN
-                               CALL rs_find_node(rs_rho(igrid_level)%rs_grid,tp,dest)
-                            ELSE
-                               dest =  rs_rho(igrid_level)%rs_grid%my_pos 
-                            ENDIF
-
-                            tasks (1,ntasks) = dest
-                            tasks (2,ntasks) = rs_rho(igrid_level)% rs_grid % my_pos
-
-                            !encode the atom pairs and basis info as a single long integer
-                            CALL pair2int(tasks(3,ntasks),iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
-
-                            dist_ab (1,ntasks) = rab(1)
-                            dist_ab (2,ntasks) = rab(2)
-                            dist_ab (3,ntasks) = rab(3)
-
-                         END DO loop_jpgf
-
-                      END DO loop_ipgf
-
-                   END DO loop_jset
-
-                END DO loop_iset
-
-                sab_orb_neighbor_node => next(sab_orb_neighbor_node)
-
-             END DO loop_inode
-
-             sab_orb_neighbor_list => next(sab_orb_neighbor_list)
-
-          END DO loop_ilist
-
-       END DO loop_jkind
-
-    END DO loop_ikind
-
-    ! redistribute the task list so that all tasks map on the local rs grids
-    IF (distributed_rs_grids)THEN
-       CALL rs_get_my_tasks (rs_rho(1)%rs_grid,ntasks, natoms,&
-            maxset,maxpgf, tasks, rval=dist_ab, atom_pair_send=atom_pair_send,&
-            atom_pair_recv=atom_pair_recv, error=error)
+    !   *** Initialize working density matrix ***
+    ! distributed rs grids require a matrix that will be changed (rs_get_my_tasks)
+    ! whereas this is not the case for replicated grids
+    IF (distributed_rs_grids) THEN
+       NULLIFY(deltap)
+       CALL replicate_matrix(matrix_p,deltap,target_name="DeltaP",error=error)
+       ! this matrix has no strict sparsity pattern in parallel
+       deltap%sparsity_id=-1
+       CALL distribution_2d_release(deltap%distribution_2d,error=error)
+    ELSE
+       deltap=>matrix_p
     ENDIF
 
     ! distribute the matrix
@@ -1090,6 +895,7 @@ CONTAINS
        rab2  = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
        rb(:) = ra(:) + rab(:)
        zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
+       dab=sqrt(rab2)
        IF (dab.lt.0.1E0_dp .AND. dft_control%qs_control%map_paa) THEN
           igrid_level = 1
        ELSE
@@ -1135,17 +941,14 @@ CONTAINS
 
     IF (distributed_rs_grids) THEN
       CALL deallocate_matrix ( deltap ,error=error)
-      DEALLOCATE (atom_pair_send, STAT=istat)      
-      IF (istat /= 0) CALL stop_memory(routine,"atom_pair_send")
-      DEALLOCATE (atom_pair_recv, STAT=istat)      
-      IF (istat /= 0) CALL stop_memory(routine,"atom_pair_recv")
     ENDIF
 
-    DEALLOCATE (pabt,workt, tasks, dist_ab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pabt,workt,tasks, dist_ab")
+    DEALLOCATE (pabt,workt,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"pabt,workt")
 
     CALL mp_sync(para_env%group)
 
+    interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",error=error)
     CALL density_rs2pw(pw_env,rs_rho,rho,rho_gspace,interp_section=interp_section,error=error)
 
     total_rho = pw_integrate_function(rho%pw,isign=-1)

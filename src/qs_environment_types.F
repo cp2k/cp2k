@@ -155,6 +155,8 @@ MODULE qs_environment_types
                                              scf_control_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
                                              real_matrix_p_type
+  USE task_list_types,                 ONLY: task_list_type, & 
+                                             deallocate_task_list
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_release,&
@@ -280,6 +282,8 @@ MODULE qs_environment_types
 !!                   the harris energy functional to the force calculation
 !!     - ep_qs_env: environment to perform an ep calculation
 !!     - x        : contains data used in Hartree-Fock-Exchange calculations
+!!     - task_list     : the list of tasks used in collocate and integrate
+!!     - task_list_soft: the list of tasks used in collocate and integrate in case of soft basis functions
 !!
 !!   AUTHOR
 !!     Matthias Krack & fawzi
@@ -353,6 +357,8 @@ MODULE qs_environment_types
     TYPE(et_coupling_type),POINTER                        :: et_coupling   
     TYPE(qs_dftb_pairpot_type), DIMENSION(:,:), POINTER   :: dftb_potential
     TYPE(cp_result_type) ,POINTER                         :: results
+    TYPE(task_list_type), POINTER                         :: task_list
+    TYPE(task_list_type), POINTER                         :: task_list_soft
   END TYPE qs_environment_type
 
 ! *****************************************************************************
@@ -398,7 +404,7 @@ CONTAINS
                         wf_history,scf_env,use_harris,&
                         id_nr,local_particles,local_molecules,&
                         distribution_2d,molecule_kind_set,molecule_set,&
-                        subsys,oce,rho_atom_set,&
+                        subsys,oce,rho_atom_set,task_list,task_list_soft,&
                         rho0_atom_set,rho0_mpole,nddo_mpole,&
                         rhoz_set,ecoul_1c,VH_3c_list,rho0_s_rs,rho0_s_gs, &
                         requires_mo_derivs,mo_derivs,tddfpt_control, &
@@ -515,6 +521,8 @@ CONTAINS
     TYPE(qs_dftb_pairpot_type), &
       DIMENSION(:, :), OPTIONAL, POINTER     :: dftb_potential
     TYPE(cp_result_type), OPTIONAL, POINTER  :: results
+    TYPE(task_list_type), OPTIONAL, POINTER  :: task_list
+    TYPE(task_list_type), OPTIONAL, POINTER  :: task_list_soft
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', &
@@ -643,6 +651,8 @@ CONTAINS
     IF (PRESENT(et_coupling)) et_coupling => qs_env%et_coupling    
     IF (PRESENT(dftb_potential)) dftb_potential => qs_env%dftb_potential    
     IF (PRESENT(results)) results => qs_env%results
+    IF (PRESENT(task_list)) task_list => qs_env%task_list
+    IF (PRESENT(task_list_soft)) task_list_soft => qs_env%task_list_soft
   END SUBROUTINE get_qs_env
 
 ! *****************************************************************************
@@ -721,6 +731,8 @@ CONTAINS
     NULLIFY (qs_env%et_coupling)
     NULLIFY (qs_env%dftb_potential)
     NULLIFY (qs_env%results)
+    NULLIFY (qs_env%task_list)
+    NULLIFY (qs_env%task_list_soft)
     qs_env%outer_scf_ihistory=0
     qs_env%neighbor_list_id=-1
 
@@ -755,7 +767,7 @@ CONTAINS
                         matrix_h,matrix_ks,matrix_s,matrix_w,matrix_dv,gamma_matrix,&
                         pw_env,ewald_env,ewald_pw,mpools,rho,rho_buffer,rho_xc,kinetic,&
                         scf_control,qs_charges,rho_core,ks_env,ks_qmmm_env,&
-                        wf_history,scf_env,use_harris,&
+                        wf_history,scf_env,use_harris,task_list,task_list_soft,&
                         distribution_2d,dft_section,input,&
                         subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,&
                         nddo_mpole,rhoz_set,rhoz_tot,ecoul_1c,VH_3c_list,&
@@ -851,6 +863,8 @@ CONTAINS
       POINTER                                :: et_coupling
     TYPE(qs_dftb_pairpot_type), &
       DIMENSION(:, :), OPTIONAL, POINTER     :: dftb_potential
+    TYPE(task_list_type), OPTIONAL, POINTER  :: task_list
+    TYPE(task_list_type), OPTIONAL, POINTER  :: task_list_soft
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_env', &
@@ -916,6 +930,8 @@ CONTAINS
     IF (PRESENT(outer_scf_ihistory)) qs_env%outer_scf_ihistory=outer_scf_ihistory
     IF (PRESENT(requires_mo_derivs)) qs_env%requires_mo_derivs=requires_mo_derivs
     IF (PRESENT(mo_derivs)) qs_env%mo_derivs=>mo_derivs
+    IF (PRESENT(task_list)) qs_env%task_list=>task_list
+    IF (PRESENT(task_list_soft)) qs_env%task_list_soft=>task_list_soft
     IF (PRESENT(rho)) THEN ! accepts also null pointers !
       IF (ASSOCIATED(rho)) CALL qs_rho_retain(rho,error=error)
       CALL qs_rho_release(qs_env%rho,error=error)
@@ -1348,7 +1364,13 @@ SUBROUTINE qs_env_release(qs_env,error)
         IF(ASSOCIATED(qs_env%kg_sub_pw_env)) THEN
           CALL kg_sub_pw_env_release(qs_env%kg_sub_pw_env,qs_env%input,error=error)
         END IF
-        CALL mp_sync(qs_env%para_env%group)
+
+        IF(ASSOCIATED(qs_env%task_list)) THEN
+          CALL deallocate_task_list(qs_env%task_list,error)
+        ENDIF
+        IF(ASSOCIATED(qs_env%task_list_soft)) THEN
+          CALL deallocate_task_list(qs_env%task_list_soft,error)
+        ENDIF
 
         !Only if do_xas_calculation
         IF(ASSOCIATED(qs_env%xas_env)) THEN

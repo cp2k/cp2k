@@ -54,6 +54,7 @@ MODULE qs_integrate_potential
   USE cube_utils,                      ONLY: cube_info_type,&
                                              return_cube,&
                                              return_cube_nonortho
+  USE distribution_2d_types,           ONLY: distribution_2d_release
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
   USE input_constants,                 ONLY: pw_interp,&
@@ -106,7 +107,8 @@ MODULE qs_integrate_potential
        add_block_node, allocate_matrix, allocate_matrix_set, &
        cp_sm_get_block_list, cp_sm_scale_and_add, deallocate_matrix, &
        deallocate_matrix_set, get_block_node, real_matrix_p_type, &
-       real_matrix_type
+       real_matrix_type, replicate_matrix
+  USE task_list_types,                 ONLY: task_list_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -324,7 +326,7 @@ CONTAINS
 
     TYPE(pw_p_type)                          :: v_rspace
     TYPE(real_matrix_p_type), INTENT(IN), &
-         OPTIONAL                               :: p
+         OPTIONAL                            :: p
     TYPE(real_matrix_p_type), INTENT(INOUT)  :: h
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
@@ -403,6 +405,8 @@ CONTAINS
          DIMENSION(:), POINTER                  :: rs_v
     TYPE(section_vals_type), POINTER         :: input, interp_section
     TYPE(virial_type), POINTER               :: virial
+    TYPE(task_list_type), POINTER            :: task_list
+    TYPE(task_list_type), POINTER            :: task_list_soft
 
     !   ---------------------------------------------------------------------------
 
@@ -418,8 +422,6 @@ CONTAINS
     IF (PRESENT(compute_tau)) my_compute_tau = compute_tau
     IF (PRESENT(gapw)) my_gapw = gapw
 
-
-
     CALL get_qs_env(qs_env=qs_env,&
          atomic_kind_set=atomic_kind_set,&
          cell=cell,&
@@ -428,6 +430,8 @@ CONTAINS
          sab_orb=sab_orb,&
          para_env=para_env,&
          input=input,&
+         task_list=task_list,&
+         task_list_soft=task_list_soft,&
          force=force,pw_env=pw_env,&
          virial=virial,error=error)
 
@@ -437,6 +441,15 @@ CONTAINS
     ELSE
        CALL timeset("integrate_v_rspace","I","",handle)
     END IF
+
+    ! get the task lists
+    IF (my_gapw) task_list=>task_list_soft
+    CPPrecondition(ASSOCIATED(task_list),cp_failure_level,routine,error,failure)
+    tasks  =>task_list%tasks
+    dist_ab=>task_list%dist_ab
+    atom_pair_send=>task_list%atom_pair_send
+    atom_pair_recv=>task_list%atom_pair_recv
+    ntasks=task_list%ntasks
 
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routine,error,failure)
     CALL pw_env_get(pw_env, rs_pools=rs_pools,error=error)
@@ -475,76 +488,65 @@ CONTAINS
          maxco=maxco,&
          maxsgf_set=maxsgf_set)
 
-    h_duplicated = .FALSE.
     distributed_grids = .FALSE.
-    dh => h%matrix
     DO igrid_level = 1, gridlevel_info%ngrid_levels
-       ! allow for general distributed rs grids
        IF ( rs_v(igrid_level)%rs_grid%distributed ) THEN
           distributed_grids = .TRUE.
-          NULLIFY ( dh )
-          CALL allocate_matrix(matrix=dh,&
-               nrow=h%matrix%nrow,&
-               ncol=h%matrix%ncol,&
-               nblock_row=h%matrix%nblock_row,&
-               nblock_col=h%matrix%nblock_col,&
-               first_row=h%matrix%first_row(:),&
-               last_row=h%matrix%last_row(:),&
-               first_col=h%matrix%first_col(:),&
-               last_col=h%matrix%last_col(:),&
-               matrix_name="LocalH",&
-               sparsity_id=-1, & ! unknown sparsity, as it will be modified in parallel
-               matrix_symmetry=h%matrix%symmetry,error=error)
-          h_duplicated = .TRUE.
-          IF (has_dv) THEN
-             NULLIFY(ddv)
-             CALL allocate_matrix_set(ddv,3,error=error)
-             DO idir=1,3
-                CALL allocate_matrix(matrix=ddv(idir)%matrix,&
-                     nrow=h%matrix%nrow,&
-                     ncol=h%matrix%ncol,&
-                     nblock_row=h%matrix%nblock_row,&
-                     nblock_col=h%matrix%nblock_col,&
-                     first_row=h%matrix%first_row(:),&
-                     last_row=h%matrix%last_row(:),&
-                     first_col=h%matrix%first_col(:),&
-                     last_col=h%matrix%last_col(:),&
-                     matrix_name="LocalDV"//TRIM(ADJUSTL(cp_to_string(idir))),&
-                     sparsity_id=-1, & ! unknown sparsity, as it will be modified in parallel
-                     matrix_symmetry=h%matrix%symmetry,error=error)
-             END DO
-          END IF
-          EXIT
+       ENDIF
+    ENDDO
+
+    h_duplicated = .FALSE.
+    dh => h%matrix
+    IF (distributed_grids) THEN
+       NULLIFY ( dh )
+       h_duplicated = .TRUE.
+       CALL allocate_matrix(matrix=dh,&
+            nrow=h%matrix%nrow,&
+            ncol=h%matrix%ncol,&
+            nblock_row=h%matrix%nblock_row,&
+            nblock_col=h%matrix%nblock_col,&
+            first_row=h%matrix%first_row(:),&
+            last_row=h%matrix%last_row(:),&
+            first_col=h%matrix%first_col(:),&
+            last_col=h%matrix%last_col(:),&
+            matrix_name="LocalH",&
+            sparsity_id=-1, & ! unknown sparsity, as it will be modified in parallel
+            matrix_symmetry=h%matrix%symmetry,error=error)
+       IF (has_dv) THEN
+          NULLIFY(ddv)
+          CALL allocate_matrix_set(ddv,3,error=error)
+          DO idir=1,3
+             CALL allocate_matrix(matrix=ddv(idir)%matrix,&
+                  nrow=h%matrix%nrow,&
+                  ncol=h%matrix%ncol,&
+                  nblock_row=h%matrix%nblock_row,&
+                  nblock_col=h%matrix%nblock_col,&
+                  first_row=h%matrix%first_row(:),&
+                  last_row=h%matrix%last_row(:),&
+                  first_col=h%matrix%first_col(:),&
+                  last_col=h%matrix%last_col(:),&
+                  matrix_name="LocalDV"//TRIM(ADJUSTL(cp_to_string(idir))),&
+                  sparsity_id=-1, & ! unknown sparsity, as it will be modified in parallel
+                  matrix_symmetry=h%matrix%symmetry,error=error)
+          END DO
        END IF
-    END DO
+    END IF
+
     p_duplicated = .FALSE.
     IF ( pab_required ) THEN
        deltap => p%matrix
-       DO igrid_level = 1, gridlevel_info%ngrid_levels
-          IF ( rs_v(igrid_level)%rs_grid%distributed ) THEN
-             NULLIFY ( deltap )
-             CALL allocate_matrix(matrix=deltap,&
-                  nrow=p%matrix%nrow,&
-                  ncol=p%matrix%ncol,&
-                  nblock_row=p%matrix%nblock_row,&
-                  nblock_col=p%matrix%nblock_col,&
-                  first_row=p%matrix%first_row(:),&
-                  last_row=p%matrix%last_row(:),&
-                  first_col=p%matrix%first_col(:),&
-                  last_col=p%matrix%last_col(:),&
-                  matrix_name="LocalP",&
-                  sparsity_id=-1, & ! unknown sparsity, as it will be modified in parallel
-                  matrix_symmetry=p%matrix%symmetry,error=error)
-             p_duplicated = .TRUE.
-             EXIT
-          END IF
-       END DO
+       IF (distributed_grids) THEN
+          p_duplicated = .TRUE.
+          NULLIFY ( deltap )
+          CALL replicate_matrix(p%matrix,deltap,target_name="LocalP",error=error)
+          ! this matrix has no strict sparsity pattern in parallel
+          deltap%sparsity_id=-1
+          CALL distribution_2d_release(deltap%distribution_2d,error=error)
+       END IF
     END IF
 
-    nthread = 1
-
     !   *** Allocate work storage ***
-
+    nthread = 1
     NULLIFY ( pabt, habt, workt )
     CALL reallocate(habt,1,maxco,1,maxco,0,nthread)
     CALL reallocate(workt,1,maxco,1,maxsgf_set,0,nthread)
@@ -562,17 +564,11 @@ CONTAINS
        CALL reallocate(hadbt,1,3,1,maxco,1,1,0,nthread)
     END IF
 
-    CALL reallocate(tasks,1,3,1,max_tasks)
-    CALL reallocate(dist_ab,1,3,1,max_tasks)
-    tasks = 0
-    ntasks = 0
-    curr_tasks = SIZE(tasks,2)
 
     !   get maximum numbers
     natom = SIZE( particle_set )
     maxset=0
     maxpgf=0
-
     DO ikind=1,nkind
        atomic_kind => atomic_kind_set(ikind)
 
@@ -588,207 +584,6 @@ CONTAINS
        maxset=MAX(nseta,maxset)
        maxpgf=MAX(MAXVAL(npgfa),maxpgf)
     END DO
-
-
-    loop_ikind: DO ikind=1,nkind
-
-       atomic_kind => atomic_kind_set(ikind)
-
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-            softb = my_gapw, &
-            orb_basis_set=orb_basis_set)
-
-       IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
-
-       CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-            first_sgf=first_sgfa,&
-            lmax=la_max,&
-            lmin=la_min,&
-            npgf=npgfa,&
-            nset=nseta,&
-            nsgf_set=nsgfa,&
-            pgf_radius=rpgfa,&
-            set_radius=set_radius_a,&
-            sphi=sphi_a,&
-            zet=zeta)
-
-       loop_jkind: DO jkind=1,nkind
-
-          atomic_kind => atomic_kind_set(jkind)
-
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               softb = my_gapw, &
-               orb_basis_set=orb_basis_set)
-
-          IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
-
-          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-               first_sgf=first_sgfb,&
-               kind_radius=kind_radius_b,&
-               lmax=lb_max,&
-               lmin=lb_min,&
-               npgf=npgfb,&
-               nset=nsetb,&
-               nsgf_set=nsgfb,&
-               pgf_radius=rpgfb,&
-               set_radius=set_radius_b,&
-               sphi=sphi_b,&
-               zet=zetb)
-
-          ab = ikind + nkind*(jkind - 1)
-
-          IF (ASSOCIATED(sab_orb(ab)%neighbor_list_set)) THEN
-
-             CALL get_neighbor_list_set(neighbor_list_set=&
-                  sab_orb(ab)%neighbor_list_set,&
-                  nlist=nlist)
-             sab_orb_neighbor_list => first_list(sab_orb(ab)%neighbor_list_set)
-          ELSE
-             nlist = 0
-          END IF
-
-          loop_ilist: DO ilist=1,nlist
-
-             CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list,&
-                  atom=iatom,&
-                  nnode=nnode)
-
-             ra(:) = pbc(particle_set(iatom)%r,cell)
-
-             sab_orb_neighbor_node => first_node(sab_orb_neighbor_list)
-
-             loop_inode: DO inode=1,nnode
-
-                CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
-                     neighbor=jatom,&
-                     r=rab(:))
-
-                IF (iatom <= jatom) THEN
-                   CALL get_block_node(matrix=h%matrix,&
-                        block_row=iatom,&
-                        block_col=jatom,&
-                        block=h_block)
-                ELSE
-                   CALL get_block_node(matrix=h%matrix,&
-                        block_row=jatom,&
-                        block_col=iatom,&
-                        block=h_block)
-                END IF
-
-                !           *** Check, if the atomic block has to be ***
-                !           *** calculated by the current processor  ***
-
-                IF (.NOT.ASSOCIATED(h_block)) THEN
-                   sab_orb_neighbor_node => next(sab_orb_neighbor_node)
-                   CYCLE
-                END IF
-
-                IF ( p_duplicated ) THEN
-                   IF (iatom <= jatom) THEN
-                      NULLIFY ( dp_block )
-                      CALL add_block_node ( deltap, iatom, jatom, dp_block ,error=error)
-                      CALL get_block_node(matrix=p%matrix,&
-                           block_row=iatom,&
-                           block_col=jatom,&
-                           block=p_block)
-                   ELSE
-                      NULLIFY ( dp_block )
-                      CALL add_block_node ( deltap, jatom, iatom, dp_block ,error=error)
-                      CALL get_block_node(matrix=p%matrix,&
-                           block_row=jatom,&
-                           block_col=iatom,&
-                           block=p_block)
-                   END IF
-                   dp_block = p_block
-                ENDIF
-
-                rb(:) = ra(:) + rab(:)
-                rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-                dab = SQRT(rab2)
-
-                loop_iset: DO iset=1,nseta
-
-                   IF (set_radius_a(iset) + kind_radius_b < dab) CYCLE
-
-                   ncoa = npgfa(iset)*ncoset(la_max(iset))
-                   sgfa = first_sgfa(1,iset)
-
-                   loop_jset: DO jset=1,nsetb
-
-                      IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
-
-                      ncob = npgfb(jset)*ncoset(lb_max(jset))
-                      sgfb = first_sgfb(1,jset)
-
-                      loop_ipgf: DO ipgf=1,npgfa(iset)
-
-                         IF (rpgfa(ipgf,iset) + set_radius_b(jset) < dab) CYCLE
-
-                         na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
-                         na2 = ipgf*ncoset(la_max(iset))
-
-                         loop_jpgf: DO jpgf=1,npgfb(jset)
-
-                            IF (rpgfa(ipgf,iset) + rpgfb(jpgf,jset) < dab) CYCLE
-
-                            nb1 = (jpgf - 1)*ncoset(lb_max(jset)) + 1
-                            nb2 = jpgf*ncoset(lb_max(jset))
-
-                            zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
-                            IF (dab.lt.0.1E0_dp .AND. dft_control%qs_control%map_paa) THEN
-                               igrid_level = 1
-                            ELSE
-                               igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
-                            ENDIF
-
-                            ntasks = ntasks + 1
-                            IF ( ntasks > curr_tasks ) THEN
-                               curr_tasks = (curr_tasks+add_tasks)*mult_tasks
-                               CALL reallocate ( tasks, 1, 3, 1, curr_tasks )
-                               CALL reallocate ( dist_ab, 1, 3, 1, curr_tasks )
-                            END IF
-
-                            rp(:) = ra(:) + zetb(jpgf,jset)/zetp*rab(:)
-                            rp(:) = pbc(rp,cell)
-                            DO dir =1,3
-                               tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),rp)*rs_v(igrid_level)%rs_grid%npts(dir))
-                               tp(dir) = MODULO ( tp(dir), rs_v(igrid_level)%rs_grid%npts(dir) )
-                               tp(dir) = tp(dir) + rs_v(igrid_level)%rs_grid%lb(dir)
-                            END DO
-
-                            IF(rs_v(igrid_level)%rs_grid%distributed) THEN
-                               CALL rs_find_node(rs_v(igrid_level)%rs_grid,tp,dest)
-                            ELSE
-                               dest = rs_v(igrid_level)%rs_grid % my_pos
-                            ENDIF
-
-                            tasks (1,ntasks) = dest
-                            tasks (2,ntasks) = rs_v(igrid_level)%rs_grid % my_pos
-                            CALL pair2int(tasks(3,ntasks),iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
-
-                            dist_ab (:,ntasks) = rab(:)
-
-                         END DO loop_jpgf
-                      END DO loop_ipgf
-                   END DO loop_jset
-                END DO loop_iset
-
-                sab_orb_neighbor_node => next(sab_orb_neighbor_node)
-
-             END DO loop_inode
-
-             sab_orb_neighbor_list => next(sab_orb_neighbor_list)
-
-          END DO loop_ilist
-       END DO loop_jkind
-    END DO loop_ikind
-
-    ! redistribute the tasks list so that all tasks map on the local rs grids
-
-    IF (distributed_grids) THEN
-        CALL rs_get_my_tasks ( rs_v(1)%rs_grid, ntasks, natom, maxset, maxpgf, tasks,&
-                atom_pair_send=atom_pair_send, atom_pair_recv=atom_pair_recv, rval=dist_ab ,error=error)
-    ENDIF
 
     IF (distributed_grids .AND. pab_required) THEN
         CALL distribute_matrix (rs_v(1)%rs_grid, deltap, atom_pair_send, atom_pair_recv, natom, scatter=.TRUE., error=error)
@@ -975,6 +770,7 @@ CONTAINS
        rb(2) = ra(2) + rab(2)
        rb(3) = ra(3) + rab(3)
        zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
+       dab=sqrt(rab2)
        IF (dab.lt.0.1E0_dp .AND. dft_control%qs_control%map_paa) THEN
           igrid_level = 1
        ELSE
@@ -1188,15 +984,8 @@ CONTAINS
 
     !   *** Release work storage ***
 
-    DEALLOCATE (habt,workt,tasks, dist_ab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"habt,workt,tasks, dist_ab")
-
-    IF ( h_duplicated ) THEN
-       DEALLOCATE(atom_pair_send,STAT=stat)
-       IF (stat/=0) CALL stop_memory("integrate_potential","atom_pair_send")        
-       DEALLOCATE(atom_pair_recv,STAT=stat)
-       IF (stat/=0) CALL stop_memory("integrate potential","atom_pair_recv")
-    ENDIF
+    DEALLOCATE (habt,workt,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"habt,workt")
 
     IF ( pab_required ) THEN
        DEALLOCATE (pabt,STAT=istat)
