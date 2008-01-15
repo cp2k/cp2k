@@ -506,8 +506,10 @@ CONTAINS
        DO ii = 1, SIZE(molecule_kind_set)
           molecule_kind => molecule_kind_set(ii)
           CALL get_molecule_kind(molecule_kind=molecule_kind,&
-               nmolecule=nmolecule,molecule_list=molecule_list)
+                                 nmolecule=nmolecule,&
+                                 molecule_list=molecule_list)
           ng3x3 =  SIZE(constr_x_mol(ii)%constr)
+          WRITE(*,*)ng3x3
           ALLOCATE(g3x3_list(ng3x3),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           CALL setup_g3x3_list(g3x3_list, constr_x_mol(ii)%constr, cons_info, ng3x3_restraint, error)
@@ -517,7 +519,7 @@ CONTAINS
              CALL get_molecule ( molecule, first_atom = first_atom, last_atom= last_atom)
              ALLOCATE(lg3x3(ng3x3),STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             CALL setup_lg3x3(lg3x3, g3x3_list, constr_x_mol(ii)%constr, first_atom,last_atom, error )
+             CALL setup_lg3x3(lg3x3, g3x3_list, first_atom, last_atom, error )
              CALL set_molecule(molecule=molecule,lg3x3=lg3x3)
           END DO
        END DO
@@ -535,7 +537,7 @@ CONTAINS
           CALL setup_g3x3_list(g3x3_list, constr_x_glob, cons_info, ng3x3_restraint, error)
           ALLOCATE(lg3x3(ng3x3),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          CALL setup_lg3x3(lg3x3, g3x3_list, constr_x_glob, first_atom,last_atom, error )
+          CALL setup_lg3x3(lg3x3, g3x3_list, first_atom,last_atom, error )
           gci%g3x3_list => g3x3_list
           gci%lg3x3     => lg3x3
           gci%ng3x3     = ng3x3
@@ -576,7 +578,7 @@ CONTAINS
              CALL get_molecule ( molecule, first_atom = first_atom, last_atom= last_atom)
              ALLOCATE(lg4x6(ng4x6),STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             CALL setup_lg4x6(lg4x6, g4x6_list, constr_x_mol(ii)%constr, first_atom, last_atom, error)
+             CALL setup_lg4x6(lg4x6, g4x6_list, first_atom, last_atom, error)
              CALL set_molecule(molecule=molecule,lg4x6=lg4x6)
           END DO
        END DO
@@ -594,7 +596,7 @@ CONTAINS
           CALL setup_g4x6_list(g4x6_list, constr_x_glob, cons_info, ng4x6_restraint, error)
           ALLOCATE(lg4x6(ng4x6),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          CALL setup_lg4x6(lg4x6, g4x6_list, constr_x_glob, first_atom,last_atom, error )
+          CALL setup_lg4x6(lg4x6, g4x6_list, first_atom,last_atom, error )
           gci%g4x6_list => g4x6_list
           gci%lg4x6     => lg4x6
           gci%ng4x6     = ng4x6
@@ -1011,15 +1013,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_g3x3_list', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: j, kk, ng3x3
+    INTEGER                                  :: j, ng3x3
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    ng3x3 = 0
     ng3x3_restraint = 0
-    DO kk = 1, SIZE(ilist)
-       j = ilist(kk)
-       ng3x3 = ng3x3 + 1
+    DO ng3x3 = 1, SIZE(ilist)
+       j = ilist(ng3x3)
        g3x3_list(ng3x3)%a   = cons_info%const_g33_a(j)
        g3x3_list(ng3x3)%b   = cons_info%const_g33_b(j)
        g3x3_list(ng3x3)%c   = cons_info%const_g33_c(j)
@@ -1065,15 +1065,14 @@ SUBROUTINE setup_g4x6_list(g4x6_list, ilist, cons_info, ng4x6_restraint, error)
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_g4x6_list', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: j, kk, ng4x6
+    INTEGER                                  :: j, ng4x6
     LOGICAL                                  :: failure
 
   failure = .FALSE.
   ng4x6 = 0
   ng4x6_restraint = 0
-  DO kk = 1, SIZE(ilist)
-     j = ilist(kk)
-     ng4x6 = ng4x6 + 1
+  DO ng4x6 = 1, SIZE(ilist)
+     j = ilist(ng4x6)
      g4x6_list(ng4x6)%a   = cons_info%const_g46_a(j)
      g4x6_list(ng4x6)%b   = cons_info%const_g46_b(j)
      g4x6_list(ng4x6)%c   = cons_info%const_g46_c(j)
@@ -1124,28 +1123,26 @@ END SUBROUTINE setup_g4x6_list
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_lcolv', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: k, kk, ncolv_mol
+    INTEGER                                  :: k, kk
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    ncolv_mol = 0
     DO kk=1,SIZE(ilist)
        k = ilist(kk)
-       ncolv_mol = ncolv_mol + 1
-       lcolv(ncolv_mol)%init      = .FALSE.
-       lcolv(ncolv_mol)%lambda    = 0.0_dp
-       lcolv(ncolv_mol)%sigma     = 0.0_dp
+       lcolv(kk)%init      = .FALSE.
+       lcolv(kk)%lambda    = 0.0_dp
+       lcolv(kk)%sigma     = 0.0_dp
        ! Set Up colvar variable
-       NULLIFY(lcolv(ncolv_mol)%colvar, lcolv(ncolv_mol)%colvar_old)
+       NULLIFY(lcolv(kk)%colvar, lcolv(kk)%colvar_old)
        ! Colvar
-       CALL colvar_clone(lcolv(ncolv_mol)%colvar, cons_info%colvar_set(k)%colvar,&
+       CALL colvar_clone(lcolv(kk)%colvar, cons_info%colvar_set(k)%colvar,&
             i_atom_offset=first_atom-1,error=error)
 
        ! Colvar_old
-       CALL colvar_clone(lcolv(ncolv_mol)%colvar_old,lcolv(ncolv_mol)%colvar,error=error)
+       CALL colvar_clone(lcolv(kk)%colvar_old,lcolv(kk)%colvar,error=error)
        ! Check for consistency in the constraint definition
-       IF  (ANY(lcolv(ncolv_mol)%colvar%i_atom > last_atom).OR.&
-            ANY(lcolv(ncolv_mol)%colvar%i_atom < first_atom)) THEN
+       IF  (ANY(lcolv(kk)%colvar%i_atom > last_atom).OR.&
+            ANY(lcolv(kk)%colvar%i_atom < first_atom)) THEN
           WRITE(*,'(T5,"|",T8,A)')"Error in constraints setup!"
           WRITE(*,'(T5,"|",T8,A)')"A constraint has been defined for a molecule type",&
                " but the atoms specified in the constraint and the atoms defined for",&
@@ -1178,43 +1175,41 @@ END SUBROUTINE setup_g4x6_list
 !!
 !!   INPUTS
 !!*** *************************************************************************
-  SUBROUTINE setup_lg3x3(lg3x3, g3x3_list, ilist, first_atom, last_atom, error)
+  SUBROUTINE setup_lg3x3(lg3x3, g3x3_list, first_atom, last_atom, error)
     TYPE(local_g3x3_constraint_type), &
       DIMENSION(:), POINTER                  :: lg3x3
     TYPE(g3x3_constraint_type), &
       DIMENSION(:), POINTER                  :: g3x3_list
-    INTEGER, DIMENSION(:), POINTER           :: ilist
     INTEGER, INTENT(IN)                      :: first_atom, last_atom
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_lg3x3', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: k, kk
+    INTEGER                                  :: kk
     LOGICAL                                  :: failure
 
     failure = .FALSE.  
-    DO kk = 1, SIZE(ilist)
-       k = ilist(kk)
-       lg3x3(k)%init      = .FALSE.
-       lg3x3(k)%scale     = 0.0_dp
-       lg3x3(k)%scale_old = 0.0_dp
-       lg3x3(k)%fa        = 0.0_dp
-       lg3x3(k)%fb        = 0.0_dp
-       lg3x3(k)%fc        = 0.0_dp
-       lg3x3(k)%ra_old    = 0.0_dp
-       lg3x3(k)%rb_old    = 0.0_dp
-       lg3x3(k)%rc_old    = 0.0_dp
-       lg3x3(k)%va        = 0.0_dp
-       lg3x3(k)%vb        = 0.0_dp
-       lg3x3(k)%vc        = 0.0_dp
-       lg3x3(k)%lambda    = 0.0_dp
-       IF  ((g3x3_list(k)%a+first_atom-1 < first_atom).OR.&
-            (g3x3_list(k)%b+first_atom-1 < first_atom).OR.&
-            (g3x3_list(k)%c+first_atom-1 < first_atom).OR.&
-            (g3x3_list(k)%a+first_atom-1 > last_atom ).OR.&
-            (g3x3_list(k)%b+first_atom-1 > last_atom ).OR.&
-            (g3x3_list(k)%c+first_atom-1 > last_atom )) THEN
+    DO kk = 1, SIZE(lg3x3)
+       lg3x3(kk)%init      = .FALSE.
+       lg3x3(kk)%scale     = 0.0_dp
+       lg3x3(kk)%scale_old = 0.0_dp
+       lg3x3(kk)%fa        = 0.0_dp
+       lg3x3(kk)%fb        = 0.0_dp
+       lg3x3(kk)%fc        = 0.0_dp
+       lg3x3(kk)%ra_old    = 0.0_dp
+       lg3x3(kk)%rb_old    = 0.0_dp
+       lg3x3(kk)%rc_old    = 0.0_dp
+       lg3x3(kk)%va        = 0.0_dp
+       lg3x3(kk)%vb        = 0.0_dp
+       lg3x3(kk)%vc        = 0.0_dp
+       lg3x3(kk)%lambda    = 0.0_dp
+       IF  ((g3x3_list(kk)%a+first_atom-1 < first_atom).OR.&
+            (g3x3_list(kk)%b+first_atom-1 < first_atom).OR.&
+            (g3x3_list(kk)%c+first_atom-1 < first_atom).OR.&
+            (g3x3_list(kk)%a+first_atom-1 > last_atom ).OR.&
+            (g3x3_list(kk)%b+first_atom-1 > last_atom ).OR.&
+            (g3x3_list(kk)%c+first_atom-1 > last_atom )) THEN
           WRITE(*,'(T5,"|",T8,A)')"Error in constraints setup!"
           WRITE(*,'(T5,"|",T8,A)')"A constraint has been defined for a molecule type",&
                " but the atoms specified in the constraint and the atoms defined for",&
@@ -1248,54 +1243,52 @@ END SUBROUTINE setup_g4x6_list
 !!
 !!   INPUTS
 !!*** *************************************************************************
-SUBROUTINE setup_lg4x6(lg4x6, g4x6_list, ilist, first_atom, last_atom, error)
+SUBROUTINE setup_lg4x6(lg4x6, g4x6_list, first_atom, last_atom, error)
     TYPE(local_g4x6_constraint_type), &
       DIMENSION(:), POINTER                  :: lg4x6
     TYPE(g4x6_constraint_type), &
       DIMENSION(:), POINTER                  :: g4x6_list
-    INTEGER, DIMENSION(:), POINTER           :: ilist
     INTEGER, INTENT(IN)                      :: first_atom, last_atom
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_lg4x6', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: k, kk
+    INTEGER                                  :: kk
     LOGICAL                                  :: failure
 
   failure = .FALSE.  
-  DO kk = 1, SIZE(ilist)
-     k = ilist(kk)
-     lg4x6(k)%init      = .FALSE.
-     lg4x6(k)%scale     = 0.0_dp
-     lg4x6(k)%scale_old = 0.0_dp
-     lg4x6(k)%fa        = 0.0_dp
-     lg4x6(k)%fb        = 0.0_dp
-     lg4x6(k)%fc        = 0.0_dp
-     lg4x6(k)%fd        = 0.0_dp
-     lg4x6(k)%fe        = 0.0_dp
-     lg4x6(k)%ff        = 0.0_dp
-     lg4x6(k)%ra_old    = 0.0_dp
-     lg4x6(k)%rb_old    = 0.0_dp
-     lg4x6(k)%rc_old    = 0.0_dp
-     lg4x6(k)%rd_old    = 0.0_dp
-     lg4x6(k)%re_old    = 0.0_dp
-     lg4x6(k)%rf_old    = 0.0_dp
-     lg4x6(k)%va        = 0.0_dp
-     lg4x6(k)%vb        = 0.0_dp
-     lg4x6(k)%vc        = 0.0_dp
-     lg4x6(k)%vd        = 0.0_dp
-     lg4x6(k)%ve        = 0.0_dp
-     lg4x6(k)%vf        = 0.0_dp
-     lg4x6(k)%lambda    = 0.0_dp
-     IF  ((g4x6_list(k)%a+first_atom-1 < first_atom).OR.&
-          (g4x6_list(k)%b+first_atom-1 < first_atom).OR.&
-          (g4x6_list(k)%c+first_atom-1 < first_atom).OR.&
-          (g4x6_list(k)%d+first_atom-1 < first_atom).OR.&
-          (g4x6_list(k)%a+first_atom-1 > last_atom ).OR.&
-          (g4x6_list(k)%b+first_atom-1 > last_atom ).OR.&
-          (g4x6_list(k)%c+first_atom-1 > last_atom ).OR.&
-          (g4x6_list(k)%d+first_atom-1 > last_atom )) THEN
+  DO kk = 1, SIZE(lg4x6)
+     lg4x6(kk)%init      = .FALSE.
+     lg4x6(kk)%scale     = 0.0_dp
+     lg4x6(kk)%scale_old = 0.0_dp
+     lg4x6(kk)%fa        = 0.0_dp
+     lg4x6(kk)%fb        = 0.0_dp
+     lg4x6(kk)%fc        = 0.0_dp
+     lg4x6(kk)%fd        = 0.0_dp
+     lg4x6(kk)%fe        = 0.0_dp
+     lg4x6(kk)%ff        = 0.0_dp
+     lg4x6(kk)%ra_old    = 0.0_dp
+     lg4x6(kk)%rb_old    = 0.0_dp
+     lg4x6(kk)%rc_old    = 0.0_dp
+     lg4x6(kk)%rd_old    = 0.0_dp
+     lg4x6(kk)%re_old    = 0.0_dp
+     lg4x6(kk)%rf_old    = 0.0_dp
+     lg4x6(kk)%va        = 0.0_dp
+     lg4x6(kk)%vb        = 0.0_dp
+     lg4x6(kk)%vc        = 0.0_dp
+     lg4x6(kk)%vd        = 0.0_dp
+     lg4x6(kk)%ve        = 0.0_dp
+     lg4x6(kk)%vf        = 0.0_dp
+     lg4x6(kk)%lambda    = 0.0_dp
+     IF  ((g4x6_list(kk)%a+first_atom-1 < first_atom).OR.&
+          (g4x6_list(kk)%b+first_atom-1 < first_atom).OR.&
+          (g4x6_list(kk)%c+first_atom-1 < first_atom).OR.&
+          (g4x6_list(kk)%d+first_atom-1 < first_atom).OR.&
+          (g4x6_list(kk)%a+first_atom-1 > last_atom ).OR.&
+          (g4x6_list(kk)%b+first_atom-1 > last_atom ).OR.&
+          (g4x6_list(kk)%c+first_atom-1 > last_atom ).OR.&
+          (g4x6_list(kk)%d+first_atom-1 > last_atom )) THEN
         WRITE(*,'(T5,"|",T8,A)')"Error in constraints setup!"
         WRITE(*,'(T5,"|",T8,A)')"A constrained has been defined for a molecule type",&
              " but the atoms specified in the constraint and the atoms defined for",&

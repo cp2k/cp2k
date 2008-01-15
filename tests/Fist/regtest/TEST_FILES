@@ -17,11 +17,6 @@ pot_onfo_elec.inp        2
 # EWALD test
 gmax.inp                 2
 #
-#
-#
-#
-#
-#
 # Example system test
 argon.inp                 2
 argon_npt.inp             2 
@@ -62,3 +57,5 @@ TNF2.inp                  7
 # isolated system 
 H+.inp                   11 
 ef.inp                   11
+#
+h2o-32-g3x3-mult.inp      2
