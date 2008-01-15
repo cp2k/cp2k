@@ -322,3 +322,4 @@ H2O-bloechl-restraint.inp
 rsgrid-dist-1.inp
 #  
 dynamics.inp
+H2O-solv.inp
