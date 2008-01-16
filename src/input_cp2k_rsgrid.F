@@ -110,6 +110,21 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="MAX_DISTRIBUTED_LEVEL",&
+            description="If the multigrid-level of a grid is larger than the parameter,"//& 
+                        " it will not be distributed in the automatic scheme.",&
+            usage="MAX_DISTRIBUTED_LEVEL 1",&
+            default_i_val=2, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)        
+
+       CALL keyword_create(keyword, name="MEMORY_FACTOR",&
+            description="A grid will only be distributed if the memory usage for that grid (including halo) "//& 
+                        "is smaller than a replicated grid by this parameter.",&
+            usage="MEMORY_FACTOR 4.0",&
+            default_r_val=2.0_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)        
 
     END IF
   END SUBROUTINE create_rsgrid_section

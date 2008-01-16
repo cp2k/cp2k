@@ -72,9 +72,10 @@ MODULE realspace_grid_types
   INTEGER, PARAMETER, PUBLIC :: rs2pw=11,pw2rs=12
 
   TYPE realspace_grid_input_type
-     INTEGER :: distribution_type
-     INTEGER :: distribution_layout(3)
-     INTEGER :: nsmax
+     INTEGER       :: distribution_type
+     INTEGER       :: distribution_layout(3)
+     REAL(KIND=dp) :: memory_factor
+     INTEGER       :: nsmax
   END TYPE realspace_grid_input_type
 
   TYPE realspace_grid_type
@@ -151,7 +152,7 @@ SUBROUTINE init_input_type(input_settings,nsmax,rs_grid_section,ilevel,error)
    TYPE(cp_error_type), INTENT(inout)           :: error
 
    INTEGER,POINTER, DIMENSION(:)                :: tmp
-   INTEGER                                      :: isection, nsection
+   INTEGER                                      :: isection, nsection, max_distributed_level
 
    IF (PRESENT(rs_grid_section)) THEN
        input_settings%nsmax=nsmax
@@ -166,9 +167,21 @@ SUBROUTINE init_input_type(input_settings,nsmax,rs_grid_section,ilevel,error)
                 i_rep_section=isection,&
                 i_vals=tmp,error=error)
        input_settings%distribution_layout=tmp
+       CALL section_vals_val_get(rs_grid_section,"MEMORY_FACTOR",&
+                i_rep_section=isection,&
+                r_val=input_settings%memory_factor,error=error)
+       CALL section_vals_val_get(rs_grid_section,"MAX_DISTRIBUTED_LEVEL",&
+                i_rep_section=isection,&
+                i_val=max_distributed_level,error=error)
+
+       ! multigrids that are to coarse are not distributed in the automatic scheme
+       IF (input_settings%distribution_type == rsgrid_automatic) THEN
+          IF (ilevel>max_distributed_level) THEN
+              input_settings%distribution_type=rsgrid_replicated
+          ENDIF
+       ENDIF
    ELSE
        input_settings%nsmax=-1
-       input_settings%distribution_layout=(/-1,-1,-1/)
        input_settings%distribution_type=rsgrid_replicated
    ENDIF
 END SUBROUTINE init_input_type
@@ -325,12 +338,12 @@ END SUBROUTINE init_input_type
 
 
           ! if automatic we can still decide this is a replicated grid
+          ! if the memory gain (or the gain is messages) is too small.
           IF (input_settings % distribution_type == rsgrid_automatic) THEN
-             !factor of 2 is currently an arbritary input parameter 
              volume=PRODUCT(REAL(rs % npts,KIND=dp)) 
              volume_dist=PRODUCT(REAL(rs % npts,KIND=dp) / n_slices  +   &
                           MERGE((/0,0,0/),2*(/nmin,nmin,nmin/),n_slices==(/1,1,1/)))
-             IF (volume<volume_dist*2) THEN
+             IF (volume<volume_dist*input_settings%memory_factor) THEN
                  n_slices=1
              ENDIF
           ENDIF
