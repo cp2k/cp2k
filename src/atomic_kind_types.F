@@ -1485,12 +1485,10 @@ CONTAINS
        dft_plus_u_section  => section_vals_get_subs_vals(kind_section,"DFT_PLUS_U",&
                                                          i_rep_section=k_rep,&
                                                          error=error)
-print*,ASSOCIATED(dft_plus_u_section)
        section_enabled = .FALSE.
        CALL section_vals_val_get(dft_plus_u_section,"_SECTION_PARAMETERS_",&
                                  l_val=section_enabled,&
                                  error=error)
-print*,section_enabled
        IF (section_enabled) THEN
          ALLOCATE (atomic_kind%dft_plus_u,STAT=stat)
          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
