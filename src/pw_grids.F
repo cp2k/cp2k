@@ -79,8 +79,8 @@ MODULE pw_grids
   INTEGER :: grid_tag = 0
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_grids'
 
-!!***
-!******************************************************************************
+  !!***
+  !******************************************************************************
 
 CONTAINS
 
@@ -184,7 +184,7 @@ CONTAINS
 !!
 !!*** *************************************************************************
 
-FUNCTION pw_grid_compare ( grida, gridb ) RESULT ( equal )
+  FUNCTION pw_grid_compare ( grida, gridb ) RESULT ( equal )
 
 
     TYPE(pw_grid_type), INTENT(IN)           :: grida, gridb
@@ -192,15 +192,15 @@ FUNCTION pw_grid_compare ( grida, gridb ) RESULT ( equal )
 
 !------------------------------------------------------------------------------
 
-  IF ( grida %id_nr == gridb %id_nr ) THEN
-    equal = .TRUE.
-  ELSE
-! for the moment all grids with different identifiers are considered as not equal
-! later we can get this more relaxed
-    equal = .FALSE.
-  END IF
+    IF ( grida %id_nr == gridb %id_nr ) THEN
+       equal = .TRUE.
+    ELSE
+       ! for the moment all grids with different identifiers are considered as not equal
+       ! later we can get this more relaxed
+       equal = .FALSE.
+    END IF
 
-END FUNCTION pw_grid_compare
+  END FUNCTION pw_grid_compare
 
 !******************************************************************************
 !!****** pw_grids/get_pw_grid_info [1.0] *
@@ -219,10 +219,8 @@ END FUNCTION pw_grid_compare
 !!
 !!*** *************************************************************************
 
- SUBROUTINE get_pw_grid_info(pw_grid, id_nr, mode, vol, dvol, &
-                             npts, ngpts, ngpts_cut,&
-                             dr, cutoff, orthorhombic,&
-                             gvectors,gsquare,error)
+  SUBROUTINE get_pw_grid_info(pw_grid, id_nr, mode, vol, dvol,  npts, ngpts,&
+       ngpts_cut,dr, cutoff, orthorhombic, gvectors,gsquare,error)
 
     TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, INTENT(OUT), OPTIONAL           :: id_nr, mode
@@ -251,18 +249,18 @@ END FUNCTION pw_grid_compare
     CPPrecondition(pw_grid%ref_count>0,cp_failure_level,routineP,error,failure)
 
     IF ( .NOT. failure ) THEN
-      IF ( PRESENT(id_nr) ) id_nr = pw_grid%id_nr
-      IF ( PRESENT(mode) ) mode = pw_grid%para%mode
-      IF ( PRESENT(vol) ) vol = pw_grid%vol
-      IF ( PRESENT(dvol) ) dvol = pw_grid%dvol
-      IF ( PRESENT(npts) ) npts(1:3) = pw_grid%npts(1:3)
-      IF ( PRESENT(ngpts) ) ngpts = pw_grid%ngpts
-      IF ( PRESENT(ngpts_cut) ) ngpts_cut = pw_grid%ngpts_cut
-      IF ( PRESENT(dr) ) dr = pw_grid%dr
-      IF ( PRESENT(cutoff) ) cutoff = pw_grid%cutoff
-      IF ( PRESENT(orthorhombic) ) orthorhombic = pw_grid%orthorhombic
-      IF ( PRESENT(gvectors) ) gvectors => pw_grid%g
-      IF ( PRESENT(gsquare) ) gsquare => pw_grid%gsq
+       IF ( PRESENT(id_nr) ) id_nr = pw_grid%id_nr
+       IF ( PRESENT(mode) ) mode = pw_grid%para%mode
+       IF ( PRESENT(vol) ) vol = pw_grid%vol
+       IF ( PRESENT(dvol) ) dvol = pw_grid%dvol
+       IF ( PRESENT(npts) ) npts(1:3) = pw_grid%npts(1:3)
+       IF ( PRESENT(ngpts) ) ngpts = pw_grid%ngpts
+       IF ( PRESENT(ngpts_cut) ) ngpts_cut = pw_grid%ngpts_cut
+       IF ( PRESENT(dr) ) dr = pw_grid%dr
+       IF ( PRESENT(cutoff) ) cutoff = pw_grid%cutoff
+       IF ( PRESENT(orthorhombic) ) orthorhombic = pw_grid%orthorhombic
+       IF ( PRESENT(gvectors) ) gvectors => pw_grid%g
+       IF ( PRESENT(gsquare) ) gsquare => pw_grid%gsq
     END IF
 
   END SUBROUTINE get_pw_grid_info
@@ -284,8 +282,8 @@ END FUNCTION pw_grid_compare
 !!
 !!*** *************************************************************************
 
- SUBROUTINE set_pw_grid_info(pw_grid, grid_span, npts, bounds, cutoff, spherical,&
-                             error)
+  SUBROUTINE set_pw_grid_info(pw_grid, grid_span, npts, bounds, cutoff, spherical,&
+       error)
 
     TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, INTENT(in), OPTIONAL            :: grid_span
@@ -308,32 +306,32 @@ END FUNCTION pw_grid_compare
     CPPrecondition(pw_grid%ref_count>0,cp_failure_level,routineP,error,failure)
 
     IF ( .NOT. failure ) THEN
-      IF ( PRESENT(grid_span) ) THEN
-        pw_grid%grid_span = grid_span
-      END IF
-      IF ( PRESENT(bounds) .AND. PRESENT(npts) ) THEN
-        pw_grid%bounds = bounds
-        pw_grid%npts = npts
-        CPPostcondition(ALL(npts==bounds(2,:)-bounds(1,:)+1),cp_failure_level,routineP,error,failure)
-      ELSE IF ( PRESENT(bounds) ) THEN
-        pw_grid%bounds = bounds
-        pw_grid%npts = bounds(2,:)-bounds(1,:)+1
-      ELSE IF ( PRESENT(npts) ) THEN
-        pw_grid%npts = npts
-        pw_grid%bounds = pw_grid_bounds_from_n(npts,error)
-      END IF
-      IF ( PRESENT(cutoff) ) THEN
-        pw_grid%cutoff = cutoff
-        IF( PRESENT(spherical) ) THEN
-           pw_grid%spherical = spherical
-        ELSE
-           pw_grid%spherical = .FALSE.
-        END IF
-      END IF
+       IF ( PRESENT(grid_span) ) THEN
+          pw_grid%grid_span = grid_span
+       END IF
+       IF ( PRESENT(bounds) .AND. PRESENT(npts) ) THEN
+          pw_grid%bounds = bounds
+          pw_grid%npts = npts
+          CPPostcondition(ALL(npts==bounds(2,:)-bounds(1,:)+1),cp_failure_level,routineP,error,failure)
+       ELSE IF ( PRESENT(bounds) ) THEN
+          pw_grid%bounds = bounds
+          pw_grid%npts = bounds(2,:)-bounds(1,:)+1
+       ELSE IF ( PRESENT(npts) ) THEN
+          pw_grid%npts = npts
+          pw_grid%bounds = pw_grid_bounds_from_n(npts,error)
+       END IF
+       IF ( PRESENT(cutoff) ) THEN
+          pw_grid%cutoff = cutoff
+          IF( PRESENT(spherical) ) THEN
+             pw_grid%spherical = spherical
+          ELSE
+             pw_grid%spherical = .FALSE.
+          END IF
+       END IF
     END IF
 
   END SUBROUTINE set_pw_grid_info
-!******************************************************************************
+  !******************************************************************************
 
 !!****f* pw_grids/pw_grid_setup *
 !!
@@ -356,9 +354,9 @@ END FUNCTION pw_grid_compare
 !!   MODIFICATION HISTORY
 !!
 !!*** **********************************************************************
-SUBROUTINE pw_grid_setup ( cell, pw_grid, grid_span, cutoff, bounds, npts, &
-           spherical, odd, fft_usage, &
-           ncommensurate, icommensurate, blocked, ref_grid, rs_dims, iounit, error )
+  SUBROUTINE pw_grid_setup ( cell, pw_grid, grid_span, cutoff, bounds, npts, &
+       spherical, odd, fft_usage, ncommensurate, icommensurate, blocked, ref_grid,&
+       rs_dims, iounit, error )
 
     TYPE(cell_type), INTENT(IN)              :: cell
     TYPE(pw_grid_type), POINTER              :: pw_grid
@@ -380,96 +378,93 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, grid_span, cutoff, bounds, npts, &
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_setup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, my_icommensurate, &
+    INTEGER                                  :: handle, i, my_icommensurate, &
                                                 my_ncommensurate
     INTEGER, DIMENSION(3)                    :: n
     LOGICAL                                  :: my_fft_usage, my_odd, &
                                                 my_spherical
     REAL(KIND=dp)                            :: my_cutoff
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset("pw_grid_setup","I","",handle)
 
     IF ( PRESENT(grid_span) ) THEN
-      CALL set_pw_grid_info ( pw_grid, grid_span=grid_span, error=error)
+       CALL set_pw_grid_info ( pw_grid, grid_span=grid_span, error=error)
     END IF
 
     IF ( PRESENT(spherical) ) THEN
-      my_spherical = spherical
+       my_spherical = spherical
     ELSE
-      my_spherical = .FALSE.
+       my_spherical = .FALSE.
     END IF
 
     IF ( PRESENT(odd) ) THEN
-      my_odd = odd
+       my_odd = odd
     ELSE
-      my_odd = .FALSE.
+       my_odd = .FALSE.
     END IF
 
     IF ( PRESENT(fft_usage) ) THEN
-      my_fft_usage = fft_usage
+       my_fft_usage = fft_usage
     ELSE
-      my_fft_usage = .FALSE.
+       my_fft_usage = .FALSE.
     END IF
 
     IF ( PRESENT(ncommensurate) ) THEN
-      my_ncommensurate = ncommensurate
-      IF ( PRESENT(icommensurate) ) THEN
-        my_icommensurate = icommensurate
-      ELSE
-        my_icommensurate = MIN(1,ncommensurate)
-      END IF
+       my_ncommensurate = ncommensurate
+       IF ( PRESENT(icommensurate) ) THEN
+          my_icommensurate = icommensurate
+       ELSE
+          my_icommensurate = MIN(1,ncommensurate)
+       END IF
     ELSE
-      my_ncommensurate = 0
-      my_icommensurate = 1
+       my_ncommensurate = 0
+       my_icommensurate = 1
     END IF
 
     IF ( PRESENT(bounds) ) THEN
-      IF ( PRESENT(cutoff) ) THEN
-        CALL set_pw_grid_info ( pw_grid, bounds=bounds, cutoff=cutoff, &
-                 spherical=my_spherical, error=error)
-      ELSE
-        n = bounds(2,:) - bounds(1,:) + 1
-        my_cutoff = pw_find_cutoff ( n, cell%h_inv, error=error)
-        my_cutoff = 0.5_dp * my_cutoff * my_cutoff
-        CALL set_pw_grid_info ( pw_grid, bounds=bounds, cutoff=my_cutoff, &
-                 spherical=my_spherical, error=error)
-      END IF
-    ELSE IF ( PRESENT(npts) ) THEN
-      n = npts
-      IF ( PRESENT(cutoff) ) THEN
-        my_cutoff=cutoff
-      ELSE
-        my_cutoff = pw_find_cutoff ( npts, cell%h_inv, error=error)
-        my_cutoff = 0.5_dp * my_cutoff * my_cutoff
-      END IF
-      IF ( my_fft_usage ) THEN
-        n = pw_grid_init_setup(cell%hmat,cutoff=cutoff,&
-                 spherical=my_spherical,odd=my_odd,fft_usage=my_fft_usage,&
-                 ncommensurate=my_ncommensurate,icommensurate=my_icommensurate,&
-                 ref_grid=ref_grid,error=error)
-      END IF
-      CALL set_pw_grid_info ( pw_grid, npts=n, cutoff=my_cutoff, &
+       IF ( PRESENT(cutoff) ) THEN
+          CALL set_pw_grid_info ( pw_grid, bounds=bounds, cutoff=cutoff, &
                spherical=my_spherical, error=error)
+       ELSE
+          n = bounds(2,:) - bounds(1,:) + 1
+          my_cutoff = pw_find_cutoff ( n, cell%h_inv, error=error)
+          my_cutoff = 0.5_dp * my_cutoff * my_cutoff
+          CALL set_pw_grid_info ( pw_grid, bounds=bounds, cutoff=my_cutoff, &
+               spherical=my_spherical, error=error)
+       END IF
+    ELSE IF ( PRESENT(npts) ) THEN
+       n = npts
+       IF ( PRESENT(cutoff) ) THEN
+          my_cutoff=cutoff
+       ELSE
+          my_cutoff = pw_find_cutoff ( npts, cell%h_inv, error=error)
+          my_cutoff = 0.5_dp * my_cutoff * my_cutoff
+       END IF
+       IF ( my_fft_usage ) THEN
+          n  = pw_grid_init_setup(cell%hmat, cutoff=my_cutoff,&
+               spherical=my_spherical, odd=my_odd, fft_usage=my_fft_usage,&
+               ncommensurate=my_ncommensurate, icommensurate=my_icommensurate,&
+               ref_grid=ref_grid, n_orig=n, error=error)
+       END IF
+       CALL set_pw_grid_info ( pw_grid, npts=n, cutoff=my_cutoff, &
+            spherical=my_spherical, error=error)
     ELSE IF ( PRESENT(cutoff) ) THEN
-      n = pw_grid_init_setup(cell%hmat,cutoff=cutoff,&
-                 spherical=my_spherical,odd=my_odd,fft_usage=my_fft_usage,&
-                 ncommensurate=my_ncommensurate,icommensurate=my_icommensurate,&
-                 ref_grid=ref_grid,error=error)
-      CALL set_pw_grid_info ( pw_grid, npts=n, cutoff=cutoff, &
-                 spherical=my_spherical, error=error)
+       n = pw_grid_init_setup(cell%hmat,cutoff=cutoff,&
+            spherical=my_spherical,odd=my_odd,fft_usage=my_fft_usage,&
+            ncommensurate=my_ncommensurate,icommensurate=my_icommensurate,&
+            ref_grid=ref_grid,error=error)
+       CALL set_pw_grid_info ( pw_grid, npts=n, cutoff=cutoff, &
+            spherical=my_spherical, error=error)
     ELSE
-      CALL stop_program ( routineP, "BOUNDS, NPTS or CUTOFF have to be specified" )
+       CALL stop_program ( routineP, "BOUNDS, NPTS or CUTOFF have to be specified" )
     END IF
 
     CALL pw_grid_setup_internal ( cell, pw_grid, blocked, ref_grid, rs_dims, iounit, error )
-
     CALL timestop(0.0_dp,handle)
 
-END SUBROUTINE pw_grid_setup
+  END SUBROUTINE pw_grid_setup
 
-!******************************************************************************
+  !******************************************************************************
 
 !!****f* pw_grids/pw_grid_setup_internal *
 !!
@@ -502,14 +497,13 @@ END SUBROUTINE pw_grid_setup
 !!     JGH (18-Dec-2007) : Refactoring
 !!
 !!*** **********************************************************************
-SUBROUTINE pw_grid_setup_internal ( cell, pw_grid, blocked, ref_grid, rs_dims, iounit, error )
+  SUBROUTINE pw_grid_setup_internal ( cell, pw_grid, blocked, ref_grid, rs_dims, iounit, error )
 
 
     TYPE(cell_type), INTENT(IN)              :: cell
     TYPE(pw_grid_type), POINTER              :: pw_grid
     LOGICAL, INTENT(in), OPTIONAL            :: blocked
-    TYPE(pw_grid_type), INTENT(in), &
-      OPTIONAL                               :: ref_grid
+    TYPE(pw_grid_type), INTENT(in), OPTIONAL :: ref_grid
     INTEGER, DIMENSION(2), INTENT(in), &
       OPTIONAL                               :: rs_dims
     INTEGER, INTENT(in), OPTIONAL            :: iounit
@@ -525,101 +519,101 @@ SUBROUTINE pw_grid_setup_internal ( cell, pw_grid, blocked, ref_grid, rs_dims, i
 
 !------------------------------------------------------------------------------
 
-  failure=.FALSE.
-  CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
-  CPPrecondition(pw_grid%ref_count>0,cp_failure_level,routineP,error,failure)
+    failure=.FALSE.
+    CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
+    CPPrecondition(pw_grid%ref_count>0,cp_failure_level,routineP,error,failure)
 
-  ! default is to allow block usage
-  IF ( PRESENT ( blocked ) ) THEN
-    blocking = blocked
-  ELSE
-    blocking = .TRUE.
-  END IF
-
-  ! set pointer to possible reference grid
-  IF ( PRESENT ( ref_grid ) ) THEN
-    pw_grid % reference = ref_grid %id_nr
-  END IF
-
-  IF (pw_grid%spherical) THEN
-     ecut = pw_grid%cutoff
-  ELSE
-     ecut = 1.e10_dp
-  END IF
-
-  n ( : )  = pw_grid % npts ( : )
-
-  ! Find the number of grid points
-  ! yz_mask counts the number of g-vectors orthogonal to the yz plane
-  ! the indices in yz_mask are from -n/2 .. n/2 shifted by n/2 + 1
-  ! these are not mapped indices !
-  ALLOCATE ( yz_mask ( n(2), n(3) ), STAT = allocstat )
-  CPPrecondition(allocstat==0,cp_failure_level,routineP,error,failure)
-  CALL pw_grid_count ( cell % h_inv, pw_grid, ecut, yz_mask )
-
-  ! Check if reference grid is compatible
-  IF ( PRESENT ( ref_grid ) ) THEN
-    CPPrecondition(pw_grid % para % mode == ref_grid % para % mode,cp_failure_level,routineP,error,failure)
-    IF ( pw_grid % para % mode == PW_MODE_DISTRIBUTED ) THEN
-      CALL mp_comm_compare(pw_grid % para % group, ref_grid % para % group, ires )
-      CPPrecondition(ires <= 3,cp_failure_level,routineP,error,failure) !FM make it >3 ?
+    ! default is to allow block usage
+    IF ( PRESENT ( blocked ) ) THEN
+       blocking = blocked
+    ELSE
+       blocking = .TRUE.
     END IF
-    CPPrecondition(pw_grid % grid_span == ref_grid % grid_span,cp_failure_level,routineP,error,failure)
-    CPPrecondition(pw_grid % spherical .EQV. ref_grid % spherical,cp_failure_level,routineP,error,failure)
-  END IF
 
-  ! Distribute grid
-  CALL pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking, &
-       rs_dims=rs_dims ,error=error)
+    ! set pointer to possible reference grid
+    IF ( PRESENT ( ref_grid ) ) THEN
+       pw_grid % reference = ref_grid %id_nr
+    END IF
 
-  ! Allocate the grid fields
-  CALL pw_grid_allocate ( pw_grid, pw_grid % ngpts_cut_local, &
-                          pw_grid % bounds, error )
+    IF (pw_grid%spherical) THEN
+       ecut = pw_grid%cutoff
+    ELSE
+       ecut = 1.e10_dp
+    END IF
 
-  ! Fill in the grid structure
-  CALL pw_grid_assign ( cell % h_inv, pw_grid, ecut, error )
+    n ( : )  = pw_grid % npts ( : )
 
-  ! Sort g vector wrt length (only local for each processor)
-  CALL pw_grid_sort ( pw_grid, ref_grid, error )
+    ! Find the number of grid points
+    ! yz_mask counts the number of g-vectors orthogonal to the yz plane
+    ! the indices in yz_mask are from -n/2 .. n/2 shifted by n/2 + 1
+    ! these are not mapped indices !
+    ALLOCATE ( yz_mask ( n(2), n(3) ), STAT = allocstat )
+    CPPrecondition(allocstat==0,cp_failure_level,routineP,error,failure)
+    CALL pw_grid_count ( cell % h_inv, pw_grid, ecut, yz_mask )
 
-  CALL pw_grid_remap ( pw_grid, yz_mask, error )
+    ! Check if reference grid is compatible
+    IF ( PRESENT ( ref_grid ) ) THEN
+       CPPrecondition(pw_grid % para % mode == ref_grid % para % mode,cp_failure_level,routineP,error,failure)
+       IF ( pw_grid % para % mode == PW_MODE_DISTRIBUTED ) THEN
+          CALL mp_comm_compare(pw_grid % para % group, ref_grid % para % group, ires )
+          CPPrecondition(ires <= 3,cp_failure_level,routineP,error,failure) !FM make it >3 ?
+       END IF
+       CPPrecondition(pw_grid % grid_span == ref_grid % grid_span,cp_failure_level,routineP,error,failure)
+       CPPrecondition(pw_grid % spherical .EQV. ref_grid % spherical,cp_failure_level,routineP,error,failure)
+    END IF
 
-  DEALLOCATE ( yz_mask , STAT=allocstat )
-  CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    ! Distribute grid
+    CALL pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking, &
+         rs_dims=rs_dims ,error=error)
 
-  pw_grid % vol = ABS ( cell % deth )
-  pw_grid % dvol = pw_grid % vol / REAL ( pw_grid % ngpts,KIND=dp)
-  pw_grid % dr ( 1 ) = SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) ) &
-       / REAL ( pw_grid % npts ( 1 ),KIND=dp)
-  pw_grid % dr ( 2 ) = SQRT ( SUM ( cell % hmat ( :, 2 ) ** 2 ) ) &
-       / REAL ( pw_grid % npts ( 2 ),KIND=dp)
-  pw_grid % dr ( 3 ) = SQRT ( SUM ( cell % hmat ( :, 3 ) ** 2 ) ) &
-       / REAL ( pw_grid % npts ( 3 ),KIND=dp)
-  pw_grid % dh ( :,1 ) = cell % hmat ( :, 1 ) / REAL ( pw_grid % npts ( 1 ),KIND=dp)
-  pw_grid % dh ( :,2 ) = cell % hmat ( :, 2 ) / REAL ( pw_grid % npts ( 2 ),KIND=dp)
-  pw_grid % dh ( :,3 ) = cell % hmat ( :, 3 ) / REAL ( pw_grid % npts ( 3 ),KIND=dp)
-  pw_grid % dh_inv ( 1,: ) = cell % h_inv ( 1,: ) * REAL ( pw_grid % npts ( 1 ),KIND=dp)
-  pw_grid % dh_inv ( 2,: ) = cell % h_inv ( 2,: ) * REAL ( pw_grid % npts ( 2 ),KIND=dp)
-  pw_grid % dh_inv ( 3,: ) = cell % h_inv ( 3,: ) * REAL ( pw_grid % npts ( 3 ),KIND=dp)
-  pw_grid % orthorhombic = cell % orthorhombic
+    ! Allocate the grid fields
+    CALL pw_grid_allocate ( pw_grid, pw_grid % ngpts_cut_local, &
+         pw_grid % bounds, error )
 
-!
-! Output: All the information of this grid type
-!
+    ! Fill in the grid structure
+    CALL pw_grid_assign ( cell % h_inv, pw_grid, ecut, error )
 
-  IF(PRESENT(iounit)) THEN
-    CALL pw_grid_print ( cell, pw_grid, iounit, error )
-  END IF
+    ! Sort g vector wrt length (only local for each processor)
+    CALL pw_grid_sort ( pw_grid, ref_grid, error )
 
-END SUBROUTINE pw_grid_setup_internal
+    CALL pw_grid_remap ( pw_grid, yz_mask, error )
 
-!******************************************************************************
+    DEALLOCATE ( yz_mask , STAT=allocstat )
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
 
- SUBROUTINE create_gvectors(pw_grid,cell,ecut,blocking,ref_grid,error)
-  ! Find the number of grid points
-  ! yz_mask counts the number of g-vectors orthogonal to the yz plane
-  ! the indices in yz_mask are from -n/2 .. n/2 shifted by n/2 + 1
-  ! these are not mapped indices !
+    pw_grid % vol = ABS ( cell % deth )
+    pw_grid % dvol = pw_grid % vol / REAL ( pw_grid % ngpts,KIND=dp)
+    pw_grid % dr ( 1 ) = SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) ) &
+         / REAL ( pw_grid % npts ( 1 ),KIND=dp)
+    pw_grid % dr ( 2 ) = SQRT ( SUM ( cell % hmat ( :, 2 ) ** 2 ) ) &
+         / REAL ( pw_grid % npts ( 2 ),KIND=dp)
+    pw_grid % dr ( 3 ) = SQRT ( SUM ( cell % hmat ( :, 3 ) ** 2 ) ) &
+         / REAL ( pw_grid % npts ( 3 ),KIND=dp)
+    pw_grid % dh ( :,1 ) = cell % hmat ( :, 1 ) / REAL ( pw_grid % npts ( 1 ),KIND=dp)
+    pw_grid % dh ( :,2 ) = cell % hmat ( :, 2 ) / REAL ( pw_grid % npts ( 2 ),KIND=dp)
+    pw_grid % dh ( :,3 ) = cell % hmat ( :, 3 ) / REAL ( pw_grid % npts ( 3 ),KIND=dp)
+    pw_grid % dh_inv ( 1,: ) = cell % h_inv ( 1,: ) * REAL ( pw_grid % npts ( 1 ),KIND=dp)
+    pw_grid % dh_inv ( 2,: ) = cell % h_inv ( 2,: ) * REAL ( pw_grid % npts ( 2 ),KIND=dp)
+    pw_grid % dh_inv ( 3,: ) = cell % h_inv ( 3,: ) * REAL ( pw_grid % npts ( 3 ),KIND=dp)
+    pw_grid % orthorhombic = cell % orthorhombic
+
+    !
+    ! Output: All the information of this grid type
+    !
+
+    IF(PRESENT(iounit)) THEN
+       CALL pw_grid_print ( cell, pw_grid, iounit, error )
+    END IF
+
+  END SUBROUTINE pw_grid_setup_internal
+
+  !******************************************************************************
+
+  SUBROUTINE create_gvectors(pw_grid,cell,ecut,blocking,ref_grid,error)
+    ! Find the number of grid points
+    ! yz_mask counts the number of g-vectors orthogonal to the yz plane
+    ! the indices in yz_mask are from -n/2 .. n/2 shifted by n/2 + 1
+    ! these are not mapped indices !
 
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(cell_type), INTENT(IN)              :: cell
@@ -648,7 +642,7 @@ END SUBROUTINE pw_grid_setup_internal
 
     ! Allocate the grid fields
     CALL pw_grid_allocate ( pw_grid, pw_grid % ngpts_cut_local, &
-                            pw_grid % bounds, error )
+         pw_grid % bounds, error )
 
     ! Fill in the grid structure
     CALL pw_grid_assign ( cell % h_inv, pw_grid, ecut, error )
@@ -663,7 +657,7 @@ END SUBROUTINE pw_grid_setup_internal
 
   END SUBROUTINE create_gvectors
 
-!****************************************************************************
+  !****************************************************************************
 
 !!****f* pw_grids/pw_grid_print *
 !!
@@ -677,7 +671,7 @@ END SUBROUTINE pw_grid_setup_internal
 !!     JGH[18-05-2007] from earlier versions
 !!
 !!*** **********************************************************************
-SUBROUTINE pw_grid_print ( cell, pw_grid, info, error )
+  SUBROUTINE pw_grid_print ( cell, pw_grid, info, error )
 
     TYPE(cell_type), INTENT(IN)              :: cell
     TYPE(pw_grid_type), POINTER              :: pw_grid
@@ -695,7 +689,7 @@ SUBROUTINE pw_grid_print ( cell, pw_grid, info, error )
 ! Output: All the information of this grid type
 !
 
-  IF ( pw_grid % para % mode == PW_MODE_LOCAL) THEN
+    IF ( pw_grid % para % mode == PW_MODE_LOCAL) THEN
        IF (info >= 0 ) THEN
           WRITE ( info, '(/,A,T71,I10)' ) &
                " PW_GRID: Information for grid number ", pw_grid %id_nr
@@ -707,7 +701,7 @@ SUBROUTINE pw_grid_print ( cell, pw_grid, info, error )
           END IF
           CALL get_pw_grid_info(pw_grid,cutoff=cutoff,error=error)
           WRITE ( info, '(A,T35,A,T66,F10.1,T77,A)' ) " PW_GRID: ", &
-                  "max spherical cutoff", cutoff, "a.u."
+               "max spherical cutoff", cutoff, "a.u."
           DO i = 1, 3
              WRITE ( info, '(A,I3,T30,2I8,T62,A,T71,I10)' ) " PW_GRID:   Bounds ", &
                   i, pw_grid % bounds ( 1, I ), pw_grid % bounds ( 2, I ), &
@@ -722,65 +716,65 @@ SUBROUTINE pw_grid_print ( cell, pw_grid, info, error )
              WRITE ( info, '(A,T72,A)' ) " PW_GRID: Grid span","FULLSPACE"
           END IF
        END IF
-  ELSE
+    ELSE
 
-      n ( 1 ) = pw_grid % ngpts_cut_local
-      n ( 2 ) = pw_grid % ngpts_local
-      CALL mp_sum ( n(1:2), pw_grid % para % group )
-      n ( 3 ) = SUM ( pw_grid % para % nyzray )
-      rv ( :, 1 ) = REAL ( n,KIND=dp) / REAL ( pw_grid % para % group_size,KIND=dp)
-      n ( 1 ) = pw_grid % ngpts_cut_local
-      n ( 2 ) = pw_grid % ngpts_local
-      CALL mp_max ( n(1:2), pw_grid % para % group )
-      n ( 3 ) = MAXVAL ( pw_grid % para % nyzray )
-      rv ( :, 2 ) = REAL ( n,KIND=dp)
-      n ( 1 ) = pw_grid % ngpts_cut_local
-      n ( 2 ) = pw_grid % ngpts_local
-      CALL mp_min ( n(1:2), pw_grid % para % group )
-      n ( 3 ) = MINVAL ( pw_grid % para % nyzray )
-      rv ( :, 3 ) = REAL ( n,KIND=dp)
+       n ( 1 ) = pw_grid % ngpts_cut_local
+       n ( 2 ) = pw_grid % ngpts_local
+       CALL mp_sum ( n(1:2), pw_grid % para % group )
+       n ( 3 ) = SUM ( pw_grid % para % nyzray )
+       rv ( :, 1 ) = REAL ( n,KIND=dp) / REAL ( pw_grid % para % group_size,KIND=dp)
+       n ( 1 ) = pw_grid % ngpts_cut_local
+       n ( 2 ) = pw_grid % ngpts_local
+       CALL mp_max ( n(1:2), pw_grid % para % group )
+       n ( 3 ) = MAXVAL ( pw_grid % para % nyzray )
+       rv ( :, 2 ) = REAL ( n,KIND=dp)
+       n ( 1 ) = pw_grid % ngpts_cut_local
+       n ( 2 ) = pw_grid % ngpts_local
+       CALL mp_min ( n(1:2), pw_grid % para % group )
+       n ( 3 ) = MINVAL ( pw_grid % para % nyzray )
+       rv ( :, 3 ) = REAL ( n,KIND=dp)
 
-      IF ( pw_grid % para % group_head .AND. info>=0) THEN
-        WRITE ( info, '(/,A,T71,I10)' ) &
-          " PW_GRID: Information for grid number ", pw_grid %id_nr
-        WRITE ( info, '(A,T60,I10,A)' ) &
-          " PW_GRID: Grid distributed over ", pw_grid % para % group_size, &
-          " processors"
-        WRITE ( info, '(A,T71,2I5)' ) &
-          " PW_GRID: Real space group dimensions ", pw_grid % para % rs_dims
-        IF ( pw_grid % spherical ) THEN
-           WRITE ( info, '(A,T35,A,T66,F10.1,T77,A)' ) " PW_GRID: ", &
-                "spherical cutoff", pw_grid % cutoff, "a.u."
-           WRITE ( info, '(A,T71,I10)' ) " PW_GRID: Grid points within cutoff", &
-                pw_grid % ngpts_cut
-        ELSE
-           WRITE ( info, '(" PW_GRID: Cutoff [a.u.]",T71,f10.1)' ) pw_grid % cutoff
-        END IF
-        DO i = 1, 3
-          WRITE ( info, '(A,I3,T30,2I8,T62,A,T71,I10)' ) " PW_GRID:   Bounds ", &
-           i, pw_grid % bounds ( 1, I ), pw_grid % bounds ( 2, I ), &
-           "Points:",pw_grid % npts ( I )
-        END DO
-        WRITE ( info, '(A,G12.4,T50,A,T67,F14.4)' ) &
-           " PW_GRID: Volume element (a.u.^3)", &
-           pw_grid % dvol," Volume (a.u.^3) :",pw_grid % vol
-        IF ( pw_grid % grid_span == HALFSPACE ) THEN
-          WRITE ( info, '(A,T72,A)' ) " PW_GRID: Grid span","HALFSPACE"
-        ELSE
-          WRITE ( info, '(A,T72,A)' ) " PW_GRID: Grid span","FULLSPACE"
-        END IF
-        WRITE ( info, '(A,T48,A)' ) " PW_GRID:   Distribution", &
-             "  Average         Max         Min"
-        WRITE ( info, '(A,T45,F12.1,2I12)' ) " PW_GRID:   G-Vectors", &
-             rv ( 1, 1 ), NINT ( rv ( 1, 2 ) ), NINT ( rv ( 1, 3 ) )
-        WRITE ( info, '(A,T45,F12.1,2I12)' ) " PW_GRID:   G-Rays   ", &
-             rv ( 3, 1 ), NINT ( rv ( 3, 2 ) ), NINT ( rv ( 3, 3 ) )
-        WRITE ( info, '(A,T45,F12.1,2I12)' ) " PW_GRID:   Real Space Points", &
-             rv ( 2, 1 ), NINT ( rv ( 2, 2 ) ), NINT ( rv ( 2, 3 ) )
-      END IF ! group head
-  END IF ! local
+       IF ( pw_grid % para % group_head .AND. info>=0) THEN
+          WRITE ( info, '(/,A,T71,I10)' ) &
+               " PW_GRID: Information for grid number ", pw_grid %id_nr
+          WRITE ( info, '(A,T60,I10,A)' ) &
+               " PW_GRID: Grid distributed over ", pw_grid % para % group_size, &
+               " processors"
+          WRITE ( info, '(A,T71,2I5)' ) &
+               " PW_GRID: Real space group dimensions ", pw_grid % para % rs_dims
+          IF ( pw_grid % spherical ) THEN
+             WRITE ( info, '(A,T35,A,T66,F10.1,T77,A)' ) " PW_GRID: ", &
+                  "spherical cutoff", pw_grid % cutoff, "a.u."
+             WRITE ( info, '(A,T71,I10)' ) " PW_GRID: Grid points within cutoff", &
+                  pw_grid % ngpts_cut
+          ELSE
+             WRITE ( info, '(" PW_GRID: Cutoff [a.u.]",T71,f10.1)' ) pw_grid % cutoff
+          END IF
+          DO i = 1, 3
+             WRITE ( info, '(A,I3,T30,2I8,T62,A,T71,I10)' ) " PW_GRID:   Bounds ", &
+                  i, pw_grid % bounds ( 1, I ), pw_grid % bounds ( 2, I ), &
+                  "Points:",pw_grid % npts ( I )
+          END DO
+          WRITE ( info, '(A,G12.4,T50,A,T67,F14.4)' ) &
+               " PW_GRID: Volume element (a.u.^3)", &
+               pw_grid % dvol," Volume (a.u.^3) :",pw_grid % vol
+          IF ( pw_grid % grid_span == HALFSPACE ) THEN
+             WRITE ( info, '(A,T72,A)' ) " PW_GRID: Grid span","HALFSPACE"
+          ELSE
+             WRITE ( info, '(A,T72,A)' ) " PW_GRID: Grid span","FULLSPACE"
+          END IF
+          WRITE ( info, '(A,T48,A)' ) " PW_GRID:   Distribution", &
+               "  Average         Max         Min"
+          WRITE ( info, '(A,T45,F12.1,2I12)' ) " PW_GRID:   G-Vectors", &
+               rv ( 1, 1 ), NINT ( rv ( 1, 2 ) ), NINT ( rv ( 1, 3 ) )
+          WRITE ( info, '(A,T45,F12.1,2I12)' ) " PW_GRID:   G-Rays   ", &
+               rv ( 3, 1 ), NINT ( rv ( 3, 2 ) ), NINT ( rv ( 3, 3 ) )
+          WRITE ( info, '(A,T45,F12.1,2I12)' ) " PW_GRID:   Real Space Points", &
+               rv ( 2, 1 ), NINT ( rv ( 2, 2 ) ), NINT ( rv ( 2, 3 ) )
+       END IF ! group head
+    END IF ! local
 
-END SUBROUTINE pw_grid_print
+  END SUBROUTINE pw_grid_print
 
 
 !******************************************************************************
@@ -802,8 +796,7 @@ END SUBROUTINE pw_grid_print
 !!
 !!*** *************************************************************************
 
-SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking, rs_dims,&
-     error)
+  SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking, rs_dims, error)
 
 
     TYPE(pw_grid_type), POINTER              :: pw_grid
@@ -827,272 +820,272 @@ SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking, rs_dims,&
 
 !------------------------------------------------------------------------------
 
-  CALL timeset("pw_grid_distribute","I","",handle)
+    CALL timeset("pw_grid_distribute","I","",handle)
 
-  lby = pw_grid % bounds ( 1, 2 )
-  lbz = pw_grid % bounds ( 1, 3 )
+    lby = pw_grid % bounds ( 1, 2 )
+    lbz = pw_grid % bounds ( 1, 3 )
 
-  pw_grid % ngpts = PRODUCT ( pw_grid % npts )
-  CPPrecondition(ALL(pw_grid%para%rs_dims==0),cp_failure_level,routineP,error,failure)
-  IF (PRESENT(rs_dims)) THEN
-     pw_grid%para%rs_dims=rs_dims
-  END IF
-
-  IF ( pw_grid % para % mode == PW_MODE_LOCAL) THEN
-
-    pw_grid % bounds_local = pw_grid % bounds
-    pw_grid % npts_local = pw_grid % npts
-    pw_grid % ngpts_cut_local = pw_grid % ngpts_cut
-    pw_grid % ngpts_local = PRODUCT ( pw_grid % npts_local )
-    pw_grid % para % rs_dims=1
-    CALL mp_cart_create ( MPI_COMM_SELF, 2, &
-                          pw_grid % para % rs_dims, &
-                          pw_grid % para % rs_pos, &
-                          pw_grid % para % rs_group )
-    CALL mp_cart_rank ( pw_grid % para % rs_group, &
-                        pw_grid % para % rs_pos, &
-                        pw_grid % para % rs_mpo )
-
-  ELSE
-
-!..find the real space distribution
-    nx = pw_grid % npts ( 1 )
-    ny = pw_grid % npts ( 2 )
-    nz = pw_grid % npts ( 3 )
-
-    np = pw_grid % para % group_size
-
-    IF ( PRODUCT ( pw_grid % para % rs_dims ) == 0 ) THEN
-
-      ns = INT ( SQRT ( REAL ( np,KIND=dp) ) )
-
-      tfun = 1.e20_dp
-      DO i = ns, 2, -1
-        IF ( MOD ( np, i ) == 0 ) THEN
-          j = np/i
-          k = nx*ny - i*(nx/i) * j*(ny/j)
-          IF ( k == 0 ) THEN
-            tfun = 0.0_dp
-            m = i
-          ELSE
-            tt = 1.0_dp - REAL ( k,KIND=dp) / REAL ( np,KIND=dp)
-            IF ( tt < tfun ) THEN
-              tfun = tt
-              m = i
-            END IF
-          END IF
-      END IF
-      END DO
-      k = ( nx - np*(nx/np)) * ny
-      IF ( k == 0 ) THEN
-        m = np
-      ELSE
-        tt = 1.0_dp - REAL ( k,KIND=dp) / REAL ( np,KIND=dp)
-        IF ( tt < tfun ) m = np
-      END IF
-      pw_grid % para % rs_dims ( 1 ) = m
-      pw_grid % para % rs_dims ( 2 ) = np/m
-
-    ELSEIF ( PRODUCT ( pw_grid % para % rs_dims ) /= np ) THEN
-
-      pw_grid % para % rs_dims = 0
-      CALL mp_dims_create ( np, pw_grid % para % rs_dims )
-
+    pw_grid % ngpts = PRODUCT ( pw_grid % npts )
+    CPPrecondition(ALL(pw_grid%para%rs_dims==0),cp_failure_level,routineP,error,failure)
+    IF (PRESENT(rs_dims)) THEN
+       pw_grid%para%rs_dims=rs_dims
     END IF
-!..create group for real space distribution
-    CALL mp_cart_create ( pw_grid % para % group, 2, &
-                          pw_grid % para % rs_dims, &
-                          pw_grid % para % rs_pos, &
-                          pw_grid % para % rs_group )
-    CALL mp_cart_rank ( pw_grid % para % rs_group, &
-                        pw_grid % para % rs_pos, &
-                        pw_grid % para % rs_mpo )
-    lo = get_limit ( nx, pw_grid % para % rs_dims ( 1 ), &
-                     pw_grid % para % rs_pos ( 1 ) )
-    pw_grid % bounds_local ( :, 1 ) = lo + pw_grid % bounds ( 1, 1 ) - 1
-    lo = get_limit ( ny, pw_grid % para % rs_dims ( 2 ), &
-                     pw_grid % para % rs_pos ( 2 ) )
-    pw_grid % bounds_local ( :, 2 ) = lo + pw_grid % bounds ( 1, 2 ) - 1
-    pw_grid % bounds_local ( :, 3 ) = pw_grid % bounds ( :, 3 )
-    pw_grid % npts_local ( : ) = pw_grid % bounds_local ( 2, : ) &
-                                 - pw_grid % bounds_local ( 1, : ) + 1
 
-!..the third distribution is needed for the second step in the FFT
-    ALLOCATE ( pw_grid % para % bo ( 2, 3, 0:np-1, 3 ), STAT = ierr )
-    CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
-    rsd = pw_grid % para % rs_dims
-    DO ip = 0, np - 1
-      CALL mp_cart_coords ( pw_grid % para % rs_group, ip, coor )
-      ! distribution xyZ
-      pw_grid % para % bo ( 1:2, 1, ip, 1 ) = get_limit (nx,rsd(1),coor(1))
-      pw_grid % para % bo ( 1:2, 2, ip, 1 ) = get_limit (ny,rsd(2),coor(2))
-      pw_grid % para % bo ( 1, 3, ip, 1 ) = 1
-      pw_grid % para % bo ( 2, 3, ip, 1 ) = nz
-      ! distribution xYz
-      pw_grid % para % bo ( 1:2, 1, ip, 2 ) = get_limit (nx,rsd(1),coor(1))
-      pw_grid % para % bo ( 1, 2, ip, 2 ) = 1
-      pw_grid % para % bo ( 2, 2, ip, 2 ) = ny
-      pw_grid % para % bo ( 1:2, 3, ip, 2 ) = get_limit (nz,rsd(2),coor(2))
-      ! distribution Xyz
-      pw_grid % para % bo ( 1, 1, ip, 3 ) = 1
-      pw_grid % para % bo ( 2, 1, ip, 3 ) = nx
-      pw_grid % para % bo ( 1:2, 2, ip, 3 ) = get_limit (ny,rsd(1),coor(1))
-      pw_grid % para % bo ( 1:2, 3, ip, 3 ) = get_limit (nz,rsd(2),coor(2))
-    END DO
+    IF ( pw_grid % para % mode == PW_MODE_LOCAL) THEN
 
-!..find the g space distribution
-    pw_grid % ngpts_cut_local = 0
-
-    ALLOCATE ( pw_grid % para % nyzray ( 0: np-1 ), STAT = ierr )
-    CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
-
-    ALLOCATE ( pw_grid % para % yzq ( ny, nz ), STAT = ierr )
-    CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
-
-    IF ( pw_grid % spherical .OR. pw_grid % grid_span == HALFSPACE &
-         .OR. .NOT. blocking ) THEN
-
-      pw_grid % para % ray_distribution = .TRUE.
-
-      pw_grid % para % yzq = -1
-      IF ( PRESENT ( ref_grid ) ) THEN
-        ! tag all vectors from the reference grid
-        CALL pre_tag ( pw_grid, yz_mask, ref_grid )
-      END IF
-
-      ! Round Robin distribution
-      ! Processors 0 .. NP-1, NP-1 .. 0  get the largest remaining batch
-      ! of g vectors in turn
-
-      i1 = SIZE ( yz_mask, 1 )
-      i2 = SIZE ( yz_mask, 2 )
-      ALLOCATE ( yz_index(2,i1*i2), STAT = ierr )
-      CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
-      CALL order_mask ( yz_mask, yz_index, error )
-      DO i = 1, i1*i2
-        lo(1) = yz_index(1,i)
-        lo(2) = yz_index(2,i)
-        IF ( lo(1)*lo(2) == 0 ) CYCLE
-        gmax = yz_mask ( lo(1), lo(2) )
-        IF ( gmax == 0 ) CYCLE
-        yz_mask ( lo(1), lo(2) ) = 0
-        ip = MOD ( i-1, 2*np )
-        IF ( ip > np - 1 ) ip = 2*np - ip - 1
-        IF ( ip == pw_grid % para % my_pos ) THEN
-          pw_grid % ngpts_cut_local = pw_grid % ngpts_cut_local + gmax
-        END IF
-        pw_grid % para % yzq ( lo(1), lo(2) ) = ip
-        IF ( pw_grid % grid_span == HALFSPACE ) THEN
-          m = -lo(1) - 2*lby + 2
-          n = -lo(2) - 2*lbz + 2
-          pw_grid % para % yzq ( m, n ) = ip
-          yz_mask ( m, n ) = 0
-        END IF
-      END DO
-      DEALLOCATE ( yz_index, STAT = ierr )
-      CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
-
-      ! Count the total number of rays on each processor
-      pw_grid % para % nyzray = 0
-      DO i = 1, nz
-        DO j = 1, ny
-          ip = pw_grid % para % yzq ( j, i )
-          IF ( ip >= 0 ) pw_grid % para % nyzray ( ip ) = &
-                         pw_grid % para % nyzray ( ip ) + 1
-        END DO
-      END DO
-
-      ! Allocate mapping array (y:z, nray, nproc)
-      ns = MAXVAL ( pw_grid % para % nyzray ( 0: np-1 ) )
-      ALLOCATE ( pw_grid % para % yzp ( 2, ns, 0: np-1 ), STAT = ierr )
-      CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
-
-      ! Fill mapping array, recalculate nyzray for convenience
-      pw_grid % para % nyzray = 0
-      DO i = 1, nz
-        DO j = 1, ny
-          ip = pw_grid % para % yzq ( j, i )
-          IF ( ip >= 0 ) THEN
-            pw_grid % para % nyzray ( ip ) = &
-                         pw_grid % para % nyzray ( ip ) + 1
-            ns = pw_grid % para % nyzray ( ip )
-            pw_grid % para % yzp ( 1, ns, ip ) = j
-            pw_grid % para % yzp ( 2, ns, ip ) = i
-            IF ( ip == pw_grid % para % my_pos ) THEN
-              pw_grid % para % yzq ( j, i ) = ns
-            ELSE
-              pw_grid % para % yzq ( j, i ) = -1
-            END IF
-          ELSE
-            pw_grid % para % yzq ( j, i ) = -2
-          END IF
-        END DO
-      END DO
-
-      pw_grid % ngpts_local = PRODUCT ( pw_grid % npts_local )
+       pw_grid % bounds_local = pw_grid % bounds
+       pw_grid % npts_local = pw_grid % npts
+       pw_grid % ngpts_cut_local = pw_grid % ngpts_cut
+       pw_grid % ngpts_local = PRODUCT ( pw_grid % npts_local )
+       pw_grid % para % rs_dims=1
+       CALL mp_cart_create ( MPI_COMM_SELF, 2, &
+            pw_grid % para % rs_dims, &
+            pw_grid % para % rs_pos, &
+            pw_grid % para % rs_group )
+       CALL mp_cart_rank ( pw_grid % para % rs_group, &
+            pw_grid % para % rs_pos, &
+            pw_grid % para % rs_mpo )
 
     ELSE
-      !
-      !  block distribution of g vectors, we do not have a spherical cutoff
-      !
 
-      pw_grid % para % ray_distribution = .FALSE.
+       !..find the real space distribution
+       nx = pw_grid % npts ( 1 )
+       ny = pw_grid % npts ( 2 )
+       nz = pw_grid % npts ( 3 )
 
-      DO ip = 0, np - 1
-        m = pw_grid % para % bo ( 2, 2, ip, 3 ) - &
-            pw_grid % para % bo ( 1, 2, ip, 3 ) + 1
-        n = pw_grid % para % bo ( 2, 3, ip, 3 ) - &
-            pw_grid % para % bo ( 1, 3, ip, 3 ) + 1
-        pw_grid % para % nyzray ( ip ) = n*m
-      END DO
+       np = pw_grid % para % group_size
 
-      ipl = pw_grid % para % rs_mpo
-      l = pw_grid % para % bo ( 2, 1, ipl, 3 ) - &
-          pw_grid % para % bo ( 1, 1, ipl, 3 ) + 1
-      m = pw_grid % para % bo ( 2, 2, ipl, 3 ) - &
-          pw_grid % para % bo ( 1, 2, ipl, 3 ) + 1
-      n = pw_grid % para % bo ( 2, 3, ipl, 3 ) - &
-          pw_grid % para % bo ( 1, 3, ipl, 3 ) + 1
-      pw_grid % ngpts_cut_local = l * m * n
-      pw_grid % ngpts_local = pw_grid % ngpts_cut_local
+       IF ( PRODUCT ( pw_grid % para % rs_dims ) == 0 ) THEN
 
-      pw_grid % para % yzq = 0
-      ny = pw_grid % para % bo ( 2, 2, ipl, 3 ) - &
-           pw_grid % para % bo ( 1, 2, ipl, 3 ) + 1
-      DO n = pw_grid % para % bo ( 1, 3, ipl, 3 ), &
-             pw_grid % para % bo ( 2, 3, ipl, 3 )
-        i = n - pw_grid % para % bo ( 1, 3, ipl, 3 )
-        DO m = pw_grid % para % bo ( 1, 2, ipl, 3 ), &
-               pw_grid % para % bo ( 2, 2, ipl, 3 )
-          j = m - pw_grid % para % bo ( 1, 2, ipl, 3 ) + 1
-          pw_grid % para % yzq ( m, n ) = j + i * ny
-        END DO
-      END DO
+          ns = INT ( SQRT ( REAL ( np,KIND=dp) ) )
+
+          tfun = 1.e20_dp
+          DO i = ns, 2, -1
+             IF ( MOD ( np, i ) == 0 ) THEN
+                j = np/i
+                k = nx*ny - i*(nx/i) * j*(ny/j)
+                IF ( k == 0 ) THEN
+                   tfun = 0.0_dp
+                   m = i
+                ELSE
+                   tt = 1.0_dp - REAL ( k,KIND=dp) / REAL ( np,KIND=dp)
+                   IF ( tt < tfun ) THEN
+                      tfun = tt
+                      m = i
+                   END IF
+                END IF
+             END IF
+          END DO
+          k = ( nx - np*(nx/np)) * ny
+          IF ( k == 0 ) THEN
+             m = np
+          ELSE
+             tt = 1.0_dp - REAL ( k,KIND=dp) / REAL ( np,KIND=dp)
+             IF ( tt < tfun ) m = np
+          END IF
+          pw_grid % para % rs_dims ( 1 ) = m
+          pw_grid % para % rs_dims ( 2 ) = np/m
+
+       ELSEIF ( PRODUCT ( pw_grid % para % rs_dims ) /= np ) THEN
+
+          pw_grid % para % rs_dims = 0
+          CALL mp_dims_create ( np, pw_grid % para % rs_dims )
+
+       END IF
+       !..create group for real space distribution
+       CALL mp_cart_create ( pw_grid % para % group, 2, &
+            pw_grid % para % rs_dims, &
+            pw_grid % para % rs_pos, &
+            pw_grid % para % rs_group )
+       CALL mp_cart_rank ( pw_grid % para % rs_group, &
+            pw_grid % para % rs_pos, &
+            pw_grid % para % rs_mpo )
+       lo = get_limit ( nx, pw_grid % para % rs_dims ( 1 ), &
+            pw_grid % para % rs_pos ( 1 ) )
+       pw_grid % bounds_local ( :, 1 ) = lo + pw_grid % bounds ( 1, 1 ) - 1
+       lo = get_limit ( ny, pw_grid % para % rs_dims ( 2 ), &
+            pw_grid % para % rs_pos ( 2 ) )
+       pw_grid % bounds_local ( :, 2 ) = lo + pw_grid % bounds ( 1, 2 ) - 1
+       pw_grid % bounds_local ( :, 3 ) = pw_grid % bounds ( :, 3 )
+       pw_grid % npts_local ( : ) = pw_grid % bounds_local ( 2, : ) &
+            - pw_grid % bounds_local ( 1, : ) + 1
+
+       !..the third distribution is needed for the second step in the FFT
+       ALLOCATE ( pw_grid % para % bo ( 2, 3, 0:np-1, 3 ), STAT = ierr )
+       CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
+       rsd = pw_grid % para % rs_dims
+       DO ip = 0, np - 1
+          CALL mp_cart_coords ( pw_grid % para % rs_group, ip, coor )
+          ! distribution xyZ
+          pw_grid % para % bo ( 1:2, 1, ip, 1 ) = get_limit (nx,rsd(1),coor(1))
+          pw_grid % para % bo ( 1:2, 2, ip, 1 ) = get_limit (ny,rsd(2),coor(2))
+          pw_grid % para % bo ( 1, 3, ip, 1 ) = 1
+          pw_grid % para % bo ( 2, 3, ip, 1 ) = nz
+          ! distribution xYz
+          pw_grid % para % bo ( 1:2, 1, ip, 2 ) = get_limit (nx,rsd(1),coor(1))
+          pw_grid % para % bo ( 1, 2, ip, 2 ) = 1
+          pw_grid % para % bo ( 2, 2, ip, 2 ) = ny
+          pw_grid % para % bo ( 1:2, 3, ip, 2 ) = get_limit (nz,rsd(2),coor(2))
+          ! distribution Xyz
+          pw_grid % para % bo ( 1, 1, ip, 3 ) = 1
+          pw_grid % para % bo ( 2, 1, ip, 3 ) = nx
+          pw_grid % para % bo ( 1:2, 2, ip, 3 ) = get_limit (ny,rsd(1),coor(1))
+          pw_grid % para % bo ( 1:2, 3, ip, 3 ) = get_limit (nz,rsd(2),coor(2))
+       END DO
+
+       !..find the g space distribution
+       pw_grid % ngpts_cut_local = 0
+
+       ALLOCATE ( pw_grid % para % nyzray ( 0: np-1 ), STAT = ierr )
+       CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
+
+       ALLOCATE ( pw_grid % para % yzq ( ny, nz ), STAT = ierr )
+       CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
+
+       IF ( pw_grid % spherical .OR. pw_grid % grid_span == HALFSPACE &
+            .OR. .NOT. blocking ) THEN
+
+          pw_grid % para % ray_distribution = .TRUE.
+
+          pw_grid % para % yzq = -1
+          IF ( PRESENT ( ref_grid ) ) THEN
+             ! tag all vectors from the reference grid
+             CALL pre_tag ( pw_grid, yz_mask, ref_grid )
+          END IF
+
+          ! Round Robin distribution
+          ! Processors 0 .. NP-1, NP-1 .. 0  get the largest remaining batch
+          ! of g vectors in turn
+
+          i1 = SIZE ( yz_mask, 1 )
+          i2 = SIZE ( yz_mask, 2 )
+          ALLOCATE ( yz_index(2,i1*i2), STAT = ierr )
+          CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
+          CALL order_mask ( yz_mask, yz_index, error )
+          DO i = 1, i1*i2
+             lo(1) = yz_index(1,i)
+             lo(2) = yz_index(2,i)
+             IF ( lo(1)*lo(2) == 0 ) CYCLE
+             gmax = yz_mask ( lo(1), lo(2) )
+             IF ( gmax == 0 ) CYCLE
+             yz_mask ( lo(1), lo(2) ) = 0
+             ip = MOD ( i-1, 2*np )
+             IF ( ip > np - 1 ) ip = 2*np - ip - 1
+             IF ( ip == pw_grid % para % my_pos ) THEN
+                pw_grid % ngpts_cut_local = pw_grid % ngpts_cut_local + gmax
+             END IF
+             pw_grid % para % yzq ( lo(1), lo(2) ) = ip
+             IF ( pw_grid % grid_span == HALFSPACE ) THEN
+                m = -lo(1) - 2*lby + 2
+                n = -lo(2) - 2*lbz + 2
+                pw_grid % para % yzq ( m, n ) = ip
+                yz_mask ( m, n ) = 0
+             END IF
+          END DO
+          DEALLOCATE ( yz_index, STAT = ierr )
+          CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
+
+          ! Count the total number of rays on each processor
+          pw_grid % para % nyzray = 0
+          DO i = 1, nz
+             DO j = 1, ny
+                ip = pw_grid % para % yzq ( j, i )
+                IF ( ip >= 0 ) pw_grid % para % nyzray ( ip ) = &
+                     pw_grid % para % nyzray ( ip ) + 1
+             END DO
+          END DO
+
+          ! Allocate mapping array (y:z, nray, nproc)
+          ns = MAXVAL ( pw_grid % para % nyzray ( 0: np-1 ) )
+          ALLOCATE ( pw_grid % para % yzp ( 2, ns, 0: np-1 ), STAT = ierr )
+          CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
+
+          ! Fill mapping array, recalculate nyzray for convenience
+          pw_grid % para % nyzray = 0
+          DO i = 1, nz
+             DO j = 1, ny
+                ip = pw_grid % para % yzq ( j, i )
+                IF ( ip >= 0 ) THEN
+                   pw_grid % para % nyzray ( ip ) = &
+                        pw_grid % para % nyzray ( ip ) + 1
+                   ns = pw_grid % para % nyzray ( ip )
+                   pw_grid % para % yzp ( 1, ns, ip ) = j
+                   pw_grid % para % yzp ( 2, ns, ip ) = i
+                   IF ( ip == pw_grid % para % my_pos ) THEN
+                      pw_grid % para % yzq ( j, i ) = ns
+                   ELSE
+                      pw_grid % para % yzq ( j, i ) = -1
+                   END IF
+                ELSE
+                   pw_grid % para % yzq ( j, i ) = -2
+                END IF
+             END DO
+          END DO
+
+          pw_grid % ngpts_local = PRODUCT ( pw_grid % npts_local )
+
+       ELSE
+          !
+          !  block distribution of g vectors, we do not have a spherical cutoff
+          !
+
+          pw_grid % para % ray_distribution = .FALSE.
+
+          DO ip = 0, np - 1
+             m = pw_grid % para % bo ( 2, 2, ip, 3 ) - &
+                  pw_grid % para % bo ( 1, 2, ip, 3 ) + 1
+             n = pw_grid % para % bo ( 2, 3, ip, 3 ) - &
+                  pw_grid % para % bo ( 1, 3, ip, 3 ) + 1
+             pw_grid % para % nyzray ( ip ) = n*m
+          END DO
+
+          ipl = pw_grid % para % rs_mpo
+          l = pw_grid % para % bo ( 2, 1, ipl, 3 ) - &
+               pw_grid % para % bo ( 1, 1, ipl, 3 ) + 1
+          m = pw_grid % para % bo ( 2, 2, ipl, 3 ) - &
+               pw_grid % para % bo ( 1, 2, ipl, 3 ) + 1
+          n = pw_grid % para % bo ( 2, 3, ipl, 3 ) - &
+               pw_grid % para % bo ( 1, 3, ipl, 3 ) + 1
+          pw_grid % ngpts_cut_local = l * m * n
+          pw_grid % ngpts_local = pw_grid % ngpts_cut_local
+
+          pw_grid % para % yzq = 0
+          ny = pw_grid % para % bo ( 2, 2, ipl, 3 ) - &
+               pw_grid % para % bo ( 1, 2, ipl, 3 ) + 1
+          DO n = pw_grid % para % bo ( 1, 3, ipl, 3 ), &
+               pw_grid % para % bo ( 2, 3, ipl, 3 )
+             i = n - pw_grid % para % bo ( 1, 3, ipl, 3 )
+             DO m = pw_grid % para % bo ( 1, 2, ipl, 3 ), &
+                  pw_grid % para % bo ( 2, 2, ipl, 3 )
+                j = m - pw_grid % para % bo ( 1, 2, ipl, 3 ) + 1
+                pw_grid % para % yzq ( m, n ) = j + i * ny
+             END DO
+          END DO
+
+       END IF
 
     END IF
 
-  END IF
+    ! pos_of_x(i) tells on which cpu pw%cr3d(i,:,:) is located
+    ! should be computable in principle, without the need for communication
+    IF (pw_grid % para % mode .EQ. PW_MODE_DISTRIBUTED) THEN
+       ALLOCATE(pw_grid % para % pos_of_x( pw_grid % bounds(1,1): pw_grid % bounds(2,1) ))
+       pw_grid % para % pos_of_x = 0
+       pw_grid % para % pos_of_x(pw_grid % bounds_local(1,1) : pw_grid % bounds_local(2,1))=pw_grid % para % my_pos
+       CALL mp_sum( pw_grid % para % pos_of_x, pw_grid % para % group )
+    ELSE
+       ! this should not be needed
+       ALLOCATE(pw_grid % para % pos_of_x( pw_grid % bounds(1,1): pw_grid % bounds(2,1) ))
+       pw_grid % para % pos_of_x = 0
+    ENDIF
 
-  ! pos_of_x(i) tells on which cpu pw%cr3d(i,:,:) is located
-  ! should be computable in principle, without the need for communication
-  IF (pw_grid % para % mode .EQ. PW_MODE_DISTRIBUTED) THEN
-    ALLOCATE(pw_grid % para % pos_of_x( pw_grid % bounds(1,1): pw_grid % bounds(2,1) ))
-    pw_grid % para % pos_of_x = 0
-    pw_grid % para % pos_of_x(pw_grid % bounds_local(1,1) : pw_grid % bounds_local(2,1))=pw_grid % para % my_pos
-    CALL mp_sum( pw_grid % para % pos_of_x, pw_grid % para % group )
-  ELSE
-    ! this should not be needed
-    ALLOCATE(pw_grid % para % pos_of_x( pw_grid % bounds(1,1): pw_grid % bounds(2,1) ))
-    pw_grid % para % pos_of_x = 0
-  ENDIF
+    CALL timestop(0.0_dp,handle)
 
-  CALL timestop(0.0_dp,handle)
+  END SUBROUTINE pw_grid_distribute
 
-END SUBROUTINE pw_grid_distribute
+  !******************************************************************************
 
-!******************************************************************************
-
-SUBROUTINE pre_tag ( pw_grid, yz_mask, ref_grid )
+  SUBROUTINE pre_tag ( pw_grid, yz_mask, ref_grid )
 
 
     TYPE(pw_grid_type), POINTER              :: pw_grid
@@ -1105,59 +1098,59 @@ SUBROUTINE pre_tag ( pw_grid, yz_mask, ref_grid )
 
 !------------------------------------------------------------------------------
 
-  ny = ref_grid % npts ( 2 )
-  nz = ref_grid % npts ( 3 )
-  lby = pw_grid % bounds ( 1, 2 )
-  lbz = pw_grid % bounds ( 1, 3 )
-  uby = pw_grid % bounds ( 2, 2 )
-  ubz = pw_grid % bounds ( 2, 3 )
-  my = SIZE ( yz_mask, 1 )
-  mz = SIZE ( yz_mask, 2 )
+    ny = ref_grid % npts ( 2 )
+    nz = ref_grid % npts ( 3 )
+    lby = pw_grid % bounds ( 1, 2 )
+    lbz = pw_grid % bounds ( 1, 3 )
+    uby = pw_grid % bounds ( 2, 2 )
+    ubz = pw_grid % bounds ( 2, 3 )
+    my = SIZE ( yz_mask, 1 )
+    mz = SIZE ( yz_mask, 2 )
 
-  ! loop over all processors and all g vectors yz lines on this processor
-  DO ip = 0, ref_grid % para % group_size - 1
-    DO ig = 1, ref_grid % para % nyzray ( ip )
-      ! go from mapped coordinates to original coordinates
-      ! 0 .. N-1 -> -n/2 .. (n+1)/2
-      y = ref_grid % para % yzp ( 1, ig, ip ) - 1
-      IF ( y > ny/2 ) y = y - ny
-      z = ref_grid % para % yzp ( 2, ig, ip ) - 1
-      IF ( z > nz/2 ) z = z - nz
-      ! check if this is inside the realm of the new grid
-      IF ( y < lby .OR. y > uby .OR. z < lbz .OR. z > ubz ) CYCLE
-      ! go to shifted coordinates
-      y = y - lby + 1
-      z = z - lbz + 1
-      ! this tag is outside the cutoff range of the new grid
-      IF ( pw_grid % grid_span == HALFSPACE ) THEN
-        yp = -y - 2*lby + 2
-        zp = -z - 2*lbz + 2
-        ! if the referenz grid is larger than the mirror point may be
-        ! outside the new grid even if the original point is inside
-        IF ( yp < 1 .OR. yp > my .OR. zp < 1 .OR. zp > mz ) CYCLE
-        gmax = MAX ( yz_mask ( y, z ), yz_mask ( yp, zp ) )
-        IF ( gmax == 0 ) CYCLE
-        yz_mask ( y, z ) = 0
-        yz_mask ( yp, zp ) = 0
-        pw_grid % para % yzq ( y, z ) = ip
-        pw_grid % para % yzq ( yp, zp ) = ip
-      ELSE
-        gmax = yz_mask ( y, z )
-        IF ( gmax == 0 ) CYCLE
-        yz_mask ( y, z ) = 0
-        pw_grid % para % yzq ( y, z ) = ip
-      END IF
-      IF ( ip == pw_grid % para % my_pos ) THEN
-         pw_grid % ngpts_cut_local = pw_grid % ngpts_cut_local + gmax
-      END IF
+    ! loop over all processors and all g vectors yz lines on this processor
+    DO ip = 0, ref_grid % para % group_size - 1
+       DO ig = 1, ref_grid % para % nyzray ( ip )
+          ! go from mapped coordinates to original coordinates
+          ! 0 .. N-1 -> -n/2 .. (n+1)/2
+          y = ref_grid % para % yzp ( 1, ig, ip ) - 1
+          IF ( y > ny/2 ) y = y - ny
+          z = ref_grid % para % yzp ( 2, ig, ip ) - 1
+          IF ( z > nz/2 ) z = z - nz
+          ! check if this is inside the realm of the new grid
+          IF ( y < lby .OR. y > uby .OR. z < lbz .OR. z > ubz ) CYCLE
+          ! go to shifted coordinates
+          y = y - lby + 1
+          z = z - lbz + 1
+          ! this tag is outside the cutoff range of the new grid
+          IF ( pw_grid % grid_span == HALFSPACE ) THEN
+             yp = -y - 2*lby + 2
+             zp = -z - 2*lbz + 2
+             ! if the referenz grid is larger than the mirror point may be
+             ! outside the new grid even if the original point is inside
+             IF ( yp < 1 .OR. yp > my .OR. zp < 1 .OR. zp > mz ) CYCLE
+             gmax = MAX ( yz_mask ( y, z ), yz_mask ( yp, zp ) )
+             IF ( gmax == 0 ) CYCLE
+             yz_mask ( y, z ) = 0
+             yz_mask ( yp, zp ) = 0
+             pw_grid % para % yzq ( y, z ) = ip
+             pw_grid % para % yzq ( yp, zp ) = ip
+          ELSE
+             gmax = yz_mask ( y, z )
+             IF ( gmax == 0 ) CYCLE
+             yz_mask ( y, z ) = 0
+             pw_grid % para % yzq ( y, z ) = ip
+          END IF
+          IF ( ip == pw_grid % para % my_pos ) THEN
+             pw_grid % ngpts_cut_local = pw_grid % ngpts_cut_local + gmax
+          END IF
+       END DO
     END DO
-  END DO
 
-END SUBROUTINE pre_tag
+  END SUBROUTINE pre_tag
 
-!------------------------------------------------------------------------------
+  !------------------------------------------------------------------------------
 
-SUBROUTINE order_mask ( yz_mask, yz_index, error )
+  SUBROUTINE order_mask ( yz_mask, yz_index, error )
 
 
     INTEGER, DIMENSION(:, :), INTENT(IN)     :: yz_mask
@@ -1174,47 +1167,47 @@ SUBROUTINE order_mask ( yz_mask, yz_index, error )
 
 !------------------------------------------------------------------------------
 
-  failure = .FALSE.
+    failure = .FALSE.
 
-  i1 = SIZE ( yz_mask, 1 )
-  i2 = SIZE ( yz_mask, 2 )
-  ALLOCATE ( irow(i1), rindex(i1), STAT = ierr )
-  CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
-  ALLOCATE ( icol(i2), cindex(i2), STAT = ierr )
-  CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
+    i1 = SIZE ( yz_mask, 1 )
+    i2 = SIZE ( yz_mask, 2 )
+    ALLOCATE ( irow(i1), rindex(i1), STAT = ierr )
+    CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
+    ALLOCATE ( icol(i2), cindex(i2), STAT = ierr )
+    CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
 
-  yz_index = 0
-  DO i = 1, i1
-    irow(i) = SUM(yz_mask(i,:))
-  END DO
-  CALL sort ( irow, i1, rindex )
-  icount = 0
-  DO i = i1, 1, -1
-    j1 = rindex ( i )
-    icol = yz_mask(i,:)
-    CALL sort ( icol, i2, cindex )
-    DO j = i2, 1, -1
-      j2 = cindex ( j )
-      IF ( yz_mask(j1,j2) /= 0 ) THEN
-        icount = icount + 1
-        yz_index(1,icount) = j1
-        yz_index(2,icount) = j2
-      END IF
+    yz_index = 0
+    DO i = 1, i1
+       irow(i) = SUM(yz_mask(i,:))
     END DO
-  END DO
+    CALL sort ( irow, i1, rindex )
+    icount = 0
+    DO i = i1, 1, -1
+       j1 = rindex ( i )
+       icol = yz_mask(i,:)
+       CALL sort ( icol, i2, cindex )
+       DO j = i2, 1, -1
+          j2 = cindex ( j )
+          IF ( yz_mask(j1,j2) /= 0 ) THEN
+             icount = icount + 1
+             yz_index(1,icount) = j1
+             yz_index(2,icount) = j2
+          END IF
+       END DO
+    END DO
 
-  j=HUGE(j)
-  DO i=1,icount
-    j1=yz_index(1,icount)
-    j2=yz_index(2,icount)
-    IF(j < yz_mask(j1,j2)) STOP
-    j = yz_mask(j1,j2)
-  ENDDO
+    j=HUGE(j)
+    DO i=1,icount
+       j1=yz_index(1,icount)
+       j2=yz_index(2,icount)
+       IF(j < yz_mask(j1,j2)) STOP
+       j = yz_mask(j1,j2)
+    ENDDO
 
-  DEALLOCATE ( irow, rindex, icol, cindex, STAT = ierr )
-  CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE ( irow, rindex, icol, cindex, STAT = ierr )
+    CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
 
-END SUBROUTINE order_mask
+  END SUBROUTINE order_mask
 
 !******************************************************************************
 !!****** pw_grids/pw_grid_count [1.1] *
@@ -1234,7 +1227,7 @@ END SUBROUTINE order_mask
 !!
 !!*** *************************************************************************
 
-SUBROUTINE pw_grid_count ( h_inv, pw_grid, cutoff, yz_mask )
+  SUBROUTINE pw_grid_count ( h_inv, pw_grid, cutoff, yz_mask )
 
 
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_inv
@@ -1250,62 +1243,62 @@ SUBROUTINE pw_grid_count ( h_inv, pw_grid, cutoff, yz_mask )
 
 !------------------------------------------------------------------------------
 
-  bounds => pw_grid % bounds
+    bounds => pw_grid % bounds
 
-  IF ( pw_grid % grid_span == HALFSPACE ) THEN
-     n_upperlimit = 0
-  ELSE IF ( pw_grid % grid_span == FULLSPACE ) THEN
-     n_upperlimit = bounds ( 2, 3 )
-  ELSE
-     CALL stop_program ( "pw_grid_count", "no type set for the grid" )
-  END IF
+    IF ( pw_grid % grid_span == HALFSPACE ) THEN
+       n_upperlimit = 0
+    ELSE IF ( pw_grid % grid_span == FULLSPACE ) THEN
+       n_upperlimit = bounds ( 2, 3 )
+    ELSE
+       CALL stop_program ( "pw_grid_count", "no type set for the grid" )
+    END IF
 
-! finds valid g-points within grid
-  gmat = MATMUL ( h_inv, TRANSPOSE ( h_inv ) )
-  gpt = 0
-  IF ( pw_grid % para % mode == PW_MODE_LOCAL ) THEN
-    nlim ( 1 ) = bounds ( 1, 3 )
-    nlim ( 2 ) = n_upperlimit
-  ELSE IF ( pw_grid % para % mode == PW_MODE_DISTRIBUTED ) THEN
-    n = n_upperlimit - bounds ( 1, 3 ) + 1
-    nlim = get_limit ( n, pw_grid % para % group_size, pw_grid % para % my_pos )
-    nlim = nlim + bounds ( 1, 3 ) - 1
-  ELSE
-     CALL stop_program ( "pw_grid_count", "para % mode not specified" )
-  END IF
+    ! finds valid g-points within grid
+    gmat = MATMUL ( h_inv, TRANSPOSE ( h_inv ) )
+    gpt = 0
+    IF ( pw_grid % para % mode == PW_MODE_LOCAL ) THEN
+       nlim ( 1 ) = bounds ( 1, 3 )
+       nlim ( 2 ) = n_upperlimit
+    ELSE IF ( pw_grid % para % mode == PW_MODE_DISTRIBUTED ) THEN
+       n = n_upperlimit - bounds ( 1, 3 ) + 1
+       nlim = get_limit ( n, pw_grid % para % group_size, pw_grid % para % my_pos )
+       nlim = nlim + bounds ( 1, 3 ) - 1
+    ELSE
+       CALL stop_program ( "pw_grid_count", "para % mode not specified" )
+    END IF
 
-  yz_mask = 0
-  DO n = nlim ( 1 ), nlim ( 2 )
-     gi ( 3 ) = REAL(n,dp)
-     nn = n - bounds ( 1, 3) + 1
-     DO m = bounds ( 1, 2 ), bounds ( 2, 2 )
-        gi ( 2 ) = REAL(m,dp)
-        mm = m - bounds ( 1, 2) + 1
-        DO l = bounds ( 1, 1 ), bounds ( 2, 1 )
-           IF ( pw_grid % grid_span == HALFSPACE .AND. n == 0 ) THEN
-              IF ( ( m == 0 .AND. l > 0 ) .OR. ( m > 0 ) ) CYCLE
-           END IF
+    yz_mask = 0
+    DO n = nlim ( 1 ), nlim ( 2 )
+       gi ( 3 ) = REAL(n,dp)
+       nn = n - bounds ( 1, 3) + 1
+       DO m = bounds ( 1, 2 ), bounds ( 2, 2 )
+          gi ( 2 ) = REAL(m,dp)
+          mm = m - bounds ( 1, 2) + 1
+          DO l = bounds ( 1, 1 ), bounds ( 2, 1 )
+             IF ( pw_grid % grid_span == HALFSPACE .AND. n == 0 ) THEN
+                IF ( ( m == 0 .AND. l > 0 ) .OR. ( m > 0 ) ) CYCLE
+             END IF
 
-           gi ( 1 ) = REAL(l,dp)
-           CALL matvec_3x3(ggi, gmat, gi )
-           length = twopi * twopi * DOT_PRODUCT ( ggi , gi )
-           IF ( 0.5_dp * length <= cutoff ) THEN
-             gpt = gpt + 1
-             yz_mask ( mm, nn ) = yz_mask ( mm, nn ) + 1
-           END IF
+             gi ( 1 ) = REAL(l,dp)
+             CALL matvec_3x3(ggi, gmat, gi )
+             length = twopi * twopi * DOT_PRODUCT ( ggi , gi )
+             IF ( 0.5_dp * length <= cutoff ) THEN
+                gpt = gpt + 1
+                yz_mask ( mm, nn ) = yz_mask ( mm, nn ) + 1
+             END IF
 
-        END DO
-     END DO
-  END DO
+          END DO
+       END DO
+    END DO
 
-! number of g-vectors for grid
-  IF ( pw_grid % para % mode == PW_MODE_DISTRIBUTED ) THEN
-    CALL mp_sum ( gpt, pw_grid % para % group )
-    CALL mp_sum ( yz_mask, pw_grid % para % group )
-  ENDIF
-  pw_grid % ngpts_cut = gpt
+    ! number of g-vectors for grid
+    IF ( pw_grid % para % mode == PW_MODE_DISTRIBUTED ) THEN
+       CALL mp_sum ( gpt, pw_grid % para % group )
+       CALL mp_sum ( yz_mask, pw_grid % para % group )
+    ENDIF
+    pw_grid % ngpts_cut = gpt
 
-END SUBROUTINE pw_grid_count
+  END SUBROUTINE pw_grid_count
 
 !******************************************************************************
 !!****** pw_grids/pw_grid_assign [1.1] *
@@ -1325,7 +1318,7 @@ END SUBROUTINE pw_grid_count
 !!
 !!*** *************************************************************************
 
-SUBROUTINE pw_grid_assign ( h_inv, pw_grid, cutoff, error )
+  SUBROUTINE pw_grid_assign ( h_inv, pw_grid, cutoff, error )
 
 
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_inv
@@ -1346,190 +1339,190 @@ SUBROUTINE pw_grid_assign ( h_inv, pw_grid, cutoff, error )
 
 !------------------------------------------------------------------------------
 
-  CALL timeset("pw_grid_assign","I","",handle)
+    CALL timeset("pw_grid_assign","I","",handle)
 
-  failure = .FALSE.
+    failure = .FALSE.
 
-  bounds = pw_grid % bounds
-  lby = pw_grid % bounds ( 1, 2 )
-  lbz = pw_grid % bounds ( 1, 3 )
+    bounds = pw_grid % bounds
+    lby = pw_grid % bounds ( 1, 2 )
+    lbz = pw_grid % bounds ( 1, 3 )
 
-  IF ( pw_grid % grid_span == HALFSPACE ) THEN
-     n_upperlimit = 0
-  ELSE IF ( pw_grid % grid_span == FULLSPACE ) THEN
-     n_upperlimit = bounds ( 2, 3 )
-  ELSE
-     CALL stop_program ( "pw_grid_assign", "no type set for the grid" )
-  END IF
+    IF ( pw_grid % grid_span == HALFSPACE ) THEN
+       n_upperlimit = 0
+    ELSE IF ( pw_grid % grid_span == FULLSPACE ) THEN
+       n_upperlimit = bounds ( 2, 3 )
+    ELSE
+       CALL stop_program ( "pw_grid_assign", "no type set for the grid" )
+    END IF
 
-! finds valid g-points within grid
-  IF ( pw_grid % para % mode == PW_MODE_LOCAL ) THEN
-    gpt = 0
-    DO n = bounds ( 1, 3 ), n_upperlimit
-       DO m = bounds ( 1, 2 ), bounds ( 2, 2 )
-          DO l = bounds ( 1, 1 ), bounds ( 2, 1 )
-             IF ( pw_grid % grid_span == HALFSPACE .AND. n == 0 ) THEN
-                IF ( ( m == 0 .AND. l > 0 ) .OR. ( m > 0 ) ) CYCLE
-             END IF
+    ! finds valid g-points within grid
+    IF ( pw_grid % para % mode == PW_MODE_LOCAL ) THEN
+       gpt = 0
+       DO n = bounds ( 1, 3 ), n_upperlimit
+          DO m = bounds ( 1, 2 ), bounds ( 2, 2 )
+             DO l = bounds ( 1, 1 ), bounds ( 2, 1 )
+                IF ( pw_grid % grid_span == HALFSPACE .AND. n == 0 ) THEN
+                   IF ( ( m == 0 .AND. l > 0 ) .OR. ( m > 0 ) ) CYCLE
+                END IF
 
-             length_x &
-                  = REAL(l,dp) * h_inv(1,1) &
-                  + REAL(m,dp) * h_inv(2,1) &
-                  + REAL(n,dp) * h_inv(3,1)
-             length_y &
-                  = REAL(l,dp) * h_inv(1,2) &
-                  + REAL(m,dp) * h_inv(2,2) &
-                  + REAL(n,dp) * h_inv(3,2)
-             length_z &
-                  = REAL(l,dp) * h_inv(1,3) &
-                  + REAL(m,dp) * h_inv(2,3) &
-                  + REAL(n,dp) * h_inv(3,3)
+                length_x &
+                     = REAL(l,dp) * h_inv(1,1) &
+                     + REAL(m,dp) * h_inv(2,1) &
+                     + REAL(n,dp) * h_inv(3,1)
+                length_y &
+                     = REAL(l,dp) * h_inv(1,2) &
+                     + REAL(m,dp) * h_inv(2,2) &
+                     + REAL(n,dp) * h_inv(3,2)
+                length_z &
+                     = REAL(l,dp) * h_inv(1,3) &
+                     + REAL(m,dp) * h_inv(2,3) &
+                     + REAL(n,dp) * h_inv(3,3)
 
-             length = length_x ** 2 + length_y ** 2 + length_z ** 2
-             length = twopi * twopi * length
+                length = length_x ** 2 + length_y ** 2 + length_z ** 2
+                length = twopi * twopi * length
 
-             IF ( 0.5_dp * length <= cutoff ) THEN
-                gpt = gpt + 1
-                pw_grid % g ( 1, gpt ) = twopi * length_x
-                pw_grid % g ( 2, gpt ) = twopi * length_y
-                pw_grid % g ( 3, gpt ) = twopi * length_z
-                pw_grid % gsq ( gpt ) = length
-                pw_grid % g_hat ( 1, gpt ) = l
-                pw_grid % g_hat ( 2, gpt ) = m
-                pw_grid % g_hat ( 3, gpt ) = n
-             END IF
+                IF ( 0.5_dp * length <= cutoff ) THEN
+                   gpt = gpt + 1
+                   pw_grid % g ( 1, gpt ) = twopi * length_x
+                   pw_grid % g ( 2, gpt ) = twopi * length_y
+                   pw_grid % g ( 3, gpt ) = twopi * length_z
+                   pw_grid % gsq ( gpt ) = length
+                   pw_grid % g_hat ( 1, gpt ) = l
+                   pw_grid % g_hat ( 2, gpt ) = m
+                   pw_grid % g_hat ( 3, gpt ) = n
+                END IF
 
+             END DO
           END DO
        END DO
-    END DO
-
-  ELSE
-
-    IF ( pw_grid % para % ray_distribution ) THEN
-
-      gpt = 0
-      ip = pw_grid % para % my_pos
-      DO i = 1, pw_grid % para % nyzray ( ip )
-         n = pw_grid % para % yzp ( 2, i, ip ) + lbz - 1
-         m = pw_grid % para % yzp ( 1, i, ip ) + lby - 1
-         IF ( n > n_upperlimit ) CYCLE
-         DO l = bounds ( 1, 1 ), bounds ( 2, 1 )
-            IF ( pw_grid % grid_span == HALFSPACE .AND. n == 0 ) THEN
-               IF ( ( m == 0 .AND. l > 0 ) .OR. ( m > 0 ) ) CYCLE
-            END IF
-
-            length_x &
-                 = REAL(l,dp) * h_inv(1,1) &
-                 + REAL(m,dp) * h_inv(2,1) &
-                 + REAL(n,dp) * h_inv(3,1)
-            length_y &
-                 = REAL(l,dp) * h_inv(1,2) &
-                 + REAL(m,dp) * h_inv(2,2) &
-                 + REAL(n,dp) * h_inv(3,2)
-            length_z &
-                 = REAL(l,dp) * h_inv(1,3) &
-                 + REAL(m,dp) * h_inv(2,3) &
-                 + REAL(n,dp) * h_inv(3,3)
-
-            length = length_x ** 2 + length_y ** 2 + length_z ** 2
-            length = twopi * twopi * length
-
-            IF ( 0.5_dp * length <= cutoff ) THEN
-               gpt = gpt + 1
-               pw_grid % g ( 1, gpt ) = twopi * length_x
-               pw_grid % g ( 2, gpt ) = twopi * length_y
-               pw_grid % g ( 3, gpt ) = twopi * length_z
-               pw_grid % gsq ( gpt ) = length
-               pw_grid % g_hat ( 1, gpt ) = l
-               pw_grid % g_hat ( 2, gpt ) = m
-               pw_grid % g_hat ( 3, gpt ) = n
-            END IF
-
-         END DO
-      END DO
 
     ELSE
 
-      bol = pw_grid % para % bo ( :, :, pw_grid % para % rs_mpo, 3 )
-      gpt = 0
-      DO n = bounds ( 1, 3 ), bounds ( 2, 3 )
-         IF ( n < 0 ) THEN
-            nn = n + pw_grid % npts ( 3 ) + 1
-         ELSE
-            nn = n + 1
-         END IF
-         IF ( nn < bol ( 1, 3 ) .OR. nn > bol ( 2, 3 ) ) CYCLE
-         DO m = bounds ( 1, 2 ), bounds ( 2, 2 )
-            IF ( m < 0 ) THEN
-               mm = m + pw_grid % npts ( 2 ) + 1
-            ELSE
-               mm = m + 1
-            END IF
-            IF ( mm < bol ( 1, 2 ) .OR. mm > bol ( 2, 2 ) ) CYCLE
-            DO l = bounds ( 1, 1 ), bounds ( 2, 1 )
-               IF ( l < 0 ) THEN
-                  ll = l + pw_grid % npts ( 1 ) + 1
-               ELSE
-                  ll = l + 1
-               END IF
-               IF ( ll < bol ( 1, 1 ) .OR. ll > bol ( 2, 1 ) ) CYCLE
+       IF ( pw_grid % para % ray_distribution ) THEN
 
-               length_x &
-                   = REAL(l,dp) * h_inv(1,1) &
-                   + REAL(m,dp) * h_inv(2,1) &
-                   + REAL(n,dp) * h_inv(3,1)
-               length_y &
-                   = REAL(l,dp) * h_inv(1,2) &
-                   + REAL(m,dp) * h_inv(2,2) &
-                   + REAL(n,dp) * h_inv(3,2)
-               length_z &
-                   = REAL(l,dp) * h_inv(1,3) &
-                   + REAL(m,dp) * h_inv(2,3) &
-                   + REAL(n,dp) * h_inv(3,3)
+          gpt = 0
+          ip = pw_grid % para % my_pos
+          DO i = 1, pw_grid % para % nyzray ( ip )
+             n = pw_grid % para % yzp ( 2, i, ip ) + lbz - 1
+             m = pw_grid % para % yzp ( 1, i, ip ) + lby - 1
+             IF ( n > n_upperlimit ) CYCLE
+             DO l = bounds ( 1, 1 ), bounds ( 2, 1 )
+                IF ( pw_grid % grid_span == HALFSPACE .AND. n == 0 ) THEN
+                   IF ( ( m == 0 .AND. l > 0 ) .OR. ( m > 0 ) ) CYCLE
+                END IF
 
-               length = length_x ** 2 + length_y ** 2 + length_z ** 2
-               length = twopi * twopi * length
+                length_x &
+                     = REAL(l,dp) * h_inv(1,1) &
+                     + REAL(m,dp) * h_inv(2,1) &
+                     + REAL(n,dp) * h_inv(3,1)
+                length_y &
+                     = REAL(l,dp) * h_inv(1,2) &
+                     + REAL(m,dp) * h_inv(2,2) &
+                     + REAL(n,dp) * h_inv(3,2)
+                length_z &
+                     = REAL(l,dp) * h_inv(1,3) &
+                     + REAL(m,dp) * h_inv(2,3) &
+                     + REAL(n,dp) * h_inv(3,3)
 
-               gpt = gpt + 1
-               pw_grid % g ( 1, gpt ) = twopi * length_x
-               pw_grid % g ( 2, gpt ) = twopi * length_y
-               pw_grid % g ( 3, gpt ) = twopi * length_z
-               pw_grid % gsq ( gpt ) = length
-               pw_grid % g_hat ( 1, gpt ) = l
-               pw_grid % g_hat ( 2, gpt ) = m
-               pw_grid % g_hat ( 3, gpt ) = n
+                length = length_x ** 2 + length_y ** 2 + length_z ** 2
+                length = twopi * twopi * length
 
-            END DO
-         END DO
-      END DO
+                IF ( 0.5_dp * length <= cutoff ) THEN
+                   gpt = gpt + 1
+                   pw_grid % g ( 1, gpt ) = twopi * length_x
+                   pw_grid % g ( 2, gpt ) = twopi * length_y
+                   pw_grid % g ( 3, gpt ) = twopi * length_z
+                   pw_grid % gsq ( gpt ) = length
+                   pw_grid % g_hat ( 1, gpt ) = l
+                   pw_grid % g_hat ( 2, gpt ) = m
+                   pw_grid % g_hat ( 3, gpt ) = n
+                END IF
+
+             END DO
+          END DO
+
+       ELSE
+
+          bol = pw_grid % para % bo ( :, :, pw_grid % para % rs_mpo, 3 )
+          gpt = 0
+          DO n = bounds ( 1, 3 ), bounds ( 2, 3 )
+             IF ( n < 0 ) THEN
+                nn = n + pw_grid % npts ( 3 ) + 1
+             ELSE
+                nn = n + 1
+             END IF
+             IF ( nn < bol ( 1, 3 ) .OR. nn > bol ( 2, 3 ) ) CYCLE
+             DO m = bounds ( 1, 2 ), bounds ( 2, 2 )
+                IF ( m < 0 ) THEN
+                   mm = m + pw_grid % npts ( 2 ) + 1
+                ELSE
+                   mm = m + 1
+                END IF
+                IF ( mm < bol ( 1, 2 ) .OR. mm > bol ( 2, 2 ) ) CYCLE
+                DO l = bounds ( 1, 1 ), bounds ( 2, 1 )
+                   IF ( l < 0 ) THEN
+                      ll = l + pw_grid % npts ( 1 ) + 1
+                   ELSE
+                      ll = l + 1
+                   END IF
+                   IF ( ll < bol ( 1, 1 ) .OR. ll > bol ( 2, 1 ) ) CYCLE
+
+                   length_x &
+                        = REAL(l,dp) * h_inv(1,1) &
+                        + REAL(m,dp) * h_inv(2,1) &
+                        + REAL(n,dp) * h_inv(3,1)
+                   length_y &
+                        = REAL(l,dp) * h_inv(1,2) &
+                        + REAL(m,dp) * h_inv(2,2) &
+                        + REAL(n,dp) * h_inv(3,2)
+                   length_z &
+                        = REAL(l,dp) * h_inv(1,3) &
+                        + REAL(m,dp) * h_inv(2,3) &
+                        + REAL(n,dp) * h_inv(3,3)
+
+                   length = length_x ** 2 + length_y ** 2 + length_z ** 2
+                   length = twopi * twopi * length
+
+                   gpt = gpt + 1
+                   pw_grid % g ( 1, gpt ) = twopi * length_x
+                   pw_grid % g ( 2, gpt ) = twopi * length_y
+                   pw_grid % g ( 3, gpt ) = twopi * length_z
+                   pw_grid % gsq ( gpt ) = length
+                   pw_grid % g_hat ( 1, gpt ) = l
+                   pw_grid % g_hat ( 2, gpt ) = m
+                   pw_grid % g_hat ( 3, gpt ) = n
+
+                END DO
+             END DO
+          END DO
+
+       END IF
 
     END IF
 
-  END IF
+    ! Check the number of g-vectors for grid
+    CPPrecondition(pw_grid % ngpts_cut_local == gpt,cp_failure_level,routineP,error,failure)
+    IF ( pw_grid % para % mode == PW_MODE_DISTRIBUTED ) THEN
+       CALL mp_sum ( gpt, pw_grid % para % group )
+       CPPrecondition(pw_grid % ngpts_cut == gpt,cp_failure_level,routineP,error,failure)
+    ENDIF
 
-! Check the number of g-vectors for grid
-  CPPrecondition(pw_grid % ngpts_cut_local == gpt,cp_failure_level,routineP,error,failure)
-  IF ( pw_grid % para % mode == PW_MODE_DISTRIBUTED ) THEN
-     CALL mp_sum ( gpt, pw_grid % para % group )
-     CPPrecondition(pw_grid % ngpts_cut == gpt,cp_failure_level,routineP,error,failure)
-  ENDIF
+    pw_grid % have_g0 = .FALSE.
+    pw_grid % first_gne0 = 1
+    DO gpt = 1, pw_grid % ngpts_cut_local
+       IF ( ALL ( pw_grid % g_hat ( :, gpt ) == 0 ) ) THEN
+          pw_grid % have_g0 = .TRUE.
+          pw_grid % first_gne0 = 2
+          EXIT
+       END IF
+    END DO
 
-  pw_grid % have_g0 = .FALSE.
-  pw_grid % first_gne0 = 1
-  DO gpt = 1, pw_grid % ngpts_cut_local
-     IF ( ALL ( pw_grid % g_hat ( :, gpt ) == 0 ) ) THEN
-        pw_grid % have_g0 = .TRUE.
-        pw_grid % first_gne0 = 2
-        EXIT
-     END IF
-  END DO
+    CALL pw_grid_set_maps ( pw_grid % grid_span, pw_grid % g_hat, &
+         pw_grid % mapl, pw_grid % mapm, pw_grid % mapn, pw_grid % npts )
 
-  CALL pw_grid_set_maps ( pw_grid % grid_span, pw_grid % g_hat, &
-       pw_grid % mapl, pw_grid % mapm, pw_grid % mapn, pw_grid % npts )
+    CALL timestop(0.0_dp,handle)
 
-  CALL timestop(0.0_dp,handle)
-
-END SUBROUTINE pw_grid_assign
+  END SUBROUTINE pw_grid_assign
 
 !******************************************************************************
 !!****** pw_grids/pw_grid_set_maps [1.1] *
@@ -1552,7 +1545,7 @@ END SUBROUTINE pw_grid_assign
 !!
 !!*** *************************************************************************
 
-SUBROUTINE pw_grid_set_maps ( grid_span, g_hat, mapl, mapm, mapn, npts )
+  SUBROUTINE pw_grid_set_maps ( grid_span, g_hat, mapl, mapm, mapn, npts )
 
 
     INTEGER, INTENT(IN)                      :: grid_span
@@ -1564,55 +1557,55 @@ SUBROUTINE pw_grid_set_maps ( grid_span, g_hat, mapl, mapm, mapn, npts )
 
 !------------------------------------------------------------------------------
 
-  ng = SIZE ( g_hat ,2 )
+    ng = SIZE ( g_hat ,2 )
 
-  DO gpt = 1, ng
-     l = g_hat ( 1, gpt )
-     m = g_hat ( 2, gpt )
-     n = g_hat ( 3, gpt )
-     IF ( l < 0 ) THEN
-        mapl % pos ( l ) = l + npts ( 1 )
-     ELSE
-        mapl % pos ( l ) = l
-     END IF
-     IF ( m < 0 ) THEN
-        mapm % pos ( m ) = m + npts ( 2 )
-     ELSE
-        mapm % pos ( m ) = m
-     END IF
-     IF ( n < 0 ) THEN
-        mapn % pos ( n ) = n + npts ( 3 )
-     ELSE
-        mapn % pos ( n ) = n
-     END IF
-
-! Generating the maps to the full 3-d space
-
-     IF ( grid_span == HALFSPACE ) THEN
-
-       IF ( l <= 0 ) THEN
-          mapl % neg ( l ) = - l
+    DO gpt = 1, ng
+       l = g_hat ( 1, gpt )
+       m = g_hat ( 2, gpt )
+       n = g_hat ( 3, gpt )
+       IF ( l < 0 ) THEN
+          mapl % pos ( l ) = l + npts ( 1 )
        ELSE
-          mapl % neg ( l ) = npts ( 1 ) - l
+          mapl % pos ( l ) = l
        END IF
-       IF ( m <= 0 ) THEN
-          mapm % neg ( m ) = - m
+       IF ( m < 0 ) THEN
+          mapm % pos ( m ) = m + npts ( 2 )
        ELSE
-          mapm % neg ( m ) = npts ( 2 ) - m
+          mapm % pos ( m ) = m
        END IF
-       IF ( n <= 0 ) THEN
-          mapn % neg ( n ) = - n
+       IF ( n < 0 ) THEN
+          mapn % pos ( n ) = n + npts ( 3 )
        ELSE
-          mapn % neg ( n ) = npts ( 3 ) - n
+          mapn % pos ( n ) = n
        END IF
 
-     END IF
+       ! Generating the maps to the full 3-d space
 
-  END DO
+       IF ( grid_span == HALFSPACE ) THEN
 
-END SUBROUTINE pw_grid_set_maps
+          IF ( l <= 0 ) THEN
+             mapl % neg ( l ) = - l
+          ELSE
+             mapl % neg ( l ) = npts ( 1 ) - l
+          END IF
+          IF ( m <= 0 ) THEN
+             mapm % neg ( m ) = - m
+          ELSE
+             mapm % neg ( m ) = npts ( 2 ) - m
+          END IF
+          IF ( n <= 0 ) THEN
+             mapn % neg ( n ) = - n
+          ELSE
+             mapn % neg ( n ) = npts ( 3 ) - n
+          END IF
 
-!****************************************************************************
+       END IF
+
+    END DO
+
+  END SUBROUTINE pw_grid_set_maps
+
+  !****************************************************************************
 
 !!****** pw_grids/pw_grid_allocate [1.1] *
 !!
@@ -1633,9 +1626,9 @@ END SUBROUTINE pw_grid_set_maps
 !!
 !!*** *************************************************************************
 
-SUBROUTINE pw_grid_allocate ( pw_grid, ng, bounds, error )
+  SUBROUTINE pw_grid_allocate ( pw_grid, ng, bounds, error )
 
-! Argument
+    ! Argument
     TYPE(pw_grid_type), INTENT(INOUT)        :: pw_grid
     INTEGER, INTENT(IN)                      :: ng
     INTEGER, DIMENSION(:, :), INTENT(IN)     :: bounds
@@ -1649,37 +1642,37 @@ SUBROUTINE pw_grid_allocate ( pw_grid, ng, bounds, error )
 
 !------------------------------------------------------------------------------
 
-  failure = .FALSE.
+    failure = .FALSE.
 
-  ALLOCATE ( pw_grid % g ( 3, ng ), STAT = allocstat )
-  CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
-  ALLOCATE ( pw_grid % gsq ( ng ), STAT = allocstat )
-  CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
-  ALLOCATE ( pw_grid % g_hat ( 3, ng ), STAT = allocstat )
-  CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    ALLOCATE ( pw_grid % g ( 3, ng ), STAT = allocstat )
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    ALLOCATE ( pw_grid % gsq ( ng ), STAT = allocstat )
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    ALLOCATE ( pw_grid % g_hat ( 3, ng ), STAT = allocstat )
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
 
-  ALLOCATE ( pw_grid % mapl % pos ( bounds ( 1, 1 ):bounds ( 2, 1 ) ), &
-             STAT = allocstat )
-  CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
-  ALLOCATE ( pw_grid % mapl % neg ( bounds ( 1, 1 ):bounds ( 2, 1 ) ), &
-             STAT = allocstat )
-  CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    ALLOCATE ( pw_grid % mapl % pos ( bounds ( 1, 1 ):bounds ( 2, 1 ) ), &
+         STAT = allocstat )
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    ALLOCATE ( pw_grid % mapl % neg ( bounds ( 1, 1 ):bounds ( 2, 1 ) ), &
+         STAT = allocstat )
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
 
-  ALLOCATE ( pw_grid % mapm % pos ( bounds ( 1, 2 ):bounds ( 2, 2 ) ), &
-             STAT = allocstat )
-  CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
-  ALLOCATE ( pw_grid % mapm % neg ( bounds ( 1, 2 ):bounds ( 2, 2 ) ), &
-             STAT = allocstat )
-  CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    ALLOCATE ( pw_grid % mapm % pos ( bounds ( 1, 2 ):bounds ( 2, 2 ) ), &
+         STAT = allocstat )
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    ALLOCATE ( pw_grid % mapm % neg ( bounds ( 1, 2 ):bounds ( 2, 2 ) ), &
+         STAT = allocstat )
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
 
-  ALLOCATE ( pw_grid % mapn % pos ( bounds ( 1, 3 ):bounds ( 2, 3 ) ), &
-             STAT = allocstat )
-  CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
-  ALLOCATE ( pw_grid % mapn % neg ( bounds ( 1, 3 ):bounds ( 2, 3 ) ), &
-             STAT = allocstat )
-  CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    ALLOCATE ( pw_grid % mapn % pos ( bounds ( 1, 3 ):bounds ( 2, 3 ) ), &
+         STAT = allocstat )
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    ALLOCATE ( pw_grid % mapn % neg ( bounds ( 1, 3 ):bounds ( 2, 3 ) ), &
+         STAT = allocstat )
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
 
-END SUBROUTINE pw_grid_allocate
+  END SUBROUTINE pw_grid_allocate
 
 !****************************************************************************
 !!****** pw_grids/pw_grid_sort [1.1] *
@@ -1709,10 +1702,10 @@ END SUBROUTINE pw_grid_allocate
 !!
 !!*** *************************************************************************
 
-SUBROUTINE pw_grid_sort ( pw_grid, ref_grid, error )
+  SUBROUTINE pw_grid_sort ( pw_grid, ref_grid, error )
 
 
-! Argument
+    ! Argument
     TYPE(pw_grid_type), INTENT(INOUT)        :: pw_grid
     TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: ref_grid
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1728,164 +1721,164 @@ SUBROUTINE pw_grid_sort ( pw_grid, ref_grid, error )
 
 !------------------------------------------------------------------------------
 
-  CALL timeset("pw_grid_sort","I","",handle)
+    CALL timeset("pw_grid_sort","I","",handle)
 
-  failure = .FALSE.
+    failure = .FALSE.
 
-  ng = SIZE ( pw_grid % gsq  )
-  ALLOCATE ( idx ( ng ), STAT = allocstat )
-  CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
-  ALLOCATE ( int_tmp ( ng ), STAT = allocstat )
-  CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
-  ALLOCATE ( real_tmp ( ng ), STAT = allocstat )
-  CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    ng = SIZE ( pw_grid % gsq  )
+    ALLOCATE ( idx ( ng ), STAT = allocstat )
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    ALLOCATE ( int_tmp ( ng ), STAT = allocstat )
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    ALLOCATE ( real_tmp ( ng ), STAT = allocstat )
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
 
-  ! grids are (locally) ordered by length of G-vectors
-  CALL sort ( pw_grid % gsq, ng, idx )
-  ! within shells order wrt x,y,z
-  CALL sort_shells ( pw_grid % gsq, pw_grid % g_hat, idx, error )
+    ! grids are (locally) ordered by length of G-vectors
+    CALL sort ( pw_grid % gsq, ng, idx )
+    ! within shells order wrt x,y,z
+    CALL sort_shells ( pw_grid % gsq, pw_grid % g_hat, idx, error )
 
-  real_tmp ( 1:ng ) = pw_grid % g ( 1, 1:ng )
-  pw_grid % g ( 1, 1:ng ) = real_tmp ( idx ( 1:ng ) )
-  real_tmp ( 1:ng ) = pw_grid % g ( 2, 1:ng )
-  pw_grid % g ( 2, 1:ng ) = real_tmp ( idx ( 1:ng ) )
-  real_tmp ( 1:ng ) = pw_grid % g ( 3, 1:ng )
-  pw_grid % g ( 3, 1:ng ) = real_tmp ( idx ( 1:ng ) )
-  int_tmp ( 1:ng ) = pw_grid % g_hat ( 1, 1:ng )
-  pw_grid % g_hat ( 1, 1:ng ) = int_tmp ( idx ( 1:ng ) )
-  int_tmp ( 1:ng ) = pw_grid % g_hat ( 2, 1:ng )
-  pw_grid % g_hat ( 2, 1:ng ) = int_tmp ( idx ( 1:ng ) )
-  int_tmp ( 1:ng ) = pw_grid % g_hat ( 3, 1:ng )
-  pw_grid % g_hat ( 3, 1:ng ) = int_tmp ( idx ( 1:ng ) )
+    real_tmp ( 1:ng ) = pw_grid % g ( 1, 1:ng )
+    pw_grid % g ( 1, 1:ng ) = real_tmp ( idx ( 1:ng ) )
+    real_tmp ( 1:ng ) = pw_grid % g ( 2, 1:ng )
+    pw_grid % g ( 2, 1:ng ) = real_tmp ( idx ( 1:ng ) )
+    real_tmp ( 1:ng ) = pw_grid % g ( 3, 1:ng )
+    pw_grid % g ( 3, 1:ng ) = real_tmp ( idx ( 1:ng ) )
+    int_tmp ( 1:ng ) = pw_grid % g_hat ( 1, 1:ng )
+    pw_grid % g_hat ( 1, 1:ng ) = int_tmp ( idx ( 1:ng ) )
+    int_tmp ( 1:ng ) = pw_grid % g_hat ( 2, 1:ng )
+    pw_grid % g_hat ( 2, 1:ng ) = int_tmp ( idx ( 1:ng ) )
+    int_tmp ( 1:ng ) = pw_grid % g_hat ( 3, 1:ng )
+    pw_grid % g_hat ( 3, 1:ng ) = int_tmp ( idx ( 1:ng ) )
 
-  DEALLOCATE ( idx, STAT = allocstat )
-  CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
-  DEALLOCATE ( int_tmp, STAT = allocstat )
-  CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
-  DEALLOCATE ( real_tmp, STAT = allocstat )
-  CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE ( idx, STAT = allocstat )
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE ( int_tmp, STAT = allocstat )
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE ( real_tmp, STAT = allocstat )
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
 
-  ! check if ordering is compatible to reference grid
-  IF ( PRESENT ( ref_grid ) ) THEN
-    ngr = SIZE ( ref_grid % gsq  )
-    ngr = MIN ( ng, ngr )
-    IF ( pw_grid % spherical ) THEN
-      IF ( .NOT. ALL ( pw_grid % g_hat ( 1:3, 1:ngr ) &
-                  == ref_grid % g_hat ( 1:3, 1:ngr ) ) ) THEN
-        CALL stop_program ( "pw_grid_sort", "G space sorting not compatible" )
-      END IF
-    ELSE
-      ALLOCATE ( pw_grid%gidx(1:ngr), STAT = allocstat )
-      CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
-      pw_grid%gidx = 0
-      ! first try as many trivial associations as possible
-      it = 0
-      DO ig = 1, ngr
-        IF ( .NOT. ALL ( pw_grid % g_hat ( 1:3, ig ) &
+    ! check if ordering is compatible to reference grid
+    IF ( PRESENT ( ref_grid ) ) THEN
+       ngr = SIZE ( ref_grid % gsq  )
+       ngr = MIN ( ng, ngr )
+       IF ( pw_grid % spherical ) THEN
+          IF ( .NOT. ALL ( pw_grid % g_hat ( 1:3, 1:ngr ) &
+               == ref_grid % g_hat ( 1:3, 1:ngr ) ) ) THEN
+             CALL stop_program ( "pw_grid_sort", "G space sorting not compatible" )
+          END IF
+       ELSE
+          ALLOCATE ( pw_grid%gidx(1:ngr), STAT = allocstat )
+          CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+          pw_grid%gidx = 0
+          ! first try as many trivial associations as possible
+          it = 0
+          DO ig = 1, ngr
+             IF ( .NOT. ALL ( pw_grid % g_hat ( 1:3, ig ) &
                   == ref_grid % g_hat ( 1:3, ig ) ) ) EXIT
-        pw_grid%gidx(ig) = ig
-        it = ig
-      END DO
-      ! now for the ones that could not be done
-      IF ( ng == ngr ) THEN
-        ! for the case pw_grid <= ref_grid
-        is = it
-        DO ig = it + 1, ngr
-          g_found=.FALSE.
-          DO ih = is + 1, SIZE ( ref_grid % gsq  )
-            IF ( ABS ( pw_grid % gsq(ig) - ref_grid % gsq(ih) ) > 1.e-12_dp ) CYCLE
-            g_found=.TRUE.
-            EXIT
+             pw_grid%gidx(ig) = ig
+             it = ig
           END DO
-          IF ( .NOT. g_found ) THEN
-             WRITE(*,"(A,I10,F20.10)") "G-vector", ig, pw_grid % gsq(ig)
-             CALL stop_program ( "pw_grid_sort", "G vector not found" )
-          END IF
-          ip = ih - 1
-          DO ih = ip + 1, SIZE ( ref_grid % gsq  )
-            IF ( ABS ( pw_grid % gsq(ig) - ref_grid % gsq(ih) ) > 1.e-12_dp ) CYCLE
-            IF ( pw_grid % g_hat(1,ig) /= ref_grid % g_hat(1,ih) ) CYCLE
-            IF ( pw_grid % g_hat(2,ig) /= ref_grid % g_hat(2,ih) ) CYCLE
-            IF ( pw_grid % g_hat(3,ig) /= ref_grid % g_hat(3,ih) ) CYCLE
-            pw_grid%gidx(ig) = ih
-            EXIT
-          END DO
-          IF ( pw_grid%gidx(ig) == 0 ) THEN
-             WRITE ( *, "(A,2I10)" ) " G-Shell ",is+1,ip+1
-             WRITE ( *, "(A,I10,3I6,F20.10)" ) &
-                " G-vector", ig, pw_grid % g_hat(1:3,ig), pw_grid % gsq(ig)
-             DO ih = 1, SIZE ( ref_grid % gsq  )
-               IF ( pw_grid % g_hat(1,ig) /= ref_grid % g_hat(1,ih) ) CYCLE
-               IF ( pw_grid % g_hat(2,ig) /= ref_grid % g_hat(2,ih) ) CYCLE
-               IF ( pw_grid % g_hat(3,ig) /= ref_grid % g_hat(3,ih) ) CYCLE
-               WRITE ( *, "(A,I10,3I6,F20.10)" ) &
-                " G-vector", ih, ref_grid % g_hat(1:3,ih),ref_grid % gsq(ih)
+          ! now for the ones that could not be done
+          IF ( ng == ngr ) THEN
+             ! for the case pw_grid <= ref_grid
+             is = it
+             DO ig = it + 1, ngr
+                g_found=.FALSE.
+                DO ih = is + 1, SIZE ( ref_grid % gsq  )
+                   IF ( ABS ( pw_grid % gsq(ig) - ref_grid % gsq(ih) ) > 1.e-12_dp ) CYCLE
+                   g_found=.TRUE.
+                   EXIT
+                END DO
+                IF ( .NOT. g_found ) THEN
+                   WRITE(*,"(A,I10,F20.10)") "G-vector", ig, pw_grid % gsq(ig)
+                   CALL stop_program ( "pw_grid_sort", "G vector not found" )
+                END IF
+                ip = ih - 1
+                DO ih = ip + 1, SIZE ( ref_grid % gsq  )
+                   IF ( ABS ( pw_grid % gsq(ig) - ref_grid % gsq(ih) ) > 1.e-12_dp ) CYCLE
+                   IF ( pw_grid % g_hat(1,ig) /= ref_grid % g_hat(1,ih) ) CYCLE
+                   IF ( pw_grid % g_hat(2,ig) /= ref_grid % g_hat(2,ih) ) CYCLE
+                   IF ( pw_grid % g_hat(3,ig) /= ref_grid % g_hat(3,ih) ) CYCLE
+                   pw_grid%gidx(ig) = ih
+                   EXIT
+                END DO
+                IF ( pw_grid%gidx(ig) == 0 ) THEN
+                   WRITE ( *, "(A,2I10)" ) " G-Shell ",is+1,ip+1
+                   WRITE ( *, "(A,I10,3I6,F20.10)" ) &
+                        " G-vector", ig, pw_grid % g_hat(1:3,ig), pw_grid % gsq(ig)
+                   DO ih = 1, SIZE ( ref_grid % gsq  )
+                      IF ( pw_grid % g_hat(1,ig) /= ref_grid % g_hat(1,ih) ) CYCLE
+                      IF ( pw_grid % g_hat(2,ig) /= ref_grid % g_hat(2,ih) ) CYCLE
+                      IF ( pw_grid % g_hat(3,ig) /= ref_grid % g_hat(3,ih) ) CYCLE
+                      WRITE ( *, "(A,I10,3I6,F20.10)" ) &
+                           " G-vector", ih, ref_grid % g_hat(1:3,ih),ref_grid % gsq(ih)
+                   END DO
+                   CALL stop_program ( "pw_grid_sort", "G vector not found" )
+                END IF
+                is = ip
              END DO
-             CALL stop_program ( "pw_grid_sort", "G vector not found" )
-          END IF
-          is = ip
-        END DO
-      ELSE
-        ! for the case pw_grid > ref_grid
-        is = it
-        DO ig = it + 1, ngr
-          g_found=.FALSE.
-          DO ih = is + 1, ng
-            IF ( ABS ( pw_grid % gsq(ih) - ref_grid % gsq(ig) ) > 1.e-12_dp ) CYCLE
-            g_found=.TRUE.
-            EXIT
-          END DO
-          IF ( .NOT. g_found ) THEN
-             WRITE(*,"(A,I10,F20.10)") "G-vector", ig, ref_grid % gsq(ig)
-             CALL stop_program ( "pw_grid_sort", "G vector not found" )
-          END IF
-          ip = ih - 1
-          DO ih = ip + 1, ng
-            IF ( ABS ( pw_grid % gsq(ih) - ref_grid % gsq(ig) ) > 1.e-12_dp ) CYCLE
-            IF ( pw_grid % g_hat(1,ih) /= ref_grid % g_hat(1,ig) ) CYCLE
-            IF ( pw_grid % g_hat(2,ih) /= ref_grid % g_hat(2,ig) ) CYCLE
-            IF ( pw_grid % g_hat(3,ih) /= ref_grid % g_hat(3,ig) ) CYCLE
-            pw_grid%gidx(ig) = ih
-            EXIT
-          END DO
-          IF ( pw_grid%gidx(ig) == 0 ) THEN
-             WRITE ( *, "(A,2I10)" ) " G-Shell ",is+1,ip+1
-             WRITE ( *, "(A,I10,3I6,F20.10)" ) &
-                " G-vector", ig, ref_grid % g_hat(1:3,ig), ref_grid % gsq(ig)
-             DO ih = 1, ng
-               IF ( pw_grid % g_hat(1,ih) /= ref_grid % g_hat(1,ig) ) CYCLE
-               IF ( pw_grid % g_hat(2,ih) /= ref_grid % g_hat(2,ig) ) CYCLE
-               IF ( pw_grid % g_hat(3,ih) /= ref_grid % g_hat(3,ig) ) CYCLE
-               WRITE ( *, "(A,I10,3I6,F20.10)" ) &
-                " G-vector", ih, pw_grid % g_hat(1:3,ih),pw_grid % gsq(ih)
+          ELSE
+             ! for the case pw_grid > ref_grid
+             is = it
+             DO ig = it + 1, ngr
+                g_found=.FALSE.
+                DO ih = is + 1, ng
+                   IF ( ABS ( pw_grid % gsq(ih) - ref_grid % gsq(ig) ) > 1.e-12_dp ) CYCLE
+                   g_found=.TRUE.
+                   EXIT
+                END DO
+                IF ( .NOT. g_found ) THEN
+                   WRITE(*,"(A,I10,F20.10)") "G-vector", ig, ref_grid % gsq(ig)
+                   CALL stop_program ( "pw_grid_sort", "G vector not found" )
+                END IF
+                ip = ih - 1
+                DO ih = ip + 1, ng
+                   IF ( ABS ( pw_grid % gsq(ih) - ref_grid % gsq(ig) ) > 1.e-12_dp ) CYCLE
+                   IF ( pw_grid % g_hat(1,ih) /= ref_grid % g_hat(1,ig) ) CYCLE
+                   IF ( pw_grid % g_hat(2,ih) /= ref_grid % g_hat(2,ig) ) CYCLE
+                   IF ( pw_grid % g_hat(3,ih) /= ref_grid % g_hat(3,ig) ) CYCLE
+                   pw_grid%gidx(ig) = ih
+                   EXIT
+                END DO
+                IF ( pw_grid%gidx(ig) == 0 ) THEN
+                   WRITE ( *, "(A,2I10)" ) " G-Shell ",is+1,ip+1
+                   WRITE ( *, "(A,I10,3I6,F20.10)" ) &
+                        " G-vector", ig, ref_grid % g_hat(1:3,ig), ref_grid % gsq(ig)
+                   DO ih = 1, ng
+                      IF ( pw_grid % g_hat(1,ih) /= ref_grid % g_hat(1,ig) ) CYCLE
+                      IF ( pw_grid % g_hat(2,ih) /= ref_grid % g_hat(2,ig) ) CYCLE
+                      IF ( pw_grid % g_hat(3,ih) /= ref_grid % g_hat(3,ig) ) CYCLE
+                      WRITE ( *, "(A,I10,3I6,F20.10)" ) &
+                           " G-vector", ih, pw_grid % g_hat(1:3,ih),pw_grid % gsq(ih)
+                   END DO
+                   CALL stop_program ( "pw_grid_sort", "G vector not found" )
+                END IF
+                is = ip
              END DO
-             CALL stop_program ( "pw_grid_sort", "G vector not found" )
           END IF
-          is = ip
-        END DO
-      END IF
-      ! test if all g-vectors are associated
-      IF ( ANY ( pw_grid%gidx == 0 ) ) THEN
-        CALL stop_program ( "pw_grid_sort", "G space sorting not compatible" )
-      END IF
+          ! test if all g-vectors are associated
+          IF ( ANY ( pw_grid%gidx == 0 ) ) THEN
+             CALL stop_program ( "pw_grid_sort", "G space sorting not compatible" )
+          END IF
+       END IF
     END IF
-  END IF
 
-  !check if G=0 is at first position
-  IF ( pw_grid % have_g0 ) THEN
-    IF ( pw_grid % gsq ( 1 ) /= 0.0_dp ) THEN
-      CALL stop_program ( "pw_grid_sort", "G=0 not in first position" )
+    !check if G=0 is at first position
+    IF ( pw_grid % have_g0 ) THEN
+       IF ( pw_grid % gsq ( 1 ) /= 0.0_dp ) THEN
+          CALL stop_program ( "pw_grid_sort", "G=0 not in first position" )
+       END IF
     END IF
-  END IF
 
-  CALL timestop(0.0_dp,handle)
+    CALL timestop(0.0_dp,handle)
 
-END SUBROUTINE pw_grid_sort
+  END SUBROUTINE pw_grid_sort
 
-SUBROUTINE sort_shells ( gsq, g_hat, idx, error )
+  SUBROUTINE sort_shells ( gsq, g_hat, idx, error )
 
 
-! Argument
+    ! Argument
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: gsq
     INTEGER, DIMENSION(:, :), INTENT(IN)     :: g_hat
     INTEGER, DIMENSION(:), INTENT(INOUT)     :: idx
@@ -1902,31 +1895,31 @@ SUBROUTINE sort_shells ( gsq, g_hat, idx, error )
 ! Juergs temporary hack to get the grids sorted for large (4000Ry) cutoffs.
 ! might need to call lapack for machine precision.
 
-  failure = .FALSE.
+    failure = .FALSE.
 
-  ng = SIZE ( gsq )
-  s_begin = -1.0_dp
-  s1 = 0
-  s2 = 0
-  ig = 1
-  DO ig = 1, ng
-    IF ( ABS ( gsq ( ig ) - s_begin ) < small ) THEN
-      s2 = ig
-    ELSE
-      CALL redist ( g_hat, idx, s1, s2, error)
-      s_begin = gsq ( ig )
-      s1 = ig
-      s2 = ig
-    END IF
-  END DO
-  CALL redist ( g_hat, idx, s1, s2, error )
+    ng = SIZE ( gsq )
+    s_begin = -1.0_dp
+    s1 = 0
+    s2 = 0
+    ig = 1
+    DO ig = 1, ng
+       IF ( ABS ( gsq ( ig ) - s_begin ) < small ) THEN
+          s2 = ig
+       ELSE
+          CALL redist ( g_hat, idx, s1, s2, error)
+          s_begin = gsq ( ig )
+          s1 = ig
+          s2 = ig
+       END IF
+    END DO
+    CALL redist ( g_hat, idx, s1, s2, error )
 
-END SUBROUTINE sort_shells
+  END SUBROUTINE sort_shells
 
-SUBROUTINE redist ( g_hat, idx, s1, s2, error )
+  SUBROUTINE redist ( g_hat, idx, s1, s2, error )
 
 
-! Argument
+    ! Argument
     INTEGER, DIMENSION(:, :), INTENT(IN)     :: g_hat
     INTEGER, DIMENSION(:), INTENT(INOUT)     :: idx
     INTEGER, INTENT(IN)                      :: s1, s2
@@ -1940,36 +1933,36 @@ SUBROUTINE redist ( g_hat, idx, s1, s2, error )
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: slen
 
-  failure = .FALSE.
+    failure = .FALSE.
 
-  IF ( s2 <= s1 ) RETURN
-  ns = s2 - s1 + 1
-  ALLOCATE ( indl ( ns ), STAT = info )
-  CPPrecondition(info == 0,cp_failure_level,routineP,error,failure)
-  ALLOCATE ( slen ( ns ), STAT = info )
-  CPPrecondition(info == 0,cp_failure_level,routineP,error,failure)
+    IF ( s2 <= s1 ) RETURN
+    ns = s2 - s1 + 1
+    ALLOCATE ( indl ( ns ), STAT = info )
+    CPPrecondition(info == 0,cp_failure_level,routineP,error,failure)
+    ALLOCATE ( slen ( ns ), STAT = info )
+    CPPrecondition(info == 0,cp_failure_level,routineP,error,failure)
 
-  DO i = s1, s2
-    ii = idx ( i )
-    n1 = g_hat(1,ii)
-    n2 = g_hat(2,ii)
-    n3 = g_hat(3,ii)
-    slen ( i - s1 + 1 ) = 1000.0_dp * REAL(n1,dp) + &
-                          REAL(n2,dp) + 0.001_dp * REAL(n3,dp)
-  END DO
-  CALL sort ( slen, ns, indl )
-  DO i = 1, ns
-    ii = indl ( i ) + s1 - 1
-    indl ( i ) = idx ( ii )
-  END DO
-  idx ( s1:s2 ) = indl ( 1:ns )
+    DO i = s1, s2
+       ii = idx ( i )
+       n1 = g_hat(1,ii)
+       n2 = g_hat(2,ii)
+       n3 = g_hat(3,ii)
+       slen ( i - s1 + 1 ) = 1000.0_dp * REAL(n1,dp) + &
+            REAL(n2,dp) + 0.001_dp * REAL(n3,dp)
+    END DO
+    CALL sort ( slen, ns, indl )
+    DO i = 1, ns
+       ii = indl ( i ) + s1 - 1
+       indl ( i ) = idx ( ii )
+    END DO
+    idx ( s1:s2 ) = indl ( 1:ns )
 
-  DEALLOCATE ( indl, STAT = info )
-  CPPrecondition(info == 0,cp_failure_level,routineP,error,failure)
-  DEALLOCATE ( slen, STAT = info )
-  CPPrecondition(info == 0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE ( indl, STAT = info )
+    CPPrecondition(info == 0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE ( slen, STAT = info )
+    CPPrecondition(info == 0,cp_failure_level,routineP,error,failure)
 
-END SUBROUTINE redist
+  END SUBROUTINE redist
 
 !****************************************************************************
 !!****** pw_grids/pw_grid_remap [1.0] *
@@ -1988,9 +1981,9 @@ END SUBROUTINE redist
 !!
 !!*** *************************************************************************
 
-SUBROUTINE pw_grid_remap ( pw_grid, yz, error )
+  SUBROUTINE pw_grid_remap ( pw_grid, yz, error )
 
-! Argument
+    ! Argument
     TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, DIMENSION(:, :), INTENT(OUT)    :: yz
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2005,57 +1998,57 @@ SUBROUTINE pw_grid_remap ( pw_grid, yz, error )
 
 !------------------------------------------------------------------------------
 
-  failure = .FALSE.
+    failure = .FALSE.
 
-  IF ( pw_grid % para % mode == PW_MODE_LOCAL ) RETURN
-  IF ( .NOT. pw_grid % para % ray_distribution ) RETURN
+    IF ( pw_grid % para % mode == PW_MODE_LOCAL ) RETURN
+    IF ( .NOT. pw_grid % para % ray_distribution ) RETURN
 
-  CALL timeset("pw_grid_remap","I","",handle)
+    CALL timeset("pw_grid_remap","I","",handle)
 
-  ny = pw_grid % npts ( 2 )
-  nz = pw_grid % npts ( 3 )
+    ny = pw_grid % npts ( 2 )
+    nz = pw_grid % npts ( 3 )
 
-  yz = 0
-  pw_grid % para % yzp = 0
-  pw_grid % para % yzq = 0
+    yz = 0
+    pw_grid % para % yzp = 0
+    pw_grid % para % yzq = 0
 
-  mapm => pw_grid % mapm % pos
-  mapn => pw_grid % mapn % pos
+    mapm => pw_grid % mapm % pos
+    mapn => pw_grid % mapn % pos
 
-  DO gpt = 1, SIZE ( pw_grid % gsq  )
-    m = mapm ( pw_grid % g_hat ( 2, gpt ) ) + 1
-    n = mapn ( pw_grid % g_hat ( 3, gpt ) ) + 1
-    yz ( m, n ) = yz ( m, n ) + 1
-  END DO
-  IF ( pw_grid % grid_span == HALFSPACE ) THEN
-     mapm => pw_grid % mapm % neg
-     mapn => pw_grid % mapn % neg
-     DO gpt = 1, SIZE ( pw_grid % gsq  )
+    DO gpt = 1, SIZE ( pw_grid % gsq  )
        m = mapm ( pw_grid % g_hat ( 2, gpt ) ) + 1
        n = mapn ( pw_grid % g_hat ( 3, gpt ) ) + 1
        yz ( m, n ) = yz ( m, n ) + 1
-     END DO
-  END IF
-
-  ip =  pw_grid % para % my_pos
-  is = 0
-  DO i = 1, nz
-    DO j = 1, ny
-      IF ( yz ( j, i ) > 0 ) THEN
-        is = is + 1
-        pw_grid % para % yzp ( 1, is, ip ) = j
-        pw_grid % para % yzp ( 2, is, ip ) = i
-        pw_grid % para % yzq ( j, i ) = is
-      END IF
     END DO
-  END DO
+    IF ( pw_grid % grid_span == HALFSPACE ) THEN
+       mapm => pw_grid % mapm % neg
+       mapn => pw_grid % mapn % neg
+       DO gpt = 1, SIZE ( pw_grid % gsq  )
+          m = mapm ( pw_grid % g_hat ( 2, gpt ) ) + 1
+          n = mapn ( pw_grid % g_hat ( 3, gpt ) ) + 1
+          yz ( m, n ) = yz ( m, n ) + 1
+       END DO
+    END IF
 
-  CPPrecondition(is == pw_grid % para % nyzray ( ip ),cp_failure_level,routineP,error,failure)
-  CALL mp_sum ( pw_grid % para % yzp, pw_grid % para % group )
+    ip =  pw_grid % para % my_pos
+    is = 0
+    DO i = 1, nz
+       DO j = 1, ny
+          IF ( yz ( j, i ) > 0 ) THEN
+             is = is + 1
+             pw_grid % para % yzp ( 1, is, ip ) = j
+             pw_grid % para % yzp ( 2, is, ip ) = i
+             pw_grid % para % yzq ( j, i ) = is
+          END IF
+       END DO
+    END DO
 
-  CALL timestop(0.0_dp,handle)
+    CPPrecondition(is == pw_grid % para % nyzray ( ip ),cp_failure_level,routineP,error,failure)
+    CALL mp_sum ( pw_grid % para % yzp, pw_grid % para % group )
 
-END SUBROUTINE pw_grid_remap
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE pw_grid_remap
 
 !****************************************************************************
 !!****** pw_grids/pw_grid_change [1.1] *
@@ -2079,8 +2072,8 @@ END SUBROUTINE pw_grid_remap
 !!
 !!*** *************************************************************************
 
-SUBROUTINE pw_grid_change ( cell, pw_grid )
-  ! Argument
+  SUBROUTINE pw_grid_change ( cell, pw_grid )
+    ! Argument
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_grid_type), POINTER              :: pw_grid
 
@@ -2088,44 +2081,44 @@ SUBROUTINE pw_grid_change ( cell, pw_grid )
     REAL(KIND=dp)                            :: l, m, n
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: g, h_inv
 
-  h_inv => cell % h_inv
-  g => pw_grid % g
+    h_inv => cell % h_inv
+    g => pw_grid % g
 
-  pw_grid % vol = ABS ( cell % deth )
-  pw_grid % dvol = pw_grid % vol / REAL ( pw_grid % ngpts,KIND=dp)
-  pw_grid % dr ( 1 ) = SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) ) &
-       / REAL ( pw_grid % npts ( 1 ),KIND=dp)
-  pw_grid % dr ( 2 ) = SQRT ( SUM ( cell % hmat ( :, 2 ) ** 2 ) ) &
-       / REAL ( pw_grid % npts ( 2 ),KIND=dp)
-  pw_grid % dr ( 3 ) = SQRT ( SUM ( cell % hmat ( :, 3 ) ** 2 ) ) &
-       / REAL ( pw_grid % npts ( 3 ),KIND=dp)
-  pw_grid % dh ( :,1 ) = cell % hmat ( :, 1 ) / REAL ( pw_grid % npts ( 1 ),KIND=dp)
-  pw_grid % dh ( :,2 ) = cell % hmat ( :, 2 ) / REAL ( pw_grid % npts ( 2 ),KIND=dp)
-  pw_grid % dh ( :,3 ) = cell % hmat ( :, 3 ) / REAL ( pw_grid % npts ( 3 ),KIND=dp)
-  pw_grid % dh_inv ( 1,: ) = cell % h_inv ( 1,: ) * REAL ( pw_grid % npts ( 1 ),KIND=dp)
-  pw_grid % dh_inv ( 2,: ) = cell % h_inv ( 2,: ) * REAL ( pw_grid % npts ( 2 ),KIND=dp)
-  pw_grid % dh_inv ( 3,: ) = cell % h_inv ( 3,: ) * REAL ( pw_grid % npts ( 3 ),KIND=dp)
-  pw_grid % orthorhombic = cell % orthorhombic
+    pw_grid % vol = ABS ( cell % deth )
+    pw_grid % dvol = pw_grid % vol / REAL ( pw_grid % ngpts,KIND=dp)
+    pw_grid % dr ( 1 ) = SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) ) &
+         / REAL ( pw_grid % npts ( 1 ),KIND=dp)
+    pw_grid % dr ( 2 ) = SQRT ( SUM ( cell % hmat ( :, 2 ) ** 2 ) ) &
+         / REAL ( pw_grid % npts ( 2 ),KIND=dp)
+    pw_grid % dr ( 3 ) = SQRT ( SUM ( cell % hmat ( :, 3 ) ** 2 ) ) &
+         / REAL ( pw_grid % npts ( 3 ),KIND=dp)
+    pw_grid % dh ( :,1 ) = cell % hmat ( :, 1 ) / REAL ( pw_grid % npts ( 1 ),KIND=dp)
+    pw_grid % dh ( :,2 ) = cell % hmat ( :, 2 ) / REAL ( pw_grid % npts ( 2 ),KIND=dp)
+    pw_grid % dh ( :,3 ) = cell % hmat ( :, 3 ) / REAL ( pw_grid % npts ( 3 ),KIND=dp)
+    pw_grid % dh_inv ( 1,: ) = cell % h_inv ( 1,: ) * REAL ( pw_grid % npts ( 1 ),KIND=dp)
+    pw_grid % dh_inv ( 2,: ) = cell % h_inv ( 2,: ) * REAL ( pw_grid % npts ( 2 ),KIND=dp)
+    pw_grid % dh_inv ( 3,: ) = cell % h_inv ( 3,: ) * REAL ( pw_grid % npts ( 3 ),KIND=dp)
+    pw_grid % orthorhombic = cell % orthorhombic
 
-  DO gpt = 1, SIZE ( g ,2 )
+    DO gpt = 1, SIZE ( g ,2 )
 
-     l = twopi * REAL ( pw_grid % g_hat ( 1, gpt ),KIND=dp)
-     m = twopi * REAL ( pw_grid % g_hat ( 2, gpt ),KIND=dp)
-     n = twopi * REAL ( pw_grid % g_hat ( 3, gpt ),KIND=dp)
+       l = twopi * REAL ( pw_grid % g_hat ( 1, gpt ),KIND=dp)
+       m = twopi * REAL ( pw_grid % g_hat ( 2, gpt ),KIND=dp)
+       n = twopi * REAL ( pw_grid % g_hat ( 3, gpt ),KIND=dp)
 
-     g ( 1, gpt ) = l * h_inv(1,1) + m * h_inv(2,1) + n * h_inv(3,1)
-     g ( 2, gpt ) = l * h_inv(1,2) + m * h_inv(2,2) + n * h_inv(3,2)
-     g ( 3, gpt ) = l * h_inv(1,3) + m * h_inv(2,3) + n * h_inv(3,3)
+       g ( 1, gpt ) = l * h_inv(1,1) + m * h_inv(2,1) + n * h_inv(3,1)
+       g ( 2, gpt ) = l * h_inv(1,2) + m * h_inv(2,2) + n * h_inv(3,2)
+       g ( 3, gpt ) = l * h_inv(1,3) + m * h_inv(2,3) + n * h_inv(3,3)
 
-     pw_grid % gsq ( gpt ) = g ( 1, gpt ) * g ( 1, gpt ) &
-                           + g ( 2, gpt ) * g ( 2, gpt ) &
-                           + g ( 3, gpt ) * g ( 3, gpt )
+       pw_grid % gsq ( gpt ) = g ( 1, gpt ) * g ( 1, gpt ) &
+            + g ( 2, gpt ) * g ( 2, gpt ) &
+            + g ( 3, gpt ) * g ( 3, gpt )
 
-  END DO
+    END DO
 
-END SUBROUTINE pw_grid_change
+  END SUBROUTINE pw_grid_change
 
-!******************************************************************************
+  !******************************************************************************
 
 !!****f* pw_grids/pw_grid_retain [1.0] *
 !!
@@ -2150,7 +2143,7 @@ END SUBROUTINE pw_grid_change
 !!     04.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE pw_grid_retain(pw_grid, error)
+  SUBROUTINE pw_grid_retain(pw_grid, error)
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -2159,15 +2152,15 @@ SUBROUTINE pw_grid_retain(pw_grid, error)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
+    failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CPPreconditionNoFail(pw_grid%ref_count>0,cp_failure_level,routineP,error)
-     pw_grid%ref_count=pw_grid%ref_count+1
-  END IF
-END SUBROUTINE pw_grid_retain
-!***************************************************************************
+    CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CPPreconditionNoFail(pw_grid%ref_count>0,cp_failure_level,routineP,error)
+       pw_grid%ref_count=pw_grid%ref_count+1
+    END IF
+  END SUBROUTINE pw_grid_retain
+  !***************************************************************************
 
 !!****f* pw_grids/pw_grid_release [1.0] *
 !!
@@ -2192,7 +2185,7 @@ END SUBROUTINE pw_grid_retain
 !!     04.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE pw_grid_release(pw_grid, error)
+  SUBROUTINE pw_grid_release(pw_grid, error)
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -2202,87 +2195,87 @@ SUBROUTINE pw_grid_release(pw_grid, error)
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
+    failure=.FALSE.
 
-  IF (ASSOCIATED(pw_grid)) THEN
-     CPPreconditionNoFail(pw_grid%ref_count>0,cp_failure_level,routineP,error)
-     pw_grid%ref_count=pw_grid%ref_count-1
-     IF (pw_grid%ref_count==0) THEN
-        IF ( ASSOCIATED ( pw_grid % gidx ) ) THEN
-           DEALLOCATE ( pw_grid % gidx, STAT = stat )
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        IF ( ASSOCIATED ( pw_grid % g ) ) THEN
-           DEALLOCATE ( pw_grid % g, STAT = stat )
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        IF ( ASSOCIATED ( pw_grid % gsq ) ) THEN
-           DEALLOCATE ( pw_grid % gsq, STAT = stat )
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        IF ( ASSOCIATED ( pw_grid % g_hat ) ) THEN
-           DEALLOCATE ( pw_grid % g_hat, STAT = stat )
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        IF ( ASSOCIATED ( pw_grid % mapl % pos ) ) THEN
-           DEALLOCATE ( pw_grid % mapl % pos, STAT = stat )
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        IF ( ASSOCIATED ( pw_grid % mapm % pos ) ) THEN
-           DEALLOCATE ( pw_grid % mapm % pos, STAT = stat )
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        IF ( ASSOCIATED ( pw_grid % mapn % pos ) ) THEN
-           DEALLOCATE ( pw_grid % mapn % pos, STAT = stat )
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        IF ( ASSOCIATED ( pw_grid % mapl % neg ) ) THEN
-           DEALLOCATE ( pw_grid % mapl % neg, STAT = stat )
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        IF ( ASSOCIATED ( pw_grid % mapm % neg ) ) THEN
-           DEALLOCATE ( pw_grid % mapm % neg, STAT = stat )
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        IF ( ASSOCIATED ( pw_grid % mapn % neg ) ) THEN
-           DEALLOCATE ( pw_grid % mapn % neg, STAT = stat )
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        IF ( pw_grid % para % mode == PW_MODE_DISTRIBUTED ) THEN
-           IF ( ASSOCIATED ( pw_grid % para % yzp ) ) THEN
-              DEALLOCATE ( pw_grid % para % yzp, STAT = stat )
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-           END IF
-           IF ( ASSOCIATED ( pw_grid % para % yzq ) ) THEN
-              DEALLOCATE ( pw_grid % para % yzq, STAT = stat )
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-           END IF
-           IF ( ASSOCIATED ( pw_grid % para % nyzray ) ) THEN
-              DEALLOCATE ( pw_grid % para % nyzray, STAT = stat )
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-           END IF
-           IF ( ASSOCIATED ( pw_grid % para % bo ) ) THEN
-              DEALLOCATE ( pw_grid % para % bo, STAT = stat )
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-           END IF
-        END IF
-        ! also release groups
-        CALL mp_comm_free ( pw_grid % para % group )
-        IF (PRODUCT(pw_grid % para % rs_dims) /= 0 ) &
-             CALL mp_comm_free ( pw_grid % para % rs_group )
-        IF ( ASSOCIATED ( pw_grid % para % pos_of_x ) ) THEN
-           DEALLOCATE ( pw_grid % para % pos_of_x, STAT = stat )
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
+    IF (ASSOCIATED(pw_grid)) THEN
+       CPPreconditionNoFail(pw_grid%ref_count>0,cp_failure_level,routineP,error)
+       pw_grid%ref_count=pw_grid%ref_count-1
+       IF (pw_grid%ref_count==0) THEN
+          IF ( ASSOCIATED ( pw_grid % gidx ) ) THEN
+             DEALLOCATE ( pw_grid % gidx, STAT = stat )
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          IF ( ASSOCIATED ( pw_grid % g ) ) THEN
+             DEALLOCATE ( pw_grid % g, STAT = stat )
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          IF ( ASSOCIATED ( pw_grid % gsq ) ) THEN
+             DEALLOCATE ( pw_grid % gsq, STAT = stat )
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          IF ( ASSOCIATED ( pw_grid % g_hat ) ) THEN
+             DEALLOCATE ( pw_grid % g_hat, STAT = stat )
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          IF ( ASSOCIATED ( pw_grid % mapl % pos ) ) THEN
+             DEALLOCATE ( pw_grid % mapl % pos, STAT = stat )
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          IF ( ASSOCIATED ( pw_grid % mapm % pos ) ) THEN
+             DEALLOCATE ( pw_grid % mapm % pos, STAT = stat )
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          IF ( ASSOCIATED ( pw_grid % mapn % pos ) ) THEN
+             DEALLOCATE ( pw_grid % mapn % pos, STAT = stat )
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          IF ( ASSOCIATED ( pw_grid % mapl % neg ) ) THEN
+             DEALLOCATE ( pw_grid % mapl % neg, STAT = stat )
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          IF ( ASSOCIATED ( pw_grid % mapm % neg ) ) THEN
+             DEALLOCATE ( pw_grid % mapm % neg, STAT = stat )
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          IF ( ASSOCIATED ( pw_grid % mapn % neg ) ) THEN
+             DEALLOCATE ( pw_grid % mapn % neg, STAT = stat )
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          IF ( pw_grid % para % mode == PW_MODE_DISTRIBUTED ) THEN
+             IF ( ASSOCIATED ( pw_grid % para % yzp ) ) THEN
+                DEALLOCATE ( pw_grid % para % yzp, STAT = stat )
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             END IF
+             IF ( ASSOCIATED ( pw_grid % para % yzq ) ) THEN
+                DEALLOCATE ( pw_grid % para % yzq, STAT = stat )
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             END IF
+             IF ( ASSOCIATED ( pw_grid % para % nyzray ) ) THEN
+                DEALLOCATE ( pw_grid % para % nyzray, STAT = stat )
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             END IF
+             IF ( ASSOCIATED ( pw_grid % para % bo ) ) THEN
+                DEALLOCATE ( pw_grid % para % bo, STAT = stat )
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             END IF
+          END IF
+          ! also release groups
+          CALL mp_comm_free ( pw_grid % para % group )
+          IF (PRODUCT(pw_grid % para % rs_dims) /= 0 ) &
+               CALL mp_comm_free ( pw_grid % para % rs_group )
+          IF ( ASSOCIATED ( pw_grid % para % pos_of_x ) ) THEN
+             DEALLOCATE ( pw_grid % para % pos_of_x, STAT = stat )
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
 
-        IF(ASSOCIATED(pw_grid)) THEN
-          DEALLOCATE(pw_grid, stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-     END IF
-  END IF
-  NULLIFY(pw_grid)
-END SUBROUTINE pw_grid_release
+          IF(ASSOCIATED(pw_grid)) THEN
+             DEALLOCATE(pw_grid, stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+       END IF
+    END IF
+    NULLIFY(pw_grid)
+  END SUBROUTINE pw_grid_release
 
 END MODULE pw_grids
 

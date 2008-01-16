@@ -90,7 +90,7 @@ CONTAINS
 
 !******************************************************************************
 SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, cutoff_radius, grid_s, grid_b, &
-                               para_env, grid_ref, rs_dims, iounit, error )
+           para_env, grid_ref, rs_dims, iounit, fft_usage, error )
 
     TYPE(cell_type), POINTER                 :: box_b
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts_s
@@ -101,6 +101,7 @@ SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, cutoff_radius, grid_s, grid_b, &
     INTEGER, DIMENSION(2), INTENT(in), &
       OPTIONAL                               :: rs_dims
     INTEGER, INTENT(IN), OPTIONAL            :: iounit
+    LOGICAL, INTENT(IN), OPTIONAL            :: fft_usage
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER, DIMENSION(2, 3)                 :: bo
@@ -117,10 +118,11 @@ SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, cutoff_radius, grid_s, grid_b, &
   bo = grid_b % bounds
   IF ( PRESENT ( grid_ref ) ) THEN
      CALL pw_grid_setup ( box_b, grid_b, bounds=bo, cutoff=ecut, spherical=.TRUE.,&
-          ref_grid = grid_ref, rs_dims=rs_dims, iounit=iounit, error=error)
+          ref_grid = grid_ref, rs_dims=rs_dims, iounit=iounit, fft_usage=fft_usage,&
+          error=error)
   ELSE
      CALL pw_grid_setup ( box_b, grid_b, bounds=bo, cutoff=ecut, spherical=.TRUE.,&
-          rs_dims=rs_dims, iounit=iounit, error=error)
+          rs_dims=rs_dims, iounit=iounit, fft_usage=fft_usage, error=error)
   ENDIF
 
   CALL dg_find_basis ( grid_b % npts, box_b, unit_box )
@@ -128,7 +130,8 @@ SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, cutoff_radius, grid_s, grid_b, &
   CALL dg_set_cell ( grid_s % npts, unit_box, box_s )
 
   bo = grid_s % bounds
-  CALL pw_grid_setup ( box_s, grid_s, bounds=bo, cutoff=ecut, iounit=iounit, error=error)
+  CALL pw_grid_setup ( box_s, grid_s, bounds=bo, cutoff=ecut, iounit=iounit, fft_usage=fft_usage,&
+                       error=error)
 
   CALL cell_release(box_s,error=error)
   CALL cell_release(unit_box,error=error)

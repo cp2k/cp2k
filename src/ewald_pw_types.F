@@ -62,14 +62,15 @@ MODULE ewald_pw_types
                                              pw_pool_retain,&
                                              pw_pool_type
   USE qs_util,                         ONLY: exp_radius
-  USE realspace_grid_types,            ONLY: realspace_grid_type,&
-                                             rs_grid_print,&
+  USE realspace_grid_types,            ONLY: init_input_type,&
                                              realspace_grid_input_type,&
-                                             init_input_type
+                                             realspace_grid_type,&
+                                             rs_grid_print
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
@@ -231,8 +232,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: bo(2,3), ewald_type, gmax(3), handle, npts_s( 3 ), ns_max, &
-      nsmax, o_spline, output_unit, stat
+    INTEGER                                  :: bo(2,3), ewald_type, gmax(3), &
+                                                handle, npts_s( 3 ), ns_max, &
+                                                nsmax, o_spline, output_unit, &
+                                                stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, alphasq, &
                                                 cutoff_radius, epsilon, i, &
@@ -244,9 +247,10 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(realspace_grid_type), POINTER       :: rs
-    TYPE(section_vals_type), POINTER         :: poisson_section, rs_grid_section
     TYPE(realspace_grid_input_type)          :: input_settings
+    TYPE(realspace_grid_type), POINTER       :: rs
+    TYPE(section_vals_type), POINTER         :: poisson_section, &
+                                                rs_grid_section
 
     CALL timeset("ewald_pw_init","I","",handle)
     failure=.FALSE.
@@ -283,7 +287,7 @@ CONTAINS
           bo ( 1, : ) = -gmax / 2
           bo ( 2, : ) = +gmax / 2
           CALL pw_grid_setup ( cell_ref, pw_big_grid, grid_span=HALFSPACE, bounds=bo, spherical=.TRUE., &
-                                iounit=output_unit, error=error)
+                                fft_usage=.FALSE., iounit=output_unit, error=error)
           NULLIFY ( pw_pool )
           CALL pw_pool_create ( pw_pool, pw_grid = pw_big_grid ,error=error)
           ewald_pw % pw_big_pool => pw_pool
@@ -312,7 +316,7 @@ CONTAINS
 
           CALL dg_pme_grid_setup ( cell_ref, npts_s, cutoff_radius,   &
                pw_small_grid, pw_big_grid, para_env,rs_dims=(/para_env%num_pe,1/),&
-               iounit=output_unit, error = error )
+               iounit=output_unit, fft_usage=.TRUE., error=error )
           ! Write some useful info
           IF ( output_unit > 0 ) THEN
              WRITE ( output_unit, '( A,T71,E10.4 )' ) &
@@ -364,7 +368,7 @@ CONTAINS
           CALL pw_grid_create( pw_big_grid, para_env%group ,error=error)
           npts_s = gmax
           CALL pw_grid_setup ( cell_ref, pw_big_grid, grid_span=HALFSPACE, npts=npts_s, spherical=.TRUE.,&
-               rs_dims=(/para_env%num_pe,1/), iounit=output_unit, error=error)
+               rs_dims=(/para_env%num_pe,1/), iounit=output_unit, fft_usage=.TRUE., error=error)
           
           ! pw pools initialized
           NULLIFY ( pw_pool )

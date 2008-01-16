@@ -343,7 +343,10 @@ CONTAINS
 
     CALL keyword_create(keyword, name="EXTENDED_FFT_LENGTHS",&
          description="Use fft library specific values for the allows number of points in FFTs. "//&
-                     "Use this to obtain, with certain fft libraries, "//&
+                     "The default is to use the internal FFT lengths. For external fft libraries this may "//&
+                     "create an error at the external library level, because the length provided by cp2k is "//&
+                     "not supported by the external library. In this case switch on this keyword "//&
+                     "to obtain, with certain fft libraries, lengths matching the external fft library lengths, or "//&
                      "larger allowed grids, or grids that more precisely match a given cutoff. "//&
                      "IMPORTANT NOTE: in this case, the actual grids used in CP2K depends on the FFT library. "//&
                      "A change of FFT library must therefore be considered equivalent to a change of basis, "//&
