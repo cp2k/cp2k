@@ -64,6 +64,7 @@ CONTAINS
     !>             Phys. Rev. B \b 57, 1505 (1998)
     !> @param[in]  qs_env Quickstep environment
     !> @param[out] matrix_h Hamiltonian matrices for each spin
+    !> @param[out] matrix_w Energy weighted density matrices for each spin
     !> @param[in]  error environment
     !> \author     Matthias Krack (MK)
     !> \date       14.01.2008
@@ -109,6 +110,7 @@ CONTAINS
     !>             using a method based on Mulliken charges
     !> @param[in]  qs_env Quickstep environment
     !> @param[out] matrix_h Hamiltonian matrices for each spin
+    !> @param[out] matrix_w Energy weighted density matrices for each spin
     !> @param[in]  error environment
     !> \author     Matthias Krack (MK)
     !> \date       11.01.2008
@@ -278,13 +280,12 @@ CONTAINS
 
       DO iatom=1,natom
 
-        p_block_node => first_block_node(matrix=sm_p,block_row=iatom)
-
         IF (orthonormal_basis) THEN
 
           ! Just retrieve the diagonal elements of the orthonormal density matrix P
 
-          CALL get_block_node(block_node=p_block_node,&
+          CALL get_block_node(matrix=sm_p,&
+                              block_row=iatom,&
                               block_col=iatom,&
                               block=p_block)
 
@@ -299,6 +300,7 @@ CONTAINS
 
         ELSE
 
+          p_block_node => first_block_node(matrix=sm_p,block_row=iatom)
           s_block_node => first_block_node(matrix=sm_s,block_row=iatom)
 
           DO WHILE (ASSOCIATED(p_block_node).AND.ASSOCIATED(s_block_node))
@@ -440,13 +442,12 @@ CONTAINS
 
         DO iatom=1,natom
 
-          h_block_node => first_block_node(matrix=sm_h,block_row=iatom)
-
           IF (orthonormal_basis) THEN
 
             ! Only the diagonal elements of the Hamiltonian matrix have to be updated
 
-            CALL get_block_node(block_node=h_block_node,&
+            CALL get_block_node(matrix=sm_h,&
+                                block_row=iatom,&
                                 block_col=iatom,&
                                 block=h_block)
 
@@ -461,6 +462,7 @@ CONTAINS
 
           ELSE
 
+            h_block_node => first_block_node(matrix=sm_h,block_row=iatom)
             s_block_node => first_block_node(matrix=sm_s,block_row=iatom)
 
             DO WHILE (ASSOCIATED(h_block_node).AND.ASSOCIATED(s_block_node))
