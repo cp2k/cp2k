@@ -528,6 +528,9 @@ CONTAINS
        END IF
     END IF
 
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             dft_plus_u_atom_present=dft_control%dft_plus_u)
+
     !   *** Check basis and fill in missing parts ***
     CALL check_atomic_kind_set(atomic_kind_set,dft_control,para_env,&
          subsys_section=subsys_section,error=error)

@@ -63,6 +63,7 @@ MODULE qs_ks_methods
                                              copy_sm_to_fm,&
                                              cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
+  USE dft_plus_u,                      ONLY: plus_u
   USE ep_qs_types,                     ONLY: ep_qs_type
   USE et_coupling,                     ONLY: becke_constraint
   USE f77_blas
@@ -993,6 +994,18 @@ CONTAINS
            ENDIF
        ENDIF
 
+       ! Add DFT+U contribution, if requested
+
+       IF (dft_control%dft_plus_u) THEN
+         IF (just_energy) THEN
+           CALL plus_u(qs_env=qs_env,error=error)
+         ELSE
+           CALL plus_u(qs_env=qs_env,matrix_h=ks_matrix,error=error)
+         END IF
+       ELSE
+         energy%dft_plus_u = 0.0_dp
+       END IF
+
        ! **** right now we can compute the orbital derivative here, as it depends currently only on the available
        ! **** Kohn-Sham matrix. This might change in the future, in which case more pieces might need to be assembled
        ! **** from this routine, notice that this part of the calculation in not linear scaling
@@ -1063,7 +1076,7 @@ CONTAINS
             energy%exc + energy%exc1 + energy%ex + &
             energy%qmmm_el + energy%mulliken + &
             energy%kg_gpw_ekin_mol + energy%ddapc_restraint + energy%s2_restraint +&
-            energy%becke
+            energy%becke + energy%dft_plus_u
 
        output_unit=cp_print_key_unit_nr(logger,input,"DFT%SCF%PRINT%DETAILED_ENERGY",&
             extension=".scfLog",error=error)
@@ -1093,6 +1106,10 @@ CONTAINS
           IF(gapw_xc) THEN
              WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
                 "GAPW| Exc from hard and soft atomic rho1:      ",energy%exc1
+          END IF
+          IF (dft_control%dft_plus_u) THEN
+            WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+              "DFT+U energy:",energy%dft_plus_u
           END IF
           IF  (qs_env%qmmm) THEN
              WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&

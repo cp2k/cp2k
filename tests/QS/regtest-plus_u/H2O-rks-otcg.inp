@@ -1,0 +1,78 @@
+&GLOBAL
+  PROJECT H2O-rks-otcg
+  PRINT_LEVEL low
+  RUN_TYPE GEO_OPT
+&END GLOBAL
+
+&MOTION
+  &GEO_OPT
+    OPTIMIZER BFGS
+    MAX_ITER  2
+  &END GEO_OPT
+&END MOTION
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME ../GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME ../GTH_POTENTIALS
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-8
+      MAP_CONSISTENT
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-5
+      MAX_SCF 30
+      &OT ON
+        MINIMIZER cg
+      &END OT
+      &OUTER_SCF ON
+        EPS_SCF 1.0E-5
+        MAX_SCF 10
+      &END OUTER_SCF
+      &PRINT
+        &RESTART
+          EACH 1 1 30
+          ADD_LAST NUMERIC
+          FILENAME =RESTART
+          BACKUP_COPIES 0
+        &END RESTART
+      &END PRINT
+      SCF_GUESS restart
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 4.0 4.0 4.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+      O  0.000   0.000   -0.111
+      H  0.000  -0.744    0.495
+      H  0.000   0.744    0.495
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-PBE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-PBE-q6
+      &DFT_PLUS_U
+        L 1
+       U_MINUS_J [eV] 2.0
+      &END DFT_PLUS_U
+    &END KIND
+    &PRINT
+      &KINDS
+      &END KINDS
+    &END PRINT
+  &END SUBSYS
+&END FORCE_EVAL

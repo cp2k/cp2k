@@ -714,8 +714,11 @@ CONTAINS
 
     failure=.FALSE.
     CPPrecondition(.NOT.ASSOCIATED(print_key),cp_failure_level,routineP,error,failure)
+
     IF (.NOT. failure) THEN
+
        NULLIFY(keyword)
+
        CALL cp_print_key_section_create(print_key,name="STRUCTURE_DATA",&
             description="Request the printing of special structure data during a structure "//&
             "optimization (in MOTION%PRINT) or when setting up a subsys (in SUBSYS%PRINT).",&
@@ -750,6 +753,7 @@ CONTAINS
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
     END IF
+
   END SUBROUTINE create_structure_data_section
 
 !***************************************************************************
@@ -1355,6 +1359,11 @@ CONTAINS
        CALL create_potential_section(subsection, error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
+
+       CALL create_dft_plus_u_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
     END IF
 
   END SUBROUTINE create_kind_section
@@ -1844,5 +1853,87 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
     END IF
   END SUBROUTINE connectivity_framework
+
+  ! ***************************************************************************
+
+  SUBROUTINE create_dft_plus_u_section(section,error)
+
+    ! Routine info read by Doxygen:
+
+    !> \class      create_dft_plus_u_section
+    !> \brief      Create CP2K input section for the DFT+U parameters
+    !> \author     Matthias Krack (MK)
+    !> \date       01.11.2007
+    !> \version    1.0
+
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'create_dft_plus_u_section', &
+                                   routineP = moduleN//':'//routineN
+
+    TYPE(keyword_type), POINTER              :: keyword
+    LOGICAL                                  :: failure
+
+    ! -------------------------------------------------------------------------
+
+    failure = .FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+
+    IF (.NOT. failure) THEN
+
+      CALL section_create(section,name="DFT_PLUS_U",&
+                          description="Define the parameters for a DFT+U run",&
+                          n_keywords=3,&
+                          n_subsections=0,&
+                          repeats=.FALSE.,&
+                          required=.FALSE.,&
+                          error=error)
+
+      NULLIFY (keyword)
+
+      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+                          description="controls the activation of the DFT+U section",&
+                          usage="&DFT_PLUS_U ON",&
+                          default_l_val=.FALSE.,&
+                          lone_keyword_l_val=.TRUE.,&
+                          error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+                          name="L",&
+                          description="Angular momentum quantum number of the"//&
+                                      "orbitals to which the correction is applied",&
+                          required=.TRUE.,&
+                          repeats=.FALSE.,&
+                          n_var=1,&
+                          type_of_var=integer_t,&
+                          default_i_val=-1,&
+                          usage="L 2",&
+                          error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+                          name="U_MINUS_J",&
+                          description="Effective parameter U(eff) = U - J",&
+                          required=.TRUE.,&
+                          repeats=.FALSE.,&
+                          n_var=1,&
+                          type_of_var=real_t,&
+                          default_r_val=0.0_dp,&
+                          unit_str="au_e",&
+                          usage="U_MINUS_J [eV] 1.4",&
+                          error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+    END IF
+
+  END SUBROUTINE create_dft_plus_u_section
+
+  ! ***************************************************************************
 
 END MODULE input_cp2k_subsys

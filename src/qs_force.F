@@ -29,6 +29,7 @@ MODULE qs_force
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dft_plus_u,                      ONLY: plus_u
   USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE harris_env_types,                ONLY: harris_env_set,&
@@ -290,11 +291,20 @@ CONTAINS
 
     END IF
 
-!   *** from an eventual mulliken restraint
+    ! from an eventual mulliken restraint
+
     IF (dft_control%qs_control%mulliken_restraint) THEN
-        CALL mulliken_restraint(dft_control%qs_control%mulliken_restraint_control, &
-                                para_env,matrix_s(1)%matrix, rho%rho_ao,w_matrix=matrix_w)
-    ENDIF
+      CALL mulliken_restraint(dft_control%qs_control%mulliken_restraint_control, &
+                              para_env,matrix_s(1)%matrix, rho%rho_ao,w_matrix=matrix_w)
+    END IF
+
+    ! Add non-Pulay contribution of DFT+U to W matrix, since it has also to be
+    ! digested with overlap matrix derivatives
+
+    IF (dft_control%dft_plus_u) THEN
+      CALL plus_u(qs_env=qs_env,matrix_w=matrix_w,error=error)
+    END IF
+
     CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w,error=error)
 
     IF (.NOT. harris_flag) THEN ! harris computes the forces differenctly

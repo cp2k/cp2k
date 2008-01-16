@@ -174,6 +174,8 @@ CONTAINS
 
     dft_control % xas_estate    = -1
 
+    dft_control%dft_plus_u = .FALSE.
+
     CALL section_vals_val_get(dft_section,"BASIS_SET_FILE_NAME",&
          c_val=basis_set_file_name , error=error)
     CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",&
@@ -828,7 +830,7 @@ CONTAINS
             "DFT| Cutoffs: density ",density_cut,&
             "DFT|          gradient",gradient_cut,&
             "DFT|          tau     ",tau_cut,&
-               "DFT|          cutoff_smoothing_range",density_smooth_cut_range
+            "DFT|          cutoff_smoothing_range",density_smooth_cut_range
        CALL section_vals_val_get(xc_section,"XC_GRID%XC_SMOOTH_RHO",&
             c_val=tmpStr,error=error)
        WRITE ( output_unit, '( A, T61, A )' ) &
@@ -837,7 +839,11 @@ CONTAINS
             c_val=tmpStr,error=error)
        WRITE ( output_unit, '( A, T61, A )' ) &
             " DFT| XC derivatives ",ADJUSTR(tmpStr)
-       
+       IF (dft_control%dft_plus_u) THEN
+         WRITE (UNIT=output_unit,FMT="(T2,A)")&
+           "DFT| A DFT+U correction is applied (check atomic kind information for details)"
+       END IF
+
        xc_fun_section => section_vals_get_subs_vals(xc_section,&
             "XC_FUNCTIONAL",error=error)
        CALL section_vals_val_get(xc_fun_section,"_SECTION_PARAMETERS_",i_val=myfun,error=error)

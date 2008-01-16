@@ -93,6 +93,7 @@ OBJECTS_GENERIC =\
  csvr_system_types.o\
  csvr_system_utils.o\
  cube_utils.o\
+ dft_plus_u.o\
  dg_rho0_types.o\
  dg_types.o\
  dgs.o\

@@ -245,7 +245,7 @@ MODULE cp_control_types
                                         do_tddfpt_calculation, &
                                         do_xas_calculation, &
                                         use_kinetic_energy_density, &
-                                        restricted,roks,uks,lsd
+                                        restricted,roks,uks,lsd,dft_plus_u
   END TYPE dft_control_type
 !------------------------------------------------------------------------------!
 

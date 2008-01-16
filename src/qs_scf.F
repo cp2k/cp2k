@@ -1055,6 +1055,10 @@ SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,&
               "GAPW_XC| Exc from hard and soft atomic rho1:      ",energy%exc1
          END IF
        END IF
+       IF (dft_control%dft_plus_u) THEN
+         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+          "DFT+U energy:",energy%dft_plus_u
+       END IF
        IF  (qmmm) THEN
           WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
                "QM/MM Electrostatic energy:                    ",energy%qmmm_el

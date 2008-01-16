@@ -56,14 +56,15 @@ MODULE qs_energy_types
                 ddapc_restraint,&
                 becke,&
                 s2_restraint,&
+                dft_plus_u,& ! DFT+U energy contribution
                 total
   END TYPE qs_energy_type
 
-! *** Public data types ***
+  ! Public data types
 
   PUBLIC :: qs_energy_type
 
-! *** Public subroutines ***
+  ! Public subroutines
 
   PUBLIC :: allocate_qs_energy,&
             deallocate_qs_energy,&
@@ -171,6 +172,7 @@ CONTAINS
       qs_energy%ddapc_restraint = 0.0_dp
       qs_energy%becke = 0.0_dp
       qs_energy%s2_restraint = 0.0_dp
+      qs_energy%dft_plus_u = 0.0_dp
       qs_energy%total = 0.0_dp
     ELSE
       CALL stop_program(routine,"The qs_energy pointer is not associated "//&
@@ -273,8 +275,9 @@ CONTAINS
       qs_energy_out%kg_gpw_ekin_mol = qs_energy_in%kg_gpw_ekin_mol
       qs_energy_out%mulliken        = qs_energy_in%mulliken
       qs_energy_out%ddapc_restraint = qs_energy_in%ddapc_restraint
-      qs_energy_out%becke        = qs_energy_in%becke
-      qs_energy_out%s2_restraint = qs_energy_in%s2_restraint
+      qs_energy_out%becke           = qs_energy_in%becke
+      qs_energy_out%s2_restraint    = qs_energy_in%s2_restraint
+      qs_energy_out%dft_plus_u      = qs_energy_in%dft_plus_u
       qs_energy_out%total           = qs_energy_in%total
     ELSE
       CALL stop_program(routine,"The qs_energy pointer is not associated ")

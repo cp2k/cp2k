@@ -58,7 +58,8 @@ MODULE bibliography
              Genovese2007,Evans1983,Minary2003,Byrd1995,&
              VandeVondele2007,Ortiz1994,Becke1988,Perdew1996,Zhang1998,Lee1988, &
              Heyd2006,Vydrov2006,Heyd2003,Heyd2004,Vosko1980, Aguado2003,&
-             Essmann1995,Ewald1921,Darden1993, Tersoff1988, Tosi1964a, Tosi1964b, Yamada2000
+             Essmann1995,Ewald1921,Darden1993, Tersoff1988, Tosi1964a, Tosi1964b,&
+             Yamada2000,Dudarev1997,Dudarev1998
 
 CONTAINS
 !!****f* bibliography/add_all_references *
@@ -1072,6 +1073,46 @@ CONTAINS
             "ER"),&
             DOI="10.1063/1.464397")
 
-  END SUBROUTINE add_all_references
+    CALL add_reference(key=Dudarev1997,ISI_record=s2a(&
+         "PT J",&
+         "AU Dudarev, SL",&
+         "   Manh, DN",&
+         "   Sutton, AP",&
+         "TI Effect of Mott-Hubbard correlations on the electronic",&
+         "   structure and structural stability of uranium dioxide",&
+         "SO PHILOSOPHICAL MAGAZINE B",&
+         "SN 0141-8637",&
+         "PD MAY",&
+         "PY 1997",&
+         "VL 75",&
+         "IS 5",&
+         "BP 613",&
+         "EP 628",&
+         "UT ISI:A1997WX94300001",&
+         "ER"),&
+         DOI="10.1080/13642819708202343")
+
+     CALL add_reference(key=Dudarev1998,ISI_record=s2a(&
+          "PT J",&
+          "AU Dudarev, SL",&
+          "   Botton, GA",&
+          "   Savrasov, SY",&
+          "   Humphreys, CJ",&
+          "   Sutton, AP",&
+          "TI Electron-energy-loss spectra and the structural stability of",&
+          "   nickel oxide: An LSDA+U study",&
+          "SO PHYSICAL REVIEW B",&
+          "SN 0163-1829",&
+          "PD JAN 15",&
+          "PY 1998",&
+          "VL 57",&
+          "IS 3",&
+          "BP 1505",&
+          "EP 1509",&
+          "UT ISI:000071716800040",&
+          "ER"),&
+          DOI="10.1103/PhysRevB.57.1505")
+
+   END SUBROUTINE add_all_references
 
 END MODULE

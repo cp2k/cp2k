@@ -59,6 +59,7 @@ MODULE atomic_kind_types
                                              projectors
   USE periodic_table,                  ONLY: ptable
   USE physcon,                         ONLY: bohr,&
+                                             evolt,&
                                              massunit
   USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
   USE qs_dftb_utils,                   ONLY: deallocate_dftb_atom_param,&
@@ -83,18 +84,26 @@ MODULE atomic_kind_types
   USE soft_basis_set,                  ONLY: create_soft_basis
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PRIVATE
 
-! *** Global parameters (only in this module)
+  ! Global parameters (only in this module)
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atomic_kind_types'
+  CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = 'atomic_kind_types'
 
+  ! DFT+U parameters
 
-! *** Define the atomic kind types ***
+  TYPE dft_plus_u_type
+    INTEGER                                :: l
+    REAL(KIND=dp)                          :: u_minus_j
+  END TYPE dft_plus_u_type
+
+  ! Define the atomic kind types
 
   TYPE atomic_kind_type
     TYPE(all_potential_type), POINTER      :: all_potential
@@ -107,12 +116,12 @@ MODULE atomic_kind_types
     TYPE(gto_basis_set_type), POINTER      :: soft_basis_set
     TYPE(gto_basis_set_type), POINTER      :: hard_basis_set
     TYPE(paw_proj_set_type),  POINTER      :: paw_proj_set
-    REAL(dp)                               :: hard_radius  ! for hard and soft exp
-    REAL(dp)                               :: hard0_radius ! for hard exp of rho0
-    REAL(dp)                               :: max_rad_local ! max GTO radius used in GAPW
-                                                            !projectors construction
-    LOGICAL                                :: paw_atom     ! needs atomic rho1
-    LOGICAL                                :: qm_atom    ! needs atomic rho1
+    REAL(dp)                               :: hard_radius     ! for hard and soft exp
+    REAL(dp)                               :: hard0_radius    ! for hard exp of rho0
+    REAL(dp)                               :: max_rad_local   ! max GTO radius used in GAPW
+                                                              ! projectors construction
+    LOGICAL                                :: paw_atom        ! needs atomic rho1
+    LOGICAL                                :: qm_atom         ! needs atomic rho1
     LOGICAL                                :: gpw_type_forced ! gpw atom even if with hard exponents
     LOGICAL                                :: ghost
     CHARACTER(LEN=default_string_length)   :: name
@@ -128,9 +137,9 @@ MODULE atomic_kind_types
     INTEGER                                :: lmax_rho0
     INTEGER, DIMENSION(:), POINTER         :: elec_conf ! used to set up the initial atomic guess
                                                         ! user can specify whatever...
-
     LOGICAL                                :: shell_active
-    TYPE(shell_kind_type), POINTER              :: shell
+    TYPE(shell_kind_type), POINTER         :: shell
+    TYPE(dft_plus_u_type), POINTER         :: dft_plus_u
   END TYPE atomic_kind_type
 
   TYPE atomic_kind_p_type
@@ -138,7 +147,7 @@ MODULE atomic_kind_types
        POINTER                             :: atomic_kind_set
   END TYPE atomic_kind_p_type
 
-! *** Public subroutines ***
+  ! Public subroutines
 
   PUBLIC :: allocate_atomic_kind_set,&
             check_atomic_kind_set,&
@@ -153,10 +162,11 @@ MODULE atomic_kind_types
             write_atomic_kind_set,&
             write_gto_basis_sets
 
-! *** Public data types ***
+  ! Public data types
 
   PUBLIC :: atomic_kind_type,&
-            atomic_kind_p_type
+            atomic_kind_p_type,&
+            dft_plus_u_type
 
 
 CONTAINS
@@ -212,6 +222,7 @@ CONTAINS
       NULLIFY (atomic_kind_set(ikind)%harmonics)
       NULLIFY (atomic_kind_set(ikind)%grid_atom)
       NULLIFY (atomic_kind_set(ikind)%shell)
+      NULLIFY (atomic_kind_set(ikind)%dft_plus_u)
       atomic_kind_set(ikind)%name = ""
       atomic_kind_set(ikind)%element_symbol = ""
       atomic_kind_set(ikind)%mass = 0.0_dp
@@ -310,17 +321,24 @@ CONTAINS
         IF (ASSOCIATED(atomic_kind_set(ikind)%elec_conf)) THEN
             DEALLOCATE (atomic_kind_set(ikind)%elec_conf,STAT=stat)
             CPPostcondition(stat==0, cp_failure_level, routineN, error, failure)
-        ENDIF
+        END IF
         CALL shell_release(atomic_kind_set(ikind)%shell,error)
+
+        IF (ASSOCIATED(atomic_kind_set(ikind)%dft_plus_u)) THEN
+           DEALLOCATE (atomic_kind_set(ikind)%dft_plus_u,STAT=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        END IF
 
       END DO
       DEALLOCATE (atomic_kind_set,STAT=stat)
       CPPostcondition(stat==0, cp_failure_level, routineN, error, failure)
 
     ELSE
+
       CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer atomic_kind_set is not associated and "//&
                         "cannot be deallocated")
+
     END IF
 
   END SUBROUTINE deallocate_atomic_kind_set
@@ -353,7 +371,8 @@ CONTAINS
                              max_rad_local, gpw_type_forced,&
                              harmonics, max_iso_not0, max_s_harm,&
                              grid_atom, ngrid_ang, ngrid_rad, lmax_rho0, ghost,&
-                             shell, shell_active)
+                             shell, shell_active, dft_plus_u_atom,&
+                             l_of_dft_plus_u, u_minus_j)
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(all_potential_type), OPTIONAL, &
@@ -400,6 +419,9 @@ CONTAINS
     LOGICAL, INTENT(OUT), OPTIONAL           :: ghost
     TYPE(shell_kind_type), OPTIONAL, POINTER :: shell
     LOGICAL, INTENT(OUT), OPTIONAL           :: shell_active
+    LOGICAL, INTENT(OUT), OPTIONAL           :: dft_plus_u_atom
+    INTEGER, INTENT(OUT), OPTIONAL           :: l_of_dft_plus_u
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: u_minus_j
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_atomic_kind', &
       routineP = moduleN//':'//routineN
@@ -565,6 +587,21 @@ CONTAINS
       IF (PRESENT(ghost)) ghost = atomic_kind%ghost
       IF (PRESENT(shell)) shell => atomic_kind%shell
       IF (PRESENT(shell_active)) shell_active = atomic_kind%shell_active
+      IF (PRESENT(dft_plus_u_atom)) dft_plus_u_atom = ASSOCIATED(atomic_kind%dft_plus_u)
+      IF (PRESENT(l_of_dft_plus_u)) THEN
+        IF (ASSOCIATED(atomic_kind%dft_plus_u)) THEN
+          l_of_dft_plus_u = atomic_kind%dft_plus_u%l
+        ELSE
+          l_of_dft_plus_u = -1
+        END IF
+      END IF
+      IF (PRESENT(u_minus_j)) THEN
+        IF (ASSOCIATED(atomic_kind%dft_plus_u)) THEN
+          u_minus_j = atomic_kind%dft_plus_u%u_minus_j
+        ELSE
+          u_minus_j = 0.0_dp
+        END IF
+      END IF
 
     ELSE
 
@@ -599,6 +636,7 @@ CONTAINS
                                  all_potential_present,gth_potential_present,&
                                  elp_potential_present,paw_atom_present,&
                                  qm_atom_present,shell_present, shell_adiabatic,&
+                                 dft_plus_u_atom_present,&
                                  atom_of_kind,kind_of,natom_of_kind,maxder,&
                                  max_ngrid_rad,&
                                  max_sph_harm,maxg_iso_not0,lmax_rho0,&
@@ -612,7 +650,7 @@ CONTAINS
       ncgf_aux, npgf, nset, nsgf, nshell
     LOGICAL, INTENT(OUT), OPTIONAL :: all_potential_present, &
       gth_potential_present, elp_potential_present, paw_atom_present, &
-      qm_atom_present, shell_present, shell_adiabatic
+      qm_atom_present, shell_present, shell_adiabatic, dft_plus_u_atom_present
     INTEGER, DIMENSION(:), INTENT(OUT), &
       OPTIONAL                               :: atom_of_kind, kind_of, &
                                                 natom_of_kind
@@ -627,7 +665,7 @@ CONTAINS
     INTEGER :: atom_a, iatom, ikind, imax, ipgf, iset, lmax_rho0_kind, &
       max_iso_not0, max_s_harm, n, ngrid_rad, nkind
     INTEGER, DIMENSION(:), POINTER           :: n_ppl, npgf_kind
-    LOGICAL                                  :: paw_atom, qm_atom
+    LOGICAL                                  :: dft_plus_u_atom, paw_atom, qm_atom
     REAL(KIND=dp)                            :: zeff, zeff_correction
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: zet_kind
     TYPE(all_potential_type), POINTER        :: all_potential
@@ -697,6 +735,7 @@ CONTAINS
                              max_iso_not0=max_iso_not0,&
                              paw_atom=paw_atom,&
                              qm_atom=qm_atom,&
+                             dft_plus_u_atom=dft_plus_u_atom,&
                              lmax_rho0=lmax_rho0_kind,&
                              shell=shell)
         IF (PRESENT(maxatom)) THEN
@@ -930,6 +969,11 @@ CONTAINS
         IF (PRESENT(qm_atom_present)) THEN
           IF (qm_atom) THEN
             qm_atom_present = .TRUE.
+          END IF
+        END IF
+        IF (PRESENT(dft_plus_u_atom_present)) THEN
+          IF (dft_plus_u_atom) THEN
+            dft_plus_u_atom_present = .TRUE.
           END IF
         END IF
         IF (PRESENT(shell_present)) THEN
@@ -1227,15 +1271,20 @@ CONTAINS
     CHARACTER(LEN=2)                         :: current_symbol, element_symbol
     CHARACTER(LEN=default_string_length) :: akind_name, aux_basis_set_name, &
       keyword, orb_basis_set_name, potential_name, potential_type
-    INTEGER                                  :: i, i_rep, ipos, k_rep, n_rep, &
+    INTEGER                                  :: handle, i, i_rep, ipos, k_rep, n_rep, &
                                                 naux, ngrid_ang, ngrid_rad, &
-                                                norb, z
+                                                norb, stat, z
     INTEGER, DIMENSION(:), POINTER           :: elec_conf
     LOGICAL                                  :: check, explicit_basis, &
-                                                explicit_potential, failure
+                                                explicit_potential, failure, &
+                                                section_enabled
     REAL(KIND=dp)                            :: zeff_correction
-    TYPE(section_vals_type), POINTER         :: basis_section, dft_section, &
+    TYPE(section_vals_type), POINTER         :: basis_section, &
+                                                dft_plus_u_section, &
+                                                dft_section, &
                                                 potential_section
+
+    CALL timeset(routineN,"I"," ",handle)
 
     NULLIFY (elec_conf)
 
@@ -1345,7 +1394,9 @@ CONTAINS
           EXIT
        END IF
     END DO
+
     ! If a proper element was not found exit the normal execution
+    
     IF (z == -1) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
             "No element could be assign to the atomic kind <"//&
@@ -1354,7 +1405,9 @@ CONTAINS
             TRIM(akind_name)//"> or select a valid "//&
             "element symbol for the atomic kind name",para_env)
     END IF
+
     ! Normal parsing of the KIND section
+
     IF (k_rep>0) THEN
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="AUX_BASIS_SET", c_val=aux_basis_set_name,error=error)
@@ -1425,11 +1478,41 @@ CONTAINS
             keyword_name="GPW_TYPE",l_val=atomic_kind%gpw_type_forced,error=error)
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="GHOST",l_val=atomic_kind%ghost,error=error)
+
+       ! Read the DFT+U subsection of the current atomic kind, if enabled
+
+       NULLIFY (dft_plus_u_section)
+       dft_plus_u_section  => section_vals_get_subs_vals(kind_section,"DFT_PLUS_U",&
+                                                         i_rep_section=k_rep,&
+                                                         error=error)
+print*,ASSOCIATED(dft_plus_u_section)
+       section_enabled = .FALSE.
+       CALL section_vals_val_get(dft_plus_u_section,"_SECTION_PARAMETERS_",&
+                                 l_val=section_enabled,&
+                                 error=error)
+print*,section_enabled
+       IF (section_enabled) THEN
+         ALLOCATE (atomic_kind%dft_plus_u,STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         CALL section_vals_val_get(dft_plus_u_section,&
+                                   keyword_name="L",&
+                                   i_val=atomic_kind%dft_plus_u%l,&
+                                   error=error)
+         CALL cp_assert(atomic_kind%dft_plus_u%l >= 0,cp_failure_level,&
+                        cp_assertion_failed,routineP,&
+                        "DFT+U| Error: l < 0",error,failure)
+         CALL section_vals_val_get(dft_plus_u_section,&
+                                   keyword_name="U_MINUS_J",&
+                                   r_val=atomic_kind%dft_plus_u%u_minus_j,&
+                                   error=error)
+       END IF
+
     END IF
 
     atomic_kind%mass = atomic_kind%mass*massunit
 
-    !   *** Allocate and initialise the orbital basis set data set structure ***
+    ! Allocate and initialise the orbital basis set data set structure
+
     CALL init_orbital_pointers(5) ! debug the SUN optimizer
 
     ! BASIS  and POTENTIAL read only when strictly necessary otherwise, even if not used
@@ -1591,7 +1674,9 @@ CPSourceFileRef,&
                "atomic kind <"//TRIM(atomic_kind%name)//">",para_env)
        END IF
     END SELECT
-    
+
+    CALL timestop(0.0_dp,handle)
+
   END SUBROUTINE read_atomic_kind
 
 !!****** atomic_kind_types/read_atomic_kind_set [1.0] *
@@ -1623,13 +1708,17 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'read_atomic_kind_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ikind, method, nkind, &
+    INTEGER                                  :: handle, ikind, method, nkind, &
                                                 qs_method
     LOGICAL                                  :: no_fail
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
+    CALL timeset(routineN,"I"," ",handle)
+
     no_fail = .FALSE.
+
     ! Between all methods only SE and DFTB may not need a KIND section.
+
     CALL section_vals_val_get(force_env_section,"METHOD",i_val=method,error=error)
     IF (method==do_qs) THEN
        CALL section_vals_val_get(force_env_section,"DFT%QS%METHOD",i_val=qs_method,error=error)
@@ -1653,6 +1742,8 @@ CPSourceFileRef,&
        CALL stop_program(routineN,moduleN,__LINE__,&
             "The pointer atomic_kind_set is not associated",para_env)
     END IF
+
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE read_atomic_kind_set
 
@@ -1913,6 +2004,13 @@ CPSourceFileRef,&
         CALL write_potential(atomic_kind%all_potential,output_unit,error)
         CALL write_potential(atomic_kind%elp_potential,output_unit,error)
         CALL write_potential(atomic_kind%gth_potential,output_unit,error)
+        IF (ASSOCIATED(atomic_kind%dft_plus_u)) THEN
+          WRITE (UNIT=output_unit,&
+                 FMT="(/,T6,A,/,T8,A,T76,I5,/,T8,A,T73,F8.3),/)")&
+            "A DFT+U correction is applied to atoms of this atomic kind:",&
+            "Angular quantum momentum number L:",atomic_kind%dft_plus_u%l,&
+            "U - J value in [eV]:",atomic_kind%dft_plus_u%u_minus_j*evolt
+        END IF
       ELSE
         CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
       END IF
@@ -1982,7 +2080,7 @@ CPSourceFileRef,&
 !!   FUNCTION
 !!    Write all the GTO basis sets of an atomic kind set to the output
 !!    unit (for the printing of the unnormalized basis sets as read from
-!           database).
+!!          database).
 !!
 !!   AUTHOR
 !!     
