@@ -186,12 +186,12 @@ CONTAINS
     IF (ASSOCIATED(atom_pair_recv)) DEALLOCATE(atom_pair_recv)
 
     ! construct a list of all tasks
-    ntasks = 0
-    IF (ASSOCIATED(tasks)) THEN
-       curr_tasks = SIZE(tasks,2) 
-    ELSE
-       curr_tasks = 0
+    IF (.NOT.ASSOCIATED(tasks)) THEN
+       CALL reallocate(tasks,1,5,1,max_tasks)
+       CALL reallocate(dist_ab,1,3,1,max_tasks)
     ENDIF
+    ntasks = 0
+    curr_tasks = SIZE(tasks,2)
 
     loop_ikind: DO ikind=1,nkind
 
