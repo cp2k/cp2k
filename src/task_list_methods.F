@@ -181,6 +181,10 @@ CONTAINS
        maxpgf=MAX(MAXVAL(npgfa),maxpgf)
     END DO
 
+    ! free the atom_pair lists if allocated
+    IF (ASSOCIATED(atom_pair_send)) DEALLOCATE(atom_pair_send)
+    IF (ASSOCIATED(atom_pair_recv)) DEALLOCATE(atom_pair_recv)
+
     ! construct a list of all tasks
     ntasks = 0
     IF (ASSOCIATED(tasks)) THEN
