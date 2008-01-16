@@ -107,7 +107,7 @@ MODULE qs_rho0_ggrid
 
     INTEGER :: auxbas_grid, dir, handle, iat, iatom, igrid, ikind, istat, &
       ithread, j, l0_ikind, lmax0, nat, nch_ik, nch_max, nkind, npme, tp(3)
-    INTEGER, DIMENSION(:), POINTER           :: atom_list, tasks
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: eps_rho_rspace, r_V0, &
                                                 rpgf0_s, zet0_s
@@ -138,7 +138,7 @@ MODULE qs_rho0_ggrid
     CALL timeset("put_rho0_s_on_grid","I","",handle)
 
     failure = .FALSE.
-    NULLIFY(atom_kind,atom_list,tasks,pab,Qlm_c)
+    NULLIFY(atom_kind,atom_list,cores,pab,Qlm_c)
 
     NULLIFY(dft_control,pw_env,particle_set,para_env,cell,rho0_s_gs,rho0_s_rs)
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
@@ -197,9 +197,9 @@ MODULE qs_rho0_ggrid
       nch_ik = ncoset(l0_ikind)
       pab = 0.0_dp
 
-      CALL reallocate ( tasks, 1, nat )
+      CALL reallocate ( cores, 1, nat )
       npme = 0
-      tasks = 0
+      cores = 0
                   
       DO iat=1,nat
          iatom = atom_list(iat)
@@ -213,25 +213,25 @@ MODULE qs_rho0_ggrid
             IF( ALL (tp.GE.rs_grid%lb_real) .AND. ALL (tp.LE.rs_grid%ub_real) ) THEN
                ! local atom
                npme = npme + 1
-               tasks (npme) = iat
+               cores (npme) = iat
             ENDIF
          ELSEIF(rs_grid%parallel) THEN
             ! replicated realspace grid, split the atoms up between procs
             IF (MODULO(nat,rs_grid%group_size) == rs_grid % my_pos ) THEN
                npme = npme + 1
-               tasks (npme) = iat
+               cores (npme) = iat
             ENDIF
          ELSE
             ! serial job
             npme = npme + 1
-            tasks (npme) = iat           
+            cores (npme) = iat           
          ENDIF
       END DO
 
       ithread=0
       DO j=1,npme
 
-        iat =  tasks(j)
+        iat =  cores(j)
         iatom = atom_list(iat)
 
         CALL  get_rho0_mpole(rho0_mpole=rho0, iat=iatom, Qlm_car_s=Qlm_c)
@@ -250,9 +250,9 @@ MODULE qs_rho0_ggrid
 
     END DO  ! ikind
 
-    IF (ASSOCIATED(tasks)) THEN
-      DEALLOCATE (tasks,STAT=istat)
-      IF ( istat /= 0 ) CALL stop_memory ( "put_rho0_s_on_grid", "tasks" )
+    IF (ASSOCIATED(cores)) THEN
+      DEALLOCATE (cores,STAT=istat)
+      IF ( istat /= 0 ) CALL stop_memory ( "put_rho0_s_on_grid", "cores" )
     END IF
 
     DEALLOCATE(pab,STAT=istat)
@@ -383,7 +383,7 @@ MODULE qs_rho0_ggrid
       istat, ithread, j, l0_ikind, lmax0, lshell, lx, ly, lz, m1, m2, maxso, &
       n1, n2, nat, nch_ik, nch_max, ncurr, npme, nset, nspins, nthread, &
       tp(3)
-    INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, npgf, tasks
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, npgf, cores
     LOGICAL                                  :: failure, my_tddft, paw_atom
     REAL(dp)                                 :: c4pi, eps_rho_rspace, &
                                                 force_tmp(3), r_V0, ra(3), &
@@ -432,7 +432,7 @@ MODULE qs_rho0_ggrid
     CALL timeset("integrate_vhg0_rspace","I","",handle)
 
     NULLIFY(atomic_kind_set,dft_control,para_env,particle_set)
-    NULLIFY(cell,force,pw_env,rho0_mpole,rho_atom_set,tasks)
+    NULLIFY(cell,force,pw_env,rho0_mpole,rho_atom_set,cores)
 
     my_tddft = .FALSE.
     IF (PRESENT(tddft)) my_tddft = tddft
@@ -579,9 +579,9 @@ MODULE qs_rho0_ggrid
       nch_ik = ncoset(l0_ikind)
       pab = 1.0_dp
 
-      CALL reallocate ( tasks, 1, nat )
+      CALL reallocate ( cores, 1, nat )
       npme = 0
-      tasks = 0
+      cores = 0
 
       DO iat=1,nat
          iatom = atom_list(iat)
@@ -595,25 +595,25 @@ MODULE qs_rho0_ggrid
             IF( ALL (tp.GE.rs_v%lb_real) .AND. ALL (tp.LE.rs_v%ub_real) ) THEN
                ! local atom
                npme = npme + 1
-               tasks (npme) = iat
+               cores (npme) = iat
             ENDIF
          ELSEIF(rs_v%parallel) THEN
             ! replicated realspace grid, split the atoms up between procs
             IF (MODULO(nat,rs_v%group_size) == rs_v % my_pos ) THEN
                npme = npme + 1
-               tasks (npme) = iat
+               cores (npme) = iat
             ENDIF
          ELSE
             ! serial job
             npme = npme + 1
-            tasks (npme) = iat           
+            cores (npme) = iat           
          ENDIF
       END DO
 
       ithread=0
       DO j=1,npme
 
-        iat =  tasks(j)
+        iat =  cores(j)
         iatom = atom_list(iat)
         ra(:) = pbc(particle_set(iatom)%r,cell)
 
@@ -793,9 +793,9 @@ MODULE qs_rho0_ggrid
 
     CALL rs_pool_give_back_rs(rs_pool,rs_v,error=error)
 
-    IF (ASSOCIATED(tasks)) THEN
-      DEALLOCATE (tasks,STAT=istat)
-      IF ( istat /= 0 ) CALL stop_memory ( "integrate_vhg0_rspace", "tasks" )
+    IF (ASSOCIATED(cores)) THEN
+      DEALLOCATE (cores,STAT=istat)
+      IF ( istat /= 0 ) CALL stop_memory ( "integrate_vhg0_rspace", "cores" )
     END IF
     DEALLOCATE (habt,hdabt,hadbt,hab_spht,hdab_spht,pab, STAT= istat)
     IF ( istat /= 0 ) CALL stop_memory ( "integrate_vhg0_rspace", &

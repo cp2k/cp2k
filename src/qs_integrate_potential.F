@@ -166,7 +166,7 @@ CONTAINS
                                                 natom_of_kind, npme,tp(3)
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    INTEGER, DIMENSION(:), POINTER           :: tasks
+    INTEGER, DIMENSION(:), POINTER           :: cores
     LOGICAL                                  :: use_virial
     REAL(KIND=dp)                            :: alpha_core_charge, &
          ccore_charge, eps_rho_rspace
@@ -192,7 +192,7 @@ CONTAINS
 
     CALL timeset("integrate_v_core_rspace","I","",handle)
 
-    NULLIFY(pw_env,auxbas_rs_pool,hab,pab,tasks)
+    NULLIFY(pw_env,auxbas_rs_pool,hab,pab,cores)
     ALLOCATE(hab(1,1),pab(1,1),STAT=ierr)
     IF(ierr/=0) CALL stop_memory("integrate_v_core_rspace","hab,pab",1)
 
@@ -226,9 +226,9 @@ CONTAINS
 
        pab(1,1) = -ccore_charge
 
-       CALL reallocate ( tasks, 1, natom_of_kind )
+       CALL reallocate ( cores, 1, natom_of_kind )
        npme = 0
-       tasks = 0
+       cores = 0
 
        DO iatom = 1, natom_of_kind
           atom_a = atom_list(iatom)
@@ -242,24 +242,24 @@ CONTAINS
              IF( ALL (tp.GE.rs_v%lb_real) .AND. ALL (tp.LE.rs_v%ub_real) ) THEN
                 ! local atom
                 npme = npme + 1
-                tasks (npme) = iatom
+                cores (npme) = iatom
              ENDIF
           ELSEIF(rs_v%parallel) THEN
              ! replicated realspace grid, split the atoms up between procs
              IF (MODULO(natom_of_kind,rs_v%group_size) == rs_v % my_pos ) THEN
                 npme = npme + 1
-                tasks (npme) = iatom
+                cores (npme) = iatom
              ENDIF
           ELSE
              ! serial job
              npme = npme + 1
-             tasks (npme) = iatom            
+             cores (npme) = iatom            
           ENDIF
        END DO
        
       DO j=1,npme
 
-        iatom = tasks(j)
+        iatom = cores(j)
         atom_a = atom_list(iatom)
         ra(:) = pbc(particle_set(atom_a)%r,cell)
         hab(1,1) = 0.0_dp
@@ -290,9 +290,9 @@ CONTAINS
 
     CALL rs_pool_give_back_rs(auxbas_rs_pool,rs_v,error=error)
 
-    DEALLOCATE(hab,pab,tasks,STAT=ierr)
+    DEALLOCATE(hab,pab,cores,STAT=ierr)
     IF(ierr /= 0) CALL stop_memory("integrate_v_core_rspace",&
-                  "hab,pab,tasks")
+                  "hab,pab,cores")
 
     CALL timestop(0.0_dp,handle)
 
@@ -563,7 +563,6 @@ CONTAINS
        CALL reallocate(hdabt,1,3,1,maxco,1,1,0,nthread)
        CALL reallocate(hadbt,1,3,1,maxco,1,1,0,nthread)
     END IF
-
 
     !   get maximum numbers
     natom = SIZE( particle_set )

@@ -429,7 +429,7 @@ CONTAINS
                                                 nthread,i,k,n, &
                                                 tp(3)
     INTEGER, DIMENSION(:), POINTER           :: atom_list,ub,lb
-    INTEGER, DIMENSION(:), POINTER           :: tasks
+    INTEGER, DIMENSION(:), POINTER           :: cores
     REAL(KIND=dp)                            :: alpha, eps_rho_rspace
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab
@@ -453,7 +453,7 @@ CONTAINS
 
     CALL timeset("calculate_rho_core","I"," ",handle)
     NULLIFY(atomic_kind,cell,dft_control,pab,atomic_kind_set,particle_set,&
-         atom_list,pw_env,rs_rho,auxbas_rs_pool,auxbas_pw_pool,tasks)
+         atom_list,pw_env,rs_rho,auxbas_rs_pool,auxbas_pw_pool,cores)
     NULLIFY(lgrid%r)
     ALLOCATE(pab(1,1),STAT=ierr)
     IF ( ierr /= 0 ) CALL stop_memory ( "calculate_rho_core", "pab", 1 )
@@ -488,9 +488,9 @@ CONTAINS
       nthread = 1
       ithread=0
 
-      CALL reallocate ( tasks, 1, natom )
+      CALL reallocate ( cores, 1, natom )
       npme = 0
-      tasks = 0
+      cores = 0
 
       DO iatom = 1, natom
          atom_a = atom_list(iatom)
@@ -505,25 +505,25 @@ CONTAINS
                ! local atom
                CALL rs_find_node(rs_rho,tp,dest)
                npme = npme + 1
-               tasks (npme) = iatom
+               cores (npme) = iatom
             ENDIF
          ELSEIF(rs_rho%parallel) THEN
             ! replicated realspace grid, split the atoms up between procs
             IF (MODULO(natom,rs_rho%group_size) == rs_rho % my_pos ) THEN
                npme = npme + 1
-               tasks (npme) = iatom
+               cores (npme) = iatom
             ENDIF
          ELSE
             ! serial job
             npme = npme + 1
-            tasks (npme) = iatom            
+            cores (npme) = iatom            
          ENDIF
       END DO
 
       IF(npme.GT.0)THEN
          DO j=1,npme
 
-            iatom = tasks(j)
+            iatom = cores(j)
             atom_a = atom_list(iatom)
             ra(:) = pbc(particle_set(atom_a)%r,cell)
 
@@ -537,9 +537,9 @@ CONTAINS
 
     END DO
 
-    IF (ASSOCIATED(tasks)) THEN
-      DEALLOCATE (tasks,STAT=ierr)
-      IF ( ierr /= 0 ) CALL stop_memory ( "calculate_rho_core", "tasks" )
+    IF (ASSOCIATED(cores)) THEN
+      DEALLOCATE (cores,STAT=ierr)
+      IF ( ierr /= 0 ) CALL stop_memory ( "calculate_rho_core", "cores" )
     END IF
     DEALLOCATE ( pab, STAT=ierr )
     IF ( ierr /= 0 ) CALL stop_memory ( "calculate_rho_core", "pab" )
@@ -597,7 +597,7 @@ CONTAINS
          ilist, inode, ipgf, iset, istat, itask, ithread, j, jatom, jkind, jkind_old, jpgf, &
          jset, k, maxco, maxsgf, maxsgf_set, n, na1, na2, natoms, natom_pairs, nb1, nb2, &
          maxset, maxpgf, ncoa, ncob, nkind, nlist, nnode, nseta, nsetb, nthread, &
-         sgfa, sgfb, stat, tp(3), ntasks,&
+         sgfa, sgfb, stat, tp(3), ntasks, ntasks_rep, ntasks_dist,&
          iatom_old, jatom_old, iset_old, jset_old
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
@@ -754,7 +754,6 @@ CONTAINS
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
     map_consistent = dft_control%qs_control%map_consistent
-
     !   *** Initialize working density matrix ***
     ! distributed rs grids require a matrix that will be changed (rs_get_my_tasks)
     ! whereas this is not the case for replicated grids
