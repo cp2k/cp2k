@@ -2369,7 +2369,6 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
-
        CALL section_create(subsection,name="BECKE88_LR",&
             description="Uses the Becke 88 longrange exchange functional",&
             n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
@@ -2382,6 +2381,11 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,"scale_x",&
             description="scales the exchange part of the functional",&
+            default_r_val=1._dp,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,"OMEGA",&
+            description="Potential parameter in erf(omega*r)/r",&
             default_r_val=1._dp,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)

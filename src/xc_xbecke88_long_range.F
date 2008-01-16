@@ -27,6 +27,7 @@ MODULE xc_xbecke88_long_range
   USE bibliography,                    ONLY: Becke1988,&
                                              cite_reference
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
+  USE erf_fn,                          ONLY: erf
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
@@ -99,7 +100,6 @@ CONTAINS
     END IF
     IF (PRESENT(needs)) THEN
        needs%rho=.TRUE.
-       needs%rho_1_3=.TRUE.
        needs%norm_drho=.TRUE.
     END IF
     IF (PRESENT(max_deriv)) max_deriv=3
@@ -188,11 +188,11 @@ CONTAINS
   !!     01.2008 created [mguidon]
   !!
   !!*** **********************************************************************
-  SUBROUTINE xb88_lr_lda_eval(rho_set,deriv_set,grad_deriv,xb88_params,error)
+  SUBROUTINE xb88_lr_lda_eval(rho_set,deriv_set,grad_deriv,xb88_lr_params,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
-    TYPE(section_vals_type), POINTER         :: xb88_params
+    TYPE(section_vals_type), POINTER         :: xb88_lr_params
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lr_lda_eval', &
@@ -201,19 +201,18 @@ CONTAINS
     INTEGER                                  :: handle, npoints, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: epsilon_norm_drho, &
-                                                epsilon_rho, sx
+    REAL(kind=dp)                            :: epsilon_rho, omega, sx
     REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndrho, &
       e_ndrho_ndrho, e_ndrho_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho, &
-      e_ndrho_rho_rho, e_rho, e_rho_rho, e_rho_rho_rho, norm_drho, rho, &
-      rho_1_3
+      e_ndrho_rho_rho, e_rho, e_rho_rho, e_rho_rho_rho, norm_drho, rho
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
     NULLIFY(bo)
 
-    CALL section_vals_val_get(xb88_params,"scale_x",r_val=sx,error=error)
+    CALL section_vals_val_get(xb88_lr_params,"scale_x",r_val=sx,error=error)
+    CALL section_vals_val_get(xb88_lr_params, "omega",r_val=omega, error=error)
 
     CALL cite_reference(Becke1988)
 
@@ -222,9 +221,9 @@ CONTAINS
     CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL xc_rho_set_get(rho_set,rho_1_3=rho_1_3,rho=rho,&
+       CALL xc_rho_set_get(rho_set,rho=rho,&
             norm_drho=norm_drho,local_bounds=bo,rho_cutoff=epsilon_rho,&
-            drho_cutoff=epsilon_norm_drho,error=error)
+            error=error)
        npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
        ! meaningful default for the arrays we don't need: let us make compiler
@@ -292,14 +291,14 @@ CONTAINS
                error=error, error_level=cp_failure_level)
        END IF
 
-       CALL xb88_lr_lda_calc(rho=rho, rho_1_3=rho_1_3, norm_drho=norm_drho,&
+       CALL xb88_lr_lda_calc(rho=rho, norm_drho=norm_drho,&
             e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,e_rho_rho=e_rho_rho,&
             e_ndrho_rho=e_ndrho_rho, e_ndrho_ndrho=e_ndrho_ndrho, &
             e_rho_rho_rho=e_rho_rho_rho, e_ndrho_rho_rho=e_ndrho_rho_rho,&
             e_ndrho_ndrho_rho=e_ndrho_ndrho_rho,&
             e_ndrho_ndrho_ndrho=e_ndrho_ndrho_ndrho,grad_deriv=grad_deriv,&
-            npoints=npoints,epsilon_rho=epsilon_rho,epsilon_norm_drho=epsilon_norm_drho,&
-            sx=sx,error=error)
+            npoints=npoints,epsilon_rho=epsilon_rho,&
+            sx=sx,omega=omega,error=error)
 
        IF (cp_debug) THEN
           DEALLOCATE(dummy,stat=stat)
@@ -321,16 +320,16 @@ CONTAINS
   !!     low level calculation of the becke 88 exchange functional for lda
   !!
   !!   NOTES
-  !!     -
+  !!     - Just took the lsd code and scaled rho and ndrho by 1/2 (e_0 with 2.0)
   !!
   !!   ARGUMENTS
-  !!     - rho_spin: alpha or beta spin density
-  !!     - rho_1_3_spin: rho_spin**(1./3.)
-  !!     - norm_drho_spin: || grad rho_spin ||
+  !!     - rho: alpha or beta spin density
+  !!     - norm_drho: || grad rho ||
   !!     - e_0: adds to it the local value of the functional
-  !!     - e_*_spin: derivative of the functional wrt. to the variables
+  !!     - e_*_: derivative of the functional wrt. to the variables
   !!       named where the * is. Everything wrt. to the spin of the arguments.
   !!     - sx: scaling-parameter for exchange
+  !!     - omega: parameter for erfc
   !!     - error: variable to control error logging, stopping,...
   !!       see module cp_error_handling
   !!
@@ -341,408 +340,589 @@ CONTAINS
   !!     01.2008 created [mguidon]
   !!
   !!*** **********************************************************************
-  SUBROUTINE xb88_lr_lda_calc(rho, rho_1_3, norm_drho,&
+  SUBROUTINE xb88_lr_lda_calc(rho, norm_drho,&
        e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
        e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-       e_ndrho_ndrho_ndrho,grad_deriv,npoints,epsilon_rho, epsilon_norm_drho,sx,error)
+       e_ndrho_ndrho_ndrho,grad_deriv,npoints,epsilon_rho, sx,&
+       omega, error)
     INTEGER, INTENT(in)                      :: npoints, grad_deriv
     REAL(kind=dp), DIMENSION(1:npoints), INTENT(inout) :: &
       e_ndrho_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho_rho, e_rho_rho_rho, &
       e_ndrho_ndrho, e_ndrho_rho, e_rho_rho, e_ndrho, e_rho, e_0
     REAL(kind=dp), DIMENSION(1:npoints), &
-      INTENT(in)                             :: norm_drho, rho_1_3, rho
-    REAL(kind=dp), INTENT(in)                :: epsilon_rho, &
-                                                epsilon_norm_drho, sx
+      INTENT(in)                             :: norm_drho, rho
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho, sx, omega
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lr_lda_calc', &
       routineP = moduleN//':'//routineN
-    REAL(kind=dp), PARAMETER :: t_1_9 = 1.0_dp/9.0_dp, t_2_3 = 2.0_dp/3.0_dp, &
-      t_2_9 = 2.0_dp/9.0_dp, t_4_27 = 4.0_dp/27.0_dp, t_4_3 = 4.0_dp/3.0_dp
 
     INTEGER                                  :: ii
     LOGICAL                                  :: failure
-    REAL(kind=dp) :: c, epsilon_rho43, my_rho, my_rho_1_3, t1, t10, t100, &
-      t104, t11, t12, t126, t13, t159, t164, t17, t170, t176, t18, t189, t2, &
-      t21, t23, t29, t3, t31, t33, t37, t39, t40, t43, t44, t49, t5, t51, &
-      t54, t6, t64, t67, t7, t72, t74, t75, t79, t83, t86, t90, t91, t98, &
-      t99, x
+    REAL(kind=dp) :: Cx, epsilon_rho43, my_epsilon_rho, my_ndrho, my_rho, t1, &
+      t10, t100, t1002, t1009, t101, t1013, t103, t104, t1044, t105, t1069, &
+      t109, t1091, t11, t1102, t112, t113, t1136, t1141, t1146, t1153, t1156, &
+      t116, t1163, t1167, t117, t1177, t118, t12, t122, t1220, t126, t127, &
+      t128, t1284, t130, t132, t133, t1334, t1341, t1345, t135, t136, t137, &
+      t1370, t1396, t140, t1400, t1404, t1405, t141, t1412, t143, t1449, &
+      t1456, t146, t1467, t147, t1472, t148, t151, t155, t1553, t16, t168, &
+      t169, t17, t172, t173, t176, t177, t18, t185, t186, t190, t196, t2, &
+      t200, t207, t21, t211, t212, t213, t216, t219, t22, t221, t222
+    REAL(kind=dp) :: t225, t226, t23, t230, t231, t232, t233, t237, t24, &
+      t241, t244, t245, t250, t251, t254, t255, t258, t259, t26, t264, t265, &
+      t27, t270, t271, t28, t281, t284, t285, t289, t29, t293, t297, t3, t30, &
+      t304, t31, t311, t312, t313, t316, t319, t321, t323, t325, t326, t328, &
+      t330, t335, t339, t34, t343, t346, t347, t351, t354, t358, t36, t365, &
+      t368, t37, t372, t377, t38, t382, t383, t384, t39, t393, t397, t40, &
+      t400, t401, t404, t405, t408, t41, t412, t413, t417, t418, t42, t428, &
+      t429, t43, t435, t44, t451, t452, t455, t457, t46, t460, t462, t463, &
+      t464, t465, t466, t467, t47, t470, t473, t478, t479, t48
+    REAL(kind=dp) :: t482, t486, t489, t49, t492, t496, t5, t501, t502, t505, &
+      t508, t51, t513, t514, t519, t52, t521, t525, t526, t529, t530, t533, &
+      t534, t536, t537, t539, t55, t562, t566, t570, t571, t572, t573, t574, &
+      t575, t576, t580, t586, t59, t590, t6, t60, t601, t605, t606, t613, &
+      t624, t628, t632, t639, t64, t640, t641, t657, t667, t669, t677, t68, &
+      t687, t69, t7, t71, t716, t72, t722, t735, t739, t746, t75, t76, t769, &
+      t77, t79, t791, t793, t8, t838, t84, t842, t846, t85, t857, t86, t860, &
+      t867, t87, t880, t90, t91, t933, t94, t95, t961, t98, t99, xx
 
     failure=.FALSE.
-    c= 1.5_dp*(0.75_dp/Pi)**(1.0_dp/3.0_dp)
-    t1 = 2 ** (0.1e1_dp / 0.3e1_dp)
-    t2 = t1 ** 2
-    t5 = beta * t2
-    t7 = beta * t1
-    epsilon_rho43=epsilon_rho**(4./3.)
+    my_epsilon_rho=epsilon_rho
+    epsilon_rho43 = my_epsilon_rho**(4.0_dp/3.0_dp)
+    Cx = 1.5_dp*(3.0_dp/4.0_dp/pi)**(1.0_dp/3.0_dp)
+ 
+    IF (.NOT. failure) THEN
+      DO ii=1,npoints
+        !! scale densities with 0.5 because code comes from LSD
+        my_rho=rho(ii) * 0.5_dp
+        my_ndrho=norm_drho(ii) * 0.5_dp
+        IF (my_rho>my_epsilon_rho) THEN
+          IF( grad_deriv >=0 ) THEN
+            t1 = my_rho ** (0.1D1 / 0.3D1)
+            t2 = t1 * my_rho
+            t3 = 0.1D1 / t2
+            xx = my_ndrho * MAX(t3,epsilon_rho43)
+            t5 = my_ndrho ** 2
+            t6 = beta * t5
+            t7 = my_rho ** 2
+            t8 = t1 ** 2
+            t10 = 0.1D1 / t8 / t7
+            t11 = beta * my_ndrho
+            t12 = LOG(xx + SQRT(xx ** 0.2D1 + 0.1D1))
+            t16 = 0.10D1 + 0.60D1 * t11 * t3 * t12
+            t17 = 0.1D1 / t16
+            t18 = t10 * t17
+            t21 = 0.20D1 * Cx + 0.20D1 * t6 * t18
+            t22 = SQRT(t21)
+            t23 = t22 * t21
+            t24 = my_rho * t23
+            t26 = SQRT(pi)
+            t27 = 0.1D1 / t26
+            t28 = 0.1D1 / omega
+            t29 = 0.1D1 / t22
+            t30 = t28 * t29
+            t31 = t26 * t1
+            t34 = erf(0.3000000000D1 * t30 * t31)
+            t36 = omega * t22
+            t37 = 0.1D1 / t1
+            t38 = t27 * t37
+            t39 = omega ** 2
+            t40 = 0.1D1 / t39
+            t41 = 0.1D1 / t21
+            t42 = t40 * t41
+            t43 = pi * t8
+            t44 = t42 * t43
+            t46 = EXP(-0.8999999998D1 * t44)
+            t47 = t39 * t21
+            t48 = 0.1D1 / pi
+            t49 = 0.1D1 / t8
+            t51 = t46 - 0.10D1
+            t52 = t48 * t49 * t51
+            t55 = t46 - 0.15D1 - 0.5555555558D-1 * t47 * t52
+            t59 = t26 * t34 + 0.3333333334D0 * t36 * t38 * t55
+            t60 = t27 * t59
 
-    SELECT CASE(grad_deriv)
-    CASE (0)
-       !$omp parallel do default(none)&
-       !$omp   shared(npoints,rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
-       !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
-       !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-       !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7,sx)&
-       !$omp   private(x, my_rho,my_rho_1_3,&
-       !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, ii)
-       DO ii=1,npoints
-
-          my_rho = rho(ii)
-          IF (my_rho>epsilon_rho) THEN
-             my_rho_1_3 = rho_1_3(ii)
-             t3 = my_rho_1_3 * my_rho
-             x = norm_drho(ii)/MAX(t3,epsilon_rho43)
-             t6 = x ** 2
-             t10 = t2 * t6 + 0.1e1_dp
-             t11 = SQRT(t10)
-             t12 = t1 * x + t11
-             t13 = LOG(t12)
-             t17 = 0.1e1_dp + 0.6e1_dp * t7 * x * t13
-             t18 = 0.1e1_dp / t17
-             t21 = -c - t5 * t6 * t18
-
-             e_0(ii) = e_0(ii) + ( t2 * t3 * t21 / 0.2e1_dp ) * sx
+            !! Multiply with 2.0 because it code comes from LSD
+            e_0(ii) = e_0(ii) -0.2222222224D0 * t24 * omega * t60 * sx * 2.0_dp
+       
           END IF
-       END DO
-    CASE (1)
-       !$omp parallel do default(none)&
-       !$omp   shared(npoints,rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
-       !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
-       !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-       !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7,sx)&
-       !$omp   private(x, my_rho,my_rho_1_3,&
-       !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
-       !$omp       t31, t33, t37, t39, t40, t43, t44, ii)
-       DO ii=1,npoints
+          IF( grad_deriv >= 1 .OR. grad_deriv == -1 ) THEN 
+            t64 = t23 * omega
+            t68 = my_rho * t22 * omega
+            t69 = t7 * my_rho
+            t71 = 0.1D1 / t8 / t69
+            t72 = t71 * t17
+            t75 = t16 ** 2
+            t76 = 0.1D1 / t75
+            t77 = t10 * t76
+            t79 = 0.1D1 / t1 / t7
+            t84 = 1 + t5 * t10
+            t85 = SQRT(t84)
+            t86 = 0.1D1 / t85
+            t87 = t71 * t86
+            t90 = -0.8000000000D1 * t11 * t79 * t12 - 0.8000000000D1 * t6 * t87
+            t91 = t77 * t90
+            t94 = -0.5333333333D1 * t6 * t72 - 0.20D1 * t6 * t91
+            t95 = t60 * t94
+            t98 = omega * t27
+            t99 = SQRT(0.3141592654D1)
+            t100 = 0.1D1 / t99
+            t101 = t26 * t100
+            t103 = EXP(-0.9000000000D1 * t44)
+            t104 = 0.1D1 / t23
+            t105 = t28 * t104
+            t109 = t26 * t49
+            t112 = -0.1500000000D1 * t105 * t31 * t94 + 0.1000000000D1 * t30 *  &
+            t109
+            t113 = t103 * t112
+            t116 = omega * t29
+            t117 = t116 * t27
+            t118 = t37 * t55
+            t122 = t27 * t3
+            t126 = t21 ** 2
+            t127 = 0.1D1 / t126
+            t128 = t40 * t127
+            t130 = t128 * t43 * t94
+            t132 = pi * t37
+            t133 = t42 * t132
+            t135 = 0.8999999998D1 * t130 - 0.5999999999D1 * t133
+            t136 = t135 * t46
+            t137 = t39 * t94
+            t140 = t8 * my_rho
+            t141 = 0.1D1 / t140
+            t143 = t48 * t141 * t51
+            t146 = t47 * t48
+            t147 = t49 * t135
+            t148 = t147 * t46
+            t151 = t136 - 0.5555555558D-1 * t137 * t52 + 0.3703703705D-1 * t47  &
+            * t143 - 0.5555555558D-1 * t146 * t148
+            t155 = DBLE(2 * t101 * t113) + 0.1666666667D0 * t117 * t118 * t94 -  &
+            0.1111111111D0 * t36 * t122 * t55 + 0.3333333334D0 * t36 * t38 *  &
+            t151
 
-          my_rho = rho(ii)
-          IF (my_rho > epsilon_rho) THEN
-             my_rho_1_3 = rho_1_3(ii)
-             t3 = my_rho_1_3 * my_rho
-             x = norm_drho(ii)/t3
-             t6 = x ** 2
-             t10 = t2 * t6 + 0.1e1_dp
-             t11 = SQRT(t10)
-             t12 = t1 * x + t11
-             t13 = LOG(t12)
-             t17 = 0.1e1_dp + 0.6e1_dp * t7 * x * t13
-             t18 = 0.1e1_dp / t17
-             t21 = -c - t5 * t6 * t18
+            e_rho(ii) = e_rho(ii) +  (-0.2222222224D0 * t64 * t60 - 0.3333333336D0 * t68 * t95 -  &
+            0.2222222224D0 * t24 * t98 * t155) * sx
 
-             e_0(ii) = e_0(ii) + ( t2 * t3 * t21 / 0.2e1_dp ) * sx
+            t168 = 0.60D1 * beta * t3 * t12 + 0.60D1 * t11 * t10 * t86
+            t169 = t77 * t168
+            t172 = 0.40D1 * t11 * t18 - 0.20D1 * t6 * t169
+            t173 = t60 * t172
+            t176 = pi * t100
+            t177 = t176 * t103
+            t185 = t128 * pi
+            t186 = t8 * t172
+            t190 = t39 * t172
+            t196 = 0.8999999998D1 * t185 * t186 * t46 - 0.5555555558D-1 * t190  &
+            * t52 - 0.5000000001D0 * t41 * t172 * t46
+            t200 = -0.3000000000D1 * t177 * t105 * t1 * t172 + 0.1666666667D0 *  &
+            t117 * t118 * t172 + 0.3333333334D0 * t36 * t38 * t196
 
-             t23 = t2 * my_rho_1_3
-             t29 = 0.1e1_dp / t11
-             t31 = t1 + t2 * x * t29
-             t33 = 0.1e1_dp / t12
-             t37 = 0.6e1_dp * t7 * t13 + 0.6e1_dp * t7 * x * t31 * t33
-             t39 = t17 ** 2
-             t40 = 0.1e1_dp / t39
-             t43 = -0.2e1_dp * t5 * x * t18 + t5 * t6 * t37 * t40
-             t44 = t43 * x
+            e_ndrho(ii) = e_ndrho(ii) +  (-0.3333333336D0 * t68 * t173 - 0.2222222224D0 * t24 * t98  &
+            * t200) * sx
 
-
-             e_rho(ii) = e_rho(ii)&
-                  - ( 0.2e1_dp / 0.3e1_dp * t23 * t44 - 0.2e1_dp / 0.3e1_dp *&
-                  t23 * t21 ) * sx
-             e_ndrho(ii) = e_ndrho(ii)&
-                  + ( t2 * t43 / 0.2e1_dp ) * sx
           END IF
+          IF( grad_deriv >=2 .OR. grad_deriv == -2 ) THEN
+            t207 = t27 * t155
+            t211 = my_rho * t29 * omega
+            t212 = t94 ** 2
+            t213 = t60 * t212
+            t216 = t207 * t94
+            t219 = t7 ** 2
+            t221 = 0.1D1 / t8 / t219
+            t222 = t221 * t17
+            t225 = t71 * t76
+            t226 = t225 * t90
+            t230 = 0.1D1 / t75 / t16
+            t231 = t10 * t230
+            t232 = t90 ** 2
+            t233 = t231 * t232
+            t237 = 0.1D1 / t1 / t69
+            t241 = t221 * t86
+            t244 = t5 ** 2
+            t245 = beta * t244
+            t250 = 0.1D1 / t85 / t84
+            t251 = 0.1D1 / t1 / t219 / t69 * t250
+            t254 = 0.1866666667D2 * t11 * t237 * t12 + 0.4000000000D2 * t6 * t241  &
+            - 0.1066666667D2 * t245 * t251
+            t255 = t77 * t254
+            t258 = 0.1955555555D2 * t6 * t222 + 0.1066666667D2 * t6 * t226 + 0.40D1  &
+            * t6 * t233 - 0.20D1 * t6 * t255
+            t259 = t60 * t258
+            t264 = 0.9000000000D1 * t130 - 0.6000000000D1 * t133
+            t265 = t264 * t103
+            t270 = 0.1D1 / t22 / t126
+            t271 = t28 * t270
+            t281 = t26 * t141
+            t284 = 0.2250000000D1 * t271 * t31 * t212 - 0.1000000000D1 * t105 *  &
+            t109 * t94 - 0.1500000000D1 * t105 * t31 * t258 - 0.6666666667D0  &
+            * t30 * t281
+            t285 = t103 * t284
+            t289 = omega * t104 * t27
+            t293 = t3 * t55
+            t297 = t37 * t151
+            t304 = t27 * t79
+            t311 = t126 * t21
+            t312 = 0.1D1 / t311
+            t313 = t40 * t312
+            t316 = 0.1800000000D2 * t313 * t43 * t212
+            t319 = 0.1200000000D2 * t128 * t132 * t94
+            t321 = t128 * t43 * t258
+            t323 = pi * t3
+            t325 = 0.2000000000D1 * t42 * t323
+            t326 = -t316 + t319 + 0.8999999998D1 * t321 + t325
+            t328 = t135 ** 2
+            t330 = t39 * t258
+            t335 = t137 * t48
+            t339 = t48 * t10 * t51
+            t343 = t141 * t135 * t46
+            t346 = t49 * t326
+            t347 = t346 * t46
+            t351 = t49 * t328 * t46
+            t354 = t326 * t46 + t328 * t46 - 0.5555555558D-1 * t330 * t52 + 0.7407407410D-1  &
+            * t137 * t143 - 0.1111111112D0 * t335 * t148 - 0.6172839508D-1  &
+            * t47 * t339 + 0.7407407410D-1 * t146 * t343 - 0.5555555558D-1  &
+            * t146 * t347 - 0.5555555558D-1 * t146 * t351
+            t358 = DBLE(2 * t101 * t265 * t112) + DBLE(2 * t101 * t285) - 0.8333333335D-1  &
+            * t289 * t118 * t212 - 0.1111111111D0 * t117 * t293 * t94  &
+            + 0.3333333334D0 * t117 * t297 * t94 + 0.1666666667D0 * t117 *  &
+            t118 * t258 + 0.1481481481D0 * t36 * t304 * t55 - 0.2222222222D0 *  &
+            t36 * t122 * t151 + 0.3333333334D0 * t36 * t38 * t354
 
-       END DO
-    CASE (-1)
-       !$omp parallel do default(none)&
-       !$omp   shared(npoints,rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
-       !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
-       !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-       !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7,sx)&
-       !$omp   private(x, my_rho,my_rho_1_3,&
-       !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
-       !$omp       t31, t33, t37, t39, t40, t43, t44, ii)
-       DO ii=1,npoints
+            e_rho_rho(ii) = e_rho_rho(ii) +  (-0.6666666672D0 * t36 * t95 - 0.4444444448D0 * t64 * t207 -  &
+            0.1666666668D0 * t211 * t213 - 0.6666666672D0 * t68 * t216 - 0.3333333336D0  &
+            * t68 * t259 - 0.2222222224D0 * t24 * t98 * t358) * sx
 
-          my_rho = rho(ii)
-          IF (my_rho>epsilon_rho) THEN
-             my_rho_1_3 = rho_1_3(ii)
-             t3 = my_rho_1_3 * my_rho
-             x = norm_drho(ii)/t3
-             t6 = x ** 2
-             t10 = t2 * t6 + 0.1e1_dp
-             t11 = SQRT(t10)
-             t12 = t1 * x + t11
-             t13 = LOG(t12)
-             t17 = 0.1e1_dp + 0.6e1_dp * t7 * x * t13
-             t18 = 0.1e1_dp / t17
-             t21 = -c - t5 * t6 * t18
+            t365 = t27 * t200
+            t368 = t94 * t172
+            t372 = t365 * t94
+            t377 = t225 * t168
+            t382 = t6 * t10
+            t383 = t230 * t90
+            t384 = t383 * t168
+            t393 = beta * t5 * my_ndrho
+            t397 = 0.1D1 / t1 / t219 / t7 * t250
+            t400 = -0.8000000000D1 * beta * t79 * t12 - 0.2400000000D2 * t11 *  &
+            t87 + 0.8000000000D1 * t393 * t397
+            t401 = t77 * t400
+            t404 = -0.1066666667D2 * t11 * t72 + 0.5333333333D1 * t6 * t377 - 0.40D1  &
+            * t11 * t91 + 0.40D1 * t382 * t384 - 0.20D1 * t6 * t401
+            t405 = t60 * t404
+            t408 = t207 * t172
+            t412 = t26 * pi * t100
+            t413 = t412 * t128
+            t417 = t271 * t26
+            t418 = t1 * t94
+            t428 = 0.2250000000D1 * t417 * t418 * t172 - 0.1500000000D1 * t105  &
+            * t31 * t404 - 0.5000000000D0 * t105 * t109 * t172
+            t429 = t103 * t428
+            t435 = t37 * t196
+            t451 = t313 * pi
+            t452 = t8 * t94
+            t455 = 0.1800000000D2 * t451 * t452 * t172
+            t457 = t128 * t43 * t404
+            t460 = t128 * t132 * t172
+            t462 = -t455 + 0.8999999998D1 * t457 + 0.5999999999D1 * t460
+            t463 = t462 * t46
+            t464 = t135 * t40
+            t465 = t464 * t127
+            t466 = t172 * t46
+            t467 = t43 * t466
+            t470 = t39 * t404
+            t473 = t94 * t127
+            t478 = 0.1D1 / my_rho
+            t479 = t41 * t478
+            t482 = t190 * t48
+            t486 = t49 * t462 * t46
+            t489 = t41 * t135
+            t492 = t463 + 0.8999999998D1 * t465 * t467 - 0.5555555558D-1 * t470  &
+            * t52 - 0.5000000001D0 * t473 * t466 + 0.3703703705D-1 * t190 * t143  &
+            + 0.3333333334D0 * t479 * t466 - 0.5555555558D-1 * t482 * t148  &
+            - 0.5555555558D-1 * t146 * t486 - 0.5000000001D0 * t489 * t466
+            t496 = 0.1800000000D2 * t413 * t186 * t113 + DBLE(2 * t101 * t429)  &
+            - 0.8333333335D-1 * t289 * t118 * t368 + 0.1666666667D0 * t117 * t435  &
+            * t94 + 0.1666666667D0 * t117 * t118 * t404 - 0.5555555555D-1  &
+            * t117 * t293 * t172 - 0.1111111111D0 * t36 * t122 * t196 + 0.1666666667D0  &
+            * t117 * t297 * t172 + 0.3333333334D0 * t36 * t38 * t492
 
-             t23 = t2 * my_rho_1_3
-             t29 = 0.1e1_dp / t11
-             t31 = t1 + t2 * x * t29
-             t33 = 0.1e1_dp / t12
-             t37 = 0.6e1_dp * t7 * t13 + 0.6e1_dp * t7 * x * t31 * t33
-             t39 = t17 ** 2
-             t40 = 0.1e1_dp / t39
-             t43 = -0.2e1_dp * t5 * x * t18 + t5 * t6 * t37 * t40
-             t44 = t43 * x
+            e_ndrho_rho(ii) = e_ndrho_rho(ii) +  (-0.3333333336D0 * t36 * t173 - 0.2222222224D0 * t64 * t365 -  &
+            0.1666666668D0 * t211 * t60 * t368 - 0.3333333336D0 * t68 * t372  &
+            - 0.3333333336D0 * t68 * t405 - 0.3333333336D0 * t68 * t408 - 0.2222222224D0  &
+            * t24 * t98 * t496) * sx
 
+            t501 = t172 ** 2
+            t502 = t60 * t501
+            t505 = t365 * t172
+            t508 = beta * t10
+            t513 = t168 ** 2
+            t514 = t231 * t513
+            t519 = t219 * my_rho
+            t521 = 0.1D1 / t1 / t519
+            t525 = 0.120D2 * t508 * t86 - 0.60D1 * t6 * t521 * t250
+            t526 = t77 * t525
+            t529 = 0.40D1 * t508 * t17 - 0.80D1 * t11 * t169 + 0.40D1 * t6 * t514  &
+            - 0.20D1 * t6 * t526
+            t530 = t60 * t529
+            t533 = pi ** 2
+            t534 = t533 * t100
+            t536 = 0.1D1 / t39 / omega
+            t537 = t534 * t536
+            t539 = 0.1D1 / t22 / t311
+            t562 = t8 * t501
+            t566 = t8 * t529
+            t570 = t39 ** 2
+            t571 = 0.1D1 / t570
+            t572 = t126 ** 2
+            t573 = 0.1D1 / t572
+            t574 = t571 * t573
+            t575 = t574 * t533
+            t576 = t2 * t501
+            t580 = t39 * t529
+            t586 = -0.2250000000D2 * t451 * t562 * t46 + 0.8999999998D1 * t185  &
+            * t566 * t46 + 0.8099999996D2 * t575 * t576 * t46 - 0.5555555558D-1  &
+            * t580 * t52 - 0.5000000001D0 * t41 * t529 * t46
+            t590 = -0.2700000000D2 * t537 * t539 * my_rho * t501 * t103 + 0.4500000000D1  &
+            * t177 * t271 * t1 * t501 - 0.3000000000D1 * t177 * t105 *  &
+            t1 * t529 - 0.8333333335D-1 * t289 * t118 * t501 + 0.3333333334D0  &
+            * t117 * t435 * t172 + 0.1666666667D0 * t117 * t118 * t529 + 0.3333333334D0  &
+            * t36 * t38 * t586
+          
+            e_ndrho_ndrho(ii) = e_ndrho_ndrho(ii) +  (-0.1666666668D0 * t211 * t502 - 0.6666666672D0 * t68 * t505  &
+            - 0.3333333336D0 * t68 * t530 - 0.2222222224D0 * t24 * t98 * t590)  &
+            * sx
 
-             e_rho(ii) = e_rho(ii)&
-                  - ( 0.2e1_dp / 0.3e1_dp * t23 * t44 - 0.2e1_dp / 0.3e1_dp *&
-                  t23 * t21 ) * sx
-             e_ndrho(ii) = e_ndrho(ii)&
-                  + ( t2 * t43 / 0.2e1_dp ) * sx
           END IF
-       END DO
-    CASE (2)
-       !$omp parallel do default(none)&
-       !$omp   shared(npoints,rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
-       !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
-       !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-       !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7,sx)&
-       !$omp   private(x, my_rho,my_rho_1_3,&
-       !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
-       !$omp       t31, t33, t37, t39, t40, t43, t44, t49, t51, t54, t64, t67, t72, t74, &
-       !$omp       t75, t79, t83, t86, t90, t91, t98, t99, t100, t104, ii)
-       DO ii=1,npoints
+          IF( grad_deriv >=3 .OR. grad_deriv == -3 ) THEN
+            t601 = t27 * t358
+            t605 = my_rho * t104 * omega
+            t606 = t212 * t94
+            t613 = t94 * t258
+            t624 = 0.1D1 / t8 / t519
+            t628 = t221 * t76
+            t632 = t71 * t230
+            t639 = t75 ** 2
+            t640 = 0.1D1 / t639
+            t641 = t10 * t640
+            t657 = t219 ** 2
+            t667 = t84 ** 2
+            t669 = 0.1D1 / t85 / t667
+            t677 = -0.9125925923D2 * t6 * t624 * t17 - 0.5866666667D2 * t6 * t628  &
+            * t90 - 0.3200000001D2 * t6 * t632 * t232 + 0.1600000000D2 * t6  &
+            * t225 * t254 - 0.120D2 * t6 * t641 * t232 * t90 + 0.120D2 * t382  &
+            * t383 * t254 - 0.20D1 * t6 * t77 * (-0.6222222223D2 * t11 / t1 /  &
+            t219 * t12 - 0.2115555556D3 * t6 * t624 * t86 + 0.1315555556D3 *  &
+            t245 / t1 / t657 * t250 - 0.4266666668D2 * beta * t244 * t5 / t657  &
+            / t69 * t669)
+            t687 = t28 * t539
+            t716 = t264 ** 2
+            t722 = omega * t270 * t27
+            t735 = t79 * t55
+            t739 = t3 * t151
+            t746 = t37 * t354
+            t769 = t40 * t573
+            t791 = 0.5400000000D2 * t769 * t43 * t606 - 0.3600000000D2 * t313 *  &
+            t132 * t212 - 0.5400000000D2 * t451 * t452 * t258 - 0.6000000000D1  &
+            * t128 * t323 * t94 + 0.1800000000D2 * t128 * t132 * t258 + 0.8999999998D1  &
+            * t128 * t43 * t677 - 0.2666666667D1 * t42 * pi * t79
+            t793 = t328 * t135
+            t838 = DBLE(3 * t326 * t135 * t46) + DBLE(t791 * t46) + DBLE(t793 *  &
+            t46) - 0.5555555558D-1 * t39 * t677 * t52 + 0.1111111112D0 * t330  &
+            * t143 - 0.1666666668D0 * t330 * t48 * t148 - 0.1851851853D0 * t137  &
+            * t339 + 0.2222222223D0 * t335 * t343 - 0.1666666668D0 * t335 *  &
+            t347 - 0.1666666668D0 * t335 * t351 + 0.1646090535D0 * t47 * t48  &
+            * t71 * t51 - 0.1851851853D0 * DBLE(t146) * DBLE(t10) * DBLE(t135)  &
+            * DBLE(t46) + 0.1111111112D0 * DBLE(t146) * DBLE(t141) * DBLE(t326)  &
+            * DBLE(t46) + 0.1111111112D0 * DBLE(t146) * DBLE(t141) * DBLE(t328)  &
+            * DBLE(t46) - 0.5555555558D-1 * DBLE(t146) * DBLE(t49) * DBLE(t791)  &
+            * DBLE(t46) - 0.1666666668D0 * DBLE(t146) * DBLE(t346) * DBLE(t136)  &
+            - 0.5555555558D-1 * DBLE(t146) * DBLE(t49) * DBLE(t793) *  &
+            DBLE(t46)
+            t842 = 0.2D1 * t101 * (-t316 + t319 + 0.9000000000D1 * t321 + t325)  &
+            * t103 * t112 + 0.2D1 * t101 * t103 * (-0.5625000000D1 * t687 * t31  &
+            * t606 + 0.2250000000D1 * t271 * t109 * t212 + 0.6750000000D1 *  &
+            t417 * t418 * t258 + 0.1000000000D1 * t105 * t281 * t94 - 0.1500000000D1  &
+            * t105 * t109 * t258 - 0.1500000000D1 * t105 * t31 * t677  &
+            + 0.1111111111D1 * t30 * t26 * t10) + 0.4D1 * t101 * t265 * t284 +  &
+            0.2D1 * t101 * t716 * t103 * t112 + 0.1250000000D0 * t722 * t118  &
+            * t606 + 0.8333333333D-1 * t289 * t293 * t212 - 0.2500000000D0 * t289  &
+            * t297 * t212 - 0.2500000000D0 * t289 * t118 * t613 + 0.2222222222D0  &
+            * t117 * t735 * t94 - 0.3333333333D0 * t117 * t739 * t94 -  &
+            0.1666666667D0 * t117 * t293 * t258 + 0.5000000001D0 * t117 * t746  &
+            * t94 + 0.5000000001D0 * t117 * t297 * t258 + 0.1666666667D0 * t117  &
+            * t118 * t677 - 0.3456790122D0 * t36 * t27 * t237 * t55 + 0.4444444444D0  &
+            * t36 * t304 * t151 - 0.3333333333D0 * t36 * t122 * t354  &
+            + 0.3333333334D0 * t36 * t38 * t838
+            t846 = -0.5000000004D0 * t116 * t213 - 0.2000000001D1 * t36 * t216  &
+            - 0.1000000001D1 * t36 * t259 - 0.6666666672D0 * t64 * t601 + 0.8333333340D-1  &
+            * t605 * t60 * t606 - 0.5000000004D0 * t211 * t207 * t212  &
+            - 0.5000000004D0 * t211 * t60 * t613 - 0.1000000001D1 * t68 *  &
+            t601 * t94 - 0.1000000001D1 * t68 * t207 * t258 - 0.3333333336D0 *  &
+            t68 * t60 * t677 - 0.2222222224D0 * t24 * t98 * t842
 
-          my_rho = rho(ii)
-          IF (my_rho > epsilon_rho) THEN
-             my_rho_1_3 = rho_1_3(ii)
-             t3 = my_rho_1_3 * my_rho
-             x = norm_drho(ii)/t3
-             t6 = x ** 2
-             t10 = t2 * t6 + 0.1e1_dp
-             t11 = SQRT(t10)
-             t12 = t1 * x + t11
-             t13 = LOG(t12)
-             t17 = 0.1e1_dp + 0.6e1_dp * t7 * x * t13
-             t18 = 0.1e1_dp / t17
-             t21 = -c - t5 * t6 * t18
+            e_rho_rho_rho(ii) = e_rho_rho_rho(ii) +  t846 * sx
 
-             e_0(ii) = e_0(ii) + ( t2 * t3 * t21 / 0.2e1_dp ) * sx
+            t857 = t27 * t496
+            t860 = t212 * t172
+            t867 = t94 * t404
+            t880 = t258 * t172
+            t933 = 0.3911111110D2 * t11 * t222 - 0.1955555555D2 * t6 * t628 * t168  &
+            + 0.2133333334D2 * t11 * t226 - 0.2133333334D2 * t6 * t71 * t384  &
+            + 0.1066666667D2 * t6 * t225 * t400 + 0.80D1 * t11 * t233 - 0.120D2  &
+            * t382 * t640 * t232 * t168 + 0.80D1 * t382 * t383 * t400 - 0.40D1  &
+            * t11 * t255 + 0.40D1 * t382 * t230 * t254 * t168 - 0.20D1 *  &
+            t6 * t77 * (0.1866666667D2 * beta * t237 * t12 + 0.9866666667D2 *  &
+            t11 * t241 - 0.8266666668D2 * t393 * t251 + 0.3200000001D2 * beta  &
+            * t244 * my_ndrho / t657 / t7 * t669)
+            t961 = t687 * t26
+            t1002 = t3 * t196
+            t1009 = 0.2D1 * t101 * (-t455 + 0.9000000000D1 * t457 + 0.6000000000D1  &
+            * t460) * t103 * t112 + 0.1800000000D2 * t412 * t264 * t40 * t127  &
+            * t8 * t172 * t103 * t112 + 0.2D1 * t101 * t265 * t428 + 0.1800000000D2  &
+            * t413 * t186 * t285 + 0.2D1 * t101 * t103 * (-0.5625000000D1  &
+            * t961 * t1 * t212 * t172 + 0.4500000000D1 * t417 * t418 * t404  &
+            + 0.1500000000D1 * t417 * t49 * t94 * t172 - 0.1000000000D1 *  &
+            t105 * t109 * t404 + 0.2250000000D1 * t417 * t1 * t258 * t172 - 0.1500000000D1  &
+            * t105 * t31 * t933 + 0.3333333334D0 * t105 * t281 *  &
+            t172) + 0.1250000000D0 * t722 * t118 * t860 - 0.8333333335D-1 * t289  &
+            * t435 * t212 - 0.1666666667D0 * t289 * t118 * t867 + 0.5555555555D-1  &
+            * t289 * t293 * t368 - 0.1111111111D0 * t117 * t1002 * t94  &
+            - 0.1111111111D0 * t117 * t293 * t404
+            t1013 = t37 * t492
+            t1044 = t769 * pi
+            t1069 = 0.5400000000D2 * t1044 * t8 * t212 * t172 - 0.3600000000D2  &
+            * t451 * t452 * t404 - 0.2400000000D2 * t451 * t37 * t94 * t172 +  &
+            0.1200000000D2 * t128 * t132 * t404 - 0.1800000000D2 * t451 * t8 *  &
+            t258 * t172 + 0.8999999998D1 * t128 * t43 * t933 - 0.2000000000D1  &
+            * t128 * t323 * t172
+            t1091 = t127 * t172 * t46
+            t1102 = t1069 * t46 + 0.8999999998D1 * t326 * t40 * t127 * t467 + DBLE(2  &
+            * t136 * t462) + 0.8999999998D1 * t328 * t40 * t127 * t467 -  &
+            0.5555555558D-1 * t39 * t933 * t52 - 0.5000000001D0 * t258 * t127  &
+            * t466 + 0.7407407410D-1 * t470 * t143 + 0.6666666668D0 * t94 * t478  &
+            * t1091 - 0.1111111112D0 * t470 * t48 * t148 - 0.1111111112D0  &
+            * t335 * t486 - 0.1000000001D1 * t94 * t135 * t1091
+            t1136 = -0.6172839508D-1 * t190 * t339 - 0.5555555556D0 * t41 / t7  &
+            * t466 + 0.7407407410D-1 * t482 * t343 + 0.7407407410D-1 * t146 *  &
+            t141 * t462 * t46 + 0.6666666668D0 * t479 * t135 * t172 * t46 - 0.5555555558D-1  &
+            * t482 * t347 - 0.5555555558D-1 * t146 * t49 * t1069  &
+            * t46 - 0.5000000001D0 * t41 * t326 * t466 - 0.5555555558D-1 * t482  &
+            * t351 - 0.1111111112D0 * t146 * t147 * t463 - 0.5000000001D0 *  &
+            t41 * t328 * t466
+            t1141 = -0.1666666667D0 * t289 * t297 * t368 + 0.3333333334D0 * t117  &
+            * t1013 * t94 + 0.3333333334D0 * t117 * t297 * t404 - 0.8333333335D-1  &
+            * t289 * t118 * t880 + 0.1666666667D0 * t117 * t435 * t258 +  &
+            0.1666666667D0 * t117 * t118 * t933 + 0.7407407405D-1 * t117 * t735  &
+            * t172 + 0.1481481481D0 * t36 * t304 * t196 - 0.1111111111D0 *  &
+            t117 * t739 * t172 - 0.2222222222D0 * t36 * t122 * t492 + 0.1666666667D0  &
+            * t117 * t746 * t172 + 0.3333333334D0 * t36 * t38 * (t1102  &
+            + t1136)
+            t1146 = -0.3333333336D0 * t117 * t59 * t94 * t172 - 0.6666666672D0  &
+            * t36 * t372 - 0.6666666672D0 * t36 * t405 - 0.6666666672D0 * t36  &
+            * t408 - 0.4444444448D0 * t64 * t857 + 0.8333333340D-1 * t605 * t60  &
+            * t860 - 0.1666666668D0 * t211 * t365 * t212 - 0.3333333336D0 *  &
+            t211 * t60 * t867 - 0.3333333336D0 * t211 * t207 * t368 - 0.6666666672D0  &
+            * t68 * t857 * t94 - 0.6666666672D0 * t68 * t207 * t404 - 0.1666666668D0  &
+            * t211 * t60 * t880 - 0.3333333336D0 * t68 * t365 *  &
+            t258 - 0.3333333336D0 * t68 * t60 * t933 - 0.3333333336D0 * t68 *  &
+            t601 * t172 - 0.2222222224D0 * t24 * t98 * (t1009 + t1141)
 
-             t23 = t2 * my_rho_1_3
-             t29 = 0.1e1_dp / t11
-             t31 = t1 + t2 * x * t29
-             t33 = 0.1e1_dp / t12
-             t37 = 0.6e1_dp * t7 * t13 + 0.6e1_dp * t7 * x * t31 * t33
-             t39 = t17 ** 2
-             t40 = 0.1e1_dp / t39
-             t43 = -0.2e1_dp * t5 * x * t18 + t5 * t6 * t37 * t40
-             t44 = t43 * x
+            e_ndrho_rho_rho(ii) = e_ndrho_rho_rho(ii) +  t1146 * sx
 
-             e_rho(ii) = e_rho(ii)&
-                  - ( 0.2e1_dp / 0.3e1_dp * t23 * t44 - 0.2e1_dp / 0.3e1_dp *&
-                  t23 * t21 ) * sx
-             e_ndrho(ii) = e_ndrho(ii)&
-                  + ( t2 * t43 / 0.2e1_dp ) * sx
+            t1153 = t27 * t590
+            t1156 = t94 * t501
+            t1163 = t404 * t172
+            t1167 = t94 * t529
+            t1177 = beta * t71
+            t1220 = -0.1066666667D2 * t1177 * t17 + 0.2133333334D2 * t11 * t377  &
+            - 0.1066666667D2 * t6 * t632 * t513 + 0.5333333333D1 * t6 * t225  &
+            * t525 - 0.40D1 * t508 * t76 * t90 + 0.160D2 * t11 * t10 * t384 -  &
+            0.80D1 * t11 * t401 - 0.120D2 * t382 * t640 * t90 * t513 + 0.80D1  &
+            * t382 * t230 * t400 * t168 + 0.40D1 * t382 * t383 * t525 - 0.20D1  &
+            * t6 * t77 * (-0.3200000000D2 * t1177 * t86 + 0.4800000000D2 * t6  &
+            * t397 - 0.2400000000D2 * t245 / t657 / my_rho * t669)
+            t1284 = t37 * t586
+            t1334 = 0.5400000000D2 * t1044 * t452 * t501 - 0.3600000000D2 * t451  &
+            * t8 * t404 * t172 - 0.1800000000D2 * t451 * t452 * t529 + 0.8999999998D1  &
+            * t128 * t43 * t1220 - 0.1200000000D2 * t313 * t132 * t501  &
+            + 0.5999999999D1 * t128 * t132 * t529
+            t1341 = t501 * t46
+            t1345 = t529 * t46
+            t1370 = t40 * pi
+            t1396 = t1334 * t46 + 0.1800000000D2 * t462 * t40 * t127 * t467 - 0.2250000000D2  &
+            * t464 * t312 * t43 * t1341 + 0.8999999998D1 * t465  &
+            * t43 * t1345 - 0.1000000000D1 * t404 * t127 * t466 + 0.8099999996D2  &
+            * t135 * t571 * t573 * t533 * t2 * t1341 - 0.5555555558D-1 * t39  &
+            * t1220 * t52 - 0.5000000001D0 * t473 * t1345 + 0.3333333334D0 *  &
+            t479 * t1345 + 0.1000000000D1 * t94 * t312 * t1341 - 0.4500000000D1  &
+            * t94 * t573 * t501 * t1370 * t8 * t46 + 0.3703703705D-1 * t580  &
+            * t143 + 0.3000000000D1 * t312 * t37 * t501 * t1370 * t46 - 0.5555555558D-1  &
+            * t580 * t48 * t148 - 0.1111111112D0 * t482 * t486 - 0.5555555558D-1  &
+            * t146 * t49 * t1334 * t46 - 0.1000000000D1 * t41 *  &
+            t462 * t466 - 0.5000000001D0 * t489 * t1345
+            t1400 = -0.3600000000D2 * t412 * t313 * t562 * t113 + 0.1800000000D2  &
+            * t413 * t566 * t113 + 0.3600000000D2 * t413 * t186 * t429 + 0.1620000000D3  &
+            * t26 * t533 * t100 * t574 * t576 * t113 + 0.2D1 * t101  &
+            * t103 * (-0.5625000000D1 * t961 * t418 * t501 + 0.4500000000D1  &
+            * t417 * t1 * t404 * t172 + 0.2250000000D1 * t417 * t418 * t529 -  &
+            0.1500000000D1 * t105 * t31 * t1220 + 0.7500000000D0 * t271 * t109  &
+            * t501 - 0.5000000000D0 * t105 * t109 * t529) + 0.1250000000D0 *  &
+            t722 * t118 * t1156 - 0.1666666667D0 * t289 * t435 * t368 - 0.1666666667D0  &
+            * t289 * t118 * t1163 - 0.8333333335D-1 * t289 * t118 * t1167  &
+            + 0.1666666667D0 * t117 * t1284 * t94 + 0.3333333334D0 * t117  &
+            * t435 * t404 + 0.1666666667D0 * t117 * t118 * t1220 + 0.2777777778D-1  &
+            * t289 * t293 * t501 - 0.1111111111D0 * t117 * t1002 * t172  &
+            - 0.5555555555D-1 * t117 * t293 * t529 - 0.1111111111D0 * t36 * t122  &
+            * t586 - 0.8333333335D-1 * t289 * t297 * t501 + 0.3333333334D0  &
+            * t117 * t1013 * t172 + 0.1666666667D0 * t117 * t297 * t529 + 0.3333333334D0  &
+            * t36 * t38 * t1396
+            t1404 = -0.1666666668D0 * t116 * t502 - 0.6666666672D0 * t36 * t505  &
+            - 0.3333333336D0 * t36 * t530 - 0.2222222224D0 * t64 * t1153 + 0.8333333340D-1  &
+            * t605 * t60 * t1156 - 0.3333333336D0 * t211 * t365  &
+            * t368 - 0.3333333336D0 * t211 * t60 * t1163 - 0.1666666668D0 * t211  &
+            * t60 * t1167 - 0.3333333336D0 * t68 * t1153 * t94 - 0.6666666672D0  &
+            * t68 * t365 * t404 - 0.3333333336D0 * t68 * t60 * t1220 - 0.1666666668D0  &
+            * t211 * t207 * t501 - 0.6666666672D0 * t68 * t857 *  &
+            t172 - 0.3333333336D0 * t68 * t207 * t529 - 0.2222222224D0 * t24 *  &
+            t98 * t1400
 
-             t49 = my_rho_1_3 ** 2
-             t51 = t2 / t49
-             t54 = x * t40
-             t64 = 0.1e1_dp / t11 / t10
-             t67 = t2 * t29 - 0.2e1_dp * t1 * t6 * t64
-             t72 = t31 ** 2
-             t74 = t12 ** 2
-             t75 = 0.1e1_dp / t74
-             t79 = 0.12e2_dp * t7 * t31 * t33 + 0.6e1_dp * t7 * x * t67 * t33 &
-                  - 0.6e1_dp * t7 * x * t72 * t75
-             t83 = t37 ** 2
-             t86 = 0.1e1_dp / t39 / t17
-             t90 = -0.2e1_dp * t5 * t18 + 0.4e1_dp * t5 * t54 * t37 + t5 * t6 *&
-                  t79 * t40 - 0.2e1_dp * t5 * t6 * t83 * t86
-             t91 = t90 * t6
-             t98 = 0.1e1_dp / my_rho
-             t99 = t2 * t98
-             t100 = t90 * x
-             t104 = 0.1e1_dp / t3
+            e_ndrho_ndrho_rho(ii) = e_ndrho_ndrho_rho(ii) +  t1404 * sx
 
-             e_rho_rho(ii) = e_rho_rho(ii)&
-                  + ( 0.8e1_dp / 0.9e1_dp * t51 * t91 - 0.2e1_dp / 0.9e1_dp * &
-                  t51 * t44 + 0.2e1_dp / 0.9e1_dp * t51 * t21 ) * sx
-             e_ndrho_rho(ii) = e_ndrho_rho(ii)&
-                  - ( 0.2e1_dp / 0.3e1_dp * t99 * t100 ) * sx
-             e_ndrho_ndrho(ii) = e_ndrho_ndrho(ii)&
-                  + ( t2 * t90 * t104 / 0.2e1_dp ) * sx
+            t1405 = t501 * t172
+            t1412 = t172 * t529
+            t1449 = -0.120D2 * t508 * t76 * t168 + 0.240D2 * t11 * t514 - 0.120D2  &
+            * t11 * t526 - 0.120D2 * t6 * t641 * t513 * t168 + 0.120D2 * t382  &
+            * t230 * t168 * t525 - 0.20D1 * t6 * t77 * (-0.240D2 * beta * t521  &
+            * t250 * my_ndrho + 0.180D2 * t393 / t657 * t669)
+            t1456 = t1405 * t103
+            t1467 = t533 * pi
+            t1472 = t572 * t21
+            t1553 = 0.1350000000D3 * t537 / t22 / t572 * my_rho * t1456 - 0.8100000000D2  &
+            * t534 * t536 * t539 * my_rho * t172 * t103 * t529 - 0.2430000000D3  &
+            * t1467 * t100 / t570 / omega / t22 / t1472 * t140 * t1456 -  &
+            0.1125000000D2 * t177 * t687 * t1 * t1405 + 0.1350000000D2 * t176  &
+            * t103 * t28 * t270 * t1 * t1412 - 0.3000000000D1 * t177 * t105 *  &
+            t1 * t1449 + 0.1250000000D0 * t722 * t118 * t1405 - 0.2500000000D0  &
+            * t289 * t435 * t501 - 0.2500000000D0 * t289 * t118 * t1412 + 0.5000000001D0  &
+            * t117 * t1284 * t172 + 0.5000000001D0 * t117 * t435  &
+            * t529 + 0.1666666667D0 * t117 * t118 * t1449 + 0.3333333334D0 * t36  &
+            * t38 * (0.6750000000D2 * t1044 * t8 * t1405 * t46 - 0.6750000000D2  &
+            * t451 * t186 * t1345 - 0.5264999998D3 * t571 / t1472 * t533  &
+            * t2 * t1405 * t46 + 0.8999999998D1 * t185 * t8 * t1449 * t46 + 0.2429999999D3  &
+            * t575 * t2 * t529 * t466 + 0.7289999995D3 / t570 / t39  &
+            / t572 / t126 * t1467 * t7 * t1405 * t46 - 0.5555555558D-1 * t39  &
+            * t1449 * t52 - 0.5000000001D0 * t41 * t1449 * t46)
+
+            e_ndrho_ndrho_ndrho(ii) = e_ndrho_ndrho_ndrho(ii) +  (0.8333333340D-1 * t605 * t60 * t1405 - &
+            0.5000000004D0 * t211 * t365 * t501 - 0.5000000004D0 * t211 * t60 * t1412 - 0.1000000001D1  &
+            * t68 * t1153 * t172 - 0.1000000001D1 * t68 * t365 * t529 - 0.3333333336D0  &
+            * t68 * t60 * t1449 - 0.2222222224D0 * t24 * t98 * t1553)  &
+            * sx
+
           END IF
-       END DO
-    CASE (-2)
-       !$omp parallel do default(none)&
-       !$omp   shared(npoints,rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
-       !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
-       !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-       !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7,sx)&
-       !$omp   private(x, my_rho,my_rho_1_3,&
-       !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
-       !$omp       t31, t33, t37, t39, t40, t43, t44, t49, t51, t54, t64, t67, t72, t74, &
-       !$omp       t75, t79, t83, t86, t90, t91, t98, t99, t100, t104, ii)
-       DO ii=1,npoints
+        END IF
+      END DO
+    END IF
 
-          my_rho = rho(ii)
-          IF (my_rho>epsilon_rho) THEN
-             my_rho_1_3 = rho_1_3(ii)
-             t3 = my_rho_1_3 * my_rho
-             x = norm_drho(ii)/t3
-             t6 = x ** 2
-             t10 = t2 * t6 + 0.1e1_dp
-             t11 = SQRT(t10)
-             t12 = t1 * x + t11
-             t13 = LOG(t12)
-             t17 = 0.1e1_dp + 0.6e1_dp * t7 * x * t13
-             t18 = 0.1e1_dp / t17
-             t21 = -c - t5 * t6 * t18
-
-             t23 = t2 * my_rho_1_3
-             t29 = 0.1e1_dp / t11
-             t31 = t1 + t2 * x * t29
-             t33 = 0.1e1_dp / t12
-             t37 = 0.6e1_dp * t7 * t13 + 0.6e1_dp * t7 * x * t31 * t33
-             t39 = t17 ** 2
-             t40 = 0.1e1_dp / t39
-             t43 = -0.2e1_dp * t5 * x * t18 + t5 * t6 * t37 * t40
-             t44 = t43 * x
-
-             t49 = my_rho_1_3 ** 2
-             t51 = t2 / t49
-             t54 = x * t40
-             t64 = 0.1e1_dp / t11 / t10
-             t67 = t2 * t29 - 0.2e1_dp * t1 * t6 * t64
-             t72 = t31 ** 2
-             t74 = t12 ** 2
-             t75 = 0.1e1_dp / t74
-             t79 = 0.12e2_dp * t7 * t31 * t33 + 0.6e1_dp * t7 * x * t67 * t33 &
-                  - 0.6e1_dp * t7 * x * t72 * t75
-             t83 = t37 ** 2
-             t86 = 0.1e1_dp / t39 / t17
-             t90 = -0.2e1_dp * t5 * t18 + 0.4e1_dp * t5 * t54 * t37 + t5 * t6 *&
-                  t79 * t40 - 0.2e1_dp * t5 * t6 * t83 * t86
-             t91 = t90 * t6
-             t98 = 0.1e1_dp / my_rho
-             t99 = t2 * t98
-             t100 = t90 * x
-             t104 = 0.1e1_dp / t3
-
-             e_rho_rho(ii) = e_rho_rho(ii)&
-                  + ( 0.8e1_dp / 0.9e1_dp * t51 * t91 - 0.2e1_dp / 0.9e1_dp * &
-                  t51 * t44 + 0.2e1_dp / 0.9e1_dp * t51 * t21 ) * sx
-             e_ndrho_rho(ii) = e_ndrho_rho(ii)&
-                  - ( 0.2e1_dp / 0.3e1_dp * t99 * t100 ) * sx
-             e_ndrho_ndrho(ii) = e_ndrho_ndrho(ii)&
-                  + ( t2 * t90 * t104 / 0.2e1_dp ) * sx
-          END IF
-       END DO
-    CASE default
-       !$omp parallel do default(none)&
-       !$omp   shared(npoints,rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
-       !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
-       !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-       !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7,grad_deriv,sx)&
-       !$omp   private(x, my_rho,my_rho_1_3,&
-       !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
-       !$omp       t31, t33, t37, t39, t40, t43, t44, t49, t51, t54, t64, t67, t72, t74, &
-       !$omp       t75, t79, t83, t86, t90, t91, t98, t99, t100, t104, t126, t159, t164, &
-       !$omp       t170, t176, t189, ii)
-       DO ii=1,npoints
-
-          my_rho = rho(ii)
-          IF (my_rho>epsilon_rho) THEN
-             my_rho_1_3 = rho_1_3(ii)
-             t3 = my_rho_1_3 * my_rho
-             x = norm_drho(ii)/t3
-             t6 = x ** 2
-             t10 = t2 * t6 + 0.1e1_dp
-             t11 = SQRT(t10)
-             t12 = t1 * x + t11
-             t13 = LOG(t12)
-             t17 = 0.1e1_dp + 0.6e1_dp * t7 * x * t13
-             t18 = 0.1e1_dp / t17
-             t21 = -c - t5 * t6 * t18
-
-             IF (grad_deriv>=0) THEN
-                e_0(ii) = e_0(ii) + ( t2 * t3 * t21 / 0.2e1_dp ) * sx
-             END IF
-
-             t23 = t2 * my_rho_1_3
-             t29 = 0.1e1_dp / t11
-             t31 = t1 + t2 * x * t29
-             t33 = 0.1e1_dp / t12
-             t37 = 0.6e1_dp * t7 * t13 + 0.6e1_dp * t7 * x * t31 * t33
-             t39 = t17 ** 2
-             t40 = 0.1e1_dp / t39
-             t43 = -0.2e1_dp * t5 * x * t18 + t5 * t6 * t37 * t40
-             t44 = t43 * x
-
-
-             IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
-                e_rho(ii) = e_rho(ii)&
-                     - ( 0.2e1_dp / 0.3e1_dp * t23 * t44 - 0.2e1_dp / 0.3e1_dp *&
-                     t23 * t21 ) * sx
-                e_ndrho(ii) = e_ndrho(ii)&
-                     + ( t2 * t43 / 0.2e1_dp ) * sx
-             END IF
-
-             t49 = my_rho_1_3 ** 2
-             t51 = t2 / t49
-             t54 = x * t40
-             t64 = 0.1e1_dp / t11 / t10
-             t67 = t2 * t29 - 0.2e1_dp * t1 * t6 * t64
-             t72 = t31 ** 2
-             t74 = t12 ** 2
-             t75 = 0.1e1_dp / t74
-             t79 = 0.12e2_dp * t7 * t31 * t33 + 0.6e1_dp * t7 * x * t67 * t33 &
-                  - 0.6e1_dp * t7 * x * t72 * t75
-             t83 = t37 ** 2
-             t86 = 0.1e1_dp / t39 / t17
-             t90 = -0.2e1_dp * t5 * t18 + 0.4e1_dp * t5 * t54 * t37 + t5 * t6 *&
-                  t79 * t40 - 0.2e1_dp * t5 * t6 * t83 * t86
-             t91 = t90 * t6
-             t98 = 0.1e1_dp / my_rho
-             t99 = t2 * t98
-             t100 = t90 * x
-             t104 = 0.1e1_dp / t3
-
-
-             IF (grad_deriv>=2.OR.grad_deriv==-2) THEN
-                e_rho_rho(ii) = e_rho_rho(ii)&
-                     + ( 0.8e1_dp / 0.9e1_dp * t51 * t91 - 0.2e1_dp / 0.9e1_dp * &
-                     t51 * t44 + 0.2e1_dp / 0.9e1_dp * t51 * t21 ) * sx
-                e_ndrho_rho(ii) = e_ndrho_rho(ii)&
-                     - ( 0.2e1_dp / 0.3e1_dp * t99 * t100 ) * sx
-                e_ndrho_ndrho(ii) = e_ndrho_ndrho(ii)&
-                     + ( t2 * t90 * t104 / 0.2e1_dp ) * sx
-             END IF
-
-             t126 = t10 ** 2
-             t159 = t39 ** 2
-             t164 = 0.6e1_dp * t5 * t40 * t37 - 0.12e2_dp * t5 * x * t86 * t83 &
-                  + 0.6e1_dp * t5 * t54 * t79 + t5 * t6 * (0.18e2_dp * t7 * t67 &
-                  * t33 - 0.18e2_dp * t7 * t72 * t75 + 0.6e1_dp * t7 * x * &
-                  (-0.6e1_dp * t1 * t64 * x + 0.12e2_dp * t6 * x / t11 / t126)&
-                  * t33 - 0.18e2_dp * t7 * x * t67 * t75 * t31 + 0.12e2_dp * t7 &
-                  * x * t72 * t31 / t74 / t12) * t40 - 0.6e1_dp * t5 * t6 * t79 &
-                  * t86 * t37 + 0.6e1_dp * t5 * t6 * t83 * t37 / t159
-             t170 = 0.8e1_dp / 0.9e1_dp * t51 * t164 * t6 + 0.14e2_dp / 0.9e1_dp&
-                  * t51 * t100
-             t176 = t2 / t49 / my_rho
-             t189 = my_rho ** 2
-
-             IF (grad_deriv==-3.or.grad_deriv>=3) THEN
-                e_rho_rho_rho(ii) = e_rho_rho_rho(ii) &
-                     - ( 0.4e1_dp / 0.3e1_dp * t170 * x * t98 + 0.16e2_dp / 0.27e2_dp &
-                     * t176 * t91 - 0.4e1_dp / 0.27e2_dp * t176 * t44 + &
-                     0.4e1_dp / 0.27e2_dp * t176 * t21 ) * sx
-                e_ndrho_rho_rho(ii) = e_ndrho_rho_rho(ii)&
-                     + ( t170 * t104 ) * sx
-                e_ndrho_ndrho_rho(ii) = e_ndrho_ndrho_rho(ii)&
-                     + ( (-0.2e1_dp / 0.3e1_dp * t99 * t164 * x - &
-                     0.2e1_dp / 0.3e1_dp * t99 * t90) * t104 ) * sx
-                e_ndrho_ndrho_ndrho(ii) = e_ndrho_ndrho_ndrho(ii)&
-                     + ( t2 * t164 / t49 / t189 / 0.2e1_dp ) * sx
-             END IF
-          END IF
-       END DO
-    END SELECT
-
+ 
   END SUBROUTINE xb88_lr_lda_calc
   !***************************************************************************
 
@@ -769,11 +949,11 @@ CONTAINS
   !!     01.2008 created [mguidon]
   !!
   !!*** **********************************************************************
-  SUBROUTINE xb88_lr_lsd_eval(rho_set,deriv_set,grad_deriv,xb88_params,error)
+  SUBROUTINE xb88_lr_lsd_eval(rho_set,deriv_set,grad_deriv,xb88_lr_params,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
-    TYPE(section_vals_type), POINTER         :: xb88_params
+    TYPE(section_vals_type), POINTER         :: xb88_lr_params
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lr_lsd_eval', &
@@ -783,12 +963,12 @@ CONTAINS
                                                 stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: epsilon_drho, epsilon_rho, sx
+    REAL(kind=dp)                            :: epsilon_rho, omega, sx
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: dummy, e_0
     TYPE(cp_3d_r_p_type), DIMENSION(2) :: e_ndrho, e_ndrho_ndrho, &
       e_ndrho_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho, e_ndrho_rho_rho, &
-      e_rho, e_rho_rho, e_rho_rho_rho, norm_drho, rho, rho_1_3
+      e_rho, e_rho_rho, e_rho_rho_rho, norm_drho, rho
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,"I","",handle)
@@ -798,20 +978,22 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(deriv, bo)
     DO i=1,2
-       NULLIFY(norm_drho(i)%array, rho(i)%array, rho_1_3(i)%array)
+       NULLIFY(norm_drho(i)%array, rho(i)%array)
     END DO
     
-    CALL section_vals_val_get(xb88_params,"scale_x",r_val=sx,error=error)
+    CALL section_vals_val_get(xb88_lr_params,"scale_x",r_val=sx,error=error)
+    CALL section_vals_val_get(xb88_lr_params, "omega",r_val=omega, error=error)
+
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL xc_rho_set_get(rho_set,rhoa_1_3=rho_1_3(1)%array,&
-            rhob_1_3=rho_1_3(2)%array,rhoa=rho(1)%array,&
+       CALL xc_rho_set_get(rho_set,&
+            rhoa=rho(1)%array,&
             rhob=rho(2)%array,norm_drhoa=norm_drho(1)%array, &
             norm_drhob=norm_drho(2)%array,rho_cutoff=epsilon_rho,&
-            drho_cutoff=epsilon_drho, local_bounds=bo, error=error)
+            local_bounds=bo, error=error)
        npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
        ! meaningful default for the arrays we don't need: let us make compiler
@@ -913,7 +1095,6 @@ CONTAINS
        DO ispin=1,2
           CALL xb88_lr_lsd_calc(&
                rho_spin=rho(ispin)%array,&
-               rho_1_3_spin=rho_1_3(ispin)%array,&
                norm_drho_spin=norm_drho(ispin)%array,&
                e_0=e_0,&
                e_rho_spin=e_rho(ispin)%array,&
@@ -926,8 +1107,8 @@ CONTAINS
                e_ndrho_ndrho_rho_spin=e_ndrho_ndrho_rho(ispin)%array,&
                e_ndrho_ndrho_ndrho_spin=e_ndrho_ndrho_ndrho(ispin)%array,&
                grad_deriv=grad_deriv, npoints=npoints,&
-               epsilon_rho=epsilon_rho, epsilon_drho=epsilon_drho,&
-               sx=sx,&
+               epsilon_rho=epsilon_rho, &
+               sx=sx, omega=omega,&
                error=error)
        END DO
 
@@ -956,7 +1137,6 @@ CONTAINS
   !!
   !!   ARGUMENTS
   !!     - rho_spin: alpha or beta spin density
-  !!     - rho_1_3_spin: rho_spin**(1./3.)
   !!     - norm_drho_spin: || grad rho_spin ||
   !!     - e_0: adds to it the local value of the functional
   !!     - e_*_spin: derivative of the functional wrt. to the variables
@@ -972,221 +1152,585 @@ CONTAINS
   !!     01.2008 created [mguidon]
   !!
   !!*** **********************************************************************
-  SUBROUTINE xb88_lr_lsd_calc(rho_spin, rho_1_3_spin, norm_drho_spin,e_0,&
+  SUBROUTINE xb88_lr_lsd_calc(rho_spin, norm_drho_spin,e_0,&
        e_rho_spin,e_ndrho_spin,e_rho_rho_spin,e_ndrho_rho_spin,&
        e_ndrho_ndrho_spin, e_rho_rho_rho_spin, e_ndrho_rho_rho_spin,&
        e_ndrho_ndrho_rho_spin,&
-       e_ndrho_ndrho_ndrho_spin,grad_deriv,npoints,epsilon_rho, epsilon_drho,sx,&
-       error)
-    REAL(kind=dp), DIMENSION(*), INTENT(in)  :: rho_spin, rho_1_3_spin, &
-                                                norm_drho_spin
+       e_ndrho_ndrho_ndrho_spin,grad_deriv,npoints,epsilon_rho, sx,&
+       omega, error)
+    REAL(kind=dp), DIMENSION(*), INTENT(in)  :: rho_spin, norm_drho_spin
     REAL(kind=dp), DIMENSION(*), INTENT(inout) :: e_0, e_rho_spin, &
       e_ndrho_spin, e_rho_rho_spin, e_ndrho_rho_spin, e_ndrho_ndrho_spin, &
       e_rho_rho_rho_spin, e_ndrho_rho_rho_spin, e_ndrho_ndrho_rho_spin, &
       e_ndrho_ndrho_ndrho_spin
     INTEGER, INTENT(in)                      :: grad_deriv, npoints
-    REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho, sx
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho, sx, omega
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lsd_calc', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lr_lsd_calc', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ii
     LOGICAL                                  :: failure
-    REAL(kind=dp) :: c, epsilon_rho43, my_epsilon_rho, my_rho, t1, t103, t11, &
-      t12, t127, t133, t138, t14, t151, t17, t18, t2, t20, t22, t23, t27, &
-      t28, t3, t30, t35, t36, t4, t42, t43, t44, t5, t51, t53, t57, t58, t59, &
-      t6, t63, t64, t66, t67, t7, t75, t76, t79, t8, t87, x
+    REAL(kind=dp) :: Cx, epsilon_rho43, my_epsilon_rho, ndrho, rho, t1, t10, &
+      t100, t1002, t1009, t101, t1013, t103, t104, t1044, t105, t1069, t109, &
+      t1091, t11, t1102, t112, t113, t1136, t1141, t1146, t1153, t1156, t116, &
+      t1163, t1167, t117, t1177, t118, t12, t122, t1220, t126, t127, t128, &
+      t1284, t130, t132, t133, t1334, t1341, t1345, t135, t136, t137, t1370, &
+      t1396, t140, t1400, t1404, t1405, t141, t1412, t143, t1449, t1456, &
+      t146, t1467, t147, t1472, t148, t151, t155, t1553, t16, t168, t169, &
+      t17, t172, t173, t176, t177, t18, t185, t186, t190, t196, t2, t200, &
+      t207, t21, t211, t212, t213, t216, t219, t22, t221, t222, t225
+    REAL(kind=dp) :: t226, t23, t230, t231, t232, t233, t237, t24, t241, &
+      t244, t245, t250, t251, t254, t255, t258, t259, t26, t264, t265, t27, &
+      t270, t271, t28, t281, t284, t285, t289, t29, t293, t297, t3, t30, &
+      t304, t31, t311, t312, t313, t316, t319, t321, t323, t325, t326, t328, &
+      t330, t335, t339, t34, t343, t346, t347, t351, t354, t358, t36, t365, &
+      t368, t37, t372, t377, t38, t382, t383, t384, t39, t393, t397, t40, &
+      t400, t401, t404, t405, t408, t41, t412, t413, t417, t418, t42, t428, &
+      t429, t43, t435, t44, t451, t452, t455, t457, t46, t460, t462, t463, &
+      t464, t465, t466, t467, t47, t470, t473, t478, t479, t48, t482
+    REAL(kind=dp) :: t486, t489, t49, t492, t496, t5, t501, t502, t505, t508, &
+      t51, t513, t514, t519, t52, t521, t525, t526, t529, t530, t533, t534, &
+      t536, t537, t539, t55, t562, t566, t570, t571, t572, t573, t574, t575, &
+      t576, t580, t586, t59, t590, t6, t60, t601, t605, t606, t613, t624, &
+      t628, t632, t639, t64, t640, t641, t657, t667, t669, t677, t68, t687, &
+      t69, t7, t71, t716, t72, t722, t735, t739, t746, t75, t76, t769, t77, &
+      t79, t791, t793, t8, t838, t84, t842, t846, t85, t857, t86, t860, t867, &
+      t87, t880, t90, t91, t933, t94, t95, t961, t98, t99, xx
 
     failure=.FALSE.
-    c= 1.5_dp*(0.75_dp/Pi)**(1.0_dp/3.0_dp)
     my_epsilon_rho=0.5_dp*epsilon_rho
-    epsilon_rho43=my_epsilon_rho**(4._dp/3._dp)
-
+    epsilon_rho43 = my_epsilon_rho**(4.0_dp/3.0_dp)
+    Cx = 1.5_dp*(3.0_dp/4.0_dp/pi)**(1.0_dp/3.0_dp)
+ 
     IF (.NOT. failure) THEN
+      DO ii=1,npoints
+        rho=rho_spin(ii)
+        ndrho=norm_drho_spin(ii)
+        IF (rho>my_epsilon_rho) THEN
+          IF( grad_deriv >=0 ) THEN
+            t1 = rho ** (0.1D1 / 0.3D1)
+            t2 = t1 * rho
+            t3 = 0.1D1 / t2
+            xx = ndrho * MAX(t3,epsilon_rho43)
+            t5 = ndrho ** 2
+            t6 = beta * t5
+            t7 = rho ** 2
+            t8 = t1 ** 2
+            t10 = 0.1D1 / t8 / t7
+            t11 = beta * ndrho
+            t12 = LOG(xx + SQRT(xx ** 0.2D1 + 0.1D1))
+            t16 = 0.10D1 + 0.60D1 * t11 * t3 * t12
+            t17 = 0.1D1 / t16
+            t18 = t10 * t17
+            t21 = 0.20D1 * Cx + 0.20D1 * t6 * t18
+            t22 = SQRT(t21)
+            t23 = t22 * t21
+            t24 = rho * t23
+            t26 = SQRT(pi)
+            t27 = 0.1D1 / t26
+            t28 = 0.1D1 / omega
+            t29 = 0.1D1 / t22
+            t30 = t28 * t29
+            t31 = t26 * t1
+            t34 = erf(0.3000000000D1 * t30 * t31)
+            t36 = omega * t22
+            t37 = 0.1D1 / t1
+            t38 = t27 * t37
+            t39 = omega ** 2
+            t40 = 0.1D1 / t39
+            t41 = 0.1D1 / t21
+            t42 = t40 * t41
+            t43 = pi * t8
+            t44 = t42 * t43
+            t46 = EXP(-0.8999999998D1 * t44)
+            t47 = t39 * t21
+            t48 = 0.1D1 / pi
+            t49 = 0.1D1 / t8
+            t51 = t46 - 0.10D1
+            t52 = t48 * t49 * t51
+            t55 = t46 - 0.15D1 - 0.5555555558D-1 * t47 * t52
+            t59 = t26 * t34 + 0.3333333334D0 * t36 * t38 * t55
+            t60 = t27 * t59
 
-       SELECT CASE(grad_deriv)
-       CASE(0)
-          !$omp parallel do default(none),shared(npoints,c,rho_spin, rho_1_3_spin,&
-          !$omp norm_drho_spin,epsilon_rho43,e_0,my_epsilon_rho,&
-          !$omp e_rho_spin,e_ndrho_spin,e_rho_rho_spin,e_ndrho_rho_spin,&
-          !$omp e_ndrho_ndrho_spin, e_rho_rho_rho_spin, e_ndrho_rho_rho_spin,&
-          !$omp e_ndrho_ndrho_rho_spin,&
-          !$omp e_ndrho_ndrho_ndrho_spin, grad_deriv,sx),&
-          !$omp private(ii,x,my_rho,t1, t2, t3, t4, t5, t6, t7, t8, t11,&
-          !$omp     t12, t14)
-          DO ii=1,npoints
-             my_rho=rho_spin(ii)
-             IF (my_rho>my_epsilon_rho) THEN
-                t1 = rho_1_3_spin(ii) * my_rho
-                x = norm_drho_spin(ii)/t1
-                t2 = x ** 2
-                t3 = beta * t2
-                t4 = beta * x
-                t5 = t2 + 0.1e1_dp
-                t6 = SQRT(t5)
-                t7 = x + t6
-                t8 = LOG(t7)
-                t11 = 0.1e1_dp + 0.6e1_dp * t4 * t8
-                t12 = 0.1e1_dp / t11
-                t14 = -c - t3 * t12
+            e_0(ii) = e_0(ii) -0.2222222224D0 * t24 * omega * t60 * sx
+       
+          END IF
+          IF( grad_deriv >= 1 .OR. grad_deriv == -1 ) THEN 
+            t64 = t23 * omega
+            t68 = rho * t22 * omega
+            t69 = t7 * rho
+            t71 = 0.1D1 / t8 / t69
+            t72 = t71 * t17
+            t75 = t16 ** 2
+            t76 = 0.1D1 / t75
+            t77 = t10 * t76
+            t79 = 0.1D1 / t1 / t7
+            t84 = 1 + t5 * t10
+            t85 = SQRT(t84)
+            t86 = 0.1D1 / t85
+            t87 = t71 * t86
+            t90 = -0.8000000000D1 * t11 * t79 * t12 - 0.8000000000D1 * t6 * t87
+            t91 = t77 * t90
+            t94 = -0.5333333333D1 * t6 * t72 - 0.20D1 * t6 * t91
+            t95 = t60 * t94
+            t98 = omega * t27
+            t99 = SQRT(0.3141592654D1)
+            t100 = 0.1D1 / t99
+            t101 = t26 * t100
+            t103 = EXP(-0.9000000000D1 * t44)
+            t104 = 0.1D1 / t23
+            t105 = t28 * t104
+            t109 = t26 * t49
+            t112 = -0.1500000000D1 * t105 * t31 * t94 + 0.1000000000D1 * t30 *  &
+            t109
+            t113 = t103 * t112
+            t116 = omega * t29
+            t117 = t116 * t27
+            t118 = t37 * t55
+            t122 = t27 * t3
+            t126 = t21 ** 2
+            t127 = 0.1D1 / t126
+            t128 = t40 * t127
+            t130 = t128 * t43 * t94
+            t132 = pi * t37
+            t133 = t42 * t132
+            t135 = 0.8999999998D1 * t130 - 0.5999999999D1 * t133
+            t136 = t135 * t46
+            t137 = t39 * t94
+            t140 = t8 * rho
+            t141 = 0.1D1 / t140
+            t143 = t48 * t141 * t51
+            t146 = t47 * t48
+            t147 = t49 * t135
+            t148 = t147 * t46
+            t151 = t136 - 0.5555555558D-1 * t137 * t52 + 0.3703703705D-1 * t47  &
+            * t143 - 0.5555555558D-1 * t146 * t148
+            t155 = DBLE(2 * t101 * t113) + 0.1666666667D0 * t117 * t118 * t94 -  &
+            0.1111111111D0 * t36 * t122 * t55 + 0.3333333334D0 * t36 * t38 *  &
+            t151
 
-                e_0(ii) = e_0(ii)&
-                     + ( t1 * t14 ) * sx
-             END IF
-          END DO
-       CASE (1)
-          !$omp parallel do default(none),shared(npoints,c,rho_spin, rho_1_3_spin,&
-          !$omp norm_drho_spin,epsilon_rho43,e_0,my_epsilon_rho,&
-          !$omp e_rho_spin,e_ndrho_spin,e_rho_rho_spin,e_ndrho_rho_spin,&
-          !$omp e_ndrho_ndrho_spin, e_rho_rho_rho_spin, e_ndrho_rho_rho_spin,&
-          !$omp e_ndrho_ndrho_rho_spin,&
-          !$omp e_ndrho_ndrho_ndrho_spin, grad_deriv,sx),&
-          !$omp private(ii,x,my_rho,t1, t2, t3, t4, t5, t6, t7, t8, t11,&
-          !$omp     t12, t14, t17, t18, t20, t22, &
-          !$omp     t23, t27, t28, t30)
-          DO ii=1,npoints
-             my_rho=rho_spin(ii)
-             IF (my_rho>my_epsilon_rho) THEN
-                t1 = rho_1_3_spin(ii) * my_rho
-                x = norm_drho_spin(ii)/t1
-                t2 = x ** 2
-                t3 = beta * t2
-                t4 = beta * x
-                t5 = t2 + 0.1e1_dp
-                t6 = SQRT(t5)
-                t7 = x + t6
-                t8 = LOG(t7)
-                t11 = 0.1e1_dp + 0.6e1_dp * t4 * t8
-                t12 = 0.1e1_dp / t11
-                t14 = -c - t3 * t12
+            e_rho_spin(ii) = e_rho_spin(ii) +  (-0.2222222224D0 * t64 * t60 - 0.3333333336D0 * t68 * t95 -  &
+            0.2222222224D0 * t24 * t98 * t155) * sx
 
-                e_0(ii) = e_0(ii)&
-                     + ( t1 * t14 ) * sx
+            t168 = 0.60D1 * beta * t3 * t12 + 0.60D1 * t11 * t10 * t86
+            t169 = t77 * t168
+            t172 = 0.40D1 * t11 * t18 - 0.20D1 * t6 * t169
+            t173 = t60 * t172
+            t176 = pi * t100
+            t177 = t176 * t103
+            t185 = t128 * pi
+            t186 = t8 * t172
+            t190 = t39 * t172
+            t196 = 0.8999999998D1 * t185 * t186 * t46 - 0.5555555558D-1 * t190  &
+            * t52 - 0.5000000001D0 * t41 * t172 * t46
+            t200 = -0.3000000000D1 * t177 * t105 * t1 * t172 + 0.1666666667D0 *  &
+            t117 * t118 * t172 + 0.3333333334D0 * t36 * t38 * t196
 
-                t17 = t11 ** 2
-                t18 = 0.1e1_dp / t17
-                t20 = 0.1e1_dp / t6
-                t22 = 0.1e1_dp + t20 * x
-                t23 = 0.1e1_dp / t7
-                t27 = 0.6e1_dp * beta * t8 + 0.6e1_dp * t4 * t22 * t23
-                t28 = t18 * t27
-                t30 = -0.2e1_dp * t4 * t12 + t3 * t28
+            e_ndrho_spin(ii) = e_ndrho_spin(ii) +  (-0.3333333336D0 * t68 * t173 - 0.2222222224D0 * t24 * t98  &
+            * t200) * sx
 
-                e_rho_spin(ii) = e_rho_spin(ii)&
-                     - ( 0.4e1_dp / 0.3e1_dp * rho_1_3_spin(ii) * t30 * x - &
-                     0.4e1_dp / 0.3e1_dp * rho_1_3_spin(ii) * t14 ) * sx
-                e_ndrho_spin(ii) = e_ndrho_spin(ii)&
-                     + ( t30 ) * sx
-             END IF
-          END DO
-       CASE default
-          !$omp parallel do default(none),shared(npoints,c,rho_spin, rho_1_3_spin,&
-          !$omp norm_drho_spin,epsilon_rho43,e_0,my_epsilon_rho,&
-          !$omp e_rho_spin,e_ndrho_spin,e_rho_rho_spin,e_ndrho_rho_spin,&
-          !$omp e_ndrho_ndrho_spin, e_rho_rho_rho_spin, e_ndrho_rho_rho_spin,&
-          !$omp e_ndrho_ndrho_rho_spin,&
-          !$omp e_ndrho_ndrho_ndrho_spin, grad_deriv,sx),&
-          !$omp private(ii,x,my_rho,t1, t2, t3, t4, t5, t6, t7, t8, t11,&
-          !$omp     t12, t14, t17, t18, t20, t22, &
-          !$omp     t23, t27, t28, t30, t35, t36, t42, t43, t44, t51, t53, t57, t58, &
-          !$omp     t59, t63, t64, t66, t67, t75, t76, t79, t87, t103, t127, t133, &
-          !$omp     t138, t151)
-          DO ii=1,npoints
-             my_rho=rho_spin(ii)
-             IF (my_rho>my_epsilon_rho) THEN
-                t1 = rho_1_3_spin(ii) * my_rho
-                x = norm_drho_spin(ii)/t1
-                t2 = x ** 2
-                t3 = beta * t2
-                t4 = beta * x
-                t5 = t2 + 0.1e1_dp
-                t6 = SQRT(t5)
-                t7 = x + t6
-                t8 = LOG(t7)
-                t11 = 0.1e1_dp + 0.6e1_dp * t4 * t8
-                t12 = 0.1e1_dp / t11
-                t14 = -c - t3 * t12
+          END IF
+          IF( grad_deriv >=2 .OR. grad_deriv == -2 ) THEN
+            t207 = t27 * t155
+            t211 = rho * t29 * omega
+            t212 = t94 ** 2
+            t213 = t60 * t212
+            t216 = t207 * t94
+            t219 = t7 ** 2
+            t221 = 0.1D1 / t8 / t219
+            t222 = t221 * t17
+            t225 = t71 * t76
+            t226 = t225 * t90
+            t230 = 0.1D1 / t75 / t16
+            t231 = t10 * t230
+            t232 = t90 ** 2
+            t233 = t231 * t232
+            t237 = 0.1D1 / t1 / t69
+            t241 = t221 * t86
+            t244 = t5 ** 2
+            t245 = beta * t244
+            t250 = 0.1D1 / t85 / t84
+            t251 = 0.1D1 / t1 / t219 / t69 * t250
+            t254 = 0.1866666667D2 * t11 * t237 * t12 + 0.4000000000D2 * t6 * t241  &
+            - 0.1066666667D2 * t245 * t251
+            t255 = t77 * t254
+            t258 = 0.1955555555D2 * t6 * t222 + 0.1066666667D2 * t6 * t226 + 0.40D1  &
+            * t6 * t233 - 0.20D1 * t6 * t255
+            t259 = t60 * t258
+            t264 = 0.9000000000D1 * t130 - 0.6000000000D1 * t133
+            t265 = t264 * t103
+            t270 = 0.1D1 / t22 / t126
+            t271 = t28 * t270
+            t281 = t26 * t141
+            t284 = 0.2250000000D1 * t271 * t31 * t212 - 0.1000000000D1 * t105 *  &
+            t109 * t94 - 0.1500000000D1 * t105 * t31 * t258 - 0.6666666667D0  &
+            * t30 * t281
+            t285 = t103 * t284
+            t289 = omega * t104 * t27
+            t293 = t3 * t55
+            t297 = t37 * t151
+            t304 = t27 * t79
+            t311 = t126 * t21
+            t312 = 0.1D1 / t311
+            t313 = t40 * t312
+            t316 = 0.1800000000D2 * t313 * t43 * t212
+            t319 = 0.1200000000D2 * t128 * t132 * t94
+            t321 = t128 * t43 * t258
+            t323 = pi * t3
+            t325 = 0.2000000000D1 * t42 * t323
+            t326 = -t316 + t319 + 0.8999999998D1 * t321 + t325
+            t328 = t135 ** 2
+            t330 = t39 * t258
+            t335 = t137 * t48
+            t339 = t48 * t10 * t51
+            t343 = t141 * t135 * t46
+            t346 = t49 * t326
+            t347 = t346 * t46
+            t351 = t49 * t328 * t46
+            t354 = t326 * t46 + t328 * t46 - 0.5555555558D-1 * t330 * t52 + 0.7407407410D-1  &
+            * t137 * t143 - 0.1111111112D0 * t335 * t148 - 0.6172839508D-1  &
+            * t47 * t339 + 0.7407407410D-1 * t146 * t343 - 0.5555555558D-1  &
+            * t146 * t347 - 0.5555555558D-1 * t146 * t351
+            t358 = DBLE(2 * t101 * t265 * t112) + DBLE(2 * t101 * t285) - 0.8333333335D-1  &
+            * t289 * t118 * t212 - 0.1111111111D0 * t117 * t293 * t94  &
+            + 0.3333333334D0 * t117 * t297 * t94 + 0.1666666667D0 * t117 *  &
+            t118 * t258 + 0.1481481481D0 * t36 * t304 * t55 - 0.2222222222D0 *  &
+            t36 * t122 * t151 + 0.3333333334D0 * t36 * t38 * t354
 
-                IF (grad_deriv>=0) THEN
-                   e_0(ii) = e_0(ii)&
-                        + ( t1 * t14 ) * sx
-                END IF
+            e_rho_rho_spin(ii) = e_rho_rho_spin(ii) +  (-0.6666666672D0 * t36 * t95 - 0.4444444448D0 * t64 * t207 -  &
+            0.1666666668D0 * t211 * t213 - 0.6666666672D0 * t68 * t216 - 0.3333333336D0  &
+            * t68 * t259 - 0.2222222224D0 * t24 * t98 * t358) * sx
 
-                t17 = t11 ** 2
-                t18 = 0.1e1_dp / t17
-                t20 = 0.1e1_dp / t6
-                t22 = 0.1e1_dp + t20 * x
-                t23 = 0.1e1_dp / t7
-                t27 = 0.6e1_dp * beta * t8 + 0.6e1_dp * t4 * t22 * t23
-                t28 = t18 * t27
-                t30 = -0.2e1_dp * t4 * t12 + t3 * t28
+            t365 = t27 * t200
+            t368 = t94 * t172
+            t372 = t365 * t94
+            t377 = t225 * t168
+            t382 = t6 * t10
+            t383 = t230 * t90
+            t384 = t383 * t168
+            t393 = beta * t5 * ndrho
+            t397 = 0.1D1 / t1 / t219 / t7 * t250
+            t400 = -0.8000000000D1 * beta * t79 * t12 - 0.2400000000D2 * t11 *  &
+            t87 + 0.8000000000D1 * t393 * t397
+            t401 = t77 * t400
+            t404 = -0.1066666667D2 * t11 * t72 + 0.5333333333D1 * t6 * t377 - 0.40D1  &
+            * t11 * t91 + 0.40D1 * t382 * t384 - 0.20D1 * t6 * t401
+            t405 = t60 * t404
+            t408 = t207 * t172
+            t412 = t26 * pi * t100
+            t413 = t412 * t128
+            t417 = t271 * t26
+            t418 = t1 * t94
+            t428 = 0.2250000000D1 * t417 * t418 * t172 - 0.1500000000D1 * t105  &
+            * t31 * t404 - 0.5000000000D0 * t105 * t109 * t172
+            t429 = t103 * t428
+            t435 = t37 * t196
+            t451 = t313 * pi
+            t452 = t8 * t94
+            t455 = 0.1800000000D2 * t451 * t452 * t172
+            t457 = t128 * t43 * t404
+            t460 = t128 * t132 * t172
+            t462 = -t455 + 0.8999999998D1 * t457 + 0.5999999999D1 * t460
+            t463 = t462 * t46
+            t464 = t135 * t40
+            t465 = t464 * t127
+            t466 = t172 * t46
+            t467 = t43 * t466
+            t470 = t39 * t404
+            t473 = t94 * t127
+            t478 = 0.1D1 / rho
+            t479 = t41 * t478
+            t482 = t190 * t48
+            t486 = t49 * t462 * t46
+            t489 = t41 * t135
+            t492 = t463 + 0.8999999998D1 * t465 * t467 - 0.5555555558D-1 * t470  &
+            * t52 - 0.5000000001D0 * t473 * t466 + 0.3703703705D-1 * t190 * t143  &
+            + 0.3333333334D0 * t479 * t466 - 0.5555555558D-1 * t482 * t148  &
+            - 0.5555555558D-1 * t146 * t486 - 0.5000000001D0 * t489 * t466
+            t496 = 0.1800000000D2 * t413 * t186 * t113 + DBLE(2 * t101 * t429)  &
+            - 0.8333333335D-1 * t289 * t118 * t368 + 0.1666666667D0 * t117 * t435  &
+            * t94 + 0.1666666667D0 * t117 * t118 * t404 - 0.5555555555D-1  &
+            * t117 * t293 * t172 - 0.1111111111D0 * t36 * t122 * t196 + 0.1666666667D0  &
+            * t117 * t297 * t172 + 0.3333333334D0 * t36 * t38 * t492
 
-                IF (grad_deriv==-1.or.grad_deriv>=1) THEN
-                   e_rho_spin(ii) = e_rho_spin(ii)&
-                        - ( 0.4e1_dp / 0.3e1_dp * rho_1_3_spin(ii) * t30 * x - &
-                        0.4e1_dp / 0.3e1_dp * rho_1_3_spin(ii) * t14 ) * sx
-                   e_ndrho_spin(ii) = e_ndrho_spin(ii)&
-                        + ( t30 ) * sx
-                END IF
+            e_ndrho_rho_spin(ii) = e_ndrho_rho_spin(ii) +  (-0.3333333336D0 * t36 * t173 - 0.2222222224D0 * t64 * t365 -  &
+            0.1666666668D0 * t211 * t60 * t368 - 0.3333333336D0 * t68 * t372  &
+            - 0.3333333336D0 * t68 * t405 - 0.3333333336D0 * t68 * t408 - 0.2222222224D0  &
+            * t24 * t98 * t496) * sx
 
-                t35 = rho_1_3_spin(ii) ** 2
-                t36 = 0.1e1_dp / t35
-                t42 = 0.1e1_dp / t17 / t11
-                t43 = t27 ** 2
-                t44 = t42 * t43
-                t51 = 0.1e1_dp / t6 / t5
-                t53 = -t51 * t2 + t20
-                t57 = t22 ** 2
-                t58 = t7 ** 2
-                t59 = 0.1e1_dp / t58
-                t63 = 0.12e2_dp * beta * t22 * t23 + 0.6e1_dp * t4 * t53 * t23 - 0.6e1_dp * t4 * t57 * t59
-                t64 = t18 * t63
-                t66 = -0.2e1_dp * beta * t12 + 0.4e1_dp * t4 * t28 - 0.2e1_dp * t3 * t44 + t3 * t64
-                t67 = t36 * t66
-                t75 = 0.1e1_dp / my_rho
-                t76 = t75 * t66
-                t79 = 0.1e1_dp / t1
+            t501 = t172 ** 2
+            t502 = t60 * t501
+            t505 = t365 * t172
+            t508 = beta * t10
+            t513 = t168 ** 2
+            t514 = t231 * t513
+            t519 = t219 * rho
+            t521 = 0.1D1 / t1 / t519
+            t525 = 0.120D2 * t508 * t86 - 0.60D1 * t6 * t521 * t250
+            t526 = t77 * t525
+            t529 = 0.40D1 * t508 * t17 - 0.80D1 * t11 * t169 + 0.40D1 * t6 * t514  &
+            - 0.20D1 * t6 * t526
+            t530 = t60 * t529
+            t533 = pi ** 2
+            t534 = t533 * t100
+            t536 = 0.1D1 / t39 / omega
+            t537 = t534 * t536
+            t539 = 0.1D1 / t22 / t311
+            t562 = t8 * t501
+            t566 = t8 * t529
+            t570 = t39 ** 2
+            t571 = 0.1D1 / t570
+            t572 = t126 ** 2
+            t573 = 0.1D1 / t572
+            t574 = t571 * t573
+            t575 = t574 * t533
+            t576 = t2 * t501
+            t580 = t39 * t529
+            t586 = -0.2250000000D2 * t451 * t562 * t46 + 0.8999999998D1 * t185  &
+            * t566 * t46 + 0.8099999996D2 * t575 * t576 * t46 - 0.5555555558D-1  &
+            * t580 * t52 - 0.5000000001D0 * t41 * t529 * t46
+            t590 = -0.2700000000D2 * t537 * t539 * rho * t501 * t103 + 0.4500000000D1  &
+            * t177 * t271 * t1 * t501 - 0.3000000000D1 * t177 * t105 *  &
+            t1 * t529 - 0.8333333335D-1 * t289 * t118 * t501 + 0.3333333334D0  &
+            * t117 * t435 * t172 + 0.1666666667D0 * t117 * t118 * t529 + 0.3333333334D0  &
+            * t36 * t38 * t586
+          
+            e_ndrho_ndrho_spin(ii) = e_ndrho_ndrho_spin(ii) +  (-0.1666666668D0 * t211 * t502 - 0.6666666672D0 * t68 * t505  &
+            - 0.3333333336D0 * t68 * t530 - 0.2222222224D0 * t24 * t98 * t590)  &
+            * sx
 
-                IF (grad_deriv==-2.or.grad_deriv>=2) THEN
-                   e_rho_rho_spin(ii) = e_rho_rho_spin(ii)&
-                        + ( 0.16e2_dp / 0.9e1_dp * t67 * t2 - 0.4e1_dp / 0.9e1_dp &
-                        * t36 * t30 * x + 0.4e1_dp / 0.9e1_dp * t36 * t14 ) * sx
-                   e_ndrho_rho_spin(ii) = e_ndrho_rho_spin(ii)&
-                        - ( 0.4e1_dp / 0.3e1_dp * t76 * x ) * sx
-                   e_ndrho_ndrho_spin(ii) = e_ndrho_ndrho_spin(ii)+&
-                        ( t66 * t79 ) * sx
-                END IF
+          END IF
+          IF( grad_deriv >=3 .OR. grad_deriv == -3 ) THEN
+            t601 = t27 * t358
+            t605 = rho * t104 * omega
+            t606 = t212 * t94
+            t613 = t94 * t258
+            t624 = 0.1D1 / t8 / t519
+            t628 = t221 * t76
+            t632 = t71 * t230
+            t639 = t75 ** 2
+            t640 = 0.1D1 / t639
+            t641 = t10 * t640
+            t657 = t219 ** 2
+            t667 = t84 ** 2
+            t669 = 0.1D1 / t85 / t667
+            t677 = -0.9125925923D2 * t6 * t624 * t17 - 0.5866666667D2 * t6 * t628  &
+            * t90 - 0.3200000001D2 * t6 * t632 * t232 + 0.1600000000D2 * t6  &
+            * t225 * t254 - 0.120D2 * t6 * t641 * t232 * t90 + 0.120D2 * t382  &
+            * t383 * t254 - 0.20D1 * t6 * t77 * (-0.6222222223D2 * t11 / t1 /  &
+            t219 * t12 - 0.2115555556D3 * t6 * t624 * t86 + 0.1315555556D3 *  &
+            t245 / t1 / t657 * t250 - 0.4266666668D2 * beta * t244 * t5 / t657  &
+            / t69 * t669)
+            t687 = t28 * t539
+            t716 = t264 ** 2
+            t722 = omega * t270 * t27
+            t735 = t79 * t55
+            t739 = t3 * t151
+            t746 = t37 * t354
+            t769 = t40 * t573
+            t791 = 0.5400000000D2 * t769 * t43 * t606 - 0.3600000000D2 * t313 *  &
+            t132 * t212 - 0.5400000000D2 * t451 * t452 * t258 - 0.6000000000D1  &
+            * t128 * t323 * t94 + 0.1800000000D2 * t128 * t132 * t258 + 0.8999999998D1  &
+            * t128 * t43 * t677 - 0.2666666667D1 * t42 * pi * t79
+            t793 = t328 * t135
+            t838 = DBLE(3 * t326 * t135 * t46) + DBLE(t791 * t46) + DBLE(t793 *  &
+            t46) - 0.5555555558D-1 * t39 * t677 * t52 + 0.1111111112D0 * t330  &
+            * t143 - 0.1666666668D0 * t330 * t48 * t148 - 0.1851851853D0 * t137  &
+            * t339 + 0.2222222223D0 * t335 * t343 - 0.1666666668D0 * t335 *  &
+            t347 - 0.1666666668D0 * t335 * t351 + 0.1646090535D0 * t47 * t48  &
+            * t71 * t51 - 0.1851851853D0 * DBLE(t146) * DBLE(t10) * DBLE(t135)  &
+            * DBLE(t46) + 0.1111111112D0 * DBLE(t146) * DBLE(t141) * DBLE(t326)  &
+            * DBLE(t46) + 0.1111111112D0 * DBLE(t146) * DBLE(t141) * DBLE(t328)  &
+            * DBLE(t46) - 0.5555555558D-1 * DBLE(t146) * DBLE(t49) * DBLE(t791)  &
+            * DBLE(t46) - 0.1666666668D0 * DBLE(t146) * DBLE(t346) * DBLE(t136)  &
+            - 0.5555555558D-1 * DBLE(t146) * DBLE(t49) * DBLE(t793) *  &
+            DBLE(t46)
+            t842 = 0.2D1 * t101 * (-t316 + t319 + 0.9000000000D1 * t321 + t325)  &
+            * t103 * t112 + 0.2D1 * t101 * t103 * (-0.5625000000D1 * t687 * t31  &
+            * t606 + 0.2250000000D1 * t271 * t109 * t212 + 0.6750000000D1 *  &
+            t417 * t418 * t258 + 0.1000000000D1 * t105 * t281 * t94 - 0.1500000000D1  &
+            * t105 * t109 * t258 - 0.1500000000D1 * t105 * t31 * t677  &
+            + 0.1111111111D1 * t30 * t26 * t10) + 0.4D1 * t101 * t265 * t284 +  &
+            0.2D1 * t101 * t716 * t103 * t112 + 0.1250000000D0 * t722 * t118  &
+            * t606 + 0.8333333333D-1 * t289 * t293 * t212 - 0.2500000000D0 * t289  &
+            * t297 * t212 - 0.2500000000D0 * t289 * t118 * t613 + 0.2222222222D0  &
+            * t117 * t735 * t94 - 0.3333333333D0 * t117 * t739 * t94 -  &
+            0.1666666667D0 * t117 * t293 * t258 + 0.5000000001D0 * t117 * t746  &
+            * t94 + 0.5000000001D0 * t117 * t297 * t258 + 0.1666666667D0 * t117  &
+            * t118 * t677 - 0.3456790122D0 * t36 * t27 * t237 * t55 + 0.4444444444D0  &
+            * t36 * t304 * t151 - 0.3333333333D0 * t36 * t122 * t354  &
+            + 0.3333333334D0 * t36 * t38 * t838
+            t846 = -0.5000000004D0 * t116 * t213 - 0.2000000001D1 * t36 * t216  &
+            - 0.1000000001D1 * t36 * t259 - 0.6666666672D0 * t64 * t601 + 0.8333333340D-1  &
+            * t605 * t60 * t606 - 0.5000000004D0 * t211 * t207 * t212  &
+            - 0.5000000004D0 * t211 * t60 * t613 - 0.1000000001D1 * t68 *  &
+            t601 * t94 - 0.1000000001D1 * t68 * t207 * t258 - 0.3333333336D0 *  &
+            t68 * t60 * t677 - 0.2222222224D0 * t24 * t98 * t842
 
-                t87 = t17 ** 2
-                t103 = t5 ** 2
-                t127 = 0.6e1_dp * beta * t18 * t27 - 0.12e2_dp * t4 * t44 + 0.6e1_dp&
-                     * t4 * t64 + 0.6e1_dp * t3 / t87 * t43 * t27 - 0.6e1_dp * t3 &
-                     * t42 * t27 * t63 + t3 * t18 * (0.18e2_dp * beta * t53 * t23 &
-                     - 0.18e2_dp * beta * t57 * t59 + 0.6e1_dp * t4 * (0.3e1_dp / &
-                     t6 / t103 * t2 * x - 0.3e1_dp * t51 * x) * t23 - 0.18e2_dp * &
-                     t4 * t53 * t59 * t22 + 0.12e2_dp * t4 * t57 * t22 / t58 / t7)
-                t133 = 0.16e2_dp / 0.9e1_dp * t36 * t127 * t2 + 0.28e2_dp / 0.9e1_dp &
-                     * t67 * x
-                t138 = 0.1e1_dp / t35 / my_rho
-                t151 = my_rho ** 2
+            e_rho_rho_rho_spin(ii) = e_rho_rho_rho_spin(ii) +  t846 * sx
 
-                IF (grad_deriv==-3.or.grad_deriv>=3) THEN
-                   e_rho_rho_rho_spin(ii) = e_rho_rho_rho_spin(ii)&
-                        - ( 0.4e1_dp / 0.3e1_dp * t133 * x * t75 + 0.32e2_dp / 0.27e2_dp &
-                        * t138 * t66 * t2 - 0.8e1_dp / 0.27e2_dp * t138 * t30 * &
-                        x + 0.8e1_dp / 0.27e2_dp * t138 * t14 ) * sx
-                   e_ndrho_rho_rho_spin(ii) = e_ndrho_rho_rho_spin(ii)&
-                        + ( t133 * t79 ) * sx
-                   e_ndrho_ndrho_rho_spin(ii) = e_ndrho_ndrho_rho_spin(ii)&
-                        + ( (-0.4e1_dp / 0.3e1_dp * t75 * t127 * x - &
-                        0.4e1_dp / 0.3e1_dp * t76) * t79 ) * sx
-                   e_ndrho_ndrho_ndrho_spin(ii) = e_ndrho_ndrho_ndrho_spin(ii)&
-                        + ( t127 / t35 / t151 ) * sx
-                END IF
-             END IF
-          END DO
-       END SELECT
+            t857 = t27 * t496
+            t860 = t212 * t172
+            t867 = t94 * t404
+            t880 = t258 * t172
+            t933 = 0.3911111110D2 * t11 * t222 - 0.1955555555D2 * t6 * t628 * t168  &
+            + 0.2133333334D2 * t11 * t226 - 0.2133333334D2 * t6 * t71 * t384  &
+            + 0.1066666667D2 * t6 * t225 * t400 + 0.80D1 * t11 * t233 - 0.120D2  &
+            * t382 * t640 * t232 * t168 + 0.80D1 * t382 * t383 * t400 - 0.40D1  &
+            * t11 * t255 + 0.40D1 * t382 * t230 * t254 * t168 - 0.20D1 *  &
+            t6 * t77 * (0.1866666667D2 * beta * t237 * t12 + 0.9866666667D2 *  &
+            t11 * t241 - 0.8266666668D2 * t393 * t251 + 0.3200000001D2 * beta  &
+            * t244 * ndrho / t657 / t7 * t669)
+            t961 = t687 * t26
+            t1002 = t3 * t196
+            t1009 = 0.2D1 * t101 * (-t455 + 0.9000000000D1 * t457 + 0.6000000000D1  &
+            * t460) * t103 * t112 + 0.1800000000D2 * t412 * t264 * t40 * t127  &
+            * t8 * t172 * t103 * t112 + 0.2D1 * t101 * t265 * t428 + 0.1800000000D2  &
+            * t413 * t186 * t285 + 0.2D1 * t101 * t103 * (-0.5625000000D1  &
+            * t961 * t1 * t212 * t172 + 0.4500000000D1 * t417 * t418 * t404  &
+            + 0.1500000000D1 * t417 * t49 * t94 * t172 - 0.1000000000D1 *  &
+            t105 * t109 * t404 + 0.2250000000D1 * t417 * t1 * t258 * t172 - 0.1500000000D1  &
+            * t105 * t31 * t933 + 0.3333333334D0 * t105 * t281 *  &
+            t172) + 0.1250000000D0 * t722 * t118 * t860 - 0.8333333335D-1 * t289  &
+            * t435 * t212 - 0.1666666667D0 * t289 * t118 * t867 + 0.5555555555D-1  &
+            * t289 * t293 * t368 - 0.1111111111D0 * t117 * t1002 * t94  &
+            - 0.1111111111D0 * t117 * t293 * t404
+            t1013 = t37 * t492
+            t1044 = t769 * pi
+            t1069 = 0.5400000000D2 * t1044 * t8 * t212 * t172 - 0.3600000000D2  &
+            * t451 * t452 * t404 - 0.2400000000D2 * t451 * t37 * t94 * t172 +  &
+            0.1200000000D2 * t128 * t132 * t404 - 0.1800000000D2 * t451 * t8 *  &
+            t258 * t172 + 0.8999999998D1 * t128 * t43 * t933 - 0.2000000000D1  &
+            * t128 * t323 * t172
+            t1091 = t127 * t172 * t46
+            t1102 = t1069 * t46 + 0.8999999998D1 * t326 * t40 * t127 * t467 + DBLE(2  &
+            * t136 * t462) + 0.8999999998D1 * t328 * t40 * t127 * t467 -  &
+            0.5555555558D-1 * t39 * t933 * t52 - 0.5000000001D0 * t258 * t127  &
+            * t466 + 0.7407407410D-1 * t470 * t143 + 0.6666666668D0 * t94 * t478  &
+            * t1091 - 0.1111111112D0 * t470 * t48 * t148 - 0.1111111112D0  &
+            * t335 * t486 - 0.1000000001D1 * t94 * t135 * t1091
+            t1136 = -0.6172839508D-1 * t190 * t339 - 0.5555555556D0 * t41 / t7  &
+            * t466 + 0.7407407410D-1 * t482 * t343 + 0.7407407410D-1 * t146 *  &
+            t141 * t462 * t46 + 0.6666666668D0 * t479 * t135 * t172 * t46 - 0.5555555558D-1  &
+            * t482 * t347 - 0.5555555558D-1 * t146 * t49 * t1069  &
+            * t46 - 0.5000000001D0 * t41 * t326 * t466 - 0.5555555558D-1 * t482  &
+            * t351 - 0.1111111112D0 * t146 * t147 * t463 - 0.5000000001D0 *  &
+            t41 * t328 * t466
+            t1141 = -0.1666666667D0 * t289 * t297 * t368 + 0.3333333334D0 * t117  &
+            * t1013 * t94 + 0.3333333334D0 * t117 * t297 * t404 - 0.8333333335D-1  &
+            * t289 * t118 * t880 + 0.1666666667D0 * t117 * t435 * t258 +  &
+            0.1666666667D0 * t117 * t118 * t933 + 0.7407407405D-1 * t117 * t735  &
+            * t172 + 0.1481481481D0 * t36 * t304 * t196 - 0.1111111111D0 *  &
+            t117 * t739 * t172 - 0.2222222222D0 * t36 * t122 * t492 + 0.1666666667D0  &
+            * t117 * t746 * t172 + 0.3333333334D0 * t36 * t38 * (t1102  &
+            + t1136)
+            t1146 = -0.3333333336D0 * t117 * t59 * t94 * t172 - 0.6666666672D0  &
+            * t36 * t372 - 0.6666666672D0 * t36 * t405 - 0.6666666672D0 * t36  &
+            * t408 - 0.4444444448D0 * t64 * t857 + 0.8333333340D-1 * t605 * t60  &
+            * t860 - 0.1666666668D0 * t211 * t365 * t212 - 0.3333333336D0 *  &
+            t211 * t60 * t867 - 0.3333333336D0 * t211 * t207 * t368 - 0.6666666672D0  &
+            * t68 * t857 * t94 - 0.6666666672D0 * t68 * t207 * t404 - 0.1666666668D0  &
+            * t211 * t60 * t880 - 0.3333333336D0 * t68 * t365 *  &
+            t258 - 0.3333333336D0 * t68 * t60 * t933 - 0.3333333336D0 * t68 *  &
+            t601 * t172 - 0.2222222224D0 * t24 * t98 * (t1009 + t1141)
+
+            e_ndrho_rho_rho_spin(ii) = e_ndrho_rho_rho_spin(ii) +  t1146 * sx
+
+            t1153 = t27 * t590
+            t1156 = t94 * t501
+            t1163 = t404 * t172
+            t1167 = t94 * t529
+            t1177 = beta * t71
+            t1220 = -0.1066666667D2 * t1177 * t17 + 0.2133333334D2 * t11 * t377  &
+            - 0.1066666667D2 * t6 * t632 * t513 + 0.5333333333D1 * t6 * t225  &
+            * t525 - 0.40D1 * t508 * t76 * t90 + 0.160D2 * t11 * t10 * t384 -  &
+            0.80D1 * t11 * t401 - 0.120D2 * t382 * t640 * t90 * t513 + 0.80D1  &
+            * t382 * t230 * t400 * t168 + 0.40D1 * t382 * t383 * t525 - 0.20D1  &
+            * t6 * t77 * (-0.3200000000D2 * t1177 * t86 + 0.4800000000D2 * t6  &
+            * t397 - 0.2400000000D2 * t245 / t657 / rho * t669)
+            t1284 = t37 * t586
+            t1334 = 0.5400000000D2 * t1044 * t452 * t501 - 0.3600000000D2 * t451  &
+            * t8 * t404 * t172 - 0.1800000000D2 * t451 * t452 * t529 + 0.8999999998D1  &
+            * t128 * t43 * t1220 - 0.1200000000D2 * t313 * t132 * t501  &
+            + 0.5999999999D1 * t128 * t132 * t529
+            t1341 = t501 * t46
+            t1345 = t529 * t46
+            t1370 = t40 * pi
+            t1396 = t1334 * t46 + 0.1800000000D2 * t462 * t40 * t127 * t467 - 0.2250000000D2  &
+            * t464 * t312 * t43 * t1341 + 0.8999999998D1 * t465  &
+            * t43 * t1345 - 0.1000000000D1 * t404 * t127 * t466 + 0.8099999996D2  &
+            * t135 * t571 * t573 * t533 * t2 * t1341 - 0.5555555558D-1 * t39  &
+            * t1220 * t52 - 0.5000000001D0 * t473 * t1345 + 0.3333333334D0 *  &
+            t479 * t1345 + 0.1000000000D1 * t94 * t312 * t1341 - 0.4500000000D1  &
+            * t94 * t573 * t501 * t1370 * t8 * t46 + 0.3703703705D-1 * t580  &
+            * t143 + 0.3000000000D1 * t312 * t37 * t501 * t1370 * t46 - 0.5555555558D-1  &
+            * t580 * t48 * t148 - 0.1111111112D0 * t482 * t486 - 0.5555555558D-1  &
+            * t146 * t49 * t1334 * t46 - 0.1000000000D1 * t41 *  &
+            t462 * t466 - 0.5000000001D0 * t489 * t1345
+            t1400 = -0.3600000000D2 * t412 * t313 * t562 * t113 + 0.1800000000D2  &
+            * t413 * t566 * t113 + 0.3600000000D2 * t413 * t186 * t429 + 0.1620000000D3  &
+            * t26 * t533 * t100 * t574 * t576 * t113 + 0.2D1 * t101  &
+            * t103 * (-0.5625000000D1 * t961 * t418 * t501 + 0.4500000000D1  &
+            * t417 * t1 * t404 * t172 + 0.2250000000D1 * t417 * t418 * t529 -  &
+            0.1500000000D1 * t105 * t31 * t1220 + 0.7500000000D0 * t271 * t109  &
+            * t501 - 0.5000000000D0 * t105 * t109 * t529) + 0.1250000000D0 *  &
+            t722 * t118 * t1156 - 0.1666666667D0 * t289 * t435 * t368 - 0.1666666667D0  &
+            * t289 * t118 * t1163 - 0.8333333335D-1 * t289 * t118 * t1167  &
+            + 0.1666666667D0 * t117 * t1284 * t94 + 0.3333333334D0 * t117  &
+            * t435 * t404 + 0.1666666667D0 * t117 * t118 * t1220 + 0.2777777778D-1  &
+            * t289 * t293 * t501 - 0.1111111111D0 * t117 * t1002 * t172  &
+            - 0.5555555555D-1 * t117 * t293 * t529 - 0.1111111111D0 * t36 * t122  &
+            * t586 - 0.8333333335D-1 * t289 * t297 * t501 + 0.3333333334D0  &
+            * t117 * t1013 * t172 + 0.1666666667D0 * t117 * t297 * t529 + 0.3333333334D0  &
+            * t36 * t38 * t1396
+            t1404 = -0.1666666668D0 * t116 * t502 - 0.6666666672D0 * t36 * t505  &
+            - 0.3333333336D0 * t36 * t530 - 0.2222222224D0 * t64 * t1153 + 0.8333333340D-1  &
+            * t605 * t60 * t1156 - 0.3333333336D0 * t211 * t365  &
+            * t368 - 0.3333333336D0 * t211 * t60 * t1163 - 0.1666666668D0 * t211  &
+            * t60 * t1167 - 0.3333333336D0 * t68 * t1153 * t94 - 0.6666666672D0  &
+            * t68 * t365 * t404 - 0.3333333336D0 * t68 * t60 * t1220 - 0.1666666668D0  &
+            * t211 * t207 * t501 - 0.6666666672D0 * t68 * t857 *  &
+            t172 - 0.3333333336D0 * t68 * t207 * t529 - 0.2222222224D0 * t24 *  &
+            t98 * t1400
+
+            e_ndrho_ndrho_rho_spin(ii) = e_ndrho_ndrho_rho_spin(ii) +  t1404 * sx
+
+            t1405 = t501 * t172
+            t1412 = t172 * t529
+            t1449 = -0.120D2 * t508 * t76 * t168 + 0.240D2 * t11 * t514 - 0.120D2  &
+            * t11 * t526 - 0.120D2 * t6 * t641 * t513 * t168 + 0.120D2 * t382  &
+            * t230 * t168 * t525 - 0.20D1 * t6 * t77 * (-0.240D2 * beta * t521  &
+            * t250 * ndrho + 0.180D2 * t393 / t657 * t669)
+            t1456 = t1405 * t103
+            t1467 = t533 * pi
+            t1472 = t572 * t21
+            t1553 = 0.1350000000D3 * t537 / t22 / t572 * rho * t1456 - 0.8100000000D2  &
+            * t534 * t536 * t539 * rho * t172 * t103 * t529 - 0.2430000000D3  &
+            * t1467 * t100 / t570 / omega / t22 / t1472 * t140 * t1456 -  &
+            0.1125000000D2 * t177 * t687 * t1 * t1405 + 0.1350000000D2 * t176  &
+            * t103 * t28 * t270 * t1 * t1412 - 0.3000000000D1 * t177 * t105 *  &
+            t1 * t1449 + 0.1250000000D0 * t722 * t118 * t1405 - 0.2500000000D0  &
+            * t289 * t435 * t501 - 0.2500000000D0 * t289 * t118 * t1412 + 0.5000000001D0  &
+            * t117 * t1284 * t172 + 0.5000000001D0 * t117 * t435  &
+            * t529 + 0.1666666667D0 * t117 * t118 * t1449 + 0.3333333334D0 * t36  &
+            * t38 * (0.6750000000D2 * t1044 * t8 * t1405 * t46 - 0.6750000000D2  &
+            * t451 * t186 * t1345 - 0.5264999998D3 * t571 / t1472 * t533  &
+            * t2 * t1405 * t46 + 0.8999999998D1 * t185 * t8 * t1449 * t46 + 0.2429999999D3  &
+            * t575 * t2 * t529 * t466 + 0.7289999995D3 / t570 / t39  &
+            / t572 / t126 * t1467 * t7 * t1405 * t46 - 0.5555555558D-1 * t39  &
+            * t1449 * t52 - 0.5000000001D0 * t41 * t1449 * t46)
+
+            e_ndrho_ndrho_ndrho_spin(ii) = e_ndrho_ndrho_ndrho_spin(ii) +  (0.8333333340D-1 * t605 * t60 * t1405 - &
+            0.5000000004D0 * t211 * t365 * t501 - 0.5000000004D0 * t211 * t60 * t1412 - 0.1000000001D1  &
+            * t68 * t1153 * t172 - 0.1000000001D1 * t68 * t365 * t529 - 0.3333333336D0  &
+            * t68 * t60 * t1449 - 0.2222222224D0 * t24 * t98 * t1553)  &
+            * sx
+
+          END IF
+        END IF
+      END DO
     END IF
 
   END SUBROUTINE xb88_lr_lsd_calc
