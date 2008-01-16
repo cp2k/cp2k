@@ -311,8 +311,7 @@ END SUBROUTINE init_input_type
                       lb = get_limit ( rs % npts ( dir ),  n_slices_tmp( dir ), l )
                       neighbours(dir) = MIN(lb (2) -lb (1) + 1, neighbours(dir) )
                    ENDDO
-                   rs % neighbours(dir) = CEILING( REAL(nmin + neighbours(dir)) / & 
-                        REAL( neighbours(dir) ))
+                   rs % neighbours(dir) =  (nmin + neighbours(dir) - 1)/neighbours(dir)
                    IF( rs % neighbours(dir) .GE. n_slices_tmp (dir) ) overlap=.TRUE.
                 ELSE
                    neighbours(dir) = 0
@@ -404,8 +403,7 @@ END SUBROUTINE init_input_type
                    lb = get_limit ( rs % npts ( dir ),  n_slices( dir ), l )
                    neighbours(dir) = MIN(lb (2) -lb (1) + 1, neighbours(dir) )
                 ENDDO
-                rs % neighbours(dir) = CEILING( REAL(nmin + neighbours(dir)) / &
-                     REAL( neighbours(dir) ))
+                rs % neighbours(dir) =  (nmin + neighbours(dir) - 1)/neighbours(dir)
 
                 lb = get_limit ( rs % npts ( dir ), rs % group_dim ( dir ), pos ( dir ) )
                 rs % npts_local ( dir ) = 2 * rs % border + ( lb ( 2 ) - lb ( 1 ) + 1 )
