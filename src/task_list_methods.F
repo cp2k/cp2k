@@ -187,7 +187,7 @@ CONTAINS
 
     ! construct a list of all tasks
     IF (.NOT.ASSOCIATED(tasks)) THEN
-       CALL reallocate(tasks,1,5,1,max_tasks)
+       CALL reallocate(tasks,1,3,1,max_tasks)
        CALL reallocate(dist_ab,1,3,1,max_tasks)
     ENDIF
     ntasks = 0
