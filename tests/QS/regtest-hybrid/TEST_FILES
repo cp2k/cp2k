@@ -15,3 +15,5 @@ NE-hybrid-HSE06-lda.inp       1
 CH3-hybrid-HSE06-lsd.inp      1
 H2O-hybrid-b3lyp_shortcut.inp 1
 H2O-hybrid-pbe0_shortcut.inp  1
+Li-hybrid-rcam-b3lyp.inp      1
+Ne-hybrid-rcam-b3lyp.inp      1
