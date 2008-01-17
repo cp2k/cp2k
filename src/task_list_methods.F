@@ -100,7 +100,7 @@ CONTAINS
 
     INTEGER :: ab, bcol, brow, curr_tasks, dest, dir, handle, iatom, &
       igrid_level, ikind, ilist, inode, ipgf, iset, jatom, jkind, jpgf, jset, &
-      maxpgf, maxset, natoms, nkind, nlist, nnode, nseta, nsetb, tp(3)
+      maxpgf, maxset, natoms, nkind, nlist, nnode, nseta, nsetb, tp(3), cost_factor
     INTEGER, DIMENSION(:), POINTER           :: npgfa, npgfb
     LOGICAL                                  :: distributed_rs_grids, &
                                                 failure, my_soft
@@ -187,7 +187,7 @@ CONTAINS
 
     ! construct a list of all tasks
     IF (.NOT.ASSOCIATED(tasks)) THEN
-       CALL reallocate(tasks,1,3,1,max_tasks)
+       CALL reallocate(tasks,1,5,1,max_tasks)
        CALL reallocate(dist_ab,1,3,1,max_tasks)
     ENDIF
     ntasks = 0
@@ -288,7 +288,7 @@ CONTAINS
                             ntasks = ntasks + 1
                             IF ( ntasks > curr_tasks ) THEN
                                curr_tasks = (curr_tasks+add_tasks)*mult_tasks
-                               CALL reallocate(tasks,1,3,1,curr_tasks)
+                               CALL reallocate(tasks,1,5,1,curr_tasks)
                                CALL reallocate(dist_ab,1,3,1,curr_tasks)
                             END IF
 
@@ -302,12 +302,18 @@ CONTAINS
 
                             IF(rs_rho(igrid_level)%rs_grid%distributed) THEN
                                CALL rs_find_node(rs_rho(igrid_level)%rs_grid,tp,dest)
+                               tasks(4,ntasks) = 1
                             ELSE
-                               dest =  rs_rho(igrid_level)%rs_grid%my_pos 
+                               dest =  rs_rho(igrid_level)%rs_grid%my_pos
+                               tasks(4,ntasks) = 0 
                             ENDIF
+
+                            ! cost_factor for this task
+                            cost_factor = 1
 
                             tasks (1,ntasks) = dest
                             tasks (2,ntasks) = rs_rho(igrid_level)% rs_grid % my_pos
+                            tasks (5,ntasks) = cost_factor
 
                             !encode the atom pairs and basis info as a single long integer
                             CALL pair2int(tasks(3,ntasks),iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)

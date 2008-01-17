@@ -845,7 +845,7 @@ CONTAINS
     CALL reallocate(jpabt_ii,1,maxco,1,maxco,0,nthread-1)
     CALL reallocate(jpabt_iii,1,maxco,1,maxco,0,nthread-1)
     CALL reallocate(workt,1,maxco,1,maxsgf_set,0,nthread-1)
-    CALL reallocate(tasks,1,3,1,max_tasks)
+    CALL reallocate(tasks,1,5,1,max_tasks)
     CALL reallocate(dist_ab,1,3,1,max_tasks)
 
     tasks = 0
@@ -1073,7 +1073,7 @@ CONTAINS
                      ntasks = ntasks + 1
                      IF ( ntasks > curr_tasks ) THEN
                        curr_tasks = curr_tasks*mult_tasks
-                       CALL reallocate(tasks,1,3,1,curr_tasks)
+                       CALL reallocate(tasks,1,5,1,curr_tasks)
                        CALL reallocate(dist_ab,1,3,1,curr_tasks)
                      END IF
 
@@ -1088,14 +1088,21 @@ CONTAINS
 
                      IF(rs_rho(igrid_level)%rs_grid%distributed) THEN
                         CALL rs_find_node(rs_rho(igrid_level)%rs_grid,tp,dest)
+                        tasks(4,ntasks) = 1
                      ELSE
                         dest = rs_rho(igrid_level)%rs_grid % my_pos
+                        tasks(4,ntasks) = 0
                      ENDIF
                      
                      tasks (1,ntasks) = dest
                      tasks (2,ntasks) = rs_rho(igrid_level)%rs_grid % my_pos
                      CALL pair2int(tasks(3,ntasks),iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
-                     
+
+                     !FIX ME. temporary fix whilst the load balancing in rs_get_my_tasks is worked on
+                     !place holder: give all tasks no weight so get_my_tasks does no load balancing 
+                     !or positive constant for simple load balance just on number of tasks
+                     tasks(5,ntasks) = 1
+
                      dist_ab (:,ntasks) = rab(:)
                      
                    END DO  ! jpgf
