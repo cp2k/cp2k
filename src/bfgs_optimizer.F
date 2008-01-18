@@ -126,7 +126,7 @@ CONTAINS
     para_env=>force_env%para_env
     root_section=>force_env%root_section
 
-    CALL cp_add_iter_level(logger%iter_info,"GEO_OPT",ihandle,error)
+    CALL cp_add_iter_level(logger%iter_info,TRIM(gopt_env%label),ihandle,error)
     CALL timeset(routineN,"I","",handle)
 
     ionode      = para_env%mepos==para_env%source
@@ -136,7 +136,7 @@ CONTAINS
     rad         = 0.10_dp
     rat         = 0.0_dp
 
-    output_unit = cp_print_key_unit_nr(logger,root_section,"MOTION%GEO_OPT%PRINT%PROGRAM_RUN_INFO",&
+    output_unit = cp_print_key_unit_nr(logger,geo_section,"PRINT%PROGRAM_RUN_INFO",&
          extension=".geoLog",error=error)
 
     CALL force_env_get(force_env, cell=cell, subsys=subsys,error=error)
@@ -366,8 +366,8 @@ CONTAINS
       CALL close_file(unit_number=hesunit)
     END IF
 
-    CALL cp_print_key_finished_output(output_unit,logger,root_section,&
-         "MOTION%GEO_OPT%PRINT%PROGRAM_RUN_INFO", error=error)
+    CALL cp_print_key_finished_output(output_unit,logger,geo_section,&
+         "PRINT%PROGRAM_RUN_INFO", error=error)
     CALL cp_rm_iter_level(logger%iter_info,ihandle,error)
     CALL timestop(0.0_dp,handle)
 

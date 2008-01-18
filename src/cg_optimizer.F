@@ -113,14 +113,13 @@ CONTAINS
     para_env=>force_env%para_env
     root_section=>force_env%root_section
     logger => cp_error_get_logger(error)
-    CALL cp_add_iter_level(logger%iter_info,"GEO_OPT",ihandle,error)
+    CALL cp_add_iter_level(logger%iter_info,TRIM(gopt_env%label),ihandle,error)
     failure = .FALSE.
     IF (.NOT.failure) THEN
        motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
        ionode      = para_env%source==para_env%mepos
-       output_unit = cp_print_key_unit_nr(logger,motion_section,&
-         "GEO_OPT%PRINT%PROGRAM_RUN_INFO",&
-         extension=".geoLog",error=error)
+       output_unit = cp_print_key_unit_nr(logger,geo_section,"PRINT%PROGRAM_RUN_INFO",&
+            extension=".geoLog",error=error)
 
        CALL force_env_get(force_env,subsys=subsys,error=error)
        CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,particles=particles,error=error)
@@ -139,8 +138,8 @@ CONTAINS
        CALL  cp_cg_main(force_env, x0, gopt_param, output_unit>0, output_unit, &
             globenv, force_env_section, motion_section, gopt_env, error)
 
-       CALL cp_print_key_finished_output(output_unit,logger,motion_section,&
-            "GEO_OPT%PRINT%PROGRAM_RUN_INFO", error=error)
+       CALL cp_print_key_finished_output(output_unit,logger,geo_section,&
+            "PRINT%PROGRAM_RUN_INFO", error=error)
     END IF
     CALL cp_rm_iter_level(logger%iter_info,ihandle,error)
     CALL timestop(0.0_dp,handle)

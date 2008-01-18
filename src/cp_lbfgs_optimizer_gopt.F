@@ -628,13 +628,13 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_opt_gopt_step(optimizer,n_iter,f,last_f,&
-       projected_gradient, converged, force_env_section, input, force_env,&
+       projected_gradient, converged, geo_section, input, force_env,&
        gopt_param, error)
     TYPE(cp_lbfgs_opt_gopt_type), POINTER    :: optimizer
     INTEGER, INTENT(out), OPTIONAL           :: n_iter
     REAL(kind=dp), INTENT(out), OPTIONAL     :: f, last_f, projected_gradient
     LOGICAL, INTENT(out), OPTIONAL           :: converged
-    TYPE(section_vals_type), POINTER         :: force_env_section, input
+    TYPE(section_vals_type), POINTER         :: geo_section, input
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -783,8 +783,8 @@ CPSourceFileRef,&
           CASE (3)
              !op=3 ended iter             
              wildcard = "LBFGS"             
-             dataunit = cp_print_key_unit_nr(logger,input,&
-                  "MOTION%GEO_OPT%PRINT%PROGRAM_RUN_INFO",extension=".geoLog",error=error)
+             dataunit = cp_print_key_unit_nr(logger,geo_section,&
+                  "PRINT%PROGRAM_RUN_INFO",extension=".geoLog",error=error)
              IF (dataunit>0) THEN
                 CALL write_cycle_infos(dataunit,optimizer%isave(30),optimizer%f,&
                      optimizer%f-optimizer%eold,emin=optimizer%emin,wildcard=wildcard)
@@ -792,8 +792,8 @@ CPSourceFileRef,&
              IF (is_master) &
              CALL check_converg(SIZE(optimizer%x),optimizer%x-xold,optimizer%gradient,&
                   dataunit>0,dataunit,conv,gopt_param)
-             CALL cp_print_key_finished_output(dataunit,logger,input,&
-                  "MOTION%GEO_OPT%PRINT%PROGRAM_RUN_INFO", error=error)
+             CALL cp_print_key_finished_output(dataunit,logger,geo_section,&
+                  "PRINT%PROGRAM_RUN_INFO", error=error)
              optimizer%eold = optimizer%f
              optimizer%emin = MIN(optimizer%emin,optimizer%eold)
              xold = optimizer%x
@@ -805,8 +805,8 @@ CPSourceFileRef,&
              !op=4 (convergence - normal exit)
              ! Specific L-BFGS convergence criteria.. overrides the convergence criteria on
              ! stepsize and gradients
-             dataunit = cp_print_key_unit_nr(logger,input,&
-                  "MOTION%GEO_OPT%PRINT%PROGRAM_RUN_INFO",extension=".geoLog",error=error)
+             dataunit = cp_print_key_unit_nr(logger,geo_section,&
+                  "PRINT%PROGRAM_RUN_INFO",extension=".geoLog",error=error)
              IF (dataunit>0) THEN
                 WRITE(dataunit,'(T2,A)')""
                 WRITE(dataunit,'(T2,A)')"***********************************************"
@@ -816,8 +816,8 @@ CPSourceFileRef,&
                 WRITE(dataunit,'(T2,A)')"***********************************************"
                 WRITE(dataunit,'(T2,A)')""
              END IF
-             CALL cp_print_key_finished_output(dataunit,logger,input,&
-                  "MOTION%GEO_OPT%PRINT%PROGRAM_RUN_INFO", error=error)
+             CALL cp_print_key_finished_output(dataunit,logger,geo_section,&
+                  "PRINT%PROGRAM_RUN_INFO", error=error)
              IF (PRESENT(converged)) converged=.TRUE.
              EXIT
           CASE (5)
@@ -952,13 +952,13 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   FUNCTION cp_opt_gopt_next(optimizer,n_iter,f,last_f,&
-       projected_gradient, converged, force_env_section,input, force_env,&
+       projected_gradient, converged, geo_section,input, force_env,&
        gopt_param, error) RESULT(res)
     TYPE(cp_lbfgs_opt_gopt_type), POINTER    :: optimizer
     INTEGER, INTENT(out), OPTIONAL           :: n_iter
     REAL(kind=dp), INTENT(out), OPTIONAL     :: f, last_f, projected_gradient
     LOGICAL, INTENT(out)                     :: converged
-    TYPE(section_vals_type), POINTER         :: force_env_section, input
+    TYPE(section_vals_type), POINTER         :: geo_section, input
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -977,7 +977,7 @@ CPSourceFileRef,&
     IF (.NOT. failure) THEN
        CALL cp_opt_gopt_step(optimizer,n_iter=n_iter,f=f,&
             last_f=last_f, projected_gradient=projected_gradient,&
-            converged=converged,force_env_section=force_env_section,&
+            converged=converged,geo_section=geo_section,&
             input=input,force_env=force_env,gopt_param=gopt_param,&
             error=error)
        res= (optimizer%status<40) .AND. .NOT. converged

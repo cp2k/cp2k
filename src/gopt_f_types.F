@@ -27,6 +27,7 @@
 MODULE gopt_f_types
   USE dimer_types,                     ONLY: dimer_env_create,&
                                              dimer_env_release,&
+                                             dimer_env_retain,&
                                              dimer_env_type
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_get_natom,&
@@ -42,7 +43,8 @@ MODULE gopt_f_types
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -80,6 +82,7 @@ MODULE gopt_f_types
   TYPE gopt_f_type
      INTEGER :: ref_count, id_nr
      INTEGER :: type_id, ts_method_id
+     CHARACTER(LEN=default_string_length)     :: label
      TYPE(force_env_type), POINTER            :: force_env
      TYPE(global_environment_type), POINTER   :: globenv
      ! motion section to be references only for IO
@@ -141,6 +144,7 @@ CONTAINS
        gopt_env%ref_count=1
        last_gopt_f_id=last_gopt_f_id+1
        gopt_env%id_nr=last_gopt_f_id
+       gopt_env%label="GEO_OPT"
        CALL force_env_retain(force_env, error=error)
        gopt_env%force_env => force_env
        gopt_env%globenv => globenv
@@ -150,6 +154,8 @@ CONTAINS
           gopt_env%ts_method_id = gopt_param%ts_method_id
           SELECT CASE(gopt_param%ts_method_id)
           CASE(default_dimer_method_id)
+             ! For the Dimer method we use the same framework of geometry optimizers
+             ! already defined for cp2k..
              natom = force_env_get_natom(force_env,error)
              CALL dimer_env_create(gopt_env%dimer_env, gopt_param, natom, globenv, error)
              dimer_section => section_vals_get_subs_vals(geo_opt_section,"TRANSITION_STATE%DIMER",error=error)
@@ -161,6 +167,9 @@ CONTAINS
              CALL gopt_param_read(gopt_env%gopt_dimer_param, rot_opt_section, skip_type=.TRUE.,error=error)
              CALL gopt_f_create(gopt_env%gopt_dimer_env, gopt_env%gopt_dimer_param, force_env=force_env,&
                   globenv=globenv, geo_opt_section=rot_opt_section, error=error)
+             CALL dimer_env_retain(gopt_env%dimer_env, error)
+             gopt_env%gopt_dimer_env%dimer_env => gopt_env%dimer_env
+             gopt_env%gopt_dimer_env%label = "ROT_OPT"
           END SELECT
        END IF
     END IF
