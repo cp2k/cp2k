@@ -34,28 +34,28 @@ MODULE cp2k_units
 
   TYPE unit_convert_type
  !   PRIVATE  later
-     REAL (KIND=dp) :: mass, &
-                       fs, &
-                       ps, &
-                       kcal, &
-                       kj, &
-                       kelvin, &
-                       degree, &
-                       bar, &
-                       wavenum, &
-                       nm, &
-                       angstrom, &
-                       bohr, &
-                       eps0, &
-                       ev
-     CHARACTER ( LEN = 10 ) :: e_label, l_label, vol_label,  &
-                               temp_label, pres_label,       &
-                               angl_label
+     REAL(KIND=dp) :: mass, &
+                      fs, &
+                      ps, &
+                      kcal, &
+                      kj, &
+                      kelvin, &
+                      degree, &
+                      bar, &
+                      wavenum, &
+                      nm, &
+                      angstrom, &
+                      bohr, &
+                      eps0, &
+                      ev
+     CHARACTER(LEN=10) :: e_label, l_label, vol_label,  &
+                          temp_label, pres_label,       &
+                          angl_label
   END TYPE unit_convert_type
   
-  TYPE ( unit_convert_type ), POINTER :: units
+  TYPE(unit_convert_type), POINTER :: units
   PUBLIC :: unit_convert_type, get_cp2k_units, init_cp2k_units, rm_cp2k_units
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp2k_units'
+  CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = 'cp2k_units'
 !!*****
 !******************************************************************************
 

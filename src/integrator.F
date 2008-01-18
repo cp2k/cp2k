@@ -105,17 +105,17 @@ MODULE integrator
 
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'integrator'
+  CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = 'integrator'
 
   TYPE old_variables_type
-     REAL (KIND=dp), POINTER, DIMENSION ( :, : ) :: v
-     REAL (KIND=dp), POINTER, DIMENSION ( :, : ) :: r
-     REAL (KIND=dp), POINTER, DIMENSION ( :, : ) :: eps
-     REAL (KIND=dp), POINTER, DIMENSION ( :, : ) :: veps
-     REAL (KIND=dp), POINTER, DIMENSION ( :, : ) :: h
+    REAL(KIND=dp), POINTER, DIMENSION(:,:) :: v
+    REAL(KIND=dp), POINTER, DIMENSION(:,:) :: r
+    REAL(KIND=dp), POINTER, DIMENSION(:,:) :: eps
+    REAL(KIND=dp), POINTER, DIMENSION(:,:) :: veps
+    REAL(KIND=dp), POINTER, DIMENSION(:,:) :: h
   END TYPE old_variables_type
 
-  TYPE ( old_variables_type ) :: old
+  TYPE(old_variables_type) :: old
 
   PUBLIC :: nve, nvt, isokin, npt_i, npt_f, nph_uniaxial, nve_respa
   PUBLIC :: nph_uniaxial_damped, reftraj, langevin

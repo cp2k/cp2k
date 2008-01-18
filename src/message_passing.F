@@ -74,7 +74,7 @@ MODULE message_passing
 #endif
 
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'message_passing'
+  CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = 'message_passing'
   
   ! parameters that might be needed
 
@@ -219,7 +219,7 @@ MODULE message_passing
   TYPE mp_perf_env_type
      !private
      INTEGER :: ref_count, id_nr
-     TYPE ( mp_perf_type ), DIMENSION ( MAX_PERF ) :: mp_perfs
+     TYPE(mp_perf_type), DIMENSION(MAX_PERF) :: mp_perfs
   END TYPE mp_perf_env_type
 
   TYPE mp_perf_env_p_type
@@ -230,15 +230,15 @@ MODULE message_passing
   INTEGER, PARAMETER :: max_stack_size = 10
   INTEGER            :: stack_pointer = 0
   ! target attribute needed as a hack around ifc 7.1 bug 
-  TYPE ( mp_perf_env_p_type ), DIMENSION (max_stack_size), TARGET :: mp_perf_stack
+  TYPE(mp_perf_env_p_type), DIMENSION(max_stack_size), TARGET :: mp_perf_stack
 
-  CHARACTER ( LEN = 20 ), PARAMETER :: sname ( MAX_PERF ) =  &
+  CHARACTER(LEN=20), PARAMETER :: sname(MAX_PERF) =  &
    (/"MP_Group            ", "MP_Bcast            ", "MP_Allreduce        ", &
      "MP_Gather           ", "MP_Sync             ", "MP_Alltoall         ", &
      "MP_SendRecv         ", "MP_ISendRecv        ", "MP_Wait             ", &
      "MP_comm_split       ", "MP_ISend            ", "MP_IRecv            ", &
      "MP_Send             ", "MP_Recv             "/)
-  REAL (KIND=dp) :: t_start, t_end
+  REAL(KIND=dp) :: t_start, t_end
 
   ! we make some assumptions on the length of INTEGERS, REALS and LOGICALS
   INTEGER, PARAMETER :: intlen=BIT_SIZE ( 0 ) / 8, reallen=8, loglen=BIT_SIZE ( 0 ) / 8, charlen=1

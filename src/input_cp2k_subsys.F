@@ -1854,17 +1854,11 @@ CONTAINS
     END IF
   END SUBROUTINE connectivity_framework
 
-  ! ***************************************************************************
-
+  !> \brief      Create CP2K input section for the DFT+U method parameters
+  !> \author     Matthias Krack (MK)
+  !> \date       01.11.2007
+  !> \version    1.0
   SUBROUTINE create_dft_plus_u_section(section,error)
-
-    ! Routine info read by Doxygen:
-
-    !> \class      create_dft_plus_u_section
-    !> \brief      Create CP2K input section for the DFT+U parameters
-    !> \author     Matthias Krack (MK)
-    !> \date       01.11.2007
-    !> \version    1.0
 
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -1933,7 +1927,5 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_dft_plus_u_section
-
-  ! ***************************************************************************
 
 END MODULE input_cp2k_subsys
