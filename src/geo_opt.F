@@ -51,7 +51,8 @@ MODULE geo_opt
                                              default_cg_method_id,&
                                              default_lbfgs_method_id
   USE input_cp2k_restarts,             ONLY: write_restart
-  USE input_section_types,             ONLY: section_vals_type
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
@@ -63,14 +64,14 @@ MODULE geo_opt
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'geo_opt'
 
- PUBLIC :: qs_geo_opt
+ PUBLIC :: cp_geo_opt
 
  CONTAINS
 
-!!****f* geo_opt/qs_geo_opt [1.0] *
+!!****f* geo_opt/cp_geo_opt [1.0] *
 !!
 !!   NAME
-!!     qs_geo_opt
+!!     cp_geo_opt
 !!
 !!   FUNCTION
 !!     Main driver to perform geometry optimization
@@ -89,12 +90,12 @@ MODULE geo_opt
 !!
 !!
 !!*** **********************************************************************
-   SUBROUTINE qs_geo_opt(force_env, globenv, error)
+   SUBROUTINE cp_geo_opt(force_env, globenv, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'qs_geo_opt', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_geo_opt', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, stat
@@ -103,30 +104,32 @@ MODULE geo_opt
     TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(section_vals_type), POINTER         :: force_env_section, &
-                                                root_section
+                                                geo_section, root_section
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
     NULLIFY (gopt_param,force_env_section,gopt_env,x0)
-    root_section=>force_env%root_section
-    CALL gopt_param_read(gopt_param, root_section, error=error)
-
+    root_section      => force_env%root_section
     force_env_section => force_env%force_env_section
-    CALL gopt_f_create(gopt_env, gopt_param, force_env=force_env, globenv=globenv,error=error)
+    geo_section       => section_vals_get_subs_vals(root_section,"MOTION%GEO_OPT",error=error)
+
+    CALL gopt_param_read(gopt_param, geo_section,  skip_type=.FALSE., error=error)
+    CALL gopt_f_create(gopt_env, gopt_param, force_env=force_env, globenv=globenv,&
+         geo_opt_section=geo_section, error=error)
     CALL gopt_f_create_x0(gopt_env, x0, error=error)
 
     SELECT CASE (gopt_param%method_id)
     CASE (default_bfgs_method_id)
-       CALL geoopt_bfgs(force_env,gopt_param,root_section,globenv,force_env_section,&
-            gopt_env, x0, error=error)
+       CALL geoopt_bfgs(force_env,gopt_param,globenv,force_env_section,&
+            geo_section, gopt_env, x0, error=error)
     CASE (default_lbfgs_method_id)
        CALL gopt_do_opt(force_env,gopt_param,globenv,force_env_section,&
-            gopt_env, x0, error=error)
+            geo_section, gopt_env, x0, error=error)
     CASE (default_cg_method_id)
        CALL geoopt_cg  (force_env,gopt_param,globenv,force_env_section,&
-            gopt_env, x0, error=error)
+            geo_section, gopt_env, x0, error=error)
     CASE DEFAULT
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT
@@ -137,7 +140,7 @@ MODULE geo_opt
     CALL gopt_param_release(gopt_param, error=error)
     CALL timestop(handle)
 
-  END SUBROUTINE qs_geo_opt
+  END SUBROUTINE cp_geo_opt
 
 !!****f* geo_opt/gopt_do_opt [1.0] *
 !!
@@ -162,11 +165,11 @@ MODULE geo_opt
 !!
 !!*** **********************************************************************
    SUBROUTINE gopt_do_opt(force_env, gopt_param, globenv, force_env_section,&
-        gopt_env, x0, error)
+        geo_section, gopt_env, x0, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section, geo_section
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
     TYPE(cp_error_type), INTENT(inout)       :: error

@@ -85,6 +85,7 @@ MODULE cp_lbfgs_optimizer_[nametype1]
   [USE]
   IMPLICIT NONE
   PRIVATE
+[INTERFACE]
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_lbfgs_optimizer_[nametype1]'

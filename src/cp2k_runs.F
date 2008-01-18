@@ -51,7 +51,7 @@ MODULE cp2k_runs
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
-  USE geo_opt,                         ONLY: qs_geo_opt
+  USE geo_opt,                         ONLY: cp_geo_opt
   USE global_types,                    ONLY: global_environment_type,&
                                              globenv_create,&
                                              globenv_release,&
@@ -328,7 +328,7 @@ CONTAINS
           CASE (mol_dyn_run)
              CALL qs_mol_dyn ( force_env, globenv, error=suberror )
           CASE (geo_opt_run)
-             CALL qs_geo_opt(force_env,globenv,error=suberror)
+             CALL cp_geo_opt(force_env,globenv,error=suberror)
           CASE (mon_car_run)
              CALL do_mon_car ( force_env, globenv, input_file_name, error=suberror )
           CASE (electronic_spectra_run)

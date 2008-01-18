@@ -110,7 +110,9 @@ CONTAINS
 
        NULLIFY(subsection, print_key)
 
-       CALL create_geoopt_section(subsection,error)
+       CALL create_geoopt_section(subsection,label="GEO_OPT",&
+            description="This section sets the environment of the geometry optimizer.",&
+            just_optimizers=.FALSE.,error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
@@ -748,8 +750,10 @@ CONTAINS
 !!     teo
 !!
 !!*** **********************************************************************
-  SUBROUTINE create_geoopt_section(section,error)
+  RECURSIVE SUBROUTINE create_geoopt_section(section,label,description,just_optimizers,error)
     TYPE(section_type), POINTER              :: section
+    CHARACTER(LEN=*), INTENT(IN)             :: label, description
+    LOGICAL, INTENT(IN)                      :: just_optimizers
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_geoopt_section', &
@@ -757,29 +761,29 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key, subsection, &
-                                                subsubsection
+    TYPE(section_type), POINTER              :: print_key, subsection
 
     failure=.FALSE.
 
     IF (.NOT.failure) THEN
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-       CALL section_create(section,name="GEO_OPT",&
-            description="This section sets the environment of the geometry optimizer.",&
+       CALL section_create(section,name=label, description=description,&
             n_keywords=1, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
        NULLIFY(keyword)
-       CALL keyword_create(keyword, name="TYPE",&
-            description="Specify which kind of geometry optimization to perform",&
-            usage="TYPE (MINIMIZATION|TRANSITION_STATE)",&
-            enum_c_vals=s2a( "MINIMIZATION","TRANSITION_STATE"),&
-            enum_desc=s2a("Performs a geometry minimization.",&
-                          "Performs a transition state optimization."),&
-            enum_i_vals=(/default_minimization_method_id,default_ts_method_id/),&
-            default_i_val=default_minimization_method_id,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+       IF (.NOT.just_optimizers) THEN
+          CALL keyword_create(keyword, name="TYPE",&
+               description="Specify which kind of geometry optimization to perform",&
+               usage="TYPE (MINIMIZATION|TRANSITION_STATE)",&
+               enum_c_vals=s2a( "MINIMIZATION","TRANSITION_STATE"),&
+               enum_desc=s2a("Performs a geometry minimization.",&
+                             "Performs a transition state optimization."),&
+               enum_i_vals=(/default_minimization_method_id,default_ts_method_id/),&
+               default_i_val=default_minimization_method_id,error=error)
+          CALL section_add_keyword(section,keyword,error=error)
+          CALL keyword_release(keyword,error=error)
+       END IF
 
        CALL keyword_create(keyword, name="OPTIMIZER",&
             variants=(/"MINIMIZER"/),&
@@ -834,139 +838,23 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error) 
 
-       ! create the LBFGS subsection
-       NULLIFY(subsection)
-       CALL section_create(subsection,name="LBFGS",&
-            description="Provides parameters to tune the limited memory BFGS (LBFGS) optimization",&
-            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
-            citations=(/byrd1995/),&
-            error=error)
-
-       CALL keyword_create(keyword, name="MAX_H_RANK",&
-            description="Maximum rank (and consequently size) of the "//&
-            "approximate hessian matrix used by the LBFGS optimizer",&
-            usage="MAX_H_RANK {integer}",&
-            default_i_val=5,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="MAX_F_PER_ITER",&
-            description="Maximum number of force evaluations per iteration"// &
-            "(used for the line search)",&
-            usage="MAX_F_PER_ITER {integer}",&
-            default_i_val=3,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="WANTED_PROJ_GRADIENT",&
-            description="Convergence criterium (overrides the general ones):"//&
-            "Requested norm threshold of the gradient multiplied "// &
-            "by the approximate Hessian.",&
-            usage="WANTED_PROJ_GRADIENT {real}",&
-            default_r_val=1.0E-16_dp,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="WANTED_REL_F_ERROR",&
-            description="Convergence criterium (overrides the general ones):"//&
-            "Requested relative error on the objective function"//&
-            "of the optimizer (the energy)",&
-            usage="WANTED_REL_F_ERROR {real}",&
-            default_r_val=1.0E-16_dp,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
+       CALL create_lbfgs_section(subsection, error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
-       ! create the CG subsection
-       CALL section_create(subsection,name="CG",&
-            description="Provides parameters to tune the conjugate gradient optimization",&
-            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
-            error=error)
-
-       CALL keyword_create(keyword, name="BRENT_TOL",&
-            description="Tolerance requested during Brent line search in Conjugate Gradients Optimization.",&
-            usage="BRENT_TOL {real}",&
-            default_r_val=0.01_dp,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="INITIAL_STEP",&
-            description="Initial step size used, e.g. for bracketing or minimizers. "//&
-            "Might need to be reduced for systems with close contacts",&
-            usage="INITIAL_STEP {real}",&
-            default_r_val=0.2_dp,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="BRACK_LIMIT",&
-            description="Limit in 1D bracketing during line search in Conjugate Gradients Optimization.",&
-            usage="BRACK_LIMIT {real}",&
-            default_r_val=100.0_dp,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="BRENT_MAX_ITER",&
-            description="Maximum number of iterations in brent algorithm "// &
-            "(used for the line search in Conjugated Gradients Optimization)",&
-            usage="BRENT_MAX_ITER {integer}",&
-            default_i_val=100,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="MAX_STEEP_STEPS",&
-            description="Maximum number of steepest descent steps before starting the"//&
-            " conjugate gradients optimization.",&
-            usage="MAX_STEEP_STEPS {integer}",&
-            default_i_val=0,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="RESTART_LIMIT",&
-            description="Cosine of the angle between two consecutive searching directions."//&
-            " If the angle during a CG optimization is less than the one corresponding to "//&
-            " to the RESTART_LIMIT the CG is reset and one step of steepest descent is "//&
-            " performed.",&
-            usage="RESTART_LIMIT {real}",&
-            default_r_val=0.1_dp,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="USE_FIT_LINE_SEARCH",&
-            description="Use instead of bracketing the minima and than applying the Brent"//&
-            " algorithm, a least mean square to interpolate the minima in the line search.",&
-            usage="USE_FIT_LINE_SEARCH",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="FLETCHER_REEVES",&
-            description="Uses FLETCHER-REEVES instead of POLAK-RIBIERE when using Conjugate Gradients",&
-            usage="FLETCHER-REEVES",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
+       CALL create_cg_section(subsection, error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
-       ! create the BFGS subsection 
-       NULLIFY(subsection)
-       CALL section_create(subsection,name="BFGS",&
-            description="Provides parameters to tune the BFGS optimization",&
-            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
-            error=error)
-
-       CALL keyword_create(keyword, name="RESTART",&
-            description="The initial HESSIAN is restarted from the file HESSIAN",&
-            usage="RESTART",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
+       CALL create_bfgs_section(subsection, error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
+
+       IF (.NOT.just_optimizers) THEN
+          CALL create_ts_section(subsection, error)
+          CALL section_add_subsection(section,subsection,error=error)
+          CALL section_release(subsection,error=error)
+       END IF
 
        ! create the PRINT subsection 
        NULLIFY(subsection)
@@ -984,14 +872,50 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)    
 
-       ! create the Transition State subsection 
-       NULLIFY(subsection)
-       CALL section_create(subsection,name="TRANSITION_STATE",&
+    END IF
+  END SUBROUTINE create_geoopt_section
+
+!!****f* input_cp2k_motion/create_ts_section *
+!!
+!!   NAME
+!!     create_ts_section
+!!
+!!   FUNCTION
+!!     creates the section for tuning transition states search
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: the section to be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino [tlaino] - University of Zurich - 01.2008
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_ts_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_ts_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection, subsection2
+
+    failure=.FALSE.
+
+    IF (.NOT.failure) THEN
+       ! Create the Transition State subsection 
+       NULLIFY(section,keyword,subsection, subsection2)
+       CALL section_create(section,name="TRANSITION_STATE",&
             description="Specifies parameters to perform a transition state search",&
             n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
-       NULLIFY(keyword)
        CALL keyword_create(keyword, name="METHOD",&
             description="Specify which kind of method to use for locating transition states",&
             citations=(/Henkelman1999/),&
@@ -1000,36 +924,275 @@ CONTAINS
             enum_desc=s2a("Uses the dimer method to optimize transition states."),&
             enum_i_vals=(/default_dimer_method_id/),&
             default_i_val=default_dimer_method_id,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)   
 
-       NULLIFY(subsubsection)
-       CALL section_create(subsubsection,name="DIMER",&
+       CALL section_create(subsection,name="DIMER",&
             description="Specifies parameters for Dimer Method",&
             n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
             error=error)
-
-       CALL keyword_create(keyword, name="USE_REPLICA",&
-            description="Enables the parallel execution of the two points of the dimer.",&
-            usage="USE_REPLICA <LOGICAL>",&
-            default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(subsubsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="DR",&
             description="This keyword sets the value for the DR parameter.",&
             usage="DR {real}",unit_str='angstrom',&
             default_r_val=cp_unit_to_cp2k(0.01_dp,"angstrom",error=error),error=error)
-       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL section_add_subsection(subsection,subsubsection,error=error)
-       CALL section_release(subsubsection,error=error)
+       CALL keyword_create(keyword, name="INTERPOLATE_GRADIENT",&
+            description="This keyword controls the interpolation of the gradient whenever possible"//&
+            " during the optimization of the Dimer. The use of this keywords saves 1 evaluation "//&
+            " of energy/forces.",&
+            usage="INTERPOLATE_GRADIENT {logical}",default_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL create_geoopt_section(subsection2, label="ROT_OPT",&
+            description="This section sets the environment for the optimization of the rotation of the Dimer.",&
+            just_optimizers=.TRUE.,error=error)
+       CALL section_add_subsection(subsection,subsection2,error=error)
+       CALL section_release(subsection2,error=error)
 
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
+
     END IF
-  END SUBROUTINE create_geoopt_section
+
+  END SUBROUTINE create_ts_section
+
+!!****f* input_cp2k_motion/create_bfgs_section *
+!!
+!!   NAME
+!!     create_bfgs_section
+!!
+!!   FUNCTION
+!!     creates the BFGS section
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: the section to be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino [tlaino] - University of Zurich - 01.2008
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_bfgs_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_bfgs_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    IF (.NOT.failure) THEN
+       ! create the BFGS subsection 
+       NULLIFY(section,keyword)
+       CALL section_create(section,name="BFGS",&
+            description="Provides parameters to tune the BFGS optimization",&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="RESTART",&
+            description="The initial HESSIAN is restarted from the file HESSIAN",&
+            usage="RESTART",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_bfgs_section
+
+!!****f* input_cp2k_motion/create_cg_section *
+!!
+!!   NAME
+!!     create_cg_section
+!!
+!!   FUNCTION
+!!     creates the CG section
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: the section to be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino [tlaino] - University of Zurich - 01.2008
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_cg_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_cg_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    IF (.NOT.failure) THEN
+       ! create the CG subsection
+       NULLIFY(section,keyword)
+       CALL section_create(section,name="CG",&
+            description="Provides parameters to tune the conjugate gradient optimization",&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="BRENT_TOL",&
+            description="Tolerance requested during Brent line search in Conjugate Gradients Optimization.",&
+            usage="BRENT_TOL {real}",&
+            default_r_val=0.01_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="INITIAL_STEP",&
+            description="Initial step size used, e.g. for bracketing or minimizers. "//&
+            "Might need to be reduced for systems with close contacts",&
+            usage="INITIAL_STEP {real}",&
+            default_r_val=0.2_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="BRACK_LIMIT",&
+            description="Limit in 1D bracketing during line search in Conjugate Gradients Optimization.",&
+            usage="BRACK_LIMIT {real}",&
+            default_r_val=100.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="BRENT_MAX_ITER",&
+            description="Maximum number of iterations in brent algorithm "// &
+            "(used for the line search in Conjugated Gradients Optimization)",&
+            usage="BRENT_MAX_ITER {integer}",&
+            default_i_val=100,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MAX_STEEP_STEPS",&
+            description="Maximum number of steepest descent steps before starting the"//&
+            " conjugate gradients optimization.",&
+            usage="MAX_STEEP_STEPS {integer}",&
+            default_i_val=0,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RESTART_LIMIT",&
+            description="Cosine of the angle between two consecutive searching directions."//&
+            " If the angle during a CG optimization is less than the one corresponding to "//&
+            " to the RESTART_LIMIT the CG is reset and one step of steepest descent is "//&
+            " performed.",&
+            usage="RESTART_LIMIT {real}",&
+            default_r_val=0.1_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="USE_FIT_LINE_SEARCH",&
+            description="Use instead of bracketing the minima and than applying the Brent"//&
+            " algorithm, a least mean square to interpolate the minima in the line search.",&
+            usage="USE_FIT_LINE_SEARCH",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="FLETCHER_REEVES",&
+            description="Uses FLETCHER-REEVES instead of POLAK-RIBIERE when using Conjugate Gradients",&
+            usage="FLETCHER-REEVES",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_cg_section
+
+!!****f* input_cp2k_motion/create_lbfgs_section *
+!!
+!!   NAME
+!!     create_lbfgs_section
+!!
+!!   FUNCTION
+!!     creates the LBFGS section
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: the section to be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino [tlaino] - University of Zurich - 01.2008
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_lbfgs_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_lbfgs_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    IF (.NOT.failure) THEN
+       ! create the LBFGS section
+       NULLIFY(section,keyword)
+       CALL section_create(section,name="LBFGS",&
+            description="Provides parameters to tune the limited memory BFGS (LBFGS) optimization",&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            citations=(/byrd1995/),&
+            error=error)
+
+       CALL keyword_create(keyword, name="MAX_H_RANK",&
+            description="Maximum rank (and consequently size) of the "//&
+            "approximate hessian matrix used by the LBFGS optimizer",&
+            usage="MAX_H_RANK {integer}",&
+            default_i_val=5,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MAX_F_PER_ITER",&
+            description="Maximum number of force evaluations per iteration"// &
+            "(used for the line search)",&
+            usage="MAX_F_PER_ITER {integer}",&
+            default_i_val=3,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="WANTED_PROJ_GRADIENT",&
+            description="Convergence criterium (overrides the general ones):"//&
+            "Requested norm threshold of the gradient multiplied "// &
+            "by the approximate Hessian.",&
+            usage="WANTED_PROJ_GRADIENT {real}",&
+            default_r_val=1.0E-16_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="WANTED_REL_F_ERROR",&
+            description="Convergence criterium (overrides the general ones):"//&
+            "Requested relative error on the objective function"//&
+            "of the optimizer (the energy)",&
+            usage="WANTED_REL_F_ERROR {real}",&
+            default_r_val=1.0E-16_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    END IF
+
+  END SUBROUTINE create_lbfgs_section
 
 !!****f* input_cp2k/create_fp_section *
 !!

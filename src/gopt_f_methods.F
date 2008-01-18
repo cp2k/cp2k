@@ -31,16 +31,12 @@ MODULE gopt_f_methods
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
-  USE dimer_methods,                   ONLY: cp_eval_at_ts
   USE f77_blas
-  USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE gopt_f_types,                    ONLY: gopt_f_type
   USE gopt_param_types,                ONLY: gopt_param_type
-  USE input_constants,                 ONLY: default_minimization_method_id,&
-                                             default_ts_method_id,&
-                                             dump_atomic,&
+  USE input_constants,                 ONLY: dump_atomic,&
                                              dump_dcd,&
                                              dump_xmol
   USE input_cp2k_restarts,             ONLY: write_restart
@@ -63,143 +59,15 @@ MODULE gopt_f_methods
 
   IMPLICIT NONE
   PRIVATE
+#include "gopt_f77_methods.h"
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gopt_f_methods'
 
-  PUBLIC :: cp_eval_at, gopt_f_create_x0
-  PUBLIC :: write_cycle_infos, check_converg, write_final_info, write_geo_traj
+  PUBLIC :: gopt_f_create_x0, write_cycle_infos, check_converg,&
+            write_final_info, write_geo_traj
 
 CONTAINS
-
-!!****f* gopt_f_methods/cp_eval_at [1.0] *
-!!
-!!   NAME
-!!     cp_eval_at
-!!
-!!   FUNCTION
-!!     evaluete the potential energy and its gradients using an array
-!!     with same dimension as the particle_set
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     gopt_env: the geometry optimization environment
-!!     x: the position where the function should be evaluated
-!!     f: the function value
-!!     gradient: the value of its gradient
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 3.2002
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
-  SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, para_env, error)
-    TYPE(gopt_f_type), POINTER               :: gopt_env
-    REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: x
-    REAL(KIND=dp), INTENT(out), OPTIONAL     :: f
-    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
-      POINTER                                :: gradient
-    INTEGER, INTENT(in)                      :: master
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_eval_at', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, idg, idir, ip, stat
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: f_ts
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: gradient_ts
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(particle_list_type), POINTER        :: particles
-
-    failure=.FALSE.
-    NULLIFY(particles, subsys, cell, gradient_ts)
-
-    CALL timeset(routineN,"I","",handle)
-
-    CALL force_env_get(gopt_env%force_env, subsys=subsys, cell=cell,error=error)
-    idg=0
-    CALL cp_subsys_get(subsys, particles=particles, error=error)
-    DO ip=1,particles%n_els
-       DO idir=1,3
-          idg=idg+1
-          particles%els(ip)%r(idir)=x(idg)
-       END DO
-    END DO
-    CALL write_structure_data(particles%els,cell,gopt_env%motion_section,error)
-
-    SELECT CASE(gopt_env%type_id)
-    CASE(default_minimization_method_id)
-       ! Geometry Minimization
-       CALL force_env_calc_energy_force(gopt_env%force_env,&
-            calc_force=PRESENT(gradient),error=error)
-
-       ! Possibly take the potential energy
-       IF (PRESENT(f)) THEN
-          CALL force_env_get(gopt_env%force_env,potential_energy=f,error=error)
-       END IF
-       
-       ! Possibly take the gradients
-       IF (PRESENT(gradient)) THEN
-          IF (master==para_env%mepos) THEN ! we are on the master
-             CPPrecondition(ASSOCIATED(gradient),cp_failure_level,routineP,error,failure)
-             CALL force_env_get(gopt_env%force_env, subsys=subsys,error=error)
-             idg=0
-             CALL cp_subsys_get(subsys, particles=particles, error=error)
-             DO ip=1,particles%n_els
-                DO idir=1,3
-                   idg=idg+1
-                   CPInvariant(SIZE(gradient)>=idg,cp_failure_level,routineP,error,failure)
-                   gradient(idg)=-particles%els(ip)%f(idir)
-                END DO
-             END DO
-          END IF
-       END IF
-    CASE(default_ts_method_id)
-       ! Transition State Optimization
-       IF (PRESENT(gradient)) THEN
-          ALLOCATE(gradient_ts(particles%n_els*3),stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       END IF
-
-       ! Real calculation of energy and forces for transition state optimization
-       CALL cp_eval_at_ts (gopt_env, x, f_ts, gradient_ts, calc_force=PRESENT(gradient), error=error)
-
-       ! Possibly take the potential energy
-       IF (PRESENT(f)) f = f_ts
-       
-       ! Possibly take the gradients
-       IF (PRESENT(gradient)) THEN
-          IF (master==para_env%mepos) THEN ! we are on the master
-             CPPrecondition(ASSOCIATED(gradient),cp_failure_level,routineP,error,failure)
-             gradient = gradient_ts
-          END IF
-          DEALLOCATE(gradient_ts, stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       END IF
-    END SELECT
-
-    ! This call is necessary for QM/MM if a Translation is applied
-    ! this makes the geometry optimizer consistent
-    idg=0
-    CALL cp_subsys_get(subsys, particles=particles,error=error)
-    DO ip=1,particles%n_els
-       DO idir=1,3
-          idg=idg+1
-          particles%els(ip)%r(idir)=x(idg)
-       END DO
-    END DO
-    CALL timestop(0.0_dp,handle)
-  END SUBROUTINE cp_eval_at
 
 !!****f* gopt_f_methods/gopt_f_create_x0 [1.0] *
 !!

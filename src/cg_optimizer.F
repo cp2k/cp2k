@@ -35,7 +35,6 @@ MODULE cg_optimizer
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_methods,                  ONLY: check_converg,&
-                                             cp_eval_at,&
                                              write_cycle_infos,&
                                              write_final_info,&
                                              write_geo_traj
@@ -56,8 +55,9 @@ MODULE cg_optimizer
 
   IMPLICIT NONE
   PRIVATE
-  PUBLIC :: geoopt_cg
+#include "gopt_f77_methods.h"
 
+  PUBLIC :: geoopt_cg
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cg_optimizer'
 
@@ -86,11 +86,11 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE geoopt_cg(force_env,gopt_param,globenv,force_env_section,&
-       gopt_env, x0, error)
+       geo_section, gopt_env, x0, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section, geo_section
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
     TYPE(cp_error_type), INTENT(inout)       :: error

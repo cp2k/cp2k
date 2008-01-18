@@ -27,12 +27,11 @@ MODULE gopt_param_types
   USE f77_blas
   USE input_constants,                 ONLY: default_bfgs_method_id,&
                                              default_cg_method_id,&
-                                             default_dimer_method_id,&
                                              default_lbfgs_method_id,&
                                              default_minimization_method_id,&
-                                             default_ts_method_id
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
+                                             default_ts_method_id,&
+                                             none_ts_method_id
+  USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
@@ -85,7 +84,7 @@ MODULE gopt_param_types
      INTEGER         :: max_f_per_iter, max_iter, max_h_rank
      INTEGER         :: brent_max_iter, max_steep_steps
      REAL(KIND = dp) :: wanted_proj_gradient, wanted_rel_f_error
-     REAL(KIND = dp) :: max_dr,max_force,rms_dr,rms_force, dimer_dr
+     REAL(KIND = dp) :: max_dr,max_force,rms_dr,rms_force
      REAL(KIND = dp) :: brent_tol, brack_limit, restart_limit, initial_step
   END TYPE gopt_param_type
 !!***
@@ -135,6 +134,7 @@ CONTAINS
        last_gopt_param_id=last_gopt_param_id+1
        gopt_param%id_nr=last_gopt_param_id
        gopt_param%ref_count=1
+       gopt_param%type_id=default_minimization_method_id
     END IF
   END SUBROUTINE gopt_param_create
 !***************************************************************************
@@ -162,28 +162,28 @@ CONTAINS
 !!     08.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE gopt_param_read(gopt_param, root_section, error)
+  SUBROUTINE gopt_param_read(gopt_param, gopt_section, skip_type, error)
     TYPE(gopt_param_type), POINTER           :: gopt_param
-    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(section_vals_type), POINTER         :: gopt_section
+    LOGICAL, INTENT(IN)                      :: skip_type
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_param_read', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-    TYPE(section_vals_type), POINTER         :: gopt_section
 
     failure=.FALSE.
 
-    IF (.NOT.ASSOCIATED(gopt_param)) THEN
-       CALL gopt_param_create(gopt_param, error=error)
-    END IF
+    CPPrecondition(.NOT.ASSOCIATED(gopt_param),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(gopt_section),cp_failure_level,routineP,error,failure)
+    CALL gopt_param_create(gopt_param, error=error)
 
-    NULLIFY(gopt_section)
-    gopt_section =>  section_vals_get_subs_vals(root_section,"MOTION%GEO_OPT",error=error)
     failure=.FALSE.
     IF (.NOT.failure) THEN
-       CALL section_vals_val_get(gopt_section,"TYPE",i_val=gopt_param%type_id,error=error)
+       IF (.NOT.skip_type) THEN
+          CALL section_vals_val_get(gopt_section,"TYPE",i_val=gopt_param%type_id,error=error)
+       END IF
        CALL section_vals_val_get(gopt_section,"OPTIMIZER",i_val=gopt_param%method_id,error=error)
 
        CALL section_vals_val_get(gopt_section,"MAX_ITER",i_val=gopt_param%max_iter,error=error)
@@ -214,15 +214,9 @@ CONTAINS
        SELECT CASE(gopt_param%type_id)
        CASE(default_minimization_method_id)
           ! Do Nothing
+          gopt_param%ts_method_id=none_ts_method_id
        CASE(default_ts_method_id)
           CALL section_vals_val_get(gopt_section,"TRANSITION_STATE%METHOD",i_val=gopt_param%ts_method_id,error=error)
-          SELECT CASE(gopt_param%ts_method_id)
-          CASE(default_dimer_method_id)
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="Dimer Method not yet available.", &
-                  error=error, error_level=cp_failure_level)
-             CALL section_vals_val_get(gopt_section,"TRANSITION_STATE%DIMER%DR",r_val=gopt_param%dimer_dr,error=error)
-          END SELECT
        END SELECT
     END IF
 

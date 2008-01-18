@@ -38,7 +38,6 @@ MODULE bfgs_optimizer
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_methods,                  ONLY: check_converg,&
-                                             cp_eval_at,&
                                              write_cycle_infos,&
                                              write_final_info,&
                                              write_geo_traj
@@ -58,8 +57,8 @@ MODULE bfgs_optimizer
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
-
   PRIVATE
+#include "gopt_f77_methods.h"
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bfgs_optimizer'
   LOGICAL, PARAMETER                       :: debug_this_module=.TRUE.
@@ -85,14 +84,13 @@ CONTAINS
 !!
 !!   SOURCE
 !***************************************************************************
-  SUBROUTINE geoopt_bfgs(force_env,gopt_param,root_section,globenv,force_env_section,&
-       gopt_env, x0, error)
+  SUBROUTINE geoopt_bfgs(force_env,gopt_param,globenv,force_env_section,&
+       geo_section, gopt_env, x0, error)
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
-    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section, geo_section
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -120,11 +118,13 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(section_vals_type), POINTER         :: root_section
 
     failure = .FALSE.
     NULLIFY(logger, g)
     logger => cp_error_get_logger(error)
     para_env=>force_env%para_env
+    root_section=>force_env%root_section
 
     CALL cp_add_iter_level(logger%iter_info,"GEO_OPT",ihandle,error)
     CALL timeset(routineN,"I","",handle)

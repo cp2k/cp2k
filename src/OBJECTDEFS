@@ -172,6 +172,7 @@ OBJECTS_GENERIC =\
  global_types.o\
  gopt_f_types.o\
  gopt_f_methods.o\
+ gopt_f77_methods.o\
  gopt_param_types.o\
  graphcon.o\
  harris_energy_types.o\

@@ -62,7 +62,6 @@ MODULE cp_lbfgs_optimizer_gopt
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_type
   USE gopt_f_methods,                  ONLY: check_converg,&
-                                             cp_eval_at,&
                                              write_cycle_infos,&
                                              write_geo_traj
   USE gopt_f_types,                    ONLY: gopt_f_release,&
@@ -78,6 +77,7 @@ MODULE cp_lbfgs_optimizer_gopt
 
   IMPLICIT NONE
   PRIVATE
+#include "gopt_f77_methods.h"
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_lbfgs_optimizer_gopt'
@@ -1048,9 +1048,8 @@ CPSourceFileRef,&
   ! files are almost the same (multi-line use change it a bit)
   ! [template(type1,nametype1,USE,type1_retain,type1_release,type1_eval_at)]
 ! ARGS:
-!  USE = 
-!    "USE gopt_f_types, ONLY: gopt_f_type, gopt_f_release,gopt_f_retain
-!             USE gopt_f_methods,  ONLY: cp_eval_at"
+!  INTERFACE = "#include "gopt_f77_methods.h""
+!  USE = "USE gopt_f_types, ONLY: gopt_f_type, gopt_f_release,gopt_f_retain"
 !  nametype1 = "gopt"
 !  type1 = "type(gopt_f_type)"
 !  type1_eval_at = "cp_eval_at"

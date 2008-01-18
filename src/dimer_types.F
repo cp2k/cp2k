@@ -67,8 +67,10 @@ MODULE dimer_types
   !***************************************************************************
   TYPE dimer_env_type
      INTEGER :: ref_count, id_nr
+     LOGICAL                                    :: rotate_dimer
+     LOGICAL                                    :: interpolate_gradient
      REAL(KIND=dp)                              :: dr
-     REAL(KIND=dp), POINTER, DIMENSION(:)       :: nvec
+     REAL(KIND=dp), POINTER, DIMENSION(:)       :: nvec, x0
   END TYPE dimer_env_type
 
 CONTAINS
@@ -117,14 +119,18 @@ CONTAINS
        last_dimer_id=last_dimer_id+1
        dimer_env%id_nr=last_dimer_id
        ! Setup NVEC
-       NULLIFY(dimer_env%nvec)
+       NULLIFY(dimer_env%nvec, dimer_env%x0)
+       ! Allocate the dimer vector
        ALLOCATE(dimer_env%nvec(natom*3),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ! Allocate the data for the angle optimization
+       ALLOCATE(dimer_env%x0(1),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL random_numbers(dimer_env%nvec, globenv%gaussian_rng_stream, error)
        norm = SQRT(SUM(dimer_env%nvec**2))
        CPPostcondition(norm>0.0_dp,cp_failure_level,routineP,error,failure)
-       dimer_env%nvec = dimer_env%nvec / norm
-       dimer_env%dr   = gopt_param%dimer_dr
+       dimer_env%nvec         = dimer_env%nvec / norm
+       dimer_env%rotate_dimer = .TRUE.
     END IF
   END SUBROUTINE dimer_env_create
 !***************************************************************************
@@ -209,6 +215,10 @@ CONTAINS
        IF (dimer_env%ref_count==0) THEN
           IF (ASSOCIATED(dimer_env%nvec)) THEN
              DEALLOCATE(dimer_env%nvec, stat=stat)
+             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          END IF
+          IF (ASSOCIATED(dimer_env%x0)) THEN
+             DEALLOCATE(dimer_env%x0, stat=stat)
              CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           END IF
           DEALLOCATE(dimer_env, stat=stat)

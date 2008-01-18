@@ -34,11 +34,14 @@ MODULE gopt_f_types
                                              force_env_retain,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE gopt_param_types,                ONLY: gopt_param_type
+  USE gopt_param_types,                ONLY: gopt_param_read,&
+                                             gopt_param_release,&
+                                             gopt_param_type
   USE input_constants,                 ONLY: default_dimer_method_id,&
                                              default_ts_method_id
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -79,9 +82,11 @@ MODULE gopt_f_types
      INTEGER :: type_id, ts_method_id
      TYPE(force_env_type), POINTER            :: force_env
      TYPE(global_environment_type), POINTER   :: globenv
-     TYPE(section_vals_type), POINTER         :: force_env_section,&
-                                                 motion_section
+     ! motion section to be references only for IO
+     TYPE(section_vals_type), POINTER         :: motion_section
      TYPE(dimer_env_type), POINTER            :: dimer_env
+     TYPE(gopt_f_type), POINTER               :: gopt_dimer_env
+     TYPE(gopt_param_type), POINTER           :: gopt_dimer_param
   END TYPE gopt_f_type
 !!***
   !****************************************************************************
@@ -112,11 +117,12 @@ CONTAINS
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE gopt_f_create(gopt_env, gopt_param, force_env, globenv, error)
+  RECURSIVE SUBROUTINE gopt_f_create(gopt_env, gopt_param, force_env, globenv, geo_opt_section, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: geo_opt_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_create', &
@@ -124,21 +130,21 @@ CONTAINS
 
     INTEGER                                  :: natom, stat
     LOGICAL                                  :: failure
+    TYPE(section_vals_type), POINTER         :: dimer_section, rot_opt_section
 
     failure=.FALSE.
 
     ALLOCATE(gopt_env, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
-       NULLIFY (gopt_env%dimer_env)
+       NULLIFY (gopt_env%dimer_env, gopt_env%gopt_dimer_env, gopt_env%gopt_dimer_param)
        gopt_env%ref_count=1
        last_gopt_f_id=last_gopt_f_id+1
        gopt_env%id_nr=last_gopt_f_id
        CALL force_env_retain(force_env, error=error)
        gopt_env%force_env => force_env
        gopt_env%globenv => globenv
-       gopt_env%force_env_section => force_env%force_env_section
-       gopt_env%motion_section =>  section_vals_get_subs_vals(force_env%root_section,"MOTION",error=error)
+       gopt_env%motion_section => section_vals_get_subs_vals(force_env%root_section,"MOTION",error=error)
        gopt_env%type_id = gopt_param%type_id
        IF (gopt_param%type_id== default_ts_method_id) THEN 
           gopt_env%ts_method_id = gopt_param%ts_method_id
@@ -146,6 +152,15 @@ CONTAINS
           CASE(default_dimer_method_id)
              natom = force_env_get_natom(force_env,error)
              CALL dimer_env_create(gopt_env%dimer_env, gopt_param, natom, globenv, error)
+             dimer_section => section_vals_get_subs_vals(geo_opt_section,"TRANSITION_STATE%DIMER",error=error)
+             CALL section_vals_val_get(dimer_section,"DR",r_val=gopt_env%dimer_env%dr,error=error)
+             CALL section_vals_val_get(dimer_section,"INTERPOLATE_GRADIENT",&
+                  l_val=gopt_env%dimer_env%interpolate_gradient,error=error)
+             ! Setup the environment for the rotation of the Dimer
+             rot_opt_section => section_vals_get_subs_vals(dimer_section,"ROT_OPT",error=error)
+             CALL gopt_param_read(gopt_env%gopt_dimer_param, rot_opt_section, skip_type=.TRUE.,error=error)
+             CALL gopt_f_create(gopt_env%gopt_dimer_env, gopt_env%gopt_dimer_param, force_env=force_env,&
+                  globenv=globenv, geo_opt_section=rot_opt_section, error=error)
           END SELECT
        END IF
     END IF
@@ -215,7 +230,7 @@ CONTAINS
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE gopt_f_release(gopt_env, error)
+  RECURSIVE SUBROUTINE gopt_f_release(gopt_env, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -234,9 +249,10 @@ CONTAINS
           CALL force_env_release(gopt_env%force_env,error=error)
           NULLIFY(gopt_env%force_env,&
                   gopt_env%globenv,&
-                  gopt_env%force_env_section,&
                   gopt_env%motion_section)
           CALL dimer_env_release(gopt_env%dimer_env, error)
+          CALL gopt_f_release(gopt_env%gopt_dimer_env, error=error)
+          CALL gopt_param_release(gopt_env%gopt_dimer_param, error=error)
           DEALLOCATE(gopt_env, stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        END IF
