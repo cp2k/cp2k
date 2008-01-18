@@ -301,25 +301,27 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
       END IF
     END IF
 
-    ! generate task lists (non-soft)
-    IF (.NOT. dft_control%qs_control%gapw) THEN
-       CALL get_qs_env(qs_env=qs_env,task_list=task_list,error=error)
-       IF (.NOT. ASSOCIATED(task_list)) THEN
-          CALL allocate_task_list(task_list,error)
-          CALL set_qs_env(qs_env=qs_env,task_list=task_list,error=error)
+    IF (.NOT. dft_control%qs_control%semi_empirical) THEN
+       ! generate task lists (non-soft)
+       IF (.NOT. dft_control%qs_control%gapw) THEN
+          CALL get_qs_env(qs_env=qs_env,task_list=task_list,error=error)
+          IF (.NOT. ASSOCIATED(task_list)) THEN
+             CALL allocate_task_list(task_list,error)
+             CALL set_qs_env(qs_env=qs_env,task_list=task_list,error=error)
+          ENDIF
+          CALL generate_qs_task_list(qs_env, .FALSE. , &
+                 task_list%tasks, task_list%dist_ab, task_list%ntasks, task_list%atom_pair_send, task_list%atom_pair_recv, error)
        ENDIF
-       CALL generate_qs_task_list(qs_env, .FALSE. , &
-              task_list%tasks, task_list%dist_ab, task_list%ntasks, task_list%atom_pair_send, task_list%atom_pair_recv, error)
-    ENDIF
-    ! generate the soft task list
-    IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
-       CALL get_qs_env(qs_env=qs_env,task_list_soft=task_list,error=error)  ! task_list == soft_task_list
-       IF (.NOT. ASSOCIATED(task_list)) THEN
-          CALL allocate_task_list(task_list,error)
-          CALL set_qs_env(qs_env=qs_env,task_list_soft=task_list,error=error)
+       ! generate the soft task list
+       IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
+          CALL get_qs_env(qs_env=qs_env,task_list_soft=task_list,error=error)  ! task_list == soft_task_list
+          IF (.NOT. ASSOCIATED(task_list)) THEN
+             CALL allocate_task_list(task_list,error)
+             CALL set_qs_env(qs_env=qs_env,task_list_soft=task_list,error=error)
+          ENDIF
+          CALL generate_qs_task_list(qs_env, .TRUE. , &
+                 task_list%tasks, task_list%dist_ab, task_list%ntasks, task_list%atom_pair_send, task_list%atom_pair_recv, error)
        ENDIF
-       CALL generate_qs_task_list(qs_env, .TRUE. , &
-              task_list%tasks, task_list%dist_ab, task_list%ntasks, task_list%atom_pair_send, task_list%atom_pair_recv, error)
     ENDIF
 
     

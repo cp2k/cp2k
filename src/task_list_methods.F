@@ -32,7 +32,9 @@ MODULE task_list_methods
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              rs_pools_create_rs_vect,&
                                              rs_pools_give_back_rs_vect
-  USE cube_utils,                      ONLY: cube_info_type
+  USE cube_utils,                      ONLY: cube_info_type,&
+                                             return_cube,&
+                                             return_cube_nonortho
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
   USE kinds,                           ONLY: dp,&
@@ -47,7 +49,9 @@ MODULE task_list_methods
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
        neighbor_node_type, next
+  USE qs_interactions,                 ONLY: exp_radius_very_extended
   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
+                                             realspace_grid_type,&
                                              rs_find_node
   USE realspace_task_selection,        ONLY: pair2int,&
                                              rs_get_my_tasks
@@ -100,8 +104,9 @@ CONTAINS
 
     INTEGER :: ab, bcol, brow, curr_tasks, dest, dir, handle, iatom, &
       igrid_level, ikind, ilist, inode, ipgf, iset, jatom, jkind, jpgf, jset, &
-      maxpgf, maxset, natoms, nkind, nlist, nnode, nseta, nsetb, tp(3), cost_factor
+      maxpgf, maxset, natoms, nkind, nlist, nnode, nseta, nsetb, tp(3), cost
     INTEGER, DIMENSION(:), POINTER           :: npgfa, npgfb
+    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, lb_min
     LOGICAL                                  :: distributed_rs_grids, &
                                                 failure, my_soft
     REAL(KIND=dp)                            :: dab, kind_radius_a, &
@@ -206,6 +211,8 @@ CONTAINS
             kind_radius=kind_radius_a,&
             npgf=npgfa,&
             nset=nseta,&
+            lmax=la_max,&
+            lmin=la_min,&
             pgf_radius=rpgfa,&
             set_radius=set_radius_a,&
             zet=zeta)
@@ -223,6 +230,8 @@ CONTAINS
                kind_radius=kind_radius_b,&
                npgf=npgfb,&
                nset=nsetb,&
+               lmax=lb_max,&
+               lmin=lb_min,&
                pgf_radius=rpgfb,&
                set_radius=set_radius_b,&
                zet=zetb)
@@ -309,11 +318,14 @@ CONTAINS
                             ENDIF
 
                             ! cost_factor for this task
-                            cost_factor = 1
+                            CALL estimate_task_cost(cost,rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                                                    la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                                                    lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                                                    ra,rab,rab2,dft_control%qs_control%eps_rho_rspace)
 
                             tasks (1,ntasks) = dest
                             tasks (2,ntasks) = rs_rho(igrid_level)% rs_grid % my_pos
-                            tasks (5,ntasks) = cost_factor
+                            tasks (5,ntasks) = cost
 
                             !encode the atom pairs and basis info as a single long integer
                             CALL pair2int(tasks(3,ntasks),iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
@@ -354,4 +366,76 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE generate_qs_task_list
+
+
+!!****f* task_list_methods/estimate_task_cost *
+!!
+!!   NAME
+!!     estimate_task_cost
+!!
+!!   FUNCTION
+!!     tries to predict the time needed for processing this task
+!!     in this way an improved load balance might be obtained
+!!
+!!   NOTES
+!!     -) this requires the radius to be computed in the same way as
+!!     collocate_pgf_product_rspace, we should factor that part into a subroutine
+!!     -) we're assuming that integrate_pgf and collocate_pgf are the same cost for load balancing 
+!!        this is more or less true for map_consistent
+!!     -) in principle, the computed radius could be recycled in integrate_pgf/collocate_pgf if it is certainly
+!!        the same, this could lead to a small speedup
+!!     -) the cost function is a fit through the median cost of mapping a pgf with a given l and a given radius (in grid points)
+!!        fitting the measured data on an opteron/g95 using the expression
+!!        a*(l+b)(r+c)**3+d which is based on the innerloop of the collocating routines
+!!
+!!   INPUTS
+!!    -
+!!    -
+!!
+!!   MODIFICATION HISTORY
+!!     01.2008 created [Joost VandeVondele]
+!!
+!!*** **********************************************************************
+  SUBROUTINE estimate_task_cost(cost,rsgrid,cube_info,la_max,zeta,la_min,lb_max,zetb,lb_min,ra,rab,rab2,eps)
+
+    INTEGER, INTENT(OUT)            :: cost
+    TYPE(cube_info_type), INTENT(IN)         :: cube_info
+    TYPE(realspace_grid_type), POINTER       :: rsgrid
+    INTEGER, INTENT(IN)             :: la_min,la_max,lb_min,lb_max
+    REAL(KIND=dp), INTENT(IN)       :: ra(3),rab(3),zeta,zetb,rab2,eps
+
+    INTEGER, DIMENSION(:), POINTER           :: sphere_bounds
+    INTEGER                                  :: ub_cube(3),lb_cube(3),cmax
+    REAL(KIND=dp)                            :: zetp,f,rbp(3),rap(3),rp(3),rb(3),cutoff,prefactor,radius
+
+    zetp = zeta + zetb
+    f    = zetb/zetp
+    rap(:)    = f*rab(:)
+    rbp(:)    = rap(:) - rab(:)
+    rp(:)     = ra(:) + rap(:)
+    rb(:)     = ra(:)+rab(:)
+    cutoff    = 1.0_dp
+    prefactor = EXP(-zeta*f*rab2)
+    radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,ra=ra,rb=rb,rp=rp,&
+               zetp=zetp,eps=eps,&
+               prefactor=prefactor,cutoff=cutoff)
+
+    IF (radius .LE. 0.0_dp) THEN
+       ! nevertheless a small cost (this is rare, but might need tuning)
+       cost=20
+    ELSE
+       ! a bit overkill, we only need cmax
+       IF (rsgrid%orthorhombic ) THEN
+          CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
+       ELSE
+          ! untested so far
+          CALL return_cube_nonortho(cube_info,radius,lb_cube,ub_cube,rp)
+       ENDIF
+       cmax=MAXVAL(((ub_cube-lb_cube)+1)/2)
+
+       cost=CEILING((REAL(la_max+lb_max+1+2,KIND=dp)*(cmax+2)**3*7.0_dp+30000.0_dp)/1000.0_dp)
+    ENDIF
+
+  END SUBROUTINE estimate_task_cost
+
 END MODULE task_list_methods
