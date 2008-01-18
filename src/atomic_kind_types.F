@@ -3,26 +3,18 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/atomic_kind_types [1.0] *
-!!
-!!   NAME
-!!     atomic_kind_types
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     MK (02.01.2002)
-!!
-!!   MODIFICATION HISTORY
-!!     - 01.2002 creation [MK]
-!!     - 04.2002 added pao [fawzi]
-!!     - 09.2002 adapted for POL/KG use [GT]
-!!     - 02.2004 flexible normalization of basis sets [jgh]
-!!     - 03.2004 attach/detach routines [jgh]
-!!     - 10.2004 removed pao [fawzi]
-!!   SOURCE
-!******************************************************************************
-
+!> \brief   Define the atomic kind types and their sub types
+!> \author  Matthias Krack (MK)
+!> \date    02.01.2002
+!> \version 1.0
+!>
+!> <b>Modification history:</b>
+!> - 01.2002 creation [MK]
+!> - 04.2002 added pao [fawzi]
+!> - 09.2002 adapted for POL/KG use [GT]
+!> - 02.2004 flexible normalization of basis sets [jgh]
+!> - 03.2004 attach/detach routines [jgh]
+!> - 10.2004 removed pao [fawzi]
 MODULE atomic_kind_types
 
   USE basis_set_types,                 ONLY: &
@@ -96,15 +88,13 @@ MODULE atomic_kind_types
 
   CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = 'atomic_kind_types'
 
-  ! DFT+U parameters
-
+  !> Input parameters for the DFT+U method
   TYPE dft_plus_u_type
     INTEGER                                :: l
     REAL(KIND=dp)                          :: u_minus_j
   END TYPE dft_plus_u_type
 
-  ! Define the atomic kind types
-
+  !> Provides all information about an atomic kind
   TYPE atomic_kind_type
     TYPE(all_potential_type), POINTER      :: all_potential
     TYPE(elp_potential_type), POINTER      :: elp_potential
@@ -142,6 +132,7 @@ MODULE atomic_kind_types
     TYPE(dft_plus_u_type), POINTER         :: dft_plus_u
   END TYPE atomic_kind_type
 
+  !> Provides a vector of pointers of type atomic_kind_type
   TYPE atomic_kind_p_type
     TYPE(atomic_kind_type),DIMENSION(:),&
        POINTER                             :: atomic_kind_set
@@ -168,25 +159,14 @@ MODULE atomic_kind_types
             atomic_kind_p_type,&
             dft_plus_u_type
 
-
 CONTAINS
 
-!!****** atomic_kind_types/allocate_atomic_kind_set [1.0] *
-!!
-!!   NAME
-!!    allocate_atomic_kind_set 
-!!
-!!   FUNCTION
-!!    Purpose: Allocate an atomic kind set.
-!!
-!!   AUTHOR
-!!     MK (02.01.2002)
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!   SOURCE
-!******************************************************************************
+  !> \brief   Constructor routine for a set of atomic kinds
+  !> \author  Matthias Krack (MK)
+  !> \date    02.01.2002
+  !> \version 2.0
   SUBROUTINE allocate_atomic_kind_set(atomic_kind_set,nkind,error)
+
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     INTEGER, INTENT(IN)                      :: nkind
@@ -244,22 +224,12 @@ CONTAINS
 
   END SUBROUTINE allocate_atomic_kind_set
 
-!!****** atomic_kind_types/deallocate_atomic_kind_set [1.0] *
-!!
-!!   NAME
-!!    deallocate_atomic_kind_set 
-!!
-!!   FUNCTION
-!!    Deallocate an atomic kind set.
-!!
-!!   AUTHOR
-!!     MK (02.01.2002)
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!   SOURCE
-!******************************************************************************
+  !> \brief   Destructor routine for a set of atomic kinds
+  !> \author  Matthias Krack (MK)
+  !> \date    02.01.2002
+  !> \version 2.0
   SUBROUTINE deallocate_atomic_kind_set(atomic_kind_set,error)
+
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_error_type), INTENT(inout)       :: error
