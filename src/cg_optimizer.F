@@ -35,6 +35,7 @@ MODULE cg_optimizer
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_methods,                  ONLY: check_converg,&
+                                             print_geo_opt_header,&
                                              write_cycle_infos,&
                                              write_final_info,&
                                              write_geo_traj
@@ -123,16 +124,7 @@ CONTAINS
 
        CALL force_env_get(force_env,subsys=subsys,error=error)
        CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,particles=particles,error=error)
-
-       IF(output_unit>0)THEN
-          WRITE(UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
-          WRITE(UNIT=output_unit,FMT="(T2,A,T28,A,T78,A)")&
-               "***","STARTING GEOMETRY OPTIMIZATION","***"
-          WRITE(UNIT=output_unit,FMT="(T2,A,T28,A,T78,A)")&
-               "***","    CONJUGATE GRADIENTS","***"
-          WRITE(UNIT=output_unit,FMT="(T2,A)") REPEAT("*",79)
-          CALL m_flush(output_unit)
-       END IF
+       CALL print_geo_opt_header(gopt_env, output_unit, "CONJUGATE GRADIENTS")
 
        particle_set => particles%els
        CALL  cp_cg_main(force_env, x0, gopt_param, output_unit>0, output_unit, &
@@ -201,12 +193,14 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
+    IF (gopt_env%dimer_rotation) CALL cp_unimplemented_error(fromWhere=routineP, &
+                                 message="DIMER method not yet working with CG.", &
+                                 error=error, error_level=cp_failure_level)
     failure = .FALSE.
-    root_section=>force_env%root_section
-    para_env=>force_env%para_env
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
-    NULLIFY(g, h, xi)
+    NULLIFY(logger,g, h, xi)
+    root_section => force_env%root_section
+    para_env     => force_env%para_env
+    logger       => cp_error_get_logger(error)
     IF (.NOT.failure) THEN
        maxiter            = gopt_param%max_iter
        max_steep_steps    = gopt_param%max_steep_steps
@@ -235,14 +229,13 @@ CONTAINS
        emin    = HUGE(0.0_dp)
        ! Main Loop
        wildcard = "   SD"
-       IF(ionode) CALL write_cycle_infos &
-            (output_unit,it=0,etot=opt_energy,wildcard=wildcard)
+       IF(ionode) CALL write_cycle_infos(output_unit,it=0,etot=opt_energy,wildcard=wildcard)
        DO its = 1, maxiter
+          gopt_env%its = its
           CALL cp_iterate(logger%iter_info,iter_nr=its,error=error)
           xold = x0
           eold = opt_energy
           emin = MIN(emin, opt_energy)
-          ! check for an external exit command
           IF (use_fit) THEN
              CALL linminE(gopt_env, x0, xi, opt_energy, brent_tol, brent_max_iter, brack_limit, &
                           step, output_unit, ionode, gopt_param, globenv, error)
@@ -250,6 +243,7 @@ CONTAINS
              CALL linmin(gopt_env, x0, xi, opt_energy, brent_tol, brent_max_iter, brack_limit, &
                          step, output_unit, ionode, globenv, error)
           END IF
+          ! Check for an external exit command
           CALL external_control(should_stop,"GEO",globenv,error)
           IF(should_stop) EXIT
           CALL write_restart(force_env=force_env,root_section=root_section,&

@@ -38,7 +38,7 @@ INTERFACE
     USE kinds,                           ONLY: dp
 #include "cp_common_uses.h"
     TYPE(gopt_f_type), POINTER               :: gopt_env
-    REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: x
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: x
     REAL(KIND=dp), INTENT(out), OPTIONAL     :: f
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: gradient

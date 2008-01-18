@@ -70,7 +70,8 @@ MODULE dimer_types
      LOGICAL                                    :: rotate_dimer
      LOGICAL                                    :: interpolate_gradient
      REAL(KIND=dp)                              :: dr
-     REAL(KIND=dp), POINTER, DIMENSION(:)       :: nvec, x0
+     REAL(KIND=dp), POINTER, DIMENSION(:)       :: nvec, g0, g1, g1p
+     REAL(KIND=dp)                              :: angle, dCdp, curvature
   END TYPE dimer_env_type
 
 CONTAINS
@@ -119,12 +120,15 @@ CONTAINS
        last_dimer_id=last_dimer_id+1
        dimer_env%id_nr=last_dimer_id
        ! Setup NVEC
-       NULLIFY(dimer_env%nvec, dimer_env%x0)
-       ! Allocate the dimer vector
+       NULLIFY(dimer_env%nvec)
+       ! Allocate the working arrays
        ALLOCATE(dimer_env%nvec(natom*3),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ! Allocate the data for the angle optimization
-       ALLOCATE(dimer_env%x0(1),stat=stat)
+       ALLOCATE(dimer_env%g0(natom*3),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(dimer_env%g1(natom*3),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(dimer_env%g1p(natom*3),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL random_numbers(dimer_env%nvec, globenv%gaussian_rng_stream, error)
        norm = SQRT(SUM(dimer_env%nvec**2))
@@ -217,8 +221,16 @@ CONTAINS
              DEALLOCATE(dimer_env%nvec, stat=stat)
              CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           END IF
-          IF (ASSOCIATED(dimer_env%x0)) THEN
-             DEALLOCATE(dimer_env%x0, stat=stat)
+          IF (ASSOCIATED(dimer_env%g0)) THEN
+             DEALLOCATE(dimer_env%g0, stat=stat)
+             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          END IF
+          IF (ASSOCIATED(dimer_env%g1)) THEN
+             DEALLOCATE(dimer_env%g1, stat=stat)
+             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          END IF
+          IF (ASSOCIATED(dimer_env%g1p)) THEN
+             DEALLOCATE(dimer_env%g1p, stat=stat)
              CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           END IF
           DEALLOCATE(dimer_env, stat=stat)

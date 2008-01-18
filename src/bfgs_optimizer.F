@@ -38,6 +38,7 @@ MODULE bfgs_optimizer
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_methods,                  ONLY: check_converg,&
+                                             print_geo_opt_header,&
                                              write_cycle_infos,&
                                              write_final_info,&
                                              write_geo_traj
@@ -99,7 +100,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
 
-    INTEGER :: handle, handle2, hesunit, i, ihandle, indf, istat, it, j, &
+    INTEGER :: handle, handle2, hesunit, i, ihandle, indf, istat, its, j, &
       maxiter, natom, ndf, nfree, nkind, output_unit
     LOGICAL                                  :: conv, failure, hesrest, &
                                                 ionode, should_stop
@@ -135,10 +136,14 @@ CONTAINS
     conv        = .FALSE.
     rad         = 0.10_dp
     rat         = 0.0_dp
+    
+    ! Stop if Dimer.. not yet working
+    IF (gopt_env%dimer_rotation) CALL cp_unimplemented_error(fromWhere=routineP, &
+                                 message="DIMER method not yet working with BFGS.", &
+                                 error=error, error_level=cp_failure_level)
 
     output_unit = cp_print_key_unit_nr(logger,geo_section,"PRINT%PROGRAM_RUN_INFO",&
          extension=".geoLog",error=error)
-
     CALL force_env_get(force_env, cell=cell, subsys=subsys,error=error)
     CALL cp_subsys_get(subsys=subsys, atomic_kinds=atomic_kinds, particles=particles,error=error)
 
@@ -201,39 +206,31 @@ CONTAINS
     dr(:) = 0.0_dp
 
     ! Geometry optimization starts now
-    IF (output_unit > 0) THEN
-      WRITE (UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
-      WRITE (UNIT=output_unit,FMT="(T2,A,T28,A,T78,A)")&
-        "***","STARTING GEOMETRY OPTIMIZATION","***"
-      WRITE (UNIT=output_unit,FMT="(T2,A)") REPEAT("*",79)
-      CALL m_flush(output_unit)
-    END IF
+    CALL print_geo_opt_header(gopt_env, output_unit, "BFGS")
 
     IF (ionode) THEN
-      CALL open_file(file_name="HESSIAN",&
-                     file_status="UNKNOWN",&
-                     file_form="UNFORMATTED",&
-                     file_action="READWRITE",&
-                     unit_number=hesunit)
+       CALL open_file(file_name="HESSIAN",&
+                      file_status="UNKNOWN",&
+                      file_form="UNFORMATTED",&
+                      file_action="READWRITE",&
+                      unit_number=hesunit)
     END IF
 
     ! Calculate Energy & Gradients
     CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos,&
             gopt_env%force_env%para_env, error)
-    !MK Hm, it seems that here only the root process has the correct gradient for all atoms
-    CALL mp_bcast(g,para_env%source,para_env%group)
 
     ! Print info at time 0
     emin = etot
-    it = 0
-    IF(output_unit>0) CALL write_cycle_infos &
-         (output_unit,it,etot,wildcard=" BFGS")
+    its = 0
+    IF(output_unit>0) CALL write_cycle_infos(output_unit,its,etot,wildcard=" BFGS")
 
     DO
-       it = it + 1
-       CALL cp_iterate(logger%iter_info,iter_nr=it,error=error)
+       its = its + 1
+       gopt_env%its = its
+       CALL cp_iterate(logger%iter_info,iter_nr=its,error=error)
 
-       IF (it > maxiter ) THEN
+       IF (its > maxiter ) THEN
          IF (output_unit > 0) THEN
            WRITE(UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
            WRITE (UNIT=output_unit,FMT="(T2,A,T20,A,T78,A)")&
@@ -251,17 +248,17 @@ CONTAINS
        IF(should_stop) EXIT
        CALL write_restart(force_env=force_env,root_section=root_section,&
             force_env_section=force_env_section,error=error)
-       CALL write_geo_traj(force_env,  root_section, it, etot, error)
+       CALL write_geo_traj(force_env,  root_section, its, etot, error)
           
        IF ( output_unit > 0) THEN
           WRITE(UNIT=output_unit,FMT="(/,T2,26('-'))")
-          WRITE(UNIT=output_unit,FMT="(T2,A,I6)")"OPTIMIZATION STEP: ",it
+          WRITE(UNIT=output_unit,FMT="(T2,A,I6)")"OPTIMIZATION STEP: ",its
           WRITE(UNIT=output_unit,FMT="(T2,26('-'))")
           CALL m_flush(output_unit)
        END IF
 
        ! Hessian update/restarting
-       IF ((it == 1).AND.hesrest) THEN
+       IF ((its == 1).AND.hesrest) THEN
           IF(ionode)THEN
              READ(UNIT=hesunit,IOSTAT=istat) hes
              REWIND(hesunit)
@@ -274,7 +271,7 @@ CONTAINS
              END IF
           END IF
           CALL mp_bcast(hes,para_env%source,para_env%group)
-       ELSE IF( it > 1 ) THEN
+       ELSE IF( its > 1 ) THEN
           DO indf = 1, ndf
              dx(indf) = x0(indf) - xold(indf)
              dg(indf) =  g(indf) - gold(indf)
@@ -306,7 +303,7 @@ CONTAINS
 
        CALL diamat_all(eigvec,eigval,dac=.FALSE.)
        CALL set_hes_eig(ndf,eigval,work)
-       CALL DCOPY(ndf,eigval,1,dx,1)
+       dx = eigval 
        CALL rat_fun_opt(ndf,dg,eigval,work,eigvec,g)
        CALL geoopt_get_step(ndf,eigval,eigvec,hes_mat,dr,g)
        CALL trust_radius(ndf,nfree,step,rad,rat,dr,output_unit,output_unit>0)
@@ -324,7 +321,7 @@ CONTAINS
        ediff = etot - eold
 
        IF (output_unit > 0) THEN
-         CALL write_cycle_infos(output_unit,it,etot,ediff,pred,rat,step,rad,emin," BFGS")
+         CALL write_cycle_infos(output_unit,its,etot,ediff,pred,rat,step,rad,emin," BFGS")
        END IF
 
        IF (etot < emin) emin = etot
@@ -334,8 +331,8 @@ CONTAINS
     END DO
 
     ! Write final particle information, if converged
-    CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=it,error=error)
-    CALL write_final_info(conv, it, gopt_env, x0, gopt_env%force_env%para_env%mepos,&
+    CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=its,error=error)
+    CALL write_final_info(conv, its, gopt_env, x0, gopt_env%force_env%para_env%mepos,&
        gopt_env%force_env%para_env, force_env, gopt_env%motion_section, root_section,&
        force_env_section, error)
 

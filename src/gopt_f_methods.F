@@ -65,7 +65,7 @@ MODULE gopt_f_methods
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gopt_f_methods'
 
   PUBLIC :: gopt_f_create_x0, write_cycle_infos, check_converg,&
-            write_final_info, write_geo_traj
+            write_final_info, write_geo_traj, print_geo_opt_header
 
 CONTAINS
 
@@ -477,5 +477,52 @@ CONTAINS
     END IF
     CALL cp_print_key_finished_output(traj_unit,logger,root_section,"MOTION%PRINT%TRAJECTORY",error=error)
   END SUBROUTINE write_geo_traj
+
+!!****** gopt_f_methods/print_geo_opt_header [1.0] *
+!!
+!!   NAME
+!!    print_geo_opt_header
+!!
+!!   FUNCTION
+!!    
+!!
+!!   AUTHOR
+!!    Teodoro Laino [tlaino] - University of Zurich - 01.2008
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!***************************************************************************
+  SUBROUTINE print_geo_opt_header(gopt_env, output_unit, label)
+    TYPE(gopt_f_type), POINTER               :: gopt_env
+    INTEGER, INTENT(IN)                      :: output_unit
+    CHARACTER(LEN=*), INTENT(IN)             :: label
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'print_geo_opt_header', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: my_format, my_label
+    INTEGER                                  :: ix
+
+    IF(output_unit>0)THEN
+       WRITE(UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
+       IF (gopt_env%dimer_rotation) THEN
+          my_label = "OPTIMIZING DIMER ROTATION"
+
+       ELSE
+          my_label = "STARTING GEOMETRY OPTIMIZATION"
+       END IF
+       ix = (80 - 7 - LEN_TRIM(label))/2
+       ix = ix + 4 - 28
+       my_format="(T2,A,T28,"//cp_to_string(ix)//"X,A,T78,A)"
+       WRITE(UNIT=output_unit,FMT="(T2,A,T28,A,T78,A)")"***",TRIM(my_label),"***"
+       ix = (80 - 7 - LEN_TRIM(label))/2
+       ix = ix + 4 - 28
+       my_format="(T2,A,T28,"//cp_to_string(ix)//"X,A,T78,A)"
+       WRITE(UNIT=output_unit,FMT=TRIM(my_format))"***",TRIM(label),"***"
+       WRITE(UNIT=output_unit,FMT="(T2,A)") REPEAT("*",79)
+       CALL m_flush(output_unit)
+    END IF
+  END SUBROUTINE print_geo_opt_header
 
 END MODULE gopt_f_methods

@@ -31,10 +31,10 @@ MODULE dimer_methods
   USE f77_blas
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get
-  USE geo_opt
+  USE geo_opt,                         ONLY: cp_rot_opt
   USE gopt_f_types,                    ONLY: gopt_f_type
+  USE input_constants,                 ONLY: default_minimization_method_id
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: pi
   USE particle_list_types,             ONLY: particle_list_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -49,7 +49,7 @@ MODULE dimer_methods
   PUBLIC :: cp_eval_at_ts
 
 CONTAINS
-  
+
 !!****f* dimer_methods/cp_eval_at_ts [1.0] *
 !!
 !!   NAME
@@ -73,7 +73,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE  cp_eval_at_ts (gopt_env, x, f, gradient, calc_force, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: x
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: x
     REAL(KIND=dp), INTENT(OUT)               :: f
     REAL(KIND=dp), DIMENSION(:), POINTER     :: gradient
     LOGICAL, INTENT(IN)                      :: calc_force
@@ -82,20 +82,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_eval_at_ts', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, stat
-    LOGICAL                                  :: failure, fully_optimize, &
-                                                interpolate_gradient
-    REAL(KIND=dp)                            :: a0, a1, angle1, angle2, &
-                                                angle_tol, b1, curvature0, &
-                                                curvature1, curvature2, dCdp, &
-                                                f1, norm_theta
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: g0, g1, g1p, nvec, theta
+    INTEGER                                  :: handle, i
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: f1, norm
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dimer_env_type), POINTER            :: dimer_env
-
-    CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="DIMER method not yet working", &
-         error=error, error_level=cp_failure_level)
 
     failure=.FALSE.
     NULLIFY(para_env,dimer_env)
@@ -104,99 +95,44 @@ CONTAINS
     dimer_env => gopt_env%dimer_env
     para_env  => gopt_env%force_env%para_env
     CPPostcondition(ASSOCIATED(dimer_env),cp_failure_level,routineP,error,failure)
-    ALLOCATE(nvec(SIZE(x)), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(g0(SIZE(x)), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(g1(SIZE(x)), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(g1p(SIZE(x)), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(theta(SIZE(x)), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    
-    ! Compute energy, gradients and rotation vector for R0
-    CALL cp_eval_at_ts_low(gopt_env, x, 0, dimer_env, calc_force, f,  g0, error)
 
-    ! Possibly rotate Dimer..
-    IF (dimer_env%rotate_dimer) THEN
+    ! Possibly rotate Dimer or just compute Gradients of point 0 for Translation
+    IF (gopt_env%type_id==default_minimization_method_id) THEN
+
        ! Compute energy, gradients and rotation vector for R1
-       CALL cp_eval_at_ts_low(gopt_env, x, 1, dimer_env, calc_force, f1, g1, error)    
+       CALL cp_eval_at_ts_low(gopt_env, x, 1, dimer_env, calc_force, f1, dimer_env%g1, error)    
 
-       ! This loops optimize the direction of the vector dimer on the sphere
-       DO WHILE (.TRUE.)
-          ! Determine the theta vector 
-          nvec       = dimer_env%nvec
-          curvature0 = DOT_PRODUCT(g1-g0,dimer_env%nvec)/dimer_env%dr
-          theta      = -2.0_dp*(g1-g0)
-          theta      = theta - DOT_PRODUCT(theta, nvec) * nvec
-          norm_theta = SQRT(DOT_PRODUCT(theta, theta))
-          IF (norm_theta/=0.0_dp) theta = theta / norm_theta
+       ! Determine the theta vector (i.e. the search direction for line minimization) 
+       gradient = -2.0_dp*(dimer_env%g1-dimer_env%g0)
+       gradient = gradient  - DOT_PRODUCT(gradient, dimer_env%nvec) * dimer_env%nvec
+       norm     = SQRT(DOT_PRODUCT(gradient, gradient))
+       f        = norm
+       IF (norm/=0.0_dp) gradient = gradient/norm
 
-          CALL rotate_dimer(dimer_env%nvec,theta,0.0_dp,error=error)
+       ! Compute curvature and derivative of the curvature w.r.t. the rotational angle
+       dimer_env%curvature  = DOT_PRODUCT(dimer_env%g1-dimer_env%g0,dimer_env%nvec)/dimer_env%dr
+       dimer_env%dCdp       = 2.0_dp*DOT_PRODUCT(dimer_env%g1-dimer_env%g0,gradient)/dimer_env%dr
+    ELSE
+       ! Compute energy, gradients and rotation vector for R0
+       CALL cp_eval_at_ts_low(gopt_env, x, 0, dimer_env, calc_force, f,  dimer_env%g0, error)
 
-          ! Estimate of the rotational angle
-          dCdp   =  2.0_dp*DOT_PRODUCT(g1-g0,theta)/dimer_env%dr
-          b1     =  0.5_dp * dCdp
-          angle1 = -0.5_dp*ATAN(dCdp/(2.0_dp*ABS(curvature0)))
-
-          IF (angle1<angle_tol) EXIT
-          ! Restore the dimer orientation before rotation
-          dimer_env%nvec = nvec
-
-          ! Rotating the dimer of dtheta degrees
-          CALL rotate_dimer(dimer_env%nvec,theta,angle1,error=error)
-
-          ! Re-compute energy, gradients and rotation vector for new R1
-          CALL cp_eval_at_ts_low(gopt_env, x, 1, dimer_env, calc_force, f1, g1p, error)
-
-          curvature1 = DOT_PRODUCT(g1p-g0,dimer_env%nvec)/dimer_env%dr
-          a1     = (curvature0 - curvature1 + b1 * SIN(2.0_dp*angle1))/(1.0_dp - COS(2.0_dp*angle1))
-          a0     = 2.0_dp*(curvature0-a1)
-          dCdp   = 2.0_dp*DOT_PRODUCT(g1p-g0,theta)/dimer_env%dr
-          angle2 = 0.5_dp*ATAN(b1/a1)
-          curvature2 = a0/2.0_dp + a1 * COS(2.0_dp*angle2)+b1 * SIN(2.0_dp*angle2)
-          IF (curvature2>curvature0) angle2 = angle2 + pi/2.0_dp
-          dimer_env%nvec = nvec
-
-          ! Rotating the dimer the optimized (in plane) vector position
-          CALL rotate_dimer(dimer_env%nvec,theta,angle2,error=error)
-          WRITE(*,*)"CURVATURE",curvature0,angle2,angle1,angle_tol
-          IF (.NOT.fully_optimize) EXIT
-          
-          ! Interpolation of the gradient for the minimum point
-          IF (interpolate_gradient) THEN
-             ! Interpolate gradients for new minimum position
-             g1 = SIN(angle1-angle2)/SIN(angle1)*g1+SIN(angle2)/SIN(angle1)*g1p+&
-                  (1.0_dp-COS(angle2)-SIN(angle2)*TAN(angle1/2.0_dp))*g0
-          ELSE
-             ! If requested compute the value instead of performing an interpolation
-             CALL cp_eval_at_ts_low(gopt_env, x, 1, dimer_env, calc_force, f1, g1, error)
-          END IF
-       END DO
-    END IF
-    STOP
-
-    ! Correct the gradient
-    IF (calc_force) THEN
-       IF (curvature1>0) THEN
-          gradient =  - DOT_PRODUCT(g0,dimer_env%nvec)*dimer_env%nvec
-       ELSE
-          gradient =  g0 - 2.0_dp*DOT_PRODUCT(g0,dimer_env%nvec)*dimer_env%nvec 
+       IF (dimer_env%rotate_dimer) THEN
+          CALL cp_rot_opt(gopt_env%gopt_dimer_env, x, gopt_env%gopt_dimer_param ,&
+               gopt_env%gopt_dimer_env%geo_section, error)
        END IF
+       ! Correcting gradients for Translation
+       IF (calc_force) THEN
+          IF (dimer_env%curvature>0) THEN
+             gradient =  - DOT_PRODUCT(dimer_env%g0,dimer_env%nvec)*dimer_env%nvec
+          ELSE
+             gradient =  dimer_env%g0 - 2.0_dp*DOT_PRODUCT(dimer_env%g0,dimer_env%nvec)*dimer_env%nvec 
+          END IF
+       END IF
+       
+       ! Fix the pseudo-energy
+       f = HUGE(0.0_dp)
     END IF
-    
-    STOP
-    DEALLOCATE(theta, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(g1p, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(g1, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(g0, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(nvec, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE cp_eval_at_ts
 
@@ -225,7 +161,7 @@ CONTAINS
   SUBROUTINE  cp_eval_at_ts_low (gopt_env, x,  dimer_index, dimer_env, calc_force,&
        f, gradient, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: x
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: x
     INTEGER, INTENT(IN)                      :: dimer_index
     TYPE(dimer_env_type), POINTER            :: dimer_env
     LOGICAL, INTENT(IN)                      :: calc_force

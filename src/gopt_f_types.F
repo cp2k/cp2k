@@ -20,7 +20,7 @@
 !!     -
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     01.2008 - Luca Bellucci and Teodoro Laino - Generalizing for Dimer Method.
 !!
 !!   SOURCE
 !*****************************************************************************
@@ -80,13 +80,14 @@ MODULE gopt_f_types
 !!   SOURCE
   !***************************************************************************
   TYPE gopt_f_type
-     INTEGER :: ref_count, id_nr
-     INTEGER :: type_id, ts_method_id
+     INTEGER                                  :: ref_count, id_nr, its
+     INTEGER                                  :: type_id, ts_method_id
+     LOGICAL                                  :: dimer_rotation
      CHARACTER(LEN=default_string_length)     :: label
      TYPE(force_env_type), POINTER            :: force_env
      TYPE(global_environment_type), POINTER   :: globenv
-     ! motion section to be references only for IO
-     TYPE(section_vals_type), POINTER         :: motion_section
+     ! Motion section must be references only for IO of the MOTION%PRINT..
+     TYPE(section_vals_type), POINTER         :: motion_section, geo_section
      TYPE(dimer_env_type), POINTER            :: dimer_env
      TYPE(gopt_f_type), POINTER               :: gopt_dimer_env
      TYPE(gopt_param_type), POINTER           :: gopt_dimer_param
@@ -136,7 +137,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: dimer_section, rot_opt_section
 
     failure=.FALSE.
-
+    CPPostcondition(.NOT.ASSOCIATED(gopt_env),cp_failure_level,routineP,error,failure)
     ALLOCATE(gopt_env, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
@@ -144,13 +145,16 @@ CONTAINS
        gopt_env%ref_count=1
        last_gopt_f_id=last_gopt_f_id+1
        gopt_env%id_nr=last_gopt_f_id
+       gopt_env%its=0
        gopt_env%label="GEO_OPT"
+       gopt_env%dimer_rotation=.FALSE.
        CALL force_env_retain(force_env, error=error)
-       gopt_env%force_env => force_env
-       gopt_env%globenv => globenv
+       gopt_env%force_env      => force_env
+       gopt_env%globenv        => globenv
        gopt_env%motion_section => section_vals_get_subs_vals(force_env%root_section,"MOTION",error=error)
+       gopt_env%geo_section    => geo_opt_section
        gopt_env%type_id = gopt_param%type_id
-       IF (gopt_param%type_id== default_ts_method_id) THEN 
+       IF (gopt_param%type_id==default_ts_method_id) THEN 
           gopt_env%ts_method_id = gopt_param%ts_method_id
           SELECT CASE(gopt_param%ts_method_id)
           CASE(default_dimer_method_id)
@@ -168,8 +172,9 @@ CONTAINS
              CALL gopt_f_create(gopt_env%gopt_dimer_env, gopt_env%gopt_dimer_param, force_env=force_env,&
                   globenv=globenv, geo_opt_section=rot_opt_section, error=error)
              CALL dimer_env_retain(gopt_env%dimer_env, error)
-             gopt_env%gopt_dimer_env%dimer_env => gopt_env%dimer_env
-             gopt_env%gopt_dimer_env%label = "ROT_OPT"
+             gopt_env%gopt_dimer_env%dimer_env      => gopt_env%dimer_env
+             gopt_env%gopt_dimer_env%label          = "ROT_OPT"
+             gopt_env%gopt_dimer_env%dimer_rotation = .TRUE.
           END SELECT
        END IF
     END IF
@@ -258,7 +263,8 @@ CONTAINS
           CALL force_env_release(gopt_env%force_env,error=error)
           NULLIFY(gopt_env%force_env,&
                   gopt_env%globenv,&
-                  gopt_env%motion_section)
+                  gopt_env%motion_section,&
+                  gopt_env%geo_section)
           CALL dimer_env_release(gopt_env%dimer_env, error)
           CALL gopt_f_release(gopt_env%gopt_dimer_env, error=error)
           CALL gopt_param_release(gopt_env%gopt_dimer_param, error=error)
