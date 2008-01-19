@@ -33,7 +33,12 @@ MODULE dimer_methods
   USE force_env_types,                 ONLY: force_env_get
   USE geo_opt,                         ONLY: cp_rot_opt
   USE gopt_f_types,                    ONLY: gopt_f_type
-  USE input_constants,                 ONLY: default_minimization_method_id
+  USE input_constants,                 ONLY: do_first_rotation_step,&
+                                             do_init_dimer,&
+                                             do_rotate_dimer,&
+                                             do_second_rotation_step,&
+                                             do_third_rotation_step,&
+                                             do_translate_dimer
   USE kinds,                           ONLY: dp
   USE particle_list_types,             ONLY: particle_list_type
   USE timings,                         ONLY: timeset,&
@@ -71,7 +76,7 @@ CONTAINS
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE  cp_eval_at_ts (gopt_env, x, f, gradient, calc_force, error)
+  RECURSIVE SUBROUTINE  cp_eval_at_ts (gopt_env, x, f, gradient, calc_force, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x
     REAL(KIND=dp), INTENT(OUT)               :: f
@@ -83,8 +88,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: f1, norm
+    LOGICAL                                  :: eval_analytical, failure
+    REAL(KIND=dp)                            :: angle1, angle2, f1, norm
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dimer_env_type), POINTER            :: dimer_env
 
@@ -97,29 +102,55 @@ CONTAINS
     CPPostcondition(ASSOCIATED(dimer_env),cp_failure_level,routineP,error,failure)
 
     ! Possibly rotate Dimer or just compute Gradients of point 0 for Translation
-    IF (gopt_env%type_id==default_minimization_method_id) THEN
+    SELECT CASE(dimer_env%status_dimer)
+    CASE(do_rotate_dimer)
+       SELECT CASE(dimer_env%rotation_step)
+       CASE(do_first_rotation_step,do_third_rotation_step)
+          eval_analytical = .TRUE.
+          IF ((dimer_env%rotation_step==do_third_rotation_step).AND.(dimer_env%interpolate_gradient)) THEN
+             eval_analytical = .FALSE.
+          END IF
+          IF (eval_analytical) THEN
+             ! Compute energy, gradients and rotation vector for R1
+             CALL cp_eval_at_ts_low(gopt_env, x, 1, dimer_env, calc_force, f1, dimer_env%g1, error)    
+          ELSE
+             angle1 = dimer_env%angle1
+             angle2 = dimer_env%angle2
+             dimer_env%g1 = SIN(angle1-angle2)/SIN(angle1)*dimer_env%g1+&
+                            SIN(angle2)/SIN(angle1)*dimer_env%g1p+&
+                            (1.0_dp-COS(angle2)-SIN(angle2)*TAN(angle1/2.0_dp))*dimer_env%g0             
+          END IF
 
-       ! Compute energy, gradients and rotation vector for R1
-       CALL cp_eval_at_ts_low(gopt_env, x, 1, dimer_env, calc_force, f1, dimer_env%g1, error)    
+          ! Determine the theta vector (i.e. the search direction for line minimization) 
+          gradient = -2.0_dp*(dimer_env%g1-dimer_env%g0)
+          gradient = gradient  - DOT_PRODUCT(gradient, dimer_env%nvec) * dimer_env%nvec
+          norm     = SQRT(DOT_PRODUCT(gradient, gradient))
+          f        = norm
+          IF (norm/=0.0_dp) gradient = gradient/norm
 
-       ! Determine the theta vector (i.e. the search direction for line minimization) 
-       gradient = -2.0_dp*(dimer_env%g1-dimer_env%g0)
-       gradient = gradient  - DOT_PRODUCT(gradient, dimer_env%nvec) * dimer_env%nvec
-       norm     = SQRT(DOT_PRODUCT(gradient, gradient))
-       f        = norm
-       IF (norm/=0.0_dp) gradient = gradient/norm
+          ! Compute curvature and derivative of the curvature w.r.t. the rotational angle
+          dimer_env%curvature  = DOT_PRODUCT(dimer_env%g1-dimer_env%g0,dimer_env%nvec)/dimer_env%dr
+          dimer_env%dCdp       = 2.0_dp*DOT_PRODUCT(dimer_env%g1-dimer_env%g0,gradient)/dimer_env%dr
 
-       ! Compute curvature and derivative of the curvature w.r.t. the rotational angle
-       dimer_env%curvature  = DOT_PRODUCT(dimer_env%g1-dimer_env%g0,dimer_env%nvec)/dimer_env%dr
-       dimer_env%dCdp       = 2.0_dp*DOT_PRODUCT(dimer_env%g1-dimer_env%g0,gradient)/dimer_env%dr
-    ELSE
+          dimer_env%rotation_step = do_second_rotation_step
+          gradient = -gradient
+       CASE(do_second_rotation_step)
+          ! Compute energy, gradients and rotation vector for R1
+          CALL cp_eval_at_ts_low(gopt_env, x, 1, dimer_env, calc_force, f1, dimer_env%g1p, error)
+          dimer_env%curvature  = DOT_PRODUCT(dimer_env%g1p-dimer_env%g0,dimer_env%nvec)/dimer_env%dr
+          dimer_env%rotation_step = do_third_rotation_step
+       END SELECT
+    CASE(do_init_dimer, do_translate_dimer)
        ! Compute energy, gradients and rotation vector for R0
        CALL cp_eval_at_ts_low(gopt_env, x, 0, dimer_env, calc_force, f,  dimer_env%g0, error)
-
-       IF (dimer_env%rotate_dimer) THEN
+       
+       IF (dimer_env%status_dimer==do_init_dimer) THEN
+          dimer_env%status_dimer = do_rotate_dimer
           CALL cp_rot_opt(gopt_env%gopt_dimer_env, x, gopt_env%gopt_dimer_param ,&
                gopt_env%gopt_dimer_env%geo_section, error)
+          dimer_env%status_dimer = do_translate_dimer
        END IF
+
        ! Correcting gradients for Translation
        IF (calc_force) THEN
           IF (dimer_env%curvature>0) THEN
@@ -129,9 +160,9 @@ CONTAINS
           END IF
        END IF
        
-       ! Fix the pseudo-energy
+       ! To Fix the pseudo-energy
        f = HUGE(0.0_dp)
-    END IF
+    END SELECT
 
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE cp_eval_at_ts
@@ -172,11 +203,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_eval_at_ts_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: idg, idir, ip
+    INTEGER                                  :: handle, idg, idir, ip
     LOGICAL                                  :: failure
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
 
+    CALL timeset(routineN,"I","",handle)
     idg=0
     CALL force_env_get(gopt_env%force_env, subsys=subsys, error=error)
     CALL cp_subsys_get(subsys, particles=particles, error=error)
@@ -207,43 +239,7 @@ CONTAINS
           END DO
        END DO
     END IF
-
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE cp_eval_at_ts_low
-
-!!****f* dimer_methods/rotate_dimer [1.0] *
-!!
-!!   NAME
-!!     rotate_dimer
-!!
-!!   FUNCTION
-!!     Performs a rotation of the unit dimer vector
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     -
-!!
-!!   AUTHOR
-!!     Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
-  SUBROUTINE rotate_dimer(nvec,theta,dt,error)
-    REAL(KIND=dp), DIMENSION(:)              :: nvec, theta
-    REAL(KIND=dp)                            :: dt
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'rotate_dimer', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-    nvec  = nvec * COS(dt) + theta * SIN(dt)
-
-  END SUBROUTINE rotate_dimer
 
 END MODULE dimer_methods

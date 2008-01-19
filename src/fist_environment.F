@@ -325,7 +325,7 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
     ! Print the atomic coordinates
     CALL write_fist_particle_coordinates(particle_set,cell,subsys_section,error)
     CALL write_particle_distances(particle_set,cell,subsys_section,error)
-    CALL write_structure_data(particle_set, cell=cell, subsys_section=subsys_section, error=error)
+    CALL write_structure_data(particle_set, cell=cell, input_section=subsys_section, error=error)
     
     ! Distribute molecules and atoms using the new data structures ***
     CALL distribute_molecules_1d ( particle_kind_set=atomic_kind_set,&

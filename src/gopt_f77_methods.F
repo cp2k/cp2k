@@ -30,7 +30,7 @@
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, para_env, error)
+  RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, para_env, error)
     USE cell_types,                      ONLY: cell_type
     USE cp_para_types,                   ONLY: cp_para_env_type
     USE cp_subsys_types,                 ONLY: cp_subsys_get,&

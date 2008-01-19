@@ -32,7 +32,7 @@
 !!*** **********************************************************************
 INTERFACE 
 
-  SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, para_env, error)
+  RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, para_env, error)
     USE cp_para_types,                   ONLY: cp_para_env_type
     USE gopt_f_types,                    ONLY: gopt_f_type
     USE kinds,                           ONLY: dp

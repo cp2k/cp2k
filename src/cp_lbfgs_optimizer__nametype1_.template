@@ -791,13 +791,11 @@ CPSourceFileRef,&
              wildcard = "LBFGS"	     
              dataunit = cp_print_key_unit_nr(logger,geo_section,&
                   "PRINT%PROGRAM_RUN_INFO",extension=".geoLog",error=error)
-             IF (dataunit>0) THEN
-                CALL write_cycle_infos(dataunit,optimizer%isave(30),optimizer%f,&
-                     optimizer%f-optimizer%eold,emin=optimizer%emin,wildcard=wildcard)
-             END IF
+             CALL write_cycle_infos(dataunit,optimizer%isave(30),optimizer%f,&
+                  optimizer%f-optimizer%eold,emin=optimizer%emin,wildcard=wildcard)
              IF (is_master) &
              CALL check_converg(SIZE(optimizer%x),optimizer%x-xold,optimizer%gradient,&
-                  dataunit>0,dataunit,conv,gopt_param)
+                  dataunit,conv,gopt_param)
              CALL cp_print_key_finished_output(dataunit,logger,geo_section,&
                   "PRINT%PROGRAM_RUN_INFO", error=error)
              optimizer%eold = optimizer%f

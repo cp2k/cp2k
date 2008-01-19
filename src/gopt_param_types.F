@@ -77,15 +77,16 @@ MODULE gopt_param_types
 !!   SOURCE
   !***************************************************************************
   TYPE gopt_param_type
-     LOGICAL         :: hesrest, Fletcher_Reeves_ON
+     LOGICAL         :: Fletcher_Reeves
      LOGICAL         :: use_fit_line_search
      INTEGER         :: id_nr, ref_count, method_id, type_id
      INTEGER         :: ts_method_id
      INTEGER         :: max_f_per_iter, max_iter, max_h_rank
      INTEGER         :: brent_max_iter, max_steep_steps
      REAL(KIND = dp) :: wanted_proj_gradient, wanted_rel_f_error
-     REAL(KIND = dp) :: max_dr,max_force,rms_dr,rms_force
+     REAL(KIND = dp) :: max_dr, max_force, rms_dr, rms_force
      REAL(KIND = dp) :: brent_tol, brack_limit, restart_limit, initial_step
+     REAL(KIND = dp) :: dimer_angle_tol
   END TYPE gopt_param_type
 !!***
   !****************************************************************************
@@ -134,7 +135,6 @@ CONTAINS
        last_gopt_param_id=last_gopt_param_id+1
        gopt_param%id_nr=last_gopt_param_id
        gopt_param%ref_count=1
-       gopt_param%type_id=default_minimization_method_id
     END IF
   END SUBROUTINE gopt_param_create
 !***************************************************************************
@@ -162,10 +162,10 @@ CONTAINS
 !!     08.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE gopt_param_read(gopt_param, gopt_section, skip_type, error)
+  SUBROUTINE gopt_param_read(gopt_param, gopt_section, type_id, error)
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(section_vals_type), POINTER         :: gopt_section
-    LOGICAL, INTENT(IN)                      :: skip_type
+    INTEGER, INTENT(IN), OPTIONAL            :: type_id
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_param_read', &
@@ -181,7 +181,9 @@ CONTAINS
 
     failure=.FALSE.
     IF (.NOT.failure) THEN
-       IF (.NOT.skip_type) THEN
+       IF (PRESENT(type_id)) THEN
+          gopt_param%type_id = type_id
+       ELSE
           CALL section_vals_val_get(gopt_section,"TYPE",i_val=gopt_param%type_id,error=error)
        END IF
        CALL section_vals_val_get(gopt_section,"OPTIMIZER",i_val=gopt_param%method_id,error=error)
@@ -199,9 +201,9 @@ CONTAINS
           CALL section_vals_val_get(gopt_section,"LBFGS%WANTED_PROJ_GRADIENT",r_val=gopt_param%wanted_proj_gradient,error=error)
           CALL section_vals_val_get(gopt_section,"LBFGS%WANTED_REL_F_ERROR",r_val=gopt_param%wanted_rel_f_error,error=error)
        CASE(default_bfgs_method_id)
-          CALL section_vals_val_get(gopt_section,"BFGS%RESTART",l_val=gopt_param%hesrest,error=error)
+          ! Do nothing
        CASE(default_cg_method_id)
-          CALL section_vals_val_get(gopt_section,"CG%FLETCHER_REEVES",l_val=gopt_param%Fletcher_Reeves_ON,error=error)
+          CALL section_vals_val_get(gopt_section,"CG%FLETCHER_REEVES",l_val=gopt_param%Fletcher_Reeves,error=error)
           CALL section_vals_val_get(gopt_section,"CG%USE_FIT_LINE_SEARCH",l_val=gopt_param%use_fit_line_search,error=error)
           CALL section_vals_val_get(gopt_section,"CG%MAX_STEEP_STEPS",i_val=gopt_param%max_steep_steps,error=error)
           CALL section_vals_val_get(gopt_section,"CG%BRENT_TOL",r_val=gopt_param%brent_tol,error=error)

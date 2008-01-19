@@ -45,11 +45,14 @@ MODULE bfgs_optimizer
   USE gopt_f_types,                    ONLY: gopt_f_type
   USE gopt_param_types,                ONLY: gopt_param_type
   USE input_cp2k_restarts,             ONLY: write_restart
-  USE input_section_types,             ONLY: section_vals_type
-  USE kinds,                           ONLY: dp
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: default_path_length,&
+                                             dp
   USE machine,                         ONLY: m_flush
   USE mathlib,                         ONLY: diamat_all
-  USE message_passing,                 ONLY: mp_bcast
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_sum
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE termination,                     ONLY: external_control
@@ -100,8 +103,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
 
-    INTEGER :: handle, handle2, hesunit, i, ihandle, indf, istat, its, j, &
-      maxiter, natom, ndf, nfree, nkind, output_unit
+    CHARACTER(LEN=default_path_length)       :: hes_filename
+    INTEGER :: handle, handle2, hesunit, hesunit_read, i, ihandle, indf, &
+      istat, its, j, maxiter, natom, ndf, nfree, nkind, output_unit
     LOGICAL                                  :: conv, failure, hesrest, &
                                                 ionode, should_stop
     REAL(KIND=dp)                            :: ediff, emin, eold, etot, &
@@ -132,16 +136,16 @@ CONTAINS
 
     ionode      = para_env%mepos==para_env%source
     maxiter     = gopt_param%max_iter
-    hesrest     = gopt_param%hesrest
     conv        = .FALSE.
     rad         = 0.10_dp
     rat         = 0.0_dp
-    
+
     ! Stop if Dimer.. not yet working
     IF (gopt_env%dimer_rotation) CALL cp_unimplemented_error(fromWhere=routineP, &
-                                 message="DIMER method not yet working with BFGS.", &
-                                 error=error, error_level=cp_failure_level)
+         message="DIMER method not yet working with BFGS.", &
+         error=error, error_level=cp_failure_level)
 
+    CALL section_vals_val_get(geo_section,"BFGS%RESTART_HESSIAN",l_val=hesrest,error=error)
     output_unit = cp_print_key_unit_nr(logger,geo_section,"PRINT%PROGRAM_RUN_INFO",&
          extension=".geoLog",error=error)
     CALL force_env_get(force_env, cell=cell, subsys=subsys,error=error)
@@ -157,12 +161,12 @@ CONTAINS
     ALLOCATE (hes(ndf*(ndf+1)/2),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO indf=1,ndf
-      DO j=1,indf
-        i = indf*(indf - 1)/2 + j
-        hes(i) = zero
-      END DO
-      i = indf*(indf-1)/2 + indf
-      hes(i) = one
+       DO j=1,indf
+          i = indf*(indf - 1)/2 + j
+          hes(i) = zero
+       END DO
+       i = indf*(indf-1)/2 + indf
+       hes(i) = one
     END DO
 
     ALLOCATE (xold(ndf),STAT=istat)
@@ -208,22 +212,18 @@ CONTAINS
     ! Geometry optimization starts now
     CALL print_geo_opt_header(gopt_env, output_unit, "BFGS")
 
-    IF (ionode) THEN
-       CALL open_file(file_name="HESSIAN",&
-                      file_status="UNKNOWN",&
-                      file_form="UNFORMATTED",&
-                      file_action="READWRITE",&
-                      unit_number=hesunit)
-    END IF
+    hesunit = cp_print_key_unit_nr(logger,geo_section,"BFGS%RESTART",&
+         extension=".Hessian",file_form="UNFORMATTED",file_action="WRITE",&
+         error=error)
 
     ! Calculate Energy & Gradients
     CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos,&
-            gopt_env%force_env%para_env, error)
+         gopt_env%force_env%para_env, error)
 
     ! Print info at time 0
     emin = etot
     its = 0
-    IF(output_unit>0) CALL write_cycle_infos(output_unit,its,etot,wildcard=" BFGS")
+    CALL write_cycle_infos(output_unit,its,etot,wildcard=" BFGS")
 
     DO
        its = its + 1
@@ -231,16 +231,16 @@ CONTAINS
        CALL cp_iterate(logger%iter_info,iter_nr=its,error=error)
 
        IF (its > maxiter ) THEN
-         IF (output_unit > 0) THEN
-           WRITE(UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
-           WRITE (UNIT=output_unit,FMT="(T2,A,T20,A,T78,A)")&
-             "***","MAXIMUM NUMBER OF OPTIMIZATION STEPS REACHED","***"
-           WRITE (UNIT=output_unit,FMT="(T2,A,T27,A,T78,A)")&
-             "***","EXITING GEOMETRY OPTIMIZATION","***"
-           WRITE(UNIT=output_unit,FMT="(T2,A)") REPEAT("*",79)
-           CALL m_flush(output_unit)
-         END IF
-         EXIT
+          IF (output_unit > 0) THEN
+             WRITE(UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
+             WRITE (UNIT=output_unit,FMT="(T2,A,T20,A,T78,A)")&
+                  "***","MAXIMUM NUMBER OF OPTIMIZATION STEPS REACHED","***"
+             WRITE (UNIT=output_unit,FMT="(T2,A,T27,A,T78,A)")&
+                  "***","EXITING GEOMETRY OPTIMIZATION","***"
+             WRITE(UNIT=output_unit,FMT="(T2,A)") REPEAT("*",79)
+             CALL m_flush(output_unit)
+          END IF
+          EXIT
        END IF
 
        ! check for an external exit command
@@ -249,7 +249,7 @@ CONTAINS
        CALL write_restart(force_env=force_env,root_section=root_section,&
             force_env_section=force_env_section,error=error)
        CALL write_geo_traj(force_env,  root_section, its, etot, error)
-          
+
        IF ( output_unit > 0) THEN
           WRITE(UNIT=output_unit,FMT="(/,T2,26('-'))")
           WRITE(UNIT=output_unit,FMT="(T2,A,I6)")"OPTIMIZATION STEP: ",its
@@ -259,16 +259,23 @@ CONTAINS
 
        ! Hessian update/restarting
        IF ((its == 1).AND.hesrest) THEN
+          istat = 0
           IF(ionode)THEN
-             READ(UNIT=hesunit,IOSTAT=istat) hes
-             REWIND(hesunit)
-             IF (istat /= 0) THEN
-                WRITE(UNIT=output_unit,FMT="(/,T2,A)")"**  Error while reading HESSIAN **"
-                conv = .TRUE.
-             ELSE
-                WRITE(UNIT=output_unit,FMT="(/,T2,A)")&
-                     "*** Initial Hessian has been restarted successfully ***"
-             END IF
+             CALL section_vals_val_get(geo_section,"BFGS%RESTART_FILE_NAME",c_val=hes_filename,&
+                  error=error)
+             CALL open_file(file_name=hes_filename,file_status="OLD",&
+                  file_form="UNFORMATTED", file_action="READ", unit_number=hesunit_read)
+             READ(UNIT=hesunit_read,IOSTAT=istat) hes
+             CALL close_file(unit_number=hesunit_read)
+          END IF
+          CALL mp_sum(istat,para_env%group)
+
+          IF (istat /= 0) THEN
+             IF (output_unit>0) WRITE(UNIT=output_unit,FMT="(/,T2,A)")"**  Error while reading HESSIAN **"
+             conv = .TRUE.
+          ELSE
+             IF (output_unit>0)  WRITE(UNIT=output_unit,FMT="(/,T2,A)")&
+                  "*** Initial Hessian has been restarted successfully ***"
           END IF
           CALL mp_bcast(hes,para_env%source,para_env%group)
        ELSE IF( its > 1 ) THEN
@@ -280,7 +287,7 @@ CONTAINS
           CALL bfgs(ndf,dx,dg,hes,work)
 
           CALL timeset(routineN//"hes2disk","I","",handle2)
-          IF(ionode)THEN
+          IF(hesunit>0)THEN
              WRITE (UNIT=hesunit) hes
              CALL m_flush(hesunit)
              REWIND (hesunit)
@@ -306,12 +313,12 @@ CONTAINS
        dx = eigval 
        CALL rat_fun_opt(ndf,dg,eigval,work,eigvec,g)
        CALL geoopt_get_step(ndf,eigval,eigvec,hes_mat,dr,g)
-       CALL trust_radius(ndf,nfree,step,rad,rat,dr,output_unit,output_unit>0)
+       CALL trust_radius(ndf,nfree,step,rad,rat,dr,output_unit)
 
        ! Update the atomic positions
        x0 = x0 + dr
 
-       CALL energy_predict(ndf,work,hes,dr,g,output_unit>0,output_unit,conv,pred)
+       CALL energy_predict(ndf,work,hes,dr,g,output_unit,conv,pred)
        IF (conv) EXIT
        eold = etot
 
@@ -320,21 +327,19 @@ CONTAINS
             gopt_env%force_env%para_env, error)
        ediff = etot - eold
 
-       IF (output_unit > 0) THEN
-         CALL write_cycle_infos(output_unit,its,etot,ediff,pred,rat,step,rad,emin," BFGS")
-       END IF
+       CALL write_cycle_infos(output_unit,its,etot,ediff,pred,rat,step,rad,emin," BFGS")
 
        IF (etot < emin) emin = etot
        CALL update_trust_rad(rat,rad,step,ediff)
-       CALL check_converg(ndf,dr,g,output_unit>0,output_unit,conv,gopt_param)
+       CALL check_converg(ndf,dr,g,output_unit,conv,gopt_param)
        IF (conv) EXIT
     END DO
 
     ! Write final particle information, if converged
     CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=its,error=error)
     CALL write_final_info(conv, its, gopt_env, x0, gopt_env%force_env%para_env%mepos,&
-       gopt_env%force_env%para_env, force_env, gopt_env%motion_section, root_section,&
-       force_env_section, error)
+         gopt_env%force_env%para_env, force_env, gopt_env%motion_section, root_section,&
+         force_env_section, error)
 
     DEALLOCATE (hes,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -359,10 +364,8 @@ CONTAINS
     DEALLOCATE (dr,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    IF (ionode) THEN
-      CALL close_file(unit_number=hesunit)
-    END IF
-
+    CALL cp_print_key_finished_output(hesunit,logger,geo_section,&
+         "BFGS%RESTART", error=error)
     CALL cp_print_key_finished_output(output_unit,logger,geo_section,&
          "PRINT%PROGRAM_RUN_INFO", error=error)
     CALL cp_rm_iter_level(logger%iter_info,ihandle,error)
@@ -713,11 +716,10 @@ CONTAINS
 !!
 !!   SOURCE
 !***************************************************************************
-  SUBROUTINE trust_radius(ndf,nfree,step,rad,rat,dr,output_unit,ionode)
+  SUBROUTINE trust_radius(ndf,nfree,step,rad,rat,dr,output_unit)
     INTEGER, INTENT(IN)                      :: ndf, nfree
     REAL(KIND=dp), INTENT(INOUT)             :: step, rad, rat, dr(ndf)
     INTEGER, INTENT(IN)                      :: output_unit
-    LOGICAL, INTENT(IN)                      :: ionode
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'trust_radius', &
       routineP = moduleN//':'//routineN
@@ -737,7 +739,7 @@ CONTAINS
        CALL DSCAL(ndf,rat,dr,1)
        step = DDOT(ndf,dr,1,dr,1)
        step = SQRT(step/scal)
-       IF(ionode) THEN
+       IF(output_unit>0) THEN
          WRITE(unit=output_unit,FMT="(/,T2,A,F8.5)") &
              " Step is scaled; Scaling factor = ", rat
          CALL m_flush(output_unit)
@@ -762,13 +764,12 @@ CONTAINS
 !!
 !!   SOURCE
 !***************************************************************************
-   SUBROUTINE energy_predict(ndf,work,hes,dr,g,ionode,output_unit,conv,pred)
+   SUBROUTINE energy_predict(ndf,work,hes,dr,g,output_unit,conv,pred)
 
     INTEGER, INTENT(IN)                      :: ndf
     REAL(KIND=dp), INTENT(INOUT)             :: work(ndf), &
                                                 hes(ndf*(ndf+1)/2), dr(ndf), &
                                                 g(ndf)
-    LOGICAL, INTENT(IN)                      :: ionode
     INTEGER, INTENT(IN)                      :: output_unit
     LOGICAL, INTENT(INOUT)                   :: conv
     REAL(KIND=dp), INTENT(INOUT)             :: pred

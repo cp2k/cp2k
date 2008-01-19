@@ -31,6 +31,7 @@ MODULE gopt_f_methods
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
+  USE dimer_types,                     ONLY: dimer_env_type
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
@@ -64,8 +65,8 @@ MODULE gopt_f_methods
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gopt_f_methods'
 
-  PUBLIC :: gopt_f_create_x0, write_cycle_infos, check_converg,&
-            write_final_info, write_geo_traj, print_geo_opt_header
+  PUBLIC :: gopt_f_create_x0, write_cycle_infos, check_converg, write_final_info,&
+       write_geo_traj, print_geo_opt_header, check_rot_conv, write_rot_cycle_infos
 
 CONTAINS
 
@@ -146,7 +147,7 @@ CONTAINS
 !!
 !!   SOURCE
 !***************************************************************************
- SUBROUTINE write_cycle_infos(output_unit,it,etot,ediff,pred,rat,step,rad,emin,wildcard)
+  SUBROUTINE write_cycle_infos(output_unit,it,etot,ediff,pred,rat,step,rad,emin,wildcard)
 
     INTEGER, INTENT(IN)                      :: output_unit, it
     REAL(KIND=dp), INTENT(IN)                :: etot
@@ -157,45 +158,102 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_cycle_infos', &
       routineP = moduleN//':'//routineN
 
-     WRITE(UNIT=output_unit,FMT="(/,T2,8('-'),A,I5,1X,12('-'))")&
-     "  Informations at step = ",it
-     WRITE(UNIT=output_unit,FMT="(T2,A,T47,A)")&
-      " Optimization Method        = ",wildcard
-     WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-      " Total Energy               = ",etot
-     IF (PRESENT(ediff)) THEN
-        WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-             " Real energy change         = ",ediff
-     END IF
-     IF (PRESENT(pred)) THEN
-        WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-             " Predicted change in energy = ",pred
-     END IF
-     IF (PRESENT(rat)) THEN
-        WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-             " Scaling factor             = ",rat
-     END IF
-     IF (PRESENT(step)) THEN
-        WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-             " Step size                  = ",step
-     END IF
-     IF (PRESENT(rad)) THEN
-        WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-             " Trust radius               = ",rad
-     END IF
-     IF (PRESENT(emin)) THEN
-        IF( etot < emin )THEN
-           WRITE(UNIT=output_unit,FMT="(T2,2A)")&
-                " Decrease in energy         =     ",&
-                "             YES"
-        ELSE
-           WRITE(UNIT=output_unit,FMT="(T2,2A)")&
-                " Decrease in energy         =     ",&
-                "              NO"
-        END IF
-     END IF
-     IF (it==0) WRITE(UNIT=output_unit,FMT="(T2,51('-'))")
- END SUBROUTINE write_cycle_infos
+    IF (output_unit>0)THEN
+       WRITE(UNIT=output_unit,FMT="(/,T2,8('-'),A,I5,1X,12('-'))")&
+            "  Informations at step = ",it
+       WRITE(UNIT=output_unit,FMT="(T2,A,T47,A)")&
+            " Optimization Method        = ",wildcard
+       WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
+            " Total Energy               = ",etot
+       IF (PRESENT(ediff)) THEN
+          WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
+               " Real energy change         = ",ediff
+       END IF
+       IF (PRESENT(pred)) THEN
+          WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
+               " Predicted change in energy = ",pred
+       END IF
+       IF (PRESENT(rat)) THEN
+          WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
+               " Scaling factor             = ",rat
+       END IF
+       IF (PRESENT(step)) THEN
+          WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
+               " Step size                  = ",step
+       END IF
+       IF (PRESENT(rad)) THEN
+          WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
+               " Trust radius               = ",rad
+       END IF
+       IF (PRESENT(emin)) THEN
+          IF( etot < emin )THEN
+             WRITE(UNIT=output_unit,FMT="(T2,2A)")&
+                  " Decrease in energy         =     ",&
+                  "             YES"
+          ELSE
+             WRITE(UNIT=output_unit,FMT="(T2,2A)")&
+                  " Decrease in energy         =     ",&
+                  "              NO"
+          END IF
+       END IF
+       IF (it==0) WRITE(UNIT=output_unit,FMT="(T2,51('-'))")
+    END IF
+  END SUBROUTINE write_cycle_infos
+
+
+!!****** gopt_f_methods/write_rot_cycle_infos [1.0] *
+!!
+!!   NAME
+!!    write_rot_cycle_infos
+!!
+!!   FUNCTION
+!!
+!!
+!!   AUTHOR
+!!    Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!***************************************************************************
+  SUBROUTINE write_rot_cycle_infos(output_unit,it,etot,ediff,emin,dimer_env,wildcard)
+
+    INTEGER, INTENT(IN)                      :: output_unit, it
+    REAL(KIND=dp), INTENT(IN)                :: etot
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: ediff, emin
+    TYPE(dimer_env_type), POINTER            :: dimer_env
+    CHARACTER(LEN=5), OPTIONAL               :: wildcard
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_rot_cycle_infos', &
+      routineP = moduleN//':'//routineN
+
+    IF (output_unit>0)THEN
+       WRITE(UNIT=output_unit,FMT="(/,T2,4('-'),A,I5,1X,5('-'))")&
+            "  Informations at rotational step = ",it
+       WRITE(UNIT=output_unit,FMT="(T2,A,T47,A)")&
+            " Optimization Method        = ",wildcard
+       WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
+            " Local Curvature            = ",dimer_env%curvature
+       WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
+            " Total Rotational Force     = ",etot
+       IF (PRESENT(ediff)) THEN
+          WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
+               " Real Force change          = ",ediff
+       END IF
+       IF (PRESENT(emin)) THEN
+          IF( etot < emin )THEN
+             WRITE(UNIT=output_unit,FMT="(T2,2A)")&
+                  " Decrease in rotational force =   ",&
+                  "             YES"
+          ELSE
+             WRITE(UNIT=output_unit,FMT="(T2,2A)")&
+                  " Decrease in rotational force =   ",&
+                  "              NO"
+          END IF
+       END IF
+       IF (it==0) WRITE(UNIT=output_unit,FMT="(T2,51('-'))")
+    END IF
+  END SUBROUTINE write_rot_cycle_infos
 
 !!****** gopt_f_methods/check_converg [1.0] *
 !!
@@ -212,11 +270,10 @@ CONTAINS
 !!
 !!   SOURCE
 !***************************************************************************
-  SUBROUTINE check_converg(ndf,dr,g,ionode,output_unit,conv,gopt_param)
+  SUBROUTINE check_converg(ndf,dr,g,output_unit,conv,gopt_param)
 
     INTEGER, INTENT(IN)                      :: ndf
     REAL(KIND=dp), INTENT(IN)                :: dr(ndf), g(ndf)
-    LOGICAL, INTENT(IN)                      :: ionode
     INTEGER, INTENT(IN)                      :: output_unit
     LOGICAL, INTENT(OUT)                     :: conv
     TYPE(gopt_param_type), POINTER           :: gopt_param
@@ -261,7 +318,7 @@ CONTAINS
     IF( SQRT(dumm/ndf) > rmsgcon )conv_rg = .FALSE.
     maxdum(4) = SQRT(dumm/ndf)
 
-    IF(ionode)THEN
+    IF(output_unit>0)THEN
        WRITE(UNIT=output_unit,FMT="(/,T2,A)")&
             " Convergence check :"
        WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
@@ -318,21 +375,74 @@ CONTAINS
                "              NO"
        END IF
        WRITE(UNIT=output_unit,FMT="(T2,51('-'))")
-
     END IF
 
     IF (conv_dx .AND. conv_rdx .AND. conv_g .AND. conv_rg) conv = .TRUE.
 
-    IF (conv) THEN
-      IF (ionode) THEN
-        WRITE (UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
-        WRITE (UNIT=output_unit,FMT="(T2,A,T25,A,T78,A)")&
-          "***","GEOMETRY OPTIMIZATION COMPLETED","***"
-        WRITE (UNIT=output_unit,FMT="(T2,A)") REPEAT("*",79)
-      END IF
+    IF ((conv).AND.(output_unit>0)) THEN
+       WRITE (UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
+       WRITE (UNIT=output_unit,FMT="(T2,A,T25,A,T78,A)")&
+            "***","GEOMETRY OPTIMIZATION COMPLETED","***"
+       WRITE (UNIT=output_unit,FMT="(T2,A)") REPEAT("*",79)
     END IF
 
   END SUBROUTINE check_converg
+
+!!****** gopt_f_methods/check_rot_conv [1.0] *
+!!
+!!   NAME
+!!    check_rot_conv  
+!!
+!!   FUNCTION
+!!    
+!!
+!!   AUTHOR
+!!    Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!***************************************************************************
+  SUBROUTINE check_rot_conv(dimer_env, output_unit, conv, error)
+
+    TYPE(dimer_env_type), POINTER            :: dimer_env
+    INTEGER, INTENT(IN)                      :: output_unit
+    LOGICAL, INTENT(OUT)                     :: conv
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'check_rot_conv', &
+      routineP = moduleN//':'//routineN
+
+    conv = (dimer_env%angle1< dimer_env%angle_tol) 
+    IF(output_unit>0)THEN
+       WRITE(UNIT=output_unit,FMT="(/,T2,A)")&
+            " Convergence check :"
+       WRITE(UNIT=output_unit,FMT="(T2,A,F16.10)")&
+            " Predicted angle step size  =     ",dimer_env%angle1
+       WRITE(UNIT=output_unit,FMT="(T2,A,F16.10)")&
+            " Effective angle step size  =     ",dimer_env%angle2
+       WRITE(UNIT=output_unit,FMT="(T2,A,F16.10)")&
+            " Conv. limit for angle step size =",dimer_env%angle_tol
+       IF(conv)THEN
+          WRITE(UNIT=output_unit,FMT="(T2,2A)")&
+               " Convergence in angle step size   =",&
+               "            YES"
+       ELSE
+          WRITE(UNIT=output_unit,FMT="(T2,2A)")&
+               " Convergence in angle step size   =",&
+               "             NO"
+       END IF
+       WRITE(UNIT=output_unit,FMT="(T2,51('-'))")
+    END IF
+    IF ((conv).AND.(output_unit>0)) THEN
+       WRITE (UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
+       WRITE (UNIT=output_unit,FMT="(T2,A,T25,A,T78,A)")&
+            "***","ROTATION OPTIMIZATION COMPLETED","***"
+       WRITE (UNIT=output_unit,FMT="(T2,A)") REPEAT("*",79)
+    END IF
+
+  END SUBROUTINE check_rot_conv
+
 
 !!****** gopt_f_methods/write_final_info [1.0] *
 !!
@@ -508,18 +618,20 @@ CONTAINS
        WRITE(UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
        IF (gopt_env%dimer_rotation) THEN
           my_label = "OPTIMIZING DIMER ROTATION"
-
        ELSE
           my_label = "STARTING GEOMETRY OPTIMIZATION"
        END IF
+
+       ix = (80 - 7 - LEN_TRIM(my_label))/2
+       ix = ix + 5
+       my_format="(T2,A,T"//cp_to_string(ix)//",A,T78,A)"
+       WRITE(UNIT=output_unit,FMT=TRIM(my_format))"***",TRIM(my_label),"***"
+
        ix = (80 - 7 - LEN_TRIM(label))/2
-       ix = ix + 4 - 28
-       my_format="(T2,A,T28,"//cp_to_string(ix)//"X,A,T78,A)"
-       WRITE(UNIT=output_unit,FMT="(T2,A,T28,A,T78,A)")"***",TRIM(my_label),"***"
-       ix = (80 - 7 - LEN_TRIM(label))/2
-       ix = ix + 4 - 28
-       my_format="(T2,A,T28,"//cp_to_string(ix)//"X,A,T78,A)"
+       ix = ix + 5
+       my_format="(T2,A,T"//cp_to_string(ix)//",A,T78,A)"
        WRITE(UNIT=output_unit,FMT=TRIM(my_format))"***",TRIM(label),"***"
+
        WRITE(UNIT=output_unit,FMT="(T2,A)") REPEAT("*",79)
        CALL m_flush(output_unit)
     END IF

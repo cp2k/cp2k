@@ -947,6 +947,14 @@ CONTAINS
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="ANGLE_TOLERANCE",&
+            description="This keyword sets the value of the tolerance angle for the line search "//&
+            " performed to optimize the orientation of the dimer.",&
+            usage="ANGLE_TOL {real}",unit_str='rad',&
+            default_r_val=cp_unit_to_cp2k(5.0_dp,"deg",error=error),error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL create_geoopt_section(subsection2, label="ROT_OPT",&
             description="This section sets the environment for the optimization of the rotation of the Dimer.",&
             just_optimizers=.TRUE.,error=error)
@@ -989,23 +997,37 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key
 
     failure=.FALSE.
-
     IF (.NOT.failure) THEN
        ! create the BFGS subsection 
-       NULLIFY(section,keyword)
+       NULLIFY(section,keyword,print_key)
        CALL section_create(section,name="BFGS",&
             description="Provides parameters to tune the BFGS optimization",&
             n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
-       CALL keyword_create(keyword, name="RESTART",&
-            description="The initial HESSIAN is restarted from the file HESSIAN",&
-            usage="RESTART",&
+       CALL keyword_create(keyword, name="RESTART_HESSIAN",&
+            description="Controls the reading of the initial Hessian from file.",&
+            usage="RESTART_HESSIAN",&
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RESTART_FILE_NAME",&
+            description="Specifies the name of the file used to read the initial Hessian.",&
+            usage="RESTART_FILE_NAME {filename}",&
+            default_lc_val="",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error) 
+
+       CALL cp_print_key_section_create(print_key,"RESTART",&
+            description="Controls the printing of Hessian Restart file", &
+            print_level=low_print_level,each=(/1/),add_last=(/1/),filename="BFGS",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
 
     END IF
   END SUBROUTINE create_bfgs_section

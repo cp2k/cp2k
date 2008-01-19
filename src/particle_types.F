@@ -868,10 +868,12 @@ END SUBROUTINE clone_particle
 
 ! *****************************************************************************
 
-  SUBROUTINE write_structure_data(particle_set,cell,subsys_section,error)
+  SUBROUTINE write_structure_data(particle_set,cell,input_section,error)
 
     ! Write structure data requested by a separate structure data input
     ! section to the output unit.
+
+    ! input_section can be either motion_section or subsys_section.
 
     ! Creation (11.03.04,MK)
     ! Recovered (23.03.06,MK)
@@ -879,7 +881,7 @@ END SUBROUTINE clone_particle
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(section_vals_type), POINTER         :: subsys_section
+    TYPE(section_vals_type), POINTER         :: input_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_structure_data', &
@@ -905,7 +907,7 @@ END SUBROUTINE clone_particle
 
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger=logger,&
-                              basis_section=subsys_section,&
+                              basis_section=input_section,&
                               print_key_path="PRINT%STRUCTURE_DATA",&
                               extension=".coordLog",&
                               error=error)
@@ -916,7 +918,7 @@ END SUBROUTINE clone_particle
                     unit_of_length_name=unit_of_length_name)
 
       natom = SIZE(particle_set)
-      section => section_vals_get_subs_vals(section_vals=subsys_section,&
+      section => section_vals_get_subs_vals(section_vals=input_section,&
                                             subsection_name="PRINT%STRUCTURE_DATA",&
                                             error=error)
 
@@ -1060,7 +1062,7 @@ END SUBROUTINE clone_particle
         END DO
       END IF
     END IF
-    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
+    CALL cp_print_key_finished_output(iw,logger,input_section,&
          "PRINT%STRUCTURE_DATA", error=error)
 
     CALL timestop(0.0_dp,handle)

@@ -21,6 +21,7 @@ OBJECTS_GENERIC =\
  bsse.o\
  cell_types.o\
  cg_optimizer.o\
+ cg_utils.o\
  cg_test.o\
  colvar_methods.o\
  colvar_types.o\
@@ -100,6 +101,7 @@ OBJECTS_GENERIC =\
  dgs.o\
  dimer_types.o\
  dimer_methods.o\
+ dimer_utils.o\
  distribution_1d_types.o\
  distribution_2d_types.o\
  distribution_methods.o\

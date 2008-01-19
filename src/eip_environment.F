@@ -240,8 +240,7 @@ CONTAINS
 !!     03.2006 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE eip_init_subsys(eip_env, subsys, cell, cell_ref, &
-                             use_ref_cell, subsys_section, error)
+  SUBROUTINE eip_init_subsys(eip_env, subsys, cell, cell_ref, use_ref_cell, subsys_section, error)
     TYPE(eip_environment_type), POINTER      :: eip_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(cell_type), POINTER                 :: cell, cell_ref
@@ -295,7 +294,7 @@ CONTAINS
                                   subsys_section=subsys_section, &
                                   error=error)
     CALL write_structure_data(particle_set, cell=cell, &
-                              subsys_section=subsys_section, &
+                              input_section=subsys_section, &
                               error=error)
 
 !   *** Distribute molecules and atoms using the new data structures ***

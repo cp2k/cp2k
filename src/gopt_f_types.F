@@ -39,10 +39,10 @@ MODULE gopt_f_types
                                              gopt_param_release,&
                                              gopt_param_type
   USE input_constants,                 ONLY: default_dimer_method_id,&
+                                             default_minimization_method_id,&
                                              default_ts_method_id
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE timings,                         ONLY: timeset,&
@@ -161,20 +161,22 @@ CONTAINS
              ! For the Dimer method we use the same framework of geometry optimizers
              ! already defined for cp2k..
              natom = force_env_get_natom(force_env,error)
-             CALL dimer_env_create(gopt_env%dimer_env, gopt_param, natom, globenv, error)
              dimer_section => section_vals_get_subs_vals(geo_opt_section,"TRANSITION_STATE%DIMER",error=error)
-             CALL section_vals_val_get(dimer_section,"DR",r_val=gopt_env%dimer_env%dr,error=error)
-             CALL section_vals_val_get(dimer_section,"INTERPOLATE_GRADIENT",&
-                  l_val=gopt_env%dimer_env%interpolate_gradient,error=error)
-             ! Setup the environment for the rotation of the Dimer
+             CALL dimer_env_create(gopt_env%dimer_env, natom, globenv, dimer_section, error)
+
+             ! Setup the GEO_OPT environment for the rotation of the Dimer
              rot_opt_section => section_vals_get_subs_vals(dimer_section,"ROT_OPT",error=error)
-             CALL gopt_param_read(gopt_env%gopt_dimer_param, rot_opt_section, skip_type=.TRUE.,error=error)
+             CALL gopt_param_read(gopt_env%gopt_dimer_param, rot_opt_section,&
+                  type_id=default_minimization_method_id,error=error)
+             gopt_env%gopt_dimer_param%type_id = default_ts_method_id
+
              CALL gopt_f_create(gopt_env%gopt_dimer_env, gopt_env%gopt_dimer_param, force_env=force_env,&
                   globenv=globenv, geo_opt_section=rot_opt_section, error=error)
              CALL dimer_env_retain(gopt_env%dimer_env, error)
              gopt_env%gopt_dimer_env%dimer_env      => gopt_env%dimer_env
              gopt_env%gopt_dimer_env%label          = "ROT_OPT"
              gopt_env%gopt_dimer_env%dimer_rotation = .TRUE.
+
           END SELECT
        END IF
     END IF

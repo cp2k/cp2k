@@ -25,7 +25,10 @@
 MODULE dimer_types
   USE f77_blas
   USE global_types,                    ONLY: global_environment_type
-  USE gopt_param_types,                ONLY: gopt_param_type
+  USE input_constants,                 ONLY: do_first_rotation_step,&
+                                             do_init_dimer
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE parallel_rng_types,              ONLY: random_numbers
   USE timings,                         ONLY: timeset,&
@@ -39,9 +42,7 @@ MODULE dimer_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dimer_types'
   INTEGER, PRIVATE, SAVE :: last_dimer_id=0
 
-  PUBLIC :: dimer_env_type
-  PUBLIC :: dimer_env_create, dimer_env_retain,&
-            dimer_env_release
+  PUBLIC :: dimer_env_type, dimer_env_create, dimer_env_retain, dimer_env_release
 
 !!****s* dimer_types/dimer_env_type [1.0] *
 !!
@@ -66,12 +67,12 @@ MODULE dimer_types
 !!   SOURCE
   !***************************************************************************
   TYPE dimer_env_type
-     INTEGER :: ref_count, id_nr
-     LOGICAL                                    :: rotate_dimer
+     INTEGER                                    :: ref_count, id_nr
+     INTEGER                                    :: status_dimer, rotation_step
      LOGICAL                                    :: interpolate_gradient
-     REAL(KIND=dp)                              :: dr
+     REAL(KIND=dp)                              :: dr, angle_tol
      REAL(KIND=dp), POINTER, DIMENSION(:)       :: nvec, g0, g1, g1p
-     REAL(KIND=dp)                              :: angle, dCdp, curvature
+     REAL(KIND=dp)                              :: angle1, angle2, dCdp, curvature
   END TYPE dimer_env_type
 
 CONTAINS
@@ -97,11 +98,11 @@ CONTAINS
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE dimer_env_create(dimer_env, gopt_param, natom, globenv, error)
+  SUBROUTINE dimer_env_create(dimer_env, natom, globenv, dimer_section, error)
     TYPE(dimer_env_type), POINTER            :: dimer_env
-    TYPE(gopt_param_type), POINTER           :: gopt_param
     INTEGER, INTENT(IN)                      :: natom
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: dimer_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dimer_env_create', &
@@ -134,7 +135,13 @@ CONTAINS
        norm = SQRT(SUM(dimer_env%nvec**2))
        CPPostcondition(norm>0.0_dp,cp_failure_level,routineP,error,failure)
        dimer_env%nvec         = dimer_env%nvec / norm
-       dimer_env%rotate_dimer = .TRUE.
+       dimer_env%status_dimer = do_init_dimer
+       dimer_env%rotation_step= do_first_rotation_step
+       CALL section_vals_val_get(dimer_section,"DR",r_val=dimer_env%dr,error=error)
+       CALL section_vals_val_get(dimer_section,"INTERPOLATE_GRADIENT",&
+            l_val=dimer_env%interpolate_gradient,error=error)
+       CALL section_vals_val_get(dimer_section,"ANGLE_TOLERANCE",&
+            r_val=dimer_env%angle_tol,error=error)
     END IF
   END SUBROUTINE dimer_env_create
 !***************************************************************************

@@ -78,7 +78,7 @@ MODULE geo_opt
 !!
 !!
 !!*** **********************************************************************
-   SUBROUTINE cp_geo_opt(force_env, globenv, error)
+   RECURSIVE SUBROUTINE cp_geo_opt(force_env, globenv, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -103,7 +103,7 @@ MODULE geo_opt
     force_env_section => force_env%force_env_section
     geo_section       => section_vals_get_subs_vals(root_section,"MOTION%GEO_OPT",error=error)
 
-    CALL gopt_param_read(gopt_param, geo_section,  skip_type=.FALSE., error=error)
+    CALL gopt_param_read(gopt_param, geo_section, error=error)
     CALL gopt_f_create(gopt_env, gopt_param, force_env=force_env, globenv=globenv,&
          geo_opt_section=geo_section, error=error)
     CALL gopt_f_create_x0(gopt_env, x0, error=error)
@@ -196,7 +196,7 @@ MODULE geo_opt
 !!
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_geo_opt_low(force_env, globenv, gopt_param, gopt_env, force_env_section,&
+  RECURSIVE SUBROUTINE cp_geo_opt_low(force_env, globenv, gopt_param, gopt_env, force_env_section,&
        geo_section, x0, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv

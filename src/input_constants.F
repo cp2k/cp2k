@@ -429,6 +429,14 @@ MODULE input_constants
 
   INTEGER, PUBLIC, PARAMETER :: none_ts_method_id=0,&
                                 default_dimer_method_id=1
+  
+  INTEGER, PUBLIC, PARAMETER :: do_init_dimer=0,&
+                                do_rotate_dimer=1,&
+                                do_translate_dimer=2
+
+  INTEGER, PUBLIC, PARAMETER :: do_first_rotation_step=0,&
+                                do_second_rotation_step=1,&
+                                do_third_rotation_step=2
 
   INTEGER, PARAMETER, PUBLIC :: silent_print_level=0, low_print_level=1,&
        medium_print_level=2, high_print_level=3, debug_print_level=4
