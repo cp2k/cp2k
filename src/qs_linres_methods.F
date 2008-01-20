@@ -46,8 +46,8 @@ MODULE qs_linres_methods
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
-       do_loc_none, lr_cg, lr_diis, lr_ls_2pnt, lr_ls_3pnt, lr_ls_gold, &
-       lr_ls_none, lr_precond_none, lr_sd, op_loc_berry, state_loc_all
+       do_loc_none, lr_cg, lr_diis, lr_precond_none, lr_sd, ls_2pnt, ls_3pnt, &
+       ls_gold, ls_none, op_loc_berry, state_loc_all
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -736,13 +736,13 @@ CONTAINS
 !
 
     SELECT CASE(linres_control%ls_method)
-      CASE(lr_ls_gold)
+      CASE(ls_gold)
          CALL stop_program("do_lr_line_search","GOLD NYI")
-      CASE(lr_ls_3pnt)
+      CASE(ls_3pnt)
          CALL do_lr_ls_3pnt(p_env,vectors,linres_control%ds_min,nspins,error=error)
-      CASE(lr_ls_2pnt)
+      CASE(ls_2pnt)
          CALL do_lr_ls_2pnt(p_env,vectors,linres_control%ds_min,nspins,error=error)
-      CASE(lr_ls_none)
+      CASE(ls_none)
          ds=linres_control%ds_min
          DO ispin = 1,nspins
            CALL cp_fm_scale_and_add(1.0_dp,vectors(ispin)%matrix,ds,&

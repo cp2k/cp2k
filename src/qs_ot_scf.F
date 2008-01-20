@@ -35,8 +35,8 @@ MODULE qs_ot_scf
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE f77_blas
   USE input_constants,                 ONLY: &
-       ot_algo_irac, ot_algo_taylor_or_diag, ot_chol_irac, ot_ls_2pnt, &
-       ot_ls_3pnt, ot_ls_gold, ot_ls_none, ot_lwdn_irac, ot_mini_cg, &
+       ls_2pnt, ls_3pnt, ls_gold, ls_none, ot_algo_irac, &
+       ot_algo_taylor_or_diag, ot_chol_irac, ot_lwdn_irac, ot_mini_cg, &
        ot_mini_diis, ot_mini_sd, ot_poly_irac, ot_precond_full_all, &
        ot_precond_full_kinetic, ot_precond_full_single, &
        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
@@ -181,13 +181,13 @@ CONTAINS
        CALL section_vals_val_get(ot_section,"SAFER_DIIS",l_val=qs_ot_env(1)%settings%safer_diis,error=error)
        CALL section_vals_val_get(ot_section,"LINESEARCH",i_val=ls_method,error=error)
        SELECT CASE(ls_method)
-       CASE (ot_ls_none)
+       CASE (ls_none)
          qs_ot_env(1)%settings%line_search_method="NONE"
-       CASE (ot_ls_2pnt)
+       CASE (ls_2pnt)
          qs_ot_env(1)%settings%line_search_method="2PNT"
-       CASE (ot_ls_3pnt)
+       CASE (ls_3pnt)
          qs_ot_env(1)%settings%line_search_method="3PNT"
-       CASE (ot_ls_gold)
+       CASE (ls_gold)
          qs_ot_env(1)%settings%line_search_method="GOLD"
          CALL section_vals_val_get(ot_section,"GOLD_TARGET",r_val=qs_ot_env(1)%settings%gold_target,error=error)
        CASE DEFAULT

@@ -34,8 +34,5 @@
  &GEO_OPT
     OPTIMIZER CG
     MAX_ITER 500
-    &BFGS
-        RESTART
-    &END
  &END
 &END

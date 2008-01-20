@@ -45,7 +45,7 @@ MODULE gopt_param_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gopt_param_types'
   INTEGER, PRIVATE, SAVE :: last_gopt_f_id=0, last_gopt_param_id=0
 
-  PUBLIC :: gopt_param_type
+  PUBLIC :: gopt_param_type, cg_ls_param_type
   PUBLIC :: gopt_param_create, gopt_param_read, gopt_param_retain, &
             gopt_param_release
 
@@ -76,17 +76,23 @@ MODULE gopt_param_types
 !!
 !!   SOURCE
   !***************************************************************************
+  TYPE cg_ls_param_type
+     INTEGER         :: brent_max_iter, type_id
+     REAL(KIND = dp) :: brent_tol, brack_limit, initial_step
+  END TYPE cg_ls_param_type
+
   TYPE gopt_param_type
-     LOGICAL         :: Fletcher_Reeves
-     LOGICAL         :: use_fit_line_search
-     INTEGER         :: id_nr, ref_count, method_id, type_id
-     INTEGER         :: ts_method_id
-     INTEGER         :: max_f_per_iter, max_iter, max_h_rank
-     INTEGER         :: brent_max_iter, max_steep_steps
-     REAL(KIND = dp) :: wanted_proj_gradient, wanted_rel_f_error
-     REAL(KIND = dp) :: max_dr, max_force, rms_dr, rms_force
-     REAL(KIND = dp) :: brent_tol, brack_limit, restart_limit, initial_step
-     REAL(KIND = dp) :: dimer_angle_tol
+     LOGICAL                  :: Fletcher_Reeves
+     INTEGER                  :: id_nr, ref_count
+     INTEGER                  :: method_id, type_id
+     INTEGER                  :: ts_method_id
+     INTEGER                  :: max_f_per_iter, max_iter, max_h_rank
+     INTEGER                  :: max_steep_steps
+     REAL(KIND = dp)          :: restart_limit
+     REAL(KIND = dp)          :: wanted_proj_gradient, wanted_rel_f_error
+     REAL(KIND = dp)          :: max_dr, max_force, rms_dr, rms_force
+     REAL(KIND = dp)          :: dimer_angle_tol
+     TYPE(cg_ls_param_type)   :: cg_ls
   END TYPE gopt_param_type
 !!***
   !****************************************************************************
@@ -204,13 +210,13 @@ CONTAINS
           ! Do nothing
        CASE(default_cg_method_id)
           CALL section_vals_val_get(gopt_section,"CG%FLETCHER_REEVES",l_val=gopt_param%Fletcher_Reeves,error=error)
-          CALL section_vals_val_get(gopt_section,"CG%USE_FIT_LINE_SEARCH",l_val=gopt_param%use_fit_line_search,error=error)
           CALL section_vals_val_get(gopt_section,"CG%MAX_STEEP_STEPS",i_val=gopt_param%max_steep_steps,error=error)
-          CALL section_vals_val_get(gopt_section,"CG%BRENT_TOL",r_val=gopt_param%brent_tol,error=error)
-          CALL section_vals_val_get(gopt_section,"CG%INITIAL_STEP",r_val=gopt_param%initial_step,error=error)
-          CALL section_vals_val_get(gopt_section,"CG%BRENT_MAX_ITER",i_val=gopt_param%brent_max_iter,error=error)
-          CALL section_vals_val_get(gopt_section,"CG%BRACK_LIMIT",r_val=gopt_param%brack_limit,error=error)
           CALL section_vals_val_get(gopt_section,"CG%RESTART_LIMIT",r_val=gopt_param%restart_limit,error=error)
+          CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%TYPE",i_val=gopt_param%cg_ls%type_id,error=error)
+          CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%BRENT_TOL",r_val=gopt_param%cg_ls%brent_tol,error=error)
+          CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%INITIAL_STEP",r_val=gopt_param%cg_ls%initial_step,error=error)
+          CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%BRENT_MAX_ITER",i_val=gopt_param%cg_ls%brent_max_iter,error=error)
+          CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%BRACK_LIMIT",r_val=gopt_param%cg_ls%brack_limit,error=error)
        END SELECT
        
        SELECT CASE(gopt_param%type_id)

@@ -39,6 +39,7 @@ MODULE cg_optimizer
   USE gopt_f_methods,                  ONLY: check_converg,&
                                              check_rot_conv,&
                                              print_geo_opt_header,&
+                                             print_geo_opt_nc,&
                                              write_cycle_infos,&
                                              write_final_info,&
                                              write_geo_traj,&
@@ -49,7 +50,6 @@ MODULE cg_optimizer
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
-  USE machine,                         ONLY: m_flush
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE termination,                     ONLY: external_control
@@ -177,13 +177,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=5)                         :: wildcard
-    INTEGER                                  :: brent_max_iter, handle, its, &
-                                                max_steep_steps, maxiter, stat
+    INTEGER                                  :: handle, its, max_steep_steps, &
+                                                maxiter, stat
     LOGICAL                                  :: conv, failure, &
                                                 Fletcher_Reeves, should_stop
-    REAL(KIND=dp)                            :: brack_limit, brent_tol, emin, &
-                                                eold, opt_energy, res_lim, &
-                                                step
+    REAL(KIND=dp)                            :: emin, eold, opt_energy, &
+                                                res_lim
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: xold
     REAL(KIND=dp), DIMENSION(:), POINTER     :: g, h, xi
     TYPE(cp_logger_type), POINTER            :: logger
@@ -191,26 +190,17 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: root_section
 
     CALL timeset(routineN,handle)
-
-    failure           = .FALSE.
     NULLIFY(logger,g, h, xi)
     root_section => force_env%root_section
     para_env     => force_env%para_env
     logger       => cp_error_get_logger(error)
-
-    IF (gopt_env%dimer_rotation) CALL cp_unimplemented_error(fromWhere=routineP, &
-                                 message="DIMER method not yet working with CG.", &
-                                 error=error, error_level=cp_failure_level)
-
+    conv         = .FALSE.
+    failure      = .FALSE.
     IF (.NOT.failure) THEN
        maxiter            = gopt_param%max_iter
        max_steep_steps    = gopt_param%max_steep_steps
        Fletcher_Reeves    = gopt_param%Fletcher_Reeves
-       brent_tol          = gopt_param%brent_tol
-       brent_max_iter     = gopt_param%brent_max_iter
-       brack_limit        = gopt_param%brack_limit
        res_lim            = gopt_param%restart_limit
-       step               = gopt_param%initial_step
        ALLOCATE(g (SIZE(x0)), stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(h (SIZE(x0)), stat=stat)
@@ -224,10 +214,10 @@ CONTAINS
        CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos,&
             gopt_env%force_env%para_env, error)
 
-       g  = -xi
-       h  =   g
-       xi =   h
-       emin    = HUGE(0.0_dp)
+       g    = -xi
+       h    =   g
+       xi   =   h
+       emin = HUGE(0.0_dp)
        ! Main Loop
        wildcard = "   SD"
        IF (.NOT.gopt_env%dimer_rotation) THEN
@@ -242,8 +232,9 @@ CONTAINS
           xold = x0
           eold = opt_energy
           emin = MIN(emin, opt_energy)
-
-          CALL cg_linmin(gopt_env, x0, xi, opt_energy, step, output_unit, gopt_param, globenv, error)
+          
+          ! Line minimization
+          CALL cg_linmin(gopt_env, x0, xi, opt_energy, output_unit, gopt_param, globenv, error)
 
           ! Check for an external exit command
           CALL external_control(should_stop,"GEO",globenv,error)
@@ -281,18 +272,7 @@ CONTAINS
           xi  = h
        END DO
        IF(its == maxiter .AND. (.NOT.conv))THEN
-          IF(output_unit>0)THEN
-             WRITE(UNIT=output_unit,FMT="(/,T2,A)")&
-                  "*** MAXIMUM NUMBER OF OPTIMIZATION STEPS REACHED ***"
-             IF (.NOT.gopt_env%dimer_rotation) THEN
-                WRITE(UNIT=output_unit,FMT="(T2,A)")&
-                     "***        EXITING GEOMETRY OPTIMIZATION         ***"
-             ELSE
-                WRITE(UNIT=output_unit,FMT="(T2,A)")&
-                     "***        EXITING ROTATION OPTIMIZATION         ***"
-             END IF
-             CALL m_flush(output_unit)
-          END IF
+          CALL print_geo_opt_nc(gopt_env, output_unit)
        END IF
        ! Write final particle information, if converged
        CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=its,error=error)

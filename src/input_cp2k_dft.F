@@ -4552,11 +4552,11 @@ CONTAINS
             " Whereas the 2PNT minimizer is almost always OK, 3PNT might be needed for systems"//&
             " in which successive OT CG steps do not decrease the total energy.",&
             usage="LINESEARCH GOLD",&
-            default_i_val=ot_ls_2pnt,&
+            default_i_val=ls_2pnt,&
             enum_c_vals=s2a( "NONE", "2PNT", "3PNT","GOLD"),&
             enum_desc=s2a("take fixed lenght steps","extrapolate based on 2 points", &
             "... or on 3 points","perform 1D golden section search of the minimum (very expensive)"),&
-            enum_i_vals=(/ot_ls_none,ot_ls_2pnt,ot_ls_3pnt,ot_ls_gold/),&
+            enum_i_vals=(/ls_none,ls_2pnt,ls_3pnt,ls_gold/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -5026,12 +5026,12 @@ CONTAINS
             description="1D line search algorithm,"//&
             " in increasing order of robustness and cost.",&
             usage="LINESEARCH GOLD",&
-            default_i_val=ot_ls_none,&
+            default_i_val=ls_none,&
             enum_c_vals=s2a( "NONE", "2PNT", "3PNT","GOLD"),&
             enum_desc=s2a("take fixed lenght steps","extrapolate based on 2 points", &
             "... or on 3 points","perform 1D golden section search of the minimum "//&
             "(WARNING this option doesnt work yet)"),&
-            enum_i_vals=(/lr_ls_none,lr_ls_2pnt,lr_ls_3pnt,lr_ls_gold/),&
+            enum_i_vals=(/ls_none,ls_2pnt,ls_3pnt,ls_gold/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

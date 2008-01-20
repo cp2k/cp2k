@@ -17,3 +17,5 @@ cu_eam_2.inp              2
 # Fumi-Tosi Potential
 NaCl.inp                  2
 NaCl-H2O.inp              2
+#Dimer Method
+water_2_TS.inp           25

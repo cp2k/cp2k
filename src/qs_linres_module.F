@@ -32,9 +32,9 @@ MODULE qs_linres_module
                                              cp_print_key_unit_nr
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
-       lr_cg, lr_chemshift, lr_diis, lr_gtensor, lr_ls_2pnt, lr_ls_3pnt, &
-       lr_ls_gold, lr_ls_none, lr_none, lr_precond_full_all, lr_precond_none, &
-       lr_precond_s_inverse, lr_precond_single, lr_sd
+       lr_cg, lr_chemshift, lr_diis, lr_gtensor, lr_none, &
+       lr_precond_full_all, lr_precond_none, lr_precond_s_inverse, &
+       lr_precond_single, lr_sd, ls_2pnt, ls_3pnt, ls_gold, ls_none
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -363,16 +363,16 @@ CONTAINS
             "LINRES|     Optimization algorithm","    Steepnd Descent"
          IF(linres_control%opt_method==lr_diis) WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
             "LINRES|     Optimization algorithm","               DIIS"
-         IF(linres_control%ls_method==lr_ls_none) &
+         IF(linres_control%ls_method==ls_none) &
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
             "LINRES|                Line Search","               NONE"
-         IF(linres_control%ls_method==lr_ls_2pnt) &
+         IF(linres_control%ls_method==ls_2pnt) &
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
             "LINRES|                Line Search","               2pnt"
-         IF(linres_control%ls_method==lr_ls_3pnt) &
+         IF(linres_control%ls_method==ls_3pnt) &
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
             "LINRES|                Line Search","               3pnt"
-         IF(linres_control%ls_method==lr_ls_gold) &
+         IF(linres_control%ls_method==ls_gold) &
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
             "LINRES|                Line Search","               gold"
          IF(linres_control%preconditioner_type==lr_precond_none) &

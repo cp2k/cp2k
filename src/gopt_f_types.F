@@ -82,7 +82,7 @@ MODULE gopt_f_types
   TYPE gopt_f_type
      INTEGER                                  :: ref_count, id_nr, its
      INTEGER                                  :: type_id, ts_method_id
-     LOGICAL                                  :: dimer_rotation
+     LOGICAL                                  :: dimer_rotation, do_line_search
      CHARACTER(LEN=default_string_length)     :: label
      TYPE(force_env_type), POINTER            :: force_env
      TYPE(global_environment_type), POINTER   :: globenv
@@ -148,6 +148,7 @@ CONTAINS
        gopt_env%its=0
        gopt_env%label="GEO_OPT"
        gopt_env%dimer_rotation=.FALSE.
+       gopt_env%do_line_search=.FALSE.
        CALL force_env_retain(force_env, error=error)
        gopt_env%force_env      => force_env
        gopt_env%globenv        => globenv
@@ -176,7 +177,6 @@ CONTAINS
              gopt_env%gopt_dimer_env%dimer_env      => gopt_env%dimer_env
              gopt_env%gopt_dimer_env%label          = "ROT_OPT"
              gopt_env%gopt_dimer_env%dimer_rotation = .TRUE.
-
           END SELECT
        END IF
     END IF

@@ -60,8 +60,8 @@ MODULE qs_p_env_methods
   USE hartree_local_methods,           ONLY: init_coulomb_local
   USE hartree_local_types,             ONLY: hartree_local_create
   USE input_constants,                 ONLY: lr_cg,&
-                                             lr_ls_none,&
-                                             lr_precond_none
+                                             lr_precond_none,&
+                                             ls_none
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type
@@ -374,7 +374,7 @@ CONTAINS
 !                  error=error)
            END IF
          END IF
-         IF(linres_control%ls_method /= lr_ls_none) THEN
+         IF(linres_control%ls_method /= ls_none) THEN
          ! Initialize the required variables for the line search
          END IF
 

@@ -1,4 +1,4 @@
-24
+25
 Total energy:!3
 POTENTIAL ENERGY!4
 Total energy \[eV\]:!4
@@ -23,6 +23,7 @@ VIB| !3
 PW exchange energy!5
 Total Spread!5
 DFT+U energy:!3
+Local Curvature            =!4
 #
 # these are the tests the can be selected for regtesting. 
 # do regtest will grep for test_grep (first column) and look if the numeric value

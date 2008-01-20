@@ -40,6 +40,7 @@ MODULE cp_lbfgs_geo
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_methods,                  ONLY: print_geo_opt_header,&
+                                             print_geo_opt_nc,&
                                              write_final_info
   USE gopt_f_types,                    ONLY: gopt_f_type
   USE gopt_param_types,                ONLY: gopt_param_type
@@ -144,7 +145,12 @@ CONTAINS
           END IF
           CALL write_restart(force_env=force_env,root_section=root_section,&
                force_env_section=force_env_section,error=error)
+          IF (its==gopt_param%max_iter) EXIT
        END DO
+
+       IF(its == gopt_param%max_iter .AND. (.NOT.converged))THEN
+          CALL print_geo_opt_nc(gopt_env, output_unit)
+       END IF
 
        ! Write final particle information, if converged
        CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=its,error=error)
@@ -153,6 +159,8 @@ CONTAINS
             force_env_section, error)
 
        CALL cp_opt_gopt_release(optimizer, error=error)
+       CALL cp_print_key_finished_output(output_unit,logger,geo_section,&
+            "PRINT%PROGRAM_RUN_INFO", error=error)
     END IF
     CALL cp_rm_iter_level(logger%iter_info,ihandle,error)
     CALL timestop(0.0_dp,handle)

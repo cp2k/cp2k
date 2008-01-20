@@ -34,11 +34,8 @@ MODULE dimer_methods
   USE geo_opt,                         ONLY: cp_rot_opt
   USE gopt_f_types,                    ONLY: gopt_f_type
   USE input_constants,                 ONLY: do_first_rotation_step,&
-                                             do_init_dimer,&
-                                             do_rotate_dimer,&
                                              do_second_rotation_step,&
-                                             do_third_rotation_step,&
-                                             do_translate_dimer
+                                             do_third_rotation_step
   USE kinds,                           ONLY: dp
   USE particle_list_types,             ONLY: particle_list_type
   USE timings,                         ONLY: timeset,&
@@ -102,67 +99,76 @@ CONTAINS
     CPPostcondition(ASSOCIATED(dimer_env),cp_failure_level,routineP,error,failure)
 
     ! Possibly rotate Dimer or just compute Gradients of point 0 for Translation
-    SELECT CASE(dimer_env%status_dimer)
-    CASE(do_rotate_dimer)
-       SELECT CASE(dimer_env%rotation_step)
+    IF (gopt_env%dimer_rotation) THEN
+       SELECT CASE(dimer_env%rot%rotation_step)
        CASE(do_first_rotation_step,do_third_rotation_step)
           eval_analytical = .TRUE.
-          IF ((dimer_env%rotation_step==do_third_rotation_step).AND.(dimer_env%interpolate_gradient)) THEN
+          IF ((dimer_env%rot%rotation_step==do_third_rotation_step).AND.(dimer_env%rot%interpolate_gradient)) THEN
              eval_analytical = .FALSE.
           END IF
           IF (eval_analytical) THEN
              ! Compute energy, gradients and rotation vector for R1
-             CALL cp_eval_at_ts_low(gopt_env, x, 1, dimer_env, calc_force, f1, dimer_env%g1, error)    
+             CALL cp_eval_at_ts_low(gopt_env, x, 1, dimer_env, calc_force, f1, dimer_env%rot%g1, error)    
           ELSE
-             angle1 = dimer_env%angle1
-             angle2 = dimer_env%angle2
-             dimer_env%g1 = SIN(angle1-angle2)/SIN(angle1)*dimer_env%g1+&
-                            SIN(angle2)/SIN(angle1)*dimer_env%g1p+&
-                            (1.0_dp-COS(angle2)-SIN(angle2)*TAN(angle1/2.0_dp))*dimer_env%g0             
+             angle1 = dimer_env%rot%angle1
+             angle2 = dimer_env%rot%angle2
+             dimer_env%rot%g1 = SIN(angle1-angle2)/SIN(angle1)*dimer_env%rot%g1+&
+                            SIN(angle2)/SIN(angle1)*dimer_env%rot%g1p+&
+                            (1.0_dp-COS(angle2)-SIN(angle2)*TAN(angle1/2.0_dp))*dimer_env%rot%g0             
           END IF
 
           ! Determine the theta vector (i.e. the search direction for line minimization) 
-          gradient = -2.0_dp*(dimer_env%g1-dimer_env%g0)
+          gradient = -2.0_dp*(dimer_env%rot%g1-dimer_env%rot%g0)
           gradient = gradient  - DOT_PRODUCT(gradient, dimer_env%nvec) * dimer_env%nvec
           norm     = SQRT(DOT_PRODUCT(gradient, gradient))
           f        = norm
           IF (norm/=0.0_dp) gradient = gradient/norm
 
           ! Compute curvature and derivative of the curvature w.r.t. the rotational angle
-          dimer_env%curvature  = DOT_PRODUCT(dimer_env%g1-dimer_env%g0,dimer_env%nvec)/dimer_env%dr
-          dimer_env%dCdp       = 2.0_dp*DOT_PRODUCT(dimer_env%g1-dimer_env%g0,gradient)/dimer_env%dr
+          dimer_env%rot%curvature  = DOT_PRODUCT(dimer_env%rot%g1-dimer_env%rot%g0,dimer_env%nvec)/dimer_env%dr
+          dimer_env%rot%dCdp       = 2.0_dp*DOT_PRODUCT(dimer_env%rot%g1-dimer_env%rot%g0,gradient)/dimer_env%dr
 
-          dimer_env%rotation_step = do_second_rotation_step
+          dimer_env%rot%rotation_step = do_second_rotation_step
           gradient = -gradient
        CASE(do_second_rotation_step)
           ! Compute energy, gradients and rotation vector for R1
-          CALL cp_eval_at_ts_low(gopt_env, x, 1, dimer_env, calc_force, f1, dimer_env%g1p, error)
-          dimer_env%curvature  = DOT_PRODUCT(dimer_env%g1p-dimer_env%g0,dimer_env%nvec)/dimer_env%dr
-          dimer_env%rotation_step = do_third_rotation_step
+          CALL cp_eval_at_ts_low(gopt_env, x, 1, dimer_env, calc_force, f1, dimer_env%rot%g1p, error)
+          dimer_env%rot%curvature  = DOT_PRODUCT(dimer_env%rot%g1p-dimer_env%rot%g0,dimer_env%nvec)/dimer_env%dr
+          dimer_env%rot%rotation_step = do_third_rotation_step
+
+          ! Determine the theta vector (i.e. the search direction for line minimization)
+          ! This is never used for getting a new theta but may is consistent in order to
+          ! give back the right value of f
+          gradient = -2.0_dp*(dimer_env%rot%g1p-dimer_env%rot%g0)
+          gradient = gradient  - DOT_PRODUCT(gradient, dimer_env%nvec) * dimer_env%nvec
+          norm     = SQRT(DOT_PRODUCT(gradient, gradient))
+          f        = norm
+          IF (norm/=0.0_dp) gradient = gradient/norm
        END SELECT
-    CASE(do_init_dimer, do_translate_dimer)
+    ELSE
        ! Compute energy, gradients and rotation vector for R0
-       CALL cp_eval_at_ts_low(gopt_env, x, 0, dimer_env, calc_force, f,  dimer_env%g0, error)
+       CALL cp_eval_at_ts_low(gopt_env, x, 0, dimer_env, calc_force, f,  dimer_env%rot%g0, error)
        
-       IF (dimer_env%status_dimer==do_init_dimer) THEN
-          dimer_env%status_dimer = do_rotate_dimer
+       ! The dimer is rotated only when we are out of the translation line search
+       IF (.NOT.gopt_env%do_line_search) THEN
           CALL cp_rot_opt(gopt_env%gopt_dimer_env, x, gopt_env%gopt_dimer_param ,&
                gopt_env%gopt_dimer_env%geo_section, error)
-          dimer_env%status_dimer = do_translate_dimer
+          dimer_env%rot%rotation_step = do_first_rotation_step
        END IF
 
        ! Correcting gradients for Translation
-       IF (calc_force) THEN
-          IF (dimer_env%curvature>0) THEN
-             gradient =  - DOT_PRODUCT(dimer_env%g0,dimer_env%nvec)*dimer_env%nvec
-          ELSE
-             gradient =  dimer_env%g0 - 2.0_dp*DOT_PRODUCT(dimer_env%g0,dimer_env%nvec)*dimer_env%nvec 
-          END IF
+       IF (dimer_env%rot%curvature>0) THEN
+          gradient =  - DOT_PRODUCT(dimer_env%rot%g0,dimer_env%nvec)*dimer_env%nvec
+       ELSE
+          gradient =  dimer_env%rot%g0 - 2.0_dp*DOT_PRODUCT(dimer_env%rot%g0,dimer_env%nvec)*dimer_env%nvec 
        END IF
-       
-       ! To Fix the pseudo-energy
-       f = HUGE(0.0_dp)
-    END SELECT
+
+       IF (.NOT.gopt_env%do_line_search) THEN
+          f =  SQRT(DOT_PRODUCT(gradient,gradient))
+       ELSE
+          f = -DOT_PRODUCT(gradient,dimer_env%tsl%tls_vec)
+       END IF
+    END IF
 
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE cp_eval_at_ts
@@ -220,7 +226,7 @@ CONTAINS
     END DO
 
     !Compute energy and forces
-    CALL force_env_calc_energy_force(gopt_env%force_env,calc_force=PRESENT(gradient),error=error)
+    CALL force_env_calc_energy_force(gopt_env%force_env,calc_force=calc_force,error=error)
 
     ! Possibly take the potential energy
     IF (PRESENT(f)) THEN

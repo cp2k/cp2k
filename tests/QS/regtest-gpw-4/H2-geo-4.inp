@@ -46,7 +46,9 @@
     MAX_ITER 2
     &CG
       MAX_STEEP_STEPS 1
-      USE_FIT_LINE_SEARCH
+      &LINE_SEARCH
+        TYPE FIT
+      &END
     &END CG
   &END GEO_OPT
 &END MOTION

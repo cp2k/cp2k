@@ -347,7 +347,7 @@ CONTAINS
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"TRANSLATION_VECTOR",&
-            description="Dumps the traslation vector applied along an MD (if any). Useful"//&
+            description="Dumps the translation vector applied along an MD (if any). Useful"//&
             " for postprocessing of QMMM trajectories in which the QM fragment is continuously"//&
             " centered in the QM box",&
             print_level=high_print_level, common_iter_levels=1,&
@@ -942,8 +942,8 @@ CONTAINS
        CALL keyword_create(keyword, name="INTERPOLATE_GRADIENT",&
             description="This keyword controls the interpolation of the gradient whenever possible"//&
             " during the optimization of the Dimer. The use of this keywords saves 1 evaluation "//&
-            " of energy/forces.",&
-            usage="INTERPOLATE_GRADIENT {logical}",default_l_val=.TRUE.,error=error)
+            " of energy/forces.", usage="INTERPOLATE_GRADIENT {logical}",default_l_val=.TRUE.,&
+            lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1061,46 +1061,17 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
 
     IF (.NOT.failure) THEN
        ! create the CG subsection
-       NULLIFY(section,keyword)
+       NULLIFY(section,subsection,keyword)
        CALL section_create(section,name="CG",&
             description="Provides parameters to tune the conjugate gradient optimization",&
             n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
             error=error)
-
-       CALL keyword_create(keyword, name="BRENT_TOL",&
-            description="Tolerance requested during Brent line search in Conjugate Gradients Optimization.",&
-            usage="BRENT_TOL {real}",&
-            default_r_val=0.01_dp,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="INITIAL_STEP",&
-            description="Initial step size used, e.g. for bracketing or minimizers. "//&
-            "Might need to be reduced for systems with close contacts",&
-            usage="INITIAL_STEP {real}",&
-            default_r_val=0.2_dp,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="BRACK_LIMIT",&
-            description="Limit in 1D bracketing during line search in Conjugate Gradients Optimization.",&
-            usage="BRACK_LIMIT {real}",&
-            default_r_val=100.0_dp,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="BRENT_MAX_ITER",&
-            description="Maximum number of iterations in brent algorithm "// &
-            "(used for the line search in Conjugated Gradients Optimization)",&
-            usage="BRENT_MAX_ITER {integer}",&
-            default_i_val=100,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MAX_STEEP_STEPS",&
             description="Maximum number of steepest descent steps before starting the"//&
@@ -1120,14 +1091,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="USE_FIT_LINE_SEARCH",&
-            description="Use instead of bracketing the minima and than applying the Brent"//&
-            " algorithm, a least mean square to interpolate the minima in the line search.",&
-            usage="USE_FIT_LINE_SEARCH",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword, name="FLETCHER_REEVES",&
             description="Uses FLETCHER-REEVES instead of POLAK-RIBIERE when using Conjugate Gradients",&
             usage="FLETCHER-REEVES",&
@@ -1135,6 +1098,61 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       ! Line Search section
+       CALL section_create(subsection,name="LINE_SEARCH",&
+            description="Provides parameters to tune the line search during the conjugate gradient optimization",&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="TYPE",&
+            description="1D line search algorithm to be used with the CG optimizer,"//&
+                        " in increasing order of robustness and cost. ",&
+            usage="TYPE GOLD",&
+            default_i_val=ls_gold,&
+            enum_c_vals=s2a( "NONE","2PNT","3PNT","GOLD","FIT"),&
+            enum_desc=s2a("take fixed lenght steps",&
+                          "extrapolate based on 2 points", &
+                          "extrapolate based on on 3 points",&
+                          "perform 1D golden section search of the minimum (very expensive)",&
+                          "perform 1D fit of a parabola on several evaluation of energy "//&
+                          "(very expensive and more robust vs numerical noise)"),&
+            enum_i_vals=(/ls_none,ls_2pnt,ls_3pnt,ls_gold,ls_fit/),&
+            error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="INITIAL_STEP",&
+            description="Initial step size used, e.g. for bracketing or minimizers. "//&
+            "Might need to be reduced for systems with close contacts",&
+            usage="INITIAL_STEP {real}",&
+            default_r_val=0.2_dp,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="BRACK_LIMIT",&
+            description="Limit in 1D bracketing during line search in Conjugate Gradients Optimization.",&
+            usage="BRACK_LIMIT {real}",&
+            default_r_val=100.0_dp,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="BRENT_TOL",&
+            description="Tolerance requested during Brent line search in Conjugate Gradients Optimization.",&
+            usage="BRENT_TOL {real}",&
+            default_r_val=0.01_dp,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="BRENT_MAX_ITER",&
+            description="Maximum number of iterations in brent algorithm "// &
+            "(used for the line search in Conjugated Gradients Optimization)",&
+            usage="BRENT_MAX_ITER {integer}",&
+            default_i_val=100,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
     END IF
   END SUBROUTINE create_cg_section
 

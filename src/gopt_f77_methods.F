@@ -117,8 +117,10 @@
        ALLOCATE(gradient_ts(particles%n_els*3),stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       ! Real calculation of energy and forces for transition state optimization
-       CALL cp_eval_at_ts (gopt_env, x, f_ts, gradient_ts, calc_force=PRESENT(gradient), error=error)
+       ! Real calculation of energy and forces for transition state optimization:
+       ! When doing dimer methods forces have to be always computed since the function
+       ! to minimize is not the energy but the effective force
+       CALL cp_eval_at_ts (gopt_env, x, f_ts, gradient_ts, calc_force=.TRUE., error=error)
 
        ! Possibly take the potential energy
        IF (PRESENT(f)) f = f_ts

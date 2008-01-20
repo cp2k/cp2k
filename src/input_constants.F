@@ -408,7 +408,7 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC :: ot_mini_sd=1,ot_mini_cg=2,ot_mini_diis=3
   INTEGER, PARAMETER, PUBLIC :: ot_algo_taylor_or_diag=1,ot_algo_irac=2
   INTEGER, PARAMETER, PUBLIC :: ot_chol_irac=1,ot_poly_irac=2,ot_lwdn_irac=3
-  INTEGER, PARAMETER, PUBLIC :: ot_ls_none=1,ot_ls_2pnt=2,ot_ls_3pnt=3,ot_ls_gold=4
+  INTEGER, PARAMETER, PUBLIC :: ls_none=1,ls_2pnt=2,ls_3pnt=3,ls_gold=4,ls_fit=5
   INTEGER, PARAMETER, PUBLIC :: ot_precond_none=0, &
                                 ot_precond_full_single=1, &
                                 ot_precond_full_kinetic=2, &
@@ -430,10 +430,6 @@ MODULE input_constants
   INTEGER, PUBLIC, PARAMETER :: none_ts_method_id=0,&
                                 default_dimer_method_id=1
   
-  INTEGER, PUBLIC, PARAMETER :: do_init_dimer=0,&
-                                do_rotate_dimer=1,&
-                                do_translate_dimer=2
-
   INTEGER, PUBLIC, PARAMETER :: do_first_rotation_step=0,&
                                 do_second_rotation_step=1,&
                                 do_third_rotation_step=2
@@ -549,8 +545,6 @@ MODULE input_constants
                                 lr_precond_s_inverse=3,&
                                 lr_precond_kinetic=4, &
                                 lr_precond_full_all=6
-  INTEGER, PARAMETER, PUBLIC :: lr_ls_none=0, lr_ls_2pnt=1,&
-                                lr_ls_3pnt=2, lr_ls_gold=3 
 
   INTEGER, PARAMETER, PUBLIC :: xc_pbe_orig=11,xc_rev_pbe=12
 

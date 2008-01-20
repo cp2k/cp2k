@@ -39,6 +39,7 @@ MODULE bfgs_optimizer
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_methods,                  ONLY: check_converg,&
                                              print_geo_opt_header,&
+                                             print_geo_opt_nc,&
                                              write_cycle_infos,&
                                              write_final_info,&
                                              write_geo_traj
@@ -221,23 +222,9 @@ CONTAINS
     its = 0
     CALL write_cycle_infos(output_unit,its,etot,wildcard=" BFGS")
 
-    DO
-       its = its + 1
+    DO its = 1, maxiter
        gopt_env%its = its
        CALL cp_iterate(logger%iter_info,iter_nr=its,error=error)
-
-       IF (its > maxiter ) THEN
-          IF (output_unit > 0) THEN
-             WRITE(UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
-             WRITE (UNIT=output_unit,FMT="(T2,A,T20,A,T78,A)")&
-                  "***","MAXIMUM NUMBER OF OPTIMIZATION STEPS REACHED","***"
-             WRITE (UNIT=output_unit,FMT="(T2,A,T27,A,T78,A)")&
-                  "***","EXITING GEOMETRY OPTIMIZATION","***"
-             WRITE(UNIT=output_unit,FMT="(T2,A)") REPEAT("*",79)
-             CALL m_flush(output_unit)
-          END IF
-          EXIT
-       END IF
 
        ! check for an external exit command
        CALL external_control(should_stop,"GEO",globenv,error)
@@ -331,8 +318,12 @@ CONTAINS
        IF (etot < emin) emin = etot
        CALL update_trust_rad(rat,rad,step,ediff)
        CALL check_converg(ndf,dr,g,output_unit,conv,gopt_param)
-       IF (conv) EXIT
+       IF (conv.OR.(its==maxiter)) EXIT
     END DO
+
+    IF(its == maxiter .AND. (.NOT.conv))THEN
+       CALL print_geo_opt_nc(gopt_env, output_unit)
+    END IF
 
     ! Write final particle information, if converged
     CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=its,error=error)

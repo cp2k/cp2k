@@ -29,8 +29,9 @@ MODULE cg_utils
   USE gopt_param_types,                ONLY: gopt_param_type
   USE input_constants,                 ONLY: default_minimization_method_id,&
                                              default_ts_method_id,&
-                                             do_rotate_dimer,&
-                                             do_translate_dimer
+                                             ls_2pnt,&
+                                             ls_fit,&
+                                             ls_gold
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE memory_utilities,                ONLY: reallocate
@@ -71,12 +72,12 @@ CONTAINS
 !!     10.2005 created [tlaino]
 !!
 !!*** **********************************************************************
-  SUBROUTINE cg_linmin(gopt_env, xvec, xi, opt_energy, step, output_unit,&
-       gopt_param, globenv, error)
+  SUBROUTINE cg_linmin(gopt_env, xvec, xi, opt_energy, output_unit, gopt_param,&
+       globenv, error)
 
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xvec, xi
-    REAL(KIND=dp)                            :: opt_energy, step
+    REAL(KIND=dp), INTENT(INOUT)             :: opt_energy
     INTEGER                                  :: output_unit
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(global_environment_type), POINTER   :: globenv
@@ -85,45 +86,56 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cg_linmin', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: brent_max_iter, handle
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: brack_limit, brent_tol
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
+    gopt_env%do_line_search = .TRUE.
     SELECT CASE(gopt_env%type_id)
     CASE(default_minimization_method_id)
-       IF (gopt_param%use_fit_line_search) THEN
-          CALL linminE(gopt_env, xvec, xi, opt_energy, gopt_param%brent_tol,&
-               gopt_param%brent_max_iter, gopt_param%brack_limit, &
-               step, output_unit, gopt_param, globenv, error)
-       ELSE
-          CALL linmin(gopt_env, xvec, xi, opt_energy, gopt_param%brent_tol,&
-               gopt_param%brent_max_iter, gopt_param%brack_limit, &
-               step, output_unit, globenv, error)
-       END IF
-    CASE(default_ts_method_id)
-       SELECT CASE(gopt_env%dimer_env%status_dimer)
-       CASE(do_rotate_dimer)
-          CALL rotmin(gopt_env, gopt_env%dimer_env, xvec, xi, error)
-       CASE(do_translate_dimer)
-          ! To Fix
-          STOP
+       SELECT CASE(gopt_param%cg_ls%type_id)
+       CASE(ls_fit)
+          CALL linmin_fit(gopt_env, xvec, xi, opt_energy, gopt_param%cg_ls%brent_tol,&
+               gopt_param%cg_ls%brent_max_iter, gopt_param%cg_ls%brack_limit, &
+               gopt_param%cg_ls%initial_step, output_unit, gopt_param, globenv, error)
+       CASE(ls_gold)
+          CALL linmin_gold(gopt_env, xvec, xi, opt_energy, gopt_param%cg_ls%brent_tol,&
+               gopt_param%cg_ls%brent_max_iter, gopt_param%cg_ls%brack_limit, &
+               gopt_param%cg_ls%initial_step, output_unit, globenv, error)
        CASE DEFAULT
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="Line Search type not yet implemented in CG.", &
+               error=error, error_level=cp_failure_level)
+       END SELECT
+    CASE(default_ts_method_id)
+       SELECT CASE(gopt_param%cg_ls%type_id)
+       CASE(ls_2pnt)
+          IF (gopt_env%dimer_rotation) THEN
+             CALL rotmin_2pnt(gopt_env, gopt_env%dimer_env, xvec, xi, opt_energy, gopt_param,&
+                  error)
+          ELSE
+             CALL tslmin_2pnt(gopt_env, gopt_env%dimer_env, xvec, xi, opt_energy, gopt_param,&
+                  error)
+          END IF
+       CASE DEFAULT
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="Line Search type not yet implemented in CG for TS search.", &
+               error=error, error_level=cp_failure_level)
        END SELECT
     END SELECT
+    gopt_env%do_line_search = .FALSE.
     CALL timestop(handle)
 
   END SUBROUTINE cg_linmin
 
-!!****f* cg_utils/rotmin [1.0] *
+!!****f* cg_utils/tslmin_2pnt [1.0] *
 !!
 !!   NAME
-!!     rotmin
+!!     tslmin_2pnt
 !!
 !!   FUNCTION
-!!     Rotational minimization for the Dimer MEthod
+!!     Translational minimization for the Dimer Method - 2pnt LS
 !!
 !!   NOTES
 !!     
@@ -139,13 +151,85 @@ CONTAINS
 !!     
 !!
 !!*** **********************************************************************
-  SUBROUTINE rotmin(gopt_env, dimer_env, x0, theta, error)
+  SUBROUTINE tslmin_2pnt(gopt_env, dimer_env, x0, tls_vec, opt_energy, gopt_param, error)
+    TYPE(gopt_f_type), POINTER               :: gopt_env
+    TYPE(dimer_env_type), POINTER            :: dimer_env
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: x0, tls_vec
+    REAL(KIND=dp), INTENT(INOUT)             :: opt_energy
+    TYPE(gopt_param_type), POINTER           :: gopt_param
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'tslmin_2pnt', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: dx, dx_min, norm_tls_vec, &
+                                                opt_energy2
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: tls_norm
+
+    failure = .FALSE.
+    CALL timeset(routineN,handle)
+    norm_tls_vec = SQRT(DOT_PRODUCT(tls_vec,tls_vec))
+    IF (norm_tls_vec/=0.0_dp) THEN 
+       ALLOCATE(tls_norm(SIZE(tls_vec)),stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       
+       tls_norm = tls_vec / norm_tls_vec
+       dimer_env%tsl%tls_vec => tls_norm
+    
+       dx = 0.01_dp
+       x0 = x0 + dx * tls_norm
+       CALL cp_eval_at(gopt_env, x0, opt_energy2, master=gopt_env%force_env%para_env%mepos,&
+            para_env=gopt_env%force_env%para_env, error=error)
+       dx_min = -opt_energy/(opt_energy2-opt_energy)*dx -dx
+       x0 = x0 + dx_min * tls_norm
+
+       ! To remove later..
+       CALL cp_eval_at(gopt_env, x0, opt_energy, master=gopt_env%force_env%para_env%mepos,&
+            para_env=gopt_env%force_env%para_env, error=error)
+
+       DEALLOCATE(tls_norm,stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ELSE
+       ! Do Nothing, since.. if the effective force is 0 means that we are already
+       ! in the saddle point..
+    END IF
+    CALL timestop(handle)
+
+  END SUBROUTINE tslmin_2pnt
+
+!!****f* cg_utils/rotmin_2pnt [1.0] *
+!!
+!!   NAME
+!!     rotmin_2pnt
+!!
+!!   FUNCTION
+!!     Rotational minimization for the Dimer Method - 2 pnt LS
+!!
+!!   NOTES
+!!     
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
+!!
+!!   MODIFICATION HISTORY
+!!     
+!!
+!!*** **********************************************************************
+  SUBROUTINE rotmin_2pnt(gopt_env, dimer_env, x0, theta, opt_energy, gopt_param, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(dimer_env_type), POINTER            :: dimer_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0, theta
+    REAL(KIND=dp), INTENT(INOUT)             :: opt_energy
+    TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'rotmin', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'rotmin_2pnt', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, stat
@@ -153,26 +237,27 @@ CONTAINS
     REAL(KIND=dp)                            :: a0, a1, angle, b1, &
                                                 curvature0, curvature1, &
                                                 curvature2, dCdp, f
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: nvec
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: work
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    ALLOCATE(nvec(SIZE(dimer_env%nvec)),stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    nvec       =  dimer_env%nvec
-    curvature0 =  dimer_env%curvature
-    dCdp       =  dimer_env%dCdp
+    curvature0 =  dimer_env%rot%curvature
+    dCdp       =  dimer_env%rot%dCdp
     b1         =  0.5_dp*dCdp 
     angle      = -0.5_dp*ATAN(dCdp/(2.0_dp*ABS(curvature0)))
-    dimer_env%angle1 = angle
-    IF (angle>dimer_env%angle_tol) THEN
+    dimer_env%rot%angle1 = angle
+    IF (angle>dimer_env%rot%angle_tol) THEN
+       ! Allocate a local work array
+       ALLOCATE(work(SIZE(dimer_env%nvec)),stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       work =  dimer_env%nvec
        ! Rotating the dimer of dtheta degrees
        CALL rotate_dimer(dimer_env%nvec,theta,angle,error=error)
        ! Re-compute energy, gradients and rotation vector for new R1
        CALL cp_eval_at(gopt_env, x0, f, master=gopt_env%force_env%para_env%mepos,&
             para_env=gopt_env%force_env%para_env, error=error)
 
-       curvature1 = dimer_env%curvature
+       curvature1 = dimer_env%rot%curvature
        a1         = (curvature0 - curvature1 + b1 * SIN(2.0_dp*angle))/(1.0_dp - COS(2.0_dp*angle))
        a0         = 2.0_dp*(curvature0-a1)
        angle      = 0.5_dp*ATAN(b1/a1)
@@ -181,26 +266,37 @@ CONTAINS
           angle = angle + pi/2.0_dp
           curvature2 = a0/2.0_dp + a1 * COS(2.0_dp*angle)+b1 * SIN(2.0_dp*angle)
        END IF
-       dimer_env%angle2    = angle
-       dimer_env%curvature = curvature2
+       dimer_env%rot%angle2    = angle
+       dimer_env%rot%curvature = curvature2
        ! Rotating the dimer the optimized (in plane) vector position
-       dimer_env%nvec = nvec
+       dimer_env%nvec = work
        CALL rotate_dimer(dimer_env%nvec,theta,angle,error=error)
+
+       ! Evaluate (by interpolation) the norm of the rotational force in the
+       ! minimum of the rotational search (this is for print-out only)
+       work = dimer_env%rot%g1
+       work = SIN(dimer_env%rot%angle1-dimer_env%rot%angle2)/SIN(dimer_env%rot%angle1)*dimer_env%rot%g1+&
+              SIN(dimer_env%rot%angle2)/SIN(dimer_env%rot%angle1)*dimer_env%rot%g1p+&
+              (1.0_dp-COS(dimer_env%rot%angle2)-SIN(dimer_env%rot%angle2)*TAN(dimer_env%rot%angle1/2.0_dp))*&
+              dimer_env%rot%g0
+       work = -2.0_dp*(work-dimer_env%rot%g0)
+       work = work  - DOT_PRODUCT(work, dimer_env%nvec) * dimer_env%nvec
+       opt_energy = SQRT(DOT_PRODUCT(work, work))
+       DEALLOCATE(work,stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    DEALLOCATE(nvec,stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    dimer_env%angle2 = angle
+    dimer_env%rot%angle2 = angle
     CALL timestop(handle)
 
-  END SUBROUTINE rotmin
+  END SUBROUTINE rotmin_2pnt
 
-!!****f* cg_utils/LinMinE [1.0] *
+!!****f* cg_utils/linmin_fit [1.0] *
 !!
 !!   NAME
-!!     LinMinE
+!!     linmin_fit
 !!
 !!   FUNCTION
-!!     Line Minimization routine Enhanced
+!!     Line Minimization - Fit
 !!
 !!   NOTES
 !!     Given as input the vector XVEC and XI, finds the scalar
@@ -218,7 +314,7 @@ CONTAINS
 !!     10.2005 created [tlaino]
 !!
 !!*** **********************************************************************
-  SUBROUTINE LinMinE(gopt_env, xvec, xi, opt_energy, brent_tol, brent_max_iter, &
+  SUBROUTINE linmin_fit(gopt_env, xvec, xi, opt_energy, brent_tol, brent_max_iter, &
        brack_limit, step, output_unit, gopt_param, globenv, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xvec, xi
@@ -230,7 +326,7 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'LinMinE', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'linmin_fit', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, loc_iter, odim, stat
@@ -298,15 +394,15 @@ CONTAINS
     END IF
     CALL timestop(handle)
 
-  END SUBROUTINE LinMinE
+  END SUBROUTINE linmin_fit
 
-!!****f* cg_utils/LinMin [1.0] *
+!!****f* cg_utils/linmin_gold [1.0] *
 !!
 !!   NAME
-!!     LinMin
+!!     linmin_gold
 !!
 !!   FUNCTION
-!!     Line Minimization routine
+!!     Line Minimization routine - GOLD
 !!
 !!   NOTES
 !!     Given as input the vector XVEC and XI, finds the scalar
@@ -324,7 +420,7 @@ CONTAINS
 !!     10.2005 created [tlaino]
 !!
 !!*** **********************************************************************
-  SUBROUTINE LinMin(gopt_env, xvec, xi, opt_energy, brent_tol, brent_max_iter, &
+  SUBROUTINE linmin_gold(gopt_env, xvec, xi, opt_energy, brent_tol, brent_max_iter, &
        brack_limit, step, output_unit, globenv, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xvec, xi
@@ -335,7 +431,7 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'LinMin', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'linmin_gold', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, stat
@@ -372,7 +468,7 @@ CONTAINS
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     CALL timestop(handle)
-  END SUBROUTINE LinMin
+  END SUBROUTINE linmin_gold
 
 !!****f* cg_utils/cg_mnbrak [1.0] *
 !!

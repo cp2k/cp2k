@@ -66,7 +66,8 @@ MODULE gopt_f_methods
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gopt_f_methods'
 
   PUBLIC :: gopt_f_create_x0, write_cycle_infos, check_converg, write_final_info,&
-       write_geo_traj, print_geo_opt_header, check_rot_conv, write_rot_cycle_infos
+       write_geo_traj, print_geo_opt_header, check_rot_conv, write_rot_cycle_infos,&
+       print_geo_opt_nc
 
 CONTAINS
 
@@ -233,7 +234,7 @@ CONTAINS
        WRITE(UNIT=output_unit,FMT="(T2,A,T47,A)")&
             " Optimization Method        = ",wildcard
        WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-            " Local Curvature            = ",dimer_env%curvature
+            " Local Curvature            = ",dimer_env%rot%curvature
        WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
             " Total Rotational Force     = ",etot
        IF (PRESENT(ediff)) THEN
@@ -413,16 +414,16 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_rot_conv', &
       routineP = moduleN//':'//routineN
 
-    conv = (dimer_env%angle1< dimer_env%angle_tol) 
+    conv = (dimer_env%rot%angle1< dimer_env%rot%angle_tol) 
     IF(output_unit>0)THEN
        WRITE(UNIT=output_unit,FMT="(/,T2,A)")&
             " Convergence check :"
        WRITE(UNIT=output_unit,FMT="(T2,A,F16.10)")&
-            " Predicted angle step size  =     ",dimer_env%angle1
+            " Predicted angle step size  =     ",dimer_env%rot%angle1
        WRITE(UNIT=output_unit,FMT="(T2,A,F16.10)")&
-            " Effective angle step size  =     ",dimer_env%angle2
+            " Effective angle step size  =     ",dimer_env%rot%angle2
        WRITE(UNIT=output_unit,FMT="(T2,A,F16.10)")&
-            " Conv. limit for angle step size =",dimer_env%angle_tol
+            " Conv. limit for angle step size =",dimer_env%rot%angle_tol
        IF(conv)THEN
           WRITE(UNIT=output_unit,FMT="(T2,2A)")&
                " Convergence in angle step size   =",&
@@ -636,5 +637,38 @@ CONTAINS
        CALL m_flush(output_unit)
     END IF
   END SUBROUTINE print_geo_opt_header
+
+!!****** gopt_f_methods/print_geo_opt_nc [1.0] *
+!!
+!!   NAME
+!!    print_geo_opt_nc
+!!
+!!   FUNCTION
+!!    
+!!
+!!   AUTHOR
+!!    Teodoro Laino [tlaino] - University of Zurich - 01.2008
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!***************************************************************************
+  SUBROUTINE print_geo_opt_nc(gopt_env,output_unit)
+    TYPE(gopt_f_type), POINTER               :: gopt_env
+    INTEGER, INTENT(IN)                      :: output_unit
+
+    IF(output_unit>0)THEN
+       WRITE(UNIT=output_unit,FMT="(/,T2,A)")&
+            "*** MAXIMUM NUMBER OF OPTIMIZATION STEPS REACHED ***"
+       IF (.NOT.gopt_env%dimer_rotation) THEN
+          WRITE(UNIT=output_unit,FMT="(T2,A)")&
+               "***        EXITING GEOMETRY OPTIMIZATION         ***"
+       ELSE
+          WRITE(UNIT=output_unit,FMT="(T2,A)")&
+               "***        EXITING ROTATION OPTIMIZATION         ***"
+       END IF
+       CALL m_flush(output_unit)
+    END IF
+  END SUBROUTINE print_geo_opt_nc
 
 END MODULE gopt_f_methods

@@ -1,0 +1,77 @@
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      parm_file_name ../sample_pot/water.pot
+      parmtype CHM
+      &CHARGE
+        ATOM OT
+        CHARGE -0.8476
+      &END CHARGE
+      &CHARGE
+        ATOM HT
+        CHARGE 0.4238
+      &END CHARGE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 24
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 15.0 15.0 15.0
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE_NAME ../sample_xyz/water_2_TS.xyz
+      COORDINATE xyz
+      &DUMP_PSF
+      &END
+      &GENERATE
+        CREATE_MOLECULES
+      &END
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT water_2_TS
+  RUN_TYPE GEO_OPT
+  #TRACE
+&END GLOBAL
+&MOTION
+  &GEO_OPT
+    TYPE TRANSITION_STATE
+    MAX_ITER 20
+    OPTIMIZER CG
+    &CG
+      MAX_STEEP_STEPS 20
+      &LINE_SEARCH
+        TYPE 2PNT
+      &END
+    &END
+    &TRANSITION_STATE
+      METHOD DIMER
+      &DIMER
+        DR 0.0001
+        ANGLE_TOLERANCE [deg] 5
+        INTERPOLATE_GRADIENT 
+        &ROT_OPT
+          OPTIMIZER CG
+          MAX_ITER 1000
+          &CG
+            MAX_STEEP_STEPS 1000
+            &LINE_SEARCH
+              TYPE 2PNT
+            &END
+          &END
+        &END
+      &END
+    &END
+  &END GEO_OPT
+&END MOTION

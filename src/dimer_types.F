@@ -25,8 +25,7 @@
 MODULE dimer_types
   USE f77_blas
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: do_first_rotation_step,&
-                                             do_init_dimer
+  USE input_constants,                 ONLY: do_first_rotation_step
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -42,7 +41,12 @@ MODULE dimer_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dimer_types'
   INTEGER, PRIVATE, SAVE :: last_dimer_id=0
 
-  PUBLIC :: dimer_env_type, dimer_env_create, dimer_env_retain, dimer_env_release
+  PUBLIC :: dimer_env_type,&
+            dimer_rotational_type,&
+            dimer_translational_type ,&
+            dimer_env_create,&
+            dimer_env_retain,&
+            dimer_env_release
 
 !!****s* dimer_types/dimer_env_type [1.0] *
 !!
@@ -65,14 +69,30 @@ MODULE dimer_types
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
+
+  ! Type containing all informations abour the rotation of the Dimer
+  TYPE dimer_rotational_type
+     ! Rotational parameters
+     INTEGER                                    :: rotation_step
+     LOGICAL                                    :: interpolate_gradient
+     REAL(KIND=dp)                              :: angle_tol, angle1, angle2, dCdp, curvature
+     REAL(KIND=dp), POINTER, DIMENSION(:)       :: g0, g1, g1p
+  END TYPE dimer_rotational_type
+  
+  ! Type containing all informations abour the translation of the Dimer
+  TYPE dimer_translational_type
+     ! Translational parameters
+     REAL(KIND=dp), POINTER, DIMENSION(:)       :: tls_vec
+  END TYPE dimer_translational_type
+  
+  ! Dimer Environment  Type
   TYPE dimer_env_type
      INTEGER                                    :: ref_count, id_nr
-     INTEGER                                    :: status_dimer, rotation_step
-     LOGICAL                                    :: interpolate_gradient
-     REAL(KIND=dp)                              :: dr, angle_tol
-     REAL(KIND=dp), POINTER, DIMENSION(:)       :: nvec, g0, g1, g1p
-     REAL(KIND=dp)                              :: angle1, angle2, dCdp, curvature
+     REAL(KIND=dp)                              :: dr
+     REAL(KIND=dp), POINTER, DIMENSION(:)       :: nvec
+     TYPE(dimer_rotational_type)                :: rot
+     TYPE(dimer_translational_type)             :: tsl
   END TYPE dimer_env_type
 
 CONTAINS
@@ -121,27 +141,27 @@ CONTAINS
        last_dimer_id=last_dimer_id+1
        dimer_env%id_nr=last_dimer_id
        ! Setup NVEC
-       NULLIFY(dimer_env%nvec)
+       NULLIFY(dimer_env%nvec, dimer_env%rot%g0, dimer_env%rot%g1, dimer_env%rot%g1p,&
+            dimer_env%tsl%tls_vec)
        ! Allocate the working arrays
        ALLOCATE(dimer_env%nvec(natom*3),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(dimer_env%g0(natom*3),stat=stat)
+       ALLOCATE(dimer_env%rot%g0(natom*3),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(dimer_env%g1(natom*3),stat=stat)
+       ALLOCATE(dimer_env%rot%g1(natom*3),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(dimer_env%g1p(natom*3),stat=stat)
+       ALLOCATE(dimer_env%rot%g1p(natom*3),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL random_numbers(dimer_env%nvec, globenv%gaussian_rng_stream, error)
        norm = SQRT(SUM(dimer_env%nvec**2))
        CPPostcondition(norm>0.0_dp,cp_failure_level,routineP,error,failure)
-       dimer_env%nvec         = dimer_env%nvec / norm
-       dimer_env%status_dimer = do_init_dimer
-       dimer_env%rotation_step= do_first_rotation_step
+       dimer_env%nvec = dimer_env%nvec / norm
+       dimer_env%rot%rotation_step= do_first_rotation_step
        CALL section_vals_val_get(dimer_section,"DR",r_val=dimer_env%dr,error=error)
        CALL section_vals_val_get(dimer_section,"INTERPOLATE_GRADIENT",&
-            l_val=dimer_env%interpolate_gradient,error=error)
+            l_val=dimer_env%rot%interpolate_gradient,error=error)
        CALL section_vals_val_get(dimer_section,"ANGLE_TOLERANCE",&
-            r_val=dimer_env%angle_tol,error=error)
+            r_val=dimer_env%rot%angle_tol,error=error)
     END IF
   END SUBROUTINE dimer_env_create
 !***************************************************************************
@@ -228,18 +248,20 @@ CONTAINS
              DEALLOCATE(dimer_env%nvec, stat=stat)
              CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           END IF
-          IF (ASSOCIATED(dimer_env%g0)) THEN
-             DEALLOCATE(dimer_env%g0, stat=stat)
+          IF (ASSOCIATED(dimer_env%rot%g0)) THEN
+             DEALLOCATE(dimer_env%rot%g0, stat=stat)
              CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           END IF
-          IF (ASSOCIATED(dimer_env%g1)) THEN
-             DEALLOCATE(dimer_env%g1, stat=stat)
+          IF (ASSOCIATED(dimer_env%rot%g1)) THEN
+             DEALLOCATE(dimer_env%rot%g1, stat=stat)
              CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           END IF
-          IF (ASSOCIATED(dimer_env%g1p)) THEN
-             DEALLOCATE(dimer_env%g1p, stat=stat)
+          IF (ASSOCIATED(dimer_env%rot%g1p)) THEN
+             DEALLOCATE(dimer_env%rot%g1p, stat=stat)
              CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           END IF
+          ! No need to deallocate tls_vec (just a pointer to aother local array)
+          NULLIFY(dimer_env%tsl%tls_vec)
           DEALLOCATE(dimer_env, stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        END IF
