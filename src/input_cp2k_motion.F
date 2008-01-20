@@ -1025,7 +1025,7 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"RESTART",&
             description="Controls the printing of Hessian Restart file", &
             print_level=low_print_level,each=(/1/),add_last=(/1/),filename="BFGS",&
-            error=error)
+            common_iter_levels=2, error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 

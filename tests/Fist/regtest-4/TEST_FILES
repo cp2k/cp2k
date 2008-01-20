@@ -54,3 +54,6 @@ nh3-restraint-fixd-2.inp  7
 #Restart fixed on different molecules..
 nh3_wat-restraint-fixd-3.inp 7
 nh3_wat-restraint-fixd-4.inp 7
+#BFGS - Restart Hessian
+nh3_bfgs.inp              7
+nh3_bfgs_r.inp            7

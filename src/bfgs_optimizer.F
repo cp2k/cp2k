@@ -212,10 +212,6 @@ CONTAINS
     ! Geometry optimization starts now
     CALL print_geo_opt_header(gopt_env, output_unit, "BFGS")
 
-    hesunit = cp_print_key_unit_nr(logger,geo_section,"BFGS%RESTART",&
-         extension=".Hessian",file_form="UNFORMATTED",file_action="WRITE",&
-         error=error)
-
     ! Calculate Energy & Gradients
     CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos,&
          gopt_env%force_env%para_env, error)
@@ -286,12 +282,15 @@ CONTAINS
 
           CALL bfgs(ndf,dx,dg,hes,work)
 
+          !Possibly dump the Hessian file
           CALL timeset(routineN//"hes2disk","I","",handle2)
+          hesunit = cp_print_key_unit_nr(logger,geo_section,"BFGS%RESTART",&
+               extension=".Hessian",file_form="UNFORMATTED",file_action="WRITE",&
+               file_position="REWIND",error=error)
           IF(hesunit>0)THEN
              WRITE (UNIT=hesunit) hes
-             CALL m_flush(hesunit)
-             REWIND (hesunit)
           END IF
+          CALL cp_print_key_finished_output(hesunit,logger,geo_section,"BFGS%RESTART", error=error)
           CALL timestop(handle2)
        END IF
 
@@ -364,8 +363,6 @@ CONTAINS
     DEALLOCATE (dr,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL cp_print_key_finished_output(hesunit,logger,geo_section,&
-         "BFGS%RESTART", error=error)
     CALL cp_print_key_finished_output(output_unit,logger,geo_section,&
          "PRINT%PROGRAM_RUN_INFO", error=error)
     CALL cp_rm_iter_level(logger%iter_info,ihandle,error)

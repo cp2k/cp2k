@@ -1,0 +1,53 @@
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &spline
+       rcut_nb 6.9
+      &end
+      parm_file_name ../sample_pot/charmm.pot
+      parmtype CHM
+      &CHARGE
+        ATOM NH3
+        CHARGE -1.14
+      &END CHARGE
+      &CHARGE
+        ATOM HC
+        CHARGE 0.38
+      &END CHARGE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE ewald
+        ALPHA .5
+        GMAX 21
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 13.858 13.858 13.858
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE_NAME ../sample_pdb/NH3_1.pdb
+      COORDINATE PDB
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT NH3_OPT
+  RUN_TYPE GEO_OPT
+&END GLOBAL
+&MOTION
+  &GEO_OPT
+    OPTIMIZER BFGS
+    MAX_ITER 50
+    &BFGS
+      &RESTART
+      &END
+    &END
+  &END
+&END MOTION
