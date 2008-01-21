@@ -5,6 +5,8 @@
 /* very simple testing of cp2k_shell interface
  *
  * fawzi
+ *
+ * Copyright (C) 2008  CP2K developers group
  */
 
 int main (int argc, const char * argv[]) {

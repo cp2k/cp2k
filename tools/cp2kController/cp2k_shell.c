@@ -3,7 +3,7 @@
  *  cp2kController
  *
  *  Created by Fawzi Mohamed on 1/20/08.
- *  Copyright 2008 __MyCompanyName__. All rights reserved.
+ *  Copyright (C) 2008  CP2K developers group
  *
  */
 
