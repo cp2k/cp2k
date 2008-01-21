@@ -46,6 +46,10 @@ MODULE force_fields
                                              force_field_pack,&
                                              force_field_qeff_output
   USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: do_ff_type_charmm,&
+                                             do_ff_type_g87,&
+                                             do_ff_type_g96,&
+                                             do_ff_type_off
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -144,29 +148,31 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 3. If reading in from external file, make sure its there first
     !-----------------------------------------------------------------------------
-    IF(ff_type%ff_type/="OFF") THEN
-       IF(para_env%ionode) THEN
-          INQUIRE(FILE=ff_type%ff_file_name,EXIST=found)
-          IF(found) THEN
-          ELSE
-             CALL stop_program ("force_field_control","force field file missing")
-          END IF
+    SELECT CASE (ff_type%ff_type)
+    CASE (do_ff_type_charmm,do_ff_type_g96,do_ff_type_g87)
+       INQUIRE(FILE=ff_type%ff_file_name,EXIST=found)
+       IF(.NOT.found) THEN
+          CALL stop_program ("force_field_control","force field file missing")
        END IF
-    END IF
+    CASE (do_ff_type_off)
+       ! Do Nothing
+    CASE DEFAULT
+       CALL stop_program ("force_field_control","force field type not implemented")
+    END SELECT
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 4. Read in the force field from the corresponding locations
     !-----------------------------------------------------------------------------
-    IF(ff_type%ff_type/="OFF") THEN
-       SELECT CASE (ff_type%ff_type)
-       CASE ("CHM")
-          CALL read_force_field_charmm(ff_type,para_env,mm_section,error)
-       CASE ("G87","G96")
-          CALL read_force_field_gromos(ff_type,para_env,mm_section,error)
-       CASE DEFAULT
-          CALL stop_program ("force_field_control","force field type not implemented")
-       END SELECT
-    END IF
+    SELECT CASE (ff_type%ff_type)
+    CASE (do_ff_type_charmm)
+       CALL read_force_field_charmm(ff_type,para_env,mm_section,error)
+    CASE (do_ff_type_g87,do_ff_type_g96)
+       CALL read_force_field_gromos(ff_type,para_env,mm_section,error)
+    CASE (do_ff_type_off)
+       ! Do Nothing
+    CASE DEFAULT
+       CALL stop_program ("force_field_control","force field type not implemented")
+    END SELECT
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 5. Pack all force field info into different structures

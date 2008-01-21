@@ -42,6 +42,8 @@ MODULE force_fields_all
        impr_kind_type, input_info_type, onfo_kind_type, torsion_kind_type, &
        ub_kind_type
   USE input_constants,                 ONLY: do_ff_charmm,&
+                                             do_ff_type_g87,&
+                                             do_ff_type_g96,&
                                              do_ff_undef,&
                                              do_qmmm_none
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -180,7 +182,7 @@ CONTAINS
           ALLOCATE(map_bond_kind(nbond),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           counter=0
-         IF((ff_type%ff_type=="G96").OR.(ff_type%ff_type=="G87")) THEN
+         IF((ff_type%ff_type==do_ff_type_g96).OR.(ff_type%ff_type==do_ff_type_g87)) THEN
           DO j=1,nbond
             map_bond_kind(j)=j
           END DO
@@ -301,7 +303,7 @@ CONTAINS
           ALLOCATE(map_bend_kind(nbend),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           counter=0
-         IF((ff_type%ff_type=="G96").OR.(ff_type%ff_type=="G87")) THEN
+         IF((ff_type%ff_type==do_ff_type_g96).OR.(ff_type%ff_type==do_ff_type_g87)) THEN
           DO j=1,nbend
             map_bend_kind(j)=j
           END DO
@@ -555,7 +557,7 @@ CONTAINS
           ALLOCATE(map_torsion_kind(ntorsion),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           counter=0
-         IF((ff_type%ff_type=="G96").OR.(ff_type%ff_type=="G87")) THEN
+         IF((ff_type%ff_type==do_ff_type_g96).OR.(ff_type%ff_type==do_ff_type_g87)) THEN
           DO j=1,ntorsion
             map_torsion_kind(j)=j
           END DO
@@ -696,7 +698,7 @@ CONTAINS
           ALLOCATE(map_impr_kind(nimpr),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           counter=0
-         IF((ff_type%ff_type=="G96").OR.(ff_type%ff_type=="G87")) THEN
+         IF((ff_type%ff_type==do_ff_type_g96).OR.(ff_type%ff_type==do_ff_type_g87)) THEN
           DO j=1,nimpr
             map_impr_kind(j)=j
           END DO

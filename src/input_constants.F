@@ -107,6 +107,12 @@ MODULE input_constants
   ! Blacs type of distribution 
   INTEGER, PARAMETER, PUBLIC :: blacs_square=1, blacs_row=2, blacs_col=3
 
+  ! Types of force fields supported
+  INTEGER, PARAMETER, PUBLIC :: do_ff_type_off=0,&
+                                do_ff_type_charmm=1,&
+                                do_ff_type_g87=2,&
+                                do_ff_type_g96=3
+                                 
   ! EWALD methods       
   INTEGER, PARAMETER, PUBLIC :: do_ewald_none=1,&
                                 do_ewald_ewald=2,&
@@ -188,6 +194,8 @@ MODULE input_constants
          "BSSE                     ",&
          "LR                       ",&
          "PINT                     ",&
+         "VIBRATIONAL_ANALYSIS     ",&   
+         "BAND                     ",&   
          "WFN_OPT                  ",&   ! Aliases to the previous unique names
          "WAVEFUNCTION_OPTIMIZATION",&   !
          "MOLECULAR_DYNAMICS       ",&   !
@@ -195,8 +203,6 @@ MODULE input_constants
          "MONTECARLO               ",&   !
          "ELECTRONIC_SPECTRA       ",&   !
          "LINEAR_RESPONSE          ",&   !
-         "BAND                     ",&   
-         "VIBRATIONAL_ANALYSIS     ",&   
          "NORMAL_MODES             " /)  !
 
   INTEGER, PARAMETER, PUBLIC, DIMENSION(21) :: run_type_index=&
@@ -211,6 +217,8 @@ MODULE input_constants
           bsse_run,&
           linear_response_run,&
           pint_run,&
+          vib_anal,&
+          do_band,&
           energy_run,&
           energy_run,&
           mol_dyn_run,&
@@ -218,8 +226,6 @@ MODULE input_constants
           mon_car_run,&
           electronic_spectra_run,&
           linear_response_run,&
-          do_band,&
-          vib_anal,&
           vib_anal/)
 
   ! BAND

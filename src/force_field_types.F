@@ -185,11 +185,12 @@ MODULE force_field_types
   END TYPE gromos_info_type
 
   TYPE force_field_type
-    TYPE (input_info_type),POINTER            :: inp_info
-    TYPE (charmm_info_type),POINTER           :: chm_info
-    TYPE (gromos_info_type),POINTER           :: gro_info
-    CHARACTER (LEN=default_path_length)       :: ff_file_name
-    CHARACTER (LEN=default_string_length)     :: ff_type
+    LOGICAL                                   :: scale_cutoff,&
+                                                 nonbonded,&
+                                                 nonbonded14,&
+                                                 electrostatics,&
+                                                 multiple_potential
+    INTEGER                                   :: ff_type
     REAL(KIND=dp)                             :: rcut_nb
     REAL(KIND=dp)                             :: ei_scale14
     REAL(KIND=dp)                             :: vdw_scale14
@@ -197,11 +198,10 @@ MODULE force_field_types
                                                  max_energy,&
                                                  emax_spline,&
                                                  rlow_nb
-    LOGICAL                                   :: scale_cutoff,&
-                                                 nonbonded,&
-                                                 nonbonded14,&
-                                                 electrostatics,&
-                                                 multiple_potential
+    CHARACTER (LEN=default_path_length)       :: ff_file_name
+    TYPE (input_info_type),POINTER            :: inp_info
+    TYPE (charmm_info_type),POINTER           :: chm_info
+    TYPE (gromos_info_type),POINTER           :: gro_info
   END TYPE force_field_type
 
 ! *** Public subroutines ***

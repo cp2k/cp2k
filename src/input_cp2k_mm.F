@@ -41,6 +41,7 @@ MODULE input_cp2k_mm
                                              section_type
   USE input_val_types,                 ONLY: char_t,&
                                              integer_t,&
+                                             lchar_t,&
                                              real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
@@ -311,14 +312,24 @@ CONTAINS
        NULLIFY(subsection,keyword)
 
        CALL keyword_create(keyword, name="PARMTYPE",&
-            description="Specifies the type of parameters file to use.",&
-            usage="PARMTYPE {OFF|CHM|G87|G96}",default_c_val="OFF",error=error)
+            description="Define the kind of torsion potential",&
+            usage="PARMTYPE {OFF,CHM,G87,G96}",&
+            enum_c_vals=s2a("OFF","CHM","G87","G96"),&
+            enum_desc=s2a("Provides force field parameters through the input file",&
+                          "Provides force field parameters through an external file with CHARMM format",&
+                          "Provides force field parameters through an external file with GROMOS 87 format",&
+                          "Provides force field parameters through an external file with GROMOS 96 format"),&
+            enum_i_vals=(/do_ff_type_off,&
+                          do_ff_type_charmm,&
+                          do_ff_type_g87,&
+                          do_ff_type_g96/),&
+            default_i_val=do_ff_type_off, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PARM_FILE_NAME",&
             description="Specifies the filename that contains the parameters of the FF.",&
-            usage="PARM_FILE_NAME {FILENAME}",default_lc_val=" ",error=error)
+            usage="PARM_FILE_NAME {FILENAME}",type_of_var=lchar_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

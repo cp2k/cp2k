@@ -52,6 +52,10 @@ MODULE force_fields_input
                                              gromos_info_type,&
                                              input_info_type
   USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: do_ff_type_charmm,&
+                                             do_ff_type_g87,&
+                                             do_ff_type_g96,&
+                                             do_ff_type_off
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -134,8 +138,7 @@ CONTAINS
     inp_info => ff_type%inp_info
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       CALL section_vals_val_get(ff_section,"PARMTYPE",c_val=ff_type%ff_type,error=error)
-       CALL section_vals_val_get(ff_section,"PARM_FILE_NAME",c_val=ff_type%ff_file_name,error=error)
+       CALL section_vals_val_get(ff_section,"PARMTYPE",i_val=ff_type%ff_type,error=error)
        CALL section_vals_val_get(ff_section,"EI_SCALE14",r_val=ff_type%ei_scale14,error=error)
        CALL section_vals_val_get(ff_section,"VDW_SCALE14",r_val=ff_type%vdw_scale14,error=error)
        CALL section_vals_val_get(ff_section,"SPLINE%RCUT_NB",r_val=ff_type%rcut_nb,error=error)
@@ -144,6 +147,19 @@ CONTAINS
        CALL section_vals_val_get(ff_section,"SPLINE%EMAX_SPLINE",r_val=ff_type%emax_spline,error=error)
        CALL section_vals_val_get(ff_section,"SPLINE%EMAX_ACCURACY",r_val=ff_type%max_energy,error=error)
        CPPostcondition(ff_type%max_energy<=ff_type%emax_spline,cp_failure_level,routineP,error,failure)
+       ! Read the parameter file name only if the force field type requires it..
+       SELECT CASE(ff_type%ff_type)
+       CASE(do_ff_type_charmm,do_ff_type_g96,do_ff_type_g87)
+          CALL section_vals_val_get(ff_section,"PARM_FILE_NAME",c_val=ff_type%ff_file_name,error=error)
+          CALL cp_assert(TRIM(ff_type%ff_file_name)/="",cp_failure_level,cp_assertion_failed,routineP,&
+               "Force Field Parameter's filename is empty! Please check your input file. "//&
+CPSourceFileRef,&
+               only_ionode=.TRUE.)
+       CASE(do_ff_type_off)
+          ! Do Nothing
+       CASE DEFAULT
+          CALL stop_program ("force_fields_input","force field type not implemented")
+       END SELECT 
        ! Numerical Accuracy:
        ! the factors here should depend on the energy and on the shape of each potential mapped
        ! with splines. this would make everything un-necessarily complicated. Let's just be safe 
@@ -1553,8 +1569,7 @@ CPSourceFileRef,&
     TYPE(section_vals_type), POINTER         :: ff_section
 
     NULLIFY(ff_section)
-    ff_section => section_vals_get_subs_vals(mm_section,&
-         "FORCEFIELD",error=error)
+    ff_section => section_vals_get_subs_vals(mm_section,"FORCEFIELD",error=error)
     CALL read_force_field_section1(ff_section, mm_section, ff_type, para_env, globenv, error)
   END SUBROUTINE read_force_field_section
 
@@ -1689,7 +1704,7 @@ CPSourceFileRef,&
           CALL parser_get_next_line(parser,1,error=error)
           CALL parser_get_object(parser,gro_info%bond_k(itype),error=error)
           CALL parser_get_object(parser,gro_info%bond_r0(itype),error=error)
-          IF(ff_type%ff_type=="G96") THEN
+          IF(ff_type%ff_type==do_ff_type_g96) THEN
              CALL convert_to_cp2k_units("KJ",energy=gro_info%bond_k(itype))
              CALL convert_to_cp2k_units("NM",length=gro_info%bond_k(itype),l_power=-4)
              CALL convert_to_cp2k_units("NM",length=gro_info%bond_r0(itype))
@@ -1716,7 +1731,7 @@ CPSourceFileRef,&
           CALL parser_get_next_line(parser,1,error=error)
           CALL parser_get_object(parser,gro_info%bend_k(itype),error=error)
           CALL parser_get_object(parser,gro_info%bend_theta0(itype),error=error)
-          IF(ff_type%ff_type=="G96") THEN
+          IF(ff_type%ff_type==do_ff_type_g96) THEN
 
              CALL convert_to_cp2k_units("DEGREE",angle=gro_info%bend_theta0(itype))
              gro_info%bend_theta0(itype) = COS(gro_info%bend_theta0(itype))
