@@ -686,7 +686,7 @@ CONTAINS
             cp_to_string(mepos)//' ', &
             'err='//ADJUSTL(cp_to_string(error%error_nr))//message, error)
        CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
-       CALL mp_abort()
+       CALL mp_abort(message)
     END IF
   END SUBROUTINE cp_error_handle_error
 !***************************************************************************
