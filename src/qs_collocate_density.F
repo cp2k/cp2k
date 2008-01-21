@@ -129,7 +129,6 @@ MODULE qs_collocate_density
                                              rs_find_node
   USE realspace_task_selection,        ONLY: rs_get_my_tasks,&
                                              distribute_matrix,&
-                                             pair2int,&
                                              int2pair
   USE sparse_matrix_types,             ONLY: add_block_node,&
                                              allocate_matrix,&
@@ -592,7 +591,7 @@ CONTAINS
          max_tasks = 2000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
-    INTEGER :: ab, bcol, brow, curr_tasks, dest, dir, &
+    INTEGER :: ab, bcol, brow, curr_tasks, dest, dir, ilevel, &
          ga_gb_function, handle, i, iatom, igrid_level, ijatoms, ijsets, ikind, ikind_old, &
          ilist, inode, ipgf, iset, istat, itask, ithread, j, jatom, jkind, jkind_old, jpgf, &
          jset, k, maxco, maxsgf, maxsgf_set, n, na1, na2, natoms, natom_pairs, nb1, nb2, &
@@ -784,7 +783,7 @@ CONTAINS
     loop_tasks: DO itask=1,ntasks
 
        !decode the atom pair and basis info
-       CALL int2pair(tasks(3,itask),iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
+       CALL int2pair(tasks(3,itask),ilevel,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
 
        ikind = particle_set(iatom)%atomic_kind%kind_number
        jkind = particle_set(jatom)%atomic_kind%kind_number

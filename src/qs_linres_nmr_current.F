@@ -708,7 +708,7 @@ CONTAINS
       maxsgf, maxsgf_set, n, na1, na2, natom, nb1, nb2, ncoa, ncob, &
       nkind, nlist, nnode, npme, nseta, nsetb, nthread,  &
       sgfa, sgfb, stat, tp(3),iatom_old, jatom_old,&
-      iset_old, jset_old, ikind_old, jkind_old, ntasks, maxset, maxpgf, dest
+      iset_old, jset_old, ikind_old, jkind_old, ntasks, maxset, maxpgf, dest, ilevel
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb, ub, atom_pair_send, atom_pair_recv
@@ -1096,7 +1096,7 @@ CONTAINS
                      
                      tasks (1,ntasks) = dest
                      tasks (2,ntasks) = rs_rho(igrid_level)%rs_grid % my_pos
-                     CALL pair2int(tasks(3,ntasks),iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
+                     CALL pair2int(tasks(3,ntasks),igrid_level,iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
 
                      !FIX ME. temporary fix whilst the load balancing in rs_get_my_tasks is worked on
                      !place holder: give all tasks no weight so get_my_tasks does no load balancing 
@@ -1149,7 +1149,7 @@ CONTAINS
 
   DO itask = 1,ntasks
      
-     CALL int2pair(tasks(3,itask),iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
+     CALL int2pair(tasks(3,itask),ilevel,iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
 
      IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old) THEN 
 

@@ -54,6 +54,7 @@ MODULE task_list_methods
                                              realspace_grid_type,&
                                              rs_find_node
   USE realspace_task_selection,        ONLY: pair2int,&
+                                             int2pair,&
                                              rs_get_my_tasks
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -328,7 +329,7 @@ CONTAINS
                             tasks (5,ntasks) = cost
 
                             !encode the atom pairs and basis info as a single long integer
-                            CALL pair2int(tasks(3,ntasks),iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
+                            CALL pair2int(tasks(3,ntasks),igrid_level,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
 
                             dist_ab (1,ntasks) = rab(1)
                             dist_ab (2,ntasks) = rab(2)

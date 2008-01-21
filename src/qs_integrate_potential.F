@@ -100,7 +100,6 @@ MODULE qs_integrate_potential
                                              rs_pw_transfer,&
                                              rs_find_node
   USE realspace_task_selection,        ONLY: rs_get_my_tasks,&
-                                             pair2int,&
                                              int2pair,&
                                              distribute_matrix
   USE sparse_matrix_types,             ONLY: &
@@ -341,7 +340,7 @@ CONTAINS
          max_tasks = 3000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
-    INTEGER :: ab, atom_a, atom_b, bcol, brow, curr_tasks, dir, dest, handle, i, &
+    INTEGER :: ab, atom_a, atom_b, bcol, brow, curr_tasks, dir, dest, handle, i, ilevel, &
          iatom, idir, igrid_level, ijatoms, ijsets, ikind, ikind_old, ilist, inode, ipgf, &
          iset, istat, itask, ithread, jatom, jkind, jkind_old, jpgf, jset, maxco, &
          maxsgf_set, n, na1, na2, natom, natom_pairs, nb1, nb2, &
@@ -608,7 +607,7 @@ CONTAINS
 
     loop_tasks: DO itask = 1, ntasks
 
-       CALL int2pair(tasks(3,itask),iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
+       CALL int2pair(tasks(3,itask),ilevel,iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
 
        IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old) THEN 
 
@@ -871,7 +870,7 @@ CONTAINS
        new_set_pair_coming=.FALSE.
        atom_pair_done = .FALSE.
        IF (itask<ntasks)  THEN
-          CALL int2pair(tasks(3,itask+1),iatom_new,jatom_new,iset_new,jset_new,ipgf_new,jpgf_new,natom,maxset,maxpgf)
+          CALL int2pair(tasks(3,itask+1),ilevel,iatom_new,jatom_new,iset_new,jset_new,ipgf_new,jpgf_new,natom,maxset,maxpgf)
           IF (iatom_new .NE. iatom .OR. jatom_new .NE. jatom .OR. iset_new .NE. iset .OR. jset_new .NE. jset) THEN
              new_set_pair_coming=.TRUE.
           ENDIF

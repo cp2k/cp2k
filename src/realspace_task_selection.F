@@ -78,27 +78,34 @@ CONTAINS
 !!     11.2007 created [Joost]
 !!
 !!*** **********************************************************************
-  SUBROUTINE pair2int(res,iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
+  SUBROUTINE pair2int(res,ilevel,iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
     INTEGER(kind=int_8)                      :: res
     INTEGER                                  :: iatom, jatom, iset, jset, &
                                                 ipgf, jpgf, natom, maxset, &
-                                                maxpgf
+                                                maxpgf,ilevel
 
     INTEGER(kind=int_8)                      :: maxpgf8, maxset8, natom8
 
     natom8=natom ; maxset8=maxset ; maxpgf8=maxpgf
-
-    res=((iatom-1)*natom8+jatom-1)*maxset8**2*maxpgf8**2 + &
+    !
+    ! this encoding yields the right order of the tasks for collocation after the sort
+    ! in rs_get_my_tasks. E.g. for a atom pair, all sets and pgfs are computed in one go.
+    ! The exception is the gridlevel. Tasks are first ordered wrt to grid_level. This implies
+    ! that a given density matrix block will be decontracted several times, but cache effects on the 
+    ! grid make up for this.
+    ! 
+    res=ilevel*natom8**2*maxset8**2*maxpgf8**2+&
+        ((iatom-1)*natom8+jatom-1)*maxset8**2*maxpgf8**2 + &
         ((iset-1)*maxset8+jset-1)*maxpgf8**2+ &
          (ipgf-1)*maxpgf8+jpgf-1
 
   END SUBROUTINE pair2int
 
-  SUBROUTINE int2pair(res,iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
+  SUBROUTINE int2pair(res,ilevel,iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
     INTEGER(kind=int_8)                      :: res
     INTEGER                                  :: iatom, jatom, iset, jset, &
                                                 ipgf, jpgf, natom, maxset, &
-                                                maxpgf
+                                                maxpgf, ilevel
 
     INTEGER(kind=int_8)                      :: iatom8, ijatom, ijpgf, ijset, &
                                                 ipgf8, iset8, jatom8, jpgf8, &
@@ -106,11 +113,13 @@ CONTAINS
                                                 natom8, tmp
 
     natom8=natom ; maxset8=maxset ; maxpgf8=maxpgf
-
-    ijatom=res/(maxpgf8**2*maxset8**2)
+    
+    ilevel=res/(natom8**2*maxset8**2*maxpgf8**2)
+    tmp=MOD(res,natom8**2*maxset8**2*maxpgf8**2)
+    ijatom=tmp/(maxpgf8**2*maxset8**2)
     iatom8=ijatom/natom8+1
     jatom8=MOD(ijatom,natom8)+1
-    tmp=MOD(res,maxpgf8**2*maxset8**2)
+    tmp=MOD(tmp,maxpgf8**2*maxset8**2)
     ijset=tmp/maxpgf8**2
     iset8=ijset/maxset8+1
     jset8=MOD(ijset,maxset8)+1
@@ -301,6 +310,7 @@ CONTAINS
        ENDDO
 
        ! find my starting processor to send to 
+       proc_receiving = HUGE(proc_receiving)
        DO i = 1, no_underloaded
           offset = offset + tasks_required ( index (i) )
           IF ( offset .LE. 0 ) THEN
@@ -313,13 +323,15 @@ CONTAINS
        ! we fill this up then move to next most underloaded proc
        DO j = 1, ntasks
           IF (tasks(4,j) .EQ. 0 ) THEN
+             !just avoid sending to non existing procs due to integer truncation in the computation of the average
+             IF(proc_receiving .GT. no_underloaded) EXIT
              tasks (1,j) = index ( proc_receiving ) - 1
              offset = offset + tasks(5,j)
              count = count + tasks(5,j)
              IF(count .GE. tasks_required (rs%my_pos + 1 ) ) EXIT
              IF(offset .GT. 0 ) THEN
                 proc_receiving = proc_receiving + 1
-                !just avoid sending to non existing procs due to rounding errors
+                !just avoid sending to non existing procs due to integer truncation in the computation of the average
                 IF(proc_receiving .GT. no_underloaded) EXIT
                 offset = tasks_required ( index ( proc_receiving ) )
              ENDIF
@@ -554,7 +566,7 @@ SUBROUTINE get_atom_pair ( atom_pair, my_tasks, send, my_symmetric, natoms, maxs
 
     INTEGER                                  :: acol, arow, i, iatom, ipgf, &
                                                 iset, j, jatom, jpgf, jset, &
-                                                stat
+                                                stat, ilevel
     INTEGER, DIMENSION(:), POINTER           :: index
 
 ! calculate list of atom pairs
@@ -562,7 +574,7 @@ SUBROUTINE get_atom_pair ( atom_pair, my_tasks, send, my_symmetric, natoms, maxs
 
   atom_pair = 0
   DO i = 1,SIZE(atom_pair)
-     CALL int2pair(my_tasks(3,i),iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
+     CALL int2pair(my_tasks(3,i),ilevel,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
      IF( my_symmetric ) THEN
         IF(iatom.LE.jatom) THEN
            arow = iatom

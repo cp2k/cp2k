@@ -683,7 +683,7 @@ CONTAINS
       jkind_old, jpgf, jset, jset_old, maxco, maxpgf, maxset, maxsgf, &
       maxsgf_set, na1, na2, natom, nb1, nb2, ncoa, ncob, nkind, nlist, nnode, &
       nseta, nsetb, ntasks, nthread, sgfa, sgfb, stat, &
-      tp(3)
+      tp(3), ilevel
     INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks
     INTEGER, DIMENSION(:), POINTER           :: atom_pair_recv, &
@@ -1074,7 +1074,7 @@ CONTAINS
 
                             tasks (1,ntasks) = dest
                             tasks (2,ntasks) = rs_rho(igrid_level)%rs_grid % my_pos
-                            CALL pair2int(tasks(3,ntasks),iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
+                            CALL pair2int(tasks(3,ntasks),igrid_level,iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
 
                             tasks(5,ntasks) = 1 
 
@@ -1124,7 +1124,7 @@ CONTAINS
 
     loop_tasks: DO itask = 1,ntasks
 
-       CALL int2pair(tasks(3,itask),iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
+       CALL int2pair(tasks(3,itask),ilevel,iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
 
        IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old) THEN 
 
