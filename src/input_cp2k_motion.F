@@ -1555,7 +1555,7 @@ CONTAINS
        CALL section_add_keyword(subsection,keyword,error=error)         
        CALL keyword_release(keyword,error=error)   
 
-       CALL cp_print_key_section_create(print_key,"energy",&
+       CALL cp_print_key_section_create(print_key,"ENERGY",&
             description="Controls the output the ener file",&
             print_level=low_print_level, common_iter_levels=1,&
             filename="",error=error)
@@ -1572,7 +1572,7 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"TEMP_KIND",&
             description="Controls the output of the temperature"//&
             " computed separately for each kind",&
-            print_level=low_print_level, common_iter_levels=1,&
+            print_level=medium_print_level, common_iter_levels=1,&
             filename="",error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -1585,6 +1585,12 @@ CONTAINS
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       CALL cp_print_key_section_create(print_key,"CENTER_OF_MASS",&
+            description="Controls the printing of COM velocity during an MD", &
+            print_level=medium_print_level,common_iter_levels=1,&
+            filename="__STD_OUT__",error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"COEFFICIENTS",&
             description="Controls the printing of coefficients during an MD run.", &

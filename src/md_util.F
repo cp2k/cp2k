@@ -483,26 +483,18 @@ CONTAINS
     CPPrecondition(ASSOCIATED(md_ener),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
     CALL force_env_get(force_env,subsys=subsys,para_env=para_env,error=error)
+    iw = cp_print_key_unit_nr(logger,force_env%root_section,"MOTION%MD%PRINT%PROGRAM_RUN_INFO",&
+         extension=".mdLog",error=error)
 
-    iw = cp_print_key_unit_nr(logger,force_env%root_section,&
-         "MOTION%MD%PRINT%PROGRAM_RUN_INFO",extension=".mdLog",error=error)
     ! Control the particle motion
     IF (simpar%temp_tol > 0.0_dp ) THEN
-      CALL scale_velocity(subsys, md_ener, simpar%temp_ext, simpar%temp_tol, iw, error)
-      IF (iw>0) THEN
-        WRITE (UNIT=iw,FMT="(/,T2,A,(T58,A3,F20.10))")&
-          "Centre of mass motion (COM):","x =",md_ener%vcom(1),"y =",md_ener%vcom(2),"z =",md_ener%vcom(3)
-      END IF
-   END IF
-   
-   ! Control the internal core-shell motion
-   IF(simpar%temp_sh_tol > 0.0_dp) THEN
-      CALL scale_velocity_internal(subsys, md_ener, simpar%temp_sh_ext, simpar%temp_sh_tol, iw, error)
-      IF (iw>0) THEN
-         WRITE (UNIT=iw,FMT="(/,T2,A,(T58,A3,F20.10))")&
-              "Centre of mass motion (COM):","x =",md_ener%vcom(1),"y =",md_ener%vcom(2),"z =",md_ener%vcom(3)
-      END IF
+       CALL scale_velocity(subsys, md_ener, simpar%temp_ext, simpar%temp_tol, iw, error)
+    END IF    
+    ! Control the internal core-shell motion
+    IF(simpar%temp_sh_tol > 0.0_dp) THEN
+       CALL scale_velocity_internal(subsys, md_ener, simpar%temp_sh_ext, simpar%temp_sh_tol, iw, error)
     END IF
+
     CALL cp_print_key_finished_output(iw,logger,force_env%root_section,&
          "MOTION%MD%PRINT%PROGRAM_RUN_INFO", error=error)
     CALL timestop(0.0_dp,handle)
@@ -548,32 +540,41 @@ CONTAINS
     NULLIFY(subsys, para_env)
     CPPrecondition(ASSOCIATED(simpar),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
+    CALL force_env_get(force_env,subsys=subsys,para_env=para_env,error=error)
 
+    ! Print COMVEL and COM Position
+    iw = cp_print_key_unit_nr(logger,force_env%root_section,"MOTION%MD%PRINT%CENTER_OF_MASS",&
+         extension=".mdLog",error=error)
+    IF (iw>0) THEN
+       WRITE (UNIT=iw,FMT="(/,T2,A,(T58,A3,F20.10))")&
+            "Centre of mass motion (COM):","x =",md_ener%vcom(1),"y =",md_ener%vcom(2),"z =",md_ener%vcom(3)
+    END IF
+    CALL cp_print_key_finished_output(iw,logger,force_env%root_section,&
+         "MOTION%MD%PRINT%CENTER_OF_MASS", error=error)
+
+    ! If requested rescale COMVEL
     IF (simpar%comvel_tol > 0.0_dp ) THEN
-      CALL force_env_get(force_env,subsys=subsys,para_env=para_env,error=error)
+       iw = cp_print_key_unit_nr(logger,force_env%root_section,"MOTION%MD%PRINT%PROGRAM_RUN_INFO",&
+            extension=".mdLog",error=error)
+       vel_com = SQRT(md_ener%vcom(1)**2+md_ener%vcom(2)**2+md_ener%vcom(3)**2)
 
-      iw = cp_print_key_unit_nr(logger,force_env%root_section,&
-           "MOTION%MD%PRINT%PROGRAM_RUN_INFO",&
-           extension=".mdLog",error=error)
-      vel_com = SQRT(md_ener%vcom(1)**2+md_ener%vcom(2)**2+md_ener%vcom(3)**2)
+       ! Subtract the velocity of the COM, if requested
+       IF (vel_com > simpar%comvel_tol) THEN
+          temp_old = md_ener%temp_part/kelvin
+          vcom_old = md_ener%vcom
 
-      ! Subtract the velocity of the COM, if requested
-      IF (vel_com > simpar%comvel_tol) THEN
-         temp_old = md_ener%temp_part/kelvin
-         vcom_old = md_ener%vcom
+          CALL reset_vcom(simpar, subsys, md_ener, vsubtract=vcom_old, error=error)
 
-         CALL reset_vcom(simpar, subsys, md_ener, vsubtract=vcom_old, error=error)
+          CALL scale_velocity(subsys, md_ener, temp_old, 0.0_dp, iw, error)
 
-         CALL scale_velocity(subsys, md_ener, temp_old, 0.0_dp, iw, error)
-
-         IF (iw>0) THEN
-            WRITE (UNIT=iw,FMT="(T2,'MD| ',A,3F16.10,A)") &
-                 "Old VCOM = ",vcom_old(1:3)," a.u.",&
-                 "New VCOM =", md_ener%vcom(1:3)," a.u"
-         END IF
-      END IF
-      CALL cp_print_key_finished_output(iw,logger,force_env%root_section,&
-           "MOTION%MD%PRINT%PROGRAM_RUN_INFO", error=error)
+          IF (iw>0) THEN
+             WRITE (UNIT=iw,FMT="(T2,'MD| ',A,3F16.10,A)") &
+                  "Old VCOM = ",vcom_old(1:3)," a.u.",&
+                  "New VCOM =", md_ener%vcom(1:3)," a.u"
+          END IF
+       END IF
+       CALL cp_print_key_finished_output(iw,logger,force_env%root_section,&
+            "MOTION%MD%PRINT%PROGRAM_RUN_INFO", error=error)
     END IF
 
     CALL timestop(0.0_dp,handle)
