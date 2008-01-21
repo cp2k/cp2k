@@ -706,7 +706,7 @@ CPSourceFileRef,&
        zwfc = 3.0_dp-REAL(dft_control%nspins,dp)
        
        DO ispins=1,dft_control%nspins
-          DO i=1,SIZE(qs_loc_env%localized_wfn_control%centers_set(ispins)%array,1)
+          DO i=1,SIZE(qs_loc_env%localized_wfn_control%centers_set(ispins)%array,2)
              r_pbc = pbc(qs_loc_env%localized_wfn_control%centers_set(ispins)%array(1:3,i),cell)
              dipole=dipole - zwfc * r_pbc
           ENDDO
