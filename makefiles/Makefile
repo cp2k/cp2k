@@ -29,6 +29,7 @@ SRCDIRS      = $(SRCDIR):$(SRCDIR)/lib:$(TOOLSRC)/Fist/topology_converter::$(TOO
 MAKEFILE     = $(CP2KHOME)/makefiles/Makefile
 MACHINEDEFS  = $(ARCHDIR)/$(ARCH).$(VERSION)
 PROG         = $(EXEDIR)/cp2k.$(VERSION)
+CP2KSHELL    = $(EXEDIR)/cp2k_shell.$(VERSION)
 LEAP2FIST    = $(EXEDIR)/leap2fist.$(VERSION)
 FES          = $(EXEDIR)/fes.$(VERSION)
 EXEDIR       = $(MAINEXEDIR)/$(ARCH)
@@ -90,6 +91,8 @@ all:
 	$(SMAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=_all build
 progr:
 	$(SMAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=_progr build
+cpshell:
+	$(SMAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=_cpshell build
 
 $(VERSION_TARGETS):
 	$(SMAKE) -f $(MAKEFILE) VERSION=$@ build
@@ -145,7 +148,7 @@ vpath %.dep $(OBJDIR)/$(VERSION)
 # this is obviously not correct (i.e. can lead to a miscompiled CP2K), 
 # but if you know what you are doing (i.e. you are sure that only information private to this module will be changed) might be useful nevertheless.
 #
-all.dep: $(OBJECTS:.o=.F) cp_common_uses.h cp2k.F
+all.dep: $(OBJECTS:.o=.F) cp_common_uses.h cp2k.F cp2k_shell.F
 ifeq ($(HACKDEP),yes)
 	echo $^ | awk '{for (i=1;i<=NF;i++) {obj=$$(i) ; sub(".F",".o",obj); if ($$(i)!=obj) print obj,":",$$(i) }}' > $(OBJDIR)/$(VERSION)/all.dep
 else
@@ -165,9 +168,10 @@ leap2fist.dep: $(LEAPOBJS:.o=.F)
 #
 # and the rules doing the actual work
 #
-_all: $(LIB1_ARCHIVE) $(LIB2_ARCHIVE) $(LIB_CP2K_ARCHIVE) $(PROG) leap2fist fes
+_all: $(LIB1_ARCHIVE) $(LIB2_ARCHIVE) $(LIB_CP2K_ARCHIVE) $(PROG) leap2fist fes $(CP2KSHELL)
 _progr: $(PROG)
 _lib: $(LIB1_ARCHIVE) $(LIB2_ARCHIVE) $(LIB_CP2K_ARCHIVE)
+_cpshell: $(CP2KSHELL)
 
 $(LIB1_ARCHIVE): $(LIB1_OBJECTS)
 	$(AR) $(LIB1_ARCHIVE) $?
@@ -189,6 +193,9 @@ endif
 
 $(PROG): $(LIB1_ARCHIVE) $(LIB2_ARCHIVE) $(LIB_CP2K_ARCHIVE) cp2k.o
 	$(LD) $(LDFLAGS) -o $(PROG) cp2k.o $(LIB_CP2K_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE) $(LIBS)
+
+$(CP2KSHELL): $(LIB1_ARCHIVE) $(LIB2_ARCHIVE) $(LIB_CP2K_ARCHIVE) cp2k_shell.o
+	$(LD) $(LDFLAGS) -o $(CP2KSHELL) cp2k_shell.o $(LIB_CP2K_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE) $(LIBS)
 
 #
 # these are tools, but their integration in the build is ugly at least (e.g. see dependencies).
