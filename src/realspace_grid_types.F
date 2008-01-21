@@ -1134,8 +1134,8 @@ END SUBROUTINE init_input_type
 
        ! safety check, to be removed once we're absolute sure the routine is correct
        pw_sum=pw_integrate_function(pw)
-       IF (ABS(pw_sum-rs_sum)/MAX(1.0_dp,ABS(pw_sum),ABS(rs_sum))>EPSILON(rs_sum)*100) THEN
-           WRITE(error_string,'(A,6(1X,I4.4),3F20.16)') "rs_pw_transfer_distributed", rs %  npts, rs % group_dim,&
+       IF (ABS(pw_sum-rs_sum)/MAX(1.0_dp,ABS(pw_sum),ABS(rs_sum))>EPSILON(rs_sum)*1000) THEN
+           WRITE(error_string,'(A,6(1X,I4.4),3F25.16)') "rs_pw_transfer_distributed", rs %  npts, rs % group_dim,&
             pw_sum,rs_sum,ABS(pw_sum-rs_sum)
            CALL stop_program(error_string, &
                 "Please report this bug... quick workaround: use DISTRIBUTION_TYPE REPLICATED")
