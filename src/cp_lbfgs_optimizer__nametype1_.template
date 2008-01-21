@@ -750,8 +750,7 @@ CPSourceFileRef,&
                      error)
              END IF
           END IF ifMaster
-          CALL mp_bcast(optimizer%status,optimizer%master, &
-               optimizer%para_env%group)
+          CALL mp_bcast(optimizer%status,optimizer%master, optimizer%para_env%group)
           ! Dump info
           IF (optimizer%status == 3) THEN
              its = 0
@@ -759,6 +758,7 @@ CPSourceFileRef,&
                 CALL cp_iterate(logger%iter_info,iter_nr=optimizer%isave(30),error=error)
                 its = optimizer%isave(30)
              END IF
+             CALL mp_bcast(its,optimizer%master,optimizer%para_env%group)
              CALL write_geo_traj(force_env, input, its, optimizer%f, error)
           END IF
           !
@@ -780,19 +780,19 @@ CPSourceFileRef,&
                      optimizer%csave, optimizer%lsave, optimizer%isave, &
                      optimizer%dsave)
              END IF
-             CALL mp_bcast(optimizer%x,optimizer%master,&
-                  optimizer%para_env%group)
+             CALL mp_bcast(optimizer%x,optimizer%master,optimizer%para_env%group)
           CASE (2)
              !op=2 begin new iter
-             CALL mp_bcast(optimizer%x,optimizer%master,&
-                  optimizer%para_env%group)
+             CALL mp_bcast(optimizer%x,optimizer%master,optimizer%para_env%group)
           CASE (3)
              !op=3 ended iter             
              wildcard = "LBFGS"	     
              dataunit = cp_print_key_unit_nr(logger,geo_section,&
                   "PRINT%PROGRAM_RUN_INFO",extension=".geoLog",error=error)
-             CALL write_cycle_infos(dataunit,optimizer%isave(30),optimizer%f,&
-                  optimizer%f-optimizer%eold,emin=optimizer%emin,wildcard=wildcard)
+             IF (is_master) its = optimizer%isave(30)
+             CALL mp_bcast(its,optimizer%master,optimizer%para_env%group)
+             CALL write_cycle_infos(dataunit,its,optimizer%f,optimizer%f-optimizer%eold,&
+                  emin=optimizer%emin,wildcard=wildcard)
              IF (is_master) &
              CALL check_converg(SIZE(optimizer%x),optimizer%x-xold,optimizer%gradient,&
                   dataunit,conv,gopt_param)
@@ -801,8 +801,7 @@ CPSourceFileRef,&
              optimizer%eold = optimizer%f
              optimizer%emin = MIN(optimizer%emin,optimizer%eold)
              xold = optimizer%x
-             CALL mp_bcast(conv,optimizer%master,&
-                  optimizer%para_env%group)
+             CALL mp_bcast(conv,optimizer%master,optimizer%para_env%group)
              IF (PRESENT(converged)) converged=conv
              EXIT
           CASE (4)
