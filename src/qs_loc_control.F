@@ -16,9 +16,9 @@
 !!     MI (04.2005)
 !!
 !!   MODIFICATION HISTORY
-!!     01.2008 Teodoro Laino [tlaino] - University of Zurich 
+!!     01.2008 Teodoro Laino [tlaino] - University of Zurich
 !!       - Merging the two localization codes and updating to new structures
-!!   
+!!
 !!   SOURCE
 !******************************************************************************
 MODULE qs_loc_control
@@ -51,7 +51,7 @@ MODULE qs_loc_control
 !! FUNCTION
 !!   A type that holds controling information for the
 !!   calculation of the spread of wfn and theoptimization of
-!!   the spread functional 
+!!   the spread functional
 !!
 !! ATTRIBUTES
 !!   ref_count:
@@ -60,13 +60,13 @@ MODULE qs_loc_control
 !!   nloc_states: number of states on which the spread is computed
 !!   set_of_states: how to choose the states
 !!   lu_bound_states: lower and upper bounds of the set of states
-!!   print_cubes: 
+!!   print_cubes:
 !!   print_centers:
 !!   print_spreads:
 !!   loc_states: list of states on which the spread is computed
 !!   centers_set:  arrais containing centers and spreads of the selected wfn
 !!   centers_file_name: output file names
-!!   spreads_file_name: output file names 
+!!   spreads_file_name: output file names
 !!
 !! NOTES
 !!
@@ -280,7 +280,7 @@ CONTAINS
     IF(.NOT. failure)  THEN
        CALL section_vals_val_get(loc_section,"_SECTION_PARAMETERS_",l_val=localize,error=error)
        IF(localize) THEN
-          NULLIFY (bounds, list ) 
+          NULLIFY (bounds, list )
           localized_wfn_control%lu_bound_states = 0
           localized_wfn_control%nloc_states     = 0
           n_state = 0
@@ -307,13 +307,13 @@ CONTAINS
              IF(ASSOCIATED(list)) THEN
                 CALL reallocate(localized_wfn_control%loc_states,1,n_list+SIZE(list))
                 DO i = 1, SIZE(list)
-                   localized_wfn_control%loc_states(n_list+i) = list(i) 
-                END DO ! i 
+                   localized_wfn_control%loc_states(n_list+i) = list(i)
+                END DO ! i
                 localized_wfn_control%nloc_states(1) = n_list + SIZE(list)
                 n_list = n_list +  SIZE(list)
              END IF
           END DO ! ir
-          IF(n_list/=0) localized_wfn_control%set_of_states=state_loc_list      
+          IF(n_list/=0) localized_wfn_control%set_of_states=state_loc_list
 
           ! Range of States
           CALL section_vals_val_get(loc_section, "RANGE",i_vals=bounds,error=error)
@@ -353,74 +353,89 @@ CONTAINS
           END IF
 
           localized_wfn_control%print_centers = &
-               BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
-               "PRINT%WANNIER_CENTERS",error=error),cp_p_file)
+            BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
+                  "PRINT%WANNIER_CENTERS",error=error),cp_p_file)
           localized_wfn_control%print_spreads = &
-               BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
-               "PRINT%WANNIER_SPREADS",error=error),cp_p_file)
+            BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
+                  "PRINT%WANNIER_SPREADS",error=error),cp_p_file)
           localized_wfn_control%print_cubes = &
-               BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
-               "PRINT%WANNIER_CUBES",error=error),cp_p_file)
+            BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
+                  "PRINT%WANNIER_CUBES",error=error),cp_p_file)
 
-          output_unit = cp_print_key_unit_nr(logger,loc_section,"PRINT%PROGRAM_RUN_INFO",&
-               extension=".Log",error=error) 
-          WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
-               "LOCALIZE| The spread relative to a set of orbitals is computed"
-          SELECT CASE ( localized_wfn_control%set_of_states )
-          CASE(state_loc_all)
-             WRITE (UNIT=output_unit,FMT="(T2,A)")"LOCALIZE| Orbitals to be localized: All the occupied"
-          CASE(state_loc_range)
-             WRITE (UNIT=output_unit,FMT="(T2,A,T65,2I8)")&
-                  "LOCALIZE| Orbitals to be localized: Those with index between " , &
-                  localized_wfn_control%lu_bound_states(1,1),&
-                  localized_wfn_control%lu_bound_states(2,1)
-          CASE(state_loc_list)
-             WRITE (UNIT=output_unit,FMT="(T2,A)")&
-                  "LOCALIZE| Orbitals to be localized: Those with index in the list "
-             WRITE (UNIT=output_unit,FMT=*) localized_wfn_control%loc_states
-          CASE DEFAULT
-             WRITE (UNIT=output_unit,FMT="(T2,A)")&
-                  "LOCALIZE| Orbitals to be localized: None " 
-          END SELECT
-          SELECT CASE (localized_wfn_control%operator_type )
-          CASE(op_loc_berry)
-             WRITE (UNIT=output_unit,FMT="(T2,A)")&
-                  "LOCALIZE| Spread defined by the Berry phase operator " 
-          CASE(op_loc_boys)
-             WRITE (UNIT=output_unit,FMT="(T2,A)")&
-                  "LOCALIZE| Spread defined by the Boys phase operator " 
-          CASE DEFAULT
-             WRITE (UNIT=output_unit,FMT="(T2,A)")&
-                  "LOCALIZE| Spread defined by the Pipek phase operator " 
-          END SELECT
+          output_unit = cp_print_key_unit_nr(logger,loc_section,&
+                                             "PRINT%PROGRAM_RUN_INFO",&
+                                             extension=".Log",&
+                                             error=error)
 
-          SELECT CASE (localized_wfn_control%localization_method)
-          CASE(do_loc_jacobi)
-             WRITE (UNIT=output_unit,FMT="(T2,A)")&
-                  "LOCALIZE| The optimal unitary transformation is gnerated by the Jacobi algorithm " 
-          CASE(do_loc_crazy)
-             WRITE (UNIT=output_unit,FMT="(T2,A)")&
-                  "LOCALIZE| The optimal unitary transformation is gnerated by the Crazy angle algorithm " 
-          CASE(do_loc_direct)
-             WRITE (UNIT=output_unit,FMT="(T2,A)")&
-                  "LOCALIZE| The optimal unitary transformation is gnerated by the direct algorithm " 
-          CASE(do_loc_l1_norm_sd)
-             WRITE (UNIT=output_unit,FMT="(T2,A)")&
-                  "LOCALIZE| The optimal unitary transformation is gnerated by the "//&
-                  " steepest descent algorithm applyed on an approximate l1 norm " 
-          CASE(do_loc_none)
-             WRITE (UNIT=output_unit,FMT="(T2,A)")&
-                  "LOCALIZE| No unitary transformation is applied " 
-          END SELECT
+          IF (output_unit > 0) THEN
+
+            WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
+              "LOCALIZE| The spread relative to a set of orbitals is computed"
+
+            SELECT CASE (localized_wfn_control%set_of_states)
+            CASE (state_loc_all)
+              WRITE (UNIT=output_unit,FMT="(T2,A)")&
+                "LOCALIZE| Orbitals to be localized: All the occupied"
+            CASE (state_loc_range)
+              WRITE (UNIT=output_unit,FMT="(T2,A,T65,2I8)")&
+                "LOCALIZE| Orbitals to be localized: Those with index between ",&
+                localized_wfn_control%lu_bound_states(1,1),&
+                localized_wfn_control%lu_bound_states(2,1)
+            CASE (state_loc_list)
+              WRITE (UNIT=output_unit,FMT="(T2,A)")&
+                "LOCALIZE| Orbitals to be localized: Those with index in the list"
+                WRITE (UNIT=output_unit,FMT=*) localized_wfn_control%loc_states
+            CASE DEFAULT
+              WRITE (UNIT=output_unit,FMT="(T2,A)")&
+                "LOCALIZE| Orbitals to be localized: None "
+            END SELECT
+
+            SELECT CASE (localized_wfn_control%operator_type)
+            CASE(op_loc_berry)
+              WRITE (UNIT=output_unit,FMT="(T2,A)")&
+                "LOCALIZE| Spread defined by the Berry phase operator "
+            CASE(op_loc_boys)
+              WRITE (UNIT=output_unit,FMT="(T2,A)")&
+                "LOCALIZE| Spread defined by the Boys phase operator "
+            CASE DEFAULT
+              WRITE (UNIT=output_unit,FMT="(T2,A)")&
+                "LOCALIZE| Spread defined by the Pipek phase operator "
+            END SELECT
+
+            SELECT CASE (localized_wfn_control%localization_method)
+            CASE (do_loc_jacobi)
+              WRITE (UNIT=output_unit,FMT="(T2,A)")&
+                "LOCALIZE| The optimal unitary transformation is generated by the Jacobi algorithm"
+            CASE (do_loc_crazy)
+              WRITE (UNIT=output_unit,FMT="(T2,A)")&
+                "LOCALIZE| The optimal unitary transformation is gnerated by the Crazy angle algorithm"
+            CASE (do_loc_direct)
+              WRITE (UNIT=output_unit,FMT="(T2,A)")&
+                "LOCALIZE| The optimal unitary transformation is gnerated by the direct algorithm"
+            CASE (do_loc_l1_norm_sd)
+              WRITE (UNIT=output_unit,FMT="(T2,A)")&
+                "LOCALIZE| The optimal unitary transformation is gnerated by the "//&
+                " steepest descent algorithm applyed on an approximate l1 norm"
+            CASE (do_loc_none)
+              WRITE (UNIT=output_unit,FMT="(T2,A)")&
+                "LOCALIZE| No unitary transformation is applied"
+            END SELECT
+
+          END IF ! process has output_unit
+
           CALL cp_print_key_finished_output(output_unit,logger,loc_section,&
-               "PRINT%PROGRAM_RUN_INFO",error=error)
+                                            "PRINT%PROGRAM_RUN_INFO",error=error)
+
        ELSE
+
           localized_wfn_control%localization_method = do_loc_none
           localized_wfn_control%localization_method = state_loc_none
           localized_wfn_control%print_centers  = .FALSE.
           localized_wfn_control%print_spreads  = .FALSE.
           localized_wfn_control%print_cubes  = .FALSE.
+
        END IF
+
     END IF
 
   END SUBROUTINE read_loc_section
@@ -462,13 +477,13 @@ CONTAINS
     END DO
 
   END SUBROUTINE set_loc_centers
- 
+
 !!****f* qs_loc_control/set_loc_wfn_lists *
 !!
 !!   NAME
 !!      loc_wfn_lists
 !!   FUNCTION
-!!      create the lists of mos that are taken into account 
+!!      create the lists of mos that are taken into account
 !!   NOTES
 !!
 !!   INPUTS
@@ -501,13 +516,13 @@ CONTAINS
        ! List
        CPPrecondition(ASSOCIATED(localized_wfn_control%loc_states),cp_failure_level,routineP,error,failure)
        IF(max_nmoloc<SIZE(localized_wfn_control%loc_states,1)) THEN
-          CALL reallocate(localized_wfn_control%loc_states,1,max_nmoloc) 
+          CALL reallocate(localized_wfn_control%loc_states,1,max_nmoloc)
        END IF
        DO ispin = 1,nspins
           localized_wfn_control%lu_bound_states(1,ispin) = 1
           localized_wfn_control%lu_bound_states(2,ispin) = nmoloc(ispin)
           IF(nmoloc(ispin)< 1) localized_wfn_control%lu_bound_states(1,ispin) = 0
-          DO i = 1,nmoloc(ispin)  
+          DO i = 1,nmoloc(ispin)
              iloc = localized_wfn_control%loc_states(i)
              CPPostcondition(iloc<=nmo(ispin),cp_failure_level,routineP,error,failure)
           ENDDO
@@ -517,7 +532,7 @@ CONTAINS
           ! Range
           DO ispin = 1,nspins
              localized_wfn_control%lu_bound_states(1,ispin) = &
-                  localized_wfn_control%lu_bound_states(1,1) 
+                  localized_wfn_control%lu_bound_states(1,1)
              localized_wfn_control%lu_bound_states(2,ispin) = &
                   localized_wfn_control%lu_bound_states(1,1) +  nmoloc(ispin) -1
              max_iloc = localized_wfn_control%lu_bound_states(2,ispin)
@@ -531,7 +546,7 @@ CONTAINS
              localized_wfn_control%lu_bound_states(1,ispin) = 1
              localized_wfn_control%lu_bound_states(2,ispin) = nmoloc(ispin)
              IF(nmoloc(ispin)< 1) localized_wfn_control%lu_bound_states(1,ispin) = 0
-             DO i = 1, nmoloc(ispin) 
+             DO i = 1, nmoloc(ispin)
                 localized_wfn_control%loc_states(i) = i
              END DO
           END DO
@@ -539,6 +554,6 @@ CONTAINS
     END IF
 
   END SUBROUTINE set_loc_wfn_lists
- 
+
 ! ******************************************************************************
 END MODULE qs_loc_control
