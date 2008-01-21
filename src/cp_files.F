@@ -314,7 +314,7 @@ CONTAINS
           READ (unit,'(a1)', iostat=stat_n)rdBuf
           IF (stat_n/=0) EXIT
        END DO
-       READ (unit,'(a1)', iostat=eof_stat)rdBuf
+       eof_stat=stat_n
        IF (eof_stat >= 0) THEN
           STOP 'ERROR,cp_files:get_eof_stat failed identification of EOF IOSTAT'
           eof_stat=-1
