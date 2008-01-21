@@ -302,8 +302,9 @@ CONTAINS
     CHARACTER(len=5)                         :: rdBuf
     INTEGER                                  :: stat_n, unit
 
-    IF (.not.did_init) THEN
+    IF (.NOT.did_init) THEN
        unit=get_unit_number()
+       OPEN (UNIT=unit, FILE='.tmp_eof_code',FORM='FORMATTED', STATUS='NEW') 
 
        WRITE(unit,fmt=*)'z'
        REWIND(unit)
