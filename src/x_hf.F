@@ -233,6 +233,8 @@ MODULE x_hf
     TYPE(x_hf_basis_type), DIMENSION(:), &
                            POINTER           :: basis_parameter
     INTEGER                                  :: n_rep_hf
+    LOGICAL                                  :: b_first_load_balance_energy, &
+                                                b_first_load_balance_forces
   END TYPE
 
   CONTAINS
@@ -452,6 +454,8 @@ MODULE x_hf
         actual_x_data%integral_containers(i)%current%data = 0
         actual_x_data%integral_containers(i)%element_counter = 1
       END DO
+      actual_x_data%b_first_load_balance_energy = .TRUE.
+      actual_x_data%b_first_load_balance_forces = .TRUE.
     END DO
   END SUBROUTINE x_hf_create 
 !***************************************************************************

@@ -686,9 +686,6 @@ CONTAINS
        ! *** associates v_rspace_new if the xc potential needs to be computed.
        CALL qs_vxc_create(qs_env=qs_env,&
             vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
-            just_energy=.TRUE., gapw_xc=gapw_xc, error=error)
-       CALL qs_vxc_create(qs_env=qs_env,&
-            vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
             just_energy=just_energy, gapw_xc=gapw_xc, error=error)
 
        IF (gapw .OR. gapw_xc) THEN

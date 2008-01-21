@@ -94,9 +94,6 @@ MODULE four_center_integrals
   REAL(dp), PARAMETER      :: log_2 = 0.69314718055994530942_dp !LOG(2.0_dp)
   REAL(dp), PARAMETER      :: log_2_inv = 1.4426950408889634074_dp !1.0_dp/log_2
 
-  LOGICAL, SAVE            :: b_first_load_balance = .TRUE.
-  LOGICAL, SAVE            :: b_first_load_balance_f = .TRUE.
-
 !***
 !****************************************************************************
   
@@ -468,12 +465,12 @@ MODULE four_center_integrals
     !! Call routines that distribute the load on all processes. If we want to screen on a initial density matrix, there is
     !! an optional parameter. Of course, this is only done if the geometry did change
     IF( geometry_did_change ) THEN
-      IF( b_first_load_balance ) THEN
+      IF( actual_x_data%b_first_load_balance_energy ) THEN
         CALL load_balance_energy(actual_x_data,eps_schwarz,eps_box,particle_set,atomic_kind_set,para_env,&
                                  potential_parameter,screen_set,screen_atom,screen_max,&
                                  actual_x_data%is_assoc_atomic_block,ks_matrix,do_periodic,load_balance_parameter, box_size, &
                                  box_size_inv, kind_of, basis_parameter, actual_x_data%initial_p, error)
-        b_first_load_balance = .FALSE.
+        actual_x_data%b_first_load_balance_energy = .FALSE.
       ELSE
         CALL update_load_balance_energy(actual_x_data,para_env, screen_set,screen_atom,screen_max, &
                                         actual_x_data%is_assoc_atomic_block,load_balance_parameter, error)
@@ -2044,12 +2041,12 @@ MODULE four_center_integrals
     END IF
 
     !! Load balance the work
-    IF( b_first_load_balance_f ) THEN
+    IF( actual_x_data%b_first_load_balance_forces ) THEN
       CALL load_balance_forces(actual_x_data,eps_schwarz,eps_box,particle_set,atomic_kind_set,para_env,&
                                potential_parameter,screen_set,screen_atom,screen_max,&
                                pmax_set,actual_x_data%is_assoc_atomic_block,ks_matrix,do_periodic,&
                                load_balance_parameter, box_size, box_size_inv, kind_of, basis_parameter, error)
-      b_first_load_balance_f = .FALSE.
+      actual_x_data%b_first_load_balance_forces = .FALSE.
     ELSE
       CALL update_load_balance_forces(actual_x_data, para_env, screen_set,screen_atom,screen_max, &
                                       actual_x_data%is_assoc_atomic_block,load_balance_parameter, error)
