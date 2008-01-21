@@ -1468,7 +1468,7 @@ CONTAINS
        CALL keyword_create(keyword, name="COORD_FILE_NAME",&
             variants=s2a("COORD_FILE"),&
             description="Specifies the filename that contains coordinates.",&
-            usage="COORD_FILE FILENAME",required=.TRUE.,type_of_var=lchar_t,&
+            usage="COORD_FILE_NAME <FILENAME>",required=.TRUE.,type_of_var=lchar_t,&
             default_lc_val="UNSET",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1825,7 +1825,7 @@ CONTAINS
        CALL keyword_create(keyword, name="CONN_FILE_NAME",&
             variants=(/"CONN_FILE"/),&
             description="Specifies the filename that contains the molecular connectivity.",&
-            usage="CONN_FILE_NAME FILENAME",required=.TRUE.,type_of_var=lchar_t,error=error)
+            usage="CONN_FILE_NAME <FILENAME>",required=.TRUE.,type_of_var=lchar_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        
