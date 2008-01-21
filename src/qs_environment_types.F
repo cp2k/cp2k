@@ -87,7 +87,6 @@ MODULE qs_environment_types
                                              kg_sub_pw_env_retain,&
                                              kg_sub_pw_env_type
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_sync
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -155,8 +154,8 @@ MODULE qs_environment_types
                                              scf_control_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
                                              real_matrix_p_type
-  USE task_list_types,                 ONLY: task_list_type, & 
-                                             deallocate_task_list
+  USE task_list_types,                 ONLY: deallocate_task_list,&
+                                             task_list_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_release,&
@@ -353,7 +352,7 @@ MODULE qs_environment_types
     REAL(KIND = dp), DIMENSION(:,:), POINTER              :: outer_scf_history
     INTEGER                                               :: outer_scf_ihistory
     TYPE(ep_qs_type), POINTER                             :: ep_qs_env
-    TYPE(x_hf_type),POINTER                               :: x_data
+    TYPE(x_hf_type),DIMENSION(:), POINTER                 :: x_data
     TYPE(et_coupling_type),POINTER                        :: et_coupling   
     TYPE(qs_dftb_pairpot_type), DIMENSION(:,:), POINTER   :: dftb_potential
     TYPE(cp_result_type) ,POINTER                         :: results
@@ -485,6 +484,7 @@ CONTAINS
     TYPE(oce_matrix_type), OPTIONAL, POINTER :: oce
     TYPE(rho_atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho_atom_set
+    TYPE(task_list_type), OPTIONAL, POINTER  :: task_list, task_list_soft
     TYPE(rho0_atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho0_atom_set
     TYPE(rho0_mpole_type), OPTIONAL, POINTER :: rho0_mpole, nddo_mpole
@@ -515,14 +515,13 @@ CONTAINS
       OPTIONAL, POINTER                      :: outer_scf_history
     INTEGER, INTENT(out), OPTIONAL           :: outer_scf_ihistory
     TYPE(ep_qs_type), OPTIONAL, POINTER      :: ep_qs_env
-    TYPE(x_hf_type), OPTIONAL, POINTER       :: x_data
+    TYPE(x_hf_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: x_data
     TYPE(et_coupling_type), OPTIONAL, &
       POINTER                                :: et_coupling
     TYPE(qs_dftb_pairpot_type), &
       DIMENSION(:, :), OPTIONAL, POINTER     :: dftb_potential
     TYPE(cp_result_type), OPTIONAL, POINTER  :: results
-    TYPE(task_list_type), OPTIONAL, POINTER  :: task_list
-    TYPE(task_list_type), OPTIONAL, POINTER  :: task_list_soft
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', &
@@ -822,6 +821,7 @@ CONTAINS
       POINTER                                :: wf_history
     TYPE(qs_scf_env_type), OPTIONAL, POINTER :: scf_env
     LOGICAL, OPTIONAL                        :: use_harris
+    TYPE(task_list_type), OPTIONAL, POINTER  :: task_list, task_list_soft
     TYPE(distribution_2d_type), OPTIONAL, &
       POINTER                                :: distribution_2d
     TYPE(section_vals_type), OPTIONAL, &
@@ -858,13 +858,12 @@ CONTAINS
       OPTIONAL, POINTER                      :: outer_scf_history
     INTEGER, INTENT(IN), OPTIONAL            :: outer_scf_ihistory
     TYPE(ep_qs_type), OPTIONAL, POINTER      :: ep_qs_env
-    TYPE(x_hf_type), OPTIONAL, POINTER       :: x_data
+    TYPE(x_hf_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: x_data
     TYPE(et_coupling_type), OPTIONAL, &
       POINTER                                :: et_coupling
     TYPE(qs_dftb_pairpot_type), &
       DIMENSION(:, :), OPTIONAL, POINTER     :: dftb_potential
-    TYPE(task_list_type), OPTIONAL, POINTER  :: task_list
-    TYPE(task_list_type), OPTIONAL, POINTER  :: task_list_soft
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_env', &

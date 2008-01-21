@@ -30,8 +30,8 @@ MODULE four_center_integrals
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE erf_fn,                          ONLY: erfc
   USE input_constants,                 ONLY: do_hf_potential_coulomb,&
-                                             do_hf_potential_short,&
-                                             do_hf_potential_mix_cl
+                                             do_hf_potential_mix_cl,&
+                                             do_hf_potential_short
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              int_8
@@ -134,7 +134,7 @@ MODULE four_center_integrals
 !!****************************************************************************
 
   SUBROUTINE integrate_four_center(qs_env,ks_matrix,energy,rho,hf_section,para_env,& 
-                                   geometry_did_change,do_periodic,error)
+                                   geometry_did_change,irep,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -143,8 +143,8 @@ MODULE four_center_integrals
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(section_vals_type), POINTER         :: hf_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    LOGICAL                                  :: geometry_did_change, &
-                                                do_periodic
+    LOGICAL                                  :: geometry_did_change
+    INTEGER                                  :: irep
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_four_center', &
@@ -170,7 +170,7 @@ MODULE four_center_integrals
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb, &
                                                 first_sgfc, first_sgfd
     LOGICAL :: buffer_overflow, do_correct_p_screening, do_p_screening, &
-      failure, first_j_loop, first_k_loop, first_l_loop
+      do_periodic, failure, first_j_loop, first_k_loop, first_l_loop
     REAL(dp) :: actual_pmax_entry, bintime_start, bintime_stop, box_size(3), &
       box_size_inv(3), cartesian_estimate, center1(3), center2(3), &
       center2_folded(3), compression_factor, current_max_error, ene_x_aa, &
@@ -207,32 +207,35 @@ MODULE four_center_integrals
     TYPE(x_hf_memory_type)                   :: memory_parameter
     TYPE(x_hf_potential_type)                :: potential_parameter
     TYPE(x_hf_screening_type)                :: screening_parameter
+    TYPE(x_hf_type), POINTER                 :: actual_x_data
 
     current_max_error = 0.0_dp
 
     CALL mp_sync(para_env%group)
     CALL timeset(routineN,"I",'',handle)
 
+    actual_x_data => qs_env%x_data(irep)
+    do_periodic = actual_x_data%periodic_parameter%do_periodic
 
-    screening_parameter    = qs_env%x_data%screening_parameter
-    potential_parameter    = qs_env%x_data%potential_parameter
+    screening_parameter    = actual_x_data%screening_parameter
+    potential_parameter    = actual_x_data%potential_parameter
     IF(potential_parameter%omega /= 0.0_dp) THEN
       omega2Inv = 1.0_dp/(potential_parameter%omega**2)
     ELSE
       omega2Inv = 0.0_dp
     END IF
 
-    general_parameter      = qs_env%x_data%general_parameter
-    load_balance_parameter = qs_env%x_data%load_balance_parameter
-    memory_parameter       = qs_env%x_data%memory_parameter
+    general_parameter      = actual_x_data%general_parameter
+    load_balance_parameter = actual_x_data%load_balance_parameter
+    memory_parameter       = actual_x_data%memory_parameter
 
-    maxval_container       => qs_env%x_data%maxval_container
-    maxval_cache           => qs_env%x_data%maxval_cache
+    maxval_container       => actual_x_data%maxval_container
+    maxval_cache           => actual_x_data%maxval_cache
 
-    integral_containers    => qs_env%x_data%integral_containers
-    integral_caches        => qs_env%x_data%integral_caches
+    integral_containers    => actual_x_data%integral_containers
+    integral_caches        => actual_x_data%integral_caches
 
-    basis_parameter        => qs_env%x_data%basis_parameter
+    basis_parameter        => actual_x_data%basis_parameter
 
     !! initalize some counters
     neris_total = 0_int_8
@@ -280,7 +283,7 @@ MODULE four_center_integrals
     !! The number of integrals that fit into the given MAX_MEMORY
 
     !! Parameters related to the potential 1/r, erf(wr)/r, erfc(wr/r)
-    potential_parameter = qs_env%x_data%potential_parameter
+    potential_parameter = actual_x_data%potential_parameter
     
     !! Variable to check if we calculate the integrals in-core or on the fly
     !! If TRUE -> on the fly
@@ -324,8 +327,8 @@ MODULE four_center_integrals
 
     !! Calculate helper array that stores if a certain atomic pair is associated in the KS matrix
     IF( geometry_did_change ) THEN
-      qs_env%x_data%is_assoc_atomic_block = 0
-      qs_env%x_data%number_of_p_entries = 0
+      actual_x_data%is_assoc_atomic_block = 0
+      actual_x_data%number_of_p_entries = 0
       DO iatom=1,ks_matrix(1)%matrix%nblock_row
         block_node => first_block_node(ks_matrix(1)%matrix,iatom)
         ikind = kind_of(iatom)
@@ -334,15 +337,15 @@ MODULE four_center_integrals
                               block_col=jatom,&
                               BLOCK=sparse_block)
           jkind = kind_of(jatom)
-          qs_env%x_data%is_assoc_atomic_block(iatom,jatom) = para_env%mepos + 1
-          qs_env%x_data%is_assoc_atomic_block(jatom,iatom) = para_env%mepos + 1
-          qs_env%x_data%number_of_p_entries =  qs_env%x_data%number_of_p_entries + &
+          actual_x_data%is_assoc_atomic_block(iatom,jatom) = para_env%mepos + 1
+          actual_x_data%is_assoc_atomic_block(jatom,iatom) = para_env%mepos + 1
+          actual_x_data%number_of_p_entries =  actual_x_data%number_of_p_entries + &
                        basis_parameter(ikind)%nsgf_total*basis_parameter(jkind)%nsgf_total
           block_node => next_block_node(block_node)
         END DO
       END DO
-      CALL mp_sum(qs_env%x_data%is_assoc_atomic_block,para_env%group)
-      CALL mp_max(qs_env%x_data%number_of_p_entries, para_env%group)
+      CALL mp_sum(actual_x_data%is_assoc_atomic_block,para_env%group)
+      CALL mp_max(actual_x_data%number_of_p_entries, para_env%group)
     END IF
 
 
@@ -351,12 +354,12 @@ MODULE four_center_integrals
     NULLIFY(full_density_beta)
     CALL mp_sync(para_env%group) ! to clarify timings
     CALL timeset(routineN//"_getP",handle_getP)
-    CALL get_full_density(para_env, full_density, rho%rho_ao(1)%matrix, qs_env%x_data%number_of_p_entries,&
-                          qs_env%x_data%is_assoc_atomic_block, particle_set, natom, last_sgf_global, &
+    CALL get_full_density(para_env, full_density, rho%rho_ao(1)%matrix, actual_x_data%number_of_p_entries,&
+                          actual_x_data%is_assoc_atomic_block, particle_set, natom, last_sgf_global, &
                           kind_of, basis_parameter, error)   
     IF(nspins == 2) THEN
-      CALL get_full_density(para_env, full_density_beta, rho%rho_ao(2)%matrix, qs_env%x_data%number_of_p_entries,&
-                          qs_env%x_data%is_assoc_atomic_block, particle_set, natom, last_sgf_global, &
+      CALL get_full_density(para_env, full_density_beta, rho%rho_ao(2)%matrix, actual_x_data%number_of_p_entries,&
+                          actual_x_data%is_assoc_atomic_block, particle_set, natom, last_sgf_global, &
                           kind_of, basis_parameter, error)
     END IF
     CALL mp_sync(para_env%group) ! to clarify timings
@@ -376,13 +379,13 @@ MODULE four_center_integrals
                                 particle_set,atomic_kind_set, kind_of, basis_parameter, error)
       END IF
       IF(geometry_did_change ) THEN
-        CALL update_pmax_matrix(qs_env%x_data%initial_p, &
+        CALL update_pmax_matrix(actual_x_data%initial_p, &
                                 full_density,full_density_beta,&
                                 particle_set,atomic_kind_set, kind_of, basis_parameter, error)
       END IF
     ELSE
       IF(geometry_did_change) THEN
-        qs_env%x_data%initial_p = 1.0_dp
+        actual_x_data%initial_p = 1.0_dp
       END IF  
     END IF
 
@@ -430,24 +433,24 @@ MODULE four_center_integrals
       box_size_inv(1) = 1.0_dp/box_size(1)
       box_size_inv(2) = 1.0_dp/box_size(2)
       box_size_inv(3) = 1.0_dp/box_size(3)
-      ALLOCATE(screen_periodic(SIZE(qs_env%x_data%neighbor_cells),max_set,max_set,natom,natom))
+      ALLOCATE(screen_periodic(SIZE(actual_x_data%neighbor_cells),max_set,max_set,natom,natom))
       CALL comp_screen_mat_per(screen_set,screen_atom,screen_max,screen_periodic,particle_set,atomic_kind_set,&
                                potential_parameter,.NOT.geometry_did_change,&
                                kind_of, basis_parameter,&
-                               qs_env%x_data%x_screening_buffer_periodic,&
-                               qs_env%x_data%neighbor_cells,box_size,box_size_inv, error)
+                               actual_x_data%x_screening_buffer_periodic,&
+                               actual_x_data%neighbor_cells,box_size,box_size_inv, error)
       IF(geometry_did_change) THEN
-        CALL screen_farfield_per(qs_env%x_data%far_field_boxes, &
+        CALL screen_farfield_per(actual_x_data%far_field_boxes, &
                                  particle_set, atomic_kind_set, potential_parameter, &
-                                 qs_env%x_data%neighbor_cells, box_size, box_size_inv, kind_of, basis_parameter, error)
+                                 actual_x_data%neighbor_cells, box_size, box_size_inv, kind_of, basis_parameter, error)
        END IF
 
     ELSE
       CALL compute_screening_matrices(screen_set,screen_atom,screen_max,particle_set,atomic_kind_set,&
                                     potential_parameter,.NOT.geometry_did_change,kind_of, basis_parameter,&
-                                    qs_env%x_data%x_screening_buffer, error)
+                                    actual_x_data%x_screening_buffer, error)
       IF(geometry_did_change) THEN
-        CALL screen_farfield(qs_env%x_data%far_field_boxes,&
+        CALL screen_farfield(actual_x_data%far_field_boxes,&
                              particle_set, atomic_kind_set, potential_parameter,&
                              kind_of, basis_parameter, error)
       END IF
@@ -466,14 +469,14 @@ MODULE four_center_integrals
     !! an optional parameter. Of course, this is only done if the geometry did change
     IF( geometry_did_change ) THEN
       IF( b_first_load_balance ) THEN
-        CALL load_balance_energy(qs_env%x_data,eps_schwarz,eps_box,particle_set,atomic_kind_set,para_env,&
+        CALL load_balance_energy(actual_x_data,eps_schwarz,eps_box,particle_set,atomic_kind_set,para_env,&
                                  potential_parameter,screen_set,screen_atom,screen_max,&
-                                 qs_env%x_data%is_assoc_atomic_block,ks_matrix,do_periodic,load_balance_parameter, box_size, &
-                                 box_size_inv, kind_of, basis_parameter, qs_env%x_data%initial_p, error)
+                                 actual_x_data%is_assoc_atomic_block,ks_matrix,do_periodic,load_balance_parameter, box_size, &
+                                 box_size_inv, kind_of, basis_parameter, actual_x_data%initial_p, error)
         b_first_load_balance = .FALSE.
       ELSE
-        CALL update_load_balance_energy(qs_env%x_data,para_env, screen_set,screen_atom,screen_max, &
-                                        qs_env%x_data%is_assoc_atomic_block,load_balance_parameter, error)
+        CALL update_load_balance_energy(actual_x_data,para_env, screen_set,screen_atom,screen_max, &
+                                        actual_x_data%is_assoc_atomic_block,load_balance_parameter, error)
       END IF
     END IF
 
@@ -536,14 +539,13 @@ MODULE four_center_integrals
     !! iatom and katom respectively. Therefore, we use flags like first_j_loop etc.
     
     ncpu = para_env%num_pe 
-
-    my_bin_size = SIZE(qs_env%x_data%distribution_energy)
+    my_bin_size = SIZE(actual_x_data%distribution_energy)
     ! reset timings for the new SCF round
     IF (geometry_did_change) THEN
        DO bin=1,my_bin_size
-          qs_env%x_data%distribution_energy(bin)%time_first_scf=0.0_dp
-          qs_env%x_data%distribution_energy(bin)%time_other_scf=0.0_dp
-          qs_env%x_data%distribution_energy(bin)%time_forces=0.0_dp
+          actual_x_data%distribution_energy(bin)%time_first_scf=0.0_dp
+          actual_x_data%distribution_energy(bin)%time_other_scf=0.0_dp
+          actual_x_data%distribution_energy(bin)%time_forces=0.0_dp
        ENDDO
     ENDIF
     outer: DO bin=1,my_bin_size
@@ -552,15 +554,15 @@ MODULE four_center_integrals
       first_j_loop = .TRUE.
       first_l_loop = .TRUE.
       first_k_loop = .TRUE.
-      my_istart = qs_env%x_data%distribution_energy(bin)%istart
-      my_jstart = qs_env%x_data%distribution_energy(bin)%jstart
-      my_kstart = qs_env%x_data%distribution_energy(bin)%kstart
-      my_lstart = qs_env%x_data%distribution_energy(bin)%lstart
-      my_original_cpu_id = qs_env%x_data%distribution_energy(bin)%original_cpu_id 
+      my_istart = actual_x_data%distribution_energy(bin)%istart
+      my_jstart = actual_x_data%distribution_energy(bin)%jstart
+      my_kstart = actual_x_data%distribution_energy(bin)%kstart
+      my_lstart = actual_x_data%distribution_energy(bin)%lstart
+      my_original_cpu_id = actual_x_data%distribution_energy(bin)%original_cpu_id 
       my_current_counter = 0
       !! It could happen, that one bin is empty. In that case just skip the loop (but still time it)
       IF(my_istart == 0 .OR. my_jstart == 0 .OR. my_kstart == 0 .OR. my_lstart == 0 .OR. &
-         qs_env%x_data%distribution_energy(bin)%number_of_integrals == 0) THEN
+         actual_x_data%distribution_energy(bin)%number_of_integrals == 0) THEN
          my_istart = natom + 1 ; my_jstart = natom + 1 ; my_kstart = natom + 1 ; my_lstart = natom + 1
       ENDIF
       atom_loops: DO iatom=my_istart,natom
@@ -630,7 +632,7 @@ MODULE four_center_integrals
                 my_current_counter = my_current_counter + 1
                 !! if we reach the counter in the distribution we are finished with the curren bunch
                 !! of integrals. We also have to reset the flags for the main loops
-                IF(my_current_counter > qs_env%x_data%distribution_energy(bin)%number_of_integrals) THEN
+                IF(my_current_counter > actual_x_data%distribution_energy(bin)%number_of_integrals) THEN
                   EXIT atom_loops
                 END IF
                 
@@ -641,10 +643,10 @@ MODULE four_center_integrals
 
                 !! we want to be consistent with the KS matrix. If none of the atomic indices
                 !! is associated cycle
-                IF(.NOT. (qs_env%x_data%is_assoc_atomic_block(latom,iatom)>=1 .AND. &
-                          qs_env%x_data%is_assoc_atomic_block(katom,iatom)>=1 .AND. &
-                          qs_env%x_data%is_assoc_atomic_block(katom,jatom)>=1 .AND. &
-                          qs_env%x_data%is_assoc_atomic_block(latom,jatom)>=1 ) ) CYCLE
+                IF(.NOT. (actual_x_data%is_assoc_atomic_block(latom,iatom)>=1 .AND. &
+                          actual_x_data%is_assoc_atomic_block(katom,iatom)>=1 .AND. &
+                          actual_x_data%is_assoc_atomic_block(katom,jatom)>=1 .AND. &
+                          actual_x_data%is_assoc_atomic_block(latom,jatom)>=1 ) ) CYCLE
 
                 !! calculate symmetry_factor accordin to degeneracy of atomic quartet
                 symm_fac = 0.5_dp
@@ -692,9 +694,9 @@ MODULE four_center_integrals
                     !! Near field screening
                     IF (max_val1 * screen_atom(latom,katom) < eps_schwarz) CYCLE
                     box_idx2 = (iset-1)*max_set+jset
-                    center1 = qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%center
-                    R1 = qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%R
-                    radius1 = qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%radius
+                    center1 = actual_x_data%far_field_boxes(box_idx2, box_idx1)%center
+                    R1 = actual_x_data%far_field_boxes(box_idx2, box_idx1)%R
+                    radius1 = actual_x_data%far_field_boxes(box_idx2, box_idx1)%radius
                     DO kset = 1,nsetc
                       ncoc = npgfc(kset)*ncoset(lc_max(kset))
                       sgfc = first_sgfc(1,kset)
@@ -706,21 +708,21 @@ MODULE four_center_integrals
                         IF(max_val2<eps_schwarz) CYCLE
                         box_idx4 = (kset-1)*max_set+lset
                         IF(.NOT. do_periodic) THEN
-                          center2_folded = qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%center
+                          center2_folded = actual_x_data%far_field_boxes(box_idx4, box_idx3)%center
                         ELSE
-                          center2 = qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%center
+                          center2 = actual_x_data%far_field_boxes(box_idx4, box_idx3)%center
                           temp = center2-center1
                           CALL pbc(temp, box_size, box_size_inv, pbc_center)
                           center2_folded = center1 + pbc_center
                         END IF
 
-                        R2 = qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%R
-                        radius2 = qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%radius
+                        R2 = actual_x_data%far_field_boxes(box_idx4, box_idx3)%R
+                        radius2 = actual_x_data%far_field_boxes(box_idx4, box_idx3)%radius
                         !! get max_vals if we screen on initial density
-                        pmax_entry = MAX(qs_env%x_data%initial_p(kset,iset,katom,iatom), &
-                                         qs_env%x_data%initial_p(lset,jset,latom,jatom), &
-                                         qs_env%x_data%initial_p(lset,iset,latom,iatom), &
-                                         qs_env%x_data%initial_p(kset,jset,katom,jatom))
+                        pmax_entry = MAX(actual_x_data%initial_p(kset,iset,katom,iatom), &
+                                         actual_x_data%initial_p(lset,jset,latom,jatom), &
+                                         actual_x_data%initial_p(lset,iset,latom,iatom), &
+                                         actual_x_data%initial_p(kset,jset,katom,jatom))
                         IF( do_correct_p_screening ) THEN
                           actual_pmax_entry = MAX(actual_pmax_set(kset,iset,katom,iatom), &
                                                   actual_pmax_set(lset,jset,latom,jatom), &
@@ -742,10 +744,10 @@ MODULE four_center_integrals
                                               npgfa, npgfb, npgfc, npgfd, ncoa, ncob, ncoc, ncod, &
                                               nsgfa, nsgfb, nsgfc, nsgfd, sgfa, sgfb, sgfc, sgfd, &
                                               primitive_integrals, potential_parameter, box_size, box_size_inv, &
-                                              qs_env, screen_periodic, eps_schwarz, sphi_a, sphi_b, sphi_c, sphi_d, T1, &
+                                              qs_env, screen_periodic, eps_schwarz, sphi_a, sphi_b, sphi_c, sphi_d, T1,&
                                               full_ks, full_ks_beta, full_density, full_density_beta, fac, symm_fac, &
                                               iset, jset, kset, lset, iatom, jatom, katom, latom, pa1, pb1, pc1, pd1,&
-                                              nspins, max_contraction_val, error)
+                                              nspins, max_contraction_val, actual_x_data, error)
                             END IF
                           END IF
                           CYCLE
@@ -761,24 +763,24 @@ MODULE four_center_integrals
                           max_val2 = 0.0_dp
                           SELECT CASE(potential_parameter%potential_type)
                             CASE(do_hf_potential_coulomb)
-                              Kbox = qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%K * &
-                                     qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%K
+                              Kbox = actual_x_data%far_field_boxes(box_idx2, box_idx1)%K * &
+                                     actual_x_data%far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = 1.0_dp/Rbox*Kbox
                               IF(max_val2 < eps_box ) CYCLE
                               max_val2 = max_val2 * pmax_entry
                             CASE(do_hf_potential_short)
-                              omega_box = qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%alphaInv + &
-                                          qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%alphaInv + &
+                              omega_box = actual_x_data%far_field_boxes(box_idx2, box_idx1)%alphaInv + &
+                                          actual_x_data%far_field_boxes(box_idx4, box_idx3)%alphaInv + &
                                           omega2Inv 
                               omega_box = 1.0_dp/omega_box
-                              Kbox = qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%K * &
-                                     qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%K
+                              Kbox = actual_x_data%far_field_boxes(box_idx2, box_idx1)%K * &
+                                     actual_x_data%far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = erfc(omega_box*Rbox)/Rbox*Kbox
                               IF(max_val2 < eps_box ) CYCLE
                               max_val2 = max_val2 * pmax_entry
                             CASE(do_hf_potential_mix_cl)
-                              Kbox = qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%K * &
-                                     qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%K
+                              Kbox = actual_x_data%far_field_boxes(box_idx2, box_idx1)%K * &
+                                     actual_x_data%far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = 1.0_dp/Rbox*Kbox
                               IF(max_val2 < eps_box ) CYCLE
                               max_val2 = max_val2 * pmax_entry
@@ -798,7 +800,7 @@ MODULE four_center_integrals
                                                 qs_env, screen_periodic, eps_schwarz, sphi_a, sphi_b, sphi_c, sphi_d, T1, &
                                                 full_ks, full_ks_beta, full_density, full_density_beta, fac, symm_fac, &
                                                 iset, jset, kset, lset, iatom, jatom, katom, latom, pa1, pb1, pc1, pd1,&
-                                                nspins, max_contraction_val, error)
+                                                nspins, max_contraction_val, actual_x_data, error)
                               END IF 
                             END IF
                             CYCLE
@@ -932,7 +934,7 @@ MODULE four_center_integrals
                                                    ncoa,ncob,ncoc,ncod,&
                                                    primitive_integrals(1),&
                                                    potential_parameter, box_size, box_size_inv, &
-                                                   qs_env%x_data%neighbor_cells, screen_periodic(:,iset,jset,iatom,jatom),&
+                                                   actual_x_data%neighbor_cells, screen_periodic(:,iset,jset,iatom,jatom),&
                                                    screen_periodic(:,kset,lset,katom,latom), eps_schwarz, &
                                                    max_contraction_val, cartesian_estimate, error)
                           END IF
@@ -1102,10 +1104,10 @@ MODULE four_center_integrals
 
       bintime_stop = m_walltime()
       IF (geometry_did_change) THEN
-         qs_env%x_data%distribution_energy(bin)%time_first_scf=bintime_stop-bintime_start 
+         actual_x_data%distribution_energy(bin)%time_first_scf=bintime_stop-bintime_start 
       ELSE
-         qs_env%x_data%distribution_energy(bin)%time_other_scf= &
-                qs_env%x_data%distribution_energy(bin)%time_other_scf+bintime_stop-bintime_start 
+         actual_x_data%distribution_energy(bin)%time_other_scf= &
+                actual_x_data%distribution_energy(bin)%time_other_scf+bintime_stop-bintime_start 
       ENDIF
     END DO outer !bin
 
@@ -1141,12 +1143,12 @@ MODULE four_center_integrals
     !! Distribute the current KS-matrix to all the processes
     CALL mp_sync(para_env%group) ! to clarify timings 
     CALL timeset(routineN//"_dist_KS",handle_dist_ks)
-    CALL distribute_ks_matrix(para_env, full_ks, ks_matrix(1)%matrix, qs_env%x_data%number_of_p_entries, &
-                              qs_env%x_data%is_assoc_atomic_block,&
+    CALL distribute_ks_matrix(para_env, full_ks, ks_matrix(1)%matrix, actual_x_data%number_of_p_entries, &
+                              actual_x_data%is_assoc_atomic_block,&
                               particle_set, natom, last_sgf_global, kind_of, basis_parameter, error)
     IF(nspins == 2) THEN
-      CALL distribute_ks_matrix(para_env, full_ks_beta, ks_matrix(2)%matrix, qs_env%x_data%number_of_p_entries, &
-                              qs_env%x_data%is_assoc_atomic_block,&
+      CALL distribute_ks_matrix(para_env, full_ks_beta, ks_matrix(2)%matrix, actual_x_data%number_of_p_entries, &
+                              actual_x_data%is_assoc_atomic_block,&
                               particle_set, natom, last_sgf_global, kind_of, basis_parameter, error)
     END IF
 
@@ -1157,7 +1159,7 @@ MODULE four_center_integrals
 
 
     !! Update energy type
-    energy%ex = 0.5_dp*(ene_x_aa+ene_x_bb)
+    energy%ex = 0.5_dp*(ene_x_aa+ene_x_bb) + energy%ex
 
     CALL timestop(handle_main)
 
@@ -1498,6 +1500,7 @@ MODULE four_center_integrals
     screen_atom=0.0_dp
     contraction_max=0.0_dp
 
+
     DO jatom=1,natom
       jkind = kind_of(jatom)
       nsetb = basis_parameter(jkind)%nset
@@ -1833,7 +1836,7 @@ MODULE four_center_integrals
 !!****************************************************************************
 
   SUBROUTINE derivatives_four_center(qs_env,ks_matrix,energy,rho,hf_section,para_env,& 
-                                    do_periodic, error)
+                                     irep, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -1842,7 +1845,7 @@ MODULE four_center_integrals
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(section_vals_type), POINTER         :: hf_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    LOGICAL, INTENT(IN)                      :: do_periodic
+    INTEGER                                  :: irep
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'derivatives_four_center', &
@@ -1866,8 +1869,9 @@ MODULE four_center_integrals
       nsgfc, nsgfd
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb, &
                                                 first_sgfc, first_sgfd
-    LOGICAL                                  :: failure, first_j_loop, &
-                                                first_k_loop, first_l_loop, &
+    LOGICAL                                  :: do_periodic, failure, &
+                                                first_j_loop, first_k_loop, &
+                                                first_l_loop, &
                                                 screen_pmat_forces
     REAL(dp) :: bintime_start, bintime_stop, box_size(3), box_size_inv(3), &
       cartesian_estimate, center1(3), center2(3), center2_folded(3), eps_box, &
@@ -1897,29 +1901,26 @@ MODULE four_center_integrals
     TYPE(x_hf_load_balance_type)             :: load_balance_parameter
     TYPE(x_hf_potential_type)                :: potential_parameter
     TYPE(x_hf_screening_type)                :: screening_parameter
+    TYPE(x_hf_type), POINTER                 :: actual_x_data
 
     CALL mp_sync(para_env%group)
     CALL timeset(routineN,"I",'',handle)
 
+    actual_x_data => qs_env%x_data(irep)
+    do_periodic = actual_x_data%periodic_parameter%do_periodic
 
-    screening_parameter    = qs_env%x_data%screening_parameter
-    general_parameter      = qs_env%x_data%general_parameter
-    potential_parameter    = qs_env%x_data%potential_parameter
+    screening_parameter    = actual_x_data%screening_parameter
+    general_parameter      = actual_x_data%general_parameter
+    potential_parameter    = actual_x_data%potential_parameter
     IF(potential_parameter%omega /= 0.0_dp) THEN
       omega2Inv = 1.0_dp/(potential_parameter%omega**2)
     ELSE
       omega2Inv = 0.0_dp
     END IF
 
-    load_balance_parameter = qs_env%x_data%load_balance_parameter
-    basis_parameter        => qs_env%x_data%basis_parameter
+    load_balance_parameter = actual_x_data%load_balance_parameter
+    basis_parameter        => actual_x_data%basis_parameter
    
-    !! initalize force array to zero 
-    CALL get_qs_env(qs_env=qs_env, force=force, error=error)
-    DO ikind = 1,SIZE(force)
-      force(ikind)%fock_4c(:,:) = 0.0_dp
-    END DO
-
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     particle_set=particle_set,&
@@ -1937,6 +1938,9 @@ MODULE four_center_integrals
       CALL timestop(0.0_dp,handle)
       RETURN
     END IF
+
+    !! get force array
+    CALL get_qs_env(qs_env=qs_env, force=force, error=error)
 
     hf_fraction = general_parameter%fraction
     eps_schwarz = screening_parameter%eps_schwarz_forces
@@ -1997,12 +2001,12 @@ MODULE four_center_integrals
     NULLIFY(full_density_beta)
 
     !! Get the full density from all the processors
-    CALL get_full_density(para_env, full_density, rho%rho_ao(1)%matrix, qs_env%x_data%number_of_p_entries,&
-                          qs_env%x_data%is_assoc_atomic_block, particle_set, natom, last_sgf_global, &
+    CALL get_full_density(para_env, full_density, rho%rho_ao(1)%matrix, actual_x_data%number_of_p_entries,&
+                          actual_x_data%is_assoc_atomic_block, particle_set, natom, last_sgf_global, &
                           kind_of, basis_parameter, error)   
     IF(nspins == 2) THEN
-      CALL get_full_density(para_env, full_density_beta, rho%rho_ao(2)%matrix, qs_env%x_data%number_of_p_entries,&
-                           qs_env%x_data%is_assoc_atomic_block, particle_set, natom, last_sgf_global, &
+      CALL get_full_density(para_env, full_density_beta, rho%rho_ao(2)%matrix, actual_x_data%number_of_p_entries,&
+                           actual_x_data%is_assoc_atomic_block, particle_set, natom, last_sgf_global, &
                            kind_of, basis_parameter, error)
     END IF
     CALL symmetrize_matrix(full_density,"upper_to_lower")
@@ -2014,7 +2018,7 @@ MODULE four_center_integrals
                   full_density,full_density_beta,screen_pmat_forces,particle_set,atomic_kind_set,&
                   kind_of, basis_parameter, error)
 
-
+     
     !! Calculatematrices for screening purpose taking into account periodicity. The farfield part is already
     !! in memory
     IF( do_periodic ) THEN
@@ -2025,11 +2029,11 @@ MODULE four_center_integrals
       box_size_inv(2) = 1.0_dp/box_size(2)
       box_size_inv(3) = 1.0_dp/box_size(3)
 
-      ALLOCATE(screen_periodic(SIZE(qs_env%x_data%neighbor_cells),max_set,max_set,natom,natom))
+      ALLOCATE(screen_periodic(SIZE(actual_x_data%neighbor_cells),max_set,max_set,natom,natom))
       CALL comp_screen_mat_per(screen_set,screen_atom,screen_max,screen_periodic,particle_set,atomic_kind_set,&
                                                potential_parameter,.FALSE.,&
                                                kind_of, basis_parameter,&
-                                               neighbor_cells=qs_env%x_data%neighbor_cells,&
+                                               neighbor_cells=actual_x_data%neighbor_cells,&
                                                box_size=box_size, box_size_inv=box_size_inv, &
                                                error=error)
       !! Farfield screening matrix already there
@@ -2041,14 +2045,14 @@ MODULE four_center_integrals
 
     !! Load balance the work
     IF( b_first_load_balance_f ) THEN
-      CALL load_balance_forces(qs_env%x_data,eps_schwarz,eps_box,particle_set,atomic_kind_set,para_env,&
+      CALL load_balance_forces(actual_x_data,eps_schwarz,eps_box,particle_set,atomic_kind_set,para_env,&
                                potential_parameter,screen_set,screen_atom,screen_max,&
-                               pmax_set,qs_env%x_data%is_assoc_atomic_block,ks_matrix,do_periodic,&
+                               pmax_set,actual_x_data%is_assoc_atomic_block,ks_matrix,do_periodic,&
                                load_balance_parameter, box_size, box_size_inv, kind_of, basis_parameter, error)
       b_first_load_balance_f = .FALSE.
     ELSE
-      CALL update_load_balance_forces(qs_env%x_data, para_env, screen_set,screen_atom,screen_max, &
-                                      qs_env%x_data%is_assoc_atomic_block,load_balance_parameter, error)
+      CALL update_load_balance_forces(actual_x_data, para_env, screen_set,screen_atom,screen_max, &
+                                      actual_x_data%is_assoc_atomic_block,load_balance_parameter, error)
     END IF
 
 
@@ -2111,11 +2115,10 @@ MODULE four_center_integrals
     !! Furthermore, the indices iatom, jatom, katom, latom have to be set to istart, jstart, kstart and
     !! lstart only the first time the loop is executed. All subsequent loops have to start with one or
     !! iatom and katom respectively. Therefore, we use flags like first_j_loop etc.
-
     ncpu = para_env%num_pe
-    my_bin_size = SIZE(qs_env%x_data%distribution_forces)
+    my_bin_size = SIZE(actual_x_data%distribution_forces)
     DO bin=1,my_bin_size
-       qs_env%x_data%distribution_forces(bin)%time_forces=0.0_dp
+       actual_x_data%distribution_forces(bin)%time_forces=0.0_dp
     ENDDO
     !! outer loop will be cycled if actual work_load done
     outer: DO bin=1,my_bin_size
@@ -2124,15 +2127,15 @@ MODULE four_center_integrals
       first_j_loop = .TRUE.
       first_l_loop = .TRUE.
       first_k_loop = .TRUE.
-      my_istart = qs_env%x_data%distribution_forces(bin)%istart
-      my_jstart = qs_env%x_data%distribution_forces(bin)%jstart
-      my_kstart = qs_env%x_data%distribution_forces(bin)%kstart
-      my_lstart = qs_env%x_data%distribution_forces(bin)%lstart
-      my_original_cpu_id = qs_env%x_data%distribution_forces(bin)%original_cpu_id 
+      my_istart = actual_x_data%distribution_forces(bin)%istart
+      my_jstart = actual_x_data%distribution_forces(bin)%jstart
+      my_kstart = actual_x_data%distribution_forces(bin)%kstart
+      my_lstart = actual_x_data%distribution_forces(bin)%lstart
+      my_original_cpu_id = actual_x_data%distribution_forces(bin)%original_cpu_id 
       my_current_counter = 0
       !! It could happen, that one bin is empty. In that case just skip
       IF(my_istart == 0 .OR. my_jstart == 0 .OR. my_kstart == 0 .OR. my_lstart == 0 .OR. &
-         qs_env%x_data%distribution_forces(bin)%number_of_integrals == 0) THEN
+         actual_x_data%distribution_forces(bin)%number_of_integrals == 0) THEN
          my_istart = natom + 1 ; my_jstart = natom + 1 ;my_kstart = natom + 1 ;my_lstart = natom + 1 
       ENDIF
       atom_loops: DO iatom=my_istart,natom
@@ -2208,16 +2211,16 @@ MODULE four_center_integrals
                 IF( ((iatom+jatom).EQ.(katom+latom) ) .AND.(katom<iatom)) CYCLE
 
                 my_current_counter = my_current_counter + 1
-                IF(my_current_counter > qs_env%x_data%distribution_forces(bin)%number_of_integrals) THEN
+                IF(my_current_counter > actual_x_data%distribution_forces(bin)%number_of_integrals) THEN
                   EXIT atom_loops
                 END IF
                
                 IF (screen_atom(jatom,iatom) * screen_max < eps_schwarz) CYCLE
                 IF (screen_atom(jatom,iatom) * screen_atom(latom,katom) < eps_schwarz) CYCLE
-                IF(.NOT. (qs_env%x_data%is_assoc_atomic_block(latom,iatom)>=1 .AND. &
-                          qs_env%x_data%is_assoc_atomic_block(katom,iatom)>=1 .AND. &
-                          qs_env%x_data%is_assoc_atomic_block(katom,jatom)>=1 .AND. &
-                          qs_env%x_data%is_assoc_atomic_block(latom,jatom)>=1 ) ) CYCLE
+                IF(.NOT. (actual_x_data%is_assoc_atomic_block(latom,iatom)>=1 .AND. &
+                          actual_x_data%is_assoc_atomic_block(katom,iatom)>=1 .AND. &
+                          actual_x_data%is_assoc_atomic_block(katom,jatom)>=1 .AND. &
+                          actual_x_data%is_assoc_atomic_block(latom,jatom)>=1 ) ) CYCLE
 
                 lkind = kind_of(latom)
                 ld_max => basis_parameter(lkind)%lmax
@@ -2263,9 +2266,9 @@ MODULE four_center_integrals
                     max_val1 = screen_set(jset,iset,jatom,iatom)
                     IF (max_val1 * screen_atom(latom,katom) < eps_schwarz) CYCLE
                     box_idx2 = (iset-1)*max_set+jset
-                    center1 = qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%center
-                    R1 = qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%R
-                    radius1 = qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%radius
+                    center1 = actual_x_data%far_field_boxes(box_idx2, box_idx1)%center
+                    R1 = actual_x_data%far_field_boxes(box_idx2, box_idx1)%R
+                    radius1 = actual_x_data%far_field_boxes(box_idx2, box_idx1)%radius
                     DO kset = 1,nsetc
                       ncoc = npgfc(kset)*ncoset(lc_max(kset))
                       sgfc = first_sgfc(1,kset)
@@ -2278,15 +2281,15 @@ MODULE four_center_integrals
                         IF(max_val2<eps_schwarz)  CYCLE
                         box_idx4 = (kset-1)*max_set+lset
                         IF(.NOT. do_periodic) THEN
-                          center2_folded = qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%center
+                          center2_folded = actual_x_data%far_field_boxes(box_idx4, box_idx3)%center
                         ELSE
-                          center2 = qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%center
+                          center2 = actual_x_data%far_field_boxes(box_idx4, box_idx3)%center
                           temp = center2-center1
                           CALL pbc(temp, box_size, box_size_inv, pbc_center)
                           center2_folded = center1 + pbc_center
                         END IF
-                        R2 = qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%R
-                        radius2 = qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%radius
+                        R2 = actual_x_data%far_field_boxes(box_idx4, box_idx3)%R
+                        radius2 = actual_x_data%far_field_boxes(box_idx4, box_idx3)%radius
                         Rbox = (center1(1)-center2_folded(1))**2 + &
                                (center1(2)-center2_folded(2))**2 + &
                                (center1(3)-center2_folded(3))**2
@@ -2297,20 +2300,20 @@ MODULE four_center_integrals
                           max_val2 = 0.0_dp
                           SELECT CASE(potential_parameter%potential_type)
                             CASE(do_hf_potential_coulomb)
-                              Kbox = qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%K * &
-                                     qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%K
+                              Kbox = actual_x_data%far_field_boxes(box_idx2, box_idx1)%K * &
+                                     actual_x_data%far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = 1.0_dp/Rbox*Kbox* pmax_entry
                             CASE(do_hf_potential_short)
-                              omega_box = qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%alphaInv + &
-                                          qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%alphaInv + &
+                              omega_box = actual_x_data%far_field_boxes(box_idx2, box_idx1)%alphaInv + &
+                                          actual_x_data%far_field_boxes(box_idx4, box_idx3)%alphaInv + &
                                           omega2Inv 
                               omega_box = 1.0_dp/omega_box
-                              Kbox = qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%K * &
-                                     qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%K
+                              Kbox = actual_x_data%far_field_boxes(box_idx2, box_idx1)%K * &
+                                     actual_x_data%far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = erfc(omega_box*Rbox)/Rbox*Kbox *  pmax_entry
                             CASE(do_hf_potential_mix_cl)
-                              Kbox = qs_env%x_data%far_field_boxes(box_idx2, box_idx1)%K * &
-                                     qs_env%x_data%far_field_boxes(box_idx4, box_idx3)%K
+                              Kbox = actual_x_data%far_field_boxes(box_idx2, box_idx1)%K * &
+                                     actual_x_data%far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = 1.0_dp/Rbox*Kbox* pmax_entry
                           END SELECT
                           IF(max_val2<eps_box) CYCLE
@@ -2347,7 +2350,7 @@ MODULE four_center_integrals
                                                 primitive_forces,&
                                                 work_forces,&
                                                 potential_parameter, box_size, box_size_inv, &
-                                                qs_env%x_data%neighbor_cells, screen_periodic(:,iset,jset,iatom,jatom),&
+                                                actual_x_data%neighbor_cells, screen_periodic(:,iset,jset,iatom,jatom),&
                                                 screen_periodic(:,kset,lset,katom,latom), eps_schwarz, &
                                                 max_contraction_val, cartesian_estimate, error)
                         END IF 
@@ -2429,7 +2432,7 @@ MODULE four_center_integrals
         first_j_loop = .FALSE.
       END DO atom_loops !iatom
       bintime_stop=m_walltime()
-      qs_env%x_data%distribution_forces(bin)%time_forces=bintime_stop-bintime_start
+      actual_x_data%distribution_forces(bin)%time_forces=bintime_stop-bintime_start
     END DO outer !bin
     
     IF( do_periodic ) THEN
@@ -3559,10 +3562,10 @@ MODULE four_center_integrals
                         npgfa, npgfb, npgfc, npgfd, ncoa, ncob, ncoc, ncod, &
                         nsgfa, nsgfb, nsgfc, nsgfd, sgfa, sgfb, sgfc, sgfd, &
                         primitive_integrals, potential_parameter, box_size, box_size_inv, qs_env, screen_periodic, &
-                        eps_schwarz, sphi_a, sphi_b, sphi_c, sphi_d, T1, & 
+                        eps_schwarz, sphi_a, sphi_b, sphi_c, sphi_d, T1,& 
                         full_ks, full_ks_beta, full_density, full_density_beta, fac, symm_fac, &
                         iset, jset, kset, lset, iatom, jatom, katom, latom, pa1, pb1, pc1, pd1, &
-                        nspins, max_contraction_val, error)
+                        nspins, max_contraction_val, actual_x_data, error)
 
     LOGICAL, INTENT(IN)                      :: do_periodic
     REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3)
@@ -3591,6 +3594,7 @@ MODULE four_center_integrals
                                                 iatom, jatom, katom, latom, &
                                                 pa1, pb1, pc1, pd1, nspins
     REAL(dp), INTENT(IN)                     :: max_contraction_val
+    TYPE(x_hf_type), POINTER                 :: actual_x_data
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ma, mb, mc, md, p_index, pa, &
@@ -3618,7 +3622,7 @@ MODULE four_center_integrals
                              ncoa,ncob,ncoc,ncod,&
                              primitive_integrals,&
                              potential_parameter, box_size, box_size_inv, &
-                             qs_env%x_data%neighbor_cells, screen_periodic(:,iset,jset,iatom,jatom),&
+                             actual_x_data%neighbor_cells, screen_periodic(:,iset,jset,iatom,jatom),&
                              screen_periodic(:,kset,lset,katom,latom), eps_schwarz, &
                              max_contraction_val, cartesian_estimate, error)
     END IF
@@ -4998,7 +5002,7 @@ MODULE four_center_integrals
         pb1 = last_sgf_global(jatom) - basis_parameter(jkind)%nsgf_total
         DO pb = 1,SIZE(sparse_block,2)
           DO pa = 1,SIZE(sparse_block,1)
-            sparse_block(pa,pb) = sendbuffer(i)
+            sparse_block(pa,pb) = sendbuffer(i) + sparse_block(pa,pb)
             i = i + 1
           END DO
         END DO 

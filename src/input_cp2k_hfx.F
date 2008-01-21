@@ -86,7 +86,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"HF",&
             description="Sets up the Hartree-Fock parameters if requested ",&
-            n_keywords=5, n_subsections=2, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=5, n_subsections=2, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
        NULLIFY(keyword, print_key, subsection)

@@ -312,12 +312,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: cc_new, cc_old
-    INTEGER                                  :: handle, ig, ispin, k, k2, &
-                                                my_id, n, nspins, &
+    INTEGER                                  :: handle, ig, ikind, irep, &
+                                                ispin, k, k2, my_id, n, &
+                                                n_rep_hf, nspins, &
                                                 output_unit, stat
-    LOGICAL :: ddapc_restraint_is_spin, do_ep, do_hf, do_hf_periodic, &
-      et_coupling_calc, explicit_potential, failure, gapw, gapw_xc, ionode, &
-      my_diis_step, my_kg_gpw, use_virial
+    LOGICAL :: ddapc_restraint_is_spin, do_ep, do_hf, et_coupling_calc, &
+      explicit_potential, failure, gapw, gapw_xc, ionode, my_diis_step, &
+      my_kg_gpw, use_virial
     REAL(KIND=dp)                            :: a_mix, b_mix, ddapc_order_p, &
                                                 f_mix, inv_vol, &
                                                 mulliken_order_p, s2_order_p
@@ -344,11 +345,13 @@ CONTAINS
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(pw_type), POINTER                   :: ep_pot_g, ep_pot_r
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: force
     TYPE(qs_rho_type), POINTER               :: my_rho_xc, rho_buffer
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_dv, matrix_h, &
                                                 matrix_s, my_rho, rest_mat
-    TYPE(section_vals_type), POINTER         :: hf_pbc_section, hf_section, &
+    TYPE(section_vals_type), POINTER         :: hf_section, hf_sections, &
                                                 input, scf_section
     TYPE(virial_type), POINTER               :: virial
 
@@ -401,8 +404,8 @@ CONTAINS
     IF (do_ep) do_ep=ep_qs_env%ep_active.AND.calculate_forces.and.&
          ASSOCIATED(ep_qs_env%dH_coeffs)
 
-    hf_section => section_vals_get_subs_vals(input,"DFT%XC%HF",error=error)
-    CALL section_vals_get(hf_section,explicit=do_hf,error=error)
+    hf_sections => section_vals_get_subs_vals(input,"DFT%XC%HF",error=error)
+    CALL section_vals_get(hf_sections,explicit=do_hf,error=error)
 
     scf_section => section_vals_get_subs_vals(input,"DFT%SCF",error=error)
     nspins=dft_control%nspins
@@ -683,6 +686,9 @@ CONTAINS
        ! *** associates v_rspace_new if the xc potential needs to be computed.
        CALL qs_vxc_create(qs_env=qs_env,&
             vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
+            just_energy=.TRUE., gapw_xc=gapw_xc, error=error)
+       CALL qs_vxc_create(qs_env=qs_env,&
+            vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
             just_energy=just_energy, gapw_xc=gapw_xc, error=error)
 
        IF (gapw .OR. gapw_xc) THEN
@@ -696,21 +702,30 @@ CONTAINS
        
        ! *** Add Hartree-Fock contribution if required ***
        IF ( do_hf ) THEN
-          hf_pbc_section => section_vals_get_subs_vals(hf_section,"PERIODIC",error=error)
-          CALL section_vals_get(hf_pbc_section,explicit=do_hf_periodic,error=error)
          DO ispin = 1,nspins
            CALL set_matrix(ks_matrix(ispin)%matrix,0.0_dp)
          END DO
-         CALL integrate_four_center(qs_env, ks_matrix,energy,rho,hf_section,&
-                                    para_env,ks_env%s_mstruct_changed,do_hf_periodic,error)
-
-         CALL pw_hfx(qs_env,energy,hf_section,poisson_env,auxbas_pw_pool,error)
-
-         IF ( calculate_forces ) THEN
-           CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
-           CALL derivatives_four_center(qs_env, ks_matrix,energy,rho,hf_section,&
-                                        para_env, do_hf_periodic, error)
+         CALL section_vals_get(hf_sections,n_repetition=n_rep_hf,error=error)
+         !! set hf exchange energy to zero
+         energy%ex = 0.0_dp
+         !! initalize force array to zero
+         IF( calculate_forces ) THEN
+           CALL get_qs_env(qs_env=qs_env, force=force, error=error)
+           DO ikind = 1,SIZE(force)
+             force(ikind)%fock_4c(:,:) = 0.0_dp
+           END DO
          END IF
+         DO irep = 1,n_rep_hf
+           CALL integrate_four_center(qs_env, ks_matrix,energy,rho,hf_sections,&
+                                      para_env,ks_env%s_mstruct_changed,irep,error)
+           IF( calculate_forces ) THEN
+             CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
+             CALL derivatives_four_center(qs_env, ks_matrix,energy,rho,hf_section,&
+                                          para_env, irep, error)
+           END IF
+
+           CALL pw_hfx(qs_env,energy,hf_sections,poisson_env,auxbas_pw_pool,irep,error)
+         END DO
 
          ! *** Add Core-Hamiltonian-Matrix ***
          DO ispin=1,nspins
@@ -1157,12 +1172,13 @@ CONTAINS
 !!     12.2007 created [Joost VandeVondele]
 !!
 !!*** **********************************************************************
-  SUBROUTINE pw_hfx(qs_env,energy,hf_section,poisson_env,auxbas_pw_pool,error)
+  SUBROUTINE pw_hfx(qs_env,energy,hf_section,poisson_env,auxbas_pw_pool,irep,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(section_vals_type), POINTER         :: hf_section
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    INTEGER                                  :: irep
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(*), PARAMETER :: routineN = 'pw_hfx', &
@@ -1193,7 +1209,7 @@ CONTAINS
     failure = .FALSE.
     logger => cp_error_get_logger(error)
 
-    CALL section_vals_val_get(hf_section, "PW_HFX", l_val=do_pw_hfx, error=error)
+    CALL section_vals_val_get(hf_section, "PW_HFX", l_val=do_pw_hfx, i_rep_section=irep, error=error)
 
     IF (do_pw_hfx) THEN
        CALL section_vals_val_get(hf_section, "FRACTION", r_val=fraction, error=error)
@@ -2347,7 +2363,6 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
         ! we get back the right my_vxc_rho and my_vxc_tau as required
         !
         IF (my_just_energy) THEN
-
            exc=xc_exc_calc(rho_r=rho_r,tau=tau,&
                 rho_g=rho_g, xc_section=xc_section,&
                 cell=cell, pw_pool=xc_pw_pool,&

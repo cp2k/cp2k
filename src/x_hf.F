@@ -232,6 +232,7 @@ MODULE x_hf
     INTEGER                                  :: number_of_p_entries
     TYPE(x_hf_basis_type), DIMENSION(:), &
                            POINTER           :: basis_parameter
+    INTEGER                                  :: n_rep_hf
   END TYPE
 
   CONTAINS
@@ -266,7 +267,7 @@ MODULE x_hf
 !!****************************************************************************
 
   SUBROUTINE x_hf_create(x_data,hf_section,natom,max_set,atomic_kind_set, particle_set, error)
-    TYPE(x_hf_type), POINTER                 :: x_data
+    TYPE(x_hf_type), DIMENSION(:), POINTER   :: x_data
     TYPE(section_vals_type), POINTER         :: hf_section
     INTEGER, INTENT(IN)                      :: natom, max_set
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -278,8 +279,8 @@ MODULE x_hf
     CHARACTER(LEN=*), PARAMETER :: routineN = 'x_hf_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ikind, int_val, &
-                                                max_memory, nkind, &
+    INTEGER                                  :: i, ikind, int_val, irep, &
+                                                max_memory, n_rep_hf, nkind, &
                                                 pbc_shells, stat
     LOGICAL                                  :: do_periodic, failure, &
                                                 logic_val
@@ -287,164 +288,171 @@ MODULE x_hf
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_a
     TYPE(section_vals_type), POINTER         :: hf_pbc_section, hf_sub_section
+    TYPE(x_hf_type), POINTER                 :: actual_x_data
 
     failure = .FALSE.
 
-    ALLOCATE(x_data,STAT=stat)
+    !! There might be 2 hf sections
+    CALL section_vals_get(hf_section,n_repetition=n_rep_hf,error=error)
+   
+    ALLOCATE(x_data(n_rep_hf),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    !! Get data from input file
-    !!
-    !! GENERAL params
-    CALL section_vals_val_get(hf_section, "FRACTION", r_val=real_val, error=error)
-    x_data%general_parameter%fraction = real_val
+    DO irep=1,n_rep_hf
+      actual_x_data => x_data(irep)
+      !! Get data from input file
+      !!
+      !! GENERAL params
+      CALL section_vals_val_get(hf_section, "FRACTION", r_val=real_val, i_rep_section=irep,error=error)
+      actual_x_data%general_parameter%fraction = real_val
+      actual_x_data%n_rep_hf = n_rep_hf  
 
-    !! MEMORY section
-    hf_sub_section => section_vals_get_subs_vals(hf_section,"MEMORY",error=error)
-    CALL section_vals_val_get(hf_sub_section, "MAX_MEMORY", i_val=int_val, error=error)
-    x_data%memory_parameter%max_memory = int_val
-    x_data%memory_parameter%max_compression_counter = int_val*1024*128
-    CALL section_vals_val_get(hf_sub_section, "EPS_STORAGE_SCALING", r_val=real_val, error=error)
-    x_data%memory_parameter%eps_storage_scaling = real_val
-    IF(int_val == 0) THEN
-      x_data%memory_parameter%do_all_on_the_fly = .TRUE.
-    ELSE
-      x_data%memory_parameter%do_all_on_the_fly = .FALSE.
-    END IF
-    x_data%memory_parameter%cache_size = CACHE_SIZE
-    x_data%memory_parameter%actual_memory_usage = 1
-
-    !! PERIODIC section
-    hf_sub_section => section_vals_get_subs_vals(hf_section,"PERIODIC",error=error)
-    CALL section_vals_get(hf_sub_section, explicit=logic_val, error=error)
-    x_data%periodic_parameter%do_periodic = logic_val
-    CALL section_vals_val_get(hf_sub_section, "NUMBER_OF_SHELLS", i_val=int_val, error=error)
-    x_data%periodic_parameter%number_of_shells = int_val
-    
-    !! SCREENING section
-    hf_sub_section => section_vals_get_subs_vals(hf_section,"SCREENING",error=error)
-    CALL section_vals_val_get(hf_sub_section, "EPS_SCHWARZ", r_val=real_val, error=error)
-    x_data%screening_parameter%eps_schwarz = real_val
-    CALL section_vals_val_get(hf_sub_section, "EPS_BOX", r_val=real_val, error=error)
-    x_data%screening_parameter%eps_box = real_val 
-    CALL section_vals_val_get(hf_sub_section, "EPS_SCHWARZ_FORCES", r_val=real_val, error=error)
-    x_data%screening_parameter%eps_schwarz_forces = real_val 
-    CALL section_vals_val_get(hf_sub_section, "EPS_BOX_FORCES", r_val=real_val, error=error)
-    x_data%screening_parameter%eps_box_forces = real_val 
-    CALL section_vals_val_get(hf_sub_section, "SCREEN_P_FORCES", l_val=logic_val, error=error)
-    x_data%screening_parameter%do_p_screening_forces = logic_val 
-    CALL section_vals_val_get(hf_sub_section, "SCREEN_ON_INITIAL_P", l_val=logic_val, error=error)
-    x_data%screening_parameter%do_initial_p_screening = logic_val 
-    CALL section_vals_val_get(hf_sub_section, "P_SCREEN_CORRECTION_FACTOR", r_val=real_val, error=error)
-    IF( real_val == 0.0_dp ) THEN
-      x_data%screening_parameter%do_init_p_screen_corr = .FALSE. 
-    ELSE
-      x_data%screening_parameter%do_init_p_screen_corr = .TRUE. 
-    END IF
-    x_data%screening_parameter%initial_p_screening_correction = real_val 
-
-    !! INTERACTION_POTENTIAL section
-    hf_sub_section => section_vals_get_subs_vals(hf_section,"INTERACTION_POTENTIAL",error=error)
-    CALL section_vals_val_get(hf_sub_section, "POTENTIAL_TYPE", i_val=int_val, error=error)
-    x_data%potential_parameter%potential_type = int_val
-    CALL section_vals_val_get(hf_sub_section, "OMEGA", r_val=real_val, error=error)
-    x_data%potential_parameter%omega = real_val 
-    CALL section_vals_val_get(hf_sub_section, "SCALE_COULOMB", r_val=real_val, error=error)
-    x_data%potential_parameter%scale_coulomb = real_val
-    CALL section_vals_val_get(hf_sub_section, "SCALE_LONGRANGE", r_val=real_val, error=error)
-    x_data%potential_parameter%scale_longrange = real_val
-
-    !! LOAD_BALANCE section
-    hf_sub_section => section_vals_get_subs_vals(hf_section,"LOAD_BALANCE",error=error)
-    CALL section_vals_val_get(hf_sub_section, "NBINS", i_val=int_val, error=error)
-    x_data%load_balance_parameter%nbins = int_val
-    CALL section_vals_val_get(hf_sub_section, "MOVES", i_val=int_val, error=error)
-    x_data%load_balance_parameter%moves = int_val
-    CALL section_vals_val_get(hf_sub_section, "CYCLES", i_val=int_val, error=error)
-    x_data%load_balance_parameter%cycles = int_val
-    CALL section_vals_val_get(hf_sub_section, "REDUCTION_STEPS", i_val=int_val, error=error)
-    x_data%load_balance_parameter%reduction_steps = int_val
-    CALL section_vals_val_get(hf_sub_section, "REDUCTION_FACTOR", r_val=real_val, error=error)
-    x_data%load_balance_parameter%reduction_factor = real_val
-    CALL section_vals_val_get(hf_sub_section, "TEMPERATURE", r_val=real_val, error=error)
-    x_data%load_balance_parameter%temperature = real_val
-    CALL section_vals_val_get(hf_sub_section, "TOLERANCE", r_val=real_val, error=error)
-    x_data%load_balance_parameter%tolerance = real_val
-    CALL section_vals_val_get(hf_sub_section, "SWAP_PROBABILITY", r_val=real_val, error=error)
-    x_data%load_balance_parameter%swap_probability = real_val
-
-    !! BASIS parameter
-    nkind = SIZE(atomic_kind_set,1)
-    ALLOCATE(x_data%basis_parameter(nkind), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DO ikind = 1,nkind
-        NULLIFY(atom_kind)
-        atom_kind => atomic_kind_set(ikind)
-        CALL get_atomic_kind(atomic_kind=atom_kind,&
-                             orb_basis_set=orb_basis_a)
-        CALL get_gto_basis_set(gto_basis_set=orb_basis_a, &
-                               lmax=x_data%basis_parameter(ikind)%lmax, &
-                               lmin=x_data%basis_parameter(ikind)%lmin, &
-                               npgf=x_data%basis_parameter(ikind)%npgf, &
-                               nset=x_data%basis_parameter(ikind)%nset, &
-                               zet=x_data%basis_parameter(ikind)%zet, &
-                               nsgf_set=x_data%basis_parameter(ikind)%nsgf, &
-                               first_sgf=x_data%basis_parameter(ikind)%first_sgf, &
-                               sphi=x_data%basis_parameter(ikind)%sphi, &
-                               nsgf=x_data%basis_parameter(ikind)%nsgf_total) 
+      !! MEMORY section
+      hf_sub_section => section_vals_get_subs_vals(hf_section,"MEMORY",i_rep_section=irep, error=error)
+      CALL section_vals_val_get(hf_sub_section, "MAX_MEMORY", i_val=int_val, error=error)
+      actual_x_data%memory_parameter%max_memory = int_val
+      actual_x_data%memory_parameter%max_compression_counter = int_val*1024*128
+      CALL section_vals_val_get(hf_sub_section, "EPS_STORAGE_SCALING", r_val=real_val, error=error)
+      actual_x_data%memory_parameter%eps_storage_scaling = real_val
+      IF(int_val == 0) THEN
+        actual_x_data%memory_parameter%do_all_on_the_fly = .TRUE.
+      ELSE
+        actual_x_data%memory_parameter%do_all_on_the_fly = .FALSE.
+      END IF
+      actual_x_data%memory_parameter%cache_size = CACHE_SIZE
+      actual_x_data%memory_parameter%actual_memory_usage = 1
+  
+      !! PERIODIC section
+      hf_sub_section => section_vals_get_subs_vals(hf_section,"PERIODIC", i_rep_section=irep, error=error)
+      CALL section_vals_get(hf_sub_section, explicit=logic_val, error=error)
+      actual_x_data%periodic_parameter%do_periodic = logic_val
+      CALL section_vals_val_get(hf_sub_section, "NUMBER_OF_SHELLS", i_val=int_val, error=error)
+      actual_x_data%periodic_parameter%number_of_shells = int_val
+      
+      !! SCREENING section
+      hf_sub_section => section_vals_get_subs_vals(hf_section,"SCREENING",i_rep_section=irep, error=error)
+      CALL section_vals_val_get(hf_sub_section, "EPS_SCHWARZ", r_val=real_val, error=error)
+      actual_x_data%screening_parameter%eps_schwarz = real_val
+      CALL section_vals_val_get(hf_sub_section, "EPS_BOX", r_val=real_val, error=error)
+      actual_x_data%screening_parameter%eps_box = real_val 
+      CALL section_vals_val_get(hf_sub_section, "EPS_SCHWARZ_FORCES", r_val=real_val, error=error)
+      actual_x_data%screening_parameter%eps_schwarz_forces = real_val 
+      CALL section_vals_val_get(hf_sub_section, "EPS_BOX_FORCES", r_val=real_val, error=error)
+      actual_x_data%screening_parameter%eps_box_forces = real_val 
+      CALL section_vals_val_get(hf_sub_section, "SCREEN_P_FORCES", l_val=logic_val, error=error)
+      actual_x_data%screening_parameter%do_p_screening_forces = logic_val 
+      CALL section_vals_val_get(hf_sub_section, "SCREEN_ON_INITIAL_P", l_val=logic_val, error=error)
+      actual_x_data%screening_parameter%do_initial_p_screening = logic_val 
+      CALL section_vals_val_get(hf_sub_section, "P_SCREEN_CORRECTION_FACTOR", r_val=real_val, error=error)
+      IF( real_val == 0.0_dp ) THEN
+        actual_x_data%screening_parameter%do_init_p_screen_corr = .FALSE. 
+      ELSE
+        actual_x_data%screening_parameter%do_init_p_screen_corr = .TRUE. 
+      END IF
+      actual_x_data%screening_parameter%initial_p_screening_correction = real_val 
+  
+      !! INTERACTION_POTENTIAL section
+      hf_sub_section => section_vals_get_subs_vals(hf_section,"INTERACTION_POTENTIAL",i_rep_section=irep,error=error)
+      CALL section_vals_val_get(hf_sub_section, "POTENTIAL_TYPE", i_val=int_val, error=error)
+      actual_x_data%potential_parameter%potential_type = int_val
+      CALL section_vals_val_get(hf_sub_section, "OMEGA", r_val=real_val, error=error)
+      actual_x_data%potential_parameter%omega = real_val 
+      CALL section_vals_val_get(hf_sub_section, "SCALE_COULOMB", r_val=real_val, error=error)
+      actual_x_data%potential_parameter%scale_coulomb = real_val
+      CALL section_vals_val_get(hf_sub_section, "SCALE_LONGRANGE", r_val=real_val, error=error)
+      actual_x_data%potential_parameter%scale_longrange = real_val
+  
+      !! LOAD_BALANCE section
+      hf_sub_section => section_vals_get_subs_vals(hf_section,"LOAD_BALANCE",i_rep_section=irep, error=error)
+      CALL section_vals_val_get(hf_sub_section, "NBINS", i_val=int_val, error=error)
+      actual_x_data%load_balance_parameter%nbins = int_val
+      CALL section_vals_val_get(hf_sub_section, "MOVES", i_val=int_val, error=error)
+      actual_x_data%load_balance_parameter%moves = int_val
+      CALL section_vals_val_get(hf_sub_section, "CYCLES", i_val=int_val, error=error)
+      actual_x_data%load_balance_parameter%cycles = int_val
+      CALL section_vals_val_get(hf_sub_section, "REDUCTION_STEPS", i_val=int_val, error=error)
+      actual_x_data%load_balance_parameter%reduction_steps = int_val
+      CALL section_vals_val_get(hf_sub_section, "REDUCTION_FACTOR", r_val=real_val, error=error)
+      actual_x_data%load_balance_parameter%reduction_factor = real_val
+      CALL section_vals_val_get(hf_sub_section, "TEMPERATURE", r_val=real_val, error=error)
+      actual_x_data%load_balance_parameter%temperature = real_val
+      CALL section_vals_val_get(hf_sub_section, "TOLERANCE", r_val=real_val, error=error)
+      actual_x_data%load_balance_parameter%tolerance = real_val
+      CALL section_vals_val_get(hf_sub_section, "SWAP_PROBABILITY", r_val=real_val, error=error)
+      actual_x_data%load_balance_parameter%swap_probability = real_val
+  
+      !! BASIS parameter
+      nkind = SIZE(atomic_kind_set,1)
+      ALLOCATE(actual_x_data%basis_parameter(nkind), STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      DO ikind = 1,nkind
+          NULLIFY(atom_kind)
+          atom_kind => atomic_kind_set(ikind)
+          CALL get_atomic_kind(atomic_kind=atom_kind,&
+                               orb_basis_set=orb_basis_a)
+          CALL get_gto_basis_set(gto_basis_set=orb_basis_a, &
+                                 lmax=actual_x_data%basis_parameter(ikind)%lmax, &
+                                 lmin=actual_x_data%basis_parameter(ikind)%lmin, &
+                                 npgf=actual_x_data%basis_parameter(ikind)%npgf, &
+                                 nset=actual_x_data%basis_parameter(ikind)%nset, &
+                                 zet=actual_x_data%basis_parameter(ikind)%zet, &
+                                 nsgf_set=actual_x_data%basis_parameter(ikind)%nsgf, &
+                                 first_sgf=actual_x_data%basis_parameter(ikind)%first_sgf, &
+                                 sphi=actual_x_data%basis_parameter(ikind)%sphi, &
+                                 nsgf=actual_x_data%basis_parameter(ikind)%nsgf_total) 
+      END DO
+  
+      IF(actual_x_data%periodic_parameter%do_periodic) THEN
+        hf_pbc_section => section_vals_get_subs_vals(hf_section,"PERIODIC",i_rep_section=irep, error=error)
+        CALL section_vals_val_get(hf_pbc_section,"NUMBER_OF_SHELLS",i_val=pbc_shells,error=error)
+        ALLOCATE(actual_x_data%neighbor_cells(1),STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CALL x_hf_create_neighbor_cells(actual_x_data,pbc_shells, error=error)
+        ALLOCATE(actual_x_data%x_screening_buffer_periodic(SIZE(actual_x_data%neighbor_cells),&
+                 max_set,max_set,natom,natom),STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ELSE
+        ALLOCATE(actual_x_data%x_screening_buffer(max_set,max_set,natom,natom),STAT=stat)
+      END IF
+      
+      ALLOCATE(actual_x_data%is_assoc_atomic_block(natom,natom),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  
+      ALLOCATE(actual_x_data%distribution_forces(1),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(actual_x_data%distribution_energy(1),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  
+      ALLOCATE(actual_x_data%far_field_boxes(1,1),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      
+      ALLOCATE(actual_x_data%initial_p(max_set,max_set,natom,natom),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  
+      actual_x_data%maxval_cache%element_counter = 1
+      ALLOCATE(actual_x_data%maxval_container,STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(actual_x_data%maxval_container%first,STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      actual_x_data%maxval_container%first%prev => NULL()
+      actual_x_data%maxval_container%first%next => NULL()
+      actual_x_data%maxval_container%current => actual_x_data%maxval_container%first
+      actual_x_data%maxval_container%current%data = 0
+      actual_x_data%maxval_container%element_counter = 1
+  
+      ALLOCATE(actual_x_data%integral_containers(64), STAT=stat)
+      DO i=1,64
+        actual_x_data%integral_caches(i)%element_counter = 1
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(actual_x_data%integral_containers(i)%first,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        actual_x_data%integral_containers(i)%first%prev => NULL()
+        actual_x_data%integral_containers(i)%first%next => NULL()
+        actual_x_data%integral_containers(i)%current => actual_x_data%integral_containers(i)%first
+        actual_x_data%integral_containers(i)%current%data = 0
+        actual_x_data%integral_containers(i)%element_counter = 1
+      END DO
     END DO
-
-    IF(x_data%periodic_parameter%do_periodic) THEN
-      hf_pbc_section => section_vals_get_subs_vals(hf_section,"PERIODIC",error=error)
-      CALL section_vals_val_get(hf_pbc_section,"NUMBER_OF_SHELLS",i_val=pbc_shells,error=error)
-      ALLOCATE(x_data%neighbor_cells(1),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      CALL x_hf_create_neighbor_cells(x_data,pbc_shells, error=error)
-      ALLOCATE(x_data%x_screening_buffer_periodic(SIZE(x_data%neighbor_cells),&
-               max_set,max_set,natom,natom),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ELSE
-      ALLOCATE(x_data%x_screening_buffer(max_set,max_set,natom,natom),STAT=stat)
-    END IF
-    
-    ALLOCATE(x_data%is_assoc_atomic_block(natom,natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    ALLOCATE(x_data%distribution_forces(1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(x_data%distribution_energy(1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    ALLOCATE(x_data%far_field_boxes(1,1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    
-    ALLOCATE(x_data%initial_p(max_set,max_set,natom,natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    x_data%maxval_cache%element_counter = 1
-    ALLOCATE(x_data%maxval_container,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(x_data%maxval_container%first,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    x_data%maxval_container%first%prev => NULL()
-    x_data%maxval_container%first%next => NULL()
-    x_data%maxval_container%current => x_data%maxval_container%first
-    x_data%maxval_container%current%data = 0
-    x_data%maxval_container%element_counter = 1
-
-    ALLOCATE(x_data%integral_containers(64), STAT=stat)
-    DO i=1,64
-      x_data%integral_caches(i)%element_counter = 1
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE(x_data%integral_containers(i)%first,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      x_data%integral_containers(i)%first%prev => NULL()
-      x_data%integral_containers(i)%first%next => NULL()
-      x_data%integral_containers(i)%current => x_data%integral_containers(i)%first
-      x_data%integral_containers(i)%current%data = 0
-      x_data%integral_containers(i)%element_counter = 1
-    END DO
-
   END SUBROUTINE x_hf_create 
 !***************************************************************************
 
@@ -472,60 +480,64 @@ MODULE x_hf
 !!
 !!****************************************************************************
 
-  SUBROUTINE x_hf_release(x_data,error)
-    TYPE(x_hf_type), POINTER                 :: x_data
+  SUBROUTINE x_hf_release(x_data, error)
+    TYPE(x_hf_type), DIMENSION(:), POINTER   :: x_data
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'x_hf_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i, irep, n_rep_hf, stat
     LOGICAL                                  :: failure
+    TYPE(x_hf_type), POINTER                 :: actual_x_data
 
     failure = .FALSE.
-
-    IF( x_data%periodic_parameter%do_periodic ) THEN
-      DEALLOCATE(x_data%x_screening_buffer_periodic,STAT=stat)
+    !! There might be 2 hf sections
+    n_rep_hf = x_data(1)%n_rep_hf
+    DO irep=1,n_rep_hf
+      actual_x_data => x_data(irep)
+      IF( actual_x_data%periodic_parameter%do_periodic ) THEN
+        DEALLOCATE(actual_x_data%x_screening_buffer_periodic,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        DEALLOCATE(actual_x_data%neighbor_cells,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ELSE
+        DEALLOCATE(actual_x_data%x_screening_buffer,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      END IF
+      DEALLOCATE(actual_x_data%distribution_energy,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      DEALLOCATE(x_data%neighbor_cells,STAT=stat)
+      DEALLOCATE(actual_x_data%distribution_forces,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ELSE
-      DEALLOCATE(x_data%x_screening_buffer,STAT=stat)
+  
+      DEALLOCATE(actual_x_data%far_field_boxes,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-    DEALLOCATE(x_data%distribution_energy,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(x_data%distribution_forces,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    DEALLOCATE(x_data%far_field_boxes,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    DEALLOCATE(x_data%initial_p,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    DEALLOCATE(x_data%is_assoc_atomic_block,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    !! BASIS parameter
-    DEALLOCATE(x_data%basis_parameter,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    !! Deallocate containers
-    CALL x_hf_init_container(x_data%maxval_container, x_data%memory_parameter%actual_memory_usage, error)
-    DEALLOCATE(x_data%maxval_container%first,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(x_data%maxval_container,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    DO i=1,64   
-      CALL x_hf_init_container(x_data%integral_containers(i), x_data%memory_parameter%actual_memory_usage, error)
-      DEALLOCATE(x_data%integral_containers(i)%first,STAT=stat)
+  
+      DEALLOCATE(actual_x_data%initial_p,STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  
+      DEALLOCATE(actual_x_data%is_assoc_atomic_block,STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  
+      !! BASIS parameter
+      DEALLOCATE(actual_x_data%basis_parameter,STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  
+      !! Deallocate containers
+      CALL x_hf_init_container(actual_x_data%maxval_container, actual_x_data%memory_parameter%actual_memory_usage, error)
+      DEALLOCATE(actual_x_data%maxval_container%first,STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(actual_x_data%maxval_container,STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  
+      DO i=1,64   
+        CALL x_hf_init_container(actual_x_data%integral_containers(i), actual_x_data%memory_parameter%actual_memory_usage, error)
+        DEALLOCATE(actual_x_data%integral_containers(i)%first,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      END DO
+      DEALLOCATE(actual_x_data%integral_containers,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END DO
-    DEALLOCATE(x_data%integral_containers,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
 
     DEALLOCATE(x_data,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
