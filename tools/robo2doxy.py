@@ -5,6 +5,7 @@ from normalizeFortranFile import readFortranLine
 
 2008 fawzi
 """
+
 def parseRoboDoc(lines,inFile):
     info={
         'special':{},'order':[],'trash':[],'name':[],'brief':[],
