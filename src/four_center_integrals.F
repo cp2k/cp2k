@@ -31,7 +31,8 @@ MODULE four_center_integrals
   USE erf_fn,                          ONLY: erfc
   USE input_constants,                 ONLY: do_hf_potential_coulomb,&
                                              do_hf_potential_mix_cl,&
-                                             do_hf_potential_short
+                                             do_hf_potential_short,&
+                                             do_hf_potential_gaussian
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              int_8
@@ -781,6 +782,8 @@ MODULE four_center_integrals
                               max_val2 = 1.0_dp/Rbox*Kbox
                               IF(max_val2 < eps_box ) CYCLE
                               max_val2 = max_val2 * pmax_entry
+                            CASE (do_hf_potential_gaussian)
+                              max_val2 = HUGE(max_val2)
                           END SELECT
                           IF(max_val2 < eps_box) THEN
                             IF( do_correct_p_screening ) THEN
@@ -2312,6 +2315,8 @@ MODULE four_center_integrals
                               Kbox = actual_x_data%far_field_boxes(box_idx2, box_idx1)%K * &
                                      actual_x_data%far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = 1.0_dp/Rbox*Kbox* pmax_entry
+                            CASE (do_hf_potential_gaussian) 
+                              max_val2 = HUGE(max_val2)
                           END SELECT
                           IF(max_val2<eps_box) CYCLE
                         END IF
@@ -3893,6 +3898,8 @@ MODULE four_center_integrals
                                      x_data%far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = 1.0_dp/Rbox*Kbox
                               max_val2 = max_val2 * pmax_entry
+                            CASE(do_hf_potential_gaussian) 
+                              max_val2 = HUGE(max_val2)
                           END SELECT
                           IF(max_val2<eps_box) CYCLE
                         END IF
@@ -4028,6 +4035,8 @@ MODULE four_center_integrals
                                      x_data%far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = 1.0_dp/Rbox*Kbox
                               max_val2 = max_val2 * pmax_entry
+                            CASE(do_hf_potential_gaussian) 
+                              max_val2 = HUGE(max_val2)
                           END SELECT
                           IF(max_val2<eps_box) CYCLE
                         END IF
@@ -4432,6 +4441,8 @@ MODULE four_center_integrals
                               Kbox = x_data%far_field_boxes(box_idx2, box_idx1)%K * &
                                      x_data%far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = 1.0_dp/Rbox*Kbox * pmax_entry
+                            CASE(do_hf_potential_gaussian) 
+                              max_val2 = HUGE(max_val2)
                           END SELECT
                           IF(max_val2<eps_box) CYCLE
                         END IF
@@ -4556,6 +4567,8 @@ MODULE four_center_integrals
                               Kbox = x_data%far_field_boxes(box_idx2, box_idx1)%K * &
                                      x_data%far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = 1.0_dp/Rbox*Kbox * pmax_entry
+                            CASE(do_hf_potential_gaussian) 
+                              max_val2 = HUGE(max_val2)
                           END SELECT
                           IF(max_val2<eps_box) CYCLE
                         END IF

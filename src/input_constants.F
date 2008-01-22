@@ -601,7 +601,8 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC :: do_hf_potential_coulomb=1,&
                                 do_hf_potential_short=2,&
                                 do_hf_potential_long=3,&
-                                do_hf_potential_mix_cl=4
+                                do_hf_potential_mix_cl=4,&
+                                do_hf_potential_gaussian=5
 
   ! mode selctive vibrational analysis
   INTEGER, PARAMETER, PUBLIC :: ms_guess_bfgs=1, &

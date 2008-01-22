@@ -1108,6 +1108,9 @@ CONTAINS
           IF (energy%e_hartree /= 0.0_dp)&
                WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
                "Coulomb (electron-electron) energy:            ",energy%e_hartree
+          IF (energy%e_hartree /= 0.0_dp)&
+               WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+               "Coulomb (electron-electron) energy:            ",energy%e_hartree
           IF(gapw) THEN
              WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
                 "GAPW| Exc from hard and soft atomic rho1:      ",energy%exc1,&
