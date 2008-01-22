@@ -482,7 +482,7 @@ CONTAINS
                            alpha_core_charge=alpha,&
                            ccore_charge=pab(1,1))
 
-      IF (alpha == 0.0_dp) CYCLE
+      IF (alpha == 0.0_dp .OR. pab(1,1)== 0.0_dp) CYCLE
 
       nthread = 1
       ithread=0

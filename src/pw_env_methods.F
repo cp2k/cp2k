@@ -496,7 +496,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
            ! right now, the core is mapped on the auxiliary basis,
            ! this should, at a give point be changed
            ! so that also for the core a multigrid is used
-           IF (alpha > 0.0_dp) THEN
+           IF (alpha > 0.0_dp .AND. core_charge.NE.0.0_dp) THEN
              maxradius=MAX(maxradius,exp_radius( 0, alpha, &
                            dft_control%qs_control%eps_rho_rspace, core_charge))
              ! forces

@@ -149,7 +149,7 @@ END SUBROUTINE kg_rspw_create
     LOGICAL                                  :: failure, odd, should_output, &
                                                 spherical, use_ref_cell
     REAL(dp)                                 :: alpha, cutilev, maxradius, &
-                                                my_cut, rel_cutoff, zetp
+                                                my_cut, rel_cutoff, zetp, core_charge
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: radius
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cutoff, my_cutoff
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zeta
@@ -383,12 +383,12 @@ END SUBROUTINE kg_rspw_create
 
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                orb_basis_set=orb_basis_set,&
-                               alpha_core_charge=alpha)
+                               alpha_core_charge=alpha, core_charge=core_charge)
            ! this is to be sure that the core charge is mapped ok
            ! right now, the core is mapped on the auxiliary basis,
            ! this should, at a give point be changed
            ! so that also for the core a multigrid is used
-           IF (alpha > 0.0_dp) THEN
+           IF (alpha > 0.0_dp  .AND. core_charge.NE.0.0_dp) THEN
              maxradius=MAX(maxradius,exp_radius( 0, alpha, &
                            dft_control%qs_control%eps_rho_rspace, 10.0_dp))
              ! forces

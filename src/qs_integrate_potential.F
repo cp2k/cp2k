@@ -222,7 +222,10 @@ CONTAINS
             alpha_core_charge=alpha_core_charge,&
             ccore_charge=ccore_charge)
 
+       
        pab(1,1) = -ccore_charge
+      
+       IF (alpha_core_charge == 0.0_dp .OR. pab(1,1)== 0.0_dp) CYCLE
 
        CALL reallocate ( cores, 1, natom_of_kind )
        npme = 0
