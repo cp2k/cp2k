@@ -2369,6 +2369,25 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
+       CALL section_create(subsection,name="LYP_ADIABATIC",&
+            description="Uses the LYP correlation functional in an adiabatic fashion",&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            citations=(/Lee1988/),&
+            error=error)
+       CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
+            description="activates the functional",&
+            lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,"LAMBDA",&
+            description="Defines the parameter of the adiabatic curve.",&
+            default_r_val=1._dp,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
        CALL section_create(subsection,name="BECKE88_LR",&
             description="Uses the Becke 88 longrange exchange functional",&
             n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&

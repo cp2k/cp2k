@@ -41,6 +41,10 @@ MODULE xc_derivatives
                                              lyp_lda_info,&
                                              lyp_lsd_eval,&
                                              lyp_lsd_info
+  USE xc_lyp_adiabatic,                ONLY: lyp_adiabatic_lda_eval,&
+                                             lyp_adiabatic_lda_info,&
+                                             lyp_adiabatic_lsd_eval,&
+                                             lyp_adiabatic_lsd_info
   USE xc_optx,                         ONLY: optx_lda_eval,&
                                              optx_lda_info,&
                                              optx_lsd_eval,&
@@ -157,6 +161,14 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
   CPPrecondition(ASSOCIATED(functional),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      SELECT CASE(functional%section%name)
+     CASE("LYP_ADIABATIC")
+        IF (lsd) THEN
+           CALL lyp_adiabatic_lsd_info(reference=reference,shortform=shortform,&
+                needs=needs, max_deriv=max_deriv, error=error)
+        ELSE
+           CALL lyp_adiabatic_lda_info(reference=reference,shortform=shortform,&
+                needs=needs, max_deriv=max_deriv, error=error)
+        END IF
      CASE("BECKE88")
         IF (lsd) THEN
            CALL xb88_lsd_info(reference=reference,shortform=shortform,&
@@ -348,6 +360,12 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
      END IF
 
      SELECT CASE(functional%section%name)
+     CASE("LYP_ADIABATIC")
+        IF (lsd) THEN
+           CALL lyp_adiabatic_lsd_eval(rho_set,deriv_set,deriv_order,functional,error=error)
+        ELSE
+           CALL lyp_adiabatic_lda_eval(rho_set,deriv_set,deriv_order,functional,error=error)
+        END IF
      CASE("BECKE88")
         IF (lsd) THEN
            CALL xb88_lsd_eval(rho_set,deriv_set,deriv_order,functional,error=error)

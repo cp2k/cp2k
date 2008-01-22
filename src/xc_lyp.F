@@ -1198,7 +1198,7 @@ SUBROUTINE lyp_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
      IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
         e_ra(ii)=e_ra(ii)&
              - ( 0.4e1_dp * t6 * t52 + t15 * t21 * t82 + t94 - t98 +&
-             & t107 + t112 - t118 + t155 )
+             & t107 + t112 - t118 + t155 ) * sc
      END IF
 
      t159 = t31 * my_rhob

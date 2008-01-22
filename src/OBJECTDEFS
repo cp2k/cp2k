@@ -536,6 +536,7 @@ OBJECTS_GENERIC =\
  xc_hcth.o\
  xc_ke_gga.o\
  xc_lyp.o\
+ xc_lyp_adiabatic.o\
  xc_optx.o\
  xc_pade.o\
  xc_pbe.o\
