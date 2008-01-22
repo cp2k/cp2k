@@ -414,7 +414,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_rot_conv', &
       routineP = moduleN//':'//routineN
 
-    conv = (ABS(dimer_env%rot%angle1)< dimer_env%rot%angle_tol) 
     conv = (ABS(dimer_env%rot%angle2)< dimer_env%rot%angle_tol) 
     IF(output_unit>0)THEN
        WRITE(UNIT=output_unit,FMT="(/,T2,A)")&
