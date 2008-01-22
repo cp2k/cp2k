@@ -42,3 +42,5 @@ silicon_cluster.inp
 # more numerically stable spline generation
 al2o3.inp
 al2o3-res.inp
+# dimer .. bug fix
+water_2_TS.inp

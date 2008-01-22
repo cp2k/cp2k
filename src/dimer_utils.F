@@ -35,7 +35,8 @@ MODULE dimer_utils
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dimer_utils'
 
-  PUBLIC :: rotate_dimer
+  PUBLIC :: rotate_dimer, dimer_thrs
+  REAL(KIND=dp), PARAMETER                 :: dimer_thrs=EPSILON(0.0_dp)*1.0E4_dp
 
 CONTAINS
 
@@ -61,16 +62,19 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE rotate_dimer(nvec,theta,dt,error)
-    REAL(KIND=dp), DIMENSION(:)              :: nvec, theta
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: nvec, theta
     REAL(KIND=dp)                            :: dt
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rotate_dimer', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: check, failure
 
     failure = .FALSE.
+    ! Orthogonality check for the rotation..
+    check = ABS(DOT_PRODUCT(nvec,theta))<dimer_thrs
+    CPPrecondition(check,cp_failure_level,routineP,error,failure)
     nvec  = nvec * COS(dt) + theta * SIN(dt)
 
   END SUBROUTINE rotate_dimer

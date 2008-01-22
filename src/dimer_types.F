@@ -44,6 +44,7 @@ MODULE dimer_types
   PUBLIC :: dimer_env_type,&
             dimer_rotational_type,&
             dimer_translational_type ,&
+            dimer_cg_rot_type,&
             dimer_env_create,&
             dimer_env_retain,&
             dimer_env_release
@@ -85,7 +86,13 @@ MODULE dimer_types
      ! Translational parameters
      REAL(KIND=dp), POINTER, DIMENSION(:)       :: tls_vec
   END TYPE dimer_translational_type
-  
+
+  ! Conjugate Directions type
+  TYPE dimer_cg_rot_type
+     REAL(KIND=dp)                              :: norm_theta, norm_theta_old, norm_h
+     REAL(KIND=dp), POINTER, DIMENSION(:)       :: nvec_old
+  END TYPE dimer_cg_rot_type
+
   ! Dimer Environment  Type
   TYPE dimer_env_type
      INTEGER                                    :: ref_count, id_nr
@@ -93,6 +100,7 @@ MODULE dimer_types
      REAL(KIND=dp), POINTER, DIMENSION(:)       :: nvec
      TYPE(dimer_rotational_type)                :: rot
      TYPE(dimer_translational_type)             :: tsl
+     TYPE(dimer_cg_rot_type)                    :: cg_rot
   END TYPE dimer_env_type
 
 CONTAINS
@@ -162,6 +170,11 @@ CONTAINS
             l_val=dimer_env%rot%interpolate_gradient,error=error)
        CALL section_vals_val_get(dimer_section,"ANGLE_TOLERANCE",&
             r_val=dimer_env%rot%angle_tol,error=error)
+       dimer_env%cg_rot%norm_h         = 1.0_dp
+       dimer_env%cg_rot%norm_theta     = 0.0_dp
+       dimer_env%cg_rot%norm_theta_old = 0.0_dp
+       ALLOCATE(dimer_env%cg_rot%nvec_old(natom*3),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
   END SUBROUTINE dimer_env_create
 !***************************************************************************
@@ -258,6 +271,10 @@ CONTAINS
           END IF
           IF (ASSOCIATED(dimer_env%rot%g1p)) THEN
              DEALLOCATE(dimer_env%rot%g1p, stat=stat)
+             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          END IF
+          IF (ASSOCIATED(dimer_env%cg_rot%nvec_old)) THEN
+             DEALLOCATE(dimer_env%cg_rot%nvec_old, stat=stat)
              CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           END IF
           ! No need to deallocate tls_vec (just a pointer to aother local array)

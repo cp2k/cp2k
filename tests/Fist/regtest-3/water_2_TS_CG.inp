@@ -50,7 +50,7 @@
     MAX_ITER 20
     OPTIMIZER CG
     &CG
-      MAX_STEEP_STEPS 20
+      MAX_STEEP_STEPS 0
       &LINE_SEARCH
         TYPE 2PNT
       &END
@@ -65,7 +65,7 @@
           OPTIMIZER CG
           MAX_ITER 1000
           &CG
-            MAX_STEEP_STEPS 1000
+            MAX_STEEP_STEPS 0
             &LINE_SEARCH
               TYPE 2PNT
             &END

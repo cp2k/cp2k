@@ -23,7 +23,8 @@
 
 MODULE cg_utils
   USE dimer_types,                     ONLY: dimer_env_type
-  USE dimer_utils,                     ONLY: rotate_dimer
+  USE dimer_utils,                     ONLY: dimer_thrs,&
+                                             rotate_dimer
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_types,                    ONLY: gopt_f_type
   USE gopt_param_types,                ONLY: gopt_param_type
@@ -185,7 +186,7 @@ CONTAINS
        dx_min = -opt_energy/(opt_energy2-opt_energy)*dx -dx
        x0 = x0 + dx_min * tls_norm
 
-       ! To remove later..
+       ! Here we compute the value of the energy in point zero..
        CALL cp_eval_at(gopt_env, x0, opt_energy, master=gopt_env%force_env%para_env%mepos,&
             para_env=gopt_env%force_env%para_env, error=error)
 
@@ -247,10 +248,7 @@ CONTAINS
     angle      = -0.5_dp*ATAN(dCdp/(2.0_dp*ABS(curvature0)))
     dimer_env%rot%angle1 = angle
     IF (angle>dimer_env%rot%angle_tol) THEN
-       ! Allocate a local work array
-       ALLOCATE(work(SIZE(dimer_env%nvec)),stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       work =  dimer_env%nvec
+       dimer_env%cg_rot%nvec_old = dimer_env%nvec
        ! Rotating the dimer of dtheta degrees
        CALL rotate_dimer(dimer_env%nvec,theta,angle,error=error)
        ! Re-compute energy, gradients and rotation vector for new R1
@@ -269,11 +267,13 @@ CONTAINS
        dimer_env%rot%angle2    = angle
        dimer_env%rot%curvature = curvature2
        ! Rotating the dimer the optimized (in plane) vector position
-       dimer_env%nvec = work
+       dimer_env%nvec = dimer_env%cg_rot%nvec_old
        CALL rotate_dimer(dimer_env%nvec,theta,angle,error=error)
 
        ! Evaluate (by interpolation) the norm of the rotational force in the
        ! minimum of the rotational search (this is for print-out only)
+       ALLOCATE(work(SIZE(dimer_env%nvec)),stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        work = dimer_env%rot%g1
        work = SIN(dimer_env%rot%angle1-dimer_env%rot%angle2)/SIN(dimer_env%rot%angle1)*dimer_env%rot%g1+&
               SIN(dimer_env%rot%angle2)/SIN(dimer_env%rot%angle1)*dimer_env%rot%g1p+&
@@ -1050,6 +1050,10 @@ CONTAINS
 !!   INPUTS
 !!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
+!!     - g:  contains the theta  of the previous step.. (norm 1.0 vector)
+!!     - xi: contains the -theta of the present step.. (norm 1.0 vector)
+!!     - h:  contains the search direction of the previous step (must be orthogonal
+!!           to nvec of the previous step (nvec_old))
 !!
 !!   AUTHOR
 !!     Teodoro Laino
@@ -1058,17 +1062,22 @@ CONTAINS
 !!     10.2005 created [tlaino]
 !!
 !!*** **********************************************************************
-  SUBROUTINE get_conjugate_direction(dimer_rotation, Fletcher_Reeves, g, xi, h)
-    LOGICAL, INTENT(IN)                      :: dimer_rotation, &
-                                                Fletcher_Reeves
+  SUBROUTINE get_conjugate_direction(gopt_env, Fletcher_Reeves, g, xi, h, error)
+    TYPE(gopt_f_type), POINTER               :: gopt_env
+    LOGICAL, INTENT(IN)                      :: Fletcher_Reeves
     REAL(KIND=dp), DIMENSION(:), POINTER     :: g, xi, h
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_conjugate_direction', &
       routineP = moduleN//':'//routineN
 
-    REAL(KIND=dp)                            :: dgg, gam, gg
+    LOGICAL                                  :: check, failure
+    REAL(KIND=dp)                            :: dgg, gam, gg, norm, norm_h
+    TYPE(dimer_env_type), POINTER            :: dimer_env
 
-    IF (.NOT.dimer_rotation) THEN
+    failure = .FALSE.
+    NULLIFY(dimer_env)
+    IF (.NOT.gopt_env%dimer_rotation) THEN
        gg  = DOT_PRODUCT(g,g)
        IF (Fletcher_Reeves) THEN
           dgg = DOT_PRODUCT(xi,xi)
@@ -1079,8 +1088,31 @@ CONTAINS
        g   = -xi
        h   = g + gam * h
     ELSE
-       ! To Fix
-       STOP
+       dimer_env => gopt_env%dimer_env
+       check = ABS(DOT_PRODUCT(g,g)-1.0_dp)<dimer_thrs
+       CPPrecondition(check,cp_failure_level,routineP,error,failure)
+
+       check = ABS(DOT_PRODUCT(xi,xi)-1.0_dp)<dimer_thrs
+       CPPrecondition(check,cp_failure_level,routineP,error,failure)
+
+       check = ABS(DOT_PRODUCT(h,dimer_env%cg_rot%nvec_old))<dimer_thrs
+       CPPrecondition(check,cp_failure_level,routineP,error,failure)
+       gg  = dimer_env%cg_rot%norm_theta_old**2
+       IF (Fletcher_Reeves) THEN
+          dgg = dimer_env%cg_rot%norm_theta**2
+       ELSE
+          norm= dimer_env%cg_rot%norm_theta*dimer_env%cg_rot%norm_theta_old
+          dgg = dimer_env%cg_rot%norm_theta**2 + DOT_PRODUCT(g,xi)*norm
+       END IF
+       ! Compute Theta** and store it in nvec_old
+       CALL rotate_dimer(dimer_env%cg_rot%nvec_old,g,dimer_env%rot%angle2+pi/2.0_dp,error)
+       gam = dgg/gg
+       g   = -xi
+       h   = g * dimer_env%cg_rot%norm_theta + gam * dimer_env%cg_rot%norm_h * dimer_env%cg_rot%nvec_old
+       h   = h - DOT_PRODUCT(h,dimer_env%nvec)*dimer_env%nvec
+       norm_h = SQRT(DOT_PRODUCT(h,h))
+       IF (norm_h /=0.0_dp)  h = h/norm_h
+       dimer_env%cg_rot%norm_h = norm_h
     END IF
 
   END SUBROUTINE get_conjugate_direction

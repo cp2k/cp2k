@@ -232,7 +232,7 @@ CONTAINS
           xold = x0
           eold = opt_energy
           emin = MIN(emin, opt_energy)
-          
+
           ! Line minimization
           CALL cg_linmin(gopt_env, x0, xi, opt_energy, output_unit, gopt_param, globenv, error)
 
@@ -267,7 +267,7 @@ CONTAINS
           ELSE
              ! Conjugate Gradients
              wildcard = "   CG"
-             CALL get_conjugate_direction(gopt_env%dimer_rotation, Fletcher_Reeves, g, xi, h)
+             CALL get_conjugate_direction(gopt_env, Fletcher_Reeves, g, xi, h, error)
           END IF
           xi  = h
        END DO

@@ -122,6 +122,8 @@ CONTAINS
           gradient = gradient  - DOT_PRODUCT(gradient, dimer_env%nvec) * dimer_env%nvec
           norm     = SQRT(DOT_PRODUCT(gradient, gradient))
           f        = norm
+          dimer_env%cg_rot%norm_theta_old = dimer_env%cg_rot%norm_theta
+          dimer_env%cg_rot%norm_theta     = norm
           IF (norm/=0.0_dp) gradient = gradient/norm
 
           ! Compute curvature and derivative of the curvature w.r.t. the rotational angle
