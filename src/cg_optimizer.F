@@ -25,11 +25,9 @@ MODULE cg_optimizer
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE cg_utils,                        ONLY: cg_linmin,&
                                              get_conjugate_direction
-  USE cp_output_handling,              ONLY: cp_add_iter_level,&
-                                             cp_iterate,&
+  USE cp_output_handling,              ONLY: cp_iterate,&
                                              cp_print_key_finished_output,&
-                                             cp_print_key_unit_nr,&
-                                             cp_rm_iter_level
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
@@ -102,7 +100,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'geoopt_cg', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ihandle, output_unit
+    INTEGER                                  :: handle, output_unit
     LOGICAL                                  :: failure
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(cp_logger_type), POINTER            :: logger
@@ -117,7 +115,7 @@ CONTAINS
     para_env=>force_env%para_env
     root_section=>force_env%root_section
     logger => cp_error_get_logger(error)
-    CALL cp_add_iter_level(logger%iter_info,TRIM(gopt_env%label),ihandle,error)
+
     failure = .FALSE.
     IF (.NOT.failure) THEN
        motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
@@ -127,15 +125,13 @@ CONTAINS
        CALL force_env_get(force_env,subsys=subsys,error=error)
        CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,particles=particles,error=error)
        CALL print_geo_opt_header(gopt_env, output_unit, "CONJUGATE GRADIENTS")
-
        particle_set => particles%els
        CALL  cp_cg_main(force_env, x0, gopt_param,  output_unit, globenv,&
             force_env_section, motion_section, gopt_env, error)
-
        CALL cp_print_key_finished_output(output_unit,logger,geo_section,&
             "PRINT%PROGRAM_RUN_INFO", error=error)
     END IF
-    CALL cp_rm_iter_level(logger%iter_info,ihandle,error)
+    
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE geoopt_cg
 

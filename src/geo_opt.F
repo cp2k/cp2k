@@ -27,6 +27,8 @@ MODULE geo_opt
   USE bfgs_optimizer,                  ONLY: geoopt_bfgs
   USE cg_optimizer,                    ONLY: geoopt_cg
   USE cp_lbfgs_geo,                    ONLY: geoopt_lbfgs
+  USE cp_output_handling,              ONLY: cp_add_iter_level,&
+                                             cp_rm_iter_level
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_type
   USE global_types,                    ONLY: global_environment_type
@@ -86,9 +88,10 @@ MODULE geo_opt
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_geo_opt', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle, stat, ihandle
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(section_vals_type), POINTER         :: force_env_section, &
@@ -96,6 +99,7 @@ MODULE geo_opt
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
+    logger => cp_error_get_logger(error)
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
     NULLIFY (gopt_param,force_env_section,gopt_env,x0)
@@ -108,8 +112,10 @@ MODULE geo_opt
          geo_opt_section=geo_section, error=error)
     CALL gopt_f_create_x0(gopt_env, x0, error=error)
 
+    CALL cp_add_iter_level(logger%iter_info,"GEO_OPT",ihandle,error)
     CALL cp_geo_opt_low(force_env, globenv, gopt_param, gopt_env,&
          force_env_section, geo_section, x0, error)
+    CALL cp_rm_iter_level(logger%iter_info,ihandle,error)
 
     DEALLOCATE(x0, stat=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -151,24 +157,28 @@ MODULE geo_opt
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_rot_opt', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
+    INTEGER                                  :: handle, ihandle
     LOGICAL                                  :: failure
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 root_section
+    TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY (force_env_section,root_section)
+    logger => cp_error_get_logger(error)
     CPPrecondition(ASSOCIATED(gopt_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(gopt_env%force_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(gopt_env%globenv),cp_failure_level,routineP,error,failure)
     root_section      => gopt_env%force_env%root_section
     force_env_section => gopt_env%force_env%force_env_section
 
+    CALL cp_add_iter_level(logger%iter_info,"ROT_OPT",ihandle,error)
     CALL cp_geo_opt_low(gopt_env%force_env, gopt_env%globenv, gopt_param, gopt_env,&
          force_env_section, geo_section, x0, error)
+    CALL cp_rm_iter_level(logger%iter_info,ihandle,error)
 
     CALL timestop(handle)
 

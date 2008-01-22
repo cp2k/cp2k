@@ -26,11 +26,9 @@ MODULE bfgs_optimizer
   USE cell_types,                      ONLY: cell_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE cp_output_handling,              ONLY: cp_add_iter_level,&
-                                             cp_iterate,&
+  USE cp_output_handling,              ONLY: cp_iterate,&
                                              cp_print_key_finished_output,&
-                                             cp_print_key_unit_nr,&
-                                             cp_rm_iter_level
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
@@ -105,8 +103,8 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
 
     CHARACTER(LEN=default_path_length)       :: hes_filename
-    INTEGER :: handle, handle2, hesunit, hesunit_read, i, ihandle, indf, &
-      istat, its, j, maxiter, natom, ndf, nfree, nkind, output_unit
+    INTEGER :: handle, handle2, hesunit, hesunit_read, i, indf, istat, its, &
+      j, maxiter, natom, ndf, nfree, nkind, output_unit
     LOGICAL                                  :: conv, failure, hesrest, &
                                                 ionode, should_stop
     REAL(KIND=dp)                            :: ediff, emin, eold, etot, &
@@ -132,9 +130,7 @@ CONTAINS
     para_env=>force_env%para_env
     root_section=>force_env%root_section
 
-    CALL cp_add_iter_level(logger%iter_info,TRIM(gopt_env%label),ihandle,error)
     CALL timeset(routineN,"I","",handle)
-
     ionode      = para_env%mepos==para_env%source
     maxiter     = gopt_param%max_iter
     conv        = .FALSE.
@@ -356,7 +352,6 @@ CONTAINS
 
     CALL cp_print_key_finished_output(output_unit,logger,geo_section,&
          "PRINT%PROGRAM_RUN_INFO", error=error)
-    CALL cp_rm_iter_level(logger%iter_info,ihandle,error)
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE geoopt_bfgs

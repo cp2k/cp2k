@@ -29,11 +29,9 @@ MODULE cp_lbfgs_geo
                                              cp_opt_gopt_next,&
                                              cp_opt_gopt_release,&
                                              cp_opt_gopt_stop
-  USE cp_output_handling,              ONLY: cp_add_iter_level,&
-                                             cp_iterate,&
+  USE cp_output_handling,              ONLY: cp_iterate,&
                                              cp_print_key_finished_output,&
-                                             cp_print_key_unit_nr,&
-                                             cp_rm_iter_level
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
@@ -96,8 +94,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'geoopt_lbfgs', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ihandle, its, &
-                                                output_unit
+    INTEGER                                  :: handle, its, output_unit
     LOGICAL                                  :: converged, failure, &
                                                 should_stop
     TYPE(cp_lbfgs_opt_gopt_type), POINTER    :: optimizer
@@ -110,7 +107,6 @@ CONTAINS
     NULLIFY(optimizer, para_env)
     logger => cp_error_get_logger(error)
     root_section => force_env%root_section
-    CALL cp_add_iter_level(logger%iter_info,TRIM(gopt_env%label),ihandle,error)
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(gopt_param),cp_failure_level,routineP,error,failure)
     CPPrecondition(gopt_param%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -162,7 +158,6 @@ CONTAINS
        CALL cp_print_key_finished_output(output_unit,logger,geo_section,&
             "PRINT%PROGRAM_RUN_INFO", error=error)
     END IF
-    CALL cp_rm_iter_level(logger%iter_info,ihandle,error)
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE geoopt_lbfgs
 !***************************************************************************
