@@ -132,3 +132,5 @@ CH3-hybrid-handhlyp-lsd.inp
 CH3-hybrid-HSE06-lsd.inp
 #  
 Li-hybrid-rcam-b3lyp.inp
+#
+CH3-hybrid-b3lyp-lsd-g03.inp
