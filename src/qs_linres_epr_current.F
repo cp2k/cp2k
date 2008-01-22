@@ -1100,12 +1100,10 @@ CONTAINS
 
     END DO loop_ikind
 
-    ! modifies deltap if distributed_rs_grids
-    IF (distributed_rs_grids) THEN
-       CALL rs_get_my_tasks ( rs_rho(1)%rs_grid, ntasks, natom,&
+    ! sorts / redistributes the task list
+    CALL rs_get_my_tasks ( rs_rho(1)%rs_grid, distributed_rs_grids, ntasks, natom,&
             maxset, maxpgf, tasks, dist_ab, atom_pair_send, atom_pair_recv,&
             .FALSE. , error)
-    ENDIF
 
     IF (distributed_rs_grids) THEN
         CALL distribute_matrix (rs_rho(1)%rs_grid, deltajp, atom_pair_send, atom_pair_recv, natom, scatter=.TRUE., error=error)

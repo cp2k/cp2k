@@ -99,8 +99,7 @@ MODULE qs_integrate_potential
                                              realspace_grid_type,&
                                              rs_pw_transfer,&
                                              rs_find_node
-  USE realspace_task_selection,        ONLY: rs_get_my_tasks,&
-                                             int2pair,&
+  USE realspace_task_selection,        ONLY: int2pair,&
                                              distribute_matrix
   USE sparse_matrix_types,             ONLY: &
        add_block_node, allocate_matrix, allocate_matrix_set, &
@@ -956,7 +955,7 @@ CONTAINS
 
     IF ( h_duplicated ) THEN
        ! Reconstruct H matrix if using distributed RS grids
-       ! note send and recv direction reversed WRT rs_get_my_tasks
+       ! note send and recv direction reversed WRT collocate
        scatter = .FALSE.
        CALL distribute_matrix (rs_v(1)%rs_grid, dh, atom_pair_recv, atom_pair_send,&
             natom, scatter, error, h%matrix)

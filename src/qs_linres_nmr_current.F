@@ -1126,11 +1126,9 @@ CONTAINS
   ENDDO ! ikind
 
   ! modifies deltap if distributed_rs_grids
-  IF (distributed_rs_grids) THEN
-     CALL rs_get_my_tasks ( rs_rho(1)%rs_grid, ntasks, natom,&
+  CALL rs_get_my_tasks ( rs_rho(1)%rs_grid,distributed_rs_grids, ntasks, natom,&
           maxset, maxpgf, tasks, rval=dist_ab, atom_pair_send=atom_pair_send,&
           atom_pair_recv=atom_pair_recv, SYMMETRIC=.FALSE., error=error)
-  ENDIF
 
   IF (distributed_rs_grids) THEN
      CALL distribute_matrix (rs_rho(1)%rs_grid, deltajp , atom_pair_send, atom_pair_recv, natom, scatter=.TRUE., error=error)

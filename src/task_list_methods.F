@@ -356,11 +356,9 @@ CONTAINS
     END DO loop_ikind
 
     ! redistribute the task list so that all tasks map on the local rs grids
-    IF (distributed_rs_grids)THEN
-       CALL rs_get_my_tasks (rs_rho(1)%rs_grid,ntasks, natoms,&
+    CALL rs_get_my_tasks (rs_rho(1)%rs_grid,distributed_rs_grids,ntasks, natoms,&
             maxset,maxpgf, tasks, rval=dist_ab, atom_pair_send=atom_pair_send,&
             atom_pair_recv=atom_pair_recv, error=error)
-    ENDIF
 
     CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
 

@@ -754,7 +754,7 @@ CONTAINS
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
     map_consistent = dft_control%qs_control%map_consistent
     !   *** Initialize working density matrix ***
-    ! distributed rs grids require a matrix that will be changed (rs_get_my_tasks)
+    ! distributed rs grids require a matrix that will be changed 
     ! whereas this is not the case for replicated grids
     IF (distributed_rs_grids) THEN
        NULLIFY(deltap)
