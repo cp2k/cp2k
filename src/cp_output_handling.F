@@ -309,6 +309,14 @@ CONTAINS
        CALL section_add_keyword(print_key_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="LOG_PRINT_KEY",&
+             description="THis keywords enables the logger for the print_key (i.e. it is printed on "//&
+             "screen when data controlled by print_key are written)",&
+             usage="LOG_PRINT_KEY <LOGICAL>", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,&
+             supported_feature=supported_feature, error=error)
+       CALL section_add_keyword(print_key_section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="__CONTROL_VAL",&
             description=' hidden parameter that controls storage, printing,...'//&
                         ' of the print_key',&
@@ -984,9 +992,9 @@ FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension,&
                                                 my_file_position, &
                                                 my_file_status, outPath
     INTEGER                                  :: i, nbak
-    LOGICAL                                  :: failure, found, my_do_backup, &
-                                                my_local, my_on_file, &
-                                                my_should_output
+    LOGICAL                                  :: do_log, failure, found, &
+                                                my_do_backup, my_local, &
+                                                my_on_file, my_should_output
     TYPE(section_vals_type), POINTER         :: print_key
 
   failure=.FALSE.
@@ -1022,7 +1030,7 @@ FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension,&
           logger%para_env%mepos==logger%para_env%source) THEN
 
         CALL section_vals_val_get(print_key,"FILENAME",c_val=outPath,error=error)
-        IF (outPath=='__STD_OUT__'.AND..not.my_on_file) THEN
+        IF (outPath=='__STD_OUT__'.AND..NOT.my_on_file) THEN
            res=cp_logger_get_default_unit_nr(logger,local=my_local)
         ELSE
            !
@@ -1061,14 +1069,18 @@ FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension,&
            CALL open_file(file_name=filename,file_status=my_file_status,&
                 file_form=my_file_form,file_action=my_file_action,&
                 file_position=my_file_position,unit_number=res)
+           do_log = .FALSE.
            IF (PRESENT(log_filename)) THEN
-              IF (log_filename) THEN
-                 CALL cp_log(logger=logger, level=cp_note_level, &
-                      fromWhere=routineP , &
-                      message="writing "//TRIM(print_key%section%name)//" "//&
-                      TRIM(cp_iter_string(logger%iter_info,error=error))//" to "//&
-                      TRIM(filename),local=my_local)
-              END IF
+              do_log = log_filename
+           ELSE
+              CALL section_vals_val_get(print_key,"LOG_PRINT_KEY",l_val=do_log,error=error)              
+           END IF
+           IF (do_log) THEN
+              CALL cp_log(logger=logger, level=cp_note_level, &
+                   fromWhere=routineP , &
+                   message="Writing "//TRIM(print_key%section%name)//" "//&
+                   TRIM(cp_iter_string(logger%iter_info,error=error))//" to "//&
+                   TRIM(filename),local=my_local)
            END IF
         END IF
      ELSE
