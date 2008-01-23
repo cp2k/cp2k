@@ -27,7 +27,6 @@ MODULE memory_utilities
                                              dp,&
                                              int_8
   USE termination
-#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

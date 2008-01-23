@@ -67,79 +67,73 @@ MODULE cp_log_handling
   IMPLICIT NONE
   PRIVATE
 
-! types
+  ! types
   PUBLIC :: cp_logger_type, cp_iteration_info_type
-! parameter vars
-  PUBLIC :: cp_note_level, cp_warning_level, cp_failure_level,&
-       cp_fatal_level 
-! default loggers
-  PUBLIC :: cp_get_default_logger, cp_add_default_logger, cp_rm_default_logger,&
-       cp_default_logger_stack_size
-! logger routines
+  ! parameter vars
+  PUBLIC :: cp_note_level, cp_warning_level, cp_failure_level, cp_fatal_level 
+  ! default loggers
+  PUBLIC :: cp_get_default_logger, cp_add_default_logger, cp_rm_default_logger, cp_default_logger_stack_size
+  ! logger routines
   PUBLIC :: cp_logger_create, cp_logger_retain, cp_logger_release,&
-       cp_logger_would_log, cp_logger_set,&
-       cp_logger_get_default_unit_nr, cp_logger_get_unit_nr, &
-       cp_logger_set_log_level, cp_logger_generate_filename
+            cp_logger_would_log, cp_logger_set, cp_logger_get_default_unit_nr,&
+            cp_logger_get_unit_nr, cp_logger_set_log_level, cp_logger_generate_filename
   PUBLIC :: cp_to_string, cp_log
-! iteration_info
+  ! iteration_info
   PUBLIC :: cp_iteration_info_create, cp_iteration_info_retain, &
-       cp_iteration_info_release, print_message
+            cp_iteration_info_release, print_message
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_log_handling'
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
 
-!! level of an error
-  INTEGER, PARAMETER  :: cp_fatal_level=3
-!! level of a failure
-  INTEGER, PARAMETER  :: cp_failure_level=2
-!! level of a warning
-  INTEGER, PARAMETER  :: cp_warning_level=1
-!! level of a note
-  INTEGER, PARAMETER  :: cp_note_level=0
-!! maximum recursive level for the iterations
-  INTEGER, PARAMETER, PUBLIC  :: max_iter_r_level=5
-!! number used for udefined iteration levels
-  INTEGER, PARAMETER, PUBLIC  :: cp_iter_undefined=-1
+  !! level of an error
+  INTEGER, PARAMETER          :: cp_fatal_level=3
+  !! level of a failure
+  INTEGER, PARAMETER          :: cp_failure_level=2
+  !! level of a warning
+  INTEGER, PARAMETER          :: cp_warning_level=1
+  !! level of a note
+  INTEGER, PARAMETER          :: cp_note_level=0
 
-!! a generic function to trasform different types to strings
+  !! a generic function to trasform different types to strings
   INTERFACE cp_to_string
      MODULE PROCEDURE cp_int_to_string, cp_real_dp_to_string, cp_logical_to_string
   END INTERFACE
+
   INTERFACE cp_log
      MODULE PROCEDURE cp_logger_log
   END INTERFACE
 
-  !!****s* cp_log_handling/cp_iteration_info_type *
-  !!
-  !!   NAME
-  !!     cp_iteration_info
-  !!
-  !!   FUNCTION
-  !!     contains the information about the current state of the program
-  !!     to be able to decide if output is necessary
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ATTRIBUTES
-  !!     -
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!   SOURCE
-  !***************************************************************************
+!!****s* cp_log_handling/cp_iteration_info_type *
+!!
+!!   NAME
+!!     cp_iteration_info
+!!
+!!   FUNCTION
+!!     contains the information about the current state of the program
+!!     to be able to decide if output is necessary
+!!
+!!   NOTES
+!!     -
+!!
+!!   ATTRIBUTES
+!!     -
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   SOURCE
+!***************************************************************************
   TYPE cp_iteration_info_type
-     INTEGER :: ref_count, id_nr
+     INTEGER                              :: ref_count, id_nr
+     INTEGER                              :: print_level, n_rlevel
+     INTEGER, DIMENSION(:), POINTER       :: iteration
+     LOGICAL, DIMENSION(:), POINTER       :: last_iter
      CHARACTER(len=default_string_length) :: project_name
-     INTEGER :: print_level, n_rlevel
-     INTEGER, DIMENSION(max_iter_r_level) :: iteration
-     LOGICAL, DIMENSION(max_iter_r_level) :: last_iter
-     CHARACTER(LEN=default_string_length), &
-              DIMENSION(max_iter_r_level) :: level_name
+     CHARACTER(LEN=default_string_length),&
+          DIMENSION(:), POINTER           :: level_name
   END TYPE cp_iteration_info_type
-  !!***
-  !****************************************************************************
+!!***
+!****************************************************************************
 
 !!****s* cp_log_handling/cp_logger_type [1.0] *
 !!
@@ -207,16 +201,16 @@ MODULE cp_log_handling
      INTEGER :: default_local_unit_nr
      INTEGER :: default_global_unit_nr
      LOGICAL :: close_local_unit_on_dealloc, close_global_unit_on_dealloc
-     CHARACTER(len=default_string_length) :: suffix
-     CHARACTER(len=default_path_length)   :: local_filename, global_filename
-     TYPE(cp_para_env_type), POINTER :: para_env
+     CHARACTER(len=default_string_length)  :: suffix
+     CHARACTER(len=default_path_length)    :: local_filename, global_filename
+     TYPE(cp_para_env_type), POINTER       :: para_env
      TYPE(cp_iteration_info_type), POINTER :: iter_info
   END TYPE cp_logger_type
 !!***
 !****************************************************************************
 
   TYPE default_logger_stack_type
-      TYPE(cp_logger_type), POINTER :: cp_default_logger 
+     TYPE(cp_logger_type), POINTER :: cp_default_logger 
   END TYPE default_logger_stack_type
 
   INTEGER, PRIVATE            :: stack_pointer=0
@@ -227,11 +221,10 @@ MODULE cp_log_handling
 
 CONTAINS
 
-
-!!****f* m/f *
+!!****f* cp_log_handling/cp_default_logger_stack_size *
 !!
 !!   NAME
-!!     f
+!!     cp_default_logger_stack_size
 !!
 !!   FUNCTION
 !!     -
@@ -465,41 +458,41 @@ CONTAINS
     logger%id_nr=last_logger_id_nr
 
     IF (PRESENT(template_logger)) THEN
-      IF (template_logger%ref_count<1) &
+       IF (template_logger%ref_count<1) &
             CALL mp_abort(routineP//" template_logger%ref_count<1")
-      logger%print_level=template_logger%print_level
-      logger%default_global_unit_nr=template_logger%default_global_unit_nr
-      logger%close_local_unit_on_dealloc=template_logger%close_local_unit_on_dealloc
-      IF (logger%close_local_unit_on_dealloc) THEN
-         logger%default_local_unit_nr=-1
-      ELSE
-         logger%default_local_unit_nr=template_logger%default_local_unit_nr
-      END IF
-      logger%close_global_unit_on_dealloc=template_logger%close_global_unit_on_dealloc
-      IF (logger%close_global_unit_on_dealloc) THEN
-         logger%default_global_unit_nr=-1
-      ELSE
-         logger%default_global_unit_nr=template_logger%default_global_unit_nr
-      END IF
-      logger%local_filename=template_logger%local_filename
-      logger%global_filename=template_logger%global_filename
-      logger%para_env => template_logger%para_env
-      logger%suffix=template_logger%suffix
-      logger%iter_info => template_logger%iter_info
-   ELSE
-    ! create a file if nothing is specified, one can also get the unit from the default logger
-    ! which should have something reasonable as the argument is required in that case
-    logger%default_global_unit_nr=-1
-    logger%close_global_unit_on_dealloc=.TRUE.
-    logger%local_filename="localLog"
-    logger%global_filename="mainLog"
-    logger%print_level=cp_note_level
-    ! generate a file for default local logger
-    ! except the ionode that should write to the default global logger
-    logger%default_local_unit_nr=-1
-    logger%close_local_unit_on_dealloc=.TRUE.
-    logger%suffix=""
-   END IF
+       logger%print_level=template_logger%print_level
+       logger%default_global_unit_nr=template_logger%default_global_unit_nr
+       logger%close_local_unit_on_dealloc=template_logger%close_local_unit_on_dealloc
+       IF (logger%close_local_unit_on_dealloc) THEN
+          logger%default_local_unit_nr=-1
+       ELSE
+          logger%default_local_unit_nr=template_logger%default_local_unit_nr
+       END IF
+       logger%close_global_unit_on_dealloc=template_logger%close_global_unit_on_dealloc
+       IF (logger%close_global_unit_on_dealloc) THEN
+          logger%default_global_unit_nr=-1
+       ELSE
+          logger%default_global_unit_nr=template_logger%default_global_unit_nr
+       END IF
+       logger%local_filename=template_logger%local_filename
+       logger%global_filename=template_logger%global_filename
+       logger%para_env => template_logger%para_env
+       logger%suffix=template_logger%suffix
+       logger%iter_info => template_logger%iter_info
+    ELSE
+       ! create a file if nothing is specified, one can also get the unit from the default logger
+       ! which should have something reasonable as the argument is required in that case
+       logger%default_global_unit_nr=-1
+       logger%close_global_unit_on_dealloc=.TRUE.
+       logger%local_filename="localLog"
+       logger%global_filename="mainLog"
+       logger%print_level=cp_note_level
+       ! generate a file for default local logger
+       ! except the ionode that should write to the default global logger
+       logger%default_local_unit_nr=-1
+       logger%close_local_unit_on_dealloc=.TRUE.
+       logger%suffix=""
+    END IF
     IF (PRESENT(para_env)) logger%para_env => para_env
     IF (.NOT.ASSOCIATED(logger%para_env)) CALL mp_abort(routineP//&
          " para env not associated")
@@ -519,11 +512,11 @@ CONTAINS
     IF (PRESENT(close_global_unit_on_dealloc)) THEN
        logger%close_global_unit_on_dealloc=close_global_unit_on_dealloc
        IF (PRESENT(default_global_unit_nr).AND.PRESENT(global_filename).AND.&
-           (.NOT.close_global_unit_on_dealloc)) THEN
-         logger%default_global_unit_nr=default_global_unit_nr
+            (.NOT.close_global_unit_on_dealloc)) THEN
+          logger%default_global_unit_nr=default_global_unit_nr
        END IF
     END IF
-    
+
     IF (PRESENT(default_local_unit_nr)) &
          logger%default_local_unit_nr=default_local_unit_nr
     IF (PRESENT(local_filename)) THEN
@@ -534,8 +527,8 @@ CONTAINS
     IF (PRESENT(close_local_unit_on_dealloc)) THEN
        logger%close_local_unit_on_dealloc=close_local_unit_on_dealloc
        IF (PRESENT(default_local_unit_nr).AND.PRESENT(local_filename).AND.&
-           (.NOT.close_local_unit_on_dealloc)) THEN
-         logger%default_local_unit_nr=default_local_unit_nr
+            (.NOT.close_local_unit_on_dealloc)) THEN
+          logger%default_local_unit_nr=default_local_unit_nr
        END IF
     END IF
 
@@ -702,7 +695,6 @@ CONTAINS
 !!     4.2002 revised [fawzi]
 !!
 !!*** *********************************************************************
-! pure
   FUNCTION cp_logger_would_log(logger, level, fromWhere, local) RESULT(res)
     TYPE(cp_logger_type), POINTER            :: logger
     INTEGER, INTENT(in)                      :: level
@@ -762,7 +754,6 @@ CONTAINS
 !!     4.2002 revised [fawzi]
 !!
 !!*** *********************************************************************
-! pure 
   FUNCTION cp_logger_get_unit_nr(logger, level, fromWhere, local) RESULT(res)
     TYPE(cp_logger_type), POINTER            :: logger
     INTEGER, INTENT(in)                      :: level
@@ -852,12 +843,6 @@ CONTAINS
           CALL print_message(datx(12:19)//' '//label//' in '//&
                fromWhere//' '//message,unitNr,&
                level,0,0)
-! old (more failsafe, no trim, compress,...) code:
-!write (unit=unitNr,fmt='(a)', iostat=oErr) ' '
-!write (unit=unitNr,fmt='(5a)', iostat=oErr) label,' in ', fromWhere,',', message
-!if (oErr /= 0) then
-!   print *, 'ERROR  ',oErr,' while writing log, ', fromWhere, message
-!end if
           CALL m_flush(unitNr)
        END IF
     END IF
@@ -929,7 +914,6 @@ CONTAINS
 !!     4.2002 revised [fawzi]
 !!
 !!*** *********************************************************************
-!pure
   FUNCTION cp_logger_get_log_level(logger) RESULT(res)
     TYPE(cp_logger_type), POINTER            :: logger
     INTEGER                                  :: res
@@ -977,7 +961,6 @@ CONTAINS
 !!     4.2002 revised [fawzi]
 !!
 !!*** *********************************************************************
-!pure 
   RECURSIVE FUNCTION cp_logger_get_default_unit_nr(logger, local) RESULT(res)
     TYPE(cp_logger_type), OPTIONAL, POINTER  :: logger
     LOGICAL, INTENT(in), OPTIONAL            :: local
@@ -992,8 +975,6 @@ CONTAINS
     INTEGER                                  :: iostat, pid
     LOGICAL                                  :: loc
     TYPE(cp_logger_type), POINTER            :: lggr
-
-!,exists
 
     loc=.TRUE.
     IF (PRESENT(logger)) THEN
@@ -1064,7 +1045,7 @@ CONTAINS
                   " pid=",pid,'host=',host_name
              CALL print_stack(6)
           END IF
-          
+
        END IF
        res=lggr%default_local_unit_nr
     END IF
@@ -1209,7 +1190,7 @@ CONTAINS
 !!     Fawzi Mohamed
 !!
 !!*** **********************************************************************
-SUBROUTINE cp_logger_set(logger,local_filename,global_filename)
+  SUBROUTINE cp_logger_set(logger,local_filename,global_filename)
     TYPE(cp_logger_type), POINTER            :: logger
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: local_filename, &
                                                 global_filename
@@ -1217,11 +1198,11 @@ SUBROUTINE cp_logger_set(logger,local_filename,global_filename)
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_logger_set', &
       routineP = moduleN//':'//routineN
 
-  IF (.NOT.ASSOCIATED(logger)) CALL mp_abort(routineP//&
-       " unassociated logger")
-  IF (PRESENT(local_filename)) logger%local_filename=local_filename
-  IF (PRESENT(global_filename)) logger%global_filename=global_filename
-END SUBROUTINE cp_logger_set
+    IF (.NOT.ASSOCIATED(logger)) CALL mp_abort(routineP//&
+         " unassociated logger")
+    IF (PRESENT(local_filename)) logger%local_filename=local_filename
+    IF (PRESENT(global_filename)) logger%global_filename=global_filename
+  END SUBROUTINE cp_logger_set
 !***************************************************************************
 
 ! ============= cp_iteration_info  ============
@@ -1245,7 +1226,7 @@ END SUBROUTINE cp_logger_set
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE cp_iteration_info_create(iteration_info,project_name)
+  SUBROUTINE cp_iteration_info_create(iteration_info,project_name)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
     CHARACTER(len=*), INTENT(in)             :: project_name
 
@@ -1254,21 +1235,39 @@ SUBROUTINE cp_iteration_info_create(iteration_info,project_name)
 
     INTEGER                                  :: stat
 
-  ALLOCATE(iteration_info,stat=stat)
-  IF (stat/=0) THEN
-     CALL mp_abort(routineP//" could not allocate iteration_info")
-  END IF
-  last_it_info_id=last_it_info_id+1
-  iteration_info%id_nr=last_it_info_id
-  iteration_info%ref_count=1
-  iteration_info%project_name=project_name
-  iteration_info%print_level=2
-  iteration_info%n_rlevel=1
-  iteration_info%iteration=cp_iter_undefined
-  iteration_info%iteration(1)=1
-  iteration_info%level_name(1)="Global"
-  iteration_info%last_iter=.FALSE.
-END SUBROUTINE cp_iteration_info_create
+    ALLOCATE(iteration_info,stat=stat)
+    IF (stat/=0) THEN
+       CALL mp_abort(routineP//" could not allocate iteration_info")
+    END IF
+    last_it_info_id = last_it_info_id+1
+    iteration_info%id_nr = last_it_info_id
+    iteration_info%ref_count  = 1
+    iteration_info%print_level= 2
+    iteration_info%n_rlevel   = 1
+    iteration_info%project_name = project_name
+    NULLIFY(iteration_info%iteration)
+    NULLIFY(iteration_info%level_name)
+    NULLIFY(iteration_info%last_iter)
+    ALLOCATE(iteration_info%iteration(iteration_info%n_rlevel),stat=stat)
+    IF (stat/=0) THEN
+       CALL mp_abort(routineP//" iteration_info%iteration allocation stat "//&
+            cp_to_string(stat))
+    END IF
+    ALLOCATE(iteration_info%level_name(iteration_info%n_rlevel),stat=stat)
+    IF (stat/=0) THEN
+       CALL mp_abort(routineP//" iteration_info%level_name allocation stat "//&
+            cp_to_string(stat))
+    END IF
+    ALLOCATE(iteration_info%last_iter(iteration_info%n_rlevel),stat=stat)
+    IF (stat/=0) THEN
+       CALL mp_abort(routineP//" iteration_info%last_iter allocation stat "//&
+            cp_to_string(stat))
+    END IF
+    iteration_info%iteration(iteration_info%n_rlevel)  = 1
+    iteration_info%level_name(iteration_info%n_rlevel) = "__ROOT__"
+    iteration_info%last_iter(iteration_info%n_rlevel)  = .FALSE.
+
+  END SUBROUTINE cp_iteration_info_create
 !***************************************************************************
 
 !!****f* cp_log_handling/cp_iteration_info_retain *
@@ -1289,20 +1288,20 @@ END SUBROUTINE cp_iteration_info_create
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE cp_iteration_info_retain(iteration_info)
+  SUBROUTINE cp_iteration_info_retain(iteration_info)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_iteration_info_retain', &
       routineP = moduleN//':'//routineN
 
-  IF (.NOT.ASSOCIATED(iteration_info)) THEN
-     CALL mp_abort(routineP//" iteration_info not associated")
-  END IF
-  IF (iteration_info%ref_count<=0) THEN
-     CALL mp_abort(routineP//" iteration_info%ref_counf<=0")
-  END IF
-  iteration_info%ref_count=iteration_info%ref_count+1
-END SUBROUTINE cp_iteration_info_retain
+    IF (.NOT.ASSOCIATED(iteration_info)) THEN
+       CALL mp_abort(routineP//" iteration_info not associated")
+    END IF
+    IF (iteration_info%ref_count<=0) THEN
+       CALL mp_abort(routineP//" iteration_info%ref_counf<=0")
+    END IF
+    iteration_info%ref_count=iteration_info%ref_count+1
+  END SUBROUTINE cp_iteration_info_retain
 !***************************************************************************
 
 !!****f* cp_log_handling/cp_iteration_info_release *
@@ -1323,7 +1322,7 @@ END SUBROUTINE cp_iteration_info_retain
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE cp_iteration_info_release(iteration_info)
+  SUBROUTINE cp_iteration_info_release(iteration_info)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_iteration_info_release', &
@@ -1331,21 +1330,42 @@ SUBROUTINE cp_iteration_info_release(iteration_info)
 
     INTEGER                                  :: stat
 
-  IF (ASSOCIATED(iteration_info)) THEN
-     IF (iteration_info%ref_count<=0) THEN
-        CALL mp_abort(routineP//" iteration_info%ref_counf<=0")
-     END IF
-     iteration_info%ref_count=iteration_info%ref_count-1
-     IF (iteration_info%ref_count==0) THEN
-        DEALLOCATE(iteration_info,stat=stat)
-        IF (stat/=0) THEN
-           CALL mp_abort(routineP//" iteration_info deallocation stat"//&
-                cp_to_string(stat))
-        END IF
-     END IF
-  END IF
-  NULLIFY(iteration_info)
-END SUBROUTINE cp_iteration_info_release
+    IF (ASSOCIATED(iteration_info)) THEN
+       IF (iteration_info%ref_count<=0) THEN
+          CALL mp_abort(routineP//" iteration_info%ref_counf<=0")
+       END IF
+       iteration_info%ref_count=iteration_info%ref_count-1
+       IF (iteration_info%ref_count==0) THEN
+          IF (ASSOCIATED(iteration_info%iteration)) THEN
+             DEALLOCATE(iteration_info%iteration,stat=stat)
+             IF (stat/=0) THEN
+                CALL mp_abort(routineP//" iteration_info%iteration deallocation stat "//&
+                     cp_to_string(stat))
+             END IF
+          END IF
+          IF (ASSOCIATED(iteration_info%last_iter)) THEN
+             DEALLOCATE(iteration_info%last_iter,stat=stat)
+             IF (stat/=0) THEN
+                CALL mp_abort(routineP//" iteration_info%last_iter deallocation stat "//&
+                     cp_to_string(stat))
+             END IF
+          END IF
+          IF (ASSOCIATED(iteration_info%level_name)) THEN
+             DEALLOCATE(iteration_info%level_name,stat=stat)
+             IF (stat/=0) THEN
+                CALL mp_abort(routineP//" iteration_info%level_name deallocation stat "//&
+                     cp_to_string(stat))
+             END IF
+          END IF
+          DEALLOCATE(iteration_info,stat=stat)
+          IF (stat/=0) THEN
+             CALL mp_abort(routineP//" iteration_info deallocation stat "//&
+                  cp_to_string(stat))
+          END IF
+       END IF
+    END IF
+    NULLIFY(iteration_info)
+  END SUBROUTINE cp_iteration_info_release
 !***************************************************************************
 
 ! ============= to string  ============
@@ -1379,7 +1399,6 @@ END SUBROUTINE cp_iteration_info_release
 !!     4.2002 revised [fawzi]
 !!
 !!*** *********************************************************************
-! pure
   FUNCTION cp_int_to_string(i) RESULT(res)
     INTEGER, INTENT(in)                      :: i
     CHARACTER(len=6)                         :: res
@@ -1428,7 +1447,6 @@ END SUBROUTINE cp_iteration_info_release
 !!     4.2002 revised [fawzi]
 !!
 !!*** *********************************************************************
-! pure 
   FUNCTION cp_real_dp_to_string(val) RESULT(res)
     REAL(KIND=dp), INTENT(in)                :: val
     CHARACTER(len=11)                        :: res
@@ -1454,7 +1472,6 @@ END SUBROUTINE cp_iteration_info_release
 !!     fawzi
 !!
 !!*** *********************************************************************
-! pure 
   FUNCTION cp_logical_to_string(val) RESULT(res)
     LOGICAL, INTENT(in)                      :: val
     CHARACTER(len=1)                         :: res
@@ -1515,75 +1532,75 @@ END SUBROUTINE cp_iteration_info_release
       ibreak, ipos1, ipos2, maxrowlen, msglen, nrow, rowlen
 
     IF (PRESENT(after)) THEN
-      blank_lines_after = MAX(after,0)
+       blank_lines_after = MAX(after,0)
     ELSE
-      blank_lines_after = 1
+       blank_lines_after = 1
     END IF
 
     IF (PRESENT(before)) THEN
-      blank_lines_before = MAX(before,0)
+       blank_lines_before = MAX(before,0)
     ELSE
-      blank_lines_before = 1
+       blank_lines_before = 1
     END IF
 
     IF (PRESENT(declev)) THEN
-      decoration_level = MAX(declev,0)
+       decoration_level = MAX(declev,0)
     ELSE
-      decoration_level = 0
+       decoration_level = 0
     END IF
 
     IF (decoration_level == 0) THEN
-      rowlen = 78
+       rowlen = 78
     ELSE
-      rowlen = 70
+       rowlen = 70
     END IF
 
     msglen = LEN_TRIM(message)
 
-!   *** Calculate number of rows ***
+    !   *** Calculate number of rows ***
 
     nrow = msglen/(rowlen + 1) + 1
 
-!   *** Calculate appropriate row length ***
+    !   *** Calculate appropriate row length ***
 
     rowlen = MIN(msglen,rowlen)
 
-!   *** Generate the blank lines before the message ***
+    !   *** Generate the blank lines before the message ***
 
     DO i=1,blank_lines_before
-      WRITE (UNIT=output_unit,FMT="(A)") ""
+       WRITE (UNIT=output_unit,FMT="(A)") ""
     END DO
 
-!   *** Scan for the longest row ***
+    !   *** Scan for the longest row ***
 
     ipos1 = 1
     ipos2 = rowlen
     maxrowlen = 0
 
     DO
-      IF (ipos2 < msglen) THEN
-         i=INDEX(message(ipos1:ipos2)," ",BACK=.TRUE.)
-         IF (i == 0) THEN
-            ibreak = ipos2
-         ELSE
-            ibreak = ipos1 + i - 2
-         END IF
-      ELSE
-        ibreak = ipos2
-      END IF
+       IF (ipos2 < msglen) THEN
+          i=INDEX(message(ipos1:ipos2)," ",BACK=.TRUE.)
+          IF (i == 0) THEN
+             ibreak = ipos2
+          ELSE
+             ibreak = ipos1 + i - 2
+          END IF
+       ELSE
+          ibreak = ipos2
+       END IF
 
-      maxrowlen = MAX(maxrowlen,ibreak - ipos1 + 1)
+       maxrowlen = MAX(maxrowlen,ibreak - ipos1 + 1)
 
-      ipos1 = ibreak + 2
-      ipos2 = MIN(msglen,ipos1 + rowlen - 1)
+       ipos1 = ibreak + 2
+       ipos2 = MIN(msglen,ipos1 + rowlen - 1)
 
-!     *** When the last row is processed, exit loop ***
+       !     *** When the last row is processed, exit loop ***
 
-      IF (ipos1 > msglen) EXIT
+       IF (ipos1 > msglen) EXIT
 
     END DO
 
-!   *** Generate the first set of star rows ***
+    !   *** Generate the first set of star rows ***
 
     IF (decoration_level > 1) THEN
        fmtstr1 = "(/,T2,  (""*""))"
@@ -1596,53 +1613,53 @@ END SUBROUTINE cp_iteration_info_release
        WRITE (UNIT=output_unit,FMT='(A)')""
     END IF
 
-!   *** Break long messages ***
+    !   *** Break long messages ***
 
     ipos1 = 1
     ipos2 = rowlen
 
     DO
-      IF (ipos2 < msglen) THEN
-         i=INDEX(message(ipos1:ipos2)," ",BACK=.TRUE.)
-         IF (i == 0) THEN
-            ibreak = ipos2
-         ELSE
-            ibreak = ipos1 + i - 2
-         END IF
-      ELSE
-        ibreak = ipos2
-      END IF
+       IF (ipos2 < msglen) THEN
+          i=INDEX(message(ipos1:ipos2)," ",BACK=.TRUE.)
+          IF (i == 0) THEN
+             ibreak = ipos2
+          ELSE
+             ibreak = ipos1 + i - 2
+          END IF
+       ELSE
+          ibreak = ipos2
+       END IF
 
-      IF (decoration_level == 0) THEN
-         fmtstr2 = "(T2,A)"
-         IF (ipos1==1) fmtstr2 = "(/T2,A)"
-         WRITE (UNIT=output_unit,FMT=fmtstr2) message(ipos1:ibreak)
-      ELSE IF (decoration_level > 0) THEN
-         fmtstr2 = "(T2,""*** "",A,  X,"" ***"")"
-         WRITE (UNIT=fmtstr2(14:15),FMT="(I2)") ipos1 + maxrowlen - ibreak
-         WRITE (UNIT=output_unit,FMT=fmtstr2) message(ipos1:ibreak)
-      END IF
+       IF (decoration_level == 0) THEN
+          fmtstr2 = "(T2,A)"
+          IF (ipos1==1) fmtstr2 = "(/T2,A)"
+          WRITE (UNIT=output_unit,FMT=fmtstr2) message(ipos1:ibreak)
+       ELSE IF (decoration_level > 0) THEN
+          fmtstr2 = "(T2,""*** "",A,  X,"" ***"")"
+          WRITE (UNIT=fmtstr2(14:15),FMT="(I2)") ipos1 + maxrowlen - ibreak
+          WRITE (UNIT=output_unit,FMT=fmtstr2) message(ipos1:ibreak)
+       END IF
 
-      ipos1 = ibreak + 2
-      ipos2 = MIN(msglen,ipos1 + rowlen - 1)
+       ipos1 = ibreak + 2
+       ipos2 = MIN(msglen,ipos1 + rowlen - 1)
 
-!     *** When the last row is processed, exit loop ***
+       !     *** When the last row is processed, exit loop ***
 
-      IF (ipos1 > msglen) EXIT
+       IF (ipos1 > msglen) EXIT
     END DO
 
-!   *** Generate the second set star rows ***
+    !   *** Generate the second set star rows ***
 
     IF (decoration_level > 1) THEN
-      DO i=1,decoration_level-1
-        WRITE (UNIT=output_unit,FMT=fmtstr1)
-      END DO
+       DO i=1,decoration_level-1
+          WRITE (UNIT=output_unit,FMT=fmtstr1)
+       END DO
     END IF
 
-!   *** Generate the blank lines after the message ***
+    !   *** Generate the blank lines after the message ***
 
     DO i=1,blank_lines_after
-      WRITE (UNIT=output_unit,FMT="(A)") ""
+       WRITE (UNIT=output_unit,FMT="(A)") ""
     END DO
 
     CALL m_flush(output_unit)

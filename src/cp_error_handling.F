@@ -74,31 +74,31 @@ MODULE cp_error_handling
        cp_error_check, cp_error_synchronize_error
 
 #ifdef FD_DEBUG
-!! global variable to turn on/off the debugging, as i am lazy I use the 
-!! preprocessor variable FD_DEBUG to decide if it should be on or off.
-!! this way it is always right (on in debug builds, off in optimized ones)
+  !! global variable to turn on/off the debugging, as i am lazy I use the 
+  !! preprocessor variable FD_DEBUG to decide if it should be on or off.
+  !! this way it is always right (on in debug builds, off in optimized ones)
   LOGICAL, PARAMETER :: cp_debug=.TRUE.
 #else
   LOGICAL, PARAMETER :: cp_debug=.FALSE.
 #endif
 
-!! error number: no error
+  !! error number: no error
   INTEGER, PARAMETER :: cp_no_error = 0
-!! error number: generic error on the side of the caller
+  !! error number: generic error on the side of the caller
   INTEGER, PARAMETER :: cp_caller_error = 1
-!! error number: one or more arguments have and invalid value
+  !! error number: one or more arguments have and invalid value
   INTEGER, PARAMETER :: cp_wrong_args_error = 100
-!! error number: precondition failed
+  !! error number: precondition failed
   INTEGER, PARAMETER :: cp_precondition_failed = 200
-!! error number: generic error inside the routine
+  !! error number: generic error inside the routine
   INTEGER, PARAMETER :: cp_internal_error = -1
-!! error number: postcondition failed
+  !! error number: postcondition failed
   INTEGER, PARAMETER :: cp_postcondition_failed = -200
-!! error number: invariant failed
+  !! error number: invariant failed
   INTEGER, PARAMETER :: cp_invariant_failed = -100
-!! error number: assertion failure
+  !! error number: assertion failure
   INTEGER, PARAMETER :: cp_assertion_failed = -300
-!! error number: not implemented
+  !! error number: not implemented
   INTEGER, PARAMETER :: cp_unimplemented_error_nr = -1000
 
 !!***
@@ -188,7 +188,6 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_error_init(error, stop_level, print_level, logger, template_error, error_nr, level)
-
 
     TYPE(cp_error_type), INTENT(out)         :: error
     INTEGER, INTENT(in), OPTIONAL            :: stop_level, print_level
@@ -475,7 +474,6 @@ CONTAINS
 !!     none
 !!
 !!*** **********************************************************************
-  ! pure 
   FUNCTION cp_error_get_print_level(error) RESULT(res)
     TYPE(cp_error_type), INTENT(in), &
       OPTIONAL                               :: error
@@ -511,7 +509,6 @@ CONTAINS
 !!     none
 !!
 !!*** **********************************************************************
-  ! pure 
   FUNCTION cp_error_get_nr(error) RESULT(res)
     TYPE(cp_error_type), INTENT(in), &
       OPTIONAL                               :: error
@@ -558,10 +555,10 @@ CONTAINS
 
     NULLIFY(res)
     IF (PRESENT(error)) res=>error%logger
-    IF (.NOT. ASSOCIATED(res)) res => cp_get_default_logger()
+    IF (.NOT.ASSOCIATED(res)) res => cp_get_default_logger()
     IF (.NOT.ASSOCIATED(res)) THEN
-       PRINT *,'ERROR in cp_error_handling:cp_error_get_logger, cp_default_logger is not associated'
-       CALL cp_error_common_stop('cp_error_handling:cp_error_get_logger',' cp_default_logger is not associated')
+       CALL cp_error_common_stop('cp_error_handling:cp_error_get_logger',&
+            ' cp_default_logger is not associated')
     END IF
   END FUNCTION cp_error_get_logger
 !****************************************************************************
@@ -589,7 +586,6 @@ CONTAINS
 !!     none
 !!
 !!*** **********************************************************************
-  ! pure 
   FUNCTION cp_error_get_stop_level(error) RESULT(res)
     TYPE(cp_error_type), INTENT(in), &
       OPTIONAL                               :: error
@@ -768,7 +764,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_assert(condition, level, error_nr, fromWhere, &
        message, error,failure,info,only_ionode)
-!! the condition that is checked, if false, an error did happen
+    !! the condition that is checked, if false, an error did happen
     LOGICAL, INTENT(in)                      :: condition
     INTEGER, INTENT(in)                      :: level, error_nr
     CHARACTER(len=*), INTENT(in)             :: fromWhere, message
@@ -784,10 +780,6 @@ CONTAINS
     LOGICAL                                  :: ionode
     TYPE(cp_error_type)                      :: err
     TYPE(cp_logger_type), POINTER            :: logger
-
-!! level of the error
-!! error number
-!! is set to true if condition is false
 
     ionode = .TRUE.
     IF (.NOT. condition) THEN
@@ -878,12 +870,12 @@ CONTAINS
        END IF
        IF (debug_this_module) THEN
           IF (iError%level >= cp_error_get_print_level(error)) THEN
-               IF (PRESENT(message)) THEN
-                  CALL cp_error_message(iError%level, fromWhere,"propagated error "//&
-                       message, error)
-               ELSE
-                  CALL cp_error_message(iError%level, fromWhere,"propagated error",error)
-               END IF
+             IF (PRESENT(message)) THEN
+                CALL cp_error_message(iError%level, fromWhere,"propagated error "//&
+                     message, error)
+             ELSE
+                CALL cp_error_message(iError%level, fromWhere,"propagated error",error)
+             END IF
           END IF
        ENDIF
     END IF
@@ -916,7 +908,7 @@ CONTAINS
 !!     05.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE cp_unimplemented_error(fromWhere, message, error, error_level)
+  SUBROUTINE cp_unimplemented_error(fromWhere, message, error, error_level)
     CHARACTER(len=*), INTENT(in)             :: fromWhere
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: message
     TYPE(cp_error_type), INTENT(inout), &
@@ -928,17 +920,17 @@ SUBROUTINE cp_unimplemented_error(fromWhere, message, error, error_level)
 
     INTEGER                                  :: err_l
 
-  err_l=cp_failure_level
+    err_l=cp_failure_level
 
-  IF(PRESENT(error_level)) err_l=error_level
-  IF (PRESENT(message)) THEN
-     CALL cp_assert(.FALSE.,err_l,cp_unimplemented_error_nr,&
-          fromWhere, "UNIMPLEMENTED, "//message, error=error)
-  ELSE
-     CALL cp_assert(.FALSE.,err_l,cp_unimplemented_error_nr,&
-          fromWhere, "UNIMPLEMENTED", error=error)
-  END IF
-END SUBROUTINE cp_unimplemented_error
+    IF(PRESENT(error_level)) err_l=error_level
+    IF (PRESENT(message)) THEN
+       CALL cp_assert(.FALSE.,err_l,cp_unimplemented_error_nr,&
+            fromWhere, "UNIMPLEMENTED, "//message, error=error)
+    ELSE
+       CALL cp_assert(.FALSE.,err_l,cp_unimplemented_error_nr,&
+            fromWhere, "UNIMPLEMENTED", error=error)
+    END IF
+  END SUBROUTINE cp_unimplemented_error
 !***************************************************************************
 
 !!****f* cp_error_handling/cp_error_synchronize_error [1.0] *
@@ -960,7 +952,7 @@ END SUBROUTINE cp_unimplemented_error
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE cp_error_synchronize_error(error,para_env)
+  SUBROUTINE cp_error_synchronize_error(error,para_env)
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     TYPE(cp_para_env_type), OPTIONAL, &
@@ -974,26 +966,26 @@ SUBROUTINE cp_error_synchronize_error(error,para_env)
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: my_para_env
 
-  failure=.FALSE.
-  NULLIFY(my_para_env,logger)
-  IF (PRESENT(error)) THEN
-     IF (PRESENT(para_env)) THEN
-        my_para_env => para_env
-     ELSE
-        logger => cp_error_get_logger(error)
-        my_para_env => logger%para_env
-     END IF
-     CALL cp_assert(ASSOCIATED(my_para_env),cp_failure_level,cp_failure_level,&
-          routineP,"cannot synchronize without a valid para_env",error,failure)
-     IF (my_para_env%num_pe>1) THEN
-        my_codes(1)=ABS(error%level)
-        my_codes(2)=ABS(error%error_nr)
-        CALL mp_max( my_codes, my_para_env%group )
-        error%level=my_codes(1)
-        error%error_nr=my_codes(2)
-     END IF
-  END IF
-END SUBROUTINE cp_error_synchronize_error
+    failure=.FALSE.
+    NULLIFY(my_para_env,logger)
+    IF (PRESENT(error)) THEN
+       IF (PRESENT(para_env)) THEN
+          my_para_env => para_env
+       ELSE
+          logger => cp_error_get_logger(error)
+          my_para_env => logger%para_env
+       END IF
+       CALL cp_assert(ASSOCIATED(my_para_env),cp_failure_level,cp_failure_level,&
+            routineP,"cannot synchronize without a valid para_env",error,failure)
+       IF (my_para_env%num_pe>1) THEN
+          my_codes(1)=ABS(error%level)
+          my_codes(2)=ABS(error%error_nr)
+          CALL mp_max( my_codes, my_para_env%group )
+          error%level=my_codes(1)
+          error%error_nr=my_codes(2)
+       END IF
+    END IF
+  END SUBROUTINE cp_error_synchronize_error
 !***************************************************************************
 
 !!****f* cp_error_handling/cp_a_l [1.0] *
@@ -1020,7 +1012,7 @@ END SUBROUTINE cp_error_synchronize_error
 !!     12.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE cp_a_l(condition, level, fromWhere, lineNr, error,failure)
+  SUBROUTINE cp_a_l(condition, level, fromWhere, lineNr, error,failure)
     LOGICAL, INTENT(in)                      :: condition
     INTEGER, INTENT(in)                      :: level
     CHARACTER(len=*), INTENT(in)             :: fromWhere
@@ -1029,11 +1021,11 @@ SUBROUTINE cp_a_l(condition, level, fromWhere, lineNr, error,failure)
       OPTIONAL                               :: error
     LOGICAL, INTENT(inout), OPTIONAL         :: failure
 
-  CALL cp_assert(condition,level=level,error_nr=cp_assertion_failed,&
-       fromWhere=fromWhere,&
-       message="condition FAILED at line "//ADJUSTL(cp_to_string(lineNr)),&
-       error=error, failure=failure)
-END SUBROUTINE cp_a_l
+    CALL cp_assert(condition,level=level,error_nr=cp_assertion_failed,&
+         fromWhere=fromWhere,&
+         message="condition FAILED at line "//ADJUSTL(cp_to_string(lineNr)),&
+         error=error, failure=failure)
+  END SUBROUTINE cp_a_l
 !***************************************************************************
 
 !!****f* cp_error_handling/cp_error_check [1.0] *
@@ -1058,7 +1050,7 @@ END SUBROUTINE cp_a_l
 !!     11.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE cp_error_check(error, failure)
+  SUBROUTINE cp_error_check(error, failure)
     TYPE(cp_error_type), INTENT(in), &
       OPTIONAL                               :: error
     LOGICAL, INTENT(inout), OPTIONAL         :: failure
@@ -1066,14 +1058,14 @@ SUBROUTINE cp_error_check(error, failure)
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_error_check', &
       routineP = moduleN//':'//routineN
 
-  failure=.FALSE.
-  
-  IF (PRESENT(error).and.PRESENT(failure)) THEN
-     IF (error%error_nr /=0 .AND. error%level > CP_WARNING_LEVEL) THEN
-        failure=.TRUE.
-     END IF
-  END IF
-END SUBROUTINE cp_error_check
+    failure=.FALSE.
+
+    IF (PRESENT(error).and.PRESENT(failure)) THEN
+       IF (error%error_nr /=0 .AND. error%level > CP_WARNING_LEVEL) THEN
+          failure=.TRUE.
+       END IF
+    END IF
+  END SUBROUTINE cp_error_check
 !***************************************************************************
 
 !!****f* cp_error_handling/cp_simple_assert *
@@ -1099,7 +1091,6 @@ END SUBROUTINE cp_error_check
 !!
 !!****
   SUBROUTINE cp_simple_assert(condition, routineP, line)
-  
 
     LOGICAL, INTENT(in)                      :: condition
     CHARACTER(len=*), INTENT(in)             :: routineP
@@ -1107,15 +1098,13 @@ END SUBROUTINE cp_error_check
 
     CHARACTER(LEN=100)                       :: str
 
-! code
-
     IF (.NOT.condition) THEN
        WRITE (*,*) "======== ASSERTION FAILED ========"
        str=cp_to_string(line)
        WRITE (*,*) routineP, ": ", LEN_TRIM(str)
        STOP 1
     END IF
-  
+
   END SUBROUTINE cp_simple_assert
 
 ! *****************************************************************************
