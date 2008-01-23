@@ -1,4 +1,4 @@
-import sys,re
+import sys,re,os.path
 import normalizeFortranFile
 from normalizeFortranFile import readFortranLine
 """script to convert robodoc headers to doxygen headers
@@ -11,7 +11,7 @@ def parseRoboDoc(lines,inFile):
         'special':{},'order':[],'trash':[],'name':[],'brief':[],
         'date':[],'author':[],'note':[],'todo':[],'params':[],'bug':[],
         'literature':[],'history':[],'see':[],'pname':[],'version':[],
-        'warning':[]}
+        'warning':[],'origLines':[]}
     sAtt=info['brief']
     transl={
         'NAME':'name','FUNCTION':'brief','AUTHOR':'author',
@@ -23,7 +23,7 @@ def parseRoboDoc(lines,inFile):
         'AURHOR':'author','WARNINGS':'warning','WARNING':'warning',
         'MODIFICATION HISTORY':'history','HISTORY':'history',
         'SEE ALSO':'see','SOURCE':'trash','SYNOPSIS':'trash'}
-    roboDocRe=re.compile(" *!!(.*)")
+    roboDocRe=re.compile(" *!!?(.*)")
     headerRe=re.compile(r" *!!\*+[cdfhmstuv]?\** *(?P<name>[a-zA-Z_0-9/]+) *(?:\[(?P<version>[0-9.a-zA-Z_ ]+)\])?")
     labelRe=re.compile(" +(?P<label>NAME|COPYRIGHT|USAGE|FUNCTION|DESCRIPTION|PURPOSE|AUTHOR|CREATION DATE|MODIFICATION HISTORY|HISTORY|INPUTS|ARGUMENTS|OPTIONS|PARAMETERS|SWITCHES|OUTPUT|SYNOPSIS|SIDE EFFECTS|RESULT|RETURN VALUE|EXAMPLE|NOTES?|WARNINGS?|ERROR|DIAGNOSTICS|BUGS|TODO|IDEAS|PORTABILITY|SEE ALSO|METHODS|ATTRIBUTES|SOURCE|LITERATURE|TAGS|USED BY|[A-Z]+ ?[A-Z]* ?[A-Z]*) *$")
     fluffRe=re.compile(r" *([-+*#!= ]{3,})? *$")
@@ -33,9 +33,11 @@ def parseRoboDoc(lines,inFile):
             info['version'].append(m.group('version'))
         if m.group('name'):
             info['pname'].append(m.group('name'))
+        info['origLines'].append(lines[0])
         lines=lines[1:]
     while 1:
         for line in lines:
+            info['origLines'].extend(lines)
             m=roboDocRe.match(line)
             if not m:
                 raise SyntaxError('unexpectly out of robodoc')
@@ -67,13 +69,23 @@ def parseRoboDoc(lines,inFile):
                         sAtt.append('\n')
                 else:
                     sAtt.append(l.replace('@author',''))
-        (jline,comments,lines)=readFortranLine(inFile)
+        while 1:
+            (jline,comments,lines)=readFortranLine(inFile)
+            if not lines:
+                break
+            if jline!=None and jline!="" and not jline.isspace():
+                break
+            if roboDocRe.match(lines[0]):
+                break
+            else:
+                for l in lines:
+                    print "ingnoring",repr(l)
         if not lines:
             break
         if jline!=None and jline!="" and not jline.isspace():
             break
-        if not roboDocRe.match(lines[0]):
-            break
+    if not info['name'] and info['pname']:
+        info['name'].append(os.path.basename(info['pname'][0]))
     return (jline,comments,lines,info)
 
 def non_empty(linee):
@@ -108,11 +120,15 @@ def printRoboDoc(info,outF=sys.stdout):
             rest.append(o)
     res=[]
     pre="!> "
-    if info['brief']==None:
-        print 'brief0',info
+    if not info['name']:
+        print 'ignoring robodoc like comment'
+        for l in info['origLines']:
+            print repr(l)
+            outF.write(l)
+        return
+    if info['name'][0].strip()[-5:]=='_type':
+        outF.write("!> \struct %s\n"%(info['name'][0].strip()))
     lines=drop_trailing(info['brief'])
-    if lines==None:
-        print 'lines0',info
     if len(lines)>0:
         outF.write(pre)
         outF.write('\\brief ')
@@ -196,17 +212,29 @@ def printRoboDoc(info,outF=sys.stdout):
             for line in lines[i0:]:
                 outF.write(pre)
                 outF.write(line)
+    basicFluffRe=re.compile(r" *(\** *\**|-*!?) *$")
+    for l in info['trash']:
+        if l and not basicFluffRe.match(l):
+            print 'rmvd ',repr(l)
             
 if __name__=='__main__':
     inFile=file(sys.argv[1])
-    outF=file(sys.argv[1]+'.doxy','w')
+    outF=file(sys.argv[1][:-1]+'f90','w')
     roboDocRe=re.compile(" *!!")
+    # fluffRe=re.compile(r" *![+=* ]+$")
+    basicFluffRe=re.compile(r" *!\** *\** *$")
+    basicFluff2Re=re.compile(r" *!! *\** *\** *$")
     while 1:
         (jline,comments,lines)=readFortranLine(inFile)
         if not lines: break
         if roboDocRe.match(lines[0]):
+            if basicFluff2Re.match(lines[0]):
+                continue
             (jline,comments,lines,info)=parseRoboDoc(lines,inFile)
             printRoboDoc(info,outF)
         for l in lines:
-            outF.write(l)
+            #if basicFluffRe.match(l):
+            #    print 'ignoring fluff',repr(l)
+            #else:
+                outF.write(l)
     outF.close()
