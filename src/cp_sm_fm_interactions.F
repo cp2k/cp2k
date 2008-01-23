@@ -1518,10 +1518,6 @@ CPSourceFileRef,&
     CALL junk2fm(sm=sm,fm=fm_out,junks=v_out,shift=-1,hole_pos=junk_recv_out,&
          sm_transposed=.NOT.transpose_sm, beta=beta,ncol=fm_ncol_global,error=error)
 
-    IF (transpose_sm) THEN
-       DEALLOCATE(blacs2mpi,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-    END IF
     DO ijunk=1,SIZE(v_out)
        DEALLOCATE(v_out(ijunk)%array,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -1530,6 +1526,10 @@ CPSourceFileRef,&
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
 100 CONTINUE ! end
+    IF (transpose_sm) THEN
+       DEALLOCATE(blacs2mpi,stat=stat)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    END IF
     CALL timestop(flops*1.0e-9_dp,handle)
 
   END SUBROUTINE cp_sm_fm_multiply_2d
