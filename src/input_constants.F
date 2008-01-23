@@ -602,7 +602,8 @@ MODULE input_constants
                                 do_hf_potential_short=2,&
                                 do_hf_potential_long=3,&
                                 do_hf_potential_mix_cl=4,&
-                                do_hf_potential_gaussian=5
+                                do_hf_potential_gaussian=5,&
+                                do_hf_potential_mix_lg=6
 
   ! mode selctive vibrational analysis
   INTEGER, PARAMETER, PUBLIC :: ms_guess_bfgs=1, &

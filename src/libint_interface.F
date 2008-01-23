@@ -29,7 +29,8 @@ MODULE libint_interface
                                              do_hf_potential_long,&
                                              do_hf_potential_short,&
                                              do_hf_potential_mix_cl, &
-                                             do_hf_potential_gaussian
+                                             do_hf_potential_gaussian,&
+                                             do_hf_potential_mix_lg
   USE kinds,                           ONLY: dp
   USE libint_wrapper,                  ONLY: get_derivs,&
                                              get_eris,&
@@ -535,12 +536,31 @@ MODULE libint_interface
       CASE(do_hf_potential_gaussian)
         omega2 = potential_parameter%omega**2
         T = -omega2*T/(Rho+omega2)
-        tmp = 1
+        tmp = 1.0_dp
         DO i=1,m_max+1
           prim%F(i) = exp(T) * tmp
           tmp = tmp * omega2/(Rho+omega2)
         END DO
         factor = (Pi/(Rho+omega2))**(1.5_dp)
+      CASE(do_hf_potential_mix_lg)
+        omega2 = potential_parameter%omega**2
+        omega_corr2 = omega2/(omega2+Rho)
+        omega_corr = SQRT(omega_corr2)
+        T = T*omega_corr2
+        CALL fgamma(m_max,T,Fm)
+        tmp = omega_corr * 2.0_dp*Pi*RhoInv * potential_parameter%scale_longrange
+        DO i=1,m_max+1
+          Fm(i)= Fm(i)*tmp
+          tmp = tmp * omega_corr2
+        END DO
+        T = Rho*PQ2
+        T = -omega2*T/(Rho+omega2)
+        tmp = (Pi/(Rho+omega2))**(1.5_dp) * potential_parameter%scale_gaussian
+        DO i=1,m_max+1
+          prim%F(i) = exp(T) * tmp + Fm(i)
+          tmp = tmp * omega2/(Rho+omega2)
+        END DO
+        factor = 1.0_dp 
     END SELECT
 
 !    factor = 2.0_dp*Pi*RhoInv 
@@ -682,6 +702,25 @@ MODULE libint_interface
           tmp = tmp * omega2/(Rho+omega2)
         END DO
         factor = (Pi/(Rho+omega2))**(1.5_dp)
+      CASE(do_hf_potential_mix_lg)
+        omega2 = potential_parameter%omega**2
+        omega_corr2 = omega2/(omega2+Rho)
+        omega_corr = SQRT(omega_corr2)
+        T = T*omega_corr2
+        CALL fgamma(m_max,T,Fm)
+        tmp = omega_corr * 2.0_dp*Pi*RhoInv * potential_parameter%scale_longrange
+        DO i=1,m_max+1
+          Fm(i)= Fm(i)*tmp
+          tmp = tmp * omega_corr2
+        END DO
+        T = Rho*PQ2
+        T = -omega2*T/(Rho+omega2)
+        tmp = (Pi/(Rho+omega2))**(1.5_dp) * potential_parameter%scale_gaussian
+        DO i=1,m_max+1
+          prim%F(i) = exp(T) * tmp + Fm(i)
+          tmp = tmp * omega2/(Rho+omega2)
+        END DO
+        factor = 1.0_dp 
     END SELECT
 
 !    factor = 2.0_dp*Pi*RhoInv
