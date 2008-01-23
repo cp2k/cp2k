@@ -233,6 +233,6 @@ if __name__=='__main__':
             (jline,comments,lines,info)=parseRoboDoc(lines,inFile)
             printRoboDoc(info,outF)
         for l in lines:
-            #if not basicFluffRe.match(l):
+            if not basicFluffRe.match(l):
                 outF.write(l)
     outF.close()
