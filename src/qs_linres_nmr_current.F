@@ -1147,7 +1147,7 @@ CONTAINS
 
   DO itask = 1,ntasks
      
-     CALL int2pair(tasks(3,itask),ilevel,iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
+     CALL int2pair(tasks(3,itask),igrid_level,iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
 
      IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old) THEN 
 
@@ -1273,11 +1273,6 @@ CONTAINS
      rb(:) = ra(:) + rab(:)
 
      zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
-     IF (dab.lt.0.1E0_dp .AND. dft_control%qs_control%map_paa) THEN
-        igrid_level = 1
-     ELSE
-        igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
-     ENDIF
 
      na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
      na2 = ipgf*ncoset(la_max(iset))

@@ -783,7 +783,7 @@ CONTAINS
     loop_tasks: DO itask=1,ntasks
 
        !decode the atom pair and basis info
-       CALL int2pair(tasks(3,itask),ilevel,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
+       CALL int2pair(tasks(3,itask),igrid_level,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
 
        ikind = particle_set(iatom)%atomic_kind%kind_number
        jkind = particle_set(jatom)%atomic_kind%kind_number
@@ -893,12 +893,6 @@ CONTAINS
        rab2  = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
        rb(:) = ra(:) + rab(:)
        zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
-       dab=sqrt(rab2)
-       IF (dab.lt.0.1E0_dp .AND. dft_control%qs_control%map_paa) THEN
-          igrid_level = 1
-       ELSE
-          igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
-       ENDIF
 
        na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
        na2 = ipgf*ncoset(la_max(iset))
