@@ -593,7 +593,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
             description="controls the printing of ewald setup",&
-            print_level=low_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            print_level=low_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)

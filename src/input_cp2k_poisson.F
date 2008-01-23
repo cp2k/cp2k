@@ -34,6 +34,7 @@ MODULE input_cp2k_poisson
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
   USE input_constants
+  USE input_cp2k_rsgrid,               ONLY: create_rsgrid_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -45,7 +46,6 @@ MODULE input_cp2k_poisson
   USE input_val_types,                 ONLY: enum_t,&
                                              integer_t,&
                                              real_t
-  USE input_cp2k_rsgrid,               ONLY: create_rsgrid_section
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
   USE timings,                         ONLY: timeset,&
@@ -238,7 +238,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(subsection,"program_run_info",&
             description="Controls the printing of basic information during the run", &
-            print_level=low_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            print_level=low_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
@@ -462,7 +462,7 @@ SUBROUTINE create_ewald_section(section,error)
     NULLIFY(print_key)
     CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
          description="controls the printing of ewald setup",&
-         print_level=low_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+         print_level=low_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
          error=error)
     CALL section_add_subsection(subsection,print_key,error=error)
     CALL section_release(print_key,error=error)
@@ -563,7 +563,7 @@ END SUBROUTINE create_ewald_section
             description="if convergence information about the linear solver"//&
             " of the spline methods should be printed", &
             print_level=medium_print_level,each=(/10/),filename="__STD_OUT__",&
-            add_last=(/1/),error=error)
+            add_last=add_last_numeric,error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 

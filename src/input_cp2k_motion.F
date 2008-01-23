@@ -865,7 +865,7 @@ CONTAINS
        NULLIFY(print_key)
        CALL cp_print_key_section_create(print_key,"program_run_info",&
             description="Controls the printing of basic information during the Geometry Optimization", &
-            print_level=low_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            print_level=low_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)        
@@ -1024,7 +1024,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"RESTART",&
             description="Controls the printing of Hessian Restart file", &
-            print_level=low_print_level,each=(/1/),add_last=(/1/),filename="BFGS",&
+            print_level=low_print_level,each=(/1/),add_last=add_last_numeric,filename="BFGS",&
             common_iter_levels=2, error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -1602,7 +1602,7 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"program_run_info",&
             description="Controls the printing of basic and summary information during the"//&
             " Molecular Dynamics", &
-            print_level=low_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            print_level=low_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)        
@@ -2288,7 +2288,7 @@ CONTAINS
        NULLIFY(print_key)
        CALL cp_print_key_section_create(print_key,"restart",&
             description="Controls how often a restart is written", &
-            print_level=low_print_level,each=(/20/),add_last=(/1/),&
+            print_level=low_print_level,each=(/20/),add_last=add_last_numeric,&
             error=error)
        CALL keyword_create(keyword, name="BACKUP_COPIES",&
             description="Specifies the maximum index of backup copies.",&
@@ -2302,14 +2302,14 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"ener_info",&
             description="Controls how often energy info is written", &
-            print_level=low_print_level,each=(/20/),add_last=(/1/),&
+            print_level=low_print_level,each=(/20/),add_last=add_last_numeric,&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)        
 
        CALL cp_print_key_section_create(print_key,"centroids",&
             description="Controls how often the centroids are written", &
-            print_level=low_print_level,each=(/1/),add_last=(/1/),&
+            print_level=low_print_level,each=(/1/),add_last=add_last_numeric,&
             error=error)
        CALL keyword_create(keyword, name="format",&
             description="Specifies the format of the output file for the trajectory.",&
@@ -2499,7 +2499,7 @@ CONTAINS
        ! Print key section
        CALL cp_print_key_section_create(print_key,"program_run_info",&
             description="Controls the printing basic info about the BAND run", &
-            print_level=medium_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            print_level=medium_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
 
        CALL keyword_create(keyword, name="INITIAL_CONFIGURATION_INFO",&
@@ -2514,14 +2514,14 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"convergence_info",&
             description="Controls the printing of the convergence criteria during a BAND run", &
-            print_level=medium_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            print_level=medium_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"replica_info",&
             description="Controls the printing of each replica info during a BAND run", &
-            print_level=medium_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            print_level=medium_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)       

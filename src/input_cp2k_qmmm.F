@@ -867,7 +867,7 @@ CONTAINS
             description="if convergence information about the linear solver"//&
             " of the spline methods should be printed", &
             print_level=medium_print_level,each=(/10/),filename="__STD_OUT__",&
-            add_last=(/1/),error=error)
+            add_last=add_last_numeric,error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 

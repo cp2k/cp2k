@@ -35,14 +35,14 @@ MODULE cp_output_handling
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE f77_blas
-  USE input_constants,                 ONLY: debug_print_level,&
+  USE input_constants,                 ONLY: add_last_no,&
+                                             add_last_numeric,&
+                                             add_last_symbolic,&
+                                             debug_print_level,&
                                              high_print_level,&
                                              low_print_level,&
                                              medium_print_level,&
                                              silent_print_level
-  USE input_enumeration_types,         ONLY: enum_create,&
-                                             enum_release,&
-                                             enumeration_type
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -62,9 +62,9 @@ MODULE cp_output_handling
                                              default_string_length,&
                                              dp
   USE machine,                         ONLY: m_mov
+  USE memory_utilities,                ONLY: reallocate
   USE string_utilities,                ONLY: compress,&
                                              s2a
-  USE memory_utilities,                ONLY: reallocate
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -196,7 +196,8 @@ CONTAINS
     CHARACTER(len=*), INTENT(in)             :: name, description
     INTEGER, INTENT(in), OPTIONAL            :: print_level
     INTEGER, DIMENSION(:), INTENT(in), &
-      OPTIONAL                               :: each, add_last
+      OPTIONAL                               :: each
+    INTEGER, INTENT(in), OPTIONAL            :: add_last
     CHARACTER(LEN=*), INTENT(in), OPTIONAL   :: filename
     INTEGER, INTENT(in), OPTIONAL            :: common_iter_levels
     LOGICAL, INTENT(IN), OPTIONAL            :: store
@@ -208,10 +209,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_path_length)       :: my_filename
-    INTEGER                                  :: my_comm_iter_levels, &
+    INTEGER                                  :: my_add_last, &
+                                                my_comm_iter_levels, &
                                                 my_print_level
     LOGICAL                                  :: failure, mystore
-    TYPE(enumeration_type), POINTER          :: enum
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: store_section
     TYPE(val_type), POINTER                  :: val
@@ -227,7 +228,7 @@ CONTAINS
             n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             citations=citations, supported_feature=supported_feature, error=error)
 
-       NULLIFY(keyword, val, enum)
+       NULLIFY(keyword, val)
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
             description="Level starting at which this proprety is printed",&
             usage="silent",&
@@ -256,23 +257,21 @@ CONTAINS
        CALL section_add_keyword(print_key_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL enum_create(enum,c_vals=s2a("no","numeric","symbolic"),&
-            i_vals=(/0,1,2/),error=error)
+       my_add_last = add_last_no
        IF (PRESENT(add_last)) THEN
-          CALL val_create(val, i_vals=add_last, enum=enum, error=error)
-       ELSE
-          CALL val_create(val, i_val =0, enum=enum, error=error)
+          my_add_last = add_last
        END IF
-       CALL enum_release(enum,error=error)
        CALL keyword_create(keyword, name="ADD_LAST",&
             description="If the last iteration should be added, and if it "//&
             "should be marked symbolically (with l) or with the iteration "//&
             "number."//&
             "Not every iteration level is able to identify the last iteration "//&
-            "early enough to be able to output.",&
+            "early enough to be able to output. When this keyword is activated "//&
+            "all iteration levels are checked for the last iteration step.",&
             usage="ADD_LAST NUMERIC",&
-            default_val=val,supported_feature=supported_feature,error=error)
-       CALL val_release(val,error=error)
+            enum_c_vals=s2a("no","numeric","symbolic"),&
+            enum_i_vals=(/add_last_no, add_last_numeric, add_last_symbolic/),&
+            default_i_val=my_add_last,supported_feature=supported_feature,error=error)
        CALL section_add_keyword(print_key_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -554,8 +553,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_printkey_is_iter', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ilevel, iter_nr, ival
-    INTEGER, DIMENSION(:), POINTER           :: add_last, each
+    INTEGER                                  :: add_last, ilevel, iter_nr, &
+                                                ival
+    INTEGER, DIMENSION(:), POINTER           :: each
     LOGICAL                                  :: failure, first, level_passed
 
     failure=.FALSE.
@@ -569,11 +569,10 @@ CONTAINS
        res   = .FALSE.
        first = .FALSE.
        IF (.NOT. failure) THEN
-          NULLIFY(each,add_last)
+          NULLIFY(each)
           CALL section_vals_val_get(print_key,"EACH",i_vals=each,error=error)
-          CALL section_vals_val_get(print_key,"ADD_LAST",i_vals=add_last,error=error)
+          CALL section_vals_val_get(print_key,"ADD_LAST",i_val=add_last,error=error)
           CPPrecondition(ASSOCIATED(each),cp_failure_level,routineP,error,failure)
-          CPPrecondition(ASSOCIATED(add_last),cp_failure_level,routineP,error,failure)
           IF (SIZE(each)<=iteration_info%n_rlevel) THEN
              res=.TRUE.
              first=.TRUE.
@@ -588,11 +587,8 @@ CONTAINS
                       level_passed=.TRUE.
                    END IF
                 END IF
-                IF (SIZE(add_last)>=ilevel) THEN
-                   ival=add_last(SIZE(add_last)-ilevel+1)
-                   IF (iteration_info%last_iter(iteration_info%n_rlevel-ilevel+1)) THEN
-                      level_passed=.TRUE.
-                   END IF
+                IF (iteration_info%last_iter(iteration_info%n_rlevel-ilevel+1)) THEN
+                   level_passed=.TRUE.
                 END IF
                 IF (.NOT.level_passed) res=.FALSE.
              END DO
@@ -643,9 +639,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_iter_string', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: c_i_level, ilevel, n_rlevel, &
-                                                s_level, shift
-    INTEGER, DIMENSION(:), POINTER           :: add_last, each
+    INTEGER                                  :: add_last, c_i_level, ilevel, &
+                                                n_rlevel, s_level
+    INTEGER, DIMENSION(:), POINTER           :: each
     LOGICAL                                  :: failure, my_for_file
     TYPE(section_vals_type), POINTER         :: my_print_key
 
@@ -661,17 +657,16 @@ CONTAINS
        IF (PRESENT(print_key)) my_print_key => print_key
        s_level=1
        IF (ASSOCIATED(my_print_key)) THEN
-          NULLIFY(each,add_last)
+          NULLIFY(each)
           CALL section_vals_val_get(my_print_key,"EACH",i_vals=each,error=error)
-          CALL section_vals_val_get(my_print_key,"ADD_LAST",i_vals=add_last,error=error)
+          CALL section_vals_val_get(my_print_key,"ADD_LAST",i_val=add_last,error=error)
           CALL section_vals_val_get(my_print_key,"COMMON_ITERATION_LEVELS",i_val=c_i_level, error=error)
           CPPrecondition(ASSOCIATED(each),cp_failure_level,routineP,error,failure)
-          shift=iter_info%n_rlevel-SIZE(add_last)
           n_rlevel=iter_info%n_rlevel
           IF (my_for_file) n_rlevel=MIN(n_rlevel,MAX(0,n_rlevel-c_i_level))
           DO ilevel=s_level,n_rlevel
-             IF (iter_info%last_iter(ilevel).and.ilevel>shift) THEN
-                IF (add_last(ilevel-shift)==2) THEN
+             IF (iter_info%last_iter(ilevel)) THEN
+                IF (add_last==add_last_symbolic) THEN
                    WRITE(res(9*ilevel-8:9*ilevel),"('l_')")
                 ELSE
                    WRITE(res(9*ilevel-8:9*ilevel),"(i8,'_')") iter_info%iteration(ilevel)
