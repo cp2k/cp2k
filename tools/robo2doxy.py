@@ -126,8 +126,8 @@ def printRoboDoc(info,outF=sys.stdout):
             print repr(l)
             outF.write(l)
         return
-    if info['name'][0].strip()[-5:]=='_type':
-        outF.write("!> \struct %s\n"%(info['name'][0].strip()))
+    #if info['name'][0].strip()[-5:]=='_type':
+    #    outF.write("!> \struct %s\n"%(info['name'][0].strip()))
     lines=drop_trailing(info['brief'])
     if len(lines)>0:
         outF.write(pre)
@@ -233,8 +233,6 @@ if __name__=='__main__':
             (jline,comments,lines,info)=parseRoboDoc(lines,inFile)
             printRoboDoc(info,outF)
         for l in lines:
-            #if basicFluffRe.match(l):
-            #    print 'ignoring fluff',repr(l)
-            #else:
+            #if not basicFluffRe.match(l):
                 outF.write(l)
     outF.close()
