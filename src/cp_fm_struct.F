@@ -33,6 +33,7 @@ MODULE cp_fm_struct
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE kinds,                           ONLY: dp
+  USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_sum
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -178,6 +179,9 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
   TYPE(cp_error_type), INTENT(inout) :: error
  
   INTEGER ::  dumblock
+
+  INTEGER :: iunit
+  TYPE(cp_logger_type), POINTER :: logger
 #if defined(__SCALAPACK)
     INTEGER, EXTERNAL :: numroc
 #endif
@@ -276,13 +280,27 @@ CPSourceFileRef,&
      CALL mp_sum(fmstruct%ncol_locals,fmstruct%para_env%group)
      fmstruct%nrow_locals(:)=fmstruct%nrow_locals(:)/fmstruct%context%num_pe(2)
      fmstruct%ncol_locals(:)=fmstruct%ncol_locals(:)/fmstruct%context%num_pe(1)
+
+     IF (SUM(fmstruct%ncol_locals).NE.fmstruct%ncol_global .OR. SUM(fmstruct%nrow_locals).NE.fmstruct%nrow_global) THEN
+        ! try to collect some output if this is going to happen again
+        ! this seems to trigger on blanc, but should really never happen
+        logger => cp_error_get_logger(error)
+        iunit=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
+        write(iunit,*) "mepos",fmstruct%context%mepos(1:2),"numpe",fmstruct%context%num_pe(1:2)
+        write(iunit,*) "ncol_global",fmstruct%ncol_global
+        write(iunit,*) "nrow_global",fmstruct%nrow_global
+        write(iunit,*) "ncol_locals",fmstruct%ncol_locals
+        write(iunit,*) "nrow_locals",fmstruct%nrow_locals
+        call m_flush(iunit)
+     ENDIF
+
      CALL cp_assert(SUM(fmstruct%ncol_locals).EQ.fmstruct%ncol_global,&
-          cp_warning_level,cp_assertion_failed,routineP,&
+          cp_failure_level,cp_assertion_failed,routineP,&
           "sum of local cols not equal global cols"//&
 CPSourceFileRef,&
           error)
      CALL cp_assert(SUM(fmstruct%nrow_locals).EQ.fmstruct%nrow_global,&
-          cp_warning_level,cp_assertion_failed,routineP,&
+          cp_failure_level,cp_assertion_failed,routineP,&
           "sum of local row not equal global rows"//&
 CPSourceFileRef,&
           error)
