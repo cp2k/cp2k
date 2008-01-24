@@ -2895,7 +2895,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"tddfpt",&
             description="parameters needed to set up the Time Dependent Density Functional PT",&
-            n_keywords=5, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=5, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
             citations=(/Iannuzzi2005/),&
             error=error)
 

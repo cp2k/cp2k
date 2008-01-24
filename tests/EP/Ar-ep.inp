@@ -20,6 +20,8 @@
       MIXING 0.4
       SCF_GUESS atomic
     &END SCF
+    &TDDFPT
+    &END
     &XC
       &XC_FUNCTIONAL Pade
       &END XC_FUNCTIONAL

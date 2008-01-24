@@ -13,6 +13,8 @@
       EPS_SCF 1.0E-4
       SCF_GUESS ATOMIC
     &END SCF
+    &TDDFPT
+    &END
     &XC
       &XC_FUNCTIONAL Pade
       &END XC_FUNCTIONAL
