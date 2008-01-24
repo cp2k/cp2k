@@ -60,6 +60,7 @@ OBJECTS_GENERIC =\
  cp_fm_struct.o\
  cp_fm_types.o\
  cp_fm_vect.o\
+ cp_iter_types.o\
  cp_lbfgs.o\
  cp_lbfgs_geo.o\
  cp_lbfgs_optimizer_gopt.o\

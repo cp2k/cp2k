@@ -34,6 +34,11 @@
 MODULE cp_output_handling
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_iter_types,                   ONLY: cp_iteration_info_release,&
+                                             cp_iteration_info_retain,&
+                                             cp_iteration_info_type,&
+                                             each_desc_labels,&
+                                             each_possible_labels
   USE f77_blas
   USE input_constants,                 ONLY: add_last_no,&
                                              add_last_numeric,&
@@ -207,10 +212,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_path_length)       :: my_filename
-    CHARACTER(LEN=default_path_length), &
-      DIMENSION(12)                          :: each_desc_labels
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(12)                          :: each_possible_labels
     INTEGER                                  :: i_each, i_iter, my_add_last, &
                                                 my_comm_iter_levels, &
                                                 my_print_level, my_value
@@ -254,37 +255,10 @@ CONTAINS
             n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             citations=citations, supported_feature=supported_feature, error=error)
 
-       ! Enforce the presence of absence of both.. or give an error
+       ! Enforce the presence or absence of both.. or give an error
        check = (PRESENT(each_iter_names)).EQV.(PRESENT(each_iter_values))
        CPPrecondition(check,cp_failure_level,routineP,error,failure)
        ext_each = (PRESENT(each_iter_names)).AND.(PRESENT(each_iter_values))
-
-       ! When adding a new iteration level PLEASE update the following list with the proper name!
-       each_possible_labels( 1) = "__ROOT__"
-       each_possible_labels( 2) = "JUST_ENERGY"
-       each_possible_labels( 3) = "QS_SCF"
-       each_possible_labels( 4) = "XAS_SCF"
-       each_possible_labels( 5) = "MD"
-       each_possible_labels( 6) = "METADYNAMICS"
-       each_possible_labels( 7) = "GEO_OPT"
-       each_possible_labels( 8) = "ROT_OPT"
-       each_possible_labels( 9) = "BAND"
-       each_possible_labels(10) = "EP_LIN_SOLVER"
-       each_possible_labels(11) = "SPLINE_FIND_COEFFS"
-       each_possible_labels(12) = "REPLICA_EVAL"
-
-       each_desc_labels( 1) = "Iteration level for __ROOT__ (fictitious iteration level)"
-       each_desc_labels( 2) = "Iteration level for an ENERGY/ENERGY_FORCE calculation."
-       each_desc_labels( 3) = "Iteration level for the SCF Steps."
-       each_desc_labels( 4) = "Iteration level for the X-Ray Absorption Spectroscopy (XAS) SCF Steps."
-       each_desc_labels( 5) = "Iteration level for the MD steps."
-       each_desc_labels( 6) = "Iteration level for the METADYNAMICS steps (number of hills added)."
-       each_desc_labels( 7) = "Iteration level for the geometry optimization steps."
-       each_desc_labels( 8) = "Iteration level for the rotational optimization steps in the Dimer Calculation."
-       each_desc_labels( 9) = "Iteration level for the Band Calculation Steps"
-       each_desc_labels(10) = "Iteration level for the Energy Perturbation (EP) linear solver"
-       each_desc_labels(11) = "Iteration level for the solution of the coefficients of the splines"
-       each_desc_labels(12) = "Iteration level for the evaluation of the Replica Environment"
        
        DO i_each = 1, SIZE(each_possible_labels)
           my_value = 1
@@ -811,23 +785,39 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_add_iter_level', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, found
+    integer:: i
 
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(iteration_info),cp_failure_level,routineP,error,failure)
     CPPrecondition(iteration_info%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL cp_iteration_info_retain(iteration_info)
-       iteration_info%n_rlevel=iteration_info%n_rlevel+1
-       CALL reallocate(iteration_info%iteration,  1, iteration_info%n_rlevel)
-       CALL reallocate(iteration_info%level_name, 1, iteration_info%n_rlevel)
-       CALL reallocate(iteration_info%last_iter,  1, iteration_info%n_rlevel)
-       iteration_info%iteration(iteration_info%n_rlevel)  = 0
-       iteration_info%level_name(iteration_info%n_rlevel) = level_name
-       iteration_info%last_iter(iteration_info%n_rlevel)  = .FALSE.
-       IF (PRESENT(n_rlevel_new)) n_rlevel_new=iteration_info%n_rlevel
+       found = .FALSE.
+       DO i = 1, SIZE(each_possible_labels)
+          IF (TRIM(level_name)==TRIM(each_possible_labels(i))) THEN
+             found = .TRUE.
+             EXIT
+          END IF
+       END DO
+       IF (found) THEN
+          CALL cp_iteration_info_retain(iteration_info)
+          iteration_info%n_rlevel=iteration_info%n_rlevel+1
+          CALL reallocate(iteration_info%iteration,  1, iteration_info%n_rlevel)
+          CALL reallocate(iteration_info%level_name, 1, iteration_info%n_rlevel)
+          CALL reallocate(iteration_info%last_iter,  1, iteration_info%n_rlevel)
+          iteration_info%iteration(iteration_info%n_rlevel)  = 0
+          iteration_info%level_name(iteration_info%n_rlevel) = level_name
+          iteration_info%last_iter(iteration_info%n_rlevel)  = .FALSE.
+          IF (PRESENT(n_rlevel_new)) n_rlevel_new=iteration_info%n_rlevel
+       ELSE
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+               "Trying to create an iteration level ("//TRIM(level_name)//") not defined."//&
+               "Please update the module: cp_iter_types."//&
+               CPSourceFileRef)
+       END IF
     END IF
+
   END SUBROUTINE cp_add_iter_level
 !***************************************************************************
 

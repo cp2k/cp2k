@@ -3746,7 +3746,7 @@ CPSourceFileRef,&
           END IF
        END IF
 
-       CALL cp_add_iter_level(logger%iter_info,level_name="SPLINE_FIND_COEFF",error=error)
+       CALL cp_add_iter_level(logger%iter_info,level_name="SPLINE_FIND_COEFFS",error=error)
        ext_do:DO iiter=1,max_iter,10
           CALL pw_zero(r)
           CALL linOp(pw_in=coeffs,pw_out=r,error=error)
@@ -3803,7 +3803,7 @@ CPSourceFileRef,&
 
           END DO
        END DO ext_do
-       CALL cp_rm_iter_level(logger%iter_info,level_name="SPLINE_FIND_COEFF",error=error)
+       CALL cp_rm_iter_level(logger%iter_info,level_name="SPLINE_FIND_COEFFS",error=error)
 
        CALL pw_pool_give_back_pw(pool,r,error=error)
        CALL pw_pool_give_back_pw(pool,z,error=error)

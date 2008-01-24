@@ -51,6 +51,10 @@
 MODULE cp_log_handling
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_iter_types,                   ONLY: cp_iteration_info_create,&
+                                             cp_iteration_info_release,&
+                                             cp_iteration_info_retain,&
+                                             cp_iteration_info_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
@@ -68,7 +72,7 @@ MODULE cp_log_handling
   PRIVATE
 
   ! types
-  PUBLIC :: cp_logger_type, cp_iteration_info_type
+  PUBLIC :: cp_logger_type
   ! parameter vars
   PUBLIC :: cp_note_level, cp_warning_level, cp_failure_level, cp_fatal_level 
   ! default loggers
@@ -77,10 +81,7 @@ MODULE cp_log_handling
   PUBLIC :: cp_logger_create, cp_logger_retain, cp_logger_release,&
             cp_logger_would_log, cp_logger_set, cp_logger_get_default_unit_nr,&
             cp_logger_get_unit_nr, cp_logger_set_log_level, cp_logger_generate_filename
-  PUBLIC :: cp_to_string, cp_log
-  ! iteration_info
-  PUBLIC :: cp_iteration_info_create, cp_iteration_info_retain, &
-            cp_iteration_info_release, print_message
+  PUBLIC :: cp_to_string, cp_log, print_message
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_log_handling'
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
@@ -102,38 +103,6 @@ MODULE cp_log_handling
   INTERFACE cp_log
      MODULE PROCEDURE cp_logger_log
   END INTERFACE
-
-!!****s* cp_log_handling/cp_iteration_info_type *
-!!
-!!   NAME
-!!     cp_iteration_info
-!!
-!!   FUNCTION
-!!     contains the information about the current state of the program
-!!     to be able to decide if output is necessary
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   SOURCE
-!***************************************************************************
-  TYPE cp_iteration_info_type
-     INTEGER                              :: ref_count, id_nr
-     INTEGER                              :: print_level, n_rlevel
-     INTEGER, DIMENSION(:), POINTER       :: iteration
-     LOGICAL, DIMENSION(:), POINTER       :: last_iter
-     CHARACTER(len=default_string_length) :: project_name
-     CHARACTER(LEN=default_string_length),&
-          DIMENSION(:), POINTER           :: level_name
-  END TYPE cp_iteration_info_type
-!!***
-!****************************************************************************
 
 !!****s* cp_log_handling/cp_logger_type [1.0] *
 !!
@@ -217,7 +186,7 @@ MODULE cp_log_handling
   INTEGER, PARAMETER, PRIVATE :: max_stack_pointer=10
   TYPE(default_logger_stack_type), DIMENSION(max_stack_pointer) ::  default_logger_stack
 
-  INTEGER, SAVE, PRIVATE :: last_logger_id_nr=0, last_it_info_id=0
+  INTEGER, SAVE, PRIVATE :: last_logger_id_nr=0
 
 CONTAINS
 
@@ -1204,170 +1173,6 @@ CONTAINS
     IF (PRESENT(global_filename)) logger%global_filename=global_filename
   END SUBROUTINE cp_logger_set
 !***************************************************************************
-
-! ============= cp_iteration_info  ============
-
-!!****f* cp_log_handling/cp_iteration_info_create *
-!!
-!!   NAME
-!!     cp_iteration_info_create
-!!
-!!   FUNCTION
-!!     creates an output info object
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - iteration_info: the object to create
-!!     - project_name: name of the project, used to create the filenames
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
-  SUBROUTINE cp_iteration_info_create(iteration_info,project_name)
-    TYPE(cp_iteration_info_type), POINTER    :: iteration_info
-    CHARACTER(len=*), INTENT(in)             :: project_name
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_iteration_info_create', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: stat
-
-    ALLOCATE(iteration_info,stat=stat)
-    IF (stat/=0) THEN
-       CALL mp_abort(routineP//" could not allocate iteration_info")
-    END IF
-    last_it_info_id = last_it_info_id+1
-    iteration_info%id_nr = last_it_info_id
-    iteration_info%ref_count  = 1
-    iteration_info%print_level= 2
-    iteration_info%n_rlevel   = 1
-    iteration_info%project_name = project_name
-    NULLIFY(iteration_info%iteration)
-    NULLIFY(iteration_info%level_name)
-    NULLIFY(iteration_info%last_iter)
-    ALLOCATE(iteration_info%iteration(iteration_info%n_rlevel),stat=stat)
-    IF (stat/=0) THEN
-       CALL mp_abort(routineP//" iteration_info%iteration allocation stat "//&
-            cp_to_string(stat))
-    END IF
-    ALLOCATE(iteration_info%level_name(iteration_info%n_rlevel),stat=stat)
-    IF (stat/=0) THEN
-       CALL mp_abort(routineP//" iteration_info%level_name allocation stat "//&
-            cp_to_string(stat))
-    END IF
-    ALLOCATE(iteration_info%last_iter(iteration_info%n_rlevel),stat=stat)
-    IF (stat/=0) THEN
-       CALL mp_abort(routineP//" iteration_info%last_iter allocation stat "//&
-            cp_to_string(stat))
-    END IF
-    iteration_info%iteration(iteration_info%n_rlevel)  = 1
-    iteration_info%level_name(iteration_info%n_rlevel) = "__ROOT__"
-    iteration_info%last_iter(iteration_info%n_rlevel)  = .FALSE.
-
-  END SUBROUTINE cp_iteration_info_create
-!***************************************************************************
-
-!!****f* cp_log_handling/cp_iteration_info_retain *
-!!
-!!   NAME
-!!     cp_iteration_info_retain
-!!
-!!   FUNCTION
-!!     retains the iteration_info (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - iteration_info: the iteration_info to retain
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
-  SUBROUTINE cp_iteration_info_retain(iteration_info)
-    TYPE(cp_iteration_info_type), POINTER    :: iteration_info
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_iteration_info_retain', &
-      routineP = moduleN//':'//routineN
-
-    IF (.NOT.ASSOCIATED(iteration_info)) THEN
-       CALL mp_abort(routineP//" iteration_info not associated")
-    END IF
-    IF (iteration_info%ref_count<=0) THEN
-       CALL mp_abort(routineP//" iteration_info%ref_counf<=0")
-    END IF
-    iteration_info%ref_count=iteration_info%ref_count+1
-  END SUBROUTINE cp_iteration_info_retain
-!***************************************************************************
-
-!!****f* cp_log_handling/cp_iteration_info_release *
-!!
-!!   NAME
-!!     cp_iteration_info_release
-!!
-!!   FUNCTION
-!!     releases the iteration_info (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - iteration_info: the iteration_info to release
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
-  SUBROUTINE cp_iteration_info_release(iteration_info)
-    TYPE(cp_iteration_info_type), POINTER    :: iteration_info
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_iteration_info_release', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: stat
-
-    IF (ASSOCIATED(iteration_info)) THEN
-       IF (iteration_info%ref_count<=0) THEN
-          CALL mp_abort(routineP//" iteration_info%ref_counf<=0")
-       END IF
-       iteration_info%ref_count=iteration_info%ref_count-1
-       IF (iteration_info%ref_count==0) THEN
-          IF (ASSOCIATED(iteration_info%iteration)) THEN
-             DEALLOCATE(iteration_info%iteration,stat=stat)
-             IF (stat/=0) THEN
-                CALL mp_abort(routineP//" iteration_info%iteration deallocation stat "//&
-                     cp_to_string(stat))
-             END IF
-          END IF
-          IF (ASSOCIATED(iteration_info%last_iter)) THEN
-             DEALLOCATE(iteration_info%last_iter,stat=stat)
-             IF (stat/=0) THEN
-                CALL mp_abort(routineP//" iteration_info%last_iter deallocation stat "//&
-                     cp_to_string(stat))
-             END IF
-          END IF
-          IF (ASSOCIATED(iteration_info%level_name)) THEN
-             DEALLOCATE(iteration_info%level_name,stat=stat)
-             IF (stat/=0) THEN
-                CALL mp_abort(routineP//" iteration_info%level_name deallocation stat "//&
-                     cp_to_string(stat))
-             END IF
-          END IF
-          DEALLOCATE(iteration_info,stat=stat)
-          IF (stat/=0) THEN
-             CALL mp_abort(routineP//" iteration_info deallocation stat "//&
-                  cp_to_string(stat))
-          END IF
-       END IF
-    END IF
-  END SUBROUTINE cp_iteration_info_release
-!***************************************************************************
-
-! ============= to string  ============
 
 !!****f* cp_log_handling/cp_int_to_string [1.0] *
 !!
