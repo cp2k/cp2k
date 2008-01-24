@@ -236,6 +236,8 @@ MODULE x_hf
     INTEGER                                  :: n_rep_hf
     LOGICAL                                  :: b_first_load_balance_energy, &
                                                 b_first_load_balance_forces
+    REAL(dp), DIMENSION(:,:), POINTER        :: full_ks_alpha
+    REAL(dp), DIMENSION(:,:), POINTER        :: full_ks_beta
   END TYPE
 
   CONTAINS

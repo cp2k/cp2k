@@ -124,7 +124,8 @@ MODULE sparse_matrix_types
             cp_sm_get_block_list,&
             cp_sm_maxabsval,&
             create_dbm_from_sm,&
-            deallocate_dbm_from_sm
+            deallocate_dbm_from_sm,&
+            cp_sm_add_constant
 
 ! *** Public functions ***
 
@@ -3055,6 +3056,68 @@ SUBROUTINE deallocate_dbm_from_sm(dbm,sm,copy_out,para_env,error)
   CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE deallocate_dbm_from_sm
+!***************************************************************************
+
+!!****f* sparse_matrix_types/cp_sm_add_constant [1.0] *
+!!
+!!   NAME
+!!     cp_sm_add_constant
+!!
+!!   FUNCTION
+!!     Adds a constant value to each matrix element
+!!
+!!   NOTES
+!!     
+!!
+!!   INPUTS
+!!     - matrix_a: a sparse matrix (inout)
+!!     - alpha: value to be added
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Manuel Guidon 
+!!
+!!   MODIFICATION HISTORY
+!!     01.2008 created [mguidon]
+!!
+!!*** **********************************************************************
+SUBROUTINE cp_sm_add_constant(matrix_a,alpha,error)
+    TYPE(real_matrix_type), POINTER          :: matrix_a
+    REAL(KIND=dp), INTENT(in)                :: alpha
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_add_constant', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, iblock_row, j
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a_block
+    TYPE(real_block_node_type), POINTER      :: block_node
+
+  CALL timeset(routineN,"I","",handle)
+
+  NULLIFY(a_block,block_node)
+  failure=.FALSE.
+  CPPrecondition(ASSOCIATED(matrix_a),cp_failure_level,routineP,error,failure)
+
+  DO iblock_row=1,matrix_a%nblock_row
+   block_node => first_block_node(matrix_a,iblock_row)
+    DO WHILE (ASSOCIATED(block_node))
+
+      CALL get_block_node(block_node=block_node,&
+                          BLOCK=a_block)
+      
+      DO j=1,SIZE(a_block,2)
+        DO i=1,SIZE(a_block,1)
+          a_block(i,j) = a_block(i,j) + alpha
+        END DO
+      END DO
+      block_node => block_node%next_block_node
+    END DO
+  END DO
+  CALL timestop(0.0_dp,handle)
+END SUBROUTINE cp_sm_add_constant
 
 !***************************************************************************
 

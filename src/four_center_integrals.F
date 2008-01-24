@@ -30,10 +30,10 @@ MODULE four_center_integrals
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE erf_fn,                          ONLY: erfc
   USE input_constants,                 ONLY: do_hf_potential_coulomb,&
-                                             do_hf_potential_mix_cl,&
-                                             do_hf_potential_short,&
                                              do_hf_potential_gaussian,&
-                                             do_hf_potential_mix_lg
+                                             do_hf_potential_mix_cl,&
+                                             do_hf_potential_mix_lg,&
+                                             do_hf_potential_short
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              int_8
@@ -86,7 +86,7 @@ MODULE four_center_integrals
   IMPLICIT NONE
   PRIVATE
    
-  PUBLIC  integrate_four_center, derivatives_four_center
+  PUBLIC  integrate_four_center, derivatives_four_center, scale_and_add_fock_to_ks_matrix
 
   TYPE(lib_int), SAVE      :: lib
   TYPE(lib_deriv), SAVE    :: deriv
@@ -133,7 +133,7 @@ MODULE four_center_integrals
 !!****************************************************************************
 
   SUBROUTINE integrate_four_center(qs_env,ks_matrix,energy,rho,hf_section,para_env,& 
-                                   geometry_did_change,irep,error)
+                                   geometry_did_change,irep,distribute_fock_matrix,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -144,6 +144,7 @@ MODULE four_center_integrals
     TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL                                  :: geometry_did_change
     INTEGER                                  :: irep
+    LOGICAL, INTENT(IN)                      :: distribute_fock_matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_four_center', &
@@ -180,10 +181,9 @@ MODULE four_center_integrals
       ra(3), rb(3), Rbox, rc(3), rd(3), screen_max, spherical_estimate, &
       symm_fac, temp(3), tmp
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: primitive_integrals, T1
-    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: full_ks, full_ks_beta
     REAL(dp), DIMENSION(:, :), POINTER :: full_density, full_density_beta, &
-      max_contraction, screen_atom, sparse_block, sphi_a, sphi_b, sphi_c, &
-      sphi_d, zeta, zetb, zetc, zetd
+      full_ks, full_ks_beta, max_contraction, screen_atom, sparse_block, &
+      sphi_a, sphi_b, sphi_c, sphi_d, zeta, zetb, zetc, zetd
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: actual_pmax_set, screen_set
     REAL(dp), DIMENSION(:, :, :, :, :), &
       POINTER                                :: screen_periodic
@@ -410,13 +410,15 @@ MODULE four_center_integrals
       ENDDO
     ENDDO
  
-    !! Get the full ks_matrix from all processors
-    ALLOCATE(full_ks(SIZE(full_density,1),SIZE(full_density,2)),STAT=stat)
+    NULLIFY(full_ks, full_ks_beta)
+    ALLOCATE(actual_x_data%full_ks_alpha(SIZE(full_density,1),SIZE(full_density,2)),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    full_ks => actual_x_data%full_ks_alpha
     full_ks = 0.0_dp
     IF(nspins==2) THEN
-      ALLOCATE(full_ks_beta(SIZE(full_density,1),SIZE(full_density,2)),STAT=stat)
+      ALLOCATE(actual_x_data%full_ks_beta(SIZE(full_density,1),SIZE(full_density,2)),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      full_ks_beta => actual_x_data%full_ks_beta
       full_ks_beta = 0.0_dp
     END IF
 
@@ -1141,20 +1143,29 @@ MODULE four_center_integrals
       END DO
     END DO
 
-    !! Distribute the current KS-matrix to all the processes
-    CALL mp_sync(para_env%group) ! to clarify timings 
-    CALL timeset(routineN//"_dist_KS",handle_dist_ks)
-    CALL distribute_ks_matrix(para_env, full_ks, ks_matrix(1)%matrix, actual_x_data%number_of_p_entries, &
-                              actual_x_data%is_assoc_atomic_block,&
-                              particle_set, natom, last_sgf_global, kind_of, basis_parameter, error)
-    IF(nspins == 2) THEN
-      CALL distribute_ks_matrix(para_env, full_ks_beta, ks_matrix(2)%matrix, actual_x_data%number_of_p_entries, &
-                              actual_x_data%is_assoc_atomic_block,&
-                              particle_set, natom, last_sgf_global, kind_of, basis_parameter, error)
+    IF( distribute_fock_matrix) THEN
+      !! Distribute the current KS-matrix to all the processes
+      CALL mp_sync(para_env%group) ! to clarify timings 
+      CALL timeset(routineN//"_dist_KS",handle_dist_ks)
+      CALL distribute_ks_matrix(para_env, full_ks, ks_matrix(1)%matrix, actual_x_data%number_of_p_entries, &
+                                actual_x_data%is_assoc_atomic_block,&
+                                particle_set, natom, last_sgf_global, kind_of, basis_parameter, error)
+
+      NULLIFY(full_ks)
+      DEALLOCATE(actual_x_data%full_ks_alpha, STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      IF(nspins == 2) THEN
+        CALL distribute_ks_matrix(para_env, full_ks_beta, ks_matrix(2)%matrix, actual_x_data%number_of_p_entries, &
+                                actual_x_data%is_assoc_atomic_block,&
+                                particle_set, natom, last_sgf_global, kind_of, basis_parameter, error)
+        NULLIFY(full_ks_beta)
+        DEALLOCATE(actual_x_data%full_ks_beta, STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      END IF
+      CALL mp_sync(para_env%group) ! to clarify timings 
+      CALL timestop(handle_dist_ks)
     END IF
 
-    CALL mp_sync(para_env%group) ! to clarify timings 
-    CALL timestop(handle_dist_ks)
     CALL mp_sum(ene_x_aa, para_env%group)
     IF(nspins==2) CALL mp_sum(ene_x_bb,para_env%group)
 
@@ -1225,16 +1236,12 @@ MODULE four_center_integrals
 
     DEALLOCATE(screen_set, screen_atom, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(full_ks, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(last_sgf_global,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(full_density,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF(nspins==2) THEN
       DEALLOCATE(full_density_beta,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      DEALLOCATE(full_ks_beta, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(do_correct_p_screening) THEN
@@ -5629,6 +5636,132 @@ MODULE four_center_integrals
     END IF
     CALL timestop(handle)
   END SUBROUTINE update_load_balance_forces
+!***************************************************************************
+
+!!***** four_center_integrals/scale_and_add_fock_to_ks_matrix [1.0] *
+!!
+!!   NAME
+!!     add_fock_to_ks_matrix
+!!
+!!   FUNCTION
+!!     - Distributes the local full Kohn-Sham matrix to all CPUS. Is called in
+!!       case of adiabatic rescaling. This is just a refactored version of
+!!       distribute_ks_matrix
+!!
+!!   NOTES
+!!     - Communication with left/right node only
+!!
+!!   INPUTS
+!!     - para_env
+!!     - full_ks : The full Kohn-Sham matrix
+!!     - ks_matrix: Distributed Kohn-Sham matrix
+!!     - number_of_p_entries: Maximal buffer size
+!!     - is_assoc_atomic_block: tells us which node owns which atomic pairs 
+!!     - particle_set
+!!     - natom
+!!     - last_sgf_global: helper array for mapping local to global indices
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     11.2007 created [Manuel Guidon]
+!!
+!!****************************************************************************
+
+  SUBROUTINE scale_and_add_fock_to_ks_matrix(para_env, qs_env, ks_matrix, irep ,&
+                                             scaling_factor, error)
+
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: ks_matrix
+    INTEGER, INTENT(IN)                      :: irep
+    REAL(dp), INTENT(IN)                     :: scaling_factor
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'scale_and_add_fock_to_ks_matrix', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, iatom, ikind, istat, j, &
+                                                natom, nspins, &
+                                                number_of_p_entries, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of, last_sgf_global
+    INTEGER, DIMENSION(:, :), POINTER        :: is_assoc_atomic_block
+    LOGICAL                                  :: failure
+    REAL(dp), DIMENSION(:, :), POINTER       :: full_ks
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(x_hf_basis_type), DIMENSION(:), &
+      POINTER                                :: basis_parameter
+    TYPE(x_hf_type), POINTER                 :: actual_x_data
+
+    actual_x_data => qs_env%x_data(irep)
+    number_of_p_entries = actual_x_data%number_of_p_entries
+    is_assoc_atomic_block => actual_x_data%is_assoc_atomic_block
+    basis_parameter => actual_x_data%basis_parameter
+   
+    CALL get_qs_env(qs_env=qs_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    particle_set=particle_set,&
+                    error=error)
+
+    nspins = qs_env%dft_control%nspins    
+    natom = SIZE(particle_set,1)
+    ALLOCATE(kind_of(natom),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             kind_of=kind_of)
+    
+    ALLOCATE(last_sgf_global(0:natom),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    last_sgf_global(0)=0
+    DO iatom=1,natom
+      ikind = kind_of(iatom)
+      last_sgf_global(iatom) = last_sgf_global(iatom-1)+ basis_parameter(ikind)%nsgf_total
+    END DO
+
+    full_ks => actual_x_data%full_ks_alpha
+    IF(scaling_factor /= 1.0_dp ) THEN
+      DO j=1,SIZE(full_ks,2)
+        DO i=1,SIZE(full_ks,1)
+          full_ks(i,j) = full_ks(i,j) * scaling_factor
+        END DO
+      END DO
+    END IF
+    CALL distribute_ks_matrix(para_env, full_ks, ks_matrix(1)%matrix, actual_x_data%number_of_p_entries, &
+                              actual_x_data%is_assoc_atomic_block,&
+                              particle_set, natom, last_sgf_global, kind_of, basis_parameter, error)
+    DEALLOCATE(actual_x_data%full_ks_alpha, STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    IF(nspins == 2) THEN
+      full_ks => actual_x_data%full_ks_beta
+      IF(scaling_factor /= 1.0_dp ) THEN
+        DO j=1,SIZE(full_ks,2)
+          DO i=1,SIZE(full_ks,1)
+            full_ks(i,j) = full_ks(i,j) * scaling_factor
+          END DO
+        END DO
+      END IF
+
+      CALL distribute_ks_matrix(para_env, full_ks, ks_matrix(2)%matrix, actual_x_data%number_of_p_entries, &
+                                actual_x_data%is_assoc_atomic_block,&
+                                particle_set, natom, last_sgf_global, kind_of, basis_parameter, error)
+      DEALLOCATE(actual_x_data%full_ks_beta, STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+
+    DEALLOCATE(kind_of, last_sgf_global, STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE scale_and_add_fock_to_ks_matrix 
 !***************************************************************************
 
 END MODULE four_center_integrals

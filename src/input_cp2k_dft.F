@@ -393,6 +393,10 @@ CONTAINS
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
+    CALL create_adiabatic_section(subsection,error)
+    CALL section_add_subsection(section, subsection, error=error)
+    CALL section_release(subsection,error=error)
+
     CALL create_field_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
@@ -420,7 +424,6 @@ CONTAINS
     CALL create_print_dft_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
-
   END SUBROUTINE create_dft_section
   !***************************************************************************
 
@@ -3017,7 +3020,6 @@ CONTAINS
        CALL create_sic_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
-
     END IF
 
 
@@ -4350,6 +4352,73 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_sic_section
+
+  !!****f* input_cp2k_dft/create_adiabatic_section *
+  !!
+  !!   NAME
+  !!     create_adiabatic_section
+  !!
+  !!   FUNCTION
+  !!     creates the section for adiabatic hybrid functionals
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   INPUTS
+  !!     - error: variable to control error logging, stopping,... 
+  !!       see module cp_error_handling 
+  !!
+  !!   AUTHOR
+  !!     Manuel Guidon
+  !!
+  !!*** **********************************************************************
+  SUBROUTINE create_adiabatic_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_adiabatic_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"ADIABATIC_RESCALING",&
+            description="Parameters for self interation corrected hybrid functionals",&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword)
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="FUNCTIONAL_TYPE",&
+            description="Which Hybrid functional should be used. "//&
+                         "(Has to be consistent with the definitions in XC and HF).",&
+            usage="FUNCTIONAL_TYPE MCY3",&
+            enum_c_vals=s2a("MCY3"),&
+            enum_i_vals=(/do_adiabatic_hybrid_mcy3/), &
+            enum_desc=s2a("Use MCY3 hybrid functional"), &
+            default_i_val=do_adiabatic_hybrid_mcy3, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       NULLIFY(keyword)
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="FUNCTIONAL_MODEL",&
+            description="Which model for the coupling constant integration should be used. ",&
+            usage="FUNCTIONAL_MODLE PADE",&
+            enum_c_vals=s2a("PADE"),&
+            enum_i_vals=(/do_adiabatic_model_pade/), &
+            enum_desc=s2a("Use PADE model: W(lambda)=a+(b*lambda)/(1+c*lambda)"), &
+            default_i_val=do_adiabatic_model_pade, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    END IF
+  END SUBROUTINE create_adiabatic_section
 
   !!****f* input_cp2k_dft/create_field_section *
   !!

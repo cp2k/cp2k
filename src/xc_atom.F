@@ -54,7 +54,7 @@ CONTAINS
 !******************************************************************************
 
   SUBROUTINE vxc_of_r_new(xc_fun_section,rho_set,deriv_set,deriv_order,needs,w,&
-                          lsd,na,nr,exc,vxc,vxg,energy_only,epr_xc,error)
+                          lsd,na,nr,exc,vxc,vxg,energy_only,epr_xc,adiabatic_rescale_factor,error)
 
 ! This routine updates rho_set by giving to it the rho and drho that are needed.
 ! Since for the local densities rho1_h and rho1_s local grids are used it is not possible
@@ -78,6 +78,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :, :), POINTER    :: vxc
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: vxg
     LOGICAL, INTENT(IN), OPTIONAL            :: energy_only, epr_xc
+    REAL(dp), INTENT(IN), OPTIONAL           :: adiabatic_rescale_factor
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'vxc_of_r_new', &
@@ -87,6 +88,7 @@ CONTAINS
                                                 my_deriv_order
     LOGICAL                                  :: failure, gradient_f, &
                                                 my_epr_xc, my_only_energy
+    REAL(dp)                                 :: my_adiabatic_rescale_factor
     REAL(dp), DIMENSION(:, :, :), POINTER    :: deriv_data
     REAL(KIND=dp)                            :: drho_cutoff
     TYPE(xc_derivative_type), POINTER        :: deriv_att
@@ -97,6 +99,13 @@ CONTAINS
     failure = .FALSE.
     my_only_energy = .FALSE.
     IF(PRESENT(energy_only)) my_only_energy=energy_only
+    
+    IF(PRESENT(adiabatic_rescale_factor)) THEN
+      my_adiabatic_rescale_factor = adiabatic_rescale_factor
+    ELSE
+      my_adiabatic_rescale_factor = 1.0_dp
+    END IF
+
 
     ! needed for the epr routines
     my_epr_xc = .FALSE.
@@ -182,27 +191,27 @@ CONTAINS
      deriv_att => xc_dset_get_derivative(deriv_set, "(rhoa)",error=error)
      IF (ASSOCIATED(deriv_att)) THEN
        CALL xc_derivative_get(deriv_att,deriv_data=deriv_data, error=error)
-       vxc(:,:,1) = deriv_data(:,:,1)*w(:,:)
+       vxc(:,:,1) = deriv_data(:,:,1)*w(:,:) * my_adiabatic_rescale_factor
        NULLIFY (deriv_data)
      END IF
      deriv_att => xc_dset_get_derivative(deriv_set, "(rhob)",error=error)
      IF (ASSOCIATED(deriv_att)) THEN
        CALL xc_derivative_get(deriv_att,deriv_data=deriv_data, error=error)
-       vxc(:,:,2) = deriv_data(:,:,1)*w(:,:)
+       vxc(:,:,2) = deriv_data(:,:,1)*w(:,:) * my_adiabatic_rescale_factor
        NULLIFY(deriv_data)
      END IF
      deriv_att => xc_dset_get_derivative(deriv_set, "(rho)",error=error)
      IF(ASSOCIATED(deriv_att)) THEN
         CALL xc_derivative_get(deriv_att,deriv_data=deriv_data, error=error)
-        vxc(:,:,1) = vxc(:,:,1) + deriv_data(:,:,1)*w(:,:)
-        vxc(:,:,2) = vxc(:,:,2) + deriv_data(:,:,1)*w(:,:)
+        vxc(:,:,1) = vxc(:,:,1) + deriv_data(:,:,1)*w(:,:) * my_adiabatic_rescale_factor
+        vxc(:,:,2) = vxc(:,:,2) + deriv_data(:,:,1)*w(:,:) * my_adiabatic_rescale_factor
         NULLIFY (deriv_data)
      END IF
    ELSE
      deriv_att => xc_dset_get_derivative(deriv_set, "(rho)",error=error)
      IF (ASSOCIATED(deriv_att)) THEN
        CALL xc_derivative_get(deriv_att,deriv_data=deriv_data, error=error)
-       vxc(:,:,1) = deriv_data(:,:,1)*w(:,:)
+       vxc(:,:,1) = deriv_data(:,:,1)*w(:,:) * my_adiabatic_rescale_factor
        NULLIFY (deriv_data)
      END IF
    END IF  ! lsd
@@ -219,7 +228,7 @@ CONTAINS
                   IF (rho_set%norm_drhoa(ia,ir,1) > drho_cutoff) THEN
                      vxg(idir,ia,ir,1) = rho_set%drhoa(idir)%array(ia,ir,1) * &
                                          deriv_data(ia,ir,1)*w(ia,ir) / &
-                                         rho_set%norm_drhoa(ia,ir,1)
+                                         rho_set%norm_drhoa(ia,ir,1) * my_adiabatic_rescale_factor
                   ELSE
                      vxg(idir,ia,ir,1) = 0.0_dp
                   END IF
@@ -237,7 +246,7 @@ CONTAINS
                   IF (rho_set%norm_drhob(ia,ir,1) > drho_cutoff) THEN
                      vxg(idir,ia,ir,2) = rho_set%drhob(idir)%array(ia,ir,1) * &
                                          deriv_data(ia,ir,1)*w(ia,ir) / &
-                                         rho_set%norm_drhob(ia,ir,1)
+                                         rho_set%norm_drhob(ia,ir,1) * my_adiabatic_rescale_factor
                   ELSE
                      vxg(idir,ia,ir,2) = 0.0_dp
                   END IF
@@ -256,7 +265,7 @@ CONTAINS
                   IF (rho_set%norm_drho(ia,ir,1) > drho_cutoff) THEN
                      vxg(idir,ia,ir,1:2) = vxg(idir,ia,ir,1:2) + &
                           (rho_set%drhoa(idir)%array(ia,ir,1) + rho_set%drhob(idir)%array(ia,ir,1)) * &
-                          deriv_data(ia,ir,1)*w(ia,ir)/rho_set%norm_drho(ia,ir,1)
+                          deriv_data(ia,ir,1)*w(ia,ir)/rho_set%norm_drho(ia,ir,1) * my_adiabatic_rescale_factor
                   END IF
                END DO
             END DO
@@ -273,7 +282,7 @@ CONTAINS
                   DO idir=1, 3
                      vxg(idir,ia,ir,1) = rho_set%drho(idir)%array(ia,ir,1) * &
                                          deriv_data(ia,ir,1)*w(ia,ir) / &
-                                         rho_set%norm_drho(ia,ir,1)
+                                         rho_set%norm_drho(ia,ir,1) * my_adiabatic_rescale_factor
                   END DO
                ELSE
                   vxg(1:3,ia,ir,1) = 0.0_dp

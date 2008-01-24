@@ -606,6 +606,12 @@ MODULE input_constants
                                 do_hf_potential_gaussian=5,&
                                 do_hf_potential_mix_lg=6
 
+  ! adiabatic hybrid type
+  INTEGER, PARAMETER, PUBLIC :: do_adiabatic_hybrid_mcy3=1
+
+  ! adiabati model type
+  INTEGER, PARAMETER, PUBLIC :: do_adiabatic_model_pade=1
+
   ! mode selctive vibrational analysis
   INTEGER, PARAMETER, PUBLIC :: ms_guess_bfgs=1, &
                                 ms_guess_atomic=2, &

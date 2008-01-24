@@ -87,13 +87,14 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_vxc_atom(qs_env,energy_only,error,gradient_atom_set)
+  SUBROUTINE calculate_vxc_atom(qs_env,energy_only,error,gradient_atom_set,adiabatic_rescale_factor)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: energy_only
     TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(nablavks_atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: gradient_atom_set
+    REAL(dp), INTENT(IN), OPTIONAL           :: adiabatic_rescale_factor
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_vxc_atom', &
       routineP = moduleN//':'//routineN
@@ -105,7 +106,9 @@ CONTAINS
     LOGICAL                                  :: epr_xc, gradient_f, lsd, &
                                                 paw_atom
     REAL(dp)                                 :: density_cut, exc_h, exc_s, &
-                                                gradient_cut, tau_cut
+                                                gradient_cut, &
+                                                my_adiabatic_rescale_factor, &
+                                                tau_cut
     REAL(dp), DIMENSION(:, :), POINTER       :: rho_h, rho_s, weight
     REAL(dp), DIMENSION(:, :, :), POINTER    :: vxc_h, vxc_s
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: drho_h, drho_s, vxg_h, vxg_s
@@ -151,6 +154,12 @@ CONTAINS
     epr_xc = .FALSE.
     IF(PRESENT(gradient_atom_set)) THEN
        epr_xc = .TRUE.
+    END IF
+
+    IF(PRESENT(adiabatic_rescale_factor)) THEN
+      my_adiabatic_rescale_factor = adiabatic_rescale_factor
+    ELSE
+      my_adiabatic_rescale_factor = 1.0_dp
     END IF
 
     CALL get_qs_env(qs_env=qs_env,&
@@ -298,7 +307,7 @@ CONTAINS
           CALL xc_dset_zero_all(deriv_set, error)
           CALL vxc_of_r_new(xc_fun_section, rho_set_h, deriv_set, 1, needs, weight, &
                             lsd, na, nr, exc_h, vxc_h, vxg_h,energy_only=energy_only, &
-                            epr_xc=epr_xc, error=error)
+                            epr_xc=epr_xc, adiabatic_rescale_factor=my_adiabatic_rescale_factor, error=error)
           rho_atom%exc_h = rho_atom%exc_h + exc_h
 
           !-------------------!
@@ -307,7 +316,7 @@ CONTAINS
           CALL xc_dset_zero_all(deriv_set, error)
           CALL vxc_of_r_new(xc_fun_section, rho_set_s, deriv_set, 1, needs, weight, &
                             lsd, na, nr, exc_s, vxc_s, vxg_s, energy_only=energy_only, &
-                            epr_xc=epr_xc, error=error)
+                            epr_xc=epr_xc, adiabatic_rescale_factor=my_adiabatic_rescale_factor, error=error)
           rho_atom%exc_s = rho_atom%exc_s + exc_s
 
           IF (epr_xc) THEN
