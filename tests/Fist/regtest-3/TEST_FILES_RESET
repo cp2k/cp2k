@@ -44,3 +44,6 @@ al2o3.inp
 al2o3-res.inp
 # dimer .. bug fix
 water_2_TS.inp
+# reset after bug fix translation
+water_2_TS_CG.inp
+water_2_TS.inp

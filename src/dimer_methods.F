@@ -161,8 +161,10 @@ CONTAINS
        ! Correcting gradients for Translation
        IF (dimer_env%rot%curvature>0) THEN
           gradient =  - DOT_PRODUCT(dimer_env%rot%g0,dimer_env%nvec)*dimer_env%nvec
+          CALL remove_translation_component(gopt_env, x, gradient, error)
        ELSE
           gradient =  dimer_env%rot%g0 - 2.0_dp*DOT_PRODUCT(dimer_env%rot%g0,dimer_env%nvec)*dimer_env%nvec 
+          CALL remove_translation_component(gopt_env, x, gradient, error)
        END IF
 
        IF (.NOT.gopt_env%do_line_search) THEN
@@ -174,6 +176,74 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE cp_eval_at_ts
+!***************************************************************************
+
+!!****f* dimer_methods/remove_translation_component
+!!
+!!   NAME
+!!     remove_translation_component
+!!
+!!   FUNCTION
+!!     This function removes translational forces after project of the gradient
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     -
+!!
+!!   AUTHOR
+!!     Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!**************************************************************************
+  SUBROUTINE  remove_translation_component (gopt_env,x,gradient,error)
+    TYPE(gopt_f_type), POINTER               :: gopt_env
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: x
+    REAL(KIND=dp), DIMENSION(:)              :: gradient
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'remove_translation_component', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, idg, idir, ip
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: norm_gradient_new, &
+                                                norm_gradient_old
+    REAL(KIND=dp), DIMENSION(3)              :: tot_force
+    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(particle_list_type), POINTER        :: particles
+
+    CALL timeset(routineN,"I","",handle)
+    failure = .FALSE.
+    CALL force_env_get(gopt_env%force_env, subsys=subsys, error=error)
+    CALL cp_subsys_get(subsys, particles=particles, error=error)
+    tot_force = 0.0_dp
+    idg = 0
+    DO ip=1,particles%n_els
+       DO idir=1,3
+          idg=idg+1
+          tot_force(idir)=tot_force(idir)+gradient(idg)
+       END DO
+    END DO
+    tot_force=tot_force/REAL(particles%n_els,KIND=dp)
+    ! Remove spurius translational forces
+    norm_gradient_old = SQRT(DOT_PRODUCT(gradient,gradient))
+    idg=0
+    DO ip=1,particles%n_els
+       DO idir=1,3
+          idg=idg+1
+          gradient(idg)=gradient(idg)-tot_force(idir)
+       END DO
+    END DO
+    norm_gradient_new = SQRT(DOT_PRODUCT(gradient,gradient))
+    CPPostcondition(norm_gradient_new>0.0_dp,cp_failure_level,routineP,error,failure)
+    gradient = (gradient/norm_gradient_new)*norm_gradient_old
+
+    CALL timestop(0.0_dp,handle)
+  END SUBROUTINE remove_translation_component
 
 !***************************************************************************
 !!****f* dimer_methods/cp_eval_at_ts_low [1.0] *
