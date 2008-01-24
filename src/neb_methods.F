@@ -105,9 +105,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'neb', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ierr, ihandle, &
-                                                irep, iw, nrep, output_unit, &
-                                                prep, stat
+    INTEGER                                  :: handle, i, ierr, irep, iw, &
+                                                nrep, output_unit, prep, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: coords, vels
     TYPE(cp_error_type)                      :: new_error
@@ -127,7 +126,7 @@ CONTAINS
        NULLIFY(logger, subsys, f_env, rep_env)
        NULLIFY(coords, vels, neb_env)
        logger => cp_error_get_logger(error)
-       CALL cp_add_iter_level(logger%iter_info,"NEB",ihandle,error)
+       CALL cp_add_iter_level(logger%iter_info,"BAND",error=error)
        motion_section => section_vals_get_subs_vals(input,"MOTION",error=error)
        print_section  => section_vals_get_subs_vals(motion_section,"PRINT",error=error)
        neb_section    => section_vals_get_subs_vals(motion_section,"BAND",error=error)
@@ -208,7 +207,7 @@ CONTAINS
        CALL rep_env_release(rep_env,error=error)
        CALL cp_print_key_finished_output(output_unit,logger,motion_section,&
             "BAND%PROGRAM_RUN_INFO", error=error)
-       CALL cp_rm_iter_level(logger%iter_info,ihandle,error)
+       CALL cp_rm_iter_level(logger%iter_info,"BAND",error=error)
     END IF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE neb

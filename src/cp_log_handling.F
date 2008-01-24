@@ -1364,7 +1364,6 @@ CONTAINS
           END IF
        END IF
     END IF
-    NULLIFY(iteration_info)
   END SUBROUTINE cp_iteration_info_release
 !***************************************************************************
 

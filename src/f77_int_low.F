@@ -191,6 +191,14 @@ RECURSIVE SUBROUTINE cp_rep_init(rep_env_id,ierr)
   CALL rpin(rep_env_id,ierr)
 END SUBROUTINE cp_rep_init
 
+RECURSIVE SUBROUTINE cp_rep_destroy(rep_env_id,ierr)
+  USE replica_methods, ONLY: rpin => rep_env_destroy_low
+  IMPLICIT NONE
+  INTEGER :: rep_env_id,ierr
+  
+  CALL rpin(rep_env_id,ierr)
+END SUBROUTINE cp_rep_destroy
+
 RECURSIVE SUBROUTINE cp_rep_calc_e_f(rep_env_id,calc_f,ierr)
   USE replica_methods, ONLY: rpef => rep_env_calc_e_f_low
   IMPLICIT NONE

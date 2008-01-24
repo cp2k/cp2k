@@ -2,6 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
+
 !!****s* cp2k/xas_tp_scf   [1.0] *
 !!
 !!   NAME
@@ -19,8 +20,6 @@
 !!
 !!   SOURCE
 !******************************************************************************
-
-
 MODULE xas_tp_scf
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
@@ -112,44 +111,43 @@ MODULE xas_tp_scf
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xas_tp_scf'
 
-! *** Public subroutines ***
+  ! *** Public subroutines ***
 
   PUBLIC :: xas_do_tp_scf, xes_scf_once
 
-!****************************************************************************
+  !****************************************************************************
 
 CONTAINS
 
-
-!!****f* xas_methods/xas_do_tp_scf [1.0] *
-!!
-!!   NAME
-!!     xas_do_tp_scf
-!!
-!!   FUNCTION
-!!     perform an scf loop to calculate the xas spectrum
-!!     given by the excitation of a inner state of a selected atom
-!!     by using the transition potential method
-!!
-!!   NOTES
-!!
-!!   ARGUMENTS
-!!     - xas_env: the environment for XAS  calculations
-!!     - scf_env: the scf_env where to perform the scf procedure
-!!     - qs_env: the qs_env, the scf_env and xas_env live in
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     05.2005 created [MI]
-!!
-!!*** **********************************************************************
+  !!****f* xas_methods/xas_do_tp_scf [1.0] *
+  !!
+  !!   NAME
+  !!     xas_do_tp_scf
+  !!
+  !!   FUNCTION
+  !!     perform an scf loop to calculate the xas spectrum
+  !!     given by the excitation of a inner state of a selected atom
+  !!     by using the transition potential method
+  !!
+  !!   NOTES
+  !!
+  !!   ARGUMENTS
+  !!     - xas_env: the environment for XAS  calculations
+  !!     - scf_env: the scf_env where to perform the scf procedure
+  !!     - qs_env: the qs_env, the scf_env and xas_env live in
+  !!     - error: variable to control error logging, stopping,...
+  !!       see module cp_error_handling
+  !!
+  !!   AUTHOR
+  !!     MI
+  !!
+  !!   MODIFICATION HISTORY
+  !!     05.2005 created [MI]
+  !!
+  !!*** **********************************************************************
 
   SUBROUTINE xas_do_tp_scf (xas_control,xas_env,iatom,scf_env,qs_env,globenv,&
-             converged,should_stop,error)
+       converged,should_stop,error)
 
     TYPE(xas_control_type)                   :: xas_control
     TYPE(xas_environment_type), POINTER      :: xas_env
@@ -163,8 +161,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'xas_do_tp_scf', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, handle2, homo, i, ic_max, ir_max, ispin, istat, &
-      iter_count, iter_level, m, n, nao, nmo, output_unit
+    INTEGER                                  :: handle, handle2, homo, i, &
+                                                ic_max, ir_max, ispin, istat, &
+                                                iter_count, m, n, nao, nmo, &
+                                                output_unit
     INTEGER, DIMENSION(:), POINTER           :: col_indices
     LOGICAL :: diis_step, do_level_shift, energy_only, exit_loop, failure, &
       gapw, ionode, uniform_occupation, use_cholesky, use_jacobi
@@ -195,8 +195,6 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
                                                 scf_section, xas_section
-
-!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I"," ",handle)
     NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks)
@@ -241,12 +239,11 @@ CONTAINS
        WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") "XAS_TP_SCF WAVEFUNCTION OPTIMIZATION"
     END IF
 
-!   GAPW method must be used
+    !   GAPW method must be used
     gapw = dft_control%qs_control%gapw
     CPPrecondition(gapw,cp_failure_level,routineP,error,failure)
 
-    CALL cp_add_iter_level(logger%iter_info,"XASSCF",n_rlevel_new=iter_level,&
-         error=error)
+    CALL cp_add_iter_level(logger%iter_info,"XAS_SCF",error=error)
 
     scf_work1 => scf_env%scf_work1
     scf_work2 => scf_env%scf_work2
@@ -262,9 +259,9 @@ CONTAINS
     vecbuffer2 = 0.0_dp
 
     ! Some elements from the xas_env
-     CALL get_xas_env(xas_env=xas_env,excvec_coeff=excvec_coeff,&
-          excvec_overlap=excvec_overlap,fm_work=fm_work,error=error)
-     CPPrecondition(ASSOCIATED(excvec_overlap),cp_failure_level,routineP,error,failure)
+    CALL get_xas_env(xas_env=xas_env,excvec_coeff=excvec_coeff,&
+         excvec_overlap=excvec_overlap,fm_work=fm_work,error=error)
+    CPPrecondition(ASSOCIATED(excvec_overlap),cp_failure_level,routineP,error,failure)
 
     iter_count = 0
     diis_step = .FALSE.
@@ -277,7 +274,7 @@ CONTAINS
             REPEAT("-",77)
     END IF
 
-!   *** SCF loop ***
+    !   *** SCF loop ***
 
     scf_loop: DO
        CALL timeset("scf_iter","I"," ",handle2)
@@ -288,7 +285,7 @@ CONTAINS
        iter_count = iter_count + 1
        CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=iter_count,error=error)
 
-! ** here qs_env%rho%rho_r and qs_env%rho%rho_g should be up to date
+       ! ** here qs_env%rho%rho_r and qs_env%rho%rho_g should be up to date
 
        CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,&
             error=error,&
@@ -299,155 +296,155 @@ CONTAINS
        IF (scf_env%mixing_method==ao_mixing_nr) scf_env%iter_param = scf_env%p_mix
 
        SELECT CASE (xas_env%scf_method)
-         CASE DEFAULT
-            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                 routineP,"unknown scf method method for core level spectroscopy"//&
-                 cp_to_string(xas_env%scf_method),error,failure)
+       CASE DEFAULT
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+               routineP,"unknown scf method method for core level spectroscopy"//&
+               cp_to_string(xas_env%scf_method),error,failure)
 
-         CASE(xas_scf_general) ! diagonalisation (default)
+       CASE(xas_scf_general) ! diagonalisation (default)
 
-            DO ispin=1,dft_control%nspins
+          DO ispin=1,dft_control%nspins
              CALL copy_sm_to_fm(matrix_ks(ispin)%matrix,scf_work1(ispin)%matrix,error=error)
-            ENDDO
+          ENDDO
 
-            IF (iter_count > 1) THEN
-               CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_work1,&
-                    scf_work2,scf_env%iter_delta,diis_error,diis_step,&
-                    xas_env%eps_diis,s_matrix=matrix_s,scf_section=scf_section,&
-                    error=error)
-            END IF
+          IF (iter_count > 1) THEN
+             CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_work1,&
+                  scf_work2,scf_env%iter_delta,diis_error,diis_step,&
+                  xas_env%eps_diis,s_matrix=matrix_s,scf_section=scf_section,&
+                  error=error)
+          END IF
 
-            do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
+          do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
                ((scf_control%density_guess == core_guess).OR.(iter_count > 1)))
 
-            IF (diis_step) THEN
-               scf_env%p_mix = 1.0_dp
-               scf_env%iter_param = diis_error
-               IF (use_jacobi) THEN
-                  scf_env%iter_method = "DIIS/Jacobi"
-               ELSE
-                  scf_env%iter_method = "DIIS/Diag."
-               END IF
-            ELSE
-               IF (use_jacobi) THEN
-                  scf_env%iter_method = "Mixing/Jacobi"
-               ELSE
-                  scf_env%iter_method = "Mixing/Diag."
-               END IF
-            END IF
+          IF (diis_step) THEN
+             scf_env%p_mix = 1.0_dp
+             scf_env%iter_param = diis_error
+             IF (use_jacobi) THEN
+                scf_env%iter_method = "DIIS/Jacobi"
+             ELSE
+                scf_env%iter_method = "DIIS/Diag."
+             END IF
+          ELSE
+             IF (use_jacobi) THEN
+                scf_env%iter_method = "Mixing/Jacobi"
+             ELSE
+                scf_env%iter_method = "Mixing/Diag."
+             END IF
+          END IF
 
-            IF ((iter_count > 1).AND.(scf_env%iter_delta < scf_control%eps_jacobi)) THEN
-               use_jacobi = .TRUE.
-            ELSE
-               use_cholesky = scf_control%use_cholesky
-               use_jacobi = .FALSE.
-            END IF
+          IF ((iter_count > 1).AND.(scf_env%iter_delta < scf_control%eps_jacobi)) THEN
+             use_jacobi = .TRUE.
+          ELSE
+             use_cholesky = scf_control%use_cholesky
+             use_jacobi = .FALSE.
+          END IF
 
-            scf_env%iter_delta=0.0_dp
+          scf_env%iter_delta=0.0_dp
 
-            DO ispin=1,dft_control%nspins
+          DO ispin=1,dft_control%nspins
 
-               CALL eigensolver(scf_work1(ispin)%matrix,&
-                    mos(ispin)%mo_set,ortho,scf_work2,&
-                    do_level_shift,scf_control%level_shift,&
-                    use_cholesky=use_cholesky,&
-                    work_syevx=scf_control%work_syevx,&
-                    use_jacobi=use_jacobi,&
-                    jacobi_threshold=scf_control%jacobi_threshold,&
-                    smear=0.0_dp, &
-                    error=error)
+             CALL eigensolver(scf_work1(ispin)%matrix,&
+                  mos(ispin)%mo_set,ortho,scf_work2,&
+                  do_level_shift,scf_control%level_shift,&
+                  use_cholesky=use_cholesky,&
+                  work_syevx=scf_control%work_syevx,&
+                  use_jacobi=use_jacobi,&
+                  jacobi_threshold=scf_control%jacobi_threshold,&
+                  smear=0.0_dp, &
+                  error=error)
 
-               IF(ispin == 1) THEN
-! ** use the maximum overlap criterion to find the index of the excited orbital
-                 CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo,&
-                      eigenvalues=eigenvalues,homo=homo)
-!TEST : Calculate the centers of the wavefunctions to check the localization
-!                 IF(.FALSE.) THEN
-!                   CALL get_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env)
-!                   CALL get_qs_loc_env(qs_loc_env=qs_loc_env,&
-!                        localized_wfn_control=localized_wfn_control,&
-!                        moloc_coeff=moloc_coeff,&
-!                        op_sm_set=op_sm_set,op_fm_set=op_fm_set,&
-!                        cell=cell, weights=weights)
-!
-!                   CALL cp_fm_to_fm(mo_coeff,moloc_coeff(1)%matrix,xas_control%nexc_search,1,1 )
-!                   CALL optimize_loc_berry(do_loc_none, localized_wfn_control, &
-!                        moloc_coeff(1)%matrix, op_sm_set, &
-!                        op_fm_set, cell, weights, 1, ionode, error=error)
-!
-!                   ra(1:3) = particle_set(iatom)%r(1:3)
-!                   DO istate = 1,xas_control%nexc_search
-!                      centers_wfn(1,istate) = localized_wfn_control%centers_set(1)%array(1,istate)
-!                      centers_wfn(2,istate) = localized_wfn_control%centers_set(1)%array(2,istate)
-!                      centers_wfn(3,istate) = localized_wfn_control%centers_set(1)%array(3,istate)
-!                      rc(1:3) = centers_wfn(1:3,istate)
-!                      rac = pbc(ra,rc,cell)
-!                   END DO
-!                 END IF
-!TEST
+             IF(ispin == 1) THEN
+                ! ** use the maximum overlap criterion to find the index of the excited orbital
+                CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo,&
+                     eigenvalues=eigenvalues,homo=homo)
+                !TEST : Calculate the centers of the wavefunctions to check the localization
+                !                 IF(.FALSE.) THEN
+                !                   CALL get_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env)
+                !                   CALL get_qs_loc_env(qs_loc_env=qs_loc_env,&
+                !                        localized_wfn_control=localized_wfn_control,&
+                !                        moloc_coeff=moloc_coeff,&
+                !                        op_sm_set=op_sm_set,op_fm_set=op_fm_set,&
+                !                        cell=cell, weights=weights)
+                !
+                !                   CALL cp_fm_to_fm(mo_coeff,moloc_coeff(1)%matrix,xas_control%nexc_search,1,1 )
+                !                   CALL optimize_loc_berry(do_loc_none, localized_wfn_control, &
+                !                        moloc_coeff(1)%matrix, op_sm_set, &
+                !                        op_fm_set, cell, weights, 1, ionode, error=error)
+                !
+                !                   ra(1:3) = particle_set(iatom)%r(1:3)
+                !                   DO istate = 1,xas_control%nexc_search
+                !                      centers_wfn(1,istate) = localized_wfn_control%centers_set(1)%array(1,istate)
+                !                      centers_wfn(2,istate) = localized_wfn_control%centers_set(1)%array(2,istate)
+                !                      centers_wfn(3,istate) = localized_wfn_control%centers_set(1)%array(3,istate)
+                !                      rc(1:3) = centers_wfn(1:3,istate)
+                !                      rac = pbc(ra,rc,cell)
+                !                   END DO
+                !                 END IF
+                !TEST
 
-                 CALL cp_sm_fm_multiply(matrix_s(1)%matrix,mo_coeff,fm_work,ncol=nmo,error=error)
-                 CALL cp_fm_gemm("T","N",1,xas_control%nexc_search,nao,1.0_dp,excvec_coeff,&
-                      fm_work,0.0_dp,excvec_overlap,b_first_col=1,error=error)
-                 CALL cp_fm_get_info ( matrix=excvec_overlap, col_indices = col_indices,&
-                        nrow_global = m, ncol_global = n ,error=error)
-                 CALL cp_fm_get_submatrix(excvec_overlap,vecbuffer2,1,1,&
-                      1,xas_control%nexc_search,transpose=.FALSE.,error=error)
+                CALL cp_sm_fm_multiply(matrix_s(1)%matrix,mo_coeff,fm_work,ncol=nmo,error=error)
+                CALL cp_fm_gemm("T","N",1,xas_control%nexc_search,nao,1.0_dp,excvec_coeff,&
+                     fm_work,0.0_dp,excvec_overlap,b_first_col=1,error=error)
+                CALL cp_fm_get_info ( matrix=excvec_overlap, col_indices = col_indices,&
+                     nrow_global = m, ncol_global = n ,error=error)
+                CALL cp_fm_get_submatrix(excvec_overlap,vecbuffer2,1,1,&
+                     1,xas_control%nexc_search,transpose=.FALSE.,error=error)
 
-                 uniform_occupation = .FALSE.
-                 CALL get_mo_set(mos(1)%mo_set,&
-                        occupation_numbers=occupation_numbers)
+                uniform_occupation = .FALSE.
+                CALL get_mo_set(mos(1)%mo_set,&
+                     occupation_numbers=occupation_numbers)
 
-                 b_max = 0.0_dp
-                 ic_max = dft_control%xas_estate
-                 DO i = 1,xas_control%nexc_search
+                b_max = 0.0_dp
+                ic_max = dft_control%xas_estate
+                DO i = 1,xas_control%nexc_search
                    a_max = ABS(vecbuffer2(1,i))
                    IF(a_max > b_max)THEN
                       ic_max = i
                       b_max = a_max
                    ENDIF
-                 END DO
+                END DO
 
-                 IF(ic_max /= dft_control% xas_estate) THEN
+                IF(ic_max /= dft_control% xas_estate) THEN
                    ir_max = dft_control% xas_estate
                    dft_control% xas_estate = ic_max
 
                    occupation_numbers(dft_control%xas_estate) = xas_control%occ_estate
                    occupation_numbers(ir_max) = 1.0_dp
                    occupation_numbers(homo) =  xas_control%occ_homo
-                 END IF
+                END IF
 
-                 ! IOnization Potential
-                 IP_energy = eigenvalues(dft_control% xas_estate)
+                ! IOnization Potential
+                IP_energy = eigenvalues(dft_control% xas_estate)
 
-                 CALL set_mo_set(mos(1)%mo_set,&
-                      uniform_occupation=uniform_occupation)
-                 CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,dft_control%xas_estate,&
-                      nao,1,transpose=.TRUE.,error=error)
-                 CALL cp_fm_set_submatrix(excvec_coeff,vecbuffer,1,1,&
-                      nao,1,transpose=.TRUE.,error=error)
-               END IF
+                CALL set_mo_set(mos(1)%mo_set,&
+                     uniform_occupation=uniform_occupation)
+                CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,dft_control%xas_estate,&
+                     nao,1,transpose=.TRUE.,error=error)
+                CALL cp_fm_set_submatrix(excvec_coeff,vecbuffer,1,1,&
+                     nao,1,transpose=.TRUE.,error=error)
+             END IF
 
-               IF(xas_control%smear/=0.0_dp) THEN
-                  CALL xas_smearing(mos(ispin)%mo_set,xas_control,&
-                       dft_control%xas_estate,ispin,ionode,error=error)
-               END IF
+             IF(xas_control%smear/=0.0_dp) THEN
+                CALL xas_smearing(mos(ispin)%mo_set,xas_control,&
+                     dft_control%xas_estate,ispin,ionode,error=error)
+             END IF
 
-               CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,&
-                    4,6,dft_section,error=error)
+             CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,&
+                  4,6,dft_section,error=error)
 
-               CALL calculate_density_matrix(mos(ispin)%mo_set,&
-                    scf_env%p_mix_new(ispin)%matrix,error=error)
+             CALL calculate_density_matrix(mos(ispin)%mo_set,&
+                  scf_env%p_mix_new(ispin)%matrix,error=error)
 
-            ENDDO
+          ENDDO
 
        END SELECT
 
 
        IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
           CALL scf_env_density_mixing(scf_env%p_mix_new,scf_env%mixing_method,&
-                                    scf_env%p_mix,scf_env%iter_delta,&
-                                    qs_env=qs_env,error=error)
+               scf_env%p_mix,scf_env%iter_delta,&
+               qs_env=qs_env,error=error)
        ENDIF
 
 
@@ -460,7 +457,7 @@ CONTAINS
                scf_env%iter_param,t2 - t1,scf_env%iter_delta,energy%total
        END IF
 
-! ** convergence check
+       ! ** convergence check
        CALL external_control(should_stop,"XASSCF",globenv,error)
        IF (scf_env%iter_delta < xas_control%eps_scf) THEN
           IF (output_unit>0) THEN
@@ -478,30 +475,27 @@ CONTAINS
        END IF
        !   *** Exit if we have finished with the SCF inner loop ***
        IF (exit_loop) THEN
-           ! now, print out energies and charges corresponding to the obtained wfn
-           ! (this actually is not 100% consistent at this point)!
-           CALL qs_scf_print_summary(output_unit,rho,qs_charges,energy,scf_env, &
-                  dft_control,qs_env%qmmm,.TRUE.,.FALSE.)
-           CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=iter_count,error=error)
+          ! now, print out energies and charges corresponding to the obtained wfn
+          ! (this actually is not 100% consistent at this point)!
+          CALL qs_scf_print_summary(output_unit,rho,qs_charges,energy,scf_env, &
+               dft_control,qs_env%qmmm,.TRUE.,.FALSE.)
+          CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=iter_count,error=error)
        END IF
 
        ! ** Write restart file **
        CALL xas_write_restart(xas_control, xas_section, qs_env,iatom,error=error)
 
        IF (exit_loop) THEN
-           CALL timestop(0.0_dp,handle2)
-           EXIT scf_loop     
+          CALL timestop(0.0_dp,handle2)
+          EXIT scf_loop     
        END IF
-
-!       IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
-!         xas_section,"PRINT%ITERATION_INFO/TIME_CUMUL",error=error),cp_p_file)) t1 = m_walltime()
 
        !   *** mixing methods have the new density matrix in p_mix_new
        IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
-           DO ispin=1,dft_control%nspins
-              CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
-                                       rho%rho_ao(ispin)%matrix,error=error)
-           END DO
+          DO ispin=1,dft_control%nspins
+             CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
+                  rho%rho_ao(ispin)%matrix,error=error)
+          END DO
        ENDIF
 
        ! ** update qs_env%rho
@@ -529,13 +523,12 @@ CONTAINS
 
     CALL cp_print_key_finished_output(output_unit,logger,xas_section,&
          "PRINT%PROGRAM_RUN_INFO", error=error)
-    CALL cp_rm_iter_level(logger%iter_info,n_rlevel_att=iter_level,&
-         error=error)
+    CALL cp_rm_iter_level(logger%iter_info,"XAS_SCF",error=error)
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE xas_do_tp_scf
 
-!!*** **********************************************************************
+  !!*** **********************************************************************
 
   SUBROUTINE xas_smearing(mo_set,xas_control,estate,ispin,ionode,error)
 
@@ -556,94 +549,94 @@ CONTAINS
 
     nomo = nelectron
     IF(ispin == 1) THEN
-      IF(xas_control%xas_method==xas_dscf .OR. xas_control%xas_method==xas_tp_xhh &
-         .OR.  xas_control%xas_method==xas_tp_xfh) THEN
-         nomo  = nomo + 1
-      END IF
-      occ_estate = occupation(estate)
-      occupation(1:nomo) = 1.0_dp
-      occupation(estate) = occ_estate
-      occupation(nomo+1:nmo) = 0.0_dp
-      IF(xas_control%xas_method==xas_dscf .OR. xas_control%xas_method==xas_tp_xhh &
-         .OR.  xas_control%xas_method==xas_tp_xfh) THEN
-        occupation(nomo) = 1.0_dp - occ_estate
-        nelec0 = 0.0_dp
-        DO imo = 1,nomo
-          nelec0 = nelec0 + occupation(imo)
-        END DO
-      END IF
+       IF(xas_control%xas_method==xas_dscf .OR. xas_control%xas_method==xas_tp_xhh &
+            .OR.  xas_control%xas_method==xas_tp_xfh) THEN
+          nomo  = nomo + 1
+       END IF
+       occ_estate = occupation(estate)
+       occupation(1:nomo) = 1.0_dp
+       occupation(estate) = occ_estate
+       occupation(nomo+1:nmo) = 0.0_dp
+       IF(xas_control%xas_method==xas_dscf .OR. xas_control%xas_method==xas_tp_xhh &
+            .OR.  xas_control%xas_method==xas_tp_xfh) THEN
+          occupation(nomo) = 1.0_dp - occ_estate
+          nelec0 = 0.0_dp
+          DO imo = 1,nomo
+             nelec0 = nelec0 + occupation(imo)
+          END DO
+       END IF
     ELSE
-      occupation(1:nomo) = 1.0_dp
-      occupation(nomo+1:nmo) = 0.0_dp
+       occupation(1:nomo) = 1.0_dp
+       occupation(nomo+1:nmo) = 0.0_dp
     END IF
 
     imin = estate+1
     smear = xas_control%smear
 
-      e1 = eigenvalues(nomo) - 0.5_dp*smear
-      e2 = eigenvalues(nomo) + 0.5_dp*smear
+    e1 = eigenvalues(nomo) - 0.5_dp*smear
+    e2 = eigenvalues(nomo) + 0.5_dp*smear
 
-      DO imo=imin,nomo
-        IF (eigenvalues(imo) > e1) THEN
+    DO imo=imin,nomo
+       IF (eigenvalues(imo) > e1) THEN
           lfomo = imo
           EXIT
-        END IF
-      END DO
+       END IF
+    END DO
 
-      IF(e2 > eigenvalues(nmo)) THEN
-        IF(ionode) WRITE(6,*) "WARNING might be too few states for the smearing !"
-      END IF
-      DO imo=nmo,nomo,-1
-        IF (eigenvalues(imo) < e2) THEN
+    IF(e2 > eigenvalues(nmo)) THEN
+       IF(ionode) WRITE(6,*) "WARNING might be too few states for the smearing !"
+    END IF
+    DO imo=nmo,nomo,-1
+       IF (eigenvalues(imo) < e2) THEN
           homo = imo
           EXIT
-        END IF
-      END DO
+       END IF
+    END DO
 
-!     *** Get the number of electrons to be smeared ***
+    !     *** Get the number of electrons to be smeared ***
 
-      edist = 0.0_dp
-      nelec = 0.0_dp
+    edist = 0.0_dp
+    nelec = 0.0_dp
 
-      DO imo=lfomo,homo
-        nelec = nelec + occupation(imo)
-        edist = edist + ABS(e2 - eigenvalues(imo))
-      END DO
+    DO imo=lfomo,homo
+       nelec = nelec + occupation(imo)
+       edist = edist + ABS(e2 - eigenvalues(imo))
+    END DO
 
-!     *** Smear electrons inside the window ***
+    !     *** Smear electrons inside the window ***
 
-      DO imo=lfomo,homo
-        edelta = ABS(e2 - eigenvalues(imo))
-        occupation(imo) = MIN(1.0_dp,nelec*edelta/edist)
-        nelec = nelec - occupation(imo)
-        edist = edist - edelta
-      END DO
+    DO imo=lfomo,homo
+       edelta = ABS(e2 - eigenvalues(imo))
+       occupation(imo) = MIN(1.0_dp,nelec*edelta/edist)
+       nelec = nelec - occupation(imo)
+       edist = edist - edelta
+    END DO
 
-!     *** Check, if the smearing involves more than one MO ***
+    !     *** Check, if the smearing involves more than one MO ***
 
-      IF (lfomo == homo) THEN
-        homo = nomo
-        lfomo = nomo + 1
-      END IF
+    IF (lfomo == homo) THEN
+       homo = nomo
+       lfomo = nomo + 1
+    END IF
 
     IF(ispin==1) THEN
-      occupation(estate) = occ_estate
-      IF(xas_control%xas_method==xas_dscf .OR. xas_control%xas_method==xas_tp_xhh &
-           .OR.  xas_control%xas_method==xas_tp_xfh) THEN
-        nelec = 0.0_dp
-        DO imo = 1,homo
-          nelec = nelec + occupation(imo)
-        END DO
-        IF(nelec/=nelec0 .AND. ionode)&
-            WRITE(6,*) "WARNING different number of electrons !", nelec, nelec0
-      END IF
+       occupation(estate) = occ_estate
+       IF(xas_control%xas_method==xas_dscf .OR. xas_control%xas_method==xas_tp_xhh &
+            .OR.  xas_control%xas_method==xas_tp_xfh) THEN
+          nelec = 0.0_dp
+          DO imo = 1,homo
+             nelec = nelec + occupation(imo)
+          END DO
+          IF(nelec/=nelec0 .AND. ionode)&
+               WRITE(6,*) "WARNING different number of electrons !", nelec, nelec0
+       END IF
     END IF
 
     CALL set_mo_set(mo_set,homo=homo,lfomo=lfomo,&
-                      uniform_occupation=.FALSE.)
+         uniform_occupation=.FALSE.)
 
   END SUBROUTINE xas_smearing
-!***************************************************************************
+  !***************************************************************************
 
   SUBROUTINE cls_prepare_states(xas_control,xas_env,qs_env,iatom,error)
 
@@ -707,15 +700,15 @@ CONTAINS
          particle_set=particle_set,error=error)
 
     ! Some elements from the xas_env
-     CALL get_xas_env(xas_env=xas_env,&
-          all_vectors=all_vectors,all_evals=all_evals,&
-          excvec_coeff=excvec_coeff,&
-          nvirtual2=nvirtual2,nvirtual1=nvirtual1,&
-          excvec_overlap=excvec_overlap,error=error)
-     CPPrecondition(ASSOCIATED(excvec_overlap),cp_failure_level,routineP,error,failure)
+    CALL get_xas_env(xas_env=xas_env,&
+         all_vectors=all_vectors,all_evals=all_evals,&
+         excvec_coeff=excvec_coeff,&
+         nvirtual2=nvirtual2,nvirtual1=nvirtual1,&
+         excvec_overlap=excvec_overlap,error=error)
+    CPPrecondition(ASSOCIATED(excvec_overlap),cp_failure_level,routineP,error,failure)
 
-     CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo,&
-                     eigenvalues=eigenvalues,homo=homo)
+    CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo,&
+         eigenvalues=eigenvalues,homo=homo)
 
     ALLOCATE(vecbuffer(1,nao),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -733,140 +726,140 @@ CONTAINS
 
 
     IF(.NOT.xas_env%scf_method==xas_scf_general) THEN
-      CALL get_xas_env(xas_env=xas_env, &
-           mykind_of_kind=mykind_of_kind, qs_loc_env=qs_loc_env,&
+       CALL get_xas_env(xas_env=xas_env, &
+            mykind_of_kind=mykind_of_kind, qs_loc_env=qs_loc_env,&
             stogto_overlap=stogto_overlap,error=error)
-      CALL get_qs_loc_env(qs_loc_env=qs_loc_env,&
+       CALL get_qs_loc_env(qs_loc_env=qs_loc_env,&
             localized_wfn_control=localized_wfn_control,error=error)
-      loc_section => section_vals_get_subs_vals(input,"DFT%XAS%LOCALIZE",error=error)
-      CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,myspin=1,error=error)
-      ra(1:3) = particle_set(iatom)%r(1:3)
+       loc_section => section_vals_get_subs_vals(input,"DFT%XAS%LOCALIZE",error=error)
+       CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,myspin=1,error=error)
+       ra(1:3) = particle_set(iatom)%r(1:3)
 
-      NULLIFY(atomic_kind)
-      atomic_kind =>  particle_set(iatom)%atomic_kind
-      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-           kind_number=ikind)
-      my_kind = mykind_of_kind(ikind)
+       NULLIFY(atomic_kind)
+       atomic_kind =>  particle_set(iatom)%atomic_kind
+       CALL get_atomic_kind(atomic_kind=atomic_kind,&
+            kind_number=ikind)
+       my_kind = mykind_of_kind(ikind)
 
-      max_overlap = 0.0_dp
-      DO istate = 1,xas_control%nexc_search
-         centers_wfn(1,istate) =  localized_wfn_control%centers_set(1)%array(1,istate)
-         centers_wfn(2,istate) =  localized_wfn_control%centers_set(1)%array(2,istate)
-         centers_wfn(3,istate) =  localized_wfn_control%centers_set(1)%array(3,istate)
+       max_overlap = 0.0_dp
+       DO istate = 1,xas_control%nexc_search
+          centers_wfn(1,istate) =  localized_wfn_control%centers_set(1)%array(1,istate)
+          centers_wfn(2,istate) =  localized_wfn_control%centers_set(1)%array(2,istate)
+          centers_wfn(3,istate) =  localized_wfn_control%centers_set(1)%array(3,istate)
 
-         rc(1:3) = centers_wfn(1:3,istate)
-         rac = pbc(ra,rc,cell)
-         dist = rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3)
+          rc(1:3) = centers_wfn(1:3,istate)
+          rac = pbc(ra,rc,cell)
+          dist = rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3)
 
-         IF(dist < 1.0_dp) THEN
-           CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,istate,&
-              nao,1,transpose=.TRUE.,error=error)
-           sto_state_overlap=0.0_dp
-           DO i = 1,SIZE(stogto_overlap(my_kind)%array,1)
-             component = 0.0_dp
-             DO j = 1,SIZE(stogto_overlap(my_kind)%array,2)
-               isgf = first_sgf(iatom) + j - 1
-               component = component + stogto_overlap(my_kind)%array(i,j)*vecbuffer(1,isgf)
-             END DO  ! j size
-             sto_state_overlap = sto_state_overlap + &
-                   component * component
-           END DO  ! i size
-           IF(sto_state_overlap .GT. max_overlap) THEN
-             max_overlap = sto_state_overlap
-             my_state = istate
-           END IF
+          IF(dist < 1.0_dp) THEN
+             CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,istate,&
+                  nao,1,transpose=.TRUE.,error=error)
+             sto_state_overlap=0.0_dp
+             DO i = 1,SIZE(stogto_overlap(my_kind)%array,1)
+                component = 0.0_dp
+                DO j = 1,SIZE(stogto_overlap(my_kind)%array,2)
+                   isgf = first_sgf(iatom) + j - 1
+                   component = component + stogto_overlap(my_kind)%array(i,j)*vecbuffer(1,isgf)
+                END DO  ! j size
+                sto_state_overlap = sto_state_overlap + &
+                     component * component
+             END DO  ! i size
+             IF(sto_state_overlap .GT. max_overlap) THEN
+                max_overlap = sto_state_overlap
+                my_state = istate
+             END IF
 
-         END IF
-      END DO  !  istate
+          END IF
+       END DO  !  istate
 
-      CALL cp_fm_get_submatrix(mo_coeff,vecbuffer2,1,my_state,&
-                nao,1,transpose=.TRUE.,error=error)
+       CALL cp_fm_get_submatrix(mo_coeff,vecbuffer2,1,my_state,&
+            nao,1,transpose=.TRUE.,error=error)
 
-    ! Rotate the wfn to get the eigenstate of the KS hamiltonian
-    ! Only ispin=1 should be needed
-      DO ispin=1,dft_control%nspins
-        CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo,&
-             eigenvalues=eigenvalues,homo=homo)
-        CALL calculate_subspace_eigenvalues(mo_coeff,&
-             matrix_ks(ispin)%matrix,eigenvalues, &
-             para_env=qs_env%para_env, &
-             do_rotation=.TRUE.,error=error)
-      END DO  ! ispin
+       ! Rotate the wfn to get the eigenstate of the KS hamiltonian
+       ! Only ispin=1 should be needed
+       DO ispin=1,dft_control%nspins
+          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo,&
+               eigenvalues=eigenvalues,homo=homo)
+          CALL calculate_subspace_eigenvalues(mo_coeff,&
+               matrix_ks(ispin)%matrix,eigenvalues, &
+               para_env=qs_env%para_env, &
+               do_rotation=.TRUE.,error=error)
+       END DO  ! ispin
 
-      CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff)
-      CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,dft_control%xas_estate,&
-                nao,1,transpose=.TRUE.,error=error)
-      CALL cp_fm_set_submatrix(excvec_coeff,vecbuffer2,1,1,&
-                nao,1,transpose=.TRUE.,error=error)
-!
+       CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff)
+       CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,dft_control%xas_estate,&
+            nao,1,transpose=.TRUE.,error=error)
+       CALL cp_fm_set_submatrix(excvec_coeff,vecbuffer2,1,1,&
+            nao,1,transpose=.TRUE.,error=error)
+       !
     END IF
 
     CALL mp_sync(qs_env%para_env%group)
     !Calculate the virtual states from the KS matrix matrix_ks(1)
     IF(nvirtual2 .GT. 0) THEN
-      NULLIFY(mo_coeff,uno_orbs,uno_evals,preconditioner)
-      ALLOCATE(preconditioner,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      CALL init_preconditioner(preconditioner,para_env=qs_env%para_env,&
-           blacs_env=qs_env%blacs_env,error=error)
-      CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo)
-      CALL make_preconditioner(preconditioner, &
-                  precon_type=ot_precond_full_kinetic, &
-                  matrix_h=matrix_ks(1)%matrix,matrix_s=matrix_s(1)%matrix,&
-                  matrix_t=qs_env%kinetic(1)%matrix, &
-                  mo_coeff=mo_coeff,energy_gap=0.2_dp,error=error)
+       NULLIFY(mo_coeff,uno_orbs,uno_evals,preconditioner)
+       ALLOCATE(preconditioner,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CALL init_preconditioner(preconditioner,para_env=qs_env%para_env,&
+            blacs_env=qs_env%blacs_env,error=error)
+       CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo)
+       CALL make_preconditioner(preconditioner, &
+            precon_type=ot_precond_full_kinetic, &
+            matrix_h=matrix_ks(1)%matrix,matrix_s=matrix_s(1)%matrix,&
+            matrix_t=qs_env%kinetic(1)%matrix, &
+            mo_coeff=mo_coeff,energy_gap=0.2_dp,error=error)
 
-      CALL get_xas_env(xas_env=xas_env,unoccupied_orbs=uno_orbs,&
-           unoccupied_evals=uno_evals,unoccupied_eps=uno_eps,unoccupied_max_iter=uno_iter,error=error)
-      CALL cp_fm_init_random(uno_orbs,nvirtual2,error=error)
+       CALL get_xas_env(xas_env=xas_env,unoccupied_orbs=uno_orbs,&
+            unoccupied_evals=uno_evals,unoccupied_eps=uno_eps,unoccupied_max_iter=uno_iter,error=error)
+       CALL cp_fm_init_random(uno_orbs,nvirtual2,error=error)
 
-      CALL ot_eigensolver(matrix_h=matrix_ks(1)%matrix,matrix_s=matrix_s(1)%matrix, &
-           matrix_c=uno_orbs,matrix_orthogonal_space=mo_coeff,&
-           preconditioner=preconditioner,eps_gradient=uno_eps,&
-           iter_max=uno_iter,size_ortho_space=nmo,error=error)
+       CALL ot_eigensolver(matrix_h=matrix_ks(1)%matrix,matrix_s=matrix_s(1)%matrix, &
+            matrix_c=uno_orbs,matrix_orthogonal_space=mo_coeff,&
+            preconditioner=preconditioner,eps_gradient=uno_eps,&
+            iter_max=uno_iter,size_ortho_space=nmo,error=error)
 
-      CALL calculate_subspace_eigenvalues(uno_orbs,matrix_ks(1)%matrix,&
-           uno_evals,para_env=qs_env%para_env,do_rotation=.TRUE.,error=error)
-      CALL destroy_preconditioner(preconditioner,error=error)
+       CALL calculate_subspace_eigenvalues(uno_orbs,matrix_ks(1)%matrix,&
+            uno_evals,para_env=qs_env%para_env,do_rotation=.TRUE.,error=error)
+       CALL destroy_preconditioner(preconditioner,error=error)
 
-      DEALLOCATE(preconditioner,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(preconditioner,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     CALL mp_sync(qs_env%para_env%group)
     ! Prapare arrays for the calculation of the spectrum
     IF(.NOT. xas_control%xas_method == xas_dscf) THEN
-      ! Copy the final vectors in the array
-      NULLIFY(all_vectors,all_evals)
-      CALL get_xas_env(xas_env=xas_env,all_vectors=all_vectors,&
-           all_evals=all_evals,nvirtual1=nvirtual1,error=error)
-      CALL get_mo_set(mos(1)%mo_set, eigenvalues=eigenvalues,mo_coeff=mo_coeff,&
-           nao=nao,nmo=nmo,homo=homo)
+       ! Copy the final vectors in the array
+       NULLIFY(all_vectors,all_evals)
+       CALL get_xas_env(xas_env=xas_env,all_vectors=all_vectors,&
+            all_evals=all_evals,nvirtual1=nvirtual1,error=error)
+       CALL get_mo_set(mos(1)%mo_set, eigenvalues=eigenvalues,mo_coeff=mo_coeff,&
+            nao=nao,nmo=nmo,homo=homo)
 
-      IF(xas_control%emission) THEN
-        CALL cp_fm_to_fm(mo_coeff,all_vectors,ncol=nvirtual1,&
-             source_start=1,target_start=1)
-      ELSEIF(nvirtual1.GT.0)THEN
-        CALL cp_fm_to_fm(mo_coeff,all_vectors,ncol=nvirtual1,&
-             source_start=homo+1,target_start=1)
-      END IF
-      IF(nvirtual2 .GT. 0) THEN
-        CALL cp_fm_to_fm(uno_orbs,all_vectors,ncol=nvirtual2,&
-             source_start=1,target_start=1+nvirtual1)
-      END IF
+       IF(xas_control%emission) THEN
+          CALL cp_fm_to_fm(mo_coeff,all_vectors,ncol=nvirtual1,&
+               source_start=1,target_start=1)
+       ELSEIF(nvirtual1.GT.0)THEN
+          CALL cp_fm_to_fm(mo_coeff,all_vectors,ncol=nvirtual1,&
+               source_start=homo+1,target_start=1)
+       END IF
+       IF(nvirtual2 .GT. 0) THEN
+          CALL cp_fm_to_fm(uno_orbs,all_vectors,ncol=nvirtual2,&
+               source_start=1,target_start=1+nvirtual1)
+       END IF
 
-      IF(xas_control%emission) THEN
-        DO istate = 1,nvirtual1
-          all_evals(istate) = eigenvalues(istate)
-        ENDDO
-      ELSE
-        DO istate = 1,nvirtual1
-          all_evals(istate) = eigenvalues(homo+istate)
-        ENDDO
-      END IF
-      DO istate = 1,nvirtual2
-        all_evals(istate+nvirtual1) = uno_evals(istate)
-      END DO
+       IF(xas_control%emission) THEN
+          DO istate = 1,nvirtual1
+             all_evals(istate) = eigenvalues(istate)
+          ENDDO
+       ELSE
+          DO istate = 1,nvirtual1
+             all_evals(istate) = eigenvalues(homo+istate)
+          ENDDO
+       END IF
+       DO istate = 1,nvirtual2
+          all_evals(istate+nvirtual1) = uno_evals(istate)
+       END DO
     END IF
 
     DEALLOCATE(vecbuffer,STAT=istat)
@@ -875,8 +868,6 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(centers_wfn,first_sgf,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE cls_prepare_states
@@ -926,61 +917,61 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,error,failure)
     IF(.NOT. failure) THEN
-      CALL get_qs_env(qs_env=qs_env,dft_control=dft_control, scf_control=scf_control,&
-         matrix_ks=matrix_ks,mos=mos,para_env=para_env,error=error)
+       CALL get_qs_env(qs_env=qs_env,dft_control=dft_control, scf_control=scf_control,&
+            matrix_ks=matrix_ks,mos=mos,para_env=para_env,error=error)
 
-      CALL get_mo_set(mos(1)%mo_set,nelectron=nelectron)
-      homo = nelectron - 1
+       CALL get_mo_set(mos(1)%mo_set,nelectron=nelectron)
+       homo = nelectron - 1
 
-      CALL set_mo_set(mos(1)%mo_set,homo=homo)
+       CALL set_mo_set(mos(1)%mo_set,homo=homo)
 
-      NULLIFY(scf_env)
-      CALL get_qs_env(qs_env,scf_env=scf_env,error=error)
-      dft_control%xas_estate=1
-      CALL init_scf_run(scf_env=scf_env,qs_env=qs_env,&
-           scf_section=scf_section, error=error)
+       NULLIFY(scf_env)
+       CALL get_qs_env(qs_env,scf_env=scf_env,error=error)
+       dft_control%xas_estate=1
+       CALL init_scf_run(scf_env=scf_env,qs_env=qs_env,&
+            scf_section=scf_section, error=error)
 
-      CALL scf_env_do_scf(scf_env=scf_env, qs_env=qs_env, globenv=globenv, &
-           converged=converged, should_stop=should_stop, error=error)
-      CALL scf_env_cleanup(scf_env,qs_env=qs_env,error=error)
+       CALL scf_env_do_scf(scf_env=scf_env, qs_env=qs_env, globenv=globenv, &
+            converged=converged, should_stop=should_stop, error=error)
+       CALL scf_env_cleanup(scf_env,qs_env=qs_env,error=error)
 
-      !   The eigenstate of the KS Hamiltonian are nedeed
-      NULLIFY(mo_coeff,eigenvalues)
-      IF(scf_control%use_ot) THEN
-         IF (output_unit>0) THEN
-          WRITE (UNIT=output_unit,FMT="(/,T10,A,/)")&
-               "Get eigenstates and eigenvalues from ground state MOs"
-         END IF
-         DO ispin = 1,dft_control%nspins
-           CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo,&
-                eigenvalues=eigenvalues,homo=homo)
-           CALL calculate_subspace_eigenvalues(mo_coeff,&
-                matrix_ks(ispin)%matrix,eigenvalues, &
-                para_env=para_env, &
-                do_rotation=.TRUE.,error=error)
-         END DO
-      END IF
-      NULLIFY(all_vectors,all_evals)
-      CALL get_xas_env(xas_env=xas_env,all_vectors=all_vectors,&
-           all_evals=all_evals,nvirtual1=nvirtual1,nvirtual2=nvirtual2,error=error)
-      CALL get_mo_set(mos(1)%mo_set, eigenvalues=eigenvalues,mo_coeff=mo_coeff,&
-           nao=nao,nmo=nmo,homo=homo)
+       !   The eigenstate of the KS Hamiltonian are nedeed
+       NULLIFY(mo_coeff,eigenvalues)
+       IF(scf_control%use_ot) THEN
+          IF (output_unit>0) THEN
+             WRITE (UNIT=output_unit,FMT="(/,T10,A,/)")&
+                  "Get eigenstates and eigenvalues from ground state MOs"
+          END IF
+          DO ispin = 1,dft_control%nspins
+             CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo,&
+                  eigenvalues=eigenvalues,homo=homo)
+             CALL calculate_subspace_eigenvalues(mo_coeff,&
+                  matrix_ks(ispin)%matrix,eigenvalues, &
+                  para_env=para_env, &
+                  do_rotation=.TRUE.,error=error)
+          END DO
+       END IF
+       NULLIFY(all_vectors,all_evals)
+       CALL get_xas_env(xas_env=xas_env,all_vectors=all_vectors,&
+            all_evals=all_evals,nvirtual1=nvirtual1,nvirtual2=nvirtual2,error=error)
+       CALL get_mo_set(mos(1)%mo_set, eigenvalues=eigenvalues,mo_coeff=mo_coeff,&
+            nao=nao,nmo=nmo,homo=homo)
 
-      CALL cp_fm_to_fm(mo_coeff,all_vectors,ncol=nvirtual1,&
-             source_start=1,target_start=1)
-      DO istate = 1,nvirtual1
+       CALL cp_fm_to_fm(mo_coeff,all_vectors,ncol=nvirtual1,&
+            source_start=1,target_start=1)
+       DO istate = 1,nvirtual1
           all_evals(istate) = eigenvalues(istate)
-      ENDDO
+       ENDDO
 
-      IF(nvirtual2/=0) THEN
-        IF (output_unit>0) THEN
-          WRITE (UNIT=output_unit,FMT="(/,T10,A,/)")&
-               "WARNING: for this XES calculation the # of XAS added MOD should be 0"
-        END IF
-        nvirtual2=0
-        nvirtual = nvirtual1
-        CALL set_xas_env(xas_env=xas_env,nvirtual=nvirtual,nvirtual2=nvirtual2,error=error)
-      END IF
+       IF(nvirtual2/=0) THEN
+          IF (output_unit>0) THEN
+             WRITE (UNIT=output_unit,FMT="(/,T10,A,/)")&
+                  "WARNING: for this XES calculation the # of XAS added MOD should be 0"
+          END IF
+          nvirtual2=0
+          nvirtual = nvirtual1
+          CALL set_xas_env(xas_env=xas_env,nvirtual=nvirtual,nvirtual2=nvirtual2,error=error)
+       END IF
 
     END IF  ! failure
     CALL timestop(0.0_dp,handle)

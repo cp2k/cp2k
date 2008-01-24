@@ -496,7 +496,7 @@ CONTAINS
 
     CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
          description="controls the printing of  initialization controlled by the global section",&
-            print_level=silent_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
+            print_level=silent_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             supported_feature=.TRUE.,error=error)
     CALL section_add_subsection(section,print_key,error=error)
     CALL section_release(print_key,error=error)
@@ -665,14 +665,14 @@ CONTAINS
     CALL cp_print_key_section_create(print_key,"GRID_INFORMATION",&
          description="Controls the printing of information regarding the PW and RS grid structures"//&
          " (ONLY for TEST run).",&
-         print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
+         print_level=medium_print_level,filename="__STD_OUT__",&
          error=error)
     CALL section_add_subsection(section,print_key,error=error)
     CALL section_release(print_key,error=error)    
 
     CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
          description="controls the printing of DEBUG specific output",&
-         print_level=silent_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
+         print_level=silent_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
          error=error)
     CALL section_add_subsection(section,print_key,error=error)
     CALL section_release(print_key,error=error)
@@ -738,7 +738,7 @@ CONTAINS
 
     CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
          description="controls the printing of DEBUG specific output",&
-         print_level=silent_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
+         print_level=silent_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
          error=error)
     CALL section_add_subsection(section,print_key,error=error)
     CALL section_release(print_key,error=error)
@@ -1121,7 +1121,7 @@ CONTAINS
 
     CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
          description="controls the printing of FARMING specific output",&
-         print_level=silent_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
+         print_level=silent_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
          supported_feature=.TRUE.,error=error)
     CALL section_add_subsection(section,print_key,error=error)
     CALL section_release(print_key,error=error)

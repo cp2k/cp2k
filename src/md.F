@@ -152,8 +152,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: filename
-    INTEGER                                  :: iw
-    INTEGER, DIMENSION(:), POINTER           :: iprint
+    INTEGER                                  :: iprint, iw
     REAL(kind=dp)                            :: tmp_r1, tmp_r2, tmp_r3
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: md_section, motion_section, &
@@ -226,17 +225,15 @@ CONTAINS
        END IF
 
        print_key => section_vals_get_subs_vals(motion_section,"MD%PRINT%PROGRAM_RUN_INFO",error=error)
-       NULLIFY(iprint)
-       CALL section_vals_val_get(print_key,"EACH",i_vals=iprint,error=error)
+       CALL section_vals_val_get(print_key,"EACH%MD",i_val=iprint,error=error)
        WRITE ( iw, '( A,T63,i10,A )' ) ' MD| Print MD information every',iprint, ' step(s)'
        WRITE ( iw, '( A,T20,A,T71,A10 )' ) ' MD| File type','Print frequency[steps]', 'File names'
 
        print_key => section_vals_get_subs_vals(motion_section,"PRINT%TRAJECTORY",error=error)
-       NULLIFY(iprint)
-       CALL section_vals_val_get(print_key,"EACH",i_vals=iprint,error=error)
+       CALL section_vals_val_get(print_key,"EACH%MD",i_val=iprint,error=error)
        filename = cp_print_key_generate_filename(logger,print_key,&
             extension=".xyz",middle_name="pos",my_local=.FALSE.,error=error)
-       WRITE ( iw, '( A,T20,i10,T31,A50 )' ) ' MD| Coordinates',iprint(SIZE(iprint)), &
+       WRITE ( iw, '( A,T20,i10,T31,A50 )' ) ' MD| Coordinates',iprint, &
             ADJUSTR ( TRIM(filename) )
 
        IF ( simpar % ensemble == nph_ensemble .OR.&
@@ -246,36 +243,32 @@ CONTAINS
             simpar % ensemble == npt_f_ensemble ) THEN
 
           print_key => section_vals_get_subs_vals(motion_section,"PRINT%CELL",error=error)
-          NULLIFY(iprint)
-          CALL section_vals_val_get(print_key,"EACH",i_vals=iprint,error=error)
+          CALL section_vals_val_get(print_key,"EACH%MD",i_val=iprint,error=error)
           filename = cp_print_key_generate_filename(logger,print_key,&
                extension=".cell",my_local=.FALSE.,error=error)
-          WRITE ( iw, '( A,T20,i10,T31,A50 )' ) ' MD| Simulation Cell',iprint(SIZE(iprint)), &
+          WRITE ( iw, '( A,T20,i10,T31,A50 )' ) ' MD| Simulation Cell',iprint, &
                ADJUSTR ( TRIM(filename) )
        END IF
 
        print_key => section_vals_get_subs_vals(motion_section,"PRINT%VELOCITIES",error=error)
-       NULLIFY(iprint)
-       CALL section_vals_val_get(print_key,"EACH",i_vals=iprint,error=error)
+       CALL section_vals_val_get(print_key,"EACH%MD",i_val=iprint,error=error)
        filename = cp_print_key_generate_filename(logger,print_key,&
             extension=".xyz",middle_name="vel",my_local=.FALSE.,error=error)
-       WRITE ( iw, '( A,T20,i10,T31,A50 )' ) ' MD| Velocities',iprint(SIZE(iprint)), &
+       WRITE ( iw, '( A,T20,i10,T31,A50 )' ) ' MD| Velocities',iprint,&
             ADJUSTR ( TRIM(filename) )
 
        print_key => section_vals_get_subs_vals(motion_section,"MD%PRINT%ENERGY",error=error)
-       NULLIFY(iprint)
-       CALL section_vals_val_get(print_key,"EACH",i_vals=iprint,error=error)
+       CALL section_vals_val_get(print_key,"EACH%MD",i_val=iprint,error=error)
        filename =cp_print_key_generate_filename(logger,print_key,&
             extension=".ener",my_local=.FALSE.,error=error)
-       WRITE ( iw, '( A,T20,i10,T31,A50 )' ) ' MD| Energies',iprint(SIZE(iprint)), &
+       WRITE ( iw, '( A,T20,i10,T31,A50 )' ) ' MD| Energies',iprint, &
             ADJUSTR ( TRIM(filename) )
 
        print_key => section_vals_get_subs_vals(motion_section,"PRINT%RESTART",error=error)
-       NULLIFY(iprint)
-       CALL section_vals_val_get(print_key,"EACH",i_vals=iprint,error=error)
+       CALL section_vals_val_get(print_key,"EACH%MD",i_val=iprint,error=error)
        filename = cp_print_key_generate_filename(logger,print_key,&
             extension=".restart",my_local=.FALSE.,error=error)
-       WRITE ( iw, '( A,T20,i10,T31,A50 )' ) ' MD| Dump',iprint(SIZE(iprint)), &
+       WRITE ( iw, '( A,T20,i10,T31,A50 )' ) ' MD| Dump',iprint, &
             ADJUSTR ( TRIM(filename) )
 
        WRITE (iw,*)

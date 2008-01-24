@@ -124,7 +124,8 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"free_energy_info",&
             description="Controls the printing of basic and summary information during the"//&
             " Free Energy calculation", &
-            print_level=low_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
+            print_level=low_print_level,each_iter_names=s2a("MD"),&
+            each_iter_values=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)        
@@ -244,7 +245,8 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"program_run_info",&
             description="Controls the printing of basic and summary information during"//&
             " metadynamics.", &
-            print_level=low_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
+            print_level=low_print_level,each_iter_names=s2a("MD","METADYNAMICS"),&
+            each_iter_values=(/1,1/),add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -254,7 +256,8 @@ CONTAINS
             " metadynamics. The files contains: colvar value of the extended lagrangian, "//&
             " instantaneous colvar value, force due to the armonic term of the extended "//&
             " lagrangian and the force due to the previously spawned hills.", &
-            print_level=low_print_level,each=(/1/),add_last=add_last_numeric,filename="COLVAR",&
+            print_level=low_print_level,each_iter_names=s2a("MD","METADYNAMICS"),&
+            each_iter_values=(/1,1/),add_last=add_last_numeric,filename="COLVAR",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -264,7 +267,8 @@ CONTAINS
             " metadynamics. The file contains: instantaneous colvar value, width of "//&
             " the spawned gaussian and height of the gaussian. According the value of "//&
             " the EACH keyword this file may not be synchronized with the COLVAR file.", &
-            print_level=high_print_level,each=(/1/),add_last=add_last_numeric,filename="HILLS",&
+            print_level=high_print_level,each_iter_names=s2a("MD","METADYNAMICS"),&
+            each_iter_values=(/1,1/),add_last=add_last_numeric,filename="HILLS",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)

@@ -109,7 +109,9 @@
   &END SUBSYS
   &PRINT
     &FORCES
-      EACH 1
+      &EACH
+        MD 1
+      &END
     &END FORCES
   &END PRINT
 &END FORCE_EVAL

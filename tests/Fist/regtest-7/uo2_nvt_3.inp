@@ -114,28 +114,23 @@
     &END
     &PRINT
       &ENERGY
-        EACH 1
       &END
       &SHELL_ENERGY LOW
-        EACH 1
       &END
     &END PRINT
   &END MD
   &PRINT
     &TRAJECTORY
-      EACH 1
     &END
     &VELOCITIES OFF
     &END
     &SHELL_TRAJECTORY
-      EACH 1
     &END
     &SHELL_VELOCITIES OFF
     &END
     &SHELL_FORCES OFF
     &END
     &CORE_TRAJECTORY
-     EACH 1
     &END
     &CORE_VELOCITIES OFF
     &END

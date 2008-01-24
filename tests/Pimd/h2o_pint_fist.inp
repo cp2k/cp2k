@@ -70,11 +70,12 @@
      &END INIT
      &PRINT
        &RESTART  LOW
-         EACH              2
+         &EACH
+           MD   2
+         &END
          COMMON_ITERATION_LEVELS               2
        &END RESTART
        &ENER_INFO  LOW
-         EACH 1
          COMMON_ITERATION_LEVELS               2
        &END ENER_INFO
        &CENTROIDS  LOW

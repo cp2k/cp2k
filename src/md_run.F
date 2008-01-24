@@ -184,8 +184,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, istep, iter_level, &
-                                                stat
+    INTEGER                                  :: handle, i, istep, stat
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: check, failure, save_mem, &
                                                 should_stop
@@ -232,8 +231,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     force_env_section => force_env%force_env_section
     subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
-    CALL cp_add_iter_level(logger%iter_info,"MD",n_rlevel_new=iter_level,&
-         error=error)
+    CALL cp_add_iter_level(logger%iter_info,"MD",error=error)
     CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=0,error=error)
     ! Read MD section
     CALL read_md_section ( simpar, root_section, error )
@@ -442,8 +440,7 @@ CONTAINS
 
     END DO
 
-    CALL cp_rm_iter_level(logger%iter_info,n_rlevel_att=iter_level,&
-         error=error)
+    CALL cp_rm_iter_level(logger%iter_info,"MD",error=error)
 
     ! Deallocate Thermostats and Barostats
     CALL release_thermostats(thermostats, error=error)

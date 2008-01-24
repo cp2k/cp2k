@@ -3714,7 +3714,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'find_coeffs', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, iiter, iter, j, k, n_rlevel
+    INTEGER                                  :: i, iiter, iter, j, k
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure, last
     REAL(kind=dp)                            :: alpha, beta, eps_r_att, &
@@ -3746,7 +3746,7 @@ CPSourceFileRef,&
           END IF
        END IF
 
-       CALL cp_add_iter_level(logger%iter_info,level_name="findcoef",n_rlevel_new=n_rlevel,error=error)
+       CALL cp_add_iter_level(logger%iter_info,level_name="SPLINE_FIND_COEFF",error=error)
        ext_do:DO iiter=1,max_iter,10
           CALL pw_zero(r)
           CALL linOp(pw_in=coeffs,pw_out=r,error=error)
@@ -3803,7 +3803,7 @@ CPSourceFileRef,&
 
           END DO
        END DO ext_do
-       CALL cp_rm_iter_level(logger%iter_info,n_rlevel_att=n_rlevel,error=error)
+       CALL cp_rm_iter_level(logger%iter_info,level_name="SPLINE_FIND_COEFF",error=error)
 
        CALL pw_pool_give_back_pw(pool,r,error=error)
        CALL pw_pool_give_back_pw(pool,z,error=error)

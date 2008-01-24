@@ -113,30 +113,28 @@
     &END
     &PRINT
       &ENERGY 
-        EACH 10
+        &EACH
+          MD 10
+        &END
       &END
       &SHELL_ENERGY OFF
       &END
       &PROGRAM_RUN_INFO
-        EACH 1
       &END
     &END PRINT
   &END MD
   &PRINT
     &TRAJECTORY
-      EACH 1
     &END
     &VELOCITIES OFF
     &END
     &SHELL_TRAJECTORY
-      EACH 1
     &END
     &SHELL_VELOCITIES OFF
     &END
     &SHELL_FORCES OFF
     &END
     &CORE_TRAJECTORY
-     EACH 1
     &END
     &CORE_VELOCITIES OFF
     &END

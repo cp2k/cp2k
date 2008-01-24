@@ -167,42 +167,42 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key, "ENERGIES", &
             description="Controls the printing of the EIP energies.", &
-            print_level=medium_print_level, each=(/1/), filename="__STD_OUT__", &
+            print_level=medium_print_level, filename="__STD_OUT__", &
             error=error)
        CALL section_add_subsection(section, print_key, error=error)
        CALL section_release(print_key, error=error)
 
        CALL cp_print_key_section_create(print_key, "ENERGIES_VAR", &
             description="Controls the printing of the variance of the EIP energies.", &
-            print_level=high_print_level, each=(/1/), filename="__STD_OUT__", &
+            print_level=high_print_level, filename="__STD_OUT__", &
             error=error)
        CALL section_add_subsection(section, print_key, error=error)
        CALL section_release(print_key, error=error)
 
        CALL cp_print_key_section_create(print_key, "FORCES", &
             description="Controls the printing of the EIP forces.", &
-            print_level=medium_print_level, each=(/1/), filename="__STD_OUT__", &
+            print_level=medium_print_level, filename="__STD_OUT__", &
             error=error)
        CALL section_add_subsection(section, print_key, error=error)
        CALL section_release(print_key, error=error)
 
        CALL cp_print_key_section_create(print_key, "COORD_AVG", &
             description="Controls the printing of the average coordination number.", &
-            print_level=high_print_level, each=(/1/), filename="__STD_OUT__", &
+            print_level=high_print_level, filename="__STD_OUT__", &
             error=error)
        CALL section_add_subsection(section, print_key, error=error)
        CALL section_release(print_key, error=error)
 
        CALL cp_print_key_section_create(print_key, "COORD_VAR", &
             description="Controls the printing of the variance of the coordination number.", &
-            print_level=high_print_level, each=(/1/), filename="__STD_OUT__", &
+            print_level=high_print_level, filename="__STD_OUT__", &
             error=error)
        CALL section_add_subsection(section, print_key, error=error)
        CALL section_release(print_key, error=error)
 
        CALL cp_print_key_section_create(print_key, "COUNT", &
             description="Controls the printing of the number of function calls.", &
-            print_level=high_print_level, each=(/1/), filename="__STD_OUT__", &
+            print_level=high_print_level, filename="__STD_OUT__", &
             error=error)
        CALL section_add_subsection(section, print_key, error=error)
        CALL section_release(print_key, error=error)

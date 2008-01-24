@@ -24,7 +24,10 @@
       &PRINT
         &RESTART
            FILENAME =RESTART
-           EACH 1 1 100
+           &EACH
+             MD 1
+             QS_SCF 100
+           &END
         &END
       &END
     &END SCF

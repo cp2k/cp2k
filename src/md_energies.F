@@ -823,7 +823,7 @@ END SUBROUTINE  md_ener_reftraj
           IF(outformat==dump_dcd) THEN
              IF ( init_traj ) THEN
                 !Lets write the header for the coordinate dcd
-                iskip = section_get_ival(motion_section,"PRINT%TRAJECTORY%EACH",error=error)
+                iskip = section_get_ival(motion_section,"PRINT%TRAJECTORY%EACH%MD",error=error)
                 WRITE(crd) "CORD",0,itimes,iskip,&
                      0,0,0,0,0,0,&
                      REAL(simpar%dt*femtoseconds,KIND=sp),1,0,0,0,0,0,0,0,0,24
@@ -880,7 +880,7 @@ END SUBROUTINE  md_ener_reftraj
           CALL section_vals_val_get(motion_section,"PRINT%VELOCITIES%FORMAT",i_val=outformat,error=error)
           IF(outformat==dump_dcd) THEN
              IF ( init_vel ) THEN
-                iskip = section_get_ival(motion_section,"PRINT%VELOCITIES%EACH",error=error)
+                iskip = section_get_ival(motion_section,"PRINT%VELOCITIES%EACH%MD",error=error)
                 WRITE(vel) "VEL ",0,itimes,iskip,&
                      0,0,0,0,0,0,&
                      REAL(simpar%dt*femtoseconds,KIND=sp), 1,0,0,0,0,0,0,0,0,24
@@ -909,7 +909,7 @@ END SUBROUTINE  md_ener_reftraj
           CALL section_vals_val_get(motion_section,"PRINT%FORCES%FORMAT",i_val=outformat,error=error)
           IF(outformat==dump_dcd) THEN
              IF ( init_force ) THEN
-                iskip = section_get_ival(motion_section,"PRINT%FORCES%EACH",error=error)
+                iskip = section_get_ival(motion_section,"PRINT%FORCES%EACH%MD",error=error)
                 WRITE(frc) "FRC ",0,itimes,iskip,&
                      0,0,0,0,0,0,&
                      REAL(simpar%dt*femtoseconds,KIND=sp), 1,0,0,0,0,0,0,0,0,24
@@ -972,7 +972,7 @@ END SUBROUTINE  md_ener_reftraj
           IF(outformat==dump_dcd) THEN
              IF ( init_shtraj ) THEN
                 !Lets write the header for the coordinate dcd
-                iskip = section_get_ival(motion_section,"PRINT%SHELL_TRAJECTORY%EACH",error=error)
+                iskip = section_get_ival(motion_section,"PRINT%SHELL_TRAJECTORY%EACH%MD",error=error)
                 WRITE(shcrd) "CORD",0,itimes,iskip,&
                      0,0,0,0,0,0,&
                      REAL(simpar%dt*femtoseconds,KIND=sp),1,0,0,0,0,0,0,0,0,24
@@ -1001,7 +1001,7 @@ END SUBROUTINE  md_ener_reftraj
           CALL section_vals_val_get(motion_section,"PRINT%SHELL_VELOCITIES%FORMAT",i_val=outformat,error=error)
           IF(outformat==dump_dcd) THEN
              IF ( init_shvel ) THEN
-                iskip = section_get_ival(motion_section,"PRINT%SHELL_VELOCITIES%EACH",error=error)
+                iskip = section_get_ival(motion_section,"PRINT%SHELL_VELOCITIES%EACH%MD",error=error)
                 WRITE(vel) "VEL ",0,itimes,iskip,&
                      0,0,0,0,0,0,&
                      REAL(simpar%dt*femtoseconds,KIND=sp), 1,0,0,0,0,0,0,0,0,24
@@ -1030,7 +1030,7 @@ END SUBROUTINE  md_ener_reftraj
           CALL section_vals_val_get(motion_section,"PRINT%SHELL_FORCES%FORMAT",i_val=outformat,error=error)
           IF(outformat==dump_dcd) THEN
              IF ( init_shforce ) THEN
-                iskip = section_get_ival(motion_section,"PRINT%SHELL_FORCES%EACH",error=error)
+                iskip = section_get_ival(motion_section,"PRINT%SHELL_FORCES%EACH%MD",error=error)
                 WRITE(shfrc) "FRC ",0,itimes,iskip,&
                      0,0,0,0,0,0,&
                      REAL(simpar%dt*femtoseconds,KIND=sp), 1,0,0,0,0,0,0,0,0,24
@@ -1060,7 +1060,7 @@ END SUBROUTINE  md_ener_reftraj
           IF(outformat==dump_dcd) THEN
              IF ( init_cotraj ) THEN
                 !Lets write the header for the coordinate dcd
-                iskip = section_get_ival(motion_section,"PRINT%CORE_TRAJECTORY%EACH",error=error)
+                iskip = section_get_ival(motion_section,"PRINT%CORE_TRAJECTORY%EACH%MD",error=error)
                 WRITE(cocrd) "CORD",0,itimes,iskip,&
                      0,0,0,0,0,0,&
                      REAL(simpar%dt*femtoseconds,KIND=sp),1,0,0,0,0,0,0,0,0,24
@@ -1089,7 +1089,7 @@ END SUBROUTINE  md_ener_reftraj
           CALL section_vals_val_get(motion_section,"PRINT%CORE_VELOCITIES%FORMAT",i_val=outformat,error=error)
           IF(outformat==dump_dcd) THEN
              IF ( init_covel ) THEN
-                iskip = section_get_ival(motion_section,"PRINT%CORE_VELOCITIES%EACH",error=error)
+                iskip = section_get_ival(motion_section,"PRINT%CORE_VELOCITIES%EACH%MD",error=error)
                 WRITE(vel) "VEL ",0,itimes,iskip,&
                      0,0,0,0,0,0,&
                      REAL(simpar%dt*femtoseconds,KIND=sp), 1,0,0,0,0,0,0,0,0,24
@@ -1118,7 +1118,7 @@ END SUBROUTINE  md_ener_reftraj
           CALL section_vals_val_get(motion_section,"PRINT%CORE_FORCES%FORMAT",i_val=outformat,error=error)
           IF(outformat==dump_dcd) THEN
              IF ( init_coforce ) THEN
-                iskip = section_get_ival(motion_section,"PRINT%CORE_FORCES%EACH",error=error)
+                iskip = section_get_ival(motion_section,"PRINT%CORE_FORCES%EACH%MD",error=error)
                 WRITE(cofrc) "FRC ",0,itimes,iskip,&
                      0,0,0,0,0,0,&
                      REAL(simpar%dt*femtoseconds,KIND=sp), 1,0,0,0,0,0,0,0,0,24

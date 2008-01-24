@@ -231,14 +231,14 @@ CONTAINS
        
        CALL cp_print_key_section_create(subsection,"check_spline",&
             description="Controls the checking of the G-space term Spline Interpolation.",&
-            print_level=medium_print_level,each=(/1/),filename="GSpace-SplInterp",&
+            print_level=medium_print_level,filename="GSpace-SplInterp",&
             error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)       
 
        CALL cp_print_key_section_create(subsection,"program_run_info",&
             description="Controls the printing of basic information during the run", &
-            print_level=low_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
+            print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
@@ -462,7 +462,7 @@ SUBROUTINE create_ewald_section(section,error)
     NULLIFY(print_key)
     CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
          description="controls the printing of ewald setup",&
-         print_level=low_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
+         print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
          error=error)
     CALL section_add_subsection(subsection,print_key,error=error)
     CALL section_release(print_key,error=error)
@@ -562,7 +562,8 @@ END SUBROUTINE create_ewald_section
        CALL cp_print_key_section_create(print_key,"conv_info",&
             description="if convergence information about the linear solver"//&
             " of the spline methods should be printed", &
-            print_level=medium_print_level,each=(/10/),filename="__STD_OUT__",&
+            print_level=medium_print_level,each_iter_names=s2a("SPLINE_FIND_COEFFS"),&
+            each_iter_values=(/10/),filename="__STD_OUT__",&
             add_last=add_last_numeric,error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)

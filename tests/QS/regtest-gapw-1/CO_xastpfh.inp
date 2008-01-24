@@ -78,7 +78,9 @@
          &PROGRAM_RUN_INFO
          &END 
          &RESTART
-             EACH 1
+             &EACH
+               XAS_SCF 1
+             &END
          &END 
          &SPECTRUM
          &END

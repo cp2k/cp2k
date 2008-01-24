@@ -48,7 +48,6 @@
    &VELOCITIES OFF
    &END
    &TRAJECTORY
-    EACH 1
    &END
   &END
   &FREE_ENERGY
@@ -67,10 +66,14 @@
       &END METAVAR
       &PRINT
        &COLVAR
-        EACH 10
+        &EACH
+          METADYNAMICS 10
+        &END
        &END COLVAR
        &HILLS
-        EACH 10
+        &EACH
+          METADYNAMICS 10
+        &END
        &END HILLS
       &END
     &END METADYN

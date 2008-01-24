@@ -160,13 +160,17 @@
     TEMPERATURE 200.0
     &PRINT
      &ENERGY
-      EACH 1
+      &EACH 
+        MD 1
+      &END
      &END
     &END
   &END MD
   &PRINT
    &TRAJECTORY
-    EACH 100
+    &EACH 
+      MD 100
+    &END
    &END
    &VELOCITIES OFF
    &END
@@ -175,7 +179,9 @@
    &RESTART_HISTORY OFF
    &END
    &RESTART
-    EACH 10
+    &EACH 
+      MD 10
+    &END
    &END
   &END
   &FREE_ENERGY

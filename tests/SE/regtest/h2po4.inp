@@ -22,7 +22,11 @@
       &END OT
      &PRINT SILENT
         &RESTART
-           EACH  1 1 50
+           &EACH
+             __ROOT__  1
+             MD        1
+             QS_SCF   50
+           &END
         &END RESTART
         &PROGRAM_RUN_INFO SILENT
         &END PROGRAM_RUN_INFO
@@ -70,18 +74,20 @@
      &END COLVAR
 
      &COLVAR
-         &DISTANCE_DIFFERENCE
-            # PO - OH distance
-            ATOMS 1 3 3 7
-         &END DISTANCE_DIFFERENCE
-         &PRINT
-         &PROGRAM_RUN_INFO LOW
-           EACH 1000
-               ADD_LAST NUMERIC
-               COMMON_ITERATION_LEVELS 0
-               FILENAME diff-dist
-            &END PROGRAM_RUN_INFO
-         &END PRINT
+       &DISTANCE_DIFFERENCE
+          # PO - OH distance
+          ATOMS 1 3 3 7
+       &END DISTANCE_DIFFERENCE
+       &PRINT
+          &PROGRAM_RUN_INFO LOW
+            &EACH
+              MD 1000
+            &END
+            ADD_LAST NUMERIC
+            COMMON_ITERATION_LEVELS 0
+            FILENAME diff-dist
+          &END PROGRAM_RUN_INFO
+       &END PRINT
      &END COLVAR
      
      &COLVAR
@@ -96,7 +102,9 @@
          &END COORDINATION
          &PRINT
             &PROGRAM_RUN_INFO LOW
-               EACH 1000
+               &EACH
+                 MD 1000
+               &END
                ADD_LAST NUMERIC
                COMMON_ITERATION_LEVELS 0
                FILENAME P-watO
@@ -142,7 +150,6 @@
       &END THERMOSTAT
       &PRINT
          &ENERGY
-            EACH 1
          &END ENERGY
       &END PRINT
      &END MD

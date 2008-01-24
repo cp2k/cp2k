@@ -203,7 +203,6 @@ HC -10.40202 -8.723755 7.938682 ACN
     &END
     &PRINT
       &ENERGY
-        EACH 1
       &END
     &END
    &END MD
@@ -211,12 +210,16 @@ HC -10.40202 -8.723755 7.938682 ACN
     &RESTART_HISTORY OFF
     &END
     &RESTART
-      EACH 1000
+      &EACH
+        MD 1000
+      &END
     &END RESTART
      &FORCES OFF
      &END
      &TRAJECTORY
-        EACH 200
+        &EACH
+          MD 200
+        &END
      &END
      &VELOCITIES OFF
      &END

@@ -411,7 +411,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(subsection,"check_spline",&
             description="Controls the checking of the G-space term Spline Interpolation.",&
-            print_level=medium_print_level,each=(/1/),filename="GSpace-SplInterp",&
+            print_level=medium_print_level,filename="GSpace-SplInterp",&
             error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)       
@@ -866,7 +866,8 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"conv_info",&
             description="if convergence information about the linear solver"//&
             " of the spline methods should be printed", &
-            print_level=medium_print_level,each=(/10/),filename="__STD_OUT__",&
+            print_level=medium_print_level,each_iter_names=s2a("SPLINE_FIND_COEFFS"),&
+            each_iter_values=(/10/),filename="__STD_OUT__",&
             add_last=add_last_numeric,error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -874,7 +875,7 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"spl_coeffs",&
             description="outputs a cube with the coefficents calculated for "//&
             "the spline interpolation", &
-            print_level=debug_print_level,each=(/1/),&
+            print_level=debug_print_level,&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -926,21 +927,21 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"PGF",&
             description="Controls the printing of the gaussian expansion basis set of the"//&
             " electrostatic potential", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=high_print_level,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"POTENTIAL",&
             description="Controls the printing of the QMMM  potential",&
-            print_level=high_print_level,each=(/1/),filename="MM_ELPOT_QMMM",&
+            print_level=high_print_level,filename="MM_ELPOT_QMMM",&
             common_iter_levels=1,error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"MM_POTENTIAL",&
             description="Controls the printing of the MM unidimensional potential on file",&
-            print_level=high_print_level,each=(/1/),filename="MM_ELPOT.data",&
+            print_level=high_print_level,filename="MM_ELPOT.data",&
             common_iter_levels=1,error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -948,28 +949,28 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"QMMM_MATRIX",&
             description="Controls the printing of the QMMM 1 electron Hamiltonian Matrix"//&
             " for methods like semiempirical and DFTB",&
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=high_print_level,filename="__STD_OUT__",&
             common_iter_levels=1,error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"PROGRAM_BANNER",&
             description="Controls the printing of the banner of the MM program",&
-            print_level=silent_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=silent_print_level,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
             description="Controls the printing of information regarding the run.",&
-            print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=medium_print_level,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"PERIODIC_INFO",&
             description="Controls the printing of information regarding the periodic boundary condition.",&
-            print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=medium_print_level,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -977,35 +978,35 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"GRID_INFORMATION",&
             description="Controls the printing of information regarding the PW grid structures"//&
             " for PERIODIC qm/mm calculations.",&
-            print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=medium_print_level,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)       
        
        CALL cp_print_key_section_create(print_key,"derivatives",&
             description="Print all derivatives after QM/MM calculation", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=high_print_level,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"qmmm_charges",&
             description="Print all charges generating the QM/MM potential", &
-            print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=medium_print_level,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"qmmm_link_info",&
             description="Print all information on QM/MM links", &
-            print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=medium_print_level,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
  
        CALL cp_print_key_section_create(print_key,"qs_derivatives",&
             description="Print QM derivatives after QS calculation", &
-            print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=medium_print_level,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)

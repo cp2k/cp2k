@@ -88,7 +88,7 @@ MODULE geo_opt
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_geo_opt', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat, ihandle
+    INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
     TYPE(cp_logger_type), POINTER            :: logger
@@ -112,10 +112,10 @@ MODULE geo_opt
          geo_opt_section=geo_section, error=error)
     CALL gopt_f_create_x0(gopt_env, x0, error=error)
 
-    CALL cp_add_iter_level(logger%iter_info,"GEO_OPT",ihandle,error)
+    CALL cp_add_iter_level(logger%iter_info,"GEO_OPT",error=error)
     CALL cp_geo_opt_low(force_env, globenv, gopt_param, gopt_env,&
          force_env_section, geo_section, x0, error)
-    CALL cp_rm_iter_level(logger%iter_info,ihandle,error)
+    CALL cp_rm_iter_level(logger%iter_info,"GEO_OPT",error=error)
 
     DEALLOCATE(x0, stat=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -157,13 +157,13 @@ MODULE geo_opt
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_rot_opt', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ihandle
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 root_section
-    TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
@@ -175,10 +175,10 @@ MODULE geo_opt
     root_section      => gopt_env%force_env%root_section
     force_env_section => gopt_env%force_env%force_env_section
 
-    CALL cp_add_iter_level(logger%iter_info,"ROT_OPT",ihandle,error)
+    CALL cp_add_iter_level(logger%iter_info,"ROT_OPT",error=error)
     CALL cp_geo_opt_low(gopt_env%force_env, gopt_env%globenv, gopt_param, gopt_env,&
          force_env_section, geo_section, x0, error)
-    CALL cp_rm_iter_level(logger%iter_info,ihandle,error)
+    CALL cp_rm_iter_level(logger%iter_info,"ROT_OPT",error=error)
 
     CALL timestop(handle)
 

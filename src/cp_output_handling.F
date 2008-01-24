@@ -54,10 +54,7 @@ MODULE cp_output_handling
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE input_val_types,                 ONLY: char_t,&
-                                             val_create,&
-                                             val_release,&
-                                             val_type
+  USE input_val_types,                 ONLY: char_t
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -162,7 +159,6 @@ MODULE cp_output_handling
      INTEGER :: default_val
   END TYPE cp_out_flags_type
 
-
 CONTAINS
 
 !!****f* cp_output_handling/cp_print_key_section_create [1.0] *
@@ -190,32 +186,38 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_print_key_section_create(print_key_section, name, description, &
-       print_level,each,add_last,filename,common_iter_levels,store,citations,&
-       supported_feature,error)
+       print_level,each_iter_names,each_iter_values,add_last,filename,&
+       common_iter_levels,store,citations,supported_feature,error)
     TYPE(section_type), POINTER              :: print_key_section
-    CHARACTER(len=*), INTENT(in)             :: name, description
-    INTEGER, INTENT(in), OPTIONAL            :: print_level
-    INTEGER, DIMENSION(:), INTENT(in), &
-      OPTIONAL                               :: each
-    INTEGER, INTENT(in), OPTIONAL            :: add_last
-    CHARACTER(LEN=*), INTENT(in), OPTIONAL   :: filename
-    INTEGER, INTENT(in), OPTIONAL            :: common_iter_levels
+    CHARACTER(len=*), INTENT(IN)             :: name, description
+    INTEGER, INTENT(IN), OPTIONAL            :: print_level
+    CHARACTER(LEN=*), DIMENSION(:), &
+      INTENT(IN), OPTIONAL                   :: each_iter_names
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      OPTIONAL                               :: each_iter_values
+    INTEGER, INTENT(IN), OPTIONAL            :: add_last
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: filename
+    INTEGER, INTENT(IN), OPTIONAL            :: common_iter_levels
     LOGICAL, INTENT(IN), OPTIONAL            :: store
     INTEGER, DIMENSION(:), OPTIONAL          :: citations
     LOGICAL, INTENT(IN), OPTIONAL            :: supported_feature
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_section_create', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_path_length)       :: my_filename
-    INTEGER                                  :: my_add_last, &
+    CHARACTER(LEN=default_path_length), &
+      DIMENSION(12)                          :: each_desc_labels
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(12)                          :: each_possible_labels
+    INTEGER                                  :: i_each, i_iter, my_add_last, &
                                                 my_comm_iter_levels, &
-                                                my_print_level
-    LOGICAL                                  :: failure, mystore
+                                                my_print_level, my_value
+    LOGICAL                                  :: check, ext_each, failure, &
+                                                mystore
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: store_section
-    TYPE(val_type), POINTER                  :: val
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
 
@@ -228,7 +230,7 @@ CONTAINS
             n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             citations=citations, supported_feature=supported_feature, error=error)
 
-       NULLIFY(keyword, val)
+       NULLIFY(keyword, subsection)
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
             description="Level starting at which this proprety is printed",&
             usage="silent",&
@@ -241,22 +243,70 @@ CONTAINS
        CALL section_add_keyword(print_key_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       IF (PRESENT(each)) THEN
-          CALL val_create(val,i_vals=each,error=error)
-       ELSE
-          CALL val_create(val,i_val=1,error=error)
-       END IF
-       CALL keyword_create(keyword, name="EACH",&
-            description="How often this proprety is printed, this is matched with"//&
-            " the actual iteration level from the right replacing non present "//&
-            "levels with 1. How to handle the last iteration is treated "//&
-            "separately in ADD_LAST (this mean that EACH 0 might print the last "//&
-            "iteration)",usage="EACH 25",default_val=val,supported_feature=supported_feature,&
-            error=error)
-       CALL val_release(val,error=error)
-       CALL section_add_keyword(print_key_section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+       CALL section_create(subsection,name="EACH",&
+            description="This section specifies how often this proprety is printed."//&
+            "Each keyword inside this section is mapping to a specific iteration level and "//&
+            "the value of each of these keywords is matched with the iteration level during "//&
+            "the calculation. How to handle the last iteration is treated "//&
+            "separately in ADD_LAST (this mean that each iteration level (MD, GEO_OPT, etc..), "//&
+            "though equal to 0, might print the last iteration). If an iteration level is specified "//&
+            "that is not present in the flow of the calculation it is just ignored.",&
+            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            citations=citations, supported_feature=supported_feature, error=error)
 
+       ! Enforce the presence of absence of both.. or give an error
+       check = (PRESENT(each_iter_names)).EQV.(PRESENT(each_iter_values))
+       CPPrecondition(check,cp_failure_level,routineP,error,failure)
+       ext_each = (PRESENT(each_iter_names)).AND.(PRESENT(each_iter_values))
+
+       ! When adding a new iteration level PLEASE update the following list with the proper name!
+       each_possible_labels( 1) = "__ROOT__"
+       each_possible_labels( 2) = "JUST_ENERGY"
+       each_possible_labels( 3) = "QS_SCF"
+       each_possible_labels( 4) = "XAS_SCF"
+       each_possible_labels( 5) = "MD"
+       each_possible_labels( 6) = "METADYNAMICS"
+       each_possible_labels( 7) = "GEO_OPT"
+       each_possible_labels( 8) = "ROT_OPT"
+       each_possible_labels( 9) = "BAND"
+       each_possible_labels(10) = "EP_LIN_SOLVER"
+       each_possible_labels(11) = "SPLINE_FIND_COEFFS"
+       each_possible_labels(12) = "REPLICA_EVAL"
+
+       each_desc_labels( 1) = "Iteration level for __ROOT__ (fictitious iteration level)"
+       each_desc_labels( 2) = "Iteration level for an ENERGY/ENERGY_FORCE calculation."
+       each_desc_labels( 3) = "Iteration level for the SCF Steps."
+       each_desc_labels( 4) = "Iteration level for the X-Ray Absorption Spectroscopy (XAS) SCF Steps."
+       each_desc_labels( 5) = "Iteration level for the MD steps."
+       each_desc_labels( 6) = "Iteration level for the METADYNAMICS steps (number of hills added)."
+       each_desc_labels( 7) = "Iteration level for the geometry optimization steps."
+       each_desc_labels( 8) = "Iteration level for the rotational optimization steps in the Dimer Calculation."
+       each_desc_labels( 9) = "Iteration level for the Band Calculation Steps"
+       each_desc_labels(10) = "Iteration level for the Energy Perturbation (EP) linear solver"
+       each_desc_labels(11) = "Iteration level for the solution of the coefficients of the splines"
+       each_desc_labels(12) = "Iteration level for the evaluation of the Replica Environment"
+       
+       DO i_each = 1, SIZE(each_possible_labels)
+          my_value = 1
+          IF (ext_each) THEN
+             check    = SUM(INDEX(each_iter_names,each_possible_labels(i_each)))<=1
+             CPPrecondition(check,cp_failure_level,routineP,error,failure)
+             DO i_iter = 1, SIZE(each_iter_names)
+                IF (INDEX(TRIM(each_iter_names(i_iter)),TRIM(each_possible_labels(i_each)))/=0) THEN
+                   my_value = each_iter_values(i_iter)
+                END IF
+             END DO
+          END IF
+          CALL keyword_create(keyword, name=TRIM(each_possible_labels(i_each)),&
+               description=TRIM(each_desc_labels(i_each)),&
+               usage=TRIM(each_possible_labels(i_each))//" <INTEGER>",&
+               default_i_val=my_value, supported_feature=supported_feature, error=error)
+          CALL section_add_keyword(subsection,keyword,error=error)
+          CALL keyword_release(keyword,error=error)
+       END DO
+       CALL section_add_subsection(print_key_section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+          
        my_add_last = add_last_no
        IF (PRESENT(add_last)) THEN
           my_add_last = add_last
@@ -281,7 +331,7 @@ CONTAINS
             description="How many iterations levels should be written"//&
             " in the same file (no extra information about the actual"//&
             " iteration level is written to the file)",&
-            usage="COMMN_ITERATION_LEVELS 1",&
+            usage="COMMON_ITERATION_LEVELS <INTEGER>",&
             default_i_val=my_comm_iter_levels, supported_feature=supported_feature,error=error)
        CALL section_add_keyword(print_key_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -326,8 +376,7 @@ CONTAINS
        mystore=.FALSE.
        IF (PRESENT(store)) mystore=store
        IF (mystore) THEN
-          NULLIFY(store_section)
-          CALL section_create(store_section,name="STORE",&
+          CALL section_create(subsection,name="STORE",&
                description="A section where print results can be stored",&
                n_keywords=2, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
                supported_feature=supported_feature, error=error)
@@ -335,17 +384,17 @@ CONTAINS
           CALL keyword_create(keyword, name="NAME",&
                description="Specifies what can be stored in this section, if implemented",&
                type_of_var=char_t,supported_feature=supported_feature, error=error)
-          CALL section_add_keyword(store_section,keyword,error=error)
+          CALL section_add_keyword(subsection,keyword,error=error)
           CALL keyword_release(keyword,error=error)
 
           CALL keyword_create(keyword,name="VALUE",&
                description="Whatever real value that needs to be stored (output)",&
                default_r_val=0.0_dp,repeats=.FALSE.,supported_feature=supported_feature, error=error)
-          CALL section_add_keyword(store_section,keyword,error=error)
+          CALL section_add_keyword(subsection,keyword,error=error)
           CALL keyword_release(keyword,error=error)
 
-          CALL section_add_subsection(print_key_section,store_section,error=error)
-          CALL section_release(store_section,error=error)
+          CALL section_add_subsection(print_key_section,subsection,error=error)
+          CALL section_release(subsection,error=error)
        ENDIF
 
     END IF
@@ -386,11 +435,11 @@ CONTAINS
        RESULT(res)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
     TYPE(section_vals_type), POINTER         :: basis_section
-    CHARACTER(len=*), INTENT(in), OPTIONAL   :: print_key_path
+    CHARACTER(len=*), INTENT(IN), OPTIONAL   :: print_key_path
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: used_print_key
-    LOGICAL, INTENT(out), OPTIONAL           :: first_time
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    LOGICAL, INTENT(OUT), OPTIONAL           :: first_time
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_should_output', &
@@ -493,7 +542,7 @@ CONTAINS
   FUNCTION cp_printkey_is_on(iteration_info,print_key,error) RESULT(res)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
     TYPE(section_vals_type), POINTER         :: print_key
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_printkey_is_on', &
@@ -546,8 +595,8 @@ CONTAINS
        RESULT(res)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
     TYPE(section_vals_type), POINTER         :: print_key
-    LOGICAL, INTENT(out), OPTIONAL           :: first_time
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    LOGICAL, INTENT(OUT), OPTIONAL           :: first_time
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_printkey_is_iter', &
@@ -555,7 +604,6 @@ CONTAINS
 
     INTEGER                                  :: add_last, ilevel, iter_nr, &
                                                 ival
-    INTEGER, DIMENSION(:), POINTER           :: each
     LOGICAL                                  :: failure, first, level_passed
 
     failure=.FALSE.
@@ -569,33 +617,30 @@ CONTAINS
        res   = .FALSE.
        first = .FALSE.
        IF (.NOT. failure) THEN
-          NULLIFY(each)
-          CALL section_vals_val_get(print_key,"EACH",i_vals=each,error=error)
           CALL section_vals_val_get(print_key,"ADD_LAST",i_val=add_last,error=error)
-          CPPrecondition(ASSOCIATED(each),cp_failure_level,routineP,error,failure)
-          IF (SIZE(each)<=iteration_info%n_rlevel) THEN
-             res=.TRUE.
-             first=.TRUE.
-             DO ilevel=1,SIZE(each)
-                level_passed=.FALSE.
-                ival=each(SIZE(each)-ilevel+1)
-                ! output for 0,ival,2*ival,3*ival ...
-                IF (ival>0) THEN
-                   iter_nr=iteration_info%iteration(iteration_info%n_rlevel-ilevel+1)
-                   IF (iter_nr/ival>1) first=.FALSE.
-                   IF (MODULO(iter_nr,ival)==0) THEN
-                      level_passed=.TRUE.
-                   END IF
-                END IF
-                IF (iteration_info%last_iter(iteration_info%n_rlevel-ilevel+1)) THEN
+          res  =.TRUE.
+          first=.TRUE.
+          DO ilevel=1,iteration_info%n_rlevel
+             level_passed=.FALSE.
+             CALL section_vals_val_get(print_key,"EACH%"//TRIM(iteration_info%level_name(ilevel)),&
+                  i_val=ival,error=error)
+             IF (ival>0) THEN
+                iter_nr=iteration_info%iteration(ilevel)
+                IF (iter_nr/ival>1) first=.FALSE.
+                IF (MODULO(iter_nr,ival)==0) THEN
                    level_passed=.TRUE.
                 END IF
-                IF (.NOT.level_passed) res=.FALSE.
-             END DO
-          END IF
+             END IF
+             IF (add_last==add_last_numeric .OR. add_last==add_last_symbolic) THEN
+                IF (iteration_info%last_iter(ilevel)) THEN
+                   level_passed=.TRUE.
+                END IF
+             END IF
+             IF (.NOT.level_passed) res=.FALSE.
+          END DO
        END IF
     END IF
-    first=first.and.res
+    first=first.AND.res
     IF (PRESENT(first_time)) first_time=first
   END FUNCTION cp_printkey_is_iter
 !***************************************************************************
@@ -632,8 +677,8 @@ CONTAINS
     TYPE(cp_iteration_info_type), POINTER    :: iter_info
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: print_key
-    LOGICAL, INTENT(in), OPTIONAL            :: for_file
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    LOGICAL, INTENT(IN), OPTIONAL            :: for_file
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
     CHARACTER(len=default_string_length)     :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_iter_string', &
@@ -641,7 +686,6 @@ CONTAINS
 
     INTEGER                                  :: add_last, c_i_level, ilevel, &
                                                 n_rlevel, s_level
-    INTEGER, DIMENSION(:), POINTER           :: each
     LOGICAL                                  :: failure, my_for_file
     TYPE(section_vals_type), POINTER         :: my_print_key
 
@@ -657,11 +701,8 @@ CONTAINS
        IF (PRESENT(print_key)) my_print_key => print_key
        s_level=1
        IF (ASSOCIATED(my_print_key)) THEN
-          NULLIFY(each)
-          CALL section_vals_val_get(my_print_key,"EACH",i_vals=each,error=error)
           CALL section_vals_val_get(my_print_key,"ADD_LAST",i_val=add_last,error=error)
           CALL section_vals_val_get(my_print_key,"COMMON_ITERATION_LEVELS",i_val=c_i_level, error=error)
-          CPPrecondition(ASSOCIATED(each),cp_failure_level,routineP,error,failure)
           n_rlevel=iter_info%n_rlevel
           IF (my_for_file) n_rlevel=MIN(n_rlevel,MAX(0,n_rlevel-c_i_level))
           DO ilevel=s_level,n_rlevel
@@ -711,9 +752,9 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_iterate(iteration_info,last,iter_nr,error)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
-    LOGICAL, INTENT(in), OPTIONAL            :: last
-    INTEGER, INTENT(in), OPTIONAL            :: iter_nr
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    LOGICAL, INTENT(IN), OPTIONAL            :: last
+    INTEGER, INTENT(IN), OPTIONAL            :: iter_nr
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_iterate', &
       routineP = moduleN//':'//routineN
@@ -764,8 +805,8 @@ CONTAINS
   SUBROUTINE cp_add_iter_level(iteration_info,level_name,n_rlevel_new,error)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
     CHARACTER(LEN=*), INTENT(IN)             :: level_name
-    INTEGER, INTENT(out), OPTIONAL           :: n_rlevel_new
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    INTEGER, INTENT(OUT), OPTIONAL           :: n_rlevel_new
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_add_iter_level', &
       routineP = moduleN//':'//routineN
@@ -777,6 +818,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(iteration_info),cp_failure_level,routineP,error,failure)
     CPPrecondition(iteration_info%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
+       CALL cp_iteration_info_retain(iteration_info)
        iteration_info%n_rlevel=iteration_info%n_rlevel+1
        CALL reallocate(iteration_info%iteration,  1, iteration_info%n_rlevel)
        CALL reallocate(iteration_info%level_name, 1, iteration_info%n_rlevel)
@@ -804,6 +846,7 @@ CONTAINS
 !!     - iteration_info: the iteration info to which an iteration level has
 !!       to be removed
 !!     - n_rlevel_att: iteration level before the call (to do some checks)
+!!     - level_name: level_name to be destroyed (if does not match gives an error)
 !!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
@@ -811,15 +854,16 @@ CONTAINS
 !!     fawzi
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_rm_iter_level(iteration_info,n_rlevel_att,error)
+  SUBROUTINE cp_rm_iter_level(iteration_info,level_name,n_rlevel_att,error)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
-    INTEGER, INTENT(in), OPTIONAL            :: n_rlevel_att
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    CHARACTER(LEN=*), INTENT(IN)             :: level_name
+    INTEGER, INTENT(IN), OPTIONAL            :: n_rlevel_att
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_rm_iter_level', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: check, failure
 
     failure=.FALSE.
 
@@ -829,6 +873,11 @@ CONTAINS
        IF (PRESENT(n_rlevel_att)) THEN
           CPPrecondition(n_rlevel_att==iteration_info%n_rlevel,cp_failure_level,routineP,error,failure)
        END IF
+       CALL cp_iteration_info_release(iteration_info)
+       ! This check that the iteration levels are consistently created and destroyed..
+       ! Never remove this check..
+       check = iteration_info%level_name(iteration_info%n_rlevel)==level_name
+       CPPrecondition(check,cp_failure_level,routineP,error,failure)
        iteration_info%n_rlevel=iteration_info%n_rlevel-1
        CALL reallocate(iteration_info%iteration,  1, iteration_info%n_rlevel)
        CALL reallocate(iteration_info%level_name, 1, iteration_info%n_rlevel)
@@ -887,10 +936,10 @@ CONTAINS
        my_local, error) RESULT(filename)
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
-    CHARACTER(len=*), INTENT(in), OPTIONAL   :: middle_name
-    CHARACTER(len=*), INTENT(in)             :: extension
+    CHARACTER(len=*), INTENT(IN), OPTIONAL   :: middle_name
+    CHARACTER(len=*), INTENT(IN)             :: extension
     LOGICAL, INTENT(IN)                      :: my_local
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
     CHARACTER(len=default_path_length)       :: filename
 
     CHARACTER(len=default_path_length)       :: outPath, postfix, root
@@ -959,15 +1008,15 @@ CONTAINS
        file_action, file_status, do_backup, on_file, is_new_file,error) RESULT(res)
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: basis_section
-    CHARACTER(len=*), INTENT(in)             :: print_key_path, extension
-    CHARACTER(len=*), INTENT(in), OPTIONAL   :: middle_name
-    LOGICAL, INTENT(in), OPTIONAL            :: local, log_filename, &
+    CHARACTER(len=*), INTENT(IN)             :: print_key_path, extension
+    CHARACTER(len=*), INTENT(IN), OPTIONAL   :: middle_name
+    LOGICAL, INTENT(IN), OPTIONAL            :: local, log_filename, &
                                                 ignore_should_output
-    CHARACTER(len=*), INTENT(in), OPTIONAL   :: file_form, file_position, &
+    CHARACTER(len=*), INTENT(IN), OPTIONAL   :: file_form, file_position, &
                                                 file_action, file_status
-    LOGICAL, INTENT(in), OPTIONAL            :: do_backup, on_file
-    LOGICAL, INTENT(out), OPTIONAL           :: is_new_file
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    LOGICAL, INTENT(IN), OPTIONAL            :: do_backup, on_file
+    LOGICAL, INTENT(OUT), OPTIONAL           :: is_new_file
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_unit_nr', &
@@ -1104,13 +1153,13 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_print_key_finished_output(unit_nr, logger, basis_section,&
        print_key_path,local,ignore_should_output,on_file,error)
-    INTEGER, INTENT(inout)                   :: unit_nr
+    INTEGER, INTENT(INOUT)                   :: unit_nr
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: basis_section
-    CHARACTER(len=*), INTENT(in), OPTIONAL   :: print_key_path
-    LOGICAL, INTENT(in), OPTIONAL            :: local, ignore_should_output, &
+    CHARACTER(len=*), INTENT(IN), OPTIONAL   :: print_key_path
+    LOGICAL, INTENT(IN), OPTIONAL            :: local, ignore_should_output, &
                                                 on_file
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_finished_output', &
       routineP = moduleN//':'//routineN
@@ -1189,12 +1238,12 @@ CONTAINS
        on_file, error)
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: basis_section
-    CHARACTER(len=*), INTENT(in)             :: print_key_path, extension, &
+    CHARACTER(len=*), INTENT(IN)             :: print_key_path, extension, &
                                                 message
-    CHARACTER(len=*), INTENT(in), OPTIONAL   :: middle_name
-    LOGICAL, INTENT(in), OPTIONAL            :: local, log_filename, &
+    CHARACTER(len=*), INTENT(IN), OPTIONAL   :: middle_name
+    LOGICAL, INTENT(IN), OPTIONAL            :: local, log_filename, &
                                                 ignore_should_output, on_file
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_log', &
       routineP = moduleN//':'//routineN

@@ -95,14 +95,14 @@ CONTAINS
 
        CALL create_colvar_var_section(subsection, section, error)
 
-       CALL section_create(subsection,name="print",&
+       CALL section_create(subsection,name="PRINT",&
             description="Controls the printing of the colvar specifications",&
             n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
             error=error)
        NULLIFY(print_key)
-       CALL cp_print_key_section_create(print_key,"program_run_info",&
+       CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
             description="Controls the printing of basic information during colvar setup.", &
-            print_level=low_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
+            print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)

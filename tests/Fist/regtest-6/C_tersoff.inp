@@ -18,29 +18,39 @@
     &END
     &PRINT
       &ENERGY
-        EACH 1
+        &EACH 
+          MD 1
+        &END
         FILENAME md1.ener
       &END ENERGY
     &END PRINT
   &END MD
   &PRINT
     &CELL
-      EACH 10
+      &EACH
+        MD 10
+      &END
       FILENAME md1.cell
     &END CELL
     &TRAJECTORY
-      EACH 10
+      &EACH
+        MD 10
+      &END
       FILENAME md1.xyz
     &END TRAJECTORY
     &VELOCITIES OFF
     &END VELOCITIES
     &RESTART
-      EACH 1000
+      &EACH
+        MD 1000
+      &END
     &END RESTART
     &RESTART_HISTORY OFF
     &END RESTART_HISTORY
     &STRESS
-      EACH 10
+      &EACH
+        MD 10
+      &END
       FILENAME md1.stress
     &END STRESS
   &END PRINT
@@ -80,7 +90,6 @@
     &END POISSON
     #&PRINT
     #  &NEIGHBOR_LISTS SILENT
-    #    EACH 1
     #  &END NEIGHBOR_LISTS
     #&END PRINT
   &END MM

@@ -155,14 +155,14 @@ CONTAINS
     NULLIFY(print_key)
     CALL cp_print_key_section_create(print_key,"ENERGY",&
          description="Controls the printing of the various energies",&
-         print_level=medium_print_level,each=(/1/),filename="",&
+         print_level=medium_print_level,filename="",&
          error=error)
     CALL section_add_subsection(print_section,print_key,error=error)
     CALL section_release(print_key,error=error)       
 
     CALL cp_print_key_section_create(print_key,"RUN_INFO",&
          description="Prints various informations on the progress of the ep calculation",&
-         print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
+         print_level=medium_print_level,filename="__STD_OUT__",&
          error=error)
     CALL keyword_create(keyword, name="LIN_SOLV",&
          description="print the linear solver progress",&
@@ -176,7 +176,7 @@ CONTAINS
 
     CALL cp_print_key_section_create(print_key,"EP_MATRIXES",&
          description="Prints various matrixes of an ep calculation",&
-         print_level=debug_print_level,each=(/1/),filename="__STD_OUT__",&
+         print_level=debug_print_level,filename="__STD_OUT__",&
          error=error)
 
     CALL keyword_create(keyword, name="psi0",&
@@ -212,7 +212,7 @@ CONTAINS
 
     CALL cp_print_key_section_create(print_key,"EP_RHO_CUBE",&
          description="Prints out a cube file with the calculated rho",&
-         print_level=debug_print_level,each=(/1/),filename="EP_RHO",&
+         print_level=debug_print_level,filename="EP_RHO",&
          error=error)
 
     CALL keyword_create(keyword, name="rho0",&
@@ -485,7 +485,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"program_run_info",&
             description="Controls the printing basic info about the method", &
-            print_level=low_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
+            print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -744,7 +744,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"program_run_info",&
             description="Controls the printing basic info about the method", &
-            print_level=low_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
+            print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -752,7 +752,7 @@ CONTAINS
        NULLIFY(print_key)
        CALL cp_print_key_section_create(print_key,"WANNIER_CUBES",&
             description="Controls the printing of the wannier functions ", &
-            print_level=high_print_level,each=(/1/),add_last=add_last_numeric,filename="",&
+            print_level=high_print_level,add_last=add_last_numeric,filename="",&
             error=error)
        CALL keyword_create(keyword, name="stride",&
             description="the stride used to write the cube file "//&
@@ -783,7 +783,7 @@ CONTAINS
        NULLIFY(print_key)
        CALL cp_print_key_section_create(print_key,"WANNIER_CENTERS",&
             description="Controls the printing of the wannier functions", &
-            print_level=high_print_level,each=(/1/),add_last=add_last_numeric,filename="",&
+            print_level=high_print_level,add_last=add_last_numeric,filename="",&
             error=error)
 
        CALL keyword_create(keyword, name="IONS+CENTERS",&
@@ -808,7 +808,7 @@ CONTAINS
        NULLIFY(print_key)
        CALL cp_print_key_section_create(print_key,"WANNIER_SPREADS",&
             description="Controls the printing of the wannier functions", &
-            print_level=high_print_level,each=(/1/),add_last=add_last_numeric,filename="",&
+            print_level=high_print_level,add_last=add_last_numeric,filename="",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -865,14 +865,14 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"PROGRAM_BANNER",&
             description="Controls the printing of the banner of the MM program",&
-            print_level=silent_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=silent_print_level,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)       
 
        CALL cp_print_key_section_create(print_key,"derivatives",&
             description="Print all derivatives after the DFT calculation", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=high_print_level,filename="__STD_OUT__",&
             error=error)
 
        CALL keyword_create(keyword=keyword,&
@@ -890,7 +890,6 @@ CONTAINS
             name="neighbor_lists",&
             description="Controls the printing of the neighbor lists",&
             print_level=debug_print_level,&
-            each=(/1/),&
             filename="",&
             error=error)
        CALL keyword_create(keyword=keyword,&
@@ -996,14 +995,14 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"SUBCELL",&
             description="Activates the printing of the subcells used for the"//&
             "generation of neighbor lists.", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=high_print_level,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"ao_matrices",&
             description="Controls the printing of the ao (i.e. contracted gaussian) matrices (debug).", &
-            print_level=debug_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=debug_print_level,filename="__STD_OUT__",&
             error=error)
        CALL keyword_create(keyword, name="core_hamiltonian",&
             description="If the printkey is activated controls the printing of the hamiltonian matrix",&
@@ -1068,7 +1067,7 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"MO",&
             description="Controls the printing of the molecular orbitals."//&
             "Note that this is only functional with diagonalization based methods, in particular not with OT (see MO_CUBES)", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=high_print_level,filename="__STD_OUT__",&
             error=error)
        CALL keyword_create(keyword, name="cartesian",&
             description="If the printkey is activated controls the printing of the mo in the cartesian basis",&
@@ -1095,7 +1094,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"MO_CUBES",&
             description="Controls the printing of cubes of the molecular orbitals (squared).", &
-            print_level=high_print_level,each=(/1/),filename="",&
+            print_level=high_print_level,filename="",&
             error=error)
        CALL keyword_create(keyword, name="stride",&
             description="the stride used to write the cube file "//&
@@ -1126,7 +1125,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"gapw",&
             description="Controls the printing of some gapw related information (debug).", &
-            print_level=debug_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=debug_print_level,filename="__STD_OUT__",&
             error=error)
        CALL keyword_create(keyword, name="projectors",&
             description="If the printkey is activated controls if information on"//&
@@ -1144,14 +1143,14 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"dft_control_parameters",&
             description="Controls the printing of dft control parameters.", &
-            print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=medium_print_level,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"OPTICAL_CONDUCTIVITY",&
             description="Controls the printing of the optical conductivity.", &
-            print_level=high_print_level,each=(/1/),filename="optical_conductivity",&
+            print_level=high_print_level,filename="optical_conductivity",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -1160,7 +1159,7 @@ CONTAINS
             description="Controls the printing of cube files with "//&
             "the total electronic density and, for LSD "//&
             "calculations, the spin density", &
-            print_level=high_print_level,each=(/1/),filename="",&
+            print_level=high_print_level,filename="",&
             error=error)
        CALL keyword_create(keyword, name="stride",&
             description="the stride used to write the cube file "//&
@@ -1174,7 +1173,7 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"tot_density_cube",&
             description="Controls the printing of cube files with "//&
             "the total density (electronic+core)", &
-            print_level=high_print_level,each=(/1/),filename="",&
+            print_level=high_print_level,filename="",&
             error=error)
        CALL keyword_create(keyword, name="stride",&
             description="the stride used to write the cube file "//&
@@ -1187,7 +1186,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"v_hartree_cube",&
             description="Controls the printing of a cube file with eletrostatic potential (electrons+core).", &
-            print_level=high_print_level,each=(/1/),filename="",&
+            print_level=high_print_level,filename="",&
             error=error)
        CALL keyword_create(keyword, name="stride",&
             description="the stride used to write the cube file "//&
@@ -1200,7 +1199,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"LOCALIZATION",&
             Description="Controls the printing of the Wannier centers.", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__", error=error)
+            print_level=high_print_level,filename="__STD_OUT__", error=error)
 
        CALL create_localize_section(subsection,error)
        CALL section_add_subsection(print_key, subsection, error=error)
@@ -1227,7 +1226,7 @@ CONTAINS
        !Printing of Moments
        CALL cp_print_key_section_create(print_key,"MOMENTS",&
             description="Controls printing of electric moments", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=high_print_level,filename="__STD_OUT__",&
             error=error)
 
        CALL keyword_create(keyword=keyword,&
@@ -1293,12 +1292,12 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"MOLECULAR_STATES",&
             description="Controls printing of molecular states (requires LOCALIZATION keyword)", &
-            print_level=high_print_level,each=(/1/),filename=" ",&
+            print_level=high_print_level,filename=" ",&
             error=error)
 
        CALL cp_print_key_section_create(print_key2,"cubes",&
             description="Controls the printing of cube files in localization", &
-            print_level=high_print_level,each=(/1/),filename="",&
+            print_level=high_print_level,filename="",&
             error=error)
        CALL keyword_create(keyword, name="stride",&
             description="the stride used to write the cube file "//&
@@ -1314,7 +1313,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"MULLIKEN",&
             description="Controls the printing of the Mulliken (spin) population analysis.", &
-            print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=medium_print_level,filename="__STD_OUT__",&
             common_iter_levels=1, error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -1322,7 +1321,7 @@ CONTAINS
        ! fairly expensive to compute, so only at high
        CALL cp_print_key_section_create(print_key,"LOWDIN",&
             description="Controls the printing of the Lowdin charges.", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=high_print_level,filename="__STD_OUT__",&
             common_iter_levels=1, error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -1333,7 +1332,6 @@ CONTAINS
             description="Calculate and print the coherent X-ray "//&
             "diffraction spectrum",&
             print_level=debug_print_level,&
-            each=(/1/),&
             filename="",&
             citations=(/Krack2002/),&
             error=error)
@@ -1361,7 +1359,7 @@ CONTAINS
             name="ELECTRIC_FIELD_GRADIENT",&
             description="Calculate and print the electric field gradients"//&
             "at atomic positions",&
-            print_level=debug_print_level,each=(/1/),&
+            print_level=debug_print_level,&
             filename="__STD_OUT__",error=error)
 
        CALL keyword_create(keyword=keyword,&
@@ -1408,7 +1406,7 @@ CONTAINS
             name="BASIS_MOLOPT_QUANTITIES",&
             description="Print the two quantities needed in the basis molopt generation:"//&
             " total energy and condition number of the overlap matrix (S matrix)",&
-            print_level=high_print_level,each=(/1/),&
+            print_level=high_print_level,&
             filename="__STD_OUT__",error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -1417,7 +1415,7 @@ CONTAINS
             name="HYPERFINE_COUPLING_TENSOR",&
             description="Calculate and print the EPR hyperfine coupling tensor"//&
             " at atomic positions",&
-            print_level=debug_print_level,each=(/1/),&
+            print_level=debug_print_level,&
             filename="__STD_OUT__",error=error)
 
        CALL keyword_create(keyword=keyword,&
@@ -2097,7 +2095,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"program_run_info",&
             description="Controls the printing of basic information during the run", &
-            print_level=high_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
+            print_level=high_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
 
        CALL keyword_create(keyword, name="CONDITION_NUMBER",&
@@ -2174,7 +2172,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"program_run_info",&
             description="Controls the printing basic info about the method", &
-            print_level=low_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
+            print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -2242,7 +2240,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"program_run_info",&
             description="Controls the printing basic info about the method", &
-            print_level=low_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
+            print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -3418,8 +3416,9 @@ CONTAINS
             description="Controls the dumping of the MO restart file during scf."//&
                         "By default keeps a short history of three restarts."//&
                         "See also RESTART_HISTORY", &
-            print_level=silent_print_level, common_iter_levels=3, each=(/1,1,20/), &
-            filename="RESTART",error=error)
+            print_level=silent_print_level, common_iter_levels=3,&
+            each_iter_names=s2a("QS_SCF"),each_iter_values=(/20/), &
+            add_last=add_last_numeric,filename="RESTART",error=error)
        CALL keyword_create(keyword, name="BACKUP_COPIES",&
              description="Specifies the maximum index of backup copies.",&
              usage="BACKUP_COPIES {int}",&
@@ -3431,7 +3430,9 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"RESTART_HISTORY",&
             description="Dumps unique MO restart files during the run keeping all of them.",&
-            print_level=silent_print_level, common_iter_levels=0, each=(/500,500,500/), &
+            print_level=silent_print_level, common_iter_levels=0,&
+            each_iter_names=s2a("__ROOT__","MD","GEO_OPT","ROT_OPT","NEB","METADYNAMICS","QS_SCF"),&
+            each_iter_values=(/500,500,500,500,500,500,500/), &
             filename="RESTART",error=error)
        CALL keyword_create(keyword, name="BACKUP_COPIES",&
              description="Specifies the maximum index of backup copies.",&
@@ -3444,7 +3445,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"iteration_info",&
             description="Controls the printing of basic iteration information during the scf.", &
-            print_level=low_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
+            print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL keyword_create(keyword, name="time_cumul",&
             description="If the printkey is activated switches the printing of timings"//&
@@ -3457,42 +3458,42 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"program_run_info",&
             description="Controls the printing of basic information during the SCF", &
-            print_level=low_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
+            print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error) 
 
        CALL cp_print_key_section_create(print_key,"MO_ORTHONORMALITY",&
             description="Controls the printing relative to the orthonormality of MOs (CT S C).", &
-            print_level=high_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
+            print_level=high_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)      
 
        CALL cp_print_key_section_create(print_key,"MO_MAGNITUDE",&
             description="Prints the min/max eigenvalues of the overlap of the MOs without S (CT C).", &
-            print_level=high_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
+            print_level=high_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)      
 
        CALL cp_print_key_section_create(print_key,"detailed_energy",&
             description="Controls the printing of detailed energy information.", &
-            print_level=high_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
+            print_level=high_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"diis_info",&
             description="Controls the printing of diis information.", &
-            print_level=high_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
+            print_level=high_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"total_densities",&
             description="Controls the printing of total densities.", &
-            print_level=medium_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
+            print_level=medium_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -3852,7 +3853,7 @@ CONTAINS
        NULLIFY(print_key)
        CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
             description="Controls the printing of information regarding the run.",&
-            print_level=silent_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=silent_print_level,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -3950,7 +3951,8 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"conv_info",&
             description="if convergence information about the linear solver"//&
             " of the spline methods should be printed", &
-            print_level=medium_print_level,each=(/10/),filename="__STD_OUT__",&
+            print_level=medium_print_level,each_iter_names=s2a("SPLINE_FIND_COEFFS"),&
+            each_iter_values=(/10/),filename="__STD_OUT__",&
             add_last=add_last_numeric,error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -4249,7 +4251,8 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"conv_info",&
             description="if convergence information about the linear solver"//&
             " of the spline methods should be printed", &
-            print_level=medium_print_level,each=(/10/),filename="__STD_OUT__",&
+            print_level=medium_print_level,each_iter_names=s2a("SPLINE_FIND_COEFFS"),&
+            each_iter_values=(/10/),filename="__STD_OUT__",&
             add_last=add_last_numeric,error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -4900,7 +4903,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"program_run_info",&
             description="Controls the printing of basic iteration information in CLS", &
-            print_level=low_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
+            print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -4919,14 +4922,14 @@ CONTAINS
             "one different restart file is dumped. These restart files should be"//&
             "employed only to restart the same type of CLS calculation, "//&
             "i.e. with the same core potential.", &
-            print_level=low_print_level,common_iter_levels=3,each=(/3/),filename="",&
-            error=error)
+            print_level=low_print_level,common_iter_levels=3,each_iter_names=s2a("XAS_SCF"),&
+            add_last=add_last_numeric,each_iter_values=(/3/),filename="",error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"CLS_FUNCTION_CUBES",&
             description="Controls the printing of the relaxed orbitals ", &
-            print_level=high_print_level,common_iter_levels=3,each=(/1/),add_last=add_last_numeric,filename="",&
+            print_level=high_print_level,common_iter_levels=3,add_last=add_last_numeric,filename="",&
             error=error)
        CALL keyword_create(keyword, name="stride",&
             description="the stride used to write the cube file "//&
@@ -5110,7 +5113,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"program_run_info",&
             description="Controls the printing of basic iteration information during the XAS", &
-            print_level=low_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
+            print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -5199,7 +5202,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"CURRENT_CUBES",&
             description="Controls the printing of the current density ", &
-            print_level=high_print_level,each=(/1/),add_last=add_last_numeric,filename="",&
+            print_level=high_print_level,add_last=add_last_numeric,filename="",&
             error=error)
        CALL keyword_create(keyword, name="stride",&
             description="the stride used to write the cube file "//&
@@ -5212,7 +5215,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"RESPONSE_FUNCTION_CUBES",&
             description="Controls the printing of the response functions ", &
-            print_level=high_print_level,each=(/1/),add_last=add_last_numeric,filename="",&
+            print_level=high_print_level,add_last=add_last_numeric,filename="",&
             error=error)
        CALL keyword_create(keyword, name="stride",&
             description="the stride used to write the cube file "//&
@@ -5242,14 +5245,14 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"CHI_TENSOR",&
             description="Controls the printing of susceptibility",&
-            print_level=high_print_level,each=(/1/),add_last=add_last_numeric,filename="",&
+            print_level=high_print_level,add_last=add_last_numeric,filename="",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"SHIELDING_TENSOR",&
             description="Controls the printing of the chemical shift",&
-            print_level=low_print_level,each=(/1/),add_last=add_last_numeric,filename="",&
+            print_level=low_print_level,add_last=add_last_numeric,filename="",&
             error=error)
 
        CALL keyword_create(keyword,name="ATOMS_LU_BOUNDS",&
@@ -5348,7 +5351,7 @@ CONTAINS
  
        CALL cp_print_key_section_create(print_key,"CURRENT_CUBES",&
             description="Controls the printing of the current density ", &
-            print_level=high_print_level,each=(/1/),add_last=add_last_numeric,filename="",&
+            print_level=high_print_level,add_last=add_last_numeric,filename="",&
             error=error)
        CALL keyword_create(keyword, name="stride",&
             description="the stride used to write the cube file "//&
@@ -5362,7 +5365,7 @@ CONTAINS
  
        CALL cp_print_key_section_create(print_key,"NABLAVKS_CUBES",&
             description="Controls the printing of the components of nabla v_ks ", &
-            print_level=high_print_level,each=(/1/),add_last=add_last_numeric,filename="",&
+            print_level=high_print_level,add_last=add_last_numeric,filename="",&
             error=error)
        CALL keyword_create(keyword, name="stride",&
             description="the stride used to write the cube file "//&
@@ -5376,7 +5379,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"G_TENSOR",&
             description="Controls the printing of the g tensor",&
-            print_level=high_print_level,each=(/1/),add_last=add_last_numeric,filename="",&
+            print_level=high_print_level,add_last=add_last_numeric,filename="",&
             error=error)
        CALL create_xc_section(subsubsection,error)
        CALL section_add_subsection(print_key, subsubsection, error=error)
@@ -5401,7 +5404,7 @@ CONTAINS
  
        CALL cp_print_key_section_create(print_key,"RESPONSE_FUNCTION_CUBES",&
             description="Controls the printing of the response functions ", &
-            print_level=high_print_level,each=(/1/),add_last=add_last_numeric,filename="",&
+            print_level=high_print_level,add_last=add_last_numeric,filename="",&
             error=error)
        CALL keyword_create(keyword, name="stride",&
             description="the stride used to write the cube file "//&
@@ -5621,7 +5624,7 @@ CONTAINS
        NULLIFY(print_key)
        CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
             description="Controls the printing basic info about the method", &
-            print_level=low_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
+            print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -5688,7 +5691,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"program_run_info",&
             description="Controls the printing basic info about the method", &
-            print_level=low_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
+            print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)

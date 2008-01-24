@@ -73,13 +73,8 @@
 
     &PRINT
       &SUBCELL
-          EACH 1
       &END SUBCELL
-      #&NEIGHBOR_LISTS
-      #    EACH 1
-      #&END NEIGHBOR_LISTS
       &FF_INFO  DEBUG
-          EACH 1
       &END FF_INFO
     &END PRINT
 
@@ -102,15 +97,12 @@
 
     &PRINT
         #&INTERATOMIC_DISTANCES
-        #    EACH 1
         #&END INTERATOMIC_DISTANCES
         #&TOPOLOGY_INFO
-        #    EACH 1
         #    XYZ_INFO T
         #    GENERATE_INFO F
         #&END TOPOLOGY_INFO
         #&KINDS
-        #    EACH 1
         #&END KINDS
     &END PRINT
 
@@ -118,7 +110,9 @@
   &END SUBSYS
   &PRINT
     &FORCES
-        EACH 1
+        &EACH
+          MD 1
+        &END
     &END FORCES
   &END PRINT
 &END FORCE_EVAL

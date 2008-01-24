@@ -379,8 +379,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, handle2, i, ispin, &
-                                                iter_count, iter_level, &
-                                                output_unit, total_steps
+                                                iter_count, output_unit, &
+                                                total_steps
     LOGICAL :: diis_step, energy_only, exit_inner_loop, failure, gapw, &
       gapw_xc, harris_energy, harris_flag, has_unit_metric, &
       outer_loop_converged, use_jacobi, use_virial
@@ -467,8 +467,7 @@ CONTAINS
             "Step","Update method","Time","Convergence","Total energy",&
             REPEAT("-",77)
     END IF
-    CALL cp_add_iter_level(logger%iter_info,"SCF",n_rlevel_new=iter_level,&
-         error=error)
+    CALL cp_add_iter_level(logger%iter_info,"QS_SCF",error=error)
     ! *** outer loop of the scf, can treat other variables, 
     ! *** such as lagrangian multipliers
     scf_env%outer_scf%iter_count=0
@@ -735,8 +734,7 @@ CONTAINS
             qs_env%dft_control%qs_control%becke_control%becke_pot%pw,error=error)
        qs_env%dft_control%qs_control%becke_control%need_pot=.TRUE.
     END IF
-    CALL cp_rm_iter_level(logger%iter_info,n_rlevel_att=iter_level,&
-         error=error)
+    CALL cp_rm_iter_level(logger%iter_info,level_name="QS_SCF",error=error)
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE scf_env_do_scf

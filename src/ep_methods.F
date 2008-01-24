@@ -953,8 +953,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'stupid_solve', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ispin, j, my_iter_l, &
-                                                nspins, output_unit
+    INTEGER                                  :: i, ispin, j, nspins, &
+                                                output_unit
     LOGICAL                                  :: failure
     REAL(KIND=dp) :: alpha, Ap_p, Ap_p_s, beta, p_ortho_norm, p_ortho_norm_s, &
       r_norm2, r_norm2_s, r_z, r_z_new, r_z_s
@@ -994,8 +994,7 @@ CONTAINS
        CALL cp_error_check(error,failure)
     END IF
     IF (.not.failure) THEN
-       CALL cp_add_iter_level(logger%iter_info,level_name="EP_Lin_solver",&
-            n_rlevel_new=my_iter_l,error=error)
+       CALL cp_add_iter_level(logger%iter_info,level_name="EP_LIN_SOLVER",error=error)
        CALL cp_iterate(logger%iter_info,error=error)
        DO i=1,20
           ! orthogonalize x wrt. to psi0
@@ -1180,7 +1179,7 @@ CONTAINS
           END IF
        END DO
 
-       CALL cp_rm_iter_level(logger%iter_info,my_iter_l,error=error)
+       CALL cp_rm_iter_level(logger%iter_info,level_name="EP_LIN_SOLVER",error=error)
        output_unit=cp_print_key_unit_nr(logger,ep_env%input,"PRINT%RUN_INFO/LIN_SOLV",&
             extension=".epLog",error=error)
        IF (output_unit>0) THEN

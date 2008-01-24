@@ -183,11 +183,9 @@ Ar        2.5394666990        5.0789333979        5.0789333979
       WW 5.0e-3
       &PRINT
         &COLVAR
-          EACH 1
           FILENAME test.colvar
         &END COLVAR
         &HILLS
-          EACH 1
           FILENAME test.hills
         &END HILLS
       &END PRINT

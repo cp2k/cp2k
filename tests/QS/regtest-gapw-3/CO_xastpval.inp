@@ -80,7 +80,6 @@
       EMISSION
       &PRINT
         &RESTART
-          EACH 1
         &END
       &END
     &END

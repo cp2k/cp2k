@@ -117,28 +117,30 @@
     &END
     &PRINT
       &ENERGY
-        EACH 1
       &END
       &SHELL_ENERGY LOW
-        EACH 1
       &END
     &END PRINT
   &END MD
   &PRINT
     &TRAJECTORY
-      EACH 1
     &END
     &VELOCITIES
-      EACH 1000
+      &EACH
+        MD 1000
+      &END
     &END
     &STRESS
-      EACH 1
     &END
     &RESTART
-      EACH 5
+      &EACH
+        MD 5
+      &END
     &END
     &RESTART_HISTORY
-      EACH 10
+      &EACH
+        MD 10
+      &END
     &END
   &END
 &END MOTION

@@ -2610,13 +2610,14 @@
     TEMPERATURE 200.0
     &PRINT
      &ENERGY
-      EACH 1
      &END
     &END
   &END MD
   &PRINT
    &TRAJECTORY
-    EACH 100
+     &EACH
+       MD 100
+     &END
    &END
    &VELOCITIES OFF
    &END
@@ -2625,7 +2626,9 @@
    &RESTART_HISTORY OFF
    &END
    &RESTART
-    EACH 30000
+     &EACH
+       MD 30000
+     &END
    &END
   &END
     &CONSTRAINT

@@ -78,10 +78,14 @@
   &END MD
   &PRINT
     &RESTART
-      EACH 10
+      &EACH
+        MD 10
+      &END
     &END RESTART
     &TRAJECTORY
-      EACH -1
+      &EACH
+        MD -1
+      &END
       FORMAT DCD
     &END TRAJECTORY
     &VELOCITIES OFF

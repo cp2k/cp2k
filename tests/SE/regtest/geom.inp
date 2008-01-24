@@ -10,27 +10,25 @@
     MAX_ITER                       5
     &PRINT
       &PROGRAM_RUN_INFO
-        EACH                       1
       &END PROGRAM_RUN_INFO
     &END PRINT
   &END GEO_OPT
   &PRINT
     &TRAJECTORY SILENT
-      EACH                         1
       FILENAME                     =OMP_OPT.xyz
     &END TRAJECTORY
     &VELOCITIES SILENT
-      EACH                         1
       FILENAME                     =OMP_OPT.vel
     &END VELOCITIES
     &FORCES SILENT
-      EACH                         1
       FILENAME                     =OMP_OPT.for
     &END FORCES
     &RESTART_HISTORY OFF
     &END RESTART_HISTORY
     &RESTART                       SILENT
-      EACH                         20
+      &EACH
+        MD                         20
+      &END
       FILENAME                     =OMP_OPT.restart
     &END RESTART
   &END PRINT
@@ -55,7 +53,11 @@
       &END OT
       &PRINT
         &RESTART
-          EACH 20 20 20
+          &EACH 
+            __ROOT__ 20 
+            GEO_OPT  20
+            QS_SCF   20
+          &END
           FILENAME                  =RESTART
         &END RESTART
         &RESTART_HISTORY OFF

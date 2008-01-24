@@ -81,7 +81,9 @@
          &END 
          &RESTART
              FILENAME ./pippo
-             EACH 1
+             &EACH
+               XAS_SCF 1
+             &END
          &END 
          &SPECTRUM
            FILENAME ./pippo

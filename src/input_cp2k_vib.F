@@ -124,14 +124,14 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
             description="Controls the printing basic info about the vibrational method", &
-            print_level=medium_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
+            print_level=medium_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             supported_feature=.TRUE., error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"MOLDEN_VIB",&
             description="Controls the printing for visualization in molden format", &
-            print_level=low_print_level,each=(/1/),add_last=add_last_numeric,filename="VIBRATIONS",&
+            print_level=low_print_level,add_last=add_last_numeric,filename="VIBRATIONS",&
             supported_feature=.TRUE., error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)

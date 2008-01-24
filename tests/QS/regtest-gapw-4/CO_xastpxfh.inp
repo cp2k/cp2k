@@ -76,7 +76,9 @@
       EMISSION
       &PRINT
         &RESTART
-           EACH 4 
+           &EACH
+             XAS_SCF 4
+           &END 
         &END
       &END 
     &END

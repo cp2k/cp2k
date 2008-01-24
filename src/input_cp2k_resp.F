@@ -148,9 +148,9 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
        NULLIFY(print_key)
-       CALL cp_print_key_section_create(print_key,"program_run_info",&
+       CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
             description="Controls the printing of basic information during the run", &
-            print_level=low_print_level,each=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
+            print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section, print_key, error=error)
        CALL section_release(print_key,error=error)

@@ -35,7 +35,10 @@
       &END OUTER_SCF
       &PRINT
         &RESTART
-          EACH 1 1 30
+          &EACH
+            MD 1 
+            QS_SCF 30
+          &END
           ADD_LAST NUMERIC
           FILENAME =RESTART
           BACKUP_COPIES 0

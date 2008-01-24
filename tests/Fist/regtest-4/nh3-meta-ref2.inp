@@ -61,7 +61,9 @@
       &END METAVAR
       &PRINT
         &COLVAR
-         EACH 1
+          &EACH
+            METADYNAMICS 1
+          &END
         &END
         &HILLS OFF
         &END

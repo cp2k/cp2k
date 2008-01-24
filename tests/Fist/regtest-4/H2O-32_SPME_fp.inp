@@ -180,25 +180,37 @@ H    3.3743079408139188E+01   -1.6316055340317995E-01    8.9023205078769010E+00 
     &END
     &PRINT
       &ENERGY
-         EACH 10
+         &EACH
+           MD 10
+         &END
       &END
       &program_run_info
-         EACH 10
+         &EACH 
+           MD 10
+         &END
       &END
     &END
   &END MD
   &PRINT 
     &RESTART
-       EACH 100000
+       &EACH
+         MD 100000
+       &END
     &END
     &RESTART_HISTORY
-       EACH 100000
+       &EACH 
+         MD 100000
+       &END
     &END
     &VELOCITIES OFF
-       EACH 10000
+       &EACH
+         MD 10000
+       &END
     &END
     &TRAJECTORY
-       EACH 100
+       &EACH
+         MD 100
+       &END
     &END
   &END
   &CONSTRAINT
@@ -220,7 +232,9 @@ H    3.3743079408139188E+01   -1.6316055340317995E-01    8.9023205078769010E+00 
     SMOOTH_WIDTH 0.02
     TEMPERATURE 300
     &WEIGHTS
-       EACH 1
+       &EACH
+         MD 1
+       &END
     &END
   &END FLEXIBLE_PARTITIONING
 &END MOTION

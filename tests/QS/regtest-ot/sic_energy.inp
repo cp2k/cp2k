@@ -13,7 +13,9 @@
     &END
     &PRINT
       &E_DENSITY_CUBE ON
-          EACH 20
+          &EACH
+            MD 20
+          &END
       &END E_DENSITY_CUBE
     &END
     &MGRID
@@ -87,10 +89,11 @@ ABC 5.0 5.0 5.0
   &END MD
   &PRINT
    &VELOCITIES OFF
-     EACH 10000
    &END
    &TRAJECTORY
-     EACH 4
+     &EACH
+       MD 4
+     &END
    &END
   &END
 &END MOTION

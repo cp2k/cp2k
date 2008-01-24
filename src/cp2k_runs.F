@@ -322,8 +322,7 @@ CONTAINS
              CASE default
                 CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
              END SELECT
-             CALL cp_rm_iter_level(sublogger%iter_info,&
-                  n_rlevel_att=iter_level,&
+             CALL cp_rm_iter_level(sublogger%iter_info,level_name="JUST_ENERGY",n_rlevel_att=iter_level,&
                   error=suberror)
           CASE (mol_dyn_run)
              CALL qs_mol_dyn ( force_env, globenv, error=suberror )

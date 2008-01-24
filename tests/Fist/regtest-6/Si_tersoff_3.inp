@@ -116,7 +116,9 @@ SI     9.504075    6.788625    9.504075
   &END MD
   &PRINT
     &RESTART
-      EACH 50
+      &EACH
+        MD 50
+      &END
       FILENAME file.restart
     &END
   &END 

@@ -703,8 +703,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'hills', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ih, iter_level, iw, j, &
-                                                n_colvar, n_step, ndum, stat
+    INTEGER                                  :: i, ih, iw, j, n_colvar, &
+                                                n_step, ndum, stat
     INTEGER, POINTER                         :: n_hills
     LOGICAL                                  :: explicit, failure
     REAL(dp)                                 :: dfunc, diff_ss, dp2, rval, &
@@ -729,8 +729,7 @@ CONTAINS
     n_hills         => hills_env%n_hills
     colvars         => meta_env%metavar
     ! Create a temporary logger level specific for metadynamics
-    CALL cp_add_iter_level(logger%iter_info,"METADYNAMICS",n_rlevel_new=iter_level,&
-         error=error)
+    CALL cp_add_iter_level(logger%iter_info,"METADYNAMICS",error=error)
     CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=n_hills,error=error)   
     !
     ALLOCATE(ddp(meta_env%n_colvar), stat=stat)
@@ -900,8 +899,7 @@ CONTAINS
     ENDDO
     DEALLOCATE(ddp, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-    CALL cp_rm_iter_level(logger%iter_info,n_rlevel_att=iter_level,&
-         error=error)    
+    CALL cp_rm_iter_level(logger%iter_info,"METADYNAMICS",error=error)    
   END SUBROUTINE hills
 
 !!****f* metadynamics/walls *

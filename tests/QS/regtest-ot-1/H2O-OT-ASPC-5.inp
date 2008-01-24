@@ -23,7 +23,12 @@
            BACKUP_COPIES 0
         &END
         &RESTART_HISTORY
-           EACH 1 1 0
+           &EACH
+             __ROOT__ 1
+             MD       1
+             QS_SCF   0
+           &END
+           LOG_PRINT_KEY
            ADD_LAST NUMERIC
            FILENAME =RESTART
            BACKUP_COPIES 4
