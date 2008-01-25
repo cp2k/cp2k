@@ -607,7 +607,7 @@ CONTAINS
           subsys_section => section_vals_get_subs_vals3(force_env_sections,"SUBSYS",&
                i_rep_section=i_force_eval(iforce_eval),error=error)
           CALL section_vals_get(subsys_section, explicit=explicit, error=error)
-          coord_file_name = "__STD_INPU__"
+          coord_file_name = "__STD_INPUT__"
           IF (explicit) THEN 
              CALL section_vals_val_get(subsys_section,"TOPOLOGY%COORD_FILE_NAME",&
                   n_rep_val=n_rep_val, error=error)
