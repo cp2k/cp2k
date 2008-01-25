@@ -1060,11 +1060,11 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
 
       SELECT CASE ( force_env%in_use )
       CASE ( use_fist_force )
-         WRITE(unit,10000) ' RUN_TYPE     DEBUG'
+         WRITE(unit,10000) ' RUN_TYPE     ENERGY_FORCE'
       CASE (use_qs_force)
          WRITE(unit,10000) ' RUN_TYPE     ENERGY_FORCE'
       CASE (use_kg_force)
-         WRITE(unit,10000) ' RUN_TYPE     ENERGY_FORCE'
+         WRITE(unit,10000) ' RUN_TYPE     ENERGY_FORCE' 
       END SELECT
 
       WRITE(unit,10000) ' PROJECT      H2O_MC'
@@ -1250,7 +1250,7 @@ SUBROUTINE mc_make_dat_file_new(coordinates,atom_names,nunits_tot,&
       ENDDO 
       SELECT CASE ( in_use )
       CASE ( use_fist_force )
-         WRITE(unit,'(A)') '  RUN_TYPE     DEBUG'
+         WRITE(unit,'(A)') '  RUN_TYPE     ENERGY_FORCE'
       CASE (use_qs_force)
          WRITE(unit,'(A)') '  RUN_TYPE     ENERGY_FORCE'
       CASE (use_kg_force)
